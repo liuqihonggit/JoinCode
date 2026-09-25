@@ -39,7 +39,7 @@ public class CompletionTriggerRegistryTests {
 
     [Fact]
     public void All_ReturnsThreeProviders() {
-        CompletionTriggerRegistry.All.Should().HaveCount(3);
+        CompletionTriggerRegistry.GetAllProviders().Should().HaveCount(3);
     }
 
     [Fact]

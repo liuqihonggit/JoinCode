@@ -13,8 +13,17 @@ public interface ISandboxManager : IAsyncDisposable {
     string? CurrentSandboxId { get; }
     /// <summary>获取健康状态。</summary>
     SandboxHealthState HealthState { get; }
-    /// <summary>获取可用沙箱类型集合。</summary>
-    IEnumerable<SandboxType> AvailableTypes { get; }
+    /// <summary>
+    /// 沙箱类型是否可用 — O(1) 查询
+    /// </summary>
+    /// <param name="type">沙箱类型</param>
+    /// <returns>可用返回 true</returns>
+    bool IsTypeAvailable(SandboxType type);
+    /// <summary>
+    /// 获取可用沙箱类型的快照拷贝 — 用于枚举/显示
+    /// </summary>
+    /// <returns>沙箱类型数组快照</returns>
+    SandboxType[] GetAvailableTypes();
 
     /// <summary>进入沙箱。</summary>
     /// <param name="options">沙箱选项。</param>

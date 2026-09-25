@@ -316,7 +316,7 @@ public class OpenAIQueryService : QueryServiceBase {
         var tools = new List<OpenAITool>();
         var toolGroups = new List<OpenAIToolGroup>();
 
-        foreach (var pluginName in kernel.Plugins.PluginNames) {
+        foreach (var pluginName in kernel.Plugins.GetPluginNames()) {
             var plugin = kernel.Plugins.GetPlugin(pluginName);
             if (plugin is not IToolGroup group)
                 continue;
@@ -360,7 +360,7 @@ public class OpenAIQueryService : QueryServiceBase {
         }
 
         var descriptions = new List<OpenAITool>();
-        foreach (var pluginName in kernel.Plugins.PluginNames) {
+        foreach (var pluginName in kernel.Plugins.GetPluginNames()) {
             var plugin = kernel.Plugins.GetPlugin(pluginName);
             if (plugin is not IToolGroup group)
                 continue;

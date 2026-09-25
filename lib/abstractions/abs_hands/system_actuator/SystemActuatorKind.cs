@@ -45,9 +45,10 @@ public sealed class SystemActuatorKind {
             k => k.Id, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// 所有已注册的执行器类型
+    /// 所有已注册的执行器类型的快照拷贝 — 用于枚举
     /// </summary>
-    public static IReadOnlyCollection<SystemActuatorKind> All => _registry.Values;
+    /// <returns>执行器类型数组快照</returns>
+    public static SystemActuatorKind[] GetAll() => _registry.Values.ToArray();
 
     /// <summary>
     /// 从字符串标识解析执行器类型，支持别名（pwsh→PowerShell, python3/py→Python）

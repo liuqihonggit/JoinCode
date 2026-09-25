@@ -189,7 +189,7 @@ public sealed class ProviderDefinitionPolymorphismTests {
 
     [Fact]
     public void Registry_AllProviders_ShouldBeRegistered() {
-        var providers = Registry.RegisteredProviders;
+        var providers = Registry.GetRegisteredProviders();
         providers.Should().Contain("azure");
     }
 

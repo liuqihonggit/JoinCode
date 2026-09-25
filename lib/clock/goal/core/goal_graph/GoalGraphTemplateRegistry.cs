@@ -24,5 +24,5 @@ public sealed class GoalGraphTemplateRegistry : ServiceEntity, IGoalGraphTemplat
     }
 
     /// <inheritdoc />
-    public IEnumerable<GoalGraphTemplate> GetAll() => _templates.Values;
+    public GoalGraphTemplate[] GetAll() => _templates.Values.ToArray();
 }

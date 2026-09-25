@@ -167,6 +167,6 @@ internal sealed class FakeMailbox : IMailbox
     }
     public Task BroadcastAsync(CoordinatorMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
     public IAsyncEnumerable<CoordinatorMessage> ReceiveAsync(string agentId, CancellationToken cancellationToken = default) => AsyncEnumerable.Empty<CoordinatorMessage>();
-    public IEnumerable<string> GetRegisteredAgents() => [];
+    public string[] GetRegisteredAgents() => [];
     public string? GetSessionId(string agentId) => null;
 }

@@ -17,9 +17,9 @@ public sealed partial class PeerDiscoveryService : ServiceEntity, IPeerDiscovery
         _logger = logger;
     }
 
-    /// <summary>获取当前已连接的所有对等端快照。</summary>
-    /// <returns>当前已连接对等端的可枚举集合。</returns>
-    public IEnumerable<PeerInfo> GetConnectedPeers() => _peers.Values;
+    /// <summary>获取当前已连接的所有对等端快照拷贝。</summary>
+    /// <returns>当前已连接对等端的数组快照。</returns>
+    public PeerInfo[] GetConnectedPeers() => _peers.Values.ToArray();
 
     /// <summary>添加一个对等端到已连接集合，并触发 <see cref="PeerConnected"/> 事件。</summary>
     /// <param name="peer">要添加的对等端信息。</param>

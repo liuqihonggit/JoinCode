@@ -22,9 +22,14 @@ public sealed partial class SynonymMap : ServiceEntity, ISynonymMap {
     }
 
     /// <summary>
-    /// 获取所有同义词条目的只读视图。
+    /// 同义词条目数量
     /// </summary>
-    public IReadOnlyDictionary<string, string> Entries => _map;
+    public int Count => _map.Count;
+
+    /// <summary>
+    /// 获取所有同义词条目的快照 — 用于遍历
+    /// </summary>
+    public IReadOnlyDictionary<string, string> GetAllEntries() => _map;
 
     /// <summary>
     /// 尝试获取指定键对应的标准词。

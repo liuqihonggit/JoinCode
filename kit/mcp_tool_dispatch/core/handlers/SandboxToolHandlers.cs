@@ -45,10 +45,10 @@ public sealed class SandboxToolHandlers {
                 .Build();
         }
 
-        if (!_sandboxManager.AvailableTypes.Contains(type.Value)) {
+        if (!_sandboxManager.IsTypeAvailable(type.Value)) {
             if (!allowFallback.Equals("true", StringComparison.OrdinalIgnoreCase)) {
                 return ToolResultBuilder.Error()
-                    .WithText($"沙箱类型 '{sandboxType}' 在当前平台不可用。可用类型: {string.Join(", ", _sandboxManager.AvailableTypes.Select(t => t.ToValue()))}。设置 allowFallback=true 可自动降级。")
+                    .WithText($"沙箱类型 '{sandboxType}' 在当前平台不可用。可用类型: {string.Join(", ", _sandboxManager.GetAvailableTypes().Select(t => t.ToValue()))}。设置 allowFallback=true 可自动降级。")
                     .Build();
             }
 
@@ -86,7 +86,7 @@ public sealed class SandboxToolHandlers {
             }
 
             return ToolResultBuilder.Error()
-                .WithText($"进入沙箱失败: {ex.Message}。可用类型: {string.Join(", ", _sandboxManager.AvailableTypes.Select(t => t.ToValue()))}。设置 allowFallback=true 可自动降级。")
+                .WithText($"进入沙箱失败: {ex.Message}。可用类型: {string.Join(", ", _sandboxManager.GetAvailableTypes().Select(t => t.ToValue()))}。设置 allowFallback=true 可自动降级。")
                 .Build();
         }
     }
@@ -143,9 +143,9 @@ public sealed class SandboxToolHandlers {
                 .Build();
         }
 
-        if (!_sandboxManager.AvailableTypes.Contains(type.Value)) {
+        if (!_sandboxManager.IsTypeAvailable(type.Value)) {
             return ToolResultBuilder.Error()
-                .WithText($"沙箱类型 '{sandboxType}' 在当前平台不可用。可用类型: {string.Join(", ", _sandboxManager.AvailableTypes.Select(t => t.ToValue()))}")
+                .WithText($"沙箱类型 '{sandboxType}' 在当前平台不可用。可用类型: {string.Join(", ", _sandboxManager.GetAvailableTypes().Select(t => t.ToValue()))}")
                 .Build();
         }
 
@@ -193,7 +193,7 @@ public sealed class SandboxToolHandlers {
             response.AppendLine("使用 sandbox_enter 进入沙箱以获得隔离保护。");
         }
 
-        response.AppendLine($"Available types: {string.Join(", ", _sandboxManager.AvailableTypes.Select(t => t.ToValue()))}");
+        response.AppendLine($"Available types: {string.Join(", ", _sandboxManager.GetAvailableTypes().Select(t => t.ToValue()))}");
         response.AppendLine($"Health: {_sandboxManager.HealthState.ToValue()}");
 
         if (_sandboxManager.HealthState == SandboxHealthState.Fallback) {

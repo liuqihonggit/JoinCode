@@ -32,12 +32,12 @@ public static class SynonymAnalyzer {
     /// <param name="synonymMap">同义词映射表。</param>
     /// <returns>匹配结果列表；输入为空或映射表无条目时返回空列表。</returns>
     public static IReadOnlyList<SynonymMatchResult> Analyze(string input, ISynonymMap synonymMap) {
-        if (string.IsNullOrWhiteSpace(input) || synonymMap.Entries.Count == 0) {
+        if (string.IsNullOrWhiteSpace(input) || synonymMap.Count == 0) {
             return [];
         }
 
         var ac = AhoCorasick<(string Key, string Content)>.Create(
-            synonymMap.Entries
+            synonymMap.GetAllEntries()
                 .Where(static kv => !string.IsNullOrEmpty(kv.Key))
                 .Select(static kv => new KeyValuePair<string, (string, string)>(kv.Key, (kv.Key, kv.Value))),
             ignoreCase: true);

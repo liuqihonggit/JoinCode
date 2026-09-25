@@ -22,7 +22,7 @@ public sealed class ProviderPicker {
         }
         TerminalHelper.NewLine();
 
-        var providers = registry.RegisteredProviders
+        var providers = registry.GetRegisteredProviders()
             .Select(p => registry.TryGet(p))
             .Where(p => p is not null)
             .Select(p => p!)

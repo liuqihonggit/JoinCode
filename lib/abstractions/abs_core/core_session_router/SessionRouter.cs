@@ -46,8 +46,8 @@ public static class SessionRouter {
         return _scopes.TryGetValue(sessionId, out var scope) && scope.TryGet(entityId, out entity);
     }
 
-    /// <summary>获取所有会话作用域 — 不分配新集合</summary>
-    public static IEnumerable<SessionScope> GetAllScopes() => _scopes.Values;
+    /// <summary>获取所有会话作用域的快照拷贝</summary>
+    public static SessionScope[] GetAllScopes() => _scopes.Values.ToArray();
 
     /// <summary>
     /// 移除会话作用域 — DisposeAsync 其所有 Entity，返回是否移除成功

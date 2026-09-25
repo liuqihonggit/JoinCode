@@ -31,9 +31,22 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
     }
 
     /// <summary>
-    /// 已注册的供应商名称集合
+    /// 供应商是否已注册 — O(1) 查询
     /// </summary>
-    public IReadOnlyCollection<string> RegisteredProviders => _definitions.Keys;
+    /// <param name="providerName">供应商名称</param>
+    /// <returns>已注册返回 true</returns>
+    public bool Contains(string providerName) {
+        ArgumentNullException.ThrowIfNull(providerName);
+        return _definitions.ContainsKey(providerName);
+    }
+
+    /// <summary>
+    /// 获取已注册供应商名称的快照拷贝 — 用于枚举/显示
+    /// </summary>
+    /// <returns>供应商名称数组快照</returns>
+    public string[] GetRegisteredProviders() {
+        return _definitions.Keys.ToArray();
+    }
 
     private static async ValueTask ApplyVendorFromSettingsAsync(Dictionary<string, IProviderDefinition> dict, IModelConfigLoader modelConfigLoader, IFileSystem? fs, ILogger? logger) {
         var settingsPath = Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);

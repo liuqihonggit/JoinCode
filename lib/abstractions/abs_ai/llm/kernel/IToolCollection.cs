@@ -11,6 +11,6 @@ public interface IToolCollection {
     void Add(IToolGroup plugin);
     /// <summary>按名称移除工具分组。</summary>
     bool Remove(string name);
-    /// <summary>获取所有插件名称集合。</summary>
-    IEnumerable<string> PluginNames { get; }
+    /// <summary>获取所有插件名称的快照拷贝。</summary>
+    string[] GetPluginNames();
 }

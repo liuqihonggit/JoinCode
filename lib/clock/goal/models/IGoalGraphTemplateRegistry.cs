@@ -18,8 +18,8 @@ public interface IGoalGraphTemplateRegistry {
     GoalGraphTemplate? FindMatch(string objective);
 
     /// <summary>
-    /// 获取全部已注册模板
+    /// 获取全部已注册模板的快照拷贝
     /// </summary>
-    /// <returns>全部模板的枚举器</returns>
-    IEnumerable<GoalGraphTemplate> GetAll();
+    /// <returns>全部模板的数组快照</returns>
+    GoalGraphTemplate[] GetAll();
 }

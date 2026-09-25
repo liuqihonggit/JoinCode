@@ -132,11 +132,11 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
     }
 
     /// <summary>
-    /// 获取所有已注册技能的插件名称
+    /// 获取所有已注册技能的插件名称的快照拷贝
     /// </summary>
-    /// <returns>插件名称可枚举集合</returns>
-    public IEnumerable<string> GetPluginsWithSkills() {
-        return _pluginSkillMap.Keys;
+    /// <returns>插件名称数组快照</returns>
+    public string[] GetPluginsWithSkills() {
+        return _pluginSkillMap.Keys.ToArray();
     }
 
     /// <summary>

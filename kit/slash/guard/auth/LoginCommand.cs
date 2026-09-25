@@ -28,7 +28,7 @@ public sealed class LoginCommand : ChatCommandBase {
         if (definition is null) {
             var registry = ChatCommandBase.GetService<IProviderDefinitionRegistry>(context, typeof(IProviderDefinitionRegistry));
             TerminalHelper.WriteLine($"{TerminalColors.Error}不支持的提供商: {providerName}{AnsiStyleEnumConstants.Reset}");
-            TerminalHelper.WriteLine($"支持的提供商: {string.Join(", ", registry?.RegisteredProviders ?? [])}");
+            TerminalHelper.WriteLine($"支持的提供商: {string.Join(", ", registry?.GetRegisteredProviders() ?? [])}");
             return ChatCommandResult.Continue();
         }
 

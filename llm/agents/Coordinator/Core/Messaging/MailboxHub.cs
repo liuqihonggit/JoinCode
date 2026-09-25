@@ -269,14 +269,16 @@ public sealed partial class MailboxHub {
         _inProcess.UnregisterAgent(agentId);
     }
 
-    /// <summary>获取所有已注册 agent — 跨通道聚合。</summary>
-    public IEnumerable<string> GetRegisteredAgents() {
-        foreach (var agentId in _inProcess.GetRegisteredAgents())
-            yield return agentId;
+    /// <summary>获取所有已注册 agent — 跨通道聚合的快照拷贝。</summary>
+    public string[] GetRegisteredAgents() {
+        var result = new List<string>();
+        var inProcessAgents = _inProcess.GetRegisteredAgents();
+        result.AddRange(inProcessAgents);
         foreach (var (_, mailbox) in _extraChannels)
             foreach (var agentId in mailbox.GetRegisteredAgents())
-                if (!_inProcess.GetRegisteredAgents().Contains(agentId))
-                    yield return agentId;
+                if (!inProcessAgents.Contains(agentId))
+                    result.Add(agentId);
+        return result.ToArray();
     }
 
     /// <summary>获取 agent 的会话 ID（从进程内邮箱查询）。</summary>

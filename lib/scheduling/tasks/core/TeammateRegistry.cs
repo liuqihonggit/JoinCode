@@ -49,8 +49,8 @@ internal sealed class TeammateRegistry {
     public bool Contains(string teammateId)
         => _activeTeammates.ContainsKey(teammateId);
 
-    /// <summary>所有活跃 teammate ID</summary>
-    public IEnumerable<string> Keys => _activeTeammates.Keys;
+    /// <summary>所有活跃 teammate ID 的快照拷贝</summary>
+    public string[] GetAllTeammateIds() => _activeTeammates.Keys.ToArray();
 
     /// <summary>生成所有活跃 teammate 的状态快照 — 供 GUI 渲染子会话树</summary>
     public IEnumerable<TeammateStateSnapshot> GetSnapshots()

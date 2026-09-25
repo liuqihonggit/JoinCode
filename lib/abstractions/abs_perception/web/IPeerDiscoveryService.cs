@@ -10,8 +10,8 @@ public sealed class PeerInfo {
 }
 
 public interface IPeerDiscoveryService {
-    /// <summary>获取已连接的节点列表。</summary>
-    IEnumerable<PeerInfo> GetConnectedPeers();
+    /// <summary>获取已连接的节点列表的快照拷贝。</summary>
+    PeerInfo[] GetConnectedPeers();
     event EventHandler<PeerInfo>? PeerConnected;
     event EventHandler<string>? PeerDisconnected;
 }

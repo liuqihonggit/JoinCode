@@ -58,11 +58,11 @@ public sealed partial class PromptTestReporter {
         sb.AppendLine("测试摘要");
         sb.AppendLine("----------------------------------------");
         sb.AppendLine($"总测试数: {report.TotalCount}");
-        sb.AppendLine($"通过: {report.CorrectCount}");
-        sb.AppendLine($"失败: {report.IncorrectCount}");
-        sb.AppendLine($"触发: {report.TriggeredCount}");
-        sb.AppendLine($"未触发: {report.NotTriggeredCount}");
-        sb.AppendLine($"总耗时: {report.TotalDuration.TotalMilliseconds:F1}ms");
+        sb.AppendLine($"通过: {report.GetCorrectCount()}");
+        sb.AppendLine($"失败: {report.GetIncorrectCount()}");
+        sb.AppendLine($"触发: {report.GetTriggeredCount()}");
+        sb.AppendLine($"未触发: {report.GetNotTriggeredCount()}");
+        sb.AppendLine($"总耗时: {report.GetTotalDuration().TotalMilliseconds:F1}ms");
         sb.AppendLine();
 
         // 按场景分组显示
@@ -118,10 +118,10 @@ public sealed partial class PromptTestReporter {
 
         // 最终结论
         sb.AppendLine("========================================");
-        if (report.IncorrectCount == 0) {
+        if (report.GetIncorrectCount() == 0) {
             sb.AppendLine($"{StatusSymbol.Tick.ToValue()} 所有Section触发逻辑正确！");
         } else {
-            sb.AppendLine($"{StatusSymbol.Cross.ToValue()} 发现 {report.IncorrectCount} 个触发逻辑错误");
+            sb.AppendLine($"{StatusSymbol.Cross.ToValue()} 发现 {report.GetIncorrectCount()} 个触发逻辑错误");
         }
         sb.AppendLine("========================================");
 
@@ -144,11 +144,11 @@ public sealed partial class PromptTestReporter {
             .WithTitle("测试摘要")
             .AddHeader("指标", "数值")
             .AddRow("总测试数", report.TotalCount.ToString())
-            .AddRow("通过", report.CorrectCount.ToString())
-            .AddRow("失败", report.IncorrectCount.ToString())
-            .AddRow("触发", report.TriggeredCount.ToString())
-            .AddRow("未触发", report.NotTriggeredCount.ToString())
-            .AddRow("总耗时", $"{report.TotalDuration.TotalMilliseconds:F1}ms")
+            .AddRow("通过", report.GetCorrectCount().ToString())
+            .AddRow("失败", report.GetIncorrectCount().ToString())
+            .AddRow("触发", report.GetTriggeredCount().ToString())
+            .AddRow("未触发", report.GetNotTriggeredCount().ToString())
+            .AddRow("总耗时", $"{report.GetTotalDuration().TotalMilliseconds:F1}ms")
             .Build();
         sb.Append(summaryTable);
         sb.AppendLine();

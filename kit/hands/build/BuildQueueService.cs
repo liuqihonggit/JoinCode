@@ -96,7 +96,7 @@ public sealed partial class BuildQueueService : BuildQueueBase {
 
     /// <inheritdoc />
     public override BuildQueueStatus GetStatus() {
-        var pendingCount = _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Queued);
+        var pendingCount = _store.GetAllEntries().Count(e => e.Status == BuildQueueEntryStatus.Queued);
         var isBuilding = _currentBuild is not null && _currentBuild.Status == BuildQueueEntryStatus.Building;
 
         return new BuildQueueStatus {
@@ -104,7 +104,7 @@ public sealed partial class BuildQueueService : BuildQueueBase {
             IsBuilding = isBuilding,
             CurrentBuildId = _currentBuild?.BuildId,
             CurrentBuildAgentId = _currentBuild?.Request.AgentId,
-            RecentBuilds = _store.Entries
+            RecentBuilds = _store.GetAllEntries()
                 .OrderByDescending(e => e.Request.SubmittedAt)
                 .Take(10)
                 .ToList()
@@ -141,7 +141,7 @@ public sealed partial class BuildQueueService : BuildQueueBase {
             entry.StartedAt = DateTimeOffset.UtcNow;
 
             _logger?.LogInformation("Build {BuildId} started (checkpoint): queuePos={QueuePos}, pending={Pending}",
-                entry.BuildId, entry.QueuePosition, _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Queued));
+                entry.BuildId, entry.QueuePosition, _store.GetAllEntries().Count(e => e.Status == BuildQueueEntryStatus.Queued));
 
             var waitStart = DateTimeOffset.UtcNow;
 
@@ -194,7 +194,7 @@ public sealed partial class BuildQueueService : BuildQueueBase {
                 _currentBuildCts = null;
 
                 _logger?.LogDebug("Build {BuildId} checkpoint: status={Status}, remaining={Remaining}",
-                    entry.BuildId, entry.Status, _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Queued));
+                    entry.BuildId, entry.Status, _store.GetAllEntries().Count(e => e.Status == BuildQueueEntryStatus.Queued));
             }
         }
     }

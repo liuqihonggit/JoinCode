@@ -20,7 +20,7 @@ public sealed class ChatClientTests {
     public async Task Plugins_ReturnsEmptyCollectionByDefault() {
         await using var client = new ChatClient(new Mock<IQueryService>().Object);
 
-        client.Plugins.PluginNames.Should().BeEmpty();
+        client.Plugins.GetPluginNames().Should().BeEmpty();
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class ChatClientTests {
         collection.GetPlugin("test").Should().BeNull();
 
         collection.Add(group);
-        collection.PluginNames.Should().ContainSingle("test");
+        collection.GetPluginNames().Should().ContainSingle("test");
         collection.GetPlugin("test").Should().BeSameAs(group);
 
         collection.Remove("test").Should().BeTrue();

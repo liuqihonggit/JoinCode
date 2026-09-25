@@ -101,8 +101,23 @@ public sealed class InvariantRegistry {
         return !AnyMatch(_blocklist, packageName);
     }
 
-    /// <summary>已注册的包名集合</summary>
-    public ICollection<string> RegisteredPackages => _registrations.Keys;
+    /// <summary>
+    /// 包是否已注册 — O(1) 查询
+    /// </summary>
+    /// <param name="packageName">包名</param>
+    /// <returns>已注册返回 true</returns>
+    public bool Contains(string packageName) {
+        ArgumentNullException.ThrowIfNull(packageName);
+        return _registrations.ContainsKey(packageName);
+    }
+
+    /// <summary>
+    /// 获取已注册包名的快照拷贝 — 用于枚举/显示
+    /// </summary>
+    /// <returns>包名数组快照</returns>
+    public string[] GetRegisteredPackages() {
+        return _registrations.Keys.ToArray();
+    }
 
     private static bool AnyMatch(Regex[] regexes, string input) {
         for (var i = 0; i < regexes.Length; i++) {

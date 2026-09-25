@@ -69,8 +69,8 @@ public sealed class SessionScope : IAsyncDisposable {
     /// <summary>是否包含指定 Entity</summary>
     public bool Contains(ObjectId entityId) => _entities.ContainsKey(entityId);
 
-    /// <summary>获取此会话所有 Entity — 不分配新集合</summary>
-    public IEnumerable<Entity> GetAll() => _entities.Values;
+    /// <summary>获取此会话所有 Entity 的快照拷贝</summary>
+    public Entity[] GetAll() => _entities.Values.ToArray();
 
     /// <summary>
     /// 按 ObjectType 分桶获取 — O(1) 索引查找，对应注册工厂 map(ObjectType -&gt; HashSet of ObjectId)

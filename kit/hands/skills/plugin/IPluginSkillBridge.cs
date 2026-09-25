@@ -27,8 +27,8 @@ public interface IPluginSkillBridge : IAsyncDisposable {
     Task<IReadOnlyList<SkillDefinition>> GetPluginSkillsAsync(string pluginName);
 
     /// <summary>
-    /// 获取所有已注册技能的插件名称
+    /// 获取所有已注册技能的插件名称的快照拷贝
     /// </summary>
-    /// <returns>插件名称可枚举集合</returns>
-    IEnumerable<string> GetPluginsWithSkills();
+    /// <returns>插件名称数组快照</returns>
+    string[] GetPluginsWithSkills();
 }

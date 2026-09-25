@@ -69,9 +69,9 @@ public sealed class ParallelTaskScheduler {
     }
 
     /// <summary>
-    /// 获取所有已注册的任务 — 零拷贝值视图
+    /// 获取所有已注册任务的快照拷贝
     /// </summary>
-    public IEnumerable<ScheduledTask> GetAllTasks() => _scheduledTasks.Values;
+    public ScheduledTask[] GetAllTasks() => _scheduledTasks.Values.ToArray();
 
     /// <summary>
     /// 获取指定状态的任务

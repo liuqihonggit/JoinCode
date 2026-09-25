@@ -350,8 +350,8 @@ public class NotebookToolHandlers {
         response.AppendLine(L.T(StringKey.NotebookPathLabel, file_path));
         response.AppendLine(L.T(StringKey.NotebookFormatVersion, notebook.NbFormat, notebook.NbFormatMinor));
         response.AppendLine(L.T(StringKey.NotebookTotalCells, notebook.CellCount));
-        response.AppendLine(L.T(StringKey.NotebookCodeCells, notebook.CodeCellCount));
-        response.AppendLine(L.T(StringKey.NotebookMarkdownCells, notebook.MarkdownCellCount));
+        response.AppendLine(L.T(StringKey.NotebookCodeCells, notebook.GetCodeCellCount()));
+        response.AppendLine(L.T(StringKey.NotebookMarkdownCells, notebook.GetMarkdownCellCount()));
 
         if (notebook.Metadata.KernelSpec != null) {
             response.AppendLine(L.T(StringKey.NotebookKernelLabel, $"{notebook.Metadata.KernelSpec.DisplayName} ({notebook.Metadata.KernelSpec.Language})"));

@@ -29,7 +29,7 @@ public class ChatClientTests {
         client.Plugins.Add(plugin);
 
         client.Plugins.GetPlugin("test").Should().BeSameAs(plugin);
-        client.Plugins.PluginNames.Should().Contain("test");
+        client.Plugins.GetPluginNames().Should().Contain("test");
     }
 
     [Fact]

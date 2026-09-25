@@ -326,6 +326,7 @@ public class SettingsMapperTests {
         }
 
         public IProviderDefinition? TryGet(string providerName) => _definitions.GetValueOrDefault(providerName);
-        public IReadOnlyCollection<string> RegisteredProviders => _definitions.Keys;
+        public bool Contains(string providerName) => _definitions.ContainsKey(providerName);
+        public string[] GetRegisteredProviders() => _definitions.Keys.ToArray();
     }
 }

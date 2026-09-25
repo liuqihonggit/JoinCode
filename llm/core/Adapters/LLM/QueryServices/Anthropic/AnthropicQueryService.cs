@@ -326,7 +326,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         var tools = new List<AnthropicToolDefinition>();
         var toolGroups = new List<OpenAIToolGroup>();
 
-        foreach (var pluginName in kernel.Plugins.PluginNames) {
+        foreach (var pluginName in kernel.Plugins.GetPluginNames()) {
             var plugin = kernel.Plugins.GetPlugin(pluginName);
             if (plugin is not IToolGroup group)
                 continue;
@@ -368,7 +368,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         }
 
         var descriptions = new List<AnthropicToolDefinition>();
-        foreach (var pluginName in kernel.Plugins.PluginNames) {
+        foreach (var pluginName in kernel.Plugins.GetPluginNames()) {
             var plugin = kernel.Plugins.GetPlugin(pluginName);
             if (plugin is not IToolGroup group)
                 continue;

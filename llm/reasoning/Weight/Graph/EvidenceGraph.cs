@@ -139,9 +139,9 @@ public sealed class EvidenceGraph {
     public IReadOnlyDictionary<string, EvidenceGraphNode> GetAllNodes() => _nodes;
 
     /// <summary>
-    /// 获取所有边
+    /// 获取所有边的快照拷贝
     /// </summary>
-    public IEnumerable<EvidenceGraphEdge> GetAllEdges() => _edges.Values;
+    public EvidenceGraphEdge[] GetAllEdges() => _edges.Values.ToArray();
 
     private List<EvidenceGraphNode> GetNeighbors(string nodeId) {
         var neighborIds = _edges.Values

@@ -48,6 +48,6 @@ public static class CompletionTriggerRegistry {
     public static ICompletionProvider? TryGet(char triggerChar)
         => _providers.TryGetValue(triggerChar, out var p) ? p : null;
 
-    /// <summary>全部已注册 Provider（供 Parser 遍历触发符用）</summary>
-    public static IReadOnlyCollection<ICompletionProvider> All => _providers.Values;
+    /// <summary>全部已注册 Provider 的快照拷贝 — 供 Parser 遍历触发符用</summary>
+    public static ICompletionProvider[] GetAllProviders() => _providers.Values.ToArray();
 }

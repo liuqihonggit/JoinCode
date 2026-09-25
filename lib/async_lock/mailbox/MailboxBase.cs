@@ -163,8 +163,8 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
         return AsyncEnumerable.Empty<TMessage>();
     }
 
-    /// <summary>获取所有已注册 Agent 标识 — 零拷贝键视图。</summary>
-    public IEnumerable<string> GetRegisteredAgents() => _agentMailboxes.Keys;
+    /// <summary>获取所有已注册 Agent 标识的快照拷贝。</summary>
+    public string[] GetRegisteredAgents() => _agentMailboxes.Keys.ToArray();
 
     /// <summary>获取指定 Agent 关联的会话 ID。</summary>
     /// <param name="agentId">Agent 标识</param>

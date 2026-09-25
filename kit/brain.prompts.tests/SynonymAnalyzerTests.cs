@@ -112,7 +112,7 @@ public class SynonymMapTests {
     public async Task DefaultConstructor_CreatesEmptyMap() {
         await using var map = new SynonymMap();
 
-        map.Entries.Should().BeEmpty();
+        map.GetAllEntries().Should().BeEmpty();
         map.ContainsKey("anything").Should().BeFalse();
     }
 
@@ -124,7 +124,7 @@ public class SynonymMapTests {
         };
         await using var map = new SynonymMap(dict);
 
-        map.Entries.Should().HaveCount(2);
+        map.GetAllEntries().Should().HaveCount(2);
         map.ContainsKey("key1").Should().BeTrue();
         map.ContainsKey("key2").Should().BeTrue();
     }

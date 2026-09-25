@@ -170,7 +170,7 @@ public abstract partial class QueryServiceBase : IQueryService {
     #region 工具转换共享助手
 
     protected static IEnumerable<IToolDef> EnumerateToolFunctions(IChatClient kernel) {
-        return kernel.Plugins.PluginNames
+        return kernel.Plugins.GetPluginNames()
             .Select(name => kernel.Plugins.GetPlugin(name))
             .OfType<IToolGroup>()
             .SelectMany(p => p.Functions);

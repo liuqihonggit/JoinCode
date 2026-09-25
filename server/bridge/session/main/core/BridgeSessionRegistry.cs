@@ -62,8 +62,8 @@ internal sealed class BridgeSessionRegistry {
     public IEnumerable<BridgeSubprocessHandle> GetAllHandles()
         => _sessions.Values.Where(s => s.Handle is not null).Select(s => s.Handle!);
 
-    /// <summary>获取所有会话 ID</summary>
-    public IEnumerable<string> GetAllSessionIds() => _sessions.Keys;
+    /// <summary>获取所有会话 ID 的快照拷贝</summary>
+    public string[] GetAllSessionIds() => _sessions.Keys.ToArray();
 
     /// <summary>获取所有会话状态（sessionId → state）</summary>
     public IEnumerable<KeyValuePair<string, BridgeSessionState>> GetAllStates() => _sessions;

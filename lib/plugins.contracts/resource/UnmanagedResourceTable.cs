@@ -34,7 +34,7 @@ public sealed class UnmanagedResourceTable {
     public int Count => _resources.Count;
 
     /// <summary>估计总字节数</summary>
-    public long TotalEstimatedBytes => _resources.Values.Sum(e => e.EstimatedBytes);
+    public long GetTotalEstimatedBytes() => _resources.Values.Sum(e => e.EstimatedBytes);
 
     /// <summary>内部释放 — UnmanagedResourceHandle.Dispose 调用</summary>
     internal void ReleaseInternal(string key) {

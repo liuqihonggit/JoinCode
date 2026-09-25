@@ -48,7 +48,7 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
             Cli.TerminalHelper.WriteLine("  未检测到 API Key，请选择供应商配置:");
             Cli.TerminalHelper.NewLine();
 
-            var providers = _registry.RegisteredProviders
+            var providers = _registry.GetRegisteredProviders()
                 .Select(p => _registry.TryGet(p))
                 .OfType<IProviderDefinition>()
                 .ToList();

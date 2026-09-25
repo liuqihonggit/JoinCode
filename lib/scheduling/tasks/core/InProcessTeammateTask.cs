@@ -370,7 +370,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
     /// <inheritdoc/>
     public Task<IEnumerable<string>> GetActiveTeammatesAsync(CancellationToken ct = default) {
-        return Task.FromResult<IEnumerable<string>>(_registry.Keys);
+        return Task.FromResult<IEnumerable<string>>(_registry.GetAllTeammateIds());
     }
 
     /// <summary>

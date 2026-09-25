@@ -185,7 +185,8 @@ public sealed class DotEnvConfigTests {
         }
 
         var registryMock = new Mock<IProviderDefinitionRegistry>();
-        registryMock.Setup(r => r.RegisteredProviders).Returns(dict.Keys.ToList());
+        registryMock.Setup(r => r.GetRegisteredProviders()).Returns(dict.Keys.ToArray());
+        registryMock.Setup(r => r.Contains(It.IsAny<string>())).Returns<string>(name => dict.ContainsKey(name));
         registryMock.Setup(r => r.TryGet(It.IsAny<string>()))
             .Returns<string>(name => dict.GetValueOrDefault(name));
         return registryMock.Object;

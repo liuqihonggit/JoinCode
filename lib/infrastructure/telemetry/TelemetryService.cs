@@ -147,8 +147,8 @@ public sealed partial class TelemetryService : ITelemetryService {
     }
 
     /// <inheritdoc/>
-    public IEnumerable<string> GetRegisteredMetrics() {
-        return _metrics.Keys;
+    public string[] GetRegisteredMetrics() {
+        return _metrics.Keys.ToArray();
     }
 
     /// <summary>

@@ -7,8 +7,11 @@ public interface ISandboxProvider : IAsyncDisposable {
     bool IsAvailable { get; }
     /// <summary>获取沙箱能力。</summary>
     SandboxCapabilities Capabilities { get; }
-    /// <summary>获取活跃沙箱集合 — 不可变快照,消费者可直接并行枚举,无需拷贝。</summary>
-    IEnumerable<SandboxInfo> ActiveSandboxes { get; }
+    /// <summary>
+    /// 获取活跃沙箱的快照拷贝 — 用于枚举
+    /// </summary>
+    /// <returns>活跃沙箱数组快照</returns>
+    SandboxInfo[] GetActiveSandboxes();
 
     /// <summary>异步创建沙箱。</summary>
     Task<SandboxInfo> CreateSandboxAsync(SandboxOptions options, CancellationToken ct = default);

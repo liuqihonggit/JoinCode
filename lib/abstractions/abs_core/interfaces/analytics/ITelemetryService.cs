@@ -29,8 +29,8 @@ public interface ITelemetryService : IAsyncDisposable {
     /// <summary>获取所有活动跨度。</summary>
     IEnumerable<TelemetrySpanData> GetActiveSpans();
 
-    /// <summary>获取已注册指标名称列表。</summary>
-    IEnumerable<string> GetRegisteredMetrics();
+    /// <summary>获取已注册指标名称列表的快照拷贝。</summary>
+    string[] GetRegisteredMetrics();
 }
 
 public interface ITelemetrySpan : IAsyncDisposable {

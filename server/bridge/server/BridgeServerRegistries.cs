@@ -17,14 +17,14 @@ internal sealed class ClientRegistry {
     public bool TryGet(string clientId, [MaybeNullWhen(false)] out WebSocket webSocket)
         => _clients.TryGetValue(clientId, out webSocket);
 
-    /// <summary>所有客户端 ID</summary>
-    public IEnumerable<string> Keys => _clients.Keys;
+    /// <summary>所有客户端 ID 的快照拷贝</summary>
+    public string[] GetAllKeys() => _clients.Keys.ToArray();
 
     /// <summary>客户端数量</summary>
     public int Count => _clients.Count;
 
-    /// <summary>所有 WebSocket 连接</summary>
-    public IEnumerable<WebSocket> Values => _clients.Values;
+    /// <summary>所有 WebSocket 连接的快照拷贝</summary>
+    public WebSocket[] GetAllSockets() => _clients.Values.ToArray();
 
     /// <summary>清空所有客户端</summary>
     public void Clear() => _clients.Clear();

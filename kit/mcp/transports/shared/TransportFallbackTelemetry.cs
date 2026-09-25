@@ -61,10 +61,9 @@ public sealed class TransportFallbackTelemetry {
         sb.AppendLine($"Total Fallbacks: {report.Metrics.TotalFallbacks}");
         sb.AppendLine($"Avg Fallback Duration: {report.Metrics.AverageFallbackDurationMs:F1}ms");
 
-        for (var i = 0; i < report.Metrics.ConnectionAttempts.Length; i++) {
-            sb.AppendLine($"  Transport[{i}]: attempts={report.Metrics.ConnectionAttempts[i]}, " +
-                          $"successes={report.Metrics.ConnectionSuccesses[i]}, " +
-                          $"failures={report.Metrics.ConnectionFailures[i]}");
+        for (var i = 0; i < report.Metrics.TransportStats.Length; i++) {
+            var s = report.Metrics.TransportStats[i];
+            sb.AppendLine($"  Transport[{i}]: attempts={s.Attempts}, successes={s.Successes}, failures={s.Failures}");
         }
 
         sb.AppendLine();

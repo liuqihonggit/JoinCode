@@ -7,7 +7,9 @@ namespace Core.Prompts.Templates.Memory;
 /// <remarks>消费者: ExtractMemoriesCallback → IForkSubAgentManager.ForkAsync()</remarks>
 [PromptTemplate(Name = "extract_memories", Category = PromptTemplateCategory.Memory, Description = "记忆提取子代理提示词模板", HasParameters = true)]
 public static class ExtractMemoriesSection {
-    private static readonly string[] MemoryTypes = new[] { MessageRoleEnumConstants.User, "feedback", "project", "reference" };
+    // 记忆类型 — 对应 MemoryType 枚举的 [EnumValue] 值(user/feedback/project/reference)
+    // kit/prompts 不引用 lib/vault,无法直接使用 MemoryTypeEnumConstants
+    private static readonly string[] MemoryTypes = ["user", "feedback", "project", "reference"];
 
     private static string GetMemoryFrontmatterExample() {
         var memoryTypes = string.Join(", ", MemoryTypes);

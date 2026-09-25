@@ -120,22 +120,10 @@ public class PermissionConfig {
                 new SensitivePathPattern { Path = ".ssh\\", PathType = PathType.Contains, Description = "SSH目录" },
                 new SensitivePathPattern { Path = "/etc/", PathType = PathType.Contains, Description = "系统配置目录" }
             ],
-            DangerousCommandPatterns =
-            [
-                new DangerousCommandPattern { Pattern = "rm -rf /", Description = "删除根目录" },
-                new DangerousCommandPattern { Pattern = "del /f /s /q c:", Description = "删除C盘" },
-                new DangerousCommandPattern { Pattern = "format", Description = "格式化" },
-                new DangerousCommandPattern { Pattern = "fdisk", Description = "分区操作" },
-                new DangerousCommandPattern { Pattern = "mkfs", Description = "创建文件系统" },
-                new DangerousCommandPattern { Pattern = "dd if=", Description = "磁盘复制" },
-                new DangerousCommandPattern { Pattern = ":(){ :|:& };:", Description = "Fork炸弹" },
-                new DangerousCommandPattern { Pattern = "shutdown", Description = "关机" },
-                new DangerousCommandPattern { Pattern = "restart", Description = "重启" },
-                new DangerousCommandPattern { Pattern = "wmic", Description = "WMI命令" },
-                new DangerousCommandPattern { Pattern = "reg delete", Description = "删除注册表" },
-                new DangerousCommandPattern { Pattern = "net user", Description = "用户管理" },
-                new DangerousCommandPattern { Pattern = "net localgroup", Description = "用户组管理" }
-            ]
+            // 委托 DangerousCommandCatalog.DangerousPatternEntries（唯一数据源）— P0-② 单数据源改造
+            DangerousCommandPatterns = DangerousCommandCatalog.DangerousPatternEntries
+                .Select(e => new DangerousCommandPattern { Pattern = e.Pattern, Description = e.Description })
+                .ToList()
         };
     }
 }

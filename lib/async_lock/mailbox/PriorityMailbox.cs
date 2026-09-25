@@ -69,7 +69,8 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable {
         _highChannel = CreateChannel(highBackpressure);
         _normalChannel = CreateChannel(normalBackpressure);
         _lowChannel = CreateChannel(lowBackpressure);
-        _outputChannel = Channel.CreateUnbounded<PriorityEvt<TCommand>>(new UnboundedChannelOptions {
+        _outputChannel = Channel.CreateBounded<PriorityEvt<TCommand>>(new BoundedChannelOptions(ActorBase<object, object>.DefaultChannelCapacity) {
+            FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true,
             SingleWriter = true
         });
@@ -90,7 +91,8 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable {
 
     private static Channel<TCommand> CreateChannel(ActorBackpressure? bp) {
         if (bp is null || bp.Capacity == 0) {
-            return Channel.CreateUnbounded<TCommand>(new UnboundedChannelOptions {
+            return Channel.CreateBounded<TCommand>(new BoundedChannelOptions(ActorBase<object, object>.DefaultChannelCapacity) {
+                FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = true,
                 SingleWriter = false
             });

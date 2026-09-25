@@ -33,6 +33,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>背压重试最大次数</summary>
     public const int BackpressureMaxRetries = 16;
 
+    /// <summary>默认通道容量 — 无显式背压配置时使用,统一有界防 OOM</summary>
+    public const int DefaultChannelCapacity = 256;
+
     /// <summary>
     /// 构造 Actor — 无界输入通道，无界输出通道。
     /// </summary>
@@ -68,7 +71,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
 
     private static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure) {
         if (backpressure is null || backpressure.Capacity == 0) {
-            return Channel.CreateUnbounded<TCommand>(new UnboundedChannelOptions {
+            return Channel.CreateBounded<TCommand>(new BoundedChannelOptions(DefaultChannelCapacity) {
+                FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = true,
                 SingleWriter = false
             });
@@ -83,7 +87,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
 
     private static Channel<TOut> CreateOutputChannel(int? capacity) {
         if (capacity is null || capacity == 0) {
-            return Channel.CreateUnbounded<TOut>(new UnboundedChannelOptions {
+            return Channel.CreateBounded<TOut>(new BoundedChannelOptions(DefaultChannelCapacity) {
+                FullMode = BoundedChannelFullMode.DropOldest,
                 SingleReader = true,
                 SingleWriter = true
             });

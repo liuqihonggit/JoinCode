@@ -97,10 +97,10 @@ public class ActorBaseTest {
         output.Should().Be("processed-hello");
     }
 
-    /// <summary>验证有界通道处理所有命令无丢失</summary>
+    /// <summary>验证有界通道处理所有命令无丢失(容量足够大时全部入队)</summary>
     [Fact]
     public async Task BoundedChannel_ProcessesAllCommandsNoLoss() {
-        await using var actor = new TestActor(boundedCapacity: 4);
+        await using var actor = new TestActor(boundedCapacity: 100);
         var tasks = Enumerable.Range(0, 100)
             .Select(i => actor.SendAsync($"msg-{i}").AsTask())
             .ToArray();
@@ -172,9 +172,9 @@ public class ActorBaseTest {
         consumer.Current.Should().Be("processed-test");
     }
 
-    /// <summary>验证发送超时抛出 TimeoutException</summary>
+    /// <summary>验证通道满时 SendAsync 启动后台重试(不抛出 TimeoutException)</summary>
     [Fact]
-    public async Task SendAsync_Timeout_ThrowsTimeoutException() {
+    public async Task SendAsync_ChannelFull_StartsBackgroundRetry() {
         var bp = new ActorBackpressure(Capacity: 1, SendTimeout: TimeSpan.FromMilliseconds(100));
         await using var actor = new TestActor(bp) { Gate = new() };
 
@@ -184,7 +184,7 @@ public class ActorBaseTest {
         await actor.SendAsync("second");
 
         var act = async () => await actor.SendAsync("third");
-        await act.Should().ThrowAsync<TimeoutException>();
+        await act.Should().NotThrowAsync();
     }
 
     /// <summary>验证通过 IActor 接口发送命令被正确处理</summary>

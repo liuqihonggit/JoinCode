@@ -11,6 +11,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
     private readonly CostSessionStats _stats;
     private readonly BudgetGuard _budget;
     private readonly UsageStore _store;
+    private readonly BackgroundTaskActor _backgroundTaskActor;
     private CancellationTokenSource? _disposeCts = new();
 
     /// <summary>
@@ -37,9 +38,11 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
                 budgetConfig.DailyLimit, budgetConfig.MonthlyLimit, budgetConfig.TotalLimit);
         }
 
+        _backgroundTaskActor = new BackgroundTaskActor(logger);
+
         var initCts = Volatile.Read(ref _disposeCts);
         if (initCts is not null) {
-            _ = _store.LoadHistoryAsync(initCts.Token).WaitAsync(TimeSpan.FromSeconds(10), initCts.Token).ConfigureAwait(false);
+            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand("LoadCostHistory", ct => _store.LoadHistoryAsync(ct)), initCts.Token);
         }
     }
 
@@ -112,11 +115,11 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
 
         var cts = Volatile.Read(ref _disposeCts);
         if (cts is not null) {
-            _ = Task.Run(() => _store.SaveHistoryAsync(cts.Token)).WaitAsync(TimeSpan.FromSeconds(10), cts.Token).ConfigureAwait(false);
+            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand("SaveCostHistory", ct => _store.SaveHistoryAsync(ct)), cts.Token);
         }
 
         if (_budget.IsEnabled && cts is not null) {
-            _ = _budget.CheckAlertsAsync(GetCostSnapshot, cts.Token).WaitAsync(TimeSpan.FromSeconds(10), cts.Token).ConfigureAwait(false);
+            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand("CheckBudgetAlerts", ct => _budget.CheckAlertsAsync(GetCostSnapshot, ct)), cts.Token);
         }
     }
 
@@ -285,7 +288,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
     /// 异步释放资源 — 取消内部令牌并释放预算锁
     /// </summary>
     /// <returns>表示异步操作的任务</returns>
-    public ValueTask DisposeAsync() {
+    public async ValueTask DisposeAsync() {
         var cts = Interlocked.Exchange(ref _disposeCts, null);
         if (cts is not null) {
             cts.Cancel();
@@ -293,7 +296,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
             cts.Dispose();
         }
 
-        return ValueTask.CompletedTask;
+        await _backgroundTaskActor.DisposeAsync().ConfigureAwait(false);
     }
 }
 

@@ -50,7 +50,7 @@ public sealed class GraphExecutionContext {
     /// </summary>
     public SemaphoreSlim NodeCompletedSignal { get; } = new(0, int.MaxValue);
     /// <summary>节点执行状态（按节点 ID 索引，合并重试计数与完成/失败标记）</summary>
-    public ConcurrentDictionary<string, NodeExecutionState> NodeStates { get; } = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, NodeExecutionState> _nodeStates = new(StringComparer.Ordinal);
 
     /// <summary>已完成节点计数器（CompletedCount O(1) 查找，由 MarkNodeCompleted/MarkNodeFailed/ResetNodeState/SetRetryCount 维护）</summary>
     private int _completedCount;
@@ -60,19 +60,19 @@ public sealed class GraphExecutionContext {
 
     /// <summary>判断节点是否已完成</summary>
     public bool IsNodeCompleted(string nodeId) =>
-        NodeStates.TryGetValue(nodeId, out var state) && state.Status == NodeStatus.Completed;
+        _nodeStates.TryGetValue(nodeId, out var state) && state.Status == NodeStatus.Completed;
 
     /// <summary>判断节点是否已失败</summary>
     public bool IsNodeFailed(string nodeId) =>
-        NodeStates.TryGetValue(nodeId, out var state) && state.Status == NodeStatus.Failed;
+        _nodeStates.TryGetValue(nodeId, out var state) && state.Status == NodeStatus.Failed;
 
     /// <summary>判断节点是否已结束（完成或失败）</summary>
     public bool IsNodeFinished(string nodeId) =>
-        NodeStates.TryGetValue(nodeId, out var state) && state.Status is NodeStatus.Completed or NodeStatus.Failed;
+        _nodeStates.TryGetValue(nodeId, out var state) && state.Status is NodeStatus.Completed or NodeStatus.Failed;
 
     /// <summary>获取节点重试次数（不存在返回 0）</summary>
     public int GetRetryCount(string nodeId) =>
-        NodeStates.TryGetValue(nodeId, out var state) ? state.RetryCount : 0;
+        _nodeStates.TryGetValue(nodeId, out var state) ? state.RetryCount : 0;
 
     /// <summary>已完成节点数量 — O(1) 计数器维护</summary>
     public int CompletedCount => Volatile.Read(ref _completedCount);
@@ -82,7 +82,7 @@ public sealed class GraphExecutionContext {
 
     /// <summary>标记节点完成（保留已有重试计数）</summary>
     public void MarkNodeCompleted(string nodeId) {
-        NodeStates.AddOrUpdate(nodeId,
+        _nodeStates.AddOrUpdate(nodeId,
             _ => { Interlocked.Increment(ref _completedCount); return new NodeExecutionState { Status = NodeStatus.Completed }; },
             (_, existing) => {
                 if (existing.Status != NodeStatus.Completed) {
@@ -96,7 +96,7 @@ public sealed class GraphExecutionContext {
 
     /// <summary>标记节点失败（保留已有重试计数）</summary>
     public void MarkNodeFailed(string nodeId) {
-        NodeStates.AddOrUpdate(nodeId,
+        _nodeStates.AddOrUpdate(nodeId,
             _ => { Interlocked.Increment(ref _failedCount); return new NodeExecutionState { Status = NodeStatus.Failed }; },
             (_, existing) => {
                 if (existing.Status != NodeStatus.Failed) {
@@ -110,7 +110,7 @@ public sealed class GraphExecutionContext {
 
     /// <summary>重置节点状态（移除记录，回到初始）</summary>
     public void ResetNodeState(string nodeId) {
-        if (NodeStates.TryRemove(nodeId, out var existing)) {
+        if (_nodeStates.TryRemove(nodeId, out var existing)) {
             if (existing.Status == NodeStatus.Completed)
                 Interlocked.Decrement(ref _completedCount);
             else if (existing.Status == NodeStatus.Failed)
@@ -121,13 +121,13 @@ public sealed class GraphExecutionContext {
     /// <summary>设置节点重试次数（状态置为 Pending）</summary>
     public void SetRetryCount(string nodeId, int count) {
         var newState = new NodeExecutionState { Status = NodeStatus.Pending, RetryCount = count };
-        if (NodeStates.TryGetValue(nodeId, out var existing)) {
+        if (_nodeStates.TryGetValue(nodeId, out var existing)) {
             if (existing.Status == NodeStatus.Completed)
                 Interlocked.Decrement(ref _completedCount);
             else if (existing.Status == NodeStatus.Failed)
                 Interlocked.Decrement(ref _failedCount);
         }
-        NodeStates[nodeId] = newState;
+        _nodeStates[nodeId] = newState;
     }
 
     /// <summary>

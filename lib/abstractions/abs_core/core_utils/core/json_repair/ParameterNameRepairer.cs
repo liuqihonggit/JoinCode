@@ -8,8 +8,6 @@ internal static class ParameterNameRepairer {
     private static readonly FrozenDictionary<string, string> ParameterAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
         ["file_path"] = "filePath",
         ["file_name"] = "fileName",
-        ["old_string"] = "old_string",
-        ["new_string"] = "new_string",
         ["oldString"] = "old_string",
         ["newString"] = "new_string",
         ["old_text"] = "old_string",

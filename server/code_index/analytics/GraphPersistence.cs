@@ -96,7 +96,7 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence {
             return false;
 
         using var scope = _store.EnterWriteLock();
-        _store.Clear();
+        _store.ClearCore();
 
         foreach (var sym in data.Symbols) {
             _store.SymbolsByFqn[sym.FullyQualifiedName] = sym;

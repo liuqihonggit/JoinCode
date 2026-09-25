@@ -91,11 +91,18 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable {
     }
 
     /// <summary>
-    /// 清空所有索引数据 — 替代 DELETE FROM 各表
+    /// 清空所有索引数据 — 替代 DELETE FROM 各表(调用方未持锁时使用)
     /// </summary>
     public void Clear() {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         using var scope = EnterWriteLock();
+        ClearCore();
+    }
+
+    /// <summary>
+    /// 清空所有索引数据的无锁版本 — 调用方必须已持有写锁
+    /// </summary>
+    internal void ClearCore() {
         SymbolsByFqn.Clear();
         SymbolsByName.Clear();
         SymbolsByFile.Clear();

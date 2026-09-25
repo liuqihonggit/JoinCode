@@ -79,10 +79,14 @@ public sealed class InMemoryIndexStoreTests : IDisposable {
     }
 
     [Fact]
-    public void ReadLock_AllowsConcurrentReads() {
+    public async Task ReadLock_AllowsConcurrentReads() {
+        using var ready = new Barrier(2);
         using var scope1 = _store.EnterReadLock();
-        using var scope2 = _store.EnterReadLock();
-
-        Assert.True(true);
+        var t = Task.Run(() => {
+            ready.SignalAndWait();
+            using var scope2 = _store.EnterReadLock();
+        });
+        ready.SignalAndWait();
+        await t.WaitAsync(TimeSpan.FromSeconds(2));
     }
 }

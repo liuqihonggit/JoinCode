@@ -59,8 +59,8 @@ public sealed class ReferenceIndex {
         return matches.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    /// <summary>获取所有引用。</summary>
-    public IEnumerable<IndexedReference> GetAllReferences() => _references.Values;
+    /// <summary>获取所有引用的快照拷贝。</summary>
+    public IndexedReference[] GetAllReferences() => _references.Values.ToArray();
 
     /// <summary>判断指定路径是否已索引。</summary>
     public bool ContainsPath(string path)

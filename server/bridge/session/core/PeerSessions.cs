@@ -307,10 +307,10 @@ public sealed partial class PeerSessionRouter {
     public bool HasRoute(string peerId) => _routes.ContainsKey(peerId);
 
     /// <summary>
-    /// 获取所有对等节点 ID
+    /// 获取所有对等节点 ID 的快照拷贝
     /// </summary>
-    /// <returns>节点 ID 集合</returns>
-    public IEnumerable<string> GetAllPeerIds() => _routes.Keys;
+    /// <returns>节点 ID 数组快照</returns>
+    public string[] GetAllPeerIds() => _routes.Keys.ToArray();
 
     /// <summary>
     /// 清除所有路由

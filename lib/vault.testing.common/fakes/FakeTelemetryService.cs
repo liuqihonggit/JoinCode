@@ -43,7 +43,7 @@ public sealed class FakeTelemetryService : ITelemetryService {
     public IEnumerable<TelemetrySpanData> GetActiveSpans() => Array.Empty<TelemetrySpanData>();
 
     /// <summary>获取已注册的指标名称列表。</summary>
-    public IEnumerable<string> GetRegisteredMetrics() => Array.Empty<string>();
+    public string[] GetRegisteredMetrics() => Array.Empty<string>();
 
     /// <summary>异步释放资源。</summary>
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

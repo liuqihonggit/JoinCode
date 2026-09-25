@@ -306,9 +306,9 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
     }
 
     /// <summary>
-    /// 获取所有会话ID
+    /// 获取所有会话ID的快照拷贝
     /// </summary>
-    public IEnumerable<string> GetAllSessionIds() => _sessionStores.Keys;
+    public string[] GetAllSessionIds() => _sessionStores.Keys.ToArray();
 
     /// <summary>
     /// 清除所有会话钩子

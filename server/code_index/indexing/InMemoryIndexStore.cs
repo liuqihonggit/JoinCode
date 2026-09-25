@@ -7,7 +7,7 @@ namespace JoinCode.CodeIndex.Persistence;
 /// </summary>
 [Register(typeof(InMemoryIndexStore), ServiceLifetime.Singleton)]
 public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable {
-    private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.SupportsRecursion);
+    private readonly ReaderWriterLockSlim _lock = new();
     private int _disposed;
 
     /// <summary>

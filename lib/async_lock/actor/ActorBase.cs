@@ -34,7 +34,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     public const int BackpressureMaxRetries = 16;
 
     /// <summary>默认通道容量 — 无显式背压配置时使用,统一有界防 OOM</summary>
-    public const int DefaultChannelCapacity = 256;
+    public const int DefaultChannelCapacity = 2048;
 
     /// <summary>
     /// 构造 Actor — 无界输入通道，无界输出通道。

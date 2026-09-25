@@ -40,7 +40,7 @@ public sealed class TelemetryConfig {
     private TelemetryConfig(bool skipInit) { }
 
     /// <summary>获取服务名称。</summary>
-    public string ServiceName { get; init; } = "JoinCode";
+    public string ServiceName { get; init; } = BrandConstants.ProductName; // P1-⑦ 委托统一数据源
 
     /// <summary>获取服务版本。</summary>
     public string ServiceVersion { get; init; } = "1.0.0";

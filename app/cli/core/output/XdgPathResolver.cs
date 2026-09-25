@@ -14,7 +14,7 @@ namespace JoinCode.Cli.Output;
 /// </summary>
 public static class XdgPathResolver {
     /// <summary>jcc 在 XDG 目录下的子目录名</summary>
-    private const string AppName = "jcc";
+    private const string AppName = BrandConstants.CliCommandName; // P1-⑦ 委托统一数据源
 
     /// <summary>
     /// 获取配置目录 — 按优先级回退

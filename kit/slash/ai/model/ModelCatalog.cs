@@ -72,7 +72,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// <param name="provider">供应商标识</param>
     /// <returns>默认模型 ID</returns>
     public string GetDefaultModelForProvider(string provider) {
-        return _registry.TryGet(provider)?.DefaultModelId ?? _modelConfigLoader?.GetDefaultModelId(VendorKindEnumConstants.OpenAi) ?? "gpt-4o";
+        return _registry.TryGet(provider)?.DefaultModelId ?? _modelConfigLoader?.GetDefaultModelId(VendorKindEnumConstants.OpenAi) ?? DefaultModelCatalog.GetDefaultModel(VendorKind.OpenAi); // P1-⑦ 委托统一数据源
     }
 
     /// <summary>

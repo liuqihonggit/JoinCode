@@ -259,7 +259,7 @@ public sealed class BridgeMainCommand {
     private static string GetExecPath() {
         return Environment.GetEnvironmentVariable("JCC_EXEC_PATH")
             ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
-            ?? "jcc";
+            ?? BrandConstants.CliCommandName; // P1-⑦ 委托统一数据源
     }
 
     /// <summary>

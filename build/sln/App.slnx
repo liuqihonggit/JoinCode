@@ -6,7 +6,6 @@
   </Folder>
   <Folder Name="/test/unit/">
     <Project Path="../../test/unit/host.tests/Host.Tests.csproj" />
-    <Project Path="../../test/unit/tui.tests/Tui.Tests.csproj" />
     <Project Path="../../test/unit/infra.tests/io/Infra.IO.Tests.csproj" />
     <Project Path="../../test/unit/infra.tests/utils/Infra.Utils.Tests.csproj" />
     <Project Path="../../test/unit/infra.tests/services/Infra.Services.Tests.csproj" />

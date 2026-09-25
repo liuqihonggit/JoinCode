@@ -1,24 +1,24 @@
-name: CI GUI Daily
+name: CI TUI Daily
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '10 8 * * *'
+    - cron: '20 8 * * *'
 
 concurrency:
-  group: gui-daily
+  group: tui-daily
   cancel-in-progress: true
 
 env:
-  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_CLI_TELEMETRY_OPT_OUT: 1
   DOTNET_NOLOGO: true
   NUGET_XMLDOC_MODE: skip
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
   Configuration: Release
 
 jobs:
-  gui-tests:
-    name: GUI Unit Tests
+  tui-tests:
+    name: TUI Unit Tests
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -41,20 +41,20 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Build
-        run: dotnet build test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj -c Release --nologo
+        run: dotnet build test/unit/tui.tests/Tui.Tests.csproj -c Release --nologo
 
       - name: Test
         run: >
-          dotnet test test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj
+          dotnet test test/unit/tui.tests/Tui.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=JoinCodeGui.trx"
+          --logger "trx;LogFileName=Tui.trx"
 
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: gui-test-results
-          path: '**/JoinCodeGui.trx'
+          name: tui-test-results
+          path: '**/Tui.trx'
           retention-days: 7

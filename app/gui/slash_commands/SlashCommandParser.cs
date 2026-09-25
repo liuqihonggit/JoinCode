@@ -113,7 +113,7 @@ public static class SlashCommandParser {
     private static (int idx, char triggerChar) FindNearestTrigger(ReadOnlySpan<char> lineSlice) {
         var nearestIdx = -1;
         var nearestChar = '\0';
-        foreach (var provider in CompletionTriggerRegistry.All) {
+        foreach (var provider in CompletionTriggerRegistry.GetAllProviders()) {
             var idx = lineSlice.LastIndexOf(provider.TriggerChar);
             if (idx > nearestIdx) {
                 nearestIdx = idx;

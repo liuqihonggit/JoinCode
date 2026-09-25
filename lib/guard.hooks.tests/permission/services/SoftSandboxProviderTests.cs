@@ -146,7 +146,7 @@ public sealed class SoftSandboxProviderTests {
         var info1 = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);
         var info2 = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);
 
-        _sut.ActiveSandboxes.Should().HaveCount(2);
+        _sut.GetActiveSandboxes().Should().HaveCount(2);
 
         await _sut.DestroySandboxAsync(info1.SandboxId).ConfigureAwait(true);
         await _sut.DestroySandboxAsync(info2.SandboxId).ConfigureAwait(true);

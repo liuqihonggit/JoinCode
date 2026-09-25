@@ -39,8 +39,8 @@ internal sealed class SessionRegistry {
     public bool Remove(string sessionId)
         => _sessions.TryRemove(sessionId, out _);
 
-    /// <summary>所有会话</summary>
-    public IEnumerable<BridgeSession> Values => _sessions.Values;
+    /// <summary>所有会话的快照拷贝 — 用于枚举</summary>
+    public BridgeSession[] GetAllSessions() => _sessions.Values.ToArray();
 
     /// <summary>活跃会话数量</summary>
     public int CountActive()

@@ -419,7 +419,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity {
     /// </summary>
     /// <returns>活跃会话列表</returns>
     public IReadOnlyList<BridgeSession> GetActiveSessions() {
-        return _registry.Values
+        return _registry.GetAllSessions()
             .Where(s => s.Status == BridgeSessionStatus.Active)
             .OrderByDescending(s => s.LastActiveAt)
             .ToList();
@@ -471,7 +471,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity {
 
         var now = _timeProvider.GetUtcNow();
         var timeout = _configuration.SessionTimeout;
-        var expiredSessionIds = _registry.Values
+        var expiredSessionIds = _registry.GetAllSessions()
             .Where(s => !BridgeSessionTransitions.IsTerminal(s.Status)
                 && now - s.LastActiveAt > timeout)
             .Select(s => s.SessionId)
@@ -498,7 +498,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity {
         }
 
         // 移除已关闭的会话
-        var closedSessionIds = _registry.Values
+        var closedSessionIds = _registry.GetAllSessions()
             .Where(s => BridgeSessionTransitions.IsTerminal(s.Status))
             .Select(s => s.SessionId)
             .ToList();

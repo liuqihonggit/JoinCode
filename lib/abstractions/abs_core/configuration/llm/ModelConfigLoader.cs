@@ -8,13 +8,14 @@ namespace JoinCode.Abstractions.Configuration.Llm;
 public sealed class ModelConfigLoader : IModelConfigLoader {
     private volatile ModelConfigRoot _config;
     private FrozenDictionary<string, ModelItemConfig> _modelById;
-    private FrozenDictionary<string, string> _aliasToModelId;
     private FrozenDictionary<string, ModelEntry[]> _modelsByProvider = FrozenDictionary<string, ModelEntry[]>.Empty;
+    private FrozenDictionary<string, ModelItemConfig> _modelByProviderAndId = FrozenDictionary<string, ModelItemConfig>.Empty;
+    private FrozenDictionary<string, string> _aliasByProviderAndInput = FrozenDictionary<string, string>.Empty;
+    private FrozenDictionary<string, string> _providerByModelId = FrozenDictionary<string, string>.Empty;
 
     public ModelConfigLoader() {
         _config = new ModelConfigRoot();
         _modelById = FrozenDictionary<string, ModelItemConfig>.Empty;
-        _aliasToModelId = FrozenDictionary<string, string>.Empty;
     }
 
     /// <summary>获取当前模型配置根节点。</summary>
@@ -28,8 +29,10 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         var config = new ModelConfigRoot { Providers = providers };
         _config = config;
         _modelById = BuildModelById(config);
-        _aliasToModelId = BuildAliasToModelId(config);
         _modelsByProvider = BuildModelsByProvider(config);
+        _modelByProviderAndId = BuildModelByProviderAndId(config);
+        _aliasByProviderAndInput = BuildAliasByProviderAndInput(config);
+        _providerByModelId = BuildProviderByModelId(config);
     }
 
     private static FrozenDictionary<string, ModelItemConfig> BuildModelById(ModelConfigRoot config) {
@@ -42,16 +45,53 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         return idDict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static FrozenDictionary<string, string> BuildAliasToModelId(ModelConfigRoot config) {
-        var aliasDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    private static FrozenDictionary<string, ModelEntry[]> BuildModelsByProvider(ModelConfigRoot config) {
+        var dict = new Dictionary<string, ModelEntry[]>(StringComparer.OrdinalIgnoreCase);
+        foreach (var provider in config.Providers) {
+            var models = provider.Value.Models;
+            var entries = new ModelEntry[models.Count];
+            for (var i = 0; i < models.Count; i++) {
+                var m = models[i];
+                entries[i] = new ModelEntry(m.Id, m.DisplayName, m.ContextWindow, m.Description);
+            }
+            dict[provider.Key] = entries;
+        }
+        return dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>构建 (provider, modelId) → ModelItemConfig 复合索引，供 FindModel O(1) 查找。</summary>
+    private static FrozenDictionary<string, ModelItemConfig> BuildModelByProviderAndId(ModelConfigRoot config) {
+        var dict = new Dictionary<string, ModelItemConfig>(StringComparer.OrdinalIgnoreCase);
+        foreach (var provider in config.Providers) {
+            foreach (var model in provider.Value.Models) {
+                dict[provider.Key + "\0" + model.Id] = model;
+            }
+        }
+        return dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>构建 (provider, alias) → modelId 复合索引，供 ResolveAlias O(1) 查找。</summary>
+    private static FrozenDictionary<string, string> BuildAliasByProviderAndInput(ModelConfigRoot config) {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var provider in config.Providers) {
             foreach (var model in provider.Value.Models) {
                 foreach (var alias in model.Aliases) {
-                    aliasDict[alias] = model.Id;
+                    dict[provider.Key + "\0" + alias] = model.Id;
                 }
             }
         }
-        return aliasDict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+        return dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>构建 modelId → providerName 索引，供 FindProviderByModelId O(1) 查找。</summary>
+    private static FrozenDictionary<string, string> BuildProviderByModelId(ModelConfigRoot config) {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var provider in config.Providers) {
+            foreach (var model in provider.Value.Models) {
+                dict[model.Id] = provider.Key;
+            }
+        }
+        return dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>按供应商名称获取供应商配置。</summary>
@@ -74,34 +114,9 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         return _modelsByProvider.GetValueOrDefault(providerName) ?? [];
     }
 
-    private static FrozenDictionary<string, ModelEntry[]> BuildModelsByProvider(ModelConfigRoot config) {
-        var dict = new Dictionary<string, ModelEntry[]>(StringComparer.OrdinalIgnoreCase);
-        foreach (var provider in config.Providers) {
-            var models = provider.Value.Models;
-            var entries = new ModelEntry[models.Count];
-            for (var i = 0; i < models.Count; i++) {
-                var m = models[i];
-                entries[i] = new ModelEntry(m.Id, m.DisplayName, m.ContextWindow, m.Description);
-            }
-            dict[provider.Key] = entries;
-        }
-        return dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
-    }
-
     /// <summary>解析别名到模型 ID。</summary>
     public string? ResolveAlias(string providerName, string input) {
-        var providerConfig = GetProviderConfig(providerName);
-        if (providerConfig is null)
-            return null;
-
-        var lower = input.ToLowerInvariant();
-        foreach (var model in providerConfig.Models) {
-            foreach (var alias in model.Aliases) {
-                if (string.Equals(alias, lower, StringComparison.OrdinalIgnoreCase))
-                    return model.Id;
-            }
-        }
-        return null;
+        return _aliasByProviderAndInput.GetValueOrDefault(providerName + "\0" + input);
     }
 
     /// <summary>判断指定模型是否支持快速模式。</summary>
@@ -142,8 +157,11 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
 
     /// <summary>根据完整模型名获取规范名称。</summary>
     public string GetCanonicalName(string fullModelName) {
-        var name = fullModelName.ToLowerInvariant();
+        var exact = _modelById.GetValueOrDefault(fullModelName);
+        if (exact is not null)
+            return !string.IsNullOrEmpty(exact.CanonicalId) ? exact.CanonicalId : exact.Id;
 
+        var name = fullModelName.ToLowerInvariant();
         foreach (var model in _modelById.Values) {
             if (name.Contains(model.Id.ToLowerInvariant(), StringComparison.Ordinal)) {
                 return !string.IsNullOrEmpty(model.CanonicalId) ? model.CanonicalId : model.Id;
@@ -155,16 +173,7 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
 
     /// <summary>按供应商名称和模型 ID 查找模型配置。</summary>
     public ModelItemConfig? FindModel(string providerName, string modelId) {
-        var providerConfig = GetProviderConfig(providerName);
-        if (providerConfig is null)
-            return null;
-
-        foreach (var model in providerConfig.Models) {
-            if (string.Equals(model.Id, modelId, StringComparison.OrdinalIgnoreCase))
-                return model;
-        }
-
-        return null;
+        return _modelByProviderAndId.GetValueOrDefault(providerName + "\0" + modelId);
     }
 
     /// <summary>获取所有模型 ID 集合。</summary>
@@ -174,23 +183,18 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
 
     /// <summary>按模型 ID 查找所属供应商名称。</summary>
     public string? FindProviderByModelId(string modelId) {
-        foreach (var provider in Config.Providers) {
-            foreach (var model in provider.Value.Models) {
-                if (string.Equals(model.Id, modelId, StringComparison.OrdinalIgnoreCase))
-                    return provider.Key;
-            }
-        }
-        return null;
+        return _providerByModelId.GetValueOrDefault(modelId);
     }
 
     /// <summary>按模型 ID 模糊查找模型配置。</summary>
     public ModelItemConfig? FindModelByModelId(string modelId) {
+        var exact = _modelById.GetValueOrDefault(modelId);
+        if (exact is not null) return exact;
+
         var lower = modelId.ToLowerInvariant();
-        foreach (var provider in Config.Providers) {
-            foreach (var model in provider.Value.Models) {
-                if (lower.Contains(model.Id.ToLowerInvariant(), StringComparison.Ordinal))
-                    return model;
-            }
+        foreach (var model in _modelById.Values) {
+            if (lower.Contains(model.Id.ToLowerInvariant(), StringComparison.Ordinal))
+                return model;
         }
         return null;
     }

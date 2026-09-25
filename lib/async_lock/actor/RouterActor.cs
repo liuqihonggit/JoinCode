@@ -33,7 +33,6 @@ public sealed class RoundRobinStrategy<TMessage> : IRouterStrategy<TMessage> {
 /// 随机路由策略 — 随机选择 Worker,避免轮询的集中性。
 /// </summary>
 public sealed class RandomRouteStrategy<TMessage> : IRouterStrategy<TMessage> {
-    private readonly Random _random = new();
 
     /// <summary>选择目标 Worker 索引。</summary>
     /// <param name="workerCount">当前 Worker 数量。</param>
@@ -41,9 +40,7 @@ public sealed class RandomRouteStrategy<TMessage> : IRouterStrategy<TMessage> {
     /// <returns>Worker 索引(0 到 workerCount-1)。</returns>
     public int Select(int workerCount, TMessage message) {
         if (workerCount <= 0) return 0;
-        lock (_random) {
-            return _random.Next(workerCount);
-        }
+        return Random.Shared.Next(workerCount);
     }
 }
 

@@ -3,10 +3,12 @@ namespace JoinCode.Abstractions.Entity;
 /// <summary>
 /// 全局对象ID管理器 — 静态类，进程级全局唯一，无需DI
 /// 每个类型注册到全局 map，方便遍历全局数据进行持久化
+/// 基于 ImmutableDictionary + 无锁 CAS，消除 ConcurrentDictionary 锁竞争
+/// _typeIndex 用 LongRangeSet 区间压缩存储 SequenceId（ADR 0117）— 字符串只在 _objects 存一次
 /// </summary>
 public static class ObjectIdManager {
-    private static readonly ConcurrentDictionary<ObjectId, object> _objects = new();
-    private static readonly ConcurrentDictionary<Type, List<ObjectId>> _typeIndex = new();
+    private static ImmutableDictionary<ObjectId, object> _objects = ImmutableDictionary<ObjectId, object>.Empty;
+    private static ImmutableDictionary<Type, (ObjectType ObjType, LongRangeSet Ranges)> _typeIndex = ImmutableDictionary<Type, (ObjectType, LongRangeSet)>.Empty;
 
     /// <summary>
     /// 注册对象到全局管理器
@@ -14,28 +16,37 @@ public static class ObjectIdManager {
     public static void Register<T>(T obj, ObjectId id) where T : notnull {
         ArgumentNullException.ThrowIfNull(obj);
 
-        if (!_objects.TryAdd(id, obj))
-            return;
+        var added = false;
+        ImmutableInterlocked.Update(ref _objects, d => {
+            if (d.ContainsKey(id)) return d;
+            added = true;
+            return d.Add(id, obj);
+        });
+        if (!added) return;
 
-        _typeIndex.AddOrUpdate(
-            typeof(T),
-            _ => [id],
-            (_, list) => { lock (list) { list.Add(id); } return list; });
+        ImmutableInterlocked.Update(ref _typeIndex,
+            d => d.TryGetValue(typeof(T), out var entry)
+                ? d.SetItem(typeof(T), (entry.ObjType, entry.Ranges.Add(id.SequenceId)))
+                : d.Add(typeof(T), (id.Type, LongRangeSet.Empty.Add(id.SequenceId))));
     }
 
     /// <summary>
     /// 注销对象
     /// </summary>
     public static bool Unregister(ObjectId id) {
-        if (!_objects.TryRemove(id, out var obj))
-            return false;
+        object? removed = null;
+        ImmutableInterlocked.Update(ref _objects, d => {
+            if (!d.TryGetValue(id, out var o)) return d;
+            removed = o;
+            return d.Remove(id);
+        });
+        if (removed is null) return false;
 
-        var type = obj.GetType();
-        if (_typeIndex.TryGetValue(type, out var list)) {
-            lock (list) {
-                list.Remove(id);
-            }
-        }
+        var type = removed.GetType();
+        ImmutableInterlocked.Update(ref _typeIndex,
+            d => d.TryGetValue(type, out var entry)
+                ? d.SetItem(type, (entry.ObjType, entry.Ranges.Remove(id.SequenceId)))
+                : d);
 
         return true;
     }
@@ -44,7 +55,7 @@ public static class ObjectIdManager {
     /// 获取对象 — 按类型转换
     /// </summary>
     public static T? Get<T>(ObjectId id) where T : class {
-        if (_objects.TryGetValue(id, out var obj) && obj is T typed)
+        if (Volatile.Read(ref _objects).TryGetValue(id, out var obj) && obj is T typed)
             return typed;
         return null;
     }
@@ -53,41 +64,41 @@ public static class ObjectIdManager {
     /// 获取对象 — 不转换类型
     /// </summary>
     public static bool TryGet(ObjectId id, [NotNullWhen(true)] out object? obj) {
-        return _objects.TryGetValue(id, out obj);
+        return Volatile.Read(ref _objects).TryGetValue(id, out obj);
     }
 
     /// <summary>
-    /// 获取指定类型的所有对象
+    /// 获取指定类型的所有对象 — 枚举 LongRangeSet 区间 SequenceId 构造 lookup 键反查 _objects
     /// </summary>
     public static IReadOnlyList<T> GetAll<T>() where T : class {
-        if (!_typeIndex.TryGetValue(typeof(T), out var ids))
-            return [];
+        var entry = Volatile.Read(ref _typeIndex).GetValueOrDefault(typeof(T));
+        if (entry.Ranges.IsEmpty) return [];
 
-        lock (ids) {
-            var result = new List<T>(ids.Count);
-            foreach (var id in ids) {
-                if (_objects.TryGetValue(id, out var obj) && obj is T typed)
-                    result.Add(typed);
-            }
-            return result;
+        var objects = Volatile.Read(ref _objects);
+        var result = new List<T>((int)Math.Min(entry.Ranges.Count, 1024));
+        foreach (var seq in entry.Ranges.Enumerate()) {
+            var lookupId = new ObjectId(entry.ObjType, seq);
+            if (objects.TryGetValue(lookupId, out var obj) && obj is T typed)
+                result.Add(typed);
         }
+        return result;
     }
 
     /// <summary>
     /// 当前注册的对象总数
     /// </summary>
-    public static int Count => _objects.Count;
+    public static int Count => Volatile.Read(ref _objects).Count;
 
     /// <summary>
     /// 检查指定 ObjectId 是否已注册 — 用于后台扫描验证资源是否正确卸载
     /// </summary>
-    public static bool IsRegistered(ObjectId id) => _objects.ContainsKey(id);
+    public static bool IsRegistered(ObjectId id) => Volatile.Read(ref _objects).ContainsKey(id);
 
     /// <summary>
     /// 清空所有注册（测试用）
     /// </summary>
     public static void Clear() {
-        _objects.Clear();
-        _typeIndex.Clear();
+        Interlocked.Exchange(ref _objects, ImmutableDictionary<ObjectId, object>.Empty);
+        Interlocked.Exchange(ref _typeIndex, ImmutableDictionary<Type, (ObjectType, LongRangeSet)>.Empty);
     }
 }

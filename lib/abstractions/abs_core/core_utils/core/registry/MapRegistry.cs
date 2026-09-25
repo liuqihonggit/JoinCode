@@ -196,6 +196,43 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
         return [.. old];
     }
 
+    /// <summary>
+    /// 尝试注册项 — 已存在则不覆盖，返回 false（原子操作，无锁 CAS）
+    /// 对齐 ConcurrentDictionary.TryAdd 语义，用于"重复注册抛异常/忽略"场景
+    /// </summary>
+    public bool TryAdd(TKey key, TValue value) {
+        var added = false;
+        ImmutableInterlocked.Update(ref _items, d => {
+            if (d.ContainsKey(key)) return d;
+            added = true;
+            return d.Add(key, value);
+        });
+        if (added)
+            SyncIndicesAdd(key, value);
+        return added;
+    }
+
+    /// <summary>
+    /// 尝试注销项并返回被移除的值 — 原子操作，无锁 CAS
+    /// 对齐 ConcurrentDictionary.TryRemove 语义，用于"移除后需释放资源"场景
+    /// </summary>
+    public bool TryRemove(TKey key, [MaybeNullWhen(false)] out TValue value) {
+        var captured = default(TValue);
+        var removed = false;
+        ImmutableInterlocked.Update(ref _items, d => {
+            if (d.TryGetValue(key, out var v)) {
+                captured = v;
+                removed = true;
+                return d.Remove(key);
+            }
+            return d;
+        });
+        value = captured;
+        if (removed)
+            SyncIndicesRemove(key, captured!);
+        return removed;
+    }
+
     // === Canonical/Alias 支持（trackCanonical=true 时启用）===
 
     /// <summary>注册项（含 Canonical 标记）</summary>

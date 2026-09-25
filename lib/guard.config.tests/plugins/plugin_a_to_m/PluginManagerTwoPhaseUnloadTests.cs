@@ -33,7 +33,7 @@ public sealed class PluginManagerTwoPhaseUnloadTests {
     [Fact]
     public void PluginManager_WithResourceScanner_ScanAfterUnloadNoLeak() {
         var scanner = new PluginResourceScanner();
-        var report = scanner.ScanPluginResources("test-plugin", []);
+        var report = scanner.ScanPluginResources("test-plugin", new Dictionary<ObjectType, LongRangeSet>());
 
         report.HasLeaks.Should().BeFalse();
     }

@@ -111,7 +111,7 @@ public sealed class CrossPluginLinkTests {
 
         await pluginA.UnloadAsync();
 
-        var report = scanner.ScanPluginResources(pluginA.Name, resourceIds);
+        var report = scanner.ScanPluginResources(pluginA.Name, resourceIds.GroupBy(id => id.Type).ToDictionary(g => g.Key, g => g.Aggregate(LongRangeSet.Empty, (set, id) => set.Add(id.SequenceId))));
         report.HasLeaks.Should().BeFalse();
     }
 

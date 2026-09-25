@@ -237,6 +237,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0113](0113-mtp-perturbation-bash-defense.md) | MTP 扰动防御 | accepted | 2026-09-17 |
 | [0114](0114-config-template-source-generator.md) | 配置模板源码生成器 | accepted | 2026-09-17 |
 | [0115](0115-typed-decision-abstraction-layer.md) | 类型化决策抽象层 ITypedDecision | accepted | 2026-09-21 |
+| [0117](0117-objectid-range-compression-longrangeset-sparselongset.md) | ObjectId 区间压缩 — LongRangeSet + SparseLongSet | accepted | 2026-09-26 |
 
 ## 主题索引（按议题）
 
@@ -471,3 +472,4 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0114](0114-config-template-source-generator.md) | 配置模板源码生成器 | 源码生成器驱动配置模板 |
 | [0115](0115-typed-decision-abstraction-layer.md) | 类型化决策抽象层 | ITypedDecision 统一决策类型 |
 | [0116](0116-getawaiter-getresult-allowed-scenarios.md) | .GetAwaiter().GetResult() 允许场景 + Entity BCL 双向继承 | 构造函数/Lazy<T>/ThreadStart/同步委托中允许；Entity 保留 IDisposable+IAsyncDisposable 双接口学 BCL Stream 模式 |
+| [0117](0117-objectid-range-compression-longrangeset-sparselongset.md) | ObjectId 区间压缩 | LongRangeSet 连续区间 + SparseLongSet delta 编码 + SequenceId 按 ObjectType 独立计数 |

@@ -70,8 +70,7 @@ public sealed class ChildActorHandle : IAsyncDisposable {
     private readonly Func<ChildActorHandle, Exception, CancellationToken, ValueTask> _onFailure;
     private IAsyncDisposable? _instance;
     private int _restartCount;
-    private readonly List<DateTimeOffset> _restartTimes = new();
-    private readonly object _restartLock = new();
+    private ImmutableList<DateTimeOffset> _restartTimes = ImmutableList<DateTimeOffset>.Empty;
 
     /// <summary>子 Actor 唯一标识</summary>
     public string Id { get; }
@@ -126,15 +125,16 @@ public sealed class ChildActorHandle : IAsyncDisposable {
     }
 
     private bool TryRecordRestart() {
-        lock (_restartLock) {
-            var now = DateTimeOffset.UtcNow;
-            _restartTimes.RemoveAll(t => now - t > _strategy.Within);
-            if (_restartTimes.Count >= _strategy.MaxRestarts)
-                return false;
-            _restartTimes.Add(now);
-            Interlocked.Increment(ref _restartCount);
-            return true;
-        }
+        var now = DateTimeOffset.UtcNow;
+        var added = false;
+        ImmutableInterlocked.Update(ref _restartTimes, list => {
+            var filtered = list.RemoveAll(t => now - t > _strategy.Within);
+            if (filtered.Count >= _strategy.MaxRestarts) return filtered;
+            added = true;
+            return filtered.Add(now);
+        });
+        if (added) Interlocked.Increment(ref _restartCount);
+        return added;
     }
 
     private async ValueTask RestartAsync(CancellationToken ct) {

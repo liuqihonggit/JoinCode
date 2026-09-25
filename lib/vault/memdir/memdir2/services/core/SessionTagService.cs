@@ -6,7 +6,7 @@ namespace Core.Memdir;
 /// </summary>
 [Register(typeof(ISessionTagService), ServiceLifetime.Singleton)]
 public sealed partial class SessionTagService : ServiceEntity, ISessionTagService, IDisposable {
-    private readonly ConcurrentDictionary<string, HashSet<string>> _tags = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, ImmutableHashSet<string>> _tags = ImmutableDictionary.Create<string, ImmutableHashSet<string>>(StringComparer.OrdinalIgnoreCase);
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
     private readonly ILogger<SessionTagService>? _logger;
@@ -31,15 +31,19 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
         ArgumentNullException.ThrowIfNull(sessionId);
         ArgumentNullException.ThrowIfNull(tag);
 
-        var tags = _tags.GetOrAdd(sessionId, _ => new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-        lock (tags) {
-            var added = tags.Add(tag);
-            if (added) {
-                _logger?.LogDebug(L.T(StringKey.VaultLogSessionAddTag), sessionId, tag);
-                FireAndForgetSave();
-            }
-            return added;
+        var added = false;
+        ImmutableInterlocked.Update(ref _tags, d => {
+            var existing = d.GetValueOrDefault(sessionId) ?? ImmutableHashSet<string>.Empty.WithComparer(StringComparer.OrdinalIgnoreCase);
+            if (existing.Contains(tag)) return d;
+            added = true;
+            return d.SetItem(sessionId, existing.Add(tag));
+        });
+
+        if (added) {
+            _logger?.LogDebug(L.T(StringKey.VaultLogSessionAddTag), sessionId, tag);
+            FireAndForgetSave();
         }
+        return added;
     }
 
     /// <inheritdoc />
@@ -47,40 +51,36 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
         ArgumentNullException.ThrowIfNull(sessionId);
         ArgumentNullException.ThrowIfNull(tag);
 
-        if (!_tags.TryGetValue(sessionId, out var tags)) return false;
+        var removed = false;
+        ImmutableInterlocked.Update(ref _tags, d => {
+            if (!d.TryGetValue(sessionId, out var existing)) return d;
+            if (!existing.Contains(tag)) return d;
+            removed = true;
+            var updated = existing.Remove(tag);
+            return updated.Count == 0 ? d.Remove(sessionId) : d.SetItem(sessionId, updated);
+        });
 
-        lock (tags) {
-            var removed = tags.Remove(tag);
-            if (removed) {
-                _logger?.LogDebug(L.T(StringKey.VaultLogSessionRemoveTag), sessionId, tag);
-                if (tags.Count == 0) {
-                    _tags.TryRemove(sessionId, out _);
-                }
-                FireAndForgetSave();
-            }
-            return removed;
+        if (removed) {
+            _logger?.LogDebug(L.T(StringKey.VaultLogSessionRemoveTag), sessionId, tag);
+            FireAndForgetSave();
         }
+        return removed;
     }
 
     /// <inheritdoc />
     public IEnumerable<string> GetTags(string sessionId) {
         ArgumentNullException.ThrowIfNull(sessionId);
 
-        if (!_tags.TryGetValue(sessionId, out var tags)) return [];
-
-        lock (tags) {
-            return tags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase);
-        }
+        var tags = Volatile.Read(ref _tags).GetValueOrDefault(sessionId);
+        return tags is null ? [] : tags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc />
     public IReadOnlyDictionary<string, IReadOnlyList<string>> GetAllTags() {
         var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in _tags) {
-            lock (kvp.Value) {
-                if (kvp.Value.Count > 0) {
-                    result[kvp.Key] = kvp.Value.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
-                }
+        foreach (var kvp in Volatile.Read(ref _tags)) {
+            if (kvp.Value.Count > 0) {
+                result[kvp.Key] = kvp.Value.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
             }
         }
         return result;
@@ -96,8 +96,8 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
             if (data?.Entries == null) return;
 
             foreach (var kvp in data.Entries) {
-                var tags = new HashSet<string>(kvp.Value, StringComparer.OrdinalIgnoreCase);
-                _tags[kvp.Key] = tags;
+                var tags = ImmutableHashSet.CreateRange(StringComparer.OrdinalIgnoreCase, kvp.Value);
+                ImmutableInterlocked.Update(ref _tags, d => d.SetItem(kvp.Key, tags));
             }
 
             _logger?.LogDebug(L.T(StringKey.VaultLogLoadedSessionTags), data.Entries.Count);

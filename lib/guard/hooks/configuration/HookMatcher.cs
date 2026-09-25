@@ -111,14 +111,14 @@ public sealed class HookConfigurationGroup {
     }
 
     /// <summary>
-    /// 获取事件的匹配器列表 — 零拷贝键视图
+    /// 获取事件的匹配器列表的快照拷贝
     /// </summary>
-    public IEnumerable<string> GetMatchers(HookEvent hookEvent) {
+    public string[] GetMatchers(HookEvent hookEvent) {
         if (!Groups.TryGetValue(hookEvent, out var eventGroup)) {
             return Array.Empty<string>();
         }
 
-        return eventGroup.Keys;
+        return eventGroup.Keys.ToArray();
     }
 
     /// <summary>

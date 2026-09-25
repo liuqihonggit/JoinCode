@@ -5,8 +5,8 @@ namespace JoinCode.ChatCommands;
 /// /vendor 命令 — 查看或切换 LLM 供应商
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Vendor, Description = "查看或切换 LLM 供应商", Usage = "/vendor [名称|list]", Category = ChatCommandCategory.Model, ArgumentHint = "[openai|anthropic|deepseek|azure|agnes|sensenova|bedrock|zhipu|jev|list]")]
-// Enum 列表必须与 VendorKind 枚举保持同步 — 特性参数要求编译时常量,无法用 ToValue() — P1-⑤
-[ChatCommandArg("name", Type = "string", Description = "供应商名称或 list", Enum = new[] { "openai", "anthropic", "deepseek", "azure", "agnes", "sensenova", "bedrock", "zhipu", "jev", "list" })]
+// Enum 列表委托 VendorKindEnumConstants + CrudActionEnumConstants.List,与 VendorKind 枚举保持同步
+[ChatCommandArg("name", Type = "string", Description = "供应商名称或 list", Enum = [VendorKindEnumConstants.OpenAi, VendorKindEnumConstants.Anthropic, VendorKindEnumConstants.DeepSeek, VendorKindEnumConstants.Azure, VendorKindEnumConstants.Agnes, VendorKindEnumConstants.Sensenova, VendorKindEnumConstants.Bedrock, VendorKindEnumConstants.Zhipu, VendorKindEnumConstants.Jev, CrudActionEnumConstants.List])]
 public sealed class VendorCommand : ChatCommandBase {
     /// <summary>
     /// 执行供应商命令,无参或 list 时列出全部供应商,否则切换到目标供应商并同步默认模型与持久化配置

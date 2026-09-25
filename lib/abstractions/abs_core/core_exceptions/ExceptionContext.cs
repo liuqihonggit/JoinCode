@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Exceptions;
 /// 异常上下文信息
 /// </summary>
 public sealed class ExceptionContext {
-    private readonly Dictionary<string, JsonElement> _data = new();
+    private ImmutableDictionary<string, JsonElement> _data = ImmutableDictionary<string, JsonElement>.Empty;
 
     /// <summary>
     /// 请求ID，用于追踪请求链路
@@ -23,15 +23,15 @@ public sealed class ExceptionContext {
     public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>
-    /// 附加数据
+    /// 附加数据 — O(1) 直接返回不可变字典引用，无物化
     /// </summary>
-    public IReadOnlyDictionary<string, JsonElement> Data => _data.ToImmutableDictionary();
+    public IReadOnlyDictionary<string, JsonElement> Data => _data;
 
     /// <summary>
     /// 添加上下文数据
     /// </summary>
     public ExceptionContext WithData(string key, JsonElement value) {
-        _data[key] = value;
+        _data = _data.SetItem(key, value);
         return this;
     }
 
@@ -39,7 +39,7 @@ public sealed class ExceptionContext {
     /// 添加上下文数据（字符串便捷方法）
     /// </summary>
     public ExceptionContext WithData(string key, string? value) {
-        _data[key] = JsonElementHelper.FromString(value);
+        _data = _data.SetItem(key, JsonElementHelper.FromString(value));
         return this;
     }
 
@@ -47,9 +47,11 @@ public sealed class ExceptionContext {
     /// 批量添加上下文数据
     /// </summary>
     public ExceptionContext WithData(IEnumerable<KeyValuePair<string, JsonElement>> data) {
+        var builder = _data.ToBuilder();
         foreach (var (key, value) in data) {
-            _data[key] = value;
+            builder[key] = value;
         }
+        _data = builder.ToImmutable();
         return this;
     }
 }

@@ -5,11 +5,12 @@ public sealed class ImmutablePrefix {
     public string System { get; }
     private ImmutableDictionary<string, ToolSpec> _toolSpecs = ImmutableDictionary<string, ToolSpec>.Empty;
     private ImmutableList<string> _toolSpecsOrder = ImmutableList<string>.Empty;
+    private volatile ImmutableList<ToolSpec> _toolSpecsCache = ImmutableList<ToolSpec>.Empty;
     private readonly ApiMessage[] _fewShots;
     private volatile string? _fingerprintCache;
 
-    /// <summary>获取工具规格列表。</summary>
-    public IEnumerable<ToolSpec> ToolSpecs => _toolSpecsOrder.Select(name => _toolSpecs[name]);
+    /// <summary>获取工具规格列表 — O(1) 直接返回缓存的 ImmutableList 引用，无迭代器创建</summary>
+    public IEnumerable<ToolSpec> ToolSpecs => _toolSpecsCache;
     /// <summary>获取 FewShot 示例消息列表。</summary>
     public IEnumerable<ApiMessage> FewShots => _fewShots;
 
@@ -23,6 +24,7 @@ public sealed class ImmutablePrefix {
                 _toolSpecs = _toolSpecs.SetItem(t.Name, t);
             }
         }
+        _toolSpecsCache = BuildToolSpecsCache();
         _fewShots = fewShots != null ? [.. fewShots] : [];
     }
 
@@ -44,6 +46,7 @@ public sealed class ImmutablePrefix {
         if (wasNew)
             ImmutableInterlocked.Update(ref _toolSpecsOrder, static (list, name) => list.Add(name), tool.Name);
         ImmutableInterlocked.Update(ref _toolSpecs, static (dict, t) => dict.SetItem(t.Name, t), tool);
+        _toolSpecsCache = BuildToolSpecsCache();
         _fingerprintCache = null;
     }
 
@@ -52,6 +55,7 @@ public sealed class ImmutablePrefix {
         if (_toolSpecs.ContainsKey(toolName)) {
             ImmutableInterlocked.Update(ref _toolSpecs, static (dict, name) => dict.Remove(name), toolName);
             ImmutableInterlocked.Update(ref _toolSpecsOrder, static (list, name) => list.Remove(name), toolName);
+            _toolSpecsCache = BuildToolSpecsCache();
             _fingerprintCache = null;
         }
     }
@@ -85,5 +89,15 @@ public sealed class ImmutablePrefix {
         var toolSpecsHash = ContentHash.ComputeToolSpecs(order.Select(name => specs[name]));
         var fewShotsBlob = string.Join("|", _fewShots.Select(s => $"{s.Role}:{s.Content}"));
         return ContentHash.Compute($"{System}|{toolSpecsHash}|{fewShotsBlob}");
+    }
+
+    private ImmutableList<ToolSpec> BuildToolSpecsCache() {
+        var specs = _toolSpecs;
+        var order = _toolSpecsOrder;
+        var builder = ImmutableList.CreateBuilder<ToolSpec>();
+        foreach (var name in order) {
+            builder.Add(specs[name]);
+        }
+        return builder.ToImmutable();
     }
 }

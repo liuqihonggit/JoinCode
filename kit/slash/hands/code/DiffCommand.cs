@@ -4,7 +4,7 @@ namespace JoinCode.ChatCommands;
 /// /diff 命令 - 交互式 diff 浏览器 — 对齐 TS DiffDialog
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Diff, Description = "View uncommitted changes and per-turn diffs", Usage = "/diff [files|cached]", Category = ChatCommandCategory.Code, ArgumentHint = "[files|cached]", ExposeToMcp = true)]
-[ChatCommandArg("scope", Type = "string", Description = "差异范围", Enum = new[] { "files", "cached" })]
+[ChatCommandArg("scope", Type = "string", Description = "差异范围", Enum = [DiffModeEnumConstants.Files, DiffModeEnumConstants.Cached])]
 public sealed class DiffCommand : ChatCommandBase {
     /// <summary>
     /// 异步执行 /diff 命令，浏览未提交变更或按轮次差异

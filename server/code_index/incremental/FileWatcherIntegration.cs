@@ -14,7 +14,7 @@ public sealed partial class FileWatcherIntegration : FileWatcherActorBase {
     private readonly Action<Exception>? _onError;
     private readonly ILogger<FileWatcherIntegration>? _logger;
 
-    private static readonly string[] DefaultExcludedDirs = new[] { "bin", "obj", ".git", ".x" };
+    private static readonly string[] DefaultExcludedDirs = CodeIndexExcludedDirCatalog.DefaultExcludedDirs;
 
     /// <summary>
     /// 构造文件监控集成 — 不带错误回调和文件系统抽象

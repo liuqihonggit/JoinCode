@@ -33,6 +33,7 @@ global using JoinCode.Abstractions.Cmd;
 global using JoinCode.Abstractions.CodeIndex;
 global using JoinCode.Abstractions.Commands;
 global using JoinCode.Abstractions.Configuration;
+global using JoinCode.Abstractions.Constants;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Execution;
 global using JoinCode.Abstractions.Configuration.Llm;

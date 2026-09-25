@@ -10,29 +10,8 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
     private readonly ILogger<SessionScanner>? _logger;
     private readonly IFileSystem _fs;
 
-    /// <summary>文件扩展名到语言名的映射 — 对齐 TS EXTENSION_TO_LANGUAGE</summary>
-    private static readonly IReadOnlyDictionary<string, string> ExtensionToLanguage = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
-        [".cs"] = "C#",
-        [".ts"] = "TypeScript",
-        [".tsx"] = "TypeScript",
-        [".js"] = "JavaScript",
-        [".jsx"] = "JavaScript",
-        [".py"] = "Python",
-        [".rb"] = "Ruby",
-        [".go"] = "Go",
-        [".rs"] = "Rust",
-        [".java"] = "Java",
-        [".md"] = "Markdown",
-        [".json"] = "JSON",
-        [".yaml"] = "YAML",
-        [".yml"] = "YAML",
-        [".sh"] = "Shell",
-        [".css"] = "CSS",
-        [".html"] = "HTML",
-        [".ps1"] = "PowerShell",
-        [".sql"] = "SQL",
-        [".xml"] = "XML",
-    };
+    /// <summary>文件扩展名到语言名的映射 — 委托 LanguageMapCatalog 单一数据源</summary>
+    private static readonly IReadOnlyDictionary<string, string> ExtensionToLanguage = LanguageMapCatalog.ExtensionToLanguage;
 
     /// <summary>
     /// 创建会话扫描器实例

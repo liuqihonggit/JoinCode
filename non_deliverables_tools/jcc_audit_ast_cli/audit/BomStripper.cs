@@ -11,9 +11,9 @@ public static class BomStripper {
     public static readonly byte[] Utf8Bom = [0xEF, 0xBB, 0xBF];
 
     /// <summary>
-    /// 排除目录名（委托 FileFilter 统一管理）
+    /// 排除目录名（委托 FileFilter.s_commonExcludedDirs 统一管理）
     /// </summary>
-    public static readonly string[] ExcludedDirectories = new[] { "bin", "obj", ".xxx", ".git", ".vs", "artifacts", "node_modules", ".nuget" };
+    public static readonly string[] ExcludedDirectories = FileFilter.s_commonExcludedDirs;
 
     /// <summary>
     /// 排除文件后缀/模式：.Designer.cs / .Generated.cs / .g.cs

@@ -6,9 +6,9 @@ namespace JoinCode.CodeIndex;
 /// </summary>
 public sealed class IncrementalUpdater : IDisposable {
     /// <summary>
-    /// 强制排除的目录名(对齐全量扫描 CodeIndexer 与 FileWatcher 的排除规则)
+    /// 强制排除的目录名 — 委托 CodeIndexExcludedDirCatalog 单一数据源
     /// </summary>
-    private static readonly HashSet<string> ExcludedDirs = new(StringComparer.OrdinalIgnoreCase) { "bin", "obj", ".git", ".x" };
+    private static readonly HashSet<string> ExcludedDirs = CodeIndexExcludedDirCatalog.ExcludedDirs;
 
     private readonly SymbolIndex _index;
     private readonly InMemoryIndexStore _store;
@@ -17,20 +17,10 @@ public sealed class IncrementalUpdater : IDisposable {
     private int _disposed;
 
     /// <summary>
-    /// 检查路径中是否包含被排除的目录段(bin/obj/.git/.x)
+    /// 检查路径中是否包含被排除的目录段 — 委托 CodeIndexExcludedDirCatalog
     /// </summary>
-    private static bool IsInExcludedDirectory(string filePath) {
-        var span = filePath.AsSpan();
-        while (!span.IsEmpty) {
-            var idx = span.IndexOfAny(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var segment = idx < 0 ? span : span[..idx];
-            if (!segment.IsEmpty && ExcludedDirs.Contains(segment.ToString())) {
-                return true;
-            }
-            span = idx < 0 ? [] : span[(idx + 1)..];
-        }
-        return false;
-    }
+    private static bool IsInExcludedDirectory(string filePath)
+        => CodeIndexExcludedDirCatalog.IsInExcludedDirectory(filePath);
 
     /// <summary>
     /// 构造增量更新器

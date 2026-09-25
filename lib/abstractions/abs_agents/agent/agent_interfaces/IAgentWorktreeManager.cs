@@ -26,9 +26,9 @@ public sealed class WorktreeEventArgs : EventArgs {
 /// </summary>
 public enum WorktreeCleanupMode {
     /// <summary>任务自然完成:无变更删除,有变更保留(对齐 TS cleanupWorktreeIfNeeded)</summary>
-    OnTaskComplete,
+    [EnumValue("onTaskComplete")] OnTaskComplete,
     /// <summary>强制删除:不管有无变更(worktree_remove 工具调用)</summary>
-    ForceRemove
+    [EnumValue("forceRemove")] ForceRemove
 }
 
 /// <summary>

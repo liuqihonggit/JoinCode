@@ -11,7 +11,7 @@ internal static class FileFilter {
     /// <summary>
     /// 通用排除目录（路径段匹配，大小写不敏感）— 所有工具共用
     /// </summary>
-    private static readonly string[] s_commonExcludedDirs = new[] {
+    internal static readonly string[] s_commonExcludedDirs = new[] {
         "bin", "obj", ".xxx", ".git", ".vs", "artifacts", "node_modules", ".nuget"
     };
 

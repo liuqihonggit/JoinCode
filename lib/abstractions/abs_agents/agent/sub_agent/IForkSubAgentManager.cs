@@ -74,7 +74,13 @@ public sealed class ForkSubAgent {
     public string? Result { get; init; }
 }
 
-public enum ForkState { Running, Completed, Merged, Cancelled, Failed }
+public enum ForkState {
+    [EnumValue("running")] Running,
+    [EnumValue("completed")] Completed,
+    [EnumValue("merged")] Merged,
+    [EnumValue("cancelled")] Cancelled,
+    [EnumValue("failed")] Failed
+}
 
 public sealed class ForkResult {
     /// <summary>获取分叉标识。</summary>

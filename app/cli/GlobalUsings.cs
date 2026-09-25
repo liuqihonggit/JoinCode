@@ -40,6 +40,7 @@ global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.ChatCommands;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Cmd;
+global using JoinCode.Abstractions.Constants;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Execution;

@@ -182,7 +182,7 @@ public class QuadtreeToolHandlers {
     [McpTool("quadtree_neighbor", "查询格子的八方位邻居编码（同层）。方向: N/S/W/E/NW/NE/SW/SE，边界外返回null", "vision")]
     public Task<ToolResult> QuadtreeNeighborAsync(
         [McpToolParameter("源格子编码（如 L0.2.1）", Required = true)] string cellCode,
-        [McpToolParameter("方位方向", Required = true, EnumValues = new[] { "N", "S", "W", "E", "NW", "NE", "SW", "SE" })] string direction,
+        [McpToolParameter("方位方向", Required = true, EnumValues = [CardinalDirectionEnumConstants.N, CardinalDirectionEnumConstants.S, CardinalDirectionEnumConstants.W, CardinalDirectionEnumConstants.E, CardinalDirectionEnumConstants.NW, CardinalDirectionEnumConstants.NE, CardinalDirectionEnumConstants.SW, CardinalDirectionEnumConstants.SE])] string direction,
         [McpToolParameter("原图宽度（像素）", Required = true)] int imageWidth,
         [McpToolParameter("原图高度（像素）", Required = true)] int imageHeight,
         [McpToolParameter("四叉树层数", Required = true)] int depth,

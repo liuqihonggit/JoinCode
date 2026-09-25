@@ -3,13 +3,13 @@ namespace JoinCode.Abstractions.LLM.Chat;
 public sealed class ImmutablePrefix {
     /// <summary>获取系统提示词。</summary>
     public string System { get; }
-    // P2-⑪ 双索引合并: 原 _toolSpecs(Dictionary) + _toolSpecsOrder(List) 合并为单一有序列表
-    private ImmutableList<ToolSpec> _toolSpecs = ImmutableList<ToolSpec>.Empty;
+    private ImmutableDictionary<string, ToolSpec> _toolSpecs = ImmutableDictionary<string, ToolSpec>.Empty;
+    private ImmutableList<string> _toolSpecsOrder = ImmutableList<string>.Empty;
     private readonly ApiMessage[] _fewShots;
     private volatile string? _fingerprintCache;
 
-    /// <summary>获取工具规格列表(按插入顺序)。</summary>
-    public IEnumerable<ToolSpec> ToolSpecs => _toolSpecs;
+    /// <summary>获取工具规格列表。</summary>
+    public IEnumerable<ToolSpec> ToolSpecs => _toolSpecsOrder.Select(name => _toolSpecs[name]);
     /// <summary>获取 FewShot 示例消息列表。</summary>
     public IEnumerable<ApiMessage> FewShots => _fewShots;
 
@@ -17,11 +17,11 @@ public sealed class ImmutablePrefix {
     public ImmutablePrefix(string system, IEnumerable<ToolSpec> toolSpecs, IEnumerable<ApiMessage> fewShots) {
         System = system ?? throw new ArgumentNullException(nameof(system));
         if (toolSpecs != null) {
-            var list = ImmutableList<ToolSpec>.Empty;
             foreach (var t in toolSpecs) {
-                list = AddOrUpdate(list, t);
+                if (!_toolSpecs.ContainsKey(t.Name))
+                    _toolSpecsOrder = _toolSpecsOrder.Add(t.Name);
+                _toolSpecs = _toolSpecs.SetItem(t.Name, t);
             }
-            _toolSpecs = list;
         }
         _fewShots = fewShots != null ? [.. fewShots] : [];
     }
@@ -37,22 +37,23 @@ public sealed class ImmutablePrefix {
         }
     }
 
-    /// <summary>添加或更新工具规格 — CAS 原子更新,volatile 失效指纹缓存。</summary>
+    /// <summary>添加或更新工具规格 — CAS 原子更新工具字典+顺序列表,volatile 失效指纹缓存。</summary>
     public void AddTool(ToolSpec tool) {
         ArgumentNullException.ThrowIfNull(tool);
-        ImmutableInterlocked.Update(ref _toolSpecs, static (list, t) => AddOrUpdate(list, t), tool);
+        var wasNew = !_toolSpecs.ContainsKey(tool.Name);
+        if (wasNew)
+            ImmutableInterlocked.Update(ref _toolSpecsOrder, static (list, name) => list.Add(name), tool.Name);
+        ImmutableInterlocked.Update(ref _toolSpecs, static (dict, t) => dict.SetItem(t.Name, t), tool);
         _fingerprintCache = null;
     }
 
     /// <summary>移除指定名称的工具规格 — CAS 原子更新,volatile 失效指纹缓存。</summary>
     public void RemoveTool(string toolName) {
-        ImmutableInterlocked.Update(ref _toolSpecs, static (list, name) => {
-            for (var i = 0; i < list.Count; i++) {
-                if (list[i].Name == name) return list.RemoveAt(i);
-            }
-            return list;
-        }, toolName);
-        _fingerprintCache = null;
+        if (_toolSpecs.ContainsKey(toolName)) {
+            ImmutableInterlocked.Update(ref _toolSpecs, static (dict, name) => dict.Remove(name), toolName);
+            ImmutableInterlocked.Update(ref _toolSpecsOrder, static (list, name) => list.Remove(name), toolName);
+            _fingerprintCache = null;
+        }
     }
 
     /// <summary>校验指纹一致性,返回最新指纹。</summary>
@@ -79,15 +80,10 @@ public sealed class ImmutablePrefix {
     }
 
     private string ComputeFingerprint() {
-        var toolSpecsHash = ContentHash.ComputeToolSpecs(_toolSpecs);
+        var specs = _toolSpecs;
+        var order = _toolSpecsOrder;
+        var toolSpecsHash = ContentHash.ComputeToolSpecs(order.Select(name => specs[name]));
         var fewShotsBlob = string.Join("|", _fewShots.Select(s => $"{s.Role}:{s.Content}"));
         return ContentHash.Compute($"{System}|{toolSpecsHash}|{fewShotsBlob}");
-    }
-
-    private static ImmutableList<ToolSpec> AddOrUpdate(ImmutableList<ToolSpec> list, ToolSpec tool) {
-        for (var i = 0; i < list.Count; i++) {
-            if (list[i].Name == tool.Name) return list.SetItem(i, tool);
-        }
-        return list.Add(tool);
     }
 }

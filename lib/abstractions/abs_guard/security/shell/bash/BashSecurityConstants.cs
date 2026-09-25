@@ -64,7 +64,7 @@ public static class BashSecurityConstants {
     /// <param name="a">参数数组。</param>
     public static bool HasExecFlag(string[] a) {
         for (var i = 1; i < a.Length; i++) {
-            if (a[i].StartsWith('-') && a[i].Length > 1) {
+            if (a[i].Length > 1 && a[i].StartsWith('-')) {
                 for (var j = 1; j < a[i].Length; j++) {
                     if (a[i][j] is 'e' or 's') return true;
                 }
@@ -77,7 +77,7 @@ public static class BashSecurityConstants {
     /// <param name="a">参数数组。</param>
     public static bool HasCompgenDangerFlag(string[] a) {
         for (var i = 1; i < a.Length; i++) {
-            if (a[i].StartsWith('-') && a[i].Length > 1 && a[i][1] != '-') {
+            if (a[i].Length > 1 && a[i].StartsWith('-') && a[i][1] != '-') {
                 for (var j = 1; j < a[i].Length; j++) {
                     if (a[i][j] is 'C' or 'F' or 'W') return true;
                 }

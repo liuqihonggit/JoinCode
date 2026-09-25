@@ -49,7 +49,7 @@ public static partial class PathConverter {
             return $"{char.ToUpperInvariant(normalized[0])}:{normalized[2..]}".Replace('/', '\\');
         }
 
-        if (normalized.StartsWith("//") && normalized.Length > 2) {
+        if (normalized.Length > 2 && normalized.StartsWith("//")) {
             return normalized.Replace('/', '\\');
         }
 
@@ -68,7 +68,7 @@ public static partial class PathConverter {
         if (path.StartsWith("\\\\"))
             return true;
 
-        if (path.StartsWith("//") && path.Length > 2 && path[2] != '/')
+        if (path.Length > 2 && path.StartsWith("//") && path[2] != '/')
             return true;
 
         return false;

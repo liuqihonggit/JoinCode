@@ -245,7 +245,7 @@ public static class SedValidation {
             }
 
             // 其他短标志组合 (如 -nE, -nz)
-            if (token.StartsWith('-') && token.Length > 1 && !token.StartsWith("--")) {
+            if (token.Length > 1 && token.StartsWith('-') && !token.StartsWith("--")) {
                 // 检查危险标志组合: -ew, -eW, -ee, -we, -wE
                 if (ContainsDangerousFlagCombo(token)) {
                     return new SedExtractionResult(); // 危险组合
@@ -588,7 +588,7 @@ public static class SedValidation {
         }
 
         // 6. 偏执检查: 以 s 开头但以 w/W/e/E 结尾
-        if (expr.StartsWith('s') && expr.Length > 1 &&
+        if (expr.Length > 1 && expr.StartsWith('s') &&
             expr[^1] is 'w' or 'W' or 'e' or 'E') {
             var parseResult = ParseSubstitution(expr);
             if (!parseResult.Success)

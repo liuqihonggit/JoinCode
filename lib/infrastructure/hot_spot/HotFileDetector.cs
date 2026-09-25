@@ -127,9 +127,9 @@ public sealed class HotFileDetector : IHotFileDetector {
     }
 
     private static bool IsHotByName(string fileName, string extension) {
-        if (fileName.StartsWith("I", StringComparison.Ordinal) &&
+        if (fileName.Length > 1 &&
             extension.Equals(".cs", StringComparison.OrdinalIgnoreCase) &&
-            fileName.Length > 1 &&
+            fileName.StartsWith("I", StringComparison.Ordinal) &&
             char.IsUpper(fileName[1]))
             return true;
 

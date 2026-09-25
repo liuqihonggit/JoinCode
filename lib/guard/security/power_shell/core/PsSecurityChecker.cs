@@ -445,7 +445,7 @@ public static partial class PsSecurityChecker {
             }
         }
 
-        if (PsAstParser.DeriveSecurityFlags(parsed).HasAssignments && envVars.Count > 0) {
+        if (PsAstParser.DeriveSecurityFlags(parsed).HasAssignments) {
             return PsSecurityResult.Ask("Command modifies environment variables");
         }
         return PsSecurityResult.Passthrough;

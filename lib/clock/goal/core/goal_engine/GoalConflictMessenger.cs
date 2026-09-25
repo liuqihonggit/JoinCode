@@ -21,7 +21,7 @@ public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflict
     /// <inheritdoc />
     public async ValueTask EnqueueConflictAsync(ConflictMessage message, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(message);
-        var channel = _channels.GetOrAdd(message.TargetNodeId, _ => Channel.CreateUnbounded<ConflictMessage>());
+        var channel = _channels.GetOrAdd(message.TargetNodeId, _ => Channel.CreateBounded<ConflictMessage>(new BoundedChannelOptions(128) { FullMode = BoundedChannelFullMode.Wait }));
         await channel.Writer.WriteAsync(message, cancellationToken).ConfigureAwait(false);
         _logger?.LogDebug("[GoalConflictMessenger] 入队冲突: {Source} → {Target}: {Content}",
             message.SourceNodeId, message.TargetNodeId, message.Content);

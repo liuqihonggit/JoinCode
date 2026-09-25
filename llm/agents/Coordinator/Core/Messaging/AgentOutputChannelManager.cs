@@ -8,7 +8,11 @@ namespace Core.Agents.Coordinator.Core.Messaging;
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager), ServiceLifetime.Singleton)]
 public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager {
     private readonly System.Threading.Channels.Channel<JoinCode.Abstractions.Interfaces.AgentOutputChunk> _outputChannel =
-        System.Threading.Channels.Channel.CreateUnbounded<JoinCode.Abstractions.Interfaces.AgentOutputChunk>();
+        System.Threading.Channels.Channel.CreateBounded<JoinCode.Abstractions.Interfaces.AgentOutputChunk>(new BoundedChannelOptions(1024) {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = true,
+            SingleWriter = false
+        });
     private volatile ImmutableDictionary<string, string?> _activeAgents = ImmutableDictionary<string, string?>.Empty;
     private volatile string? _displayModeTarget;
     private readonly ILogger? _logger;

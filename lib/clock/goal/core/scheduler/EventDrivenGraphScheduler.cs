@@ -31,8 +31,8 @@ internal sealed class EventDrivenGraphScheduler : IGraphScheduler {
         ProcessNodeCompletionAsync processNodeAsync,
         AsyncLock? concurrencyLimiter,
         CancellationToken ct) {
-        var completedCh = Channel.CreateUnbounded<NodeCompletionOutcome>(
-            new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+        var completedCh = Channel.CreateBounded<NodeCompletionOutcome>(
+            new BoundedChannelOptions(256) { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
 
         var pendingCount = 0;
 

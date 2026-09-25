@@ -77,7 +77,7 @@ public sealed class McpStdioClient : McpClientBase {
             _readCts = new CancellationTokenSource();
             _readTask = Task.Run(() => ReadLoopAsync(_readCts.Token), _readCts.Token);
 
-            _writeChannel = Channel.CreateUnbounded<string>();
+            _writeChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(256) { FullMode = BoundedChannelFullMode.Wait });
             _writeCts = new CancellationTokenSource();
             _writeConsumerTask = Task.Run(() => WriteLoopAsync(_writeCts.Token), _writeCts.Token);
 

@@ -34,9 +34,10 @@ public sealed class MeshTransport : ITransportTopology {
         _logger = logger;
         _processId = processId ?? Environment.ProcessId.ToString();
         _peerConnections = new ConcurrentDictionary<string, MeshPeerConnection>();
-        _receiveChannel = Channel.CreateUnbounded<TransportFrame>(new UnboundedChannelOptions {
+        _receiveChannel = Channel.CreateBounded<TransportFrame>(new BoundedChannelOptions(1024) {
             SingleReader = true,
-            SingleWriter = false
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.Wait
         });
         _cts = new CancellationTokenSource();
     }
@@ -238,9 +239,10 @@ internal sealed class MeshPeerConnection : IAsyncDisposable {
         PeerProcessId = peerPid;
         _stream = stream;
         _logger = logger;
-        _writeQueue = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions {
+        _writeQueue = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(512) {
             SingleReader = true,
-            SingleWriter = false
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.Wait
         });
         _writeLoop = Task.Run(WriteLoopAsync);
     }

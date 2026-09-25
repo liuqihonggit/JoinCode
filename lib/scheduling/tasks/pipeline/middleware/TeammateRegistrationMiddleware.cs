@@ -55,7 +55,7 @@ public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITea
 
         ctx.ActiveTeammates[definition.TeammateId] = state;
 
-        ctx.PendingMessages[definition.TeammateId] = Channel.CreateUnbounded<CoordinatorMessage>();
+        ctx.PendingMessages[definition.TeammateId] = Channel.CreateBounded<CoordinatorMessage>(new BoundedChannelOptions(256) { FullMode = BoundedChannelFullMode.Wait });
 
         ctx.State = state;
         ctx.LifecycleCts = lifecycleCts;

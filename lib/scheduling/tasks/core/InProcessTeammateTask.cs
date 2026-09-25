@@ -654,7 +654,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
                 Task = _definition.Task
             };
 
-            _pendingChannel = Channel.CreateUnbounded<CoordinatorMessage>();
+            _pendingChannel = Channel.CreateBounded<CoordinatorMessage>(new BoundedChannelOptions(256) { FullMode = BoundedChannelFullMode.Wait });
 
             var registerTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             await _owner.SendAsync(new RegisterTeammateCmd(_teammateId, _state, _pendingChannel, registerTcs), _externalCt).ConfigureAwait(false);

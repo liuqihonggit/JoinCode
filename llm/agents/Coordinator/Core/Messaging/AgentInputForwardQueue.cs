@@ -22,7 +22,7 @@ public sealed partial class AgentInputForwardQueue : ServiceEntity, JoinCode.Abs
     /// </summary>
     public void Register(string agentId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        SetQueue(agentId, Channel.CreateUnbounded<string>());
+        SetQueue(agentId, Channel.CreateBounded<string>(new BoundedChannelOptions(256) { FullMode = BoundedChannelFullMode.Wait }));
     }
 
     /// <summary>

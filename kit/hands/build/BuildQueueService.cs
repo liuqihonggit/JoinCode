@@ -11,7 +11,7 @@ public sealed partial class BuildQueueService : BuildQueueBase {
     private readonly IPreventSleepService? _preventSleepService;
     private readonly ILogger<BuildQueueService>? _logger;
 
-    private readonly Channel<BuildQueueEntry> _queue = Channel.CreateUnbounded<BuildQueueEntry>();
+    private readonly Channel<BuildQueueEntry> _queue = Channel.CreateBounded<BuildQueueEntry>(new BoundedChannelOptions(64) { FullMode = BoundedChannelFullMode.Wait });
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly Task _processingTask;
 

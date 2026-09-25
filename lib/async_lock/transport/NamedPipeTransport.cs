@@ -39,9 +39,10 @@ public sealed class NamedPipeTransport : ITransportTopology {
         _election = election ?? new HostElectionService(pipeName, logger, processId: _processId);
         _logger = logger;
         _connections = new ConcurrentDictionary<string, PipeConnection>();
-        _receiveChannel = Channel.CreateUnbounded<TransportFrame>(new UnboundedChannelOptions {
+        _receiveChannel = Channel.CreateBounded<TransportFrame>(new BoundedChannelOptions(1024) {
             SingleReader = true,
-            SingleWriter = false
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.Wait
         });
         _cts = new CancellationTokenSource();
     }
@@ -442,9 +443,10 @@ internal sealed class PipeConnection : IAsyncDisposable {
         ProcessId = processId;
         _stream = stream;
         _logger = logger;
-        _writeQueue = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions {
+        _writeQueue = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(512) {
             SingleReader = true,
-            SingleWriter = false
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.Wait
         });
         _writeLoop = Task.Run(WriteLoopAsync);
     }

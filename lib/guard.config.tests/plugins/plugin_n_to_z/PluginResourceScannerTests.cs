@@ -6,6 +6,10 @@ public sealed class PluginResourceScannerTests {
         public override void Dispose() => base.Dispose();
     }
 
+    private static IReadOnlyDictionary<ObjectType, LongRangeSet> ToResourceMap(IEnumerable<ObjectId> ids)
+        => ids.GroupBy(id => id.Type)
+              .ToDictionary(g => g.Key, g => g.Aggregate(LongRangeSet.Empty, (set, id) => set.Add(id.SequenceId)));
+
     [Fact]
     public async Task ScanPluginResources_AllUnregistered_NoLeaks() {
         var scanner = new PluginResourceScanner();
@@ -15,7 +19,7 @@ public sealed class PluginResourceScannerTests {
         await e1.DisposeAsync();
         await e2.DisposeAsync();
 
-        var report = scanner.ScanPluginResources("pluginA", ids);
+        var report = scanner.ScanPluginResources("pluginA", ToResourceMap(ids));
 
         report.HasLeaks.Should().BeFalse();
         report.LeakedResourceIds.Should().BeEmpty();
@@ -29,7 +33,7 @@ public sealed class PluginResourceScannerTests {
         var ids = new[] { e1.ObjectId, e2.ObjectId };
         await e1.DisposeAsync();
 
-        var report = scanner.ScanPluginResources("pluginA", ids);
+        var report = scanner.ScanPluginResources("pluginA", ToResourceMap(ids));
 
         report.HasLeaks.Should().BeTrue();
         report.LeakedResourceIds.Should().HaveCount(1);
@@ -40,7 +44,7 @@ public sealed class PluginResourceScannerTests {
     public void ScanPluginResources_EmptyList_NoLeaks() {
         var scanner = new PluginResourceScanner();
 
-        var report = scanner.ScanPluginResources("pluginA", []);
+        var report = scanner.ScanPluginResources("pluginA", new Dictionary<ObjectType, LongRangeSet>());
 
         report.HasLeaks.Should().BeFalse();
     }
@@ -49,7 +53,7 @@ public sealed class PluginResourceScannerTests {
     public void ScanPluginRecords_PluginNameInReport() {
         var scanner = new PluginResourceScanner();
 
-        var report = scanner.ScanPluginResources("my-plugin", []);
+        var report = scanner.ScanPluginResources("my-plugin", new Dictionary<ObjectType, LongRangeSet>());
 
         report.PluginName.Should().Be("my-plugin");
     }

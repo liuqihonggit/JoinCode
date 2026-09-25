@@ -2,10 +2,10 @@ namespace Infra.Tests.EntityTests;
 
 public sealed class EntityObjectIdTests {
     [Fact]
-    public void ObjectId_SequenceId_ShouldBeAtomicIncrement() {
+    public void ObjectId_SequenceId_ShouldBeAtomicIncrementPerType() {
         var id1 = new ObjectId(ObjectType.Agent);
-        var id2 = new ObjectId(ObjectType.Session);
-        var id3 = new ObjectId(ObjectType.Goal);
+        var id2 = new ObjectId(ObjectType.Agent);
+        var id3 = new ObjectId(ObjectType.Agent);
 
         id2.SequenceId.Should().BeGreaterThan(id1.SequenceId);
         id3.SequenceId.Should().BeGreaterThan(id2.SequenceId);

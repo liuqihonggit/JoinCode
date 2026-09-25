@@ -24,8 +24,8 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <summary>插件生命周期跟踪器 — 撤销链+加载顺序（Consumer 线程独占）</summary>
     private readonly PluginLifecycleTracker _lifecycleTracker;
 
-    /// <summary>每个插件的资源 ObjectId 列表 — 卸载后用于扫描验证</summary>
-    private ImmutableDictionary<string, ImmutableList<ObjectId>> _pluginResourceIds = ImmutableDictionary<string, ImmutableList<ObjectId>>.Empty;
+    /// <summary>每个插件的资源 ObjectId — 按 ObjectType 分组 + LongRangeSet 区间压缩(ADR 0117),卸载后用于扫描验证</summary>
+    private ImmutableDictionary<string, ImmutableDictionary<ObjectType, LongRangeSet>> _pluginResourceIds = ImmutableDictionary<string, ImmutableDictionary<ObjectType, LongRangeSet>>.Empty;
 
     /// <summary>插件黑名单 — 卸载泄漏的插件加入,拒绝再次加载(方案B C4)</summary>
     private ImmutableHashSet<string> _blacklistedPlugins = ImmutableHashSet<string>.Empty;
@@ -631,10 +631,10 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// 阶段3 — Verify: 卸载后扫描检查资源是否正确注销
     /// </summary>
     private void ScanAfterUnload(string pluginName) {
-        ImmutableList<ObjectId>? resourceIds = null;
+        ImmutableDictionary<ObjectType, LongRangeSet>? resourceIds = null;
         ImmutableInterlocked.Update(ref _pluginResourceIds, d => {
-            if (!d.TryGetValue(pluginName, out var list)) return d;
-            resourceIds = list;
+            if (!d.TryGetValue(pluginName, out var map)) return d;
+            resourceIds = map;
             return d.Remove(pluginName);
         });
         if (resourceIds is null) return;
@@ -670,9 +670,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         await bus.PublishAsync(appEvent).ConfigureAwait(false);
     }
 
-    /// <summary>记录插件资源 ObjectId — 加载时调用,用于卸载后扫描验证</summary>
+    /// <summary>记录插件资源 ObjectId — 加载时调用,按 ObjectType 分组 + LongRangeSet 区间压缩,用于卸载后扫描验证</summary>
     internal void RecordPluginResourceIds(string pluginName, IEnumerable<ObjectId> resourceIds) {
-        ImmutableInterlocked.Update(ref _pluginResourceIds, d => d.SetItem(pluginName, resourceIds.ToImmutableList()));
+        var byType = resourceIds
+            .GroupBy(id => id.Type)
+            .ToImmutableDictionary(g => g.Key, g => g.Aggregate(LongRangeSet.Empty, (set, id) => set.Add(id.SequenceId)));
+        ImmutableInterlocked.Update(ref _pluginResourceIds, d => d.SetItem(pluginName, byType));
     }
 
     /// <summary>测试用: 手动将插件加入黑名单</summary>

@@ -4,10 +4,11 @@ namespace JoinCode.Abstractions.Entity;
 /// 全局对象ID管理器 — 静态类，进程级全局唯一，无需DI
 /// 每个类型注册到全局 map，方便遍历全局数据进行持久化
 /// 基于 ImmutableDictionary + 无锁 CAS，消除 ConcurrentDictionary 锁竞争
+/// _typeIndex 用 LongRangeSet 区间压缩存储 SequenceId（ADR 0117）— 字符串只在 _objects 存一次
 /// </summary>
 public static class ObjectIdManager {
     private static ImmutableDictionary<ObjectId, object> _objects = ImmutableDictionary<ObjectId, object>.Empty;
-    private static ImmutableDictionary<Type, ImmutableList<ObjectId>> _typeIndex = ImmutableDictionary<Type, ImmutableList<ObjectId>>.Empty;
+    private static ImmutableDictionary<Type, (ObjectType ObjType, LongRangeSet Ranges)> _typeIndex = ImmutableDictionary<Type, (ObjectType, LongRangeSet)>.Empty;
 
     /// <summary>
     /// 注册对象到全局管理器
@@ -24,9 +25,9 @@ public static class ObjectIdManager {
         if (!added) return;
 
         ImmutableInterlocked.Update(ref _typeIndex,
-            d => d.TryGetValue(typeof(T), out var list)
-                ? d.SetItem(typeof(T), list.Add(id))
-                : d.Add(typeof(T), ImmutableList.Create(id)));
+            d => d.TryGetValue(typeof(T), out var entry)
+                ? d.SetItem(typeof(T), (entry.ObjType, entry.Ranges.Add(id.SequenceId)))
+                : d.Add(typeof(T), (id.Type, LongRangeSet.Empty.Add(id.SequenceId))));
     }
 
     /// <summary>
@@ -43,7 +44,9 @@ public static class ObjectIdManager {
 
         var type = removed.GetType();
         ImmutableInterlocked.Update(ref _typeIndex,
-            d => d.TryGetValue(type, out var list) ? d.SetItem(type, list.Remove(id)) : d);
+            d => d.TryGetValue(type, out var entry)
+                ? d.SetItem(type, (entry.ObjType, entry.Ranges.Remove(id.SequenceId)))
+                : d);
 
         return true;
     }
@@ -65,16 +68,17 @@ public static class ObjectIdManager {
     }
 
     /// <summary>
-    /// 获取指定类型的所有对象
+    /// 获取指定类型的所有对象 — 枚举 LongRangeSet 区间 SequenceId 构造 lookup 键反查 _objects
     /// </summary>
     public static IReadOnlyList<T> GetAll<T>() where T : class {
-        var ids = Volatile.Read(ref _typeIndex).GetValueOrDefault(typeof(T));
-        if (ids is null || ids.Count == 0) return [];
+        var entry = Volatile.Read(ref _typeIndex).GetValueOrDefault(typeof(T));
+        if (entry.Ranges.IsEmpty) return [];
 
         var objects = Volatile.Read(ref _objects);
-        var result = new List<T>(ids.Count);
-        foreach (var id in ids) {
-            if (objects.TryGetValue(id, out var obj) && obj is T typed)
+        var result = new List<T>((int)Math.Min(entry.Ranges.Count, 1024));
+        foreach (var seq in entry.Ranges.Enumerate()) {
+            var lookupId = new ObjectId(entry.ObjType, seq);
+            if (objects.TryGetValue(lookupId, out var obj) && obj is T typed)
                 result.Add(typed);
         }
         return result;
@@ -95,6 +99,6 @@ public static class ObjectIdManager {
     /// </summary>
     public static void Clear() {
         Interlocked.Exchange(ref _objects, ImmutableDictionary<ObjectId, object>.Empty);
-        Interlocked.Exchange(ref _typeIndex, ImmutableDictionary<Type, ImmutableList<ObjectId>>.Empty);
+        Interlocked.Exchange(ref _typeIndex, ImmutableDictionary<Type, (ObjectType, LongRangeSet)>.Empty);
     }
 }

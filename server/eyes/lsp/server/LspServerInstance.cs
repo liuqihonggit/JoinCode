@@ -300,7 +300,7 @@ public sealed partial class LspServerInstance : ILspServerInstance {
         for (var attempt = 0; attempt <= MaxRetriesForTransientErrors; attempt++) {
             try {
                 return await SendRequestCoreAsync(method, @params, cancellationToken).ConfigureAwait(false);
-            } catch (Exception ex) when (IsContentModifiedError(ex) && attempt < MaxRetriesForTransientErrors) {
+            } catch (Exception ex) when (attempt < MaxRetriesForTransientErrors && IsContentModifiedError(ex)) {
                 lastAttemptError = ex;
                 var delay = RetryBaseDelayMs * (int)Math.Pow(2, attempt);
                 _logger.LogDebug("LSP request '{Method}' to '{Name}' got ContentModified, retrying in {Delay}ms (attempt {Attempt}/{Max})",

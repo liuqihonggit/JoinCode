@@ -151,7 +151,7 @@ public sealed class CSharpCallExtractor {
         var typeNode = node.GetChildForField("type");
         if (nameNode is null || typeNode is null) return;
         var typeName = typeNode.Text;
-        if (classNameSet.Contains(typeName) || (typeName.Length > 0 && char.IsUpper(typeName[0]))) {
+        if ((typeName.Length > 0 && char.IsUpper(typeName[0])) || classNameSet.Contains(typeName)) {
             map[nameNode.Text] = typeName;
         }
     }
@@ -589,7 +589,7 @@ public sealed class CSharpCallExtractor {
         if (expressionNode.Type == "identifier") {
             if (interfaceNameSet.Contains(expressionText)) return CallKind.Virtual;
             if (variableTypeMap.ContainsKey(expressionText)) return CallKind.Virtual;
-            if (classNameSet.Contains(expressionText) || (expressionText.Length > 0 && char.IsUpper(expressionText[0]))) return CallKind.Static;
+            if ((expressionText.Length > 0 && char.IsUpper(expressionText[0])) || classNameSet.Contains(expressionText)) return CallKind.Static;
         }
 
         if (expressionNode.Type is "member_access_expression" or "invocation_expression" or "object_creation_expression") {

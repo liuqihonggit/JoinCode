@@ -6,7 +6,7 @@ namespace Core.Plugins;
 /// </summary>
 [Register(typeof(IPluginManager), ServiceLifetime.Singleton)]
 public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManagerOutput>, IPluginManager {
-    private readonly ConcurrentDictionary<string, IPluginHost> _plugins = new();
+    private readonly PluginRegistry _plugins = new();
     private readonly IChatClient? _kernel;
     private readonly ILoggerFactory? _loggerFactory;
     private readonly IFileOperationService? _fileOperationService;
@@ -50,20 +50,20 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     public event EventHandler<PluginDiagnostic>? OnDiagnostic;
 
     /// <summary>诊断历史记录(Consumer 线程独占)</summary>
-    private readonly List<PluginDiagnostic> _diagnostics = new();
+    private ImmutableList<PluginDiagnostic> _diagnostics = ImmutableList<PluginDiagnostic>.Empty;
 
     /// <summary>已加载的全部插件名称（工作流 + 外部 + native）</summary>
-    public IReadOnlyCollection<string> LoadedPluginNames => (IReadOnlyCollection<string>)_plugins.Keys;
+    public IReadOnlyCollection<string> LoadedPluginNames => [.. _plugins.AsDictionary().Keys];
 
     /// <summary>已加载的工作流插件名称</summary>
     public IReadOnlyCollection<string> LoadedWorkflowPluginNames =>
-        _plugins.Where(p => p.Value.PluginType == PluginKind.Workflow).Select(p => p.Key).ToList();
+        _plugins.ByKind.GetKeys(PluginKind.Workflow);
     /// <summary>已加载的外部进程插件名称</summary>
     public IReadOnlyCollection<string> LoadedExternalPluginNames =>
-        _plugins.Where(p => p.Value.PluginType == PluginKind.External).Select(p => p.Key).ToList();
+        _plugins.ByKind.GetKeys(PluginKind.External);
     /// <summary>已加载的 native DLL 插件名称</summary>
     public IReadOnlyCollection<string> LoadedNativePluginNames =>
-        _plugins.Where(p => p.Value.PluginType == PluginKind.Native).Select(p => p.Key).ToList();
+        _plugins.ByKind.GetKeys(PluginKind.Native);
 
     /// <summary>
     /// 构造插件管理器
@@ -521,7 +521,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         var results = new List<PluginUnloadResult>();
 
         // 先卸载 external
-        var externalPluginNames = _plugins.Where(p => p.Value.PluginType == PluginKind.External).Select(p => p.Key).ToList();
+        var externalPluginNames = _plugins.ByKind.GetKeys(PluginKind.External);
         foreach (var pluginName in externalPluginNames) {
             if (_plugins.TryRemove(pluginName, out var host) && host is ExternalPluginHost externalHost) {
                 results.Add(await externalHost.UnloadAsync().ConfigureAwait(false));
@@ -530,7 +530,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         }
 
         // 再卸载 native
-        var nativePluginNames = _plugins.Where(p => p.Value.PluginType == PluginKind.Native).Select(p => p.Key).ToList();
+        var nativePluginNames = _plugins.ByKind.GetKeys(PluginKind.Native);
         foreach (var pluginName in nativePluginNames) {
             if (_plugins.TryRemove(pluginName, out var host) && host is NativePluginHost nativeHost) {
                 await nativeHost.UnloadAsync().ConfigureAwait(false);
@@ -796,14 +796,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         if (_isDisposed) throw new ObjectDisposedException(nameof(PluginManager));
     }
 
-    /// <summary>获取诊断历史记录(线程安全快照)</summary>
-    public IReadOnlyList<PluginDiagnostic> GetDiagnostics() {
-        lock (_diagnostics) return _diagnostics.ToList();
-    }
+    /// <summary>获取诊断历史记录(线程安全快照) — 返回不可变列表引用,无分配</summary>
+    public IReadOnlyList<PluginDiagnostic> GetDiagnostics() => Volatile.Read(ref _diagnostics);
 
-    /// <summary>上报诊断事件(Consumer 线程调用)</summary>
+    /// <summary>上报诊断事件(Consumer 线程调用) — 无锁 CAS 追加</summary>
     private void ReportDiagnostic(PluginDiagnostic diagnostic) {
-        lock (_diagnostics) _diagnostics.Add(diagnostic);
+        ImmutableInterlocked.Update(ref _diagnostics, list => list.Add(diagnostic));
         OnDiagnostic?.Invoke(this, diagnostic);
     }
 
@@ -823,7 +821,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
     private async Task CleanupAllPluginsAsync() {
         // 先清理 external
-        var externalPluginNames = _plugins.Where(p => p.Value.PluginType == PluginKind.External).Select(p => p.Key).ToList();
+        var externalPluginNames = _plugins.ByKind.GetKeys(PluginKind.External);
         foreach (var pluginName in externalPluginNames) {
             if (_plugins.TryRemove(pluginName, out var host) && host is ExternalPluginHost externalHost) {
                 try { await externalHost.UnloadAsync().ConfigureAwait(false); await externalHost.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { _logger?.LogError(ex, "释放外部插件时出错: {PluginName}", pluginName); }
@@ -831,7 +829,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         }
 
         // 再清理 native
-        var nativePluginNames = _plugins.Where(p => p.Value.PluginType == PluginKind.Native).Select(p => p.Key).ToList();
+        var nativePluginNames = _plugins.ByKind.GetKeys(PluginKind.Native);
         foreach (var pluginName in nativePluginNames) {
             if (_plugins.TryRemove(pluginName, out var host) && host is NativePluginHost nativeHost) {
                 try {                 await nativeHost.UnloadAsync().ConfigureAwait(false);

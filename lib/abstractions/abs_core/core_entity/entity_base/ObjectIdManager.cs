@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Entity;
 /// </summary>
 public static class ObjectIdManager {
     private static readonly ConcurrentDictionary<ObjectId, object> _objects = new();
-    private static readonly ConcurrentDictionary<Type, List<ObjectId>> _typeIndex = new();
+    private static ImmutableDictionary<Type, ImmutableList<ObjectId>> _typeIndex = ImmutableDictionary<Type, ImmutableList<ObjectId>>.Empty;
 
     /// <summary>
     /// 注册对象到全局管理器
@@ -17,10 +17,10 @@ public static class ObjectIdManager {
         if (!_objects.TryAdd(id, obj))
             return;
 
-        _typeIndex.AddOrUpdate(
-            typeof(T),
-            _ => [id],
-            (_, list) => { lock (list) { list.Add(id); } return list; });
+        ImmutableInterlocked.Update(ref _typeIndex,
+            d => d.TryGetValue(typeof(T), out var list)
+                ? d.SetItem(typeof(T), list.Add(id))
+                : d.Add(typeof(T), ImmutableList.Create(id)));
     }
 
     /// <summary>
@@ -31,11 +31,8 @@ public static class ObjectIdManager {
             return false;
 
         var type = obj.GetType();
-        if (_typeIndex.TryGetValue(type, out var list)) {
-            lock (list) {
-                list.Remove(id);
-            }
-        }
+        ImmutableInterlocked.Update(ref _typeIndex,
+            d => d.TryGetValue(type, out var list) ? d.SetItem(type, list.Remove(id)) : d);
 
         return true;
     }
@@ -60,17 +57,15 @@ public static class ObjectIdManager {
     /// 获取指定类型的所有对象
     /// </summary>
     public static IReadOnlyList<T> GetAll<T>() where T : class {
-        if (!_typeIndex.TryGetValue(typeof(T), out var ids))
-            return [];
+        var ids = Volatile.Read(ref _typeIndex).GetValueOrDefault(typeof(T));
+        if (ids is null || ids.Count == 0) return [];
 
-        lock (ids) {
-            var result = new List<T>(ids.Count);
-            foreach (var id in ids) {
-                if (_objects.TryGetValue(id, out var obj) && obj is T typed)
-                    result.Add(typed);
-            }
-            return result;
+        var result = new List<T>(ids.Count);
+        foreach (var id in ids) {
+            if (_objects.TryGetValue(id, out var obj) && obj is T typed)
+                result.Add(typed);
         }
+        return result;
     }
 
     /// <summary>
@@ -88,6 +83,6 @@ public static class ObjectIdManager {
     /// </summary>
     public static void Clear() {
         _objects.Clear();
-        _typeIndex.Clear();
+        Interlocked.Exchange(ref _typeIndex, ImmutableDictionary<Type, ImmutableList<ObjectId>>.Empty);
     }
 }

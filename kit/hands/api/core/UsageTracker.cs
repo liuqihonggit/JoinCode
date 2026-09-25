@@ -210,7 +210,7 @@ public interface IUsageTracker {
 [Register(typeof(IUsageTracker), ServiceLifetime.Singleton)]
 public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDisposable {
     private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;
-    private readonly ConcurrentDictionary<string, List<TokenUsageRecord>> _sessionIndex;
+    private readonly ConcurrentDictionary<string, ImmutableList<TokenUsageRecord>> _sessionIndex;
     private readonly ILogger<UsageTracker>? _logger;
     private readonly ICostTracker? _costTracker;
     private readonly IModelConfigLoader _modelConfigLoader;
@@ -224,7 +224,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     /// <param name="modelConfigLoader">可选模型配置加载器，为 null 时使用默认加载器</param>
     public UsageTracker(ILogger<UsageTracker>? logger = null, ICostTracker? costTracker = null, IModelConfigLoader? modelConfigLoader = null) {
         _usageRecords = new ConcurrentBag<TokenUsageRecord>();
-        _sessionIndex = new ConcurrentDictionary<string, List<TokenUsageRecord>>(StringComparer.OrdinalIgnoreCase);
+        _sessionIndex = new ConcurrentDictionary<string, ImmutableList<TokenUsageRecord>>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
         _costTracker = costTracker;
         _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
@@ -237,10 +237,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     public void RecordUsage(TokenUsageRecord usage) {
         _usageRecords.Add(usage);
         if (usage.SessionId is not null) {
-            var sessionList = _sessionIndex.GetOrAdd(usage.SessionId, _ => new List<TokenUsageRecord>());
-            lock (sessionList) {
-                sessionList.Add(usage);
-            }
+            _sessionIndex.AddOrUpdate(usage.SessionId, ImmutableList.Create(usage), (_, list) => list.Add(usage));
         }
         UsageRecorded?.Invoke(this, usage);
 
@@ -292,9 +289,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     public TokenUsageStatistics GetSessionStatistics(string sessionId) {
         if (!_sessionIndex.TryGetValue(sessionId, out var records))
             return new TokenUsageStatistics();
-        lock (records) {
-            return CalculateStatistics(new List<TokenUsageRecord>(records));
-        }
+        return CalculateStatistics(records);
     }
 
     /// <inheritdoc />
@@ -357,7 +352,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     /// <summary>
     /// 计算统计数据
     /// </summary>
-    private static TokenUsageStatistics CalculateStatistics(List<TokenUsageRecord> records) {
+    private static TokenUsageStatistics CalculateStatistics(IReadOnlyList<TokenUsageRecord> records) {
         if (records.Count == 0) {
             return new TokenUsageStatistics();
         }

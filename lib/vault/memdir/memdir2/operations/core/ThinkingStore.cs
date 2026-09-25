@@ -5,7 +5,7 @@ namespace Core.Memdir;
 /// </summary>
 [Register(typeof(IThinkingStore), ServiceLifetime.Singleton)]
 public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisposable {
-    private readonly ConcurrentDictionary<string, List<ThinkingEntry>> _entries = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ImmutableList<ThinkingEntry>> _entries = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
@@ -44,10 +44,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             Timestamp = _clock.GetUtcNow()
         };
 
-        var entries = _entries.GetOrAdd(sessionId, _ => []);
-        lock (entries) {
-            entries.Add(entry);
-        }
+        _entries.AddOrUpdate(sessionId, ImmutableList.Create(entry), (_, list) => list.Add(entry));
 
         _logger?.LogDebug(L.T(StringKey.VaultLogThinkingStore), sessionId, content.Length);
 
@@ -61,10 +58,8 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             return Task.FromResult<IReadOnlyList<ThinkingEntry>>([]);
         }
 
-        lock (entries) {
-            var result = entries.Skip(Math.Max(0, entries.Count - count)).ToList();
-            return Task.FromResult<IReadOnlyList<ThinkingEntry>>(result);
-        }
+        var result = entries.Skip(Math.Max(0, entries.Count - count)).ToList();
+        return Task.FromResult<IReadOnlyList<ThinkingEntry>>(result);
     }
 
     /// <inheritdoc />
@@ -73,9 +68,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             return Task.FromResult<ThinkingEntry?>(null);
         }
 
-        lock (entries) {
-            return Task.FromResult(entries.Count > 0 ? entries[^1] : null);
-        }
+        return Task.FromResult(entries.Count > 0 ? entries[^1] : null);
     }
 
     /// <inheritdoc />
@@ -100,7 +93,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             if (data?.Entries == null) return;
 
             foreach (var kvp in data.Entries) {
-                _entries[kvp.Key] = kvp.Value;
+                _entries[kvp.Key] = kvp.Value.ToImmutableList();
             }
         } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.VaultLogThinkingLoadFailed));

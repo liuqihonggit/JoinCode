@@ -25,10 +25,10 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     private readonly PluginLifecycleTracker _lifecycleTracker;
 
     /// <summary>每个插件的资源 ObjectId 列表 — 卸载后用于扫描验证</summary>
-    private readonly ConcurrentDictionary<string, List<ObjectId>> _pluginResourceIds = new();
+    private ImmutableDictionary<string, ImmutableList<ObjectId>> _pluginResourceIds = ImmutableDictionary<string, ImmutableList<ObjectId>>.Empty;
 
     /// <summary>插件黑名单 — 卸载泄漏的插件加入,拒绝再次加载(方案B C4)</summary>
-    private readonly ConcurrentDictionary<string, byte> _blacklistedPlugins = new();
+    private ImmutableHashSet<string> _blacklistedPlugins = ImmutableHashSet<string>.Empty;
 
     /// <summary>插件依赖图 — 动态拓扑解析(ADR 0098 维度11整合)</summary>
     private readonly PluginDependencyGraph _dependencyGraph = new();
@@ -128,7 +128,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
             }
 
-            if (_blacklistedPlugins.ContainsKey(pluginName)) {
+            if (Volatile.Read(ref _blacklistedPlugins).Contains(pluginName)) {
                 RecordPluginMetrics("workflow", "load", false);
                 throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
             }
@@ -288,7 +288,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
             }
 
-            if (_blacklistedPlugins.ContainsKey(pluginName)) {
+            if (Volatile.Read(ref _blacklistedPlugins).Contains(pluginName)) {
                 RecordPluginMetrics("native", "load", false);
                 throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
             }
@@ -343,7 +343,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
             }
 
-            if (_blacklistedPlugins.ContainsKey(pluginName)) {
+            if (Volatile.Read(ref _blacklistedPlugins).Contains(pluginName)) {
                 RecordPluginMetrics("external", "load", false);
                 throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
             }
@@ -471,7 +471,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 var result = await externalHost.UnloadAsync().ConfigureAwait(false);
                 await externalHost.DisposeAsync().ConfigureAwait(false);
                 if (externalHost.WasForceKilled) {
-                    _blacklistedPlugins.TryAdd(pluginName, 0);
+                    ImmutableInterlocked.Update(ref _blacklistedPlugins, s => s.Add(pluginName));
                     _logger?.LogError("外部插件 {PluginName} 卸载时被强制终止,已加入黑名单,拒绝再次加载", pluginName);
                 }
                 RecordPluginMetrics("external", "unload", result.IsSuccess);
@@ -631,10 +631,16 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// 阶段3 — Verify: 卸载后扫描检查资源是否正确注销
     /// </summary>
     private void ScanAfterUnload(string pluginName) {
-        if (!_pluginResourceIds.TryRemove(pluginName, out var resourceIds)) return;
+        ImmutableList<ObjectId>? resourceIds = null;
+        ImmutableInterlocked.Update(ref _pluginResourceIds, d => {
+            if (!d.TryGetValue(pluginName, out var list)) return d;
+            resourceIds = list;
+            return d.Remove(pluginName);
+        });
+        if (resourceIds is null) return;
         var report = ResourceScanner.ScanPluginResources(pluginName, resourceIds);
         if (report.HasLeaks) {
-            _blacklistedPlugins.TryAdd(pluginName, 0);
+            ImmutableInterlocked.Update(ref _blacklistedPlugins, s => s.Add(pluginName));
             _logger?.LogError("插件 {Plugin} 卸载后有 {Count} 个资源泄漏,已加入黑名单,拒绝再次加载",
                 pluginName, report.LeakedResourceIds.Count);
             ReportDiagnostic(new PluginDiagnostic {
@@ -666,14 +672,14 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
     /// <summary>记录插件资源 ObjectId — 加载时调用,用于卸载后扫描验证</summary>
     internal void RecordPluginResourceIds(string pluginName, IEnumerable<ObjectId> resourceIds) {
-        _pluginResourceIds[pluginName] = resourceIds.ToList();
+        ImmutableInterlocked.Update(ref _pluginResourceIds, d => d.SetItem(pluginName, resourceIds.ToImmutableList()));
     }
 
     /// <summary>测试用: 手动将插件加入黑名单</summary>
-    internal void AddToBlacklistForTest(string pluginName) => _blacklistedPlugins.TryAdd(pluginName, 0);
+    internal void AddToBlacklistForTest(string pluginName) => ImmutableInterlocked.Update(ref _blacklistedPlugins, s => s.Add(pluginName));
 
     /// <summary>测试用: 检查插件是否在黑名单中</summary>
-    internal bool IsBlacklistedForTest(string pluginName) => _blacklistedPlugins.ContainsKey(pluginName);
+    internal bool IsBlacklistedForTest(string pluginName) => Volatile.Read(ref _blacklistedPlugins).Contains(pluginName);
 
     #endregion
 

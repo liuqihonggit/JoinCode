@@ -567,11 +567,12 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
                 continue;
             }
 
-            // NUL 重定向需确认 — git bash 中会创建名为 nul 的文件（Windows 保留设备名）— ADR 0012
-            if (redirect.Target.Equals("NUL", StringComparison.OrdinalIgnoreCase)) {
+            // 保留设备名重定向需确认 — git bash 中会创建同名普通文件（Windows 保留设备名）— ADR 0012
+            // 委托 RetainedDeviceNames.IsMatch（唯一数据源）— P0-③ 单数据源改造
+            if (RetainedDeviceNames.IsMatch(redirect.Target)) {
                 return new PathConstraintResult(
                     PermissionBehavior.Ask,
-                    "检测到 NUL 重定向 — 在 git bash 中会创建名为 nul 的文件（Windows 保留设备名）。若本意是丢弃输出，请改用 /dev/null");
+                    $"检测到保留设备名重定向 '{redirect.Target}' — 在 git bash 中会创建同名普通文件（Windows 保留设备名）。若本意是丢弃输出，请改用 /dev/null");
             }
 
             // 检查路径是否在工作区内

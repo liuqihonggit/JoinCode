@@ -104,6 +104,6 @@ public static partial class RetainedDeviceNames {
     /// <para>fd 可选(0/1/2/&amp;), op 为 &gt;, &gt;&gt;, &gt;|, &amp;&gt;, &lt; 等</para>
     /// <para>设备名模式与 <see cref="Pattern"/> 保持一致</para>
     /// </summary>
-    [GeneratedRegex(@"(?<fd>\d*[<>]|\&)?(?<op>>\>?\|?|<)\s*(?<device>nul|con|prn|aux|com[1-9]|lpt[1-9])\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex($@"(?<fd>\d*[<>]|\&)?(?<op>>\>?\|?|<)\s*(?<device>{Pattern})\b", RegexOptions.IgnoreCase)]
     private static partial Regex RedirectDeviceRegex();
 }

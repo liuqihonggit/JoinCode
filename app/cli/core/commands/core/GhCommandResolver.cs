@@ -26,7 +26,15 @@ internal sealed record GhResolvedCommand(string ToolName, string Group, string? 
 /// </summary>
 internal static class GhCommandResolver {
     /// <summary>gh 分组清单 — 与 <c>gh_*</c> 工具前缀一一对应，用于用法提示。</summary>
-    private static readonly string[] KnownGroups = ["pr", "issue", "repo", "release", "run", "branch", "api"];
+    private static readonly string[] KnownGroups = [
+        GhGroupEnumConstants.Pr,
+        GhGroupEnumConstants.Issue,
+        GhGroupEnumConstants.Repo,
+        GhGroupEnumConstants.Release,
+        GhGroupEnumConstants.Run,
+        GhGroupEnumConstants.Branch,
+        GhGroupEnumConstants.Api,
+    ];
 
     /// <summary>
     /// 解析 <c>jcc gh ...</c> 命令行（<paramref name="args"/>[0] 为子命令名 <c>gh</c>）。

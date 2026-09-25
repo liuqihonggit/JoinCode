@@ -7,17 +7,17 @@ internal enum FlagArgType {
     /// <summary>
     /// 无参数的布尔标志
     /// </summary>
-    None,
+    [EnumValue("none")] None,
 
     /// <summary>
     /// 需要一个参数
     /// </summary>
-    Required,
+    [EnumValue("required")] Required,
 
     /// <summary>
     /// 参数可选
     /// </summary>
-    Optional,
+    [EnumValue("optional")] Optional,
 }
 
 /// <summary>

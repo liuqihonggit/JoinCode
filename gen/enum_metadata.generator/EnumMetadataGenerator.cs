@@ -95,7 +95,8 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
                         enumType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                         enumType.Name,
                         enumType.ContainingNamespace.ToDisplayString(),
-                        members.ToImmutableArray()));
+                        members.ToImmutableArray(),
+                        enumType.DeclaredAccessibility != Accessibility.Public));
                 }
             }
         }
@@ -112,11 +113,13 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
         sb.AppendLine($"namespace {enumInfo.Namespace};");
         sb.AppendLine();
 
+        var accessibility = enumInfo.IsInternal ? "internal" : "public";
+
         // 生成 const string 常量类 — 替代手写的 XxxConstants 类
         sb.AppendLine("    /// <summary>");
         sb.AppendLine($"    /// {enumInfo.Name} 枚举成员的字符串值常量（由源码生成器 EnumMetadataGenerator 生成）");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine($"public static class {enumInfo.Name}EnumConstants");
+        sb.AppendLine($"{accessibility} static class {enumInfo.Name}EnumConstants");
         sb.AppendLine("{");
         foreach (var member in enumInfo.Members) {
             sb.AppendLine("    /// <summary>枚举成员的字符串值</summary>");
@@ -133,7 +136,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
         sb.AppendLine("    /// <summary>");
         sb.AppendLine($"    /// {enumInfo.Name} 枚举的扩展方法（由源码生成器 EnumMetadataGenerator 生成）");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine($"public static class {enumInfo.Name}Extensions");
+        sb.AppendLine($"{accessibility} static class {enumInfo.Name}Extensions");
         sb.AppendLine("{");
 
         // 正向映射: Enum -> string
@@ -161,7 +164,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// 获取枚举成员的字符串值");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine($"    public static string ToValue(this {enumInfo.FullyQualifiedName} value)");
+        sb.AppendLine($"    {accessibility} static string ToValue(this {enumInfo.FullyQualifiedName} value)");
         sb.AppendLine($"        => __valueMap.GetValueOrDefault(value, value.ToString().ToLowerInvariant());");
         sb.AppendLine();
 
@@ -169,7 +172,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// 从字符串值解析枚举成员");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine($"    public static {enumInfo.FullyQualifiedName}? FromValue(string? value)");
+        sb.AppendLine($"    {accessibility} static {enumInfo.FullyQualifiedName}? FromValue(string? value)");
         sb.AppendLine($"        => value is not null && __reverseMap.TryGetValue(value, out var result) ? result : null;");
 
         // IsDefined 方法
@@ -177,7 +180,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// 判断枚举值是否为已定义的成员");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine($"    public static bool IsDefined({enumInfo.FullyQualifiedName} value)");
+        sb.AppendLine($"    {accessibility} static bool IsDefined({enumInfo.FullyQualifiedName} value)");
         sb.AppendLine("        => __valueMap.ContainsKey(value);");
 
         sb.AppendLine("}");
@@ -195,11 +198,12 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
     /// 生成 SubCommandHelpText 类 — 多级渐进式展开帮助文本
     /// </summary>
     private static void GenerateSubCommandHelpText(StringBuilder sb, EnumInfo enumInfo, List<EnumMemberInfo> subCmdMembers) {
+        var accessibility = enumInfo.IsInternal ? "internal" : "public";
         sb.AppendLine();
         sb.AppendLine("    /// <summary>");
         sb.AppendLine($"    /// {enumInfo.Name} 子命令的渐进式帮助文本（由源码生成器 EnumMetadataGenerator 生成）");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine($"public static class {enumInfo.Name}HelpText");
+        sb.AppendLine($"{accessibility} static class {enumInfo.Name}HelpText");
         sb.AppendLine("{");
 
         // 生成 SubCommandEntry 记录
@@ -317,12 +321,14 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
         public string Name { get; }
         public string Namespace { get; }
         public ImmutableArray<EnumMemberInfo> Members { get; }
+        public bool IsInternal { get; }
 
-        public EnumInfo(string fullyQualifiedName, string name, string ns, ImmutableArray<EnumMemberInfo> members) {
+        public EnumInfo(string fullyQualifiedName, string name, string ns, ImmutableArray<EnumMemberInfo> members, bool isInternal) {
             FullyQualifiedName = fullyQualifiedName;
             Name = name;
             Namespace = ns;
             Members = members;
+            IsInternal = isInternal;
         }
     }
 

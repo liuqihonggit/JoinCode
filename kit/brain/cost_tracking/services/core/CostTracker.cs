@@ -321,7 +321,7 @@ public sealed partial class ModelCostInfo {
 }
 
 internal enum BudgetType {
-    Daily,
-    Monthly,
-    Total
+    [EnumValue("daily")] Daily,
+    [EnumValue("monthly")] Monthly,
+    [EnumValue("total")] Total
 }

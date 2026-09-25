@@ -106,7 +106,7 @@ internal sealed class BudgetGuard {
                     _ => CostAlertLevel.Info
                 };
 
-                var message = $"{budgetType}预算告警: 已使用 {percentageUsed:P1} (限额: ${budgetLimit:F2})";
+                var message = $"{budgetType.ToValue()}预算告警: 已使用 {percentageUsed:P1} (限额: ${budgetLimit:F2})";
 
                 var alert = CostAlert.Create(level, message, currentCost, budgetLimit);
                 var args = CostAlertEventArgs.Create(alert);

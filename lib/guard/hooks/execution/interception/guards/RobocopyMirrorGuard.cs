@@ -27,7 +27,7 @@ public sealed class RobocopyMirrorGuard : ICommandGuard {
             return false;
 
         var lower = command.AsSpan();
-        if (!lower.StartsWith("robocopy", StringComparison.OrdinalIgnoreCase))
+        if (!lower.StartsWith(DangerCommandDefinitions.Robocopy, StringComparison.OrdinalIgnoreCase))
             return false;
 
         return lower.Contains("/mir", StringComparison.OrdinalIgnoreCase) ||
@@ -68,7 +68,7 @@ public sealed class RobocopyMirrorGuard : ICommandGuard {
             return false;
 
         var lower = command.AsSpan();
-        if (!lower.StartsWith("robocopy", StringComparison.OrdinalIgnoreCase))
+        if (!lower.StartsWith(DangerCommandDefinitions.Robocopy, StringComparison.OrdinalIgnoreCase))
             return false;
 
         if (!lower.Contains("/mir", StringComparison.OrdinalIgnoreCase) &&

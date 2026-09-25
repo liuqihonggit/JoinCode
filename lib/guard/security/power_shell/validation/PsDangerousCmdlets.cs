@@ -88,9 +88,9 @@ public static partial class PsDangerousCmdlets {
     /// </summary>
     public static readonly FrozenSet<string> EnvWrite = FrozenSet.ToFrozenSet(
     [
-        "set-item", "si", "new-item", "ni", "remove-item", "ri",
-        "del", "rm", "rd", "rmdir", "erase", "clear-item", "cli",
-        "set-content", "add-content", "ac",
+        DangerCommandDefinitions.SetItem, DangerCommandDefinitions.Si, DangerCommandDefinitions.NewItem, DangerCommandDefinitions.Ni, DangerCommandDefinitions.RemoveItem, "ri",
+        DangerCommandDefinitions.Del, DangerCommandDefinitions.Rm, DangerCommandDefinitions.Rd, DangerCommandDefinitions.Rmdir, DangerCommandDefinitions.Erase, DangerCommandDefinitions.ClearItem, DangerCommandDefinitions.Cli,
+        DangerCommandDefinitions.SetContent, DangerCommandDefinitions.AddContent, DangerCommandDefinitions.Ac,
     ], StringComparer.OrdinalIgnoreCase);
 
     /// <summary>

@@ -282,7 +282,7 @@ public static partial class PsSecurityChecker {
                 return PsSecurityResult.Ask($"{cmd.Name} creates or modifies a scheduled task (persistence primitive)");
             }
 
-            if (lower is "schtasks" or "schtasks.exe") {
+            if (lower is DangerCommandDefinitions.Schtasks or "schtasks.exe") {
                 if (cmd.Args.Any(a => {
                     var la = a.ToLowerInvariant();
                     return la is "/create" or "/change" or "-create" or "-change";
@@ -326,11 +326,13 @@ public static partial class PsSecurityChecker {
     private static PsSecurityResult CheckStartProcess(PsCheckContext ctx) {
         foreach (var cmd in ctx.AllCommands) {
             var lower = cmd.Name.ToLowerInvariant();
-            if (lower is not ("start-process" or "saps" or "start")) continue;
+            if (!string.Equals(lower, DangerCommandDefinitions.StartProcess, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(lower, DangerCommandDefinitions.Saps, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(lower, DangerCommandDefinitions.Start, StringComparison.OrdinalIgnoreCase)) continue;
 
             // 向量 1: -Verb RunAs（提权）
             if (PsAstParser.PsHasParamAbbreviation(cmd, "-verb", "-v") &&
-                cmd.Args.Any(a => a.Equals("runas", StringComparison.OrdinalIgnoreCase))) {
+                cmd.Args.Any(a => a.Equals(DangerCommandDefinitions.Runas, StringComparison.OrdinalIgnoreCase))) {
                 return PsSecurityResult.Ask("Command requests elevated privileges");
             }
 

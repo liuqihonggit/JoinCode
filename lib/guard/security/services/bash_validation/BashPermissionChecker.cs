@@ -34,7 +34,7 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
         "sh", "bash", "zsh", "fish", "csh", "tcsh", "ksh", "dash",
         "cmd", "powershell", "pwsh", "env", "xargs",
         "nice", "stdbuf", "nohup", "timeout", "time",
-        "sudo", "doas", "pkexec");
+        DangerCommandDefinitions.Sudo, DangerCommandDefinitions.Doas, DangerCommandDefinitions.Pkexec);
 
     private static readonly Regex BinaryHijackVarsPattern = new(
         @"^(LD_|DYLD_|PATH$)", RegexOptions.Compiled);

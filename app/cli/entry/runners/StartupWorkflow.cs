@@ -103,7 +103,7 @@ internal sealed class StartupWorkflow {
     /// </summary>
     internal static async Task<(bool Success, string? ErrorMessage)> PromptAndSaveProviderConfigAsync(WorkflowConfig? config, IFileSystem fs, IProviderDefinitionRegistry registry) {
         var hint = $"首次使用需要配置 API Key，输入后将保存到 ~/{AppDataConstants.AppDataFolder}/{AppDataConstants.AuthFileName}";
-        var provider = ProviderPicker.Show("openai", "未检测到 API Key。", hint, registry);
+        var provider = ProviderPicker.Show(VendorKind.OpenAi.ToValue(), "未检测到 API Key。", hint, registry); // P1-⑤ 委托枚举
         if (string.IsNullOrEmpty(provider)) {
             return (false, null);
         }

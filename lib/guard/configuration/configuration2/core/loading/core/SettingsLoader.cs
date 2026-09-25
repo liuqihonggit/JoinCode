@@ -61,7 +61,7 @@ public static class SettingsLoader {
         {
           "vendor": {
             "sensenova": {
-              "provider": "sensenova",
+              "provider": "@@VENDOR_SENSENOVA@@",
               "protocol": "openai-compatible",
               "model": "sensenova-6.8-flash-lite",
               "endpoint": "https://token.sensenova.cn/v1",
@@ -70,7 +70,7 @@ public static class SettingsLoader {
               "modelsEndpoint": "models"
             },
             "openai": {
-              "provider": "openai",
+              "provider": "@@VENDOR_OPENAI@@",
               "protocol": "openai-compatible",
               "model": "gpt-5.6-sol",
               "endpoint": "https://api.openai.com/v1",
@@ -79,7 +79,7 @@ public static class SettingsLoader {
               "modelsEndpoint": "models"
             },
             "anthropic": {
-              "provider": "anthropic",
+              "provider": "@@VENDOR_ANTHROPIC@@",
               "protocol": "anthropic",
               "model": "claude-opus-5",
               "endpoint": "https://api.anthropic.com",
@@ -88,7 +88,7 @@ public static class SettingsLoader {
               "modelsEndpoint": "models"
             },
             "deepseek": {
-              "provider": "deepseek",
+              "provider": "@@VENDOR_DEEPSEEK@@",
               "protocol": "openai-compatible",
               "model": "deepseek-v4-flash",
               "endpoint": "https://api.deepseek.com",
@@ -97,7 +97,7 @@ public static class SettingsLoader {
               "modelsEndpoint": "models"
             },
             "deepseek-anthropic": {
-              "provider": "deepseek",
+              "provider": "@@VENDOR_DEEPSEEK@@",
               "protocol": "anthropic",
               "model": "deepseek-v4-flash",
               "endpoint": "https://api.deepseek.com/anthropic",
@@ -106,7 +106,7 @@ public static class SettingsLoader {
               "modelsEndpoint": "models"
             },
             "agnes": {
-              "provider": "agnes",
+              "provider": "@@VENDOR_AGNES@@",
               "protocol": "openai-compatible",
               "model": "agnes-2.0-flash",
               "endpoint": "https://apihub.agnes-ai.com/v1",
@@ -115,7 +115,7 @@ public static class SettingsLoader {
               "modelsEndpoint": "models"
             },
             "zhipu": {
-              "provider": "zhipu",
+              "provider": "@@VENDOR_ZHIPU@@",
               "protocol": "openai-compatible",
               "model": "glm-5.3",
               "endpoint": "https://open.bigmodel.cn/api/paas/v4",
@@ -126,7 +126,7 @@ public static class SettingsLoader {
           },
           "autoFetchModels": true,
           "current": {
-            "profile": "sensenova",
+            "profile": "@@VENDOR_SENSENOVA@@",
             "actor": {
               "buildQueue": {
                 "mode": "serial",
@@ -159,7 +159,13 @@ public static class SettingsLoader {
         .Replace("@@ANTHROPIC_API_KEY@@", ProviderEnvVar.AnthropicApiKey.ToValue())
         .Replace("@@DEEPSEEK_API_KEY@@", ProviderEnvVar.DeepSeekApiKey.ToValue())
         .Replace("@@AGNES_API_KEY@@", ProviderEnvVar.AgnesApiKey.ToValue())
-        .Replace("@@ZHIPUAI_API_KEY@@", ProviderEnvVar.ZhipuApiKey.ToValue());
+        .Replace("@@ZHIPUAI_API_KEY@@", ProviderEnvVar.ZhipuApiKey.ToValue())
+        .Replace("@@VENDOR_SENSENOVA@@", VendorKind.Sensenova.ToValue())
+        .Replace("@@VENDOR_OPENAI@@", VendorKind.OpenAi.ToValue())
+        .Replace("@@VENDOR_ANTHROPIC@@", VendorKind.Anthropic.ToValue())
+        .Replace("@@VENDOR_DEEPSEEK@@", VendorKind.DeepSeek.ToValue())
+        .Replace("@@VENDOR_AGNES@@", VendorKind.Agnes.ToValue())
+        .Replace("@@VENDOR_ZHIPU@@", VendorKind.Zhipu.ToValue());
     }
 
     /// <summary>

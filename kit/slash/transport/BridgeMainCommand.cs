@@ -8,7 +8,7 @@ namespace JoinCode.ChatCommands.Bridge;
 public sealed class BridgeMainCommand {
     private const string PolicyActionAllowRemoteControl = "allow_remote_control";
     private const string ConfigKeyRemoteDialogSeen = "remoteDialogSeen";
-    private const string TokenProviderAnthropic = "anthropic";
+    private static readonly string TokenProviderAnthropic = VendorKind.Anthropic.ToValue(); // P1-⑤ 委托枚举
     private static readonly string EnvOAuthToken = JccEnvVar.OAuthToken.ToValue();
     private static readonly string EnvSessionAccessToken = JccEnvVar.SessionAccessToken.ToValue();
 

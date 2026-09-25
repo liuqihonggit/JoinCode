@@ -43,9 +43,9 @@ internal sealed class DotEnvConfig {
                 }
             }
 
-            // ANTHROPIC_AUTH_TOKEN 兼容（Anthropic 旧版环境变量名，不在 ApiKeyEnvironmentVariable 中）
+            // ANTHROPIC_AUTH_TOKEN 兼容（Anthropic 旧版环境变量名，不在 ApiKeyEnvironmentVariable 中）— 委托 VendorKind 枚举 — P1-⑤
             if (config.Vendor is null && envObj.TryGetProperty("ANTHROPIC_AUTH_TOKEN", out var authTokenVal) && authTokenVal.ValueKind == System.Text.Json.JsonValueKind.String) {
-                config.Vendor = "anthropic";
+                config.Vendor = VendorKind.Anthropic.ToValue();
                 config.ApiKey = authTokenVal.GetString();
             }
 

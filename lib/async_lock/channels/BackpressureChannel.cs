@@ -1,4 +1,4 @@
-namespace JoinCode.AsyncLock.Channels;
+namespace Core.Utils;
 
 /// <summary>
 /// 有界背压通道 — 不丢弃消息,高水位时反向通知发送方延迟重试

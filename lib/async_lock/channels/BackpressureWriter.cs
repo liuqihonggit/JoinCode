@@ -1,4 +1,4 @@
-namespace JoinCode.AsyncLock.Channels;
+namespace Core.Utils;
 
 /// <summary>
 /// 背压写入器 — 封装 TryWrite + 延迟重试循环(16次+指数退避+换流水号)

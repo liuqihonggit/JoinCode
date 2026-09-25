@@ -1,4 +1,4 @@
-namespace JoinCode.AsyncLock.Channels;
+namespace Core.Utils;
 
 /// <summary>
 /// 背压协议消息 — 带流水号和重试计数的业务消息,收发双方环形通信的载体

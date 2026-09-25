@@ -142,33 +142,37 @@ public sealed class SessionEventLog {
     /// <summary>事件数量 — O(1)</summary>
     public int Count => Volatile.Read(ref _events).Count;
 
-    /// <summary>按 seq 查找</summary>
+    /// <summary>按 seq 查找 — 二分法 O(log n)</summary>
     public SessionEvent? Find(int seq) {
         var events = Volatile.Read(ref _events);
-        for (var i = 0; i < events.Count; i++) {
-            if (events[i].Seq == seq) return events[i];
-        }
-        return null;
+        var pos = LowerBound(events, seq);
+        return pos < events.Count && events[pos].Seq == seq ? events[pos] : null;
     }
 
-    /// <summary>从某 seq 之后的事件（不含该 seq）</summary>
+    /// <summary>从某 seq 之后的事件（不含该 seq）— 二分法 O(log n + k)</summary>
     public IReadOnlyList<SessionEvent> After(int seq) {
         var events = Volatile.Read(ref _events);
-        var result = new List<SessionEvent>();
-        for (var i = 0; i < events.Count; i++) {
-            if (events[i].Seq > seq) result.Add(events[i]);
-        }
-        return result;
+        var pos = LowerBound(events, seq + 1);
+        return pos >= events.Count ? [] : events.GetRange(pos, events.Count - pos);
     }
 
-    /// <summary>到某 seq 为止的事件（含该 seq）</summary>
+    /// <summary>到某 seq 为止的事件（含该 seq）— 二分法 O(log n + k)</summary>
     public IReadOnlyList<SessionEvent> Until(int seq) {
         var events = Volatile.Read(ref _events);
-        var result = new List<SessionEvent>();
-        for (var i = 0; i < events.Count; i++) {
-            if (events[i].Seq <= seq) result.Add(events[i]);
+        var pos = LowerBound(events, seq + 1);
+        return pos == 0 ? [] : events.GetRange(0, pos);
+    }
+
+    /// <summary>二分法 — 返回第一个 Seq >= target 的位置</summary>
+    private static int LowerBound(ImmutableList<SessionEvent> events, int target) {
+        var lo = 0;
+        var hi = events.Count;
+        while (lo < hi) {
+            var mid = lo + (hi - lo) / 2;
+            if (events[mid].Seq < target) lo = mid + 1;
+            else hi = mid;
         }
-        return result;
+        return lo;
     }
 }
 

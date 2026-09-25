@@ -128,22 +128,24 @@ public static class BashSemanticChecker {
 
         for (var i = 1; i < a.Length; i++) {
             var arg = a[i];
-            if (dangerFlags.Contains(arg) && i + 1 < a.Length && a[i + 1].Contains('[')) {
+            if (i + 1 < a.Length && dangerFlags.Contains(arg) && a[i + 1].Contains('[')) {
                 return new BashSemanticCheckResult(false,
                     $"'{name} {arg}' 操作数包含数组下标 — bash 会在下标中求值 $(cmd)",
                     BashSecurityCheckId.SubscriptEvalFlags);
             }
+            var hasBracket = arg.Contains('[');
             foreach (var flag in dangerFlags) {
-                if (arg.StartsWith(flag) && arg.Length > flag.Length && arg.Contains('[')) {
+                if (hasBracket && arg.Length > flag.Length && arg.StartsWith(flag)) {
                     return new BashSemanticCheckResult(false,
                         $"'{name} {flag}' (融合) 操作数包含数组下标 — bash 会在下标中求值 $(cmd)",
                         BashSecurityCheckId.SubscriptEvalFlags);
                 }
             }
             if (arg.Length > 2 && arg[0] == '-' && arg[1] != '-' && !arg.Contains('[')) {
+                var hasNext = i + 1 < a.Length;
+                var nextHasBracket = hasNext && a[i + 1].Contains('[');
                 foreach (var flag in dangerFlags) {
-                    if (flag.Length == 2 && arg.Contains(flag[1]) &&
-                        i + 1 < a.Length && a[i + 1].Contains('[')) {
+                    if (nextHasBracket && flag.Length == 2 && arg.Contains(flag[1])) {
                         return new BashSemanticCheckResult(false,
                             $"'{name} {flag}' (组合在 '{arg}' 中) 操作数包含数组下标",
                             BashSecurityCheckId.SubscriptEvalFlags);

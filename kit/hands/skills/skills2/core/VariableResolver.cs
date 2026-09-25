@@ -39,7 +39,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver 
         var maxIterations = 10;
         var iterations = 0;
 
-        while (result.Contains("{{") && iterations < maxIterations) {
+        while (iterations < maxIterations && result.Contains("{{")) {
             var newResult = ResolveSinglePass(result, variables, throwOnMissing);
             if (newResult == result) {
                 break;
@@ -242,7 +242,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver 
         var maxIterations = 10;
         var iterations = 0;
 
-        while (result.Contains("{{") && iterations < maxIterations) {
+        while (iterations < maxIterations && result.Contains("{{")) {
             var newResult = Resolve(result, variables, throwOnMissing);
             if (newResult == result) {
                 break;

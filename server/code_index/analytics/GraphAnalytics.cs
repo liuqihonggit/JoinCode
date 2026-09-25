@@ -620,8 +620,8 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
 
     private static bool IsEntryPoint(SymbolInfo symbol) {
         if (symbol.Name is "Main" or "MainAsync" or "Program") return true;
-        if (symbol.Name.StartsWith("On", StringComparison.Ordinal) &&
-            symbol.Kind == SymbolKind.Method) return true;
+        if (symbol.Kind == SymbolKind.Method &&
+            symbol.Name.StartsWith("On", StringComparison.Ordinal)) return true;
         return false;
     }
 }

@@ -59,7 +59,7 @@ public static class BashSafeWrapperStripper {
                     var i = 1;
                     while (i < a.Length) {
                         var arg = a[i];
-                        if (BashSecurityRegex.StdbufShortSepRegex().IsMatch(arg) && i + 1 < a.Length) i += 2;
+                        if (i + 1 < a.Length && BashSecurityRegex.StdbufShortSepRegex().IsMatch(arg)) i += 2;
                         else if (BashSecurityRegex.StdbufShortFusedRegex().IsMatch(arg)) i++;
                         else if (BashSecurityRegex.StdbufLongRegex().IsMatch(arg)) i++;
                         else if (arg.StartsWith('-')) return a;

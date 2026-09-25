@@ -5,6 +5,12 @@ namespace JoinCode.Guard.Security.PowerShell;
 /// 所有检查基于 AST，如果解析失败（Valid=false），返回 'ask' 作为安全默认值
 /// </summary>
 public static partial class PsSecurityChecker {
+    /// <summary>检查上下文 — 缓存 GetAllCommands/DeriveSecurityFlags 结果，消除循环内重复求值</summary>
+    private sealed record PsCheckContext(
+        PsParsedCommand Parsed,
+        IReadOnlyList<PsCommandElement> AllCommands,
+        PsSecurityFlags Flags);
+
     /// <summary>
     /// 主入口：对 PS 命令执行全部安全检查
     /// </summary>
@@ -16,8 +22,14 @@ public static partial class PsSecurityChecker {
             return PsSecurityResult.Ask("Could not parse command for security analysis");
         }
 
+        // 缓存耗时求值结果 — GetAllCommands + DeriveSecurityFlags 在入口一次求值，传入各检查器复用
+        var ctx = new PsCheckContext(
+            parsed,
+            PsAstParser.GetAllCommands(parsed),
+            PsAstParser.DeriveSecurityFlags(parsed));
+
         // 按顺序执行所有检查器
-        var validators = new Func<PsParsedCommand, PsSecurityResult>[]
+        var validators = new Func<PsCheckContext, PsSecurityResult>[]
         {
             CheckInvokeExpression,
             CheckDynamicCommandName,
@@ -46,7 +58,7 @@ public static partial class PsSecurityChecker {
         };
 
         foreach (var validator in validators) {
-            var result = validator(parsed);
+            var result = validator(ctx);
             if (result.Behavior == PermissionBehavior.Ask) {
                 return result;
             }
@@ -57,8 +69,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 1: Invoke-Expression ────────────────────────────────
 
-    private static PsSecurityResult CheckInvokeExpression(PsParsedCommand parsed) {
-        if (PsAstParser.HasCommandNamed(parsed, "Invoke-Expression")) {
+    private static PsSecurityResult CheckInvokeExpression(PsCheckContext ctx) {
+        if (PsAstParser.HasCommandNamed(ctx.Parsed, "Invoke-Expression")) {
             return PsSecurityResult.Ask("Command uses Invoke-Expression which can execute arbitrary code");
         }
         return PsSecurityResult.Passthrough;
@@ -66,8 +78,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 2: 动态命令名 ──────────────────────────────────────
 
-    private static PsSecurityResult CheckDynamicCommandName(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckDynamicCommandName(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             if (cmd.ElementTypes.Length == 0) continue;
 
             if (cmd.ElementTypes[0] != PsElementType.StringConstant) {
@@ -79,8 +91,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 3: 编码命令 ────────────────────────────────────────
 
-    private static PsSecurityResult CheckEncodedCommand(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckEncodedCommand(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             if (PsAstParser.IsPowerShellExecutable(cmd.Name)) {
                 if (PsAstParser.PsHasParamAbbreviation(cmd, "-encodedcommand", "-e")) {
                     return PsSecurityResult.Ask("Command uses encoded parameters which obscure intent");
@@ -92,8 +104,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 4: 嵌套 pwsh 进程 ──────────────────────────────────
 
-    private static PsSecurityResult CheckPwshCommandOrFile(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckPwshCommandOrFile(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             if (PsAstParser.IsPowerShellExecutable(cmd.Name)) {
                 return PsSecurityResult.Ask("Command spawns a nested PowerShell process which cannot be validated");
             }
@@ -103,13 +115,11 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 5: 下载摇篮 ────────────────────────────────────────
 
-    private static PsSecurityResult CheckDownloadCradles(PsParsedCommand parsed) {
-        var allCommands = PsAstParser.GetAllCommands(parsed);
-
+    private static PsSecurityResult CheckDownloadCradles(PsCheckContext ctx) {
         // 跨命令检测：下载器 + IEX
-        var hasDownloader = allCommands.Any(c =>
+        var hasDownloader = ctx.AllCommands.Any(c =>
             PsDangerousCmdlets.DownloaderNames.Contains(c.Name.ToLowerInvariant()));
-        var hasIex = allCommands.Any(c => {
+        var hasIex = ctx.AllCommands.Any(c => {
             var lower = c.Name.ToLowerInvariant();
             return lower == "invoke-expression" || lower == "iex";
         });
@@ -122,8 +132,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 6: 下载工具 ────────────────────────────────────────
 
-    private static PsSecurityResult CheckDownloadUtilities(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckDownloadUtilities(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             var lower = cmd.Name.ToLowerInvariant();
 
             if (lower == "start-bitstransfer") {
@@ -150,8 +160,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 7: Add-Type ────────────────────────────────────────
 
-    private static PsSecurityResult CheckAddType(PsParsedCommand parsed) {
-        if (PsAstParser.HasCommandNamed(parsed, "Add-Type")) {
+    private static PsSecurityResult CheckAddType(PsCheckContext ctx) {
+        if (PsAstParser.HasCommandNamed(ctx.Parsed, "Add-Type")) {
             return PsSecurityResult.Ask("Command compiles and loads .NET code");
         }
         return PsSecurityResult.Passthrough;
@@ -159,8 +169,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 8: COM 对象 ────────────────────────────────────────
 
-    private static PsSecurityResult CheckComObject(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckComObject(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             if (!cmd.Name.Equals("New-Object", StringComparison.OrdinalIgnoreCase)) continue;
 
             // -ComObject 缩写 -com
@@ -225,8 +235,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 9: 危险文件路径执行 ────────────────────────────────
 
-    private static PsSecurityResult CheckDangerousFilePathExecution(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckDangerousFilePathExecution(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             var lower = cmd.Name.ToLowerInvariant();
             var resolved = PsAliases.ResolveToCanonical(lower);
 
@@ -252,8 +262,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 10: Invoke-Item ────────────────────────────────────
 
-    private static PsSecurityResult CheckInvokeItem(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckInvokeItem(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             var lower = cmd.Name.ToLowerInvariant();
             if (lower is "invoke-item" or "ii") {
                 return PsSecurityResult.Ask(
@@ -265,8 +275,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 11: 计划任务 ────────────────────────────────────────
 
-    private static PsSecurityResult CheckScheduledTask(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckScheduledTask(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             var lower = cmd.Name.ToLowerInvariant();
             if (PsDangerousCmdlets.ScheduledTask.Contains(lower)) {
                 return PsSecurityResult.Ask($"{cmd.Name} creates or modifies a scheduled task (persistence primitive)");
@@ -287,8 +297,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 12: ForEach-Object -MemberName ─────────────────────
 
-    private static PsSecurityResult CheckForEachMemberName(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckForEachMemberName(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             var lower = cmd.Name.ToLowerInvariant();
             var resolved = PsAliases.ResolveToCanonical(lower);
             if (resolved != "foreach-object") continue;
@@ -313,8 +323,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 13: Start-Process ──────────────────────────────────
 
-    private static PsSecurityResult CheckStartProcess(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckStartProcess(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             var lower = cmd.Name.ToLowerInvariant();
             if (lower is not ("start-process" or "saps" or "start")) continue;
 
@@ -347,12 +357,11 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 14: 脚本块注入 ────────────────────────────────────
 
-    private static PsSecurityResult CheckScriptBlockInjection(PsParsedCommand parsed) {
-        var flags = PsAstParser.DeriveSecurityFlags(parsed);
-        if (!flags.HasScriptBlocks) return PsSecurityResult.Passthrough;
+    private static PsSecurityResult CheckScriptBlockInjection(PsCheckContext ctx) {
+        if (!ctx.Flags.HasScriptBlocks) return PsSecurityResult.Passthrough;
 
         // 检查是否有危险脚本块 cmdlet
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+        foreach (var cmd in ctx.AllCommands) {
             var lower = cmd.Name.ToLowerInvariant();
             if (PsDangerousCmdlets.DangerousScriptBlock.Contains(lower)) {
                 return PsSecurityResult.Ask(
@@ -361,7 +370,7 @@ public static partial class PsSecurityChecker {
         }
 
         // 检查所有命令是否都是安全的脚本块消费者
-        var allSafe = PsAstParser.GetAllCommands(parsed).All(cmd => {
+        var allSafe = ctx.AllCommands.All(cmd => {
             var lower = cmd.Name.ToLowerInvariant();
             if (PsDangerousCmdlets.SafeScriptBlock.Contains(lower)) return true;
             if (PsAliases.TryResolve(lower, out var canonical) &&
@@ -378,17 +387,17 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 15: 子表达式 ────────────────────────────────────────
 
-    private static PsSecurityResult CheckSubExpressions(PsParsedCommand parsed) {
-        if (PsAstParser.DeriveSecurityFlags(parsed).HasSubExpressions) {
+    private static PsSecurityResult CheckSubExpressions(PsCheckContext ctx) {
+        if (ctx.Flags.HasSubExpressions) {
             return PsSecurityResult.Ask("Command contains subexpressions $()");
         }
         return PsSecurityResult.Passthrough;
     }
 
-    // ─── 检查器 16: 可展开字符串 ────────────────────────────────────
+    // ─── 检查器 16: 可展开字符串 ───────────────────────────────────
 
-    private static PsSecurityResult CheckExpandableStrings(PsParsedCommand parsed) {
-        if (PsAstParser.DeriveSecurityFlags(parsed).HasExpandableStrings) {
+    private static PsSecurityResult CheckExpandableStrings(PsCheckContext ctx) {
+        if (ctx.Flags.HasExpandableStrings) {
             return PsSecurityResult.Ask("Command contains expandable strings with embedded expressions");
         }
         return PsSecurityResult.Passthrough;
@@ -396,8 +405,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 17: Splatting ──────────────────────────────────────
 
-    private static PsSecurityResult CheckSplatting(PsParsedCommand parsed) {
-        if (PsAstParser.DeriveSecurityFlags(parsed).HasSplatting) {
+    private static PsSecurityResult CheckSplatting(PsCheckContext ctx) {
+        if (ctx.Flags.HasSplatting) {
             return PsSecurityResult.Ask("Command uses splatting (@variable)");
         }
         return PsSecurityResult.Passthrough;
@@ -405,8 +414,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 18: Stop-parsing token ─────────────────────────────
 
-    private static PsSecurityResult CheckStopParsing(PsParsedCommand parsed) {
-        if (PsAstParser.DeriveSecurityFlags(parsed).HasStopParsing) {
+    private static PsSecurityResult CheckStopParsing(PsCheckContext ctx) {
+        if (ctx.Flags.HasStopParsing) {
             return PsSecurityResult.Ask("Command uses stop-parsing token (--%)");
         }
         return PsSecurityResult.Passthrough;
@@ -414,8 +423,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 19: .NET 方法调用 ──────────────────────────────────
 
-    private static PsSecurityResult CheckMemberInvocations(PsParsedCommand parsed) {
-        if (PsAstParser.DeriveSecurityFlags(parsed).HasMemberInvocations) {
+    private static PsSecurityResult CheckMemberInvocations(PsCheckContext ctx) {
+        if (ctx.Flags.HasMemberInvocations) {
             return PsSecurityResult.Ask("Command invokes .NET methods");
         }
         return PsSecurityResult.Passthrough;
@@ -423,8 +432,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 20: 类型字面量（CLM 白名单检查）──────────────────
 
-    private static PsSecurityResult CheckTypeLiterals(PsParsedCommand parsed) {
-        foreach (var t in parsed.TypeLiterals) {
+    private static PsSecurityResult CheckTypeLiterals(PsCheckContext ctx) {
+        foreach (var t in ctx.Parsed.TypeLiterals) {
             if (!ClmAllowedTypes.IsClmAllowedType(t)) {
                 return PsSecurityResult.Ask(
                     $"Command uses .NET type [{t}] outside the ConstrainedLanguage allowlist");
@@ -435,17 +444,17 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 21: 环境变量操纵 ──────────────────────────────────
 
-    private static PsSecurityResult CheckEnvVarManipulation(PsParsedCommand parsed) {
-        var envVars = PsAstParser.GetVariablesByScope(parsed, "env");
+    private static PsSecurityResult CheckEnvVarManipulation(PsCheckContext ctx) {
+        var envVars = PsAstParser.GetVariablesByScope(ctx.Parsed, "env");
         if (envVars.Count == 0) return PsSecurityResult.Passthrough;
 
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+        foreach (var cmd in ctx.AllCommands) {
             if (PsDangerousCmdlets.EnvWrite.Contains(cmd.Name.ToLowerInvariant())) {
                 return PsSecurityResult.Ask("Command modifies environment variables");
             }
         }
 
-        if (PsAstParser.DeriveSecurityFlags(parsed).HasAssignments && envVars.Count > 0) {
+        if (ctx.Flags.HasAssignments) {
             return PsSecurityResult.Ask("Command modifies environment variables");
         }
         return PsSecurityResult.Passthrough;
@@ -453,8 +462,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 22: 模块加载 ──────────────────────────────────────
 
-    private static PsSecurityResult CheckModuleLoading(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckModuleLoading(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             if (PsDangerousCmdlets.ModuleLoading.Contains(cmd.Name.ToLowerInvariant())) {
                 return PsSecurityResult.Ask(
                     "Command loads, installs, or downloads a PowerShell module or script, which can execute arbitrary code");
@@ -465,8 +474,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 23: 运行时状态操纵 ────────────────────────────────
 
-    private static PsSecurityResult CheckRuntimeStateManipulation(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckRuntimeStateManipulation(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             // 去除模块限定符
             var raw = cmd.Name.ToLowerInvariant();
             var lower = raw.Contains('\\') ? raw[(raw.LastIndexOf('\\') + 1)..] : raw;
@@ -481,8 +490,8 @@ public static partial class PsSecurityChecker {
 
     // ─── 检查器 24: WMI 进程生成 ──────────────────────────────────
 
-    private static PsSecurityResult CheckWmiProcessSpawn(PsParsedCommand parsed) {
-        foreach (var cmd in PsAstParser.GetAllCommands(parsed)) {
+    private static PsSecurityResult CheckWmiProcessSpawn(PsCheckContext ctx) {
+        foreach (var cmd in ctx.AllCommands) {
             if (PsDangerousCmdlets.WmiCim.Contains(cmd.Name.ToLowerInvariant())) {
                 return PsSecurityResult.Ask(
                     $"{cmd.Name} can spawn arbitrary processes via WMI/CIM (Win32_Process Create)");

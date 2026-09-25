@@ -206,7 +206,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     }
 
     private static string HexToTmuxColor(string hex) {
-        if (hex.StartsWith('#') && hex.Length == 7)
+        if (hex.Length == 7 && hex.StartsWith('#'))
             return $"colour{HexToAnsi256(hex)}";
         return hex;
     }

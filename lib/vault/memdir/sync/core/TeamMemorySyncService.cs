@@ -283,7 +283,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         var teamPath = Path.Combine(_options.WatchPath, teamId);
         var localCount = _localEntries.Count(e => e.Key.StartsWith(teamPath, StringComparison.OrdinalIgnoreCase));
         var conflictEvents = _eventLog.History
-            .Where(e => e.FilePath.StartsWith(teamPath, StringComparison.OrdinalIgnoreCase) && e.Type == SyncEventType.ConflictDetected)
+            .Where(e => e.Type == SyncEventType.ConflictDetected && e.FilePath.StartsWith(teamPath, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         var conflicts = conflictEvents

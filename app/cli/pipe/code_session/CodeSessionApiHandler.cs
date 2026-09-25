@@ -162,11 +162,11 @@ public sealed partial class CodeSessionApiHandler : ServiceEntity {
             await HandleCreateRouteAsync(context, ct).ConfigureAwait(false);
             break;
 
-            case var p when p.StartsWith("/code-sessions/") && method == "GET":
+            case var p when method == "GET" && p.StartsWith("/code-sessions/"):
             await HandleGetRouteAsync(context, p, ct).ConfigureAwait(false);
             break;
 
-            case var p when p.StartsWith("/code-sessions/") && method == "DELETE":
+            case var p when method == "DELETE" && p.StartsWith("/code-sessions/"):
             await HandleDeleteRouteAsync(context, p, ct).ConfigureAwait(false);
             break;
 

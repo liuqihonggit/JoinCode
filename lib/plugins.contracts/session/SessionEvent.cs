@@ -217,7 +217,7 @@ public static class SessionEventRebuilder {
         var result = new List<SessionEvent>(events.Count);
         for (var i = 0; i < events.Count; i++) {
             var evt = events[i];
-            if (knownTypes is not null && !knownTypes.Contains(evt.Type) && !evt.Ignorable) {
+            if (knownTypes is not null && !evt.Ignorable && !knownTypes.Contains(evt.Type)) {
                 throw new InvalidOperationException(
                     $"[INF-SESSION-UNKNOWN] 未知事件类型 {evt.Type} 且非 ignorable，拒绝重建");
             }

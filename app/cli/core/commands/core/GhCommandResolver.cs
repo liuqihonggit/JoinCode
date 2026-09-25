@@ -68,7 +68,7 @@ internal static class GhCommandResolver {
             var token = args[i];
             if (token.StartsWith("--")) {
                 // --key=value 自带值，不吞下一个 token
-                if (!token.Contains('=') && i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+                if (i + 1 < args.Length && !token.Contains('=') && !args[i + 1].StartsWith("--"))
                     i++;
                 continue;
             }

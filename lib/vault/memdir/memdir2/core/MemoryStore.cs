@@ -209,7 +209,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// </summary>
     public int CleanupExpired() {
         var expiredIds = _memories.Values
-            .Where(m => m.IsExpired() && !m.IsArchived)
+            .Where(m => !m.IsArchived && m.IsExpired())
             .Select(m => m.Id)
             .ToArray();
 

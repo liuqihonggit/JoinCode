@@ -183,7 +183,7 @@ public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abst
             : config.Url ?? string.Empty;
 
         McpAuthConfig? authConfig = null;
-        if (!string.IsNullOrWhiteSpace(config.AuthName) && _authConfigProvider != null) {
+        if (_authConfigProvider != null && !string.IsNullOrWhiteSpace(config.AuthName)) {
             authConfig = _authConfigProvider.GetAuthConfig(config.AuthName);
             if (authConfig == null) {
                 _logger?.LogWarning("Agent 内联 MCP 服务器 '{Name}' 引用的认证配置 '{AuthName}' 不存在",

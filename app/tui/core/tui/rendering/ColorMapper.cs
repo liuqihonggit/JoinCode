@@ -37,7 +37,7 @@ public static class ColorMapper {
     }
 
     private static GuiColor ParseRgb(string rgb) {
-        if (rgb.StartsWith('#') && rgb.Length >= 7) {
+        if (rgb.Length >= 7 && rgb.StartsWith('#')) {
             var r = Convert.ToInt32(rgb[1..3], 16);
             var g = Convert.ToInt32(rgb[3..5], 16);
             var b = Convert.ToInt32(rgb[5..7], 16);

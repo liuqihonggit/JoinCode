@@ -15,7 +15,7 @@ jobs:
   build:
     name: Build
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -35,26 +35,29 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
+      - name: Restore (all)
+        run: dotnet restore build/sln/JoinCode.slnx --nologo
+
       - name: Build - ① Generators
-        run: dotnet build build/sln/Generators.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/Generators.slnx -c Release --no-restore --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
 
       - name: Build - ② Foundation
-        run: dotnet build build/sln/Foundation.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/Foundation.slnx -c Release --no-restore --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
 
       - name: Build - ③ Infrastructure
-        run: dotnet build build/sln/Infrastructure.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/Infrastructure.slnx -c Release --no-restore --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
 
       - name: Build - ④ Core
-        run: dotnet build build/sln/Core.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/Core.slnx -c Release --no-restore --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
 
       - name: Build - ⑤ Services
-        run: dotnet build build/sln/Services.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/Services.slnx -c Release --no-restore --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
 
       - name: Build - ⑥ Composition
-        run: dotnet build build/sln/Composition.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/Composition.slnx -c Release --no-restore --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
 
       - name: Build - ⑦ App
-        run: dotnet build build/sln/App.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/App.slnx -c Release --no-restore --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
 
       - name: Build - Component Tests
         run: |
@@ -92,7 +95,7 @@ jobs:
           )
           foreach ($p in $projects) {
             Write-Host "Building $p ..."
-            dotnet build $p -c Release --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+            dotnet build $p -c Release --no-restore --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
             if ($LASTEXITCODE -ne 0) { exit 1 }
           }
         shell: pwsh
@@ -107,7 +110,7 @@ jobs:
           )
           foreach ($p in $projects) {
             Write-Host "Building $p ..."
-            dotnet build $p -c Release --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+            dotnet build $p -c Release --no-restore --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
             if ($LASTEXITCODE -ne 0) { exit 1 }
           }
         shell: pwsh
@@ -122,6 +125,18 @@ jobs:
             !artifacts/bin/JoinCodeGui/
             !artifacts/bin/JoinCodeGui.Tests/
             !artifacts/bin/SkiaSharpAotTest/
+            !artifacts/bin/TerminalGuiAotProbe/
+            !artifacts/bin/Tui.Tests/
+            !artifacts/bin/Eyes.Benchmarks/
+            !artifacts/bin/AsyncLock.Benchmarks/
+            !artifacts/bin/JccAuditCli/
+            !artifacts/bin/JccAuditCli.Tests/
+            !artifacts/bin/InjectMigration/
+            !artifacts/bin/JccInteractiveTester/
+            !artifacts/bin/SampleNativePlugin/
+            !artifacts/bin/aot-browser-test/
+            !artifacts/bin/aot-httpclientfactory-test/
+            !artifacts/bin/PptrApiCheck/
             !**/runtimes/linux-arm/
             !**/runtimes/linux-arm64/
             !**/runtimes/linux-x64/

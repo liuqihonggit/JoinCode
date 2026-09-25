@@ -96,19 +96,18 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     }.ToFrozenDictionary();
 
     /// <summary>
-    /// 危险删除路径集合 — 对齐 TS isDangerousRemovalPath
-    /// </summary>
-    private static readonly FrozenSet<string> DangerousRemovalPaths = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "/", "/tmp", "/etc", "/usr", "/bin", "/sbin", "/var", "/root",
-        "/home", "/opt", "/sys", "/proc", "/dev", "/lib",
-        @"C:\", @"C:\Windows", @"C:\Program Files", @"C:\Users",
-        @"D:\", @"E:\");
-
-    /// <summary>
     /// 预归一化危险路径 — Replace('\\','/')+TrimEnd('/') 在静态初始化时一次性计算,消除循环内重复分配
+    /// P2-⑨ 源+派生缓存合并: 直接从路径列表构建,消除中间 FrozenSet 源字段
     /// </summary>
-    private static readonly string[] DangerousRemovalPathsNormalized = [.. DangerousRemovalPaths.Select(d => d.Replace('\\', '/').TrimEnd('/'))];
+    private static readonly string[] DangerousRemovalPathsNormalized = new string[]
+        {
+            "/", "/tmp", "/etc", "/usr", "/bin", "/sbin", "/var", "/root",
+            "/home", "/opt", "/sys", "/proc", "/dev", "/lib",
+            @"C:\", @"C:\Windows", @"C:\Program Files", @"C:\Users",
+            @"D:\", @"E:\",
+        }
+        .Select(d => d.Replace('\\', '/').TrimEnd('/'))
+        .ToArray();
 
     /// <summary>
     /// 安全包装命令集合 — 对齐 TS stripSafeWrappers

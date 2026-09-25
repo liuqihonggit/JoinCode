@@ -74,9 +74,8 @@ public enum SecurityAction {
 [Register(typeof(IAutoModeClassifier), ServiceLifetime.Singleton)]
 public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassifier {
     // 委托 DangerousCommandCatalog.DangerousCommandPatterns（唯一数据源）— P0-② 单数据源改造
-    private static readonly string[] DangerousCommandPatterns = DangerousCommandCatalog.DangerousCommandPatterns;
-
-    private static readonly Regex[] DangerousCommandRegexes = DangerousCommandPatterns
+    // P2-⑨ 源+派生缓存合并: 直接从唯一数据源构建 Regex[],消除中间 string[] 字段
+    private static readonly Regex[] DangerousCommandRegexes = DangerousCommandCatalog.DangerousCommandPatterns
         .Select(p => new Regex(Regex.Escape(p), RegexOptions.IgnoreCase))
         .ToArray();
 

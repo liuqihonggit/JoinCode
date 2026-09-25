@@ -13,6 +13,12 @@ public sealed class SubAgentRunTracker {
     /// <summary>agentId → 运行记录（保持插入顺序）</summary>
     private readonly Dictionary<string, SubAgentRun> _runs = new(StringComparer.Ordinal);
 
+    /// <summary>运行中 agent 计数器（RunningCount O(1) 查找，由 OnStarted/OnFinished 维护）</summary>
+    private int _runningCount;
+
+    /// <summary>已完成 agent 计数器（CompletedCount O(1) 查找，由 OnFinished 维护）</summary>
+    private int _completedCount;
+
     /// <summary>展开状态 LRU：最早展开的排在最前</summary>
     private readonly LinkedList<string> _expandedOrder = new();
     private readonly AsyncLock _expandedOrderLock = new("SubAgentRunTracker");
@@ -32,11 +38,11 @@ public sealed class SubAgentRunTracker {
     /// <summary>全部运行记录（含终态定格的）</summary>
     public IReadOnlyList<SubAgentRun> Runs => [.. _runs.Values];
 
-    /// <summary>运行中的 agent 数（驱动全局状态条聚合）</summary>
-    public int RunningCount => CountState(SubAgentRunState.Running);
+    /// <summary>运行中的 agent 数（驱动全局状态条聚合） — O(1) 计数器维护</summary>
+    public int RunningCount => _runningCount;
 
-    /// <summary>已完成 agent 数</summary>
-    public int CompletedCount => CountState(SubAgentRunState.Completed);
+    /// <summary>已完成 agent 数 — O(1) 计数器维护</summary>
+    public int CompletedCount => _completedCount;
 
     /// <summary>
     /// 消费一条子代理事件 — 未知 agentId 的活动事件静默忽略；
@@ -75,6 +81,7 @@ public sealed class SubAgentRunTracker {
         };
         run.AppendTranscript("▶", $"{run.Name} 启动 — {run.Description}");
         _runs[evt.AgentId!] = run;
+        _runningCount++;
     }
 
     private void OnActivity(ChatStreamEvent evt) {
@@ -134,10 +141,16 @@ public sealed class SubAgentRunTracker {
 
         // 终态定格 — 统计冻结，后续迟到事件被 Running 状态检查自然丢弃；
         // 不强制收起展开位（用户可能正查看该 agent 的回放入口）
+        var wasRunning = run.State == SubAgentRunState.Running;
         run.State = evt.AgentSuccess == true ? SubAgentRunState.Completed : SubAgentRunState.Failed;
         run.IsSuccess = evt.AgentSuccess == true;
         run.ExecutionTimeMs = evt.AgentExecutionTimeMs;
         run.FinalOutput = evt.Content;
+        if (wasRunning) {
+            _runningCount--;
+            if (run.State == SubAgentRunState.Completed)
+                _completedCount++;
+        }
         run.AppendTranscript("■", evt.AgentSuccess == true
             ? $"完成 ({run.ToolUseCount} 次工具调用{(evt.AgentExecutionTimeMs is { } ms ? $" · {TimeSpan.FromMilliseconds(ms).TotalSeconds:F1}s" : string.Empty)})"
             : $"失败 — {evt.Content ?? "(无错误信息)"}");
@@ -194,5 +207,4 @@ public sealed class SubAgentRunTracker {
         }
     }
 
-    private int CountState(SubAgentRunState state) => _runs.Values.Count(r => r.State == state);
 }

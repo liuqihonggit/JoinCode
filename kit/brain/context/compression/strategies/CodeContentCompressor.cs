@@ -93,31 +93,31 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase {
                 continue;
             }
 
-            if (IsDocumentationComment(trimmedLine) && options.PreserveDocumentation) {
+            if (options.PreserveDocumentation && IsDocumentationComment(trimmedLine)) {
                 result.AppendLine(line);
                 continue;
             }
 
-            if (IsComment(trimmedLine) && options.PreserveComments) {
+            if (options.PreserveComments && IsComment(trimmedLine)) {
                 if (IsKeyComment(trimmedLine)) {
                     result.AppendLine(line);
                 }
                 continue;
             }
 
-            if (IsTypeDefinition(trimmedLine) && options.PreserveTypeDefinitions) {
+            if (options.PreserveTypeDefinitions && IsTypeDefinition(trimmedLine)) {
                 result.AppendLine(line);
                 inMethodBody = false;
                 continue;
             }
 
-            if (IsEnumDefinition(trimmedLine) && options.PreserveEnums) {
+            if (options.PreserveEnums && IsEnumDefinition(trimmedLine)) {
                 result.AppendLine(line);
                 inMethodBody = false;
                 continue;
             }
 
-            if (IsConstantDefinition(trimmedLine) && options.PreserveConstants) {
+            if (options.PreserveConstants && IsConstantDefinition(trimmedLine)) {
                 result.AppendLine(line);
                 continue;
             }

@@ -24,6 +24,32 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase {
         ContentType.ReferenceIndex
     };
 
+    private static readonly string[] s_filePathPatterns =
+    [
+        @"^文件[:：]\s*(.+)$",
+        @"^File[:：]\s*(.+)$",
+        @"^路径[:：]\s*(.+)$",
+        @"^Path[:：]\s*(.+)$",
+        @"^(.+\.(cs|js|ts|py|java|cpp|c|h|hpp|go|rs|rb|php|swift|kt|scala))\s*$",
+        @"^[-=]{3,}\s*(.+?)\s*[-=]{3,}$"
+    ];
+
+    private static readonly string[] s_identifierPatterns =
+    [
+        @"^\s*[-*]\s*(class|interface|struct|enum|function|method|def)\s+(\w+)",
+        @"^\s*[-*]\s*(\w+)\s*\(",
+        @"^\s*(public|private|protected|internal|static)?\s*\w+\s+(\w+)\s*\(",
+        @"^\s*[-*]\s*(\w+):"
+    ];
+
+    private static readonly string[] s_referencePatterns =
+    [
+        @"引用[:：]\s*(.+)",
+        @"Reference[:：]\s*(.+)",
+        @"@\s*(.+)",
+        @"->\s*(.+)"
+    ];
+
     /// <summary>
     /// 支持的内容类型
     /// </summary>
@@ -137,17 +163,7 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase {
     private static bool IsFilePathLine(string line, out string filePath) {
         filePath = string.Empty;
 
-        var filePatterns = new[]
-        {
-            @"^文件[:：]\s*(.+)$",
-            @"^File[:：]\s*(.+)$",
-            @"^路径[:：]\s*(.+)$",
-            @"^Path[:：]\s*(.+)$",
-            @"^(.+\.(cs|js|ts|py|java|cpp|c|h|hpp|go|rs|rb|php|swift|kt|scala))\s*$",
-            @"^[-=]{3,}\s*(.+?)\s*[-=]{3,}$"
-        };
-
-        foreach (var pattern in filePatterns) {
+        foreach (var pattern in s_filePathPatterns) {
             var match = Regex.Match(line, pattern, RegexOptions.IgnoreCase);
             if (match.Success) {
                 filePath = match.Groups[match.Groups.Count - 1].Value.Trim();
@@ -161,15 +177,7 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase {
     private static bool IsIdentifierLine(string line, out string identifier) {
         identifier = string.Empty;
 
-        var identifierPatterns = new[]
-        {
-            @"^\s*[-*]\s*(class|interface|struct|enum|function|method|def)\s+(\w+)",
-            @"^\s*[-*]\s*(\w+)\s*\(",
-            @"^\s*(public|private|protected|internal|static)?\s*\w+\s+(\w+)\s*\(",
-            @"^\s*[-*]\s*(\w+):"
-        };
-
-        foreach (var pattern in identifierPatterns) {
+        foreach (var pattern in s_identifierPatterns) {
             var match = Regex.Match(line, pattern, RegexOptions.IgnoreCase);
             if (match.Success) {
                 identifier = match.Groups[match.Groups.Count - 1].Value.Trim();
@@ -183,15 +191,7 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase {
     private static bool IsReferenceLine(string line, out string reference) {
         reference = string.Empty;
 
-        var referencePatterns = new[]
-        {
-            @"引用[:：]\s*(.+)",
-            @"Reference[:：]\s*(.+)",
-            @"@\s*(.+)",
-            @"->\s*(.+)"
-        };
-
-        foreach (var pattern in referencePatterns) {
+        foreach (var pattern in s_referencePatterns) {
             var match = Regex.Match(line, pattern, RegexOptions.IgnoreCase);
             if (match.Success) {
                 reference = match.Groups[1].Value.Trim();

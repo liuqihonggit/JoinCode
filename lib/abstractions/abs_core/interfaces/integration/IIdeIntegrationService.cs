@@ -1,6 +1,11 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public enum IdeType { VsCode, Cursor, Windsurf, JetBrains }
+public enum IdeType {
+    [EnumValue("vscode")] VsCode,
+    [EnumValue("cursor")] Cursor,
+    [EnumValue("windsurf")] Windsurf,
+    [EnumValue("jetbrains")] JetBrains
+}
 
 public sealed record IdeInfo {
     /// <summary>获取 IDE 类型。</summary>

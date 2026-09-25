@@ -6,11 +6,11 @@ namespace Core.Goal;
 /// </summary>
 public enum NodeCompletionOutcome {
     /// <summary>继续执行后续节点</summary>
-    Continue,
+    [EnumValue("continue")] Continue,
 
     /// <summary>目标已达成，终止执行</summary>
-    GoalAchieved,
+    [EnumValue("goalAchieved")] GoalAchieved,
 
     /// <summary>目标未达成，终止执行</summary>
-    GoalUnmet,
+    [EnumValue("goalUnmet")] GoalUnmet,
 }

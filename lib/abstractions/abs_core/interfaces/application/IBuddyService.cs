@@ -1,6 +1,12 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public enum BuddyRarity { Common, Uncommon, Rare, Epic, Legendary }
+public enum BuddyRarity {
+    [EnumValue("common")] Common,
+    [EnumValue("uncommon")] Uncommon,
+    [EnumValue("rare")] Rare,
+    [EnumValue("epic")] Epic,
+    [EnumValue("legendary")] Legendary
+}
 
 public sealed class BuddyInfo {
     /// <summary>获取名称。</summary>

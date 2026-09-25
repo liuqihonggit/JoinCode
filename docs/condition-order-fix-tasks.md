@@ -103,3 +103,17 @@
 5. **gen** (A36) — 1 处,源码生成器
 
 > 注: D01/D02 需要修改 `PsSecurityChecker.cs` 的方法签名(给检查器传入缓存的 `allCommands`/`flags`),影响面较大,建议单独一个 commit 并充分测试。
+
+---
+
+## 完成状态
+
+> 全部 46 处修复完成,5 个 commit。
+
+| 区域 | 编号 | commit | 测试 |
+|------|------|--------|------|
+| 1 lib (18处) | A01,A14-A24,C01-C02,D06-D07 | `9306912d4` | 全量通过 |
+| 1 lib D01/D02 | D01-D02 | `77f3e40d4` | 全量通过 |
+| 2 kit (10处) | A02-A08,D03-D05 | `d3f2a925e` | Hands(306)+Composition(87) |
+| 3 server+app (11处) | A25-A35 | `6a20e58b8` | Bridge(613)+Host(1042)+Tui(178) |
+| 4 llm+5 gen (7处) | A09-A13,A36,C03 | `960935096` | Llm(403)+Agents(614)+Reasoning(272)+AotSafety(131)+Fsm(13) |

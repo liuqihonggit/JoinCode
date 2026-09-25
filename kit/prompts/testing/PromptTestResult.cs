@@ -94,27 +94,27 @@ public sealed class PromptTriggerReport {
     /// <summary>
     /// 获取结果正确的测试数。
     /// </summary>
-    public int CorrectCount => _results.Count(r => r.IsCorrect);
+    public int GetCorrectCount() => _results.Count(r => r.IsCorrect);
 
     /// <summary>
     /// 获取结果错误的测试数。
     /// </summary>
-    public int IncorrectCount => _results.Count(r => !r.IsCorrect);
+    public int GetIncorrectCount() => _results.Count(r => !r.IsCorrect);
 
     /// <summary>
     /// 获取已触发的测试数。
     /// </summary>
-    public int TriggeredCount => _results.Count(r => r.IsTriggered);
+    public int GetTriggeredCount() => _results.Count(r => r.IsTriggered);
 
     /// <summary>
     /// 获取未触发的测试数。
     /// </summary>
-    public int NotTriggeredCount => _results.Count(r => !r.IsTriggered);
+    public int GetNotTriggeredCount() => _results.Count(r => !r.IsTriggered);
 
     /// <summary>
     /// 获取所有测试的总耗时。
     /// </summary>
-    public TimeSpan TotalDuration => TimeSpan.FromTicks(_results.Sum(r => r.Duration.Ticks));
+    public TimeSpan GetTotalDuration() => TimeSpan.FromTicks(_results.Sum(r => r.Duration.Ticks));
 
     /// <summary>
     /// 添加单个测试结果。

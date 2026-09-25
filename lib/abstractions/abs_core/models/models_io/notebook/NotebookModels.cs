@@ -220,12 +220,10 @@ public sealed record NotebookDocument {
     public int CellCount => Cells.Count;
 
     /// <summary>获取代码单元格数量。</summary>
-    [JsonIgnore]
-    public int CodeCellCount => Cells.Count(c => c.Type == NotebookCellType.Code);
+    public int GetCodeCellCount() => Cells.Count(c => c.Type == NotebookCellType.Code);
 
     /// <summary>获取 Markdown 单元格数量。</summary>
-    [JsonIgnore]
-    public int MarkdownCellCount => Cells.Count(c => c.Type == NotebookCellType.Markdown);
+    public int GetMarkdownCellCount() => Cells.Count(c => c.Type == NotebookCellType.Markdown);
 }
 
 /// <summary>

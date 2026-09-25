@@ -58,7 +58,7 @@ public sealed class UnmanagedResourceTableTests {
 
         var registration = table.Register("buffer1", handle, 1024);
         table.Count.Should().Be(1);
-        table.TotalEstimatedBytes.Should().Be(1024);
+        table.GetTotalEstimatedBytes().Should().Be(1024);
 
         registration.Dispose();
         table.Count.Should().Be(0);
@@ -72,7 +72,7 @@ public sealed class UnmanagedResourceTableTests {
 
         var all = table.GetAll();
         all.Should().HaveCount(2);
-        table.TotalEstimatedBytes.Should().Be(300);
+        table.GetTotalEstimatedBytes().Should().Be(300);
     }
 
     [Fact]

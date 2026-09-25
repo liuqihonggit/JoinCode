@@ -7,7 +7,7 @@ public sealed class InvariantRegistryTests {
         var ran = false;
         var disposer = registry.Register("my-package", _ => ran = true);
         Assert.True(ran);
-        Assert.Contains("my-package", registry.RegisteredPackages);
+        Assert.True(registry.Contains("my-package"));
         disposer.Dispose();
     }
 
@@ -17,7 +17,7 @@ public sealed class InvariantRegistryTests {
         var ran = false;
         var disposer = registry.Register("my-package", _ => ran = true);
         Assert.False(ran);
-        Assert.Contains("my-package", registry.RegisteredPackages);
+        Assert.True(registry.Contains("my-package"));
         disposer.Dispose();
     }
 
@@ -84,7 +84,7 @@ public sealed class InvariantRegistryTests {
         var registry = new InvariantRegistry();
         Assert.Throws<InvariantError>(() =>
             registry.Register("bad-pkg", fail => fail("broken")));
-        Assert.DoesNotContain("bad-pkg", registry.RegisteredPackages);
+        Assert.False(registry.Contains("bad-pkg"));
     }
 
     [Fact]
@@ -93,18 +93,18 @@ public sealed class InvariantRegistryTests {
         var d1 = registry.Register("pkg", _ => { });
         d1.Dispose();
         var d2 = registry.Register("pkg", _ => { });
-        Assert.Contains("pkg", registry.RegisteredPackages);
+        Assert.True(registry.Contains("pkg"));
         d2.Dispose();
-        Assert.DoesNotContain("pkg", registry.RegisteredPackages);
+        Assert.False(registry.Contains("pkg"));
     }
 
     [Fact]
     public void Disposer_RemovesRegistration() {
         var registry = new InvariantRegistry();
         var disposer = registry.Register("pkg", _ => { });
-        Assert.Contains("pkg", registry.RegisteredPackages);
+        Assert.True(registry.Contains("pkg"));
         disposer.Dispose();
-        Assert.DoesNotContain("pkg", registry.RegisteredPackages);
+        Assert.False(registry.Contains("pkg"));
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public sealed class InvariantRegistryTests {
         var disposer = registry.Register("pkg", _ => { });
         disposer.Dispose();
         disposer.Dispose();
-        Assert.DoesNotContain("pkg", registry.RegisteredPackages);
+        Assert.False(registry.Contains("pkg"));
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class InvariantRegistryTests {
     public void Register_EmptyInstaller_Succeeds() {
         var registry = new InvariantRegistry();
         var disposer = registry.Register("empty-pkg", _ => { });
-        Assert.Contains("empty-pkg", registry.RegisteredPackages);
+        Assert.True(registry.Contains("empty-pkg"));
         disposer.Dispose();
     }
 

@@ -73,13 +73,13 @@ public sealed partial class SettingsMapper : ServiceEntity {
             var newDefinition = _registry.TryGet(envProvider);
             if (newDefinition is null && !SkipProviderValidation) {
                 throw new ConfigurationException(
-                    $"未知的 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。");
+                    $"未知的 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。");
             }
 
             if (newDefinition is not null) {
                 await ApplyProviderDefinitionDefaultsAsync(config, newDefinition, envProvider, settings).ConfigureAwait(false);
             } else {
-                Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。元命令模式降级运行。");
+                Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。元命令模式降级运行。");
             }
         }
 
@@ -204,10 +204,10 @@ public sealed partial class SettingsMapper : ServiceEntity {
                     $"Provider '{definition.ProviderName}' 没有定义默认模型，请通过 vendor[current.profile].model 或 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
             }
         } else if (SkipProviderValidation) {
-            Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。元命令模式降级运行。");
+            Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。元命令模式降级运行。");
         } else {
             throw new ConfigurationException(
-                $"未知的 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。" +
+                $"未知的 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。" +
                 $"请通过 {JccEnvVar.Vendor.ToValue()} 环境变量指定正确的 Provider。");
         }
 

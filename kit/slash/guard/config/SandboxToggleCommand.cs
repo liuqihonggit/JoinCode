@@ -90,7 +90,7 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
         }
 
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"可用沙箱类型: {string.Join(", ", sandboxManager.AvailableTypes.Select(t => t.ToValue()))}");
+        TerminalHelper.WriteLine($"可用沙箱类型: {string.Join(", ", sandboxManager.GetAvailableTypes().Select(t => t.ToValue()))}");
 
         var platform = Environment.OSVersion.Platform;
         var isSupported = platform == PlatformID.Win32NT || platform == PlatformID.Unix || platform == PlatformID.MacOSX;
@@ -112,7 +112,7 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
         var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2) {
             TerminalHelper.WriteLine($"当前沙箱类型: {sandboxManager.ActiveSandboxType.ToValue()}");
-            TerminalHelper.WriteLine($"可用类型: {string.Join(", ", sandboxManager.AvailableTypes.Select(t => t.ToValue()))}");
+            TerminalHelper.WriteLine($"可用类型: {string.Join(", ", sandboxManager.GetAvailableTypes().Select(t => t.ToValue()))}");
             TerminalHelper.WriteLine("用法: /sandbox-toggle switch <soft|process|docker|bubblewrap>");
             return;
         }
@@ -120,7 +120,7 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
         var targetType = SandboxTypeExtensions.FromValue(parts[1]);
         if (targetType is null) {
             TerminalHelper.WriteLine($"未知沙箱类型: {parts[1]}");
-            TerminalHelper.WriteLine($"可用类型: {string.Join(", ", sandboxManager.AvailableTypes.Select(t => t.ToValue()))}");
+            TerminalHelper.WriteLine($"可用类型: {string.Join(", ", sandboxManager.GetAvailableTypes().Select(t => t.ToValue()))}");
             return;
         }
 

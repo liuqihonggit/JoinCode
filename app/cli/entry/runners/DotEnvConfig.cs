@@ -34,7 +34,7 @@ internal sealed class DotEnvConfig {
 
             // 多态：遍历 ProviderDefinitionRegistry 注册表匹配环境变量，替代 if-else 链硬编码
             // 新增供应商时无需修改此文件，只需在 ProviderDefinitionRegistry 注册即可
-            foreach (var providerName in registry.RegisteredProviders) {
+            foreach (var providerName in registry.GetRegisteredProviders()) {
                 var def = registry.TryGet(providerName);
                 if (def?.ApiKeyEnvironmentVariable is not null && envObj.TryGetProperty(def.ApiKeyEnvironmentVariable, out var keyVal) && keyVal.ValueKind == System.Text.Json.JsonValueKind.String) {
                     config.Vendor = providerName;

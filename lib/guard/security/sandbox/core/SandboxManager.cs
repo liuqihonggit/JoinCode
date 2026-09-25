@@ -90,7 +90,10 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     public SandboxHealthState HealthState => _lifecycleActor.HealthState;
 
     /// <inheritdoc/>
-    public IEnumerable<SandboxType> AvailableTypes => _providers.Keys;
+    public bool IsTypeAvailable(SandboxType type) => _providers.ContainsKey(type);
+
+    /// <inheritdoc/>
+    public SandboxType[] GetAvailableTypes() => _providers.Keys.ToArray();
 
     /// <inheritdoc/>
     public async Task<SandboxInfo> EnterSandboxAsync(SandboxOptions options, CancellationToken ct = default) {
@@ -168,7 +171,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             ActualType = SandboxType.None,
             WasDegraded = true,
             Info = null,
-            Message = $"所有沙箱类型均不可用。请求: {targetType.ToValue()}, 可用: {string.Join(", ", AvailableTypes.Select(t => t.ToValue()))}。当前无沙箱保护，请谨慎操作。"
+            Message = $"所有沙箱类型均不可用。请求: {targetType.ToValue()}, 可用: {string.Join(", ", GetAvailableTypes().Select(t => t.ToValue()))}。当前无沙箱保护，请谨慎操作。"
         };
     }
 

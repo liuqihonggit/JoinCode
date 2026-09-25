@@ -125,6 +125,9 @@ jobs:
           echo "=== Expected test dll paths ==="
           if (Test-Path "artifacts/bin/Mcp.UniqueTests/Release/net10.0/JoinCode.Mcp.UniqueTests.dll") { echo "FOUND: Mcp.UniqueTests dll" } else { echo "MISSING: Mcp.UniqueTests dll" }
           if (Test-Path "artifacts/bin/McpToolDispatch.UniqueTests/Release/net10.0/JoinCode.McpToolDispatch.UniqueTests.dll") { echo "FOUND: McpToolDispatch.UniqueTests dll" } else { echo "MISSING: McpToolDispatch.UniqueTests dll" }
+      - name: Restore UniqueTests (needs obj/ for --no-build)
+        if: matrix.name == 'McpIntervention' || matrix.name == 'McpToolDispatchHealth'
+        run: dotnet restore ${{ matrix.csproj }} --nologo
       - name: Test - ${{ matrix.name }}
         run: >
           dotnet test ${{ matrix.csproj }}

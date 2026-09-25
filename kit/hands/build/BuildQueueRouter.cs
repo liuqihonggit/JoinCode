@@ -97,16 +97,16 @@ public sealed class BuildQueueRouter : BuildQueueBase {
 
     /// <inheritdoc />
     public override BuildQueueStatus GetStatus() {
-        var pendingCount = _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Queued);
-        var buildingCount = _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Building);
-        var currentBuild = _store.Entries.FirstOrDefault(e => e.Status == BuildQueueEntryStatus.Building);
+        var pendingCount = _store.GetAllEntries().Count(e => e.Status == BuildQueueEntryStatus.Queued);
+        var buildingCount = _store.GetAllEntries().Count(e => e.Status == BuildQueueEntryStatus.Building);
+        var currentBuild = _store.GetAllEntries().FirstOrDefault(e => e.Status == BuildQueueEntryStatus.Building);
 
         return new BuildQueueStatus {
             PendingCount = pendingCount,
             IsBuilding = buildingCount > 0,
             CurrentBuildId = currentBuild?.BuildId,
             CurrentBuildAgentId = currentBuild?.Request.AgentId,
-            RecentBuilds = _store.Entries
+            RecentBuilds = _store.GetAllEntries()
                 .OrderByDescending(e => e.Request.SubmittedAt)
                 .Take(10)
                 .ToList()

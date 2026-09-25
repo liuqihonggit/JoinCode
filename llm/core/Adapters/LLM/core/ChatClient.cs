@@ -41,8 +41,8 @@ internal sealed class ToolCollection : IToolCollection {
         return _plugins.Remove(name);
     }
 
-    /// <summary>获取插件名称集合。</summary>
-    public IEnumerable<string> PluginNames => _plugins.Keys;
+    /// <summary>获取插件名称的快照拷贝。</summary>
+    public string[] GetPluginNames() => _plugins.Keys.ToArray();
 }
 
 public sealed class ToolGroup : IToolGroup {

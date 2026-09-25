@@ -41,8 +41,8 @@ internal sealed class RemoteClientRegistry {
     public IReadOnlyDictionary<string, IMcpClient> GetAll()
         => _clients.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.Client);
 
-    /// <summary>获取所有客户端条目（用于 DisposeAsync 逐个释放）</summary>
-    public IEnumerable<McpClientEntry> GetAllEntries() => _clients.Values;
+    /// <summary>获取所有客户端条目的快照拷贝（用于 DisposeAsync 逐个释放）</summary>
+    public McpClientEntry[] GetAllEntries() => _clients.Values.ToArray();
 
     /// <summary>注销客户端（DisposeAsync 客户端 + 移除记录），返回是否找到</summary>
     public async Task<bool> TryRemoveAsync(string clientId) {

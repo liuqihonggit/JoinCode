@@ -13,9 +13,9 @@ internal sealed class TeamRegistry {
     private ImmutableDictionary<string, string> _byTeamName = ImmutableDictionary<string, string>.Empty;
 
     /// <summary>
-    /// 所有团队房间视图 — 用于遍历查询（不要在此视图上做写操作）。
+    /// 所有团队房间的快照拷贝 — 用于遍历查询。
     /// </summary>
-    public IEnumerable<ChatRoomState> Rooms => _rooms.Values;
+    public ChatRoomState[] GetAllRooms() => _rooms.Values.ToArray();
 
     /// <summary>
     /// 已注册团队数量。

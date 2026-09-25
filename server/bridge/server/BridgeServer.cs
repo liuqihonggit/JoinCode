@@ -299,7 +299,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable {
                 break;
 
                 case "/clients":
-                await WriteJsonResponseAsync(response, new BridgeClientsData { Clients = _clientRegistry.Keys.ToList() }, BridgeJsonContext.Default.BridgeClientsData).ConfigureAwait(false);
+                await WriteJsonResponseAsync(response, new BridgeClientsData { Clients = _clientRegistry.GetAllKeys().ToList() }, BridgeJsonContext.Default.BridgeClientsData).ConfigureAwait(false);
                 break;
 
                 case "/sessions":
@@ -566,7 +566,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable {
     /// 用于 FlushGate 刷新回调内部，避免递归
     /// </summary>
     private Task BroadcastDirectAsync(BridgeServerMessage message, CancellationToken cancellationToken) {
-        return Task.WhenAll(_clientRegistry.Keys
+        return Task.WhenAll(_clientRegistry.GetAllKeys()
             .Select(clientId => SendMessageAsync(clientId, message, cancellationToken)));
     }
 

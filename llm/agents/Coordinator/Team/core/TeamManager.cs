@@ -183,7 +183,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <returns>团队信息只读列表</returns>
     public Task<IReadOnlyList<TeamInfo>> ListTeamsAsync(
         CancellationToken cancellationToken = default) {
-        var teams = _registry.Rooms.Select(r => r.Info).ToList();
+        var teams = _registry.GetAllRooms().Select(r => r.Info).ToList();
         return Task.FromResult<IReadOnlyList<TeamInfo>>(teams);
     }
 

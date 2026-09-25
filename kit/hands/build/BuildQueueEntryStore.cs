@@ -14,9 +14,9 @@ internal sealed class BuildQueueEntryStore {
     public int Count => _entries.Count;
 
     /// <summary>
-    /// 所有条目视图 — 用于状态查询（不要在此视图上做写操作）。
+    /// 所有条目的快照拷贝 — 用于状态查询。
     /// </summary>
-    public IEnumerable<BuildQueueEntry> Entries => _entries.Values;
+    public BuildQueueEntry[] GetAllEntries() => _entries.Values.ToArray();
 
     /// <summary>
     /// 成对添加条目与等待句柄。同 BuildId 重复添加会覆盖。

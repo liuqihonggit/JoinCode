@@ -84,7 +84,7 @@ internal sealed class FakeChatClient : IChatClient {
 }
 
 internal sealed class FakeToolCollection : IToolCollection {
-    public IEnumerable<string> PluginNames => [];
+    public string[] GetPluginNames() => [];
 
     public void Add(IToolGroup plugin) { }
 

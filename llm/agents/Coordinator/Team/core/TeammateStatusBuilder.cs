@@ -60,7 +60,7 @@ internal sealed class TeammateStatusBuilder {
 
         var statuses = new List<TeammateStatus>();
 
-        foreach (var room in _registry.Rooms) {
+        foreach (var room in _registry.GetAllRooms()) {
             var team = room.Info;
             var memberDetails = room.MemberDetails;
 

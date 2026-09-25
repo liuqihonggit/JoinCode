@@ -27,17 +27,17 @@ public sealed class FileWatcherIntegrationRegistryTests : IAsyncDisposable {
     public async Task RegisterRepo_WatcherIsRunning() {
         await _registry.RegisterAsync("repo1", "/workspace/repo1", CancellationToken.None);
 
-        Assert.True(_watcherRegistry.IsWatching("repo1"));
+        Assert.True(await _watcherRegistry.IsWatchingAsync("repo1"));
     }
 
     [Fact]
     public async Task UnregisterRepo_WatcherIsStopped() {
         await _registry.RegisterAsync("repo1", "/workspace/repo1", CancellationToken.None);
-        Assert.True(_watcherRegistry.IsWatching("repo1"));
+        Assert.True(await _watcherRegistry.IsWatchingAsync("repo1"));
 
         await _registry.UnregisterAsync("repo1", CancellationToken.None);
 
-        Assert.False(_watcherRegistry.IsWatching("repo1"));
+        Assert.False(await _watcherRegistry.IsWatchingAsync("repo1"));
     }
 
     [Fact]
@@ -45,11 +45,11 @@ public sealed class FileWatcherIntegrationRegistryTests : IAsyncDisposable {
         await _registry.RegisterAsync("repo1", "/workspace/repo1", CancellationToken.None);
         await _registry.RegisterAsync("repo2", "/workspace/repo2", CancellationToken.None);
 
-        Assert.True(_watcherRegistry.IsWatching("repo1"));
-        Assert.True(_watcherRegistry.IsWatching("repo2"));
+        Assert.True(await _watcherRegistry.IsWatchingAsync("repo1"));
+        Assert.True(await _watcherRegistry.IsWatchingAsync("repo2"));
 
-        var watchingIds = _watcherRegistry.GetWatchingRepoIds();
-        Assert.Equal(2, watchingIds.Count());
+        var watchingIds = await _watcherRegistry.GetWatchingRepoIdsAsync();
+        Assert.Equal(2, watchingIds.Count);
         Assert.Contains("repo1", watchingIds);
         Assert.Contains("repo2", watchingIds);
     }
@@ -61,18 +61,18 @@ public sealed class FileWatcherIntegrationRegistryTests : IAsyncDisposable {
 
         await _registry.UnregisterAsync("repo1", CancellationToken.None);
 
-        Assert.False(_watcherRegistry.IsWatching("repo1"));
-        Assert.True(_watcherRegistry.IsWatching("repo2"));
+        Assert.False(await _watcherRegistry.IsWatchingAsync("repo1"));
+        Assert.True(await _watcherRegistry.IsWatchingAsync("repo2"));
     }
 
     [Fact]
     public async Task IsWatching_UnknownRepo_ReturnsFalse() {
-        Assert.False(_watcherRegistry.IsWatching("nonexistent"));
+        Assert.False(await _watcherRegistry.IsWatchingAsync("nonexistent"));
     }
 
     [Fact]
     public async Task GetWatchingRepoIds_NoRepos_ReturnsEmpty() {
-        var ids = _watcherRegistry.GetWatchingRepoIds();
+        var ids = await _watcherRegistry.GetWatchingRepoIdsAsync();
         Assert.Empty(ids);
     }
 
@@ -83,8 +83,8 @@ public sealed class FileWatcherIntegrationRegistryTests : IAsyncDisposable {
 
         await _watcherRegistry.DisposeAsync();
 
-        Assert.False(_watcherRegistry.IsWatching("repo1"));
-        Assert.False(_watcherRegistry.IsWatching("repo2"));
+        Assert.False(await _watcherRegistry.IsWatchingAsync("repo1"));
+        Assert.False(await _watcherRegistry.IsWatchingAsync("repo2"));
     }
 
     [Fact]
@@ -99,6 +99,6 @@ public sealed class FileWatcherIntegrationRegistryTests : IAsyncDisposable {
 
         await _registry.RegisterAsync("repo1", "/workspace/repo1", CancellationToken.None);
 
-        Assert.False(_watcherRegistry.IsWatching("repo1"));
+        Assert.False(await _watcherRegistry.IsWatchingAsync("repo1"));
     }
 }

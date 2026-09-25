@@ -14,6 +14,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     private readonly string? _storagePath;
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
+    private readonly BackgroundTaskActor _backgroundTaskActor;
     private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
 
@@ -36,9 +37,10 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         _storagePath = storagePath;
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;
+        _backgroundTaskActor = new BackgroundTaskActor(logger);
 
         if (!string.IsNullOrEmpty(storagePath) && fileOperationService != null) {
-            _ = Task.Run(() => LoadHistoryAsync(_disposeCts.Token)).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
+            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand("LoadAnalyticsHistory", ct => LoadHistoryAsync(ct)), _disposeCts.Token);
         }
     }
 
@@ -68,7 +70,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         _logger?.LogDebug("[Analytics] 事件: {EventType} - {EventName}", type, name);
 
         if (!string.IsNullOrEmpty(_storagePath) && _disposed == 0) {
-            _ = Task.Run(() => SaveHistoryAsync(_disposeCts.Token)).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
+            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand("SaveAnalyticsHistory", ct => SaveHistoryAsync(ct)), _disposeCts.Token);
         }
 
         TrimEventsIfNeeded();
@@ -295,7 +297,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         }
 
         if (!string.IsNullOrEmpty(_storagePath) && _fileOperationService != null) {
-            _ = Task.Run(() => SaveHistoryAsync(_disposeCts.Token)).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
+            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand("SaveAnalyticsHistory", ct => SaveHistoryAsync(ct)), _disposeCts.Token);
         }
     }
 
@@ -475,6 +477,16 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     public override void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _disposeCts.CancelAndDisposeSafe(_logger);
+        base.Dispose();
+    }
+
+    /// <summary>
+    /// 异步释放资源 — 释放后台任务 Actor 并取消内部令牌
+    /// </summary>
+    public override async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _disposeCts.CancelAndDisposeSafe(_logger);
+        await _backgroundTaskActor.DisposeAsync().ConfigureAwait(false);
         base.Dispose();
     }
 }

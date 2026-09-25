@@ -157,7 +157,7 @@ public sealed class HotSpotTrackerTests
         await _collector.ReportAsync("w1", [MakeIntent("src/Abstractions/IFoo.cs", ModifyIntent.ContractChange, "w1")]);
         _sut.IsHotSpot("src/Abstractions/IFoo.cs").Should().BeTrue();
 
-        _sut.Clear();
+        await _sut.ClearAsync();
 
         _sut.IsHotSpot("src/Abstractions/IFoo.cs").Should().BeFalse("清空后不再有热点");
         _sut.GetHotSpotFiles().Should().BeEmpty();

@@ -47,6 +47,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly Coordinator.Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
     private readonly Coordinator.Core.Messaging.AgentNameIndex _agentNameIndex = new();
     private readonly CancellationTokenSource _disposeCts = new();
+    private readonly BackgroundTaskActor _backgroundTaskActor;
     private int _disposed;
 
     /// <summary>子代理完成时触发的事件，携带执行结果与统计信息</summary>
@@ -80,6 +81,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         _logger = logger;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
+        _backgroundTaskActor = new BackgroundTaskActor(logger, parallel: true);
     }
 
     /// <summary>
@@ -157,7 +159,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             var backgroundCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             UpdateRuntimeState(init.SubAgent.ObjectId.UniqueId, s => s with { BackgroundCts = backgroundCts });
 
-            _ = RunBackgroundAgentAsync(init.SubAgent, tcs, backgroundCts.Token).WaitAsync(TimeSpan.FromSeconds(10), backgroundCts.Token).ConfigureAwait(false);
+            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand($"RunBackgroundAgent-{init.SubAgent.ObjectId.UniqueId}", ct => RunBackgroundAgentAsync(init.SubAgent, tcs, ct)), backgroundCts.Token);
 
             _logger?.LogInformation("[AgentServiceImpl] 后台代理 {AgentId} 已启动 (fire-and-forget)", init.SubAgent.ObjectId.UniqueId);
 
@@ -457,7 +459,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             var backgroundCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             UpdateRuntimeState(subAgent.ObjectId.UniqueId, s => s with { BackgroundCts = backgroundCts });
 
-            _ = RunBackgroundAgentAsync(subAgent, tcs, backgroundCts.Token).WaitAsync(TimeSpan.FromSeconds(10), backgroundCts.Token).ConfigureAwait(false);
+            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand($"ResumeBackgroundAgent-{subAgent.ObjectId.UniqueId}", ct => RunBackgroundAgentAsync(subAgent, tcs, ct)), backgroundCts.Token);
 
             _logger?.LogInformation("[AgentServiceImpl] 恢复的代理 {NewAgentId} 已启动 (从 {OriginalAgentId} 恢复)", subAgent.ObjectId.UniqueId, options.AgentId);
 
@@ -593,17 +595,20 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         if (_messageBroker is null || _permissionCallbackService is null) return;
 
         try {
-            _ = Task.Run(async () => {
-                await foreach (var message in _messageBroker.ReceiveAsync(agentId).ConfigureAwait(false)) {
-                    if (message.MessageType == SwarmPermissionMessageType.PermissionResponse.ToValue()) {
-                        await _permissionCallbackService.ProcessIncomingResponseMessageAsync(message).ConfigureAwait(false);
-                    }
-                }
-            }).ConfigureAwait(false);
+            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand($"WorkerPermissionRouting-{agentId}", ct => RouteWorkerPermissionResponsesAsync(agentId, ct)), CancellationToken.None);
 
             _logger?.LogDebug("[AgentServiceImpl] Worker 权限响应路由已启动: AgentId={AgentId}", agentId);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "[AgentServiceImpl] 启动 Worker 权限响应路由失败: AgentId={AgentId}", agentId);
+        }
+    }
+
+    private async Task RouteWorkerPermissionResponsesAsync(string agentId, CancellationToken ct) {
+        await foreach (var message in _messageBroker!.ReceiveAsync(agentId).ConfigureAwait(false)) {
+            ct.ThrowIfCancellationRequested();
+            if (message.MessageType == SwarmPermissionMessageType.PermissionResponse.ToValue()) {
+                await _permissionCallbackService!.ProcessIncomingResponseMessageAsync(message).ConfigureAwait(false);
+            }
         }
     }
 
@@ -699,7 +704,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             } catch (ObjectDisposedException) {
                 persistToken = CancellationToken.None;
             }
-            _ = PersistCompletionAsync(subAgent, result, status, persistToken).WaitAsync(TimeSpan.FromSeconds(10), persistToken).ConfigureAwait(false);
+            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand($"PersistCompletion-{subAgent.ObjectId.UniqueId}", ct => PersistCompletionAsync(subAgent, result, status, ct)), persistToken);
         } catch (Exception ex) {
             _logger?.LogError(ex, "[AgentServiceImpl] 触发AgentCompleted事件失败: {AgentId}", subAgent.ObjectId.UniqueId);
         }
@@ -726,7 +731,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 Status = status.ToString(),
                 ErrorMessage = result.Success ? null : result.Error,
                 DurationMs = durationMs
-            }, cancellationToken).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
+            }, cancellationToken).ConfigureAwait(false);
         } catch (OperationCanceledException) { } catch (Exception ex) {
             _logger?.LogWarning(ex, "[AgentServiceImpl] 持久化代理完成记录失败: {AgentId}", subAgent.ObjectId.UniqueId);
         }
@@ -787,6 +792,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _disposeCts.CancelAndDisposeSafe(_logger);
+        await _backgroundTaskActor.DisposeAsync().ConfigureAwait(false);
 
         if (_worktreeManager is not null) {
             try {

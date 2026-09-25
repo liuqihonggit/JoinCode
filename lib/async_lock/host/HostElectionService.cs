@@ -72,9 +72,10 @@ public sealed class HostElectionService : IAsyncDisposable {
             SingleReader = true,
             SingleWriter = false
         });
-        _electionCmdChannel = Channel.CreateUnbounded<ElectionRequest>(new UnboundedChannelOptions {
+        _electionCmdChannel = Channel.CreateBounded<ElectionRequest>(new BoundedChannelOptions(32) {
             SingleReader = true,
-            SingleWriter = false
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.Wait
         });
     }
 

@@ -42,7 +42,7 @@ public sealed partial class EditorModeService : ConfigPersistentServiceBase<Edit
     /// <summary>
     /// 当前编辑器模式
     /// </summary>
-    public EditorMode CurrentMode => Value;
+    public async Task<EditorMode> GetCurrentModeAsync() => await GetValueAsync().ConfigureAwait(false);
 
     /// <summary>
     /// 设置编辑器模式
@@ -54,8 +54,9 @@ public sealed partial class EditorModeService : ConfigPersistentServiceBase<Edit
     /// 在 Normal 与 Vim 模式之间切换
     /// </summary>
     /// <returns>切换后的新模式</returns>
-    public EditorMode Toggle() {
-        var newMode = Value == EditorMode.Normal ? EditorMode.Vim : EditorMode.Normal;
+    public async Task<EditorMode> ToggleAsync() {
+        var current = await GetValueAsync().ConfigureAwait(false);
+        var newMode = current == EditorMode.Normal ? EditorMode.Vim : EditorMode.Normal;
         SetValue(newMode);
         return newMode;
     }

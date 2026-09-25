@@ -43,17 +43,15 @@ public sealed partial class AdvisorService : ConfigPersistentServiceBase<string>
     /// <summary>
     /// 当前顾问模型 ID，未设置时返回 null
     /// </summary>
-    public string? AdvisorModel {
-        get {
-            var v = Value;
-            return v == NoneValue ? null : v;
-        }
+    public async Task<string?> GetAdvisorModelAsync() {
+        var v = await GetValueAsync().ConfigureAwait(false);
+        return v == NoneValue ? null : v;
     }
 
     /// <summary>
     /// 顾问是否已启用（已设置顾问模型）
     /// </summary>
-    public bool IsAdvisorEnabled => Value != NoneValue;
+    public async Task<bool> GetIsAdvisorEnabledAsync() => await GetValueAsync().ConfigureAwait(false) != NoneValue;
 
     /// <summary>
     /// 设置顾问模型 ID

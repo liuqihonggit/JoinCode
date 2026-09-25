@@ -84,7 +84,7 @@ public sealed class EditorModeServicePersistenceTests {
         act.Should().NotThrow();
 
         // Assert: 模式已更新但持久化未调用
-        service.CurrentMode.Should().Be(EditorMode.Vim);
+        (await service.GetCurrentModeAsync()).Should().Be(EditorMode.Vim);
         configMock.Verify(
             c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);

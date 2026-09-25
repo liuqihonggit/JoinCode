@@ -26,7 +26,7 @@ public sealed class DeferredMailServiceTests
     {
         await _sut.DeferAsync(MakeMail("w1", turns: 20));
 
-        for (int i = 0; i < 19; i++)
+        for (var i = 0; i < 19; i++)
             _sut.TickTurns("w1").Should().BeEmpty($"第{i+1}轮不应到期");
 
         _sut.TickTurns("w1").Should().HaveCount(1, "第20轮到期");

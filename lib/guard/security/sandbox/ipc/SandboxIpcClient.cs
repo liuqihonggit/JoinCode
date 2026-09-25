@@ -59,7 +59,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
 
             _readLoopTask = ReadLoopAsync(_readCts.Token);
 
-            _writeChannel = Channel.CreateUnbounded<string>();
+            _writeChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(256) { FullMode = BoundedChannelFullMode.Wait });
             _writeCts = new CancellationTokenSource();
             _writeConsumerTask = WriteLoopAsync(_writeCts.Token);
 

@@ -70,7 +70,7 @@ public sealed class AdvisorServicePersistenceTests {
     }
 
     [Fact]
-    public void Dispose_BeforeSetAdvisorModel_ThenSetAdvisorModel_DoesNotCrash() {
+    public async Task Dispose_BeforeSetAdvisorModel_ThenSetAdvisorModel_DoesNotCrash() {
         // Arrange: 验证 Dispose 后调用 SetAdvisorModel 的行为
         var configMock = new Mock<IConfigurationService>();
         configMock.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -84,7 +84,7 @@ public sealed class AdvisorServicePersistenceTests {
         act.Should().NotThrow();
 
         // Assert: 模型已更新但持久化未调用
-        service.AdvisorModel.Should().Be("model");
+        (await service.GetAdvisorModelAsync()).Should().Be("model");
         configMock.Verify(
             c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);

@@ -1,3 +1,4 @@
+global using Core.Utils;
 global using JoinCode.Abstractions.Attributes;
 global using Microsoft.Extensions.Logging;
 global using System;

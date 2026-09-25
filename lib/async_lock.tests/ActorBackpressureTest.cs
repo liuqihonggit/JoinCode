@@ -117,7 +117,7 @@ public class ActorBackpressureTest {
     }
 
     [Fact]
-    public async Task SendTimeout_ThrowsTimeoutException_WhenChannelFull() {
+    public async Task SendTimeout_StartsBackgroundRetry_WhenChannelFull() {
         var bp = new ActorBackpressure(
             Capacity: 1,
             FullMode: BoundedChannelFullMode.Wait,
@@ -133,7 +133,7 @@ public class ActorBackpressureTest {
         await actor.IncrementAsync(new TaskCompletionSource<int>());
 
         var act = async () => await actor.IncrementAsync(new TaskCompletionSource<int>());
-        await act.Should().ThrowAsync<TimeoutException>();
+        await act.Should().NotThrowAsync();
 
         gateTcs.SetResult();
     }

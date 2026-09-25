@@ -26,9 +26,10 @@ public abstract class PlatformBotAdapterBase<TConfig> : IPlatformBotAdapter {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger;
-        _receiveChannel = Channel.CreateUnbounded<PlatformMessage>(new UnboundedChannelOptions {
+        _receiveChannel = Channel.CreateBounded<PlatformMessage>(new BoundedChannelOptions(512) {
             SingleReader = true,
-            SingleWriter = false
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.Wait
         });
     }
 

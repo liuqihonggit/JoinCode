@@ -40,9 +40,10 @@ public sealed class BusTransport : ITransportTopology {
         _election = election ?? new HostElectionService(pipeName, logger, processId: _processId);
         _logger = logger;
         _clientConnections = new ConcurrentDictionary<string, BusClientConnection>();
-        _receiveChannel = Channel.CreateUnbounded<TransportFrame>(new UnboundedChannelOptions {
+        _receiveChannel = Channel.CreateBounded<TransportFrame>(new BoundedChannelOptions(1024) {
             SingleReader = true,
-            SingleWriter = false
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.Wait
         });
         _cts = new CancellationTokenSource();
     }
@@ -245,13 +246,13 @@ public sealed class BusTransport : ITransportTopology {
         _slaveClient = null;
         _acceptTask = null;
         _slaveReceiveTask = null;
-        Cleanup(conns, slaveClient, _election, _cts);
+        await CleanupAsync(conns, slaveClient, _election, _cts).ConfigureAwait(false);
     }
 
-    private static void Cleanup(IAsyncDisposable[] conns, NamedPipeClientStream? slaveClient, HostElectionService election, CancellationTokenSource cts) {
-        foreach (var conn in conns) conn.DisposeAsync().AsTask().Wait();
-        slaveClient?.DisposeAsync().AsTask().Wait();
-        election.DisposeAsync().AsTask().Wait();
+    private static async Task CleanupAsync(IAsyncDisposable[] conns, NamedPipeClientStream? slaveClient, HostElectionService election, CancellationTokenSource cts) {
+        foreach (var conn in conns) await conn.DisposeAsync().ConfigureAwait(false);
+        if (slaveClient is not null) await slaveClient.DisposeAsync().ConfigureAwait(false);
+        await election.DisposeAsync().ConfigureAwait(false);
         cts.Dispose();
     }
 }
@@ -277,9 +278,10 @@ internal sealed class BusClientConnection : IAsyncDisposable {
         ProcessId = processId;
         _stream = stream;
         _logger = logger;
-        _writeQueue = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions {
+        _writeQueue = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(512) {
             SingleReader = true,
-            SingleWriter = false
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.Wait
         });
         _writeLoop = Task.Run(WriteLoopAsync);
     }

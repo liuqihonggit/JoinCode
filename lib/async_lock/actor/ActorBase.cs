@@ -247,7 +247,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         var callerId = TryGetCallerActorId();
         if (callerId is not null && callerId != Id) {
             _askWaitGraph[callerId] = Id;
-            if (_askWaitGraph.TryGetValue(Id, out var target) && target == callerId)
+            if (HasCycleInWaitGraph(callerId, Id))
                 throw new ActorCyclicAskException(callerId, Id);
         }
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -268,7 +268,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         var callerId = TryGetCallerActorId();
         if (callerId is not null && callerId != Id) {
             _askWaitGraph[callerId] = Id;
-            if (_askWaitGraph.TryGetValue(Id, out var target) && target == callerId)
+            if (HasCycleInWaitGraph(callerId, Id))
                 throw new ActorCyclicAskException(callerId, Id);
         }
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -280,6 +280,108 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         } finally {
             if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
         }
+    }
+
+    /// <summary>
+    /// Ask 重试模式等待回复 — 内置重试16次+指数退避+全图环检测+幂等支持。
+    /// <para><b>与 AskAwait 区别</b>:此方法接收命令工厂委托,内部重试时重新发送命令;AskAwait 只等待已有 tcs。</para>
+    /// <para><b>重试策略</b>:单次超时 <paramref name="singleTimeoutMs"/>,超时后指数退避(100ms×2^attempt),最多重试 <paramref name="maxRetries"/> 次。</para>
+    /// <para><b>幂等</b>:命令实现 <see cref="IIdempotent"/> 标记接口时,重试安全(无副作用);非幂等命令重试由调用方确保安全。</para>
+    /// <para><b>全图环检测</b>:DFS 遍历等待图,检测间接环(A→B→C→A),不仅检测直接环。</para>
+    /// <para><b>总超时</b> = singleTimeoutMs × (maxRetries+1) + 退避总和,超过抛 <see cref="ActorAskDeadlockException"/>。</para>
+    /// </summary>
+    /// <typeparam name="T">回复类型</typeparam>
+    /// <param name="commandFactory">命令工厂 — 接收新 TCS,返回命令实例(每次重试创建新 TCS 和新命令)</param>
+    /// <param name="ct">取消令牌</param>
+    /// <param name="singleTimeoutMs">单次超时(默认10s,每次重试等待此超时)</param>
+    /// <param name="maxRetries">最大重试次数(默认16,总尝试=maxRetries+1)</param>
+    /// <exception cref="ActorAskDeadlockException">重试耗尽仍超时 — 可能线程池饥饿或 Consumer 阻塞</exception>
+    /// <exception cref="ActorCyclicAskException">等待图检测到环(含间接环) — 循环 Ask 死锁</exception>
+    protected async Task<T> AskWithRetryAsync<T>(
+        Func<TaskCompletionSource<T>, TCommand> commandFactory,
+        CancellationToken ct = default,
+        int singleTimeoutMs = 10_000,
+        int maxRetries = 16) {
+        var callerId = TryGetCallerActorId();
+        if (callerId is not null && callerId != Id) {
+            _askWaitGraph[callerId] = Id;
+            if (HasCycleInWaitGraph(callerId, Id))
+                throw new ActorCyclicAskException(callerId, Id);
+        }
+        try {
+            for (var attempt = 0; attempt <= maxRetries; attempt++) {
+                var tcs = new TaskCompletionSource<T>();
+                await SendAsync(commandFactory(tcs), ct).ConfigureAwait(false);
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                linkedCts.CancelAfter(singleTimeoutMs);
+                try {
+                    return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+                } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                    if (attempt >= maxRetries)
+                        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+                    var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                    await Task.Delay(delayMs, ct).ConfigureAwait(false);
+                }
+            }
+            throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+        } finally {
+            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
+        }
+    }
+
+    /// <summary>
+    /// Ask 重试模式等待回复(无返回值)— 内置重试16次+指数退避+全图环检测,非泛型重载。
+    /// </summary>
+    /// <param name="commandFactory">命令工厂 — 接收新 TCS,返回命令实例</param>
+    /// <param name="ct">取消令牌</param>
+    /// <param name="singleTimeoutMs">单次超时(默认10s)</param>
+    /// <param name="maxRetries">最大重试次数(默认16)</param>
+    protected async Task AskWithRetryAsync(
+        Func<TaskCompletionSource, TCommand> commandFactory,
+        CancellationToken ct = default,
+        int singleTimeoutMs = 10_000,
+        int maxRetries = 16) {
+        var callerId = TryGetCallerActorId();
+        if (callerId is not null && callerId != Id) {
+            _askWaitGraph[callerId] = Id;
+            if (HasCycleInWaitGraph(callerId, Id))
+                throw new ActorCyclicAskException(callerId, Id);
+        }
+        try {
+            for (var attempt = 0; attempt <= maxRetries; attempt++) {
+                var tcs = new TaskCompletionSource();
+                await SendAsync(commandFactory(tcs), ct).ConfigureAwait(false);
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                linkedCts.CancelAfter(singleTimeoutMs);
+                try {
+                    await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+                    return;
+                } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                    if (attempt >= maxRetries)
+                        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+                    var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                    await Task.Delay(delayMs, ct).ConfigureAwait(false);
+                }
+            }
+            throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+        } finally {
+            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
+        }
+    }
+
+    /// <summary>
+    /// 全图环检测 — 从 targetId 出发沿等待图 DFS,检测能否到达 callerId(间接环 A→B→C→A)。
+    /// <para>等待图是函数图(每个 caller 同时只有一个 Ask,最多一条出边),DFS 退化为链表遍历。</para>
+    /// </summary>
+    private static bool HasCycleInWaitGraph(string callerId, string targetId) {
+        var current = targetId;
+        var visited = new HashSet<string>();
+        while (current != callerId) {
+            if (!visited.Add(current)) return false;
+            if (!_askWaitGraph.TryGetValue(current, out var next)) return false;
+            current = next;
+        }
+        return true;
     }
 
     private string? TryGetCallerActorId() => AsyncFlowIdentity.CurrentActorId;
@@ -356,6 +458,14 @@ public sealed class ActorCyclicAskException : InvalidOperationException {
         TargetActorId = targetActorId;
     }
 }
+
+/// <summary>
+/// 幂等命令标记接口 — 实现此接口的命令可安全重试(重复发送不会产生副作用)。
+/// <para>AskWithRetryAsync 重试时,幂等命令重发安全;非幂等命令重发由调用方确保安全。</para>
+/// <para>典型幂等命令:查询(Get/Read)、取消(Cancel)、状态切换到固定值(SetXxx)。</para>
+/// <para>非幂等命令:追加(Append)、递增(Increment)、创建(Create) — 重试可能产生重复副作用。</para>
+/// </summary>
+public interface IIdempotent { }
 
 /// <summary>
 /// 单元类型 — 用于不需要输出的 Actor 的 TOut 参数。

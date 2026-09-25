@@ -44,6 +44,11 @@ public static partial class DangerousCommandCatalog {
         string Description);
 
     /// <summary>
+    /// 危险命令模式条目 — 字符串模式 + 描述,供正则模糊匹配消费方共用 — P0-②
+    /// </summary>
+    public sealed record DangerousPatternEntry(string Pattern, string Description);
+
+    /// <summary>
     /// 命令危险等级映射表 — 命令名 → 条目
     /// 分级原则:
     ///   Forbidden = 整盘/系统级不可逆操作（AI 永远拒绝）
@@ -61,6 +66,18 @@ public static partial class DangerousCommandCatalog {
     /// 危险组合列表 — 命令+参数组合 → 条目
     /// </summary>
     public static readonly IReadOnlyList<CombinationEntry> Combinations = BuildCombinations();
+
+    /// <summary>
+    /// 危险命令字符串模式 — 用于正则模糊匹配(rm -rf /、format、dd if= 等)
+    /// <para>统一数据源,供 AutoModeClassifier 和 PermissionConfig 委托消费 — P0-②</para>
+    /// <para>ShellExecutionConfig/DestructiveCommandAnalyzer 因架构层级限制无法引用 Guard,保持独立硬编码</para>
+    /// </summary>
+    public static readonly string[] DangerousCommandPatterns = BuildDangerousCommandPatterns().Select(e => e.Pattern).ToArray();
+
+    /// <summary>
+    /// 危险命令模式条目(含描述) — 供 PermissionConfig 等需要 Description 的消费方使用 — P0-②
+    /// </summary>
+    public static readonly DangerousPatternEntry[] DangerousPatternEntries = BuildDangerousCommandPatterns();
 
     /// <summary>
     /// 危险路径集合 — 这些路径作为参数时触发对应危险等级

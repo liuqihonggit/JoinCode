@@ -319,7 +319,7 @@ public sealed class BridgeSubprocessSpawner {
     private readonly IProcessService _processService;
 
     /// <summary>jcc 可执行文件路径</summary>
-    public string ExecPath { get; init; } = "jcc";
+    public string ExecPath { get; init; } = BrandConstants.CliCommandName; // P1-⑦ 委托统一数据源
 
     /// <summary>工作目录</summary>
     public string? WorkingDirectory { get; init; }

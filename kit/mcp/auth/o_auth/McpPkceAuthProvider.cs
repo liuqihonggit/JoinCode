@@ -22,8 +22,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     private string? _resolvedAuthorizationUrl;
     private string? _resolvedTokenUrl; // 对齐 TS ClaudeAuthProvider._pendingStepUpScope
     private int _disposed;
-    private volatile bool _needsStepUpCache;
-    private volatile bool _needsStepUpCacheValid;
+    private int _needsStepUpState;
 
     /// <summary>
     /// 认证类型 — 固定为 OAuth2
@@ -46,10 +45,11 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     /// </summary>
     public bool NeedsStepUp {
         get {
-            if (_needsStepUpCacheValid) return _needsStepUpCache;
-            _needsStepUpCache = ComputeNeedsStepUp();
-            _needsStepUpCacheValid = true;
-            return _needsStepUpCache;
+            var state = Volatile.Read(ref _needsStepUpState);
+            if (state != 0) return state == 1;
+            var value = ComputeNeedsStepUp();
+            Interlocked.CompareExchange(ref _needsStepUpState, value ? 1 : 2, 0);
+            return value;
         }
     }
 
@@ -68,7 +68,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     public void MarkStepUpPending(string scope) {
         ArgumentException.ThrowIfNullOrEmpty(scope);
         _pendingStepUpScope = scope;
-        _needsStepUpCacheValid = false;
+        Volatile.Write(ref _needsStepUpState, 0);
         _logger?.LogInformation("Step-Up 认证待处理，所需 scope: {Scope}", scope);
     }
 
@@ -77,7 +77,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     /// </summary>
     public void ClearStepUpPending() {
         _pendingStepUpScope = null;
-        _needsStepUpCacheValid = false;
+        Volatile.Write(ref _needsStepUpState, 0);
     }
 
     /// <summary>
@@ -357,7 +357,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     }
 
     private void UpdateAuthContext(global::JoinCode.Abstractions.Models.OAuth.OAuth2TokenResponse tokenResponse) {
-        _needsStepUpCacheValid = false;
+        Volatile.Write(ref _needsStepUpState, 0);
         _authContext = new McpAuthContext {
             AccessToken = tokenResponse.AccessToken,
             RefreshToken = tokenResponse.RefreshToken ?? _authContext.RefreshToken,
@@ -409,7 +409,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
                 return false;
             }
 
-        _needsStepUpCacheValid = false;
+        Volatile.Write(ref _needsStepUpState, 0);
         _authContext = new McpAuthContext {
             AccessToken = storage.AccessToken,
             RefreshToken = storage.RefreshToken,

@@ -43,20 +43,21 @@ internal sealed class DotEnvConfig {
                 }
             }
 
-            // ANTHROPIC_AUTH_TOKEN 兼容（Anthropic 旧版环境变量名，不在 ApiKeyEnvironmentVariable 中）
+            // ANTHROPIC_AUTH_TOKEN 兼容（Anthropic 旧版环境变量名，不在 ApiKeyEnvironmentVariable 中）— 委托 VendorKind 枚举 — P1-⑤
             if (config.Vendor is null && envObj.TryGetProperty("ANTHROPIC_AUTH_TOKEN", out var authTokenVal) && authTokenVal.ValueKind == System.Text.Json.JsonValueKind.String) {
-                config.Vendor = "anthropic";
+                config.Vendor = VendorKind.Anthropic.ToValue();
                 config.ApiKey = authTokenVal.GetString();
             }
 
-            // JCC_VENDOR 显式指定
-            if (envObj.TryGetProperty("JCC_VENDOR", out var providerVal) && providerVal.ValueKind == System.Text.Json.JsonValueKind.String)
+            // JCC_VENDOR 显式指定 — 委托 JccEnvVar 枚举（唯一数据源）— P0-④
+            if (envObj.TryGetProperty(JccEnvVar.Vendor.ToValue(), out var providerVal) && providerVal.ValueKind == System.Text.Json.JsonValueKind.String)
                 config.Vendor = providerVal.GetString();
 
-            // 多态：遍历注册表匹配 Endpoint 环境变量，替代硬编码 ANTHROPIC_BASE_URL
+            // 多态：遍历注册表匹配 Endpoint 环境变量，替代硬编码 ANTHROPIC_BASE_URL — 委托 JccEnvVar 枚举（唯一数据源）— P0-④
+            var jccEndpointName = JccEnvVar.Endpoint.ToValue();
             var rawEndpoint = envObj.EnumerateObject()
-                .FirstOrDefault(p => p.Name is "JCC_ENDPOINT").Value.ValueKind == System.Text.Json.JsonValueKind.String
-                ? envObj.EnumerateObject().First(p => p.Name is "JCC_ENDPOINT").Value.GetString()
+                .FirstOrDefault(p => p.Name == jccEndpointName).Value.ValueKind == System.Text.Json.JsonValueKind.String
+                ? envObj.EnumerateObject().First(p => p.Name == jccEndpointName).Value.GetString()
                 : null;
 
             // 各 Provider 的 Endpoint 环境变量匹配
@@ -80,17 +81,18 @@ internal sealed class DotEnvConfig {
                 config.Endpoint = trimmed + "/";
             }
 
-            // Model: JCC_MODEL_ID（通用），ANTHROPIC_DEFAULT_SONNET_MODEL（兼容旧版）
+            // Model: JCC_MODEL_ID（通用，委托 JccEnvVar 枚举），ANTHROPIC_DEFAULT_SONNET_MODEL（兼容旧版）— P0-④
+            var jccModelIdName = JccEnvVar.ModelId.ToValue();
             config.ModelId = envObj.EnumerateObject()
-                .FirstOrDefault(p => p.Name is "JCC_MODEL_ID" or "ANTHROPIC_DEFAULT_SONNET_MODEL")
+                .FirstOrDefault(p => p.Name == jccModelIdName || p.Name == "ANTHROPIC_DEFAULT_SONNET_MODEL")
                 .Value.ValueKind == System.Text.Json.JsonValueKind.String
                 ? envObj.EnumerateObject()
-                    .First(p => p.Name is "JCC_MODEL_ID" or "ANTHROPIC_DEFAULT_SONNET_MODEL")
+                    .First(p => p.Name == jccModelIdName || p.Name == "ANTHROPIC_DEFAULT_SONNET_MODEL")
                     .Value.GetString()
                 : null;
 
-            // Effort Level
-            if (envObj.TryGetProperty("JCC_EFFORT_LEVEL", out var effortVal) && effortVal.ValueKind == System.Text.Json.JsonValueKind.String)
+            // Effort Level — 委托 JccEnvVar 枚举（唯一数据源）— P0-④
+            if (envObj.TryGetProperty(JccEnvVar.EffortLevel.ToValue(), out var effortVal) && effortVal.ValueKind == System.Text.Json.JsonValueKind.String)
                 config.EffortLevel = effortVal.GetString();
 
             return config;

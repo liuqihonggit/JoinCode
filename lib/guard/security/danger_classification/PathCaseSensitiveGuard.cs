@@ -15,10 +15,14 @@ public sealed record PathCaseGuardResult(bool Blocked, string? SuggestedPath, st
 /// 防御 Windows 大小写不敏感文件系统导致的误删(如 rm src/ 误删 SRC/)
 /// </summary>
 public sealed class PathCaseSensitiveGuard {
-    private static readonly FrozenSet<string> DeleteCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        "rm", "del", "erase", "Remove-Item", "rmdir", "rd"
-    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+    private static readonly FrozenSet<string> DeleteCommands = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        DangerCommandDefinitions.Rm,
+        DangerCommandDefinitions.Del,
+        DangerCommandDefinitions.Erase,
+        DangerCommandDefinitions.RemoveItem,
+        DangerCommandDefinitions.Rmdir,
+        DangerCommandDefinitions.Rd);
 
     /// <summary>
     /// 检查命令的路径大小写是否与文件系统一致

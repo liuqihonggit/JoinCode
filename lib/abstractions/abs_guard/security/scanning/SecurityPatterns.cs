@@ -304,22 +304,19 @@ public static partial class SecurityPatterns {
 
     #region 旧版兼容（GitSecretScanner 使用）
 
-    public static readonly string[] SecretRegexPatterns =
+    // P2-⑨ 源+派生缓存合并: 直接从正则源构建编译缓存,消除中间 string[] 字段
+    private static readonly Regex[] _compiledSecretRegexes =
     [
-        @"sk-[a-zA-Z0-9]{20,}",
-        @"sk-ant-[a-zA-Z0-9\-]{20,}",
-        @"AKIA[0-9A-Z]{16}",
-        @"ghp_[a-zA-Z0-9]{36}",
-        @"gho_[a-zA-Z0-9]{36}",
-        @"glpat-[a-zA-Z0-9\-]{20,}",
-        @"xox[bpas]-[a-zA-Z0-9\-]{10,}",
-        @"hooks\.slack\.com/services/T",
-        @"eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}"
+        new(@"sk-[a-zA-Z0-9]{20,}", RegexOptions.None, TimeSpan.FromSeconds(5)),
+        new(@"sk-ant-[a-zA-Z0-9\-]{20,}", RegexOptions.None, TimeSpan.FromSeconds(5)),
+        new(@"AKIA[0-9A-Z]{16}", RegexOptions.None, TimeSpan.FromSeconds(5)),
+        new(@"ghp_[a-zA-Z0-9]{36}", RegexOptions.None, TimeSpan.FromSeconds(5)),
+        new(@"gho_[a-zA-Z0-9]{36}", RegexOptions.None, TimeSpan.FromSeconds(5)),
+        new(@"glpat-[a-zA-Z0-9\-]{20,}", RegexOptions.None, TimeSpan.FromSeconds(5)),
+        new(@"xox[bpas]-[a-zA-Z0-9\-]{10,}", RegexOptions.None, TimeSpan.FromSeconds(5)),
+        new(@"hooks\.slack\.com/services/T", RegexOptions.None, TimeSpan.FromSeconds(5)),
+        new(@"eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}", RegexOptions.None, TimeSpan.FromSeconds(5)),
     ];
-
-    private static readonly Regex[] _compiledSecretRegexes = SecretRegexPatterns
-        .Select(p => new Regex(p, RegexOptions.None, TimeSpan.FromSeconds(5)))
-        .ToArray();
 
     /// <summary>获取已编译的密钥检测正则表达式列表。</summary>
     public static IReadOnlyList<Regex> CompiledSecretRegexes => _compiledSecretRegexes;

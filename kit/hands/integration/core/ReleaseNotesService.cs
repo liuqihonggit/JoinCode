@@ -52,7 +52,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
         try {
             var url = $"{JccEndpointsResolver.GitHubApiBase}/repos/{_repoOwner}/{_repoName}/releases?per_page={count}";
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("User-Agent", "JoinCode");
+            request.Headers.Add("User-Agent", BrandConstants.ProductName); // P1-⑦ 委托统一数据源
 
             using var response = await _httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();

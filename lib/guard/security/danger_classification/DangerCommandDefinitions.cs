@@ -301,4 +301,14 @@ public static class DangerCommandDefinitions {
     [DangerCommand(CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "对象创建 — 可实例化 COM/ActiveX")] public const string NewObject = "New-Object";
     /// <summary>BITS 传输 — 后台远程下载</summary>
     [DangerCommand(CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "BITS 传输 — 后台远程下载")] public const string StartBitsTransfer = "Start-BitsTransfer";
+
+    // === Execution（红灯ask / 不可撤回）— 权限提升(补充) ===
+    /// <summary>权限提升 — OpenBSD doas</summary>
+    [DangerCommand(CommandRisk.PrivilegeEscalation, CommandDangerLevel.Execution, "权限提升 — OpenBSD doas")] public const string Doas = "doas";
+    /// <summary>权限提升 — PolicyKit pkexec</summary>
+    [DangerCommand(CommandRisk.PrivilegeEscalation, CommandDangerLevel.Execution, "权限提升 — PolicyKit pkexec")] public const string Pkexec = "pkexec";
+    /// <summary>Start-Process 别名 — 启动进程可能提权</summary>
+    [DangerCommand(CommandRisk.PrivilegeEscalation, CommandDangerLevel.Execution, "Start-Process 别名 — 启动进程可能提权")] public const string Saps = "saps";
+    /// <summary>Start-Process 别名 — 启动进程可能提权</summary>
+    [DangerCommand(CommandRisk.PrivilegeEscalation, CommandDangerLevel.Execution, "Start-Process 别名 — 启动进程可能提权")] public const string Start = "start";
 }

@@ -73,17 +73,9 @@ public enum SecurityAction {
 /// </summary>
 [Register(typeof(IAutoModeClassifier), ServiceLifetime.Singleton)]
 public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassifier {
-    private static readonly string[] DangerousCommandPatterns =
-    new[] {
-        "rm -rf /", "rm -rf ~", "del /f /s /q c:",
-        "format", "fdisk", "mkfs",
-        "dd if=", ":(){ :|:& };:",
-        "shutdown", "restart",
-        "wmic", "reg delete",
-        "net user", "net localgroup"
-     };
-
-    private static readonly Regex[] DangerousCommandRegexes = DangerousCommandPatterns
+    // 委托 DangerousCommandCatalog.DangerousCommandPatterns（唯一数据源）— P0-② 单数据源改造
+    // P2-⑨ 源+派生缓存合并: 直接从唯一数据源构建 Regex[],消除中间 string[] 字段
+    private static readonly Regex[] DangerousCommandRegexes = DangerousCommandCatalog.DangerousCommandPatterns
         .Select(p => new Regex(Regex.Escape(p), RegexOptions.IgnoreCase))
         .ToArray();
 

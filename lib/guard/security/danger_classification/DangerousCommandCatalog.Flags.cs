@@ -95,6 +95,28 @@ public static partial class DangerousCommandCatalog {
         return [.. hardcoded, .. pipeToInterpreters];
     }
 
+    /// <summary>
+    /// 危险命令字符串模式 — 供 AutoModeClassifier/PermissionConfig 正则模糊匹配共用 — P0-② 单数据源
+    /// </summary>
+    private static DangerousPatternEntry[] BuildDangerousCommandPatterns() {
+        return [
+            new("rm -rf /", "删除根目录"),
+            new("rm -rf ~", "删除用户主目录"),
+            new("del /f /s /q c:", "删除C盘"),
+            new("format", "格式化"),
+            new("fdisk", "分区操作"),
+            new("mkfs", "创建文件系统"),
+            new("dd if=", "磁盘复制"),
+            new(":(){ :|:& };:", "Fork炸弹"),
+            new("shutdown", "关机"),
+            new("restart", "重启"),
+            new("wmic", "WMI命令"),
+            new("reg delete", "删除注册表"),
+            new("net user", "用户管理"),
+            new("net localgroup", "用户组管理"),
+        ];
+    }
+
     private static FrozenDictionary<string, CommandDangerLevel> BuildDangerousPaths() {
         var entries = new Dictionary<string, CommandDangerLevel>(StringComparer.OrdinalIgnoreCase) {
             // Dangerous — 根目录/系统盘/通配符根（直接拒绝）

@@ -14,35 +14,53 @@ public static class SubprocessEnvCleaner {
     /// <summary>
     /// 需要清理的敏感环境变量 — 对齐 TS GHA_SUBPROCESS_SCRUB
     /// 在 CI/GitHub Actions 环境中防止 prompt-injection 通过 shell 扩展窃取密钥
+    /// 委托 ProviderEnvVar 枚举（唯一数据源）— P0-④ 单数据源改造
     /// </summary>
-    private static readonly FrozenSet<string> SensitiveEnvVars = new[]
-    {
-        "ANTHROPIC_API_KEY",
-        "JCC_OAUTH_TOKEN",
-        "ANTHROPIC_AUTH_TOKEN",
-        "ANTHROPIC_FOUNDRY_API_KEY",
-        "ANTHROPIC_CUSTOM_HEADERS",
-        "OTEL_EXPORTER_OTLP_HEADERS",
-        "OTEL_EXPORTER_OTLP_LOGS_HEADERS",
-        "OTEL_EXPORTER_OTLP_METRICS_HEADERS",
-        "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
-        "AWS_SECRET_ACCESS_KEY",
-        "AWS_SESSION_TOKEN",
-        "AWS_BEARER_TOKEN_BEDROCK",
-        "GOOGLE_APPLICATION_CREDENTIALS",
-        "AZURE_CLIENT_SECRET",
-        "AZURE_CLIENT_CERTIFICATE_PATH",
-        "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
-        "ACTIONS_ID_TOKEN_REQUEST_URL",
-        "ACTIONS_RUNTIME_TOKEN",
-        "ACTIONS_RUNTIME_URL",
-        "ALL_INPUTS",
-        "OVERRIDE_GITHUB_TOKEN",
-        "DEFAULT_WORKFLOW_TOKEN",
-        "SSH_SIGNING_KEY",
-        "GITHUB_TOKEN",
-        "OPENAI_API_KEY",
-    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+    private static readonly FrozenSet<string> SensitiveEnvVars = BuildSensitiveEnvVars();
+
+    private static FrozenSet<string> BuildSensitiveEnvVars() {
+        // 委托 ProviderEnvVar 枚举（唯一数据源）— 所有供应商 API Key
+        var providerKeys = new[] {
+            ProviderEnvVar.OpenAiApiKey,
+            ProviderEnvVar.AzureOpenAiApiKey,
+            ProviderEnvVar.AnthropicApiKey,
+            ProviderEnvVar.AgnesApiKey,
+            ProviderEnvVar.DeepSeekApiKey,
+            ProviderEnvVar.SenseNovaApiKey,
+            ProviderEnvVar.ZhipuApiKey,
+            ProviderEnvVar.JevApiKey,
+        }.Select(e => e.ToValue());
+
+        // 其他敏感变量（非供应商 API Key）
+        var otherSensitive = new[] {
+            JccEnvVar.OAuthToken.ToValue(),
+            "ANTHROPIC_AUTH_TOKEN",
+            "ANTHROPIC_FOUNDRY_API_KEY",
+            "ANTHROPIC_CUSTOM_HEADERS",
+            "OTEL_EXPORTER_OTLP_HEADERS",
+            "OTEL_EXPORTER_OTLP_LOGS_HEADERS",
+            "OTEL_EXPORTER_OTLP_METRICS_HEADERS",
+            "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+            "AWS_BEARER_TOKEN_BEDROCK",
+            "GOOGLE_APPLICATION_CREDENTIALS",
+            "AZURE_CLIENT_SECRET",
+            "AZURE_CLIENT_CERTIFICATE_PATH",
+            "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+            "ACTIONS_ID_TOKEN_REQUEST_URL",
+            "ACTIONS_RUNTIME_TOKEN",
+            "ACTIONS_RUNTIME_URL",
+            "ALL_INPUTS",
+            "OVERRIDE_GITHUB_TOKEN",
+            "DEFAULT_WORKFLOW_TOKEN",
+            "SSH_SIGNING_KEY",
+            "GITHUB_TOKEN",
+        };
+
+        return providerKeys.Concat(otherSensitive)
+            .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// 是否启用环境变量清理

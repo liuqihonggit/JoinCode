@@ -6,7 +6,7 @@ namespace Core.Memdir;
 /// </summary>
 [Register(typeof(MemoryStore), ServiceLifetime.Singleton)]
 public sealed partial class MemoryStore : ServiceEntity, IDisposable {
-    private readonly ConcurrentDictionary<string, MemoryEntry> _memories;
+    private ImmutableDictionary<string, MemoryEntry> _memories = ImmutableDictionary<string, MemoryEntry>.Empty;
     private readonly string _storagePath;
     private readonly ILogger<MemoryStore>? _logger;
     private readonly IClockService _clock;
@@ -26,7 +26,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _memories = new ConcurrentDictionary<string, MemoryEntry>(StringComparer.OrdinalIgnoreCase);
+        _memories = ImmutableDictionary<string, MemoryEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -48,7 +48,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
             source: source,
             now: _clock.GetUtcNow());
 
-        _memories[entry.Id] = entry;
+        ImmutableInterlocked.Update(ref _memories, d => d.SetItem(entry.Id, entry));
         _logger?.LogInformation(L.T(StringKey.VaultLogStoreAddMemory), entry.Id, type);
 
         _ = SaveMemoriesAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
@@ -58,7 +58,8 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 搜索记忆
     /// </summary>
     public IEnumerable<MemoryEntry> Search(string query, MemoryType? type = null, int limit = 10) {
-        IEnumerable<MemoryEntry> results = _memories.Values;
+        var snapshot = Volatile.Read(ref _memories);
+        var results = snapshot.Values;
 
         // 按类型过滤
         if (type.HasValue) {
@@ -78,7 +79,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
         // 更新访问统计
         foreach (var result in scoredResults) {
             var updated = result.Memory.WithAccessed(_clock.GetUtcNow());
-            _memories[updated.Id] = updated;
+            ImmutableInterlocked.Update(ref _memories, d => d.SetItem(updated.Id, updated));
         }
 
         return scoredResults.Select(x => x.Memory);
@@ -91,7 +92,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
         // 使用 HashSet 缓存标签，实现 O(1) 查找
         var tagSet = new HashSet<string>(tags, StringComparer.OrdinalIgnoreCase);
 
-        return _memories.Values
+        return Volatile.Read(ref _memories).Values
             .Where(m => m.Tags.Any(t => tagSet.Contains(t)))
             .OrderByDescending(m => m.AccessCount)
             .ThenByDescending(m => m.CreatedAt)
@@ -102,7 +103,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 按类型搜索
     /// </summary>
     public IEnumerable<MemoryEntry> SearchByType(MemoryType type, int limit = 10) {
-        return _memories.Values
+        return Volatile.Read(ref _memories).Values
             .Where(m => m.Type == type)
             .OrderByDescending(m => m.AccessCount)
             .ThenByDescending(m => m.CreatedAt)
@@ -113,9 +114,9 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 获取记忆
     /// </summary>
     public MemoryEntry? GetMemory(string id) {
-        if (_memories.TryGetValue(id, out var memory)) {
+        if (Volatile.Read(ref _memories).TryGetValue(id, out var memory)) {
             var updated = memory.WithAccessed(_clock.GetUtcNow());
-            _memories[updated.Id] = updated;
+            ImmutableInterlocked.Update(ref _memories, d => d.SetItem(updated.Id, updated));
             return updated;
         }
 
@@ -126,9 +127,11 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 删除记忆
     /// </summary>
     public bool DeleteMemory(string id) {
-        if (!_memories.TryRemove(id, out _)) {
+        if (!Volatile.Read(ref _memories).ContainsKey(id)) {
             return false;
         }
+
+        ImmutableInterlocked.Update(ref _memories, d => d.Remove(id));
 
         _logger?.LogInformation(L.T(StringKey.VaultLogStoreDeleteMemory), id);
         _ = SaveMemoriesAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
@@ -140,12 +143,12 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 归档记忆
     /// </summary>
     public bool ArchiveMemory(string id) {
-        if (!_memories.TryGetValue(id, out var memory)) {
+        if (!Volatile.Read(ref _memories).TryGetValue(id, out var memory)) {
             return false;
         }
 
         var archived = memory.WithArchived(_clock.GetUtcNow());
-        _memories[id] = archived;
+        ImmutableInterlocked.Update(ref _memories, d => d.SetItem(id, archived));
 
         _logger?.LogInformation(L.T(StringKey.VaultLogStoreArchiveMemory), id);
         _ = SaveMemoriesAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
@@ -157,12 +160,12 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 恢复记忆
     /// </summary>
     public bool RestoreMemory(string id) {
-        if (!_memories.TryGetValue(id, out var memory)) {
+        if (!Volatile.Read(ref _memories).TryGetValue(id, out var memory)) {
             return false;
         }
 
         var restored = memory.WithUnarchived();
-        _memories[id] = restored;
+        ImmutableInterlocked.Update(ref _memories, d => d.SetItem(id, restored));
 
         _logger?.LogInformation(L.T(StringKey.VaultLogStoreRestoreMemory), id);
         _ = SaveMemoriesAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
@@ -174,24 +177,25 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 获取所有记忆类型
     /// </summary>
     public IEnumerable<MemoryType> GetTypes() {
-        return _memories.Values.Select(m => m.Type).Distinct().OrderBy(t => t);
+        return Volatile.Read(ref _memories).Values.Select(m => m.Type).Distinct().OrderBy(t => t);
     }
 
     /// <summary>
     /// 获取所有标签
     /// </summary>
     public IEnumerable<string> GetAllTags() {
-        return _memories.Values.SelectMany(m => m.Tags).Distinct().OrderBy(t => t);
+        return Volatile.Read(ref _memories).Values.SelectMany(m => m.Tags).Distinct().OrderBy(t => t);
     }
 
     /// <summary>
     /// 获取统计信息
     /// </summary>
     public MemoryStatistics GetStatistics() {
-        var memories = _memories.Values;
+        var snapshot = Volatile.Read(ref _memories);
+        var memories = snapshot.Values;
 
         return new MemoryStatistics {
-            TotalCount = _memories.Count,
+            TotalCount = snapshot.Count,
             TypeCounts = memories.GroupBy(m => m.Type)
                 .ToDictionary(g => g.Key, g => g.Count()),
             TagCounts = memories.SelectMany(m => m.Tags)
@@ -208,13 +212,13 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 清理过期记忆
     /// </summary>
     public int CleanupExpired() {
-        var expiredIds = _memories.Values
+        var expiredIds = Volatile.Read(ref _memories).Values
             .Where(m => !m.IsArchived && m.IsExpired())
             .Select(m => m.Id)
             .ToArray();
 
         foreach (var id in expiredIds) {
-            _memories.TryRemove(id, out _);
+            ImmutableInterlocked.Update(ref _memories, d => d.Remove(id));
         }
 
         if (expiredIds.Length > 0) {
@@ -308,7 +312,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
 
             if (memories != null) {
                 foreach (var memory in memories) {
-                    _memories[memory.Id] = memory;
+                    ImmutableInterlocked.Update(ref _memories, d => d.SetItem(memory.Id, memory));
                 }
 
                 _logger?.LogInformation(L.T(StringKey.VaultLogStoreLoadedMemories), memories.Count);
@@ -323,7 +327,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// </summary>
     private async Task SaveMemoriesAsync(CancellationToken cancellationToken) {
         try {
-            var memories = _memories.Values.ToList();
+            var memories = Volatile.Read(ref _memories).Values.ToList();
             var json = RelaxedJsonSerializer.Serialize(memories, MemdirIndentedJsonContext.Default);
 
             var result = await _fileOperationService.WriteFileAsync(_storagePath, json, cancellationToken).ConfigureAwait(false);

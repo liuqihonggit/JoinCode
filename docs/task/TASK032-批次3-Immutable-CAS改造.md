@@ -125,8 +125,8 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 - [x] `PipeRegistry._pipes`
 - [x] `ResourceReferenceGraph._references` / `._byConsumer` (P3已改)
 
-#### P5: 消费方21处(1个,最大)
-- [ ] `MemoryStore._memories` — 核心存储(21消费方)
+#### P5: 消费方21处(1个,最大) ✅
+- [x] `MemoryStore._memories` — 核心存储(21消费方)
 
 ### B类(需评估,58处) — A类完成后逐个评估
 
@@ -141,6 +141,7 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 | 2026-09-26 | P2 | 15 | 26/63 | ✅ 完成 |
 | 2026-09-26 | P3 | 19 | 45/63 | ✅ 完成(_remoteEntries推迟到P4) |
 | 2026-09-27 | P4 | 10 | 55/63 | ✅ 完成(TeamMemorySyncService标C类) |
+| 2026-09-27 | P5 | 1 | 56/63 | ✅ 完成(MemoryStore._memories改ImmutableDictionary+CAS) |
 
 ## 验收标准
 

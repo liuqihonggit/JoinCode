@@ -13,6 +13,12 @@ public sealed record BashRegexCheckItem(
 /// </summary>
 public static class BashRegexCheckRegistry {
     /// <summary>
+    /// Bash/Zsh 命令前缀跳过 token — 这些 token 不作为实际命令,仅修饰后续命令
+    /// </summary>
+    private static readonly FrozenSet<string> CommandPrefixSkips =
+        FrozenSet.Create(StringComparer.Ordinal, "command", "builtin", "noglob", "nocorrect");
+
+    /// <summary>
     /// 全部已注册的 Bash 正则检查项数组
     /// </summary>
     public static readonly BashRegexCheckItem[] All =
@@ -95,7 +101,7 @@ public static class BashRegexCheckRegistry {
                 foreach (var token in tokens)
                 {
                     if (Regex.IsMatch(token, @"^[A-Za-z_]\w*=")) continue;
-                    if (token is "command" or "builtin" or "noglob" or "nocorrect") continue;
+                    if (CommandPrefixSkips.Contains(token)) continue;
                     baseCmd = token;
                     break;
                 }
@@ -720,7 +726,7 @@ public static class BashRegexCheckRegistry {
         var tokens = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         foreach (var token in tokens) {
             if (Regex.IsMatch(token, @"^[A-Za-z_]\w*=")) continue;
-            if (token is "command" or "builtin" or "noglob" or "nocorrect") continue;
+            if (CommandPrefixSkips.Contains(token)) continue;
             return token;
         }
         return "";

@@ -10,7 +10,7 @@ public class CommandExecutionAuditorTests {
     [Fact]
     public async Task Record_Creates_Audit_Directory_And_File() {
         await using var fs = new InMemoryFileSystem();
-        var auditor = CreateAuditor(fs);
+        await using var auditor = CreateAuditor(fs);
 
         await auditor.Record(new CommandExecutionAuditEntry(
             DateTimeOffset.Parse("2026-09-13T12:00:00Z"),
@@ -26,7 +26,7 @@ public class CommandExecutionAuditorTests {
     [Fact]
     public async Task Record_Writes_Valid_JSONL() {
         await using var fs = new InMemoryFileSystem();
-        var auditor = CreateAuditor(fs);
+        await using var auditor = CreateAuditor(fs);
 
         await auditor.Record(new CommandExecutionAuditEntry(
             DateTimeOffset.Parse("2026-09-13T12:00:00Z"),
@@ -47,7 +47,7 @@ public class CommandExecutionAuditorTests {
     [Fact]
     public async Task Record_Appends_Multiple_Entries_To_Same_File() {
         await using var fs = new InMemoryFileSystem();
-        var auditor = CreateAuditor(fs);
+        await using var auditor = CreateAuditor(fs);
         var timestamp = DateTimeOffset.Parse("2026-09-13T12:00:00Z");
 
         await auditor.Record(new CommandExecutionAuditEntry(timestamp, "cmd1", CommandDangerLevel.Safe, PermissionMode.Unattended, "AutoExecuted"));
@@ -61,7 +61,7 @@ public class CommandExecutionAuditorTests {
     [Fact]
     public async Task Record_With_FilesChanged_Serializes_Changes() {
         await using var fs = new InMemoryFileSystem();
-        var auditor = CreateAuditor(fs);
+        await using var auditor = CreateAuditor(fs);
 
         var changes = new List<FileChangeRecord>
         {
@@ -91,7 +91,7 @@ public class CommandExecutionAuditorTests {
     [Fact]
     public async Task Record_Does_Not_Throw_On_FileSystem_Error() {
         await using var fs = new InMemoryFileSystem();
-        var auditor = CreateAuditor(fs, "/nonexistent/path/that/should/not/exist");
+        await using var auditor = CreateAuditor(fs, "/nonexistent/path/that/should/not/exist");
 
         var act = async () => await auditor.Record(new CommandExecutionAuditEntry(
             DateTimeOffset.UtcNow,

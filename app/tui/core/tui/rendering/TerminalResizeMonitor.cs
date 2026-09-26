@@ -31,7 +31,7 @@ public sealed class TerminalResizeMonitor {
     public void CheckAndNotify(int width, int height) {
         var (clampedW, clampedH) = Clamp(width, height);
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             if (clampedW == _lastWidth && clampedH == _lastHeight) return;
 
             var now = DateTime.UtcNow;

@@ -43,7 +43,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// 撤销内置角色 Profile — 插件卸载时调用
     /// </summary>
     public void UnregisterBuiltInProfiles() {
-        using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
+        using var guard = _loadLock.LockOrCrash();
         var builtIn = BuildBuiltInProfiles().ToHashSet();
         _profiles.RemoveAll(p => builtIn.Contains(p));
         _profileMap = BuildProfileMap(_profiles);
@@ -55,7 +55,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// </summary>
     /// <param name="profile">要注册的角色 Profile</param>
     public void Register(AgentRoleProfile profile) {
-        using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
+        using var guard = _loadLock.LockOrCrash();
         _profiles.Add(profile);
         _profileMap = BuildProfileMap(_profiles);
         if (!_roleIndex.TryGetValue(profile.Role, out var list)) {
@@ -112,7 +112,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// 清除自定义 Profile 缓存，重置为内置 Profile
     /// </summary>
     public void ClearCache() {
-        using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
+        using var guard = _loadLock.LockOrCrash();
         _customLoaded = false;
         _profiles = BuildBuiltInProfiles();
         _profileMap = BuildProfileMap(_profiles);
@@ -130,7 +130,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
         if (_customLoaded || _definitionProvider is null)
             return;
 
-        using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
+        using var guard = _loadLock.LockOrCrash();
         if (_customLoaded)
             return;
 

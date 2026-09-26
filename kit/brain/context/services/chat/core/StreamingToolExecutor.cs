@@ -75,7 +75,7 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
     public async Task AddToolAsync(ToolCallEntry entry, int originalIndex) {
         if (_discarded) return;
 
-        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
+        using var guard = _semaphore.LockOrCrash();
 
         _queue.Add(new QueuedTool {
             Entry = entry,
@@ -94,7 +94,7 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
     public async Task<IReadOnlyList<StreamingToolResult>> GetCompletedResultsAsync() {
         if (_discarded) return [];
 
-        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
+        using var guard = _semaphore.LockOrCrash();
 
         var results = _completedBuffer
             .OrderBy(r => r.OriginalIndex)
@@ -111,7 +111,7 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
         if (_discarded) return [];
 
         List<Task<StreamingToolResult>> pendingTasks;
-        using (var guard = _semaphore.TryLock() ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时")) {
+        using (var guard = _semaphore.LockOrCrash()) {
             pendingTasks = _queue
                 .Where(t => t.Status != ToolStatus.Completed)
                 .Select(t => t.CompletionSource.Task)
@@ -151,7 +151,7 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
         }
 
         List<QueuedTool> uncompletedTools;
-        using (var guard = _semaphore.TryLock() ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时")) {
+        using (var guard = _semaphore.LockOrCrash()) {
             uncompletedTools = _queue
                 .Where(t => t.Status != ToolStatus.Completed && !t.CompletionSource.Task.IsCompleted)
                 .ToList();
@@ -193,7 +193,7 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
     private async Task ProcessQueueAsync() {
         while (true) {
             QueuedTool? toolToExecute;
-            using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
+            using var guard = _semaphore.LockOrCrash();
 
             toolToExecute = await FindNextExecutableAsync().ConfigureAwait(false);
             if (toolToExecute is null)
@@ -295,7 +295,7 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
             }
         }
 
-        using (var guard = _semaphore.TryLock() ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时")) {
+        using (var guard = _semaphore.LockOrCrash()) {
             tool.Status = ToolStatus.Completed;
             _completedBuffer.Add(result);
             _executingCount--;

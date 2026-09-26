@@ -85,7 +85,7 @@ public sealed class Fsm<TState, TEvent>
 
     /// <summary>当前状态（线程安全读取）</summary>
     public TState CurrentState {
-        get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) { return _currentState; } }
+        get { using (_lock.LockOrCrash()) { return _currentState; } }
     }
 
     /// <summary>状态变更事件（转换成功后触发）</summary>
@@ -138,7 +138,7 @@ public sealed class Fsm<TState, TEvent>
         TState newState;
         TransitionAction? actionToRun;
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             oldState = _currentState;
             var key = new TransitionKey<TState, TEvent>(_currentState, evt);
             var rule = LookupRule(key);
@@ -171,7 +171,7 @@ public sealed class Fsm<TState, TEvent>
     /// 检查事件是否可触发（查表 + 守卫通过）
     /// </summary>
     public bool CanTrigger(TEvent evt, FsmContext? ctx = null) {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             var key = new TransitionKey<TState, TEvent>(_currentState, evt);
             var rule = LookupRule(key);
             if (rule is null)
@@ -185,7 +185,7 @@ public sealed class Fsm<TState, TEvent>
     /// 获取当前状态下所有可触发的事件（守卫通过的事件）
     /// </summary>
     public IReadOnlyList<TEvent> GetAvailableEvents(FsmContext? ctx = null) {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             var state = _currentState;
             var result = new List<TEvent>();
             for (var i = 0; i < _sortedKeys.Length; i++) {
@@ -204,7 +204,7 @@ public sealed class Fsm<TState, TEvent>
     /// </summary>
     public void ForceSet(TState state) {
         TState oldState;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             oldState = _currentState;
             _currentState = state;
         }
@@ -217,7 +217,7 @@ public sealed class Fsm<TState, TEvent>
     /// 重置到指定状态（不触发事件）
     /// </summary>
     public void Reset(TState state) {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _currentState = state;
         }
     }

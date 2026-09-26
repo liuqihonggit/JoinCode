@@ -27,7 +27,7 @@ public sealed class SubAgentEventChannel {
     /// 调用方通常经 <c>Current?.Emit(evt)</c> 无作用域时自然跳过
     /// </summary>
     public void Emit(ChatStreamEvent evt) {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             if (_completed)
                 return;
             _buffer.Add(evt);
@@ -38,7 +38,7 @@ public sealed class SubAgentEventChannel {
     /// 尝试读取单条事件（FIFO）
     /// </summary>
     public bool TryRead(out ChatStreamEvent evt) {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             if (_buffer.Count == 0) {
                 evt = null!;
                 return false;
@@ -53,7 +53,7 @@ public sealed class SubAgentEventChannel {
     /// 排空全部缓冲事件（按发射顺序返回），随后缓冲清空
     /// </summary>
     public IReadOnlyList<ChatStreamEvent> TryDrain() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             if (_buffer.Count == 0)
                 return [];
             var drained = _buffer.ToArray();
@@ -66,7 +66,7 @@ public sealed class SubAgentEventChannel {
     /// 标记完成 — 完成后的 Emit 静默丢弃，防止迟到的子代理事件泄漏到下一回合
     /// </summary>
     public void Complete() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _completed = true;
             _buffer.Clear();
         }

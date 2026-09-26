@@ -50,7 +50,7 @@ public sealed class ProgressTracker : JoinCode.Abstractions.Interfaces.IProgress
             Timestamp = _clock?.GetUtcNow() ?? DateTime.UtcNow
         };
 
-        using (_recentActivitiesLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_recentActivitiesLock.Name}' 等待超时")) {
+        using (_recentActivitiesLock.LockOrCrash()) {
             if (_recentActivities.Count >= 5)
                 _recentActivities.RemoveAt(0);
             _recentActivities.Add(activity);
@@ -88,7 +88,7 @@ public sealed class ProgressTracker : JoinCode.Abstractions.Interfaces.IProgress
     public JoinCode.Abstractions.Interfaces.AgentProgress ToProgress() {
         JoinCode.Abstractions.Interfaces.ToolActivity? lastActivity;
         IReadOnlyList<JoinCode.Abstractions.Interfaces.ToolActivity>? recentActivities;
-        using (_recentActivitiesLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_recentActivitiesLock.Name}' 等待超时")) {
+        using (_recentActivitiesLock.LockOrCrash()) {
             lastActivity = _recentActivities.Count > 0
                 ? _recentActivities[^1]
                 : null;

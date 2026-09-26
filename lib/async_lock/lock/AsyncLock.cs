@@ -22,6 +22,7 @@ public sealed class AsyncLock : IDisposable {
     private readonly SemaphoreSlim _semaphore;
     private readonly string _name;
     private readonly TimeSpan _timeout;
+    private readonly LockTimeoutPolicy _timeoutPolicy;
     private readonly int _registryId;
     private int _disposed;
 
@@ -37,6 +38,7 @@ public sealed class AsyncLock : IDisposable {
         _semaphore = new SemaphoreSlim(1, 1);
         _name = $"AsyncLock#{LockRegistry.Count + 1}";
         _timeout = DefaultTimeout;
+        _timeoutPolicy = LockTimeoutPolicy.Throw;
         _registryId = LockRegistry.Register(_name);
     }
 
@@ -47,6 +49,18 @@ public sealed class AsyncLock : IDisposable {
         _semaphore = new SemaphoreSlim(1, 1);
         _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
         _timeout = DefaultTimeout;
+        _timeoutPolicy = LockTimeoutPolicy.Throw;
+        _registryId = LockRegistry.Register(_name);
+    }
+
+    /// <summary>
+    /// 构造具名锁并指定超时策略 — 生产环境用 <see cref="LockTimeoutPolicy.Crash"/>,测试用 <see cref="LockTimeoutPolicy.Throw"/>。
+    /// </summary>
+    public AsyncLock(string name, LockTimeoutPolicy timeoutPolicy) {
+        _semaphore = new SemaphoreSlim(1, 1);
+        _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
+        _timeout = DefaultTimeout;
+        _timeoutPolicy = timeoutPolicy;
         _registryId = LockRegistry.Register(_name);
     }
 
@@ -59,6 +73,20 @@ public sealed class AsyncLock : IDisposable {
         _semaphore = new SemaphoreSlim(1, 1);
         _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
         _timeout = timeout;
+        _timeoutPolicy = LockTimeoutPolicy.Throw;
+        _registryId = LockRegistry.Register(_name);
+    }
+
+    /// <summary>
+    /// 构造具名锁并指定超时+超时策略 — IO 密集锁可设 30s+Crash,内存状态锁 5s+Crash。
+    /// </summary>
+    public AsyncLock(string name, TimeSpan timeout, LockTimeoutPolicy timeoutPolicy) {
+        if (timeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(timeout), "超时必须为正值。");
+        _semaphore = new SemaphoreSlim(1, 1);
+        _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
+        _timeout = timeout;
+        _timeoutPolicy = timeoutPolicy;
         _registryId = LockRegistry.Register(_name);
     }
 
@@ -73,6 +101,7 @@ public sealed class AsyncLock : IDisposable {
         _semaphore = new SemaphoreSlim(initialCount, maxCount);
         _name = $"AsyncLock#{LockRegistry.Count + 1}";
         _timeout = DefaultTimeout;
+        _timeoutPolicy = LockTimeoutPolicy.Throw;
         _registryId = LockRegistry.Register(_name);
     }
 
@@ -87,6 +116,7 @@ public sealed class AsyncLock : IDisposable {
         _semaphore = new SemaphoreSlim(initialCount, maxCount);
         _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
         _timeout = DefaultTimeout;
+        _timeoutPolicy = LockTimeoutPolicy.Throw;
         _registryId = LockRegistry.Register(_name);
     }
 
@@ -103,6 +133,7 @@ public sealed class AsyncLock : IDisposable {
         _semaphore = new SemaphoreSlim(initialCount, maxCount);
         _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
         _timeout = timeout;
+        _timeoutPolicy = LockTimeoutPolicy.Throw;
         _registryId = LockRegistry.Register(_name);
     }
 
@@ -166,6 +197,77 @@ public sealed class AsyncLock : IDisposable {
         }
         LockRegistry.OnAcquired(_registryId, _name);
         return new Releaser(this);
+    }
+
+    /// <summary>
+    /// 锁等待重试次数 — 与 <c>BackpressureWriter.MaxRetries</c> / <c>ActorBase.BackpressureMaxRetries</c> 对齐。
+    /// </summary>
+    public const int LockRetryCount = 16;
+
+    /// <summary>
+    /// 锁等待单次重试超时 — 500ms,16 次共 8s,与 <c>MailboxBase.WaitForCommandsDrainedAsync</c> 对齐。
+    /// </summary>
+    public static readonly TimeSpan LockRetryTimeout = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>
+    /// 尝试同步获取锁,内置重试 16 次 × 500ms — 锁持有者卡在 I/O 时给予恢复窗口,全失败按 <see cref="_timeoutPolicy"/> 处理。
+    /// <para>与 <see cref="TryLock(TimeSpan, CancellationToken)"/> 区别:单次超时 500ms,重试 16 次,总等待 8s。</para>
+    /// <para>策略:Throw=抛 TimeoutException,Crash=Environment.Exit(99),Degrade=返回 null。</para>
+    /// </summary>
+    public IDisposable? TryLockWithRetry(CancellationToken ct = default) {
+        for (var i = 0; i < LockRetryCount; i++) {
+            var releaser = TryLock(LockRetryTimeout, ct);
+            if (releaser is not null) return releaser;
+        }
+        return OnLockRetryExhausted();
+    }
+
+    /// <summary>
+    /// 尝试异步获取锁,内置重试 16 次 × 500ms — 锁持有者卡在 I/O 时给予恢复窗口,全失败按 <see cref="_timeoutPolicy"/> 处理。
+    /// <para>async 方法中用此方法避免 <c>TryLockWithRetry</c> 同步阻塞线程池。</para>
+    /// </summary>
+    public async ValueTask<IDisposable?> TryLockWithRetryAsync(CancellationToken ct = default) {
+        for (var i = 0; i < LockRetryCount; i++) {
+            var releaser = await TryLockAsync(LockRetryTimeout, ct).ConfigureAwait(false);
+            if (releaser is not null) return releaser;
+        }
+        return OnLockRetryExhausted();
+    }
+
+    /// <summary>
+    /// 锁重试耗尽后的策略处理 — Throw 抛异常,Crash 强制退出,Degrade 返回 null。
+    /// </summary>
+    private IDisposable? OnLockRetryExhausted() {
+        switch (_timeoutPolicy) {
+            case LockTimeoutPolicy.Throw:
+                throw new TimeoutException(
+                    $"锁 '{_name}' 重试{LockRetryCount}次×{LockRetryTimeout.TotalMilliseconds:F0}ms全失败");
+            case LockTimeoutPolicy.Crash:
+                AsyncStderrWriter.Enqueue(
+                    $"[LOCK-FATAL] 锁 '{_name}' 重试{LockRetryCount}次×{LockRetryTimeout.TotalMilliseconds:F0}ms全失败,系统不可恢复,强制退出(99)");
+                AsyncStderrWriter.Flush();
+                Environment.Exit(99);
+                return null;
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// 获取锁,重试 16 次×500ms,全失败按 <see cref="_timeoutPolicy"/> 处理 — Throw/Crash 策略下永不返回 null。
+    /// <para>替代 <c>TryLock() ?? throw TimeoutException</c> 模式,内置重试+策略处理。</para>
+    /// </summary>
+    public IDisposable LockOrCrash(CancellationToken ct = default) {
+        return TryLockWithRetry(ct)
+            ?? throw new InvalidOperationException($"unreachable: {_name} {_timeoutPolicy} 策略不返回 null");
+    }
+
+    /// <summary>
+    /// 异步获取锁,重试 16 次×500ms,全失败按 <see cref="_timeoutPolicy"/> 处理 — Throw/Crash 策略下永不返回 null。
+    /// </summary>
+    public async ValueTask<IDisposable> LockOrCrashAsync(CancellationToken ct = default) {
+        return await TryLockWithRetryAsync(ct).ConfigureAwait(false)
+            ?? throw new InvalidOperationException($"unreachable: {_name} {_timeoutPolicy} 策略不返回 null");
     }
 
     /// <summary>

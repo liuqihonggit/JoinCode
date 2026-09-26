@@ -39,7 +39,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     /// <summary>所有已登记的资源</summary>
     public IReadOnlyCollection<PluginResourceBase> Resources {
         get {
-            using (_resourceLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resourceLock.Name}' 等待超时")) {
+            using (_resourceLock.LockOrCrash()) {
                 return _resources.Values.ToList();
             }
         }
@@ -69,7 +69,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     /// </summary>
     protected T RegisterResource<T>(T resource) where T : PluginResourceBase {
         ArgumentNullException.ThrowIfNull(resource);
-        using (_resourceLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resourceLock.Name}' 等待超时")) {
+        using (_resourceLock.LockOrCrash()) {
             _resources[resource.ObjectId] = resource;
         }
         return resource;
@@ -93,7 +93,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
             MarkDead();
 
             List<PluginResourceBase> snapshot;
-            using (_resourceLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resourceLock.Name}' 等待超时")) {
+            using (_resourceLock.LockOrCrash()) {
                 snapshot = _resources.Values.ToList();
                 _resources.Clear();
             }

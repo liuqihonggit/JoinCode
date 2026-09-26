@@ -459,9 +459,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (filePaths.Count == 0) return result;
 
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
         foreach (var fp in filePaths) {
-            if (_store.FileTracking.TryGetValue(fp, out var entry)) {
+            if (snap.FileTracking.TryGetValue(fp, out var entry)) {
                 result[fp] = entry.Hash;
             }
         }
@@ -469,8 +469,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     }
 
     private IReadOnlyList<string> GetTrackedFilesInWorkspace(string workspaceRoot) {
-        using var scope = _store.EnterReadLock();
-        return _store.FileTracking.Keys
+        var snap = _store.GetSnapshot();
+        return snap.FileTracking.Keys
             .Where(p => p.StartsWith(workspaceRoot, StringComparison.OrdinalIgnoreCase))
             .ToList();
     }
@@ -500,7 +500,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 }
             }
 
-            if (_store.SymbolsByFqn.Count == 0) {
+            if (_store.GetSnapshot().SymbolsByFqn.Count == 0) {
                 _logger?.LogInformation("CodeIndexer: 索引为空,自动构建工作区 {Root}", root);
                 await RebuildAndPersistAsync(root, dir, ct).ConfigureAwait(false);
             } else if (await IsIndexStaleAsync(root).ConfigureAwait(false)) {
@@ -552,7 +552,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         bool IsFileStale(string path) {
             if (!_fs.FileExists(path)) return false;
-            return _fs.GetLastWriteTimeUtc(path) > _store.LastUpdated;
+            return _fs.GetLastWriteTimeUtc(path) > _store.GetSnapshot().LastUpdated;
         }
     }
 

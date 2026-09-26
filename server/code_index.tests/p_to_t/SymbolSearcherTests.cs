@@ -16,7 +16,7 @@ public sealed class SymbolSearcherTests : IDisposable {
         if (_disposed) return;
         _disposed = true;
         _index.DisposeSafe();
-        _store.DisposeSafe();
+        _store.Dispose();
     }
 
     [Fact]
@@ -75,8 +75,7 @@ public sealed class SymbolSearcherTests : IDisposable {
         InsertSymbol(CreateSymbol("BuildIndex", "App.BuildIndex", SymbolKind.Method, "core.cs"));
         var edge1 = new CallEdge { CallerSymbol = "CallerA", CalleeSymbol = "BuildIndex", CallSiteFilePath = "a.cs", CallSiteLine = 10, CallKind = CallKind.Direct };
         var edge2 = new CallEdge { CallerSymbol = "CallerB", CalleeSymbol = "BuildIndex", CallSiteFilePath = "b.cs", CallSiteLine = 20, CallKind = CallKind.Direct };
-        _store.CallEdges.Add(edge1);
-        _store.CallEdges.Add(edge2);
+        _store.Update(snap => snap with { CallEdges = snap.CallEdges.Add(edge1).Add(edge2) });
 
         var result = await _searcher.FindReferencesAsync("BuildIndex", CancellationToken.None).ConfigureAwait(true);
 
@@ -223,17 +222,24 @@ public sealed class SymbolSearcherTests : IDisposable {
     }
 
     private void InsertSymbol(SymbolInfo symbol) {
-        _store.SymbolsByFqn[symbol.FullyQualifiedName] = symbol;
-        AddToBucket(_store.SymbolsByName, symbol.Name, symbol);
-        AddToBucket(_store.SymbolsByFile, symbol.FilePath, symbol);
-        AddToBucket(_store.SymbolsByKind, symbol.Kind, symbol);
+        _store.Update(snap => {
+            var symbolsByName = AddToBucket(snap.SymbolsByName, symbol.Name, symbol);
+            var symbolsByFile = AddToBucket(snap.SymbolsByFile, symbol.FilePath, symbol);
+            var symbolsByKind = AddToBucket(snap.SymbolsByKind, symbol.Kind, symbol);
+            return snap with {
+                SymbolsByFqn = snap.SymbolsByFqn.SetItem(symbol.FullyQualifiedName, symbol),
+                SymbolsByName = symbolsByName,
+                SymbolsByFile = symbolsByFile,
+                SymbolsByKind = symbolsByKind,
+            };
+        });
     }
 
-    private static void AddToBucket<TKey>(Dictionary<TKey, List<SymbolInfo>> dict, TKey key, SymbolInfo symbol) where TKey : notnull {
+    private static ImmutableDictionary<TKey, ImmutableList<SymbolInfo>> AddToBucket<TKey>(
+        ImmutableDictionary<TKey, ImmutableList<SymbolInfo>> dict, TKey key, SymbolInfo symbol) where TKey : notnull {
         if (!dict.TryGetValue(key, out var list)) {
-            list = new List<SymbolInfo>();
-            dict[key] = list;
+            list = ImmutableList<SymbolInfo>.Empty;
         }
-        list.Add(symbol);
+        return dict.SetItem(key, list.Add(symbol));
     }
 }

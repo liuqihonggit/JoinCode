@@ -24,18 +24,18 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
     /// <param name="ct">取消令牌</param>
     /// <returns>社区信息列表</returns>
     public Task<IReadOnlyList<CommunityInfo>> DetectCommunitiesAsync(CancellationToken ct) {
-        using var scope = _store.EnterReadLock();
-        return Task.FromResult<IReadOnlyList<CommunityInfo>>(DetectCommunities(_store));
+        var snap = _store.GetSnapshot();
+        return Task.FromResult<IReadOnlyList<CommunityInfo>>(DetectCommunities(snap));
     }
 
     /// <summary>
     /// 检测代码社区 — 内部静态方法，基于标签传播算法
     /// </summary>
-    /// <param name="store">内存索引存储</param>
+    /// <param name="snap">索引快照</param>
     /// <returns>社区信息列表</returns>
-    internal static List<CommunityInfo> DetectCommunities(InMemoryIndexStore store) {
-        var labels = LabelPropagation(store.CallsByCaller, store.CallsByCallee);
-        return BuildCommunities(labels, store.CallsByCaller, store.CallsByCallee);
+    internal static List<CommunityInfo> DetectCommunities(IndexSnapshot snap) {
+        var labels = LabelPropagation(snap.CallsByCaller, snap.CallsByCallee);
+        return BuildCommunities(labels, snap.CallsByCaller, snap.CallsByCallee);
     }
 
     /// <summary>
@@ -46,17 +46,17 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
     /// <returns>枢纽节点信息列表</returns>
     public Task<IReadOnlyList<HubNodeInfo>> GetHubNodesAsync(int topN, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(topN < 1 ? null : nameof(topN));
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
 
         var degreeMap = new Dictionary<string, (int In, int Out)>(StringComparer.Ordinal);
 
-        foreach (var kvp in _store.CallsByCallee) {
+        foreach (var kvp in snap.CallsByCallee) {
             var sym = kvp.Key;
             var current = degreeMap.GetValueOrDefault(sym);
             degreeMap[sym] = (current.In + kvp.Value.Count, current.Out);
         }
 
-        foreach (var kvp in _store.CallsByCaller) {
+        foreach (var kvp in snap.CallsByCaller) {
             var sym = kvp.Key;
             var current = degreeMap.GetValueOrDefault(sym);
             degreeMap[sym] = (current.In, current.Out + kvp.Value.Count);
@@ -68,7 +68,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
                 InDegree = kvp.Value.In,
                 OutDegree = kvp.Value.Out,
                 TotalDegree = kvp.Value.In + kvp.Value.Out,
-                FilePath = FindFilePath(kvp.Key),
+                FilePath = FindFilePath(snap, kvp.Key),
             })
             .OrderByDescending(h => h.TotalDegree)
             .Take(topN)
@@ -83,10 +83,10 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
     /// <param name="ct">取消令牌</param>
     /// <returns>死代码条目列表</returns>
     public Task<IReadOnlyList<DeadCodeEntry>> DetectDeadCodeAsync(CancellationToken ct) {
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
         var dead = new List<DeadCodeEntry>();
 
-        foreach (var kvp in _store.SymbolsByFqn) {
+        foreach (var kvp in snap.SymbolsByFqn) {
             var symbol = kvp.Value;
             if (symbol.Kind != SymbolKind.Method && symbol.Kind != SymbolKind.LocalFunction)
                 continue;
@@ -97,8 +97,8 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
             if (IsEntryPoint(symbol))
                 continue;
 
-            if (!_store.CallsByCallee.ContainsKey(symbol.FullyQualifiedName) &&
-                !_store.CallsByCallee.ContainsKey(symbol.Name)) {
+            if (!snap.CallsByCallee.ContainsKey(symbol.FullyQualifiedName) &&
+                !snap.CallsByCallee.ContainsKey(symbol.Name)) {
                 dead.Add(new DeadCodeEntry {
                     SymbolName = symbol.FullyQualifiedName,
                     FilePath = symbol.FilePath,
@@ -120,7 +120,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
     /// <returns>子图结果</returns>
     public Task<SubgraphResult> ExtractSubgraphAsync(string centerSymbol, int hops, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(centerSymbol);
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
 
         var nodes = new HashSet<string>(StringComparer.Ordinal) { centerSymbol };
         var edges = new List<CallEdge>();
@@ -131,7 +131,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
             var nextFrontier = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var sym in frontier) {
-                if (_store.CallsByCaller.TryGetValue(sym, out var callees)) {
+                if (snap.CallsByCaller.TryGetValue(sym, out var callees)) {
                     foreach (var edge in callees) {
                         if (edgeSet.Add(edge))
                             edges.Add(edge);
@@ -140,7 +140,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
                     }
                 }
 
-                if (_store.CallsByCallee.TryGetValue(sym, out var callers)) {
+                if (snap.CallsByCallee.TryGetValue(sym, out var callers)) {
                     foreach (var edge in callers) {
                         if (edgeSet.Add(edge))
                             edges.Add(edge);
@@ -169,14 +169,14 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
     /// <returns>变更影响结果</returns>
     public Task<ChangeImpactResult> AnalyzeChangeImpactAsync(IReadOnlyList<string> changedFiles, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(changedFiles);
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
 
         var affectedSymbols = new HashSet<string>(StringComparer.Ordinal);
         var affectedFiles = new HashSet<string>(changedFiles, StringComparer.Ordinal);
         var queue = new Queue<string>();
 
         foreach (var file in changedFiles) {
-            if (!_store.SymbolsByFile.TryGetValue(file, out var symbols)) continue;
+            if (!snap.SymbolsByFile.TryGetValue(file, out var symbols)) continue;
             foreach (var sym in symbols) {
                 affectedSymbols.Add(sym.FullyQualifiedName);
                 queue.Enqueue(sym.FullyQualifiedName);
@@ -185,7 +185,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
 
         while (queue.Count > 0) {
             var current = queue.Dequeue();
-            if (!_store.CallsByCallee.TryGetValue(current, out var callers)) continue;
+            if (!snap.CallsByCallee.TryGetValue(current, out var callers)) continue;
 
             foreach (var edge in callers) {
                 if (affectedSymbols.Add(edge.CallerSymbol)) {
@@ -198,7 +198,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
 
         var affectedProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in affectedFiles) {
-            foreach (var proj in _store.Projects.Values) {
+            foreach (var proj in snap.Projects.Values) {
                 if (file.StartsWith(Path.GetDirectoryName(proj.FilePath) ?? "", StringComparison.OrdinalIgnoreCase))
                     affectedProjects.Add(proj.FilePath);
             }
@@ -218,10 +218,10 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
     /// <param name="ct">取消令牌</param>
     /// <returns>环检测结果</returns>
     public Task<CycleDetectionResult> DetectCyclesAsync(CancellationToken ct) {
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
 
-        var callDag = BuildCallDag();
-        var depDag = BuildDependencyDag();
+        var callDag = BuildCallDag(snap);
+        var depDag = BuildDependencyDag(snap);
 
         var callCycles = callDag.FindAllCycles();
         var depCycles = depDag.FindAllCycles();
@@ -240,29 +240,29 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
     /// <param name="ct">取消令牌</param>
     /// <returns>按层分组的符号列表</returns>
     public Task<IReadOnlyList<IReadOnlyList<string>>> TopologicalSortByLevelsAsync(CancellationToken ct) {
-        using var scope = _store.EnterReadLock();
-        var dag = BuildCallDag();
+        var snap = _store.GetSnapshot();
+        var dag = BuildCallDag(snap);
         var levels = dag.TopologicalSortByLevels();
         var result = levels.Select(level => (IReadOnlyList<string>)level.Select(n => n.Id).ToList()).ToList();
         return Task.FromResult<IReadOnlyList<IReadOnlyList<string>>>(result);
     }
 
-    private Dag<string> BuildCallDag() {
+    private static Dag<string> BuildCallDag(IndexSnapshot snap) {
         var dag = new Dag<string>();
 
-        foreach (var kvp in _store.SymbolsByFqn) {
+        foreach (var kvp in snap.SymbolsByFqn) {
             dag.AddNode(new DagNode<string> { Id = kvp.Key, Payload = kvp.Key });
         }
 
         // Ensure nodes exist for symbols referenced only in CallEdges
-        foreach (var edge in _store.CallEdges) {
+        foreach (var edge in snap.CallEdges) {
             if (!dag.Nodes.ContainsKey(edge.CallerSymbol))
                 dag.AddNode(new DagNode<string> { Id = edge.CallerSymbol, Payload = edge.CallerSymbol });
             if (!dag.Nodes.ContainsKey(edge.CalleeSymbol))
                 dag.AddNode(new DagNode<string> { Id = edge.CalleeSymbol, Payload = edge.CalleeSymbol });
         }
 
-        foreach (var edge in _store.CallEdges) {
+        foreach (var edge in snap.CallEdges) {
             dag.TryAddEdge(new DagEdge {
                 FromId = edge.CallerSymbol,
                 ToId = edge.CalleeSymbol,
@@ -273,22 +273,22 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         return dag;
     }
 
-    private Dag<string> BuildDependencyDag() {
+    private static Dag<string> BuildDependencyDag(IndexSnapshot snap) {
         var dag = new Dag<string>();
 
-        foreach (var kvp in _store.SymbolsByFqn) {
+        foreach (var kvp in snap.SymbolsByFqn) {
             dag.AddNode(new DagNode<string> { Id = kvp.Key, Payload = kvp.Key });
         }
 
         // Ensure nodes exist for symbols referenced only in DepEdges
-        foreach (var edge in _store.DepEdges) {
+        foreach (var edge in snap.DepEdges) {
             if (!dag.Nodes.ContainsKey(edge.SourceSymbol))
                 dag.AddNode(new DagNode<string> { Id = edge.SourceSymbol, Payload = edge.SourceSymbol });
             if (!dag.Nodes.ContainsKey(edge.TargetSymbol))
                 dag.AddNode(new DagNode<string> { Id = edge.TargetSymbol, Payload = edge.TargetSymbol });
         }
 
-        foreach (var edge in _store.DepEdges) {
+        foreach (var edge in snap.DepEdges) {
             dag.TryAddEdge(new DagEdge {
                 FromId = edge.SourceSymbol,
                 ToId = edge.TargetSymbol,
@@ -306,8 +306,8 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
     /// <param name="byCallee">按被调用方分组的调用边</param>
     /// <returns>符号到社区标签的映射</returns>
     internal static Dictionary<string, int> LabelPropagation(
-        Dictionary<string, List<CallEdge>> byCaller,
-        Dictionary<string, List<CallEdge>> byCallee) {
+        ImmutableDictionary<string, ImmutableList<CallEdge>> byCaller,
+        ImmutableDictionary<string, ImmutableList<CallEdge>> byCallee) {
         var allSymbols = new HashSet<string>(StringComparer.Ordinal);
         foreach (var kvp in byCaller) allSymbols.Add(kvp.Key);
         foreach (var kvp in byCallee) allSymbols.Add(kvp.Key);
@@ -350,8 +350,8 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
     /// <returns>社区信息列表</returns>
     internal static List<CommunityInfo> BuildCommunities(
         Dictionary<string, int> labels,
-        Dictionary<string, List<CallEdge>> byCaller,
-        Dictionary<string, List<CallEdge>> byCallee) {
+        ImmutableDictionary<string, ImmutableList<CallEdge>> byCaller,
+        ImmutableDictionary<string, ImmutableList<CallEdge>> byCallee) {
         var groups = labels.GroupBy(kvp => kvp.Value).ToList();
         var result = new List<CommunityInfo>();
 
@@ -382,10 +382,10 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         return result.OrderByDescending(c => c.MemberCount).ToList();
     }
 
-    private string? FindFilePath(string symbolName) {
-        if (_store.SymbolsByFqn.TryGetValue(symbolName, out var sym))
+    private static string? FindFilePath(IndexSnapshot snap, string symbolName) {
+        if (snap.SymbolsByFqn.TryGetValue(symbolName, out var sym))
             return sym.FilePath;
-        if (_store.SymbolsByName.TryGetValue(symbolName, out var list) && list.Count > 0)
+        if (snap.SymbolsByName.TryGetValue(symbolName, out var list) && list.Count > 0)
             return list[0].FilePath;
         return null;
     }
@@ -401,7 +401,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         ArgumentNullException.ThrowIfNull(query);
         if (maxResults < 1) maxResults = 20;
 
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
 
         var tokens = query.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (tokens.Length == 0) {
@@ -414,7 +414,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
 
         var scored = new Dictionary<string, (SymbolInfo Symbol, int Score)>(StringComparer.Ordinal);
 
-        foreach (var kvp in _store.SymbolsByFqn) {
+        foreach (var kvp in snap.SymbolsByFqn) {
             var symbol = kvp.Value;
             var score = 0;
             var fqn = symbol.FullyQualifiedName;
@@ -435,7 +435,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
                 scored[fqn] = (symbol, score);
         }
 
-        foreach (var kvp in _store.SymbolsByName) {
+        foreach (var kvp in snap.SymbolsByName) {
             foreach (var token in tokens) {
                 if (!kvp.Key.Contains(token, StringComparison.OrdinalIgnoreCase)) continue;
                 foreach (var symbol in kvp.Value) {
@@ -452,9 +452,9 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         var matches = new List<GraphQueryMatch>();
         foreach (var (symbol, score) in sorted.Take(maxResults)) {
             var related = new List<string>();
-            if (_store.CallsByCaller.TryGetValue(symbol.FullyQualifiedName, out var callees))
+            if (snap.CallsByCaller.TryGetValue(symbol.FullyQualifiedName, out var callees))
                 related.AddRange(callees.Select(e => e.CalleeSymbol).Take(5));
-            if (_store.CallsByCallee.TryGetValue(symbol.FullyQualifiedName, out var callers))
+            if (snap.CallsByCallee.TryGetValue(symbol.FullyQualifiedName, out var callers))
                 related.AddRange(callers.Select(e => e.CallerSymbol).Take(5));
 
             matches.Add(new GraphQueryMatch {
@@ -484,7 +484,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         ArgumentNullException.ThrowIfNull(fromSymbol);
         ArgumentNullException.ThrowIfNull(toSymbol);
 
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
 
         if (string.Equals(fromSymbol, toSymbol, StringComparison.Ordinal)) {
             return Task.FromResult(new GraphPathResult {
@@ -505,7 +505,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         while (queue.Count > 0) {
             var current = queue.Dequeue();
 
-            if (_store.CallsByCaller.TryGetValue(current, out var callees)) {
+            if (snap.CallsByCaller.TryGetValue(current, out var callees)) {
                 foreach (var edge in callees) {
                     if (!visited.Add(edge.CalleeSymbol)) continue;
                     predecessor[edge.CalleeSymbol] = (current, edge);
@@ -515,7 +515,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
                 }
             }
 
-            if (_store.CallsByCallee.TryGetValue(current, out var callers)) {
+            if (snap.CallsByCallee.TryGetValue(current, out var callers)) {
                 foreach (var edge in callers) {
                     if (!visited.Add(edge.CallerSymbol)) continue;
                     predecessor[edge.CallerSymbol] = (current, edge);
@@ -568,26 +568,26 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
     public Task<GraphExplainResult> ExplainAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
 
         SymbolInfo? symbol = null;
-        if (_store.SymbolsByFqn.TryGetValue(symbolName, out var fqnSymbol))
+        if (snap.SymbolsByFqn.TryGetValue(symbolName, out var fqnSymbol))
             symbol = fqnSymbol;
-        else if (_store.SymbolsByName.TryGetValue(symbolName, out var nameList) && nameList.Count > 0)
+        else if (snap.SymbolsByName.TryGetValue(symbolName, out var nameList) && nameList.Count > 0)
             symbol = nameList[0];
 
         var fqn = symbol?.FullyQualifiedName ?? symbolName;
 
         var callers = new List<string>();
-        if (_store.CallsByCallee.TryGetValue(fqn, out var callerEdges))
+        if (snap.CallsByCallee.TryGetValue(fqn, out var callerEdges))
             callers = callerEdges.Select(e => e.CallerSymbol).Distinct(StringComparer.Ordinal).ToList();
 
         var callees = new List<string>();
-        if (_store.CallsByCaller.TryGetValue(fqn, out var calleeEdges))
+        if (snap.CallsByCaller.TryGetValue(fqn, out var calleeEdges))
             callees = calleeEdges.Select(e => e.CalleeSymbol).Distinct(StringComparer.Ordinal).ToList();
 
         var sameFile = new List<string>();
-        if (symbol is not null && _store.SymbolsByFile.TryGetValue(symbol.FilePath, out var fileSymbols))
+        if (symbol is not null && snap.SymbolsByFile.TryGetValue(symbol.FilePath, out var fileSymbols))
             sameFile = fileSymbols
                 .Where(s => s.FullyQualifiedName != fqn)
                 .Select(s => s.FullyQualifiedName)
@@ -595,7 +595,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
                 .ToList();
 
         var sameCommunity = new List<string>();
-        var labels = LabelPropagation(_store.CallsByCaller, _store.CallsByCallee);
+        var labels = LabelPropagation(snap.CallsByCaller, snap.CallsByCallee);
         if (labels.TryGetValue(fqn, out var communityId)) {
             sameCommunity = labels
                 .Where(kvp => kvp.Value == communityId && kvp.Key != fqn)

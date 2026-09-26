@@ -17,7 +17,7 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         _disposed = true;
         _updater.DisposeSafe();
         _index.DisposeSafe();
-        _store.DisposeSafe();
+        _store.Dispose();
     }
 
     [Fact]
@@ -71,12 +71,12 @@ public sealed class IncrementalUpdaterTests : IDisposable {
 
         await updater.UpdateDirectoryAsync(root, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.True(store.FileTracking.ContainsKey(Path.Combine(root, "A.cs")), "A.cs 应被索引");
-        Assert.True(store.FileTracking.ContainsKey(Path.Combine(root, "sub", "D.cs")), "sub/D.cs 应被索引");
-        Assert.False(store.FileTracking.ContainsKey(Path.Combine(root, "bin", "B.cs")), "bin/B.cs 不应被索引");
-        Assert.False(store.FileTracking.ContainsKey(Path.Combine(root, "obj", "C.cs")), "obj/C.cs 不应被索引");
-        Assert.False(store.FileTracking.ContainsKey(Path.Combine(root, "sub", "bin", "E.cs")), "sub/bin/E.cs 不应被索引");
-        Assert.False(store.FileTracking.ContainsKey(Path.Combine(root, ".x", "F.cs")), ".x/F.cs 不应被索引");
-        Assert.Equal(2, store.FileTracking.Count);
+        var snap = store.GetSnapshot();
+        Assert.True(snap.FileTracking.ContainsKey(Path.Combine(root, "A.cs")), "A.cs 应被索引");
+        Assert.True(snap.FileTracking.ContainsKey(Path.Combine(root, "sub", "D.cs")), "sub/D.cs 应被索引");
+        Assert.False(snap.FileTracking.ContainsKey(Path.Combine(root, "bin", "B.cs")), "bin/B.cs 不应被索引");
+        Assert.False(snap.FileTracking.ContainsKey(Path.Combine(root, "obj", "C.cs")), "obj/C.cs 不应被索引");
+        Assert.False(snap.FileTracking.ContainsKey(Path.Combine(root, "sub", "bin", "E.cs")), "sub/bin/E.cs 不应被索引");
+        Assert.Equal(2, snap.FileTracking.Count);
     }
 }

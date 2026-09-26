@@ -45,8 +45,8 @@ public sealed class DependencyGraph : IDependencyGraph {
     public Task<IReadOnlyList<DependencyEdge>> GetInheritorsAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
-        using var scope = _store.EnterReadLock();
-        if (_store.DepsByTarget.TryGetValue(symbolName, out var list)) {
+        var snap = _store.GetSnapshot();
+        if (snap.DepsByTarget.TryGetValue(symbolName, out var list)) {
             var result = list
                 .Where(e => e.DependencyKind is DependencyKind.Inherits or DependencyKind.Implements)
                 .ToList();
@@ -64,8 +64,8 @@ public sealed class DependencyGraph : IDependencyGraph {
     public Task<IReadOnlyList<DependencyEdge>> GetDependenciesAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
-        using var scope = _store.EnterReadLock();
-        if (_store.DepsBySource.TryGetValue(symbolName, out var list)) {
+        var snap = _store.GetSnapshot();
+        if (snap.DepsBySource.TryGetValue(symbolName, out var list)) {
             return Task.FromResult<IReadOnlyList<DependencyEdge>>(list.ToList());
         }
         return Task.FromResult<IReadOnlyList<DependencyEdge>>(Array.Empty<DependencyEdge>());
@@ -80,43 +80,40 @@ public sealed class DependencyGraph : IDependencyGraph {
     public Task<IReadOnlyList<string>> GetAffectedFilesAsync(string filePath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(filePath);
 
+        var snap = _store.GetSnapshot();
         var affectedFiles = new HashSet<string>(StringComparer.Ordinal) { filePath };
         var visitedSymbols = new HashSet<string>(StringComparer.Ordinal);
 
-        using (var scope = _store.EnterReadLock()) {
-            // 找出该文件包含的所有符号(基于符号索引)
-            var symbolsInFile = _store.SymbolsByFile.TryGetValue(filePath, out var list)
-                ? list.Select(s => s.FullyQualifiedName).ToList()
-                : new List<string>();
+        // 找出该文件包含的所有符号(基于符号索引)
+        var symbolsInFile = snap.SymbolsByFile.TryGetValue(filePath, out var list)
+            ? list.Select(s => s.FullyQualifiedName).ToList()
+            : new List<string>();
 
-            if (symbolsInFile.Count == 0) {
-                return Task.FromResult<IReadOnlyList<string>>(affectedFiles.ToList());
-            }
+        if (symbolsInFile.Count == 0) {
+            return Task.FromResult<IReadOnlyList<string>>(affectedFiles.ToList());
+        }
 
-            // BFS 反向查找所有依赖这些符号的源符号
-            var queue = new Queue<string>();
-            foreach (var sym in symbolsInFile) {
-                if (visitedSymbols.Add(sym)) queue.Enqueue(sym);
-            }
+        // BFS 反向查找所有依赖这些符号的源符号
+        var queue = new Queue<string>();
+        foreach (var sym in symbolsInFile) {
+            if (visitedSymbols.Add(sym)) queue.Enqueue(sym);
+        }
 
-            while (queue.Count > 0) {
-                var current = queue.Dequeue();
-                if (!_store.DepsByTarget.TryGetValue(current, out var deps)) continue;
+        while (queue.Count > 0) {
+            var current = queue.Dequeue();
+            if (!snap.DepsByTarget.TryGetValue(current, out var deps)) continue;
 
-                foreach (var edge in deps) {
-                    if (visitedSymbols.Add(edge.SourceSymbol)) {
-                        queue.Enqueue(edge.SourceSymbol);
-                    }
+            foreach (var edge in deps) {
+                if (visitedSymbols.Add(edge.SourceSymbol)) {
+                    queue.Enqueue(edge.SourceSymbol);
                 }
             }
         }
 
         // 通过符号 → 找回文件
-        using (var scope = _store.EnterReadLock()) {
-            foreach (var sym in visitedSymbols) {
-                if (_store.SymbolsByFqn.TryGetValue(sym, out var symbolInfo)) {
-                    affectedFiles.Add(symbolInfo.FilePath);
-                }
+        foreach (var sym in visitedSymbols) {
+            if (snap.SymbolsByFqn.TryGetValue(sym, out var symbolInfo)) {
+                affectedFiles.Add(symbolInfo.FilePath);
             }
         }
 

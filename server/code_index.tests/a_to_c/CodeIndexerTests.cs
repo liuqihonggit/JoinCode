@@ -16,7 +16,7 @@ public sealed class CodeIndexerTests : IDisposable {
         if (_disposed) return;
         _disposed = true;
         _indexer.DisposeSafe();
-        _store.DisposeSafe();
+        _store.Dispose();
     }
 
     [Fact]
@@ -255,10 +255,17 @@ public sealed class CodeIndexerTests : IDisposable {
     }
 
     private void InsertSymbol(SymbolInfo symbol) {
-        _store.SymbolsByFqn[symbol.FullyQualifiedName] = symbol;
-        AddToBucket(_store.SymbolsByName, symbol.Name, symbol);
-        AddToBucket(_store.SymbolsByFile, symbol.FilePath, symbol);
-        AddToBucket(_store.SymbolsByKind, symbol.Kind, symbol);
+        _store.Update(snap => {
+            var symbolsByName = AddToBucket(snap.SymbolsByName, symbol.Name, symbol);
+            var symbolsByFile = AddToBucket(snap.SymbolsByFile, symbol.FilePath, symbol);
+            var symbolsByKind = AddToBucket(snap.SymbolsByKind, symbol.Kind, symbol);
+            return snap with {
+                SymbolsByFqn = snap.SymbolsByFqn.SetItem(symbol.FullyQualifiedName, symbol),
+                SymbolsByName = symbolsByName,
+                SymbolsByFile = symbolsByFile,
+                SymbolsByKind = symbolsByKind,
+            };
+        });
     }
 
     private void InsertCallEdge(string caller, string callee, string file, int line, CallKind kind) {
@@ -269,17 +276,24 @@ public sealed class CodeIndexerTests : IDisposable {
             CallSiteLine = line,
             CallKind = kind
         };
-        _store.CallEdges.Add(edge);
-        AddToBucket(_store.CallsByCaller, caller, edge);
-        AddToBucket(_store.CallsByCallee, callee, edge);
-        AddToBucket(_store.CallsByFile, file, edge);
+        _store.Update(snap => {
+            var callsByCaller = AddToBucket(snap.CallsByCaller, caller, edge);
+            var callsByCallee = AddToBucket(snap.CallsByCallee, callee, edge);
+            var callsByFile = AddToBucket(snap.CallsByFile, file, edge);
+            return snap with {
+                CallEdges = snap.CallEdges.Add(edge),
+                CallsByCaller = callsByCaller,
+                CallsByCallee = callsByCallee,
+                CallsByFile = callsByFile,
+            };
+        });
     }
 
-    private static void AddToBucket<TKey, TValue>(Dictionary<TKey, List<TValue>> dict, TKey key, TValue value) where TKey : notnull {
+    private static ImmutableDictionary<TKey, ImmutableList<TValue>> AddToBucket<TKey, TValue>(
+        ImmutableDictionary<TKey, ImmutableList<TValue>> dict, TKey key, TValue value) where TKey : notnull {
         if (!dict.TryGetValue(key, out var list)) {
-            list = new List<TValue>();
-            dict[key] = list;
+            list = ImmutableList<TValue>.Empty;
         }
-        list.Add(value);
+        return dict.SetItem(key, list.Add(value));
     }
 }

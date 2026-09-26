@@ -22,8 +22,8 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
     /// <param name="ct">取消令牌</param>
     /// <returns>DOT 格式字符串</returns>
     public Task<string> ExportDotAsync(CancellationToken ct) {
-        using var scope = _store.EnterReadLock();
-        return Task.FromResult(BuildDot(_store.CallEdges, "CallGraph"));
+        var snap = _store.GetSnapshot();
+        return Task.FromResult(BuildDot(snap.CallEdges, "CallGraph"));
     }
 
     /// <summary>
@@ -32,8 +32,8 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
     /// <param name="ct">取消令牌</param>
     /// <returns>HTML 格式字符串</returns>
     public Task<string> ExportHtmlAsync(CancellationToken ct) {
-        using var scope = _store.EnterReadLock();
-        return Task.FromResult(BuildHtml(_store.CallEdges));
+        var snap = _store.GetSnapshot();
+        return Task.FromResult(BuildHtml(snap.CallEdges));
     }
 
     /// <summary>
@@ -45,7 +45,7 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
     /// <returns>DOT 格式字符串</returns>
     public Task<string> ExportSubgraphDotAsync(string centerSymbol, int hops, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(centerSymbol);
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
 
         var nodes = new HashSet<string>(StringComparer.Ordinal) { centerSymbol };
         var edges = new List<CallEdge>();
@@ -54,12 +54,12 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
         for (var i = 0; i < hops && frontier.Count > 0; i++) {
             var nextFrontier = new HashSet<string>(StringComparer.Ordinal);
             foreach (var sym in frontier) {
-                if (_store.CallsByCaller.TryGetValue(sym, out var callees))
+                if (snap.CallsByCaller.TryGetValue(sym, out var callees))
                     foreach (var e in callees) {
                         edges.Add(e);
                         if (nodes.Add(e.CalleeSymbol)) nextFrontier.Add(e.CalleeSymbol);
                     }
-                if (_store.CallsByCallee.TryGetValue(sym, out var callers))
+                if (snap.CallsByCallee.TryGetValue(sym, out var callers))
                     foreach (var e in callers) {
                         edges.Add(e);
                         if (nodes.Add(e.CallerSymbol)) nextFrontier.Add(e.CallerSymbol);
@@ -77,11 +77,11 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
     /// <param name="ct">取消令牌</param>
     /// <returns>Markdown Wiki 格式字符串</returns>
     public Task<string> ExportWikiAsync(CancellationToken ct) {
-        using var scope = _store.EnterReadLock();
-        return Task.FromResult(BuildWiki(_store));
+        var snap = _store.GetSnapshot();
+        return Task.FromResult(BuildWiki(snap));
     }
 
-    private static string BuildDot(List<CallEdge> edges, string title) {
+    private static string BuildDot(IReadOnlyList<CallEdge> edges, string title) {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"digraph \"{title}\" {{");
         sb.AppendLine("  rankdir=TB;");
@@ -111,7 +111,7 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
         return sb.ToString();
     }
 
-    private static string BuildHtml(List<CallEdge> edges) {
+    private static string BuildHtml(IReadOnlyList<CallEdge> edges) {
         var nodes = new HashSet<string>(StringComparer.Ordinal);
         foreach (var e in edges) { nodes.Add(e.CallerSymbol); nodes.Add(e.CalleeSymbol); }
 
@@ -142,12 +142,12 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
     private static string EscapeDot(string s) => s.Replace("\"", "\\\"");
     private static string EscapeJs(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("'", "\\'");
 
-    private static string BuildWiki(InMemoryIndexStore store) {
+    private static string BuildWiki(IndexSnapshot snap) {
         var sb = new System.Text.StringBuilder();
 
-        var communities = GraphAnalytics.DetectCommunities(store);
-        var symbolCount = store.SymbolsByFqn.Count;
-        var edgeCount = store.CallEdges.Count;
+        var communities = GraphAnalytics.DetectCommunities(snap);
+        var symbolCount = snap.SymbolsByFqn.Count;
+        var edgeCount = snap.CallEdges.Count;
 
         sb.AppendLine("# Code Architecture Wiki");
         sb.AppendLine();
@@ -197,7 +197,7 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
 
             var typeGroups = new Dictionary<SymbolKind, List<SymbolInfo>>();
             foreach (var fqn in c.Members) {
-                if (store.SymbolsByFqn.TryGetValue(fqn, out var sym)) {
+                if (snap.SymbolsByFqn.TryGetValue(fqn, out var sym)) {
                     if (!typeGroups.TryGetValue(sym.Kind, out var list)) {
                         list = [];
                         typeGroups[sym.Kind] = list;
@@ -222,7 +222,7 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
             }
 
             if (c.ExternalEdges > 0) {
-                var deps = BuildExternalDeps(c, store, communityOf);
+                var deps = BuildExternalDeps(c, snap, communityOf);
 
                 if (deps.Count > 0) {
                     sb.AppendLine("**Dependencies on other communities:**");
@@ -256,10 +256,10 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
     /// 构建社区外部依赖字典（提取以扁平化嵌套）
     /// </summary>
     private static Dictionary<int, int> BuildExternalDeps(
-        CommunityInfo c, InMemoryIndexStore store, Dictionary<string, int> communityOf) {
+        CommunityInfo c, IndexSnapshot snap, Dictionary<string, int> communityOf) {
         var deps = new Dictionary<int, int>();
         foreach (var m in c.Members) {
-            if (!store.CallsByCaller.TryGetValue(m, out var outEdges)) continue;
+            if (!snap.CallsByCaller.TryGetValue(m, out var outEdges)) continue;
             foreach (var e in outEdges) {
                 if (!communityOf.TryGetValue(e.CalleeSymbol, out var targetCid) || targetCid == c.CommunityId) continue;
                 deps.TryGetValue(targetCid, out var count);

@@ -1,8 +1,8 @@
 namespace JoinCode.CodeIndex;
 
 /// <summary>
-/// 项目索引器 — 重写为基于 InMemoryIndexStore 的内存字典操作
-/// 不再使用 SQLite 事务,所有写操作在写锁内原子完成
+/// 项目索引器 — 基于 InMemoryIndexStore 不可变快照 + CAS 无锁写入
+/// 不再使用 SQLite 事务,所有写操作通过 CAS 原子完成
 /// </summary>
 internal sealed class ProjectIndex {
     private readonly InMemoryIndexStore _store;
@@ -12,9 +12,6 @@ internal sealed class ProjectIndex {
     /// <summary>
     /// 构造项目索引器
     /// </summary>
-    /// <param name="store">内存索引存储</param>
-    /// <param name="fs">文件系统抽象</param>
-    /// <param name="logger">日志记录器（可选）</param>
     public ProjectIndex(InMemoryIndexStore store, IFileSystem fs, ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(fs);
@@ -26,36 +23,21 @@ internal sealed class ProjectIndex {
     /// <summary>
     /// 索引单个 csproj 项目
     /// </summary>
-    /// <param name="csprojPath">csproj 文件路径</param>
-    /// <param name="workspaceRoot">工作区根路径</param>
-    /// <param name="ct">取消令牌</param>
     internal async Task IndexProjectAsync(string csprojPath, string workspaceRoot, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(csprojPath);
-
-        if (!_fs.FileExists(csprojPath)) {
-            return;
-        }
+        if (!_fs.FileExists(csprojPath)) return;
 
         var parseResult = await CsprojParser.ParseAsync(csprojPath, _fs, workspaceRoot).ConfigureAwait(false);
-
-        using var scope = _store.EnterWriteLock();
-        RemoveProjectInternal(csprojPath);
-        InsertProjectInternal(parseResult);
-        InsertProjectReferencesInternal(parseResult);
-        InsertNuGetReferencesInternal(parseResult);
+        var (project, projectRefs, nugetRefs) = BuildProjectData(parseResult, projectGuid: null);
+        _store.Update(snap => snap.IndexProject(parseResult.FilePath, project, projectRefs, nugetRefs));
     }
 
     /// <summary>
     /// 索引解决方案文件（.sln 或 .slnx）
     /// </summary>
-    /// <param name="solutionPath">解决方案文件路径</param>
-    /// <param name="ct">取消令牌</param>
     internal async Task IndexSolutionAsync(string solutionPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(solutionPath);
-
-        if (!_fs.FileExists(solutionPath)) {
-            return;
-        }
+        if (!_fs.FileExists(solutionPath)) return;
 
         var workspaceRoot = Path.GetDirectoryName(solutionPath) ?? string.Empty;
         var parseResult = solutionPath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase)
@@ -76,48 +58,39 @@ internal sealed class ProjectIndex {
     /// <summary>
     /// 移除指定项目的索引
     /// </summary>
-    /// <param name="csprojPath">csproj 文件路径</param>
-    /// <param name="ct">取消令牌</param>
     internal Task RemoveProjectAsync(string csprojPath, CancellationToken ct) {
-        using var scope = _store.EnterWriteLock();
-        RemoveProjectInternal(csprojPath);
+        ArgumentNullException.ThrowIfNull(csprojPath);
+        _store.Update(snap => snap.RemoveProject(csprojPath));
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// 清空所有索引数据
+    /// 清空所有项目索引数据
     /// </summary>
-    /// <param name="ct">取消令牌</param>
     internal Task ClearAsync(CancellationToken ct) {
-        using var scope = _store.EnterWriteLock();
-        _store.Projects.Clear();
-        _store.ProjectRefs.Clear();
-        _store.NuGetRefs.Clear();
+        _store.Update(snap => snap.ClearProjects());
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// 获取已索引项目数量
+    /// 获取已索引项目数量 — 无锁快照读取
     /// </summary>
-    /// <param name="ct">取消令牌</param>
-    /// <returns>项目数量</returns>
     internal Task<int> GetProjectCountAsync(CancellationToken ct) {
-        using var scope = _store.EnterReadLock();
-        return Task.FromResult(_store.Projects.Count);
+        var snap = _store.GetSnapshot();
+        return Task.FromResult(snap.Projects.Count);
     }
 
     private async Task IndexProjectWithGuidAsync(string csprojPath, string workspaceRoot, string projectGuid, CancellationToken ct) {
-        if (!_fs.FileExists(csprojPath)) {
-            return;
-        }
+        if (!_fs.FileExists(csprojPath)) return;
 
         var parseResult = await CsprojParser.ParseAsync(csprojPath, _fs, workspaceRoot).ConfigureAwait(false);
+        var (project, projectRefs, nugetRefs) = BuildProjectData(parseResult, projectGuid);
+        _store.Update(snap => snap.IndexProject(parseResult.FilePath, project, projectRefs, nugetRefs));
+    }
 
-        using var scope = _store.EnterWriteLock();
-        RemoveProjectInternal(csprojPath);
-
-        // 如有 GUID 则创建带 Guid 的 ProjectInfo(因 record init-only,需创建新实例)
-        var projectInfo = new ProjectInfo {
+    private static (ProjectInfo, IReadOnlyList<ProjectReferenceEdge>, IReadOnlyList<NuGetPackageReference>) BuildProjectData(
+        CsprojParseResult parseResult, string? projectGuid) {
+        var project = new ProjectInfo {
             Name = parseResult.Name,
             FilePath = parseResult.FilePath,
             TargetFramework = parseResult.TargetFramework,
@@ -125,57 +98,21 @@ internal sealed class ProjectIndex {
             ProjectGuid = string.IsNullOrEmpty(projectGuid) ? null : projectGuid
         };
 
-        _store.Projects[parseResult.FilePath] = projectInfo;
-        InsertProjectReferencesInternal(parseResult);
-        InsertNuGetReferencesInternal(parseResult);
-    }
-
-    private void RemoveProjectInternal(string csprojPath) {
-        _store.Projects.Remove(csprojPath);
-
-        // 移除该项目的所有 ProjectReference
-        _store.ProjectRefs.Remove(csprojPath);
-
-        // 移除该项目的所有 NuGet 引用
-        _store.NuGetRefs.Remove(csprojPath);
-    }
-
-    private void InsertProjectInternal(CsprojParseResult parseResult) {
-        _store.Projects[parseResult.FilePath] = new ProjectInfo {
-            Name = parseResult.Name,
-            FilePath = parseResult.FilePath,
-            TargetFramework = parseResult.TargetFramework,
-            OutputType = parseResult.OutputType,
-            ProjectGuid = null
-        };
-    }
-
-    private void InsertProjectReferencesInternal(CsprojParseResult parseResult) {
-        if (parseResult.ProjectReferences.Count == 0) return;
-        if (!_store.ProjectRefs.TryGetValue(parseResult.FilePath, out var refList)) {
-            refList = new List<ProjectReferenceEdge>();
-            _store.ProjectRefs[parseResult.FilePath] = refList;
-        }
-        foreach (var target in parseResult.ProjectReferences) {
-            refList.Add(new ProjectReferenceEdge {
+        var projectRefs = parseResult.ProjectReferences
+            .Select(target => new ProjectReferenceEdge {
                 SourceProjectPath = parseResult.FilePath,
                 TargetProjectPath = target
-            });
-        }
-    }
+            })
+            .ToList();
 
-    private void InsertNuGetReferencesInternal(CsprojParseResult parseResult) {
-        if (parseResult.PackageReferences.Count == 0) return;
-        if (!_store.NuGetRefs.TryGetValue(parseResult.FilePath, out var refList)) {
-            refList = new List<NuGetPackageReference>();
-            _store.NuGetRefs[parseResult.FilePath] = refList;
-        }
-        foreach (var pkg in parseResult.PackageReferences) {
-            refList.Add(new NuGetPackageReference {
+        var nugetRefs = parseResult.PackageReferences
+            .Select(pkg => new NuGetPackageReference {
                 ProjectPath = parseResult.FilePath,
                 PackageName = pkg.Name,
                 Version = pkg.Version
-            });
-        }
+            })
+            .ToList();
+
+        return (project, projectRefs, nugetRefs);
     }
 }

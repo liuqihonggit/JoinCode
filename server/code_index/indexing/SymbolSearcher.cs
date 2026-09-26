@@ -29,16 +29,15 @@ public sealed class SymbolSearcher : ISymbolSearcher {
         var sw = Stopwatch.StartNew();
         var items = new List<SymbolInfo>();
 
-        using (var scope = _store.EnterReadLock()) {
-            // 解析查询为 tokens(空格分隔, 支持 * 前缀匹配)
-            var tokens = ParseQueryTokens(query);
-            if (tokens.Count > 0) {
-                foreach (var symbol in _store.SymbolsByFqn.Values) {
-                    if (ct.IsCancellationRequested) break;
-                    if (!MatchTokens(symbol, tokens)) continue;
-                    items.Add(symbol);
-                    if (items.Count >= 200) break;
-                }
+        var snap = _store.GetSnapshot();
+        // 解析查询为 tokens(空格分隔, 支持 * 前缀匹配)
+        var tokens = ParseQueryTokens(query);
+        if (tokens.Count > 0) {
+            foreach (var symbol in snap.SymbolsByFqn.Values) {
+                if (ct.IsCancellationRequested) break;
+                if (!MatchTokens(symbol, tokens)) continue;
+                items.Add(symbol);
+                if (items.Count >= 200) break;
             }
         }
 
@@ -61,10 +60,9 @@ public sealed class SymbolSearcher : ISymbolSearcher {
         var sw = Stopwatch.StartNew();
         var items = new List<SymbolInfo>();
 
-        using (var scope = _store.EnterReadLock()) {
-            if (_store.SymbolsByKind.TryGetValue(kind, out var list)) {
-                items.AddRange(list);
-            }
+        var snap = _store.GetSnapshot();
+        if (snap.SymbolsByKind.TryGetValue(kind, out var list)) {
+            items.AddRange(list);
         }
 
         sw.Stop();
@@ -85,8 +83,8 @@ public sealed class SymbolSearcher : ISymbolSearcher {
     public Task<SymbolInfo?> FindDefinitionAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
-        using var scope = _store.EnterReadLock();
-        if (_store.SymbolsByName.TryGetValue(symbolName, out var list) && list.Count > 0) {
+        var snap = _store.GetSnapshot();
+        if (snap.SymbolsByName.TryGetValue(symbolName, out var list) && list.Count > 0) {
             return Task.FromResult<SymbolInfo?>(list[0]);
         }
 
@@ -101,11 +99,11 @@ public sealed class SymbolSearcher : ISymbolSearcher {
     public Task<IReadOnlyList<SymbolInfo>> FindReferencesAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
         var result = new List<SymbolInfo>();
 
-        var fqns = ResolveFqns(symbolName);
-        foreach (var edge in _store.CallEdges) {
+        var fqns = ResolveFqns(snap, symbolName);
+        foreach (var edge in snap.CallEdges) {
             if (ct.IsCancellationRequested) break;
             if (fqns.Contains(edge.CalleeSymbol)) {
                 result.Add(new SymbolInfo {
@@ -127,9 +125,9 @@ public sealed class SymbolSearcher : ISymbolSearcher {
     /// <summary>
     /// 将符号名解析为所有匹配的完全限定名集合 — 同时包含原始输入和符号的 FQN，支持简单名和完全限定名两种输入
     /// </summary>
-    private HashSet<string> ResolveFqns(string symbolName) {
+    private static HashSet<string> ResolveFqns(IndexSnapshot snap, string symbolName) {
         var fqns = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { symbolName };
-        if (_store.SymbolsByName.TryGetValue(symbolName, out var list)) {
+        if (snap.SymbolsByName.TryGetValue(symbolName, out var list)) {
             foreach (var s in list) {
                 fqns.Add(s.FullyQualifiedName);
             }
@@ -165,15 +163,14 @@ public sealed class SymbolSearcher : ISymbolSearcher {
             });
         }
 
-        using (var scope = _store.EnterReadLock()) {
-            foreach (var symbol in _store.SymbolsByFqn.Values) {
-                if (ct.IsCancellationRequested) break;
+        var snap = _store.GetSnapshot();
+        foreach (var symbol in snap.SymbolsByFqn.Values) {
+            if (ct.IsCancellationRequested) break;
 
-                if (regex.IsMatch(symbol.Name) || regex.IsMatch(symbol.FullyQualifiedName)) {
-                    totalCount++;
-                    if (items.Count < maxResults) {
-                        items.Add(symbol);
-                    }
+            if (regex.IsMatch(symbol.Name) || regex.IsMatch(symbol.FullyQualifiedName)) {
+                totalCount++;
+                if (items.Count < maxResults) {
+                    items.Add(symbol);
                 }
             }
         }

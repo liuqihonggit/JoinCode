@@ -282,10 +282,9 @@ public sealed class BridgeIntegrationTests {
         // 推进时间触发定时刷新
         fakeTime.Advance(TimeSpan.FromMilliseconds(300));
 
-        // 等待定时器回调执行 — Task.Delay continuation 在线程池调度，
-        // 需要轮询等待 FlushAsync 完成并触发 BatchFlushed 事件
+        // 等待所有3条消息被刷新 — 不能只等第一批(定时器可能在添加过程中触发,导致部分消息提前成批)
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        while (flushedBatches.Count == 0 && !cts.Token.IsCancellationRequested) {
+        while (flushedBatches.SelectMany(b => b).Count() < 3 && !cts.Token.IsCancellationRequested) {
             await Task.Delay(10).ConfigureAwait(true);
         }
 

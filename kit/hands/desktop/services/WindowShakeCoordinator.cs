@@ -9,9 +9,9 @@ namespace JoinCode.Hands.Desktop;
 [Register(typeof(IWindowShakeCoordinator), ServiceLifetime.Singleton)]
 public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordinator {
     /// <summary>
-    /// 上次震动的 <see cref="Environment.TickCount"/> — volatile 保证可见性，Interlocked 保证原子性。
+    /// 上次震动的 <see cref="Environment.TickCount64"/> — Interlocked 保证原子读写。
     /// </summary>
-    private volatile int _lastShakeTick;
+    private long _lastShakeTick;
 
     /// <summary>
     /// 震动最小间隔（毫秒） — 1 秒去抖。
@@ -62,8 +62,8 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
     /// </summary>
     /// <returns>true 表示可执行震动；false 表示 1 秒内已震动过。</returns>
     public bool TryAcquireShakeSlot() {
-        var now = Environment.TickCount;
-        var last = _lastShakeTick;
+        var now = Environment.TickCount64;
+        var last = Interlocked.Read(ref _lastShakeTick);
         if (now - last < ShakeIntervalMs)
             return false;
         return Interlocked.CompareExchange(ref _lastShakeTick, now, last) == last;

@@ -89,27 +89,27 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 - [x] `VcrService._cassetteCache`
 - [x] `StructuredOutputToolHandler._schemas`
 
-#### P3: 消费方5-8处(20个)
-- [ ] `CommitCommand.ReadConfirmedSessions`
-- [ ] `SessionScope._typeIndex`
-- [ ] `BotNameGenerator.s_usedNames`
-- [ ] `RemoteCacheRefreshServiceBase._cache`
-- [ ] `DeferredMailService._pending`
-- [ ] `IntentCollector._intentsByFile`
-- [ ] `TelemetryService._metrics`
-- [ ] `TelemetryService._activeSpans`
-- [ ] `DebounceTracker._timers`
-- [ ] `ServiceInterceptRegistry._interceptors`
-- [ ] `ThinkingStore._entries`
-- [ ] `TeamMemorySyncService._remoteEntries`
-- [ ] `ReferenceIndex._keywordIndex`
-- [ ] `ResourceReferenceGraph._byTarget`
-- [ ] `ReferenceIndex._references`
-- [ ] `PluginApprovalRegistry._requests`
-- [ ] `UiResourceTable._resources`
-- [ ] `TrustedDevice._devices`
-- [ ] `WorkSecret._secrets`
-- [ ] `PeerSessions._routes`
+#### P3: 消费方5-8处(20个) ✅ (19/20, TeamMemorySyncService._remoteEntries推迟到P4)
+- [x] `CommitCommand.ReadConfirmedSessions`
+- [x] `SessionScope._typeIndex`
+- [x] `BotNameGenerator.s_usedNames`
+- [x] `RemoteCacheRefreshServiceBase._cache`
+- [x] `DeferredMailService._pending`
+- [x] `IntentCollector._intentsByFile`
+- [x] `TelemetryService._metrics`
+- [x] `TelemetryService._activeSpans`
+- [x] `DebounceTracker._timers`
+- [x] `ServiceInterceptRegistry._interceptors`
+- [x] `ThinkingStore._entries`
+- [ ] `TeamMemorySyncService._remoteEntries` — 推迟到P4(需与_localEntries一起改,影响Scanner/Transfer/Resolver)
+- [x] `ReferenceIndex._keywordIndex`
+- [x] `ResourceReferenceGraph._byTarget`
+- [x] `ReferenceIndex._references`
+- [x] `PluginApprovalRegistry._requests`
+- [x] `UiResourceTable._resources`
+- [x] `TrustedDevice._devices`
+- [x] `WorkSecret._secrets`
+- [x] `PeerSessions._routes`
 
 #### P4: 消费方6-12处(12个)
 - [ ] `McpSkillProvider._clients`
@@ -139,7 +139,7 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 | 2026-09-26 | P0 | 6 | 6/63 | ✅ 完成 |
 | 2026-09-26 | P1 | 5 | 11/63 | ✅ 完成 |
 | 2026-09-26 | P2 | 15 | 26/63 | ✅ 完成 |
-| 2026-09-26 | P3 | 0 | 26/63 | 进行中 |
+| 2026-09-26 | P3 | 19 | 45/63 | ✅ 完成(_remoteEntries推迟到P4) |
 
 ## 验收标准
 

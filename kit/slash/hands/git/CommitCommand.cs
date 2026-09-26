@@ -13,8 +13,9 @@ public sealed class CommitCommand : ChatCommandBase {
     /// <summary>
     /// 渐进式披露 — 已读说明的会话状态(key: sessionId, value: 确认时间)
     /// <para>首次 /commit 返回说明不执行,二次 /commit(60s 内)确认执行。对齐 sed 两阶段确认模式。</para>
+    /// <para>ImmutableDictionary + CAS 无锁更新,读取无竞争。</para>
     /// </summary>
-    private static readonly ConcurrentDictionary<string, DateTime> ReadConfirmedSessions = new(StringComparer.Ordinal);
+    private static ImmutableDictionary<string, DateTime> ReadConfirmedSessions = ImmutableDictionary<string, DateTime>.Empty;
 
     /// <summary>
     /// 读说明确认窗口 — 60s 内有效(对齐 sed SedConfirmationWindow)
@@ -37,7 +38,7 @@ public sealed class CommitCommand : ChatCommandBase {
                 return ChatCommandResult.Continue();
             }
             // 已读确认,清除状态,继续执行
-            ReadConfirmedSessions.TryRemove(sessionId, out _);
+            ImmutableInterlocked.Update(ref ReadConfirmedSessions, d => d.Remove(sessionId));
         }
 
         TerminalHelper.WriteLine($"{TerminalColors.Muted}正在创建提交...{AnsiStyleEnumConstants.Reset}");
@@ -188,10 +189,10 @@ public sealed class CommitCommand : ChatCommandBase {
     /// 是否已读说明确认(60s 窗口内)
     /// </summary>
     private static bool IsReadConfirmed(string sessionId) {
-        if (ReadConfirmedSessions.TryGetValue(sessionId, out var confirmedAt)) {
+        if (Volatile.Read(ref ReadConfirmedSessions).TryGetValue(sessionId, out var confirmedAt)) {
             if (DateTime.UtcNow - confirmedAt <= ConfirmationWindow)
                 return true;
-            ReadConfirmedSessions.TryRemove(sessionId, out _);
+            ImmutableInterlocked.Update(ref ReadConfirmedSessions, d => d.Remove(sessionId));
         }
         return false;
     }
@@ -200,7 +201,7 @@ public sealed class CommitCommand : ChatCommandBase {
     /// 标记已读说明确认
     /// </summary>
     private static void MarkReadConfirmed(string sessionId) {
-        ReadConfirmedSessions[sessionId] = DateTime.UtcNow;
+        ImmutableInterlocked.Update(ref ReadConfirmedSessions, d => d.SetItem(sessionId, DateTime.UtcNow));
     }
 
     /// <summary>

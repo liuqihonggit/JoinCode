@@ -103,7 +103,7 @@ public sealed class PluginApprovalRequest {
 /// </summary>
 public sealed class PluginApprovalRegistry {
     private int _counter;
-    private readonly ConcurrentDictionary<ApprovalRequestId, PluginApprovalRequest> _requests = new();
+    private ImmutableDictionary<ApprovalRequestId, PluginApprovalRequest> _requests = ImmutableDictionary<ApprovalRequestId, PluginApprovalRequest>.Empty;
     private readonly Func<DateTimeOffset>? _clock;
 
     /// <param name="clock">时钟注入，null 用 DateTimeOffset.UtcNow</param>
@@ -117,22 +117,32 @@ public sealed class PluginApprovalRegistry {
         var id = MintId();
         var now = _clock?.Invoke() ?? DateTimeOffset.UtcNow;
         var req = new PluginApprovalRequest(id, pluginId, reason, now);
-        _requests[id] = req;
+        ImmutableInterlocked.Update(ref _requests, d => d.Add(id, req));
         return req;
     }
 
     /// <summary>查看请求（不改变状态）</summary>
-    public PluginApprovalRequest? PeekRequest(ApprovalRequestId id) => _requests.GetValueOrDefault(id);
+    public PluginApprovalRequest? PeekRequest(ApprovalRequestId id) => Volatile.Read(ref _requests).GetValueOrDefault(id);
 
     /// <summary>认领请求（供调用方决定 approve/decline，首个回答者获胜由 Approve/Decline 保证）</summary>
-    public PluginApprovalRequest? ClaimRequest(ApprovalRequestId id) => _requests.GetValueOrDefault(id);
+    public PluginApprovalRequest? ClaimRequest(ApprovalRequestId id) => Volatile.Read(ref _requests).GetValueOrDefault(id);
 
     /// <summary>移除请求</summary>
-    public bool DisarmRequest(ApprovalRequestId id) => _requests.TryRemove(id, out _);
+    public bool DisarmRequest(ApprovalRequestId id) {
+        var removed = false;
+        ImmutableInterlocked.Update(ref _requests, d => {
+            if (d.ContainsKey(id)) {
+                removed = true;
+                return d.Remove(id);
+            }
+            return d;
+        });
+        return removed;
+    }
 
     /// <summary>查找某插件的待审批请求</summary>
     public PluginApprovalRequest? PendingRequestFor(string pluginId) {
-        foreach (var req in _requests.Values) {
+        foreach (var req in Volatile.Read(ref _requests).Values) {
             if (req.PluginId == pluginId && req.State == ApprovalState.Pending)
                 return req;
         }
@@ -141,7 +151,7 @@ public sealed class PluginApprovalRegistry {
 
     /// <summary>批准 — 首个回答者获胜，已处理返回 false</summary>
     public bool Approve(ApprovalRequestId id, bool approveFutureVersions = false) {
-        if (!_requests.TryGetValue(id, out var req)) return false;
+        if (!Volatile.Read(ref _requests).TryGetValue(id, out var req)) return false;
         if (!req.TryResolve(ApprovalState.Approved)) return false;
         req.MarkApproved(approveFutureVersions);
         return true;
@@ -149,7 +159,7 @@ public sealed class PluginApprovalRegistry {
 
     /// <summary>拒绝 — 首个回答者获胜，已处理返回 false</summary>
     public bool Decline(ApprovalRequestId id, string? feedback = null) {
-        if (!_requests.TryGetValue(id, out var req)) return false;
+        if (!Volatile.Read(ref _requests).TryGetValue(id, out var req)) return false;
         if (!req.TryResolve(ApprovalState.Declined)) return false;
         req.MarkDeclined(feedback);
         return true;

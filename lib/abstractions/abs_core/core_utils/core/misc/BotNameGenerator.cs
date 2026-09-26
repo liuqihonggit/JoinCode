@@ -20,8 +20,9 @@ public static class BotNameGenerator {
 
     /// <summary>
     /// 进程内已用名称集合 — 去重保证同进程不重名。
+    /// <para>ImmutableHashSet + CAS 无锁更新,读取无竞争。</para>
     /// </summary>
-    private static readonly ConcurrentDictionary<string, byte> s_usedNames = new();
+    private static ImmutableHashSet<string> s_usedNames = ImmutableHashSet<string>.Empty;
 
     /// <summary>
     /// 随机数生成器 — 线程安全包装。
@@ -36,12 +37,14 @@ public static class BotNameGenerator {
         for (var i = 0; i < s_chineseNames.Length; i++) {
             var name = s_chineseNames[s_random.Next(s_chineseNames.Length)];
             var botName = $"bot{name}";
-            if (s_usedNames.TryAdd(botName, 0))
-                return botName;
+            if (!Volatile.Read(ref s_usedNames).Contains(botName)) {
+                if (ImmutableInterlocked.Update(ref s_usedNames, s => s.Add(botName)))
+                    return botName;
+            }
         }
 
         var fallback = $"bot{s_random.Next(1000, 9999)}";
-        s_usedNames.TryAdd(fallback, 0);
+        ImmutableInterlocked.Update(ref s_usedNames, s => s.Add(fallback));
         return fallback;
     }
 
@@ -50,10 +53,10 @@ public static class BotNameGenerator {
     /// 在子代理生命周期结束时调用。
     /// </summary>
     /// <param name="name">要释放的 bot 名称。</param>
-    public static void Release(string name) => s_usedNames.TryRemove(name, out _);
+    public static void Release(string name) => ImmutableInterlocked.Update(ref s_usedNames, s => s.Remove(name));
 
     /// <summary>
     /// 清除所有已记录的名称 — 仅用于测试重置。
     /// </summary>
-    public static void Clear() => s_usedNames.Clear();
+    public static void Clear() => Interlocked.Exchange(ref s_usedNames, ImmutableHashSet<string>.Empty);
 }

@@ -78,7 +78,7 @@ public interface ITrustedDeviceStore : JoinCode.Abstractions.State.IStore {
 /// </summary>
 [Register(typeof(ITrustedDeviceStore), ServiceLifetime.Singleton)]
 public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceStore {
-    private readonly ConcurrentDictionary<string, TrustedDeviceEntry> _devices;
+    private ImmutableDictionary<string, TrustedDeviceEntry> _devices = ImmutableDictionary<string, TrustedDeviceEntry>.Empty.WithComparers(StringComparer.Ordinal);
     private readonly ILogger<TrustedDeviceStore>? _logger;
 
     /// <summary>
@@ -86,7 +86,6 @@ public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceSt
     /// </summary>
     /// <param name="logger">可选日志记录器</param>
     public TrustedDeviceStore(ILogger<TrustedDeviceStore>? logger = null) {
-        _devices = new ConcurrentDictionary<string, TrustedDeviceEntry>(StringComparer.Ordinal);
         _logger = logger;
     }
 
@@ -97,7 +96,13 @@ public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceSt
         if (string.IsNullOrEmpty(entry.DeviceId))
             throw new ArgumentException("[BRG002] DeviceId 不能为空", nameof(entry));
 
-        if (_devices.TryAdd(entry.DeviceId, entry)) {
+        var added = false;
+        ImmutableInterlocked.Update(ref _devices, d => {
+            if (d.ContainsKey(entry.DeviceId)) return d;
+            added = true;
+            return d.Add(entry.DeviceId, entry);
+        });
+        if (added) {
             _logger?.LogInformation("[TrustedDevice] 添加设备: {DeviceId} ({DeviceName}), 信任等级: {TrustLevel}",
                 entry.DeviceId, entry.DeviceName, entry.TrustLevel);
             return new ValueTask<TrustedDeviceEntry>(entry);
@@ -110,7 +115,14 @@ public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceSt
     public ValueTask<bool> RemoveAsync(string deviceId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
 
-        var removed = _devices.TryRemove(deviceId, out var entry);
+        var removed = false;
+        ImmutableInterlocked.Update(ref _devices, d => {
+            if (d.ContainsKey(deviceId)) {
+                removed = true;
+                return d.Remove(deviceId);
+            }
+            return d;
+        });
         if (removed) {
             _logger?.LogInformation("[TrustedDevice] 移除设备: {DeviceId}", deviceId);
         } else {
@@ -124,20 +136,20 @@ public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceSt
     public ValueTask<TrustedDeviceEntry?> GetAsync(string deviceId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
 
-        _devices.TryGetValue(deviceId, out var entry);
+        Volatile.Read(ref _devices).TryGetValue(deviceId, out var entry);
         return new ValueTask<TrustedDeviceEntry?>(entry);
     }
 
     /// <inheritdoc />
     public ValueTask<IEnumerable<TrustedDeviceEntry>> GetAllAsync(CancellationToken ct = default) {
-        return new ValueTask<IEnumerable<TrustedDeviceEntry>>(_devices.Values);
+        return new ValueTask<IEnumerable<TrustedDeviceEntry>>(Volatile.Read(ref _devices).Values);
     }
 
     /// <inheritdoc />
     public ValueTask<bool> IsTrustedAsync(string deviceId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
 
-        var isTrusted = _devices.TryGetValue(deviceId, out var entry) &&
+        var isTrusted = Volatile.Read(ref _devices).TryGetValue(deviceId, out var entry) &&
                         !entry.IsRevoked &&
                         entry.TrustLevel != DeviceTrustLevel.None;
 
@@ -148,7 +160,7 @@ public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceSt
     public ValueTask<bool> RevokeAsync(string deviceId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
 
-        if (!_devices.TryGetValue(deviceId, out var entry)) {
+        if (!Volatile.Read(ref _devices).TryGetValue(deviceId, out var entry)) {
             _logger?.LogWarning("[TrustedDevice] 设备不存在，无法撤销: {DeviceId}", deviceId);
             return new ValueTask<bool>(false);
         }

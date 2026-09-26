@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>线程安全：ConcurrentDictionary + ImmutableList</para>
 /// </summary>
 public sealed class ServiceInterceptRegistry {
-    private readonly ConcurrentDictionary<string, ImmutableList<Action<object>>> _interceptors = new();
+    private ImmutableDictionary<string, ImmutableList<Action<object>>> _interceptors = ImmutableDictionary<string, ImmutableList<Action<object>>>.Empty;
 
     /// <summary>
     /// 注册服务配置覆写 — 返回 disposer
@@ -17,16 +17,15 @@ public sealed class ServiceInterceptRegistry {
         ArgumentNullException.ThrowIfNull(serviceName);
         ArgumentNullException.ThrowIfNull(configOverride);
 
-        _interceptors.AddOrUpdate(
-            serviceName,
-            _ => ImmutableList.Create(configOverride),
-            (_, existing) => existing.Add(configOverride));
+        ImmutableInterlocked.Update(ref _interceptors,
+            d => d.SetItem(serviceName, d.GetValueOrDefault(serviceName, ImmutableList<Action<object>>.Empty).Add(configOverride)));
 
         return new InterceptDisposer(() =>
-            _interceptors.AddOrUpdate(
-                serviceName,
-                _ => ImmutableList<Action<object>>.Empty,
-                (_, existing) => existing.Remove(configOverride)));
+            ImmutableInterlocked.Update(ref _interceptors,
+                d => {
+                    var next = d.GetValueOrDefault(serviceName, ImmutableList<Action<object>>.Empty).Remove(configOverride);
+                    return next.IsEmpty ? d.Remove(serviceName) : d.SetItem(serviceName, next);
+                }));
     }
 
     /// <summary>
@@ -35,7 +34,7 @@ public sealed class ServiceInterceptRegistry {
     /// </summary>
     public T ResolveConfig<T>(string serviceName, T baseConfig) where T : class {
         ArgumentNullException.ThrowIfNull(baseConfig);
-        if (_interceptors.TryGetValue(serviceName, out var overrides)) {
+        if (Volatile.Read(ref _interceptors).TryGetValue(serviceName, out var overrides)) {
             foreach (var o in overrides) {
                 o(baseConfig);
             }
@@ -45,16 +44,16 @@ public sealed class ServiceInterceptRegistry {
 
     /// <summary>是否有覆写</summary>
     public bool HasIntercept(string serviceName) {
-        return _interceptors.TryGetValue(serviceName, out var list) && list.Count > 0;
+        return Volatile.Read(ref _interceptors).TryGetValue(serviceName, out var list) && list.Count > 0;
     }
 
     /// <summary>覆写数量</summary>
     public int InterceptCount(string serviceName) {
-        return _interceptors.TryGetValue(serviceName, out var list) ? list.Count : 0;
+        return Volatile.Read(ref _interceptors).TryGetValue(serviceName, out var list) ? list.Count : 0;
     }
 
     /// <summary>清除某服务的所有覆写</summary>
-    public void Clear(string serviceName) => _interceptors.TryRemove(serviceName, out _);
+    public void Clear(string serviceName) => ImmutableInterlocked.Update(ref _interceptors, d => d.Remove(serviceName));
 
     private sealed class InterceptDisposer(Action unsubscribe) : IDisposable {
         private int _disposed;

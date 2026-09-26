@@ -265,10 +265,10 @@ public sealed partial class PeerMessageEventArgs : EventArgs {
 /// 对等节点路由表 - 管理节点 ID 到端点的映射
 /// </summary>
 public sealed partial class PeerSessionRouter {
-    private readonly ConcurrentDictionary<string, string> _routes = new(StringComparer.Ordinal);
+    private ImmutableDictionary<string, string> _routes = ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.Ordinal);
 
     /// <summary>当前路由数量</summary>
-    public int RouteCount => _routes.Count;
+    public int RouteCount => Volatile.Read(ref _routes).Count;
 
     /// <summary>
     /// 注册节点路由
@@ -278,7 +278,7 @@ public sealed partial class PeerSessionRouter {
     public void RegisterRoute(string peerId, string endpoint) {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
-        _routes[peerId] = endpoint;
+        ImmutableInterlocked.Update(ref _routes, d => d.SetItem(peerId, endpoint));
     }
 
     /// <summary>
@@ -286,7 +286,7 @@ public sealed partial class PeerSessionRouter {
     /// </summary>
     /// <param name="peerId">对等节点 ID</param>
     public void UnregisterRoute(string peerId) {
-        _routes.TryRemove(peerId, out _);
+        ImmutableInterlocked.Update(ref _routes, d => d.Remove(peerId));
     }
 
     /// <summary>
@@ -295,7 +295,7 @@ public sealed partial class PeerSessionRouter {
     /// <param name="peerId">对等节点 ID</param>
     /// <returns>端点地址，不存在则返回 null</returns>
     public string? GetRoute(string peerId) {
-        _routes.TryGetValue(peerId, out var endpoint);
+        Volatile.Read(ref _routes).TryGetValue(peerId, out var endpoint);
         return endpoint;
     }
 
@@ -304,16 +304,16 @@ public sealed partial class PeerSessionRouter {
     /// </summary>
     /// <param name="peerId">对等节点 ID</param>
     /// <returns>存在返回 true，否则 false</returns>
-    public bool HasRoute(string peerId) => _routes.ContainsKey(peerId);
+    public bool HasRoute(string peerId) => Volatile.Read(ref _routes).ContainsKey(peerId);
 
     /// <summary>
     /// 获取所有对等节点 ID 的快照拷贝
     /// </summary>
     /// <returns>节点 ID 数组快照</returns>
-    public string[] GetAllPeerIds() => _routes.Keys.ToArray();
+    public string[] GetAllPeerIds() => Volatile.Read(ref _routes).Keys.ToArray();
 
     /// <summary>
     /// 清除所有路由
     /// </summary>
-    public void Clear() => _routes.Clear();
+    public void Clear() => Interlocked.Exchange(ref _routes, ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.Ordinal));
 }

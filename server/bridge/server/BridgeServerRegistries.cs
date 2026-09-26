@@ -43,13 +43,13 @@ internal sealed class ClientRegistry {
 /// 从 BridgeServer 提取,降低大类字段数
 /// </summary>
 internal sealed class RouteRegistry {
-    private readonly ConcurrentDictionary<string, Func<HttpListenerContext, CancellationToken, Task>> _routes = new();
+    private ImmutableDictionary<string, Func<HttpListenerContext, CancellationToken, Task>> _routes = ImmutableDictionary<string, Func<HttpListenerContext, CancellationToken, Task>>.Empty;
 
     /// <summary>注册路由处理器</summary>
     public void Register(string path, Func<HttpListenerContext, CancellationToken, Task> handler)
-        => _routes[path] = handler;
+        => ImmutableInterlocked.Update(ref _routes, d => d.SetItem(path, handler));
 
     /// <summary>尝试获取路由处理器</summary>
     public bool TryGet(string path, [MaybeNullWhen(false)] out Func<HttpListenerContext, CancellationToken, Task> handler)
-        => _routes.TryGetValue(path, out handler);
+        => Volatile.Read(ref _routes).TryGetValue(path, out handler);
 }

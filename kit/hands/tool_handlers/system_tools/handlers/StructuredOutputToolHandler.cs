@@ -8,11 +8,10 @@ namespace Tools.Handlers;
 public sealed class StructuredOutputToolHandler {
     private readonly SimpleJsonSchemaValidator _validator;
     private readonly ConcurrentDictionary<string, StructuredOutputSchema> _schemas = new();
-
     /// <summary>
     /// 验证结果缓存 — 对齐 TS WeakMap toolCache，避免重复编译同一 Schema
     /// </summary>
-    private readonly ConcurrentDictionary<string, SchemaValidationResult> _validationCache = new();
+    private ImmutableDictionary<string, SchemaValidationResult> _validationCache = ImmutableDictionary<string, SchemaValidationResult>.Empty;
 
     private static readonly JsonWriterOptions s_indentedWriterOptions = new() { Indented = true };
 
@@ -79,7 +78,7 @@ public sealed class StructuredOutputToolHandler {
             _schemas[schema_name] = schema;
 
             // 注册新 Schema 时清除该名称的缓存
-            _validationCache.TryRemove(schema_name, out _);
+            ImmutableInterlocked.Update(ref _validationCache, d => d.Remove(schema_name));
 
             await SaveSchemasAsync(cancellationToken).ConfigureAwait(false);
 
@@ -128,7 +127,11 @@ public sealed class StructuredOutputToolHandler {
 
             // 对齐 TS WeakMap toolCache: 使用缓存避免重复验证同一内容
             var cacheKey = $"{schema_name}:{content.GetHashCode(StringComparison.Ordinal)}";
-            var result = _validationCache.GetOrAdd(cacheKey, _ => _validator.Validate(content, schema.SchemaJson));
+            var snapshot = Volatile.Read(ref _validationCache);
+            if (!snapshot.TryGetValue(cacheKey, out var result)) {
+                result = _validator.Validate(content, schema.SchemaJson);
+                ImmutableInterlocked.Update(ref _validationCache, d => d.ContainsKey(cacheKey) ? d : d.Add(cacheKey, result));
+            }
 
             var response = new StringBuilder(512);
             response.AppendLine($"Schema: {schema_name}");

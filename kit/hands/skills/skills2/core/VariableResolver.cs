@@ -6,7 +6,7 @@ namespace Core.Skills;
 /// </summary>
 [Register(typeof(IVariableResolver), ServiceLifetime.Singleton)]
 public sealed partial class VariableResolver : ServiceEntity, IVariableResolver {
-    private readonly ConcurrentDictionary<string, ParsedVariable> _parseCache = new();
+    private ImmutableDictionary<string, ParsedVariable> _parseCache = ImmutableDictionary<string, ParsedVariable>.Empty;
     private readonly ExpressionEvaluator _expressionEvaluator;
 
     /// <summary>
@@ -127,7 +127,13 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver 
     /// 获取或解析变量
     /// </summary>
     private ParsedVariable GetOrParseVariable(string content) {
-        return _parseCache.GetOrAdd(content, ParseVariableContent);
+        var snapshot = Volatile.Read(ref _parseCache);
+        if (snapshot.TryGetValue(content, out var existing))
+            return existing;
+
+        var parsed = ParseVariableContent(content);
+        ImmutableInterlocked.Update(ref _parseCache, d => d.ContainsKey(content) ? d : d.Add(content, parsed));
+        return Volatile.Read(ref _parseCache)[content];
     }
 
     /// <summary>
@@ -284,7 +290,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver 
     /// 清除解析缓存
     /// </summary>
     public void ClearCache() {
-        _parseCache.Clear();
+        Volatile.Write(ref _parseCache, ImmutableDictionary<string, ParsedVariable>.Empty);
     }
 }
 

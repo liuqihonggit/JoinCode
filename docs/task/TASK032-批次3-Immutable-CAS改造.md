@@ -65,12 +65,12 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 - [x] `RangeDownloader._proxiedClients` — HttpClient缓存
 - [x] `GlobMatcher.Cache` — 静态glob正则缓存
 
-#### P1: 消费方2处(5个)
-- [ ] `SkillSearchService._tagIndex` — 标签索引
-- [ ] `SkillSearchService._nameIndex` — 名称索引
-- [ ] `VariableResolver._parseCache` — 解析缓存
-- [ ] `StructuredOutputToolHandler._validationCache` — 验证缓存
-- [ ] `BridgeServerRegistries._routes` — 路由表
+#### P1: 消费方2处(5个) ✅
+- [x] `SkillSearchService._tagIndex` — 标签索引
+- [x] `SkillSearchService._nameIndex` — 名称索引
+- [x] `VariableResolver._parseCache` — 解析缓存
+- [x] `StructuredOutputToolHandler._validationCache` — 验证缓存
+- [x] `BridgeServerRegistries._routes` — 路由表
 
 #### P2: 消费方3-4处(15个)
 - [ ] `UsageTracker._sessionIndex`
@@ -137,7 +137,8 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 | 日期 | 批次 | 改造数 | 累计 | 状态 |
 |------|------|--------|------|------|
 | 2026-09-26 | P0 | 6 | 6/63 | ✅ 完成 |
-| 2026-09-26 | P1 | 0 | 6/63 | 进行中 |
+| 2026-09-26 | P1 | 5 | 11/63 | ✅ 完成 |
+| 2026-09-26 | P2 | 0 | 11/63 | 进行中 |
 
 ## 验收标准
 

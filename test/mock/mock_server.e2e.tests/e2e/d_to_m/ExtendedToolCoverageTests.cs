@@ -16,6 +16,11 @@ public sealed class ExtendedToolCoverageTests : CoverageTestBase {
         await RunScriptAsync(ExtendedToolScripts.AskUserQuestionTest).ConfigureAwait(true);
     }
 
+    [Fact]
+    public async Task ConfirmAction_ShouldConfirm() {
+        await RunScriptAsync(ExtendedToolScripts.ConfirmActionTest).ConfigureAwait(true);
+    }
+
     // ============================================================
     // 基础设施工具测试
     // ============================================================

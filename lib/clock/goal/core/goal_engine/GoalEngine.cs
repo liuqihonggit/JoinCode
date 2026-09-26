@@ -250,7 +250,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             Id = "agent",
             Payload = new GoalNodePayload {
                 Kind = GoalNodeKind.Agent,
-                Name = "executor",
+                Name = AgentRole.Executor.ToValue(),
                 Role = AgentRole.Executor,
                 Instruction = objective,
                 TokenBudget = tokenBudget,

@@ -121,7 +121,7 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
 
             var message = new CoordinatorAgentMessage {
                 FromAgentId = agentId,
-                ToAgentId = "coordinator",
+                ToAgentId = AgentRole.Coordinator.ToValue(),
                 MessageType = JoinCode.Abstractions.Models.Agent.TeammateMessageType.IdleNotification.ToString(),
                 Content = serialized
             };

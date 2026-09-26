@@ -132,7 +132,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
         SwarmPermissionRequest request,
         CancellationToken cancellationToken = default) {
         var workerAgentId = _subAgentContextAccessor.Current?.AgentId ?? "unknown";
-        var leaderAgentId = _subAgentContextAccessor.Current?.ParentAgentId ?? "coordinator";
+        var leaderAgentId = _subAgentContextAccessor.Current?.ParentAgentId ?? AgentRole.Coordinator.ToValue();
 
         var data = new SwarmPermissionRequestData {
             RequestId = request.Id,

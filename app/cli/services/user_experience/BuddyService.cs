@@ -11,7 +11,7 @@ public sealed partial class BuddyService : ServiceEntity, IBuddyService {
     private static readonly string[] Names = new[] { "Quackers", "Goosey", "Blobby", "Whiskers", "Draco", "Inky", "Hoot", "Waddle", "Shelly", "Slimey", "Boo", "Axie", "Cappy", "Spike", "Beep", "Bouncy", "Shroomy", "Chunk" };
     private static readonly string Salt = "jcc-buddy-salt-2026";
 
-    private readonly ConcurrentDictionary<string, BuddyInfo> _cache = new();
+    private ImmutableDictionary<string, BuddyInfo> _cache = ImmutableDictionary<string, BuddyInfo>.Empty;
 
     /// <summary>
     /// 获取用户的伙伴精灵信息 — 首次调用时按用户 ID 确定性生成并缓存
@@ -19,7 +19,13 @@ public sealed partial class BuddyService : ServiceEntity, IBuddyService {
     /// <param name="userId">用户标识</param>
     /// <returns>伙伴精灵信息</returns>
     public BuddyInfo GetBuddy(string userId) {
-        return _cache.GetOrAdd(userId, GenerateBuddy);
+        var snapshot = Volatile.Read(ref _cache);
+        if (snapshot.TryGetValue(userId, out var existing))
+            return existing;
+
+        var generated = GenerateBuddy(userId);
+        ImmutableInterlocked.Update(ref _cache, d => d.ContainsKey(userId) ? d : d.Add(userId, generated));
+        return Volatile.Read(ref _cache)[userId];
     }
 
     /// <summary>

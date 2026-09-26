@@ -10,7 +10,7 @@ internal static class RgEngine {
     private const int MaxContentLineLength = 500;
     private const int BinaryDetectionBufferSize = 8192;
 
-    private static readonly ConcurrentDictionary<string, GitignoreMatcher?> GitignoreCache = new(StringComparer.Ordinal);
+    private static ImmutableDictionary<string, GitignoreMatcher?> _gitignoreCache = ImmutableDictionary<string, GitignoreMatcher?>.Empty.WithComparers(StringComparer.Ordinal);
 
     /// <summary>
     /// 执行搜索。PLINQ 链式：收集文件 → 并行搜索 → 过滤 → 排序 → 分页。
@@ -110,19 +110,26 @@ internal static class RgEngine {
     }
 
     private static bool IsGitIgnored(string root, string rel) {
-        var matcher = GitignoreCache.GetOrAdd(root, static r => {
-            var gitignorePath = Path.Combine(r, ".gitignore");
-            if (!File.Exists(gitignorePath))
-                return null;
-            try {
-                return GitignoreMatcher.Parse(File.ReadAllText(gitignorePath));
-            } catch (Exception ex) {
-                Diag.WriteLine($"[RgEngine.IsGitIgnored] 读取 .gitignore 失败: {ex.Message}");
-                return null;
-            }
-        });
+        var snapshot = Volatile.Read(ref _gitignoreCache);
+        if (!snapshot.TryGetValue(root, out var matcher)) {
+            matcher = LoadGitignore(root);
+            ImmutableInterlocked.Update(ref _gitignoreCache, d => d.ContainsKey(root) ? d : d.Add(root, matcher));
+            matcher = Volatile.Read(ref _gitignoreCache)[root];
+        }
 
         return matcher is not null && matcher.IsIgnored(rel);
+    }
+
+    private static GitignoreMatcher? LoadGitignore(string root) {
+        var gitignorePath = Path.Combine(root, ".gitignore");
+        if (!File.Exists(gitignorePath))
+            return null;
+        try {
+            return GitignoreMatcher.Parse(File.ReadAllText(gitignorePath));
+        } catch (Exception ex) {
+            Diag.WriteLine($"[RgEngine.IsGitIgnored] 读取 .gitignore 失败: {ex.Message}");
+            return null;
+        }
     }
 
     private static bool MatchesGlob(string rel, IReadOnlyList<string>? globs) {

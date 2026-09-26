@@ -7,7 +7,7 @@ namespace Infrastructure.HotSpot;
 [Register(typeof(IIntentCollector), ServiceLifetime.Singleton)]
 public sealed class IntentCollector : IIntentCollector {
     private readonly ConcurrentDictionary<string, List<FileModifyIntent>> _intentsByFile = new();
-    private readonly ConcurrentDictionary<string, AsyncLock> _locks = new();
+    private ImmutableDictionary<string, AsyncLock> _locks = ImmutableDictionary<string, AsyncLock>.Empty;
     private readonly IClockService _clock;
 
     /// <summary>
@@ -95,7 +95,15 @@ public sealed class IntentCollector : IIntentCollector {
         return Task.CompletedTask;
     }
 
-    private AsyncLock GetLock(string filePath) => _locks.GetOrAdd(filePath, _ => new AsyncLock(nameof(IntentCollector)));
+    private AsyncLock GetLock(string filePath) {
+        var snapshot = Volatile.Read(ref _locks);
+        if (snapshot.TryGetValue(filePath, out var existing))
+            return existing;
+
+        var newLock = new AsyncLock(nameof(IntentCollector));
+        ImmutableInterlocked.Update(ref _locks, d => d.ContainsKey(filePath) ? d : d.Add(filePath, newLock));
+        return Volatile.Read(ref _locks)[filePath];
+    }
 
     private static string NormalizePath(string filePath) => filePath.Replace('\\', '/');
 }

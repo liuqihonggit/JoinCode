@@ -127,6 +127,7 @@ global using Services.Shell;
 global using Services.Web;
 global using System.Collections.Concurrent;
 global using System.Collections.Frozen;
+global using System.Collections.Immutable;
 global using System.Collections.ObjectModel;
 global using System.Diagnostics.CodeAnalysis;
 global using System.IO.MemoryMappedFiles;

@@ -6,7 +6,7 @@ namespace Core.Goal;
 /// </summary>
 [Register(typeof(IGoalConflictMessenger), ServiceLifetime.Singleton)]
 public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflictMessenger {
-    private readonly ConcurrentDictionary<string, Channel<ConflictMessage>> _channels = new(StringComparer.Ordinal);
+    private ImmutableDictionary<string, Channel<ConflictMessage>> _channels = ImmutableDictionary<string, Channel<ConflictMessage>>.Empty.WithComparers(StringComparer.Ordinal);
 
     private readonly ILogger<GoalConflictMessenger>? _logger;
 
@@ -21,7 +21,7 @@ public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflict
     /// <inheritdoc />
     public async ValueTask EnqueueConflictAsync(ConflictMessage message, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(message);
-        var channel = _channels.GetOrAdd(message.TargetNodeId, _ => Channel.CreateBounded<ConflictMessage>(new BoundedChannelOptions(128) { FullMode = BoundedChannelFullMode.Wait }));
+        var channel = GetOrAddChannel(message.TargetNodeId);
         await channel.Writer.WriteAsync(message, cancellationToken).ConfigureAwait(false);
         _logger?.LogDebug("[GoalConflictMessenger] 入队冲突: {Source} → {Target}: {Content}",
             message.SourceNodeId, message.TargetNodeId, message.Content);
@@ -29,7 +29,7 @@ public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflict
 
     /// <inheritdoc />
     public async ValueTask<IReadOnlyList<ConflictMessage>> DequeueConflictsAsync(string nodeId, CancellationToken cancellationToken = default) {
-        if (!_channels.TryGetValue(nodeId, out var channel))
+        if (!Volatile.Read(ref _channels).TryGetValue(nodeId, out var channel))
             return [];
 
         var messages = new List<ConflictMessage>();
@@ -47,8 +47,18 @@ public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflict
 
     /// <inheritdoc />
     public int GetPendingCount(string nodeId) {
-        if (!_channels.TryGetValue(nodeId, out var channel))
+        if (!Volatile.Read(ref _channels).TryGetValue(nodeId, out var channel))
             return 0;
         return channel.Reader.Count;
+    }
+
+    private Channel<ConflictMessage> GetOrAddChannel(string nodeId) {
+        var snapshot = Volatile.Read(ref _channels);
+        if (snapshot.TryGetValue(nodeId, out var existing))
+            return existing;
+
+        var newChannel = Channel.CreateBounded<ConflictMessage>(new BoundedChannelOptions(128) { FullMode = BoundedChannelFullMode.Wait });
+        ImmutableInterlocked.Update(ref _channels, d => d.ContainsKey(nodeId) ? d : d.Add(nodeId, newChannel));
+        return Volatile.Read(ref _channels)[nodeId];
     }
 }

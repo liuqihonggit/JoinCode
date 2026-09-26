@@ -6,7 +6,7 @@ namespace Services.Lsp.Internal;
 /// </summary>
 internal sealed class LspServerRegistry {
     private readonly ConcurrentDictionary<string, LspServerInstance> _servers = new();
-    private readonly ConcurrentDictionary<string, List<string>> _extensionMap = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, ImmutableList<string>> _extensionMap = ImmutableDictionary<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 已注册服务器数量。
@@ -24,8 +24,10 @@ internal sealed class LspServerRegistry {
     public void Register(string name, LspServerInstance instance, Dictionary<string, string> extensionToLanguage) {
         _servers[name] = instance;
         foreach (var kvp in extensionToLanguage) {
-            var serverNames = _extensionMap.GetOrAdd(kvp.Key, _ => []);
-            serverNames.Add(name);
+            ImmutableInterlocked.Update(ref _extensionMap, d => {
+                var list = d.TryGetValue(kvp.Key, out var existing) ? existing : ImmutableList<string>.Empty;
+                return d.SetItem(kvp.Key, list.Add(name));
+            });
         }
     }
 
@@ -40,7 +42,7 @@ internal sealed class LspServerRegistry {
     /// </summary>
     public bool TryGetByExtension(string ext, [MaybeNullWhen(false)] out LspServerInstance instance) {
         instance = null!;
-        if (!_extensionMap.TryGetValue(ext, out var serverNames) || serverNames.Count == 0)
+        if (!Volatile.Read(ref _extensionMap).TryGetValue(ext, out var serverNames) || serverNames.Count == 0)
             return false;
         return _servers.TryGetValue(serverNames[0], out instance);
     }
@@ -56,6 +58,6 @@ internal sealed class LspServerRegistry {
     /// </summary>
     public void Clear() {
         _servers.Clear();
-        _extensionMap.Clear();
+        Volatile.Write(ref _extensionMap, ImmutableDictionary<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
     }
 }

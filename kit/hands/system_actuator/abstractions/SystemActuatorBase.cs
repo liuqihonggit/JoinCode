@@ -6,7 +6,7 @@ namespace Services.SystemActuator;
 /// 子类只需重写命令构建 + 能力检测，无需改基类
 /// </summary>
 public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator {
-    private static readonly ConcurrentDictionary<SystemActuatorKind, SystemActuatorCapability> _capabilityCache = new();
+    private static ImmutableDictionary<SystemActuatorKind, SystemActuatorCapability> _capabilityCache = ImmutableDictionary<SystemActuatorKind, SystemActuatorCapability>.Empty;
 
     /// <summary>
     /// 静态 ProcessStartInfo 构建器 — 供静态方法使用，强制三道防线 + 统一编码
@@ -108,7 +108,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator 
     /// 从静态缓存获取能力描述 — 未缓存时抛异常
     /// </summary>
     private static SystemActuatorCapability GetCachedCapability(SystemActuatorKind kind) {
-        if (_capabilityCache.TryGetValue(kind, out var cap)) return cap;
+        if (Volatile.Read(ref _capabilityCache).TryGetValue(kind, out var cap)) return cap;
         throw new InvalidOperationException(
             $"SystemActuatorCapability not initialized for {kind.Id}. Call SystemActuatorRegistry.Initialize() first.");
     }
@@ -117,14 +117,14 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator 
     /// 注册能力描述到静态缓存 — 由 SystemActuatorRegistry.Initialize 调用
     /// </summary>
     internal static void RegisterCapability(SystemActuatorCapability capability) {
-        _capabilityCache[capability.Kind] = capability;
+        ImmutableInterlocked.Update(ref _capabilityCache, d => d.SetItem(capability.Kind, capability));
     }
 
     /// <summary>
     /// 重置缓存 — 仅用于测试
     /// </summary>
     internal static void ResetCapabilityCache() {
-        _capabilityCache.Clear();
+        Volatile.Write(ref _capabilityCache, ImmutableDictionary<SystemActuatorKind, SystemActuatorCapability>.Empty);
     }
 
     #endregion

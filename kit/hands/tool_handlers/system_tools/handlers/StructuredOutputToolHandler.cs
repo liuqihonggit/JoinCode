@@ -7,12 +7,11 @@ namespace Tools.Handlers;
 [McpToolDispatch(ToolCategory.StructuredOutput)]
 public sealed class StructuredOutputToolHandler {
     private readonly SimpleJsonSchemaValidator _validator;
-    private readonly ConcurrentDictionary<string, StructuredOutputSchema> _schemas = new();
-
+    private ImmutableDictionary<string, StructuredOutputSchema> _schemas = ImmutableDictionary<string, StructuredOutputSchema>.Empty;
     /// <summary>
     /// 验证结果缓存 — 对齐 TS WeakMap toolCache，避免重复编译同一 Schema
     /// </summary>
-    private readonly ConcurrentDictionary<string, SchemaValidationResult> _validationCache = new();
+    private ImmutableDictionary<string, SchemaValidationResult> _validationCache = ImmutableDictionary<string, SchemaValidationResult>.Empty;
 
     private static readonly JsonWriterOptions s_indentedWriterOptions = new() { Indented = true };
 
@@ -76,10 +75,10 @@ public sealed class StructuredOutputToolHandler {
                 Strict = strict
             };
 
-            _schemas[schema_name] = schema;
+            ImmutableInterlocked.Update(ref _schemas, d => d.SetItem(schema_name, schema));
 
             // 注册新 Schema 时清除该名称的缓存
-            _validationCache.TryRemove(schema_name, out _);
+            ImmutableInterlocked.Update(ref _validationCache, d => d.Remove(schema_name));
 
             await SaveSchemasAsync(cancellationToken).ConfigureAwait(false);
 
@@ -117,7 +116,7 @@ public sealed class StructuredOutputToolHandler {
             await EnsureSchemasLoadedAsync(cancellationToken).ConfigureAwait(false);
 
             StructuredOutputSchema schema;
-            if (!_schemas.TryGetValue(schema_name, out var found)) {
+            if (!Volatile.Read(ref _schemas).TryGetValue(schema_name, out var found)) {
                 var diag = BuildSchemaNotFoundDiagnostic(schema_name);
                 return ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage)
@@ -128,7 +127,11 @@ public sealed class StructuredOutputToolHandler {
 
             // 对齐 TS WeakMap toolCache: 使用缓存避免重复验证同一内容
             var cacheKey = $"{schema_name}:{content.GetHashCode(StringComparison.Ordinal)}";
-            var result = _validationCache.GetOrAdd(cacheKey, _ => _validator.Validate(content, schema.SchemaJson));
+            var snapshot = Volatile.Read(ref _validationCache);
+            if (!snapshot.TryGetValue(cacheKey, out var result)) {
+                result = _validator.Validate(content, schema.SchemaJson);
+                ImmutableInterlocked.Update(ref _validationCache, d => d.ContainsKey(cacheKey) ? d : d.Add(cacheKey, result));
+            }
 
             var response = new StringBuilder(512);
             response.AppendLine($"Schema: {schema_name}");
@@ -177,7 +180,7 @@ public sealed class StructuredOutputToolHandler {
     private async Task SaveSchemasAsync(CancellationToken ct) {
         if (_persistencePipeline is null) return;
 
-        var snapshot = _schemas.Values.ToList();
+        var snapshot = Volatile.Read(ref _schemas).Values.ToList();
         var json = RelaxedJsonSerializer.Serialize(snapshot, StructuredOutputJsonContext.Default);
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var request = new PersistRequest {
@@ -203,7 +206,7 @@ public sealed class StructuredOutputToolHandler {
             var list = RelaxedJsonSerializer.Deserialize<List<StructuredOutputSchema>>(json, StructuredOutputJsonContext.Default);
             if (list is null) return;
             foreach (var s in list) {
-                _schemas[s.Name] = s;
+                ImmutableInterlocked.Update(ref _schemas, d => d.SetItem(s.Name, s));
             }
         } catch (Exception ex) {
             _logger?.LogError("加载Schema失败: {Message}", ex.Message);

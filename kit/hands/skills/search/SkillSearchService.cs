@@ -9,8 +9,8 @@ namespace Core.Skills.Search;
 public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchService, JoinCode.Abstractions.Interfaces.ISkillSearchService {
     private readonly ISkillService _skillService;
     private readonly ILogger<SkillSearchService>? _logger;
-    private readonly ConcurrentDictionary<string, FrozenSet<string>> _tagIndex = new();
-    private readonly ConcurrentDictionary<string, string> _nameIndex = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, FrozenSet<string>> _tagIndex = ImmutableDictionary<string, FrozenSet<string>>.Empty;
+    private ImmutableDictionary<string, string> _nameIndex = ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private DateTime _lastIndexTime = DateTime.MinValue;
     private readonly AsyncLock _indexLock = new();
 
@@ -154,17 +154,20 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
         if ((DateTime.UtcNow - _lastIndexTime).TotalMinutes < 5) return;
 
         var skills = await _skillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
-        _tagIndex.Clear();
-        _nameIndex.Clear();
+        var tagNamePairs = new List<(string Name, FrozenSet<string> Tags)>();
+        var namePairs = new List<(string Name, string Value)>();
 
         foreach (var skill in skills) {
-            _nameIndex[skill.Name] = skill.Name;
+            namePairs.Add((skill.Name, skill.Name));
             if (skill.Tags.Count > 0) {
-                _tagIndex[skill.Name] = skill.Tags
+                tagNamePairs.Add((skill.Name, skill.Tags
                     .Select(t => t.ToLowerInvariant())
-                    .ToFrozenSet();
+                    .ToFrozenSet()));
             }
         }
+
+        Volatile.Write(ref _tagIndex, tagNamePairs.ToImmutableDictionary(p => p.Name, p => p.Tags));
+        Volatile.Write(ref _nameIndex, namePairs.ToImmutableDictionary(p => p.Name, p => p.Value));
 
         _lastIndexTime = DateTime.UtcNow;
         _logger?.LogDebug(L.T(StringKey.SkillSearchIndexRebuilt), skills.Count);

@@ -19,7 +19,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat {
     private volatile int _refCount;
 
     /// <summary>引用方插件名集合 — 用于连带卸载时通知引用方</summary>
-    private readonly ConcurrentDictionary<string, byte> _consumers = new();
+    private ImmutableDictionary<string, byte> _consumers = ImmutableDictionary<string, byte>.Empty;
 
     /// <summary>是否存活 — volatile bool,纳秒级读取</summary>
     public bool IsAlive => _isAlive;
@@ -45,7 +45,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat {
     /// </summary>
     public ResourceReferenceHandle AddReference(string consumerPluginName) {
         ArgumentNullException.ThrowIfNull(consumerPluginName);
-        _consumers.TryAdd(consumerPluginName, 0);
+        ImmutableInterlocked.Update(ref _consumers, d => d.ContainsKey(consumerPluginName) ? d : d.Add(consumerPluginName, (byte)0));
         Interlocked.Increment(ref _refCount);
         return new ResourceReferenceHandle(() => ReleaseReference(consumerPluginName));
     }
@@ -56,7 +56,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat {
     /// </summary>
     public void ReleaseReference(string consumerPluginName) {
         ArgumentNullException.ThrowIfNull(consumerPluginName);
-        _consumers.TryRemove(consumerPluginName, out _);
+        ImmutableInterlocked.Update(ref _consumers, d => d.Remove(consumerPluginName));
         Interlocked.Decrement(ref _refCount);
     }
 
@@ -73,7 +73,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat {
     /// <summary>
     /// 获取所有引用方插件名 — 用于连带卸载时通知引用方放弃引用
     /// </summary>
-    public IReadOnlyCollection<string> GetConsumers() => _consumers.Keys.ToList();
+    public IReadOnlyCollection<string> GetConsumers() => Volatile.Read(ref _consumers).Keys.ToList();
 
     /// <summary>
     /// 刷新心跳 — 插件每次活动时调用,同时更新 LastActivityAt 和 LastHeartbeatAt

@@ -21,7 +21,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
     /// 首次 sed -i 返回预览，存储预计算结果；二次调用确认后写入
     /// key: 文件路径, value: (新内容, 创建时间)
     /// </summary>
-    private readonly ConcurrentDictionary<string, PendingSedConfirmation> _fallbackEdits = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, PendingSedConfirmation> _fallbackEdits = ImmutableDictionary<string, PendingSedConfirmation>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     private static ISessionCache? GetCurrentCache() {
         var sessionId = SessionContext.Current;
@@ -73,7 +73,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         // 二次调用确认：检查是否有待确认的编辑 — 对齐 TS _simulatedSedEdit
         var cache = GetCurrentCache();
         var pending = cache?.Get<PendingSedConfirmation>(filePath);
-        if (pending is null && _fallbackEdits.TryGetValue(filePath, out var fallbackPending))
+        if (pending is null && Volatile.Read(ref _fallbackEdits).TryGetValue(filePath, out var fallbackPending))
             pending = fallbackPending;
 
         if (pending is not null && !pending.IsExpired) {
@@ -141,7 +141,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         if (cache is not null)
             await cache.SetAsync(filePath, confirmation, SedConfirmationWindow).ConfigureAwait(false);
         else
-            _fallbackEdits[filePath] = confirmation;
+            ImmutableInterlocked.Update(ref _fallbackEdits, d => d.SetItem(filePath, confirmation));
 
         // 返回 diff 预览 — 对齐 TS SedEditPermissionRequest 展示 FileEditToolDiff
         var preview = new StringBuilder();
@@ -216,7 +216,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
     private async Task ClearPendingAsync(ISessionCache? cache, string filePath) {
         if (cache is not null)
             await cache.RemoveAsync(filePath).ConfigureAwait(false);
-        _fallbackEdits.TryRemove(filePath, out _);
+        ImmutableInterlocked.Update(ref _fallbackEdits, d => d.Remove(filePath));
     }
 
     /// <summary>

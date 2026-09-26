@@ -27,7 +27,7 @@ public sealed class CodeSessionRecord {
 /// <summary>代码会话仓储 — 基于内存并发字典存储会话记录，单例服务</summary>
 [Register(typeof(CodeSessionRepo), ServiceLifetime.Singleton)]
 public sealed partial class CodeSessionRepo : ServiceEntity {
-    private readonly ConcurrentDictionary<string, CodeSessionRecord> _store = new(StringComparer.Ordinal);
+    private ImmutableDictionary<string, CodeSessionRecord> _store = ImmutableDictionary<string, CodeSessionRecord>.Empty.WithComparers(StringComparer.Ordinal);
 
     /// <summary>保存会话记录 — 按 SessionId 索引覆盖写入</summary>
     /// <param name="record">要保存的会话记录</param>
@@ -35,7 +35,7 @@ public sealed partial class CodeSessionRepo : ServiceEntity {
     /// <returns>表示异步保存操作的任务</returns>
     public ValueTask SaveAsync(CodeSessionRecord record, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(record);
-        _store[record.SessionId] = record;
+        ImmutableInterlocked.Update(ref _store, d => d.SetItem(record.SessionId, record));
         return ValueTask.CompletedTask;
     }
 
@@ -44,7 +44,7 @@ public sealed partial class CodeSessionRepo : ServiceEntity {
     /// <param name="ct">取消令牌</param>
     /// <returns>匹配的会话记录；若不存在则返回 null</returns>
     public ValueTask<CodeSessionRecord?> GetAsync(string sessionId, CancellationToken ct = default) {
-        _store.TryGetValue(sessionId, out var record);
+        Volatile.Read(ref _store).TryGetValue(sessionId, out var record);
         return ValueTask.FromResult(record);
     }
 
@@ -53,7 +53,7 @@ public sealed partial class CodeSessionRepo : ServiceEntity {
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步删除操作的任务</returns>
     public ValueTask DeleteAsync(string sessionId, CancellationToken ct = default) {
-        _store.TryRemove(sessionId, out _);
+        ImmutableInterlocked.Update(ref _store, d => d.Remove(sessionId));
         return ValueTask.CompletedTask;
     }
 
@@ -61,7 +61,7 @@ public sealed partial class CodeSessionRepo : ServiceEntity {
     /// <param name="ct">取消令牌</param>
     /// <returns>所有会话记录的只读列表</returns>
     public ValueTask<IReadOnlyList<CodeSessionRecord>> GetAllAsync(CancellationToken ct = default) {
-        IReadOnlyList<CodeSessionRecord> result = _store.Values
+        IReadOnlyList<CodeSessionRecord> result = Volatile.Read(ref _store).Values
             .OrderByDescending(r => r.CreatedAt)
             .ToList();
         return ValueTask.FromResult(result);

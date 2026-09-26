@@ -38,5 +38,8 @@
     <ProjectReference Include="$(RepoRoot)gen/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.McpToolDispatch.Tests" />
+  </ItemGroup>
 
   </Project>

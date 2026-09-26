@@ -35,10 +35,56 @@ internal sealed class GitHubRunLogFilterRunner {
             }
         }
 
-        foreach (var jobId in failedJobIds) {
-            await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, jobId, ct).ConfigureAwait(false)) {
+        await foreach (var line in DownloadJobsParallelAsync(owner, repo, failedJobIds, ct).ConfigureAwait(false)) {
+            yield return line;
+        }
+    }
+
+    /// <summary>
+    /// 统一多 job 日志下载 — 单 job 直接 yield,多 job Channel 并行合并(Actor 邮箱模型)
+    /// <para>并行时各 job 行交错合并到 Channel,总时间 ≈ max(各 job) 而非 sum</para>
+    /// <para>AGENTS.md 死锁处理规范: Actor 邮箱模型(消息传递替代共享锁)</para>
+    /// </summary>
+    private async IAsyncEnumerable<string> DownloadJobsParallelAsync(
+        string owner, string repo, IReadOnlyList<long> jobIds,
+        [EnumeratorCancellation] CancellationToken ct) {
+        if (jobIds.Count == 0) yield break;
+
+        // 单 job: 直接 yield(避免 Channel 开销)
+        if (jobIds.Count == 1) {
+            await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, jobIds[0], ct).ConfigureAwait(false)) {
                 yield return line;
             }
+            yield break;
+        }
+
+        // 多 job: Channel 并行合并(Actor 邮箱模型)
+        var channel = Channel.CreateUnbounded<string>();
+        var writer = channel.Writer;
+
+        var tasks = jobIds.Select(async jobId => {
+            try {
+                await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, jobId, ct).ConfigureAwait(false)) {
+                    await writer.WriteAsync(line, ct).ConfigureAwait(false);
+                }
+            } catch (OperationCanceledException) {
+                // 取消: 静默退出,channel 由外部完成
+            } catch (Exception ex) {
+                await writer.WriteAsync($"[ERROR] job {jobId}: {ex.Message}", CancellationToken.None).ConfigureAwait(false);
+            }
+        }).ToArray();
+
+        // 后台等待所有完成后关闭 channel(不阻塞调用方 yield)
+        _ = Task.Run(async () => {
+            try {
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            } finally {
+                writer.TryComplete();
+            }
+        });
+
+        await foreach (var line in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
+            yield return line;
         }
     }
 
@@ -184,8 +230,18 @@ internal sealed class GitHubRunLogFilterRunner {
         IAsyncEnumerable<string> logLines;
         if (failedOnly) {
             logLines = GetFailedJobLogsAsync(owner, repo, runId, ct);
-        } else if (!string.IsNullOrWhiteSpace(jobId) && long.TryParse(jobId, out var jobIdLong)) {
-            logLines = _apiClient.GetJobLogsAsync(owner, repo, jobIdLong, ct);
+        } else if (!string.IsNullOrWhiteSpace(jobId)) {
+            // 支持逗号分隔多个 job_id 并行下载,如 "123,456"(统一走 DownloadJobsParallelAsync)
+            var jobIds = jobId.Split(',')
+                .Select(s => s.Trim())
+                .Select(s => (Ok: long.TryParse(s, out var id), Id: id))
+                .Where(x => x.Ok)
+                .Select(x => x.Id)
+                .ToArray();
+            if (jobIds.Length == 0) {
+                return GitHubToolHandlers.Fail($"无效的 Job ID: {jobId}");
+            }
+            logLines = DownloadJobsParallelAsync(owner, repo, jobIds, ct);
         } else if (long.TryParse(runId, out var runIdLong)) {
             logLines = _apiClient.GetRunLogsAsync(owner, repo, runIdLong, ct);
         } else {

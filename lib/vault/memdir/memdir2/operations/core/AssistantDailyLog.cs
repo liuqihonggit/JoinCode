@@ -32,16 +32,10 @@ public enum DailyLogCategory {
 }
 
 /// <summary>
-/// 日志条目分类扩展方法
+/// 日志条目分类扩展方法 — 显示标签
+/// FromValue/ToValue/IsDefined 由源码生成器 EnumMetadataGenerator 生成到 DailyLogCategoryExtensions
 /// </summary>
-public static class DailyLogCategoryExtensions {
-    private static readonly FrozenDictionary<string, DailyLogCategory> __reverseMap = new Dictionary<string, DailyLogCategory> {
-        ["action"] = DailyLogCategory.Action,
-        ["observation"] = DailyLogCategory.Observation,
-        ["decision"] = DailyLogCategory.Decision,
-        ["result"] = DailyLogCategory.Result
-    }.ToFrozenDictionary();
-
+public static class DailyLogCategoryLabels {
     private static readonly FrozenDictionary<DailyLogCategory, string> CategoryLabels =
         new Dictionary<DailyLogCategory, string> {
             [DailyLogCategory.Action] = "动作",
@@ -49,12 +43,6 @@ public static class DailyLogCategoryExtensions {
             [DailyLogCategory.Decision] = "决策",
             [DailyLogCategory.Result] = "结果"
         }.ToFrozenDictionary();
-
-    /// <summary>
-    /// 从字符串值解析枚举成员
-    /// </summary>
-    public static DailyLogCategory? FromValue(string? value)
-        => value is not null && __reverseMap.TryGetValue(value, out var result) ? result : null;
 
     /// <summary>
     /// 获取分类的显示标签

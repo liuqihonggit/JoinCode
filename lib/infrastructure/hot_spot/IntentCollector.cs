@@ -36,9 +36,10 @@ public sealed class IntentCollector : IIntentCollector {
             var key = NormalizePath(intent.FilePath);
             var lk = GetLock(key);
             using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-                var snapshot = Volatile.Read(ref _intentsByFile);
-                var list = snapshot.GetValueOrDefault(key, ImmutableList<FileModifyIntent>.Empty);
-                _intentsByFile = snapshot.SetItem(key, list.Add(intent));
+                ImmutableInterlocked.Update(ref _intentsByFile, d => {
+                    var list = d.GetValueOrDefault(key, ImmutableList<FileModifyIntent>.Empty);
+                    return d.SetItem(key, list.Add(intent));
+                });
             }
         }
 
@@ -90,10 +91,11 @@ public sealed class IntentCollector : IIntentCollector {
             cancellationToken.ThrowIfCancellationRequested();
             var lk = GetLock(kvp.Key);
             using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-                var snapshot = Volatile.Read(ref _intentsByFile);
-                if (!snapshot.TryGetValue(kvp.Key, out var list)) continue;
-                var next = list.RemoveAll(x => x.WorkerId == workerId);
-                _intentsByFile = next.IsEmpty ? snapshot.Remove(kvp.Key) : snapshot.SetItem(kvp.Key, next);
+                ImmutableInterlocked.Update(ref _intentsByFile, d => {
+                    if (!d.TryGetValue(kvp.Key, out var list)) return d;
+                    var next = list.RemoveAll(x => x.WorkerId == workerId);
+                    return next.IsEmpty ? d.Remove(kvp.Key) : d.SetItem(kvp.Key, next);
+                });
             }
         }
 

@@ -21,8 +21,10 @@ public sealed class DeferredMailService : IDeferredMailService {
         var entry = new DeferredMailEntry { Mail = mail, RemainingTurns = mail.OpenAfterTurns };
         var lk = GetLock(mail.To);
         using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            var list = Volatile.Read(ref _pending).GetValueOrDefault(mail.To, ImmutableList<DeferredMailEntry>.Empty);
-            _pending = Volatile.Read(ref _pending).SetItem(mail.To, list.Add(entry));
+            ImmutableInterlocked.Update(ref _pending, d => {
+                var list = d.GetValueOrDefault(mail.To, ImmutableList<DeferredMailEntry>.Empty);
+                return d.SetItem(mail.To, list.Add(entry));
+            });
         }
         return Task.CompletedTask;
     }
@@ -36,8 +38,7 @@ public sealed class DeferredMailService : IDeferredMailService {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         var lk = GetLock(agentId);
         using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            var snapshot = Volatile.Read(ref _pending);
-            if (!snapshot.TryGetValue(agentId, out var list))
+            if (!Volatile.Read(ref _pending).TryGetValue(agentId, out var list))
                 return [];
 
             var matured = new List<DeferredMail>();
@@ -49,7 +50,7 @@ public sealed class DeferredMailService : IDeferredMailService {
                 else
                     remaining = remaining.Add(entry);
             }
-            _pending = snapshot.SetItem(agentId, remaining);
+            ImmutableInterlocked.Update(ref _pending, d => d.SetItem(agentId, remaining));
             return matured;
         }
     }
@@ -64,18 +65,17 @@ public sealed class DeferredMailService : IDeferredMailService {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         var lk = GetLock(agentId);
         using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            var snapshot = Volatile.Read(ref _pending);
-            if (!snapshot.TryGetValue(agentId, out var list))
+            if (!Volatile.Read(ref _pending).TryGetValue(agentId, out var list))
                 return [];
 
             if (markerFilter is { } filter) {
                 var matched = list.Where(e => e.Mail.Marker.HasFlag(filter)).Select(e => e.Mail).ToList();
-                _pending = snapshot.SetItem(agentId, list.RemoveAll(e => e.Mail.Marker.HasFlag(filter)));
+                ImmutableInterlocked.Update(ref _pending, d => d.SetItem(agentId, list.RemoveAll(e => e.Mail.Marker.HasFlag(filter))));
                 return matched;
             }
 
             var all = list.Select(e => e.Mail).ToList();
-            _pending = snapshot.Remove(agentId);
+            ImmutableInterlocked.Update(ref _pending, d => d.Remove(agentId));
             return all;
         }
     }

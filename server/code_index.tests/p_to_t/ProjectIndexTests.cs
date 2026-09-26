@@ -15,7 +15,7 @@ public sealed class ProjectIndexTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        _store.DisposeSafe();
+        _store.Dispose();
     }
 
     [Fact]
@@ -38,17 +38,19 @@ public sealed class ProjectIndexTests : IDisposable {
 
         await _projectIndex.IndexProjectAsync(csproj, dir, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Single(_store.Projects);
-        Assert.Equal("Core", _store.Projects[csproj].Name);
-        Assert.Single(_store.ProjectRefs);
-        Assert.Single(_store.NuGetRefs);
+        var snap = _store.GetSnapshot();
+        Assert.Single(snap.Projects);
+        Assert.Equal("Core", snap.Projects[csproj].Name);
+        Assert.Single(snap.ProjectRefs);
+        Assert.Single(snap.NuGetRefs);
     }
 
     [Fact]
     public async Task IndexProjectAsync_NonExistentFile_DoesNothing() {
         await _projectIndex.IndexProjectAsync("missing.csproj", "", CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Empty(_store.Projects);
+        var snap = _store.GetSnapshot();
+        Assert.Empty(snap.Projects);
     }
 
     [Fact]
@@ -78,9 +80,10 @@ public sealed class ProjectIndexTests : IDisposable {
 
         await _projectIndex.IndexSolutionAsync(slnPath, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Equal(2, _store.Projects.Count);
-        Assert.Contains(_store.Projects, p => p.Value.Name == "Core");
-        Assert.Contains(_store.Projects, p => p.Value.Name == "App");
+        var snap = _store.GetSnapshot();
+        Assert.Equal(2, snap.Projects.Count);
+        Assert.Contains(snap.Projects, p => p.Value.Name == "Core");
+        Assert.Contains(snap.Projects, p => p.Value.Name == "App");
     }
 
     [Fact]
@@ -103,14 +106,16 @@ public sealed class ProjectIndexTests : IDisposable {
 
         await _projectIndex.IndexSolutionAsync(slnxPath, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Equal(2, _store.Projects.Count);
+        var snap = _store.GetSnapshot();
+        Assert.Equal(2, snap.Projects.Count);
     }
 
     [Fact]
     public async Task IndexSolutionAsync_NonExistentFile_DoesNothing() {
         await _projectIndex.IndexSolutionAsync("missing.sln", CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Empty(_store.Projects);
+        var snap = _store.GetSnapshot();
+        Assert.Empty(snap.Projects);
     }
 
     [Fact]
@@ -133,13 +138,14 @@ public sealed class ProjectIndexTests : IDisposable {
             </Project>
             """);
         await _projectIndex.IndexProjectAsync(csproj, dir, CancellationToken.None).ConfigureAwait(true);
-        Assert.Single(_store.Projects);
+        Assert.Single(_store.GetSnapshot().Projects);
 
         await _projectIndex.RemoveProjectAsync(csproj, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Empty(_store.Projects);
-        Assert.Empty(_store.ProjectRefs);
-        Assert.Empty(_store.NuGetRefs);
+        var snap = _store.GetSnapshot();
+        Assert.Empty(snap.Projects);
+        Assert.Empty(snap.ProjectRefs);
+        Assert.Empty(snap.NuGetRefs);
     }
 
     [Fact]
@@ -151,9 +157,10 @@ public sealed class ProjectIndexTests : IDisposable {
 
         await _projectIndex.ClearAsync(CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Empty(_store.Projects);
-        Assert.Empty(_store.ProjectRefs);
-        Assert.Empty(_store.NuGetRefs);
+        var snap = _store.GetSnapshot();
+        Assert.Empty(snap.Projects);
+        Assert.Empty(snap.ProjectRefs);
+        Assert.Empty(snap.NuGetRefs);
     }
 
     [Fact]

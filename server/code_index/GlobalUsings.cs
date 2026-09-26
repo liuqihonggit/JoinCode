@@ -20,6 +20,7 @@ global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
 global using Structura.Dag;
 global using System.Collections.Frozen;
+global using System.Collections.Immutable;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Text.RegularExpressions;
 global using System.Threading;

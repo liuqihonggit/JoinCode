@@ -34,8 +34,8 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph {
         ArgumentNullException.ThrowIfNull(projectPath);
 
         var normalized = ResolveProjectPath(projectPath);
-        using var scope = _store.EnterReadLock();
-        var result = _store.ProjectRefs.TryGetValue(normalized, out var list)
+        var snap = _store.GetSnapshot();
+        var result = snap.ProjectRefs.TryGetValue(normalized, out var list)
             ? list.ToList()
             : new List<ProjectReferenceEdge>();
         return Task.FromResult<IReadOnlyList<ProjectReferenceEdge>>(result);
@@ -51,11 +51,10 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph {
         ArgumentNullException.ThrowIfNull(projectPath);
 
         var normalized = ResolveProjectPath(projectPath);
-        using var scope = _store.EnterReadLock();
-        var result = _store.ProjectRefs.Values
-            .SelectMany(v => v)
-            .Where(e => NormalizePath(e.TargetProjectPath) == normalized)
-            .ToList();
+        var snap = _store.GetSnapshot();
+        var result = snap.ProjectRefsByTarget.TryGetValue(normalized, out var list)
+            ? list.ToList()
+            : new List<ProjectReferenceEdge>();
         return Task.FromResult<IReadOnlyList<ProjectReferenceEdge>>(result);
     }
 
@@ -75,9 +74,9 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph {
             return Array.Empty<string>();
         }
 
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
 
-        // 反向 BFS 查找所有依赖该项目(直接或间接)的项目
+        // 反向 BFS 查找所有依赖该项目(直接或间接)的项目 — 用 ProjectRefsByTarget 反向索引 O(1)
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var queue = new Queue<string>();
         visited.Add(owningProject);
@@ -85,14 +84,11 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph {
 
         while (queue.Count > 0) {
             var current = queue.Dequeue();
-            var dependents = _store.ProjectRefs.Values
-                .SelectMany(v => v)
-                .Where(e => NormalizePath(e.TargetProjectPath) == current)
-                .Select(e => e.SourceProjectPath);
+            if (!snap.ProjectRefsByTarget.TryGetValue(current, out var dependents)) continue;
 
-            foreach (var dep in dependents) {
-                if (visited.Add(dep)) {
-                    queue.Enqueue(dep);
+            foreach (var edge in dependents) {
+                if (visited.Add(edge.SourceProjectPath)) {
+                    queue.Enqueue(edge.SourceProjectPath);
                 }
             }
         }
@@ -111,8 +107,8 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph {
         ArgumentNullException.ThrowIfNull(projectPath);
 
         var normalized = ResolveProjectPath(projectPath);
-        using var scope = _store.EnterReadLock();
-        var result = _store.NuGetRefs.TryGetValue(normalized, out var list)
+        var snap = _store.GetSnapshot();
+        var result = snap.NuGetRefs.TryGetValue(normalized, out var list)
             ? list.ToList()
             : new List<NuGetPackageReference>();
         return Task.FromResult<IReadOnlyList<NuGetPackageReference>>(result);
@@ -127,13 +123,10 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph {
     public Task<IReadOnlyList<string>> GetProjectsUsingNuGetPackageAsync(string packageName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(packageName);
 
-        using var scope = _store.EnterReadLock();
-        var result = _store.NuGetRefs.Values
-            .SelectMany(v => v)
-            .Where(p => string.Equals(p.PackageName, packageName, StringComparison.OrdinalIgnoreCase))
-            .Select(p => p.ProjectPath)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var snap = _store.GetSnapshot();
+        var result = snap.NuGetRefsByPackage.TryGetValue(packageName, out var list)
+            ? list.Select(p => p.ProjectPath).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            : new List<string>();
         return Task.FromResult<IReadOnlyList<string>>(result);
     }
 
@@ -143,8 +136,8 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph {
     /// <param name="ct">取消令牌</param>
     /// <returns>项目信息列表</returns>
     public Task<IReadOnlyList<ProjectInfo>> GetAllProjectsAsync(CancellationToken ct) {
-        using var scope = _store.EnterReadLock();
-        return Task.FromResult<IReadOnlyList<ProjectInfo>>(_store.Projects.Values.ToList());
+        var snap = _store.GetSnapshot();
+        return Task.FromResult<IReadOnlyList<ProjectInfo>>(snap.Projects.Values.ToList());
     }
 
     /// <summary>
@@ -156,11 +149,11 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph {
     internal Task<string?> FindOwningProjectAsync(string filePath, CancellationToken ct) {
         var normalizedFilePath = NormalizePath(filePath);
 
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
         string? bestMatch = null;
         var bestLength = 0;
 
-        foreach (var project in _store.Projects.Values) {
+        foreach (var project in snap.Projects.Values) {
             var projectDir = Path.GetDirectoryName(project.FilePath);
             bool isMatch;
 
@@ -195,8 +188,8 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph {
         }
 
         // 相对路径: 在 store 中查找以该路径结尾的项目
-        using var scope = _store.EnterReadLock();
-        foreach (var key in _store.Projects.Keys) {
+        var snap = _store.GetSnapshot();
+        foreach (var key in snap.Projects.Keys) {
             var normalizedKey = NormalizePath(key);
             if (normalizedKey.EndsWith(normalized, StringComparison.OrdinalIgnoreCase)) {
                 return normalizedKey;

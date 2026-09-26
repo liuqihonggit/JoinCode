@@ -70,13 +70,16 @@ internal sealed class StderrLogger : ILogger {
 
         var shortCategory = _category.AsSpan(_category.LastIndexOf('.') + 1).ToString();
 
-        Console.Error.Write($"{levelStr}: {shortCategory}");
+        var sb = new StringBuilder();
+        sb.Append(levelStr).Append(": ").Append(shortCategory);
         if (eventId.Id != 0)
-            Console.Error.Write($"[{eventId.Id}]");
-        Console.Error.WriteLine();
-        Console.Error.WriteLine($"      {message}");
+            sb.Append('[').Append(eventId.Id).Append(']');
+        sb.AppendLine();
+        sb.Append("      ").AppendLine(message);
 
         if (exception is not null)
-            Console.Error.WriteLine($"      {exception.GetType().Name}: {exception.Message}");
+            sb.Append("      ").Append(exception.GetType().Name).Append(": ").Append(exception.Message);
+
+        AsyncStderrWriter.Enqueue(sb.ToString());
     }
 }

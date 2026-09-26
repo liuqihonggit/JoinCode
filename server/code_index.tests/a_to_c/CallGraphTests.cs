@@ -14,7 +14,7 @@ public sealed class CallGraphTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        _store.DisposeSafe();
+        _store.Dispose();
     }
 
     [Fact]
@@ -146,28 +146,41 @@ public sealed class CallGraphTests : IDisposable {
             CallSiteLine = line,
             CallKind = kind
         };
-        _store.CallEdges.Add(edge);
-        AddToBucket(_store.CallsByCaller, caller, edge);
-        AddToBucket(_store.CallsByCallee, callee, edge);
-        AddToBucket(_store.CallsByFile, file, edge);
+        _store.Update(snap => {
+            var callsByCaller = AddToBucket(snap.CallsByCaller, caller, edge);
+            var callsByCallee = AddToBucket(snap.CallsByCallee, callee, edge);
+            var callsByFile = AddToBucket(snap.CallsByFile, file, edge);
+            return snap with {
+                CallEdges = snap.CallEdges.Add(edge),
+                CallsByCaller = callsByCaller,
+                CallsByCallee = callsByCallee,
+                CallsByFile = callsByFile,
+            };
+        });
     }
 
     private void DeleteCallEdgesForFile(string filePath) {
-        _store.CallEdges.RemoveAll(e => e.CallSiteFilePath == filePath);
-        foreach (var kv in _store.CallsByCaller) {
-            kv.Value.RemoveAll(e => e.CallSiteFilePath == filePath);
-        }
-        foreach (var kv in _store.CallsByCallee) {
-            kv.Value.RemoveAll(e => e.CallSiteFilePath == filePath);
-        }
-        _store.CallsByFile.Remove(filePath);
+        _store.Update(snap => {
+            var callEdges = snap.CallEdges.Where(e => e.CallSiteFilePath != filePath).ToImmutableList();
+            var callsByCaller = snap.CallsByCaller.ToImmutableDictionary(
+                kv => kv.Key, kv => kv.Value.Where(e => e.CallSiteFilePath != filePath).ToImmutableList());
+            var callsByCallee = snap.CallsByCallee.ToImmutableDictionary(
+                kv => kv.Key, kv => kv.Value.Where(e => e.CallSiteFilePath != filePath).ToImmutableList());
+            var callsByFile = snap.CallsByFile.Remove(filePath);
+            return snap with {
+                CallEdges = callEdges,
+                CallsByCaller = callsByCaller,
+                CallsByCallee = callsByCallee,
+                CallsByFile = callsByFile,
+            };
+        });
     }
 
-    private static void AddToBucket<TKey>(Dictionary<TKey, List<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull {
+    private static ImmutableDictionary<TKey, ImmutableList<CallEdge>> AddToBucket<TKey>(
+        ImmutableDictionary<TKey, ImmutableList<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull {
         if (!dict.TryGetValue(key, out var list)) {
-            list = new List<CallEdge>();
-            dict[key] = list;
+            list = ImmutableList<CallEdge>.Empty;
         }
-        list.Add(edge);
+        return dict.SetItem(key, list.Add(edge));
     }
 }

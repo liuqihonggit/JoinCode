@@ -13,7 +13,7 @@ public sealed class DependencyGraphTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        _store.DisposeSafe();
+        _store.Dispose();
     }
 
     [Fact]
@@ -132,12 +132,20 @@ public sealed class DependencyGraphTests : IDisposable {
             DependencyKind = kind,
             SourceFilePath = sourceFile
         };
-        _store.DepEdges.Add(edge);
-        AddToBucket(_store.DepsBySource, source, edge);
-        AddToBucket(_store.DepsByTarget, target, edge);
-        if (!string.IsNullOrEmpty(sourceFile)) {
-            AddToBucket(_store.DepsByFile, sourceFile, edge);
-        }
+        _store.Update(snap => {
+            var depsBySource = AddToBucket(snap.DepsBySource, source, edge);
+            var depsByTarget = AddToBucket(snap.DepsByTarget, target, edge);
+            var depsByFile = snap.DepsByFile;
+            if (!string.IsNullOrEmpty(sourceFile)) {
+                depsByFile = AddToBucket(depsByFile, sourceFile, edge);
+            }
+            return snap with {
+                DepEdges = snap.DepEdges.Add(edge),
+                DepsBySource = depsBySource,
+                DepsByTarget = depsByTarget,
+                DepsByFile = depsByFile,
+            };
+        });
     }
 
     private void InsertSymbol(string name, SymbolKind kind, string filePath) {
@@ -151,28 +159,41 @@ public sealed class DependencyGraphTests : IDisposable {
             StartColumn = 0,
             EndColumn = 0
         };
-        _store.SymbolsByFqn[name] = symbol;
-        AddToBucket(_store.SymbolsByName, name, symbol);
-        AddToBucket(_store.SymbolsByFile, filePath, symbol);
-        AddToBucket(_store.SymbolsByKind, kind, symbol);
+        _store.Update(snap => {
+            var symbolsByName = AddToBucket(snap.SymbolsByName, name, symbol);
+            var symbolsByFile = AddToBucket(snap.SymbolsByFile, filePath, symbol);
+            var symbolsByKind = AddToBucket(snap.SymbolsByKind, kind, symbol);
+            return snap with {
+                SymbolsByFqn = snap.SymbolsByFqn.SetItem(name, symbol),
+                SymbolsByName = symbolsByName,
+                SymbolsByFile = symbolsByFile,
+                SymbolsByKind = symbolsByKind,
+            };
+        });
     }
 
     private void DeleteDepEdgesForFile(string filePath) {
-        _store.DepEdges.RemoveAll(e => e.SourceFilePath == filePath);
-        foreach (var kv in _store.DepsBySource) {
-            kv.Value.RemoveAll(e => e.SourceFilePath == filePath);
-        }
-        foreach (var kv in _store.DepsByTarget) {
-            kv.Value.RemoveAll(e => e.SourceFilePath == filePath);
-        }
-        _store.DepsByFile.Remove(filePath);
+        _store.Update(snap => {
+            var depEdges = snap.DepEdges.Where(e => e.SourceFilePath != filePath).ToImmutableList();
+            var depsBySource = snap.DepsBySource.ToImmutableDictionary(
+                kv => kv.Key, kv => kv.Value.Where(e => e.SourceFilePath != filePath).ToImmutableList());
+            var depsByTarget = snap.DepsByTarget.ToImmutableDictionary(
+                kv => kv.Key, kv => kv.Value.Where(e => e.SourceFilePath != filePath).ToImmutableList());
+            var depsByFile = snap.DepsByFile.Remove(filePath);
+            return snap with {
+                DepEdges = depEdges,
+                DepsBySource = depsBySource,
+                DepsByTarget = depsByTarget,
+                DepsByFile = depsByFile,
+            };
+        });
     }
 
-    private static void AddToBucket<TKey, TValue>(Dictionary<TKey, List<TValue>> dict, TKey key, TValue value) where TKey : notnull {
+    private static ImmutableDictionary<TKey, ImmutableList<TValue>> AddToBucket<TKey, TValue>(
+        ImmutableDictionary<TKey, ImmutableList<TValue>> dict, TKey key, TValue value) where TKey : notnull {
         if (!dict.TryGetValue(key, out var list)) {
-            list = new List<TValue>();
-            dict[key] = list;
+            list = ImmutableList<TValue>.Empty;
         }
-        list.Add(value);
+        return dict.SetItem(key, list.Add(value));
     }
 }

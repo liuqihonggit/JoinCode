@@ -13,7 +13,7 @@ public sealed class ProjectDependencyGraphTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        _store.DisposeSafe();
+        _store.Dispose();
     }
 
     [Fact]
@@ -159,29 +159,52 @@ public sealed class ProjectDependencyGraphTests : IDisposable {
             TargetFramework = tfm,
             OutputType = outputType
         };
-        _store.Projects[filePath] = info;
+        _store.Update(snap => snap with { Projects = snap.Projects.SetItem(filePath, info) });
     }
 
     private void InsertProjectRef(string source, string target) {
-        if (!_store.ProjectRefs.TryGetValue(source, out var list)) {
-            list = new List<ProjectReferenceEdge>();
-            _store.ProjectRefs[source] = list;
-        }
-        list.Add(new ProjectReferenceEdge {
+        var edge = new ProjectReferenceEdge {
             SourceProjectPath = source,
             TargetProjectPath = target
+        };
+        var normTarget = InMemoryIndexStore.NormalizeKey(target);
+        _store.Update(snap => {
+            var projectRefs = snap.ProjectRefs;
+            if (!projectRefs.TryGetValue(source, out var list)) {
+                list = ImmutableList<ProjectReferenceEdge>.Empty;
+            }
+            projectRefs = projectRefs.SetItem(source, list.Add(edge));
+
+            var byTarget = snap.ProjectRefsByTarget;
+            if (!byTarget.TryGetValue(normTarget, out var targetList)) {
+                targetList = ImmutableList<ProjectReferenceEdge>.Empty;
+            }
+            byTarget = byTarget.SetItem(normTarget, targetList.Add(edge));
+
+            return snap with { ProjectRefs = projectRefs, ProjectRefsByTarget = byTarget };
         });
     }
 
     private void InsertNuGetRef(string projectPath, string packageName, string? version = null) {
-        if (!_store.NuGetRefs.TryGetValue(projectPath, out var list)) {
-            list = new List<NuGetPackageReference>();
-            _store.NuGetRefs[projectPath] = list;
-        }
-        list.Add(new NuGetPackageReference {
+        var pkg = new NuGetPackageReference {
             ProjectPath = projectPath,
             PackageName = packageName,
             Version = version
+        };
+        _store.Update(snap => {
+            var nuGetRefs = snap.NuGetRefs;
+            if (!nuGetRefs.TryGetValue(projectPath, out var list)) {
+                list = ImmutableList<NuGetPackageReference>.Empty;
+            }
+            nuGetRefs = nuGetRefs.SetItem(projectPath, list.Add(pkg));
+
+            var byPackage = snap.NuGetRefsByPackage;
+            if (!byPackage.TryGetValue(packageName, out var pkgList)) {
+                pkgList = ImmutableList<NuGetPackageReference>.Empty;
+            }
+            byPackage = byPackage.SetItem(packageName, pkgList.Add(pkg));
+
+            return snap with { NuGetRefs = nuGetRefs, NuGetRefsByPackage = byPackage };
         });
     }
 }

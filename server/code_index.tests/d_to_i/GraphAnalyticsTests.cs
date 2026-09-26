@@ -14,7 +14,7 @@ public sealed class GraphAnalyticsTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        _store.DisposeSafe();
+        _store.Dispose();
     }
 
     [Fact]
@@ -197,18 +197,25 @@ public sealed class GraphAnalyticsTests : IDisposable {
             Namespace = ns,
         };
 
-        using var scope = _store.EnterWriteLock();
-        _store.SymbolsByFqn[fqn] = symbol;
-        if (!_store.SymbolsByName.TryGetValue(name, out var nameList)) {
-            nameList = new List<SymbolInfo>();
-            _store.SymbolsByName[name] = nameList;
-        }
-        nameList.Add(symbol);
-        if (!_store.SymbolsByFile.TryGetValue(filePath, out var fileList)) {
-            fileList = new List<SymbolInfo>();
-            _store.SymbolsByFile[filePath] = fileList;
-        }
-        fileList.Add(symbol);
+        _store.Update(snap => {
+            var symbolsByName = snap.SymbolsByName;
+            if (!symbolsByName.TryGetValue(name, out var nameList)) {
+                nameList = ImmutableList<SymbolInfo>.Empty;
+            }
+            symbolsByName = symbolsByName.SetItem(name, nameList.Add(symbol));
+
+            var symbolsByFile = snap.SymbolsByFile;
+            if (!symbolsByFile.TryGetValue(filePath, out var fileList)) {
+                fileList = ImmutableList<SymbolInfo>.Empty;
+            }
+            symbolsByFile = symbolsByFile.SetItem(filePath, fileList.Add(symbol));
+
+            return snap with {
+                SymbolsByFqn = snap.SymbolsByFqn.SetItem(fqn, symbol),
+                SymbolsByName = symbolsByName,
+                SymbolsByFile = symbolsByFile,
+            };
+        });
     }
 
     private void InsertCallEdge(string caller, string callee, string file, int line, CallKind kind) {
@@ -219,11 +226,17 @@ public sealed class GraphAnalyticsTests : IDisposable {
             CallSiteLine = line,
             CallKind = kind
         };
-        using var scope = _store.EnterWriteLock();
-        _store.CallEdges.Add(edge);
-        AddToBucket(_store.CallsByCaller, caller, edge);
-        AddToBucket(_store.CallsByCallee, callee, edge);
-        AddToBucket(_store.CallsByFile, file, edge);
+        _store.Update(snap => {
+            var callsByCaller = AddToBucket(snap.CallsByCaller, caller, edge);
+            var callsByCallee = AddToBucket(snap.CallsByCallee, callee, edge);
+            var callsByFile = AddToBucket(snap.CallsByFile, file, edge);
+            return snap with {
+                CallEdges = snap.CallEdges.Add(edge),
+                CallsByCaller = callsByCaller,
+                CallsByCallee = callsByCallee,
+                CallsByFile = callsByFile,
+            };
+        });
     }
 
     [Fact]
@@ -379,25 +392,32 @@ public sealed class GraphAnalyticsTests : IDisposable {
             Accessibility = accessibility,
         };
 
-        using var scope = _store.EnterWriteLock();
-        _store.SymbolsByFqn[fqn] = symbol;
-        if (!_store.SymbolsByName.TryGetValue(name, out var nameList)) {
-            nameList = new List<SymbolInfo>();
-            _store.SymbolsByName[name] = nameList;
-        }
-        nameList.Add(symbol);
-        if (!_store.SymbolsByFile.TryGetValue(file, out var fileList)) {
-            fileList = new List<SymbolInfo>();
-            _store.SymbolsByFile[file] = fileList;
-        }
-        fileList.Add(symbol);
+        _store.Update(snap => {
+            var symbolsByName = snap.SymbolsByName;
+            if (!symbolsByName.TryGetValue(name, out var nameList)) {
+                nameList = ImmutableList<SymbolInfo>.Empty;
+            }
+            symbolsByName = symbolsByName.SetItem(name, nameList.Add(symbol));
+
+            var symbolsByFile = snap.SymbolsByFile;
+            if (!symbolsByFile.TryGetValue(file, out var fileList)) {
+                fileList = ImmutableList<SymbolInfo>.Empty;
+            }
+            symbolsByFile = symbolsByFile.SetItem(file, fileList.Add(symbol));
+
+            return snap with {
+                SymbolsByFqn = snap.SymbolsByFqn.SetItem(fqn, symbol),
+                SymbolsByName = symbolsByName,
+                SymbolsByFile = symbolsByFile,
+            };
+        });
     }
 
-    private static void AddToBucket<TKey>(Dictionary<TKey, List<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull {
+    private static ImmutableDictionary<TKey, ImmutableList<CallEdge>> AddToBucket<TKey>(
+        ImmutableDictionary<TKey, ImmutableList<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull {
         if (!dict.TryGetValue(key, out var list)) {
-            list = new List<CallEdge>();
-            dict[key] = list;
+            list = ImmutableList<CallEdge>.Empty;
         }
-        list.Add(edge);
+        return dict.SetItem(key, list.Add(edge));
     }
 }

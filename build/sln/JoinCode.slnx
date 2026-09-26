@@ -132,6 +132,7 @@
   <Folder Name="/test/benchmarks/">
     <Project Path="../../test/benchmarks/eyes.benchmarks/Eyes.Benchmarks.csproj" />
     <Project Path="../../test/benchmarks/async_lock.benchmarks/AsyncLock.Benchmarks.csproj" />
+    <Project Path="../../test/benchmarks/infra.benchmarks/Infra.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/test/" />
   <Folder Name="/test/aot/">

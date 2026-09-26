@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Infra.Benchmarks</RootNamespace>
+    <AssemblyName>JoinCode.Infra.Benchmarks</AssemblyName>
+    <Description>JoinCode Infrastructure 性能基准测试</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
+  </ItemGroup>
+
+</Project>

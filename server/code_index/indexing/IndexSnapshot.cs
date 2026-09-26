@@ -113,7 +113,7 @@ internal sealed record IndexSnapshot {
         var snap = this;
         foreach (var (filePath, hash, extraction) in files) {
             snap = snap.RemoveFileData(filePath, rebuildSorted: false);
-            snap = snap.InsertSymbols(extraction.Symbols, rebuildSorted: false);
+            snap = snap.InsertSymbols(extraction.Symbols, rebuildSorted: false, isRebuild: false);
             snap = snap.InsertCallEdges(extraction.Calls);
             snap = snap.InsertDependencyEdges(extraction.Dependencies);
             snap = snap.UpsertFileTracking(filePath, hash, extraction.Symbols.Count, now, rebuildSorted: false);
@@ -318,23 +318,37 @@ internal sealed record IndexSnapshot {
         };
     }
 
-    private IndexSnapshot InsertSymbols(IReadOnlyList<SymbolInfo> symbols, bool rebuildSorted = true) {
+    private IndexSnapshot InsertSymbols(IReadOnlyList<SymbolInfo> symbols, bool rebuildSorted = true, bool isRebuild = true) {
+        if (symbols.Count == 0) return this;
+
         var symbolsByFqn = SymbolsByFqn;
-        var symbolsByName = SymbolsByName;
-        var symbolsByFile = SymbolsByFile;
-        var symbolsByKind = SymbolsByKind;
+        ImmutableDictionary<string, ImmutableList<SymbolInfo>> symbolsByName, symbolsByFile;
+        ImmutableDictionary<SymbolKind, ImmutableList<SymbolInfo>> symbolsByKind;
 
-        foreach (var symbol in symbols) {
-            if (symbolsByFqn.TryGetValue(symbol.FullyQualifiedName, out var existing)) {
-                symbolsByName = RemoveFromListIndex(symbolsByName, existing.Name, existing);
-                symbolsByFile = RemoveFromListIndex(symbolsByFile, existing.FilePath, existing);
-                symbolsByKind = RemoveFromListIndex(symbolsByKind, existing.Kind, existing);
+        if (isRebuild) {
+            symbolsByName = SymbolsByName;
+            symbolsByFile = SymbolsByFile;
+            symbolsByKind = SymbolsByKind;
+
+            foreach (var symbol in symbols) {
+                if (symbolsByFqn.TryGetValue(symbol.FullyQualifiedName, out var existing)) {
+                    symbolsByName = RemoveFromListIndex(symbolsByName, existing.Name, existing);
+                    symbolsByFile = RemoveFromListIndex(symbolsByFile, existing.FilePath, existing);
+                    symbolsByKind = RemoveFromListIndex(symbolsByKind, existing.Kind, existing);
+                }
+
+                symbolsByFqn = symbolsByFqn.SetItem(symbol.FullyQualifiedName, symbol);
+                symbolsByName = AddToListIndex(symbolsByName, symbol.Name, symbol);
+                symbolsByFile = AddToListIndex(symbolsByFile, symbol.FilePath, symbol);
+                symbolsByKind = AddToListIndex(symbolsByKind, symbol.Kind, symbol);
             }
-
-            symbolsByFqn = symbolsByFqn.SetItem(symbol.FullyQualifiedName, symbol);
-            symbolsByName = AddToListIndex(symbolsByName, symbol.Name, symbol);
-            symbolsByFile = AddToListIndex(symbolsByFile, symbol.FilePath, symbol);
-            symbolsByKind = AddToListIndex(symbolsByKind, symbol.Kind, symbol);
+        } else {
+            foreach (var symbol in symbols) {
+                symbolsByFqn = symbolsByFqn.SetItem(symbol.FullyQualifiedName, symbol);
+            }
+            symbolsByName = AddBatchToListIndex(SymbolsByName, symbols, s => s.Name);
+            symbolsByFile = AddBatchToListIndex(SymbolsByFile, symbols, s => s.FilePath);
+            symbolsByKind = AddBatchToListIndex(SymbolsByKind, symbols, s => s.Kind);
         }
 
         if (!rebuildSorted) {

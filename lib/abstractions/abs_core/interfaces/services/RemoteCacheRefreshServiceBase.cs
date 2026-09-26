@@ -11,7 +11,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
     private readonly Timer _refreshTimer;
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly IClockService _clock;
-    private readonly ConcurrentDictionary<string, TItem> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, TItem> _cache = ImmutableDictionary<string, TItem>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private long _lastFetchTicks;
     private int _disposed;
 
@@ -19,7 +19,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
     protected IClockService Clock => _clock;
     protected ILogger? Logger { get; }
     protected IRemoteRefreshOptions RefreshOptions { get; }
-    protected ConcurrentDictionary<string, TItem> Cache => _cache;
+    protected ImmutableDictionary<string, TItem> Cache => Volatile.Read(ref _cache);
 
     protected abstract string MetricsPrefix { get; }
     protected abstract string RefreshLogLabel { get; }
@@ -65,7 +65,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
     protected async Task EnsureCacheAsync(CancellationToken cancellationToken) {
         var lastTicks = Volatile.Read(ref _lastFetchTicks);
         var lastFetch = lastTicks == 0 ? DateTime.MinValue : new DateTime(lastTicks, DateTimeKind.Utc);
-        if (_cache.IsEmpty || (RefreshOptions.EnableCache && _clock.GetUtcNow() - lastFetch > RefreshOptions.CacheExpiration)) {
+        if (Volatile.Read(ref _cache).IsEmpty || (RefreshOptions.EnableCache && _clock.GetUtcNow() - lastFetch > RefreshOptions.CacheExpiration)) {
             await RefreshAsync(cancellationToken).ConfigureAwait(false);
         }
     }
@@ -91,10 +91,11 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
             var result = await FetchAndDeserializeAsync(requestUrl, cancellationToken).ConfigureAwait(false);
 
             if (result.Items != null) {
-                _cache.Clear();
+                var next = ImmutableDictionary<string, TItem>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
                 foreach (var kvp in result.Items) {
-                    _cache[kvp.Key] = kvp.Value;
+                    next = next.Add(kvp.Key, kvp.Value);
                 }
+                Interlocked.Exchange(ref _cache, next);
 
                 Volatile.Write(ref _lastFetchTicks, _clock.GetUtcNow().Ticks);
                 Logger?.LogInformation("已刷新 {Count} 条{Label}", result.Items.Count, RefreshLogLabel);

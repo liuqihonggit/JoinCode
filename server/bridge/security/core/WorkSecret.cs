@@ -89,7 +89,7 @@ public interface IWorkSecretStore : JoinCode.Abstractions.State.IStore {
 /// </summary>
 [Register(typeof(IWorkSecretStore), ServiceLifetime.Singleton)]
 public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, IDisposable {
-    private readonly ConcurrentDictionary<string, WorkSecretEntry> _secrets;
+    private ImmutableDictionary<string, WorkSecretEntry> _secrets = ImmutableDictionary<string, WorkSecretEntry>.Empty.WithComparers(StringComparer.Ordinal);
     private readonly ILogger<WorkSecretStore>? _logger;
     private readonly IClockService _clock;
     private readonly byte[] _encryptionKey;
@@ -115,7 +115,6 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
             throw new ArgumentException($"[BRG004] 加密密钥长度必须为 {KeySizeBytes} 字节", nameof(config));
 
         _encryptionKey = keyBytes.ToArray(); // 防御性拷贝
-        _secrets = new ConcurrentDictionary<string, WorkSecretEntry>(StringComparer.Ordinal);
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
     }
@@ -135,7 +134,13 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
             ExpiresAt = expiresAt
         };
 
-        if (!_secrets.TryAdd(secretId, entry)) {
+        var added = false;
+        ImmutableInterlocked.Update(ref _secrets, d => {
+            if (d.ContainsKey(secretId)) return d;
+            added = true;
+            return d.Add(secretId, entry);
+        });
+        if (!added) {
             throw new InvalidOperationException($"[BRG005] 密钥 ID 冲突: {secretId}");
         }
 
@@ -147,7 +152,7 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     public ValueTask<WorkSecretEntry?> GetAsync(string secretId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(secretId);
 
-        _secrets.TryGetValue(secretId, out var entry);
+        Volatile.Read(ref _secrets).TryGetValue(secretId, out var entry);
         return new ValueTask<WorkSecretEntry?>(entry);
     }
 
@@ -156,7 +161,7 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
         ArgumentException.ThrowIfNullOrWhiteSpace(secretId);
         ArgumentException.ThrowIfNullOrWhiteSpace(newPlainValue);
 
-        if (!_secrets.TryGetValue(secretId, out var oldEntry)) {
+        if (!Volatile.Read(ref _secrets).TryGetValue(secretId, out var oldEntry)) {
             throw new InvalidOperationException($"[BRG006] 密钥不存在: {secretId}");
         }
 
@@ -175,7 +180,13 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
             ExpiresAt = expiresAt ?? oldEntry.ExpiresAt
         };
 
-        if (!_secrets.TryAdd(newSecretId, newEntry)) {
+        var added = false;
+        ImmutableInterlocked.Update(ref _secrets, d => {
+            if (d.ContainsKey(newSecretId)) return d;
+            added = true;
+            return d.Add(newSecretId, newEntry);
+        });
+        if (!added) {
             throw new InvalidOperationException($"[BRG008] 密钥 ID 冲突: {newSecretId}");
         }
 
@@ -191,7 +202,7 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     public ValueTask<bool> RevokeAsync(string secretId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(secretId);
 
-        if (!_secrets.TryGetValue(secretId, out var entry)) {
+        if (!Volatile.Read(ref _secrets).TryGetValue(secretId, out var entry)) {
             _logger?.LogWarning("[WorkSecret] 密钥不存在，无法撤销: {SecretId}", secretId);
             return new ValueTask<bool>(false);
         }
@@ -211,7 +222,7 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
         ArgumentException.ThrowIfNullOrWhiteSpace(secretId);
         ArgumentException.ThrowIfNullOrWhiteSpace(plainValue);
 
-        if (!_secrets.TryGetValue(secretId, out var entry)) {
+        if (!Volatile.Read(ref _secrets).TryGetValue(secretId, out var entry)) {
             _logger?.LogWarning("[WorkSecret] 密钥不存在: {SecretId}", secretId);
             return new ValueTask<bool>(false);
         }

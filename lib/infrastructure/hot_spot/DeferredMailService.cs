@@ -6,7 +6,7 @@ namespace Infrastructure.HotSpot;
 /// </summary>
 [Register(typeof(IDeferredMailService), ServiceLifetime.Singleton)]
 public sealed class DeferredMailService : IDeferredMailService {
-    private readonly ConcurrentDictionary<string, List<DeferredMailEntry>> _pending = new();
+    private ImmutableDictionary<string, ImmutableList<DeferredMailEntry>> _pending = ImmutableDictionary<string, ImmutableList<DeferredMailEntry>>.Empty;
     private ImmutableDictionary<string, AsyncLock> _locks = ImmutableDictionary<string, AsyncLock>.Empty;
 
     /// <summary>
@@ -21,7 +21,8 @@ public sealed class DeferredMailService : IDeferredMailService {
         var entry = new DeferredMailEntry { Mail = mail, RemainingTurns = mail.OpenAfterTurns };
         var lk = GetLock(mail.To);
         using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            _pending.GetOrAdd(mail.To, _ => []).Add(entry);
+            var list = Volatile.Read(ref _pending).GetValueOrDefault(mail.To, ImmutableList<DeferredMailEntry>.Empty);
+            _pending = Volatile.Read(ref _pending).SetItem(mail.To, list.Add(entry));
         }
         return Task.CompletedTask;
     }
@@ -35,20 +36,20 @@ public sealed class DeferredMailService : IDeferredMailService {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         var lk = GetLock(agentId);
         using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            if (!_pending.TryGetValue(agentId, out var list))
+            var snapshot = Volatile.Read(ref _pending);
+            if (!snapshot.TryGetValue(agentId, out var list))
                 return [];
 
             var matured = new List<DeferredMail>();
-            var remaining = new List<DeferredMailEntry>();
+            var remaining = ImmutableList<DeferredMailEntry>.Empty;
             foreach (var entry in list) {
                 entry.RemainingTurns--;
                 if (entry.RemainingTurns <= 0)
                     matured.Add(entry.Mail);
                 else
-                    remaining.Add(entry);
+                    remaining = remaining.Add(entry);
             }
-            list.Clear();
-            list.AddRange(remaining);
+            _pending = snapshot.SetItem(agentId, remaining);
             return matured;
         }
     }
@@ -63,17 +64,18 @@ public sealed class DeferredMailService : IDeferredMailService {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         var lk = GetLock(agentId);
         using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            if (!_pending.TryGetValue(agentId, out var list))
+            var snapshot = Volatile.Read(ref _pending);
+            if (!snapshot.TryGetValue(agentId, out var list))
                 return [];
 
             if (markerFilter is { } filter) {
                 var matched = list.Where(e => e.Mail.Marker.HasFlag(filter)).Select(e => e.Mail).ToList();
-                list.RemoveAll(e => e.Mail.Marker.HasFlag(filter));
+                _pending = snapshot.SetItem(agentId, list.RemoveAll(e => e.Mail.Marker.HasFlag(filter)));
                 return matched;
             }
 
             var all = list.Select(e => e.Mail).ToList();
-            list.Clear();
+            _pending = snapshot.Remove(agentId);
             return all;
         }
     }
@@ -88,7 +90,7 @@ public sealed class DeferredMailService : IDeferredMailService {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         var lk = GetLock(agentId);
         using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            if (!_pending.TryGetValue(agentId, out var list))
+            if (!Volatile.Read(ref _pending).TryGetValue(agentId, out var list))
                 return [];
             var mails = list.Select(e => e.Mail);
             if (markerFilter is { } filter)

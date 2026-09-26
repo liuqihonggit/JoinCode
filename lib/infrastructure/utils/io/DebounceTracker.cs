@@ -4,8 +4,8 @@ namespace Core.Utils;
 /// 防抖跟踪器 — 按文件路径调度防抖定时器，并标记/消费内部写入以避免自触发
 /// </summary>
 public sealed class DebounceTracker : IDisposable {
-    private readonly ConcurrentDictionary<string, Timer> _timers;
-    private readonly ConcurrentDictionary<string, long> _internalWriteTimestamps;
+    private ImmutableDictionary<string, Timer> _timers;
+    private ImmutableDictionary<string, long> _internalWriteTimestamps;
     private bool _disposed;
 
     /// <summary>
@@ -24,8 +24,8 @@ public sealed class DebounceTracker : IDisposable {
     /// <param name="comparer">字符串比较器，用于路径键归一化；默认 OrdinalIgnoreCase</param>
     public DebounceTracker(StringComparer? comparer = null) {
         var c = comparer ?? StringComparer.OrdinalIgnoreCase;
-        _timers = new ConcurrentDictionary<string, Timer>(c);
-        _internalWriteTimestamps = new ConcurrentDictionary<string, long>(c);
+        _timers = ImmutableDictionary<string, Timer>.Empty.WithComparers(c);
+        _internalWriteTimestamps = ImmutableDictionary<string, long>.Empty.WithComparers(c);
     }
 
     /// <summary>
@@ -34,7 +34,7 @@ public sealed class DebounceTracker : IDisposable {
     /// <param name="filePath">文件路径</param>
     public void MarkInternalWrite(string filePath) {
         var normalizedPath = Path.GetFullPath(filePath);
-        _internalWriteTimestamps[normalizedPath] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        ImmutableInterlocked.Update(ref _internalWriteTimestamps, d => d.SetItem(normalizedPath, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
     }
 
     /// <summary>
@@ -44,7 +44,17 @@ public sealed class DebounceTracker : IDisposable {
     /// <returns>是否为窗口期内的内部写入</returns>
     public bool ConsumeInternalWrite(string filePath) {
         var normalizedPath = Path.GetFullPath(filePath);
-        if (_internalWriteTimestamps.TryRemove(normalizedPath, out var timestamp)) {
+        long timestamp = 0;
+        var removed = false;
+        ImmutableInterlocked.Update(ref _internalWriteTimestamps, d => {
+            if (d.TryGetValue(normalizedPath, out var ts)) {
+                timestamp = ts;
+                removed = true;
+                return d.Remove(normalizedPath);
+            }
+            return d;
+        });
+        if (removed) {
             var elapsed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - timestamp;
             return elapsed < InternalWriteWindowMs;
         }
@@ -63,17 +73,33 @@ public sealed class DebounceTracker : IDisposable {
             return;
         }
 
-        if (_timers.TryRemove(filePath, out var existingTimer))
-            await existingTimer.DisposeAsync().ConfigureAwait(false);
+        Timer? existingTimer = null;
+        ImmutableInterlocked.Update(ref _timers, d => {
+            if (d.TryGetValue(filePath, out var t)) {
+                existingTimer = t;
+                return d.Remove(filePath);
+            }
+            return d;
+        });
+        if (existingTimer is { } oldTimer)
+            await oldTimer.DisposeAsync().ConfigureAwait(false);
 
-        _timers[filePath] = new Timer(_ => {
+        var newTimer = new Timer(_ => {
             try {
-                _timers.TryRemove(filePath, out var timer);
+                Timer? timer = null;
+                ImmutableInterlocked.Update(ref _timers, d => {
+                    if (d.TryGetValue(filePath, out var t)) {
+                        timer = t;
+                        return d.Remove(filePath);
+                    }
+                    return d;
+                });
                 timer?.Dispose();
                 if (!_disposed) fireAction();
             }
             catch (Exception ex) { Console.Error.WriteLine($"[DebounceTracker] timer 回调异常: {ex}"); }
         }, null, interval, Timeout.InfiniteTimeSpan);
+        ImmutableInterlocked.Update(ref _timers, d => d.SetItem(filePath, newTimer));
     }
 
     /// <summary>
@@ -83,9 +109,8 @@ public sealed class DebounceTracker : IDisposable {
         if (_disposed) return;
         _disposed = true;
 
-        foreach (var kvp in _timers)
+        foreach (var kvp in Interlocked.Exchange(ref _timers, ImmutableDictionary<string, Timer>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase)))
             kvp.Value.Dispose();
-        _timers.Clear();
-        _internalWriteTimestamps.Clear();
+        Interlocked.Exchange(ref _internalWriteTimestamps, ImmutableDictionary<string, long>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
     }
 }

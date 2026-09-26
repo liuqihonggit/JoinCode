@@ -5,7 +5,7 @@ namespace Core.Hosting;
 /// 服务主机 - 管理所有工作流服务的生命周期
 /// </summary>
 public sealed partial class ServiceHost : IAsyncDisposable {
-    private readonly ConcurrentDictionary<string, ServiceEntry> _services = new();
+    private ImmutableDictionary<string, ServiceEntry> _services = ImmutableDictionary<string, ServiceEntry>.Empty;
     private readonly ILogger<ServiceHost>? _logger;
     private readonly CancellationTokenSource _hostCts = new();
     private bool _isRunning;
@@ -30,7 +30,13 @@ public sealed partial class ServiceHost : IAsyncDisposable {
     public void RegisterService(IWorkflowService service) {
         ArgumentNullException.ThrowIfNull(service);
 
-        if (_services.TryAdd(service.ServiceName, new ServiceEntry { Service = service })) {
+        var added = false;
+        ImmutableInterlocked.Update(ref _services, d => {
+            if (d.ContainsKey(service.ServiceName)) return d;
+            added = true;
+            return d.Add(service.ServiceName, new ServiceEntry { Service = service });
+        });
+        if (added) {
             _logger?.LogInformation("服务已注册: {ServiceName}", service.ServiceName);
         } else {
             throw new InvalidOperationException(L.T(StringKey.ServiceHostAlreadyRegistered, service.ServiceName));
@@ -51,7 +57,8 @@ public sealed partial class ServiceHost : IAsyncDisposable {
 
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_hostCts.Token, cancellationToken);
 
-        var startTasks = _services.Select(async kvp => {
+        var snapshot = Volatile.Read(ref _services);
+        var startTasks = snapshot.Select(async kvp => {
             try {
                 await StartServiceAsync(kvp.Value, linkedCts.Token).ConfigureAwait(false);
             } catch (Exception ex) {
@@ -61,7 +68,7 @@ public sealed partial class ServiceHost : IAsyncDisposable {
         });
         await Task.WhenAll(startTasks).ConfigureAwait(false);
 
-        _logger?.LogInformation(L.T(StringKey.ServiceHostStarted), _services.Count);
+        _logger?.LogInformation(L.T(StringKey.ServiceHostStarted), snapshot.Count);
     }
 
     /// <summary>
@@ -79,7 +86,7 @@ public sealed partial class ServiceHost : IAsyncDisposable {
         using var linkedCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(30)); // 30秒超时
 
         // 反向停止服务（按注册顺序的逆序）
-        var entries = _services.Values.Reverse().ToList();
+        var entries = Volatile.Read(ref _services).Values.Reverse().ToList();
 
         var stopTasks = entries.Select(async entry => {
             try {
@@ -98,7 +105,7 @@ public sealed partial class ServiceHost : IAsyncDisposable {
     /// 启动特定服务
     /// </summary>
     public async Task<bool> StartServiceAsync(string serviceName, CancellationToken cancellationToken = default) {
-        if (!_services.TryGetValue(serviceName, out var entry)) {
+        if (!Volatile.Read(ref _services).TryGetValue(serviceName, out var entry)) {
             _logger?.LogWarning(L.T(StringKey.ServiceHostNotFound), serviceName);
             return false;
         }
@@ -111,7 +118,7 @@ public sealed partial class ServiceHost : IAsyncDisposable {
     /// 停止特定服务
     /// </summary>
     public async Task<bool> StopServiceAsync(string serviceName, CancellationToken cancellationToken = default) {
-        if (!_services.TryGetValue(serviceName, out var entry)) {
+        if (!Volatile.Read(ref _services).TryGetValue(serviceName, out var entry)) {
             _logger?.LogWarning(L.T(StringKey.ServiceHostNotFound), serviceName);
             return false;
         }
@@ -124,14 +131,14 @@ public sealed partial class ServiceHost : IAsyncDisposable {
     /// 获取服务状态
     /// </summary>
     public ServiceStatus? GetServiceStatus(string serviceName) {
-        return _services.TryGetValue(serviceName, out var entry) ? entry.Status : null;
+        return Volatile.Read(ref _services).TryGetValue(serviceName, out var entry) ? entry.Status : null;
     }
 
     /// <summary>
     /// 获取所有服务状态
     /// </summary>
     public IReadOnlyDictionary<string, ServiceStatus> GetAllServiceStatuses() {
-        return _services.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Status);
+        return Volatile.Read(ref _services).ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Status);
     }
 
     /// <summary>

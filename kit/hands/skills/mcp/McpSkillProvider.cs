@@ -6,9 +6,9 @@ namespace Core.Skills.Mcp;
 /// </summary>
 [Register(typeof(IMcpSkillProvider), ServiceLifetime.Singleton)]
 public sealed partial class McpSkillProvider : IMcpSkillProvider {
-    private readonly ConcurrentDictionary<string, IMcpClient> _clients;
-    private readonly ConcurrentDictionary<string, SkillDefinition> _mcpSkills;
-    private readonly ConcurrentDictionary<string, McpSkillAdapter> _adapters;
+    private ImmutableDictionary<string, IMcpClient> _clients = ImmutableDictionary<string, IMcpClient>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, SkillDefinition> _mcpSkills = ImmutableDictionary<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, McpSkillAdapter> _adapters = ImmutableDictionary<string, McpSkillAdapter>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger<McpSkillProvider>? _logger;
     private readonly AsyncLock _refreshLock = new();
     private bool _isDisposed;
@@ -18,11 +18,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
     /// </summary>
     /// <param name="logger">日志记录器</param>
     public McpSkillProvider(ILogger<McpSkillProvider>? logger = null) {
-        _clients = new ConcurrentDictionary<string, IMcpClient>(StringComparer.OrdinalIgnoreCase);
-        _mcpSkills = new ConcurrentDictionary<string, SkillDefinition>(StringComparer.OrdinalIgnoreCase);
-        _adapters = new ConcurrentDictionary<string, McpSkillAdapter>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
-
     }
 
     /// <summary>
@@ -34,8 +30,8 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
         ArgumentException.ThrowIfNullOrEmpty(serverName);
         ArgumentNullException.ThrowIfNull(client);
 
-        _clients[serverName] = client;
-        _adapters[serverName] = new McpSkillAdapter(client, _logger as ILogger<McpSkillAdapter>);
+        ImmutableInterlocked.Update(ref _clients, d => d.SetItem(serverName, client));
+        ImmutableInterlocked.Update(ref _adapters, d => d.SetItem(serverName, new McpSkillAdapter(client, _logger as ILogger<McpSkillAdapter>)));
 
         _logger?.LogInformation("[McpSkillProvider] 注册 MCP 客户端: {ServerName}", serverName);
     }
@@ -48,17 +44,25 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
     public bool UnregisterClient(string serverName) {
         ArgumentException.ThrowIfNullOrEmpty(serverName);
 
-        var removedSkills = _mcpSkills
+        var snapshot = Volatile.Read(ref _mcpSkills);
+        var removedSkills = snapshot
             .Where(kvp => kvp.Value.Namespace == $"mcp.{serverName}")
             .Select(kvp => kvp.Key)
             .ToList();
 
         foreach (var skillName in removedSkills) {
-            _mcpSkills.TryRemove(skillName, out _);
+            ImmutableInterlocked.Update(ref _mcpSkills, d => d.Remove(skillName));
         }
 
-        _adapters.TryRemove(serverName, out _);
-        var removed = _clients.TryRemove(serverName, out _);
+        ImmutableInterlocked.Update(ref _adapters, d => d.Remove(serverName));
+        var removed = false;
+        ImmutableInterlocked.Update(ref _clients, d => {
+            if (d.ContainsKey(serverName)) {
+                removed = true;
+                return d.Remove(serverName);
+            }
+            return d;
+        });
 
         if (removed) {
             _logger?.LogInformation("[McpSkillProvider] 注销 MCP 客户端: {ServerName}，移除 {Count} 个技能",
@@ -74,11 +78,11 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>MCP 技能定义列表</returns>
     public async Task<IReadOnlyList<SkillDefinition>> GetMcpSkillsAsync(CancellationToken cancellationToken = default) {
-        if (_mcpSkills.Count == 0) {
+        if (Volatile.Read(ref _mcpSkills).Count == 0) {
             await RefreshAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return _mcpSkills.Values.ToList();
+        return Volatile.Read(ref _mcpSkills).Values.ToList();
     }
 
     /// <summary>
@@ -90,11 +94,11 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
     public async Task<SkillDefinition?> TryGetSkillAsync(string skillName, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
 
-        if (_mcpSkills.Count == 0) {
+        if (Volatile.Read(ref _mcpSkills).Count == 0) {
             await RefreshAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return _mcpSkills.GetValueOrDefault(skillName);
+        return Volatile.Read(ref _mcpSkills).GetValueOrDefault(skillName);
     }
 
     /// <summary>
@@ -112,7 +116,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
         CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
 
-        if (!_mcpSkills.TryGetValue(skillName, out var skill)) {
+        if (!Volatile.Read(ref _mcpSkills).TryGetValue(skillName, out var skill)) {
             return SkillResult.FailureResult(skillName, $"MCP 技能不存在: {skillName}");
         }
 
@@ -132,9 +136,9 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
     public async Task RefreshAsync(CancellationToken cancellationToken = default) {
         using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_refreshLock.Name}' 等待超时");
 
-        _mcpSkills.Clear();
+        Interlocked.Exchange(ref _mcpSkills, ImmutableDictionary<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
 
-        foreach (var (serverName, client) in _clients) {
+        foreach (var (serverName, client) in Volatile.Read(ref _clients)) {
             try {
                 if (!client.IsConnected) {
                     await client.ConnectAsync(cancellationToken).ConfigureAwait(false);
@@ -147,7 +151,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
                     continue;
                 }
 
-                var adapter = _adapters.GetValueOrDefault(serverName);
+                var adapter = Volatile.Read(ref _adapters).GetValueOrDefault(serverName);
                 if (adapter == null) {
                     continue;
                 }
@@ -156,7 +160,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
                     var skill = await adapter.AdaptToolAsync(tool, cancellationToken).ConfigureAwait(false);
                     if (skill != null) {
                         var namespacedSkill = skill with { Namespace = $"mcp.{serverName}" };
-                        _mcpSkills[namespacedSkill.Name] = namespacedSkill;
+                        ImmutableInterlocked.Update(ref _mcpSkills, d => d.SetItem(namespacedSkill.Name, namespacedSkill));
                     }
                 }
 
@@ -176,7 +180,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
     /// <returns>可用返回 true，否则返回 false</returns>
     public bool IsSkillAvailable(string skillName) {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
-        return _mcpSkills.ContainsKey(skillName);
+        return Volatile.Read(ref _mcpSkills).ContainsKey(skillName);
     }
 
     /// <summary>
@@ -190,7 +194,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
 
         _isDisposed = true;
 
-        foreach (var (_, client) in _clients) {
+        foreach (var (_, client) in Interlocked.Exchange(ref _clients, ImmutableDictionary<string, IMcpClient>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase))) {
             try {
                 await client.DisposeAsync().ConfigureAwait(false);
             } catch (Exception ex) {
@@ -198,23 +202,23 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
             }
         }
 
-        _clients.Clear();
-        _mcpSkills.Clear();
-        _adapters.Clear();
+        Interlocked.Exchange(ref _mcpSkills, ImmutableDictionary<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
+        Interlocked.Exchange(ref _adapters, ImmutableDictionary<string, McpSkillAdapter>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
         _refreshLock.Dispose();
     }
 
     private McpSkillAdapter? FindAdapterForSkill(SkillDefinition skill) {
+        var adapters = Volatile.Read(ref _adapters);
         if (skill.Namespace == null) {
-            return _adapters.Values.FirstOrDefault();
+            return adapters.Values.FirstOrDefault();
         }
 
         var prefix = "mcp.";
         if (!skill.Namespace.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
-            return _adapters.Values.FirstOrDefault();
+            return adapters.Values.FirstOrDefault();
         }
 
         var serverName = skill.Namespace[prefix.Length..];
-        return _adapters.GetValueOrDefault(serverName);
+        return adapters.GetValueOrDefault(serverName);
     }
 }

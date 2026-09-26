@@ -111,19 +111,19 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 - [x] `WorkSecret._secrets`
 - [x] `PeerSessions._routes`
 
-#### P4: 消费方6-12处(12个)
-- [ ] `McpSkillProvider._clients`
-- [ ] `DebounceTracker._internalWriteTimestamps`
-- [ ] `LspServerRegistry._servers`
-- [ ] `McpSkillProvider._adapters`
-- [ ] `SessionCache._entries`
-- [ ] `ServiceHost._services`
-- [ ] `UnmanagedResourceTable._resources`
-- [ ] `McpSkillProvider._mcpSkills`
-- [ ] `SystemActuatorRegistry._tasks`
-- [ ] `TeamMemorySyncService._localEntries`
-- [ ] `PipeRegistry._pipes`
-- [ ] `ResourceReferenceGraph._references` / `._byConsumer`
+#### P4: 消费方6-12处(12个) ✅ (10/12, TeamMemorySyncService+ResourceReferenceGraph已在P3完成)
+- [x] `McpSkillProvider._clients`
+- [x] `DebounceTracker._internalWriteTimestamps` (P3已改)
+- [x] `LspServerRegistry._servers`
+- [x] `McpSkillProvider._adapters`
+- [x] `SessionCache._entries`
+- [x] `ServiceHost._services`
+- [x] `UnmanagedResourceTable._resources`
+- [x] `McpSkillProvider._mcpSkills`
+- [x] `SystemActuatorRegistry._tasks`
+- [ ] `TeamMemorySyncService._localEntries` + `_remoteEntries` — C类:Actor邮箱内单线程,引用被Scanner/Transfer/Resolver持有,改Immutable需重构所有消费方
+- [x] `PipeRegistry._pipes`
+- [x] `ResourceReferenceGraph._references` / `._byConsumer` (P3已改)
 
 #### P5: 消费方21处(1个,最大)
 - [ ] `MemoryStore._memories` — 核心存储(21消费方)
@@ -140,6 +140,7 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 | 2026-09-26 | P1 | 5 | 11/63 | ✅ 完成 |
 | 2026-09-26 | P2 | 15 | 26/63 | ✅ 完成 |
 | 2026-09-26 | P3 | 19 | 45/63 | ✅ 完成(_remoteEntries推迟到P4) |
+| 2026-09-27 | P4 | 10 | 55/63 | ✅ 完成(TeamMemorySyncService标C类) |
 
 ## 验收标准
 

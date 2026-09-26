@@ -25,7 +25,7 @@ public sealed class ThreadSafeListenerList<T> {
     /// <returns>调用 Dispose 即可注销该监听器</returns>
     public IDisposable Register(T listener) {
         ArgumentNullException.ThrowIfNull(listener);
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _listeners.Add(listener);
         }
 
@@ -40,7 +40,7 @@ public sealed class ThreadSafeListenerList<T> {
         ArgumentNullException.ThrowIfNull(action);
 
         T[] snapshot;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             snapshot = _listeners.ToArray();
         }
 
@@ -56,14 +56,14 @@ public sealed class ThreadSafeListenerList<T> {
     /// <summary>当前已注册监听器数量</summary>
     public int Count {
         get {
-            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+            using (_lock.LockOrCrash()) {
                 return _listeners.Count;
             }
         }
     }
 
     private void Unsubscribe(T listener) {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _listeners.Remove(listener);
         }
     }

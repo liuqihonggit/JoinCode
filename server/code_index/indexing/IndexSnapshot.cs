@@ -113,7 +113,7 @@ internal sealed record IndexSnapshot {
         var snap = this;
         foreach (var (filePath, hash, extraction) in files) {
             snap = snap.RemoveFileData(filePath, rebuildSorted: false);
-            snap = snap.InsertSymbols(extraction.Symbols, rebuildSorted: false);
+            snap = snap.InsertSymbols(extraction.Symbols, rebuildSorted: false, isRebuild: false);
             snap = snap.InsertCallEdges(extraction.Calls);
             snap = snap.InsertDependencyEdges(extraction.Dependencies);
             snap = snap.UpsertFileTracking(filePath, hash, extraction.Symbols.Count, now, rebuildSorted: false);
@@ -318,23 +318,37 @@ internal sealed record IndexSnapshot {
         };
     }
 
-    private IndexSnapshot InsertSymbols(IReadOnlyList<SymbolInfo> symbols, bool rebuildSorted = true) {
+    private IndexSnapshot InsertSymbols(IReadOnlyList<SymbolInfo> symbols, bool rebuildSorted = true, bool isRebuild = true) {
+        if (symbols.Count == 0) return this;
+
         var symbolsByFqn = SymbolsByFqn;
-        var symbolsByName = SymbolsByName;
-        var symbolsByFile = SymbolsByFile;
-        var symbolsByKind = SymbolsByKind;
+        ImmutableDictionary<string, ImmutableList<SymbolInfo>> symbolsByName, symbolsByFile;
+        ImmutableDictionary<SymbolKind, ImmutableList<SymbolInfo>> symbolsByKind;
 
-        foreach (var symbol in symbols) {
-            if (symbolsByFqn.TryGetValue(symbol.FullyQualifiedName, out var existing)) {
-                symbolsByName = RemoveFromListIndex(symbolsByName, existing.Name, existing);
-                symbolsByFile = RemoveFromListIndex(symbolsByFile, existing.FilePath, existing);
-                symbolsByKind = RemoveFromListIndex(symbolsByKind, existing.Kind, existing);
+        if (isRebuild) {
+            symbolsByName = SymbolsByName;
+            symbolsByFile = SymbolsByFile;
+            symbolsByKind = SymbolsByKind;
+
+            foreach (var symbol in symbols) {
+                if (symbolsByFqn.TryGetValue(symbol.FullyQualifiedName, out var existing)) {
+                    symbolsByName = RemoveFromListIndex(symbolsByName, existing.Name, existing);
+                    symbolsByFile = RemoveFromListIndex(symbolsByFile, existing.FilePath, existing);
+                    symbolsByKind = RemoveFromListIndex(symbolsByKind, existing.Kind, existing);
+                }
+
+                symbolsByFqn = symbolsByFqn.SetItem(symbol.FullyQualifiedName, symbol);
+                symbolsByName = AddToListIndex(symbolsByName, symbol.Name, symbol);
+                symbolsByFile = AddToListIndex(symbolsByFile, symbol.FilePath, symbol);
+                symbolsByKind = AddToListIndex(symbolsByKind, symbol.Kind, symbol);
             }
-
-            symbolsByFqn = symbolsByFqn.SetItem(symbol.FullyQualifiedName, symbol);
-            symbolsByName = AddToListIndex(symbolsByName, symbol.Name, symbol);
-            symbolsByFile = AddToListIndex(symbolsByFile, symbol.FilePath, symbol);
-            symbolsByKind = AddToListIndex(symbolsByKind, symbol.Kind, symbol);
+        } else {
+            foreach (var symbol in symbols) {
+                symbolsByFqn = symbolsByFqn.SetItem(symbol.FullyQualifiedName, symbol);
+            }
+            symbolsByName = AddBatchToListIndex(SymbolsByName, symbols, s => s.Name);
+            symbolsByFile = AddBatchToListIndex(SymbolsByFile, symbols, s => s.FilePath);
+            symbolsByKind = AddBatchToListIndex(SymbolsByKind, symbols, s => s.Kind);
         }
 
         if (!rebuildSorted) {
@@ -357,17 +371,12 @@ internal sealed record IndexSnapshot {
     }
 
     private IndexSnapshot InsertCallEdges(IReadOnlyList<CallEdge> calls) {
-        var callEdges = CallEdges;
-        var callsByCaller = CallsByCaller;
-        var callsByCallee = CallsByCallee;
-        var callsByFile = CallsByFile;
+        if (calls.Count == 0) return this;
 
-        foreach (var call in calls) {
-            callEdges = callEdges.Add(call);
-            callsByCaller = AddToListIndex(callsByCaller, call.CallerSymbol, call);
-            callsByCallee = AddToListIndex(callsByCallee, call.CalleeSymbol, call);
-            callsByFile = AddToListIndex(callsByFile, call.CallSiteFilePath, call);
-        }
+        var callEdges = CallEdges.AddRange(calls);
+        var callsByCaller = AddBatchToListIndex(CallsByCaller, calls, c => c.CallerSymbol);
+        var callsByCallee = AddBatchToListIndex(CallsByCallee, calls, c => c.CalleeSymbol);
+        var callsByFile = AddBatchToListIndex(CallsByFile, calls, c => c.CallSiteFilePath);
 
         return this with {
             CallEdges = callEdges,
@@ -378,19 +387,12 @@ internal sealed record IndexSnapshot {
     }
 
     private IndexSnapshot InsertDependencyEdges(IReadOnlyList<DependencyEdge> deps) {
-        var depEdges = DepEdges;
-        var depsBySource = DepsBySource;
-        var depsByTarget = DepsByTarget;
-        var depsByFile = DepsByFile;
+        if (deps.Count == 0) return this;
 
-        foreach (var dep in deps) {
-            depEdges = depEdges.Add(dep);
-            depsBySource = AddToListIndex(depsBySource, dep.SourceSymbol, dep);
-            depsByTarget = AddToListIndex(depsByTarget, dep.TargetSymbol, dep);
-            if (!string.IsNullOrEmpty(dep.SourceFilePath)) {
-                depsByFile = AddToListIndex(depsByFile, dep.SourceFilePath!, dep);
-            }
-        }
+        var depEdges = DepEdges.AddRange(deps);
+        var depsBySource = AddBatchToListIndex(DepsBySource, deps, d => d.SourceSymbol);
+        var depsByTarget = AddBatchToListIndex(DepsByTarget, deps, d => d.TargetSymbol);
+        var depsByFile = AddBatchToListIndex(DepsByFile, deps.Where(d => !string.IsNullOrEmpty(d.SourceFilePath)), d => d.SourceFilePath!);
 
         return this with {
             DepEdges = depEdges,
@@ -474,6 +476,18 @@ internal sealed record IndexSnapshot {
         ImmutableDictionary<TKey, ImmutableList<T>> dict, TKey key, T item) where TKey : notnull {
         var list = dict.GetValueOrDefault(key) ?? ImmutableList<T>.Empty;
         return dict.SetItem(key, list.Add(item));
+    }
+
+    /// <summary>批量添加到列表索引 — 按 key 分组后一次性 AddRange，减少 ImmutableList 平衡树重建次数</summary>
+    private static ImmutableDictionary<TKey, ImmutableList<T>> AddBatchToListIndex<TKey, T>(
+        ImmutableDictionary<TKey, ImmutableList<T>> dict,
+        IEnumerable<T> items,
+        Func<T, TKey> keySelector) where TKey : notnull {
+        foreach (var g in items.GroupBy(keySelector)) {
+            var list = dict.GetValueOrDefault(g.Key) ?? ImmutableList<T>.Empty;
+            dict = dict.SetItem(g.Key, list.AddRange(g));
+        }
+        return dict;
     }
 
     private static ImmutableDictionary<TKey, ImmutableList<T>> RemoveFromListIndex<TKey, T>(

@@ -31,7 +31,7 @@ public sealed class TerminalPainter {
     /// <param name="component">TUI 组件。</param>
     public void Register(ITuiComponent component) {
         ArgumentNullException.ThrowIfNull(component);
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _components.Add(component);
         }
     }
@@ -40,14 +40,14 @@ public sealed class TerminalPainter {
     /// <param name="component">TUI 组件。</param>
     public void Unregister(ITuiComponent component) {
         ArgumentNullException.ThrowIfNull(component);
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _components.Remove(component);
         }
     }
 
     /// <summary>获取所有已注册组件的只读快照。</summary>
     public IReadOnlyList<ITuiComponent> GetComponents() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             return _components.ToArray();
         }
     }
@@ -56,7 +56,7 @@ public sealed class TerminalPainter {
     /// <param name="snapshot">队列快照。</param>
     public void NotifyQueueChanged(QueueSnapshot snapshot) {
         IReadOnlyList<ITuiComponent> components;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             components = _components.ToArray();
         }
         _invoke(() => {
@@ -70,7 +70,7 @@ public sealed class TerminalPainter {
     /// <param name="rows">行数。</param>
     public void NotifyResize(int cols, int rows) {
         IReadOnlyList<ITuiComponent> components;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             components = _components.ToArray();
         }
         _invoke(() => {

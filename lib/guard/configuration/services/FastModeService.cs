@@ -16,17 +16,17 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     /// <summary>快速模式是否当前激活</summary>
     public bool IsFastModeActive {
-        get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) return _isActive; }
+        get { using (_lock.LockOrCrash()) return _isActive; }
     }
 
     /// <summary>快速模型标识</summary>
     public string FastModelId {
-        get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) return _fastModelId; }
+        get { using (_lock.LockOrCrash()) return _fastModelId; }
     }
 
     /// <summary>主模型标识</summary>
     public string PrimaryModelId {
-        get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) return _primaryModelId; }
+        get { using (_lock.LockOrCrash()) return _primaryModelId; }
     }
 
     /// <summary>快速模式变更事件 — 激活/停用时触发</summary>
@@ -55,7 +55,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     /// <summary>激活快速模式 — 切换到快速模型并启动冷却计时器</summary>
     public void Activate() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             if (_isActive) return;
 
             _isActive = true;
@@ -72,7 +72,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     /// <summary>停用快速模式 — 切换回主模型并停止冷却计时器</summary>
     public void Deactivate() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             if (!_isActive) return;
 
             _isActive = false;
@@ -90,7 +90,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
     /// <summary>切换快速模式开关 — 激活时停用,停用时激活</summary>
     public void Toggle() {
         bool shouldActivate;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             shouldActivate = !_isActive;
         }
 
@@ -107,7 +107,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
     /// <param name="modelId">模型标识</param>
     public void SetFastModel(string modelId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _fastModelId = modelId;
         }
         _logger?.LogDebug("Fast model set to: {ModelId}", modelId);
@@ -119,7 +119,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
     /// <param name="modelId">模型标识</param>
     public void SetPrimaryModel(string modelId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _primaryModelId = modelId;
         }
         _logger?.LogDebug("Primary model set to: {ModelId}", modelId);
@@ -130,20 +130,20 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
     /// </summary>
     /// <returns>当前模型标识</returns>
     public string GetCurrentModelId() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             return _isActive ? _fastModelId : _primaryModelId;
         }
     }
 
     /// <summary>是否处于冷却期 — 快速模式激活且冷却计时器仍在运行</summary>
     public bool IsInCooldown() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             return _isActive && _cooldownTimer != null;
         }
     }
 
     private void StartCooldownTimer() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             StopCooldownTimerUnchecked();
             _cooldownTimer = new Timer(_ => {
                 try {
@@ -165,7 +165,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
         if (_disposed) return;
         _disposed = true;
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             StopCooldownTimerUnchecked();
         }
         base.Dispose();

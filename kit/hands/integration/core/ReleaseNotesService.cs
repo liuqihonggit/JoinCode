@@ -89,7 +89,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
 
     /// <summary>尝试从缓存获取 release 列表，缓存有效返回 true</summary>
     private bool TryGetCachedReleases(int count, out IReadOnlyList<ReleaseInfo> result) {
-        using var guard = _cacheLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_cacheLock.Name}' 等待超时");
+        using var guard = _cacheLock.LockOrCrash();
         if (_releasesCached && _timeProvider.GetUtcNow() - _cacheTimestamp < _cacheDuration) {
             result = _cachedReleases.Count <= count ? _cachedReleases : _cachedReleases.Take(count).ToList();
             return true;
@@ -100,7 +100,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
 
     /// <summary>更新 release 缓存</summary>
     private void UpdateCache(IReadOnlyList<ReleaseInfo> releases, CancellationToken ct) {
-        using var guard = _cacheLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_cacheLock.Name}' 等待超时");
+        using var guard = _cacheLock.LockOrCrash();
         _cachedReleases = releases;
         _releasesCached = true;
         _cacheTimestamp = _timeProvider.GetUtcNow();

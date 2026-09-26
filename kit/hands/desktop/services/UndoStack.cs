@@ -11,21 +11,21 @@ public sealed partial class UndoStack : ServiceEntity, IUndoStack {
     /// <summary>记录一个已执行的操作</summary>
     public void Push(DesktopOperation operation) {
         ArgumentNullException.ThrowIfNull(operation);
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _stack.Push(operation);
         }
     }
 
     /// <summary>弹出并返回栈顶操作（撤销一步），栈空返回 null</summary>
     public DesktopOperation? Pop() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             return _stack.Count == 0 ? null : _stack.Pop();
         }
     }
 
     /// <summary>查看栈顶操作但不弹出，栈空返回 null</summary>
     public DesktopOperation? Peek() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             return _stack.Count == 0 ? null : _stack.Peek();
         }
     }
@@ -33,7 +33,7 @@ public sealed partial class UndoStack : ServiceEntity, IUndoStack {
     /// <summary>当前栈深度</summary>
     public int Count {
         get {
-            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+            using (_lock.LockOrCrash()) {
                 return _stack.Count;
             }
         }
@@ -44,14 +44,14 @@ public sealed partial class UndoStack : ServiceEntity, IUndoStack {
         if (count <= 0)
             return [];
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             return _stack.Take(count).ToArray();
         }
     }
 
     /// <summary>清空撤销栈</summary>
     public void Clear() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _stack.Clear();
         }
     }

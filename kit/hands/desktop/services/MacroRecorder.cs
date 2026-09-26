@@ -36,7 +36,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder {
     /// <summary>是否正在录制</summary>
     public bool IsRecording {
         get {
-            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+            using (_lock.LockOrCrash()) {
                 return _isRecording;
             }
         }
@@ -45,7 +45,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder {
     /// <summary>开始录制（清空之前的录制内容）</summary>
     public void StartRecording(string macroName) {
         ArgumentException.ThrowIfNullOrWhiteSpace(macroName);
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _isRecording = true;
             _macroName = macroName;
             _recordedOperations.Clear();
@@ -55,7 +55,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder {
 
     /// <summary>停止录制并返回宏</summary>
     public Macro StopRecording() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _isRecording = false;
             var macro = new Macro(_macroName, _recordedOperations.ToArray(), DateTimeOffset.UtcNow);
             _logger?.LogInformation("停止录制宏: {Name}, 共 {Count} 步", macro.Name, macro.Operations.Count);
@@ -66,7 +66,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder {
     /// <summary>记录一个操作（仅在录制状态下有效）</summary>
     public void RecordOperation(DesktopOperation operation) {
         ArgumentNullException.ThrowIfNull(operation);
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             if (_isRecording)
                 _recordedOperations.Add(operation);
         }

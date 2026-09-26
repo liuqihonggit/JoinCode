@@ -16,7 +16,7 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     public Task<UnsafeOperationKind> CheckClickAsync(int x, int y, CancellationToken cancellationToken = default) {
         cancellationToken.ThrowIfCancellationRequested();
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             foreach (var zone in _zones) {
                 if (x >= zone.X && x <= zone.X + zone.Width &&
                     y >= zone.Y && y <= zone.Y + zone.Height)
@@ -48,14 +48,14 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
 
     /// <summary>注册危险坐标区域 — 如通过视觉识别到"确定删除"按钮时调用（U-04）</summary>
     public void RegisterDangerousZone(int x, int y, int width, int height) {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _zones.Add(new DangerousZone(x, y, width, height));
         }
     }
 
     /// <summary>清空危险区域集合</summary>
     public void ClearDangerousZones() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _zones.Clear();
         }
     }
@@ -63,7 +63,7 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     /// <summary>当前已注册的危险区域数量</summary>
     public int DangerousZoneCount {
         get {
-            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+            using (_lock.LockOrCrash()) {
                 return _zones.Count;
             }
         }

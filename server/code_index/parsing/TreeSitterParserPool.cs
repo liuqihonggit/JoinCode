@@ -33,7 +33,7 @@ public static class TreeSitterParserPool {
     /// Acquires exclusive access to the shared parser synchronously. Dispose the returned value to release.
     /// </summary>
     public static IDisposable AcquireShared() {
-        return _sharedLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_sharedLock.Name}' 等待超时");
+        return _sharedLock.LockOrCrash();
     }
 
     /// <summary>

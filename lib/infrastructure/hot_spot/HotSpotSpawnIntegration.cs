@@ -50,7 +50,7 @@ public sealed partial class HotSpotSpawnIntegration : IHotSpotSpawnIntegration {
     public void EnsureListenersRegistered(string captainId) {
         if (_listenersRegistered && _registeredCaptainId == captainId) return;
 
-        using (_registerLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_registerLock.Name}' 等待超时")) {
+        using (_registerLock.LockOrCrash()) {
             if (_listenersRegistered && _registeredCaptainId == captainId) return;
 
             var intentListener = new IntentReportFileWriteListener(_intentCollector, _hotFileDetector, captainId);

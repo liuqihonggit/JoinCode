@@ -31,7 +31,7 @@ public sealed class PollingService : IAsyncDisposable {
 
     /// <summary>启动轮询。</summary>
     public void Start() {
-        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
+        using var guard = _semaphore.LockOrCrash();
         if (_timer is not null) return;
         _timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_pollIntervalMs));
         _pollTask = PollLoopAsync();
@@ -39,7 +39,7 @@ public sealed class PollingService : IAsyncDisposable {
 
     /// <summary>停止轮询。</summary>
     public async Task StopAsync() {
-        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
+        using var guard = _semaphore.LockOrCrash();
         PeriodicTimer? timer;
         Task? pollTask;
         timer = _timer;

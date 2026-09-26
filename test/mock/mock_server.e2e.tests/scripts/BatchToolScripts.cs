@@ -91,49 +91,6 @@ public static class BatchShellToolScripts {
 }
 
 /// <summary>
-/// Git 工具批量 E2E 测试脚本
-/// </summary>
-public static class BatchGitToolScripts {
-    public static ConversationScript GitToolsBatch => new() {
-        Name = "Git工具批量测试",
-        Turns =
-        [
-            new ConversationTurn
-            {
-                UserInput = "帮我执行多个git操作",
-                AiResponse = new MockResponseScript
-                {
-                    Type = MockResponseType.WithToolCalls,
-                    TextResponse = "",
-                    ToolCalls =
-                    [
-                        new() { ToolName = "git_status", Arguments = new { } },
-                        new() { ToolName = "git_log", Arguments = new { max_count = 3 } },
-                        new() { ToolName = "git_diff", Arguments = new { } },
-                        new() { ToolName = "git_branch", Arguments = new { } },
-                        new() { ToolName = "git_add", Arguments = new { files = new[] { "test.txt" } } },
-                        new() { ToolName = "git_reset", Arguments = new { hard = false } },
-                        new() { ToolName = "git_clean", Arguments = new { dry_run = true } },
-                    ],
-                    FollowUpText = "Git操作已执行。"
-                },
-                Asserts =
-                [
-                    new() { Type = AssertType.ContainsToolCall, Expected = "git_status", Description = "应包含git_status" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "git_log", Description = "应包含git_log" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "git_diff", Description = "应包含git_diff" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "git_branch", Description = "应包含git_branch" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "git_add", Description = "应包含git_add" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "git_reset", Description = "应包含git_reset" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "git_clean", Description = "应包含git_clean" },
-                    new() { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
-                ]
-            }
-        ]
-    };
-}
-
-/// <summary>
 /// 交互+配置工具批量 E2E 测试脚本
 /// </summary>
 public static class BatchInteractionToolScripts {

@@ -40,6 +40,7 @@ public enum ChatCommandName {
     [EnumValue("security-review")] SecurityReview,
     [EnumValue("commit")] Commit,
     [EnumValue("worktree")] Worktree,
+    [EnumValue("code-index")] CodeIndex,
 
     // 工具
     [EnumValue("tools")] Tools,

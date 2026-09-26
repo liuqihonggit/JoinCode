@@ -483,6 +483,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         if (Interlocked.CompareExchange(ref _autoLoadState, 1, 0) != 0) return;
 
         try {
+            _logger?.LogDebug("CodeIndexer: EnsureIndexLoadedAsync — FindGitWorkspaceDir...");
             var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
             if (root is null) {
                 _logger?.LogDebug("CodeIndexer: 未发现 .git 工作区根,跳过自动加载");
@@ -491,6 +492,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
             _autoDiscoveredWorkspaceRoot = root;
             var dir = Path.Combine(root, AutoLoadSubDir);
+            _logger?.LogDebug("CodeIndexer: 检查持久化索引 {Dir}", dir);
             if (await _persistence.ExistsAsync(dir, ct).ConfigureAwait(false)) {
                 var loaded = await _persistence.LoadAsync(dir, ct).ConfigureAwait(false);
                 if (loaded) {
@@ -500,16 +502,25 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 }
             }
 
-            if (_store.GetSnapshot().SymbolsByFqn.Count == 0) {
-                _logger?.LogInformation("CodeIndexer: 索引为空,自动构建工作区 {Root}", root);
-                await RebuildAndPersistAsync(root, dir, ct).ConfigureAwait(false);
-            } else if (await IsIndexStaleAsync(root).ConfigureAwait(false)) {
-                _logger?.LogInformation("CodeIndexer: 索引已过时(git HEAD 比 LastUpdated 新),自动重建工作区 {Root}", root);
-                await RebuildAndPersistAsync(root, dir, ct).ConfigureAwait(false);
-            }
+            _logger?.LogDebug("CodeIndexer: EnsureIndexLoadedAsync 完成 — 索引为空时请用 /index 命令显式构建");
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "CodeIndexer: 自动加载索引失败");
         }
+    }
+
+    /// <summary>
+    /// 显式重建索引并持久化到磁盘 — 供斜杠命令 /index 调用
+    /// </summary>
+    public async Task RebuildIndexAsync(CancellationToken ct) {
+        var root = _autoDiscoveredWorkspaceRoot ?? GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
+        if (root is null) {
+            _logger?.LogWarning("CodeIndexer: 未发现 .git 工作区根,无法重建索引");
+            return;
+        }
+
+        var dir = Path.Combine(root, AutoLoadSubDir);
+        _logger?.LogInformation("CodeIndexer: 显式重建工作区索引 {Root}", root);
+        await RebuildAndPersistAsync(root, dir, ct).ConfigureAwait(false);
     }
 
     /// <summary>

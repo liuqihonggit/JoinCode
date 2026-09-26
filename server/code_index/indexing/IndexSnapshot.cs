@@ -106,19 +106,24 @@ internal sealed record IndexSnapshot {
         return snap with { LastUpdated = now };
     }
 
-    /// <summary>批量索引文件 — 循环移除旧→插入新，最后一次性修正</summary>
+    /// <summary>批量索引文件 — 循环移除旧→插入新，最后一次性修正+重建排序</summary>
     public IndexSnapshot IndexFilesBatch(
         IReadOnlyList<(string FilePath, string Hash, ExtractionResult Extraction)> files,
         DateTimeOffset now) {
         var snap = this;
         foreach (var (filePath, hash, extraction) in files) {
-            snap = snap.RemoveFileData(filePath);
-            snap = snap.InsertSymbols(extraction.Symbols);
+            snap = snap.RemoveFileData(filePath, rebuildSorted: false);
+            snap = snap.InsertSymbols(extraction.Symbols, rebuildSorted: false);
             snap = snap.InsertCallEdges(extraction.Calls);
             snap = snap.InsertDependencyEdges(extraction.Dependencies);
-            snap = snap.UpsertFileTracking(filePath, hash, extraction.Symbols.Count, now);
+            snap = snap.UpsertFileTracking(filePath, hash, extraction.Symbols.Count, now, rebuildSorted: false);
         }
         snap = snap.CorrectInheritsToImplements();
+        snap = snap with {
+            SymbolsSortedByFqn = RebuildSymbolsSortedByFqn(snap.SymbolsByFqn),
+            SymbolsSortedByName = RebuildSymbolsSortedByName(snap.SymbolsByName),
+            FileTrackingKeysSorted = RebuildSortedKeys(snap.FileTracking),
+        };
         return snap with { LastUpdated = now };
     }
 
@@ -232,7 +237,7 @@ internal sealed record IndexSnapshot {
     // ── 内部写操作 ──
 
     /// <summary>移除文件相关符号/调用边/依赖边（不含文件追踪）</summary>
-    private IndexSnapshot RemoveFileData(string filePath) {
+    private IndexSnapshot RemoveFileData(string filePath, bool rebuildSorted = true) {
         var symbolsByFqn = SymbolsByFqn;
         var symbolsByName = SymbolsByName;
         var symbolsByFile = SymbolsByFile;
@@ -275,6 +280,23 @@ internal sealed record IndexSnapshot {
             depsByFile = depsByFile.Remove(filePath);
         }
 
+        if (!rebuildSorted) {
+            return this with {
+                SymbolsByFqn = symbolsByFqn,
+                SymbolsByName = symbolsByName,
+                SymbolsByFile = symbolsByFile,
+                SymbolsByKind = symbolsByKind,
+                CallEdges = callEdges,
+                CallsByCaller = callsByCaller,
+                CallsByCallee = callsByCallee,
+                CallsByFile = callsByFile,
+                DepEdges = depEdges,
+                DepsBySource = depsBySource,
+                DepsByTarget = depsByTarget,
+                DepsByFile = depsByFile,
+            };
+        }
+
         var newSymbolsSortedByFqn = RebuildSymbolsSortedByFqn(symbolsByFqn);
         var newSymbolsSortedByName = RebuildSymbolsSortedByName(symbolsByName);
 
@@ -296,7 +318,7 @@ internal sealed record IndexSnapshot {
         };
     }
 
-    private IndexSnapshot InsertSymbols(IReadOnlyList<SymbolInfo> symbols) {
+    private IndexSnapshot InsertSymbols(IReadOnlyList<SymbolInfo> symbols, bool rebuildSorted = true) {
         var symbolsByFqn = SymbolsByFqn;
         var symbolsByName = SymbolsByName;
         var symbolsByFile = SymbolsByFile;
@@ -313,6 +335,15 @@ internal sealed record IndexSnapshot {
             symbolsByName = AddToListIndex(symbolsByName, symbol.Name, symbol);
             symbolsByFile = AddToListIndex(symbolsByFile, symbol.FilePath, symbol);
             symbolsByKind = AddToListIndex(symbolsByKind, symbol.Kind, symbol);
+        }
+
+        if (!rebuildSorted) {
+            return this with {
+                SymbolsByFqn = symbolsByFqn,
+                SymbolsByName = symbolsByName,
+                SymbolsByFile = symbolsByFile,
+                SymbolsByKind = symbolsByKind,
+            };
         }
 
         return this with {
@@ -399,13 +430,16 @@ internal sealed record IndexSnapshot {
         };
     }
 
-    private IndexSnapshot UpsertFileTracking(string filePath, string hash, int symbolCount, DateTimeOffset now) {
+    private IndexSnapshot UpsertFileTracking(string filePath, string hash, int symbolCount, DateTimeOffset now, bool rebuildSorted = true) {
         var ft = FileTracking.SetItem(filePath, new FileTrackingEntry {
             FilePath = filePath,
             Hash = hash,
             SymbolCount = symbolCount,
             LastModified = now
         });
+        if (!rebuildSorted) {
+            return this with { FileTracking = ft };
+        }
         return this with { FileTracking = ft, FileTrackingKeysSorted = RebuildSortedKeys(ft) };
     }
 

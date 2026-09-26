@@ -34,7 +34,8 @@ public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable 
     }
 
     /// <summary>
-    /// 启动托管服务 — 构建索引并启动文件监视器与 LSP
+    /// 启动托管服务 — 加载已有索引（不自动构建），启动文件监视器与 LSP
+    /// 索引构建请用斜杠命令 /code-index 显式触发
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步启动操作的任务</returns>
@@ -44,10 +45,7 @@ public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable 
         _logger?.LogInformation(L.T(StringKey.CodeIndexServiceWorkspace), _options.WorkspaceRoot);
 
         try {
-            var result = await _indexer.BuildIndexAsync(_options, cancellationToken).ConfigureAwait(false);
-
-            _logger?.LogInformation(L.T(StringKey.CodeIndexBuildCompleted),
-                result.UpdatedCount, result.SkippedCount, result.DeletedCount);
+            await _indexer.EnsureIndexLoadedAsync(cancellationToken).ConfigureAwait(false);
 
             if (_watcher is not null) {
                 await _watcher.StartAsync(cancellationToken).ConfigureAwait(false);

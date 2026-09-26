@@ -103,8 +103,10 @@ jobs:
             csproj: test/unit/hands.tests/Hands.Tests.csproj
           - name: McpIntervention
             csproj: test/unit/mcp.tests/Mcp.UniqueTests.csproj
+            needs_restore: true
           - name: McpToolDispatchHealth
             csproj: test/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj
+            needs_restore: true
           # MockServer
           - name: MockServerCore
             csproj: test/mock/mock_server.core.tests/MockServer.Core.Tests.csproj
@@ -116,17 +118,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
-      - name: Debug - List test dll (UniqueTests only)
-        if: matrix.name == 'McpIntervention' || matrix.name == 'McpToolDispatchHealth'
-        shell: pwsh
-        run: |
-          echo "=== artifacts/bin structure ==="
-          Get-ChildItem -Path "artifacts/bin" -Filter "*UniqueTests*" -Directory | ForEach-Object { $_.FullName }
-          echo "=== Expected test dll paths ==="
-          if (Test-Path "artifacts/bin/Mcp.UniqueTests/Release/net10.0/JoinCode.Mcp.UniqueTests.dll") { echo "FOUND: Mcp.UniqueTests dll" } else { echo "MISSING: Mcp.UniqueTests dll" }
-          if (Test-Path "artifacts/bin/McpToolDispatch.UniqueTests/Release/net10.0/JoinCode.McpToolDispatch.UniqueTests.dll") { echo "FOUND: McpToolDispatch.UniqueTests dll" } else { echo "MISSING: McpToolDispatch.UniqueTests dll" }
-      - name: Restore UniqueTests (needs obj/ for --no-build)
-        if: matrix.name == 'McpIntervention' || matrix.name == 'McpToolDispatchHealth'
+      - name: Restore (selected projects)
+        if: matrix.needs_restore == true
         run: dotnet restore ${{ matrix.csproj }} --nologo
       - name: Test - ${{ matrix.name }}
         run: >
@@ -135,13 +128,6 @@ jobs:
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=${{ matrix.name }}.trx"
-      - name: Debug - Find trx files (UniqueTests only)
-        if: always() && (matrix.name == 'McpIntervention' || matrix.name == 'McpToolDispatchHealth')
-        shell: pwsh
-        run: |
-          echo "=== All .trx files ==="
-          Get-ChildItem -Path "." -Recurse -Filter "*.trx" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
-          echo "=== Exit code was $LASTEXITCODE ==="
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7

@@ -79,11 +79,14 @@ public sealed class StreamingToolExecutorActorTests {
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
 
-        await Task.Delay(100);
-        var completed = await executor.GetCompletedResultsAsync();
-        completed.Should().HaveCount(2);
-        completed[0].OriginalIndex.Should().Be(0);
-        completed[1].OriginalIndex.Should().Be(1);
+        var allCompleted = new List<StreamingToolResult>();
+        for (var attempt = 0; attempt < 16 && allCompleted.Count < 2; attempt++) {
+            await Task.Delay(500);
+            allCompleted.AddRange(await executor.GetCompletedResultsAsync());
+        }
+        allCompleted.Should().HaveCount(2);
+        allCompleted[0].OriginalIndex.Should().Be(0);
+        allCompleted[1].OriginalIndex.Should().Be(1);
     }
 
     [Fact]

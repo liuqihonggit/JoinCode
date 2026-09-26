@@ -207,30 +207,39 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
 
     /// <summary>
     /// 自动检测日志流格式并逐行 yield — zip(PK 魔数)解压逐 entry 逐行,否则当纯文本逐行
-    /// <para>缓冲到 MemoryStream 以支持 seek 和格式检测;zip 解压失败时 yield 友好错误信息</para>
+    /// <para>分叉处理: zip 全量缓冲(ZipArchive 需要 seek);纯文本真正流式(不缓冲,调用方 break 即停止下载)</para>
     /// <para>scope 用于错误信息标识来源(run N / job N)</para>
     /// </summary>
     private async IAsyncEnumerable<string> ReadLogStreamLinesAsync(
         Stream stream, string scope,
         [EnumeratorCancellation] CancellationToken ct) {
-        // 缓冲到 MemoryStream: ZipArchive 需要 seek + 需要读前 2 字节检测格式
-        await using var memStream = new MemoryStream();
-        await stream.CopyToAsync(memStream, ct).ConfigureAwait(false);
-        memStream.Position = 0;
+        // 先读前 2 字节检测格式(zip 魔数 PK = 0x50 0x4B)
+        var prefix = new byte[2];
+        var prefixRead = 0;
+        while (prefixRead < 2) {
+            var n = await stream.ReadAsync(prefix.AsMemory(prefixRead), ct).ConfigureAwait(false);
+            if (n == 0) break;
+            prefixRead += n;
+        }
 
-        if (memStream.Length == 0) {
+        if (prefixRead == 0) {
             yield return $"[ERROR] {scope} 日志响应为空(0 字节)，可能是日志已过期或权限不足";
             yield break;
         }
 
-        // 检测 ZIP 魔数: PK (0x50 0x4B)
-        var buffer = memStream.GetBuffer();
-        var isZip = buffer.Length >= 2 && buffer[0] == 0x50 && buffer[1] == 0x4B;
+        var isZip = prefixRead >= 2 && prefix[0] == 0x50 && prefix[1] == 0x4B;
 
         if (isZip) {
+            // ZIP: 需要全量缓冲(ZipArchive 需要 seek)
+            await using var memStream = new MemoryStream();
+            memStream.Write(prefix, 0, prefixRead);
+            await stream.CopyToAsync(memStream, ct).ConfigureAwait(false);
+            memStream.Position = 0;
+
             // 收集到 List 再 yield(CS1626: yield 不能在带 catch 的 try 块中)
             List<string>? zipLines = null;
             string? zipErrorMsg = null;
+            var buffer = memStream.GetBuffer();
             try {
                 await using var archive = new System.IO.Compression.ZipArchive(memStream, System.IO.Compression.ZipArchiveMode.Read);
                 zipLines = new List<string>();
@@ -259,13 +268,79 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
             yield break;
         }
 
-        // 纯文本格式: 直接逐行读取
-        memStream.Position = 0;
-        using var textReader = new StreamReader(memStream);
+        // 纯文本: 真正流式,不缓冲到 MemoryStream
+        // PrefixStream 拼接已读的前缀字节 + 剩余网络流,StreamReader 逐行读
+        // 调用方 break 时,ReadLineAsync 不再调用,底层立即停止下载
+        var prefixBytes = prefixRead == 2 ? prefix : prefix.AsSpan(0, prefixRead).ToArray();
+        await using var concatStream = new PrefixStream(prefixBytes, stream);
+        using var textReader = new StreamReader(concatStream);
         string? textLine;
         while ((textLine = await textReader.ReadLineAsync(ct).ConfigureAwait(false)) is not null) {
             yield return textLine;
         }
+    }
+
+    /// <summary>
+    /// 拼接流 — 已读的前缀字节 + 剩余网络流,用于纯文本日志流式读取(避免全量缓冲)
+    /// <para>前缀字节先读,读完后透传到底层流;不支持 seek(网络流不可 seek)</para>
+    /// </summary>
+    private sealed class PrefixStream : Stream {
+        private readonly byte[] _prefix;
+        private readonly Stream _rest;
+        private int _prefixPos;
+        private bool _restEof;
+
+        /// <summary>构造拼接流,注入前缀字节和剩余流</summary>
+        public PrefixStream(byte[] prefix, Stream rest) {
+            _prefix = prefix;
+            _rest = rest;
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+        public override int Read(byte[] buffer, int offset, int count) {
+            var total = 0;
+            if (_prefixPos < _prefix.Length) {
+                var n = Math.Min(count, _prefix.Length - _prefixPos);
+                Buffer.BlockCopy(_prefix, _prefixPos, buffer, offset, n);
+                _prefixPos += n;
+                total += n;
+                offset += n;
+                count -= n;
+            }
+            if (count > 0 && !_restEof) {
+                var n = _rest.Read(buffer, offset, count);
+                if (n == 0) _restEof = true;
+                total += n;
+            }
+            return total;
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken) {
+            var total = 0;
+            if (_prefixPos < _prefix.Length) {
+                var n = Math.Min(buffer.Length, _prefix.Length - _prefixPos);
+                _prefix.AsSpan(_prefixPos, n).CopyTo(buffer.Span);
+                _prefixPos += n;
+                total += n;
+                buffer = buffer[n..];
+            }
+            if (buffer.Length > 0 && !_restEof) {
+                var n = await _rest.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                if (n == 0) _restEof = true;
+                total += n;
+            }
+            return total;
+        }
+
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     /// <summary>

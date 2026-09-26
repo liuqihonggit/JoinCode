@@ -10,12 +10,14 @@ internal static class GitHubRunCachePaths {
     public static readonly string CacheDirName = Path.Combine(AppDataConstants.AppDataFolder, "gh_cache");
 
     /// <summary>
-    /// 获取缓存目录路径 — {workingDir}/.jcc/gh_cache/ 或 {cwd}/.jcc/gh_cache/
-    /// <para>项目级缓存,跨进程共享,24h 过期</para>
+    /// 获取缓存目录路径 — {workingDir}/.jcc/gh_cache/{sessionId}/ 或 {cwd}/.jcc/gh_cache/{sessionId}/
+    /// <para>项目级缓存,按 sessionId 隔离避免多 session 并发下载同一 job 写冲突</para>
+    /// <para>sessionId 从 SubAgentContext.Current(AsyncLocal) 获取,回退到 SessionIdFactory.DefaultSessionId</para>
     /// </summary>
     public static string GetCacheDir(IFileSystem fs, string? workingDir) {
         var baseDir = string.IsNullOrWhiteSpace(workingDir) ? fs.GetCurrentDirectory() : workingDir;
-        return fs.CombinePath(baseDir, CacheDirName);
+        var sessionId = SubAgentContext.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
+        return fs.CombinePath(baseDir, CacheDirName, sessionId);
     }
 
     /// <summary>

@@ -11,17 +11,12 @@ public static class LockRegistry {
 
     private static TimeSpan _waitTimeoutThreshold = TimeSpan.FromSeconds(30);
     private static TimeSpan _holdTooLongThreshold = TimeSpan.FromSeconds(5);
-    private static Action<string>? _diagnosticSink;
+    private static Action<string>? _diagnosticSink = static msg => AsyncStderrWriter.Enqueue(msg);
     private static Timer? _scanTimer;
     private static TimeSpan _scanInterval = TimeSpan.FromSeconds(5);
     private static int _scanStarted;
     private static int _diagnosticsEnabled = 0;
     private static int _nextFlowId;
-
-    private static readonly ConcurrentQueue<string> _logQueue = new();
-    private static Timer? _logDrainTimer;
-    private static int _logDrainStarted;
-    private const int MaxLogQueueSize = 8192;
 
     /// <summary>
     /// 当前 async 逻辑流的 FlowId — 在 async 流中自动流转,不随 await 线程切换变化。
@@ -234,24 +229,9 @@ public static class LockRegistry {
     private static Exception? _lastSinkError;
 
     private static void Emit(string msg) {
-        var formatted = $"[{DateTimeOffset.UtcNow:HH:mm:ss.fff}] {msg}";
         var sink = _diagnosticSink;
-        if (sink is not null) {
-            try { sink(formatted); } catch (Exception ex) { Volatile.Write(ref _lastSinkError, ex); }
-            return;
-        }
-        _logQueue.Enqueue(formatted);
-        while (_logQueue.Count > MaxLogQueueSize && _logQueue.TryDequeue(out _)) { }
-        EnsureLogDrainStarted();
-    }
-
-    private static void EnsureLogDrainStarted() {
-        if (Interlocked.CompareExchange(ref _logDrainStarted, 1, 0) != 0) return;
-        _logDrainTimer = new Timer(static _ => {
-            while (_logQueue.TryDequeue(out var msg)) {
-                try { Console.Error.WriteLine(msg); } catch (IOException) { break; }
-            }
-        }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(50));
+        if (sink is null) return;
+        try { sink($"[{DateTimeOffset.UtcNow:HH:mm:ss.fff}] {msg}"); } catch (Exception ex) { Volatile.Write(ref _lastSinkError, ex); }
     }
 
     /// <summary>

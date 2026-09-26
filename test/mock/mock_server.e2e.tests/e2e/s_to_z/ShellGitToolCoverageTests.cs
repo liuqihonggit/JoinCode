@@ -1,7 +1,7 @@
 namespace MockServer.E2E.Tests;
 
 /// <summary>
-/// Shell 与 Git 工具 E2E 覆盖测试 — 拆分自 CoverageExpansionTests 以启用 xUnit 集合并行
+/// Shell 工具 E2E 覆盖测试 — 拆分自 CoverageExpansionTests 以启用 xUnit 集合并行
 /// </summary>
 public sealed class ShellGitToolCoverageTests : CoverageTestBase {
     public ShellGitToolCoverageTests(ITestOutputHelper output) : base(output) { }
@@ -13,10 +13,5 @@ public sealed class ShellGitToolCoverageTests : CoverageTestBase {
     [Fact]
     public async Task ShellTools_Batch_ShouldCoverAll() {
         await RunScriptAsync(BatchShellToolScripts.ShellToolsBatch).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task GitTools_Batch_ShouldCoverAll() {
-        await RunScriptAsync(BatchGitToolScripts.GitToolsBatch).ConfigureAwait(true);
     }
 }

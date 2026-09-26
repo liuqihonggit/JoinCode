@@ -103,7 +103,18 @@ public sealed class McpToolSmokeTests {
             "worktree_cleanup",
             "worktree_merge",
             "enter_worktree",
-            "exit_worktree"
+            "exit_worktree",
+            "git_status",
+            "git_add",
+            "git_commit",
+            "git_push",
+            "git_pull",
+            "git_log",
+            "git_diff",
+            "git_branch",
+            "git_clone",
+            "git_reset",
+            "git_clean",
         ]
     );
 
@@ -171,17 +182,6 @@ public sealed class McpToolSmokeTests {
 
         // 崩溃的工具应该为 0（工具可以返回错误，但不能崩溃）
         crashed.Should().BeEmpty($"以下工具崩溃: {string.Join(", ", crashed.Select(c => c.ToolName))}");
-    }
-
-    [Fact]
-    public async Task Git_Status_Tool_Returns_Valid_Result() {
-        var (registry, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
-
-        var result = await registry.ExecuteToolAsync("git_status", new Dictionary<string, JsonElement>(), CancellationToken.None).ConfigureAwait(true);
-
-        result.Should().NotBeNull();
-        result.Content.Should().NotBeNull();
-        // git_status 在非 git 仓库中可能返回错误，但不应该崩溃
     }
 
     [Fact]

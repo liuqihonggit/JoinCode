@@ -357,17 +357,12 @@ internal sealed record IndexSnapshot {
     }
 
     private IndexSnapshot InsertCallEdges(IReadOnlyList<CallEdge> calls) {
-        var callEdges = CallEdges;
-        var callsByCaller = CallsByCaller;
-        var callsByCallee = CallsByCallee;
-        var callsByFile = CallsByFile;
+        if (calls.Count == 0) return this;
 
-        foreach (var call in calls) {
-            callEdges = callEdges.Add(call);
-            callsByCaller = AddToListIndex(callsByCaller, call.CallerSymbol, call);
-            callsByCallee = AddToListIndex(callsByCallee, call.CalleeSymbol, call);
-            callsByFile = AddToListIndex(callsByFile, call.CallSiteFilePath, call);
-        }
+        var callEdges = CallEdges.AddRange(calls);
+        var callsByCaller = AddBatchToListIndex(CallsByCaller, calls, c => c.CallerSymbol);
+        var callsByCallee = AddBatchToListIndex(CallsByCallee, calls, c => c.CalleeSymbol);
+        var callsByFile = AddBatchToListIndex(CallsByFile, calls, c => c.CallSiteFilePath);
 
         return this with {
             CallEdges = callEdges,
@@ -378,19 +373,12 @@ internal sealed record IndexSnapshot {
     }
 
     private IndexSnapshot InsertDependencyEdges(IReadOnlyList<DependencyEdge> deps) {
-        var depEdges = DepEdges;
-        var depsBySource = DepsBySource;
-        var depsByTarget = DepsByTarget;
-        var depsByFile = DepsByFile;
+        if (deps.Count == 0) return this;
 
-        foreach (var dep in deps) {
-            depEdges = depEdges.Add(dep);
-            depsBySource = AddToListIndex(depsBySource, dep.SourceSymbol, dep);
-            depsByTarget = AddToListIndex(depsByTarget, dep.TargetSymbol, dep);
-            if (!string.IsNullOrEmpty(dep.SourceFilePath)) {
-                depsByFile = AddToListIndex(depsByFile, dep.SourceFilePath!, dep);
-            }
-        }
+        var depEdges = DepEdges.AddRange(deps);
+        var depsBySource = AddBatchToListIndex(DepsBySource, deps, d => d.SourceSymbol);
+        var depsByTarget = AddBatchToListIndex(DepsByTarget, deps, d => d.TargetSymbol);
+        var depsByFile = AddBatchToListIndex(DepsByFile, deps.Where(d => !string.IsNullOrEmpty(d.SourceFilePath)), d => d.SourceFilePath!);
 
         return this with {
             DepEdges = depEdges,
@@ -474,6 +462,18 @@ internal sealed record IndexSnapshot {
         ImmutableDictionary<TKey, ImmutableList<T>> dict, TKey key, T item) where TKey : notnull {
         var list = dict.GetValueOrDefault(key) ?? ImmutableList<T>.Empty;
         return dict.SetItem(key, list.Add(item));
+    }
+
+    /// <summary>批量添加到列表索引 — 按 key 分组后一次性 AddRange，减少 ImmutableList 平衡树重建次数</summary>
+    private static ImmutableDictionary<TKey, ImmutableList<T>> AddBatchToListIndex<TKey, T>(
+        ImmutableDictionary<TKey, ImmutableList<T>> dict,
+        IEnumerable<T> items,
+        Func<T, TKey> keySelector) where TKey : notnull {
+        foreach (var g in items.GroupBy(keySelector)) {
+            var list = dict.GetValueOrDefault(g.Key) ?? ImmutableList<T>.Empty;
+            dict = dict.SetItem(g.Key, list.AddRange(g));
+        }
+        return dict;
     }
 
     private static ImmutableDictionary<TKey, ImmutableList<T>> RemoveFromListIndex<TKey, T>(

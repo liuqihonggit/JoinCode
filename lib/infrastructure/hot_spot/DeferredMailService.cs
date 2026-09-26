@@ -7,7 +7,7 @@ namespace Infrastructure.HotSpot;
 [Register(typeof(IDeferredMailService), ServiceLifetime.Singleton)]
 public sealed class DeferredMailService : IDeferredMailService {
     private readonly ConcurrentDictionary<string, List<DeferredMailEntry>> _pending = new();
-    private readonly ConcurrentDictionary<string, AsyncLock> _locks = new();
+    private ImmutableDictionary<string, AsyncLock> _locks = ImmutableDictionary<string, AsyncLock>.Empty;
 
     /// <summary>
     /// 延迟投递邮件 — 加入待发送队列，按 OpenAfterTurns 计数到期后投递
@@ -97,7 +97,15 @@ public sealed class DeferredMailService : IDeferredMailService {
         }
     }
 
-    private AsyncLock GetLock(string agentId) => _locks.GetOrAdd(agentId, _ => new AsyncLock(nameof(DeferredMailService)));
+    private AsyncLock GetLock(string agentId) {
+        var snapshot = Volatile.Read(ref _locks);
+        if (snapshot.TryGetValue(agentId, out var existing))
+            return existing;
+
+        var newLock = new AsyncLock(nameof(DeferredMailService));
+        ImmutableInterlocked.Update(ref _locks, d => d.ContainsKey(agentId) ? d : d.Add(agentId, newLock));
+        return Volatile.Read(ref _locks)[agentId];
+    }
 
     private sealed class DeferredMailEntry {
         /// <summary>获取延迟邮件。</summary>

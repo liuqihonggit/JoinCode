@@ -13,7 +13,7 @@ public sealed partial class RangeDownloader : ServiceEntity, IDownloader {
     private readonly TimeProvider? _clock;
     private readonly ILogger<RangeDownloader>? _logger;
     private readonly INetworkConnectivityService? _networkService;
-    private readonly ConcurrentDictionary<string, HttpClient> _proxiedClients = new();
+    private ImmutableDictionary<string, HttpClient> _proxiedClients = ImmutableDictionary<string, HttpClient>.Empty;
 
     /// <summary>
     /// 构造 RangeDownloader(DI 注入)
@@ -83,9 +83,17 @@ public sealed partial class RangeDownloader : ServiceEntity, IDownloader {
         if (string.IsNullOrWhiteSpace(proxyUrl))
             return _httpClientProvider.GetClient();
 
-        return _proxiedClients.GetOrAdd(proxyUrl!, url => {
-            var handler = new HttpClientHandler { Proxy = new WebProxy(url) };
-            return new HttpClient(handler);
-        });
+        return GetOrAddProxiedClient(proxyUrl!);
+    }
+
+    private HttpClient GetOrAddProxiedClient(string proxyUrl) {
+        var snapshot = Volatile.Read(ref _proxiedClients);
+        if (snapshot.TryGetValue(proxyUrl, out var existing))
+            return existing;
+
+        var handler = new HttpClientHandler { Proxy = new WebProxy(proxyUrl) };
+        var client = new HttpClient(handler);
+        ImmutableInterlocked.Update(ref _proxiedClients, d => d.ContainsKey(proxyUrl) ? d : d.Add(proxyUrl, client));
+        return Volatile.Read(ref _proxiedClients)[proxyUrl];
     }
 }

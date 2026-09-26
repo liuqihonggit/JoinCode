@@ -57,13 +57,13 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 
 ### 按消费方数量升序(先改影响范围小的建立模式)
 
-#### P0: 消费方1处(6个,建立模式)
-- [ ] `RgEngine.GitignoreCache` — 静态gitignore缓存
-- [ ] `BuddyService._cache` — Buddy信息缓存
-- [ ] `DeferredMailService._locks` — AsyncLock缓存
-- [ ] `IntentCollector._locks` — AsyncLock缓存
-- [ ] `RangeDownloader._proxiedClients` — HttpClient缓存
-- [ ] `GlobMatcher.Cache` — 静态glob正则缓存
+#### P0: 消费方1处(6个,建立模式) ✅
+- [x] `RgEngine.GitignoreCache` — 静态gitignore缓存
+- [x] `BuddyService._cache` — Buddy信息缓存
+- [x] `DeferredMailService._locks` — AsyncLock缓存
+- [x] `IntentCollector._locks` — AsyncLock缓存
+- [x] `RangeDownloader._proxiedClients` — HttpClient缓存
+- [x] `GlobMatcher.Cache` — 静态glob正则缓存
 
 #### P1: 消费方2处(5个)
 - [ ] `SkillSearchService._tagIndex` — 标签索引
@@ -136,7 +136,8 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 
 | 日期 | 批次 | 改造数 | 累计 | 状态 |
 |------|------|--------|------|------|
-| 2026-09-26 | P0 | 0 | 0/63 | 进行中 |
+| 2026-09-26 | P0 | 6 | 6/63 | ✅ 完成 |
+| 2026-09-26 | P1 | 0 | 6/63 | 进行中 |
 
 ## 验收标准
 

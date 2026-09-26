@@ -117,8 +117,8 @@ public sealed class ToolInterventionManager : ServiceEntity {
 
     private static string? GetDefaultRedirect(string toolName) {
         return toolName.ToLowerInvariant() switch {
-            "cmd" => "powershell",
-            "bash" => "powershell",
+            "cmd" => ShellToolNameEnumConstants.Powershell,
+            ShellToolNameEnumConstants.Bash => ShellToolNameEnumConstants.Powershell,
             _ => null
         };
     }

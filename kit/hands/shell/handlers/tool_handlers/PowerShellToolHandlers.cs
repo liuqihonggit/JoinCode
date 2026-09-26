@@ -154,7 +154,7 @@ public class PowerShellToolHandlers : ShellToolBase {
             var retryResult = retryContext.Result;
             return retryResult is not null && !retryResult.IsError ? retryResult : result;
         } catch (Exception ex) when (ex is not OperationCanceledException) {
-            return ToolExceptionDiagnosticHelper.BuildErrorResult("powershell", ex, _logger, "command", command);
+            return ToolExceptionDiagnosticHelper.BuildErrorResult(ShellToolNameEnumConstants.Powershell, ex, _logger, "command", command);
         }
     }
 

@@ -20,9 +20,9 @@ public sealed partial class ReplService : ServiceEntity, IReplService {
 
     private static readonly (string Language, string DisplayName, string Executable, string InstallHint)[] s_languageDefinitions =
     [
-        ("csharp", "C#", "dotnet-script", "dotnet tool install -g dotnet-script"),
-        ("powershell", "PowerShell", "pwsh", JccEndpoints.PowerShellDownloadUrl),
-        ("python", "Python", "python3", JccEndpoints.PythonDownloadUrl),
+        (ReplLanguageEnumConstants.CSharp, "C#", "dotnet-script", "dotnet tool install -g dotnet-script"),
+        (ReplLanguageEnumConstants.PowerShell, "PowerShell", "pwsh", JccEndpoints.PowerShellDownloadUrl),
+        (ReplLanguageEnumConstants.Python, "Python", "python3", JccEndpoints.PythonDownloadUrl),
     ];
 
     private readonly Lazy<IReadOnlyList<ReplLanguageInfo>> _availableLanguages;
@@ -59,7 +59,7 @@ public sealed partial class ReplService : ServiceEntity, IReplService {
     }
 
     /// <inheritdoc/>
-    public async Task<ReplResult> ExecuteAsync(string code, string language = "csharp", int timeoutSeconds = 30, CancellationToken ct = default) {
+    public async Task<ReplResult> ExecuteAsync(string code, string language = ReplLanguageEnumConstants.CSharp, int timeoutSeconds = 30, CancellationToken ct = default) {
         if (ct.IsCancellationRequested) {
             return new ReplResult {
                 Success = false,
@@ -84,9 +84,9 @@ public sealed partial class ReplService : ServiceEntity, IReplService {
 
         try {
             var result = language.ToLowerInvariant() switch {
-                "csharp" or "c#" => await ExecuteCSharpAsync(code, timeoutSeconds, ct).ConfigureAwait(false),
-                "powershell" or "ps1" => await ExecutePowerShellAsync(code, timeoutSeconds, ct).ConfigureAwait(false),
-                "python" or "py" => await ExecutePythonAsync(code, timeoutSeconds, ct).ConfigureAwait(false),
+                ReplLanguageEnumConstants.CSharp or "c#" => await ExecuteCSharpAsync(code, timeoutSeconds, ct).ConfigureAwait(false),
+                ReplLanguageEnumConstants.PowerShell or "ps1" => await ExecutePowerShellAsync(code, timeoutSeconds, ct).ConfigureAwait(false),
+                ReplLanguageEnumConstants.Python or "py" => await ExecutePythonAsync(code, timeoutSeconds, ct).ConfigureAwait(false),
                 _ => new ReplResult {
                     Success = false,
                     Output = string.Empty,
@@ -157,27 +157,27 @@ public sealed partial class ReplService : ServiceEntity, IReplService {
     private static string[] GetCandidateExecutables(string primaryName, string language) {
         if (OperatingSystem.IsWindows()) {
             return language switch {
-                "powershell" => ["pwsh", "powershell"],
-                "python" => ["python", "python3", "py"],
+                ReplLanguageEnumConstants.PowerShell => ["pwsh", "powershell"],
+                ReplLanguageEnumConstants.Python => ["python", "python3", "py"],
                 _ => [primaryName]
             };
         }
 
         return language switch {
-            "powershell" => ["pwsh"],
-            "python" => ["python3", "python"],
+            ReplLanguageEnumConstants.PowerShell => ["pwsh"],
+            ReplLanguageEnumConstants.Python => ["python3", "python"],
             _ => [primaryName]
         };
     }
 
     private async Task<ReplResult> ExecuteCSharpAsync(string code, int timeoutSeconds, CancellationToken ct)
-        => await ExecuteScriptLanguageAsync("csharp", "dotnet-script", ".csx", static f => new[] { f }, "dotnet-script 未安装。请执行: dotnet tool install -g dotnet-script", "dotnet-script", code, timeoutSeconds, ct).ConfigureAwait(false);
+        => await ExecuteScriptLanguageAsync(ReplLanguageEnumConstants.CSharp, "dotnet-script", ".csx", static f => new[] { f }, "dotnet-script 未安装。请执行: dotnet tool install -g dotnet-script", "dotnet-script", code, timeoutSeconds, ct).ConfigureAwait(false);
 
     private async Task<ReplResult> ExecutePowerShellAsync(string code, int timeoutSeconds, CancellationToken ct)
-        => await ExecuteScriptLanguageAsync("powershell", "pwsh", ".ps1", static f => new[] { "-NoProfile", "-NonInteractive", "-File", f }, "PowerShell 未安装。请访问: https://github.com/PowerShell/PowerShell", "powershell", code, timeoutSeconds, ct).ConfigureAwait(false);
+        => await ExecuteScriptLanguageAsync(ReplLanguageEnumConstants.PowerShell, "pwsh", ".ps1", static f => new[] { "-NoProfile", "-NonInteractive", "-File", f }, "PowerShell 未安装。请访问: https://github.com/PowerShell/PowerShell", ReplLanguageEnumConstants.PowerShell, code, timeoutSeconds, ct).ConfigureAwait(false);
 
     private async Task<ReplResult> ExecutePythonAsync(string code, int timeoutSeconds, CancellationToken ct)
-        => await ExecuteScriptLanguageAsync("python", "python3", ".py", static f => new[] { f }, "Python 未安装。请访问: https://www.python.org/downloads/", "python", code, timeoutSeconds, ct).ConfigureAwait(false);
+        => await ExecuteScriptLanguageAsync(ReplLanguageEnumConstants.Python, "python3", ".py", static f => new[] { f }, "Python 未安装。请访问: https://www.python.org/downloads/", ReplLanguageEnumConstants.Python, code, timeoutSeconds, ct).ConfigureAwait(false);
 
     private async Task<ReplResult> ExecuteScriptLanguageAsync(
         string language, string exeName, string extension, Func<string, IReadOnlyList<string>> buildArgs,

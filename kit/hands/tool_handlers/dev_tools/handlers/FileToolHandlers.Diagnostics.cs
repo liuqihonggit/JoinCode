@@ -59,7 +59,7 @@ public partial class FileToolHandlers {
         return ToolDiagnostic.Create(
             reason: "FileNotReadBeforeWrite",
             formattedMessage: "File has not been read yet. Read it first before writing to it. Use the Read tool to examine the file, then write your changes.",
-            details: [new DiagnosticDetail("operation", "write")],
+            details: [new DiagnosticDetail("operation", FileToolNameEnumConstants.FileWrite)],
             suggestions: [$"先使用 {FileToolNameEnumConstants.FileRead} 工具读取文件内容，再执行写入。"]);
     }
 
@@ -70,7 +70,7 @@ public partial class FileToolHandlers {
         return ToolDiagnostic.Create(
             reason: "FileNotReadBeforeEdit",
             formattedMessage: "File has not been read yet. Read it first before editing it. Use the Read tool to examine the file, then make your edits.",
-            details: [new DiagnosticDetail("operation", "edit")],
+            details: [new DiagnosticDetail("operation", FileToolNameEnumConstants.FileEdit)],
             suggestions: [$"先使用 {FileToolNameEnumConstants.FileRead} 工具读取文件内容，再执行编辑。"]);
     }
 

@@ -69,7 +69,7 @@ public partial class FileToolHandlers {
         }
 
         // ── 统一写入后通知 — LSP 诊断清除 + LSP 文件变更 + 遥测 + 写入监听器 ──
-        _writeDefense.NotifyWriteComplete(result.FilePath, content, "write", FileOperationType.Write);
+        _writeDefense.NotifyWriteComplete(result.FilePath, content, FileToolNameEnumConstants.FileWrite, FileOperationType.Write);
         return toolResult;
     }
 }

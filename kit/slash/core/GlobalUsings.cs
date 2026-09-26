@@ -1,4 +1,5 @@
 global using Api;
+global using System.Collections.Immutable;
 global using System.Threading;
 global using Core.Bridge;
 global using Core.Bridge.Init;

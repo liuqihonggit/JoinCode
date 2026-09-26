@@ -5,7 +5,7 @@ namespace Core.Memdir;
 /// </summary>
 [Register(typeof(IThinkingStore), ServiceLifetime.Singleton)]
 public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisposable {
-    private readonly ConcurrentDictionary<string, ImmutableList<ThinkingEntry>> _entries = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, ImmutableList<ThinkingEntry>> _entries = ImmutableDictionary<string, ImmutableList<ThinkingEntry>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
@@ -44,7 +44,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             Timestamp = _clock.GetUtcNow()
         };
 
-        _entries.AddOrUpdate(sessionId, ImmutableList.Create(entry), (_, list) => list.Add(entry));
+        ImmutableInterlocked.Update(ref _entries, d => d.SetItem(sessionId, d.GetValueOrDefault(sessionId, ImmutableList<ThinkingEntry>.Empty).Add(entry)));
 
         _logger?.LogDebug(L.T(StringKey.VaultLogThinkingStore), sessionId, content.Length);
 
@@ -54,7 +54,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
 
     /// <inheritdoc />
     public Task<IReadOnlyList<ThinkingEntry>> GetRecentAsync(string sessionId, int count, CancellationToken cancellationToken = default) {
-        if (!_entries.TryGetValue(sessionId, out var entries)) {
+        if (!Volatile.Read(ref _entries).TryGetValue(sessionId, out var entries)) {
             return Task.FromResult<IReadOnlyList<ThinkingEntry>>([]);
         }
 
@@ -64,7 +64,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
 
     /// <inheritdoc />
     public Task<ThinkingEntry?> GetLatestAsync(string sessionId, CancellationToken cancellationToken = default) {
-        if (!_entries.TryGetValue(sessionId, out var entries)) {
+        if (!Volatile.Read(ref _entries).TryGetValue(sessionId, out var entries)) {
             return Task.FromResult<ThinkingEntry?>(null);
         }
 
@@ -73,7 +73,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
 
     /// <inheritdoc />
     public Task ClearAsync(string sessionId, CancellationToken cancellationToken = default) {
-        _entries.TryRemove(sessionId, out _);
+        ImmutableInterlocked.Update(ref _entries, d => d.Remove(sessionId));
         _ = SaveAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
         return Task.CompletedTask;
     }
@@ -93,7 +93,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             if (data?.Entries == null) return;
 
             foreach (var kvp in data.Entries) {
-                _entries[kvp.Key] = kvp.Value.ToImmutableList();
+                ImmutableInterlocked.Update(ref _entries, d => d.SetItem(kvp.Key, kvp.Value.ToImmutableList()));
             }
         } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.VaultLogThinkingLoadFailed));
@@ -109,7 +109,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     private async Task SaveInternalAsync(CancellationToken cancellationToken) {
         try {
             var data = new ThinkingStoreData();
-            foreach (var kvp in _entries) {
+            foreach (var kvp in Volatile.Read(ref _entries)) {
                 data.Entries[kvp.Key] = kvp.Value.ToList();
             }
 

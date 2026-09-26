@@ -16,7 +16,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     private readonly ISandboxManager? _sandboxManager;
     private readonly IPreventSleepService? _preventSleepService;
     private readonly ShellExecutionConfig? _config;
-    private readonly ConcurrentDictionary<string, SystemActuatorBackgroundTaskEntry> _tasks = new();
+    private ImmutableDictionary<string, SystemActuatorBackgroundTaskEntry> _tasks = ImmutableDictionary<string, SystemActuatorBackgroundTaskEntry>.Empty;
     private int _disposed;
 
     /// <summary>
@@ -122,7 +122,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
             Context = context,
         };
 
-        _tasks[context.TaskId] = entry;
+        ImmutableInterlocked.Update(ref _tasks, d => d.SetItem(context.TaskId, entry));
 
         _ = context.ResultTask.ContinueWith(t => {
             try {
@@ -169,14 +169,14 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 
     /// <inheritdoc />
     public Task<SystemActuatorBackgroundTaskInfo?> GetTaskAsync(string taskId, CancellationToken cancellationToken = default) {
-        if (_tasks.TryGetValue(taskId, out var entry))
+        if (Volatile.Read(ref _tasks).TryGetValue(taskId, out var entry))
             return Task.FromResult<SystemActuatorBackgroundTaskInfo?>(ToInfo(entry));
         return Task.FromResult<SystemActuatorBackgroundTaskInfo?>(null);
     }
 
     /// <inheritdoc />
     public Task<List<SystemActuatorBackgroundTaskInfo>> ListTasksAsync(CancellationToken cancellationToken = default) {
-        var infos = _tasks.Values
+        var infos = Volatile.Read(ref _tasks).Values
             .OrderByDescending(t => t.CreatedAt)
             .Select(ToInfo)
             .ToList();
@@ -185,7 +185,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 
     /// <inheritdoc />
     public Task<bool> CancelTaskAsync(string taskId, CancellationToken cancellationToken = default) {
-        if (!_tasks.TryGetValue(taskId, out var entry)) return Task.FromResult(false);
+        if (!Volatile.Read(ref _tasks).TryGetValue(taskId, out var entry)) return Task.FromResult(false);
 
         if (entry.Context is not null && BackgroundTaskStateTransitions.CanCancel(entry.Status)) {
             try { entry.Context.Kill(); } catch (Exception ex) { _logger?.LogDebug(ex, "杀死后台任务进程失败: {TaskId}", taskId); }
@@ -200,7 +200,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 
     /// <inheritdoc />
     public async Task<SystemActuatorBackgroundTaskInfo> WaitForTaskAsync(string taskId, CancellationToken cancellationToken = default) {
-        if (!_tasks.TryGetValue(taskId, out var entry))
+        if (!Volatile.Read(ref _tasks).TryGetValue(taskId, out var entry))
             throw new InvalidOperationException($"Background task not found: {taskId}");
 
         while (BackgroundTaskStateTransitions.CanCancel(entry.Status)) {
@@ -212,7 +212,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 
     /// <inheritdoc />
     public Task<string> GetTaskOutputAsync(string taskId, CancellationToken cancellationToken = default) {
-        if (_tasks.TryGetValue(taskId, out var entry))
+        if (Volatile.Read(ref _tasks).TryGetValue(taskId, out var entry))
             return Task.FromResult(BuildTaskOutput(entry));
         return Task.FromResult(string.Empty);
     }
@@ -236,7 +236,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     public Task<List<SystemActuatorBackgroundTaskInfo>> ListTasksForAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
-        var infos = _tasks.Values
+        var infos = Volatile.Read(ref _tasks).Values
             .Where(t => t.AgentId == agentId)
             .OrderByDescending(t => t.CreatedAt)
             .Select(ToInfo)
@@ -249,7 +249,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     public async Task<int> CancelTasksForAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
-        var agentTaskIds = _tasks.Values
+        var agentTaskIds = Volatile.Read(ref _tasks).Values
             .Where(t => t.AgentId == agentId && BackgroundTaskStateTransitions.CanCancel(t.Status))
             .Select(t => t.TaskId)
             .ToList();
@@ -274,7 +274,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 
     /// <inheritdoc />
     public Task<int> KillAllRunningAsync(CancellationToken cancellationToken = default) {
-        var runningTasks = _tasks.Values
+        var runningTasks = Volatile.Read(ref _tasks).Values
             .Where(t => BackgroundTaskStateTransitions.CanCancel(t.Status))
             .ToList();
 
@@ -298,14 +298,14 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     /// <inheritdoc />
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        foreach (var entry in _tasks.Values) {
+        foreach (var entry in Volatile.Read(ref _tasks).Values) {
             if (entry.Context is not null && BackgroundTaskStateTransitions.CanCancel(entry.Status)) {
                 try { entry.Context.Kill(); } catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 时终止后台任务进程失败"); }
                 await entry.Context.DisposeSafeAsync(_logger).ConfigureAwait(false);
             }
         }
 
-        _tasks.Clear();
+        Interlocked.Exchange(ref _tasks, ImmutableDictionary<string, SystemActuatorBackgroundTaskEntry>.Empty);
     }
 
     #endregion

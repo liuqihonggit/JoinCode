@@ -12,8 +12,8 @@ public sealed partial class TelemetryService : ITelemetryService {
     private readonly ActivityListener _listener;
     private ConsoleTelemetryExporter? _consoleExporter;
     private readonly IAnalyticsFileSink? _analyticsSink;
-    private readonly ConcurrentDictionary<string, ITelemetryMetric> _metrics = new();
-    private readonly ConcurrentDictionary<string, TelemetrySpan> _activeSpans = new();
+    private ImmutableDictionary<string, ITelemetryMetric> _metrics = ImmutableDictionary<string, ITelemetryMetric>.Empty;
+    private ImmutableDictionary<string, TelemetrySpan> _activeSpans = ImmutableDictionary<string, TelemetrySpan>.Empty;
     private int _isDisposed;
 
     /// <summary>遥测配置快照</summary>
@@ -88,13 +88,13 @@ public sealed partial class TelemetryService : ITelemetryService {
         }
 
         var span = new TelemetrySpan(activity, kind, this);
-        _activeSpans[activity.SpanId.ToString()] = span;
+        ImmutableInterlocked.Update(ref _activeSpans, d => d.SetItem(activity.SpanId.ToString(), span));
         return span;
     }
 
     /// <inheritdoc/>
     public ITelemetryCounter GetCounter(string name, string? unit = null, string? description = null) {
-        var metric = _metrics.GetOrAdd(name, n => {
+        var metric = GetOrAddMetric(name, n => {
             if (!_config.MetricsEnabled) {
                 return new NoOpTelemetryCounter(n);
             }
@@ -110,7 +110,7 @@ public sealed partial class TelemetryService : ITelemetryService {
 
     /// <inheritdoc/>
     public ITelemetryHistogram GetHistogram(string name, string? unit = null, string? description = null) {
-        var metric = _metrics.GetOrAdd(name, n => {
+        var metric = GetOrAddMetric(name, n => {
             if (!_config.MetricsEnabled) {
                 return new NoOpTelemetryHistogram(n);
             }
@@ -126,7 +126,7 @@ public sealed partial class TelemetryService : ITelemetryService {
 
     /// <inheritdoc/>
     public ITelemetryGauge GetGauge(string name, string? unit = null, string? description = null) {
-        var metric = _metrics.GetOrAdd(name, n => {
+        var metric = GetOrAddMetric(name, n => {
             if (!_config.MetricsEnabled) {
                 return new NoOpTelemetryGauge(n);
             }
@@ -140,15 +140,24 @@ public sealed partial class TelemetryService : ITelemetryService {
                 $"指标 '{name}' 已注册为 {metric.GetType().Name},不能作为 Gauge 获取。请使用与注册时一致的指标类型访问。");
     }
 
+    /// <summary>无锁 CAS GetOrAdd — 先读快照检查,不存在再 CAS 添加</summary>
+    private ITelemetryMetric GetOrAddMetric(string name, Func<string, ITelemetryMetric> factory) {
+        var snapshot = Volatile.Read(ref _metrics);
+        if (snapshot.TryGetValue(name, out var existing))
+            return existing;
+        ImmutableInterlocked.Update(ref _metrics, d => d.ContainsKey(name) ? d : d.Add(name, factory(name)));
+        return Volatile.Read(ref _metrics)[name];
+    }
+
     /// <inheritdoc/>
     public IEnumerable<TelemetrySpanData> GetActiveSpans() {
-        return _activeSpans.Values
+        return Volatile.Read(ref _activeSpans).Values
             .Select(s => s.ToSpanData());
     }
 
     /// <inheritdoc/>
     public string[] GetRegisteredMetrics() {
-        return _metrics.Keys.ToArray();
+        return Volatile.Read(ref _metrics).Keys.ToArray();
     }
 
     /// <summary>
@@ -156,7 +165,7 @@ public sealed partial class TelemetryService : ITelemetryService {
     /// </summary>
     /// <param name="spanId">要移除的 Span 标识</param>
     internal void RemoveActiveSpan(string spanId) {
-        _activeSpans.TryRemove(spanId, out _);
+        ImmutableInterlocked.Update(ref _activeSpans, d => d.Remove(spanId));
     }
 
     /// <summary>
@@ -171,7 +180,7 @@ public sealed partial class TelemetryService : ITelemetryService {
         _listener.Dispose();
         _activitySource.Dispose();
         _meter.Dispose();
-        return new ValueTask(Task.WhenAll(_activeSpans.Values.Select(span => span.DisposeAsync().AsTask())));
+        return new ValueTask(Task.WhenAll(Volatile.Read(ref _activeSpans).Values.Select(span => span.DisposeAsync().AsTask())));
     }
 
     private static ActivityKind MapActivityKind(TelemetrySpanKind kind) => kind switch {

@@ -20,10 +20,19 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable {
         _httpClient.DisposeSafe();
     }
 
-    private static global::System.Collections.Concurrent.ConcurrentDictionary<string, FeatureFlag> GetCache(FeatureFlagService service) {
-        var cacheField = typeof(FeatureFlagService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
-        return (global::System.Collections.Concurrent.ConcurrentDictionary<string, FeatureFlag>)cacheField!.GetValue(service)!;
+    private sealed class CacheHelper(FeatureFlagService service) {
+        private static readonly global::System.Reflection.FieldInfo CacheField =
+            typeof(FeatureFlagService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance)!;
+
+        public FeatureFlag this[string key] {
+            set {
+                var current = (global::System.Collections.Immutable.ImmutableDictionary<string, FeatureFlag>)CacheField.GetValue(service)!;
+                CacheField.SetValue(service, current.SetItem(key, value));
+            }
+        }
     }
+
+    private static CacheHelper GetCache(FeatureFlagService service) => new(service);
 
     [Fact]
     public async Task IsEnabledAsync_WithEnabledFlag_ReturnsTrue() {

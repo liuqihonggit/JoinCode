@@ -5,24 +5,24 @@ namespace Services.Lsp.Internal;
 /// 提供按服务器名 / 文件扩展名的查找入口。
 /// </summary>
 internal sealed class LspServerRegistry {
-    private readonly ConcurrentDictionary<string, LspServerInstance> _servers = new();
+    private ImmutableDictionary<string, LspServerInstance> _servers = ImmutableDictionary<string, LspServerInstance>.Empty;
     private ImmutableDictionary<string, ImmutableList<string>> _extensionMap = ImmutableDictionary<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 已注册服务器数量。
     /// </summary>
-    public int Count => _servers.Count;
+    public int Count => Volatile.Read(ref _servers).Count;
 
     /// <summary>
     /// 所有服务器实例视图 — 用于 Shutdown/Dispose 遍历（不要在此视图上做写操作）。
     /// </summary>
-    public IEnumerable<LspServerInstance> Servers => _servers.Values;
+    public IEnumerable<LspServerInstance> Servers => Volatile.Read(ref _servers).Values;
 
     /// <summary>
     /// 注册服务器实例并建立扩展名映射。
     /// </summary>
     public void Register(string name, LspServerInstance instance, Dictionary<string, string> extensionToLanguage) {
-        _servers[name] = instance;
+        ImmutableInterlocked.Update(ref _servers, d => d.SetItem(name, instance));
         foreach (var kvp in extensionToLanguage) {
             ImmutableInterlocked.Update(ref _extensionMap, d => {
                 var list = d.TryGetValue(kvp.Key, out var existing) ? existing : ImmutableList<string>.Empty;
@@ -35,7 +35,7 @@ internal sealed class LspServerRegistry {
     /// 按服务器名查找实例。
     /// </summary>
     public bool TryGetByName(string name, [MaybeNullWhen(false)] out LspServerInstance instance)
-        => _servers.TryGetValue(name, out instance);
+        => Volatile.Read(ref _servers).TryGetValue(name, out instance);
 
     /// <summary>
     /// 按文件扩展名查找对应的服务器实例（取扩展名映射中的第一个服务器）。
@@ -44,20 +44,20 @@ internal sealed class LspServerRegistry {
         instance = null!;
         if (!Volatile.Read(ref _extensionMap).TryGetValue(ext, out var serverNames) || serverNames.Count == 0)
             return false;
-        return _servers.TryGetValue(serverNames[0], out instance);
+        return Volatile.Read(ref _servers).TryGetValue(serverNames[0], out instance);
     }
 
     /// <summary>
     /// 所有服务器快照 — 用于 GetAllServers 接口方法。
     /// </summary>
     public IReadOnlyDictionary<string, ILspServerInstance> Snapshot()
-        => _servers.ToDictionary(kvp => kvp.Key, kvp => (ILspServerInstance)kvp.Value);
+        => Volatile.Read(ref _servers).ToDictionary(kvp => kvp.Key, kvp => (ILspServerInstance)kvp.Value);
 
     /// <summary>
     /// 清空所有服务器和扩展名映射 — 用于 Shutdown/Dispose。
     /// </summary>
     public void Clear() {
-        _servers.Clear();
-        Volatile.Write(ref _extensionMap, ImmutableDictionary<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
+        Interlocked.Exchange(ref _servers, ImmutableDictionary<string, LspServerInstance>.Empty);
+        Interlocked.Exchange(ref _extensionMap, ImmutableDictionary<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
     }
 }

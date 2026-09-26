@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Entity;
 /// </summary>
 public sealed class SessionScope : IAsyncDisposable {
     private readonly ConcurrentDictionary<ObjectId, Entity> _entities = new();
-    private readonly ConcurrentDictionary<ObjectType, HashSet<ObjectId>> _typeIndex = new();
-    private readonly AsyncLock _indexLock = new("SessionScope");
+    private ImmutableDictionary<ObjectType, ImmutableHashSet<ObjectId>> _typeIndex = ImmutableDictionary<ObjectType, ImmutableHashSet<ObjectId>>.Empty;
     private volatile bool _disposed;
     private int _disposeFailures;
 
@@ -76,7 +75,7 @@ public sealed class SessionScope : IAsyncDisposable {
     /// 按 ObjectType 分桶获取 — O(1) 索引查找，对应注册工厂 map(ObjectType -&gt; HashSet of ObjectId)
     /// </summary>
     public IEnumerable<Entity> GetAll(ObjectType type) {
-        if (!_typeIndex.TryGetValue(type, out var ids)) yield break;
+        if (!Volatile.Read(ref _typeIndex).TryGetValue(type, out var ids)) yield break;
         foreach (var id in ids) {
             if (_entities.TryGetValue(id, out var e))
                 yield return e;
@@ -110,24 +109,27 @@ public sealed class SessionScope : IAsyncDisposable {
         }
 
         _entities.Clear();
-        _typeIndex.Clear();
-        _indexLock.Dispose();
+        Interlocked.Exchange(ref _typeIndex, ImmutableDictionary<ObjectType, ImmutableHashSet<ObjectId>>.Empty);
     }
 
     private void AddToTypeIndex(Entity entity) {
         var type = entity.ObjectId.Type;
-        var set = _typeIndex.GetOrAdd(type, _ => new HashSet<ObjectId>());
-        using (_indexLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_indexLock.Name}' 等待超时")) {
-            set.Add(entity.ObjectId);
-        }
+        var id = entity.ObjectId;
+        ImmutableInterlocked.Update(ref _typeIndex,
+            d => {
+                var set = d.GetValueOrDefault(type, ImmutableHashSet<ObjectId>.Empty);
+                return d.SetItem(type, set.Add(id));
+            });
     }
 
     private void RemoveFromTypeIndex(Entity entity) {
         var type = entity.ObjectId.Type;
-        if (_typeIndex.TryGetValue(type, out var set)) {
-            using (_indexLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_indexLock.Name}' 等待超时")) {
-                set.Remove(entity.ObjectId);
-            }
-        }
+        var id = entity.ObjectId;
+        ImmutableInterlocked.Update(ref _typeIndex,
+            d => {
+                if (!d.TryGetValue(type, out var set)) return d;
+                var next = set.Remove(id);
+                return next.IsEmpty ? d.Remove(type) : d.SetItem(type, next);
+            });
     }
 }

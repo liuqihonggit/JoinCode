@@ -15,7 +15,6 @@ public sealed class ObjectTypeAndObjectIdManagerTests {
 
     [Fact]
     public async Task ObjectIdManager_IsRegistered_ReturnsTrueForRegistered() {
-        ObjectIdManager.Clear();
         await using var entity = new TestEntity(ObjectType.Plugin, "test-plugin");
 
         ObjectIdManager.IsRegistered(entity.ObjectId).Should().BeTrue();
@@ -25,7 +24,6 @@ public sealed class ObjectTypeAndObjectIdManagerTests {
 
     [Fact]
     public void ObjectIdManager_IsRegistered_ReturnsFalseForUnregistered() {
-        ObjectIdManager.Clear();
         var id = new ObjectId(ObjectType.Plugin, "nonexistent");
 
         ObjectIdManager.IsRegistered(id).Should().BeFalse();

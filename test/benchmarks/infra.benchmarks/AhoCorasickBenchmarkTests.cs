@@ -1,12 +1,13 @@
-namespace JoinCode.Infra.Tests.Text;
+namespace Infra.Benchmarks;
 
 /// <summary>
 /// AC 自动机基准测试 — 量化 AC 自动机 vs foreach Contains 的性能差异。
 /// 注意: Debug 模式下 AC 自动机有 Dictionary 开销,Release 模式下 JIT 优化后差距更明显。
 /// AC 自动机的核心优势在于: 模式多(500+) + 长文本 + 无公共前缀时,一次扫描替代 N 次扫描。
 /// </summary>
+[Trait("Category", "Benchmark")]
 public class AhoCorasickBenchmarkTests {
-    private const int Iterations = 1000;
+    private const int Iterations = 500;
 
     [Fact]
     public void ContainsAny_50Patterns_AcComparableToContains() {

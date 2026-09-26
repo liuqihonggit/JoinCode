@@ -7,77 +7,84 @@ namespace Core.Plugins;
 /// </summary>
 [Register(typeof(IResourceReferenceGraph), ServiceLifetime.Singleton)]
 public sealed class ResourceReferenceGraph : IResourceReferenceGraph {
-    private readonly ConcurrentDictionary<(ObjectId Consumer, ObjectId Target), ResourceReference> _references = new();
-    private readonly ConcurrentDictionary<string, List<ResourceReference>> _byConsumer = new();
-    private readonly ConcurrentDictionary<string, List<ResourceReference>> _byTarget = new();
-    private readonly AsyncLock _lock = new("ResourceReferenceGraph");
+    private ImmutableDictionary<(ObjectId Consumer, ObjectId Target), ResourceReference> _references = ImmutableDictionary<(ObjectId, ObjectId), ResourceReference>.Empty;
+    private ImmutableDictionary<string, ImmutableList<ResourceReference>> _byConsumer = ImmutableDictionary<string, ImmutableList<ResourceReference>>.Empty;
+    private ImmutableDictionary<string, ImmutableList<ResourceReference>> _byTarget = ImmutableDictionary<string, ImmutableList<ResourceReference>>.Empty;
 
     /// <summary>记录引用 — 插件B 引用 插件A 的资源</summary>
     public void AddReference(ResourceReference reference) {
         var key = (reference.ConsumerResourceId, reference.TargetResourceId);
-        if (!_references.TryAdd(key, reference)) return;
+        var added = false;
+        ImmutableInterlocked.Update(ref _references, d => {
+            if (d.ContainsKey(key)) return d;
+            added = true;
+            return d.Add(key, reference);
+        });
+        if (!added) return;
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            _byConsumer.AddOrUpdate(
-                reference.ConsumerPluginName,
-                [reference],
-                (_, list) => { list.Add(reference); return list; });
-            _byTarget.AddOrUpdate(
-                reference.TargetPluginName,
-                [reference],
-                (_, list) => { list.Add(reference); return list; });
-        }
+        ImmutableInterlocked.Update(ref _byConsumer,
+            d => d.SetItem(reference.ConsumerPluginName, d.GetValueOrDefault(reference.ConsumerPluginName, ImmutableList<ResourceReference>.Empty).Add(reference)));
+        ImmutableInterlocked.Update(ref _byTarget,
+            d => d.SetItem(reference.TargetPluginName, d.GetValueOrDefault(reference.TargetPluginName, ImmutableList<ResourceReference>.Empty).Add(reference)));
     }
 
     /// <summary>移除引用 — 引用方放弃引用</summary>
     public void RemoveReference(ObjectId consumerResourceId, ObjectId targetResourceId) {
         var key = (consumerResourceId, targetResourceId);
-        if (!_references.TryRemove(key, out var reference)) return;
+        ResourceReference? removed = null;
+        ImmutableInterlocked.Update(ref _references, d => {
+            if (d.TryGetValue(key, out var r)) {
+                removed = r;
+                return d.Remove(key);
+            }
+            return d;
+        });
+        if (removed is not { } reference) return;
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            if (_byConsumer.TryGetValue(reference.ConsumerPluginName, out var consumerList))
-                consumerList.Remove(reference);
-            if (_byTarget.TryGetValue(reference.TargetPluginName, out var targetList))
-                targetList.Remove(reference);
-        }
+        ImmutableInterlocked.Update(ref _byConsumer,
+            d => {
+                var next = d.GetValueOrDefault(reference.ConsumerPluginName, ImmutableList<ResourceReference>.Empty).Remove(reference);
+                return next.IsEmpty ? d.Remove(reference.ConsumerPluginName) : d.SetItem(reference.ConsumerPluginName, next);
+            });
+        ImmutableInterlocked.Update(ref _byTarget,
+            d => {
+                var next = d.GetValueOrDefault(reference.TargetPluginName, ImmutableList<ResourceReference>.Empty).Remove(reference);
+                return next.IsEmpty ? d.Remove(reference.TargetPluginName) : d.SetItem(reference.TargetPluginName, next);
+            });
     }
 
     /// <summary>获取引用某插件资源的所有引用方插件名 — 用于连带卸载</summary>
     public IReadOnlyList<string> GetConsumers(string targetPluginName) {
-        if (!_byTarget.TryGetValue(targetPluginName, out var list)) return [];
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            return list.Select(r => r.ConsumerPluginName).Distinct().ToList();
-        }
+        if (!Volatile.Read(ref _byTarget).TryGetValue(targetPluginName, out var list)) return [];
+        return list.Select(r => r.ConsumerPluginName).Distinct().ToList();
     }
 
     /// <summary>获取某插件引用的所有外部资源 — 用于释放引用</summary>
     public IReadOnlyList<ResourceReference> GetReferencesBy(string consumerPluginName) {
-        if (!_byConsumer.TryGetValue(consumerPluginName, out var list)) return [];
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            return list.ToList();
-        }
+        if (!Volatile.Read(ref _byConsumer).TryGetValue(consumerPluginName, out var list)) return [];
+        return list.ToList();
     }
 
     /// <summary>获取某插件所有资源的引用计数 — 用于卸载前检查是否归零</summary>
     public IReadOnlyDictionary<ObjectId, int> GetReferenceCounts(string pluginName) {
-        if (!_byTarget.TryGetValue(pluginName, out var list)) return new Dictionary<ObjectId, int>();
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            return list.GroupBy(r => r.TargetResourceId)
-                       .ToDictionary(g => g.Key, g => g.Count());
-        }
+        if (!Volatile.Read(ref _byTarget).TryGetValue(pluginName, out var list)) return new Dictionary<ObjectId, int>();
+        return list.GroupBy(r => r.TargetResourceId)
+                   .ToDictionary(g => g.Key, g => g.Count());
     }
 
     /// <summary>移除某插件的所有引用关系 — 卸载完成后清理</summary>
     public void RemoveAllForPlugin(string pluginName) {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            if (_byConsumer.TryRemove(pluginName, out var consumerList)) {
-                foreach (var r in consumerList)
-                    _references.TryRemove((r.ConsumerResourceId, r.TargetResourceId), out _);
-            }
-            if (_byTarget.TryRemove(pluginName, out var targetList)) {
-                foreach (var r in targetList)
-                    _references.TryRemove((r.ConsumerResourceId, r.TargetResourceId), out _);
-            }
+        var snapshot = Volatile.Read(ref _byConsumer);
+        if (snapshot.TryGetValue(pluginName, out var consumerList)) {
+            ImmutableInterlocked.Update(ref _byConsumer, d => d.Remove(pluginName));
+            foreach (var r in consumerList)
+                ImmutableInterlocked.Update(ref _references, d => d.Remove((r.ConsumerResourceId, r.TargetResourceId)));
+        }
+        var snapshot2 = Volatile.Read(ref _byTarget);
+        if (snapshot2.TryGetValue(pluginName, out var targetList)) {
+            ImmutableInterlocked.Update(ref _byTarget, d => d.Remove(pluginName));
+            foreach (var r in targetList)
+                ImmutableInterlocked.Update(ref _references, d => d.Remove((r.ConsumerResourceId, r.TargetResourceId)));
         }
     }
 }

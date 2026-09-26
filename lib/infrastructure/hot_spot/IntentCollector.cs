@@ -6,7 +6,7 @@ namespace Infrastructure.HotSpot;
 /// </summary>
 [Register(typeof(IIntentCollector), ServiceLifetime.Singleton)]
 public sealed class IntentCollector : IIntentCollector {
-    private readonly ConcurrentDictionary<string, List<FileModifyIntent>> _intentsByFile = new();
+    private ImmutableDictionary<string, ImmutableList<FileModifyIntent>> _intentsByFile = ImmutableDictionary<string, ImmutableList<FileModifyIntent>>.Empty;
     private ImmutableDictionary<string, AsyncLock> _locks = ImmutableDictionary<string, AsyncLock>.Empty;
     private readonly IClockService _clock;
 
@@ -36,7 +36,10 @@ public sealed class IntentCollector : IIntentCollector {
             var key = NormalizePath(intent.FilePath);
             var lk = GetLock(key);
             using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-                _intentsByFile.GetOrAdd(key, _ => []).Add(intent);
+                ImmutableInterlocked.Update(ref _intentsByFile, d => {
+                    var list = d.GetValueOrDefault(key, ImmutableList<FileModifyIntent>.Empty);
+                    return d.SetItem(key, list.Add(intent));
+                });
             }
         }
 
@@ -53,7 +56,7 @@ public sealed class IntentCollector : IIntentCollector {
         var key = NormalizePath(filePath);
         var lk = GetLock(key);
         using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            if (_intentsByFile.TryGetValue(key, out var list))
+            if (Volatile.Read(ref _intentsByFile).TryGetValue(key, out var list))
                 return [.. list];
         }
         return [];
@@ -65,7 +68,7 @@ public sealed class IntentCollector : IIntentCollector {
     /// <returns>全部修改意图列表</returns>
     public IReadOnlyList<FileModifyIntent> GetAllIntents() {
         var all = new List<FileModifyIntent>();
-        foreach (var kvp in _intentsByFile) {
+        foreach (var kvp in Volatile.Read(ref _intentsByFile)) {
             var lk = GetLock(kvp.Key);
             using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
                 all.AddRange(kvp.Value);
@@ -84,11 +87,15 @@ public sealed class IntentCollector : IIntentCollector {
         ArgumentException.ThrowIfNullOrWhiteSpace(workerId);
         cancellationToken.ThrowIfCancellationRequested();
 
-        foreach (var kvp in _intentsByFile) {
+        foreach (var kvp in Volatile.Read(ref _intentsByFile)) {
             cancellationToken.ThrowIfCancellationRequested();
             var lk = GetLock(kvp.Key);
             using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-                kvp.Value.RemoveAll(x => x.WorkerId == workerId);
+                ImmutableInterlocked.Update(ref _intentsByFile, d => {
+                    if (!d.TryGetValue(kvp.Key, out var list)) return d;
+                    var next = list.RemoveAll(x => x.WorkerId == workerId);
+                    return next.IsEmpty ? d.Remove(kvp.Key) : d.SetItem(kvp.Key, next);
+                });
             }
         }
 

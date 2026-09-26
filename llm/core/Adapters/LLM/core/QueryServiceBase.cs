@@ -155,7 +155,8 @@ public abstract partial class QueryServiceBase : IQueryService {
     }
 
     /// <summary>MessageRole → 字符串（OpenAI / Azure 请求序列化用）</summary>
-    internal static string ConvertRoleToString(MessageRole role) => role.ToValue();
+    internal static string ConvertRoleToString(MessageRole role)
+        => MessageRoleExtensions.IsDefined(role) ? role.ToValue() : MessageRole.Assistant.ToValue();
 
     #endregion
 

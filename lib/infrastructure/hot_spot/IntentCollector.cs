@@ -35,7 +35,7 @@ public sealed class IntentCollector : IIntentCollector {
             cancellationToken.ThrowIfCancellationRequested();
             var key = NormalizePath(intent.FilePath);
             var lk = GetLock(key);
-            using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
+            using (lk.LockOrCrash()) {
                 _intentsByFile.GetOrAdd(key, _ => []).Add(intent);
             }
         }
@@ -52,7 +52,7 @@ public sealed class IntentCollector : IIntentCollector {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         var key = NormalizePath(filePath);
         var lk = GetLock(key);
-        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
+        using (lk.LockOrCrash()) {
             if (_intentsByFile.TryGetValue(key, out var list))
                 return [.. list];
         }
@@ -67,7 +67,7 @@ public sealed class IntentCollector : IIntentCollector {
         var all = new List<FileModifyIntent>();
         foreach (var kvp in _intentsByFile) {
             var lk = GetLock(kvp.Key);
-            using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
+            using (lk.LockOrCrash()) {
                 all.AddRange(kvp.Value);
             }
         }
@@ -87,7 +87,7 @@ public sealed class IntentCollector : IIntentCollector {
         foreach (var kvp in _intentsByFile) {
             cancellationToken.ThrowIfCancellationRequested();
             var lk = GetLock(kvp.Key);
-            using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
+            using (lk.LockOrCrash()) {
                 kvp.Value.RemoveAll(x => x.WorkerId == workerId);
             }
         }

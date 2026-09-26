@@ -117,7 +117,7 @@ public sealed class SessionScope : IAsyncDisposable {
     private void AddToTypeIndex(Entity entity) {
         var type = entity.ObjectId.Type;
         var set = _typeIndex.GetOrAdd(type, _ => new HashSet<ObjectId>());
-        using (_indexLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_indexLock.Name}' 等待超时")) {
+        using (_indexLock.LockOrCrash()) {
             set.Add(entity.ObjectId);
         }
     }
@@ -125,7 +125,7 @@ public sealed class SessionScope : IAsyncDisposable {
     private void RemoveFromTypeIndex(Entity entity) {
         var type = entity.ObjectId.Type;
         if (_typeIndex.TryGetValue(type, out var set)) {
-            using (_indexLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_indexLock.Name}' 等待超时")) {
+            using (_indexLock.LockOrCrash()) {
                 set.Remove(entity.ObjectId);
             }
         }

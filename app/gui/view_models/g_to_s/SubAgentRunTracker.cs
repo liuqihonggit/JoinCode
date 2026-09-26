@@ -172,14 +172,14 @@ public sealed class SubAgentRunTracker {
 
     /// <summary>指定 agent 是否已展开</summary>
     public bool IsExpanded(string agentId) {
-        using (_expandedOrderLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_expandedOrderLock.Name}' 等待超时")) {
+        using (_expandedOrderLock.LockOrCrash()) {
             return _expandedSet.Contains(agentId);
         }
     }
 
     /// <summary>展开 agent — 超过上限时自动折叠最早展开的，返回被驱逐者 ID（null 表示无驱逐）</summary>
     public string? Expand(string agentId) {
-        using (_expandedOrderLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_expandedOrderLock.Name}' 等待超时")) {
+        using (_expandedOrderLock.LockOrCrash()) {
             if (!_expandedSet.Add(agentId))
                 return null;
 
@@ -197,7 +197,7 @@ public sealed class SubAgentRunTracker {
 
     /// <summary>折叠 agent（false 表示原本未展开）</summary>
     public bool Collapse(string agentId) {
-        using (_expandedOrderLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_expandedOrderLock.Name}' 等待超时")) {
+        using (_expandedOrderLock.LockOrCrash()) {
             if (!_expandedSet.Remove(agentId))
                 return false;
             var node = _expandedOrder.Find(agentId);

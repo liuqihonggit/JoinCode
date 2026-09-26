@@ -23,7 +23,7 @@ public static class L {
     /// 初始化本地化系统。可多次调用（后者覆盖前者）。线程安全。
     /// </summary>
     public static void Initialize(string language, IReadOnlyDictionary<string, string> entries) {
-        using (s_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{s_lock.Name}' 等待超时")) {
+        using (s_lock.LockOrCrash()) {
             CurrentLanguage = language;
             _entries = entries;
             _initialized = true;

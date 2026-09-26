@@ -49,17 +49,17 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
 
     /// <inheritdoc/>
     public NetworkConnectivityState CurrentState {
-        get { using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) return _currentState; }
+        get { using (_stateLock.LockOrCrash()) return _currentState; }
     }
 
     /// <inheritdoc/>
     public bool IsNetworkAvailable() {
-        using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) return _currentState != NetworkConnectivityState.Offline;
+        using (_stateLock.LockOrCrash()) return _currentState != NetworkConnectivityState.Offline;
     }
 
     /// <inheritdoc/>
     public bool IsVpnActive() {
-        using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) return _currentState == NetworkConnectivityState.OnlineWithVpn;
+        using (_stateLock.LockOrCrash()) return _currentState == NetworkConnectivityState.OnlineWithVpn;
     }
 
     /// <inheritdoc/>
@@ -112,7 +112,7 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     private void OnNetworkChanged(string reason) {
         var newState = ComputeState();
         NetworkConnectivityState previous;
-        using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) {
+        using (_stateLock.LockOrCrash()) {
             if (_currentState == newState) return;
             previous = _currentState;
             _currentState = newState;

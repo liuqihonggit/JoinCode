@@ -27,7 +27,7 @@ public sealed class FixedWindowRateLimiter {
     /// </summary>
     /// <returns>窗口内未达上限返回 true，否则 false</returns>
     public bool TryAcquire() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             var now = DateTime.UtcNow;
             if (now - _windowStart >= _window) {
                 _windowStart = now;
@@ -46,7 +46,7 @@ public sealed class FixedWindowRateLimiter {
     /// 重置限流器，清空当前窗口计数并重新开始计时
     /// </summary>
     public void Reset() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _windowStart = DateTime.UtcNow;
             _currentCount = 0;
         }

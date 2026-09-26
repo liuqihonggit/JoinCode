@@ -20,7 +20,7 @@ public sealed class DeferredMailService : IDeferredMailService {
 
         var entry = new DeferredMailEntry { Mail = mail, RemainingTurns = mail.OpenAfterTurns };
         var lk = GetLock(mail.To);
-        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
+        using (lk.LockOrCrash()) {
             _pending.GetOrAdd(mail.To, _ => []).Add(entry);
         }
         return Task.CompletedTask;
@@ -34,7 +34,7 @@ public sealed class DeferredMailService : IDeferredMailService {
     public IReadOnlyList<DeferredMail> TickTurns(string agentId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         var lk = GetLock(agentId);
-        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
+        using (lk.LockOrCrash()) {
             if (!_pending.TryGetValue(agentId, out var list))
                 return [];
 
@@ -62,7 +62,7 @@ public sealed class DeferredMailService : IDeferredMailService {
     public IReadOnlyList<DeferredMail> FlushOnTaskEnd(string agentId, MailMarker? markerFilter = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         var lk = GetLock(agentId);
-        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
+        using (lk.LockOrCrash()) {
             if (!_pending.TryGetValue(agentId, out var list))
                 return [];
 
@@ -87,7 +87,7 @@ public sealed class DeferredMailService : IDeferredMailService {
     public IReadOnlyList<DeferredMail> GetPending(string agentId, MailMarker? markerFilter = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         var lk = GetLock(agentId);
-        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
+        using (lk.LockOrCrash()) {
             if (!_pending.TryGetValue(agentId, out var list))
                 return [];
             var mails = list.Select(e => e.Mail);

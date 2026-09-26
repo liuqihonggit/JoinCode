@@ -26,7 +26,7 @@ public sealed partial class ConfigToolHandlers {
     /// 获取配置设置值。
     /// 对齐 TS: ConfigTool.call — value === undefined → GET
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.ConfigGet, "Get a configuration setting value", "config", ConcurrencySafe = true)]
+    [McpTool(ConfigToolNameEnumConstants.ConfigGet, "Get a configuration setting value", "config", ConcurrencySafe = true)]
     public async Task<ToolResult> ConfigGetAsync(
         [McpToolParameter("The setting key (e.g., \"theme\", \"model\", \"permissions.defaultMode\")")] string setting,
         CancellationToken cancellationToken = default) {
@@ -63,7 +63,7 @@ public sealed partial class ConfigToolHandlers {
     /// 对齐 TS: ConfigTool.call — value provided → SET
     /// 包含：boolean 强转 → options 校验 → validateOnWrite → 写入
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.ConfigSet, "Set a configuration setting value", "config")]
+    [McpTool(ConfigToolNameEnumConstants.ConfigSet, "Set a configuration setting value", "config")]
     public async Task<ToolResult> ConfigSetAsync(
         [McpToolParameter("The setting key")] string setting,
         [McpToolParameter("The new value")] string value,
@@ -150,7 +150,7 @@ public sealed partial class ConfigToolHandlers {
     /// 列出所有可配置设置。
     /// 对齐 TS: prompt.ts — 动态生成设置列表
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.ConfigList, "List all configurable settings", "config", ConcurrencySafe = true)]
+    [McpTool(ConfigToolNameEnumConstants.ConfigList, "List all configurable settings", "config", ConcurrencySafe = true)]
     public Task<ToolResult> ConfigListAsync(CancellationToken cancellationToken = default) {
         try {
             var sb = new StringBuilder();

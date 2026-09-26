@@ -87,11 +87,11 @@ public sealed class PermissionCheckContext {
     /// 检查是否为 Config GET 操作 — 对齐 TS 版 ConfigTool.checkPermissions
     /// </summary>
     public static bool IsConfigGetOperation(string toolName, Dictionary<string, JsonElement>? arguments) {
-        if (string.Equals(toolName, InteractionToolNameEnumConstants.ConfigGet, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(toolName, InteractionToolNameEnumConstants.ConfigList, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(toolName, ConfigToolNameEnumConstants.ConfigGet, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(toolName, ConfigToolNameEnumConstants.ConfigList, StringComparison.OrdinalIgnoreCase))
             return true;
 
-        if (string.Equals(toolName, InteractionToolNameEnumConstants.Config, StringComparison.OrdinalIgnoreCase)) {
+        if (string.Equals(toolName, ConfigToolNameEnumConstants.Config, StringComparison.OrdinalIgnoreCase)) {
             if (arguments == null || !arguments.TryGetValue("value", out var valueEl))
                 return true;
             if (valueEl.ValueKind == JsonValueKind.Null || valueEl.ValueKind == JsonValueKind.Undefined)

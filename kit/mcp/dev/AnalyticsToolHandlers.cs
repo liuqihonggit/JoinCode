@@ -20,7 +20,7 @@ public class AnalyticsToolHandlers {
     /// <summary>
     /// 获取使用统计报告
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.AnalyticsReport, "Get system usage statistics report", "analytics")]
+    [McpTool(AnalyticsToolNameEnumConstants.AnalyticsReport, "Get system usage statistics report", "analytics")]
     public Task<ToolResult> AnalyticsReportAsync(
         [McpToolParameter("Number of days for statistics (default 7)", Required = false)] int? days = null,
         CancellationToken cancellationToken = default) {
@@ -56,7 +56,7 @@ public class AnalyticsToolHandlers {
     /// <summary>
     /// 获取工具使用统计
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.AnalyticsTools, "Get tool usage statistics details", "analytics")]
+    [McpTool(AnalyticsToolNameEnumConstants.AnalyticsTools, "Get tool usage statistics details", "analytics")]
     public Task<ToolResult> AnalyticsToolsAsync(
         [McpToolParameter("Number of days for statistics (default 7)", Required = false)] int? days = null,
         CancellationToken cancellationToken = default) {
@@ -93,7 +93,7 @@ public class AnalyticsToolHandlers {
     /// <summary>
     /// 获取事件历史
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.AnalyticsEvents, "Get analytics event history", "analytics")]
+    [McpTool(AnalyticsToolNameEnumConstants.AnalyticsEvents, "Get analytics event history", "analytics")]
     public Task<ToolResult> AnalyticsEventsAsync(
         [McpToolParameter("Event type filter (optional)", Required = false)] string? event_type = null,
         [McpToolParameter("Result count limit", Required = false, DefaultValue = "50")] int? limit = null,
@@ -152,7 +152,7 @@ public class AnalyticsToolHandlers {
     /// <summary>
     /// 导出分析数据
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.AnalyticsExport, "Export analytics data as JSON", "analytics")]
+    [McpTool(AnalyticsToolNameEnumConstants.AnalyticsExport, "Export analytics data as JSON", "analytics")]
     public async Task<ToolResult> AnalyticsExportAsync(
         [McpToolParameter("Start date (optional)", Required = false)] string? start_date = null,
         [McpToolParameter("End date (optional)", Required = false)] string? end_date = null,
@@ -200,7 +200,7 @@ public class AnalyticsToolHandlers {
     /// <summary>
     /// 清除分析数据
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.AnalyticsClear, "Clear analytics history data", "analytics")]
+    [McpTool(AnalyticsToolNameEnumConstants.AnalyticsClear, "Clear analytics history data", "analytics")]
     public Task<ToolResult> AnalyticsClearAsync(
         [McpToolParameter("Clear data older than N days (optional)", Required = false)] int? older_than_days = null,
         [McpToolParameter("Confirm clear (enter 'yes' to confirm)")] string? confirm = null,

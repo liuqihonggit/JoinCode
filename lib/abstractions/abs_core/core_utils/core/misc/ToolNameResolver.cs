@@ -22,7 +22,12 @@ internal static class ToolNameResolver {
         name => McpToolNameExtensions.FromValue(name)?.ToValue(),
         name => CronToolNameExtensions.FromValue(name)?.ToValue(),
         name => SystemToolNameExtensions.FromValue(name)?.ToValue(),
-        name => InteractionToolNameExtensions.FromValue(name)?.ToValue(),
+        name => UserInteractionToolNameExtensions.FromValue(name)?.ToValue(),
+        name => AuthToolNameExtensions.FromValue(name)?.ToValue(),
+        name => ConfigToolNameExtensions.FromValue(name)?.ToValue(),
+        name => PermissionToolNameExtensions.FromValue(name)?.ToValue(),
+        name => AnalyticsToolNameExtensions.FromValue(name)?.ToValue(),
+        name => PolicyToolNameExtensions.FromValue(name)?.ToValue(),
         name => AgentToolNameExtensions.FromValue(name)?.ToValue(),
         name => TeamToolNameExtensions.FromValue(name)?.ToValue(),
         name => WorkflowToolNameExtensions.FromValue(name)?.ToValue(),
@@ -69,7 +74,12 @@ internal static class ToolNameResolver {
             ?? UnderscoreFallbackCore<McpToolName>(normalized, v => v.ToValue())
             ?? UnderscoreFallbackCore<CronToolName>(normalized, v => v.ToValue())
             ?? UnderscoreFallbackCore<SystemToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<InteractionToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<UserInteractionToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<AuthToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<ConfigToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<PermissionToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<AnalyticsToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<PolicyToolName>(normalized, v => v.ToValue())
             ?? UnderscoreFallbackCore<AgentToolName>(normalized, v => v.ToValue())
             ?? UnderscoreFallbackCore<TeamToolName>(normalized, v => v.ToValue())
             ?? UnderscoreFallbackCore<WorkflowToolName>(normalized, v => v.ToValue())

@@ -29,6 +29,14 @@ public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConc
     private readonly ILogger<ToolConcurrencyClassifier>? _logger;
 
     /// <summary>
+    /// 用户交互工具名集合 — 这些工具禁止并发安全，若被错误加入白名单则记录警告
+    /// </summary>
+    private static readonly FrozenSet<string> UserInteractionToolNames = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        UserInteractionToolNameEnumConstants.AskUserQuestion,
+        UserInteractionToolNameEnumConstants.ConfirmAction);
+
+    /// <summary>
     /// 初始化并发安全分类器
     /// </summary>
     /// <param name="safeToolNames">并发安全工具名称集合（由源码生成器生成，通过 DI 注入）</param>
@@ -45,13 +53,28 @@ public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConc
 
     /// <inheritdoc/>
     public Task<bool> IsConcurrencySafeAsync(string toolName, Dictionary<string, JsonElement>? arguments, CancellationToken ct = default) {
-        if (_safeToolNames.Contains(toolName))
+        if (_safeToolNames.Contains(toolName)) {
+            WarnIfInteractionToolMarkedSafe(toolName);
             return Task.FromResult(true);
+        }
 
         if (IsBashLikeTool(toolName) && IsBashReadOnly(arguments))
             return Task.FromResult(true);
 
         return Task.FromResult(false);
+    }
+
+    /// <summary>
+    /// 防御性检查 — 若用户交互工具被错误标记为并发安全，记录警告日志。
+    /// 交互工具并发执行会绕过 StreamingToolExecutor 的独占调度，导致多个 ask 并行卡死。
+    /// 此检查是双保险：即使有人错误标记 [McpTool(ConcurrencySafe=true)]，运行时也能发现。
+    /// </summary>
+    private void WarnIfInteractionToolMarkedSafe(string toolName) {
+        if (UserInteractionToolNames.Contains(toolName)) {
+            _logger?.LogWarning(
+                "[ToolConcurrencyClassifier] 交互工具 '{ToolName}' 被标记为并发安全，这会绕过 StreamingToolExecutor 独占调度导致并行卡死。请移除其 ConcurrencySafe=true 标记。",
+                toolName);
+        }
     }
 
     /// <summary>

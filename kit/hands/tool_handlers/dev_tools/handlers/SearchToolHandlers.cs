@@ -207,14 +207,14 @@ public class SearchToolHandlers : OneShotCommandGroup {
                 result = await _searchService.GlobSearchAsync(pattern, path, timeoutToken).ConfigureAwait(false);
             } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                 // 超时（非用户主动取消），对齐 TS RipgrepTimeoutError
-                RecordSearchMetrics("glob", "timeout");
+                RecordSearchMetrics(SearchToolNameEnumConstants.Glob, "timeout");
                 var diag = BuildGlobTimeoutDiagnostic();
                 return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             if (!result.Success) {
-                RecordSearchMetrics("glob", "failed");
-                var failDiag = BuildSearchFailedDiagnostic("glob", result.ErrorMessage);
+                RecordSearchMetrics(SearchToolNameEnumConstants.Glob, "failed");
+                var failDiag = BuildSearchFailedDiagnostic(SearchToolNameEnumConstants.Glob, result.ErrorMessage);
                 return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
             }
 
@@ -222,7 +222,7 @@ public class SearchToolHandlers : OneShotCommandGroup {
             var filteredFilenames = FilterDeniedFiles(result.Filenames, denyPatterns);
 
             if (filteredFilenames.Count == 0) {
-                RecordSearchMetrics("glob", "ok", 0);
+                RecordSearchMetrics(SearchToolNameEnumConstants.Glob, "ok", 0);
                 var diagnostic = BuildGlobNoResultDiagnostic(pattern, path);
                 return ToolResultBuilder.Success().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
             }
@@ -234,10 +234,10 @@ public class SearchToolHandlers : OneShotCommandGroup {
                 response.AppendLine(rel.StartsWith("..", StringComparison.Ordinal) ? filename : rel);
             }
 
-            RecordSearchMetrics("glob", "ok", filteredFilenames.Count);
+            RecordSearchMetrics(SearchToolNameEnumConstants.Glob, "ok", filteredFilenames.Count);
             return ToolResultTruncator.BuildWithSizeLimit(response, WorkflowConstants.Limits.GlobMaxResultSizeChars);
         } catch (Exception ex) when (ex is not OperationCanceledException) {
-            return ToolExceptionDiagnosticHelper.BuildErrorResult("glob", ex, null, "pattern", pattern, "path", path ?? "(cwd)");
+            return ToolExceptionDiagnosticHelper.BuildErrorResult(SearchToolNameEnumConstants.Glob, ex, null, "pattern", pattern, "path", path ?? "(cwd)");
         }
     }
 
@@ -319,19 +319,19 @@ public class SearchToolHandlers : OneShotCommandGroup {
                 result = await _searchService.GrepSearchAsync(input, timeoutToken).ConfigureAwait(false);
             } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                 // 超时（非用户主动取消），对齐 TS RipgrepTimeoutError
-                RecordSearchMetrics("grep", "timeout");
+                RecordSearchMetrics(SearchToolNameEnumConstants.Grep, "timeout");
                 var diag = BuildGrepTimeoutDiagnostic();
                 return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             if (!result.Success) {
-                RecordSearchMetrics("grep", "failed");
-                var failDiag = BuildSearchFailedDiagnostic("grep", result.ErrorMessage);
+                RecordSearchMetrics(SearchToolNameEnumConstants.Grep, "failed");
+                var failDiag = BuildSearchFailedDiagnostic(SearchToolNameEnumConstants.Grep, result.ErrorMessage);
                 return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
             }
 
             if (result.NumFiles == 0) {
-                RecordSearchMetrics("grep", "ok", 0);
+                RecordSearchMetrics(SearchToolNameEnumConstants.Grep, "ok", 0);
                 var diagnostic = BuildGrepNoResultDiagnostic(pattern, path, case_insensitive);
                 return ToolResultBuilder.Success().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
             }
@@ -398,10 +398,10 @@ public class SearchToolHandlers : OneShotCommandGroup {
                 }
             }
 
-            RecordSearchMetrics("grep", "ok", result.NumFiles);
+            RecordSearchMetrics(SearchToolNameEnumConstants.Grep, "ok", result.NumFiles);
             return ToolResultTruncator.BuildWithSizeLimit(response, WorkflowConstants.Limits.GrepMaxResultSizeChars);
         } catch (Exception ex) when (ex is not OperationCanceledException) {
-            return ToolExceptionDiagnosticHelper.BuildErrorResult("grep", ex, null, "pattern", options.Pattern, "path", options.Path ?? "(cwd)");
+            return ToolExceptionDiagnosticHelper.BuildErrorResult(SearchToolNameEnumConstants.Grep, ex, null, "pattern", options.Pattern, "path", options.Path ?? "(cwd)");
         }
     }
 

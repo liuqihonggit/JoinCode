@@ -83,7 +83,7 @@ public sealed partial class SwarmWorkerHandler : ServiceEntity {
             return null;
         }
 
-        if (@params.Context.ToolName != "bash" && @params.Context.ToolName != "shell") {
+        if (@params.Context.ToolName != ShellToolNameEnumConstants.Bash && @params.Context.ToolName != "shell") {
             return null;
         }
 

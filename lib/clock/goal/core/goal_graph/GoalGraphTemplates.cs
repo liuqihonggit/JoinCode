@@ -172,7 +172,7 @@ public static class GoalGraphTemplates {
             Id = "execute",
             Payload = new() {
                 Kind = GoalNodeKind.Agent,
-                Name = "executor",
+                Name = AgentRole.Executor.ToValue(),
                 Role = AgentRole.Executor,
                 Variant = ExecutorVariant.Code,
                 SystemPrompt = "You are a code execution expert. Complete the task thoroughly and precisely. After completion, summarize what was done.",

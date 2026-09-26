@@ -95,8 +95,7 @@ public static class BashSafeWrapperStripper {
             result = result[(spaceIdx + 1)..].TrimStart();
         }
 
-        var wrappers = new[] { "timeout", "time", "nice", "nohup", "stdbuf", "env" };
-        foreach (var wrapper in wrappers) {
+        foreach (var wrapper in BashSecurityConstants.SafeWrapperCommands) {
             if (result.StartsWith(wrapper + " ", StringComparison.OrdinalIgnoreCase)) {
                 result = result[(wrapper.Length + 1)..].TrimStart();
             }

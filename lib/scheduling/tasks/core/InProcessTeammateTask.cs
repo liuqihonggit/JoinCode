@@ -394,7 +394,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
         }
 
         var shutdownMsg = new CoordinatorMessage {
-            FromAgentId = "coordinator",
+            FromAgentId = AgentRole.Coordinator.ToValue(),
             ToAgentId = teammateId,
             MessageType = TeammateMessageType.ShutdownRequest.ToValue(),
             Content = reason ?? "Teammate shutdown requested"

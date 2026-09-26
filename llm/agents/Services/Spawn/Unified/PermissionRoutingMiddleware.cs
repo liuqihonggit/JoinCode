@@ -51,7 +51,7 @@ public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifie
     private void EnsurePermissionRoutingStarted() {
         if (_permissionRoutingStarted || _permissionRouter == null) return;
 
-        var coordinatorId = _subAgentContextAccessor.Current?.AgentId ?? "coordinator";
+        var coordinatorId = _subAgentContextAccessor.Current?.AgentId ?? AgentRole.Coordinator.ToValue();
         _messageBroker.RegisterAgent(coordinatorId);
         _permissionRouter.StartRouting(coordinatorId);
 

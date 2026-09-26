@@ -35,7 +35,7 @@ internal sealed class SubagentStopHookRunner {
     public async Task OnSubagentStopHookAsync(string agentId, CancellationToken cancellationToken) {
         if (_subagentStopHookManager is not null) {
             var subAgentContext = _subAgentContextAccessor.Current;
-            var agentType = subAgentContext?.Role.ToValue() ?? "executor";
+            var agentType = subAgentContext?.Role.ToValue() ?? AgentRole.Executor.ToValue();
             var sessionId = subAgentContext?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
 
             var context = new SubagentStopHookContext {

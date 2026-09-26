@@ -80,7 +80,7 @@ public sealed record ReferenceResolutionOptions {
     /// 默认排除模式 — VCS 内部路径由 SecurityPatterns.SensitiveFilePattern.VcsInternal 分类派生
     /// 确保与 SensitiveFilePattern 枚举保持单一数据源
     /// </summary>
-    private static readonly IReadOnlyList<string> DefaultExcludePatterns = BuildDefaultExcludePatterns();
+    internal static readonly IReadOnlyList<string> DefaultExcludePatterns = BuildDefaultExcludePatterns();
 
     /// <summary>
     /// 构造默认排除模式:固定列表 + 从 VcsInternal 分类派生的 **/segment/** 模式
@@ -140,13 +140,7 @@ public sealed class ReferenceResolutionOptionsBuilder {
         "**/*.cpp", "**/*.c", "**/*.h", "**/*.hpp",
         "**/*.md", "**/*.json", "**/*.xml", "**/*.yaml", "**/*.yml"
     };
-    private List<string> _excludePatterns = new()
-    {
-        "**/node_modules/**", "**/bin/**", "**/obj/**",
-        "**/.vs/**", "**/dist/**",
-        "**/build/**", "**/target/**",
-        "**/*.min.js", "**/*.min.css"
-    };
+    private List<string> _excludePatterns = new(ReferenceResolutionOptions.DefaultExcludePatterns);
     private double _minRelevanceScore = 0.3;
     private int _maxResults = 50;
     private bool _enableFuzzyMatching = true;

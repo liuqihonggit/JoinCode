@@ -249,12 +249,12 @@ internal sealed class TeammateLoopRunner {
 
             var message = new CoordinatorMessage {
                 FromAgentId = teammateId,
-                ToAgentId = "coordinator",
+                ToAgentId = AgentRole.Coordinator.ToValue(),
                 MessageType = TeammateMessageType.IdleNotification.ToValue(),
                 Content = content
             };
 
-            await _messageBroker.SendAsync("coordinator", message).ConfigureAwait(false);
+            await _messageBroker.SendAsync(AgentRole.Coordinator.ToValue(), message).ConfigureAwait(false);
 
             _logger?.LogDebug("Teammate {TeammateId} sent idle notification", teammateId);
         } catch (Exception ex) {

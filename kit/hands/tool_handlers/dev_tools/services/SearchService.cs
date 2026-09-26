@@ -45,7 +45,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                     : _fileOperationService.GetFullPath(path);
 
                 if (!_fileOperationService.DirectoryExists(baseDir)) {
-                    RecordSearchMetrics("glob", stopwatch.ElapsedMilliseconds, false);
+                    RecordSearchMetrics(SearchToolNameEnumConstants.Glob, stopwatch.ElapsedMilliseconds, false);
                     return GlobSearchResult.FailureResult($"Directory does not exist: {baseDir}");
                 }
 
@@ -54,7 +54,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                 var (effectiveBaseDir, relativePattern) = ExtractGlobBaseDirectory(pattern, baseDir);
 
                 if (!_fileOperationService.DirectoryExists(effectiveBaseDir)) {
-                    RecordSearchMetrics("glob", stopwatch.ElapsedMilliseconds, false);
+                    RecordSearchMetrics(SearchToolNameEnumConstants.Glob, stopwatch.ElapsedMilliseconds, false);
                     return GlobSearchResult.FailureResult($"Directory does not exist: {effectiveBaseDir}");
                 }
 
@@ -118,7 +118,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                     resultFiles.Count,
                     stopwatch.ElapsedMilliseconds);
 
-                RecordSearchMetrics("glob", stopwatch.ElapsedMilliseconds, true, resultFiles.Count);
+                RecordSearchMetrics(SearchToolNameEnumConstants.Glob, stopwatch.ElapsedMilliseconds, true, resultFiles.Count);
                 return GlobSearchResult.SuccessResult(
                     stopwatch.ElapsedMilliseconds,
                     resultFiles,
@@ -127,7 +127,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                 throw;
             } catch (Exception ex) {
                 _logger?.LogError(ex, "Glob search failed: {Pattern}", pattern);
-                RecordSearchMetrics("glob", stopwatch.ElapsedMilliseconds, false);
+                RecordSearchMetrics(SearchToolNameEnumConstants.Glob, stopwatch.ElapsedMilliseconds, false);
                 return GlobSearchResult.FailureResult(ex.Message);
             }
         }, cancellationToken).ConfigureAwait(false);
@@ -148,7 +148,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                 : _fileOperationService.GetFullPath(input.Path);
 
             if (!_fileOperationService.DirectoryExists(basePath) && !_fileOperationService.FileExists(basePath)) {
-                RecordSearchMetrics("grep", 0, false);
+                RecordSearchMetrics(SearchToolNameEnumConstants.Grep, 0, false);
                 return GrepSearchResult.FailureResult($"Path does not exist: {basePath}");
             }
 
@@ -156,7 +156,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
             var (compiledRegex, regexError) = SearchRegexCompiler.Compile(
                 input.Pattern, input.CaseInsensitive, input.Multiline);
             if (regexError is not null) {
-                RecordSearchMetrics("grep", 0, false);
+                RecordSearchMetrics(SearchToolNameEnumConstants.Grep, 0, false);
                 return GrepSearchResult.FailureResult($"Invalid regular expression: {regexError}");
             }
             var regex = compiledRegex!;
@@ -259,7 +259,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                 var (filteredLines, lineLimit, lineOffset) = ApplyLimit(
                     contentLines, input.HeadLimit, input.Offset);
 
-                RecordSearchMetrics("grep", 0, true, filenames.Count);
+                RecordSearchMetrics(SearchToolNameEnumConstants.Grep, 0, true, filenames.Count);
                 return GrepSearchResult.SuccessResult(
                     input.OutputMode.ToValue(),
                     filteredFilenames,
@@ -270,7 +270,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                     lineOffset);
             }
 
-            RecordSearchMetrics("grep", 0, true, filenames.Count);
+            RecordSearchMetrics(SearchToolNameEnumConstants.Grep, 0, true, filenames.Count);
             return GrepSearchResult.SuccessResult(
                 input.OutputMode.ToValue(),
                 filteredFilenames,
@@ -283,7 +283,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
             throw;
         } catch (Exception ex) {
             _logger?.LogError(ex, "Grep search failed: {Pattern}", input.Pattern);
-            RecordSearchMetrics("grep", 0, false);
+            RecordSearchMetrics(SearchToolNameEnumConstants.Grep, 0, false);
             return GrepSearchResult.FailureResult(ex.Message);
         }
     }

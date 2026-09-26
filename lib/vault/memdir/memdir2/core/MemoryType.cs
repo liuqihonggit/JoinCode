@@ -36,16 +36,10 @@ public enum MemoryType {
 public readonly record struct MemoryTypeProfile(TimeSpan Ttl, double RelevanceWeight);
 
 /// <summary>
-/// 记忆类型扩展方法
+/// 记忆类型 Profile 扩展方法 — TTL/权重/名称
+/// FromValue/ToValue/IsDefined 由源码生成器 EnumMetadataGenerator 生成到 MemoryTypeExtensions
 /// </summary>
-public static class MemoryTypeExtensions {
-    private static readonly FrozenDictionary<string, MemoryType> __reverseMap = new Dictionary<string, MemoryType> {
-        ["user"] = MemoryType.User,
-        ["feedback"] = MemoryType.Feedback,
-        ["project"] = MemoryType.Project,
-        ["reference"] = MemoryType.Reference
-    }.ToFrozenDictionary();
-
+public static class MemoryTypeProfiles {
     private static readonly FrozenDictionary<MemoryType, MemoryTypeProfile> Profiles = new Dictionary<MemoryType, MemoryTypeProfile> {
         [MemoryType.User] = new(TimeSpan.FromDays(365), 1.0),
         [MemoryType.Feedback] = new(TimeSpan.FromDays(180), 0.9),
@@ -54,12 +48,6 @@ public static class MemoryTypeExtensions {
     }.ToFrozenDictionary();
 
     private static readonly MemoryTypeProfile DefaultProfile = new(TimeSpan.FromDays(30), 0.5);
-
-    /// <summary>
-    /// 从字符串值解析枚举成员
-    /// </summary>
-    public static MemoryType? FromValue(string? value)
-        => value is not null && __reverseMap.TryGetValue(value, out var result) ? result : null;
 
     /// <summary>
     /// 获取记忆类型名称

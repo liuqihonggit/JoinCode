@@ -106,7 +106,7 @@ public partial class ShellToolHandlers : ShellToolBase {
             var retryResult = retryContext.Result;
             return retryResult is not null && !retryResult.IsError ? retryResult : result;
         } catch (Exception ex) when (ex is not OperationCanceledException) {
-            return ToolExceptionDiagnosticHelper.BuildErrorResult("bash", ex, _logger, "command", command);
+            return ToolExceptionDiagnosticHelper.BuildErrorResult(ShellToolNameEnumConstants.Bash, ex, _logger, "command", command);
         }
     }
 

@@ -153,7 +153,7 @@ public sealed partial class CoordinatorHandler : ServiceEntity {
             return Task.FromResult<PermissionDecision?>(null);
         }
 
-        if (@params.Context.ToolName != "bash" && @params.Context.ToolName != "shell") {
+        if (@params.Context.ToolName != ShellToolNameEnumConstants.Bash && @params.Context.ToolName != "shell") {
             return Task.FromResult<PermissionDecision?>(null);
         }
 

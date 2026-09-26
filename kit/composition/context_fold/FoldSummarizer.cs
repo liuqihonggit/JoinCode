@@ -47,13 +47,7 @@ public sealed partial class FoldSummarizer : ServiceEntity, IFoldSummarizer {
 
     private static string BuildTranscript(IReadOnlyList<ApiMessage> messages) {
         return string.Join("\n", messages.Select(msg => {
-            var role = msg.Role switch {
-                MessageRole.System => "system",
-                MessageRole.User => "user",
-                MessageRole.Assistant => "assistant",
-                MessageRole.Tool => "tool",
-                _ => msg.Role.ToString(),
-            };
+            var role = msg.Role.ToValue();
             return $"[{role}]: {msg.Content ?? string.Empty}";
         }));
     }

@@ -22,10 +22,10 @@ public static class ToolExecutionEntityFactory {
         Dictionary<string, JsonElement>? arguments = null,
         ObjectId sessionId = default) {
         return toolName.ToLowerInvariant() switch {
-            "bash" or "powershell" => CreateBashEntity(arguments, toolUseId, spanId, sessionId),
-            "web_fetch" or "web_search" => CreateWebEntity(arguments, toolUseId, spanId, sessionId),
-            "sleep" or "sleep_until" => CreateSleepEntity(arguments, toolUseId, spanId, sessionId),
-            "repl" => CreateReplEntity(arguments, toolUseId, spanId, sessionId),
+            ShellToolNameEnumConstants.Bash or ShellToolNameEnumConstants.Powershell => CreateBashEntity(arguments, toolUseId, spanId, sessionId),
+            WebToolNameEnumConstants.WebFetch or WebToolNameEnumConstants.WebSearch => CreateWebEntity(arguments, toolUseId, spanId, sessionId),
+            SystemToolNameEnumConstants.Sleep or SystemToolNameEnumConstants.SleepUntil => CreateSleepEntity(arguments, toolUseId, spanId, sessionId),
+            SystemToolNameEnumConstants.Repl => CreateReplEntity(arguments, toolUseId, spanId, sessionId),
             "ask_user" => CreateUserInteractionEntity(arguments, toolUseId, spanId, sessionId),
             _ => new ToolExecutionEntity(toolName, toolUseId, spanId, sessionId: sessionId)
         };

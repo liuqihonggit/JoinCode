@@ -18,18 +18,12 @@ public static class AsyncAgentAllowedTools {
         SearchToolNameEnumConstants.SearchCodebase,
         ShellToolNameEnumConstants.Bash,
         NotebookToolNameEnumConstants.NotebookEdit,
-        "web_fetch",
-        "web_search",
-        "todo_write",
-        "skill",
-        "tool_search",
-        "enter_worktree",
-        "exit_worktree",
-        "read",
-        "write",
-        "edit",
-        "glob",
-        "grep",
-        "bash"
+        WebToolNameEnumConstants.WebFetch,
+        WebToolNameEnumConstants.WebSearch,
+        TodoToolNameEnumConstants.TodoWrite,
+        SkillToolNameEnumConstants.Skill,
+        SystemToolNameEnumConstants.ToolSearch,
+        WorktreeToolNameEnumConstants.EnterWorktree,
+        WorktreeToolNameEnumConstants.ExitWorktree
     );
 }

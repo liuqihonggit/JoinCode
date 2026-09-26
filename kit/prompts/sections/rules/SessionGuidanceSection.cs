@@ -13,8 +13,8 @@ public static class SessionGuidanceSection {
         var tools = PromptConfigSnapshot.Current.EnabledTools.ToHashSet();
         var items = new List<string>();
 
-        if (tools.Contains(InteractionToolNameEnumConstants.AskUserQuestion)) {
-            items.Add($"如果您不理解用户为什么拒绝工具调用，请使用{InteractionToolNameEnumConstants.AskUserQuestion}询问他们。");
+        if (tools.Contains(UserInteractionToolNameEnumConstants.AskUserQuestion)) {
+            items.Add($"如果您不理解用户为什么拒绝工具调用，请使用{UserInteractionToolNameEnumConstants.AskUserQuestion}询问他们。");
         }
 
         items.Add("如果您需要用户自己运行shell命令（例如，像`gcloud auth login`这样的交互式登录），建议他们输入`! <command>`在提示符中——`!`前缀在此会话中运行命令，使其输出直接落入对话中。");

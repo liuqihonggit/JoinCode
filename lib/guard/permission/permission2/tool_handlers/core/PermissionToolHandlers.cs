@@ -19,7 +19,7 @@ public class PermissionToolHandlers {
     /// <summary>
     /// 添加权限规则
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.PermissionAddRule, "添加代理权限规则", "permission")]
+    [McpTool(PermissionToolNameEnumConstants.PermissionAddRule, "添加代理权限规则", "permission")]
     public async Task<ToolResult> PermissionAddRuleAsync(
         [McpToolParameter("代理名称或模式（支持通配符 *）")] string agent_pattern,
         [McpToolParameter("权限模式 (auto/plan/ask/deny)")] string mode,
@@ -85,7 +85,7 @@ public class PermissionToolHandlers {
     /// <summary>
     /// 移除权限规则
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.PermissionRemoveRule, "Remove a permission rule for an agent", "permission")]
+    [McpTool(PermissionToolNameEnumConstants.PermissionRemoveRule, "Remove a permission rule for an agent", "permission")]
     public async Task<ToolResult> PermissionRemoveRuleAsync(
         [McpToolParameter("代理名称或模式")] string agent_pattern,
         CancellationToken cancellationToken = default) {
@@ -109,7 +109,7 @@ public class PermissionToolHandlers {
     /// <summary>
     /// 列出所有权限规则
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.PermissionListRules, "列出所有权限规则", "permission")]
+    [McpTool(PermissionToolNameEnumConstants.PermissionListRules, "列出所有权限规则", "permission")]
     public async Task<ToolResult> PermissionListRulesAsync(
         CancellationToken cancellationToken = default) {
         var rules = await _permissionManager.ListRulesAsync(cancellationToken).ConfigureAwait(false);
@@ -134,7 +134,7 @@ public class PermissionToolHandlers {
     /// <summary>
     /// 检查工具权限
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.PermissionCheckTool, "Check an agent's permission for a tool", "permission")]
+    [McpTool(PermissionToolNameEnumConstants.PermissionCheckTool, "Check an agent's permission for a tool", "permission")]
     public async Task<ToolResult> PermissionCheckToolAsync(
         [McpToolParameter("代理名称")] string agent_name,
         [McpToolParameter("工具名称")] string tool_name,
@@ -181,7 +181,7 @@ public class PermissionToolHandlers {
     /// <summary>
     /// 检查路径权限
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.PermissionCheckPath, "检查代理对路径的权限", "permission")]
+    [McpTool(PermissionToolNameEnumConstants.PermissionCheckPath, "检查代理对路径的权限", "permission")]
     public async Task<ToolResult> PermissionCheckPathAsync(
         [McpToolParameter("代理名称")] string agent_name,
         [McpToolParameter("路径")] string path,
@@ -220,7 +220,7 @@ public class PermissionToolHandlers {
     /// <summary>
     /// 获取代理权限规则
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.PermissionGetAgentRule, "获取指定代理的权限规则", "permission")]
+    [McpTool(PermissionToolNameEnumConstants.PermissionGetAgentRule, "获取指定代理的权限规则", "permission")]
     public async Task<ToolResult> PermissionGetAgentRuleAsync(
         [McpToolParameter("代理名称")] string agent_name,
         CancellationToken cancellationToken = default) {
@@ -248,7 +248,7 @@ public class PermissionToolHandlers {
     /// <summary>
     /// 清除所有权限规则
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.PermissionClearRules, "Clear all permission rules", "permission")]
+    [McpTool(PermissionToolNameEnumConstants.PermissionClearRules, "Clear all permission rules", "permission")]
     public async Task<ToolResult> PermissionClearRulesAsync(
         [McpToolParameter("确认清除（输入 'yes' 确认）")] string confirm,
         CancellationToken cancellationToken = default) {

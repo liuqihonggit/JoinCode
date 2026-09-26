@@ -61,7 +61,7 @@ public class PlanModeToolHandlers {
         sb.AppendLine("1. Thoroughly explore the codebase to understand existing patterns");
         sb.AppendLine("2. Identify similar features and architectural approaches");
         sb.AppendLine("3. Consider multiple approaches and their trade-offs");
-        sb.AppendLine($"4. Use {InteractionToolNameEnumConstants.AskUserQuestion} if you need to clarify the approach");
+        sb.AppendLine($"4. Use {UserInteractionToolNameEnumConstants.AskUserQuestion} if you need to clarify the approach");
         sb.AppendLine("5. Design a concrete implementation strategy");
         sb.AppendLine($"6. When ready, use {PlanToolNameEnumConstants.ExitPlanMode} to present your plan for approval");
         sb.AppendLine();

@@ -236,6 +236,39 @@ public static class ExtendedToolScripts {
     };
 
     // ============================================================
+    // ConfirmAction 工具
+    // ============================================================
+    public static ConversationScript ConfirmActionTest => new() {
+        Name = "ConfirmAction 工具调用",
+        Turns =
+        [
+            new ConversationTurn
+            {
+                UserInput = "确认删除操作",
+                AiResponse = new MockResponseScript
+                {
+                    Type = MockResponseType.WithToolCalls,
+                    TextResponse = "",
+                    ToolCalls =
+                    [
+                        new MockToolCallScript
+                        {
+                            ToolName = "confirm_action",
+                            Arguments = new { action = "删除文件 test.txt", message = "确定要删除 test.txt 吗？" }
+                        }
+                    ],
+                    FollowUpText = "等待确认..."
+                },
+                Asserts =
+                [
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "confirm_action", Description = "应包含ConfirmAction工具调用" },
+                    new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
+                ]
+            }
+        ]
+    };
+
+    // ============================================================
     // web_fetch 工具 — SSRF 防护验证
     // ============================================================
     public static ConversationScript WebFetchToolCall => new() {

@@ -23,7 +23,7 @@ public sealed partial class PolicyToolHandlers {
     /// <summary>
     /// 检查指定动作是否符合策略规则
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.PolicyCheck, "Check if an action complies with policy rules", "policy")]
+    [McpTool(PolicyToolNameEnumConstants.PolicyCheck, "Check if an action complies with policy rules", "policy")]
     public async Task<ToolResult> PolicyCheckAsync(
         [McpToolParameter("Action name")] string action,
         [McpToolParameter("Context information (JSON object, optional)", Required = false)] Dictionary<string, string>? context = null,
@@ -62,7 +62,7 @@ public sealed partial class PolicyToolHandlers {
     /// <summary>
     /// 列出所有活跃的策略规则
     /// </summary>
-    [McpTool(InteractionToolNameEnumConstants.PolicyList, "List all active policy rules", "policy")]
+    [McpTool(PolicyToolNameEnumConstants.PolicyList, "List all active policy rules", "policy")]
     public async Task<ToolResult> PolicyListAsync(
         CancellationToken cancellationToken = default) {
         return await ToolResultBuilder.SafeExecuteAsync(async () => {

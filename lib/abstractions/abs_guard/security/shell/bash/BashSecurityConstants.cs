@@ -60,6 +60,14 @@ public static class BashSecurityConstants {
         StringComparer.OrdinalIgnoreCase,
         "export", "local", "readonly", "declare", "typeset", "nameref");
 
+    /// <summary>
+    /// 安全包装命令集合 — timeout/time/nice/nohup/stdbuf/env
+    /// 这些命令仅修饰后续命令,不改变语义,安全检查时需剥离
+    /// </summary>
+    public static readonly FrozenSet<string> SafeWrapperCommands = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "timeout", "time", "nice", "nohup", "stdbuf", "env");
+
     /// <summary>检查参数数组是否包含 exec 标志（-e 或 -s）。</summary>
     /// <param name="a">参数数组。</param>
     public static bool HasExecFlag(string[] a) {

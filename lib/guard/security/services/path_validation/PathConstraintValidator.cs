@@ -110,11 +110,9 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         .ToArray();
 
     /// <summary>
-    /// 安全包装命令集合 — 对齐 TS stripSafeWrappers
+    /// 安全包装命令集合 — 委托 BashSecurityConstants.SafeWrapperCommands 保持单数据源
     /// </summary>
-    private static readonly FrozenSet<string> SafeWrapperCommands = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "timeout", "nice", "nohup", "time", "stdbuf", "env");
+    private static readonly FrozenSet<string> SafeWrapperCommands = BashSecurityConstants.SafeWrapperCommands;
 
     /// <summary>
     /// 进程替换模式 — 对齐 TS checkPathConstraints 中的进程替换检测

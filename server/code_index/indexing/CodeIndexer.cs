@@ -219,6 +219,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             .WithDegreeOfParallelism(parallelism)
             .WithCancellation(ct)
             .ForAll(range => {
+                LockRegistry.RegisterFlow();
                 using var parser = TreeSitterParserPool.CreateDisposable();
                 using var extractor = new CSharpSymbolExtractor(parser);
 

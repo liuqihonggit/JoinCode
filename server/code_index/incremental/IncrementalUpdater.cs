@@ -157,6 +157,7 @@ public sealed class IncrementalUpdater : IDisposable {
             .WithDegreeOfParallelism(parallelism)
             .WithCancellation(ct)
             .ForAll(chunk => {
+                LockRegistry.RegisterFlow();
                 using var parser = TreeSitterParserPool.CreateDisposable();
                 using var extractor = new CSharpSymbolExtractor(parser);
 
@@ -171,22 +172,19 @@ public sealed class IncrementalUpdater : IDisposable {
     }
 
     private bool IsFileTracked(string filePath) {
-        using var scope = _store.EnterReadLock();
-        return _store.FileTracking.ContainsKey(filePath);
+        return _store.GetSnapshot().FileTracking.ContainsKey(filePath);
     }
 
     private string? GetStoredHash(string filePath) {
-        using var scope = _store.EnterReadLock();
-        return _store.FileTracking.TryGetValue(filePath, out var entry) ? entry.Hash : null;
+        return _store.GetSnapshot().FileTracking.TryGetValue(filePath, out var entry) ? entry.Hash : null;
     }
 
     private Dictionary<string, string> BatchGetStoredHashes(string[] filePaths) {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (filePaths.Length == 0) return result;
-
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
         foreach (var fp in filePaths) {
-            if (_store.FileTracking.TryGetValue(fp, out var entry)) {
+            if (snap.FileTracking.TryGetValue(fp, out var entry)) {
                 result[fp] = entry.Hash;
             }
         }
@@ -194,8 +192,8 @@ public sealed class IncrementalUpdater : IDisposable {
     }
 
     private IReadOnlyList<string> GetTrackedFilesInDirectory(string directoryPath) {
-        using var scope = _store.EnterReadLock();
-        return _store.FileTracking.Keys
+        var snap = _store.GetSnapshot();
+        return snap.FileTracking.Keys
             .Where(p => p.StartsWith(directoryPath, StringComparison.OrdinalIgnoreCase))
             .ToList();
     }

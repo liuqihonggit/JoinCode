@@ -41,7 +41,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
     /// <param name="workspaceRoot">工作区根路径</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>仓库注册信息</returns>
-    public Task<RepoRegistration> RegisterAsync(string repoId, string workspaceRoot, CancellationToken ct) {
+    public async Task<RepoRegistration> RegisterAsync(string repoId, string workspaceRoot, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(repoId);
         ArgumentNullException.ThrowIfNull(workspaceRoot);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
@@ -58,7 +58,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
 
         if (!_repos.TryAdd(repoId, new RegisteredRepo(registration, store, concreteIndexer))) {
             concreteIndexer.DisposeSafe();
-            store.DisposeSafe();
+            await store.DisposeAsync().ConfigureAwait(false);
             throw new InvalidOperationException($"Repository '{repoId}' is already registered.");
         }
 
@@ -68,7 +68,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
             Indexer = concreteIndexer,
         });
 
-        return Task.FromResult(registration);
+        return registration;
     }
 
     /// <summary>
@@ -142,7 +142,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
 
         foreach (var repo in _repos.GetAll()) {
             repo.Indexer.DisposeSafe();
-            repo.Store.DisposeSafe();
+            repo.Store.Dispose();
         }
         _repos.Clear();
 

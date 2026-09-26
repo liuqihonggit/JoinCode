@@ -26,7 +26,7 @@ public static partial class ServiceRegistration {
             var skillService = serviceProvider.GetRequiredService<JoinCode.Abstractions.Interfaces.ISkillService>();
             Diag.WriteLine($"[WIRE] ISkillService OK ({sw.ElapsedMilliseconds}ms)");
         } catch (Exception ex) {
-            Console.Error.WriteLine($"[WIRE] ISkillService FAILED after {sw.ElapsedMilliseconds}ms: {ex.Message}");
+            AsyncStderrWriter.Enqueue($"[WIRE] ISkillService FAILED after {sw.ElapsedMilliseconds}ms: {ex.Message}");
             throw;
         }
 

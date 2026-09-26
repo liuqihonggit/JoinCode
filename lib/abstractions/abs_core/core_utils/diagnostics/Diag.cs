@@ -108,13 +108,11 @@ public static class Diag {
             Console.Out.WriteLine(message);
             Console.Out.Flush();
         } else if (_diagTarget == "both") {
-            Console.Error.WriteLine(message);
-            Console.Error.Flush();
+            AsyncStderrWriter.Enqueue(message);
             Console.Out.WriteLine(message);
             Console.Out.Flush();
         } else {
-            Console.Error.WriteLine(message);
-            Console.Error.Flush();
+            AsyncStderrWriter.Enqueue(message);
         }
     }
 

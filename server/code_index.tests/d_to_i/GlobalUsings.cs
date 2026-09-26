@@ -10,6 +10,7 @@ global using JoinCode.CodeIndex.Persistence;
 global using JoinCode.CodeIndex.Threading;
 global using System;
 global using System.Collections.Generic;
+global using System.Collections.Immutable;
 global using System.Linq;
 global using System.Runtime.CompilerServices;
 global using System.Text.Json;

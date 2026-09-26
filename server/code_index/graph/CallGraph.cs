@@ -43,10 +43,10 @@ public sealed class CallGraph : ICallGraph {
     public Task<IReadOnlyList<CallEdge>> GetCallersAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
         var result = new List<CallEdge>();
-        foreach (var fqn in ResolveFqns(symbolName)) {
-            if (_store.CallsByCallee.TryGetValue(fqn, out var list)) {
+        foreach (var fqn in ResolveFqns(snap, symbolName)) {
+            if (snap.CallsByCallee.TryGetValue(fqn, out var list)) {
                 result.AddRange(list);
             }
         }
@@ -62,10 +62,10 @@ public sealed class CallGraph : ICallGraph {
     public Task<IReadOnlyList<CallEdge>> GetCalleesAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
         var result = new List<CallEdge>();
-        foreach (var fqn in ResolveFqns(symbolName)) {
-            if (_store.CallsByCaller.TryGetValue(fqn, out var list)) {
+        foreach (var fqn in ResolveFqns(snap, symbolName)) {
+            if (snap.CallsByCaller.TryGetValue(fqn, out var list)) {
                 result.AddRange(list);
             }
         }
@@ -75,9 +75,9 @@ public sealed class CallGraph : ICallGraph {
     /// <summary>
     /// 将符号名解析为所有匹配的完全限定名集合 — 同时包含原始输入和符号的 FQN，支持简单名和完全限定名两种输入
     /// </summary>
-    private HashSet<string> ResolveFqns(string symbolName) {
+    private static HashSet<string> ResolveFqns(IndexSnapshot snap, string symbolName) {
         var fqns = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { symbolName };
-        if (_store.SymbolsByName.TryGetValue(symbolName, out var list)) {
+        if (snap.SymbolsByName.TryGetValue(symbolName, out var list)) {
             foreach (var s in list) {
                 fqns.Add(s.FullyQualifiedName);
             }
@@ -96,8 +96,8 @@ public sealed class CallGraph : ICallGraph {
         ArgumentNullException.ThrowIfNull(from);
         ArgumentNullException.ThrowIfNull(to);
 
-        using var scope = _store.EnterReadLock();
-        var path = BfsPath(_store.CallsByCaller, from, to);
+        var snap = _store.GetSnapshot();
+        var path = BfsPath(snap.CallsByCaller, from, to);
         return Task.FromResult<IReadOnlyList<CallEdge>>(path);
     }
 
@@ -110,14 +110,14 @@ public sealed class CallGraph : ICallGraph {
     public Task<IReadOnlyList<string>> GetImpactScopeAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
-        using var scope = _store.EnterReadLock();
+        var snap = _store.GetSnapshot();
         var visited = new HashSet<string>(StringComparer.Ordinal) { symbolName };
         var queue = new Queue<string>();
         queue.Enqueue(symbolName);
 
         while (queue.Count > 0) {
             var current = queue.Dequeue();
-            if (!_store.CallsByCallee.TryGetValue(current, out var callers)) continue;
+            if (!snap.CallsByCallee.TryGetValue(current, out var callers)) continue;
 
             foreach (var edge in callers) {
                 if (visited.Add(edge.CallerSymbol)) {
@@ -130,7 +130,7 @@ public sealed class CallGraph : ICallGraph {
         return Task.FromResult<IReadOnlyList<string>>(visited.ToList());
     }
 
-    private static IReadOnlyList<CallEdge> BfsPath(Dictionary<string, List<CallEdge>> adj, string from, string to) {
+    private static IReadOnlyList<CallEdge> BfsPath(ImmutableDictionary<string, ImmutableList<CallEdge>> adj, string from, string to) {
         if (!adj.TryGetValue(from, out _)) {
             return Array.Empty<CallEdge>();
         }

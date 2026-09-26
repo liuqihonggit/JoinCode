@@ -14,7 +14,7 @@ public sealed class SymbolIndexTests : IDisposable {
         if (_disposed) return;
         _disposed = true;
         _index.DisposeSafe();
-        _store.DisposeSafe();
+        _store.Dispose();
     }
 
     [Fact]
@@ -26,8 +26,9 @@ public sealed class SymbolIndexTests : IDisposable {
 
         await index.IndexFileAsync(path, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.True(_store.SymbolsByFqn.Count > 0);
-        Assert.True(_store.FileTracking.ContainsKey(path));
+        var snap = _store.GetSnapshot();
+        Assert.True(snap.SymbolsByFqn.Count > 0);
+        Assert.True(snap.FileTracking.ContainsKey(path));
     }
 
     [Fact]
@@ -40,8 +41,9 @@ public sealed class SymbolIndexTests : IDisposable {
         await index.IndexFileAsync("a.cs", CancellationToken.None).ConfigureAwait(true);
         await index.IndexFileAsync("b.cs", CancellationToken.None).ConfigureAwait(true);
 
-        Assert.True(_store.SymbolsByFqn.Count >= 2);
-        Assert.Equal(2, _store.FileTracking.Count);
+        var snap = _store.GetSnapshot();
+        Assert.True(snap.SymbolsByFqn.Count >= 2);
+        Assert.Equal(2, snap.FileTracking.Count);
     }
 
     [Fact]
@@ -55,12 +57,13 @@ public sealed class SymbolIndexTests : IDisposable {
                 deps: []))
         };
         await _index.IndexFilesBatchAsync(batch, CancellationToken.None).ConfigureAwait(true);
-        Assert.Single(_store.SymbolsByFqn);
+        Assert.Single(_store.GetSnapshot().SymbolsByFqn);
 
         await _index.RemoveFileAsync(filePath, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Empty(_store.SymbolsByFqn);
-        Assert.Empty(_store.FileTracking);
+        var snap = _store.GetSnapshot();
+        Assert.Empty(snap.SymbolsByFqn);
+        Assert.Empty(snap.FileTracking);
     }
 
     [Fact]
@@ -70,14 +73,15 @@ public sealed class SymbolIndexTests : IDisposable {
         var path = "test.cs";
         await fs.WriteAllText(path, "public class Old { }");
         await index.IndexFileAsync(path, CancellationToken.None).ConfigureAwait(true);
-        var firstCount = _store.SymbolsByFqn.Count;
+        var firstCount = _store.GetSnapshot().SymbolsByFqn.Count;
 
         await fs.WriteAllText(path, "public class New { }");
         await index.IndexFileAsync(path, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Equal(firstCount, _store.SymbolsByFqn.Count);
-        Assert.Contains(_store.SymbolsByFqn, kvp => kvp.Key.Contains("New"));
-        Assert.DoesNotContain(_store.SymbolsByFqn, kvp => kvp.Key.Contains("Old"));
+        var snap = _store.GetSnapshot();
+        Assert.Equal(firstCount, snap.SymbolsByFqn.Count);
+        Assert.Contains(snap.SymbolsByFqn, kvp => kvp.Key.Contains("New"));
+        Assert.DoesNotContain(snap.SymbolsByFqn, kvp => kvp.Key.Contains("Old"));
     }
 
     [Fact]
@@ -90,22 +94,24 @@ public sealed class SymbolIndexTests : IDisposable {
                 deps: [MakeDep("Foo", "Bar", DependencyKind.Uses, "a.cs")]))
         };
         await _index.IndexFilesBatchAsync(batch, CancellationToken.None).ConfigureAwait(true);
-        Assert.NotEmpty(_store.SymbolsByFqn);
+        Assert.NotEmpty(_store.GetSnapshot().SymbolsByFqn);
 
         await _index.ClearAsync(CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Empty(_store.SymbolsByFqn);
-        Assert.Empty(_store.CallEdges);
-        Assert.Empty(_store.DepEdges);
-        Assert.Empty(_store.FileTracking);
+        var snap = _store.GetSnapshot();
+        Assert.Empty(snap.SymbolsByFqn);
+        Assert.Empty(snap.CallEdges);
+        Assert.Empty(snap.DepEdges);
+        Assert.Empty(snap.FileTracking);
     }
 
     [Fact]
     public async Task IndexFileAsync_NonExistentFile_DoesNothing() {
         await _index.IndexFileAsync("missing.cs", CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Empty(_store.SymbolsByFqn);
-        Assert.Empty(_store.FileTracking);
+        var snap = _store.GetSnapshot();
+        Assert.Empty(snap.SymbolsByFqn);
+        Assert.Empty(snap.FileTracking);
     }
 
     [Fact]
@@ -123,7 +129,7 @@ public sealed class SymbolIndexTests : IDisposable {
 
         await index.IndexFilesAsync(["a.cs", "b.cs"], CancellationToken.None).ConfigureAwait(true);
 
-        Assert.True(_store.SymbolsByFqn.Count >= 2);
+        Assert.True(_store.GetSnapshot().SymbolsByFqn.Count >= 2);
     }
 
     [Fact]
@@ -164,11 +170,12 @@ public sealed class SymbolIndexTests : IDisposable {
 
         await _index.IndexFilesBatchAsync(batch, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Equal(2, _store.SymbolsByFqn.Count);
-        Assert.True(_store.SymbolsByFqn.ContainsKey("Ns.Foo"));
-        Assert.True(_store.SymbolsByFqn.ContainsKey("Ns.Bar"));
-        Assert.Single(_store.CallEdges);
-        Assert.Equal(2, _store.FileTracking.Count);
+        var snap = _store.GetSnapshot();
+        Assert.Equal(2, snap.SymbolsByFqn.Count);
+        Assert.True(snap.SymbolsByFqn.ContainsKey("Ns.Foo"));
+        Assert.True(snap.SymbolsByFqn.ContainsKey("Ns.Bar"));
+        Assert.Single(snap.CallEdges);
+        Assert.Equal(2, snap.FileTracking.Count);
     }
 
     [Fact]
@@ -188,8 +195,9 @@ public sealed class SymbolIndexTests : IDisposable {
 
         await _index.IndexFilesBatchAsync(batch, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.All(_store.DepEdges, e => Assert.Equal(DependencyKind.Implements, e.DependencyKind));
-        Assert.Single(_store.DepEdges);
+        var snap = _store.GetSnapshot();
+        Assert.All(snap.DepEdges, e => Assert.Equal(DependencyKind.Implements, e.DependencyKind));
+        Assert.Single(snap.DepEdges);
     }
 
     [Fact]
@@ -202,7 +210,7 @@ public sealed class SymbolIndexTests : IDisposable {
                 deps: []))
         };
         await _index.IndexFilesBatchAsync(first, CancellationToken.None).ConfigureAwait(true);
-        Assert.True(_store.SymbolsByFqn.ContainsKey("Ns.Old"));
+        Assert.True(_store.GetSnapshot().SymbolsByFqn.ContainsKey("Ns.Old"));
 
         var second = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>
         {
@@ -213,17 +221,19 @@ public sealed class SymbolIndexTests : IDisposable {
         };
         await _index.IndexFilesBatchAsync(second, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.False(_store.SymbolsByFqn.ContainsKey("Ns.Old"));
-        Assert.True(_store.SymbolsByFqn.ContainsKey("Ns.New"));
-        Assert.Single(_store.FileTracking);
+        var snap = _store.GetSnapshot();
+        Assert.False(snap.SymbolsByFqn.ContainsKey("Ns.Old"));
+        Assert.True(snap.SymbolsByFqn.ContainsKey("Ns.New"));
+        Assert.Single(snap.FileTracking);
     }
 
     [Fact]
     public async Task IndexFilesBatchAsync_EmptyList_DoesNothing() {
         await _index.IndexFilesBatchAsync([], CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Empty(_store.SymbolsByFqn);
-        Assert.Empty(_store.FileTracking);
+        var snap = _store.GetSnapshot();
+        Assert.Empty(snap.SymbolsByFqn);
+        Assert.Empty(snap.FileTracking);
     }
 
     [Fact]
@@ -235,8 +245,9 @@ public sealed class SymbolIndexTests : IDisposable {
 
         await _index.IndexFileWithContentAsync("a.cs", "code", "h", extraction, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Single(_store.SymbolsByFqn);
-        Assert.Equal("h", _store.FileTracking["a.cs"].Hash);
+        var snap = _store.GetSnapshot();
+        Assert.Single(snap.SymbolsByFqn);
+        Assert.Equal("h", snap.FileTracking["a.cs"].Hash);
     }
 
     [Fact]

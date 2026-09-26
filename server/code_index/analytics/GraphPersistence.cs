@@ -13,9 +13,6 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence {
     /// <summary>
     /// 构造 GraphPersistence
     /// </summary>
-    /// <param name="store">内存索引存储</param>
-    /// <param name="fs">文件系统抽象</param>
-    /// <param name="pipeline">可选持久化管道，无则直接写文件</param>
     public GraphPersistence(InMemoryIndexStore store, IFileSystem fs, IPersistencePipeline? pipeline = null) {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(fs);
@@ -27,37 +24,31 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence {
     /// <summary>
     /// 将索引存储序列化保存到指定目录的 code-index.json 文件
     /// </summary>
-    /// <param name="directory">目标目录</param>
-    /// <param name="ct">取消令牌</param>
     public async Task SaveAsync(string directory, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(directory);
 
-        // 锁只包裹同步的 data 构造 + 序列化(ReaderWriterLockSlim 线程亲和,不可跨 await)
-        string json;
-        using (var scope = _store.EnterReadLock()) {
-            var data = new GraphPersistenceData {
-                Version = CurrentVersion,
-                SavedAt = DateTimeOffset.UtcNow,
-                Symbols = _store.SymbolsByFqn.Values.ToList(),
-                CallEdges = _store.CallEdges,
-                DependencyEdges = _store.DepEdges,
-                Projects = _store.Projects.Values.ToList(),
-                ProjectReferences = _store.ProjectRefs.Values.SelectMany(v => v).ToList(),
-                NuGetReferences = _store.NuGetRefs.Values.SelectMany(v => v).ToList(),
-                FileTracking = _store.FileTracking.Values.Select(e => new FileTrackingInfo {
-                    FilePath = e.FilePath,
-                    Hash = e.Hash,
-                    SymbolCount = e.SymbolCount,
-                    LastModified = e.LastModified,
-                }).ToList(),
-            };
-            json = RelaxedJsonSerializer.Serialize(data, CodeIndexJsonContext.Default);
-        }
+        var snap = _store.GetSnapshot();
+        var data = new GraphPersistenceData {
+            Version = CurrentVersion,
+            SavedAt = DateTimeOffset.UtcNow,
+            Symbols = snap.SymbolsByFqn.Values.ToList(),
+            CallEdges = snap.CallEdges.ToList(),
+            DependencyEdges = snap.DepEdges.ToList(),
+            Projects = snap.Projects.Values.ToList(),
+            ProjectReferences = snap.ProjectRefs.Values.SelectMany(v => v).ToList(),
+            NuGetReferences = snap.NuGetRefs.Values.SelectMany(v => v).ToList(),
+            FileTracking = snap.FileTracking.Values.Select(e => new FileTrackingInfo {
+                FilePath = e.FilePath,
+                Hash = e.Hash,
+                SymbolCount = e.SymbolCount,
+                LastModified = e.LastModified,
+            }).ToList(),
+        };
+        var json = RelaxedJsonSerializer.Serialize(data, CodeIndexJsonContext.Default);
 
         var fileName = "code-index.json";
 
         if (_pipeline is not null) {
-            // 统一持久化管道:入队并等待 Actor 写完(确保 rebuild 返回时索引已落盘可跨进程加载)
             var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var request = new PersistRequest {
                 Category = "code_index",
@@ -69,7 +60,6 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence {
             await _pipeline.EnqueueAsync(request, ct).ConfigureAwait(false);
             await tcs.Task.ConfigureAwait(false);
         } else {
-            // 回退:无管道时直接写文件(兼容旧测试)
             _fs.CreateDirectory(directory);
             var path = Path.Combine(directory, fileName);
             await _fs.WriteAllTextAsync(path, json, ct).ConfigureAwait(false);
@@ -79,9 +69,6 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence {
     /// <summary>
     /// 从指定目录加载 code-index.json 并重建索引存储
     /// </summary>
-    /// <param name="directory">源目录</param>
-    /// <param name="ct">取消令牌</param>
-    /// <returns>加载成功返回 true；文件不存在或版本不匹配返回 false</returns>
     public async Task<bool> LoadAsync(string directory, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(directory);
         var path = Path.Combine(directory, "code-index.json");
@@ -95,112 +82,13 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence {
         if (data is null || data.Version != CurrentVersion)
             return false;
 
-        using var scope = _store.EnterWriteLock();
-        _store.ClearCore();
-
-        foreach (var sym in data.Symbols) {
-            _store.SymbolsByFqn[sym.FullyQualifiedName] = sym;
-            if (!_store.SymbolsByName.TryGetValue(sym.Name, out var nameList)) {
-                nameList = new List<SymbolInfo>();
-                _store.SymbolsByName[sym.Name] = nameList;
-            }
-            nameList.Add(sym);
-
-            if (!_store.SymbolsByFile.TryGetValue(sym.FilePath, out var fileList)) {
-                fileList = new List<SymbolInfo>();
-                _store.SymbolsByFile[sym.FilePath] = fileList;
-            }
-            fileList.Add(sym);
-
-            if (!_store.SymbolsByKind.TryGetValue(sym.Kind, out var kindList)) {
-                kindList = new List<SymbolInfo>();
-                _store.SymbolsByKind[sym.Kind] = kindList;
-            }
-            kindList.Add(sym);
-        }
-
-        foreach (var edge in data.CallEdges) {
-            _store.CallEdges.Add(edge);
-            if (!_store.CallsByCaller.TryGetValue(edge.CallerSymbol, out var list)) {
-                list = new List<CallEdge>();
-                _store.CallsByCaller[edge.CallerSymbol] = list;
-            }
-            list.Add(edge);
-
-            if (!_store.CallsByCallee.TryGetValue(edge.CalleeSymbol, out var calleeList)) {
-                calleeList = new List<CallEdge>();
-                _store.CallsByCallee[edge.CalleeSymbol] = calleeList;
-            }
-            calleeList.Add(edge);
-
-            if (!_store.CallsByFile.TryGetValue(edge.CallSiteFilePath, out var fileList)) {
-                fileList = new List<CallEdge>();
-                _store.CallsByFile[edge.CallSiteFilePath] = fileList;
-            }
-            fileList.Add(edge);
-        }
-
-        foreach (var edge in data.DependencyEdges) {
-            _store.DepEdges.Add(edge);
-            if (!_store.DepsBySource.TryGetValue(edge.SourceSymbol, out var list)) {
-                list = new List<DependencyEdge>();
-                _store.DepsBySource[edge.SourceSymbol] = list;
-            }
-            list.Add(edge);
-
-            if (!_store.DepsByTarget.TryGetValue(edge.TargetSymbol, out var targetList)) {
-                targetList = new List<DependencyEdge>();
-                _store.DepsByTarget[edge.TargetSymbol] = targetList;
-            }
-            targetList.Add(edge);
-
-            if (!string.IsNullOrEmpty(edge.SourceFilePath)) {
-                if (!_store.DepsByFile.TryGetValue(edge.SourceFilePath!, out var fileList)) {
-                    fileList = new List<DependencyEdge>();
-                    _store.DepsByFile[edge.SourceFilePath!] = fileList;
-                }
-                fileList.Add(edge);
-            }
-        }
-
-        foreach (var proj in data.Projects)
-            _store.Projects[proj.FilePath] = proj;
-
-        foreach (var ref_ in data.ProjectReferences) {
-            if (!_store.ProjectRefs.TryGetValue(ref_.SourceProjectPath, out var refList)) {
-                refList = new List<ProjectReferenceEdge>();
-                _store.ProjectRefs[ref_.SourceProjectPath] = refList;
-            }
-            refList.Add(ref_);
-        }
-
-        foreach (var pkg in data.NuGetReferences) {
-            if (!_store.NuGetRefs.TryGetValue(pkg.ProjectPath, out var pkgList)) {
-                pkgList = new List<NuGetPackageReference>();
-                _store.NuGetRefs[pkg.ProjectPath] = pkgList;
-            }
-            pkgList.Add(pkg);
-        }
-
-        foreach (var ft in data.FileTracking) {
-            _store.FileTracking[ft.FilePath] = new FileTrackingEntry {
-                FilePath = ft.FilePath,
-                Hash = ft.Hash,
-                SymbolCount = ft.SymbolCount,
-                LastModified = ft.LastModified,
-            };
-        }
-
-        _store.LastUpdated = data.SavedAt;
+        _store.Update(_ => IndexSnapshot.Load(data));
         return true;
     }
 
     /// <summary>
     /// 检查指定目录是否存在持久化索引文件
     /// </summary>
-    /// <param name="directory">目标目录</param>
-    /// <param name="ct">取消令牌</param>
-    /// <returns>存在返回 true，否则 false</returns>
     public Task<bool> ExistsAsync(string directory, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(directory);
         var path = Path.Combine(directory, "code-index.json");

@@ -14,7 +14,7 @@ public sealed class FileWatcherIntegrationTests : IDisposable {
         if (_disposed) return;
         _disposed = true;
         _indexer.DisposeSafe();
-        _store.DisposeSafe();
+        _store.Dispose();
     }
 
     [Fact]

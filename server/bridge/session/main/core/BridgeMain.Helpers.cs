@@ -135,12 +135,12 @@ public sealed partial class BridgeMain {
     /// 后台执行不阻塞主循环，定期清理已完成的任务
     /// </summary>
     internal void TrackCleanup(Task cleanupTask) {
-        using var guard = _cleanupLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_cleanupLock.Name}' 等待超时");
+        using var guard = _cleanupLock.LockOrCrash();
         _pendingCleanups.Add(cleanupTask);
 
         // 清理已完成的任务
         _ = cleanupTask.ContinueWith(_ => {
-            using var guard = _cleanupLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_cleanupLock.Name}' 等待超时");
+            using var guard = _cleanupLock.LockOrCrash();
             _pendingCleanups.Remove(cleanupTask);
         }, TaskScheduler.Default);
     }

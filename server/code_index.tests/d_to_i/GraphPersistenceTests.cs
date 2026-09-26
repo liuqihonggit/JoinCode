@@ -18,7 +18,7 @@ public sealed class GraphPersistenceTests : IDisposable {
         if (_disposed) return;
         _disposed = true;
         _index.DisposeSafe();
-        _store.DisposeSafe();
+        _store.Dispose();
     }
 
     [Fact]
@@ -75,28 +75,28 @@ public sealed class GraphPersistenceTests : IDisposable {
         var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
         Assert.True(loaded, "LoadAsync 应返回 true 表示成功加载");
 
-        using var scope = loadStore.EnterReadLock();
-        Assert.Single(loadStore.SymbolsByFqn);
-        Assert.True(loadStore.SymbolsByFqn.ContainsKey("A.B.C"));
-        Assert.Equal("C", loadStore.SymbolsByFqn["A.B.C"].Name);
+        var snap = loadStore.GetSnapshot();
+        Assert.Single(snap.SymbolsByFqn);
+        Assert.True(snap.SymbolsByFqn.ContainsKey("A.B.C"));
+        Assert.Equal("C", snap.SymbolsByFqn["A.B.C"].Name);
 
-        Assert.Single(loadStore.CallEdges);
-        Assert.Equal("A.B.D", loadStore.CallEdges[0].CalleeSymbol);
-        Assert.Equal(CallKind.Direct, loadStore.CallEdges[0].CallKind);
+        Assert.Single(snap.CallEdges);
+        Assert.Equal("A.B.D", snap.CallEdges[0].CalleeSymbol);
+        Assert.Equal(CallKind.Direct, snap.CallEdges[0].CallKind);
 
-        Assert.Single(loadStore.DepEdges);
-        Assert.Equal(DependencyKind.Inherits, loadStore.DepEdges[0].DependencyKind);
+        Assert.Single(snap.DepEdges);
+        Assert.Equal(DependencyKind.Inherits, snap.DepEdges[0].DependencyKind);
 
-        Assert.Single(loadStore.Projects);
-        Assert.True(loadStore.Projects.ContainsKey("P.csproj"));
-        Assert.Equal("net10.0", loadStore.Projects["P.csproj"].TargetFramework);
+        Assert.Single(snap.Projects);
+        Assert.True(snap.Projects.ContainsKey("P.csproj"));
+        Assert.Equal("net10.0", snap.Projects["P.csproj"].TargetFramework);
 
-        Assert.Single(loadStore.ProjectRefs["P.csproj"]);
-        Assert.Equal("Q.csproj", loadStore.ProjectRefs["P.csproj"][0].TargetProjectPath);
+        Assert.Single(snap.ProjectRefs["P.csproj"]);
+        Assert.Equal("Q.csproj", snap.ProjectRefs["P.csproj"][0].TargetProjectPath);
 
-        Assert.Single(loadStore.NuGetRefs["P.csproj"]);
-        Assert.Equal("Newtonsoft.Json", loadStore.NuGetRefs["P.csproj"][0].PackageName);
-        Assert.Equal("13.0.1", loadStore.NuGetRefs["P.csproj"][0].Version);
+        Assert.Single(snap.NuGetRefs["P.csproj"]);
+        Assert.Equal("Newtonsoft.Json", snap.NuGetRefs["P.csproj"][0].PackageName);
+        Assert.Equal("13.0.1", snap.NuGetRefs["P.csproj"][0].Version);
 
     }
 
@@ -118,11 +118,11 @@ public sealed class GraphPersistenceTests : IDisposable {
         var loaded = await _persistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
         Assert.True(loaded, "空索引的 JSON 应能被 LoadAsync 成功加载");
 
-        using var scope = _store.EnterReadLock();
-        Assert.Empty(_store.SymbolsByFqn);
-        Assert.Empty(_store.CallEdges);
-        Assert.Empty(_store.DepEdges);
-        Assert.Empty(_store.Projects);
+        var snap = _store.GetSnapshot();
+        Assert.Empty(snap.SymbolsByFqn);
+        Assert.Empty(snap.CallEdges);
+        Assert.Empty(snap.DepEdges);
+        Assert.Empty(snap.Projects);
     }
 
     /// <summary>
@@ -181,42 +181,39 @@ public sealed class GraphPersistenceTests : IDisposable {
     }
 
     private void PopulateStoreWithData() {
-        using var scope = _store.EnterWriteLock();
-        _store.SymbolsByFqn["A.B.C"] = new SymbolInfo {
-            Name = "C",
-            FullyQualifiedName = "A.B.C",
-            Kind = SymbolKind.Class,
-            FilePath = "C.cs",
-            StartLine = 1,
-            EndLine = 10,
-            StartColumn = 1,
-            EndColumn = 1
-        };
-        _store.CallEdges.Add(new CallEdge {
-            CallerSymbol = "A.B.C",
-            CalleeSymbol = "A.B.D",
-            CallSiteFilePath = "C.cs",
-            CallSiteLine = 5,
-            CallKind = CallKind.Direct
+        _store.Update(snap => snap with {
+            SymbolsByFqn = snap.SymbolsByFqn.SetItem("A.B.C", new SymbolInfo {
+                Name = "C",
+                FullyQualifiedName = "A.B.C",
+                Kind = SymbolKind.Class,
+                FilePath = "C.cs",
+                StartLine = 1,
+                EndLine = 10,
+                StartColumn = 1,
+                EndColumn = 1
+            }),
+            CallEdges = snap.CallEdges.Add(new CallEdge {
+                CallerSymbol = "A.B.C",
+                CalleeSymbol = "A.B.D",
+                CallSiteFilePath = "C.cs",
+                CallSiteLine = 5,
+                CallKind = CallKind.Direct
+            }),
+            DepEdges = snap.DepEdges.Add(new DependencyEdge {
+                SourceSymbol = "A.B.C",
+                TargetSymbol = "A.B.D",
+                DependencyKind = DependencyKind.Inherits,
+                SourceFilePath = "C.cs"
+            }),
+            Projects = snap.Projects.SetItem("P.csproj", new ProjectInfo {
+                Name = "P",
+                FilePath = "P.csproj",
+                TargetFramework = "net10.0"
+            }),
+            ProjectRefs = snap.ProjectRefs.SetItem("P.csproj",
+                ImmutableList.Create(new ProjectReferenceEdge { SourceProjectPath = "P.csproj", TargetProjectPath = "Q.csproj" })),
+            NuGetRefs = snap.NuGetRefs.SetItem("P.csproj",
+                ImmutableList.Create(new NuGetPackageReference { ProjectPath = "P.csproj", PackageName = "Newtonsoft.Json", Version = "13.0.1" })),
         });
-        _store.DepEdges.Add(new DependencyEdge {
-            SourceSymbol = "A.B.C",
-            TargetSymbol = "A.B.D",
-            DependencyKind = DependencyKind.Inherits,
-            SourceFilePath = "C.cs"
-        });
-        _store.Projects["P.csproj"] = new ProjectInfo {
-            Name = "P",
-            FilePath = "P.csproj",
-            TargetFramework = "net10.0"
-        };
-        _store.ProjectRefs["P.csproj"] =
-        [
-            new() { SourceProjectPath = "P.csproj", TargetProjectPath = "Q.csproj" }
-        ];
-        _store.NuGetRefs["P.csproj"] =
-        [
-            new() { ProjectPath = "P.csproj", PackageName = "Newtonsoft.Json", Version = "13.0.1" }
-        ];
     }
 }

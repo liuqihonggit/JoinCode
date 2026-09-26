@@ -43,7 +43,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     /// <inheritdoc />
     public TSelected CurrentValue {
         get {
-            using (_valueLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_valueLock.Name}' 等待超时")) {
+            using (_valueLock.LockOrCrash()) {
                 return _currentValue;
             }
         }
@@ -71,7 +71,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     private void OnStoreStateChanged(StateChangedEventArgs<TState> args) {
         var newValue = _selector(args.NewState);
         TSelected oldValue;
-        using (_valueLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_valueLock.Name}' 等待超时")) {
+        using (_valueLock.LockOrCrash()) {
             oldValue = _currentValue;
         }
 
@@ -79,7 +79,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
             return;
         }
 
-        using (_valueLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_valueLock.Name}' 等待超时")) {
+        using (_valueLock.LockOrCrash()) {
             _currentValue = newValue;
         }
 

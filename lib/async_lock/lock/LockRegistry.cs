@@ -11,7 +11,7 @@ public static class LockRegistry {
 
     private static TimeSpan _waitTimeoutThreshold = TimeSpan.FromSeconds(30);
     private static TimeSpan _holdTooLongThreshold = TimeSpan.FromSeconds(5);
-    private static Action<string>? _diagnosticSink = static msg => Console.Error.WriteLine(msg);
+    private static Action<string>? _diagnosticSink = static msg => AsyncStderrWriter.Enqueue(msg);
     private static Timer? _scanTimer;
     private static TimeSpan _scanInterval = TimeSpan.FromSeconds(5);
     private static int _scanStarted;

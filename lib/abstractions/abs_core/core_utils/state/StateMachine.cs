@@ -13,9 +13,18 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
     private readonly int[] _transitionMasks;
     private readonly FrozenSet<TState>?[] _validNextStates;
     private readonly FrozenSet<TState> _terminalStates = FrozenSet<TState>.Empty;
-    private readonly AsyncLock _lock = new("StateMachine");
+    private readonly AsyncLock _lock = new("StateMachine", LockTimeoutPolicy.Crash);
     private readonly IClockService? _clock;
     private TState _currentState;
+
+    /// <summary>
+    /// 获取锁 — 内置重试 16 次×500ms,全失败按 <see cref="LockTimeoutPolicy.Crash"/> 策略 Environment.Exit(99)。
+    /// <para>Crash 策略下 TryLockWithRetry 不会返回 null(要么返回 Releaser,要么已 Exit),null 检查仅为编译器消除警告。</para>
+    /// </summary>
+    private IDisposable AcquireLock() {
+        return _lock.TryLockWithRetry()
+            ?? throw new InvalidOperationException($"unreachable: {_lock.Name} Crash 策略不返回 null");
+    }
 
     /// <summary>构造状态机。</summary>
     /// <param name="transitions">状态转移表。</param>
@@ -82,7 +91,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
     /// <summary>获取当前状态。</summary>
     public TState CurrentState {
         get {
-            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+            using (AcquireLock()) {
                 return _currentState;
             }
         }
@@ -106,7 +115,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
     /// <summary>判断从当前状态是否能转移到目标状态。</summary>
     /// <param name="to">目标状态。</param>
     public bool CanTransitionTo(TState to) {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (AcquireLock()) {
             return CanTransitionTo(_currentState, to);
         }
     }
@@ -115,7 +124,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
     /// <param name="target">目标状态。</param>
     public void TransitionTo(TState target) {
         TState oldState;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (AcquireLock()) {
             if (!CanTransitionTo(_currentState, target)) {
                 OnTransitionFailed(_currentState, target);
                 throw new InvalidOperationException(
@@ -134,7 +143,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
     public bool TryTransitionTo(TState target) {
         TState oldState;
         bool changed;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (AcquireLock()) {
             if (!CanTransitionTo(_currentState, target)) {
                 return false;
             }
@@ -155,7 +164,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
     /// <param name="target">目标状态。</param>
     public void ForceTransitionTo(TState target) {
         TState oldState;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (AcquireLock()) {
             oldState = _currentState;
             _currentState = target;
         }
@@ -167,7 +176,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
     /// <param name="initialState">初始状态。</param>
     public void Reset(TState initialState) {
         TState oldState;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (AcquireLock()) {
             oldState = _currentState;
             if (oldState.Equals(initialState)) {
                 return;
@@ -181,7 +190,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
 
     /// <summary>获取当前状态的合法下一状态集合。</summary>
     public IReadOnlySet<TState> GetValidNextStates() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (AcquireLock()) {
             var currentIdx = Unsafe.As<TState, int>(ref _currentState);
             return currentIdx < _validNextStates.Length && _validNextStates[currentIdx] is { } targets
                 ? targets
@@ -192,13 +201,13 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
     /// <summary>判断当前状态是否为终态。</summary>
     public bool IsTerminalState() {
         if (_terminalStates.Count == 0) {
-            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+            using (AcquireLock()) {
                 var currentIdx = Unsafe.As<TState, int>(ref _currentState);
                 return currentIdx < _validNextStates.Length && _validNextStates[currentIdx] is { Count: 0 };
             }
         }
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (AcquireLock()) {
             return _terminalStates.Contains(_currentState);
         }
     }

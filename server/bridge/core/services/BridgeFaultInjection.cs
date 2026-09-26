@@ -34,14 +34,14 @@ public static class BridgeDebugController {
 
     /// <summary>注册调试句柄</summary>
     public static void RegisterHandle(IBridgeDebugHandle handle) {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _handle = handle;
         }
     }
 
     /// <summary>清除调试句柄和故障队列</summary>
     public static void ClearHandle() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _handle = null;
             _faultQueue.Clear();
         }
@@ -49,14 +49,14 @@ public static class BridgeDebugController {
 
     /// <summary>获取当前调试句柄</summary>
     public static IBridgeDebugHandle? GetHandle() {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             return _handle;
         }
     }
 
     /// <summary>向故障队列注入一个故障</summary>
     public static void InjectFault(BridgeFault fault) {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             _faultQueue.Add(fault);
         }
     }
@@ -66,7 +66,7 @@ public static class BridgeDebugController {
     /// 返回 null 表示无匹配故障
     /// </summary>
     internal static BridgeFault? TryConsumeFault(string method) {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+        using (_lock.LockOrCrash()) {
             for (var i = _faultQueue.Count - 1; i >= 0; i--) {
                 var fault = _faultQueue[i];
                 if (!string.Equals(fault.Method, method, StringComparison.OrdinalIgnoreCase)) continue;

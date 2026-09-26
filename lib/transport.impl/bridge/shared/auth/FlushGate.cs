@@ -57,7 +57,8 @@ public sealed record FlushGetSizeCmd<T>(TaskCompletionSource<int> Tcs) : IFlushG
 public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlushGate<T> {
     private readonly FlushGateOptions _options;
     private readonly ILogger? _logger;
-    private readonly Timer _flushTimer;
+    private readonly TimeProvider _timeProvider;
+    private readonly ITimer _flushTimer;
     private readonly Stopwatch _batchAgeStopwatch;
     private int _isDisposed;
 
@@ -80,9 +81,10 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
         : base() {
         _options = options ?? FlushGateOptions.CreateDefault();
         _logger = logger;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _currentBatch = new List<T>(_options.MaxBatchSize);
         _batchAgeStopwatch = new Stopwatch();
-        _flushTimer = new Timer(_ => TrySend(new FlushTickCmd<T>()), null, Timeout.Infinite, Timeout.Infinite);
+        _flushTimer = _timeProvider.CreateTimer(_ => TrySend(new FlushTickCmd<T>()), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
 
@@ -161,7 +163,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
                 return;
             }
             _isRunning = false;
-            _flushTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            _flushTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             FlushCore();
             _batchAgeStopwatch.Stop();
             _logger?.LogInformation("[FlushGate] 已停止");
@@ -225,7 +227,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
             return ValueTask.CompletedTask;
         }
 
-        _flushTimer.Change(Timeout.Infinite, Timeout.Infinite);
+        _flushTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         _flushTimer.Dispose();
 
         return new ValueTask(TeardownCoreAsync());

@@ -614,7 +614,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable {
     /// 异步释放资源 — 停止服务器并关闭监听器
     /// </summary>
     public override async ValueTask DisposeAsync() {
-        await StopAsync(_cts.Token).ConfigureAwait(false);
+        await StopAsync(CancellationToken.None).ConfigureAwait(false);
         _httpListener.Close();
         _cts.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);

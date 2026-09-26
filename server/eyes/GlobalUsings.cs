@@ -25,6 +25,7 @@ global using Microsoft.Extensions.Hosting;
 global using Services.Lsp;
 global using Services.Lsp.Internal;
 global using System.Collections.Frozen;
+global using System.Collections.Immutable;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Globalization;
 global using System.Text;

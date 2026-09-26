@@ -6,7 +6,7 @@ namespace Infrastructure.Utils.Resilience;
 [Register(typeof(ICrashSnapshotStore), ServiceLifetime.Singleton)]
 public sealed partial class CrashSnapshotStore : ICrashSnapshotStore {
     private readonly ConcurrentQueue<CrashSnapshot> _snapshots = new();
-    private readonly ConcurrentDictionary<Guid, CrashSnapshot> _byId = new();
+    private ImmutableDictionary<Guid, CrashSnapshot> _byId = ImmutableDictionary<Guid, CrashSnapshot>.Empty;
     private readonly int _maxCapacity;
     private int _unacknowledgedCount;
 
@@ -42,11 +42,11 @@ public sealed partial class CrashSnapshotStore : ICrashSnapshotStore {
         ArgumentNullException.ThrowIfNull(snapshot);
 
         _snapshots.Enqueue(snapshot);
-        _byId[snapshot.Id] = snapshot;
+        ImmutableInterlocked.Update(ref _byId, d => d.SetItem(snapshot.Id, snapshot));
         Interlocked.Increment(ref _unacknowledgedCount);
 
         while (_snapshots.Count > _maxCapacity && _snapshots.TryDequeue(out var removed)) {
-            _byId.TryRemove(removed.Id, out _);
+            ImmutableInterlocked.Update(ref _byId, d => d.Remove(removed.Id));
             if (removed.State == CrashSnapshotState.Captured)
                 Interlocked.Decrement(ref _unacknowledgedCount);
         }
@@ -82,7 +82,7 @@ public sealed partial class CrashSnapshotStore : ICrashSnapshotStore {
     /// <param name="id">快照 ID</param>
     /// <returns>匹配的快照；未找到返回 null</returns>
     public CrashSnapshot? GetById(Guid id) =>
-        _byId.GetValueOrDefault(id);
+        Volatile.Read(ref _byId).GetValueOrDefault(id);
 
     /// <summary>
     /// 确认指定快照（标记为已确认，减少未确认计数）

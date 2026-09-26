@@ -5,18 +5,18 @@ namespace Core.Goal;
 /// </summary>
 [Register(typeof(IGoalGraphTemplateRegistry), ServiceLifetime.Singleton)]
 public sealed class GoalGraphTemplateRegistry : ServiceEntity, IGoalGraphTemplateRegistry {
-    private readonly ConcurrentDictionary<string, GoalGraphTemplate> _templates = new(StringComparer.Ordinal);
+    private ImmutableDictionary<string, GoalGraphTemplate> _templates = ImmutableDictionary<string, GoalGraphTemplate>.Empty.WithComparers(StringComparer.Ordinal);
 
     /// <inheritdoc />
     public void Register(GoalGraphTemplate template) {
         ArgumentNullException.ThrowIfNull(template);
-        _templates.TryAdd(template.Name, template);
+        ImmutableInterlocked.Update(ref _templates, d => d.ContainsKey(template.Name) ? d : d.Add(template.Name, template));
     }
 
     /// <inheritdoc />
     public GoalGraphTemplate? FindMatch(string objective) {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
-        foreach (var template in _templates.Values) {
+        foreach (var template in Volatile.Read(ref _templates).Values) {
             if (template.MatchesObjective(objective))
                 return template;
         }
@@ -24,5 +24,5 @@ public sealed class GoalGraphTemplateRegistry : ServiceEntity, IGoalGraphTemplat
     }
 
     /// <inheritdoc />
-    public GoalGraphTemplate[] GetAll() => _templates.Values.ToArray();
+    public GoalGraphTemplate[] GetAll() => Volatile.Read(ref _templates).Values.ToArray();
 }

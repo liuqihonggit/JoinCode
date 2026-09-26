@@ -72,22 +72,22 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 - [x] `StructuredOutputToolHandler._validationCache` — 验证缓存
 - [x] `BridgeServerRegistries._routes` — 路由表
 
-#### P2: 消费方3-4处(15个)
-- [ ] `UsageTracker._sessionIndex`
-- [ ] `PeerDiscoveryService._peers`
-- [ ] `ShellSedInterceptMiddleware._fallbackEdits`
-- [ ] `MethodNameCache._cache`
-- [ ] `SystemActuatorBase._capabilityCache`
-- [ ] `GoalConflictMessenger._channels`
-- [ ] `GoalGraphTemplateRegistry._templates`
-- [ ] `ContractChangeNotificationRouter._queues`
-- [ ] `CrashSnapshotStore._byId`
-- [ ] `PluginResourceBase._consumers`
-- [ ] `BridgeWorkCompletionTracker._completed`
-- [ ] `LspServerRegistry._extensionMap`
-- [ ] `CodeSessionRepo._store`
-- [ ] `VcrService._cassetteCache`
-- [ ] `StructuredOutputToolHandler._schemas`
+#### P2: 消费方3-4处(15个) ✅
+- [x] `UsageTracker._sessionIndex`
+- [x] `PeerDiscoveryService._peers`
+- [x] `ShellSedInterceptMiddleware._fallbackEdits`
+- [x] `MethodNameCache._cache`
+- [x] `SystemActuatorBase._capabilityCache`
+- [x] `GoalConflictMessenger._channels`
+- [x] `GoalGraphTemplateRegistry._templates`
+- [x] `ContractChangeNotificationRouter._queues`
+- [x] `CrashSnapshotStore._byId`
+- [x] `PluginResourceBase._consumers`
+- [x] `BridgeWorkCompletionTracker._completed`
+- [x] `LspServerRegistry._extensionMap`
+- [x] `CodeSessionRepo._store`
+- [x] `VcrService._cassetteCache`
+- [x] `StructuredOutputToolHandler._schemas`
 
 #### P3: 消费方5-8处(20个)
 - [ ] `CommitCommand.ReadConfirmedSessions`
@@ -138,7 +138,8 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 |------|------|--------|------|------|
 | 2026-09-26 | P0 | 6 | 6/63 | ✅ 完成 |
 | 2026-09-26 | P1 | 5 | 11/63 | ✅ 完成 |
-| 2026-09-26 | P2 | 0 | 11/63 | 进行中 |
+| 2026-09-26 | P2 | 15 | 26/63 | ✅ 完成 |
+| 2026-09-26 | P3 | 0 | 26/63 | 进行中 |
 
 ## 验收标准
 

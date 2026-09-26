@@ -7,7 +7,7 @@ namespace Infrastructure.HotSpot;
 /// </summary>
 [Register(typeof(IContractChangeNotificationRouter), ServiceLifetime.Singleton)]
 public sealed class ContractChangeNotificationRouter : IContractChangeNotificationRouter {
-    private readonly ConcurrentDictionary<string, ConcurrentQueue<string>> _queues = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, ConcurrentQueue<string>> _queues = ImmutableDictionary<string, ConcurrentQueue<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger<ContractChangeNotificationRouter>? _logger;
 
     /// <summary>
@@ -23,7 +23,7 @@ public sealed class ContractChangeNotificationRouter : IContractChangeNotificati
     /// </summary>
     public ConcurrentQueue<string> GetOrCreateQueue(string agentId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        return _queues.GetOrAdd(agentId, _ => new ConcurrentQueue<string>());
+        return GetOrAddQueue(agentId);
     }
 
     /// <summary>
@@ -33,7 +33,7 @@ public sealed class ContractChangeNotificationRouter : IContractChangeNotificati
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(notification);
 
-        var queue = _queues.GetOrAdd(agentId, _ => new ConcurrentQueue<string>());
+        var queue = GetOrAddQueue(agentId);
         queue.Enqueue(notification);
         _logger?.LogDebug("[ContractRoute] 通知已塞入 {AgentId} 的队列", agentId);
     }
@@ -52,6 +52,16 @@ public sealed class ContractChangeNotificationRouter : IContractChangeNotificati
     /// 移除指定 agent 的队列（Worker 结束时调用）
     /// </summary>
     public void RemoveQueue(string agentId) {
-        _queues.TryRemove(agentId, out _);
+        ImmutableInterlocked.Update(ref _queues, d => d.Remove(agentId));
+    }
+
+    private ConcurrentQueue<string> GetOrAddQueue(string agentId) {
+        var snapshot = Volatile.Read(ref _queues);
+        if (snapshot.TryGetValue(agentId, out var existing))
+            return existing;
+
+        var newQueue = new ConcurrentQueue<string>();
+        ImmutableInterlocked.Update(ref _queues, d => d.ContainsKey(agentId) ? d : d.Add(agentId, newQueue));
+        return Volatile.Read(ref _queues)[agentId];
     }
 }

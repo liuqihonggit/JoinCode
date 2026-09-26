@@ -11,7 +11,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     private readonly ILogger<VcrService>? _logger;
     private readonly IFileSystem _fs;
     private readonly VcrActor _actor;
-    private readonly ConcurrentDictionary<string, VcrCassette> _cassetteCache = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, VcrCassette> _cassetteCache = ImmutableDictionary<string, VcrCassette>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     private VcrMode _currentMode;
 
@@ -52,7 +52,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         ArgumentException.ThrowIfNullOrEmpty(name);
 
         var cacheKey = GetCassettePath(name, directory);
-        if (_cassetteCache.TryGetValue(cacheKey, out var cached)) {
+        if (Volatile.Read(ref _cassetteCache).TryGetValue(cacheKey, out var cached)) {
             return cached;
         }
 
@@ -71,7 +71,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     private async Task<VcrCassette> LoadCassetteInternalAsync(string filePath, string name, CancellationToken cancellationToken) {
         if (!_fs.FileExists(filePath)) {
             var cassette = new VcrCassette { Name = name };
-            _cassetteCache[filePath] = cassette;
+            ImmutableInterlocked.Update(ref _cassetteCache, d => d.SetItem(filePath, cassette));
             _logger?.LogDebug("创建新 cassette: {Name}", name);
             return cassette;
         }
@@ -81,7 +81,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
             loaded = new VcrCassette { Name = name };
         }
 
-        _cassetteCache[filePath] = loaded;
+        ImmutableInterlocked.Update(ref _cassetteCache, d => d.SetItem(filePath, loaded));
         _logger?.LogDebug("加载 cassette: {Name}, 交互数={Count}", name, loaded.Interactions.Count);
         return loaded;
     }
@@ -117,7 +117,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         var json = JsonSerializer.Serialize(cassette, VcrJsonContext.Default.VcrCassette);
         await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
 
-        _cassetteCache[filePath] = cassette;
+        ImmutableInterlocked.Update(ref _cassetteCache, d => d.SetItem(filePath, cassette));
         _logger?.LogDebug("保存 cassette: {Name}, 交互数={Count}", cassette.Name, cassette.Interactions.Count);
     }
 

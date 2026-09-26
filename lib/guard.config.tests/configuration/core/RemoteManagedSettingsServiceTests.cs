@@ -20,10 +20,19 @@ public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable {
         _httpClient.DisposeSafe();
     }
 
-    private static global::System.Collections.Concurrent.ConcurrentDictionary<string, ManagedSetting> GetSettings(RemoteManagedSettingsService service) {
-        var settingsField = typeof(RemoteManagedSettingsService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
-        return (global::System.Collections.Concurrent.ConcurrentDictionary<string, ManagedSetting>)settingsField!.GetValue(service)!;
+    private sealed class CacheHelper(RemoteManagedSettingsService service) {
+        private static readonly global::System.Reflection.FieldInfo CacheField =
+            typeof(RemoteManagedSettingsService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance)!;
+
+        public ManagedSetting this[string key] {
+            set {
+                var current = (global::System.Collections.Immutable.ImmutableDictionary<string, ManagedSetting>)CacheField.GetValue(service)!;
+                CacheField.SetValue(service, current.SetItem(key, value));
+            }
+        }
     }
+
+    private static CacheHelper GetSettings(RemoteManagedSettingsService service) => new(service);
 
     [Fact]
     public async Task GetSettingAsync_FromLocal_ReturnsValue() {

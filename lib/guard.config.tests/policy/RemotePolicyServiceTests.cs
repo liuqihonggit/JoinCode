@@ -20,10 +20,19 @@ public sealed class RemotePolicyServiceTests : IAsyncDisposable {
         _httpClient.DisposeSafe();
     }
 
-    private static global::System.Collections.Concurrent.ConcurrentDictionary<string, PolicyRule> GetRules(RemotePolicyService service) {
-        var rulesField = typeof(RemotePolicyService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
-        return (global::System.Collections.Concurrent.ConcurrentDictionary<string, PolicyRule>)rulesField!.GetValue(service)!;
+    private sealed class CacheHelper(RemotePolicyService service) {
+        private static readonly global::System.Reflection.FieldInfo CacheField =
+            typeof(RemotePolicyService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance)!;
+
+        public PolicyRule this[string key] {
+            set {
+                var current = (global::System.Collections.Immutable.ImmutableDictionary<string, PolicyRule>)CacheField.GetValue(service)!;
+                CacheField.SetValue(service, current.SetItem(key, value));
+            }
+        }
     }
+
+    private static CacheHelper GetRules(RemotePolicyService service) => new(service);
 
     [Fact]
     public async Task EvaluateAsync_AllowedAction_ReturnsAllowed() {

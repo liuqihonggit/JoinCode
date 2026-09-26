@@ -71,6 +71,38 @@ public class UserInteractionToolHandlers {
             .Build();
     }
 
+    /// <summary>
+    /// 向用户请求确认指定动作 — 是/否二选一
+    /// </summary>
+    /// <param name="action">要确认的动作描述</param>
+    /// <param name="message">详细确认消息（可选，默认用 action）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含用户确认结果的工具执行结果</returns>
+    [McpTool(UserInteractionToolNameEnumConstants.ConfirmAction, "Ask the user to confirm an action with yes/no", "interaction")]
+    public async Task<ToolResult> ConfirmActionAsync(
+        [McpToolParameter("The action to confirm")] string action,
+        [McpToolParameter("Detailed confirmation message (optional)", Required = false)] string? message = null,
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(action))
+            return ToolResultBuilder.Error().WithText("action cannot be empty").Build();
+
+        var questionText = string.IsNullOrWhiteSpace(message) ? action : message;
+        var result = await _interactiveService.AskUserQuestionAsync(questionText, ["是", "否"], false, cancellationToken).ConfigureAwait(false);
+
+        if (!result.Success)
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to get user confirmation").Build();
+
+        if (result.Cancelled)
+            return ToolResultBuilder.Error().WithText("User cancelled the confirmation").Build();
+
+        var confirmed = result.Answer == "是";
+        return ToolResultBuilder.Success()
+            .WithText(confirmed
+                ? $"User confirmed the action: {action}"
+                : $"User declined the action: {action}")
+            .Build();
+    }
+
     private static string? ValidateQuestions(List<QuestionItem> questions) {
         var questionTexts = new HashSet<string>();
         foreach (var q in questions) {

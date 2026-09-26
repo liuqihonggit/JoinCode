@@ -10,6 +10,7 @@ global using JoinCode.Abstractions.Mcp.Client;
 global using JoinCode.Abstractions.Mcp.Protocol;
 global using JoinCode.Abstractions.Mcp.Registry;
 global using JoinCode.Abstractions.Models;
+global using JoinCode.Abstractions.Models.Interactive;
 global using JoinCode.Abstractions.Prompts;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;

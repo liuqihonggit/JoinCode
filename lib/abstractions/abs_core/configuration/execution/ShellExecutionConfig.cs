@@ -62,16 +62,4 @@ public sealed class ShellExecutionConfig {
     /// 是否启用命令执行日志
     /// </summary>
     public bool EnableExecutionLogging { get; set; } = true;
-
-    /// <summary>
-    /// 危险命令列表
-    /// </summary>
-    public IReadOnlyList<string> DangerousCommands { get; set; } = new[]
-    {
-        "rm -rf /",
-        "format",
-        "dd if=",
-        "mkfs",
-        "fdisk"
-    };
 }

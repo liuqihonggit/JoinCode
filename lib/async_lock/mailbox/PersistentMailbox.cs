@@ -80,7 +80,7 @@ public sealed class PersistentMailbox<TCommand, TOut> : IAsyncDisposable {
         ThrowIfDisposed();
         await _store.PersistAsync(_actorId, cmd, ct).ConfigureAwait(false);
         Interlocked.Increment(ref _pendingCount);
-        await _actor.SendAsync(cmd, ct).ConfigureAwait(false);
+        _actor.Tell(cmd);
     }
 
     /// <summary>
@@ -98,7 +98,7 @@ public sealed class PersistentMailbox<TCommand, TOut> : IAsyncDisposable {
     public async Task RecoverAsync(CancellationToken ct = default) {
         ThrowIfDisposed();
         await foreach (var cmd in _store.LoadPendingAsync(_actorId, ct).ConfigureAwait(false)) {
-            await _actor.SendAsync(cmd, ct).ConfigureAwait(false);
+            _actor.Tell(cmd);
         }
     }
 

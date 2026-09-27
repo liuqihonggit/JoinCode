@@ -2,11 +2,11 @@ namespace Core.Utils;
 
 /// <summary>
 /// 全双工 Actor 基类 — 输入 Channel + 输出 Channel。
-/// <para>外部通过 SendAsync 发送命令，通过 OutputAsync 拉取输出。</para>
+/// <para>外部通过 Tell 发送命令，通过 OutputAsync 拉取输出。</para>
 /// <para>Actor 通过 TryPublish 主动推送消息，无需等待外部请求。</para>
 /// <para>输入 Channel 有背压（有界 + 水位线 + 超时），输出 Channel 无背压（无界）。</para>
-/// <para>派生类定义命令类型并实现 <see cref="HandleAsync"/>,所有可变状态由 Consumer 线程独占访问,无需锁。</para>
-/// <para>线程安全保证:命令按 FIFO 顺序串行处理;多生产者通过 SendAsync/TrySend 投递。</para>
+/// <para>派生类定义命令类型并实现 <see cref="Handle"/>,所有可变状态由 Consumer 线程独占访问,无需锁。</para>
+/// <para>线程安全保证:命令按 FIFO 顺序串行处理;多生产者通过 Tell/TrySend 投递。</para>
 /// <para>异常容错:单条命令异常不会终止 Consumer 循环,通过 OnConsumerError 回调通知子类。</para>
 /// <para>背压:通过 <see cref="ActorBackpressure"/> 配置有界容量、水位线告警、发送超时,防止 OOM 和永久阻塞。</para>
 /// </summary>
@@ -130,41 +130,26 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     public event EventHandler<BackpressureSendFailedEventArgs<TCommand>>? SendFailed;
 
     /// <summary>
-    /// 向 Actor 异步发送命令 — Tell 模式(射后不理,不阻塞调用方)。
-    /// <para>无背压配置: 无界通道直接写入(保持原有行为)。</para>
-    /// <para>有背压配置: TryWrite(非阻塞),通道满时后台重试(16次+指数退避+换流水号),射后不理不阻塞Actor消费循环。</para>
+    /// 向 Actor 同步发送命令 — Tell 模式(射后不理,不阻塞调用方)。
+    /// <para>TryWrite(非阻塞),通道满时后台重试(16次+指数退避+换流水号),射后不理不阻塞Actor消费循环。</para>
     /// <para>16次重试失败触发 <see cref="SendFailed"/> 事件(不丢弃,外部可计入死信队列)。</para>
     /// <para>背压信号通过 <see cref="ReceiveBackpressureSignal"/> 接收,重试时消费延迟信号。</para>
     /// <para><b>⚠️ Tell vs Ask</b>:此方法是 Tell(只保证消息入队,不保证 Consumer 已处理)。</para>
     /// <para><b>Dispose/DisposeAsync 路径禁止用 Ask</b>(线程池饥饿时 await tcs.Task 死锁)。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
-    /// <param name="ct">取消令牌</param>
     /// <exception cref="ObjectDisposedException">Actor 已释放</exception>
-    public ValueTask SendAsync(TCommand cmd, CancellationToken ct = default) {
+    public void Tell(TCommand cmd) {
         ThrowIfDisposed();
-
-        if (_backpressure is null) {
-            return WriteToUnboundedChannelAsync(cmd, ct);
-        }
 
         Interlocked.Increment(ref _nextSequenceId);
         if (_inputChannel.Writer.TryWrite(cmd)) {
             Interlocked.Increment(ref _inputCount);
             CheckInputWatermark();
-            return ValueTask.CompletedTask;
+            return;
         }
 
-        _ = RetrySendAsync(cmd, ct);
-        return ValueTask.CompletedTask;
-    }
-
-    /// <summary>
-    /// 无界通道写入 — 无背压配置时使用,保持原有阻塞语义
-    /// </summary>
-    private async ValueTask WriteToUnboundedChannelAsync(TCommand cmd, CancellationToken ct) {
-        await _inputChannel.Writer.WriteAsync(cmd, ct).ConfigureAwait(false);
-        Interlocked.Increment(ref _inputCount);
+        _ = RetrySendAsync(cmd, default);
     }
 
     /// <summary>
@@ -259,11 +244,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     /// <summary>
-    /// 子类实现命令处理逻辑 — 由 Consumer 线程串行调用,此方法内访问实例可变状态无需锁。
+    /// 子类实现命令处理逻辑 — 由 Consumer 线程串行同步调用,此方法内访问实例可变状态无需锁。
+    /// <para><b>同步 Handle</b>:禁止在此方法内使用 async/await。需要 I/O 时通过 Tell 委托给 I/O Actor,</para>
+    /// <para>或用 fire-and-forget Task.Run + Self.Tell 回投结果(参见 ADR 0118)。</para>
     /// </summary>
     /// <param name="command">待处理命令</param>
     /// <param name="ct">取消令牌(Actor 释放时触发取消)</param>
-    protected abstract ValueTask HandleAsync(TCommand command, CancellationToken ct);
+    protected abstract void Handle(TCommand command, CancellationToken ct);
 
     /// <summary>
     /// Consumer 处理单条命令异常的回调 — 默认忽略,子类可重写以记录日志或计数。
@@ -275,8 +262,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>
     /// 幂等去重存储 — 双 Tell 协议的 Consumer 端幂等守卫。
     /// <para>设置后,ConsumeLoop 对实现 <see cref="IRequestCommand"/> 的命令检查缓存:</para>
-    /// <para>命中 → 调用 <see cref="IRequestCommand.TryRestoreFromCache"/> 恢复结果(调用命令自带 OnSuccess 回调) → 跳过 HandleAsync</para>
-    /// <para>未命中 → 执行 HandleAsync(派生类自行 TryRegister 缓存结果)</para>
+    /// <para>命中 → 调用 <see cref="IRequestCommand.TryRestoreFromCache"/> 恢复结果(调用命令自带 OnSuccess 回调) → 跳过 Handle</para>
+    /// <para>未命中 → 执行 Handle(派生类自行 TryRegister 缓存结果)</para>
     /// <para>null=不启用幂等去重(默认)。派生类在构造函数中设置。</para>
     /// </summary>
     protected IIdempotencyStore? IdempotencyStore { get; set; }
@@ -295,7 +282,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                         requestCmd.TryRestoreFromCache(IdempotencyStore)) {
                         continue;
                     }
-                    await HandleAsync(cmd, _cts.Token).ConfigureAwait(false);
+                    Handle(cmd, _cts.Token);
                 } catch (OperationCanceledException) when (_cts.IsCancellationRequested) {
                     return;
                 } catch (Exception ex) {
@@ -434,7 +421,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         try {
             for (var attempt = 0; attempt <= maxRetries; attempt++) {
                 var tcs = new TaskCompletionSource<T>();
-                await SendAsync(commandFactory(tcs), ct).ConfigureAwait(false);
+                Tell(commandFactory(tcs));
                 using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 linkedCts.CancelAfter(singleTimeoutMs);
                 try {
@@ -473,7 +460,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         try {
             for (var attempt = 0; attempt <= maxRetries; attempt++) {
                 var tcs = new TaskCompletionSource();
-                await SendAsync(commandFactory(tcs), ct).ConfigureAwait(false);
+                Tell(commandFactory(tcs));
                 using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 linkedCts.CancelAfter(singleTimeoutMs);
                 try {

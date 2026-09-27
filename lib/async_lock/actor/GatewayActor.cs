@@ -99,19 +99,23 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
     /// </summary>
     public async Task<TResponse> CallAsync(TRequest request, CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<TResponse>();
-        await SendAsync(new CallCommand(request, tcs), ct).ConfigureAwait(false);
+        Tell(new CallCommand(request, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>Consumer 线程内处理调用命令</summary>
-    protected override async ValueTask HandleAsync(IGatewayCommand command, CancellationToken ct) {
+    protected override void Handle(IGatewayCommand command, CancellationToken ct) {
         if (command is CallCommand(var req, var tcs)) {
-            try {
-                var result = await CallWithRetryAndBreakerAsync(req, ct).ConfigureAwait(false);
-                tcs.TrySetResult(result);
-            } catch (Exception ex) {
-                tcs.TrySetException(ex);
-            }
+            _ = ExecuteCallAsync(req, tcs, ct);
+        }
+    }
+
+    private async Task ExecuteCallAsync(TRequest req, TaskCompletionSource<TResponse> tcs, CancellationToken ct) {
+        try {
+            var result = await CallWithRetryAndBreakerAsync(req, ct).ConfigureAwait(false);
+            tcs.TrySetResult(result);
+        } catch (Exception ex) {
+            tcs.TrySetException(ex);
         }
     }
 

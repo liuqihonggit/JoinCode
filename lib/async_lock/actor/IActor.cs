@@ -14,14 +14,13 @@ public interface IActor<TCommand> : IAsyncDisposable {
     int InputCount { get; }
 
     /// <summary>
-    /// 异步发送命令 — 无界通道立即返回，有界通道满时背压等待。
-    /// <para>配置了发送超时时，超时抛 <see cref="TimeoutException"/>。</para>
+    /// 同步发送命令 — Tell 模式(射后不理,不阻塞调用方)。
+    /// <para>通道满时后台 fire-and-forget 重试(16次+指数退避),不阻塞调用方。</para>
+    /// <para>16次重试失败触发 SendFailed 事件(不丢弃,外部可计入死信队列)。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
-    /// <param name="ct">取消令牌</param>
     /// <exception cref="ObjectDisposedException">Actor 已释放</exception>
-    /// <exception cref="TimeoutException">发送超时（背压配置了 SendTimeout 且通道满）</exception>
-    ValueTask SendAsync(TCommand cmd, CancellationToken ct = default);
+    void Tell(TCommand cmd);
 
     /// <summary>
     /// 同步尝试发送命令 — 通道已关闭、已释放或（有界通道）已满时返回 false。

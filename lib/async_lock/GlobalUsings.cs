@@ -1,6 +1,7 @@
 global using Core.Utils;
 global using JoinCode.Abstractions.Attributes;
 global using Microsoft.Extensions.Logging;
+global using Structura.Collections;
 global using System;
 global using System.Collections.Concurrent;
 global using System.Collections.Generic;

@@ -20,9 +20,4 @@
     <None Remove="tests\**\*" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)lib/async_lock/AsyncLock.csproj" />
-    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.AsyncLock" Version="$(JccComponentPackageVersion)" />
-  </ItemGroup>
-
 </Project>

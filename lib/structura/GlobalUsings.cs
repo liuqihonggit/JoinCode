@@ -1,4 +1,3 @@
-global using Core.Utils;
 global using Structura.Collections;
 global using System.Collections.Concurrent;
 global using System.Collections.Immutable;

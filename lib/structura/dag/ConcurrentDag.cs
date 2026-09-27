@@ -5,7 +5,7 @@ namespace Structura.Dag;
 /// </summary>
 public sealed class ConcurrentDag<T> : IDisposable {
     private readonly Dag<T> _inner = new();
-    private readonly AsyncLock _lock = new();
+    private readonly SemaphoreSlim _lock = new(1, 1);
     private bool _disposed;
 
     /// <summary>所有节点的只读快照(无锁,反映当前内部状态)</summary>
@@ -24,18 +24,18 @@ public sealed class ConcurrentDag<T> : IDisposable {
     /// 在锁保护下执行有返回值的操作；超时返回 <paramref name="timeoutResult"/>
     /// </summary>
     private TResult WithLock<TResult>(Func<TResult> action, TResult timeoutResult) {
-        using var guard = _lock.TryLock();
-        if (guard is null) return timeoutResult;
-        return action();
+        if (!_lock.Wait(0)) return timeoutResult;
+        try { return action(); }
+        finally { _lock.Release(); }
     }
 
     /// <summary>
     /// 在锁保护下执行无返回值的操作；超时直接返回
     /// </summary>
     private void WithLock(Action action) {
-        using var guard = _lock.TryLock();
-        if (guard is null) return;
-        action();
+        if (!_lock.Wait(0)) return;
+        try { action(); }
+        finally { _lock.Release(); }
     }
 
     /// <summary>在锁保护下添加节点;锁超时返回失败</summary>
@@ -80,9 +80,10 @@ public sealed class ConcurrentDag<T> : IDisposable {
     /// <param name="ct">取消令牌</param>
     /// <returns>操作结果</returns>
     /// <exception cref="TimeoutException">锁等待超时</exception>
-    public Task<DagResult> AddNodeAsync(DagNode<T> node, CancellationToken ct = default) {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' DAG 等待超时");
-        return Task.FromResult(_inner.AddNode(node));
+    public async Task<DagResult> AddNodeAsync(DagNode<T> node, CancellationToken ct = default) {
+        await _lock.WaitAsync(ct).ConfigureAwait(false);
+        try { return _inner.AddNode(node); }
+        finally { _lock.Release(); }
     }
 
     /// <summary>异步添加边(自动检测环);锁等待超时抛出 TimeoutException</summary>
@@ -90,9 +91,10 @@ public sealed class ConcurrentDag<T> : IDisposable {
     /// <param name="ct">取消令牌</param>
     /// <returns>操作结果</returns>
     /// <exception cref="TimeoutException">锁等待超时</exception>
-    public Task<DagResult> AddEdgeAsync(DagEdge edge, CancellationToken ct = default) {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' DAG 等待超时");
-        return Task.FromResult(_inner.AddEdge(edge));
+    public async Task<DagResult> AddEdgeAsync(DagEdge edge, CancellationToken ct = default) {
+        await _lock.WaitAsync(ct).ConfigureAwait(false);
+        try { return _inner.AddEdge(edge); }
+        finally { _lock.Release(); }
     }
 
     /// <summary>异步尝试添加边(允许产生环);锁等待超时抛出 TimeoutException</summary>
@@ -100,9 +102,10 @@ public sealed class ConcurrentDag<T> : IDisposable {
     /// <param name="ct">取消令牌</param>
     /// <returns>操作结果</returns>
     /// <exception cref="TimeoutException">锁等待超时</exception>
-    public Task<DagResult> TryAddEdgeAsync(DagEdge edge, CancellationToken ct = default) {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' DAG 等待超时");
-        return Task.FromResult(_inner.TryAddEdge(edge));
+    public async Task<DagResult> TryAddEdgeAsync(DagEdge edge, CancellationToken ct = default) {
+        await _lock.WaitAsync(ct).ConfigureAwait(false);
+        try { return _inner.TryAddEdge(edge); }
+        finally { _lock.Release(); }
     }
 
     /// <summary>异步移除节点及其关联边;锁等待超时抛出 TimeoutException</summary>
@@ -110,9 +113,10 @@ public sealed class ConcurrentDag<T> : IDisposable {
     /// <param name="ct">取消令牌</param>
     /// <returns>操作结果</returns>
     /// <exception cref="TimeoutException">锁等待超时</exception>
-    public Task<DagResult> RemoveNodeAsync(string nodeId, CancellationToken ct = default) {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' DAG 等待超时");
-        return Task.FromResult(_inner.RemoveNode(nodeId));
+    public async Task<DagResult> RemoveNodeAsync(string nodeId, CancellationToken ct = default) {
+        await _lock.WaitAsync(ct).ConfigureAwait(false);
+        try { return _inner.RemoveNode(nodeId); }
+        finally { _lock.Release(); }
     }
 
     /// <summary>异步移除边(保留节点);锁等待超时抛出 TimeoutException</summary>
@@ -120,9 +124,10 @@ public sealed class ConcurrentDag<T> : IDisposable {
     /// <param name="ct">取消令牌</param>
     /// <returns>操作结果</returns>
     /// <exception cref="TimeoutException">锁等待超时</exception>
-    public Task<DagResult> RemoveEdgeAsync(string edgeId, CancellationToken ct = default) {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' DAG 等待超时");
-        return Task.FromResult(_inner.RemoveEdge(edgeId));
+    public async Task<DagResult> RemoveEdgeAsync(string edgeId, CancellationToken ct = default) {
+        await _lock.WaitAsync(ct).ConfigureAwait(false);
+        try { return _inner.RemoveEdge(edgeId); }
+        finally { _lock.Release(); }
     }
 
     /// <summary>异步判断添加 from→to 边是否会产生环;锁等待超时抛出 TimeoutException</summary>
@@ -131,9 +136,10 @@ public sealed class ConcurrentDag<T> : IDisposable {
     /// <param name="ct">取消令牌</param>
     /// <returns>会产生环返回 true,否则 false</returns>
     /// <exception cref="TimeoutException">锁等待超时</exception>
-    public Task<bool> WouldCreateCycleAsync(string fromId, string toId, CancellationToken ct = default) {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' DAG 等待超时");
-        return Task.FromResult(_inner.WouldCreateCycle(fromId, toId));
+    public async Task<bool> WouldCreateCycleAsync(string fromId, string toId, CancellationToken ct = default) {
+        await _lock.WaitAsync(ct).ConfigureAwait(false);
+        try { return _inner.WouldCreateCycle(fromId, toId); }
+        finally { _lock.Release(); }
     }
 
     /// <summary>在锁保护下执行拓扑排序(Kahn 算法);锁超时返回空数组</summary>

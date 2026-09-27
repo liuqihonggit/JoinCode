@@ -164,8 +164,33 @@ public class ImmutableHamTTests {
         hamt.Values.ToHashSet().Should().BeEquivalentTo(new[] { 1, 2, 3 });
     }
 
+    [Fact]
+    public void Remove_CollisionDegrades_ParentBitmapNodeShrinksToLeaf() {
+        var cmp = new SplitHashComparer();
+        var hamt = ImmutableHamT<string, int>.Empty.WithComparer(cmp);
+        hamt = hamt.Add("a", 1).Add("b", 2).Add("c", 3);
+        hamt = hamt.Remove("c");
+        hamt = hamt.Remove("a");
+        hamt.Count.Should().Be(1);
+        hamt["b"].Should().Be(2);
+        var root = GetRoot(hamt);
+        root!.GetType().Name.Should().Be("LeafNode",
+            "单子节点 BitmapNode 在子节点退化为 Leaf 后应一并退化为 Leaf，消除冗余路由层");
+    }
+
+    private static object? GetRoot(ImmutableHamT<string, int> hamt) {
+        var f = typeof(ImmutableHamT<string, int>).GetField("_root",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        return f!.GetValue(hamt);
+    }
+
     private sealed class ConstHashComparer : IEqualityComparer<string> {
         public bool Equals(string? x, string? y) => string.Equals(x, y, StringComparison.Ordinal);
         public int GetHashCode(string obj) => 42;
+    }
+
+    private sealed class SplitHashComparer : IEqualityComparer<string> {
+        public bool Equals(string? x, string? y) => string.Equals(x, y, StringComparison.Ordinal);
+        public int GetHashCode(string obj) => obj == "c" ? 100 : 42;
     }
 }

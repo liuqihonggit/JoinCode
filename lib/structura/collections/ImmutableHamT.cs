@@ -291,6 +291,7 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
             var newChild = Children[cIdx].Remove(shift + Bits, hash, cmp, key, out removed);
             if (!removed) return this;
             if (newChild is not null) {
+                if (Children.Length == 1 && newChild is LeafNode shrunkLeaf) return shrunkLeaf;
                 var newChildren = new Node[Children.Length];
                 Array.Copy(Children, newChildren, Children.Length);
                 newChildren[cIdx] = newChild;

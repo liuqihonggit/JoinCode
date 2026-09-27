@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Entity;
 /// _typeIndex 用 LongRangeSet 区间压缩存储 SequenceId（ADR 0117）— 字符串只在 _objects 存一次
 /// </summary>
 public static class ObjectIdManager {
-    private static ImmutableDictionary<ObjectId, object> _objects = ImmutableDictionary<ObjectId, object>.Empty;
+    private static ImmutableHamT<ObjectId, object> _objects = ImmutableHamT<ObjectId, object>.Empty;
     private static ImmutableDictionary<Type, (ObjectType ObjType, LongRangeSet Ranges)> _typeIndex = ImmutableDictionary<Type, (ObjectType, LongRangeSet)>.Empty;
 
     /// <summary>
@@ -98,7 +98,7 @@ public static class ObjectIdManager {
     /// 清空所有注册（测试用）
     /// </summary>
     public static void Clear() {
-        Interlocked.Exchange(ref _objects, ImmutableDictionary<ObjectId, object>.Empty);
+        Interlocked.Exchange(ref _objects, ImmutableHamT<ObjectId, object>.Empty);
         Interlocked.Exchange(ref _typeIndex, ImmutableDictionary<Type, (ObjectType, LongRangeSet)>.Empty);
     }
 }

@@ -351,4 +351,103 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
         var children = idx1 < idx2 ? new[] { node1, node2 } : new[] { node2, node1 };
         return new BitmapNode(bitmap, children);
     }
+
+    /// <summary>创建空实例,使用指定比较器。</summary>
+    public static ImmutableHamT<TKey, TValue> Create(IEqualityComparer<TKey>? keyComparer = null)
+        => new(0, null, keyComparer ?? EqualityComparer<TKey>.Default);
+
+    /// <summary>从键值对序列创建实例。</summary>
+    public static ImmutableHamT<TKey, TValue> CreateRange(IEnumerable<KeyValuePair<TKey, TValue>> items, IEqualityComparer<TKey>? keyComparer = null) {
+        var result = Create(keyComparer);
+        foreach (var kv in items) result = result.Add(kv.Key, kv.Value);
+        return result;
+    }
+
+    /// <summary>创建可变构建器。</summary>
+    public static Builder CreateBuilder(IEqualityComparer<TKey>? keyComparer = null)
+        => new(keyComparer ?? EqualityComparer<TKey>.Default);
+
+    /// <summary>获取可变构建器副本。</summary>
+    public Builder ToBuilder() {
+        var b = new Builder(_keyComparer);
+        foreach (var kv in this) b[kv.Key] = kv.Value;
+        return b;
+    }
+
+    /// <summary>获取指定键的值,不存在返回默认值。</summary>
+    public TValue GetValue(TKey key, TValue defaultValue)
+        => TryGetValue(key, out var value) ? value : defaultValue;
+
+    /// <summary>可变构建器 — 内部用 Dictionary,ToImmutable 时 O(N) 重建。</summary>
+    public sealed class Builder : IDictionary<TKey, TValue> {
+        private readonly Dictionary<TKey, TValue> _dict;
+        internal Builder(IEqualityComparer<TKey> comparer) => _dict = new(comparer);
+
+        /// <summary>构建不可变 HAMT。</summary>
+        public ImmutableHamT<TKey, TValue> ToImmutable() {
+            var result = Create(_dict.Comparer);
+            foreach (var kv in _dict) result = result.SetItem(kv.Key, kv.Value);
+            return result;
+        }
+
+        /// <summary>元素数量。</summary>
+        public int Count => _dict.Count;
+        /// <summary>是否只读。</summary>
+        public bool IsReadOnly => false;
+        /// <summary>所有键。</summary>
+        public ICollection<TKey> Keys => _dict.Keys;
+        /// <summary>所有值。</summary>
+        public ICollection<TValue> Values => _dict.Values;
+
+        /// <summary>获取或设置值。</summary>
+        public TValue this[TKey key] { get => _dict[key]; set => _dict[key] = value; }
+
+        /// <summary>添加键值对。</summary>
+        public void Add(TKey key, TValue value) => _dict.Add(key, value);
+        /// <summary>添加键值对。</summary>
+        void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> item) => _dict.Add(item.Key, item.Value);
+        /// <summary>移除键。</summary>
+        public bool Remove(TKey key) => _dict.Remove(key);
+        /// <summary>移除键值对。</summary>
+        bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> item) => _dict.Remove(item.Key);
+        /// <summary>清空。</summary>
+        public void Clear() => _dict.Clear();
+        /// <summary>是否包含键。</summary>
+        public bool ContainsKey(TKey key) => _dict.ContainsKey(key);
+        /// <summary>尝试获取值。</summary>
+        public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value) => _dict.TryGetValue(key, out value);
+        /// <summary>是否包含键值对。</summary>
+        bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> item) => _dict.ContainsKey(item.Key);
+        /// <summary>复制到数组。</summary>
+        void ICollection<KeyValuePair<TKey, TValue>>.CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex) {
+            foreach (var kv in _dict) array[arrayIndex++] = kv;
+        }
+        /// <summary>遍历。</summary>
+        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() => _dict.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+}
+
+/// <summary>ImmutableHamT LINQ 扩展方法 — 对齐 ToImmutableDictionary API。</summary>
+public static class ImmutableHamTExtensions {
+    /// <summary>将键值对序列转换为 ImmutableHamT。</summary>
+    public static ImmutableHamT<TKey, TValue> ToImmutableHamT<TKey, TValue>(this IEnumerable<KeyValuePair<TKey, TValue>> source) where TKey : notnull {
+        var result = ImmutableHamT<TKey, TValue>.Empty;
+        foreach (var kv in source) result = result.Add(kv.Key, kv.Value);
+        return result;
+    }
+
+    /// <summary>将序列按选择器转换为 ImmutableHamT。</summary>
+    public static ImmutableHamT<TKey, TValue> ToImmutableHamT<TSource, TKey, TValue>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TValue> valueSelector) where TKey : notnull {
+        var result = ImmutableHamT<TKey, TValue>.Empty;
+        foreach (var item in source) result = result.Add(keySelector(item), valueSelector(item));
+        return result;
+    }
+
+    /// <summary>将序列按选择器转换为 ImmutableHamT,指定比较器。</summary>
+    public static ImmutableHamT<TKey, TValue> ToImmutableHamT<TSource, TKey, TValue>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TValue> valueSelector, IEqualityComparer<TKey> comparer) where TKey : notnull {
+        var result = ImmutableHamT<TKey, TValue>.Create(comparer);
+        foreach (var item in source) result = result.Add(keySelector(item), valueSelector(item));
+        return result;
+    }
 }

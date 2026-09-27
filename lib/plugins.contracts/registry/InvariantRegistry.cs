@@ -51,7 +51,7 @@ public sealed class InvariantRegistryOptions {
 /// <para>启动 join：注册成功前不返回；失败原子移除注册，绝不留半注册</para>
 /// </summary>
 public sealed class InvariantRegistry {
-    private ImmutableDictionary<string, bool> _registrations = ImmutableDictionary<string, bool>.Empty;
+    private ImmutableHamT<string, bool> _registrations = ImmutableHamT<string, bool>.Empty;
     private readonly InvariantRegistryOptions _options;
     private readonly Regex[] _allowlist;
     private readonly Regex[] _blocklist;

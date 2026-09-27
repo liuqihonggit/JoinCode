@@ -5,7 +5,7 @@ namespace Core.Hosting;
 /// 服务主机 - 管理所有工作流服务的生命周期
 /// </summary>
 public sealed partial class ServiceHost : IAsyncDisposable {
-    private ImmutableDictionary<string, ServiceEntry> _services = ImmutableDictionary<string, ServiceEntry>.Empty;
+    private ImmutableHamT<string, ServiceEntry> _services = ImmutableHamT<string, ServiceEntry>.Empty;
     private readonly ILogger<ServiceHost>? _logger;
     private readonly CancellationTokenSource _hostCts = new();
     private bool _isRunning;

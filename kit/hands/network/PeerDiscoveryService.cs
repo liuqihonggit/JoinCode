@@ -3,7 +3,7 @@ namespace IO.Services;
 /// <summary>对等端发现服务 — 维护已连接对等端列表，提供添加、移除与查询能力，并在变更时触发事件通知。</summary>
 [Register(typeof(IPeerDiscoveryService), ServiceLifetime.Singleton)]
 public sealed partial class PeerDiscoveryService : ServiceEntity, IPeerDiscoveryService {
-    private ImmutableDictionary<string, PeerInfo> _peers = ImmutableDictionary<string, PeerInfo>.Empty.WithComparers(StringComparer.Ordinal);
+    private ImmutableHamT<string, PeerInfo> _peers = ImmutableHamT<string, PeerInfo>.Empty.WithComparers(StringComparer.Ordinal);
     private readonly ILogger<PeerDiscoveryService>? _logger;
 
     /// <summary>当有新对等端加入时触发，参数为加入的对等端信息。</summary>

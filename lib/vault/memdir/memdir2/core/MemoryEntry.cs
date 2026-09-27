@@ -79,7 +79,8 @@ public sealed record MemoryEntry {
     /// <summary>
     /// 元数据
     /// </summary>
-    public ImmutableDictionary<string, string> Metadata { get; init; } = ImmutableDictionary<string, string>.Empty;
+    [JsonConverter(typeof(ImmutableHamTStringStringConverter))]
+    public ImmutableHamT<string, string> Metadata { get; init; } = ImmutableHamT<string, string>.Empty;
 
     /// <summary>
     /// 关联的记忆 ID 列表
@@ -96,7 +97,7 @@ public sealed record MemoryEntry {
         IEnumerable<string>? tags = null,
         string? source = null,
         TimeSpan? ttl = null,
-        ImmutableDictionary<string, string>? metadata = null,
+        ImmutableHamT<string, string>? metadata = null,
         DateTime? now = null) {
         var actualTtl = ttl ?? type.GetDefaultTtl();
         var currentTime = now ?? DateTime.UtcNow;
@@ -114,7 +115,7 @@ public sealed record MemoryEntry {
             RelevanceScore = type.GetBaseRelevanceWeight(),
             Ttl = actualTtl,
             ExpiresAt = currentTime.Add(actualTtl),
-            Metadata = metadata ?? ImmutableDictionary<string, string>.Empty
+            Metadata = metadata ?? ImmutableHamT<string, string>.Empty
         };
     }
 

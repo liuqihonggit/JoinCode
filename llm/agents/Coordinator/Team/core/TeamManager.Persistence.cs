@@ -48,7 +48,7 @@ public sealed partial class TeamManager {
                     }
 
                     if (data.TeamMemberDetails is not null && data.TeamMemberDetails.TryGetValue(team.TeamId, out var detailList)) {
-                        room = room with { MemberDetails = detailList.ToImmutableDictionary(m => m.AgentId) };
+                        room = room with { MemberDetails = detailList.ToImmutableHamT(m => m.AgentId) };
                     }
 
                     _registry.AddRoom(team.TeamId, room);

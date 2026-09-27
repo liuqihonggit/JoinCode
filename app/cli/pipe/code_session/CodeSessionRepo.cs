@@ -27,7 +27,7 @@ public sealed class CodeSessionRecord {
 /// <summary>代码会话仓储 — 基于内存并发字典存储会话记录，单例服务</summary>
 [Register(typeof(CodeSessionRepo), ServiceLifetime.Singleton)]
 public sealed partial class CodeSessionRepo : ServiceEntity {
-    private ImmutableDictionary<string, CodeSessionRecord> _store = ImmutableDictionary<string, CodeSessionRecord>.Empty.WithComparers(StringComparer.Ordinal);
+    private ImmutableHamT<string, CodeSessionRecord> _store = ImmutableHamT<string, CodeSessionRecord>.Empty.WithComparers(StringComparer.Ordinal);
 
     /// <summary>保存会话记录 — 按 SessionId 索引覆盖写入</summary>
     /// <param name="record">要保存的会话记录</param>

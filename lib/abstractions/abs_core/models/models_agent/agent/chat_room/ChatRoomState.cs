@@ -18,7 +18,7 @@ public sealed record ChatRoomState {
     public ImmutableHashSet<string> Members { get; init; } = ImmutableHashSet<string>.Empty;
 
     /// <summary>消息字典（MessageId → Message），O(1) 去重检查 + O(1) 按 MessageId 查找 — ADR 0109 决策10。</summary>
-    public ImmutableDictionary<string, TeamMessage> Messages { get; init; } = ImmutableDictionary<string, TeamMessage>.Empty;
+    public ImmutableHamT<string, TeamMessage> Messages { get; init; } = ImmutableHamT<string, TeamMessage>.Empty;
 
     /// <summary>按 Timestamp 升序排序的消息列表，O(1) 取最新/最旧 + O(limit) 逆序遍历 + O(log n) 二分法插入 — 制造排序条件提升检索效率。</summary>
     public ImmutableList<TeamMessage> MessagesByTime { get; init; } = ImmutableList<TeamMessage>.Empty;
@@ -27,10 +27,10 @@ public sealed record ChatRoomState {
     public string? SessionId { get; init; }
 
     /// <summary>团队级允许路径（不可变，Path → TeamAllowedPath）</summary>
-    public ImmutableDictionary<string, TeamAllowedPath> AllowedPaths { get; init; } = ImmutableDictionary<string, TeamAllowedPath>.Empty;
+    public ImmutableHamT<string, TeamAllowedPath> AllowedPaths { get; init; } = ImmutableHamT<string, TeamAllowedPath>.Empty;
 
     /// <summary>成员详情（AgentId → TeamMemberInfo，不可变）</summary>
-    public ImmutableDictionary<string, TeamMemberInfo> MemberDetails { get; init; } = ImmutableDictionary<string, TeamMemberInfo>.Empty;
+    public ImmutableHamT<string, TeamMemberInfo> MemberDetails { get; init; } = ImmutableHamT<string, TeamMemberInfo>.Empty;
 
     /// <summary>最大消息保留数（默认 1000，对标 QQ 本地缓存）— ADR 0109 决策13。</summary>
     public int MaxMessageCount { get; init; } = 1000;
@@ -76,7 +76,7 @@ public sealed record ChatRoomState {
     /// 批量设置消息（持久化加载）— O(n log n) 排序构建 MessagesByTime。
     /// </summary>
     public ChatRoomState WithMessages(IEnumerable<TeamMessage> messages) {
-        var byId = messages.ToImmutableDictionary(m => m.MessageId);
+        var byId = messages.ToImmutableHamT(m => m.MessageId);
         var byTime = byId.Values.OrderBy(static m => m.Timestamp).ToImmutableList();
         return this with { Messages = byId, MessagesByTime = byTime };
     }

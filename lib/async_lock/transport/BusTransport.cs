@@ -13,7 +13,7 @@ public sealed class BusTransport : ITransportTopology {
     private readonly string _pipeName;
     private readonly HostElectionService _election;
     private readonly ILogger? _logger;
-    private ImmutableDictionary<string, BusClientConnection> _clientConnections = ImmutableDictionary<string, BusClientConnection>.Empty;
+    private ImmutableHamT<string, BusClientConnection> _clientConnections = ImmutableHamT<string, BusClientConnection>.Empty;
     private readonly Channel<TransportFrame> _receiveChannel;
     private readonly CancellationTokenSource _cts;
     private readonly string _processId;
@@ -237,7 +237,7 @@ public sealed class BusTransport : ITransportTopology {
         _receiveChannel.Writer.TryComplete();
 
         var conns = Volatile.Read(ref _clientConnections).Values.ToArray();
-        Volatile.Write(ref _clientConnections, ImmutableDictionary<string, BusClientConnection>.Empty);
+        Volatile.Write(ref _clientConnections, ImmutableHamT<string, BusClientConnection>.Empty);
         var slaveClient = _slaveClient;
 
         if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);

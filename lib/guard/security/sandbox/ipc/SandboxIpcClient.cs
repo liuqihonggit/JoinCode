@@ -11,7 +11,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
     private readonly Func<int, Task>? _onSatelliteStarted;
     private IInteractiveProcess? _process;
     private int _requestCounter;
-    private volatile ImmutableDictionary<string, TaskCompletionSource<SandboxIpcResponse>> _pendingRequests = ImmutableDictionary<string, TaskCompletionSource<SandboxIpcResponse>>.Empty;
+    private volatile ImmutableHamT<string, TaskCompletionSource<SandboxIpcResponse>> _pendingRequests = ImmutableHamT<string, TaskCompletionSource<SandboxIpcResponse>>.Empty;
     private readonly AsyncLock _startLock = new();
     private Task? _readLoopTask;
     private CancellationTokenSource? _readCts;

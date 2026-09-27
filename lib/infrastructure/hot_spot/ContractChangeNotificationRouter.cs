@@ -7,7 +7,7 @@ namespace Infrastructure.HotSpot;
 /// </summary>
 [Register(typeof(IContractChangeNotificationRouter), ServiceLifetime.Singleton)]
 public sealed class ContractChangeNotificationRouter : IContractChangeNotificationRouter {
-    private ImmutableDictionary<string, ConcurrentQueue<string>> _queues = ImmutableDictionary<string, ConcurrentQueue<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, ConcurrentQueue<string>> _queues = ImmutableHamT<string, ConcurrentQueue<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger<ContractChangeNotificationRouter>? _logger;
 
     /// <summary>

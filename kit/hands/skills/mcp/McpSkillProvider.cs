@@ -6,9 +6,9 @@ namespace Core.Skills.Mcp;
 /// </summary>
 [Register(typeof(IMcpSkillProvider), ServiceLifetime.Singleton)]
 public sealed partial class McpSkillProvider : IMcpSkillProvider {
-    private ImmutableDictionary<string, IMcpClient> _clients = ImmutableDictionary<string, IMcpClient>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
-    private ImmutableDictionary<string, SkillDefinition> _mcpSkills = ImmutableDictionary<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
-    private ImmutableDictionary<string, McpSkillAdapter> _adapters = ImmutableDictionary<string, McpSkillAdapter>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, IMcpClient> _clients = ImmutableHamT<string, IMcpClient>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, SkillDefinition> _mcpSkills = ImmutableHamT<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, McpSkillAdapter> _adapters = ImmutableHamT<string, McpSkillAdapter>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger<McpSkillProvider>? _logger;
     private readonly AsyncLock _refreshLock = new();
     private bool _isDisposed;
@@ -136,7 +136,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
     public async Task RefreshAsync(CancellationToken cancellationToken = default) {
         using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_refreshLock.Name}' 等待超时");
 
-        Interlocked.Exchange(ref _mcpSkills, ImmutableDictionary<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
+        Interlocked.Exchange(ref _mcpSkills, ImmutableHamT<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
 
         foreach (var (serverName, client) in Volatile.Read(ref _clients)) {
             try {
@@ -194,7 +194,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
 
         _isDisposed = true;
 
-        foreach (var (_, client) in Interlocked.Exchange(ref _clients, ImmutableDictionary<string, IMcpClient>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase))) {
+        foreach (var (_, client) in Interlocked.Exchange(ref _clients, ImmutableHamT<string, IMcpClient>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase))) {
             try {
                 await client.DisposeAsync().ConfigureAwait(false);
             } catch (Exception ex) {
@@ -202,8 +202,8 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
             }
         }
 
-        Interlocked.Exchange(ref _mcpSkills, ImmutableDictionary<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
-        Interlocked.Exchange(ref _adapters, ImmutableDictionary<string, McpSkillAdapter>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
+        Interlocked.Exchange(ref _mcpSkills, ImmutableHamT<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
+        Interlocked.Exchange(ref _adapters, ImmutableHamT<string, McpSkillAdapter>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
         _refreshLock.Dispose();
     }
 

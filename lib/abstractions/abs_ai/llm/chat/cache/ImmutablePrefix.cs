@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.LLM.Chat;
 public sealed class ImmutablePrefix {
     /// <summary>获取系统提示词。</summary>
     public string System { get; }
-    private ImmutableDictionary<string, ToolSpec> _toolSpecs = ImmutableDictionary<string, ToolSpec>.Empty;
+    private ImmutableHamT<string, ToolSpec> _toolSpecs = ImmutableHamT<string, ToolSpec>.Empty;
     private ImmutableList<string> _toolSpecsOrder = ImmutableList<string>.Empty;
     private volatile ImmutableList<ToolSpec> _toolSpecsCache = ImmutableList<ToolSpec>.Empty;
     private readonly ApiMessage[] _fewShots;

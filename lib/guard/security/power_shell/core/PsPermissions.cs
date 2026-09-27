@@ -4,10 +4,10 @@ namespace JoinCode.Guard.Security.PowerShell;
 /// PowerShell 权限检查核心 — 多阶段决策管道：预解析规则 → AST 解析 → 安全检查 → 子命令规则 → 路径约束 → allow 规则 → 只读白名单 → acceptEdits
 /// </summary>
 public static partial class PsPermissions {
-    private static ImmutableDictionary<string, Regex> PrefixPatternCache = ImmutableDictionary<string, Regex>.Empty;
+    private static ImmutableHamT<string, Regex> PrefixPatternCache = ImmutableHamT<string, Regex>.Empty;
 
     /// <summary>无锁 CAS 获取或添加缓存的 Regex</summary>
-    private static Regex GetOrAddRegex(ref ImmutableDictionary<string, Regex> cache, string pattern) {
+    private static Regex GetOrAddRegex(ref ImmutableHamT<string, Regex> cache, string pattern) {
         if (cache.TryGetValue(pattern, out var existing)) return existing;
         var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
         while (true) {

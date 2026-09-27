@@ -92,7 +92,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var teamId = GenerateTeamId();
         var members = initialMembers?.ToImmutableHashSet() ?? ImmutableHashSet<string>.Empty;
-        var memberDetails = members.ToImmutableDictionary(
+        var memberDetails = members.ToImmutableHamT(
             m => m,
             m => new TeamMemberInfo { AgentId = m, JoinedAt = _clock.GetUtcNow() });
 

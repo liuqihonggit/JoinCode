@@ -1,4 +1,4 @@
-global using Core.Configuration;
+﻿global using Core.Configuration;
 global using Core.Configuration.ConfigPipeline;
 global using Core.Configuration.Providers;
 global using Core.Configuration.Remote;
@@ -108,3 +108,4 @@ global using PsSecurityResult = JoinCode.Abstractions.Security.Shell.PowerShell.
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Timer = System.Threading.Timer;
 global using ValidationResult = Structura.Primitives.ValidationResult;
+global using Structura.Collections;

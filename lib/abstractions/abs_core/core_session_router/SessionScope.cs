@@ -6,8 +6,8 @@ namespace JoinCode.Abstractions.Entity;
 /// 会话 Dispose 时清理其所有 Entity
 /// </summary>
 public sealed class SessionScope : IAsyncDisposable {
-    private ImmutableDictionary<ObjectId, Entity> _entities = ImmutableDictionary<ObjectId, Entity>.Empty;
-    private ImmutableDictionary<ObjectType, ImmutableHashSet<ObjectId>> _typeIndex = ImmutableDictionary<ObjectType, ImmutableHashSet<ObjectId>>.Empty;
+    private ImmutableHamT<ObjectId, Entity> _entities = ImmutableHamT<ObjectId, Entity>.Empty;
+    private ImmutableHamT<ObjectType, ImmutableHashSet<ObjectId>> _typeIndex = ImmutableHamT<ObjectType, ImmutableHashSet<ObjectId>>.Empty;
     private volatile bool _disposed;
     private int _disposeFailures;
 
@@ -119,8 +119,8 @@ public sealed class SessionScope : IAsyncDisposable {
             try { await entity.DisposeAsync().ConfigureAwait(false); } catch (Exception) { Interlocked.Increment(ref _disposeFailures); }
         }
 
-        Volatile.Write(ref _entities, ImmutableDictionary<ObjectId, Entity>.Empty);
-        Interlocked.Exchange(ref _typeIndex, ImmutableDictionary<ObjectType, ImmutableHashSet<ObjectId>>.Empty);
+        Volatile.Write(ref _entities, ImmutableHamT<ObjectId, Entity>.Empty);
+        Interlocked.Exchange(ref _typeIndex, ImmutableHamT<ObjectType, ImmutableHashSet<ObjectId>>.Empty);
     }
 
     private void AddToTypeIndex(Entity entity) {

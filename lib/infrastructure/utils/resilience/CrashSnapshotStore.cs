@@ -6,7 +6,7 @@ namespace Infrastructure.Utils.Resilience;
 [Register(typeof(ICrashSnapshotStore), ServiceLifetime.Singleton)]
 public sealed partial class CrashSnapshotStore : ICrashSnapshotStore {
     private readonly ConcurrentQueue<CrashSnapshot> _snapshots = new();
-    private ImmutableDictionary<Guid, CrashSnapshot> _byId = ImmutableDictionary<Guid, CrashSnapshot>.Empty;
+    private ImmutableHamT<Guid, CrashSnapshot> _byId = ImmutableHamT<Guid, CrashSnapshot>.Empty;
     private readonly int _maxCapacity;
     private int _unacknowledgedCount;
 

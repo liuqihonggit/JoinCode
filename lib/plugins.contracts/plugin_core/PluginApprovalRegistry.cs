@@ -103,7 +103,7 @@ public sealed class PluginApprovalRequest {
 /// </summary>
 public sealed class PluginApprovalRegistry {
     private int _counter;
-    private ImmutableDictionary<ApprovalRequestId, PluginApprovalRequest> _requests = ImmutableDictionary<ApprovalRequestId, PluginApprovalRequest>.Empty;
+    private ImmutableHamT<ApprovalRequestId, PluginApprovalRequest> _requests = ImmutableHamT<ApprovalRequestId, PluginApprovalRequest>.Empty;
     private readonly Func<DateTimeOffset>? _clock;
 
     /// <param name="clock">时钟注入，null 用 DateTimeOffset.UtcNow</param>

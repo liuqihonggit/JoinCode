@@ -1,6 +1,10 @@
-global using Core.Utils;
+global using Structura.Collections;
 global using System.Collections.Concurrent;
+global using System.Collections.Immutable;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Linq;
+global using System.Numerics;
 global using System.Runtime.CompilerServices;
+global using System.Text.Json;
+global using System.Text.Json.Serialization;
 global using System.Threading;

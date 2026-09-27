@@ -1,4 +1,4 @@
-global using static Tools.Handlers.FileToolHandlers;
+﻿global using static Tools.Handlers.FileToolHandlers;
 global using System.Collections.Immutable;
 global using Core.Configuration;
 global using Core.Hooks.Execution.Interception;
@@ -134,3 +134,4 @@ global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using ValidationHelper = Core.Utils.ValidationHelper;
 global using ValidationResult = Structura.Primitives.ValidationResult;
 global using System.Buffers;
+global using Structura.Collections;

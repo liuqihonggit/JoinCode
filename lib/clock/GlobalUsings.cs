@@ -1,4 +1,4 @@
-global using Core.Goal;
+﻿global using Core.Goal;
 global using Core.Hooks.Lifecycle;
 global using Core.Hosting;
 global using Core.Scheduling.Cron;
@@ -40,3 +40,4 @@ global using System.Text.Json;
 global using System.Text.Json.Serialization;
 global using System.Threading.Channels;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
+global using Structura.Collections;

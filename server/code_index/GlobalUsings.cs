@@ -1,4 +1,4 @@
-global using Core.Utils;
+﻿global using Core.Utils;
 global using Infrastructure.Utils.Cpu;
 global using Infrastructure.Utils.IO;
 global using IO.FileSystem;
@@ -29,3 +29,4 @@ global using System.Xml.Linq;
 global using TreeSitter;
 global using Range = System.Range;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
+global using Structura.Collections;

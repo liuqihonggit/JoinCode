@@ -1,4 +1,4 @@
-namespace Core.Tests.Services.Configuration;
+﻿namespace Core.Tests.Services.Configuration;
 
 public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable {
     private readonly RemoteManagedSettingsService _service;
@@ -26,7 +26,7 @@ public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable {
 
         public ManagedSetting this[string key] {
             set {
-                var current = (global::System.Collections.Immutable.ImmutableDictionary<string, ManagedSetting>)CacheField.GetValue(service)!;
+                var current = (global::Structura.Collections.ImmutableHamT<string, ManagedSetting>)CacheField.GetValue(service)!;
                 CacheField.SetValue(service, current.SetItem(key, value));
             }
         }

@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 会话 Dispose 时所有 CacheEntryEntity 一起 Dispose
 /// </summary>
 public sealed class SessionCache : ISessionCache {
-    private ImmutableDictionary<string, Entity> _entries = ImmutableDictionary<string, Entity>.Empty;
+    private ImmutableHamT<string, Entity> _entries = ImmutableHamT<string, Entity>.Empty;
     private readonly ObjectId _sessionId;
 
     /// <summary>获取缓存项数量。</summary>
@@ -63,7 +63,7 @@ public sealed class SessionCache : ISessionCache {
 
     /// <summary>清空所有缓存项。</summary>
     public async Task ClearAsync() {
-        var snapshot = Interlocked.Exchange(ref _entries, ImmutableDictionary<string, Entity>.Empty);
+        var snapshot = Interlocked.Exchange(ref _entries, ImmutableHamT<string, Entity>.Empty);
         foreach (var entry in snapshot.Values) {
             try { await entry.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { _ = ex; }
         }

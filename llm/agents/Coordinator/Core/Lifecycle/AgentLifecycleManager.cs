@@ -9,7 +9,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     private readonly IQueryEngine _queryEngine;
     private readonly ILogger? _logger;
     private readonly AgentStateMachine _stateMachine;
-    private ImmutableDictionary<string, AgentEntry> _entries = ImmutableDictionary<string, AgentEntry>.Empty;
+    private ImmutableHamT<string, AgentEntry> _entries = ImmutableHamT<string, AgentEntry>.Empty;
     private readonly SubAgentLivenessOptions? _livenessOptions;
     private readonly SubAgentPool? _agentPool;
     private int _agentCounter;

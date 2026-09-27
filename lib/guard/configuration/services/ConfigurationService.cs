@@ -6,7 +6,7 @@ namespace Core.Configuration;
 /// </summary>
 [Register(typeof(IConfigurationService), ServiceLifetime.Singleton)]
 public sealed partial class ConfigurationService : ServiceEntity, IConfigurationService {
-    private ImmutableDictionary<string, string> _configurations = ImmutableDictionary<string, string>.Empty;
+    private ImmutableHamT<string, string> _configurations = ImmutableHamT<string, string>.Empty;
     private readonly IFileSystem _fs;
     private readonly IRemoteSettingsService? _remoteSettingsService;
     private readonly IConfigChangeNotifier? _configChangeNotifier;

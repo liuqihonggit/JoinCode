@@ -1,4 +1,4 @@
-global using Core.Configuration;
+﻿global using Core.Configuration;
 global using Core.Configuration.ModelFetch;
 global using Core.Configuration.Providers;
 global using Core.Configuration.Remote;
@@ -75,3 +75,4 @@ global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using ToolPermissionCheckResult = JoinCode.Abstractions.Security.Permission.ToolPermissionCheckResult;
 global using UtilsPermissionCheckResult = JoinCode.Abstractions.Security.Permission.PermissionCheckResult;
 global using ValidationResult = Structura.Primitives.ValidationResult;
+global using Structura.Collections;

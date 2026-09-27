@@ -9,7 +9,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
     private readonly IMailbox _messageBroker;
     private readonly IMailboxMessageSink? _messageSink;
     private readonly ILogger<MailboxPoller>? _logger;
-    private volatile ImmutableDictionary<string, CancellationTokenSource> _pollingAgents = ImmutableDictionary<string, CancellationTokenSource>.Empty;
+    private volatile ImmutableHamT<string, CancellationTokenSource> _pollingAgents = ImmutableHamT<string, CancellationTokenSource>.Empty;
     private readonly TimeSpan _pollInterval;
     private int _isDisposed;
 
@@ -154,7 +154,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
                 TaskContinuationOptions.ExecuteSynchronously));
         }
 
-        Interlocked.Exchange(ref _pollingAgents, ImmutableDictionary<string, CancellationTokenSource>.Empty);
+        Interlocked.Exchange(ref _pollingAgents, ImmutableHamT<string, CancellationTokenSource>.Empty);
         return tasks.Count == 0 ? ValueTask.CompletedTask : new ValueTask(Task.WhenAll(tasks));
     }
 }

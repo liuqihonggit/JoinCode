@@ -335,11 +335,11 @@ public sealed class AppStateSelectorsTests : IDisposable {
                 CurrentModel = "gpt-4o",
                 IsPlanMode = true
             },
-            Agents = ImmutableDictionary.CreateRange(new Dictionary<string, AgentState> {
+            Agents = ImmutableHamT.CreateRange(new Dictionary<string, AgentState> {
                 ["agent-1"] = new() { AgentId = "agent-1", Name = "Alpha", Status = AgentStatus.Running },
                 ["agent-2"] = new() { AgentId = "agent-2", Name = "Beta", Status = AgentStatus.Idle }
             }),
-            Tasks = ImmutableDictionary.CreateRange(new Dictionary<string, JoinCode.Abstractions.State.TaskState> {
+            Tasks = ImmutableHamT.CreateRange(new Dictionary<string, JoinCode.Abstractions.State.TaskState> {
                 ["task-1"] = new() { TaskId = "task-1", Name = "Task One", Status = TaskExecutionStatus.Running },
                 ["task-2"] = new() { TaskId = "task-2", Name = "Task Two", Status = TaskExecutionStatus.Pending },
                 ["task-3"] = new() { TaskId = "task-3", Name = "Task Three", Status = TaskExecutionStatus.Completed }

@@ -5,8 +5,8 @@ namespace McpProtocol;
 /// 支持 stdio 行协议与 LSP 风格 Content-Length 框架协议两种传输形态。
 /// </summary>
 public class McpServer {
-    private ImmutableDictionary<string, IResourceHandler> _resources = ImmutableDictionary<string, IResourceHandler>.Empty;
-    private ImmutableDictionary<string, IPromptHandler> _prompts = ImmutableDictionary<string, IPromptHandler>.Empty;
+    private ImmutableHamT<string, IResourceHandler> _resources = ImmutableHamT<string, IResourceHandler>.Empty;
+    private ImmutableHamT<string, IPromptHandler> _prompts = ImmutableHamT<string, IPromptHandler>.Empty;
     private readonly string _serverName;
     private readonly string _serverVersion;
     private readonly string? _instructions;

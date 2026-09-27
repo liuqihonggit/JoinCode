@@ -58,8 +58,8 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
     private readonly AsyncLock _lock = new();
     private readonly IFileSystem _fs;
     private readonly ILogger<HookConfigurationManager>? _logger;
-    private volatile ImmutableDictionary<HookSource, IHookConfigurationProvider> _providers = ImmutableDictionary<HookSource, IHookConfigurationProvider>.Empty;
-    private volatile ImmutableDictionary<string, HookConfigurationGroup> _cache = ImmutableDictionary<string, HookConfigurationGroup>.Empty;
+    private volatile ImmutableHamT<HookSource, IHookConfigurationProvider> _providers = ImmutableHamT<HookSource, IHookConfigurationProvider>.Empty;
+    private volatile ImmutableHamT<string, HookConfigurationGroup> _cache = ImmutableHamT<string, HookConfigurationGroup>.Empty;
 
     private const string CacheKey = "all_hooks";
     private int _disposed;
@@ -171,7 +171,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         await provider.AddHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
-        Interlocked.Exchange(ref _cache, ImmutableDictionary<string, HookConfigurationGroup>.Empty);
+        Interlocked.Exchange(ref _cache, ImmutableHamT<string, HookConfigurationGroup>.Empty);
 
         _logger?.LogInformation(
             "Added hook to {Source} for event {Event}: {HookDisplay}",
@@ -199,7 +199,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         await provider.RemoveHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
-        Interlocked.Exchange(ref _cache, ImmutableDictionary<string, HookConfigurationGroup>.Empty);
+        Interlocked.Exchange(ref _cache, ImmutableHamT<string, HookConfigurationGroup>.Empty);
 
         _logger?.LogInformation(
             "Removed hook from {Source} for event {Event}: {HookDisplay}",
@@ -211,7 +211,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
 
     /// <inheritdoc />
     public Task InvalidateCacheAsync(CancellationToken cancellationToken = default) {
-        Interlocked.Exchange(ref _cache, ImmutableDictionary<string, HookConfigurationGroup>.Empty);
+        Interlocked.Exchange(ref _cache, ImmutableHamT<string, HookConfigurationGroup>.Empty);
         _logger?.LogDebug("Hook configuration cache invalidated");
         return Task.CompletedTask;
     }

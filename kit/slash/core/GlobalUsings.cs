@@ -1,4 +1,4 @@
-global using Api;
+﻿global using Api;
 global using System.Collections.Immutable;
 global using System.Threading;
 global using Core.Bridge;
@@ -151,3 +151,4 @@ global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using TerminalColors = JoinCode.Abstractions.Shell.CommandTerminalColors;
 global using TerminalHelper = JoinCode.Abstractions.Shell.CommandTerminal;
 global using ToolExecutionContext = McpToolRegistry.ToolExecutionContext;
+global using Structura.Collections;

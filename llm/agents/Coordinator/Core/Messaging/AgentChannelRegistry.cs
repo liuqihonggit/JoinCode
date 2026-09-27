@@ -16,7 +16,7 @@ internal sealed record AgentChannelInfo {
 /// 持有以 agentId 为 key 的合并字典，提供注册、注销、查询、遍历操作
 /// </summary>
 internal sealed class AgentChannelRegistry {
-    private volatile ImmutableDictionary<string, AgentChannelInfo> _entries = ImmutableDictionary<string, AgentChannelInfo>.Empty;
+    private volatile ImmutableHamT<string, AgentChannelInfo> _entries = ImmutableHamT<string, AgentChannelInfo>.Empty;
 
     // ── 查询 ──
 

@@ -6,7 +6,7 @@ namespace Core.Utils;
 /// 后台扫描线程定时检测持有/等待超时并告警。
 /// </summary>
 public static class LockRegistry {
-    private static ImmutableDictionary<int, LockInfo> _locks = ImmutableDictionary<int, LockInfo>.Empty;
+    private static ImmutableHamT<int, LockInfo> _locks = ImmutableHamT<int, LockInfo>.Empty;
     private static int _nextId;
 
     private static TimeSpan _waitTimeoutThreshold = TimeSpan.FromSeconds(30);
@@ -453,7 +453,7 @@ public static class LockRegistry {
     /// </summary>
     internal static void ClearForTesting() {
         StopBackgroundScan();
-        Volatile.Write(ref _locks, ImmutableDictionary<int, LockInfo>.Empty);
+        Volatile.Write(ref _locks, ImmutableHamT<int, LockInfo>.Empty);
         Interlocked.Exchange(ref _nextId, 0);
         Interlocked.Exchange(ref _nextFlowId, 0);
         Interlocked.Exchange(ref _deadlockDetected, 0);

@@ -6,7 +6,7 @@ namespace Core.Memdir;
 /// </summary>
 [Register(typeof(ISessionTagService), ServiceLifetime.Singleton)]
 public sealed partial class SessionTagService : ServiceEntity, ISessionTagService, IDisposable {
-    private ImmutableDictionary<string, ImmutableHashSet<string>> _tags = ImmutableDictionary.Create<string, ImmutableHashSet<string>>(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, ImmutableHashSet<string>> _tags = ImmutableHamT.Create<string, ImmutableHashSet<string>>(StringComparer.OrdinalIgnoreCase);
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
     private readonly ILogger<SessionTagService>? _logger;

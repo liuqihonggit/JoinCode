@@ -1,4 +1,4 @@
-namespace Core.Tests.Services.Policy;
+﻿namespace Core.Tests.Services.Policy;
 
 public sealed class RemotePolicyServiceTests : IAsyncDisposable {
     private readonly RemotePolicyService _service;
@@ -26,7 +26,7 @@ public sealed class RemotePolicyServiceTests : IAsyncDisposable {
 
         public PolicyRule this[string key] {
             set {
-                var current = (global::System.Collections.Immutable.ImmutableDictionary<string, PolicyRule>)CacheField.GetValue(service)!;
+                var current = (global::Structura.Collections.ImmutableHamT<string, PolicyRule>)CacheField.GetValue(service)!;
                 CacheField.SetValue(service, current.SetItem(key, value));
             }
         }

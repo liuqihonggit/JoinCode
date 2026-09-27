@@ -162,9 +162,9 @@ public sealed class CallGraphTests : IDisposable {
     private void DeleteCallEdgesForFile(string filePath) {
         _store.Update(snap => {
             var callEdges = snap.CallEdges.Where(e => e.CallSiteFilePath != filePath).ToImmutableList();
-            var callsByCaller = snap.CallsByCaller.ToImmutableDictionary(
+            var callsByCaller = snap.CallsByCaller.ToImmutableHamT(
                 kv => kv.Key, kv => kv.Value.Where(e => e.CallSiteFilePath != filePath).ToImmutableList());
-            var callsByCallee = snap.CallsByCallee.ToImmutableDictionary(
+            var callsByCallee = snap.CallsByCallee.ToImmutableHamT(
                 kv => kv.Key, kv => kv.Value.Where(e => e.CallSiteFilePath != filePath).ToImmutableList());
             var callsByFile = snap.CallsByFile.Remove(filePath);
             return snap with {
@@ -176,8 +176,8 @@ public sealed class CallGraphTests : IDisposable {
         });
     }
 
-    private static ImmutableDictionary<TKey, ImmutableList<CallEdge>> AddToBucket<TKey>(
-        ImmutableDictionary<TKey, ImmutableList<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull {
+    private static ImmutableHamT<TKey, ImmutableList<CallEdge>> AddToBucket<TKey>(
+        ImmutableHamT<TKey, ImmutableList<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull {
         if (!dict.TryGetValue(key, out var list)) {
             list = ImmutableList<CallEdge>.Empty;
         }

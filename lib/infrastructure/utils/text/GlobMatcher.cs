@@ -4,7 +4,7 @@ namespace Infrastructure.Utils.Text;
 /// 通配符模式匹配器 - 支持 * 和 ? 通配符，内部缓存编译后的正则表达式
 /// </summary>
 public static class GlobMatcher {
-    private static ImmutableDictionary<string, Regex> _cache = ImmutableDictionary<string, Regex>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private static ImmutableHamT<string, Regex> _cache = ImmutableHamT<string, Regex>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 判断输入字符串是否匹配通配符模式

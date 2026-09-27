@@ -9,8 +9,8 @@ namespace Core.Policy;
 public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<PolicyRule>, JoinCode.Abstractions.Interfaces.IRemotePolicyService {
     private static readonly PolicyJsonContext JsonContext = PolicyJsonContext.Default;
 
-    private ImmutableDictionary<string, int> _usageCounters = ImmutableDictionary<string, int>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
-    private ImmutableDictionary<string, DateTime> _windowStartTimes = ImmutableDictionary<string, DateTime>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, int> _usageCounters = ImmutableHamT<string, int>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, DateTime> _windowStartTimes = ImmutableHamT<string, DateTime>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>原子递增计数器 — 无锁 CAS 循环</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

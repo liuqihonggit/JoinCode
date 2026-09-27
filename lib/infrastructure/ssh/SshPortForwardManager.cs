@@ -4,7 +4,7 @@ namespace Core.Ssh;
 /// SSH 端口转发管理器 — 集中管理多个 SshForwardedPort 实例，支持本地/远程转发的添加、查询与统一停止
 /// </summary>
 public sealed class SshPortForwardManager : IAsyncDisposable {
-    private ImmutableDictionary<string, SshForwardedPort> _forwards = ImmutableDictionary<string, SshForwardedPort>.Empty;
+    private ImmutableHamT<string, SshForwardedPort> _forwards = ImmutableHamT<string, SshForwardedPort>.Empty;
     private readonly ILogger? _logger;
     private int _isDisposed;
 
@@ -100,7 +100,7 @@ public sealed class SshPortForwardManager : IAsyncDisposable {
     public async Task StopAllAsync(CancellationToken ct = default) {
         await Task.WhenAll(Volatile.Read(ref _forwards).Values.Select(forward => forward.StopAsync(ct))).ConfigureAwait(false);
 
-        Volatile.Write(ref _forwards, ImmutableDictionary<string, SshForwardedPort>.Empty);
+        Volatile.Write(ref _forwards, ImmutableHamT<string, SshForwardedPort>.Empty);
     }
 
     /// <summary>

@@ -13,7 +13,7 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
             SingleReader = true,
             SingleWriter = false
         });
-    private volatile ImmutableDictionary<string, string?> _activeAgents = ImmutableDictionary<string, string?>.Empty;
+    private volatile ImmutableHamT<string, string?> _activeAgents = ImmutableHamT<string, string?>.Empty;
     private volatile string? _displayModeTarget;
     private readonly ILogger? _logger;
 

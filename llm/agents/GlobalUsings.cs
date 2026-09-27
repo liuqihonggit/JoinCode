@@ -1,4 +1,4 @@
-global using AsyncFileLock;
+﻿global using AsyncFileLock;
 global using Core.Agents;
 global using Core.Agents.Coordinator;
 global using Core.Agents.Coordinator.Liveness;
@@ -102,3 +102,4 @@ global using McpClientTransportTypeExtensions = JoinCode.Abstractions.Mcp.Client
 global using McpServerConnectionConfig = JoinCode.Abstractions.Mcp.Client.McpServerConnectionConfig;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using TaskStatus = JoinCode.Abstractions.State.TaskExecutionStatus;
+global using Structura.Collections;

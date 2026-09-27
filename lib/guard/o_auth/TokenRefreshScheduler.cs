@@ -54,7 +54,7 @@ public sealed partial class TokenRefreshEventArgs : EventArgs {
 public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefreshScheduler, IDisposable {
     private readonly ILogger<TokenRefreshScheduler>? _logger;
     private readonly IClockService _clock;
-    private volatile ImmutableDictionary<string, TokenMonitor> _monitors = ImmutableDictionary<string, TokenMonitor>.Empty;
+    private volatile ImmutableHamT<string, TokenMonitor> _monitors = ImmutableHamT<string, TokenMonitor>.Empty;
     private readonly TimeSpan _refreshBuffer;
     private bool _disposed;
 
@@ -153,7 +153,7 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
             monitor.Timer.Dispose();
         }
 
-        Interlocked.Exchange(ref _monitors, ImmutableDictionary<string, TokenMonitor>.Empty);
+        Interlocked.Exchange(ref _monitors, ImmutableHamT<string, TokenMonitor>.Empty);
         base.Dispose();
     }
 

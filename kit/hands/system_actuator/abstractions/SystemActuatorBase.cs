@@ -6,7 +6,7 @@ namespace Services.SystemActuator;
 /// 子类只需重写命令构建 + 能力检测，无需改基类
 /// </summary>
 public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator {
-    private static ImmutableDictionary<SystemActuatorKind, SystemActuatorCapability> _capabilityCache = ImmutableDictionary<SystemActuatorKind, SystemActuatorCapability>.Empty;
+    private static ImmutableHamT<SystemActuatorKind, SystemActuatorCapability> _capabilityCache = ImmutableHamT<SystemActuatorKind, SystemActuatorCapability>.Empty;
 
     /// <summary>
     /// 静态 ProcessStartInfo 构建器 — 供静态方法使用，强制三道防线 + 统一编码
@@ -124,7 +124,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator 
     /// 重置缓存 — 仅用于测试
     /// </summary>
     internal static void ResetCapabilityCache() {
-        Volatile.Write(ref _capabilityCache, ImmutableDictionary<SystemActuatorKind, SystemActuatorCapability>.Empty);
+        Volatile.Write(ref _capabilityCache, ImmutableHamT<SystemActuatorKind, SystemActuatorCapability>.Empty);
     }
 
     #endregion

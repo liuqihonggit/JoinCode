@@ -21,7 +21,7 @@ public sealed record GetPlanHistoryCmd(
 /// </summary>
 [Register(typeof(IPlanModeManager), ServiceLifetime.Singleton)]
 public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable {
-    private ImmutableDictionary<string, PlanState> _plans = ImmutableDictionary<string, PlanState>.Empty;
+    private ImmutableHamT<string, PlanState> _plans = ImmutableHamT<string, PlanState>.Empty;
     private readonly List<PlanState> _planHistory = new();
     private readonly PlanHistoryActor _actor;
     private readonly ITelemetryService? _telemetryService;
@@ -69,7 +69,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// 待审批请求的等待字典 — 对齐 TS awaitingLeaderApproval
     /// key: requestId, value: TaskCompletionSource（审批响应到达时 SetResult）
     /// </summary>
-    private ImmutableDictionary<string, TaskCompletionSource<PlanApprovalResponseMessage>> _pendingApprovals = ImmutableDictionary<string, TaskCompletionSource<PlanApprovalResponseMessage>>.Empty;
+    private ImmutableHamT<string, TaskCompletionSource<PlanApprovalResponseMessage>> _pendingApprovals = ImmutableHamT<string, TaskCompletionSource<PlanApprovalResponseMessage>>.Empty;
 
     /// <summary>
     /// 初始化计划模式管理器

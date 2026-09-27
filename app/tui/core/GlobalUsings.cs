@@ -1,4 +1,4 @@
-// Abstractions 门面 — TUI 组件依赖的接口/DTO
+﻿// Abstractions 门面 — TUI 组件依赖的接口/DTO
 global using System.Collections.Immutable;
 global using Core.Bridge;
 global using Core.CostTracking;
@@ -67,3 +67,4 @@ global using GuiAttribute = Terminal.Gui.Drawing.Attribute;
 global using GuiColor = Terminal.Gui.Drawing.Color;
 global using GuiTextStyle = Terminal.Gui.Drawing.TextStyle;
 global using TuiKey = Terminal.Gui.Input.Key;
+global using Structura.Collections;

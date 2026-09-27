@@ -7,7 +7,7 @@ namespace Core.Security.Sandbox.Providers;
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 public sealed partial class DockerSandboxProvider : SandboxProviderBase {
     private readonly IProcessService _processService;
-    private ImmutableDictionary<string, string> _containerIds = ImmutableDictionary<string, string>.Empty;
+    private ImmutableHamT<string, string> _containerIds = ImmutableHamT<string, string>.Empty;
     private volatile bool _isAvailableCache;
     private volatile bool _isAvailableProbed;
 

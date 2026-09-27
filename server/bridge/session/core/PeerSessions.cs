@@ -265,7 +265,7 @@ public sealed partial class PeerMessageEventArgs : EventArgs {
 /// 对等节点路由表 - 管理节点 ID 到端点的映射
 /// </summary>
 public sealed partial class PeerSessionRouter {
-    private ImmutableDictionary<string, string> _routes = ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.Ordinal);
+    private ImmutableHamT<string, string> _routes = ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.Ordinal);
 
     /// <summary>当前路由数量</summary>
     public int RouteCount => Volatile.Read(ref _routes).Count;
@@ -315,5 +315,5 @@ public sealed partial class PeerSessionRouter {
     /// <summary>
     /// 清除所有路由
     /// </summary>
-    public void Clear() => Interlocked.Exchange(ref _routes, ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.Ordinal));
+    public void Clear() => Interlocked.Exchange(ref _routes, ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.Ordinal));
 }

@@ -25,7 +25,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     private readonly PluginLifecycleTracker _lifecycleTracker;
 
     /// <summary>每个插件的资源 ObjectId — 按 ObjectType 分组 + LongRangeSet 区间压缩(ADR 0117),卸载后用于扫描验证</summary>
-    private ImmutableDictionary<string, ImmutableDictionary<ObjectType, LongRangeSet>> _pluginResourceIds = ImmutableDictionary<string, ImmutableDictionary<ObjectType, LongRangeSet>>.Empty;
+    private ImmutableHamT<string, ImmutableHamT<ObjectType, LongRangeSet>> _pluginResourceIds = ImmutableHamT<string, ImmutableHamT<ObjectType, LongRangeSet>>.Empty;
 
     /// <summary>插件黑名单 — 卸载泄漏的插件加入,拒绝再次加载(方案B C4)</summary>
     private ImmutableHashSet<string> _blacklistedPlugins = ImmutableHashSet<string>.Empty;
@@ -631,7 +631,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// 阶段3 — Verify: 卸载后扫描检查资源是否正确注销
     /// </summary>
     private void ScanAfterUnload(string pluginName) {
-        ImmutableDictionary<ObjectType, LongRangeSet>? resourceIds = null;
+        ImmutableHamT<ObjectType, LongRangeSet>? resourceIds = null;
         ImmutableInterlocked.Update(ref _pluginResourceIds, d => {
             if (!d.TryGetValue(pluginName, out var map)) return d;
             resourceIds = map;
@@ -674,7 +674,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     internal void RecordPluginResourceIds(string pluginName, IEnumerable<ObjectId> resourceIds) {
         var byType = resourceIds
             .GroupBy(id => id.Type)
-            .ToImmutableDictionary(g => g.Key, g => g.Aggregate(LongRangeSet.Empty, (set, id) => set.Add(id.SequenceId)));
+            .ToImmutableHamT(g => g.Key, g => g.Aggregate(LongRangeSet.Empty, (set, id) => set.Add(id.SequenceId)));
         ImmutableInterlocked.Update(ref _pluginResourceIds, d => d.SetItem(pluginName, byType));
     }
 

@@ -6,7 +6,7 @@ namespace Core.Goal;
 /// </summary>
 [Register(typeof(IGoalConflictMessenger), ServiceLifetime.Singleton)]
 public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflictMessenger {
-    private ImmutableDictionary<string, Channel<ConflictMessage>> _channels = ImmutableDictionary<string, Channel<ConflictMessage>>.Empty.WithComparers(StringComparer.Ordinal);
+    private ImmutableHamT<string, Channel<ConflictMessage>> _channels = ImmutableHamT<string, Channel<ConflictMessage>>.Empty.WithComparers(StringComparer.Ordinal);
 
     private readonly ILogger<GoalConflictMessenger>? _logger;
 

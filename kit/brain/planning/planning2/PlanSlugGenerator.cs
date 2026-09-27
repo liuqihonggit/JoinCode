@@ -52,7 +52,7 @@ internal static class PlanSlugGenerator {
         "vulture", "walrus", "wolverine", "zebra"
      };
 
-    private static ImmutableDictionary<string, string> SlugCache = ImmutableDictionary<string, string>.Empty;
+    private static ImmutableHamT<string, string> SlugCache = ImmutableHamT<string, string>.Empty;
 
     /// <summary>
     /// 对齐 TS getPlanSlug(): 获取或生成 session 级别的 slug 缓存
@@ -107,7 +107,7 @@ internal static class PlanSlugGenerator {
     /// 对齐 TS clearAllPlanSlugs(): 清除所有 slug 缓存
     /// </summary>
     public static void ClearAllSlugs() {
-        Interlocked.Exchange(ref SlugCache, ImmutableDictionary<string, string>.Empty);
+        Interlocked.Exchange(ref SlugCache, ImmutableHamT<string, string>.Empty);
     }
 
     /// <summary>

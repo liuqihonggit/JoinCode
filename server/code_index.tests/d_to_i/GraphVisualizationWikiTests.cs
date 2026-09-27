@@ -142,8 +142,8 @@ public sealed class GraphVisualizationWikiTests : IDisposable {
         });
     }
 
-    private static ImmutableDictionary<TKey, ImmutableList<CallEdge>> AddToBucket<TKey>(
-        ImmutableDictionary<TKey, ImmutableList<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull {
+    private static ImmutableHamT<TKey, ImmutableList<CallEdge>> AddToBucket<TKey>(
+        ImmutableHamT<TKey, ImmutableList<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull {
         if (!dict.TryGetValue(key, out var list)) {
             list = ImmutableList<CallEdge>.Empty;
         }

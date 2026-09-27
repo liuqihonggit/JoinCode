@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 可选次级索引 — 子类通过 CreateIndex 声明，注册/注销自动同步，O(1) 按属性查找
 /// </summary>
 public class MapRegistry<TKey, TValue> where TKey : notnull {
-    private ImmutableDictionary<TKey, TValue> _items;
+    private ImmutableHamT<TKey, TValue> _items;
     private ImmutableHashSet<TKey> _canonicalKeys;
     private readonly bool _trackCanonical;
     private ImmutableList<ISecondaryIndex> _indices = ImmutableList<ISecondaryIndex>.Empty;
@@ -89,7 +89,7 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
     /// <param name="trackCanonical">是否跟踪正式名/别名。</param>
     public MapRegistry(IEqualityComparer<TKey>? comparer = null, bool trackCanonical = false) {
         var c = comparer ?? EqualityComparer<TKey>.Default;
-        _items = ImmutableDictionary<TKey, TValue>.Empty.WithComparers(c);
+        _items = ImmutableHamT<TKey, TValue>.Empty.WithComparers(c);
         _canonicalKeys = ImmutableHashSet<TKey>.Empty.WithComparer(c);
         _trackCanonical = trackCanonical;
     }
@@ -183,14 +183,14 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
 
     /// <summary>清空所有注册（测试用）</summary>
     public void Clear() {
-        var old = Interlocked.Exchange(ref _items, ImmutableDictionary<TKey, TValue>.Empty.WithComparers(Volatile.Read(ref _items).KeyComparer));
+        var old = Interlocked.Exchange(ref _items, ImmutableHamT<TKey, TValue>.Empty.WithComparers(Volatile.Read(ref _items).KeyComparer));
         if (_trackCanonical)
             Interlocked.Exchange(ref _canonicalKeys, ImmutableHashSet<TKey>.Empty.WithComparer(Volatile.Read(ref _canonicalKeys).KeyComparer));
     }
 
     /// <summary>清空所有注册并返回被清空的项（子类需要在清空前执行清理逻辑时使用）</summary>
     protected List<KeyValuePair<TKey, TValue>> ClearCore() {
-        var old = Interlocked.Exchange(ref _items, ImmutableDictionary<TKey, TValue>.Empty.WithComparers(Volatile.Read(ref _items).KeyComparer));
+        var old = Interlocked.Exchange(ref _items, ImmutableHamT<TKey, TValue>.Empty.WithComparers(Volatile.Read(ref _items).KeyComparer));
         if (_trackCanonical)
             Interlocked.Exchange(ref _canonicalKeys, ImmutableHashSet<TKey>.Empty.WithComparer(Volatile.Read(ref _canonicalKeys).KeyComparer));
         return [.. old];

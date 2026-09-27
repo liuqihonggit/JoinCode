@@ -5,7 +5,7 @@ namespace Core.CostTracking;
 /// 从 CostTracker 提取,统一管理模型定价的设置、查询、成本计算
 /// </summary>
 internal sealed class ModelPricing {
-    private ImmutableDictionary<string, ModelCostInfo> _modelCosts = ImmutableDictionary<string, ModelCostInfo>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, ModelCostInfo> _modelCosts = ImmutableHamT<string, ModelCostInfo>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly ModelPricingTable _pricingTable;
     private readonly ILogger? _logger;
 

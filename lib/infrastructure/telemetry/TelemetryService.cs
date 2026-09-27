@@ -12,8 +12,8 @@ public sealed partial class TelemetryService : ITelemetryService {
     private readonly ActivityListener _listener;
     private ConsoleTelemetryExporter? _consoleExporter;
     private readonly IAnalyticsFileSink? _analyticsSink;
-    private ImmutableDictionary<string, ITelemetryMetric> _metrics = ImmutableDictionary<string, ITelemetryMetric>.Empty;
-    private ImmutableDictionary<string, TelemetrySpan> _activeSpans = ImmutableDictionary<string, TelemetrySpan>.Empty;
+    private ImmutableHamT<string, ITelemetryMetric> _metrics = ImmutableHamT<string, ITelemetryMetric>.Empty;
+    private ImmutableHamT<string, TelemetrySpan> _activeSpans = ImmutableHamT<string, TelemetrySpan>.Empty;
     private int _isDisposed;
 
     /// <summary>遥测配置快照</summary>

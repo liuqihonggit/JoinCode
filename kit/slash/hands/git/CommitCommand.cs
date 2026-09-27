@@ -15,7 +15,7 @@ public sealed class CommitCommand : ChatCommandBase {
     /// <para>首次 /commit 返回说明不执行,二次 /commit(60s 内)确认执行。对齐 sed 两阶段确认模式。</para>
     /// <para>ImmutableDictionary + CAS 无锁更新,读取无竞争。</para>
     /// </summary>
-    private static ImmutableDictionary<string, DateTime> ReadConfirmedSessions = ImmutableDictionary<string, DateTime>.Empty;
+    private static ImmutableHamT<string, DateTime> ReadConfirmedSessions = ImmutableHamT<string, DateTime>.Empty;
 
     /// <summary>
     /// 读说明确认窗口 — 60s 内有效(对齐 sed SedConfirmationWindow)

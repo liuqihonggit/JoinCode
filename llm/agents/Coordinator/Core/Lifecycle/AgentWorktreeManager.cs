@@ -10,8 +10,8 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     private readonly IHookOrchestrator? _hookOrchestrator;
     private readonly ILogger? _logger;
     private readonly IClockService _clock;
-    private static volatile ImmutableDictionary<string, AgentWorktreeSession> s_worktreeSessions = ImmutableDictionary<string, AgentWorktreeSession>.Empty;
-    private volatile ImmutableDictionary<string, WorktreeLifecycleGuard> _lifecycleGuards = ImmutableDictionary<string, WorktreeLifecycleGuard>.Empty;
+    private static volatile ImmutableHamT<string, AgentWorktreeSession> s_worktreeSessions = ImmutableHamT<string, AgentWorktreeSession>.Empty;
+    private volatile ImmutableHamT<string, WorktreeLifecycleGuard> _lifecycleGuards = ImmutableHamT<string, WorktreeLifecycleGuard>.Empty;
     private readonly bool _enableWorktreeIsolation;
     private readonly IFileOperationService? _fileOperationService;
     private readonly IGitCommandRunner? _gitRunner;
@@ -439,7 +439,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
 
     /// <summary>释放资源 — 仅清理实例级 lifecycleGuards,不清空 static s_worktreeSessions(跨实例共享)</summary>
     public override void Dispose() {
-        Interlocked.Exchange(ref _lifecycleGuards, ImmutableDictionary<string, WorktreeLifecycleGuard>.Empty);
+        Interlocked.Exchange(ref _lifecycleGuards, ImmutableHamT<string, WorktreeLifecycleGuard>.Empty);
         base.Dispose();
     }
 

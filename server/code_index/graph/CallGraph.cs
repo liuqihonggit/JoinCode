@@ -130,7 +130,7 @@ public sealed class CallGraph : ICallGraph {
         return Task.FromResult<IReadOnlyList<string>>(visited.ToList());
     }
 
-    private static IReadOnlyList<CallEdge> BfsPath(ImmutableDictionary<string, ImmutableList<CallEdge>> adj, string from, string to) {
+    private static IReadOnlyList<CallEdge> BfsPath(ImmutableHamT<string, ImmutableList<CallEdge>> adj, string from, string to) {
         if (!adj.TryGetValue(from, out _)) {
             return Array.Empty<CallEdge>();
         }

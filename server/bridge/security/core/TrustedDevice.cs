@@ -78,7 +78,7 @@ public interface ITrustedDeviceStore : JoinCode.Abstractions.State.IStore {
 /// </summary>
 [Register(typeof(ITrustedDeviceStore), ServiceLifetime.Singleton)]
 public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceStore {
-    private ImmutableDictionary<string, TrustedDeviceEntry> _devices = ImmutableDictionary<string, TrustedDeviceEntry>.Empty.WithComparers(StringComparer.Ordinal);
+    private ImmutableHamT<string, TrustedDeviceEntry> _devices = ImmutableHamT<string, TrustedDeviceEntry>.Empty.WithComparers(StringComparer.Ordinal);
     private readonly ILogger<TrustedDeviceStore>? _logger;
 
     /// <summary>

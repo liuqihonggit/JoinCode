@@ -43,7 +43,7 @@ internal sealed class ClientRegistry {
 /// 从 BridgeServer 提取,降低大类字段数
 /// </summary>
 internal sealed class RouteRegistry {
-    private ImmutableDictionary<string, Func<HttpListenerContext, CancellationToken, Task>> _routes = ImmutableDictionary<string, Func<HttpListenerContext, CancellationToken, Task>>.Empty;
+    private ImmutableHamT<string, Func<HttpListenerContext, CancellationToken, Task>> _routes = ImmutableHamT<string, Func<HttpListenerContext, CancellationToken, Task>>.Empty;
 
     /// <summary>注册路由处理器</summary>
     public void Register(string path, Func<HttpListenerContext, CancellationToken, Task> handler)

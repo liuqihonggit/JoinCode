@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
         <ProjectType>library</ProjectType>
@@ -20,7 +20,8 @@
     <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/guard/Guard.csproj" />
-  </ItemGroup>
+        <ProjectReference Include="../../lib/structura/Structura.csproj" />
+</ItemGroup>
 
   <ItemGroup>
     <!-- McpToolDispatch.Generator 是必需的（工具调度注册源码生成器） -->

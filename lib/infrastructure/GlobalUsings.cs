@@ -1,4 +1,4 @@
-global using AsyncFileLock;
+﻿global using AsyncFileLock;
 global using Core.Ssh;
 global using Core.Telemetry;
 global using Core.Utils;
@@ -97,3 +97,4 @@ global using ErrorMessages = Core.Utils.ErrorMessages;
 global using ExecutionContext = JoinCode.Abstractions.Execution.ExecutionContext;
 global using IAsyncDisposable = System.IAsyncDisposable;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
+global using Structura.Collections;

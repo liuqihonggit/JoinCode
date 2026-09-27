@@ -9,7 +9,7 @@ public abstract class SandboxProviderBase : ISandboxProvider {
     private protected readonly ILogger? Logger;
     private protected readonly IClockService Clock;
     private protected readonly ITelemetryService? TelemetryService;
-    private volatile ImmutableDictionary<string, SandboxInfo> _sandboxes = ImmutableDictionary<string, SandboxInfo>.Empty;
+    private volatile ImmutableHamT<string, SandboxInfo> _sandboxes = ImmutableHamT<string, SandboxInfo>.Empty;
     private int _disposed;
 
     /// <inheritdoc/>

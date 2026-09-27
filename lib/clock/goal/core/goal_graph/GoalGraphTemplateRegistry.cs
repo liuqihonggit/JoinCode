@@ -5,7 +5,7 @@ namespace Core.Goal;
 /// </summary>
 [Register(typeof(IGoalGraphTemplateRegistry), ServiceLifetime.Singleton)]
 public sealed class GoalGraphTemplateRegistry : ServiceEntity, IGoalGraphTemplateRegistry {
-    private ImmutableDictionary<string, GoalGraphTemplate> _templates = ImmutableDictionary<string, GoalGraphTemplate>.Empty.WithComparers(StringComparer.Ordinal);
+    private ImmutableHamT<string, GoalGraphTemplate> _templates = ImmutableHamT<string, GoalGraphTemplate>.Empty.WithComparers(StringComparer.Ordinal);
 
     /// <inheritdoc />
     public void Register(GoalGraphTemplate template) {

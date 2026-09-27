@@ -7,9 +7,9 @@ namespace Core.Plugins;
 /// </summary>
 [Register(typeof(IResourceReferenceGraph), ServiceLifetime.Singleton)]
 public sealed class ResourceReferenceGraph : IResourceReferenceGraph {
-    private ImmutableDictionary<(ObjectId Consumer, ObjectId Target), ResourceReference> _references = ImmutableDictionary<(ObjectId, ObjectId), ResourceReference>.Empty;
-    private ImmutableDictionary<string, ImmutableList<ResourceReference>> _byConsumer = ImmutableDictionary<string, ImmutableList<ResourceReference>>.Empty;
-    private ImmutableDictionary<string, ImmutableList<ResourceReference>> _byTarget = ImmutableDictionary<string, ImmutableList<ResourceReference>>.Empty;
+    private ImmutableHamT<(ObjectId Consumer, ObjectId Target), ResourceReference> _references = ImmutableHamT<(ObjectId, ObjectId), ResourceReference>.Empty;
+    private ImmutableHamT<string, ImmutableList<ResourceReference>> _byConsumer = ImmutableHamT<string, ImmutableList<ResourceReference>>.Empty;
+    private ImmutableHamT<string, ImmutableList<ResourceReference>> _byTarget = ImmutableHamT<string, ImmutableList<ResourceReference>>.Empty;
 
     /// <summary>记录引用 — 插件B 引用 插件A 的资源</summary>
     public void AddReference(ResourceReference reference) {

@@ -72,7 +72,7 @@ public sealed partial class AppStateSelectors : ServiceEntity {
     /// <summary>
     /// 选择所有 Agent
     /// </summary>
-    public IStoreSelector<AppState, ImmutableDictionary<string, AgentState>> SelectAgents() {
+    public IStoreSelector<AppState, ImmutableHamT<string, AgentState>> SelectAgents() {
         RecordSelectorMetrics("agent", "agents");
         return _store.Select(state => state.Agents);
     }
@@ -111,7 +111,7 @@ public sealed partial class AppStateSelectors : ServiceEntity {
     /// <summary>
     /// 选择所有任务
     /// </summary>
-    public IStoreSelector<AppState, ImmutableDictionary<string, TaskState>> SelectTasks() {
+    public IStoreSelector<AppState, ImmutableHamT<string, TaskState>> SelectTasks() {
         RecordSelectorMetrics("task", "tasks");
         return _store.Select(state => state.Tasks);
     }

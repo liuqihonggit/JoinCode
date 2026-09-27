@@ -1,8 +1,8 @@
 namespace JoinCode.Abstractions.Brain.Context.Resolution;
 
 public sealed class ReferenceIndex {
-    private ImmutableDictionary<string, IndexedReference> _references;
-    private ImmutableDictionary<string, ImmutableList<string>> _keywordIndex;
+    private ImmutableHamT<string, IndexedReference> _references;
+    private ImmutableHamT<string, ImmutableList<string>> _keywordIndex;
 
     /// <summary>获取创建时间。</summary>
     public DateTimeOffset CreatedAt { get; }
@@ -17,8 +17,8 @@ public sealed class ReferenceIndex {
     public ReferenceIndex(string projectRoot) {
         ProjectRoot = projectRoot;
         CreatedAt = DateTimeOffset.UtcNow;
-        _references = ImmutableDictionary<string, IndexedReference>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
-        _keywordIndex = ImmutableDictionary<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+        _references = ImmutableHamT<string, IndexedReference>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+        _keywordIndex = ImmutableHamT<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>添加引用到索引。</summary>
@@ -64,7 +64,7 @@ public sealed class ReferenceIndex {
 
     /// <summary>清空所有引用。</summary>
     public void Clear() {
-        Interlocked.Exchange(ref _references, ImmutableDictionary<string, IndexedReference>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
-        Interlocked.Exchange(ref _keywordIndex, ImmutableDictionary<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
+        Interlocked.Exchange(ref _references, ImmutableHamT<string, IndexedReference>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
+        Interlocked.Exchange(ref _keywordIndex, ImmutableHamT<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
     }
 }

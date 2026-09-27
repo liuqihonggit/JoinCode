@@ -14,8 +14,8 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    private volatile ImmutableDictionary<string, AgentExecutionSummary> _executions = ImmutableDictionary<string, AgentExecutionSummary>.Empty;
-    private volatile ImmutableDictionary<string, AgentMetricsAccumulator> _metrics = ImmutableDictionary<string, AgentMetricsAccumulator>.Empty;
+    private volatile ImmutableHamT<string, AgentExecutionSummary> _executions = ImmutableHamT<string, AgentExecutionSummary>.Empty;
+    private volatile ImmutableHamT<string, AgentMetricsAccumulator> _metrics = ImmutableHamT<string, AgentMetricsAccumulator>.Empty;
     private readonly ILogger<AgentSummaryService>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;

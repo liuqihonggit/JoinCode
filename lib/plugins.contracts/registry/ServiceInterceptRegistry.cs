@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>线程安全：ConcurrentDictionary + ImmutableList</para>
 /// </summary>
 public sealed class ServiceInterceptRegistry {
-    private ImmutableDictionary<string, ImmutableList<Action<object>>> _interceptors = ImmutableDictionary<string, ImmutableList<Action<object>>>.Empty;
+    private ImmutableHamT<string, ImmutableList<Action<object>>> _interceptors = ImmutableHamT<string, ImmutableList<Action<object>>>.Empty;
 
     /// <summary>
     /// 注册服务配置覆写 — 返回 disposer

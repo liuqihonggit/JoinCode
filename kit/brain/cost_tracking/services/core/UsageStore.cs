@@ -8,9 +8,9 @@ namespace Core.CostTracking;
 /// </summary>
 internal sealed class UsageStore {
     private ImmutableList<TokenUsageRecord> _usageRecords = ImmutableList<TokenUsageRecord>.Empty;
-    private ImmutableDictionary<string, ImmutableList<TokenUsageRecord>> _bySessionId = ImmutableDictionary<string, ImmutableList<TokenUsageRecord>>.Empty;
-    private ImmutableDictionary<DateTime, ImmutableList<TokenUsageRecord>> _byDate = ImmutableDictionary<DateTime, ImmutableList<TokenUsageRecord>>.Empty;
-    private ImmutableDictionary<DateTime, decimal> _costByDate = ImmutableDictionary<DateTime, decimal>.Empty;
+    private ImmutableHamT<string, ImmutableList<TokenUsageRecord>> _bySessionId = ImmutableHamT<string, ImmutableList<TokenUsageRecord>>.Empty;
+    private ImmutableHamT<DateTime, ImmutableList<TokenUsageRecord>> _byDate = ImmutableHamT<DateTime, ImmutableList<TokenUsageRecord>>.Empty;
+    private ImmutableHamT<DateTime, decimal> _costByDate = ImmutableHamT<DateTime, decimal>.Empty;
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
     private readonly ILogger? _logger;
@@ -136,8 +136,8 @@ internal sealed class UsageStore {
     /// <summary>清空全部用量记录与所有冗余索引</summary>
     public void Reset() {
         _usageRecords = ImmutableList<TokenUsageRecord>.Empty;
-        _bySessionId = ImmutableDictionary<string, ImmutableList<TokenUsageRecord>>.Empty;
-        _byDate = ImmutableDictionary<DateTime, ImmutableList<TokenUsageRecord>>.Empty;
-        _costByDate = ImmutableDictionary<DateTime, decimal>.Empty;
+        _bySessionId = ImmutableHamT<string, ImmutableList<TokenUsageRecord>>.Empty;
+        _byDate = ImmutableHamT<DateTime, ImmutableList<TokenUsageRecord>>.Empty;
+        _costByDate = ImmutableHamT<DateTime, decimal>.Empty;
     }
 }

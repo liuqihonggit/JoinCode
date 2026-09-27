@@ -19,7 +19,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat {
     private volatile int _refCount;
 
     /// <summary>引用方插件名集合 — 用于连带卸载时通知引用方</summary>
-    private ImmutableDictionary<string, byte> _consumers = ImmutableDictionary<string, byte>.Empty;
+    private ImmutableHamT<string, byte> _consumers = ImmutableHamT<string, byte>.Empty;
 
     /// <summary>是否存活 — volatile bool,纳秒级读取</summary>
     public bool IsAlive => _isAlive;

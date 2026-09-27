@@ -8,7 +8,7 @@ namespace Core.Permission;
 public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDisposable {
     private readonly PermissionChecker _permissionChecker;
     private readonly ILogger<PermissionManager>? _logger;
-    private volatile ImmutableDictionary<string, DateTimeOffset> _approvedTools = ImmutableDictionary<string, DateTimeOffset>.Empty;
+    private volatile ImmutableHamT<string, DateTimeOffset> _approvedTools = ImmutableHamT<string, DateTimeOffset>.Empty;
     private readonly AsyncLock _modeLock = new();
     private readonly PermissionConfig _config;
     private readonly TimeProvider _timeProvider;
@@ -246,7 +246,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _disposed = true;
 
         _modeLock.Dispose();
-        Interlocked.Exchange(ref _approvedTools, ImmutableDictionary<string, DateTimeOffset>.Empty);
+        Interlocked.Exchange(ref _approvedTools, ImmutableHamT<string, DateTimeOffset>.Empty);
 
         GC.SuppressFinalize(this);
     }

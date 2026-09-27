@@ -7,10 +7,10 @@ namespace Core.Agents.Coordinator;
 /// <para>TryRemoveRoom 内聚清理 agent 映射 + 冗余索引,保证一致性,调用方无需手动清理。</para>
 /// </summary>
 internal sealed class TeamRegistry {
-    private ImmutableDictionary<string, ChatRoomState> _rooms = ImmutableDictionary<string, ChatRoomState>.Empty;
-    private ImmutableDictionary<string, string> _agentToTeam = ImmutableDictionary<string, string>.Empty;
-    private ImmutableDictionary<string, string> _bySessionId = ImmutableDictionary<string, string>.Empty;
-    private ImmutableDictionary<string, string> _byTeamName = ImmutableDictionary<string, string>.Empty;
+    private ImmutableHamT<string, ChatRoomState> _rooms = ImmutableHamT<string, ChatRoomState>.Empty;
+    private ImmutableHamT<string, string> _agentToTeam = ImmutableHamT<string, string>.Empty;
+    private ImmutableHamT<string, string> _bySessionId = ImmutableHamT<string, string>.Empty;
+    private ImmutableHamT<string, string> _byTeamName = ImmutableHamT<string, string>.Empty;
 
     /// <summary>
     /// 所有团队房间的快照拷贝 — 用于遍历查询。

@@ -1,5 +1,6 @@
 global using Core.Utils;
 global using System.Threading.Channels;
+global using Structura.Collections;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Brain.Context.Compression;
 global using JoinCode.Abstractions.Brain.Context.Hierarchy;

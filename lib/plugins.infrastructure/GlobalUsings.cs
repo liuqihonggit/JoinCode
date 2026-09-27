@@ -1,4 +1,4 @@
-global using Core.Utils;
+﻿global using Core.Utils;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Exceptions;
@@ -24,3 +24,4 @@ global using System.Threading;
 global using System.Threading.Channels;
 global using IAsyncDisposable = System.IAsyncDisposable;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
+global using Structura.Collections;

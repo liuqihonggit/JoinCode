@@ -1,16 +1,28 @@
 namespace Tools;
 
 /// <summary>
-/// 环境探测 Actor 命令 — Channel 中的消息类型
+/// 环境探测 Actor 命令 — 双 Tell 模型，自带 ReplyChannel 回执通道
 /// </summary>
 public interface IEnvProbeCommand;
 
-internal sealed record ProbeEnvCmd(bool ForceRescan, CancellationToken Ct, TaskCompletionSource<EnvironmentReport> Tcs) : IEnvProbeCommand;
+internal sealed record ProbeEnvCmd(bool ForceRescan, IdempotencyKey IdempotencyKey) : IEnvProbeCommand, IRequestCommand {
+    /// <summary>双 Tell 回执通道 — Consumer 处理完后写入结果,发送方通过 Reader.ReadAsync 拉取</summary>
+    public Channel<EnvironmentReport> ReplyChannel { get; } = Channel.CreateUnbounded<EnvironmentReport>();
+
+    /// <summary>从幂等缓存恢复结果 — 命中缓存时写入 ReplyChannel 并返回 true</summary>
+    public bool TryRestoreFromCache(IIdempotencyStore store) {
+        if (!ForceRescan && store.TryGetResult<EnvironmentReport>(IdempotencyKey, out var cached) && cached is not null) {
+            ReplyChannel.Writer.TryWrite(cached);
+            return true;
+        }
+        return false;
+    }
+}
 
 /// <summary>
 /// 环境探测服务 — Actor 化：继承 ActorBase，Consumer 线程独占 _cachedReport/_lastProbeTime，
 /// 消除 AsyncLock。进程探测由 Consumer 串行执行，不再阻塞其他调用方 5s 超时。
-/// 5分钟缓存，IFileSystem抽象，路径归一化
+/// 5分钟缓存，IFileSystem抽象，路径归一化。双 Tell 模型 + 幂等去重。
 /// </summary>
 [Register(typeof(IEnvironmentProbeService), ServiceLifetime.Singleton)]
 public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>, IEnvironmentProbeService {
@@ -28,14 +40,16 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
         : base() {
         _healthMonitor = healthMonitor;
         _logger = logger;
+        IdempotencyStore = new IdempotencyStore();
     }
 
 
     /// <inheritdoc/>
     public async Task<EnvironmentReport> ProbeEnvironmentAsync(bool forceRescan = false, CancellationToken ct = default) {
-        var tcs = TcsFactory.Create<EnvironmentReport>();
-        await SendAsync(new ProbeEnvCmd(forceRescan, ct, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct).ConfigureAwait(false);
+        var key = new IdempotencyKey("env-probe", forceRescan ? $"force-{Guid.NewGuid():N}" : "cached");
+        var cmd = new ProbeEnvCmd(forceRescan, key);
+        await SendAsync(cmd, ct).ConfigureAwait(false);
+        return await cmd.ReplyChannel.Reader.ReadAsync(ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -104,11 +118,13 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
 
     /// <summary>
     /// Actor Consumer — 线程独占 _cachedReport/_lastProbeTime，串行处理命令，无需锁。
+    /// 双 Tell 模型：回执写入命令自带 ReplyChannel，幂等结果缓存到 IdempotencyStore。
     /// </summary>
     protected override async ValueTask HandleAsync(IEnvProbeCommand command, CancellationToken ct) {
         if (command is ProbeEnvCmd cmd) {
             if (!cmd.ForceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5)) {
-                cmd.Tcs.TrySetResult(_cachedReport);
+                IdempotencyStore?.TryRegister(cmd.IdempotencyKey, _cachedReport);
+                cmd.ReplyChannel.Writer.TryWrite(_cachedReport);
                 return;
             }
 
@@ -131,7 +147,8 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
 
             _cachedReport = report;
             _lastProbeTime = DateTime.UtcNow;
-            cmd.Tcs.TrySetResult(report);
+            IdempotencyStore?.TryRegister(cmd.IdempotencyKey, report);
+            cmd.ReplyChannel.Writer.TryWrite(report);
         }
     }
 

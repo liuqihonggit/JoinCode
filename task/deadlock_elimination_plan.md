@@ -267,14 +267,72 @@ sync-over-async 死锁隐患。
 | 阶段 | 任务 | 状态 | 备注 |
 |------|------|------|------|
 | 0 | 文档 | ✅ 完成 | 本文档 |
-| 1.1 | 幂等键控去重基建 | ⏳ 待开始 | |
-| 1.2 | 基建压测 | ⏳ 待开始 | |
-| 2.1 | H1 可变 Dictionary | ⏳ 待开始 | |
-| 2.2 | H2 同步阻塞 | ⏳ 待开始 | |
-| 2.3 | H3 核心模块 Actor 化 | ⏳ 待开始 | |
-| 3.1 | M1 暴露可变集合 | ⏳ 待开始 | |
-| 3.2 | M2 O(n) 属性 | ⏳ 待开始 | |
-| 3.3 | M3 HashSet 冻结 | ⏳ 待开始 | |
+| 1.1 | 幂等键控去重基建 | ✅ 完成 | 3文件+10测试，commit b292b832 |
+| 1.2 | 幂等守卫中间件 | ✅ 完成 | IIdempotentContext<T>+中间件+5测试，commit 77aad453 |
+| 1.3 | ActorBase 集成 | ✅ 完成 | AskWithRetryAsync幂等快速路径+4测试，commit 5ca3f21e |
+| 1.4 | 基建压测 | ✅ 完成 | IdempotencyStoreBench，commit 0b90a5cf |
+| 2.1 | H1 可变 Dictionary | ⏳ 待开始 | ~15处字段级 |
+| 2.2 | H2 同步阻塞 | ⏳ 待开始 | ~40处.GetAwaiter().GetResult()/.Result |
+| 2.3 | H3 核心模块 Actor 化 | ⏳ 待开始 | QueryEngine/AgentCoordinator/McpHttpServer |
+| 3.1 | M1 暴露可变集合 | ⏳ 待开始 | ~30处 |
+| 3.2 | M2 O(n) 属性 | ⏳ 待开始 | ~15处 |
+| 3.3 | M3 HashSet 冻结 | ⏳ 待开始 | ~5处 |
+
+---
+
+## 七、已完成工作详情
+
+### 阶段 1：基建 + 压测（全部完成）
+
+#### 1.1 幂等键控去重存储（commit b292b832）
+- **新增文件**：
+  - `lib/async_lock/idempotency/IdempotencyKey.cs` — 幂等键 readonly record struct（BusinessFlowId + OperationId）
+  - `lib/async_lock/idempotency/IIdempotencyStore.cs` — 接口（TryRegister/TryGetResult/IsRegistered/Evict/EvictExpired）
+  - `lib/async_lock/idempotency/IdempotencyStore.cs` — 无锁实现（ImmutableDictionary + ImmutableInterlocked.Update CAS）
+- **测试**：`lib/async_lock.tests/idempotency/IdempotencyStoreTest.cs` — 10 个测试全部通过
+  - 首次注册/重复注册、类型不匹配、null 结果、TTL 过期、并发安全（32 线程竞争同一 key）
+- **测试目录重组**：async_lock.tests 按主题分组到 actor/mailbox/transport/host/lock/idempotency 子文件夹
+
+#### 1.2 幂等守卫中间件（commit 77aad453）
+- **新增文件**：
+  - `lib/async_lock/idempotency/IIdempotentContext.cs` — 幂等上下文接口（泛型 `IIdempotentContext<T>`，用 T 代替 object）
+  - `lib/infrastructure/pipeline/middlewares/IdempotencyGuardMiddleware.cs` — 守卫中间件（命中缓存短路/未命中执行并缓存）
+- **设计决策**：用泛型 `TResult` 代替 `object?`（用户反馈：优先用泛型 T 代替 object）
+- **测试**：`test/unit/infra.tests/pipeline/IdempotencyGuardMiddlewareTests.cs` — 5 个测试全部通过
+
+#### 1.3 ActorBase 集成（commit 5ca3f21e）
+- **新增文件**：
+  - `lib/async_lock/idempotency/IIdempotentCommand.cs` — 幂等命令接口（命令携带 IdempotencyKey）
+- **修改文件**：
+  - `lib/async_lock/actor/ActorBase.cs` — `AskWithRetryAsync<T>` 新增 `idempotencyStore` + `idempotencyKey` 可选参数
+    - 幂等快速路径：命中缓存直接返回（不发送命令）
+    - 成功后缓存结果：`TryRegister(key, result)`
+- **测试**：`lib/async_lock.tests/idempotency/IdempotencyAskIntegrationTest.cs` — 4 个测试全部通过
+
+#### 1.4 基建压测（commit 0b90a5cf）
+- **新增文件**：`test/benchmarks/async_lock.benchmarks/IdempotencyStoreBench.cs`
+- **覆盖场景**：TryRegister 首次/重复、TryGetResult 命中/未命中、并发注册不同键
+- **对比**：IdempotencyStore（ImmutableDictionary+CAS）vs ConcurrentDictionary
+- **配置**：`[ShortRunJob]` 降低迭代次数，`[MemoryDiagnoser]` 内存诊断
+
+### 基建产出物清单
+
+| 类型 | 文件 | 说明 |
+|------|------|------|
+| 接口 | `lib/async_lock/idempotency/IdempotencyKey.cs` | 幂等键（业务流水号+操作标识） |
+| 接口 | `lib/async_lock/idempotency/IIdempotencyStore.cs` | 去重存储接口 |
+| 接口 | `lib/async_lock/idempotency/IIdempotentContext.cs` | 幂等上下文接口（泛型 T） |
+| 接口 | `lib/async_lock/idempotency/IIdempotentCommand.cs` | 幂等命令接口 |
+| 实现 | `lib/async_lock/idempotency/IdempotencyStore.cs` | 无锁 CAS 实现 |
+| 中间件 | `lib/infrastructure/pipeline/middlewares/IdempotencyGuardMiddleware.cs` | 管道守卫中间件 |
+| 集成 | `lib/async_lock/actor/ActorBase.cs` | AskWithRetryAsync 幂等快速路径 |
+| 测试 | `lib/async_lock.tests/idempotency/IdempotencyStoreTest.cs` | 10 个单元测试 |
+| 测试 | `lib/async_lock.tests/idempotency/IdempotencyAskIntegrationTest.cs` | 4 个集成测试 |
+| 测试 | `test/unit/infra.tests/pipeline/IdempotencyGuardMiddlewareTests.cs` | 5 个中间件测试 |
+| 压测 | `test/benchmarks/async_lock.benchmarks/IdempotencyStoreBench.cs` | 基准测试 |
+
+**总测试数**：19 个（10+4+5），全部通过
+**总 commit 数**：4 个（b292b832, 77aad453, 5ca3f21e, 0b90a5cf）
 
 ---
 

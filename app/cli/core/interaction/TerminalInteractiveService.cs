@@ -24,6 +24,9 @@ public sealed class TerminalInteractiveService : IInteractiveService {
         List<string>? options = null,
         bool multiSelect = false,
         CancellationToken cancellationToken = default) {
+        if (TerminalHelper.IsHeadless)
+            return Task.FromResult(AskUserQuestionResult.FailureResult("Non-interactive mode: cannot prompt for user input"));
+
         if (string.IsNullOrWhiteSpace(question))
             return Task.FromResult(AskUserQuestionResult.FailureResult("Question cannot be empty"));
 
@@ -53,6 +56,9 @@ public sealed class TerminalInteractiveService : IInteractiveService {
     public Task<AskUserQuestionResult> AskUserQuestionsAsync(
         List<QuestionItem> questions,
         CancellationToken cancellationToken = default) {
+        if (TerminalHelper.IsHeadless)
+            return Task.FromResult(AskUserQuestionResult.FailureResult("Non-interactive mode: cannot prompt for user input"));
+
         if (questions.Count == 0)
             return Task.FromResult(AskUserQuestionResult.FailureResult("No questions provided"));
 

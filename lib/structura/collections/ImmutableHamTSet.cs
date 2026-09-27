@@ -116,10 +116,8 @@ public sealed class ImmutableHamTSet<T> : IReadOnlySet<T> where T : notnull {
         return b;
     }
 
-    /// <summary>遍历所有元素。</summary>
-    public IEnumerator<T> GetEnumerator() {
-        foreach (var kv in _map) yield return kv.Key;
-    }
+    /// <summary>遍历所有元素 — 委托 ImmutableHamT.EnumerateKeys 显式栈遍历,消除额外 yield 包装层。</summary>
+    public IEnumerator<T> GetEnumerator() => _map.EnumerateKeys().GetEnumerator();
 
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 

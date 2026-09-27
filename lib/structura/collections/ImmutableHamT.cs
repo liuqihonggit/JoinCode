@@ -175,8 +175,37 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
 
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 
+    /// <summary>仅遍历键 — 显式栈迭代,供 ImmutableHamTSet 复用以消除额外 yield 包装层。</summary>
+    public IEnumerable<TKey> EnumerateKeys() {
+        if (_root is null) yield break;
+        var stack = new Stack<Node>(8);
+        stack.Push(_root);
+        while (stack.Count > 0) {
+            var node = stack.Pop();
+            switch (node) {
+                case LeafNode leaf:
+                yield return leaf.Key;
+                break;
+                case CollisionNode collision:
+                for (var i = 0; i < collision.Entries.Length; i++)
+                    yield return collision.Entries[i].Key;
+                break;
+                case BitmapNode bitmap:
+                for (var i = bitmap.Children.Length - 1; i >= 0; i--)
+                    stack.Push(bitmap.Children[i]);
+                break;
+                case ArrayNode array:
+                for (var i = Width - 1; i >= 0; i--) {
+                    var child = array.Children[i];
+                    if (child is not null) stack.Push(child);
+                }
+                break;
+            }
+        }
+    }
+
     /// <summary>所有键。</summary>
-    public IEnumerable<TKey> Keys { get { foreach (var kv in this) yield return kv.Key; } }
+    public IEnumerable<TKey> Keys => EnumerateKeys();
 
     /// <summary>所有值。</summary>
     public IEnumerable<TValue> Values { get { foreach (var kv in this) yield return kv.Value; } }
@@ -493,7 +522,7 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
         }
         /// <summary>遍历。</summary>
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() => _dict.GetEnumerator();
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }
 

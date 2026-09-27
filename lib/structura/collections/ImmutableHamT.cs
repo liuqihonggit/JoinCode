@@ -110,6 +110,16 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
         return new ImmutableHamT<TKey, TValue>(added ? _count + 1 : _count, newRoot, _keyComparer);
     }
 
+    /// <summary>尝试添加键值对,键已存在返回原实例(不替换),键不存在插入。单次查找,供 ImmutableHamTSet 复用消除 ContainsKey+SetItem 双查找。</summary>
+    internal ImmutableHamT<TKey, TValue> TryAddInternal(TKey key, TValue value, out bool added) {
+        ArgumentNullException.ThrowIfNull(key);
+        var hash = (uint)_keyComparer.GetHashCode(key);
+        if (_root is null) { added = true; return new ImmutableHamT<TKey, TValue>(1, new LeafNode(key, value), _keyComparer); }
+        var newRoot = _root.Add(0, hash, _keyComparer, key, value, out added);
+        if (!added) return this;
+        return new ImmutableHamT<TKey, TValue>(_count + 1, newRoot, _keyComparer);
+    }
+
     /// <summary>移除指定键,不存在则返回原实例。</summary>
     public ImmutableHamT<TKey, TValue> Remove(TKey key) {
         ArgumentNullException.ThrowIfNull(key);
@@ -222,7 +232,6 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
         internal abstract bool TryGet(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, [MaybeNullWhen(false)] out TValue value);
         internal abstract Node Add(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, TValue value, out bool added);
         internal abstract Node? Remove(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, out bool removed);
-        internal abstract IEnumerable<KeyValuePair<TKey, TValue>> Enumerate();
     }
 
     internal sealed class LeafNode : Node {
@@ -250,8 +259,6 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
             if (cmp.Equals(Key, key)) { removed = true; return null; }
             removed = false; return this;
         }
-
-        internal override IEnumerable<KeyValuePair<TKey, TValue>> Enumerate() { yield return new(Key, Value); }
     }
 
     internal sealed class BitmapNode : Node {
@@ -312,11 +319,6 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
             return newChildren2.Length == 1 && newChildren2[0] is LeafNode leaf ? leaf : new BitmapNode(newBitmap, newChildren2);
         }
 
-        internal override IEnumerable<KeyValuePair<TKey, TValue>> Enumerate() {
-            for (var i = 0; i < Children.Length; i++)
-                foreach (var kv in Children[i].Enumerate()) yield return kv;
-        }
-
         private ArrayNode UpgradeToArrayNode(int newBitmap, Node[] children) {
             var array = new Node?[Width];
             for (var i = 0; i < Width; i++) {
@@ -372,14 +374,6 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
             var newChildren2 = (Node?[])Children.Clone();
             newChildren2[idx] = null;
             return new ArrayNode(newCount, newChildren2);
-        }
-
-        internal override IEnumerable<KeyValuePair<TKey, TValue>> Enumerate() {
-            for (var i = 0; i < Width; i++) {
-                var child = Children[i];
-                if (child is not null)
-                    foreach (var kv in child.Enumerate()) yield return kv;
-            }
         }
 
         private BitmapNode DowngradeToBitmapNode(int nullIdx) {
@@ -438,9 +432,6 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
             removed = false; return this;
         }
 
-        internal override IEnumerable<KeyValuePair<TKey, TValue>> Enumerate() {
-            for (var i = 0; i < Entries.Length; i++) yield return new(Entries[i].Key, Entries[i].Value);
-        }
     }
 
     private static Node MergeLeaves(int shift, uint hash1, Node node1, uint hash2, Node node2) {

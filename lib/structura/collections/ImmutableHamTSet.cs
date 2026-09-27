@@ -69,10 +69,10 @@ public sealed class ImmutableHamTSet<T> : IReadOnlySet<T> where T : notnull {
     public static Builder CreateBuilder(IEqualityComparer<T>? comparer = null)
         => new(comparer ?? EqualityComparer<T>.Default);
 
-    /// <summary>添加元素,已存在则返回原实例。</summary>
+    /// <summary>添加元素,已存在则返回原实例。单次查找(委托 TryAddInternal,消除 ContainsKey+SetItem 双查找)。</summary>
     public ImmutableHamTSet<T> Add(T item) {
-        if (_map.ContainsKey(item)) return this;
-        return new(_map.SetItem(item, Unit.Default));
+        var newMap = _map.TryAddInternal(item, Unit.Default, out var added);
+        return added ? new(newMap) : this;
     }
 
     /// <summary>移除元素,不存在则返回原实例。</summary>

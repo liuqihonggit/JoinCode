@@ -79,6 +79,7 @@ public sealed record MemoryEntry {
     /// <summary>
     /// 元数据
     /// </summary>
+    [JsonConverter(typeof(ImmutableHamTStringStringConverter))]
     public ImmutableHamT<string, string> Metadata { get; init; } = ImmutableHamT<string, string>.Empty;
 
     /// <summary>

@@ -269,7 +269,7 @@ sync-over-async 死锁隐患。
 | 0 | 文档 | ✅ 完成 | 本文档 |
 | 1.1 | 幂等键控去重基建 | ✅ 完成 | 3文件+10测试，commit b292b832 |
 | 1.2 | 幂等守卫中间件 | ✅ 完成 | IIdempotentContext<T>+中间件+5测试，commit 77aad453 |
-| 1.3 | ActorBase 集成 | ✅ 完成 | AskWithRetryAsync幂等快速路径+4测试，commit 5ca3f21e |
+| 1.3 | ActorBase 双Tell集成 | ✅ 完成 | IRequestCommand<TOut>+ConsumeLoop守卫+6测试，commit 0673a949 |
 | 1.4 | 基建压测 | ✅ 完成 | IdempotencyStoreBench，commit 0b90a5cf |
 | 2.1 | H1 可变 Dictionary | ⏳ 待开始 | ~15处字段级 |
 | 2.2 | H2 同步阻塞 | ⏳ 待开始 | ~40处.GetAwaiter().GetResult()/.Result |
@@ -300,14 +300,19 @@ sync-over-async 死锁隐患。
 - **设计决策**：用泛型 `TResult` 代替 `object?`（用户反馈：优先用泛型 T 代替 object）
 - **测试**：`test/unit/infra.tests/pipeline/IdempotencyGuardMiddlewareTests.cs` — 5 个测试全部通过
 
-#### 1.3 ActorBase 集成（commit 5ca3f21e）
-- **新增文件**：
-  - `lib/async_lock/idempotency/IIdempotentCommand.cs` — 幂等命令接口（命令携带 IdempotencyKey）
+#### 1.3 ActorBase 双Tell集成（commit 0673a949）
 - **修改文件**：
-  - `lib/async_lock/actor/ActorBase.cs` — `AskWithRetryAsync<T>` 新增 `idempotencyStore` + `idempotencyKey` 可选参数
-    - 幂等快速路径：命中缓存直接返回（不发送命令）
-    - 成功后缓存结果：`TryRegister(key, result)`
-- **测试**：`lib/async_lock.tests/idempotency/IdempotencyAskIntegrationTest.cs` — 4 个测试全部通过
+  - `lib/async_lock/idempotency/IIdempotentCommand.cs` — 新增 `IRequestCommand<TOut>` 泛型接口
+    - `TryRestoreFromCache(IIdempotencyStore store, Action<TOut> publish)` — 命中缓存时通过 publish 委托发布回执
+    - 泛型 `<TOut>` 避免 object 装箱（用户要求：尽可能用泛型 T 代替 object）
+  - `lib/async_lock/actor/ActorBase.cs` — ConsumeLoop 幂等守卫
+    - 新增 `protected IIdempotencyStore? IdempotencyStore` 属性
+    - ConsumeLoop 检查命令是否实现 `IRequestCommand<TOut>`，命中缓存→TryRestoreFromCache→跳过 HandleAsync
+    - `AskWithRetryAsync` 恢复原签名（移除 Ask 模式幂等参数，幂等改为 Consumer 端双 Tell）
+- **设计决策**：双 Tell 协议（用户纠正：不要在 Ask 模式集成幂等，改为 Consumer 端双 Tell）
+- **测试**：`lib/async_lock.tests/idempotency/DoubleTellIdempotencyTest.cs` — 6 个测试全部通过
+  - 首次发送执行 HandleAsync+缓存、重复发送命中缓存跳过 HandleAsync、不同键不互扰
+  - 无 store 时走正常路径、普通命令不受影响、并发相同键至多执行一次
 
 #### 1.4 基建压测（commit 0b90a5cf）
 - **新增文件**：`test/benchmarks/async_lock.benchmarks/IdempotencyStoreBench.cs`
@@ -325,14 +330,14 @@ sync-over-async 死锁隐患。
 | 接口 | `lib/async_lock/idempotency/IIdempotentCommand.cs` | 幂等命令接口 |
 | 实现 | `lib/async_lock/idempotency/IdempotencyStore.cs` | 无锁 CAS 实现 |
 | 中间件 | `lib/infrastructure/pipeline/middlewares/IdempotencyGuardMiddleware.cs` | 管道守卫中间件 |
-| 集成 | `lib/async_lock/actor/ActorBase.cs` | AskWithRetryAsync 幂等快速路径 |
+| 集成 | `lib/async_lock/actor/ActorBase.cs` | ConsumeLoop 双Tell幂等守卫 |
 | 测试 | `lib/async_lock.tests/idempotency/IdempotencyStoreTest.cs` | 10 个单元测试 |
-| 测试 | `lib/async_lock.tests/idempotency/IdempotencyAskIntegrationTest.cs` | 4 个集成测试 |
+| 测试 | `lib/async_lock.tests/idempotency/DoubleTellIdempotencyTest.cs` | 6 个双Tell集成测试 |
 | 测试 | `test/unit/infra.tests/pipeline/IdempotencyGuardMiddlewareTests.cs` | 5 个中间件测试 |
 | 压测 | `test/benchmarks/async_lock.benchmarks/IdempotencyStoreBench.cs` | 基准测试 |
 
-**总测试数**：19 个（10+4+5），全部通过
-**总 commit 数**：4 个（b292b832, 77aad453, 5ca3f21e, 0b90a5cf）
+**总测试数**：21 个（10+6+5），全部通过
+**总 commit 数**：4 个（b292b832, 77aad453, 0673a949, 0b90a5cf）
 
 ---
 

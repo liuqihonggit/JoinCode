@@ -11,7 +11,7 @@ public sealed class McpHttpServer : ServiceEntity {
     private readonly McpSessionRegistry _sessions = new();
     private readonly bool _statelessMode;
     private readonly FrozenSet<string> _allowedOrigins;
-    private CancellationTokenSource? _cts;
+    private volatile CancellationTokenSource? _cts;
 
     /// <summary>
     /// 创建 MCP HTTP 服务端
@@ -37,18 +37,19 @@ public sealed class McpHttpServer : ServiceEntity {
 
     /// <summary>运行服务端,直到 cancellationToken 取消</summary>
     public async Task RunAsync(CancellationToken cancellationToken = default) {
-        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        Interlocked.Exchange(ref _cts, cts)?.Dispose();
         if (!_listener.IsListening) _listener.Start();
 
-        while (!_cts.Token.IsCancellationRequested) {
+        while (!cts.Token.IsCancellationRequested) {
             HttpListenerContext? context;
             try {
                 context = await _listener.GetContextAsync().ConfigureAwait(false);
-            } catch (HttpListenerException) when (_cts.Token.IsCancellationRequested) {
+            } catch (HttpListenerException) when (cts.Token.IsCancellationRequested) {
                 break;
             }
 
-            _ = HandleRequestAsync(context, _cts.Token);
+            _ = HandleRequestAsync(context, cts.Token);
         }
     }
 
@@ -89,6 +90,8 @@ public sealed class McpHttpServer : ServiceEntity {
                 break;
             }
         } catch (OperationCanceledException) {
+        } catch (ObjectDisposedException) {
+            Console.WriteLine("McpHttpServer: 取消令牌已释放,请求中断");
         } catch (Exception) {
             Console.WriteLine("McpHttpServer: 处理请求异常,尝试返回 500");
             try {
@@ -223,9 +226,11 @@ public sealed class McpHttpServer : ServiceEntity {
 
     /// <summary>释放资源 — 停止监听器、释放取消令牌并关闭 HttpListener。</summary>
     public override void Dispose() {
-        Stop();
-        _cts?.Dispose();
+        var cts = Interlocked.Exchange(ref _cts, null);
+        cts?.Cancel();
+        if (_listener.IsListening) _listener.Stop();
         _listener.Close();
+        cts?.Dispose();
         base.Dispose();
     }
 }

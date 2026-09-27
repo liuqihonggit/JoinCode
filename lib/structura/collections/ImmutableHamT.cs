@@ -159,15 +159,9 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
                 for (var i = 0; i < collision.Entries.Length; i++)
                     yield return new(collision.Entries[i].Key, collision.Entries[i].Value);
                 break;
-                case BitmapNode bitmap:
-                for (var i = bitmap.Children.Length - 1; i >= 0; i--)
-                    stack.Push(bitmap.Children[i]);
-                break;
-                case ArrayNode array:
-                for (var i = Width - 1; i >= 0; i--) {
-                    var child = array.Children[i];
-                    if (child is not null) stack.Push(child);
-                }
+                case BitmapNode _:
+                case ArrayNode _:
+                PushChildren(stack, node);
                 break;
             }
         }
@@ -190,17 +184,27 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
                 for (var i = 0; i < collision.Entries.Length; i++)
                     yield return collision.Entries[i].Key;
                 break;
-                case BitmapNode bitmap:
-                for (var i = bitmap.Children.Length - 1; i >= 0; i--)
-                    stack.Push(bitmap.Children[i]);
-                break;
-                case ArrayNode array:
-                for (var i = Width - 1; i >= 0; i--) {
-                    var child = array.Children[i];
-                    if (child is not null) stack.Push(child);
-                }
+                case BitmapNode _:
+                case ArrayNode _:
+                PushChildren(stack, node);
                 break;
             }
+        }
+    }
+
+    /// <summary>将 BitmapNode/ArrayNode 的子节点倒序压栈(供显式栈遍历复用,消除 GetEnumerator/EnumerateKeys 重复)。</summary>
+    private static void PushChildren(Stack<Node> stack, Node node) {
+        switch (node) {
+            case BitmapNode bitmap:
+            for (var i = bitmap.Children.Length - 1; i >= 0; i--)
+                stack.Push(bitmap.Children[i]);
+            break;
+            case ArrayNode array:
+            for (var i = Width - 1; i >= 0; i--) {
+                var child = array.Children[i];
+                if (child is not null) stack.Push(child);
+            }
+            break;
         }
     }
 
@@ -232,7 +236,10 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
         }
 
         internal override Node Add(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, TValue value, out bool added) {
-            if (cmp.Equals(Key, key)) { added = false; return new LeafNode(key, value); }
+            if (cmp.Equals(Key, key)) {
+                added = false;
+                return EqualityComparer<TValue>.Default.Equals(Value, value) ? this : new LeafNode(key, value);
+            }
             added = true;
             var oldHash = (uint)cmp.GetHashCode(Key);
             if (oldHash == hash) return new CollisionNode(hash, new LeafNode(key, value), this);
@@ -291,6 +298,7 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
             var newChild = Children[cIdx].Remove(shift + Bits, hash, cmp, key, out removed);
             if (!removed) return this;
             if (newChild is not null) {
+                if (Children.Length == 1 && newChild is LeafNode shrunkLeaf) return shrunkLeaf;
                 var newChildren = new Node[Children.Length];
                 Array.Copy(Children, newChildren, Children.Length);
                 newChildren[cIdx] = newChild;

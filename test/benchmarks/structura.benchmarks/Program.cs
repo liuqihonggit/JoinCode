@@ -40,6 +40,55 @@ public static class Program {
                 () => { var s = 0; foreach (var kv in bclDict) s += kv.Value; },
                 () => { var s = 0; foreach (var kv in hamtDict) s += kv.Value; });
         }
+
+        Console.WriteLine();
+        Console.WriteLine("=== ImmutableHamTSet vs ImmutableHashSet ===");
+        Console.WriteLine($"{"Size",-10} {"Op",-12} {"BCL(ms)",-12} {"HAMT(ms)",-12} {"Ratio",-8}");
+        Console.WriteLine(new string('-', 58));
+
+        foreach (var size in sizes) {
+            var keys = new string[size];
+            for (var i = 0; i < size; i++) keys[i] = $"key_{i}";
+
+            var lookupKeys = new string[100000];
+            var rnd = new Random(42);
+            for (var i = 0; i < 100000; i++) lookupKeys[i] = keys[rnd.Next(size)];
+
+            var bclSet = ImmutableHashSet.Create<string>();
+            var hamtSet = ImmutableHamTSet.Create<string>();
+            foreach (var k in keys) { bclSet = bclSet.Add(k); hamtSet = hamtSet.Add(k); }
+
+            BenchSet("Contains", size, 50,
+                () => { var s = 0; foreach (var k in lookupKeys) if (bclSet.Contains(k)) s++; },
+                () => { var s = 0; foreach (var k in lookupKeys) if (hamtSet.Contains(k)) s++; });
+
+            BenchSet("Add", size, 1,
+                () => { var d = ImmutableHashSet.Create<string>(); foreach (var k in keys) d = d.Add(k); },
+                () => { var d = ImmutableHamTSet.Create<string>(); foreach (var k in keys) d = d.Add(k); });
+
+            BenchSet("Remove", size, 10,
+                () => { var d = bclSet; for (var i = 0; i < 1000; i++) d = d.Remove($"key_{i}"); },
+                () => { var d = hamtSet; for (var i = 0; i < 1000; i++) d = d.Remove($"key_{i}"); });
+
+            BenchSet("Enumerate", size, 5,
+                () => { var s = 0; foreach (var k in bclSet) s += k.Length; },
+                () => { var s = 0; foreach (var k in hamtSet) s += k.Length; });
+        }
+    }
+
+    static void BenchSet(string op, int size, int iterations, Action bcl, Action hamt) {
+        var sw = Stopwatch.StartNew();
+        for (var i = 0; i < iterations; i++) bcl();
+        sw.Stop();
+        var bclMs = sw.ElapsedMilliseconds;
+
+        sw.Restart();
+        for (var i = 0; i < iterations; i++) hamt();
+        sw.Stop();
+        var hamtMs = sw.ElapsedMilliseconds;
+
+        var ratio = bclMs == 0 ? "N/A" : $"{(double)hamtMs / bclMs:F2}x";
+        Console.WriteLine($"{size,-10} {op,-12} {bclMs,-12} {hamtMs,-12} {ratio,-8}");
     }
 
     static void Bench(string op, int size, int iterations, Action bcl, Action hamt) {

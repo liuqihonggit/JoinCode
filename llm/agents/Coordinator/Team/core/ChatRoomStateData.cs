@@ -40,7 +40,7 @@ public sealed class ChatRoomStateData {
     public ChatRoomState ToState() {
         var state = new ChatRoomState {
             Info = Info,
-            Members = Members.ToImmutableHashSet(),
+            Members = Members.ToImmutableHamTSet(),
             SessionId = SessionId,
             AllowedPaths = AllowedPaths.ToImmutableHamT(p => p.Path),
             MemberDetails = MemberDetails.ToImmutableHamT(m => m.AgentId),

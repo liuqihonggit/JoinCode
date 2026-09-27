@@ -28,7 +28,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     private ImmutableHamT<string, ImmutableHamT<ObjectType, LongRangeSet>> _pluginResourceIds = ImmutableHamT<string, ImmutableHamT<ObjectType, LongRangeSet>>.Empty;
 
     /// <summary>插件黑名单 — 卸载泄漏的插件加入,拒绝再次加载(方案B C4)</summary>
-    private ImmutableHashSet<string> _blacklistedPlugins = ImmutableHashSet<string>.Empty;
+    private ImmutableHamTSet<string> _blacklistedPlugins = ImmutableHamTSet<string>.Empty;
 
     /// <summary>插件依赖图 — 动态拓扑解析(ADR 0098 维度11整合)</summary>
     private readonly PluginDependencyGraph _dependencyGraph = new();

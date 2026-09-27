@@ -6,7 +6,7 @@ namespace Core.Memdir;
 /// </summary>
 [Register(typeof(ISessionTagService), ServiceLifetime.Singleton)]
 public sealed partial class SessionTagService : ServiceEntity, ISessionTagService, IDisposable {
-    private ImmutableHamT<string, ImmutableHashSet<string>> _tags = ImmutableHamT.Create<string, ImmutableHashSet<string>>(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, ImmutableHamTSet<string>> _tags = ImmutableHamT.Create<string, ImmutableHamTSet<string>>(StringComparer.OrdinalIgnoreCase);
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
     private readonly ILogger<SessionTagService>? _logger;
@@ -33,7 +33,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
 
         var added = false;
         ImmutableInterlocked.Update(ref _tags, d => {
-            var existing = d.GetValueOrDefault(sessionId) ?? ImmutableHashSet<string>.Empty.WithComparer(StringComparer.OrdinalIgnoreCase);
+            var existing = d.GetValueOrDefault(sessionId) ?? ImmutableHamTSet<string>.Empty.WithComparer(StringComparer.OrdinalIgnoreCase);
             if (existing.Contains(tag)) return d;
             added = true;
             return d.SetItem(sessionId, existing.Add(tag));
@@ -96,7 +96,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
             if (data?.Entries == null) return;
 
             foreach (var kvp in data.Entries) {
-                var tags = ImmutableHashSet.CreateRange(StringComparer.OrdinalIgnoreCase, kvp.Value);
+                var tags = ImmutableHamTSet.CreateRange(kvp.Value, StringComparer.OrdinalIgnoreCase);
                 ImmutableInterlocked.Update(ref _tags, d => d.SetItem(kvp.Key, tags));
             }
 

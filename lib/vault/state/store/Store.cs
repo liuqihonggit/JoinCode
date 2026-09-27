@@ -7,7 +7,7 @@ namespace State;
 /// </summary>
 public partial class Store<TState> : IStore<TState>, IDisposable where TState : notnull {
     private TState _currentState;
-    private ImmutableHashSet<StateChangedHandler<TState>> _subscribers = ImmutableHashSet<StateChangedHandler<TState>>.Empty;
+    private ImmutableHamTSet<StateChangedHandler<TState>> _subscribers = ImmutableHamTSet<StateChangedHandler<TState>>.Empty;
     private readonly IStorePersistence<TState>? _persistence;
     private readonly ILogger<Store<TState>>? _logger;
     private readonly CancellationTokenSource _disposeCts = new();
@@ -179,7 +179,7 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
 
         _disposeCts.CancelAndDisposeSafe(_logger);
 
-        ImmutableInterlocked.Update(ref _subscribers, _ => ImmutableHashSet<StateChangedHandler<TState>>.Empty);
+        ImmutableInterlocked.Update(ref _subscribers, _ => ImmutableHamTSet<StateChangedHandler<TState>>.Empty);
     }
 
     /// <summary>

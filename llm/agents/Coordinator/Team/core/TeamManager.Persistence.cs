@@ -40,7 +40,7 @@ public sealed partial class TeamManager {
                     var room = new ChatRoomState { Info = team };
 
                     if (data.TeamMembers is not null && data.TeamMembers.TryGetValue(team.TeamId, out var memberList)) {
-                        room = room with { Members = memberList.ToImmutableHashSet() };
+                        room = room with { Members = memberList.ToImmutableHamTSet() };
                     }
 
                     if (data.TeamMessages is not null && data.TeamMessages.TryGetValue(team.TeamId, out var msgList)) {

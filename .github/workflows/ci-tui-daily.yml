@@ -3,7 +3,7 @@ name: CI TUI Daily
 on:
   workflow_dispatch:
   schedule:
-    - cron: '20 8 * * *'
+    - cron: '0 10 */2 * *'
 
 concurrency:
   group: tui-daily

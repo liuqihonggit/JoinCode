@@ -3,7 +3,7 @@ name: CI GUI Daily
 on:
   workflow_dispatch:
   schedule:
-    - cron: '10 8 * * *'
+    - cron: '0 9 */2 * *'
 
 concurrency:
   group: gui-daily

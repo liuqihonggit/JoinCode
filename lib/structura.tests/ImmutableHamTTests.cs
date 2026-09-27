@@ -178,6 +178,15 @@ public class ImmutableHamTTests {
             "单子节点 BitmapNode 在子节点退化为 Leaf 后应一并退化为 Leaf，消除冗余路由层");
     }
 
+    [Fact]
+    public void SetItem_SameValue_PreservesRootReference() {
+        var hamt = ImmutableHamT<string, int>.Empty.Add("a", 1).Add("b", 2);
+        var root1 = GetRoot(hamt);
+        var hamt2 = hamt.SetItem("a", 1);
+        var root2 = GetRoot(hamt2);
+        ReferenceEquals(root1, root2).Should().BeTrue("同值 SetItem 不应触发路径复制");
+    }
+
     private static object? GetRoot(ImmutableHamT<string, int> hamt) {
         var f = typeof(ImmutableHamT<string, int>).GetField("_root",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);

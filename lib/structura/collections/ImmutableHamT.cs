@@ -159,15 +159,9 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
                 for (var i = 0; i < collision.Entries.Length; i++)
                     yield return new(collision.Entries[i].Key, collision.Entries[i].Value);
                 break;
-                case BitmapNode bitmap:
-                for (var i = bitmap.Children.Length - 1; i >= 0; i--)
-                    stack.Push(bitmap.Children[i]);
-                break;
-                case ArrayNode array:
-                for (var i = Width - 1; i >= 0; i--) {
-                    var child = array.Children[i];
-                    if (child is not null) stack.Push(child);
-                }
+                case BitmapNode _:
+                case ArrayNode _:
+                PushChildren(stack, node);
                 break;
             }
         }
@@ -190,17 +184,27 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
                 for (var i = 0; i < collision.Entries.Length; i++)
                     yield return collision.Entries[i].Key;
                 break;
-                case BitmapNode bitmap:
-                for (var i = bitmap.Children.Length - 1; i >= 0; i--)
-                    stack.Push(bitmap.Children[i]);
-                break;
-                case ArrayNode array:
-                for (var i = Width - 1; i >= 0; i--) {
-                    var child = array.Children[i];
-                    if (child is not null) stack.Push(child);
-                }
+                case BitmapNode _:
+                case ArrayNode _:
+                PushChildren(stack, node);
                 break;
             }
+        }
+    }
+
+    /// <summary>将 BitmapNode/ArrayNode 的子节点倒序压栈(供显式栈遍历复用,消除 GetEnumerator/EnumerateKeys 重复)。</summary>
+    private static void PushChildren(Stack<Node> stack, Node node) {
+        switch (node) {
+            case BitmapNode bitmap:
+            for (var i = bitmap.Children.Length - 1; i >= 0; i--)
+                stack.Push(bitmap.Children[i]);
+            break;
+            case ArrayNode array:
+            for (var i = Width - 1; i >= 0; i--) {
+                var child = array.Children[i];
+                if (child is not null) stack.Push(child);
+            }
+            break;
         }
     }
 

@@ -3,7 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Agent执行上下文 - 跟踪Agent的执行状态和元数据
 /// </summary>
-public sealed class AgentExecutionContext {
+public sealed record AgentExecutionContext {
     /// <summary>
     /// Agent ID
     /// </summary>
@@ -22,28 +22,28 @@ public sealed class AgentExecutionContext {
     /// <summary>
     /// 最后执行开始时间
     /// </summary>
-    public DateTime? LastExecutionStart { get; set; }
+    public DateTime? LastExecutionStart { get; init; }
 
     /// <summary>
     /// 最后执行结束时间
     /// </summary>
-    public DateTime? LastExecutionEnd { get; set; }
+    public DateTime? LastExecutionEnd { get; init; }
 
     /// <summary>
     /// 重试次数
     /// </summary>
-    public int RetryCount { get; set; }
+    public int RetryCount { get; init; }
 
     /// <summary>
     /// 执行结果 — 归纳原 IsSuccess(bool?)+IsCancelled(bool) 的合法组合
     /// <para>消除 IsSuccess=true&amp;IsCancelled=true 非法组合</para>
     /// </summary>
-    public AgentOutcome Outcome { get; set; } = AgentOutcome.Pending;
+    public AgentOutcome Outcome { get; init; } = AgentOutcome.Pending;
 
     /// <summary>
     /// 执行模式
     /// </summary>
-    public ExecutionMode ExecutionMode { get; set; } = ExecutionMode.Single;
+    public ExecutionMode ExecutionMode { get; init; } = ExecutionMode.Single;
 }
 
 /// <summary>

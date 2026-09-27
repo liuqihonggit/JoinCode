@@ -200,13 +200,17 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
             SetExecutionContext(agent.ObjectId.UniqueId, context);
         }
 
-        context.LastExecutionStart = _clock.GetUtcNow();
+        context = context with { LastExecutionStart = _clock.GetUtcNow() };
+        SetExecutionContext(context.AgentId, context);
 
         try {
             var result = await _lifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
 
-            context.LastExecutionEnd = _clock.GetUtcNow();
-            context.Outcome = result.IsSuccess ? AgentOutcome.Succeeded : AgentOutcome.Failed;
+            context = context with {
+                LastExecutionEnd = _clock.GetUtcNow(),
+                Outcome = result.IsSuccess ? AgentOutcome.Succeeded : AgentOutcome.Failed
+            };
+            SetExecutionContext(context.AgentId, context);
 
             if (result.IsSuccess) {
                 _logger?.LogInformation("[AgentCoordinator] Agent {AgentId} 执行成功", agent.ObjectId.UniqueId);
@@ -216,8 +220,11 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
             return result;
         } catch (Exception ex) {
-            context.LastExecutionEnd = _clock.GetUtcNow();
-            context.Outcome = AgentOutcome.Failed;
+            context = context with {
+                LastExecutionEnd = _clock.GetUtcNow(),
+                Outcome = AgentOutcome.Failed
+            };
+            SetExecutionContext(context.AgentId, context);
             _logger?.LogError(ex, "[AgentCoordinator] Agent {AgentId} 执行异常", agent.ObjectId.UniqueId);
             throw;
         }
@@ -255,7 +262,8 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _logger?.LogInformation("[AgentCoordinator] 取消Agent {AgentId}", agentId);
 
         if (_executionContexts.TryGetValue(agentId, out var context)) {
-            context.Outcome = AgentOutcome.Cancelled;
+            context = context with { Outcome = AgentOutcome.Cancelled };
+            SetExecutionContext(context.AgentId, context);
         }
 
         return await _lifecycleManager.CancelAgentAsync(agentId, ct).ConfigureAwait(false);
@@ -269,7 +277,8 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _logger?.LogInformation("[AgentCoordinator] 取消所有Agent");
 
         foreach (var context in _executionContexts.Values) {
-            context.Outcome = AgentOutcome.Cancelled;
+            var updated = context with { Outcome = AgentOutcome.Cancelled };
+            SetExecutionContext(updated.AgentId, updated);
         }
 
         await _lifecycleManager.CancelAllAsync(ct).ConfigureAwait(false);
@@ -299,7 +308,8 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
             return null;
         }
 
-        context.RetryCount++;
+        context = context with { RetryCount = context.RetryCount + 1 };
+        SetExecutionContext(context.AgentId, context);
         var delay = policy.GetDelay(context.RetryCount);
 
         _logger?.LogInformation("[AgentCoordinator] 等待 {DelayMs}ms 后重试Agent {AgentId} (第{RetryCount}次)",
@@ -310,7 +320,8 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         var result = await _lifecycleManager.RetryAsync(agentId, cancellationToken).ConfigureAwait(false);
 
         if (result != null) {
-            context.Outcome = result.IsSuccess ? AgentOutcome.Succeeded : AgentOutcome.Failed;
+            context = context with { Outcome = result.IsSuccess ? AgentOutcome.Succeeded : AgentOutcome.Failed };
+            SetExecutionContext(context.AgentId, context);
             if (result.IsSuccess) {
                 _logger?.LogInformation("[AgentCoordinator] Agent {AgentId} 重试成功", agentId);
             } else if (context.RetryCount < policy.MaxRetries) {
@@ -391,7 +402,8 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
         foreach (var agent in agentList) {
             if (_executionContexts.TryGetValue(agent.ObjectId.UniqueId, out var context)) {
-                context.ExecutionMode = ExecutionMode.Parallel;
+                context = context with { ExecutionMode = ExecutionMode.Parallel };
+                SetExecutionContext(context.AgentId, context);
             }
         }
 
@@ -412,7 +424,8 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
         foreach (var agent in agentList) {
             if (_executionContexts.TryGetValue(agent.ObjectId.UniqueId, out var context)) {
-                context.ExecutionMode = ExecutionMode.Sequential;
+                context = context with { ExecutionMode = ExecutionMode.Sequential };
+                SetExecutionContext(context.AgentId, context);
             }
         }
 
@@ -660,7 +673,8 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         ((AgentBase)agent).State = TaskExecutionStatus.Cancelled;
 
         if (_executionContexts.TryGetValue(agentId, out var context)) {
-            context.Outcome = AgentOutcome.Cancelled;
+            context = context with { Outcome = AgentOutcome.Cancelled };
+            SetExecutionContext(context.AgentId, context);
         }
 
         return await _lifecycleManager.CancelAgentAsync(agentId, cancellationToken).ConfigureAwait(false);

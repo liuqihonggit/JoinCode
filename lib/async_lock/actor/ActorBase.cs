@@ -272,6 +272,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="ex">命令处理异常</param>
     protected virtual void OnConsumerError(Exception ex) { }
 
+    /// <summary>
+    /// 幂等去重存储 — 双 Tell 协议的 Consumer 端幂等守卫。
+    /// <para>设置后,ConsumeLoop 对实现 <see cref="IRequestCommand{TOut}"/> 的命令检查缓存:</para>
+    /// <para>命中 → 调用 <see cref="IRequestCommand{TOut}.TryRestoreFromCache"/> 恢复结果(Tell 回执) → 跳过 HandleAsync</para>
+    /// <para>未命中 → 执行 HandleAsync(派生类自行 TryRegister 缓存结果)</para>
+    /// <para>null=不启用幂等去重(默认)。派生类在构造函数中设置。</para>
+    /// </summary>
+    protected IIdempotencyStore? IdempotencyStore { get; set; }
+
     private async Task ConsumeLoopAsync() {
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
         try {
@@ -279,6 +288,10 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                 Interlocked.Decrement(ref _inputCount);
                 CheckInputWatermark();
                 try {
+                    if (cmd is IRequestCommand<TOut> requestCmd && IdempotencyStore is not null &&
+                        requestCmd.TryRestoreFromCache(IdempotencyStore, msg => TryPublish(msg))) {
+                        continue;
+                    }
                     await HandleAsync(cmd, _cts.Token).ConfigureAwait(false);
                 } catch (OperationCanceledException) when (_cts.IsCancellationRequested) {
                     return;
@@ -352,7 +365,6 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <para><b>与 AskAwait 区别</b>:此方法接收命令工厂委托,内部重试时重新发送命令;AskAwait 只等待已有 tcs。</para>
     /// <para><b>重试策略</b>:单次超时 <paramref name="singleTimeoutMs"/>,超时后指数退避(100ms×2^attempt),最多重试 <paramref name="maxRetries"/> 次。</para>
     /// <para><b>幂等</b>:命令实现 <see cref="IIdempotent"/> 标记接口时,重试安全(无副作用);非幂等命令重试由调用方确保安全。</para>
-    /// <para><b>键控去重</b>:提供 <paramref name="idempotencyStore"/> 和 <paramref name="idempotencyKey"/> 时,命中缓存直接返回(不发送命令),未命中则执行后缓存结果。</para>
     /// <para><b>全图环检测</b>:DFS 遍历等待图,检测间接环(A→B→C→A),不仅检测直接环。</para>
     /// <para><b>总超时</b> = singleTimeoutMs × (maxRetries+1) + 退避总和,超过抛 <see cref="ActorAskDeadlockException"/>。</para>
     /// </summary>
@@ -361,21 +373,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="ct">取消令牌</param>
     /// <param name="singleTimeoutMs">单次超时(默认10s,每次重试等待此超时)</param>
     /// <param name="maxRetries">最大重试次数(默认16,总尝试=maxRetries+1)</param>
-    /// <param name="idempotencyStore">幂等去重存储(null=不启用键控去重)</param>
-    /// <param name="idempotencyKey">幂等键(业务流水号+操作标识,重试不变;None=不启用)</param>
     /// <exception cref="ActorAskDeadlockException">重试耗尽仍超时 — 可能线程池饥饿或 Consumer 阻塞</exception>
     /// <exception cref="ActorCyclicAskException">等待图检测到环(含间接环) — 循环 Ask 死锁</exception>
     protected async Task<T> AskWithRetryAsync<T>(
         Func<TaskCompletionSource<T>, TCommand> commandFactory,
         CancellationToken ct = default,
         int singleTimeoutMs = 10_000,
-        int maxRetries = 16,
-        IIdempotencyStore? idempotencyStore = null,
-        IdempotencyKey idempotencyKey = default) {
-        if (idempotencyStore is not null && !idempotencyKey.IsEmpty &&
-            idempotencyStore.TryGetResult<T>(idempotencyKey, out var cached)) {
-            return cached!;
-        }
+        int maxRetries = 16) {
         var callerId = TryGetCallerActorId();
         if (callerId is not null && callerId != Id) {
             _askWaitGraph[callerId] = Id;
@@ -389,11 +393,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                 using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 linkedCts.CancelAfter(singleTimeoutMs);
                 try {
-                    var result = await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-                    if (idempotencyStore is not null && !idempotencyKey.IsEmpty) {
-                        idempotencyStore.TryRegister(idempotencyKey, result);
-                    }
-                    return result;
+                    return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
                 } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                     if (attempt >= maxRetries)
                         throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));

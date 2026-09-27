@@ -60,10 +60,10 @@ public static class SessionRouter {
     /// 移除会话作用域 — DisposeAsync 其所有 Entity，返回是否移除成功
     /// </summary>
     public static async Task<bool> RemoveScopeAsync(ObjectId sessionId) {
-        if (!Volatile.Read(ref _scopes).TryGetValue(sessionId, out var scope))
-            return false;
+        var hadScope = Volatile.Read(ref _scopes).TryGetValue(sessionId, out var scope);
         ImmutableInterlocked.Update(ref _scopes, d => d.Remove(sessionId));
-        await scope.DisposeAsync().ConfigureAwait(false);
+        if (!hadScope) return false;
+        await scope!.DisposeAsync().ConfigureAwait(false);
         return true;
     }
 

@@ -12,7 +12,7 @@ public sealed class NamedPipeTransport : ITransportTopology {
     private readonly string _pipeName;
     private readonly HostElectionService _election;
     private readonly ILogger? _logger;
-    private readonly ConcurrentDictionary<string, PipeConnection> _connections;
+    private ImmutableDictionary<string, PipeConnection> _connections = ImmutableDictionary<string, PipeConnection>.Empty;
     private readonly Channel<TransportFrame> _receiveChannel;
     private readonly CancellationTokenSource _cts;
     private readonly string _processId;
@@ -38,7 +38,6 @@ public sealed class NamedPipeTransport : ITransportTopology {
         _processId = processId ?? Environment.ProcessId.ToString();
         _election = election ?? new HostElectionService(pipeName, logger, processId: _processId);
         _logger = logger;
-        _connections = new ConcurrentDictionary<string, PipeConnection>();
         _receiveChannel = Channel.CreateBounded<TransportFrame>(new BoundedChannelOptions(1024) {
             SingleReader = true,
             SingleWriter = false,
@@ -86,7 +85,7 @@ public sealed class NamedPipeTransport : ITransportTopology {
             data);
 
         if (_role.Role == ProcessRole.Host) {
-            if (_connections.TryGetValue(targetProcessId, out var conn)) {
+            if (Volatile.Read(ref _connections).TryGetValue(targetProcessId, out var conn)) {
                 await conn.WriteAsync(envelope, ct).ConfigureAwait(false);
             }
         } else {
@@ -108,7 +107,7 @@ public sealed class NamedPipeTransport : ITransportTopology {
             data);
 
         if (_role.Role == ProcessRole.Host) {
-            foreach (var conn in _connections.Values) {
+            foreach (var conn in Volatile.Read(ref _connections).Values) {
                 await conn.WriteAsync(envelope, ct).ConfigureAwait(false);
             }
         } else {
@@ -123,7 +122,7 @@ public sealed class NamedPipeTransport : ITransportTopology {
         => _receiveChannel.Reader.ReadAllAsync(ct);
 
     /// <inheritdoc/>
-    public IReadOnlyCollection<string> GetConnectedProcesses() => _connections.Keys.ToArray();
+    public IReadOnlyCollection<string> GetConnectedProcesses() => Volatile.Read(ref _connections).Keys.ToArray();
 
     /// <summary>获取底层选举服务 — 外部可订阅选举变更。</summary>
     public HostElectionService Election => _election;
@@ -188,18 +187,18 @@ public sealed class NamedPipeTransport : ITransportTopology {
             TransportDiagnostics.Log("NP", () => $"host sent ACK to slave {slavePid}");
 
             var conn = new PipeConnection(slavePid, server, _logger);
-            _connections[slavePid] = conn;
+            ImmutableInterlocked.Update(ref _connections, d => d.SetItem(slavePid, conn));
             _logger?.LogDebug("NamedPipeTransport: slave {Slave} connected", slavePid);
 
             await foreach (var msg in conn.ReadMessagesAsync(ct).ConfigureAwait(false)) {
                 TransportDiagnostics.Log("NP", () => $"host recv msg: type={msg.Type}, source={msg.SourcePid}, target={msg.TargetPid}, len={msg.Payload.Length}");
                 if (msg.Type == MessageType.Data && msg.TargetPid is not null) {
-                    if (_connections.TryGetValue(msg.TargetPid, out var targetConn)) {
+                    if (Volatile.Read(ref _connections).TryGetValue(msg.TargetPid, out var targetConn)) {
                         var forwarded = BinaryProtocol.Encode(msg.Type, msg.SourcePid, msg.TargetPid, msg.Payload);
                         await targetConn.WriteAsync(forwarded, ct).ConfigureAwait(false);
                     }
                 } else if (msg.Type == MessageType.Broadcast) {
-                    foreach (var kvp in _connections) {
+                    foreach (var kvp in Volatile.Read(ref _connections)) {
                         if (kvp.Key != msg.SourcePid) {
                             var forwarded = BinaryProtocol.Encode(MessageType.Broadcast, msg.SourcePid, null, msg.Payload);
                             await kvp.Value.WriteAsync(forwarded, ct).ConfigureAwait(false);
@@ -214,7 +213,7 @@ public sealed class NamedPipeTransport : ITransportTopology {
             _logger?.LogError(ex, "NamedPipeTransport: host connection error for slave {Slave}", slavePid);
         } finally {
             if (slavePid is not null) {
-                _connections.TryRemove(slavePid, out _);
+                ImmutableInterlocked.Update(ref _connections, d => d.Remove(slavePid));
             }
             await server.DisposeAsync().ConfigureAwait(false);
         }
@@ -248,8 +247,8 @@ public sealed class NamedPipeTransport : ITransportTopology {
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
 
-        var conns = _connections.Values.ToArray();
-        _connections.Clear();
+        var conns = Volatile.Read(ref _connections).Values.ToArray();
+        Volatile.Write(ref _connections, ImmutableDictionary<string, PipeConnection>.Empty);
         var slaveClient = _slaveClient;
 
         if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);

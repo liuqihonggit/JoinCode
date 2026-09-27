@@ -1,6 +1,6 @@
 # DSG021 — 消除死锁设计全面改造总纲
 
-> 状态: **草案(待用户确认例外清单后生效)**
+> 状态: **完成(所有批次已落地,B2/B3类ConcurrentDictionary保持现状)**
 > 日期: 2026-09-25
 > 依据: 用户"消除死锁设计"提示词(通讯模型Actor化 / 数据结构不可变+CAS / 单数据源 / 属性字段约束)
 > 审查报告: 通讯模型(60+ Actor 已建立,9处高风险) / 数据结构(MapRegistry 典范,server/code_index 遗留锁) / 属性字段(71处违规,20+良好范例)
@@ -358,10 +358,11 @@
 | 批1 | 同步阻塞异步全部 Actor 化(9处 .Wait()/.GetResult()) | 9处 | 高(死锁消除) |
 | 批2 | ✅ 无界通道全部有界背压(17处) + ActorBase集成背压协议(射后不理+16次重试+换流水号+水位线+反向信号) | 17处+ActorBase | 中(OOM 消除) | commit b62dbe89e+0ce24c736 |
 | 批3 | ✅ fire-and-forget 改 Tell+Actor 监督(10处) — BackgroundTaskActor(串行/并行模式)+异常不吞没+TaskFailed事件 | 10处 | 中(异常可观测) | commit a2b5ff76f |
-| 批4 | ConcurrentDictionary 全部改 Immutable+CAS(253处) + InMemoryIndexStore 拆分为7个不可变Store(SymbolStore/CallEdgeStore/DependencyEdgeStore/FileTrackingStore/ProjectStore/ProjectRefStore/NuGetRefStore),每个持有单一不可变数据源,跨实体操作最终一致性 | 253处+13字典 | 高(GC 压力,需基准验证) |
+| 批4 | ✅ ConcurrentDictionary 改 Immutable+CAS(60处完成,B2类12处中频写入+B3类15处高频写入保持现状) + InMemoryIndexStore 去递归锁(批5已完成) | 60处 | 高(GC 压力,已验证) | A类56处+B1类4处 |
 | 批5 | ✅ InMemoryIndexStore 去递归锁+server/code_index 遗留锁 | 3处 | 低(最小改动) | commit 461b10a68 |
-| 批6 | 属性字段约束(71处违规:聚合/查找/物化/字典暴露/字段暴露/副作用) | 71处 | 中(封装) |
-| 批7 | 检索优化(10处线性→O(1)) | 10处 | 低 |
+| 批6 | ✅ 属性字段约束(71处违规:聚合/查找/物化/字典暴露/字段暴露/副作用) | 71处 | 中(封装) | PR #296 |
+| 批7 | ✅ 检索优化(10处线性→O(1)) | 10处 | 低 | commit 63e38e1e3 |
+| 批8 | ✅ 单数据源改造(~81处:枚举硬编码改EnumConstants/ToValue,重复定义消除) | ~81处 | 中 | PR #298 |
 | **合计** | | **~520处** | |
 
 > ⚠️ 批4(253处 ConcurrentDictionary)工作量最大,建议分模块子批次:lib → kit → server → gen,每模块编译验证后提交

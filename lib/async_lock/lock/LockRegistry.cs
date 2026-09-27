@@ -99,9 +99,10 @@ public static class LockRegistry {
     /// 注销锁实例（Dispose 时调用）。
     /// </summary>
     internal static void Unregister(int id) {
-        if (!Volatile.Read(ref _locks).TryGetValue(id, out var info)) return;
+        var hadInfo = Volatile.Read(ref _locks).TryGetValue(id, out var info);
         ImmutableInterlocked.Update(ref _locks, d => d.Remove(id));
-        if (info.HoldingFlowId != 0) {
+        if (!hadInfo) return;
+        if (info!.HoldingFlowId != 0) {
             var acquiredTicks = info.AcquiredTicks;
             var heldFor = acquiredTicks != 0
                 ? TimeSpan.FromTicks(DateTimeOffset.UtcNow.Ticks - acquiredTicks)

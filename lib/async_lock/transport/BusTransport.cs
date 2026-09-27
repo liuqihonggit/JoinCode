@@ -13,7 +13,7 @@ public sealed class BusTransport : ITransportTopology {
     private readonly string _pipeName;
     private readonly HostElectionService _election;
     private readonly ILogger? _logger;
-    private readonly ConcurrentDictionary<string, BusClientConnection> _clientConnections;
+    private ImmutableDictionary<string, BusClientConnection> _clientConnections = ImmutableDictionary<string, BusClientConnection>.Empty;
     private readonly Channel<TransportFrame> _receiveChannel;
     private readonly CancellationTokenSource _cts;
     private readonly string _processId;
@@ -39,7 +39,6 @@ public sealed class BusTransport : ITransportTopology {
         _processId = processId ?? Environment.ProcessId.ToString();
         _election = election ?? new HostElectionService(pipeName, logger, processId: _processId);
         _logger = logger;
-        _clientConnections = new ConcurrentDictionary<string, BusClientConnection>();
         _receiveChannel = Channel.CreateBounded<TransportFrame>(new BoundedChannelOptions(1024) {
             SingleReader = true,
             SingleWriter = false,
@@ -91,7 +90,7 @@ public sealed class BusTransport : ITransportTopology {
                 return;
             }
 
-            foreach (var kvp in _clientConnections) {
+            foreach (var kvp in Volatile.Read(ref _clientConnections)) {
                 if (kvp.Key != targetProcessId) continue;
                 await kvp.Value.WriteAsync(envelope, ct).ConfigureAwait(false);
                 break;
@@ -111,7 +110,7 @@ public sealed class BusTransport : ITransportTopology {
         var envelope = BinaryProtocol.Encode(MessageType.Broadcast, ProcessId, null, data);
 
         if (_role.Role == ProcessRole.Host) {
-            foreach (var kvp in _clientConnections) {
+            foreach (var kvp in Volatile.Read(ref _clientConnections)) {
                 await kvp.Value.WriteAsync(envelope, ct).ConfigureAwait(false);
             }
         } else {
@@ -126,7 +125,7 @@ public sealed class BusTransport : ITransportTopology {
         => _receiveChannel.Reader.ReadAllAsync(ct);
 
     /// <inheritdoc/>
-    public IReadOnlyCollection<string> GetConnectedProcesses() => _clientConnections.Keys.ToArray();
+    public IReadOnlyCollection<string> GetConnectedProcesses() => Volatile.Read(ref _clientConnections).Keys.ToArray();
 
     private Task StartHostAsync(CancellationToken ct) {
         _logger?.LogInformation("BusTransport: HOST started on pipe {Pipe} (pid={Pid})", _pipeName, ProcessId);
@@ -186,7 +185,7 @@ public sealed class BusTransport : ITransportTopology {
             TransportDiagnostics.Log("BUS", () => $"host sent ACK to slave {slavePid}");
 
             var conn = new BusClientConnection(slavePid, server, _logger);
-            _clientConnections[slavePid] = conn;
+            ImmutableInterlocked.Update(ref _clientConnections, d => d.SetItem(slavePid, conn));
             _logger?.LogDebug("BusTransport: slave {Slave} joined bus", slavePid);
 
             await foreach (var msg in conn.ReadMessagesAsync(ct).ConfigureAwait(false)) {
@@ -194,7 +193,7 @@ public sealed class BusTransport : ITransportTopology {
                 if (msg.Type is MessageType.Data or MessageType.Broadcast) {
                     _receiveChannel.Writer.TryWrite(new TransportFrame(msg.SourcePid, msg.Payload));
 
-                    foreach (var kvp in _clientConnections) {
+                    foreach (var kvp in Volatile.Read(ref _clientConnections)) {
                         if (kvp.Key == msg.SourcePid) continue;
                         var forwarded = BinaryProtocol.Encode(msg.Type, msg.SourcePid, msg.TargetPid, msg.Payload);
                         await kvp.Value.WriteAsync(forwarded, ct).ConfigureAwait(false);
@@ -206,7 +205,7 @@ public sealed class BusTransport : ITransportTopology {
             _logger?.LogError(ex, "BusTransport: connection error for slave {Slave}", slavePid);
         } finally {
             if (slavePid is not null) {
-                _clientConnections.TryRemove(slavePid, out _);
+                ImmutableInterlocked.Update(ref _clientConnections, d => d.Remove(slavePid));
             }
             await server.DisposeAsync().ConfigureAwait(false);
         }
@@ -237,8 +236,8 @@ public sealed class BusTransport : ITransportTopology {
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
 
-        var conns = _clientConnections.Values.ToArray();
-        _clientConnections.Clear();
+        var conns = Volatile.Read(ref _clientConnections).Values.ToArray();
+        Volatile.Write(ref _clientConnections, ImmutableDictionary<string, BusClientConnection>.Empty);
         var slaveClient = _slaveClient;
 
         if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);

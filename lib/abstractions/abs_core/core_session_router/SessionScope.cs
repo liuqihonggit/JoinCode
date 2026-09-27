@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 会话 Dispose 时清理其所有 Entity
 /// </summary>
 public sealed class SessionScope : IAsyncDisposable {
-    private readonly ConcurrentDictionary<ObjectId, Entity> _entities = new();
+    private ImmutableDictionary<ObjectId, Entity> _entities = ImmutableDictionary<ObjectId, Entity>.Empty;
     private ImmutableDictionary<ObjectType, ImmutableHashSet<ObjectId>> _typeIndex = ImmutableDictionary<ObjectType, ImmutableHashSet<ObjectId>>.Empty;
     private volatile bool _disposed;
     private int _disposeFailures;
@@ -18,7 +18,7 @@ public sealed class SessionScope : IAsyncDisposable {
     public ISessionCache Cache { get; }
 
     /// <summary>当前注册的 Entity 总数</summary>
-    public int Count => _entities.Count;
+    public int Count => Volatile.Read(ref _entities).Count;
 
     /// <summary>是否已释放</summary>
     public bool IsDisposed => _disposed;
@@ -39,16 +39,26 @@ public sealed class SessionScope : IAsyncDisposable {
     public void Register(Entity entity) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(entity);
-        if (!_entities.TryAdd(entity.ObjectId, entity)) return;
-        AddToTypeIndex(entity);
+        var added = false;
+        ImmutableInterlocked.Update(ref _entities, d => {
+            if (d.ContainsKey(entity.ObjectId)) return d;
+            added = true;
+            return d.Add(entity.ObjectId, entity);
+        });
+        if (added) AddToTypeIndex(entity);
     }
 
     /// <summary>
     /// 注销 Entity — 返回是否移除成功
     /// </summary>
     public bool Unregister(ObjectId entityId) {
-        if (!_entities.TryRemove(entityId, out var entity)) return false;
-        RemoveFromTypeIndex(entity);
+        Entity? removed = null;
+        ImmutableInterlocked.Update(ref _entities, d => {
+            if (!d.TryGetValue(entityId, out removed)) return d;
+            return d.Remove(entityId);
+        });
+        if (removed is null) return false;
+        RemoveFromTypeIndex(removed);
         return true;
     }
 
@@ -57,27 +67,28 @@ public sealed class SessionScope : IAsyncDisposable {
     /// AOT 友好，无反射，类型不匹配返回 null
     /// </summary>
     public T? Resolve<T>(ObjectId entityId) where T : Entity
-        => _entities.TryGetValue(entityId, out var e) && e is T typed ? typed : null;
+        => Volatile.Read(ref _entities).TryGetValue(entityId, out var e) && e is T typed ? typed : null;
 
     /// <summary>
     /// 尝试获取 — 不转换类型
     /// </summary>
     public bool TryGet(ObjectId entityId, [NotNullWhen(true)] out Entity? entity)
-        => _entities.TryGetValue(entityId, out entity);
+        => Volatile.Read(ref _entities).TryGetValue(entityId, out entity);
 
     /// <summary>是否包含指定 Entity</summary>
-    public bool Contains(ObjectId entityId) => _entities.ContainsKey(entityId);
+    public bool Contains(ObjectId entityId) => Volatile.Read(ref _entities).ContainsKey(entityId);
 
     /// <summary>获取此会话所有 Entity 的快照拷贝</summary>
-    public Entity[] GetAll() => _entities.Values.ToArray();
+    public Entity[] GetAll() => Volatile.Read(ref _entities).Values.ToArray();
 
     /// <summary>
     /// 按 ObjectType 分桶获取 — O(1) 索引查找，对应注册工厂 map(ObjectType -&gt; HashSet of ObjectId)
     /// </summary>
     public IEnumerable<Entity> GetAll(ObjectType type) {
         if (!Volatile.Read(ref _typeIndex).TryGetValue(type, out var ids)) yield break;
+        var snapshot = Volatile.Read(ref _entities);
         foreach (var id in ids) {
-            if (_entities.TryGetValue(id, out var e))
+            if (snapshot.TryGetValue(id, out var e))
                 yield return e;
         }
     }
@@ -87,7 +98,7 @@ public sealed class SessionScope : IAsyncDisposable {
     /// </summary>
     public IReadOnlyList<T> GetAll<T>() where T : Entity {
         var result = new List<T>();
-        foreach (var entity in _entities.Values) {
+        foreach (var entity in Volatile.Read(ref _entities).Values) {
             if (entity is T typed)
                 result.Add(typed);
         }
@@ -104,11 +115,11 @@ public sealed class SessionScope : IAsyncDisposable {
 
         await Cache.ClearAsync().ConfigureAwait(false);
 
-        foreach (var entity in _entities.Values) {
+        foreach (var entity in Volatile.Read(ref _entities).Values) {
             try { await entity.DisposeAsync().ConfigureAwait(false); } catch (Exception) { Interlocked.Increment(ref _disposeFailures); }
         }
 
-        _entities.Clear();
+        Volatile.Write(ref _entities, ImmutableDictionary<ObjectId, Entity>.Empty);
         Interlocked.Exchange(ref _typeIndex, ImmutableDictionary<ObjectType, ImmutableHashSet<ObjectId>>.Empty);
     }
 

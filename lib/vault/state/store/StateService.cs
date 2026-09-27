@@ -8,7 +8,7 @@ namespace State;
 [Register(typeof(StateService), ServiceLifetime.Singleton)]
 [Register(typeof(IStateService), ServiceLifetime.Singleton)]
 public sealed partial class StateService : ServiceEntity, IStateService, IDisposable {
-    private readonly ConcurrentDictionary<string, SessionState> _fallbackStorage = new();
+    private ImmutableDictionary<string, SessionState> _fallbackStorage = ImmutableDictionary<string, SessionState>.Empty;
     private readonly IClockService _clock;
     private readonly ILogger<StateService>? _logger;
     private const string StateKey = "state";
@@ -50,7 +50,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
             LastActivityAt = _clock.GetUtcNow()
         };
 
-        _fallbackStorage[StateKey] = state;
+        ImmutableInterlocked.Update(ref _fallbackStorage, d => d.SetItem(StateKey, state));
         _logger?.LogInformation(L.T(StringKey.VaultLogStateSaveSuccess));
     }
 
@@ -75,7 +75,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
         if (cache is not null)
             await cache.SetAsync(StateKey, state).ConfigureAwait(false);
         else
-            _fallbackStorage[StateKey] = state;
+            ImmutableInterlocked.Update(ref _fallbackStorage, d => d.SetItem(StateKey, state));
         _logger?.LogInformation(L.T(StringKey.VaultLogStateSaveSuccess));
     }
 
@@ -102,7 +102,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     public (string SystemPrompt, MessageList MessageList) LoadState() {
         try {
             var cache = GetCurrentCache();
-            var sessionState = cache?.Get<SessionState>(StateKey) ?? _fallbackStorage.GetValueOrDefault(StateKey);
+            var sessionState = cache?.Get<SessionState>(StateKey) ?? (Volatile.Read(ref _fallbackStorage).TryGetValue(StateKey, out var fb) ? fb : null);
             if (sessionState is null)
                 return (string.Empty, new MessageList());
 
@@ -157,21 +157,27 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
 
     /// <inheritdoc />
     public bool ClearState() {
-        var result = _fallbackStorage.TryRemove(StateKey, out _);
-        if (result)
+        var hadKey = Volatile.Read(ref _fallbackStorage).ContainsKey(StateKey);
+        ImmutableInterlocked.Update(ref _fallbackStorage, d => d.Remove(StateKey));
+        if (hadKey)
             _logger?.LogInformation(L.T(StringKey.VaultLogStateClearSuccess));
-        return result;
+        return hadKey;
     }
 
     /// <inheritdoc />
     public async Task<bool> ClearStateAsync(CancellationToken cancellationToken = default) {
         var cache = GetCurrentCache();
-        var result = cache is not null
-            ? await cache.RemoveAsync(StateKey).ConfigureAwait(false)
-            : _fallbackStorage.TryRemove(StateKey, out _);
-        if (result)
+        if (cache is not null) {
+            var result = await cache.RemoveAsync(StateKey).ConfigureAwait(false);
+            if (result)
+                _logger?.LogInformation(L.T(StringKey.VaultLogStateClearSuccess));
+            return result;
+        }
+        var hadKey = Volatile.Read(ref _fallbackStorage).ContainsKey(StateKey);
+        ImmutableInterlocked.Update(ref _fallbackStorage, d => d.Remove(StateKey));
+        if (hadKey)
             _logger?.LogInformation(L.T(StringKey.VaultLogStateClearSuccess));
-        return result;
+        return hadKey;
     }
 
     #endregion
@@ -183,7 +189,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
         if (_disposed) return;
         _disposed = true;
 
-        _fallbackStorage.Clear();
+        Volatile.Write(ref _fallbackStorage, ImmutableDictionary<string, SessionState>.Empty);
         base.Dispose();
     }
 }

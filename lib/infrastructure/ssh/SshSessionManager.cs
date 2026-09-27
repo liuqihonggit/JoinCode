@@ -27,7 +27,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    private readonly ConcurrentDictionary<string, SshSession> _sessions = new();
+    private ImmutableDictionary<string, SshSession> _sessions = ImmutableDictionary<string, SshSession>.Empty;
     private readonly ILogger<SshSessionManager>? _logger;
     private readonly IFileSystem _fs;
     private readonly ITelemetryService? _telemetryService;
@@ -60,7 +60,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// <param name="sessionId">会话标识</param>
     /// <returns>命中时返回会话实例，未命中时返回 null</returns>
     public ISshSession? GetSession(string sessionId) {
-        return _sessions.TryGetValue(sessionId, out var session) ? session : null;
+        return Volatile.Read(ref _sessions).TryGetValue(sessionId, out var session) ? session : null;
     }
 
     /// <summary>
@@ -68,7 +68,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// </summary>
     /// <returns>活动会话集合</returns>
     public IEnumerable<ISshSession> GetActiveSessions() {
-        return _sessions.Values
+        return Volatile.Read(ref _sessions).Values
             .Where(s => s.ConnectionState == SshConnectionState.Connected);
     }
 
@@ -108,7 +108,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
             case CreateSessionCmd cmd: {
                 try {
                     var session = new SshSession(cmd.Config, _fs, _logger);
-                    _sessions[session.SessionId] = session;
+                    ImmutableInterlocked.Update(ref _sessions, d => d.SetItem(session.SessionId, session));
                     session.ConnectionStateChanged += OnSessionConnectionStateChanged;
 
                     _logger?.LogInformation("SSH 会话已创建: {SessionId} -> {Username}@{Host}:{Port}",
@@ -121,8 +121,10 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
             }
 
             case DestroySessionCmd cmd: {
-                if (_sessions.TryRemove(cmd.SessionId, out var session)) {
-                    session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
+                var hadSession = Volatile.Read(ref _sessions).TryGetValue(cmd.SessionId, out var session);
+                ImmutableInterlocked.Update(ref _sessions, d => d.Remove(cmd.SessionId));
+                if (hadSession) {
+                    session!.ConnectionStateChanged -= OnSessionConnectionStateChanged;
                     await session.DisposeAsync().ConfigureAwait(false);
                     _logger?.LogInformation("SSH 会话已销毁: {SessionId}", cmd.SessionId);
                     RecordSessionMetrics("destroy", true);
@@ -132,14 +134,14 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
             }
 
             case CleanupSessionsCmd cmd: {
-                var sessions = _sessions.Values.ToList();
+                var sessions = Volatile.Read(ref _sessions).Values.ToList();
                 foreach (var session in sessions) {
                     session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
                 }
 
                 await Task.WhenAll(sessions.Select(s => s.DisposeAsync().AsTask())).ConfigureAwait(false);
 
-                _sessions.Clear();
+                Volatile.Write(ref _sessions, ImmutableDictionary<string, SshSession>.Empty);
                 cmd.Tcs.TrySetResult();
                 break;
             }

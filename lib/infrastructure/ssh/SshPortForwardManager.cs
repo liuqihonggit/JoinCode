@@ -4,7 +4,7 @@ namespace Core.Ssh;
 /// SSH 端口转发管理器 — 集中管理多个 SshForwardedPort 实例，支持本地/远程转发的添加、查询与统一停止
 /// </summary>
 public sealed class SshPortForwardManager : IAsyncDisposable {
-    private readonly ConcurrentDictionary<string, SshForwardedPort> _forwards = new();
+    private ImmutableDictionary<string, SshForwardedPort> _forwards = ImmutableDictionary<string, SshForwardedPort>.Empty;
     private readonly ILogger? _logger;
     private int _isDisposed;
 
@@ -41,7 +41,7 @@ public sealed class SshPortForwardManager : IAsyncDisposable {
             config,
             _logger);
 
-        _forwards[forward.ForwardId] = forward;
+        ImmutableInterlocked.Update(ref _forwards, d => d.SetItem(forward.ForwardId, forward));
         await forward.StartAsync(ct).ConfigureAwait(false);
 
         _logger?.LogInformation("SSH 本地端口转发已创建: {LocalPort} -> {RemoteHost}:{RemotePort}",
@@ -75,7 +75,7 @@ public sealed class SshPortForwardManager : IAsyncDisposable {
             config,
             _logger);
 
-        _forwards[forward.ForwardId] = forward;
+        ImmutableInterlocked.Update(ref _forwards, d => d.SetItem(forward.ForwardId, forward));
         await forward.StartAsync(ct).ConfigureAwait(false);
 
         _logger?.LogInformation("SSH 远程端口转发已创建: {RemotePort} -> {LocalHost}:{LocalPort}",
@@ -89,7 +89,7 @@ public sealed class SshPortForwardManager : IAsyncDisposable {
     /// </summary>
     /// <returns>活动端口转发的集合</returns>
     public IEnumerable<ISshForwardedPort> GetActiveForwards() {
-        return _forwards.Values.Where(f => f.IsForwarding);
+        return Volatile.Read(ref _forwards).Values.Where(f => f.IsForwarding);
     }
 
     /// <summary>
@@ -98,9 +98,9 @@ public sealed class SshPortForwardManager : IAsyncDisposable {
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步停止操作的任务</returns>
     public async Task StopAllAsync(CancellationToken ct = default) {
-        await Task.WhenAll(_forwards.Values.Select(forward => forward.StopAsync(ct))).ConfigureAwait(false);
+        await Task.WhenAll(Volatile.Read(ref _forwards).Values.Select(forward => forward.StopAsync(ct))).ConfigureAwait(false);
 
-        _forwards.Clear();
+        Volatile.Write(ref _forwards, ImmutableDictionary<string, SshForwardedPort>.Empty);
     }
 
     /// <summary>

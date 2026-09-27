@@ -51,7 +51,7 @@ public sealed class InvariantRegistryOptions {
 /// <para>启动 join：注册成功前不返回；失败原子移除注册，绝不留半注册</para>
 /// </summary>
 public sealed class InvariantRegistry {
-    private readonly ConcurrentDictionary<string, bool> _registrations = new();
+    private ImmutableDictionary<string, bool> _registrations = ImmutableDictionary<string, bool>.Empty;
     private readonly InvariantRegistryOptions _options;
     private readonly Regex[] _allowlist;
     private readonly Regex[] _blocklist;
@@ -73,10 +73,10 @@ public sealed class InvariantRegistry {
         ArgumentNullException.ThrowIfNull(packageName);
         ArgumentNullException.ThrowIfNull(installer);
 
-        _registrations[packageName] = true;
+        ImmutableInterlocked.Update(ref _registrations, d => d.SetItem(packageName, true));
 
         if (!IsSelected(packageName)) {
-            return new RegistrationDisposer(() => _registrations.TryRemove(packageName, out _));
+            return new RegistrationDisposer(() => ImmutableInterlocked.Update(ref _registrations, d => d.Remove(packageName)));
         }
 
         void Fail(string message) => throw new InvariantError(packageName, message);
@@ -84,11 +84,11 @@ public sealed class InvariantRegistry {
         try {
             installer(Fail);
         } catch (InvariantError) {
-            _registrations.TryRemove(packageName, out _);
+            ImmutableInterlocked.Update(ref _registrations, d => d.Remove(packageName));
             throw;
         }
 
-        return new RegistrationDisposer(() => _registrations.TryRemove(packageName, out _));
+        return new RegistrationDisposer(() => ImmutableInterlocked.Update(ref _registrations, d => d.Remove(packageName)));
     }
 
     /// <summary>
@@ -108,7 +108,7 @@ public sealed class InvariantRegistry {
     /// <returns>已注册返回 true</returns>
     public bool Contains(string packageName) {
         ArgumentNullException.ThrowIfNull(packageName);
-        return _registrations.ContainsKey(packageName);
+        return Volatile.Read(ref _registrations).ContainsKey(packageName);
     }
 
     /// <summary>
@@ -116,7 +116,7 @@ public sealed class InvariantRegistry {
     /// </summary>
     /// <returns>包名数组快照</returns>
     public string[] GetRegisteredPackages() {
-        return _registrations.Keys.ToArray();
+        return Volatile.Read(ref _registrations).Keys.ToArray();
     }
 
     private static bool AnyMatch(Regex[] regexes, string input) {

@@ -1,0 +1,354 @@
+namespace Structura.Collections;
+
+/// <summary>不可变 HAMT (Hash Array Mapped Trie) — 分支因子 32,查找 O(log₃₂ N)。不可变 + 路径复制,配合 ImmutableInterlocked.Update 实现无锁 CAS。</summary>
+public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TValue> where TKey : notnull {
+    internal const int Bits = 5;
+    internal const int Width = 1 << Bits;
+    internal const int Mask = Width - 1;
+    internal const int MaxBitmapSize = Width / 2;
+    internal const int MinArraySize = Width / 4;
+
+    private readonly int _count;
+    private readonly Node? _root;
+    private readonly IEqualityComparer<TKey> _keyComparer;
+
+    private ImmutableHamT(int count, Node? root, IEqualityComparer<TKey> comparer) {
+        _count = count;
+        _root = root;
+        _keyComparer = comparer;
+    }
+
+    /// <summary>空 HAMT,使用默认相等比较器。</summary>
+    public static ImmutableHamT<TKey, TValue> Empty { get; } = new(0, null, EqualityComparer<TKey>.Default);
+
+    /// <summary>当前元素数量。</summary>
+    public int Count => _count;
+
+    /// <summary>是否为空。</summary>
+    public bool IsEmpty => _count == 0;
+
+    /// <summary>使用指定相等比较器重建实例。</summary>
+    public ImmutableHamT<TKey, TValue> WithComparer(IEqualityComparer<TKey> comparer) {
+        if (comparer == _keyComparer) return this;
+        var result = new ImmutableHamT<TKey, TValue>(0, null, comparer);
+        foreach (var kv in this) result = result.SetItem(kv.Key, kv.Value);
+        return result;
+    }
+
+    /// <summary>尝试获取指定键的值。</summary>
+    public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value) {
+        ArgumentNullException.ThrowIfNull(key);
+        if (_root is null) { value = default; return false; }
+        var hash = (uint)_keyComparer.GetHashCode(key);
+        return _root.TryGet(0, hash, _keyComparer, key, out value);
+    }
+
+    /// <summary>是否包含指定键。</summary>
+    public bool ContainsKey(TKey key) => TryGetValue(key, out _);
+
+    /// <summary>获取指定键的值,不存在抛 KeyNotFoundException。</summary>
+    public TValue this[TKey key] {
+        get {
+            if (!TryGetValue(key, out var value))
+                throw new KeyNotFoundException($"Key not found: {key}");
+            return value;
+        }
+    }
+
+    /// <summary>添加键值对,键已存在抛 ArgumentException。</summary>
+    public ImmutableHamT<TKey, TValue> Add(TKey key, TValue value) {
+        ArgumentNullException.ThrowIfNull(key);
+        var hash = (uint)_keyComparer.GetHashCode(key);
+        if (_root is null) return new ImmutableHamT<TKey, TValue>(1, new LeafNode(key, value), _keyComparer);
+        var newRoot = _root.Add(0, hash, _keyComparer, key, value, out var added);
+        if (!added) throw new ArgumentException($"An entry with the same key already exists: {key}");
+        return new ImmutableHamT<TKey, TValue>(_count + 1, newRoot, _keyComparer);
+    }
+
+    /// <summary>设置键值对,键已存在则替换值。</summary>
+    public ImmutableHamT<TKey, TValue> SetItem(TKey key, TValue value) {
+        ArgumentNullException.ThrowIfNull(key);
+        var hash = (uint)_keyComparer.GetHashCode(key);
+        if (_root is null) return new ImmutableHamT<TKey, TValue>(1, new LeafNode(key, value), _keyComparer);
+        var newRoot = _root.Add(0, hash, _keyComparer, key, value, out var added);
+        return new ImmutableHamT<TKey, TValue>(added ? _count + 1 : _count, newRoot, _keyComparer);
+    }
+
+    /// <summary>移除指定键,不存在则返回原实例。</summary>
+    public ImmutableHamT<TKey, TValue> Remove(TKey key) {
+        ArgumentNullException.ThrowIfNull(key);
+        if (_root is null) return this;
+        var hash = (uint)_keyComparer.GetHashCode(key);
+        var newRoot = _root.Remove(0, hash, _keyComparer, key, out var removed);
+        if (!removed) return this;
+        return new ImmutableHamT<TKey, TValue>(_count - 1, newRoot, _keyComparer);
+    }
+
+    /// <summary>清空所有元素。</summary>
+    public ImmutableHamT<TKey, TValue> Clear() => new(0, null, _keyComparer);
+
+    /// <summary>批量添加,键已存在抛 ArgumentException。</summary>
+    public ImmutableHamT<TKey, TValue> AddRange(IEnumerable<KeyValuePair<TKey, TValue>> items) {
+        var result = this;
+        foreach (var kv in items) result = result.Add(kv.Key, kv.Value);
+        return result;
+    }
+
+    /// <summary>批量设置,键已存在则替换值。</summary>
+    public ImmutableHamT<TKey, TValue> SetItems(IEnumerable<KeyValuePair<TKey, TValue>> items) {
+        var result = this;
+        foreach (var kv in items) result = result.SetItem(kv.Key, kv.Value);
+        return result;
+    }
+
+    /// <summary>遍历所有键值对。</summary>
+    public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() {
+        if (_root is null) yield break;
+        foreach (var kv in _root.Enumerate()) yield return kv;
+    }
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+
+    /// <summary>所有键。</summary>
+    public IEnumerable<TKey> Keys { get { foreach (var kv in this) yield return kv.Key; } }
+
+    /// <summary>所有值。</summary>
+    public IEnumerable<TValue> Values { get { foreach (var kv in this) yield return kv.Value; } }
+
+    /// <summary>是否包含指定键值对。</summary>
+    public bool Contains(KeyValuePair<TKey, TValue> pair) =>
+        TryGetValue(pair.Key, out var value) && EqualityComparer<TValue>.Default.Equals(value, pair.Value);
+
+    internal abstract class Node {
+        internal abstract bool TryGet(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, [MaybeNullWhen(false)] out TValue value);
+        internal abstract Node Add(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, TValue value, out bool added);
+        internal abstract Node? Remove(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, out bool removed);
+        internal abstract IEnumerable<KeyValuePair<TKey, TValue>> Enumerate();
+    }
+
+    internal sealed class LeafNode : Node {
+        internal readonly TKey Key;
+        internal readonly TValue Value;
+        internal LeafNode(TKey key, TValue value) { Key = key; Value = value; }
+
+        internal override bool TryGet(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, [MaybeNullWhen(false)] out TValue value) {
+            if (cmp.Equals(Key, key)) { value = Value; return true; }
+            value = default; return false;
+        }
+
+        internal override Node Add(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, TValue value, out bool added) {
+            if (cmp.Equals(Key, key)) { added = false; return new LeafNode(key, value); }
+            added = true;
+            var oldHash = (uint)cmp.GetHashCode(Key);
+            if (oldHash == hash) return new CollisionNode(hash, new LeafNode(key, value), this);
+            return MergeLeaves(shift, oldHash, this, hash, new LeafNode(key, value));
+        }
+
+        internal override Node? Remove(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, out bool removed) {
+            if (cmp.Equals(Key, key)) { removed = true; return null; }
+            removed = false; return this;
+        }
+
+        internal override IEnumerable<KeyValuePair<TKey, TValue>> Enumerate() { yield return new(Key, Value); }
+    }
+
+    internal sealed class BitmapNode : Node {
+        internal readonly int Bitmap;
+        internal readonly Node[] Children;
+        internal BitmapNode(int bitmap, Node[] children) { Bitmap = bitmap; Children = children; }
+
+        internal override bool TryGet(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, [MaybeNullWhen(false)] out TValue value) {
+            var idx = (int)(hash >> shift) & Mask;
+            var bit = 1 << idx;
+            if ((Bitmap & bit) == 0) { value = default; return false; }
+            var cIdx = BitOperations.PopCount((uint)(Bitmap & (bit - 1)));
+            return Children[cIdx].TryGet(shift + Bits, hash, cmp, key, out value);
+        }
+
+        internal override Node Add(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, TValue value, out bool added) {
+            var idx = (int)(hash >> shift) & Mask;
+            var bit = 1 << idx;
+            var cIdx = BitOperations.PopCount((uint)(Bitmap & (bit - 1)));
+            if ((Bitmap & bit) != 0) {
+                var newChild = Children[cIdx].Add(shift + Bits, hash, cmp, key, value, out added);
+                if (ReferenceEquals(newChild, Children[cIdx])) return this;
+                var newChildren = new Node[Children.Length];
+                Array.Copy(Children, newChildren, Children.Length);
+                newChildren[cIdx] = newChild;
+                return new BitmapNode(Bitmap, newChildren);
+            }
+            added = true;
+            var newBitmap = Bitmap | bit;
+            var newChildren2 = new Node[Children.Length + 1];
+            Array.Copy(Children, newChildren2, cIdx);
+            newChildren2[cIdx] = new LeafNode(key, value);
+            Array.Copy(Children, cIdx, newChildren2, cIdx + 1, Children.Length - cIdx);
+            return newChildren2.Length >= MaxBitmapSize
+                ? UpgradeToArrayNode(newBitmap, newChildren2)
+                : new BitmapNode(newBitmap, newChildren2);
+        }
+
+        internal override Node? Remove(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, out bool removed) {
+            var idx = (int)(hash >> shift) & Mask;
+            var bit = 1 << idx;
+            if ((Bitmap & bit) == 0) { removed = false; return this; }
+            var cIdx = BitOperations.PopCount((uint)(Bitmap & (bit - 1)));
+            var newChild = Children[cIdx].Remove(shift + Bits, hash, cmp, key, out removed);
+            if (!removed) return this;
+            if (newChild is not null) {
+                var newChildren = new Node[Children.Length];
+                Array.Copy(Children, newChildren, Children.Length);
+                newChildren[cIdx] = newChild;
+                return new BitmapNode(Bitmap, newChildren);
+            }
+            var newBitmap = Bitmap ^ bit;
+            if (newBitmap == 0) return null;
+            var newChildren2 = new Node[Children.Length - 1];
+            Array.Copy(Children, newChildren2, cIdx);
+            Array.Copy(Children, cIdx + 1, newChildren2, cIdx, Children.Length - cIdx - 1);
+            return newChildren2.Length == 1 && newChildren2[0] is LeafNode leaf ? leaf : new BitmapNode(newBitmap, newChildren2);
+        }
+
+        internal override IEnumerable<KeyValuePair<TKey, TValue>> Enumerate() {
+            for (var i = 0; i < Children.Length; i++)
+                foreach (var kv in Children[i].Enumerate()) yield return kv;
+        }
+
+        private ArrayNode UpgradeToArrayNode(int newBitmap, Node[] children) {
+            var array = new Node?[Width];
+            for (var i = 0; i < Width; i++) {
+                var bit = 1 << i;
+                if ((newBitmap & bit) != 0)
+                    array[i] = children[BitOperations.PopCount((uint)(newBitmap & (bit - 1)))];
+            }
+            return new ArrayNode(children.Length, array);
+        }
+    }
+
+    internal sealed class ArrayNode : Node {
+        internal readonly int Count;
+        internal readonly Node?[] Children;
+        internal ArrayNode(int count, Node?[] children) { Count = count; Children = children; }
+
+        internal override bool TryGet(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, [MaybeNullWhen(false)] out TValue value) {
+            var idx = (int)(hash >> shift) & Mask;
+            var child = Children[idx];
+            if (child is null) { value = default; return false; }
+            return child.TryGet(shift + Bits, hash, cmp, key, out value);
+        }
+
+        internal override Node Add(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, TValue value, out bool added) {
+            var idx = (int)(hash >> shift) & Mask;
+            var child = Children[idx];
+            if (child is null) {
+                added = true;
+                var newChildren = (Node?[])Children.Clone();
+                newChildren[idx] = new LeafNode(key, value);
+                return new ArrayNode(Count + 1, newChildren);
+            }
+            var newChild = child.Add(shift + Bits, hash, cmp, key, value, out added);
+            if (ReferenceEquals(newChild, child)) return this;
+            var newChildren2 = (Node?[])Children.Clone();
+            newChildren2[idx] = newChild;
+            return new ArrayNode(Count, newChildren2);
+        }
+
+        internal override Node? Remove(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, out bool removed) {
+            var idx = (int)(hash >> shift) & Mask;
+            var child = Children[idx];
+            if (child is null) { removed = false; return this; }
+            var newChild = child.Remove(shift + Bits, hash, cmp, key, out removed);
+            if (!removed) return this;
+            if (newChild is not null) {
+                var newChildren = (Node?[])Children.Clone();
+                newChildren[idx] = newChild;
+                return new ArrayNode(Count, newChildren);
+            }
+            var newCount = Count - 1;
+            if (newCount < MinArraySize) return DowngradeToBitmapNode(idx);
+            var newChildren2 = (Node?[])Children.Clone();
+            newChildren2[idx] = null;
+            return new ArrayNode(newCount, newChildren2);
+        }
+
+        internal override IEnumerable<KeyValuePair<TKey, TValue>> Enumerate() {
+            for (var i = 0; i < Width; i++) {
+                var child = Children[i];
+                if (child is not null)
+                    foreach (var kv in child.Enumerate()) yield return kv;
+            }
+        }
+
+        private BitmapNode DowngradeToBitmapNode(int nullIdx) {
+            var count = Count - 1;
+            var children = new Node[count];
+            var bitmap = 0;
+            var j = 0;
+            for (var i = 0; i < Width; i++) {
+                if (i == nullIdx) continue;
+                var child = Children[i];
+                if (child is not null) { bitmap |= 1 << i; children[j++] = child; }
+            }
+            return new BitmapNode(bitmap, children);
+        }
+    }
+
+    internal sealed class CollisionNode : Node {
+        internal readonly uint Hash;
+        internal readonly LeafNode[] Entries;
+        internal CollisionNode(uint hash, params LeafNode[] entries) { Hash = hash; Entries = entries; }
+
+        internal override bool TryGet(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, [MaybeNullWhen(false)] out TValue value) {
+            if (Hash != hash) { value = default; return false; }
+            for (var i = 0; i < Entries.Length; i++)
+                if (cmp.Equals(Entries[i].Key, key)) { value = Entries[i].Value; return true; }
+            value = default; return false;
+        }
+
+        internal override Node Add(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, TValue value, out bool added) {
+            if (Hash != hash) { added = true; return MergeLeaves(shift, Hash, this, hash, new LeafNode(key, value)); }
+            for (var i = 0; i < Entries.Length; i++)
+                if (cmp.Equals(Entries[i].Key, key)) {
+                    added = false;
+                    var newEntries = (LeafNode[])Entries.Clone();
+                    newEntries[i] = new LeafNode(key, value);
+                    return new CollisionNode(Hash, newEntries);
+                }
+            added = true;
+            var newEntries2 = new LeafNode[Entries.Length + 1];
+            Array.Copy(Entries, newEntries2, Entries.Length);
+            newEntries2[Entries.Length] = new LeafNode(key, value);
+            return new CollisionNode(Hash, newEntries2);
+        }
+
+        internal override Node? Remove(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, out bool removed) {
+            if (Hash != hash) { removed = false; return this; }
+            for (var i = 0; i < Entries.Length; i++)
+                if (cmp.Equals(Entries[i].Key, key)) {
+                    removed = true;
+                    if (Entries.Length == 2) return Entries[1 - i];
+                    var newEntries = new LeafNode[Entries.Length - 1];
+                    Array.Copy(Entries, newEntries, i);
+                    Array.Copy(Entries, i + 1, newEntries, i, Entries.Length - i - 1);
+                    return new CollisionNode(Hash, newEntries);
+                }
+            removed = false; return this;
+        }
+
+        internal override IEnumerable<KeyValuePair<TKey, TValue>> Enumerate() {
+            for (var i = 0; i < Entries.Length; i++) yield return new(Entries[i].Key, Entries[i].Value);
+        }
+    }
+
+    private static Node MergeLeaves(int shift, uint hash1, Node node1, uint hash2, Node node2) {
+        var idx1 = (int)(hash1 >> shift) & Mask;
+        var idx2 = (int)(hash2 >> shift) & Mask;
+        if (idx1 == idx2) {
+            var subNode = MergeLeaves(shift + Bits, hash1, node1, hash2, node2);
+            return new BitmapNode(1 << idx1, new[] { subNode });
+        }
+        var bitmap = (1 << idx1) | (1 << idx2);
+        var children = idx1 < idx2 ? new[] { node1, node2 } : new[] { node2, node1 };
+        return new BitmapNode(bitmap, children);
+    }
+}

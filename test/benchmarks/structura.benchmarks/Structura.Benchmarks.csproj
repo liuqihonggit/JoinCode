@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <ProjectType>test</ProjectType>
+  <OutputType>Exe</OutputType>
+    <RootNamespace>StructuraBenchmarks</RootNamespace>
+    <AssemblyName>Structura.Benchmarks</AssemblyName>
+    <ExcludeTestSdk>true</ExcludeTestSdk>
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+    <IsAotCompatible>false</IsAotCompatible>
+    <PublishAot>false</PublishAot>
+    <TrimMode></TrimMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)lib/structura/Structura.csproj" />
+  </ItemGroup>
+
+</Project>

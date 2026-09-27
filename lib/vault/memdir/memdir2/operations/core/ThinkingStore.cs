@@ -101,9 +101,10 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     }
 
     private async Task SaveAsync(CancellationToken cancellationToken) {
-        var reply = new TaskCompletionSource<Unit>();
-        await _actor.SendAsync(new ThinkingSaveCmd(reply), cancellationToken).ConfigureAwait(false);
-        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+        var key = new IdempotencyKey("thinking-save", Guid.NewGuid().ToString());
+        var cmd = new ThinkingSaveCmd(key);
+        await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
+        await cmd.ReplyChannel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task SaveInternalAsync(CancellationToken cancellationToken) {
@@ -161,17 +162,15 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
         public ThinkingStoreActor(ThinkingStore owner, ILogger<ThinkingStore>? logger) : base() {
             _owner = owner;
             _logger = logger;
+            IdempotencyStore = new IdempotencyStore();
         }
-
-        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 ThinkingStore 调用</summary>
-        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
-            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
         protected override async ValueTask HandleAsync(ThinkingStoreCommand cmd, CancellationToken ct) {
             switch (cmd) {
-                case ThinkingSaveCmd(var reply):
+                case ThinkingSaveCmd saveCmd:
                 await _owner.SaveInternalAsync(ct).ConfigureAwait(false);
-                reply.SetResult(Unit.Value);
+                IdempotencyStore?.TryRegister(saveCmd.IdempotencyKey, Unit.Value);
+                saveCmd.ReplyChannel.Writer.TryWrite(Unit.Value);
                 break;
             }
         }

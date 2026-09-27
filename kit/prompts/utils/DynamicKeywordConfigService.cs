@@ -95,9 +95,10 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     }
 
     private async Task ReloadOnFileChangeAsync() {
-        var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new ReloadConfigCmd(reply), CancellationToken.None).ConfigureAwait(false);
-        await _actor.AskReplyAsync(reply, CancellationToken.None).ConfigureAwait(false);
+        var key = new IdempotencyKey("reload-config", Guid.NewGuid().ToString());
+        var cmd = new ReloadConfigCmd(key);
+        await _actor.SendAsync(cmd, CancellationToken.None).ConfigureAwait(false);
+        await cmd.ReplyChannel.Reader.ReadAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -135,17 +136,15 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
         public ReloadActor(DynamicKeywordConfigService owner, ILogger<DynamicKeywordConfigService>? logger) : base() {
             _owner = owner;
             _logger = logger;
+            IdempotencyStore = new IdempotencyStore();
         }
-
-        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 DynamicKeywordConfigService 调用</summary>
-        public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
-            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
         protected override async ValueTask HandleAsync(ReloadConfigCmd cmd, CancellationToken ct) {
             try {
                 await _owner.ReloadConfigInternalAsync().ConfigureAwait(false);
-                cmd.Reply.SetResult();
-            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.Reply.SetException(ex); }
+                IdempotencyStore?.TryRegister(cmd.IdempotencyKey, Unit.Value);
+                cmd.ReplyChannel.Writer.TryWrite(Unit.Value);
+            } catch (OperationCanceledException) { throw; } catch (Exception) { cmd.ReplyChannel.Writer.TryWrite(default); }
         }
 
         protected override void OnConsumerError(Exception ex)
@@ -210,4 +209,16 @@ internal sealed partial class DynamicKeywordConfigJsonContext : JsonSerializerCo
 /// 配置重载命令 — 对应 ReloadOnFileChangeAsync，由 ReloadActor Consumer 串行处理。
 /// <para>TASK001: AsyncLock+文件 I/O 迁移到 Actor 邮箱管道，消除显式锁。</para>
 /// </summary>
-public sealed record ReloadConfigCmd(TaskCompletionSource Reply);
+public sealed record ReloadConfigCmd(IdempotencyKey IdempotencyKey) : IRequestCommand {
+    /// <summary>回复通道 — Consumer 处理完成后写入结果，调用方通过 Reader.ReadAsync 拉取</summary>
+    public Channel<Unit> ReplyChannel { get; } = Channel.CreateUnbounded<Unit>();
+
+    /// <summary>从幂等缓存恢复结果 — 命中缓存时写入 ReplyChannel 并返回 true</summary>
+    public bool TryRestoreFromCache(IIdempotencyStore store) {
+        if (store.TryGetResult<Unit>(IdempotencyKey, out var cached)) {
+            ReplyChannel.Writer.TryWrite(cached);
+            return true;
+        }
+        return false;
+    }
+}

@@ -1,4 +1,5 @@
 global using Core.Utils;
+global using System.Threading.Channels;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Brain.Context.Compression;
 global using JoinCode.Abstractions.Brain.Context.Hierarchy;

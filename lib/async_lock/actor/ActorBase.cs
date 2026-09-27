@@ -272,6 +272,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="ex">命令处理异常</param>
     protected virtual void OnConsumerError(Exception ex) { }
 
+    /// <summary>
+    /// 幂等去重存储 — 双 Tell 协议的 Consumer 端幂等守卫。
+    /// <para>设置后,ConsumeLoop 对实现 <see cref="IRequestCommand"/> 的命令检查缓存:</para>
+    /// <para>命中 → 调用 <see cref="IRequestCommand.TryRestoreFromCache"/> 恢复结果(写入命令自带 ReplyChannel) → 跳过 HandleAsync</para>
+    /// <para>未命中 → 执行 HandleAsync(派生类自行 TryRegister 缓存结果)</para>
+    /// <para>null=不启用幂等去重(默认)。派生类在构造函数中设置。</para>
+    /// </summary>
+    protected IIdempotencyStore? IdempotencyStore { get; set; }
+
     private async Task ConsumeLoopAsync() {
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
         try {
@@ -279,6 +288,10 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                 Interlocked.Decrement(ref _inputCount);
                 CheckInputWatermark();
                 try {
+                    if (cmd is IRequestCommand requestCmd && IdempotencyStore is not null &&
+                        requestCmd.TryRestoreFromCache(IdempotencyStore)) {
+                        continue;
+                    }
                     await HandleAsync(cmd, _cts.Token).ConfigureAwait(false);
                 } catch (OperationCanceledException) when (_cts.IsCancellationRequested) {
                     return;

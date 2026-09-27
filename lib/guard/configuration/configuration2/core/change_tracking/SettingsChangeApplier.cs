@@ -28,28 +28,39 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
         _fs = fs;
         _logger = logger;
         _telemetryService = telemetryService;
+        IdempotencyStore = new IdempotencyStore();
         _configChangeNotifier.ConfigChanged += OnConfigChanged;
     }
 
     /// <summary>命令基类</summary>
     public abstract record SettingsChangeCommand;
 
-    /// <summary>应用设置变更命令 — 带 TaskCompletionSource 让调用方等待处理完成</summary>
-    private sealed record ApplySettingsCmd : SettingsChangeCommand {
-        /// <summary>获取任务完成源。</summary>
-        public TaskCompletionSource<bool> Tcs { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    /// <summary>应用设置变更命令 — 携带幂等键与回复通道，由 Consumer 串行处理</summary>
+    private sealed record ApplySettingsCmd(IdempotencyKey IdempotencyKey) : SettingsChangeCommand, IRequestCommand {
+        /// <summary>回复通道 — Consumer 处理完成后写入结果，调用方通过 Reader.ReadAsync 拉取</summary>
+        public Channel<bool> ReplyChannel { get; } = Channel.CreateUnbounded<bool>();
+
+        /// <summary>从幂等缓存恢复结果 — 命中缓存时写入 ReplyChannel 并返回 true</summary>
+        public bool TryRestoreFromCache(IIdempotencyStore store) {
+            if (store.TryGetResult<bool>(IdempotencyKey, out var cached)) {
+                ReplyChannel.Writer.TryWrite(cached);
+                return true;
+            }
+            return false;
+        }
     }
 
     /// <summary>
     /// 手动触发设置重新加载 — 投递命令到 Actor 邮箱,等待 Consumer 处理完成。
     /// </summary>
     public async Task ApplySettingsChangeAsync(CancellationToken cancellationToken = default) {
-        var cmd = new ApplySettingsCmd();
+        var key = new IdempotencyKey("apply-settings", Guid.NewGuid().ToString());
+        var cmd = new ApplySettingsCmd(key);
         if (!TrySend(cmd)) {
             _logger?.LogWarning("SettingsChangeApplier 邮箱已满或已释放,跳过设置变更应用");
             return;
         }
-        await cmd.Tcs.Task.ConfigureAwait(false);
+        await cmd.ReplyChannel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private void OnConfigChanged(object? sender, ConfigChangeEventArgs e) {
@@ -59,7 +70,7 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
             return;
         }
         _logger?.LogInformation("检测到配置文件变更: {Path} ({ChangeType})", e.FilePath, e.ChangeType);
-        TrySend(new ApplySettingsCmd());
+        TrySend(new ApplySettingsCmd(new IdempotencyKey("apply-settings", Guid.NewGuid().ToString())));
     }
 
     /// <inheritdoc />
@@ -76,11 +87,12 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
             await _pipeline.ExecuteAsync(context, ct).ConfigureAwait(false);
             _telemetryService?.RecordCount("guard.settings.apply.count", [], "count", "Settings apply count");
             _logger?.LogInformation("设置变更已应用");
-            apply.Tcs.TrySetResult(true);
+            IdempotencyStore?.TryRegister(apply.IdempotencyKey, true);
+            apply.ReplyChannel.Writer.TryWrite(true);
         } catch (Exception ex) {
             _logger?.LogError(ex, "应用设置变更失败");
             _telemetryService?.RecordCount("guard.settings.apply.error.count", [], "count", "Settings apply error count");
-            apply.Tcs.TrySetException(ex);
+            apply.ReplyChannel.Writer.TryWrite(false);
         }
     }
 

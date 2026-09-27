@@ -9,14 +9,14 @@ public abstract record ThinkingStoreCommand;
 
 /// <summary>保存思考记录到文件 — 对应 SaveAsync</summary>
 public sealed record ThinkingSaveCmd(
-    IdempotencyKey IdempotencyKey) : ThinkingStoreCommand, IRequestCommand {
-    /// <summary>回复通道 — Consumer 处理完成后写入结果，调用方通过 Reader.ReadAsync 拉取</summary>
-    public Channel<Unit> ReplyChannel { get; } = Channel.CreateUnbounded<Unit>();
-
-    /// <summary>从幂等缓存恢复结果 — 命中缓存时写入 ReplyChannel 并返回 true</summary>
+    IdempotencyKey IdempotencyKey,
+    Action<Unit> OnSuccess,
+    Action<Exception> OnFailure
+) : ThinkingStoreCommand, IRequestCommand<Unit> {
+    /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
     public bool TryRestoreFromCache(IIdempotencyStore store) {
         if (store.TryGetResult<Unit>(IdempotencyKey, out var cached)) {
-            ReplyChannel.Writer.TryWrite(cached);
+            OnSuccess(cached);
             return true;
         }
         return false;

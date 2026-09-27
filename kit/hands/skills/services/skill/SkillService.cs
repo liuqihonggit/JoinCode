@@ -188,9 +188,10 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// <returns>重载成功返回 true，否则返回 false</returns>
     public async Task<bool> ReloadAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken = default) {
         var key = new IdempotencyKey("skill-reload", Guid.NewGuid().ToString());
-        var cmd = new ReloadCmd(skillName, ctx, key);
+        var tcs = new TaskCompletionSource<bool>();
+        var cmd = new ReloadCmd(skillName, ctx, key, tcs.SetResult, tcs.SetException);
         await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
-        return await cmd.ReplyChannel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>
@@ -454,8 +455,8 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
             try {
                 var result = await _owner.ReloadInternalAsync(cmd.SkillName, cmd.Ctx, ct).ConfigureAwait(false);
                 IdempotencyStore?.TryRegister(cmd.IdempotencyKey, result);
-                cmd.ReplyChannel.Writer.TryWrite(result);
-            } catch (OperationCanceledException) { throw; } catch (Exception) { cmd.ReplyChannel.Writer.TryWrite(default); }
+                cmd.OnSuccess(result);
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.OnFailure(ex); }
         }
 
         protected override void OnConsumerError(Exception ex)
@@ -470,14 +471,14 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
 public sealed record ReloadCmd(
     string? SkillName,
     ExecutionContext Ctx,
-    IdempotencyKey IdempotencyKey) : IRequestCommand {
-    /// <summary>回复通道 — Consumer 处理完成后写入结果，调用方通过 Reader.ReadAsync 拉取</summary>
-    public Channel<bool> ReplyChannel { get; } = Channel.CreateUnbounded<bool>();
-
-    /// <summary>从幂等缓存恢复结果 — 命中缓存时写入 ReplyChannel 并返回 true</summary>
+    IdempotencyKey IdempotencyKey,
+    Action<bool> OnSuccess,
+    Action<Exception> OnFailure
+) : IRequestCommand<bool> {
+    /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
     public bool TryRestoreFromCache(IIdempotencyStore store) {
         if (store.TryGetResult<bool>(IdempotencyKey, out var cached)) {
-            ReplyChannel.Writer.TryWrite(cached);
+            OnSuccess(cached);
             return true;
         }
         return false;

@@ -102,9 +102,10 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
 
     private async Task SaveAsync(CancellationToken cancellationToken) {
         var key = new IdempotencyKey("thinking-save", Guid.NewGuid().ToString());
-        var cmd = new ThinkingSaveCmd(key);
+        var tcs = new TaskCompletionSource<Unit>();
+        var cmd = new ThinkingSaveCmd(key, tcs.SetResult, tcs.SetException);
         await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
-        await cmd.ReplyChannel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
     private async Task SaveInternalAsync(CancellationToken cancellationToken) {
@@ -170,7 +171,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
                 case ThinkingSaveCmd saveCmd:
                 await _owner.SaveInternalAsync(ct).ConfigureAwait(false);
                 IdempotencyStore?.TryRegister(saveCmd.IdempotencyKey, Unit.Value);
-                saveCmd.ReplyChannel.Writer.TryWrite(Unit.Value);
+                saveCmd.OnSuccess(Unit.Value);
                 break;
             }
         }

@@ -47,9 +47,10 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             return _cachedDefinitions;
 
         var key = new IdempotencyKey("get-definitions", Guid.NewGuid().ToString());
-        var cmd = new GetDefinitionsCmd(workingDirectory, key);
+        var tcs = new TaskCompletionSource<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>>();
+        var cmd = new GetDefinitionsCmd(workingDirectory, key, tcs.SetResult, tcs.SetException);
         await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
-        return await cmd.ReplyChannel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>
@@ -690,8 +691,8 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             try {
                 var result = await _owner.GetDefinitionsInternalAsync(cmd.WorkingDirectory, ct).ConfigureAwait(false);
                 IdempotencyStore?.TryRegister(cmd.IdempotencyKey, result);
-                cmd.ReplyChannel.Writer.TryWrite(result);
-            } catch (OperationCanceledException) { throw; } catch (Exception) { cmd.ReplyChannel.Writer.TryWrite(default!); }
+                cmd.OnSuccess(result);
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.OnFailure(ex); }
         }
 
         protected override void OnConsumerError(Exception ex)

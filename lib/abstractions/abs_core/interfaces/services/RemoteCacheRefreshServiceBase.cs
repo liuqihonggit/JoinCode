@@ -4,15 +4,16 @@ namespace JoinCode.Abstractions.Services;
 /// <summary>远程缓存刷新命令标记接口</summary>
 public interface IRemoteCacheRefreshCommand;
 
-/// <summary>刷新缓存命令 — 携带幂等键与回复通道，由 Consumer 串行处理</summary>
-public sealed record RefreshCacheCmd(IdempotencyKey IdempotencyKey) : IRemoteCacheRefreshCommand, IRequestCommand {
-    /// <summary>回复通道 — Consumer 处理完成后写入结果，调用方通过 Reader.ReadAsync 拉取</summary>
-    public Channel<Unit> ReplyChannel { get; } = Channel.CreateUnbounded<Unit>();
-
-    /// <summary>从幂等缓存恢复结果 — 命中缓存时写入 ReplyChannel 并返回 true</summary>
+/// <summary>刷新缓存命令 — 携带幂等键与 OnSuccess/OnFailure 回调，由 Consumer 串行处理</summary>
+public sealed record RefreshCacheCmd(
+    IdempotencyKey IdempotencyKey,
+    Action<Unit> OnSuccess,
+    Action<Exception> OnFailure
+) : IRemoteCacheRefreshCommand, IRequestCommand<Unit> {
+    /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
     public bool TryRestoreFromCache(IIdempotencyStore store) {
         if (store.TryGetResult<Unit>(IdempotencyKey, out var cached)) {
-            ReplyChannel.Writer.TryWrite(cached);
+            OnSuccess(cached);
             return true;
         }
         return false;
@@ -55,7 +56,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
 
         if (!string.IsNullOrEmpty(options.ApiEndpoint)) {
             _refreshTimer = new Timer(
-                _ => { if (Volatile.Read(ref _disposed) == 0) TrySend(new RefreshCacheCmd(new IdempotencyKey("refresh-cache-timer", Guid.NewGuid().ToString()))); },
+                _ => { if (Volatile.Read(ref _disposed) == 0) TrySend(new RefreshCacheCmd(new IdempotencyKey("refresh-cache-timer", Guid.NewGuid().ToString()), _ => { }, _ => { })); },
                 null,
                 options.RefreshInterval,
                 options.RefreshInterval);
@@ -73,9 +74,10 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         }
 
         var key = new IdempotencyKey("refresh-cache", Guid.NewGuid().ToString());
-        var cmd = new RefreshCacheCmd(key);
+        var tcs = new TaskCompletionSource<Unit>();
+        var cmd = new RefreshCacheCmd(key, tcs.SetResult, tcs.SetException);
         await SendAsync(cmd, ct).ConfigureAwait(false);
-        await cmd.ReplyChannel.Reader.ReadAsync(ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
     protected async Task EnsureCacheAsync(CancellationToken cancellationToken) {
@@ -128,7 +130,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
             case RefreshCacheCmd refresh:
             await DoRefreshAsync(ct).ConfigureAwait(false);
             IdempotencyStore?.TryRegister(refresh.IdempotencyKey, Unit.Value);
-            refresh.ReplyChannel.Writer.TryWrite(Unit.Value);
+            refresh.OnSuccess(Unit.Value);
             break;
         }
     }

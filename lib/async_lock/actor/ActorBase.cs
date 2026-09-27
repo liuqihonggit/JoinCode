@@ -275,7 +275,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>
     /// 幂等去重存储 — 双 Tell 协议的 Consumer 端幂等守卫。
     /// <para>设置后,ConsumeLoop 对实现 <see cref="IRequestCommand"/> 的命令检查缓存:</para>
-    /// <para>命中 → 调用 <see cref="IRequestCommand.TryRestoreFromCache"/> 恢复结果(写入命令自带 ReplyChannel) → 跳过 HandleAsync</para>
+    /// <para>命中 → 调用 <see cref="IRequestCommand.TryRestoreFromCache"/> 恢复结果(调用命令自带 OnSuccess 回调) → 跳过 HandleAsync</para>
     /// <para>未命中 → 执行 HandleAsync(派生类自行 TryRegister 缓存结果)</para>
     /// <para>null=不启用幂等去重(默认)。派生类在构造函数中设置。</para>
     /// </summary>

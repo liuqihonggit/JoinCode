@@ -7,4 +7,16 @@ namespace Core.Agents;
 /// </summary>
 public sealed record GetDefinitionsCmd(
     string? WorkingDirectory,
-    TaskCompletionSource<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>> Reply);
+    IdempotencyKey IdempotencyKey) : IRequestCommand {
+    /// <summary>回复通道 — Consumer 处理完成后写入结果，调用方通过 Reader.ReadAsync 拉取</summary>
+    public Channel<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>> ReplyChannel { get; } = Channel.CreateUnbounded<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>>();
+
+    /// <summary>从幂等缓存恢复结果 — 命中缓存时写入 ReplyChannel 并返回 true</summary>
+    public bool TryRestoreFromCache(IIdempotencyStore store) {
+        if (store.TryGetResult<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>>(IdempotencyKey, out var cached)) {
+            ReplyChannel.Writer.TryWrite(cached!);
+            return true;
+        }
+        return false;
+    }
+}

@@ -46,9 +46,10 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         if (_cacheLoaded)
             return _cachedDefinitions;
 
-        var reply = new TaskCompletionSource<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>>();
-        await _actor.SendAsync(new GetDefinitionsCmd(workingDirectory, reply), cancellationToken).ConfigureAwait(false);
-        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+        var key = new IdempotencyKey("get-definitions", Guid.NewGuid().ToString());
+        var cmd = new GetDefinitionsCmd(workingDirectory, key);
+        await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
+        return await cmd.ReplyChannel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -682,17 +683,15 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         public DefinitionLoaderActor(AgentDefinitionProvider owner, ILogger<AgentDefinitionProvider>? logger) : base() {
             _owner = owner;
             _logger = logger;
+            IdempotencyStore = new IdempotencyStore();
         }
-
-        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 AgentDefinitionProvider 调用</summary>
-        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
-            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
         protected override async ValueTask HandleAsync(GetDefinitionsCmd cmd, CancellationToken ct) {
             try {
                 var result = await _owner.GetDefinitionsInternalAsync(cmd.WorkingDirectory, ct).ConfigureAwait(false);
-                cmd.Reply.SetResult(result);
-            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.Reply.SetException(ex); }
+                IdempotencyStore?.TryRegister(cmd.IdempotencyKey, result);
+                cmd.ReplyChannel.Writer.TryWrite(result);
+            } catch (OperationCanceledException) { throw; } catch (Exception) { cmd.ReplyChannel.Writer.TryWrite(default!); }
         }
 
         protected override void OnConsumerError(Exception ex)

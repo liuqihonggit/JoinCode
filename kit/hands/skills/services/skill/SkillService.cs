@@ -187,9 +187,10 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>重载成功返回 true，否则返回 false</returns>
     public async Task<bool> ReloadAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken = default) {
-        var reply = new TaskCompletionSource<bool>();
-        await _actor.SendAsync(new ReloadCmd(skillName, ctx, reply), cancellationToken).ConfigureAwait(false);
-        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+        var key = new IdempotencyKey("skill-reload", Guid.NewGuid().ToString());
+        var cmd = new ReloadCmd(skillName, ctx, key);
+        await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
+        return await cmd.ReplyChannel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -446,16 +447,15 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         public SkillServiceActor(SkillService owner, ILogger<SkillService>? logger) : base() {
             _owner = owner;
             _logger = logger;
+            IdempotencyStore = new IdempotencyStore();
         }
-
-        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 SkillService 调用</summary>
-        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
-            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
         protected override async ValueTask HandleAsync(ReloadCmd cmd, CancellationToken ct) {
             try {
-                cmd.Reply.SetResult(await _owner.ReloadInternalAsync(cmd.SkillName, cmd.Ctx, ct).ConfigureAwait(false));
-            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.Reply.SetException(ex); }
+                var result = await _owner.ReloadInternalAsync(cmd.SkillName, cmd.Ctx, ct).ConfigureAwait(false);
+                IdempotencyStore?.TryRegister(cmd.IdempotencyKey, result);
+                cmd.ReplyChannel.Writer.TryWrite(result);
+            } catch (OperationCanceledException) { throw; } catch (Exception) { cmd.ReplyChannel.Writer.TryWrite(default); }
         }
 
         protected override void OnConsumerError(Exception ex)
@@ -470,4 +470,16 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
 public sealed record ReloadCmd(
     string? SkillName,
     ExecutionContext Ctx,
-    TaskCompletionSource<bool> Reply);
+    IdempotencyKey IdempotencyKey) : IRequestCommand {
+    /// <summary>回复通道 — Consumer 处理完成后写入结果，调用方通过 Reader.ReadAsync 拉取</summary>
+    public Channel<bool> ReplyChannel { get; } = Channel.CreateUnbounded<bool>();
+
+    /// <summary>从幂等缓存恢复结果 — 命中缓存时写入 ReplyChannel 并返回 true</summary>
+    public bool TryRestoreFromCache(IIdempotencyStore store) {
+        if (store.TryGetResult<bool>(IdempotencyKey, out var cached)) {
+            ReplyChannel.Writer.TryWrite(cached);
+            return true;
+        }
+        return false;
+    }
+}

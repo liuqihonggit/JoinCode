@@ -1,18 +1,20 @@
 namespace Tools;
 
 /// <summary>
-/// 环境探测 Actor 命令 — 双 Tell 模型，自带 ReplyChannel 回执通道
+/// 环境探测 Actor 命令 — 双 Tell 模型，携带 OnSuccess/OnFailure 回调
 /// </summary>
 public interface IEnvProbeCommand;
 
-internal sealed record ProbeEnvCmd(bool ForceRescan, IdempotencyKey IdempotencyKey) : IEnvProbeCommand, IRequestCommand {
-    /// <summary>双 Tell 回执通道 — Consumer 处理完后写入结果,发送方通过 Reader.ReadAsync 拉取</summary>
-    public Channel<EnvironmentReport> ReplyChannel { get; } = Channel.CreateUnbounded<EnvironmentReport>();
-
-    /// <summary>从幂等缓存恢复结果 — 命中缓存时写入 ReplyChannel 并返回 true</summary>
+internal sealed record ProbeEnvCmd(
+    bool ForceRescan,
+    IdempotencyKey IdempotencyKey,
+    Action<EnvironmentReport> OnSuccess,
+    Action<Exception> OnFailure
+) : IEnvProbeCommand, IRequestCommand<EnvironmentReport> {
+    /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
     public bool TryRestoreFromCache(IIdempotencyStore store) {
         if (!ForceRescan && store.TryGetResult<EnvironmentReport>(IdempotencyKey, out var cached) && cached is not null) {
-            ReplyChannel.Writer.TryWrite(cached);
+            OnSuccess(cached);
             return true;
         }
         return false;
@@ -46,10 +48,14 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
 
     /// <inheritdoc/>
     public async Task<EnvironmentReport> ProbeEnvironmentAsync(bool forceRescan = false, CancellationToken ct = default) {
+        var tcs = new TaskCompletionSource<EnvironmentReport>();
         var key = new IdempotencyKey("env-probe", forceRescan ? $"force-{Guid.NewGuid():N}" : "cached");
-        var cmd = new ProbeEnvCmd(forceRescan, key);
+        var cmd = new ProbeEnvCmd(
+            forceRescan, key,
+            tcs.SetResult,
+            tcs.SetException);
         await SendAsync(cmd, ct).ConfigureAwait(false);
-        return await cmd.ReplyChannel.Reader.ReadAsync(ct).ConfigureAwait(false);
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -118,37 +124,41 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
 
     /// <summary>
     /// Actor Consumer — 线程独占 _cachedReport/_lastProbeTime，串行处理命令，无需锁。
-    /// 双 Tell 模型：回执写入命令自带 ReplyChannel，幂等结果缓存到 IdempotencyStore。
+    /// 双 Tell 模型：回执通过命令自带的 OnSuccess/OnFailure 回调返回，幂等结果缓存到 IdempotencyStore。
     /// </summary>
     protected override async ValueTask HandleAsync(IEnvProbeCommand command, CancellationToken ct) {
         if (command is ProbeEnvCmd cmd) {
-            if (!cmd.ForceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5)) {
-                IdempotencyStore?.TryRegister(cmd.IdempotencyKey, _cachedReport);
-                cmd.ReplyChannel.Writer.TryWrite(_cachedReport);
-                return;
+            try {
+                if (!cmd.ForceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5)) {
+                    IdempotencyStore?.TryRegister(cmd.IdempotencyKey, _cachedReport);
+                    cmd.OnSuccess(_cachedReport);
+                    return;
+                }
+
+                var components = new List<ComponentScore>
+                {
+                    await ProbeComponentAsync("git", "Git", ["--version"], "git version").ConfigureAwait(false),
+                    await ProbeComponentAsync("powershell", "PowerShell", ["-Command", "$PSVersionTable.PSVersion.ToString()"], null).ConfigureAwait(false),
+                    await ProbeComponentAsync("python", "Python", ["--version"], "Python").ConfigureAwait(false),
+                    await ProbeComponentAsync("dotnet", ".NET SDK", ["--version"], null).ConfigureAwait(false),
+                    await ProbeComponentAsync("node", "Node.js", ["--version"], null).ConfigureAwait(false),
+                    await ProbeComponentAsync("wsl", "WSL2", ["--status"], null).ConfigureAwait(false),
+                    await ProbeComponentAsync("docker", "Docker", ["--version"], "Docker version").ConfigureAwait(false),
+                };
+
+                var report = new EnvironmentReport {
+                    ProbeTime = DateTime.UtcNow,
+                    Components = components,
+                    RecommendedShell = GetRecommendedShell(components)
+                };
+
+                _cachedReport = report;
+                _lastProbeTime = DateTime.UtcNow;
+                IdempotencyStore?.TryRegister(cmd.IdempotencyKey, report);
+                cmd.OnSuccess(report);
+            } catch (Exception ex) {
+                cmd.OnFailure(ex);
             }
-
-            var components = new List<ComponentScore>
-            {
-                await ProbeComponentAsync("git", "Git", ["--version"], "git version").ConfigureAwait(false),
-                await ProbeComponentAsync("powershell", "PowerShell", ["-Command", "$PSVersionTable.PSVersion.ToString()"], null).ConfigureAwait(false),
-                await ProbeComponentAsync("python", "Python", ["--version"], "Python").ConfigureAwait(false),
-                await ProbeComponentAsync("dotnet", ".NET SDK", ["--version"], null).ConfigureAwait(false),
-                await ProbeComponentAsync("node", "Node.js", ["--version"], null).ConfigureAwait(false),
-                await ProbeComponentAsync("wsl", "WSL2", ["--status"], null).ConfigureAwait(false),
-                await ProbeComponentAsync("docker", "Docker", ["--version"], "Docker version").ConfigureAwait(false),
-            };
-
-            var report = new EnvironmentReport {
-                ProbeTime = DateTime.UtcNow,
-                Components = components,
-                RecommendedShell = GetRecommendedShell(components)
-            };
-
-            _cachedReport = report;
-            _lastProbeTime = DateTime.UtcNow;
-            IdempotencyStore?.TryRegister(cmd.IdempotencyKey, report);
-            cmd.ReplyChannel.Writer.TryWrite(report);
         }
     }
 

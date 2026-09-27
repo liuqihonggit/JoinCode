@@ -1,6 +1,7 @@
 global using AsyncFileLock;
 global using Core.Memdir;
 global using Core.Utils;
+global using System.Threading.Channels;
 global using Infrastructure.Configuration;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Utils.IO;

@@ -281,12 +281,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     protected IIdempotencyStore? IdempotencyStore { get; set; }
 
+    private WatermarkLevel _lastBackpressureLevel = WatermarkLevel.Normal;
+
     private async Task ConsumeLoopAsync() {
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
         try {
             await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
                 Interlocked.Decrement(ref _inputCount);
                 CheckInputWatermark();
+                NotifyBackpressureIfNeeded(cmd);
                 try {
                     if (cmd is IRequestCommand requestCmd && IdempotencyStore is not null &&
                         requestCmd.TryRestoreFromCache(IdempotencyStore)) {
@@ -300,6 +303,48 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                 }
             }
         } catch (OperationCanceledException) { }
+    }
+
+    /// <summary>
+    /// 水位线变化时强制通知命令的 OnBackpressure 回调 — 环形背压管道的核心。
+    /// <para>只在水位跨越阈值时发信号(避免信号风暴),Normal 恢复时也通知生产方可以恢复生产。</para>
+    /// </summary>
+    private void NotifyBackpressureIfNeeded(TCommand cmd) {
+        if (cmd is not IRequestCommand requestCmd) return;
+        var level = _backpressure is null ? WatermarkLevel.Normal : (
+            InputCount >= _backpressure.EffectiveCriticalWatermark ? WatermarkLevel.Critical :
+            InputCount >= _backpressure.EffectiveHighWatermark ? WatermarkLevel.High :
+            WatermarkLevel.Normal);
+        if (level == _lastBackpressureLevel) return;
+        _lastBackpressureLevel = level;
+        var delay = level switch {
+            WatermarkLevel.Critical => TimeSpan.FromMilliseconds(Math.Min(100 * (InputCount - (_backpressure?.EffectiveHighWatermark ?? 0)), 1000)),
+            WatermarkLevel.High => TimeSpan.FromMilliseconds(50),
+            _ => TimeSpan.Zero
+        };
+        requestCmd.OnBackpressure(new BackpressureSignal(0, Id, "", level, delay, 0));
+    }
+
+    /// <summary>
+    /// 标准背压回调 — 根据水位层级计算延迟并异步重试发送命令。
+    /// <para><b>层级策略</b>:</para>
+    /// <para>Critical: 延迟 signal.SuggestedDelay(100ms×超出量,上限1s)后重试</para>
+    /// <para>High: 延迟 signal.SuggestedDelay(50ms)后重试</para>
+    /// <para>Normal: 立即重试(恢复生产)</para>
+    /// <para>回调在 Consumer 线程执行,重试通过 fire-and-forget 异步调度,不阻塞 Consumer。</para>
+    /// </summary>
+    /// <param name="resend">重试委托 — 延迟后调用,重新发送命令(如 TrySend(cmd))</param>
+    /// <returns>标准背压回调,可直接作为命令的 OnBackpressure 参数</returns>
+    public static Action<BackpressureSignal> CreateBackpressureHandler(Action resend) {
+        return signal => {
+            if (signal.SuggestedDelay > TimeSpan.Zero) {
+                _ = Task.Delay(signal.SuggestedDelay).ContinueWith(
+                    _ => resend(),
+                    TaskScheduler.Default);
+            } else {
+                resend();
+            }
+        };
     }
 
     private void ThrowIfDisposed() {

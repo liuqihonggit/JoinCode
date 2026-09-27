@@ -103,7 +103,9 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     private async Task SaveAsync(CancellationToken cancellationToken) {
         var key = new IdempotencyKey("thinking-save", Guid.NewGuid().ToString());
         var tcs = new TaskCompletionSource<Unit>();
-        var cmd = new ThinkingSaveCmd(key, tcs.SetResult, tcs.SetException);
+        ThinkingSaveCmd? cmd = null;
+        cmd = new ThinkingSaveCmd(key, tcs.SetResult, tcs.SetException,
+            ActorBase<ThinkingStoreCommand, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _actor.TrySend(cmd); }));
         await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
         await tcs.Task.ConfigureAwait(false);
     }

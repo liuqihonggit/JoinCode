@@ -11,7 +11,8 @@ public abstract record ThinkingStoreCommand;
 public sealed record ThinkingSaveCmd(
     IdempotencyKey IdempotencyKey,
     Action<Unit> OnSuccess,
-    Action<Exception> OnFailure
+    Action<Exception> OnFailure,
+    Action<BackpressureSignal> OnBackpressure
 ) : ThinkingStoreCommand, IRequestCommand<Unit> {
     /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
     public bool TryRestoreFromCache(IIdempotencyStore store) {

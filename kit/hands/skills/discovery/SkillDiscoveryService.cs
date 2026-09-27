@@ -54,7 +54,9 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     public async Task<IReadOnlyList<DiscoveredSkill>> DiscoverAsync(CancellationToken cancellationToken = default) {
         var key = new IdempotencyKey("discover", Guid.NewGuid().ToString());
         var tcs = new TaskCompletionSource<IReadOnlyList<DiscoveredSkill>>();
-        var cmd = new DiscoverCmd(key, tcs.SetResult, tcs.SetException);
+        DiscoverCmd? cmd = null;
+        cmd = new DiscoverCmd(key, tcs.SetResult, tcs.SetException,
+            ActorBase<DiscoverCmd, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _discoverActor.TrySend(cmd); }));
         await _discoverActor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
         return await tcs.Task.ConfigureAwait(false);
     }
@@ -435,7 +437,8 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
 internal sealed record DiscoverCmd(
     IdempotencyKey IdempotencyKey,
     Action<IReadOnlyList<DiscoveredSkill>> OnSuccess,
-    Action<Exception> OnFailure
+    Action<Exception> OnFailure,
+    Action<BackpressureSignal> OnBackpressure
 ) : IRequestCommand<IReadOnlyList<DiscoveredSkill>> {
     /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
     public bool TryRestoreFromCache(IIdempotencyStore store) {

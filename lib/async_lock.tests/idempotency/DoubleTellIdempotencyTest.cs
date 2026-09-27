@@ -121,7 +121,8 @@ internal sealed record TestRequestCommand(
     IdempotencyKey IdempotencyKey,
     string Payload,
     Action<string> OnSuccess,
-    Action<Exception> OnFailure
+    Action<Exception> OnFailure,
+    Action<BackpressureSignal> OnBackpressure
 ) : IRequestCommand<string> {
     /// <summary>创建命令 + 配套的 ReplyTask(通过 TCS 桥接回调,仅测试用)</summary>
     public static (TestRequestCommand Cmd, Task<string> ReplyTask) Create(IdempotencyKey key, string payload) {
@@ -129,7 +130,8 @@ internal sealed record TestRequestCommand(
         var cmd = new TestRequestCommand(
             key, payload,
             tcs.SetResult,
-            tcs.SetException);
+            tcs.SetException,
+            _ => { });
         return (cmd, tcs.Task);
     }
 

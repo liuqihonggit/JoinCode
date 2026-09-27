@@ -9,7 +9,8 @@ internal sealed record ProbeEnvCmd(
     bool ForceRescan,
     IdempotencyKey IdempotencyKey,
     Action<EnvironmentReport> OnSuccess,
-    Action<Exception> OnFailure
+    Action<Exception> OnFailure,
+    Action<BackpressureSignal> OnBackpressure
 ) : IEnvProbeCommand, IRequestCommand<EnvironmentReport> {
     /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
     public bool TryRestoreFromCache(IIdempotencyStore store) {
@@ -50,10 +51,12 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
     public async Task<EnvironmentReport> ProbeEnvironmentAsync(bool forceRescan = false, CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<EnvironmentReport>();
         var key = new IdempotencyKey("env-probe", forceRescan ? $"force-{Guid.NewGuid():N}" : "cached");
-        var cmd = new ProbeEnvCmd(
+        ProbeEnvCmd? cmd = null;
+        cmd = new ProbeEnvCmd(
             forceRescan, key,
             tcs.SetResult,
-            tcs.SetException);
+            tcs.SetException,
+            CreateBackpressureHandler(() => { if (cmd is not null) TrySend(cmd); }));
         await SendAsync(cmd, ct).ConfigureAwait(false);
         return await tcs.Task.ConfigureAwait(false);
     }

@@ -8,7 +8,8 @@ public interface IRemoteCacheRefreshCommand;
 public sealed record RefreshCacheCmd(
     IdempotencyKey IdempotencyKey,
     Action<Unit> OnSuccess,
-    Action<Exception> OnFailure
+    Action<Exception> OnFailure,
+    Action<BackpressureSignal> OnBackpressure
 ) : IRemoteCacheRefreshCommand, IRequestCommand<Unit> {
     /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
     public bool TryRestoreFromCache(IIdempotencyStore store) {
@@ -56,7 +57,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
 
         if (!string.IsNullOrEmpty(options.ApiEndpoint)) {
             _refreshTimer = new Timer(
-                _ => { if (Volatile.Read(ref _disposed) == 0) TrySend(new RefreshCacheCmd(new IdempotencyKey("refresh-cache-timer", Guid.NewGuid().ToString()), _ => { }, _ => { })); },
+                _ => { if (Volatile.Read(ref _disposed) == 0) TrySend(new RefreshCacheCmd(new IdempotencyKey("refresh-cache-timer", Guid.NewGuid().ToString()), _ => { }, _ => { }, _ => { })); },
                 null,
                 options.RefreshInterval,
                 options.RefreshInterval);
@@ -75,7 +76,9 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
 
         var key = new IdempotencyKey("refresh-cache", Guid.NewGuid().ToString());
         var tcs = new TaskCompletionSource<Unit>();
-        var cmd = new RefreshCacheCmd(key, tcs.SetResult, tcs.SetException);
+        RefreshCacheCmd? cmd = null;
+        cmd = new RefreshCacheCmd(key, tcs.SetResult, tcs.SetException,
+            CreateBackpressureHandler(() => { if (cmd is not null) TrySend(cmd); }));
         await SendAsync(cmd, ct).ConfigureAwait(false);
         await tcs.Task.ConfigureAwait(false);
     }

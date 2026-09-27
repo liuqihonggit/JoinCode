@@ -189,7 +189,9 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     public async Task<bool> ReloadAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken = default) {
         var key = new IdempotencyKey("skill-reload", Guid.NewGuid().ToString());
         var tcs = new TaskCompletionSource<bool>();
-        var cmd = new ReloadCmd(skillName, ctx, key, tcs.SetResult, tcs.SetException);
+        ReloadCmd? cmd = null;
+        cmd = new ReloadCmd(skillName, ctx, key, tcs.SetResult, tcs.SetException,
+            ActorBase<ReloadCmd, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _actor.TrySend(cmd); }));
         await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
         return await tcs.Task.ConfigureAwait(false);
     }
@@ -473,7 +475,8 @@ public sealed record ReloadCmd(
     ExecutionContext Ctx,
     IdempotencyKey IdempotencyKey,
     Action<bool> OnSuccess,
-    Action<Exception> OnFailure
+    Action<Exception> OnFailure,
+    Action<BackpressureSignal> OnBackpressure
 ) : IRequestCommand<bool> {
     /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
     public bool TryRestoreFromCache(IIdempotencyStore store) {

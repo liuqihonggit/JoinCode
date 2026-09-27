@@ -39,7 +39,8 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
     private sealed record ApplySettingsCmd(
         IdempotencyKey IdempotencyKey,
         Action<bool> OnSuccess,
-        Action<Exception> OnFailure
+        Action<Exception> OnFailure,
+        Action<BackpressureSignal> OnBackpressure
     ) : SettingsChangeCommand, IRequestCommand<bool> {
         /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
         public bool TryRestoreFromCache(IIdempotencyStore store) {
@@ -57,7 +58,9 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
     public async Task ApplySettingsChangeAsync(CancellationToken cancellationToken = default) {
         var key = new IdempotencyKey("apply-settings", Guid.NewGuid().ToString());
         var tcs = new TaskCompletionSource<bool>();
-        var cmd = new ApplySettingsCmd(key, tcs.SetResult, tcs.SetException);
+        ApplySettingsCmd? cmd = null;
+        cmd = new ApplySettingsCmd(key, tcs.SetResult, tcs.SetException,
+            CreateBackpressureHandler(() => { if (cmd is not null) TrySend(cmd); }));
         if (!TrySend(cmd)) {
             _logger?.LogWarning("SettingsChangeApplier 邮箱已满或已释放,跳过设置变更应用");
             return;
@@ -72,7 +75,7 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
             return;
         }
         _logger?.LogInformation("检测到配置文件变更: {Path} ({ChangeType})", e.FilePath, e.ChangeType);
-        TrySend(new ApplySettingsCmd(new IdempotencyKey("apply-settings", Guid.NewGuid().ToString()), _ => { }, _ => { }));
+        TrySend(new ApplySettingsCmd(new IdempotencyKey("apply-settings", Guid.NewGuid().ToString()), _ => { }, _ => { }, CreateBackpressureHandler(() => { })));
     }
 
     /// <inheritdoc />

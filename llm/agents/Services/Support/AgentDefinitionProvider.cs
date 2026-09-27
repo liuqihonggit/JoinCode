@@ -48,7 +48,9 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
 
         var key = new IdempotencyKey("get-definitions", Guid.NewGuid().ToString());
         var tcs = new TaskCompletionSource<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>>();
-        var cmd = new GetDefinitionsCmd(workingDirectory, key, tcs.SetResult, tcs.SetException);
+        GetDefinitionsCmd? cmd = null;
+        cmd = new GetDefinitionsCmd(workingDirectory, key, tcs.SetResult, tcs.SetException,
+            ActorBase<GetDefinitionsCmd, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _actor.TrySend(cmd); }));
         await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
         return await tcs.Task.ConfigureAwait(false);
     }

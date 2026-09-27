@@ -97,7 +97,9 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     private async Task ReloadOnFileChangeAsync() {
         var key = new IdempotencyKey("reload-config", Guid.NewGuid().ToString());
         var tcs = new TaskCompletionSource<Unit>();
-        var cmd = new ReloadConfigCmd(key, tcs.SetResult, tcs.SetException);
+        ReloadConfigCmd? cmd = null;
+        cmd = new ReloadConfigCmd(key, tcs.SetResult, tcs.SetException,
+            ActorBase<ReloadConfigCmd, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _actor.TrySend(cmd); }));
         await _actor.SendAsync(cmd, CancellationToken.None).ConfigureAwait(false);
         await tcs.Task.ConfigureAwait(false);
     }
@@ -213,7 +215,8 @@ internal sealed partial class DynamicKeywordConfigJsonContext : JsonSerializerCo
 public sealed record ReloadConfigCmd(
     IdempotencyKey IdempotencyKey,
     Action<Unit> OnSuccess,
-    Action<Exception> OnFailure
+    Action<Exception> OnFailure,
+    Action<BackpressureSignal> OnBackpressure
 ) : IRequestCommand<Unit> {
     /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
     public bool TryRestoreFromCache(IIdempotencyStore store) {

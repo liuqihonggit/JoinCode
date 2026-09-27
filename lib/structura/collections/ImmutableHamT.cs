@@ -110,6 +110,16 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
         return new ImmutableHamT<TKey, TValue>(added ? _count + 1 : _count, newRoot, _keyComparer);
     }
 
+    /// <summary>尝试添加键值对,键已存在返回原实例(不替换),键不存在插入。单次查找,供 ImmutableHamTSet 复用消除 ContainsKey+SetItem 双查找。</summary>
+    internal ImmutableHamT<TKey, TValue> TryAddInternal(TKey key, TValue value, out bool added) {
+        ArgumentNullException.ThrowIfNull(key);
+        var hash = (uint)_keyComparer.GetHashCode(key);
+        if (_root is null) { added = true; return new ImmutableHamT<TKey, TValue>(1, new LeafNode(key, value), _keyComparer); }
+        var newRoot = _root.Add(0, hash, _keyComparer, key, value, out added);
+        if (!added) return this;
+        return new ImmutableHamT<TKey, TValue>(_count + 1, newRoot, _keyComparer);
+    }
+
     /// <summary>移除指定键,不存在则返回原实例。</summary>
     public ImmutableHamT<TKey, TValue> Remove(TKey key) {
         ArgumentNullException.ThrowIfNull(key);

@@ -24,11 +24,11 @@ public sealed class TerminalInteractiveService : IInteractiveService {
         List<string>? options = null,
         bool multiSelect = false,
         CancellationToken cancellationToken = default) {
-        if (TerminalHelper.IsHeadless)
-            return Task.FromResult(AskUserQuestionResult.FailureResult("Non-interactive mode: cannot prompt for user input"));
-
         if (string.IsNullOrWhiteSpace(question))
             return Task.FromResult(AskUserQuestionResult.FailureResult("Question cannot be empty"));
+
+        if (TerminalHelper.IsHeadless)
+            return Task.FromResult(AskUserQuestionResult.FailureResult("Non-interactive mode: cannot prompt for user input"));
 
         if (options is null || options.Count == 0) {
             TerminalHelper.WriteLine();
@@ -56,9 +56,6 @@ public sealed class TerminalInteractiveService : IInteractiveService {
     public Task<AskUserQuestionResult> AskUserQuestionsAsync(
         List<QuestionItem> questions,
         CancellationToken cancellationToken = default) {
-        if (TerminalHelper.IsHeadless)
-            return Task.FromResult(AskUserQuestionResult.FailureResult("Non-interactive mode: cannot prompt for user input"));
-
         if (questions.Count == 0)
             return Task.FromResult(AskUserQuestionResult.FailureResult("No questions provided"));
 
@@ -78,6 +75,9 @@ public sealed class TerminalInteractiveService : IInteractiveService {
             var labels = q.Options.Select(o => o.Label).ToList();
             if (labels.Distinct().Count() != labels.Count)
                 return Task.FromResult(AskUserQuestionResult.FailureResult($"Question '{q.Question}' has duplicate option labels"));
+
+            if (TerminalHelper.IsHeadless)
+                return Task.FromResult(AskUserQuestionResult.FailureResult("Non-interactive mode: cannot prompt for user input"));
 
             TerminalHelper.WriteLine();
             TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{q.Header}{AnsiStyleEnumConstants.Reset}");

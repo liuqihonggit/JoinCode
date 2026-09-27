@@ -27,8 +27,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     private readonly QueryEngineConfig _config;
     private readonly IServiceProvider? _serviceProvider;
     private readonly ILoggerFactory? _loggerFactory;
-    private MiddlewarePipeline<QueryMiddlewareContext>? _pipeline;
-    private QueryOptions? _currentOptions;
+    private readonly Lazy<MiddlewarePipeline<QueryMiddlewareContext>> _pipeline;
 
     /// <summary>
     /// DI 构造函数 — 中间件通过 IServiceProvider 延迟解析，避免构造时
@@ -58,16 +57,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _loggerFactory = loggerFactory;
-        // 管道延迟构建 — 首次 QueryAsync 时才解析 IQueryMiddleware 集合
+        _pipeline = new Lazy<MiddlewarePipeline<QueryMiddlewareContext>>(BuildPipeline, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     /// <summary>
-    /// 延迟构建中间件管道：DI 中间件 + 核心执行中间件
+    /// 构建中间件管道：DI 中间件 + 核心执行中间件
     /// </summary>
-    private MiddlewarePipeline<QueryMiddlewareContext> GetOrCreatePipeline() {
-        if (_pipeline is not null)
-            return _pipeline;
-
+    private MiddlewarePipeline<QueryMiddlewareContext> BuildPipeline() {
         var allMiddlewares = new List<IMiddleware<QueryMiddlewareContext>>();
         if (_serviceProvider is not null) {
             var middlewares = _serviceProvider.GetService<IEnumerable<IQueryMiddleware>>();
@@ -75,14 +71,12 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 allMiddlewares.AddRange(middlewares);
         }
         allMiddlewares.Add(new QueryCoreMiddleware(this));
-
-        _pipeline = _loggerFactory is not null
+        return _loggerFactory is not null
             ? new PipelineBuilder<QueryMiddlewareContext>()
                 .WithLoggingScope(_loggerFactory)
                 .UseRange(allMiddlewares)
                 .Build()
             : new MiddlewarePipeline<QueryMiddlewareContext>(allMiddlewares);
-        return _pipeline;
     }
 
     /// <summary>
@@ -140,11 +134,10 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             Logger = _logger,
         };
 
-        _currentOptions = options;
         chatHistory.AddUserMessage(userInput);
         _logger?.LogInformation("[QueryEngine] 开始处理查询: {Input}", userInput);
 
-        var pipeline = GetOrCreatePipeline();
+        var pipeline = _pipeline.Value;
         await pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
         foreach (var chunk in context.OutputChunks) {
@@ -302,7 +295,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
         // 对齐 TS executeForkedSkill: 传递 effort 给子智能体
         // 如果 QueryOptions 指定了 EffortLevel，覆盖默认值
-        if (_currentOptions?.EffortLevel is { } effortLevel) {
+        if (context.Options?.EffortLevel is { } effortLevel) {
             executionSettings = new JoinCode.Abstractions.LLM.ChatOptions {
                 Temperature = executionSettings.Temperature,
                 MaxTokens = executionSettings.MaxTokens,
@@ -315,8 +308,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         }
 
         // 对齐 Reasonix Coordinator: 双模型分离 — 按请求指定模型
-        if (!string.IsNullOrEmpty(_currentOptions?.ModelId)) {
-            var modelId = _currentOptions.ModelId ?? string.Empty;
+        if (!string.IsNullOrEmpty(context.Options?.ModelId)) {
+            var modelId = context.Options.ModelId ?? string.Empty;
             executionSettings = new JoinCode.Abstractions.LLM.ChatOptions {
                 Temperature = executionSettings.Temperature,
                 MaxTokens = executionSettings.MaxTokens,
@@ -434,11 +427,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             var result = _toolExecutionGateway is not null
                 ? await _toolExecutionGateway.ExecuteAsync(request.ToolName, request.Arguments, cancellationToken).ConfigureAwait(false)
                 : await _toolRegistry.ExecuteToolAsync(request.ToolName, request.Arguments, cancellationToken).ConfigureAwait(false);
-            _currentOptions?.ProgressTracker?.RecordToolUse(request.ToolName);
+            options?.ProgressTracker?.RecordToolUse(request.ToolName);
             return result;
         } catch (Exception ex) {
             _logger?.LogError(ex, "[QueryEngine] 工具调用失败: {ToolName}", request.ToolName);
-            _currentOptions?.ProgressTracker?.RecordToolUse(request.ToolName);
+            options?.ProgressTracker?.RecordToolUse(request.ToolName);
             return new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = $"工具调用失败: {ex.Message}" } },
                 IsError = true
@@ -485,7 +478,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         // 内容替换 — 由 ContentReplacementMiddleware 通过上下文提供 IContentReplacementService
         // MaybePersistLargeToolResult 是即时持久化（非预算机制），在添加历史时调用
         if (context.ContentReplacementService is not null && !result.IsError && !string.IsNullOrEmpty(toolResultText)) {
-            var sessionId = _currentOptions?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
+            var sessionId = context.Options?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
             var replacement = await context.ContentReplacementService.MaybePersistLargeToolResult(
                 toolCall.ToolName, toolCall.ToolCallId ?? string.Empty, toolResultText, sessionId).ConfigureAwait(false);
             if (replacement is not null)

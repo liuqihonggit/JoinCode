@@ -51,6 +51,9 @@ public sealed class ImmutableHamTSet<T> : IReadOnlySet<T> where T : notnull {
     /// <summary>当前相等比较器。</summary>
     public IEqualityComparer<T> Comparer => _map.KeyComparer;
 
+    /// <summary>当前相等比较器(对齐 ImmutableHashSet.KeyComparer API)。</summary>
+    public IEqualityComparer<T> KeyComparer => _map.KeyComparer;
+
     /// <summary>创建空集合,使用指定比较器。</summary>
     public static ImmutableHamTSet<T> Create(IEqualityComparer<T>? comparer = null)
         => new(ImmutableHamT<T, Unit>.Create(comparer));

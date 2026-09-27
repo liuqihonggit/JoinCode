@@ -3,10 +3,10 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// 消息去重跟踪器 — 按 AgentId 分桶记录已投递的 MessageId，
 /// 同一 Agent 的重复消息（相同 MessageId）被识别为重复。
-/// <para>无锁不可变嵌套: ImmutableDictionary&lt;agentId, ImmutableHashSet&lt;messageId&gt;&gt; + ImmutableInterlocked.Update 原子更新</para>
+/// <para>无锁不可变嵌套: ImmutableDictionary&lt;agentId, ImmutableHamTSet&lt;messageId&gt;&gt; + ImmutableInterlocked.Update 原子更新</para>
 /// </summary>
 internal sealed class MessageDedupTracker {
-    private ImmutableHamT<string, ImmutableHashSet<string>> _delivered = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
+    private ImmutableHamT<string, ImmutableHamTSet<string>> _delivered = ImmutableHamT<string, ImmutableHamTSet<string>>.Empty;
 
     /// <summary>
     /// 检查消息是否已投递给指定 Agent；若未投递则标记为已投递。
@@ -17,7 +17,7 @@ internal sealed class MessageDedupTracker {
     public bool IsDuplicate(string agentId, string messageId) {
         var box = new StrongBox<bool>();
         ImmutableInterlocked.Update(ref _delivered, static (dict, arg) => {
-            var set = dict.GetValueOrDefault(arg.agentId) ?? ImmutableHashSet<string>.Empty;
+            var set = dict.GetValueOrDefault(arg.agentId) ?? ImmutableHamTSet<string>.Empty;
             if (set.Contains(arg.messageId)) {
                 arg.box.Value = false;
                 return dict;

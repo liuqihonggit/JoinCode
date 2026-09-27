@@ -15,7 +15,7 @@ public sealed record ChatRoomState {
     public TeamInfo Info { get; init; } = null!;
 
     /// <summary>成员 ID 集合（不可变，O(1) 包含查询）</summary>
-    public ImmutableHashSet<string> Members { get; init; } = ImmutableHashSet<string>.Empty;
+    public ImmutableHamTSet<string> Members { get; init; } = ImmutableHamTSet<string>.Empty;
 
     /// <summary>消息字典（MessageId → Message），O(1) 去重检查 + O(1) 按 MessageId 查找 — ADR 0109 决策10。</summary>
     public ImmutableHamT<string, TeamMessage> Messages { get; init; } = ImmutableHamT<string, TeamMessage>.Empty;

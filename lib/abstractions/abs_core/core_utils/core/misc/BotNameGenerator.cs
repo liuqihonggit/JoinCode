@@ -20,9 +20,9 @@ public static class BotNameGenerator {
 
     /// <summary>
     /// 进程内已用名称集合 — 去重保证同进程不重名。
-    /// <para>ImmutableHashSet + CAS 无锁更新,读取无竞争。</para>
+    /// <para>ImmutableHamTSet + CAS 无锁更新,读取无竞争。</para>
     /// </summary>
-    private static ImmutableHashSet<string> s_usedNames = ImmutableHashSet<string>.Empty;
+    private static ImmutableHamTSet<string> s_usedNames = ImmutableHamTSet<string>.Empty;
 
     /// <summary>
     /// 随机数生成器 — 线程安全包装。
@@ -58,5 +58,5 @@ public static class BotNameGenerator {
     /// <summary>
     /// 清除所有已记录的名称 — 仅用于测试重置。
     /// </summary>
-    public static void Clear() => Interlocked.Exchange(ref s_usedNames, ImmutableHashSet<string>.Empty);
+    public static void Clear() => Interlocked.Exchange(ref s_usedNames, ImmutableHamTSet<string>.Empty);
 }

@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Utils;
 public sealed class SecondaryIndex<TKey, TValue, TProperty>
     where TKey : notnull
     where TProperty : notnull {
-    private ImmutableHamT<TProperty, ImmutableHashSet<TKey>> _index = ImmutableHamT<TProperty, ImmutableHashSet<TKey>>.Empty;
+    private ImmutableHamT<TProperty, ImmutableHamTSet<TKey>> _index = ImmutableHamT<TProperty, ImmutableHamTSet<TKey>>.Empty;
     private readonly Func<TValue, TProperty> _selector;
 
     internal SecondaryIndex(
@@ -15,14 +15,14 @@ public sealed class SecondaryIndex<TKey, TValue, TProperty>
         IEqualityComparer<TProperty>? comparer = null) {
         _selector = selector;
         if (comparer != null)
-            _index = ImmutableHamT<TProperty, ImmutableHashSet<TKey>>.Empty.WithComparers(comparer);
+            _index = ImmutableHamT<TProperty, ImmutableHamTSet<TKey>>.Empty.WithComparers(comparer);
     }
 
     /// <summary>注册时同步添加到索引</summary>
     internal void Add(TKey key, TValue value) {
         var prop = _selector(value);
         ImmutableInterlocked.Update(ref _index, d => {
-            var set = d.GetValueOrDefault(prop) ?? ImmutableHashSet<TKey>.Empty;
+            var set = d.GetValueOrDefault(prop) ?? ImmutableHamTSet<TKey>.Empty;
             return d.SetItem(prop, set.Add(key));
         });
     }
@@ -53,14 +53,14 @@ public sealed class SecondaryIndex<TKey, TValue, TProperty>
                 var newOldSet = oldSet.Remove(key);
                 d = newOldSet.IsEmpty ? d.Remove(oldProperty) : d.SetItem(oldProperty, newOldSet);
             }
-            var newSet = d.GetValueOrDefault(newProperty) ?? ImmutableHashSet<TKey>.Empty;
+            var newSet = d.GetValueOrDefault(newProperty) ?? ImmutableHamTSet<TKey>.Empty;
             return d.SetItem(newProperty, newSet.Add(key));
         });
     }
 
     /// <summary>O(1) 查询：返回指定属性值对应的所有 key</summary>
     public IReadOnlyCollection<TKey> GetKeys(TProperty property)
-        => Volatile.Read(ref _index).GetValueOrDefault(property) ?? ImmutableHashSet<TKey>.Empty;
+        => Volatile.Read(ref _index).GetValueOrDefault(property) ?? ImmutableHamTSet<TKey>.Empty;
 
     /// <summary>O(1) 查询：返回指定属性值对应的所有 value（需传入主字典引用）</summary>
     public IEnumerable<TValue> GetValues(TProperty property, IReadOnlyDictionary<TKey, TValue> items) {

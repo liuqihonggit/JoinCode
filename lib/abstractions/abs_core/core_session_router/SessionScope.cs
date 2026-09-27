@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Entity;
 /// </summary>
 public sealed class SessionScope : IAsyncDisposable {
     private ImmutableHamT<ObjectId, Entity> _entities = ImmutableHamT<ObjectId, Entity>.Empty;
-    private ImmutableHamT<ObjectType, ImmutableHashSet<ObjectId>> _typeIndex = ImmutableHamT<ObjectType, ImmutableHashSet<ObjectId>>.Empty;
+    private ImmutableHamT<ObjectType, ImmutableHamTSet<ObjectId>> _typeIndex = ImmutableHamT<ObjectType, ImmutableHamTSet<ObjectId>>.Empty;
     private volatile bool _disposed;
     private int _disposeFailures;
 
@@ -120,7 +120,7 @@ public sealed class SessionScope : IAsyncDisposable {
         }
 
         Volatile.Write(ref _entities, ImmutableHamT<ObjectId, Entity>.Empty);
-        Interlocked.Exchange(ref _typeIndex, ImmutableHamT<ObjectType, ImmutableHashSet<ObjectId>>.Empty);
+        Interlocked.Exchange(ref _typeIndex, ImmutableHamT<ObjectType, ImmutableHamTSet<ObjectId>>.Empty);
     }
 
     private void AddToTypeIndex(Entity entity) {
@@ -128,7 +128,7 @@ public sealed class SessionScope : IAsyncDisposable {
         var id = entity.ObjectId;
         ImmutableInterlocked.Update(ref _typeIndex,
             d => {
-                var set = d.GetValueOrDefault(type, ImmutableHashSet<ObjectId>.Empty);
+                var set = d.GetValueOrDefault(type, ImmutableHamTSet<ObjectId>.Empty);
                 return d.SetItem(type, set.Add(id));
             });
     }

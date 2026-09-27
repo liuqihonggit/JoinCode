@@ -158,10 +158,11 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
         Move-Item "lib/guard/hooks/execution/ICommandRewriter.cs" "D:\project\w3\.xxx\ICommandRewriter.cs.20260824.del"
         ```
    
-2. **❌ 禁止使用命令行文本工具直接修改源码文件**
-   
-   - 原因: 可能导致文件损坏或编码问题
-   - 正确: 使用 IDE 提供的 `SearchReplace` 工具修改文件内容
+2. **✅ 批量替换源码文件 — 推荐用 Python 脚本**
+
+   - **推荐**: 用 Python 脚本做批量替换,替换前先备份(git stash 或 cp 备份)
+   - **禁止用 PowerShell 替换**: PowerShell 读写文件会出现编码问题(BOM/UTF-8/UTF-16 混乱)
+   - Python 脚本必须: ① 用 `encoding='utf-8'` 打开文件 ② 先单文件验证再推广 ③ 替换后编译验证
 
 3. **❌ 禁止删除函数注释（XML 文档注释）**
    

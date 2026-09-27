@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public class MapRegistry<TKey, TValue> where TKey : notnull {
     private ImmutableHamT<TKey, TValue> _items;
-    private ImmutableHashSet<TKey> _canonicalKeys;
+    private ImmutableHamTSet<TKey> _canonicalKeys;
     private readonly bool _trackCanonical;
     private ImmutableList<ISecondaryIndex> _indices = ImmutableList<ISecondaryIndex>.Empty;
 
@@ -90,7 +90,7 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
     public MapRegistry(IEqualityComparer<TKey>? comparer = null, bool trackCanonical = false) {
         var c = comparer ?? EqualityComparer<TKey>.Default;
         _items = ImmutableHamT<TKey, TValue>.Empty.WithComparers(c);
-        _canonicalKeys = ImmutableHashSet<TKey>.Empty.WithComparer(c);
+        _canonicalKeys = ImmutableHamTSet<TKey>.Empty.WithComparer(c);
         _trackCanonical = trackCanonical;
     }
 
@@ -185,14 +185,14 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
     public void Clear() {
         var old = Interlocked.Exchange(ref _items, ImmutableHamT<TKey, TValue>.Empty.WithComparers(Volatile.Read(ref _items).KeyComparer));
         if (_trackCanonical)
-            Interlocked.Exchange(ref _canonicalKeys, ImmutableHashSet<TKey>.Empty.WithComparer(Volatile.Read(ref _canonicalKeys).KeyComparer));
+            Interlocked.Exchange(ref _canonicalKeys, ImmutableHamTSet<TKey>.Empty.WithComparer(Volatile.Read(ref _canonicalKeys).KeyComparer));
     }
 
     /// <summary>清空所有注册并返回被清空的项（子类需要在清空前执行清理逻辑时使用）</summary>
     protected List<KeyValuePair<TKey, TValue>> ClearCore() {
         var old = Interlocked.Exchange(ref _items, ImmutableHamT<TKey, TValue>.Empty.WithComparers(Volatile.Read(ref _items).KeyComparer));
         if (_trackCanonical)
-            Interlocked.Exchange(ref _canonicalKeys, ImmutableHashSet<TKey>.Empty.WithComparer(Volatile.Read(ref _canonicalKeys).KeyComparer));
+            Interlocked.Exchange(ref _canonicalKeys, ImmutableHamTSet<TKey>.Empty.WithComparer(Volatile.Read(ref _canonicalKeys).KeyComparer));
         return [.. old];
     }
 

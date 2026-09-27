@@ -79,7 +79,7 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
     /// <summary>是否包含指定键。</summary>
     public bool ContainsKey(TKey key) => TryGetValue(key, out _);
 
-    /// <summary>尝试添加键值对,键已存在则返回 false 不抛异常,键不存在则返回 true。不可变字典不实际修改,仅检查可添加性。</summary>
+    /// <summary>尝试添加键值对,键已存在返回 false,键不存在返回 true,不抛异常。比 BCL ImmutableDictionary.TryAdd 更优:BCL 在键不存在时抛 NotSupportedException,本方法始终不抛。不可变字典不实际修改,调用方需用 Add 获取新实例。</summary>
     public bool TryAdd(TKey key, TValue value) => !ContainsKey(key);
 
     /// <summary>获取指定键的值,不存在抛 KeyNotFoundException。</summary>

@@ -128,7 +128,44 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 #### P5: 消费方21处(1个,最大) ✅
 - [x] `MemoryStore._memories` — 核心存储(21消费方)
 
-### B类(需评估,58处) — A类完成后逐个评估
+### B类(需评估,31处字段) — 2026-09-27 评估完成
+
+#### B1类(适合改Immutable+CAS,低频写入+高频读取,4处) ✅
+- [x] `InvariantRegistry._registrations` — 启动时注册,运行时只读
+- [x] `SessionRouter._scopes` — 静态会话路由,低频创建/销毁
+- [x] `LockRegistry._locks` — 静态锁注册表,低频写入
+- [x] `SshPortForwardManager._forwards` — SSH端口转发,低频写入
+
+#### B2类(可能适合,中频写入,需进一步分析,12处)
+- [ ] `BusTransport._clientConnections` — 连接管理,连接建立/断开时写入
+- [ ] `MeshTransport._peerConnections` — peer连接缓存
+- [ ] `NamedPipeTransport._connections` — 命名管道连接
+- [ ] `SshSessionManager._sessions` — SSH会话管理
+- [ ] `SessionHookManager._sessionStores` — 会话钩子存储
+- [ ] `StateService._fallbackStorage` — 状态服务回退存储
+- [ ] `PluginRuntimeRegistry._entries` — 插件运行时状态
+- [ ] `PluginHookInjector._injectedHooks` — 插件钩子注入
+- [ ] `SessionScope._entities` — 会话实体表
+- [ ] `MailboxBase._agentMailboxes` — Agent邮箱路由表
+- [ ] `SupervisedActor._children` — 监督Actor子Actor
+- [ ] `RouterActor._children` — 路由Actor子Actor
+
+#### B3类(不适合改,高频并发写入/值类型可变/Actor内部状态,15处)
+- `GraphExecutionContext._nodeStates` — 高频写入(图执行过程中频繁更新)
+- `TeammateRegistry._activeTeammates` + `_pendingMessages` — 高频写入+public暴露ConcurrentDictionary
+- `ActorBase._askWaitGraph` — 静态ask等待图,高频写入(每次ask写入+删除)
+- `ExecutionContext._completedTaskIds` — 高频写入(任务完成时写入)
+- `ParallelTaskScheduler._scheduledTasks` + `_taskDependencies` + `_reverseDependencies` — 高频写入(任务调度)
+- `TaskService._tasks` — 高频写入(任务CRUD)
+- `WorkflowTask._activeWorkflows` — 高频写入(工作流CRUD)
+- `MonitorMcpTask._sessions` — 高频写入(监控会话CRUD)
+- `ParallelExecutionEngine._agentExecutionRecords` — 高频写入(执行记录)
+- `TaskRuntime._tasks` — 高频写入(运行时任务CRUD)
+- `AgentTaskContext._metadata` — 中频写入但值类型JsonElement
+- `InMemoryFileSystem._files` + `_directories` — 文件系统操作,高频写入
+- `ServiceMessageBus._subscribers` + `_messageHistory` — 事件总线,高频写入
+- `AppEventBus._subscribers` — 事件总线,高频写入
+- `GlobalBuildQueue._pending` — 构建队列,高频写入+值类型TaskCompletionSource
 
 ### C类(不适合,19处) — 保持现状
 
@@ -142,6 +179,7 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 | 2026-09-26 | P3 | 19 | 45/63 | ✅ 完成(_remoteEntries推迟到P4) |
 | 2026-09-27 | P4 | 10 | 55/63 | ✅ 完成(TeamMemorySyncService标C类) |
 | 2026-09-27 | P5 | 1 | 56/63 | ✅ 完成(MemoryStore._memories改ImmutableDictionary+CAS) |
+| 2026-09-27 | B1 | 4 | 60/63 | ✅ 完成(InvariantRegistry+SessionRouter+LockRegistry+SshPortForwardManager) |
 
 ## 验收标准
 

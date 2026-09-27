@@ -8,10 +8,10 @@ namespace JoinCode.Abstractions.Entity;
 /// 插件通过 Resolve&lt;T&gt;(sessionId, entityId) 跳转获取，避免跨会话误用 ObjectId
 /// </summary>
 public static class SessionRouter {
-    private static readonly ConcurrentDictionary<ObjectId, SessionScope> _scopes = new();
+    private static ImmutableDictionary<ObjectId, SessionScope> _scopes = ImmutableDictionary<ObjectId, SessionScope>.Empty;
 
     /// <summary>当前会话作用域总数</summary>
-    public static int ScopeCount => _scopes.Count;
+    public static int ScopeCount => Volatile.Read(ref _scopes).Count;
 
     /// <summary>
     /// 创建或获取会话作用域 — 幂等，相同 sessionId 返回同一实例
@@ -19,23 +19,30 @@ public static class SessionRouter {
     public static SessionScope GetOrCreateScope(ObjectId sessionId) {
         if (sessionId.IsEmpty)
             throw new ArgumentException("SessionId 不能为空", nameof(sessionId));
-        return _scopes.GetOrAdd(sessionId, id => new SessionScope(id));
+
+        var current = Volatile.Read(ref _scopes);
+        if (current.TryGetValue(sessionId, out var existing))
+            return existing;
+
+        var newScope = new SessionScope(sessionId);
+        ImmutableInterlocked.Update(ref _scopes, d => d.ContainsKey(sessionId) ? d : d.Add(sessionId, newScope));
+        return Volatile.Read(ref _scopes)[sessionId];
     }
 
     /// <summary>获取会话作用域 — 不存在返回 null</summary>
     public static SessionScope? GetScope(ObjectId sessionId)
-        => _scopes.GetValueOrDefault(sessionId);
+        => Volatile.Read(ref _scopes).TryGetValue(sessionId, out var scope) ? scope : null;
 
     /// <summary>尝试获取会话作用域</summary>
     public static bool TryGetScope(ObjectId sessionId, [NotNullWhen(true)] out SessionScope? scope)
-        => _scopes.TryGetValue(sessionId, out scope);
+        => Volatile.Read(ref _scopes).TryGetValue(sessionId, out scope);
 
     /// <summary>
     /// 跳转获取 — 插件通过 (sessionId, entityId) 获取强类型 Entity
     /// 会话不存在或 Entity 不属于该会话均返回 null，保证跨会话隔离
     /// </summary>
     public static T? Resolve<T>(ObjectId sessionId, ObjectId entityId) where T : Entity {
-        if (!_scopes.TryGetValue(sessionId, out var scope))
+        if (!Volatile.Read(ref _scopes).TryGetValue(sessionId, out var scope))
             return null;
         return scope.Resolve<T>(entityId);
     }
@@ -43,28 +50,29 @@ public static class SessionRouter {
     /// <summary>跳转获取 — 不转换类型</summary>
     public static bool TryResolve(ObjectId sessionId, ObjectId entityId, [NotNullWhen(true)] out Entity? entity) {
         entity = null;
-        return _scopes.TryGetValue(sessionId, out var scope) && scope.TryGet(entityId, out entity);
+        return Volatile.Read(ref _scopes).TryGetValue(sessionId, out var scope) && scope.TryGet(entityId, out entity);
     }
 
     /// <summary>获取所有会话作用域的快照拷贝</summary>
-    public static SessionScope[] GetAllScopes() => _scopes.Values.ToArray();
+    public static SessionScope[] GetAllScopes() => Volatile.Read(ref _scopes).Values.ToArray();
 
     /// <summary>
     /// 移除会话作用域 — DisposeAsync 其所有 Entity，返回是否移除成功
     /// </summary>
     public static async Task<bool> RemoveScopeAsync(ObjectId sessionId) {
-        if (!_scopes.TryRemove(sessionId, out var scope))
+        if (!Volatile.Read(ref _scopes).TryGetValue(sessionId, out var scope))
             return false;
+        ImmutableInterlocked.Update(ref _scopes, d => d.Remove(sessionId));
         await scope.DisposeAsync().ConfigureAwait(false);
         return true;
     }
 
     /// <summary>清空所有会话作用域（测试用）— DisposeAsync 每个作用域的所有 Entity</summary>
     public static async Task ClearAsync() {
-        foreach (var scope in _scopes.Values) {
+        foreach (var scope in Volatile.Read(ref _scopes).Values) {
             try { await scope.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { _ = ex; }
         }
-        _scopes.Clear();
+        Volatile.Write(ref _scopes, ImmutableDictionary<ObjectId, SessionScope>.Empty);
     }
 
     /// <summary>

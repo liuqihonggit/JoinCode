@@ -6,7 +6,7 @@ namespace Core.Utils;
 /// 后台扫描线程定时检测持有/等待超时并告警。
 /// </summary>
 public static class LockRegistry {
-    private static readonly ConcurrentDictionary<int, LockInfo> _locks = new();
+    private static ImmutableDictionary<int, LockInfo> _locks = ImmutableDictionary<int, LockInfo>.Empty;
     private static int _nextId;
 
     private static TimeSpan _waitTimeoutThreshold = TimeSpan.FromSeconds(30);
@@ -88,7 +88,7 @@ public static class LockRegistry {
     /// </summary>
     internal static int Register(string name) {
         var id = Interlocked.Increment(ref _nextId);
-        _locks[id] = new LockInfo { Id = id, Name = name };
+        ImmutableInterlocked.Update(ref _locks, d => d.SetItem(id, new LockInfo { Id = id, Name = name }));
         EnsureScanStarted();
         if (IsEnabled)
             Emit($"[LOCK-CREATED] 锁 '{name}' (#{id}) 创建。");
@@ -99,7 +99,8 @@ public static class LockRegistry {
     /// 注销锁实例（Dispose 时调用）。
     /// </summary>
     internal static void Unregister(int id) {
-        if (!_locks.TryRemove(id, out var info)) return;
+        if (!Volatile.Read(ref _locks).TryGetValue(id, out var info)) return;
+        ImmutableInterlocked.Update(ref _locks, d => d.Remove(id));
         if (info.HoldingFlowId != 0) {
             var acquiredTicks = info.AcquiredTicks;
             var heldFor = acquiredTicks != 0
@@ -121,13 +122,14 @@ public static class LockRegistry {
     /// </summary>
     internal static void OnWaitStart(int id, string name) {
         if (!IsEnabled) return;
-        if (_locks.TryGetValue(id, out var info)) {
+        var snapshot = Volatile.Read(ref _locks);
+        if (snapshot.TryGetValue(id, out var info)) {
             info.WaitingFlowId = ResolveFlowId();
             info.WaitStartedTicks = DateTimeOffset.UtcNow.Ticks;
             info.WaitStack = CaptureStackTrace(skipFrames: 3);
             Emit($"[LOCK-WAIT-START] 锁 '{name}' (#{id}) 流 {ResolveFlowId()} 开始等待。");
             var currentFlowId = ResolveFlowId();
-            foreach (var other in _locks.Values) {
+            foreach (var other in snapshot.Values) {
                 if (other.HoldingFlowId == currentFlowId && other.Id > id)
                     Emit(
                         $"[LOCK-ORDER-VIOLATION] 锁顺序违反: 流 {currentFlowId} " +
@@ -144,7 +146,7 @@ public static class LockRegistry {
     /// 清除等待标记（未获取到锁时调用，如超时/取消）。不记录持有。
     /// </summary>
     internal static void OnWaitEnd(int id, string name) {
-        if (_locks.TryGetValue(id, out var info)) {
+        if (Volatile.Read(ref _locks).TryGetValue(id, out var info)) {
             var waitTicks = info.WaitStartedTicks;
             var waited = waitTicks != 0
                 ? TimeSpan.FromTicks(DateTimeOffset.UtcNow.Ticks - waitTicks)
@@ -176,7 +178,7 @@ public static class LockRegistry {
     /// </summary>
     internal static void OnAcquired(int id, string name) {
         if (!IsEnabled) return;
-        if (_locks.TryGetValue(id, out var info)) {
+        if (Volatile.Read(ref _locks).TryGetValue(id, out var info)) {
             var waitTicks = info.WaitStartedTicks;
             var waited = waitTicks != 0
                 ? TimeSpan.FromTicks(DateTimeOffset.UtcNow.Ticks - waitTicks)
@@ -203,7 +205,7 @@ public static class LockRegistry {
     /// 记录锁释放。
     /// </summary>
     internal static void OnReleased(int id, string name) {
-        if (_locks.TryGetValue(id, out var info)) {
+        if (Volatile.Read(ref _locks).TryGetValue(id, out var info)) {
             var acquiredTicks = info.AcquiredTicks;
             var heldFor = acquiredTicks != 0
                 ? TimeSpan.FromTicks(DateTimeOffset.UtcNow.Ticks - acquiredTicks)
@@ -264,8 +266,9 @@ public static class LockRegistry {
     public static string DumpAll() {
         var sb = new StringBuilder(512);
         var now = DateTimeOffset.UtcNow;
-        sb.Append($"[LOCK-DUMP] 共 {_locks.Count} 把锁，时间 {now:HH:mm:ss.fff}\n");
-        foreach (var info in _locks.Values.OrderBy(x => x.Id)) {
+        var snapshot = Volatile.Read(ref _locks);
+        sb.Append($"[LOCK-DUMP] 共 {snapshot.Count} 把锁，时间 {now:HH:mm:ss.fff}\n");
+        foreach (var info in snapshot.Values.OrderBy(x => x.Id)) {
             string status;
             if (info.HoldingFlowId != 0) {
                 var acquiredTicks = info.AcquiredTicks;
@@ -335,7 +338,7 @@ public static class LockRegistry {
     private static void ScanHolds() {
         if (!IsEnabled) return;
         var now = DateTimeOffset.UtcNow;
-        foreach (var info in _locks.Values) {
+        foreach (var info in Volatile.Read(ref _locks).Values) {
             var holdingFlowId = info.HoldingFlowId;
             var acquiredTicks = info.AcquiredTicks;
             var held = acquiredTicks != 0 ? TimeSpan.FromTicks(now.Ticks - acquiredTicks) : TimeSpan.Zero;
@@ -394,7 +397,7 @@ public static class LockRegistry {
     private static Dictionary<int, (int holderFlowId, LockInfo lk)> BuildWaitEdges(bool exemptThreshold) {
         var now = DateTimeOffset.UtcNow;
         var edges = new Dictionary<int, (int holderFlowId, LockInfo lk)>();
-        foreach (var info in _locks.Values) {
+        foreach (var info in Volatile.Read(ref _locks).Values) {
             var waitingFlowId = info.WaitingFlowId;
             var holdingFlowId = info.HoldingFlowId;
             if (waitingFlowId == 0 || holdingFlowId == 0)
@@ -449,7 +452,7 @@ public static class LockRegistry {
     /// </summary>
     internal static void ClearForTesting() {
         StopBackgroundScan();
-        _locks.Clear();
+        Volatile.Write(ref _locks, ImmutableDictionary<int, LockInfo>.Empty);
         Interlocked.Exchange(ref _nextId, 0);
         Interlocked.Exchange(ref _nextFlowId, 0);
         Interlocked.Exchange(ref _deadlockDetected, 0);
@@ -460,7 +463,7 @@ public static class LockRegistry {
     /// <summary>
     /// 获取当前注册的锁数量（诊断/测试用）。
     /// </summary>
-    public static int Count => _locks.Count;
+    public static int Count => Volatile.Read(ref _locks).Count;
 
     private static string? _lastDeadlockReport;
     private static int _deadlockDetected;

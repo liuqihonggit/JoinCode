@@ -114,7 +114,7 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
         }
 
         var tcs = TcsFactory.Create();
-        await SendAsync(new StartWatchingCmd(pluginDirectory, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new StartWatchingCmd(pluginDirectory, ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -127,7 +127,7 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
         }
 
         var tcs = TcsFactory.Create();
-        await SendAsync(new StopWatchingCmd(ct, tcs), ct).ConfigureAwait(false);
+        Tell(new StopWatchingCmd(ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -148,7 +148,7 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
     /// </summary>
     internal async Task ReloadPluginAsync(string pluginName, string filePath, ReloadReason reason) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new ReloadPluginAndWaitCmd(pluginName, filePath, reason, tcs), CancellationToken.None).ConfigureAwait(false);
+        Tell(new ReloadPluginAndWaitCmd(pluginName, filePath, reason, tcs));
         await AskAwait(tcs, CancellationToken.None).ConfigureAwait(false);
     }
 
@@ -156,7 +156,11 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
     /// <summary>
     /// Actor Consumer — 线程独占 _watcher 和重载逻辑，串行处理命令，无需锁。
     /// </summary>
-    protected override async ValueTask HandleAsync(IPluginReloadCommand command, CancellationToken ct) {
+    protected override void Handle(IPluginReloadCommand command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(IPluginReloadCommand command, CancellationToken ct) {
         switch (command) {
             case StartWatchingCmd cmd: {
                 if (_isWatchingInt != 0) {

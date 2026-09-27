@@ -297,7 +297,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         // 添加到历史记录 — 通过 Actor 串行化，消除显式锁 — TASK001
         var exitReply = new TaskCompletionSource();
-        await _actor.SendAsync(new ExitPlanModeCmd(plan, exitReply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new ExitPlanModeCmd(plan, exitReply));
         await _actor.AskReplyAsync(exitReply, cancellationToken).ConfigureAwait(false);
 
 
@@ -664,7 +664,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         int limit = 10,
         CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<List<PlanState>>();
-        await _actor.SendAsync(new GetPlanHistoryCmd(limit, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new GetPlanHistoryCmd(limit, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -850,7 +850,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override ValueTask HandleAsync(PlanModeCommand cmd, CancellationToken ct) {
+        protected override void Handle(PlanModeCommand cmd, CancellationToken ct) {
             try {
                 switch (cmd) {
                     case ExitPlanModeCmd(var plan, var reply):
@@ -868,7 +868,6 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
                     case GetPlanHistoryCmd(_, var reply): reply.SetException(ex); break;
                 }
             }
-            return ValueTask.CompletedTask;
         }
     }
 }

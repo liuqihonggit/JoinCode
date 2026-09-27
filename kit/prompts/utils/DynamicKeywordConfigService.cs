@@ -96,9 +96,12 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
 
     private async Task ReloadOnFileChangeAsync() {
         var key = new IdempotencyKey("reload-config", Guid.NewGuid().ToString());
-        var cmd = new ReloadConfigCmd(key);
-        await _actor.SendAsync(cmd, CancellationToken.None).ConfigureAwait(false);
-        await cmd.ReplyChannel.Reader.ReadAsync(CancellationToken.None).ConfigureAwait(false);
+        var tcs = new TaskCompletionSource<Unit>();
+        ReloadConfigCmd? cmd = null;
+        cmd = new ReloadConfigCmd(key, tcs.SetResult, tcs.SetException,
+            ActorBase<ReloadConfigCmd, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _actor.TrySend(cmd); }));
+        _actor.Tell(cmd);
+        await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>
@@ -139,12 +142,14 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
             IdempotencyStore = new IdempotencyStore();
         }
 
-        protected override async ValueTask HandleAsync(ReloadConfigCmd cmd, CancellationToken ct) {
+        protected override void Handle(ReloadConfigCmd cmd, CancellationToken ct) => _ = HandleAsyncImpl(cmd, ct);
+
+        private async ValueTask HandleAsyncImpl(ReloadConfigCmd cmd, CancellationToken ct) {
             try {
                 await _owner.ReloadConfigInternalAsync().ConfigureAwait(false);
                 IdempotencyStore?.TryRegister(cmd.IdempotencyKey, Unit.Value);
-                cmd.ReplyChannel.Writer.TryWrite(Unit.Value);
-            } catch (OperationCanceledException) { throw; } catch (Exception) { cmd.ReplyChannel.Writer.TryWrite(default); }
+                cmd.OnSuccess(Unit.Value);
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.OnFailure(ex); }
         }
 
         protected override void OnConsumerError(Exception ex)
@@ -209,14 +214,16 @@ internal sealed partial class DynamicKeywordConfigJsonContext : JsonSerializerCo
 /// 配置重载命令 — 对应 ReloadOnFileChangeAsync，由 ReloadActor Consumer 串行处理。
 /// <para>TASK001: AsyncLock+文件 I/O 迁移到 Actor 邮箱管道，消除显式锁。</para>
 /// </summary>
-public sealed record ReloadConfigCmd(IdempotencyKey IdempotencyKey) : IRequestCommand {
-    /// <summary>回复通道 — Consumer 处理完成后写入结果，调用方通过 Reader.ReadAsync 拉取</summary>
-    public Channel<Unit> ReplyChannel { get; } = Channel.CreateUnbounded<Unit>();
-
-    /// <summary>从幂等缓存恢复结果 — 命中缓存时写入 ReplyChannel 并返回 true</summary>
+public sealed record ReloadConfigCmd(
+    IdempotencyKey IdempotencyKey,
+    Action<Unit> OnSuccess,
+    Action<Exception> OnFailure,
+    Action<BackpressureSignal> OnBackpressure
+) : IRequestCommand<Unit> {
+    /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
     public bool TryRestoreFromCache(IIdempotencyStore store) {
         if (store.TryGetResult<Unit>(IdempotencyKey, out var cached)) {
-            ReplyChannel.Writer.TryWrite(cached);
+            OnSuccess(cached);
             return true;
         }
         return false;

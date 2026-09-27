@@ -130,7 +130,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
             var (newContent, result) = await transform(bytes, ct).ConfigureAwait(false);
             return (newContent, (object?)result);
         };
-        await _editActor.SendAsync(new EditFileCmd(path, wrapped, reply), cancellationToken).ConfigureAwait(false);
+        _editActor.Tell(new EditFileCmd(path, wrapped, reply));
         return (T)(await _editActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false))!;
     }
 
@@ -376,7 +376,11 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
         public async Task<object?> AskReplyAsync(TaskCompletionSource<object?> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(EditFileCmd cmd, CancellationToken ct) {
+        protected override void Handle(EditFileCmd cmd, CancellationToken ct) {
+            _ = HandleAsyncImpl(cmd, ct);
+        }
+
+        private async ValueTask HandleAsyncImpl(EditFileCmd cmd, CancellationToken ct) {
             try {
                 var bytes = await _owner.ReadAllBytesAsync(cmd.Path, ct).ConfigureAwait(false);
                 var (newContent, result) = await cmd.Transform(bytes, ct).ConfigureAwait(false);

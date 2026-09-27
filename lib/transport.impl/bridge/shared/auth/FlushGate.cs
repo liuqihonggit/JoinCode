@@ -93,7 +93,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     /// </summary>
     public async Task<int> GetCurrentBatchSizeAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-        await SendAsync(new FlushGetSizeCmd<T>(tcs), ct).ConfigureAwait(false);
+        Tell(new FlushGetSizeCmd<T>(tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -103,7 +103,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     public async Task StartAsync(CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
         var tcs = TcsFactory.Create();
-        await SendAsync(new FlushStartCmd<T>(tcs), ct).ConfigureAwait(false);
+        Tell(new FlushStartCmd<T>(tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -112,7 +112,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     /// </summary>
     public async Task StopAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new FlushStopCmd<T>(tcs), ct).ConfigureAwait(false);
+        Tell(new FlushStopCmd<T>(tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -123,7 +123,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     public async Task AddAsync(T item, CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
         var tcs = TcsFactory.Create();
-        await SendAsync(new FlushAddCmd<T>(item, tcs), ct).ConfigureAwait(false);
+        Tell(new FlushAddCmd<T>(item, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -132,7 +132,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     /// </summary>
     public async Task FlushAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new FlushManualCmd<T>(tcs), ct).ConfigureAwait(false);
+        Tell(new FlushManualCmd<T>(tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -141,7 +141,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     /// </summary>
     /// <param name="command">待处理命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override async ValueTask HandleAsync(IFlushGateCommand<T> command, CancellationToken ct) {
+    protected override void Handle(IFlushGateCommand<T> command, CancellationToken ct) {
         switch (command) {
             case FlushStartCmd<T> start:
             if (_isRunning) {

@@ -49,7 +49,11 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
     /// <summary>
     /// 命令分发 — 由 Consumer 线程串行调用,所有状态访问无需锁。
     /// </summary>
-    protected override ValueTask HandleAsync(FileWatcherCommand cmd, CancellationToken ct) {
+    protected override void Handle(FileWatcherCommand cmd, CancellationToken ct) {
+        _ = HandleAsyncImpl(cmd, ct);
+    }
+
+    private ValueTask HandleAsyncImpl(FileWatcherCommand cmd, CancellationToken ct) {
         return cmd switch {
             FileChangedCmd c => HandleFileChangedCoreAsync(c, ct),
             FileRenamedCmd c => HandleFileRenamedAsync(c.OldPath, c.NewPath, c.Timestamp, ct),

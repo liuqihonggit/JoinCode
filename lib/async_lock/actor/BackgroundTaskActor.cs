@@ -35,7 +35,7 @@ public sealed class BackgroundTaskFailedEventArgs : EventArgs {
 /// <summary>
 /// 后台任务监督 Actor — 接收后台任务命令,执行任务,异常不吞没。
 /// <para>替代 fire-and-forget + WaitAsync(10s) 模式,异常可观测、可监督。</para>
-/// <para>通过 <see cref="ActorBase{TCommand,TOut}.SendAsync"/> 发送命令(Tell 模式,射后不理)。</para>
+/// <para>通过 <see cref="ActorBase{TCommand,TOut}.Tell"/> 发送命令(Tell 模式,射后不理)。</para>
 /// <para>任务失败时通过 <see cref="TaskFailed"/> 事件通知外部,不吞没异常。</para>
 /// <para>有界输入通道(默认 256),通道满时背压等待,防止任务堆积 OOM。</para>
 /// <para>parallel 模式:任务在 ThreadPool 并行执行,不阻塞命令队列(适合长任务如后台代理运行)。</para>
@@ -61,15 +61,10 @@ public sealed class BackgroundTaskActor : ActorBase<BackgroundTaskCommand, Backg
     }
 
     /// <summary>
-    /// 处理后台任务命令 — 执行任务工厂,异常不吞没。
-    /// <para>并行模式:Task.Run 启动,不阻塞命令队列;串行模式:直接 await,阻塞队列直到完成。</para>
+    /// 处理后台任务命令 — fire-and-forget 启动任务,不阻塞命令队列。
     /// </summary>
-    protected override async ValueTask HandleAsync(BackgroundTaskCommand command, CancellationToken ct) {
-        if (_parallel) {
-            _ = Task.Run(() => ExecuteTaskAsync(command, ct), CancellationToken.None);
-        } else {
-            await ExecuteTaskAsync(command, ct).ConfigureAwait(false);
-        }
+    protected override void Handle(BackgroundTaskCommand command, CancellationToken ct) {
+        _ = ExecuteTaskAsync(command, ct);
     }
 
     private async Task ExecuteTaskAsync(BackgroundTaskCommand command, CancellationToken ct) {

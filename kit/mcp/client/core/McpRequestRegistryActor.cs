@@ -34,12 +34,11 @@ public sealed class McpRequestRegistryActor : ActorBase<McpRequestRegistryActor.
     /// <summary>处理命令 — 由 Actor 单消费者线程调用,根据命令类型操作 pending 字典。</summary>
     /// <param name="command">待处理命令。</param>
     /// <param name="ct">取消令牌。</param>
-    /// <returns>表示异步操作的值任务。</returns>
-    protected override ValueTask HandleAsync(IRequestCommand command, CancellationToken ct) {
+    protected override void Handle(IRequestCommand command, CancellationToken ct) {
         switch (command) {
             case RegisterCommand reg:
             _pending[reg.RequestId] = reg.Tcs;
-            return default;
+            break;
 
             case CompleteCommand comp:
             if (_pending.Remove(comp.RequestId, out var pendingTcs)) {
@@ -48,36 +47,44 @@ public sealed class McpRequestRegistryActor : ActorBase<McpRequestRegistryActor.
             } else {
                 _logger?.LogWarning("[MCP] 收到响应但无匹配 pending request: id={Id}", comp.RequestId);
             }
-            return default;
+            break;
 
             case RemoveCommand rem:
             _pending.Remove(rem.RequestId);
-            return default;
+            break;
 
             case CancelAllCommand cancel:
             foreach (var tcs in _pending.Values)
                 tcs.TrySetCanceled(cancel.CancellationToken);
             _pending.Clear();
-            return default;
+            break;
 
             default:
-            return default;
+            break;
         }
     }
 
     /// <summary>注册 pending request — 由 SendRequestAsync 调用</summary>
-    public ValueTask RegisterAsync(int requestId, TaskCompletionSource<JsonRpcResponse> tcs, CancellationToken ct = default)
-        => SendAsync(new RegisterCommand(requestId, tcs), ct);
+    public ValueTask RegisterAsync(int requestId, TaskCompletionSource<JsonRpcResponse> tcs, CancellationToken ct = default) {
+        Tell(new RegisterCommand(requestId, tcs));
+        return default;
+    }
 
     /// <summary>完成 pending request — 由 ProcessResponseAsync 调用</summary>
-    public ValueTask CompleteAsync(int requestId, JsonRpcResponse response, CancellationToken ct = default)
-        => SendAsync(new CompleteCommand(requestId, response), ct);
+    public ValueTask CompleteAsync(int requestId, JsonRpcResponse response, CancellationToken ct = default) {
+        Tell(new CompleteCommand(requestId, response));
+        return default;
+    }
 
     /// <summary>移除 pending request — 由 SendRequestAsync catch 块调用</summary>
-    public ValueTask RemoveAsync(int requestId, CancellationToken ct = default)
-        => SendAsync(new RemoveCommand(requestId), ct);
+    public ValueTask RemoveAsync(int requestId, CancellationToken ct = default) {
+        Tell(new RemoveCommand(requestId));
+        return default;
+    }
 
     /// <summary>取消所有 pending requests — 由 CancelPendingRequestsAsync 调用</summary>
-    public ValueTask CancelAllAsync(CancellationToken cancellationToken = default)
-        => SendAsync(new CancelAllCommand(cancellationToken), cancellationToken);
+    public ValueTask CancelAllAsync(CancellationToken cancellationToken = default) {
+        Tell(new CancelAllCommand(cancellationToken));
+        return default;
+    }
 }

@@ -76,7 +76,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     /// <returns>表示异步操作的任务</returns>
     public async Task AllocateBudgetAsync(long amount, CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new AllocateBudgetCmd(amount, tcs), ct).ConfigureAwait(false);
+        Tell(new AllocateBudgetCmd(amount, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -90,7 +90,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     /// <returns>表示异步操作的任务</returns>
     public async Task ConsumeTokensAsync(long amount, string reason, string? toolName = null, CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new ConsumeTokensCmd(amount, reason, toolName, tcs), ct).ConfigureAwait(false);
+        Tell(new ConsumeTokensCmd(amount, reason, toolName, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -101,7 +101,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     /// <returns>剩余 Token 数；总预算为 0 时返回 long.MaxValue</returns>
     public async Task<long> GetRemainingBudgetAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create<long>();
-        await SendAsync(new GetRemainingBudgetCmd(tcs), ct).ConfigureAwait(false);
+        Tell(new GetRemainingBudgetCmd(tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -116,7 +116,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
             throw new ArgumentOutOfRangeException(nameof(threshold), "[BRN011] 阈值必须在0.0到1.0之间");
         }
         var tcs = TcsFactory.Create();
-        await SendAsync(new SetBudgetAlertThresholdCmd(threshold, tcs), ct).ConfigureAwait(false);
+        Tell(new SetBudgetAlertThresholdCmd(threshold, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -127,7 +127,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     /// <returns>表示异步操作的任务</returns>
     public async Task ResetBudgetAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new ResetBudgetCmd(tcs), ct).ConfigureAwait(false);
+        Tell(new ResetBudgetCmd(tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -137,7 +137,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     /// <param name="command">命令消息</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的值任务</returns>
-    protected override ValueTask HandleAsync(ITokenBudgetCommand command, CancellationToken ct) {
+    protected override void Handle(ITokenBudgetCommand command, CancellationToken ct) {
         switch (command) {
             case AllocateBudgetCmd alloc:
             _budget.TotalBudget += alloc.Amount;
@@ -177,7 +177,6 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
             reset.Tcs.TrySetResult();
             break;
         }
-        return ValueTask.CompletedTask;
     }
 
     /// <summary>

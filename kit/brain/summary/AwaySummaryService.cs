@@ -91,7 +91,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// <returns>表示异步操作的任务。</returns>
     public async Task MarkAwayAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new MarkAwayCmd(tcs), ct).ConfigureAwait(false);
+        Tell(new MarkAwayCmd(tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -102,7 +102,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// <returns>包含汇总结果的 <see cref="AwaySummaryResult"/> 任务。</returns>
     public async Task<AwaySummaryResult> GenerateSummaryAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<AwaySummaryResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        await SendAsync(new GenerateSummaryCmd(tcs), ct).ConfigureAwait(false);
+        Tell(new GenerateSummaryCmd(tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -115,7 +115,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     public async Task TrackEventAsync(AwayEvent awayEvent, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(awayEvent);
         if (Volatile.Read(ref _awaySinceTicks) == 0) return;
-        await SendAsync(new TrackEventCmd(awayEvent), ct).ConfigureAwait(false);
+        Tell(new TrackEventCmd(awayEvent));
     }
 
     /// <summary>
@@ -124,7 +124,8 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// <param name="command">要处理的命令。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>表示异步操作的值任务。</returns>
-    protected override async ValueTask HandleAsync(IAwaySummaryCommand command, CancellationToken ct) {
+    protected override void Handle(IAwaySummaryCommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+    private async ValueTask HandleAsyncImpl(IAwaySummaryCommand command, CancellationToken ct) {
         switch (command) {
             case MarkAwayCmd mark: {
                 var now = _clock.GetUtcNow();

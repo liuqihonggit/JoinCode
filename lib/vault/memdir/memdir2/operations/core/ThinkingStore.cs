@@ -102,9 +102,12 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
 
     private async Task SaveAsync(CancellationToken cancellationToken) {
         var key = new IdempotencyKey("thinking-save", Guid.NewGuid().ToString());
-        var cmd = new ThinkingSaveCmd(key);
-        await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
-        await cmd.ReplyChannel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+        var tcs = new TaskCompletionSource<Unit>();
+        ThinkingSaveCmd? cmd = null;
+        cmd = new ThinkingSaveCmd(key, tcs.SetResult, tcs.SetException,
+            ActorBase<ThinkingStoreCommand, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _actor.TrySend(cmd); }));
+        _actor.Tell(cmd);
+        await tcs.Task.ConfigureAwait(false);
     }
 
     private async Task SaveInternalAsync(CancellationToken cancellationToken) {
@@ -165,12 +168,14 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             IdempotencyStore = new IdempotencyStore();
         }
 
-        protected override async ValueTask HandleAsync(ThinkingStoreCommand cmd, CancellationToken ct) {
+        protected override void Handle(ThinkingStoreCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+
+        private async ValueTask HandleAsyncImpl(ThinkingStoreCommand cmd, CancellationToken ct) {
             switch (cmd) {
                 case ThinkingSaveCmd saveCmd:
                 await _owner.SaveInternalAsync(ct).ConfigureAwait(false);
                 IdempotencyStore?.TryRegister(saveCmd.IdempotencyKey, Unit.Value);
-                saveCmd.ReplyChannel.Writer.TryWrite(Unit.Value);
+                saveCmd.OnSuccess(Unit.Value);
                 break;
             }
         }

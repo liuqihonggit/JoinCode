@@ -77,7 +77,7 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable {
         }
 
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new WriteStdinCmd(data, reply), ct).ConfigureAwait(false);
+        _actor.Tell(new WriteStdinCmd(data, reply));
         await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
@@ -191,7 +191,9 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable {
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(WriteStdinCmd cmd, CancellationToken ct) {
+        protected override void Handle(WriteStdinCmd cmd, CancellationToken ct) => _ = HandleAsyncImpl(cmd, ct);
+
+        private async ValueTask HandleAsyncImpl(WriteStdinCmd cmd, CancellationToken ct) {
             try {
                 await _owner.WriteStdinInternalAsync(cmd.Data, ct).ConfigureAwait(false);
                 cmd.Reply.SetResult();

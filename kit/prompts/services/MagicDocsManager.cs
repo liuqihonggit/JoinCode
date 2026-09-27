@@ -65,7 +65,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         if (context.QuerySource != "repl_main_thread") return;
 
         var reply = new TaskCompletionSource<IReadOnlyList<MagicDocEntry>>();
-        await _actor.SendAsync(new PostSamplingCmd(reply), context.CancellationToken).ConfigureAwait(false);
+        _actor.Tell(new PostSamplingCmd(reply));
         var docsToUpdate = await _actor.AskReplyAsync(reply, context.CancellationToken).ConfigureAwait(false);
 
         if (docsToUpdate.Count == 0) return;
@@ -116,7 +116,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
 
     private async Task RemoveTrackedDocAsync(string filePath) {
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new RemoveTrackedCmd(filePath, reply)).ConfigureAwait(false);
+        _actor.Tell(new RemoveTrackedCmd(filePath, reply));
         await _actor.AskReplyAsync(reply).ConfigureAwait(false);
     }
 
@@ -207,7 +207,9 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(MagicDocsCommand cmd, CancellationToken ct) {
+        protected override void Handle(MagicDocsCommand cmd, CancellationToken ct) => _ = HandleAsyncImpl(cmd, ct);
+
+        private async ValueTask HandleAsyncImpl(MagicDocsCommand cmd, CancellationToken ct) {
             try {
                 switch (cmd) {
                     case OnFileReadCmd(var filePath, var detection, var reply):

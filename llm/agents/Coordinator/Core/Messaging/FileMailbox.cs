@@ -35,18 +35,6 @@ public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMail
     }
 
     /// <summary>
-    /// 注册 Agent 邮箱 — fire-and-forget 异步注册。
-    /// </summary>
-    public void RegisterAgent(string agentId, string? sessionId = null)
-        => _ = RegisterAgentAsync(agentId, sessionId);
-
-    /// <summary>
-    /// 注销 Agent 邮箱 — fire-and-forget 异步注销。
-    /// </summary>
-    public void UnregisterAgent(string agentId)
-        => _ = UnregisterAgentAsync(agentId);
-
-    /// <summary>
     /// 发送消息 — tell 异步，本地投递 + 文件持久化。
     /// <para>用 MessageId 去重：重复消息只投递一次。</para>
     /// </summary>
@@ -56,7 +44,7 @@ public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMail
             return false;
         }
 
-        await TellAsync(agentId, message, cancellationToken).ConfigureAwait(false);
+        Tell(agentId, message);
         return true;
     }
 
@@ -64,7 +52,7 @@ public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMail
     /// 广播消息到所有已注册 Agent。
     /// </summary>
     public async Task BroadcastAsync(CoordinatorMessage message, CancellationToken cancellationToken = default)
-        => await TellBroadcastAsync(message, message.FromAgentId, cancellationToken).ConfigureAwait(false);
+        => TellBroadcast(message, message.FromAgentId);
 
     /// <summary>
     /// 发送命令处理 — 本地投递 + 文件持久化。

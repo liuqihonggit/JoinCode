@@ -207,7 +207,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string agentId,
         CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
-        await _actor.SendAsync(new AddMemberCmd(teamId, agentId, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AddMemberCmd(teamId, agentId, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -245,7 +245,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string agentId,
         CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
-        await _actor.SendAsync(new RemoveMemberCmd(teamId, agentId, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new RemoveMemberCmd(teamId, agentId, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -304,7 +304,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? messageType = null,
         CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
-        await _actor.SendAsync(new SendMsgCmd(teamId, senderId, content, messageType, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new SendMsgCmd(teamId, senderId, content, messageType, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -357,7 +357,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? messageType = null,
         CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
-        await _actor.SendAsync(new SendDirectMsgCmd(targetAgentId, senderId, content, messageType, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new SendDirectMsgCmd(targetAgentId, senderId, content, messageType, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -410,7 +410,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         int limit = 50,
         CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<IReadOnlyList<TeamMessage>>();
-        await _actor.SendAsync(new GetMsgsCmd(teamId, limit, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new GetMsgsCmd(teamId, limit, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -438,7 +438,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? messageType = null,
         CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
-        await _actor.SendAsync(new BroadcastMsgCmd(teamId, senderId, content, messageType, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new BroadcastMsgCmd(teamId, senderId, content, messageType, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -526,7 +526,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         bool isActive,
         CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
-        await _actor.SendAsync(new SetMemberActiveCmd(teamId, agentId, isActive, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new SetMemberActiveCmd(teamId, agentId, isActive, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -584,7 +584,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         AccessLevel accessLevel = AccessLevel.Read,
         CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
-        await _actor.SendAsync(new AddAllowedPathCmd(teamId, path, accessLevel, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AddAllowedPathCmd(teamId, path, accessLevel, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -724,7 +724,9 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(TeamCommand cmd, CancellationToken ct) {
+        protected override void Handle(TeamCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+
+        private async ValueTask HandleAsyncImpl(TeamCommand cmd, CancellationToken ct) {
             switch (cmd) {
                 case AddMemberCmd(var teamId, var agentId, var reply):
                 reply.SetResult(await _owner.AddMemberInternalAsync(teamId, agentId, ct).ConfigureAwait(false));

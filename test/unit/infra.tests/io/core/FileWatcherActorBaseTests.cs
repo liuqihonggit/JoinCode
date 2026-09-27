@@ -10,7 +10,7 @@ public class FileWatcherActorBaseTests {
         var dir = "/test";
         fs.CreateDirectory(dir);
         await using var actor = new TestFileWatcherActor(fs);
-        await actor.SendAsync(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
+        actor.Tell(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
         await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
         await fs.WriteAllText($"{dir}/a.txt", "hello");
@@ -26,7 +26,7 @@ public class FileWatcherActorBaseTests {
         var dir = "/test";
         fs.CreateDirectory(dir);
         await using var actor = new TestFileWatcherActor(fs);
-        await actor.SendAsync(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
+        actor.Tell(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
         await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
         actor.MarkInternalWrite($"{dir}/b.txt");
@@ -42,7 +42,7 @@ public class FileWatcherActorBaseTests {
     public async Task CustomCommand_HandleCustomCommandAsyncInvoked() {
         var fs = new InMemoryFileSystem();
         await using var actor = new TestFileWatcherActor(fs);
-        await actor.SendAsync(new TestCustomCmd("test-data"));
+        actor.Tell(new TestCustomCmd("test-data"));
 
         var found = await WaitForAsync(
             () => actor.CustomCommands.Contains("test-data"),
@@ -56,9 +56,9 @@ public class FileWatcherActorBaseTests {
         var dir = "/test";
         fs.CreateDirectory(dir);
         await using var actor = new TestFileWatcherActor(fs);
-        await actor.SendAsync(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
+        actor.Tell(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
         await WaitForActorReadyAsync(actor).ConfigureAwait(true);
-        await actor.SendAsync(new FileWatcherStopCmd());
+        actor.Tell(new FileWatcherStopCmd());
         await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
         await fs.WriteAllText($"{dir}/c.txt", "after-stop");
@@ -71,7 +71,7 @@ public class FileWatcherActorBaseTests {
 
     private static async Task WaitForActorReadyAsync(TestFileWatcherActor actor) {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await actor.SendAsync(new ReadyCmd(tcs)).ConfigureAwait(true);
+        actor.Tell(new ReadyCmd(tcs));
         for (var i = 0; i < 16; i++) {
             if (tcs.Task.IsCompleted) return;
             var winner = await Task.WhenAny(tcs.Task, Task.Delay(500)).ConfigureAwait(true);

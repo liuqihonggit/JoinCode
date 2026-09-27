@@ -61,7 +61,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
     /// </summary>
     public async Task<SandboxInfo> EnterAsync(SandboxOptions options, CancellationToken ct) {
         var tcs = TcsFactory.Create<SandboxInfo>();
-        await SendAsync(new EnterSandboxCmd(options, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new EnterSandboxCmd(options, ct, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -70,7 +70,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
     /// </summary>
     public async Task ExitAsync(CancellationToken ct) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new ExitSandboxCmd(ct, tcs), ct).ConfigureAwait(false);
+        Tell(new ExitSandboxCmd(ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -79,11 +79,13 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
     /// </summary>
     public async Task SwitchAsync(SandboxType type, CancellationToken ct) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new SwitchProviderCmd(type, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new SwitchProviderCmd(type, ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
-    protected override async ValueTask HandleAsync(ISandboxCommand command, CancellationToken ct) {
+    protected override void Handle(ISandboxCommand command, CancellationToken ct) => _ = HandleAsyncImpl(command, ct);
+
+    private async ValueTask HandleAsyncImpl(ISandboxCommand command, CancellationToken ct) {
         switch (command) {
             case EnterSandboxCmd cmd: {
                 if (IsInSandbox) {

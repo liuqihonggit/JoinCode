@@ -34,20 +34,12 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
     }
 
     /// <summary>
-    /// 注册 Agent 邮箱 — fire-and-forget 异步注册，不阻塞调用方。
+    /// 注销 Agent 邮箱 — 清理去重记录 + 同步注销。
     /// </summary>
     /// <param name="agentId">Agent 标识</param>
-    /// <param name="sessionId">可选会话 ID</param>
-    public void RegisterAgent(string agentId, string? sessionId = null)
-        => _ = RegisterAgentAsync(agentId, sessionId);
-
-    /// <summary>
-    /// 注销 Agent 邮箱 — 清理去重记录 + fire-and-forget 异步注销。
-    /// </summary>
-    /// <param name="agentId">Agent 标识</param>
-    public void UnregisterAgent(string agentId) {
+    public new void UnregisterAgent(string agentId) {
         _dedup.Clear(agentId);
-        _ = UnregisterAgentAsync(agentId, CancellationToken.None);
+        base.UnregisterAgent(agentId);
     }
 
     /// <summary>
@@ -74,7 +66,7 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
     /// 广播消息到所有已注册 Agent（跳过发送者）。
     /// </summary>
     public async Task BroadcastAsync(CoordinatorMessage message, CancellationToken cancellationToken = default)
-        => await TellBroadcastAsync(message, message.FromAgentId, cancellationToken).ConfigureAwait(false);
+        => TellBroadcast(message, message.FromAgentId);
 
     /// <summary>
     /// 投递跨进程入站消息 — 只写入本地 Agent Channel，不持久化。

@@ -19,7 +19,7 @@ public sealed class ConsoleActor : ActorBase<ConsoleCommand, Unit> {
     /// <param name="command">要处理的 Console 命令</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步处理操作的任务</returns>
-    protected override ValueTask HandleAsync(ConsoleCommand command, CancellationToken ct) {
+    protected override void Handle(ConsoleCommand command, CancellationToken ct) {
         switch (command) {
             case WriteLineCmd(var text):
             if (text is null) _realOut.WriteLine();
@@ -76,7 +76,6 @@ public sealed class ConsoleActor : ActorBase<ConsoleCommand, Unit> {
             _realOut.Flush();
             break;
         }
-        return ValueTask.CompletedTask;
     }
 
     /// <summary>写入一行（经过 Actor 串行化）</summary>

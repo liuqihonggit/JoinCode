@@ -48,7 +48,7 @@ public sealed class FileWatcherIntegrationRegistry : ActorBase<FileWatcherRegist
     public async Task<bool> IsWatchingAsync(string repoId) {
         if (_disposed != 0) return false;
         var tcs = new TaskCompletionSource<bool>();
-        await SendAsync(new FileWatcherRegistryCommand.QueryIsWatching(repoId, tcs)).ConfigureAwait(false);
+        Tell(new FileWatcherRegistryCommand.QueryIsWatching(repoId, tcs));
         return await AskAwait(tcs).ConfigureAwait(false);
     }
 
@@ -58,21 +58,25 @@ public sealed class FileWatcherIntegrationRegistry : ActorBase<FileWatcherRegist
     public async Task<IReadOnlyList<string>> GetWatchingRepoIdsAsync() {
         if (_disposed != 0) return [];
         var tcs = new TaskCompletionSource<IReadOnlyList<string>>();
-        await SendAsync(new FileWatcherRegistryCommand.QueryWatchingRepoIds(tcs)).ConfigureAwait(false);
+        Tell(new FileWatcherRegistryCommand.QueryWatchingRepoIds(tcs));
         return await AskAwait(tcs).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 命令分发 — 由 Consumer 线程串行调用，所有状态访问无需锁
     /// </summary>
-    protected override ValueTask HandleAsync(FileWatcherRegistryCommand cmd, CancellationToken ct) {
-        return cmd switch {
+    protected override void Handle(FileWatcherRegistryCommand cmd, CancellationToken ct) {
+        _ = HandleAsyncImpl(cmd, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(FileWatcherRegistryCommand cmd, CancellationToken ct) {
+        await (cmd switch {
             FileWatcherRegistryCommand.RegisterWatcher c => HandleRegisterAsync(c),
             FileWatcherRegistryCommand.UnregisterWatcher c => HandleUnregisterAsync(c),
             FileWatcherRegistryCommand.QueryIsWatching c => HandleQueryIsWatching(c),
             FileWatcherRegistryCommand.QueryWatchingRepoIds c => HandleQueryWatchingRepoIds(c),
             _ => ValueTask.CompletedTask
-        };
+        }).ConfigureAwait(false);
     }
 
     private async ValueTask HandleRegisterAsync(FileWatcherRegistryCommand.RegisterWatcher cmd) {

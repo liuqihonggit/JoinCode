@@ -193,7 +193,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
 
         cancellationToken.ThrowIfCancellationRequested();
         var reply = new TaskCompletionSource<DailyLogEntry>();
-        await _actor.SendAsync(new AppendEntryCmd(content, category, relatedMemoryId, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AppendEntryCmd(content, category, relatedMemoryId, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -369,7 +369,9 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(AssistantDailyLogCommand cmd, CancellationToken ct) {
+        protected override void Handle(AssistantDailyLogCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+
+        private async ValueTask HandleAsyncImpl(AssistantDailyLogCommand cmd, CancellationToken ct) {
             switch (cmd) {
                 case AppendEntryCmd(var content, var category, var relatedMemoryId, var reply):
                 reply.SetResult(await _owner.AppendEntryInternalAsync(content, category, relatedMemoryId, ct).ConfigureAwait(false));

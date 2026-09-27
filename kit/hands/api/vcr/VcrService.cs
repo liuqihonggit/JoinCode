@@ -57,7 +57,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         }
 
         var reply = new TaskCompletionSource<VcrCassette>();
-        await _actor.SendAsync(new LoadCassetteCmd(cacheKey, name, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new LoadCassetteCmd(cacheKey, name, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -99,7 +99,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
 
         var filePath = GetCassettePath(cassette.Name, directory);
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new SaveCassetteCmd(filePath, cassette, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new SaveCassetteCmd(filePath, cassette, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -263,7 +263,8 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(VcrCommand cmd, CancellationToken ct) {
+        protected override void Handle(VcrCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        private async ValueTask HandleAsyncImpl(VcrCommand cmd, CancellationToken ct) {
             switch (cmd) {
                 case LoadCassetteCmd(var filePath, var name, var reply):
                 try {

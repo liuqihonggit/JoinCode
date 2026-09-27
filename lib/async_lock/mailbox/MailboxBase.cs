@@ -61,7 +61,7 @@ public sealed record AgentUnregisteredEvt<TMessage>(string AgentId) : MailboxEvt
 /// <para>命令通道（输入）：Send/Broadcast/Register/Unregister 命令，有界+水位线+超时。</para>
 /// <para>事件通道（输出）：WatermarkReached/AgentRegistered/AgentUnregistered 事件，供外部监控。</para>
 /// <para>路由表：<see cref="ConcurrentDictionary{TKey, TValue}"/> 管理 Agent → Channel 映射，每个 Agent 独立有界 Channel。</para>
-/// <para>tell 异步：<see cref="TellAsync"/> 只入命令通道不等待响应（fire-and-forget），禁止 ask 阻塞。</para>
+/// <para>tell 同步：<see cref="Tell"/> 只入命令通道不等待响应（fire-and-forget），禁止 ask 阻塞。</para>
 /// <para>水位线限速：Agent Channel 达到高水位线时触发 <see cref="WatermarkReachedEvt{TMessage}"/>，生产方应降速。</para>
 /// <para>子类重写 <see cref="HandleSendAsync"/>/<see cref="HandleBroadcastAsync"/> 实现跨进程传输（有名管道/文件/网络）。</para>
 /// </summary>
@@ -94,24 +94,21 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
         SendTimeout: TimeSpan.FromSeconds(10));
 
     /// <summary>
-    /// tell 异步发送 — 只入命令通道，不等待响应（fire-and-forget）。
+    /// tell 同步发送 — 只入命令通道，不等待响应（fire-and-forget）。
     /// <para>命令由 Consumer 线程串行处理，投递到目标 Agent 的有界 Channel。</para>
-    /// <para>命令通道满时背压等待（配置了 commandBackpressure 时）。</para>
     /// </summary>
     /// <param name="agentId">目标 Agent 标识</param>
     /// <param name="message">消息内容</param>
-    /// <param name="ct">取消令牌</param>
-    public ValueTask TellAsync(string agentId, TMessage message, CancellationToken ct = default)
-        => SendAsync(new SendCmd<TMessage>(agentId, message), ct);
+    public void Tell(string agentId, TMessage message)
+        => Tell(new SendCmd<TMessage>(agentId, message));
 
     /// <summary>
-    /// tell 异步广播 — 投递到所有已注册 Agent（可排除发送者）。
+    /// tell 同步广播 — 投递到所有已注册 Agent（可排除发送者）。
     /// </summary>
     /// <param name="message">消息内容</param>
     /// <param name="excludeAgentId">排除的 Agent（通常为发送者），null 表示不排除</param>
-    /// <param name="ct">取消令牌</param>
-    public ValueTask TellBroadcastAsync(TMessage message, string? excludeAgentId = null, CancellationToken ct = default)
-        => SendAsync(new BroadcastCmd<TMessage>(message, excludeAgentId), ct);
+    public void TellBroadcast(TMessage message, string? excludeAgentId = null)
+        => Tell(new BroadcastCmd<TMessage>(message, excludeAgentId));
 
     /// <summary>
     /// 等待所有已入队命令被 Consumer 处理完 — 入队屏障命令并等其处理（FIFO 保证之前的命令都已完成）。
@@ -123,7 +120,7 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// <param name="ct">取消令牌</param>
     public async Task WaitForCommandsDrainedAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await SendAsync(new DrainBarrierCmd<TMessage>(tcs), ct).ConfigureAwait(false);
+        Tell(new DrainBarrierCmd<TMessage>(tcs));
         for (var i = 0; i < 16; i++) {
             if (tcs.Task.IsCompleted) return;
             var winner = await Task.WhenAny(tcs.Task, Task.Delay(500, ct)).ConfigureAwait(false);
@@ -137,17 +134,15 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// </summary>
     /// <param name="agentId">Agent 标识</param>
     /// <param name="sessionId">可选会话 ID（跨进程邮箱用于路由）</param>
-    /// <param name="ct">取消令牌</param>
-    public ValueTask RegisterAgentAsync(string agentId, string? sessionId = null, CancellationToken ct = default)
-        => SendAsync(new RegisterAgentCmd<TMessage>(agentId, sessionId), ct);
+    public void RegisterAgent(string agentId, string? sessionId = null)
+        => Tell(new RegisterAgentCmd<TMessage>(agentId, sessionId));
 
     /// <summary>
     /// 注销 Agent 邮箱 — 完成对应 Channel 并移除映射。
     /// </summary>
     /// <param name="agentId">Agent 标识</param>
-    /// <param name="ct">取消令牌</param>
-    public ValueTask UnregisterAgentAsync(string agentId, CancellationToken ct = default)
-        => SendAsync(new UnregisterAgentCmd<TMessage>(agentId), ct);
+    public void UnregisterAgent(string agentId)
+        => Tell(new UnregisterAgentCmd<TMessage>(agentId));
 
     /// <summary>
     /// 接收指定 Agent 的消息流 — 直接读 Agent 的有界 Channel，零中间层。
@@ -195,13 +190,13 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// </summary>
     /// <param name="cmd">邮箱命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override async ValueTask HandleAsync(MailboxCmd<TMessage> cmd, CancellationToken ct) {
+    protected override void Handle(MailboxCmd<TMessage> cmd, CancellationToken ct) {
         switch (cmd) {
             case SendCmd<TMessage> send:
-            await HandleSendAsync(send.AgentId, send.Message, ct).ConfigureAwait(false);
+            _ = HandleSendAsync(send.AgentId, send.Message, ct);
             break;
             case BroadcastCmd<TMessage> broadcast:
-            await HandleBroadcastAsync(broadcast.Message, broadcast.ExcludeAgentId, ct).ConfigureAwait(false);
+            _ = HandleBroadcastAsync(broadcast.Message, broadcast.ExcludeAgentId, ct);
             break;
             case RegisterAgentCmd<TMessage> register:
             HandleRegisterAgent(register.AgentId, register.SessionId);

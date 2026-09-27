@@ -238,6 +238,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0114](0114-config-template-source-generator.md) | 配置模板源码生成器 | accepted | 2026-09-17 |
 | [0115](0115-typed-decision-abstraction-layer.md) | 类型化决策抽象层 ITypedDecision | accepted | 2026-09-21 |
 | [0117](0117-objectid-range-compression-longrangeset-sparselongset.md) | ObjectId 区间压缩 — LongRangeSet + SparseLongSet | accepted | 2026-09-26 |
+| [0118](0118-actor-sync-handle-no-async.md) | Actor 邮箱模型同步 Handle — 消除 async/await 状态机 | proposed | 2026-09-28 |
 
 ## 主题索引（按议题）
 

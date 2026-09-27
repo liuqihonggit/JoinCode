@@ -78,7 +78,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <returns>客户端状态快照</returns>
     public async ValueTask<BridgeClientState> GetStateAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create<BridgeClientState>();
-        await SendAsync(new GetStateCmd(ct, tcs), ct).ConfigureAwait(false);
+        Tell(new GetStateCmd(ct, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -139,7 +139,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// </summary>
     public async Task StartAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new StartCmd(ct, tcs), ct).ConfigureAwait(false);
+        Tell(new StartCmd(ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -153,7 +153,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// </summary>
     public async Task StopAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new StopCmd(ct, tcs), ct).ConfigureAwait(false);
+        Tell(new StopCmd(ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -456,7 +456,9 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <summary>
     /// Actor Consumer — 线程独占 _pollingCts/_pollingTask/_authToken/_stats.StartedAt，串行处理命令，无需锁。
     /// </summary>
-    protected override async ValueTask HandleAsync(IBridgeCommand command, CancellationToken ct) {
+    protected override void Handle(IBridgeCommand command, CancellationToken ct) => _ = HandleAsyncImpl(command, ct);
+
+    private async ValueTask HandleAsyncImpl(IBridgeCommand command, CancellationToken ct) {
         switch (command) {
             case StartCmd cmd: {
                 if (IsRunning) {

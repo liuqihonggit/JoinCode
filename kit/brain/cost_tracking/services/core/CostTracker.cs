@@ -42,7 +42,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
 
         var initCts = Volatile.Read(ref _disposeCts);
         if (initCts is not null) {
-            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand("LoadCostHistory", ct => _store.LoadHistoryAsync(ct)), initCts.Token);
+            _backgroundTaskActor.Tell(new BackgroundTaskCommand("LoadCostHistory", ct => _store.LoadHistoryAsync(ct)));
         }
     }
 
@@ -115,11 +115,11 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
 
         var cts = Volatile.Read(ref _disposeCts);
         if (cts is not null) {
-            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand("SaveCostHistory", ct => _store.SaveHistoryAsync(ct)), cts.Token);
+            _backgroundTaskActor.Tell(new BackgroundTaskCommand("SaveCostHistory", ct => _store.SaveHistoryAsync(ct)));
         }
 
         if (_budget.IsEnabled && cts is not null) {
-            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand("CheckBudgetAlerts", ct => _budget.CheckAlertsAsync(GetCostSnapshot, ct)), cts.Token);
+            _backgroundTaskActor.Tell(new BackgroundTaskCommand("CheckBudgetAlerts", ct => _budget.CheckAlertsAsync(GetCostSnapshot, ct)));
         }
     }
 

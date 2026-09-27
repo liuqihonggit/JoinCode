@@ -12,17 +12,18 @@ public interface IIdempotentCommand {
 }
 
 /// <summary>
-/// 请求命令 — 双 Tell 协议的请求端，携带幂等键 + 缓存恢复能力。
+/// 请求命令 — 双 Tell 协议的请求端，携带幂等键 + 缓存恢复能力 + 背压回调。
 /// <para><b>双 Tell 工作流</b>:</para>
-/// <para>1. 发送方创建命令(内含 OnSuccess/OnFailure 回调) → Tell 请求命令到 Actor 输入通道(SendAsync)</para>
-/// <para>2. Consumer 收到命令,先检查幂等缓存:</para>
-/// <para>   命中 → 调用 <see cref="TryRestoreFromCache"/> 恢复结果(调用 OnSuccess 回调) → 跳过 HandleAsync</para>
-/// <para>   未命中 → 执行 HandleAsync → 派生类自行 TryRegister 缓存结果 → 调用 OnSuccess 回调</para>
-/// <para>3. 发送方通过 OnSuccess/OnFailure 回调处理回执,无需 Ask/AskAwait 阻塞等待</para>
-/// <para><b>强制回执处理</b>:OnSuccess/OnFailure 是必填参数,不提供则编译失败,确保回执不被丢弃。</para>
-/// <para><b>与 Ask 模式区别</b>:Ask 用 TCS+AskAwait 阻塞等待(死锁风险);双 Tell 用回调异步处理(无死锁)。</para>
+/// <para>1. 发送方创建命令(回调有默认值,从 <see cref="ActorDefaults"/> 取) → Tell 请求命令到 Actor 输入通道</para>
+/// <para>2. Consumer 收到命令,检测水位线变化 → 调用 <see cref="OnBackpressure"/> 强制通知生产方</para>
+/// <para>3. Consumer 检查幂等缓存:命中 → TryRestoreFromCache(调 OnSuccess) → 跳过 Handle;未命中 → Handle → OnSuccess</para>
+/// <para><b>默认配置+无例外</b>:回调有默认值(<see cref="ActorDefaults"/>),不传也保证双工管道畅通。自定义用 <c>init</c> 属性覆盖。</para>
+/// <para><b>环形背压管道</b>:生产方→Actor(请求)→Actor检测水位线→OnBackpressure→生产方停止,形成强制闭环。</para>
 /// </summary>
 public interface IRequestCommand : IIdempotentCommand {
+    /// <summary>背压回调 — 水位线变化时由 ConsumeLoop 调用,强制生产方感知并停止/延迟生产,不可为 null</summary>
+    Action<BackpressureSignal> OnBackpressure { get; }
+
     /// <summary>
     /// 从缓存恢复结果 — 命中缓存时由 ActorBase ConsumeLoop 调用。
     /// <para>实现从 <paramref name="store"/> 取回缓存结果,调用命令自带的 OnSuccess 回调。</para>
@@ -33,8 +34,10 @@ public interface IRequestCommand : IIdempotentCommand {
 }
 
 /// <summary>
-/// 请求命令 — 携带类型安全的成功/失败回调,强制使用者处理回执。
+/// 请求命令 — 携带类型安全的成功/失败回调。
 /// <para>命令实现此接口后,Consumer 处理完调用 <see cref="OnSuccess"/> 或异常时调用 <see cref="OnFailure"/>。</para>
+/// <para>背压回调 <see cref="IRequestCommand.OnBackpressure"/> 从基接口继承,无需重复声明。</para>
+/// <para>回调有默认值(<see cref="ActorDefaults"/>),不传也保证双工管道畅通。自定义用 <c>init</c> 属性覆盖。</para>
 /// <para>回调在 Consumer 线程执行,应快速返回;耗时操作应调度到其他线程。</para>
 /// </summary>
 /// <typeparam name="TReply">回执类型</typeparam>

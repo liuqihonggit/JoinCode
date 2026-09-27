@@ -12,7 +12,7 @@ public class DoubleTellIdempotencyTest {
         var key = new IdempotencyKey("flow-1", "op-1");
         var (cmd, replyTask) = TestRequestCommand.Create(key, "payload-A");
 
-        await actor.SendAsync(cmd);
+        actor.Tell(cmd);
         var reply = await replyTask;
 
         reply.Should().Be("result-payload-A");
@@ -28,10 +28,10 @@ public class DoubleTellIdempotencyTest {
         var (cmd1, reply1Task) = TestRequestCommand.Create(key, "payload-B");
         var (cmd2, reply2Task) = TestRequestCommand.Create(key, "payload-B-dup");
 
-        await actor.SendAsync(cmd1);
+        actor.Tell(cmd1);
         var firstReply = await reply1Task;
 
-        await actor.SendAsync(cmd2);
+        actor.Tell(cmd2);
         var secondReply = await reply2Task;
 
         firstReply.Should().Be("result-payload-B");
@@ -46,8 +46,8 @@ public class DoubleTellIdempotencyTest {
         var (cmd1, reply1Task) = TestRequestCommand.Create(new IdempotencyKey("flow-3", "op-3"), "X");
         var (cmd2, reply2Task) = TestRequestCommand.Create(new IdempotencyKey("flow-4", "op-4"), "Y");
 
-        await actor.SendAsync(cmd1);
-        await actor.SendAsync(cmd2);
+        actor.Tell(cmd1);
+        actor.Tell(cmd2);
 
         var replies = await Task.WhenAll(reply1Task, reply2Task);
 
@@ -64,8 +64,8 @@ public class DoubleTellIdempotencyTest {
         var (cmd1, reply1Task) = TestRequestCommand.Create(key, "Z");
         var (cmd2, reply2Task) = TestRequestCommand.Create(key, "Z");
 
-        await actor.SendAsync(cmd1);
-        await actor.SendAsync(cmd2);
+        actor.Tell(cmd1);
+        actor.Tell(cmd2);
 
         var replies = await Task.WhenAll(reply1Task, reply2Task);
 
@@ -78,8 +78,8 @@ public class DoubleTellIdempotencyTest {
     [Fact]
     public async Task PlainCommand_NotAffectedByIdempotencyGuard() {
         await using var actor = new IdempotentTestActor();
-        await actor.SendAsync(new PlainCommand("plain-1"));
-        await actor.SendAsync(new PlainCommand("plain-2"));
+        actor.Tell(new PlainCommand("plain-1"));
+        actor.Tell(new PlainCommand("plain-2"));
 
         var replies = new List<string>();
         await foreach (var reply in actor.OutputAsync()) {
@@ -103,8 +103,8 @@ public class DoubleTellIdempotencyTest {
         for (var i = 0; i < count; i++)
             cmds[i] = TestRequestCommand.Create(key, "concurrent");
 
-        var sends = cmds.Select(c => actor.SendAsync(c.Cmd).AsTask()).ToArray();
-        await Task.WhenAll(sends);
+        foreach (var c in cmds)
+            actor.Tell(c.Cmd);
 
         var replies = await Task.WhenAll(cmds.Select(c => c.ReplyTask));
 
@@ -121,7 +121,8 @@ internal sealed record TestRequestCommand(
     IdempotencyKey IdempotencyKey,
     string Payload,
     Action<string> OnSuccess,
-    Action<Exception> OnFailure
+    Action<Exception> OnFailure,
+    Action<BackpressureSignal> OnBackpressure
 ) : IRequestCommand<string> {
     /// <summary>创建命令 + 配套的 ReplyTask(通过 TCS 桥接回调,仅测试用)</summary>
     public static (TestRequestCommand Cmd, Task<string> ReplyTask) Create(IdempotencyKey key, string payload) {
@@ -129,7 +130,8 @@ internal sealed record TestRequestCommand(
         var cmd = new TestRequestCommand(
             key, payload,
             tcs.SetResult,
-            tcs.SetException);
+            tcs.SetException,
+            _ => { });
         return (cmd, tcs.Task);
     }
 
@@ -161,8 +163,7 @@ internal sealed class IdempotentTestActor : ActorBase<object, string> {
             IdempotencyStore = new IdempotencyStore();
     }
 
-    protected override async ValueTask HandleAsync(object command, CancellationToken ct) {
-        await Task.Yield();
+    protected override void Handle(object command, CancellationToken ct) {
         switch (command) {
             case TestRequestCommand req:
                 HandleInvocationCount++;

@@ -94,14 +94,15 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     /// <inheritdoc/>
     public Task AddToolAsync(ToolCallEntry entry, int originalIndex) {
         if (_discarded) return Task.CompletedTask;
-        return SendAsync(new AddToolCommand(entry, originalIndex)).AsTask();
+        Tell(new AddToolCommand(entry, originalIndex));
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<StreamingToolResult>> GetCompletedResultsAsync() {
         if (_discarded) return [];
         var tcs = new TaskCompletionSource<IReadOnlyList<StreamingToolResult>>();
-        await SendAsync(new GetCompletedQuery(tcs)).ConfigureAwait(false);
+        Tell(new GetCompletedQuery(tcs));
         return await AskAwait(tcs, CancellationToken.None).ConfigureAwait(false);
     }
 
@@ -110,7 +111,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         if (_discarded) return [];
 
         var remainingTcs = new TaskCompletionSource<List<Task<StreamingToolResult>>>();
-        await SendAsync(new GetRemainingQuery(remainingTcs)).ConfigureAwait(false);
+        Tell(new GetRemainingQuery(remainingTcs));
         var pendingTasks = await AskAwait(remainingTcs, CancellationToken.None).ConfigureAwait(false);
 
         if (pendingTasks.Count > 0) {
@@ -142,27 +143,28 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     /// <summary>Consumer 命令处理 — 串行访问所有可变状态,无锁</summary>
-    protected override ValueTask HandleAsync(IToolCommand command, CancellationToken ct) {
+    protected override void Handle(IToolCommand command, CancellationToken ct) {
         switch (command) {
             case AddToolCommand(var entry, var idx):
             HandleAddTool(entry, idx);
-            return ValueTask.CompletedTask;
+            return;
             case DiscardCmd:
             HandleDiscard();
-            return ValueTask.CompletedTask;
+            return;
             case ToolCompletedCommand(var tool, var result, var isSafe):
             HandleToolCompleted(tool, result, isSafe);
-            return ValueTask.CompletedTask;
+            return;
             case GetCompletedQuery(var tcs):
             HandleGetCompleted(tcs);
-            return ValueTask.CompletedTask;
+            return;
             case GetRemainingQuery(var tcs):
             HandleGetRemaining(tcs);
-            return ValueTask.CompletedTask;
+            return;
             case SafetyDeterminedCommand(var tool):
-            return HandleSafetyDetermined(tool);
+            HandleSafetyDetermined(tool);
+            return;
             default:
-            return ValueTask.CompletedTask;
+            return;
         }
     }
 
@@ -283,7 +285,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     private sealed record SafetyDeterminedCommand(QueuedTool Tool) : IToolCommand;
 
     /// <summary>安全性确定后继续调度</summary>
-    private ValueTask HandleSafetyDetermined(QueuedTool tool) {
+    private void HandleSafetyDetermined(QueuedTool tool) {
         if (CanExecute(tool.IsConcurrencySafe)) {
             tool.Status = ToolStatus.Executing;
             _executingCount++;
@@ -294,7 +296,6 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
             tool.Status = ToolStatus.Queued;
         }
         ScheduleNext();
-        return ValueTask.CompletedTask;
     }
 
     /// <summary>并发执行工具 — 完成后发 ToolCompletedCommand 回 Consumer</summary>

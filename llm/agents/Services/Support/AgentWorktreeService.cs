@@ -176,7 +176,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// <returns>worktree 会话；不存在时返回 null</returns>
     public async Task<AgentWorktreeSession?> GetSessionAsync(string agentId, CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<AgentWorktreeSession?>();
-        await _sessionActor.SendAsync(new GetSessionCmd(agentId, reply), cancellationToken).ConfigureAwait(false);
+        _sessionActor.Tell(new GetSessionCmd(agentId, reply));
         return await _sessionActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -207,7 +207,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// <returns>所有 worktree 会话集合</returns>
     public async Task<IEnumerable<AgentWorktreeSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<IEnumerable<AgentWorktreeSession>>();
-        await _sessionActor.SendAsync(new GetAllSessionsCmd(reply), cancellationToken).ConfigureAwait(false);
+        _sessionActor.Tell(new GetAllSessionsCmd(reply));
         return await _sessionActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -407,7 +407,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// <param name="session">要保存的 worktree 会话</param>
     public async Task SaveSessionAsync(AgentWorktreeSession session) {
         var reply = new TaskCompletionSource();
-        await _sessionActor.SendAsync(new SaveSessionCmd(session, reply), default).ConfigureAwait(false);
+        _sessionActor.Tell(new SaveSessionCmd(session, reply));
         await _sessionActor.AskReplyAsync(reply, default).ConfigureAwait(false);
     }
 
@@ -425,7 +425,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// <param name="agentId">代理唯一标识</param>
     internal async Task RemoveSessionAsync(string agentId) {
         var reply = new TaskCompletionSource();
-        await _sessionActor.SendAsync(new RemoveSessionCmd(agentId, reply), default).ConfigureAwait(false);
+        _sessionActor.Tell(new RemoveSessionCmd(agentId, reply));
         await _sessionActor.AskReplyAsync(reply, default).ConfigureAwait(false);
     }
 
@@ -678,7 +678,9 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(WorktreeSessionCommand cmd, CancellationToken ct) {
+        protected override void Handle(WorktreeSessionCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+
+        private async ValueTask HandleAsyncImpl(WorktreeSessionCommand cmd, CancellationToken ct) {
             try {
                 switch (cmd) {
                     case GetSessionCmd(var agentId, var reply):

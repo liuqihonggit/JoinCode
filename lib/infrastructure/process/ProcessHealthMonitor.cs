@@ -74,11 +74,10 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
     /// <summary>处理健康检查命令</summary>
     /// <param name="command">健康检查命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override ValueTask HandleAsync(IProcessHealthCommand command, CancellationToken ct) {
+    protected override void Handle(IProcessHealthCommand command, CancellationToken ct) {
         if (command is HealthCheckTickCmd) {
             PerformCheck();
         }
-        return ValueTask.CompletedTask;
     }
 
     /// <summary>消费者异常回调 — 记录日志</summary>

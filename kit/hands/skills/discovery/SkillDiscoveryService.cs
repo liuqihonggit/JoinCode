@@ -53,9 +53,12 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     /// <returns>已发现的技能列表</returns>
     public async Task<IReadOnlyList<DiscoveredSkill>> DiscoverAsync(CancellationToken cancellationToken = default) {
         var key = new IdempotencyKey("discover", Guid.NewGuid().ToString());
-        var cmd = new DiscoverCmd(key);
-        await _discoverActor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
-        return await cmd.ReplyChannel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+        var tcs = new TaskCompletionSource<IReadOnlyList<DiscoveredSkill>>();
+        DiscoverCmd? cmd = null;
+        cmd = new DiscoverCmd(key, tcs.SetResult, tcs.SetException,
+            ActorBase<DiscoverCmd, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _discoverActor.TrySend(cmd); }));
+        _discoverActor.Tell(cmd);
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>
@@ -414,12 +417,13 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
             IdempotencyStore = new IdempotencyStore();
         }
 
-        protected override async ValueTask HandleAsync(DiscoverCmd cmd, CancellationToken ct) {
+        protected override void Handle(DiscoverCmd cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        private async ValueTask HandleAsyncImpl(DiscoverCmd cmd, CancellationToken ct) {
             try {
                 var result = await _owner.DiscoverInternalAsync(ct).ConfigureAwait(false);
                 IdempotencyStore?.TryRegister(cmd.IdempotencyKey, result);
-                cmd.ReplyChannel.Writer.TryWrite(result);
-            } catch (OperationCanceledException) { throw; } catch (Exception) { cmd.ReplyChannel.Writer.TryWrite(default!); }
+                cmd.OnSuccess(result);
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.OnFailure(ex); }
         }
 
         protected override void OnConsumerError(Exception ex)
@@ -431,14 +435,16 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
 /// 技能发现 Actor 命令 — DiscoverAsync 的 Actor 邮箱封装 — TASK001
 /// <para>消除 AsyncLock(_discoveryLock),改用 Actor 邮箱管道串行化发现操作(含文件 I/O)。</para>
 /// </summary>
-internal sealed record DiscoverCmd(IdempotencyKey IdempotencyKey) : IRequestCommand {
-    /// <summary>回复通道 — Consumer 处理完成后写入结果，调用方通过 Reader.ReadAsync 拉取</summary>
-    public Channel<IReadOnlyList<DiscoveredSkill>> ReplyChannel { get; } = Channel.CreateUnbounded<IReadOnlyList<DiscoveredSkill>>();
-
-    /// <summary>从幂等缓存恢复结果 — 命中缓存时写入 ReplyChannel 并返回 true</summary>
+internal sealed record DiscoverCmd(
+    IdempotencyKey IdempotencyKey,
+    Action<IReadOnlyList<DiscoveredSkill>> OnSuccess,
+    Action<Exception> OnFailure,
+    Action<BackpressureSignal> OnBackpressure
+) : IRequestCommand<IReadOnlyList<DiscoveredSkill>> {
+    /// <summary>从幂等缓存恢复结果 — 命中缓存时调用 OnSuccess 回调</summary>
     public bool TryRestoreFromCache(IIdempotencyStore store) {
-        if (store.TryGetResult<IReadOnlyList<DiscoveredSkill>>(IdempotencyKey, out var cached)) {
-            ReplyChannel.Writer.TryWrite(cached!);
+        if (store.TryGetResult<IReadOnlyList<DiscoveredSkill>>(IdempotencyKey, out var cached) && cached is not null) {
+            OnSuccess(cached);
             return true;
         }
         return false;

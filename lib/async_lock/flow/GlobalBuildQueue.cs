@@ -113,7 +113,7 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
         var tcs = new TaskCompletionSource<GlobalBuildResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pending[request.RequestId] = tcs;
 
-        await SendAsync(new EnqueueGlobalBuildCmd(request, tcs), ct).ConfigureAwait(false);
+        Tell(new EnqueueGlobalBuildCmd(request, tcs));
 
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
@@ -122,17 +122,16 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
     /// 取消编译请求。
     /// </summary>
     /// <param name="requestId">请求标识</param>
-    /// <param name="ct">取消令牌</param>
-    public async ValueTask CancelAsync(string requestId, CancellationToken ct = default)
-        => await SendAsync(new CancelGlobalBuildCmd(requestId), ct).ConfigureAwait(false);
+    public void Cancel(string requestId)
+        => Tell(new CancelGlobalBuildCmd(requestId));
 
     /// <summary>
     /// 命令处理 — Consumer 线程串行执行，保证同一时刻只有一个编译在跑。
     /// </summary>
-    protected override async ValueTask HandleAsync(GlobalBuildCommand cmd, CancellationToken ct) {
+    protected override void Handle(GlobalBuildCommand cmd, CancellationToken ct) {
         switch (cmd) {
             case EnqueueGlobalBuildCmd enqueue:
-            await HandleEnqueueAsync(enqueue, ct).ConfigureAwait(false);
+            _ = HandleEnqueueAsync(enqueue, ct);
             break;
             case CancelGlobalBuildCmd cancel:
             HandleCancel(cancel.RequestId);

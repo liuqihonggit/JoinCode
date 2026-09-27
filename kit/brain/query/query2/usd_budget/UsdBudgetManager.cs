@@ -163,7 +163,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
             return false;
         }
         var tcs = TcsFactory.Create<bool>();
-        await SendAsync(new IsBudgetExceededCmd(tcs), ct).ConfigureAwait(false);
+        Tell(new IsBudgetExceededCmd(tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -174,7 +174,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
     /// <returns>预算状态</returns>
     public async Task<UsdBudgetStatus> GetBudgetStatusAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create<UsdBudgetStatus>();
-        await SendAsync(new GetBudgetStatusCmd(tcs), ct).ConfigureAwait(false);
+        Tell(new GetBudgetStatusCmd(tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -191,7 +191,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
             return;
         }
         var tcs = TcsFactory.Create();
-        await SendAsync(new RecordCostCmd(costUsd, reason, tcs), ct).ConfigureAwait(false);
+        Tell(new RecordCostCmd(costUsd, reason, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -201,7 +201,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
     /// <param name="command">命令消息</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的值任务</returns>
-    protected override ValueTask HandleAsync(IUsdBudgetCommand command, CancellationToken ct) {
+    protected override void Handle(IUsdBudgetCommand command, CancellationToken ct) {
         switch (command) {
             case IsBudgetExceededCmd isExceeded:
             if (_config.MaxUsdBudget is { } maxBudget1 && maxBudget1 > 0)
@@ -228,7 +228,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
             case RecordCostCmd recordCost: {
                 if (_config.MaxUsdBudget is not { } maxBudget2 || maxBudget2 <= 0) {
                     recordCost.Tcs.TrySetResult();
-                    return ValueTask.CompletedTask;
+                    return;
                 }
 
                 _totalUsed += recordCost.CostUsd;
@@ -254,7 +254,6 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
             }
             break;
         }
-        return ValueTask.CompletedTask;
     }
 
     /// <summary>

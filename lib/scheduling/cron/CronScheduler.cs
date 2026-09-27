@@ -151,25 +151,31 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
     /// <inheritdoc/>
     public Task StartAsync(CancellationToken ct = default) {
         if (Volatile.Read(ref _disposed) != 0) throw new ObjectDisposedException(nameof(CronScheduler));
-        return SendAsync(new CronStartCmd(), ct).AsTask();
+        Tell(new CronStartCmd());
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
     public Task StopAsync(CancellationToken ct = default) {
-        return SendAsync(new CronStopCmd(), ct).AsTask();
+        Tell(new CronStopCmd());
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
     public async Task<long?> GetNextFireTimeAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<long?>();
-        await SendAsync(new CronGetNextFireCmd(tcs), ct).ConfigureAwait(false);
+        Tell(new CronGetNextFireCmd(tcs));
         return await tcs.Task.WaitAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>处理调度器命令，根据命令类型执行启动、停止、检查、通知变更等操作。</summary>
     /// <param name="command">要处理的调度器命令。</param>
     /// <param name="ct">取消令牌。</param>
-    protected override async ValueTask HandleAsync(ICronSchedulerCommand command, CancellationToken ct) {
+    protected override void Handle(ICronSchedulerCommand command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(ICronSchedulerCommand command, CancellationToken ct) {
         switch (command) {
             case CronStartCmd:
             if (_started) return;

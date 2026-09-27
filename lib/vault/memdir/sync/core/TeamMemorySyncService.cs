@@ -100,21 +100,21 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     /// <inheritdoc />
     public async Task StartAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new StartSyncCmd(tcs), ct).ConfigureAwait(false);
+        Tell(new StartSyncCmd(tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task StopAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new StopSyncCmd(tcs), ct).ConfigureAwait(false);
+        Tell(new StopSyncCmd(tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task SyncAsync(string? filePath = null, CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new SyncCmd(filePath, tcs), ct).ConfigureAwait(false);
+        Tell(new SyncCmd(filePath, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -126,7 +126,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     public async Task<SyncConflictResolution> ResolveConflictAsync(string filePath, SyncConflictResolution resolution, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrEmpty(filePath);
         var tcs = TcsFactory.Create<SyncConflictResolution>();
-        await SendAsync(new ResolveConflictCmd(filePath, resolution, tcs), ct).ConfigureAwait(false);
+        Tell(new ResolveConflictCmd(filePath, resolution, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -313,7 +313,9 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     /// <summary>
     /// 处理同步命令 — 根据命令类型分发到启动、停止、同步、冲突解决与文件变更等处理分支。
     /// </summary>
-    protected override async ValueTask HandleAsync(ITeamMemorySyncCommand command, CancellationToken ct) {
+    protected override void Handle(ITeamMemorySyncCommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+
+    private async ValueTask HandleAsyncImpl(ITeamMemorySyncCommand command, CancellationToken ct) {
         switch (command) {
             case StartSyncCmd start:
             if (_startPipeline is not null)

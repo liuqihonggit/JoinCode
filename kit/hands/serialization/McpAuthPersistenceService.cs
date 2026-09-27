@@ -33,7 +33,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
         if (_configService == null) return;
 
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new SaveAuthCmd(authName, authType, serializedData, reply), ct).ConfigureAwait(false);
+        _actor.Tell(new SaveAuthCmd(authName, authType, serializedData, reply));
         await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
@@ -47,7 +47,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
         if (_configService == null) return null;
 
         var reply = new TaskCompletionSource<AuthConfigEntry?>();
-        await _actor.SendAsync(new LoadAuthCmd(authName, reply), ct).ConfigureAwait(false);
+        _actor.Tell(new LoadAuthCmd(authName, reply));
         return await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
@@ -60,7 +60,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
         if (_configService == null) return ImmutableHamT<string, AuthConfigEntry>.Empty;
 
         var reply = new TaskCompletionSource<IReadOnlyDictionary<string, AuthConfigEntry>>();
-        await _actor.SendAsync(new ListAuthCmd(reply), ct).ConfigureAwait(false);
+        _actor.Tell(new ListAuthCmd(reply));
         return await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
@@ -74,7 +74,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
         if (_configService == null) return;
 
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new RemoveAuthCmd(authName, reply), ct).ConfigureAwait(false);
+        _actor.Tell(new RemoveAuthCmd(authName, reply));
         await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
@@ -164,7 +164,8 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(McpAuthPersistenceCommand cmd, CancellationToken ct) {
+        protected override void Handle(McpAuthPersistenceCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        private async ValueTask HandleAsyncImpl(McpAuthPersistenceCommand cmd, CancellationToken ct) {
             switch (cmd) {
                 case SaveAuthCmd(var authName, var authType, var serializedData, var reply):
                 try {

@@ -47,9 +47,12 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             return _cachedDefinitions;
 
         var key = new IdempotencyKey("get-definitions", Guid.NewGuid().ToString());
-        var cmd = new GetDefinitionsCmd(workingDirectory, key);
-        await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
-        return await cmd.ReplyChannel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+        var tcs = new TaskCompletionSource<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>>();
+        GetDefinitionsCmd? cmd = null;
+        cmd = new GetDefinitionsCmd(workingDirectory, key, tcs.SetResult, tcs.SetException,
+            ActorBase<GetDefinitionsCmd, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _actor.TrySend(cmd); }));
+        _actor.Tell(cmd);
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>
@@ -686,12 +689,14 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             IdempotencyStore = new IdempotencyStore();
         }
 
-        protected override async ValueTask HandleAsync(GetDefinitionsCmd cmd, CancellationToken ct) {
+        protected override void Handle(GetDefinitionsCmd cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+
+        private async ValueTask HandleAsyncImpl(GetDefinitionsCmd cmd, CancellationToken ct) {
             try {
                 var result = await _owner.GetDefinitionsInternalAsync(cmd.WorkingDirectory, ct).ConfigureAwait(false);
                 IdempotencyStore?.TryRegister(cmd.IdempotencyKey, result);
-                cmd.ReplyChannel.Writer.TryWrite(result);
-            } catch (OperationCanceledException) { throw; } catch (Exception) { cmd.ReplyChannel.Writer.TryWrite(default!); }
+                cmd.OnSuccess(result);
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.OnFailure(ex); }
         }
 
         protected override void OnConsumerError(Exception ex)

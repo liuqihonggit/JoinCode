@@ -147,7 +147,9 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
             _logger = logger;
         }
 
-        protected override async ValueTask HandleAsync(SessionTagCommand cmd, CancellationToken ct) {
+        protected override void Handle(SessionTagCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+
+        private async ValueTask HandleAsyncImpl(SessionTagCommand cmd, CancellationToken ct) {
             switch (cmd) {
                 case SessionTagSaveCmd:
                 await _owner.SaveInternalAsync(ct).ConfigureAwait(false);

@@ -83,8 +83,9 @@ public sealed partial class FileWatcherIntegration : FileWatcherActorBase {
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task StopAsync(CancellationToken ct = default) {
-        await SendAsync(new FileWatcherStopCmd(), ct).ConfigureAwait(false);
+    public Task StopAsync(CancellationToken ct = default) {
+        Tell(new FileWatcherStopCmd());
+        return Task.CompletedTask;
     }
 
     /// <summary>

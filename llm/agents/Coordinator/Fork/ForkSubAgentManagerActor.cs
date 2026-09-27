@@ -130,12 +130,12 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
                 CancellationToken = ct
             };
 
-            await SendAsync(new SetupForkEntryCmd(options, forkId, createdAt, context), ct).ConfigureAwait(false);
+            Tell(new SetupForkEntryCmd(options, forkId, createdAt, context));
 
             try {
                 await _pipeline.ExecuteAsync(context, ct).ConfigureAwait(false);
             } catch (OperationCanceledException) {
-                await SendAsync(new SetForkStateCmd(forkId, ForkState.Cancelled, null), ct).ConfigureAwait(false);
+                Tell(new SetForkStateCmd(forkId, ForkState.Cancelled, null));
                 RecordForkMetrics("fork_cancelled", false);
                 _logger?.LogInformation("Fork {ForkId} was cancelled", forkId);
 
@@ -143,7 +143,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
 
                 return await AskBuildForkResultAsync(forkId, ct).ConfigureAwait(false);
             } catch (Exception ex) {
-                await SendAsync(new SetForkStateCmd(forkId, ForkState.Failed, ex.Message), ct).ConfigureAwait(false);
+                Tell(new SetForkStateCmd(forkId, ForkState.Failed, ex.Message));
                 RecordForkMetrics("fork_error", false);
                 _logger?.LogError(ex, "Fork {ForkId} failed with exception", forkId);
 
@@ -153,7 +153,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             }
 
             if (!context.IsValidated) {
-                await SendAsync(new RemoveForkEntryCmd(forkId), ct).ConfigureAwait(false);
+                Tell(new RemoveForkEntryCmd(forkId));
                 return new ForkResult {
                     ForkId = context.ForkId,
                     State = ForkState.Failed,
@@ -162,12 +162,12 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             }
 
             if (context.Agent is not null) {
-                await SendAsync(new SetForkAgentIdCmd(forkId, context.Agent.ObjectId.UniqueId), ct).ConfigureAwait(false);
+                Tell(new SetForkAgentIdCmd(forkId, context.Agent.ObjectId.UniqueId));
             }
 
             if (context.IsBackground && context.Agent is not null) {
                 var forkCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                await SendAsync(new SetForkCtsCmd(forkId, forkCts), ct).ConfigureAwait(false);
+                Tell(new SetForkCtsCmd(forkId, forkCts));
 
                 var forkToken = forkCts.Token;
                 semaphoreTransferredToBackground = true;
@@ -187,7 +187,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
                 };
             }
 
-            await SendAsync(new SetForkStateCmd(forkId, context.FinalState, context.FinalResult), ct).ConfigureAwait(false);
+            Tell(new SetForkStateCmd(forkId, context.FinalState, context.FinalResult));
 
             await FireForkCompletedAsync(forkId, options.TaskDescription, ct).ConfigureAwait(false);
 
@@ -206,7 +206,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     /// <returns>活跃 Fork 子智能体只读列表</returns>
     public async Task<IReadOnlyList<ForkSubAgent>> GetActiveForksAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<IReadOnlyList<ForkSubAgent>>();
-        await SendAsync(new GetActiveForksQuery(tcs), ct).ConfigureAwait(false);
+        Tell(new GetActiveForksQuery(tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -218,7 +218,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     /// <returns>合并结果</returns>
     public async Task<ForkResult> MergeForkAsync(string forkId, CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<ForkResult>();
-        await SendAsync(new MergeForkQuery(forkId, tcs), ct).ConfigureAwait(false);
+        Tell(new MergeForkQuery(forkId, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -238,16 +238,16 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             await snapshot.Cts.CancelAsync().ConfigureAwait(false);
             snapshot.Cts.Dispose();
         }
-        await SendAsync(new SetForkCtsCmd(forkId, null), ct).ConfigureAwait(false);
+        Tell(new SetForkCtsCmd(forkId, null));
 
         var agentIdToCancel = snapshot.AgentId;
         if (agentIdToCancel is not null) {
-            await SendAsync(new SetForkAgentIdCmd(forkId, null), ct).ConfigureAwait(false);
+            Tell(new SetForkAgentIdCmd(forkId, null));
             StopMailboxPollingIfNeeded(agentIdToCancel);
             await _deps.LifecycleManager.CancelAgentAsync(agentIdToCancel, ct).ConfigureAwait(false);
         }
 
-        await SendAsync(new SetForkStateCmd(forkId, ForkState.Cancelled, null), ct).ConfigureAwait(false);
+        Tell(new SetForkStateCmd(forkId, ForkState.Cancelled, null));
 
         _logger?.LogInformation("Fork {ForkId} cancelled", forkId);
 
@@ -255,50 +255,50 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     }
 
     /// <summary>Consumer 命令处理 — 串行访问所有可变状态,无锁</summary>
-    protected override ValueTask HandleAsync(IForkCommand command, CancellationToken ct) {
+    protected override void Handle(IForkCommand command, CancellationToken ct) {
         switch (command) {
             case CalculateForkDepthQuery(var parentId, var tcs):
             tcs.SetResult(CalculateForkDepth(parentId));
-            return ValueTask.CompletedTask;
+            break;
             case SetupForkEntryCmd(var options, var forkId, var createdAt, var context):
             SetupForkEntry(options, forkId, createdAt, context);
-            return ValueTask.CompletedTask;
+            break;
             case RemoveForkEntryCmd(var forkId):
             _entries.Remove(forkId);
             _sharedCache.Remove(forkId);
-            return ValueTask.CompletedTask;
+            break;
             case SetForkStateCmd(var forkId, var state, var result):
             if (_entries.TryGetValue(forkId, out var stateEntry)) {
                 stateEntry.Runtime.State = state;
                 if (result is not null)
                     stateEntry.Runtime.Result = result;
             }
-            return ValueTask.CompletedTask;
+            break;
             case SetForkAgentIdCmd(var forkId, var agentId):
             if (_entries.TryGetValue(forkId, out var agentEntry))
                 agentEntry.Runtime.AgentId = agentId;
-            return ValueTask.CompletedTask;
+            break;
             case SetForkCtsCmd(var forkId, var cts):
             if (_entries.TryGetValue(forkId, out var ctsEntry))
                 ctsEntry.Runtime.Cts = cts;
-            return ValueTask.CompletedTask;
+            break;
             case BuildForkResultQuery(var forkId, var tcs):
             tcs.SetResult(BuildForkResult(forkId));
-            return ValueTask.CompletedTask;
+            break;
             case GetForkEntrySnapshotQuery(var forkId, var tcs):
             tcs.SetResult(GetForkEntrySnapshot(forkId));
-            return ValueTask.CompletedTask;
+            break;
             case GetActiveForksQuery(var tcs):
             tcs.SetResult(GetActiveForksList());
-            return ValueTask.CompletedTask;
+            break;
             case MergeForkQuery(var forkId, var tcs):
             tcs.SetResult(MergeFork(forkId));
-            return ValueTask.CompletedTask;
+            break;
             case CleanupAllCmd:
             CleanupAll();
-            return ValueTask.CompletedTask;
+            break;
             default:
-            return ValueTask.CompletedTask;
+            break;
         }
     }
 
@@ -442,19 +442,19 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
 
     private async Task<int> AskForkDepthAsync(string parentSessionId, CancellationToken ct) {
         var tcs = new TaskCompletionSource<int>();
-        await SendAsync(new CalculateForkDepthQuery(parentSessionId, tcs), ct).ConfigureAwait(false);
+        Tell(new CalculateForkDepthQuery(parentSessionId, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     private async Task<ForkResult> AskBuildForkResultAsync(string forkId, CancellationToken ct) {
         var tcs = new TaskCompletionSource<ForkResult>();
-        await SendAsync(new BuildForkResultQuery(forkId, tcs), ct).ConfigureAwait(false);
+        Tell(new BuildForkResultQuery(forkId, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     private async Task<ForkEntrySnapshot?> AskForkEntryAsync(string forkId, CancellationToken ct) {
         var tcs = new TaskCompletionSource<ForkEntrySnapshot?>();
-        await SendAsync(new GetForkEntrySnapshotQuery(forkId, tcs), ct).ConfigureAwait(false);
+        Tell(new GetForkEntrySnapshotQuery(forkId, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -474,11 +474,11 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             var result = await _deps.LifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
 
             if (result.IsSuccess) {
-                await SendAsync(new SetForkStateCmd(forkId, ForkState.Completed, result.Output), CancellationToken.None).ConfigureAwait(false);
+                Tell(new SetForkStateCmd(forkId, ForkState.Completed, result.Output));
                 RecordForkMetrics("fork_background", true);
                 _logger?.LogInformation("Background Fork {ForkId} completed successfully", forkId);
             } else {
-                await SendAsync(new SetForkStateCmd(forkId, ForkState.Failed, result.Error ?? "Unknown error"), CancellationToken.None).ConfigureAwait(false);
+                Tell(new SetForkStateCmd(forkId, ForkState.Failed, result.Error ?? "Unknown error"));
                 RecordForkMetrics("fork_background", false);
                 _logger?.LogWarning("Background Fork {ForkId} failed: {Error}", forkId, result.Error);
             }
@@ -486,21 +486,21 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             await EmitFinishedAsync(result.IsSuccess, result.IsSuccess ? result.Output : result.Error).ConfigureAwait(false);
             await FireForkCompletedAsync(forkId, taskDescription, CancellationToken.None).ConfigureAwait(false);
         } catch (OperationCanceledException) {
-            await SendAsync(new SetForkStateCmd(forkId, ForkState.Cancelled, null), CancellationToken.None).ConfigureAwait(false);
+            Tell(new SetForkStateCmd(forkId, ForkState.Cancelled, null));
             RecordForkMetrics("fork_background_cancelled", false);
             _logger?.LogInformation("Background Fork {ForkId} was cancelled", forkId);
 
             await EmitFinishedAsync(success: false, "已取消").ConfigureAwait(false);
             await FireForkCompletedAsync(forkId, taskDescription, CancellationToken.None).ConfigureAwait(false);
         } catch (Exception ex) {
-            await SendAsync(new SetForkStateCmd(forkId, ForkState.Failed, ex.Message), CancellationToken.None).ConfigureAwait(false);
+            Tell(new SetForkStateCmd(forkId, ForkState.Failed, ex.Message));
             RecordForkMetrics("fork_background_error", false);
             _logger?.LogError(ex, "Background Fork {ForkId} failed with exception", forkId);
 
             await EmitFinishedAsync(success: false, ex.Message).ConfigureAwait(false);
             await FireForkCompletedAsync(forkId, taskDescription, CancellationToken.None).ConfigureAwait(false);
         } finally {
-            await SendAsync(new SetForkCtsCmd(forkId, null), CancellationToken.None).ConfigureAwait(false);
+            Tell(new SetForkCtsCmd(forkId, null));
         }
     }
 

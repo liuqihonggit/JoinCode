@@ -75,14 +75,14 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     /// <inheritdoc/>
     public async Task StartRecordingAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new StartRecordingCmd(ct, tcs), ct).ConfigureAwait(false);
+        Tell(new StartRecordingCmd(ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
     public async Task<VoiceRecordingResult> StopRecordingAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<VoiceRecordingResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        await SendAsync(new StopRecordingCmd(ct, tcs), ct).ConfigureAwait(false);
+        Tell(new StopRecordingCmd(ct, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -111,7 +111,8 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     /// <summary>
     /// Actor Consumer — 线程独占 _recordingStream/_recordingCts，串行处理命令，无需锁。
     /// </summary>
-    protected override async ValueTask HandleAsync(IVoiceCommand command, CancellationToken ct) {
+    protected override void Handle(IVoiceCommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+    private async ValueTask HandleAsyncImpl(IVoiceCommand command, CancellationToken ct) {
         switch (command) {
             case StartRecordingCmd cmd:
             if ((VoiceRecordingState)_stateInt == VoiceRecordingState.Recording) {
@@ -248,7 +249,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
             var buffer = new byte[4096];
             while (!ct.IsCancellationRequested) {
                 var tcs = TcsFactory.Create();
-                await SendAsync(new WriteAudioCmd(buffer, tcs), ct).ConfigureAwait(false);
+                Tell(new WriteAudioCmd(buffer, tcs));
                 await AskAwait(tcs, ct).ConfigureAwait(false);
 
                 await Task.Delay(100, ct).ConfigureAwait(false);

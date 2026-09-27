@@ -181,7 +181,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <returns>更新后的工具健康记录</returns>
     public async Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default) {
         var tcs = TcsFactory.Create<ToolHealthRecord>();
-        await SendAsync(new RecordSuccessCmd(toolName, tcs), ct).ConfigureAwait(false);
+        Tell(new RecordSuccessCmd(toolName, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -194,7 +194,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <returns>更新后的工具健康记录</returns>
     public async Task<ToolHealthRecord> RecordFailureAsync(string toolName, string? errorMessage, CancellationToken ct = default) {
         var tcs = TcsFactory.Create<ToolHealthRecord>();
-        await SendAsync(new RecordFailureCmd(toolName, errorMessage, tcs), ct).ConfigureAwait(false);
+        Tell(new RecordFailureCmd(toolName, errorMessage, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -226,7 +226,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <returns>表示异步操作的任务</returns>
     public async Task ResetToolAsync(string toolName, CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new ResetToolCmd(toolName, tcs), ct).ConfigureAwait(false);
+        Tell(new ResetToolCmd(toolName, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -235,7 +235,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// </summary>
     /// <param name="command">健康监控命令。</param>
     /// <param name="ct">取消令牌。</param>
-    protected override async ValueTask HandleAsync(IToolHealthCommand command, CancellationToken ct) {
+    protected override void Handle(IToolHealthCommand command, CancellationToken ct) {
         switch (command) {
             case RecordSuccessCmd success: {
                 var record = GetOrCreate(success.ToolName);

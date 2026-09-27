@@ -24,11 +24,11 @@ public class NetworkMailboxTest {
         await using var mailbox = new NetworkMailbox(adapter);
         await mailbox.StartAsync();
 
-        await mailbox.RegisterAgentAsync("agent-1", "session-1");
+        mailbox.RegisterAgent("agent-1", "session-1");
         await WaitForRegistrationAsync(mailbox, "agent-1");
         var msg = new CoordinatorMessage { FromAgentId = "sender", ToAgentId = "agent-1", MessageType = "text", Content = "hello" };
 
-        await mailbox.TellAsync("agent-1", msg);
+        mailbox.Tell("agent-1", msg);
         await mailbox.WaitForCommandsDrainedAsync();
 
         adapter.SentMessages.Should().ContainSingle(m => m.targetId == "agent-1" && m.text == "hello");
@@ -41,13 +41,13 @@ public class NetworkMailboxTest {
         await using var mailbox = new NetworkMailbox(adapter);
         await mailbox.StartAsync();
 
-        await mailbox.RegisterAgentAsync("agent-1", "s1");
-        await mailbox.RegisterAgentAsync("agent-2", "s1");
+        mailbox.RegisterAgent("agent-1", "s1");
+        mailbox.RegisterAgent("agent-2", "s1");
         await WaitForRegistrationAsync(mailbox, "agent-1");
         await WaitForRegistrationAsync(mailbox, "agent-2");
         var msg = new CoordinatorMessage { FromAgentId = "sender", ToAgentId = "all", MessageType = "text", Content = "broadcast" };
 
-        await mailbox.TellBroadcastAsync(msg, excludeAgentId: null);
+        mailbox.TellBroadcast(msg, excludeAgentId: null);
         await mailbox.WaitForCommandsDrainedAsync();
 
         adapter.SentMessages.Should().HaveCount(2, "应向两个Agent各发送一次");
@@ -60,13 +60,13 @@ public class NetworkMailboxTest {
         await using var mailbox = new NetworkMailbox(adapter);
         await mailbox.StartAsync();
 
-        await mailbox.RegisterAgentAsync("agent-1", "s1");
-        await mailbox.RegisterAgentAsync("agent-2", "s1");
+        mailbox.RegisterAgent("agent-1", "s1");
+        mailbox.RegisterAgent("agent-2", "s1");
         await WaitForRegistrationAsync(mailbox, "agent-1");
         await WaitForRegistrationAsync(mailbox, "agent-2");
         var msg = new CoordinatorMessage { FromAgentId = "sender", ToAgentId = "all", MessageType = "text", Content = "broadcast" };
 
-        await mailbox.TellBroadcastAsync(msg, excludeAgentId: "agent-1");
+        mailbox.TellBroadcast(msg, excludeAgentId: "agent-1");
         await mailbox.WaitForCommandsDrainedAsync();
 
         adapter.SentMessages.Should().ContainSingle(m => m.targetId == "agent-2");
@@ -79,7 +79,7 @@ public class NetworkMailboxTest {
         await using var mailbox = new NetworkMailbox(adapter);
         await mailbox.StartAsync();
 
-        await mailbox.RegisterAgentAsync("agent-1", "s1");
+        mailbox.RegisterAgent("agent-1", "s1");
         await WaitForRegistrationAsync(mailbox, "agent-1");
 
         adapter.Deliver(new PlatformMessage("remote-user", "agent-1", "from-remote", DateTimeOffset.UtcNow));

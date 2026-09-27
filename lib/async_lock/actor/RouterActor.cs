@@ -108,8 +108,8 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
     /// </summary>
     /// <param name="message">待路由消息</param>
     /// <param name="deliver">投递函数:接收消息和 Worker 实例,由调用方强类型发送</param>
-    public ValueTask RouteAsync(TMessage message, Action<TMessage, IAsyncDisposable> deliver) {
-        return SendAsync(new RouteCommand<TMessage>(message, (msg, worker) => {
+    public void Route(TMessage message, Action<TMessage, IAsyncDisposable> deliver) {
+        Tell(new RouteCommand<TMessage>(message, (msg, worker) => {
             deliver(msg, worker);
             return ValueTask.CompletedTask;
         }));
@@ -117,19 +117,19 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
 
     /// <summary>
     /// 路由消息到 Worker — 异步投递版本,deliver 可 await 背压等待。
-    /// <para>适用于编译等需要背压控制的场景:deliver 内部用 SendAsync 异步投递。</para>
+    /// <para>适用于编译等需要背压控制的场景:deliver 内部用 Tell 投递。</para>
     /// </summary>
     /// <param name="message">待路由消息</param>
-    /// <param name="deliver">异步投递函数:可 await Worker.SendAsync 等待背压</param>
-    public ValueTask RouteAsync(TMessage message, Func<TMessage, IAsyncDisposable, ValueTask> deliver) {
-        return SendAsync(new RouteCommand<TMessage>(message, deliver));
+    /// <param name="deliver">异步投递函数:可 await Worker.Tell 等待背压</param>
+    public void Route(TMessage message, Func<TMessage, IAsyncDisposable, ValueTask> deliver) {
+        Tell(new RouteCommand<TMessage>(message, deliver));
     }
 
     /// <summary>当前 Worker 数量</summary>
     public int WorkerCount => _children.Count;
 
     /// <summary>Consumer 线程内处理路由命令</summary>
-    protected override async ValueTask HandleAsync(IRouterCommand command, CancellationToken ct) {
+    protected override void Handle(IRouterCommand command, CancellationToken ct) {
         if (command is RouteCommand<TMessage>(var msg, var deliver)) {
             var children = GetChildren();
             if (children.Count == 0) return;
@@ -139,7 +139,7 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
 
             var worker = children[idx];
             if (worker.Instance is not null) {
-                await deliver(msg, worker.Instance).ConfigureAwait(false);
+                _ = deliver(msg, worker.Instance);
                 TryPublish(new RouterEvent<TMessage>(worker.Id, msg, idx));
             }
         }

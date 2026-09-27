@@ -1,19 +1,19 @@
 namespace Core.Utils;
 
 /// <summary>
-/// 双 Tell 幂等集成测试 — 验证 ActorBase ConsumeLoop 对 IRequestCommand&lt;TOut&gt; 的缓存命中/未命中行为。
-/// <para>双 Tell 协议:发送方 Tell 请求 → Consumer 检查缓存 → 命中:TryRestoreFromCache 发布回执 / 未命中:HandleAsync 执行+缓存</para>
+/// 双 Tell 幂等集成测试 — 验证 ActorBase ConsumeLoop 对 IRequestCommand 的缓存命中/未命中行为。
+/// <para>双 Tell 协议:发送方 Tell 请求(命令自带 ReplyChannel) → Consumer 检查缓存 → 命中:TryRestoreFromCache 写 ReplyChannel / 未命中:HandleAsync 执行+缓存+写 ReplyChannel</para>
 /// </summary>
 public class DoubleTellIdempotencyTest {
-    /// <summary>首次发送命令 → 执行 HandleAsync → 缓存结果 → 输出回执</summary>
+    /// <summary>首次发送命令 → 执行 HandleAsync → 缓存结果 → 写入 ReplyChannel</summary>
     [Fact]
-    public async Task FirstSend_ExecutesHandleAsync_CachesResult_PublishesReply() {
+    public async Task FirstSend_ExecutesHandleAsync_CachesResult_WritesReply() {
         await using var actor = new IdempotentTestActor();
         var key = new IdempotencyKey("flow-1", "op-1");
         var cmd = new TestRequestCommand(key, "payload-A");
 
         await actor.SendAsync(cmd);
-        var firstReply = await actor.OutputAsync().FirstAsync();
+        var firstReply = await cmd.ReplyChannel.Reader.ReadAsync();
 
         firstReply.Should().Be("result-payload-A");
         actor.HandleInvocationCount.Should().Be(1);
@@ -29,10 +29,10 @@ public class DoubleTellIdempotencyTest {
         var cmd2 = new TestRequestCommand(key, "payload-B-dup");
 
         await actor.SendAsync(cmd1);
-        var firstReply = await actor.OutputAsync().FirstAsync();
+        var firstReply = await cmd1.ReplyChannel.Reader.ReadAsync();
 
         await actor.SendAsync(cmd2);
-        var secondReply = await actor.OutputAsync().FirstAsync();
+        var secondReply = await cmd2.ReplyChannel.Reader.ReadAsync();
 
         firstReply.Should().Be("result-payload-B");
         secondReply.Should().Be("result-payload-B");
@@ -45,18 +45,17 @@ public class DoubleTellIdempotencyTest {
         await using var actor = new IdempotentTestActor();
         var key1 = new IdempotencyKey("flow-3", "op-3");
         var key2 = new IdempotencyKey("flow-4", "op-4");
+        var cmd1 = new TestRequestCommand(key1, "X");
+        var cmd2 = new TestRequestCommand(key2, "Y");
 
-        await actor.SendAsync(new TestRequestCommand(key1, "X"));
-        await actor.SendAsync(new TestRequestCommand(key2, "Y"));
+        await actor.SendAsync(cmd1);
+        await actor.SendAsync(cmd2);
 
-        var replies = new List<string>();
-        await foreach (var reply in actor.OutputAsync()) {
-            replies.Add(reply);
-            if (replies.Count >= 2) break;
-        }
+        var reply1 = await cmd1.ReplyChannel.Reader.ReadAsync();
+        var reply2 = await cmd2.ReplyChannel.Reader.ReadAsync();
 
-        replies.Should().Contain("result-X");
-        replies.Should().Contain("result-Y");
+        reply1.Should().Be("result-X");
+        reply2.Should().Be("result-Y");
         actor.HandleInvocationCount.Should().Be(2);
     }
 
@@ -71,13 +70,11 @@ public class DoubleTellIdempotencyTest {
         await actor.SendAsync(cmd1);
         await actor.SendAsync(cmd2);
 
-        var replies = new List<string>();
-        await foreach (var reply in actor.OutputAsync()) {
-            replies.Add(reply);
-            if (replies.Count >= 2) break;
-        }
+        var reply1 = await cmd1.ReplyChannel.Reader.ReadAsync();
+        var reply2 = await cmd2.ReplyChannel.Reader.ReadAsync();
 
-        replies.Should().HaveCount(2);
+        reply1.Should().Be("result-Z");
+        reply2.Should().Be("result-Z");
         actor.HandleInvocationCount.Should().Be(2);
     }
 
@@ -106,15 +103,15 @@ public class DoubleTellIdempotencyTest {
         var key = new IdempotencyKey("flow-concurrent", "op-concurrent");
         const int count = 50;
 
-        var sends = Enumerable.Range(0, count)
-            .Select(_ => actor.SendAsync(new TestRequestCommand(key, "concurrent")).AsTask())
+        var cmds = Enumerable.Range(0, count)
+            .Select(_ => new TestRequestCommand(key, "concurrent"))
             .ToArray();
+        var sends = cmds.Select(cmd => actor.SendAsync(cmd).AsTask()).ToArray();
         await Task.WhenAll(sends);
 
         var replies = new List<string>();
-        await foreach (var reply in actor.OutputAsync()) {
-            replies.Add(reply);
-            if (replies.Count >= count) break;
+        foreach (var cmd in cmds) {
+            replies.Add(await cmd.ReplyChannel.Reader.ReadAsync());
         }
 
         replies.Should().HaveCount(count);
@@ -124,15 +121,17 @@ public class DoubleTellIdempotencyTest {
 }
 
 /// <summary>
-/// 测试用请求命令 — 实现 IRequestCommand&lt;string&gt;,携带幂等键 + 负载。
+/// 测试用请求命令 — 实现 IRequestCommand,携带幂等键 + 负载 + 自带回执通道。
 /// </summary>
 /// <param name="IdempotencyKey">幂等键</param>
 /// <param name="Payload">命令负载</param>
 internal sealed record TestRequestCommand(IdempotencyKey IdempotencyKey, string Payload)
-    : IRequestCommand<string> {
-    public bool TryRestoreFromCache(IIdempotencyStore store, Action<string> publish) {
+    : IRequestCommand {
+    public Channel<string> ReplyChannel { get; } = Channel.CreateUnbounded<string>();
+
+    public bool TryRestoreFromCache(IIdempotencyStore store) {
         if (store.TryGetResult<string>(IdempotencyKey, out var cached) && cached is not null) {
-            publish(cached);
+            ReplyChannel.Writer.TryWrite(cached);
             return true;
         }
         return false;
@@ -146,7 +145,7 @@ internal sealed record PlainCommand(string Payload);
 
 /// <summary>
 /// 幂等测试 Actor — 输入 TestRequestCommand | PlainCommand,输出 string 回执。
-/// <para>设置 IdempotencyStore 后,对 IRequestCommand&lt;string&gt; 做双 Tell 幂等去重。</para>
+/// <para>设置 IdempotencyStore 后,对 IRequestCommand 做双 Tell 幂等去重。</para>
 /// </summary>
 internal sealed class IdempotentTestActor : ActorBase<object, string> {
     public int HandleInvocationCount { get; private set; }
@@ -164,7 +163,7 @@ internal sealed class IdempotentTestActor : ActorBase<object, string> {
                 HandleInvocationCount++;
                 var result = $"result-{req.Payload}";
                 IdempotencyStore?.TryRegister(req.IdempotencyKey, result);
-                TryPublish(result);
+                req.ReplyChannel.Writer.TryWrite(result);
                 break;
             case PlainCommand plain:
                 HandleInvocationCount++;

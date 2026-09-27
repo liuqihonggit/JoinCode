@@ -4,7 +4,7 @@ namespace Core.Prompts.Testing;
 /// 触发条件映射器 - 基于命名约定推导Section触发条件
 /// </summary>
 public sealed class TriggerConditionMapper {
-    private static readonly Dictionary<string, TriggerCondition> ParameterMappings;
+    private static readonly FrozenDictionary<string, TriggerCondition> ParameterMappings;
 
     static TriggerConditionMapper() {
         ParameterMappings = new Dictionary<string, TriggerCondition>(StringComparer.OrdinalIgnoreCase) {
@@ -31,7 +31,7 @@ public sealed class TriggerConditionMapper {
             ["feedbackChannel"] = new("反馈渠道", ctx => !string.IsNullOrEmpty(ctx.Config.FeedbackChannel)),
             ["additionalWorkdirs"] = new("额外工作目录", ctx => ctx.Config.AdditionalWorkdirs?.Any() == true),
             ["additionalEnvInfo"] = new("额外环境信息", ctx => !string.IsNullOrEmpty(ctx.Config.AdditionalEnvInfo)),
-        };
+        }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

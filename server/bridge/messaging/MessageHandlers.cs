@@ -346,12 +346,12 @@ public sealed class ControlRequestHandler : IMessageHandler {
     /// <summary>消息类型: control_request</summary>
     public string MessageType => "control_request";
 
-    private static readonly Dictionary<string, Func<ControlRequest, MessageHandlerContext, CancellationToken, Task<ControlResponse>>> CommandHandlers = new(StringComparer.OrdinalIgnoreCase) {
+    private static readonly FrozenDictionary<string, Func<ControlRequest, MessageHandlerContext, CancellationToken, Task<ControlResponse>>> CommandHandlers = new Dictionary<string, Func<ControlRequest, MessageHandlerContext, CancellationToken, Task<ControlResponse>>>(StringComparer.OrdinalIgnoreCase) {
         ["ping"] = HandlePingAsync,
         ["getStatus"] = HandleGetStatusAsync,
         ["clearCache"] = HandleClearCacheAsync,
         ["reloadSkills"] = HandleReloadSkillsAsync
-    };
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 处理控制请求 — 分发到 ping/getStatus/clearCache/reloadSkills 子命令

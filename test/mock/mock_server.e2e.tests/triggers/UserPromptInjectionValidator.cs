@@ -108,7 +108,7 @@ public enum InjectionType {
 /// </summary>
 public sealed class UserPromptInjectionValidator {
     // 注入检测关键词字典
-    private static readonly Dictionary<InjectionType, string[]> InjectionKeywords = new() {
+    private static readonly FrozenDictionary<InjectionType, string[]> InjectionKeywords = new Dictionary<InjectionType, string[]> {
         [InjectionType.SystemPromptOverride] = new[]
         {
             "ignore previous instructions",
@@ -168,7 +168,7 @@ public sealed class UserPromptInjectionValidator {
             "zero-width",
             "invisible characters"
         }
-    };
+    }.ToFrozenDictionary();
 
     // 注入标记器 - 用于检测提示词是否已正确注入
     private static readonly string[] InjectionMarkers = new[]

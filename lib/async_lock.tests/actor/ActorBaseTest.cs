@@ -236,14 +236,9 @@ internal sealed class TestActor : ActorBase<string, string> {
     }
 
     protected override void Handle(string command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
-    }
-
-    private async ValueTask HandleAsyncImpl(string command, CancellationToken ct) {
-        await Task.Yield();
         if (command == "throw")
             throw new InvalidOperationException("test error");
-        if (Gate is not null) await Gate.Task.WaitAsync(ct);
+        if (Gate is not null) Gate.Task.Wait(ct);
         ProcessedCommands.Add(command);
         TryPublish($"processed-{command}");
     }

@@ -164,11 +164,6 @@ internal sealed class IdempotentTestActor : ActorBase<object, string> {
     }
 
     protected override void Handle(object command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
-    }
-
-    private async ValueTask HandleAsyncImpl(object command, CancellationToken ct) {
-        await Task.Yield();
         switch (command) {
             case TestRequestCommand req:
                 HandleInvocationCount++;

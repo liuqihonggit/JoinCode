@@ -200,17 +200,15 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
             SetExecutionContext(agent.ObjectId.UniqueId, context);
         }
 
-        context = context with { LastExecutionStart = _clock.GetUtcNow() };
-        SetExecutionContext(context.AgentId, context);
+        context = UpdateExecutionContext(agent.ObjectId.UniqueId, ctx => ctx with { LastExecutionStart = _clock.GetUtcNow() }) ?? context;
 
         try {
             var result = await _lifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
 
-            context = context with {
+            context = UpdateExecutionContext(agent.ObjectId.UniqueId, ctx => ctx with {
                 LastExecutionEnd = _clock.GetUtcNow(),
                 Outcome = result.IsSuccess ? AgentOutcome.Succeeded : AgentOutcome.Failed
-            };
-            SetExecutionContext(context.AgentId, context);
+            }) ?? context;
 
             if (result.IsSuccess) {
                 _logger?.LogInformation("[AgentCoordinator] Agent {AgentId} 执行成功", agent.ObjectId.UniqueId);
@@ -220,11 +218,10 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
             return result;
         } catch (Exception ex) {
-            context = context with {
+            context = UpdateExecutionContext(agent.ObjectId.UniqueId, ctx => ctx with {
                 LastExecutionEnd = _clock.GetUtcNow(),
                 Outcome = AgentOutcome.Failed
-            };
-            SetExecutionContext(context.AgentId, context);
+            }) ?? context;
             _logger?.LogError(ex, "[AgentCoordinator] Agent {AgentId} 执行异常", agent.ObjectId.UniqueId);
             throw;
         }
@@ -261,10 +258,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     public async Task<bool> CancelAgentAsync(string agentId, CancellationToken ct = default) {
         _logger?.LogInformation("[AgentCoordinator] 取消Agent {AgentId}", agentId);
 
-        if (_executionContexts.TryGetValue(agentId, out var context)) {
-            context = context with { Outcome = AgentOutcome.Cancelled };
-            SetExecutionContext(context.AgentId, context);
-        }
+        UpdateExecutionContext(agentId, ctx => ctx with { Outcome = AgentOutcome.Cancelled });
 
         return await _lifecycleManager.CancelAgentAsync(agentId, ct).ConfigureAwait(false);
     }
@@ -277,8 +271,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _logger?.LogInformation("[AgentCoordinator] 取消所有Agent");
 
         foreach (var context in _executionContexts.Values) {
-            var updated = context with { Outcome = AgentOutcome.Cancelled };
-            SetExecutionContext(updated.AgentId, updated);
+            UpdateExecutionContext(context.AgentId, ctx => ctx with { Outcome = AgentOutcome.Cancelled });
         }
 
         await _lifecycleManager.CancelAllAsync(ct).ConfigureAwait(false);
@@ -308,8 +301,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
             return null;
         }
 
-        context = context with { RetryCount = context.RetryCount + 1 };
-        SetExecutionContext(context.AgentId, context);
+        context = UpdateExecutionContext(agentId, ctx => ctx with { RetryCount = ctx.RetryCount + 1 }) ?? context;
         var delay = policy.GetDelay(context.RetryCount);
 
         _logger?.LogInformation("[AgentCoordinator] 等待 {DelayMs}ms 后重试Agent {AgentId} (第{RetryCount}次)",
@@ -320,8 +312,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         var result = await _lifecycleManager.RetryAsync(agentId, cancellationToken).ConfigureAwait(false);
 
         if (result != null) {
-            context = context with { Outcome = result.IsSuccess ? AgentOutcome.Succeeded : AgentOutcome.Failed };
-            SetExecutionContext(context.AgentId, context);
+            context = UpdateExecutionContext(agentId, ctx => ctx with { Outcome = result.IsSuccess ? AgentOutcome.Succeeded : AgentOutcome.Failed }) ?? context;
             if (result.IsSuccess) {
                 _logger?.LogInformation("[AgentCoordinator] Agent {AgentId} 重试成功", agentId);
             } else if (context.RetryCount < policy.MaxRetries) {
@@ -401,10 +392,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _logger?.LogInformation("[AgentCoordinator] 并行执行 {Count} 个Agent", agentList.Count);
 
         foreach (var agent in agentList) {
-            if (_executionContexts.TryGetValue(agent.ObjectId.UniqueId, out var context)) {
-                context = context with { ExecutionMode = ExecutionMode.Parallel };
-                SetExecutionContext(context.AgentId, context);
-            }
+            UpdateExecutionContext(agent.ObjectId.UniqueId, ctx => ctx with { ExecutionMode = ExecutionMode.Parallel });
         }
 
         return await _executionEngine.ExecuteParallelAsync(agentList, options, clusterOptions, cancellationToken).ConfigureAwait(false);
@@ -423,10 +411,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _logger?.LogInformation("[AgentCoordinator] 串行执行 {Count} 个Agent", agentList.Count);
 
         foreach (var agent in agentList) {
-            if (_executionContexts.TryGetValue(agent.ObjectId.UniqueId, out var context)) {
-                context = context with { ExecutionMode = ExecutionMode.Sequential };
-                SetExecutionContext(context.AgentId, context);
-            }
+            UpdateExecutionContext(agent.ObjectId.UniqueId, ctx => ctx with { ExecutionMode = ExecutionMode.Sequential });
         }
 
         return await _executionEngine.ExecuteSequentialAsync(agentList, cancellationToken).ConfigureAwait(false);
@@ -672,10 +657,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         ((AgentBase)agent).CancellationTokenSource?.Cancel();
         ((AgentBase)agent).State = TaskExecutionStatus.Cancelled;
 
-        if (_executionContexts.TryGetValue(agentId, out var context)) {
-            context = context with { Outcome = AgentOutcome.Cancelled };
-            SetExecutionContext(context.AgentId, context);
-        }
+        UpdateExecutionContext(agentId, ctx => ctx with { Outcome = AgentOutcome.Cancelled });
 
         return await _lifecycleManager.CancelAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
     }
@@ -789,6 +771,21 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
             var updated = current.SetItem(key, value);
             if (Interlocked.CompareExchange(ref _executionContexts, updated, current) == current) return;
             current = _executionContexts;
+        }
+    }
+
+    /// <summary>
+    /// 原子 Read-Modify-Write：CAS 循环内读取最新值 → updater 计算新值 → CAS 替换。
+    /// <para>消除 Lost Update：updater 基于最新 existing 计算，而非调用方的旧快照。</para>
+    /// </summary>
+    /// <returns>更新后的值；key 不存在则 null</returns>
+    internal AgentExecutionContext? UpdateExecutionContext(string key, Func<AgentExecutionContext, AgentExecutionContext> updater) {
+        while (true) {
+            var current = _executionContexts;
+            if (!current.TryGetValue(key, out var existing)) return null;
+            var newValue = updater(existing);
+            var updated = current.SetItem(key, newValue);
+            if (Interlocked.CompareExchange(ref _executionContexts, updated, current) == current) return newValue;
         }
     }
 

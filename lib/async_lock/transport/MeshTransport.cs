@@ -12,7 +12,7 @@ namespace Core.Utils;
 public sealed class MeshTransport : ITransportTopology {
     private readonly string _basePipeName;
     private readonly ILogger? _logger;
-    private readonly ConcurrentDictionary<string, MeshPeerConnection> _peerConnections;
+    private ImmutableDictionary<string, MeshPeerConnection> _peerConnections = ImmutableDictionary<string, MeshPeerConnection>.Empty;
     private readonly Channel<TransportFrame> _receiveChannel;
     private readonly CancellationTokenSource _cts;
     private readonly string _processId;
@@ -33,7 +33,6 @@ public sealed class MeshTransport : ITransportTopology {
         _basePipeName = basePipeName;
         _logger = logger;
         _processId = processId ?? Environment.ProcessId.ToString();
-        _peerConnections = new ConcurrentDictionary<string, MeshPeerConnection>();
         _receiveChannel = Channel.CreateBounded<TransportFrame>(new BoundedChannelOptions(1024) {
             SingleReader = true,
             SingleWriter = false,
@@ -96,7 +95,7 @@ public sealed class MeshTransport : ITransportTopology {
         ThrowIfDisposed();
         var envelope = BinaryProtocol.Encode(MessageType.Broadcast, ProcessId, null, data);
 
-        foreach (var kvp in _peerConnections) {
+        foreach (var kvp in Volatile.Read(ref _peerConnections)) {
             await kvp.Value.WriteAsync(envelope, ct).ConfigureAwait(false);
         }
     }
@@ -106,7 +105,7 @@ public sealed class MeshTransport : ITransportTopology {
         => _receiveChannel.Reader.ReadAllAsync(ct);
 
     /// <inheritdoc/>
-    public IReadOnlyCollection<string> GetConnectedProcesses() => _peerConnections.Keys.ToArray();
+    public IReadOnlyCollection<string> GetConnectedProcesses() => Volatile.Read(ref _peerConnections).Keys.ToArray();
 
     /// <summary>
     /// 主动添加 peer 连接 — 连接到指定进程的 server pipe。
@@ -126,7 +125,7 @@ public sealed class MeshTransport : ITransportTopology {
     /// 获取或创建到目标进程的连接 — 连接缓存复用。
     /// </summary>
     private async ValueTask<MeshPeerConnection?> GetOrCreatePeerConnectionAsync(string peerPid, CancellationToken ct) {
-        if (_peerConnections.TryGetValue(peerPid, out var existing) && existing.IsConnected) {
+        if (Volatile.Read(ref _peerConnections).TryGetValue(peerPid, out var existing) && existing.IsConnected) {
             return existing;
         }
 
@@ -151,7 +150,7 @@ public sealed class MeshTransport : ITransportTopology {
         await client.WriteAsync(handshake, ct).ConfigureAwait(false);
 
         var conn = new MeshPeerConnection(peerPid, client, _logger);
-        _peerConnections[peerPid] = conn;
+        ImmutableInterlocked.Update(ref _peerConnections, d => d.SetItem(peerPid, conn));
         _logger?.LogDebug("MeshTransport: connected to peer {Peer} on {Pipe}", peerPid, pipeName);
         return conn;
     }
@@ -201,8 +200,8 @@ public sealed class MeshTransport : ITransportTopology {
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
 
-        var conns = _peerConnections.Values.ToArray();
-        _peerConnections.Clear();
+        var conns = Volatile.Read(ref _peerConnections).Values.ToArray();
+        Volatile.Write(ref _peerConnections, ImmutableDictionary<string, MeshPeerConnection>.Empty);
 
         if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);
         _acceptTask = null;

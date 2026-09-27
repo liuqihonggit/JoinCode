@@ -38,7 +38,7 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
     private readonly IPluginManager _pluginManager;
     private readonly ILogger<PluginHookInjector>? _logger;
     private readonly ITelemetryService? _telemetryService;
-    private readonly ConcurrentDictionary<string, List<PluginHookDefinition>> _injectedHooks;
+    private ImmutableDictionary<string, ImmutableList<PluginHookDefinition>> _injectedHooks = ImmutableDictionary<string, ImmutableList<PluginHookDefinition>>.Empty;
 
     /// <summary>
     /// 构造插件钩子注入器
@@ -53,7 +53,6 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
         _pluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
         _logger = logger;
         _telemetryService = telemetryService;
-        _injectedHooks = new ConcurrentDictionary<string, List<PluginHookDefinition>>();
     }
 
     /// <summary>
@@ -71,9 +70,9 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
             throw new InvalidOperationException(PluginErrors.NotLoadedForHook(pluginName));
         }
 
-        var hookList = new List<PluginHookDefinition>(hooks);
+        var hookList = hooks.ToImmutableList();
 
-        _injectedHooks[pluginName] = hookList;
+        ImmutableInterlocked.Update(ref _injectedHooks, d => d.SetItem(pluginName, hookList));
 
         RecordHookInjectorMetrics("inject", pluginName, hooks.Count, true);
 
@@ -86,8 +85,10 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
         await Task.CompletedTask.ConfigureAwait(false);
 
         return () => {
-            if (_injectedHooks.TryRemove(pluginName, out var removed)) {
-                RecordHookInjectorMetrics("remove", pluginName, removed.Count, true);
+            var hadHooks = Volatile.Read(ref _injectedHooks).TryGetValue(pluginName, out var removed);
+            ImmutableInterlocked.Update(ref _injectedHooks, d => d.Remove(pluginName));
+            if (hadHooks) {
+                RecordHookInjectorMetrics("remove", pluginName, removed!.Count, true);
             }
         };
     }
@@ -100,8 +101,10 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
     public async Task RemoveHooksAsync(string pluginName, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
 
-        if (_injectedHooks.TryRemove(pluginName, out var hooks)) {
-            RecordHookInjectorMetrics("remove", pluginName, hooks.Count, true);
+        var hadHooks = Volatile.Read(ref _injectedHooks).TryGetValue(pluginName, out var hooks);
+        ImmutableInterlocked.Update(ref _injectedHooks, d => d.Remove(pluginName));
+        if (hadHooks) {
+            RecordHookInjectorMetrics("remove", pluginName, hooks!.Count, true);
             foreach (var hook in hooks) {
                 _logger?.LogInformation(
                     "[PluginHookInjector] 移除 Hook: {HookName} (插件: {Plugin})",
@@ -120,7 +123,7 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
     public IEnumerable<PluginHookDefinition> GetInjectedHooks(string pluginName) {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
 
-        return _injectedHooks.TryGetValue(pluginName, out var hooks)
+        return Volatile.Read(ref _injectedHooks).TryGetValue(pluginName, out var hooks)
             ? hooks
             : Array.Empty<PluginHookDefinition>();
     }

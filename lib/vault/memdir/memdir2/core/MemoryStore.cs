@@ -127,11 +127,9 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 删除记忆
     /// </summary>
     public bool DeleteMemory(string id) {
-        if (!Volatile.Read(ref _memories).ContainsKey(id)) {
-            return false;
-        }
-
+        var hadKey = Volatile.Read(ref _memories).ContainsKey(id);
         ImmutableInterlocked.Update(ref _memories, d => d.Remove(id));
+        if (!hadKey) return false;
 
         _logger?.LogInformation(L.T(StringKey.VaultLogStoreDeleteMemory), id);
         _ = SaveMemoriesAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);

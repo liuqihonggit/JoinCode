@@ -108,7 +108,7 @@ public sealed partial class SessionHookStore {
 [Register(typeof(ISessionHookManagerInternal), ServiceLifetime.Singleton)]
 [Register(typeof(ISessionHookManager), ServiceLifetime.Singleton)]
 public sealed partial class SessionHookManager : ServiceEntity, ISessionHookManagerInternal {
-    private readonly ConcurrentDictionary<string, SessionHookStore> _sessionStores = new();
+    private ImmutableDictionary<string, SessionHookStore> _sessionStores = ImmutableDictionary<string, SessionHookStore>.Empty;
     private readonly ILogger<SessionHookManager>? _logger;
 
     /// <summary>
@@ -125,7 +125,10 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
         string? matcher,
         HookCommand hook,
         CancellationToken cancellationToken = default) {
-        var store = _sessionStores.GetOrAdd(sessionId, _ => new SessionHookStore());
+        if (!Volatile.Read(ref _sessionStores).TryGetValue(sessionId, out var store)) {
+            ImmutableInterlocked.Update(ref _sessionStores, d => d.ContainsKey(sessionId) ? d : d.Add(sessionId, new SessionHookStore()));
+            store = Volatile.Read(ref _sessionStores)[sessionId];
+        }
 
         store.AddHook(hookEvent, new SessionHookEntry {
             Hook = hook,
@@ -159,7 +162,10 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
             Timeout = timeout ?? 5
         };
 
-        var store = _sessionStores.GetOrAdd(sessionId, _ => new SessionHookStore());
+        if (!Volatile.Read(ref _sessionStores).TryGetValue(sessionId, out var store)) {
+            ImmutableInterlocked.Update(ref _sessionStores, d => d.ContainsKey(sessionId) ? d : d.Add(sessionId, new SessionHookStore()));
+            store = Volatile.Read(ref _sessionStores)[sessionId];
+        }
 
         store.AddHook(hookEvent, new SessionHookEntry {
             Hook = functionHook,
@@ -181,7 +187,7 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
         HookEvent hookEvent,
         string hookId,
         CancellationToken cancellationToken = default) {
-        if (!_sessionStores.TryGetValue(sessionId, out var store)) {
+        if (!Volatile.Read(ref _sessionStores).TryGetValue(sessionId, out var store)) {
             return Task.CompletedTask;
         }
 
@@ -204,7 +210,7 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
         string? matcher,
         HookCommand hook,
         CancellationToken cancellationToken = default) {
-        if (!_sessionStores.TryGetValue(sessionId, out var store)) {
+        if (!Volatile.Read(ref _sessionStores).TryGetValue(sessionId, out var store)) {
             return Task.CompletedTask;
         }
 
@@ -224,7 +230,7 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
         string sessionId,
         HookEvent? hookEvent = null,
         CancellationToken cancellationToken = default) {
-        if (!_sessionStores.TryGetValue(sessionId, out var store)) {
+        if (!Volatile.Read(ref _sessionStores).TryGetValue(sessionId, out var store)) {
             return Task.FromResult(new List<SourcedHookConfig>());
         }
 
@@ -268,7 +274,7 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
         string sessionId,
         HookEvent? hookEvent = null,
         CancellationToken cancellationToken = default) {
-        if (!_sessionStores.TryGetValue(sessionId, out var store)) {
+        if (!Volatile.Read(ref _sessionStores).TryGetValue(sessionId, out var store)) {
             return Task.FromResult(new List<FunctionHook>());
         }
 
@@ -297,8 +303,10 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
     public Task ClearSessionHooksAsync(
         string sessionId,
         CancellationToken cancellationToken = default) {
-        if (_sessionStores.TryRemove(sessionId, out var store)) {
-            store.Clear();
+        var hadStore = Volatile.Read(ref _sessionStores).TryGetValue(sessionId, out var store);
+        ImmutableInterlocked.Update(ref _sessionStores, d => d.Remove(sessionId));
+        if (hadStore) {
+            store!.Clear();
             _logger?.LogDebug("Cleared all hooks for session {SessionId}", sessionId);
         }
 
@@ -308,17 +316,17 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
     /// <summary>
     /// 获取所有会话ID的快照拷贝
     /// </summary>
-    public string[] GetAllSessionIds() => _sessionStores.Keys.ToArray();
+    public string[] GetAllSessionIds() => Volatile.Read(ref _sessionStores).Keys.ToArray();
 
     /// <summary>
     /// 清除所有会话钩子
     /// </summary>
     public void ClearAllSessions() {
-        foreach (var store in _sessionStores.Values) {
+        foreach (var store in Volatile.Read(ref _sessionStores).Values) {
             store.Clear();
         }
 
-        _sessionStores.Clear();
+        Volatile.Write(ref _sessionStores, ImmutableDictionary<string, SessionHookStore>.Empty);
         _logger?.LogDebug("Cleared all session hooks");
     }
 }

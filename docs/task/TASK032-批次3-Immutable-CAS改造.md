@@ -136,19 +136,19 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 - [x] `LockRegistry._locks` — 静态锁注册表,低频写入
 - [x] `SshPortForwardManager._forwards` — SSH端口转发,低频写入
 
-#### B2类(可能适合,中频写入,需进一步分析,12处)
-- [ ] `BusTransport._clientConnections` — 连接管理,连接建立/断开时写入
-- [ ] `MeshTransport._peerConnections` — peer连接缓存
-- [ ] `NamedPipeTransport._connections` — 命名管道连接
-- [ ] `SshSessionManager._sessions` — SSH会话管理
-- [ ] `SessionHookManager._sessionStores` — 会话钩子存储
-- [ ] `StateService._fallbackStorage` — 状态服务回退存储
-- [ ] `PluginRuntimeRegistry._entries` — 插件运行时状态
-- [ ] `PluginHookInjector._injectedHooks` — 插件钩子注入
-- [ ] `SessionScope._entities` — 会话实体表
-- [ ] `MailboxBase._agentMailboxes` — Agent邮箱路由表
-- [ ] `SupervisedActor._children` — 监督Actor子Actor
-- [ ] `RouterActor._children` — 路由Actor子Actor
+#### B2类(可能适合,中频写入,需进一步分析,12处) — 8处完成,4处跳过
+- [x] `BusTransport._clientConnections` — 连接管理,连接建立/断开时写入
+- [x] `MeshTransport._peerConnections` — peer连接缓存
+- [x] `NamedPipeTransport._connections` — 命名管道连接
+- [x] `SshSessionManager._sessions` — SSH会话管理
+- [x] `SessionHookManager._sessionStores` — 会话钩子存储
+- [x] `StateService._fallbackStorage` — 状态服务回退存储
+- [x] `PluginHookInjector._injectedHooks` — 插件钩子注入
+- [x] `SessionScope._entities` — 会话实体表
+- [ ] `MailboxBase._agentMailboxes` — 跳过:Actor邮箱路由表高频读写,CAS重试+GC压力退化
+- [ ] `SupervisedActor._children` — 跳过:同上,Actor子Actor管理高频读写
+- [ ] `RouterActor._children` — 跳过:同上
+- [ ] `PluginRuntimeRegistry._entries` — 跳过:已用TryUpdate CAS循环,改ImmutableDictionary lambda副作用问题
 
 #### B3类(不适合改,高频并发写入/值类型可变/Actor内部状态,15处)
 - `GraphExecutionContext._nodeStates` — 高频写入(图执行过程中频繁更新)
@@ -180,15 +180,16 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 | 2026-09-27 | P4 | 10 | 55/63 | ✅ 完成(TeamMemorySyncService标C类) |
 | 2026-09-27 | P5 | 1 | 56/63 | ✅ 完成(MemoryStore._memories改ImmutableDictionary+CAS) |
 | 2026-09-27 | B1 | 4 | 60/63 | ✅ 完成(InvariantRegistry+SessionRouter+LockRegistry+SshPortForwardManager) |
+| 2026-09-27 | B2 | 8 | 68/63 | ✅ 8处完成,4处跳过(MailboxBase/SupervisedActor/RouterActor高频读写+PluginRuntimeRegistry已用CAS) |
 
 ## 批次3完成总结
 
 - **A类(适合改造)**: 56/63处完成(P0-P5),剩余7处为C类(TeamMemorySyncService等)
 - **B1类(低频写入+高频读取)**: 4处完成
-- **B2类(中频写入)**: 12处保持现状(需进一步分析,风险较高)
+- **B2类(中频写入)**: 8处完成,4处跳过(MailboxBase/SupervisedActor/RouterActor高频读写不适合,PluginRuntimeRegistry已用CAS循环)
 - **B3类(高频并发写入/Actor内部)**: 15处保持现状(不适合Immutable+CAS)
 - **C类(不适合)**: 7处保持现状(DTO/上下文对象/管道传递引用)
-- **总计**: 60处改造完成,剩余保持现状
+- **总计**: 68处改造完成,剩余保持现状
 
 ## 验收标准
 

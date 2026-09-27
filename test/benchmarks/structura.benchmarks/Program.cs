@@ -2,8 +2,14 @@ namespace StructuraBenchmarks;
 
 /// <summary>ImmutableHamT vs BCL ImmutableDictionary 压测 — Stopwatch 快速对比,目标运行时长 3s 左右。</summary>
 public static class Program {
-    /// <summary>入口 — 对比 Lookup/Add/SetItem/Remove/Enumerate 五种操作在 10K~1M 规模下的性能。</summary>
-    public static void Main() {
+    /// <summary>入口 — 无参数跑 BenchmarkDotNet 微基准(HamtBench),"legacy" 跑 Stopwatch HAMT-vs-BCL 粗对比。</summary>
+    public static void Main(string[] args) {
+        if (args.Length > 0 && args[0] == "legacy") { RunLegacyCompare(); return; }
+        BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
+    }
+
+    /// <summary>Stopwatch 粗对比 HAMT vs BCL — 保留供快速 sanity check。</summary>
+    private static void RunLegacyCompare() {
         var sizes = new[] { 1000, 10000, 50000, 100000 };
         Console.WriteLine($"{"Size",-10} {"Op",-12} {"BCL(ms)",-12} {"HAMT(ms)",-12} {"Ratio",-8}");
         Console.WriteLine(new string('-', 58));

@@ -13,7 +13,7 @@ public static class LanguageMapCatalog {
     /// 文件扩展名到语言显示名的映射（OrdinalIgnoreCase）
     /// 唯一数据源:所有消费方通过此属性获取,禁止在消费方重复硬编码
     /// </summary>
-    public static readonly IReadOnlyDictionary<string, string> ExtensionToLanguage = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
+    public static readonly FrozenDictionary<string, string> ExtensionToLanguage = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
         [".cs"] = "C#",
         [".ts"] = "TypeScript",
         [".tsx"] = "TypeScript",
@@ -34,7 +34,7 @@ public static class LanguageMapCatalog {
         [".ps1"] = "PowerShell",
         [".sql"] = "SQL",
         [".xml"] = "XML",
-    };
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 尝试获取扩展名对应的语言显示名
@@ -49,7 +49,7 @@ public static class LanguageMapCatalog {
     /// 文件扩展名到 glob 搜索模式的映射（OrdinalIgnoreCase）
     /// 用于文件搜索:给定扩展名,返回匹配的 glob 模式列表(如 ".ts" → ["*.ts", "*.tsx"])
     /// </summary>
-    public static readonly IReadOnlyDictionary<string, string[]> ExtensionToGlobs = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase) {
+    public static readonly FrozenDictionary<string, string[]> ExtensionToGlobs = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase) {
         [".cs"] = ["*.cs"],
         [".ts"] = ["*.ts", "*.tsx"],
         [".js"] = ["*.js", "*.jsx"],
@@ -64,5 +64,5 @@ public static class LanguageMapCatalog {
         [".json"] = ["*.json"],
         [".xml"] = ["*.xml"],
         [".yaml"] = ["*.yaml", "*.yml"],
-    };
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 }

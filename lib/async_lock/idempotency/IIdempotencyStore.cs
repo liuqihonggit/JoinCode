@@ -3,7 +3,7 @@ namespace Core.Utils;
 /// <summary>
 /// 幂等去重存储 — 无锁键控去重，缓存操作结果。
 /// <para>用于 Actor 重试场景：重试时携带相同幂等键，接收方守卫层用此存储做去重。</para>
-/// <para>实现应使用 ImmutableDictionary + CAS 无锁更新，禁止 lock。</para>
+/// <para>实现应使用 ImmutableHamT + CAS 无锁更新，禁止 lock。</para>
 /// </summary>
 public interface IIdempotencyStore {
     /// <summary>

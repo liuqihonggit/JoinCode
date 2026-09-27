@@ -40,23 +40,23 @@ public enum TestTriggerType {
 /// 测试触发器类型扩展方法
 /// </summary>
 public static class TestTriggerTypeExtensions {
-    private static readonly Dictionary<TestTriggerType, string> TypeNames = new() {
+    private static readonly FrozenDictionary<TestTriggerType, string> TypeNames = new Dictionary<TestTriggerType, string> {
         [TestTriggerType.SystemPrompt] = "SYSTEM",
         [TestTriggerType.UserPrompt] = "USER",
         [TestTriggerType.ToolPrompt] = "TOOL",
         [TestTriggerType.UserInjection] = "INJECTION",
         [TestTriggerType.ApiKey] = "APIKEY",
         [TestTriggerType.FullRequest] = "FULL"
-    };
+    }.ToFrozenDictionary();
 
-    private static readonly Dictionary<string, TestTriggerType> NameToTypeMap = new(StringComparer.OrdinalIgnoreCase) {
+    private static readonly FrozenDictionary<string, TestTriggerType> NameToTypeMap = new Dictionary<string, TestTriggerType>(StringComparer.OrdinalIgnoreCase) {
         ["SYSTEM"] = TestTriggerType.SystemPrompt,
         ["USER"] = TestTriggerType.UserPrompt,
         ["TOOL"] = TestTriggerType.ToolPrompt,
         ["INJECTION"] = TestTriggerType.UserInjection,
         ["APIKEY"] = TestTriggerType.ApiKey,
         ["FULL"] = TestTriggerType.FullRequest
-    };
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 获取触发器类型的字符串标识

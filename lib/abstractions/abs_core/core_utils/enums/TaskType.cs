@@ -36,7 +36,7 @@ public enum DreamPhase {
 /// 任务ID前缀映射
 /// </summary>
 public static class TaskIdPrefixes {
-    private static readonly Dictionary<TaskType, char> Prefixes = new() {
+    private static readonly FrozenDictionary<TaskType, char> Prefixes = new Dictionary<TaskType, char> {
         [TaskType.LocalBash] = 'b',
         [TaskType.LocalAgent] = 'a',
         [TaskType.RemoteAgent] = 'r',
@@ -44,7 +44,7 @@ public static class TaskIdPrefixes {
         [TaskType.LocalWorkflow] = 'w',
         [TaskType.MonitorMcp] = 'm',
         [TaskType.Dream] = 'd'
-    };
+    }.ToFrozenDictionary();
 
     /// <summary>获取任务类型对应的标识前缀。</summary>
     public static char GetPrefix(TaskType type) =>

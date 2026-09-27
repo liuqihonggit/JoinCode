@@ -8,12 +8,13 @@ namespace Core.Utils;
 internal sealed record IdempotencyEntry(object? Result, long TimestampMs);
 
 /// <summary>
-/// 幂等去重存储无锁实现 — ImmutableDictionary + ImmutableInterlocked.Update CAS。
+/// 幂等去重存储无锁实现 — ImmutableHamT + ImmutableInterlocked.Update CAS。
 /// <para>读：引用读取原子无锁 O(1)；写：CAS 原子替换，冲突自动重试。</para>
 /// <para>TTL 过期：EvictExpired 惰性清理，不自动定时清理（调用方按需调用）。</para>
+/// <para>HAMT O(log₃₂ N) 优于 BCL ImmutableDictionary 平衡 BST O(log₂ N)。</para>
 /// </summary>
 public sealed class IdempotencyStore : IIdempotencyStore {
-    private ImmutableDictionary<IdempotencyKey, IdempotencyEntry> _store = ImmutableDictionary<IdempotencyKey, IdempotencyEntry>.Empty;
+    private ImmutableHamT<IdempotencyKey, IdempotencyEntry> _store = ImmutableHamT<IdempotencyKey, IdempotencyEntry>.Empty;
 
     /// <summary>尝试注册并缓存结果</summary>
     public bool TryRegister<T>(IdempotencyKey key, T result) {

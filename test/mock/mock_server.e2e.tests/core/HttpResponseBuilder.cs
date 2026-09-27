@@ -128,7 +128,7 @@ internal static class HttpResponseBuilder {
             : null;
     }
 
-    private static readonly Dictionary<int, string> StatusCodeTexts = new() {
+    private static readonly FrozenDictionary<int, string> StatusCodeTexts = new Dictionary<int, string> {
         [200] = "OK",
         [201] = "Created",
         [400] = "Bad Request",
@@ -139,9 +139,9 @@ internal static class HttpResponseBuilder {
         [500] = "Internal Server Error",
         [502] = "Bad Gateway",
         [503] = "Service Unavailable"
-    };
+    }.ToFrozenDictionary();
 
-    private static readonly Dictionary<int, string> ErrorCodes = new() {
+    private static readonly FrozenDictionary<int, string> ErrorCodes = new Dictionary<int, string> {
         [400] = "invalid_request_error",
         [401] = "unauthorized",
         [403] = "forbidden",
@@ -150,5 +150,5 @@ internal static class HttpResponseBuilder {
         [500] = "internal_error",
         [502] = "bad_gateway",
         [503] = "service_unavailable"
-    };
+    }.ToFrozenDictionary();
 }

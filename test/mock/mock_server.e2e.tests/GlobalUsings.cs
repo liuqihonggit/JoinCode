@@ -16,6 +16,7 @@ global using MockServer.E2E.Tests.Fixtures;
 global using MockServer.E2E.Tests.Scripts;
 global using MockServer.E2E.Tests.Triggers;
 global using System;
+global using System.Collections.Frozen;
 global using System.Diagnostics;
 global using System.IO.Pipes;
 global using System.Text;

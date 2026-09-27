@@ -181,6 +181,15 @@ public IReadOnlyCollection<TKey> GetAllKeys() => Volatile.Read(ref _dict).Keys;
 | 2026-09-27 | P5 | 1 | 56/63 | ✅ 完成(MemoryStore._memories改ImmutableDictionary+CAS) |
 | 2026-09-27 | B1 | 4 | 60/63 | ✅ 完成(InvariantRegistry+SessionRouter+LockRegistry+SshPortForwardManager) |
 
+## 批次3完成总结
+
+- **A类(适合改造)**: 56/63处完成(P0-P5),剩余7处为C类(TeamMemorySyncService等)
+- **B1类(低频写入+高频读取)**: 4处完成
+- **B2类(中频写入)**: 12处保持现状(需进一步分析,风险较高)
+- **B3类(高频并发写入/Actor内部)**: 15处保持现状(不适合Immutable+CAS)
+- **C类(不适合)**: 7处保持现状(DTO/上下文对象/管道传递引用)
+- **总计**: 60处改造完成,剩余保持现状
+
 ## 验收标准
 
 1. 每个 P 批次编译通过(增量编译)

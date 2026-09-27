@@ -56,7 +56,7 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
         ArgumentNullException.ThrowIfNull(entry);
 
         var reply = new TaskCompletionSource<Unit>();
-        await _actor.SendAsync(new AppendEntryCmd(filePath, entry, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AppendEntryCmd(filePath, entry, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -84,7 +84,7 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
         _logger?.LogDebug("AppendEntriesAsync: filePath={FilePath}, count={Count}", filePath, entries.Count);
 
         var reply = new TaskCompletionSource<Unit>();
-        await _actor.SendAsync(new AppendEntriesCmd(filePath, entries, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AppendEntriesCmd(filePath, entries, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -215,7 +215,9 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(TranscriptFileWriterCommand cmd, CancellationToken ct) {
+        protected override void Handle(TranscriptFileWriterCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+
+        private async ValueTask HandleAsyncImpl(TranscriptFileWriterCommand cmd, CancellationToken ct) {
             switch (cmd) {
                 case AppendEntryCmd(var filePath, var entry, var reply):
                 await _owner.AppendEntryInternalAsync(filePath, entry, ct).ConfigureAwait(false);

@@ -186,13 +186,12 @@ internal sealed class RetryDemoActor : ActorBase<RetryCmd, Unit> {
     public Task<string> AskWithRetryTestAsync(int singleTimeoutMs = 1000, int maxRetries = 16, CancellationToken ct = default)
         => AskWithRetryAsync<string>(tcs => new RetryCmd(tcs), ct, singleTimeoutMs, maxRetries);
 
-    protected override ValueTask HandleAsync(RetryCmd command, CancellationToken ct) {
+    protected override void Handle(RetryCmd command, CancellationToken ct) {
         if (command is IIdempotent) Interlocked.Exchange(ref _idempotentReceived, 1);
         var count = Interlocked.Increment(ref _callCount);
         if (count > Volatile.Read(ref _successAfter)) {
             command.Tcs.TrySetResult($"success-at-{count}");
         }
-        return ValueTask.CompletedTask;
     }
 }
 
@@ -202,9 +201,8 @@ internal sealed record RetryCmd(TaskCompletionSource<string> Tcs) : IIdempotent;
 /// 环检测测试用 Actor。
 /// </summary>
 internal sealed class CycleDemoActor : ActorBase<CycleCmd, Unit> {
-    protected override ValueTask HandleAsync(CycleCmd command, CancellationToken ct) {
+    protected override void Handle(CycleCmd command, CancellationToken ct) {
         command.Tcs.TrySetResult(true);
-        return ValueTask.CompletedTask;
     }
 }
 

@@ -96,7 +96,7 @@ internal sealed class DemoActor : ActorBase<DemoCmd, DemoOutput> {
         var msgId = Interlocked.Increment(ref _nextMsgId);
         var tcs = new TaskCompletionSource<string>();
         _tcsPending[msgId] = tcs;
-        await SendAsync(new DemoCmd(input, msgId, AskMode.Tcs));
+        Tell(new DemoCmd(input, msgId, AskMode.Tcs));
         return await AskAwait(tcs, timeoutMs: timeoutMs);
     }
 
@@ -109,7 +109,7 @@ internal sealed class DemoActor : ActorBase<DemoCmd, DemoOutput> {
         var msgId = Interlocked.Increment(ref _nextMsgId);
         var tcs = new TaskCompletionSource<string>();
         _channelPending[msgId] = tcs;
-        await SendAsync(new DemoCmd(input, msgId, AskMode.Channel));
+        Tell(new DemoCmd(input, msgId, AskMode.Channel));
         return await AskAwait(tcs, timeoutMs: timeoutMs);
     }
 
@@ -130,7 +130,11 @@ internal sealed class DemoActor : ActorBase<DemoCmd, DemoOutput> {
         }
     }
 
-    protected override async ValueTask HandleAsync(DemoCmd command, CancellationToken ct) {
+    protected override void Handle(DemoCmd command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(DemoCmd command, CancellationToken ct) {
         if (Gate is not null) await Gate.Task.WaitAsync(ct);
 
         var result = $"echo:{command.Input}";

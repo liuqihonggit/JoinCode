@@ -100,7 +100,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
         ReloadConfigCmd? cmd = null;
         cmd = new ReloadConfigCmd(key, tcs.SetResult, tcs.SetException,
             ActorBase<ReloadConfigCmd, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _actor.TrySend(cmd); }));
-        await _actor.SendAsync(cmd, CancellationToken.None).ConfigureAwait(false);
+        _actor.Tell(cmd);
         await tcs.Task.ConfigureAwait(false);
     }
 
@@ -142,7 +142,9 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
             IdempotencyStore = new IdempotencyStore();
         }
 
-        protected override async ValueTask HandleAsync(ReloadConfigCmd cmd, CancellationToken ct) {
+        protected override void Handle(ReloadConfigCmd cmd, CancellationToken ct) => _ = HandleAsyncImpl(cmd, ct);
+
+        private async ValueTask HandleAsyncImpl(ReloadConfigCmd cmd, CancellationToken ct) {
             try {
                 await _owner.ReloadConfigInternalAsync().ConfigureAwait(false);
                 IdempotencyStore?.TryRegister(cmd.IdempotencyKey, Unit.Value);

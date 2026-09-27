@@ -54,18 +54,19 @@ public sealed class CommandExecutionAuditor : ActorBase<CommandAuditCommand, Uni
     /// <inheritdoc/>
     public async ValueTask Record(CommandExecutionAuditEntry entry) {
         var tcs = new TaskCompletionSource();
-        await SendAsync(new CommandAuditCommand.RecordEntry(entry, tcs)).ConfigureAwait(false);
+        Tell(new CommandAuditCommand.RecordEntry(entry, tcs));
         await AskAwait(tcs).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 命令分发 — 由 Consumer 线程串行调用,文件写入无需锁
     /// </summary>
-    protected override ValueTask HandleAsync(CommandAuditCommand cmd, CancellationToken ct) {
-        return cmd switch {
-            CommandAuditCommand.RecordEntry c => HandleRecordAsync(c),
-            _ => ValueTask.CompletedTask
-        };
+    protected override void Handle(CommandAuditCommand cmd, CancellationToken ct) {
+        switch (cmd) {
+            case CommandAuditCommand.RecordEntry c:
+                _ = HandleRecordAsync(c);
+                break;
+        }
     }
 
     private async ValueTask HandleRecordAsync(CommandAuditCommand.RecordEntry cmd) {

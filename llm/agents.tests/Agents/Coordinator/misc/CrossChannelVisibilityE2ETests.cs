@@ -23,9 +23,9 @@ public sealed class CrossChannelVisibilityE2ETests {
         params (string AgentId, MailboxKind Kind, ChatRoomRole Role)[] agents) {
         foreach (var (agentId, kind, role) in agents) {
             if (kind == MailboxKind.InProcess)
-                await inProcess.RegisterAgentAsync(agentId);
+                inProcess.RegisterAgent(agentId);
             else
-                await namedPipe.RegisterAgentAsync(agentId);
+                namedPipe.RegisterAgent(agentId);
             await hub.RegisterAgentAsync(agentId, kind, role: role);
         }
         await inProcess.WaitForCommandsDrainedAsync();

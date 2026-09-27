@@ -57,7 +57,7 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         DiscoverCmd? cmd = null;
         cmd = new DiscoverCmd(key, tcs.SetResult, tcs.SetException,
             ActorBase<DiscoverCmd, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _discoverActor.TrySend(cmd); }));
-        await _discoverActor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
+        _discoverActor.Tell(cmd);
         return await tcs.Task.ConfigureAwait(false);
     }
 
@@ -417,7 +417,8 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
             IdempotencyStore = new IdempotencyStore();
         }
 
-        protected override async ValueTask HandleAsync(DiscoverCmd cmd, CancellationToken ct) {
+        protected override void Handle(DiscoverCmd cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        private async ValueTask HandleAsyncImpl(DiscoverCmd cmd, CancellationToken ct) {
             try {
                 var result = await _owner.DiscoverInternalAsync(ct).ConfigureAwait(false);
                 IdempotencyStore?.TryRegister(cmd.IdempotencyKey, result);

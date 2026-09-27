@@ -50,12 +50,12 @@ public sealed class BuildQueueRouter : BuildQueueBase {
         _cancelSources[entry.BuildId] = cts;
 
         try {
-            await _router.RouteAsync(
+            _router.Route(
                 new BuildWorker.ExecuteBuildCommand(entry, tcs, cts.Token),
                 async (msg, worker) => {
                     if (worker is BuildWorker w)
                         await w.SubmitAsync(msg).ConfigureAwait(false);
-                }).ConfigureAwait(false);
+                });
         } catch {
             _store.TryRemoveTcs(entry.BuildId, out var failedTcs);
             failedTcs?.TrySetCanceled();
@@ -182,9 +182,10 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent> 
 
     /// <summary>提交命令到工作器异步处理。</summary>
     /// <param name="command">要提交的命令。</param>
-    public ValueTask SubmitAsync(ICommand command) => SendAsync(command);
+    public ValueTask SubmitAsync(ICommand command) { Tell(command); return ValueTask.CompletedTask; }
 
-    protected override async ValueTask HandleAsync(ICommand command, CancellationToken ct) {
+    protected override void Handle(ICommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+    private async ValueTask HandleAsyncImpl(ICommand command, CancellationToken ct) {
         if (command is not ExecuteBuildCommand(var entry, var tcs, var buildCt))
             return;
 

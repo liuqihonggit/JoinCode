@@ -192,7 +192,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         ReloadCmd? cmd = null;
         cmd = new ReloadCmd(skillName, ctx, key, tcs.SetResult, tcs.SetException,
             ActorBase<ReloadCmd, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _actor.TrySend(cmd); }));
-        await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
+        _actor.Tell(cmd);
         return await tcs.Task.ConfigureAwait(false);
     }
 
@@ -453,7 +453,8 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
             IdempotencyStore = new IdempotencyStore();
         }
 
-        protected override async ValueTask HandleAsync(ReloadCmd cmd, CancellationToken ct) {
+        protected override void Handle(ReloadCmd cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        private async ValueTask HandleAsyncImpl(ReloadCmd cmd, CancellationToken ct) {
             try {
                 var result = await _owner.ReloadInternalAsync(cmd.SkillName, cmd.Ctx, ct).ConfigureAwait(false);
                 IdempotencyStore?.TryRegister(cmd.IdempotencyKey, result);

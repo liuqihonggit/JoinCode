@@ -30,18 +30,22 @@ internal sealed class TaskPersistActor : ActorBase<ITaskPersistCommand, Unit> {
     /// <summary>持久化当前任务运行时状态</summary>
     public async Task PersistAsync(CancellationToken ct) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new PersistCmd(ct, tcs), ct).ConfigureAwait(false);
+        Tell(new PersistCmd(ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>从持久化存储恢复任务列表</summary>
     public async Task<IReadOnlyList<RuntimeTask>> RecoverTasksAsync(string? goalId, CancellationToken ct) {
         var tcs = TcsFactory.Create<IReadOnlyList<RuntimeTask>>();
-        await SendAsync(new RecoverCmd(goalId, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new RecoverCmd(goalId, ct, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
-    protected override async ValueTask HandleAsync(ITaskPersistCommand command, CancellationToken ct) {
+    protected override void Handle(ITaskPersistCommand command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(ITaskPersistCommand command, CancellationToken ct) {
         switch (command) {
             case PersistCmd cmd: {
                 try {

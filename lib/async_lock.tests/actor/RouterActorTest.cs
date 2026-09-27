@@ -54,7 +54,7 @@ public class RouterActorTest {
 
         var delivered = new List<string>();
         var tcs = new TaskCompletionSource();
-        await router.RouteAsync("hello", (msg, worker) => { delivered.Add(msg); tcs.TrySetResult(); });
+        router.Route("hello", (msg, worker) => { delivered.Add(msg); tcs.TrySetResult(); });
         await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         delivered.Should().ContainSingle();
@@ -72,7 +72,7 @@ public class RouterActorTest {
         var deliveryCount = new ConcurrentDictionary<string, int>();
         var gate = new TaskCompletionSource();
         for (var i = 0; i < 9; i++) {
-            await router.RouteAsync($"msg-{i}", (msg, worker) => {
+            router.Route($"msg-{i}", (msg, worker) => {
                 var id = ((TestWorker)worker).Id;
                 deliveryCount.AddOrUpdate(id, 1, (_, v) => v + 1);
                 if (deliveryCount.Values.Sum() == 9) gate.TrySetResult();
@@ -93,7 +93,7 @@ public class RouterActorTest {
         await using var router = new TestRouterActor();
 
         var delivered = false;
-        await router.RouteAsync("msg", (_, _) => delivered = true);
+        router.Route("msg", (_, _) => delivered = true);
         await Task.Delay(100);
 
         delivered.Should().BeFalse();

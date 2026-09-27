@@ -113,7 +113,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     public async Task<WorkflowPluginHost> LoadWorkflowPluginAsync<TPlugin>(CancellationToken ct = default) where TPlugin : class, IWorkflowPlugin, new() {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<WorkflowPluginHost>();
-        await SendAsync(new LoadWorkflowCmd(() => new TPlugin(), tcs, ct), ct).ConfigureAwait(false);
+        Tell(new LoadWorkflowCmd(() => new TPlugin(), tcs, ct));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -255,7 +255,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         CancellationToken ct = default) {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<ExternalPluginHost>();
-        await SendAsync(new LoadExternalCmd(exePath, pluginName, tcs, ct), ct).ConfigureAwait(false);
+        Tell(new LoadExternalCmd(exePath, pluginName, tcs, ct));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -271,7 +271,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         CancellationToken ct = default) {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<NativePluginHost>();
-        await SendAsync(new LoadNativeCmd(dllPath, pluginName, configJson, tcs, ct), ct).ConfigureAwait(false);
+        Tell(new LoadNativeCmd(dllPath, pluginName, configJson, tcs, ct));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -440,7 +440,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     public async Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, CancellationToken ct) {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<PluginUnloadResult>();
-        await SendAsync(new UnloadCmd(pluginName, tcs, ct), ct).ConfigureAwait(false);
+        Tell(new UnloadCmd(pluginName, tcs, ct));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -513,7 +513,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     public async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsAsync(PluginUnloadOptions? options = null, CancellationToken ct = default) {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<IReadOnlyList<PluginUnloadResult>>();
-        await SendAsync(new UnloadAllCmd(tcs, ct), ct).ConfigureAwait(false);
+        Tell(new UnloadAllCmd(tcs, ct));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -740,7 +740,11 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <summary>
     /// Actor 命令处理 — Consumer 线程独占,所有可变状态无需锁(ADR 0098)
     /// </summary>
-    protected override async ValueTask HandleAsync(PluginManagerCommand command, CancellationToken ct) {
+    protected override void Handle(PluginManagerCommand command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(PluginManagerCommand command, CancellationToken ct) {
         switch (command) {
             case LoadWorkflowCmd loadCmd:
             await HandleLoadWorkflowAsync(loadCmd).ConfigureAwait(false);

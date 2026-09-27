@@ -106,7 +106,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
         ThinkingSaveCmd? cmd = null;
         cmd = new ThinkingSaveCmd(key, tcs.SetResult, tcs.SetException,
             ActorBase<ThinkingStoreCommand, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _actor.TrySend(cmd); }));
-        await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
+        _actor.Tell(cmd);
         await tcs.Task.ConfigureAwait(false);
     }
 
@@ -168,7 +168,9 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             IdempotencyStore = new IdempotencyStore();
         }
 
-        protected override async ValueTask HandleAsync(ThinkingStoreCommand cmd, CancellationToken ct) {
+        protected override void Handle(ThinkingStoreCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+
+        private async ValueTask HandleAsyncImpl(ThinkingStoreCommand cmd, CancellationToken ct) {
             switch (cmd) {
                 case ThinkingSaveCmd saveCmd:
                 await _owner.SaveInternalAsync(ct).ConfigureAwait(false);

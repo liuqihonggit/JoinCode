@@ -69,7 +69,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         ArgumentNullException.ThrowIfNull(metadata);
 
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new SaveMetadataCmd(sessionId, metadata, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new SaveMetadataCmd(sessionId, metadata, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -190,7 +190,9 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(AgentTranscriptCommand cmd, CancellationToken ct) {
+        protected override void Handle(AgentTranscriptCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+
+        private async ValueTask HandleAsyncImpl(AgentTranscriptCommand cmd, CancellationToken ct) {
             switch (cmd) {
                 case SaveMetadataCmd(var sessionId, var metadata, var reply):
                 await _owner.SaveMetadataInternalAsync(sessionId, metadata, ct).ConfigureAwait(false);

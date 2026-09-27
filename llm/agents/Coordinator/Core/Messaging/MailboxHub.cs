@@ -140,7 +140,7 @@ public sealed partial class MailboxHub {
 
         foreach (var (kind, mailbox) in _extraChannels) {
             try {
-                await mailbox.TellBroadcastAsync(message, message.FromAgentId, ct).ConfigureAwait(false);
+                mailbox.TellBroadcast(message, message.FromAgentId);
             } catch (Exception ex) when (ex is not OperationCanceledException) {
                 _logger?.LogWarning(ex, "MailboxHub: broadcast failed on {Kind}", kind);
             }
@@ -225,10 +225,10 @@ public sealed partial class MailboxHub {
             _inProcess.RegisterAgent(agentId, sessionId);
             break;
             case MailboxKind.NamedPipe when _extraChannels.TryGetValue(MailboxKind.NamedPipe, out var mb):
-            await mb.RegisterAgentAsync(agentId, sessionId, ct).ConfigureAwait(false);
+            mb.RegisterAgent(agentId, sessionId);
             break;
             case MailboxKind.Network when _extraChannels.TryGetValue(MailboxKind.Network, out var mb):
-            await mb.RegisterAgentAsync(agentId, sessionId, ct).ConfigureAwait(false);
+            mb.RegisterAgent(agentId, sessionId);
             break;
         }
     }
@@ -253,10 +253,10 @@ public sealed partial class MailboxHub {
             _inProcess.UnregisterAgent(agentId);
             break;
             case MailboxKind.NamedPipe when _extraChannels.TryGetValue(MailboxKind.NamedPipe, out var mb):
-            await mb.UnregisterAgentAsync(agentId, ct).ConfigureAwait(false);
+            mb.UnregisterAgent(agentId);
             break;
             case MailboxKind.Network when _extraChannels.TryGetValue(MailboxKind.Network, out var mb):
-            await mb.UnregisterAgentAsync(agentId, ct).ConfigureAwait(false);
+            mb.UnregisterAgent(agentId);
             break;
         }
     }
@@ -324,7 +324,7 @@ public sealed partial class MailboxHub {
         }
 
         try {
-            await mailbox.TellAsync(agentId, message, ct).ConfigureAwait(false);
+            mailbox.Tell(agentId, message);
             return true;
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "Failed to send {Kind} message to {AgentId}", kind, agentId);
@@ -339,7 +339,7 @@ public sealed partial class MailboxHub {
         }
 
         try {
-            await mailbox.TellBroadcastAsync(message, message.FromAgentId, ct).ConfigureAwait(false);
+            mailbox.TellBroadcast(message, message.FromAgentId);
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "Failed to broadcast on {Kind}", kind);
         }

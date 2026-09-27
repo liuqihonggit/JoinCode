@@ -157,7 +157,7 @@ internal sealed class TestSupervisedActor : SupervisedActor<TestSupervisedActor.
         return ValueTask.CompletedTask;
     }
 
-    protected override ValueTask HandleAsync(ICommand command, CancellationToken ct) => ValueTask.CompletedTask;
+    protected override void Handle(ICommand command, CancellationToken ct) { }
 
     public async ValueTask<ChildActorHandle> SpawnTestChild(string id, SupervisorStrategy? strategy = null) {
         return await SpawnChildAsync(id, _ => new ValueTask<IAsyncDisposable>(new DisposableStub()), strategy ?? SupervisorStrategy.OneForOne);

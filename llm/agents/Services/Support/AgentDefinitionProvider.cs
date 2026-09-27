@@ -51,7 +51,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         GetDefinitionsCmd? cmd = null;
         cmd = new GetDefinitionsCmd(workingDirectory, key, tcs.SetResult, tcs.SetException,
             ActorBase<GetDefinitionsCmd, Unit>.CreateBackpressureHandler(() => { if (cmd is not null) _actor.TrySend(cmd); }));
-        await _actor.SendAsync(cmd, cancellationToken).ConfigureAwait(false);
+        _actor.Tell(cmd);
         return await tcs.Task.ConfigureAwait(false);
     }
 
@@ -689,7 +689,9 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             IdempotencyStore = new IdempotencyStore();
         }
 
-        protected override async ValueTask HandleAsync(GetDefinitionsCmd cmd, CancellationToken ct) {
+        protected override void Handle(GetDefinitionsCmd cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+
+        private async ValueTask HandleAsyncImpl(GetDefinitionsCmd cmd, CancellationToken ct) {
             try {
                 var result = await _owner.GetDefinitionsInternalAsync(cmd.WorkingDirectory, ct).ConfigureAwait(false);
                 IdempotencyStore?.TryRegister(cmd.IdempotencyKey, result);

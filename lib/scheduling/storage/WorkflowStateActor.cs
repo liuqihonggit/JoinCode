@@ -29,18 +29,22 @@ internal sealed class WorkflowStateActor : ActorBase<IWorkflowStateCommand, Unit
     /// <summary>异步保存工作流快照。</summary>
     public async Task SaveSnapshotAsync(string workflowId, WorkflowSnapshot snapshot, CancellationToken ct) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new SaveSnapshotCmd(workflowId, snapshot, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new SaveSnapshotCmd(workflowId, snapshot, ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>异步加载工作流快照。</summary>
     public async Task<WorkflowSnapshot?> LoadSnapshotAsync(string workflowId, CancellationToken ct) {
         var tcs = TcsFactory.Create<WorkflowSnapshot?>();
-        await SendAsync(new LoadSnapshotCmd(workflowId, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new LoadSnapshotCmd(workflowId, ct, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
-    protected override async ValueTask HandleAsync(IWorkflowStateCommand command, CancellationToken ct) {
+    protected override void Handle(IWorkflowStateCommand command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(IWorkflowStateCommand command, CancellationToken ct) {
         switch (command) {
             case SaveSnapshotCmd cmd: {
                 try {

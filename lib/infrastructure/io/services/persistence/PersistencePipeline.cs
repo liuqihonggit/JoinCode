@@ -21,8 +21,10 @@ public sealed class PersistencePipeline : ActorBase<PersistRequest, Unit>, IPers
     }
 
     /// <inheritdoc />
-    public ValueTask EnqueueAsync(PersistRequest request, CancellationToken ct = default)
-        => SendAsync(request, ct);
+    public ValueTask EnqueueAsync(PersistRequest request, CancellationToken ct = default) {
+        Tell(request);
+        return ValueTask.CompletedTask;
+    }
 
     /// <inheritdoc />
     public bool TryEnqueue(PersistRequest request) => TrySend(request);
@@ -31,7 +33,11 @@ public sealed class PersistencePipeline : ActorBase<PersistRequest, Unit>, IPers
     /// Actor 消费者处理 — 单线程串行执行,无并发。CreateDirectory + WriteAllTextAsync。
     /// 写完后若 Completion 非空则 TrySetResult,异常时 TrySetException。
     /// </summary>
-    protected override async ValueTask HandleAsync(PersistRequest req, CancellationToken ct) {
+    protected override void Handle(PersistRequest req, CancellationToken ct) {
+        _ = HandleAsyncImpl(req, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(PersistRequest req, CancellationToken ct) {
         try {
             if (!_fs.DirectoryExists(req.Directory)) {
                 _fs.CreateDirectory(req.Directory);

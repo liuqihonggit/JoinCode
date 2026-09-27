@@ -35,14 +35,14 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     /// <inheritdoc />
     public async Task AddRuleAsync(AgentPermissionRule rule, CancellationToken ct = default) {
         var reply = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await _actor.SendAsync(new AddRuleCmd(rule, reply), ct).ConfigureAwait(false);
+        _actor.Tell(new AddRuleCmd(rule, reply));
         await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task<bool> RemoveRuleAsync(string agentPattern, CancellationToken ct = default) {
         var reply = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        await _actor.SendAsync(new RemoveRuleCmd(agentPattern, reply), ct).ConfigureAwait(false);
+        _actor.Tell(new RemoveRuleCmd(agentPattern, reply));
         return await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
@@ -148,14 +148,14 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     /// <inheritdoc />
     public async Task<IReadOnlyList<AgentPermissionRule>> ListRulesAsync(CancellationToken ct = default) {
         var reply = new TaskCompletionSource<IReadOnlyList<AgentPermissionRule>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        await _actor.SendAsync(new ListRulesCmd(reply), ct).ConfigureAwait(false);
+        _actor.Tell(new ListRulesCmd(reply));
         return await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task ClearRulesAsync(CancellationToken ct = default) {
         var reply = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await _actor.SendAsync(new ClearRulesCmd(reply), ct).ConfigureAwait(false);
+        _actor.Tell(new ClearRulesCmd(reply));
         await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
@@ -205,7 +205,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
 
     private async Task<AgentPermissionRule?> GetMatchingRuleAsync(string agentName, CancellationToken ct) {
         var reply = new TaskCompletionSource<AgentPermissionRule?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        await _actor.SendAsync(new GetMatchingRuleCmd(agentName, reply), ct).ConfigureAwait(false);
+        _actor.Tell(new GetMatchingRuleCmd(agentName, reply));
         return await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
@@ -314,7 +314,9 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(AgentPermissionCommand cmd, CancellationToken ct) {
+        protected override void Handle(AgentPermissionCommand cmd, CancellationToken ct) => _ = HandleAsyncImpl(cmd, ct);
+
+        private async ValueTask HandleAsyncImpl(AgentPermissionCommand cmd, CancellationToken ct) {
             try {
                 switch (cmd) {
                     case AddRuleCmd(var rule, var reply):

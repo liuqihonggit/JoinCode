@@ -66,7 +66,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         var actor = GetOrCreateActor(request.SessionId, request.ToAgentId);
         var tcs = new TaskCompletionSource<MailboxMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         try {
-            await actor.SendAsync(new AppendMessageCmd(message, tcs), ct).ConfigureAwait(false);
+            actor.Tell(new AppendMessageCmd(message, tcs));
             return await tcs.Task.ConfigureAwait(false);
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, "Failed to send mailbox message to {AgentId}", request.ToAgentId);
@@ -126,7 +126,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
 
         var actor = GetOrCreateActor(sessionId, agentId);
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await actor.SendAsync(new MarkAsReadCmd(idSet, tcs), ct).ConfigureAwait(false);
+        actor.Tell(new MarkAsReadCmd(idSet, tcs));
         await tcs.Task.ConfigureAwait(false);
 
         var lines = await _fs.ReadAllLinesAsync(filePath, ct).ConfigureAwait(false);

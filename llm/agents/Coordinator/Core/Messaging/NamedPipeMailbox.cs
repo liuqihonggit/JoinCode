@@ -89,9 +89,9 @@ public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMess
     /// <summary>
     /// 注册 Agent — 本地注册 + 通知主机路由表更新。
     /// </summary>
-    public new ValueTask RegisterAgentAsync(string agentId, string? sessionId = null, CancellationToken ct = default) {
+    public new void RegisterAgent(string agentId, string? sessionId = null) {
         SetAgentProcess(agentId, _transport.ProcessId);
-        return base.RegisterAgentAsync(agentId, sessionId, ct);
+        base.RegisterAgent(agentId, sessionId);
     }
 
     /// <summary>

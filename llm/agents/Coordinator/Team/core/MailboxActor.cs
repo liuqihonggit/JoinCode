@@ -40,7 +40,9 @@ internal sealed class MailboxActor : ActorBase<MailboxCommand, Unit> {
     /// <summary>
     /// 处理邮箱命令 — Consumer 线程独占执行，无需锁
     /// </summary>
-    protected override async ValueTask HandleAsync(MailboxCommand cmd, CancellationToken ct) {
+    protected override void Handle(MailboxCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+
+    private async ValueTask HandleAsyncImpl(MailboxCommand cmd, CancellationToken ct) {
         switch (cmd) {
             case AppendMessageCmd append:
             await AppendMessageCoreAsync(append.Message, ct).ConfigureAwait(false);

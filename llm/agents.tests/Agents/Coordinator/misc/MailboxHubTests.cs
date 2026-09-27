@@ -130,7 +130,7 @@ public sealed class MailboxHubTests {
     [Fact]
     public async Task RegisterChannel_NamedPipe_ThenSendAsync_RoutesToExtraChannel() {
         await using var namedPipeMailbox = new InProcessMailbox();
-        await namedPipeMailbox.RegisterAgentAsync("agent1");
+        namedPipeMailbox.RegisterAgent("agent1");
         var hub = new MailboxHub(_inProcessMock.Object);
         hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
 
@@ -181,7 +181,7 @@ public sealed class MailboxHubTests {
     [Fact]
     public async Task SendAsync_AutoRoute_RoutesToRegisteredKind() {
         await using var namedPipeMailbox = new InProcessMailbox();
-        await namedPipeMailbox.RegisterAgentAsync("agent1");
+        namedPipeMailbox.RegisterAgent("agent1");
         var hub = new MailboxHub(_inProcessMock.Object);
         hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
         await hub.RegisterAgentAsync("agent1", MailboxKind.NamedPipe);
@@ -200,9 +200,9 @@ public sealed class MailboxHubTests {
         _inProcessMock.Setup(m => m.GetRegisteredAgents()).Returns([]);
 
         await using var namedPipeMailbox = new InProcessMailbox();
-        await namedPipeMailbox.RegisterAgentAsync("agent1");
+        namedPipeMailbox.RegisterAgent("agent1");
         await using var networkMailbox = new InProcessMailbox();
-        await networkMailbox.RegisterAgentAsync("agent2");
+        networkMailbox.RegisterAgent("agent2");
 
         var hub = new MailboxHub(_inProcessMock.Object);
         hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
@@ -249,13 +249,13 @@ public sealed class MailboxHubTests {
     [Fact]
     public async Task ReceiveAsync_FromNamedPipeChannel_ReturnsMessages() {
         await using var namedPipeMailbox = new InProcessMailbox();
-        await namedPipeMailbox.RegisterAgentAsync("agent1");
+        namedPipeMailbox.RegisterAgent("agent1");
         var hub = new MailboxHub(_inProcessMock.Object);
         hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
         await hub.RegisterAgentAsync("agent1", MailboxKind.NamedPipe);
 
         var message = CreateMessage(to: "agent1");
-        await namedPipeMailbox.TellAsync("agent1", message);
+        namedPipeMailbox.Tell("agent1", message);
         await namedPipeMailbox.WaitForCommandsDrainedAsync();
 
         var received = new List<CoordinatorMessage>();

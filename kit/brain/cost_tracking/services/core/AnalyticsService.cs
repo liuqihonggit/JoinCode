@@ -40,7 +40,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         _backgroundTaskActor = new BackgroundTaskActor(logger);
 
         if (!string.IsNullOrEmpty(storagePath) && fileOperationService != null) {
-            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand("LoadAnalyticsHistory", ct => LoadHistoryAsync(ct)), _disposeCts.Token);
+            _backgroundTaskActor.Tell(new BackgroundTaskCommand("LoadAnalyticsHistory", ct => LoadHistoryAsync(ct)));
         }
     }
 
@@ -70,7 +70,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         _logger?.LogDebug("[Analytics] 事件: {EventType} - {EventName}", type, name);
 
         if (!string.IsNullOrEmpty(_storagePath) && _disposed == 0) {
-            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand("SaveAnalyticsHistory", ct => SaveHistoryAsync(ct)), _disposeCts.Token);
+            _backgroundTaskActor.Tell(new BackgroundTaskCommand("SaveAnalyticsHistory", ct => SaveHistoryAsync(ct)));
         }
 
         TrimEventsIfNeeded();
@@ -297,7 +297,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         }
 
         if (!string.IsNullOrEmpty(_storagePath) && _fileOperationService != null) {
-            _ = _backgroundTaskActor.SendAsync(new BackgroundTaskCommand("SaveAnalyticsHistory", ct => SaveHistoryAsync(ct)), _disposeCts.Token);
+            _backgroundTaskActor.Tell(new BackgroundTaskCommand("SaveAnalyticsHistory", ct => SaveHistoryAsync(ct)));
         }
     }
 

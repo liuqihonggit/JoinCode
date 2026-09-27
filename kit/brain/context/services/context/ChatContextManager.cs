@@ -150,7 +150,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task LoadContextAsync(CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new LoadContextCmd(reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new LoadContextCmd(reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -254,7 +254,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new AddUserMessageCmd(content, originKind, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AddUserMessageCmd(content, originKind, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -279,7 +279,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new AddCompactSummaryCmd(content, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AddCompactSummaryCmd(content, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -301,7 +301,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new AddAssistantMessageCmd(content, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AddAssistantMessageCmd(content, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -319,7 +319,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task AddAssistantToolCallMessageAsync(string? content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new AddAssistantToolCallCmd(content, metadata, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AddAssistantToolCallCmd(content, metadata, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -337,7 +337,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task AddToolResultMessageAsync(string content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new AddToolResultCmd(content, metadata, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AddToolResultCmd(content, metadata, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -355,7 +355,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task AddToolResultMessageAsync(string content, IReadOnlyDictionary<string, JsonElement> metadata, IReadOnlyList<ToolContent>? contentBlocks, CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new AddToolResultWithBlocksCmd(content, metadata, contentBlocks, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AddToolResultWithBlocksCmd(content, metadata, contentBlocks, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -375,7 +375,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new AddSystemMessageCmd(content, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AddSystemMessageCmd(content, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -395,7 +395,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new AddDynamicSystemMessageCmd(content, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new AddDynamicSystemMessageCmd(content, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -413,7 +413,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task ClearDynamicSystemMessagesAsync(CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new ClearDynamicSystemMessagesCmd(reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new ClearDynamicSystemMessagesCmd(reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -431,7 +431,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task ClearMessagesAsync(CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new ClearMessagesCmd(reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new ClearMessagesCmd(reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -452,7 +452,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
         ArgumentException.ThrowIfNullOrWhiteSpace(systemPrompt);
 
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new UpdateSystemPromptCmd(systemPrompt, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new UpdateSystemPromptCmd(systemPrompt, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -470,7 +470,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task<MessageList> GetMessageListAsync(CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<MessageList>();
-        await _actor.SendAsync(new GetMessageListCmd(reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new GetMessageListCmd(reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -487,7 +487,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task SaveContextAsync(CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new SaveContextCmd(reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new SaveContextCmd(reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -566,7 +566,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task<ContextFoldResult> FoldIfNeededAsync(ContextFoldDecision decision, string? agentId = null, CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<ContextFoldResult>();
-        await _actor.SendAsync(new FoldIfNeededCmd(decision, agentId, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new FoldIfNeededCmd(decision, agentId, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -691,7 +691,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<RewindResult>();
-        await _actor.SendAsync(new RewindLastTurnCmd(reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new RewindLastTurnCmd(reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -713,7 +713,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task<RewindResult> RewindToMessageIndexAsync(int messageIndex, CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<RewindResult>();
-        await _actor.SendAsync(new RewindToMessageIndexCmd(messageIndex, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new RewindToMessageIndexCmd(messageIndex, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -738,7 +738,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task<RewindResult> RewindToStartAsync(CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<RewindResult>();
-        await _actor.SendAsync(new RewindToStartCmd(reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new RewindToStartCmd(reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -762,7 +762,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
         ArgumentNullException.ThrowIfNull(toolSpecs);
 
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new UpdateToolSpecsCmd(toolSpecs, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new UpdateToolSpecsCmd(toolSpecs, reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -791,7 +791,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task<PromptStateSnapshot> RecordPromptStateAsync(string? agentId = null, CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<PromptStateSnapshot>();
-        await _actor.SendAsync(new RecordPromptStateCmd(agentId, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new RecordPromptStateCmd(agentId, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -827,7 +827,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
         ArgumentNullException.ThrowIfNull(usage);
 
         var reply = new TaskCompletionSource<CacheBreakResult>();
-        await _actor.SendAsync(new CheckCacheBreakCmd(snapshot, usage, agentId, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new CheckCacheBreakCmd(snapshot, usage, agentId, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -869,7 +869,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     /// </summary>
     public async Task SyncDiscoveredToolsFromHistoryAsync(CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new SyncDiscoveredToolsFromHistoryCmd(reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new SyncDiscoveredToolsFromHistoryCmd(reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -928,7 +928,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(ChatContextCommand cmd, CancellationToken ct) {
+        protected override void Handle(ChatContextCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        private async ValueTask HandleAsyncImpl(ChatContextCommand cmd, CancellationToken ct) {
             try {
                 switch (cmd) {
                     case LoadContextCmd(var reply):

@@ -70,7 +70,11 @@ public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit
     /// <summary>处理 Shell 进程监控命令</summary>
     /// <param name="command">监控命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override async ValueTask HandleAsync(IShellWatchdogCommand command, CancellationToken ct) {
+    protected override void Handle(IShellWatchdogCommand command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(IShellWatchdogCommand command, CancellationToken ct) {
         switch (command) {
             case ShellRegisterCmd reg:
             _callbacks[reg.ProcessId] = reg.OnProcessDied;

@@ -50,7 +50,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
         ArgumentNullException.ThrowIfNull(config);
 
         var tcs = TcsFactory.Create<ISshSession>();
-        await SendAsync(new CreateSessionCmd(config, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new CreateSessionCmd(config, ct, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -84,7 +84,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         var tcs = TcsFactory.Create();
-        await SendAsync(new DestroySessionCmd(sessionId, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new DestroySessionCmd(sessionId, ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -103,7 +103,11 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// <summary>
     /// Actor Consumer — 线程独占 _sessions，串行处理命令，无需锁。
     /// </summary>
-    protected override async ValueTask HandleAsync(ISshCommand command, CancellationToken ct) {
+    protected override void Handle(ISshCommand command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(ISshCommand command, CancellationToken ct) {
         switch (command) {
             case CreateSessionCmd cmd: {
                 try {
@@ -164,7 +168,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
         }
 
         var tcs = TcsFactory.Create();
-        await SendAsync(new CleanupSessionsCmd(tcs), CancellationToken.None).ConfigureAwait(false);
+        Tell(new CleanupSessionsCmd(tcs));
         await tcs.Task.ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }

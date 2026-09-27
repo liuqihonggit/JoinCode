@@ -88,7 +88,11 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
     /// </summary>
     /// <param name="command">待处理命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override async ValueTask HandleAsync(IBridgeTokenRefreshCommand command, CancellationToken ct) {
+    protected override void Handle(IBridgeTokenRefreshCommand command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(IBridgeTokenRefreshCommand command, CancellationToken ct) {
         switch (command) {
             case ScheduleFromDelayCmd sched:
             await ScheduleFromDelayCore(sched.SessionId, sched.DelayMs).ConfigureAwait(false);

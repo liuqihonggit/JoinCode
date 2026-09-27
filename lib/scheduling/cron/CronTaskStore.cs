@@ -98,7 +98,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     public async Task<IReadOnlyList<CronTask>> GetAllTasksAsync(CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var tcs = TcsFactory.Create<IReadOnlyList<CronTask>>();
-        await SendAsync(new GetAllTasksCmd(ct, tcs), ct).ConfigureAwait(false);
+        Tell(new GetAllTasksCmd(ct, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -110,7 +110,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
             throw new ArgumentException("Invalid cron expression", nameof(request));
 
         var tcs = TcsFactory.Create<CronTask>();
-        await SendAsync(new AddTaskCmd(request, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new AddTaskCmd(request, ct, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -121,7 +121,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         if (idSet.Count == 0) return;
 
         var tcs = TcsFactory.Create();
-        await SendAsync(new RemoveTasksCmd(idSet, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new RemoveTasksCmd(idSet, ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -132,7 +132,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         if (idSet.Count == 0) return;
 
         var tcs = TcsFactory.Create();
-        await SendAsync(new MarkTasksFiredCmd(idSet, firedAt, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new MarkTasksFiredCmd(idSet, firedAt, ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -140,7 +140,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     public async Task<CronTask?> GetTaskByIdAsync(string id, CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var tcs = TcsFactory.Create<CronTask?>();
-        await SendAsync(new GetTaskByIdCmd(id, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new GetTaskByIdCmd(id, ct, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -148,14 +148,18 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     public async Task<IReadOnlyList<CronTask>> GetTasksByAgentIdAsync(string agentId, CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var tcs = TcsFactory.Create<IReadOnlyList<CronTask>>();
-        await SendAsync(new GetTasksByAgentIdCmd(agentId, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new GetTasksByAgentIdCmd(agentId, ct, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Actor Consumer — 线程独占 _sessionTasks 和文件 I/O，串行处理命令，无需锁。
     /// </summary>
-    protected override async ValueTask HandleAsync(ICronStoreCommand command, CancellationToken ct) {
+    protected override void Handle(ICronStoreCommand command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(ICronStoreCommand command, CancellationToken ct) {
         switch (command) {
             case GetAllTasksCmd cmd: {
                 var fileTasks = await ReadFileTasksAsync(cmd.Ct).ConfigureAwait(false);

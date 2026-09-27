@@ -82,17 +82,18 @@ public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfig
     }
 
     /// <summary>自定义命令处理 — StartMonitoringCmd 启动监控</summary>
-    protected override async ValueTask HandleCustomCommandAsync(FileWatcherCommand cmd, CancellationToken ct) {
-        if (cmd is not StartMonitoringCmd start) return;
+    protected override ValueTask HandleCustomCommandAsync(FileWatcherCommand cmd, CancellationToken ct) {
+        if (cmd is not StartMonitoringCmd start) return ValueTask.CompletedTask;
 
         TrySend(new FileWatcherStopCmd());
         var watchRoot = FindWatchRoot(start.WorkingDirectory);
-        await SendAsync(new FileWatcherStartCmd(
+        Tell(new FileWatcherStartCmd(
             watchRoot, "*.*", TimeSpan.FromMilliseconds(500),
             IncludeSubdirectories: true,
             NotifyFilter: NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName | NotifyFilters.CreationTime
-        ), ct).ConfigureAwait(false);
+        ));
         _logger?.LogInformation("[ConfigChangeNotifier] 已启动配置文件监控,监控根: {Root}", watchRoot);
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>向上遍历找到最顶层有配置文件的目录 — 从该目录向下监控覆盖所有配置文件</summary>

@@ -57,7 +57,7 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
             tcs.SetResult,
             tcs.SetException,
             CreateBackpressureHandler(() => { if (cmd is not null) TrySend(cmd); }));
-        await SendAsync(cmd, ct).ConfigureAwait(false);
+        Tell(cmd);
         return await tcs.Task.ConfigureAwait(false);
     }
 
@@ -129,7 +129,8 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
     /// Actor Consumer — 线程独占 _cachedReport/_lastProbeTime，串行处理命令，无需锁。
     /// 双 Tell 模型：回执通过命令自带的 OnSuccess/OnFailure 回调返回，幂等结果缓存到 IdempotencyStore。
     /// </summary>
-    protected override async ValueTask HandleAsync(IEnvProbeCommand command, CancellationToken ct) {
+    protected override void Handle(IEnvProbeCommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+    private async ValueTask HandleAsyncImpl(IEnvProbeCommand command, CancellationToken ct) {
         if (command is ProbeEnvCmd cmd) {
             try {
                 if (!cmd.ForceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5)) {

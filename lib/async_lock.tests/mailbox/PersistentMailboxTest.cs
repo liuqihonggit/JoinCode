@@ -77,8 +77,7 @@ public class PersistentMailboxTest {
 internal sealed class SimpleTestActor : ActorBase<string, Unit> {
     public Action<string>? OnMessage;
 
-    protected override ValueTask HandleAsync(string command, CancellationToken ct) {
+    protected override void Handle(string command, CancellationToken ct) {
         OnMessage?.Invoke(command);
-        return ValueTask.CompletedTask;
     }
 }

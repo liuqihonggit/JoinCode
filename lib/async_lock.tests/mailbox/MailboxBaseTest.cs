@@ -7,9 +7,9 @@ public class MailboxBaseTest {
     [Fact]
     public async Task RegisterAndTell_MessageDeliveredToAgent() {
         await using var mailbox = new TestMailbox();
-        await mailbox.RegisterAgentAsync("agent-1");
+        mailbox.RegisterAgent("agent-1");
         await WaitForRegistrationAsync(mailbox, "agent-1");
-        await mailbox.TellAsync("agent-1", "hello");
+        mailbox.Tell("agent-1", "hello");
 
         var msg = await mailbox.ReceiveAsync("agent-1").FirstAsync();
         msg.Should().Be("hello");
@@ -19,11 +19,11 @@ public class MailboxBaseTest {
     public async Task TellAsync_DoesNotBlock_FireAndForget() {
         await using var mailbox = new TestMailbox(
             agentBp: new ActorBackpressure(Capacity: 2, FullMode: BoundedChannelFullMode.Wait, SendTimeout: TimeSpan.FromSeconds(5)));
-        await mailbox.RegisterAgentAsync("agent-1");
+        mailbox.RegisterAgent("agent-1");
         await WaitForRegistrationAsync(mailbox, "agent-1");
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        await mailbox.TellAsync("agent-1", "msg-1");
+        mailbox.Tell("agent-1", "msg-1");
         sw.Stop();
         sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(1), "tell 应为 fire-and-forget，不阻塞");
     }
@@ -31,14 +31,14 @@ public class MailboxBaseTest {
     [Fact]
     public async Task Broadcast_AllAgentsReceiveMessage() {
         await using var mailbox = new TestMailbox();
-        await mailbox.RegisterAgentAsync("agent-1");
-        await mailbox.RegisterAgentAsync("agent-2");
-        await mailbox.RegisterAgentAsync("agent-3");
+        mailbox.RegisterAgent("agent-1");
+        mailbox.RegisterAgent("agent-2");
+        mailbox.RegisterAgent("agent-3");
         await WaitForRegistrationAsync(mailbox, "agent-1");
         await WaitForRegistrationAsync(mailbox, "agent-2");
         await WaitForRegistrationAsync(mailbox, "agent-3");
 
-        await mailbox.TellBroadcastAsync("broadcast-msg", excludeAgentId: "agent-1");
+        mailbox.TellBroadcast("broadcast-msg", excludeAgentId: "agent-1");
 
         var msg2 = await mailbox.ReceiveAsync("agent-2").FirstAsync();
         var msg3 = await mailbox.ReceiveAsync("agent-3").FirstAsync();
@@ -49,12 +49,12 @@ public class MailboxBaseTest {
     [Fact]
     public async Task Broadcast_ExcludesSender() {
         await using var mailbox = new TestMailbox();
-        await mailbox.RegisterAgentAsync("sender");
-        await mailbox.RegisterAgentAsync("receiver");
+        mailbox.RegisterAgent("sender");
+        mailbox.RegisterAgent("receiver");
         await WaitForRegistrationAsync(mailbox, "sender");
         await WaitForRegistrationAsync(mailbox, "receiver");
 
-        await mailbox.TellBroadcastAsync("msg", excludeAgentId: "sender");
+        mailbox.TellBroadcast("msg", excludeAgentId: "sender");
 
         var received = await mailbox.ReceiveAsync("receiver").FirstAsync();
         received.Should().Be("msg");
@@ -65,8 +65,8 @@ public class MailboxBaseTest {
     [Fact]
     public async Task UnregisterAgent_ChannelCompletes() {
         await using var mailbox = new TestMailbox();
-        await mailbox.RegisterAgentAsync("agent-1");
-        await mailbox.UnregisterAgentAsync("agent-1");
+        mailbox.RegisterAgent("agent-1");
+        mailbox.UnregisterAgent("agent-1");
 
         await WaitUntilAsync(() => !mailbox.GetRegisteredAgents().Contains("agent-1"), TimeSpan.FromMilliseconds(500));
         mailbox.GetRegisteredAgents().Should().NotContain("agent-1");
@@ -82,7 +82,7 @@ public class MailboxBaseTest {
             SendTimeout: TimeSpan.FromSeconds(5));
 
         await using var mailbox = new TestMailbox(agentBp: agentBp);
-        await mailbox.RegisterAgentAsync("agent-1");
+        mailbox.RegisterAgent("agent-1");
 
         var watermarkEvents = new List<MailboxEvt<string>>();
         var cts = new CancellationTokenSource();
@@ -94,7 +94,7 @@ public class MailboxBaseTest {
         }, cts.Token);
 
         for (var i = 0; i < 4; i++)
-            await mailbox.TellAsync("agent-1", $"msg-{i}");
+            mailbox.Tell("agent-1", $"msg-{i}");
 
         await WaitUntilAsync(() => watermarkEvents.Count > 0, TimeSpan.FromMilliseconds(500));
 
@@ -109,9 +109,9 @@ public class MailboxBaseTest {
     [Fact]
     public async Task GetRegisteredAgents_ReturnsAllRegistered() {
         await using var mailbox = new TestMailbox();
-        await mailbox.RegisterAgentAsync("a");
-        await mailbox.RegisterAgentAsync("b");
-        await mailbox.RegisterAgentAsync("c");
+        mailbox.RegisterAgent("a");
+        mailbox.RegisterAgent("b");
+        mailbox.RegisterAgent("c");
         await WaitForRegistrationAsync(mailbox, "a");
         await WaitForRegistrationAsync(mailbox, "b");
         await WaitForRegistrationAsync(mailbox, "c");
@@ -122,7 +122,7 @@ public class MailboxBaseTest {
     [Fact]
     public async Task GetSessionId_ReturnsRegisteredSession() {
         await using var mailbox = new TestMailbox();
-        await mailbox.RegisterAgentAsync("agent-1", "session-123");
+        mailbox.RegisterAgent("agent-1", "session-123");
         await WaitForRegistrationAsync(mailbox, "agent-1");
 
         mailbox.GetSessionId("agent-1").Should().Be("session-123");
@@ -140,10 +140,10 @@ public class MailboxBaseTest {
     public async Task IsAgentHighWatermark_TrueWhenAboveThreshold() {
         var agentBp = new ActorBackpressure(Capacity: 10, HighWatermark: 8, CriticalWatermark: 9);
         await using var mailbox = new TestMailbox(agentBp: agentBp);
-        await mailbox.RegisterAgentAsync("agent-1");
+        mailbox.RegisterAgent("agent-1");
 
         for (var i = 0; i < 9; i++)
-            await mailbox.TellAsync("agent-1", $"msg-{i}");
+            mailbox.Tell("agent-1", $"msg-{i}");
 
         await WaitUntilAsync(() => mailbox.GetAgentMessageCount("agent-1") >= 9, TimeSpan.FromMilliseconds(500));
         mailbox.IsAgentHighWatermark("agent-1").Should().BeTrue();
@@ -153,11 +153,11 @@ public class MailboxBaseTest {
     [Fact]
     public async Task WaitForCommandsDrainedAsync_确保之前命令已处理完() {
         await using var mailbox = new TestMailbox();
-        await mailbox.RegisterAgentAsync("agent-1");
+        mailbox.RegisterAgent("agent-1");
         await mailbox.WaitForCommandsDrainedAsync();
 
-        await mailbox.TellAsync("agent-1", "msg-1");
-        await mailbox.TellAsync("agent-1", "msg-2");
+        mailbox.Tell("agent-1", "msg-1");
+        mailbox.Tell("agent-1", "msg-2");
         await mailbox.WaitForCommandsDrainedAsync();
 
         mailbox.GetAgentMessageCount("agent-1").Should().Be(2, "两条 Tell 命令应已处理完并投递到 agent channel");

@@ -86,21 +86,21 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     /// <inheritdoc />
     public async Task StartActivityAsync(SessionActivityReason reason) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new StartActivityCmd(reason, tcs)).ConfigureAwait(false);
+        Tell(new StartActivityCmd(reason, tcs));
         await AskAwait(tcs, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task StopActivityAsync(SessionActivityReason reason) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new StopActivityCmd(reason, tcs)).ConfigureAwait(false);
+        Tell(new StopActivityCmd(reason, tcs));
         await AskAwait(tcs, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task ResetAsync() {
         var tcs = TcsFactory.Create();
-        await SendAsync(new ResetHeartbeatCmd(tcs)).ConfigureAwait(false);
+        Tell(new ResetHeartbeatCmd(tcs));
         await AskAwait(tcs, CancellationToken.None).ConfigureAwait(false);
     }
 
@@ -109,7 +109,11 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     /// </summary>
     /// <param name="command">心跳命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override async ValueTask HandleAsync(IGoalHeartbeatCommand command, CancellationToken ct) {
+    protected override void Handle(IGoalHeartbeatCommand command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(IGoalHeartbeatCommand command, CancellationToken ct) {
         switch (command) {
             case RegisterCallbackCmd reg:
             _heartbeatCallback = reg.Callback;

@@ -186,7 +186,11 @@ internal sealed class BackpressureTestActor : ActorBase<BackpressureTestActor.IC
         _gate = gate;
     }
 
-    protected override async ValueTask HandleAsync(ICommand command, CancellationToken ct) {
+    protected override void Handle(ICommand command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(ICommand command, CancellationToken ct) {
         switch (command) {
             case IncrementCommand(var tcs):
             await _gate.Task.WaitAsync(ct);
@@ -201,6 +205,6 @@ internal sealed class BackpressureTestActor : ActorBase<BackpressureTestActor.IC
         }
     }
 
-    public ValueTask IncrementAsync(TaskCompletionSource<int> tcs) => SendAsync(new IncrementCommand(tcs));
-    public ValueTask ReleaseGateAsync() => SendAsync(new ReleaseGateCommand());
+    public ValueTask IncrementAsync(TaskCompletionSource<int> tcs) { Tell(new IncrementCommand(tcs)); return ValueTask.CompletedTask; }
+    public ValueTask ReleaseGateAsync() { Tell(new ReleaseGateCommand()); return ValueTask.CompletedTask; }
 }

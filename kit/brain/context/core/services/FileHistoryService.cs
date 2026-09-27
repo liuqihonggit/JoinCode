@@ -57,7 +57,7 @@ public sealed class FileHistoryService : IAsyncDisposable {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var reply = new TaskCompletionSource<bool>();
-        await _actor.SendAsync(new TrackEditCmd(filePath, originalContent, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new TrackEditCmd(filePath, originalContent, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -94,7 +94,7 @@ public sealed class FileHistoryService : IAsyncDisposable {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var reply = new TaskCompletionSource<IReadOnlyList<FileSnapshot>>();
-        await _actor.SendAsync(new GetSnapshotsCmd(filePath, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new GetSnapshotsCmd(filePath, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -116,7 +116,7 @@ public sealed class FileHistoryService : IAsyncDisposable {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var reply = new TaskCompletionSource<bool>();
-        await _actor.SendAsync(new RestoreCmd(filePath, snapshotIndex, reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new RestoreCmd(filePath, snapshotIndex, reply));
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -144,7 +144,7 @@ public sealed class FileHistoryService : IAsyncDisposable {
     /// <param name="cancellationToken">取消令牌</param>
     public async Task ClearAsync(CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new ClearCmd(reply), cancellationToken).ConfigureAwait(false);
+        _actor.Tell(new ClearCmd(reply));
         await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
@@ -179,7 +179,8 @@ public sealed class FileHistoryService : IAsyncDisposable {
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(FileHistoryCommand cmd, CancellationToken ct) {
+        protected override void Handle(FileHistoryCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        private async ValueTask HandleAsyncImpl(FileHistoryCommand cmd, CancellationToken ct) {
             try {
                 switch (cmd) {
                     case TrackEditCmd(var filePath, var content, var reply):

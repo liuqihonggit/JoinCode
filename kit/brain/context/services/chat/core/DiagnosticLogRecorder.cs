@@ -190,7 +190,7 @@ internal sealed class DiagnosticEntryWriter : IAsyncDisposable {
         var line = $"{{\"ts\":\"{entry.Timestamp:O}\",\"event\":\"{entry.EventType}\",\"session\":\"{entry.SessionId}\",\"trace\":\"{entry.TraceId}\"{anomalyFlag},\"data\":{{{dataProps}}}}}";
 
         var reply = new TaskCompletionSource();
-        await _actor.SendAsync(new WriteEntryCmd(line, reply), ct).ConfigureAwait(false);
+        _actor.Tell(new WriteEntryCmd(line, reply));
         await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
@@ -230,7 +230,8 @@ internal sealed class DiagnosticEntryWriter : IAsyncDisposable {
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(WriteEntryCmd cmd, CancellationToken ct) {
+        protected override void Handle(WriteEntryCmd cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        private async ValueTask HandleAsyncImpl(WriteEntryCmd cmd, CancellationToken ct) {
             try {
                 await _fs.AppendAllTextAsync(_logPath, cmd.Line + "\n", ct).ConfigureAwait(false);
             } catch (Exception ex) {

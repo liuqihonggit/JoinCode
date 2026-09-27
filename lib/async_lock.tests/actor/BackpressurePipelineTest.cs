@@ -15,7 +15,7 @@ public class BackpressurePipelineTest {
             var cmd = BackpressureTestCmd.Create(
                 new IdempotencyKey("bp-test", i.ToString()),
                 signals);
-            await actor.SendAsync(cmd);
+            actor.Tell(cmd);
         }
 
         await WaitUntilAsync(() => signals.Any(s => s.Level == WatermarkLevel.High), TimeSpan.FromSeconds(1));
@@ -33,7 +33,7 @@ public class BackpressurePipelineTest {
             var cmd = BackpressureTestCmd.Create(
                 new IdempotencyKey("bp-test", i.ToString()),
                 signals);
-            await actor.SendAsync(cmd);
+            actor.Tell(cmd);
         }
 
         await WaitUntilAsync(() => signals.Any(s => s.Level == WatermarkLevel.Critical), TimeSpan.FromSeconds(1));
@@ -51,7 +51,7 @@ public class BackpressurePipelineTest {
             var cmd = BackpressureTestCmd.Create(
                 new IdempotencyKey("bp-test", i.ToString()),
                 signals);
-            await actor.SendAsync(cmd);
+            actor.Tell(cmd);
         }
 
         await WaitUntilAsync(() => signals.Any(s => s.Level == WatermarkLevel.High), TimeSpan.FromSeconds(1));
@@ -102,7 +102,7 @@ public class BackpressurePipelineTest {
 
         var signals = new List<BackpressureSignal>();
         for (var i = 0; i < 10; i++)
-            await actor.SendAsync(new PlainCmd(i));
+            actor.Tell(new PlainCmd(i));
 
         await Task.Delay(200);
         signals.Should().BeEmpty();
@@ -153,7 +153,11 @@ internal sealed class BackpressurePipelineTestActor : ActorBase<object, Unit> {
         IdempotencyStore = new IdempotencyStore();
     }
 
-    protected override async ValueTask HandleAsync(object command, CancellationToken ct) {
+    protected override void Handle(object command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(object command, CancellationToken ct) {
         if (_gate is not null) await _gate.Task.WaitAsync(ct);
         if (command is BackpressureTestCmd cmd) {
             IdempotencyStore?.TryRegister(cmd.IdempotencyKey, Unit.Value);

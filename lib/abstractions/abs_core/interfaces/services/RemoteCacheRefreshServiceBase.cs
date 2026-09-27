@@ -79,7 +79,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         RefreshCacheCmd? cmd = null;
         cmd = new RefreshCacheCmd(key, tcs.SetResult, tcs.SetException,
             CreateBackpressureHandler(() => { if (cmd is not null) TrySend(cmd); }));
-        await SendAsync(cmd, ct).ConfigureAwait(false);
+        Tell(cmd);
         await tcs.Task.ConfigureAwait(false);
     }
 
@@ -128,7 +128,11 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         }
     }
 
-    protected override async ValueTask HandleAsync(IRemoteCacheRefreshCommand command, CancellationToken ct) {
+    protected override void Handle(IRemoteCacheRefreshCommand command, CancellationToken ct) {
+        _ = HandleAsyncImpl(command, ct);
+    }
+
+    private async ValueTask HandleAsyncImpl(IRemoteCacheRefreshCommand command, CancellationToken ct) {
         switch (command) {
             case RefreshCacheCmd refresh:
             await DoRefreshAsync(ct).ConfigureAwait(false);

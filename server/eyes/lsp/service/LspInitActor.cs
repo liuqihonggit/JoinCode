@@ -37,7 +37,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit> {
     /// <param name="ct">取消令牌</param>
     public async Task InitializeAsync(List<LspInstanceConfig> configs, CancellationToken ct) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new InitializeCmd(configs, ct, tcs), ct).ConfigureAwait(false);
+        Tell(new InitializeCmd(configs, ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -47,7 +47,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit> {
     /// <param name="ct">取消令牌</param>
     public async Task ShutdownAsync(CancellationToken ct) {
         var tcs = TcsFactory.Create();
-        await SendAsync(new ShutdownCmd(ct, tcs), ct).ConfigureAwait(false);
+        Tell(new ShutdownCmd(ct, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -56,7 +56,9 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit> {
     /// </summary>
     /// <param name="command">待处理的 LSP 命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override async ValueTask HandleAsync(ILspCommand command, CancellationToken ct) {
+    protected override void Handle(ILspCommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+
+    private async ValueTask HandleAsyncImpl(ILspCommand command, CancellationToken ct) {
         switch (command) {
             case InitializeCmd cmd: {
                 try {

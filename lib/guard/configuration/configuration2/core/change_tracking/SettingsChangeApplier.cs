@@ -79,7 +79,9 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
     }
 
     /// <inheritdoc />
-    protected override async ValueTask HandleAsync(SettingsChangeCommand cmd, CancellationToken ct) {
+    protected override void Handle(SettingsChangeCommand cmd, CancellationToken ct) => _ = HandleAsyncImpl(cmd, ct);
+
+    private async ValueTask HandleAsyncImpl(SettingsChangeCommand cmd, CancellationToken ct) {
         if (cmd is not ApplySettingsCmd apply) return;
 
         _logger?.LogInformation("正在应用设置变更...");

@@ -6,7 +6,7 @@ namespace McpClient;
 /// </summary>
 public sealed partial class McpChannelNotificationHandler {
     private readonly ILogger<McpChannelNotificationHandler>? _logger;
-    private ImmutableDictionary<string, TaskCompletionSource<ChannelPermissionResponse>> _pendingRequests = ImmutableDictionary<string, TaskCompletionSource<ChannelPermissionResponse>>.Empty;
+    private ImmutableHamT<string, TaskCompletionSource<ChannelPermissionResponse>> _pendingRequests = ImmutableHamT<string, TaskCompletionSource<ChannelPermissionResponse>>.Empty;
 
     /// <summary>接收到 Channel 消息时触发</summary>
     public event EventHandler<McpChannelMessageEventArgs>? ChannelMessageReceived;

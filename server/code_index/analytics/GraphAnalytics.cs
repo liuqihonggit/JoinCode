@@ -306,8 +306,8 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
     /// <param name="byCallee">按被调用方分组的调用边</param>
     /// <returns>符号到社区标签的映射</returns>
     internal static Dictionary<string, int> LabelPropagation(
-        ImmutableDictionary<string, ImmutableList<CallEdge>> byCaller,
-        ImmutableDictionary<string, ImmutableList<CallEdge>> byCallee) {
+        ImmutableHamT<string, ImmutableList<CallEdge>> byCaller,
+        ImmutableHamT<string, ImmutableList<CallEdge>> byCallee) {
         var allSymbols = new HashSet<string>(StringComparer.Ordinal);
         foreach (var kvp in byCaller) allSymbols.Add(kvp.Key);
         foreach (var kvp in byCallee) allSymbols.Add(kvp.Key);
@@ -350,8 +350,8 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
     /// <returns>社区信息列表</returns>
     internal static List<CommunityInfo> BuildCommunities(
         Dictionary<string, int> labels,
-        ImmutableDictionary<string, ImmutableList<CallEdge>> byCaller,
-        ImmutableDictionary<string, ImmutableList<CallEdge>> byCallee) {
+        ImmutableHamT<string, ImmutableList<CallEdge>> byCaller,
+        ImmutableHamT<string, ImmutableList<CallEdge>> byCallee) {
         var groups = labels.GroupBy(kvp => kvp.Value).ToList();
         var result = new List<CommunityInfo>();
 

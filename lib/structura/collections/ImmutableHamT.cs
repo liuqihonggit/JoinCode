@@ -1,5 +1,32 @@
 namespace Structura.Collections;
 
+/// <summary>ImmutableHamT 工厂入口 — 提供 Create&lt;TKey,TValue&gt;() 等泛型工厂方法,与 ImmutableDictionary API 完全对齐。</summary>
+public static class ImmutableHamT {
+    /// <summary>创建空实例。</summary>
+    public static ImmutableHamT<TKey, TValue> Create<TKey, TValue>() where TKey : notnull
+        => ImmutableHamT<TKey, TValue>.Create();
+
+    /// <summary>创建空实例,使用指定键比较器。</summary>
+    public static ImmutableHamT<TKey, TValue> Create<TKey, TValue>(IEqualityComparer<TKey>? keyComparer) where TKey : notnull
+        => ImmutableHamT<TKey, TValue>.Create(keyComparer);
+
+    /// <summary>从键值对序列创建实例。</summary>
+    public static ImmutableHamT<TKey, TValue> CreateRange<TKey, TValue>(IEnumerable<KeyValuePair<TKey, TValue>> items) where TKey : notnull
+        => ImmutableHamT<TKey, TValue>.CreateRange(items);
+
+    /// <summary>从键值对序列创建实例,使用指定键比较器。</summary>
+    public static ImmutableHamT<TKey, TValue> CreateRange<TKey, TValue>(IEnumerable<KeyValuePair<TKey, TValue>> items, IEqualityComparer<TKey>? keyComparer) where TKey : notnull
+        => ImmutableHamT<TKey, TValue>.CreateRange(items, keyComparer);
+
+    /// <summary>创建可变构建器。</summary>
+    public static ImmutableHamT<TKey, TValue>.Builder CreateBuilder<TKey, TValue>() where TKey : notnull
+        => ImmutableHamT<TKey, TValue>.CreateBuilder();
+
+    /// <summary>创建可变构建器,使用指定键比较器。</summary>
+    public static ImmutableHamT<TKey, TValue>.Builder CreateBuilder<TKey, TValue>(IEqualityComparer<TKey>? keyComparer) where TKey : notnull
+        => ImmutableHamT<TKey, TValue>.CreateBuilder(keyComparer);
+}
+
 /// <summary>不可变 HAMT (Hash Array Mapped Trie) — 分支因子 32,查找 O(log₃₂ N)。不可变 + 路径复制,配合 ImmutableInterlocked.Update 实现无锁 CAS。</summary>
 public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TValue> where TKey : notnull {
     internal const int Bits = 5;
@@ -35,6 +62,12 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
         return result;
     }
 
+    /// <summary>使用指定键比较器重建实例(对齐 ImmutableDictionary.WithComparers API)。</summary>
+    public ImmutableHamT<TKey, TValue> WithComparers(IEqualityComparer<TKey> keyComparer) => WithComparer(keyComparer);
+
+    /// <summary>当前键比较器。</summary>
+    public IEqualityComparer<TKey> KeyComparer => _keyComparer;
+
     /// <summary>尝试获取指定键的值。</summary>
     public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value) {
         ArgumentNullException.ThrowIfNull(key);
@@ -45,6 +78,9 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
 
     /// <summary>是否包含指定键。</summary>
     public bool ContainsKey(TKey key) => TryGetValue(key, out _);
+
+    /// <summary>尝试添加键值对,键已存在则返回 false 不抛异常,键不存在则返回 true。不可变字典不实际修改,仅检查可添加性。</summary>
+    public bool TryAdd(TKey key, TValue value) => !ContainsKey(key);
 
     /// <summary>获取指定键的值,不存在抛 KeyNotFoundException。</summary>
     public TValue this[TKey key] {
@@ -82,6 +118,13 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
         var newRoot = _root.Remove(0, hash, _keyComparer, key, out var removed);
         if (!removed) return this;
         return new ImmutableHamT<TKey, TValue>(_count - 1, newRoot, _keyComparer);
+    }
+
+    /// <summary>批量移除指定键。</summary>
+    public ImmutableHamT<TKey, TValue> RemoveRange(IEnumerable<TKey> keys) {
+        var result = this;
+        foreach (var key in keys) result = result.Remove(key);
+        return result;
     }
 
     /// <summary>清空所有元素。</summary>
@@ -402,6 +445,9 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
         /// <summary>获取或设置值。</summary>
         public TValue this[TKey key] { get => _dict[key]; set => _dict[key] = value; }
 
+        /// <summary>获取指定键的值,不存在返回默认值。</summary>
+        public TValue? GetValueOrDefault(TKey key) => _dict.TryGetValue(key, out var value) ? value : default;
+
         /// <summary>添加键值对。</summary>
         public void Add(TKey key, TValue value) => _dict.Add(key, value);
         /// <summary>添加键值对。</summary>
@@ -434,6 +480,13 @@ public static class ImmutableHamTExtensions {
     public static ImmutableHamT<TKey, TValue> ToImmutableHamT<TKey, TValue>(this IEnumerable<KeyValuePair<TKey, TValue>> source) where TKey : notnull {
         var result = ImmutableHamT<TKey, TValue>.Empty;
         foreach (var kv in source) result = result.Add(kv.Key, kv.Value);
+        return result;
+    }
+
+    /// <summary>将序列按键选择器转换为 ImmutableHamT(value 为元素本身)。</summary>
+    public static ImmutableHamT<TKey, TSource> ToImmutableHamT<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector) where TKey : notnull {
+        var result = ImmutableHamT<TKey, TSource>.Empty;
+        foreach (var item in source) result = result.Add(keySelector(item), item);
         return result;
     }
 

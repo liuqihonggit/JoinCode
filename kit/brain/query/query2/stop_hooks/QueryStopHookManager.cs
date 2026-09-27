@@ -108,7 +108,7 @@ public sealed partial class StopHookResult {
 /// </summary>
 [Register(typeof(IQueryStopHookManager), ServiceLifetime.Singleton)]
 public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHookManager {
-    private ImmutableDictionary<string, IQueryStopHook> _hooks = ImmutableDictionary<string, IQueryStopHook>.Empty;
+    private ImmutableHamT<string, IQueryStopHook> _hooks = ImmutableHamT<string, IQueryStopHook>.Empty;
     private readonly ILogger<QueryStopHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
 

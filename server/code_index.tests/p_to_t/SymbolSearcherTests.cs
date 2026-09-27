@@ -235,8 +235,8 @@ public sealed class SymbolSearcherTests : IDisposable {
         });
     }
 
-    private static ImmutableDictionary<TKey, ImmutableList<SymbolInfo>> AddToBucket<TKey>(
-        ImmutableDictionary<TKey, ImmutableList<SymbolInfo>> dict, TKey key, SymbolInfo symbol) where TKey : notnull {
+    private static ImmutableHamT<TKey, ImmutableList<SymbolInfo>> AddToBucket<TKey>(
+        ImmutableHamT<TKey, ImmutableList<SymbolInfo>> dict, TKey key, SymbolInfo symbol) where TKey : notnull {
         if (!dict.TryGetValue(key, out var list)) {
             list = ImmutableList<SymbolInfo>.Empty;
         }

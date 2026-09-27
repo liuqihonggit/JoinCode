@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Utils;
 public sealed class SecondaryIndex<TKey, TValue, TProperty>
     where TKey : notnull
     where TProperty : notnull {
-    private ImmutableDictionary<TProperty, ImmutableHashSet<TKey>> _index = ImmutableDictionary<TProperty, ImmutableHashSet<TKey>>.Empty;
+    private ImmutableHamT<TProperty, ImmutableHashSet<TKey>> _index = ImmutableHamT<TProperty, ImmutableHashSet<TKey>>.Empty;
     private readonly Func<TValue, TProperty> _selector;
 
     internal SecondaryIndex(
@@ -15,7 +15,7 @@ public sealed class SecondaryIndex<TKey, TValue, TProperty>
         IEqualityComparer<TProperty>? comparer = null) {
         _selector = selector;
         if (comparer != null)
-            _index = ImmutableDictionary<TProperty, ImmutableHashSet<TKey>>.Empty.WithComparers(comparer);
+            _index = ImmutableHamT<TProperty, ImmutableHashSet<TKey>>.Empty.WithComparers(comparer);
     }
 
     /// <summary>注册时同步添加到索引</summary>

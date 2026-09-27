@@ -6,9 +6,9 @@ namespace Core.CostTracking;
 [Register(typeof(IAnalyticsService), ServiceLifetime.Singleton)]
 public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService, IDisposable {
     private ImmutableList<AnalyticsEvent> _events = ImmutableList<AnalyticsEvent>.Empty;
-    private ImmutableDictionary<AnalyticsEventType, ImmutableList<AnalyticsEvent>> _byType = ImmutableDictionary<AnalyticsEventType, ImmutableList<AnalyticsEvent>>.Empty;
-    private ImmutableDictionary<DateTime, ImmutableList<AnalyticsEvent>> _byDate = ImmutableDictionary<DateTime, ImmutableList<AnalyticsEvent>>.Empty;
-    private ImmutableDictionary<string, ITelemetrySpan> _agentSpans = ImmutableDictionary<string, ITelemetrySpan>.Empty;
+    private ImmutableHamT<AnalyticsEventType, ImmutableList<AnalyticsEvent>> _byType = ImmutableHamT<AnalyticsEventType, ImmutableList<AnalyticsEvent>>.Empty;
+    private ImmutableHamT<DateTime, ImmutableList<AnalyticsEvent>> _byDate = ImmutableHamT<DateTime, ImmutableList<AnalyticsEvent>>.Empty;
+    private ImmutableHamT<string, ITelemetrySpan> _agentSpans = ImmutableHamT<string, ITelemetrySpan>.Empty;
     private readonly ILogger<AnalyticsService>? _logger;
     private readonly IFileOperationService? _fileOperationService;
     private readonly string? _storagePath;
@@ -291,8 +291,8 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
             _logger?.LogInformation("已清除 {Days} 天前的分析数据", olderThanDays.Value);
         } else {
             Interlocked.Exchange(ref _events, ImmutableList<AnalyticsEvent>.Empty);
-            Interlocked.Exchange(ref _byType, ImmutableDictionary<AnalyticsEventType, ImmutableList<AnalyticsEvent>>.Empty);
-            Interlocked.Exchange(ref _byDate, ImmutableDictionary<DateTime, ImmutableList<AnalyticsEvent>>.Empty);
+            Interlocked.Exchange(ref _byType, ImmutableHamT<AnalyticsEventType, ImmutableList<AnalyticsEvent>>.Empty);
+            Interlocked.Exchange(ref _byDate, ImmutableHamT<DateTime, ImmutableList<AnalyticsEvent>>.Empty);
             _logger?.LogInformation("已清除所有分析数据");
         }
 
@@ -361,8 +361,8 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// </summary>
     private void RebuildIndices() {
         var snapshot = _events;
-        var byTypeBuilder = ImmutableDictionary.CreateBuilder<AnalyticsEventType, ImmutableList<AnalyticsEvent>>();
-        var byDateBuilder = ImmutableDictionary.CreateBuilder<DateTime, ImmutableList<AnalyticsEvent>>();
+        var byTypeBuilder = ImmutableHamT.CreateBuilder<AnalyticsEventType, ImmutableList<AnalyticsEvent>>();
+        var byDateBuilder = ImmutableHamT.CreateBuilder<DateTime, ImmutableList<AnalyticsEvent>>();
         foreach (var e in snapshot) {
             byTypeBuilder[e.Type] = (byTypeBuilder.GetValueOrDefault(e.Type) ?? ImmutableList<AnalyticsEvent>.Empty).Add(e);
             var date = e.Timestamp.Date;

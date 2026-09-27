@@ -1,4 +1,4 @@
-// Contracts 命名空间
+﻿// Contracts 命名空间
 global using Core.Bridge.Gate;
 global using Core.Bridge.Handlers;
 global using Core.Bridge.Init;
@@ -58,3 +58,4 @@ global using BridgeNdjsonParser = JoinCode.Transport.Bridge.NdjsonParser;
 global using BridgePermissionRequest = JoinCode.Transport.Bridge.NdjsonPermissionRequest;
 global using ExecutionContext = JoinCode.Abstractions.Execution.ExecutionContext;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
+global using Structura.Collections;

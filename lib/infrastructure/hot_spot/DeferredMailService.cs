@@ -6,8 +6,8 @@ namespace Infrastructure.HotSpot;
 /// </summary>
 [Register(typeof(IDeferredMailService), ServiceLifetime.Singleton)]
 public sealed class DeferredMailService : IDeferredMailService {
-    private ImmutableDictionary<string, ImmutableList<DeferredMailEntry>> _pending = ImmutableDictionary<string, ImmutableList<DeferredMailEntry>>.Empty;
-    private ImmutableDictionary<string, AsyncLock> _locks = ImmutableDictionary<string, AsyncLock>.Empty;
+    private ImmutableHamT<string, ImmutableList<DeferredMailEntry>> _pending = ImmutableHamT<string, ImmutableList<DeferredMailEntry>>.Empty;
+    private ImmutableHamT<string, AsyncLock> _locks = ImmutableHamT<string, AsyncLock>.Empty;
 
     /// <summary>
     /// 延迟投递邮件 — 加入待发送队列，按 OpenAfterTurns 计数到期后投递

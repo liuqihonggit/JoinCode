@@ -11,7 +11,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     private readonly ILogger<VcrService>? _logger;
     private readonly IFileSystem _fs;
     private readonly VcrActor _actor;
-    private ImmutableDictionary<string, VcrCassette> _cassetteCache = ImmutableDictionary<string, VcrCassette>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, VcrCassette> _cassetteCache = ImmutableHamT<string, VcrCassette>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     private VcrMode _currentMode;
 

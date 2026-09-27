@@ -20,7 +20,7 @@ internal sealed class PooledAgent {
 /// </para>
 /// </summary>
 public sealed partial class SubAgentPool : IAsyncDisposable {
-    private volatile ImmutableDictionary<string, PooledAgent> _pool = ImmutableDictionary<string, PooledAgent>.Empty;
+    private volatile ImmutableHamT<string, PooledAgent> _pool = ImmutableHamT<string, PooledAgent>.Empty;
     private readonly SubAgentLivenessOptions _options;
     private readonly ILogger? _logger;
     private readonly Func<DateTimeOffset> _clock;
@@ -190,7 +190,7 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
 
         foreach (var (_, entry) in _pool)
             entry.Agent.Dispose();
-        Interlocked.Exchange(ref _pool, ImmutableDictionary<string, PooledAgent>.Empty);
+        Interlocked.Exchange(ref _pool, ImmutableHamT<string, PooledAgent>.Empty);
 
         return ValueTask.CompletedTask;
     }

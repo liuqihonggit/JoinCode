@@ -9,45 +9,45 @@ namespace JoinCode.CodeIndex.Persistence;
 internal sealed record IndexSnapshot {
     // ── 符号索引（O(1) 精确查找）──
     /// <summary>FQN→符号 精确查找索引</summary>
-    public required ImmutableDictionary<string, SymbolInfo> SymbolsByFqn { get; init; }
+    public required ImmutableHamT<string, SymbolInfo> SymbolsByFqn { get; init; }
     /// <summary>名称→符号列表 模糊查找索引（同名多符号）</summary>
-    public required ImmutableDictionary<string, ImmutableList<SymbolInfo>> SymbolsByName { get; init; }
+    public required ImmutableHamT<string, ImmutableList<SymbolInfo>> SymbolsByName { get; init; }
     /// <summary>文件路径→符号列表 索引</summary>
-    public required ImmutableDictionary<string, ImmutableList<SymbolInfo>> SymbolsByFile { get; init; }
+    public required ImmutableHamT<string, ImmutableList<SymbolInfo>> SymbolsByFile { get; init; }
     /// <summary>符号种类→符号列表 索引</summary>
-    public required ImmutableDictionary<SymbolKind, ImmutableList<SymbolInfo>> SymbolsByKind { get; init; }
+    public required ImmutableHamT<SymbolKind, ImmutableList<SymbolInfo>> SymbolsByKind { get; init; }
 
     // ── 调用图 ──
     /// <summary>全部调用边</summary>
     public required ImmutableList<CallEdge> CallEdges { get; init; }
     /// <summary>调用方→调用边列表 索引</summary>
-    public required ImmutableDictionary<string, ImmutableList<CallEdge>> CallsByCaller { get; init; }
+    public required ImmutableHamT<string, ImmutableList<CallEdge>> CallsByCaller { get; init; }
     /// <summary>被调用方→调用边列表 索引</summary>
-    public required ImmutableDictionary<string, ImmutableList<CallEdge>> CallsByCallee { get; init; }
+    public required ImmutableHamT<string, ImmutableList<CallEdge>> CallsByCallee { get; init; }
     /// <summary>文件路径→调用边列表 索引</summary>
-    public required ImmutableDictionary<string, ImmutableList<CallEdge>> CallsByFile { get; init; }
+    public required ImmutableHamT<string, ImmutableList<CallEdge>> CallsByFile { get; init; }
 
     // ── 依赖图 ──
     /// <summary>全部依赖边</summary>
     public required ImmutableList<DependencyEdge> DepEdges { get; init; }
     /// <summary>源符号→依赖边列表 索引</summary>
-    public required ImmutableDictionary<string, ImmutableList<DependencyEdge>> DepsBySource { get; init; }
+    public required ImmutableHamT<string, ImmutableList<DependencyEdge>> DepsBySource { get; init; }
     /// <summary>目标符号→依赖边列表 索引</summary>
-    public required ImmutableDictionary<string, ImmutableList<DependencyEdge>> DepsByTarget { get; init; }
+    public required ImmutableHamT<string, ImmutableList<DependencyEdge>> DepsByTarget { get; init; }
     /// <summary>文件路径→依赖边列表 索引</summary>
-    public required ImmutableDictionary<string, ImmutableList<DependencyEdge>> DepsByFile { get; init; }
+    public required ImmutableHamT<string, ImmutableList<DependencyEdge>> DepsByFile { get; init; }
 
     // ── 项目依赖 ──
     /// <summary>项目路径→项目信息 索引</summary>
-    public required ImmutableDictionary<string, ProjectInfo> Projects { get; init; }
+    public required ImmutableHamT<string, ProjectInfo> Projects { get; init; }
     /// <summary>项目路径→项目引用边列表 索引</summary>
-    public required ImmutableDictionary<string, ImmutableList<ProjectReferenceEdge>> ProjectRefs { get; init; }
+    public required ImmutableHamT<string, ImmutableList<ProjectReferenceEdge>> ProjectRefs { get; init; }
     /// <summary>项目路径→NuGet 包引用列表 索引</summary>
-    public required ImmutableDictionary<string, ImmutableList<NuGetPackageReference>> NuGetRefs { get; init; }
+    public required ImmutableHamT<string, ImmutableList<NuGetPackageReference>> NuGetRefs { get; init; }
 
     // ── 文件追踪 ──
     /// <summary>文件路径→文件追踪条目 索引</summary>
-    public required ImmutableDictionary<string, FileTrackingEntry> FileTracking { get; init; }
+    public required ImmutableHamT<string, FileTrackingEntry> FileTracking { get; init; }
 
     // ── 排序索引（O(log n) 前缀/范围查询）──
     /// <summary>文件追踪键排序列表（前缀查询用）</summary>
@@ -59,36 +59,36 @@ internal sealed record IndexSnapshot {
 
     // ── 反向索引（O(1) 反向查找）──
     /// <summary>目标项目路径→项目引用边列表 反向索引</summary>
-    public required ImmutableDictionary<string, ImmutableList<ProjectReferenceEdge>> ProjectRefsByTarget { get; init; }
+    public required ImmutableHamT<string, ImmutableList<ProjectReferenceEdge>> ProjectRefsByTarget { get; init; }
     /// <summary>包名→NuGet 引用列表 反向索引</summary>
-    public required ImmutableDictionary<string, ImmutableList<NuGetPackageReference>> NuGetRefsByPackage { get; init; }
+    public required ImmutableHamT<string, ImmutableList<NuGetPackageReference>> NuGetRefsByPackage { get; init; }
 
     /// <summary>最后更新时间</summary>
     public DateTimeOffset LastUpdated { get; init; }
 
     /// <summary>空快照</summary>
     public static readonly IndexSnapshot Empty = new() {
-        SymbolsByFqn = ImmutableDictionary<string, SymbolInfo>.Empty.WithComparers(StringComparer.Ordinal),
-        SymbolsByName = ImmutableDictionary<string, ImmutableList<SymbolInfo>>.Empty.WithComparers(StringComparer.Ordinal),
-        SymbolsByFile = ImmutableDictionary<string, ImmutableList<SymbolInfo>>.Empty.WithComparers(StringComparer.Ordinal),
-        SymbolsByKind = ImmutableDictionary<SymbolKind, ImmutableList<SymbolInfo>>.Empty,
+        SymbolsByFqn = ImmutableHamT<string, SymbolInfo>.Empty.WithComparers(StringComparer.Ordinal),
+        SymbolsByName = ImmutableHamT<string, ImmutableList<SymbolInfo>>.Empty.WithComparers(StringComparer.Ordinal),
+        SymbolsByFile = ImmutableHamT<string, ImmutableList<SymbolInfo>>.Empty.WithComparers(StringComparer.Ordinal),
+        SymbolsByKind = ImmutableHamT<SymbolKind, ImmutableList<SymbolInfo>>.Empty,
         CallEdges = ImmutableList<CallEdge>.Empty,
-        CallsByCaller = ImmutableDictionary<string, ImmutableList<CallEdge>>.Empty.WithComparers(StringComparer.Ordinal),
-        CallsByCallee = ImmutableDictionary<string, ImmutableList<CallEdge>>.Empty.WithComparers(StringComparer.Ordinal),
-        CallsByFile = ImmutableDictionary<string, ImmutableList<CallEdge>>.Empty.WithComparers(StringComparer.Ordinal),
+        CallsByCaller = ImmutableHamT<string, ImmutableList<CallEdge>>.Empty.WithComparers(StringComparer.Ordinal),
+        CallsByCallee = ImmutableHamT<string, ImmutableList<CallEdge>>.Empty.WithComparers(StringComparer.Ordinal),
+        CallsByFile = ImmutableHamT<string, ImmutableList<CallEdge>>.Empty.WithComparers(StringComparer.Ordinal),
         DepEdges = ImmutableList<DependencyEdge>.Empty,
-        DepsBySource = ImmutableDictionary<string, ImmutableList<DependencyEdge>>.Empty.WithComparers(StringComparer.Ordinal),
-        DepsByTarget = ImmutableDictionary<string, ImmutableList<DependencyEdge>>.Empty.WithComparers(StringComparer.Ordinal),
-        DepsByFile = ImmutableDictionary<string, ImmutableList<DependencyEdge>>.Empty.WithComparers(StringComparer.Ordinal),
-        Projects = ImmutableDictionary<string, ProjectInfo>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
-        ProjectRefs = ImmutableDictionary<string, ImmutableList<ProjectReferenceEdge>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
-        NuGetRefs = ImmutableDictionary<string, ImmutableList<NuGetPackageReference>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
-        FileTracking = ImmutableDictionary<string, FileTrackingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        DepsBySource = ImmutableHamT<string, ImmutableList<DependencyEdge>>.Empty.WithComparers(StringComparer.Ordinal),
+        DepsByTarget = ImmutableHamT<string, ImmutableList<DependencyEdge>>.Empty.WithComparers(StringComparer.Ordinal),
+        DepsByFile = ImmutableHamT<string, ImmutableList<DependencyEdge>>.Empty.WithComparers(StringComparer.Ordinal),
+        Projects = ImmutableHamT<string, ProjectInfo>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        ProjectRefs = ImmutableHamT<string, ImmutableList<ProjectReferenceEdge>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        NuGetRefs = ImmutableHamT<string, ImmutableList<NuGetPackageReference>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        FileTracking = ImmutableHamT<string, FileTrackingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
         FileTrackingKeysSorted = ImmutableList<string>.Empty,
         SymbolsSortedByFqn = ImmutableList<SymbolInfo>.Empty,
         SymbolsSortedByName = ImmutableList<SymbolInfo>.Empty,
-        ProjectRefsByTarget = ImmutableDictionary<string, ImmutableList<ProjectReferenceEdge>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
-        NuGetRefsByPackage = ImmutableDictionary<string, ImmutableList<NuGetPackageReference>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        ProjectRefsByTarget = ImmutableHamT<string, ImmutableList<ProjectReferenceEdge>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        NuGetRefsByPackage = ImmutableHamT<string, ImmutableList<NuGetPackageReference>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
         LastUpdated = DateTimeOffset.MinValue,
     };
 
@@ -227,11 +227,11 @@ internal sealed record IndexSnapshot {
 
     /// <summary>清空项目数据</summary>
     public IndexSnapshot ClearProjects() => this with {
-        Projects = ImmutableDictionary<string, ProjectInfo>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
-        ProjectRefs = ImmutableDictionary<string, ImmutableList<ProjectReferenceEdge>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
-        NuGetRefs = ImmutableDictionary<string, ImmutableList<NuGetPackageReference>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
-        ProjectRefsByTarget = ImmutableDictionary<string, ImmutableList<ProjectReferenceEdge>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
-        NuGetRefsByPackage = ImmutableDictionary<string, ImmutableList<NuGetPackageReference>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        Projects = ImmutableHamT<string, ProjectInfo>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        ProjectRefs = ImmutableHamT<string, ImmutableList<ProjectReferenceEdge>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        NuGetRefs = ImmutableHamT<string, ImmutableList<NuGetPackageReference>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        ProjectRefsByTarget = ImmutableHamT<string, ImmutableList<ProjectReferenceEdge>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        NuGetRefsByPackage = ImmutableHamT<string, ImmutableList<NuGetPackageReference>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
     };
 
     // ── 内部写操作 ──
@@ -322,8 +322,8 @@ internal sealed record IndexSnapshot {
         if (symbols.Count == 0) return this;
 
         var symbolsByFqn = SymbolsByFqn;
-        ImmutableDictionary<string, ImmutableList<SymbolInfo>> symbolsByName, symbolsByFile;
-        ImmutableDictionary<SymbolKind, ImmutableList<SymbolInfo>> symbolsByKind;
+        ImmutableHamT<string, ImmutableList<SymbolInfo>> symbolsByName, symbolsByFile;
+        ImmutableHamT<SymbolKind, ImmutableList<SymbolInfo>> symbolsByKind;
 
         if (isRebuild) {
             symbolsByName = SymbolsByName;
@@ -472,15 +472,15 @@ internal sealed record IndexSnapshot {
 
     // ── 不可变集合辅助 ──
 
-    private static ImmutableDictionary<TKey, ImmutableList<T>> AddToListIndex<TKey, T>(
-        ImmutableDictionary<TKey, ImmutableList<T>> dict, TKey key, T item) where TKey : notnull {
+    private static ImmutableHamT<TKey, ImmutableList<T>> AddToListIndex<TKey, T>(
+        ImmutableHamT<TKey, ImmutableList<T>> dict, TKey key, T item) where TKey : notnull {
         var list = dict.GetValueOrDefault(key) ?? ImmutableList<T>.Empty;
         return dict.SetItem(key, list.Add(item));
     }
 
     /// <summary>批量添加到列表索引 — 按 key 分组后一次性 AddRange，减少 ImmutableList 平衡树重建次数</summary>
-    private static ImmutableDictionary<TKey, ImmutableList<T>> AddBatchToListIndex<TKey, T>(
-        ImmutableDictionary<TKey, ImmutableList<T>> dict,
+    private static ImmutableHamT<TKey, ImmutableList<T>> AddBatchToListIndex<TKey, T>(
+        ImmutableHamT<TKey, ImmutableList<T>> dict,
         IEnumerable<T> items,
         Func<T, TKey> keySelector) where TKey : notnull {
         foreach (var g in items.GroupBy(keySelector)) {
@@ -490,16 +490,16 @@ internal sealed record IndexSnapshot {
         return dict;
     }
 
-    private static ImmutableDictionary<TKey, ImmutableList<T>> RemoveFromListIndex<TKey, T>(
-        ImmutableDictionary<TKey, ImmutableList<T>> dict, TKey key, T item) where TKey : notnull {
+    private static ImmutableHamT<TKey, ImmutableList<T>> RemoveFromListIndex<TKey, T>(
+        ImmutableHamT<TKey, ImmutableList<T>> dict, TKey key, T item) where TKey : notnull {
         var list = dict.GetValueOrDefault(key);
         if (list is null) return dict;
         var newList = list.Remove(item);
         return newList.IsEmpty ? dict.Remove(key) : dict.SetItem(key, newList);
     }
 
-    private static ImmutableDictionary<TKey, ImmutableList<DependencyEdge>> ReplaceEdgesInLists<TKey>(
-        ImmutableDictionary<TKey, ImmutableList<DependencyEdge>> dict,
+    private static ImmutableHamT<TKey, ImmutableList<DependencyEdge>> ReplaceEdgesInLists<TKey>(
+        ImmutableHamT<TKey, ImmutableList<DependencyEdge>> dict,
         Dictionary<DependencyEdge, DependencyEdge> replacements) where TKey : notnull {
         var builder = dict.ToBuilder();
         var keysToRemove = new List<TKey>();
@@ -517,12 +517,12 @@ internal sealed record IndexSnapshot {
         return builder.ToImmutable();
     }
 
-    private static ImmutableList<string> RebuildSortedKeys(ImmutableDictionary<string, FileTrackingEntry> ft)
+    private static ImmutableList<string> RebuildSortedKeys(ImmutableHamT<string, FileTrackingEntry> ft)
         => ft.Keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToImmutableList();
 
-    private static ImmutableList<SymbolInfo> RebuildSymbolsSortedByFqn(ImmutableDictionary<string, SymbolInfo> symbols)
+    private static ImmutableList<SymbolInfo> RebuildSymbolsSortedByFqn(ImmutableHamT<string, SymbolInfo> symbols)
         => symbols.Values.OrderBy(s => s.FullyQualifiedName, StringComparer.Ordinal).ToImmutableList();
 
-    private static ImmutableList<SymbolInfo> RebuildSymbolsSortedByName(ImmutableDictionary<string, ImmutableList<SymbolInfo>> symbolsByName)
+    private static ImmutableList<SymbolInfo> RebuildSymbolsSortedByName(ImmutableHamT<string, ImmutableList<SymbolInfo>> symbolsByName)
         => symbolsByName.Values.SelectMany(v => v).OrderBy(s => s.Name, StringComparer.Ordinal).ToImmutableList();
 }

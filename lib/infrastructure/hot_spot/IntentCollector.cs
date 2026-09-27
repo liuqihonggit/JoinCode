@@ -6,8 +6,8 @@ namespace Infrastructure.HotSpot;
 /// </summary>
 [Register(typeof(IIntentCollector), ServiceLifetime.Singleton)]
 public sealed class IntentCollector : IIntentCollector {
-    private ImmutableDictionary<string, ImmutableList<FileModifyIntent>> _intentsByFile = ImmutableDictionary<string, ImmutableList<FileModifyIntent>>.Empty;
-    private ImmutableDictionary<string, AsyncLock> _locks = ImmutableDictionary<string, AsyncLock>.Empty;
+    private ImmutableHamT<string, ImmutableList<FileModifyIntent>> _intentsByFile = ImmutableHamT<string, ImmutableList<FileModifyIntent>>.Empty;
+    private ImmutableHamT<string, AsyncLock> _locks = ImmutableHamT<string, AsyncLock>.Empty;
     private readonly IClockService _clock;
 
     /// <summary>

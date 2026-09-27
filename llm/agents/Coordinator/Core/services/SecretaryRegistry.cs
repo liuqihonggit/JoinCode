@@ -4,7 +4,7 @@ namespace Core.Agents.Coordinator;
 /// 队长秘书注册表 — 管理队长与秘书的映射关系，确保每队长仅 spawn 一次秘书
 /// </summary>
 internal sealed class SecretaryRegistry {
-    private volatile ImmutableDictionary<string, string> _secretaries = ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.Ordinal);
+    private volatile ImmutableHamT<string, string> _secretaries = ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.Ordinal);
     private readonly Func<string, SubAgentOptions, CancellationToken, Task<IAgent>> _spawnFunc;
     private readonly ILogger? _logger;
 

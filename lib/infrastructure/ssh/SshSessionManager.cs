@@ -27,7 +27,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    private ImmutableDictionary<string, SshSession> _sessions = ImmutableDictionary<string, SshSession>.Empty;
+    private ImmutableHamT<string, SshSession> _sessions = ImmutableHamT<string, SshSession>.Empty;
     private readonly ILogger<SshSessionManager>? _logger;
     private readonly IFileSystem _fs;
     private readonly ITelemetryService? _telemetryService;
@@ -141,7 +141,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
 
                 await Task.WhenAll(sessions.Select(s => s.DisposeAsync().AsTask())).ConfigureAwait(false);
 
-                Volatile.Write(ref _sessions, ImmutableDictionary<string, SshSession>.Empty);
+                Volatile.Write(ref _sessions, ImmutableHamT<string, SshSession>.Empty);
                 cmd.Tcs.TrySetResult();
                 break;
             }

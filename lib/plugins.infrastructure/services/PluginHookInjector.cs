@@ -38,7 +38,7 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
     private readonly IPluginManager _pluginManager;
     private readonly ILogger<PluginHookInjector>? _logger;
     private readonly ITelemetryService? _telemetryService;
-    private ImmutableDictionary<string, ImmutableList<PluginHookDefinition>> _injectedHooks = ImmutableDictionary<string, ImmutableList<PluginHookDefinition>>.Empty;
+    private ImmutableHamT<string, ImmutableList<PluginHookDefinition>> _injectedHooks = ImmutableHamT<string, ImmutableList<PluginHookDefinition>>.Empty;
 
     /// <summary>
     /// 构造插件钩子注入器

@@ -64,7 +64,7 @@ public sealed partial class ToolDenyRule {
 /// </summary>
 [Register(typeof(IToolPermissionFilter), ServiceLifetime.Singleton)]
 public sealed partial class ToolPermissionFilter : ServiceEntity, IToolPermissionFilter {
-    private volatile ImmutableDictionary<string, ToolDenyRule> _denyRules = ImmutableDictionary<string, ToolDenyRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private volatile ImmutableHamT<string, ToolDenyRule> _denyRules = ImmutableHamT<string, ToolDenyRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger<ToolPermissionFilter>? _logger;
     private readonly ITelemetryService? _telemetryService;
 

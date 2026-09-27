@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
         <ProjectType>library</ProjectType>
@@ -15,7 +15,8 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)server/code_index/CodeIndex.csproj" />
-  </ItemGroup>
+        <ProjectReference Include="../../lib/structura/Structura.csproj" />
+</ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="$(MicrosoftExtensionsVersion)" />

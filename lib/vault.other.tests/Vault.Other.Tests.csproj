@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)lib/vault/Vault.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/structura/Structura.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/vault.testing.common/Vault.Testing.Common.csproj" />

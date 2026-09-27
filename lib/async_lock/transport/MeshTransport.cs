@@ -12,7 +12,7 @@ namespace Core.Utils;
 public sealed class MeshTransport : ITransportTopology {
     private readonly string _basePipeName;
     private readonly ILogger? _logger;
-    private ImmutableDictionary<string, MeshPeerConnection> _peerConnections = ImmutableDictionary<string, MeshPeerConnection>.Empty;
+    private ImmutableHamT<string, MeshPeerConnection> _peerConnections = ImmutableHamT<string, MeshPeerConnection>.Empty;
     private readonly Channel<TransportFrame> _receiveChannel;
     private readonly CancellationTokenSource _cts;
     private readonly string _processId;
@@ -201,7 +201,7 @@ public sealed class MeshTransport : ITransportTopology {
         _receiveChannel.Writer.TryComplete();
 
         var conns = Volatile.Read(ref _peerConnections).Values.ToArray();
-        Volatile.Write(ref _peerConnections, ImmutableDictionary<string, MeshPeerConnection>.Empty);
+        Volatile.Write(ref _peerConnections, ImmutableHamT<string, MeshPeerConnection>.Empty);
 
         if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);
         _acceptTask = null;

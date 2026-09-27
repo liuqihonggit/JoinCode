@@ -11,7 +11,7 @@ namespace Core.Agents.Coordinator;
 public sealed partial class MailboxHub {
     private readonly IMailbox _inProcess;
     private readonly ITeammateMailboxService? _fileMailbox;
-    private volatile ImmutableDictionary<MailboxKind, MailboxBase<CoordinatorMessage>> _extraChannels = ImmutableDictionary<MailboxKind, MailboxBase<CoordinatorMessage>>.Empty;
+    private volatile ImmutableHamT<MailboxKind, MailboxBase<CoordinatorMessage>> _extraChannels = ImmutableHamT<MailboxKind, MailboxBase<CoordinatorMessage>>.Empty;
     private readonly AgentChannelRegistry _agentChannels;
     private readonly ILogger<MailboxHub>? _logger;
 

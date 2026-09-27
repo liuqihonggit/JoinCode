@@ -89,7 +89,7 @@ public interface IWorkSecretStore : JoinCode.Abstractions.State.IStore {
 /// </summary>
 [Register(typeof(IWorkSecretStore), ServiceLifetime.Singleton)]
 public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, IDisposable {
-    private ImmutableDictionary<string, WorkSecretEntry> _secrets = ImmutableDictionary<string, WorkSecretEntry>.Empty.WithComparers(StringComparer.Ordinal);
+    private ImmutableHamT<string, WorkSecretEntry> _secrets = ImmutableHamT<string, WorkSecretEntry>.Empty.WithComparers(StringComparer.Ordinal);
     private readonly ILogger<WorkSecretStore>? _logger;
     private readonly IClockService _clock;
     private readonly byte[] _encryptionKey;

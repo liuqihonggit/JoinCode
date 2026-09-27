@@ -11,7 +11,7 @@ public sealed partial class BuddyService : ServiceEntity, IBuddyService {
     private static readonly string[] Names = new[] { "Quackers", "Goosey", "Blobby", "Whiskers", "Draco", "Inky", "Hoot", "Waddle", "Shelly", "Slimey", "Boo", "Axie", "Cappy", "Spike", "Beep", "Bouncy", "Shroomy", "Chunk" };
     private static readonly string Salt = "jcc-buddy-salt-2026";
 
-    private ImmutableDictionary<string, BuddyInfo> _cache = ImmutableDictionary<string, BuddyInfo>.Empty;
+    private ImmutableHamT<string, BuddyInfo> _cache = ImmutableHamT<string, BuddyInfo>.Empty;
 
     /// <summary>
     /// 获取用户的伙伴精灵信息 — 首次调用时按用户 ID 确定性生成并缓存

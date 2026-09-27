@@ -58,7 +58,7 @@ public sealed record SessionHookEntry {
 /// 会话钩子存储
 /// </summary>
 public sealed partial class SessionHookStore {
-    private ImmutableDictionary<HookEvent, ImmutableList<SessionHookEntry>> _hooks = ImmutableDictionary<HookEvent, ImmutableList<SessionHookEntry>>.Empty;
+    private ImmutableHamT<HookEvent, ImmutableList<SessionHookEntry>> _hooks = ImmutableHamT<HookEvent, ImmutableList<SessionHookEntry>>.Empty;
 
     /// <summary>
     /// 添加钩子
@@ -92,13 +92,13 @@ public sealed partial class SessionHookStore {
     /// 获取所有钩子 — 返回不可变引用视图,无需逐项拷贝
     /// </summary>
     public IReadOnlyDictionary<HookEvent, IReadOnlyList<SessionHookEntry>> GetAllHooks()
-        => _hooks.ToImmutableDictionary(kvp => kvp.Key, kvp => (IReadOnlyList<SessionHookEntry>)kvp.Value);
+        => _hooks.ToImmutableHamT(kvp => kvp.Key, kvp => (IReadOnlyList<SessionHookEntry>)kvp.Value);
 
     /// <summary>
     /// 清除所有钩子
     /// </summary>
     public void Clear() {
-        _hooks = ImmutableDictionary<HookEvent, ImmutableList<SessionHookEntry>>.Empty;
+        _hooks = ImmutableHamT<HookEvent, ImmutableList<SessionHookEntry>>.Empty;
     }
 }
 
@@ -108,7 +108,7 @@ public sealed partial class SessionHookStore {
 [Register(typeof(ISessionHookManagerInternal), ServiceLifetime.Singleton)]
 [Register(typeof(ISessionHookManager), ServiceLifetime.Singleton)]
 public sealed partial class SessionHookManager : ServiceEntity, ISessionHookManagerInternal {
-    private ImmutableDictionary<string, SessionHookStore> _sessionStores = ImmutableDictionary<string, SessionHookStore>.Empty;
+    private ImmutableHamT<string, SessionHookStore> _sessionStores = ImmutableHamT<string, SessionHookStore>.Empty;
     private readonly ILogger<SessionHookManager>? _logger;
 
     /// <summary>
@@ -326,7 +326,7 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
             store.Clear();
         }
 
-        Volatile.Write(ref _sessionStores, ImmutableDictionary<string, SessionHookStore>.Empty);
+        Volatile.Write(ref _sessionStores, ImmutableHamT<string, SessionHookStore>.Empty);
         _logger?.LogDebug("Cleared all session hooks");
     }
 }

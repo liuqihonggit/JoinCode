@@ -10,7 +10,7 @@ public static partial class PsAstParser {
     private static readonly AsyncLock CacheLock = new("PsAstParser");
 
     private const int MaxCacheSize = 256;
-    private static ImmutableDictionary<string, PsParsedCommand> ParseCache = ImmutableDictionary<string, PsParsedCommand>.Empty;
+    private static ImmutableHamT<string, PsParsedCommand> ParseCache = ImmutableHamT<string, PsParsedCommand>.Empty;
 
     private static readonly FrozenSet<string> TransientErrorIds = FrozenSet.ToFrozenSet(
         ["PwshSpawnError", "PwshError", "PwshTimeout", "EmptyOutput", "InvalidJson", "ProcessStartFailed", "ProcessTimeout", "ParseException"],
@@ -35,7 +35,7 @@ public static partial class PsAstParser {
 
         if (ShouldCache(result)) {
             if (ParseCache.Count >= MaxCacheSize) {
-                Interlocked.Exchange(ref ParseCache, ImmutableDictionary<string, PsParsedCommand>.Empty);
+                Interlocked.Exchange(ref ParseCache, ImmutableHamT<string, PsParsedCommand>.Empty);
             }
             while (true) {
                 var current = ParseCache;

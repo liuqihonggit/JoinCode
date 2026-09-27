@@ -5,7 +5,7 @@ namespace Core.Utils;
 /// 方法名缓存 - 缓存方法名的小写形式，避免重复分配
 /// </summary>
 public static class MethodNameCache {
-    private static ImmutableDictionary<string, string> _cache = ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private static ImmutableHamT<string, string> _cache = ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 获取规范化（小写）的方法名
@@ -28,7 +28,7 @@ public static class MethodNameCache {
     /// <summary>
     /// 清除缓存
     /// </summary>
-    public static void Clear() => Volatile.Write(ref _cache, ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
+    public static void Clear() => Volatile.Write(ref _cache, ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
 
     /// <summary>
     /// 获取缓存统计信息

@@ -4,7 +4,7 @@ namespace Core.Agents.Coordinator.Core.Lifecycle;
 /// 子代理启动时间跟踪器 — 记录 agentId→启动时间,支持查询持续时长与移除
 /// </summary>
 internal sealed class AgentStartTimer {
-    private volatile ImmutableDictionary<string, DateTime> _startTimes = ImmutableDictionary<string, DateTime>.Empty;
+    private volatile ImmutableHamT<string, DateTime> _startTimes = ImmutableHamT<string, DateTime>.Empty;
 
     /// <summary>
     /// 记录子代理的启动时间

@@ -21,7 +21,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
     /// 首次 sed -i 返回预览，存储预计算结果；二次调用确认后写入
     /// key: 文件路径, value: (新内容, 创建时间)
     /// </summary>
-    private ImmutableDictionary<string, PendingSedConfirmation> _fallbackEdits = ImmutableDictionary<string, PendingSedConfirmation>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, PendingSedConfirmation> _fallbackEdits = ImmutableHamT<string, PendingSedConfirmation>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     private static ISessionCache? GetCurrentCache() {
         var sessionId = SessionContext.Current;

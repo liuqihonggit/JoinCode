@@ -10,7 +10,7 @@ public sealed partial class AgentStateMachine {
     private static readonly FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> Transitions = CreateTransitionTable();
 
     private readonly ILogger? _logger;
-    private volatile ImmutableDictionary<string, AgentStateContext> _states = ImmutableDictionary<string, AgentStateContext>.Empty;
+    private volatile ImmutableHamT<string, AgentStateContext> _states = ImmutableHamT<string, AgentStateContext>.Empty;
     private readonly IClockService _clock;
 
     /// <summary>Agent 状态变更事件，参数携带 Agent ID 与新旧状态</summary>

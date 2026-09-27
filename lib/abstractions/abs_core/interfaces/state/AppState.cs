@@ -14,12 +14,12 @@ public sealed record AppState {
     /// <summary>
     /// Agent 状态集合
     /// </summary>
-    public ImmutableDictionary<string, AgentState> Agents { get; init; } = ImmutableDictionary<string, AgentState>.Empty;
+    public ImmutableHamT<string, AgentState> Agents { get; init; } = ImmutableHamT<string, AgentState>.Empty;
 
     /// <summary>
     /// 任务状态集合
     /// </summary>
-    public ImmutableDictionary<string, TaskState> Tasks { get; init; } = ImmutableDictionary<string, TaskState>.Empty;
+    public ImmutableHamT<string, TaskState> Tasks { get; init; } = ImmutableHamT<string, TaskState>.Empty;
 
     /// <summary>
     /// 配置状态
@@ -119,7 +119,7 @@ public sealed record ApiMessageState {
     /// <summary>
     /// 消息元数据
     /// </summary>
-    public ImmutableDictionary<string, string> Metadata { get; init; } = ImmutableDictionary<string, string>.Empty;
+    public ImmutableHamT<string, string> Metadata { get; init; } = ImmutableHamT<string, string>.Empty;
 
 
 }
@@ -165,7 +165,7 @@ public sealed record AgentState {
     /// <summary>
     /// Agent 元数据
     /// </summary>
-    public ImmutableDictionary<string, string> Metadata { get; init; } = ImmutableDictionary<string, string>.Empty;
+    public ImmutableHamT<string, string> Metadata { get; init; } = ImmutableHamT<string, string>.Empty;
 
     /// <summary>
     /// 最后活动时间
@@ -290,7 +290,7 @@ public sealed record TaskState {
     /// <summary>
     /// 任务元数据
     /// </summary>
-    public ImmutableDictionary<string, string> Metadata { get; init; } = ImmutableDictionary<string, string>.Empty;
+    public ImmutableHamT<string, string> Metadata { get; init; } = ImmutableHamT<string, string>.Empty;
 }
 
 /// <summary>
@@ -387,7 +387,7 @@ public sealed record ConfigState {
     /// <summary>
     /// 配置项字典
     /// </summary>
-    public ImmutableDictionary<string, string> Settings { get; init; } = ImmutableDictionary<string, string>.Empty;
+    public ImmutableHamT<string, string> Settings { get; init; } = ImmutableHamT<string, string>.Empty;
 }
 
 /// <summary>
@@ -510,7 +510,7 @@ public sealed record McpState {
     /// <summary>
     /// 可用资源列表
     /// </summary>
-    public ImmutableDictionary<string, ImmutableList<string>> AvailableResources { get; init; } = ImmutableDictionary<string, ImmutableList<string>>.Empty;
+    public ImmutableHamT<string, ImmutableList<string>> AvailableResources { get; init; } = ImmutableHamT<string, ImmutableList<string>>.Empty;
 
     /// <summary>
     /// 插件重连密钥（用于触发重新连接）

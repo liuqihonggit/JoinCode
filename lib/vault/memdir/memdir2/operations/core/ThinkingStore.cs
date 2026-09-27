@@ -5,7 +5,7 @@ namespace Core.Memdir;
 /// </summary>
 [Register(typeof(IThinkingStore), ServiceLifetime.Singleton)]
 public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisposable {
-    private ImmutableDictionary<string, ImmutableList<ThinkingEntry>> _entries = ImmutableDictionary<string, ImmutableList<ThinkingEntry>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, ImmutableList<ThinkingEntry>> _entries = ImmutableHamT<string, ImmutableList<ThinkingEntry>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;

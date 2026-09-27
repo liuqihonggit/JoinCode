@@ -8,7 +8,7 @@ namespace JoinCode.Abstractions.Entity;
 /// </summary>
 public static class ObjectIdManager {
     private static ImmutableHamT<ObjectId, object> _objects = ImmutableHamT<ObjectId, object>.Empty;
-    private static ImmutableDictionary<Type, (ObjectType ObjType, LongRangeSet Ranges)> _typeIndex = ImmutableDictionary<Type, (ObjectType, LongRangeSet)>.Empty;
+    private static ImmutableHamT<Type, (ObjectType ObjType, LongRangeSet Ranges)> _typeIndex = ImmutableHamT<Type, (ObjectType, LongRangeSet)>.Empty;
 
     /// <summary>
     /// 注册对象到全局管理器
@@ -99,6 +99,6 @@ public static class ObjectIdManager {
     /// </summary>
     public static void Clear() {
         Interlocked.Exchange(ref _objects, ImmutableHamT<ObjectId, object>.Empty);
-        Interlocked.Exchange(ref _typeIndex, ImmutableDictionary<Type, (ObjectType, LongRangeSet)>.Empty);
+        Interlocked.Exchange(ref _typeIndex, ImmutableHamT<Type, (ObjectType, LongRangeSet)>.Empty);
     }
 }

@@ -9,8 +9,8 @@ namespace Core.Skills.Search;
 public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchService, JoinCode.Abstractions.Interfaces.ISkillSearchService {
     private readonly ISkillService _skillService;
     private readonly ILogger<SkillSearchService>? _logger;
-    private ImmutableDictionary<string, FrozenSet<string>> _tagIndex = ImmutableDictionary<string, FrozenSet<string>>.Empty;
-    private ImmutableDictionary<string, string> _nameIndex = ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, FrozenSet<string>> _tagIndex = ImmutableHamT<string, FrozenSet<string>>.Empty;
+    private ImmutableHamT<string, string> _nameIndex = ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private DateTime _lastIndexTime = DateTime.MinValue;
     private readonly AsyncLock _indexLock = new();
 
@@ -166,8 +166,8 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
             }
         }
 
-        Volatile.Write(ref _tagIndex, tagNamePairs.ToImmutableDictionary(p => p.Name, p => p.Tags));
-        Volatile.Write(ref _nameIndex, namePairs.ToImmutableDictionary(p => p.Name, p => p.Value));
+        Volatile.Write(ref _tagIndex, tagNamePairs.ToImmutableHamT(p => p.Name, p => p.Tags));
+        Volatile.Write(ref _nameIndex, namePairs.ToImmutableHamT(p => p.Name, p => p.Value));
 
         _lastIndexTime = DateTime.UtcNow;
         _logger?.LogDebug(L.T(StringKey.SkillSearchIndexRebuilt), skills.Count);

@@ -14,7 +14,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     private readonly IFileSystem _fs;
     private readonly WorktreeOptions _defaultOptions;
     private readonly ITelemetryService? _telemetryService;
-    private ImmutableDictionary<string, AgentWorktreeSession> _sessions = ImmutableDictionary<string, AgentWorktreeSession>.Empty;
+    private ImmutableHamT<string, AgentWorktreeSession> _sessions = ImmutableHamT<string, AgentWorktreeSession>.Empty;
     private readonly WorktreeSessionActor _sessionActor;
     private readonly MiddlewarePipeline<WorktreeCreateContext>? _createPipeline;
     private int _disposed;

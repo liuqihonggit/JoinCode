@@ -6,13 +6,13 @@ namespace Core.Security.Sandbox;
 /// </summary>
 [Register(typeof(ISandboxManager), ServiceLifetime.Singleton)]
 public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDisposable {
-    private volatile ImmutableDictionary<SandboxType, ISandboxProvider> _providers = ImmutableDictionary<SandboxType, ISandboxProvider>.Empty;
+    private volatile ImmutableHamT<SandboxType, ISandboxProvider> _providers = ImmutableHamT<SandboxType, ISandboxProvider>.Empty;
     private readonly SandboxLifecycleActor _lifecycleActor;
     private readonly ILogger<SandboxManager>? _logger;
     private readonly IFileSystem _fs;
     private readonly SandboxIpcClient? _ipcClient;
-    private volatile ImmutableDictionary<string, SandboxActiveExecution> _activeExecutions = ImmutableDictionary<string, SandboxActiveExecution>.Empty;
-    private volatile ImmutableDictionary<string, ISandboxProvider> _sandboxToProvider = ImmutableDictionary<string, ISandboxProvider>.Empty;
+    private volatile ImmutableHamT<string, SandboxActiveExecution> _activeExecutions = ImmutableHamT<string, SandboxActiveExecution>.Empty;
+    private volatile ImmutableHamT<string, ISandboxProvider> _sandboxToProvider = ImmutableHamT<string, ISandboxProvider>.Empty;
 
     /// <summary>
     /// 初始化沙箱管理器实例
@@ -27,7 +27,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         _logger = logger;
         _providers = providers
             .Where(p => p.IsAvailable)
-            .ToImmutableDictionary(p => p.SandboxType, p => p);
+            .ToImmutableHamT(p => p.SandboxType, p => p);
 
         _lifecycleActor = new SandboxLifecycleActor(_providers, _logger);
 

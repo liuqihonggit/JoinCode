@@ -126,7 +126,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     private readonly ILogger<SwarmPermissionBridge>? _logger;
     private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
-    private volatile ImmutableDictionary<string, PermissionSyncState> _permissionStates = ImmutableDictionary<string, PermissionSyncState>.Empty;
+    private volatile ImmutableHamT<string, PermissionSyncState> _permissionStates = ImmutableHamT<string, PermissionSyncState>.Empty;
     private readonly AsyncLock _lock = new();
     private bool _disposed;
 

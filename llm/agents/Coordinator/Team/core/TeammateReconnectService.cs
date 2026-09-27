@@ -10,7 +10,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
     private readonly ITeamManager _teamManager;
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly ILogger<TeammateReconnectService>? _logger;
-    private volatile ImmutableDictionary<string, int> _reconnectAttempts = ImmutableDictionary<string, int>.Empty.WithComparers(StringComparer.Ordinal);
+    private volatile ImmutableHamT<string, int> _reconnectAttempts = ImmutableHamT<string, int>.Empty.WithComparers(StringComparer.Ordinal);
 
     /// <summary>
     /// 初始化 Teammate 重连服务

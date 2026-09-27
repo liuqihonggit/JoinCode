@@ -1,4 +1,4 @@
-namespace Core.Tests.Services.FeatureFlags;
+﻿namespace Core.Tests.Services.FeatureFlags;
 
 public sealed class FeatureFlagServiceTests : IAsyncDisposable {
     private readonly FeatureFlagService _service;
@@ -26,7 +26,7 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable {
 
         public FeatureFlag this[string key] {
             set {
-                var current = (global::System.Collections.Immutable.ImmutableDictionary<string, FeatureFlag>)CacheField.GetValue(service)!;
+                var current = (global::Structura.Collections.ImmutableHamT<string, FeatureFlag>)CacheField.GetValue(service)!;
                 CacheField.SetValue(service, current.SetItem(key, value));
             }
         }

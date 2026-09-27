@@ -6,7 +6,7 @@ namespace Core.Agents.Coordinator.Core.Messaging;
 /// 注销时仅移除属于该 agentId 的键（同名子代理不误删）
 /// </summary>
 internal sealed class AgentNameIndex {
-    private volatile ImmutableDictionary<string, string> _index = ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private volatile ImmutableHamT<string, string> _index = ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 注册子代理的多个名称键到 agentId

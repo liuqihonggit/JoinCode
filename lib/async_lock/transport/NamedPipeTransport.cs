@@ -12,7 +12,7 @@ public sealed class NamedPipeTransport : ITransportTopology {
     private readonly string _pipeName;
     private readonly HostElectionService _election;
     private readonly ILogger? _logger;
-    private ImmutableDictionary<string, PipeConnection> _connections = ImmutableDictionary<string, PipeConnection>.Empty;
+    private ImmutableHamT<string, PipeConnection> _connections = ImmutableHamT<string, PipeConnection>.Empty;
     private readonly Channel<TransportFrame> _receiveChannel;
     private readonly CancellationTokenSource _cts;
     private readonly string _processId;
@@ -248,7 +248,7 @@ public sealed class NamedPipeTransport : ITransportTopology {
         _receiveChannel.Writer.TryComplete();
 
         var conns = Volatile.Read(ref _connections).Values.ToArray();
-        Volatile.Write(ref _connections, ImmutableDictionary<string, PipeConnection>.Empty);
+        Volatile.Write(ref _connections, ImmutableHamT<string, PipeConnection>.Empty);
         var slaveClient = _slaveClient;
 
         if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);

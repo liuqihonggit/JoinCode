@@ -42,8 +42,8 @@ public sealed class ChatRoomStateData {
             Info = Info,
             Members = Members.ToImmutableHashSet(),
             SessionId = SessionId,
-            AllowedPaths = AllowedPaths.ToImmutableDictionary(p => p.Path),
-            MemberDetails = MemberDetails.ToImmutableDictionary(m => m.AgentId),
+            AllowedPaths = AllowedPaths.ToImmutableHamT(p => p.Path),
+            MemberDetails = MemberDetails.ToImmutableHamT(m => m.AgentId),
             MaxMessageCount = MaxMessageCount,
         };
         return state.WithMessages(Messages);

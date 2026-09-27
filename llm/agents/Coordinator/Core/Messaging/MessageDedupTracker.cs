@@ -6,7 +6,7 @@ namespace Core.Agents.Coordinator;
 /// <para>无锁不可变嵌套: ImmutableDictionary&lt;agentId, ImmutableHashSet&lt;messageId&gt;&gt; + ImmutableInterlocked.Update 原子更新</para>
 /// </summary>
 internal sealed class MessageDedupTracker {
-    private ImmutableDictionary<string, ImmutableHashSet<string>> _delivered = ImmutableDictionary<string, ImmutableHashSet<string>>.Empty;
+    private ImmutableHamT<string, ImmutableHashSet<string>> _delivered = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
 
     /// <summary>
     /// 检查消息是否已投递给指定 Agent；若未投递则标记为已投递。

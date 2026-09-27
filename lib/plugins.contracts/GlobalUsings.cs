@@ -1,4 +1,4 @@
-global using Core.Utils;
+﻿global using Core.Utils;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Exceptions;
@@ -19,3 +19,4 @@ global using System.Text.Json;
 global using System.Text.RegularExpressions;
 global using System.Threading;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
+global using Structura.Collections;

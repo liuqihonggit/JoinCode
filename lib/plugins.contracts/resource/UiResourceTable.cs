@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>卸载时 ClearAndEmitEvent 生成变更事件,通过 IAppEventBus 广播</para>
 /// </summary>
 public sealed class UiResourceTable {
-    private ImmutableDictionary<string, UiResourceEntry> _resources = ImmutableDictionary<string, UiResourceEntry>.Empty;
+    private ImmutableHamT<string, UiResourceEntry> _resources = ImmutableHamT<string, UiResourceEntry>.Empty;
 
     /// <summary>登记 UI 资源</summary>
     public void Register(string key, UiResourceEntry entry) {
@@ -36,7 +36,7 @@ public sealed class UiResourceTable {
 
     /// <summary>清空并返回变更事件 — 卸载时调用</summary>
     public UiResourceChangedEvent ClearAndEmitEvent(string pluginName) {
-        var snapshot = Interlocked.Exchange(ref _resources, ImmutableDictionary<string, UiResourceEntry>.Empty);
+        var snapshot = Interlocked.Exchange(ref _resources, ImmutableHamT<string, UiResourceEntry>.Empty);
         return new UiResourceChangedEvent(pluginName, snapshot.Values.ToList(), DateTime.UtcNow);
     }
 

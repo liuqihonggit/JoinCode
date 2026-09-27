@@ -40,6 +40,7 @@ global using Services.Todo;
 global using Services.Todo.ToolHandlers;
 global using Services.UserInteraction;
 global using State;
+global using Structura.Collections;
 global using System.Collections.Immutable;
 global using System.Runtime.CompilerServices;
 global using Testing.Common;

@@ -88,7 +88,7 @@ public static class AppStateConverter {
                         Role = m.Role,
                         Content = m.Content,
                         Timestamp = m.Timestamp,
-                        Metadata = m.Metadata?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty
+                        Metadata = m.Metadata?.ToImmutableHamT() ?? ImmutableHamT<string, string>.Empty
                     })
                     .ToImmutableList(),
                 StartedAt = doc.Session.StartedAt,
@@ -97,7 +97,7 @@ public static class AppStateConverter {
                 IsPlanMode = doc.Session.IsPlanMode,
                 CurrentPlan = doc.Session.CurrentPlan
             },
-            Agents = doc.Agents?.ToImmutableDictionary(
+            Agents = doc.Agents?.ToImmutableHamT(
                 kvp => kvp.Key,
                 kvp => new AgentState {
                     AgentId = kvp.Value.AgentId,
@@ -107,10 +107,10 @@ public static class AppStateConverter {
                     Status = kvp.Value.Status,
                     WorkingDirectory = kvp.Value.WorkingDirectory,
                     CurrentTaskId = kvp.Value.CurrentTaskId,
-                    Metadata = kvp.Value.Metadata?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty,
+                    Metadata = kvp.Value.Metadata?.ToImmutableHamT() ?? ImmutableHamT<string, string>.Empty,
                     LastActivityAt = kvp.Value.LastActivityAt
-                }) ?? ImmutableDictionary<string, AgentState>.Empty,
-            Tasks = doc.Tasks?.ToImmutableDictionary(
+                }) ?? ImmutableHamT<string, AgentState>.Empty,
+            Tasks = doc.Tasks?.ToImmutableHamT(
                 kvp => kvp.Key,
                 kvp => new TaskState {
                     TaskId = kvp.Value.TaskId,
@@ -126,8 +126,8 @@ public static class AppStateConverter {
                     CreatedAt = kvp.Value.CreatedAt,
                     StartedAt = kvp.Value.StartedAt,
                     CompletedAt = kvp.Value.CompletedAt,
-                    Metadata = kvp.Value.Metadata?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty
-                }) ?? ImmutableDictionary<string, TaskState>.Empty,
+                    Metadata = kvp.Value.Metadata?.ToImmutableHamT() ?? ImmutableHamT<string, string>.Empty
+                }) ?? ImmutableHamT<string, TaskState>.Empty,
             Config = new ConfigState {
                 DebugLog = doc.Config.DebugLog,
                 IsBriefMode = doc.Config.IsBriefMode,
@@ -135,7 +135,7 @@ public static class AppStateConverter {
                 AutoConfirm = doc.Config.AutoConfirm,
                 MaxTokenBudget = doc.Config.MaxTokenBudget,
                 UsedTokens = doc.Config.UsedTokens,
-                Settings = doc.Config.Settings?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty
+                Settings = doc.Config.Settings?.ToImmutableHamT() ?? ImmutableHamT<string, string>.Empty
             },
             Ui = new UiState(),
             Mcp = new McpState(),

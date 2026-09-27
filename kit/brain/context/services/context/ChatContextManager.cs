@@ -84,7 +84,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
 
     private readonly SystemPromptStore _promptStore = new();
     private readonly List<ToolSpec> _currentToolSpecs = [];
-    private ImmutableDictionary<string, AppendOnlyLog> Logs = ImmutableDictionary<string, AppendOnlyLog>.Empty;
+    private ImmutableHamT<string, AppendOnlyLog> Logs = ImmutableHamT<string, AppendOnlyLog>.Empty;
 
     /// <summary>当前会话的对话日志 — 按 SessionId 隔离，切换会话时自动分桶</summary>
     private AppendOnlyLog Log => GetOrAddLog(_sessionId);
@@ -101,7 +101,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
     }
 
     /// <summary>缓存破坏检测器 — 按 agentId 隔离，主代理(null)和子代理互不干扰基线</summary>
-    private ImmutableDictionary<string, CacheBreakDetector> _cacheBreakDetectorsByAgent = ImmutableDictionary<string, CacheBreakDetector>.Empty;
+    private ImmutableHamT<string, CacheBreakDetector> _cacheBreakDetectorsByAgent = ImmutableHamT<string, CacheBreakDetector>.Empty;
     private CacheBreakDetector GetCacheBreakDetector(string? agentId) {
         var key = agentId ?? "main";
         if (_cacheBreakDetectorsByAgent.TryGetValue(key, out var existing)) return existing;

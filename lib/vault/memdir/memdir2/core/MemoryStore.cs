@@ -6,7 +6,7 @@ namespace Core.Memdir;
 /// </summary>
 [Register(typeof(MemoryStore), ServiceLifetime.Singleton)]
 public sealed partial class MemoryStore : ServiceEntity, IDisposable {
-    private ImmutableDictionary<string, MemoryEntry> _memories = ImmutableDictionary<string, MemoryEntry>.Empty;
+    private ImmutableHamT<string, MemoryEntry> _memories = ImmutableHamT<string, MemoryEntry>.Empty;
     private readonly string _storagePath;
     private readonly ILogger<MemoryStore>? _logger;
     private readonly IClockService _clock;
@@ -26,7 +26,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _memories = ImmutableDictionary<string, MemoryEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+        _memories = ImmutableHamT<string, MemoryEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

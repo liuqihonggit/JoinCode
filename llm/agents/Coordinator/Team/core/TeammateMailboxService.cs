@@ -12,8 +12,8 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     private readonly ILogger<TeammateMailboxService>? _logger;
     private readonly IClockService _clock;
     private readonly bool _crossProcess;
-    private volatile ImmutableDictionary<string, MailboxActor> _actors = ImmutableDictionary<string, MailboxActor>.Empty;
-    private volatile ImmutableDictionary<string, MailboxReadCursor> _cursors = ImmutableDictionary<string, MailboxReadCursor>.Empty;
+    private volatile ImmutableHamT<string, MailboxActor> _actors = ImmutableHamT<string, MailboxActor>.Empty;
+    private volatile ImmutableHamT<string, MailboxReadCursor> _cursors = ImmutableHamT<string, MailboxReadCursor>.Empty;
     private int _messageCounter;
 
     /// <summary>
@@ -259,7 +259,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         foreach (var actor in _actors.Values) {
             await actor.DisposeAsync().ConfigureAwait(false);
         }
-        Interlocked.Exchange(ref _actors, ImmutableDictionary<string, MailboxActor>.Empty);
+        Interlocked.Exchange(ref _actors, ImmutableHamT<string, MailboxActor>.Empty);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 

@@ -1,4 +1,4 @@
-global using Core.Utils;
+﻿global using Core.Utils;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;
@@ -55,3 +55,4 @@ global using static McpToolDispatch.GeneratedToolHandlerRegistration_JoinCode_Mc
 global using CronJitterHelper = JoinCode.Abstractions.Interfaces.Scheduling.CronJitterHelper;
 global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
+global using Structura.Collections;

@@ -47,7 +47,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
     private readonly SubAgentLivenessOptions _options;
     private readonly ILogger? _logger;
     private readonly Func<DateTimeOffset> _clock;
-    private volatile ImmutableDictionary<string, SubAgentIdleDetector> _detectors = ImmutableDictionary<string, SubAgentIdleDetector>.Empty;
+    private volatile ImmutableHamT<string, SubAgentIdleDetector> _detectors = ImmutableHamT<string, SubAgentIdleDetector>.Empty;
     private readonly SubAgentChainStallDetector _chainDetector;
     private readonly PeriodicTimer? _scanTimer;
     private volatile bool _stopping;
@@ -266,7 +266,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
         _stateMachine.StateChanged -= OnStateChanged;
         _stopping = true;
         _scanTimer?.Dispose();
-        Interlocked.Exchange(ref _detectors, ImmutableDictionary<string, SubAgentIdleDetector>.Empty);
+        Interlocked.Exchange(ref _detectors, ImmutableHamT<string, SubAgentIdleDetector>.Empty);
         return ValueTask.CompletedTask;
     }
 }

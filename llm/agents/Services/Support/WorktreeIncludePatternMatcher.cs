@@ -6,7 +6,7 @@ namespace Core.Agents;
 /// <para>静态缓存用 ImmutableDictionary+CAS,无锁读路径。</para>
 /// </summary>
 internal static class WorktreeIncludePatternMatcher {
-    private static ImmutableDictionary<string, Regex> PatternCache = ImmutableDictionary<string, Regex>.Empty;
+    private static ImmutableHamT<string, Regex> PatternCache = ImmutableHamT<string, Regex>.Empty;
 
     /// <summary>
     /// 匹配文件路径是否符合 worktree include 模式。
@@ -26,7 +26,7 @@ internal static class WorktreeIncludePatternMatcher {
     }
 
     /// <summary>无锁 CAS 获取或添加缓存的 Regex</summary>
-    private static Regex GetOrAddRegex(ref ImmutableDictionary<string, Regex> cache, string key) {
+    private static Regex GetOrAddRegex(ref ImmutableHamT<string, Regex> cache, string key) {
         if (cache.TryGetValue(key, out var existing)) return existing;
         var regex = new Regex(key, RegexOptions.IgnoreCase | RegexOptions.Compiled);
         while (true) {

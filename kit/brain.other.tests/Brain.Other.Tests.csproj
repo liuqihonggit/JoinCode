@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
         <ProjectType>test</ProjectType>
   <RootNamespace>Brain.Other.Tests</RootNamespace>
@@ -11,7 +11,8 @@
     <ProjectReference Include="$(RepoRoot)kit/mcp/Mcp.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
-  </ItemGroup>
+        <ProjectReference Include="../../lib/structura/Structura.csproj" />
+</ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsVersion)" />
   </ItemGroup>

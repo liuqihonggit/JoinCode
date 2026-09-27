@@ -1,4 +1,4 @@
-// PipelineComposition 需要的命名空间
+﻿// PipelineComposition 需要的命名空间
 global using System.Threading;
 global using Core.Agents;
 global using Core.Agents.Coordinator;
@@ -157,3 +157,4 @@ global using SkillContext = Core.Skills.SkillContext;
 global using TerminalHelper = JoinCode.Cli.TerminalHelper;
 global using ToolCacheManager = McpToolRegistry.ToolCacheManager;
 global using TranscriptEntry = JoinCode.Abstractions.LLM.Chat.TranscriptEntry;
+global using Structura.Collections;

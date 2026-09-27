@@ -210,7 +210,7 @@ public interface IUsageTracker {
 [Register(typeof(IUsageTracker), ServiceLifetime.Singleton)]
 public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDisposable {
     private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;
-    private ImmutableDictionary<string, ImmutableList<TokenUsageRecord>> _sessionIndex = ImmutableDictionary<string, ImmutableList<TokenUsageRecord>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, ImmutableList<TokenUsageRecord>> _sessionIndex = ImmutableHamT<string, ImmutableList<TokenUsageRecord>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger<UsageTracker>? _logger;
     private readonly ICostTracker? _costTracker;
     private readonly IModelConfigLoader _modelConfigLoader;

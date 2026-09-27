@@ -13,7 +13,7 @@ public sealed partial class RangeDownloader : ServiceEntity, IDownloader {
     private readonly TimeProvider? _clock;
     private readonly ILogger<RangeDownloader>? _logger;
     private readonly INetworkConnectivityService? _networkService;
-    private ImmutableDictionary<string, HttpClient> _proxiedClients = ImmutableDictionary<string, HttpClient>.Empty;
+    private ImmutableHamT<string, HttpClient> _proxiedClients = ImmutableHamT<string, HttpClient>.Empty;
 
     /// <summary>
     /// 构造 RangeDownloader(DI 注入)

@@ -11,7 +11,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     private readonly string _templatesDir;
     private readonly CancellationTokenSource _disposeCts = new();
     private volatile List<ToolTemplate> _cache = [];
-    private volatile ImmutableDictionary<string, ToolTemplate> _byKey = ImmutableDictionary<string, ToolTemplate>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private volatile ImmutableHamT<string, ToolTemplate> _byKey = ImmutableHamT<string, ToolTemplate>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
 
     /// <summary>
@@ -74,7 +74,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "加载工具模板失败");
             _cache = [];
-            _byKey = ImmutableDictionary<string, ToolTemplate>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+            _byKey = ImmutableHamT<string, ToolTemplate>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
             return _cache;
         }
     }
@@ -135,8 +135,8 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         return Task.FromResult(_byKey.GetValueOrDefault(templateIdOrToolName));
     }
 
-    private static ImmutableDictionary<string, ToolTemplate> BuildTemplateIndex(List<ToolTemplate> templates) {
-        var builder = ImmutableDictionary.CreateBuilder<string, ToolTemplate>(StringComparer.OrdinalIgnoreCase);
+    private static ImmutableHamT<string, ToolTemplate> BuildTemplateIndex(List<ToolTemplate> templates) {
+        var builder = ImmutableHamT.CreateBuilder<string, ToolTemplate>(StringComparer.OrdinalIgnoreCase);
         foreach (var t in templates) {
             builder[t.Id] = t;
             builder[t.ToolName] = t;

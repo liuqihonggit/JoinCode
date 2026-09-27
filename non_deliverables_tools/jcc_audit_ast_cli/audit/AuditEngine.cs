@@ -167,7 +167,7 @@ public sealed class AuditEngine {
                 }
             }
             compilation = compilation.WithOptions(compilation.Options.WithSpecificDiagnosticOptions(
-                modifiedOptions.ToImmutableDictionary()));
+                modifiedOptions.ToImmutableHamT()));
         }
 
         // 添加分析器并获取诊断（启用并发分析）
@@ -599,7 +599,7 @@ public sealed class AuditEngine {
             }
         }
         var newOptions = compilation.Options.WithSpecificDiagnosticOptions(
-            modifiedOptions.ToImmutableDictionary());
+            modifiedOptions.ToImmutableHamT());
         compilation = compilation.WithOptions(newOptions);
 
         // 添加分析器并获取诊断

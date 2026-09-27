@@ -11,7 +11,7 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(NamedPipeMailbox), ServiceLifetime.Singleton)]
 public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMessage, TransportFrame> {
     private readonly NamedPipeTransport _transport;
-    private volatile ImmutableDictionary<string, string> _agentToProcess = ImmutableDictionary<string, string>.Empty;
+    private volatile ImmutableHamT<string, string> _agentToProcess = ImmutableHamT<string, string>.Empty;
     private readonly ILogger<NamedPipeMailbox>? _logger;
 
     /// <summary>

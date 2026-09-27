@@ -16,7 +16,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     private readonly ISandboxManager? _sandboxManager;
     private readonly IPreventSleepService? _preventSleepService;
     private readonly ShellExecutionConfig? _config;
-    private ImmutableDictionary<string, SystemActuatorBackgroundTaskEntry> _tasks = ImmutableDictionary<string, SystemActuatorBackgroundTaskEntry>.Empty;
+    private ImmutableHamT<string, SystemActuatorBackgroundTaskEntry> _tasks = ImmutableHamT<string, SystemActuatorBackgroundTaskEntry>.Empty;
     private int _disposed;
 
     /// <summary>
@@ -305,7 +305,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
             }
         }
 
-        Interlocked.Exchange(ref _tasks, ImmutableDictionary<string, SystemActuatorBackgroundTaskEntry>.Empty);
+        Interlocked.Exchange(ref _tasks, ImmutableHamT<string, SystemActuatorBackgroundTaskEntry>.Empty);
     }
 
     #endregion

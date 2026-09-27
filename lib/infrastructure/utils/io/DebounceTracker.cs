@@ -4,8 +4,8 @@ namespace Core.Utils;
 /// 防抖跟踪器 — 按文件路径调度防抖定时器，并标记/消费内部写入以避免自触发
 /// </summary>
 public sealed class DebounceTracker : IDisposable {
-    private ImmutableDictionary<string, Timer> _timers;
-    private ImmutableDictionary<string, long> _internalWriteTimestamps;
+    private ImmutableHamT<string, Timer> _timers;
+    private ImmutableHamT<string, long> _internalWriteTimestamps;
     private bool _disposed;
 
     /// <summary>
@@ -24,8 +24,8 @@ public sealed class DebounceTracker : IDisposable {
     /// <param name="comparer">字符串比较器，用于路径键归一化；默认 OrdinalIgnoreCase</param>
     public DebounceTracker(StringComparer? comparer = null) {
         var c = comparer ?? StringComparer.OrdinalIgnoreCase;
-        _timers = ImmutableDictionary<string, Timer>.Empty.WithComparers(c);
-        _internalWriteTimestamps = ImmutableDictionary<string, long>.Empty.WithComparers(c);
+        _timers = ImmutableHamT<string, Timer>.Empty.WithComparers(c);
+        _internalWriteTimestamps = ImmutableHamT<string, long>.Empty.WithComparers(c);
     }
 
     /// <summary>
@@ -109,8 +109,8 @@ public sealed class DebounceTracker : IDisposable {
         if (_disposed) return;
         _disposed = true;
 
-        foreach (var kvp in Interlocked.Exchange(ref _timers, ImmutableDictionary<string, Timer>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase)))
+        foreach (var kvp in Interlocked.Exchange(ref _timers, ImmutableHamT<string, Timer>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase)))
             kvp.Value.Dispose();
-        Interlocked.Exchange(ref _internalWriteTimestamps, ImmutableDictionary<string, long>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
+        Interlocked.Exchange(ref _internalWriteTimestamps, ImmutableHamT<string, long>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
     }
 }

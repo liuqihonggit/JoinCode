@@ -8,7 +8,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 插件通过 Resolve&lt;T&gt;(sessionId, entityId) 跳转获取，避免跨会话误用 ObjectId
 /// </summary>
 public static class SessionRouter {
-    private static ImmutableDictionary<ObjectId, SessionScope> _scopes = ImmutableDictionary<ObjectId, SessionScope>.Empty;
+    private static ImmutableHamT<ObjectId, SessionScope> _scopes = ImmutableHamT<ObjectId, SessionScope>.Empty;
 
     /// <summary>当前会话作用域总数</summary>
     public static int ScopeCount => Volatile.Read(ref _scopes).Count;
@@ -72,7 +72,7 @@ public static class SessionRouter {
         foreach (var scope in Volatile.Read(ref _scopes).Values) {
             try { await scope.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { _ = ex; }
         }
-        Volatile.Write(ref _scopes, ImmutableDictionary<ObjectId, SessionScope>.Empty);
+        Volatile.Write(ref _scopes, ImmutableHamT<ObjectId, SessionScope>.Empty);
     }
 
     /// <summary>

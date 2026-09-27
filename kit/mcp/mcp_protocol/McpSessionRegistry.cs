@@ -6,7 +6,7 @@ namespace McpProtocol;
 /// <para>无锁 CAS 更新，不可变快照读取。</para>
 /// </summary>
 internal sealed class McpSessionRegistry {
-    private ImmutableDictionary<string, DateTime> _sessions = ImmutableDictionary<string, DateTime>.Empty;
+    private ImmutableHamT<string, DateTime> _sessions = ImmutableHamT<string, DateTime>.Empty;
 
     /// <summary>活跃会话数</summary>
     public int ActiveSessionCount => _sessions.Count;

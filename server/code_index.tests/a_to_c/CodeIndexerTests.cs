@@ -289,8 +289,8 @@ public sealed class CodeIndexerTests : IDisposable {
         });
     }
 
-    private static ImmutableDictionary<TKey, ImmutableList<TValue>> AddToBucket<TKey, TValue>(
-        ImmutableDictionary<TKey, ImmutableList<TValue>> dict, TKey key, TValue value) where TKey : notnull {
+    private static ImmutableHamT<TKey, ImmutableList<TValue>> AddToBucket<TKey, TValue>(
+        ImmutableHamT<TKey, ImmutableList<TValue>> dict, TKey key, TValue value) where TKey : notnull {
         if (!dict.TryGetValue(key, out var list)) {
             list = ImmutableList<TValue>.Empty;
         }

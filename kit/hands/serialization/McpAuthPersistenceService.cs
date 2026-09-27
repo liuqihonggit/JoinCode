@@ -57,7 +57,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     /// <param name="ct">取消令牌。</param>
     /// <returns>以 Name 为 key 的只读字典；若无任何条目则返回空字典。</returns>
     public async Task<IReadOnlyDictionary<string, AuthConfigEntry>> ListAsync(CancellationToken ct = default) {
-        if (_configService == null) return ImmutableDictionary<string, AuthConfigEntry>.Empty;
+        if (_configService == null) return ImmutableHamT<string, AuthConfigEntry>.Empty;
 
         var reply = new TaskCompletionSource<IReadOnlyDictionary<string, AuthConfigEntry>>();
         await _actor.SendAsync(new ListAuthCmd(reply), ct).ConfigureAwait(false);

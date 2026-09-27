@@ -7,7 +7,7 @@ namespace Core.Security.Sandbox.Providers;
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 public sealed partial class ProcessSandboxProvider : SandboxProviderBase {
     private readonly IProcessService _processService;
-    private volatile ImmutableDictionary<string, WindowsJobObjectSandbox> _jobObjects = ImmutableDictionary<string, WindowsJobObjectSandbox>.Empty;
+    private volatile ImmutableHamT<string, WindowsJobObjectSandbox> _jobObjects = ImmutableHamT<string, WindowsJobObjectSandbox>.Empty;
 
     /// <summary>
     /// 沙箱类型 — 始终为 <see cref="SandboxType.Process"/>

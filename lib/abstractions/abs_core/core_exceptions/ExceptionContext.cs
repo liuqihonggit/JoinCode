@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Exceptions;
 /// 异常上下文信息
 /// </summary>
 public sealed class ExceptionContext {
-    private ImmutableDictionary<string, JsonElement> _data = ImmutableDictionary<string, JsonElement>.Empty;
+    private ImmutableHamT<string, JsonElement> _data = ImmutableHamT<string, JsonElement>.Empty;
 
     /// <summary>
     /// 请求ID，用于追踪请求链路

@@ -5,7 +5,7 @@ namespace JoinCode.Tui.Pipes;
 /// 线程安全：使用 ConcurrentDictionary 存储管道。
 /// </summary>
 public sealed class PipeRegistry {
-    private ImmutableDictionary<string, IMessagePipe> _pipes = ImmutableDictionary<string, IMessagePipe>.Empty;
+    private ImmutableHamT<string, IMessagePipe> _pipes = ImmutableHamT<string, IMessagePipe>.Empty;
 
     /// <summary>已注册管道数量。</summary>
     public int Count => Volatile.Read(ref _pipes).Count;
@@ -46,6 +46,6 @@ public sealed class PipeRegistry {
 
     /// <summary>清空所有管道。</summary>
     public void Clear() {
-        Interlocked.Exchange(ref _pipes, ImmutableDictionary<string, IMessagePipe>.Empty);
+        Interlocked.Exchange(ref _pipes, ImmutableHamT<string, IMessagePipe>.Empty);
     }
 }

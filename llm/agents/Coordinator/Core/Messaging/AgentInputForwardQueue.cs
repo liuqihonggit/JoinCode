@@ -6,7 +6,7 @@ namespace Core.Agents.Coordinator;
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue), ServiceLifetime.Singleton)]
 public sealed partial class AgentInputForwardQueue : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue {
-    private volatile ImmutableDictionary<string, Channel<string>> _queues = ImmutableDictionary<string, Channel<string>>.Empty;
+    private volatile ImmutableHamT<string, Channel<string>> _queues = ImmutableHamT<string, Channel<string>>.Empty;
     private readonly ILogger? _logger;
 
     /// <summary>

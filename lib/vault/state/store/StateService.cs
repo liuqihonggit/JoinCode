@@ -8,7 +8,7 @@ namespace State;
 [Register(typeof(StateService), ServiceLifetime.Singleton)]
 [Register(typeof(IStateService), ServiceLifetime.Singleton)]
 public sealed partial class StateService : ServiceEntity, IStateService, IDisposable {
-    private ImmutableDictionary<string, SessionState> _fallbackStorage = ImmutableDictionary<string, SessionState>.Empty;
+    private ImmutableHamT<string, SessionState> _fallbackStorage = ImmutableHamT<string, SessionState>.Empty;
     private readonly IClockService _clock;
     private readonly ILogger<StateService>? _logger;
     private const string StateKey = "state";
@@ -79,11 +79,11 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
         _logger?.LogInformation(L.T(StringKey.VaultLogStateSaveSuccess));
     }
 
-    private static ImmutableDictionary<string, string> SerializeMetadata(IReadOnlyDictionary<string, JsonElement>? metadata) {
+    private static ImmutableHamT<string, string> SerializeMetadata(IReadOnlyDictionary<string, JsonElement>? metadata) {
         if (metadata is null || metadata.Count == 0)
-            return ImmutableDictionary<string, string>.Empty;
+            return ImmutableHamT<string, string>.Empty;
 
-        var builder = ImmutableDictionary.CreateBuilder<string, string>();
+        var builder = ImmutableHamT.CreateBuilder<string, string>();
         foreach (var kvp in metadata)
             builder[kvp.Key] = kvp.Value.GetRawText();
         return builder.ToImmutable();
@@ -189,7 +189,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
         if (_disposed) return;
         _disposed = true;
 
-        Volatile.Write(ref _fallbackStorage, ImmutableDictionary<string, SessionState>.Empty);
+        Volatile.Write(ref _fallbackStorage, ImmutableHamT<string, SessionState>.Empty);
         base.Dispose();
     }
 }

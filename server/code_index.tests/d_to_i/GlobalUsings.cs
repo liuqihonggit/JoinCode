@@ -1,4 +1,4 @@
-global using Infrastructure.Localization;
+﻿global using Infrastructure.Localization;
 global using IO.FileSystem;
 global using JoinCode.Abstractions.CodeIndex;
 global using JoinCode.Abstractions.Interfaces;
@@ -17,3 +17,4 @@ global using System.Text.Json;
 global using Testing.Common;
 global using TreeSitter;
 global using Xunit;
+global using Structura.Collections;

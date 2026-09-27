@@ -18,7 +18,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly ISwarmPermissionBridge? _permissionBridge;
     private readonly TeammateReconnectDispatcher _reconnectDispatcher;
 
-    private volatile ImmutableDictionary<string, AgentExecutionContext> _executionContexts = ImmutableDictionary<string, AgentExecutionContext>.Empty;
+    private volatile ImmutableHamT<string, AgentExecutionContext> _executionContexts = ImmutableHamT<string, AgentExecutionContext>.Empty;
     private readonly Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
     private readonly SecretaryRegistry _secretaryRegistry;
     private readonly MiddlewarePipeline<AgentDisposeContext> _disposePipeline;

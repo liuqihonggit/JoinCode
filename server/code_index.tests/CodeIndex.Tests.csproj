@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
         <ProjectType>test</ProjectType>
@@ -13,6 +13,7 @@
     <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
-  </ItemGroup>
+        <ProjectReference Include="../../lib/structura/Structura.csproj" />
+</ItemGroup>
 
 </Project>

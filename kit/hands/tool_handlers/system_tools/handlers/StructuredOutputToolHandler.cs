@@ -7,11 +7,11 @@ namespace Tools.Handlers;
 [McpToolDispatch(ToolCategory.StructuredOutput)]
 public sealed class StructuredOutputToolHandler {
     private readonly SimpleJsonSchemaValidator _validator;
-    private ImmutableDictionary<string, StructuredOutputSchema> _schemas = ImmutableDictionary<string, StructuredOutputSchema>.Empty;
+    private ImmutableHamT<string, StructuredOutputSchema> _schemas = ImmutableHamT<string, StructuredOutputSchema>.Empty;
     /// <summary>
     /// 验证结果缓存 — 对齐 TS WeakMap toolCache，避免重复编译同一 Schema
     /// </summary>
-    private ImmutableDictionary<string, SchemaValidationResult> _validationCache = ImmutableDictionary<string, SchemaValidationResult>.Empty;
+    private ImmutableHamT<string, SchemaValidationResult> _validationCache = ImmutableHamT<string, SchemaValidationResult>.Empty;
 
     private static readonly JsonWriterOptions s_indentedWriterOptions = new() { Indented = true };
 

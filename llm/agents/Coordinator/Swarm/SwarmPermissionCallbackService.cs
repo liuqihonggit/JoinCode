@@ -73,8 +73,8 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
     private readonly IMailbox _messageBroker;
     private readonly ILogger<SwarmPermissionCallbackService>? _logger;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    private volatile ImmutableDictionary<string, SwarmPermissionCallback> _pendingCallbacks = ImmutableDictionary<string, SwarmPermissionCallback>.Empty;
-    private volatile ImmutableDictionary<string, SwarmPermissionRequest> _pendingRequests = ImmutableDictionary<string, SwarmPermissionRequest>.Empty;
+    private volatile ImmutableHamT<string, SwarmPermissionCallback> _pendingCallbacks = ImmutableHamT<string, SwarmPermissionCallback>.Empty;
+    private volatile ImmutableHamT<string, SwarmPermissionRequest> _pendingRequests = ImmutableHamT<string, SwarmPermissionRequest>.Empty;
 
     /// <summary>
     /// 初始化 Swarm 权限回调服务

@@ -1,4 +1,4 @@
-global using Api.LLM;
+﻿global using Api.LLM;
 global using Core.Utils;
 global using Infrastructure.Http;
 global using Infrastructure.Network.Downloader;
@@ -108,3 +108,4 @@ global using McpToolProgress = JoinCode.Abstractions.Mcp.Client.McpToolProgress;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using ToolContent = JoinCode.Abstractions.Tools.ToolContent;
 global using ValidationResult = Structura.Primitives.ValidationResult;
+global using Structura.Collections;

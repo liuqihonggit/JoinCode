@@ -10,7 +10,7 @@ internal static class RgEngine {
     private const int MaxContentLineLength = 500;
     private const int BinaryDetectionBufferSize = 8192;
 
-    private static ImmutableDictionary<string, GitignoreMatcher?> _gitignoreCache = ImmutableDictionary<string, GitignoreMatcher?>.Empty.WithComparers(StringComparer.Ordinal);
+    private static ImmutableHamT<string, GitignoreMatcher?> _gitignoreCache = ImmutableHamT<string, GitignoreMatcher?>.Empty.WithComparers(StringComparer.Ordinal);
 
     /// <summary>
     /// 执行搜索。PLINQ 链式：收集文件 → 并行搜索 → 过滤 → 排序 → 分页。

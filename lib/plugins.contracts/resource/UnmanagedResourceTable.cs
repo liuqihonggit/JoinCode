@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>卸载时 ReleaseAll 逐个释放 SafeHandle,确保无泄漏</para>
 /// </summary>
 public sealed class UnmanagedResourceTable {
-    private ImmutableDictionary<string, UnmanagedResourceEntry> _resources = ImmutableDictionary<string, UnmanagedResourceEntry>.Empty;
+    private ImmutableHamT<string, UnmanagedResourceEntry> _resources = ImmutableHamT<string, UnmanagedResourceEntry>.Empty;
 
     /// <summary>登记非托管资源 — 返回句柄,Dispose 时自动注销</summary>
     public UnmanagedResourceHandle Register(string key, SafeHandle handle, long estimatedBytes) {
@@ -23,7 +23,7 @@ public sealed class UnmanagedResourceTable {
 
     /// <summary>释放所有非托管资源 — 卸载时调用</summary>
     public void ReleaseAll() {
-        var snapshot = Interlocked.Exchange(ref _resources, ImmutableDictionary<string, UnmanagedResourceEntry>.Empty);
+        var snapshot = Interlocked.Exchange(ref _resources, ImmutableHamT<string, UnmanagedResourceEntry>.Empty);
         foreach (var entry in snapshot.Values) {
             if (!entry.Handle.IsClosed)
                 entry.Handle.Dispose();

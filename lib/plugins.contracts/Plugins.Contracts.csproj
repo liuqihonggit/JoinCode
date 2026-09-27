@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
         <ProjectType>library</ProjectType>
@@ -18,7 +18,8 @@
   <ItemGroup>
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
-  </ItemGroup>
+        <ProjectReference Include="../structura/Structura.csproj" />
+</ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)gen/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />

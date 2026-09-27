@@ -34,10 +34,10 @@ public interface IHookConditionEvaluator {
 public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditionEvaluator {
     private readonly ILogger<HookConditionEvaluator>? _logger;
 
-    private static ImmutableDictionary<string, Regex> ConditionPatternCache = ImmutableDictionary<string, Regex>.Empty;
+    private static ImmutableHamT<string, Regex> ConditionPatternCache = ImmutableHamT<string, Regex>.Empty;
 
     /// <summary>无锁 CAS 获取或添加缓存的 Regex</summary>
-    private static Regex GetOrAddRegex(ref ImmutableDictionary<string, Regex> cache, string pattern) {
+    private static Regex GetOrAddRegex(ref ImmutableHamT<string, Regex> cache, string pattern) {
         if (cache.TryGetValue(pattern, out var existing)) return existing;
         var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
         while (true) {

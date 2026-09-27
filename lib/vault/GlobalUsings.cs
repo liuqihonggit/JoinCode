@@ -1,4 +1,4 @@
-global using AsyncFileLock;
+﻿global using AsyncFileLock;
 global using Core.Memdir;
 global using Core.Utils;
 global using System.Threading.Channels;
@@ -60,3 +60,4 @@ global using System.Text.RegularExpressions;
 global using System.Threading;
 global using System.Timers;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
+global using Structura.Collections;

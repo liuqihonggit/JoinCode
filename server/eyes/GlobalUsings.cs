@@ -1,4 +1,4 @@
-global using Core.Utils;
+﻿global using Core.Utils;
 global using Infrastructure.Utils.IO;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Clock;
@@ -34,3 +34,4 @@ global using System.Text.Json.Nodes;
 global using System.Text.Json.Serialization;
 global using System.Threading;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
+global using Structura.Collections;

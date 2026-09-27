@@ -175,9 +175,9 @@ public sealed class DependencyGraphTests : IDisposable {
     private void DeleteDepEdgesForFile(string filePath) {
         _store.Update(snap => {
             var depEdges = snap.DepEdges.Where(e => e.SourceFilePath != filePath).ToImmutableList();
-            var depsBySource = snap.DepsBySource.ToImmutableDictionary(
+            var depsBySource = snap.DepsBySource.ToImmutableHamT(
                 kv => kv.Key, kv => kv.Value.Where(e => e.SourceFilePath != filePath).ToImmutableList());
-            var depsByTarget = snap.DepsByTarget.ToImmutableDictionary(
+            var depsByTarget = snap.DepsByTarget.ToImmutableHamT(
                 kv => kv.Key, kv => kv.Value.Where(e => e.SourceFilePath != filePath).ToImmutableList());
             var depsByFile = snap.DepsByFile.Remove(filePath);
             return snap with {
@@ -189,8 +189,8 @@ public sealed class DependencyGraphTests : IDisposable {
         });
     }
 
-    private static ImmutableDictionary<TKey, ImmutableList<TValue>> AddToBucket<TKey, TValue>(
-        ImmutableDictionary<TKey, ImmutableList<TValue>> dict, TKey key, TValue value) where TKey : notnull {
+    private static ImmutableHamT<TKey, ImmutableList<TValue>> AddToBucket<TKey, TValue>(
+        ImmutableHamT<TKey, ImmutableList<TValue>> dict, TKey key, TValue value) where TKey : notnull {
         if (!dict.TryGetValue(key, out var list)) {
             list = ImmutableList<TValue>.Empty;
         }

@@ -169,8 +169,7 @@ namespace Structura.Collections
             nuint res = 0;
             for (int i = 0; i < WIDTH; i++)
             {
-                res <<= 8;
-                res &= b;
+                res = (res << 8) | b;
             }
             return res;
         }
@@ -270,7 +269,7 @@ namespace Structura.Collections
         /// <returns>广播得到的探测组实例。</returns>
         public static FallbackGroup create(byte b)
         {
-            throw new NotImplementedException();
+            return new FallbackGroup(repeat(b));
         }
 
         /// <summary>
@@ -280,7 +279,9 @@ namespace Structura.Collections
         /// <returns>匹配结果位掩码。</returns>
         public FallbackBitMask MatchGroup(FallbackGroup group)
         {
-            throw new NotImplementedException();
+            var cmp = this._data ^ group._data;
+            var res = unchecked((cmp - (nuint)0x0101_0101_0101_0101) & ~cmp & (nuint)0x8080_8080_8080_8080);
+            return new FallbackBitMask(res);
         }
     }
 }

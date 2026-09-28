@@ -157,4 +157,58 @@ public class SwissTableTests {
         table.TryGetValue("hello", out var v).Should().BeTrue();
         v.Should().Be(1);
     }
+
+    // === P0 Bug 复现测试（红测试）===
+
+    [Fact]
+    public void Bug_Clear_ShouldInvalidateEnumerator() {
+        var dict = new SwissTable<string, int>();
+        dict.Add("a", 1);
+        dict.Add("b", 2);
+
+        var enumerator = dict.GetEnumerator();
+        enumerator.MoveNext().Should().BeTrue();
+
+        dict.Clear();
+
+        var act = () => enumerator.MoveNext();
+        act.Should().Throw<InvalidOperationException>("Clear 后枚举器应失效");
+    }
+
+    [Fact]
+    public void Bug_Clone_ShouldHaveCorrectGrowthLeft() {
+        var source = new SwissTable<int, int>();
+        for (var i = 0; i < 100; i++) source.Add(i, i);
+
+        var clone = new SwissTable<int, int>(source);
+
+        var rawTableField = typeof(SwissTable<int, int>).GetField("rawTable", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var rawTable = rawTableField.GetValue(clone)!;
+        var growthLeftField = rawTable.GetType().GetField("_growth_left", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var growthLeft = (int)growthLeftField.GetValue(rawTable)!;
+
+        var bucketMaskField = rawTable.GetType().GetField("_bucket_mask", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var bucketMask = (int)bucketMaskField.GetValue(rawTable)!;
+        var countField = rawTable.GetType().GetField("_count", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var count = (int)countField.GetValue(rawTable)!;
+
+        var expectedCapacity = ((bucketMask + 1) >> 3) * 7;
+        var expectedGrowthLeft = expectedCapacity - count;
+
+        growthLeft.Should().Be(expectedGrowthLeft,
+            $"_growth_left 应为 capacity({expectedCapacity}) - count({count}) = {expectedGrowthLeft}，而非 count({count})");
+    }
+
+    [Fact]
+    public void Bug_FallbackGroup_Create_ShouldNotThrow() {
+        var act = () => Structura.Collections.FallbackGroup.create(0x7F);
+        act.Should().NotThrow("create 应返回有效组，不应抛 NotImplementedException");
+    }
+
+    [Fact]
+    public void Bug_FallbackGroup_MatchGroup_ShouldNotThrow() {
+        var group = Structura.Collections.FallbackGroup.create(0x7F);
+        var act = () => group.MatchGroup(group);
+        act.Should().NotThrow("MatchGroup 应返回匹配结果，不应抛 NotImplementedException");
+    }
 }

@@ -25,4 +25,8 @@
     <None Remove="tests\**\*" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Structura.Tests" />
+  </ItemGroup>
+
 </Project>

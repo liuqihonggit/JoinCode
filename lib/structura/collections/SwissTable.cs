@@ -259,7 +259,7 @@ namespace Structura.Collections
                         newEntries[i] = oldEntries[i];
                     }
                 }
-                this.rawTable._growth_left = source.rawTable._count;
+                this.rawTable._growth_left = bucket_mask_to_capacity(this.rawTable._bucket_mask) - source.rawTable._count;
                 this.rawTable._count = source.rawTable._count;
                 return;
             }
@@ -443,12 +443,13 @@ namespace Structura.Collections
                 Array.Fill(rawTable._controls, EMPTY);
                 rawTable._count = 0;
                 rawTable._growth_left = SwissTable<TKey, TValue>.bucket_mask_to_capacity(rawTable._bucket_mask);
-                // TODO: maybe we could remove this branch to improve perf. Or maybe CLR has optimised this.
                 if (RuntimeHelpers.IsReferenceOrContainsReferences<TValue>()
                     || RuntimeHelpers.IsReferenceOrContainsReferences<TKey>())
                 {
                     Array.Clear(rawTable._entries);
                 }
+                _version++;
+                _tolerantVersion++;
             }
         }
 

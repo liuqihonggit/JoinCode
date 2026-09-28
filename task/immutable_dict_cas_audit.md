@@ -71,7 +71,7 @@
 - **字段**：`_eventFilterSet`（非 volatile）+ `_eventFilterSetInitialized` 标志（非 volatile）
 - **问题**：同 M6
 - **修复**：标志改 `volatile`；字段写端 `Volatile.Write`，读端 `Volatile.Read`
-- **状态**：⬜ 待修复
+- **状态**：✅ 已合并（PR #325）
 
 ### 🟡 M8 — `ProviderDefinitionRegistry` 直接赋值无同步
 

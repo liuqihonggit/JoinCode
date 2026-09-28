@@ -101,14 +101,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             return Channel.CreateBounded<TOut>(new BoundedChannelOptions(DefaultChannelCapacity) {
                 FullMode = BoundedChannelFullMode.DropOldest,
                 SingleReader = true,
-                SingleWriter = true
+                SingleWriter = false
             });
         }
 
         return Channel.CreateBounded<TOut>(new BoundedChannelOptions(capacity.Value) {
             FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true,
-            SingleWriter = true
+            SingleWriter = false
         });
     }
 
@@ -120,16 +120,17 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     protected internal Task ConsumerTask => _consumerTask;
 
-    /// <summary>当前输入邮箱消息总数 — 输入通道 + 重试队列(R1: 水位告警基于此值)</summary>
+    /// <summary>当前输入邮箱消息总数(近似值) — 输入通道 + 重试队列(R1: 水位告警基于此值)</summary>
+    /// <para>⚠️ 并发 Tell 场景下 Interlocked 与 TryWrite 非原子,指标可能短暂漂移,仅用于监控近似值</para>
     public int InputCount => Volatile.Read(ref _inputCount) + Volatile.Read(ref _retryQueueCount);
 
-    /// <summary>输入通道内消息数(不含重试队列)</summary>
+    /// <summary>输入通道内消息数(近似值,不含重试队列)</summary>
     public int InputChannelCount => Volatile.Read(ref _inputCount);
 
-    /// <summary>重试队列消息数(入队失败正在重试投递的消息)</summary>
+    /// <summary>重试队列消息数(近似值,入队失败正在重试投递的消息)</summary>
     public int RetryQueueCount => Volatile.Read(ref _retryQueueCount);
 
-    /// <summary>当前输出通道消息数 — 用于监控堆积</summary>
+    /// <summary>当前输出通道消息数(近似值) — 用于监控堆积</summary>
     public int OutputCount => Volatile.Read(ref _outputCount);
 
     /// <summary>Actor 是否忙碌 — 输入队列有待处理消息 或 输出队列有待消费消息(P2-2: 监控指标)</summary>
@@ -331,7 +332,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                 } catch (OperationCanceledException) when (_cts.IsCancellationRequested) {
                     return;
                 } catch (Exception ex) {
-                    OnConsumerError(ex);
+                    try {
+                        OnConsumerError(ex);
+                    } catch (Exception innerEx) {
+                        _logger?.LogError(innerEx, "[Actor:{ActorId}] OnConsumerError 异常忽略", Id);
+                    }
                 }
             }
         } catch (OperationCanceledException) { }
@@ -347,14 +352,17 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     /// <param name="resend">重试委托 — 延迟后调用,重新发送命令(如 TrySend(cmd))</param>
     /// <param name="logger">日志记录器(null=静默,resend 异常时记录)</param>
+    /// <param name="ct">取消令牌(Actor 释放时取消延迟重试,避免 Dispose 后残留后台任务)</param>
     /// <returns>标准背压回调,可直接作为命令的 OnBackpressure 参数</returns>
-    public static Action<BackpressureSignal> CreateBackpressureHandler(Action resend, ILogger? logger = null) {
+    public static Action<BackpressureSignal> CreateBackpressureHandler(Action resend, ILogger? logger = null, CancellationToken ct = default) {
         return signal => {
             if (signal.SuggestedDelay > TimeSpan.Zero) {
                 _ = Task.Run(async () => {
                     try {
-                        await Task.Delay(signal.SuggestedDelay).ConfigureAwait(false);
+                        await Task.Delay(signal.SuggestedDelay, ct).ConfigureAwait(false);
                         resend();
+                    } catch (OperationCanceledException) {
+                        // Actor 释放,取消延迟重试
                     } catch (Exception ex) {
                         logger?.LogWarning(ex, "CreateBackpressureHandler resend 异常忽略");
                     }
@@ -497,6 +505,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <para>等待图用 AsyncLocal 存储调用链本地图,避免全局静态图跨调用链污染/并发覆盖(Bug1 修复)。</para>
     /// <para>每次创建新 ImmutableDag 副本(从父图无锁快照复制),各异步流独立不竞态(P1-3 修复)。</para>
     /// <para>callerId 为 null 或等于自身时返回 null(无需加边)。</para>
+    /// <para><b>⚠️ AsyncLocal 局限</b>:等待图依赖 AsyncLocal 上下文流动,跨裸线程/Task.Run 调用会丢失上下文,</para>
+    /// <para>等待图断裂无法检测跨线程循环 Ask 死锁。Ask 调用链必须在同一异步流上下文内调用。</para>
     /// </summary>
     private WaitGraphScope? EnterWaitGraph(string? callerId) {
         if (callerId is null || callerId == Id) return null;

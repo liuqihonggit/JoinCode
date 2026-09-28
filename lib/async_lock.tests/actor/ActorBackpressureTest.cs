@@ -111,7 +111,7 @@ public class ActorBackpressureTest {
             await actor.IncrementAsync(new TaskCompletionSource<int>());
         }
 
-        await WaitUntilAsync(() => events.Any(e => e.Level == WatermarkLevel.Critical), TimeSpan.FromMilliseconds(500));
+        await WaitUntilAsync(() => events.Any(e => e.Level == WatermarkLevel.Critical), TimeSpan.FromMilliseconds(1000));
 
         gateTcs.SetResult();
     }

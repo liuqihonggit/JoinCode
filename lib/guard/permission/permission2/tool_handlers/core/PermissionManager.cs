@@ -246,7 +246,10 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _disposed = true;
 
         _modeLock.Dispose();
-        Interlocked.Exchange(ref _approvedTools, ImmutableHamT<string, DateTimeOffset>.Empty);
+        while (true) {
+            var current = _approvedTools;
+            if (Interlocked.CompareExchange(ref _approvedTools, ImmutableHamT<string, DateTimeOffset>.Empty, current) == current) break;
+        }
 
         GC.SuppressFinalize(this);
     }

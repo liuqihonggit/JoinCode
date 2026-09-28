@@ -4,12 +4,13 @@ namespace JoinCode.Abstractions.Utils;
 /// 通用字典注册器基类 — 内部 ImmutableDictionary + 无锁 CAS，对外暴露 IEnumerable（遍历器）+ IReadOnlyDictionary（字典视图）
 /// 可选 Canonical/Alias 跟踪 — 子类需要区分正式名和别名时启用
 /// 可选次级索引 — 子类通过 CreateIndex 声明，注册/注销自动同步，O(1) 按属性查找
+/// 手写 CAS 循环替代 ImmutableInterlocked.Update/Interlocked.Exchange(volatile 字段触发 CS0420)
 /// </summary>
 public class MapRegistry<TKey, TValue> where TKey : notnull {
-    private ImmutableHamT<TKey, TValue> _items;
-    private ImmutableHamTSet<TKey> _canonicalKeys;
+    private volatile ImmutableHamT<TKey, TValue> _items;
+    private volatile ImmutableHamTSet<TKey> _canonicalKeys;
     private readonly bool _trackCanonical;
-    private ImmutableList<ISecondaryIndex> _indices = ImmutableList<ISecondaryIndex>.Empty;
+    private volatile ImmutableList<ISecondaryIndex> _indices = ImmutableList<ISecondaryIndex>.Empty;
 
     /// <summary>次级索引类型擦除接口 — 基类统一调用 Add/Remove 同步</summary>
     private interface ISecondaryIndex {
@@ -39,19 +40,23 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
         Func<TValue, TProperty> selector,
         IEqualityComparer<TProperty>? comparer = null) where TProperty : notnull {
         var box = new SecondaryIndexBox<TProperty>(selector, comparer);
-        foreach (var kvp in Volatile.Read(ref _items))
+        foreach (var kvp in _items)
             box.Inner.Add(kvp.Key, kvp.Value);
-        ImmutableInterlocked.Update(ref _indices, list => list.Add(box));
+        while (true) {
+            var current = _indices;
+            var updated = current.Add(box);
+            if (Interlocked.CompareExchange(ref _indices, updated, current) == current) break;
+        }
         return box.Inner;
     }
 
     private void SyncIndicesAdd(TKey key, TValue value) {
-        foreach (var index in Volatile.Read(ref _indices))
+        foreach (var index in _indices)
             index.Add(key, value);
     }
 
     private void SyncIndicesRemove(TKey key, TValue value) {
-        foreach (var index in Volatile.Read(ref _indices))
+        foreach (var index in _indices)
             index.Remove(key, value);
     }
 
@@ -82,7 +87,7 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
         => index.UpdateProperty(key, oldProperty, newProperty);
 
     /// <summary>当前注册项总数</summary>
-    public int Count => Volatile.Read(ref _items).Count;
+    public int Count => _items.Count;
 
     /// <summary>构造字典注册器。</summary>
     /// <param name="comparer">键相等比较器。</param>
@@ -94,57 +99,59 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
         _trackCanonical = trackCanonical;
     }
 
-    /// <summary>注册项（已存在则不覆盖）</summary>
+    /// <summary>注册项（已存在则不覆盖）— 手写 CAS 循环替代 ImmutableInterlocked.Update。</summary>
     protected void AddCore(TKey key, TValue value) {
-        ImmutableInterlocked.Update(ref _items, d => d.Add(key, value));
+        while (true) {
+            var current = _items;
+            var updated = current.Add(key, value);
+            if (Interlocked.CompareExchange(ref _items, updated, current) == current) break;
+        }
         SyncIndicesAdd(key, value);
     }
 
-    /// <summary>注册或更新项</summary>
+    /// <summary>注册或更新项 — 手写 CAS 循环替代 ImmutableInterlocked.Update。</summary>
     protected void AddOrUpdateCore(TKey key, TValue value) {
         var old = default(TValue);
         var hadOld = false;
-        ImmutableInterlocked.Update(ref _items, d => {
-            if (d.TryGetValue(key, out var v)) {
+        while (true) {
+            var current = _items;
+            if (current.TryGetValue(key, out var v)) {
                 old = v;
                 hadOld = true;
             }
-            return d.SetItem(key, value);
-        });
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _items, updated, current) == current) break;
+        }
         if (hadOld)
             SyncIndicesRemove(key, old!);
         SyncIndicesAdd(key, value);
     }
 
-    /// <summary>注销项</summary>
+    /// <summary>注销项 — 手写 CAS 循环替代 ImmutableInterlocked.Update。</summary>
     protected bool RemoveCore(TKey key) {
         var captured = default(TValue);
         var removed = false;
-        ImmutableInterlocked.Update(ref _items, d => {
-            if (d.TryGetValue(key, out var v)) {
-                captured = v;
-                removed = true;
-                return d.Remove(key);
-            }
-            return d;
-        });
+        while (true) {
+            var current = _items;
+            if (!current.TryGetValue(key, out var v)) break;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _items, updated, current) == current) { captured = v; removed = true; break; }
+        }
         if (removed)
             SyncIndicesRemove(key, captured!);
         return removed;
     }
 
-    /// <summary>注销项并返回被移除的值</summary>
+    /// <summary>注销项并返回被移除的值 — 手写 CAS 循环替代 ImmutableInterlocked.Update。</summary>
     protected bool RemoveCore(TKey key, [MaybeNullWhen(false)] out TValue value) {
         var captured = default(TValue);
         var removed = false;
-        ImmutableInterlocked.Update(ref _items, d => {
-            if (d.TryGetValue(key, out var v)) {
-                captured = v;
-                removed = true;
-                return d.Remove(key);
-            }
-            return d;
-        });
+        while (true) {
+            var current = _items;
+            if (!current.TryGetValue(key, out var v)) break;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _items, updated, current) == current) { captured = v; removed = true; break; }
+        }
         value = captured;
         if (removed)
             SyncIndicesRemove(key, captured!);
@@ -152,61 +159,78 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
     }
 
     /// <summary>按键获取（O(1)）</summary>
-    public TValue? Get(TKey key) => Volatile.Read(ref _items).GetValueOrDefault(key);
+    public TValue? Get(TKey key) => _items.GetValueOrDefault(key);
 
     /// <summary>按键尝试获取（O(1)）</summary>
     public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
-        => Volatile.Read(ref _items).TryGetValue(key, out value);
+        => _items.TryGetValue(key, out value);
 
     /// <summary>是否包含指定键</summary>
-    public bool ContainsKey(TKey key) => Volatile.Read(ref _items).ContainsKey(key);
+    public bool ContainsKey(TKey key) => _items.ContainsKey(key);
 
     /// <summary>
     /// 遍历器 — 返回不可变 Values，不分配新集合，调用方可安全遍历无需 ToList 快照
     /// </summary>
-    public IEnumerable<TValue> GetAll() => Volatile.Read(ref _items).Values;
+    public IEnumerable<TValue> GetAll() => _items.Values;
 
     /// <summary>
     /// 键值对遍历器 — 返回不可变字典枚举，不分配新集合
     /// </summary>
-    protected IEnumerable<KeyValuePair<TKey, TValue>> EntriesCore => Volatile.Read(ref _items);
+    protected IEnumerable<KeyValuePair<TKey, TValue>> EntriesCore => _items;
 
     /// <summary>
     /// 字典视图 — 直接返回不可变字典引用，不分配新集合
     /// 调用方可按键查找 + 遍历，线程安全
     /// </summary>
-    public IReadOnlyDictionary<TKey, TValue> AsDictionary() => Volatile.Read(ref _items);
+    public IReadOnlyDictionary<TKey, TValue> AsDictionary() => _items;
 
     /// <summary>条件过滤遍历器 — 不分配新集合</summary>
     public IEnumerable<TValue> Where(Func<TValue, bool> predicate)
-        => Volatile.Read(ref _items).Values.Where(predicate);
+        => _items.Values.Where(predicate);
 
-    /// <summary>清空所有注册（测试用）</summary>
+    /// <summary>清空所有注册（测试用）— 手写 CAS 循环替代 Interlocked.Exchange,保留 comparer 和旧值。</summary>
     public void Clear() {
-        var old = Interlocked.Exchange(ref _items, ImmutableHamT<TKey, TValue>.Empty.WithComparers(Volatile.Read(ref _items).KeyComparer));
-        if (_trackCanonical)
-            Interlocked.Exchange(ref _canonicalKeys, ImmutableHamTSet<TKey>.Empty.WithComparer(Volatile.Read(ref _canonicalKeys).KeyComparer));
+        while (true) {
+            var current = _items;
+            if (Interlocked.CompareExchange(ref _items, ImmutableHamT<TKey, TValue>.Empty.WithComparers(current.KeyComparer), current) == current) break;
+        }
+        if (_trackCanonical) {
+            while (true) {
+                var current = _canonicalKeys;
+                if (Interlocked.CompareExchange(ref _canonicalKeys, ImmutableHamTSet<TKey>.Empty.WithComparer(current.KeyComparer), current) == current) break;
+            }
+        }
     }
 
-    /// <summary>清空所有注册并返回被清空的项（子类需要在清空前执行清理逻辑时使用）</summary>
+    /// <summary>清空所有注册并返回被清空的项 — 手写 CAS 循环替代 Interlocked.Exchange,保留 comparer 和旧值。</summary>
     protected List<KeyValuePair<TKey, TValue>> ClearCore() {
-        var old = Interlocked.Exchange(ref _items, ImmutableHamT<TKey, TValue>.Empty.WithComparers(Volatile.Read(ref _items).KeyComparer));
-        if (_trackCanonical)
-            Interlocked.Exchange(ref _canonicalKeys, ImmutableHamTSet<TKey>.Empty.WithComparer(Volatile.Read(ref _canonicalKeys).KeyComparer));
+        ImmutableHamT<TKey, TValue> old = default!;
+        while (true) {
+            var current = _items;
+            if (Interlocked.CompareExchange(ref _items, ImmutableHamT<TKey, TValue>.Empty.WithComparers(current.KeyComparer), current) == current) { old = current; break; }
+        }
+        if (_trackCanonical) {
+            while (true) {
+                var current = _canonicalKeys;
+                if (Interlocked.CompareExchange(ref _canonicalKeys, ImmutableHamTSet<TKey>.Empty.WithComparer(current.KeyComparer), current) == current) break;
+            }
+        }
         return [.. old];
     }
 
     /// <summary>
     /// 尝试注册项 — 已存在则不覆盖，返回 false（原子操作，无锁 CAS）
     /// 对齐 ConcurrentDictionary.TryAdd 语义，用于"重复注册抛异常/忽略"场景
+    /// 手写 CAS 循环替代 ImmutableInterlocked.Update
     /// </summary>
     public bool TryAdd(TKey key, TValue value) {
         var added = false;
-        ImmutableInterlocked.Update(ref _items, d => {
-            if (d.ContainsKey(key)) return d;
-            added = true;
-            return d.Add(key, value);
-        });
+        while (true) {
+            var current = _items;
+            if (current.ContainsKey(key)) break;
+            var updated = current.Add(key, value);
+            if (Interlocked.CompareExchange(ref _items, updated, current) == current) { added = true; break; }
+        }
         if (added)
             SyncIndicesAdd(key, value);
         return added;
@@ -215,18 +239,17 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
     /// <summary>
     /// 尝试注销项并返回被移除的值 — 原子操作，无锁 CAS
     /// 对齐 ConcurrentDictionary.TryRemove 语义，用于"移除后需释放资源"场景
+    /// 手写 CAS 循环替代 ImmutableInterlocked.Update
     /// </summary>
     public bool TryRemove(TKey key, [MaybeNullWhen(false)] out TValue value) {
         var captured = default(TValue);
         var removed = false;
-        ImmutableInterlocked.Update(ref _items, d => {
-            if (d.TryGetValue(key, out var v)) {
-                captured = v;
-                removed = true;
-                return d.Remove(key);
-            }
-            return d;
-        });
+        while (true) {
+            var current = _items;
+            if (!current.TryGetValue(key, out var v)) break;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _items, updated, current) == current) { captured = v; removed = true; break; }
+        }
         value = captured;
         if (removed)
             SyncIndicesRemove(key, captured!);
@@ -235,56 +258,69 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
 
     // === Canonical/Alias 支持（trackCanonical=true 时启用）===
 
-    /// <summary>注册项（含 Canonical 标记）</summary>
+    /// <summary>注册项（含 Canonical 标记）— 手写 CAS 循环替代 ImmutableInterlocked.Update。</summary>
     public void Register(TKey key, TValue value, bool isCanonical = true) {
         var old = default(TValue);
         var hadOld = false;
-        ImmutableInterlocked.Update(ref _items, d => {
-            if (d.TryGetValue(key, out var v)) {
+        while (true) {
+            var current = _items;
+            if (current.TryGetValue(key, out var v)) {
                 old = v;
                 hadOld = true;
             }
-            return d.SetItem(key, value);
-        });
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _items, updated, current) == current) break;
+        }
         if (hadOld)
             SyncIndicesRemove(key, old!);
         SyncIndicesAdd(key, value);
-        if (isCanonical && _trackCanonical)
-            ImmutableInterlocked.Update(ref _canonicalKeys, s => s.Add(key));
+        if (isCanonical && _trackCanonical) {
+            while (true) {
+                var current = _canonicalKeys;
+                var updated = current.Add(key);
+                if (Interlocked.CompareExchange(ref _canonicalKeys, updated, current) == current) break;
+            }
+        }
     }
 
-    /// <summary>注册别名（不覆盖已存在的项，不标记为 Canonical）</summary>
+    /// <summary>注册别名（不覆盖已存在的项，不标记为 Canonical）— 手写 CAS 循环替代 ImmutableInterlocked.Update。</summary>
     public void RegisterAlias(TKey alias, TValue value) {
-        ImmutableInterlocked.Update(ref _items, d => d.ContainsKey(alias) ? d : d.Add(alias, value));
+        while (true) {
+            var current = _items;
+            if (current.ContainsKey(alias)) break;
+            var updated = current.Add(alias, value);
+            if (Interlocked.CompareExchange(ref _items, updated, current) == current) break;
+        }
         SyncIndicesAdd(alias, value);
     }
 
-    /// <summary>注销项（公开方法，同时移除 Canonical 标记）</summary>
+    /// <summary>注销项（公开方法，同时移除 Canonical 标记）— 手写 CAS 循环替代 ImmutableInterlocked.Update。</summary>
     public bool Unregister(TKey key) {
         var captured = default(TValue);
         var removed = false;
-        ImmutableInterlocked.Update(ref _items, d => {
-            if (d.TryGetValue(key, out var v)) {
-                captured = v;
-                removed = true;
-                return d.Remove(key);
-            }
-            return d;
-        });
-        if (removed) {
-            SyncIndicesRemove(key, captured!);
-            if (_trackCanonical)
-                ImmutableInterlocked.Update(ref _canonicalKeys, s => s.Remove(key));
+        while (true) {
+            var current = _items;
+            if (!current.TryGetValue(key, out var v)) break;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _items, updated, current) == current) { captured = v; removed = true; break; }
         }
-        return removed;
+        if (!removed) return false;
+        SyncIndicesRemove(key, captured!);
+        if (!_trackCanonical) return true;
+        while (true) {
+            var current = _canonicalKeys;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _canonicalKeys, updated, current) == current) break;
+        }
+        return true;
     }
 
     /// <summary>获取所有 Canonical 项的字典视图 — 从不可变快照构建 FrozenDictionary</summary>
     public IReadOnlyDictionary<TKey, TValue> GetAllCanonical() {
         if (!_trackCanonical)
-            return Volatile.Read(ref _items);
-        var canonical = Volatile.Read(ref _canonicalKeys);
-        var items = Volatile.Read(ref _items);
+            return _items;
+        var canonical = _canonicalKeys;
+        var items = _items;
         return canonical.Where(n => items.ContainsKey(n))
             .ToFrozenDictionary(n => n, n => items[n]);
     }
@@ -292,9 +328,9 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
     /// <summary>获取所有 Canonical 项的键值对遍历器</summary>
     public IEnumerable<KeyValuePair<TKey, TValue>> GetCanonicalEntries() {
         if (!_trackCanonical)
-            return Volatile.Read(ref _items);
-        var canonical = Volatile.Read(ref _canonicalKeys);
-        var items = Volatile.Read(ref _items);
+            return _items;
+        var canonical = _canonicalKeys;
+        var items = _items;
         return canonical.Where(n => items.ContainsKey(n))
             .Select(n => new KeyValuePair<TKey, TValue>(n, items[n]));
     }

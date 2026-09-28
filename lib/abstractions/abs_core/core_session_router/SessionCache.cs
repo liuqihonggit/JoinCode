@@ -5,11 +5,11 @@ namespace JoinCode.Abstractions.Entity;
 /// 会话 Dispose 时所有 CacheEntryEntity 一起 Dispose
 /// </summary>
 public sealed class SessionCache : ISessionCache {
-    private ImmutableHamT<string, Entity> _entries = ImmutableHamT<string, Entity>.Empty;
+    private volatile ImmutableHamT<string, Entity> _entries = ImmutableHamT<string, Entity>.Empty;
     private readonly ObjectId _sessionId;
 
     /// <summary>获取缓存项数量。</summary>
-    public int Count => Volatile.Read(ref _entries).Count;
+    public int Count => _entries.Count;
 
     internal SessionCache(ObjectId sessionId) {
         _sessionId = sessionId;
@@ -17,7 +17,7 @@ public sealed class SessionCache : ISessionCache {
 
     /// <summary>获取指定键的缓存值。</summary>
     public T? Get<T>(string key) {
-        if (!Volatile.Read(ref _entries).TryGetValue(key, out var entry))
+        if (!_entries.TryGetValue(key, out var entry))
             return default;
         if (entry is not CacheEntryEntity<T> typed)
             return default;
@@ -29,24 +29,26 @@ public sealed class SessionCache : ISessionCache {
         return typed.Value;
     }
 
-    /// <summary>设置指定键的缓存值。</summary>
+    /// <summary>设置指定键的缓存值 — 手写 CAS 循环替代 ImmutableInterlocked.Update(volatile 字段触发 CS0420)。</summary>
     public async Task SetAsync<T>(string key, T value, TimeSpan? ttl = null) {
-        if (Volatile.Read(ref _entries).TryGetValue(key, out var existing))
+        if (_entries.TryGetValue(key, out var existing))
             await existing.DisposeAsync().ConfigureAwait(false);
-        var entry = new CacheEntryEntity<T>(key, value, ttl, sessionId: _sessionId);
-        ImmutableInterlocked.Update(ref _entries, d => d.SetItem(key, entry));
+        while (true) {
+            var current = _entries;
+            var updated = current.SetItem(key, new CacheEntryEntity<T>(key, value, ttl, sessionId: _sessionId));
+            if (Interlocked.CompareExchange(ref _entries, updated, current) == current) break;
+        }
     }
 
-    /// <summary>移除指定键的缓存项。</summary>
+    /// <summary>移除指定键的缓存项 — 手写 CAS 循环替代 ImmutableInterlocked.Update(volatile 字段触发 CS0420)。</summary>
     public async Task<bool> RemoveAsync(string key) {
         Entity? removed = null;
-        ImmutableInterlocked.Update(ref _entries, d => {
-            if (d.TryGetValue(key, out var e)) {
-                removed = e;
-                return d.Remove(key);
-            }
-            return d;
-        });
+        while (true) {
+            var current = _entries;
+            if (!current.TryGetValue(key, out var e)) break;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _entries, updated, current) == current) { removed = e; break; }
+        }
         if (removed is null) return false;
         await removed.DisposeAsync().ConfigureAwait(false);
         return true;
@@ -54,16 +56,20 @@ public sealed class SessionCache : ISessionCache {
 
     /// <summary>判断是否包含指定键的缓存项。</summary>
     public bool Contains(string key) {
-        if (!Volatile.Read(ref _entries).TryGetValue(key, out var entry))
+        if (!_entries.TryGetValue(key, out var entry))
             return false;
         if (entry is not CacheEntryEntity<object> typed)
             return true;
         return !typed.IsExpired;
     }
 
-    /// <summary>清空所有缓存项。</summary>
+    /// <summary>清空所有缓存项 — 手写 CAS 循环替代 Interlocked.Exchange(volatile 字段触发 CS0420),保留旧值用于 Dispose。</summary>
     public async Task ClearAsync() {
-        var snapshot = Interlocked.Exchange(ref _entries, ImmutableHamT<string, Entity>.Empty);
+        ImmutableHamT<string, Entity> snapshot = default!;
+        while (true) {
+            var current = _entries;
+            if (Interlocked.CompareExchange(ref _entries, ImmutableHamT<string, Entity>.Empty, current) == current) { snapshot = current; break; }
+        }
         foreach (var entry in snapshot.Values) {
             try { await entry.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { _ = ex; }
         }

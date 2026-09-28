@@ -5,10 +5,10 @@ namespace Core.CostTracking;
 /// </summary>
 [Register(typeof(IAnalyticsService), ServiceLifetime.Singleton)]
 public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService, IDisposable {
-    private ImmutableList<AnalyticsEvent> _events = ImmutableList<AnalyticsEvent>.Empty;
-    private ImmutableHamT<AnalyticsEventType, ImmutableList<AnalyticsEvent>> _byType = ImmutableHamT<AnalyticsEventType, ImmutableList<AnalyticsEvent>>.Empty;
-    private ImmutableHamT<DateTime, ImmutableList<AnalyticsEvent>> _byDate = ImmutableHamT<DateTime, ImmutableList<AnalyticsEvent>>.Empty;
-    private ImmutableHamT<string, ITelemetrySpan> _agentSpans = ImmutableHamT<string, ITelemetrySpan>.Empty;
+    private volatile ImmutableList<AnalyticsEvent> _events = ImmutableList<AnalyticsEvent>.Empty;
+    private volatile ImmutableHamT<AnalyticsEventType, ImmutableList<AnalyticsEvent>> _byType = ImmutableHamT<AnalyticsEventType, ImmutableList<AnalyticsEvent>>.Empty;
+    private volatile ImmutableHamT<DateTime, ImmutableList<AnalyticsEvent>> _byDate = ImmutableHamT<DateTime, ImmutableList<AnalyticsEvent>>.Empty;
+    private volatile ImmutableHamT<string, ITelemetrySpan> _agentSpans = ImmutableHamT<string, ITelemetrySpan>.Empty;
     private readonly ILogger<AnalyticsService>? _logger;
     private readonly IFileOperationService? _fileOperationService;
     private readonly string? _storagePath;
@@ -146,7 +146,10 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
                 span.SetTag("agent.session_id", sessionId);
             }
             var spanKey = $"{agentName}:{sessionId ?? string.Empty}";
-            ImmutableInterlocked.Update(ref _agentSpans, static (d, arg) => d.SetItem(arg.key, arg.span), (key: spanKey, span));
+            while (true) {
+                var current = _agentSpans;
+                if (Interlocked.CompareExchange(ref _agentSpans, current.SetItem(spanKey, span), current) == current) break;
+            }
         }
     }
 
@@ -169,21 +172,20 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
             },
             agentName);
 
-        if (_telemetryService != null) {
-            var spanKey = $"{agentName}:{sessionId ?? string.Empty}";
-            if (_agentSpans.TryGetValue(spanKey, out var span)) {
-                while (true) {
-                    var current = _agentSpans;
-                    if (Interlocked.CompareExchange(ref _agentSpans, current.Remove(spanKey), current) == current) break;
-                }
-                span.SetStatus(success ? TelemetryStatusCode.Ok : TelemetryStatusCode.Error);
-                span.SetTag("agent.duration_ms", durationMs);
-                await span.DisposeAsync().ConfigureAwait(false);
+        if (_telemetryService is null) return;
+        var spanKey = $"{agentName}:{sessionId ?? string.Empty}";
+        if (_agentSpans.TryGetValue(spanKey, out var span)) {
+            while (true) {
+                var current = _agentSpans;
+                if (Interlocked.CompareExchange(ref _agentSpans, current.Remove(spanKey), current) == current) break;
             }
-
-            var agentDuration = _telemetryService.GetHistogram("analytics.agent.duration", "ms", "Agent execution duration");
-            agentDuration.Record(durationMs, new Dictionary<string, string> { ["agent"] = agentName, ["success"] = success.ToString() });
+            span.SetStatus(success ? TelemetryStatusCode.Ok : TelemetryStatusCode.Error);
+            span.SetTag("agent.duration_ms", durationMs);
+            await span.DisposeAsync().ConfigureAwait(false);
         }
+
+        var agentDuration = _telemetryService.GetHistogram("analytics.agent.duration", "ms", "Agent execution duration");
+        agentDuration.Record(durationMs, new Dictionary<string, string> { ["agent"] = agentName, ["success"] = success.ToString() });
     }
 
     /// <summary>
@@ -437,15 +439,14 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
 
     private void TrimEventsIfNeeded() {
         var maxEvents = WorkflowConstants.Analytics.MaxEvents;
-        var trimmed = new StrongBox<bool>();
-
-        ImmutableInterlocked.Update(ref _events, static (list, arg) => {
-            if (list.Count <= arg.max) return list;
-            arg.trimmed.Value = true;
-            return list.RemoveRange(0, list.Count - arg.max);
-        }, (max: maxEvents, trimmed));
-
-        if (trimmed.Value) RebuildIndices();
+        var trimmed = false;
+        while (true) {
+            var current = _events;
+            if (current.Count <= maxEvents) break;
+            var updated = current.RemoveRange(0, current.Count - maxEvents);
+            if (Interlocked.CompareExchange(ref _events, updated, current) == current) { trimmed = true; break; }
+        }
+        if (trimmed) RebuildIndices();
     }
 
     private async Task SaveHistoryAsync(CancellationToken cancellationToken = default) {

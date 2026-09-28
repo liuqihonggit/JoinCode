@@ -153,7 +153,10 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
             monitor.Timer.Dispose();
         }
 
-        Interlocked.Exchange(ref _monitors, ImmutableHamT<string, TokenMonitor>.Empty);
+        while (true) {
+            var current = _monitors;
+            if (Interlocked.CompareExchange(ref _monitors, ImmutableHamT<string, TokenMonitor>.Empty, current) == current) break;
+        }
         base.Dispose();
     }
 

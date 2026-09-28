@@ -7,15 +7,19 @@ namespace Core.Utils;
 /// <para><b>死锁预防</b>:所有调用者对同一组资源按 ID 升序加锁,破坏"循环等待"条件。</para>
 /// </summary>
 public sealed class OrderedLockManager : IDisposable {
-    private ImmutableHamT<long, object> _locks = ImmutableHamT<long, object>.Empty;
+    private volatile ImmutableHamT<long, object> _locks = ImmutableHamT<long, object>.Empty;
     private int _disposed;
 
     private object GetLockObject(long id) {
-        var snapshot = Volatile.Read(ref _locks);
+        var snapshot = _locks;
         if (snapshot.TryGetValue(id, out var existing)) return existing;
         var newLock = new object();
-        ImmutableInterlocked.Update(ref _locks, d => d.ContainsKey(id) ? d : d.Add(id, newLock));
-        return Volatile.Read(ref _locks)[id];
+        while (true) {
+            var current = _locks;
+            if (current.ContainsKey(id)) break;
+            if (Interlocked.CompareExchange(ref _locks, current.Add(id, newLock), current) == current) break;
+        }
+        return _locks[id];
     }
 
     /// <summary>
@@ -53,7 +57,10 @@ public sealed class OrderedLockManager : IDisposable {
     /// <inheritdoc/>
     public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        Interlocked.Exchange(ref _locks, ImmutableHamT<long, object>.Empty);
+        while (true) {
+            var current = _locks;
+            if (Interlocked.CompareExchange(ref _locks, ImmutableHamT<long, object>.Empty, current) == current) break;
+        }
     }
 
     private sealed class UnlockToken : IDisposable {

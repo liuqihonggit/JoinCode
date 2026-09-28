@@ -24,11 +24,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         SingleReader = true,
         SingleWriter = false
     });
-    private readonly Channel<RetryEntry<TCommand>> _retryQueue = Channel.CreateBounded<RetryEntry<TCommand>>(new BoundedChannelOptions(1024) {
-        FullMode = BoundedChannelFullMode.Wait,
-        SingleReader = true,
-        SingleWriter = false
-    });
+    private readonly Channel<RetryEntry<TCommand>> _retryQueue;
     private int _disposed;
     private int _inputCount;
     private int _retryQueueCount;
@@ -78,6 +74,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         IdempotencyStore = idempotencyStore;
         _inputChannel = CreateInputChannel(backpressure);
         _outputChannel = CreateOutputChannel(outputCapacity);
+        _retryQueue = Channel.CreateBounded<RetryEntry<TCommand>>(new BoundedChannelOptions(backpressure?.RetryQueueCapacity ?? 1024) {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = true,
+            SingleWriter = false
+        });
         var taskOptions = (useLongRunning ? TaskCreationOptions.LongRunning : TaskCreationOptions.None) | TaskCreationOptions.DenyChildAttach;
         _consumerTask = Task.Factory.StartNew(
             ConsumeLoopAsync,
@@ -186,14 +187,42 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         Interlocked.Increment(ref _retryQueueCount);
         if (!_retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(cmd, 1))) {
             Interlocked.Decrement(ref _retryQueueCount);
-            _logger?.LogWarning("[Actor:{ActorId}] 重试队列满,消息丢弃", Id);
-            try {
-                SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(cmd, 0));
-            } catch (Exception ex) {
-                _logger?.LogWarning(ex, "[Actor:{ActorId}] SendFailed 订阅者异常忽略", Id);
-            }
+            _logger?.LogWarning("[Actor:{ActorId}] 重试队列满,首次入队失败,触发SendFailed", Id);
+            RaiseSendFailed(cmd, 0);
         }
     }
+
+    /// <summary>触发 SendFailed 事件 — 通知外部消息未能入队,可计入死信队列</summary>
+    private void RaiseSendFailed(TCommand command, int retryCount) {
+        try {
+            SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(command, retryCount));
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "[Actor:{ActorId}] SendFailed 订阅者异常忽略", Id);
+        }
+    }
+
+    /// <summary>
+    /// 尝试将重试条目回写到重试队列 — 超过最大重试次数或重试队列满时触发 SendFailed。
+    /// 返回 true 表示成功回写,false 表示失败(已触发 SendFailed)。
+    /// </summary>
+    /// <param name="entry">待回写的重试条目</param>
+    internal bool TryRequeueRetryEntry(RetryEntry<TCommand> entry) {
+        if (entry.Attempt >= EffectiveMaxRetries) {
+            RaiseSendFailed(entry.Command, EffectiveMaxRetries);
+            return false;
+        }
+        Interlocked.Increment(ref _retryQueueCount);
+        if (!_retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(entry.Command, entry.Attempt + 1))) {
+            Interlocked.Decrement(ref _retryQueueCount);
+            _logger?.LogWarning("[Actor:{ActorId}] 重试队列满,重试回写失败,触发SendFailed attempt={Attempt}", Id, entry.Attempt);
+            RaiseSendFailed(entry.Command, entry.Attempt);
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>重试队列 — 供测试直接写入构造边界条件(内部接口)</summary>
+    internal Channel<RetryEntry<TCommand>> RetryQueueInternal => _retryQueue;
 
     /// <summary>
     /// 单例重试队列处理 — 一个后台 Task 处理所有重试消息(P1-2: 替代每消息一 Task,高负载时不产生大量 Delay 任务)
@@ -218,16 +247,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                 }
                 Interlocked.Decrement(ref _inputCount);
 
-                if (entry.Attempt < EffectiveMaxRetries) {
-                    Interlocked.Increment(ref _retryQueueCount);
-                    _retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(entry.Command, entry.Attempt + 1));
-                } else {
-                    try {
-                        SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(entry.Command, EffectiveMaxRetries));
-                    } catch (Exception ex) {
-                        _logger?.LogWarning(ex, "[Actor:{ActorId}] SendFailed 订阅者异常忽略", Id);
-                    }
-                }
+                TryRequeueRetryEntry(entry);
             }
         } catch (OperationCanceledException) { }
     }

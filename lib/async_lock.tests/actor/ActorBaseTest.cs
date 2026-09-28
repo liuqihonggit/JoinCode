@@ -151,6 +151,43 @@ public class ActorBaseTest {
         actor.IsInputCriticalWatermark.Should().BeFalse();
     }
 
+    /// <summary>
+    /// P0-缺陷2: 重试回写失败时必须触发 SendFailed,不能静默丢弃消息。
+    /// 确定性测试: 直接填满重试队列,调用 TryRequeueRetryEntry 验证回写失败触发 SendFailed。
+    /// </summary>
+    [Fact]
+    public async Task RetryWriteBack_Failed_TriggersSendFailed() {
+        var bp = new ActorBackpressure(Capacity: 1, RetryQueueCapacity: 1);
+        await using var actor = new TestActor(bp);
+
+        var sendFailedEvents = new List<BackpressureSendFailedEventArgs<string>>();
+        actor.SendFailed += (_, e) => sendFailedEvents.Add(e);
+
+        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier", 1));
+
+        var result = actor.TryRequeueRetryEntry(new RetryEntry<string>("D", 1));
+
+        result.Should().BeFalse();
+        sendFailedEvents.Should().ContainSingle(e => e.Command == "D");
+    }
+
+    /// <summary>
+    /// P0-缺陷2: 重试次数耗尽时触发 SendFailed。
+    /// </summary>
+    [Fact]
+    public async Task RetryWriteBack_MaxRetriesExhausted_TriggersSendFailed() {
+        var bp = new ActorBackpressure(Capacity: 1, MaxRetries: 3);
+        await using var actor = new TestActor(bp);
+
+        var sendFailedEvents = new List<BackpressureSendFailedEventArgs<string>>();
+        actor.SendFailed += (_, e) => sendFailedEvents.Add(e);
+
+        var result = actor.TryRequeueRetryEntry(new RetryEntry<string>("X", 3));
+
+        result.Should().BeFalse();
+        sendFailedEvents.Should().ContainSingle(e => e.Command == "X" && e.RetryCount == 3);
+    }
+
     /// <summary>验证输出计数反映已发布的消息数</summary>
     [Fact]
     public async Task OutputCount_ReflectsPublishedMessages() {

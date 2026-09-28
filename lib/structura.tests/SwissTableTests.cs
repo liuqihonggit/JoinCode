@@ -211,4 +211,118 @@ public class SwissTableTests {
         var act = () => group.MatchGroup(group);
         act.Should().NotThrow("MatchGroup 应返回匹配结果，不应抛 NotImplementedException");
     }
+
+    // === P1 Bug 复现测试 ===
+
+    [Fact]
+    public void Bug_TrimExcess_ShouldExpandWhenCapacityLarger() {
+        var dict = new SwissTable<int, int>();
+        for (var i = 0; i < 10; i++) dict.Add(i, i);
+
+        var bucketsBefore = GetBuckets(dict);
+        dict.TrimExcess(1000);
+        var bucketsAfter = GetBuckets(dict);
+
+        bucketsAfter.Should().BeGreaterThan(bucketsBefore,
+            "TrimExcess(1000) 应扩容以容纳 1000 个条目");
+    }
+
+    [Fact]
+    public void Bug_Enumerator_DetectsAddDuringIteration() {
+        var dict = new SwissTable<int, int>();
+        for (var i = 0; i < 10; i++) dict.Add(i, i);
+
+        var enumerator = dict.GetEnumerator();
+        enumerator.MoveNext().Should().BeTrue();
+
+        dict.Add(100, 100);
+
+        var act = () => enumerator.MoveNext();
+        act.Should().Throw<InvalidOperationException>("迭代中 Add 应使枚举器失效");
+    }
+
+    [Fact]
+    public void Bug_LargeScale_GrowAndLookup() {
+        var dict = new SwissTable<int, int>(4);
+        for (var i = 0; i < 10000; i++) dict.Add(i, i * 2);
+
+        dict.Count.Should().Be(10000);
+        for (var i = 0; i < 10000; i++) {
+            dict.TryGetValue(i, out var v).Should().BeTrue();
+            v.Should().Be(i * 2);
+        }
+    }
+
+    [Fact]
+    public void Bug_Tombstone_ReuseAfterRemove() {
+        var dict = new SwissTable<int, int>();
+        for (var i = 0; i < 100; i++) dict.Add(i, i);
+        for (var i = 0; i < 50; i++) dict.Remove(i);
+        for (var i = 0; i < 50; i++) dict.Add(i, i + 1000);
+
+        dict.Count.Should().Be(100);
+        for (var i = 0; i < 50; i++) {
+            dict.TryGetValue(i, out var v).Should().BeTrue();
+            v.Should().Be(i + 1000, "墓碑槽应被复用");
+        }
+        for (var i = 50; i < 100; i++) {
+            dict.TryGetValue(i, out var v).Should().BeTrue();
+            v.Should().Be(i);
+        }
+    }
+
+    [Fact]
+    public void Bug_NullKey_ThrowsArgumentNullException() {
+        var dict = new SwissTable<string, int>();
+        var act = () => dict.Add(null!, 1);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Bug_FullCapacity_InsertTriggersGrow() {
+        var dict = new SwissTable<int, int>(4);
+        var bucketsBefore = GetBuckets(dict);
+        for (var i = 0; i < 100; i++) dict.Add(i, i);
+        var bucketsAfter = GetBuckets(dict);
+
+        bucketsAfter.Should().BeGreaterThan(bucketsBefore, "插入 100 个元素应触发扩容");
+        dict.Count.Should().Be(100);
+        for (var i = 0; i < 100; i++) {
+            dict.TryGetValue(i, out var v).Should().BeTrue();
+            v.Should().Be(i);
+        }
+    }
+
+    [Fact]
+    public void Bug_CopyTo_KvpArray() {
+        var dict = new SwissTable<int, int>();
+        for (var i = 0; i < 10; i++) dict.Add(i, i);
+
+        var array = new KeyValuePair<int, int>[10];
+        ((System.Collections.Generic.ICollection<KeyValuePair<int, int>>)dict).CopyTo(array, 0);
+
+        var keys = array.Select(kv => kv.Key).OrderBy(x => x).ToArray();
+        keys.Should().BeEquivalentTo(new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+    }
+
+    [Fact]
+    public void Bug_EnsureCapacity_PreventsFutureGrowth() {
+        var dict = new SwissTable<int, int>();
+        dict.EnsureCapacity(1000);
+
+        var bucketsBefore = GetBuckets(dict);
+        for (var i = 0; i < 500; i++) dict.Add(i, i);
+        var bucketsAfter = GetBuckets(dict);
+
+        bucketsAfter.Should().Be(bucketsBefore,
+            "EnsureCapacity(1000) 后插入 500 个元素不应触发扩容");
+    }
+
+    private static int GetBuckets(SwissTable<int, int> dict) {
+        var rawTableField = typeof(SwissTable<int, int>).GetField("rawTable", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var rawTable = rawTableField.GetValue(dict)!;
+        var bucketMaskField = rawTable.GetType().GetField("_bucket_mask", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var bucketMask = (int)bucketMaskField.GetValue(rawTable)!;
+        return bucketMask + 1;
+    }
 }

@@ -971,13 +971,8 @@ namespace Structura.Collections
 
             var idealBuckets = capacity_to_buckets(capacity);
 
-            // TODO: if the length is same, we might not need to resize, reference `rehash_in_place` in rust implementation.
-            if (idealBuckets <= this._buckets)
-            {
-                _version++;
-                this.GrowWorker(idealBuckets);
-                return;
-            }
+            _version++;
+            this.GrowWorker(idealBuckets);
         }
 
         /// <summary>

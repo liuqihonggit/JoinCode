@@ -93,11 +93,11 @@ namespace Structura.Collections
 
         internal IEqualityComparer<TKey>? _comparer;
 
-        // each add/expand/shrink will add one version, note that remove does not add version
-        // For Enumerator, if version is changed, one error will be thrown for enumerator should not changed.
+        // Add/扩容/Clear 递增，Enumerator 检测到此变化立即抛 InvalidOperationException。
         internal int _version;
 
-        // enumerator will not throw an error if this changed. Instead, it will refresh data.
+        // Remove 递增（不递增 _version）。Enumerator 检测到此变化时不抛异常，而是用 And 重算 BitMask 容忍并发删除。
+        // 设计理由：Remove 不改变表结构（只设 tombstone），枚举器可通过 BitMask.And(新 BitMask) 安全地跳过已删条目。
         internal int _tolerantVersion;
 
         internal RawTableInner rawTable;

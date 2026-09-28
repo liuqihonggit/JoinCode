@@ -210,7 +210,7 @@ namespace Structura.Collections
                             {
                                 while (true)
                                 {
-                                    var group = Sse2Group.load(ptr + probeSeq.pos);
+                                    var group = Sse2Group.Load(ptr + probeSeq.pos);
                                     var bitmask = group.MatchGroup(targetGroup);
                                     // TODO: Iterator and performance, if not influence, iterator would be clearer.
                                     while (bitmask.AnyBitSet())
@@ -250,7 +250,7 @@ namespace Structura.Collections
                             {
                                 while (true)
                                 {
-                                    var group = Sse2Group.load(ptr + probeSeq.pos);
+                                    var group = Sse2Group.Load(ptr + probeSeq.pos);
                                     var bitmask = group.MatchGroup(targetGroup);
                                     // TODO: Iterator and performance, if not influence, iterator would be clearer.
                                     while (bitmask.AnyBitSet())
@@ -290,7 +290,7 @@ namespace Structura.Collections
                         {
                             while (true)
                             {
-                                var group = Sse2Group.load(ptr + probeSeq.pos);
+                                var group = Sse2Group.Load(ptr + probeSeq.pos);
                                 var bitmask = group.MatchGroup(targetGroup);
                                 // TODO: Iterator and performance, if not influence, iterator would be clearer.
                                 while (bitmask.AnyBitSet())
@@ -343,7 +343,7 @@ namespace Structura.Collections
                     Debug.Assert(controls != null);
 
                     var h2_hash = h2(hash);
-                    var targetGroup = FallbackGroup.create(h2_hash);
+                    var targetGroup = FallbackGroup.Create(h2_hash);
                     var probeSeq = new ProbeSeq(hash, bucketMask);
 
                     if (hashComparer == null)
@@ -354,7 +354,7 @@ namespace Structura.Collections
                             {
                                 while (true)
                                 {
-                                    var group = FallbackGroup.load(ptr + probeSeq.pos);
+                                    var group = FallbackGroup.Load(ptr + probeSeq.pos);
                                     var bitmask = group.MatchGroup(targetGroup);
                                     // TODO: Iterator and performance, if not influence, iterator would be clearer.
                                     while (bitmask.AnyBitSet())
@@ -394,7 +394,7 @@ namespace Structura.Collections
                             {
                                 while (true)
                                 {
-                                    var group = FallbackGroup.load(ptr + probeSeq.pos);
+                                    var group = FallbackGroup.Load(ptr + probeSeq.pos);
                                     var bitmask = group.MatchGroup(targetGroup);
                                     // TODO: Iterator and performance, if not influence, iterator would be clearer.
                                     while (bitmask.AnyBitSet())
@@ -434,7 +434,7 @@ namespace Structura.Collections
                         {
                             while (true)
                             {
-                                var group = FallbackGroup.load(ptr + probeSeq.pos);
+                                var group = FallbackGroup.Load(ptr + probeSeq.pos);
                                 var bitmask = group.MatchGroup(targetGroup);
                                 // TODO: Iterator and performance, if not influence, iterator would be clearer.
                                 while (bitmask.AnyBitSet())

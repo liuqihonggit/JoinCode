@@ -202,7 +202,7 @@ namespace Structura.Collections
         /// 将特殊字节（空或已删除）转换为空标记，将满字节转换为已删除标记，用于调整组内字节状态。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Avx2Group convert_special_to_empty_and_full_to_deleted()
+        public Avx2Group ConvertSpecialToEmptyAndFullToDeleted()
         {
             // Map high_bit = 1 (EMPTY or DELETED) to 1111_1111
             // and high_bit = 0 (FULL) to 1000_0000

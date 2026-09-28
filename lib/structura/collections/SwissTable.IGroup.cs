@@ -7,7 +7,7 @@ namespace Structura.Collections
     /// <summary>
     /// 探测组接口，定义瑞士表中按组批量匹配字节并产出位掩码的操作契约。
     /// </summary>
-    /// <remarks>After C#11, `static_empty`, `create`, `load` and `load_aligned` should become static abstract method</remarks>
+    /// <remarks>After C#11, `StaticEmpty`, `Create`, `Load` and `LoadAligned` should become static abstract method</remarks>
     internal interface IGroup<BitMaskImpl, GroupImpl>
         where BitMaskImpl : unmanaged, IBitMask<BitMaskImpl>
         where GroupImpl : unmanaged, IGroup<BitMaskImpl, GroupImpl>
@@ -17,7 +17,7 @@ namespace Structura.Collections
         ///// value for an empty hash table.
         ///// </summary>
         ///// <returns></returns>
-        ////byte[] static_empty { get; }
+        ////byte[] StaticEmpty { get; }
 
         ///// <summary>
         ///// The bytes that the group data ocupies
@@ -27,7 +27,7 @@ namespace Structura.Collections
         ///// </remarks>
         ////int WIDTH { get; }
 
-        ////unsafe GroupImpl load(byte* ptr);
+        ////unsafe GroupImpl Load(byte* ptr);
 
         ///// <summary>
         ///// Loads a group of bytes starting at the given address, which must be
@@ -35,7 +35,7 @@ namespace Structura.Collections
         ///// </summary>
         ///// <param name="ptr"></param>
         ///// <returns></returns>
-        ////unsafe GroupImpl load_aligned(byte* ptr);
+        ////unsafe GroupImpl LoadAligned(byte* ptr);
 
         /// <summary>
         /// Performs the following transformation on all bytes in the group:
@@ -44,7 +44,7 @@ namespace Structura.Collections
         /// - `FULL => DELETED`
         /// </summary>
         /// <returns></returns>
-        GroupImpl convert_special_to_empty_and_full_to_deleted();
+        GroupImpl ConvertSpecialToEmptyAndFullToDeleted();
 
         /// <summary>
         /// Stores the group of bytes to the given address, which must be
@@ -68,7 +68,7 @@ namespace Structura.Collections
         // <returns></returns>
         // match_byte is good enough, however, we do not have readonly parameter now,
         // so we need add this as an optimsation.
-        // GroupImpl create(byte b);
+        // GroupImpl Create(byte b);
 
         // match_byte is good enough, however, we do not have readonly parameter now,
         // so we need add this as an optimsation.

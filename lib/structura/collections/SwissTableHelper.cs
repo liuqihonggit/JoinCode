@@ -158,11 +158,11 @@ namespace Structura.Collections
             else
             if (Sse2.IsSupported)
             {
-                return Sse2Group.static_empty;
+                return Sse2Group.StaticEmpty;
             }
             else
             {
-                return FallbackGroup.static_empty;
+                return FallbackGroup.StaticEmpty;
             }
         }
 
@@ -210,7 +210,7 @@ namespace Structura.Collections
             BitMaskUnion result = default;
             fixed (byte* ctrl = &controls[index])
             {
-                result.sse2BitMask = Sse2Group.load(ctrl).MatchFull();
+                result.sse2BitMask = Sse2Group.Load(ctrl).MatchFull();
             }
             return result;
         }
@@ -222,7 +222,7 @@ namespace Structura.Collections
             BitMaskUnion result = default;
             fixed (byte* ctrl = &controls[index])
             {
-                result.fallbackBitMask = FallbackGroup.load(ctrl).MatchFull();
+                result.fallbackBitMask = FallbackGroup.Load(ctrl).MatchFull();
             }
             return result;
         }
@@ -490,8 +490,8 @@ namespace Structura.Collections
             fixed (byte* ptr_before = &controls[indexBefore])
             fixed (byte* ptr = &controls[index])
             {
-                var empty_before = Sse2Group.load(ptr_before).MatchEmpty();
-                var empty_after = Sse2Group.load(ptr).MatchEmpty();
+                var empty_before = Sse2Group.Load(ptr_before).MatchEmpty();
+                var empty_after = Sse2Group.Load(ptr).MatchEmpty();
                 return empty_before.LeadingZeros() + empty_after.TrailingZeros() < GROUP_WIDTH;
             }
         }
@@ -505,8 +505,8 @@ namespace Structura.Collections
             fixed (byte* ptr_before = &controls[indexBefore])
             fixed (byte* ptr = &controls[index])
             {
-                var empty_before = FallbackGroup.load(ptr_before).MatchEmpty();
-                var empty_after = FallbackGroup.load(ptr).MatchEmpty();
+                var empty_before = FallbackGroup.Load(ptr_before).MatchEmpty();
+                var empty_after = FallbackGroup.Load(ptr).MatchEmpty();
                 return empty_before.LeadingZeros() + empty_after.TrailingZeros() < GROUP_WIDTH;
             }
         }
@@ -679,7 +679,7 @@ namespace Structura.Collections
                     {
                         while (true)
                         {
-                            var group = Sse2Group.load(ptr + probeSeq.pos);
+                            var group = Sse2Group.Load(ptr + probeSeq.pos);
                             var bitmask = group.MatchGroup(targetGroup);
                             // TODO: Iterator and performance, if not influence, iterator would be clearer.
                             while (bitmask.AnyBitSet())
@@ -710,7 +710,7 @@ namespace Structura.Collections
                     {
                         while (true)
                         {
-                            var group = Sse2Group.load(ptr + probeSeq.pos);
+                            var group = Sse2Group.Load(ptr + probeSeq.pos);
                             var bitmask = group.MatchGroup(targetGroup);
                             // TODO: Iterator and performance, if not influence, iterator would be clearer.
                             while (bitmask.AnyBitSet())
@@ -741,7 +741,7 @@ namespace Structura.Collections
                 {
                     while (true)
                     {
-                        var group = Sse2Group.load(ptr + probeSeq.pos);
+                        var group = Sse2Group.Load(ptr + probeSeq.pos);
                         var bitmask = group.MatchGroup(targetGroup);
                         // TODO: Iterator and performance, if not influence, iterator would be clearer.
                         while (bitmask.AnyBitSet())
@@ -781,7 +781,7 @@ namespace Structura.Collections
             Debug.Assert(controls != null);
 
             var h2_hash = h2(hash);
-            var targetGroup = FallbackGroup.create(h2_hash);
+            var targetGroup = FallbackGroup.Create(h2_hash);
             var probeSeq = new ProbeSeq(hash, bucketMask);
 
             if (hashComparer == null)
@@ -792,7 +792,7 @@ namespace Structura.Collections
                     {
                         while (true)
                         {
-                            var group = FallbackGroup.load(ptr + probeSeq.pos);
+                            var group = FallbackGroup.Load(ptr + probeSeq.pos);
                             var bitmask = group.MatchGroup(targetGroup);
                             // TODO: Iterator and performance, if not influence, iterator would be clearer.
                             while (bitmask.AnyBitSet())
@@ -823,7 +823,7 @@ namespace Structura.Collections
                     {
                         while (true)
                         {
-                            var group = FallbackGroup.load(ptr + probeSeq.pos);
+                            var group = FallbackGroup.Load(ptr + probeSeq.pos);
                             var bitmask = group.MatchGroup(targetGroup);
                             // TODO: Iterator and performance, if not influence, iterator would be clearer.
                             while (bitmask.AnyBitSet())
@@ -854,7 +854,7 @@ namespace Structura.Collections
                 {
                     while (true)
                     {
-                        var group = FallbackGroup.load(ptr + probeSeq.pos);
+                        var group = FallbackGroup.Load(ptr + probeSeq.pos);
                         var bitmask = group.MatchGroup(targetGroup);
                         // TODO: Iterator and performance, if not influence, iterator would be clearer.
                         while (bitmask.AnyBitSet())
@@ -1050,7 +1050,7 @@ namespace Structura.Collections
                     {
                         while (true)
                         {
-                            var group = Sse2Group.load(ptr + probeSeq.pos);
+                            var group = Sse2Group.Load(ptr + probeSeq.pos);
                             var bitmask = group.MatchGroup(targetGroup);
                             // TODO: Iterator and performance, if not influence, iterator would be clearer.
                             while (bitmask.AnyBitSet())
@@ -1081,7 +1081,7 @@ namespace Structura.Collections
                     {
                         while (true)
                         {
-                            var group = Sse2Group.load(ptr + probeSeq.pos);
+                            var group = Sse2Group.Load(ptr + probeSeq.pos);
                             var bitmask = group.MatchGroup(targetGroup);
                             // TODO: Iterator and performance, if not influence, iterator would be clearer.
                             while (bitmask.AnyBitSet())
@@ -1112,7 +1112,7 @@ namespace Structura.Collections
                 {
                     while (true)
                     {
-                        var group = Sse2Group.load(ptr + probeSeq.pos);
+                        var group = Sse2Group.Load(ptr + probeSeq.pos);
                         var bitmask = group.MatchGroup(targetGroup);
                         // TODO: Iterator and performance, if not influence, iterator would be clearer.
                         while (bitmask.AnyBitSet())
@@ -1153,7 +1153,7 @@ namespace Structura.Collections
 
             var hash = hashComparer == null ? key.GetHashCode() : hashComparer.GetHashCode(key);
             var h2_hash = h2(hash);
-            var targetGroup = FallbackGroup.create(h2_hash);
+            var targetGroup = FallbackGroup.Create(h2_hash);
             var probeSeq = new ProbeSeq(hash, bucketMask);
 
             if (hashComparer == null)
@@ -1164,7 +1164,7 @@ namespace Structura.Collections
                     {
                         while (true)
                         {
-                            var group = FallbackGroup.load(ptr + probeSeq.pos);
+                            var group = FallbackGroup.Load(ptr + probeSeq.pos);
                             var bitmask = group.MatchGroup(targetGroup);
                             // TODO: Iterator and performance, if not influence, iterator would be clearer.
                             while (bitmask.AnyBitSet())
@@ -1195,7 +1195,7 @@ namespace Structura.Collections
                     {
                         while (true)
                         {
-                            var group = FallbackGroup.load(ptr + probeSeq.pos);
+                            var group = FallbackGroup.Load(ptr + probeSeq.pos);
                             var bitmask = group.MatchGroup(targetGroup);
                             // TODO: Iterator and performance, if not influence, iterator would be clearer.
                             while (bitmask.AnyBitSet())
@@ -1226,7 +1226,7 @@ namespace Structura.Collections
                 {
                     while (true)
                     {
-                        var group = FallbackGroup.load(ptr + probeSeq.pos);
+                        var group = FallbackGroup.Load(ptr + probeSeq.pos);
                         var bitmask = group.MatchGroup(targetGroup);
                         // TODO: Iterator and performance, if not influence, iterator would be clearer.
                         while (bitmask.AnyBitSet())
@@ -1330,7 +1330,7 @@ namespace Structura.Collections
 
             fixed (byte* ptr = &controls[0])
             {
-                var bitMask = Sse2Group.load(ptr).MatchFull();
+                var bitMask = Sse2Group.Load(ptr).MatchFull();
                 while (true)
                 {
                     var lowestSetBit = bitMask.LowestSetBit();
@@ -1347,7 +1347,7 @@ namespace Structura.Collections
                     {
                         break;
                     }
-                    bitMask = Sse2Group.load(ptr + offset).MatchFull();
+                    bitMask = Sse2Group.Load(ptr + offset).MatchFull();
                 }
             }
         }
@@ -1366,7 +1366,7 @@ namespace Structura.Collections
 
             fixed (byte* ptr = &controls[0])
             {
-                var bitMask = FallbackGroup.load(ptr).MatchFull();
+                var bitMask = FallbackGroup.Load(ptr).MatchFull();
                 while (true)
                 {
                     var lowestSetBit = bitMask.LowestSetBit();
@@ -1383,7 +1383,7 @@ namespace Structura.Collections
                     {
                         break;
                     }
-                    bitMask = FallbackGroup.load(ptr + offset).MatchFull();
+                    bitMask = FallbackGroup.Load(ptr + offset).MatchFull();
                 }
             }
         }
@@ -1469,7 +1469,7 @@ namespace Structura.Collections
                 {
                     // TODO: maybe we should lock even fix the whole loop.
                     // I am not sure which would be faster.
-                    var bit = Sse2Group.load(ptr + probeSeq.pos)
+                    var bit = Sse2Group.Load(ptr + probeSeq.pos)
                         .MatchEmptyOrDeleted()
                         .LowestSetBit();
                     if (bit >= 0)
@@ -1491,7 +1491,7 @@ namespace Structura.Collections
                         }
                         Debug.Assert(bucketMask < GROUP_WIDTH);
                         Debug.Assert(probeSeq.pos != 0);
-                        return Sse2Group.load(ptr)
+                        return Sse2Group.Load(ptr)
                             .MatchEmptyOrDeleted()
                             .LowestSetBitNonzero();
                     }
@@ -1512,7 +1512,7 @@ namespace Structura.Collections
                 {
                     // TODO: maybe we should lock even fix the whole loop.
                     // I am not sure which would be faster.
-                    var bit = FallbackGroup.load(ptr + probeSeq.pos)
+                    var bit = FallbackGroup.Load(ptr + probeSeq.pos)
                         .MatchEmptyOrDeleted()
                         .LowestSetBit();
                     if (bit >= 0)
@@ -1534,7 +1534,7 @@ namespace Structura.Collections
                         }
                         Debug.Assert(bucketMask < GROUP_WIDTH);
                         Debug.Assert(probeSeq.pos != 0);
-                        return FallbackGroup.load(ptr)
+                        return FallbackGroup.Load(ptr)
                             .MatchEmptyOrDeleted()
                             .LowestSetBitNonzero();
                     }

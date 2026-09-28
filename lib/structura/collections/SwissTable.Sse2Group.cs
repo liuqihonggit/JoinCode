@@ -119,7 +119,7 @@ namespace Structura.Collections
         /// <summary>
         /// 静态空字节数组，所有元素初始化为 EMPTY 标记，用于初始化空组。
         /// </summary>
-        public static readonly byte[] static_empty = InitialStaticEmpty();
+        public static readonly byte[] StaticEmpty = InitialStaticEmpty();
 
         private static byte[] InitialStaticEmpty()
         {
@@ -132,7 +132,7 @@ namespace Structura.Collections
         /// 从非对齐字节指针加载 16 字节数据构造 SSE2 组。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe Sse2Group load(byte* ptr)
+        public static unsafe Sse2Group Load(byte* ptr)
         {
             return new Sse2Group(Sse2.LoadVector128(ptr));
         }
@@ -141,7 +141,7 @@ namespace Structura.Collections
         /// 从 16 字节对齐的字节指针加载数据构造 SSE2 组。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe Sse2Group load_aligned(byte* ptr)
+        public static unsafe Sse2Group LoadAligned(byte* ptr)
         {
             // `uint` casting is OK, WIDTH is 16, so checking lowest 4 bits for address align
             Debug.Assert(((uint)ptr & (WIDTH - 1)) == 0);
@@ -206,7 +206,7 @@ namespace Structura.Collections
         /// 将特殊字节（空或已删除）转换为空标记，将满字节转换为已删除标记，用于调整组内字节状态。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Sse2Group convert_special_to_empty_and_full_to_deleted()
+        public Sse2Group ConvertSpecialToEmptyAndFullToDeleted()
         {
             // Map high_bit = 1 (EMPTY or DELETED) to 1111_1111
             // and high_bit = 0 (FULL) to 1000_0000

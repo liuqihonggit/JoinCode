@@ -131,7 +131,7 @@ namespace Structura.Collections
         /// <summary>
         /// 全部字节初始化为 EMPTY 的空探测组模板，用作空哈希表的初始填充值。
         /// </summary>
-        public static readonly byte[] static_empty = InitialStaticEmpty();
+        public static readonly byte[] StaticEmpty = InitialStaticEmpty();
 
         private static byte[] InitialStaticEmpty()
         {
@@ -146,7 +146,7 @@ namespace Structura.Collections
         /// <param name="ptr">起始字节地址。</param>
         /// <returns>加载得到的探测组实例。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe FallbackGroup load(byte* ptr)
+        public static unsafe FallbackGroup Load(byte* ptr)
         {
             return new FallbackGroup(Unsafe.ReadUnaligned<nuint>(ptr));
         }
@@ -157,7 +157,7 @@ namespace Structura.Collections
         /// <param name="ptr">按 WIDTH 对齐的起始字节地址。</param>
         /// <returns>加载得到的探测组实例。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe FallbackGroup load_aligned(byte* ptr)
+        public static unsafe FallbackGroup LoadAligned(byte* ptr)
         {
             // uint casting is OK, for WIDTH only use low 16 bits now.
             Debug.Assert(((uint)ptr & (WIDTH - 1)) == 0);
@@ -186,7 +186,7 @@ namespace Structura.Collections
         /// </summary>
         /// <returns>变换后的新探测组。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FallbackGroup convert_special_to_empty_and_full_to_deleted()
+        public FallbackGroup ConvertSpecialToEmptyAndFullToDeleted()
         {
             // Map high_bit = 1 (EMPTY or DELETED) to 1111_1111
             // and high_bit = 0 (FULL) to 1000_0000
@@ -267,7 +267,7 @@ namespace Structura.Collections
         /// </summary>
         /// <param name="b">待广播的字节值。</param>
         /// <returns>广播得到的探测组实例。</returns>
-        public static FallbackGroup create(byte b)
+        public static FallbackGroup Create(byte b)
         {
             return new FallbackGroup(repeat(b));
         }

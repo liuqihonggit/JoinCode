@@ -201,13 +201,13 @@ public class SwissTableTests {
 
     [Fact]
     public void Bug_FallbackGroup_Create_ShouldNotThrow() {
-        var act = () => Structura.Collections.FallbackGroup.create(0x7F);
+        var act = () => Structura.Collections.FallbackGroup.Create(0x7F);
         act.Should().NotThrow("create 应返回有效组，不应抛 NotImplementedException");
     }
 
     [Fact]
     public void Bug_FallbackGroup_MatchGroup_ShouldNotThrow() {
-        var group = Structura.Collections.FallbackGroup.create(0x7F);
+        var group = Structura.Collections.FallbackGroup.Create(0x7F);
         var act = () => group.MatchGroup(group);
         act.Should().NotThrow("MatchGroup 应返回匹配结果，不应抛 NotImplementedException");
     }

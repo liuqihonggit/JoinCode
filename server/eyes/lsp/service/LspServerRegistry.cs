@@ -5,8 +5,8 @@ namespace Services.Lsp.Internal;
 /// 提供按服务器名 / 文件扩展名的查找入口。
 /// </summary>
 internal sealed class LspServerRegistry {
-    private ImmutableHamT<string, LspServerInstance> _servers = ImmutableHamT<string, LspServerInstance>.Empty;
-    private ImmutableHamT<string, ImmutableList<string>> _extensionMap = ImmutableHamT<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private volatile ImmutableHamT<string, LspServerInstance> _servers = ImmutableHamT<string, LspServerInstance>.Empty;
+    private volatile ImmutableHamT<string, ImmutableList<string>> _extensionMap = ImmutableHamT<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 已注册服务器数量。
@@ -22,12 +22,18 @@ internal sealed class LspServerRegistry {
     /// 注册服务器实例并建立扩展名映射。
     /// </summary>
     public void Register(string name, LspServerInstance instance, Dictionary<string, string> extensionToLanguage) {
-        ImmutableInterlocked.Update(ref _servers, d => d.SetItem(name, instance));
+        while (true) {
+            var current = _servers;
+            var updated = current.SetItem(name, instance);
+            if (Interlocked.CompareExchange(ref _servers, updated, current) == current) break;
+        }
         foreach (var kvp in extensionToLanguage) {
-            ImmutableInterlocked.Update(ref _extensionMap, d => {
-                var list = d.TryGetValue(kvp.Key, out var existing) ? existing : ImmutableList<string>.Empty;
-                return d.SetItem(kvp.Key, list.Add(name));
-            });
+            while (true) {
+                var current = _extensionMap;
+                var list = current.TryGetValue(kvp.Key, out var existing) ? existing : ImmutableList<string>.Empty;
+                var updated = current.SetItem(kvp.Key, list.Add(name));
+                if (Interlocked.CompareExchange(ref _extensionMap, updated, current) == current) break;
+            }
         }
     }
 
@@ -57,7 +63,13 @@ internal sealed class LspServerRegistry {
     /// 清空所有服务器和扩展名映射 — 用于 Shutdown/Dispose。
     /// </summary>
     public void Clear() {
-        Interlocked.Exchange(ref _servers, ImmutableHamT<string, LspServerInstance>.Empty);
-        Interlocked.Exchange(ref _extensionMap, ImmutableHamT<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
+        while (true) {
+            var current = _servers;
+            if (Interlocked.CompareExchange(ref _servers, ImmutableHamT<string, LspServerInstance>.Empty, current) == current) break;
+        }
+        while (true) {
+            var current = _extensionMap;
+            if (Interlocked.CompareExchange(ref _extensionMap, ImmutableHamT<string, ImmutableList<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase), current) == current) break;
+        }
     }
 }

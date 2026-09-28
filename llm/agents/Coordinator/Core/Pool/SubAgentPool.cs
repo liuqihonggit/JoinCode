@@ -190,7 +190,10 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
 
         foreach (var (_, entry) in _pool)
             entry.Agent.Dispose();
-        Interlocked.Exchange(ref _pool, ImmutableHamT<string, PooledAgent>.Empty);
+        while (true) {
+            var current = _pool;
+            if (Interlocked.CompareExchange(ref _pool, ImmutableHamT<string, PooledAgent>.Empty, current) == current) break;
+        }
 
         return ValueTask.CompletedTask;
     }

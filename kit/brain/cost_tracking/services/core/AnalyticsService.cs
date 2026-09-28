@@ -172,7 +172,10 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         if (_telemetryService != null) {
             var spanKey = $"{agentName}:{sessionId ?? string.Empty}";
             if (_agentSpans.TryGetValue(spanKey, out var span)) {
-                ImmutableInterlocked.Update(ref _agentSpans, static (d, k) => d.Remove(k), spanKey);
+                while (true) {
+                    var current = _agentSpans;
+                    if (Interlocked.CompareExchange(ref _agentSpans, current.Remove(spanKey), current) == current) break;
+                }
                 span.SetStatus(success ? TelemetryStatusCode.Ok : TelemetryStatusCode.Error);
                 span.SetTag("agent.duration_ms", durationMs);
                 await span.DisposeAsync().ConfigureAwait(false);
@@ -281,18 +284,28 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         if (olderThanDays.HasValue) {
             var cutoffDate = _clock.GetUtcNow().AddDays(-olderThanDays.Value);
 
-            ImmutableInterlocked.Update(ref _events, static (list, cutoff) => {
+            while (true) {
+                var current = _events;
                 var builder = ImmutableList.CreateBuilder<AnalyticsEvent>();
-                foreach (var e in list) if (e.Timestamp >= cutoff) builder.Add(e);
-                return builder.ToImmutable();
-            }, cutoffDate);
+                foreach (var e in current) if (e.Timestamp >= cutoffDate) builder.Add(e);
+                if (Interlocked.CompareExchange(ref _events, builder.ToImmutable(), current) == current) break;
+            }
             RebuildIndices();
 
             _logger?.LogInformation("已清除 {Days} 天前的分析数据", olderThanDays.Value);
         } else {
-            Interlocked.Exchange(ref _events, ImmutableList<AnalyticsEvent>.Empty);
-            Interlocked.Exchange(ref _byType, ImmutableHamT<AnalyticsEventType, ImmutableList<AnalyticsEvent>>.Empty);
-            Interlocked.Exchange(ref _byDate, ImmutableHamT<DateTime, ImmutableList<AnalyticsEvent>>.Empty);
+            while (true) {
+                var current = _events;
+                if (Interlocked.CompareExchange(ref _events, ImmutableList<AnalyticsEvent>.Empty, current) == current) break;
+            }
+            while (true) {
+                var current = _byType;
+                if (Interlocked.CompareExchange(ref _byType, ImmutableHamT<AnalyticsEventType, ImmutableList<AnalyticsEvent>>.Empty, current) == current) break;
+            }
+            while (true) {
+                var current = _byDate;
+                if (Interlocked.CompareExchange(ref _byDate, ImmutableHamT<DateTime, ImmutableList<AnalyticsEvent>>.Empty, current) == current) break;
+            }
             _logger?.LogInformation("已清除所有分析数据");
         }
 
@@ -334,16 +347,21 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <para>所有列表按 Timestamp 升序排序存储(二分法插入),制造排序条件提升检索效率。</para>
     /// </summary>
     private void AddEventToIndices(AnalyticsEvent e) {
-        ImmutableInterlocked.Update(ref _events, static (list, ev) => InsertByTime(list, ev), e);
-        ImmutableInterlocked.Update(ref _byType, static (dict, ev) => {
-            var list = dict.GetValueOrDefault(ev.Type) ?? ImmutableList<AnalyticsEvent>.Empty;
-            return dict.SetItem(ev.Type, InsertByTime(list, ev));
-        }, e);
-        ImmutableInterlocked.Update(ref _byDate, static (dict, ev) => {
-            var date = ev.Timestamp.Date;
-            var list = dict.GetValueOrDefault(date) ?? ImmutableList<AnalyticsEvent>.Empty;
-            return dict.SetItem(date, InsertByTime(list, ev));
-        }, e);
+        while (true) {
+            var current = _events;
+            if (Interlocked.CompareExchange(ref _events, InsertByTime(current, e), current) == current) break;
+        }
+        while (true) {
+            var current = _byType;
+            var list = current.GetValueOrDefault(e.Type) ?? ImmutableList<AnalyticsEvent>.Empty;
+            if (Interlocked.CompareExchange(ref _byType, current.SetItem(e.Type, InsertByTime(list, e)), current) == current) break;
+        }
+        while (true) {
+            var current = _byDate;
+            var date = e.Timestamp.Date;
+            var list = current.GetValueOrDefault(date) ?? ImmutableList<AnalyticsEvent>.Empty;
+            if (Interlocked.CompareExchange(ref _byDate, current.SetItem(date, InsertByTime(list, e)), current) == current) break;
+        }
     }
 
     private static readonly IComparer<AnalyticsEvent> s_timeComparer = Comparer<AnalyticsEvent>.Create(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));

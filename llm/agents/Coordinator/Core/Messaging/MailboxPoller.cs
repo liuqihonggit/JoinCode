@@ -154,7 +154,10 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
                 TaskContinuationOptions.ExecuteSynchronously));
         }
 
-        Interlocked.Exchange(ref _pollingAgents, ImmutableHamT<string, CancellationTokenSource>.Empty);
+        while (true) {
+            var current = _pollingAgents;
+            if (Interlocked.CompareExchange(ref _pollingAgents, ImmutableHamT<string, CancellationTokenSource>.Empty, current) == current) break;
+        }
         return tasks.Count == 0 ? ValueTask.CompletedTask : new ValueTask(Task.WhenAll(tasks));
     }
 }

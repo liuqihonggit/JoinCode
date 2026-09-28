@@ -5,7 +5,7 @@ namespace JoinCode.Tui.Pipes;
 /// 线程安全：使用 ConcurrentDictionary 存储管道。
 /// </summary>
 public sealed class PipeRegistry {
-    private ImmutableHamT<string, IMessagePipe> _pipes = ImmutableHamT<string, IMessagePipe>.Empty;
+    private volatile ImmutableHamT<string, IMessagePipe> _pipes = ImmutableHamT<string, IMessagePipe>.Empty;
 
     /// <summary>已注册管道数量。</summary>
     public int Count => Volatile.Read(ref _pipes).Count;
@@ -18,20 +18,21 @@ public sealed class PipeRegistry {
 
     /// <summary>注册管道。已存在同 AgentId 则覆盖。</summary>
     public void Register(IMessagePipe pipe) {
-        ImmutableInterlocked.Update(ref _pipes, d => d.SetItem(pipe.AgentId, pipe));
+        while (true) {
+            var current = _pipes;
+            var updated = current.SetItem(pipe.AgentId, pipe);
+            if (Interlocked.CompareExchange(ref _pipes, updated, current) == current) break;
+        }
     }
 
     /// <summary>注销管道。</summary>
     public bool Unregister(string agentId) {
-        var removed = false;
-        ImmutableInterlocked.Update(ref _pipes, d => {
-            if (d.ContainsKey(agentId)) {
-                removed = true;
-                return d.Remove(agentId);
-            }
-            return d;
-        });
-        return removed;
+        while (true) {
+            var current = _pipes;
+            if (!current.ContainsKey(agentId)) return false;
+            var updated = current.Remove(agentId);
+            if (Interlocked.CompareExchange(ref _pipes, updated, current) == current) return true;
+        }
     }
 
     /// <summary>获取指定 Agent 的管道。不存在返回 null。</summary>
@@ -46,6 +47,9 @@ public sealed class PipeRegistry {
 
     /// <summary>清空所有管道。</summary>
     public void Clear() {
-        Interlocked.Exchange(ref _pipes, ImmutableHamT<string, IMessagePipe>.Empty);
+        while (true) {
+            var current = _pipes;
+            if (Interlocked.CompareExchange(ref _pipes, ImmutableHamT<string, IMessagePipe>.Empty, current) == current) break;
+        }
     }
 }

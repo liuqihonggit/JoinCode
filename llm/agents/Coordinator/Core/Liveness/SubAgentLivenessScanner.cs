@@ -266,7 +266,10 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
         _stateMachine.StateChanged -= OnStateChanged;
         _stopping = true;
         _scanTimer?.Dispose();
-        Interlocked.Exchange(ref _detectors, ImmutableHamT<string, SubAgentIdleDetector>.Empty);
+        while (true) {
+            var current = _detectors;
+            if (Interlocked.CompareExchange(ref _detectors, ImmutableHamT<string, SubAgentIdleDetector>.Empty, current) == current) break;
+        }
         return ValueTask.CompletedTask;
     }
 }

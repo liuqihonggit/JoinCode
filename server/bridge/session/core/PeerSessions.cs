@@ -265,7 +265,7 @@ public sealed partial class PeerMessageEventArgs : EventArgs {
 /// 对等节点路由表 - 管理节点 ID 到端点的映射
 /// </summary>
 public sealed partial class PeerSessionRouter {
-    private ImmutableHamT<string, string> _routes = ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.Ordinal);
+    private volatile ImmutableHamT<string, string> _routes = ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.Ordinal);
 
     /// <summary>当前路由数量</summary>
     public int RouteCount => Volatile.Read(ref _routes).Count;
@@ -278,7 +278,11 @@ public sealed partial class PeerSessionRouter {
     public void RegisterRoute(string peerId, string endpoint) {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
-        ImmutableInterlocked.Update(ref _routes, d => d.SetItem(peerId, endpoint));
+        while (true) {
+            var current = _routes;
+            var updated = current.SetItem(peerId, endpoint);
+            if (Interlocked.CompareExchange(ref _routes, updated, current) == current) break;
+        }
     }
 
     /// <summary>
@@ -286,7 +290,11 @@ public sealed partial class PeerSessionRouter {
     /// </summary>
     /// <param name="peerId">对等节点 ID</param>
     public void UnregisterRoute(string peerId) {
-        ImmutableInterlocked.Update(ref _routes, d => d.Remove(peerId));
+        while (true) {
+            var current = _routes;
+            var updated = current.Remove(peerId);
+            if (Interlocked.CompareExchange(ref _routes, updated, current) == current) break;
+        }
     }
 
     /// <summary>
@@ -315,5 +323,10 @@ public sealed partial class PeerSessionRouter {
     /// <summary>
     /// 清除所有路由
     /// </summary>
-    public void Clear() => Interlocked.Exchange(ref _routes, ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.Ordinal));
+    public void Clear() {
+        while (true) {
+            var current = _routes;
+            if (Interlocked.CompareExchange(ref _routes, ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.Ordinal), current) == current) break;
+        }
+    }
 }

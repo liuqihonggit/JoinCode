@@ -135,20 +135,28 @@ public class ActorBaseTest {
     }
 
     /// <summary>
-    /// P0-缺陷1: 水位判断应基于 Channel 原生 Count 而非 Interlocked 计数器。
-    /// Interlocked 计数器与 Channel 实际数量在并发场景下不一致，会导致水位线误触发。
+    /// P0-B: InputCount 统一使用 Channel 原生 Count,不再有 Interlocked 计数器。
+    /// 消息在输入通道时 InputCount 反映通道实际消息数。
     /// </summary>
     [Fact]
-    public async Task Watermark_UsesChannelCount_NotInterlockedCount() {
-        var bp = new ActorBackpressure(Capacity: 10, HighWatermark: 5, CriticalWatermark: 8);
+    public async Task InputCount_UsesChannelCount_NotInterlocked() {
+        var bp = new ActorBackpressure(Capacity: 10);
         await using var actor = new TestActor(bp);
 
-        var field = typeof(ActorBase<string, string>).GetField("_inputCount",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        field!.SetValue(actor, 100);
+        var gate = new TaskCompletionSource();
+        actor.Gate = gate;
 
-        actor.IsInputHighWatermark.Should().BeFalse();
-        actor.IsInputCriticalWatermark.Should().BeFalse();
+        actor.Tell("A");
+        await WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(500));
+
+        actor.Tell("B");
+        actor.InputCount.Should().Be(1);
+        actor.InputChannelCount.Should().Be(1);
+        actor.RetryQueueCount.Should().Be(0);
+
+        actor.Tell("C");
+        actor.InputCount.Should().Be(2);
+        actor.InputChannelCount.Should().Be(2);
     }
 
     /// <summary>

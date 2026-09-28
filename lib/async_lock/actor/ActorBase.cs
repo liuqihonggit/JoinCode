@@ -26,9 +26,6 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     });
     private readonly Channel<RetryEntry<TCommand>> _retryQueue;
     private int _disposed;
-    private int _inputCount;
-    private int _retryQueueCount;
-    private int _outputCount;
     private readonly ILogger? _logger;
 
     private static readonly AsyncLocal<ImmutableDag<string>?> _askWaitGraph = new();
@@ -128,35 +125,28 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     protected internal Task ConsumerTask => _consumerTask;
 
-    /// <summary>当前输入邮箱消息总数(近似值) — 输入通道 + 重试队列(R1: 水位告警基于此值)</summary>
-    /// <para>⚠️ 并发 Tell 场景下 Interlocked 与 TryWrite 非原子,指标可能短暂漂移,仅用于监控近似值</para>
-    public int InputCount => Volatile.Read(ref _inputCount) + Volatile.Read(ref _retryQueueCount);
+    /// <summary>当前输入邮箱消息总数 — 输入通道 + 重试队列(P0-B: 统一用 Channel 原生 Count,废弃 Interlocked 计数器)</summary>
+    public int InputCount => _inputChannel.Reader.Count + _retryQueue.Reader.Count;
 
-    /// <summary>输入通道内消息数(近似值,不含重试队列)</summary>
-    public int InputChannelCount => Volatile.Read(ref _inputCount);
+    /// <summary>输入通道内消息数(不含重试队列)</summary>
+    public int InputChannelCount => _inputChannel.Reader.Count;
 
-    /// <summary>重试队列消息数(近似值,入队失败正在重试投递的消息)</summary>
-    public int RetryQueueCount => Volatile.Read(ref _retryQueueCount);
+    /// <summary>重试队列消息数(入队失败正在重试投递的消息)</summary>
+    public int RetryQueueCount => _retryQueue.Reader.Count;
 
-    /// <summary>当前输出通道消息数(近似值) — 用于监控堆积</summary>
-    public int OutputCount => Volatile.Read(ref _outputCount);
+    /// <summary>当前输出通道消息数 — 用于监控堆积</summary>
+    public int OutputCount => _outputChannel.Reader.Count;
 
     /// <summary>Actor 是否忙碌 — 输入队列有待处理消息 或 输出队列有待消费消息(P2-2: 监控指标)</summary>
     public bool IsBusy => InputCount > 0 || OutputCount > 0;
 
-    /// <summary>
-    /// Channel 原生输入消息总数 — 输入通道 Reader.Count + 重试队列 Reader.Count。
-    /// 用于水位判断(P0-缺陷1: Channel 原生 Count 比 Interlocked 计数器更准确)。
-    /// </summary>
-    private int ChannelInputCount => _inputChannel.Reader.Count + _retryQueue.Reader.Count;
-
     /// <summary>输入是否达到高水位线</summary>
     public bool IsInputHighWatermark => _backpressure is not null
-        && ChannelInputCount >= _backpressure.EffectiveHighWatermark;
+        && InputCount >= _backpressure.EffectiveHighWatermark;
 
     /// <summary>输入是否达到危险水位线</summary>
     public bool IsInputCriticalWatermark => _backpressure is not null
-        && ChannelInputCount >= _backpressure.EffectiveCriticalWatermark;
+        && InputCount >= _backpressure.EffectiveCriticalWatermark;
 
     /// <summary>输入背压水位事件</summary>
     public event EventHandler<BackpressureEventArgs>? InputWatermarkReached;
@@ -178,15 +168,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     public void Tell(TCommand cmd) {
         ThrowIfDisposed();
 
-        Interlocked.Increment(ref _inputCount);
         if (_inputChannel.Writer.TryWrite(cmd)) {
             CheckInputWatermark();
             return;
         }
-        Interlocked.Decrement(ref _inputCount);
-        Interlocked.Increment(ref _retryQueueCount);
         if (!_retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(cmd, 1))) {
-            Interlocked.Decrement(ref _retryQueueCount);
             _logger?.LogWarning("[Actor:{ActorId}] 重试队列满,首次入队失败,触发SendFailed", Id);
             RaiseSendFailed(cmd, 0);
         }
@@ -211,9 +197,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             RaiseSendFailed(entry.Command, EffectiveMaxRetries);
             return false;
         }
-        Interlocked.Increment(ref _retryQueueCount);
         if (!_retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(entry.Command, entry.Attempt + 1))) {
-            Interlocked.Decrement(ref _retryQueueCount);
             _logger?.LogWarning("[Actor:{ActorId}] 重试队列满,重试回写失败,触发SendFailed attempt={Attempt}", Id, entry.Attempt);
             RaiseSendFailed(entry.Command, entry.Attempt);
             return false;
@@ -239,13 +223,10 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                 if (totalDelayMs > 0)
                     await Task.Delay(TimeSpan.FromMilliseconds(totalDelayMs), _cts.Token).ConfigureAwait(false);
 
-                Interlocked.Decrement(ref _retryQueueCount);
-                Interlocked.Increment(ref _inputCount);
                 if (_inputChannel.Writer.TryWrite(entry.Command)) {
                     CheckInputWatermark();
                     continue;
                 }
-                Interlocked.Decrement(ref _inputCount);
 
                 TryRequeueRetryEntry(entry);
             }
@@ -277,12 +258,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <returns>true 表示已入队,false 表示未入队</returns>
     public bool TrySend(TCommand cmd) {
         if (Volatile.Read(ref _disposed) != 0) return false;
-        Interlocked.Increment(ref _inputCount);
         var written = _inputChannel.Writer.TryWrite(cmd);
         if (written) {
             CheckInputWatermark();
-        } else {
-            Interlocked.Decrement(ref _inputCount);
         }
         return written;
     }
@@ -301,12 +279,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     protected bool TryPublish(TOut msg) {
         if (Volatile.Read(ref _disposed) != 0) return false;
-        Interlocked.Increment(ref _outputCount);
-        if (_outputChannel.Writer.TryWrite(msg)) {
-            return true;
-        }
-        Interlocked.Decrement(ref _outputCount);
-        return false;
+        return _outputChannel.Writer.TryWrite(msg);
     }
 
     /// <summary>
@@ -314,14 +287,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     public async IAsyncEnumerable<TOut> OutputAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
         await foreach (var item in _outputChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false)) {
-            Interlocked.Decrement(ref _outputCount);
             yield return item;
         }
     }
 
     private void CheckInputWatermark() {
         if (_backpressure is null) return;
-        var count = ChannelInputCount;
+        var count = InputCount;
         var level = count >= _backpressure.EffectiveCriticalWatermark ? WatermarkLevel.Critical
                    : count >= _backpressure.EffectiveHighWatermark ? WatermarkLevel.High
                    : WatermarkLevel.Normal;
@@ -364,7 +336,6 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
         try {
             await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
-                Interlocked.Decrement(ref _inputCount);
                 CheckInputWatermark();
                 try {
                     if (cmd is IRequestCommand requestCmd && IdempotencyStore is not null &&

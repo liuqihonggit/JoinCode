@@ -336,9 +336,8 @@ class Program {
             severity: CrashSeverity.Fatal,
             exception: exception,
             executionContext: new CrashExecutionContext {
-                OperationName = source,
-                Extra = { ["processId"] = Environment.ProcessId.ToString() }
-            });
+                OperationName = source
+            }.With("processId", Environment.ProcessId.ToString()));
 
         // 1. 结构化 JSON 快照（AOT 安全 — 手动拼接 JSON 字符串）
         try {

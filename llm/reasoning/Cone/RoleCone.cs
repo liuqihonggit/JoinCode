@@ -24,25 +24,27 @@ public sealed class RoleCone {
     /// </summary>
     public int FoldDepthThreshold { get; init; } = 5;
 
+    private readonly List<string> _activeFragmentIds = [];
     /// <summary>
     /// 当前激活的片段ID列表（有序，按载入顺序）
     /// </summary>
-    public List<string> ActiveFragmentIds { get; } = [];
+    public IReadOnlyList<string> ActiveFragmentIds => _activeFragmentIds;
 
+    private readonly Dictionary<string, ObservationFragment> _allFragments = [];
     /// <summary>
     /// 所有历史片段（可能被折叠）
     /// </summary>
-    public Dictionary<string, ObservationFragment> AllFragments { get; } = [];
+    public IReadOnlyDictionary<string, ObservationFragment> AllFragments => _allFragments;
 
     /// <summary>
     /// 添加新片段到视锥（自动管理折叠）
     /// </summary>
     public void AddFragment(ObservationFragment fragment) {
-        fragment.LoadOrder = AllFragments.Count + 1;
-        AllFragments[fragment.FragmentId] = fragment;
-        ActiveFragmentIds.Add(fragment.FragmentId);
+        fragment.LoadOrder = _allFragments.Count + 1;
+        _allFragments[fragment.FragmentId] = fragment;
+        _activeFragmentIds.Add(fragment.FragmentId);
 
-        if (ActiveFragmentIds.Count > MaxVisibleFragments) {
+        if (_activeFragmentIds.Count > MaxVisibleFragments) {
             FoldOldestFragment();
         }
     }
@@ -51,30 +53,30 @@ public sealed class RoleCone {
     /// 折叠最旧片段 — 生成摘要但保留数据
     /// </summary>
     public void FoldOldestFragment() {
-        if (ActiveFragmentIds.Count == 0) return;
+        if (_activeFragmentIds.Count == 0) return;
 
-        var oldestId = ActiveFragmentIds[0];
-        if (!AllFragments.TryGetValue(oldestId, out var oldest)) return;
+        var oldestId = _activeFragmentIds[0];
+        if (!_allFragments.TryGetValue(oldestId, out var oldest)) return;
 
         oldest.FoldedSummary = FormFoldedSummary(oldest);
         oldest.IsExpanded = false;
 
-        ActiveFragmentIds.RemoveAt(0);
+        _activeFragmentIds.RemoveAt(0);
     }
 
     /// <summary>
     /// 按条件展开某个片段（渐进式披露）
     /// </summary>
     public ObservationFragment? ExpandFragment(string fragmentId, string triggerCondition) {
-        if (!AllFragments.TryGetValue(fragmentId, out var fragment))
+        if (!_allFragments.TryGetValue(fragmentId, out var fragment))
             return null;
 
         if (triggerCondition == "*" ||
             string.IsNullOrEmpty(fragment.ExpandCondition) ||
             fragment.ExpandCondition.Contains(triggerCondition, StringComparison.OrdinalIgnoreCase)) {
             fragment.IsExpanded = true;
-            if (!ActiveFragmentIds.Contains(fragmentId)) {
-                ActiveFragmentIds.Add(fragmentId);
+            if (!_activeFragmentIds.Contains(fragmentId)) {
+                _activeFragmentIds.Add(fragmentId);
             }
             return fragment;
         }
@@ -86,8 +88,8 @@ public sealed class RoleCone {
     /// 获取当前视锥的LLM友好输入（只含可见片段）
     /// </summary>
     public string GetConeContext() {
-        var visible = AllFragments
-            .Where(kv => kv.Value.IsExpanded || ActiveFragmentIds.Contains(kv.Key))
+        var visible = _allFragments
+            .Where(kv => kv.Value.IsExpanded || _activeFragmentIds.Contains(kv.Key))
             .OrderBy(kv => kv.Value.LoadOrder)
             .Select(kv => kv.Value);
 
@@ -104,12 +106,18 @@ public sealed class RoleCone {
     /// 获取当前视锥中所有激活片段的结论列表
     /// </summary>
     public IEnumerable<string> GetActiveConclusions() {
-        return ActiveFragmentIds
-            .Where(id => AllFragments.ContainsKey(id))
-            .Select(id => AllFragments[id].Fingerprint.OutputConclusion);
+        return _activeFragmentIds
+            .Where(id => _allFragments.ContainsKey(id))
+            .Select(id => _allFragments[id].Fingerprint.OutputConclusion);
     }
 
     private static string FormFoldedSummary(ObservationFragment fragment) {
         return $"[折叠] {fragment.Fingerprint.OutputConclusion} -> 置信度:{fragment.Fingerprint.Confidence:F2}";
     }
+
+    /// <summary>清空激活片段列表（仅测试用）。</summary>
+    internal void ClearActiveFragmentIdsForTest() => _activeFragmentIds.Clear();
+
+    /// <summary>添加激活片段ID（仅测试用）。</summary>
+    internal void AddActiveFragmentIdForTest(string id) => _activeFragmentIds.Add(id);
 }

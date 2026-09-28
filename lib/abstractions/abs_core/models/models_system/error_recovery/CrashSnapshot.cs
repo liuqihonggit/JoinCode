@@ -37,11 +37,13 @@ public sealed class CrashSnapshot {
     /// <summary>获取执行上下文。</summary>
     public CrashExecutionContext ExecutionContext { get; }
 
+    private readonly Dictionary<string, string> _tags = new(StringComparer.Ordinal);
     /// <summary>获取标签字典。</summary>
-    public Dictionary<string, string> Tags { get; } = new(StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, string> Tags => _tags;
 
+    private readonly Dictionary<string, string> _attachments = new(StringComparer.Ordinal);
     /// <summary>获取附件字典。</summary>
-    public Dictionary<string, string> Attachments { get; } = new(StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, string> Attachments => _attachments;
 
     /// <summary>构造崩溃快照。</summary>
     /// <param name="fenceName">围栏名称。</param>
@@ -76,7 +78,7 @@ public sealed class CrashSnapshot {
     /// <param name="key">标签键。</param>
     /// <param name="value">标签值。</param>
     public CrashSnapshot WithTag(string key, string value) {
-        Tags[key] = value;
+        _tags[key] = value;
         return this;
     }
 
@@ -84,7 +86,7 @@ public sealed class CrashSnapshot {
     /// <param name="name">附件名称。</param>
     /// <param name="content">附件内容。</param>
     public CrashSnapshot WithAttachment(string name, string content) {
-        Attachments[name] = content;
+        _attachments[name] = content;
         return this;
     }
 
@@ -186,14 +188,15 @@ public sealed class CrashExecutionContext {
     public string? SessionId { get; set; }
     /// <summary>获取或设置模型标识。</summary>
     public string? ModelId { get; set; }
+    private readonly Dictionary<string, string> _extra = new(StringComparer.Ordinal);
     /// <summary>获取额外数据字典。</summary>
-    public Dictionary<string, string> Extra { get; } = new(StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, string> Extra => _extra;
 
     /// <summary>添加额外数据并返回当前上下文。</summary>
     /// <param name="key">键。</param>
     /// <param name="value">值。</param>
     public CrashExecutionContext With(string key, string value) {
-        Extra[key] = value;
+        _extra[key] = value;
         return this;
     }
 }

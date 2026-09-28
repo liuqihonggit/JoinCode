@@ -138,26 +138,14 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner {
         var index = new MemoryIndex();
 
         foreach (var memory in memories) {
-            // 按类型索引
-            index.ByType.AddOrUpdate(
-                memory.Type,
-                new List<MemoryEntry> { memory },
-                (_, list) => { list.Add(memory); return list; });
+            index.AddByType(memory.Type, memory);
 
-            // 按标签索引
             foreach (var tag in memory.Tags) {
-                index.ByTag.AddOrUpdate(
-                    tag,
-                    new List<MemoryEntry> { memory },
-                    (_, list) => { list.Add(memory); return list; });
+                index.AddByTag(tag, memory);
             }
 
-            // 按来源索引
             if (!string.IsNullOrEmpty(memory.Source)) {
-                index.BySource.AddOrUpdate(
-                    memory.Source,
-                    new List<MemoryEntry> { memory },
-                    (_, list) => { list.Add(memory); return list; });
+                index.AddBySource(memory.Source, memory);
             }
         }
 
@@ -175,20 +163,35 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner {
 /// 记忆索引
 /// </summary>
 public sealed partial class MemoryIndex {
+    private readonly ConcurrentDictionary<MemoryType, List<MemoryEntry>> _byType = new();
     /// <summary>
     /// 按类型索引
     /// </summary>
-    public ConcurrentDictionary<MemoryType, List<MemoryEntry>> ByType { get; } = new();
+    public IReadOnlyDictionary<MemoryType, List<MemoryEntry>> ByType => _byType;
 
+    private readonly ConcurrentDictionary<string, List<MemoryEntry>> _byTag = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>
     /// 按标签索引
     /// </summary>
-    public ConcurrentDictionary<string, List<MemoryEntry>> ByTag { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, List<MemoryEntry>> ByTag => _byTag;
 
+    private readonly ConcurrentDictionary<string, List<MemoryEntry>> _bySource = new();
     /// <summary>
     /// 按来源索引
     /// </summary>
-    public ConcurrentDictionary<string, List<MemoryEntry>> BySource { get; } = new();
+    public IReadOnlyDictionary<string, List<MemoryEntry>> BySource => _bySource;
+
+    /// <summary>按类型添加索引条目。</summary>
+    internal void AddByType(MemoryType type, MemoryEntry entry) =>
+        _byType.AddOrUpdate(type, [entry], (_, list) => { list.Add(entry); return list; });
+
+    /// <summary>按标签添加索引条目。</summary>
+    internal void AddByTag(string tag, MemoryEntry entry) =>
+        _byTag.AddOrUpdate(tag, [entry], (_, list) => { list.Add(entry); return list; });
+
+    /// <summary>按来源添加索引条目。</summary>
+    internal void AddBySource(string source, MemoryEntry entry) =>
+        _bySource.AddOrUpdate(source, [entry], (_, list) => { list.Add(entry); return list; });
 
     /// <summary>
     /// 查找特定类型的记忆

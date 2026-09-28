@@ -31,32 +31,35 @@ public sealed class ToolUseContext {
     /// </summary>
     public LLM.Chat.ContentReplacementState? ContentReplacementState { get; set; }
 
+    private readonly Dictionary<string, InvokedSkillEntry> _invokedSkills = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>
     /// 已调用的技能 — 对齐 TS STATE.invokedSkills
     /// 技能调用后注册，压缩时截断保留（5K token/技能, 25K总预算）
     /// key: 技能名, value: (技能路径, 技能内容, 调用时间)
     /// </summary>
-    public Dictionary<string, InvokedSkillEntry> InvokedSkills { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, InvokedSkillEntry> InvokedSkills => _invokedSkills;
 
+    private readonly Dictionary<string, PendingSedEdit> _pendingSedEdits = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>
     /// 待确认的 sed 编辑 — 对齐 TS _simulatedSedEdit
     /// 首次 sed -i 调用时存储预计算的新内容，模型确认后二次调用时取出写入
     /// key: 文件路径, value: 预计算的新文件内容
     /// </summary>
-    public Dictionary<string, PendingSedEdit> PendingSedEdits { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, PendingSedEdit> PendingSedEdits => _pendingSedEdits;
 
+    private readonly Dictionary<string, DateTime> _recentlyReadFiles = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>
     /// 最近读取的文件 — 对齐 TS compact post-compact file restoration
     /// key: 文件路径, value: 最后读取时间
     /// 压缩后重新读取最近 5 个文件注入上下文
     /// </summary>
-    public Dictionary<string, DateTime> RecentlyReadFiles { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, DateTime> RecentlyReadFiles => _recentlyReadFiles;
 
     /// <summary>
     /// 注册已调用的技能 — 对齐 TS addInvokedSkill
     /// </summary>
     public void AddInvokedSkill(string skillName, string? skillPath, string? skillContent) {
-        InvokedSkills[skillName] = new InvokedSkillEntry {
+        _invokedSkills[skillName] = new InvokedSkillEntry {
             Name = skillName,
             Path = skillPath,
             Content = skillContent,
@@ -69,7 +72,7 @@ public sealed class ToolUseContext {
     /// </summary>
     public void RecordFileRead(string filePath) {
         if (!string.IsNullOrEmpty(filePath)) {
-            RecentlyReadFiles[filePath] = DateTime.UtcNow;
+            _recentlyReadFiles[filePath] = DateTime.UtcNow;
         }
     }
 
@@ -83,9 +86,9 @@ public sealed class ToolUseContext {
         int totalTokenBudget = 50000,
         CancellationToken cancellationToken = default,
         ILogger? logger = null) {
-        if (RecentlyReadFiles.Count == 0) return null;
+        if (_recentlyReadFiles.Count == 0) return null;
 
-        var recentFiles = RecentlyReadFiles
+        var recentFiles = _recentlyReadFiles
             .OrderByDescending(kv => kv.Value)
             .Take(maxFiles)
             .Select(kv => kv.Key)
@@ -125,16 +128,16 @@ public sealed class ToolUseContext {
     /// <summary>
     /// 清除已调用的技能 — 对齐 TS clearInvokedSkills
     /// </summary>
-    public void ClearInvokedSkills() => InvokedSkills.Clear();
+    public void ClearInvokedSkills() => _invokedSkills.Clear();
 
     /// <summary>
     /// 生成压缩保留附件 — 对齐 TS createSkillAttachmentIfNeeded
     /// 按调用时间降序排列，截断保留（5K token/技能, 25K总预算）
     /// </summary>
     public string? BuildInvokedSkillsAttachment(int maxTokensPerSkill = 5000, int totalTokenBudget = 25000) {
-        if (InvokedSkills.Count == 0) return null;
+        if (_invokedSkills.Count == 0) return null;
 
-        var ordered = InvokedSkills.Values
+        var ordered = _invokedSkills.Values
             .OrderByDescending(s => s.InvokedAt)
             .ToList();
 

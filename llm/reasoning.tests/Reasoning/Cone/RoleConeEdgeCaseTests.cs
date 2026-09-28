@@ -26,7 +26,7 @@ public sealed class RoleConeEdgeCaseTests {
         var fragment = CreateFragment("f1", AgentRole.Prosecutor, expandCondition: string.Empty);
         cone.AddFragment(fragment);
         fragment.IsExpanded = false;
-        cone.ActiveFragmentIds.Clear();
+        cone.ClearActiveFragmentIdsForTest();
 
         var result = cone.ExpandFragment("f1", "any");
 
@@ -74,7 +74,7 @@ public sealed class RoleConeEdgeCaseTests {
     [Fact]
     public void GetActiveConclusions_WhenActiveIdNotInAllFragments_ReturnsEmpty() {
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 5 };
-        cone.ActiveFragmentIds.Add("missing");
+        cone.AddActiveFragmentIdForTest("missing");
 
         var conclusions = cone.GetActiveConclusions();
 

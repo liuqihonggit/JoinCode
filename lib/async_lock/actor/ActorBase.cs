@@ -16,15 +16,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     private readonly Channel<TCommand> _inputChannel;
     private readonly Channel<TOut> _outputChannel;
     private readonly Task _consumerTask;
-    private readonly Task _retryTask;
     private readonly CancellationTokenSource _cts = new();
     private readonly ActorBackpressure? _backpressure;
-    private readonly Channel<TimeSpan> _bpDelayQueue = Channel.CreateBounded<TimeSpan>(new BoundedChannelOptions(16) {
-        FullMode = BoundedChannelFullMode.DropOldest,
-        SingleReader = true,
-        SingleWriter = false
-    });
-    private readonly Channel<RetryEntry<TCommand>> _retryQueue;
+    private readonly WatermarkMonitor? _watermarkMonitor;
+    private readonly IdempotencyGate _idempotencyGate;
+    private readonly AskWaitGraphTracker _waitGraphTracker;
+    private readonly MessageRetryEngine<TCommand> _retryEngine;
     private int _disposed;
     private readonly ILogger? _logger;
 
@@ -68,25 +65,28 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         Id = $"{GetType().Name}-{Guid.NewGuid():N}"[..8];
         _logger = logger;
         _backpressure = backpressure;
+        _watermarkMonitor = backpressure is null ? null : new WatermarkMonitor(backpressure);
         IdempotencyStore = idempotencyStore;
+        _idempotencyGate = new IdempotencyGate(idempotencyStore);
+        _waitGraphTracker = new AskWaitGraphTracker(_askWaitGraph);
         _inputChannel = CreateInputChannel(backpressure);
         _outputChannel = CreateOutputChannel(outputCapacity);
-        _retryQueue = Channel.CreateBounded<RetryEntry<TCommand>>(new BoundedChannelOptions(backpressure?.RetryQueueCapacity ?? 1024) {
-            FullMode = BoundedChannelFullMode.Wait,
-            SingleReader = true,
-            SingleWriter = false
-        });
+        _retryEngine = new MessageRetryEngine<TCommand>(
+            retryQueueCapacity: backpressure?.RetryQueueCapacity ?? 1024,
+            maxRetries: EffectiveMaxRetries,
+            inputWriter: _inputChannel.Writer,
+            actorId: Id,
+            logger: logger,
+            shutdownCt: _cts.Token,
+            onSendFailed: RaiseSendFailed,
+            onEnqueuedToInput: CheckInputWatermark);
         var taskOptions = (useLongRunning ? TaskCreationOptions.LongRunning : TaskCreationOptions.None) | TaskCreationOptions.DenyChildAttach;
         _consumerTask = Task.Factory.StartNew(
             ConsumeLoopAsync,
             CancellationToken.None,
             taskOptions,
             TaskScheduler.Default).Unwrap();
-        _retryTask = Task.Factory.StartNew(
-            ProcessRetryQueueAsync,
-            CancellationToken.None,
-            taskOptions,
-            TaskScheduler.Default).Unwrap();
+        _retryEngine.Start();
     }
 
     private static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure) {
@@ -130,13 +130,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     protected internal Task ConsumerTask => _consumerTask;
 
     /// <summary>当前输入邮箱消息总数 — 输入通道 + 重试队列(P0-B: 统一用 Channel 原生 Count,废弃 Interlocked 计数器)</summary>
-    public int InputCount => _inputChannel.Reader.Count + _retryQueue.Reader.Count;
+    public int InputCount => _inputChannel.Reader.Count + _retryEngine.RetryQueueCount;
 
     /// <summary>输入通道内消息数(不含重试队列)</summary>
     public int InputChannelCount => _inputChannel.Reader.Count;
 
     /// <summary>重试队列消息数(入队失败正在重试投递的消息)</summary>
-    public int RetryQueueCount => _retryQueue.Reader.Count;
+    public int RetryQueueCount => _retryEngine.RetryQueueCount;
 
     /// <summary>当前输出通道消息数 — 用于监控堆积</summary>
     public int OutputCount => _outputChannel.Reader.Count;
@@ -176,7 +176,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             CheckInputWatermark();
             return;
         }
-        if (!_retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(cmd, 1))) {
+        if (!_retryEngine.TryEnqueue(new RetryEntry<TCommand>(cmd, 1))) {
             _logger?.LogWarning("[Actor:{ActorId}] 重试队列满,首次入队失败,触发SendFailed", Id);
             RaiseSendFailed(cmd, 0);
         }
@@ -204,61 +204,16 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// 返回 true 表示成功回写,false 表示失败(已触发 SendFailed)。
     /// </summary>
     /// <param name="entry">待回写的重试条目</param>
-    internal bool TryRequeueRetryEntry(RetryEntry<TCommand> entry) {
-        if (entry.Attempt >= EffectiveMaxRetries) {
-            RaiseSendFailed(entry.Command, EffectiveMaxRetries);
-            return false;
-        }
-        if (!_retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(entry.Command, entry.Attempt + 1))) {
-            _logger?.LogWarning("[Actor:{ActorId}] 重试队列满,重试回写失败,触发SendFailed attempt={Attempt}", Id, entry.Attempt);
-            RaiseSendFailed(entry.Command, entry.Attempt);
-            return false;
-        }
-        return true;
-    }
+    internal bool TryRequeueRetryEntry(RetryEntry<TCommand> entry) => _retryEngine.TryRequeue(entry);
 
-    /// <summary>重试队列 — 供测试直接写入构造边界条件(内部接口)</summary>
-    internal Channel<RetryEntry<TCommand>> RetryQueueInternal => _retryQueue;
-
-    /// <summary>
-    /// 单例重试队列处理 — 一个后台 Task 处理所有重试消息(P1-2: 替代每消息一 Task,高负载时不产生大量 Delay 任务)
-    /// </summary>
-    private async Task ProcessRetryQueueAsync() {
-        try {
-            await foreach (var entry in _retryQueue.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
-                if (Volatile.Read(ref _disposed) != 0) return;
-
-                var bpDelay = ConsumeBackpressureDelay();
-                var backoffMs = 100 * (1 << Math.Min(entry.Attempt, 10));
-                backoffMs = Math.Min(backoffMs, 5000);
-                var totalDelayMs = Math.Min(bpDelay.TotalMilliseconds + backoffMs, 10_000);
-                if (totalDelayMs > 0)
-                    await Task.Delay(TimeSpan.FromMilliseconds(totalDelayMs), _cts.Token).ConfigureAwait(false);
-
-                if (_inputChannel.Writer.TryWrite(entry.Command)) {
-                    CheckInputWatermark();
-                    continue;
-                }
-
-                TryRequeueRetryEntry(entry);
-            }
-        } catch (OperationCanceledException) { }
-    }
+    /// <summary>重试队列 — 供测试直接写入构造边界条件(内部接口,转发至 MessageRetryEngine)</summary>
+    internal Channel<RetryEntry<TCommand>> RetryQueueInternal => _retryEngine.RetryQueue;
 
     /// <summary>
     /// 接收远程背压信号 — 写入延迟信号队列,供重试时消费
     /// </summary>
     /// <param name="suggestedDelay">建议延迟时间</param>
-    public void ReceiveBackpressureSignal(TimeSpan suggestedDelay) => _bpDelayQueue.Writer.TryWrite(suggestedDelay);
-
-    /// <summary>
-    /// 消费所有待处理背压延迟信号,取最新延迟(R2: 远程背压信号是瞬时建议,取最新非累加)
-    /// </summary>
-    private TimeSpan ConsumeBackpressureDelay() {
-        var last = TimeSpan.Zero;
-        while (_bpDelayQueue.Reader.TryRead(out var delay)) last = delay;
-        return last;
-    }
+    public void ReceiveBackpressureSignal(TimeSpan suggestedDelay) => _retryEngine.ReceiveBackpressureSignal(suggestedDelay);
 
     /// <summary>
     /// 向 Actor 同步尝试发送命令 — Tell 模式(发消息即走)，<b>保证严格 FIFO</b>。
@@ -304,14 +259,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     private void CheckInputWatermark() {
-        if (_backpressure is null) return;
-        var count = InputCount;
-        var level = count >= _backpressure.EffectiveCriticalWatermark ? WatermarkLevel.Critical
-                   : count >= _backpressure.EffectiveHighWatermark ? WatermarkLevel.High
-                   : WatermarkLevel.Normal;
-        if (level != WatermarkLevel.Normal) {
-            RaiseEvent(InputWatermarkReached, this, new BackpressureEventArgs(
-                GetType().Name, count, _backpressure.Capacity, level), "InputWatermarkReached");
+        if (_watermarkMonitor is null) return;
+        if (_watermarkMonitor.Check(InputCount, GetType().Name, out var args) && args is not null) {
+            RaiseEvent(InputWatermarkReached, this, args, "InputWatermarkReached");
         }
     }
 
@@ -350,8 +300,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
                 CheckInputWatermark();
                 try {
-                    if (cmd is IRequestCommand requestCmd && IdempotencyStore is not null &&
-                        requestCmd.TryRestoreFromCache(IdempotencyStore)) {
+                    if (_idempotencyGate.TryRestore(cmd)) {
                         continue;
                     }
                     Handle(cmd, _cts.Token);
@@ -534,39 +483,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <para><b>⚠️ AsyncLocal 局限</b>:等待图依赖 AsyncLocal 上下文流动,跨裸线程/Task.Run 调用会丢失上下文,</para>
     /// <para>等待图断裂无法检测跨线程循环 Ask 死锁。Ask 调用链必须在同一异步流上下文内调用。</para>
     /// </summary>
-    private WaitGraphScope? EnterWaitGraph(string? callerId) {
-        if (callerId is null || callerId == Id) return null;
-        var previousGraph = _askWaitGraph.Value;
-        var graph = CloneWaitGraph(previousGraph);
-        _askWaitGraph.Value = graph;
-        if (!graph.Nodes.ContainsKey(callerId))
-            graph.AddNode(new ImmutableDagNode<string> { Id = callerId, Payload = callerId });
-        if (!graph.Nodes.ContainsKey(Id))
-            graph.AddNode(new ImmutableDagNode<string> { Id = Id, Payload = Id });
-        var edge = new DagEdge { FromId = callerId, ToId = Id };
-        try {
-            graph.AddEdge(edge);
-        } catch (InvalidOperationException) {
-            throw new ActorCyclicAskException(callerId, Id);
-        }
-        return new WaitGraphScope(_askWaitGraph, previousGraph);
-    }
-
-    /// <summary>从源图无锁快照复制所有节点和边到新 ImmutableDag 实例</summary>
-    private static ImmutableDag<string> CloneWaitGraph(ImmutableDag<string>? source) {
-        if (source is null) return new ImmutableDag<string>();
-        var dag = new ImmutableDag<string>();
-        foreach (var node in source.Nodes.Values)
-            dag.AddNode(node);
-        foreach (var edge in source.Edges.Values)
-            dag.TryAddEdge(edge);
-        return dag;
-    }
-
-    /// <summary>等待图作用域 — Dispose 时恢复父图引用(P1-3: 每次创建副本,无需 RemoveEdge)</summary>
-    private sealed class WaitGraphScope(AsyncLocal<ImmutableDag<string>?> store, ImmutableDag<string>? previousGraph) : IDisposable {
-        /// <summary>释放资源。</summary>
-        public void Dispose() => store.Value = previousGraph;
+    private AskWaitGraphTracker.WaitGraphScope? EnterWaitGraph(string? callerId) {
+        return _waitGraphTracker.EnterScope(callerId, Id);
     }
 
     private string? TryGetCallerActorId() => AsyncFlowIdentity.CurrentActorId;
@@ -581,12 +499,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         _cts.Cancel();
         _inputChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();
-        _retryQueue.Writer.TryComplete();
+        _retryEngine.Complete();
         try {
             await _consumerTask.ConfigureAwait(false);
         } catch (OperationCanceledException) { }
         try {
-            await _retryTask.ConfigureAwait(false);
+            await _retryEngine.WaitForCompletionAsync().ConfigureAwait(false);
         } catch (OperationCanceledException) { }
         _cts.Dispose();
     }

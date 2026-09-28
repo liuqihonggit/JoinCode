@@ -4,7 +4,7 @@ namespace Core.Utils;
 /// 全双工 Actor 基类 — 输入 Channel + 输出 Channel。
 /// <para>外部通过 Tell 发送命令，通过 OutputAsync 拉取输出。</para>
 /// <para>Actor 通过 TryPublish 主动推送消息，无需等待外部请求。</para>
-/// <para>输入/输出 Channel 均有界(默认容量 DefaultChannelCapacity),输入有水位线+超时,输出满策略 DropOldest。</para>
+/// <para>输入/输出 Channel 均有界(默认容量 DefaultChannelCapacity),输入有水位线+超时,输出满策略可配置(默认 DropOldest)。</para>
 /// <para>派生类定义命令类型并实现 <see cref="Handle"/>,所有可变状态由 Consumer 线程独占访问,无需锁。</para>
 /// <para>线程安全保证:命令按 FIFO 顺序串行处理;多生产者通过 Tell/TrySend 投递。</para>
 /// <para>异常容错:单条命令异常不会终止 Consumer 循环,通过 OnConsumerError 回调通知子类。</para>
@@ -40,7 +40,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// 构造 Actor — 有界输入/输出通道(默认容量 DefaultChannelCapacity)。
     /// </summary>
     protected ActorBase()
-        : this(null, null, null, null) {
+        : this(backpressure: null, outputCapacity: null, logger: null, idempotencyStore: null) {
     }
 
     /// <summary>
@@ -50,7 +50,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="fullMode">有界通道满时策略</param>
     /// <param name="logger">日志记录器(null=静默)</param>
     protected ActorBase(int? boundedCapacity, BoundedChannelFullMode fullMode = BoundedChannelFullMode.Wait, ILogger? logger = null)
-        : this(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value, fullMode), null, logger, null) {
+        : this(backpressure: boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value, fullMode), outputCapacity: null, logger: logger, idempotencyStore: null) {
     }
 
     /// <summary>
@@ -58,10 +58,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     /// <param name="backpressure">输入背压配置(null=默认有界容量 DefaultChannelCapacity,无水位线,无超时)</param>
     /// <param name="outputCapacity">输出通道容量(null=默认容量 DefaultChannelCapacity)</param>
+    /// <param name="outputFullMode">输出通道满策略(默认 DropOldest — 丢弃最老消息腾位置;DropWrite — 丢弃新消息触发 OutputMessageDropped 事件)</param>
     /// <param name="logger">日志记录器(null=静默,不记录审计日志)</param>
     /// <param name="idempotencyStore">幂等去重存储(null=不启用,构造注入后只读不可修改)</param>
     /// <param name="useLongRunning">Consumer 是否用 LongRunning 专用线程(true=专用线程不占线程池,适合少量长驻Actor;false=线程池调度,适合大量短生命周期Actor)</param>
-    protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null, ILogger? logger = null, IIdempotencyStore? idempotencyStore = null, bool useLongRunning = true) {
+    protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null, BoundedChannelFullMode outputFullMode = BoundedChannelFullMode.DropOldest, ILogger? logger = null, IIdempotencyStore? idempotencyStore = null, bool useLongRunning = true) {
         Id = $"{GetType().Name}-{Guid.NewGuid():N}"[..8];
         _logger = logger;
         _backpressure = backpressure;
@@ -70,7 +71,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         _idempotencyGate = new IdempotencyGate(idempotencyStore);
         _waitGraphTracker = new AskWaitGraphTracker(_askWaitGraph);
         _inputChannel = CreateInputChannel(backpressure);
-        _outputChannel = CreateOutputChannel(outputCapacity);
+        _outputChannel = CreateOutputChannel(outputCapacity, outputFullMode);
         _retryEngine = new MessageRetryEngine<TCommand>(
             retryQueueCapacity: backpressure?.RetryQueueCapacity ?? 1024,
             maxRetries: EffectiveMaxRetries,
@@ -105,17 +106,10 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         });
     }
 
-    private static Channel<TOut> CreateOutputChannel(int? capacity) {
-        if (capacity is null || capacity == 0) {
-            return Channel.CreateBounded<TOut>(new BoundedChannelOptions(DefaultChannelCapacity) {
-                FullMode = BoundedChannelFullMode.DropOldest,
-                SingleReader = true,
-                SingleWriter = false
-            });
-        }
-
-        return Channel.CreateBounded<TOut>(new BoundedChannelOptions(capacity.Value) {
-            FullMode = BoundedChannelFullMode.DropOldest,
+    private static Channel<TOut> CreateOutputChannel(int? capacity, BoundedChannelFullMode fullMode) {
+        var cap = capacity ?? DefaultChannelCapacity;
+        return Channel.CreateBounded<TOut>(new BoundedChannelOptions(cap) {
+            FullMode = fullMode,
             SingleReader = true,
             SingleWriter = false
         });
@@ -157,6 +151,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
 
     /// <summary>背压重试失败事件 — 16次重试后消息仍未能入队时触发(不丢弃,外部可计入死信队列)</summary>
     public event EventHandler<BackpressureSendFailedEventArgs<TCommand>>? SendFailed;
+
+    /// <summary>输出通道满丢弃消息事件 — TryPublish 写入失败时触发(FullMode=DropWrite 且通道满,或通道已完成)</summary>
+    public event EventHandler<OutputDroppedEventArgs<TOut>>? OutputMessageDropped;
 
     /// <summary>
     /// 向 Actor 同步发送命令 — Tell 模式(射后不理,不阻塞调用方)。
@@ -243,11 +240,23 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
 
     /// <summary>
     /// Actor 主动推送消息到输出 Channel — 外部通过 OutputAsync 拉取。
+    /// <para>输出通道满(FullMode=DropWrite)或通道已完成时返回 false 并触发 <see cref="OutputMessageDropped"/> 事件。</para>
+    /// <para>FullMode=DropOldest 时 TryWrite 总返回 true(丢弃最老消息腾位置,静默不触发事件)。</para>
     /// </summary>
+    /// <param name="msg">输出消息</param>
+    /// <returns>true 表示已写入,false 表示被丢弃(通道满或已完成)</returns>
     protected bool TryPublish(TOut msg) {
         if (Volatile.Read(ref _disposed) != 0) return false;
-        return _outputChannel.Writer.TryWrite(msg);
+        var ok = _outputChannel.Writer.TryWrite(msg);
+        if (!ok) {
+            RaiseEvent(OutputMessageDropped, this, new OutputDroppedEventArgs<TOut>(msg), nameof(OutputMessageDropped));
+            _logger?.LogWarning("[Actor:{ActorId}] TryPublish 消息被丢弃", Id);
+        }
+        return ok;
     }
+
+    /// <summary>TryPublish 内部接口 — 供测试直接调用,不依赖 Consumer 调度时序</summary>
+    internal bool TryPublishInternal(TOut msg) => TryPublish(msg);
 
     /// <summary>
     /// 外部拉取输出流 — 阻塞式 IAsyncEnumerable。
@@ -602,3 +611,10 @@ public sealed record BackpressureSendFailedEventArgs<TCommand>(
 internal sealed record RetryEntry<TCommand>(
     TCommand Command,
     int Attempt);
+
+/// <summary>
+/// 输出消息丢弃事件参数 — 输出通道满时 TryPublish 丢弃的消息
+/// </summary>
+/// <typeparam name="TOut">输出消息类型</typeparam>
+/// <param name="Message">被丢弃的消息(外部可计入死信队列或重投)</param>
+public sealed record OutputDroppedEventArgs<TOut>(TOut Message);

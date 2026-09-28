@@ -304,6 +304,45 @@ public class ActorBaseTest {
         actor.TrySend("test").Should().BeTrue();
     }
 
+    /// <summary>验证 Wait 模式下输出通道满时 TryPublish 返回 false 并触发 OutputMessageDropped 事件</summary>
+    [Fact]
+    public async Task TryPublish_WaitMode_ChannelFull_TriggersOutputDroppedEvent() {
+        var dropped = new List<string>();
+        await using var actor = new TestActor(null, 1, BoundedChannelFullMode.Wait);
+        actor.OutputMessageDropped += (_, e) => dropped.Add(e.Message);
+
+        actor.TryPublishInternal("first").Should().BeTrue();
+        actor.TryPublishInternal("second").Should().BeFalse();
+
+        dropped.Should().ContainSingle().Which.Should().Be("second");
+    }
+
+    /// <summary>验证 DropOldest 模式下输出通道满时 TryPublish 不触发 OutputMessageDropped 事件</summary>
+    [Fact]
+    public async Task TryPublish_DropOldest_ChannelFull_NoEventTriggered() {
+        var dropped = new List<string>();
+        await using var actor = new TestActor(null, 1, BoundedChannelFullMode.DropOldest);
+        actor.OutputMessageDropped += (_, e) => dropped.Add(e.Message);
+
+        actor.TryPublishInternal("first").Should().BeTrue();
+        actor.TryPublishInternal("second").Should().BeTrue();
+
+        dropped.Should().BeEmpty();
+    }
+
+    /// <summary>验证 DropWrite 模式下 TryWrite 静默丢弃返回 true(不触发事件)</summary>
+    [Fact]
+    public async Task TryPublish_DropWrite_ChannelFull_SilentDrop_NoEventTriggered() {
+        var dropped = new List<string>();
+        await using var actor = new TestActor(null, 1, BoundedChannelFullMode.DropWrite);
+        actor.OutputMessageDropped += (_, e) => dropped.Add(e.Message);
+
+        actor.TryPublishInternal("first").Should().BeTrue();
+        actor.TryPublishInternal("second").Should().BeTrue();
+
+        dropped.Should().BeEmpty();
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
         for (var i = 0; i < 16; i++) {
             var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
@@ -335,6 +374,14 @@ internal sealed class TestActor : ActorBase<string, string> {
     /// <param name="backpressure">背压配置（可选）</param>
     public TestActor(ActorBackpressure? backpressure)
         : base(backpressure) {
+    }
+
+    /// <summary>初始化测试 Actor — 指定输出通道容量和满策略</summary>
+    /// <param name="backpressure">背压配置</param>
+    /// <param name="outputCapacity">输出通道容量</param>
+    /// <param name="outputFullMode">输出通道满策略</param>
+    public TestActor(ActorBackpressure? backpressure, int? outputCapacity, BoundedChannelFullMode outputFullMode)
+        : base(backpressure, outputCapacity, outputFullMode) {
     }
 
     protected override void Handle(string command, CancellationToken ct) {

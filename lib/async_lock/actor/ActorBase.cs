@@ -12,7 +12,7 @@ namespace Core.Utils;
 /// </summary>
 /// <typeparam name="TCommand">命令类型 — 建议用 record 或 sealed class,实现标记接口以约束合法命令</typeparam>
 /// <typeparam name="TOut">输出消息类型 — 建议用 record 或 sealed class</typeparam>
-public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDisposable {
+public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<TCommand>, IActorOutput<TOut>, IAsyncDisposable {
     private readonly Channel<TCommand> _inputChannel;
     private readonly Channel<TOut> _outputChannel;
     private readonly Task _consumerTask;
@@ -423,17 +423,27 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="ct">取消令牌</param>
     /// <param name="singleTimeoutMs">单次超时(默认10s,每次重试等待此超时)</param>
     /// <param name="maxRetries">最大重试次数(默认16,总尝试=maxRetries+1)</param>
+    /// <param name="allowNonIdempotentRetry">false=非IIdempotent命令重试直接抛异常;true=仅打日志(默认)</param>
     /// <exception cref="ActorAskDeadlockException">重试耗尽仍超时 — 可能线程池饥饿或 Consumer 阻塞</exception>
     /// <exception cref="ActorCyclicAskException">等待图检测到环(含间接环) — 循环 Ask 死锁</exception>
+    /// <exception cref="InvalidOperationException">allowNonIdempotentRetry=false 且命令未实现 IIdempotent</exception>
     protected async Task<T> AskWithRetryAsync<T>(
         Func<TaskCompletionSource<T>, TCommand> commandFactory,
         CancellationToken ct = default,
         int singleTimeoutMs = 10_000,
-        int maxRetries = 16) {
+        int maxRetries = 16,
+        bool allowNonIdempotentRetry = true) {
         using var waitScope = EnterWaitGraph(TryGetCallerActorId());
         for (var attempt = 0; attempt <= maxRetries; attempt++) {
             var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
             var cmd = commandFactory(tcs);
+            var cmdType = cmd?.GetType().Name ?? "null";
+            if (!allowNonIdempotentRetry && cmd is not IIdempotent) {
+                throw new InvalidOperationException($"AskWithRetryAsync: 命令 {cmdType} 未实现 IIdempotent，不允许重试");
+            }
+            if (cmd is not IIdempotent) {
+                _logger?.LogWarning("[Actor:{ActorId}] AskWithRetryAsync 使用非幂等命令 {CmdType}, 重试可能产生重复副作用", Id, cmdType);
+            }
             if (!TrySend(cmd)) {
                 if (attempt >= maxRetries)
                     throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
@@ -462,15 +472,24 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="ct">取消令牌</param>
     /// <param name="singleTimeoutMs">单次超时(默认10s)</param>
     /// <param name="maxRetries">最大重试次数(默认16)</param>
+    /// <param name="allowNonIdempotentRetry">false=非IIdempotent命令重试直接抛异常;true=仅打日志(默认)</param>
     protected async Task AskWithRetryAsync(
         Func<TaskCompletionSource, TCommand> commandFactory,
         CancellationToken ct = default,
         int singleTimeoutMs = 10_000,
-        int maxRetries = 16) {
+        int maxRetries = 16,
+        bool allowNonIdempotentRetry = true) {
         using var waitScope = EnterWaitGraph(TryGetCallerActorId());
         for (var attempt = 0; attempt <= maxRetries; attempt++) {
             var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var cmd = commandFactory(tcs);
+            var cmdType = cmd?.GetType().Name ?? "null";
+            if (!allowNonIdempotentRetry && cmd is not IIdempotent) {
+                throw new InvalidOperationException($"AskWithRetryAsync: 命令 {cmdType} 未实现 IIdempotent，不允许重试");
+            }
+            if (cmd is not IIdempotent) {
+                _logger?.LogWarning("[Actor:{ActorId}] AskWithRetryAsync 使用非幂等命令 {CmdType}, 重试可能产生重复副作用", Id, cmdType);
+            }
             if (!TrySend(cmd)) {
                 if (attempt >= maxRetries)
                     throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));

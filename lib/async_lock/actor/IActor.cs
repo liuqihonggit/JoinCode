@@ -29,3 +29,44 @@ public interface IActor<TCommand> : IAsyncDisposable {
     /// <returns>true 表示已入队，false 表示未入队</returns>
     bool TrySend(TCommand cmd);
 }
+
+/// <summary>
+/// Actor Tell 协议接口 — 提供消息发送的完整 API(Tell + TrySend + TryTell)。
+/// <para>用于需要发送消息但不关心输出流的调用方 — 比 IActor 更细粒度。</para>
+/// </summary>
+/// <typeparam name="TCommand">命令类型</typeparam>
+public interface IActorTell<TCommand> {
+    /// <summary>
+    /// 同步发送命令 — Tell 模式(射后不理,不阻塞调用方)。
+    /// </summary>
+    /// <param name="cmd">命令实例</param>
+    void Tell(TCommand cmd);
+
+    /// <summary>
+    /// 同步尝试发送命令 — 通道已关闭、已释放或已满时返回 false。
+    /// </summary>
+    /// <param name="cmd">命令实例</param>
+    /// <returns>true 表示已入队，false 表示未入队</returns>
+    bool TrySend(TCommand cmd);
+
+    /// <summary>
+    /// TrySend 的语义别名 — 强调严格 FIFO 保证,入队失败直接返回 false 不进重试队列。
+    /// </summary>
+    /// <param name="cmd">命令实例</param>
+    /// <returns>true 表示已入队，false 表示未入队</returns>
+    bool TryTell(TCommand cmd);
+}
+
+/// <summary>
+/// Actor 输出流接口 — 提供输出消息拉取能力。
+/// <para>用于需要消费 Actor 输出但不关心发送 API 的调用方。</para>
+/// </summary>
+/// <typeparam name="TOut">输出消息类型</typeparam>
+public interface IActorOutput<TOut> {
+    /// <summary>
+    /// 外部拉取输出流 — 阻塞式 IAsyncEnumerable。
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>输出消息异步枚举</returns>
+    IAsyncEnumerable<TOut> OutputAsync(CancellationToken cancellationToken = default);
+}

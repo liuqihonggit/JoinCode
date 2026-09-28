@@ -372,6 +372,34 @@ public class ActorBaseTest {
         AsyncFlowIdentity.Clear();
     }
 
+    /// <summary>验证 IActorTell 接口可正确发送命令</summary>
+    [Fact]
+    public async Task IActorTell_Interface_CanSendCommands() {
+        await using var actor = new TestActor();
+        IActorTell<string> tell = actor;
+        tell.Tell("via-tell");
+        tell.TrySend("via-trysend").Should().BeTrue();
+        tell.TryTell("via-trytell").Should().BeTrue();
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 3, TimeSpan.FromMilliseconds(500));
+        actor.ProcessedCommands.Should().Contain("via-tell", "via-trysend", "via-trytell");
+    }
+
+    /// <summary>验证 IActorOutput 接口可正确消费输出</summary>
+    [Fact]
+    public async Task IActorOutput_Interface_CanConsumeOutput() {
+        await using var actor = new TestActor();
+        IActorOutput<string> output = actor;
+        actor.Tell("hello");
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        var results = new List<string>();
+        await foreach (var item in output.OutputAsync(cts.Token)) {
+            results.Add(item);
+            break;
+        }
+        results.Should().ContainSingle().Which.Should().Be("processed-hello");
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
         for (var i = 0; i < 16; i++) {
             var deadline = DateTimeOffset.UtcNow + perRetryTimeout;

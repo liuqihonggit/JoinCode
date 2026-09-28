@@ -4,7 +4,7 @@ namespace Core.Utils;
 /// 全双工 Actor 基类 — 输入 Channel + 输出 Channel。
 /// <para>外部通过 Tell 发送命令，通过 OutputAsync 拉取输出。</para>
 /// <para>Actor 通过 TryPublish 主动推送消息，无需等待外部请求。</para>
-/// <para>输入 Channel 有背压（有界 + 水位线 + 超时），输出 Channel 无背压（无界）。</para>
+/// <para>输入/输出 Channel 均有界(默认容量 DefaultChannelCapacity),输入有水位线+超时,输出满策略 DropOldest。</para>
 /// <para>派生类定义命令类型并实现 <see cref="Handle"/>,所有可变状态由 Consumer 线程独占访问,无需锁。</para>
 /// <para>线程安全保证:命令按 FIFO 顺序串行处理;多生产者通过 Tell/TrySend 投递。</para>
 /// <para>异常容错:单条命令异常不会终止 Consumer 循环,通过 OnConsumerError 回调通知子类。</para>
@@ -26,9 +26,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     private int _disposed;
     private int _inputCount;
     private int _outputCount;
-    private long _nextSequenceId;
 
-    private static readonly ConcurrentDictionary<string, string> _askWaitGraph = new();
+    private static readonly AsyncLocal<Dictionary<string, string>?> _askWaitGraph = new();
 
     /// <summary>背压重试最大次数</summary>
     public const int BackpressureMaxRetries = 16;
@@ -37,16 +36,16 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     public const int DefaultChannelCapacity = 2048;
 
     /// <summary>
-    /// 构造 Actor — 无界输入通道，无界输出通道。
+    /// 构造 Actor — 有界输入/输出通道(默认容量 DefaultChannelCapacity)。
     /// </summary>
     protected ActorBase()
         : this(null, null) {
     }
 
     /// <summary>
-    /// 构造 Actor — 有界输入通道，无界输出通道。
+    /// 构造 Actor — 有界输入通道，有界输出通道(默认容量 DefaultChannelCapacity)。
     /// </summary>
-    /// <param name="boundedCapacity">有界输入通道容量(null 为无界)</param>
+    /// <param name="boundedCapacity">有界输入通道容量(null 为默认容量 DefaultChannelCapacity)</param>
     /// <param name="fullMode">有界通道满时策略</param>
     protected ActorBase(int? boundedCapacity, BoundedChannelFullMode fullMode = BoundedChannelFullMode.Wait)
         : this(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value, fullMode), null) {
@@ -55,8 +54,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>
     /// 构造 Actor — 完整背压配置。
     /// </summary>
-    /// <param name="backpressure">输入背压配置(null=无界通道,无水位线,无超时)</param>
-    /// <param name="outputCapacity">输出通道容量(null=无界)</param>
+    /// <param name="backpressure">输入背压配置(null=默认有界容量 DefaultChannelCapacity,无水位线,无超时)</param>
+    /// <param name="outputCapacity">输出通道容量(null=默认容量 DefaultChannelCapacity)</param>
     protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null) {
         Id = $"{GetType().Name}-{Guid.NewGuid():N}"[..8];
         _backpressure = backpressure;
@@ -142,14 +141,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     public void Tell(TCommand cmd) {
         ThrowIfDisposed();
 
-        Interlocked.Increment(ref _nextSequenceId);
+        Interlocked.Increment(ref _inputCount);
         if (_inputChannel.Writer.TryWrite(cmd)) {
-            Interlocked.Increment(ref _inputCount);
             CheckInputWatermark();
             return;
         }
+        Interlocked.Decrement(ref _inputCount);
 
-        _ = RetrySendAsync(cmd, default);
+        _ = RetrySendAsync(cmd, _cts.Token);
     }
 
     /// <summary>
@@ -167,11 +166,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             var backoff = TimeSpan.FromMilliseconds(100 * Math.Pow(2, Math.Min(retry, 10)));
             await Task.Delay(backoff, ct).ConfigureAwait(false);
 
-            Interlocked.Increment(ref _nextSequenceId);
+            Interlocked.Increment(ref _inputCount);
             if (_inputChannel.Writer.TryWrite(cmd)) {
-                Interlocked.Increment(ref _inputCount);
                 return;
             }
+            Interlocked.Decrement(ref _inputCount);
         }
 
         SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(cmd, BackpressureMaxRetries));
@@ -201,10 +200,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <returns>true 表示已入队,false 表示未入队</returns>
     public bool TrySend(TCommand cmd) {
         if (Volatile.Read(ref _disposed) != 0) return false;
+        Interlocked.Increment(ref _inputCount);
         var written = _inputChannel.Writer.TryWrite(cmd);
         if (written) {
-            Interlocked.Increment(ref _inputCount);
             CheckInputWatermark();
+        } else {
+            Interlocked.Decrement(ref _inputCount);
         }
         return written;
     }
@@ -214,10 +215,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     protected bool TryPublish(TOut msg) {
         if (Volatile.Read(ref _disposed) != 0) return false;
+        Interlocked.Increment(ref _outputCount);
         if (_outputChannel.Writer.TryWrite(msg)) {
-            Interlocked.Increment(ref _outputCount);
             return true;
         }
+        Interlocked.Decrement(ref _outputCount);
         return false;
     }
 
@@ -268,15 +270,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     protected IIdempotencyStore? IdempotencyStore { get; set; }
 
-    private WatermarkLevel _lastBackpressureLevel = WatermarkLevel.Normal;
-
     private async Task ConsumeLoopAsync() {
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
         try {
             await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
                 Interlocked.Decrement(ref _inputCount);
                 CheckInputWatermark();
-                NotifyBackpressureIfNeeded(cmd);
                 try {
                     if (cmd is IRequestCommand requestCmd && IdempotencyStore is not null &&
                         requestCmd.TryRestoreFromCache(IdempotencyStore)) {
@@ -290,26 +289,6 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                 }
             }
         } catch (OperationCanceledException) { }
-    }
-
-    /// <summary>
-    /// 水位线变化时强制通知命令的 OnBackpressure 回调 — 环形背压管道的核心。
-    /// <para>只在水位跨越阈值时发信号(避免信号风暴),Normal 恢复时也通知生产方可以恢复生产。</para>
-    /// </summary>
-    private void NotifyBackpressureIfNeeded(TCommand cmd) {
-        if (cmd is not IRequestCommand requestCmd) return;
-        var level = _backpressure is null ? WatermarkLevel.Normal : (
-            InputCount >= _backpressure.EffectiveCriticalWatermark ? WatermarkLevel.Critical :
-            InputCount >= _backpressure.EffectiveHighWatermark ? WatermarkLevel.High :
-            WatermarkLevel.Normal);
-        if (level == _lastBackpressureLevel) return;
-        _lastBackpressureLevel = level;
-        var delay = level switch {
-            WatermarkLevel.Critical => TimeSpan.FromMilliseconds(Math.Min(100 * (InputCount - (_backpressure?.EffectiveHighWatermark ?? 0)), 1000)),
-            WatermarkLevel.High => TimeSpan.FromMilliseconds(50),
-            _ => TimeSpan.Zero
-        };
-        requestCmd.OnBackpressure(new BackpressureSignal(0, Id, "", level, delay, 0));
     }
 
     /// <summary>
@@ -354,20 +333,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <exception cref="ActorAskDeadlockException">Ask 超时 — 可能线程池饥饿导致 Consumer 无法调度</exception>
     /// <exception cref="ActorCyclicAskException">等待图检测到环 — 循环 Ask 死锁</exception>
     protected async Task<T> AskAwait<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default, int timeoutMs = 10_000) {
-        var callerId = TryGetCallerActorId();
-        if (callerId is not null && callerId != Id) {
-            _askWaitGraph[callerId] = Id;
-            if (HasCycleInWaitGraph(callerId, Id))
-                throw new ActorCyclicAskException(callerId, Id);
-        }
+        using var waitScope = EnterWaitGraph(TryGetCallerActorId());
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(timeoutMs);
         try {
             return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
         } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
-        } finally {
-            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
         }
     }
 
@@ -375,20 +347,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// Ask 模式等待回复(无返回值) — 内置死锁检测 + 等待图环检测,非泛型重载
     /// </summary>
     protected async Task AskAwait(TaskCompletionSource tcs, CancellationToken ct = default, int timeoutMs = 10_000) {
-        var callerId = TryGetCallerActorId();
-        if (callerId is not null && callerId != Id) {
-            _askWaitGraph[callerId] = Id;
-            if (HasCycleInWaitGraph(callerId, Id))
-                throw new ActorCyclicAskException(callerId, Id);
-        }
+        using var waitScope = EnterWaitGraph(TryGetCallerActorId());
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(timeoutMs);
         try {
             await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
         } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
-        } finally {
-            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
         }
     }
 
@@ -412,31 +377,22 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         CancellationToken ct = default,
         int singleTimeoutMs = 10_000,
         int maxRetries = 16) {
-        var callerId = TryGetCallerActorId();
-        if (callerId is not null && callerId != Id) {
-            _askWaitGraph[callerId] = Id;
-            if (HasCycleInWaitGraph(callerId, Id))
-                throw new ActorCyclicAskException(callerId, Id);
-        }
-        try {
-            for (var attempt = 0; attempt <= maxRetries; attempt++) {
-                var tcs = new TaskCompletionSource<T>();
-                Tell(commandFactory(tcs));
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                linkedCts.CancelAfter(singleTimeoutMs);
-                try {
-                    return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-                } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-                    if (attempt >= maxRetries)
-                        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                    var delayMs = 100 * (1 << Math.Min(attempt, 20));
-                    await Task.Delay(delayMs, ct).ConfigureAwait(false);
-                }
+        using var waitScope = EnterWaitGraph(TryGetCallerActorId());
+        for (var attempt = 0; attempt <= maxRetries; attempt++) {
+            var tcs = new TaskCompletionSource<T>();
+            Tell(commandFactory(tcs));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            linkedCts.CancelAfter(singleTimeoutMs);
+            try {
+                return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                if (attempt >= maxRetries)
+                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+                var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
-            throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-        } finally {
-            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
         }
+        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
     }
 
     /// <summary>
@@ -451,44 +407,57 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         CancellationToken ct = default,
         int singleTimeoutMs = 10_000,
         int maxRetries = 16) {
-        var callerId = TryGetCallerActorId();
-        if (callerId is not null && callerId != Id) {
-            _askWaitGraph[callerId] = Id;
-            if (HasCycleInWaitGraph(callerId, Id))
-                throw new ActorCyclicAskException(callerId, Id);
-        }
-        try {
-            for (var attempt = 0; attempt <= maxRetries; attempt++) {
-                var tcs = new TaskCompletionSource();
-                Tell(commandFactory(tcs));
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                linkedCts.CancelAfter(singleTimeoutMs);
-                try {
-                    await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-                    return;
-                } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-                    if (attempt >= maxRetries)
-                        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                    var delayMs = 100 * (1 << Math.Min(attempt, 20));
-                    await Task.Delay(delayMs, ct).ConfigureAwait(false);
-                }
+        using var waitScope = EnterWaitGraph(TryGetCallerActorId());
+        for (var attempt = 0; attempt <= maxRetries; attempt++) {
+            var tcs = new TaskCompletionSource();
+            Tell(commandFactory(tcs));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            linkedCts.CancelAfter(singleTimeoutMs);
+            try {
+                await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+                return;
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                if (attempt >= maxRetries)
+                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+                var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
-            throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-        } finally {
-            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
         }
+        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
     }
 
     /// <summary>
-    /// 全图环检测 — 从 targetId 出发沿等待图 DFS,检测能否到达 callerId(间接环 A→B→C→A)。
-    /// <para>等待图是函数图(每个 caller 同时只有一个 Ask,最多一条出边),DFS 退化为链表遍历。</para>
+    /// 进入等待图作用域 — 在当前异步流的调用链本地图加边 callerId→Id,检测环,返回 scope(Dispose 恢复父图)。
+    /// <para>等待图用 AsyncLocal 存储调用链本地图,避免全局静态图跨调用链污染/并发覆盖(Bug1 修复)。</para>
+    /// <para>callerId 为 null 或等于自身时返回 null(无需加边)。</para>
     /// </summary>
-    private static bool HasCycleInWaitGraph(string callerId, string targetId) {
+    private WaitGraphScope? EnterWaitGraph(string? callerId) {
+        if (callerId is null || callerId == Id) return null;
+        var prevGraph = _askWaitGraph.Value;
+        var graph = prevGraph is null ? new Dictionary<string, string>() : new Dictionary<string, string>(prevGraph);
+        graph[callerId] = Id;
+        if (HasCycleInGraph(graph, callerId, Id))
+            throw new ActorCyclicAskException(callerId, Id);
+        _askWaitGraph.Value = graph;
+        return new WaitGraphScope(_askWaitGraph, prevGraph);
+    }
+
+    /// <summary>等待图作用域 — Dispose 时恢复父流等待图(AsyncLocal 写是流局部的,正确处理嵌套 Ask)</summary>
+    private sealed class WaitGraphScope(AsyncLocal<Dictionary<string, string>?> store, Dictionary<string, string>? previous) : IDisposable {
+        /// <summary>释放资源。</summary>
+        public void Dispose() => store.Value = previous;
+    }
+
+    /// <summary>
+    /// 全图环检测 — 从 targetId 出发沿等待图遍历,检测能否到达 callerId(间接环 A→B→C→A)。
+    /// <para>等待图是函数图(每个 caller 同时只有一个 Ask,最多一条出边),遍历退化为链表。</para>
+    /// </summary>
+    private static bool HasCycleInGraph(Dictionary<string, string> graph, string callerId, string targetId) {
         var current = targetId;
         var visited = new HashSet<string>();
         while (current != callerId) {
             if (!visited.Add(current)) return false;
-            if (!_askWaitGraph.TryGetValue(current, out var next)) return false;
+            if (!graph.TryGetValue(current, out var next)) return false;
             current = next;
         }
         return true;
@@ -570,8 +539,9 @@ public sealed class ActorCyclicAskException : InvalidOperationException {
 }
 
 /// <summary>
-/// 幂等命令标记接口 — 实现此接口的命令可安全重试(重复发送不会产生副作用)。
-/// <para>AskWithRetryAsync 重试时,幂等命令重发安全;非幂等命令重发由调用方确保安全。</para>
+/// 幂等命令标记接口 — 纯开发规约标记,框架不自动处理重试安全。
+/// <para><b>⚠️ 框架行为</b>:ActorBase 不读取此接口,不自动缓存或校验幂等性。重试安全由调用方保证。</para>
+/// <para><b>与 IRequestCommand 区别</b>:IRequestCommand 携带幂等键+TryRestoreFromCache,框架 ConsumeLoop 自动做缓存命中跳过;本接口仅为文档标记。</para>
 /// <para>典型幂等命令:查询(Get/Read)、取消(Cancel)、状态切换到固定值(SetXxx)。</para>
 /// <para>非幂等命令:追加(Append)、递增(Increment)、创建(Create) — 重试可能产生重复副作用。</para>
 /// </summary>

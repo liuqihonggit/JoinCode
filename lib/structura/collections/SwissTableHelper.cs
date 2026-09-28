@@ -80,6 +80,20 @@ namespace Structura.Collections
         /// Control byte value for a deleted bucket.
         public const byte DELETED = 0b1000_0000;
 
+        /// <summary>
+        /// 创建指定宽度的空控制字节数组，所有元素初始化为 <see cref="EMPTY"/>。
+        /// 各 SIMD 探测组（Avx2Group/Sse2Group/FallbackGroup）共享此工厂方法初始化 StaticEmpty。
+        /// </summary>
+        /// <param name="width">探测组字节宽度。</param>
+        /// <returns>填充 EMPTY 的控制字节数组。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static byte[] CreateStaticEmpty(int width)
+        {
+            var res = new byte[width];
+            Array.Fill(res, EMPTY);
+            return res;
+        }
+
         /// Checks whether a control byte represents a full bucket (top bit is clear).
         public static bool is_full(byte ctrl) => (ctrl & 0x80) == 0;
 

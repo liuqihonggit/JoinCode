@@ -131,14 +131,7 @@ namespace Structura.Collections
         /// <summary>
         /// 全部字节初始化为 EMPTY 的空探测组模板，用作空哈希表的初始填充值。
         /// </summary>
-        public static readonly byte[] StaticEmpty = InitialStaticEmpty();
-
-        private static byte[] InitialStaticEmpty()
-        {
-            var res = new byte[WIDTH];
-            Array.Fill(res, SwissTableHelper.EMPTY);
-            return res;
-        }
+        public static readonly byte[] StaticEmpty = SwissTableHelper.CreateStaticEmpty(WIDTH);
 
         /// <summary>
         /// 从给定地址按未对齐方式加载 WIDTH 字节构造探测组。

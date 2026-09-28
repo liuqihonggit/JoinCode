@@ -115,14 +115,7 @@ namespace Structura.Collections
         /// <summary>
         /// 静态空字节数组，所有元素初始化为 EMPTY 标记，用于初始化空组。
         /// </summary>
-        public static readonly byte[] StaticEmpty = InitialStaticEmpty();
-
-        private static byte[] InitialStaticEmpty()
-        {
-            var res = new byte[WIDTH];
-            Array.Fill(res, SwissTableHelper.EMPTY);
-            return res;
-        }
+        public static readonly byte[] StaticEmpty = SwissTableHelper.CreateStaticEmpty(WIDTH);
 
         /// <summary>
         /// 从非对齐字节指针加载 32 字节数据构造 AVX2 组。

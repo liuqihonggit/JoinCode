@@ -7,35 +7,40 @@ namespace Structura.Collections
     /// <summary>
     /// 探测组接口，定义瑞士表中按组批量匹配字节并产出位掩码的操作契约。
     /// </summary>
-    /// <remarks>After C#11, `StaticEmpty`, `Create`, `Load` and `LoadAligned` should become static abstract method</remarks>
+    /// <remarks>
+    /// 使用 C# 11+ static abstract 成员声明 WIDTH/Create/Load/LoadAligned 为接口契约，
+    /// 具体实现由各 SIMD struct（Avx2Group/Sse2Group/FallbackGroup）提供。
+    /// 实例方法（MatchByte/MatchGroup/MatchEmpty 等）不使用默认实现，避免 struct 装箱。
+    /// </remarks>
     internal interface IGroup<BitMaskImpl, GroupImpl>
         where BitMaskImpl : unmanaged, IBitMask<BitMaskImpl>
         where GroupImpl : unmanaged, IGroup<BitMaskImpl, GroupImpl>
     {
-        ///// <summary>
-        ///// Returns a full group of empty bytes, suitable for use as the initial
-        ///// value for an empty hash table.
-        ///// </summary>
-        ///// <returns></returns>
-        ////byte[] StaticEmpty { get; }
+        /// <summary>
+        /// 获取探测组的字节宽度（实现需为 readonly static）。
+        /// </summary>
+        static abstract int WIDTH { get; }
 
-        ///// <summary>
-        ///// The bytes that the group data ocupies
-        ///// </summary>
-        ///// <remarks>
-        ///// The implementation should have `readonly` modifier
-        ///// </remarks>
-        ////int WIDTH { get; }
+        /// <summary>
+        /// 创建所有字节都初始化为指定值的探测组（字节广播）。
+        /// </summary>
+        /// <param name="b">待广播的字节值。</param>
+        /// <returns>广播得到的探测组实例。</returns>
+        static abstract GroupImpl Create(byte b);
 
-        ////unsafe GroupImpl Load(byte* ptr);
+        /// <summary>
+        /// 从非对齐字节指针加载 WIDTH 字节数据构造探测组。
+        /// </summary>
+        /// <param name="ptr">起始字节地址。</param>
+        /// <returns>加载得到的探测组实例。</returns>
+        static abstract unsafe GroupImpl Load(byte* ptr);
 
-        ///// <summary>
-        ///// Loads a group of bytes starting at the given address, which must be
-        ///// aligned to the WIDTH
-        ///// </summary>
-        ///// <param name="ptr"></param>
-        ///// <returns></returns>
-        ////unsafe GroupImpl LoadAligned(byte* ptr);
+        /// <summary>
+        /// 从 WIDTH 字节对齐的指针加载数据构造探测组，调用方须保证地址对齐。
+        /// </summary>
+        /// <param name="ptr">按 WIDTH 对齐的起始字节地址。</param>
+        /// <returns>加载得到的探测组实例。</returns>
+        static abstract unsafe GroupImpl LoadAligned(byte* ptr);
 
         /// <summary>
         /// Performs the following transformation on all bytes in the group:

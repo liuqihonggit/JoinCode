@@ -26,8 +26,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     private int _disposed;
     private int _inputCount;
     private int _outputCount;
+    private readonly ILogger? _logger;
 
-    private static readonly AsyncLocal<Dag<string>?> _askWaitGraph = new();
+    private static readonly AsyncLocal<ImmutableDag<string>?> _askWaitGraph = new();
 
     /// <summary>背压重试最大次数</summary>
     public const int BackpressureMaxRetries = 16;
@@ -39,7 +40,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// 构造 Actor — 有界输入/输出通道(默认容量 DefaultChannelCapacity)。
     /// </summary>
     protected ActorBase()
-        : this(null, null) {
+        : this(null, null, null) {
     }
 
     /// <summary>
@@ -47,8 +48,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     /// <param name="boundedCapacity">有界输入通道容量(null 为默认容量 DefaultChannelCapacity)</param>
     /// <param name="fullMode">有界通道满时策略</param>
-    protected ActorBase(int? boundedCapacity, BoundedChannelFullMode fullMode = BoundedChannelFullMode.Wait)
-        : this(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value, fullMode), null) {
+    /// <param name="logger">日志记录器(null=静默)</param>
+    protected ActorBase(int? boundedCapacity, BoundedChannelFullMode fullMode = BoundedChannelFullMode.Wait, ILogger? logger = null)
+        : this(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value, fullMode), null, logger) {
     }
 
     /// <summary>
@@ -56,8 +58,10 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     /// <param name="backpressure">输入背压配置(null=默认有界容量 DefaultChannelCapacity,无水位线,无超时)</param>
     /// <param name="outputCapacity">输出通道容量(null=默认容量 DefaultChannelCapacity)</param>
-    protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null) {
+    /// <param name="logger">日志记录器(null=静默,不记录审计日志)</param>
+    protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null, ILogger? logger = null) {
         Id = $"{GetType().Name}-{Guid.NewGuid():N}"[..8];
+        _logger = logger;
         _backpressure = backpressure;
         _inputChannel = CreateInputChannel(backpressure);
         _outputChannel = CreateOutputChannel(outputCapacity);
@@ -94,7 +98,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         }
 
         return Channel.CreateBounded<TOut>(new BoundedChannelOptions(capacity.Value) {
-            FullMode = BoundedChannelFullMode.Wait,
+            FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true,
             SingleWriter = true
         });
@@ -108,7 +112,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     protected internal Task ConsumerTask => _consumerTask;
 
-    /// <summary>当前输入邮箱消息数 — 用于监控背压状态</summary>
+    /// <summary>当前输入邮箱消息数 — 仅统计已入队消息,不含正在重试投递的消息(监控需额外指标:重试队列长度)</summary>
     public int InputCount => Volatile.Read(ref _inputCount);
 
     /// <summary>当前输出通道消息数 — 用于监控堆积</summary>
@@ -173,7 +177,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             Interlocked.Decrement(ref _inputCount);
         }
 
-        SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(cmd, BackpressureMaxRetries));
+        try {
+            SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(cmd, BackpressureMaxRetries));
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "[Actor:{ActorId}] SendFailed 订阅者异常忽略", Id);
+        }
     }
 
     /// <summary>
@@ -379,8 +387,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         int maxRetries = 16) {
         using var waitScope = EnterWaitGraph(TryGetCallerActorId());
         for (var attempt = 0; attempt <= maxRetries; attempt++) {
-            var tcs = new TaskCompletionSource<T>();
-            Tell(commandFactory(tcs));
+            var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var cmd = commandFactory(tcs);
+            if (!TrySend(cmd)) {
+                if (attempt >= maxRetries)
+                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+                var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                await Task.Delay(delayMs, ct).ConfigureAwait(false);
+                continue;
+            }
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             linkedCts.CancelAfter(singleTimeoutMs);
             try {
@@ -409,8 +424,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         int maxRetries = 16) {
         using var waitScope = EnterWaitGraph(TryGetCallerActorId());
         for (var attempt = 0; attempt <= maxRetries; attempt++) {
-            var tcs = new TaskCompletionSource();
-            Tell(commandFactory(tcs));
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var cmd = commandFactory(tcs);
+            if (!TrySend(cmd)) {
+                if (attempt >= maxRetries)
+                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+                var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                await Task.Delay(delayMs, ct).ConfigureAwait(false);
+                continue;
+            }
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             linkedCts.CancelAfter(singleTimeoutMs);
             try {
@@ -429,30 +451,42 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>
     /// 进入等待图作用域 — 在当前异步流的调用链本地图加边 callerId→Id,检测环,返回 scope(Dispose 恢复父图)。
     /// <para>等待图用 AsyncLocal 存储调用链本地图,避免全局静态图跨调用链污染/并发覆盖(Bug1 修复)。</para>
+    /// <para>每次创建新 ImmutableDag 副本(从父图无锁快照复制),各异步流独立不竞态(P1-3 修复)。</para>
     /// <para>callerId 为 null 或等于自身时返回 null(无需加边)。</para>
     /// </summary>
     private WaitGraphScope? EnterWaitGraph(string? callerId) {
         if (callerId is null || callerId == Id) return null;
-        var graph = _askWaitGraph.Value ?? new Dag<string>();
+        var previousGraph = _askWaitGraph.Value;
+        var graph = CloneWaitGraph(previousGraph);
         _askWaitGraph.Value = graph;
         if (!graph.Nodes.ContainsKey(callerId))
-            graph.AddNode(new DagNode<string> { Id = callerId, Payload = callerId });
+            graph.AddNode(new ImmutableDagNode<string> { Id = callerId, Payload = callerId });
         if (!graph.Nodes.ContainsKey(Id))
-            graph.AddNode(new DagNode<string> { Id = Id, Payload = Id });
+            graph.AddNode(new ImmutableDagNode<string> { Id = Id, Payload = Id });
         var edge = new DagEdge { FromId = callerId, ToId = Id };
-        var result = graph.AddEdge(edge);
-        if (!result.Success)
+        try {
+            graph.AddEdge(edge);
+        } catch (InvalidOperationException) {
             throw new ActorCyclicAskException(callerId, Id);
-        return new WaitGraphScope(_askWaitGraph, graph, edge.Id);
+        }
+        return new WaitGraphScope(_askWaitGraph, previousGraph);
     }
 
-    /// <summary>等待图作用域 — Dispose 时移除边,边全部移除后清空 AsyncLocal</summary>
-    private sealed class WaitGraphScope(AsyncLocal<Dag<string>?> store, Dag<string> graph, string edgeId) : IDisposable {
+    /// <summary>从源图无锁快照复制所有节点和边到新 ImmutableDag 实例</summary>
+    private static ImmutableDag<string> CloneWaitGraph(ImmutableDag<string>? source) {
+        if (source is null) return new ImmutableDag<string>();
+        var dag = new ImmutableDag<string>();
+        foreach (var node in source.Nodes.Values)
+            dag.AddNode(node);
+        foreach (var edge in source.Edges.Values)
+            dag.TryAddEdge(edge);
+        return dag;
+    }
+
+    /// <summary>等待图作用域 — Dispose 时恢复父图引用(P1-3: 每次创建副本,无需 RemoveEdge)</summary>
+    private sealed class WaitGraphScope(AsyncLocal<ImmutableDag<string>?> store, ImmutableDag<string>? previousGraph) : IDisposable {
         /// <summary>释放资源。</summary>
-        public void Dispose() {
-            graph.RemoveEdge(edgeId);
-            if (graph.Edges.Count == 0) store.Value = null;
-        }
+        public void Dispose() => store.Value = previousGraph;
     }
 
     private string? TryGetCallerActorId() => AsyncFlowIdentity.CurrentActorId;

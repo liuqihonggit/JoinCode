@@ -37,8 +37,8 @@ public class ActorBaseBugReproTest {
     public void Bug1_WaitGraph_IsAsyncLocal_NotGlobalStatic() {
         var field = typeof(ActorBase<CycleCmd, Unit>)
             .GetField("_askWaitGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        field.FieldType.Should().Be(typeof(AsyncLocal<Dag<string>?>),
-            "等待图改为 AsyncLocal 调用链本地图,不再是全局静态 ConcurrentDictionary(Bug1 修复)");
+        field.FieldType.Should().Be(typeof(AsyncLocal<ImmutableDag<string>?>),
+            "等待图改为 AsyncLocal<ImmutableDag> 调用链本地图(CAS 无锁线程安全),不再是全局静态 ConcurrentDictionary(Bug1+P1-3 修复)");
     }
 
     /// <summary>

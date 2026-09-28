@@ -72,9 +72,11 @@
 - 构造时传入参数：PermissionRequest.Arguments, ToolInvokeContext.Arguments
 - init only DTO：ToolUseContext.AllowedTools, PermissionCheckContext.ApprovedLevels 等
 
-### 暂不处理（ConcurrentDictionary 外部直接写入，改造复杂且并发安全）
-- TeammateExecutionContext.ActiveTeammates/PendingMessages
-- ContentReplacementState.SeenIds/Replacements
+### 后续处理（commit 待提交）
+- TeammateExecutionContext.ActiveTeammates/PendingMessages: `get; set; }` → `get; init; }`（构造后不能替换整个字典）
+
+### 不处理（设计意图）
+- ContentReplacementState.SeenIds/Replacements: ConcurrentDictionary 暴露是设计意图（subagent 并行访问）
 
 ## 改造策略
 

@@ -136,13 +136,19 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>Actor 是否忙碌 — 输入队列有待处理消息 或 输出队列有待消费消息(P2-2: 监控指标)</summary>
     public bool IsBusy => InputCount > 0 || OutputCount > 0;
 
+    /// <summary>
+    /// Channel 原生输入消息总数 — 输入通道 Reader.Count + 重试队列 Reader.Count。
+    /// 用于水位判断(P0-缺陷1: Channel 原生 Count 比 Interlocked 计数器更准确)。
+    /// </summary>
+    private int ChannelInputCount => _inputChannel.Reader.Count + _retryQueue.Reader.Count;
+
     /// <summary>输入是否达到高水位线</summary>
     public bool IsInputHighWatermark => _backpressure is not null
-        && InputCount >= _backpressure.EffectiveHighWatermark;
+        && ChannelInputCount >= _backpressure.EffectiveHighWatermark;
 
     /// <summary>输入是否达到危险水位线</summary>
     public bool IsInputCriticalWatermark => _backpressure is not null
-        && InputCount >= _backpressure.EffectiveCriticalWatermark;
+        && ChannelInputCount >= _backpressure.EffectiveCriticalWatermark;
 
     /// <summary>输入背压水位事件</summary>
     public event EventHandler<BackpressureEventArgs>? InputWatermarkReached;
@@ -278,7 +284,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
 
     private void CheckInputWatermark() {
         if (_backpressure is null) return;
-        var count = InputCount;
+        var count = ChannelInputCount;
         var level = count >= _backpressure.EffectiveCriticalWatermark ? WatermarkLevel.Critical
                    : count >= _backpressure.EffectiveHighWatermark ? WatermarkLevel.High
                    : WatermarkLevel.Normal;

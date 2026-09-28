@@ -196,6 +196,46 @@ public class ActorBaseTest {
         sendFailedEvents.Should().ContainSingle(e => e.Command == "X" && e.RetryCount == 3);
     }
 
+    /// <summary>
+    /// P0-缺陷6: SendFailed 事件多播时,第一个订阅者抛异常不应阻断后续订阅者。
+    /// 确定性测试: 直接调用 TryRequeueRetryEntry 触发 SendFailed。
+    /// </summary>
+    [Fact]
+    public async Task SendFailed_Multicast_FirstHandlerThrows_SecondStillCalled() {
+        var bp = new ActorBackpressure(Capacity: 1, RetryQueueCapacity: 1);
+        await using var actor = new TestActor(bp);
+
+        var handler2Called = false;
+        actor.SendFailed += (_, _) => throw new InvalidOperationException("handler1 crash");
+        actor.SendFailed += (_, _) => handler2Called = true;
+
+        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier", 1));
+        actor.TryRequeueRetryEntry(new RetryEntry<string>("D", 1));
+
+        handler2Called.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// P0-缺陷6: InputWatermarkReached 事件多播时,第一个订阅者抛异常不应阻断后续订阅者。
+    /// </summary>
+    [Fact]
+    public async Task Watermark_Multicast_FirstHandlerThrows_SecondStillCalled() {
+        var bp = new ActorBackpressure(Capacity: 10, HighWatermark: 5, CriticalWatermark: 8);
+        await using var actor = new TestActor(bp);
+
+        var handler2Called = false;
+        actor.InputWatermarkReached += (_, _) => throw new InvalidOperationException("handler1 crash");
+        actor.InputWatermarkReached += (_, _) => handler2Called = true;
+
+        var gate = new TaskCompletionSource();
+        actor.Gate = gate;
+
+        for (var i = 0; i < 6; i++) actor.Tell($"msg-{i}");
+
+        await WaitUntilAsync(() => handler2Called, TimeSpan.FromMilliseconds(2000));
+        handler2Called.Should().BeTrue();
+    }
+
     /// <summary>验证输出计数反映已发布的消息数</summary>
     [Fact]
     public async Task OutputCount_ReflectsPublishedMessages() {

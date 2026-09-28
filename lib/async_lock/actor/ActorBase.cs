@@ -178,12 +178,20 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         }
     }
 
-    /// <summary>触发 SendFailed 事件 — 通知外部消息未能入队,可计入死信队列</summary>
+    /// <summary>触发 SendFailed 事件 — 逐个调用handler,一个异常不阻断其余(P0-C: 事件多播异常隔离)</summary>
     private void RaiseSendFailed(TCommand command, int retryCount) {
-        try {
-            SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(command, retryCount));
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, "[Actor:{ActorId}] SendFailed 订阅者异常忽略", Id);
+        RaiseEvent(SendFailed, this, new BackpressureSendFailedEventArgs<TCommand>(command, retryCount), "SendFailed");
+    }
+
+    /// <summary>安全触发事件 — 逐个调用handler,每个独立try-catch,一个handler异常不影响其余</summary>
+    private void RaiseEvent<TArgs>(EventHandler<TArgs>? handler, object sender, TArgs args, string eventName) {
+        if (handler is null) return;
+        foreach (var h in handler.GetInvocationList()) {
+            try {
+                ((EventHandler<TArgs>)h)(sender, args);
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[Actor:{ActorId}] {EventName} 订阅者异常忽略", Id, eventName);
+            }
         }
     }
 
@@ -298,8 +306,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                    : count >= _backpressure.EffectiveHighWatermark ? WatermarkLevel.High
                    : WatermarkLevel.Normal;
         if (level != WatermarkLevel.Normal) {
-            InputWatermarkReached?.Invoke(this, new BackpressureEventArgs(
-                GetType().Name, count, _backpressure.Capacity, level));
+            RaiseEvent(InputWatermarkReached, this, new BackpressureEventArgs(
+                GetType().Name, count, _backpressure.Capacity, level), "InputWatermarkReached");
         }
     }
 

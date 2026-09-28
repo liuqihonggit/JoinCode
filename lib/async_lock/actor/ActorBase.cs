@@ -25,12 +25,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         SingleWriter = false
     });
     private readonly Channel<RetryEntry<TCommand>> _retryQueue = Channel.CreateBounded<RetryEntry<TCommand>>(new BoundedChannelOptions(1024) {
-        FullMode = BoundedChannelFullMode.DropOldest,
+        FullMode = BoundedChannelFullMode.Wait,
         SingleReader = true,
         SingleWriter = false
     });
     private int _disposed;
     private int _inputCount;
+    private int _retryQueueCount;
     private int _outputCount;
     private readonly ILogger? _logger;
 
@@ -119,8 +120,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     protected internal Task ConsumerTask => _consumerTask;
 
-    /// <summary>当前输入邮箱消息数 — 仅统计已入队消息,不含正在重试投递的消息(监控需额外指标:重试队列长度)</summary>
-    public int InputCount => Volatile.Read(ref _inputCount);
+    /// <summary>当前输入邮箱消息总数 — 输入通道 + 重试队列(R1: 水位告警基于此值)</summary>
+    public int InputCount => Volatile.Read(ref _inputCount) + Volatile.Read(ref _retryQueueCount);
+
+    /// <summary>输入通道内消息数(不含重试队列)</summary>
+    public int InputChannelCount => Volatile.Read(ref _inputCount);
+
+    /// <summary>重试队列消息数(入队失败正在重试投递的消息)</summary>
+    public int RetryQueueCount => Volatile.Read(ref _retryQueueCount);
 
     /// <summary>当前输出通道消息数 — 用于监控堆积</summary>
     public int OutputCount => Volatile.Read(ref _outputCount);
@@ -148,7 +155,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <para>16次重试失败触发 <see cref="SendFailed"/> 事件(不丢弃,外部可计入死信队列)。</para>
     /// <para>背压信号通过 <see cref="ReceiveBackpressureSignal"/> 接收,重试时消费延迟信号。</para>
     /// <para><b>⚠️ Tell vs Ask</b>:此方法是 Tell(只保证消息入队,不保证 Consumer 已处理)。</para>
-    /// <para><b>Dispose/DisposeAsync 路径禁止用 Ask</b>(线程池饥饿时 await tcs.Task 死锁)。</para>
+    /// <para><b>⚠️ Dispose/DisposeAsync 路径禁止用 Ask</b>(线程池饥饿时 await tcs.Task 死锁)。</para>
+    /// <para><b>⚠️ FIFO 不保证</b>:消息入队失败进入重试队列后,可能晚于后续成功入队的消息被消费,命令顺序不保证严格 FIFO。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
     /// <exception cref="ObjectDisposedException">Actor 已释放</exception>
@@ -161,8 +169,16 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             return;
         }
         Interlocked.Decrement(ref _inputCount);
-
-        _retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(cmd, 1));
+        Interlocked.Increment(ref _retryQueueCount);
+        if (!_retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(cmd, 1))) {
+            Interlocked.Decrement(ref _retryQueueCount);
+            _logger?.LogWarning("[Actor:{ActorId}] 重试队列满,消息丢弃", Id);
+            try {
+                SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(cmd, 0));
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[Actor:{ActorId}] SendFailed 订阅者异常忽略", Id);
+            }
+        }
     }
 
     /// <summary>
@@ -174,12 +190,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                 if (Volatile.Read(ref _disposed) != 0) return;
 
                 var bpDelay = ConsumeBackpressureDelay();
-                if (bpDelay > TimeSpan.Zero)
-                    await Task.Delay(bpDelay, _cts.Token).ConfigureAwait(false);
+                var backoffMs = 100 * (1 << Math.Min(entry.Attempt, 10));
+                backoffMs = Math.Min(backoffMs, 5000);
+                var totalDelayMs = Math.Min(bpDelay.TotalMilliseconds + backoffMs, 10_000);
+                if (totalDelayMs > 0)
+                    await Task.Delay(TimeSpan.FromMilliseconds(totalDelayMs), _cts.Token).ConfigureAwait(false);
 
-                var backoff = TimeSpan.FromMilliseconds(100 * Math.Pow(2, Math.Min(entry.Attempt, 10)));
-                await Task.Delay(backoff, _cts.Token).ConfigureAwait(false);
-
+                Interlocked.Decrement(ref _retryQueueCount);
                 Interlocked.Increment(ref _inputCount);
                 if (_inputChannel.Writer.TryWrite(entry.Command)) {
                     CheckInputWatermark();
@@ -188,6 +205,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                 Interlocked.Decrement(ref _inputCount);
 
                 if (entry.Attempt < BackpressureMaxRetries) {
+                    Interlocked.Increment(ref _retryQueueCount);
                     _retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(entry.Command, entry.Attempt + 1));
                 } else {
                     try {
@@ -207,12 +225,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     public void ReceiveBackpressureSignal(TimeSpan suggestedDelay) => _bpDelayQueue.Writer.TryWrite(suggestedDelay);
 
     /// <summary>
-    /// 消费所有待处理背压延迟信号,返回累计延迟时间
+    /// 消费所有待处理背压延迟信号,取最新延迟(R2: 远程背压信号是瞬时建议,取最新非累加)
     /// </summary>
     private TimeSpan ConsumeBackpressureDelay() {
-        var totalMs = 0.0;
-        while (_bpDelayQueue.Reader.TryRead(out var delay)) totalMs += delay.TotalMilliseconds;
-        return TimeSpan.FromMilliseconds(totalMs);
+        var last = TimeSpan.Zero;
+        while (_bpDelayQueue.Reader.TryRead(out var delay)) last = delay;
+        return last;
     }
 
     /// <summary>
@@ -333,9 +351,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     public static Action<BackpressureSignal> CreateBackpressureHandler(Action resend, ILogger? logger = null) {
         return signal => {
             if (signal.SuggestedDelay > TimeSpan.Zero) {
-                _ = Task.Delay(signal.SuggestedDelay).ContinueWith(
-                    _ => { try { resend(); } catch (Exception ex) { logger?.LogWarning(ex, "CreateBackpressureHandler resend 异常忽略"); } },
-                    TaskScheduler.Default);
+                _ = Task.Run(async () => {
+                    try {
+                        await Task.Delay(signal.SuggestedDelay).ConfigureAwait(false);
+                        resend();
+                    } catch (Exception ex) {
+                        logger?.LogWarning(ex, "CreateBackpressureHandler resend 异常忽略");
+                    }
+                });
             } else {
                 try { resend(); } catch (Exception ex) { logger?.LogWarning(ex, "CreateBackpressureHandler resend 异常忽略"); }
             }
@@ -413,7 +436,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             if (!TrySend(cmd)) {
                 if (attempt >= maxRetries)
                     throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
                 continue;
             }
@@ -424,7 +447,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 if (attempt >= maxRetries)
                     throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
         }
@@ -450,7 +473,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             if (!TrySend(cmd)) {
                 if (attempt >= maxRetries)
                     throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
                 continue;
             }
@@ -462,7 +485,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 if (attempt >= maxRetries)
                     throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
         }

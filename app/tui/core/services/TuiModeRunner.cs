@@ -530,13 +530,15 @@ internal static class TuiModeRunner {
         WriteDiag($"[T7] session switched to {targetId}, {records.Count} messages loaded");
     }
 
-    private static void WriteDiag(string message) {
+    private static void WriteDiag(string message) => _ = WriteDiagAsync(message);
+
+    private static async Task WriteDiagAsync(string message) {
         try {
             var dir = AppDataConstants.UserRuntimeJccTuiDiagDirectory;
             System.IO.Directory.CreateDirectory(dir);
-            SafeFileIO.AppendAllText(
+            await SafeFileIO.AppendAllText(
                 System.IO.Path.Combine(dir, "run.log"),
-                $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n").GetAwaiter().GetResult();
+                $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n");
         } catch (Exception logEx) { Console.Error.WriteLine($"[diag] WriteDiag failed: {logEx.Message}"); }
     }
 }

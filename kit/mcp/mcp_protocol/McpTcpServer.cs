@@ -116,7 +116,7 @@ public sealed class McpTcpServer : ServiceEntity {
                 await HandlePostAsync(stream, request, ct).ConfigureAwait(false);
                 break;
                 case "DELETE":
-                HandleDelete(stream, request);
+                await HandleDeleteAsync(stream, request).ConfigureAwait(false);
                 break;
                 case "GET":
                 // 无状态模式不支持 GET SSE
@@ -177,12 +177,12 @@ public sealed class McpTcpServer : ServiceEntity {
         await WriteResponseAsync(stream, 200, "OK", json, ct, extraHeaders).ConfigureAwait(false);
     }
 
-    private void HandleDelete(Stream stream, HttpRequestInfo request) {
+    private async Task HandleDeleteAsync(Stream stream, HttpRequestInfo request) {
         var sessionId = request.Headers.GetValueOrDefault("Mcp-Session-Id");
         if (!string.IsNullOrEmpty(sessionId)) {
             _sessions.Remove(sessionId);
         }
-        WriteResponseAsync(stream, 204, "No Content", null, default).GetAwaiter().GetResult();
+        await WriteResponseAsync(stream, 204, "No Content", null, default).ConfigureAwait(false);
     }
 
     /// <summary>

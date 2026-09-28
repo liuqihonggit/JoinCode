@@ -8,8 +8,7 @@ namespace McpToolDispatch;
 public sealed class ToolInterventionManager : ServiceEntity {
     private readonly ILogger<ToolInterventionManager>? _logger;
     private readonly IFileSystem _fs;
-    private readonly Dictionary<string, InterventionRule> _rules = new(StringComparer.OrdinalIgnoreCase);
-    private readonly AsyncLock _lock = new();
+    private ImmutableDictionary<string, InterventionRule> _rules = ImmutableDictionary<string, InterventionRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly string _configPath;
 
     /// <summary>
@@ -36,14 +35,16 @@ public sealed class ToolInterventionManager : ServiceEntity {
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
     public async Task AddRuleAsync(string toolName, InterventionType type, string reason, TimeSpan? duration = null, CancellationToken ct = default) {
-        using (var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            _rules[toolName] = new InterventionRule {
-                Type = type,
-                Reason = reason,
-                Expiry = duration.HasValue ? DateTime.UtcNow + duration.Value : null,
-                ScorePenalty = type == InterventionType.Downgrade ? -50 : null,
-                RedirectTo = type == InterventionType.Redirect ? GetDefaultRedirect(toolName) : null
-            };
+        var rule = new InterventionRule {
+            Type = type,
+            Reason = reason,
+            Expiry = duration.HasValue ? DateTime.UtcNow + duration.Value : null,
+            ScorePenalty = type == InterventionType.Downgrade ? -50 : null,
+            RedirectTo = type == InterventionType.Redirect ? GetDefaultRedirect(toolName) : null
+        };
+        while (true) {
+            var current = _rules;
+            if (Interlocked.CompareExchange(ref _rules, current.SetItem(toolName, rule), current) == current) break;
         }
 
         await SaveToDiskAsync().ConfigureAwait(false);
@@ -58,8 +59,9 @@ public sealed class ToolInterventionManager : ServiceEntity {
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
     public async Task RemoveRuleAsync(string toolName, CancellationToken ct = default) {
-        using (var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            _rules.Remove(toolName);
+        while (true) {
+            var current = _rules;
+            if (Interlocked.CompareExchange(ref _rules, current.Remove(toolName), current) == current) break;
         }
 
         await SaveToDiskAsync().ConfigureAwait(false);
@@ -72,12 +74,10 @@ public sealed class ToolInterventionManager : ServiceEntity {
     /// <param name="toolName">工具名称</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>干预规则；若不存在或已过期则返回 null</returns>
-    public async Task<InterventionRule?> GetRuleAsync(string toolName, CancellationToken ct = default) {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
+    public Task<InterventionRule?> GetRuleAsync(string toolName, CancellationToken ct = default) {
         if (_rules.TryGetValue(toolName, out var rule) && !rule.IsExpired)
-            return rule;
-        return null;
+            return Task.FromResult<InterventionRule?>(rule);
+        return Task.FromResult<InterventionRule?>(null);
 
     }
 
@@ -86,12 +86,11 @@ public sealed class ToolInterventionManager : ServiceEntity {
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>以工具名为键的只读干预规则字典</returns>
-    public async Task<IReadOnlyDictionary<string, InterventionRule>> GetActiveRulesAsync(CancellationToken ct = default) {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        return _rules
-            .Where(kvp => !kvp.Value.IsExpired)
-            .ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    public Task<IReadOnlyDictionary<string, InterventionRule>> GetActiveRulesAsync(CancellationToken ct = default) {
+        return Task.FromResult<IReadOnlyDictionary<string, InterventionRule>>(
+            _rules
+                .Where(kvp => !kvp.Value.IsExpired)
+                .ToFrozenDictionary(StringComparer.OrdinalIgnoreCase));
 
     }
 
@@ -129,8 +128,13 @@ public sealed class ToolInterventionManager : ServiceEntity {
             var json = await _fs.ReadAllText(_configPath).ConfigureAwait(false);
             var data = RelaxedJsonSerializer.Deserialize(json, ToolInterventionJsonContext.Default.DictionaryStringInterventionRule);
             if (data is null) return;
-            foreach (var kvp in data)
-                _rules[kvp.Key] = kvp.Value;
+            while (true) {
+                var current = _rules;
+                var updated = current;
+                foreach (var kvp in data)
+                    updated = updated.SetItem(kvp.Key, kvp.Value);
+                if (Interlocked.CompareExchange(ref _rules, updated, current) == current) return;
+            }
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "加载工具干预配置失败");
         }
@@ -140,18 +144,17 @@ public sealed class ToolInterventionManager : ServiceEntity {
         try {
             var dir = Path.GetDirectoryName(_configPath)!;
             if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
-            var json = RelaxedJsonSerializer.Serialize(_rules, ToolInterventionJsonContext.Default);
+            var snapshot = _rules;
+            var dict = snapshot.ToDictionary();
+            var json = RelaxedJsonSerializer.Serialize(dict, ToolInterventionJsonContext.Default);
             await _fs.WriteAllText(_configPath, json).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "保存工具干预配置失败");
         }
     }
 
-    /// <summary>释放资源 — 释放异步锁。</summary>
-    public override void Dispose() {
-        _lock.Dispose();
-        base.Dispose();
-    }
+    /// <summary>释放资源。</summary>
+    public override void Dispose() => base.Dispose();
 }
 
 [JsonSerializable(typeof(Dictionary<string, InterventionRule>))]

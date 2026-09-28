@@ -40,6 +40,7 @@ global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
 global using System.Collections.Frozen;
+global using System.Collections.Immutable;
 global using System.IO.Pipes;
 global using System.Net;
 global using System.Runtime.CompilerServices;

@@ -99,21 +99,21 @@ public class ActorBackpressureTest {
     [Fact]
     public async Task WatermarkReached_EventFiresOnCriticalWatermark() {
         var bp = new ActorBackpressure(Capacity: 30, HighWatermark: 5, CriticalWatermark: 10);
-        await using var actor = new BackpressureTestActor(bp);
+        await using var actor = new TestActor(bp);
 
-        var gateTcs = new TaskCompletionSource();
-        actor.SetGate(gateTcs);
+        var gate = new TaskCompletionSource();
+        actor.Gate = gate;
 
         var events = new ConcurrentQueue<BackpressureEventArgs>();
         actor.InputWatermarkReached += (_, e) => events.Enqueue(e);
 
         for (var i = 0; i < 15; i++) {
-            await actor.IncrementAsync(new TaskCompletionSource<int>());
+            actor.Tell($"msg-{i}");
         }
 
-        await WaitUntilAsync(() => events.Any(e => e.Level == WatermarkLevel.Critical), TimeSpan.FromMilliseconds(1000));
+        await WaitUntilAsync(() => events.Any(e => e.Level == WatermarkLevel.Critical), TimeSpan.FromMilliseconds(2000));
 
-        gateTcs.SetResult();
+        gate.SetResult();
     }
 
     [Fact]

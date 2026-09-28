@@ -258,12 +258,15 @@ public class CommandDangerClassifierInternalTests {
     }
 
     [Fact]
-    public void GetPipeTargetCommands_EmptyArgs_Should_Throw() {
-        // 已知边界:Enumerable.Range(0, count-1) 当 count=0 时抛 ArgumentOutOfRangeException。
-        // 生产路径中 GetPipeTargetCommands 仅在 command.HasPipe=true 时调用,空参数不会到达此处。
-        // 此处记录该边界行为,不改生产逻辑(任务约束:只改可见性)。
-        var act = () => CommandDangerClassifier.GetPipeTargetCommands(new List<string>()).ToList();
-        act.Should().Throw<ArgumentOutOfRangeException>();
+    public void GetPipeTargetCommands_EmptyArgs_Should_Return_Empty() {
+        CommandDangerClassifier.GetPipeTargetCommands(new List<string>())
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public void GetPipeTargetCommands_SingleArg_Should_Return_Empty() {
+        CommandDangerClassifier.GetPipeTargetCommands(new List<string> { "ls" })
+            .Should().BeEmpty();
     }
 
     #endregion

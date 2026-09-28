@@ -422,7 +422,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// 从参数列表中提取所有管道目标命令名(| 后面的第一个参数)
     /// </summary>
     internal static IEnumerable<string> GetPipeTargetCommands(IReadOnlyList<string> arguments)
-        => Enumerable.Range(0, arguments.Count - 1)
+        => Enumerable.Range(0, Math.Max(0, arguments.Count - 1))
             .Where(i => arguments[i] == "|")
             .Select(i => arguments[i + 1]);
 

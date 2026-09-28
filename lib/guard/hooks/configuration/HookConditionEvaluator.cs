@@ -80,7 +80,7 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
         }
     }
 
-    private bool EvaluateCondition(string condition, HookInput input) {
+    internal bool EvaluateCondition(string condition, HookInput input) {
         if (condition.Contains("||")) {
             var parts = condition.Split("||", StringSplitOptions.TrimEntries);
             return parts.Any(p => EvaluateCondition(p, input));
@@ -102,7 +102,7 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
         return EvaluateSingleCondition(condition, input);
     }
 
-    private bool EvaluateSingleCondition(string condition, HookInput input) {
+    internal bool EvaluateSingleCondition(string condition, HookInput input) {
         if (TryParseToolPattern(condition, out var toolName, out var pattern)) {
             return EvaluateToolPattern(toolName, pattern, input);
         }
@@ -124,7 +124,7 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
         return input.ToolName?.Equals(condition, StringComparison.OrdinalIgnoreCase) ?? false;
     }
 
-    private bool TryParseToolPattern(string condition, out string toolName, out string? pattern) {
+    internal bool TryParseToolPattern(string condition, out string toolName, out string? pattern) {
         toolName = condition;
         pattern = null;
 
@@ -136,7 +136,7 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
         return true;
     }
 
-    private bool EvaluateToolPattern(string toolName, string? pattern, HookInput input) {
+    internal bool EvaluateToolPattern(string toolName, string? pattern, HookInput input) {
         if (!string.Equals(input.ToolName, toolName, StringComparison.OrdinalIgnoreCase)) {
             return false;
         }
@@ -169,7 +169,7 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
         return false;
     }
 
-    private bool EvaluateInputCondition(string condition, HookInput input) {
+    internal bool EvaluateInputCondition(string condition, HookInput input) {
         var colonIndex = condition.IndexOf(':');
         if (colonIndex < 0) return false;
 
@@ -185,7 +185,7 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
         return MatchesPattern(value ?? "", valuePattern);
     }
 
-    private string? GetNestedValue(JsonElement element, string path) {
+    internal string? GetNestedValue(JsonElement element, string path) {
         var parts = path.Split('.');
         var current = element;
 
@@ -208,7 +208,7 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
         };
     }
 
-    private bool MatchesPattern(string value, string pattern) {
+    internal bool MatchesPattern(string value, string pattern) {
         if (pattern == value) return true;
         if (pattern == "*") return true;
 

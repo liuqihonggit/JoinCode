@@ -106,7 +106,7 @@ public sealed class MtpPerturbationNode {
     /// <summary>
     /// 提取命令的扰动特征。
     /// </summary>
-    private static PerturbationFeatures ExtractFeatures(string command)
+    internal static PerturbationFeatures ExtractFeatures(string command)
         => new(
             CommandLength: command.Length,
             HasRedirectSymbol: command.Contains('>') || command.Contains('<'),
@@ -123,7 +123,7 @@ public sealed class MtpPerturbationNode {
     /// </list>
     /// </para>
     /// </summary>
-    private static bool DetectAnomaly(PerturbationFeatures features, int exitCode, string? stderr) {
+    internal static bool DetectAnomaly(PerturbationFeatures features, int exitCode, string? stderr) {
         if (exitCode != 0 && features.HasRedirectSymbol)
             return true;
 
@@ -136,7 +136,7 @@ public sealed class MtpPerturbationNode {
     /// <summary>
     /// 检测 stderr 是否包含路径错误（拼写偏移特征）。
     /// </summary>
-    private static bool ContainsPathError(string stderr)
+    internal static bool ContainsPathError(string stderr)
         => stderr.Contains("not found", StringComparison.OrdinalIgnoreCase)
            || stderr.Contains("No such file", StringComparison.OrdinalIgnoreCase)
            || stderr.Contains("cannot access", StringComparison.OrdinalIgnoreCase);
@@ -144,7 +144,7 @@ public sealed class MtpPerturbationNode {
     /// <summary>
     /// 计算最近记录中连续异常的次数（从最新往前数）。
     /// </summary>
-    private static int CountConsecutiveAnomalies(ImmutableList<PerturbationRecord> records) {
+    internal static int CountConsecutiveAnomalies(ImmutableList<PerturbationRecord> records) {
         var count = 0;
         for (var i = records.Count - 1; i >= 0; i--) {
             if (!records[i].IsAnomaly)
@@ -169,7 +169,7 @@ public sealed class MtpPerturbationNode {
         }
     }
 
-    private sealed record PerturbationRecord(
+    internal sealed record PerturbationRecord(
         PerturbationFeatures Features,
         bool IsAnomaly,
         string Command);

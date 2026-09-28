@@ -141,7 +141,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
         return results;
     }
 
-    private PolicyEvaluationResult EvaluateRule(PolicyRule rule, string action, Dictionary<string, string>? context) {
+    internal PolicyEvaluationResult EvaluateRule(PolicyRule rule, string action, Dictionary<string, string>? context) {
         if (!MatchesConditions(rule, context)) {
             return new PolicyEvaluationResult {
                 RuleId = rule.RuleId,
@@ -166,7 +166,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
         };
     }
 
-    private PolicyEvaluationResult EvaluateUsageLimit(PolicyRule rule, string action) {
+    internal PolicyEvaluationResult EvaluateUsageLimit(PolicyRule rule, string action) {
         var counterKey = $"{rule.RuleId}:{action}";
         var currentCount = _usageCounters.GetValueOrDefault(counterKey, 0);
 
@@ -190,7 +190,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
         };
     }
 
-    private PolicyEvaluationResult EvaluateCostLimit(PolicyRule rule) {
+    internal PolicyEvaluationResult EvaluateCostLimit(PolicyRule rule) {
         if (!rule.CostLimit.HasValue) {
             return new PolicyEvaluationResult {
                 RuleId = rule.RuleId,
@@ -218,7 +218,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
         };
     }
 
-    private PolicyEvaluationResult EvaluateRateLimit(PolicyRule rule, string action) {
+    internal PolicyEvaluationResult EvaluateRateLimit(PolicyRule rule, string action) {
         if (!rule.Window.HasValue) {
             return new PolicyEvaluationResult {
                 RuleId = rule.RuleId,
@@ -268,7 +268,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
         };
     }
 
-    private PolicyEvaluationResult EvaluateToolRestriction(PolicyRule rule, string action) {
+    internal PolicyEvaluationResult EvaluateToolRestriction(PolicyRule rule, string action) {
         if (rule.RestrictedTools == null || rule.RestrictedTools.Count == 0) {
             return new PolicyEvaluationResult {
                 RuleId = rule.RuleId,
@@ -296,7 +296,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
         };
     }
 
-    private PolicyEvaluationResult EvaluateTimeRestriction(PolicyRule rule) {
+    internal PolicyEvaluationResult EvaluateTimeRestriction(PolicyRule rule) {
         if (rule.Conditions == null || !rule.Conditions.TryGetValue("allowedHours", out var hoursStr)) {
             return new PolicyEvaluationResult {
                 RuleId = rule.RuleId,
@@ -328,7 +328,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
         };
     }
 
-    private static bool MatchesAction(PolicyRule rule, string action) {
+    internal static bool MatchesAction(PolicyRule rule, string action) {
         if (rule.Type == PolicyType.ToolRestriction && rule.RestrictedTools != null) {
             return rule.RestrictedTools.Any(t =>
                 string.Equals(t, action, StringComparison.OrdinalIgnoreCase) ||
@@ -338,7 +338,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
         return true;
     }
 
-    private static bool MatchesConditions(PolicyRule rule, Dictionary<string, string>? context) {
+    internal static bool MatchesConditions(PolicyRule rule, Dictionary<string, string>? context) {
         if (rule.Conditions == null || rule.Conditions.Count == 0) return true;
         if (context == null || context.Count == 0) return rule.Conditions.Count == 0;
 

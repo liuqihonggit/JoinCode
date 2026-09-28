@@ -8,13 +8,13 @@ public sealed class PipeRegistry {
     private volatile ImmutableHamT<string, IMessagePipe> _pipes = ImmutableHamT<string, IMessagePipe>.Empty;
 
     /// <summary>已注册管道数量。</summary>
-    public int Count => Volatile.Read(ref _pipes).Count;
+    public int Count => _pipes.Count;
 
     /// <summary>所有已注册管道（只读快照）。</summary>
-    public IReadOnlyList<IMessagePipe> All => [.. Volatile.Read(ref _pipes).Values];
+    public IReadOnlyList<IMessagePipe> All => [.. _pipes.Values];
 
     /// <summary>主 Agent 管道（null 表示尚未注册）。</summary>
-    public IMessagePipe? MainPipe => Volatile.Read(ref _pipes).Values.FirstOrDefault(p => p.IsMain);
+    public IMessagePipe? MainPipe => _pipes.Values.FirstOrDefault(p => p.IsMain);
 
     /// <summary>注册管道。已存在同 AgentId 则覆盖。</summary>
     public void Register(IMessagePipe pipe) {
@@ -37,12 +37,12 @@ public sealed class PipeRegistry {
 
     /// <summary>获取指定 Agent 的管道。不存在返回 null。</summary>
     public IMessagePipe? Get(string agentId) {
-        return Volatile.Read(ref _pipes).TryGetValue(agentId, out var pipe) ? pipe : null;
+        return _pipes.TryGetValue(agentId, out var pipe) ? pipe : null;
     }
 
     /// <summary>是否包含指定 Agent 的管道。</summary>
     public bool Contains(string agentId) {
-        return Volatile.Read(ref _pipes).ContainsKey(agentId);
+        return _pipes.ContainsKey(agentId);
     }
 
     /// <summary>清空所有管道。</summary>

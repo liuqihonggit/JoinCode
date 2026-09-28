@@ -59,7 +59,7 @@ internal sealed class RemoteClientRegistry {
 
     /// <summary>清空所有客户端（逐个 DisposeAsync 后原子替换为空字典）</summary>
     public async Task ClearAllAsync() {
-        ImmutableHamT<string, McpClientEntry> snapshot = ImmutableHamT<string, McpClientEntry>.Empty;
+        var snapshot = ImmutableHamT<string, McpClientEntry>.Empty;
         while (true) {
             var current = _clients;
             if (Interlocked.CompareExchange(ref _clients, ImmutableHamT<string, McpClientEntry>.Empty, current) == current) { snapshot = current; break; }

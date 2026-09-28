@@ -539,8 +539,9 @@ public sealed class ActorCyclicAskException : InvalidOperationException {
 }
 
 /// <summary>
-/// 幂等命令标记接口 — 实现此接口的命令可安全重试(重复发送不会产生副作用)。
-/// <para>AskWithRetryAsync 重试时,幂等命令重发安全;非幂等命令重发由调用方确保安全。</para>
+/// 幂等命令标记接口 — 纯开发规约标记,框架不自动处理重试安全。
+/// <para><b>⚠️ 框架行为</b>:ActorBase 不读取此接口,不自动缓存或校验幂等性。重试安全由调用方保证。</para>
+/// <para><b>与 IRequestCommand 区别</b>:IRequestCommand 携带幂等键+TryRestoreFromCache,框架 ConsumeLoop 自动做缓存命中跳过;本接口仅为文档标记。</para>
 /// <para>典型幂等命令:查询(Get/Read)、取消(Cancel)、状态切换到固定值(SetXxx)。</para>
 /// <para>非幂等命令:追加(Append)、递增(Increment)、创建(Create) — 重试可能产生重复副作用。</para>
 /// </summary>

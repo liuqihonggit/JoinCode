@@ -19,10 +19,10 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase {
     /// </summary>
     public override int Priority => 100;
 
-    private static readonly HashSet<ContentType> _supportedTypes = new()
+    private static readonly FrozenSet<ContentType> _supportedTypes = new HashSet<ContentType>
     {
         ContentType.ReferenceIndex
-    };
+    }.ToFrozenSet();
 
     private static readonly string[] s_filePathPatterns =
     [

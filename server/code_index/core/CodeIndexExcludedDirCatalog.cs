@@ -14,7 +14,7 @@ public static class CodeIndexExcludedDirCatalog {
     /// 强制排除的目录名集合（OrdinalIgnoreCase）
     /// 唯一数据源:所有消费方通过此属性获取,禁止在消费方重复硬编码
     /// </summary>
-    public static readonly HashSet<string> ExcludedDirs = new(StringComparer.OrdinalIgnoreCase) { "bin", "obj", ".git", ".x" };
+    public static readonly FrozenSet<string> ExcludedDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "bin", "obj", ".git", ".x" }.ToFrozenSet();
 
     /// <summary>
     /// 默认排除目录数组（用于数组初始化场景）

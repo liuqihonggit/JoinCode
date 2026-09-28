@@ -10,11 +10,10 @@ public sealed partial class GitSecurityInterceptor : ServiceEntity, IGitSecurity
     private readonly IGitSecretScanner _scanner;
     private readonly ILogger<GitSecurityInterceptor> _logger;
 
-    private static readonly HashSet<string> ScannedTools =
-    [
+    private static readonly FrozenSet<string> ScannedTools = FrozenSet.Create(
         "git_commit",
         "git_add"
-    ];
+    );
 
     /// <inheritdoc />
     public int Priority => 100;

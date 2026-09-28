@@ -18,16 +18,16 @@ public class ActorBaseBugReproTest {
         var bId = "bug1-B";
         var cId = "bug1-C";
 
-        var method = typeof(ActorBase<CycleCmd, Unit>)
-            .GetMethod("HasCycleInGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var graph1 = new Dag<string>();
+        graph1.AddNode(new DagNode<string> { Id = aId, Payload = aId });
+        graph1.AddNode(new DagNode<string> { Id = bId, Payload = bId });
+        graph1.AddEdge(new DagEdge { FromId = aId, ToId = bId });
+        graph1.WouldCreateCycle(bId, aId).Should().BeTrue("A→B→A 环在独立图1中被检出(Bug1 修复:调用链本地图不互相覆盖)");
 
-        var graph1 = new Dictionary<string, string> { [aId] = bId, [bId] = aId };
-        var hasCycle1 = (bool)method.Invoke(null, [graph1, bId, aId])!;
-        hasCycle1.Should().BeTrue("A→B→A 环在独立图1中被检出(Bug1 修复:调用链本地图不互相覆盖)");
-
-        var graph2 = new Dictionary<string, string> { [aId] = cId };
-        var hasCycle2 = (bool)method.Invoke(null, [graph2, aId, cId])!;
-        hasCycle2.Should().BeFalse("A→C 无环在独立图2中不误判");
+        var graph2 = new Dag<string>();
+        graph2.AddNode(new DagNode<string> { Id = aId, Payload = aId });
+        graph2.AddNode(new DagNode<string> { Id = cId, Payload = cId });
+        graph2.WouldCreateCycle(aId, cId).Should().BeFalse("A→C 无环在独立图2中不误判");
     }
 
     /// <summary>
@@ -37,7 +37,7 @@ public class ActorBaseBugReproTest {
     public void Bug1_WaitGraph_IsAsyncLocal_NotGlobalStatic() {
         var field = typeof(ActorBase<CycleCmd, Unit>)
             .GetField("_askWaitGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        field.FieldType.Should().Be(typeof(AsyncLocal<Dictionary<string, string>?>),
+        field.FieldType.Should().Be(typeof(AsyncLocal<Dag<string>?>),
             "等待图改为 AsyncLocal 调用链本地图,不再是全局静态 ConcurrentDictionary(Bug1 修复)");
     }
 

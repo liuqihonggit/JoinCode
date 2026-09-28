@@ -144,39 +144,26 @@ public class MessageRetryEngineTest {
         cts.Cancel();
     }
 
-    /// <summary>重试循环:TryEnqueue 消息 → 退避后回写输入通道 → onEnqueuedToInput 调用</summary>
+    /// <summary>ProcessOneEntryImmediate 回写成功 → onEnqueuedToInput 调用,不触发 SendFailed(确定性,无退避延迟)</summary>
     [Fact]
-    public async Task RunLoop_RetryEntry_WrittenBackToInput_InvokesOnEnqueuedCallback() {
+    public void ProcessOneEntryImmediate_InputWritable_InvokesOnEnqueuedNoSendFailed() {
         var (engine, input, cts, sendFailed, enqueuedCount) = NewEngine(maxRetries: 16);
-        engine.Start();
 
-        engine.TryEnqueue(new RetryEntry<string>("retry-cmd", 1));
+        var result = engine.ProcessOneEntryImmediate(new RetryEntry<string>("retry-cmd", 1));
 
-        // 退避:attempt=1 → backoff=100*2^1=200ms,等待回写(用足够窗口,不依赖精确时序)
-        string? received = null;
-        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(3);
-        while (DateTimeOffset.UtcNow < deadline) {
-            if (input.Reader.TryRead(out var cmd)) { received = cmd; break; }
-            await Task.Delay(20);
-        }
-
-        received.Should().Be("retry-cmd", "重试循环退避后回写输入通道");
-        // 跨线程可见性:TryWrite 成功后 onEnqueuedToInput 紧随其后,但测试线程可能读到 cmd 时回调尚未可见,轮询等待
-        var callbackDeadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(2);
-        while (DateTimeOffset.UtcNow < callbackDeadline && Volatile.Read(ref enqueuedCount[0]) == 0)
-            await Task.Delay(10);
-        Volatile.Read(ref enqueuedCount[0]).Should().BeGreaterThan(0, "回写成功调用 onEnqueuedToInput 回调");
+        result.Should().BeTrue("输入通道可写,回写成功");
+        Volatile.Read(ref enqueuedCount[0]).Should().Be(1, "回写成功调用 onEnqueuedToInput 回调");
         sendFailed.Should().BeEmpty("回写成功不触发 SendFailed");
+        input.Reader.TryRead(out var cmd).Should().BeTrue();
+        cmd.Should().Be("retry-cmd");
 
         engine.Complete();
         cts.Cancel();
-        await engine.WaitForCompletionAsync();
     }
 
-    /// <summary>重试循环:输入通道满 → 回写失败 → TryRequeue 重新入队(Attempt+1)</summary>
+    /// <summary>ProcessOneEntryImmediate 输入满 → TryRequeue 重新入队(确定性,无退避延迟)</summary>
     [Fact]
-    public async Task RunLoop_InputFull_RewritesToRetryQueue() {
-        // 输入通道容量 1,先占满
+    public void ProcessOneEntryImmediate_InputFull_TryRequeues() {
         var input = Channel.CreateBounded<string>(new BoundedChannelOptions(1) {
             FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true,
@@ -194,27 +181,17 @@ public class MessageRetryEngineTest {
             shutdownCt: cts.Token,
             onSendFailed: (cmd, retry) => sendFailed.Add((cmd, retry)),
             onEnqueuedToInput: () => Interlocked.Increment(ref enqueuedCount));
+
         input.Writer.TryWrite("occupier").Should().BeTrue("占满输入通道");
-        engine.Start();
 
-        engine.TryEnqueue(new RetryEntry<string>("blocked-cmd", 1));
+        var result = engine.ProcessOneEntryImmediate(new RetryEntry<string>("blocked-cmd", 1));
 
-        // 退避后回写失败(输入满),TryRequeue 重新入队;等待重试循环处理(不检查瞬时 RetryQueueCount,时序敏感)
-        await Task.Delay(500);
+        result.Should().BeFalse("输入通道满,回写失败");
+        Volatile.Read(ref enqueuedCount).Should().Be(0, "回写失败不调用 onEnqueuedToInput");
         sendFailed.Should().BeEmpty("未超 maxRetries,不触发 SendFailed");
-
-        // 释放输入通道,重试应成功回写
-        input.Reader.TryRead(out _).Should().BeTrue();
-        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(3);
-        var gotBlocked = false;
-        while (DateTimeOffset.UtcNow < deadline) {
-            if (input.Reader.TryRead(out var cmd) && cmd == "blocked-cmd") { gotBlocked = true; break; }
-            await Task.Delay(20);
-        }
-        gotBlocked.Should().BeTrue("释放输入后重试成功回写");
+        engine.RetryQueueCount.Should().Be(1, "TryRequeue 重新入队(Attempt=2)");
 
         engine.Complete();
         cts.Cancel();
-        await engine.WaitForCompletionAsync();
     }
 }

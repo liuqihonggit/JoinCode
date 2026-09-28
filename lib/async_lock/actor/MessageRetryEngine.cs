@@ -105,6 +105,19 @@ internal sealed class MessageRetryEngine<TCommand> {
     internal Channel<RetryEntry<TCommand>> RetryQueue => _retryQueue;
 
     /// <summary>
+    /// 处理单条重试条目(无退避延迟) — 回写输入通道或 TryRequeue,供测试确定性调用。
+    /// </summary>
+    /// <returns>true=回写输入通道成功;false=回写失败(已 TryRequeue)</returns>
+    internal bool ProcessOneEntryImmediate(RetryEntry<TCommand> entry) {
+        if (_inputWriter.TryWrite(entry.Command)) {
+            _onEnqueuedToInput();
+            return true;
+        }
+        TryRequeue(entry);
+        return false;
+    }
+
+    /// <summary>
     /// 重试循环 — 单例后台 Task 处理所有重试消息(P1-2: 替代每消息一 Task,高负载时不产生大量 Delay 任务)。
     /// <para>P0 修复:全局兜底 catch(Exception),重试引擎崩溃时记 LogCritical 告警(原仅吞 OperationCanceledException 静默崩溃)。</para>
     /// </summary>
@@ -118,12 +131,7 @@ internal sealed class MessageRetryEngine<TCommand> {
                 if (totalDelayMs > 0)
                     await Task.Delay(TimeSpan.FromMilliseconds(totalDelayMs), _shutdownCt).ConfigureAwait(false);
 
-                if (_inputWriter.TryWrite(entry.Command)) {
-                    _onEnqueuedToInput();
-                    continue;
-                }
-
-                TryRequeue(entry);
+                ProcessOneEntryImmediate(entry);
             }
         } catch (OperationCanceledException) {
             // 正常关闭

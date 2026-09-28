@@ -335,7 +335,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
         _savedPermissionMode = ctx.SavedPermissionMode;
 
-        RegisterMainAgent(_state.GoalId, objective, tokenBudget);
+        await RegisterMainAgentAsync(_state.GoalId, objective, tokenBudget).ConfigureAwait(false);
 
         if (ctx.ShouldStartEngineLoop) {
             _logger?.LogInformation(L.T(StringKey.GoalEngineStarting),
@@ -378,7 +378,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
         await SwitchToGoalPermissionModeAsync(cancellationToken).ConfigureAwait(false);
 
-        RegisterMainAgent(_state.GoalId, objective, tokenBudget);
+        await RegisterMainAgentAsync(_state.GoalId, objective, tokenBudget).ConfigureAwait(false);
 
         _logger?.LogInformation(L.T(StringKey.GoalEngineStarting),
             _state.GoalId, objective, tokenBudget?.ToString() ?? L.T(StringKey.GoalEngineBudgetUnlimited));
@@ -930,7 +930,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         }
     }
 
-    private void RegisterMainAgent(string goalId, string objective, int? tokenBudget) {
+    private async Task RegisterMainAgentAsync(string goalId, string objective, int? tokenBudget) {
         var mainAgents = Core.Agents.Coordinator.AgentBase.GetMainAgents();
         if (mainAgents.Count > 0) {
             _logger?.LogInformation("[GoalEngine] mainAgent 已存在: {AgentId}, 跳过注册", mainAgents[0].Id);
@@ -974,7 +974,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
                     IsMainAgent = true,
                     Agent = mainAgent,
                 };
-                spawnPipeline.ExecuteAsync(context, default).GetAwaiter().GetResult();
+                await spawnPipeline.ExecuteAsync(context, default).ConfigureAwait(false);
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[GoalEngine] 主代理走统一管道失败，回退到直接创建");
             }

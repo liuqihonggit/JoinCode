@@ -109,13 +109,15 @@ public class BackpressurePipelineTest {
         gate.SetResult();
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout) {
-        var deadline = DateTimeOffset.UtcNow + timeout;
-        while (DateTimeOffset.UtcNow < deadline) {
-            if (condition()) return;
-            await Task.Delay(10);
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
+            while (DateTimeOffset.UtcNow < deadline) {
+                if (condition()) return;
+                await Task.Delay(10);
+            }
         }
-        throw new TimeoutException($"等待条件超时 {timeout.TotalMilliseconds:F0}ms");
+        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 }
 

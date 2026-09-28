@@ -9,6 +9,9 @@ public abstract class CoverageTestBase : IAsyncLifetime {
     protected readonly ITestOutputHelper Output;
     protected readonly ILoggerFactory LoggerFactory;
 
+    /// <summary>重试间隔 — 固定1s,16次共16s,防CI雪崩</summary>
+    private static readonly TimeSpan RetryInterval = TimeSpan.FromSeconds(1);
+
     protected CoverageTestBase(ITestOutputHelper output) {
         Output = output;
         LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => {
@@ -74,6 +77,7 @@ public abstract class CoverageTestBase : IAsyncLifetime {
 
                 if (attempt < maxAttempts) {
                     Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name} (provider={provider})");
+                    await Task.Delay(RetryInterval).ConfigureAwait(true);
                     continue;
                 }
 
@@ -83,12 +87,14 @@ public abstract class CoverageTestBase : IAsyncLifetime {
                 sw.Stop();
                 if (attempt < maxAttempts) {
                     Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name} (provider={provider})");
+                    await Task.Delay(RetryInterval).ConfigureAwait(true);
                     continue;
                 }
                 throw new TimeoutException($"[GEN035] 测试超时(>60s): {script.Name} (provider={provider})");
             } catch (InvalidOperationException ex) when (ex.Message.Contains("GEN019", StringComparison.Ordinal) && attempt < maxAttempts) {
                 sw.Stop();
                 Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试进程退出无输出(GEN019)，自动重试: {script.Name} (provider={provider})");
+                await Task.Delay(RetryInterval).ConfigureAwait(true);
                 continue;
             } finally {
                 await runner.DisposeAsync().ConfigureAwait(true);

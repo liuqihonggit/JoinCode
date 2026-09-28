@@ -148,9 +148,8 @@ public sealed class MultiProviderE2ETests : IAsyncLifetime {
                     return;
 
                 if (attempt < maxAttempts) {
-                    var backoffMs = (int)Math.Pow(2, attempt - 1) * 1000;
-                    _output.WriteLine($"[{provider}] ⚠ 第{attempt}次尝试失败(elapsed={sw.Elapsed.TotalMilliseconds:F0}ms)，{backoffMs}ms后重试: {script.Name}");
-                    await Task.Delay(backoffMs).ConfigureAwait(true);
+                    _output.WriteLine($"[{provider}] ⚠ 第{attempt}次尝试失败(elapsed={sw.Elapsed.TotalMilliseconds:F0}ms)，1s后重试: {script.Name}");
+                    await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(true);
                     continue;
                 }
 
@@ -161,11 +160,10 @@ public sealed class MultiProviderE2ETests : IAsyncLifetime {
                 attemptDurations.Add(sw.Elapsed);
                 var stderrTail = await CaptureStderrTailAsync(runner).ConfigureAwait(true);
                 if (attempt < maxAttempts) {
-                    var backoffMs = (int)Math.Pow(2, attempt - 1) * 1000;
-                    _output.WriteLine($"[{provider}] ⚠ 第{attempt}次尝试超时(>60s, elapsed={sw.Elapsed.TotalMilliseconds:F0}ms)，{backoffMs}ms后重试: {script.Name}");
+                    _output.WriteLine($"[{provider}] ⚠ 第{attempt}次尝试超时(>60s, elapsed={sw.Elapsed.TotalMilliseconds:F0}ms)，1s后重试: {script.Name}");
                     if (stderrTail.Length > 0)
                         _output.WriteLine($"[{provider}] stderr尾部: {stderrTail}");
-                    await Task.Delay(backoffMs).ConfigureAwait(true);
+                    await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(true);
                     continue;
                 }
                 var durationSummary = string.Join(", ", attemptDurations.Select(d => $"{d.TotalMilliseconds:F0}ms"));
@@ -174,9 +172,8 @@ public sealed class MultiProviderE2ETests : IAsyncLifetime {
                 sw.Stop();
                 attemptDurations.Add(sw.Elapsed);
                 if (attempt < maxAttempts) {
-                    var backoffMs = (int)Math.Pow(2, attempt - 1) * 1000;
-                    _output.WriteLine($"[{provider}] ⚠ 第{attempt}次尝试超时({ex.Message})，{backoffMs}ms后重试: {script.Name}");
-                    await Task.Delay(backoffMs).ConfigureAwait(true);
+                    _output.WriteLine($"[{provider}] ⚠ 第{attempt}次尝试超时({ex.Message})，1s后重试: {script.Name}");
+                    await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(true);
                     continue;
                 }
                 var durationSummary = string.Join(", ", attemptDurations.Select(d => $"{d.TotalMilliseconds:F0}ms"));

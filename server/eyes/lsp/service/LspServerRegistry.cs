@@ -11,12 +11,12 @@ internal sealed class LspServerRegistry {
     /// <summary>
     /// 已注册服务器数量。
     /// </summary>
-    public int Count => Volatile.Read(ref _servers).Count;
+    public int Count => _servers.Count;
 
     /// <summary>
     /// 所有服务器实例视图 — 用于 Shutdown/Dispose 遍历（不要在此视图上做写操作）。
     /// </summary>
-    public IEnumerable<LspServerInstance> Servers => Volatile.Read(ref _servers).Values;
+    public IEnumerable<LspServerInstance> Servers => _servers.Values;
 
     /// <summary>
     /// 注册服务器实例并建立扩展名映射。
@@ -41,23 +41,23 @@ internal sealed class LspServerRegistry {
     /// 按服务器名查找实例。
     /// </summary>
     public bool TryGetByName(string name, [MaybeNullWhen(false)] out LspServerInstance instance)
-        => Volatile.Read(ref _servers).TryGetValue(name, out instance);
+        => _servers.TryGetValue(name, out instance);
 
     /// <summary>
     /// 按文件扩展名查找对应的服务器实例（取扩展名映射中的第一个服务器）。
     /// </summary>
     public bool TryGetByExtension(string ext, [MaybeNullWhen(false)] out LspServerInstance instance) {
         instance = null!;
-        if (!Volatile.Read(ref _extensionMap).TryGetValue(ext, out var serverNames) || serverNames.Count == 0)
+        if (!_extensionMap.TryGetValue(ext, out var serverNames) || serverNames.Count == 0)
             return false;
-        return Volatile.Read(ref _servers).TryGetValue(serverNames[0], out instance);
+        return _servers.TryGetValue(serverNames[0], out instance);
     }
 
     /// <summary>
     /// 所有服务器快照 — 用于 GetAllServers 接口方法。
     /// </summary>
     public IReadOnlyDictionary<string, ILspServerInstance> Snapshot()
-        => Volatile.Read(ref _servers).ToDictionary(kvp => kvp.Key, kvp => (ILspServerInstance)kvp.Value);
+        => _servers.ToDictionary(kvp => kvp.Key, kvp => (ILspServerInstance)kvp.Value);
 
     /// <summary>
     /// 清空所有服务器和扩展名映射 — 用于 Shutdown/Dispose。

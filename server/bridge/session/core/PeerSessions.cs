@@ -268,7 +268,7 @@ public sealed partial class PeerSessionRouter {
     private volatile ImmutableHamT<string, string> _routes = ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.Ordinal);
 
     /// <summary>当前路由数量</summary>
-    public int RouteCount => Volatile.Read(ref _routes).Count;
+    public int RouteCount => _routes.Count;
 
     /// <summary>
     /// 注册节点路由
@@ -303,7 +303,7 @@ public sealed partial class PeerSessionRouter {
     /// <param name="peerId">对等节点 ID</param>
     /// <returns>端点地址，不存在则返回 null</returns>
     public string? GetRoute(string peerId) {
-        Volatile.Read(ref _routes).TryGetValue(peerId, out var endpoint);
+        _routes.TryGetValue(peerId, out var endpoint);
         return endpoint;
     }
 
@@ -312,13 +312,13 @@ public sealed partial class PeerSessionRouter {
     /// </summary>
     /// <param name="peerId">对等节点 ID</param>
     /// <returns>存在返回 true，否则 false</returns>
-    public bool HasRoute(string peerId) => Volatile.Read(ref _routes).ContainsKey(peerId);
+    public bool HasRoute(string peerId) => _routes.ContainsKey(peerId);
 
     /// <summary>
     /// 获取所有对等节点 ID 的快照拷贝
     /// </summary>
     /// <returns>节点 ID 数组快照</returns>
-    public string[] GetAllPeerIds() => Volatile.Read(ref _routes).Keys.ToArray();
+    public string[] GetAllPeerIds() => _routes.Keys.ToArray();
 
     /// <summary>
     /// 清除所有路由

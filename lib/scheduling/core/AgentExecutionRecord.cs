@@ -35,20 +35,23 @@ public sealed class AgentExecutionRecord {
     /// </summary>
     public required List<SubAgentResult> AgentResults { get; init; }
 
+    private int? _successCount;
     /// <summary>
     /// 成功执行的 Agent 数量
     /// </summary>
-    public int SuccessCount => AgentResults?.Count(r => r.IsSuccess) ?? 0;
+    public int SuccessCount => _successCount ??= AgentResults?.Count(r => r.IsSuccess) ?? 0;
 
+    private int? _failureCount;
     /// <summary>
     /// 失败的 Agent 数量
     /// </summary>
-    public int FailureCount => AgentResults?.Count(r => !r.IsSuccess) ?? 0;
+    public int FailureCount => _failureCount ??= AgentResults?.Count(r => !r.IsSuccess) ?? 0;
 
+    private bool? _allSuccess;
     /// <summary>
     /// 是否全部成功（空列表返回false）
     /// </summary>
-    public bool AllSuccess => AgentResults?.Count > 0 && AgentResults.All(r => r.IsSuccess);
+    public bool AllSuccess => _allSuccess ??= AgentResults?.Count > 0 && AgentResults.All(r => r.IsSuccess);
 
     /// <summary>
     /// 获取合并后的输出

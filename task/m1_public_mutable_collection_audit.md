@@ -58,6 +58,24 @@
 
 ## 总计：27处
 
+## 改造结果
+
+### 已改造（10处，commit a838252d）
+- CrashSnapshot.Tags/Attachments/Extra → IReadOnlyDictionary + 私有字段
+- ToolUseContext.InvokedSkills/PendingSedEdits/RecentlyReadFiles → IReadOnlyDictionary + 私有字段
+- RoleCone.AllFragments/ActiveFragmentIds → IReadOnlyDictionary/IReadOnlyList + 私有字段
+- MemoryIndex.ByType/ByTag/BySource → IReadOnlyDictionary + internal AddByXxx 方法
+
+### 排除（不需要改）
+- DTO/配置类（JSON 反序列化需要 get;set）：StateDocuments, HookSettingsFile, FeatureFlagResponse, McpOfficialRegistry.Env, MemoryStatistics 等
+- internal/private 类：WorkflowRunState.StepStatuses, FsmGenerator.MachineInfo, McpToolDispatchGenerator 内部类
+- 构造时传入参数：PermissionRequest.Arguments, ToolInvokeContext.Arguments
+- init only DTO：ToolUseContext.AllowedTools, PermissionCheckContext.ApprovedLevels 等
+
+### 暂不处理（ConcurrentDictionary 外部直接写入，改造复杂且并发安全）
+- TeammateExecutionContext.ActiveTeammates/PendingMessages
+- ContentReplacementState.SeenIds/Replacements
+
 ## 改造策略
 
 1. 逐模块改造，每改一个模块编译+测试+提交

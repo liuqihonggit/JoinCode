@@ -82,7 +82,7 @@ public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRele
     /// <summary>
     /// 为单个记忆打分
     /// </summary>
-    private ScoredMemory ScoreMemory(MemoryEntry memory, HashSet<string> queryWords, AhoCorasick<bool> queryWordAc, DateTime now) {
+    internal ScoredMemory ScoreMemory(MemoryEntry memory, HashSet<string> queryWords, AhoCorasick<bool> queryWordAc, DateTime now) {
         var score = 0.0;
 
         // 1. 关键词匹配分数

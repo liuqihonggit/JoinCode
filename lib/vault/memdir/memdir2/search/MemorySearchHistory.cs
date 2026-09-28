@@ -308,7 +308,7 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
     /// <summary>
     /// 判断两个查询是否相关（基于关键词重叠度）
     /// </summary>
-    private static bool IsQueryRelated(string query1, string query2) {
+    internal static bool IsQueryRelated(string query1, string query2) {
         var words1 = QueryWordHelper.ExtractWords(query1, minLength: 2);
         var words2 = QueryWordHelper.ExtractWords(query2, minLength: 2);
 

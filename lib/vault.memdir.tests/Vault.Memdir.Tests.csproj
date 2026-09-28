@@ -5,7 +5,7 @@
     <AssemblyName>JoinCode.Vault.Memdir.Tests</AssemblyName>
     <Description>JoinCode Vault Memdir 单元测试</Description>
     <RunSettingsFilePath>$(MSBuildProjectDirectory)\.runsettings</RunSettingsFilePath>
-    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012;JCC10001;JCC10002</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)lib/vault/Vault.csproj" />

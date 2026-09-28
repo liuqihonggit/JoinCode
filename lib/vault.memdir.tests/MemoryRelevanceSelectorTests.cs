@@ -154,4 +154,192 @@ public sealed class MemoryRelevanceSelectorTests {
         result.Should().ContainSingle();
         result[0].RelevanceScore.Should().BeLessThanOrEqualTo(1.0);
     }
+
+    // === ScoreMemory internal 直接测试: 6 加权因子独立验证 ===
+
+    private static (HashSet<string> words, AhoCorasick<bool> ac) BuildQueryArgs(string query) {
+        var words = QueryWordHelper.ExtractWords(query, minLength: 2);
+        var ac = AhoCorasick.CreateBool(words, ignoreCase: true);
+        return (words, ac);
+    }
+
+    [Fact]
+    public void ScoreMemory_KeywordMatch_ContributesZeroPointFourWeight() {
+        var sut = CreateSut();
+        _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
+        var memory = Make("database optimization");
+        var (words, ac) = BuildQueryArgs("database optimization");
+        var now = _clock.GetUtcNow();
+
+        var scored = sut.ScoreMemory(memory, words, ac, now);
+
+        // matchingWords=2, queryWords.Count=2 → 2/2*0.4=0.4
+        // type=User weight=1.0 → 0.4
+        // agedScore=0 → 0.4*0.5 + 0*0.5 = 0.2
+        // accessCount=0 → ×1.0 = 0.2
+        scored.RelevanceScore.Should().BeApproximately(0.2, 1e-9);
+    }
+
+    [Fact]
+    public void ScoreMemory_PartialKeywordMatch_ContributesRatio() {
+        var sut = CreateSut();
+        _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
+        var memory = Make("database content");
+        var (words, ac) = BuildQueryArgs("database network");
+        var now = _clock.GetUtcNow();
+
+        var scored = sut.ScoreMemory(memory, words, ac, now);
+
+        // matchingWords=1 (只匹配 database), queryWords.Count=2 → 1/2*0.4=0.2
+        // type=User → 0.2, agedScore=0 → 0.1
+        scored.RelevanceScore.Should().BeApproximately(0.1, 1e-9);
+    }
+
+    [Fact]
+    public void ScoreMemory_TagMatch_ContributesZeroPointOneFivePerTag() {
+        var sut = CreateSut();
+        _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
+        var memory = Make("unrelated", tags: new[] { "database" });
+        var (words, ac) = BuildQueryArgs("database");
+        var now = _clock.GetUtcNow();
+
+        var scored = sut.ScoreMemory(memory, words, ac, now);
+
+        // keywordScore=0, tagMatches=1 → +0.15, type=User → 0.15, agedScore=0 → 0.075
+        scored.RelevanceScore.Should().BeApproximately(0.075, 1e-9);
+    }
+
+    [Fact]
+    public void ScoreMemory_MultipleTagMatches_ContributesZeroPointOneFiveEach() {
+        var sut = CreateSut();
+        _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
+        var memory = Make("unrelated", tags: new[] { "database", "optimization" });
+        var (words, ac) = BuildQueryArgs("database optimization");
+        var now = _clock.GetUtcNow();
+
+        var scored = sut.ScoreMemory(memory, words, ac, now);
+
+        // tagMatches=2 → +0.3, type=User → 0.3, agedScore=0 → 0.15
+        scored.RelevanceScore.Should().BeApproximately(0.15, 1e-9);
+    }
+
+    [Fact]
+    public void ScoreMemory_TitleMatch_ContributesZeroPointTwoWeight() {
+        var sut = CreateSut();
+        _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
+        var memory = Make("unrelated", title: "database");
+        var (words, ac) = BuildQueryArgs("database");
+        var now = _clock.GetUtcNow();
+
+        var scored = sut.ScoreMemory(memory, words, ac, now);
+
+        // keywordScore=0, tagMatches=0, titleMatches=1 → 1/1*0.2=0.2
+        // type=User → 0.2, agedScore=0 → 0.1
+        scored.RelevanceScore.Should().BeApproximately(0.1, 1e-9);
+    }
+
+    [Fact]
+    public void ScoreMemory_TypeWeight_AppliesToRawScore() {
+        var sut = CreateSut();
+        _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
+        var userMem = Make("database optimization", MemoryType.User);
+        var refMem = Make("database optimization", MemoryType.Reference);
+        var (words, ac) = BuildQueryArgs("database optimization");
+        var now = _clock.GetUtcNow();
+
+        var userScored = sut.ScoreMemory(userMem, words, ac, now);
+        var refScored = sut.ScoreMemory(refMem, words, ac, now);
+
+        // Reference weight=0.6, User weight=1.0
+        // rawScore=0.4, User→0.4, Reference→0.24
+        // agedScore=0 → User 0.2, Reference 0.12
+        refScored.RelevanceScore.Should().BeApproximately(userScored.RelevanceScore * 0.6, 1e-9);
+    }
+
+    [Fact]
+    public void ScoreMemory_AgedScore_BlendedFiftyFifty() {
+        var sut = CreateSut();
+        _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.4);
+        var memory = Make("database optimization");
+        var (words, ac) = BuildQueryArgs("database optimization");
+        var now = _clock.GetUtcNow();
+
+        var scored = sut.ScoreMemory(memory, words, ac, now);
+
+        // rawScore=0.4, type=User → 0.4
+        // agedScore=0.4 → 0.4*0.5 + 0.4*0.5 = 0.4
+        // accessCount=0 → 0.4
+        scored.RelevanceScore.Should().BeApproximately(0.4, 1e-9);
+    }
+
+    [Fact]
+    public void ScoreMemory_AccessCount_BoostsWithLogScale() {
+        var sut = CreateSut();
+        _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
+        var lowAccess = Make("database optimization", accessCount: 0);
+        var highAccess = Make("database optimization", accessCount: 9);
+        var (words, ac) = BuildQueryArgs("database optimization");
+        var now = _clock.GetUtcNow();
+
+        var lowScored = sut.ScoreMemory(lowAccess, words, ac, now);
+        var highScored = sut.ScoreMemory(highAccess, words, ac, now);
+
+        // accessCount=0 → ×(1+log(1)*0.1)=1.0
+        // accessCount=9 → ×(1+log(10)*0.1)≈1+0.2302=1.2302
+        highScored.RelevanceScore.Should().BeApproximately(lowScored.RelevanceScore * (1 + Math.Log(10) * 0.1), 1e-6);
+        highScored.RelevanceScore.Should().BeGreaterThan(lowScored.RelevanceScore);
+    }
+
+    [Fact]
+    public void ScoreMemory_ScoreCappedAtOne() {
+        var sut = CreateSut();
+        _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(1.0);
+        var memory = Make("database optimization", MemoryType.User, title: "database optimization", tags: new[] { "database", "optimization" }, accessCount: 1000);
+        var (words, ac) = BuildQueryArgs("database optimization");
+        var now = _clock.GetUtcNow();
+
+        var scored = sut.ScoreMemory(memory, words, ac, now);
+
+        scored.RelevanceScore.Should().BeLessThanOrEqualTo(1.0);
+    }
+
+    [Fact]
+    public void ScoreMemory_NoMatch_ReturnsZeroScore() {
+        var sut = CreateSut();
+        _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
+        var memory = Make("unrelated content");
+        var (words, ac) = BuildQueryArgs("xyz123");
+        var now = _clock.GetUtcNow();
+
+        var scored = sut.ScoreMemory(memory, words, ac, now);
+
+        // 无任何匹配,rawScore=0, agedScore=0 → 0
+        scored.RelevanceScore.Should().Be(0.0);
+    }
+
+    [Fact]
+    public void ScoreMemory_PreservesMemoryReference() {
+        var sut = CreateSut();
+        _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
+        var memory = Make("database optimization");
+        var (words, ac) = BuildQueryArgs("database optimization");
+        var now = _clock.GetUtcNow();
+
+        var scored = sut.ScoreMemory(memory, words, ac, now);
+
+        scored.Memory.Should().BeSameAs(memory);
+    }
+
+    [Fact]
+    public void ScoreMemory_Deterministic_SameInputSameOutput() {
+        var sut = CreateSut();
+        _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.3);
+        var memory = Make("database optimization", accessCount: 5);
+        var (words, ac) = BuildQueryArgs("database optimization");
+        var now = _clock.GetUtcNow();
+
+        var s1 = sut.ScoreMemory(memory, words, ac, now);
+        var s2 = sut.ScoreMemory(memory, words, ac, now);
+        s1.RelevanceScore.Should().Be(s2.RelevanceScore);
+    }
 }

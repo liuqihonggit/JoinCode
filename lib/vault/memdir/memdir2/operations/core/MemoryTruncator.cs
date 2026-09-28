@@ -170,7 +170,7 @@ public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator {
     /// <summary>
     /// 计算行相关性分数
     /// </summary>
-    private static double CalculateLineRelevance(string line, string[] queryWords) {
+    internal static double CalculateLineRelevance(string line, string[] queryWords) {
         if (string.IsNullOrWhiteSpace(line) || queryWords.Length == 0) {
             return 0;
         }
@@ -183,7 +183,7 @@ public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator {
     /// <summary>
     /// 按字节数截断
     /// </summary>
-    private static string TruncateByBytes(string content, int maxBytes) {
+    internal static string TruncateByBytes(string content, int maxBytes) {
         var bytes = System.Text.Encoding.UTF8.GetBytes(content);
 
         if (bytes.Length <= maxBytes) {

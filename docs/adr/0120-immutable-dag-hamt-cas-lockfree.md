@@ -98,8 +98,41 @@ Async API（对齐 `ConcurrentDag<T>`）：
 - **新类型 `ImmutableDagNode<T>`** — 消费方引用 `DagNode<T>.InEdgeIds`（`List<string>`）需改为 `ImmutableHamTSet<string>`，但 `IEnumerable<string>` 兼容
 - **async API 是假 async** — 内部同步，`Task.FromResult` 包装，但 API 对齐 `ConcurrentDag<T>` 消费方无需改
 
+## 压测结果（2026-09-29 BenchmarkDotNet ShortRunJob）
+
+压测代码：`test/benchmarks/structura.benchmarks/DagBench.cs`，规模 1K/5K 节点线性链。
+
+### Build（AddNode + AddEdge 构建图）
+
+| Size | ImmutableDag (HAMT+CAS) | Dag (Dictionary) | ConcurrentDag (SemaphoreSlim) | 慢倍数 (vs Dag) |
+|------|------------------------|-------------------|-------------------------------|----------------|
+| 1K | 3,765 us / 6.74 MB | 663 us / 1.58 MB | 829 us / 1.84 MB | **5.7x** |
+| 5K | 38,419 us / 38.51 MB | 13,768 us / 7.62 MB | 16,644 us / 8.91 MB | **2.8x** |
+
+### TopologicalSort（Kahn 算法拓扑排序）
+
+| Size | ImmutableDag | Dag | 慢倍数 |
+|------|-------------|-----|--------|
+| 1K | 361 us / 525 KB | 196 us / 336 KB | **1.8x** |
+| 5K | 2,778 us / 2.6 MB | 1,443 us / 1.7 MB | **1.9x** |
+
+### GetDescendants（BFS 下游查询）
+
+| Size | ImmutableDag | Dag | 慢倍数 |
+|------|-------------|-----|--------|
+| 1K | 149 us / 251 KB | 50 us / 72 KB | **3.0x** |
+| 5K | 1,005 us / 1.2 MB | 488 us / 315 KB | **2.1x** |
+
+### 结论
+
+- **Build 最慢**：HAMT 路径复制 + CAS 循环，比 Dictionary O(1) 慢 3-6x，内存 4-5x
+- **查询次之**：HAMT O(log₃₂N) vs Dictionary O(1)，慢 2-3x，内存 1.5-3.5x
+- **ImmutableDag 的价值在死锁消除 + 无锁一致快照，不在性能**
+- 用户于 2026-09-29 确认：目标是消除死锁 + 统一数据结构，非性能优化，接受此性能代价
+- **后续全量替换计划暂停**：用户于 2026-09-29 决定不替换现有 Dag/ConcurrentDag，ImmutableDag 作为独立实现保留
+
 ### 替代方案（考虑过但放弃）
 
 1. **改 `ConcurrentDag<T>` 内部用 CAS** — 不改 API，但 `Dag<T>` 内部可变 `DagNode<T>` 无法做不可变快照，需大改 `DagNode<T>`，影响 551 处
 2. **用 `ConcurrentDictionary` + 细粒度锁** — 仍是锁，不符合项目无锁化方向
-3. **用 `FrozenDictionary` 快照** — `FrozenDictionary` 不支持 `SetItem`/`Remove`（见记忆 `permission-config-frozen-dict-limitation`），每次写都全量重建，性能差
+3. **用 `FrozenDictionary` 快照** — `FrozenDictionary` 不支持 `SetItem`/`Remove`，每次写都全量重建，性能差

@@ -51,8 +51,8 @@ public interface IHookEventBroadcaster {
 /// </summary>
 [Register(typeof(IHookEventBroadcaster), ServiceLifetime.Singleton)]
 public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroadcaster {
-    private ImmutableArray<Action<HookExecutionEvent>> _handlers = ImmutableArray<Action<HookExecutionEvent>>.Empty;
-    private ImmutableArray<HookExecutionEvent> _pendingEvents = ImmutableArray<HookExecutionEvent>.Empty;
+    private volatile ImmutableList<Action<HookExecutionEvent>> _handlers = ImmutableList<Action<HookExecutionEvent>>.Empty;
+    private volatile ImmutableList<HookExecutionEvent> _pendingEvents = ImmutableList<HookExecutionEvent>.Empty;
     private readonly ILogger<HookEventBroadcaster>? _logger;
 
     private const int MaxPendingEvents = 100;
@@ -79,10 +79,10 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
         }
 
         // 原子取出挂起事件,交给新 handler 处理
-        ImmutableArray<HookExecutionEvent> pending = default!;
+        ImmutableList<HookExecutionEvent> pending;
         while (true) {
             var current = _pendingEvents;
-            if (Interlocked.CompareExchange(ref _pendingEvents, ImmutableArray<HookExecutionEvent>.Empty, current) == current) { pending = current; break; }
+            if (Interlocked.CompareExchange(ref _pendingEvents, ImmutableList<HookExecutionEvent>.Empty, current) == current) { pending = current; break; }
         }
         foreach (var pendingEvent in pending) {
             try {
@@ -97,10 +97,8 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
     public void UnregisterHandler(Action<HookExecutionEvent> handler) {
         while (true) {
             var current = _handlers;
-            if (current.IsDefaultOrEmpty) break;
-            var builder = ImmutableArray.CreateBuilder<Action<HookExecutionEvent>>(current.Length);
-            foreach (var x in current) if (x != handler) builder.Add(x);
-            var updated = builder.MoveToImmutable();
+            if (current.Count == 0) break;
+            var updated = current.Remove(handler);
             if (Interlocked.CompareExchange(ref _handlers, updated, current) == current) break;
         }
     }
@@ -177,11 +175,11 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
     public void Clear() {
         while (true) {
             var current = _handlers;
-            if (Interlocked.CompareExchange(ref _handlers, ImmutableArray<Action<HookExecutionEvent>>.Empty, current) == current) break;
+            if (Interlocked.CompareExchange(ref _handlers, ImmutableList<Action<HookExecutionEvent>>.Empty, current) == current) break;
         }
         while (true) {
             var current = _pendingEvents;
-            if (Interlocked.CompareExchange(ref _pendingEvents, ImmutableArray<HookExecutionEvent>.Empty, current) == current) break;
+            if (Interlocked.CompareExchange(ref _pendingEvents, ImmutableList<HookExecutionEvent>.Empty, current) == current) break;
         }
 
         _allEventsEnabled = false;
@@ -197,13 +195,13 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
 
     private void Emit(HookExecutionEvent evt) {
         var handlers = _handlers;
-        if (handlers.IsDefaultOrEmpty) {
+        if (handlers.Count == 0) {
             // 没有处理器，暂存事件(限制挂起数量,丢弃最老的)
             while (true) {
                 var current = _pendingEvents;
                 var newList = current.Add(evt);
-                var updated = newList.Length > MaxPendingEvents
-                    ? newList.RemoveRange(0, newList.Length - MaxPendingEvents)
+                var updated = newList.Count > MaxPendingEvents
+                    ? newList.RemoveRange(0, newList.Count - MaxPendingEvents)
                     : newList;
                 if (Interlocked.CompareExchange(ref _pendingEvents, updated, current) == current) break;
             }

@@ -4,7 +4,7 @@ namespace Core.Utils;
 /// 全双工 Actor 基类 — 输入 Channel + 输出 Channel。
 /// <para>外部通过 Tell 发送命令，通过 OutputAsync 拉取输出。</para>
 /// <para>Actor 通过 TryPublish 主动推送消息，无需等待外部请求。</para>
-/// <para>输入 Channel 有背压（有界 + 水位线 + 超时），输出 Channel 无背压（无界）。</para>
+/// <para>输入/输出 Channel 均有界(默认容量 DefaultChannelCapacity),输入有水位线+超时,输出满策略 DropOldest。</para>
 /// <para>派生类定义命令类型并实现 <see cref="Handle"/>,所有可变状态由 Consumer 线程独占访问,无需锁。</para>
 /// <para>线程安全保证:命令按 FIFO 顺序串行处理;多生产者通过 Tell/TrySend 投递。</para>
 /// <para>异常容错:单条命令异常不会终止 Consumer 循环,通过 OnConsumerError 回调通知子类。</para>
@@ -26,7 +26,6 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     private int _disposed;
     private int _inputCount;
     private int _outputCount;
-    private long _nextSequenceId;
 
     private static readonly ConcurrentDictionary<string, string> _askWaitGraph = new();
 
@@ -37,16 +36,16 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     public const int DefaultChannelCapacity = 2048;
 
     /// <summary>
-    /// 构造 Actor — 无界输入通道，无界输出通道。
+    /// 构造 Actor — 有界输入/输出通道(默认容量 DefaultChannelCapacity)。
     /// </summary>
     protected ActorBase()
         : this(null, null) {
     }
 
     /// <summary>
-    /// 构造 Actor — 有界输入通道，无界输出通道。
+    /// 构造 Actor — 有界输入通道，有界输出通道(默认容量 DefaultChannelCapacity)。
     /// </summary>
-    /// <param name="boundedCapacity">有界输入通道容量(null 为无界)</param>
+    /// <param name="boundedCapacity">有界输入通道容量(null 为默认容量 DefaultChannelCapacity)</param>
     /// <param name="fullMode">有界通道满时策略</param>
     protected ActorBase(int? boundedCapacity, BoundedChannelFullMode fullMode = BoundedChannelFullMode.Wait)
         : this(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value, fullMode), null) {
@@ -55,8 +54,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>
     /// 构造 Actor — 完整背压配置。
     /// </summary>
-    /// <param name="backpressure">输入背压配置(null=无界通道,无水位线,无超时)</param>
-    /// <param name="outputCapacity">输出通道容量(null=无界)</param>
+    /// <param name="backpressure">输入背压配置(null=默认有界容量 DefaultChannelCapacity,无水位线,无超时)</param>
+    /// <param name="outputCapacity">输出通道容量(null=默认容量 DefaultChannelCapacity)</param>
     protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null) {
         Id = $"{GetType().Name}-{Guid.NewGuid():N}"[..8];
         _backpressure = backpressure;
@@ -142,14 +141,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     public void Tell(TCommand cmd) {
         ThrowIfDisposed();
 
-        Interlocked.Increment(ref _nextSequenceId);
         if (_inputChannel.Writer.TryWrite(cmd)) {
             Interlocked.Increment(ref _inputCount);
             CheckInputWatermark();
             return;
         }
 
-        _ = RetrySendAsync(cmd, default);
+        _ = RetrySendAsync(cmd, _cts.Token);
     }
 
     /// <summary>
@@ -167,7 +165,6 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             var backoff = TimeSpan.FromMilliseconds(100 * Math.Pow(2, Math.Min(retry, 10)));
             await Task.Delay(backoff, ct).ConfigureAwait(false);
 
-            Interlocked.Increment(ref _nextSequenceId);
             if (_inputChannel.Writer.TryWrite(cmd)) {
                 Interlocked.Increment(ref _inputCount);
                 return;

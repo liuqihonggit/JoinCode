@@ -79,7 +79,7 @@ public sealed class MemoryCommand : ChatCommandBase {
             }
 
             // 选择后打开编辑器
-            EnsureFileExists(result.Selected.Path, context.GetCommandServices().FileSystem);
+            await EnsureFileExistsAsync(result.Selected.Path, context.GetCommandServices().FileSystem).ConfigureAwait(false);
             await OpenInEditorAsync(result.Selected.Path, ChatCommandBase.GetService<IProcessService>(context)).ConfigureAwait(false);
             return;
         }
@@ -111,7 +111,7 @@ public sealed class MemoryCommand : ChatCommandBase {
         // 有明确参数时直接打开
         if (args.Length >= 2 && int.TryParse(args[1], out var index) && index >= 1 && index <= files.Count) {
             var file = files[index - 1];
-            EnsureFileExists(file.Path, context.GetCommandServices().FileSystem);
+            await EnsureFileExistsAsync(file.Path, context.GetCommandServices().FileSystem).ConfigureAwait(false);
             await OpenInEditorAsync(file.Path, ChatCommandBase.GetService<IProcessService>(context)).ConfigureAwait(false);
             return;
         }
@@ -122,7 +122,7 @@ public sealed class MemoryCommand : ChatCommandBase {
             var path = args[1];
             if (!Path.IsPathRooted(path))
                 path = Path.Combine(cwd, path);
-            EnsureFileExists(path, context.GetCommandServices().FileSystem);
+            await EnsureFileExistsAsync(path, context.GetCommandServices().FileSystem).ConfigureAwait(false);
             await OpenInEditorAsync(path, ChatCommandBase.GetService<IProcessService>(context)).ConfigureAwait(false);
             return;
         }
@@ -143,14 +143,14 @@ public sealed class MemoryCommand : ChatCommandBase {
                 return;
             }
 
-            EnsureFileExists(result.Selected.Path, context.GetCommandServices().FileSystem);
+            await EnsureFileExistsAsync(result.Selected.Path, context.GetCommandServices().FileSystem).ConfigureAwait(false);
             await OpenInEditorAsync(result.Selected.Path, ChatCommandBase.GetService<IProcessService>(context)).ConfigureAwait(false);
             return;
         }
 
         // 非交互模式回退：打开第一个
         var userPath = files[0].Path;
-        EnsureFileExists(userPath, context.GetCommandServices().FileSystem);
+        await EnsureFileExistsAsync(userPath, context.GetCommandServices().FileSystem).ConfigureAwait(false);
         await OpenInEditorAsync(userPath, ChatCommandBase.GetService<IProcessService>(context)).ConfigureAwait(false);
     }
 
@@ -222,12 +222,12 @@ public sealed class MemoryCommand : ChatCommandBase {
         return files;
     }
 
-    private static void EnsureFileExists(string path, IFileSystem fs) {
+    private static async Task EnsureFileExistsAsync(string path, IFileSystem fs) {
         var dir = Path.GetDirectoryName(path);
         if (dir is not null && !fs.DirectoryExists(dir))
             DirectoryHelper.EnsureDirectoryExists(fs, dir);
         if (!fs.FileExists(path))
-            fs.WriteAllText(path, "").GetAwaiter().GetResult();
+            await fs.WriteAllText(path, "").ConfigureAwait(false);
     }
 
     private static async Task AddMemoryAsync(ChatCommandContext context, string[] args) {

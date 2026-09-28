@@ -124,7 +124,7 @@ class Program {
             return (int)ExitCode.ConfigurationError;
         } catch (Exception ex) when (ex is OutOfMemoryException or TypeInitializationException) {
             // P2-7: 不可恢复异常 — 记录日志后 rethrow 让进程崩溃（继续运行可能损坏数据）
-            WriteErrorLog(ex, fatal: true, logger);
+            await WriteErrorLogAsync(ex, fatal: true, logger).ConfigureAwait(false);
             throw;
         } catch (Exception ex) {
             // 通用异常 — 记录日志并友好提示
@@ -135,7 +135,7 @@ class Program {
             if (ex.InnerException is not null)
                 Diag.WriteLine($"[MAIN] InnerException: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
 
-            var errorLog = WriteErrorLog(ex, logger: logger);
+            var errorLog = await WriteErrorLogAsync(ex, logger: logger).ConfigureAwait(false);
 
             Cli.TerminalHelper.Init();
             if (options?.IsJsonMode == true) {
@@ -158,7 +158,7 @@ class Program {
     /// <param name="ex">异常对象</param>
     /// <param name="fatal">是否为致命异常（标记 [FATAL] 前缀）</param>
     /// <returns>错误日志文件路径</returns>
-    private static string WriteErrorLog(Exception ex, bool fatal = false, ILogger? logger = null) {
+    private static async Task<string> WriteErrorLogAsync(Exception ex, bool fatal = false, ILogger? logger = null) {
         var errorLog = Cli.Output.XdgPathResolver.GetErrorLogPath();
         var prefix = fatal ? "[FATAL] " : string.Empty;
         var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {prefix}{ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace}";
@@ -168,7 +168,7 @@ class Program {
             var dir = System.IO.Path.GetDirectoryName(errorLog);
             if (dir is not null && !System.IO.Directory.Exists(dir))
                 System.IO.Directory.CreateDirectory(dir);
-            SafeFileIO.WriteAllText(errorLog, errorContent).GetAwaiter().GetResult();
+            await SafeFileIO.WriteAllText(errorLog, errorContent).ConfigureAwait(false);
         } catch (Exception logEx) {
             Diag.WriteLine($"[MAIN] WriteErrorLog 失败: {logEx.GetType().Name}: {logEx.Message}");
             logger?.LogWarning(logEx, "写入错误日志失败");

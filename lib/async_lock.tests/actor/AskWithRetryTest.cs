@@ -85,88 +85,47 @@ public class AskWithRetryTest {
     /// 全图环检测 — 间接环 A→B→C→A 应被检测到。
     /// </summary>
     [Fact]
-    public async Task IndirectCycle_ThreeActors_ThrowsCyclicAskException() {
-        await using var actorA = new CycleDemoActor();
-        await using var actorB = new CycleDemoActor();
-        await using var actorC = new CycleDemoActor();
+    public void IndirectCycle_ThreeActors_ThrowsCyclicAskException() {
+        var aId = "cycle-A";
+        var bId = "cycle-B";
+        var cId = "cycle-C";
+        var graph = new Dictionary<string, string> { [aId] = bId, [bId] = cId, [cId] = aId };
 
-        // 模拟 A→B→C→A 等待图
-        // A 等 B 回复(B 的 Consumer 调 A 的 AskWithRetry)
-        // B 等 C 回复
-        // C 等 A 回复
-        // 需要在 Actor 上下文中模拟,这里直接验证 HasCycleInWaitGraph 逻辑
-        // 通过反射访问静态 _askWaitGraph 模拟等待边
-        var graph = typeof(ActorBase<CycleCmd, Unit>)
-            .GetField("_askWaitGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
-            .GetValue(null) as System.Collections.Concurrent.ConcurrentDictionary<string, string>;
-        graph!.Should().NotBeNull();
-
-        var aId = actorA.Id;
-        var bId = actorB.Id;
-        var cId = actorC.Id;
-        graph[aId] = bId;
-        graph[bId] = cId;
-        graph[cId] = aId;
-
-        // A→B→C→A:从 B 出发应能到达 A(有环)
-        // 用反射调用 HasCycleInWaitGraph
         var method = typeof(ActorBase<CycleCmd, Unit>)
-            .GetMethod("HasCycleInWaitGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        var hasCycle = (bool)method.Invoke(null, [aId, bId])!;
+            .GetMethod("HasCycleInGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var hasCycle = (bool)method.Invoke(null, [graph, aId, bId])!;
         hasCycle.Should().BeTrue("A→B→C→A 构成间接环");
-
-        graph.TryRemove(aId, out _);
-        graph.TryRemove(bId, out _);
-        graph.TryRemove(cId, out _);
     }
 
     /// <summary>
     /// 直接环 A→B→A 仍被检测到(回归测试)。
     /// </summary>
     [Fact]
-    public async Task DirectCycle_TwoActors_StillDetected() {
-        var graph = typeof(ActorBase<CycleCmd, Unit>)
-            .GetField("_askWaitGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
-            .GetValue(null) as System.Collections.Concurrent.ConcurrentDictionary<string, string>;
-        graph!.Should().NotBeNull();
-
+    public void DirectCycle_TwoActors_StillDetected() {
         var aId = "actorA-direct";
         var bId = "actorB-direct";
-        graph[aId] = bId;
-        graph[bId] = aId;
+        var graph = new Dictionary<string, string> { [aId] = bId, [bId] = aId };
 
         var method = typeof(ActorBase<CycleCmd, Unit>)
-            .GetMethod("HasCycleInWaitGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        var hasCycle = (bool)method.Invoke(null, [aId, bId])!;
+            .GetMethod("HasCycleInGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var hasCycle = (bool)method.Invoke(null, [graph, aId, bId])!;
         hasCycle.Should().BeTrue("A→B→A 构成直接环");
-
-        graph.TryRemove(aId, out _);
-        graph.TryRemove(bId, out _);
     }
 
     /// <summary>
     /// 无环 A→B→C(不回 A)不应误判。
     /// </summary>
     [Fact]
-    public async Task NoCycle_ShouldNotDetect() {
-        var graph = typeof(ActorBase<CycleCmd, Unit>)
-            .GetField("_askWaitGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
-            .GetValue(null) as System.Collections.Concurrent.ConcurrentDictionary<string, string>;
-        graph!.Should().NotBeNull();
-
+    public void NoCycle_ShouldNotDetect() {
         var aId = "actorA-nocycle";
         var bId = "actorB-nocycle";
         var cId = "actorC-nocycle";
-        graph[aId] = bId;
-        graph[bId] = cId;
+        var graph = new Dictionary<string, string> { [aId] = bId, [bId] = cId };
 
         var method = typeof(ActorBase<CycleCmd, Unit>)
-            .GetMethod("HasCycleInWaitGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        var hasCycle = (bool)method.Invoke(null, [aId, bId])!;
+            .GetMethod("HasCycleInGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var hasCycle = (bool)method.Invoke(null, [graph, aId, bId])!;
         hasCycle.Should().BeFalse("A→B→C 不构成环");
-
-        graph.TryRemove(aId, out _);
-        graph.TryRemove(bId, out _);
     }
 }
 

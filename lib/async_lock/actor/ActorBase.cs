@@ -27,7 +27,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     private int _inputCount;
     private int _outputCount;
 
-    private static readonly ConcurrentDictionary<string, string> _askWaitGraph = new();
+    private static readonly AsyncLocal<Dictionary<string, string>?> _askWaitGraph = new();
 
     /// <summary>背压重试最大次数</summary>
     public const int BackpressureMaxRetries = 16;
@@ -328,20 +328,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <exception cref="ActorAskDeadlockException">Ask 超时 — 可能线程池饥饿导致 Consumer 无法调度</exception>
     /// <exception cref="ActorCyclicAskException">等待图检测到环 — 循环 Ask 死锁</exception>
     protected async Task<T> AskAwait<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default, int timeoutMs = 10_000) {
-        var callerId = TryGetCallerActorId();
-        if (callerId is not null && callerId != Id) {
-            _askWaitGraph[callerId] = Id;
-            if (HasCycleInWaitGraph(callerId, Id))
-                throw new ActorCyclicAskException(callerId, Id);
-        }
+        using var waitScope = EnterWaitGraph(TryGetCallerActorId());
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(timeoutMs);
         try {
             return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
         } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
-        } finally {
-            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
         }
     }
 
@@ -349,20 +342,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// Ask 模式等待回复(无返回值) — 内置死锁检测 + 等待图环检测,非泛型重载
     /// </summary>
     protected async Task AskAwait(TaskCompletionSource tcs, CancellationToken ct = default, int timeoutMs = 10_000) {
-        var callerId = TryGetCallerActorId();
-        if (callerId is not null && callerId != Id) {
-            _askWaitGraph[callerId] = Id;
-            if (HasCycleInWaitGraph(callerId, Id))
-                throw new ActorCyclicAskException(callerId, Id);
-        }
+        using var waitScope = EnterWaitGraph(TryGetCallerActorId());
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(timeoutMs);
         try {
             await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
         } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
-        } finally {
-            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
         }
     }
 
@@ -386,31 +372,22 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         CancellationToken ct = default,
         int singleTimeoutMs = 10_000,
         int maxRetries = 16) {
-        var callerId = TryGetCallerActorId();
-        if (callerId is not null && callerId != Id) {
-            _askWaitGraph[callerId] = Id;
-            if (HasCycleInWaitGraph(callerId, Id))
-                throw new ActorCyclicAskException(callerId, Id);
-        }
-        try {
-            for (var attempt = 0; attempt <= maxRetries; attempt++) {
-                var tcs = new TaskCompletionSource<T>();
-                Tell(commandFactory(tcs));
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                linkedCts.CancelAfter(singleTimeoutMs);
-                try {
-                    return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-                } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-                    if (attempt >= maxRetries)
-                        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                    var delayMs = 100 * (1 << Math.Min(attempt, 20));
-                    await Task.Delay(delayMs, ct).ConfigureAwait(false);
-                }
+        using var waitScope = EnterWaitGraph(TryGetCallerActorId());
+        for (var attempt = 0; attempt <= maxRetries; attempt++) {
+            var tcs = new TaskCompletionSource<T>();
+            Tell(commandFactory(tcs));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            linkedCts.CancelAfter(singleTimeoutMs);
+            try {
+                return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                if (attempt >= maxRetries)
+                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+                var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
-            throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-        } finally {
-            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
         }
+        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
     }
 
     /// <summary>
@@ -425,44 +402,57 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         CancellationToken ct = default,
         int singleTimeoutMs = 10_000,
         int maxRetries = 16) {
-        var callerId = TryGetCallerActorId();
-        if (callerId is not null && callerId != Id) {
-            _askWaitGraph[callerId] = Id;
-            if (HasCycleInWaitGraph(callerId, Id))
-                throw new ActorCyclicAskException(callerId, Id);
-        }
-        try {
-            for (var attempt = 0; attempt <= maxRetries; attempt++) {
-                var tcs = new TaskCompletionSource();
-                Tell(commandFactory(tcs));
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                linkedCts.CancelAfter(singleTimeoutMs);
-                try {
-                    await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-                    return;
-                } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-                    if (attempt >= maxRetries)
-                        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                    var delayMs = 100 * (1 << Math.Min(attempt, 20));
-                    await Task.Delay(delayMs, ct).ConfigureAwait(false);
-                }
+        using var waitScope = EnterWaitGraph(TryGetCallerActorId());
+        for (var attempt = 0; attempt <= maxRetries; attempt++) {
+            var tcs = new TaskCompletionSource();
+            Tell(commandFactory(tcs));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            linkedCts.CancelAfter(singleTimeoutMs);
+            try {
+                await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+                return;
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                if (attempt >= maxRetries)
+                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+                var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
-            throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-        } finally {
-            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
         }
+        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
     }
 
     /// <summary>
-    /// 全图环检测 — 从 targetId 出发沿等待图 DFS,检测能否到达 callerId(间接环 A→B→C→A)。
-    /// <para>等待图是函数图(每个 caller 同时只有一个 Ask,最多一条出边),DFS 退化为链表遍历。</para>
+    /// 进入等待图作用域 — 在当前异步流的调用链本地图加边 callerId→Id,检测环,返回 scope(Dispose 恢复父图)。
+    /// <para>等待图用 AsyncLocal 存储调用链本地图,避免全局静态图跨调用链污染/并发覆盖(Bug1 修复)。</para>
+    /// <para>callerId 为 null 或等于自身时返回 null(无需加边)。</para>
     /// </summary>
-    private static bool HasCycleInWaitGraph(string callerId, string targetId) {
+    private WaitGraphScope? EnterWaitGraph(string? callerId) {
+        if (callerId is null || callerId == Id) return null;
+        var prevGraph = _askWaitGraph.Value;
+        var graph = prevGraph is null ? new Dictionary<string, string>() : new Dictionary<string, string>(prevGraph);
+        graph[callerId] = Id;
+        if (HasCycleInGraph(graph, callerId, Id))
+            throw new ActorCyclicAskException(callerId, Id);
+        _askWaitGraph.Value = graph;
+        return new WaitGraphScope(_askWaitGraph, prevGraph);
+    }
+
+    /// <summary>等待图作用域 — Dispose 时恢复父流等待图(AsyncLocal 写是流局部的,正确处理嵌套 Ask)</summary>
+    private sealed class WaitGraphScope(AsyncLocal<Dictionary<string, string>?> store, Dictionary<string, string>? previous) : IDisposable {
+        /// <summary>释放资源。</summary>
+        public void Dispose() => store.Value = previous;
+    }
+
+    /// <summary>
+    /// 全图环检测 — 从 targetId 出发沿等待图遍历,检测能否到达 callerId(间接环 A→B→C→A)。
+    /// <para>等待图是函数图(每个 caller 同时只有一个 Ask,最多一条出边),遍历退化为链表。</para>
+    /// </summary>
+    private static bool HasCycleInGraph(Dictionary<string, string> graph, string callerId, string targetId) {
         var current = targetId;
         var visited = new HashSet<string>();
         while (current != callerId) {
             if (!visited.Add(current)) return false;
-            if (!_askWaitGraph.TryGetValue(current, out var next)) return false;
+            if (!graph.TryGetValue(current, out var next)) return false;
             current = next;
         }
         return true;

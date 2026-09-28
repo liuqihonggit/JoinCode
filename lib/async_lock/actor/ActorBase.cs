@@ -248,9 +248,10 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     /// <summary>
-    /// 向 Actor 同步尝试发送命令 — Tell 模式(发消息即走)。
+    /// 向 Actor 同步尝试发送命令 — Tell 模式(发消息即走)，<b>保证严格 FIFO</b>。
     /// <para>通道已关闭、已释放或(有界通道)已满时返回 false。</para>
     /// <para><b>⚠️ Dispose 路径首选</b>:DisposeAsync 中用 TrySend 发清理命令,不阻塞等待 Consumer,避免线程池饥饿死锁。</para>
+    /// <para><b>与 <see cref="Tell"/> 区别</b>:Tell 入队失败进重试队列(不保证FIFO);TrySend 入队失败返回false(保证FIFO,调用方自行处理)。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
     /// <returns>true 表示已入队,false 表示未入队</returns>
@@ -265,6 +266,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         }
         return written;
     }
+
+    /// <summary>
+    /// TrySend 的语义别名 — 强调严格 FIFO 保证(P1-4)。
+    /// <para>入队失败直接返回 false,不进重试队列,不丢消息(调用方自行重试或计入死信)。</para>
+    /// <para>适合需要严格命令顺序的场景(如状态机、事务序列)。</para>
+    /// </summary>
+    /// <param name="cmd">命令实例</param>
+    /// <returns>true 表示已入队,false 表示未入队(通道满或已释放)</returns>
+    public bool TryTell(TCommand cmd) => TrySend(cmd);
 
     /// <summary>
     /// Actor 主动推送消息到输出 Channel — 外部通过 OutputAsync 拉取。

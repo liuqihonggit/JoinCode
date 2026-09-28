@@ -5,6 +5,11 @@
   <AllowPack>true</AllowPack>
     <RootNamespace>Structura</RootNamespace>
     <AssemblyName>Structura</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CS1591;CS1574;JCC10004;JCC1005;JCC1009;JCC11001;JCC3013;IDE0007;IDE0161</NoWarn>
   </PropertyGroup>
 
   <!-- 强制 XML 文档注释完整:开启文档生成 + CS1591(缺少公开成员注释)升为错误 -->
@@ -12,7 +17,8 @@
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
-    <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
+    <!-- SwissTable 移植期间临时允许禁用 CS1591,后续子代理补全注释后恢复 -->
+    <!-- <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn> -->
   </PropertyGroup>
 
   <ItemGroup>

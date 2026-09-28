@@ -43,7 +43,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IClockService _clock;
     private readonly Infrastructure.Pipeline.MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
-    private ImmutableHamT<string, AgentRuntimeState> _runtimeStates = ImmutableHamT<string, AgentRuntimeState>.Empty;
+    private volatile ImmutableHamT<string, AgentRuntimeState> _runtimeStates = ImmutableHamT<string, AgentRuntimeState>.Empty;
     private readonly Coordinator.Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
     private readonly Coordinator.Core.Messaging.AgentNameIndex _agentNameIndex = new();
     private readonly CancellationTokenSource _disposeCts = new();
@@ -819,7 +819,10 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             kvp.Value.BackgroundCts?.Cancel();
             kvp.Value.BackgroundCts?.Dispose();
         }
-        Interlocked.Exchange(ref _runtimeStates, ImmutableHamT<string, AgentRuntimeState>.Empty);
+        while (true) {
+            var current = _runtimeStates;
+            if (Interlocked.CompareExchange(ref _runtimeStates, ImmutableHamT<string, AgentRuntimeState>.Empty, current) == current) break;
+        }
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

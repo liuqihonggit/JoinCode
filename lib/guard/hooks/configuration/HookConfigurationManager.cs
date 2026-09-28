@@ -131,7 +131,12 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
             }
         }
 
-        Interlocked.Exchange(ref _cache, _cache.SetItem(CacheKey, group));
+        // 手写 CAS 循环整体替换 _cache(与项目统一模式,手写循环使 Roslyn IDE0044 识别 ref 写入)
+        while (true) {
+            var current = _cache;
+            var updated = current.SetItem(CacheKey, group);
+            if (Interlocked.CompareExchange(ref _cache, updated, current) == current) break;
+        }
         return group;
 
     }
@@ -171,7 +176,10 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         await provider.AddHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
-        Interlocked.Exchange(ref _cache, ImmutableHamT<string, HookConfigurationGroup>.Empty);
+        while (true) {
+            var current = _cache;
+            if (Interlocked.CompareExchange(ref _cache, ImmutableHamT<string, HookConfigurationGroup>.Empty, current) == current) break;
+        }
 
         _logger?.LogInformation(
             "Added hook to {Source} for event {Event}: {HookDisplay}",
@@ -199,7 +207,10 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         await provider.RemoveHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
-        Interlocked.Exchange(ref _cache, ImmutableHamT<string, HookConfigurationGroup>.Empty);
+        while (true) {
+            var current = _cache;
+            if (Interlocked.CompareExchange(ref _cache, ImmutableHamT<string, HookConfigurationGroup>.Empty, current) == current) break;
+        }
 
         _logger?.LogInformation(
             "Removed hook from {Source} for event {Event}: {HookDisplay}",
@@ -211,7 +222,10 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
 
     /// <inheritdoc />
     public Task InvalidateCacheAsync(CancellationToken cancellationToken = default) {
-        Interlocked.Exchange(ref _cache, ImmutableHamT<string, HookConfigurationGroup>.Empty);
+        while (true) {
+            var current = _cache;
+            if (Interlocked.CompareExchange(ref _cache, ImmutableHamT<string, HookConfigurationGroup>.Empty, current) == current) break;
+        }
         _logger?.LogDebug("Hook configuration cache invalidated");
         return Task.CompletedTask;
     }

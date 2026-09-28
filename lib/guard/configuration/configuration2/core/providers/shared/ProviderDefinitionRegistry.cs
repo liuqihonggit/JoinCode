@@ -7,7 +7,7 @@ namespace Core.Configuration.Providers;
 /// Azure 始终保留（OAuth + 复合认证特殊逻辑）
 /// </summary>
 public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
-    private FrozenDictionary<string, IProviderDefinition> _definitions = new Dictionary<string, IProviderDefinition>(0, StringComparer.OrdinalIgnoreCase).ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    private volatile FrozenDictionary<string, IProviderDefinition> _definitions = new Dictionary<string, IProviderDefinition>(0, StringComparer.OrdinalIgnoreCase).ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 构造供应商定义注册表 — 从 settings.json 的 vendor 节点构建，并始终保留 Azure 供应商
@@ -20,7 +20,11 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
     private async Task InitializeAsync(IModelConfigLoader modelConfigLoader, IFileSystem? fs, ILogger? logger) {
         var dict = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase);
         await ApplyVendorFromSettingsAsync(dict, modelConfigLoader, fs, logger).ConfigureAwait(false);
-        _definitions = dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+        var newDefinitions = dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+        while (true) {
+            var current = _definitions;
+            if (Interlocked.CompareExchange(ref _definitions, newDefinitions, current) == current) break;
+        }
     }
 
     /// <summary>

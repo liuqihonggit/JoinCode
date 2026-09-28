@@ -49,8 +49,8 @@ public sealed class EvidenceGraphEdge {
 /// 证据图 — 图神经网络风格的消息传递和信任度传播
 /// </summary>
 public sealed class EvidenceGraph {
-    private readonly Dictionary<string, EvidenceGraphNode> _nodes = [];
-    private readonly Dictionary<(string SourceId, string TargetId), EvidenceGraphEdge> _edges = [];
+    private ImmutableHamT<string, EvidenceGraphNode> _nodes = ImmutableHamT<string, EvidenceGraphNode>.Empty;
+    private ImmutableHamT<(string SourceId, string TargetId), EvidenceGraphEdge> _edges = ImmutableHamT<(string SourceId, string TargetId), EvidenceGraphEdge>.Empty;
     private readonly EvidenceWeightCalculator _calculator = new();
 
     /// <summary>
@@ -78,19 +78,26 @@ public sealed class EvidenceGraph {
             InitialWeight = weight.Total,
             CurrentWeight = weight.Total,
         };
-        _nodes[evidence.Id] = node;
+        while (true) {
+            var current = _nodes;
+            if (Interlocked.CompareExchange(ref _nodes, current.SetItem(evidence.Id, node), current) == current) return;
+        }
     }
 
     /// <summary>
     /// 添加边
     /// </summary>
     public void AddEdge(string sourceId, string targetId, double strength = 1.0, string? label = null) {
-        _edges[(sourceId, targetId)] = new EvidenceGraphEdge {
+        var edge = new EvidenceGraphEdge {
             SourceId = sourceId,
             TargetId = targetId,
             RelationshipStrength = strength,
             Label = label,
         };
+        while (true) {
+            var current = _edges;
+            if (Interlocked.CompareExchange(ref _edges, current.SetItem((sourceId, targetId), edge), current) == current) return;
+        }
     }
 
     /// <summary>
@@ -100,9 +107,10 @@ public sealed class EvidenceGraph {
         var iters = iterations ?? DefaultIterations;
 
         for (var iter = 0; iter < iters; iter++) {
+            var nodesSnapshot = _nodes;
             var newWeights = new Dictionary<string, double>();
 
-            foreach (var node in _nodes.Values) {
+            foreach (var node in nodesSnapshot.Values) {
                 var neighborMessages = GetNeighbors(node.EvidenceId)
                     .Select(n => n.CurrentWeight * GetEdgeStrength(node.EvidenceId, n.EvidenceId))
                     .ToList();
@@ -113,8 +121,8 @@ public sealed class EvidenceGraph {
             }
 
             foreach (var kvp in newWeights) {
-                if (_nodes.ContainsKey(kvp.Key)) {
-                    _nodes[kvp.Key].CurrentWeight = kvp.Value;
+                if (nodesSnapshot.TryGetValue(kvp.Key, out var node)) {
+                    node.CurrentWeight = kvp.Value;
                 }
             }
         }
@@ -144,29 +152,34 @@ public sealed class EvidenceGraph {
     public EvidenceGraphEdge[] GetAllEdges() => _edges.Values.ToArray();
 
     private List<EvidenceGraphNode> GetNeighbors(string nodeId) {
-        var neighborIds = _edges.Values
+        var edgesSnapshot = _edges;
+        var nodesSnapshot = _nodes;
+        var neighborIds = edgesSnapshot.Values
             .Where(e => e.SourceId == nodeId || e.TargetId == nodeId)
             .Select(e => e.SourceId == nodeId ? e.TargetId : e.SourceId)
             .ToHashSet();
 
         return neighborIds
-            .Where(id => _nodes.ContainsKey(id))
-            .Select(id => _nodes[id])
+            .Where(id => nodesSnapshot.ContainsKey(id))
+            .Select(id => nodesSnapshot[id])
             .ToList();
     }
 
     private double GetEdgeStrength(string fromId, string toId) {
-        if (_edges.TryGetValue((fromId, toId), out var edge))
+        var edges = _edges;
+        if (edges.TryGetValue((fromId, toId), out var edge))
             return edge.RelationshipStrength;
-        if (_edges.TryGetValue((toId, fromId), out var reverseEdge))
+        if (edges.TryGetValue((toId, fromId), out var reverseEdge))
             return reverseEdge.RelationshipStrength;
         return 1.0;
     }
 
     private double CalculateGraphCentrality(string nodeId) {
-        var inDegree = _edges.Values.Count(e => e.TargetId == nodeId);
-        var outDegree = _edges.Values.Count(e => e.SourceId == nodeId);
-        return _nodes.Count > 0 ? (inDegree + outDegree) / (double)_nodes.Count : 0;
+        var edges = _edges;
+        var nodes = _nodes;
+        var inDegree = edges.Values.Count(e => e.TargetId == nodeId);
+        var outDegree = edges.Values.Count(e => e.SourceId == nodeId);
+        return nodes.Count > 0 ? (inDegree + outDegree) / (double)nodes.Count : 0;
     }
 
     private double CalculateNeighborConsensus(string nodeId) {

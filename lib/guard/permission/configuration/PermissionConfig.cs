@@ -8,12 +8,12 @@ public class PermissionConfig {
     /// <summary>
     /// 自动批准的工具列表
     /// </summary>
-    public Dictionary<string, ToolPermissionRule> AutoApprovedTools { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public ImmutableHamT<string, ToolPermissionRule> AutoApprovedTools { get; set; } = ImmutableHamT<string, ToolPermissionRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 自动拒绝的工具列表
     /// </summary>
-    public Dictionary<string, ToolPermissionRule> AutoRejectedTools { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public ImmutableHamT<string, ToolPermissionRule> AutoRejectedTools { get; set; } = ImmutableHamT<string, ToolPermissionRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 需要用户确认的工具列表 — 对齐 TS 版 ask 规则
@@ -61,7 +61,7 @@ public class PermissionConfig {
     /// 工具白名单/黑名单覆盖 — 增量合并到 AgentToolRestrictions 硬编码默认值
     /// 键为模式名（PermissionMode.ToValue()），值为允许/拒绝的工具列表
     /// </summary>
-    public Dictionary<string, ToolOverrideEntry> ToolOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public ImmutableHamT<string, ToolOverrideEntry> ToolOverrides { get; set; } = ImmutableHamT<string, ToolOverrideEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 创建默认配置
@@ -81,7 +81,7 @@ public class PermissionConfig {
                 [TaskToolNameEnumConstants.TaskList] = new ToolPermissionRule { ToolName = TaskToolNameEnumConstants.TaskList, Description = "List tasks" },
                 [TaskToolNameEnumConstants.TaskGet] = new ToolPermissionRule { ToolName = TaskToolNameEnumConstants.TaskGet, Description = "Get task" },
                 [SystemToolNameEnumConstants.TaskOutput] = new ToolPermissionRule { ToolName = SystemToolNameEnumConstants.TaskOutput, Description = "Get task output" }
-            },
+            }.ToImmutableHamT().WithComparers(StringComparer.OrdinalIgnoreCase),
             DangerousOperationPatterns =
             [
                 new OperationPattern { Pattern = OperationTypeEnumConstants.Delete, PatternType = PatternType.Contains, Description = "删除操作" },
@@ -368,8 +368,8 @@ public sealed class PermissionConfigBuilder {
     /// </summary>
     public PermissionConfig Build() {
         return new PermissionConfig {
-            AutoApprovedTools = new Dictionary<string, ToolPermissionRule>(_autoApprovedTools, StringComparer.OrdinalIgnoreCase),
-            AutoRejectedTools = new Dictionary<string, ToolPermissionRule>(_autoRejectedTools, StringComparer.OrdinalIgnoreCase),
+            AutoApprovedTools = _autoApprovedTools.ToImmutableHamT().WithComparers(StringComparer.OrdinalIgnoreCase),
+            AutoRejectedTools = _autoRejectedTools.ToImmutableHamT().WithComparers(StringComparer.OrdinalIgnoreCase),
             DangerousOperationPatterns = [.. _dangerousOperationPatterns.Values],
             WriteOperationPatterns = [.. _writeOperationPatterns.Values],
             ReadOperationPatterns = [.. _readOperationPatterns.Values],

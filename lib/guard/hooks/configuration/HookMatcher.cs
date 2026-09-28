@@ -87,34 +87,38 @@ public sealed record SourcedHookConfig {
 /// 钩子配置分组
 /// </summary>
 public sealed class HookConfigurationGroup {
+    private ImmutableHamT<HookEvent, ImmutableHamT<string, ImmutableList<SourcedHookConfig>>> _groups
+        = ImmutableHamT<HookEvent, ImmutableHamT<string, ImmutableList<SourcedHookConfig>>>.Empty;
+
     /// <summary>
     /// 按事件和匹配器分组的钩子
     /// </summary>
-    public Dictionary<HookEvent, Dictionary<string, List<SourcedHookConfig>>> Groups { get; } = new();
+    public ImmutableHamT<HookEvent, ImmutableHamT<string, ImmutableList<SourcedHookConfig>>> Groups => _groups;
 
     /// <summary>
     /// 添加钩子配置
     /// </summary>
     public void Add(SourcedHookConfig config) {
-        if (!Groups.TryGetValue(config.Event, out var eventGroup)) {
-            eventGroup = new Dictionary<string, List<SourcedHookConfig>>();
-            Groups[config.Event] = eventGroup;
-        }
-
         var matcherKey = config.Matcher ?? "";
-        if (!eventGroup.TryGetValue(matcherKey, out var hookList)) {
-            hookList = new List<SourcedHookConfig>();
-            eventGroup[matcherKey] = hookList;
+        while (true) {
+            var current = _groups;
+            if (!current.TryGetValue(config.Event, out var eventGroup)) {
+                eventGroup = ImmutableHamT<string, ImmutableList<SourcedHookConfig>>.Empty;
+            }
+            if (!eventGroup.TryGetValue(matcherKey, out var hookList)) {
+                hookList = [];
+            }
+            var newEventGroup = eventGroup.SetItem(matcherKey, hookList.Add(config));
+            var updated = current.SetItem(config.Event, newEventGroup);
+            if (Interlocked.CompareExchange(ref _groups, updated, current) == current) return;
         }
-
-        hookList.Add(config);
     }
 
     /// <summary>
     /// 获取事件的匹配器列表的快照拷贝
     /// </summary>
     public string[] GetMatchers(HookEvent hookEvent) {
-        if (!Groups.TryGetValue(hookEvent, out var eventGroup)) {
+        if (!_groups.TryGetValue(hookEvent, out var eventGroup)) {
             return Array.Empty<string>();
         }
 
@@ -127,7 +131,7 @@ public sealed class HookConfigurationGroup {
     public IReadOnlyList<SourcedHookConfig> GetHooks(HookEvent hookEvent, string? matcher) {
         var matcherKey = matcher ?? "";
 
-        if (!Groups.TryGetValue(hookEvent, out var eventGroup)) {
+        if (!_groups.TryGetValue(hookEvent, out var eventGroup)) {
             return Array.Empty<SourcedHookConfig>();
         }
 
@@ -142,7 +146,7 @@ public sealed class HookConfigurationGroup {
     /// 获取特定事件的所有钩子
     /// </summary>
     public IReadOnlyList<SourcedHookConfig> GetAllHooksForEvent(HookEvent hookEvent) {
-        if (!Groups.TryGetValue(hookEvent, out var eventGroup)) {
+        if (!_groups.TryGetValue(hookEvent, out var eventGroup)) {
             return Array.Empty<SourcedHookConfig>();
         }
 

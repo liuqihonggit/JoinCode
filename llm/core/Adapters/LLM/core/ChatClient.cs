@@ -21,7 +21,7 @@ public sealed partial class ChatClient : ServiceEntity, IChatClient {
 }
 
 internal sealed class ToolCollection : IToolCollection {
-    private readonly Dictionary<string, IToolGroup> _plugins = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, IToolGroup> _plugins = ImmutableHamT<string, IToolGroup>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>根据名称获取插件。</summary>
     /// <param name="name">插件名称。</param>
@@ -32,13 +32,20 @@ internal sealed class ToolCollection : IToolCollection {
     /// <summary>添加插件。</summary>
     /// <param name="plugin">插件组。</param>
     public void Add(IToolGroup plugin) {
-        _plugins[plugin.Name] = plugin;
+        while (true) {
+            var current = _plugins;
+            if (Interlocked.CompareExchange(ref _plugins, current.SetItem(plugin.Name, plugin), current) == current) return;
+        }
     }
 
     /// <summary>移除插件。</summary>
     /// <param name="name">插件名称。</param>
     public bool Remove(string name) {
-        return _plugins.Remove(name);
+        while (true) {
+            var current = _plugins;
+            if (!current.TryGetValue(name, out _)) return false;
+            if (Interlocked.CompareExchange(ref _plugins, current.Remove(name), current) == current) return true;
+        }
     }
 
     /// <summary>获取插件名称的快照拷贝。</summary>

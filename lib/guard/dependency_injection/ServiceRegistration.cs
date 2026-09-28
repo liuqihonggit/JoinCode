@@ -115,7 +115,7 @@ public static partial class ServiceRegistration {
                     if (parsed is not null && !options.AutoApprovedTools.Values.Any(r =>
                         string.Equals(r.ToolName, parsed.ToolName, StringComparison.OrdinalIgnoreCase) &&
                         string.Equals(r.RuleContent ?? "", parsed.RuleContent ?? "", StringComparison.OrdinalIgnoreCase))) {
-                        options.AutoApprovedTools[parsed.ToolName] = parsed;
+                        options.AutoApprovedTools = options.AutoApprovedTools.SetItem(parsed.ToolName, parsed);
                     }
                 }
             }
@@ -124,7 +124,7 @@ public static partial class ServiceRegistration {
                 foreach (var rule in settings.Current.Permissions.Deny) {
                     var parsed = ParsePermissionRuleValue(rule);
                     if (parsed is not null)
-                        options.AutoRejectedTools[parsed.ToolName] = parsed;
+                        options.AutoRejectedTools = options.AutoRejectedTools.SetItem(parsed.ToolName, parsed);
                 }
             }
 
@@ -138,7 +138,7 @@ public static partial class ServiceRegistration {
 
             if (settings.Current.Permissions.ToolOverrides is { Count: > 0 }) {
                 foreach (var (mode, entry) in settings.Current.Permissions.ToolOverrides) {
-                    options.ToolOverrides[mode] = entry;
+                    options.ToolOverrides = options.ToolOverrides.SetItem(mode, entry);
                 }
             }
         } catch (Exception ex) {

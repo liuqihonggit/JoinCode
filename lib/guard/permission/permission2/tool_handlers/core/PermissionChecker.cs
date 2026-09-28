@@ -34,10 +34,6 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         _fs = fs;
         _ = InitializeModeAsync(fs);
 
-        // 确保列表不为 null
-        _config.AutoApprovedTools ??= [];
-        _config.AutoRejectedTools ??= [];
-
         _autoApprovedTools = _config.AutoApprovedTools
             .Keys
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -158,7 +154,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// </summary>
     public void AddToAutoApproved(string toolName) {
         _autoApprovedTools.Add(toolName);
-        _config.AutoApprovedTools[toolName] = new ToolPermissionRule { ToolName = toolName };
+        _config.AutoApprovedTools = _config.AutoApprovedTools.SetItem(toolName, new ToolPermissionRule { ToolName = toolName });
     }
 
     /// <summary>
@@ -173,11 +169,11 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
 
         // 域名级规则: 不添加工具名到 HashSet（避免无条件批准所有域名）
         // 只添加带 RuleContent 的规则到配置列表
-        _config.AutoApprovedTools[toolName] = new ToolPermissionRule {
+        _config.AutoApprovedTools = _config.AutoApprovedTools.SetItem(toolName, new ToolPermissionRule {
             ToolName = toolName,
             RuleContent = ruleContent,
             Description = $"Auto-approved: {ruleContent}"
-        };
+        });
     }
 
     /// <summary>
@@ -229,7 +225,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// </summary>
     public void AddToAutoRejected(string toolName) {
         _autoRejectedTools.Add(toolName);
-        _config.AutoRejectedTools[toolName] = new ToolPermissionRule { ToolName = toolName };
+        _config.AutoRejectedTools = _config.AutoRejectedTools.SetItem(toolName, new ToolPermissionRule { ToolName = toolName });
     }
 
     /// <summary>

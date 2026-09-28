@@ -48,17 +48,17 @@ public sealed partial class McpMonitorConfig {
     /// <summary>是否自动重连,默认 true。</summary>
     public bool AutoReconnect { get; init; } = true;
 
-    private FrozenSet<string> _eventFilterSet = FrozenSet<string>.Empty;
-    private bool _eventFilterSetInitialized;
+    private volatile FrozenSet<string> _eventFilterSet = FrozenSet<string>.Empty;
     /// <summary>
     /// 事件过滤器集合 — 延迟初始化的 FrozenSet,供 O(1) 查询。
+    /// <para>首次访问原子初始化:volatile 保证可见性,Interlocked.CompareExchange 保证只构建一次。</para>
     /// </summary>
     public FrozenSet<string> EventFilterSet {
         get {
-            if (!_eventFilterSetInitialized) {
-                _eventFilterSet = EventFilters.ToFrozenSet();
-                _eventFilterSetInitialized = true;
-            }
+            var current = _eventFilterSet;
+            if (current.Count > 0 || EventFilters.Count == 0) return current;
+            var built = EventFilters.ToFrozenSet();
+            Interlocked.CompareExchange(ref _eventFilterSet, built, current);
             return _eventFilterSet;
         }
     }

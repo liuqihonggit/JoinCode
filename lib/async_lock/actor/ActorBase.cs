@@ -82,7 +82,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             CancellationToken.None,
             taskOptions,
             TaskScheduler.Default).Unwrap();
-        _retryTask = Task.Run(ProcessRetryQueueAsync);
+        _retryTask = Task.Factory.StartNew(
+            ProcessRetryQueueAsync,
+            CancellationToken.None,
+            taskOptions,
+            TaskScheduler.Default).Unwrap();
     }
 
     private static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure) {

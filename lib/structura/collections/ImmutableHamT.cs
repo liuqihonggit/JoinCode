@@ -177,7 +177,7 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
         }
     }
 
-    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 
     /// <summary>仅遍历键 — 显式栈迭代,供 ImmutableHamTSet 复用以消除额外 yield 包装层。</summary>
     public IEnumerable<TKey> EnumerateKeys() {
@@ -521,7 +521,7 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
         }
         /// <summary>遍历。</summary>
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() => _dict.GetEnumerator();
-    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }
 

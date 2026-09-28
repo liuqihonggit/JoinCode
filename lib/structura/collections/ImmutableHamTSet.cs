@@ -119,7 +119,7 @@ public sealed class ImmutableHamTSet<T> : IReadOnlySet<T> where T : notnull {
     /// <summary>遍历所有元素 — 委托 ImmutableHamT.EnumerateKeys 显式栈遍历,消除额外 yield 包装层。</summary>
     public IEnumerator<T> GetEnumerator() => _map.EnumerateKeys().GetEnumerator();
 
-    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 
     /// <summary>是否与另一集合有交集。</summary>
     public bool Overlaps(IEnumerable<T> other) {
@@ -217,7 +217,7 @@ public sealed class ImmutableHamTSet<T> : IReadOnlySet<T> where T : notnull {
         /// <summary>遍历。</summary>
         public IEnumerator<T> GetEnumerator() => _set.GetEnumerator();
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 
         /// <summary>排除另一集合中的所有元素。</summary>
         public void ExceptWith(IEnumerable<T> other) => _set.ExceptWith(other);

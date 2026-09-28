@@ -5,6 +5,11 @@
   <AllowPack>true</AllowPack>
     <RootNamespace>Structura</RootNamespace>
     <AssemblyName>Structura</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);IDE0007;IDE0161;JCC1009;JCC1005;JCC11001;JCC3013</NoWarn>
   </PropertyGroup>
 
   <!-- 强制 XML 文档注释完整:开启文档生成 + CS1591(缺少公开成员注释)升为错误 -->
@@ -18,6 +23,10 @@
   <ItemGroup>
     <Compile Remove="tests\**\*.cs" />
     <None Remove="tests\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Structura.Tests" />
   </ItemGroup>
 
 </Project>

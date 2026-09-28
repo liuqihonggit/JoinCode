@@ -1392,35 +1392,35 @@ namespace Structura.Collections
         /// 根据当前平台 SIMD 支持情况分派查找给定哈希值在控制字节数组中可插入的槽位。
         /// </summary>
         /// <param name="hash">键的哈希值。</param>
-        /// <param name="contorls">控制字节数组。</param>
+        /// <param name="controls">控制字节数组。</param>
         /// <param name="bucketMask">桶位掩码。</param>
         /// <returns>可插入槽位的索引。</returns>
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DispatchFindInsertSlot(int hash, byte[] contorls, int bucketMask)
+        public static int DispatchFindInsertSlot(int hash, byte[] controls, int bucketMask)
         {
             if (Avx2.IsSupported)
             {
-                return FindInsertSlotForAvx2(hash, contorls, bucketMask);
+                return FindInsertSlotForAvx2(hash, controls, bucketMask);
             }
             else
             if (Sse2.IsSupported)
             {
-                return FindInsertSlotForSse2(hash, contorls, bucketMask);
+                return FindInsertSlotForSse2(hash, controls, bucketMask);
             }
             else
             {
-                return FindInsertSlotForFallback(hash, contorls, bucketMask);
+                return FindInsertSlotForFallback(hash, controls, bucketMask);
             }
         }
 
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe int FindInsertSlotForAvx2(int hash, byte[] contorls, int bucketMask)
+        private static unsafe int FindInsertSlotForAvx2(int hash, byte[] controls, int bucketMask)
         {
-            Debug.Assert(bucketMask == GetBucketMaskFromControlsLength(contorls.Length));
+            Debug.Assert(bucketMask == GetBucketMaskFromControlsLength(controls.Length));
             ProbeSeq probeSeq = new ProbeSeq(hash, bucketMask);
-            fixed (byte* ptr = &contorls[0])
+            fixed (byte* ptr = &controls[0])
             {
                 while (true)
                 {
@@ -1459,11 +1459,11 @@ namespace Structura.Collections
 
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe int FindInsertSlotForSse2(int hash, byte[] contorls, int bucketMask)
+        private static unsafe int FindInsertSlotForSse2(int hash, byte[] controls, int bucketMask)
         {
-            Debug.Assert(bucketMask == GetBucketMaskFromControlsLength(contorls.Length));
+            Debug.Assert(bucketMask == GetBucketMaskFromControlsLength(controls.Length));
             ProbeSeq probeSeq = new ProbeSeq(hash, bucketMask);
-            fixed (byte* ptr = &contorls[0])
+            fixed (byte* ptr = &controls[0])
             {
                 while (true)
                 {
@@ -1502,11 +1502,11 @@ namespace Structura.Collections
 
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe int FindInsertSlotForFallback(int hash, byte[] contorls, int bucketMask)
+        private static unsafe int FindInsertSlotForFallback(int hash, byte[] controls, int bucketMask)
         {
-            Debug.Assert(bucketMask == GetBucketMaskFromControlsLength(contorls.Length));
+            Debug.Assert(bucketMask == GetBucketMaskFromControlsLength(controls.Length));
             ProbeSeq probeSeq = new ProbeSeq(hash, bucketMask);
-            fixed (byte* ptr = &contorls[0])
+            fixed (byte* ptr = &controls[0])
             {
                 while (true)
                 {

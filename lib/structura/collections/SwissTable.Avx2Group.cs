@@ -213,8 +213,6 @@ namespace Structura.Collections
             //   0000_0000 | 1000_0000 = 1000_0000
             // byte: 0x80_u8 as i8
             var zero = Vector256<sbyte>.Zero;
-            zero.As<sbyte, byte>();
-            // TODO: check whether asXXXX could be removed.
             var special = Avx2.CompareGreaterThan(zero, this._data.AsSByte()).AsByte();
             return new Avx2Group(Avx2.Or(special, Vector256.Create((byte)0x80)));
         }

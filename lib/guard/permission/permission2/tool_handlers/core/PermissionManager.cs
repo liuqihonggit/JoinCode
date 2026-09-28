@@ -208,7 +208,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
             .ToList();
 
         foreach (var rule in strippedRules) {
-            _config.AutoApprovedTools.Remove(rule.ToolName);
+            _config.AutoApprovedTools = _config.AutoApprovedTools.Remove(rule.ToolName);
         }
 
         // 保存剥离的规则，供恢复时使用
@@ -228,7 +228,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         // 对齐 TS restoreDangerousPermissions: 恢复之前剥离的危险权限规则
         if (_strippedRules.Count > 0) {
             foreach (var rule in _strippedRules) {
-                _config.AutoApprovedTools[rule.ToolName] = rule;
+                _config.AutoApprovedTools = _config.AutoApprovedTools.SetItem(rule.ToolName, rule);
             }
             _logger?.LogInformation("已恢复 {Count} 条危险权限规则", _strippedRules.Count);
             _strippedRules = [];

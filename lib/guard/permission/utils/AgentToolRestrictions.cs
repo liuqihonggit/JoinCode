@@ -79,7 +79,7 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
 
     private static FrozenSet<string> MergeWithOverrides(
         FrozenSet<string> defaults,
-        Dictionary<string, ToolOverrideEntry>? overrides,
+        ImmutableHamT<string, ToolOverrideEntry>? overrides,
         string modeKey,
         bool allow) {
         if (overrides is null || !overrides.TryGetValue(modeKey, out var entry))

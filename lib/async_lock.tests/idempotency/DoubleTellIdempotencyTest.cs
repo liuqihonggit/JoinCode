@@ -158,9 +158,7 @@ internal sealed class IdempotentTestActor : ActorBase<object, string> {
     public int HandleInvocationCount { get; private set; }
     public IIdempotencyStore? ExposedStore => IdempotencyStore;
 
-    public IdempotentTestActor(bool enableIdempotency = true) {
-        if (enableIdempotency)
-            IdempotencyStore = new IdempotencyStore();
+    public IdempotentTestActor(bool enableIdempotency = true) : base(idempotencyStore: enableIdempotency ? new IdempotencyStore() : null) {
     }
 
     protected override void Handle(object command, CancellationToken ct) {

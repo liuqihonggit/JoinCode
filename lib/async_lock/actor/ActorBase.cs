@@ -50,7 +50,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// 构造 Actor — 有界输入/输出通道(默认容量 DefaultChannelCapacity)。
     /// </summary>
     protected ActorBase()
-        : this(null, null, null) {
+        : this(null, null, null, null) {
     }
 
     /// <summary>
@@ -60,7 +60,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="fullMode">有界通道满时策略</param>
     /// <param name="logger">日志记录器(null=静默)</param>
     protected ActorBase(int? boundedCapacity, BoundedChannelFullMode fullMode = BoundedChannelFullMode.Wait, ILogger? logger = null)
-        : this(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value, fullMode), null, logger) {
+        : this(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value, fullMode), null, logger, null) {
     }
 
     /// <summary>
@@ -69,10 +69,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="backpressure">输入背压配置(null=默认有界容量 DefaultChannelCapacity,无水位线,无超时)</param>
     /// <param name="outputCapacity">输出通道容量(null=默认容量 DefaultChannelCapacity)</param>
     /// <param name="logger">日志记录器(null=静默,不记录审计日志)</param>
-    protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null, ILogger? logger = null) {
+    /// <param name="idempotencyStore">幂等去重存储(null=不启用,构造注入后只读不可修改)</param>
+    protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null, ILogger? logger = null, IIdempotencyStore? idempotencyStore = null) {
         Id = $"{GetType().Name}-{Guid.NewGuid():N}"[..8];
         _logger = logger;
         _backpressure = backpressure;
+        IdempotencyStore = idempotencyStore;
         _inputChannel = CreateInputChannel(backpressure);
         _outputChannel = CreateOutputChannel(outputCapacity);
         _consumerTask = Task.Factory.StartNew(
@@ -324,7 +326,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <para>未命中 → 执行 Handle(派生类自行 TryRegister 缓存结果)</para>
     /// <para>null=不启用幂等去重(默认)。派生类在构造函数中设置。</para>
     /// </summary>
-    protected IIdempotencyStore? IdempotencyStore { get; set; }
+    protected IIdempotencyStore? IdempotencyStore { get; private set; }
 
     private async Task ConsumeLoopAsync() {
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);

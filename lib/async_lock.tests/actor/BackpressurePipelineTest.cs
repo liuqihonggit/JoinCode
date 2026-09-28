@@ -147,9 +147,8 @@ internal sealed class BackpressurePipelineTestActor : ActorBase<object, Unit> {
     private readonly TaskCompletionSource? _gate;
 
     public BackpressurePipelineTestActor(int capacity, TaskCompletionSource? gate = null)
-        : base(new ActorBackpressure(capacity)) {
+        : base(new ActorBackpressure(capacity), idempotencyStore: new IdempotencyStore()) {
         _gate = gate;
-        IdempotencyStore = new IdempotencyStore();
     }
 
     protected override void Handle(object command, CancellationToken ct) {

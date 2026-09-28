@@ -70,17 +70,19 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="outputCapacity">输出通道容量(null=默认容量 DefaultChannelCapacity)</param>
     /// <param name="logger">日志记录器(null=静默,不记录审计日志)</param>
     /// <param name="idempotencyStore">幂等去重存储(null=不启用,构造注入后只读不可修改)</param>
-    protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null, ILogger? logger = null, IIdempotencyStore? idempotencyStore = null) {
+    /// <param name="useLongRunning">Consumer 是否用 LongRunning 专用线程(true=专用线程不占线程池,适合少量长驻Actor;false=线程池调度,适合大量短生命周期Actor)</param>
+    protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null, ILogger? logger = null, IIdempotencyStore? idempotencyStore = null, bool useLongRunning = true) {
         Id = $"{GetType().Name}-{Guid.NewGuid():N}"[..8];
         _logger = logger;
         _backpressure = backpressure;
         IdempotencyStore = idempotencyStore;
         _inputChannel = CreateInputChannel(backpressure);
         _outputChannel = CreateOutputChannel(outputCapacity);
+        var taskOptions = (useLongRunning ? TaskCreationOptions.LongRunning : TaskCreationOptions.None) | TaskCreationOptions.DenyChildAttach;
         _consumerTask = Task.Factory.StartNew(
             ConsumeLoopAsync,
             CancellationToken.None,
-            TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+            taskOptions,
             TaskScheduler.Default).Unwrap();
         _retryTask = Task.Run(ProcessRetryQueueAsync);
     }

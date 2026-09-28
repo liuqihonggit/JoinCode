@@ -9,6 +9,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
     <InternalsVisibleTo Include="JoinCode.Plugins.Infrastructure" />
+    <InternalsVisibleTo Include="JoinCode.Abs.Tests" />
   </ItemGroup>
 
   <ItemGroup>

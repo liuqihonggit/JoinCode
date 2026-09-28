@@ -259,7 +259,10 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         foreach (var actor in _actors.Values) {
             await actor.DisposeAsync().ConfigureAwait(false);
         }
-        Interlocked.Exchange(ref _actors, ImmutableHamT<string, MailboxActor>.Empty);
+        while (true) {
+            var current = _actors;
+            if (Interlocked.CompareExchange(ref _actors, ImmutableHamT<string, MailboxActor>.Empty, current) == current) break;
+        }
         await base.DisposeAsync().ConfigureAwait(false);
     }
 

@@ -439,7 +439,10 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
 
     /// <summary>释放资源 — 仅清理实例级 lifecycleGuards,不清空 static s_worktreeSessions(跨实例共享)</summary>
     public override void Dispose() {
-        Interlocked.Exchange(ref _lifecycleGuards, ImmutableHamT<string, WorktreeLifecycleGuard>.Empty);
+        while (true) {
+            var current = _lifecycleGuards;
+            if (Interlocked.CompareExchange(ref _lifecycleGuards, ImmutableHamT<string, WorktreeLifecycleGuard>.Empty, current) == current) break;
+        }
         base.Dispose();
     }
 

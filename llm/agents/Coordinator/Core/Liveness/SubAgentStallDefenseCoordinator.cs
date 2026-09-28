@@ -168,7 +168,10 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
         _logger?.LogInformation("[SubAgentStallDefense] 纵深防御体系停止，清理 {Count} 个激活记录", _activationTimes.Count);
         _scanner.AgentStalled -= OnAgentStalled;
         _scanner.ChainStalled -= OnChainStalled;
-        Interlocked.Exchange(ref _activationTimes, ImmutableHamT<string, DateTimeOffset>.Empty);
+        while (true) {
+            var current = _activationTimes;
+            if (Interlocked.CompareExchange(ref _activationTimes, ImmutableHamT<string, DateTimeOffset>.Empty, current) == current) break;
+        }
         return _scanner.DisposeAsync();
     }
 

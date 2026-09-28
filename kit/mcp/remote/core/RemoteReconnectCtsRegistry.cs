@@ -5,7 +5,7 @@ namespace McpToolRegistry;
 /// 持有以 clientId 为 key 的不可变字典，无锁 CAS 更新
 /// </summary>
 internal sealed class RemoteReconnectCtsRegistry {
-    private ImmutableHamT<string, CancellationTokenSource> _ctsMap = ImmutableHamT<string, CancellationTokenSource>.Empty;
+    private volatile ImmutableHamT<string, CancellationTokenSource> _ctsMap = ImmutableHamT<string, CancellationTokenSource>.Empty;
 
     /// <summary>设置重连 CTS（取消并释放旧的，创建并注册新的）</summary>
     /// <returns>新创建的 CTS</returns>
@@ -67,6 +67,10 @@ internal sealed class RemoteReconnectCtsRegistry {
     }
 
     /// <summary>清空所有 CTS 记录</summary>
-    public void Clear()
-        => Interlocked.Exchange(ref _ctsMap, ImmutableHamT<string, CancellationTokenSource>.Empty);
+    public void Clear() {
+        while (true) {
+            var current = _ctsMap;
+            if (Interlocked.CompareExchange(ref _ctsMap, ImmutableHamT<string, CancellationTokenSource>.Empty, current) == current) break;
+        }
+    }
 }

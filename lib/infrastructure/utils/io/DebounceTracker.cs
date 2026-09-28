@@ -4,8 +4,8 @@ namespace Core.Utils;
 /// 防抖跟踪器 — 按文件路径调度防抖定时器，并标记/消费内部写入以避免自触发
 /// </summary>
 public sealed class DebounceTracker : IDisposable {
-    private ImmutableHamT<string, Timer> _timers;
-    private ImmutableHamT<string, long> _internalWriteTimestamps;
+    private volatile ImmutableHamT<string, Timer> _timers;
+    private volatile ImmutableHamT<string, long> _internalWriteTimestamps;
     private bool _disposed;
 
     /// <summary>
@@ -34,7 +34,11 @@ public sealed class DebounceTracker : IDisposable {
     /// <param name="filePath">文件路径</param>
     public void MarkInternalWrite(string filePath) {
         var normalizedPath = Path.GetFullPath(filePath);
-        ImmutableInterlocked.Update(ref _internalWriteTimestamps, d => d.SetItem(normalizedPath, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        while (true) {
+            var current = _internalWriteTimestamps;
+            if (Interlocked.CompareExchange(ref _internalWriteTimestamps, current.SetItem(normalizedPath, now), current) == current) break;
+        }
     }
 
     /// <summary>
@@ -46,14 +50,18 @@ public sealed class DebounceTracker : IDisposable {
         var normalizedPath = Path.GetFullPath(filePath);
         long timestamp = 0;
         var removed = false;
-        ImmutableInterlocked.Update(ref _internalWriteTimestamps, d => {
-            if (d.TryGetValue(normalizedPath, out var ts)) {
+        while (true) {
+            var current = _internalWriteTimestamps;
+            ImmutableHamT<string, long> updated;
+            if (current.TryGetValue(normalizedPath, out var ts)) {
                 timestamp = ts;
                 removed = true;
-                return d.Remove(normalizedPath);
+                updated = current.Remove(normalizedPath);
+            } else {
+                updated = current;
             }
-            return d;
-        });
+            if (Interlocked.CompareExchange(ref _internalWriteTimestamps, updated, current) == current) break;
+        }
         if (removed) {
             var elapsed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - timestamp;
             return elapsed < InternalWriteWindowMs;
@@ -74,32 +82,44 @@ public sealed class DebounceTracker : IDisposable {
         }
 
         Timer? existingTimer = null;
-        ImmutableInterlocked.Update(ref _timers, d => {
-            if (d.TryGetValue(filePath, out var t)) {
+        while (true) {
+            var current = _timers;
+            ImmutableHamT<string, Timer> updated;
+            if (current.TryGetValue(filePath, out var t)) {
                 existingTimer = t;
-                return d.Remove(filePath);
+                updated = current.Remove(filePath);
+            } else {
+                updated = current;
             }
-            return d;
-        });
+            if (Interlocked.CompareExchange(ref _timers, updated, current) == current) break;
+        }
         if (existingTimer is { } oldTimer)
             await oldTimer.DisposeAsync().ConfigureAwait(false);
 
-        var newTimer = new Timer(_ => {
-            try {
-                Timer? timer = null;
-                ImmutableInterlocked.Update(ref _timers, d => {
-                    if (d.TryGetValue(filePath, out var t)) {
-                        timer = t;
-                        return d.Remove(filePath);
+        while (true) {
+            var current = _timers;
+            var newTimer = new Timer(_ => {
+                try {
+                    Timer? timer = null;
+                    while (true) {
+                        var cur = _timers;
+                        ImmutableHamT<string, Timer> upd;
+                        if (cur.TryGetValue(filePath, out var t)) {
+                            timer = t;
+                            upd = cur.Remove(filePath);
+                        } else {
+                            upd = cur;
+                        }
+                        if (Interlocked.CompareExchange(ref _timers, upd, cur) == cur) break;
                     }
-                    return d;
-                });
-                timer?.Dispose();
-                if (!_disposed) fireAction();
-            }
-            catch (Exception ex) { Console.Error.WriteLine($"[DebounceTracker] timer 回调异常: {ex}"); }
-        }, null, interval, Timeout.InfiniteTimeSpan);
-        ImmutableInterlocked.Update(ref _timers, d => d.SetItem(filePath, newTimer));
+                    timer?.Dispose();
+                    if (!_disposed) fireAction();
+                }
+                catch (Exception ex) { Console.Error.WriteLine($"[DebounceTracker] timer 回调异常: {ex}"); }
+            }, null, interval, Timeout.InfiniteTimeSpan);
+            if (Interlocked.CompareExchange(ref _timers, current.SetItem(filePath, newTimer), current) == current) break;
+            await newTimer.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -109,8 +129,16 @@ public sealed class DebounceTracker : IDisposable {
         if (_disposed) return;
         _disposed = true;
 
-        foreach (var kvp in Interlocked.Exchange(ref _timers, ImmutableHamT<string, Timer>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase)))
+        ImmutableHamT<string, Timer> oldTimers = default!;
+        while (true) {
+            var current = _timers;
+            if (Interlocked.CompareExchange(ref _timers, ImmutableHamT<string, Timer>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase), current) == current) { oldTimers = current; break; }
+        }
+        foreach (var kvp in oldTimers)
             kvp.Value.Dispose();
-        Interlocked.Exchange(ref _internalWriteTimestamps, ImmutableHamT<string, long>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
+        while (true) {
+            var current = _internalWriteTimestamps;
+            if (Interlocked.CompareExchange(ref _internalWriteTimestamps, ImmutableHamT<string, long>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase), current) == current) break;
+        }
     }
 }

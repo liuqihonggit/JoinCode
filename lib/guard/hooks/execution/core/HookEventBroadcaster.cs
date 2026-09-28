@@ -51,8 +51,8 @@ public interface IHookEventBroadcaster {
 /// </summary>
 [Register(typeof(IHookEventBroadcaster), ServiceLifetime.Singleton)]
 public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroadcaster {
-    private ImmutableArray<Action<HookExecutionEvent>> _handlers = ImmutableArray<Action<HookExecutionEvent>>.Empty;
-    private ImmutableArray<HookExecutionEvent> _pendingEvents = ImmutableArray<HookExecutionEvent>.Empty;
+    private volatile ImmutableList<Action<HookExecutionEvent>> _handlers = ImmutableList<Action<HookExecutionEvent>>.Empty;
+    private volatile ImmutableList<HookExecutionEvent> _pendingEvents = ImmutableList<HookExecutionEvent>.Empty;
     private readonly ILogger<HookEventBroadcaster>? _logger;
 
     private const int MaxPendingEvents = 100;
@@ -73,10 +73,17 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
 
     /// <inheritdoc />
     public void RegisterHandler(Action<HookExecutionEvent> handler) {
-        ImmutableInterlocked.Update(ref _handlers, static (h, hd) => h.Add(hd), handler);
+        while (true) {
+            var current = _handlers;
+            if (Interlocked.CompareExchange(ref _handlers, current.Add(handler), current) == current) break;
+        }
 
         // 原子取出挂起事件,交给新 handler 处理
-        var pending = Interlocked.Exchange(ref _pendingEvents, ImmutableArray<HookExecutionEvent>.Empty);
+        ImmutableList<HookExecutionEvent> pending;
+        while (true) {
+            var current = _pendingEvents;
+            if (Interlocked.CompareExchange(ref _pendingEvents, ImmutableList<HookExecutionEvent>.Empty, current) == current) { pending = current; break; }
+        }
         foreach (var pendingEvent in pending) {
             try {
                 handler(pendingEvent);
@@ -88,12 +95,12 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
 
     /// <inheritdoc />
     public void UnregisterHandler(Action<HookExecutionEvent> handler) {
-        ImmutableInterlocked.Update(ref _handlers, static (h, hd) => {
-            if (h.IsDefaultOrEmpty) return h;
-            var builder = ImmutableArray.CreateBuilder<Action<HookExecutionEvent>>(h.Length);
-            foreach (var x in h) if (x != hd) builder.Add(x);
-            return builder.MoveToImmutable();
-        }, handler);
+        while (true) {
+            var current = _handlers;
+            if (current.Count == 0) break;
+            var updated = current.Remove(handler);
+            if (Interlocked.CompareExchange(ref _handlers, updated, current) == current) break;
+        }
     }
 
     /// <inheritdoc />
@@ -166,8 +173,14 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
 
     /// <inheritdoc />
     public void Clear() {
-        Interlocked.Exchange(ref _handlers, ImmutableArray<Action<HookExecutionEvent>>.Empty);
-        Interlocked.Exchange(ref _pendingEvents, ImmutableArray<HookExecutionEvent>.Empty);
+        while (true) {
+            var current = _handlers;
+            if (Interlocked.CompareExchange(ref _handlers, ImmutableList<Action<HookExecutionEvent>>.Empty, current) == current) break;
+        }
+        while (true) {
+            var current = _pendingEvents;
+            if (Interlocked.CompareExchange(ref _pendingEvents, ImmutableList<HookExecutionEvent>.Empty, current) == current) break;
+        }
 
         _allEventsEnabled = false;
     }
@@ -182,14 +195,16 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
 
     private void Emit(HookExecutionEvent evt) {
         var handlers = _handlers;
-        if (handlers.IsDefaultOrEmpty) {
+        if (handlers.Count == 0) {
             // 没有处理器，暂存事件(限制挂起数量,丢弃最老的)
-            ImmutableInterlocked.Update(ref _pendingEvents, static (list, e) => {
-                var newList = list.Add(e);
-                return newList.Length > MaxPendingEvents
-                    ? newList.RemoveRange(0, newList.Length - MaxPendingEvents)
+            while (true) {
+                var current = _pendingEvents;
+                var newList = current.Add(evt);
+                var updated = newList.Count > MaxPendingEvents
+                    ? newList.RemoveRange(0, newList.Count - MaxPendingEvents)
                     : newList;
-            }, evt);
+                if (Interlocked.CompareExchange(ref _pendingEvents, updated, current) == current) break;
+            }
 
             return;
         }

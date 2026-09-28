@@ -6,8 +6,8 @@ namespace Services.SystemActuator;
 /// </summary>
 [Register(typeof(ISystemActuatorRegistry), ServiceLifetime.Singleton)]
 public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IAsyncDisposable {
-    private static FrozenDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> _factories = FrozenDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>>.Empty;
-    private static bool _factoriesLoaded;
+    private static volatile FrozenDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> _factories = FrozenDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>>.Empty;
+    private static volatile bool _factoriesLoaded;
 
     private readonly ILogger<SystemActuatorRegistry>? _logger;
     private readonly ITelemetryService? _telemetryService;

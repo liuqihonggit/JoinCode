@@ -5,7 +5,7 @@ namespace McpToolRegistry;
 /// 持有以 clientId 为 key 的不可变字典，无锁 CAS 更新
 /// </summary>
 internal sealed class RemoteToolSpecCache {
-    private ImmutableHamT<string, ImmutableList<ToolSpec>> _specs = ImmutableHamT<string, ImmutableList<ToolSpec>>.Empty;
+    private volatile ImmutableHamT<string, ImmutableList<ToolSpec>> _specs = ImmutableHamT<string, ImmutableList<ToolSpec>>.Empty;
 
     /// <summary>获取客户端的工具规格缓存（未找到返回 null）</summary>
     public IReadOnlyList<ToolSpec>? GetSpecs(string clientId)
@@ -31,7 +31,11 @@ internal sealed class RemoteToolSpecCache {
         }
     }
 
-    /// <summary>清空所有缓存</summary>
-    public void Clear()
-        => Interlocked.Exchange(ref _specs, ImmutableHamT<string, ImmutableList<ToolSpec>>.Empty);
+    /// <summary>清空所有缓存 — CAS 循环整体替换为 Empty</summary>
+    public void Clear() {
+        while (true) {
+            var current = _specs;
+            if (Interlocked.CompareExchange(ref _specs, ImmutableHamT<string, ImmutableList<ToolSpec>>.Empty, current) == current) return;
+        }
+    }
 }

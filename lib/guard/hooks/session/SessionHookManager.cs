@@ -58,27 +58,31 @@ public sealed record SessionHookEntry {
 /// 会话钩子存储
 /// </summary>
 public sealed partial class SessionHookStore {
-    private ImmutableHamT<HookEvent, ImmutableList<SessionHookEntry>> _hooks = ImmutableHamT<HookEvent, ImmutableList<SessionHookEntry>>.Empty;
+    private volatile ImmutableHamT<HookEvent, ImmutableList<SessionHookEntry>> _hooks = ImmutableHamT<HookEvent, ImmutableList<SessionHookEntry>>.Empty;
 
     /// <summary>
-    /// 添加钩子
+    /// 添加钩子 — 手写 CAS 循环(对 volatile 字段用 Interlocked.CompareExchange,使 Roslyn IDE0044 识别 ref 写入)
     /// </summary>
     public void AddHook(HookEvent hookEvent, SessionHookEntry entry) {
-        ImmutableInterlocked.Update(ref _hooks, static (dict, arg) => {
-            var list = dict.GetValueOrDefault(arg.hookEvent) ?? ImmutableList<SessionHookEntry>.Empty;
-            return dict.SetItem(arg.hookEvent, list.Add(arg.entry));
-        }, (hookEvent, entry));
+        while (true) {
+            var current = _hooks;
+            var list = current.GetValueOrDefault(hookEvent) ?? ImmutableList<SessionHookEntry>.Empty;
+            var updated = current.SetItem(hookEvent, list.Add(entry));
+            if (Interlocked.CompareExchange(ref _hooks, updated, current) == current) return;
+        }
     }
 
     /// <summary>
-    /// 移除钩子
+    /// 移除钩子 — 手写 CAS 循环
     /// </summary>
     public void RemoveHook(HookEvent hookEvent, Func<SessionHookEntry, bool> predicate) {
-        ImmutableInterlocked.Update(ref _hooks, static (dict, arg) => {
-            if (!dict.TryGetValue(arg.hookEvent, out var list)) return dict;
-            var newList = list.RemoveAll(new Predicate<SessionHookEntry>(arg.predicate));
-            return newList.IsEmpty ? dict.Remove(arg.hookEvent) : dict.SetItem(arg.hookEvent, newList);
-        }, (hookEvent, predicate));
+        while (true) {
+            var current = _hooks;
+            if (!current.TryGetValue(hookEvent, out var list)) return;
+            var newList = list.RemoveAll(new Predicate<SessionHookEntry>(predicate));
+            var updated = newList.IsEmpty ? current.Remove(hookEvent) : current.SetItem(hookEvent, newList);
+            if (Interlocked.CompareExchange(ref _hooks, updated, current) == current) return;
+        }
     }
 
     /// <summary>
@@ -95,10 +99,14 @@ public sealed partial class SessionHookStore {
         => _hooks.ToImmutableHamT(kvp => kvp.Key, kvp => (IReadOnlyList<SessionHookEntry>)kvp.Value);
 
     /// <summary>
-    /// 清除所有钩子
+    /// 清除所有钩子 — CAS 循环整体替换为 Empty,与 AddHook/RemoveHook 同步模式一致
+    /// <para>updater 永返 Empty,CAS 失败重试最终一定清空。手写循环使 Roslyn IDE0044 识别 ref 写入。</para>
     /// </summary>
     public void Clear() {
-        _hooks = ImmutableHamT<HookEvent, ImmutableList<SessionHookEntry>>.Empty;
+        while (true) {
+            var current = _hooks;
+            if (Interlocked.CompareExchange(ref _hooks, ImmutableHamT<HookEvent, ImmutableList<SessionHookEntry>>.Empty, current) == current) return;
+        }
     }
 }
 

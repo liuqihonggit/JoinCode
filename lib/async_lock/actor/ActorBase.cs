@@ -141,11 +141,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     public void Tell(TCommand cmd) {
         ThrowIfDisposed();
 
+        Interlocked.Increment(ref _inputCount);
         if (_inputChannel.Writer.TryWrite(cmd)) {
-            Interlocked.Increment(ref _inputCount);
             CheckInputWatermark();
             return;
         }
+        Interlocked.Decrement(ref _inputCount);
 
         _ = RetrySendAsync(cmd, _cts.Token);
     }
@@ -165,10 +166,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             var backoff = TimeSpan.FromMilliseconds(100 * Math.Pow(2, Math.Min(retry, 10)));
             await Task.Delay(backoff, ct).ConfigureAwait(false);
 
+            Interlocked.Increment(ref _inputCount);
             if (_inputChannel.Writer.TryWrite(cmd)) {
-                Interlocked.Increment(ref _inputCount);
                 return;
             }
+            Interlocked.Decrement(ref _inputCount);
         }
 
         SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(cmd, BackpressureMaxRetries));
@@ -198,10 +200,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <returns>true 表示已入队,false 表示未入队</returns>
     public bool TrySend(TCommand cmd) {
         if (Volatile.Read(ref _disposed) != 0) return false;
+        Interlocked.Increment(ref _inputCount);
         var written = _inputChannel.Writer.TryWrite(cmd);
         if (written) {
-            Interlocked.Increment(ref _inputCount);
             CheckInputWatermark();
+        } else {
+            Interlocked.Decrement(ref _inputCount);
         }
         return written;
     }
@@ -211,10 +215,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     protected bool TryPublish(TOut msg) {
         if (Volatile.Read(ref _disposed) != 0) return false;
+        Interlocked.Increment(ref _outputCount);
         if (_outputChannel.Writer.TryWrite(msg)) {
-            Interlocked.Increment(ref _outputCount);
             return true;
         }
+        Interlocked.Decrement(ref _outputCount);
         return false;
     }
 

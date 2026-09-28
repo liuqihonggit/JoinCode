@@ -274,9 +274,9 @@ sync-over-async 死锁隐患。
 | 2.1 | H1 可变 Dictionary | ✅ 完成 | PR #327 已合并 |
 | 2.2 | H2 同步阻塞 | ✅ 完成 | PR #330，27处改async+await |
 | 2.3 | H3 核心模块 Actor 化 | ✅ 完成 | PR #324 已合并 |
-| 3.1 | M1 暴露可变集合 | ⏳ 待开始 | ~30处 |
-| 3.2 | M2 O(n) 属性 | ⏳ 待开始 | ~15处 |
-| 3.3 | M3 HashSet 冻结 | ⏳ 待开始 | ~5处 |
+| 3.1 | M1 暴露可变集合 | ✅ 完成 | PR #332，10处改IReadOnlyDictionary |
+| 3.2 | M2 O(n) 属性 | ✅ 完成 | PR #332，3处改lazy cache |
+| 3.3 | M3 HashSet 冻结 | ✅ 完成 | commit b3c6e75d，7处改FrozenSet |
 
 ---
 

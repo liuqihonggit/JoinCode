@@ -5,6 +5,9 @@ public sealed class DualRoleConversationTests : IAsyncLifetime {
     private readonly ITestOutputHelper _output;
     private readonly ILoggerFactory _loggerFactory;
 
+    /// <summary>重试间隔 — 固定1s,16次共16s,防CI雪崩</summary>
+    private static readonly TimeSpan RetryInterval = TimeSpan.FromSeconds(1);
+
     public DualRoleConversationTests(ITestOutputHelper output) {
         _output = output;
         _loggerFactory = LoggerFactory.Create(builder => {
@@ -248,6 +251,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime {
 
                 if (attempt < maxAttempts) {
                     _output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name}");
+                    await Task.Delay(RetryInterval).ConfigureAwait(true);
                     continue;
                 }
 
@@ -255,6 +259,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime {
             } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested) {
                 if (attempt < maxAttempts) {
                     _output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name}");
+                    await Task.Delay(RetryInterval).ConfigureAwait(true);
                     continue;
                 }
                 throw new TimeoutException($"[GEN036] 测试超时(>60s): {script.Name}");
@@ -284,6 +289,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime {
 
                 if (attempt < maxAttempts) {
                     _output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name}");
+                    await Task.Delay(RetryInterval).ConfigureAwait(true);
                     continue;
                 }
 
@@ -292,6 +298,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime {
             } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested) {
                 if (attempt < maxAttempts) {
                     _output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name}");
+                    await Task.Delay(RetryInterval).ConfigureAwait(true);
                     continue;
                 }
                 throw new TimeoutException($"[GEN037] 测试超时(>60s): {script.Name}");

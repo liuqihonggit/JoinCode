@@ -63,12 +63,12 @@ public sealed class TeammateExecutionContext : IPipelineContext {
     /// <summary>
     /// 活跃队友表 — 队友 ID 到其运行时状态的映射
     /// </summary>
-    public ConcurrentDictionary<string, TeammateState> ActiveTeammates { get; set; } = new();
+    public ConcurrentDictionary<string, TeammateState> ActiveTeammates { get; init; } = new();
 
     /// <summary>
     /// 待处理消息表 — 队友 ID 到其消息通道的映射
     /// </summary>
-    public ConcurrentDictionary<string, Channel<CoordinatorMessage>> PendingMessages { get; set; } = new();
+    public ConcurrentDictionary<string, Channel<CoordinatorMessage>> PendingMessages { get; init; } = new();
 
     /// <inheritdoc/>
     bool IPipelineContext.Failed { get; set; }

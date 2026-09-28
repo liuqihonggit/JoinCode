@@ -125,6 +125,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>当前输出通道消息数 — 用于监控堆积</summary>
     public int OutputCount => Volatile.Read(ref _outputCount);
 
+    /// <summary>Actor 是否忙碌 — 输入队列有待处理消息 或 输出队列有待消费消息(P2-2: 监控指标)</summary>
+    public bool IsBusy => InputCount > 0 || OutputCount > 0;
+
     /// <summary>输入是否达到高水位线</summary>
     public bool IsInputHighWatermark => _backpressure is not null
         && InputCount >= _backpressure.EffectiveHighWatermark;
@@ -268,8 +271,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
 
     /// <summary>
     /// 子类实现命令处理逻辑 — 由 Consumer 线程串行同步调用,此方法内访问实例可变状态无需锁。
-    /// <para><b>同步 Handle</b>:禁止在此方法内使用 async/await。需要 I/O 时通过 Tell 委托给 I/O Actor,</para>
-    /// <para>或用 fire-and-forget Task.Run + Self.Tell 回投结果(参见 ADR 0118)。</para>
+    /// <para><b>⚠️ 同步 Handle 铁律</b>:</para>
+    /// <para>1. <b>禁止 async/await</b> — 签名为 void,编译器无法阻止 async lambda,但运行时会破坏 Consumer 串行不变量</para>
+    /// <para>2. <b>禁止阻塞 I/O</b> — 同步文件/网络 I/O 会卡死 Consumer 线程,所有 I/O 委托给 I/O Actor(Tell)</para>
+    /// <para>3. <b>fire-and-forget 必须回投</b> — Task.Run 中异步操作完成后必须 Self.Tell 回投结果,不得直接修改状态</para>
+    /// <para>4. <b>禁止返回 Task</b> — 异步 Handle 会导致 ConsumeLoop 提前消费下一条命令,破坏 FIFO 顺序</para>
+    /// <para>违反以上任一规约将导致:命令乱序、状态竞态、Consumer 死锁。参见 ADR 0118。</para>
     /// </summary>
     /// <param name="command">待处理命令</param>
     /// <param name="ct">取消令牌(Actor 释放时触发取消)</param>
@@ -321,15 +328,16 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <para>回调在 Consumer 线程执行,重试通过 fire-and-forget 异步调度,不阻塞 Consumer。</para>
     /// </summary>
     /// <param name="resend">重试委托 — 延迟后调用,重新发送命令(如 TrySend(cmd))</param>
+    /// <param name="logger">日志记录器(null=静默,resend 异常时记录)</param>
     /// <returns>标准背压回调,可直接作为命令的 OnBackpressure 参数</returns>
-    public static Action<BackpressureSignal> CreateBackpressureHandler(Action resend) {
+    public static Action<BackpressureSignal> CreateBackpressureHandler(Action resend, ILogger? logger = null) {
         return signal => {
             if (signal.SuggestedDelay > TimeSpan.Zero) {
                 _ = Task.Delay(signal.SuggestedDelay).ContinueWith(
-                    _ => resend(),
+                    _ => { try { resend(); } catch (Exception ex) { logger?.LogWarning(ex, "CreateBackpressureHandler resend 异常忽略"); } },
                     TaskScheduler.Default);
             } else {
-                resend();
+                try { resend(); } catch (Exception ex) { logger?.LogWarning(ex, "CreateBackpressureHandler resend 异常忽略"); }
             }
         };
     }

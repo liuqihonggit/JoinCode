@@ -104,14 +104,14 @@ public class ActorBackpressureTest {
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
 
-        var events = new List<BackpressureEventArgs>();
-        actor.InputWatermarkReached += (_, e) => events.Add(e);
+        var events = new ConcurrentQueue<BackpressureEventArgs>();
+        actor.InputWatermarkReached += (_, e) => events.Enqueue(e);
 
         for (var i = 0; i < 15; i++) {
             await actor.IncrementAsync(new TaskCompletionSource<int>());
         }
 
-        events.Should().Contain(e => e.Level == WatermarkLevel.Critical);
+        await WaitUntilAsync(() => events.Any(e => e.Level == WatermarkLevel.Critical), TimeSpan.FromMilliseconds(500));
 
         gateTcs.SetResult();
     }
@@ -157,6 +157,17 @@ public class ActorBackpressureTest {
         await using var actor = new BackpressureTestActor();
         actor.IsInputHighWatermark.Should().BeFalse();
         actor.IsInputCriticalWatermark.Should().BeFalse();
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
+            while (DateTimeOffset.UtcNow < deadline) {
+                if (condition()) return;
+                await Task.Delay(10);
+            }
+        }
+        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 }
 

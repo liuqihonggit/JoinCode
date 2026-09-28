@@ -89,12 +89,13 @@ public class AskWithRetryTest {
         var aId = "cycle-A";
         var bId = "cycle-B";
         var cId = "cycle-C";
-        var graph = new Dictionary<string, string> { [aId] = bId, [bId] = cId, [cId] = aId };
-
-        var method = typeof(ActorBase<CycleCmd, Unit>)
-            .GetMethod("HasCycleInGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        var hasCycle = (bool)method.Invoke(null, [graph, aId, bId])!;
-        hasCycle.Should().BeTrue("A→B→C→A 构成间接环");
+        var graph = new Dag<string>();
+        graph.AddNode(new DagNode<string> { Id = aId, Payload = aId });
+        graph.AddNode(new DagNode<string> { Id = bId, Payload = bId });
+        graph.AddNode(new DagNode<string> { Id = cId, Payload = cId });
+        graph.AddEdge(new DagEdge { FromId = aId, ToId = bId });
+        graph.AddEdge(new DagEdge { FromId = bId, ToId = cId });
+        graph.WouldCreateCycle(cId, aId).Should().BeTrue("A→B→C→A 构成间接环");
     }
 
     /// <summary>
@@ -104,12 +105,11 @@ public class AskWithRetryTest {
     public void DirectCycle_TwoActors_StillDetected() {
         var aId = "actorA-direct";
         var bId = "actorB-direct";
-        var graph = new Dictionary<string, string> { [aId] = bId, [bId] = aId };
-
-        var method = typeof(ActorBase<CycleCmd, Unit>)
-            .GetMethod("HasCycleInGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        var hasCycle = (bool)method.Invoke(null, [graph, aId, bId])!;
-        hasCycle.Should().BeTrue("A→B→A 构成直接环");
+        var graph = new Dag<string>();
+        graph.AddNode(new DagNode<string> { Id = aId, Payload = aId });
+        graph.AddNode(new DagNode<string> { Id = bId, Payload = bId });
+        graph.AddEdge(new DagEdge { FromId = aId, ToId = bId });
+        graph.WouldCreateCycle(bId, aId).Should().BeTrue("A→B→A 构成直接环");
     }
 
     /// <summary>
@@ -120,12 +120,13 @@ public class AskWithRetryTest {
         var aId = "actorA-nocycle";
         var bId = "actorB-nocycle";
         var cId = "actorC-nocycle";
-        var graph = new Dictionary<string, string> { [aId] = bId, [bId] = cId };
-
-        var method = typeof(ActorBase<CycleCmd, Unit>)
-            .GetMethod("HasCycleInGraph", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        var hasCycle = (bool)method.Invoke(null, [graph, aId, bId])!;
-        hasCycle.Should().BeFalse("A→B→C 不构成环");
+        var graph = new Dag<string>();
+        graph.AddNode(new DagNode<string> { Id = aId, Payload = aId });
+        graph.AddNode(new DagNode<string> { Id = bId, Payload = bId });
+        graph.AddNode(new DagNode<string> { Id = cId, Payload = cId });
+        graph.AddEdge(new DagEdge { FromId = aId, ToId = bId });
+        graph.AddEdge(new DagEdge { FromId = bId, ToId = cId });
+        graph.WouldCreateCycle(aId, bId).Should().BeFalse("A→B→C 不构成环");
     }
 }
 

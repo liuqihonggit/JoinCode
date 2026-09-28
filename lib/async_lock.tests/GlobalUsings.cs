@@ -4,6 +4,7 @@ global using FluentAssertions;
 global using JoinCode.Abstractions.Configuration.Execution;
 global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Utils;
+global using Structura.Dag;
 global using System.Collections.Concurrent;
 global using System.IO.Pipes;
 global using System.Text;

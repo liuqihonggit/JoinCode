@@ -27,7 +27,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     private int _inputCount;
     private int _outputCount;
 
-    private static readonly AsyncLocal<Dictionary<string, string>?> _askWaitGraph = new();
+    private static readonly AsyncLocal<Dag<string>?> _askWaitGraph = new();
 
     /// <summary>背压重试最大次数</summary>
     public const int BackpressureMaxRetries = 16;
@@ -433,34 +433,26 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     private WaitGraphScope? EnterWaitGraph(string? callerId) {
         if (callerId is null || callerId == Id) return null;
-        var prevGraph = _askWaitGraph.Value;
-        var graph = prevGraph is null ? new Dictionary<string, string>() : new Dictionary<string, string>(prevGraph);
-        graph[callerId] = Id;
-        if (HasCycleInGraph(graph, callerId, Id))
-            throw new ActorCyclicAskException(callerId, Id);
+        var graph = _askWaitGraph.Value ?? new Dag<string>();
         _askWaitGraph.Value = graph;
-        return new WaitGraphScope(_askWaitGraph, prevGraph);
+        if (!graph.Nodes.ContainsKey(callerId))
+            graph.AddNode(new DagNode<string> { Id = callerId, Payload = callerId });
+        if (!graph.Nodes.ContainsKey(Id))
+            graph.AddNode(new DagNode<string> { Id = Id, Payload = Id });
+        var edge = new DagEdge { FromId = callerId, ToId = Id };
+        var result = graph.AddEdge(edge);
+        if (!result.Success)
+            throw new ActorCyclicAskException(callerId, Id);
+        return new WaitGraphScope(_askWaitGraph, graph, edge.Id);
     }
 
-    /// <summary>等待图作用域 — Dispose 时恢复父流等待图(AsyncLocal 写是流局部的,正确处理嵌套 Ask)</summary>
-    private sealed class WaitGraphScope(AsyncLocal<Dictionary<string, string>?> store, Dictionary<string, string>? previous) : IDisposable {
+    /// <summary>等待图作用域 — Dispose 时移除边,边全部移除后清空 AsyncLocal</summary>
+    private sealed class WaitGraphScope(AsyncLocal<Dag<string>?> store, Dag<string> graph, string edgeId) : IDisposable {
         /// <summary>释放资源。</summary>
-        public void Dispose() => store.Value = previous;
-    }
-
-    /// <summary>
-    /// 全图环检测 — 从 targetId 出发沿等待图遍历,检测能否到达 callerId(间接环 A→B→C→A)。
-    /// <para>等待图是函数图(每个 caller 同时只有一个 Ask,最多一条出边),遍历退化为链表。</para>
-    /// </summary>
-    private static bool HasCycleInGraph(Dictionary<string, string> graph, string callerId, string targetId) {
-        var current = targetId;
-        var visited = new HashSet<string>();
-        while (current != callerId) {
-            if (!visited.Add(current)) return false;
-            if (!graph.TryGetValue(current, out var next)) return false;
-            current = next;
+        public void Dispose() {
+            graph.RemoveEdge(edgeId);
+            if (graph.Edges.Count == 0) store.Value = null;
         }
-        return true;
     }
 
     private string? TryGetCallerActorId() => AsyncFlowIdentity.CurrentActorId;

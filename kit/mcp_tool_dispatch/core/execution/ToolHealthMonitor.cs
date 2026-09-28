@@ -244,7 +244,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
                 record.ConsecutiveFailures = 0;
                 record.LastAdjusted = DateTime.UtcNow;
                 record.LastErrorMessage = null;
-                SaveToDisk();
+                _ = SaveToDiskAsync();
                 success.Tcs.TrySetResult(record);
             }
             break;
@@ -262,7 +262,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
                         failure.ToolName, record.ConsecutiveFailures, record.Score);
                 }
 
-                SaveToDisk();
+                _ = SaveToDiskAsync();
                 failure.Tcs.TrySetResult(record);
             }
             break;
@@ -273,7 +273,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
                     record.ConsecutiveFailures = 0;
                     record.IsEnabled = true;
                     record.LastAdjusted = DateTime.UtcNow;
-                    SaveToDisk();
+                    _ = SaveToDiskAsync();
                 }
                 reset.Tcs.TrySetResult();
             }
@@ -311,7 +311,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
             }
         }
 
-        SaveToDisk();
+        _ = SaveToDiskAsync();
     }
 
     private async Task LoadFromDiskAsync() {
@@ -328,13 +328,13 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         }
     }
 
-    private void SaveToDisk() {
+    private async Task SaveToDiskAsync() {
         try {
             var dir = Path.GetDirectoryName(_configPath)!;
             if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
             var dict = _records.ToDictionary();
             var json = JsonSerializer.Serialize(dict, ToolHealthJsonContext.Default.DictionaryStringToolHealthRecord);
-            _fs.WriteAllText(_configPath, json).GetAwaiter().GetResult();
+            await _fs.WriteAllText(_configPath, json).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "保存工具健康记录失败");
         }

@@ -42,7 +42,7 @@ public sealed partial class ChatFileContextService : ServiceEntity, IChatFileCon
     /// 文件路径：dumps/chat_{sessionId}_turn{N}_iter{M}.txt
     /// turn=用户对话轮次, iter=工具调用迭代次数
     /// </summary>
-    public void DumpMessageList(IList<ApiMessage> messages, string sessionId, int conversationTurn, int toolCallIteration) {
+    public async Task DumpMessageListAsync(IList<ApiMessage> messages, string sessionId, int conversationTurn, int toolCallIteration) {
         if (Environment.GetEnvironmentVariable("JCC_DUMP_MESSAGES") != "1") return;
 
         try {
@@ -68,7 +68,7 @@ public sealed partial class ChatFileContextService : ServiceEntity, IChatFileCon
                 }
             }
 
-            _fs.WriteAllText(filePath, sb.ToString()).GetAwaiter().GetResult();
+            await _fs.WriteAllText(filePath, sb.ToString()).ConfigureAwait(false);
             _logger?.LogInformation("对话消息列表已转储: {FilePath} ({Count} 条消息)", filePath, messages.Count);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "转储对话消息列表失败");

@@ -72,7 +72,7 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
         var chatCompletionService = _kernel.GetChatCompletionService();
 
         var dumpSessionId = (_contextManager is ChatContextManager c) ? c.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
-        _services?.FileContextService?.DumpMessageList(historySnapshot, dumpSessionId, context.ConversationTurn, iterationIndex);
+        _ = _services?.FileContextService?.DumpMessageListAsync(historySnapshot, dumpSessionId, context.ConversationTurn, iterationIndex);
 
         context.Timing.StartLlmCall();
         var isFirstChunk = true;

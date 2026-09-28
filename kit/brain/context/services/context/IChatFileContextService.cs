@@ -10,7 +10,7 @@ public interface IChatFileContextService {
     void UpdateFileContext(string message);
 
     /// <summary>
-    /// 转储消息列表（JCC_DUMP_MESSAGES=1）
+    /// 异步转储消息列表（JCC_DUMP_MESSAGES=1）
     /// </summary>
-    void DumpMessageList(IList<ApiMessage> messages, string sessionId, int conversationTurn, int toolCallIteration);
+    Task DumpMessageListAsync(IList<ApiMessage> messages, string sessionId, int conversationTurn, int toolCallIteration);
 }

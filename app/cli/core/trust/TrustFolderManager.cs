@@ -37,7 +37,7 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
         var normalized = NormalizePath(folderPath);
         var folders = LoadTrustedFolders();
         if (folders.Add(normalized)) {
-            SaveTrustedFolders(folders);
+            _ = SaveTrustedFoldersAsync(folders);
         }
     }
 
@@ -46,7 +46,7 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
         var normalized = NormalizePath(folderPath);
         var folders = LoadTrustedFolders();
         if (folders.Remove(normalized)) {
-            SaveTrustedFolders(folders);
+            _ = SaveTrustedFoldersAsync(folders);
         }
     }
 
@@ -57,7 +57,7 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
 
     /// <inheritdoc/>
     public void ClearAll() {
-        SaveTrustedFolders([]);
+        _ = SaveTrustedFoldersAsync([]);
     }
 
     private HashSet<string> LoadTrustedFolders() {
@@ -78,14 +78,14 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
         }
     }
 
-    private void SaveTrustedFolders(HashSet<string> folders) {
+    private async Task SaveTrustedFoldersAsync(HashSet<string> folders) {
         var dir = Path.GetDirectoryName(_trustedFoldersPath);
         DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
         var entries = new TrustFolderEntries { Folders = [.. folders] };
         var json = RelaxedJsonSerializer.Serialize(entries, TrustFoldersContext.Default);
         try {
-            _fs.WriteAllText(_trustedFoldersPath, json).GetAwaiter().GetResult();
+            await _fs.WriteAllText(_trustedFoldersPath, json).ConfigureAwait(false);
         } catch (UnauthorizedAccessException ex) {
             System.Diagnostics.Debug.WriteLine($"[TrustFolderManager] 无法写入信任目录文件（沙箱环境）: {ex.Message}");
         }

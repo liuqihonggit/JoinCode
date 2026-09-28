@@ -339,10 +339,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="ct">取消令牌(Actor 释放时取消延迟重试,避免 Dispose 后残留后台任务)</param>
     /// <returns>标准背压回调,可直接作为命令的 OnBackpressure 参数</returns>
     public static Action<BackpressureSignal> CreateBackpressureHandler(Action resend, ILogger? logger = null, CancellationToken ct = default) {
+        var capturedFlow = AsyncFlowIdentity.Capture();
+        var capturedWaitGraph = _askWaitGraph.Value;
+
         return signal => {
             if (signal.SuggestedDelay > TimeSpan.Zero) {
                 _ = Task.Run(async () => {
                     try {
+                        using var flowScope = AsyncFlowIdentity.Restore(capturedFlow);
+                        _askWaitGraph.Value = capturedWaitGraph;
                         await Task.Delay(signal.SuggestedDelay, ct).ConfigureAwait(false);
                         resend();
                     } catch (OperationCanceledException) {
@@ -352,7 +357,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                     }
                 });
             } else {
-                try { resend(); } catch (Exception ex) { logger?.LogWarning(ex, "CreateBackpressureHandler resend 异常忽略"); }
+                try {
+                    using var flowScope = AsyncFlowIdentity.Restore(capturedFlow);
+                    _askWaitGraph.Value = capturedWaitGraph;
+                    resend();
+                } catch (Exception ex) { logger?.LogWarning(ex, "CreateBackpressureHandler resend 异常忽略"); }
             }
         };
     }

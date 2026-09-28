@@ -343,6 +343,35 @@ public class ActorBaseTest {
         dropped.Should().BeEmpty();
     }
 
+    /// <summary>验证 CreateBackpressureHandler 零延迟路径恢复 AsyncFlowIdentity 上下文</summary>
+    [Fact]
+    public void CreateBackpressureHandler_ZeroDelay_PreservesAsyncFlowIdentity() {
+        AsyncFlowIdentity.SetActorId("test-actor");
+        string? seenActorId = null;
+        var handler = ActorBase<string, string>.CreateBackpressureHandler(() => {
+            seenActorId = AsyncFlowIdentity.CurrentActorId;
+        });
+        AsyncFlowIdentity.ClearActorId();
+        handler(new BackpressureSignal(0, "src", "tgt", WatermarkLevel.High, TimeSpan.Zero, 0));
+        seenActorId.Should().Be("test-actor");
+        AsyncFlowIdentity.Clear();
+    }
+
+    /// <summary>验证 CreateBackpressureHandler 延迟路径恢复 AsyncFlowIdentity 上下文</summary>
+    [Fact]
+    public async Task CreateBackpressureHandler_WithDelay_PreservesAsyncFlowIdentity() {
+        AsyncFlowIdentity.SetActorId("test-actor");
+        var tcs = new TaskCompletionSource<string?>();
+        var handler = ActorBase<string, string>.CreateBackpressureHandler(() => {
+            tcs.SetResult(AsyncFlowIdentity.CurrentActorId);
+        });
+        AsyncFlowIdentity.ClearActorId();
+        handler(new BackpressureSignal(0, "src", "tgt", WatermarkLevel.High, TimeSpan.FromMilliseconds(10), 0));
+        var seenActorId = await tcs.Task.WaitAsync(TimeSpan.FromMilliseconds(500));
+        seenActorId.Should().Be("test-actor");
+        AsyncFlowIdentity.Clear();
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
         for (var i = 0; i < 16; i++) {
             var deadline = DateTimeOffset.UtcNow + perRetryTimeout;

@@ -87,13 +87,13 @@ public sealed record SourcedHookConfig {
 /// 钩子配置分组
 /// </summary>
 public sealed class HookConfigurationGroup {
-    private ImmutableDictionary<HookEvent, ImmutableDictionary<string, ImmutableList<SourcedHookConfig>>> _groups
-        = ImmutableDictionary<HookEvent, ImmutableDictionary<string, ImmutableList<SourcedHookConfig>>>.Empty;
+    private ImmutableHamT<HookEvent, ImmutableHamT<string, ImmutableList<SourcedHookConfig>>> _groups
+        = ImmutableHamT<HookEvent, ImmutableHamT<string, ImmutableList<SourcedHookConfig>>>.Empty;
 
     /// <summary>
     /// 按事件和匹配器分组的钩子
     /// </summary>
-    public ImmutableDictionary<HookEvent, ImmutableDictionary<string, ImmutableList<SourcedHookConfig>>> Groups => _groups;
+    public ImmutableHamT<HookEvent, ImmutableHamT<string, ImmutableList<SourcedHookConfig>>> Groups => _groups;
 
     /// <summary>
     /// 添加钩子配置
@@ -103,7 +103,7 @@ public sealed class HookConfigurationGroup {
         while (true) {
             var current = _groups;
             if (!current.TryGetValue(config.Event, out var eventGroup)) {
-                eventGroup = ImmutableDictionary<string, ImmutableList<SourcedHookConfig>>.Empty;
+                eventGroup = ImmutableHamT<string, ImmutableList<SourcedHookConfig>>.Empty;
             }
             if (!eventGroup.TryGetValue(matcherKey, out var hookList)) {
                 hookList = [];

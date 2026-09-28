@@ -24,6 +24,7 @@ global using JoinCode.Reasoning.Weight.Topology;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
 global using Structura.Dag;
+global using Structura.Collections;
 global using System.Collections.Frozen;
 global using System.Collections.Immutable;
 global using System.Text;

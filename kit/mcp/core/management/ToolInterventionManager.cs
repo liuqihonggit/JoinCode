@@ -8,7 +8,7 @@ namespace McpToolDispatch;
 public sealed class ToolInterventionManager : ServiceEntity {
     private readonly ILogger<ToolInterventionManager>? _logger;
     private readonly IFileSystem _fs;
-    private ImmutableDictionary<string, InterventionRule> _rules = ImmutableDictionary<string, InterventionRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableHamT<string, InterventionRule> _rules = ImmutableHamT<string, InterventionRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly string _configPath;
 
     /// <summary>

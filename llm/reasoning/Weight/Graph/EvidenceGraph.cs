@@ -49,8 +49,8 @@ public sealed class EvidenceGraphEdge {
 /// 证据图 — 图神经网络风格的消息传递和信任度传播
 /// </summary>
 public sealed class EvidenceGraph {
-    private ImmutableDictionary<string, EvidenceGraphNode> _nodes = [];
-    private ImmutableDictionary<(string SourceId, string TargetId), EvidenceGraphEdge> _edges = [];
+    private ImmutableHamT<string, EvidenceGraphNode> _nodes = ImmutableHamT<string, EvidenceGraphNode>.Empty;
+    private ImmutableHamT<(string SourceId, string TargetId), EvidenceGraphEdge> _edges = ImmutableHamT<(string SourceId, string TargetId), EvidenceGraphEdge>.Empty;
     private readonly EvidenceWeightCalculator _calculator = new();
 
     /// <summary>

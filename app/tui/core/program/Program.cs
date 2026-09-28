@@ -5,7 +5,7 @@ namespace JoinCode.Tui;
 /// 用 EngineSessionFactory.CreateGuiSessionAsync 组装 DI（不含 PipeModule/CliModule），启动 Terminal.Gui 事件循环。
 /// </summary>
 internal static class Program {
-    private static int Main(string[] args) {
+    private static async Task<int> Main(string[] args) {
         var awaitSeconds = ParseAwaitSeconds(args);
         using var awaitCts = new CancellationTokenSource();
         if (awaitSeconds is { } s && s > 0)
@@ -14,18 +14,18 @@ internal static class Program {
         try {
             WriteDiag("[Main] CreateGuiSessionAsync start");
             // T2：注入 TUI 交互模块 — ask_user_question 走 Terminal.Gui 对话框而非 Core Mock
-            var result = EngineSessionFactory.CreateGuiSessionAsync(
+            var result = await EngineSessionFactory.CreateGuiSessionAsync(
                 extraModules: [new Hosting.TuiInteractionModule()],
-                cancellationToken: awaitCts.Token).GetAwaiter().GetResult();
+                cancellationToken: awaitCts.Token);
             var host = result.Host;
             try {
                 WriteDiag("[Main] session created, starting TuiModeRunner");
-                TuiModeRunner.RunAsync(result.Config, result.Services, awaitCts.Token).GetAwaiter().GetResult();
+                await TuiModeRunner.RunAsync(result.Config, result.Services, awaitCts.Token);
                 WriteDiag("[Main] TuiModeRunner returned normally");
                 return 0;
             } finally {
                 // IAsyncHost.DisposeAsync — 主线程同步等异步释放,不占线程池,Actor Consumer 可正常退出
-                host.DisposeAsync().GetAwaiter().GetResult();
+                await host.DisposeAsync();
             }
         } catch (OperationCanceledException) {
             return 1234;
@@ -36,15 +36,17 @@ internal static class Program {
         }
     }
 
-    private static void WriteDiag(string message) {
+    private static async Task WriteDiagAsync(string message) {
         try {
             var dir = AppDataConstants.UserRuntimeJccTuiDiagDirectory;
             System.IO.Directory.CreateDirectory(dir);
-            SafeFileIO.AppendAllText(
+            await SafeFileIO.AppendAllText(
                 System.IO.Path.Combine(dir, "run.log"),
-                $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n").GetAwaiter().GetResult();
+                $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n");
         } catch (Exception logEx) { Console.Error.WriteLine($"[diag] WriteDiag failed: {logEx.Message}"); }
     }
+
+    private static void WriteDiag(string message) => _ = WriteDiagAsync(message);
 
     /// <summary>--await N 超时诊断参数（超时返回 1234，用于测试验收闪退）</summary>
     private static int? ParseAwaitSeconds(string[] args) {

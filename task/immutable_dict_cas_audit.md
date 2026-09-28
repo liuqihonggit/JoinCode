@@ -15,7 +15,7 @@
 - **修复**：
   1. `Clear` 改 `Volatile.Write(ref _hooks, ImmutableHamT<...>.Empty)`（整体替换，无需 CAS 循环，因为目标是固定值 Empty）
   2. `GetHooks` / `GetAllHooks` 读端改 `Volatile.Read(ref _hooks)`
-- **状态**：⬜ 待修复
+- **状态**：✅ 已合并（PR #325）
 
 ### 🟡 M1 — `HookConfigurationManager` 伪 CAS（误导，锁内安全）
 
@@ -23,7 +23,7 @@
 - **字段**：`_cache`（L62，volatile）
 - **问题**：`Interlocked.Exchange(ref _cache, _cache.SetItem(...))` 是先读后无条件覆盖，非 CAS。在 `_lock` 锁内实际安全，但写法误导
 - **修复**：锁内直接 `_cache = _cache.SetItem(...)` + 注释说明锁保护；或改 `ImmutableInterlocked.Update`
-- **状态**：⬜ 待修复
+- **状态**：✅ 已合并（PR #325）
 
 ### 🟡 M2 — `McpClientToolHandlers` 伪 CAS（3 处，误导，锁内安全）
 
@@ -31,7 +31,7 @@
 - **字段**：`_connectionConfigs`（Persistence.cs:12，非 volatile）
 - **问题**：同 M1，`Interlocked.Exchange(ref _field, _field.SetItem(...))` 伪 CAS，在 `_clientLock` 锁内
 - **修复**：锁内直接赋值 + 注释；或改 `ImmutableInterlocked.Update`
-- **状态**：⬜ 待修复
+- **状态**：✅ 已合并（PR #325）
 
 ### 🟡 M3 — `AgentRoleProfileRegistry` 读端无锁无 Volatile.Read
 
@@ -39,7 +39,7 @@
 - **字段**：`_profileMap`（FrozenDictionary，非 volatile）
 - **问题**：写端在 `_loadLock` 内整体重建（L29/49/60/118/173），读端 `GetProfile`(L76) 无锁直接 `TryGetValue`
 - **修复**：字段加 `volatile`（FrozenDictionary 是引用类型，volatile 保证可见性）；读端无需改
-- **状态**：⬜ 待修复
+- **状态**：✅ 已合并（PR #325）
 
 ### 🟡 M4 — `AgentServiceImpl` 读端无 Volatile.Read
 
@@ -47,7 +47,7 @@
 - **字段**：`_runtimeStates`（写端 CAS L97 + Exchange L822）
 - **问题**：读端 L94/105/818 直接读
 - **修复**：读端改 `Volatile.Read(ref _runtimeStates)`；或字段加 `volatile`
-- **状态**：⬜ 待修复
+- **状态**：✅ 已合并（PR #325）
 
 ### 🟡 M5 — `RemoteToolSpecCache` 读端无 Volatile.Read
 
@@ -55,7 +55,7 @@
 - **字段**：`_specs`（写端 CAS L20/30 + Exchange L36）
 - **问题**：读端 L12 直接读
 - **修复**：读端改 `Volatile.Read(ref _specs)`；或字段加 `volatile`
-- **状态**：⬜ 待修复
+- **状态**：✅ 已合并（PR #325）
 
 ### 🟡 M6 — `SystemActuatorRegistry` 静态字段初始化竞态
 
@@ -63,7 +63,7 @@
 - **字段**：`_factories`（非 volatile）+ `_factoriesLoaded` 标志（非 volatile）
 - **问题**：静态字段初始化竞态，可能看到部分初始化状态
 - **修复**：`_factoriesLoaded` 改 `volatile`；`_factories` 写端用 `Volatile.Write`，读端用 `Volatile.Read`
-- **状态**：⬜ 待修复
+- **状态**：✅ 已合并（PR #325）
 
 ### 🟡 M7 — `MonitorMcpTask` 静态字段初始化竞态
 
@@ -71,7 +71,7 @@
 - **字段**：`_eventFilterSet`（非 volatile）+ `_eventFilterSetInitialized` 标志（非 volatile）
 - **问题**：同 M6
 - **修复**：标志改 `volatile`；字段写端 `Volatile.Write`，读端 `Volatile.Read`
-- **状态**：⬜ 待修复
+- **状态**：✅ 已合并（PR #325）
 
 ### 🟡 M8 — `ProviderDefinitionRegistry` 直接赋值无同步
 
@@ -79,14 +79,14 @@
 - **字段**：`_definitions`（FrozenDictionary，非 volatile）
 - **问题**：写端 L23 直接赋值，读端 L30/40/48 直接读
 - **修复**：需先确认是否单线程上下文；若多线程则字段加 `volatile` 或读写用 `Volatile`
-- **状态**：⬜ 待修复（需确认上下文）
+- **状态**：✅ 已合并（PR #325）
 
 ### ⚠️ W1 — `ConcurrentDictionary<K, ImmutableList<V>>` 值同步
 
 - **文件**：`lib/clock/hosting/AppEventBus.cs:9` / `ServiceMessageBus.cs:44-45`
 - **问题**：`ConcurrentDictionary` 只保证键线程安全，`ImmutableList` 值的读-改-写需同步
 - **修复**：需确认值的更新是否用了 `ImmutableInterlocked.Update` 或 `ConcurrentDictionary.AddOrUpdate`
-- **状态**：⬜ 待确认
+- **状态**：✅ 已确认安全（AddOrUpdate + 纯函数更新工厂，线程安全）
 
 ## 修复策略
 
@@ -96,16 +96,19 @@
 
 ## 进度
 
-- [x] H1 ✅ 编译通过
-- [ ] M1
-- [ ] M2
-- [ ] M3
-- [ ] M4
-- [ ] M5
-- [ ] M6
-- [ ] M7
-- [ ] M8
-- [ ] W1
+> 全部修复已合并到 main（PR #325，commit 8552518f）
+> 额外修复：HookEventBroadcaster ImmutableArray→ImmutableList（NativeAOT 兼容，commit 3d1a9a14）
+
+- [x] H1 ✅ 已合并
+- [x] M1 ✅ 已合并
+- [x] M2 ✅ 已合并
+- [x] M3 ✅ 已合并
+- [x] M4 ✅ 已合并
+- [x] M5 ✅ 已合并
+- [x] M6 ✅ 已合并
+- [x] M7 ✅ 已合并
+- [x] M8 ✅ 已合并
+- [x] W1 ✅ 已确认安全（ConcurrentDictionary.AddOrUpdate + ImmutableList 纯函数更新工厂，CAS 重试+无副作用，线程安全）
 
 ---
 

@@ -100,13 +100,13 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder {
         return new MacroPlaybackResult(macro.Operations.Count, succeeded, failed, stopwatch.Elapsed);
     }
 
-    /// <summary>保存宏到文件（JSON）</summary>
-    public void SaveMacro(Macro macro, string filePath) {
+    /// <summary>异步保存宏到文件（JSON）</summary>
+    public async Task SaveMacroAsync(Macro macro, string filePath) {
         ArgumentNullException.ThrowIfNull(macro);
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var json = RelaxedJsonSerializer.Serialize(macro, MacroJsonContext.Default);
-        _fileSystem.WriteAllText(filePath, json).GetAwaiter().GetResult();
+        await _fileSystem.WriteAllText(filePath, json).ConfigureAwait(false);
         _logger?.LogInformation("保存宏到: {Path}", filePath);
     }
 

@@ -121,21 +121,21 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     }
 
     /// <summary>
-    /// 获取当前追踪的 Magic Doc 数量
+    /// 异步获取当前追踪的 Magic Doc 数量
     /// </summary>
-    public int TrackedCount {
-        get {
-            var reply = new TaskCompletionSource<int>();
-            if (!_actor.TrySend(new GetTrackedCountCmd(reply))) {
-                _logger?.LogWarning("MagicDocsManager.TrackedCount Actor 已释放，返回 0");
-                return 0;
-            }
-            try {
-                return _actor.AskReplyAsync(reply).GetAwaiter().GetResult();
-            } catch (Exception ex) {
-                _logger?.LogWarning(ex, "MagicDocsManager.TrackedCount Actor Ask 失败，返回 0");
-                return 0;
-            }
+    /// <param name="ct">取消令牌</param>
+    /// <returns>追踪的 Magic Doc 数量</returns>
+    public async Task<int> GetTrackedCountAsync(CancellationToken ct = default) {
+        var reply = new TaskCompletionSource<int>();
+        if (!_actor.TrySend(new GetTrackedCountCmd(reply))) {
+            _logger?.LogWarning("MagicDocsManager.TrackedCount Actor 已释放，返回 0");
+            return 0;
+        }
+        try {
+            return await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "MagicDocsManager.TrackedCount Actor Ask 失败，返回 0");
+            return 0;
         }
     }
 

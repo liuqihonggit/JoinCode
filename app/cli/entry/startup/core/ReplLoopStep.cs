@@ -239,7 +239,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 Cli.TerminalHelper.WriteLine("  2. 网络连接是否正常");
                 Cli.TerminalHelper.WriteLine("  3. API 服务是否可用");
             } catch (Exception ex) {
-                WriteErrorLog(ex);
+                await WriteErrorLogAsync(ex).ConfigureAwait(false);
                 Diag.WriteLine($"[DIAG-REPL] Exception: {ex.GetType().Name}: {ex.Message}");
                 using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Red);
                 Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
@@ -264,11 +264,11 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
     /// <summary>
     /// 写入错误日志到 ~/.jcc/runtime/jcc_error.log — 与 Program.WriteErrorLog 一致（ADR 0055）
     /// </summary>
-    private static void WriteErrorLog(Exception ex, ILogger? logger = null) {
+    private static async Task WriteErrorLogAsync(Exception ex, ILogger? logger = null) {
         var errorLog = Cli.Output.XdgPathResolver.GetErrorLogPath();
         var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
         try {
-            SafeFileIO.WriteAllText(errorLog, errorContent).GetAwaiter().GetResult();
+            await SafeFileIO.WriteAllText(errorLog, errorContent).ConfigureAwait(false);
         } catch (Exception logEx) {
             logger?.LogWarning(logEx, "写入错误日志失败");
         }

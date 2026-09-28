@@ -49,7 +49,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
         _isEnabled = true;
         _enabledAt = _clock.GetLocalNow();
         _userMsgOptIn = true; // 对齐 TS: setUserMsgOptIn(true)
-        SaveToFile();
+        _ = SaveToFileAsync();
     }
 
     /// <inheritdoc/>
@@ -57,7 +57,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
         _isEnabled = false;
         _enabledAt = null;
         _userMsgOptIn = false; // 对齐 TS: setUserMsgOptIn(false)
-        SaveToFile();
+        _ = SaveToFileAsync();
     }
 
     /// <inheritdoc/>
@@ -109,7 +109,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
     /// <summary>
     /// 保存 brief mode 状态到文件 — 跨进程持久化
     /// </summary>
-    private void SaveToFile() {
+    private async Task SaveToFileAsync() {
         if (_fs is null) return;
         try {
             var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
@@ -119,7 +119,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
             var path = Path.Combine(dir, ModeFileName);
             var enabledAtStr = _enabledAt.HasValue ? $"\"{_enabledAt.Value:O}\"" : "null";
             var json = $$"""{"isEnabled":{{_isEnabled.ToString().ToLowerInvariant()}},"enabledAt":{{enabledAtStr}}}""";
-            _fs.WriteAllText(path, json).GetAwaiter().GetResult();
+            await _fs.WriteAllText(path, json).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning("Brief mode 状态保存失败: {Message}", ex.Message);
         }

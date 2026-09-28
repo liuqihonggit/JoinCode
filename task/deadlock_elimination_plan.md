@@ -271,9 +271,9 @@ sync-over-async 死锁隐患。
 | 1.2 | 幂等守卫中间件 | ✅ 完成 | IIdempotentContext<T>+中间件+5测试，commit 77aad453 |
 | 1.3 | ActorBase 双Tell集成 | ✅ 完成 | IRequestCommand<TOut>+ConsumeLoop守卫+6测试，commit 0673a949 |
 | 1.4 | 基建压测 | ✅ 完成 | IdempotencyStoreBench，commit 0b90a5cf |
-| 2.1 | H1 可变 Dictionary | ⏳ 待开始 | ~15处字段级 |
-| 2.2 | H2 同步阻塞 | ⏳ 待开始 | ~40处.GetAwaiter().GetResult()/.Result |
-| 2.3 | H3 核心模块 Actor 化 | ⏳ 待开始 | QueryEngine/AgentCoordinator/McpHttpServer |
+| 2.1 | H1 可变 Dictionary | ✅ 完成 | PR #327 已合并 |
+| 2.2 | H2 同步阻塞 | ✅ 完成 | PR #330，27处改async+await |
+| 2.3 | H3 核心模块 Actor 化 | ✅ 完成 | PR #324 已合并 |
 | 3.1 | M1 暴露可变集合 | ⏳ 待开始 | ~30处 |
 | 3.2 | M2 O(n) 属性 | ⏳ 待开始 | ~15处 |
 | 3.3 | M3 HashSet 冻结 | ⏳ 待开始 | ~5处 |

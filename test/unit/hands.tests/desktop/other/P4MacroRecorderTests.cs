@@ -142,7 +142,7 @@ public sealed class P4MacroRecorderTests {
             new DesktopOperation(DesktopOperationKind.Click, 100, 200, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null)
         }, DateTimeOffset.UtcNow);
 
-        recorder.SaveMacro(macro, "/tmp/test.json");
+        await recorder.SaveMacroAsync(macro, "/tmp/test.json");
 
         fsMock.Verify(fs => fs.WriteAllText("/tmp/test.json", It.IsAny<string>()), Times.Once);
     }

@@ -144,8 +144,10 @@ public class McpServer {
                 response.Result = JsonSerializer.SerializeToElement(HandlePing(), McpJsonContext.Default.PingResult);
                 break;
 
-                case McpMethod.ToolsList:
-                response.Result = JsonSerializer.SerializeToElement(HandleListTools(), McpJsonContext.Default.ListToolsResult);
+                case McpMethod.ToolsList: {
+                    var result = await HandleListToolsAsync().ConfigureAwait(false);
+                    response.Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.ListToolsResult);
+                }
                 break;
 
                 case McpMethod.ToolsCall: {
@@ -260,8 +262,8 @@ public class McpServer {
     /// <summary>
     /// 处理 tools/list 请求 — 子类可 override 接入 IMcpToolRegistry 暴露真实工具
     /// </summary>
-    protected virtual ListToolsResult HandleListTools() {
-        return new ListToolsResult { Tools = [] };
+    protected virtual Task<ListToolsResult> HandleListToolsAsync() {
+        return Task.FromResult(new ListToolsResult { Tools = [] });
     }
 
     /// <summary>

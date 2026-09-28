@@ -227,7 +227,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0103](0103-folder-restructure-semantic-grouping-flat.md) | 文件夹扁平化重组 — 语义分组 + 组内扁平 | accepted | 2026-09-13 |
 | [0104](0104-write-defense-extract-public-node.md) | 写防御 — 提取公共节点 | accepted | 2026-09-14 |
 | [0105](0105-desktop-scene-orchestration.md) | 桌面情景模式编排层 — 场景菜单+工具链路推荐+状态持久化 | accepted | 2026-09-14 |
-| [0106](0106-subagent-stall-defense-in-depth.md) | 子代理卡死防护纵深防御体系 — L1预防+L2检测+L3干预+L4恢复 | proposed | 2026-09-15 |
+| [0106](0106-subagent-stall-defense-in-depth.md) | 子代理卡死防护纵深防御体系 — L1预防+L2检测+L3干预+L4恢复 | accepted | 2026-09-15 |
 | [0107](0107-file-mailbox-lock-replace-mutex.md) | 文件邮箱锁替代跨进程共享锁 + Actor 邮箱模型 + Agent 发现 | accepted | 2026-09-15 |
 | [0108](0108-dispose-consistency-analyzer-rules.md) | Dispose 一致性分析器规则与 OnDispose 间接层消除 | accepted | 2026-09-16 |
 | [0109](0109-window-shake-notification-and-bot-name.md) | 窗口震动通知与机器人名称 | accepted | 2026-09-16 |
@@ -238,7 +238,8 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0114](0114-config-template-source-generator.md) | 配置模板源码生成器 | accepted | 2026-09-17 |
 | [0115](0115-typed-decision-abstraction-layer.md) | 类型化决策抽象层 ITypedDecision | accepted | 2026-09-21 |
 | [0117](0117-objectid-range-compression-longrangeset-sparselongset.md) | ObjectId 区间压缩 — LongRangeSet + SparseLongSet | accepted | 2026-09-26 |
-| [0118](0118-actor-sync-handle-no-async.md) | Actor 邮箱模型同步 Handle — 消除 async/await 状态机 | proposed | 2026-09-28 |
+| [0118](0118-actor-sync-handle-no-async.md) | Actor 邮箱模型同步 Handle — 消除 async/await 状态机 | accepted | 2026-09-28 |
+| [0119](0119-swiss-table-high-perf-mutable-hashmap.md) | SwissTable 高性能可变哈希表 — 开放寻址 + SIMD 批量探测 | accepted | 2026-09-28 |
 
 ## 主题索引（按议题）
 

@@ -20,7 +20,7 @@ public sealed class MagicDocsManagerTests {
     }
 
     [Fact]
-    public void OnFileRead_WithMagicDocHeader_TracksDoc() {
+    public async Task OnFileRead_WithMagicDocHeader_TracksDoc() {
         var fs = CreateFileSystem();
         var manager = CreateManager(fs);
 
@@ -29,11 +29,11 @@ public sealed class MagicDocsManagerTests {
             Content = "# MAGIC DOC: Architecture Guide\nSome content"
         });
 
-        manager.TrackedCount.Should().Be(1);
+        (await manager.GetTrackedCountAsync()).Should().Be(1);
     }
 
     [Fact]
-    public void OnFileRead_WithoutMagicDocHeader_DoesNotTrack() {
+    public async Task OnFileRead_WithoutMagicDocHeader_DoesNotTrack() {
         var fs = CreateFileSystem();
         var manager = CreateManager(fs);
 
@@ -42,11 +42,11 @@ public sealed class MagicDocsManagerTests {
             Content = "# Regular File\nNo magic here"
         });
 
-        manager.TrackedCount.Should().Be(0);
+        (await manager.GetTrackedCountAsync()).Should().Be(0);
     }
 
     [Fact]
-    public void OnFileRead_SameFileUpdated_UpdatesEntry() {
+    public async Task OnFileRead_SameFileUpdated_UpdatesEntry() {
         var fs = CreateFileSystem();
         var manager = CreateManager(fs);
 
@@ -60,11 +60,11 @@ public sealed class MagicDocsManagerTests {
             Content = "# MAGIC DOC: New Title\nUpdated"
         });
 
-        manager.TrackedCount.Should().Be(1);
+        (await manager.GetTrackedCountAsync()).Should().Be(1);
     }
 
     [Fact]
-    public void OnFileRead_MultipleDifferentFiles_TracksAll() {
+    public async Task OnFileRead_MultipleDifferentFiles_TracksAll() {
         var fs = CreateFileSystem();
         var manager = CreateManager(fs);
 
@@ -78,7 +78,7 @@ public sealed class MagicDocsManagerTests {
             Content = "# MAGIC DOC: Doc B\nB"
         });
 
-        manager.TrackedCount.Should().Be(2);
+        (await manager.GetTrackedCountAsync()).Should().Be(2);
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public sealed class MagicDocsManagerTests {
 
         await manager.OnPostSamplingAsync(context).ConfigureAwait(true);
 
-        manager.TrackedCount.Should().Be(1);
+        (await manager.GetTrackedCountAsync()).Should().Be(1);
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public sealed class MagicDocsManagerTests {
 
         await manager.OnPostSamplingAsync(context).ConfigureAwait(true);
 
-        manager.TrackedCount.Should().Be(0);
+        (await manager.GetTrackedCountAsync()).Should().Be(0);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class MagicDocsManagerTests {
             Content = "# MAGIC DOC: Guide\nContent"
         });
 
-        manager.TrackedCount.Should().Be(1);
+        (await manager.GetTrackedCountAsync()).Should().Be(1);
 
         fs.DeleteFile("/test/project/guide.md");
 
@@ -141,7 +141,7 @@ public sealed class MagicDocsManagerTests {
 
         await manager.OnPostSamplingAsync(context).ConfigureAwait(true);
 
-        manager.TrackedCount.Should().Be(0);
+        (await manager.GetTrackedCountAsync()).Should().Be(0);
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public sealed class MagicDocsManagerTests {
 
         await manager.OnPostSamplingAsync(context).ConfigureAwait(true);
 
-        manager.TrackedCount.Should().Be(0);
+        (await manager.GetTrackedCountAsync()).Should().Be(0);
     }
 
     [Fact]
@@ -222,7 +222,7 @@ public sealed class MagicDocsManagerTests {
     }
 
     [Fact]
-    public void Clear_RemovesAllTrackedDocs() {
+    public async Task Clear_RemovesAllTrackedDocs() {
         var fs = CreateFileSystem();
         var manager = CreateManager(fs);
 
@@ -236,9 +236,9 @@ public sealed class MagicDocsManagerTests {
             Content = "# MAGIC DOC: B\nB"
         });
 
-        manager.TrackedCount.Should().Be(2);
+        (await manager.GetTrackedCountAsync()).Should().Be(2);
         manager.Clear();
-        manager.TrackedCount.Should().Be(0);
+        (await manager.GetTrackedCountAsync()).Should().Be(0);
     }
 
     [Fact]

@@ -24,8 +24,8 @@ public sealed class JccMcpServer : McpServer {
     /// 处理 tools/list 请求 — 从注册表枚举全部工具并转换为 MCP 协议定义
     /// </summary>
     /// <returns>工具列表结果</returns>
-    protected override ListToolsResult HandleListTools() {
-        var tools = _registry.GetAllToolsAsync(CancellationToken.None).GetAwaiter().GetResult();
+    protected override async Task<ListToolsResult> HandleListToolsAsync() {
+        var tools = await _registry.GetAllToolsAsync(CancellationToken.None).ConfigureAwait(false);
         var list = new List<JoinCode.Abstractions.Mcp.Protocol.ToolDefinition>(tools.Count);
         foreach (var kv in tools) {
             var handler = kv.Value;

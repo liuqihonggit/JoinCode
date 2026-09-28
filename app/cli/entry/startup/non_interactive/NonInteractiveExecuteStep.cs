@@ -50,7 +50,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             return;
         } catch (Exception ex) {
             Diag.WriteLine($"[STEP] ExecuteStep exception: {ex.GetType().Name}: {ex.Message}");
-            var errorLog = WriteErrorLog(ex);
+            var errorLog = await WriteErrorLogAsync(ex).ConfigureAwait(false);
             if (context.OutputContract is not null) {
                 var retryable = ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable;
                 context.OutputContract.WriteError(new Cli.Output.CliStructuredError("RUNTIME_ERROR", ex.Message, $"详细日志: {errorLog}", retryable));
@@ -72,11 +72,11 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
     /// <summary>
     /// 写入错误日志到 ~/.jcc/runtime/jcc_error.log（ADR 0055）
     /// </summary>
-    private static string WriteErrorLog(Exception ex, ILogger? logger = null) {
+    private static async Task<string> WriteErrorLogAsync(Exception ex, ILogger? logger = null) {
         var errorLog = Cli.Output.XdgPathResolver.GetErrorLogPath();
         var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
         try {
-            SafeFileIO.WriteAllText(errorLog, errorContent).GetAwaiter().GetResult();
+            await SafeFileIO.WriteAllText(errorLog, errorContent).ConfigureAwait(false);
         } catch (Exception logEx) {
             logger?.LogWarning(logEx, "写入错误日志失败");
         }

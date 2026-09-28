@@ -8,7 +8,7 @@ public sealed class IncrementalUpdater : IDisposable {
     /// <summary>
     /// 强制排除的目录名 — 委托 CodeIndexExcludedDirCatalog 单一数据源
     /// </summary>
-    private static readonly HashSet<string> ExcludedDirs = CodeIndexExcludedDirCatalog.ExcludedDirs;
+    private static readonly FrozenSet<string> ExcludedDirs = CodeIndexExcludedDirCatalog.ExcludedDirs;
 
     private readonly SymbolIndex _index;
     private readonly InMemoryIndexStore _store;

@@ -30,11 +30,11 @@ public class MacroToolHandlers {
 
     /// <summary>停止录制并保存宏（S-02）</summary>
     [McpTool("stop_recording", "停止录制并保存宏到文件", "desktop")]
-    public Task<ToolResult> StopRecordingAsync(
+    public async Task<ToolResult> StopRecordingAsync(
         [McpToolParameter("保存路径（.json）,不传则不保存", Required = false)] string? savePath = null,
         CancellationToken ct = default) {
         if (!_recorder.IsRecording)
-            return Task.FromResult(ToolResultBuilder.Error().WithText("当前未在录制状态").Build());
+            return ToolResultBuilder.Error().WithText("当前未在录制状态").Build();
 
         var macro = _recorder.StopRecording();
         var sb = new StringBuilder(128);
@@ -42,14 +42,14 @@ public class MacroToolHandlers {
 
         if (!string.IsNullOrEmpty(savePath)) {
             try {
-                _recorder.SaveMacro(macro, savePath);
+                await _recorder.SaveMacroAsync(macro, savePath).ConfigureAwait(false);
                 sb.AppendLine($"已保存到: {savePath}");
             } catch (Exception ex) {
                 sb.AppendLine($"保存失败: {ex.Message}");
             }
         }
 
-        return Task.FromResult(ToolResultBuilder.Success().WithText(sb.ToString()).Build());
+        return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
     }
 
     /// <summary>回放宏（S-03）</summary>

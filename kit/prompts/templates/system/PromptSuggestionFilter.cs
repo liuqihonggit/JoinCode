@@ -46,15 +46,14 @@ CLI 要求继续 -> "是" 或 "继续"
     /// <summary>
     /// 允许的单字建议
     /// </summary>
-    public static readonly HashSet<string> AllowedSingleWords =
-    [
+    public static readonly FrozenSet<string> AllowedSingleWords = FrozenSet.Create(
         // 肯定词
         "yes", "yeah", "yep", "yea", "yup", "sure", "ok", "okay",
         // 动作
         "push", "commit", "deploy", "stop", "continue", "check", "exit", "quit",
         // 否定
         "no"
-    ];
+    );
 
     private static readonly Regex SilencePatternRegex = new(@"\bsilence is\b|\bstay(s|ing)? silent\b", RegexOptions.IgnoreCase);
     private static readonly Regex SilenceOnlyRegex = new(@"^\W*silence\W*$");

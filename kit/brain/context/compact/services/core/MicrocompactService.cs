@@ -35,9 +35,9 @@ public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactSe
     ///   - SearchRead: SearchToolName 部分枚举值（Grep, Glob 等）
     ///   - WebRead: WebToolName 部分枚举值（WebSearch, WebFetch 等）
     /// </summary>
-    private static readonly HashSet<string> CompactableTools = BuildCompactableTools();
+    private static readonly FrozenSet<string> CompactableTools = BuildCompactableTools();
 
-    private static HashSet<string> BuildCompactableTools() {
+    private static FrozenSet<string> BuildCompactableTools() {
         var tools = new HashSet<string>(StringComparer.Ordinal);
 
         // ShellExecution — 所有 Shell 工具结果都可压缩（ShellToolBase.IsCompactable）
@@ -58,7 +58,7 @@ public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactSe
         tools.Add(WebToolNameEnumConstants.WebSearch);
         tools.Add(WebToolNameEnumConstants.WebFetch);
 
-        return tools;
+        return tools.ToFrozenSet();
     }
 
     /// <summary>

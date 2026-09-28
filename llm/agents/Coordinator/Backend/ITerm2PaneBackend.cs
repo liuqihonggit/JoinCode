@@ -37,29 +37,29 @@ public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstract
     /// <param name="command">面板启动时执行的命令</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>面板创建结果，包含面板 ID 与后端类型</returns>
-    public Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreateTeammatePaneAsync(
+    public async Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreateTeammatePaneAsync(
         string teammateId, string command, CancellationToken cancellationToken = default) {
         var paneId = $"iterm2-{Interlocked.Increment(ref _paneCounter)}";
         _paneSessions[teammateId] = paneId;
 
         try {
-            _processService.ExecuteAsync(new ProcessOptions {
+            await _processService.ExecuteAsync(new ProcessOptions {
                 FileName = "it2",
                 ArgumentList = new[] { "split-pane", "--horizontal", "--percent", "70", command },
                 TimeoutMs = 10000,
                 RedirectStandardOutput = false,
                 RedirectStandardError = false
-            }, cancellationToken).GetAwaiter().GetResult();
+            }, cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation("Created iTerm2 pane for teammate {TeammateId}: {PaneId}", teammateId, paneId);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to create iTerm2 pane for teammate {TeammateId}", teammateId);
         }
 
-        return Task.FromResult(new JoinCode.Abstractions.Interfaces.CreatePaneResult {
+        return new JoinCode.Abstractions.Interfaces.CreatePaneResult {
             PaneId = paneId,
             BackendType = JoinCode.Abstractions.Interfaces.BackendType.ITerm2
-        });
+        };
     }
 
     /// <summary>
@@ -68,20 +68,18 @@ public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstract
     /// <param name="paneId">目标面板 ID</param>
     /// <param name="command">要发送的命令文本</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public Task SendCommandToPaneAsync(string paneId, string command, CancellationToken cancellationToken = default) {
+    public async Task SendCommandToPaneAsync(string paneId, string command, CancellationToken cancellationToken = default) {
         try {
-            _processService.ExecuteAsync(new ProcessOptions {
+            await _processService.ExecuteAsync(new ProcessOptions {
                 FileName = "it2",
                 ArgumentList = new[] { "send-text", "--no-newline", command, "--pane", paneId },
                 TimeoutMs = 5000,
                 RedirectStandardOutput = false,
                 RedirectStandardError = false
-            }, cancellationToken).GetAwaiter().GetResult();
+            }, cancellationToken).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to send command to iTerm2 pane {PaneId}", paneId);
         }
-
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -101,20 +99,18 @@ public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstract
     /// <param name="paneId">目标面板 ID</param>
     /// <param name="title">面板标题文本</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public Task SetPaneTitleAsync(string paneId, string title, CancellationToken cancellationToken = default) {
+    public async Task SetPaneTitleAsync(string paneId, string title, CancellationToken cancellationToken = default) {
         try {
-            _processService.ExecuteAsync(new ProcessOptions {
+            await _processService.ExecuteAsync(new ProcessOptions {
                 FileName = "it2",
                 ArgumentList = new[] { "set-title", title, "--pane", paneId },
                 TimeoutMs = 5000,
                 RedirectStandardOutput = false,
                 RedirectStandardError = false
-            }, cancellationToken).GetAwaiter().GetResult();
+            }, cancellationToken).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to set iTerm2 pane title for {PaneId}", paneId);
         }
-
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -122,20 +118,18 @@ public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstract
     /// </summary>
     /// <param name="paneId">目标面板 ID</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public Task KillPaneAsync(string paneId, CancellationToken cancellationToken = default) {
+    public async Task KillPaneAsync(string paneId, CancellationToken cancellationToken = default) {
         try {
-            _processService.ExecuteAsync(new ProcessOptions {
+            await _processService.ExecuteAsync(new ProcessOptions {
                 FileName = "it2",
                 ArgumentList = new[] { "close-pane", "--pane", paneId },
                 TimeoutMs = 5000,
                 RedirectStandardOutput = false,
                 RedirectStandardError = false
-            }, cancellationToken).GetAwaiter().GetResult();
+            }, cancellationToken).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to kill iTerm2 pane {PaneId}", paneId);
         }
-
-        return Task.CompletedTask;
     }
 
     /// <summary>

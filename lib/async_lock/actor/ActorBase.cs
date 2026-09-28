@@ -40,6 +40,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>背压重试最大次数</summary>
     public const int BackpressureMaxRetries = 16;
 
+    /// <summary>有效重试次数 — 优先用背压配置,无配置时用默认常量(P1-1: 可配置化)</summary>
+    private int EffectiveMaxRetries => _backpressure?.MaxRetries ?? BackpressureMaxRetries;
+
     /// <summary>默认通道容量 — 无显式背压配置时使用,统一有界防 OOM</summary>
     public const int DefaultChannelCapacity = 2048;
 
@@ -211,12 +214,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
                 }
                 Interlocked.Decrement(ref _inputCount);
 
-                if (entry.Attempt < BackpressureMaxRetries) {
+                if (entry.Attempt < EffectiveMaxRetries) {
                     Interlocked.Increment(ref _retryQueueCount);
                     _retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(entry.Command, entry.Attempt + 1));
                 } else {
                     try {
-                        SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(entry.Command, BackpressureMaxRetries));
+                        SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(entry.Command, EffectiveMaxRetries));
                     } catch (Exception ex) {
                         _logger?.LogWarning(ex, "[Actor:{ActorId}] SendFailed 订阅者异常忽略", Id);
                     }

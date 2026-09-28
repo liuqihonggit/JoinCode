@@ -28,8 +28,8 @@ public interface IMacroRecorder {
     /// <returns>回放结果（成功/失败数）</returns>
     Task<MacroPlaybackResult> PlayAsync(Macro macro, int speedMultiplier = 1, CancellationToken cancellationToken = default);
 
-    /// <summary>保存宏到文件（JSON）</summary>
-    void SaveMacro(Macro macro, string filePath);
+    /// <summary>异步保存宏到文件（JSON）</summary>
+    Task SaveMacroAsync(Macro macro, string filePath);
 
     /// <summary>从文件加载宏</summary>
     Task<Macro> LoadMacroAsync(string filePath);

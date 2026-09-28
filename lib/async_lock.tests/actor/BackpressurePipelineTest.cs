@@ -4,9 +4,9 @@ namespace Core.Utils;
 /// 环形背压管道测试 — 验证 ConsumeLoop 水位线变化时强制通知 OnBackpressure + CreateBackpressureHandler 延迟重试。
 /// </summary>
 public class BackpressurePipelineTest {
-    /// <summary>高水位线触发 OnBackpressure(Level=High)</summary>
+    /// <summary>高水位线时消费中的消息不应触发 OnBackpressure(Bug2 修复:反向背压已移除)</summary>
     [Fact]
-    public async Task HighWatermark_TriggersOnBackpressure_HighLevel() {
+    public async Task HighWatermark_ConsumedMessage_NotNotified() {
         var gate = new TaskCompletionSource();
         await using var actor = new BackpressurePipelineTestActor(10, gate);
 
@@ -18,13 +18,14 @@ public class BackpressurePipelineTest {
             actor.Tell(cmd);
         }
 
-        await WaitUntilAsync(() => signals.Any(s => s.Level == WatermarkLevel.High), TimeSpan.FromSeconds(1));
-        signals.Should().Contain(s => s.Level == WatermarkLevel.High);
+        gate.SetResult();
+        await Task.Delay(300);
+        signals.Should().BeEmpty("消费中的消息不应触发 OnBackpressure(Bug2:反向背压已移除)");
     }
 
-    /// <summary>危险水位线触发 OnBackpressure(Level=Critical)</summary>
+    /// <summary>危险水位线时消费中的消息不应触发 OnBackpressure(Bug2 修复:反向背压已移除)</summary>
     [Fact]
-    public async Task CriticalWatermark_TriggersOnBackpressure_CriticalLevel() {
+    public async Task CriticalWatermark_ConsumedMessage_NotNotified() {
         var gate = new TaskCompletionSource();
         await using var actor = new BackpressurePipelineTestActor(10, gate);
 
@@ -36,13 +37,14 @@ public class BackpressurePipelineTest {
             actor.Tell(cmd);
         }
 
-        await WaitUntilAsync(() => signals.Any(s => s.Level == WatermarkLevel.Critical), TimeSpan.FromSeconds(1));
-        signals.Should().Contain(s => s.Level == WatermarkLevel.Critical);
+        gate.SetResult();
+        await Task.Delay(300);
+        signals.Should().BeEmpty("消费中的消息不应触发 OnBackpressure(Bug2:反向背压已移除)");
     }
 
-    /// <summary>水位线恢复到 Normal 时触发 OnBackpressure(Level=Normal)</summary>
+    /// <summary>水位线恢复时消费中的消息不应触发 OnBackpressure(Bug2 修复:反向背压已移除)</summary>
     [Fact]
-    public async Task WatermarkRecovery_TriggersOnBackpressure_NormalLevel() {
+    public async Task WatermarkRecovery_ConsumedMessage_NotNotified() {
         var gate = new TaskCompletionSource();
         await using var actor = new BackpressurePipelineTestActor(10, gate);
 
@@ -54,10 +56,9 @@ public class BackpressurePipelineTest {
             actor.Tell(cmd);
         }
 
-        await WaitUntilAsync(() => signals.Any(s => s.Level == WatermarkLevel.High), TimeSpan.FromSeconds(1));
         gate.SetResult();
-        await WaitUntilAsync(() => signals.Any(s => s.Level == WatermarkLevel.Normal), TimeSpan.FromSeconds(2));
-        signals.Should().Contain(s => s.Level == WatermarkLevel.Normal);
+        await Task.Delay(300);
+        signals.Should().BeEmpty("消费中的消息不应触发 OnBackpressure(Bug2:反向背压已移除)");
     }
 
     /// <summary>CreateBackpressureHandler — High 延迟后重试</summary>

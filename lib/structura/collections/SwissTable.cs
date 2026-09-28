@@ -5,6 +5,12 @@ using static Structura.Collections.SwissTableHelper;
 
 namespace Structura.Collections
 {
+    /// <summary>
+    /// 高性能可变哈希表，基于开放寻址法与 SIMD 批量探测实现，类似 Rust hashbrown。
+    /// 使用控制字节（control bytes）标记桶状态，并通过 SIMD 指令一次性探测整组桶以加速查找。
+    /// </summary>
+    /// <typeparam name="TKey">键类型，不可为 null。</typeparam>
+    /// <typeparam name="TValue">值类型。</typeparam>
     [DebuggerDisplay("Count = {Count}")]
     public partial class SwissTable<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> where TKey : notnull
     {
@@ -96,6 +102,9 @@ namespace Structura.Collections
 
         internal RawTableInner rawTable;
 
+        /// <summary>
+        /// 获取哈希表中实际存储的键值对数量。
+        /// </summary>
         public int Count => this.rawTable._count;
 
         // The real space that the swisstable allocated
@@ -105,12 +114,28 @@ namespace Structura.Collections
         // This is hard(impossible?) to be larger, for the length of array is limited to 0x7FFFF_FFFF
         internal int _buckets => this.rawTable._bucket_mask + 1;
 
+        /// <summary>
+        /// 初始化一个空的 <see cref="SwissTable{TKey, TValue}"/> 实例，使用默认容量和默认相等比较器。
+        /// </summary>
         public SwissTable() : this(0, null) { }
 
+        /// <summary>
+        /// 初始化一个具有指定初始容量的空 <see cref="SwissTable{TKey, TValue}"/> 实例，使用默认相等比较器。
+        /// </summary>
+        /// <param name="capacity">初始容量，哈希表在扩容前最多可容纳该数量的元素。</param>
         public SwissTable(int capacity) : this(capacity, null) { }
 
+        /// <summary>
+        /// 初始化一个空的 <see cref="SwissTable{TKey, TValue}"/> 实例，使用指定的相等比较器。
+        /// </summary>
+        /// <param name="comparer">用于键比较的相等比较器，为 null 时使用默认比较器。</param>
         public SwissTable(IEqualityComparer<TKey>? comparer) : this(0, comparer) { }
 
+        /// <summary>
+        /// 初始化一个具有指定初始容量和相等比较器的空 <see cref="SwissTable{TKey, TValue}"/> 实例。
+        /// </summary>
+        /// <param name="capacity">初始容量，哈希表在扩容前最多可容纳该数量的元素。</param>
+        /// <param name="comparer">用于键比较的相等比较器，为 null 时使用默认比较器。</param>
         public SwissTable(int capacity, IEqualityComparer<TKey>? comparer)
         {
             InitializeInnerTable(capacity);
@@ -126,8 +151,17 @@ namespace Structura.Collections
             }
         }
 
+        /// <summary>
+        /// 初始化一个新 <see cref="SwissTable{TKey, TValue}"/> 实例，包含从指定字典复制的所有键值对，使用默认相等比较器。
+        /// </summary>
+        /// <param name="dictionary">源字典，其元素将被复制到新实例中。</param>
         public SwissTable(IDictionary<TKey, TValue> dictionary) : this(dictionary, null) { }
 
+        /// <summary>
+        /// 初始化一个新 <see cref="SwissTable{TKey, TValue}"/> 实例，包含从指定字典复制的所有键值对，并使用指定的相等比较器。
+        /// </summary>
+        /// <param name="dictionary">源字典，其元素将被复制到新实例中。</param>
+        /// <param name="comparer">用于键比较的相等比较器，为 null 时使用默认比较器。</param>
         public SwissTable(IDictionary<TKey, TValue> dictionary, IEqualityComparer<TKey>? comparer)
         {
             InitializeComparer(comparer);
@@ -139,8 +173,17 @@ namespace Structura.Collections
             CloneFromCollection(dictionary);
         }
 
+        /// <summary>
+        /// 初始化一个新 <see cref="SwissTable{TKey, TValue}"/> 实例，包含从指定集合复制的所有键值对，使用默认相等比较器。
+        /// </summary>
+        /// <param name="collection">源键值对集合，其元素将被复制到新实例中。</param>
         public SwissTable(IEnumerable<KeyValuePair<TKey, TValue>> collection) : this(collection, null) { }
 
+        /// <summary>
+        /// 初始化一个新 <see cref="SwissTable{TKey, TValue}"/> 实例，包含从指定集合复制的所有键值对，并使用指定的相等比较器。
+        /// </summary>
+        /// <param name="collection">源键值对集合，其元素将被复制到新实例中。</param>
+        /// <param name="comparer">用于键比较的相等比较器，为 null 时使用默认比较器。</param>
         public SwissTable(IEnumerable<KeyValuePair<TKey, TValue>> collection, IEqualityComparer<TKey>? comparer)
         {
             InitializeComparer(comparer);
@@ -152,6 +195,10 @@ namespace Structura.Collections
             CloneFromCollection(collection);
         }
 
+        /// <summary>
+        /// 获取用于确定键相等性的 <see cref="IEqualityComparer{TKey}"/>。
+        /// 若构造时未指定比较器，则返回 <see cref="EqualityComparer{T}"/> 的默认实例。
+        /// </summary>
         public IEqualityComparer<TKey> Comparer
         {
             get
@@ -229,15 +276,30 @@ namespace Structura.Collections
             return;
         }
 
+        /// <summary>
+        /// 将指定的键值对添加到哈希表中。若键已存在，则抛出异常。
+        /// </summary>
+        /// <param name="key">要添加的键，不可为 null。</param>
+        /// <param name="value">要添加的值。</param>
         public void Add(TKey key, TValue value)
         {
             bool modified = TryInsert(key, value, InsertionBehavior.ThrowOnExisting);
             Debug.Assert(modified); // If there was an existing key and the Add failed, an exception will already have been thrown.
         }
 
+        /// <summary>
+        /// 确定哈希表是否包含指定的键。
+        /// </summary>
+        /// <param name="key">要查找的键，不可为 null。</param>
+        /// <returns>若哈希表包含该键则返回 true，否则返回 false。</returns>
         public bool ContainsKey(TKey key) =>
             !Unsafe.IsNullRef(ref FindBucket(key));
 
+        /// <summary>
+        /// 确定哈希表是否包含指定的值。
+        /// </summary>
+        /// <param name="value">要查找的值。</param>
+        /// <returns>若哈希表包含该值则返回 true，否则返回 false。</returns>
         public bool ContainsValue(TValue value)
         {
             // TODO: "inline" to get better performance
@@ -251,6 +313,11 @@ namespace Structura.Collections
             return false;
         }
 
+        /// <summary>
+        /// 从哈希表中移除具有指定键的元素。
+        /// </summary>
+        /// <param name="key">要移除的元素的键，不可为 null。</param>
+        /// <returns>若成功移除元素则返回 true；若键不存在则返回 false。</returns>
         public bool Remove(TKey key)
         {
             // TODO: maybe need to duplicate most of code with `Remove(TKey key, out TValue value)` for performance issue, see C# old implementation
@@ -271,9 +338,15 @@ namespace Structura.Collections
             return false;
         }
 
+        /// <summary>
+        /// 从哈希表中移除具有指定键的元素，并通过输出参数返回被移除元素的值。
+        /// </summary>
+        /// <param name="key">要移除的元素的键，不可为 null。</param>
+        /// <param name="value">当成功移除时，包含被移除元素的值；否则包含该类型的默认值。</param>
+        /// <returns>若成功移除元素则返回 true；若键不存在则返回 false。</returns>
         public bool Remove(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
-            // TODO: maybe need to duplicate most of code with `Remove(TKey key)` for performance issue, see C# old implementation
+            // TODO: maybe need to duplicate most of code with `Remove(TKey key, out TValue value)` for performance issue, see C# old implementation
             if (key == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
@@ -292,15 +365,32 @@ namespace Structura.Collections
             return false;
         }
 
+        /// <summary>
+        /// 尝试将指定的键值对添加到哈希表中。若键已存在则不修改现有元素。
+        /// </summary>
+        /// <param name="key">要添加的键，不可为 null。</param>
+        /// <param name="value">要添加的值。</param>
+        /// <returns>若键不存在且成功添加则返回 true；若键已存在则返回 false。</returns>
         public bool TryAdd(TKey key, TValue value) =>
             TryInsert(key, value, InsertionBehavior.None);
 
         private KeyCollection? _keys;
+        /// <summary>
+        /// 获取包含哈希表中所有键的 <see cref="KeyCollection"/>。
+        /// </summary>
         public KeyCollection Keys => _keys ??= new KeyCollection(this);
 
         private ValueCollection? _values;
+        /// <summary>
+        /// 获取包含哈希表中所有值的 <see cref="ValueCollection"/>。
+        /// </summary>
         public ValueCollection Values => _values ??= new ValueCollection(this);
 
+        /// <summary>
+        /// 获取或设置与指定键关联的值。获取时若键不存在则抛出 <see cref="KeyNotFoundException"/>；设置时若键已存在则覆盖原值，否则添加新键值对。
+        /// </summary>
+        /// <param name="key">要获取或设置的键，不可为 null。</param>
+        /// <returns>与指定键关联的值。</returns>
         public TValue this[TKey key]
         {
             get
@@ -321,6 +411,12 @@ namespace Structura.Collections
             }
         }
 
+        /// <summary>
+        /// 尝试获取与指定键关联的值。
+        /// </summary>
+        /// <param name="key">要查找的键，不可为 null。</param>
+        /// <param name="value">当找到键时，包含关联的值；否则包含该类型的默认值。</param>
+        /// <returns>若找到键则返回 true；否则返回 false。</returns>
         public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
             ref Entry entry = ref FindBucket(key);
@@ -334,6 +430,9 @@ namespace Structura.Collections
             return false;
         }
 
+        /// <summary>
+        /// 从哈希表中移除所有键值对，将控制字节重置为空状态并清空条目数组。
+        /// </summary>
         public void Clear()
         {
             int count = rawTable._count;
@@ -608,6 +707,10 @@ namespace Structura.Collections
         IEnumerator IEnumerable.GetEnumerator() => new Enumerator(this, Enumerator.KeyValuePair);
         #endregion
 
+        /// <summary>
+        /// 返回一个遍历哈希表中所有键值对的 <see cref="Enumerator"/>。
+        /// </summary>
+        /// <returns>可用于遍历哈希表的枚举器。</returns>
         public Enumerator GetEnumerator() => new Enumerator(this, Enumerator.KeyValuePair);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -671,13 +774,20 @@ namespace Structura.Collections
         }
 
         /// <summary>
-        /// A helper class containing APIs exposed through <see cref="Runtime.InteropServices.CollectionsMarshal"/>.
+        /// A helper class containing APIs exposed through <c>CollectionsMarshal</c>.
         /// These methods are relatively niche and only used in specific scenarios, so adding them in a separate type avoids
         /// the additional overhead on each <see cref="SwissTable{TKey, TValue}"/> instantiation, especially in AOT scenarios.
         /// </summary>
         public static class CollectionsMarshalHelper
         {
-            /// <inheritdoc cref="Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault{TKey, TValue}(SwissTable{TKey, TValue}, TKey, out bool)"/>
+            /// <summary>
+            /// 获取指定键对应值的引用，若键不存在则添加默认值并返回该引用。
+            /// 镜像 <c>CollectionsMarshal.GetValueRefOrAddDefault</c> 的语义。
+            /// </summary>
+            /// <param name="dictionary">目标字典。</param>
+            /// <param name="key">要查找或添加的键。</param>
+            /// <param name="exists">键已存在时输出 <c>true</c>；新添加时输出 <c>false</c>。</param>
+            /// <returns>键对应值的引用。</returns>
             public static ref TValue? GetValueRefOrAddDefault(SwissTable<TKey, TValue> dictionary, TKey key, out bool exists)
             {
                 // NOTE: this method is mirrored by SwissTable<TKey, TValue>.TryInsert above.
@@ -1053,6 +1163,10 @@ namespace Structura.Collections
             }
         }
 
+        /// <summary>
+        /// 遍历 <see cref="SwissTable{TKey, TValue}"/> 中所有键值对的枚举器结构。
+        /// 通过控制字节位掩码与 SIMD 批量探测加速遍历过程。
+        /// </summary>
         public struct Enumerator : IEnumerator<KeyValuePair<TKey, TValue>>, IDictionaryEnumerator
         {
             private readonly SwissTable<TKey, TValue> _dictionary;
@@ -1119,6 +1233,9 @@ namespace Structura.Collections
             #endregion
 
             #region IEnumerator<KeyValuePair<TKey, TValue>>
+            /// <summary>
+            /// 获取枚举器当前指向的键值对。
+            /// </summary>
             public KeyValuePair<TKey, TValue> Current => this._current;
 
             object? IEnumerator.Current
@@ -1141,8 +1258,15 @@ namespace Structura.Collections
                 }
             }
 
+            /// <summary>
+            /// 释放枚举器占用的资源。本枚举器无托管或非托管资源需要释放，方法体为空。
+            /// </summary>
             public void Dispose() { }
 
+            /// <summary>
+            /// 将枚举器推进到哈希表的下一个元素。
+            /// </summary>
+            /// <returns>若成功推进到下一个元素则返回 true；若已遍历到末尾则返回 false。</returns>
             public bool MoveNext()
             {
                 ref var entry = ref DispatchMoveNextDictionary(_version, _tolerantVersion, _dictionary, ref _currentCtrlOffset, ref _currentBitMask);
@@ -1173,11 +1297,19 @@ namespace Structura.Collections
             #endregion
         }
 
+        /// <summary>
+        /// 表示 <see cref="SwissTable{TKey, TValue}"/> 中键的集合，不包含重复元素。
+        /// 本集合为关联哈希表的实时视图，对哈希表的修改会立即反映到本集合中。
+        /// </summary>
         [DebuggerDisplay("Count = {Count}")]
         public sealed class KeyCollection : ICollection<TKey>, ICollection, IReadOnlyCollection<TKey>
         {
             private readonly SwissTable<TKey, TValue> _dictionary;
 
+            /// <summary>
+            /// 初始化 <see cref="KeyCollection"/> 的新实例，作为指定哈希表的键视图。
+            /// </summary>
+            /// <param name="dictionary">关联的哈希表，不可为 null。</param>
             public KeyCollection(SwissTable<TKey, TValue> dictionary)
             {
                 if (dictionary == null)
@@ -1188,8 +1320,17 @@ namespace Structura.Collections
                 _dictionary = dictionary;
             }
 
+            /// <summary>
+            /// 返回一个遍历键集合的 <see cref="Enumerator"/>。
+            /// </summary>
+            /// <returns>可用于遍历键集合的枚举器。</returns>
             public Enumerator GetEnumerator() => new Enumerator(_dictionary);
 
+            /// <summary>
+            /// 从指定索引开始，将键集合的元素复制到目标数组。
+            /// </summary>
+            /// <param name="array">目标数组，不可为 null。</param>
+            /// <param name="index">目标数组中开始写入的零起始索引。</param>
             public void CopyTo(TKey[] array, int index)
             {
                 if (array == null)
@@ -1215,6 +1356,9 @@ namespace Structura.Collections
                 }
             }
 
+            /// <summary>
+            /// 获取键集合中包含的键数量。
+            /// </summary>
             public int Count => _dictionary.Count;
 
             bool ICollection<TKey>.IsReadOnly => true;
@@ -1296,6 +1440,10 @@ namespace Structura.Collections
 
             object ICollection.SyncRoot => ((ICollection)_dictionary).SyncRoot;
 
+            /// <summary>
+            /// 遍历 <see cref="KeyCollection"/> 中所有键的枚举器结构。
+            /// 通过控制字节位掩码与 SIMD 批量探测加速遍历过程。
+            /// </summary>
             public struct Enumerator : IEnumerator<TKey>, IEnumerator
             {
                 private readonly SwissTable<TKey, TValue> _dictionary;
@@ -1317,8 +1465,15 @@ namespace Structura.Collections
                     _currentBitMask = DispatchGetMatchFullBitMask(_dictionary.rawTable._controls, 0);
                 }
 
+                /// <summary>
+                /// 释放枚举器占用的资源。本枚举器无托管或非托管资源需要释放，方法体为空。
+                /// </summary>
                 public void Dispose() { }
 
+                /// <summary>
+                /// 将枚举器推进到键集合的下一个元素。
+                /// </summary>
+                /// <returns>若成功推进到下一个元素则返回 true；若已遍历到末尾则返回 false。</returns>
                 public bool MoveNext()
                 {
                     ref var entry = ref DispatchMoveNextDictionary(_version, _tolerantVersion, _dictionary, ref _currentCtrlOffset, ref _currentBitMask);
@@ -1336,6 +1491,9 @@ namespace Structura.Collections
                     }
                 }
 
+                /// <summary>
+                /// 获取枚举器当前指向的键。
+                /// </summary>
                 public TKey Current => _current!;
 
                 object? IEnumerator.Current
@@ -1366,11 +1524,19 @@ namespace Structura.Collections
             }
         }
 
+        /// <summary>
+        /// 表示 <see cref="SwissTable{TKey, TValue}"/> 中值的集合，可能包含重复元素。
+        /// 本集合为关联哈希表的实时视图，对哈希表的修改会立即反映到本集合中。
+        /// </summary>
         [DebuggerDisplay("Count = {Count}")]
         public sealed class ValueCollection : ICollection<TValue>, ICollection, IReadOnlyCollection<TValue>
         {
             private readonly SwissTable<TKey, TValue> _dictionary;
 
+            /// <summary>
+            /// 初始化 <see cref="ValueCollection"/> 的新实例，作为指定哈希表的值视图。
+            /// </summary>
+            /// <param name="dictionary">关联的哈希表，不可为 null。</param>
             public ValueCollection(SwissTable<TKey, TValue> dictionary)
             {
                 if (dictionary == null)
@@ -1381,8 +1547,17 @@ namespace Structura.Collections
                 _dictionary = dictionary;
             }
 
+            /// <summary>
+            /// 返回一个遍历值集合的 <see cref="Enumerator"/>。
+            /// </summary>
+            /// <returns>可用于遍历值集合的枚举器。</returns>
             public Enumerator GetEnumerator() => new Enumerator(_dictionary);
 
+            /// <summary>
+            /// 从指定索引开始，将值集合的元素复制到目标数组。
+            /// </summary>
+            /// <param name="array">目标数组，不可为 null。</param>
+            /// <param name="index">目标数组中开始写入的零起始索引。</param>
             public void CopyTo(TValue[] array, int index)
             {
                 if (array == null)
@@ -1406,6 +1581,9 @@ namespace Structura.Collections
                 }
             }
 
+            /// <summary>
+            /// 获取值集合中包含的值数量。
+            /// </summary>
             public int Count => _dictionary.Count;
 
             bool ICollection<TValue>.IsReadOnly => true;
@@ -1486,6 +1664,10 @@ namespace Structura.Collections
 
             object ICollection.SyncRoot => ((ICollection)_dictionary).SyncRoot;
 
+            /// <summary>
+            /// 遍历 <see cref="ValueCollection"/> 中所有值的枚举器结构。
+            /// 通过控制字节位掩码与 SIMD 批量探测加速遍历过程。
+            /// </summary>
             public struct Enumerator : IEnumerator<TValue>, IEnumerator
             {
                 private readonly SwissTable<TKey, TValue> _dictionary;
@@ -1507,8 +1689,15 @@ namespace Structura.Collections
                     _currentBitMask = DispatchGetMatchFullBitMask(_dictionary.rawTable._controls, 0);
                 }
 
+                /// <summary>
+                /// 释放枚举器占用的资源。本枚举器无托管或非托管资源需要释放，方法体为空。
+                /// </summary>
                 public void Dispose() { }
 
+                /// <summary>
+                /// 将枚举器推进到值集合的下一个元素。
+                /// </summary>
+                /// <returns>若成功推进到下一个元素则返回 true；若已遍历到末尾则返回 false。</returns>
                 public bool MoveNext()
                 {
                     ref var entry = ref DispatchMoveNextDictionary(_version, _tolerantVersion, _dictionary, ref _currentCtrlOffset, ref _currentBitMask);
@@ -1526,6 +1715,9 @@ namespace Structura.Collections
                     }
                 }
 
+                /// <summary>
+                /// 获取枚举器当前指向的值。
+                /// </summary>
                 public TValue Current => _current!;
 
                 object? IEnumerator.Current

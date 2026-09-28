@@ -46,10 +46,17 @@ namespace Structura.Collections
         }
     }
 
-    internal static class SwissTableHelper
+    internal static partial class SwissTableHelper
     {
+        /// <summary>
+        /// 当前平台 SIMD 分组宽度（AVX2 为 32，SSE2 为 16，回退实现为 8）。
+        /// </summary>
         public static readonly int GROUP_WIDTH = InitialGroupWidth();
 
+        /// <summary>
+        /// 根据当前平台 SIMD 支持情况返回初始分组宽度。
+        /// </summary>
+        /// <returns>AVX2 支持时返回 32；否则 SSE2 支持时返回 16；否则返回回退实现的宽度 8。</returns>
         public static int InitialGroupWidth()
         {
             if (Avx2.IsSupported)
@@ -136,6 +143,10 @@ namespace Structura.Collections
                 return controlsLength - GROUP_WIDTH - 1;
         }
 
+        /// <summary>
+        /// 根据当前平台 SIMD 支持情况返回空控制字节数组。
+        /// </summary>
+        /// <returns>填充 <see cref="EMPTY"/> 的控制字节数组。</returns>
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte[] DispatchGetEmptyControls()
@@ -155,6 +166,12 @@ namespace Structura.Collections
             }
         }
 
+        /// <summary>
+        /// 根据当前平台 SIMD 支持情况分派加载控制字节组并返回"满桶"匹配位掩码。
+        /// </summary>
+        /// <param name="controls">控制字节数组。</param>
+        /// <param name="index">控制字节起始偏移。</param>
+        /// <returns>包含满桶匹配位掩码的 <see cref="BitMaskUnion"/>。</returns>
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static BitMaskUnion DispatchGetMatchFullBitMask(byte[] controls, int index)
@@ -210,6 +227,17 @@ namespace Structura.Collections
             return result;
         }
 
+        /// <summary>
+        /// 根据当前平台 SIMD 支持情况分派推进字典枚举器到下一个有效条目。
+        /// </summary>
+        /// <typeparam name="TKey">字典键类型。</typeparam>
+        /// <typeparam name="TValue">字典值类型。</typeparam>
+        /// <param name="version">枚举开始时记录的版本号。</param>
+        /// <param name="tolerantVersion">枚举开始时记录的容忍版本号。</param>
+        /// <param name="dictionary">目标字典。</param>
+        /// <param name="currentCtrlOffset">当前控制字节偏移（引用传递，会被推进）。</param>
+        /// <param name="currentBitMask">当前位掩码（引用传递，会被更新）。</param>
+        /// <returns>下一个有效条目的引用；若已遍历结束则返回 <see cref="Unsafe.NullRef{T}"/>。</returns>
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref SwissTable<TKey, TValue>.Entry DispatchMoveNextDictionary<TKey, TValue>(
@@ -236,6 +264,17 @@ namespace Structura.Collections
             }
         }
 
+        /// <summary>
+        /// 使用 AVX2 指令推进字典枚举器到下一个有效条目。
+        /// </summary>
+        /// <typeparam name="TKey">字典键类型。</typeparam>
+        /// <typeparam name="TValue">字典值类型。</typeparam>
+        /// <param name="version">枚举开始时记录的版本号。</param>
+        /// <param name="tolerantVersion">枚举开始时记录的容忍版本号。</param>
+        /// <param name="dictionary">目标字典。</param>
+        /// <param name="currentCtrlOffset">当前控制字节偏移（引用传递，会被推进）。</param>
+        /// <param name="currentBitMask">当前位掩码（引用传递，会被更新）。</param>
+        /// <returns>下一个有效条目的引用；若已遍历结束则返回 <see cref="Unsafe.NullRef{T}"/>。</returns>
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref SwissTable<TKey, TValue>.Entry MoveNextDictionaryForAvx2<TKey, TValue>(
@@ -281,6 +320,17 @@ namespace Structura.Collections
             }
         }
 
+        /// <summary>
+        /// 使用 SSE2 指令推进字典枚举器到下一个有效条目。
+        /// </summary>
+        /// <typeparam name="TKey">字典键类型。</typeparam>
+        /// <typeparam name="TValue">字典值类型。</typeparam>
+        /// <param name="version">枚举开始时记录的版本号。</param>
+        /// <param name="tolerantVersion">枚举开始时记录的容忍版本号。</param>
+        /// <param name="dictionary">目标字典。</param>
+        /// <param name="currentCtrlOffset">当前控制字节偏移（引用传递，会被推进）。</param>
+        /// <param name="currentBitMask">当前位掩码（引用传递，会被更新）。</param>
+        /// <returns>下一个有效条目的引用；若已遍历结束则返回 <see cref="Unsafe.NullRef{T}"/>。</returns>
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref SwissTable<TKey, TValue>.Entry MoveNextDictionaryForSse2<TKey, TValue>(
@@ -326,6 +376,17 @@ namespace Structura.Collections
             }
         }
 
+        /// <summary>
+        /// 使用回退实现（无 SIMD）推进字典枚举器到下一个有效条目。
+        /// </summary>
+        /// <typeparam name="TKey">字典键类型。</typeparam>
+        /// <typeparam name="TValue">字典值类型。</typeparam>
+        /// <param name="version">枚举开始时记录的版本号。</param>
+        /// <param name="tolerantVersion">枚举开始时记录的容忍版本号。</param>
+        /// <param name="dictionary">目标字典。</param>
+        /// <param name="currentCtrlOffset">当前控制字节偏移（引用传递，会被推进）。</param>
+        /// <param name="currentBitMask">当前位掩码（引用传递，会被更新）。</param>
+        /// <returns>下一个有效条目的引用；若已遍历结束则返回 <see cref="Unsafe.NullRef{T}"/>。</returns>
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref SwissTable<TKey, TValue>.Entry MoveNextDictionaryForFallback<TKey, TValue>(
@@ -379,6 +440,13 @@ namespace Structura.Collections
         // Note that in this context `leading_zeros` refers to the bytes at the
         // end of a group, while `trailing_zeros` refers to the bytes at the
         // begining of a group.
+        /// <summary>
+        /// 根据当前平台 SIMD 支持情况分派判断擦除某桶后是否可安全地将其控制字节置为 EMPTY。
+        /// </summary>
+        /// <param name="bucketMask">桶位掩码。</param>
+        /// <param name="controls">控制字节数组。</param>
+        /// <param name="index">待擦除桶的索引。</param>
+        /// <returns>若可安全置为 EMPTY 返回 <c>true</c>；否则返回 <c>false</c>。</returns>
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool DispatchIsEraseSafeToSetEmptyControlFlag(int bucketMask, byte[] controls, int index)
@@ -443,6 +511,15 @@ namespace Structura.Collections
             }
         }
 
+        /// <summary>
+        /// 根据当前平台 SIMD 支持情况分派在字典中查找指定键对应的桶条目引用。
+        /// </summary>
+        /// <typeparam name="TKey">字典键类型。</typeparam>
+        /// <typeparam name="TValue">字典值类型。</typeparam>
+        /// <param name="dictionary">目标字典。</param>
+        /// <param name="key">要查找的键。</param>
+        /// <param name="hashOfKey">键的哈希值。</param>
+        /// <returns>匹配条目的引用；若未找到则返回 <see cref="Unsafe.NullRef{T}"/>。</returns>
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref SwissTable<TKey, TValue>.Entry DispatchFindBucketOfDictionary<TKey, TValue>(SwissTable<TKey, TValue> dictionary, TKey key, int hashOfKey)
@@ -460,25 +537,6 @@ namespace Structura.Collections
             else
             {
                 return ref FindBucketOfDictionaryForFallback(dictionary, key, hashOfKey);
-            }
-        }
-        [SkipLocalsInit]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref SwissTable<TKey, TValue>.Entry DispatchFindForInsert<TKey, TValue>(SwissTable<TKey, TValue> dictionary, TKey key, int hashOfKey, out int insertSlot, out byte insertOldCtrl)
-        where TKey : notnull
-        {
-            if (Avx2.IsSupported)
-            {
-                return ref FindForInsertForAvx2(dictionary, key, hashOfKey, out insertSlot, out insertOldCtrl);
-            }
-            else
-            if (Sse2.IsSupported)
-            {
-                return ref FindForInsertForSse2(dictionary, key, hashOfKey, out insertSlot, out insertOldCtrl);
-            }
-            else
-            {
-                return ref FindForInsertForFallback(dictionary, key, hashOfKey, out insertSlot, out insertOldCtrl);
             }
         }
 
@@ -1194,6 +1252,14 @@ namespace Structura.Collections
             }
         }
 
+        /// <summary>
+        /// 根据当前平台 SIMD 支持情况分派将字典中所有键值对拷贝到目标数组。
+        /// </summary>
+        /// <typeparam name="TKey">字典键类型。</typeparam>
+        /// <typeparam name="TValue">字典值类型。</typeparam>
+        /// <param name="dictionary">源字典。</param>
+        /// <param name="destArray">目标数组。</param>
+        /// <param name="index">目标数组起始写入偏移。</param>
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void DispatchCopyToArrayFromDictionaryWorker<TKey, TValue>(SwissTable<TKey, TValue> dictionary, KeyValuePair<TKey, TValue>[] destArray, int index)
@@ -1322,6 +1388,13 @@ namespace Structura.Collections
             }
         }
 
+        /// <summary>
+        /// 根据当前平台 SIMD 支持情况分派查找给定哈希值在控制字节数组中可插入的槽位。
+        /// </summary>
+        /// <param name="hash">键的哈希值。</param>
+        /// <param name="contorls">控制字节数组。</param>
+        /// <param name="bucketMask">桶位掩码。</param>
+        /// <returns>可插入槽位的索引。</returns>
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int DispatchFindInsertSlot(int hash, byte[] contorls, int bucketMask)
@@ -1469,435 +1542,6 @@ namespace Structura.Collections
                 }
             }
         }
-
-        [SkipLocalsInit]
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                private static unsafe ref SwissTable<TKey, TValue>.Entry FindForInsertForAvx2<TKey, TValue>(SwissTable<TKey, TValue> dictionary, TKey key, int hash,
-                    out int insertSlot, out byte insertOldCtrl)
-                where TKey : notnull
-                {
-                    var controls = dictionary.rawTable._controls;
-                    var entries = dictionary.rawTable._entries;
-                    var bucketMask = dictionary.rawTable._bucket_mask;
-
-                    var hashComparer = dictionary._comparer;
-
-                    insertSlot = -1;
-                    insertOldCtrl = default;
-                    Debug.Assert(controls != null);
-
-                    var h2_hash = h2(hash);
-                    var targetGroup = Avx2Group.Create(h2_hash);
-                    var probeSeq = new ProbeSeq(hash, bucketMask);
-
-                    if (hashComparer == null)
-                    {
-                        if (typeof(TKey).IsValueType)
-                        {
-                            fixed (byte* ptr = &controls[0])
-                            {
-                                while (true)
-                                {
-                                    var group = Avx2Group.Load(ptr + probeSeq.pos);
-                                    var bitmask = group.MatchGroup(targetGroup);
-                                    // TODO: Iterator and performance, if not influence, iterator would be clearer.
-                                    while (bitmask.AnyBitSet())
-                                    {
-                                        // there must be set bit
-                                        Debug.Assert(entries != null);
-                                        var bit = bitmask.LowestSetBitNonzero();
-                                        bitmask = bitmask.RemoveLowestBit();
-                                        var index = (probeSeq.pos + bit) & bucketMask;
-                                        ref var entry = ref entries[index];
-                                        if (EqualityComparer<TKey>.Default.Equals(key, entry.Key))
-                                        {
-                                            return ref entry;
-                                        }
-                                    }
-                                    if (insertSlot < 0)
-                                    {
-                                        var emptyBit = group.MatchEmptyOrDeleted().LowestSetBit();
-                                        if (emptyBit >= 0)
-                                        {
-                                            insertSlot = (probeSeq.pos + emptyBit) & bucketMask;
-                                            insertOldCtrl = controls[insertSlot];
-                                        }
-                                    }
-                                    if (group.MatchEmpty().AnyBitSet())
-                                    {
-                                        return ref Unsafe.NullRef<SwissTable<TKey, TValue>.Entry>();
-                                    }
-                                    probeSeq.move_next();
-                                }
-                            }
-                        }
-                        else
-                        {
-                            EqualityComparer<TKey> defaultComparer = EqualityComparer<TKey>.Default;
-                            fixed (byte* ptr = &controls[0])
-                            {
-                                while (true)
-                                {
-                                    var group = Avx2Group.Load(ptr + probeSeq.pos);
-                                    var bitmask = group.MatchGroup(targetGroup);
-                                    // TODO: Iterator and performance, if not influence, iterator would be clearer.
-                                    while (bitmask.AnyBitSet())
-                                    {
-                                        // there must be set bit
-                                        Debug.Assert(entries != null);
-                                        var bit = bitmask.LowestSetBitNonzero();
-                                        bitmask = bitmask.RemoveLowestBit();
-                                        var index = (probeSeq.pos + bit) & bucketMask;
-                                        ref var entry = ref entries[index];
-                                        if (defaultComparer.Equals(key, entry.Key))
-                                        {
-                                            return ref entry;
-                                        }
-                                    }
-                                    if (insertSlot < 0)
-                                    {
-                                        var emptyBit = group.MatchEmptyOrDeleted().LowestSetBit();
-                                        if (emptyBit >= 0)
-                                        {
-                                            insertSlot = (probeSeq.pos + emptyBit) & bucketMask;
-                                            insertOldCtrl = controls[insertSlot];
-                                        }
-                                    }
-                                    if (group.MatchEmpty().AnyBitSet())
-                                    {
-                                        return ref Unsafe.NullRef<SwissTable<TKey, TValue>.Entry>();
-                                    }
-                                    probeSeq.move_next();
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        fixed (byte* ptr = &controls[0])
-                        {
-                            while (true)
-                            {
-                                var group = Avx2Group.Load(ptr + probeSeq.pos);
-                                var bitmask = group.MatchGroup(targetGroup);
-                                // TODO: Iterator and performance, if not influence, iterator would be clearer.
-                                while (bitmask.AnyBitSet())
-                                {
-                                    // there must be set bit
-                                    Debug.Assert(entries != null);
-                                    var bit = bitmask.LowestSetBitNonzero();
-                                    bitmask = bitmask.RemoveLowestBit();
-                                    var index = (probeSeq.pos + bit) & bucketMask;
-                                    ref var entry = ref entries[index];
-                                    if (hashComparer.Equals(key, entry.Key))
-                                    {
-                                        return ref entry;
-                                    }
-                                }
-                                if (insertSlot < 0)
-                                    {
-                                        var emptyBit = group.MatchEmptyOrDeleted().LowestSetBit();
-                                        if (emptyBit >= 0)
-                                        {
-                                            insertSlot = (probeSeq.pos + emptyBit) & bucketMask;
-                                            insertOldCtrl = controls[insertSlot];
-                                        }
-                                    }
-                                    if (group.MatchEmpty().AnyBitSet())
-                                {
-                                    return ref Unsafe.NullRef<SwissTable<TKey, TValue>.Entry>();
-                                }
-                                probeSeq.move_next();
-                            }
-                        }
-                    }
-                }
-
-        [SkipLocalsInit]
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                private static unsafe ref SwissTable<TKey, TValue>.Entry FindForInsertForSse2<TKey, TValue>(SwissTable<TKey, TValue> dictionary, TKey key, int hash,
-                    out int insertSlot, out byte insertOldCtrl)
-                where TKey : notnull
-                {
-                    var controls = dictionary.rawTable._controls;
-                    var entries = dictionary.rawTable._entries;
-                    var bucketMask = dictionary.rawTable._bucket_mask;
-
-                    var hashComparer = dictionary._comparer;
-
-                    insertSlot = -1;
-                    insertOldCtrl = default;
-                    Debug.Assert(controls != null);
-
-                    var h2_hash = h2(hash);
-                    var targetGroup = Sse2Group.Create(h2_hash);
-                    var probeSeq = new ProbeSeq(hash, bucketMask);
-
-                    if (hashComparer == null)
-                    {
-                        if (typeof(TKey).IsValueType)
-                        {
-                            fixed (byte* ptr = &controls[0])
-                            {
-                                while (true)
-                                {
-                                    var group = Sse2Group.load(ptr + probeSeq.pos);
-                                    var bitmask = group.MatchGroup(targetGroup);
-                                    // TODO: Iterator and performance, if not influence, iterator would be clearer.
-                                    while (bitmask.AnyBitSet())
-                                    {
-                                        // there must be set bit
-                                        Debug.Assert(entries != null);
-                                        var bit = bitmask.LowestSetBitNonzero();
-                                        bitmask = bitmask.RemoveLowestBit();
-                                        var index = (probeSeq.pos + bit) & bucketMask;
-                                        ref var entry = ref entries[index];
-                                        if (EqualityComparer<TKey>.Default.Equals(key, entry.Key))
-                                        {
-                                            return ref entry;
-                                        }
-                                    }
-                                    if (insertSlot < 0)
-                                    {
-                                        var emptyBit = group.MatchEmptyOrDeleted().LowestSetBit();
-                                        if (emptyBit >= 0)
-                                        {
-                                            insertSlot = (probeSeq.pos + emptyBit) & bucketMask;
-                                            insertOldCtrl = controls[insertSlot];
-                                        }
-                                    }
-                                    if (group.MatchEmpty().AnyBitSet())
-                                    {
-                                        return ref Unsafe.NullRef<SwissTable<TKey, TValue>.Entry>();
-                                    }
-                                    probeSeq.move_next();
-                                }
-                            }
-                        }
-                        else
-                        {
-                            EqualityComparer<TKey> defaultComparer = EqualityComparer<TKey>.Default;
-                            fixed (byte* ptr = &controls[0])
-                            {
-                                while (true)
-                                {
-                                    var group = Sse2Group.load(ptr + probeSeq.pos);
-                                    var bitmask = group.MatchGroup(targetGroup);
-                                    // TODO: Iterator and performance, if not influence, iterator would be clearer.
-                                    while (bitmask.AnyBitSet())
-                                    {
-                                        // there must be set bit
-                                        Debug.Assert(entries != null);
-                                        var bit = bitmask.LowestSetBitNonzero();
-                                        bitmask = bitmask.RemoveLowestBit();
-                                        var index = (probeSeq.pos + bit) & bucketMask;
-                                        ref var entry = ref entries[index];
-                                        if (defaultComparer.Equals(key, entry.Key))
-                                        {
-                                            return ref entry;
-                                        }
-                                    }
-                                    if (insertSlot < 0)
-                                    {
-                                        var emptyBit = group.MatchEmptyOrDeleted().LowestSetBit();
-                                        if (emptyBit >= 0)
-                                        {
-                                            insertSlot = (probeSeq.pos + emptyBit) & bucketMask;
-                                            insertOldCtrl = controls[insertSlot];
-                                        }
-                                    }
-                                    if (group.MatchEmpty().AnyBitSet())
-                                    {
-                                        return ref Unsafe.NullRef<SwissTable<TKey, TValue>.Entry>();
-                                    }
-                                    probeSeq.move_next();
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        fixed (byte* ptr = &controls[0])
-                        {
-                            while (true)
-                            {
-                                var group = Sse2Group.load(ptr + probeSeq.pos);
-                                var bitmask = group.MatchGroup(targetGroup);
-                                // TODO: Iterator and performance, if not influence, iterator would be clearer.
-                                while (bitmask.AnyBitSet())
-                                {
-                                    // there must be set bit
-                                    Debug.Assert(entries != null);
-                                    var bit = bitmask.LowestSetBitNonzero();
-                                    bitmask = bitmask.RemoveLowestBit();
-                                    var index = (probeSeq.pos + bit) & bucketMask;
-                                    ref var entry = ref entries[index];
-                                    if (hashComparer.Equals(key, entry.Key))
-                                    {
-                                        return ref entry;
-                                    }
-                                }
-                                if (insertSlot < 0)
-                                    {
-                                        var emptyBit = group.MatchEmptyOrDeleted().LowestSetBit();
-                                        if (emptyBit >= 0)
-                                        {
-                                            insertSlot = (probeSeq.pos + emptyBit) & bucketMask;
-                                            insertOldCtrl = controls[insertSlot];
-                                        }
-                                    }
-                                    if (group.MatchEmpty().AnyBitSet())
-                                {
-                                    return ref Unsafe.NullRef<SwissTable<TKey, TValue>.Entry>();
-                                }
-                                probeSeq.move_next();
-                            }
-                        }
-                    }
-                }
-
-        [SkipLocalsInit]
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                private static unsafe ref SwissTable<TKey, TValue>.Entry FindForInsertForFallback<TKey, TValue>(SwissTable<TKey, TValue> dictionary, TKey key, int hash,
-                    out int insertSlot, out byte insertOldCtrl)
-                where TKey : notnull
-                {
-                    var controls = dictionary.rawTable._controls;
-                    var entries = dictionary.rawTable._entries;
-                    var bucketMask = dictionary.rawTable._bucket_mask;
-
-                    var hashComparer = dictionary._comparer;
-
-                    insertSlot = -1;
-                    insertOldCtrl = default;
-                    Debug.Assert(controls != null);
-
-                    var h2_hash = h2(hash);
-                    var targetGroup = FallbackGroup.create(h2_hash);
-                    var probeSeq = new ProbeSeq(hash, bucketMask);
-
-                    if (hashComparer == null)
-                    {
-                        if (typeof(TKey).IsValueType)
-                        {
-                            fixed (byte* ptr = &controls[0])
-                            {
-                                while (true)
-                                {
-                                    var group = FallbackGroup.load(ptr + probeSeq.pos);
-                                    var bitmask = group.MatchGroup(targetGroup);
-                                    // TODO: Iterator and performance, if not influence, iterator would be clearer.
-                                    while (bitmask.AnyBitSet())
-                                    {
-                                        // there must be set bit
-                                        Debug.Assert(entries != null);
-                                        var bit = bitmask.LowestSetBitNonzero();
-                                        bitmask = bitmask.RemoveLowestBit();
-                                        var index = (probeSeq.pos + bit) & bucketMask;
-                                        ref var entry = ref entries[index];
-                                        if (EqualityComparer<TKey>.Default.Equals(key, entry.Key))
-                                        {
-                                            return ref entry;
-                                        }
-                                    }
-                                    if (insertSlot < 0)
-                                    {
-                                        var emptyBit = group.MatchEmptyOrDeleted().LowestSetBit();
-                                        if (emptyBit >= 0)
-                                        {
-                                            insertSlot = (probeSeq.pos + emptyBit) & bucketMask;
-                                            insertOldCtrl = controls[insertSlot];
-                                        }
-                                    }
-                                    if (group.MatchEmpty().AnyBitSet())
-                                    {
-                                        return ref Unsafe.NullRef<SwissTable<TKey, TValue>.Entry>();
-                                    }
-                                    probeSeq.move_next();
-                                }
-                            }
-                        }
-                        else
-                        {
-                            EqualityComparer<TKey> defaultComparer = EqualityComparer<TKey>.Default;
-                            fixed (byte* ptr = &controls[0])
-                            {
-                                while (true)
-                                {
-                                    var group = FallbackGroup.load(ptr + probeSeq.pos);
-                                    var bitmask = group.MatchGroup(targetGroup);
-                                    // TODO: Iterator and performance, if not influence, iterator would be clearer.
-                                    while (bitmask.AnyBitSet())
-                                    {
-                                        // there must be set bit
-                                        Debug.Assert(entries != null);
-                                        var bit = bitmask.LowestSetBitNonzero();
-                                        bitmask = bitmask.RemoveLowestBit();
-                                        var index = (probeSeq.pos + bit) & bucketMask;
-                                        ref var entry = ref entries[index];
-                                        if (defaultComparer.Equals(key, entry.Key))
-                                        {
-                                            return ref entry;
-                                        }
-                                    }
-                                    if (insertSlot < 0)
-                                    {
-                                        var emptyBit = group.MatchEmptyOrDeleted().LowestSetBit();
-                                        if (emptyBit >= 0)
-                                        {
-                                            insertSlot = (probeSeq.pos + emptyBit) & bucketMask;
-                                            insertOldCtrl = controls[insertSlot];
-                                        }
-                                    }
-                                    if (group.MatchEmpty().AnyBitSet())
-                                    {
-                                        return ref Unsafe.NullRef<SwissTable<TKey, TValue>.Entry>();
-                                    }
-                                    probeSeq.move_next();
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        fixed (byte* ptr = &controls[0])
-                        {
-                            while (true)
-                            {
-                                var group = FallbackGroup.load(ptr + probeSeq.pos);
-                                var bitmask = group.MatchGroup(targetGroup);
-                                // TODO: Iterator and performance, if not influence, iterator would be clearer.
-                                while (bitmask.AnyBitSet())
-                                {
-                                    // there must be set bit
-                                    Debug.Assert(entries != null);
-                                    var bit = bitmask.LowestSetBitNonzero();
-                                    bitmask = bitmask.RemoveLowestBit();
-                                    var index = (probeSeq.pos + bit) & bucketMask;
-                                    ref var entry = ref entries[index];
-                                    if (hashComparer.Equals(key, entry.Key))
-                                    {
-                                        return ref entry;
-                                    }
-                                }
-                                if (insertSlot < 0)
-                                    {
-                                        var emptyBit = group.MatchEmptyOrDeleted().LowestSetBit();
-                                        if (emptyBit >= 0)
-                                        {
-                                            insertSlot = (probeSeq.pos + emptyBit) & bucketMask;
-                                            insertOldCtrl = controls[insertSlot];
-                                        }
-                                    }
-                                    if (group.MatchEmpty().AnyBitSet())
-                                {
-                                    return ref Unsafe.NullRef<SwissTable<TKey, TValue>.Entry>();
-                                }
-                                probeSeq.move_next();
-                            }
-                        }
-                    }
-                }
 
     }
 }

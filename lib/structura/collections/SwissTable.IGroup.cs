@@ -4,7 +4,10 @@
 namespace Structura.Collections
 {
 
-    /// After C#11, `static_empty`, `create`, `load` and `load_aligned` should become static abstract mehod
+    /// <summary>
+    /// 探测组接口，定义瑞士表中按组批量匹配字节并产出位掩码的操作契约。
+    /// </summary>
+    /// <remarks>After C#11, `static_empty`, `create`, `load` and `load_aligned` should become static abstract method</remarks>
     internal interface IGroup<BitMaskImpl, GroupImpl>
         where BitMaskImpl : unmanaged, IBitMask<BitMaskImpl>
         where GroupImpl : unmanaged, IGroup<BitMaskImpl, GroupImpl>

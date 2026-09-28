@@ -40,10 +40,9 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
     /// <param name="healthMonitor">工具健康监控</param>
     /// <param name="logger">日志器（可选）</param>
     public EnvironmentProbeService(IToolHealthMonitor healthMonitor, ILogger<EnvironmentProbeService>? logger = null)
-        : base() {
+        : base(idempotencyStore: new IdempotencyStore()) {
         _healthMonitor = healthMonitor;
         _logger = logger;
-        IdempotencyStore = new IdempotencyStore();
     }
 
 

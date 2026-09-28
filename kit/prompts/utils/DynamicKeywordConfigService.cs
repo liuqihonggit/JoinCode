@@ -136,10 +136,9 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
         /// <summary>构造配置重载 Actor。</summary>
         /// <param name="owner">所属 DynamicKeywordConfigService 实例。</param>
         /// <param name="logger">日志记录器。</param>
-        public ReloadActor(DynamicKeywordConfigService owner, ILogger<DynamicKeywordConfigService>? logger) : base() {
+        public ReloadActor(DynamicKeywordConfigService owner, ILogger<DynamicKeywordConfigService>? logger) : base(idempotencyStore: new IdempotencyStore()) {
             _owner = owner;
             _logger = logger;
-            IdempotencyStore = new IdempotencyStore();
         }
 
         protected override void Handle(ReloadConfigCmd cmd, CancellationToken ct) => _ = HandleAsyncImpl(cmd, ct);

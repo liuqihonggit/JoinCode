@@ -22,13 +22,12 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
         IFileSystem fs,
         ILogger<SettingsChangeApplier>? logger = null,
         ITelemetryService? telemetryService = null)
-        : base(new ActorBackpressure(100, BoundedChannelFullMode.DropOldest), null) {
+        : base(new ActorBackpressure(100, BoundedChannelFullMode.DropOldest), null, idempotencyStore: new IdempotencyStore()) {
         _configChangeNotifier = configChangeNotifier;
         _pipeline = pipeline;
         _fs = fs;
         _logger = logger;
         _telemetryService = telemetryService;
-        IdempotencyStore = new IdempotencyStore();
         _configChangeNotifier.ConfigChanged += OnConfigChanged;
     }
 

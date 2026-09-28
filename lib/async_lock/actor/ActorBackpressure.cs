@@ -10,12 +10,16 @@ namespace Core.Utils;
 /// <param name="HighWatermark">高水位线(null=容量*0.8)</param>
 /// <param name="CriticalWatermark">危险水位线(null=容量*0.95)</param>
 /// <param name="SendTimeout">发送超时(null=不超时,无限等待)</param>
+/// <param name="MaxRetries">背压重试最大次数(默认16,16次仍失败触发SendFailed事件)</param>
+/// <param name="RetryQueueCapacity">重试队列容量(默认1024,满时重试回写失败触发SendFailed)</param>
 public sealed record ActorBackpressure(
     int Capacity,
     BoundedChannelFullMode FullMode = BoundedChannelFullMode.Wait,
     int? HighWatermark = null,
     int? CriticalWatermark = null,
-    TimeSpan? SendTimeout = null) {
+    TimeSpan? SendTimeout = null,
+    int MaxRetries = 16,
+    int RetryQueueCapacity = 1024) {
     /// <summary>高水位线 — null 时取容量*0.8</summary>
     public int EffectiveHighWatermark => HighWatermark ?? (int)(Capacity * 0.8);
 

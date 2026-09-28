@@ -447,10 +447,9 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         /// <summary>构造技能服务 Actor。</summary>
         /// <param name="owner">所属技能服务。</param>
         /// <param name="logger">日志记录器。</param>
-        public SkillServiceActor(SkillService owner, ILogger<SkillService>? logger) : base() {
+        public SkillServiceActor(SkillService owner, ILogger<SkillService>? logger) : base(idempotencyStore: new IdempotencyStore()) {
             _owner = owner;
             _logger = logger;
-            IdempotencyStore = new IdempotencyStore();
         }
 
         protected override void Handle(ReloadCmd cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }

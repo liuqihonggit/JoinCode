@@ -4,7 +4,7 @@ namespace Core.Utils;
 /// 全双工 Actor 基类 — 输入 Channel + 输出 Channel。
 /// <para>外部通过 Tell 发送命令，通过 OutputAsync 拉取输出。</para>
 /// <para>Actor 通过 TryPublish 主动推送消息，无需等待外部请求。</para>
-/// <para>输入/输出 Channel 均有界(默认容量 DefaultChannelCapacity),输入有水位线+超时,输出满策略 DropOldest。</para>
+/// <para>输入/输出 Channel 均有界(默认容量 DefaultChannelCapacity),输入有水位线+超时,输出满策略可配置(默认 DropOldest)。</para>
 /// <para>派生类定义命令类型并实现 <see cref="Handle"/>,所有可变状态由 Consumer 线程独占访问,无需锁。</para>
 /// <para>线程安全保证:命令按 FIFO 顺序串行处理;多生产者通过 Tell/TrySend 投递。</para>
 /// <para>异常容错:单条命令异常不会终止 Consumer 循环,通过 OnConsumerError 回调通知子类。</para>
@@ -12,25 +12,26 @@ namespace Core.Utils;
 /// </summary>
 /// <typeparam name="TCommand">命令类型 — 建议用 record 或 sealed class,实现标记接口以约束合法命令</typeparam>
 /// <typeparam name="TOut">输出消息类型 — 建议用 record 或 sealed class</typeparam>
-public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDisposable {
+public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<TCommand>, IActorOutput<TOut>, IAsyncDisposable {
     private readonly Channel<TCommand> _inputChannel;
     private readonly Channel<TOut> _outputChannel;
     private readonly Task _consumerTask;
     private readonly CancellationTokenSource _cts = new();
     private readonly ActorBackpressure? _backpressure;
-    private readonly Channel<TimeSpan> _bpDelayQueue = Channel.CreateBounded<TimeSpan>(new BoundedChannelOptions(16) {
-        FullMode = BoundedChannelFullMode.DropOldest,
-        SingleReader = true,
-        SingleWriter = false
-    });
+    private readonly WatermarkMonitor? _watermarkMonitor;
+    private readonly IdempotencyGate _idempotencyGate;
+    private readonly AskWaitGraphTracker _waitGraphTracker;
+    private readonly MessageRetryEngine<TCommand> _retryEngine;
     private int _disposed;
-    private int _inputCount;
-    private int _outputCount;
+    private readonly ILogger? _logger;
 
-    private static readonly AsyncLocal<Dag<string>?> _askWaitGraph = new();
+    private static readonly AsyncLocal<ImmutableDag<string>?> _askWaitGraph = new();
 
     /// <summary>背压重试最大次数</summary>
     public const int BackpressureMaxRetries = 16;
+
+    /// <summary>有效重试次数 — 优先用背压配置,无配置时用默认常量(P1-1: 可配置化)</summary>
+    private int EffectiveMaxRetries => _backpressure?.MaxRetries ?? BackpressureMaxRetries;
 
     /// <summary>默认通道容量 — 无显式背压配置时使用,统一有界防 OOM</summary>
     public const int DefaultChannelCapacity = 2048;
@@ -39,7 +40,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// 构造 Actor — 有界输入/输出通道(默认容量 DefaultChannelCapacity)。
     /// </summary>
     protected ActorBase()
-        : this(null, null) {
+        : this(backpressure: null, outputCapacity: null, logger: null, idempotencyStore: null) {
     }
 
     /// <summary>
@@ -47,8 +48,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     /// <param name="boundedCapacity">有界输入通道容量(null 为默认容量 DefaultChannelCapacity)</param>
     /// <param name="fullMode">有界通道满时策略</param>
-    protected ActorBase(int? boundedCapacity, BoundedChannelFullMode fullMode = BoundedChannelFullMode.Wait)
-        : this(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value, fullMode), null) {
+    /// <param name="logger">日志记录器(null=静默)</param>
+    protected ActorBase(int? boundedCapacity, BoundedChannelFullMode fullMode = BoundedChannelFullMode.Wait, ILogger? logger = null)
+        : this(backpressure: boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value, fullMode), outputCapacity: null, logger: logger, idempotencyStore: null) {
     }
 
     /// <summary>
@@ -56,16 +58,36 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     /// <param name="backpressure">输入背压配置(null=默认有界容量 DefaultChannelCapacity,无水位线,无超时)</param>
     /// <param name="outputCapacity">输出通道容量(null=默认容量 DefaultChannelCapacity)</param>
-    protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null) {
+    /// <param name="outputFullMode">输出通道满策略(默认 DropOldest — 丢弃最老消息腾位置;DropWrite — 丢弃新消息触发 OutputMessageDropped 事件)</param>
+    /// <param name="logger">日志记录器(null=静默,不记录审计日志)</param>
+    /// <param name="idempotencyStore">幂等去重存储(null=不启用,构造注入后只读不可修改)</param>
+    /// <param name="useLongRunning">Consumer 是否用 LongRunning 专用线程(true=专用线程不占线程池,适合少量长驻Actor;false=线程池调度,适合大量短生命周期Actor)</param>
+    protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null, BoundedChannelFullMode outputFullMode = BoundedChannelFullMode.DropOldest, ILogger? logger = null, IIdempotencyStore? idempotencyStore = null, bool useLongRunning = true) {
         Id = $"{GetType().Name}-{Guid.NewGuid():N}"[..8];
+        _logger = logger;
         _backpressure = backpressure;
+        _watermarkMonitor = backpressure is null ? null : new WatermarkMonitor(backpressure);
+        IdempotencyStore = idempotencyStore;
+        _idempotencyGate = new IdempotencyGate(idempotencyStore);
+        _waitGraphTracker = new AskWaitGraphTracker(_askWaitGraph);
         _inputChannel = CreateInputChannel(backpressure);
-        _outputChannel = CreateOutputChannel(outputCapacity);
+        _outputChannel = CreateOutputChannel(outputCapacity, outputFullMode);
+        _retryEngine = new MessageRetryEngine<TCommand>(
+            retryQueueCapacity: backpressure?.RetryQueueCapacity ?? 1024,
+            maxRetries: EffectiveMaxRetries,
+            inputWriter: _inputChannel.Writer,
+            actorId: Id,
+            logger: logger,
+            shutdownCt: _cts.Token,
+            onSendFailed: RaiseSendFailed,
+            onEnqueuedToInput: CheckInputWatermark);
+        var taskOptions = (useLongRunning ? TaskCreationOptions.LongRunning : TaskCreationOptions.None) | TaskCreationOptions.DenyChildAttach;
         _consumerTask = Task.Factory.StartNew(
             ConsumeLoopAsync,
             CancellationToken.None,
-            TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+            taskOptions,
             TaskScheduler.Default).Unwrap();
+        _retryEngine.Start();
     }
 
     private static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure) {
@@ -84,19 +106,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         });
     }
 
-    private static Channel<TOut> CreateOutputChannel(int? capacity) {
-        if (capacity is null || capacity == 0) {
-            return Channel.CreateBounded<TOut>(new BoundedChannelOptions(DefaultChannelCapacity) {
-                FullMode = BoundedChannelFullMode.DropOldest,
-                SingleReader = true,
-                SingleWriter = true
-            });
-        }
-
-        return Channel.CreateBounded<TOut>(new BoundedChannelOptions(capacity.Value) {
-            FullMode = BoundedChannelFullMode.Wait,
+    private static Channel<TOut> CreateOutputChannel(int? capacity, BoundedChannelFullMode fullMode) {
+        var cap = capacity ?? DefaultChannelCapacity;
+        return Channel.CreateBounded<TOut>(new BoundedChannelOptions(cap) {
+            FullMode = fullMode,
             SingleReader = true,
-            SingleWriter = true
+            SingleWriter = false
         });
     }
 
@@ -108,11 +123,20 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     protected internal Task ConsumerTask => _consumerTask;
 
-    /// <summary>当前输入邮箱消息数 — 用于监控背压状态</summary>
-    public int InputCount => Volatile.Read(ref _inputCount);
+    /// <summary>当前输入邮箱消息总数 — 输入通道 + 重试队列(P0-B: 统一用 Channel 原生 Count,废弃 Interlocked 计数器)</summary>
+    public int InputCount => _inputChannel.Reader.Count + _retryEngine.RetryQueueCount;
+
+    /// <summary>输入通道内消息数(不含重试队列)</summary>
+    public int InputChannelCount => _inputChannel.Reader.Count;
+
+    /// <summary>重试队列消息数(入队失败正在重试投递的消息)</summary>
+    public int RetryQueueCount => _retryEngine.RetryQueueCount;
 
     /// <summary>当前输出通道消息数 — 用于监控堆积</summary>
-    public int OutputCount => Volatile.Read(ref _outputCount);
+    public int OutputCount => _outputChannel.Reader.Count;
+
+    /// <summary>Actor 是否忙碌 — 输入队列有待处理消息 或 输出队列有待消费消息(P2-2: 监控指标)</summary>
+    public bool IsBusy => InputCount > 0 || OutputCount > 0;
 
     /// <summary>输入是否达到高水位线</summary>
     public bool IsInputHighWatermark => _backpressure is not null
@@ -128,127 +152,136 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>背压重试失败事件 — 16次重试后消息仍未能入队时触发(不丢弃,外部可计入死信队列)</summary>
     public event EventHandler<BackpressureSendFailedEventArgs<TCommand>>? SendFailed;
 
+    /// <summary>输出通道满丢弃消息事件 — TryPublish 写入失败时触发(FullMode=DropWrite 且通道满,或通道已完成)</summary>
+    public event EventHandler<OutputDroppedEventArgs<TOut>>? OutputMessageDropped;
+
     /// <summary>
     /// 向 Actor 同步发送命令 — Tell 模式(射后不理,不阻塞调用方)。
     /// <para>TryWrite(非阻塞),通道满时后台重试(16次+指数退避+换流水号),射后不理不阻塞Actor消费循环。</para>
     /// <para>16次重试失败触发 <see cref="SendFailed"/> 事件(不丢弃,外部可计入死信队列)。</para>
     /// <para>背压信号通过 <see cref="ReceiveBackpressureSignal"/> 接收,重试时消费延迟信号。</para>
     /// <para><b>⚠️ Tell vs Ask</b>:此方法是 Tell(只保证消息入队,不保证 Consumer 已处理)。</para>
-    /// <para><b>Dispose/DisposeAsync 路径禁止用 Ask</b>(线程池饥饿时 await tcs.Task 死锁)。</para>
+    /// <para><b>⚠️ Dispose/DisposeAsync 路径禁止用 Ask</b>(线程池饥饿时 await tcs.Task 死锁)。</para>
+    /// <para><b>⚠️ FIFO 不保证</b>:消息入队失败进入重试队列后,可能晚于后续成功入队的消息被消费,命令顺序不保证严格 FIFO。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
     /// <exception cref="ObjectDisposedException">Actor 已释放</exception>
     public void Tell(TCommand cmd) {
         ThrowIfDisposed();
 
-        Interlocked.Increment(ref _inputCount);
         if (_inputChannel.Writer.TryWrite(cmd)) {
             CheckInputWatermark();
             return;
         }
-        Interlocked.Decrement(ref _inputCount);
+        if (!_retryEngine.TryEnqueue(new RetryEntry<TCommand>(cmd, 1))) {
+            _logger?.LogWarning("[Actor:{ActorId}] 重试队列满,首次入队失败,触发SendFailed", Id);
+            RaiseSendFailed(cmd, 0);
+        }
+    }
 
-        _ = RetrySendAsync(cmd, _cts.Token);
+    /// <summary>触发 SendFailed 事件 — 逐个调用handler,一个异常不阻断其余(P0-C: 事件多播异常隔离)</summary>
+    private void RaiseSendFailed(TCommand command, int retryCount) {
+        RaiseEvent(SendFailed, this, new BackpressureSendFailedEventArgs<TCommand>(command, retryCount), "SendFailed");
+    }
+
+    /// <summary>安全触发事件 — 逐个调用handler,每个独立try-catch,一个handler异常不影响其余</summary>
+    private void RaiseEvent<TArgs>(EventHandler<TArgs>? handler, object sender, TArgs args, string eventName) {
+        if (handler is null) return;
+        foreach (var h in handler.GetInvocationList()) {
+            try {
+                ((EventHandler<TArgs>)h)(sender, args);
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[Actor:{ActorId}] {EventName} 订阅者异常忽略", Id, eventName);
+            }
+        }
     }
 
     /// <summary>
-    /// 背压重试循环 — 16次重试+指数退避+消费背压延迟信号,射后不理
+    /// 尝试将重试条目回写到重试队列 — 超过最大重试次数或重试队列满时触发 SendFailed。
+    /// 返回 true 表示成功回写,false 表示失败(已触发 SendFailed)。
     /// </summary>
-    private async Task RetrySendAsync(TCommand cmd, CancellationToken ct) {
-        for (var retry = 1; retry <= BackpressureMaxRetries; retry++) {
-            if (Volatile.Read(ref _disposed) != 0) return;
-            ct.ThrowIfCancellationRequested();
+    /// <param name="entry">待回写的重试条目</param>
+    internal bool TryRequeueRetryEntry(RetryEntry<TCommand> entry) => _retryEngine.TryRequeue(entry);
 
-            var bpDelay = ConsumeBackpressureDelay();
-            if (bpDelay > TimeSpan.Zero)
-                await Task.Delay(bpDelay, ct).ConfigureAwait(false);
-
-            var backoff = TimeSpan.FromMilliseconds(100 * Math.Pow(2, Math.Min(retry, 10)));
-            await Task.Delay(backoff, ct).ConfigureAwait(false);
-
-            Interlocked.Increment(ref _inputCount);
-            if (_inputChannel.Writer.TryWrite(cmd)) {
-                return;
-            }
-            Interlocked.Decrement(ref _inputCount);
-        }
-
-        SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(cmd, BackpressureMaxRetries));
-    }
+    /// <summary>重试队列 — 供测试直接写入构造边界条件(内部接口,转发至 MessageRetryEngine)</summary>
+    internal Channel<RetryEntry<TCommand>> RetryQueueInternal => _retryEngine.RetryQueue;
 
     /// <summary>
     /// 接收远程背压信号 — 写入延迟信号队列,供重试时消费
     /// </summary>
     /// <param name="suggestedDelay">建议延迟时间</param>
-    public void ReceiveBackpressureSignal(TimeSpan suggestedDelay) => _bpDelayQueue.Writer.TryWrite(suggestedDelay);
+    public void ReceiveBackpressureSignal(TimeSpan suggestedDelay) => _retryEngine.ReceiveBackpressureSignal(suggestedDelay);
 
     /// <summary>
-    /// 消费所有待处理背压延迟信号,返回累计延迟时间
-    /// </summary>
-    private TimeSpan ConsumeBackpressureDelay() {
-        var totalMs = 0.0;
-        while (_bpDelayQueue.Reader.TryRead(out var delay)) totalMs += delay.TotalMilliseconds;
-        return TimeSpan.FromMilliseconds(totalMs);
-    }
-
-    /// <summary>
-    /// 向 Actor 同步尝试发送命令 — Tell 模式(发消息即走)。
+    /// 向 Actor 同步尝试发送命令 — Tell 模式(发消息即走)，<b>保证严格 FIFO</b>。
     /// <para>通道已关闭、已释放或(有界通道)已满时返回 false。</para>
     /// <para><b>⚠️ Dispose 路径首选</b>:DisposeAsync 中用 TrySend 发清理命令,不阻塞等待 Consumer,避免线程池饥饿死锁。</para>
+    /// <para><b>与 <see cref="Tell"/> 区别</b>:Tell 入队失败进重试队列(不保证FIFO);TrySend 入队失败返回false(保证FIFO,调用方自行处理)。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
     /// <returns>true 表示已入队,false 表示未入队</returns>
     public bool TrySend(TCommand cmd) {
         if (Volatile.Read(ref _disposed) != 0) return false;
-        Interlocked.Increment(ref _inputCount);
         var written = _inputChannel.Writer.TryWrite(cmd);
         if (written) {
             CheckInputWatermark();
-        } else {
-            Interlocked.Decrement(ref _inputCount);
         }
         return written;
     }
 
     /// <summary>
-    /// Actor 主动推送消息到输出 Channel — 外部通过 OutputAsync 拉取。
+    /// TrySend 的语义别名 — 强调严格 FIFO 保证(P1-4)。
+    /// <para>入队失败直接返回 false,不进重试队列,不丢消息(调用方自行重试或计入死信)。</para>
+    /// <para>适合需要严格命令顺序的场景(如状态机、事务序列)。</para>
     /// </summary>
+    /// <param name="cmd">命令实例</param>
+    /// <returns>true 表示已入队,false 表示未入队(通道满或已释放)</returns>
+    public bool TryTell(TCommand cmd) => TrySend(cmd);
+
+    /// <summary>
+    /// Actor 主动推送消息到输出 Channel — 外部通过 OutputAsync 拉取。
+    /// <para>输出通道满(FullMode=DropWrite)或通道已完成时返回 false 并触发 <see cref="OutputMessageDropped"/> 事件。</para>
+    /// <para>FullMode=DropOldest 时 TryWrite 总返回 true(丢弃最老消息腾位置,静默不触发事件)。</para>
+    /// </summary>
+    /// <param name="msg">输出消息</param>
+    /// <returns>true 表示已写入,false 表示被丢弃(通道满或已完成)</returns>
     protected bool TryPublish(TOut msg) {
         if (Volatile.Read(ref _disposed) != 0) return false;
-        Interlocked.Increment(ref _outputCount);
-        if (_outputChannel.Writer.TryWrite(msg)) {
-            return true;
+        var ok = _outputChannel.Writer.TryWrite(msg);
+        if (!ok) {
+            RaiseEvent(OutputMessageDropped, this, new OutputDroppedEventArgs<TOut>(msg), nameof(OutputMessageDropped));
+            _logger?.LogWarning("[Actor:{ActorId}] TryPublish 消息被丢弃", Id);
         }
-        Interlocked.Decrement(ref _outputCount);
-        return false;
+        return ok;
     }
+
+    /// <summary>TryPublish 内部接口 — 供测试直接调用,不依赖 Consumer 调度时序</summary>
+    internal bool TryPublishInternal(TOut msg) => TryPublish(msg);
 
     /// <summary>
     /// 外部拉取输出流 — 阻塞式 IAsyncEnumerable。
     /// </summary>
     public async IAsyncEnumerable<TOut> OutputAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
         await foreach (var item in _outputChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false)) {
-            Interlocked.Decrement(ref _outputCount);
             yield return item;
         }
     }
 
     private void CheckInputWatermark() {
-        if (_backpressure is null) return;
-        var count = InputCount;
-        var level = count >= _backpressure.EffectiveCriticalWatermark ? WatermarkLevel.Critical
-                   : count >= _backpressure.EffectiveHighWatermark ? WatermarkLevel.High
-                   : WatermarkLevel.Normal;
-        if (level != WatermarkLevel.Normal) {
-            InputWatermarkReached?.Invoke(this, new BackpressureEventArgs(
-                GetType().Name, count, _backpressure.Capacity, level));
+        if (_watermarkMonitor is null) return;
+        if (_watermarkMonitor.Check(InputCount, GetType().Name, out var args) && args is not null) {
+            RaiseEvent(InputWatermarkReached, this, args, "InputWatermarkReached");
         }
     }
 
     /// <summary>
     /// 子类实现命令处理逻辑 — 由 Consumer 线程串行同步调用,此方法内访问实例可变状态无需锁。
-    /// <para><b>同步 Handle</b>:禁止在此方法内使用 async/await。需要 I/O 时通过 Tell 委托给 I/O Actor,</para>
-    /// <para>或用 fire-and-forget Task.Run + Self.Tell 回投结果(参见 ADR 0118)。</para>
+    /// <para><b>⚠️ 同步 Handle 铁律</b>:</para>
+    /// <para>1. <b>禁止 async/await</b> — 签名为 void,编译器无法阻止 async lambda,但运行时会破坏 Consumer 串行不变量</para>
+    /// <para>2. <b>禁止阻塞 I/O</b> — 同步文件/网络 I/O 会卡死 Consumer 线程,所有 I/O 委托给 I/O Actor(Tell)</para>
+    /// <para>3. <b>fire-and-forget 必须回投</b> — Task.Run 中异步操作完成后必须 Self.Tell 回投结果,不得直接修改状态</para>
+    /// <para>4. <b>禁止返回 Task</b> — 异步 Handle 会导致 ConsumeLoop 提前消费下一条命令,破坏 FIFO 顺序</para>
+    /// <para>违反以上任一规约将导致:命令乱序、状态竞态、Consumer 死锁。参见 ADR 0118。</para>
     /// </summary>
     /// <param name="command">待处理命令</param>
     /// <param name="ct">取消令牌(Actor 释放时触发取消)</param>
@@ -268,24 +301,26 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <para>未命中 → 执行 Handle(派生类自行 TryRegister 缓存结果)</para>
     /// <para>null=不启用幂等去重(默认)。派生类在构造函数中设置。</para>
     /// </summary>
-    protected IIdempotencyStore? IdempotencyStore { get; set; }
+    protected IIdempotencyStore? IdempotencyStore { get; private set; }
 
     private async Task ConsumeLoopAsync() {
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
         try {
             await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
-                Interlocked.Decrement(ref _inputCount);
                 CheckInputWatermark();
                 try {
-                    if (cmd is IRequestCommand requestCmd && IdempotencyStore is not null &&
-                        requestCmd.TryRestoreFromCache(IdempotencyStore)) {
+                    if (_idempotencyGate.TryRestore(cmd)) {
                         continue;
                     }
                     Handle(cmd, _cts.Token);
                 } catch (OperationCanceledException) when (_cts.IsCancellationRequested) {
                     return;
                 } catch (Exception ex) {
-                    OnConsumerError(ex);
+                    try {
+                        OnConsumerError(ex);
+                    } catch (Exception innerEx) {
+                        _logger?.LogError(innerEx, "[Actor:{ActorId}] OnConsumerError 异常忽略", Id);
+                    }
                 }
             }
         } catch (OperationCanceledException) { }
@@ -300,15 +335,33 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <para>回调在 Consumer 线程执行,重试通过 fire-and-forget 异步调度,不阻塞 Consumer。</para>
     /// </summary>
     /// <param name="resend">重试委托 — 延迟后调用,重新发送命令(如 TrySend(cmd))</param>
+    /// <param name="logger">日志记录器(null=静默,resend 异常时记录)</param>
+    /// <param name="ct">取消令牌(Actor 释放时取消延迟重试,避免 Dispose 后残留后台任务)</param>
     /// <returns>标准背压回调,可直接作为命令的 OnBackpressure 参数</returns>
-    public static Action<BackpressureSignal> CreateBackpressureHandler(Action resend) {
+    public static Action<BackpressureSignal> CreateBackpressureHandler(Action resend, ILogger? logger = null, CancellationToken ct = default) {
+        var capturedFlow = AsyncFlowIdentity.Capture();
+        var capturedWaitGraph = _askWaitGraph.Value;
+
         return signal => {
             if (signal.SuggestedDelay > TimeSpan.Zero) {
-                _ = Task.Delay(signal.SuggestedDelay).ContinueWith(
-                    _ => resend(),
-                    TaskScheduler.Default);
+                _ = Task.Run(async () => {
+                    try {
+                        using var flowScope = AsyncFlowIdentity.Restore(capturedFlow);
+                        _askWaitGraph.Value = capturedWaitGraph;
+                        await Task.Delay(signal.SuggestedDelay, ct).ConfigureAwait(false);
+                        resend();
+                    } catch (OperationCanceledException) {
+                        // Actor 释放,取消延迟重试
+                    } catch (Exception ex) {
+                        logger?.LogWarning(ex, "CreateBackpressureHandler resend 异常忽略");
+                    }
+                });
             } else {
-                resend();
+                try {
+                    using var flowScope = AsyncFlowIdentity.Restore(capturedFlow);
+                    _askWaitGraph.Value = capturedWaitGraph;
+                    resend();
+                } catch (Exception ex) { logger?.LogWarning(ex, "CreateBackpressureHandler resend 异常忽略"); }
             }
         };
     }
@@ -370,17 +423,34 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="ct">取消令牌</param>
     /// <param name="singleTimeoutMs">单次超时(默认10s,每次重试等待此超时)</param>
     /// <param name="maxRetries">最大重试次数(默认16,总尝试=maxRetries+1)</param>
+    /// <param name="allowNonIdempotentRetry">false=非IIdempotent命令重试直接抛异常;true=仅打日志(默认)</param>
     /// <exception cref="ActorAskDeadlockException">重试耗尽仍超时 — 可能线程池饥饿或 Consumer 阻塞</exception>
     /// <exception cref="ActorCyclicAskException">等待图检测到环(含间接环) — 循环 Ask 死锁</exception>
+    /// <exception cref="InvalidOperationException">allowNonIdempotentRetry=false 且命令未实现 IIdempotent</exception>
     protected async Task<T> AskWithRetryAsync<T>(
         Func<TaskCompletionSource<T>, TCommand> commandFactory,
         CancellationToken ct = default,
         int singleTimeoutMs = 10_000,
-        int maxRetries = 16) {
+        int maxRetries = 16,
+        bool allowNonIdempotentRetry = true) {
         using var waitScope = EnterWaitGraph(TryGetCallerActorId());
         for (var attempt = 0; attempt <= maxRetries; attempt++) {
-            var tcs = new TaskCompletionSource<T>();
-            Tell(commandFactory(tcs));
+            var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var cmd = commandFactory(tcs);
+            var cmdType = cmd?.GetType().Name ?? "null";
+            if (!allowNonIdempotentRetry && cmd is not IIdempotent) {
+                throw new InvalidOperationException($"AskWithRetryAsync: 命令 {cmdType} 未实现 IIdempotent，不允许重试");
+            }
+            if (cmd is not IIdempotent) {
+                _logger?.LogWarning("[Actor:{ActorId}] AskWithRetryAsync 使用非幂等命令 {CmdType}, 重试可能产生重复副作用", Id, cmdType);
+            }
+            if (!TrySend(cmd)) {
+                if (attempt >= maxRetries)
+                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
+                await Task.Delay(delayMs, ct).ConfigureAwait(false);
+                continue;
+            }
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             linkedCts.CancelAfter(singleTimeoutMs);
             try {
@@ -388,7 +458,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 if (attempt >= maxRetries)
                     throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
         }
@@ -402,15 +472,31 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="ct">取消令牌</param>
     /// <param name="singleTimeoutMs">单次超时(默认10s)</param>
     /// <param name="maxRetries">最大重试次数(默认16)</param>
+    /// <param name="allowNonIdempotentRetry">false=非IIdempotent命令重试直接抛异常;true=仅打日志(默认)</param>
     protected async Task AskWithRetryAsync(
         Func<TaskCompletionSource, TCommand> commandFactory,
         CancellationToken ct = default,
         int singleTimeoutMs = 10_000,
-        int maxRetries = 16) {
+        int maxRetries = 16,
+        bool allowNonIdempotentRetry = true) {
         using var waitScope = EnterWaitGraph(TryGetCallerActorId());
         for (var attempt = 0; attempt <= maxRetries; attempt++) {
-            var tcs = new TaskCompletionSource();
-            Tell(commandFactory(tcs));
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var cmd = commandFactory(tcs);
+            var cmdType = cmd?.GetType().Name ?? "null";
+            if (!allowNonIdempotentRetry && cmd is not IIdempotent) {
+                throw new InvalidOperationException($"AskWithRetryAsync: 命令 {cmdType} 未实现 IIdempotent，不允许重试");
+            }
+            if (cmd is not IIdempotent) {
+                _logger?.LogWarning("[Actor:{ActorId}] AskWithRetryAsync 使用非幂等命令 {CmdType}, 重试可能产生重复副作用", Id, cmdType);
+            }
+            if (!TrySend(cmd)) {
+                if (attempt >= maxRetries)
+                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
+                await Task.Delay(delayMs, ct).ConfigureAwait(false);
+                continue;
+            }
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             linkedCts.CancelAfter(singleTimeoutMs);
             try {
@@ -419,7 +505,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 if (attempt >= maxRetries)
                     throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = 100 * (1 << Math.Min(attempt, 20));
+                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
         }
@@ -429,30 +515,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>
     /// 进入等待图作用域 — 在当前异步流的调用链本地图加边 callerId→Id,检测环,返回 scope(Dispose 恢复父图)。
     /// <para>等待图用 AsyncLocal 存储调用链本地图,避免全局静态图跨调用链污染/并发覆盖(Bug1 修复)。</para>
+    /// <para>每次创建新 ImmutableDag 副本(从父图无锁快照复制),各异步流独立不竞态(P1-3 修复)。</para>
     /// <para>callerId 为 null 或等于自身时返回 null(无需加边)。</para>
+    /// <para><b>⚠️ AsyncLocal 局限</b>:等待图依赖 AsyncLocal 上下文流动,跨裸线程/Task.Run 调用会丢失上下文,</para>
+    /// <para>等待图断裂无法检测跨线程循环 Ask 死锁。Ask 调用链必须在同一异步流上下文内调用。</para>
     /// </summary>
-    private WaitGraphScope? EnterWaitGraph(string? callerId) {
-        if (callerId is null || callerId == Id) return null;
-        var graph = _askWaitGraph.Value ?? new Dag<string>();
-        _askWaitGraph.Value = graph;
-        if (!graph.Nodes.ContainsKey(callerId))
-            graph.AddNode(new DagNode<string> { Id = callerId, Payload = callerId });
-        if (!graph.Nodes.ContainsKey(Id))
-            graph.AddNode(new DagNode<string> { Id = Id, Payload = Id });
-        var edge = new DagEdge { FromId = callerId, ToId = Id };
-        var result = graph.AddEdge(edge);
-        if (!result.Success)
-            throw new ActorCyclicAskException(callerId, Id);
-        return new WaitGraphScope(_askWaitGraph, graph, edge.Id);
-    }
-
-    /// <summary>等待图作用域 — Dispose 时移除边,边全部移除后清空 AsyncLocal</summary>
-    private sealed class WaitGraphScope(AsyncLocal<Dag<string>?> store, Dag<string> graph, string edgeId) : IDisposable {
-        /// <summary>释放资源。</summary>
-        public void Dispose() {
-            graph.RemoveEdge(edgeId);
-            if (graph.Edges.Count == 0) store.Value = null;
-        }
+    private AskWaitGraphTracker.WaitGraphScope? EnterWaitGraph(string? callerId) {
+        return _waitGraphTracker.EnterScope(callerId, Id);
     }
 
     private string? TryGetCallerActorId() => AsyncFlowIdentity.CurrentActorId;
@@ -467,8 +536,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         _cts.Cancel();
         _inputChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();
+        _retryEngine.Complete();
         try {
             await _consumerTask.ConfigureAwait(false);
+        } catch (OperationCanceledException) { }
+        try {
+            await _retryEngine.WaitForCompletionAsync().ConfigureAwait(false);
         } catch (OperationCanceledException) { }
         _cts.Dispose();
     }
@@ -556,3 +629,20 @@ public readonly record struct Unit {
 public sealed record BackpressureSendFailedEventArgs<TCommand>(
     TCommand Command,
     int RetryCount);
+
+/// <summary>
+/// 重试队列条目 — 命令 + 当前重试次数(P1-2: 单例重试队列)
+/// </summary>
+/// <typeparam name="TCommand">命令类型</typeparam>
+/// <param name="Command">待重试命令</param>
+/// <param name="Attempt">当前重试次数(1=首次重试)</param>
+internal sealed record RetryEntry<TCommand>(
+    TCommand Command,
+    int Attempt);
+
+/// <summary>
+/// 输出消息丢弃事件参数 — 输出通道满时 TryPublish 丢弃的消息
+/// </summary>
+/// <typeparam name="TOut">输出消息类型</typeparam>
+/// <param name="Message">被丢弃的消息(外部可计入死信队列或重投)</param>
+public sealed record OutputDroppedEventArgs<TOut>(TOut Message);

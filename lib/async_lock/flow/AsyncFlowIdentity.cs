@@ -60,4 +60,25 @@ public sealed class AsyncFlowIdentity {
 
     /// <summary>清除全部 — 测试用</summary>
     public static void Clear() => _current.Value = null;
+
+    /// <summary>
+    /// 捕获当前异步流身份 — 用于跨 Task.Run/线程恢复上下文。
+    /// <para>AsyncLocal 在 Task.Run 中会自然流动,但某些场景(如 static 方法中的 Task.Run)可能丢失。</para>
+    /// <para>捕获后通过 <see cref="Restore"/> 在新上下文中恢复。</para>
+    /// </summary>
+    public static FlowState Capture() => new(_current.Value);
+
+    /// <summary>
+    /// 恢复捕获的异步流身份 — 返回 scope(Dispose 时恢复原值)。
+    /// </summary>
+    /// <param name="state">捕获的身份快照</param>
+    /// <returns>IDisposable — Dispose 时恢复原 AsyncFlowIdentity</returns>
+    public static IDisposable Restore(FlowState state) {
+        var old = _current.Value;
+        _current.Value = state.Identity;
+        return new ActorScope(_current, old);
+    }
+
+    /// <summary>异步流身份快照 — 用于跨上下文传递</summary>
+    public readonly record struct FlowState(AsyncFlowIdentity? Identity);
 }

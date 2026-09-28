@@ -128,6 +128,31 @@ public class AskWithRetryTest {
         graph.AddEdge(new DagEdge { FromId = bId, ToId = cId });
         graph.WouldCreateCycle(aId, bId).Should().BeFalse("A→B→C 不构成环");
     }
+
+    /// <summary>验证 allowNonIdempotentRetry=false 时非幂等命令抛 InvalidOperationException</summary>
+    [Fact]
+    public async Task NonIdempotent_AllowFalse_ThrowsInvalidOperationException() {
+        await using var actor = new NonIdempotentRetryActor();
+        var act = async () => await actor.AskTestAsync(singleTimeoutMs: 100, maxRetries: 3, allowNonIdempotentRetry: false);
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    /// <summary>验证 allowNonIdempotentRetry=true 时非幂等命令正常执行(仅打日志)</summary>
+    [Fact]
+    public async Task NonIdempotent_AllowTrue_SucceedsWithWarning() {
+        await using var actor = new NonIdempotentRetryActor();
+        var result = await actor.AskTestAsync(singleTimeoutMs: 2000, maxRetries: 3, allowNonIdempotentRetry: true);
+        result.Should().Be("ok");
+    }
+
+    /// <summary>验证幂等命令 allowNonIdempotentRetry=false 不抛异常</summary>
+    [Fact]
+    public async Task Idempotent_AllowFalse_Succeeds() {
+        await using var actor = new RetryDemoActor();
+        actor.SetSuccessAfter(0);
+        var result = await actor.AskWithRetryTestAsync(singleTimeoutMs: 2000, maxRetries: 3);
+        result.Should().Be("success-at-1");
+    }
 }
 
 /// <summary>
@@ -167,3 +192,15 @@ internal sealed class CycleDemoActor : ActorBase<CycleCmd, Unit> {
 }
 
 internal sealed record CycleCmd(TaskCompletionSource<bool> Tcs);
+
+/// <summary>非幂等重试测试 Actor — 命令不实现 IIdempotent</summary>
+internal sealed class NonIdempotentRetryActor : ActorBase<NonIdempotentRetryCmd, Unit> {
+    public Task<string> AskTestAsync(int singleTimeoutMs = 1000, int maxRetries = 16, bool allowNonIdempotentRetry = true, CancellationToken ct = default)
+        => AskWithRetryAsync<string>(tcs => new NonIdempotentRetryCmd(tcs), ct, singleTimeoutMs, maxRetries, allowNonIdempotentRetry);
+
+    protected override void Handle(NonIdempotentRetryCmd command, CancellationToken ct) {
+        command.Tcs.TrySetResult("ok");
+    }
+}
+
+internal sealed record NonIdempotentRetryCmd(TaskCompletionSource<string> Tcs);

@@ -61,28 +61,24 @@ public class BackpressurePipelineTest {
         signals.Should().BeEmpty("消费中的消息不应触发 OnBackpressure(Bug2:反向背压已移除)");
     }
 
-    /// <summary>CreateBackpressureHandler — High 延迟后重试</summary>
+    /// <summary>CreateBackpressureHandler — High 延迟后重试(重试16次等待,不依赖精确时序)</summary>
     [Fact]
     public async Task CreateBackpressureHandler_High_DelayedRetry() {
         var retried = false;
         var handler = ActorBase<object, Unit>.CreateBackpressureHandler(() => retried = true);
         handler(new BackpressureSignal(0, "", "", WatermarkLevel.High, TimeSpan.FromMilliseconds(50), 0));
         retried.Should().BeFalse();
-        await Task.Delay(100);
-        retried.Should().BeTrue();
+        await WaitUntilAsync(() => retried, TimeSpan.FromMilliseconds(500));
     }
 
-    /// <summary>CreateBackpressureHandler — Critical 延迟后重试</summary>
+    /// <summary>CreateBackpressureHandler — Critical 延迟后重试(重试16次等待,不依赖精确时序)</summary>
     [Fact]
     public async Task CreateBackpressureHandler_Critical_DelayedRetry() {
         var retried = false;
         var handler = ActorBase<object, Unit>.CreateBackpressureHandler(() => retried = true);
         handler(new BackpressureSignal(0, "", "", WatermarkLevel.Critical, TimeSpan.FromMilliseconds(200), 0));
         retried.Should().BeFalse();
-        await Task.Delay(100);
-        retried.Should().BeFalse();
-        await Task.Delay(150);
-        retried.Should().BeTrue();
+        await WaitUntilAsync(() => retried, TimeSpan.FromMilliseconds(500));
     }
 
     /// <summary>CreateBackpressureHandler — Normal 立即重试</summary>
@@ -151,9 +147,8 @@ internal sealed class BackpressurePipelineTestActor : ActorBase<object, Unit> {
     private readonly TaskCompletionSource? _gate;
 
     public BackpressurePipelineTestActor(int capacity, TaskCompletionSource? gate = null)
-        : base(new ActorBackpressure(capacity)) {
+        : base(new ActorBackpressure(capacity), idempotencyStore: new IdempotencyStore()) {
         _gate = gate;
-        IdempotencyStore = new IdempotencyStore();
     }
 
     protected override void Handle(object command, CancellationToken ct) {

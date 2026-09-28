@@ -47,13 +47,12 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         ILogger? logger,
         ITelemetryService? telemetryService,
         IClockService? clock)
-        : base() {
+        : base(idempotencyStore: new IdempotencyStore()) {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         RefreshOptions = options;
         Logger = logger;
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;
-        IdempotencyStore = new IdempotencyStore();
 
         if (!string.IsNullOrEmpty(options.ApiEndpoint)) {
             _refreshTimer = new Timer(

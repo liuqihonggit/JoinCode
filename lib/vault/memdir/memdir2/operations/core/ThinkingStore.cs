@@ -162,10 +162,9 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
         /// <summary>构造思考记录存储 Actor。</summary>
         /// <param name="owner">所属 ThinkingStore 实例。</param>
         /// <param name="logger">日志记录器。</param>
-        public ThinkingStoreActor(ThinkingStore owner, ILogger<ThinkingStore>? logger) : base() {
+        public ThinkingStoreActor(ThinkingStore owner, ILogger<ThinkingStore>? logger) : base(idempotencyStore: new IdempotencyStore()) {
             _owner = owner;
             _logger = logger;
-            IdempotencyStore = new IdempotencyStore();
         }
 
         protected override void Handle(ThinkingStoreCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }

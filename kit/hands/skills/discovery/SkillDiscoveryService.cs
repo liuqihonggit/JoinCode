@@ -411,10 +411,9 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         /// <summary>构造技能发现 Actor。</summary>
         /// <param name="owner">所属技能发现服务。</param>
         /// <param name="logger">日志记录器（可选）。</param>
-        public DiscoverActor(SkillDiscoveryService owner, ILogger<SkillDiscoveryService>? logger) : base() {
+        public DiscoverActor(SkillDiscoveryService owner, ILogger<SkillDiscoveryService>? logger) : base(idempotencyStore: new IdempotencyStore()) {
             _owner = owner;
             _logger = logger;
-            IdempotencyStore = new IdempotencyStore();
         }
 
         protected override void Handle(DiscoverCmd cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }

@@ -134,6 +134,108 @@ public class ActorBaseTest {
         events.Should().Contain(e => e.Level == WatermarkLevel.High || e.Level == WatermarkLevel.Critical);
     }
 
+    /// <summary>
+    /// P0-B: InputCount 统一使用 Channel 原生 Count,不再有 Interlocked 计数器。
+    /// 消息在输入通道时 InputCount 反映通道实际消息数。
+    /// </summary>
+    [Fact]
+    public async Task InputCount_UsesChannelCount_NotInterlocked() {
+        var bp = new ActorBackpressure(Capacity: 10);
+        await using var actor = new TestActor(bp);
+
+        var gate = new TaskCompletionSource();
+        actor.Gate = gate;
+
+        actor.Tell("A");
+        await WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(500));
+
+        actor.Tell("B");
+        actor.InputCount.Should().Be(1);
+        actor.InputChannelCount.Should().Be(1);
+        actor.RetryQueueCount.Should().Be(0);
+
+        actor.Tell("C");
+        actor.InputCount.Should().Be(2);
+        actor.InputChannelCount.Should().Be(2);
+    }
+
+    /// <summary>
+    /// P0-缺陷2: 重试回写失败时必须触发 SendFailed,不能静默丢弃消息。
+    /// 确定性测试: 直接填满重试队列,调用 TryRequeueRetryEntry 验证回写失败触发 SendFailed。
+    /// </summary>
+    [Fact]
+    public async Task RetryWriteBack_Failed_TriggersSendFailed() {
+        var bp = new ActorBackpressure(Capacity: 1, RetryQueueCapacity: 1);
+        await using var actor = new TestActor(bp);
+
+        var sendFailedEvents = new List<BackpressureSendFailedEventArgs<string>>();
+        actor.SendFailed += (_, e) => sendFailedEvents.Add(e);
+
+        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier", 1));
+
+        var result = actor.TryRequeueRetryEntry(new RetryEntry<string>("D", 1));
+
+        result.Should().BeFalse();
+        sendFailedEvents.Should().ContainSingle(e => e.Command == "D");
+    }
+
+    /// <summary>
+    /// P0-缺陷2: 重试次数耗尽时触发 SendFailed。
+    /// </summary>
+    [Fact]
+    public async Task RetryWriteBack_MaxRetriesExhausted_TriggersSendFailed() {
+        var bp = new ActorBackpressure(Capacity: 1, MaxRetries: 3);
+        await using var actor = new TestActor(bp);
+
+        var sendFailedEvents = new List<BackpressureSendFailedEventArgs<string>>();
+        actor.SendFailed += (_, e) => sendFailedEvents.Add(e);
+
+        var result = actor.TryRequeueRetryEntry(new RetryEntry<string>("X", 3));
+
+        result.Should().BeFalse();
+        sendFailedEvents.Should().ContainSingle(e => e.Command == "X" && e.RetryCount == 3);
+    }
+
+    /// <summary>
+    /// P0-缺陷6: SendFailed 事件多播时,第一个订阅者抛异常不应阻断后续订阅者。
+    /// 确定性测试: 直接调用 TryRequeueRetryEntry 触发 SendFailed。
+    /// </summary>
+    [Fact]
+    public async Task SendFailed_Multicast_FirstHandlerThrows_SecondStillCalled() {
+        var bp = new ActorBackpressure(Capacity: 1, RetryQueueCapacity: 1);
+        await using var actor = new TestActor(bp);
+
+        var handler2Called = false;
+        actor.SendFailed += (_, _) => throw new InvalidOperationException("handler1 crash");
+        actor.SendFailed += (_, _) => handler2Called = true;
+
+        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier", 1));
+        actor.TryRequeueRetryEntry(new RetryEntry<string>("D", 1));
+
+        handler2Called.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// P0-缺陷6: InputWatermarkReached 事件多播时,第一个订阅者抛异常不应阻断后续订阅者。
+    /// </summary>
+    [Fact]
+    public async Task Watermark_Multicast_FirstHandlerThrows_SecondStillCalled() {
+        var bp = new ActorBackpressure(Capacity: 10, HighWatermark: 5, CriticalWatermark: 8);
+        await using var actor = new TestActor(bp);
+
+        var handler2Called = false;
+        actor.InputWatermarkReached += (_, _) => throw new InvalidOperationException("handler1 crash");
+        actor.InputWatermarkReached += (_, _) => handler2Called = true;
+
+        var gate = new TaskCompletionSource();
+        actor.Gate = gate;
+
+        for (var i = 0; i < 6; i++) actor.Tell($"msg-{i}");
+
+        await WaitUntilAsync(() => handler2Called, TimeSpan.FromMilliseconds(2000));
+        handler2Called.Should().BeTrue();
+    }
+
     /// <summary>验证输出计数反映已发布的消息数</summary>
     [Fact]
     public async Task OutputCount_ReflectsPublishedMessages() {
@@ -202,6 +304,102 @@ public class ActorBaseTest {
         actor.TrySend("test").Should().BeTrue();
     }
 
+    /// <summary>验证 Wait 模式下输出通道满时 TryPublish 返回 false 并触发 OutputMessageDropped 事件</summary>
+    [Fact]
+    public async Task TryPublish_WaitMode_ChannelFull_TriggersOutputDroppedEvent() {
+        var dropped = new List<string>();
+        await using var actor = new TestActor(null, 1, BoundedChannelFullMode.Wait);
+        actor.OutputMessageDropped += (_, e) => dropped.Add(e.Message);
+
+        actor.TryPublishInternal("first").Should().BeTrue();
+        actor.TryPublishInternal("second").Should().BeFalse();
+
+        dropped.Should().ContainSingle().Which.Should().Be("second");
+    }
+
+    /// <summary>验证 DropOldest 模式下输出通道满时 TryPublish 不触发 OutputMessageDropped 事件</summary>
+    [Fact]
+    public async Task TryPublish_DropOldest_ChannelFull_NoEventTriggered() {
+        var dropped = new List<string>();
+        await using var actor = new TestActor(null, 1, BoundedChannelFullMode.DropOldest);
+        actor.OutputMessageDropped += (_, e) => dropped.Add(e.Message);
+
+        actor.TryPublishInternal("first").Should().BeTrue();
+        actor.TryPublishInternal("second").Should().BeTrue();
+
+        dropped.Should().BeEmpty();
+    }
+
+    /// <summary>验证 DropWrite 模式下 TryWrite 静默丢弃返回 true(不触发事件)</summary>
+    [Fact]
+    public async Task TryPublish_DropWrite_ChannelFull_SilentDrop_NoEventTriggered() {
+        var dropped = new List<string>();
+        await using var actor = new TestActor(null, 1, BoundedChannelFullMode.DropWrite);
+        actor.OutputMessageDropped += (_, e) => dropped.Add(e.Message);
+
+        actor.TryPublishInternal("first").Should().BeTrue();
+        actor.TryPublishInternal("second").Should().BeTrue();
+
+        dropped.Should().BeEmpty();
+    }
+
+    /// <summary>验证 CreateBackpressureHandler 零延迟路径恢复 AsyncFlowIdentity 上下文</summary>
+    [Fact]
+    public void CreateBackpressureHandler_ZeroDelay_PreservesAsyncFlowIdentity() {
+        AsyncFlowIdentity.SetActorId("test-actor");
+        string? seenActorId = null;
+        var handler = ActorBase<string, string>.CreateBackpressureHandler(() => {
+            seenActorId = AsyncFlowIdentity.CurrentActorId;
+        });
+        AsyncFlowIdentity.ClearActorId();
+        handler(new BackpressureSignal(0, "src", "tgt", WatermarkLevel.High, TimeSpan.Zero, 0));
+        seenActorId.Should().Be("test-actor");
+        AsyncFlowIdentity.Clear();
+    }
+
+    /// <summary>验证 CreateBackpressureHandler 延迟路径恢复 AsyncFlowIdentity 上下文</summary>
+    [Fact]
+    public async Task CreateBackpressureHandler_WithDelay_PreservesAsyncFlowIdentity() {
+        AsyncFlowIdentity.SetActorId("test-actor");
+        var tcs = new TaskCompletionSource<string?>();
+        var handler = ActorBase<string, string>.CreateBackpressureHandler(() => {
+            tcs.SetResult(AsyncFlowIdentity.CurrentActorId);
+        });
+        AsyncFlowIdentity.ClearActorId();
+        handler(new BackpressureSignal(0, "src", "tgt", WatermarkLevel.High, TimeSpan.FromMilliseconds(10), 0));
+        var seenActorId = await tcs.Task.WaitAsync(TimeSpan.FromMilliseconds(500));
+        seenActorId.Should().Be("test-actor");
+        AsyncFlowIdentity.Clear();
+    }
+
+    /// <summary>验证 IActorTell 接口可正确发送命令</summary>
+    [Fact]
+    public async Task IActorTell_Interface_CanSendCommands() {
+        await using var actor = new TestActor();
+        IActorTell<string> tell = actor;
+        tell.Tell("via-tell");
+        tell.TrySend("via-trysend").Should().BeTrue();
+        tell.TryTell("via-trytell").Should().BeTrue();
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 3, TimeSpan.FromMilliseconds(500));
+        actor.ProcessedCommands.Should().Contain("via-tell", "via-trysend", "via-trytell");
+    }
+
+    /// <summary>验证 IActorOutput 接口可正确消费输出</summary>
+    [Fact]
+    public async Task IActorOutput_Interface_CanConsumeOutput() {
+        await using var actor = new TestActor();
+        IActorOutput<string> output = actor;
+        actor.Tell("hello");
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        var results = new List<string>();
+        await foreach (var item in output.OutputAsync(cts.Token)) {
+            results.Add(item);
+            break;
+        }
+        results.Should().ContainSingle().Which.Should().Be("processed-hello");
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
         for (var i = 0; i < 16; i++) {
             var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
@@ -233,6 +431,14 @@ internal sealed class TestActor : ActorBase<string, string> {
     /// <param name="backpressure">背压配置（可选）</param>
     public TestActor(ActorBackpressure? backpressure)
         : base(backpressure) {
+    }
+
+    /// <summary>初始化测试 Actor — 指定输出通道容量和满策略</summary>
+    /// <param name="backpressure">背压配置</param>
+    /// <param name="outputCapacity">输出通道容量</param>
+    /// <param name="outputFullMode">输出通道满策略</param>
+    public TestActor(ActorBackpressure? backpressure, int? outputCapacity, BoundedChannelFullMode outputFullMode)
+        : base(backpressure, outputCapacity, outputFullMode) {
     }
 
     protected override void Handle(string command, CancellationToken ct) {

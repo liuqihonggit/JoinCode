@@ -16,9 +16,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     private readonly Channel<TCommand> _inputChannel;
     private readonly Channel<TOut> _outputChannel;
     private readonly Task _consumerTask;
+    private readonly Task _retryTask;
     private readonly CancellationTokenSource _cts = new();
     private readonly ActorBackpressure? _backpressure;
     private readonly Channel<TimeSpan> _bpDelayQueue = Channel.CreateBounded<TimeSpan>(new BoundedChannelOptions(16) {
+        FullMode = BoundedChannelFullMode.DropOldest,
+        SingleReader = true,
+        SingleWriter = false
+    });
+    private readonly Channel<RetryEntry<TCommand>> _retryQueue = Channel.CreateBounded<RetryEntry<TCommand>>(new BoundedChannelOptions(1024) {
         FullMode = BoundedChannelFullMode.DropOldest,
         SingleReader = true,
         SingleWriter = false
@@ -70,6 +76,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             CancellationToken.None,
             TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
             TaskScheduler.Default).Unwrap();
+        _retryTask = Task.Run(ProcessRetryQueueAsync);
     }
 
     private static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure) {
@@ -152,36 +159,42 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         }
         Interlocked.Decrement(ref _inputCount);
 
-        _ = RetrySendAsync(cmd, _cts.Token);
+        _retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(cmd, 1));
     }
 
     /// <summary>
-    /// 背压重试循环 — 16次重试+指数退避+消费背压延迟信号,射后不理
+    /// 单例重试队列处理 — 一个后台 Task 处理所有重试消息(P1-2: 替代每消息一 Task,高负载时不产生大量 Delay 任务)
     /// </summary>
-    private async Task RetrySendAsync(TCommand cmd, CancellationToken ct) {
-        for (var retry = 1; retry <= BackpressureMaxRetries; retry++) {
-            if (Volatile.Read(ref _disposed) != 0) return;
-            ct.ThrowIfCancellationRequested();
-
-            var bpDelay = ConsumeBackpressureDelay();
-            if (bpDelay > TimeSpan.Zero)
-                await Task.Delay(bpDelay, ct).ConfigureAwait(false);
-
-            var backoff = TimeSpan.FromMilliseconds(100 * Math.Pow(2, Math.Min(retry, 10)));
-            await Task.Delay(backoff, ct).ConfigureAwait(false);
-
-            Interlocked.Increment(ref _inputCount);
-            if (_inputChannel.Writer.TryWrite(cmd)) {
-                return;
-            }
-            Interlocked.Decrement(ref _inputCount);
-        }
-
+    private async Task ProcessRetryQueueAsync() {
         try {
-            SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(cmd, BackpressureMaxRetries));
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, "[Actor:{ActorId}] SendFailed 订阅者异常忽略", Id);
-        }
+            await foreach (var entry in _retryQueue.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
+                if (Volatile.Read(ref _disposed) != 0) return;
+
+                var bpDelay = ConsumeBackpressureDelay();
+                if (bpDelay > TimeSpan.Zero)
+                    await Task.Delay(bpDelay, _cts.Token).ConfigureAwait(false);
+
+                var backoff = TimeSpan.FromMilliseconds(100 * Math.Pow(2, Math.Min(entry.Attempt, 10)));
+                await Task.Delay(backoff, _cts.Token).ConfigureAwait(false);
+
+                Interlocked.Increment(ref _inputCount);
+                if (_inputChannel.Writer.TryWrite(entry.Command)) {
+                    CheckInputWatermark();
+                    continue;
+                }
+                Interlocked.Decrement(ref _inputCount);
+
+                if (entry.Attempt < BackpressureMaxRetries) {
+                    _retryQueue.Writer.TryWrite(new RetryEntry<TCommand>(entry.Command, entry.Attempt + 1));
+                } else {
+                    try {
+                        SendFailed?.Invoke(this, new BackpressureSendFailedEventArgs<TCommand>(entry.Command, BackpressureMaxRetries));
+                    } catch (Exception ex) {
+                        _logger?.LogWarning(ex, "[Actor:{ActorId}] SendFailed 订阅者异常忽略", Id);
+                    }
+                }
+            }
+        } catch (OperationCanceledException) { }
     }
 
     /// <summary>
@@ -501,8 +514,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         _cts.Cancel();
         _inputChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();
+        _retryQueue.Writer.TryComplete();
         try {
             await _consumerTask.ConfigureAwait(false);
+        } catch (OperationCanceledException) { }
+        try {
+            await _retryTask.ConfigureAwait(false);
         } catch (OperationCanceledException) { }
         _cts.Dispose();
     }
@@ -590,3 +607,13 @@ public readonly record struct Unit {
 public sealed record BackpressureSendFailedEventArgs<TCommand>(
     TCommand Command,
     int RetryCount);
+
+/// <summary>
+/// 重试队列条目 — 命令 + 当前重试次数(P1-2: 单例重试队列)
+/// </summary>
+/// <typeparam name="TCommand">命令类型</typeparam>
+/// <param name="Command">待重试命令</param>
+/// <param name="Attempt">当前重试次数(1=首次重试)</param>
+internal sealed record RetryEntry<TCommand>(
+    TCommand Command,
+    int Attempt);

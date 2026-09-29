@@ -638,4 +638,37 @@ internal sealed class JccChatSession : IJccChatSession {
         }
     }
 
+    /// <summary>暂停子代理 — 委托 InterruptSubAgentAsync（teammate 进 idle 等 next prompt）</summary>
+    public Task<bool> PauseSubAgentAsync(string agentId, CancellationToken cancellationToken = default)
+        => InterruptSubAgentAsync(agentId, cancellationToken);
+
+    /// <summary>恢复子代理 — 委托 ForwardInputToSubAgentAsync（转发空消息唤醒 idle teammate）</summary>
+    public Task<bool> ResumeSubAgentAsync(string agentId, CancellationToken cancellationToken = default)
+        => ForwardInputToSubAgentAsync(agentId, string.Empty, cancellationToken);
+
+    /// <summary>暂停所有运行中子代理 — 遍历后台代理对 running 状态逐个暂停</summary>
+    public async Task<int> PauseAllSubAgentsAsync(CancellationToken cancellationToken = default) {
+        var agents = await GetBackgroundAgentsAsync(cancellationToken);
+        var running = agents.Where(a => string.Equals(a.State, "running", StringComparison.OrdinalIgnoreCase)
+                                     || string.Equals(a.State, "pending", StringComparison.OrdinalIgnoreCase));
+        var count = 0;
+        foreach (var agent in running) {
+            if (await PauseSubAgentAsync(agent.AgentId, cancellationToken))
+                count++;
+        }
+        return count;
+    }
+
+    /// <summary>恢复所有暂停中子代理 — 遍历后台代理对 paused 状态逐个恢复</summary>
+    public async Task<int> ResumeAllSubAgentsAsync(CancellationToken cancellationToken = default) {
+        var agents = await GetBackgroundAgentsAsync(cancellationToken);
+        var paused = agents.Where(a => string.Equals(a.State, "paused", StringComparison.OrdinalIgnoreCase));
+        var count = 0;
+        foreach (var agent in paused) {
+            if (await ResumeSubAgentAsync(agent.AgentId, cancellationToken))
+                count++;
+        }
+        return count;
+    }
+
 }

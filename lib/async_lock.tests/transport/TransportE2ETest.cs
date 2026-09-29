@@ -22,7 +22,7 @@ public class TransportE2ETest {
         await using var slave = new BusTransport(pipeName: pipeName, processId: slavePid);
 
         await host.StartAsync();
-        await Task.Delay(500);
+        await WaitUntilAsync(() => Task.FromResult(host.Role == ProcessRole.Host), TimeSpan.FromSeconds(2));
         host.Role.Should().Be(ProcessRole.Host, "第一个启动应为主机");
 
         await slave.StartAsync();
@@ -47,10 +47,10 @@ public class TransportE2ETest {
         await using var transport2 = new BusTransport(pipeName: pipeName, processId: highPid);
 
         await transport1.StartAsync();
-        await Task.Delay(300);
+        await WaitUntilAsync(() => Task.FromResult(transport1.Role == ProcessRole.Host), TimeSpan.FromSeconds(2));
 
         await transport2.StartAsync();
-        await Task.Delay(300);
+        await WaitUntilAsync(() => Task.FromResult(transport2.Role == ProcessRole.Slave), TimeSpan.FromSeconds(2));
 
         transport1.Role.Should().Be(ProcessRole.Host, "先启动的应为主机");
         transport2.Role.Should().Be(ProcessRole.Slave, "后启动的应为从机");
@@ -124,10 +124,10 @@ public class TransportE2ETest {
         await using var slave = new NamedPipeTransport(pipeName: pipeName, processId: slavePid);
 
         await host.StartAsync();
-        await Task.Delay(300);
+        await WaitUntilAsync(() => Task.FromResult(host.Role == ProcessRole.Host), TimeSpan.FromSeconds(2));
 
         await slave.StartAsync();
-        await Task.Delay(300);
+        await WaitUntilAsync(() => Task.FromResult(slave.Role == ProcessRole.Slave), TimeSpan.FromSeconds(2));
 
         host.Role.Should().Be(ProcessRole.Host);
         slave.Role.Should().Be(ProcessRole.Slave);

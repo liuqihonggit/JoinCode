@@ -65,6 +65,15 @@ public sealed class SwarmWorkerHandlerTests {
         SwarmWorkerHandler.ExtractCommand(input).Should().Be("");
     }
 
+    /// <summary>ExtractCommand null 参数抛出 ArgumentNullException。</summary>
+    [Fact]
+    public void ExtractCommand_NullInput_ThrowsArgumentNullException() {
+        var act = () => SwarmWorkerHandler.ExtractCommand(null!);
+
+        act.Should().Throw<ArgumentNullException>()
+           .WithParameterName("input");
+    }
+
     // === HandleAsync: 非 Swarm Worker 分支 ===
 
     /// <summary>非 Swarm Worker 调用时返回 null(回退到本地处理)。</summary>

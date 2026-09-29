@@ -46,27 +46,52 @@ public static class HttpRequestSerializer {
     /// <summary>
     /// 构造 HTTP 请求行 — "METHOD /path?query HTTP/1.1\r\n"。
     /// 纯函数，pathAndQuery 为 null/空时回退到 "/"。
+    /// 拒绝 pathAndQuery 中含 \r 或 \n 的输入以防 HTTP 请求拆分/注入攻击。
     /// </summary>
     /// <param name="method">HTTP 方法</param>
     /// <param name="pathAndQuery">路径与查询串（RequestUri.PathAndQuery）</param>
     /// <returns>请求行字符串（含行终止符）</returns>
+    /// <exception cref="ArgumentException">pathAndQuery 含 \r 或 \n（CRLF 注入守卫）</exception>
     internal static string BuildRequestLine(HttpMethod method, string? pathAndQuery) {
         var path = string.IsNullOrEmpty(pathAndQuery) ? "/" : pathAndQuery;
+        RejectCrlf(path, nameof(pathAndQuery), "路径/查询串");
         return $"{method.Method} {path} {HttpVersion}{LineTerminator}";
     }
 
     /// <summary>
     /// 追加单行 HTTP 头到 StringBuilder — "key: value\r\n"。
     /// 纯函数（除 StringBuilder 副作用外），对齐 TS 端头部序列化。
+    /// 拒绝 key/value 中含 \r 或 \n 的输入以防 HTTP 头注入攻击。
     /// </summary>
     /// <param name="builder">目标 StringBuilder</param>
     /// <param name="key">头名</param>
     /// <param name="value">头值</param>
+    /// <exception cref="ArgumentException">key 或 value 含 \r 或 \n（CRLF 注入守卫）</exception>
     internal static void AppendHeaderLine(StringBuilder builder, string key, string value) {
+        RejectCrlf(key, nameof(key), "头名");
+        RejectCrlf(value, nameof(value), "头值");
         builder.Append(key);
         builder.Append(HeaderSeparator);
         builder.Append(value);
         builder.Append(LineTerminator);
+    }
+
+    /// <summary>
+    /// CRLF 注入守卫 — 检测 \r 或 \n 并抛 ArgumentException。
+    /// 防止 HTTP 请求拆分/头注入攻击：攻击者在参数中嵌入 \r\n 可注入额外请求行或头行。
+    /// </summary>
+    /// <param name="value">待检测的字符串</param>
+    /// <param name="paramName">参数名（用于异常定位）</param>
+    /// <param name="paramDescription">参数语义描述（用于错误消息）</param>
+    /// <exception cref="ArgumentException">value 含 \r 或 \n</exception>
+    private static void RejectCrlf(string value, string paramName, string paramDescription) {
+        if (value.Contains('\r') || value.Contains('\n')) {
+            throw new ArgumentException(
+                $"[TRN-CRLF] {paramDescription} 中含 \\r 或 \\n，拒绝构造 HTTP 请求行/头以防止请求拆分/注入攻击。" +
+                $"触发参数: {paramName}。正确写法: {paramDescription} 不得含 CR/LF 字符，" +
+                $"如需传递换行内容请先编码（如 Base64）或使用请求体。",
+                paramName);
+        }
     }
 
     /// <summary>

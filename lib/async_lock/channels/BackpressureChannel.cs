@@ -149,12 +149,13 @@ public sealed class BackpressureChannel<T> : IAsyncDisposable where T : notnull 
     /// <summary>
     /// Critical 水位建议延迟 — 纯函数,不依赖实例状态,供确定性测试。
     /// <para>超出高水位越多延迟越长,上限1秒。公式: min(100×overflow, 1000)ms。</para>
+    /// <para>用 long 计算 overflow 防止 count - highWatermark int 减法溢出(如 count=int.MaxValue, highWatermark=int.MinValue)。</para>
     /// </summary>
     /// <param name="count">当前队列长度</param>
     /// <param name="highWatermark">高水位线阈值</param>
     /// <returns>建议延迟时间</returns>
     internal static TimeSpan CalculateCriticalDelay(int count, int highWatermark) {
-        var overflow = count - highWatermark;
+        var overflow = (long)count - (long)highWatermark;
         if (overflow <= 0) return TimeSpan.Zero;
         var delayMs = Math.Min(100L * overflow, 1000L);
         return TimeSpan.FromMilliseconds(delayMs);

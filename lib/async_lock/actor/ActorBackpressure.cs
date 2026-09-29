@@ -4,22 +4,56 @@ namespace Core.Utils;
 /// Actor 背压配置 — 有界通道容量 + 满时策略 + 水位线告警 + 发送超时。
 /// <para>Coding Agent 场景:LLM/编译慢,消息会堆积,需有界但容量大,不丢任务。</para>
 /// <para>水位线分两档:High(容量*0.8)触发生产者降速,Critical(容量*0.95)触发告警。</para>
+/// <para>Capacity:有界通道容量(0=无界,负数抛 ArgumentOutOfRangeException)</para>
+/// <para>FullMode:通道满时策略(默认 Wait 阻塞生产者)</para>
+/// <para>HighWatermark:高水位线(null=容量*0.8)</para>
+/// <para>CriticalWatermark:危险水位线(null=容量*0.95)</para>
+/// <para>SendTimeout:发送超时(null=不超时,无限等待)</para>
+/// <para>MaxRetries:背压重试最大次数(默认16,16次仍失败触发SendFailed事件)</para>
+/// <para>RetryQueueCapacity:重试队列容量(默认1024,满时重试回写失败触发SendFailed)</para>
 /// </summary>
-/// <param name="Capacity">有界通道容量(0=无界)</param>
-/// <param name="FullMode">通道满时策略(默认 Wait 阻塞生产者)</param>
-/// <param name="HighWatermark">高水位线(null=容量*0.8)</param>
-/// <param name="CriticalWatermark">危险水位线(null=容量*0.95)</param>
-/// <param name="SendTimeout">发送超时(null=不超时,无限等待)</param>
-/// <param name="MaxRetries">背压重试最大次数(默认16,16次仍失败触发SendFailed事件)</param>
-/// <param name="RetryQueueCapacity">重试队列容量(默认1024,满时重试回写失败触发SendFailed)</param>
-public sealed record ActorBackpressure(
-    int Capacity,
-    BoundedChannelFullMode FullMode = BoundedChannelFullMode.Wait,
-    int? HighWatermark = null,
-    int? CriticalWatermark = null,
-    TimeSpan? SendTimeout = null,
-    int MaxRetries = 16,
-    int RetryQueueCapacity = 1024) {
+public sealed record ActorBackpressure {
+    /// <summary>有界通道容量(0=无界)</summary>
+    public int Capacity { get; init; }
+
+    /// <summary>通道满时策略</summary>
+    public BoundedChannelFullMode FullMode { get; init; } = BoundedChannelFullMode.Wait;
+
+    /// <summary>高水位线(null=容量*0.8)</summary>
+    public int? HighWatermark { get; init; }
+
+    /// <summary>危险水位线(null=容量*0.95)</summary>
+    public int? CriticalWatermark { get; init; }
+
+    /// <summary>发送超时(null=不超时,无限等待)</summary>
+    public TimeSpan? SendTimeout { get; init; }
+
+    /// <summary>背压重试最大次数(默认16)</summary>
+    public int MaxRetries { get; init; } = 16;
+
+    /// <summary>重试队列容量(默认1024)</summary>
+    public int RetryQueueCapacity { get; init; } = 1024;
+
+    /// <summary>构造 Actor 背压配置 — Capacity 负数抛 <see cref="ArgumentOutOfRangeException"/></summary>
+    public ActorBackpressure(
+        int Capacity,
+        BoundedChannelFullMode FullMode = BoundedChannelFullMode.Wait,
+        int? HighWatermark = null,
+        int? CriticalWatermark = null,
+        TimeSpan? SendTimeout = null,
+        int MaxRetries = 16,
+        int RetryQueueCapacity = 1024) {
+        if (Capacity < 0)
+            throw new ArgumentOutOfRangeException(nameof(Capacity), Capacity, "Capacity 不能为负数(0=无界,正数=有界通道容量)");
+        this.Capacity = Capacity;
+        this.FullMode = FullMode;
+        this.HighWatermark = HighWatermark;
+        this.CriticalWatermark = CriticalWatermark;
+        this.SendTimeout = SendTimeout;
+        this.MaxRetries = MaxRetries;
+        this.RetryQueueCapacity = RetryQueueCapacity;
+    }
+
     /// <summary>高水位线 — null 时取容量*0.8</summary>
     public int EffectiveHighWatermark => HighWatermark ?? (int)(Capacity * 0.8);
 

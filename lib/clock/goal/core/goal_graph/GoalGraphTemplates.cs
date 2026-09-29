@@ -532,7 +532,11 @@ public static class GoalGraphTemplates {
     /// </summary>
     /// <param name="taskId">子任务 ID</param>
     /// <returns>Worker 节点 ID,格式为 "worker_{taskId}"</returns>
-    internal static string BuildWorkerId(string taskId) => $"worker_{taskId}";
+    /// <exception cref="ArgumentException">taskId 为 null、空或空白</exception>
+    internal static string BuildWorkerId(string taskId) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(taskId);
+        return $"worker_{taskId}";
+    }
 
     /// <summary>
     /// 构造 Worker 节点 Payload — 纯函数,无副作用,确定性输出。
@@ -540,7 +544,10 @@ public static class GoalGraphTemplates {
     /// </summary>
     /// <param name="task">子任务定义</param>
     /// <returns>Worker 节点的 GoalNodePayload</returns>
+    /// <exception cref="ArgumentNullException">task 或 task.OwnedFiles 为 null</exception>
     internal static GoalNodePayload BuildWorkerNodePayload(SubTaskDefinition task) {
+        ArgumentNullException.ThrowIfNull(task);
+        ArgumentNullException.ThrowIfNull(task.OwnedFiles);
         var variant = task.Variant == ExecutorVariant.Explore
             ? ExecutorVariant.Explore
             : ExecutorVariant.Code;

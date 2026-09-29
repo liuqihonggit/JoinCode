@@ -190,5 +190,54 @@ public sealed class PluginLifecycleTrackerTest {
         tracker.ExecuteUndoChain("p2");
         executed.Should().BeTrue();
     }
+
+    // ===== RegisterUndoChain null 参数守卫 =====
+
+    [Fact]
+    public void RegisterUndoChain_NullPluginName_ThrowsArgumentNullException() {
+        var tracker = new PluginLifecycleTracker(null, null);
+
+        Action act = () => tracker.RegisterUndoChain(null!, [], null);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("pluginName");
+    }
+
+    [Fact]
+    public void RegisterUndoChain_EmptyPluginName_ThrowsArgumentException() {
+        var tracker = new PluginLifecycleTracker(null, null);
+
+        Action act = () => tracker.RegisterUndoChain("", [], null);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void RegisterUndoChain_WhiteSpacePluginName_ThrowsArgumentException() {
+        var tracker = new PluginLifecycleTracker(null, null);
+
+        Action act = () => tracker.RegisterUndoChain("   ", [], null);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void RegisterUndoChain_NullUndoChain_ThrowsArgumentNullException() {
+        var tracker = new PluginLifecycleTracker(null, null);
+
+        Action act = () => tracker.RegisterUndoChain("p", null!, null);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("undoChain");
+    }
+
+    [Fact]
+    public void RegisterUndoChain_NullAsyncUndoChain_AcceptedAndNoThrow() {
+        var tracker = new PluginLifecycleTracker(null, null);
+
+        Action act = () => tracker.RegisterUndoChain("p", [], null);
+
+        act.Should().NotThrow();
+    }
 }
 #pragma warning restore JCC9108, JCC9202

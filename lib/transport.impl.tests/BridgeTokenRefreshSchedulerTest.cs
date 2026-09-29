@@ -95,4 +95,49 @@ public class BridgeTokenRefreshSchedulerTest {
 
         result.Should().Be(expSeconds * 1000L);
     }
+
+    // === ClampExpiryToMilliseconds: long 溢出钳制 ===
+
+    /// <summary>正常范围内 expSeconds*1000 不溢出。</summary>
+    [Fact]
+    public void ClampExpiryToMilliseconds_NormalRange_ReturnsProduct() {
+        BridgeTokenRefreshScheduler.ClampExpiryToMilliseconds(1_700_000_000L).Should().Be(1_700_000_000_000L);
+        BridgeTokenRefreshScheduler.ClampExpiryToMilliseconds(0L).Should().Be(0L);
+        BridgeTokenRefreshScheduler.ClampExpiryToMilliseconds(1L).Should().Be(1000L);
+    }
+
+    /// <summary>expSeconds 超过 long.MaxValue/1000 时钳制到 long.MaxValue（防溢出）。</summary>
+    [Fact]
+    public void ClampExpiryToMilliseconds_OverflowPositive_ClampedToMaxValue() {
+        var overSafe = long.MaxValue / 1000 + 1;
+        BridgeTokenRefreshScheduler.ClampExpiryToMilliseconds(overSafe).Should().Be(long.MaxValue);
+        BridgeTokenRefreshScheduler.ClampExpiryToMilliseconds(long.MaxValue).Should().Be(long.MaxValue);
+    }
+
+    /// <summary>expSeconds 小于 long.MinValue/1000 时钳制到 long.MinValue（防下溢）。</summary>
+    [Fact]
+    public void ClampExpiryToMilliseconds_UnderflowNegative_ClampedToMinValue() {
+        var underSafe = long.MinValue / 1000 - 1;
+        BridgeTokenRefreshScheduler.ClampExpiryToMilliseconds(underSafe).Should().Be(long.MinValue);
+        BridgeTokenRefreshScheduler.ClampExpiryToMilliseconds(long.MinValue).Should().Be(long.MinValue);
+    }
+
+    /// <summary>expSeconds 恰为 long.MaxValue/1000 时不溢出（边界）。</summary>
+    [Fact]
+    public void ClampExpiryToMilliseconds_ExactlyMaxSafe_NoOverflow() {
+        var maxSafe = long.MaxValue / 1000;
+        var expected = maxSafe * 1000;
+        BridgeTokenRefreshScheduler.ClampExpiryToMilliseconds(maxSafe).Should().Be(expected);
+    }
+
+    /// <summary>DecodeJwtExpiry 解码超大 exp 时返回钳制值而非溢出负数。</summary>
+    [Fact]
+    public void DecodeJwtExpiry_HugeExp_ReturnsClampedNotOverflow() {
+        var hugeExp = long.MaxValue; // 远超 long.MaxValue/1000
+        var jwt = MakeJwt($"{{\"exp\":{hugeExp}}}");
+
+        var result = BridgeTokenRefreshScheduler.DecodeJwtExpiry(jwt);
+
+        result.Should().Be(long.MaxValue);
+    }
 }

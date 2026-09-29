@@ -245,9 +245,25 @@ public sealed class RingBuffer<T> {
     }
 
     /// <summary>
-    /// 向上取整到不小于 value 的最小 2 次幂
+    /// 向上取整到不小于 value 的最小 2 次幂。
+    /// <list type="bullet">
+    /// <item><paramref name="value"/> = 0 → 返回 1(最小 2 次幂)。</item>
+    /// <item><paramref name="value"/> &lt; 0 → 抛 <see cref="ArgumentOutOfRangeException"/>。</item>
+    /// <item><paramref name="value"/> &gt; 2^30 → 返回 2^30(int 范围内最大 2 次幂,避免 2^31 溢出)。</item>
+    /// <item>已是 2 的幂 → 返回原值。</item>
+    /// </list>
     /// </summary>
+    /// <param name="value">待向上取整的值,必须非负。</param>
+    /// <returns>不小于 <paramref name="value"/> 的最小 2 次幂;若超出 int 范围则钳制到 2^30。</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> 为负数。</exception>
     public static int RoundUpToPowerOfTwo(int value) {
+        if (value < 0)
+            throw new ArgumentOutOfRangeException(nameof(value), value, "值不能为负数");
+        if (value == 0)
+            return 1;
+        // value > 2^30 时,下一个 2 次幂 2^31 溢出 int 范围,钳制到最大可表示的 2 次幂 2^30
+        if (value > 0x4000_0000)
+            return 0x4000_0000;
         var v = value - 1;
         v |= v >> 1;
         v |= v >> 2;

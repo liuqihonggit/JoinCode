@@ -131,4 +131,36 @@ public class MtpPerturbationNodeInternalTests {
     }
 
     #endregion
+
+    #region Null 守卫
+
+    [Fact]
+    public void ContainsPathError_NullStderr_ThrowsArgumentNullException() {
+        var act = () => MtpPerturbationNode.ContainsPathError(null!);
+        act.Should().Throw<ArgumentNullException>()
+           .WithParameterName("stderr");
+    }
+
+    [Fact]
+    public void ExtractFeatures_NullCommand_ThrowsArgumentNullException() {
+        var act = () => MtpPerturbationNode.ExtractFeatures(null!);
+        act.Should().Throw<ArgumentNullException>()
+           .WithParameterName("command");
+    }
+
+    [Fact]
+    public void DetectAnomaly_NullFeatures_ThrowsArgumentNullException() {
+        var act = () => MtpPerturbationNode.DetectAnomaly(null!, exitCode: 0, stderr: null);
+        act.Should().Throw<ArgumentNullException>()
+           .WithParameterName("features");
+    }
+
+    [Fact]
+    public void CountConsecutiveAnomalies_NullRecords_ThrowsArgumentNullException() {
+        var act = () => MtpPerturbationNode.CountConsecutiveAnomalies(null!);
+        act.Should().Throw<ArgumentNullException>()
+           .WithParameterName("records");
+    }
+
+    #endregion
 }

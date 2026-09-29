@@ -73,6 +73,30 @@ public sealed class RuleFrontmatterParserTests {
 
         Assert.True(alwaysApply);
     }
+
+    #region null 守卫
+
+    [Fact]
+    public void Parse_Null_Should_Return_EmptyTuple_WithoutThrowing() {
+        var (content, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(null);
+
+        content.Should().BeEmpty();
+        alwaysApply.Should().BeFalse();
+        globs.Should().BeEmpty();
+        description.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Parse_EmptyString_Should_Return_EmptyContent() {
+        var (content, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(string.Empty);
+
+        content.Should().BeEmpty();
+        alwaysApply.Should().BeFalse();
+        globs.Should().BeEmpty();
+        description.Should().BeEmpty();
+    }
+
+    #endregion
 }
 
 public sealed class RuleFileTests {

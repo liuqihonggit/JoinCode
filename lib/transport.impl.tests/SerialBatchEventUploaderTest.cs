@@ -79,6 +79,76 @@ public class SerialBatchEventUploaderTest {
         uploader.ComputeRetryDelay(1, 500).Should().Be(500);
     }
 
+    // === ComputeRetryDelay / ComputeExponentialDelay: 整数溢出钳制 ===
+
+    /// <summary>failures=32 时位移 1&lt;&lt;31 不溢出为负数（位移钳制到 30）。</summary>
+    [Fact]
+    public void ComputeRetryDelay_LargeFailures_NoShiftOverflow() {
+        using var uploader = CreateUploader(baseDelay: 1, maxDelay: int.MaxValue, jitter: 0);
+
+        // failures=32: shift=min(31,30)=30, 1<<30=1073741824, *1=1073741824（正数，非负）
+        uploader.ComputeRetryDelay(32, null).Should().Be(1 << 30);
+    }
+
+    /// <summary>failures=100 时位移钳制到 30，结果与 failures=31 一致。</summary>
+    [Fact]
+    public void ComputeRetryDelay_VeryLargeFailures_CappedAtShift30() {
+        using var uploader = CreateUploader(baseDelay: 1, maxDelay: int.MaxValue, jitter: 0);
+
+        uploader.ComputeRetryDelay(100, null).Should().Be(1 << 30);
+        uploader.ComputeRetryDelay(31, null).Should().Be(1 << 30);
+    }
+
+    /// <summary>BaseDelayMs * (1&lt;&lt;shift) 超过 int 范围时钳制到 MaxDelayMs（不溢出）。</summary>
+    [Fact]
+    public void ComputeRetryDelay_ProductOverflow_ClampedToMaxDelay() {
+        using var uploader = CreateUploader(baseDelay: 100_000, maxDelay: 5000, jitter: 0);
+
+        // failures=20: shift=19→钳30, 1<<19=524288, 100000*524288=52428800000 > int.MaxValue
+        // 钳制到 MaxDelayMs=5000
+        uploader.ComputeRetryDelay(20, null).Should().Be(5000);
+    }
+
+    /// <summary>ComputeExponentialDelay 纯函数: failures=1 返回 baseDelay。</summary>
+    [Fact]
+    public void ComputeExponentialDelay_FirstFailure_ReturnsBaseDelay() {
+        SerialBatchEventUploader.ComputeExponentialDelay(1, 1000, 5000).Should().Be(1000);
+    }
+
+    /// <summary>ComputeExponentialDelay 纯函数: failures=0 返回 baseDelay（防御性）。</summary>
+    [Fact]
+    public void ComputeExponentialDelay_ZeroFailures_ReturnsBaseDelay() {
+        SerialBatchEventUploader.ComputeExponentialDelay(0, 1000, 5000).Should().Be(1000);
+    }
+
+    /// <summary>ComputeExponentialDelay 纯函数: 负数 failures 返回 baseDelay（防御性）。</summary>
+    [Fact]
+    public void ComputeExponentialDelay_NegativeFailures_ReturnsBaseDelay() {
+        SerialBatchEventUploader.ComputeExponentialDelay(-5, 1000, 5000).Should().Be(1000);
+    }
+
+    /// <summary>ComputeExponentialDelay 纯函数: 大位移钳制到 30，结果为正数。</summary>
+    [Fact]
+    public void ComputeExponentialDelay_HugeFailures_PositiveResult() {
+        var result = SerialBatchEventUploader.ComputeExponentialDelay(50, 1, int.MaxValue);
+        result.Should().BePositive();
+        result.Should().Be(1 << 30);
+    }
+
+    /// <summary>ComputeExponentialDelay 纯函数: 乘法溢出时钳制到 maxDelayMs。</summary>
+    [Fact]
+    public void ComputeExponentialDelay_MultiplicationOverflow_ClampedToMax() {
+        // baseDelay=100000, failures=20: 100000 * (1<<19) = 52428800000 > int.MaxValue
+        // 钳制到 maxDelayMs=5000
+        SerialBatchEventUploader.ComputeExponentialDelay(20, 100_000, 5000).Should().Be(5000);
+    }
+
+    /// <summary>ComputeExponentialDelay 纯函数: baseDelay 超过 maxDelay 时直接钳制。</summary>
+    [Fact]
+    public void ComputeExponentialDelay_BaseExceedsMax_ClampedToMax() {
+        SerialBatchEventUploader.ComputeExponentialDelay(1, 10_000, 5000).Should().Be(5000);
+    }
+
     // === ComputeBatchTakeCount: 纯函数，确定性 ===
 
     /// <summary>MaxBatchBytes=0（不限字节）时按 MaxBatchSize 截取。</summary>

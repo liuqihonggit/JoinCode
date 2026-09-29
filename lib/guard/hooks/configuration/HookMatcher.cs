@@ -165,10 +165,15 @@ public sealed class HookConfigurationGroup {
             .ToList();
     }
 
-    private int GetMatcherPriority(HookEvent hookEvent, string matcher) {
+    /// <summary>
+    /// 获取匹配器优先级 — 取该匹配器下所有钩子来源的最低优先级值
+    /// <para>空集合守卫:并发场景下 GetMatchers 与 GetHooks 之间可能被其他线程清空,</para>
+    /// <para>此时返回 int.MaxValue（最低优先级）避免 .Min() 抛 InvalidOperationException。</para>
+    /// </summary>
+    internal int GetMatcherPriority(HookEvent hookEvent, string matcher) {
         var hooks = GetHooks(hookEvent, matcher);
         var sources = hooks.Select(h => h.Source).Distinct();
 
-        return sources.Min(s => s.GetPriority());
+        return sources.Any() ? sources.Min(s => s.GetPriority()) : int.MaxValue;
     }
 }

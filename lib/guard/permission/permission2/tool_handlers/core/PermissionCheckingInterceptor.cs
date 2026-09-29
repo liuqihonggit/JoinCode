@@ -177,10 +177,16 @@ public sealed partial class PermissionInterceptResult {
     /// <summary>
     /// 创建拒绝执行的结果
     /// </summary>
-    public static PermissionInterceptResult Denied(string reason) => new() { DenyReason = reason };
+    public static PermissionInterceptResult Denied(string reason) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        return new() { DenyReason = reason };
+    }
 
     /// <summary>
     /// 创建需要确认的结果
     /// </summary>
-    public static PermissionInterceptResult ConfirmationRequired(string prompt) => new() { RequiresConfirmation = true, ConfirmationPrompt = prompt };
+    public static PermissionInterceptResult ConfirmationRequired(string prompt) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
+        return new() { RequiresConfirmation = true, ConfirmationPrompt = prompt };
+    }
 }

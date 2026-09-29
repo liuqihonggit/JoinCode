@@ -154,7 +154,7 @@ public sealed class AsyncLock : IDisposable {
         LockRegistry.OnWaitStart(_registryId, _name);
         bool acquired;
         try {
-            acquired = _semaphore.Wait((int)timeout.TotalMilliseconds, ct);
+            acquired = _semaphore.Wait(ClampTimeoutMs(timeout), ct);
         } catch (OperationCanceledException) {
             LockRegistry.OnWaitEnd(_registryId, _name);
             throw;
@@ -166,6 +166,18 @@ public sealed class AsyncLock : IDisposable {
         }
         LockRegistry.OnAcquired(_registryId, _name);
         return new Releaser(this);
+    }
+
+    /// <summary>
+    /// 钳制 TimeSpan 超时为 SemaphoreSlim.Wait 接受的 int 毫秒范围 [0, int.MaxValue]。
+    /// <para>处理 TotalMilliseconds &gt; int.MaxValue 的溢出(原 (int) 强转会抛 OverflowException),
+    /// 以及负值(原负值会触发 SemaphoreSlim 的 ArgumentOutOfRangeException)。</para>
+    /// </summary>
+    internal static int ClampTimeoutMs(TimeSpan timeout) {
+        var ms = timeout.TotalMilliseconds;
+        if (ms <= 0) return 0;
+        if (ms > int.MaxValue) return int.MaxValue;
+        return (int)ms;
     }
 
     /// <summary>
@@ -185,7 +197,7 @@ public sealed class AsyncLock : IDisposable {
         LockRegistry.OnWaitStart(_registryId, _name);
         bool acquired;
         try {
-            acquired = await _semaphore.WaitAsync((int)timeout.TotalMilliseconds, ct).ConfigureAwait(false);
+            acquired = await _semaphore.WaitAsync(ClampTimeoutMs(timeout), ct).ConfigureAwait(false);
         } catch (OperationCanceledException) {
             LockRegistry.OnWaitEnd(_registryId, _name);
             throw;

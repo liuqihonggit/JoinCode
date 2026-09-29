@@ -160,4 +160,16 @@ public sealed class ResourceReferenceGraphTest {
         // 原有引用不受影响
         graph.GetReferencesBy("B").Should().HaveCount(1);
     }
+
+    // ===== AddReference null 参数守卫 =====
+
+    [Fact]
+    public void AddReference_NullReference_ThrowsArgumentNullException() {
+        var graph = new ResourceReferenceGraph();
+
+        Action act = () => graph.AddReference(null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("reference");
+    }
 }

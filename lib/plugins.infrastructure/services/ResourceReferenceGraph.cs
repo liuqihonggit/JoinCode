@@ -13,6 +13,7 @@ public sealed class ResourceReferenceGraph : IResourceReferenceGraph {
 
     /// <summary>记录引用 — 插件B 引用 插件A 的资源</summary>
     public void AddReference(ResourceReference reference) {
+        ArgumentNullException.ThrowIfNull(reference);
         var key = (reference.ConsumerResourceId, reference.TargetResourceId);
         var added = false;
         ImmutableInterlocked.Update(ref _references, d => {

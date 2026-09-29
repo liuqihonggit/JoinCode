@@ -122,6 +122,7 @@ public sealed partial class SwarmWorkerHandler : ServiceEntity {
     }
 
     internal static string? ExtractCommand(Dictionary<string, JsonElement> input) {
+        ArgumentNullException.ThrowIfNull(input);
         if (input.TryGetValue("command", out var cmd) && cmd.ValueKind == JsonValueKind.String)
             return cmd.GetString();
         return null;

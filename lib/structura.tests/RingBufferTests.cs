@@ -259,4 +259,132 @@ public class RingBufferTests {
         errors.Should().BeEmpty();
         buf.Count.Should().Be(cap);
     }
+
+    // === RoundUpToPowerOfTwo 参数验证测试 ===
+
+    /// <summary>验证 0 返回 1(最小 2 次幂)。</summary>
+    [Fact]
+    public void RoundUpToPowerOfTwo_Zero_ReturnsOne() {
+        RingBuffer<int>.RoundUpToPowerOfTwo(0).Should().Be(1);
+    }
+
+    /// <summary>验证负数抛 ArgumentOutOfRangeException。</summary>
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(-2)]
+    [InlineData(-100)]
+    [InlineData(int.MinValue)]
+    public void RoundUpToPowerOfTwo_Negative_ThrowsArgumentOutOfRangeException(int value) {
+        var act = () => RingBuffer<int>.RoundUpToPowerOfTwo(value);
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .WithParameterName("value");
+    }
+
+    /// <summary>验证 1 返回 1。</summary>
+    [Fact]
+    public void RoundUpToPowerOfTwo_One_ReturnsOne() {
+        RingBuffer<int>.RoundUpToPowerOfTwo(1).Should().Be(1);
+    }
+
+    /// <summary>验证 2 返回 2。</summary>
+    [Fact]
+    public void RoundUpToPowerOfTwo_Two_ReturnsTwo() {
+        RingBuffer<int>.RoundUpToPowerOfTwo(2).Should().Be(2);
+    }
+
+    /// <summary>验证 3 返回 4(向上取整到下一个 2 次幂)。</summary>
+    [Fact]
+    public void RoundUpToPowerOfTwo_Three_ReturnsFour() {
+        RingBuffer<int>.RoundUpToPowerOfTwo(3).Should().Be(4);
+    }
+
+    /// <summary>验证已是 2 的幂时返回原值。</summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(16)]
+    [InlineData(32)]
+    [InlineData(64)]
+    [InlineData(128)]
+    [InlineData(256)]
+    [InlineData(512)]
+    [InlineData(1024)]
+    [InlineData(0x4000_0000)] // 2^30,int 范围内最大 2 次幂
+    public void RoundUpToPowerOfTwo_AlreadyPowerOfTwo_ReturnsValue(int value) {
+        RingBuffer<int>.RoundUpToPowerOfTwo(value).Should().Be(value);
+    }
+
+    /// <summary>验证非 2 次幂向上取整到下一个 2 次幂。</summary>
+    [Theory]
+    [InlineData(5, 8)]
+    [InlineData(6, 8)]
+    [InlineData(7, 8)]
+    [InlineData(9, 16)]
+    [InlineData(15, 16)]
+    [InlineData(17, 32)]
+    [InlineData(100, 128)]
+    [InlineData(1000, 1024)]
+    public void RoundUpToPowerOfTwo_NonPowerOfTwo_RoundsUp(int input, int expected) {
+        RingBuffer<int>.RoundUpToPowerOfTwo(input).Should().Be(expected);
+    }
+
+    /// <summary>验证 int.MaxValue 钳制到 2^30(避免 2^31 溢出)。</summary>
+    [Fact]
+    public void RoundUpToPowerOfTwo_IntMaxValue_ClampsTo2Pow30() {
+        RingBuffer<int>.RoundUpToPowerOfTwo(int.MaxValue).Should().Be(0x4000_0000);
+    }
+
+    /// <summary>验证超过 2^30 的值钳制到 2^30。</summary>
+    [Theory]
+    [InlineData(0x4000_0001)] // 2^30 + 1
+    [InlineData(0x5000_0000)]
+    [InlineData(0x7FFFFFFE)] // int.MaxValue - 1
+    public void RoundUpToPowerOfTwo_Above2Pow30_ClampsTo2Pow30(int value) {
+        RingBuffer<int>.RoundUpToPowerOfTwo(value).Should().Be(0x4000_0000);
+    }
+
+    // === Oldest/Latest 空队列测试 ===
+
+    /// <summary>验证空队列访问 Oldest 抛 ArgumentOutOfRangeException。</summary>
+    [Fact]
+    public void Oldest_EmptyQueue_ThrowsArgumentOutOfRangeException() {
+        var buf = new RingBuffer<int>(4);
+        buf.IsEmpty.Should().BeTrue();
+        var act = () => _ = buf.Oldest;
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    /// <summary>验证空队列访问 Latest 抛 ArgumentOutOfRangeException。</summary>
+    [Fact]
+    public void Latest_EmptyQueue_ThrowsArgumentOutOfRangeException() {
+        var buf = new RingBuffer<int>(4);
+        buf.IsEmpty.Should().BeTrue();
+        var act = () => _ = buf.Latest;
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    /// <summary>验证单元素队列 Oldest 与 Latest 返回相同元素。</summary>
+    [Fact]
+    public void Oldest_Latest_SingleElement_ReturnsSameElement() {
+        var buf = new RingBuffer<int>(4);
+        buf.Add(42);
+        buf.Oldest.Should().Be(42);
+        buf.Latest.Should().Be(42);
+    }
+
+    /// <summary>验证 Clear 后访问 Oldest/Latest 抛异常。</summary>
+    [Fact]
+    public void Oldest_Latest_AfterClear_Throws() {
+        var buf = new RingBuffer<int>(4);
+        buf.Add(1);
+        buf.Add(2);
+        buf.Clear();
+        buf.IsEmpty.Should().BeTrue();
+        var actOldest = () => _ = buf.Oldest;
+        var actLatest = () => _ = buf.Latest;
+        actOldest.Should().Throw<ArgumentOutOfRangeException>();
+        actLatest.Should().Throw<ArgumentOutOfRangeException>();
+    }
 }

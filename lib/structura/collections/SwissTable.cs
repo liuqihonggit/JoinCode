@@ -1003,6 +1003,11 @@ namespace Structura.Collections
         /// </remarks>
         public void TrimExcess(int capacity)
         {
+            if (capacity < 0)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
+            }
+
             if (capacity < Count)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);

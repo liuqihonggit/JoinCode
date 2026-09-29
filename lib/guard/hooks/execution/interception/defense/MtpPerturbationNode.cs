@@ -106,12 +106,14 @@ public sealed class MtpPerturbationNode {
     /// <summary>
     /// 提取命令的扰动特征。
     /// </summary>
-    internal static PerturbationFeatures ExtractFeatures(string command)
-        => new(
+    internal static PerturbationFeatures ExtractFeatures(string command) {
+        ArgumentNullException.ThrowIfNull(command);
+        return new(
             CommandLength: command.Length,
             HasRedirectSymbol: command.Contains('>') || command.Contains('<'),
             HasPathLikeToken: command.Contains('/') || command.Contains('\\') || command.Contains('~'),
             Timestamp: DateTimeOffset.UtcNow);
+    }
 
     /// <summary>
     /// 检测单次调用是否为异常（扰动特征）。
@@ -124,6 +126,7 @@ public sealed class MtpPerturbationNode {
     /// </para>
     /// </summary>
     internal static bool DetectAnomaly(PerturbationFeatures features, int exitCode, string? stderr) {
+        ArgumentNullException.ThrowIfNull(features);
         if (exitCode != 0 && features.HasRedirectSymbol)
             return true;
 
@@ -136,15 +139,18 @@ public sealed class MtpPerturbationNode {
     /// <summary>
     /// 检测 stderr 是否包含路径错误（拼写偏移特征）。
     /// </summary>
-    internal static bool ContainsPathError(string stderr)
-        => stderr.Contains("not found", StringComparison.OrdinalIgnoreCase)
-           || stderr.Contains("No such file", StringComparison.OrdinalIgnoreCase)
-           || stderr.Contains("cannot access", StringComparison.OrdinalIgnoreCase);
+    internal static bool ContainsPathError(string stderr) {
+        ArgumentNullException.ThrowIfNull(stderr);
+        return stderr.Contains("not found", StringComparison.OrdinalIgnoreCase)
+               || stderr.Contains("No such file", StringComparison.OrdinalIgnoreCase)
+               || stderr.Contains("cannot access", StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// 计算最近记录中连续异常的次数（从最新往前数）。
     /// </summary>
     internal static int CountConsecutiveAnomalies(ImmutableList<PerturbationRecord> records) {
+        ArgumentNullException.ThrowIfNull(records);
         var count = 0;
         for (var i = records.Count - 1; i >= 0; i--) {
             if (!records[i].IsAnomaly)

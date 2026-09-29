@@ -276,6 +276,89 @@ public class HttpRequestSerializerTest {
         builder.ToString().Should().Be("X-Path: /a/b/c?d=e&f=g\r\n");
     }
 
+    // === CRLF 注入守卫: BuildRequestLine / AppendHeaderLine 拒绝 \r \n ===
+
+    /// <summary>pathAndQuery 含 \r\n 时抛 ArgumentException（HTTP 请求拆分攻击防御）。</summary>
+    [Fact]
+    public void BuildRequestLine_PathWithCrlf_Throws() {
+        var act = () => HttpRequestSerializer.BuildRequestLine(HttpMethod.Get, "/path\r\nX-Injected: evil");
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*CRLF*");
+    }
+
+    /// <summary>pathAndQuery 含单独 \r 时抛 ArgumentException。</summary>
+    [Fact]
+    public void BuildRequestLine_PathWithCr_Throws() {
+        var act = () => HttpRequestSerializer.BuildRequestLine(HttpMethod.Get, "/path\revil");
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    /// <summary>pathAndQuery 含单独 \n 时抛 ArgumentException。</summary>
+    [Fact]
+    public void BuildRequestLine_PathWithLf_Throws() {
+        var act = () => HttpRequestSerializer.BuildRequestLine(HttpMethod.Get, "/path\nevil");
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    /// <summary>头值含 \r\n 时抛 ArgumentException（HTTP 头注入防御）。</summary>
+    [Fact]
+    public void AppendHeaderLine_ValueWithCrlf_Throws() {
+        var builder = new StringBuilder();
+        var act = () => HttpRequestSerializer.AppendHeaderLine(builder, "X-Safe", "value\r\nX-Injected: evil");
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*CRLF*");
+    }
+
+    /// <summary>头名含 \r\n 时抛 ArgumentException。</summary>
+    [Fact]
+    public void AppendHeaderLine_KeyWithCrlf_Throws() {
+        var builder = new StringBuilder();
+        var act = () => HttpRequestSerializer.AppendHeaderLine(builder, "X-Safe\r\nX-Injected", "value");
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    /// <summary>头值含单独 \r 时抛 ArgumentException。</summary>
+    [Fact]
+    public void AppendHeaderLine_ValueWithCr_Throws() {
+        var builder = new StringBuilder();
+        var act = () => HttpRequestSerializer.AppendHeaderLine(builder, "X-Safe", "value\revil");
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    /// <summary>头值含单独 \n 时抛 ArgumentException。</summary>
+    [Fact]
+    public void AppendHeaderLine_ValueWithLf_Throws() {
+        var builder = new StringBuilder();
+        var act = () => HttpRequestSerializer.AppendHeaderLine(builder, "X-Safe", "value\nevil");
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    /// <summary>异常消息含参数名 pathAndQuery 用于定位。</summary>
+    [Fact]
+    public void BuildRequestLine_CrlfException_ContainsParamName() {
+        var act = () => HttpRequestSerializer.BuildRequestLine(HttpMethod.Get, "/x\r\n");
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("pathAndQuery");
+    }
+
+    /// <summary>异常消息含参数名 value 用于定位。</summary>
+    [Fact]
+    public void AppendHeaderLine_CrlfException_ContainsParamName() {
+        var builder = new StringBuilder();
+        var act = () => HttpRequestSerializer.AppendHeaderLine(builder, "K", "v\r\n");
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("value");
+    }
+
     // === AppendHeaders: 批量头追加 ===
 
     /// <summary>多值头每个值生成一行。</summary>

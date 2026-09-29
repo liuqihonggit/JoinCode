@@ -134,6 +134,11 @@ public sealed class ContinuationPromptBuilderTests {
     }
 
     [Fact]
+    public void BuildConstraintsText_Null_Should_Throw_ArgumentNullException() {
+        Assert.Throws<ArgumentNullException>(() => ContinuationPromptBuilder.BuildConstraintsText(null!));
+    }
+
+    [Fact]
     public void BuildConstraintsText_Single_Should_Prefix_With_Dash() {
         var text = ContinuationPromptBuilder.BuildConstraintsText(["只读模式"]);
 

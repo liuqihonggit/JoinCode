@@ -163,4 +163,34 @@ public sealed class GraphExecutionContextTest {
 
         Assert.Equal(next1, next2);
     }
+
+    [Fact]
+    public void CollectNextNodeIds_NullDag_Should_Throw_ArgumentNullException() {
+        Assert.Throws<ArgumentNullException>(() =>
+            GraphExecutionContext.CollectNextNodeIds(null!, "a", null, RouteMatchMode.All));
+    }
+
+    [Fact]
+    public void CollectNextNodeIds_NullFromNodeId_Should_Throw_ArgumentNullException() {
+        var dag = BuildTestDag();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            GraphExecutionContext.CollectNextNodeIds(dag, null!, null, RouteMatchMode.All));
+    }
+
+    [Fact]
+    public void CollectNextNodeIds_EmptyFromNodeId_Should_Throw_ArgumentException() {
+        var dag = BuildTestDag();
+
+        Assert.Throws<ArgumentException>(() =>
+            GraphExecutionContext.CollectNextNodeIds(dag, "", null, RouteMatchMode.All));
+    }
+
+    [Fact]
+    public void CollectNextNodeIds_WhiteSpaceFromNodeId_Should_Throw_ArgumentException() {
+        var dag = BuildTestDag();
+
+        Assert.Throws<ArgumentException>(() =>
+            GraphExecutionContext.CollectNextNodeIds(dag, "   ", null, RouteMatchMode.All));
+    }
 }

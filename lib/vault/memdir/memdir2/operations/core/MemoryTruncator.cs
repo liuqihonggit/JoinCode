@@ -149,6 +149,8 @@ public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator {
     /// 流程:评分 → 按分数降序 → 取 maxLines/2 → 按原索引升序恢复顺序
     /// </summary>
     internal static List<ScoredLine> ScoreAndSelectLines(string[] lines, string[] queryWords, int maxLines) {
+        ArgumentNullException.ThrowIfNull(lines);
+        ArgumentNullException.ThrowIfNull(queryWords);
         return lines
             .Select((line, index) => new ScoredLine(line, index, CalculateLineRelevance(line, queryWords)))
             .OrderByDescending(x => x.Score)
@@ -162,6 +164,7 @@ public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator {
     /// 不连续行号间插入省略号;行数超阈值时追加截断提示
     /// </summary>
     internal static List<string> AssembleTruncatedLines(List<ScoredLine> scoredLines, int totalLineCount, int maxLines) {
+        ArgumentNullException.ThrowIfNull(scoredLines);
         var resultLines = new List<string>();
         int? lastIndex = null;
 
@@ -188,6 +191,7 @@ public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator {
     /// 计算行相关性分数
     /// </summary>
     internal static double CalculateLineRelevance(string line, string[] queryWords) {
+        ArgumentNullException.ThrowIfNull(queryWords);
         if (string.IsNullOrWhiteSpace(line) || queryWords.Length == 0) {
             return 0;
         }
@@ -201,6 +205,7 @@ public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator {
     /// 按字节数截断
     /// </summary>
     internal static string TruncateByBytes(string content, int maxBytes) {
+        ArgumentNullException.ThrowIfNull(content);
         var bytes = System.Text.Encoding.UTF8.GetBytes(content);
 
         if (bytes.Length <= maxBytes) {

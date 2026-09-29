@@ -363,16 +363,19 @@ public sealed partial class InteractiveHandler : ServiceEntity {
     }
 
     internal static string? ExtractCommand(Dictionary<string, JsonElement> input) {
+        ArgumentNullException.ThrowIfNull(input);
         if (input.TryGetValue("command", out var cmd) && cmd.ValueKind == JsonValueKind.String)
             return cmd.GetString();
         return null;
     }
 
-    internal static PermissionResult CreatePermissionResult(PermissionAskDecision result) {
-        return result.Behavior switch {
-            PermissionBehavior.Allow => PermissionResult.Granted(),
-            PermissionBehavior.Deny => PermissionResult.Denied(result.Message ?? "权限被拒绝"),
-            _ => PermissionResult.PendingConfirmation(result.Message ?? "需要用户确认")
+    internal static PermissionResult CreatePermissionResult(PermissionDecision result) {
+        ArgumentNullException.ThrowIfNull(result);
+        return result switch {
+            PermissionAllowDecision => PermissionResult.Granted(),
+            PermissionDenyDecision d => PermissionResult.Denied(d.Message),
+            PermissionAskDecision a => PermissionResult.PendingConfirmation(a.Message ?? "需要用户确认"),
+            _ => PermissionResult.PendingConfirmation("需要用户确认")
         };
     }
 }

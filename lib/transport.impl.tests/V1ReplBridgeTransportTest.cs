@@ -154,6 +154,46 @@ public class V1ReplBridgeTransportTest {
         V1ReplBridgeTransport.ShouldResetReconnectBudget(10000, 5000, 60000).Should().BeFalse();
     }
 
+    /// <summary>now=long.MaxValue、last=1 时差不溢出且超过阈值返回 true。</summary>
+    [Fact]
+    public void ShouldResetReconnectBudget_MaxNowPositiveLast_NoOverflowTrue() {
+        V1ReplBridgeTransport.ShouldResetReconnectBudget(1, long.MaxValue, 60000).Should().BeTrue();
+    }
+
+    /// <summary>now 为负数（时钟回绕到负数）时返回 false（差为负，不大于正阈值）。</summary>
+    [Fact]
+    public void ShouldResetReconnectBudget_NegativeNow_ReturnsFalse() {
+        // last=1000, now=-5000 → diff=-6000，不大于 60000
+        V1ReplBridgeTransport.ShouldResetReconnectBudget(1000, -5000, 60000).Should().BeFalse();
+    }
+
+    /// <summary>now=long.MinValue、last=long.MaxValue 时减法下溢为正数但仍可能误判 — 防御性测试。</summary>
+    /// <remarks>
+    /// long.MinValue - long.MaxValue 在 checked 上下文会抛 OverflowException，unchecked 下溢为 1。
+    /// 当前实现未 checked，下溢结果为 1，不大于 60000 → false。此测试固化当前行为。
+    /// </remarks>
+    [Fact]
+    public void ShouldResetReconnectBudget_MinNowMaxLast_UnderflowBehaviorFixed() {
+        // 下溢: long.MinValue - long.MaxValue = 1（unchecked wrap-around）
+        // 1 不大于 60000 → false
+        V1ReplBridgeTransport.ShouldResetReconnectBudget(long.MaxValue, long.MinValue, 60000).Should().BeFalse();
+    }
+
+    /// <summary>thresholdMs=0 时只要 now != last 即返回 true（严格大于 0）。</summary>
+    [Fact]
+    public void ShouldResetReconnectBudget_ZeroThreshold_AnyDifferenceReturnsTrue() {
+        V1ReplBridgeTransport.ShouldResetReconnectBudget(1000, 1001, 0).Should().BeTrue();
+        V1ReplBridgeTransport.ShouldResetReconnectBudget(1000, 1000, 0).Should().BeFalse();
+    }
+
+    /// <summary>thresholdMs 为负数时任何非负差都大于负阈值 → true；仅当 diff 恰好等于阈值时 false。</summary>
+    [Fact]
+    public void ShouldResetReconnectBudget_NegativeThreshold_AnyNonNegDiffTrue() {
+        V1ReplBridgeTransport.ShouldResetReconnectBudget(1000, 70000, -1).Should().BeTrue();
+        V1ReplBridgeTransport.ShouldResetReconnectBudget(1000, 1000, -1).Should().BeTrue();
+        V1ReplBridgeTransport.ShouldResetReconnectBudget(1000, 999, -1).Should().BeFalse();
+    }
+
     // === IsReconnectBudgetExhausted: 预算耗尽 ===
 
     /// <summary>已过时间超过放弃阈值时返回 true。</summary>

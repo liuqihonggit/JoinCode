@@ -231,9 +231,11 @@ public class ConfigLoader {
 
     /// <summary>
     /// 脱敏 API Key — 仅显示前 8 位和后 4 位，中间用 ... 替代
+    /// <para>长度 ≤ 4 时完全遮蔽为 ***，避免短 key 被完整暴露。</para>
     /// </summary>
-    private static string MaskKey(string key) {
+    internal static string MaskKey(string key) {
         if (string.IsNullOrEmpty(key)) return "<empty>";
+        if (key.Length <= 4) return "***";
         if (key.Length <= 12) return $"{key[..4]}...";
         return $"{key[..8]}...{key[^4..]}";
     }
@@ -472,8 +474,14 @@ public class ConfigLoader {
 
     /// <summary>
     /// 将字符串值解析为 JsonElement，智能推断类型（boolean/number/string）。
+    /// <para>null 输入返回 ValueKind.Null 的 JsonElement；空字符串返回空字符串 JsonElement。</para>
     /// </summary>
-    private static JsonElement ParseJsonValueElement(string value) {
+    internal static JsonElement ParseJsonValueElement(string? value) {
+        if (value is null) {
+            using var nullDoc = JsonDocument.Parse("null");
+            return nullDoc.RootElement.Clone();
+        }
+
         var lower = value.ToLowerInvariant().Trim();
         var jsonText = lower switch {
             "true" => "true",

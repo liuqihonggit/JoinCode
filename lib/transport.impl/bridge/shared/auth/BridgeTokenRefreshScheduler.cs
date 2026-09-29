@@ -198,13 +198,27 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty("exp", out var expElement)) {
                 var expSeconds = expElement.GetInt64();
-                return expSeconds * 1000;
+                return ClampExpiryToMilliseconds(expSeconds);
             }
 
             return null;
         } catch {
             return null;
         }
+    }
+
+    /// <summary>
+    /// 将 JWT exp（秒）钳制为毫秒，防止 long 乘法溢出。
+    /// 纯函数，对齐 TS 端 exp*1000 但加溢出守卫。
+    /// </summary>
+    /// <param name="expSeconds">JWT exp 声明值（unix 秒）</param>
+    /// <returns>exp*1000（毫秒），溢出时钳制到 long.MaxValue</returns>
+    internal static long ClampExpiryToMilliseconds(long expSeconds) {
+        // long.MaxValue / 1000 = 9223372036854775，超过此值 expSeconds*1000 会溢出
+        const long maxSafeSeconds = long.MaxValue / 1000;
+        if (expSeconds > maxSafeSeconds) return long.MaxValue;
+        if (expSeconds < long.MinValue / 1000) return long.MinValue;
+        return expSeconds * 1000;
     }
 
     /// <summary>

@@ -203,4 +203,22 @@ public sealed class PluginCommandRegistryTest {
         // 纯函数不应修改输入别名的容量/内容
         aliases.Should().Equal(["a1", "a2"]);
     }
+
+    // ===== ExpandAliases 别名 null 守卫 =====
+
+    [Fact]
+    public void ExpandAliases_NullAliasesList_ReturnsEmptyWithoutThrowing() {
+        // Aliases 为 null 应被 'is null or { Count: 0 }' 守卫处理,不抛 NRE
+        var cmd = new PluginCommandDefinition {
+            CommandName = "main",
+            PluginName = "plugin1",
+            Description = "desc",
+            HandlerType = "Handler",
+            Aliases = null!
+        };
+
+        var expanded = PluginCommandRegistry.ExpandAliases(cmd).ToList();
+
+        expanded.Should().BeEmpty();
+    }
 }

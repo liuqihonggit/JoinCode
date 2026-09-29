@@ -120,4 +120,102 @@ public sealed class InteractiveHandlerTests {
         result.Type.Should().Be(PermissionResultType.Pending);
         result.Message.Should().Be("");
     }
+
+    // === CreatePermissionResult: Allow 分支 ===
+
+    /// <summary>PermissionAllowDecision 返回 Granted(Type=Granted, Message=null)。</summary>
+    [Fact]
+    public void CreatePermissionResult_AllowDecision_ReturnsGranted() {
+        var decision = new PermissionAllowDecision {
+            UpdatedInput = new Dictionary<string, JsonElement>()
+        };
+
+        var result = InteractiveHandler.CreatePermissionResult(decision);
+
+        result.Type.Should().Be(PermissionResultType.Granted);
+        result.Message.Should().BeNull();
+    }
+
+    /// <summary>PermissionAllowDecision 带 UpdatedInput/UserModified/AcceptFeedback 仍返回 Granted。</summary>
+    [Fact]
+    public void CreatePermissionResult_AllowDecisionWithFields_ReturnsGranted() {
+        var decision = new PermissionAllowDecision {
+            UpdatedInput = new Dictionary<string, JsonElement> {
+                ["command"] = JsonSerializer.SerializeToElement("ls")
+            },
+            UserModified = true,
+            AcceptFeedback = "approved"
+        };
+
+        var result = InteractiveHandler.CreatePermissionResult(decision);
+
+        result.Type.Should().Be(PermissionResultType.Granted);
+    }
+
+    // === CreatePermissionResult: Deny 分支 ===
+
+    /// <summary>PermissionDenyDecision 带 Message 时返回 Denied(message)。</summary>
+    [Fact]
+    public void CreatePermissionResult_DenyDecisionWithMessage_ReturnsDenied() {
+        var decision = new PermissionDenyDecision {
+            Message = "危险操作",
+            DecisionReason = new HookDecisionReason { HookName = "test-hook" }
+        };
+
+        var result = InteractiveHandler.CreatePermissionResult(decision);
+
+        result.Type.Should().Be(PermissionResultType.Denied);
+        result.Message.Should().Be("危险操作");
+    }
+
+    /// <summary>PermissionDenyDecision 带空字符串 Message 时返回 Denied("")。</summary>
+    [Fact]
+    public void CreatePermissionResult_DenyDecisionEmptyMessage_ReturnsDeniedEmpty() {
+        var decision = new PermissionDenyDecision {
+            Message = "",
+            DecisionReason = new HookDecisionReason { HookName = "test-hook" }
+        };
+
+        var result = InteractiveHandler.CreatePermissionResult(decision);
+
+        result.Type.Should().Be(PermissionResultType.Denied);
+        result.Message.Should().Be("");
+    }
+
+    /// <summary>PermissionDenyDecision 带长 Message 时正确返回。</summary>
+    [Fact]
+    public void CreatePermissionResult_DenyDecisionLongMessage_ReturnsDenied() {
+        var longMessage = new string('x', 1000);
+        var decision = new PermissionDenyDecision {
+            Message = longMessage,
+            DecisionReason = new HookDecisionReason { HookName = "test-hook" }
+        };
+
+        var result = InteractiveHandler.CreatePermissionResult(decision);
+
+        result.Type.Should().Be(PermissionResultType.Denied);
+        result.Message.Should().Be(longMessage);
+    }
+
+    // === CreatePermissionResult: null 守卫 ===
+
+    /// <summary>null 参数抛出 ArgumentNullException。</summary>
+    [Fact]
+    public void CreatePermissionResult_NullDecision_ThrowsArgumentNullException() {
+        var act = () => InteractiveHandler.CreatePermissionResult(null!);
+
+        act.Should().Throw<ArgumentNullException>()
+           .WithParameterName("result");
+    }
+
+    // === ExtractCommand: null 守卫 ===
+
+    /// <summary>ExtractCommand null 参数抛出 ArgumentNullException。</summary>
+    [Fact]
+    public void ExtractCommand_NullInput_ThrowsArgumentNullException() {
+        var act = () => InteractiveHandler.ExtractCommand(null!);
+
+        act.Should().Throw<ArgumentNullException>()
+           .WithParameterName("input");
+    }
 }

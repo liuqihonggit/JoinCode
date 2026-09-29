@@ -248,7 +248,7 @@ public sealed partial class MainViewModel {
             return;
         var lastUserIndex = Messages.IndexOf(lastUser);
 
-        await _session.RewindLastTurnAsync();
+        await _session.ExecuteSlashCommandAsync("/rewind last");
         while (Messages.Count > lastUserIndex)
             Messages.RemoveAt(Messages.Count - 1);
 

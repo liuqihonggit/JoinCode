@@ -139,12 +139,24 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     public bool IsBusy => InputCount > 0 || OutputCount > 0;
 
     /// <summary>输入是否达到高水位线</summary>
-    public bool IsInputHighWatermark => _backpressure is not null
-        && InputCount >= _backpressure.EffectiveHighWatermark;
+    public bool IsInputHighWatermark => CheckHighWatermark(_backpressure, InputCount);
 
     /// <summary>输入是否达到危险水位线</summary>
-    public bool IsInputCriticalWatermark => _backpressure is not null
-        && InputCount >= _backpressure.EffectiveCriticalWatermark;
+    public bool IsInputCriticalWatermark => CheckCriticalWatermark(_backpressure, InputCount);
+
+    /// <summary>判断是否达到高水位线 — 纯函数,不依赖 Actor 状态/时序,供确定性测试</summary>
+    /// <param name="bp">背压配置(null=无背压,总返回 false)</param>
+    /// <param name="inputCount">当前输入计数</param>
+    /// <returns>true=达到高水位线;false=无背压或未达到</returns>
+    internal static bool CheckHighWatermark(ActorBackpressure? bp, int inputCount)
+        => bp is not null && inputCount >= bp.EffectiveHighWatermark;
+
+    /// <summary>判断是否达到危险水位线 — 纯函数,不依赖 Actor 状态/时序,供确定性测试</summary>
+    /// <param name="bp">背压配置(null=无背压,总返回 false)</param>
+    /// <param name="inputCount">当前输入计数</param>
+    /// <returns>true=达到危险水位线;false=无背压或未达到</returns>
+    internal static bool CheckCriticalWatermark(ActorBackpressure? bp, int inputCount)
+        => bp is not null && inputCount >= bp.EffectiveCriticalWatermark;
 
     /// <summary>输入背压水位事件</summary>
     public event EventHandler<BackpressureEventArgs>? InputWatermarkReached;

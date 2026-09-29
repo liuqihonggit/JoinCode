@@ -198,13 +198,9 @@ internal sealed class BackpressureTestActor : ActorBase<BackpressureTestActor.IC
     }
 
     protected override void Handle(ICommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
-    }
-
-    private async ValueTask HandleAsyncImpl(ICommand command, CancellationToken ct) {
         switch (command) {
             case IncrementCommand(var tcs):
-            await _gate.Task.WaitAsync(ct);
+            _gate.Task.WaitAsync(ct).GetAwaiter().GetResult();
             _value++;
             tcs.TrySetResult(_value);
             return;

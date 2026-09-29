@@ -128,6 +128,7 @@ public class TransportE2ETest {
 
         await slave.StartAsync();
         await TestWaitHelper.WaitUntilAsync(() => Task.FromResult(slave.Role == ProcessRole.Slave), TimeSpan.FromSeconds(2));
+        await Task.Delay(200);
 
         host.Role.Should().Be(ProcessRole.Host);
         slave.Role.Should().Be(ProcessRole.Slave);
@@ -135,7 +136,11 @@ public class TransportE2ETest {
         var data = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("np-e2e-msg"));
         await host.BroadcastAsync(data);
 
-        var received = await ReceiveWithTimeoutAsync(slave.ReceiveAsync(), TimeSpan.FromSeconds(5));
+        TransportFrame? received = null;
+        await TestWaitHelper.WaitUntilAsync(async () => {
+            received = await ReceiveWithTimeoutAsync(slave.ReceiveAsync(), TimeSpan.FromMilliseconds(500));
+            return received is not null;
+        }, TimeSpan.FromMilliseconds(500));
         received.Should().NotBeNull();
         Encoding.UTF8.GetString(received!.Data.Span).Should().Be("np-e2e-msg");
         received.SourceProcessId.Should().Be(hostPid);

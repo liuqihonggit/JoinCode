@@ -208,10 +208,10 @@
 - [ ] `ContinuationPromptBuilder.BuildContinuationPrompt` internal + 测试
 
 #### 2.9 infrastructure — AhoCorasick + FileEditor
-- [ ] `AhoCorasick.Build` 拆 goto/failure 两个 internal static + 算法单测
-- [ ] `FileEditor.EditFileAsync`/`EditByLineRangeAsync` 拆 internal 纯函数
-- [ ] `PhysicalProcessService.ExecuteAsync` 拆
-- [ ] `GitHubApiClient.ReadLogStreamLinesAsync` 拆流式行分割
+- [x] `AhoCorasick.Build` 拆 goto/failure 两个 internal static + 算法单测 — 阶段2.9完成
+- [x] `FileEditor.EditFileAsync`/`EditByLineRangeAsync` 拆 internal 纯函数 — 阶段2.9完成
+- [x] `PhysicalProcessService.ExecuteAsync` 拆 — 阶段2.9完成
+- [x] `GitHubApiClient.ReadLogStreamLinesAsync` 拆流式行分割 — 阶段2.9完成
 
 ---
 

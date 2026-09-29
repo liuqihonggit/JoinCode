@@ -74,6 +74,7 @@ public sealed class SettingsEditValidatorTests {
     [InlineData("auto")]
     [InlineData("ask")]
     [InlineData("bypass")]
+    [InlineData("unattended")]
     public void Validate_PermissionsDefaultModeValid_ReturnsValid(string mode) {
         var r = SettingsEditValidator.ValidateSettingsContent("{\"permissions\":{\"defaultMode\":\"" + mode + "\"}}");
         r.IsValid.Should().BeTrue();

@@ -395,6 +395,8 @@ public class PermissionToolHandlers {
             PermissionMode.Plan => ObjectSymbol.Pencil.ToValue(),
             PermissionMode.Ask => StatusSymbol.Circle.ToValue(),
             PermissionMode.Bypass => ObjectSymbol.Lightning.ToValue(),
+            // Unattended：无人值守，红灯自动执行+审计 — 用闪电图标同 Auto
+            PermissionMode.Unattended => ObjectSymbol.Lightning.ToValue(),
             _ => StatusSymbol.Circle.ToValue()
         };
 

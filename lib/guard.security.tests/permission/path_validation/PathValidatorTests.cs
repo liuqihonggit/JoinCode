@@ -2,7 +2,7 @@ namespace Core.Tests.Permission;
 
 /// <summary>
 /// PathValidator 单元测试 — 覆盖正常路径、null/空、路径遍历、绝对路径、OS 分隔符、危险系统路径、UNC
-/// <para>PathValidator 检查 PathEscapePatterns(.. ~ /etc/ C:\Windows \\ 等)和 DangerousPathPrefixes(/ C:\ D:\ 等)。</para>
+/// <para>PathValidator 检查 PathEscapePatterns(.. ~ /etc/ C:\Windows \\ 等)和 DangerousPathPrefixes(具体系统目录前缀)。</para>
 /// </summary>
 public sealed class PathValidatorTests {
     private readonly PathValidator _sut = new();
@@ -109,13 +109,22 @@ public sealed class PathValidatorTests {
     }
 
     [Fact]
-    public void ValidatePaths_Windows绝对路径_返回Invalid() {
+    public void ValidatePaths_工作区内绝对路径_返回Valid() {
         var cmd = ShellCommand.Parse("type D:\\test\\project\\file.txt");
 
         var result = _sut.ValidatePaths(cmd, @"D:\test\project");
 
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ValidatePaths_工作区外绝对路径_返回Invalid() {
+        var cmd = ShellCommand.Parse("type D:\\other\\secret.txt");
+
+        var result = _sut.ValidatePaths(cmd, @"D:\test\project");
+
         result.IsValid.Should().BeFalse();
-        result.Message.Should().Contain("dangerous");
+        result.Message.Should().Contain("outside the working directory");
     }
 
     #endregion

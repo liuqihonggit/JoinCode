@@ -6,7 +6,7 @@ namespace Structura.Collections
         /// <summary>
         /// 指定瑞士表插入键时遇到已存在键的处理行为。
         /// </summary>
-        enum InsertionBehavior
+        internal enum InsertionBehavior
         {
             /// <summary>
             /// 不执行任何特殊处理，遇到已存在键时由调用方自行决定后续动作。

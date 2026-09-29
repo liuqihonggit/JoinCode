@@ -292,9 +292,7 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
             Array.Copy(Children, newChildren2, cIdx);
             newChildren2[cIdx] = new LeafNode(key, value);
             Array.Copy(Children, cIdx, newChildren2, cIdx + 1, Children.Length - cIdx);
-            return newChildren2.Length >= MaxBitmapSize
-                ? UpgradeToArrayNode(newBitmap, newChildren2)
-                : new BitmapNode(newBitmap, newChildren2);
+            return MaybeUpgradeToFullArrayNode(newBitmap, newChildren2);
         }
 
         internal override Node? Remove(int shift, uint hash, IEqualityComparer<TKey> cmp, TKey key, out bool removed) {
@@ -319,7 +317,20 @@ public sealed class ImmutableHamT<TKey, TValue> : IReadOnlyDictionary<TKey, TVal
             return newChildren2.Length == 1 && newChildren2[0] is LeafNode leaf ? leaf : new BitmapNode(newBitmap, newChildren2);
         }
 
-        private ArrayNode UpgradeToArrayNode(int newBitmap, Node[] children) {
+        /// <summary>
+        /// 根据子节点数组长度决定是否从 BitmapNode 升级为 ArrayNode。
+        /// 纯函数:当 children.Length &gt;= MaxBitmapSize 时升级为 ArrayNode,否则返回新 BitmapNode。
+        /// </summary>
+        /// <param name="newBitmap">当前位图(已包含新插入位的 OR 结果)。</param>
+        /// <param name="children">子节点数组(已包含新插入节点)。</param>
+        /// <returns>升级后的 ArrayNode 或保持的 BitmapNode。</returns>
+        internal static Node MaybeUpgradeToFullArrayNode(int newBitmap, Node[] children) {
+            return children.Length >= MaxBitmapSize
+                ? UpgradeToArrayNode(newBitmap, children)
+                : new BitmapNode(newBitmap, children);
+        }
+
+        internal static ArrayNode UpgradeToArrayNode(int newBitmap, Node[] children) {
             var array = new Node?[Width];
             for (var i = 0; i < Width; i++) {
                 var bit = 1 << i;

@@ -276,27 +276,11 @@ public sealed class Dag<T> {
             }
         }
 
-        var queue = new Queue<string>();
-        foreach (var kvp in inDegree) {
-            if (kvp.Value == 0)
-                queue.Enqueue(kvp.Key);
-        }
+        var orderedIds = DagAlgorithms.KahnTraverseSubgraph(
+            inDegree, descendantIds,
+            id => _adjacency.TryGetValue(id, out var targets) ? targets : null);
 
-        var result = new List<DagNode<T>>();
-        while (queue.Count > 0) {
-            var id = queue.Dequeue();
-            result.Add(_nodes[id]);
-
-            if (!_adjacency.TryGetValue(id, out var targets)) continue;
-            foreach (var targetId in targets) {
-                if (!descendantIds.Contains(targetId)) continue;
-                inDegree[targetId]--;
-                if (inDegree[targetId] == 0)
-                    queue.Enqueue(targetId);
-            }
-        }
-
-        return result;
+        return orderedIds.Select(id => _nodes[id]);
     }
 
     /// <summary>
@@ -372,5 +356,40 @@ public sealed class Dag<T> {
         _adjacency[edge.FromId].Add(edge.ToId);
         _reverseAdjacency[edge.ToId].Add(edge.FromId);
         _version++;
+    }
+}
+
+/// <summary>
+/// DAG 公共图算法工具 — 提供 Kahn 拓扑排序等纯函数,供 <see cref="Dag{T}"/> 和 <see cref="ImmutableDag{T}"/> 共享。
+/// </summary>
+internal static class DagAlgorithms {
+    /// <summary>
+    /// Kahn 拓扑排序子图:给定入度表、后代集合和邻接访问函数,返回拓扑序的节点 ID 列表。
+    /// 纯函数:给定输入确定性地输出拓扑序(同层节点按入度归零顺序入队)。
+    /// </summary>
+    /// <param name="inDegree">子图各节点入度(可变,排序过程中递减)。</param>
+    /// <param name="descendants">后代节点 ID 集合(仅遍历此集合内的节点)。</param>
+    /// <param name="getAdjacent">按节点 ID 返回其正向邻接节点集合;无邻接返回 null。</param>
+    /// <returns>拓扑序节点 ID 列表。</returns>
+    internal static List<string> KahnTraverseSubgraph(
+        Dictionary<string, int> inDegree,
+        HashSet<string> descendants,
+        Func<string, IEnumerable<string>?> getAdjacent) {
+        var queue = new Queue<string>();
+        foreach (var kvp in inDegree)
+            if (kvp.Value == 0) queue.Enqueue(kvp.Key);
+        var result = new List<string>();
+        while (queue.Count > 0) {
+            var id = queue.Dequeue();
+            result.Add(id);
+            var targets = getAdjacent(id);
+            if (targets is null) continue;
+            foreach (var targetId in targets) {
+                if (!descendants.Contains(targetId)) continue;
+                inDegree[targetId]--;
+                if (inDegree[targetId] == 0) queue.Enqueue(targetId);
+            }
+        }
+        return result;
     }
 }

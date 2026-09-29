@@ -41,7 +41,7 @@ public sealed class TopologicalEvidenceAnalyzer {
         return Math.Max(0, 1.0 - (count - LengthThreshold) * 0.05);
     }
 
-    private static double CalculateBranchingFactor(IReadOnlyList<EvidenceRecord> chain) {
+    internal static double CalculateBranchingFactor(IReadOnlyList<EvidenceRecord> chain) {
         if (chain.Count <= 1) return 0.5;
 
         var sourceGroups = chain.GroupBy(e => e.Source).ToList();
@@ -50,14 +50,14 @@ public sealed class TopologicalEvidenceAnalyzer {
         return multiSourceGroups > 0 ? Math.Min(1.0, multiSourceGroups / (double)chain.Count * 2) : 0.5;
     }
 
-    private static double CalculateIndependence(IReadOnlyList<EvidenceRecord> chain) {
+    internal static double CalculateIndependence(IReadOnlyList<EvidenceRecord> chain) {
         if (chain.Count == 0) return 0;
         var distinctSources = chain.Select(e => e.Source).Distinct().Count();
         var independence = distinctSources / (double)chain.Count;
         return Math.Min(1.0, independence * 1.5);
     }
 
-    private static double CalculateTemporalConsistency(IReadOnlyList<EvidenceRecord> chain) {
+    internal static double CalculateTemporalConsistency(IReadOnlyList<EvidenceRecord> chain) {
         if (chain.Count <= 1) return 1.0;
 
         var timestamps = chain.Select(e => e.CreatedAt).OrderBy(t => t).ToList();

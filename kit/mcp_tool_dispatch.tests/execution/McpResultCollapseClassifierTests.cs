@@ -263,4 +263,116 @@ public class McpResultCollapseClassifierTests {
         result.Category.Should().Be(CollapseCategory.JsonData);
         result.ShouldCollapse.Should().BeFalse();
     }
+
+    // === IsJsonData (internal static) ===
+
+    [Theory]
+    [InlineData("{}", true)]
+    [InlineData("[]", true)]
+    [InlineData("{\"key\": \"value\"}", true)]
+    [InlineData("[1, 2, 3]", true)]
+    [InlineData("{\"a\": {\"b\": 2}}", true)]
+    [InlineData("[{\"x\": 1}, {\"y\": 2}]", true)]
+    [InlineData("hello", false)]
+    [InlineData("{not json}", false)]
+    [InlineData("[1, 2,", false)]
+    [InlineData("{\"a\":}", false)]
+    [InlineData("123", false)]
+    [InlineData("\"string\"", false)]
+    [InlineData("  {}  ", true)]
+    [InlineData("  [1]  ", true)]
+    public void IsJsonData_VariousInputs_ReturnsExpected(string text, bool expected) {
+        McpResultCollapseClassifier.IsJsonData(text).Should().Be(expected);
+    }
+
+    [Fact]
+    public void IsJsonData_DeeplyNestedJson_ReturnsTrue() {
+        var json = "{\"a\":{\"b\":{\"c\":{\"d\":[1,2,3]}}}}";
+        McpResultCollapseClassifier.IsJsonData(json).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsJsonData_MalformedJson_ReturnsFalse() {
+        McpResultCollapseClassifier.IsJsonData("{}}").Should().BeFalse();
+        McpResultCollapseClassifier.IsJsonData("{{}").Should().BeFalse();
+    }
+
+    // === GetPreviewText (internal static) ===
+
+    [Fact]
+    public void GetPreviewText_EmptyText_ReturnsEmpty() {
+        McpResultCollapseClassifier.GetPreviewText("", 100).Should().BeEmpty();
+        McpResultCollapseClassifier.GetPreviewText(null!, 100).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void GetPreviewText_ThreeLines_JoinedBySpace() {
+        McpResultCollapseClassifier.GetPreviewText("a\nb\nc", 100).Should().Be("a b c");
+    }
+
+    [Fact]
+    public void GetPreviewText_MoreThanThreeLines_TruncatesToThree() {
+        McpResultCollapseClassifier.GetPreviewText("a\nb\nc\nd\ne", 100).Should().Be("a b c");
+    }
+
+    [Fact]
+    public void GetPreviewText_EmptyLinesSkipped() {
+        McpResultCollapseClassifier.GetPreviewText("a\n\nb\n\nc", 100).Should().Be("a b c");
+    }
+
+    [Fact]
+    public void GetPreviewText_ExceedsMaxLength_AppendsEllipsis() {
+        var text = new string('x', 200);
+        var preview = McpResultCollapseClassifier.GetPreviewText(text, 50);
+        preview.Should().EndWith("...");
+        preview.Length.Should().Be(50);
+    }
+
+    [Fact]
+    public void GetPreviewText_WithinMaxLength_NoEllipsis() {
+        var preview = McpResultCollapseClassifier.GetPreviewText("short", 100);
+        preview.Should().Be("short");
+        preview.Should().NotEndWith("...");
+    }
+
+    [Fact]
+    public void GetPreviewText_UnicodePreserved() {
+        McpResultCollapseClassifier.GetPreviewText("你好\n世界", 100).Should().Be("你好 世界");
+    }
+
+    [Fact]
+    public void GetPreviewText_LineWithLeadingTrailingSpaces_Trimmed() {
+        McpResultCollapseClassifier.GetPreviewText("  a  \n  b  ", 100).Should().Be("a b");
+    }
+
+    // === FormatBytes (internal static) ===
+
+    [Theory]
+    [InlineData(0L, "0 B")]
+    [InlineData(1L, "1 B")]
+    [InlineData(1023L, "1023 B")]
+    [InlineData(1024L, "1.00 KB")]
+    [InlineData(1536L, "1.50 KB")]
+    [InlineData(1048576L, "1.00 MB")]
+    [InlineData(1572864L, "1.50 MB")]
+    [InlineData(1073741824L, "1.00 GB")]
+    [InlineData(1610612736L, "1.50 GB")]
+    public void FormatBytes_Boundaries_ReturnsExpected(long bytes, string expected) {
+        McpResultCollapseClassifier.FormatBytes(bytes).Should().Be(expected);
+    }
+
+    [Fact]
+    public void FormatBytes_JustBelowKbBoundary_ReturnsBytes() {
+        McpResultCollapseClassifier.FormatBytes(1023).Should().Be("1023 B");
+    }
+
+    [Fact]
+    public void FormatBytes_JustBelowMbBoundary_ReturnsKb() {
+        McpResultCollapseClassifier.FormatBytes(1048575).Should().Contain("KB");
+    }
+
+    [Fact]
+    public void FormatBytes_JustBelowGbBoundary_ReturnsMb() {
+        McpResultCollapseClassifier.FormatBytes(1073741823).Should().Contain("MB");
+    }
 }

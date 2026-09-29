@@ -20,29 +20,22 @@ internal sealed partial class AuditLogMiddleware : ServiceEntity, Core.Context.I
         Core.Context.ChatMiddlewareContext context,
         JoinCode.Abstractions.Pipeline.StreamMiddlewareDelegate<Core.Context.ChatMiddlewareContext, JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> next,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct) {
-        var truncatedMessage = context.Message.Length > MaxAuditLength
-            ? string.Concat(context.Message.AsSpan(0, MaxAuditLength), "...")
-            : context.Message;
+        var truncatedMessage = TruncateForAudit(context.Message, MaxAuditLength);
         _logger.LogInformation("[Audit] User (Turn={Turn}): {Message}", context.ConversationTurn, truncatedMessage);
 
         var responseChars = 0;
         var toolCallCount = 0;
 
         await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
-            switch (evt.Type) {
-                case JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.Content when evt.Content is not null && responseChars < MaxAuditLength:
-                var remaining = MaxAuditLength - responseChars;
-                var toTake = Math.Min(evt.Content.Length, remaining);
-                responseChars += toTake;
-                break;
-                case JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.ToolCallStart:
+            var (newChars, isToolCall) = AccumulateEvent(evt, responseChars, MaxAuditLength);
+            responseChars = newChars;
+            if (isToolCall) {
                 toolCallCount++;
                 _logger.LogInformation("[Audit] Tool: {ToolName}", evt.ToolName);
-                break;
-                case JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.Complete:
+            }
+            if (evt.Type == JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.Complete) {
                 _logger.LogInformation("[Audit] Done: Model={Model}, Tokens={Tokens}",
                     evt.ModelId, evt.Usage);
-                break;
             }
 
             yield return evt;
@@ -50,5 +43,41 @@ internal sealed partial class AuditLogMiddleware : ServiceEntity, Core.Context.I
 
         _logger.LogInformation("[Audit] Assistant (Turn={Turn}): {Chars} chars, {Tools} tool calls",
             context.ConversationTurn, responseChars, toolCallCount);
+    }
+
+    /// <summary>
+    /// 截断审计消息到指定长度,超长则尾部追加 "..."。
+    /// 纯计算,不依赖时序/IO,可确定性测试。
+    /// </summary>
+    /// <param name="message">原始消息。</param>
+    /// <param name="maxLen">最大保留长度(超出此长度才截断)。</param>
+    /// <returns>截断后的消息;超长时为前 maxLen 字符 + "...",否则原样返回。</returns>
+    internal static string TruncateForAudit(string message, int maxLen) {
+        return message.Length > maxLen
+            ? string.Concat(message.AsSpan(0, maxLen), "...")
+            : message;
+    }
+
+    /// <summary>
+    /// 累积单个流事件,返回新的字符计数与是否为工具调用标记。
+    /// 纯计算,不依赖时序/IO,可确定性测试。
+    /// </summary>
+    /// <param name="evt">当前流事件。</param>
+    /// <param name="currentChars">已累积的字符数。</param>
+    /// <param name="maxLen">最大累积字符数。</param>
+    /// <returns>(新字符数, 是否为工具调用开始事件)。</returns>
+    internal static (int newResponseChars, bool isToolCall) AccumulateEvent(
+        JoinCode.Abstractions.LLM.Chat.ChatStreamEvent evt, int currentChars, int maxLen) {
+        if (evt.Type == JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.Content
+            && evt.Content is not null
+            && currentChars < maxLen) {
+            var remaining = maxLen - currentChars;
+            var toTake = Math.Min(evt.Content.Length, remaining);
+            return (currentChars + toTake, false);
+        }
+        if (evt.Type == JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.ToolCallStart) {
+            return (currentChars, true);
+        }
+        return (currentChars, false);
     }
 }

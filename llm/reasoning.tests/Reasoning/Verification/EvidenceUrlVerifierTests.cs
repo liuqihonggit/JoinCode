@@ -209,6 +209,77 @@ public sealed class EvidenceUrlVerifierTests {
         Assert.True(results[0].IsValid);
     }
 
+    [Fact]
+    public void FindExtractedText_NullExtractedText_ShouldReturnFalseNullNull() {
+        var (contains, line, text) = EvidenceUrlVerifier.FindExtractedText("any content", null);
+        Assert.False(contains);
+        Assert.Null(line);
+        Assert.Null(text);
+    }
+
+    [Fact]
+    public void FindExtractedText_EmptyExtractedText_ShouldReturnFalseNullNull() {
+        var (contains, line, text) = EvidenceUrlVerifier.FindExtractedText("any content", string.Empty);
+        Assert.False(contains);
+        Assert.Null(line);
+        Assert.Null(text);
+    }
+
+    [Fact]
+    public void FindExtractedText_MatchingLine_ShouldReturnLineAndTrimmedText() {
+        var (contains, line, text) = EvidenceUrlVerifier.FindExtractedText("line1\nexpected text here\nline3", "expected text");
+
+        Assert.True(contains);
+        Assert.Equal(2, line);
+        Assert.Equal("expected text here", text);
+    }
+
+    [Fact]
+    public void FindExtractedText_FirstLineMatch_ShouldReturnLineOne() {
+        var (contains, line, text) = EvidenceUrlVerifier.FindExtractedText("target\nline2", "target");
+
+        Assert.True(contains);
+        Assert.Equal(1, line);
+        Assert.Equal("target", text);
+    }
+
+    [Fact]
+    public void FindExtractedText_MultipleMatches_ShouldReturnFirstMatch() {
+        var (contains, line, text) = EvidenceUrlVerifier.FindExtractedText("target\nmore target", "target");
+
+        Assert.True(contains);
+        Assert.Equal(1, line);
+        Assert.Equal("target", text);
+    }
+
+    [Fact]
+    public void FindExtractedText_NotFoundInAnyLine_ShouldReturnFalseNullNull() {
+        var (contains, line, text) = EvidenceUrlVerifier.FindExtractedText("line1\nline2", "missing");
+
+        Assert.False(contains);
+        Assert.Null(line);
+        Assert.Null(text);
+    }
+
+    [Fact]
+    public void FindExtractedText_ContainedInContentButSpanningLines_ShouldReturnContainsTrueButNullLine() {
+        // content="abc\ndef", extractedText="bc\nde" 在整体内容中出现(跨行),但无完整行包含
+        var (contains, line, text) = EvidenceUrlVerifier.FindExtractedText("abc\ndef", "bc\nde");
+
+        Assert.True(contains);
+        Assert.Null(line);
+        Assert.Null(text);
+    }
+
+    [Fact]
+    public void FindExtractedText_ShouldTrimWhitespaceFromMatchedLine() {
+        var (contains, line, text) = EvidenceUrlVerifier.FindExtractedText("  target line  \nline2", "target");
+
+        Assert.True(contains);
+        Assert.Equal(1, line);
+        Assert.Equal("target line", text);
+    }
+
     private sealed class TestHttpMessageHandler : HttpMessageHandler {
         private readonly string _content;
         private readonly HttpStatusCode _statusCode;

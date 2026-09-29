@@ -413,7 +413,7 @@ public sealed class ReasoningEngine : IReasoningEngine {
         _budget.RecordTokenUsage(tokens);
     }
 
-    private void ApplyAgentAction(AgentAction action) {
+    internal void ApplyAgentAction(AgentAction action) {
         if (action.TokensUsed > 0) {
             RecordTokenUsage(action.TokensUsed);
         }
@@ -435,7 +435,7 @@ public sealed class ReasoningEngine : IReasoningEngine {
         }
     }
 
-    private void ApplyVerdicts(IReadOnlyList<Verdict> verdicts) {
+    internal void ApplyVerdicts(IReadOnlyList<Verdict> verdicts) {
         foreach (var verdict in verdicts) {
             if (!_dag.Nodes.TryGetValue(verdict.ClaimId, out var claimNode)) continue;
 
@@ -518,7 +518,7 @@ public sealed class ReasoningEngine : IReasoningEngine {
         }
     }
 
-    private static DataItem PayloadToDataItem(ReasoningPayload p) => new() {
+    internal static DataItem PayloadToDataItem(ReasoningPayload p) => new() {
         Id = p.Id,
         Content = p.Content,
         State = p.State,
@@ -530,7 +530,7 @@ public sealed class ReasoningEngine : IReasoningEngine {
         SubmittedBy = p.SubmittedBy,
     };
 
-    private static EvidenceRecord PayloadToEvidence(ReasoningPayload p) => new() {
+    internal static EvidenceRecord PayloadToEvidence(ReasoningPayload p) => new() {
         Id = p.Id,
         Content = p.Content,
         Category = p.Category ?? EvidenceCategory.Documentary,

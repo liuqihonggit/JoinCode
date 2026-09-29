@@ -35,7 +35,7 @@ internal sealed partial class TokenBudgetMiddleware : ServiceEntity, Core.Contex
         var remaining = await _budgetManager.GetRemainingBudgetAsync(ct).ConfigureAwait(false);
         Diag.WriteLine($"[TokenBudget] remaining={remaining}, IsDryRun={context.IsDryRun}");
 
-        if (remaining <= 0) {
+        if (ShouldShortCircuit(remaining)) {
             _logger.LogWarning("[TokenBudget] 预算已耗尽，短路返回");
             Diag.WriteLine("[TokenBudget] SHORT-CIRCUIT: 预算已耗尽");
             yield return JoinCode.Abstractions.LLM.Chat.ChatStreamEvent.Text("[Token 预算已耗尽] 本轮对话已跳过，请重置预算后重试。");
@@ -47,4 +47,12 @@ internal sealed partial class TokenBudgetMiddleware : ServiceEntity, Core.Contex
             yield return evt;
         }
     }
+
+    /// <summary>
+    /// 判断剩余预算是否应短路返回。
+    /// 纯计算,不依赖时序/IO,可确定性测试。
+    /// </summary>
+    /// <param name="remaining">剩余 Token 预算。</param>
+    /// <returns>true 表示预算已耗尽应短路;false 表示可继续。</returns>
+    internal static bool ShouldShortCircuit(long remaining) => remaining <= 0;
 }

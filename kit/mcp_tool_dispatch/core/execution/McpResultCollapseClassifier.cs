@@ -243,15 +243,14 @@ public static class McpResultCollapseClassifier {
             GetPreviewText(errorText ?? "", WorkflowConstants.Limits.PreviewTextShortLength));
     }
 
-    private static bool IsJsonData(string text) {
+    internal static bool IsJsonData(string text) {
         text = text.Trim();
 
         if ((text.StartsWith('{') && text.EndsWith('}')) ||
             (text.StartsWith('[') && text.EndsWith(']'))) {
             try {
-                var bytes = System.Text.Encoding.UTF8.GetBytes(text);
-                var reader = new Utf8JsonReader(bytes);
-                return reader.Read();
+                using var doc = JsonDocument.Parse(text);
+                return true;
             } catch {
                 return false;
             }
@@ -267,7 +266,7 @@ public static class McpResultCollapseClassifier {
         return mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string GetPreviewText(string text, int maxLength) {
+    internal static string GetPreviewText(string text, int maxLength) {
         if (string.IsNullOrEmpty(text))
             return "";
 
@@ -301,7 +300,7 @@ public static class McpResultCollapseClassifier {
         return builder.ToString();
     }
 
-    private static string FormatBytes(long bytes) {
+    internal static string FormatBytes(long bytes) {
         const long KB = 1024;
         const long MB = KB * 1024;
         const long GB = MB * 1024;

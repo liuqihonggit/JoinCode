@@ -69,4 +69,84 @@ public sealed class BayesianEvidenceUpdaterTests {
 
         Assert.InRange(result.Mean, 0, 1);
     }
+
+    [Fact]
+    public void UpdateGaussian_ShouldComputeStandardPosterior() {
+        // prior=(0.5, 0.25), likelihood=(0.8, 0.1)
+        // posteriorVariance = 1/(1/0.25 + 1/0.1) = 1/14 ≈ 0.07142857
+        // posteriorMean = 0.07142857 * (0.5/0.25 + 0.8/0.1) = 0.07142857 * 10 = 0.7142857
+        var prior = new Posterior { Mean = 0.5, Variance = 0.25 };
+
+        var result = BayesianEvidenceUpdater.UpdateGaussian(prior, 0.8, 0.1);
+
+        Assert.Equal(0.7142857, result.Mean, 0.0001);
+        Assert.Equal(0.0714286, result.Variance, 0.0001);
+    }
+
+    [Fact]
+    public void UpdateGaussian_ShouldClampMeanToAtMostOne() {
+        // prior=(0.9, 0.01), likelihood=(2.0, 0.01)
+        // posteriorVariance = 1/(100+100) = 0.005
+        // posteriorMean = 0.005 * (90 + 200) = 1.45 → clamp 到 1
+        var prior = new Posterior { Mean = 0.9, Variance = 0.01 };
+
+        var result = BayesianEvidenceUpdater.UpdateGaussian(prior, 2.0, 0.01);
+
+        Assert.Equal(1.0, result.Mean);
+        Assert.Equal(0.005, result.Variance, 0.0001);
+    }
+
+    [Fact]
+    public void UpdateGaussian_ShouldClampMeanToAtLeastZero() {
+        // prior=(0.1, 0.01), likelihood=(-2.0, 0.01)
+        // posteriorMean = 0.005 * (10 + (-200)) = -0.95 → clamp 到 0
+        var prior = new Posterior { Mean = 0.1, Variance = 0.01 };
+
+        var result = BayesianEvidenceUpdater.UpdateGaussian(prior, -2.0, 0.01);
+
+        Assert.Equal(0.0, result.Mean);
+    }
+
+    [Fact]
+    public void UpdateGaussian_ShouldClampVarianceToLowerBound() {
+        // 极小方差输入 → posteriorVariance < 0.001 → clamp 到 0.001
+        var prior = new Posterior { Mean = 0.5, Variance = 0.0001 };
+
+        var result = BayesianEvidenceUpdater.UpdateGaussian(prior, 0.5, 0.0001);
+
+        // posteriorVariance = 1/(10000+10000) = 0.00005 → clamp 0.001
+        Assert.Equal(0.001, result.Variance);
+    }
+
+    [Fact]
+    public void UpdateGaussian_ShouldClampVarianceToUpperBound() {
+        // 大方差输入 → posteriorVariance > 0.25 → clamp 到 0.25
+        var prior = new Posterior { Mean = 0.5, Variance = 1.0 };
+
+        var result = BayesianEvidenceUpdater.UpdateGaussian(prior, 0.5, 1.0);
+
+        // posteriorVariance = 1/(1+1) = 0.5 → clamp 0.25
+        Assert.Equal(0.25, result.Variance);
+    }
+
+    [Fact]
+    public void UpdateGaussian_ShouldShiftMeanTowardsLikelihood() {
+        var prior = new Posterior { Mean = 0.3, Variance = 0.2 };
+
+        var result = BayesianEvidenceUpdater.UpdateGaussian(prior, 0.9, 0.05);
+
+        // 均值应向 likelihood(0.9) 方向移动,大于 prior.Mean(0.3)
+        Assert.True(result.Mean > 0.3);
+        Assert.True(result.Mean < 0.9);
+    }
+
+    [Fact]
+    public void UpdateGaussian_ShouldReduceVarianceAfterUpdate() {
+        var prior = new Posterior { Mean = 0.5, Variance = 0.25 };
+
+        var result = BayesianEvidenceUpdater.UpdateGaussian(prior, 0.7, 0.1);
+
+        // 后验方差应小于先验方差(信息增加,不确定性降低)
+        Assert.True(result.Variance < prior.Variance);
+    }
 }

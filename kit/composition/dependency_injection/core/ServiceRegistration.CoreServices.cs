@@ -56,13 +56,7 @@ public static partial class ServiceRegistration {
 
         services.AddOptions<FileOperationConfig>()
             .BindConfiguration("Workflow:FileOperation")
-            .Validate(config => {
-                if (config.MaxReadSize < 1024 || config.MaxReadSize > 1024L * 1024 * 1024) return false;
-                if (config.MaxWriteSize < 1024 || config.MaxWriteSize > 1024 * 1024 * 1024) return false;
-                if (config.BufferSize < 512 || config.BufferSize > 1024 * 1024) return false;
-                if (config.BinaryDetectionBufferSize < 1024 || config.BinaryDetectionBufferSize > 64 * 1024) return false;
-                return true;
-            }, L.T(StringKey.FileOperationConfigValidationFailed))
+            .Validate(config => ServiceRegistrationConfigValidator.ValidateFileOperationConfig(config), L.T(StringKey.FileOperationConfigValidationFailed))
             .ValidateOnStart();
 
         // FileOperationConfig — 直接注册供 FileOperationService 构造函数使用
@@ -84,11 +78,7 @@ public static partial class ServiceRegistration {
     public static IServiceCollection AddToolServices(this IServiceCollection services) {
         services.AddOptions<ShellExecutionConfig>()
             .BindConfiguration("Workflow:ShellExecution")
-            .Validate(config => {
-                if (config.MaxOutputBytes < 1024 || config.MaxOutputBytes > 1024 * 1024) return false;
-                if (config.DefaultTimeoutSeconds < 1 || config.DefaultTimeoutSeconds > 3600) return false;
-                return true;
-            }, "ShellExecutionConfig 验证失败")
+            .Validate(config => ServiceRegistrationConfigValidator.ValidateShellExecutionConfig(config), "ShellExecutionConfig 验证失败")
             .ValidateOnStart();
 
         // ShellExecutionConfig — 直接注册供 SystemActuatorBase 构造函数使用
@@ -98,13 +88,10 @@ public static partial class ServiceRegistration {
             var options = sp.GetRequiredService<IOptions<ShellExecutionConfig>>();
             var config = options.Value;
 
-            var envAbsolute = Environment.GetEnvironmentVariable("JCC_ABSOLUTE_TIMEOUT_SECONDS");
-            if (int.TryParse(envAbsolute, out var absSeconds) && absSeconds >= 0)
-                config.AbsoluteTimeoutSeconds = absSeconds;
-
-            var envResume = Environment.GetEnvironmentVariable("JCC_RESUME_TIMEOUT_SECONDS");
-            if (int.TryParse(envResume, out var resumeSeconds) && resumeSeconds >= 60)
-                config.ResumeTimeoutSeconds = resumeSeconds;
+            ServiceRegistrationConfigValidator.ApplyEnvOverrides(
+                config,
+                Environment.GetEnvironmentVariable("JCC_ABSOLUTE_TIMEOUT_SECONDS"),
+                Environment.GetEnvironmentVariable("JCC_RESUME_TIMEOUT_SECONDS"));
 
             return config;
         });
@@ -217,5 +204,43 @@ public static partial class ServiceRegistration {
             sp => sp.GetRequiredService<Infrastructure.IO.PhysicalConsoleOutput>());
 
         return services;
+    }
+}
+
+/// <summary>
+/// ServiceRegistration 配置验证器 — 纯计算验证方法，独立类避免跨程序集 ServiceRegistration partial 类型冲突。
+/// </summary>
+public static class ServiceRegistrationConfigValidator {
+    /// <summary>
+    /// 验证 FileOperationConfig 的 4 个范围约束 — 纯计算，供确定性测试覆盖。
+    /// </summary>
+    internal static bool ValidateFileOperationConfig(FileOperationConfig config) {
+        if (config.MaxReadSize < 1024 || config.MaxReadSize > 1024L * 1024 * 1024) return false;
+        if (config.MaxWriteSize < 1024 || config.MaxWriteSize > 1024 * 1024 * 1024) return false;
+        if (config.BufferSize < 512 || config.BufferSize > 1024 * 1024) return false;
+        if (config.BinaryDetectionBufferSize < 1024 || config.BinaryDetectionBufferSize > 64 * 1024) return false;
+        return true;
+    }
+
+    /// <summary>
+    /// 验证 ShellExecutionConfig 的 2 个范围约束 — 纯计算，供确定性测试覆盖。
+    /// </summary>
+    internal static bool ValidateShellExecutionConfig(ShellExecutionConfig config) {
+        if (config.MaxOutputBytes < 1024 || config.MaxOutputBytes > 1024 * 1024) return false;
+        if (config.DefaultTimeoutSeconds < 1 || config.DefaultTimeoutSeconds > 3600) return false;
+        return true;
+    }
+
+    /// <summary>
+    /// 应用环境变量覆盖到 ShellExecutionConfig — 纯计算（env 值以参数传入），供确定性测试覆盖。
+    /// <para>JCC_ABSOLUTE_TIMEOUT_SECONDS: TryParse + ≥0 校验</para>
+    /// <para>JCC_RESUME_TIMEOUT_SECONDS: TryParse + ≥60 校验</para>
+    /// </summary>
+    internal static void ApplyEnvOverrides(ShellExecutionConfig config, string? envAbsolute, string? envResume) {
+        if (int.TryParse(envAbsolute, out var absSeconds) && absSeconds >= 0)
+            config.AbsoluteTimeoutSeconds = absSeconds;
+
+        if (int.TryParse(envResume, out var resumeSeconds) && resumeSeconds >= 60)
+            config.ResumeTimeoutSeconds = resumeSeconds;
     }
 }

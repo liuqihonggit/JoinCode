@@ -32,7 +32,8 @@ public sealed class BclFileIO : IBclFileIO {
         return reader.ReadToEnd();
     }
 
-    private static System.Text.Encoding DetectFromBOM(byte[] bytes) {
+    /// <summary>从字节数组开头检测 BOM 编码 — internal 供测试直接验证 4 分支纯逻辑</summary>
+    internal static System.Text.Encoding DetectFromBOM(byte[] bytes) {
         if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
             return System.Text.Encoding.UTF8;
         if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)

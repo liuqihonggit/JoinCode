@@ -37,6 +37,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.McpToolDispatch.Tests" />
+    <InternalsVisibleTo Include="JoinCode.McpToolDispatch.UniqueTests" />
     <InternalsVisibleTo Include="JoinCode.Composition" />
     <InternalsVisibleTo Include="JoinCode.Composition.Tests" />
   </ItemGroup>

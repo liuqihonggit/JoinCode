@@ -50,7 +50,7 @@ public sealed partial class SubAgentSummaryClient : ServiceEntity, ISubAgentSumm
         }
     }
 
-    private static string BuildSystemPrompt(int maxOutputTokens) {
+    internal static string BuildSystemPrompt(int maxOutputTokens) {
         return $"你是摘要助手。请将用户提供的文本压缩成不超过 {maxOutputTokens} token 的连贯摘要，保留关键信息、结论和重要数据。直接输出摘要内容，不要加任何前缀或解释。";
     }
 }

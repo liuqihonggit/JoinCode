@@ -304,4 +304,145 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
         monitor.GetPenalty("shell_background_get").Should().Be(-30);
         monitor.GetPenalty("Bash").Should().Be(0);
     }
+
+    // === MatchesPattern (internal static) — 通配符匹配核心算法 ===
+
+    [Theory]
+    [InlineData("shell_*", "shell_check", true)]
+    [InlineData("shell_*", "shell_background_get", true)]
+    [InlineData("shell_*", "Bash", false)]
+    [InlineData("*_background_*", "shell_background_get", true)]
+    [InlineData("*_background_*", "shell_background_list", true)]
+    [InlineData("*_background_*", "shell_check", false)]
+    [InlineData("*", "anything", true)]
+    [InlineData("*", "", true)]
+    [InlineData("exact", "exact", true)]
+    [InlineData("exact", "Exact", true)]
+    [InlineData("exact", "other", false)]
+    [InlineData("a*b*c", "axbxc", true)]
+    [InlineData("a*b*c", "aXbXc", true)]
+    [InlineData("a*b*c", "abc", true)]
+    [InlineData("a*b*c", "acb", false)]
+    [InlineData("*a*b*c*", "xaybzcw", true)]
+    [InlineData("*a*b*c*", "xyzabc", true)]
+    [InlineData("*a*b*c*", "abx", false)]
+    [InlineData("pre*suffix", "preXXXsuffix", true)]
+    [InlineData("pre*suffix", "preXXXsuffiX", true)]
+    [InlineData("pre*suffix", "preXXXsuffiY", false)]
+    [InlineData("", "", true)]
+    [InlineData("", "x", false)]
+    public void MatchesPattern_VariousPatterns_ReturnsExpected(string pattern, string toolName, bool expected) {
+        ToolHealthMonitor.MatchesPattern(pattern, toolName).Should().Be(expected);
+    }
+
+    [Fact]
+    public void MatchesPattern_SingleStar_MatchesAny() {
+        ToolHealthMonitor.MatchesPattern("*", "any_tool_name").Should().BeTrue();
+        ToolHealthMonitor.MatchesPattern("*", "").Should().BeTrue();
+    }
+
+    [Fact]
+    public void MatchesPattern_NoStar_ExactCaseInsensitiveMatch() {
+        ToolHealthMonitor.MatchesPattern("Bash", "bash").Should().BeTrue();
+        ToolHealthMonitor.MatchesPattern("BASH", "bash").Should().BeTrue();
+        ToolHealthMonitor.MatchesPattern("bash", "bashx").Should().BeFalse();
+    }
+
+    // === ApplyTimeDecay (internal) — 时间衰减算法 ===
+
+    [Fact]
+    public async Task ApplyTimeDecay_IdleHoursLessThanOne_SkipsDecay() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
+            SuccessDelta = 1, FailDelta = -5, DecayRatePerHour = 1.0, DecayRecoveryScore = 1
+        });
+        await monitor.RecordFailureAsync("tool_a", "err");
+        var record = await monitor.GetRecordAsync("tool_a");
+        record!.Score.Should().Be(-5);
+        record.LastAdjusted = DateTime.UtcNow - TimeSpan.FromMinutes(30);
+
+        monitor.ApplyTimeDecay();
+
+        var after = await monitor.GetRecordAsync("tool_a");
+        after!.Score.Should().Be(-5);
+    }
+
+    [Fact]
+    public async Task ApplyTimeDecay_NegativeScore_DecaysTowardZero() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
+            SuccessDelta = 1, FailDelta = -5, DecayRatePerHour = 1.0, DecayRecoveryScore = 1
+        });
+        await monitor.RecordFailureAsync("tool_a", "err");
+        var record = await monitor.GetRecordAsync("tool_a");
+        record!.Score.Should().Be(-5);
+        record.LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(2);
+
+        monitor.ApplyTimeDecay();
+
+        var after = await monitor.GetRecordAsync("tool_a");
+        after!.Score.Should().Be(-3);
+    }
+
+    [Fact]
+    public async Task ApplyTimeDecay_NegativeScore_DecayClampedToZero() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
+            SuccessDelta = 1, FailDelta = -5, DecayRatePerHour = 10.0, DecayRecoveryScore = 1
+        });
+        await monitor.RecordFailureAsync("tool_a", "err");
+        var record = await monitor.GetRecordAsync("tool_a");
+        record!.Score.Should().Be(-5);
+        record.LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(2);
+
+        monitor.ApplyTimeDecay();
+
+        var after = await monitor.GetRecordAsync("tool_a");
+        after!.Score.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ApplyTimeDecay_NonNegativeScore_NoDecay() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
+            SuccessDelta = 1, FailDelta = -5, DecayRatePerHour = 1.0, DecayRecoveryScore = 1
+        });
+        await monitor.RecordSuccessAsync("tool_a");
+        var record = await monitor.GetRecordAsync("tool_a");
+        record!.Score.Should().Be(1);
+        record.LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(10);
+
+        monitor.ApplyTimeDecay();
+
+        var after = await monitor.GetRecordAsync("tool_a");
+        after!.Score.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ApplyTimeDecay_DisabledTool_SkipsDecay() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
+            SuccessDelta = 1, FailDelta = -5, DecayRatePerHour = 1.0, DecayRecoveryScore = 1
+        });
+        await monitor.RecordFailureAsync("tool_a", "err");
+        var record = await monitor.GetRecordAsync("tool_a");
+        record!.Score.Should().Be(-5);
+        record.IsEnabled = false;
+        record.LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(5);
+
+        monitor.ApplyTimeDecay();
+
+        var after = await monitor.GetRecordAsync("tool_a");
+        after!.Score.Should().Be(-5);
+    }
+
+    [Fact]
+    public async Task ApplyTimeDecay_NoRecords_NoOp() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
+            DecayRatePerHour = 1.0, DecayRecoveryScore = 1
+        });
+        var act = () => monitor.ApplyTimeDecay();
+        act.Should().NotThrow();
+    }
 }

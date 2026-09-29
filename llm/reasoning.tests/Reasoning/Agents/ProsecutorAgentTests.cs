@@ -116,6 +116,69 @@ public sealed class ProsecutorAgentTests {
         Assert.Equal(1.0, action.Evidence[0].Weight);
     }
 
+    [Fact]
+    public async Task ParseEvidenceFromLlmResponse_ValidJson_ShouldParseAllFields() {
+        await using var agent = new ProsecutorAgent(new FakeQueryEngine(), NullLogger<ProsecutorAgent>.Instance);
+        var json = "{\"evidence\":[{\"content\":\"DNA匹配\",\"source\":\"实验室\",\"trustLevel\":\"DirectEvidence\",\"weight\":5.0}]}";
+
+        var records = agent.ParseEvidenceFromLlmResponse(json);
+
+        Assert.Single(records);
+        Assert.Equal("DNA匹配", records[0].Content);
+        Assert.Equal("实验室", records[0].Source);
+        Assert.Equal(TrustLevel.DirectEvidence, records[0].TrustLevel);
+        Assert.Equal(5.0, records[0].Weight);
+        Assert.Equal(AgentRole.Prosecutor, records[0].SubmittedBy);
+        Assert.Equal(EvidenceCategory.Documentary, records[0].Category);
+    }
+
+    [Fact]
+    public async Task ParseEvidenceFromLlmResponse_MissingFields_ShouldUseDefaults() {
+        await using var agent = new ProsecutorAgent(new FakeQueryEngine(), NullLogger<ProsecutorAgent>.Instance);
+        var json = "{\"evidence\":[{\"content\":\"仅内容\"}]}";
+
+        var records = agent.ParseEvidenceFromLlmResponse(json);
+
+        Assert.Single(records);
+        Assert.Equal("仅内容", records[0].Content);
+        Assert.Equal("LLM生成", records[0].Source);
+        Assert.Equal(TrustLevel.Moderate, records[0].TrustLevel);
+        Assert.Equal(1.0, records[0].Weight);
+    }
+
+    [Fact]
+    public async Task ParseEvidenceFromLlmResponse_NoEvidenceField_ShouldReturnEmpty() {
+        await using var agent = new ProsecutorAgent(new FakeQueryEngine(), NullLogger<ProsecutorAgent>.Instance);
+        var json = "{\"other\":\"value\"}";
+
+        var records = agent.ParseEvidenceFromLlmResponse(json);
+
+        Assert.Empty(records);
+    }
+
+    [Fact]
+    public async Task ParseEvidenceFromLlmResponse_MalformedJson_ShouldReturnEmpty() {
+        await using var agent = new ProsecutorAgent(new FakeQueryEngine(), NullLogger<ProsecutorAgent>.Instance);
+
+        var records = agent.ParseEvidenceFromLlmResponse("not json");
+
+        Assert.Empty(records);
+    }
+
+    [Fact]
+    public async Task ParseEvidenceFromLlmResponse_MultipleItems_ShouldParseAll() {
+        await using var agent = new ProsecutorAgent(new FakeQueryEngine(), NullLogger<ProsecutorAgent>.Instance);
+        var json = "{\"evidence\":[{\"content\":\"证据1\",\"weight\":1.0},{\"content\":\"证据2\",\"weight\":2.0}]}";
+
+        var records = agent.ParseEvidenceFromLlmResponse(json);
+
+        Assert.Equal(2, records.Count);
+        Assert.Equal("证据1", records[0].Content);
+        Assert.Equal(1.0, records[0].Weight);
+        Assert.Equal("证据2", records[1].Content);
+        Assert.Equal(2.0, records[1].Weight);
+    }
+
     private static ReasoningContext CreateContext(IReadOnlyList<DataItem> items) {
         return new ReasoningContext {
             AllItems = items,

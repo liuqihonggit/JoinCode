@@ -96,7 +96,7 @@ public sealed class WeightedDecisionSystem {
         };
     }
 
-    private static double CalculateFinalConfidence(
+    internal static double CalculateFinalConfidence(
         double prosWeight, double defWeight,
         double topologyScore, double beliefVariance) {
         var weightGap = Math.Abs(prosWeight - defWeight);

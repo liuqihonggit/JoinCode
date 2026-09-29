@@ -9,12 +9,12 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 分类信号 — 单个检查层产出的危险等级+风险类型+详情
     /// </summary>
-    private readonly record struct Signal(CommandDangerLevel Level, CommandRisk Risk, string Detail);
+    internal readonly record struct Signal(CommandDangerLevel Level, CommandRisk Risk, string Detail);
 
     /// <summary>
     /// 信号聚合器 — 累积所有信号的危险等级/风险/详情列表
     /// </summary>
-    private sealed record SignalAccumulator(
+    internal sealed record SignalAccumulator(
         List<CommandDangerLevel> Levels,
         List<CommandRisk> Risks,
         List<string> Details);
@@ -40,7 +40,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// git 子命令前置短路 — 只读子命令检查管道/重定向,不可撤回子命令升级为 Execution
     /// </summary>
-    private static DangerClassificationResult? ClassifyGitEarlyReturn(ShellCommand command) {
+    internal static DangerClassificationResult? ClassifyGitEarlyReturn(ShellCommand command) {
         var entry = MatchCommandEntry(command.CommandName);
         if (entry is null || entry.Level != CommandDangerLevel.LightValidation)
             return null;
@@ -60,7 +60,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 收集所有分类信号 — 命令名 → 参数 → 组合 → 递归强制,链式拼接
     /// </summary>
-    private static IEnumerable<Signal> CollectSignals(ShellCommand command)
+    internal static IEnumerable<Signal> CollectSignals(ShellCommand command)
         => ClassifyByCommandName(command)
             .Concat(ClassifyByArguments(command))
             .Concat(ClassifyByCombinations(command))
@@ -69,7 +69,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 命令名查表 — 已登记命令返回条目信号,未登记返回 Unknown(黄灯)
     /// </summary>
-    private static IEnumerable<Signal> ClassifyByCommandName(ShellCommand command) {
+    internal static IEnumerable<Signal> ClassifyByCommandName(ShellCommand command) {
         var entry = MatchCommandEntry(command.CommandName);
         if (entry is not null)
             yield return new(entry.Level, entry.RiskType, $"命令 '{command.CommandName}': {entry.Description}");
@@ -80,13 +80,13 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 参数检查 — 遍历每个参数,检查危险标志和危险路径
     /// </summary>
-    private static IEnumerable<Signal> ClassifyByArguments(ShellCommand command)
+    internal static IEnumerable<Signal> ClassifyByArguments(ShellCommand command)
         => command.Arguments.SelectMany(CheckArgumentRisk);
 
     /// <summary>
     /// 单个参数的风险检查 — 危险标志 + 危险路径
     /// </summary>
-    private static IEnumerable<Signal> CheckArgumentRisk(string arg) {
+    internal static IEnumerable<Signal> CheckArgumentRisk(string arg) {
         if (DangerousCommandCatalog.Flags.TryGetValue(arg, out var flagEntry))
             yield return new(flagEntry.Level, flagEntry.RiskType, $"危险参数 '{arg}': {flagEntry.Description}");
 
@@ -102,7 +102,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// 管道组合（首模式为 "|"）仍用 AC 扫描原始串，因为管道是 shell 语法结构。
     /// </para>
     /// </summary>
-    private static IEnumerable<Signal> ClassifyByCombinations(ShellCommand command) {
+    internal static IEnumerable<Signal> ClassifyByCombinations(ShellCommand command) {
         var commandNameLower = command.CommandName.ToLowerInvariant();
         var argsLower = command.Arguments.Select(static a => a.ToLowerInvariant()).ToList();
         var rawLower = command.RawCommand.ToLowerInvariant();
@@ -118,7 +118,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// 管道组合（首模式为 "|"）扫描原始串；命令组合检查 CommandName + Arguments。
     /// </para>
     /// </summary>
-    private static bool IsCombinationHit(
+    internal static bool IsCombinationHit(
         DangerousCommandCatalog.CombinationEntry combo,
         string commandNameLower,
         IReadOnlyList<string> argsLower,
@@ -137,14 +137,14 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 命令名匹配 — 精确匹配或前缀匹配（如 mkfs → mkfs.ext4）。
     /// </summary>
-    private static bool CommandNameMatches(string commandNameLower, string pattern)
+    internal static bool CommandNameMatches(string commandNameLower, string pattern)
         => commandNameLower.Equals(pattern, StringComparison.Ordinal)
            || commandNameLower.StartsWith(pattern + ".", StringComparison.Ordinal);
 
     /// <summary>
     /// 递归+强制组合检查 — Remove-Item/rm/del/erase 的 -Recurse -Force 组合
     /// </summary>
-    private static IEnumerable<Signal> ClassifyByRecurseForce(ShellCommand command) {
+    internal static IEnumerable<Signal> ClassifyByRecurseForce(ShellCommand command) {
         var level = CheckRecurseForceCombination(command);
         if (level == CommandDangerLevel.Safe)
             return [];
@@ -158,7 +158,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 累积信号到聚合器
     /// </summary>
-    private static SignalAccumulator AccumulateSignal(SignalAccumulator acc, Signal signal) {
+    internal static SignalAccumulator AccumulateSignal(SignalAccumulator acc, Signal signal) {
         acc.Levels.Add(signal.Level);
         if (signal.Risk != CommandRisk.None)
             acc.Risks.Add(signal.Risk);
@@ -170,7 +170,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 从聚合器构建最终分类结果 — 取最高等级 + 选最高优先级风险 + 拼接详情
     /// </summary>
-    private static DangerClassificationResult BuildResult(SignalAccumulator acc) {
+    internal static DangerClassificationResult BuildResult(SignalAccumulator acc) {
         var finalLevel = DangerousCommandCatalog.MergeLevels([.. acc.Levels]);
         var primaryRisk = SelectPrimaryRisk(acc.Risks);
         var detailText = acc.Details.Count > 0 ? string.Join("; ", acc.Details) : null;
@@ -198,7 +198,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 匹配命令条目（支持前缀匹配，如 mkfs.ext4 匹配 mkfs）
     /// </summary>
-    private static DangerousCommandCatalog.CommandEntry? MatchCommandEntry(string commandName) {
+    internal static DangerousCommandCatalog.CommandEntry? MatchCommandEntry(string commandName) {
         if (DangerousCommandCatalog.Commands.TryGetValue(commandName, out var entry))
             return entry;
 
@@ -215,7 +215,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 判断 git 子命令是否为只读（不修改仓库状态）
     /// </summary>
-    private static bool IsGitReadOnlySubcommand(ShellCommand command) {
+    internal static bool IsGitReadOnlySubcommand(ShellCommand command) {
         if (!command.CommandName.Equals("git", StringComparison.OrdinalIgnoreCase))
             return false;
 
@@ -274,7 +274,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// 判断 git 子命令是否为远程不可撤回操作（升级为 Execution 红灯ask）
     /// git push 推送到远程后无法撤回，git stash drop/tag -d/branch -D 删除操作不可恢复
     /// </summary>
-    private static bool IsGitIrreversibleSubcommand(ShellCommand command) {
+    internal static bool IsGitIrreversibleSubcommand(ShellCommand command) {
         if (!command.CommandName.Equals("git", StringComparison.OrdinalIgnoreCase))
             return false;
 
@@ -311,7 +311,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 分类路径参数的危险等级
     /// </summary>
-    private static CommandDangerLevel ClassifyPath(string arg) {
+    internal static CommandDangerLevel ClassifyPath(string arg) {
         if (string.IsNullOrWhiteSpace(arg))
             return CommandDangerLevel.Safe;
 
@@ -337,7 +337,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 检查 Remove-Item/rm/del/erase 的 -Recurse -Force 组合
     /// </summary>
-    private static CommandDangerLevel CheckRecurseForceCombination(ShellCommand command) {
+    internal static CommandDangerLevel CheckRecurseForceCombination(ShellCommand command) {
         if (!command.CommandName.Equals("Remove-Item", StringComparison.OrdinalIgnoreCase) &&
             !command.CommandName.Equals("rm", StringComparison.OrdinalIgnoreCase) &&
             !command.CommandName.Equals("del", StringComparison.OrdinalIgnoreCase) &&
@@ -373,7 +373,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 选择最高优先级的风险类型（用于消息构建）
     /// </summary>
-    private static CommandRisk SelectPrimaryRisk(IReadOnlyList<CommandRisk> risks) {
+    internal static CommandRisk SelectPrimaryRisk(IReadOnlyList<CommandRisk> risks) {
         if (risks.Count == 0)
             return CommandRisk.None;
 
@@ -401,7 +401,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 检查 git 只读命令的管道/重定向 — 管道传入解释器可执行任意代码(Execution),其他管道/重定向需确认(LightValidation)
     /// </summary>
-    private static DangerClassificationResult ClassifyGitPipeRedirect(ShellCommand command) {
+    internal static DangerClassificationResult ClassifyGitPipeRedirect(ShellCommand command) {
         if (!command.HasPipe && !command.HasRedirection)
             return DangerClassificationResult.SafeResult;
 
@@ -421,14 +421,14 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 从参数列表中提取所有管道目标命令名(| 后面的第一个参数)
     /// </summary>
-    private static IEnumerable<string> GetPipeTargetCommands(IReadOnlyList<string> arguments)
-        => Enumerable.Range(0, arguments.Count - 1)
+    internal static IEnumerable<string> GetPipeTargetCommands(IReadOnlyList<string> arguments)
+        => Enumerable.Range(0, Math.Max(0, arguments.Count - 1))
             .Where(i => arguments[i] == "|")
             .Select(i => arguments[i + 1]);
 
     /// <summary>
     /// 判断命令名是否为解释器(可执行任意代码) — 引用 DangerousCommandCatalog.InterpreterCommands 唯一数据源
     /// </summary>
-    private static bool IsInterpreter(string commandName)
+    internal static bool IsInterpreter(string commandName)
         => DangerousCommandCatalog.InterpreterCommands.Contains(commandName);
 }

@@ -350,4 +350,115 @@ public class ImmutableDagTests {
         node.InEdgeIds.Should().BeEmpty();
         node.OutEdgeIds.Should().BeEmpty();
     }
+
+    // ===== 补充:快照隔离 / 多环 / 钻石图 / RemoveNode 一致性 =====
+
+    [Fact]
+    public void Nodes_SnapshotIsolation_AddNodeDoesNotMutateOldSnapshot() {
+        var dag = ImmutableDag<string>.Empty.AddNode(Node("a"));
+        var oldNodes = dag.Nodes;
+        dag.AddNode(Node("b"));
+        oldNodes.Count.Should().Be(1);
+        oldNodes.ContainsKey("b").Should().BeFalse();
+        dag.Nodes.Count.Should().Be(2);
+    }
+
+    [Fact]
+    public void Edges_SnapshotIsolation_AddEdgeDoesNotMutateOldSnapshot() {
+        var dag = ImmutableDag<string>.Empty.AddNode(Node("a")).AddNode(Node("b"));
+        var oldEdges = dag.Edges;
+        dag.AddEdge(Edge("a", "b"));
+        oldEdges.Count.Should().Be(0);
+        dag.Edges.Count.Should().Be(1);
+    }
+
+    [Fact]
+    public void FindAllCycles_TwoIndependentCycles() {
+        var dag = ImmutableDag<string>.Empty
+            .AddNode(Node("a")).AddNode(Node("b")).AddNode(Node("c")).AddNode(Node("d"))
+            .TryAddEdge(Edge("a", "b")).TryAddEdge(Edge("b", "a"))
+            .TryAddEdge(Edge("c", "d")).TryAddEdge(Edge("d", "c"));
+        var cycles = dag.FindAllCycles();
+        // 规范化:每个环旋转到最小 Id 开头,环列表排序后比较
+        var normalized = cycles
+            .Select(c => {
+                var minIdx = 0;
+                for (var i = 1; i < c.Count; i++)
+                    if (string.CompareOrdinal(c[i], c[minIdx]) < 0) minIdx = i;
+                return string.Join(",", c.Skip(minIdx).Concat(c.Take(minIdx)));
+            })
+            .OrderBy(s => s)
+            .ToList();
+        normalized.Should().BeEquivalentTo(new[] { "a,b", "c,d" });
+    }
+
+    [Fact]
+    public void FindAllCycles_ThreeNodeCycle() {
+        var dag = ImmutableDag<string>.Empty
+            .AddNode(Node("a")).AddNode(Node("b")).AddNode(Node("c"))
+            .TryAddEdge(Edge("a", "b")).TryAddEdge(Edge("b", "c")).TryAddEdge(Edge("c", "a"));
+        var cycles = dag.FindAllCycles();
+        cycles.Should().HaveCount(1);
+        cycles[0].Should().BeEquivalentTo(new[] { "a", "b", "c" });
+    }
+
+    [Fact]
+    public void GetAffectedSubgraph_Diamond() {
+        var dag = ImmutableDag<string>.Empty
+            .AddNode(Node("a")).AddNode(Node("b")).AddNode(Node("c")).AddNode(Node("d"))
+            .AddEdge(Edge("a", "b")).AddEdge(Edge("a", "c")).AddEdge(Edge("b", "d")).AddEdge(Edge("c", "d"));
+        var affected = dag.GetAffectedSubgraph("a").Select(n => n.Id).ToList();
+        affected.Should().HaveCount(4);
+        var idx = affected.Select((id, i) => (id, i)).ToDictionary(x => x.id, x => x.i);
+        idx["a"].Should().BeLessThan(idx["b"]);
+        idx["a"].Should().BeLessThan(idx["c"]);
+        idx["b"].Should().BeLessThan(idx["d"]);
+        idx["c"].Should().BeLessThan(idx["d"]);
+    }
+
+    [Fact]
+    public void GetAffectedSubgraph_LeafNode_ReturnsSelf() {
+        var dag = ImmutableDag<string>.Empty
+            .AddNode(Node("a")).AddNode(Node("b")).AddNode(Node("c"))
+            .AddEdge(Edge("a", "b")).AddEdge(Edge("b", "c"));
+        dag.GetAffectedSubgraph("c").Select(n => n.Id).Should().BeEquivalentTo(new[] { "c" });
+    }
+
+    [Fact]
+    public void RemoveNode_PreservesAdjacencyConsistency() {
+        // a→b→c, 移除 b 后: a.OutEdgeIds 不含 b 的边, c.InEdgeIds 不含 b 的边
+        var dag = ImmutableDag<string>.Empty
+            .AddNode(Node("a")).AddNode(Node("b")).AddNode(Node("c"))
+            .AddEdge(Edge("a", "b")).AddEdge(Edge("b", "c"))
+            .RemoveNode("b");
+        dag.Nodes.Should().ContainKeys("a", "c");
+        dag.Nodes["a"].OutEdgeIds.Should().BeEmpty();
+        dag.Nodes["c"].InEdgeIds.Should().BeEmpty();
+        dag.Edges.Count.Should().Be(0);
+    }
+
+    [Fact]
+    public void RemoveNode_Diamond_PreservesConsistency() {
+        // a→b, a→c, b→d, c→d, 移除 b 后: a.OutEdgeIds 只含 c 的边, d.InEdgeIds 只含 c 的边
+        var dag = ImmutableDag<string>.Empty
+            .AddNode(Node("a")).AddNode(Node("b")).AddNode(Node("c")).AddNode(Node("d"))
+            .AddEdge(Edge("a", "b")).AddEdge(Edge("a", "c")).AddEdge(Edge("b", "d")).AddEdge(Edge("c", "d"))
+            .RemoveNode("b");
+        dag.Nodes.Should().ContainKeys("a", "c", "d");
+        dag.Nodes["a"].OutEdgeIds.Should().HaveCount(1);
+        dag.Nodes["d"].InEdgeIds.Should().HaveCount(1);
+        dag.Edges.Count.Should().Be(2);
+    }
+
+    [Fact]
+    public void TopologicalSort_Diamond_Layers() {
+        var dag = ImmutableDag<string>.Empty
+            .AddNode(Node("a")).AddNode(Node("b")).AddNode(Node("c")).AddNode(Node("d"))
+            .AddEdge(Edge("a", "b")).AddEdge(Edge("a", "c")).AddEdge(Edge("b", "d")).AddEdge(Edge("c", "d"));
+        var levels = dag.TopologicalSortByLevels();
+        levels.Should().HaveCount(3);
+        levels[0].Select(n => n.Id).Should().BeEquivalentTo(new[] { "a" });
+        levels[1].Select(n => n.Id).Should().BeEquivalentTo(new[] { "b", "c" });
+        levels[2].Select(n => n.Id).Should().BeEquivalentTo(new[] { "d" });
+    }
 }

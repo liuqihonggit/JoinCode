@@ -60,7 +60,7 @@ public sealed partial class RedirectWhitelistNode {
     /// <summary>
     /// 提取命令中所有文件重定向目标。
     /// </summary>
-    private static IEnumerable<string> ExtractRedirectTargets(string command)
+    internal static IEnumerable<string> ExtractRedirectTargets(string command)
         => RedirectTargetRegex.Matches(command)
             .Select(static m => m.Groups[1].Success ? m.Groups[1].Value
                               : m.Groups[2].Success ? m.Groups[2].Value
@@ -69,7 +69,7 @@ public sealed partial class RedirectWhitelistNode {
     /// <summary>
     /// 评估单个重定向目标是否在白名单内。
     /// </summary>
-    private static RedirectWhitelistResult EvaluateTarget(string target, string workingDirectory) {
+    internal static RedirectWhitelistResult EvaluateTarget(string target, string workingDirectory) {
         if (IsSafeDeviceTarget(target))
             return new RedirectWhitelistResult(true, null, null);
 
@@ -82,13 +82,13 @@ public sealed partial class RedirectWhitelistNode {
     /// <summary>
     /// 是否为标准设备目标（/dev/null 等）。
     /// </summary>
-    private static bool IsSafeDeviceTarget(string target)
+    internal static bool IsSafeDeviceTarget(string target)
         => SafeDeviceTargets.Contains(target);
 
     /// <summary>
     /// 规范化重定向目标 — 波浪号展开 + Path.GetFullPath（约束第8条）。
     /// </summary>
-    private static string NormalizeRedirectTarget(string target, string workingDirectory) {
+    internal static string NormalizeRedirectTarget(string target, string workingDirectory) {
         var expanded = ExpandTilde(target);
         try {
             return Path.GetFullPath(expanded, workingDirectory);
@@ -100,7 +100,7 @@ public sealed partial class RedirectWhitelistNode {
     /// <summary>
     /// 波浪号展开 — ~ 替换为用户主目录。
     /// </summary>
-    private static string ExpandTilde(string path) {
+    internal static string ExpandTilde(string path) {
         if (!path.StartsWith('~'))
             return path;
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -112,7 +112,7 @@ public sealed partial class RedirectWhitelistNode {
     /// <summary>
     /// 判断规范化路径是否在工作区内。
     /// </summary>
-    private static bool IsWithinWorkspace(string normalizedPath, string workingDirectory) {
+    internal static bool IsWithinWorkspace(string normalizedPath, string workingDirectory) {
         try {
             var normalizedWorkDir = Path.GetFullPath(workingDirectory);
             return normalizedPath.StartsWith(normalizedWorkDir, StringComparison.OrdinalIgnoreCase);

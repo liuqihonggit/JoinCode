@@ -210,7 +210,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
     /// <summary>
     /// 分类工具错误 — 对齐 TS extractToolStats 中的错误分类逻辑
     /// </summary>
-    private static string CategorizeToolError(string content) {
+    internal static string CategorizeToolError(string content) {
         var lower = content.ToLowerInvariant();
 
         if (lower.Contains("exit code")) return "Command Failed";
@@ -226,7 +226,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
     /// <summary>
     /// 从工具结果中提取语言和文件统计 — 对齐 TS extractToolStats 中的语言/Git/文件统计
     /// </summary>
-    private static void ExtractLanguageAndFileStats(
+    internal static void ExtractLanguageAndFileStats(
         TranscriptEntry entry,
         Dictionary<string, int> languages,
         HashSet<string> modifiedFiles,

@@ -84,14 +84,14 @@ public sealed partial class HeredocGuard : ICommandGuard {
     /// <summary>
     /// 判断当前 shell 是否为 Bash — Bash 原生支持 HEREDOC,无需转换
     /// </summary>
-    private static bool IsBashShell(GuardContext context) {
+    internal static bool IsBashShell(GuardContext context) {
         return context.ShellKind == SystemActuatorKind.Bash;
     }
 
     /// <summary>
     /// 转义双引号字符串中的特殊字符 — 双引号、反斜杠、$ 需要转义
     /// </summary>
-    private static string EscapeForDoubleQuotedString(string content) {
+    internal static string EscapeForDoubleQuotedString(string content) {
         return content
             .Replace("\\", "\\\\")
             .Replace("\"", "\\\"")

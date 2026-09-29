@@ -30,7 +30,7 @@ public static class BashSafeWrapperStripper {
                     }
                     if (i < a.Length && BashSecurityRegex.DurationRegex().IsMatch(a[i])) a = a[(i + 1)..];
                     else if (i < a.Length) return a;
-                    else break;
+                    else goto Done;
                 }
                 break;
                 case "nice": {
@@ -38,7 +38,7 @@ public static class BashSafeWrapperStripper {
                     else if (a.Length > 1 && BashSecurityRegex.NiceLegacyRegex().IsMatch(a[1])) a = a[2..];
                     else if (a.Length > 1 && a[1].Contains('$')) return a;
                     else if (a.Length > 1) a = a[1..];
-                    else break;
+                    else goto Done;
                 }
                 break;
                 case "env": {
@@ -52,7 +52,7 @@ public static class BashSafeWrapperStripper {
                         else break;
                     }
                     if (i < a.Length) a = a[i..];
-                    else break;
+                    else goto Done;
                 }
                 break;
                 case "stdbuf": {
@@ -66,7 +66,7 @@ public static class BashSafeWrapperStripper {
                         else break;
                     }
                     if (i > 1 && i < a.Length) a = a[i..];
-                    else break;
+                    else goto Done;
                 }
                 break;
                 default:

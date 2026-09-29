@@ -58,7 +58,7 @@ public sealed class JsonLeniencyReport {
 /// 数值越界截断、未定义枚举值降级为默认值。
 /// </summary>
 public static class JsonLenientCoercer {
-    private readonly record struct CoerceAction(JsonElement Result, bool Changed, bool Drop, JsonCoercionIssue? Issue);
+    internal readonly record struct CoerceAction(JsonElement Result, bool Changed, bool Drop, JsonCoercionIssue? Issue);
 
     /// <summary>
     /// 尝试对顶层对象 DTO 的标量字段做类型强制转换并输出修复后的 JSON。
@@ -205,7 +205,7 @@ public static class JsonLenientCoercer {
         return new CoerceAction(value, false, false, null);
     }
 
-    private static CoerceAction CoerceToBool(string name, Type effective, JsonElement value, JsonValueKind kind) {
+    internal static CoerceAction CoerceToBool(string name, Type effective, JsonElement value, JsonValueKind kind) {
         switch (kind) {
             case JsonValueKind.Number:
             var intVal = value.TryGetInt64(out var l) ? l : (long)value.GetDouble();
@@ -292,7 +292,7 @@ public static class JsonLenientCoercer {
         }
     }
 
-    private static CoerceAction CoerceToNumber(string name, Type effective, JsonElement value, JsonValueKind kind) {
+    internal static CoerceAction CoerceToNumber(string name, Type effective, JsonElement value, JsonValueKind kind) {
         if (IsIntegral(effective) && kind == JsonValueKind.Number) {
             // 数值越界截断：JSON 数字超出目标整型范围时钳制到 [Min, Max]
             if (value.TryGetInt64(out var l))

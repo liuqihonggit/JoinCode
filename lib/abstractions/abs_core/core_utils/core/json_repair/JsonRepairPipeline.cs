@@ -165,7 +165,7 @@ internal static class JsonRepairPipeline {
         return result.ToString();
     }
 
-    private static string FixUnquotedKeys(string json, List<string> hints) {
+    internal static string FixUnquotedKeys(string json, List<string> hints) {
         var changed = false;
         var result = new StringBuilder(json.Length);
         var i = 0;
@@ -228,7 +228,7 @@ internal static class JsonRepairPipeline {
     /// <para>跳过数字、true/false/null、嵌套对象{}和数组[]、已加引号的字符串</para>
     /// <para>字符级遍历，正确跳过字符串内的冒号，不会误处理字符串内的 :value, 模式</para>
     /// </summary>
-    private static string FixUnquotedValues(string json, List<string> hints) {
+    internal static string FixUnquotedValues(string json, List<string> hints) {
         var changed = false;
         var result = new StringBuilder(json.Length);
         var i = 0;
@@ -363,7 +363,7 @@ internal static class JsonRepairPipeline {
     /// <para>如 '"{"key":"value"}"' → '{"key":"value"}'</para>
     /// <para>幂等：如果去除后不是合法 JSON 开头，保留原始引号</para>
     /// </summary>
-    private static string StripOuterQuotes(string json) {
+    internal static string StripOuterQuotes(string json) {
         if (json.Length < 2)
             return json;
 

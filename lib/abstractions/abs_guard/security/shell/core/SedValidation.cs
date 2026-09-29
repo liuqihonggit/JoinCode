@@ -143,7 +143,7 @@ public static class SedValidation {
     /// <summary>
     /// sed 表达式提取结果
     /// </summary>
-    private sealed class SedExtractionResult {
+    internal sealed class SedExtractionResult {
         /// <summary>获取是否解析成功。</summary>
         public bool Success { get; init; }
         /// <summary>获取 sed 表达式列表。</summary>
@@ -157,7 +157,7 @@ public static class SedValidation {
     /// <summary>
     /// 从 sed 命令中提取表达式 — 对齐 TS extractSedExpressions
     /// </summary>
-    private static SedExtractionResult ExtractSedExpressions(string command) {
+    internal static SedExtractionResult ExtractSedExpressions(string command) {
         var tokens = SplitSedTokens(command);
         if (tokens.Count == 0) {
             return new SedExtractionResult();

@@ -212,7 +212,7 @@ public sealed class PermissionCheckContext {
     /// <summary>
     /// 解析特殊文件夹占位符
     /// </summary>
-    private static string ResolveSpecialFolder(string placeholder) {
+    internal static string ResolveSpecialFolder(string placeholder) {
         return placeholder switch {
             "{Windows}" => Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.Windows)),
             "{System}" => Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.System)),
@@ -224,7 +224,7 @@ public sealed class PermissionCheckContext {
     /// <summary>
     /// 使用 OrdinalIgnoreCase 在 Span 中查找子串，避免创建新字符串
     /// </summary>
-    private static bool ContainsOrdinalIgnoreCase(ReadOnlySpan<char> source, ReadOnlySpan<char> value) {
+    internal static bool ContainsOrdinalIgnoreCase(ReadOnlySpan<char> source, ReadOnlySpan<char> value) {
         if (value.IsEmpty)
             return true;
         if (source.IsEmpty)
@@ -243,7 +243,7 @@ public sealed class PermissionCheckContext {
     /// <summary>
     /// 比较两个 Span 是否相等（OrdinalIgnoreCase）
     /// </summary>
-    private static bool MatchesOrdinalIgnoreCase(ReadOnlySpan<char> a, ReadOnlySpan<char> b) {
+    internal static bool MatchesOrdinalIgnoreCase(ReadOnlySpan<char> a, ReadOnlySpan<char> b) {
         if (a.Length != b.Length)
             return false;
 

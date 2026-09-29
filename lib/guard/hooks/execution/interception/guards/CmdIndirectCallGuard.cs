@@ -86,7 +86,7 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard {
         return null;
     }
 
-    private static bool TryExtractCmdInner(ReadOnlySpan<char> span, out string? inner) {
+    internal static bool TryExtractCmdInner(ReadOnlySpan<char> span, out string? inner) {
         inner = null;
 
         if (!span.StartsWith("cmd", StringComparison.OrdinalIgnoreCase))
@@ -108,7 +108,7 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard {
         return true;
     }
 
-    private static bool TryExtractPwshInner(ReadOnlySpan<char> span, out string? inner) {
+    internal static bool TryExtractPwshInner(ReadOnlySpan<char> span, out string? inner) {
         inner = null;
 
         var isPwsh = span.StartsWith("powershell", StringComparison.OrdinalIgnoreCase) ||
@@ -133,7 +133,7 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard {
         return true;
     }
 
-    private static string ExtractQuotedOrRaw(ReadOnlySpan<char> span) {
+    internal static string ExtractQuotedOrRaw(ReadOnlySpan<char> span) {
         if (span.IsEmpty)
             return string.Empty;
 

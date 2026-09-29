@@ -15,7 +15,7 @@ public static class PreapprovedDomains {
     /// </summary>
     public static readonly FrozenDictionary<string, string[]> PathPrefixes = CreatePathPrefixMap();
 
-    private static FrozenSet<string> CreateHostSet() {
+    internal static FrozenSet<string> CreateHostSet() {
         var hosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             // Anthropic 自家

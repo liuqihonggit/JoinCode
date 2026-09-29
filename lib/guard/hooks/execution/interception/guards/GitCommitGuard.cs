@@ -64,7 +64,7 @@ public sealed partial class GitCommitGuard : ICommandGuard {
     /// </summary>
     /// <param name="text">命令文本(已 TrimStart)</param>
     /// <returns>(token, 剩余文本);token 为 null 表示解析失败</returns>
-    private static (string? Token, string Remaining) ExtractFirstToken(string text) {
+    internal static (string? Token, string Remaining) ExtractFirstToken(string text) {
         text = text.TrimStart();
         if (text.Length == 0) return (null, text);
 
@@ -85,7 +85,7 @@ public sealed partial class GitCommitGuard : ICommandGuard {
     /// <param name="executablePath">可执行文件路径或名称</param>
     /// <param name="subCommand">子命令(如 commit)</param>
     /// <returns>是 git commit 返回 true</returns>
-    private static bool IsGitCommitSubCommand(string executablePath, string subCommand) {
+    internal static bool IsGitCommitSubCommand(string executablePath, string subCommand) {
         var executableName = Path.GetFileNameWithoutExtension(executablePath);
         if (!executableName.Equals("git", StringComparison.OrdinalIgnoreCase))
             return false;

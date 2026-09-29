@@ -684,6 +684,13 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <summary>测试用: 检查插件是否在黑名单中</summary>
     internal bool IsBlacklistedForTest(string pluginName) => Volatile.Read(ref _blacklistedPlugins).Contains(pluginName);
 
+    /// <summary>测试用: 获取插件指定 ObjectType 的资源 ObjectId 区间快照(验证 RecordPluginResourceIds 聚合结果)</summary>
+    internal LongRangeSet GetPluginResourceIdsForTest(string pluginName, ObjectType type) {
+        var map = Volatile.Read(ref _pluginResourceIds);
+        if (!map.TryGetValue(pluginName, out var byType)) return LongRangeSet.Empty;
+        return byType.TryGetValue(type, out var ranges) ? ranges : LongRangeSet.Empty;
+    }
+
     #endregion
 
     #region Plugin Services Cleanup

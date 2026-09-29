@@ -1,6 +1,11 @@
 global using Core.Memdir;
 global using Core.Tests.Fakes;
 global using Infrastructure.Localization;
+global using Infrastructure.Utils.Text;
+global using JoinCode.Abstractions.Insights;
+global using JoinCode.Abstractions.Localization;
+global using Memdir.Services;
+global using Memdir.Sync.Helpers;
 global using IO;
 global using IO.FileSystem;
 global using IO.Services;

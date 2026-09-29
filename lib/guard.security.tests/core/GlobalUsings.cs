@@ -23,6 +23,7 @@ global using Core.Security.Scanners;
 global using Core.Security.Services;
 global using Core.Utils;
 global using FluentAssertions;
+global using System.Collections.Immutable;
 global using Infrastructure.Localization;
 global using Infrastructure.Pipeline;
 global using IO.FileSystem;

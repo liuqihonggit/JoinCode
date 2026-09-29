@@ -57,7 +57,7 @@ public sealed partial class GhPrBodyGuard : ICommandGuard {
     /// <summary>
     /// 检查命令是否已包含 --body 参数
     /// </summary>
-    private static bool HasBodyParameter(string command) {
+    internal static bool HasBodyParameter(string command) {
         return command.Contains("--body", StringComparison.OrdinalIgnoreCase)
                || command.Contains("-b ", StringComparison.OrdinalIgnoreCase);
     }
@@ -65,14 +65,14 @@ public sealed partial class GhPrBodyGuard : ICommandGuard {
     /// <summary>
     /// 从上下文获取 body 内容
     /// </summary>
-    private static string? GetBodyFromContext(GuardContext context) {
+    internal static string? GetBodyFromContext(GuardContext context) {
         return context.PrBody;
     }
 
     /// <summary>
     /// 生成默认 body 模板
     /// </summary>
-    private static string GenerateDefaultBody(GuardContext context) {
+    internal static string GenerateDefaultBody(GuardContext context) {
         var title = context.PrTitle ?? "变更内容";
         var branch = context.HeadBranch is not null ? $"分支: `{context.HeadBranch}`" : null;
         var description = branch;
@@ -82,7 +82,7 @@ public sealed partial class GhPrBodyGuard : ICommandGuard {
     /// <summary>
     /// 转义 body 内容中的特殊字符
     /// </summary>
-    private static string EscapeBody(string body) {
+    internal static string EscapeBody(string body) {
         return body
             .Replace("\\", "\\\\")
             .Replace("\"", "\\\"")

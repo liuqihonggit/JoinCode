@@ -188,11 +188,53 @@ public sealed partial class MainViewModel {
     /// <summary>清除待复制消息文本（View 写入剪贴板后调用）</summary>
     public void ClearCopiedMessageCopy() => CopiedMessageCopy = null;
 
-    /// <summary>删除单条消息</summary>
+    /// <summary>
+    /// 撤回本条所在轮 — 找到右键消息所属轮次起点（向前找最近 User 消息），
+    /// 调引擎逐轮撤回到该轮之前 + UI 移除该轮到末尾全部卡片，把 User 内容放回输入框。
+    /// 前后端一致：UI 撤回 N 轮 ⇔ 引擎 RewindLastTurnAsync × N。
+    /// 对齐 Claude Code /rewind 语义：撤回该点之后所有对话 + 恢复原始 prompt 到输入框。
+    /// </summary>
     [RelayCommand]
-    private void RemoveMessage(ChatUiMessage? message) {
-        if (message is not null)
-            Messages.Remove(message);
+    private async Task RewindTurnAtAsync(ChatUiMessage? message) {
+        if (message is null || IsBusy)
+            return;
+
+        var messageIndex = Messages.IndexOf(message);
+        if (messageIndex < 0)
+            return;
+
+        // 向前找最近 User 消息作为轮次起点
+        var turnStartIndex = -1;
+        for (var i = messageIndex; i >= 0; i--) {
+            if (Messages[i].Role == MessageRole.User) {
+                turnStartIndex = i;
+                break;
+            }
+        }
+        if (turnStartIndex < 0)
+            return;
+
+        // 保存该轮 User 内容（放回输入框，不重发 — 对齐 Claude Code rewind 语义）
+        var userContent = Messages[turnStartIndex].Content;
+
+        // 计算从该轮到末尾有多少轮（数 User 消息数，含 turnStartIndex 的 User）
+        var turnsToRewind = 0;
+        for (var i = turnStartIndex; i < Messages.Count; i++) {
+            if (Messages[i].Role == MessageRole.User)
+                turnsToRewind++;
+        }
+
+        // 调引擎逐轮撤回 — 通过 /rewind last 斜杠命令触发（统一撤回路径，对齐 CLI）
+        // TrimLastTurn 幂等安全，多调无副作用
+        for (var i = 0; i < turnsToRewind; i++)
+            await _session.ExecuteSlashCommandAsync("/rewind last");
+
+        // UI 移除从 turnStartIndex 到末尾的全部消息
+        while (Messages.Count > turnStartIndex)
+            Messages.RemoveAt(Messages.Count - 1);
+
+        // 把该轮 User 内容放回输入框（用户可编辑后重发）
+        InputText = userContent;
     }
 
     /// <summary>撤回上一轮回复并重新生成（基于最后一条用户消息）</summary>
@@ -206,7 +248,7 @@ public sealed partial class MainViewModel {
             return;
         var lastUserIndex = Messages.IndexOf(lastUser);
 
-        await _session.RewindLastTurnAsync();
+        await _session.ExecuteSlashCommandAsync("/rewind last");
         while (Messages.Count > lastUserIndex)
             Messages.RemoveAt(Messages.Count - 1);
 

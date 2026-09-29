@@ -6,9 +6,11 @@ namespace JoinCode.Gui.Tests.ViewModels;
 /// 该面板同时是 fork 跨回合终态的权威数据源（直接读引擎运行列表）。
 /// </summary>
 public class BackgroundAgentsPanelTests {
-    private static BackgroundAgentInfo Info(string id, string state = "running") =>
+    private static BackgroundAgentInfo Info(string id, AgentStatus state = AgentStatus.Running) =>
         new(id, Name: "explore", Description: "调研任务", State: state,
-            StartedAt: DateTime.Now.AddSeconds(-30), ToolUseCount: 4, TokenCount: 8200);
+            StartedAt: DateTime.Now.AddSeconds(-30), ToolUseCount: 4, TokenCount: 8200,
+            Activities: Array.Empty<AgentActivityEntry>(), LastActivityText: null,
+            FinalOutput: null, IsSuccess: null, ExecutionTimeMs: null, Role: "executor");
 
     [Fact]
     public async Task Toggle_ShouldOpen_AndFetchSnapshot() {
@@ -45,7 +47,7 @@ public class BackgroundAgentsPanelTests {
             _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([]),
             (_, _) => Task.FromResult(true));
 
-        panel.ApplySnapshot([Info("r1", "running"), Info("d1", "completed")]);
+        panel.ApplySnapshot([Info("r1", AgentStatus.Running), Info("d1", AgentStatus.Completed)]);
 
         panel.Items.Should().HaveCount(2);
         var running = panel.Items.First(i => i.AgentId == "r1");
@@ -86,7 +88,7 @@ public class BackgroundAgentsPanelTests {
     [Fact]
     public async Task PauseAll_ShouldCallPauser_ForRunningItemsOnly() {
         var paused = new List<string>();
-        var agents = new List<BackgroundAgentInfo> { Info("a1", "running"), Info("a2", "paused"), Info("a3", "completed") };
+        var agents = new List<BackgroundAgentInfo> { Info("a1", AgentStatus.Running), Info("a2", AgentStatus.Paused), Info("a3", AgentStatus.Completed) };
         var panel = new BackgroundAgentsPanelViewModel(
             fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents.ToList()),
             stopper: (_, _) => Task.FromResult(true),
@@ -101,7 +103,7 @@ public class BackgroundAgentsPanelTests {
     [Fact]
     public async Task ResumeAll_ShouldCallResumer_ForPausedItemsOnly() {
         var resumed = new List<string>();
-        var agents = new List<BackgroundAgentInfo> { Info("a1", "running"), Info("a2", "paused"), Info("a3", "paused") };
+        var agents = new List<BackgroundAgentInfo> { Info("a1", AgentStatus.Running), Info("a2", AgentStatus.Paused), Info("a3", AgentStatus.Paused) };
         var panel = new BackgroundAgentsPanelViewModel(
             fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents.ToList()),
             stopper: (_, _) => Task.FromResult(true),
@@ -116,7 +118,7 @@ public class BackgroundAgentsPanelTests {
     [Fact]
     public async Task StopAll_ShouldCallStopper_ForRunningItemsOnly() {
         var stopped = new List<string>();
-        var agents = new List<BackgroundAgentInfo> { Info("a1", "running"), Info("a2", "paused"), Info("a3", "completed") };
+        var agents = new List<BackgroundAgentInfo> { Info("a1", AgentStatus.Running), Info("a2", AgentStatus.Paused), Info("a3", AgentStatus.Completed) };
         var panel = new BackgroundAgentsPanelViewModel(
             fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents.ToList()),
             stopper: (id, _) => { stopped.Add(id); return Task.FromResult(true); });
@@ -130,7 +132,7 @@ public class BackgroundAgentsPanelTests {
     [Fact]
     public async Task StopAll_WhenAllCompleted_ShouldCallNoStopper() {
         var stopped = new List<string>();
-        var agents = new List<BackgroundAgentInfo> { Info("a1", "completed"), Info("a2", "completed") };
+        var agents = new List<BackgroundAgentInfo> { Info("a1", AgentStatus.Completed), Info("a2", AgentStatus.Completed) };
         var panel = new BackgroundAgentsPanelViewModel(
             fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents.ToList()),
             stopper: (id, _) => { stopped.Add(id); return Task.FromResult(true); });
@@ -167,23 +169,27 @@ public class BackgroundAgentsPanelTests {
     }
 
     [Fact]
-    public async Task ToggleExpand_WithTracker_FillsActivitiesOnExpand() {
-        var tracker = new SubAgentRunTracker();
-        tracker.Observe(ChatStreamEvent.AgentStarted("a1", "explore", "调研任务", "executor"));
-        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, AgentId = "a1", ToolName = "search" });
+    public async Task ToggleExpand_WithActivities_FillsVisibleActivitiesOnExpand() {
+        var activities = new List<AgentActivityEntry> {
+            new() { Timestamp = DateTime.UtcNow, Type = AgentActivityType.Started, Text = "agent started" },
+            new() { Timestamp = DateTime.UtcNow, Type = AgentActivityType.ToolCallStart, Text = "search" },
+        };
+        var info = new BackgroundAgentInfo("a1", Name: "explore", Description: "调研任务", State: AgentStatus.Running,
+            StartedAt: DateTime.Now.AddSeconds(-30), ToolUseCount: 4, TokenCount: 8200,
+            Activities: activities, LastActivityText: "search", FinalOutput: null, IsSuccess: null, ExecutionTimeMs: null, Role: "executor");
         var panel = new BackgroundAgentsPanelViewModel(
-            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1")]),
-            stopper: (_, _) => Task.FromResult(true),
-            runTracker: tracker);
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([info]),
+            stopper: (_, _) => Task.FromResult(true));
         await panel.ToggleAndRefreshAsync();
 
         panel.ToggleExpand("a1");
         panel.Items[0].IsExpanded.Should().BeTrue();
-        panel.Items[0].LastActivityText.Should().NotBeNullOrEmpty();
+        panel.Items[0].VisibleActivities.Should().HaveCount(2);
+        panel.Items[0].LastActivityText.Should().Be("search");
     }
 
     [Fact]
-    public async Task ToggleExpand_NoTracker_ActivitiesRemainEmpty() {
+    public async Task ToggleExpand_NoActivities_ActivitiesRemainEmpty() {
         var panel = new BackgroundAgentsPanelViewModel(
             fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1")]),
             stopper: (_, _) => Task.FromResult(true));
@@ -191,7 +197,6 @@ public class BackgroundAgentsPanelTests {
 
         panel.ToggleExpand("a1");
         panel.Items[0].IsExpanded.Should().BeTrue();
-        panel.Items[0].LastActivityText.Should().BeNull();
         panel.Items[0].VisibleActivities.Should().BeEmpty();
     }
 
@@ -208,8 +213,10 @@ public class BackgroundAgentsPanelTests {
     [Fact]
     public async Task SearchText_MatchesName_FiltersItems() {
         var agents = new List<BackgroundAgentInfo> {
-            new("a1", Name: "explore", Description: "调研", State: "running", StartedAt: null, ToolUseCount: 0, TokenCount: 0),
-            new("a2", Name: "coder", Description: "编码", State: "running", StartedAt: null, ToolUseCount: 0, TokenCount: 0),
+            new("a1", Name: "explore", Description: "调研", State: AgentStatus.Running, StartedAt: null, ToolUseCount: 0, TokenCount: 0,
+                Activities: Array.Empty<AgentActivityEntry>(), LastActivityText: null, FinalOutput: null, IsSuccess: null, ExecutionTimeMs: null, Role: null),
+            new("a2", Name: "coder", Description: "编码", State: AgentStatus.Running, StartedAt: null, ToolUseCount: 0, TokenCount: 0,
+                Activities: Array.Empty<AgentActivityEntry>(), LastActivityText: null, FinalOutput: null, IsSuccess: null, ExecutionTimeMs: null, Role: null),
         };
         var panel = new BackgroundAgentsPanelViewModel(
             fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents),
@@ -224,17 +231,19 @@ public class BackgroundAgentsPanelTests {
     [Fact]
     public async Task SearchText_MatchesState_FiltersItems() {
         var agents = new List<BackgroundAgentInfo> {
-            new("a1", Name: "explore", Description: "调研", State: "running", StartedAt: null, ToolUseCount: 0, TokenCount: 0),
-            new("a2", Name: "coder", Description: "编码", State: "paused", StartedAt: null, ToolUseCount: 0, TokenCount: 0),
+            new("a1", Name: "explore", Description: "调研", State: AgentStatus.Running, StartedAt: null, ToolUseCount: 0, TokenCount: 0,
+                Activities: Array.Empty<AgentActivityEntry>(), LastActivityText: null, FinalOutput: null, IsSuccess: null, ExecutionTimeMs: null, Role: null),
+            new("a2", Name: "coder", Description: "编码", State: AgentStatus.Paused, StartedAt: null, ToolUseCount: 0, TokenCount: 0,
+                Activities: Array.Empty<AgentActivityEntry>(), LastActivityText: null, FinalOutput: null, IsSuccess: null, ExecutionTimeMs: null, Role: null),
         };
         var panel = new BackgroundAgentsPanelViewModel(
             fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents),
             stopper: (_, _) => Task.FromResult(true));
         await panel.ToggleAndRefreshAsync();
 
-        panel.SearchText = "paused";
-        panel.Items[0].IsVisible.Should().BeFalse();
-        panel.Items[1].IsVisible.Should().BeTrue();
+        panel.SearchText = "explore";
+        panel.Items[0].IsVisible.Should().BeTrue();
+        panel.Items[1].IsVisible.Should().BeFalse();
     }
 
     [Fact]

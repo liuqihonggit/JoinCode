@@ -61,6 +61,13 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     [ObservableProperty]
     private bool _isUnattendedMode = false;
 
+    /// <summary>主题切换按钮提示（区分深浅态）</summary>
+    public string ThemeToggleToolTip => IsDarkTheme ? "切换到浅色主题 ☀" : "切换到深色主题 ☾";
+    /// <summary>Mock 切换按钮提示（区分开关态）</summary>
+    public string MockToggleToolTip => IsMockConnection ? "Mock 演示引擎：已开启 Ⓘ" : "Mock 演示引擎：已关闭";
+    /// <summary>无人值守按钮提示（区分开关态）</summary>
+    public string UnattendedToggleToolTip => IsUnattendedMode ? "无人值守：已开启 🤖" : "无人值守：已关闭 👤";
+
     /// <summary>防丢字符二次确认 — 防止 MTP 加速推理时丢字符/乱入字符导致命令变形 — ADR 0012</summary>
     [ObservableProperty]
     private bool _isAntiCharLossConfirm = false;
@@ -238,14 +245,14 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     /// 请求打开子代理回放窗口 — View 层订阅 <see cref="TranscriptRequested"/>
     /// 弹出 TranscriptWindow（VM 不持有 Window 引用，保持可测性）
     /// </summary>
-    public event Action<SubAgentRun>? TranscriptRequested;
+    public event Action<BackgroundAgentItemVm>? TranscriptRequested;
 
     /// <summary>回放请求（agent 卡片"回放"按钮触发）</summary>
     [RelayCommand]
-    private void OpenAgentTranscript(AgentRunVm? runVm) {
+    private void OpenAgentTranscript(BackgroundAgentItemVm? runVm) {
         if (runVm is null)
             return;
-        TranscriptRequested?.Invoke(runVm.Run);
+        TranscriptRequested?.Invoke(runVm);
     }
 
     /// <summary>向输入框追加文本（光标定位到内容尾部）</summary>

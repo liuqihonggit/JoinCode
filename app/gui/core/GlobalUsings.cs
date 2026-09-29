@@ -32,6 +32,7 @@ global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.LLM.Execution;
+global using JoinCode.Abstractions.State;
 // Diff 模型（工具调用结果渲染）
 global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Models.Goal;

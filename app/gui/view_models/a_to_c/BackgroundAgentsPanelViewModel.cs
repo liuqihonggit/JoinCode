@@ -7,34 +7,74 @@ public sealed record BackgroundAgentInfo(
     string AgentId,
     string Name,
     string Description,
-    string State,
+    AgentStatus State,
     DateTime? StartedAt,
     int ToolUseCount,
-    long TokenCount);
+    long TokenCount,
+    IReadOnlyList<AgentActivityEntry> Activities,
+    string? LastActivityText,
+    string? FinalOutput,
+    bool? IsSuccess,
+    long? ExecutionTimeMs,
+    string? Role);
 
 /// <summary>
-/// 后台代理行 VM — 管理面板单行（状态/耗时/统计/终止按钮可见性）
+/// 后台代理行 VM — 管理面板单行（状态/耗时/统计/终止按钮可见性/活动历史/最终输出）
 /// </summary>
 public sealed class BackgroundAgentItemVm {
-    private static readonly FrozenSet<string> RunningStates = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "running", "pending", "paused");
-
     /// <summary>子代理 ID</summary>
     public string AgentId { get; }
     /// <summary>代理名称</summary>
     public string Name { get; }
     /// <summary>代理描述</summary>
     public string Description { get; }
-    /// <summary>运行状态文本</summary>
-    public string State { get; }
+    /// <summary>运行状态</summary>
+    public AgentStatus State { get; set; }
+    /// <summary>运行状态小写文本（供 XAML 绑定）</summary>
+    public string StateText => State.ToValue();
     /// <summary>启动时间（null=未启动）</summary>
     public DateTime? StartedAt { get; }
     /// <summary>工具调用次数</summary>
     public int ToolUseCount { get; }
     /// <summary>token 消耗总量</summary>
     public long TokenCount { get; }
+    /// <summary>活动历史快照（按时间顺序，最多 200 条）</summary>
+    public IReadOnlyList<AgentActivityEntry> Activities { get; }
+    /// <summary>最后一条活动文本</summary>
+    public string? LastActivityText { get; set; }
+    /// <summary>最终输出（完成时填充）</summary>
+    public string? FinalOutput { get; set; }
+    /// <summary>是否成功（完成时填充）</summary>
+    public bool? IsSuccess { get; set; }
+    /// <summary>执行时长毫秒（完成时填充）</summary>
+    public long? ExecutionTimeMs { get; set; }
+    /// <summary>角色标识</summary>
+    public string? Role { get; }
+    /// <summary>Worktree 隔离目录路径（F5 打开资源管理器）</summary>
+    public string? WorktreePath { get; set; }
 
     /// <summary>是否仍在运行（驱动终止按钮可见性）</summary>
     public bool IsRunning { get; }
+
+    /// <summary>是否已完成</summary>
+    public bool IsCompleted => State == AgentStatus.Completed;
+
+    /// <summary>是否失败</summary>
+    public bool IsFailed => State == AgentStatus.Failed;
+
+    /// <summary>状态点字符（运行 ● / 完成 ✓ / 失败 ✗）</summary>
+    public string StateGlyph => State == AgentStatus.Completed ? "✓" : State == AgentStatus.Failed ? "✗" : "●";
+
+    /// <summary>卡片标题文本（名称 — 描述）</summary>
+    public string HeaderText => string.IsNullOrEmpty(Description) ? Name : $"{Name} — {Description}";
+
+    /// <summary>隐藏活动数提示文本</summary>
+    public string HiddenText => Activities.Count > 3 ? $"+{Activities.Count - 3} 更多 ▸" : string.Empty;
+
+    /// <summary>尾部活动行（最近 3 条文本）</summary>
+    public IReadOnlyList<string> ActivityLines => Activities.Count <= 3
+        ? Activities.Select(a => a.Text).ToArray()
+        : Activities.Skip(Activities.Count - 3).Select(a => a.Text).ToArray();
 
     /// <summary>是否可暂停 — running/pending 状态显示暂停按钮</summary>
     public bool CanPause { get; }
@@ -45,19 +85,18 @@ public sealed class BackgroundAgentItemVm {
     /// <summary>是否展开 — 控制实时输出流区域显隐</summary>
     public bool IsExpanded { get; set; }
 
-    /// <summary>最近活动摘要（展开时从 SubAgentRunTracker 填充）</summary>
-    public string? LastActivityText { get; set; }
-
-    /// <summary>尾部可见活动列表（展开时从 SubAgentRunTracker 填充）</summary>
-    public IReadOnlyList<string> VisibleActivities { get; set; } = [];
+    /// <summary>尾部可见活动列表（展开时显示）</summary>
+    public IReadOnlyList<AgentActivityEntry> VisibleActivities { get; set; } = [];
 
     /// <summary>是否可见 — 搜索过滤驱动</summary>
     public bool IsVisible { get; set; } = true;
 
     /// <summary>已运行时长展示文本</summary>
     public string ElapsedText { get; }
-    /// <summary>统计摘要文本（工具次数 · token 数）</summary>
-    public string StatsText { get; }
+    /// <summary>统计摘要文本（工具次数 · token 数 / 完成时含耗时）</summary>
+    public string StatsText => State is AgentStatus.Completed or AgentStatus.Failed
+        ? $"{(State == AgentStatus.Completed ? "完成" : "失败")} · {ToolUseCount} 次工具{FormatDurationSuffix(ExecutionTimeMs, IsSuccess)}"
+        : $"{ToolUseCount} 次工具 · {FormatTokens(TokenCount)}";
 
     /// <summary>初始化 BackgroundAgentItemVm 实例</summary>
     public BackgroundAgentItemVm(BackgroundAgentInfo info) {
@@ -68,15 +107,19 @@ public sealed class BackgroundAgentItemVm {
         StartedAt = info.StartedAt;
         ToolUseCount = info.ToolUseCount;
         TokenCount = info.TokenCount;
-        IsRunning = RunningStates.Contains(info.State);
-        CanPause = string.Equals(info.State, "running", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(info.State, "pending", StringComparison.OrdinalIgnoreCase);
-        CanResume = string.Equals(info.State, "paused", StringComparison.OrdinalIgnoreCase);
+        Activities = info.Activities;
+        LastActivityText = info.LastActivityText;
+        FinalOutput = info.FinalOutput;
+        IsSuccess = info.IsSuccess;
+        ExecutionTimeMs = info.ExecutionTimeMs;
+        Role = info.Role;
+        IsRunning = State is AgentStatus.Running or AgentStatus.Pending or AgentStatus.Paused;
+        CanPause = State is AgentStatus.Running or AgentStatus.Pending;
+        CanResume = State is AgentStatus.Paused;
 
         ElapsedText = info.StartedAt is { } started
             ? FormatElapsed(DateTime.Now - started)
             : "—";
-        StatsText = $"{ToolUseCount} 次工具 · {FormatTokens(TokenCount)}";
     }
 
     private static string FormatElapsed(TimeSpan elapsed)
@@ -86,6 +129,16 @@ public sealed class BackgroundAgentItemVm {
 
     private static string FormatTokens(long tokens)
         => tokens >= 1000 ? $"{tokens / 1000.0:0.#}k" : tokens.ToString();
+
+    private static string FormatDurationSuffix(long? executionTimeMs, bool? isSuccess) {
+        if (executionTimeMs is not { } ms)
+            return isSuccess == false ? " · 失败" : "";
+        var elapsed = TimeSpan.FromMilliseconds(ms);
+        var text = elapsed.TotalMinutes >= 1
+            ? $"{(int)elapsed.TotalMinutes}m {elapsed.Seconds:D2}s"
+            : $"{elapsed.TotalSeconds:F1}s";
+        return $" · {text}";
+    }
 }
 
 /// <summary>
@@ -99,7 +152,6 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
     private readonly Func<string, CancellationToken, Task<bool>> _stopper;
     private readonly Func<string, CancellationToken, Task<bool>>? _pauser;
     private readonly Func<string, CancellationToken, Task<bool>>? _resumer;
-    private SubAgentRunTracker? _runTracker;
 
     [ObservableProperty]
     private bool _isOpen;
@@ -121,17 +173,12 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
         Func<CancellationToken, Task<IReadOnlyList<BackgroundAgentInfo>>> fetcher,
         Func<string, CancellationToken, Task<bool>> stopper,
         Func<string, CancellationToken, Task<bool>>? pauser = null,
-        Func<string, CancellationToken, Task<bool>>? resumer = null,
-        SubAgentRunTracker? runTracker = null) {
+        Func<string, CancellationToken, Task<bool>>? resumer = null) {
         _fetcher = fetcher ?? throw new ArgumentNullException(nameof(fetcher));
         _stopper = stopper ?? throw new ArgumentNullException(nameof(stopper));
         _pauser = pauser;
         _resumer = resumer;
-        _runTracker = runTracker;
     }
-
-    /// <summary>更新子代理运行追踪器 — 每回合 ChatTurnProcessor 重建 tracker 后同步引用</summary>
-    public void UpdateTracker(SubAgentRunTracker? tracker) => _runTracker = tracker;
 
     /// <summary>pill 点击：关闭时打开并刷新；已打开时仅收起（不重复拉取）</summary>
     [RelayCommand]
@@ -211,23 +258,15 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
         await RefreshAsync();
     }
 
-    /// <summary>展开/收起子代理卡片 — 展开时从 tracker 填充活动数据到 ItemVm</summary>
+    /// <summary>展开/收起子代理卡片 — 展开时从 Activities 取最近 20 条显示</summary>
     [RelayCommand]
     public void ToggleExpand(string? agentId) {
         if (string.IsNullOrEmpty(agentId)) return;
         var item = Items.FirstOrDefault(i => i.AgentId == agentId);
         if (item is null) return;
         item.IsExpanded = !item.IsExpanded;
-        if (item.IsExpanded) FillActivities(item);
-    }
-
-    /// <summary>从 SubAgentRunTracker 填充单个 ItemVm 的活动数据</summary>
-    private void FillActivities(BackgroundAgentItemVm item) {
-        if (_runTracker is null) return;
-        var run = _runTracker.Runs.FirstOrDefault(r => r.AgentId == item.AgentId);
-        if (run is null) return;
-        item.LastActivityText = run.LastActivityText;
-        item.VisibleActivities = run.VisibleActivities;
+        if (item.IsExpanded)
+            item.VisibleActivities = item.Activities.Count > 20 ? item.Activities.Skip(item.Activities.Count - 20).ToArray() : item.Activities;
     }
 
     /// <summary>面板快照应用事件 — MainViewModel 据此同步 RunStatus 后台计数</summary>
@@ -253,7 +292,7 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
         foreach (var item in Items) {
             item.IsVisible = item.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
                           || item.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                          || item.State.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+                          || item.State.ToValue().Contains(keyword, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

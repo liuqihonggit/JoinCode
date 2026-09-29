@@ -332,7 +332,7 @@ public class MainViewModelTests {
     }
 
     [Fact]
-    public async Task RemoveMessage_DeletesSingleMessage() {
+    public async Task RewindTurnAt_RewindsEntireTurnAndRestoresInput() {
         var vm = CreateVm();
 
         vm.InputText = "hello";
@@ -340,11 +340,14 @@ public class MainViewModelTests {
         vm.Messages.Should().NotBeEmpty();
 
         var first = vm.Messages[0];
+        first.Role.Should().Be(MessageRole.User);
         var before = vm.Messages.Count;
-        vm.RemoveMessageCommand.Execute(first);
+        await vm.RewindTurnAtCommand.ExecuteAsync(first);
 
-        vm.Messages.Should().HaveCount(before - 1);
-        vm.Messages.Should().NotContain(first);
+        // 撤回整轮：该轮及之后所有消息移除（对齐 Claude Code /rewind 语义）
+        vm.Messages.Should().BeEmpty();
+        // User 内容恢复到输入框
+        vm.InputText.Should().Be("hello");
     }
 
     [Fact]

@@ -62,13 +62,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
-        var filePath = sedInfo.FilePath;
-
-        // 解析相对路径
-        if (!Path.IsPathRooted(filePath)) {
-            var cwd = workingDirectory ?? _fs.GetCurrentDirectory();
-            filePath = Path.Combine(cwd, filePath);
-        }
+        var filePath = ResolveFilePath(sedInfo.FilePath, workingDirectory, _fs.GetCurrentDirectory());
 
         // 二次调用确认：检查是否有待确认的编辑 — 对齐 TS _simulatedSedEdit
         var cache = GetCurrentCache();
@@ -85,8 +79,8 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
                 try {
                     await _fs.EditFileAsync<bool>(filePath, async (bytes, ct) => {
                         var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
-                        var lineEnding = content.Contains("\r\n") ? "\r\n" : "\n";
-                        var normalizedContent = content.Replace("\r\n", "\n");
+                        var lineEnding = DetectLineEnding(content);
+                        var normalizedContent = NormalizeLineEndings(content);
                         var newContent = SedEditParser.ApplySedSubstitution(normalizedContent, sedInfo);
                         var finalContent = newContent.Replace("\n", lineEnding);
                         var newBytes = FileEncodingDetector.EncodeString(finalContent, encoding);
@@ -114,8 +108,8 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         string originalLineEnding;
         try {
             var rawContent = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            originalLineEnding = rawContent.Contains("\r\n") ? "\r\n" : "\n";
-            oldContent = rawContent.Replace("\r\n", "\n");
+            originalLineEnding = DetectLineEnding(rawContent);
+            oldContent = NormalizeLineEndings(rawContent);
         } catch (Exception ex) {
             var diag = BuildReadFailedDiagnostic(filePath, ex.Message);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
@@ -126,10 +120,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
 
         // 检查是否有变更
         if (oldContent == newContent) {
-            var noChangeMsg = string.IsNullOrEmpty(oldContent)
-                ? "File is empty, pattern did not match"
-                : "Pattern did not match any content";
-            return ToolResultBuilder.Success().WithText(noChangeMsg).Build();
+            return ToolResultBuilder.Success().WithText(BuildNoChangeMessage(oldContent)).Build();
         }
 
         // 存储待确认编辑 — 对齐 TS _simulatedSedEdit 注入
@@ -144,38 +135,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
             ImmutableInterlocked.Update(ref _fallbackEdits, d => d.SetItem(filePath, confirmation));
 
         // 返回 diff 预览 — 对齐 TS SedEditPermissionRequest 展示 FileEditToolDiff
-        var preview = new StringBuilder();
-        preview.AppendLine($"Sed edit preview for {sedInfo.FilePath}:");
-        preview.AppendLine($"  Pattern: {sedInfo.Pattern}");
-        preview.AppendLine($"  Replacement: {sedInfo.Replacement}");
-        preview.AppendLine($"  Flags: {sedInfo.Flags}");
-        preview.AppendLine();
-
-        // 生成简易 diff
-        var oldLines = oldContent.Split('\n');
-        var newLines = newContent.Split('\n');
-        var maxLines = Math.Max(oldLines.Length, newLines.Length);
-        var changeCount = 0;
-
-        for (var i = 0; i < maxLines && changeCount < 20; i++) {
-            var oldLine = i < oldLines.Length ? oldLines[i] : null;
-            var newLine = i < newLines.Length ? newLines[i] : null;
-
-            if (oldLine != newLine) {
-                changeCount++;
-                if (oldLine is not null)
-                    preview.AppendLine($"- {oldLine.TrimEnd('\r')}");
-                if (newLine is not null)
-                    preview.AppendLine($"+ {newLine.TrimEnd('\r')}");
-            }
-        }
-
-        if (changeCount == 0) changeCount = Math.Abs(oldLines.Length - newLines.Length);
-
-        preview.AppendLine();
-        preview.AppendLine($"{changeCount} line(s) changed. Re-run the same sed command to confirm and apply this edit.");
-
-        return ToolResultBuilder.Success().WithText(preview.ToString()).Build();
+        return ToolResultBuilder.Success().WithText(BuildSedPreview(sedInfo, oldContent, newContent)).Build();
     }
 
     internal static ToolDiagnostic BuildFileSystemUnavailableDiagnostic() =>
@@ -209,6 +169,87 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
                 new DiagnosticDetail("file_path", filePath),
                 new DiagnosticDetail("error", errorMessage)
             ]);
+
+    /// <summary>
+    /// 解析文件路径为绝对路径 — 纯计算,无 IO
+    /// </summary>
+    /// <param name="filePath">原始路径（可能相对）</param>
+    /// <param name="workingDirectory">工作目录（可选,优先于 currentDir）</param>
+    /// <param name="currentDir">当前目录（当 workingDirectory 为 null 时使用）</param>
+    /// <returns>绝对路径</returns>
+    internal static string ResolveFilePath(string filePath, string? workingDirectory, string currentDir) {
+        if (Path.IsPathRooted(filePath)) return filePath;
+        var cwd = workingDirectory ?? currentDir;
+        return Path.Combine(cwd, filePath);
+    }
+
+    /// <summary>
+    /// 检测内容的行尾风格 — 纯计算
+    /// </summary>
+    /// <param name="content">文件内容</param>
+    /// <returns>"\r\n"（CRLF）或 "\n"（LF）</returns>
+    internal static string DetectLineEnding(string content) =>
+        content.Contains("\r\n") ? "\r\n" : "\n";
+
+    /// <summary>
+    /// 规范化行尾为 LF — 纯计算
+    /// </summary>
+    /// <param name="content">原始内容（可能含 CRLF）</param>
+    /// <returns>仅含 LF 的内容</returns>
+    internal static string NormalizeLineEndings(string content) =>
+        content.Replace("\r\n", "\n");
+
+    /// <summary>
+    /// 构造无变更消息 — 纯计算
+    /// </summary>
+    /// <param name="oldContent">原始内容</param>
+    /// <returns>空文件消息或模式未匹配消息</returns>
+    internal static string BuildNoChangeMessage(string oldContent) =>
+        string.IsNullOrEmpty(oldContent)
+            ? "File is empty, pattern did not match"
+            : "Pattern did not match any content";
+
+    /// <summary>
+    /// 生成 sed 编辑 diff 预览文本 — 纯计算,无 IO
+    /// </summary>
+    /// <param name="sedInfo">sed 编辑信息</param>
+    /// <param name="oldContent">原始内容（已规范化为 LF）</param>
+    /// <param name="newContent">替换后内容（已规范化为 LF）</param>
+    /// <returns>预览文本,含头部信息 + 最多 20 行 diff + 变更统计</returns>
+    internal static string BuildSedPreview(SedEditInfo sedInfo, string oldContent, string newContent) {
+        var preview = new StringBuilder();
+        preview.AppendLine($"Sed edit preview for {sedInfo.FilePath}:");
+        preview.AppendLine($"  Pattern: {sedInfo.Pattern}");
+        preview.AppendLine($"  Replacement: {sedInfo.Replacement}");
+        preview.AppendLine($"  Flags: {sedInfo.Flags}");
+        preview.AppendLine();
+
+        // 生成简易 diff
+        var oldLines = oldContent.Split('\n');
+        var newLines = newContent.Split('\n');
+        var maxLines = Math.Max(oldLines.Length, newLines.Length);
+        var changeCount = 0;
+
+        for (var i = 0; i < maxLines && changeCount < 20; i++) {
+            var oldLine = i < oldLines.Length ? oldLines[i] : null;
+            var newLine = i < newLines.Length ? newLines[i] : null;
+
+            if (oldLine != newLine) {
+                changeCount++;
+                if (oldLine is not null)
+                    preview.AppendLine($"- {oldLine.TrimEnd('\r')}");
+                if (newLine is not null)
+                    preview.AppendLine($"+ {newLine.TrimEnd('\r')}");
+            }
+        }
+
+        if (changeCount == 0) changeCount = Math.Abs(oldLines.Length - newLines.Length);
+
+        preview.AppendLine();
+        preview.AppendLine($"{changeCount} line(s) changed. Re-run the same sed command to confirm and apply this edit.");
+
+        return preview.ToString();
+    }
 
     /// <summary>
     /// 清除待确认的 sed 编辑缓存项

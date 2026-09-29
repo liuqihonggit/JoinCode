@@ -406,4 +406,243 @@ public sealed class IndexSnapshotTests {
 
         Assert.True(after.Projects.ContainsKey("a.csproj"));
     }
+
+    // ============ RemoveSymbolsOfFile (拆分子方法确定性测试) ============
+
+    [Fact]
+    public void RemoveSymbolsOfFile_RemovesAllSymbolsFromFourIndexes() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertSymbols([
+            Sym("Foo", "Ns.Foo", SymbolKind.Class, "a.cs", "Ns"),
+            Sym("Bar", "Ns.Bar", SymbolKind.Method, "a.cs", "Ns"),
+            Sym("Baz", "Ns.Baz", SymbolKind.Class, "b.cs", "Ns"),
+        ]);
+
+        var (byFqn, byName, byFile, byKind) = snap.RemoveSymbolsOfFile("a.cs");
+
+        // a.cs 的两个符号从 ByFqn 移除,b.cs 保留
+        Assert.False(byFqn.ContainsKey("Ns.Foo"));
+        Assert.False(byFqn.ContainsKey("Ns.Bar"));
+        Assert.True(byFqn.ContainsKey("Ns.Baz"));
+        // ByFile 移除 a.cs 键
+        Assert.False(byFile.ContainsKey("a.cs"));
+        Assert.True(byFile.ContainsKey("b.cs"));
+        // ByName 同步移除
+        Assert.False(byName.ContainsKey("Foo"));
+        Assert.False(byName.ContainsKey("Bar"));
+        Assert.True(byName.ContainsKey("Baz"));
+        // ByKind 同步:Class 只剩 Baz
+        var classes = byKind.GetValueOrDefault(SymbolKind.Class) ?? ImmutableList<SymbolInfo>.Empty;
+        Assert.Single(classes);
+        Assert.Equal("Ns.Baz", classes[0].FullyQualifiedName);
+        // Method 种类列表被清空(键移除)
+        Assert.False(byKind.ContainsKey(SymbolKind.Method));
+    }
+
+    [Fact]
+    public void RemoveSymbolsOfFile_NoMatch_ReturnsOriginalIndexes() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertSymbols([Sym("Foo", "Ns.Foo", SymbolKind.Class, "a.cs")]);
+
+        var (byFqn, byName, byFile, byKind) = snap.RemoveSymbolsOfFile("nonexistent.cs");
+
+        // 全部保持原样
+        Assert.True(byFqn.ContainsKey("Ns.Foo"));
+        Assert.True(byFile.ContainsKey("a.cs"));
+        Assert.True(byName.ContainsKey("Foo"));
+        Assert.True(byKind.ContainsKey(SymbolKind.Class));
+        Assert.Same(snap.SymbolsByFqn, byFqn);
+    }
+
+    [Fact]
+    public void RemoveSymbolsOfFile_EmptySnapshot_ReturnsEmptyIndexes() {
+        var snap = IndexSnapshot.Empty;
+
+        var (byFqn, byName, byFile, byKind) = snap.RemoveSymbolsOfFile("any.cs");
+
+        Assert.Empty(byFqn);
+        Assert.Empty(byFile);
+        Assert.Empty(byName);
+        Assert.Empty(byKind);
+    }
+
+    [Fact]
+    public void RemoveSymbolsOfFile_PreservesOtherFilesSymbols() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertSymbols([
+            Sym("A1", "Ns.A1", SymbolKind.Class, "a.cs"),
+            Sym("A2", "Ns.A2", SymbolKind.Method, "a.cs"),
+            Sym("B1", "Ns.B1", SymbolKind.Class, "b.cs"),
+            Sym("C1", "Ns.C1", SymbolKind.Interface, "c.cs"),
+        ]);
+
+        var (byFqn, _, byFile, _) = snap.RemoveSymbolsOfFile("a.cs");
+
+        // b.cs 和 c.cs 的符号完整保留
+        Assert.True(byFqn.ContainsKey("Ns.B1"));
+        Assert.True(byFqn.ContainsKey("Ns.C1"));
+        Assert.True(byFile.ContainsKey("b.cs"));
+        Assert.True(byFile.ContainsKey("c.cs"));
+        Assert.Equal(2, byFqn.Count);
+    }
+
+    // ============ RemoveCallEdgesOfFile (拆分子方法确定性测试) ============
+
+    [Fact]
+    public void RemoveCallEdgesOfFile_RemovesEdgesFromFourIndexes() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertCallEdges([
+            Edge("Ns.A", "Ns.B", "a.cs", 5),
+            Edge("Ns.C", "Ns.B", "c.cs", 3),
+        ]);
+
+        var (edges, byCaller, byCallee, byFile) = snap.RemoveCallEdgesOfFile("a.cs");
+
+        // a.cs 的边被移除,只剩 c.cs 的边
+        Assert.Single(edges);
+        Assert.Equal("Ns.C", edges[0].CallerSymbol);
+        Assert.False(byFile.ContainsKey("a.cs"));
+        Assert.True(byFile.ContainsKey("c.cs"));
+        // CallsByCaller: Ns.A 出边被移除,Ns.C 保留
+        Assert.False(byCaller.ContainsKey("Ns.A"));
+        Assert.True(byCaller.ContainsKey("Ns.C"));
+        // CallsByCallee: Ns.B 仍有一条入边(来自 C)
+        var calleeB = byCallee.GetValueOrDefault("Ns.B") ?? ImmutableList<CallEdge>.Empty;
+        Assert.Single(calleeB);
+        Assert.Equal("Ns.C", calleeB[0].CallerSymbol);
+    }
+
+    [Fact]
+    public void RemoveCallEdgesOfFile_NoMatch_ReturnsOriginalIndexes() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertCallEdges([Edge("A", "B", "a.cs", 1)]);
+
+        var (edges, byCaller, byCallee, byFile) = snap.RemoveCallEdgesOfFile("nonexistent.cs");
+
+        Assert.Single(edges);
+        Assert.True(byFile.ContainsKey("a.cs"));
+        Assert.Same(snap.CallEdges, edges);
+    }
+
+    [Fact]
+    public void RemoveCallEdgesOfFile_EmptySnapshot_ReturnsEmptyIndexes() {
+        var snap = IndexSnapshot.Empty;
+
+        var (edges, byCaller, byCallee, byFile) = snap.RemoveCallEdgesOfFile("any.cs");
+
+        Assert.Empty(edges);
+        Assert.Empty(byCaller);
+        Assert.Empty(byCallee);
+        Assert.Empty(byFile);
+    }
+
+    [Fact]
+    public void RemoveCallEdgesOfFile_PreservesOtherFilesEdges() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertCallEdges([
+            Edge("A", "B", "a.cs", 1),
+            Edge("C", "D", "c.cs", 2),
+            Edge("E", "F", "e.cs", 3),
+        ]);
+
+        var (edges, _, _, byFile) = snap.RemoveCallEdgesOfFile("c.cs");
+
+        // a.cs 和 e.cs 的边保留
+        Assert.Equal(2, edges.Count);
+        Assert.True(byFile.ContainsKey("a.cs"));
+        Assert.True(byFile.ContainsKey("e.cs"));
+        Assert.False(byFile.ContainsKey("c.cs"));
+    }
+
+    // ============ RemoveDepEdgesOfFile (拆分子方法确定性测试) ============
+
+    [Fact]
+    public void RemoveDepEdgesOfFile_RemovesEdgesFromFourIndexes() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertDependencyEdges([
+            Dep("Ns.A", "Ns.B", DependencyKind.Inherits, "a.cs"),
+            Dep("Ns.C", "Ns.B", DependencyKind.Uses, "c.cs"),
+        ]);
+
+        var (edges, bySource, byTarget, byFile) = snap.RemoveDepEdgesOfFile("a.cs");
+
+        // a.cs 的依赖边被移除,只剩 c.cs 的边
+        Assert.Single(edges);
+        Assert.Equal(DependencyKind.Uses, edges[0].DependencyKind);
+        Assert.False(byFile.ContainsKey("a.cs"));
+        Assert.True(byFile.ContainsKey("c.cs"));
+        // BySource: Ns.A 被移除,Ns.C 保留
+        Assert.False(bySource.ContainsKey("Ns.A"));
+        Assert.True(bySource.ContainsKey("Ns.C"));
+        // ByTarget: Ns.B 仍有一条入边(来自 C)
+        var targetB = byTarget.GetValueOrDefault("Ns.B") ?? ImmutableList<DependencyEdge>.Empty;
+        Assert.Single(targetB);
+        Assert.Equal("Ns.C", targetB[0].SourceSymbol);
+    }
+
+    [Fact]
+    public void RemoveDepEdgesOfFile_NoMatch_ReturnsOriginalIndexes() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertDependencyEdges([Dep("A", "B", DependencyKind.Inherits, "a.cs")]);
+
+        var (edges, bySource, byTarget, byFile) = snap.RemoveDepEdgesOfFile("nonexistent.cs");
+
+        Assert.Single(edges);
+        Assert.True(byFile.ContainsKey("a.cs"));
+        Assert.Same(snap.DepEdges, edges);
+    }
+
+    [Fact]
+    public void RemoveDepEdgesOfFile_EmptySnapshot_ReturnsEmptyIndexes() {
+        var snap = IndexSnapshot.Empty;
+
+        var (edges, bySource, byTarget, byFile) = snap.RemoveDepEdgesOfFile("any.cs");
+
+        Assert.Empty(edges);
+        Assert.Empty(bySource);
+        Assert.Empty(byTarget);
+        Assert.Empty(byFile);
+    }
+
+    [Fact]
+    public void RemoveDepEdgesOfFile_PreservesOtherFilesEdges() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertDependencyEdges([
+            Dep("A", "B", DependencyKind.Inherits, "a.cs"),
+            Dep("C", "D", DependencyKind.Uses, "c.cs"),
+        ]);
+
+        var (edges, _, _, byFile) = snap.RemoveDepEdgesOfFile("a.cs");
+
+        Assert.Single(edges);
+        Assert.Equal("C", edges[0].SourceSymbol);
+        Assert.True(byFile.ContainsKey("c.cs"));
+        Assert.False(byFile.ContainsKey("a.cs"));
+    }
+
+    // ============ RemoveFileData 拆分后编排一致性 ============
+
+    [Fact]
+    public void RemoveFileData_Orchestration_MatchesThreeSubRemovals() {
+        // 验证主方法编排 = 三段子方法独立执行的组合
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertSymbols([
+            Sym("Foo", "Ns.Foo", SymbolKind.Class, "a.cs"),
+            Sym("Bar", "Ns.Bar", SymbolKind.Method, "a.cs"),
+        ]);
+        snap = snap.InsertCallEdges([Edge("Ns.Foo", "Ns.Bar", "a.cs", 5)]);
+        snap = snap.InsertDependencyEdges([Dep("Ns.Foo", "Ns.Bar", DependencyKind.Inherits, "a.cs")]);
+
+        var byMain = snap.RemoveFileData("a.cs");
+
+        // 子方法独立执行
+        var (symByFqn, _, _, _) = snap.RemoveSymbolsOfFile("a.cs");
+        var (callEdges, _, _, _) = snap.RemoveCallEdgesOfFile("a.cs");
+        var (depEdges, _, _, _) = snap.RemoveDepEdgesOfFile("a.cs");
+
+        // 主方法结果应与子方法一致
+        Assert.Equal(byMain.SymbolsByFqn, symByFqn);
+        Assert.Equal(byMain.CallEdges, callEdges);
+        Assert.Equal(byMain.DepEdges, depEdges);
+    }
 }

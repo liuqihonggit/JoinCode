@@ -26,6 +26,7 @@ global using JoinCode.Llm.DependencyInjection;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using Moq;
+global using System.Collections.Frozen;
 global using System.Net;
 global using System.Net.Http;
 global using System.Runtime.CompilerServices;

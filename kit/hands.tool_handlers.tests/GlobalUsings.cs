@@ -48,6 +48,7 @@ global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Models.Build;
+global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Models.Notebook;
 global using JoinCode.Abstractions.Models.Runtime;
 global using JoinCode.Abstractions.Models.Search;

@@ -3,7 +3,7 @@
 > **来源**:TASK030 交接文档方法论复用(`D:\Users\54076\Desktop\TASK030-交接文档-基建确定性测试方法论.md`)
 > **检测时间**:2026-09-30
 > **检测方式**:10个并行explore子代理,覆盖未做确定性测试补充的基建模块
-> **状态**:检测完成,待执行
+> **状态**:阶段1全部完成(1030测试+5bug修复,PR #340+#343已合并),阶段2全部完成(249测试+1跳过,commit 2d46eba03+8edc06961),阶段3可选
 
 ---
 
@@ -129,20 +129,23 @@
 - 可并行:1.6+1.7+1.8+1.9+1.10(不同测试项目)
 - 同测试项目内串行(如1.1的SedEditParser和SedValidator)
 
-### 阶段2:P1长方法拆分(拆出internal子方法+补测试)
+### 阶段2:P1长方法拆分(拆出internal子方法+补测试) ✅ 已完成
 
 **目标**:拆分15个关键长方法为internal子方法,补确定性测试,保持行为不变
 
 **子任务**:
 
-| 子任务 | 模块 | 拆分目标 | 预计拆分方法数 |
-|--------|------|---------|---------------|
-| 2.1 | kit/brain | PlanModeManager/QueryEngine/CodeContentCompressor | 6+ |
-| 2.2 | kit/hands | AgentStreamExecutionMiddleware/ShellSedInterceptMiddleware | 4+ |
-| 2.3 | kit/mcp | McpServer/McpClientToolHandlers/GitHubRunLogFilterRunner | 8+ |
-| 2.4 | llm/core | ResponsesQueryService/AnthropicQueryService | 6+ |
-| 2.5 | server/code_index | CodeIndexer/GraphAnalytics/IndexSnapshot | 8+ |
-| 2.6 | kit/composition | ServiceRegistration.AddBridgeServices/AddInfrastructureServices | 13+ |
+| 子任务 | 模块 | 拆分目标 | 实际拆分方法数 | 新增测试数 | 状态 |
+|--------|------|---------|---------------|-----------|------|
+| 2.1 | kit/brain | PlanModeManager(6)/QueryEngine(5)/CodeContentCompressor(3) | 14 | 51 | ✅ |
+| 2.2 | kit/hands | AgentStreamExecutionMiddleware(1)/ShellSedInterceptMiddleware(5) | 6 | 39 | ✅ |
+| 2.3 | kit/mcp | McpClientToolHandlers(3)/GitHubRunLogFilterRunner(3),McpServer.RunAsync跳过 | 6 | 39 | ✅ |
+| 2.4 | llm/core | ResponsesQueryService(6)/AnthropicQueryService(6) | 12 | 55 | ✅ |
+| 2.5 | server/code_index | CodeIndexer(1)/GraphAnalytics(2)/IndexSnapshot(3) | 6 | 36 | ✅ |
+| 2.6 | kit/composition | AddBridgeServices(9)/AddInfrastructureServices(10) | 19 | 29 | ✅ |
+| **合计** | — | — | **63** | **249** | ✅ |
+
+**跳过**: McpServer.RunAsync(实际仅53行主循环,IO紧耦合,高风险大重构)
 
 ### 阶段3:P2 mock测试(可选,IO/异步方法)
 
@@ -164,10 +167,10 @@
 - [ ] git提交(主代理统一)
 
 ### 阶段2验收
-- [ ] 15个长方法拆分为internal子方法
-- [ ] 行为不变(全量回归通过)
-- [ ] 每个internal子方法有确定性测试
-- [ ] 编译+测试通过
+- [x] 14个长方法拆分为63个internal子方法(1个跳过:McpServer.RunAsync)
+- [x] 行为不变(全量回归通过)
+- [x] 每个internal子方法有确定性测试(249个)
+- [x] 编译+测试通过(JoinCode.slnx 0警告0错误)
 
 ### 阶段3验收
 - [ ] 可mock方法有mock测试

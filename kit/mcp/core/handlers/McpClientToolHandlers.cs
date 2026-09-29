@@ -71,13 +71,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
         }
 
         try {
-            var expandedEndpoint = endpoint.Contains('$') ? McpEnvExpander.ExpandEndpoint(endpoint) : endpoint;
-
-            var config = new McpServerConnectionConfig {
-                Name = connection_name,
-                Endpoint = expandedEndpoint,
-                TransportType = ParseTransportType(transport_type)
-            };
+            var config = BuildBaseConnectionConfig(connection_name, endpoint, transport_type);
 
             // 优先使用 auth_name 查询已配置的认证
             if (!string.IsNullOrWhiteSpace(auth_name) && _deps.AuthToolHandlers != null) {
@@ -112,18 +106,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
                 };
             }
 
-            IMcpClient client;
-            if (config.TransportType == McpClientTransportType.Stdio) {
-                client = new McpStdioClient(config, logger: _logger);
-            } else if (_deps.ClientFactory is not null) {
-                client = _deps.ClientFactory.CreateClient(config, enableFallback: true, logger: _logger);
-            } else {
-                client = config.TransportType switch {
-                    McpClientTransportType.Http => new McpHttpClient(config, logger: _logger),
-                    McpClientTransportType.WebSocket => new McpWebSocketClient(config, logger: _logger),
-                    _ => throw new NotSupportedException(L.T(StringKey.UnsupportedTransportType, transport_type))
-                };
-            }
+            var client = CreateClientByTransport(config, transport_type);
 
             await client.ConnectAsync(cancellationToken).ConfigureAwait(false);
 
@@ -159,28 +142,13 @@ public partial class McpClientToolHandlers : ServiceEntity {
                 }
             }
 
-            var response = new System.Text.StringBuilder();
-            response.AppendLine(L.T(StringKey.ConnectedToMcpServer, connection_name));
-            response.AppendLine(L.T(StringKey.LabelServer, client.ServerInfo?.Name ?? "Unknown"));
-            response.AppendLine(L.T(StringKey.LabelVersion, client.ServerInfo?.Version ?? "Unknown"));
-
-            if (client.ServerCapabilities?.Tools != null) {
-                response.AppendLine(L.T(StringKey.SupportsTools));
-            }
-
-            if (client.ServerCapabilities?.Resources != null) {
-                response.AppendLine(L.T(StringKey.SupportsResources));
-            }
-
-            if (client.ServerCapabilities?.Prompts != null) {
-                response.AppendLine(L.T(StringKey.SupportsPrompts));
-            }
+            var responseText = BuildConnectResponse(connection_name, client);
 
             if (!_isRestoring) {
                 await SaveStateAsync(cancellationToken).ConfigureAwait(false);
             }
 
-            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+            return ToolResultBuilder.Success().WithText(responseText).Build();
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, L.T(StringKey.ConnectMcpServerFailedLog), connection_name);
             return ToolExceptionDiagnosticHelper.BuildErrorResult("mcp_connect", ex, _logger, "connection_name", connection_name, "endpoint", endpoint);
@@ -537,6 +505,59 @@ public partial class McpClientToolHandlers : ServiceEntity {
         using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时");
         _clients.TryGetValue(connectionName, out var client);
         return client;
+    }
+
+    /// <summary>
+    /// 构造基础连接配置 — 展开 endpoint 环境变量 + 解析传输类型(纯计算,无副作用)
+    /// </summary>
+    internal static McpServerConnectionConfig BuildBaseConnectionConfig(string connectionName, string endpoint, string transportType) {
+        var expandedEndpoint = endpoint.Contains('$') ? McpEnvExpander.ExpandEndpoint(endpoint) : endpoint;
+        return new McpServerConnectionConfig {
+            Name = connectionName,
+            Endpoint = expandedEndpoint,
+            TransportType = ParseTransportType(transportType)
+        };
+    }
+
+    /// <summary>
+    /// 按传输类型分派客户端工厂 — Stdio 直接构造,其余走 ClientFactory 或按类型实例化
+    /// </summary>
+    internal IMcpClient CreateClientByTransport(McpServerConnectionConfig config, string transportType) {
+        if (config.TransportType == McpClientTransportType.Stdio) {
+            return new McpStdioClient(config, logger: _logger);
+        }
+        if (_deps.ClientFactory is not null) {
+            return _deps.ClientFactory.CreateClient(config, enableFallback: true, logger: _logger);
+        }
+        return config.TransportType switch {
+            McpClientTransportType.Http => new McpHttpClient(config, logger: _logger),
+            McpClientTransportType.WebSocket => new McpWebSocketClient(config, logger: _logger),
+            _ => throw new NotSupportedException(L.T(StringKey.UnsupportedTransportType, transportType))
+        };
+    }
+
+    /// <summary>
+    /// 构造连接成功响应文本 — 拼接服务器信息与能力声明(纯计算,无副作用)
+    /// </summary>
+    internal static string BuildConnectResponse(string connectionName, IMcpClient client) {
+        var response = new System.Text.StringBuilder();
+        response.AppendLine(L.T(StringKey.ConnectedToMcpServer, connectionName));
+        response.AppendLine(L.T(StringKey.LabelServer, client.ServerInfo?.Name ?? "Unknown"));
+        response.AppendLine(L.T(StringKey.LabelVersion, client.ServerInfo?.Version ?? "Unknown"));
+
+        if (client.ServerCapabilities?.Tools != null) {
+            response.AppendLine(L.T(StringKey.SupportsTools));
+        }
+
+        if (client.ServerCapabilities?.Resources != null) {
+            response.AppendLine(L.T(StringKey.SupportsResources));
+        }
+
+        if (client.ServerCapabilities?.Prompts != null) {
+            response.AppendLine(L.T(StringKey.SupportsPrompts));
+        }
+
+        return response.ToString();
     }
 
     private static McpClientTransportType ParseTransportType(string transportType) {

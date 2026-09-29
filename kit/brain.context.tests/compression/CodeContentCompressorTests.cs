@@ -274,4 +274,168 @@ public class Test
 
         result.Should().Contain("public int Value => 42");
     }
+
+    // ===== TASK031 阶段2.1 提取的 internal 子方法确定性测试 =====
+
+    [Fact]
+    public void ClassifyCodeLine_EmptyLine_ShouldReturnSkip() {
+        var kind = CodeContentCompressor.ClassifyCodeLine("", CompressionOptions.Default, false);
+        kind.Should().Be(CodeLineKind.Skip);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_WhitespaceLine_ShouldReturnSkip() {
+        var kind = CodeContentCompressor.ClassifyCodeLine("   ", CompressionOptions.Default, false);
+        kind.Should().Be(CodeLineKind.Skip);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_RegionDirective_ShouldReturnSkip() {
+        var kind = CodeContentCompressor.ClassifyCodeLine("#region MyRegion", CompressionOptions.Default, false);
+        kind.Should().Be(CodeLineKind.Skip);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_EndRegionDirective_ShouldReturnSkip() {
+        var kind = CodeContentCompressor.ClassifyCodeLine("#endregion", CompressionOptions.Default, false);
+        kind.Should().Be(CodeLineKind.Skip);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_UsingStatement_ShouldReturnImport() {
+        var kind = CodeContentCompressor.ClassifyCodeLine("using System;", CompressionOptions.Default, false);
+        kind.Should().Be(CodeLineKind.Import);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_ImportStatement_ShouldReturnImport() {
+        var kind = CodeContentCompressor.ClassifyCodeLine("import foo from 'bar'", CompressionOptions.Default, false);
+        kind.Should().Be(CodeLineKind.Import);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_DocComment_WhenPreserved_ShouldReturnDocComment() {
+        var options = new CompressionOptions { PreserveDocumentation = true };
+        var kind = CodeContentCompressor.ClassifyCodeLine("/// <summary>", options, false);
+        kind.Should().Be(CodeLineKind.DocComment);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_DocComment_WhenNotPreserved_ShouldFallThrough() {
+        var options = new CompressionOptions { PreserveDocumentation = false, PreserveComments = false };
+        // 不保留文档注释时应继续往下分类（最终作为 NormalLine）
+        var kind = CodeContentCompressor.ClassifyCodeLine("/// <summary>", options, false);
+        kind.Should().Be(CodeLineKind.NormalLine);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_Comment_WhenPreserved_ShouldReturnComment() {
+        var options = new CompressionOptions { PreserveComments = true };
+        var kind = CodeContentCompressor.ClassifyCodeLine("// regular comment", options, false);
+        kind.Should().Be(CodeLineKind.Comment);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_TypeDefinition_WhenPreserved_ShouldReturnTypeDefinition() {
+        var options = new CompressionOptions { PreserveTypeDefinitions = true };
+        var kind = CodeContentCompressor.ClassifyCodeLine("public class Foo", options, false);
+        kind.Should().Be(CodeLineKind.TypeDefinition);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_InterfaceDefinition_WhenPreserved_ShouldReturnTypeDefinition() {
+        var options = new CompressionOptions { PreserveTypeDefinitions = true };
+        var kind = CodeContentCompressor.ClassifyCodeLine("public interface IFoo", options, false);
+        kind.Should().Be(CodeLineKind.TypeDefinition);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_EnumDefinition_WhenPreserved_ShouldReturnEnumDefinition() {
+        var options = new CompressionOptions { PreserveEnums = true };
+        var kind = CodeContentCompressor.ClassifyCodeLine("public enum Status", options, false);
+        kind.Should().Be(CodeLineKind.EnumDefinition);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_ConstantDefinition_WhenPreserved_ShouldReturnConstantDefinition() {
+        var options = new CompressionOptions { PreserveConstants = true };
+        var kind = CodeContentCompressor.ClassifyCodeLine("public const int MAX = 100;", options, false);
+        kind.Should().Be(CodeLineKind.ConstantDefinition);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_MethodSignature_ShouldReturnMethodSignature() {
+        // PreserveConstants=false 以避免被 ConstantDefinition 正则提前匹配（原代码分类顺序）
+        var options = new CompressionOptions { PreserveConstants = false };
+        var kind = CodeContentCompressor.ClassifyCodeLine("public void Method() {", options, false);
+        kind.Should().Be(CodeLineKind.MethodSignature);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_NormalLine_WhenNotInMethodBody_ShouldReturnNormalLine() {
+        var kind = CodeContentCompressor.ClassifyCodeLine("var x = 1;", CompressionOptions.Default, false);
+        kind.Should().Be(CodeLineKind.NormalLine);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_MethodBodyLine_WhenInMethodBody_ShouldReturnMethodBodyLine() {
+        var kind = CodeContentCompressor.ClassifyCodeLine("var x = 1;", CompressionOptions.Default, true);
+        kind.Should().Be(CodeLineKind.MethodBodyLine);
+    }
+
+    [Fact]
+    public void ClassifyCodeLine_TypeDefinition_WhenNotPreserved_ShouldFallThroughToMethodSignature() {
+        // 不保留类型定义和常量时，"public class Foo {" 匹配方法签名正则 → MethodSignature
+        var options = new CompressionOptions { PreserveTypeDefinitions = false, PreserveConstants = false };
+        var kind = CodeContentCompressor.ClassifyCodeLine("public class Foo {", options, false);
+        kind.Should().Be(CodeLineKind.MethodSignature);
+    }
+
+    [Fact]
+    public void BuildMethodBodyContent_MaxZero_ShouldReturnOmissionPlaceholder() {
+        var lines = new[] { "void M() {", "    var x = 1;", "}" };
+        var result = CodeContentCompressor.BuildMethodBodyContent(0, 2, 0, lines);
+        result.Should().Be("    // ... method body omitted ..." + Environment.NewLine);
+    }
+
+    [Fact]
+    public void BuildMethodBodyContent_WithinLimit_ShouldReturnOriginalBody() {
+        var lines = new[] { "void M() {", "    var x = 1;", "    var y = 2;", "}" };
+        // 方法体从行1到行3（2行），maxMethodBodyLines=5 → 保留
+        var result = CodeContentCompressor.BuildMethodBodyContent(0, 3, 5, lines);
+        result.Should().Contain("var x = 1");
+        result.Should().Contain("var y = 2");
+        result.Should().NotContain("method body omitted");
+    }
+
+    [Fact]
+    public void BuildMethodBodyContent_ExceedsLimit_ShouldReturnOmissionPlaceholder() {
+        var lines = new[] { "void M() {", "    var x = 1;", "    var y = 2;", "}" };
+        // 方法体从行1到行3（3行差），maxMethodBodyLines=1 → 1 < 3 省略
+        var result = CodeContentCompressor.BuildMethodBodyContent(0, 3, 1, lines);
+        result.Should().Be("    // ... method body omitted ..." + Environment.NewLine);
+    }
+
+    [Fact]
+    public void BuildMethodBodyContent_ExactLimit_ShouldReturnOriginalBody() {
+        var lines = new[] { "void M() {", "    var x = 1;", "}" };
+        // 方法体从行1到行2（差2），maxMethodBodyLines=2 → 2 <= 2 保留
+        var result = CodeContentCompressor.BuildMethodBodyContent(0, 2, 2, lines);
+        result.Should().Contain("var x = 1");
+        result.Should().NotContain("method body omitted");
+    }
+
+    [Theory]
+    [InlineData("", 0)]
+    [InlineData("no braces", 0)]
+    [InlineData("{", 1)]
+    [InlineData("{{", 2)]
+    [InlineData("}", -1)]
+    [InlineData("}}", -2)]
+    [InlineData("{}", 0)]
+    [InlineData("{ { } }", 0)]
+    [InlineData("} {", 0)]
+    public void CountBraces_VariousInputs_ShouldReturnCorrectCount(string line, int expected) {
+        CodeContentCompressor.CountBraces(line).Should().Be(expected);
+    }
 }

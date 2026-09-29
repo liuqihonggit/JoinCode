@@ -497,6 +497,40 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
             });
         }
 
+        var predecessor = SearchBidirectionalBfs(snap.CallsByCaller, snap.CallsByCallee, fromSymbol, toSymbol);
+
+        if (predecessor is null) {
+            return Task.FromResult(new GraphPathResult {
+                FromSymbol = fromSymbol,
+                ToSymbol = toSymbol,
+                PathFound = false,
+                PathNodes = [],
+                PathEdges = [],
+                PathLength = -1,
+            });
+        }
+
+        var (pathNodes, pathEdges) = RebuildPath(predecessor, fromSymbol, toSymbol);
+
+        return Task.FromResult(new GraphPathResult {
+            FromSymbol = fromSymbol,
+            ToSymbol = toSymbol,
+            PathFound = true,
+            PathNodes = pathNodes,
+            PathEdges = pathEdges,
+            PathLength = pathEdges.Count,
+        });
+    }
+
+    /// <summary>
+    /// 双向 BFS 搜索调用图 — 同时沿 callee 方向(正向)和 caller 方向(反向)扩展
+    /// <para>纯计算:只读快照索引,无 IO 无异步</para>
+    /// </summary>
+    /// <returns>前驱字典(到达 toSymbol 时非 null);未找到路径时返回 null</returns>
+    internal static Dictionary<string, (string FromSymbol, CallEdge Edge)>? SearchBidirectionalBfs(
+        ImmutableHamT<string, ImmutableList<CallEdge>> callsByCaller,
+        ImmutableHamT<string, ImmutableList<CallEdge>> callsByCallee,
+        string fromSymbol, string toSymbol) {
         var visited = new HashSet<string>(StringComparer.Ordinal) { fromSymbol };
         var predecessor = new Dictionary<string, (string FromSymbol, CallEdge Edge)>(StringComparer.Ordinal);
         var queue = new Queue<string>();
@@ -505,37 +539,37 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         while (queue.Count > 0) {
             var current = queue.Dequeue();
 
-            if (snap.CallsByCaller.TryGetValue(current, out var callees)) {
+            if (callsByCaller.TryGetValue(current, out var callees)) {
                 foreach (var edge in callees) {
                     if (!visited.Add(edge.CalleeSymbol)) continue;
                     predecessor[edge.CalleeSymbol] = (current, edge);
                     if (string.Equals(edge.CalleeSymbol, toSymbol, StringComparison.Ordinal))
-                        goto PathFound;
+                        return predecessor;
                     queue.Enqueue(edge.CalleeSymbol);
                 }
             }
 
-            if (snap.CallsByCallee.TryGetValue(current, out var callers)) {
+            if (callsByCallee.TryGetValue(current, out var callers)) {
                 foreach (var edge in callers) {
                     if (!visited.Add(edge.CallerSymbol)) continue;
                     predecessor[edge.CallerSymbol] = (current, edge);
                     if (string.Equals(edge.CallerSymbol, toSymbol, StringComparison.Ordinal))
-                        goto PathFound;
+                        return predecessor;
                     queue.Enqueue(edge.CallerSymbol);
                 }
             }
         }
 
-        return Task.FromResult(new GraphPathResult {
-            FromSymbol = fromSymbol,
-            ToSymbol = toSymbol,
-            PathFound = false,
-            PathNodes = [],
-            PathEdges = [],
-            PathLength = -1,
-        });
+        return null;
+    }
 
-    PathFound:
+    /// <summary>
+    /// 由前驱字典重建从 fromSymbol 到 toSymbol 的路径 — 反向追溯后翻转
+    /// <para>纯计算:无 IO 无异步,确定性输出</para>
+    /// </summary>
+    internal static (List<string> Nodes, List<CallEdge> Edges) RebuildPath(
+        Dictionary<string, (string FromSymbol, CallEdge Edge)> predecessor,
+        string fromSymbol, string toSymbol) {
         var pathNodes = new List<string>();
         var pathEdges = new List<CallEdge>();
         var step = toSymbol;
@@ -548,15 +582,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         pathNodes.Add(fromSymbol);
         pathNodes.Reverse();
         pathEdges.Reverse();
-
-        return Task.FromResult(new GraphPathResult {
-            FromSymbol = fromSymbol,
-            ToSymbol = toSymbol,
-            PathFound = true,
-            PathNodes = pathNodes,
-            PathEdges = pathEdges,
-            PathLength = pathEdges.Count,
-        });
+        return (pathNodes, pathEdges);
     }
 
     /// <summary>

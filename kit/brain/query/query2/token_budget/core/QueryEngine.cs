@@ -183,10 +183,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             }
 
             if (!success || iterationResult == null) {
-                context.OutputChunks.Add(new QueryStreamChunk {
-                    Type = AgentStreamChunkType.Error,
-                    Content = $"执行失败，已达到最大重试次数 ({_config.Retry.MaxRetries})"
-                });
+                context.OutputChunks.Add(BuildRetryExhaustedErrorChunk(_config.Retry.MaxRetries));
                 return;
             }
 
@@ -219,14 +216,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 _logger?.LogInformation("[QueryEngine] 查询完成，耗时 {ElapsedMs}ms", context.Stopwatch.ElapsedMilliseconds);
 
                 var content = iterationResult.Content ?? string.Empty;
-                context.OutputChunks.Add(new QueryStreamChunk {
-                    Type = AgentStreamChunkType.Complete,
-                    Content = content,
-                    ExecutionTimeMs = context.Stopwatch.ElapsedMilliseconds,
-                    TotalToolCalls = context.TotalToolCalls,
-                    CostUsd = context.TotalCostUsd,
-                    CacheSafeParams = BuildCacheSafeParams(context)
-                });
+                context.OutputChunks.Add(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, context.TotalCostUsd, BuildCacheSafeParams(context)));
                 return;
             }
 
@@ -277,10 +267,51 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         }
 
         _logger?.LogWarning("[QueryEngine] 达到最大工具调用次数限制: {Max}", _config.MaxToolCallIterations);
-        context.OutputChunks.Add(new QueryStreamChunk {
+        context.OutputChunks.Add(BuildMaxIterationErrorChunk(_config.MaxToolCallIterations));
+    }
+
+    /// <summary>
+    /// 构建达到最大工具调用次数限制的错误 chunk — 纯函数（TASK031 阶段2.1 提取）
+    /// </summary>
+    /// <param name="maxIterations">最大迭代次数</param>
+    /// <returns>错误类型的 QueryStreamChunk</returns>
+    internal static QueryStreamChunk BuildMaxIterationErrorChunk(int maxIterations) {
+        return new QueryStreamChunk {
             Type = AgentStreamChunkType.Error,
-            Content = $"达到最大工具调用次数限制 ({_config.MaxToolCallIterations})"
-        });
+            Content = $"达到最大工具调用次数限制 ({maxIterations})"
+        };
+    }
+
+    /// <summary>
+    /// 构建重试耗尽的错误 chunk — 纯函数（TASK031 阶段2.1 提取）
+    /// </summary>
+    /// <param name="maxRetries">最大重试次数</param>
+    /// <returns>错误类型的 QueryStreamChunk</returns>
+    internal static QueryStreamChunk BuildRetryExhaustedErrorChunk(int maxRetries) {
+        return new QueryStreamChunk {
+            Type = AgentStreamChunkType.Error,
+            Content = $"执行失败，已达到最大重试次数 ({maxRetries})"
+        };
+    }
+
+    /// <summary>
+    /// 构建查询完成的 chunk — 纯函数（TASK031 阶段2.1 提取）
+    /// </summary>
+    /// <param name="content">完成内容</param>
+    /// <param name="elapsedMs">耗时毫秒</param>
+    /// <param name="totalToolCalls">总工具调用次数</param>
+    /// <param name="costUsd">USD 成本</param>
+    /// <param name="cacheSafeParams">缓存安全参数</param>
+    /// <returns>完成类型的 QueryStreamChunk</returns>
+    internal static QueryStreamChunk BuildCompletionChunk(string content, long elapsedMs, int totalToolCalls, decimal costUsd, JoinCode.Abstractions.LLM.Chat.CacheSafeParams? cacheSafeParams) {
+        return new QueryStreamChunk {
+            Type = AgentStreamChunkType.Complete,
+            Content = content,
+            ExecutionTimeMs = elapsedMs,
+            TotalToolCalls = totalToolCalls,
+            CostUsd = costUsd,
+            CacheSafeParams = cacheSafeParams
+        };
     }
 
     private async Task<QueryIterationResult> ExecuteIterationInternalAsync(
@@ -518,14 +549,26 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         return fallback;
     }
 
-    private static bool IsRetryable(Exception ex) {
+    /// <summary>
+    /// 判断异常是否可重试 — 纯函数（TASK031 阶段2.1 提取为 internal 供测试）
+    /// HttpRequestException / TimeoutException / TaskCanceledException 可重试
+    /// </summary>
+    /// <param name="ex">异常</param>
+    /// <returns>是否可重试</returns>
+    internal static bool IsRetryable(Exception ex) {
         if (Environment.GetEnvironmentVariable("JCC_DISABLE_RETRY") is { } val &&
             (val.Equals("true", StringComparison.OrdinalIgnoreCase) || val == "1"))
             return false;
         return ex is HttpRequestException or TimeoutException or TaskCanceledException;
     }
 
-    private int CalculateRetryDelay(int retryCount) {
+    /// <summary>
+    /// 计算重试延迟 — 纯函数（TASK031 阶段2.1 提取为 internal 供测试）
+    /// 指数退避: delay * 2^(retryCount-1)，上限 MaxDelayMs
+    /// </summary>
+    /// <param name="retryCount">重试次数（从 1 开始）</param>
+    /// <returns>延迟毫秒数</returns>
+    internal int CalculateRetryDelay(int retryCount) {
         if (!_config.Retry.EnableExponentialBackoff) {
             return _config.Retry.RetryDelayMs;
         }

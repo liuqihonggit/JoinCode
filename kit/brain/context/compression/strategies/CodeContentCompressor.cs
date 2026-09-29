@@ -1,6 +1,30 @@
 
 namespace Core.Context.Compression;
 
+/// <summary>代码行分类 — 用于 CompressAsync 行处理决策（TASK031 阶段2.1 提取）</summary>
+internal enum CodeLineKind {
+    /// <summary>跳过：空行或 #region/#endregion</summary>
+    Skip,
+    /// <summary>导入语句：using/import/require/from/#include</summary>
+    Import,
+    /// <summary>文档注释：/// /** * '''</summary>
+    DocComment,
+    /// <summary>普通注释：// # /* * '</summary>
+    Comment,
+    /// <summary>类型定义：class/interface/struct/record</summary>
+    TypeDefinition,
+    /// <summary>枚举定义：enum</summary>
+    EnumDefinition,
+    /// <summary>常量定义：const/readonly</summary>
+    ConstantDefinition,
+    /// <summary>方法或属性签名</summary>
+    MethodSignature,
+    /// <summary>普通行（非方法体内）</summary>
+    NormalLine,
+    /// <summary>方法体行</summary>
+    MethodBodyLine
+}
+
 /// <summary>
 /// 代码内容压缩策略
 /// </summary>
@@ -80,86 +104,71 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase {
 
             var line = lines[i];
             var trimmedLine = line.Trim();
+            var kind = ClassifyCodeLine(trimmedLine, options, inMethodBody);
 
-            if (ShouldSkipLine(trimmedLine, options)) {
-                continue;
-            }
-
-            if (IsImportStatement(trimmedLine)) {
-                if (options.PreserveImports) {
-                    result.AppendLine(line);
-                }
-                // 如果不保留导入语句，则跳过
-                continue;
-            }
-
-            if (options.PreserveDocumentation && IsDocumentationComment(trimmedLine)) {
-                result.AppendLine(line);
-                continue;
-            }
-
-            if (options.PreserveComments && IsComment(trimmedLine)) {
-                if (IsKeyComment(trimmedLine)) {
-                    result.AppendLine(line);
-                }
-                continue;
-            }
-
-            if (options.PreserveTypeDefinitions && IsTypeDefinition(trimmedLine)) {
-                result.AppendLine(line);
-                inMethodBody = false;
-                continue;
-            }
-
-            if (options.PreserveEnums && IsEnumDefinition(trimmedLine)) {
-                result.AppendLine(line);
-                inMethodBody = false;
-                continue;
-            }
-
-            if (options.PreserveConstants && IsConstantDefinition(trimmedLine)) {
-                result.AppendLine(line);
-                continue;
-            }
-
-            if (IsMethodOrPropertySignature(trimmedLine)) {
-                if (options.PreserveSignatures) {
-                    result.AppendLine(line);
-                }
-
-                if (IsExpressionBodiedMember(trimmedLine)) {
+            switch (kind) {
+                case CodeLineKind.Skip:
                     continue;
-                }
 
-                inMethodBody = true;
-                methodBodyStartLine = i;
-                braceDepth = CountBraces(line);
-                continue;
-            }
-
-            if (!inMethodBody) {
-                if (!string.IsNullOrWhiteSpace(line)) {
-                    result.AppendLine(line);
-                }
-                continue;
-            }
-
-            braceDepth += CountBraces(line);
-
-            if (braceDepth <= 0) {
-                inMethodBody = false;
-
-                if (options.MaxMethodBodyLines > 0 &&
-                    i - methodBodyStartLine <= options.MaxMethodBodyLines) {
-                    for (var j = methodBodyStartLine + 1; j <= i; j++) {
-                        result.AppendLine(lines[j]);
+                case CodeLineKind.Import:
+                    if (options.PreserveImports) {
+                        result.AppendLine(line);
                     }
-                } else {
-                    result.AppendLine("    // ... method body omitted ...");
-                }
-            }
+                    continue;
 
-            continue;
+                case CodeLineKind.DocComment:
+                    result.AppendLine(line);
+                    continue;
+
+                case CodeLineKind.Comment:
+                    if (IsKeyComment(trimmedLine)) {
+                        result.AppendLine(line);
+                    }
+                    continue;
+
+                case CodeLineKind.TypeDefinition:
+                    result.AppendLine(line);
+                    inMethodBody = false;
+                    continue;
+
+                case CodeLineKind.EnumDefinition:
+                    result.AppendLine(line);
+                    inMethodBody = false;
+                    continue;
+
+                case CodeLineKind.ConstantDefinition:
+                    result.AppendLine(line);
+                    continue;
+
+                case CodeLineKind.MethodSignature:
+                    if (options.PreserveSignatures) {
+                        result.AppendLine(line);
+                    }
+                    if (IsExpressionBodiedMember(trimmedLine)) {
+                        continue;
+                    }
+                    inMethodBody = true;
+                    methodBodyStartLine = i;
+                    braceDepth = CountBraces(line);
+                    continue;
+
+                case CodeLineKind.NormalLine:
+                    if (!string.IsNullOrWhiteSpace(line)) {
+                        result.AppendLine(line);
+                    }
+                    continue;
+
+                case CodeLineKind.MethodBodyLine:
+                    braceDepth += CountBraces(line);
+                    if (braceDepth <= 0) {
+                        inMethodBody = false;
+                        result.Append(BuildMethodBodyContent(methodBodyStartLine, i, options.MaxMethodBodyLines, lines));
+                    }
+                    continue;
+
+                default:
+                    continue;
+            }
         }
 
         var compressed = result.ToString().TrimEnd();
@@ -206,6 +215,45 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase {
             : 1.0;
 
         return Math.Max(estimatedRatio, options.TargetCompressionRatio);
+    }
+
+    /// <summary>
+    /// 对单行代码进行分类 — 纯函数，无副作用，用于 CompressAsync 行处理决策（TASK031 阶段2.1 提取）
+    /// </summary>
+    /// <param name="trimmedLine">已 Trim 的行内容</param>
+    /// <param name="options">压缩选项（影响某些分类的条件判断）</param>
+    /// <param name="inMethodBody">当前是否处于方法体内</param>
+    /// <returns>该行的分类种类</returns>
+    internal static CodeLineKind ClassifyCodeLine(string trimmedLine, CompressionOptions options, bool inMethodBody) {
+        if (ShouldSkipLine(trimmedLine, options)) return CodeLineKind.Skip;
+        if (IsImportStatement(trimmedLine)) return CodeLineKind.Import;
+        if (options.PreserveDocumentation && IsDocumentationComment(trimmedLine)) return CodeLineKind.DocComment;
+        if (options.PreserveComments && IsComment(trimmedLine)) return CodeLineKind.Comment;
+        if (options.PreserveTypeDefinitions && IsTypeDefinition(trimmedLine)) return CodeLineKind.TypeDefinition;
+        if (options.PreserveEnums && IsEnumDefinition(trimmedLine)) return CodeLineKind.EnumDefinition;
+        if (options.PreserveConstants && IsConstantDefinition(trimmedLine)) return CodeLineKind.ConstantDefinition;
+        if (IsMethodOrPropertySignature(trimmedLine)) return CodeLineKind.MethodSignature;
+        return inMethodBody ? CodeLineKind.MethodBodyLine : CodeLineKind.NormalLine;
+    }
+
+    /// <summary>
+    /// 构建方法体内容 — 保留或省略（TASK031 阶段2.1 提取）
+    /// 当方法体行数不超过 maxMethodBodyLines 时保留原文，否则输出省略占位符
+    /// </summary>
+    /// <param name="methodBodyStartLine">方法体起始行索引</param>
+    /// <param name="currentLine">当前行索引（方法体结束行）</param>
+    /// <param name="maxMethodBodyLines">最大保留方法体行数（0 表示总是省略）</param>
+    /// <param name="lines">全部行数组</param>
+    /// <returns>方法体内容文本（含行尾换行符）</returns>
+    internal static string BuildMethodBodyContent(int methodBodyStartLine, int currentLine, int maxMethodBodyLines, string[] lines) {
+        if (maxMethodBodyLines > 0 && currentLine - methodBodyStartLine <= maxMethodBodyLines) {
+            var sb = new StringBuilder();
+            for (var j = methodBodyStartLine + 1; j <= currentLine; j++) {
+                sb.AppendLine(lines[j]);
+            }
+            return sb.ToString();
+        }
+        return "    // ... method body omitted ..." + Environment.NewLine;
     }
 
     private static bool ShouldSkipLine(string trimmedLine, CompressionOptions options) {
@@ -288,7 +336,12 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase {
                 line.Contains("}", StringComparison.Ordinal));
     }
 
-    private static int CountBraces(string line) {
+    /// <summary>
+    /// 计算行中大括号净增量（{ 计 +1，} 计 -1）— 纯函数（TASK031 阶段2.1 提取为 internal 供测试）
+    /// </summary>
+    /// <param name="line">代码行</param>
+    /// <returns>大括号净数</returns>
+    internal static int CountBraces(string line) {
         var count = 0;
         foreach (var c in line) {
             if (c == '{') count++;

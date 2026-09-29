@@ -316,17 +316,47 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         }
 
         // Step 3: 按 token 预算截断(优先级: matched symbols > references > callers > callees)
+        // 先物化去重列表(用于截断计数)
+        var distinctReferences = allReferences.Distinct().ToList();
+        var distinctCallers = allCallers.Distinct().ToList();
+        var distinctCallees = allCallees.Distinct().ToList();
+
+        var (matchedSymbols, references, callers, callees, estimatedTokens, truncated, truncatedCount) =
+            TruncateByTokenBudget(allMatched, distinctReferences, distinctCallers, distinctCallees, maxTokenBudget);
+
+        sw.Stop();
+
+        return new ComprehensiveSearchResult {
+            MatchedSymbols = matchedSymbols,
+            TotalMatchedCount = totalMatchedCount,
+            References = references,
+            Callers = callers,
+            Callees = callees,
+            EstimatedTokens = estimatedTokens,
+            Truncated = truncated,
+            TruncatedCount = truncatedCount,
+            ElapsedMs = sw.ElapsedMilliseconds
+        };
+    }
+
+    /// <summary>
+    /// 按 token 预算截断四类别列表 — 优先级: matched > references > callers > callees
+    /// <para>纯计算:无 IO 无异步,确定性输出(相同输入永远相同输出)</para>
+    /// </summary>
+    /// <param name="allMatched">模糊匹配到的符号(原始顺序,未去重)</param>
+    /// <param name="distinctReferences">去重后的引用列表</param>
+    /// <param name="distinctCallers">去重后的调用方边列表</param>
+    /// <param name="distinctCallees">去重后的被调用方边列表</param>
+    /// <param name="maxTokenBudget">token 预算上限</param>
+    /// <returns>截断后的四列表 + 估算 token 总数 + 是否截断 + 截断条目数</returns>
+    internal static (List<SymbolInfo> Matched, List<SymbolInfo> References, List<CallEdge> Callers, List<CallEdge> Callees, int EstimatedTokens, bool Truncated, int TruncatedCount)
+        TruncateByTokenBudget(IReadOnlyList<SymbolInfo> allMatched, IReadOnlyList<SymbolInfo> distinctReferences, IReadOnlyList<CallEdge> distinctCallers, IReadOnlyList<CallEdge> distinctCallees, int maxTokenBudget) {
         var matchedSymbols = new List<SymbolInfo>();
         var references = new List<SymbolInfo>();
         var callers = new List<CallEdge>();
         var callees = new List<CallEdge>();
         var estimatedTokens = 0;
         var truncated = false;
-
-        // 先物化去重列表(用于截断计数)
-        var distinctReferences = allReferences.Distinct().ToList();
-        var distinctCallers = allCallers.Distinct().ToList();
-        var distinctCallees = allCallees.Distinct().ToList();
 
         // 填充 matched symbols
         foreach (var s in allMatched) {
@@ -378,19 +408,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                            + (distinctCallers.Count - callers.Count)
                            + (distinctCallees.Count - callees.Count);
 
-        sw.Stop();
-
-        return new ComprehensiveSearchResult {
-            MatchedSymbols = matchedSymbols,
-            TotalMatchedCount = totalMatchedCount,
-            References = references,
-            Callers = callers,
-            Callees = callees,
-            EstimatedTokens = estimatedTokens,
-            Truncated = truncated,
-            TruncatedCount = truncatedCount,
-            ElapsedMs = sw.ElapsedMilliseconds
-        };
+        return (matchedSymbols, references, callers, callees, estimatedTokens, truncated, truncatedCount);
     }
 
     /// <summary>

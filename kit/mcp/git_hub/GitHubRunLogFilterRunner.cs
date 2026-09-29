@@ -115,61 +115,7 @@ internal sealed class GitHubRunLogFilterRunner {
         await foreach (var line in logLines.ConfigureAwait(false)) {
             lineNumber++;
             var content = GitHubRunLogText.StripLogTimestamp(line);
-
-            switch (state) {
-                case LogParseState.Normal:
-                // 检测测试失败标记: "  Failed xxx [FAIL]" 或 "[xUnit.net] xxx [FAIL]"
-                if (content.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase) ||
-                    content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase)) {
-                    current = new TestFailureInfo { StartLine = lineNumber, TestLine = content };
-                    failures.Add(current);
-                    state = LogParseState.InFailedTest;
-                }
-                // 检测 ##[error] 行
-                else if (content.Contains("##[error]", StringComparison.OrdinalIgnoreCase)) {
-                    current = new TestFailureInfo { StartLine = lineNumber, TestLine = content, IsErrorMarker = true };
-                    failures.Add(current);
-                    state = LogParseState.Normal;
-                }
-                break;
-
-                case LogParseState.InFailedTest:
-                if (content.StartsWith("  Error Message:", StringComparison.OrdinalIgnoreCase)) {
-                    state = LogParseState.InErrorMessage;
-                } else if (content.StartsWith("  Stack Trace:", StringComparison.OrdinalIgnoreCase)) {
-                    state = LogParseState.InStackTrace;
-                } else if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
-                           content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase) ||
-                           content.Contains("[PASS]", StringComparison.OrdinalIgnoreCase)) {
-                    state = LogParseState.Normal;
-                    current = null;
-                }
-                break;
-
-                case LogParseState.InErrorMessage:
-                if (content.StartsWith("  Stack Trace:", StringComparison.OrdinalIgnoreCase)) {
-                    state = LogParseState.InStackTrace;
-                } else if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
-                           content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase)) {
-                    state = LogParseState.Normal;
-                    current = null;
-                } else if (current is not null) {
-                    current.ErrorMessageLines.Add(content.Trim());
-                }
-                break;
-
-                case LogParseState.InStackTrace:
-                if (current is not null) {
-                    current.StackTraceLines.Add(content);
-                }
-                if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
-                    content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase) ||
-                    content.Contains("--- End of stack trace", StringComparison.OrdinalIgnoreCase)) {
-                    state = LogParseState.Normal;
-                    current = null;
-                }
-                break;
-            }
+            ProcessLogLine(content, lineNumber, ref state, ref current, failures);
         }
 
         if (failures.Count == 0) {
@@ -177,40 +123,9 @@ internal sealed class GitHubRunLogFilterRunner {
         }
 
         // 去重: 同一测试名可能被 [xUnit.net] [FAIL] 和 Failed 两次报告,保留有 ErrorMessage 的那个
-        var deduped = new List<TestFailureInfo>(failures.Count);
-        var testNameIndex = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var f in failures) {
-            if (f.IsErrorMarker) {
-                deduped.Add(f);
-                continue;
-            }
-            var testName = TestFailureInfo.ExtractTestName(f.TestLine);
-            if (testName is not null && testNameIndex.TryGetValue(testName, out var existingIdx)) {
-                // 同名失败已存在,保留 ErrorMessage 更多的
-                if (f.ErrorMessageLines.Count > deduped[existingIdx].ErrorMessageLines.Count)
-                    deduped[existingIdx] = f;
-            } else {
-                testNameIndex[testName ?? $"__line_{f.StartLine}"] = deduped.Count;
-                deduped.Add(f);
-            }
-        }
-        failures = deduped;
+        failures = DeduplicateFailures(failures);
 
-        // Rust 风格输出
-        var sb = new StringBuilder();
-        var shown = 0;
-        foreach (var f in failures.Skip(skipLines)) {
-            if (shown >= maxLines) break;
-            shown++;
-            sb.Append(f.FormatRustStyle());
-            sb.Append('\n');
-        }
-
-        var prefix = $"Run {runId} 测试失败({failures.Count} 个,显示 {shown} 个)";
-        if (skipLines > 0) prefix += $",跳过前 {skipLines} 个";
-        if (skipLines + shown < failures.Count)
-            sb.Append($"\n... [共 {failures.Count} 个失败,用 skip_lines={skipLines + shown} 续读]");
-        return GitHubToolHandlers.Ok(sb.ToString(), prefix);
+        return FormatFailuresRustStyle(failures, maxLines, skipLines, runId);
     }
 
 
@@ -272,9 +187,113 @@ internal sealed class GitHubRunLogFilterRunner {
     }
 
     /// <summary>
+    /// 状态机单行推进 — 根据当前状态与行内容更新状态/当前失败/失败列表(纯计算,无 IO)
+    /// </summary>
+    internal static void ProcessLogLine(string content, int lineNumber, ref LogParseState state, ref TestFailureInfo? current, List<TestFailureInfo> failures) {
+        switch (state) {
+            case LogParseState.Normal:
+            // 检测测试失败标记: "  Failed xxx [FAIL]" 或 "[xUnit.net] xxx [FAIL]"
+            if (content.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase) ||
+                content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase)) {
+                current = new TestFailureInfo { StartLine = lineNumber, TestLine = content };
+                failures.Add(current);
+                state = LogParseState.InFailedTest;
+            }
+            // 检测 ##[error] 行
+            else if (content.Contains("##[error]", StringComparison.OrdinalIgnoreCase)) {
+                current = new TestFailureInfo { StartLine = lineNumber, TestLine = content, IsErrorMarker = true };
+                failures.Add(current);
+                state = LogParseState.Normal;
+            }
+            break;
+
+            case LogParseState.InFailedTest:
+            if (content.StartsWith("  Error Message:", StringComparison.OrdinalIgnoreCase)) {
+                state = LogParseState.InErrorMessage;
+            } else if (content.StartsWith("  Stack Trace:", StringComparison.OrdinalIgnoreCase)) {
+                state = LogParseState.InStackTrace;
+            } else if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
+                       content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase) ||
+                       content.Contains("[PASS]", StringComparison.OrdinalIgnoreCase)) {
+                state = LogParseState.Normal;
+                current = null;
+            }
+            break;
+
+            case LogParseState.InErrorMessage:
+            if (content.StartsWith("  Stack Trace:", StringComparison.OrdinalIgnoreCase)) {
+                state = LogParseState.InStackTrace;
+            } else if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
+                       content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase)) {
+                state = LogParseState.Normal;
+                current = null;
+            } else if (current is not null) {
+                current.ErrorMessageLines.Add(content.Trim());
+            }
+            break;
+
+            case LogParseState.InStackTrace:
+            if (current is not null) {
+                current.StackTraceLines.Add(content);
+            }
+            if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
+                content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase) ||
+                content.Contains("--- End of stack trace", StringComparison.OrdinalIgnoreCase)) {
+                state = LogParseState.Normal;
+                current = null;
+            }
+            break;
+        }
+    }
+
+    /// <summary>
+    /// 去重失败测试 — 同一测试名可能被 [xUnit.net] [FAIL] 和 Failed 两次报告,保留 ErrorMessage 更多的(纯计算)
+    /// </summary>
+    internal static List<TestFailureInfo> DeduplicateFailures(List<TestFailureInfo> failures) {
+        var deduped = new List<TestFailureInfo>(failures.Count);
+        var testNameIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var f in failures) {
+            if (f.IsErrorMarker) {
+                deduped.Add(f);
+                continue;
+            }
+            var testName = TestFailureInfo.ExtractTestName(f.TestLine);
+            if (testName is not null && testNameIndex.TryGetValue(testName, out var existingIdx)) {
+                // 同名失败已存在,保留 ErrorMessage 更多的
+                if (f.ErrorMessageLines.Count > deduped[existingIdx].ErrorMessageLines.Count)
+                    deduped[existingIdx] = f;
+            } else {
+                testNameIndex[testName ?? $"__line_{f.StartLine}"] = deduped.Count;
+                deduped.Add(f);
+            }
+        }
+        return deduped;
+    }
+
+    /// <summary>
+    /// Rust 风格输出 — 分页跳过 + 截断 + 续读提示(纯计算,要求 failures 非空)
+    /// </summary>
+    internal static ToolResult FormatFailuresRustStyle(List<TestFailureInfo> failures, int maxLines, int skipLines, string runId) {
+        var sb = new StringBuilder();
+        var shown = 0;
+        foreach (var f in failures.Skip(skipLines)) {
+            if (shown >= maxLines) break;
+            shown++;
+            sb.Append(f.FormatRustStyle());
+            sb.Append('\n');
+        }
+
+        var prefix = $"Run {runId} 测试失败({failures.Count} 个,显示 {shown} 个)";
+        if (skipLines > 0) prefix += $",跳过前 {skipLines} 个";
+        if (skipLines + shown < failures.Count)
+            sb.Append($"\n... [共 {failures.Count} 个失败,用 skip_lines={skipLines + shown} 续读]");
+        return GitHubToolHandlers.Ok(sb.ToString(), prefix);
+    }
+
+    /// <summary>
     /// 日志解析状态机状态
     /// </summary>
-    private enum LogParseState {
+    internal enum LogParseState {
         Normal,         // 普通行
         InFailedTest,   // 遇到 Failed/[FAIL],等待 Error Message 或 Stack Trace
         InErrorMessage, // 在 Error Message: 之后
@@ -284,7 +303,7 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <summary>
     /// 测试失败信息 — 用于 Rust 风格输出
     /// </summary>
-    private sealed class TestFailureInfo {
+    internal sealed class TestFailureInfo {
         public int StartLine;
         public string TestLine = "";
         public List<string> ErrorMessageLines = [];

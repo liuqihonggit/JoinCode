@@ -85,7 +85,7 @@ public class MainViewModelMentionTests {
     public async Task Mention_WhenAgentFound_ShouldForwardWithoutNewTurn() {
         await using var session = new MentionSession {
             Finder = name => name == "explore" ? "agent-1" : null,
-            Running = [new("agent-1", "explore", "调研", "running", DateTime.Now, 0, 0)]
+            Running = [new("agent-1", "explore", "调研", AgentStatus.Running, DateTime.Now, 0, 0, Array.Empty<AgentActivityEntry>(), null, null, null, null, null)]
         };
         var vm = CreateVm(session);
         vm.InputText = "@explore 帮我查README";
@@ -104,7 +104,7 @@ public class MainViewModelMentionTests {
     public async Task Mention_WhenNotFound_ShouldEchoRunningList() {
         await using var session = new MentionSession {
             Finder = _ => null,
-            Running = [new("a9", "planner", "规划", "running", DateTime.Now, 0, 0)]
+            Running = [new("a9", "planner", "规划", AgentStatus.Running, DateTime.Now, 0, 0, Array.Empty<AgentActivityEntry>(), null, null, null, null, null)]
         };
         var vm = CreateVm(session);
         vm.InputText = "@ghost 你好";
@@ -118,7 +118,7 @@ public class MainViewModelMentionTests {
     [Fact]
     public async Task BusySend_WithSingleRunningAgent_ShouldAutoForward() {
         await using var session = new MentionSession {
-            Running = [new("solo", "worker", "干活", "running", DateTime.Now, 0, 0)]
+            Running = [new("solo", "worker", "干活", AgentStatus.Running, DateTime.Now, 0, 0, Array.Empty<AgentActivityEntry>(), null, null, null, null, null)]
         };
         var vm = CreateVm(session);
 

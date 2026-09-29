@@ -76,10 +76,16 @@ internal sealed class JccChatSession : IJccChatSession {
                     info.Id,
                     Name: info.DisplayName ?? info.Variant?.ToString() ?? info.Role.ToString().ToLowerInvariant(),
                     Description: info.Description,
-                    State: info.State.ToString().ToLowerInvariant(),
+                    State: info.State,
                     StartedAt: info.StartedAt,
                     ToolUseCount: info.ToolUseCount,
-                    TokenCount: info.TokenCount));
+                    TokenCount: info.TokenCount,
+                    Activities: info.Activities,
+                    LastActivityText: info.LastActivityText,
+                    FinalOutput: info.FinalOutput,
+                    IsSuccess: info.IsSuccess,
+                    ExecutionTimeMs: info.ExecutionTimeMs,
+                    Role: info.Role.ToString().ToLowerInvariant()));
             }
         }
 
@@ -92,10 +98,16 @@ internal sealed class JccChatSession : IJccChatSession {
                     fork.ForkId,
                     Name: "fork",
                     Description: $"fork {fork.ForkId}",
-                    State: "running",
+                    State: AgentStatus.Running,
                     StartedAt: fork.CreatedAt,
                     ToolUseCount: 0,
-                    TokenCount: 0));
+                    TokenCount: 0,
+                    Activities: Array.Empty<AgentActivityEntry>(),
+                    LastActivityText: null,
+                    FinalOutput: fork.Result,
+                    IsSuccess: fork.State == ForkState.Completed ? true : null,
+                    ExecutionTimeMs: null,
+                    Role: "fork"));
             }
         }
 
@@ -649,8 +661,7 @@ internal sealed class JccChatSession : IJccChatSession {
     /// <summary>暂停所有运行中子代理 — 遍历后台代理对 running 状态逐个暂停</summary>
     public async Task<int> PauseAllSubAgentsAsync(CancellationToken cancellationToken = default) {
         var agents = await GetBackgroundAgentsAsync(cancellationToken);
-        var running = agents.Where(a => string.Equals(a.State, "running", StringComparison.OrdinalIgnoreCase)
-                                     || string.Equals(a.State, "pending", StringComparison.OrdinalIgnoreCase));
+        var running = agents.Where(a => a.State is AgentStatus.Running or AgentStatus.Pending);
         var count = 0;
         foreach (var agent in running) {
             if (await PauseSubAgentAsync(agent.AgentId, cancellationToken))
@@ -662,7 +673,7 @@ internal sealed class JccChatSession : IJccChatSession {
     /// <summary>恢复所有暂停中子代理 — 遍历后台代理对 paused 状态逐个恢复</summary>
     public async Task<int> ResumeAllSubAgentsAsync(CancellationToken cancellationToken = default) {
         var agents = await GetBackgroundAgentsAsync(cancellationToken);
-        var paused = agents.Where(a => string.Equals(a.State, "paused", StringComparison.OrdinalIgnoreCase));
+        var paused = agents.Where(a => a.State is AgentStatus.Paused);
         var count = 0;
         foreach (var agent in paused) {
             if (await ResumeSubAgentAsync(agent.AgentId, cancellationToken))
@@ -678,9 +689,7 @@ internal sealed class JccChatSession : IJccChatSession {
     /// <summary>终止所有运行中子代理 — 遍历后台代理对 running/paused 状态逐个终止</summary>
     public async Task<int> StopAllSubAgentsAsync(CancellationToken cancellationToken = default) {
         var agents = await GetBackgroundAgentsAsync(cancellationToken);
-        var active = agents.Where(a => string.Equals(a.State, "running", StringComparison.OrdinalIgnoreCase)
-                                    || string.Equals(a.State, "paused", StringComparison.OrdinalIgnoreCase)
-                                    || string.Equals(a.State, "pending", StringComparison.OrdinalIgnoreCase));
+        var active = agents.Where(a => a.State is AgentStatus.Running or AgentStatus.Paused or AgentStatus.Pending);
         var count = 0;
         foreach (var agent in active) {
             if (await StopSubAgentAsync(agent.AgentId, cancellationToken))

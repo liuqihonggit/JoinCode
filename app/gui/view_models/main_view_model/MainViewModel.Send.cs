@@ -26,7 +26,6 @@ public sealed partial class MainViewModel {
             return _turnProcessor;
         _turnProcessor = new ChatTurnProcessor(Messages);
         _turnProcessor.BeginTurn();
-        BackgroundPanel.UpdateTracker(_turnProcessor.AgentTracker);
         return _turnProcessor;
     }
 
@@ -195,7 +194,6 @@ public sealed partial class MainViewModel {
             // 事件→消息组装委托给 ChatTurnProcessor（T7 抽取，可单测）
             _turnProcessor = new ChatTurnProcessor(Messages);
             _turnProcessor.BeginTurn();
-            BackgroundPanel.UpdateTracker(_turnProcessor.AgentTracker);
             var processor = _turnProcessor;
 
             await foreach (var evt in _session.StreamAsync(message, _sendCts.Token)) {

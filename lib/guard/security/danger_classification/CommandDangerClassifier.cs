@@ -371,32 +371,10 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     }
 
     /// <summary>
-    /// 选择最高优先级的风险类型（用于消息构建）
+    /// 选择最高优先级的风险类型（用于消息构建） — 委托给 <see cref="DangerousCommandCatalog.SelectPrimaryRisk"/> 唯一数据源
     /// </summary>
-    internal static CommandRisk SelectPrimaryRisk(IReadOnlyList<CommandRisk> risks) {
-        if (risks.Count == 0)
-            return CommandRisk.None;
-
-        var priority = new[]
-        {
-            CommandRisk.PathEscape,
-            CommandRisk.FileDeletion,
-            CommandRisk.DirectoryDeletion,
-            CommandRisk.PrivilegeEscalation,
-            CommandRisk.RemoteExecution,
-            CommandRisk.ForceOperation,
-            CommandRisk.RecursiveOperation,
-            CommandRisk.DataModification,
-            CommandRisk.SystemModification,
-        };
-
-        foreach (var risk in priority) {
-            if (risks.Contains(risk))
-                return risk;
-        }
-
-        return risks[0];
-    }
+    internal static CommandRisk SelectPrimaryRisk(IReadOnlyList<CommandRisk> risks)
+        => DangerousCommandCatalog.SelectPrimaryRisk(risks);
 
     /// <summary>
     /// 检查 git 只读命令的管道/重定向 — 管道传入解释器可执行任意代码(Execution),其他管道/重定向需确认(LightValidation)

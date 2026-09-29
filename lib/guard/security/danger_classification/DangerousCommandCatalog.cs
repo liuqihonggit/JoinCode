@@ -88,4 +88,43 @@ public static partial class DangerousCommandCatalog {
     /// CommandRisk → 默认 CommandDangerLevel 映射（用于无显式等级时的降级推断）
     /// </summary>
     public static readonly FrozenDictionary<CommandRisk, CommandDangerLevel> RiskToLevelMap = BuildRiskToLevelMap();
+
+    /// <summary>
+    /// CommandRisk 优先级数组(从高到低) — 选择主风险的唯一数据源。
+    /// <para>
+    /// 顺序依据 <see cref="RiskToLevelMap"/>:PathEscape 对应 Dangerous(黑灯直接拒绝),
+    /// 其余删除/远程/强制等对应 Execution(红灯 ask)。故 PathEscape 优先级最高。
+    /// 消费方:CommandDangerClassifier.SelectPrimaryRisk、DangerousCommandProtectionMiddleware.SelectPrimaryRisk,
+    /// 禁止双向维护硬编码数组。
+    /// </para>
+    /// </summary>
+    public static readonly CommandRisk[] RiskPriority = [
+        CommandRisk.PathEscape,
+        CommandRisk.FileDeletion,
+        CommandRisk.DirectoryDeletion,
+        CommandRisk.PrivilegeEscalation,
+        CommandRisk.RemoteExecution,
+        CommandRisk.ForceOperation,
+        CommandRisk.RecursiveOperation,
+        CommandRisk.DataModification,
+        CommandRisk.SystemModification,
+    ];
+
+    /// <summary>
+    /// 选择最高优先级的风险类型 — 唯一逻辑,消费方委托此方法,禁止重复实现。
+    /// <para>空列表返回 <see cref="CommandRisk.None"/>;不在优先级表中的风险返回列表第一个。</para>
+    /// </summary>
+    /// <param name="risks">风险列表</param>
+    /// <returns>最高优先级风险;空列表返回 None</returns>
+    public static CommandRisk SelectPrimaryRisk(IReadOnlyList<CommandRisk> risks) {
+        if (risks.Count == 0)
+            return CommandRisk.None;
+
+        foreach (var risk in RiskPriority) {
+            if (risks.Contains(risk))
+                return risk;
+        }
+
+        return risks[0];
+    }
 }

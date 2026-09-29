@@ -26,7 +26,7 @@ public sealed partial class BashAstSecurityWalker {
             return WalkDeclarationCommand(node, commands, varScope);
 
             case "variable_assignment":
-            return WalkStandaloneVariableAssignment(node, varScope);
+            return WalkStandaloneVariableAssignment(node, commands, varScope);
 
             case "for_statement":
             return WalkForStatement(node, commands, varScope);
@@ -43,7 +43,7 @@ public sealed partial class BashAstSecurityWalker {
             return WalkTestCommand(node);
 
             case "unset_command":
-            return WalkUnsetCommand(node, varScope);
+            return WalkUnsetCommand(node, commands, varScope);
 
             case "case_statement":
             case "function_definition":
@@ -52,7 +52,8 @@ public sealed partial class BashAstSecurityWalker {
             return TooComplexNode(node);
         }
 
-        if (BashSecurityConstants.StructuralTypes.Contains(node.Type)) {
+        // compound_list 是命令列表(如 subshell 内 echo a; echo b),按结构节点遍历
+        if (node.Type == "compound_list" || BashSecurityConstants.StructuralTypes.Contains(node.Type)) {
             return WalkStructuralNode(node, commands, varScope);
         }
 

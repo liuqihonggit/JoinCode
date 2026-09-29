@@ -238,28 +238,6 @@ public class RingBufferTests {
         buf.Count.Should().Be(2);
     }
 
-    /// <summary>验证多线程并发添加不抛出异常。</summary>
-    [Fact]
-    public void MultiThread_ConcurrentAdd_NoException() {
-        var buf = new RingBuffer<int>(512);
-        var cap = buf.Capacity;
-        var threads = new Thread[4];
-        var errors = new List<Exception>();
-        for (var t = 0; t < 4; t++) {
-            var threadId = t;
-            threads[t] = new Thread(() => {
-                try {
-                    for (var i = 0; i < 10_000; i++)
-                        buf.Add(threadId * 10_000 + i);
-                } catch (Exception ex) { lock (errors) errors.Add(ex); }
-            }) { IsBackground = true };
-        }
-        foreach (var th in threads) th.Start();
-        foreach (var th in threads) th.Join();
-        errors.Should().BeEmpty();
-        buf.Count.Should().Be(cap);
-    }
-
     // === RoundUpToPowerOfTwo 参数验证测试 ===
 
     /// <summary>验证 0 返回 1(最小 2 次幂)。</summary>

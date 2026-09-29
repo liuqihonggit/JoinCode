@@ -19,7 +19,7 @@ public class BackpressurePipelineTest {
         }
 
         gate.SetResult();
-        await Task.Delay(300);
+        await WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(200));
         signals.Should().BeEmpty("消费中的消息不应触发 OnBackpressure(Bug2:反向背压已移除)");
     }
 
@@ -38,7 +38,7 @@ public class BackpressurePipelineTest {
         }
 
         gate.SetResult();
-        await Task.Delay(300);
+        await WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(200));
         signals.Should().BeEmpty("消费中的消息不应触发 OnBackpressure(Bug2:反向背压已移除)");
     }
 
@@ -57,7 +57,7 @@ public class BackpressurePipelineTest {
         }
 
         gate.SetResult();
-        await Task.Delay(300);
+        await WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(200));
         signals.Should().BeEmpty("消费中的消息不应触发 OnBackpressure(Bug2:反向背压已移除)");
     }
 
@@ -101,9 +101,9 @@ public class BackpressurePipelineTest {
         for (var i = 0; i < 10; i++)
             actor.Tell(new PlainCmd(i));
 
-        await Task.Delay(200);
-        signals.Should().BeEmpty();
         gate.SetResult();
+        await WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(200));
+        signals.Should().BeEmpty();
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
@@ -152,11 +152,7 @@ internal sealed class BackpressurePipelineTestActor : ActorBase<object, Unit> {
     }
 
     protected override void Handle(object command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
-    }
-
-    private async ValueTask HandleAsyncImpl(object command, CancellationToken ct) {
-        if (_gate is not null) await _gate.Task.WaitAsync(ct);
+        if (_gate is not null) _gate.Task.WaitAsync(ct).GetAwaiter().GetResult();
         if (command is BackpressureTestCmd cmd) {
             IdempotencyStore?.TryRegister(cmd.IdempotencyKey, Unit.Value);
             cmd.OnSuccess(Unit.Value);

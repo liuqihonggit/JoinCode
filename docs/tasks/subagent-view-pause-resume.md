@@ -96,28 +96,39 @@
 | IJccChatSession 加 Pause/Resume/PauseAll/ResumeAll | `01f6b17e1` | ✅ |
 | GUI 面板加暂停/继续按钮 + 暂停所有/恢复所有 | `06a812ef7` | ✅ |
 | MCP 工具 subagent_control(list/pause/resume/pause_all/resume_all) | `e212fc303` | ✅ |
+| MCP 工具补 stop/stop_all/clean action | 本次 | ✅ |
+| IJccChatSession 加 StopSubAgent/StopAllSubAgents | 本次 | ✅ |
+| GUI 面板加"终止所有"按钮 | 本次 | ✅ |
+| SubAgentControlToolHandlers 单元测试（16 个） | 本次 | ✅ |
+| BackgroundAgentsPanelTests 暂停/继续/终止所有测试（5 个新增） | 本次 | ✅ |
+| JccChatSessionSubAgentTests StopAll/Stop 测试（2 个新增） | 本次 | ✅ |
 
 ### 实际实现方式（复用现有）
 - **未新建 SubAgentView** — 复用现有 `BackgroundAgentsPanelViewModel` + `MainWindow.axaml` 的后台代理面板
 - **BackgroundAgentItemVm** 加 `CanPause`/`CanResume` 属性驱动按钮显隐
-- **BackgroundAgentsPanelViewModel** 加 `PauseCommand`/`ResumeCommand`/`PauseAllCommand`/`ResumeAllCommand`
-- **面板顶部**加"暂停所有"/"恢复所有"按钮
+- **BackgroundAgentsPanelViewModel** 加 `PauseCommand`/`ResumeCommand`/`PauseAllCommand`/`ResumeAllCommand`/`StopAllCommand`
+- **面板顶部**加"暂停所有"/"恢复所有"/"终止所有"按钮
 - **每个代理卡片**加"暂停"/"继续"按钮（与"终止"并排）
+
+### MCP 工具 subagent_control 完整 action 列表
+- `list` — 列出所有运行中子代理
+- `pause(id)` — 暂停指定子代理（teammate 进 idle 等 next prompt）
+- `resume(id)` — 恢复指定子代理（转发空消息唤醒 idle teammate）
+- `stop(id)` — 终止指定子代理（委托 StopAgentAsync，终止性不可恢复）
+- `pause_all` — 暂停所有运行中子代理
+- `resume_all` — 恢复所有暂停中子代理
+- `stop_all` — 终止所有运行中子代理
+- `clean` — 清理已完成代理，刷新列表仅返回当前运行中代理
 
 ## 待补充（用户反馈）
 
-### 1. MCP 工具补 stop/clean action
-- `subagent_control(stop, id)` — 终止指定子代理（委托 StopBackgroundAgentAsync）
-- `subagent_control(clean)` — 清理已完成/失败的子代理（从列表移除）
-- `subagent_control(stop_all)` — 终止所有运行中子代理
+### 1. 职责分离检查
+- `SubAgentControlToolHandlers` — MCP 工具层，只做参数路由 + 委托 ✅
+- `BackgroundAgentsPanelViewModel` — GUI 层，只做状态展示 + 命令转发 ✅
+- `IJccChatSession` — 接口层，只做委托桥接 ✅
+- 引擎层 `IAgentService`/`IInProcessTeammateTaskExecutor` — 实际执行 ✅
 
-### 2. 职责分离检查
-- `SubAgentControlToolHandlers` — MCP 工具层，只做参数路由 + 委托
-- `BackgroundAgentsPanelViewModel` — GUI 层，只做状态展示 + 命令转发
-- `IJccChatSession` — 接口层，只做委托桥接
-- 引擎层 `IAgentService`/`IInProcessTeammateTaskExecutor` — 实际执行
-
-### 3. 补充测试
-- `SubAgentControlToolHandlers` 单元测试（各 action 路由）
-- `BackgroundAgentsPanelViewModel` 暂停/继续命令测试
-- `IJccChatSession.PauseAll/ResumeAll` 批量操作测试
+### 2. Fork 路径暂停能力（后续）
+- 当前 Fork 路径只有 CancelForkAsync（终止性），无暂停能力
+- 需要给 ForkSubAgentManagerActor 加 PauseForkCmd/ResumeForkCmd（Actor 邮箱模型）
+- 暂不实现，等用户明确需求

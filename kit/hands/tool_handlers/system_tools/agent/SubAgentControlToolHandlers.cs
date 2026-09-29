@@ -4,12 +4,12 @@ namespace Tools.Handlers;
 /// 子代理控制选项 — 统一工具 subagent_control 的参数
 /// </summary>
 public sealed record SubAgentControlOptions {
-    /// <summary>操作类型: list/pause/resume/pause_all/resume_all</summary>
-    [McpToolParameter("Action: list/pause/resume/pause_all/resume_all")]
+    /// <summary>操作类型: list/pause/resume/stop/pause_all/resume_all/stop_all/clean</summary>
+    [McpToolParameter("Action: list/pause/resume/stop/pause_all/resume_all/stop_all/clean")]
     public required string Action { get; init; }
 
-    /// <summary>子代理 ID — pause/resume 必填，list/pause_all/resume_all 忽略</summary>
-    [McpToolParameter("Sub-agent ID (required for pause/resume)", Required = false)]
+    /// <summary>子代理 ID — pause/resume/stop 必填，list/pause_all/resume_all/stop_all/clean 忽略</summary>
+    [McpToolParameter("Sub-agent ID (required for pause/resume/stop)", Required = false)]
     public string? Id { get; init; }
 }
 
@@ -31,9 +31,9 @@ public sealed partial class SubAgentControlToolHandlers : ServiceEntity {
     }
 
     /// <summary>
-    /// 子代理控制 — list/pause/resume/pause_all/resume_all 统一入口。
+    /// 子代理控制 — list/pause/resume/stop/pause_all/resume_all/stop_all/clean 统一入口。
     /// </summary>
-    [McpTool(AgentToolNameEnumConstants.SubAgentControl, "Control sub-agents: list/pause/resume/pause_all/resume_all", AgentToolNameEnumConstants.Agent)]
+    [McpTool(AgentToolNameEnumConstants.SubAgentControl, "Control sub-agents: list/pause/resume/stop/pause_all/resume_all/stop_all/clean", AgentToolNameEnumConstants.Agent)]
     public async Task<ToolResult> ControlAsync(
         [McpToolOptions] SubAgentControlOptions options,
         CancellationToken cancellationToken = default) {
@@ -41,9 +41,12 @@ public sealed partial class SubAgentControlToolHandlers : ServiceEntity {
             "list" => await ListAsync(cancellationToken).ConfigureAwait(false),
             "pause" => await PauseAsync(options.Id, cancellationToken).ConfigureAwait(false),
             "resume" => await ResumeAsync(options.Id, cancellationToken).ConfigureAwait(false),
+            "stop" => await StopAsync(options.Id, cancellationToken).ConfigureAwait(false),
             "pause_all" => await PauseAllAsync(cancellationToken).ConfigureAwait(false),
             "resume_all" => await ResumeAllAsync(cancellationToken).ConfigureAwait(false),
-            _ => ToolResultBuilder.Error().WithText($"未知 action: {options.Action}，有效值: list/pause/resume/pause_all/resume_all").Build()
+            "stop_all" => await StopAllAsync(cancellationToken).ConfigureAwait(false),
+            "clean" => await CleanAsync(cancellationToken).ConfigureAwait(false),
+            _ => ToolResultBuilder.Error().WithText($"未知 action: {options.Action}，有效值: list/pause/resume/stop/pause_all/resume_all/stop_all/clean").Build()
         };
     }
 
@@ -98,5 +101,34 @@ public sealed partial class SubAgentControlToolHandlers : ServiceEntity {
                 count++;
         }
         return ToolResultBuilder.Success().WithText($"已恢复 {count} 个子代理").Build();
+    }
+
+    /// <summary>终止指定子代理 — 委托 StopAgentAsync（终止性，不可恢复）</summary>
+    private async Task<ToolResult> StopAsync(string? agentId, CancellationToken ct) {
+        if (string.IsNullOrEmpty(agentId))
+            return ToolResultBuilder.Error().WithText("stop 需要 id 参数").Build();
+        var ok = await _agentService.StopAgentAsync(agentId, ct).ConfigureAwait(false);
+        return ok ? ToolResultBuilder.Success().WithText($"子代理 {agentId} 已终止").Build()
+                   : ToolResultBuilder.Error().WithText($"终止失败：子代理 {agentId} 不存在").Build();
+    }
+
+    /// <summary>终止所有运行中子代理</summary>
+    private async Task<ToolResult> StopAllAsync(CancellationToken ct) {
+        var agents = await _agentService.GetRunningAgentsAsync(ct).ConfigureAwait(false);
+        var count = 0;
+        foreach (var agent in agents) {
+            if (await _agentService.StopAgentAsync(agent.Id, ct).ConfigureAwait(false))
+                count++;
+        }
+        return ToolResultBuilder.Success().WithText($"已终止 {count} 个子代理").Build();
+    }
+
+    /// <summary>清理已完成代理 — 刷新列表，仅返回当前运行中代理</summary>
+    private async Task<ToolResult> CleanAsync(CancellationToken ct) {
+        var agents = await _agentService.GetRunningAgentsAsync(ct).ConfigureAwait(false);
+        if (!agents.Any())
+            return ToolResultBuilder.Success().WithText("清理完成，当前没有运行中的子代理。").Build();
+        var lines = agents.Select(a => $"- {a.Id} | {a.Description} | {a.State}");
+        return ToolResultBuilder.Success().WithText($"清理完成，仍有 {agents.Count()} 个子代理运行中:\n" + string.Join("\n", lines)).Build();
     }
 }

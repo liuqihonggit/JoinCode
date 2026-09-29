@@ -671,4 +671,22 @@ internal sealed class JccChatSession : IJccChatSession {
         return count;
     }
 
+    /// <summary>终止子代理 — 委托 StopBackgroundAgentAsync（终止性，不可恢复）</summary>
+    public Task<bool> StopSubAgentAsync(string agentId, CancellationToken cancellationToken = default)
+        => StopBackgroundAgentAsync(agentId, cancellationToken);
+
+    /// <summary>终止所有运行中子代理 — 遍历后台代理对 running/paused 状态逐个终止</summary>
+    public async Task<int> StopAllSubAgentsAsync(CancellationToken cancellationToken = default) {
+        var agents = await GetBackgroundAgentsAsync(cancellationToken);
+        var active = agents.Where(a => string.Equals(a.State, "running", StringComparison.OrdinalIgnoreCase)
+                                    || string.Equals(a.State, "paused", StringComparison.OrdinalIgnoreCase)
+                                    || string.Equals(a.State, "pending", StringComparison.OrdinalIgnoreCase));
+        var count = 0;
+        foreach (var agent in active) {
+            if (await StopSubAgentAsync(agent.AgentId, cancellationToken))
+                count++;
+        }
+        return count;
+    }
+
 }

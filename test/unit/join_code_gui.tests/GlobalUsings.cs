@@ -29,6 +29,7 @@ global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Security.Shell;
+global using JoinCode.Abstractions.State;
 global using JoinCode.Gui.Converters;
 global using JoinCode.Gui.Hosting;
 global using JoinCode.Gui.Markdown;

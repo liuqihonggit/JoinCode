@@ -248,6 +248,20 @@ public interface IJccChatSession : IAsyncDisposable {
     /// </summary>
     Task<int> ResumeAllSubAgentsAsync(CancellationToken cancellationToken = default)
         => Task.FromResult(0);
+
+    /// <summary>
+    /// 终止指定子代理 — 委托 IAgentService.StopAgentAsync（终止性，不可恢复）。
+    /// 子代理视图按钮 + MCP subagent_control(stop) 调用。默认不支持（返回 false）。
+    /// </summary>
+    Task<bool> StopSubAgentAsync(string agentId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
+    /// <summary>
+    /// 终止所有运行中子代理 — 遍历 GetBackgroundAgentsAsync 对 running/paused 状态逐个终止。
+    /// TopBar"终止所有子代理"按钮 + MCP subagent_control(stop_all) 调用。默认不支持（返回 0）。
+    /// </summary>
+    Task<int> StopAllSubAgentsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(0);
 }
 
 /// <summary>子会话信息 — 供 GUI 树形展示（需求11）</summary>

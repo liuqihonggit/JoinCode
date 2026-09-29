@@ -58,6 +58,52 @@ public class JccChatSessionSubAgentTests {
         agents.Should().HaveCount(1);
         agents[0].Description.Should().Be("General fallback");
     }
+
+    /// <summary>StopAllSubAgentsAsync 遍历后台代理对 running/paused/pending 状态逐个终止</summary>
+    [Fact]
+    public async Task StopAllSubAgentsAsync_TerminatesAllActiveAgents() {
+        var stopped = new List<string>();
+        var agentMock = new Mock<IAgentService>();
+        agentMock.Setup(x => x.GetRunningAgentsAsync(It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(new List<RunningAgentInfo> {
+                     new() { Id = "a1", Description = "agent-a1", State = AgentStatus.Running },
+                     new() { Id = "a2", Description = "agent-a2", State = AgentStatus.Paused },
+                     new() { Id = "a3", Description = "agent-a3", State = AgentStatus.Pending },
+                 });
+        agentMock.Setup(x => x.StopAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                 .Callback<string, CancellationToken>((id, _) => stopped.Add(id))
+                 .ReturnsAsync(true);
+        var services = new ServiceCollection();
+        services.AddSingleton(agentMock.Object);
+        var sp = services.BuildServiceProvider();
+        await using var session = new JccChatSession(sp, null!, new WorkflowConfig {
+            Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
+        });
+
+        var count = await session.StopAllSubAgentsAsync();
+
+        count.Should().Be(3);
+        stopped.Should().BeEquivalentTo(["a1", "a2", "a3"]);
+    }
+
+    /// <summary>StopSubAgentAsync 委托 StopBackgroundAgentAsync — agentId 命中 IAgentService 时返回 true</summary>
+    [Fact]
+    public async Task StopSubAgentAsync_DelegatesToAgentServiceStop() {
+        var agentMock = new Mock<IAgentService>();
+        agentMock.Setup(x => x.StopAgentAsync("hit", It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(true);
+        var services = new ServiceCollection();
+        services.AddSingleton(agentMock.Object);
+        var sp = services.BuildServiceProvider();
+        await using var session = new JccChatSession(sp, null!, new WorkflowConfig {
+            Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
+        });
+
+        var ok = await session.StopSubAgentAsync("hit");
+
+        ok.Should().BeTrue();
+        agentMock.Verify(x => x.StopAgentAsync("hit", It.IsAny<CancellationToken>()), Times.Once);
+    }
 }
 
 /// <summary>mock IAgentDefinitionProvider — 返回预设代理定义列表，供 GetAvailableSubAgentsAsync 测试</summary>

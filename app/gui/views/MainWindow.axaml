@@ -367,6 +367,8 @@
                             Command="{Binding BackgroundPanel.PauseAllCommand}" ToolTip.Tip="暂停所有运行中子代理" />
                     <Button Classes="ghost" Content="恢复所有" FontSize="10" Padding="7,2" MinHeight="0"
                             Command="{Binding BackgroundPanel.ResumeAllCommand}" ToolTip.Tip="恢复所有暂停中子代理" />
+                    <Button Classes="ghost" Content="终止所有" FontSize="10" Padding="7,2" MinHeight="0"
+                            Command="{Binding BackgroundPanel.StopAllCommand}" ToolTip.Tip="终止所有运行中子代理" />
                   </StackPanel>
                   <ScrollViewer Grid.Row="1" MaxHeight="270">
                     <ItemsControl ItemsSource="{Binding BackgroundPanel.Items}">

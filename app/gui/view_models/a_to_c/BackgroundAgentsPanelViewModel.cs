@@ -177,6 +177,16 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
         await RefreshAsync();
     }
 
+    /// <summary>终止所有运行中子代理 — 逐个终止后刷新</summary>
+    [RelayCommand]
+    public async Task StopAllAsync() {
+        foreach (var item in Items) {
+            if (item.IsRunning)
+                await _stopper(item.AgentId, CancellationToken.None);
+        }
+        await RefreshAsync();
+    }
+
     /// <summary>面板快照应用事件 — MainViewModel 据此同步 RunStatus 后台计数</summary>
     public event Action<int>? SnapshotApplied;
 

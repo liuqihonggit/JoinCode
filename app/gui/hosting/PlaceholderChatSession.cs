@@ -156,8 +156,13 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
         => Task.CompletedTask;
 
     /// <summary>占位会话无引擎命令系统 — 斜杠命令返回提示文案（G1 对齐接口契约）</summary>
-    public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
-        => Task.FromResult("（Mock 引擎不支持斜杠命令执行，连接真实引擎后可用）");
+    public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default) {
+        LastExecutedSlashCommand = input;
+        return Task.FromResult("（Mock 引擎不支持斜杠命令执行，连接真实引擎后可用）");
+    }
+
+    /// <summary>最后一次执行的斜杠命令 — 测试追踪字段</summary>
+    public string? LastExecutedSlashCommand { get; private set; }
 
     /// <summary>占位会话流式回显 — 产出思考/工具/正文示例事件供 UI 渲染验证</summary>
     public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(

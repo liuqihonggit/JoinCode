@@ -8,7 +8,7 @@
              x:DataType="vm:MainViewModel">
   <Border Padding="12,7" Background="{DynamicResource GuiTopBarBackground}"
           BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1" ClipToBounds="True">
-    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
       <!-- 左组：主题 / 会话操作（ghost 统一视觉） -->
       <!-- 主题切换：图标随主题切换（暗色显月亮/亮色显太阳），点击切换。
            Segoe UI Symbol 提供 ☾☀ 完整字形（默认字体缺字形会把 ☾ 渲染成 "C"） -->
@@ -54,8 +54,40 @@
                     Command="{Binding ToggleMockCommand}"
                     IsChecked="{Binding IsMockConnection, Mode=OneWay}"
                     ToolTip.Tip="切换 Mock 演示引擎（本地验证用）" />
+      <!-- 🎯 goal 进行中按钮 — goal 运行时显示，点击弹出控制面板（三再三确认停止） -->
+      <Panel Grid.Column="8" VerticalAlignment="Center" IsVisible="{Binding IsGoalRunning}">
+        <Button x:Name="GoalButton" Classes="ghost" Padding="9,5" FontSize="13"
+                Content="🎯 goal 进行中" ToolTip.Tip="goal 控制面板"
+                Command="{Binding ToggleGoalPanelCommand}" />
+        <Popup IsOpen="{Binding IsGoalPanelOpen}" Placement="Bottom"
+               PlacementTarget="{Binding #GoalButton}" VerticalOffset="4">
+          <Border CornerRadius="10" Padding="14,10" Width="340"
+                  Background="{DynamicResource GuiPopupBackground}"
+                  BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
+            <StackPanel Spacing="8">
+              <TextBlock Text="🎯 goal 进行中" FontSize="13" FontWeight="SemiBold"
+                         Foreground="{DynamicResource GuiPrimaryText}" />
+              <!-- 确认步骤 0：显示停止按钮 -->
+              <Button Classes="ghost" Content="停止 goal" HorizontalAlignment="Stretch"
+                      Command="{Binding StopGoalCommand}"
+                      IsVisible="{Binding !IsStopConfirmationVisible}" />
+              <!-- 确认步骤 1-3：显示确认提示词 + 确认/取消按钮 -->
+              <Panel IsVisible="{Binding IsStopConfirmationVisible}">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{Binding StopGoalConfirmationPrompt}" FontSize="12"
+                             TextWrapping="Wrap" Foreground="{DynamicResource GuiPrimaryText}" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="ghost" Content="确认停止" Command="{Binding StopGoalCommand}" />
+                    <Button Classes="ghost" Content="取消" Command="{Binding CancelStopGoalCommand}" />
+                  </StackPanel>
+                </StackPanel>
+              </Panel>
+            </StackPanel>
+          </Border>
+        </Popup>
+      </Panel>
       <!-- AI 工具拦截器：点击弹出 Popup 面板，7 个 toggle 开关动态黑名单 AI 调用的工具 -->
-      <Panel Grid.Column="8" VerticalAlignment="Center">
+      <Panel Grid.Column="9" VerticalAlignment="Center">
         <Button x:Name="InterceptorButton" Classes="ghost" Padding="9,5" FontSize="13"
                 Content="🛡" ToolTip.Tip="AI 工具拦截器"
                 Command="{Binding ToggleInterceptorPanelCommand}" />
@@ -70,24 +102,24 @@
               <TextBlock Text="开启后 AI 调用对应工具会被拒绝" FontSize="10.5"
                          Foreground="{DynamicResource GuiMutedText}" Margin="0,0,0,4" />
               <CheckBox Content="git_commit（提交）" IsChecked="{Binding BlockGitCommit}"
-                        FontSize="12" Padding="4,2" />
+                         FontSize="12" Padding="4,2" />
               <CheckBox Content="git_push（推送）" IsChecked="{Binding BlockGitPush}"
-                        FontSize="12" Padding="4,2" />
+                         FontSize="12" Padding="4,2" />
               <CheckBox Content="gh_pr_merge（合并PR）" IsChecked="{Binding BlockGhPrMerge}"
-                        FontSize="12" Padding="4,2" />
+                         FontSize="12" Padding="4,2" />
               <CheckBox Content="gh_pr_create（创建PR）" IsChecked="{Binding BlockGhPrCreate}"
-                        FontSize="12" Padding="4,2" />
+                         FontSize="12" Padding="4,2" />
               <CheckBox Content="gh_release_delete（删除release）" IsChecked="{Binding BlockGhReleaseDelete}"
-                        FontSize="12" Padding="4,2" />
+                         FontSize="12" Padding="4,2" />
               <CheckBox Content="file_delete（删文件）" IsChecked="{Binding BlockFileDelete}"
-                        FontSize="12" Padding="4,2" />
+                         FontSize="12" Padding="4,2" />
               <CheckBox Content="bash/powershell（shell）" IsChecked="{Binding BlockShell}"
-                        FontSize="12" Padding="4,2" />
+                         FontSize="12" Padding="4,2" />
             </StackPanel>
           </Border>
         </Popup>
       </Panel>
-      <Button Grid.Column="9" Classes="ghost" Padding="9,5" Content="⚙" FontSize="13"
+      <Button Grid.Column="10" Classes="ghost" Padding="9,5" Content="⚙" FontSize="13"
               ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
     </Grid>
   </Border>

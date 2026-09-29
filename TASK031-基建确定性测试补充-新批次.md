@@ -3,7 +3,7 @@
 > **来源**:TASK030 交接文档方法论复用(`D:\Users\54076\Desktop\TASK030-交接文档-基建确定性测试方法论.md`)
 > **检测时间**:2026-09-30
 > **检测方式**:10个并行explore子代理,覆盖未做确定性测试补充的基建模块
-> **状态**:阶段1全部完成(1030测试+5bug修复,PR #340+#343已合并),阶段2全部完成(249测试+1跳过,commit 2d46eba03+8edc06961),阶段3可选
+> **状态**:阶段1全部完成(1030测试+5bug修复,PR #340+#343已合并),阶段2全部完成(249测试+63internal拆分,PR #345已合并),阶段3全部完成(227测试+1bug修复,commit fa78f1dbc)
 
 ---
 
@@ -147,11 +147,38 @@
 
 **跳过**: McpServer.RunAsync(实际仅53行主循环,IO紧耦合,高风险大重构)
 
-### 阶段3:P2 mock测试(可选,IO/异步方法)
+### 阶段3:P2 mock测试(可选,IO/异步方法) ✅ 已完成
 
 **目标**:用mock消除IO/异步依赖,使测试确定性
 
 **跳过原则**:若某方法即使mock仍涉及时序,跳过并注释说明
+
+**子任务**:
+
+| 子任务 | 模块 | 可mock方法数 | 新增测试数 | 不可mock方法(跳过) | 状态 |
+|--------|------|-------------|-----------|-------------------|------|
+| 3.1 | kit/brain | 10 | 32 | QueryEngine.ExecuteCoreLoopAsync(Task.Delay+Stopwatch+流式时序) | ✅ |
+| 3.2 | kit/composition | 4 | 17 | LoadPersisted*/Initialize/HostedService(静态守卫+宿主时序) | ✅ |
+| 3.3 | kit/hands | 2 | 10 | 无(全接口注入) | ✅ |
+| 3.4 | kit/mcp | 3 | 30 | HttpListener/子进程/SSE长连接(OS资源紧耦合) | ✅ |
+| 3.5 | kit/mcp_tool_dispatch | 9 | 11 | Actor Tell/AskAwait+fire-and-forget IO(邮箱时序) | ✅ |
+| 3.6 | kit/pipelines | 4 | 53 | AddAllPipelines(DI组合根编排时序) | ✅ |
+| 3.7 | llm/core | 5 | 15 | SSE流时序+看门狗超时竞赛(流式时序) | ✅ |
+| 3.8 | llm/reasoning | 24 | 16 | 无(全接口注入) | ✅ |
+| 3.9 | server/code_index | 47 | 43 | FileWatcher(OS事件时序)+IsIndexStale(时间戳时序) | ✅ |
+| **合计** | — | **108** | **227** | — | ✅ |
+
+**bug修复**: ChatErrorHandlingMiddleware.ClassifyException 403分支遗漏endpoint参数
+
+**跳过方法清单(时序依赖,已注释说明)**:
+- QueryEngine.ExecuteCoreLoopAsync: Task.Delay退避+IAsyncEnumerable流式+Stopwatch墙上时钟
+- McpHttpServer.RunAsync/Handle*: HttpListener字段内建+SSE长连接时序
+- McpStdioClient.ConnectAsync/ReadLoopAsync/WriteLoopAsync: 子进程+Channel读写循环+握手时序
+- ToolHealthMonitor.Record*/Handle: Actor邮箱时序+fire-and-forget IO
+- ResponsesQueryService/AnthropicQueryService主方法: SSE流时序+状态机累积器跨行
+- StreamingFallbackDecorator.GetStreamEventContentsAsync: 看门狗超时竞赛+4 catch块时序分支
+- FileWatcherIntegration/Registry: OS FileSystemWatcher事件时序+Actor邮箱调度
+- PipelineComposition.AddAllPipelines: DI组合根编排13+管道时序紧耦合
 
 ---
 
@@ -173,8 +200,8 @@
 - [x] 编译+测试通过(JoinCode.slnx 0警告0错误)
 
 ### 阶段3验收
-- [ ] 可mock方法有mock测试
-- [ ] 不可mock方法有跳过注释说明原因
+- [x] 可mock方法有mock测试(227个)
+- [x] 不可mock方法有跳过注释说明原因(时序依赖)
 
 ---
 

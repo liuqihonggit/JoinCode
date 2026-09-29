@@ -64,6 +64,33 @@ public sealed class AhoCorasick<TValue> {
     private static AhoCorasick<TValue> Build(
         IList<KeyValuePair<string, TValue>> patterns,
         bool ignoreCase) {
+        var (transitions, outputs, hasPattern) = BuildGotoFunction(patterns, ignoreCase);
+
+        if (!hasPattern)
+            return ignoreCase ? EmptyIgnoreCase : EmptyOrdinal;
+
+        var failures = BuildFailureFunction(transitions, outputs);
+
+        var stateCount = transitions.Count;
+        var transitionsArray = transitions.ToArray();
+        var outputsArray = new AcOutput[stateCount][];
+        for (var i = 0; i < stateCount; i++)
+            outputsArray[i] = outputs[i].ToArray();
+
+        return new AhoCorasick<TValue>(transitionsArray, failures, outputsArray, ignoreCase);
+    }
+
+    /// <summary>
+    /// 构建 goto 函数 — 将关键字逐字符插入 trie。
+    /// <para>纯计算:输入模式集合 → 输出 (transitions, outputs, hasPattern)。</para>
+    /// <para>hasPattern=false 表示全部模式为空字符串,调用方应返回 Empty 自动机。</para>
+    /// </summary>
+    /// <param name="patterns">模式串 → 关联值 的键值对集合(已剔除 null)。</param>
+    /// <param name="ignoreCase">是否忽略大小写(true 时字符统一 ToLowerInvariant)。</param>
+    /// <returns>(转移表, 输出表, 是否存在非空模式)。</returns>
+    internal static (List<Dictionary<char, int>> Transitions, List<List<AcOutput>> Outputs, bool HasPattern) BuildGotoFunction(
+        IList<KeyValuePair<string, TValue>> patterns,
+        bool ignoreCase) {
         var transitions = new List<Dictionary<char, int>> { new() };
         var outputs = new List<List<AcOutput>> { new() };
         var hasPattern = false;
@@ -87,9 +114,20 @@ public sealed class AhoCorasick<TValue> {
             outputs[state].Add(new AcOutput(pattern.Length, pair.Value));
         }
 
-        if (!hasPattern)
-            return ignoreCase ? EmptyIgnoreCase : EmptyOrdinal;
+        return (transitions, outputs, hasPattern);
+    }
 
+    /// <summary>
+    /// 构建 failure 函数 — BFS 回溯填充失败链接,并合并输出链(outputs[child] += outputs[failState])。
+    /// <para>纯计算:输入 goto 函数的 (transitions, outputs) → 输出 failures 数组。</para>
+    /// <para>副作用:为减少分配,原地 AddRange 合并 outputs(等价于原 Build 内联逻辑)。</para>
+    /// </summary>
+    /// <param name="transitions">goto 函数转移表(来自 BuildGotoFunction)。</param>
+    /// <param name="outputs">goto 函数输出表(来自 BuildGotoFunction,本方法原地 AddRange 合并输出链)。</param>
+    /// <returns>failure 数组,长度 = transitions.Count,根节点 failure[0]=0。</returns>
+    internal static int[] BuildFailureFunction(
+        List<Dictionary<char, int>> transitions,
+        List<List<AcOutput>> outputs) {
         var stateCount = transitions.Count;
         var failures = new int[stateCount];
         var queue = new Queue<int>();
@@ -119,12 +157,7 @@ public sealed class AhoCorasick<TValue> {
             }
         }
 
-        var transitionsArray = transitions.ToArray();
-        var outputsArray = new AcOutput[stateCount][];
-        for (var i = 0; i < stateCount; i++)
-            outputsArray[i] = outputs[i].ToArray();
-
-        return new AhoCorasick<TValue>(transitionsArray, failures, outputsArray, ignoreCase);
+        return failures;
     }
 
     /// <summary>

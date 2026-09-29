@@ -223,11 +223,11 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         }
 
         if (prefixRead == 0) {
-            yield return $"[ERROR] {scope} 日志响应为空(0 字节)，可能是日志已过期或权限不足";
+            yield return BuildEmptyResponseError(scope);
             yield break;
         }
 
-        var isZip = prefixRead >= 2 && prefix[0] == 0x50 && prefix[1] == 0x4B;
+        var isZip = IsZipPrefix(prefix, prefixRead);
 
         if (isZip) {
             // ZIP: 需要全量缓冲(ZipArchive 需要 seek)
@@ -249,13 +249,12 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
                     using var reader = new StreamReader(entryStream);
                     string? line;
                     while ((line = await reader.ReadLineAsync(ct).ConfigureAwait(false)) is not null) {
-                        zipLines.Add($"[{entry.Name}] {line}");
+                        zipLines.Add(FormatZipEntryLine(entry.Name, line));
                     }
                 }
             } catch (Exception ex) {
                 // 友好错误: 包含 scope、响应大小、前 4 字节 hex、原始异常
-                var hexPrefix = Convert.ToHexString(buffer, 0, (int)Math.Min(4, memStream.Length));
-                zipErrorMsg = $"[ERROR] {scope} 日志 ZIP 解压失败: {ex.Message}\n  响应大小={memStream.Length} 字节, 前4字节={hexPrefix}\n  可能原因: 日志格式变更、响应被截断或损坏。建议用 gh run view --log 系统命令验证";
+                zipErrorMsg = BuildZipDecompressionError(scope, ex, buffer, memStream.Length);
             }
 
             if (zipErrorMsg is not null) {
@@ -278,6 +277,52 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         while ((textLine = await textReader.ReadLineAsync(ct).ConfigureAwait(false)) is not null) {
             yield return textLine;
         }
+    }
+
+    /// <summary>
+    /// 检测前缀字节是否为 ZIP 魔数(PK = 0x50 0x4B)。
+    /// <para>纯计算:prefixRead ≥ 2 且前两字节为 PK 时返回 true。</para>
+    /// </summary>
+    /// <param name="prefix">前缀字节缓冲(至少 2 字节)。</param>
+    /// <param name="prefixRead">实际读取的字节数。</param>
+    /// <returns>true 表示是 ZIP 流。</returns>
+    internal static bool IsZipPrefix(byte[] prefix, int prefixRead) {
+        return prefixRead >= 2 && prefix[0] == 0x50 && prefix[1] == 0x4B;
+    }
+
+    /// <summary>
+    /// 构造空响应错误消息。
+    /// <para>纯计算:scope 标识来源(run N / job N)。</para>
+    /// </summary>
+    /// <param name="scope">来源标识(如 "run 123" 或 "job 456")。</param>
+    /// <returns>空响应错误消息字符串。</returns>
+    internal static string BuildEmptyResponseError(string scope) {
+        return $"[ERROR] {scope} 日志响应为空(0 字节)，可能是日志已过期或权限不足";
+    }
+
+    /// <summary>
+    /// 格式化 ZIP entry 行:[entryName] line。
+    /// <para>纯计算:为 ZIP 解压后的每行添加 entry 名前缀,便于区分来源文件。</para>
+    /// </summary>
+    /// <param name="entryName">ZIP entry 文件名。</param>
+    /// <param name="line">entry 内的一行内容。</param>
+    /// <returns>格式化后的行字符串。</returns>
+    internal static string FormatZipEntryLine(string entryName, string line) {
+        return $"[{entryName}] {line}";
+    }
+
+    /// <summary>
+    /// 构造 ZIP 解压失败错误消息:包含 scope、响应大小、前 4 字节 hex、原始异常。
+    /// <para>纯计算:友好错误,建议用 gh run view --log 系统命令验证。</para>
+    /// </summary>
+    /// <param name="scope">来源标识。</param>
+    /// <param name="ex">解压异常。</param>
+    /// <param name="buffer">响应字节缓冲(用于提取前 4 字节 hex)。</param>
+    /// <param name="length">响应总长度。</param>
+    /// <returns>ZIP 解压失败错误消息字符串。</returns>
+    internal static string BuildZipDecompressionError(string scope, Exception ex, byte[] buffer, long length) {
+        var hexPrefix = Convert.ToHexString(buffer, 0, (int)Math.Min(4, length));
+        return $"[ERROR] {scope} 日志 ZIP 解压失败: {ex.Message}\n  响应大小={length} 字节, 前4字节={hexPrefix}\n  可能原因: 日志格式变更、响应被截断或损坏。建议用 gh run view --log 系统命令验证";
     }
 
     /// <summary>

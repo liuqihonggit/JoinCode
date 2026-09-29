@@ -26,9 +26,7 @@ public sealed class PhysicalProcessService : IProcessService {
 
         var psi = _builder.Build(options);
 
-        var argsDisplay = options.ArgumentList is { Count: > 0 }
-            ? string.Join(' ', options.ArgumentList)
-            : options.Arguments;
+        var argsDisplay = ComputeArgsDisplay(options.ArgumentList, options.Arguments);
         _logger?.LogDebug("[Process] 执行: {FileName} {Arguments}", options.FileName, argsDisplay);
 
         System.Diagnostics.Process? startedProcess;
@@ -59,12 +57,7 @@ public sealed class PhysicalProcessService : IProcessService {
             } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 _logger?.LogDebug("[Process] 超时, 终止 PID={Id}", process.Id);
                 process.Kill();
-                return new ProcessResult {
-                    ExitCode = -1,
-                    StandardOutput = string.Empty,
-                    StandardError = "进程执行超时",
-                    ExecutionTime = sw.Elapsed
-                };
+                return CreateTimeoutResult(sw.Elapsed);
             }
         } else {
             try {
@@ -93,9 +86,7 @@ public sealed class PhysicalProcessService : IProcessService {
 
         var psi = _builder.BuildInteractive(options);
 
-        var argsDisplay = options.ArgumentList is { Count: > 0 }
-            ? string.Join(' ', options.ArgumentList)
-            : options.Arguments;
+        var argsDisplay = ComputeArgsDisplay(options.ArgumentList, options.Arguments);
         _logger?.LogDebug("[Process] 启动交互式进程: {FileName} {Arguments}", options.FileName, argsDisplay);
 
         var process = System.Diagnostics.Process.Start(psi)
@@ -164,6 +155,34 @@ public sealed class PhysicalProcessService : IProcessService {
             _logger?.LogDebug(ex, "[Process] 检查进程运行状态失败: {ProcessName}", processName);
             return false;
         }
+    }
+
+    /// <summary>
+    /// 计算参数显示字符串:ArgumentList 非空时用空格 join,否则回退到 Arguments。
+    /// <para>纯计算:ExecuteAsync 和 StartInteractiveAsync 共用,消除重复(对齐 AGENTS.md "提取重复为 LINQ 链式")。</para>
+    /// </summary>
+    /// <param name="argumentList">参数化列表(优先)。</param>
+    /// <param name="arguments">参数字符串(回退)。</param>
+    /// <returns>用于日志显示的参数字符串。</returns>
+    internal static string ComputeArgsDisplay(IReadOnlyList<string> argumentList, string arguments) {
+        return argumentList is { Count: > 0 }
+            ? string.Join(' ', argumentList)
+            : arguments;
+    }
+
+    /// <summary>
+    /// 构造超时结果:ExitCode=-1,StandardError="进程执行超时"。
+    /// <para>纯计算:ExecuteAsync 超时分支共用,便于独立测试超时结果结构。</para>
+    /// </summary>
+    /// <param name="elapsed">已执行时长。</param>
+    /// <returns>超时 ProcessResult。</returns>
+    internal static ProcessResult CreateTimeoutResult(TimeSpan elapsed) {
+        return new ProcessResult {
+            ExitCode = -1,
+            StandardOutput = string.Empty,
+            StandardError = "进程执行超时",
+            ExecutionTime = elapsed
+        };
     }
 
     /// <summary>

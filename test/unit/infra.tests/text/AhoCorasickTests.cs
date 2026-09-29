@@ -133,6 +133,172 @@ public class AhoCorasickTests {
         match.Should().NotBeNull();
         match!.Value.Value.Should().BeTrue();
     }
+
+    // ===== BuildGotoFunction 确定性测试(阶段2.9 拆分) =====
+
+    [Fact]
+    public void BuildGotoFunction_SinglePattern_CreatesLinearTrie() {
+        var patterns = new List<KeyValuePair<string, string>> { new("abc", "abc") };
+        var (transitions, outputs, hasPattern) = AhoCorasick<string>.BuildGotoFunction(patterns, ignoreCase: true);
+
+        hasPattern.Should().BeTrue();
+        // 0 -a-> 1 -b-> 2 -c-> 3
+        transitions.Should().HaveCount(4);
+        outputs.Should().HaveCount(4);
+        transitions[0].Should().ContainKey('a');
+        transitions[1].Should().ContainKey('b');
+        transitions[2].Should().ContainKey('c');
+        outputs[3].Should().ContainSingle(o => o.Length == 3 && o.Value == "abc");
+    }
+
+    [Fact]
+    public void BuildGotoFunction_SharedPrefix_SharesStates() {
+        var patterns = new List<KeyValuePair<string, string>> {
+            new("he", "he"), new("her", "her")
+        };
+        var (transitions, outputs, _) = AhoCorasick<string>.BuildGotoFunction(patterns, ignoreCase: false);
+
+        // 0 -h-> 1 -e-> 2 (he) -r-> 3 (her)
+        transitions.Should().HaveCount(4);
+        transitions[0]['h'].Should().Be(1);
+        transitions[1]['e'].Should().Be(2);
+        transitions[2]['r'].Should().Be(3);
+        outputs[2].Should().ContainSingle(o => o.Length == 2);
+        outputs[3].Should().ContainSingle(o => o.Length == 3);
+    }
+
+    [Fact]
+    public void BuildGotoFunction_EmptyPatternStrings_Skipped_HasPatternFalse() {
+        var patterns = new List<KeyValuePair<string, string>> {
+            new("", "v1"), new("", "v2")
+        };
+        var (transitions, outputs, hasPattern) = AhoCorasick<string>.BuildGotoFunction(patterns, ignoreCase: true);
+
+        hasPattern.Should().BeFalse();
+        transitions.Should().ContainSingle(); // 仅根节点
+        outputs.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void BuildGotoFunction_EmptyList_HasPatternFalse() {
+        var (transitions, _, hasPattern) = AhoCorasick<string>.BuildGotoFunction(
+            Array.Empty<KeyValuePair<string, string>>(), ignoreCase: true);
+
+        hasPattern.Should().BeFalse();
+        transitions.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void BuildGotoFunction_IgnoreCase_LowercasesChars() {
+        var patterns = new List<KeyValuePair<string, string>> { new("HE", "HE") };
+        var (transitions, _, _) = AhoCorasick<string>.BuildGotoFunction(patterns, ignoreCase: true);
+
+        transitions[0].Should().ContainKey('h');
+        transitions[0].Should().NotContainKey('H');
+    }
+
+    [Fact]
+    public void BuildGotoFunction_OrdinalCase_PreservesChars() {
+        var patterns = new List<KeyValuePair<string, string>> { new("HE", "HE") };
+        var (transitions, _, _) = AhoCorasick<string>.BuildGotoFunction(patterns, ignoreCase: false);
+
+        transitions[0].Should().ContainKey('H');
+        transitions[0].Should().NotContainKey('h');
+    }
+
+    [Fact]
+    public void BuildGotoFunction_MultiplePatterns_OutputsAtCorrectStates() {
+        var patterns = new List<KeyValuePair<string, string>> {
+            new("he", "he"), new("she", "she")
+        };
+        var (transitions, outputs, hasPattern) = AhoCorasick<string>.BuildGotoFunction(patterns, ignoreCase: false);
+
+        hasPattern.Should().BeTrue();
+        // 0 -h-> 1 -e-> 2 (he), 0 -s-> 3 -h-> 4 -e-> 5 (she)
+        transitions.Should().HaveCount(6);
+        outputs[2].Should().ContainSingle(o => o.Length == 2 && o.Value == "he");
+        outputs[5].Should().ContainSingle(o => o.Length == 3 && o.Value == "she");
+    }
+
+    // ===== BuildFailureFunction 确定性测试(阶段2.9 拆分) =====
+
+    [Fact]
+    public void BuildFailureFunction_SingleCharPattern_AllFailuresZero() {
+        var patterns = new List<KeyValuePair<string, string>> { new("a", "a") };
+        var (transitions, outputs, _) = AhoCorasick<string>.BuildGotoFunction(patterns, ignoreCase: false);
+        var failures = AhoCorasick<string>.BuildFailureFunction(transitions, outputs);
+
+        failures.Should().Equal([0, 0]);
+    }
+
+    [Fact]
+    public void BuildFailureFunction_RootFailureIsAlwaysZero() {
+        var patterns = new List<KeyValuePair<string, string>> {
+            new("he", "he"), new("she", "she"), new("his", "his"), new("hers", "hers")
+        };
+        var (transitions, outputs, _) = AhoCorasick<string>.BuildGotoFunction(patterns, ignoreCase: false);
+        var failures = AhoCorasick<string>.BuildFailureFunction(transitions, outputs);
+
+        failures[0].Should().Be(0);
+    }
+
+    [Fact]
+    public void BuildFailureFunction_ClassicExample_HESheHisHers_FailureChainCorrect() {
+        var patterns = new List<KeyValuePair<string, string>> {
+            new("he", "he"), new("she", "she"), new("his", "his"), new("hers", "hers")
+        };
+        var (transitions, outputs, _) = AhoCorasick<string>.BuildGotoFunction(patterns, ignoreCase: false);
+        var failures = AhoCorasick<string>.BuildFailureFunction(transitions, outputs);
+
+        // 状态: 0(root) 1(h) 2(he) 3(s) 4(sh) 5(she) 6(hi) 7(his) 8(her) 9(hers)
+        // failures = [0, 0, 0, 0, 1, 2, 0, 3, 0, 3]
+        failures.Should().Equal([0, 0, 0, 0, 1, 2, 0, 3, 0, 3]);
+    }
+
+    [Fact]
+    public void BuildFailureFunction_OutputChainMerged_SheStateContainsHe() {
+        var patterns = new List<KeyValuePair<string, string>> {
+            new("he", "he"), new("she", "she"), new("his", "his"), new("hers", "hers")
+        };
+        var (transitions, outputs, _) = AhoCorasick<string>.BuildGotoFunction(patterns, ignoreCase: false);
+        _ = AhoCorasick<string>.BuildFailureFunction(transitions, outputs);
+
+        // she 状态(5) 的 failure=2(he),输出链合并后 outputs[5] 应同时包含 she(len=3) 和 he(len=2)
+        outputs[5].Should().HaveCount(2);
+        outputs[5].Should().Contain(o => o.Length == 3 && o.Value == "she");
+        outputs[5].Should().Contain(o => o.Length == 2 && o.Value == "he");
+    }
+
+    [Fact]
+    public void BuildFailureFunction_NoSharedSuffix_AllFailuresZero() {
+        // 无共享后缀:每个非根状态的 failure 都回退到 0
+        var patterns = new List<KeyValuePair<string, string>> {
+            new("ab", "ab"), new("cd", "cd")
+        };
+        var (transitions, outputs, _) = AhoCorasick<string>.BuildGotoFunction(patterns, ignoreCase: false);
+        var failures = AhoCorasick<string>.BuildFailureFunction(transitions, outputs);
+
+        // 0 -a-> 1 -b-> 2, 0 -c-> 3 -d-> 4
+        // failures = [0, 0, 0, 0, 0]
+        failures.Should().Equal([0, 0, 0, 0, 0]);
+    }
+
+    [Fact]
+    public void BuildFailureFunction_PrefixRelationship_HeAndHello() {
+        // "he" 是 "hello" 的前缀,但 failure 链按后缀走
+        var patterns = new List<KeyValuePair<string, string>> {
+            new("he", "he"), new("hello", "hello")
+        };
+        var (transitions, outputs, _) = AhoCorasick<string>.BuildGotoFunction(patterns, ignoreCase: false);
+        var failures = AhoCorasick<string>.BuildFailureFunction(transitions, outputs);
+
+        // 0 -h-> 1 -e-> 2 (he) -l-> 3 -l-> 4 -o-> 5 (hello)
+        // failures: 1(h)=0, 2(he)=0, 3(hel)=0, 4(hell)=0, 5(hello)=0
+        // (无任何后缀能回退到另一个模式的前缀)
+        failures.Should().Equal([0, 0, 0, 0, 0, 0]);
+        outputs[2].Should().ContainSingle(o => o.Length == 2);
+        outputs[5].Should().ContainSingle(o => o.Length == 5);
+    }
 }
 
 /// <summary>

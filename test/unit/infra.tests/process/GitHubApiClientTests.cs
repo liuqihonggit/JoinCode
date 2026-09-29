@@ -157,6 +157,108 @@ public sealed class GitHubApiClientTest : IDisposable {
         return ms.ToArray();
     }
 
+    // ===== 阶段2.9 拆分:纯计算方法测试 =====
+
+    [Fact]
+    public void IsZipPrefix_PkMagicBytes_ReturnsTrue() {
+        var prefix = new byte[] { 0x50, 0x4B };
+        GitHubApiClient.IsZipPrefix(prefix, prefixRead: 2).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsZipPrefix_NonPkBytes_ReturnsFalse() {
+        var prefix = new byte[] { 0x48, 0x54 }; // "HT"
+        GitHubApiClient.IsZipPrefix(prefix, prefixRead: 2).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsZipPrefix_PartialRead_SingleByte_ReturnsFalse() {
+        var prefix = new byte[] { 0x50, 0x00 };
+        GitHubApiClient.IsZipPrefix(prefix, prefixRead: 1).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsZipPrefix_EmptyRead_ReturnsFalse() {
+        var prefix = new byte[2];
+        GitHubApiClient.IsZipPrefix(prefix, prefixRead: 0).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsZipPrefix_PkFollowedByOtherBytes_StillTrue() {
+        // ZIP 魔数只需前 2 字节为 PK,后续字节不影响
+        var prefix = new byte[] { 0x50, 0x4B, 0x03, 0x04 };
+        GitHubApiClient.IsZipPrefix(prefix, prefixRead: 4).Should().BeTrue();
+    }
+
+    [Fact]
+    public void BuildEmptyResponseError_IncludesScopeAndZeroByteMessage() {
+        var error = GitHubApiClient.BuildEmptyResponseError("run 123");
+        error.Should().Contain("run 123");
+        error.Should().Contain("0 字节");
+        error.Should().StartWith("[ERROR]");
+    }
+
+    [Fact]
+    public void BuildEmptyResponseError_DifferentScopes() {
+        GitHubApiClient.BuildEmptyResponseError("run 42").Should().Contain("run 42");
+        GitHubApiClient.BuildEmptyResponseError("job 99").Should().Contain("job 99");
+    }
+
+    [Fact]
+    public void FormatZipEntryLine_PrefixesLineWithEntryName() {
+        GitHubApiClient.FormatZipEntryLine("build.log", "step 1 started")
+            .Should().Be("[build.log] step 1 started");
+    }
+
+    [Fact]
+    public void FormatZipEntryLine_EmptyLine_PreservesEntryNameBracket() {
+        GitHubApiClient.FormatZipEntryLine("test.log", "")
+            .Should().Be("[test.log] ");
+    }
+
+    [Fact]
+    public void FormatZipEntryLine_LineWithSpecialChars_PreservedAsIs() {
+        GitHubApiClient.FormatZipEntryLine("step.log", "error: <tag> & \"quote\"")
+            .Should().Be("[step.log] error: <tag> & \"quote\"");
+    }
+
+    [Fact]
+    public void BuildZipDecompressionError_IncludesScopeExceptionAndHexPrefix() {
+        var buffer = new byte[] { 0x50, 0x4B, 0x03, 0x04, 0x00 };
+        var ex = new InvalidOperationException("bad zip");
+
+        var error = GitHubApiClient.BuildZipDecompressionError("run 7", ex, buffer, length: 5);
+
+        error.Should().Contain("run 7");
+        error.Should().Contain("bad zip");
+        error.Should().Contain("响应大小=5 字节");
+        error.Should().Contain("前4字节=504B0304");
+        error.Should().Contain("gh run view --log");
+    }
+
+    [Fact]
+    public void BuildZipDecompressionError_ShortBuffer_HexOnlyAvailableBytes() {
+        // length < 4 时 hex 只显示 length 字节
+        var buffer = new byte[] { 0x48, 0x54 };
+        var ex = new Exception("corrupted");
+
+        var error = GitHubApiClient.BuildZipDecompressionError("job 3", ex, buffer, length: 2);
+
+        error.Should().Contain("响应大小=2 字节");
+        error.Should().Contain("前4字节=4854"); // 只显示 2 字节 hex
+    }
+
+    [Fact]
+    public void BuildZipDecompressionError_ZeroLength_EmptyHexPrefix() {
+        var buffer = Array.Empty<byte>();
+        var ex = new Exception("empty");
+
+        var error = GitHubApiClient.BuildZipDecompressionError("run 0", ex, buffer, length: 0);
+
+        error.Should().Contain("响应大小=0 字节");
+        error.Should().Contain("前4字节="); // hex 为空字符串
+    }
+
     private sealed class FakeHandler : HttpMessageHandler {
         public HttpRequestMessage? LastRequest;
         public HttpResponseMessage Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };

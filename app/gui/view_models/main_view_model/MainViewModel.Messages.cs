@@ -224,9 +224,10 @@ public sealed partial class MainViewModel {
                 turnsToRewind++;
         }
 
-        // 调引擎逐轮撤回（TrimLastTurn 幂等安全，多调无副作用）
+        // 调引擎逐轮撤回 — 通过 /rewind last 斜杠命令触发（统一撤回路径，对齐 CLI）
+        // TrimLastTurn 幂等安全，多调无副作用
         for (var i = 0; i < turnsToRewind; i++)
-            await _session.RewindLastTurnAsync();
+            await _session.ExecuteSlashCommandAsync("/rewind last");
 
         // UI 移除从 turnStartIndex 到末尾的全部消息
         while (Messages.Count > turnStartIndex)

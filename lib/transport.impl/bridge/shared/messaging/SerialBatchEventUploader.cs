@@ -170,7 +170,7 @@ public sealed class SerialBatchEventUploader : IDisposable {
                 } catch (Exception ex) {
                     failures++;
 
-                    if (_options.MaxConsecutiveFailures.HasValue && failures >= _options.MaxConsecutiveFailures.Value) {
+                    if (ShouldDropBatch(failures, _options.MaxConsecutiveFailures)) {
                         _droppedBatches++;
                         _options.OnBatchDropped?.Invoke(batch.Count, failures);
                         failures = 0;
@@ -181,7 +181,7 @@ public sealed class SerialBatchEventUploader : IDisposable {
                     // 重新入队到队首
                     _pending.InsertRange(0, batch);
 
-                    var retryAfterMs = ex is RetryableError re ? re.RetryAfterMs : null;
+                    var retryAfterMs = ExtractRetryAfterMs(ex);
                     var delay = ComputeRetryDelay(failures, retryAfterMs);
                     await SleepAsync(delay).ConfigureAwait(false);
                     continue;
@@ -246,6 +246,25 @@ public sealed class SerialBatchEventUploader : IDisposable {
         var exponential = Math.Min(_options.BaseDelayMs * (1 << (failures - 1)), _options.MaxDelayMs);
         return exponential + jitter;
     }
+
+    /// <summary>
+    /// 判断批次是否应被丢弃 — 连续失败次数达到上限。
+    /// 纯函数，对齐 TS 端 maxConsecutiveFailures 丢弃逻辑。
+    /// </summary>
+    /// <param name="failures">当前连续失败次数</param>
+    /// <param name="maxConsecutiveFailures">最大允许连续失败次数（null 表示不限制）</param>
+    /// <returns>true 表示应丢弃批次；false 表示应继续重试</returns>
+    internal static bool ShouldDropBatch(int failures, int? maxConsecutiveFailures)
+        => maxConsecutiveFailures.HasValue && failures >= maxConsecutiveFailures.Value;
+
+    /// <summary>
+    /// 从异常中提取 Retry-After 毫秒数 — 仅 RetryableError 携带此信息。
+    /// 纯函数，对齐 TS 端 RetryableError.retryAfterMs 提取。
+    /// </summary>
+    /// <param name="ex">捕获的异常</param>
+    /// <returns>Retry-After 毫秒数（null 表示无服务端建议或非 RetryableError）</returns>
+    internal static int? ExtractRetryAfterMs(Exception ex)
+        => ex is RetryableError re ? re.RetryAfterMs : null;
 
     /// <summary>可中断的睡眠</summary>
     private async Task SleepAsync(int ms) {

@@ -21,34 +21,14 @@ public static class HttpRequestSerializer {
         var builder = new StringBuilder(DefaultBufferSize);
 
         // 请求行: METHOD /path HTTP/1.1
-        var requestUri = request.RequestUri?.PathAndQuery ?? "/";
-        builder.Append(request.Method.Method);
-        builder.Append(' ');
-        builder.Append(requestUri);
-        builder.Append(' ');
-        builder.Append(HttpVersion);
-        builder.Append(LineTerminator);
+        builder.Append(BuildRequestLine(request.Method, request.RequestUri?.PathAndQuery));
 
         // 请求头
-        foreach (var header in request.Headers) {
-            foreach (var value in header.Value) {
-                builder.Append(header.Key);
-                builder.Append(HeaderSeparator);
-                builder.Append(value);
-                builder.Append(LineTerminator);
-            }
-        }
+        AppendHeaders(builder, request.Headers);
 
         // 内容头
         if (request.Content != null) {
-            foreach (var header in request.Content.Headers) {
-                foreach (var value in header.Value) {
-                    builder.Append(header.Key);
-                    builder.Append(HeaderSeparator);
-                    builder.Append(value);
-                    builder.Append(LineTerminator);
-                }
-            }
+            AppendHeaders(builder, request.Content.Headers);
         }
 
         // 空行分隔头和体
@@ -61,6 +41,46 @@ public static class HttpRequestSerializer {
         }
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// 构造 HTTP 请求行 — "METHOD /path?query HTTP/1.1\r\n"。
+    /// 纯函数，pathAndQuery 为 null/空时回退到 "/"。
+    /// </summary>
+    /// <param name="method">HTTP 方法</param>
+    /// <param name="pathAndQuery">路径与查询串（RequestUri.PathAndQuery）</param>
+    /// <returns>请求行字符串（含行终止符）</returns>
+    internal static string BuildRequestLine(HttpMethod method, string? pathAndQuery) {
+        var path = string.IsNullOrEmpty(pathAndQuery) ? "/" : pathAndQuery;
+        return $"{method.Method} {path} {HttpVersion}{LineTerminator}";
+    }
+
+    /// <summary>
+    /// 追加单行 HTTP 头到 StringBuilder — "key: value\r\n"。
+    /// 纯函数（除 StringBuilder 副作用外），对齐 TS 端头部序列化。
+    /// </summary>
+    /// <param name="builder">目标 StringBuilder</param>
+    /// <param name="key">头名</param>
+    /// <param name="value">头值</param>
+    internal static void AppendHeaderLine(StringBuilder builder, string key, string value) {
+        builder.Append(key);
+        builder.Append(HeaderSeparator);
+        builder.Append(value);
+        builder.Append(LineTerminator);
+    }
+
+    /// <summary>
+    /// 批量追加 HTTP 头到 StringBuilder — 遍历 HttpHeaders 所有键值对。
+    /// 纯函数（除 StringBuilder 副作用外），处理多值头。
+    /// </summary>
+    /// <param name="builder">目标 StringBuilder</param>
+    /// <param name="headers">HTTP 头集合</param>
+    internal static void AppendHeaders(StringBuilder builder, HttpHeaders headers) {
+        foreach (var header in headers) {
+            foreach (var value in header.Value) {
+                AppendHeaderLine(builder, header.Key, value);
+            }
+        }
     }
 
     /// <summary>

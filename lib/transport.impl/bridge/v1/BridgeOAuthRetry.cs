@@ -38,11 +38,11 @@ public static class BridgeOAuthRetry {
 
         // 1. 使用当前 token 发起请求
         var accessToken = getAccessToken();
-        if (string.IsNullOrEmpty(accessToken)) {
+        if (!IsAccessTokenValid(accessToken)) {
             return null;
         }
 
-        var request = createRequest(accessToken);
+        var request = createRequest(accessToken!);
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
@@ -65,16 +65,12 @@ public static class BridgeOAuthRetry {
         }
 
         // 4. 尝试 token 刷新 — 对齐 TS 端: debug(`attempting token refresh`)
-        var refreshed = await onAuth401(accessToken).ConfigureAwait(false);
+        var refreshed = await onAuth401(accessToken!).ConfigureAwait(false);
 
         // 5. 刷新成功 — 用新 token 重试一次
-        if (refreshed) {
-            var newToken = getAccessToken();
-            if (string.IsNullOrEmpty(newToken)) {
-                return response;
-            }
-
-            var retryRequest = createRequest(newToken);
+        var newToken = getAccessToken();
+        if (ShouldRetryAfterRefresh(refreshed, newToken)) {
+            var retryRequest = createRequest(newToken!);
             using var retryCts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
             try {
@@ -146,4 +142,22 @@ public static class BridgeOAuthRetry {
         // 调用方可自行处理
         return (TResponse)(object)root.Clone();
     }
+
+    /// <summary>
+    /// 判断访问令牌是否可用于发起请求 — 非空非 null。
+    /// 纯函数，对齐 TS 端 withOAuthRetry 中 accessToken 空检查。
+    /// </summary>
+    /// <param name="token">访问令牌</param>
+    /// <returns>true 表示可用；false 表示 null 或空字符串</returns>
+    internal static bool IsAccessTokenValid(string? token) => !string.IsNullOrEmpty(token);
+
+    /// <summary>
+    /// 判断 token 刷新后是否应重试请求 — 刷新成功且新 token 可用。
+    /// 纯函数，对齐 TS 端 withOAuthRetry 中 refreshed &amp;&amp; newToken 分支。
+    /// </summary>
+    /// <param name="refreshed">刷新回调返回 true 表示刷新成功</param>
+    /// <param name="newToken">刷新后获取的新 token</param>
+    /// <returns>true 表示应重试；false 表示刷新失败或新 token 无效</returns>
+    internal static bool ShouldRetryAfterRefresh(bool refreshed, string? newToken)
+        => refreshed && IsAccessTokenValid(newToken);
 }

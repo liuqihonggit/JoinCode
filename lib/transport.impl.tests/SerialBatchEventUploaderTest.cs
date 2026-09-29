@@ -145,4 +145,94 @@ public class SerialBatchEventUploaderTest {
         SerialBatchEventUploader.ComputeBatchTakeCount(pending, 500, 0).Should().Be(1);
         SerialBatchEventUploader.ComputeBatchTakeCount(pending, 500, 1).Should().Be(1);
     }
+
+    // === ShouldDropBatch: 连续失败达上限丢弃 ===
+
+    /// <summary>maxConsecutiveFailures=null（不限制）时始终返回 false。</summary>
+    [Fact]
+    public void ShouldDropBatch_NoLimit_ReturnsFalse() {
+        SerialBatchEventUploader.ShouldDropBatch(1, null).Should().BeFalse();
+        SerialBatchEventUploader.ShouldDropBatch(100, null).Should().BeFalse();
+        SerialBatchEventUploader.ShouldDropBatch(10000, null).Should().BeFalse();
+    }
+
+    /// <summary>failures < max 时返回 false（未达上限）。</summary>
+    [Fact]
+    public void ShouldDropBatch_BelowMax_ReturnsFalse() {
+        SerialBatchEventUploader.ShouldDropBatch(1, 5).Should().BeFalse();
+        SerialBatchEventUploader.ShouldDropBatch(4, 5).Should().BeFalse();
+    }
+
+    /// <summary>failures == max 时返回 true（达到上限）。</summary>
+    [Fact]
+    public void ShouldDropBatch_EqualsMax_ReturnsTrue() {
+        SerialBatchEventUploader.ShouldDropBatch(5, 5).Should().BeTrue();
+        SerialBatchEventUploader.ShouldDropBatch(1, 1).Should().BeTrue();
+    }
+
+    /// <summary>failures > max 时返回 true（超过上限）。</summary>
+    [Fact]
+    public void ShouldDropBatch_ExceedsMax_ReturnsTrue() {
+        SerialBatchEventUploader.ShouldDropBatch(6, 5).Should().BeTrue();
+        SerialBatchEventUploader.ShouldDropBatch(100, 5).Should().BeTrue();
+    }
+
+    /// <summary>failures=0 时返回 false（无失败）。</summary>
+    [Fact]
+    public void ShouldDropBatch_ZeroFailures_ReturnsFalse() {
+        SerialBatchEventUploader.ShouldDropBatch(0, 5).Should().BeFalse();
+        SerialBatchEventUploader.ShouldDropBatch(0, 1).Should().BeFalse();
+    }
+
+    // === ExtractRetryAfterMs: 从异常提取 Retry-After ===
+
+    /// <summary>RetryableError 带 RetryAfterMs 时返回该值。</summary>
+    [Fact]
+    public void ExtractRetryAfterMs_RetryableErrorWithRetryAfter_ReturnsValue() {
+        var ex = new RetryableError("429 Too Many Requests", retryAfterMs: 5000);
+
+        SerialBatchEventUploader.ExtractRetryAfterMs(ex).Should().Be(5000);
+    }
+
+    /// <summary>RetryableError 不带 RetryAfterMs 时返回 null。</summary>
+    [Fact]
+    public void ExtractRetryAfterMs_RetryableErrorWithoutRetryAfter_ReturnsNull() {
+        var ex = new RetryableError("Server error: 500");
+
+        SerialBatchEventUploader.ExtractRetryAfterMs(ex).Should().BeNull();
+    }
+
+    /// <summary>普通 Exception 返回 null。</summary>
+    [Fact]
+    public void ExtractRetryAfterMs_PlainException_ReturnsNull() {
+        var ex = new InvalidOperationException("not retryable");
+
+        SerialBatchEventUploader.ExtractRetryAfterMs(ex).Should().BeNull();
+    }
+
+    /// <summary>TimeoutException 返回 null。</summary>
+    [Fact]
+    public void ExtractRetryAfterMs_TimeoutException_ReturnsNull() {
+        var ex = new TimeoutException("timed out");
+
+        SerialBatchEventUploader.ExtractRetryAfterMs(ex).Should().BeNull();
+    }
+
+    /// <summary>RetryableError 嵌套在 AggregateException 中时返回 null（仅顶层类型匹配）。</summary>
+    [Fact]
+    public void ExtractRetryAfterMs_NestedInAggregate_ReturnsNull() {
+        var inner = new RetryableError("inner", retryAfterMs: 3000);
+        var agg = new AggregateException(inner);
+
+        // 实现仅检查 ex is RetryableError，不展开 InnerException
+        SerialBatchEventUploader.ExtractRetryAfterMs(agg).Should().BeNull();
+    }
+
+    /// <summary>RetryAfterMs=0 时返回 0（不视为 null）。</summary>
+    [Fact]
+    public void ExtractRetryAfterMs_RetryAfterZero_ReturnsZero() {
+        var ex = new RetryableError("retry immediately", retryAfterMs: 0);
+
+        SerialBatchEventUploader.ExtractRetryAfterMs(ex).Should().Be(0);
+    }
 }

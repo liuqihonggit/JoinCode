@@ -265,7 +265,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport {
         Interlocked.Exchange(ref _isConnected, 0);
 
         // 永久关闭码: 不重连 — 对齐 TS 端 PERMANENT_CLOSE_CODES (1002, 4001, 4003)
-        if (closeCode is 1002 or 4001) {
+        if (IsPermanentCloseCode(closeCode)) {
             _logger?.LogError("[V1Transport] 永久关闭码 {CloseCode}，不重连", closeCode);
             _onCloseCallback?.Invoke(closeCode);
             return;
@@ -274,14 +274,13 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport {
         // 4003 (unauthorized): 尝试刷新 headers — 对齐 TS 端 4003 + refreshHeaders 路径
         if (closeCode == 4003 && _options.RefreshHeaders is not null) {
             var freshHeader = _options.RefreshHeaders();
-            if (freshHeader != _options.AuthHeader) {
-                _logger?.LogInformation("[V1Transport] 4003 但 headers 已刷新，将重连");
-                // 继续重连流程
-            } else {
+            if (!ShouldRetryOn4003(closeCode, freshHeader, _options.AuthHeader)) {
                 _logger?.LogError("[V1Transport] 4003 且 headers 未变化，不重连");
                 _onCloseCallback?.Invoke(closeCode);
                 return;
             }
+            _logger?.LogInformation("[V1Transport] 4003 但 headers 已刷新，将重连");
+            // 继续重连流程
         }
 
         // 指数退避重连 — 对齐 TS 端 WebSocketTransport autoReconnect
@@ -292,7 +291,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport {
         }
 
         // 系统休眠检测 — 对齐 TS 端 SLEEP_DETECTION_THRESHOLD_MS
-        if (_lastReconnectAttemptTime > 0 && now - _lastReconnectAttemptTime > SleepDetectionThresholdMs) {
+        if (ShouldResetReconnectBudget(_lastReconnectAttemptTime, now, SleepDetectionThresholdMs)) {
             _logger?.LogInformation("[V1Transport] 检测到系统休眠，重置重连预算");
             _reconnectStartTime = now;
             _reconnectAttempts = 0;
@@ -300,16 +299,14 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport {
         _lastReconnectAttemptTime = now;
 
         var elapsed = now - _reconnectStartTime;
-        if (elapsed >= DefaultReconnectGiveUpMs) {
+        if (IsReconnectBudgetExhausted(elapsed, DefaultReconnectGiveUpMs)) {
             _logger?.LogError("[V1Transport] 重连预算耗尽（{Elapsed}ms），放弃", elapsed);
             _onCloseCallback?.Invoke(closeCode);
             return;
         }
 
         _reconnectAttempts++;
-        var baseDelay = Math.Min(
-            DefaultBaseReconnectDelayMs * (1 << Math.Min(_reconnectAttempts - 1, 10)),
-            DefaultMaxReconnectDelayMs);
+        var baseDelay = ComputeReconnectBaseDelay(_reconnectAttempts, DefaultBaseReconnectDelayMs, DefaultMaxReconnectDelayMs);
         // ±25% 抖动 — 对齐 TS 端
         var jitter = baseDelay * 0.25 * (2.0 * Random.Shared.NextDouble() - 1.0);
         var delay = Math.Max(0, (int)(baseDelay + jitter));
@@ -355,6 +352,60 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport {
             _httpClient.DefaultRequestHeaders.Add("Authorization", freshHeader);
         }
     }
+
+    #endregion
+
+    #region 纯计算分支(internal static 测试可见)
+
+    /// <summary>
+    /// 判断是否为永久关闭码 — 对齐 TS 端 PERMANENT_CLOSE_CODES (1002, 4001)。
+    /// 纯函数，给定 closeCode 返回确定性结果。
+    /// </summary>
+    /// <param name="closeCode">WS 关闭码（null 表示无关闭码）</param>
+    /// <returns>true 表示永久关闭不重连；false 表示可重连</returns>
+    internal static bool IsPermanentCloseCode(int? closeCode) => closeCode is 1002 or 4001;
+
+    /// <summary>
+    /// 判断 4003 (unauthorized) 关闭码是否应重连 — headers 已刷新（与旧值不同）时重连。
+    /// 纯函数，对齐 TS 端 4003 + refreshHeaders 路径。
+    /// </summary>
+    /// <param name="closeCode">WS 关闭码</param>
+    /// <param name="freshHeader">刷新后的认证头</param>
+    /// <param name="authHeader">当前认证头</param>
+    /// <returns>true 表示 headers 已变化应重连；false 表示未变化或非 4003</returns>
+    internal static bool ShouldRetryOn4003(int? closeCode, string? freshHeader, string? authHeader)
+        => closeCode == 4003 && freshHeader != authHeader;
+
+    /// <summary>
+    /// 判断是否应因系统休眠重置重连预算 — 上次重连距今超过阈值视为休眠。
+    /// 纯函数，对齐 TS 端 SLEEP_DETECTION_THRESHOLD_MS 检测。
+    /// </summary>
+    /// <param name="lastReconnectAttemptTime">上次重连尝试时间（unix 毫秒），0 表示从未重连</param>
+    /// <param name="now">当前时间（unix 毫秒）</param>
+    /// <param name="thresholdMs">休眠检测阈值（毫秒）</param>
+    /// <returns>true 表示检测到休眠应重置预算；false 表示未休眠或从未重连</returns>
+    internal static bool ShouldResetReconnectBudget(long lastReconnectAttemptTime, long now, int thresholdMs)
+        => lastReconnectAttemptTime > 0 && now - lastReconnectAttemptTime > thresholdMs;
+
+    /// <summary>
+    /// 判断重连预算是否耗尽 — 已过时间超过放弃阈值。
+    /// 纯函数，对齐 TS 端 autoReconnect giveUp 预算。
+    /// </summary>
+    /// <param name="elapsed">自重连开始已过时间（毫秒）</param>
+    /// <param name="giveUpMs">放弃阈值（毫秒）</param>
+    /// <returns>true 表示预算耗尽应放弃；false 表示仍可重连</returns>
+    internal static bool IsReconnectBudgetExhausted(long elapsed, int giveUpMs) => elapsed >= giveUpMs;
+
+    /// <summary>
+    /// 计算重连基础退避延迟（不含抖动）— 指数退避被 MaxDelayMs 钳制。
+    /// 纯函数，对齐 TS 端 autoReconnect baseDelay 计算。指数上限 10 防止位移溢出。
+    /// </summary>
+    /// <param name="attempts">当前重连次数（≥1）</param>
+    /// <param name="baseDelayMs">基础延迟（毫秒）</param>
+    /// <param name="maxDelayMs">最大延迟（毫秒）</param>
+    /// <returns>基础退避延迟（毫秒），不含抖动</returns>
+    internal static int ComputeReconnectBaseDelay(int attempts, int baseDelayMs, int maxDelayMs)
+        => Math.Min(baseDelayMs * (1 << Math.Min(attempts - 1, 10)), maxDelayMs);
 
     #endregion
 

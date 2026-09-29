@@ -165,7 +165,7 @@ public sealed class EvidenceGraph {
             .ToList();
     }
 
-    private double GetEdgeStrength(string fromId, string toId) {
+    internal double GetEdgeStrength(string fromId, string toId) {
         var edges = _edges;
         if (edges.TryGetValue((fromId, toId), out var edge))
             return edge.RelationshipStrength;
@@ -174,7 +174,7 @@ public sealed class EvidenceGraph {
         return 1.0;
     }
 
-    private double CalculateGraphCentrality(string nodeId) {
+    internal double CalculateGraphCentrality(string nodeId) {
         var edges = _edges;
         var nodes = _nodes;
         var inDegree = edges.Values.Count(e => e.TargetId == nodeId);
@@ -182,7 +182,7 @@ public sealed class EvidenceGraph {
         return nodes.Count > 0 ? (inDegree + outDegree) / (double)nodes.Count : 0;
     }
 
-    private double CalculateNeighborConsensus(string nodeId) {
+    internal double CalculateNeighborConsensus(string nodeId) {
         var neighbors = GetNeighbors(nodeId);
         if (neighbors.Count == 0) return 0;
 

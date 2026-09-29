@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>test</ProjectType>
+    <RootNamespace>BclBridge.Tests</RootNamespace>
+    <AssemblyName>JoinCode.BclBridge.Tests</AssemblyName>
+    <Description>JoinCode BclBridge 单元测试（BclFileIO BOM 检测+字节解码）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)lib/bcl_bridge/BclBridge.csproj" />
+  </ItemGroup>
+
+</Project>

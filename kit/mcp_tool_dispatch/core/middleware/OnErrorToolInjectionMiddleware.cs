@@ -98,67 +98,95 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
         var errorMsg = context.Result?.GetFirstText();
         var record = await _monitor.GetRecordAsync(toolName, ct).ConfigureAwait(false);
         var allRecords = await _monitor.GetAllRecordsAsync(ct).ConfigureAwait(false);
+        var edges = _scorer.GetEdges(toolName);
 
         var sb = new StringBuilder(512);
-        var hasAnalysis = false;
+        var failure = BuildFailureRateAnalysis(toolName, record);
+        if (failure is not null) sb.Append(failure);
+        var peer = BuildPeerAnalysis(toolName, allRecords, edges);
+        if (peer is not null) sb.Append(peer);
+        var similar = BuildSimilarErrorAnalysis(toolName, errorMsg, allRecords);
+        if (similar is not null) sb.Append(similar);
 
-        // 1. 同工具历史失败率
-        if (record is not null &&
-            (record.SuccessCount + record.FailCount) > 0 &&
-            (double)record.FailCount / (record.SuccessCount + record.FailCount) is var failRate && failRate > 0.3) {
-            sb.AppendLine($"### 历史分析: '{toolName}' 失败率 {failRate:P0}（成功{record.SuccessCount}次/失败{record.FailCount}次）");
-            if (!string.IsNullOrEmpty(record.LastErrorMessage))
-                sb.AppendLine($"- 上次错误: {record.LastErrorMessage}");
-            hasAnalysis = true;
-        }
+        return sb.Length > 0 ? sb.ToString() : null;
+    }
 
-        // 2. 同超边关联工具状态 — 检查关联工具是否也有问题
-        var edges = _scorer.GetEdges(toolName);
-        if (edges.Count > 0) {
-            var problematicPeers = new List<string>();
-            foreach (var edge in edges) {
-                foreach (var peer in edge.ToolNames) {
-                    if (string.Equals(peer, toolName, StringComparison.OrdinalIgnoreCase)) continue;
-                    if (allRecords.TryGetValue(peer, out var peerRecord) && !peerRecord.IsEnabled) {
-                        problematicPeers.Add($"{peer}（已熔断，评分{peerRecord.Score}）");
-                    }
+    /// <summary>
+    /// 构建同工具历史失败率分析段 — 失败率超过 30% 时返回分析文本，否则返回 null
+    /// </summary>
+    internal static string? BuildFailureRateAnalysis(string toolName, ToolHealthRecord? record) {
+        if (record is null) return null;
+        var total = record.SuccessCount + record.FailCount;
+        if (total == 0) return null;
+        var failRate = (double)record.FailCount / total;
+        if (failRate <= 0.3) return null;
+
+        var sb = new StringBuilder(256);
+        sb.AppendLine($"### 历史分析: '{toolName}' 失败率 {failRate:P0}（成功{record.SuccessCount}次/失败{record.FailCount}次）");
+        if (!string.IsNullOrEmpty(record.LastErrorMessage))
+            sb.AppendLine($"- 上次错误: {record.LastErrorMessage}");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 构建同超边关联工具异常分析段 — 检查关联工具是否已熔断，有异常时返回分析文本，否则返回 null
+    /// </summary>
+    internal static string? BuildPeerAnalysis(
+        string toolName,
+        IReadOnlyDictionary<string, ToolHealthRecord> allRecords,
+        IReadOnlyList<ToolHyperedge> edges) {
+        if (edges.Count == 0) return null;
+
+        var problematicPeers = new List<string>();
+        foreach (var edge in edges) {
+            foreach (var peer in edge.ToolNames) {
+                if (string.Equals(peer, toolName, StringComparison.OrdinalIgnoreCase)) continue;
+                if (allRecords.TryGetValue(peer, out var peerRecord) && !peerRecord.IsEnabled) {
+                    problematicPeers.Add($"{peer}（已熔断，评分{peerRecord.Score}）");
                 }
             }
+        }
 
-            if (problematicPeers.Count > 0) {
-                sb.AppendLine("### 关联工具异常:");
-                foreach (var peer in problematicPeers)
-                    sb.AppendLine($"- {peer}");
-                hasAnalysis = true;
+        if (problematicPeers.Count == 0) return null;
+
+        var sb = new StringBuilder(128);
+        sb.AppendLine("### 关联工具异常:");
+        foreach (var peer in problematicPeers)
+            sb.AppendLine($"- {peer}");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 构建常见错误模式匹配分析段 — 从所有工具的历史错误中找相似模式，有匹配时返回分析文本，否则返回 null
+    /// </summary>
+    internal static string? BuildSimilarErrorAnalysis(
+        string toolName,
+        string? errorMsg,
+        IReadOnlyDictionary<string, ToolHealthRecord> allRecords) {
+        if (string.IsNullOrEmpty(errorMsg)) return null;
+
+        var similarErrors = new List<string>();
+        foreach (var kvp in allRecords) {
+            if (string.Equals(kvp.Key, toolName, StringComparison.OrdinalIgnoreCase)) continue;
+            if (kvp.Value.LastErrorMessage is not null &&
+                HasSimilarErrorPattern(errorMsg, kvp.Value.LastErrorMessage)) {
+                similarErrors.Add($"{kvp.Key}: {kvp.Value.LastErrorMessage}");
             }
         }
 
-        // 3. 常见错误模式匹配 — 从所有工具的历史错误中找相似模式
-        if (!string.IsNullOrEmpty(errorMsg)) {
-            var similarErrors = new List<string>();
-            foreach (var kvp in allRecords) {
-                if (string.Equals(kvp.Key, toolName, StringComparison.OrdinalIgnoreCase)) continue;
-                if (kvp.Value.LastErrorMessage is not null &&
-                    HasSimilarErrorPattern(errorMsg, kvp.Value.LastErrorMessage)) {
-                    similarErrors.Add($"{kvp.Key}: {kvp.Value.LastErrorMessage}");
-                }
-            }
+        if (similarErrors.Count == 0) return null;
 
-            if (similarErrors.Count > 0) {
-                sb.AppendLine("### 相似错误模式（其他工具也遇到过）:");
-                foreach (var err in similarErrors.Take(3))
-                    sb.AppendLine($"- {err}");
-                hasAnalysis = true;
-            }
-        }
-
-        return hasAnalysis ? sb.ToString() : null;
+        var sb = new StringBuilder(256);
+        sb.AppendLine("### 相似错误模式（其他工具也遇到过）:");
+        foreach (var err in similarErrors.Take(3))
+            sb.AppendLine($"- {err}");
+        return sb.ToString();
     }
 
     /// <summary>
     /// 简单错误模式相似度检测 — 提取关键词匹配
     /// </summary>
-    private static bool HasSimilarErrorPattern(string error1, string error2) {
+    internal static bool HasSimilarErrorPattern(string error1, string error2) {
         var keywords1 = ExtractErrorKeywords(error1);
         var keywords2 = ExtractErrorKeywords(error2);
 
@@ -166,7 +194,7 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
         return commonCount >= 2;
     }
 
-    private static string[] ExtractErrorKeywords(string error) {
+    internal static string[] ExtractErrorKeywords(string error) {
         var separators = new[] { ' ', ':', ';', ',', '.', '(', ')', '[', ']', '{', '}', '\'', '"', '\n', '\r' };
         var words = error.Split(separators, StringSplitOptions.RemoveEmptyEntries);
         return words
@@ -195,7 +223,7 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
         return Encoding.UTF8.GetString(bufferWriter.WrittenSpan);
     }
 
-    private static Dictionary<string, IToolHandler> FindRelevantOnErrorTools(
+    internal static Dictionary<string, IToolHandler> FindRelevantOnErrorTools(
         string failedToolName,
         IReadOnlyDictionary<string, IToolHandler> onErrorTools) {
         var result = new Dictionary<string, IToolHandler>(StringComparer.OrdinalIgnoreCase);

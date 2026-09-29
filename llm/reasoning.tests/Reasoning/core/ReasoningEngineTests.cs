@@ -588,4 +588,241 @@ public sealed class ReasoningEngineTests {
         var opts = ReasoningOptions.Panda;
         Assert.Equal(5, opts.ConeWindowSize);
     }
+
+    [Fact]
+    public void PayloadToDataItem_ShouldMapAllFields() {
+        var created = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var verified = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+        var p = new ReasoningPayload {
+            Id = "p1", Type = ReasoningNodeType.Assumption, Content = "内容",
+            State = DataState.Fact, Source = "来源", Confidence = 80,
+            CreatedAt = created, VerifiedAt = verified,
+            VerifiedBy = "验证者", SubmittedBy = AgentRole.Judge,
+        };
+
+        var item = ReasoningEngine.PayloadToDataItem(p);
+
+        Assert.Equal("p1", item.Id);
+        Assert.Equal("内容", item.Content);
+        Assert.Equal(DataState.Fact, item.State);
+        Assert.Equal("来源", item.Source);
+        Assert.Equal(80, item.Confidence);
+        Assert.Equal(created, item.CreatedAt);
+        Assert.Equal(verified, item.VerifiedAt);
+        Assert.Equal("验证者", item.VerifiedBy);
+        Assert.Equal(AgentRole.Judge, item.SubmittedBy);
+    }
+
+    [Fact]
+    public void PayloadToEvidence_ShouldMapAllFields() {
+        var p = new ReasoningPayload {
+            Id = "e1", Type = ReasoningNodeType.Evidence, Content = "证据内容",
+            Category = EvidenceCategory.Physical, TrustLevel = TrustLevel.DirectEvidence,
+            SubmittedBy = AgentRole.Prosecutor, Source = "来源", SourceUrl = "https://example.com", Weight = 2.5,
+        };
+
+        var ev = ReasoningEngine.PayloadToEvidence(p);
+
+        Assert.Equal("e1", ev.Id);
+        Assert.Equal("证据内容", ev.Content);
+        Assert.Equal(EvidenceCategory.Physical, ev.Category);
+        Assert.Equal(TrustLevel.DirectEvidence, ev.TrustLevel);
+        Assert.Equal(AgentRole.Prosecutor, ev.SubmittedBy);
+        Assert.Equal("来源", ev.Source);
+        Assert.Equal("https://example.com", ev.SourceUrl);
+        Assert.Equal(2.5, ev.Weight);
+    }
+
+    [Fact]
+    public void PayloadToEvidence_NullOptionals_ShouldUseDefaults() {
+        var p = new ReasoningPayload {
+            Id = "e1", Type = ReasoningNodeType.Evidence, Content = "证据",
+            // Category, TrustLevel, SubmittedBy 均为 null
+        };
+
+        var ev = ReasoningEngine.PayloadToEvidence(p);
+
+        Assert.Equal(EvidenceCategory.Documentary, ev.Category);
+        Assert.Equal(TrustLevel.Moderate, ev.TrustLevel);
+        Assert.Equal(AgentRole.Prosecutor, ev.SubmittedBy);
+    }
+
+    [Fact]
+    public void ApplyVerdicts_Accept_ShouldSetFactStateAndAddVerdictNode() {
+        var engine = CreateEngine();
+        var claimId = "claim1";
+        AddClaimNode(engine, claimId, "假定");
+        var verdict = new Verdict { ClaimId = claimId, Decision = VerdictDecision.Accept, Confidence = 85 };
+
+        engine.ApplyVerdicts([verdict]);
+
+        var claimNode = engine.Dag.Nodes[claimId];
+        Assert.Equal(DataState.Fact, claimNode.Payload.State);
+        Assert.Equal(85, claimNode.Payload.Confidence);
+        Assert.Equal("法官裁决", claimNode.Payload.VerifiedBy);
+        Assert.NotNull(claimNode.Payload.VerifiedAt);
+        Assert.Equal(2, engine.Dag.Nodes.Count);
+        Assert.Single(engine.Dag.Edges);
+    }
+
+    [Fact]
+    public void ApplyVerdicts_Reject_ShouldSetRejectedStateWithDefaultConfidence() {
+        var engine = CreateEngine();
+        var claimId = "claim1";
+        AddClaimNode(engine, claimId, "假定");
+        var verdict = new Verdict { ClaimId = claimId, Decision = VerdictDecision.Reject, Confidence = 30 };
+
+        engine.ApplyVerdicts([verdict]);
+
+        var claimNode = engine.Dag.Nodes[claimId];
+        Assert.Equal(DataState.Rejected, claimNode.Payload.State);
+        Assert.Equal(10, claimNode.Payload.Confidence); // RejectedConfidence 默认 10
+        Assert.Null(claimNode.Payload.VerifiedBy);
+        Assert.Null(claimNode.Payload.VerifiedAt);
+    }
+
+    [Fact]
+    public void ApplyVerdicts_Pending_ShouldSetPendingEvidenceState() {
+        var engine = CreateEngine();
+        var claimId = "claim1";
+        AddClaimNode(engine, claimId, "假定");
+        var verdict = new Verdict { ClaimId = claimId, Decision = VerdictDecision.Pending, Confidence = 50 };
+
+        engine.ApplyVerdicts([verdict]);
+
+        var claimNode = engine.Dag.Nodes[claimId];
+        Assert.Equal(DataState.PendingEvidence, claimNode.Payload.State);
+        // Pending 不修改 Confidence/VerifiedBy/VerifiedAt
+        Assert.Equal(50, claimNode.Payload.Confidence);
+        Assert.Null(claimNode.Payload.VerifiedBy);
+    }
+
+    [Fact]
+    public void ApplyVerdicts_PartiallyAccept_ShouldSetVerifiedStateAndConfidence() {
+        var engine = CreateEngine();
+        var claimId = "claim1";
+        AddClaimNode(engine, claimId, "假定");
+        var verdict = new Verdict { ClaimId = claimId, Decision = VerdictDecision.PartiallyAccept, Confidence = 70 };
+
+        engine.ApplyVerdicts([verdict]);
+
+        var claimNode = engine.Dag.Nodes[claimId];
+        Assert.Equal(DataState.Verified, claimNode.Payload.State);
+        Assert.Equal(70, claimNode.Payload.Confidence);
+        Assert.Equal("法官部分接受", claimNode.Payload.VerifiedBy);
+        Assert.NotNull(claimNode.Payload.VerifiedAt);
+    }
+
+    [Fact]
+    public void ApplyVerdicts_UnknownClaimId_ShouldSkipWithoutThrowing() {
+        var engine = CreateEngine();
+        var verdict = new Verdict { ClaimId = "nonexistent", Decision = VerdictDecision.Accept, Confidence = 90 };
+
+        engine.ApplyVerdicts([verdict]);
+
+        // 不添加任何节点(claim 不存在,continue)
+        Assert.Empty(engine.Dag.Nodes);
+    }
+
+    [Fact]
+    public void ApplyVerdicts_MultipleVerdicts_ShouldApplyAll() {
+        var engine = CreateEngine();
+        AddClaimNode(engine, "c1", "假定1");
+        AddClaimNode(engine, "c2", "假定2");
+        var verdicts = new List<Verdict> {
+            new() { ClaimId = "c1", Decision = VerdictDecision.Accept, Confidence = 80 },
+            new() { ClaimId = "c2", Decision = VerdictDecision.Reject, Confidence = 20 },
+        };
+
+        engine.ApplyVerdicts(verdicts);
+
+        Assert.Equal(DataState.Fact, engine.Dag.Nodes["c1"].Payload.State);
+        Assert.Equal(DataState.Rejected, engine.Dag.Nodes["c2"].Payload.State);
+        // 2 claim + 2 verdict = 4 节点, 2 DECIDES 边
+        Assert.Equal(4, engine.Dag.Nodes.Count);
+        Assert.Equal(2, engine.Dag.Edges.Count);
+    }
+
+    [Fact]
+    public void ApplyAgentAction_EmptyAction_ShouldNotModifyDag() {
+        var engine = CreateEngine();
+        var action = new AgentAction { AgentRole = AgentRole.Prosecutor };
+
+        engine.ApplyAgentAction(action);
+
+        Assert.Empty(engine.Dag.Nodes);
+    }
+
+    [Fact]
+    public void ApplyAgentAction_WithEvidence_ShouldAddEvidenceToDag() {
+        var engine = CreateEngine();
+        var claimId = "claim1";
+        AddClaimNode(engine, claimId, "假定");
+        var action = new AgentAction {
+            AgentRole = AgentRole.Prosecutor,
+            AffectedClaimIds = { claimId },
+            Evidence = { new EvidenceRecord { Content = "证据", Category = EvidenceCategory.Documentary, TrustLevel = TrustLevel.Moderate, SubmittedBy = AgentRole.Prosecutor } },
+        };
+
+        engine.ApplyAgentAction(action);
+
+        // claim + evidence = 2 节点, 1 SUPPORTS 边
+        Assert.Equal(2, engine.Dag.Nodes.Count);
+        Assert.Single(engine.Dag.Edges);
+        Assert.Equal("SUPPORTS", engine.Dag.Edges.Values.First().Label);
+    }
+
+    [Fact]
+    public void ApplyAgentAction_WithCounterEvidence_ShouldAddRefutesEdge() {
+        var engine = CreateEngine();
+        var claimId = "claim1";
+        AddClaimNode(engine, claimId, "假定");
+        var action = new AgentAction {
+            AgentRole = AgentRole.Defender,
+            AffectedClaimIds = { claimId },
+            CounterEvidence = { new EvidenceRecord { Content = "反证", Category = EvidenceCategory.Documentary, TrustLevel = TrustLevel.Moderate, SubmittedBy = AgentRole.Defender } },
+        };
+
+        engine.ApplyAgentAction(action);
+
+        Assert.Equal(2, engine.Dag.Nodes.Count);
+        Assert.Single(engine.Dag.Edges);
+        Assert.Equal("REFUTES", engine.Dag.Edges.Values.First().Label);
+    }
+
+    [Fact]
+    public void ApplyAgentAction_WithDoubts_ShouldNotModifyDag() {
+        var engine = CreateEngine();
+        var action = new AgentAction {
+            AgentRole = AgentRole.Defender,
+            Doubts = { "质疑1", "质疑2" },
+        };
+
+        engine.ApplyAgentAction(action);
+
+        Assert.Empty(engine.Dag.Nodes);
+    }
+
+    [Fact]
+    public void ApplyAgentAction_WithTokens_ShouldRecordBudgetUsage() {
+        var engine = CreateEngine();
+        var action = new AgentAction { AgentRole = AgentRole.Prosecutor, TokensUsed = 500 };
+
+        engine.ApplyAgentAction(action);
+
+        var budget = engine.GetBudgetStatus();
+        Assert.True(budget.TokensUsed >= 500);
+    }
+
+    private static void AddClaimNode(ReasoningEngine engine, string claimId, string content) {
+        engine.Dag.AddNode(new DagNode<ReasoningPayload> {
+            Id = claimId,
+            Payload = new ReasoningPayload {
+                Id = claimId,
+                Type = ReasoningNodeType.Assumption,
+                Content = content,
+                State = DataState.Assumption,
+            },
+        });
+    }
 }

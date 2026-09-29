@@ -66,7 +66,7 @@ public sealed class ProsecutorAgent : ReasoningAgent {
         return action;
     }
 
-    private List<EvidenceRecord> ParseEvidenceFromLlmResponse(string content) {
+    internal List<EvidenceRecord> ParseEvidenceFromLlmResponse(string content) {
         var records = new List<EvidenceRecord>();
         try {
             var json = ExtractJsonObject(content, _logger);

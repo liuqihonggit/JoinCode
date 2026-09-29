@@ -147,6 +147,73 @@ public sealed class DefenderAgentTests {
         Assert.Equal(1.0, action.CounterEvidence[0].Weight);
     }
 
+    [Fact]
+    public async Task ParseCounterEvidenceFromLlmResponse_ValidJson_ShouldParseBothFields() {
+        await using var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
+        var json = "{\"counterEvidence\":[{\"content\":\"反驳\",\"source\":\"证人\",\"trustLevel\":\"StrongCorroboration\",\"weight\":2.5}],\"doubts\":[\"疑点1\",\"疑点2\"]}";
+
+        var (counterEvidence, doubts) = agent.ParseCounterEvidenceFromLlmResponse(json);
+
+        Assert.Single(counterEvidence);
+        Assert.Equal("反驳", counterEvidence[0].Content);
+        Assert.Equal("证人", counterEvidence[0].Source);
+        Assert.Equal(TrustLevel.StrongCorroboration, counterEvidence[0].TrustLevel);
+        Assert.Equal(2.5, counterEvidence[0].Weight);
+        Assert.Equal(AgentRole.Defender, counterEvidence[0].SubmittedBy);
+        Assert.Equal(EvidenceCategory.Documentary, counterEvidence[0].Category);
+        Assert.Equal(2, doubts.Count);
+        Assert.Equal("疑点1", doubts[0]);
+        Assert.Equal("疑点2", doubts[1]);
+    }
+
+    [Fact]
+    public async Task ParseCounterEvidenceFromLlmResponse_MissingFields_ShouldUseDefaults() {
+        await using var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
+        var json = "{\"counterEvidence\":[{\"content\":\"仅内容\"}],\"doubts\":[]}";
+
+        var (counterEvidence, doubts) = agent.ParseCounterEvidenceFromLlmResponse(json);
+
+        Assert.Single(counterEvidence);
+        Assert.Equal("仅内容", counterEvidence[0].Content);
+        Assert.Equal("LLM生成", counterEvidence[0].Source);
+        Assert.Equal(TrustLevel.Moderate, counterEvidence[0].TrustLevel);
+        Assert.Equal(1.0, counterEvidence[0].Weight);
+        Assert.Empty(doubts);
+    }
+
+    [Fact]
+    public async Task ParseCounterEvidenceFromLlmResponse_NoFields_ShouldReturnEmpty() {
+        await using var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
+        var json = "{\"other\":\"value\"}";
+
+        var (counterEvidence, doubts) = agent.ParseCounterEvidenceFromLlmResponse(json);
+
+        Assert.Empty(counterEvidence);
+        Assert.Empty(doubts);
+    }
+
+    [Fact]
+    public async Task ParseCounterEvidenceFromLlmResponse_MalformedJson_ShouldReturnEmpty() {
+        await using var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
+
+        var (counterEvidence, doubts) = agent.ParseCounterEvidenceFromLlmResponse("not json");
+
+        Assert.Empty(counterEvidence);
+        Assert.Empty(doubts);
+    }
+
+    [Fact]
+    public async Task ParseCounterEvidenceFromLlmResponse_OnlyDoubts_ShouldParseDoubtsOnly() {
+        await using var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
+        var json = "{\"doubts\":[\"仅质疑\"]}";
+
+        var (counterEvidence, doubts) = agent.ParseCounterEvidenceFromLlmResponse(json);
+
+        Assert.Empty(counterEvidence);
+        Assert.Single(doubts);
+        Assert.Equal("仅质疑", doubts[0]);
+    }
+
     private static ReasoningContext CreateContext(IReadOnlyList<DataItem> items, IReadOnlyList<EvidenceRecord> evidence) {
         return new ReasoningContext {
             AllItems = items,

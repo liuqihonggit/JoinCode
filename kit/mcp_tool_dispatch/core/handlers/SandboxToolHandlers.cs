@@ -291,7 +291,7 @@ public sealed class SandboxToolHandlers {
         }
     }
 
-    private static ToolResult BuildExecResultResponse(SandboxExecutionResult result) {
+    internal static ToolResult BuildExecResultResponse(SandboxExecutionResult result) {
         var response = new StringBuilder();
         response.AppendLine($"Execution ID: {result.ExecutionId}");
         response.AppendLine($"State: {result.State.ToValue()}");
@@ -398,7 +398,7 @@ public sealed class SandboxToolHandlers {
             .Build();
     }
 
-    private static string GetIsolationChangeDescription(SandboxType from, SandboxType to) {
+    internal static string GetIsolationChangeDescription(SandboxType from, SandboxType to) {
         var level = new Dictionary<SandboxType, int> {
             [SandboxType.Soft] = 1,
             [SandboxType.Process] = 2,

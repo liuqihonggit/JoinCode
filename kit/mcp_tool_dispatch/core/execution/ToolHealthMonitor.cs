@@ -127,7 +127,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <summary>
     /// 简单通配符匹配 — 支持 * 通配任意字符
     /// </summary>
-    private static bool MatchesPattern(string pattern, string toolName) {
+    internal static bool MatchesPattern(string pattern, string toolName) {
         var parts = pattern.Split('*');
         if (parts.Length == 1) return string.Equals(parts[0], toolName, StringComparison.OrdinalIgnoreCase);
 
@@ -297,7 +297,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         return _records.GetOrAdd(toolName, _ => new ToolHealthRecord { ToolName = toolName });
     }
 
-    private void ApplyTimeDecay() {
+    internal void ApplyTimeDecay() {
         var now = DateTime.UtcNow;
         foreach (var record in _records.Values) {
             if (!record.IsEnabled) continue;

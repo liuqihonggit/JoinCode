@@ -19,7 +19,19 @@ public static class SystemActuatorInitializer {
         CmdSystemActuator.CreateCapability(fs, logger);
         PythonSystemActuator.CreateCapability(fs, logger);
 
-        var factories = new Dictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> {
+        var factories = BuildActuatorFactories();
+
+        SystemActuatorRegistry.RegisterFactories(factories);
+
+        logger?.LogInformation("SystemActuatorRegistry initialized: {Kinds}",
+            string.Join(", ", factories.Keys.Select(k => k.Id)));
+    }
+
+    /// <summary>
+    /// 构建执行器工厂字典 — 纯字典构建，不涉及 IO，供确定性测试覆盖。
+    /// </summary>
+    internal static Dictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> BuildActuatorFactories() {
+        return new Dictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> {
             [SystemActuatorKind.Bash] = deps => new BashSystemActuator(
                 deps.FileSystem, logger: deps.Logger, sandboxManager: deps.SandboxManager,
                 preventSleepService: deps.PreventSleepService, config: deps.Config),
@@ -33,11 +45,6 @@ public static class SystemActuatorInitializer {
                 deps.FileSystem, logger: deps.Logger, sandboxManager: deps.SandboxManager,
                 preventSleepService: deps.PreventSleepService, config: deps.Config),
         };
-
-        SystemActuatorRegistry.RegisterFactories(factories);
-
-        logger?.LogInformation("SystemActuatorRegistry initialized: {Kinds}",
-            string.Join(", ", factories.Keys.Select(k => k.Id)));
     }
 
     /// <summary>

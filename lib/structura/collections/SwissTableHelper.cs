@@ -578,6 +578,7 @@ namespace Structura.Collections
         /// JIT 为每个 <typeparamref name="TGroup"/> 特化生成专门代码,零虚调用开销。
         /// </summary>
         [SkipLocalsInit]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe ref SwissTable<TKey, TValue>.Entry ProbeCoreFindBucketOfDictionary<TGroup, TBitMask, TKey, TValue>(
             SwissTable<TKey, TValue> dictionary, TKey key, int hash)
             where TGroup : unmanaged, IGroup<TBitMask, TGroup>

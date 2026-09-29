@@ -73,6 +73,7 @@ namespace Structura.Collections
         /// <param name="insertOldCtrl">若键不存在,输出插入槽位的原控制字节;否则输出默认值。</param>
         /// <returns>匹配条目的引用;若未找到则返回 <see cref="Unsafe.NullRef{T}"/>。</returns>
         [SkipLocalsInit]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe ref SwissTable<TKey, TValue>.Entry ProbeCoreFindForInsert<TGroup, TBitMask, TKey, TValue>(
             SwissTable<TKey, TValue> dictionary, TKey key, int hash,
             out int insertSlot, out byte insertOldCtrl)

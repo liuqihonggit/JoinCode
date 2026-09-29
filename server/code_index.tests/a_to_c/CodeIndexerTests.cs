@@ -296,4 +296,71 @@ public sealed class CodeIndexerTests : IDisposable {
         }
         return dict.SetItem(key, list.Add(value));
     }
+
+    // ============ EstimateSymbolTokens 确定性测试 ============
+
+    [Fact]
+    public void EstimateSymbolTokens_ShortSymbol_ReturnsMinimum5() {
+        var sym = new SymbolInfo {
+            Name = "F", FullyQualifiedName = "F", Kind = SymbolKind.Class,
+            FilePath = "F.cs", StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1,
+        };
+        // chars = 1+1+4 = 6, 6/4 = 1, Math.Max(5,1) = 5
+        Assert.Equal(5, CodeIndexer.EstimateSymbolTokens(sym));
+    }
+
+    [Fact]
+    public void EstimateSymbolTokens_LongSymbol_ReturnsCharsDiv4() {
+        var sym = new SymbolInfo {
+            Name = "VeryLongSymbolName", FullyQualifiedName = "MyApp.Services.VeryLongSymbolName",
+            Kind = SymbolKind.Class, FilePath = "src/services/very_long_symbol_name.cs",
+            StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1,
+        };
+        var chars = sym.Name.Length + sym.FullyQualifiedName.Length + sym.FilePath.Length;
+        var expected = Math.Max(5, chars / 4);
+        Assert.Equal(expected, CodeIndexer.EstimateSymbolTokens(sym));
+    }
+
+    [Fact]
+    public void EstimateSymbolTokens_AlwaysAtLeast5() {
+        var sym = new SymbolInfo {
+            Name = "", FullyQualifiedName = "", Kind = SymbolKind.Class,
+            FilePath = "", StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1,
+        };
+        Assert.Equal(5, CodeIndexer.EstimateSymbolTokens(sym));
+    }
+
+    // ============ EstimateEdgeTokens 确定性测试 ============
+
+    [Fact]
+    public void EstimateEdgeTokens_ShortEdge_ReturnsMinimum4() {
+        var edge = new CallEdge {
+            CallerSymbol = "A", CalleeSymbol = "B", CallSiteFilePath = "c",
+            CallSiteLine = 1, CallKind = CallKind.Direct,
+        };
+        // chars = 1+1+1 = 3, 3/4 = 0, Math.Max(4,0) = 4
+        Assert.Equal(4, CodeIndexer.EstimateEdgeTokens(edge));
+    }
+
+    [Fact]
+    public void EstimateEdgeTokens_LongEdge_ReturnsCharsDiv4() {
+        var edge = new CallEdge {
+            CallerSymbol = "MyApp.Services.OrderService",
+            CalleeSymbol = "MyApp.Repositories.OrderRepository",
+            CallSiteFilePath = "src/services/order_service.cs",
+            CallSiteLine = 42, CallKind = CallKind.Direct,
+        };
+        var chars = edge.CallerSymbol.Length + edge.CalleeSymbol.Length + edge.CallSiteFilePath.Length;
+        var expected = Math.Max(4, chars / 4);
+        Assert.Equal(expected, CodeIndexer.EstimateEdgeTokens(edge));
+    }
+
+    [Fact]
+    public void EstimateEdgeTokens_AlwaysAtLeast4() {
+        var edge = new CallEdge {
+            CallerSymbol = "", CalleeSymbol = "", CallSiteFilePath = "",
+            CallSiteLine = 1, CallKind = CallKind.Direct,
+        };
+        Assert.Equal(4, CodeIndexer.EstimateEdgeTokens(edge));
+    }
 }

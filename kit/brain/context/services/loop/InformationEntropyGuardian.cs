@@ -247,7 +247,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
     /// 从工具调用参数中提取指纹 — 取关键参数值拼接
     /// 格式: "toolName(key1=val1,key2=val2)"
     /// </summary>
-    private static string? BuildArgsFingerprint(string toolName, Dictionary<string, JsonElement>? arguments) {
+    internal static string? BuildArgsFingerprint(string toolName, Dictionary<string, JsonElement>? arguments) {
         if (arguments is null || arguments.Count == 0)
             return null;
 

@@ -114,7 +114,7 @@ public sealed class ToolInterventionManager : ServiceEntity {
         return rule.Type == InterventionType.Downgrade ? rule.ScorePenalty : null;
     }
 
-    private static string? GetDefaultRedirect(string toolName) {
+    internal static string? GetDefaultRedirect(string toolName) {
         return toolName.ToLowerInvariant() switch {
             "cmd" => ShellToolNameEnumConstants.Powershell,
             ShellToolNameEnumConstants.Bash => ShellToolNameEnumConstants.Powershell,

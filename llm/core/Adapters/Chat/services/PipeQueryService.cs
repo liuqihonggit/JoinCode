@@ -188,7 +188,7 @@ public sealed partial class PipeQueryService : IQueryService {
         }
     }
 
-    private static ApiMessage ConvertToApiMessage(OpenAIChoice choice) {
+    internal static ApiMessage ConvertToApiMessage(OpenAIChoice choice) {
         var message = choice.Message;
         var role = ConvertRole(message.Role);
 
@@ -213,7 +213,7 @@ public sealed partial class PipeQueryService : IQueryService {
     private static MessageRole ConvertRole(string? role)
         => QueryServiceBase.ConvertRole(role);
 
-    private static OpenAIApiMessage ConvertToMessage(ApiMessage content) {
+    internal static OpenAIApiMessage ConvertToMessage(ApiMessage content) {
         var msg = new OpenAIApiMessage {
             Role = QueryServiceBase.ConvertRoleToString(content.Role),
             Content = content.Content

@@ -237,7 +237,7 @@ internal sealed record IndexSnapshot {
     // ── 内部写操作 ──
 
     /// <summary>移除文件相关符号/调用边/依赖边（不含文件追踪）</summary>
-    private IndexSnapshot RemoveFileData(string filePath, bool rebuildSorted = true) {
+    internal IndexSnapshot RemoveFileData(string filePath, bool rebuildSorted = true) {
         var symbolsByFqn = SymbolsByFqn;
         var symbolsByName = SymbolsByName;
         var symbolsByFile = SymbolsByFile;
@@ -318,7 +318,7 @@ internal sealed record IndexSnapshot {
         };
     }
 
-    private IndexSnapshot InsertSymbols(IReadOnlyList<SymbolInfo> symbols, bool rebuildSorted = true, bool isRebuild = true) {
+    internal IndexSnapshot InsertSymbols(IReadOnlyList<SymbolInfo> symbols, bool rebuildSorted = true, bool isRebuild = true) {
         if (symbols.Count == 0) return this;
 
         var symbolsByFqn = SymbolsByFqn;
@@ -370,7 +370,7 @@ internal sealed record IndexSnapshot {
         };
     }
 
-    private IndexSnapshot InsertCallEdges(IReadOnlyList<CallEdge> calls) {
+    internal IndexSnapshot InsertCallEdges(IReadOnlyList<CallEdge> calls) {
         if (calls.Count == 0) return this;
 
         var callEdges = CallEdges.AddRange(calls);
@@ -386,7 +386,7 @@ internal sealed record IndexSnapshot {
         };
     }
 
-    private IndexSnapshot InsertDependencyEdges(IReadOnlyList<DependencyEdge> deps) {
+    internal IndexSnapshot InsertDependencyEdges(IReadOnlyList<DependencyEdge> deps) {
         if (deps.Count == 0) return this;
 
         var depEdges = DepEdges.AddRange(deps);
@@ -403,7 +403,7 @@ internal sealed record IndexSnapshot {
     }
 
     /// <summary>修正 Inherits→Implements：当 target 是接口时替换边</summary>
-    private IndexSnapshot CorrectInheritsToImplements() {
+    internal IndexSnapshot CorrectInheritsToImplements() {
         var depEdges = DepEdges;
         var replacements = new Dictionary<DependencyEdge, DependencyEdge>();
 
@@ -432,7 +432,7 @@ internal sealed record IndexSnapshot {
         };
     }
 
-    private IndexSnapshot UpsertFileTracking(string filePath, string hash, int symbolCount, DateTimeOffset now, bool rebuildSorted = true) {
+    internal IndexSnapshot UpsertFileTracking(string filePath, string hash, int symbolCount, DateTimeOffset now, bool rebuildSorted = true) {
         var ft = FileTracking.SetItem(filePath, new FileTrackingEntry {
             FilePath = filePath,
             Hash = hash,
@@ -445,7 +445,7 @@ internal sealed record IndexSnapshot {
         return this with { FileTracking = ft, FileTrackingKeysSorted = RebuildSortedKeys(ft) };
     }
 
-    private IndexSnapshot RemoveProjectData(string filePath) {
+    internal IndexSnapshot RemoveProjectData(string filePath) {
         var projects = Projects;
         var pr = ProjectRefs;
         var prByTarget = ProjectRefsByTarget;

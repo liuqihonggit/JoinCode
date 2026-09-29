@@ -41,6 +41,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.McpToolDispatch.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Mcp.Tests" />
   </ItemGroup>
 
   </Project>

@@ -99,32 +99,8 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         var discoveredTools = settings.DiscoveredTools;
 
         if (deferredToolInfos is { Count: > 0 } && discoveredTools != null) {
-            var deferredNames = new HashSet<string>(
-                deferredToolInfos.Select(t => t.Name), StringComparer.Ordinal);
-
             var snapshot = await discoveredTools.SnapshotAsync().ConfigureAwait(false);
-            var discoveredSet = new HashSet<string>(snapshot, StringComparer.Ordinal);
-
-            var filteredTools = new List<AnthropicToolDefinition>();
-            var deferredNotDiscovered = new List<DeferredToolInfo>();
-
-            foreach (var tool in allTools) {
-                if (!deferredNames.Contains(tool.Name) || discoveredSet.Contains(tool.Name)) {
-                    filteredTools.Add(tool);
-                    continue;
-                }
-                var info = deferredToolInfos.First(t => t.Name == tool.Name);
-                deferredNotDiscovered.Add(info);
-            }
-
-            if (deferredNotDiscovered.Count > 0) {
-                var deferredDefs = BuildDeferredToolDefinitions(deferredNotDiscovered);
-                filteredTools.AddRange(deferredDefs);
-
-                filteredTools.Add(BuildToolSearchToolDefinition());
-            }
-
-            request.Tools = filteredTools;
+            request.Tools = FilterDeferredTools(allTools, deferredToolInfos, snapshot);
         } else {
             request.Tools = allTools;
         }
@@ -155,7 +131,40 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         return request;
     }
 
-    private static AnthropicContextManagement ConvertContextManagement(ContextManagementConfig config) {
+    /// <summary>
+    /// 过滤延迟加载工具 — 纯函数,供确定性测试
+    /// 已发现工具保留原 schema,未发现的 deferred 工具替换为占位定义 + tool_search 工具
+    /// </summary>
+    internal static List<AnthropicToolDefinition> FilterDeferredTools(
+        List<AnthropicToolDefinition> allTools,
+        IReadOnlyList<DeferredToolInfo> deferredToolInfos,
+        IReadOnlyCollection<string> discoveredSnapshot) {
+        var deferredNames = new HashSet<string>(
+            deferredToolInfos.Select(t => t.Name), StringComparer.Ordinal);
+        var discoveredSet = new HashSet<string>(discoveredSnapshot, StringComparer.Ordinal);
+
+        var filteredTools = new List<AnthropicToolDefinition>();
+        var deferredNotDiscovered = new List<DeferredToolInfo>();
+
+        foreach (var tool in allTools) {
+            if (!deferredNames.Contains(tool.Name) || discoveredSet.Contains(tool.Name)) {
+                filteredTools.Add(tool);
+                continue;
+            }
+            var info = deferredToolInfos.First(t => t.Name == tool.Name);
+            deferredNotDiscovered.Add(info);
+        }
+
+        if (deferredNotDiscovered.Count > 0) {
+            var deferredDefs = BuildDeferredToolDefinitions(deferredNotDiscovered);
+            filteredTools.AddRange(deferredDefs);
+            filteredTools.Add(BuildToolSearchToolDefinition());
+        }
+
+        return filteredTools;
+    }
+
+    internal static AnthropicContextManagement ConvertContextManagement(ContextManagementConfig config) {
         var edits = new List<AnthropicContextEditStrategy>(config.Edits.Count);
         foreach (var strategy in config.Edits) {
             edits.Add(strategy switch {
@@ -277,7 +286,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         pendingToolResults.Clear();
     }
 
-    private static AnthropicToolResultBlock CreateToolResultBlock(ApiMessage msg) {
+    internal static AnthropicToolResultBlock CreateToolResultBlock(ApiMessage msg) {
         var toolUseId = "";
         if (msg.Metadata != null &&
             msg.Metadata.TryGetValue("ToolCallId", out var idObj) &&
@@ -434,7 +443,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         };
     }
 
-    private static AnthropicInputSchema BuildAnthropicInputSchema(IReadOnlyList<IToolParam> parameters) {
+    internal static AnthropicInputSchema BuildAnthropicInputSchema(IReadOnlyList<IToolParam> parameters) {
         if (parameters.Count == 0) {
             return new AnthropicInputSchema();
         }
@@ -741,7 +750,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
     #endregion
 
     /// <summary>处理非流式 WebSearchToolResult 块: 提取搜索链接/错误信息写入 textParts,原始 JSON 写入 webSearchResults</summary>
-    private static void ProcessWebSearchToolResult(AnthropicResponseContentBlock block, StringBuilder textParts, List<string> webSearchResults) {
+    internal static void ProcessWebSearchToolResult(AnthropicResponseContentBlock block, StringBuilder textParts, List<string> webSearchResults) {
         if (block.Content is not JsonElement contentEl) return;
         if (contentEl.ValueKind == JsonValueKind.Array) {
             foreach (var item in contentEl.EnumerateArray()) {
@@ -759,7 +768,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
     }
 
     /// <summary>构建流式 WebSearchToolResult 的 metadata: 包含搜索链接或错误信息</summary>
-    private static Dictionary<string, JsonElement> BuildWebSearchResultMetadata(
+    internal static Dictionary<string, JsonElement> BuildWebSearchResultMetadata(
         AnthropicResponseContentBlock contentBlock, string messageId, string modelName) {
         var searchMetadata = new Dictionary<string, JsonElement> {
             ["Id"] = JsonElementHelper.FromString(messageId),
@@ -788,6 +797,22 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         return searchMetadata;
     }
 
+    /// <summary>
+    /// 从 partial JSON 中提取 query 字段值并还原转义 — 纯函数,供确定性测试
+    /// 正则匹配 "query":"..." 捕获组,再执行 3 次 Replace 还原 \" \\ \n 转义
+    /// </summary>
+    internal static string? ExtractQueryFromPartialJson(string partialJson) {
+        var queryMatch = System.Text.RegularExpressions.Regex.Match(
+            partialJson, @"""query""\s*:\s*""((?:[^""\\]|\\.)*)""");
+        if (!queryMatch.Success)
+            return null;
+
+        var extractedQuery = queryMatch.Groups[1].Value;
+        return extractedQuery.Replace("\\\"", "\"")
+            .Replace("\\\\", "\\")
+            .Replace("\\n", "\n");
+    }
+
     /// <summary>处理流式 InputJsonDelta: 累积 partial json,当检测到 query 更新时返回 StreamEvent(否则 null)</summary>
     private static StreamEvent? TryBuildQueryUpdateStreamEvent(
         int idx,
@@ -809,15 +834,9 @@ public sealed class AnthropicQueryService : QueryServiceBase {
             return null;
 
         var partialJson = tracker.JsonBuilder.ToString();
-        var queryMatch = System.Text.RegularExpressions.Regex.Match(
-            partialJson, @"""query""\s*:\s*""((?:[^""\\]|\\.)*)""");
-        if (!queryMatch.Success)
+        var extractedQuery = ExtractQueryFromPartialJson(partialJson);
+        if (extractedQuery is null)
             return null;
-
-        var extractedQuery = queryMatch.Groups[1].Value;
-        extractedQuery = extractedQuery.Replace("\\\"", "\"")
-            .Replace("\\\\", "\\")
-            .Replace("\\n", "\n");
 
         if (extractedQuery == tracker.LastQuery)
             return null;

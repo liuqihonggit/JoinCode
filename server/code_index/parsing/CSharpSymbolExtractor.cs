@@ -328,7 +328,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         return true;
     }
 
-    private static string ExtractSymbolName(Node node, SymbolKind kind) {
+    internal static string ExtractSymbolName(Node node, SymbolKind kind) {
         switch (kind) {
             case SymbolKind.Operator:
             return ExtractOperatorName(node);
@@ -344,7 +344,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         }
     }
 
-    private static string ExtractOperatorName(Node node) {
+    internal static string ExtractOperatorName(Node node) {
         var nameNode = node.GetChildForField("name");
         if (nameNode is not null) {
             return $"op_{nameNode.Text}";
@@ -429,7 +429,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         return true;
     }
 
-    private static string ComputeFqn(string name, string? parentFqn, string? ns, SymbolKind kind) {
+    internal static string ComputeFqn(string name, string? parentFqn, string? ns, SymbolKind kind) {
         if (kind == SymbolKind.Namespace) {
             return name;
         }

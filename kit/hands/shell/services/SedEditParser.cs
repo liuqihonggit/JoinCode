@@ -77,7 +77,7 @@ public static class SedEditParser {
     /// <summary>
     /// 解析替换表达式 — 对齐 TS parseSedEditCommand 中的状态机解析
     /// </summary>
-    private static SedEditInfo? ParseSubstitutionExpression(string expression, string filePath, bool extendedRegex) {
+    internal static SedEditInfo? ParseSubstitutionExpression(string expression, string filePath, bool extendedRegex) {
         // 必须以 s/ 开头
         if (!expression.StartsWith("s/", StringComparison.Ordinal)) return null;
 
@@ -157,7 +157,7 @@ public static class SedEditParser {
     /// <summary>
     /// 验证 sed 标志 — 对齐 TS validFlags
     /// </summary>
-    private static bool IsValidSedFlags(string flags) {
+    internal static bool IsValidSedFlags(string flags) {
         if (string.IsNullOrEmpty(flags)) return true;
 
         // 仅允许 g, p, i, I, m, M, 1-9
@@ -199,7 +199,7 @@ public static class SedEditParser {
     /// <summary>
     /// BRE 到 ERE 转换 — 对齐 TS convertBreToEre
     /// </summary>
-    private static string ConvertBreToEre(string pattern) {
+    internal static string ConvertBreToEre(string pattern) {
         // 简化版 BRE→ERE 转换
         // 完整版需要4步占位符转换，这里处理最常见的情况
         var result = new StringBuilder();
@@ -262,7 +262,7 @@ public static class SedEditParser {
     /// <summary>
     /// 转换 sed 替换文本为 .NET 正则替换 — 对齐 TS convertSedReplacement
     /// </summary>
-    private static string ConvertSedReplacement(string replacement) {
+    internal static string ConvertSedReplacement(string replacement) {
         var result = new StringBuilder();
         for (var i = 0; i < replacement.Length; i++) {
             var c = replacement[i];
@@ -307,7 +307,7 @@ public static class SedEditParser {
     /// <summary>
     /// 构建 .NET 正则标志 — 对齐 TS buildRegexFlags
     /// </summary>
-    private static RegexOptions BuildRegexFlags(string sedFlags) {
+    internal static RegexOptions BuildRegexFlags(string sedFlags) {
         var options = RegexOptions.None;
 
         foreach (var c in sedFlags) {

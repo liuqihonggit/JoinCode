@@ -107,7 +107,7 @@ public static class ShellPluginHintExtractor {
         };
     }
 
-    private static Dictionary<string, string> ParseAttrs(string tagBody) {
+    internal static Dictionary<string, string> ParseAttrs(string tagBody) {
         var attrs = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (Match m in AttrRe.Matches(tagBody)) {
             var key = m.Groups[1].Value;
@@ -117,14 +117,14 @@ public static class ShellPluginHintExtractor {
         return attrs;
     }
 
-    private static string FirstCommandToken(string command) {
+    internal static string FirstCommandToken(string command) {
         if (string.IsNullOrEmpty(command)) return string.Empty;
         var trimmed = command.TrimStart();
         var spaceIdx = trimmed.IndexOf(' ');
         return spaceIdx < 0 ? trimmed : trimmed[..spaceIdx];
     }
 
-    private static string CollapseExcessiveBlankLines(string text) {
+    internal static string CollapseExcessiveBlankLines(string text) {
         for (var i = 0; i < text.Length - 2;) {
             if (text[i] == '\n' && text[i + 1] == '\n' && text[i + 2] == '\n') {
                 var end = i + 2;

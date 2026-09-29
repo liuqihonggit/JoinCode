@@ -242,4 +242,151 @@ public sealed class SymbolSearcherTests : IDisposable {
         }
         return dict.SetItem(key, list.Add(symbol));
     }
+
+    // ============ ParseQueryTokens 确定性测试 ============
+
+    [Fact]
+    public void ParseQueryTokens_SingleToken_ReturnsOne() {
+        var tokens = SymbolSearcher.ParseQueryTokens("ProcessOrder");
+        Assert.Single(tokens);
+        Assert.Equal("ProcessOrder", tokens[0]);
+    }
+
+    [Fact]
+    public void ParseQueryTokens_MultipleTokens_ReturnsAll() {
+        var tokens = SymbolSearcher.ParseQueryTokens("Process Order");
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal("Process", tokens[0]);
+        Assert.Equal("Order", tokens[1]);
+    }
+
+    [Fact]
+    public void ParseQueryTokens_LeadingSpaces_Skipped() {
+        var tokens = SymbolSearcher.ParseQueryTokens("   Process");
+        Assert.Single(tokens);
+        Assert.Equal("Process", tokens[0]);
+    }
+
+    [Fact]
+    public void ParseQueryTokens_TrailingSpaces_Skipped() {
+        var tokens = SymbolSearcher.ParseQueryTokens("Process   ");
+        Assert.Single(tokens);
+        Assert.Equal("Process", tokens[0]);
+    }
+
+    [Fact]
+    public void ParseQueryTokens_ConsecutiveSpaces_NoEmptyTokens() {
+        var tokens = SymbolSearcher.ParseQueryTokens("Process   Order");
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal("Process", tokens[0]);
+        Assert.Equal("Order", tokens[1]);
+    }
+
+    [Fact]
+    public void ParseQueryTokens_PrefixStar_PreservedInToken() {
+        var tokens = SymbolSearcher.ParseQueryTokens("Process*");
+        Assert.Single(tokens);
+        Assert.Equal("Process*", tokens[0]);
+    }
+
+    [Fact]
+    public void ParseQueryTokens_EmptyString_ReturnsEmpty() {
+        Assert.Empty(SymbolSearcher.ParseQueryTokens(""));
+    }
+
+    [Fact]
+    public void ParseQueryTokens_OnlySpaces_ReturnsEmpty() {
+        Assert.Empty(SymbolSearcher.ParseQueryTokens("   "));
+    }
+
+    // ============ MatchSingleToken 确定性测试 ============
+
+    private static SymbolInfo MakeSym(string name, string fqn) => new() {
+        Name = name, FullyQualifiedName = fqn, Kind = SymbolKind.Method,
+        FilePath = "t.cs", StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1,
+    };
+
+    [Fact]
+    public void MatchSingleToken_ContainsName_Matches() {
+        var sym = MakeSym("ProcessOrder", "App.ProcessOrder");
+        Assert.True(SymbolSearcher.MatchSingleToken(sym, "Process"));
+    }
+
+    [Fact]
+    public void MatchSingleToken_ContainsFqn_Matches() {
+        var sym = MakeSym("Foo", "App.Services.Foo");
+        Assert.True(SymbolSearcher.MatchSingleToken(sym, "Services"));
+    }
+
+    [Fact]
+    public void MatchSingleToken_CaseInsensitive_Matches() {
+        var sym = MakeSym("ProcessOrder", "App.ProcessOrder");
+        Assert.True(SymbolSearcher.MatchSingleToken(sym, "processorder"));
+    }
+
+    [Fact]
+    public void MatchSingleToken_NoMatch_ReturnsFalse() {
+        var sym = MakeSym("Foo", "App.Foo");
+        Assert.False(SymbolSearcher.MatchSingleToken(sym, "Bar"));
+    }
+
+    [Fact]
+    public void MatchSingleToken_StarGlob_MatchesByContains() {
+        var sym = MakeSym("GetUser", "App.GetUser");
+        // User* → cleaned="User" → Contains("User")
+        Assert.True(SymbolSearcher.MatchSingleToken(sym, "User*"));
+    }
+
+    [Fact]
+    public void MatchSingleToken_StarSuffix_MatchesByContains() {
+        var sym = MakeSym("UserService", "App.UserService");
+        // *Service → cleaned="Service" → Contains("Service")
+        Assert.True(SymbolSearcher.MatchSingleToken(sym, "*Service"));
+    }
+
+    [Fact]
+    public void MatchSingleToken_StarContains_MatchesByContains() {
+        var sym = MakeSym("GetUserById", "App.GetUserById");
+        // *User* → cleaned="User" → Contains("User")
+        Assert.True(SymbolSearcher.MatchSingleToken(sym, "*User*"));
+    }
+
+    [Fact]
+    public void MatchSingleToken_OnlyStar_MatchesEverything() {
+        var sym = MakeSym("Foo", "App.Foo");
+        // * → cleaned="" → return true
+        Assert.True(SymbolSearcher.MatchSingleToken(sym, "*"));
+    }
+
+    [Fact]
+    public void MatchSingleToken_StarGlob_NoContains_ReturnsFalse() {
+        var sym = MakeSym("Foo", "App.Foo");
+        Assert.False(SymbolSearcher.MatchSingleToken(sym, "Bar*"));
+    }
+
+    // ============ MatchTokens (AND) 确定性测试 ============
+
+    [Fact]
+    public void MatchTokens_AllTokensMatch_ReturnsTrue() {
+        var sym = MakeSym("ProcessOrder", "App.Services.ProcessOrder");
+        Assert.True(SymbolSearcher.MatchTokens(sym, ["Process", "Order"]));
+    }
+
+    [Fact]
+    public void MatchTokens_OneTokenNoMatch_ReturnsFalse() {
+        var sym = MakeSym("ProcessOrder", "App.Services.ProcessOrder");
+        Assert.False(SymbolSearcher.MatchTokens(sym, ["Process", "Bar"]));
+    }
+
+    [Fact]
+    public void MatchTokens_EmptyTokens_ReturnsTrue() {
+        var sym = MakeSym("Foo", "App.Foo");
+        Assert.True(SymbolSearcher.MatchTokens(sym, []));
+    }
+
+    [Fact]
+    public void MatchTokens_SingleToken_EquivalentToMatchSingle() {
+        var sym = MakeSym("ProcessOrder", "App.ProcessOrder");
+        Assert.True(SymbolSearcher.MatchTokens(sym, ["Process"]));
+    }
 }

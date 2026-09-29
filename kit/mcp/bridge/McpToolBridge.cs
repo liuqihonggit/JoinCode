@@ -53,7 +53,7 @@ public sealed class McpToolBridge {
         return groups;
     }
 
-    private static IReadOnlyList<IToolParam> BuildParameters(ToolInfo toolInfo) {
+    internal static IReadOnlyList<IToolParam> BuildParameters(ToolInfo toolInfo) {
         var requiredSet = (toolInfo.InputSchema.Required ?? []).ToFrozenSet();
 
         return toolInfo.InputSchema.Properties
@@ -74,7 +74,7 @@ public sealed class McpToolBridge {
             .ToList();
     }
 
-    private static Type MapSchemaTypeToClrType(string schemaType) {
+    internal static Type MapSchemaTypeToClrType(string schemaType) {
         return schemaType switch {
             "string" => typeof(string),
             "integer" => typeof(int),

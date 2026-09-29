@@ -18,7 +18,7 @@ public static class SubprocessEnvCleaner {
     /// </summary>
     private static readonly FrozenSet<string> SensitiveEnvVars = BuildSensitiveEnvVars();
 
-    private static FrozenSet<string> BuildSensitiveEnvVars() {
+    internal static FrozenSet<string> BuildSensitiveEnvVars() {
         // 委托 ProviderEnvVar 枚举（唯一数据源）— 所有供应商 API Key
         var providerKeys = new[] {
             ProviderEnvVar.OpenAiApiKey,
@@ -111,7 +111,7 @@ public static class SubprocessEnvCleaner {
         return env;
     }
 
-    private static bool IsSensitiveKey(string key) {
+    internal static bool IsSensitiveKey(string key) {
         foreach (var sensitive in SensitiveEnvVars) {
             if (key.Equals(sensitive, StringComparison.OrdinalIgnoreCase)
                 || key.Equals($"INPUT_{sensitive}", StringComparison.OrdinalIgnoreCase)) {

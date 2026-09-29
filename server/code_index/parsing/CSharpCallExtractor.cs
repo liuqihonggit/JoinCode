@@ -501,7 +501,7 @@ public sealed class CSharpCallExtractor {
         return null;
     }
 
-    private static string? ExtractParentClassFqn(string methodFqn) {
+    internal static string? ExtractParentClassFqn(string methodFqn) {
         var lastDot = methodFqn.LastIndexOf('.');
         if (lastDot <= 0) {
             return null;
@@ -510,7 +510,7 @@ public sealed class CSharpCallExtractor {
         return methodFqn[..lastDot];
     }
 
-    private static string FindSymbolFqn(string name, SymbolIndex symbols) {
+    internal static string FindSymbolFqn(string name, SymbolIndex symbols) {
         var symbol = symbols.GetByName(name).FirstOrDefault(s => s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface);
         return symbol?.FullyQualifiedName ?? name;
     }
@@ -545,7 +545,7 @@ public sealed class CSharpCallExtractor {
         return null;
     }
 
-    private static string FindCallerFqn(Node node, List<MethodLookupEntry> methodLookup) {
+    internal static string FindCallerFqn(Node node, List<MethodLookupEntry> methodLookup) {
         var line = node.StartPosition.Row + 1;
         MethodLookupEntry? best = null;
 
@@ -560,7 +560,7 @@ public sealed class CSharpCallExtractor {
         return best?.Fqn ?? "<global>";
     }
 
-    private static CallKind DetermineCallKind(Node invocationNode, string calleeName, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap) {
+    internal static CallKind DetermineCallKind(Node invocationNode, string calleeName, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap) {
         var funcNode = invocationNode.GetChildForField("function");
 
         if (funcNode?.Type == "identifier") {

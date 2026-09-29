@@ -77,7 +77,7 @@ public class JevQueryService : QueryServiceBase, ITypedDecisionService {
     /// <summary>
     /// 从 MessageList 构建 state — 拼接所有消息为单个字符串(决策3:方案 a)
     /// </summary>
-    private static string BuildStateFromMessageList(MessageList chatHistory) {
+    internal static string BuildStateFromMessageList(MessageList chatHistory) {
         var sb = new StringBuilder();
         foreach (var msg in chatHistory) {
             var role = msg.Role switch {
@@ -114,7 +114,7 @@ public class JevQueryService : QueryServiceBase, ITypedDecisionService {
     /// <summary>
     /// JevResponse → TypedDecisionResult — answers 映射为 JevDecision 字典
     /// </summary>
-    private static TypedDecisionResult ConvertToTypedDecisionResult(JevResponse response) {
+    internal static TypedDecisionResult ConvertToTypedDecisionResult(JevResponse response) {
         var decisions = new Dictionary<string, ITypedDecision>();
         foreach (var kvp in response.Answers) {
             decisions[kvp.Key] = ConvertToDecision(kvp.Key, kvp.Value);
@@ -129,7 +129,7 @@ public class JevQueryService : QueryServiceBase, ITypedDecisionService {
     /// <summary>
     /// JevAnswer → JevDecision — 根据 Noul/Choice/Score 哪个有值决定 Kind
     /// </summary>
-    private static JevDecision ConvertToDecision(string questionName, JevAnswer answer) {
+    internal static JevDecision ConvertToDecision(string questionName, JevAnswer answer) {
         if (answer.Noul.HasValue) {
             return new JevDecision {
                 QuestionName = questionName,
@@ -165,7 +165,7 @@ public class JevQueryService : QueryServiceBase, ITypedDecisionService {
     /// <summary>
     /// TypedDecisionResult → ApiMessage — 决策摘要塞 Content,完整决策通过 ITypedDecisionService 消费
     /// </summary>
-    private static ApiMessage ConvertToApiMessage(TypedDecisionResult result) {
+    internal static ApiMessage ConvertToApiMessage(TypedDecisionResult result) {
         var sb = new StringBuilder();
         foreach (var kvp in result.Answers) {
             var decision = kvp.Value;

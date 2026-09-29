@@ -217,7 +217,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
 
     private decimal CalculateCost(string model, int promptTokens, int completionTokens, int cacheCreationTokens = 0, int cacheReadTokens = 0) => _pricing.CalculateCost(model, promptTokens, completionTokens, cacheCreationTokens, cacheReadTokens);
 
-    private CostStatistics CalculateStatistics(IReadOnlyList<TokenUsageRecord> records) {
+    internal CostStatistics CalculateStatistics(IReadOnlyList<TokenUsageRecord> records) {
         if (records.Count == 0) {
             return new CostStatistics();
         }

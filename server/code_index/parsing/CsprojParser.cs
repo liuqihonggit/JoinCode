@@ -119,7 +119,7 @@ internal sealed class CsprojParser {
         return NormalizePath(resolved);
     }
 
-    private static string ReplaceMsBuildVariables(string input, Dictionary<string, string> props) {
+    internal static string ReplaceMsBuildVariables(string input, Dictionary<string, string> props) {
         var result = input;
         var maxIterations = 10;
 
@@ -197,7 +197,7 @@ internal sealed class CsprojParser {
         return result;
     }
 
-    private static string NormalizePath(string path) {
+    internal static string NormalizePath(string path) {
         return path.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
     }
 }

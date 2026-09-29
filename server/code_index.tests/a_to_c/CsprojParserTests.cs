@@ -196,4 +196,60 @@ public sealed class CsprojParserTests : IDisposable {
         await _fs.WriteAllText(path, content);
         return path;
     }
+
+    // ============ ReplaceMsBuildVariables 确定性测试 ============
+
+    [Fact]
+    public void ReplaceMsBuildVariables_SingleVariable_ReplacesAll() {
+        var props = new Dictionary<string, string> { ["SharedRoot"] = "..\\shared" };
+        var result = CsprojParser.ReplaceMsBuildVariables("$(SharedRoot)\\Lib.csproj", props);
+        Assert.Equal("..\\shared\\Lib.csproj", result);
+    }
+
+    [Fact]
+    public void ReplaceMsBuildVariables_MultipleVariables_ReplacesAll() {
+        var props = new Dictionary<string, string> { ["A"] = "alpha", ["B"] = "beta" };
+        var result = CsprojParser.ReplaceMsBuildVariables("$(A)_$(B)", props);
+        Assert.Equal("alpha_beta", result);
+    }
+
+    [Fact]
+    public void ReplaceMsBuildVariables_NestedVariable_ResolvesIteratively() {
+        var props = new Dictionary<string, string> { ["Outer"] = "$(Inner)", ["Inner"] = "resolved" };
+        var result = CsprojParser.ReplaceMsBuildVariables("$(Outer)", props);
+        Assert.Equal("resolved", result);
+    }
+
+    [Fact]
+    public void ReplaceMsBuildVariables_NoMatch_ReturnsOriginal() {
+        var props = new Dictionary<string, string> { ["A"] = "x" };
+        var result = CsprojParser.ReplaceMsBuildVariables("no_vars_here", props);
+        Assert.Equal("no_vars_here", result);
+    }
+
+    [Fact]
+    public void ReplaceMsBuildVariables_EmptyProps_ReturnsOriginal() {
+        var result = CsprojParser.ReplaceMsBuildVariables("$(A)", []);
+        Assert.Equal("$(A)", result);
+    }
+
+    [Fact]
+    public void ReplaceMsBuildVariables_CyclicVariables_StopsAtMaxIterations() {
+        // 循环引用 A→B→A,应在 10 次迭代后停止(不无限循环)
+        var props = new Dictionary<string, string> { ["A"] = "$(B)", ["B"] = "$(A)" };
+        var result = CsprojParser.ReplaceMsBuildVariables("$(A)", props);
+        // 不会完全解析,但不抛异常
+        Assert.NotNull(result);
+    }
+
+    // ============ NormalizePath 确定性测试 ============
+
+    [Theory]
+    [InlineData("a/b/c", "a\\b\\c")]
+    [InlineData("a\\b\\c", "a\\b\\c")]
+    [InlineData("a/b\\c/d", "a\\b\\c\\d")]
+    [InlineData("single", "single")]
+    public void NormalizePath_UnifiesSeparators(string input, string expected) {
+        Assert.Equal(expected, CsprojParser.NormalizePath(input));
+    }
 }

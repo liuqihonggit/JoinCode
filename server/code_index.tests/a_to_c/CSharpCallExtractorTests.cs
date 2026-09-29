@@ -512,4 +512,81 @@ public sealed class CSharpCallExtractorTests {
 
         Assert.Contains(calls, c => c.CallerSymbol == "Derived.ctor" && c.CalleeSymbol == "Base.ctor" && c.CallKind == CallKind.Constructor);
     }
+
+    // ============ ExtractParentClassFqn 确定性测试 ============
+
+    [Theory]
+    [InlineData("Ns.Foo.Bar", "Ns.Foo")]
+    [InlineData("Foo.Bar", "Foo")]
+    [InlineData("A.B.C.D", "A.B.C")]
+    public void ExtractParentClassFqn_MultiSegment_ReturnsParent(string fqn, string expected) {
+        Assert.Equal(expected, CSharpCallExtractor.ExtractParentClassFqn(fqn));
+    }
+
+    [Theory]
+    [InlineData("Foo")]       // 无点
+    [InlineData(".Foo")]      // lastDot == 0
+    public void ExtractParentClassFqn_NoValidParent_ReturnsNull(string fqn) {
+        Assert.Null(CSharpCallExtractor.ExtractParentClassFqn(fqn));
+    }
+
+    // ============ FindSymbolFqn 确定性测试 ============
+
+    [Fact]
+    public void FindSymbolFqn_ClassExists_ReturnsFqn() {
+        var symbols = new Ast.SymbolIndex(new List<SymbolInfo> {
+            new() { Name = "Foo", FullyQualifiedName = "Ns.Foo", Kind = SymbolKind.Class,
+                    FilePath = "f.cs", StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1 },
+        });
+
+        Assert.Equal("Ns.Foo", CSharpCallExtractor.FindSymbolFqn("Foo", symbols));
+    }
+
+    [Fact]
+    public void FindSymbolFqn_StructExists_ReturnsFqn() {
+        var symbols = new Ast.SymbolIndex(new List<SymbolInfo> {
+            new() { Name = "Point", FullyQualifiedName = "Ns.Point", Kind = SymbolKind.Struct,
+                    FilePath = "p.cs", StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1 },
+        });
+
+        Assert.Equal("Ns.Point", CSharpCallExtractor.FindSymbolFqn("Point", symbols));
+    }
+
+    [Fact]
+    public void FindSymbolFqn_InterfaceExists_ReturnsFqn() {
+        var symbols = new Ast.SymbolIndex(new List<SymbolInfo> {
+            new() { Name = "IFoo", FullyQualifiedName = "Ns.IFoo", Kind = SymbolKind.Interface,
+                    FilePath = "i.cs", StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1 },
+        });
+
+        Assert.Equal("Ns.IFoo", CSharpCallExtractor.FindSymbolFqn("IFoo", symbols));
+    }
+
+    [Fact]
+    public void FindSymbolFqn_OnlyNonTypeSymbols_ReturnsName() {
+        // 方法/字段等非类型符号不匹配,返回原始 name
+        var symbols = new Ast.SymbolIndex(new List<SymbolInfo> {
+            new() { Name = "Method", FullyQualifiedName = "Ns.Method", Kind = SymbolKind.Method,
+                    FilePath = "m.cs", StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1 },
+        });
+
+        Assert.Equal("Method", CSharpCallExtractor.FindSymbolFqn("Method", symbols));
+    }
+
+    [Fact]
+    public void FindSymbolFqn_NoMatch_ReturnsName() {
+        var symbols = new Ast.SymbolIndex(new List<SymbolInfo> {
+            new() { Name = "Foo", FullyQualifiedName = "Ns.Foo", Kind = SymbolKind.Class,
+                    FilePath = "f.cs", StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1 },
+        });
+
+        Assert.Equal("Bar", CSharpCallExtractor.FindSymbolFqn("Bar", symbols));
+    }
+
+    [Fact]
+    public void FindSymbolFqn_EmptyIndex_ReturnsName() {
+        var symbols = new Ast.SymbolIndex([]);
+
+        Assert.Equal("Anything", CSharpCallExtractor.FindSymbolFqn("Anything", symbols));
+    }
 }

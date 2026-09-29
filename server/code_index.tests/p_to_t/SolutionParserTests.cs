@@ -159,4 +159,92 @@ public sealed class SolutionParserTests : IDisposable {
     public async Task ParseSlnx_NullFileSystem_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await SolutionParser.ParseSlnxAsync("test.slnx", null!));
     }
+
+    // ============ ParseProjectLine 确定性测试 ============
+
+    [Fact]
+    public void ParseProjectLine_StandardCsproj_ReturnsEntry() {
+        var line = "Project(\"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\") = \"Core\", \"Core\\Core.csproj\", \"{A1B2C3D4-1234-5678-90AB-CDEF12345678}\"";
+
+        var entry = SolutionParser.ParseProjectLine(line, "");
+
+        Assert.NotNull(entry);
+        Assert.Equal("Core", entry!.Name);
+        Assert.EndsWith("Core.csproj", entry.RelativePath);
+        Assert.Equal("A1B2C3D4-1234-5678-90AB-CDEF12345678", entry.ProjectGuid);
+    }
+
+    [Fact]
+    public void ParseProjectLine_NoEquals_ReturnsNull() {
+        var line = "Project(\"{FAE04EC0}\") \"Core\", \"Core.csproj\", \"{GUID}\"";
+
+        Assert.Null(SolutionParser.ParseProjectLine(line, ""));
+    }
+
+    [Fact]
+    public void ParseProjectLine_NonCsproj_ReturnsNull() {
+        var line = "Project(\"{8BC9CEB8}\") = \"Native\", \"Native\\Native.vcxproj\", \"{GUID}\"";
+
+        Assert.Null(SolutionParser.ParseProjectLine(line, ""));
+    }
+
+    [Fact]
+    public void ParseProjectLine_MissingQuotes_ReturnsNull() {
+        var line = "Project(\"{FAE04EC0}\") = Core, Core.csproj, {GUID}";
+
+        Assert.Null(SolutionParser.ParseProjectLine(line, ""));
+    }
+
+    [Fact]
+    public void ParseProjectLine_TooFewParts_ReturnsNull() {
+        var line = "Project(\"{FAE04EC0}\") = \"Core\", \"{GUID}\"";
+
+        Assert.Null(SolutionParser.ParseProjectLine(line, ""));
+    }
+
+    // ============ SplitQuotedParts 确定性测试 ============
+
+    [Fact]
+    public void SplitQuotedParts_ThreeQuotedParts_ReturnsAll() {
+        var input = " = \"Core\", \"Core\\Core.csproj\", \"{GUID}\"".AsSpan();
+
+        var parts = SolutionParser.SplitQuotedParts(input);
+
+        Assert.Equal(3, parts.Count);
+        Assert.Equal("Core", parts[0]);
+        Assert.Equal("Core\\Core.csproj", parts[1]);
+        Assert.Equal("{GUID}", parts[2]);
+    }
+
+    [Fact]
+    public void SplitQuotedParts_EmptyQuotedPart_Included() {
+        var input = " \"a\", \"\", \"b\" ".AsSpan();
+
+        var parts = SolutionParser.SplitQuotedParts(input);
+
+        // 空引号 "" 长度为0,被跳过(i > start 检查)
+        Assert.Equal(2, parts.Count);
+        Assert.Equal("a", parts[0]);
+        Assert.Equal("b", parts[1]);
+    }
+
+    [Fact]
+    public void SplitQuotedParts_NoQuotes_ReturnsEmpty() {
+        var input = "no quotes here".AsSpan();
+
+        var parts = SolutionParser.SplitQuotedParts(input);
+
+        Assert.Empty(parts);
+    }
+
+    [Fact]
+    public void SplitQuotedParts_SingleQuote_ReturnsContentAfterQuote() {
+        // 只有一个引号: 引号后的内容被当作一个 part(无闭合引号)
+        var input = "only \" one quote".AsSpan();
+
+        var parts = SolutionParser.SplitQuotedParts(input);
+
+        Assert.Single(parts);
+        Assert.Equal(" one quote", parts[0]);
+    }
 }

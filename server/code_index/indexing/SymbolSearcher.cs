@@ -187,7 +187,7 @@ public sealed class SymbolSearcher : ISymbolSearcher {
     /// <summary>
     /// 解析查询为 tokens — 支持 "name1 name2" (OR) 和 "prefix*" (前缀匹配)
     /// </summary>
-    private static List<string> ParseQueryTokens(string query) {
+    internal static List<string> ParseQueryTokens(string query) {
         var tokens = new List<string>();
         var span = query.AsSpan();
 
@@ -206,7 +206,7 @@ public sealed class SymbolSearcher : ISymbolSearcher {
     /// <summary>
     /// 检查符号是否匹配所有 tokens(AND) — 每个 token 支持 name/fqn 包含或前缀匹配
     /// </summary>
-    private static bool MatchTokens(SymbolInfo symbol, List<string> tokens) {
+    internal static bool MatchTokens(SymbolInfo symbol, List<string> tokens) {
         foreach (var token in tokens) {
             if (!MatchSingleToken(symbol, token)) {
                 return false;
@@ -215,7 +215,7 @@ public sealed class SymbolSearcher : ISymbolSearcher {
         return true;
     }
 
-    private static bool MatchSingleToken(SymbolInfo symbol, string token) {
+    internal static bool MatchSingleToken(SymbolInfo symbol, string token) {
         // glob 式模糊匹配: 含 * 的 token 去掉所有 * 后做 Contains 匹配
         // 支持: prefix* / *suffix / *contains* / prefix*suffix 等所有模式
         // 语义对齐 L1 benchmark 评估用例(User* 应匹配 GetUser/ValidateUser 等 Contains 语义)

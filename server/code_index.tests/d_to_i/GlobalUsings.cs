@@ -18,3 +18,4 @@ global using Testing.Common;
 global using TreeSitter;
 global using Xunit;
 global using Structura.Collections;
+global using Structura.Dag;

@@ -396,7 +396,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 估算符号的 token 数 — 约 4 字符/token,符号含 Name+FQN+FilePath 等
     /// </summary>
-    private static int EstimateSymbolTokens(SymbolInfo symbol) {
+    internal static int EstimateSymbolTokens(SymbolInfo symbol) {
         // 简化估算: Name + FQN + FilePath 字符数 / 4, 最低 5 tokens
         var chars = symbol.Name.Length + symbol.FullyQualifiedName.Length + symbol.FilePath.Length;
         return Math.Max(5, chars / 4);
@@ -405,7 +405,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 估算调用边的 token 数 — Caller + Callee + FilePath 等
     /// </summary>
-    private static int EstimateEdgeTokens(CallEdge edge) {
+    internal static int EstimateEdgeTokens(CallEdge edge) {
         var chars = edge.CallerSymbol.Length + edge.CalleeSymbol.Length + edge.CallSiteFilePath.Length;
         return Math.Max(4, chars / 4);
     }

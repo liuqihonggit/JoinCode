@@ -210,7 +210,7 @@ public sealed class McpHttpServer : ServiceEntity {
         return _allowedOrigins.Contains(origin);
     }
 
-    private static bool IsInitializeRequest(string body) {
+    internal static bool IsInitializeRequest(string body) {
         return body.Contains("\"method\"", StringComparison.Ordinal)
             && body.Contains("\"initialize\"", StringComparison.Ordinal);
     }

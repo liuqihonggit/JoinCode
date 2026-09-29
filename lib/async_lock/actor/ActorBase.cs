@@ -356,6 +356,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         }
     }
 
+    /// <summary>判断背压信号是否需要延迟重试 — 纯函数,不依赖 Actor 状态/时序,供确定性测试</summary>
+    /// <param name="suggestedDelay">背压信号建议延迟</param>
+    /// <returns>true=需要延迟(正延迟);false=立即重试(零或负延迟)</returns>
+    internal static bool ShouldDelayRetry(TimeSpan suggestedDelay) => suggestedDelay > TimeSpan.Zero;
+
     /// <summary>
     /// 标准背压回调 — 根据水位层级计算延迟并异步重试发送命令。
     /// <para><b>层级策略</b>:</para>
@@ -373,7 +378,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         var capturedWaitGraph = _askWaitGraph.Value;
 
         return signal => {
-            if (signal.SuggestedDelay > TimeSpan.Zero) {
+            if (ShouldDelayRetry(signal.SuggestedDelay)) {
                 _ = Task.Run(async () => {
                     try {
                         using var flowScope = AsyncFlowIdentity.Restore(capturedFlow);

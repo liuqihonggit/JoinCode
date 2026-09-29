@@ -125,4 +125,56 @@ public sealed class ContinuationPromptBuilderTests {
         Assert.Contains("EXECUTE", prompt);
         Assert.Contains("Prove progress through action", prompt);
     }
+
+    [Fact]
+    public void BuildConstraintsText_Empty_Should_Return_None_Marker() {
+        var text = ContinuationPromptBuilder.BuildConstraintsText([]);
+
+        Assert.Equal("无", text);
+    }
+
+    [Fact]
+    public void BuildConstraintsText_Single_Should_Prefix_With_Dash() {
+        var text = ContinuationPromptBuilder.BuildConstraintsText(["只读模式"]);
+
+        Assert.Equal("- 只读模式", text);
+    }
+
+    [Fact]
+    public void BuildConstraintsText_Multiple_Should_Join_With_Newline() {
+        var text = ContinuationPromptBuilder.BuildConstraintsText(["A", "B", "C"]);
+
+        Assert.Equal("- A\n- B\n- C", text);
+    }
+
+    [Fact]
+    public void BuildBudgetLines_NullBudget_Should_Show_Tokens_Used_Only() {
+        var lines = ContinuationPromptBuilder.BuildBudgetLines(300, null);
+
+        Assert.Equal("- Tokens used: 300", lines);
+        Assert.DoesNotContain("budget", lines);
+    }
+
+    [Fact]
+    public void BuildBudgetLines_WithBudget_Should_Show_All_Three_Lines() {
+        var lines = ContinuationPromptBuilder.BuildBudgetLines(300, 1000);
+
+        Assert.Contains("- Token budget: 1000", lines);
+        Assert.Contains("- Budget utilization: 300 / 1000", lines);
+        Assert.Contains("- Tokens remaining: 700", lines);
+    }
+
+    [Fact]
+    public void BuildBudgetLines_OverBudget_Should_Clamp_Remaining_To_Zero() {
+        var lines = ContinuationPromptBuilder.BuildBudgetLines(1500, 1000);
+
+        Assert.Contains("- Tokens remaining: 0", lines);
+    }
+
+    [Fact]
+    public void BuildBudgetLines_ExactBudget_Should_Show_Zero_Remaining() {
+        var lines = ContinuationPromptBuilder.BuildBudgetLines(1000, 1000);
+
+        Assert.Contains("- Tokens remaining: 0", lines);
+    }
 }

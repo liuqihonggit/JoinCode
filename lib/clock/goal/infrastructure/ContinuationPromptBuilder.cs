@@ -21,13 +21,8 @@ public static class ContinuationPromptBuilder {
         int tokensUsed,
         int? tokenBudget,
         string evaluatorReason) {
-        var constraintsText = constraints.Count > 0
-            ? string.Join("\n", constraints.Select(c => $"- {c}"))
-            : "无";
-
-        var budgetLines = tokenBudget.HasValue
-            ? $"- Token budget: {tokenBudget.Value}\n- Budget utilization: {tokensUsed} / {tokenBudget.Value}\n- Tokens remaining: {Math.Max(0, tokenBudget.Value - tokensUsed)}"
-            : $"- Tokens used: {tokensUsed}";
+        var constraintsText = BuildConstraintsText(constraints);
+        var budgetLines = BuildBudgetLines(tokensUsed, tokenBudget);
 
         return $"""
             Continue working toward the active thread goal.
@@ -56,6 +51,27 @@ public static class ContinuationPromptBuilder {
             Do not rely on intent, partial progress, elapsed effort, or a plausible final answer as proof of completion.
             """;
     }
+
+    /// <summary>
+    /// 构造约束文本 — 纯函数,无副作用,确定性输出。
+    /// </summary>
+    /// <param name="constraints">约束条件列表</param>
+    /// <returns>格式化后的约束文本</returns>
+    internal static string BuildConstraintsText(IReadOnlyList<string> constraints) =>
+        constraints.Count > 0
+            ? string.Join("\n", constraints.Select(c => $"- {c}"))
+            : "无";
+
+    /// <summary>
+    /// 构造预算行文本 — 纯函数,无副作用,确定性输出。
+    /// </summary>
+    /// <param name="tokensUsed">已用 Token 数</param>
+    /// <param name="tokenBudget">Token 预算上限,可为空</param>
+    /// <returns>格式化后的预算行文本</returns>
+    internal static string BuildBudgetLines(int tokensUsed, int? tokenBudget) =>
+        tokenBudget.HasValue
+            ? $"- Token budget: {tokenBudget.Value}\n- Budget utilization: {tokensUsed} / {tokenBudget.Value}\n- Tokens remaining: {Math.Max(0, tokenBudget.Value - tokensUsed)}"
+            : $"- Tokens used: {tokensUsed}";
 
     /// <summary>
     /// 构建预算超限提示词 — 通知 LLM 已达预算上限，要求总结进展并给出下一步

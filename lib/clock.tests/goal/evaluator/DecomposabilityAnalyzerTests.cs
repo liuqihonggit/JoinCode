@@ -306,4 +306,108 @@ public sealed class DecomposabilityAnalyzerTests {
         Assert.Contains("\"mode\"", systemMessage);
         Assert.Contains("\"rationale\"", systemMessage);
     }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_Should_Contain_Objective() {
+        var prompt = DecomposabilityAnalyzer.BuildAnalyzerPrompt("重构订单模块", []);
+
+        Assert.Contains("重构订单模块", prompt);
+        Assert.Contains("OBJECTIVE:", prompt);
+    }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_Should_Contain_Constraints() {
+        var prompt = DecomposabilityAnalyzer.BuildAnalyzerPrompt("实现功能", ["不修改公共API", "覆盖率>80%"]);
+
+        Assert.Contains("不修改公共API", prompt);
+        Assert.Contains("覆盖率>80%", prompt);
+        Assert.Contains("CONSTRAINTS:", prompt);
+    }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_EmptyConstraints_Should_Contain_Default_Marker() {
+        var prompt = DecomposabilityAnalyzer.BuildAnalyzerPrompt("实现功能", []);
+
+        Assert.Contains("无特殊约束", prompt);
+    }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_Should_Contain_ThinkingChain_Steps() {
+        var prompt = DecomposabilityAnalyzer.BuildAnalyzerPrompt("目标", []);
+
+        Assert.Contains("THINKING CHAIN", prompt);
+        Assert.Contains("Step 1", prompt);
+        Assert.Contains("Step 2", prompt);
+        Assert.Contains("Step 3", prompt);
+        Assert.Contains("Step 4", prompt);
+    }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_Should_Contain_Decomposability_Rules() {
+        var prompt = DecomposabilityAnalyzer.BuildAnalyzerPrompt("目标", []);
+
+        Assert.Contains("DECOMPOSABILITY RULES", prompt);
+        Assert.Contains("isDecomposable", prompt);
+    }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_Should_Contain_Complexity_Levels() {
+        var prompt = DecomposabilityAnalyzer.BuildAnalyzerPrompt("目标", []);
+
+        Assert.Contains("COMPLEXITY LEVELS", prompt);
+        Assert.Contains("\"low\"", prompt);
+        Assert.Contains("\"medium\"", prompt);
+        Assert.Contains("\"high\"", prompt);
+    }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_Should_Contain_Execution_Modes() {
+        var prompt = DecomposabilityAnalyzer.BuildAnalyzerPrompt("目标", []);
+
+        Assert.Contains("EXECUTION MODES", prompt);
+        Assert.Contains("\"A\"", prompt);
+        Assert.Contains("\"B\"", prompt);
+        Assert.Contains("serial-first", prompt);
+        Assert.Contains("parallel-first", prompt);
+    }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_Should_Contain_Response_Format() {
+        var prompt = DecomposabilityAnalyzer.BuildAnalyzerPrompt("目标", []);
+
+        Assert.Contains("RESPONSE FORMAT", prompt);
+        Assert.Contains("```json", prompt);
+        Assert.Contains("subTasks", prompt);
+        Assert.Contains("ownedFiles", prompt);
+        Assert.Contains("dependsOn", prompt);
+    }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_DifferentObjectives_Should_Produce_Different_Prompts() {
+        var prompt1 = DecomposabilityAnalyzer.BuildAnalyzerPrompt("目标A", []);
+        var prompt2 = DecomposabilityAnalyzer.BuildAnalyzerPrompt("目标B", []);
+
+        Assert.NotEqual(prompt1, prompt2);
+    }
+
+    [Fact]
+    public void BuildAnalyzerConstraintsText_Empty_Should_Return_Default_Marker() {
+        var text = DecomposabilityAnalyzer.BuildAnalyzerConstraintsText([]);
+
+        Assert.Equal("无特殊约束", text);
+    }
+
+    [Fact]
+    public void BuildAnalyzerConstraintsText_Single_Should_Prefix_With_Dash() {
+        var text = DecomposabilityAnalyzer.BuildAnalyzerConstraintsText(["只读模式"]);
+
+        Assert.Equal("- 只读模式", text);
+    }
+
+    [Fact]
+    public void BuildAnalyzerConstraintsText_Multiple_Should_Join_With_Newline() {
+        var text = DecomposabilityAnalyzer.BuildAnalyzerConstraintsText(["A", "B"]);
+
+        Assert.Equal("- A\n- B", text);
+    }
 }

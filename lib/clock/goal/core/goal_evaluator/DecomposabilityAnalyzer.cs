@@ -98,10 +98,8 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
         return DecompositionResult.NotDecomposable(formatError);
     }
 
-    private static string BuildAnalyzerPrompt(string objective, IReadOnlyList<string> constraints) {
-        var constraintsText = constraints.Count > 0
-            ? string.Join("\n", constraints.Select(c => $"- {c}"))
-            : "无特殊约束";
+    internal static string BuildAnalyzerPrompt(string objective, IReadOnlyList<string> constraints) {
+        var constraintsText = BuildAnalyzerConstraintsText(constraints);
 
         return $$$"""
             You are a task decomposition analyst for a parallel agent system. Your job is to determine whether a given objective can be split into independent or partially-dependent subtasks that can execute in parallel.
@@ -178,4 +176,14 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
             If isDecomposable is false, subTasks should be an empty array.
             """;
     }
+
+    /// <summary>
+    /// 构造分析器约束文本 — 纯函数,无副作用,确定性输出。
+    /// </summary>
+    /// <param name="constraints">约束条件列表</param>
+    /// <returns>格式化后的约束文本(空列表返回"无特殊约束")</returns>
+    internal static string BuildAnalyzerConstraintsText(IReadOnlyList<string> constraints) =>
+        constraints.Count > 0
+            ? string.Join("\n", constraints.Select(c => $"- {c}"))
+            : "无特殊约束";
 }

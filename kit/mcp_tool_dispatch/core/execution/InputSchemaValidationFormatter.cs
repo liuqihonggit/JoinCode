@@ -40,7 +40,7 @@ internal static class InputSchemaValidationFormatter {
         return msg;
     }
 
-    private static bool TryParseMissingRequired(string msg, string path, out string paramName) {
+    internal static bool TryParseMissingRequired(string msg, string path, out string paramName) {
         paramName = string.Empty;
 
         if (msg.Contains("missing", StringComparison.OrdinalIgnoreCase) ||
@@ -52,7 +52,7 @@ internal static class InputSchemaValidationFormatter {
         return false;
     }
 
-    private static bool TryParseUnexpectedKey(string msg, out string paramName) {
+    internal static bool TryParseUnexpectedKey(string msg, out string paramName) {
         paramName = string.Empty;
 
         if (!msg.Contains("unexpected", StringComparison.OrdinalIgnoreCase) &&
@@ -71,7 +71,7 @@ internal static class InputSchemaValidationFormatter {
         return true;
     }
 
-    private static bool TryParseTypeMismatch(string msg, string path, out string paramName, out string expected, out string received) {
+    internal static bool TryParseTypeMismatch(string msg, string path, out string paramName, out string expected, out string received) {
         paramName = string.Empty;
         expected = string.Empty;
         received = string.Empty;
@@ -96,7 +96,7 @@ internal static class InputSchemaValidationFormatter {
         return true;
     }
 
-    private static string ExtractParamName(string msg, string path) {
+    internal static string ExtractParamName(string msg, string path) {
         if (!string.IsNullOrEmpty(path) && path != "$") {
             var cleanPath = path.StartsWith("$.") ? path[2..] : path;
             var dotIdx = cleanPath.IndexOf('.');

@@ -98,7 +98,7 @@ public sealed class JudgeAgent : ReasoningAgent {
     /// <summary>
     /// 使用加权决策系统裁决 — 5维客观权重 + 链式传播
     /// </summary>
-    private Verdict? DecideWithWeightedSystem(
+    internal Verdict? DecideWithWeightedSystem(
         DataItem item,
         IReadOnlyList<EvidenceRecord> prosEvidence,
         IReadOnlyList<EvidenceRecord> defEvidence,
@@ -149,7 +149,7 @@ public sealed class JudgeAgent : ReasoningAgent {
         return null;
     }
 
-    private List<Verdict> ParseVerdictsFromLlmResponse(string content, IReadOnlyList<DataItem> pending) {
+    internal List<Verdict> ParseVerdictsFromLlmResponse(string content, IReadOnlyList<DataItem> pending) {
         var verdicts = new List<Verdict>();
         try {
             var json = ExtractJsonObject(content, _logger);
@@ -178,7 +178,7 @@ public sealed class JudgeAgent : ReasoningAgent {
         return verdicts;
     }
 
-    private static VerdictDecision ParseDecision(string? value) => value switch {
+    internal static VerdictDecision ParseDecision(string? value) => value switch {
         "Accept" => VerdictDecision.Accept,
         "Reject" => VerdictDecision.Reject,
         "PartiallyAccept" => VerdictDecision.PartiallyAccept,

@@ -25,7 +25,7 @@ public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutio
         _registry = registry;
     }
 
-    private EffortLevel LoadPersistedEffort() {
+    internal EffortLevel LoadPersistedEffort() {
         // 从 settings.json 读取持久化的 effortLevel — 对齐 TS getUserSpecifiedModelSetting
         var persistedEffort = SyncFileReader.RunStringNullable(() => ConfigLoader.LoadSettingFromSettingsJson("effortLevel", _fs));
         return EffortLevelHelper.ParseEffortLevel(persistedEffort) ?? EffortLevel.Auto;
@@ -100,7 +100,7 @@ public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutio
         }
     }
 
-    private bool LoadPersistedThinkingEnabled() {
+    internal bool LoadPersistedThinkingEnabled() {
         var persisted = SyncFileReader.RunStringNullable(() => ConfigLoader.LoadSettingFromSettingsJson("alwaysThinkingEnabled", _fs));
         return string.Equals(persisted, "true", StringComparison.OrdinalIgnoreCase);
     }

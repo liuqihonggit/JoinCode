@@ -252,4 +252,159 @@ public sealed partial class McpToolSyncBridgeTests {
         capturedSpecs.Should().NotBeNull();
         capturedSpecs![0].InputSchemaJson.Should().Contain("\"type\":\"object\"");
     }
+
+    // ===== SerializeToolSchema 确定性测试（internal static 纯计算） =====
+
+    [Fact]
+    public void SerializeToolSchema_NullSchema_ReturnsNull() {
+        var result = McpToolSyncBridge.SerializeToolSchema(null);
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void SerializeToolSchema_EmptyPropertiesAndRequired_ReturnsMinimalObject() {
+        var schema = new ToolSchema { Type = "object" };
+        var result = McpToolSyncBridge.SerializeToolSchema(schema);
+        result.Should().Be("{\"type\":\"object\",\"properties\":{}}");
+    }
+
+    [Fact]
+    public void SerializeToolSchema_PropertyWithoutDescription_OmitsDescriptionField() {
+        var schema = new ToolSchema {
+            Type = "object",
+            Properties = new Dictionary<string, ToolSchemaProperty> {
+                ["query"] = new ToolSchemaProperty { Type = "string" }
+            }
+        };
+        var result = McpToolSyncBridge.SerializeToolSchema(schema);
+        result.Should().Be("{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}}}");
+        result.Should().NotContain("description");
+    }
+
+    [Fact]
+    public void SerializeToolSchema_PropertyWithDescription_IncludesDescriptionField() {
+        var schema = new ToolSchema {
+            Type = "object",
+            Properties = new Dictionary<string, ToolSchemaProperty> {
+                ["query"] = new ToolSchemaProperty { Type = "string", Description = "search query" }
+            }
+        };
+        var result = McpToolSyncBridge.SerializeToolSchema(schema);
+        result.Should().Contain("\"description\":\"search query\"");
+    }
+
+    [Fact]
+    public void SerializeToolSchema_DescriptionWithBackslash_EscapesBackslash() {
+        var schema = new ToolSchema {
+            Type = "object",
+            Properties = new Dictionary<string, ToolSchemaProperty> {
+                ["path"] = new ToolSchemaProperty { Type = "string", Description = "C:\\Users\\test" }
+            }
+        };
+        var result = McpToolSyncBridge.SerializeToolSchema(schema);
+        result.Should().Contain("\"description\":\"C:\\\\Users\\\\test\"");
+    }
+
+    [Fact]
+    public void SerializeToolSchema_DescriptionWithDoubleQuote_EscapesQuote() {
+        var schema = new ToolSchema {
+            Type = "object",
+            Properties = new Dictionary<string, ToolSchemaProperty> {
+                ["text"] = new ToolSchemaProperty { Type = "string", Description = "say \"hello\"" }
+            }
+        };
+        var result = McpToolSyncBridge.SerializeToolSchema(schema);
+        result.Should().Contain("\"description\":\"say \\\"hello\\\"\"");
+    }
+
+    [Fact]
+    public void SerializeToolSchema_DescriptionWithBackslashAndQuote_EscapesBoth() {
+        var schema = new ToolSchema {
+            Type = "object",
+            Properties = new Dictionary<string, ToolSchemaProperty> {
+                ["text"] = new ToolSchemaProperty { Type = "string", Description = "\\path\"end" }
+            }
+        };
+        var result = McpToolSyncBridge.SerializeToolSchema(schema);
+        result.Should().Contain("\"description\":\"\\\\path\\\"end\"");
+    }
+
+    [Fact]
+    public void SerializeToolSchema_WithRequired_IncludesRequiredArray() {
+        var schema = new ToolSchema {
+            Type = "object",
+            Properties = new Dictionary<string, ToolSchemaProperty> {
+                ["query"] = new ToolSchemaProperty { Type = "string" }
+            },
+            Required = new List<string> { "query" }
+        };
+        var result = McpToolSyncBridge.SerializeToolSchema(schema);
+        result.Should().Contain("\"required\":[\"query\"]");
+    }
+
+    [Fact]
+    public void SerializeToolSchema_WithMultipleRequired_IncludesAllInArray() {
+        var schema = new ToolSchema {
+            Type = "object",
+            Properties = new Dictionary<string, ToolSchemaProperty> {
+                ["a"] = new ToolSchemaProperty { Type = "string" },
+                ["b"] = new ToolSchemaProperty { Type = "string" }
+            },
+            Required = new List<string> { "a", "b" }
+        };
+        var result = McpToolSyncBridge.SerializeToolSchema(schema);
+        result.Should().Contain("\"required\":[\"a\",\"b\"]");
+    }
+
+    [Fact]
+    public void SerializeToolSchema_EmptyRequired_OmitsRequiredField() {
+        var schema = new ToolSchema {
+            Type = "object",
+            Properties = new Dictionary<string, ToolSchemaProperty> {
+                ["query"] = new ToolSchemaProperty { Type = "string" }
+            },
+            Required = new List<string>()
+        };
+        var result = McpToolSyncBridge.SerializeToolSchema(schema);
+        result.Should().NotContain("required");
+    }
+
+    [Fact]
+    public void SerializeToolSchema_MultipleProperties_SerializesAll() {
+        var schema = new ToolSchema {
+            Type = "object",
+            Properties = new Dictionary<string, ToolSchemaProperty> {
+                ["name"] = new ToolSchemaProperty { Type = "string", Description = "name field" },
+                ["age"] = new ToolSchemaProperty { Type = "integer", Description = "age field" }
+            }
+        };
+        var result = McpToolSyncBridge.SerializeToolSchema(schema);
+        result.Should().Contain("\"name\":{\"type\":\"string\",\"description\":\"name field\"}");
+        result.Should().Contain("\"age\":{\"type\":\"integer\",\"description\":\"age field\"}");
+    }
+
+    [Fact]
+    public void SerializeToolSchema_CustomType_UsesCustomType() {
+        var schema = new ToolSchema {
+            Type = "array",
+            Properties = new Dictionary<string, ToolSchemaProperty>()
+        };
+        var result = McpToolSyncBridge.SerializeToolSchema(schema);
+        result.Should().StartWith("{\"type\":\"array\"");
+    }
+
+    [Fact]
+    public void SerializeToolSchema_FullSchema_ProducesValidJsonStructure() {
+        var schema = new ToolSchema {
+            Type = "object",
+            Properties = new Dictionary<string, ToolSchemaProperty> {
+                ["query"] = new ToolSchemaProperty { Type = "string", Description = "search" }
+            },
+            Required = new List<string> { "query" }
+        };
+        var result = McpToolSyncBridge.SerializeToolSchema(schema);
+        result.Should().StartWith("{\"type\":\"object\",\"properties\":{");
+        result.Should().EndWith("}");
+        result.Should().Contain("\"required\":[\"query\"]");
+    }
 }

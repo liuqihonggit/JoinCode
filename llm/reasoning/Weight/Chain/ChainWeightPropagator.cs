@@ -54,7 +54,7 @@ public sealed class ChainWeightPropagator {
         };
     }
 
-    private static double CalculateVariance(List<double> scores) {
+    internal static double CalculateVariance(List<double> scores) {
         if (scores.Count <= 1) return 0;
         var mean = scores.Average();
         return scores.Sum(s => Math.Pow(s - mean, 2)) / scores.Count;

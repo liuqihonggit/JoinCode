@@ -219,7 +219,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
             $"MCP 调用目标: {execution.McpTarget}，参数: {string.Join(", ", arguments.Keys)}").Build();
     }
 
-    private static string ReplacePlaceholders(string template, Dictionary<string, JsonElement> args) {
+    internal static string ReplacePlaceholders(string template, Dictionary<string, JsonElement> args) {
         foreach (var kvp in args) {
             var value = kvp.Value.ValueKind switch {
                 JsonValueKind.String => kvp.Value.GetString() ?? "",
@@ -233,7 +233,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         return template;
     }
 
-    private static ToolSchema BuildSchema(ToolTemplate template) {
+    internal static ToolSchema BuildSchema(ToolTemplate template) {
         var properties = new Dictionary<string, ToolSchemaProperty>();
         var required = new List<string>();
 

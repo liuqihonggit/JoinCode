@@ -61,17 +61,13 @@ public sealed class EvidenceUrlVerifier {
             isAccessible = true;
 
             if (!string.IsNullOrEmpty(evidence.ExtractedText)) {
-                containsExpectedText = content.Contains(evidence.ExtractedText, StringComparison.Ordinal);
-
-                var lines = content.Split('\n');
-                for (var i = 0; i < lines.Length; i++) {
-                    if (lines[i].Contains(evidence.ExtractedText, StringComparison.Ordinal)) {
-                        foundAtLine = i + 1;
-                        extractedText = lines[i].Trim();
-                        isValid = true;
-                        verificationTime = DateTime.UtcNow;
-                        break;
-                    }
+                var (contains, line, text) = FindExtractedText(content, evidence.ExtractedText);
+                containsExpectedText = contains;
+                foundAtLine = line;
+                extractedText = text;
+                if (line is not null) {
+                    isValid = true;
+                    verificationTime = DateTime.UtcNow;
                 }
             } else {
                 isValid = true;
@@ -118,5 +114,25 @@ public sealed class EvidenceUrlVerifier {
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// 在页面内容中查找期望文本 — 返回是否包含、首次出现行号(从1开始)与该行去除首尾空白后的文本。
+    /// 纯计算,不涉及 IO 与时间。extractedText 为 null 或空时返回 (false, null, null)。
+    /// </summary>
+    /// <param name="content">页面全文</param>
+    /// <param name="extractedText">期望定位的文本片段</param>
+    /// <returns>(整体包含, 首次命中行号, 命中行去除空白文本); 未命中行时行号与文本为 null</returns>
+    internal static (bool ContainsExpectedText, int? FoundAtLine, string? ExtractedLineText) FindExtractedText(string content, string? extractedText) {
+        if (string.IsNullOrEmpty(extractedText)) return (false, null, null);
+
+        var contains = content.Contains(extractedText, StringComparison.Ordinal);
+        var lines = content.Split('\n');
+        for (var i = 0; i < lines.Length; i++) {
+            if (lines[i].Contains(extractedText, StringComparison.Ordinal)) {
+                return (contains, i + 1, lines[i].Trim());
+            }
+        }
+        return (contains, null, null);
     }
 }

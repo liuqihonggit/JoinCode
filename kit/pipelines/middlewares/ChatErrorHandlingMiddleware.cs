@@ -79,7 +79,7 @@ internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.
         return new ApiException($"对话管道异常: {ex.Message}", ex, errorCode: ErrorCode.WorkflowExecution.ToValue());
     }
 
-    private static string GetEndpointHint(Exception ex) {
+    internal static string GetEndpointHint(Exception ex) {
         var msg = ex.Message;
         if (msg.Contains("localhost") || msg.Contains("127.0.0.1"))
             return "本地服务";

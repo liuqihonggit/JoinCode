@@ -96,7 +96,7 @@ public sealed partial class McpToolSyncBridge : ServiceEntity {
         }
     }
 
-    private static string? SerializeToolSchema(ToolSchema? schema) {
+    internal static string? SerializeToolSchema(ToolSchema? schema) {
         if (schema == null) return null;
 
         var props = string.Join(",", schema.Properties.Select(kvp => {

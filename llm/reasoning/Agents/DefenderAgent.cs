@@ -85,7 +85,7 @@ public sealed class DefenderAgent : ReasoningAgent {
         return action;
     }
 
-    private (List<EvidenceRecord> CounterEvidence, List<string> Doubts) ParseCounterEvidenceFromLlmResponse(string content) {
+    internal (List<EvidenceRecord> CounterEvidence, List<string> Doubts) ParseCounterEvidenceFromLlmResponse(string content) {
         var counterEvidence = new List<EvidenceRecord>();
         var doubts = new List<string>();
 

@@ -19,16 +19,7 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
         IBriefModeService? briefModeService = null,
         ISystemActuatorRegistry? actuatorRegistry = null) {
         ProjectRules = config.ProjectRules;
-        ExternalRules = config.ExternalRules.Count > 0
-            ? config.ExternalRules.Select(r => new ExternalRuleEntry {
-                Name = r.Name,
-                Content = r.Content,
-                SourcePath = r.SourcePath,
-                AlwaysApply = r.AlwaysApply,
-                Globs = r.Globs,
-                Description = r.Description
-            }).ToArray()
-            : [];
+        ExternalRules = ConvertExternalRules(config.ExternalRules);
         FileContext = fileContext;
         IsCoordinatorMode = IsCoordinatorModeEnabledFromEnv();
         AgentDefinitions = [];
@@ -43,5 +34,21 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
         AwaySummary = null;
 
         ShellInfos = actuatorRegistry?.GetAllInfos() ?? new Dictionary<SystemActuatorKind, SystemActuatorInfo>();
+    }
+
+    /// <summary>
+    /// 将 WorkflowConfig.ExternalRules (RuleFile) 转换为 ExternalRuleEntry 数组 — 纯 Select+ToArray，供确定性测试覆盖。
+    /// </summary>
+    internal static ExternalRuleEntry[] ConvertExternalRules(List<RuleFile> externalRules) {
+        return externalRules.Count > 0
+            ? externalRules.Select(r => new ExternalRuleEntry {
+                Name = r.Name,
+                Content = r.Content,
+                SourcePath = r.SourcePath,
+                AlwaysApply = r.AlwaysApply,
+                Globs = r.Globs,
+                Description = r.Description
+            }).ToArray()
+            : [];
     }
 }

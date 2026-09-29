@@ -184,4 +184,175 @@ public class InputSchemaValidationFormatterTests {
         result.Should().Contain("Tool");
         result.Should().Contain("Unexpected");
     }
+
+    // === TryParseMissingRequired (internal static) ===
+
+    [Fact]
+    public void TryParseMissingRequired_ContainsMissing_ReturnsTrueAndExtractsParam() {
+        var ok = InputSchemaValidationFormatter.TryParseMissingRequired(
+            "Required property 'command' is missing", "$.command", out var paramName);
+        ok.Should().BeTrue();
+        paramName.Should().Be("command");
+    }
+
+    [Fact]
+    public void TryParseMissingRequired_ContainsRequired_ReturnsTrue() {
+        var ok = InputSchemaValidationFormatter.TryParseMissingRequired(
+            "is required", "$.timeout", out var paramName);
+        ok.Should().BeTrue();
+        paramName.Should().Be("timeout");
+    }
+
+    [Fact]
+    public void TryParseMissingRequired_NoKeyword_ReturnsFalse() {
+        var ok = InputSchemaValidationFormatter.TryParseMissingRequired(
+            "some other error", "$.x", out var paramName);
+        ok.Should().BeFalse();
+        paramName.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TryParseMissingRequired_CaseInsensitive_ReturnsTrue() {
+        var ok = InputSchemaValidationFormatter.TryParseMissingRequired(
+            "MISSING property", "$.x", out _);
+        ok.Should().BeTrue();
+    }
+
+    // === TryParseUnexpectedKey (internal static) ===
+
+    [Fact]
+    public void TryParseUnexpectedKey_UnexpectedWithQuotes_ReturnsTrueAndExtracts() {
+        var ok = InputSchemaValidationFormatter.TryParseUnexpectedKey(
+            "Unexpected property 'foo' found", out var paramName);
+        ok.Should().BeTrue();
+        paramName.Should().Be("foo");
+    }
+
+    [Fact]
+    public void TryParseUnexpectedKey_UnrecognizedWithQuotes_ReturnsTrue() {
+        var ok = InputSchemaValidationFormatter.TryParseUnexpectedKey(
+            "Unrecognized property 'bar'", out var paramName);
+        ok.Should().BeTrue();
+        paramName.Should().Be("bar");
+    }
+
+    [Fact]
+    public void TryParseUnexpectedKey_AdditionalWithQuotes_ReturnsTrue() {
+        var ok = InputSchemaValidationFormatter.TryParseUnexpectedKey(
+            "Additional property 'extra' not allowed", out var paramName);
+        ok.Should().BeTrue();
+        paramName.Should().Be("extra");
+    }
+
+    [Fact]
+    public void TryParseUnexpectedKey_NoKeyword_ReturnsFalse() {
+        var ok = InputSchemaValidationFormatter.TryParseUnexpectedKey(
+            "some error", out var paramName);
+        ok.Should().BeFalse();
+        paramName.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TryParseUnexpectedKey_KeywordButNoQuotes_ReturnsFalse() {
+        var ok = InputSchemaValidationFormatter.TryParseUnexpectedKey(
+            "Unexpected property found without quotes", out var paramName);
+        ok.Should().BeFalse();
+        paramName.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TryParseUnexpectedKey_OnlyOpeningQuote_ReturnsFalse() {
+        var ok = InputSchemaValidationFormatter.TryParseUnexpectedKey(
+            "Unexpected 'foo", out var paramName);
+        ok.Should().BeFalse();
+        paramName.Should().BeEmpty();
+    }
+
+    // === TryParseTypeMismatch (internal static) ===
+
+    [Fact]
+    public void TryParseTypeMismatch_ExpectedButGot_ReturnsTrueAndExtractsTypes() {
+        var ok = InputSchemaValidationFormatter.TryParseTypeMismatch(
+            "Expected type integer but got string", "$.count",
+            out var paramName, out var expected, out var received);
+        ok.Should().BeTrue();
+        paramName.Should().Be("count");
+        expected.Should().Contain("integer");
+        received.Should().Contain("string");
+    }
+
+    [Fact]
+    public void TryParseTypeMismatch_TypeMismatchExpectedButGot_ReturnsTrue() {
+        var ok = InputSchemaValidationFormatter.TryParseTypeMismatch(
+            "type mismatch - expected number but got string", "$.size",
+            out var paramName, out var expected, out var received);
+        ok.Should().BeTrue();
+        paramName.Should().Be("size");
+        expected.Should().Contain("number");
+        received.Should().Contain("string");
+    }
+
+    [Fact]
+    public void TryParseTypeMismatch_NoTypeKeyword_ReturnsFalse() {
+        var ok = InputSchemaValidationFormatter.TryParseTypeMismatch(
+            "expected value but got nothing", "$.x",
+            out var paramName, out var expected, out var received);
+        ok.Should().BeFalse();
+        paramName.Should().BeEmpty();
+        expected.Should().BeEmpty();
+        received.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TryParseTypeMismatch_TypeButNoExpected_ReturnsFalse() {
+        var ok = InputSchemaValidationFormatter.TryParseTypeMismatch(
+            "type error occurred", "$.x",
+            out var paramName, out var expected, out var received);
+        ok.Should().BeFalse();
+    }
+
+    [Fact]
+    public void TryParseTypeMismatch_TypeExpectedButNoBut_ReturnsFalse() {
+        var ok = InputSchemaValidationFormatter.TryParseTypeMismatch(
+            "type expected integer", "$.x",
+            out var paramName, out var expected, out var received);
+        ok.Should().BeFalse();
+    }
+
+    // === ExtractParamName (internal static) ===
+
+    [Fact]
+    public void ExtractParamName_PathWithDollarDot_ReturnsCleanPath() {
+        InputSchemaValidationFormatter.ExtractParamName("err", "$.command").Should().Be("command");
+    }
+
+    [Fact]
+    public void ExtractParamName_NestedPath_ReturnsTopLevelParam() {
+        InputSchemaValidationFormatter.ExtractParamName("err", "$.config.depth").Should().Be("config");
+    }
+
+    [Fact]
+    public void ExtractParamName_PathWithoutDollar_ReturnsPath() {
+        InputSchemaValidationFormatter.ExtractParamName("err", "filePath").Should().Be("filePath");
+    }
+
+    [Fact]
+    public void ExtractParamName_DollarOnlyPath_ExtractsFromMessage() {
+        InputSchemaValidationFormatter.ExtractParamName("Required 'timeout' is missing", "$").Should().Be("timeout");
+    }
+
+    [Fact]
+    public void ExtractParamName_EmptyPath_ExtractsFromMessage() {
+        InputSchemaValidationFormatter.ExtractParamName("property 'foo' invalid", "").Should().Be("foo");
+    }
+
+    [Fact]
+    public void ExtractParamName_NoPathNoQuotes_ReturnsUnknown() {
+        InputSchemaValidationFormatter.ExtractParamName("generic error", "").Should().Be("unknown");
+    }
+
+    [Fact]
+    public void ExtractParamName_PathWithOnlyOpeningQuoteInMessage_ReturnsUnknown() {
+        InputSchemaValidationFormatter.ExtractParamName("error 'foo", "").Should().Be("unknown");
+    }
 }

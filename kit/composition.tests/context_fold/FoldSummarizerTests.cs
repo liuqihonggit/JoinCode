@@ -105,4 +105,69 @@ public sealed class FoldSummarizerTests {
         var act = async () => await sut.SummarizeForFoldAsync(messages);
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
+
+    // ===== BuildTranscript 确定性测试（internal static 纯计算） =====
+
+    [Fact]
+    public void BuildTranscript_EmptyList_ReturnsEmptyString() {
+        var result = FoldSummarizer.BuildTranscript([]);
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BuildTranscript_SingleMessage_ReturnsFormattedLine() {
+        var messages = new List<ApiMessage>
+        {
+            new(MessageRole.User, "hello"),
+        };
+        var result = FoldSummarizer.BuildTranscript(messages);
+        result.Should().Be("[user]: hello");
+    }
+
+    [Fact]
+    public void BuildTranscript_NullContent_ReturnsEmptyContentAfterRole() {
+        var messages = new List<ApiMessage>
+        {
+            new(MessageRole.User, null),
+        };
+        var result = FoldSummarizer.BuildTranscript(messages);
+        result.Should().Be("[user]: ");
+    }
+
+    [Theory]
+    [InlineData(MessageRole.System, "system")]
+    [InlineData(MessageRole.User, "user")]
+    [InlineData(MessageRole.Assistant, "assistant")]
+    [InlineData(MessageRole.Tool, "tool")]
+    public void BuildTranscript_AllRoles_ConvertsRoleCorrectly(MessageRole role, string expectedRoleValue) {
+        var messages = new List<ApiMessage>
+        {
+            new(role, "content"),
+        };
+        var result = FoldSummarizer.BuildTranscript(messages);
+        result.Should().Be($"[{expectedRoleValue}]: content");
+    }
+
+    [Fact]
+    public void BuildTranscript_MultipleMessages_JoinsWithNewline() {
+        var messages = new List<ApiMessage>
+        {
+            new(MessageRole.User, "first"),
+            new(MessageRole.Assistant, "second"),
+            new(MessageRole.User, "third"),
+        };
+        var result = FoldSummarizer.BuildTranscript(messages);
+        result.Should().Be("[user]: first\n[assistant]: second\n[user]: third");
+    }
+
+    [Fact]
+    public void BuildTranscript_MixedNullAndNonNullContent_HandlesGracefully() {
+        var messages = new List<ApiMessage>
+        {
+            new(MessageRole.User, "has content"),
+            new(MessageRole.Assistant, null),
+        };
+        var result = FoldSummarizer.BuildTranscript(messages);
+        result.Should().Be("[user]: has content\n[assistant]: ");
+    }
 }

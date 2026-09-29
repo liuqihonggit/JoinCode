@@ -70,7 +70,7 @@ public sealed class BayesianEvidenceUpdater {
         return _beliefs.Values.Average(b => b.Variance);
     }
 
-    private static Posterior UpdateGaussian(Posterior prior, double likelihoodMean, double likelihoodVariance) {
+    internal static Posterior UpdateGaussian(Posterior prior, double likelihoodMean, double likelihoodVariance) {
         var posteriorVariance = 1.0 / (1.0 / prior.Variance + 1.0 / likelihoodVariance);
         var posteriorMean = posteriorVariance * (prior.Mean / prior.Variance + likelihoodMean / likelihoodVariance);
 

@@ -5,4 +5,8 @@
     <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.BclBridge.Tests" />
+  </ItemGroup>
+
 </Project>

@@ -233,7 +233,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// </summary>
     public void RemoveFromAutoApproved(string toolName) {
         _autoApprovedTools.Remove(toolName);
-        _config.AutoApprovedTools.Remove(toolName);
+        _config.AutoApprovedTools = _config.AutoApprovedTools.Remove(toolName);
     }
 
     /// <summary>
@@ -241,6 +241,6 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// </summary>
     public void RemoveFromAutoRejected(string toolName) {
         _autoRejectedTools.Remove(toolName);
-        _config.AutoRejectedTools.Remove(toolName);
+        _config.AutoRejectedTools = _config.AutoRejectedTools.Remove(toolName);
     }
 }

@@ -99,4 +99,9 @@ public enum AgentToolName {
     [EnumValue("forward_user_input")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     ForwardUserInput,
+
+    /// <summary>子代理控制 — list/pause/resume/pause_all/resume_all 统一入口</summary>
+    [EnumValue("subagent_control")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    SubAgentControl,
 }

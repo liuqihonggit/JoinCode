@@ -127,6 +127,19 @@
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <Border Classes="msgCard">
+                      <Border.ContextMenu>
+                        <ContextMenu>
+                          <MenuItem Header="📋 复制本条"
+                                    Command="{Binding DataContext.CopyMessageCommand, ElementName=Root}"
+                                    CommandParameter="{Binding}" />
+                          <MenuItem Header="✕ 删除本条"
+                                    Command="{Binding DataContext.RemoveMessageCommand, ElementName=Root}"
+                                    CommandParameter="{Binding}" />
+                          <MenuItem Header="↻ 撤回最近一轮并重新生成"
+                                    Command="{Binding DataContext.RegenerateLastReplyCommand, ElementName=Root}"
+                                    IsEnabled="{Binding DataContext.CanRegenerate, ElementName=Root}" />
+                        </ContextMenu>
+                      </Border.ContextMenu>
                       <Grid ColumnDefinitions="Auto,*">
                         <!-- 角色色条：工具=工具色/思考=紫/用户=蓝/AI=淡青 -->
                         <Rectangle Grid.Column="0" Width="3" RadiusX="1.5" RadiusY="1.5"

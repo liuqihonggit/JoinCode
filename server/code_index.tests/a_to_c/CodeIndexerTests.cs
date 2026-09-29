@@ -21,67 +21,191 @@ public sealed class CodeIndexerTests : IDisposable {
 
     [Fact]
     public async Task BuildIndexAsync_EmptyDirectory_CompletesWithZeroFiles() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        var root = Path.Combine(Path.GetTempPath(), $"ci_empty_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+
+        var result = await _indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal(0, result.UpdatedCount);
+        Assert.Equal(0, result.SkippedCount);
+        Assert.Equal(0, result.DeletedCount);
     }
 
     [Fact]
     public async Task BuildIndexAsync_SingleCsFile_IndexesSymbols() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        var root = Path.Combine(Path.GetTempPath(), $"ci_single_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        await _fs.WriteAllText(Path.Combine(root, "A.cs"), "public class A { public void M() { } }");
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+
+        var result = await _indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal(1, result.UpdatedCount);
+        var snap = _store.GetSnapshot();
+        Assert.True(snap.SymbolsByFqn.Count > 0);
+        Assert.True(snap.FileTracking.ContainsKey(Path.Combine(root, "A.cs")));
     }
 
     [Fact]
     public async Task BuildIndexAsync_MultipleCsFiles_IndexesAll() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        var root = Path.Combine(Path.GetTempPath(), $"ci_multi_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        await _fs.WriteAllText(Path.Combine(root, "A.cs"), "public class A { }");
+        await _fs.WriteAllText(Path.Combine(root, "B.cs"), "public class B { }");
+        await _fs.WriteAllText(Path.Combine(root, "C.cs"), "public class C { }");
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+
+        var result = await _indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal(3, result.UpdatedCount);
+        Assert.Equal(3, _store.GetSnapshot().FileTracking.Count);
     }
 
     [Fact]
     public async Task BuildIndexAsync_ExcludesBinObjDirectories() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        var root = Path.Combine(Path.GetTempPath(), $"ci_excl_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        _fs.CreateDirectory(Path.Combine(root, "bin"));
+        _fs.CreateDirectory(Path.Combine(root, "obj"));
+        _fs.CreateDirectory(Path.Combine(root, "sub"));
+        await _fs.WriteAllText(Path.Combine(root, "A.cs"), "public class A { }");
+        await _fs.WriteAllText(Path.Combine(root, "bin", "B.cs"), "public class B { }");
+        await _fs.WriteAllText(Path.Combine(root, "obj", "C.cs"), "public class C { }");
+        await _fs.WriteAllText(Path.Combine(root, "sub", "D.cs"), "public class D { }");
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+
+        var result = await _indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
+
+        // bin/obj 被排除,只索引 A.cs 和 sub/D.cs
+        Assert.Equal(2, result.UpdatedCount);
+        var snap = _store.GetSnapshot();
+        Assert.True(snap.FileTracking.ContainsKey(Path.Combine(root, "A.cs")));
+        Assert.True(snap.FileTracking.ContainsKey(Path.Combine(root, "sub", "D.cs")));
+        Assert.False(snap.FileTracking.ContainsKey(Path.Combine(root, "bin", "B.cs")));
+        Assert.False(snap.FileTracking.ContainsKey(Path.Combine(root, "obj", "C.cs")));
     }
 
     [Fact]
     public async Task BuildIndexAsync_SecondRun_SkipsUnchangedFiles() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        var root = Path.Combine(Path.GetTempPath(), $"ci_skip_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        await _fs.WriteAllText(Path.Combine(root, "A.cs"), "public class A { }");
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+
+        await _indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
+        var result = await _indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
+
+        // 第二次未变更 → 全部跳过
+        Assert.Equal(0, result.UpdatedCount);
+        Assert.Equal(1, result.SkippedCount);
     }
 
     [Fact]
     public async Task BuildIndexAsync_SecondRun_ReindexesModifiedFiles() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        var root = Path.Combine(Path.GetTempPath(), $"ci_reidx_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        var path = Path.Combine(root, "A.cs");
+        await _fs.WriteAllText(path, "public class Old { }");
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+
+        await _indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
+        // 修改文件内容
+        await _fs.WriteAllText(path, "public class New { public void Method() { } }");
+        var result = await _indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal(1, result.UpdatedCount);
+        var snap = _store.GetSnapshot();
+        Assert.Contains(snap.SymbolsByFqn, kvp => kvp.Key.Contains("New"));
     }
 
     [Fact]
     public async Task BuildIndexAsync_RemovesDeletedFilesFromIndex() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        var root = Path.Combine(Path.GetTempPath(), $"ci_rm_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        var aPath = Path.Combine(root, "A.cs");
+        var bPath = Path.Combine(root, "B.cs");
+        await _fs.WriteAllText(aPath, "public class A { }");
+        await _fs.WriteAllText(bPath, "public class B { }");
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+
+        await _indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
+        Assert.Equal(2, _store.GetSnapshot().FileTracking.Count);
+
+        // 模拟删除 B.cs:用新 fs 只含 A.cs
+        var fs2 = new IO.FileSystem.InMemoryFileSystem();
+        fs2.CreateDirectory(root);
+        await fs2.WriteAllText(aPath, "public class A { }");
+        await using var indexer2 = new CodeIndexer(_store, fs2);
+        var result = await indexer2.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
+
+        var snap = _store.GetSnapshot();
+        Assert.True(snap.FileTracking.ContainsKey(aPath));
+        Assert.False(snap.FileTracking.ContainsKey(bPath));
+        Assert.Equal(1, result.DeletedCount);
     }
 
     [Fact]
     public async Task BuildIndexAsync_ProgressCallback_ReportsProgress() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        var root = Path.Combine(Path.GetTempPath(), $"ci_prog_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        await _fs.WriteAllText(Path.Combine(root, "A.cs"), "public class A { }");
+        await _fs.WriteAllText(Path.Combine(root, "B.cs"), "public class B { }");
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+
+        var progressReports = new List<IndexProgress>();
+        var progress = new Progress<IndexProgress>(p => progressReports.Add(p));
+
+        await _indexer.BuildIndexAsync(options, CancellationToken.None, progress).ConfigureAwait(true);
+
+        Assert.NotEmpty(progressReports);
+        var last = progressReports[^1];
+        Assert.Equal(2, last.Total);
     }
 
     [Fact]
     public async Task UpdateFileAsync_DelegatesToIncrementalUpdater() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        var root = Path.Combine(Path.GetTempPath(), $"ci_upd_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        var path = Path.Combine(root, "A.cs");
+        await _fs.WriteAllText(path, "public class A { public void M() { } }");
+
+        await _indexer.UpdateFileAsync(path, CancellationToken.None).ConfigureAwait(true);
+
+        var snap = _store.GetSnapshot();
+        Assert.True(snap.FileTracking.ContainsKey(path));
+        Assert.True(snap.SymbolsByFqn.Count > 0);
     }
 
     [Fact]
     public async Task RemoveFileAsync_DelegatesToSymbolIndex() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        InsertSymbol(CreateSymbol("Foo", "Ns.Foo", SymbolKind.Method, "a.cs"));
+        Assert.True(_store.GetSnapshot().SymbolsByFqn.ContainsKey("Ns.Foo"));
+
+        await _indexer.RemoveFileAsync("a.cs", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.False(_store.GetSnapshot().SymbolsByFqn.ContainsKey("Ns.Foo"));
     }
 
     [Fact]
     public async Task Searcher_ReturnsSymbolSearcher() {
         await Task.CompletedTask.ConfigureAwait(true);
+        Assert.NotNull(_indexer.Searcher);
+        Assert.IsAssignableFrom<ISymbolSearcher>(_indexer.Searcher);
     }
 
     [Fact]
     public async Task CallGraph_ReturnsCallGraphInstance() {
         await Task.CompletedTask.ConfigureAwait(true);
+        Assert.NotNull(_indexer.CallGraph);
+        Assert.IsAssignableFrom<ICallGraph>(_indexer.CallGraph);
     }
 
     [Fact]
     public async Task DependencyGraph_ReturnsDependencyGraphInstance() {
         await Task.CompletedTask.ConfigureAwait(true);
+        Assert.NotNull(_indexer.DependencyGraph);
+        Assert.IsAssignableFrom<IDependencyGraph>(_indexer.DependencyGraph);
     }
 
     // ============ SearchComprehensiveAsync (rg+AST 综合检索) ============
@@ -554,5 +678,127 @@ public sealed class CodeIndexerTests : IDisposable {
         Assert.Equal(CodeIndexer.EstimateSymbolTokens(s), tokens);
         Assert.False(truncated);
         Assert.Equal(0, truncatedCount);
+    }
+
+    // ============ GetStatsAsync ============
+
+    [Fact]
+    public async Task GetStatsAsync_EmptyStore_ReturnsZeroCounts() {
+        var stats = await _indexer.GetStatsAsync(CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal(0, stats.FileCount);
+        Assert.Equal(0, stats.SymbolCount);
+        Assert.Equal(0, stats.CallEdgeCount);
+        Assert.Equal(0, stats.DependencyEdgeCount);
+        Assert.Equal(0, stats.ProjectCount);
+    }
+
+    [Fact]
+    public async Task GetStatsAsync_AfterIndexing_ReturnsCorrectCounts() {
+        var root = Path.Combine(Path.GetTempPath(), $"ci_stats_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        await _fs.WriteAllText(Path.Combine(root, "A.cs"), "public class A { public void M() { } }");
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+        await _indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
+
+        var stats = await _indexer.GetStatsAsync(CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal(1, stats.FileCount);
+        Assert.True(stats.SymbolCount > 0);
+        Assert.True(stats.LastUpdated > DateTimeOffset.MinValue);
+    }
+
+    // ============ EnsureIndexLoadedAsync ============
+
+    [Fact]
+    public async Task EnsureIndexLoadedAsync_NoGitDirectory_DoesNothing() {
+        // 无 .git 目录 → 跳过自动加载,不抛异常
+        await _indexer.EnsureIndexLoadedAsync(CancellationToken.None).ConfigureAwait(true);
+
+        // 索引应保持空
+        var snap = _store.GetSnapshot();
+        Assert.Empty(snap.SymbolsByFqn);
+    }
+
+    // EnsureIndexLoadedAsync_WithGit 的完整测试跳过:
+    // GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs) 内部用 Environment.CurrentDirectory
+    // 作为起始目录(真实文件系统),InMemoryFileSystem 路径非真实路径,无法确定性 mock。
+    // 属于"不可mock方法"(依赖真实文件系统当前目录查找 .git),仅测试无 .git 分支。
+
+    [Fact]
+    public async Task EnsureIndexLoadedAsync_Idempotent_SecondCallNoOp() {
+        await _indexer.EnsureIndexLoadedAsync(CancellationToken.None).ConfigureAwait(true);
+        // 第二次调用应无操作(Interlocked.CompareExchange 守卫)
+        await _indexer.EnsureIndexLoadedAsync(CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Empty(_store.GetSnapshot().SymbolsByFqn);
+    }
+
+    // ============ RebuildIndexAsync ============
+
+    [Fact]
+    public async Task RebuildIndexAsync_NoGitDirectory_DoesNothing() {
+        // 无 .git 目录 → 无法重建,不抛异常
+        await _indexer.RebuildIndexAsync(CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Empty(_store.GetSnapshot().SymbolsByFqn);
+    }
+
+    // RebuildIndexAsync_WithGit 的完整测试跳过:
+    // 依赖 EnsureIndexLoadedAsync 发现 .git 根(经 GitWorkspaceResolver 真实文件系统查找),
+    // InMemoryFileSystem 路径非真实路径,无法确定性 mock。属于"不可mock方法"。
+
+    // ============ CodeIndexer 属性访问器 ============
+
+    [Fact]
+    public async Task Analytics_ReturnsGraphAnalyticsInstance() {
+        await Task.CompletedTask.ConfigureAwait(true);
+        Assert.NotNull(_indexer.Analytics);
+        Assert.IsAssignableFrom<IGraphAnalytics>(_indexer.Analytics);
+    }
+
+    [Fact]
+    public async Task Persistence_ReturnsGraphPersistenceInstance() {
+        await Task.CompletedTask.ConfigureAwait(true);
+        Assert.NotNull(_indexer.Persistence);
+        Assert.IsAssignableFrom<IGraphPersistence>(_indexer.Persistence);
+    }
+
+    [Fact]
+    public async Task Visualization_ReturnsGraphVisualizationInstance() {
+        await Task.CompletedTask.ConfigureAwait(true);
+        Assert.NotNull(_indexer.Visualization);
+        Assert.IsAssignableFrom<IGraphVisualization>(_indexer.Visualization);
+    }
+
+    [Fact]
+    public async Task ProjectDependencyGraph_ReturnsInstance() {
+        await Task.CompletedTask.ConfigureAwait(true);
+        Assert.NotNull(_indexer.ProjectDependencyGraph);
+        Assert.IsAssignableFrom<IProjectDependencyGraph>(_indexer.ProjectDependencyGraph);
+    }
+
+    [Fact]
+    public async Task BuildIndexAsync_NullOptions_Throws() {
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            _indexer.BuildIndexAsync(null!, CancellationToken.None)).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task UpdateFileAsync_NullFilePath_Throws() {
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            _indexer.UpdateFileAsync(null!, CancellationToken.None)).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task RemoveFileAsync_NullFilePath_Throws() {
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            _indexer.RemoveFileAsync(null!, CancellationToken.None)).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task SearchComprehensiveAsync_EmptyPattern_Throws() {
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            _indexer.SearchComprehensiveAsync(null!, 1000, CancellationToken.None)).ConfigureAwait(true);
     }
 }

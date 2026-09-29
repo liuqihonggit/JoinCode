@@ -679,4 +679,75 @@ public class PlanModeManagerTests {
         var fs = new PhysicalFileSystem();
         return new PlanModeManager(fs, JoinCode.Abstractions.Clock.SystemClockService.Instance, permissionManager: permissionManager);
     }
+
+    // ===== ExitPlanModeAsync 分支补充:teammate 审批流程(240行) =====
+
+    /// <summary>
+    /// 可变子 Agent 上下文访问器 — 进入 plan 时 Current=null(避免被拒),
+    /// 退出时设为 teammate context(PlanModeRequired=true)触发审批流程
+    /// </summary>
+    private sealed class MutableSubAgentAccessor : ISubAgentContextAccessor {
+        public SubAgentContext? Current { get; set; }
+    }
+
+    private static JoinCode.Abstractions.Models.Agent.CoordinatorMessage MakeMailboxMessage() =>
+        new() { FromAgentId = "x", ToAgentId = "y", MessageType = "t", Content = "c" };
+
+    [Fact]
+    public async Task ExitPlanModeAsync_TeammateApprovalFlow_ReturnsAwaitingApproval() {
+        // 场景:PlanModeRequired=true 的 teammate 退出 plan 时走审批流程(240行)
+        // 进入 plan 时 SubAgentContext=null(否则 145 行拒绝),退出时设为 teammate context
+        var fs = new IO.FileSystem.InMemoryFileSystem();
+        var clock = new Infrastructure.Time.FakeClockService(new DateTimeOffset(2026, 9, 30, 12, 0, 0, TimeSpan.Zero));
+        var mockMailbox = new Mock<ITeammateMailboxService>();
+        mockMailbox.Setup(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.FromResult(MakeMailboxMessage()));
+        var accessor = new MutableSubAgentAccessor();
+        await using var manager = new PlanModeManager(fs, clock, mailboxService: mockMailbox.Object, subAgentContextAccessor: accessor);
+
+        // 进入 plan(Current=null,允许)
+        await manager.EnterPlanModeAsync("Teammate Plan").ConfigureAwait(true);
+        manager.IsInPlanMode.Should().BeTrue();
+
+        // 退出时设为 teammate context(PlanModeRequired=true)→ 触发审批流程
+        accessor.Current = CreateAgentContext(planModeRequired: true);
+
+        var result = await manager.ExitPlanModeAsync().ConfigureAwait(true);
+
+        result.Success.Should().BeTrue();
+        result.AwaitingLeaderApproval.Should().BeTrue();
+        result.ApprovalRequestId.Should().NotBeNullOrEmpty();
+        result.ErrorMessage.Should().Contain("Awaiting approval");
+        mockMailbox.Verify(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExitPlanModeAsync_TeammateApprovalFlow_PlanModeNotRequired_SkipsApproval() {
+        // 场景:PlanModeRequired=false 的 teammate 退出 plan 时不走审批,直接退出
+        var fs = new IO.FileSystem.InMemoryFileSystem();
+        var clock = new Infrastructure.Time.FakeClockService(new DateTimeOffset(2026, 9, 30, 12, 0, 0, TimeSpan.Zero));
+        var mockMailbox = new Mock<ITeammateMailboxService>();
+        mockMailbox.Setup(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.FromResult(MakeMailboxMessage()));
+        var accessor = new MutableSubAgentAccessor();
+        await using var manager = new PlanModeManager(fs, clock, mailboxService: mockMailbox.Object, subAgentContextAccessor: accessor);
+
+        await manager.EnterPlanModeAsync("Voluntary Plan").ConfigureAwait(true);
+
+        // PlanModeRequired=false → 不走审批,直接退出
+        accessor.Current = CreateAgentContext(planModeRequired: false);
+
+        var result = await manager.ExitPlanModeAsync().ConfigureAwait(true);
+
+        result.Success.Should().BeTrue();
+        result.AwaitingLeaderApproval.Should().BeFalse();
+        mockMailbox.Verify(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // 注:ExitPlanModeAsync 第 230 行"权限模式不符"分支在测试环境不可达。
+    // 原因:第 229 行条件 `!TestEnvironmentDetector.IsNonInteractive` —
+    // testhost 入口程序集使 IsTestEnvironment=true(Lazy 缓存不可重置),
+    // IsNonInteractive=true → !IsNonInteractive=false → 整个权限检查块被跳过。
+    // 这是生产环境保护性检查的设计:测试环境不强制权限模式一致性。
+    // 该分支由 E2E/集成测试(非 testhost 入口)或生产环境覆盖。
 }

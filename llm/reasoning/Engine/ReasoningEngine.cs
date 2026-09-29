@@ -491,7 +491,7 @@ public sealed class ReasoningEngine : IReasoningEngine {
         }
     }
 
-    private async Task VerifyAllEvidenceLinksAsync() {
+    internal async Task VerifyAllEvidenceLinksAsync() {
         if (_urlVerifier is null) return;
 
         var evidences = GetAllEvidence()

@@ -156,6 +156,87 @@ public sealed class ContextFoldExecutorTests {
         Assert.Throws<ArgumentNullException>(() => executor.TrimTrailingAndPrepareExit(null!));
     }
 
+    // ---------- 分支断言强化 ----------
+
+    [Fact]
+    public async Task FoldAsync_NormalFold_PreservesCounts() {
+        var summarizer = new FakeFoldSummarizer("SUM");
+        var executor = new ContextFoldExecutor(summarizer);
+        var log = new AppendOnlyLog();
+        log.Append(new ApiMessage(MessageRole.Assistant, new string('a', 500))); // idx0 head foldable
+        log.Append(new ApiMessage(MessageRole.Assistant, new string('b', 500))); // idx1 tail
+        log.Append(new ApiMessage(MessageRole.User, "q"));                       // idx2 tail
+
+        var result = await executor.FoldAsync(log, ctxMax: 1000, aggressive: false);
+
+        Assert.True(result.Folded);
+        Assert.Equal(3, result.OriginalMessageCount);
+        Assert.Equal(1, result.HeadMessageCount);
+        Assert.Equal(2, result.TailMessageCount);
+    }
+
+    [Fact]
+    public async Task FoldAsync_PinnableUserMessage_KeptInResult() {
+        // 短 User 消息(<=500 chars)是 pinnable,折叠后应保留在日志中
+        var summarizer = new FakeFoldSummarizer("FOLDED");
+        var executor = new ContextFoldExecutor(summarizer);
+        var log = new AppendOnlyLog();
+        log.Append(new ApiMessage(MessageRole.User, "keep me"));                  // idx0 head pinnable
+        log.Append(new ApiMessage(MessageRole.Assistant, new string('a', 500))); // idx1 head foldable
+        log.Append(new ApiMessage(MessageRole.Assistant, new string('b', 500))); // idx2 tail
+
+        var result = await executor.FoldAsync(log, ctxMax: 1000, aggressive: false);
+
+        // 若 foldable 非空则折叠,pinnable user 消息应保留
+        if (result.Folded) {
+            Assert.Contains(log.ToMessages(), m => m.Role == MessageRole.User && m.Content == "keep me");
+        }
+    }
+
+    [Fact]
+    public async Task FoldAsync_BoundaryZero_PreservesTailCount() {
+        // 强化 boundary==0 分支断言:TailMessageCount 应等于总消息数
+        var executor = new ContextFoldExecutor(new FakeFoldSummarizer());
+        var log = new AppendOnlyLog();
+        log.Append(new ApiMessage(MessageRole.User, "hi"));
+
+        var result = await executor.FoldAsync(log, ctxMax: 1000, aggressive: false);
+
+        Assert.False(result.Folded);
+        Assert.Equal(1, result.OriginalMessageCount);
+        Assert.Equal(1, result.TailMessageCount);
+        Assert.Equal(0, result.HeadMessageCount);
+    }
+
+    [Fact]
+    public async Task FoldAsync_EmptyLog_AggressiveDecision_FoldAggressive() {
+        // 强化空消息分支的 aggressive 决策
+        var executor = new ContextFoldExecutor(new FakeFoldSummarizer());
+        var log = new AppendOnlyLog();
+
+        var result = await executor.FoldAsync(log, ctxMax: 1000, aggressive: true);
+
+        Assert.False(result.Folded);
+        Assert.Equal(ContextFoldDecision.FoldAggressive, result.Decision);
+        Assert.Equal(0, result.OriginalMessageCount);
+    }
+
+    [Fact]
+    public async Task FoldAsync_Cancellation_PropagatesToSummarizer() {
+        // 验证 CancellationToken 传递:summarizer 收到已取消令牌时抛 OperationCanceledException
+        var summarizer = new CancelAwareFoldSummarizer();
+        var executor = new ContextFoldExecutor(summarizer);
+        var log = new AppendOnlyLog();
+        log.Append(new ApiMessage(MessageRole.Assistant, new string('a', 500)));
+        log.Append(new ApiMessage(MessageRole.Assistant, new string('b', 500)));
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            executor.FoldAsync(log, ctxMax: 1000, aggressive: false, cancellationToken: cts.Token));
+    }
+
     // ---------- Helpers ----------
 
     private static ApiMessage CreateAssistantWithToolCalls(string? content, string id, string name) {
@@ -176,6 +257,14 @@ public sealed class ContextFoldExecutorTests {
             CallCount++;
             LastHead = headMessages;
             return Task.FromResult(_summary);
+        }
+    }
+
+    /// <summary>收到已取消令牌时抛 OperationCanceledException,验证令牌传递</summary>
+    private sealed class CancelAwareFoldSummarizer : IFoldSummarizer {
+        public Task<string> SummarizeForFoldAsync(IReadOnlyList<ApiMessage> headMessages, CancellationToken cancellationToken = default) {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult("SUM");
         }
     }
 }

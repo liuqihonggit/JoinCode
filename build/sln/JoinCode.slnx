@@ -96,6 +96,7 @@
     <Project Path="../../lib/clock/Clock.csproj" />
     <Project Path="../../lib/clock.tests/Clock.Tests.csproj" />
     <Project Path="../../kit/pipelines/Pipelines.csproj" />
+    <Project Path="../../kit/pipelines.tests/Pipelines.Tests.csproj" />
   </Folder>
   <Folder Name="/app/">
     <Project Path="../../app/cli/JoinCode.csproj" />

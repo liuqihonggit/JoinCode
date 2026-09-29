@@ -270,6 +270,109 @@ public sealed class BudgetGuardTests {
         Assert.Equal(2, triggered);
     }
 
+    // ---------- IsExceeded (Total 分支) ----------
+    // 注:BudgetStatus 仅含 Daily/Monthly 字段,IsAnyBudgetExceeded 不检查 Total。
+    // Total 超限由 CheckAlertsAsync 告警路径覆盖(见下方),IsExceeded 硬停止仅看 Daily/Monthly。
+    // 这是既有设计:IsExceeded → CostTracker.IsBudgetExceeded 用于硬停止当前会话,Total 累计超限只告警。
+
+    [Fact]
+    public void IsExceeded_TotalExceededButDailyMonthlyNot_NotDetected() {
+        // 文档化:Total 超限不触发 IsExceeded(BudgetStatus 无 Total 字段)
+        var guard = new BudgetGuard(budgetConfig: MakeConfig(daily: 10, monthly: 100, total: 1000));
+
+        Assert.False(guard.IsExceeded(() => new CostSnapshot(0, 0, 1000)));
+    }
+
+    // ---------- CheckAlertsAsync (Total / Monthly / Warning / Critical / 零限额) ----------
+
+    [Fact]
+    public async Task CheckAlertsAsync_TotalReachesHalfThreshold_TriggersAlert() {
+        var guard = new BudgetGuard(budgetConfig: MakeConfig(daily: 100, monthly: 1000, total: 1000));
+        CostAlert? alert = null;
+        guard.CostAlertTriggered += (_, e) => alert = e.Alert;
+
+        // 总 500/1000=50% >= 0.5 → 触发(日 0, 月 0 不触发)
+        await guard.CheckAlertsAsync(() => new CostSnapshot(0, 0, 500));
+
+        Assert.NotNull(alert);
+        Assert.Equal(CostAlertLevel.Info, alert!.Level);
+    }
+
+    [Fact]
+    public async Task CheckAlertsAsync_MonthlyReachesHalfThreshold_TriggersAlert() {
+        var guard = new BudgetGuard(budgetConfig: MakeConfig(daily: 100, monthly: 100, total: 1000));
+        CostAlert? alert = null;
+        guard.CostAlertTriggered += (_, e) => alert = e.Alert;
+
+        // 月 50/100=50% >= 0.5 → 触发(日 0, 总 0 不触发)
+        await guard.CheckAlertsAsync(() => new CostSnapshot(0, 50, 0));
+
+        Assert.NotNull(alert);
+        Assert.Equal(CostAlertLevel.Info, alert!.Level);
+    }
+
+    [Fact]
+    public async Task CheckAlertsAsync_EightyPercentWithSingleThreshold_TriggersWarning() {
+        // 用仅 [0.8] 阈值,80% 直接触发 Warning(不被 0.5 先触发)
+        var config = new BudgetConfig {
+            DailyLimit = 10, MonthlyLimit = 100, TotalLimit = 1000,
+            AlertThresholds = [0.8], Enabled = true
+        };
+        var guard = new BudgetGuard(budgetConfig: config);
+        CostAlert? alert = null;
+        guard.CostAlertTriggered += (_, e) => alert = e.Alert;
+
+        await guard.CheckAlertsAsync(() => new CostSnapshot(8, 0, 0));
+
+        Assert.NotNull(alert);
+        Assert.Equal(CostAlertLevel.Warning, alert!.Level);
+    }
+
+    [Fact]
+    public async Task CheckAlertsAsync_FullThresholdWithSingleThreshold_TriggersCritical() {
+        // 用仅 [1.0] 阈值,100% 直接触发 Critical
+        var config = new BudgetConfig {
+            DailyLimit = 10, MonthlyLimit = 100, TotalLimit = 1000,
+            AlertThresholds = [1.0], Enabled = true
+        };
+        var guard = new BudgetGuard(budgetConfig: config);
+        CostAlert? alert = null;
+        guard.CostAlertTriggered += (_, e) => alert = e.Alert;
+
+        await guard.CheckAlertsAsync(() => new CostSnapshot(10, 0, 0));
+
+        Assert.NotNull(alert);
+        Assert.Equal(CostAlertLevel.Critical, alert!.Level);
+    }
+
+    [Fact]
+    public async Task CheckAlertsAsync_ZeroBudgetLimit_NoAlert() {
+        // budgetLimit <= 0 时 CheckThresholdAlert 早返回(第 92 行)
+        var guard = new BudgetGuard(budgetConfig: MakeConfig(daily: 0, monthly: 100, total: 1000));
+        var triggered = 0;
+        guard.CostAlertTriggered += (_, _) => triggered++;
+
+        await guard.CheckAlertsAsync(() => new CostSnapshot(5, 0, 0));
+
+        Assert.Equal(0, triggered);
+    }
+
+    [Fact]
+    public async Task CheckAlertsAsync_EmptyThresholds_NoEvent() {
+        // AlertThresholds.Count == 0 时早返回(第 73 行)
+        var config = new BudgetConfig {
+            DailyLimit = 10, MonthlyLimit = 100, TotalLimit = 1000,
+            AlertThresholds = [], Enabled = true
+        };
+        var guard = new BudgetGuard(budgetConfig: config);
+        var triggered = 0;
+        guard.CostAlertTriggered += (_, _) => triggered++;
+
+        await guard.CheckAlertsAsync(() => new CostSnapshot(100, 100, 100));
+
+        Assert.Equal(0, triggered);
+    }
+
     // ---------- Dispose ----------
 
     [Fact]

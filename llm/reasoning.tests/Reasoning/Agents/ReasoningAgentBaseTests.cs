@@ -122,6 +122,82 @@ public sealed class ReasoningAgentBaseTests {
         Assert.Equal("broadcast", broker.BroadcastMessages[0].ToAgentId);
     }
 
+    [Fact]
+    public async Task BroadcastAsync_WhenBrokerIsNull_DoesNothing() {
+        await using var agent = new TestAgent(NullLogger<TestAgent>.Instance);
+
+        await agent.BroadcastAsync("verdict", "done", CancellationToken.None);
+
+        Assert.True(true);
+    }
+
+    [Fact]
+    public async Task CompressPromptIfNeededAsync_WhenWithinBudget_ReturnsOriginalWithoutConsultingManager() {
+        var ctxMgr = new Mock<IChatContextManager>();
+        var context = CreateContext(maxPromptTokens: 1_000_000);
+        await using var agent = new TestAgent(NullLogger<TestAgent>.Instance, contextManager: ctxMgr.Object);
+        var prompt = "短提示词不超预算";
+
+        var result = await agent.CompressPromptIfNeededAsync(context, AgentRole.Prosecutor, prompt, CancellationToken.None);
+
+        Assert.Same(prompt, result);
+        ctxMgr.Verify(x => x.DecideAfterUsage(It.IsAny<TokenUsage>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CompressPromptIfNeededAsync_WhenDecisionNone_ReturnsOriginalWithoutFolding() {
+        var ctxMgr = new Mock<IChatContextManager>();
+        ctxMgr.Setup(x => x.DecideAfterUsage(It.IsAny<TokenUsage>(), It.IsAny<bool>())).Returns(ContextFoldDecision.None);
+        var context = CreateContext(maxPromptTokens: 1);
+        await using var agent = new TestAgent(NullLogger<TestAgent>.Instance, contextManager: ctxMgr.Object);
+        var prompt = "这是一个足够长的提示词用于触发预算检查分支";
+
+        var result = await agent.CompressPromptIfNeededAsync(context, AgentRole.Prosecutor, prompt, CancellationToken.None);
+
+        Assert.Same(prompt, result);
+        ctxMgr.Verify(x => x.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CompressPromptIfNeededAsync_WhenFoldDecision_ReturnsLastUserMessageFromManager() {
+        var ctxMgr = new Mock<IChatContextManager>();
+        ctxMgr.Setup(x => x.DecideAfterUsage(It.IsAny<TokenUsage>(), It.IsAny<bool>())).Returns(ContextFoldDecision.FoldNormal);
+        ctxMgr.Setup(x => x.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ContextFoldResult());
+        var foldedMessages = new MessageList {
+            new ApiMessage(MessageRole.System, "系统摘要"),
+            new ApiMessage(MessageRole.User, "压缩后的提示词"),
+        };
+        ctxMgr.Setup(x => x.GetMessageListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(foldedMessages);
+        var context = CreateContext(maxPromptTokens: 1);
+        await using var agent = new TestAgent(NullLogger<TestAgent>.Instance, contextManager: ctxMgr.Object);
+        var prompt = "这是一个足够长的提示词用于触发压缩分支";
+
+        var result = await agent.CompressPromptIfNeededAsync(context, AgentRole.Prosecutor, prompt, CancellationToken.None);
+
+        Assert.Equal("压缩后的提示词", result);
+        ctxMgr.Verify(x => x.FoldIfNeededAsync(ContextFoldDecision.FoldNormal, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CompressPromptIfNeededAsync_WhenFoldDecisionAndNoUserMessage_ReturnsOriginalPrompt() {
+        var ctxMgr = new Mock<IChatContextManager>();
+        ctxMgr.Setup(x => x.DecideAfterUsage(It.IsAny<TokenUsage>(), It.IsAny<bool>())).Returns(ContextFoldDecision.FoldAggressive);
+        ctxMgr.Setup(x => x.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ContextFoldResult());
+        var foldedMessages = new MessageList {
+            new ApiMessage(MessageRole.System, "仅系统消息无用户消息"),
+        };
+        ctxMgr.Setup(x => x.GetMessageListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(foldedMessages);
+        var context = CreateContext(maxPromptTokens: 1);
+        await using var agent = new TestAgent(NullLogger<TestAgent>.Instance, contextManager: ctxMgr.Object);
+        var prompt = "原始提示词";
+
+        var result = await agent.CompressPromptIfNeededAsync(context, AgentRole.Prosecutor, prompt, CancellationToken.None);
+
+        Assert.Same(prompt, result);
+    }
+
     private static ReasoningContext CreateContext(int maxPromptTokens) {
         return new ReasoningContext {
             AllItems = [],
@@ -134,8 +210,10 @@ public sealed class ReasoningAgentBaseTests {
     private sealed class TestAgent : ReasoningAgent {
         public override string SystemPrompt => "你是测试Agent";
 
-        public TestAgent(ILogger logger, IChatClient? chatClient = null, IMailbox? messageBroker = null)
-            : base(new FakeQueryEngine(), logger, AgentRole.Prosecutor, "测试Agent", chatClient, messageBroker) { }
+        public TestAgent(ILogger logger, IChatClient? chatClient = null, IMailbox? messageBroker = null, IChatContextManager? contextManager = null)
+            : base(new FakeQueryEngine(), logger, AgentRole.Prosecutor, "测试Agent", chatClient, messageBroker) {
+            ContextManager = contextManager;
+        }
 
         public override Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct) {
             return System.Threading.Tasks.Task.FromResult(new AgentAction { AgentRole = Role });

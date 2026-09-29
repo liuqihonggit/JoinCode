@@ -217,14 +217,14 @@
 
 ### 阶段 3:补测有IO/异步但可mock的方法
 
-- [ ] `PermissionChecker.CheckPermissionAsync` 管道执行
-- [ ] `PermissionCheckingInterceptor.OnBeforeToolInvokeAsync`
-- [ ] `HookConfigurationManager.LoadAllHooksAsync` 缓存+锁
-- [ ] `SessionHookManager` CAS操作
-- [ ] `InteractiveHandler.Handle`/`ExecuteHooksAsync`/`ExecuteClassifierAsync`
-- [ ] `SwarmWorkerHandler.ForwardToLeaderAsync`
-- [ ] `PluginManager` 加载/卸载全流程(mock依赖)
-- [ ] vault 团队同步子系统(`SyncFileScanner`/`SyncFileTransfer`/`SyncConflictResolver`/6中间件)
+- [x] `PermissionChecker.CheckPermissionAsync` 管道执行 — 阶段3确认(36测试,Stub+Moq消除IO)
+- [x] `PermissionCheckingInterceptor.OnBeforeToolInvokeAsync` — 阶段3确认(19测试,Moq消除依赖)
+- [x] `HookConfigurationManager.LoadAllHooksAsync` 缓存+锁 — 阶段3确认(21测试,Moq消除配置文件IO)
+- [x] `SessionHookManager` CAS操作 — 阶段3确认(23测试,纯内存确定性)
+- [x] `InteractiveHandler.Handle`/`ExecuteHooksAsync`/`ExecuteClassifierAsync` — 阶段3完成(11测试,ExtractCommand/CreatePermissionResult拆internal static)
+- [x] `SwarmWorkerHandler.ForwardToLeaderAsync` — 阶段3完成(8测试,ExtractCommand拆internal static+HandleAsync非SwarmWorker分支)
+- [x] `PluginManager` 加载/卸载全流程(mock依赖) — 阶段3确认(80测试,单元用Stub/InMemory,E2E用真实IO)
+- [x] vault 团队同步子系统(`SyncFileScanner`/`SyncFileTransfer`/`SyncConflictResolver`/6中间件) — 阶段3d完成(77测试,InMemoryFileSystem+Mock消除IO)
 
 ---
 

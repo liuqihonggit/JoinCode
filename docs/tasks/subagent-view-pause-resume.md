@@ -87,3 +87,37 @@
 - `app/gui/view_models/main_view_model/MainViewModel.SubAgents.cs` — 子代理 ViewModel
 - `app/gui/views/TopBarView.axaml` — 暂停所有/恢复所有按钮
 - `app/gui/views/MainWindow.axaml` — 集成 SubAgentView 侧边栏
+
+## ✅ 完成状态（2026-09-30）
+
+| 任务 | Commit | 状态 |
+|------|--------|------|
+| task 文档 | `1cbaec6ea` | ✅ |
+| IJccChatSession 加 Pause/Resume/PauseAll/ResumeAll | `01f6b17e1` | ✅ |
+| GUI 面板加暂停/继续按钮 + 暂停所有/恢复所有 | `06a812ef7` | ✅ |
+| MCP 工具 subagent_control(list/pause/resume/pause_all/resume_all) | `e212fc303` | ✅ |
+
+### 实际实现方式（复用现有）
+- **未新建 SubAgentView** — 复用现有 `BackgroundAgentsPanelViewModel` + `MainWindow.axaml` 的后台代理面板
+- **BackgroundAgentItemVm** 加 `CanPause`/`CanResume` 属性驱动按钮显隐
+- **BackgroundAgentsPanelViewModel** 加 `PauseCommand`/`ResumeCommand`/`PauseAllCommand`/`ResumeAllCommand`
+- **面板顶部**加"暂停所有"/"恢复所有"按钮
+- **每个代理卡片**加"暂停"/"继续"按钮（与"终止"并排）
+
+## 待补充（用户反馈）
+
+### 1. MCP 工具补 stop/clean action
+- `subagent_control(stop, id)` — 终止指定子代理（委托 StopBackgroundAgentAsync）
+- `subagent_control(clean)` — 清理已完成/失败的子代理（从列表移除）
+- `subagent_control(stop_all)` — 终止所有运行中子代理
+
+### 2. 职责分离检查
+- `SubAgentControlToolHandlers` — MCP 工具层，只做参数路由 + 委托
+- `BackgroundAgentsPanelViewModel` — GUI 层，只做状态展示 + 命令转发
+- `IJccChatSession` — 接口层，只做委托桥接
+- 引擎层 `IAgentService`/`IInProcessTeammateTaskExecutor` — 实际执行
+
+### 3. 补充测试
+- `SubAgentControlToolHandlers` 单元测试（各 action 路由）
+- `BackgroundAgentsPanelViewModel` 暂停/继续命令测试
+- `IJccChatSession.PauseAll/ResumeAll` 批量操作测试

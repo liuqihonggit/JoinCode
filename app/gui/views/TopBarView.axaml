@@ -93,25 +93,30 @@
           <Border CornerRadius="10" Padding="14,10" Width="300"
                   Background="{DynamicResource GuiPopupBackground}"
                   BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
-            <StackPanel Spacing="6">
+            <StackPanel Spacing="8">
               <TextBlock Text="🛡 AI 工具拦截器" FontSize="13" FontWeight="SemiBold"
                          Foreground="{DynamicResource GuiPrimaryText}" />
               <TextBlock Text="开启后 AI 调用对应工具会被拒绝" FontSize="10.5"
                          Foreground="{DynamicResource GuiMutedText}" Margin="0,0,0,4" />
-              <CheckBox Content="git_commit（提交）" IsChecked="{Binding BlockGitCommit}"
-                         FontSize="12" Padding="4,2" />
-              <CheckBox Content="git_push（推送）" IsChecked="{Binding BlockGitPush}"
-                         FontSize="12" Padding="4,2" />
-              <CheckBox Content="gh_pr_merge（合并PR）" IsChecked="{Binding BlockGhPrMerge}"
-                         FontSize="12" Padding="4,2" />
-              <CheckBox Content="gh_pr_create（创建PR）" IsChecked="{Binding BlockGhPrCreate}"
-                         FontSize="12" Padding="4,2" />
-              <CheckBox Content="gh_release_delete（删除release）" IsChecked="{Binding BlockGhReleaseDelete}"
-                         FontSize="12" Padding="4,2" />
-              <CheckBox Content="file_delete（删文件）" IsChecked="{Binding BlockFileDelete}"
-                         FontSize="12" Padding="4,2" />
-              <CheckBox Content="bash/powershell（shell）" IsChecked="{Binding BlockShell}"
-                         FontSize="12" Padding="4,2" />
+              <StackPanel Spacing="3">
+                <TextBlock Text="📊 Git" FontSize="11" FontWeight="SemiBold" Foreground="#E89A3C" />
+                <CheckBox Content="commit（提交）" IsChecked="{Binding BlockGitCommit}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
+                <CheckBox Content="push（推送）" IsChecked="{Binding BlockGitPush}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
+              </StackPanel>
+              <StackPanel Spacing="3">
+                <TextBlock Text="🐙 GitHub" FontSize="11" FontWeight="SemiBold" Foreground="#9B59B6" />
+                <CheckBox Content="pr_merge（合并PR）" IsChecked="{Binding BlockGhPrMerge}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
+                <CheckBox Content="pr_create（创建PR）" IsChecked="{Binding BlockGhPrCreate}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
+                <CheckBox Content="release_delete（删除release）" IsChecked="{Binding BlockGhReleaseDelete}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
+              </StackPanel>
+              <StackPanel Spacing="3">
+                <TextBlock Text="📄 文件" FontSize="11" FontWeight="SemiBold" Foreground="#E74C3C" />
+                <CheckBox Content="delete（删文件）" IsChecked="{Binding BlockFileDelete}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
+              </StackPanel>
+              <StackPanel Spacing="3">
+                <TextBlock Text="⚡ Shell" FontSize="11" FontWeight="SemiBold" Foreground="#3498DB" />
+                <CheckBox Content="bash/powershell（shell）" IsChecked="{Binding BlockShell}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
+              </StackPanel>
             </StackPanel>
           </Border>
         </Popup>

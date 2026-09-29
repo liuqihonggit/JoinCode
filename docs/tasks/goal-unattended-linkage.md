@@ -78,6 +78,27 @@ Bug1（GUI 开关断裂）→ Bug2（settings.json 死字段）→ Bug3（goal �
   → Feature3（GUI 按钮 + 检测）→ Feature4（三再三确认 + 提示词）
 ```
 
+## ✅ 完成状态（2026-09-30）
+
+| 任务 | Commit | 状态 |
+|------|--------|------|
+| Bug1: GUI 开关断裂 | `d60eec2ca` | ✅ |
+| Bug3: goal 覆盖 + Feature1: 自动启用 Unattended | `d5af86f8a` | ✅ |
+| Feature2: 停滞告警阈值 3600s→60s | `ec9fac044` | ✅ |
+| Feature3+4: GUI goal 按钮 + 再三确认提示词 a→b→c | `e0d268d10` | ✅ |
+| Bug2: GuiPreferences IsUnattendedMode 死字段 | `70ce5cea0` | ✅ |
+| Bug4: AgentToolRestrictions 显式 Unattended | `240f96f6d` | ✅ |
+| Bug5: 辅助层对齐 Unattended | `2723902c7` | ✅ |
+
+### Feature4 提示词最终设计（用户纠正后）
+
+再三确认由**引擎层自动注入提示词给 AI**（不是 GUI 按钮点三次），逐级 a→b→c：
+- **a (AuditMissingTasks)**："您是否有任务遗漏？派出子代理审核一下。"
+- **b (ReviewSubAgentWork)**："子代理完成的工作，你需要核查一次：单一职责化、补充守卫、补充单元测试、补充压测、相同函数抽取工具类。"
+- **c (FinalConfirmAndTests)**："你确认真的要结束任务了吗？是否补充一些单元测试？"
+
+定义在 `ContinuationPromptBuilder.BuildStopConfirmationPrompt(StopConfirmationLevel)`，60 秒无输出后逐级注入 `_chatHistory.AddSystemMessage()`。
+
 ## TDD 流程（每个 Bug/Feature）
 
 1. 🔴 写失败测试（复现 bug / 定义行为）

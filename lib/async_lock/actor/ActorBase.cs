@@ -307,23 +307,41 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
         try {
             await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
-                CheckInputWatermark();
-                try {
-                    if (_idempotencyGate.TryRestore(cmd)) {
-                        continue;
-                    }
-                    Handle(cmd, _cts.Token);
-                } catch (OperationCanceledException) when (_cts.IsCancellationRequested) {
-                    return;
-                } catch (Exception ex) {
-                    try {
-                        OnConsumerError(ex);
-                    } catch (Exception innerEx) {
-                        _logger?.LogError(innerEx, "[Actor:{ActorId}] OnConsumerError 异常忽略", Id);
-                    }
-                }
+                if (!ProcessSingleCommand(cmd, _cts.Token)) return;
             }
         } catch (OperationCanceledException) { }
+    }
+
+    /// <summary>
+    /// 处理单条命令 — 幂等守卫+Handle+异常处理,供测试直接调用(不依赖 Consumer 调度时序)。
+    /// <para>确定性验证入口:测试直接调用此方法处理单条命令,无需启动 Consumer 循环/无需 Tell+等待调度。</para>
+    /// <para>时序分离:ConsumeLoopAsync 只负责循环编排(时序),本方法负责单条命令处理(确定性)。</para>
+    /// </summary>
+    /// <param name="cmd">待处理命令</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>true=已处理(或幂等跳过);false=Actor 关闭需退出循环</returns>
+    internal bool ProcessSingleCommand(TCommand cmd, CancellationToken ct) {
+        CheckInputWatermark();
+        try {
+            if (_idempotencyGate.TryRestore(cmd)) {
+                return true;
+            }
+            Handle(cmd, ct);
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+            return false;
+        } catch (Exception ex) {
+            HandleConsumerErrorSafe(ex);
+        }
+        return true;
+    }
+
+    /// <summary>安全调用 OnConsumerError — 回调异常吞掉记日志(不传播,不中断 Consumer)</summary>
+    private void HandleConsumerErrorSafe(Exception ex) {
+        try {
+            OnConsumerError(ex);
+        } catch (Exception innerEx) {
+            _logger?.LogError(innerEx, "[Actor:{ActorId}] OnConsumerError 异常忽略", Id);
+        }
     }
 
     /// <summary>

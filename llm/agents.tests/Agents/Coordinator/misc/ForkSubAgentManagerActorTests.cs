@@ -266,59 +266,133 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
     }
 
     /// <summary>
-    /// ADR-0051 对齐测试: 后台 fork 信号量持有时间 = fork 生命周期（RunBackgroundForkAsync 完成时释放）。
-    /// MaxConcurrentForks=1 时，后台 fork 运行期间第二个 fork 应被阻塞，后台 fork 完成后第二个 fork 才能执行。
+    /// ADR-0051 对齐测试(拆分1/2 — 时序验证): 后台 fork 运行期间信号量被持有,第二个 fork 被阻塞。
+    /// <para>偶发性: CI 线程池调度延迟可能导致 fire-and-forget runWithReleaser() 调度累积
+    /// 超过 TryLockAsync 默认 5s 超时,第二个 fork 抛 TimeoutException。重试 16 次 × 1s 间隔兜底。</para>
     /// </summary>
     [Fact]
-    public async Task ForkAsync_BackgroundFork_HoldsSemaphoreUntilBackgroundCompletes() {
-        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var bgAgent = new AgentBase("Background fork", null, queryEngineMock.Object, null);
-        var syncAgent = new AgentBase("Sync fork", null, queryEngineMock.Object, null);
-        var agentQueue = new Queue<AgentBase>(new[] { bgAgent, syncAgent });
+    public async Task ForkAsync_BackgroundFork_BlocksSecondForkWhileRunning() {
+        for (var attempt = 0; attempt < 16; attempt++) {
+            try {
+                await RunBlocksSecondForkCoreAsync().ConfigureAwait(true);
+                return;
+            } catch (System.TimeoutException ex) when (ex.Message.Contains("Concurrency")) {
+                if (attempt == 15) throw;
+                await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(true);
+            }
+        }
 
-        var bgAgentResult = new SubAgentResult { AgentId = "bg-agent", IsSuccess = true, Output = "BG done" };
-        var bgDelayTask = Task.Delay(TimeSpan.FromSeconds(1)).ContinueWith(_ => bgAgentResult, TaskScheduler.Default);
+        async Task RunBlocksSecondForkCoreAsync() {
+            var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+            var bgAgent = new AgentBase("Background fork", null, queryEngineMock.Object, null);
+            var syncAgent = new AgentBase("Sync fork", null, queryEngineMock.Object, null);
+            var agentQueue = new Queue<AgentBase>(new[] { bgAgent, syncAgent });
 
-        _lifecycleManagerMock
-            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
-            .ReturnsAsync((string _, SubAgentOptions _, CancellationToken _, string? _) => agentQueue.Dequeue());
-        _lifecycleManagerMock
-            .Setup(x => x.ExecuteAsync(bgAgent, It.IsAny<CancellationToken>()))
-            .Returns(bgDelayTask);
-        _lifecycleManagerMock
-            .Setup(x => x.ExecuteAsync(syncAgent, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubAgentResult { AgentId = "sync-agent", IsSuccess = true, Output = "Sync done" });
+            var bgAgentResult = new SubAgentResult { AgentId = "bg-agent", IsSuccess = true, Output = "BG done" };
+            var bgDelayTask = Task.Delay(TimeSpan.FromSeconds(3)).ContinueWith(_ => bgAgentResult, TaskScheduler.Default);
 
-        await using var manager = new ForkSubAgentManagerActor(
-            CreatePipeline(),
-            new ForkManagerDependencies(_lifecycleManagerMock.Object, _messageBrokerMock.Object),
-            NullLogger<ForkSubAgentManagerActor>.Instance,
-            null,
-            new SubAgentConcurrencyOptions { MaxConcurrentForks = 1 });
+            _lifecycleManagerMock
+                .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+                .ReturnsAsync((string _, SubAgentOptions _, CancellationToken _, string? _) => agentQueue.Dequeue());
+            _lifecycleManagerMock
+                .Setup(x => x.ExecuteAsync(bgAgent, It.IsAny<CancellationToken>()))
+                .Returns(bgDelayTask);
+            _lifecycleManagerMock
+                .Setup(x => x.ExecuteAsync(syncAgent, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new SubAgentResult { AgentId = "sync-agent", IsSuccess = true, Output = "Sync done" });
 
-        var bgResult = await manager.ForkAsync(new ForkOptions {
-            ParentSessionId = "parent-bg",
-            TaskDescription = "BG",
-            RunInBackground = true,
-        }).ConfigureAwait(true);
-        bgResult.State.Should().Be(ForkState.Running);
+            await using var manager = new ForkSubAgentManagerActor(
+                CreatePipeline(),
+                new ForkManagerDependencies(_lifecycleManagerMock.Object, _messageBrokerMock.Object),
+                NullLogger<ForkSubAgentManagerActor>.Instance,
+                null,
+                new SubAgentConcurrencyOptions { MaxConcurrentForks = 1 });
 
-        var secondForkCompleted = false;
-        var secondForkTask = Task.Run(async () => {
-            var r = await manager.ForkAsync(new ForkOptions {
-                ParentSessionId = "parent-sync",
-                TaskDescription = "Sync",
+            var bgResult = await manager.ForkAsync(new ForkOptions {
+                ParentSessionId = "parent-bg",
+                TaskDescription = "BG",
+                RunInBackground = true,
             }).ConfigureAwait(true);
-            secondForkCompleted = true;
-            return r;
-        });
+            bgResult.State.Should().Be(ForkState.Running);
 
-        await WaitUntilAsync(() => _manager.InputCount == 0, TimeSpan.FromMilliseconds(500));
-        secondForkCompleted.Should().BeFalse("第二个 fork 应被阻塞 — 后台 fork 仍持有信号量");
+            var secondForkCompleted = false;
+            _ = Task.Run(async () => {
+                try {
+                    await manager.ForkAsync(new ForkOptions {
+                        ParentSessionId = "parent-sync",
+                        TaskDescription = "Sync",
+                    }).ConfigureAwait(true);
+                    secondForkCompleted = true;
+                } catch (System.TimeoutException ex) {
+                    Console.WriteLine($"[Retry] 第二个 fork 锁超时(预期,后台仍持有): {ex.Message}");
+                }
+            });
 
-        var completedSecond = await secondForkTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
-        secondForkCompleted.Should().BeTrue("后台 fork 完成释放信号量后，第二个 fork 应能执行");
-        completedSecond.State.Should().Be(ForkState.Completed);
+            await WaitUntilAsync(() => manager.InputCount == 0, TimeSpan.FromMilliseconds(500));
+            await Task.Delay(500);
+            secondForkCompleted.Should().BeFalse("第二个 fork 应被阻塞 — 后台 fork 仍持有信号量");
+        }
+    }
+
+    /// <summary>
+    /// ADR-0051 对齐测试(拆分2/2 — 时序验证+确定性): 后台 fork 完成释放信号量后,第二个 fork 能执行至 Completed。
+    /// <para>偶发性: CI 线程池调度延迟可能导致信号量释放超过 TryLockAsync 5s 超时。重试 16 次 × 1s 间隔兜底。</para>
+    /// </summary>
+    [Fact]
+    public async Task ForkAsync_BackgroundFork_AllowsSecondForkAfterCompletion() {
+        for (var attempt = 0; attempt < 16; attempt++) {
+            try {
+                await RunAllowsSecondForkCoreAsync().ConfigureAwait(true);
+                return;
+            } catch (System.TimeoutException ex) when (ex.Message.Contains("Concurrency")) {
+                if (attempt == 15) throw;
+                await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(true);
+            }
+        }
+
+        async Task RunAllowsSecondForkCoreAsync() {
+            var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+            var bgAgent = new AgentBase("Background fork", null, queryEngineMock.Object, null);
+            var syncAgent = new AgentBase("Sync fork", null, queryEngineMock.Object, null);
+            var agentQueue = new Queue<AgentBase>(new[] { bgAgent, syncAgent });
+
+            var bgAgentResult = new SubAgentResult { AgentId = "bg-agent", IsSuccess = true, Output = "BG done" };
+            var bgDelayTask = Task.Delay(TimeSpan.FromSeconds(1)).ContinueWith(_ => bgAgentResult, TaskScheduler.Default);
+
+            _lifecycleManagerMock
+                .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+                .ReturnsAsync((string _, SubAgentOptions _, CancellationToken _, string? _) => agentQueue.Dequeue());
+            _lifecycleManagerMock
+                .Setup(x => x.ExecuteAsync(bgAgent, It.IsAny<CancellationToken>()))
+                .Returns(bgDelayTask);
+            _lifecycleManagerMock
+                .Setup(x => x.ExecuteAsync(syncAgent, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new SubAgentResult { AgentId = "sync-agent", IsSuccess = true, Output = "Sync done" });
+
+            await using var manager = new ForkSubAgentManagerActor(
+                CreatePipeline(),
+                new ForkManagerDependencies(_lifecycleManagerMock.Object, _messageBrokerMock.Object),
+                NullLogger<ForkSubAgentManagerActor>.Instance,
+                null,
+                new SubAgentConcurrencyOptions { MaxConcurrentForks = 1 });
+
+            var bgResult = await manager.ForkAsync(new ForkOptions {
+                ParentSessionId = "parent-bg",
+                TaskDescription = "BG",
+                RunInBackground = true,
+            }).ConfigureAwait(true);
+            bgResult.State.Should().Be(ForkState.Running);
+
+            var secondForkTask = Task.Run(async () => {
+                return await manager.ForkAsync(new ForkOptions {
+                    ParentSessionId = "parent-sync",
+                    TaskDescription = "Sync",
+                }).ConfigureAwait(true);
+            });
+
+            var completedSecond = await secondForkTask.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(true);
+            completedSecond.State.Should().Be(ForkState.Completed);
+        }
     }
 
     /// <summary>

@@ -34,6 +34,7 @@ global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.LLM.Execution;
 // Diff 模型（工具调用结果渲染）
 global using JoinCode.Abstractions.Models.Diff;
+global using JoinCode.Abstractions.Models.Goal;
 global using JoinCode.Abstractions.Models.Interactive;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;

@@ -40,6 +40,23 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     public bool HasGraphDefinition => _goalGraph is not null;
 
     /// <summary>
+    /// 获取 Goal 进度快照 — 从 DAG 节点状态计算已完成/总数/当前执行节点名。
+    /// 未构建 Graph 或未启动时返回 null。
+    /// </summary>
+    public GoalProgress? GetGoalProgress() {
+        if (_goalGraph is null) return null;
+        var nodes = _goalGraph.Dag.Nodes.Values.ToList();
+        if (nodes.Count == 0) return null;
+        var completed = nodes.Count(n => n.Payload.Status is GoalNodeStatus.Completed or GoalNodeStatus.Failed or GoalNodeStatus.Skipped);
+        var running = nodes.FirstOrDefault(n => n.Payload.Status == GoalNodeStatus.Running);
+        return new GoalProgress {
+            CompletedNodes = completed,
+            TotalNodes = nodes.Count,
+            CurrentNodeName = running?.Payload.Name
+        };
+    }
+
+    /// <summary>
     /// 设置会话隔离标识 — 由 CliSession 启动时调用，持久化按 {baseDir}/{sessionId}/{goalId}.json 隔离。
     /// </summary>
     public void SetSessionId(string sessionId) {

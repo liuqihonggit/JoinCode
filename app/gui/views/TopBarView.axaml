@@ -57,8 +57,16 @@
       <!-- 🎯 goal 进行中按钮 — goal 运行时显示，点击弹出控制面板（停止时引擎层自动注入 a→b→c 提示词） -->
       <Panel Grid.Column="8" VerticalAlignment="Center" IsVisible="{Binding IsGoalRunning}">
         <Button x:Name="GoalButton" Classes="ghost" Padding="9,5" FontSize="13"
-                Content="🎯 goal 进行中" ToolTip.Tip="goal 控制面板"
-                Command="{Binding ToggleGoalPanelCommand}" />
+                ToolTip.Tip="goal 控制面板"
+                Command="{Binding ToggleGoalPanelCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="🎯" />
+            <TextBlock Text="goal" />
+            <TextBlock Text="{Binding GoalProgressText, FallbackValue='进行中'}" FontSize="11"
+                       Foreground="{DynamicResource GuiMutedText}"
+                       IsVisible="{Binding GoalProgressText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </StackPanel>
+        </Button>
         <Popup IsOpen="{Binding IsGoalPanelOpen}" Placement="Bottom"
                PlacementTarget="{Binding #GoalButton}" VerticalOffset="4">
           <Border CornerRadius="10" Padding="14,10" Width="300"

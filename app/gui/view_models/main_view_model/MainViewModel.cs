@@ -61,6 +61,13 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     [ObservableProperty]
     private bool _isUnattendedMode = false;
 
+    /// <summary>主题切换按钮提示（区分深浅态）</summary>
+    public string ThemeToggleToolTip => IsDarkTheme ? "切换到浅色主题 ☀" : "切换到深色主题 ☾";
+    /// <summary>Mock 切换按钮提示（区分开关态）</summary>
+    public string MockToggleToolTip => IsMockConnection ? "Mock 演示引擎：已开启 Ⓘ" : "Mock 演示引擎：已关闭";
+    /// <summary>无人值守按钮提示（区分开关态）</summary>
+    public string UnattendedToggleToolTip => IsUnattendedMode ? "无人值守：已开启 🤖" : "无人值守：已关闭 👤";
+
     /// <summary>防丢字符二次确认 — 防止 MTP 加速推理时丢字符/乱入字符导致命令变形 — ADR 0012</summary>
     [ObservableProperty]
     private bool _isAntiCharLossConfirm = false;

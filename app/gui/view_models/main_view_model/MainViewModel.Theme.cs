@@ -33,4 +33,6 @@ public sealed partial class MainViewModel {
     /// <summary>切换深浅主题（占位阶段仅记录状态，UI 由 View 层响应）</summary>
     [RelayCommand]
     private void ToggleTheme() => IsDarkTheme = !IsDarkTheme;
+
+    partial void OnIsDarkThemeChanged(bool value) => OnPropertyChanged(nameof(ThemeToggleToolTip));
 }

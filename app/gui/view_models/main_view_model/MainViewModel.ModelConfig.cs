@@ -60,6 +60,7 @@ public sealed partial class MainViewModel {
 
         RefreshModelOptions();
         OnPropertyChanged(nameof(IsMockConnection));
+        OnPropertyChanged(nameof(MockToggleToolTip));
         // 供应商切换后 SetVendorAsync 已把 CurrentModelId 重置为新供应商默认模型，优先匹配它；找不到才取第一个
         SelectedModelOption = GetModelById(_session.CurrentModelId)
             ?? ModelOptions.FirstOrDefault();
@@ -105,6 +106,7 @@ public sealed partial class MainViewModel {
                 ?? GetConnectionById(_session.CurrentVendor)
                 ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
             OnPropertyChanged(nameof(IsMockConnection));
+        OnPropertyChanged(nameof(MockToggleToolTip));
 
             // 保留当前模型选择（若仍属于当前供应商模型列表），否则取引擎当前模型，再否则取第一个
             SelectedModelOption = GetModelById(previousModelId)

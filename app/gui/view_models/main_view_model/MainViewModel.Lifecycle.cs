@@ -108,6 +108,7 @@ public sealed partial class MainViewModel {
         RefreshSlashSuggestions();
 
         OnPropertyChanged(nameof(IsMockConnection));
+        OnPropertyChanged(nameof(MockToggleToolTip));
         IsEngineLoaded = true;
         // 需求11：异步填充子会话树（快照避免跨线程）
         _ = Task.Run(() => PopulateSubSessionsAsync(Sessions.ToArray()));
@@ -191,6 +192,7 @@ public sealed partial class MainViewModel {
         }
         RefreshModelOptions();
         OnPropertyChanged(nameof(IsMockConnection));
+        OnPropertyChanged(nameof(MockToggleToolTip));
         SelectedModelOption = GetModelById(_session.CurrentModelId)
             ?? ModelOptions.FirstOrDefault();
         SelectedModel = SelectedModelOption?.Id;
@@ -202,6 +204,7 @@ public sealed partial class MainViewModel {
     /// </summary>
     partial void OnIsUnattendedModeChanged(bool value) {
         _ = _session.SetPermissionModeAsync(value ? PermissionMode.Unattended : PermissionMode.Auto);
+        OnPropertyChanged(nameof(UnattendedToggleToolTip));
     }
 
     /// <summary>

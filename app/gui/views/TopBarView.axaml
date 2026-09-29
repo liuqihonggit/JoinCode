@@ -13,7 +13,7 @@
       <!-- 主题切换：图标随主题切换（暗色显月亮/亮色显太阳），点击切换。
            Segoe UI Symbol 提供 ☾☀ 完整字形（默认字体缺字形会把 ☾ 渲染成 "C"） -->
       <ToggleButton Classes="ghost" Padding="9,5" FontSize="13"
-                    Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题">
+                    Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}">
         <Panel>
           <TextBlock Text="☾" FontFamily="Segoe UI Symbol" IsVisible="{Binding IsDarkTheme}" />
           <TextBlock Text="☀" FontFamily="Segoe UI Symbol" IsVisible="{Binding !IsDarkTheme}" />
@@ -53,10 +53,10 @@
       <ToggleButton Grid.Column="7" Classes="ghost" Padding="9,5" Content="Ⓘ" FontSize="12"
                     Command="{Binding ToggleMockCommand}"
                     IsChecked="{Binding IsMockConnection, Mode=OneWay}"
-                    ToolTip.Tip="切换 Mock 演示引擎（本地验证用）" />
+                    ToolTip.Tip="{Binding MockToggleToolTip}" />
       <ToggleButton Grid.Column="8" Classes="ghost" Padding="9,5" FontSize="12"
                     IsChecked="{Binding IsUnattendedMode, Mode=TwoWay}"
-                    ToolTip.Tip="无人值守模式（自动确认，不弹对话框）">
+                    ToolTip.Tip="{Binding UnattendedToggleToolTip}">
         <Panel>
           <TextBlock Text="🤖" IsVisible="{Binding IsUnattendedMode}" />
           <TextBlock Text="👤" IsVisible="{Binding !IsUnattendedMode}" />

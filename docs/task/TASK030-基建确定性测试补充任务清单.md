@@ -133,13 +133,13 @@
 **原则**:先转为统一写法,再拆分纯计算片段为 internal,然后补测试。
 
 #### 2.1 structura — SwissTable SIMD 去重
-- [ ] `SwissTableHelper.FindForInsert.*` 三分派提取 `ProbeCore<TKey>` internal 泛型(消除18份重复)
-- [ ] `SwissTableHelper.FindBucketOfDictionary.*` 同上
-- [ ] `SwissTable.ICollection.CopyTo` 拆 `CopyToKvp`/`CopyToDictEntry`/`CopyToObjectBox` internal
-- [ ] `SwissTable.TryInsert` 拆 `TryReplaceExisting`/`InsertNewBucket` internal
-- [ ] `ImmutableDag.RemoveNodeFromState` 拆 `RemoveOneIncidentEdge` internal static
-- [ ] `Dag.GetAffectedSubgraph`/`ImmutableDag.GetAffectedSubgraph` 拆 `ComputeSubgraphInDegrees`/`KahnTraverseSubgraph` internal(合并重复)
-- [ ] `ImmutableHamT.BitmapNode.Add` 拆 `MaybeUpgradeToFullArrayNode` internal static
+- [x] `SwissTableHelper.FindForInsert.*` 三分派提取 `ProbeCoreFindForInsert<TGroup,TBitMask,TKey,TValue>` internal 泛型(消除9份重复,IGroup static abstract去虚化) — 阶段2.1a完成
+- [x] `SwissTableHelper.FindBucketOfDictionary.*` 提取 `ProbeCoreFindBucketOfDictionary` internal 泛型(消除9份重复) — 阶段2.1a完成
+- [x] `SwissTable.ICollection.CopyTo` 拆 `CopyToKvp`/`CopyToDictEntry`/`CopyToObjectBox` internal — 阶段2.1b完成
+- [x] `SwissTable.TryInsert` 拆 `TryReplaceExisting`/`InsertNewBucket` internal — 阶段2.1b完成
+- [x] `ImmutableDag.RemoveNodeFromState` 拆 `RemoveOneIncidentEdge` internal static — 阶段2.1c完成
+- [x] `Dag.GetAffectedSubgraph`/`ImmutableDag.GetAffectedSubgraph` 提取 `DagAlgorithms.KahnTraverseSubgraph` internal(消除重复) — 阶段2.1d完成
+- [x] `ImmutableHamT.BitmapNode.Add` 拆 `MaybeUpgradeToFullArrayNode` internal static — 阶段2.1e完成
 
 #### 2.2 async_lock — ActorBase 纯计算片段
 - [ ] `ActorBase.CheckInputWatermark` 拆 `internal static WatermarkLevel ComputeWatermarkLevel(int count, int high, int critical)` + 表驱动测试

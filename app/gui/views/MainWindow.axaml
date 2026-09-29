@@ -365,6 +365,7 @@
                   <StackPanel Orientation="Horizontal" Spacing="8" Margin="2,0,2,6">
                     <TextBlock Text="{Binding BackgroundPanel.CountText, FallbackValue='后台代理'}" FontSize="11.5"
                                FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
+                    <TextBox Text="{Binding BackgroundPanel.SearchText}" Watermark="搜索..." FontSize="10" Padding="6,2" MinWidth="80" />
                     <Button Classes="ghost" Content="暂停所有" FontSize="10" Padding="7,2" MinHeight="0"
                             Command="{Binding BackgroundPanel.PauseAllCommand}" ToolTip.Tip="暂停所有运行中子代理" />
                     <Button Classes="ghost" Content="恢复所有" FontSize="10" Padding="7,2" MinHeight="0"
@@ -376,7 +377,8 @@
                     <ItemsControl ItemsSource="{Binding BackgroundPanel.Items}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:BackgroundAgentItemVm">
-                          <Border CornerRadius="8" Padding="10,6" Margin="0,0,0,5" Background="{DynamicResource GuiCardHover}">
+                          <Border CornerRadius="8" Padding="10,6" Margin="0,0,0,5" Background="{DynamicResource GuiCardHover}"
+                                  IsVisible="{Binding IsVisible}">
                             <StackPanel Spacing="4">
                               <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
                                 <Button Classes="ghost" FontSize="10" Padding="4,2" MinHeight="0" MinWidth="0"

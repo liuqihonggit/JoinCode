@@ -51,6 +51,9 @@ public sealed class BackgroundAgentItemVm {
     /// <summary>尾部可见活动列表（展开时从 SubAgentRunTracker 填充）</summary>
     public IReadOnlyList<string> VisibleActivities { get; set; } = [];
 
+    /// <summary>是否可见 — 搜索过滤驱动</summary>
+    public bool IsVisible { get; set; } = true;
+
     /// <summary>已运行时长展示文本</summary>
     public string ElapsedText { get; }
     /// <summary>统计摘要文本（工具次数 · token 数）</summary>
@@ -103,6 +106,12 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
 
     [ObservableProperty]
     private string _countText = string.Empty;
+
+    /// <summary>搜索关键词 — 按名称/描述/状态过滤卡片</summary>
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
+    partial void OnSearchTextChanged(string value) => ApplyFilter();
 
     /// <summary>后台代理行集合</summary>
     public System.Collections.ObjectModel.ObservableCollection<BackgroundAgentItemVm> Items { get; } = [];
@@ -230,6 +239,21 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
         foreach (var info in snapshot)
             Items.Add(new BackgroundAgentItemVm(info));
         CountText = snapshot.Count > 0 ? $"{snapshot.Count} 个后台代理" : string.Empty;
+        ApplyFilter();
         SnapshotApplied?.Invoke(snapshot.Count);
+    }
+
+    /// <summary>按 SearchText 过滤卡片显隐 — 空 keyword 显示全部</summary>
+    private void ApplyFilter() {
+        if (string.IsNullOrWhiteSpace(SearchText)) {
+            foreach (var item in Items) item.IsVisible = true;
+            return;
+        }
+        var keyword = SearchText.Trim();
+        foreach (var item in Items) {
+            item.IsVisible = item.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                          || item.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                          || item.State.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

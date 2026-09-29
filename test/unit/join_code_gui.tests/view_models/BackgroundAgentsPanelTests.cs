@@ -140,4 +140,58 @@ public class BackgroundAgentsPanelTests {
 
         stopped.Should().BeEmpty("completed 状态不应调用 stopper");
     }
+
+    [Fact]
+    public async Task ToggleExpand_ValidId_TogglesIsExpanded() {
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1")]),
+            stopper: (_, _) => Task.FromResult(true));
+        await panel.ToggleAndRefreshAsync();
+
+        panel.Items[0].IsExpanded.Should().BeFalse();
+        panel.ToggleExpand("a1");
+        panel.Items[0].IsExpanded.Should().BeTrue();
+        panel.ToggleExpand("a1");
+        panel.Items[0].IsExpanded.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ToggleExpand_UnknownId_NoChange() {
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1")]),
+            stopper: (_, _) => Task.FromResult(true));
+        await panel.ToggleAndRefreshAsync();
+
+        panel.ToggleExpand("nonexistent");
+        panel.Items[0].IsExpanded.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ToggleExpand_WithTracker_FillsActivitiesOnExpand() {
+        var tracker = new SubAgentRunTracker();
+        tracker.Observe(ChatStreamEvent.AgentStarted("a1", "explore", "调研任务", "executor"));
+        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, AgentId = "a1", ToolName = "search" });
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1")]),
+            stopper: (_, _) => Task.FromResult(true),
+            runTracker: tracker);
+        await panel.ToggleAndRefreshAsync();
+
+        panel.ToggleExpand("a1");
+        panel.Items[0].IsExpanded.Should().BeTrue();
+        panel.Items[0].LastActivityText.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task ToggleExpand_NoTracker_ActivitiesRemainEmpty() {
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1")]),
+            stopper: (_, _) => Task.FromResult(true));
+        await panel.ToggleAndRefreshAsync();
+
+        panel.ToggleExpand("a1");
+        panel.Items[0].IsExpanded.Should().BeTrue();
+        panel.Items[0].LastActivityText.Should().BeNull();
+        panel.Items[0].VisibleActivities.Should().BeEmpty();
+    }
 }

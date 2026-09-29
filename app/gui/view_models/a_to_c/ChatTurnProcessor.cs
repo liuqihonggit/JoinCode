@@ -29,6 +29,9 @@ internal sealed class ChatTurnProcessor {
     /// <summary>当前全部子代理行 VM（跨组卡片聚合视图，供回放入口查找）</summary>
     public IReadOnlyList<AgentRunVm> AgentRuns => [.. _agentRunVms.Values];
 
+    /// <summary>子代理运行追踪器 — 供 BackgroundPanel 共享查询实时活动数据</summary>
+    public SubAgentRunTracker AgentTracker => _agentTracker;
+
     /// <summary>构造单回合处理器 — 绑定目标 UI 消息集合</summary>
     public ChatTurnProcessor(ObservableCollection<ChatUiMessage> messages)
         => _messages = messages ?? throw new ArgumentNullException(nameof(messages));

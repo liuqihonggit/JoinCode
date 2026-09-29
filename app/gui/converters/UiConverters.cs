@@ -101,3 +101,19 @@ public sealed class BoolToSessionHighlightConverter : IValueConverter {
     public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
         => throw new NotSupportedException();
 }
+
+/// <summary>
+/// 布尔 → 展开图标：true 显 ▼（已展开），false 显 ▶（已收起）。
+/// </summary>
+public sealed class ExpandGlyphConverter : IValueConverter {
+    /// <summary>单例实例 — 供 XAML 静态绑定</summary>
+    public static readonly ExpandGlyphConverter Instance = new();
+
+    /// <summary>转换值</summary>
+    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+        => value is true ? "▼" : "▶";
+
+    /// <summary>转换回原值</summary>
+    public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+        => throw new NotSupportedException();
+}

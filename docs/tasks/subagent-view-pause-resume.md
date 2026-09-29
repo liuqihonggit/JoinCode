@@ -128,7 +128,9 @@
 - `IJccChatSession` — 接口层，只做委托桥接 ✅
 - 引擎层 `IAgentService`/`IInProcessTeammateTaskExecutor` — 实际执行 ✅
 
-### 2. Fork 路径暂停能力（后续）
-- 当前 Fork 路径只有 CancelForkAsync（终止性），无暂停能力
-- 需要给 ForkSubAgentManagerActor 加 PauseForkCmd/ResumeForkCmd（Actor 邮箱模型）
-- 暂不实现，等用户明确需求
+### 2. Fork 路径暂停能力（设计决策：不需要）
+- **Fork = 一次性任务**：fork 出去执行完就结束，没有"对话"语义
+- **暂停的语义是"中断进 idle 等 next prompt"** — 这对 teammate（长期对话式）有意义，对 fork（一次性执行）无意义
+- **要停止 fork 用 `CancelForkAsync`（终止性）就够了** — 已经由 `stop` action 覆盖（`StopBackgroundAgentAsync` 内部回退到 `CancelForkAsync`）
+- **要重跑就重新 fork 一个** — 不存在"恢复"fork 的需求
+- **结论**：fork 路径不需要 Pause/Resume 能力，当前实现正确地只对 teammate 路径支持暂停/恢复

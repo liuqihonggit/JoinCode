@@ -90,6 +90,8 @@ Bug1（GUI 开关断裂）→ Bug2（settings.json 死字段）→ Bug3（goal �
 | Bug4: AgentToolRestrictions 显式 Unattended | `240f96f6d` | ✅ |
 | Bug5: 辅助层对齐 Unattended | `2723902c7` | ✅ |
 
+**全部 7 个任务已完成，无遗留。**
+
 ### Feature4 提示词最终设计（用户纠正后）
 
 再三确认由**引擎层自动注入提示词给 AI**（不是 GUI 按钮点三次），逐级 a→b→c：

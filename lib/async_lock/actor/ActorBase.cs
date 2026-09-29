@@ -90,7 +90,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         _retryEngine.Start();
     }
 
-    private static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure) {
+    internal static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure) {
         if (backpressure is null || backpressure.Capacity == 0) {
             return Channel.CreateBounded<TCommand>(new BoundedChannelOptions(DefaultChannelCapacity) {
                 FullMode = BoundedChannelFullMode.Wait,
@@ -106,7 +106,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         });
     }
 
-    private static Channel<TOut> CreateOutputChannel(int? capacity, BoundedChannelFullMode fullMode) {
+    internal static Channel<TOut> CreateOutputChannel(int? capacity, BoundedChannelFullMode fullMode) {
         var cap = capacity ?? DefaultChannelCapacity;
         return Channel.CreateBounded<TOut>(new BoundedChannelOptions(cap) {
             FullMode = fullMode,

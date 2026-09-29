@@ -124,14 +124,29 @@ public sealed class ChildActorHandle : IAsyncDisposable {
         }
     }
 
+    /// <summary>
+    /// 记录重启时间戳 — 纯函数,不依赖实例状态/时序,供确定性测试。
+    /// <para>过滤窗口外旧记录,若窗口内重启次数未超限则添加当前时间戳。</para>
+    /// </summary>
+    /// <param name="restartTimes">已有重启时间戳列表</param>
+    /// <param name="now">当前时间</param>
+    /// <param name="within">时间窗口</param>
+    /// <param name="maxRestarts">窗口内最大重启次数</param>
+    /// <returns>(新列表, 是否成功添加)</returns>
+    internal static (ImmutableList<DateTimeOffset> newList, bool added) RecordRestart(
+        ImmutableList<DateTimeOffset> restartTimes, DateTimeOffset now, TimeSpan within, int maxRestarts) {
+        var filtered = restartTimes.RemoveAll(t => now - t > within);
+        if (filtered.Count >= maxRestarts) return (filtered, false);
+        return (filtered.Add(now), true);
+    }
+
     private bool TryRecordRestart() {
         var now = DateTimeOffset.UtcNow;
         var added = false;
         ImmutableInterlocked.Update(ref _restartTimes, list => {
-            var filtered = list.RemoveAll(t => now - t > _strategy.Within);
-            if (filtered.Count >= _strategy.MaxRestarts) return filtered;
-            added = true;
-            return filtered.Add(now);
+            var (newList, wasAdded) = RecordRestart(list, now, _strategy.Within, _strategy.MaxRestarts);
+            added = wasAdded;
+            return newList;
         });
         if (added) Interlocked.Increment(ref _restartCount);
         return added;

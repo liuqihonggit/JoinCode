@@ -142,18 +142,18 @@
 - [x] `ImmutableHamT.BitmapNode.Add` 拆 `MaybeUpgradeToFullArrayNode` internal static — 阶段2.1e完成
 
 #### 2.2 async_lock — ActorBase 纯计算片段
-- [ ] `ActorBase.CheckInputWatermark` 拆 `internal static WatermarkLevel ComputeWatermarkLevel(int count, int high, int critical)` + 表驱动测试
-- [ ] `ActorBase.ConsumeBackpressureDelay` 拆 `internal static TimeSpan SumDelays(IEnumerable<TimeSpan>)` + 测试
-- [ ] `ActorBase.RetrySendAsync` 退避公式拆 `internal static TimeSpan ComputeBackoff(int retry)` + 边界测试(0/10/11/16)
-- [ ] `ActorBase.AskWithRetryAsync` 退避公式拆 `internal static int ComputeAskBackoffMs(int attempt)` + 边界测试(20/21/30)
-- [ ] `ActorBase.EnterWaitGraph` internal + 直接测试:加边成功/环抛异常/callerId==Id跳过/callerId==null跳过
-- [ ] `ActorBase.CreateInputChannel`/`CreateOutputChannel` internal static + 测试:capacity=0/null/正数
-- [ ] `ActorBase.ConsumeLoopAsync` 幂等去重路径直接测试:重复IRequestCommand→Handle仅调一次
-- [ ] `GatewayActor.CheckBreakerOpen` private→internal + 测试:Closed/Open/HalfOpen转换
-- [ ] `SupervisedActor.TryRecordRestart` private→internal + 测试:重启次数+时间窗口
-- [ ] `BackpressureChannel.CalculateCriticalDelay` private→internal + 测试
-- [ ] `PriorityMailbox.TryReadByPriority` private→internal + 测试:High→Normal→Low
-- [ ] `HostContextSyncService.SerializeSnapshot`/`DeserializeSnapshot`/`ExtractJsonField` private→internal + 测试
+- [x] `ActorBase.CheckInputWatermark` 拆 `internal static WatermarkLevel ComputeWatermarkLevel(int count, int high, int critical)` + 表驱动测试 — 阶段2.2完成(WatermarkMonitor已抽离)
+- [x] `ActorBase.ConsumeBackpressureDelay` 拆 `internal static TimeSpan SumDelays(IEnumerable<TimeSpan>)` + 测试 — 阶段2.2完成(MessageRetryEngine已抽离)
+- [x] `ActorBase.RetrySendAsync` 退避公式拆 `internal static TimeSpan ComputeBackoff(int retry)` + 边界测试(0/10/11/16) — 阶段2.2完成(ComputeBackoffDelayMs已internal static)
+- [x] `ActorBase.AskWithRetryAsync` 退避公式拆 `internal static int ComputeAskBackoffMs(int attempt)` + 边界测试(20/21/30) — 阶段2.2完成(复用ComputeBackoffDelayMs)
+- [x] `ActorBase.EnterWaitGraph` internal + 直接测试:加边成功/环抛异常/callerId==Id跳过/callerId==null跳过 — 阶段2.2完成(AskWaitGraphTracker已抽离)
+- [x] `ActorBase.CreateInputChannel`/`CreateOutputChannel` internal static + 测试:capacity=0/null/正数 — 阶段2.2完成
+- [x] `ActorBase.ConsumeLoopAsync` 幂等去重路径直接测试:重复IRequestCommand→Handle仅调一次 — 阶段2.2完成(ProcessSingleCommand已internal+3测试)
+- [x] `GatewayActor.CheckBreakerOpen` private→internal + 测试:Closed/Open/HalfOpen转换 — 阶段2.2完成(拆EvaluateBreakerState纯函数+8测试)
+- [x] `SupervisedActor.TryRecordRestart` private→internal + 测试:重启次数+时间窗口 — 阶段2.2完成(拆RecordRestart纯函数+8测试)
+- [x] `BackpressureChannel.CalculateCriticalDelay` private→internal + 测试 — 阶段2.2完成(拆internal static+7测试,修复整数溢出bug)
+- [x] `PriorityMailbox.TryReadByPriority` private→internal + 测试:High→Normal→Low — 阶段2.2完成(8测试)
+- [x] `HostContextSyncService.SerializeSnapshot`/`DeserializeSnapshot`/`ExtractJsonField` private→internal + 测试 — 阶段2.2完成(15测试)
 
 #### 2.3 guard — 守卫纯逻辑 + 防御节点
 - [ ] `GitCommitGuard.ExtractFirstToken`/`IsGitCommitSubCommand` private→internal static + 测试

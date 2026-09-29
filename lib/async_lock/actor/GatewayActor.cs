@@ -150,19 +150,31 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
         }
     }
 
-    private bool CheckBreakerOpen() {
-        if (_options.CircuitBreakerThreshold <= 0) return false;
-
-        var state = (GatewayCircuitState)Volatile.Read(ref _breakerState);
+    /// <summary>
+    /// 评估熔断状态 — 纯函数,不依赖实例状态/时序,供确定性测试。
+    /// <para>返回 (reject, newState): reject=是否拒绝调用, newState=需要切换到的新状态(null=不切换)</para>
+    /// </summary>
+    /// <param name="state">当前熔断状态</param>
+    /// <param name="elapsed">自熔断打开以来经过的时间</param>
+    /// <param name="threshold">熔断阈值(0=禁用)</param>
+    /// <param name="recoveryDelay">熔断恢复延迟</param>
+    internal static (bool reject, GatewayCircuitState? newState) EvaluateBreakerState(
+        GatewayCircuitState state, TimeSpan elapsed, int threshold, TimeSpan recoveryDelay) {
+        if (threshold <= 0) return (false, null);
         if (state == GatewayCircuitState.Open) {
-            var elapsed = DateTimeOffset.UtcNow - _breakerOpenedAt;
-            if (elapsed >= _options.EffectiveRecoveryDelay) {
-                Interlocked.Exchange(ref _breakerState, (int)GatewayCircuitState.HalfOpen);
-                return false;
-            }
-            return true;
+            if (elapsed >= recoveryDelay) return (false, GatewayCircuitState.HalfOpen);
+            return (true, null);
         }
-        return false;
+        return (false, null);
+    }
+
+    private bool CheckBreakerOpen() {
+        var state = (GatewayCircuitState)Volatile.Read(ref _breakerState);
+        var (reject, newState) = EvaluateBreakerState(
+            state, DateTimeOffset.UtcNow - _breakerOpenedAt,
+            _options.CircuitBreakerThreshold, _options.EffectiveRecoveryDelay);
+        if (newState is { } s) Interlocked.Exchange(ref _breakerState, (int)s);
+        return reject;
     }
 
     private void OnCallSuccess() {

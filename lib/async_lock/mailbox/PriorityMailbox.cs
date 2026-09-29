@@ -218,7 +218,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable {
         } catch (OperationCanceledException) { }
     }
 
-    private bool TryReadByPriority(out TCommand cmd, out MessagePriority priority) {
+    internal bool TryReadByPriority(out TCommand cmd, out MessagePriority priority) {
         if (_highChannel.Reader.TryRead(out var highCmd)) {
             cmd = highCmd;
             priority = MessagePriority.High;

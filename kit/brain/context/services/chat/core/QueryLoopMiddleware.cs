@@ -132,7 +132,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             var iterState = new IterationState();
 
             if (_loopDetectionStrategy is InformationEntropyGuardian guardian)
-                guardian.SetContext(context.SpanName, context.ConversationTurn, totalToolCalls);
+                guardian.SetContext(context.SessionId, context.ConversationTurn, totalToolCalls);
 
             if (UseStreamingToolExecution) {
                 await foreach (var evt in ProcessStreamingModeAsync(historySnapshot, context, iterState, totalToolCalls, ct).ConfigureAwait(false)) {

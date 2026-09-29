@@ -117,7 +117,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
-    private async Task<WorkflowPluginHost> LoadWorkflowPluginCoreAsync(IWorkflowPlugin plugin, CancellationToken ct) {
+    /// <summary>
+    /// 加载工作流插件核心逻辑 — 全流程:检查重复/黑名单 → 转换 Fiber → LoadAsync → InitializeAsync → 契约校验 → 注册
+    /// <para>拆自 <see cref="LoadWorkflowPluginAsync{TPlugin}"/> Actor mailbox 处理,行为不变</para>
+    /// <para>internal 暴露用于确定性全流程 mock 测试(不依赖 Actor mailbox/时序)</para>
+    /// </summary>
+    internal async Task<WorkflowPluginHost> LoadWorkflowPluginCoreAsync(IWorkflowPlugin plugin, CancellationToken ct) {
         var pluginName = plugin.Name;
 
         await using var span = _telemetryService?.StartSpan("plugin.load.workflow", TelemetrySpanKind.Server);
@@ -243,9 +248,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <summary>
     /// 注册已加载工作流插件 — 撤销链 + 加载顺序 + 资源 ObjectId + Fiber 转 Active
     /// <para>拆自 <see cref="LoadWorkflowPluginCoreAsync"/>,行为不变</para>
-    /// <para>同步状态操作(含 host.Context?.GetAsyncUndoChain().ToList() 快照),可确定性测试</para>
+    /// <para>同步状态操作(含 host.Context?.GetUndoChain()/GetAsyncUndoChain() 快照),可确定性测试</para>
     /// </summary>
     internal void RegisterLoadedWorkflowPlugin(string pluginName, IWorkflowPlugin plugin, WorkflowPluginHost host, List<Action> undoChain) {
+        if (host.Context?.GetUndoChain() is { Count: > 0 } syncChain) {
+            undoChain.AddRange(syncChain.Select(undo => (Action)undo));
+        }
         _lifecycleTracker.RegisterUndoChain(pluginName, undoChain, host.Context?.GetAsyncUndoChain().ToList());
         _lifecycleTracker.AddToLoadOrder(pluginName);
 
@@ -486,7 +494,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
-    private async Task<PluginUnloadResult> UnloadPluginCoreAsync(string pluginName, CancellationToken ct) {
+    /// <summary>
+    /// 卸载插件核心逻辑 — 三分支(External/Native/Workflow)分发 + cascade 连带卸载 + prepare 引用计数
+    /// <para>拆自 <see cref="UnloadPluginAsync(string, CancellationToken)"/> Actor mailbox 处理,行为不变</para>
+    /// <para>internal 暴露用于确定性全流程 mock 测试(不依赖 Actor mailbox/时序)</para>
+    /// </summary>
+    internal async Task<PluginUnloadResult> UnloadPluginCoreAsync(string pluginName, CancellationToken ct) {
 
         if (!_plugins.TryGetValue(pluginName, out var host)) {
             await PrepareUnloadAsync(pluginName, ct).ConfigureAwait(false);
@@ -576,7 +589,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
-    private async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsCoreAsync(CancellationToken ct) {
+    /// <summary>
+    /// 卸载全部插件核心逻辑 — 按 external → native → workflow(逆序)顺序卸载
+    /// <para>拆自 <see cref="UnloadAllPluginsAsync"/> Actor mailbox 处理,行为不变</para>
+    /// <para>internal 暴露用于确定性全流程 mock 测试(不依赖 Actor mailbox/时序)</para>
+    /// </summary>
+    internal async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsCoreAsync(CancellationToken ct) {
         var results = new List<PluginUnloadResult>();
         var externalPluginNames = _plugins.ByKind.GetKeys(PluginKind.External);
         var nativePluginNames = _plugins.ByKind.GetKeys(PluginKind.Native);

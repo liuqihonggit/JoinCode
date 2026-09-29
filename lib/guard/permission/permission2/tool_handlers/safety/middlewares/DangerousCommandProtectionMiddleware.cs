@@ -330,28 +330,12 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     }
 
     /// <summary>
-    /// 选择最高优先级的风险
+    /// 选择最高优先级的风险 — 委托给 <see cref="DangerousCommandCatalog.SelectPrimaryRisk"/> 唯一数据源。
+    /// <para>空列表返回 null(无风险);非空委托 catalog 统一优先级。</para>
     /// </summary>
     private static CommandRisk? SelectPrimaryRisk(IReadOnlyList<CommandRisk> risks) {
-        // 优先级从高到低
-        var priority = new[]
-        {
-            CommandRisk.FileDeletion,
-            CommandRisk.DirectoryDeletion,
-            CommandRisk.PrivilegeEscalation,
-            CommandRisk.RemoteExecution,
-            CommandRisk.ForceOperation,
-            CommandRisk.RecursiveOperation,
-            CommandRisk.DataModification,
-            CommandRisk.SystemModification,
-            CommandRisk.PathEscape
-        };
-
-        foreach (var risk in priority) {
-            if (risks.Contains(risk))
-                return risk;
-        }
-
-        return risks.FirstOrDefault();
+        if (risks.Count == 0)
+            return null;
+        return DangerousCommandCatalog.SelectPrimaryRisk(risks);
     }
 }

@@ -84,6 +84,8 @@ public sealed class WorkflowPluginHost : PluginResourceBase, IPluginHost {
 
             _logger?.LogInformation("工作流插件 {PluginName} 服务注册完成", _plugin.Name);
             return OperationResult.Ok();
+        } catch (OperationCanceledException) {
+            throw;
         } catch (Exception ex) {
             _logger?.LogError(ex, "加载工作流插件 {PluginName} 时发生异常", _plugin.Name);
             return OperationResult.Fail($"加载异常: {ex.Message}");
@@ -123,6 +125,8 @@ public sealed class WorkflowPluginHost : PluginResourceBase, IPluginHost {
 
             _logger?.LogInformation("工作流插件 {PluginName} 初始化完成", _plugin.Name);
             return OperationResult.Ok();
+        } catch (OperationCanceledException) {
+            throw;
         } catch (Exception ex) {
             _logger?.LogError(ex, "初始化工作流插件 {PluginName} 时发生异常", _plugin.Name);
             return OperationResult.Fail($"初始化异常: {ex.Message}");
@@ -151,6 +155,8 @@ public sealed class WorkflowPluginHost : PluginResourceBase, IPluginHost {
 
             _logger?.LogInformation("工作流插件 {PluginName} 卸载完成", _plugin.Name);
             return result;
+        } catch (OperationCanceledException) {
+            throw;
         } catch (Exception ex) {
             _logger?.LogError(ex, "卸载工作流插件 {PluginName} 时发生异常", _plugin.Name);
             return PluginUnloadResult.AlcUnloadFailed(_plugin.Name, TimeSpan.Zero, $"卸载异常: {ex.Message}");

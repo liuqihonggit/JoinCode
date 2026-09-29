@@ -270,6 +270,34 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
 
     #endregion
 
+    #region 纯计算分支(internal static 测试可见)
+
+    /// <summary>
+    /// 判断 SSE 响应状态码是否为永久拒绝 — 401/403/404 不重连。
+    /// 纯函数，对齐 TS 端 SSETransport 永久拒绝码处理。
+    /// </summary>
+    /// <param name="statusCode">HTTP 响应状态码</param>
+    /// <returns>true 表示永久拒绝应关闭；false 表示可继续</returns>
+    internal static bool IsSsePermanentRejection(System.Net.HttpStatusCode statusCode)
+        => statusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.NotFound;
+
+    /// <summary>
+    /// 尝试解析 SSE 事件 ID 为序列号 — 非空且为整数时成功。
+    /// 纯函数，对齐 TS 端 SSETransport Last-Event-ID 序列号提取。
+    /// </summary>
+    /// <param name="id">SSE 事件 ID（可能为 null）</param>
+    /// <param name="seqNum">解析成功的序列号</param>
+    /// <returns>true 表示解析成功；false 表示 id 为 null 或非整数</returns>
+    internal static bool TryParseSequenceNumber(string? id, out int seqNum) {
+        if (id is null) {
+            seqNum = 0;
+            return false;
+        }
+        return int.TryParse(id, out seqNum);
+    }
+
+    #endregion
+
     #region SSE 读流
 
     /// <summary>
@@ -296,9 +324,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
                     _heartbeatCts.Token).ConfigureAwait(false);
 
                 // 永久拒绝码: 401/403/404 — 对齐 TS 端 SSETransport
-                if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized
-                    or System.Net.HttpStatusCode.Forbidden
-                    or System.Net.HttpStatusCode.NotFound) {
+                if (IsSsePermanentRejection(response.StatusCode)) {
                     _logger?.LogError("[V2Transport] SSE 永久拒绝: {StatusCode}", response.StatusCode);
                     _onCloseCallback?.Invoke((int)response.StatusCode);
                     return;
@@ -309,7 +335,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
                 await using var stream = await response.Content.ReadAsStreamAsync(_heartbeatCts.Token).ConfigureAwait(false);
 
                 await foreach (var sseEvent in SseStreamParser.ParseAsync(stream, _heartbeatCts.Token).ConfigureAwait(false)) {
-                    if (sseEvent.Id is not null && int.TryParse(sseEvent.Id, out var seqNum)) {
+                    if (TryParseSequenceNumber(sseEvent.Id, out var seqNum)) {
                         _lastSequenceNum = seqNum;
                     }
 

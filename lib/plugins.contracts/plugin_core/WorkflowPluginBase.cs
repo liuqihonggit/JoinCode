@@ -107,7 +107,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
             Fiber.TransitionTo(PluginFiberState.Unloaded);
             return PluginUnloadResult.Success(Name, sw.Elapsed);
         } catch (Exception ex) {
-            return PluginUnloadResult.Failure(ex.Message);
+            return PluginUnloadResult.Failure(Name, sw.Elapsed, ex.Message);
         }
     }
 

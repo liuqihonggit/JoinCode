@@ -218,4 +218,73 @@ public class DangerousCommandCatalogIntegrityTests {
     }
 
     #endregion
+
+    #region RiskPriority / SelectPrimaryRisk 统一数据源
+
+    [Fact]
+    public void RiskPriority_Should_Start_With_PathEscape() {
+        // PathEscape 对应 Dangerous(黑灯直接拒绝),优先级必须最高
+        DangerousCommandCatalog.RiskPriority[0].Should().Be(CommandRisk.PathEscape);
+    }
+
+    [Fact]
+    public void RiskPriority_Should_Not_Contain_None() {
+        // None 不是真实风险,不应出现在优先级表
+        DangerousCommandCatalog.RiskPriority.Should().NotContain(CommandRisk.None);
+    }
+
+    [Fact]
+    public void RiskPriority_Should_Not_Contain_Duplicates() {
+        var distinct = DangerousCommandCatalog.RiskPriority.Distinct().Count();
+        distinct.Should().Be(DangerousCommandCatalog.RiskPriority.Length,
+            "RiskPriority 不应有重复元素");
+    }
+
+    [Fact]
+    public void SelectPrimaryRisk_Empty_Should_Return_None() {
+        DangerousCommandCatalog.SelectPrimaryRisk(new List<CommandRisk>()).Should().Be(CommandRisk.None);
+    }
+
+    [Fact]
+    public void SelectPrimaryRisk_Single_Should_Return_That_Risk() {
+        DangerousCommandCatalog.SelectPrimaryRisk(new List<CommandRisk> { CommandRisk.FileDeletion })
+            .Should().Be(CommandRisk.FileDeletion);
+    }
+
+    [Fact]
+    public void SelectPrimaryRisk_PathEscape_Should_Be_Highest_Priority() {
+        // PathEscape 必须优先于 FileDeletion/DirectoryDeletion 等
+        var risks = new List<CommandRisk> {
+            CommandRisk.FileDeletion, CommandRisk.DirectoryDeletion, CommandRisk.PathEscape
+        };
+        DangerousCommandCatalog.SelectPrimaryRisk(risks).Should().Be(CommandRisk.PathEscape);
+    }
+
+    [Fact]
+    public void SelectPrimaryRisk_UnknownRisk_Should_Return_First() {
+        // ExcessiveSearchScope 不在优先级表,返回列表第一个
+        DangerousCommandCatalog.SelectPrimaryRisk(new List<CommandRisk> { CommandRisk.ExcessiveSearchScope })
+            .Should().Be(CommandRisk.ExcessiveSearchScope);
+    }
+
+    [Fact]
+    public void SelectPrimaryRisk_MixedKnownAndUnknown_Should_Prefer_Known_High_Priority() {
+        // 已知高优先级风险应优先于未知风险
+        var risks = new List<CommandRisk> {
+            CommandRisk.ExcessiveSearchScope, CommandRisk.FileDeletion
+        };
+        DangerousCommandCatalog.SelectPrimaryRisk(risks).Should().Be(CommandRisk.FileDeletion);
+    }
+
+    [Fact]
+    public void SelectPrimaryRisk_CommandDangerClassifier_Delegates_To_Catalog() {
+        // 验证 CommandDangerClassifier.SelectPrimaryRisk 与 catalog 行为一致(委托)
+        var risks = new List<CommandRisk> {
+            CommandRisk.DirectoryDeletion, CommandRisk.PathEscape, CommandRisk.ForceOperation
+        };
+        CommandDangerClassifier.SelectPrimaryRisk(risks)
+            .Should().Be(DangerousCommandCatalog.SelectPrimaryRisk(risks));
+    }
+
+    #endregion
 }

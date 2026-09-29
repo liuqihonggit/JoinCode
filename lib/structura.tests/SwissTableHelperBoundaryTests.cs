@@ -243,15 +243,20 @@ public class SwissTableCapacityToBucketsBoundaryTests {
             .WithMessage("capacity overflow");
     }
 
-    /// <summary>验证 capacity=0 触发 Debug.Assert(测试宿主转抛 DebugAssertException)。</summary>
+    /// <summary>验证 capacity=0 行为:Debug模式触发Assert,Release模式安全返回4。</summary>
+#if DEBUG
     [Fact]
     public void CapacityToBuckets_Zero_TriggersDebugAssert() {
-        // capacity_to_buckets 的 Debug.Assert(cap > 0) 在测试宿主下转抛 DebugAssertException。
-        // 这是预期行为:capacity_to_buckets 是 private 方法,正常调用方(EnsureCapacity/InitializeInnerTable)
-        // 已保证 cap > 0,直接传 0 属于契约违反,Debug.Assert 正确触发。
         var act = () => InvokeCapacityToBuckets(0);
         act.Should().Throw<System.Reflection.TargetInvocationException>();
     }
+#else
+    [Fact]
+    public void CapacityToBuckets_Zero_ReleaseMode_Returns4() {
+        var result = InvokeCapacityToBuckets(0);
+        result.Should().Be(4);
+    }
+#endif
 }
 
 /// <summary>

@@ -162,51 +162,80 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
 
     private async ValueTask HandleAsyncImpl(IPluginReloadCommand command, CancellationToken ct) {
         switch (command) {
-            case StartWatchingCmd cmd: {
-                if (_isWatchingInt != 0) {
-                    cmd.Tcs.TrySetResult();
-                    break;
-                }
-
-                _watcher = _fs.Watch(cmd.PluginDirectory);
-                _watcher.IncludeSubdirectories = true;
-                _watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size;
-                _watcher.Filter = "*.*";
-
-                _watcher.DebouncedChanged += OnFileChanged;
-                _watcher.DebouncedCreated += OnFileCreated;
-                _watcher.DebouncedDeleted += OnFileDeleted;
-                _watcher.EnableRaisingEvents = true;
-
-                _isWatchingInt = 1;
-
-                _logger?.LogInformation("[PluginHotReloader] 开始监控插件目录: {Directory}", cmd.PluginDirectory);
-                cmd.Tcs.TrySetResult();
-                break;
-            }
-
-            case StopWatchingCmd cmd: {
-                if (_isWatchingInt == 0) {
-                    cmd.Tcs.TrySetResult();
-                    break;
-                }
-
-                await StopWatcherCoreAsync().ConfigureAwait(false);
-                cmd.Tcs.TrySetResult();
-                break;
-            }
-
-            case ReloadPluginCmd cmd: {
-                await ReloadPluginCoreAsync(cmd.PluginName, cmd.FilePath, cmd.Reason).ConfigureAwait(false);
-                break;
-            }
-
-            case ReloadPluginAndWaitCmd cmd: {
-                await ReloadPluginCoreAsync(cmd.PluginName, cmd.FilePath, cmd.Reason).ConfigureAwait(false);
-                cmd.Tcs.TrySetResult();
-                break;
-            }
+            case StartWatchingCmd startCmd:
+            await HandleStartWatching(startCmd).ConfigureAwait(false);
+            break;
+            case StopWatchingCmd stopCmd:
+            await HandleStopWatching(stopCmd).ConfigureAwait(false);
+            break;
+            case ReloadPluginCmd reloadCmd:
+            await HandleReload(reloadCmd).ConfigureAwait(false);
+            break;
+            case ReloadPluginAndWaitCmd reloadWaitCmd:
+            await HandleReloadAndWait(reloadWaitCmd).ConfigureAwait(false);
+            break;
         }
+    }
+
+    /// <summary>
+    /// 处理 StartWatching 命令 — 创建 FileSystemWatcher 并订阅事件
+    /// <para>拆自 <see cref="HandleAsyncImpl"/> switch 分支,行为不变</para>
+    /// <para>依赖 IO(_fs.Watch),确定性测试留到阶段3</para>
+    /// </summary>
+    internal async ValueTask HandleStartWatching(StartWatchingCmd cmd) {
+        if (_isWatchingInt != 0) {
+            cmd.Tcs.TrySetResult();
+            return;
+        }
+
+        _watcher = _fs.Watch(cmd.PluginDirectory);
+        _watcher.IncludeSubdirectories = true;
+        _watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size;
+        _watcher.Filter = "*.*";
+
+        _watcher.DebouncedChanged += OnFileChanged;
+        _watcher.DebouncedCreated += OnFileCreated;
+        _watcher.DebouncedDeleted += OnFileDeleted;
+        _watcher.EnableRaisingEvents = true;
+
+        _isWatchingInt = 1;
+
+        _logger?.LogInformation("[PluginHotReloader] 开始监控插件目录: {Directory}", cmd.PluginDirectory);
+        cmd.Tcs.TrySetResult();
+    }
+
+    /// <summary>
+    /// 处理 StopWatching 命令 — 释放 watcher 并清零监控标志
+    /// <para>拆自 <see cref="HandleAsyncImpl"/> switch 分支,行为不变</para>
+    /// <para>未监控时(_isWatchingInt=0)短路返回,可确定性测试</para>
+    /// </summary>
+    internal async ValueTask HandleStopWatching(StopWatchingCmd cmd) {
+        if (_isWatchingInt == 0) {
+            cmd.Tcs.TrySetResult();
+            return;
+        }
+
+        await StopWatcherCoreAsync().ConfigureAwait(false);
+        cmd.Tcs.TrySetResult();
+    }
+
+    /// <summary>
+    /// 处理 ReloadPlugin 命令 — fire-and-forget 重载
+    /// <para>拆自 <see cref="HandleAsyncImpl"/> switch 分支,行为不变</para>
+    /// <para>依赖 _pluginManager(IO),确定性测试留到阶段3</para>
+    /// </summary>
+    internal async ValueTask HandleReload(ReloadPluginCmd cmd) {
+        await ReloadPluginCoreAsync(cmd.PluginName, cmd.FilePath, cmd.Reason).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 处理 ReloadPluginAndWait 命令 — 重载并等待完成
+    /// <para>拆自 <see cref="HandleAsyncImpl"/> switch 分支,行为不变</para>
+    /// <para>依赖 _pluginManager(IO),确定性测试留到阶段3</para>
+    /// </summary>
+    internal async ValueTask HandleReloadAndWait(ReloadPluginAndWaitCmd cmd) {
+        await ReloadPluginCoreAsync(cmd.PluginName, cmd.FilePath, cmd.Reason).ConfigureAwait(false);
+        cmd.Tcs.TrySetResult();
     }
 
     /// <summary>

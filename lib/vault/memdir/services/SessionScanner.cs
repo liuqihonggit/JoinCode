@@ -119,6 +119,28 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
     }
 
     /// <summary>
+    /// 安全累加 Token 数 — 溢出时钳制到 long.MaxValue,避免回绕为负数
+    /// </summary>
+    /// <param name="current">当前累计值</param>
+    /// <param name="addition">本次增量(int 范围,单次不会溢出 long)</param>
+    /// <returns>累加结果,溢出时返回 long.MaxValue</returns>
+    internal static long SafeAddTokens(long current, int addition) {
+        if (addition <= 0) return current;
+        if (current > long.MaxValue - addition) return long.MaxValue;
+        return current + addition;
+    }
+
+    /// <summary>
+    /// 安全舍入时长 — NaN/Infinity 返回 0,否则四舍五入到1位小数
+    /// </summary>
+    /// <param name="durationMinutes">时长(分钟)</param>
+    /// <returns>舍入后的时长,异常值返回 0</returns>
+    internal static double SafeRoundDuration(double durationMinutes) {
+        if (double.IsNaN(durationMinutes) || double.IsInfinity(durationMinutes)) return 0;
+        return Math.Round(durationMinutes, 1);
+    }
+
+    /// <summary>
     /// 处理助手消息条目 — 统计消息数/Token/工具使用/特殊工具检测 — 纯计算,对齐 TS extractToolStats
     /// </summary>
     internal static void ProcessAssistantEntry(
@@ -133,8 +155,8 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
         ref bool usesWebFetch,
         ref bool usesTaskAgent) {
         assistantMessageCount++;
-        inputTokens += entry.PromptTokens;
-        outputTokens += entry.CompletionTokens;
+        inputTokens = SafeAddTokens(inputTokens, entry.PromptTokens);
+        outputTokens = SafeAddTokens(outputTokens, entry.CompletionTokens);
 
         if (entry.Timestamp != default) {
             lastAssistantTime = entry.Timestamp;
@@ -247,7 +269,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
             SessionId = sessionId,
             ProjectPath = string.Empty, // C# 端会话文件不存储项目路径
             StartTime = creationTimeUtc,
-            DurationMinutes = Math.Round(durationMinutes, 1),
+            DurationMinutes = SafeRoundDuration(durationMinutes),
             UserMessageCount = userMessageCount,
             AssistantMessageCount = assistantMessageCount,
             InputTokens = inputTokens,

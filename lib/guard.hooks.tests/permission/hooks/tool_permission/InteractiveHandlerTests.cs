@@ -218,4 +218,55 @@ public sealed class InteractiveHandlerTests {
         act.Should().Throw<ArgumentNullException>()
            .WithParameterName("input");
     }
+
+    // === ShouldAutoApprove: 阈值边界 ===
+
+    /// <summary>阈值常量应为 0.85。</summary>
+    [Fact]
+    public void ShouldAutoApprove_ThresholdConstant_Is085() {
+        InteractiveHandler.AutoApproveConfidenceThreshold.Should().Be(0.85);
+    }
+
+    /// <summary>置信度 0.85(等于阈值)应自动批准 — 边界包含。</summary>
+    [Fact]
+    public void ShouldAutoApprove_AtThreshold_ReturnsTrue() {
+        InteractiveHandler.ShouldAutoApprove(0.85).Should().BeTrue();
+    }
+
+    /// <summary>置信度 0.84(刚低于阈值)不应自动批准 — 边界排斥。</summary>
+    [Fact]
+    public void ShouldAutoApprove_BelowThreshold_ReturnsFalse() {
+        InteractiveHandler.ShouldAutoApprove(0.84).Should().BeFalse();
+    }
+
+    /// <summary>置信度 0.86(刚高于阈值)应自动批准。</summary>
+    [Fact]
+    public void ShouldAutoApprove_AboveThreshold_ReturnsTrue() {
+        InteractiveHandler.ShouldAutoApprove(0.86).Should().BeTrue();
+    }
+
+    /// <summary>置信度 0.0 不应自动批准。</summary>
+    [Fact]
+    public void ShouldAutoApprove_Zero_ReturnsFalse() {
+        InteractiveHandler.ShouldAutoApprove(0.0).Should().BeFalse();
+    }
+
+    /// <summary>置信度 1.0 应自动批准。</summary>
+    [Fact]
+    public void ShouldAutoApprove_One_ReturnsTrue() {
+        InteractiveHandler.ShouldAutoApprove(1.0).Should().BeTrue();
+    }
+
+    /// <summary>NaN 置信度不应自动批准 — IEEE 754 任何与 NaN 比较均为 false。</summary>
+    [Fact]
+    public void ShouldAutoApprove_NaN_ReturnsFalse() {
+        InteractiveHandler.ShouldAutoApprove(double.NaN).Should().BeFalse();
+    }
+
+    /// <summary>自定义阈值参数应覆盖默认阈值。</summary>
+    [Fact]
+    public void ShouldAutoApprove_CustomThreshold_OverridesDefault() {
+        InteractiveHandler.ShouldAutoApprove(0.5, threshold: 0.5).Should().BeTrue();
+        InteractiveHandler.ShouldAutoApprove(0.49, threshold: 0.5).Should().BeFalse();
+    }
 }

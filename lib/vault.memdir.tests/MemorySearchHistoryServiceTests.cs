@@ -110,6 +110,81 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable {
         results.Should().Contain(m => m.Type == MemoryType.Feedback);
     }
 
+    // === MaxHistorySize=100 上限淘汰 ===
+
+    [Fact]
+    public async Task RecordSearchAsync_Over100Entries_RetainsOnly100() {
+        // Arrange — 用 FakeClock 确保时间戳严格递增,可验证淘汰最旧
+        var clock = new FakeClockService(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        await using var sut = new MemorySearchHistoryService(_memoryStore, NullLogger<MemorySearchHistoryService>.Instance, clock);
+
+        // Act — 插入 101 条
+        for (var i = 0; i < 101; i++) {
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await sut.RecordSearchAsync($"query-{i:D3}", resultCount: i).ConfigureAwait(true);
+        }
+
+        // Assert — 只保留 100 条
+        var searches = sut.GetRecentSearches(limit: 200);
+        searches.Should().HaveCount(100);
+    }
+
+    [Fact]
+    public async Task RecordSearchAsync_Over100Entries_EvictsOldest() {
+        // Arrange — 用 FakeClock 确保时间戳严格递增
+        var clock = new FakeClockService(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        await using var sut = new MemorySearchHistoryService(_memoryStore, NullLogger<MemorySearchHistoryService>.Instance, clock);
+
+        // Act — 插入 101 条
+        for (var i = 0; i < 101; i++) {
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await sut.RecordSearchAsync($"query-{i:D3}", resultCount: i).ConfigureAwait(true);
+        }
+
+        // Assert — 最旧的 query-000 被淘汰,query-001 是最旧保留项
+        var searches = sut.GetRecentSearches(limit: 200);
+        searches.Should().NotContain(s => s.Query == "query-000");
+        searches.Should().Contain(s => s.Query == "query-001");
+        searches.Should().Contain(s => s.Query == "query-100");
+    }
+
+    [Fact]
+    public async Task RecordSearchAsync_Over100Entries_NewestFirstOldestLast() {
+        // Arrange
+        var clock = new FakeClockService(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        await using var sut = new MemorySearchHistoryService(_memoryStore, NullLogger<MemorySearchHistoryService>.Instance, clock);
+
+        // Act — 插入 101 条
+        for (var i = 0; i < 101; i++) {
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await sut.RecordSearchAsync($"query-{i:D3}", resultCount: i).ConfigureAwait(true);
+        }
+
+        // Assert — 最新在前,最旧保留项在最后
+        var searches = sut.GetRecentSearches(limit: 200);
+        searches[0].Query.Should().Be("query-100");
+        searches[^1].Query.Should().Be("query-001");
+    }
+
+    [Fact]
+    public async Task RecordSearchAsync_Exactly100Entries_RetainsAll() {
+        // Arrange
+        var clock = new FakeClockService(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        await using var sut = new MemorySearchHistoryService(_memoryStore, NullLogger<MemorySearchHistoryService>.Instance, clock);
+
+        // Act — 插入恰好 100 条
+        for (var i = 0; i < 100; i++) {
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await sut.RecordSearchAsync($"query-{i:D3}", resultCount: i).ConfigureAwait(true);
+        }
+
+        // Assert — 全部保留,无淘汰
+        var searches = sut.GetRecentSearches(limit: 200);
+        searches.Should().HaveCount(100);
+        searches.Should().Contain(s => s.Query == "query-000");
+        searches.Should().Contain(s => s.Query == "query-099");
+    }
+
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;

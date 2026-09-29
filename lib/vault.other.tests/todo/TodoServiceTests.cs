@@ -467,4 +467,56 @@ public sealed class TodoServiceTests {
 
         t1.Should().Be(t2);
     }
+
+    // === BuildTodoItem: 时间倒流守卫 ===
+
+    [Fact]
+    public void BuildTodoItem_UpdatedAtBeforeCreatedAt_ClampsToCreatedAt() {
+        var input = new TodoItemInput(Id: "t1", Content: "c", Status: TodoStatusEnumConstants.Pending, ActiveForm: "a");
+        var createdAt = new DateTime(2026, 1, 10);
+        var updatedAt = new DateTime(2026, 1, 5);
+
+        var todo = TodoService.BuildTodoItem("t1", input, TodoPriorityEnumConstants.Medium, null, createdAt, updatedAt);
+
+        todo.CreatedAt.Should().Be(createdAt);
+        todo.UpdatedAt.Should().Be(createdAt);
+    }
+
+    [Fact]
+    public void BuildTodoItem_UpdatedAtEqualsCreatedAt_PreservesBoth() {
+        var input = new TodoItemInput(Id: "t1", Content: "c", Status: TodoStatusEnumConstants.Pending, ActiveForm: "a");
+        var createdAt = new DateTime(2026, 1, 10);
+        var updatedAt = createdAt;
+
+        var todo = TodoService.BuildTodoItem("t1", input, TodoPriorityEnumConstants.Medium, null, createdAt, updatedAt);
+
+        todo.CreatedAt.Should().Be(createdAt);
+        todo.UpdatedAt.Should().Be(updatedAt);
+    }
+
+    [Fact]
+    public void BuildTodoItem_UpdatedAtAfterCreatedAt_PreservesBoth() {
+        var input = new TodoItemInput(Id: "t1", Content: "c", Status: TodoStatusEnumConstants.Pending, ActiveForm: "a");
+        var createdAt = new DateTime(2026, 1, 5);
+        var updatedAt = new DateTime(2026, 1, 10);
+
+        var todo = TodoService.BuildTodoItem("t1", input, TodoPriorityEnumConstants.Medium, null, createdAt, updatedAt);
+
+        todo.CreatedAt.Should().Be(createdAt);
+        todo.UpdatedAt.Should().Be(updatedAt);
+    }
+
+    [Fact]
+    public void BuildTodoItem_ExistingTodo_TimeBackflow_ClampsToExistingCreatedAt() {
+        var existing = new TodoItem("t1", "old", TodoStatusEnumConstants.Pending, TodoPriorityEnumConstants.Medium,
+            CreatedAt: new DateTime(2025, 12, 1));
+        var input = new TodoItemInput(Id: "t1", Content: "updated", Status: TodoStatusEnumConstants.InProgress, ActiveForm: "a");
+        var createdAt = new DateTime(2026, 1, 1);
+        var updatedAt = new DateTime(2025, 11, 1);
+
+        var todo = TodoService.BuildTodoItem("t1", input, TodoPriorityEnumConstants.Medium, existing, createdAt, updatedAt);
+
+        todo.CreatedAt.Should().Be(new DateTime(2025, 12, 1));
+        todo.UpdatedAt.Should().Be(new DateTime(2025, 12, 1));
+    }
 }

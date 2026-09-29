@@ -618,6 +618,13 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         var archiveDays = archiveAfterDays ?? 90;
         var deleteDays = deleteAfterDays ?? 180;
 
+        if (archiveDays > deleteDays) {
+            throw new ArgumentOutOfRangeException(
+                nameof(archiveAfterDays),
+                archiveDays,
+                $"归档天数 ({archiveDays}) 不能大于删除天数 ({deleteDays})；归档必须先于删除，请调整参数使 archiveAfterDays <= deleteAfterDays。");
+        }
+
         _logger?.LogInformation(L.T(StringKey.VaultLogStartCleanup),
             archiveDays, deleteDays);
 

@@ -317,7 +317,7 @@ public sealed partial class InteractiveHandler : ServiceEntity {
 
                 var result = await @params.AutoModeClassifier.ClassifyAsync(request, ctx.CancellationToken).ConfigureAwait(false);
 
-                if (result.Action == SecurityAction.AutoApprove && result.Confidence >= 0.85) {
+                if (result.Action == SecurityAction.AutoApprove && ShouldAutoApprove(result.Confidence)) {
                     autoApproved = true;
                     matchedRule = result.Reason;
                 }
@@ -361,6 +361,18 @@ public sealed partial class InteractiveHandler : ServiceEntity {
             });
         }
     }
+
+    /// <summary>自动批准的置信度阈值 — 分类器置信度 ≥ 此值且 Action=AutoApprove 时自动放行。</summary>
+    internal const double AutoApproveConfidenceThreshold = 0.85;
+
+    /// <summary>
+    /// 判断给定置信度是否达到自动批准阈值 — 纯函数,无副作用,便于边界测试。
+    /// </summary>
+    /// <param name="confidence">分类器输出的置信度,范围通常为 [0.0, 1.0]。</param>
+    /// <param name="threshold">自动批准阈值,默认 <see cref="AutoApproveConfidenceThreshold"/>。</param>
+    /// <returns>置信度 ≥ 阈值时返回 true;NaN 永远返回 false(IEEE 754 语义)。</returns>
+    internal static bool ShouldAutoApprove(double confidence, double threshold = AutoApproveConfidenceThreshold)
+        => confidence >= threshold;
 
     internal static string? ExtractCommand(Dictionary<string, JsonElement> input) {
         ArgumentNullException.ThrowIfNull(input);

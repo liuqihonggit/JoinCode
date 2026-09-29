@@ -2,22 +2,40 @@ namespace JoinCode.Abstractions.Security.Shell;
 
 public sealed partial class BashAstSecurityWalker {
     private static BashAstSecurityResult? WalkHeredocRedirect(Node node) {
-        var hasQuotedDelimiter = false;
+        // 对齐 TS walkHeredocRedirect:通过 heredoc_start 节点判断分隔符是否引号包裹。
+        // 仅引号分隔符 heredoc(<<'EOF')安全 — body 为字面量,不经历展开。
+        string? startText = null;
+        Node? body = null;
 
         foreach (var child in node.Children) {
             if (child is null) continue;
-
-            if (child.Type == "heredoc_beginning" || child.Type == "word") {
-                var text = child.Text;
-                if (text.Contains('\'') || text.Contains('"')) {
-                    hasQuotedDelimiter = true;
-                }
+            if (child.Type == "heredoc_start") {
+                startText = child.Text;
+            } else if (child.Type == "heredoc_body") {
+                body = child;
+            } else if (child.Type is "<<" or "<<-" or "heredoc_end" or "file_descriptor") {
+                // 结构 token — 跳过
+            } else {
+                // 管道/命令等跟随分隔符的节点 — fail closed
+                return TooComplexNode(child);
             }
+        }
 
-            if (child.Type == "heredoc_content" || child.Type == "heredoc_body") {
-                if (!hasQuotedDelimiter) {
-                    return new BashAstSecurityResult.TooComplex(
-                        "非引号分隔符heredoc — body经历变量/命令替换展开", "UNQUOTED_HEREDOC");
+        var isQuoted = startText is not null && (
+            (startText.StartsWith('\'') && startText.EndsWith('\'')) ||
+            (startText.StartsWith('"') && startText.EndsWith('"')) ||
+            startText.StartsWith('\\'));
+
+        if (!isQuoted) {
+            return new BashAstSecurityResult.TooComplex(
+                "Heredoc with unquoted delimiter undergoes shell expansion", "heredoc_redirect");
+        }
+
+        if (body is not null) {
+            foreach (var child in body.Children) {
+                if (child is null) continue;
+                if (child.Type != "heredoc_content") {
+                    return TooComplexNode(child);
                 }
             }
         }
@@ -118,8 +136,11 @@ public sealed partial class BashAstSecurityWalker {
 
     private static BashAstSecurityResult? CollectCommandSubstitution(
         Node node, List<BashSimpleCommandInfo> innerCommands, Dictionary<string, string> varScope) {
+        // 对齐 TS collectCommandSubstitution:跳过 $( ` ) 结构 token,
+        // 仅递归处理内部语句。
         foreach (var child in node.Children) {
             if (child is null) continue;
+            if (child.Type is "$(" or "`" or ")") continue;
             var err = CollectCommands(child, innerCommands, varScope);
             if (err is not null) return err;
         }

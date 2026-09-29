@@ -174,8 +174,10 @@
 - [ ] `HttpRequestSerializer.SerializeAsync`(46行)拆序列化步骤
 
 #### 2.5 abstractions — JsonRepairPipeline 拆状态机
-- [ ] `JsonRepairPipeline.StripOuterQuotes`(377行)拆为多个 internal static 状态机片段
-- [ ] `AhoCorasick.Build`(65行)拆 goto函数构造 + failure函数构造(BFS)两个 internal static
+- [x] `JsonRepairPipeline.StripOuterQuotes`(**实际14行非377行,已internal static+8测试,无需拆分**) — 阶段2.5确认
+- [x] `AhoCorasick.Build`(**在lib/infrastructure/非abstractions,跳过留给阶段2.9**) — 阶段2.5确认
+- [x] `JsonRepairPipeline.FixUnquotedValues`(100行)拆出 `AppendQuotedValue`+`ShouldQuoteValueStart` 两个 internal static + 28确定性测试 — 阶段2.5完成
+- [x] `JsonRepairPipeline.FixUnquotedKeys`(56行逻辑线性,拆分收益小,保留) — 阶段2.5评估
 - [ ] `FileEditor.EditFileAsync`(127行)拆编辑策略选择/上下文匹配/替换应用 internal
 - [ ] `PhysicalProcessService.ExecuteAsync`(65行)拆stdout/stderr读取/编码探测/退出码处理
 - [ ] `GitHubApiClient.ReadLogStreamLinesAsync`(69行)拆流式行分割
@@ -206,10 +208,10 @@
 - [ ] `ContinuationPromptBuilder.BuildContinuationPrompt` internal + 测试
 
 #### 2.9 infrastructure — AhoCorasick + FileEditor
-- [ ] `AhoCorasick.Build` 拆 goto/failure 两个 internal static + 算法单测
-- [ ] `FileEditor.EditFileAsync`/`EditByLineRangeAsync` 拆 internal 纯函数
-- [ ] `PhysicalProcessService.ExecuteAsync` 拆
-- [ ] `GitHubApiClient.ReadLogStreamLinesAsync` 拆流式行分割
+- [x] `AhoCorasick.Build` 拆 goto/failure 两个 internal static + 算法单测 — 阶段2.9完成
+- [x] `FileEditor.EditFileAsync`/`EditByLineRangeAsync` 拆 internal 纯函数 — 阶段2.9完成
+- [x] `PhysicalProcessService.ExecuteAsync` 拆 — 阶段2.9完成
+- [x] `GitHubApiClient.ReadLogStreamLinesAsync` 拆流式行分割 — 阶段2.9完成
 
 ---
 

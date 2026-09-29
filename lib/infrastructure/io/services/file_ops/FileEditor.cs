@@ -56,14 +56,7 @@ public sealed class FileEditor {
 
             var (originalContent, hasCrlf, fileEncoding) = await ReadFileWithLineEndingDetectionAsync(normalizedPath2, cancellationToken).ConfigureAwait(false);
 
-            var normalizedOld = oldString.Replace("\r\n", "\n");
-            var normalizedNew = newString.Replace("\r\n", "\n");
-            var normalizedContent = originalContent.Replace("\r\n", "\n");
-
-            // 对齐 TS: stripLineNumberPrefix — LLM 从 Read 输出复制 old_string 时可能带入行号前缀
-            // 在匹配前自动剥离，兼容紧凑(行号+\t)和宽(空格填充+行号+→)两种格式
-            normalizedOld = StripLineNumberPrefixes(normalizedOld);
-            normalizedNew = StripLineNumberPrefixes(normalizedNew);
+            var (normalizedOld, normalizedNew, normalizedContent) = NormalizeForMatch(oldString, newString, originalContent);
 
             // Step 1: Try exact match, then findActualString (quote normalization), then desanitize
             var actualOldString = FindActualString(normalizedContent, normalizedOld);
@@ -86,46 +79,18 @@ public sealed class FileEditor {
             var actualNewString = PreserveQuoteStyle(normalizedOld, actualOldString, normalizedNew);
 
             // Step 3: Strip trailing whitespace from new_string (except for .md/.mdx files)
-            var ext = Path.GetExtension(normalizedPath2);
-            var isMarkdown = ext.Equals(".md", StringComparison.OrdinalIgnoreCase)
-                          || ext.Equals(".mdx", StringComparison.OrdinalIgnoreCase);
-            if (!isMarkdown) {
+            if (!IsMarkdownFile(normalizedPath2)) {
                 actualNewString = StripTrailingWhitespace(actualNewString);
             }
 
-            if (!replaceAll) {
-                var occurrenceCount = CountOccurrences(normalizedContent, normalizedOld);
-                if (occurrenceCount > 1) {
-                    return FileEditResult.FailureResult(normalizedPath2, oldString, newString,
-                        $"old_string matched {occurrenceCount} times in the file, but replace_all is false. " +
-                        "Provide more context to make old_string unique, or set replace_all to true to replace all occurrences.");
-                }
+            var uniquenessError = CheckUniqueOccurrence(normalizedContent, normalizedOld, replaceAll);
+            if (uniquenessError is not null) {
+                return FileEditResult.FailureResult(normalizedPath2, oldString, newString, uniquenessError);
             }
 
-            string updatedContent;
-            int replaceCount;
+            var (updatedContent, replaceCount) = ApplyReplacement(normalizedContent, actualOldString, actualNewString, replaceAll);
 
-            if (replaceAll) {
-                updatedContent = normalizedContent.Replace(actualOldString, actualNewString);
-                replaceCount = CountOccurrences(normalizedContent, actualOldString);
-            } else {
-                var index = normalizedContent.IndexOf(actualOldString, StringComparison.Ordinal);
-                if (index >= 0) {
-                    var sb = new StringBuilder(normalizedContent.Length + actualNewString.Length - actualOldString.Length);
-                    sb.Append(normalizedContent, 0, index);
-                    sb.Append(actualNewString);
-                    sb.Append(normalizedContent, index + actualOldString.Length, normalizedContent.Length - index - actualOldString.Length);
-                    updatedContent = sb.ToString();
-                    replaceCount = 1;
-                } else {
-                    updatedContent = normalizedContent;
-                    replaceCount = 0;
-                }
-            }
-
-            if (hasCrlf) {
-                updatedContent = updatedContent.Replace("\n", "\r\n");
-            }
+            updatedContent = RestoreLineEndings(updatedContent, hasCrlf);
 
             await WriteFileWithLockAsync(normalizedPath2, updatedContent, cancellationToken, fileEncoding).ConfigureAwait(false);
 
@@ -224,12 +189,9 @@ public sealed class FileEditor {
 
         var (filePath, startLine, endLine, newContent) = (request.FilePath, request.StartLine, request.EndLine, request.NewContent);
 
-        if (startLine < 1) {
-            return FileLineEditResult.FailureResult(filePath, startLine, endLine, "Start line must be at least 1");
-        }
-
-        if (endLine < startLine) {
-            return FileLineEditResult.FailureResult(filePath, startLine, endLine, "End line must not be less than start line");
+        var rangeError = ValidateLineRange(startLine, endLine);
+        if (rangeError is not null) {
+            return FileLineEditResult.FailureResult(filePath, startLine, endLine, rangeError);
         }
 
         var normalizedPath = NormalizePath(filePath);
@@ -265,34 +227,9 @@ public sealed class FileEditor {
                 return FileLineEditResult.FailureResult(normalizedPath, startLine, endLine, $"Start line ({startLine}) exceeds total line count ({totalLines})");
             }
 
-            // Adjust end line if out of range
-            var actualEndLine = Math.Min(endLine, totalLines);
-            var replacedLinesCount = actualEndLine - startLine + 1;
-
-            // Extract original content
-            var originalLines = allLines.Skip(startLine - 1).Take(replacedLinesCount).ToList();
-            var originalContent = string.Join("\n", originalLines);
-
-            // Build new content
-            var newLines = newContent.Split('\n').ToList();
-
-            // Assemble new file content
-            var resultLines = new List<string>();
-
-            // Add lines before replacement
-            if (startLine > 1) {
-                resultLines.AddRange(allLines.Take(startLine - 1));
-            }
-
-            // Add new content
-            resultLines.AddRange(newLines);
-
-            // Add lines after replacement
-            if (actualEndLine < totalLines) {
-                resultLines.AddRange(allLines.Skip(actualEndLine));
-            }
-
-            var updatedFileContent = string.Join("\n", resultLines);
+            var (actualEndLine, replacedLinesCount) = ComputeActualEndLine(startLine, endLine, totalLines);
+            var originalContent = ExtractOriginalContent(allLines, startLine, replacedLinesCount);
+            var updatedFileContent = BuildUpdatedFileContent(allLines, startLine, actualEndLine, totalLines, newContent);
 
             // Write file — 保持原始编码
             await WriteFileWithLockAsync(normalizedPath, updatedFileContent, cancellationToken, fileEncoding).ConfigureAwait(false);
@@ -322,7 +259,7 @@ public sealed class FileEditor {
         }
     }
 
-    private static int CountOccurrences(string text, string substring) {
+    internal static int CountOccurrences(string text, string substring) {
         if (string.IsNullOrEmpty(substring) || string.IsNullOrEmpty(text))
             return 0;
 
@@ -662,6 +599,153 @@ public sealed class FileEditor {
         ("\n\nH:", "\n\nHuman:"),
         ("\n\nA:", "\n\nAssistant:"),
     ];
+
+    /// <summary>
+    /// 规范化三字符串用于匹配:CRLF→LF + 剥离行号前缀(old/new)。
+    /// <para>纯计算:对齐 TS stripLineNumberPrefix + CRLF 规范化。content 仅做 CRLF→LF(无行号前缀)。</para>
+    /// </summary>
+    /// <param name="oldString">用户输入的 old_string(可能含 CRLF 和行号前缀)。</param>
+    /// <param name="newString">用户输入的 new_string(可能含 CRLF 和行号前缀)。</param>
+    /// <param name="originalContent">文件原始内容(仅 CRLF→LF 规范化)。</param>
+    /// <returns>(规范化后的 old, 规范化后的 new, 规范化后的 content)。</returns>
+    internal static (string NormalizedOld, string NormalizedNew, string NormalizedContent) NormalizeForMatch(
+        string oldString, string newString, string originalContent) {
+        var normalizedOld = StripLineNumberPrefixes(oldString.Replace("\r\n", "\n"));
+        var normalizedNew = StripLineNumberPrefixes(newString.Replace("\r\n", "\n"));
+        var normalizedContent = originalContent.Replace("\r\n", "\n");
+        return (normalizedOld, normalizedNew, normalizedContent);
+    }
+
+    /// <summary>
+    /// 判断路径是否为 Markdown 文件(.md/.mdx,忽略大小写)。
+    /// <para>纯计算:Markdown 文件不剥离尾部空白(对齐 TS 行为)。</para>
+    /// </summary>
+    /// <param name="path">文件路径(已规范化)。</param>
+    /// <returns>true 表示 .md 或 .mdx 文件。</returns>
+    internal static bool IsMarkdownFile(string path) {
+        var ext = Path.GetExtension(path);
+        return ext.Equals(".md", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".mdx", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 检查 replaceAll=false 时 oldString 在 content 中是否唯一。
+    /// <para>纯计算:返回错误消息(null 表示通过,非 null 表示应返回 FailureResult)。</para>
+    /// </summary>
+    /// <param name="content">规范化后的文件内容。</param>
+    /// <param name="oldString">规范化后的 old_string(用于计数,非 actualOldString)。</param>
+    /// <param name="replaceAll">是否全部替换(true 时跳过检查返回 null)。</param>
+    /// <returns>null 表示通过;非 null 表示唯一性失败的错误消息。</returns>
+    internal static string? CheckUniqueOccurrence(string content, string oldString, bool replaceAll) {
+        if (replaceAll) return null;
+        var occurrenceCount = CountOccurrences(content, oldString);
+        if (occurrenceCount > 1)
+            return $"old_string matched {occurrenceCount} times in the file, but replace_all is false. " +
+                   "Provide more context to make old_string unique, or set replace_all to true to replace all occurrences.";
+        return null;
+    }
+
+    /// <summary>
+    /// 应用替换:replaceAll=true 全部替换,false 单次替换。
+    /// <para>纯计算:返回 (更新后内容, 替换次数)。oldString 未找到时返回 (原内容, 0)。</para>
+    /// </summary>
+    /// <param name="content">规范化后的文件内容。</param>
+    /// <param name="oldString">实际匹配到的 old_string(可能含 curly quotes)。</param>
+    /// <param name="newString">实际应用的 new_string(已 PreserveQuoteStyle + StripTrailingWhitespace)。</param>
+    /// <param name="replaceAll">是否全部替换。</param>
+    /// <returns>(更新后内容, 替换次数)。</returns>
+    internal static (string UpdatedContent, int ReplaceCount) ApplyReplacement(
+        string content, string oldString, string newString, bool replaceAll) {
+        if (replaceAll) {
+            var count = CountOccurrences(content, oldString);
+            return (content.Replace(oldString, newString), count);
+        }
+        var index = content.IndexOf(oldString, StringComparison.Ordinal);
+        if (index < 0)
+            return (content, 0);
+        var sb = new StringBuilder(content.Length + newString.Length - oldString.Length);
+        sb.Append(content, 0, index);
+        sb.Append(newString);
+        sb.Append(content, index + oldString.Length, content.Length - index - oldString.Length);
+        return (sb.ToString(), 1);
+    }
+
+    /// <summary>
+    /// 恢复行尾:hasCrlf=true 时将 LF 转回 CRLF,否则原样返回。
+    /// <para>纯计算:与 NormalizeForMatch 的 CRLF→LF 规范化互逆。</para>
+    /// </summary>
+    /// <param name="content">规范化后的内容(LF 行尾)。</param>
+    /// <param name="hasCrlf">原文件是否使用 CRLF 行尾。</param>
+    /// <returns>恢复行尾后的内容。</returns>
+    internal static string RestoreLineEndings(string content, bool hasCrlf) =>
+        hasCrlf ? content.Replace("\n", "\r\n") : content;
+
+    /// <summary>
+    /// 验证行范围:startLine ≥ 1 且 endLine ≥ startLine。
+    /// <para>纯计算:返回错误消息(null 表示通过,非 null 表示应返回 FailureResult)。</para>
+    /// </summary>
+    /// <param name="startLine">起始行(1-based)。</param>
+    /// <param name="endLine">结束行(1-based)。</param>
+    /// <returns>null 表示通过;非 null 表示验证失败的错误消息。</returns>
+    internal static string? ValidateLineRange(int startLine, int endLine) {
+        if (startLine < 1)
+            return "Start line must be at least 1";
+        if (endLine < startLine)
+            return "End line must not be less than start line";
+        return null;
+    }
+
+    /// <summary>
+    /// 计算实际结束行(不超过总行数)和替换行数。
+    /// <para>纯计算:actualEndLine = Min(endLine, totalLines),replacedLinesCount = actualEndLine - startLine + 1。</para>
+    /// </summary>
+    /// <param name="startLine">起始行(1-based,已验证 ≥ 1)。</param>
+    /// <param name="endLine">结束行(1-based,已验证 ≥ startLine)。</param>
+    /// <param name="totalLines">文件总行数。</param>
+    /// <returns>(实际结束行, 替换行数)。</returns>
+    internal static (int ActualEndLine, int ReplacedLinesCount) ComputeActualEndLine(int startLine, int endLine, int totalLines) {
+        var actualEndLine = Math.Min(endLine, totalLines);
+        var replacedLinesCount = actualEndLine - startLine + 1;
+        return (actualEndLine, replacedLinesCount);
+    }
+
+    /// <summary>
+    /// 提取被替换行的原始内容(用 \n join)。
+    /// <para>纯计算:allLines.Skip(startLine-1).Take(replacedLinesCount) join 为字符串。</para>
+    /// </summary>
+    /// <param name="allLines">文件所有行。</param>
+    /// <param name="startLine">起始行(1-based)。</param>
+    /// <param name="replacedLinesCount">替换行数。</param>
+    /// <returns>被替换行的原始内容(\n 分隔)。</returns>
+    internal static string ExtractOriginalContent(List<string> allLines, int startLine, int replacedLinesCount) {
+        var originalLines = allLines.Skip(startLine - 1).Take(replacedLinesCount).ToList();
+        return string.Join("\n", originalLines);
+    }
+
+    /// <summary>
+    /// 组装更新后的文件内容:替换行前 + newContent + 替换行后,用 \n join。
+    /// <para>纯计算:不依赖 IO,仅列表拼接。newContent 内的 \n 决定新行数。</para>
+    /// </summary>
+    /// <param name="allLines">文件所有行。</param>
+    /// <param name="startLine">起始行(1-based)。</param>
+    /// <param name="actualEndLine">实际结束行(已 Min(endLine, totalLines))。</param>
+    /// <param name="totalLines">文件总行数。</param>
+    /// <param name="newContent">新内容(可能含 \n 表示多行)。</param>
+    /// <returns>更新后的完整文件内容(\n 分隔)。</returns>
+    internal static string BuildUpdatedFileContent(List<string> allLines, int startLine, int actualEndLine, int totalLines, string newContent) {
+        var newLines = newContent.Split('\n').ToList();
+        var resultLines = new List<string>();
+
+        if (startLine > 1) {
+            resultLines.AddRange(allLines.Take(startLine - 1));
+        }
+        resultLines.AddRange(newLines);
+        if (actualEndLine < totalLines) {
+            resultLines.AddRange(allLines.Skip(actualEndLine));
+        }
+
+        return string.Join("\n", resultLines);
+    }
 
     #endregion
 }

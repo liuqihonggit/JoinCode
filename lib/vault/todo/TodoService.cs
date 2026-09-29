@@ -40,7 +40,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
 
         foreach (var todoInput in todos) {
             var todoId = todoInput.Id ?? $"todo_{Guid.NewGuid():N}";
-            var todoPriority = todoInput.Priority ?? TodoPriorityEnumConstants.Medium;
+            var todoPriority = ResolveTodoPriority(todoInput.Priority);
             var existingNode = _todoDag.Nodes.TryGetValue(todoId, out var n) ? n : null;
             var existingTodo = existingNode?.Payload;
 
@@ -57,17 +57,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
                 continue;
             }
 
-            var todo = new TodoItem(
-                todoId,
-                todoInput.Content,
-                todoInput.Status,
-                todoPriority,
-                todoInput.ParentId,
-                todoInput.ActiveForm,
-                existingTodo?.CreatedAt ?? _clock.GetUtcNow(),
-                _clock.GetUtcNow(),
-                todoInput.DependsOn,
-                todoInput.OwnedFiles);
+            var todo = BuildTodoItem(todoId, todoInput, todoPriority, existingTodo, _clock.GetUtcNow(), _clock.GetUtcNow());
 
             if (existingTodo == null) {
                 createdCount++;
@@ -263,7 +253,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         }
     }
 
-    private static TaskExecutionStatus MapStatus(string todoStatus) {
+    internal static TaskExecutionStatus MapStatus(string todoStatus) {
         var status = TodoStatusExtensions.FromValue(todoStatus);
         return status switch {
             TodoStatus.Pending => TaskExecutionStatus.Pending,
@@ -274,13 +264,43 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         };
     }
 
-    private static RuntimeTaskPriority MapPriority(string todoPriority) {
+    internal static RuntimeTaskPriority MapPriority(string todoPriority) {
         var priority = TodoPriorityExtensions.FromValue(todoPriority);
         return priority switch {
             TodoPriority.High => RuntimeTaskPriority.Now,
             TodoPriority.Medium => RuntimeTaskPriority.Next,
             _ => RuntimeTaskPriority.Later
         };
+    }
+
+    /// <summary>
+    /// 解析待办优先级 — null 时回退到 Medium — 纯计算
+    /// </summary>
+    internal static string ResolveTodoPriority(string? priority) {
+        return priority ?? TodoPriorityEnumConstants.Medium;
+    }
+
+    /// <summary>
+    /// 从输入构建 TodoItem — 纯计算,集中字段映射与时间戳解析
+    /// </summary>
+    internal static TodoItem BuildTodoItem(
+        string todoId,
+        TodoItemInput input,
+        string todoPriority,
+        TodoItem? existingTodo,
+        DateTime createdAt,
+        DateTime updatedAt) {
+        return new TodoItem(
+            todoId,
+            input.Content,
+            input.Status,
+            todoPriority,
+            input.ParentId,
+            input.ActiveForm,
+            existingTodo?.CreatedAt ?? createdAt,
+            updatedAt,
+            input.DependsOn,
+            input.OwnedFiles);
     }
 
     private void RecordTodoMetrics(string operation, int count) {

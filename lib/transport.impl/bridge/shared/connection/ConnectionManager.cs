@@ -283,7 +283,7 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 计算重连延迟（指数退避）
     /// </summary>
-    private TimeSpan CalculateReconnectDelay(int attempt) {
+    internal TimeSpan CalculateReconnectDelay(int attempt) {
         return TimeSpan.FromMilliseconds(
             Math.Min(
                 _config.ReconnectDelayMs * Math.Pow(2, attempt - 1),

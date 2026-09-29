@@ -168,53 +168,10 @@ public static class GoalGraphTemplates {
     private static GoalGraph BuildNegativeReviewLoopGraph(GoalGraphEngine engine, string objective) {
         var dag = new Dag<GoalNodePayload>();
 
-        dag.AddNode(new DagNode<GoalNodePayload> {
-            Id = "execute",
-            Payload = new() {
-                Kind = GoalNodeKind.Agent,
-                Name = AgentRole.Executor.ToValue(),
-                Role = AgentRole.Executor,
-                Variant = ExecutorVariant.Code,
-                SystemPrompt = "You are a code execution expert. Complete the task thoroughly and precisely. After completion, summarize what was done.",
-                Instruction = objective,
-            }
-        });
-
-        dag.AddNode(new DagNode<GoalNodePayload> {
-            Id = "neg_review",
-            Payload = new() {
-                Kind = GoalNodeKind.Agent,
-                Name = "negative-reviewer",
-                Role = AgentRole.Coordinator,
-                FreshContext = true,
-                MaxLoopIterations = 16,
-                SystemPrompt = BuildNegReviewSystemPrompt(),
-                Instruction = BuildNegReviewInstruction(objective),
-                RouteMatchMode = RouteMatchMode.ConditionalOnly,
-            }
-        });
-
-        dag.AddNode(new DagNode<GoalNodePayload> {
-            Id = "fix_neg",
-            Payload = new() {
-                Kind = GoalNodeKind.Agent,
-                Name = "fix-negative-review",
-                Role = AgentRole.Executor,
-                Variant = ExecutorVariant.Code,
-                SystemPrompt = BuildFixNegSystemPrompt(),
-                Instruction = "根据负向评价要求完成任务。完成后决定：\n- 如果你想再经历一轮负向评价以保证工程质量，输出路由 NEG_CONTINUE\n- 如果当前负评超过10条，建议输出路由 NEG_STOP\n- 否则输出路由 NEG_STOP",
-                RouteMatchMode = RouteMatchMode.ConditionalOnly,
-            }
-        });
-
-        dag.AddNode(new DagNode<GoalNodePayload> {
-            Id = "done",
-            Payload = new() {
-                Kind = GoalNodeKind.Function,
-                Name = "loop-done",
-                Instruction = "Negative review loop completed",
-            }
-        });
+        dag.AddNode(new DagNode<GoalNodePayload> { Id = "execute", Payload = BuildNegReviewExecutePayload(objective) });
+        dag.AddNode(new DagNode<GoalNodePayload> { Id = "neg_review", Payload = BuildNegReviewPayload(objective) });
+        dag.AddNode(new DagNode<GoalNodePayload> { Id = "fix_neg", Payload = BuildFixNegPayload() });
+        dag.AddNode(new DagNode<GoalNodePayload> { Id = "done", Payload = BuildNegReviewDonePayload() });
 
         dag.AddEdge(new DagEdge { Id = "e1", FromId = "execute", ToId = "neg_review" });
         dag.AddEdge(new DagEdge { Id = "e2", FromId = "neg_review", ToId = "fix_neg", Label = "NEG_CONTINUE" });
@@ -238,7 +195,61 @@ public static class GoalGraphTemplates {
         };
     }
 
-    private static string BuildNegReviewSystemPrompt() {
+    /// <summary>
+    /// 构造负评循环 execute 节点 Payload — 纯函数,确定性输出。
+    /// </summary>
+    /// <param name="objective">目标描述(作为 Instruction)</param>
+    /// <returns>execute 节点 Payload</returns>
+    internal static GoalNodePayload BuildNegReviewExecutePayload(string objective) => new() {
+        Kind = GoalNodeKind.Agent,
+        Name = AgentRole.Executor.ToValue(),
+        Role = AgentRole.Executor,
+        Variant = ExecutorVariant.Code,
+        SystemPrompt = "You are a code execution expert. Complete the task thoroughly and precisely. After completion, summarize what was done.",
+        Instruction = objective,
+    };
+
+    /// <summary>
+    /// 构造负评循环 neg_review 节点 Payload — 纯函数,确定性输出。
+    /// </summary>
+    /// <param name="objective">目标描述(传入 Instruction 构造)</param>
+    /// <returns>neg_review 节点 Payload</returns>
+    internal static GoalNodePayload BuildNegReviewPayload(string objective) => new() {
+        Kind = GoalNodeKind.Agent,
+        Name = "negative-reviewer",
+        Role = AgentRole.Coordinator,
+        FreshContext = true,
+        MaxLoopIterations = 16,
+        SystemPrompt = BuildNegReviewSystemPrompt(),
+        Instruction = BuildNegReviewInstruction(objective),
+        RouteMatchMode = RouteMatchMode.ConditionalOnly,
+    };
+
+    /// <summary>
+    /// 构造负评循环 fix_neg 节点 Payload — 纯函数,确定性输出(无参数)。
+    /// </summary>
+    /// <returns>fix_neg 节点 Payload</returns>
+    internal static GoalNodePayload BuildFixNegPayload() => new() {
+        Kind = GoalNodeKind.Agent,
+        Name = "fix-negative-review",
+        Role = AgentRole.Executor,
+        Variant = ExecutorVariant.Code,
+        SystemPrompt = BuildFixNegSystemPrompt(),
+        Instruction = "根据负向评价要求完成任务。完成后决定：\n- 如果你想再经历一轮负向评价以保证工程质量，输出路由 NEG_CONTINUE\n- 如果当前负评超过10条，建议输出路由 NEG_STOP\n- 否则输出路由 NEG_STOP",
+        RouteMatchMode = RouteMatchMode.ConditionalOnly,
+    };
+
+    /// <summary>
+    /// 构造负评循环 done 节点 Payload — 纯函数,确定性输出(无参数)。
+    /// </summary>
+    /// <returns>done 节点 Payload</returns>
+    internal static GoalNodePayload BuildNegReviewDonePayload() => new() {
+        Kind = GoalNodeKind.Function,
+        Name = "loop-done",
+        Instruction = "Negative review loop completed",
+    };
+
+    internal static string BuildNegReviewSystemPrompt() {
         return """
 你是一个严格的负向评价专家。你的职责是勇敢说出不足，而非赞美。
 
@@ -301,7 +312,7 @@ public static class GoalGraphTemplates {
 """;
     }
 
-    private static string BuildNegReviewInstruction(string objective) {
+    internal static string BuildNegReviewInstruction(string objective) {
         return $"""
 对以下任务执行负向评价:
 
@@ -312,7 +323,7 @@ public static class GoalGraphTemplates {
 """;
     }
 
-    private static string BuildFixNegSystemPrompt() {
+    internal static string BuildFixNegSystemPrompt() {
         return """
 你是一个修复专家。根据负向评价的要求去完成任务。
 
@@ -363,37 +374,9 @@ public static class GoalGraphTemplates {
     private static GoalGraph BuildClusterGraph(GoalGraphEngine engine, string objective) {
         var dag = new Dag<GoalNodePayload>();
 
-        dag.AddNode(new DagNode<GoalNodePayload> {
-            Id = "cluster_analyze",
-            Payload = new() {
-                Kind = GoalNodeKind.Agent,
-                Name = "cluster-analyzer",
-                Role = AgentRole.Coordinator,
-                SystemPrompt = BuildClusterAnalyzerSystemPrompt(),
-                Instruction = $"Analyze whether this objective can be decomposed into parallel subtasks: {objective}",
-            }
-        });
-
-        dag.AddNode(new DagNode<GoalNodePayload> {
-            Id = "cluster_expand",
-            Payload = new() {
-                Kind = GoalNodeKind.Function,
-                Name = "cluster-expander",
-                Instruction = "Dynamically expand parallel worker nodes based on analysis results",
-            }
-        });
-
-        dag.AddNode(new DagNode<GoalNodePayload> {
-            Id = "cluster_review",
-            Payload = new() {
-                Kind = GoalNodeKind.Agent,
-                Name = "cluster-reviewer",
-                Role = AgentRole.Coordinator,
-                SystemPrompt = "You are an independent reviewer for a parallel cluster execution. Evaluate the overall result: were all subtasks completed? Is the merged result correct? Are there any regressions or conflicts?",
-                Instruction = "Review the cluster execution results objectively.",
-                FreshContext = true,
-            }
-        });
+        dag.AddNode(new DagNode<GoalNodePayload> { Id = "cluster_analyze", Payload = BuildClusterAnalyzePayload(objective) });
+        dag.AddNode(new DagNode<GoalNodePayload> { Id = "cluster_expand", Payload = BuildClusterExpandPayload() });
+        dag.AddNode(new DagNode<GoalNodePayload> { Id = "cluster_review", Payload = BuildClusterReviewPayload() });
 
         dag.AddEdge(new DagEdge { Id = "e-ca-ce", FromId = "cluster_analyze", ToId = "cluster_expand" });
         dag.AddEdge(new DagEdge { Id = "e-ce-cr", FromId = "cluster_expand", ToId = "cluster_review" });
@@ -407,6 +390,42 @@ public static class GoalGraphTemplates {
             EndNodeIds = FrozenSet.Create("cluster_review"),
         };
     }
+
+    /// <summary>
+    /// 构造集群 cluster_analyze 节点 Payload — 纯函数,确定性输出。
+    /// </summary>
+    /// <param name="objective">目标描述(嵌入 Instruction)</param>
+    /// <returns>cluster_analyze 节点 Payload</returns>
+    internal static GoalNodePayload BuildClusterAnalyzePayload(string objective) => new() {
+        Kind = GoalNodeKind.Agent,
+        Name = "cluster-analyzer",
+        Role = AgentRole.Coordinator,
+        SystemPrompt = BuildClusterAnalyzerSystemPrompt(),
+        Instruction = $"Analyze whether this objective can be decomposed into parallel subtasks: {objective}",
+    };
+
+    /// <summary>
+    /// 构造集群 cluster_expand 节点 Payload — 纯函数,确定性输出(无参数)。
+    /// </summary>
+    /// <returns>cluster_expand 节点 Payload</returns>
+    internal static GoalNodePayload BuildClusterExpandPayload() => new() {
+        Kind = GoalNodeKind.Function,
+        Name = "cluster-expander",
+        Instruction = "Dynamically expand parallel worker nodes based on analysis results",
+    };
+
+    /// <summary>
+    /// 构造集群 cluster_review 节点 Payload — 纯函数,确定性输出(无参数)。
+    /// </summary>
+    /// <returns>cluster_review 节点 Payload</returns>
+    internal static GoalNodePayload BuildClusterReviewPayload() => new() {
+        Kind = GoalNodeKind.Agent,
+        Name = "cluster-reviewer",
+        Role = AgentRole.Coordinator,
+        SystemPrompt = "You are an independent reviewer for a parallel cluster execution. Evaluate the overall result: were all subtasks completed? Is the merged result correct? Are there any regressions or conflicts?",
+        Instruction = "Review the cluster execution results objectively.",
+        FreshContext = true,
+    };
 
     private static async Task<NodeResult> ClusterExpandFunction(NodeContext ctx) {
         var mutator = ctx.GraphMutator;
@@ -464,27 +483,14 @@ public static class GoalGraphTemplates {
         var edgeCounter = 0;
 
         foreach (var task in subTasks) {
-            var workerId = $"worker_{task.Id}";
+            var workerId = BuildWorkerId(task.Id);
             workerIds.Add(workerId);
 
-            var variant = task.Variant == ExecutorVariant.Explore
-                ? ExecutorVariant.Explore
-                : ExecutorVariant.Code;
-
-            mutator.AddNode(workerId, new GoalNodePayload {
-                Kind = GoalNodeKind.Agent,
-                Name = $"worker-{task.Id}",
-                Role = AgentRole.Executor,
-                Variant = variant,
-                IsolationMode = AgentIsolationMode.Worktree,
-                MaxLoopIterations = 2,
-                SystemPrompt = $"You are a parallel worker for subtask '{task.Title}'. Focus ONLY on your assigned task. Files you own: {string.Join(", ", task.OwnedFiles)}",
-                Instruction = task.Description,
-            });
+            mutator.AddNode(workerId, BuildWorkerNodePayload(task));
 
             if (task.DependsOn is { Count: > 0 }) {
                 foreach (var depId in task.DependsOn) {
-                    var depWorkerId = $"worker_{depId}";
+                    var depWorkerId = BuildWorkerId(depId);
                     mutator.AddEdge($"e-w-{edgeCounter++}", depWorkerId, workerId, "depends-on");
                 }
             } else {
@@ -521,7 +527,37 @@ public static class GoalGraphTemplates {
         return NodeResult.Succeeded($"集群图已展开: {workerIds.Count} 个并行Worker");
     }
 
-    private static string BuildClusterAnalyzerSystemPrompt() {
+    /// <summary>
+    /// 构造 Worker 节点 ID — 纯函数,确定性输出。
+    /// </summary>
+    /// <param name="taskId">子任务 ID</param>
+    /// <returns>Worker 节点 ID,格式为 "worker_{taskId}"</returns>
+    internal static string BuildWorkerId(string taskId) => $"worker_{taskId}";
+
+    /// <summary>
+    /// 构造 Worker 节点 Payload — 纯函数,无副作用,确定性输出。
+    /// Variant 映射:Explore→Explore,其他→Code。
+    /// </summary>
+    /// <param name="task">子任务定义</param>
+    /// <returns>Worker 节点的 GoalNodePayload</returns>
+    internal static GoalNodePayload BuildWorkerNodePayload(SubTaskDefinition task) {
+        var variant = task.Variant == ExecutorVariant.Explore
+            ? ExecutorVariant.Explore
+            : ExecutorVariant.Code;
+
+        return new GoalNodePayload {
+            Kind = GoalNodeKind.Agent,
+            Name = $"worker-{task.Id}",
+            Role = AgentRole.Executor,
+            Variant = variant,
+            IsolationMode = AgentIsolationMode.Worktree,
+            MaxLoopIterations = 2,
+            SystemPrompt = $"You are a parallel worker for subtask '{task.Title}'. Focus ONLY on your assigned task. Files you own: {string.Join(", ", task.OwnedFiles)}",
+            Instruction = task.Description,
+        };
+    }
+
+    internal static string BuildClusterAnalyzerSystemPrompt() {
         return """
             You are a cluster analysis agent. Your job is to:
             1. Use the DecomposabilityAnalyzer to determine if the objective can be split into parallel subtasks
@@ -545,7 +581,7 @@ public static class GoalGraphTemplates {
     /// cluster_merge 节点的系统提示词 — 管理者在完整上下文中同时评估 Worker 输出质量并合成最终结果。
     /// 对齐 Anthropic orchestrator-worker 模式：Lead agent synthesizes subagent results，不做独立评分步骤。
     /// </summary>
-    private static string BuildClusterMergerSystemPrompt() {
+    internal static string BuildClusterMergerSystemPrompt() {
         return """
             You are the merge coordinator for a parallel cluster execution. You have full context of the original objective and all worker outputs.
 

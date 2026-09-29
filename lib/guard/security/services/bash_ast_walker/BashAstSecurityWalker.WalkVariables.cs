@@ -88,9 +88,10 @@ public sealed partial class BashAstSecurityWalker {
     }
 
     private static BashAstSecurityResult? WalkStandaloneVariableAssignment(
-        Node node, Dictionary<string, string> varScope) {
-        var innerCommands = new List<BashSimpleCommandInfo>();
-        var ev = WalkVariableAssignment(node, innerCommands, varScope);
+        Node node, List<BashSimpleCommandInfo> commands, Dictionary<string, string> varScope) {
+        // 对齐 TS variable_assignment 分支:传入主 commands 列表,
+        // 使命令替换内部命令(如 x=$(rm -rf /) 的 rm)被提取到主列表。
+        var ev = WalkVariableAssignment(node, commands, varScope);
         if (ev.IsTooComplex) return ev.TooComplex;
 
         ApplyVarToScope(varScope, ev.GetResult());
@@ -151,36 +152,42 @@ public sealed partial class BashAstSecurityWalker {
 
     private static BashAstSecurityResult? WalkDeclarationCommand(
         Node node, List<BashSimpleCommandInfo> commands, Dictionary<string, string> varScope) {
-        var cmdName = "";
-        foreach (var child in node.Children) {
-            if (child is null) continue;
-            if (child.Type == "command_name") {
-                cmdName = child.Text;
-                break;
-            }
-        }
-
-        foreach (var child in node.Children) {
-            if (child is null) continue;
-            if (child.Type == "variable_assignment") {
-                var ev = WalkVariableAssignment(child, commands, varScope);
-                if (ev.IsTooComplex) return ev.TooComplex;
-                ApplyVarToScope(varScope, ev.GetResult());
-            }
-        }
-
+        // 对齐 TS collectCommands declaration_command 分支:
+        // export/local/readonly/declare/typeset 的关键字 token 直接推入 argv,
+        // variable_assignment 推入 name=value 并更新 varScope,其他参数经 WalkArgument 验证。
         var argv = new List<string>();
         foreach (var child in node.Children) {
             if (child is null) continue;
             switch (child.Type) {
+                case "export":
+                case "local":
+                case "readonly":
+                case "declare":
+                case "typeset":
                 case "command_name":
                 argv.Add(child.Text);
                 break;
                 case "word":
                 case "number":
+                case "raw_string":
+                case "string":
+                case "concatenation": {
+                    var arg = WalkArgument(child, commands, varScope);
+                    if (arg.IsTooComplex) return arg.GetTooComplex();
+                    argv.Add(arg.Value);
+                    break;
+                }
+                case "variable_assignment": {
+                    var ev = WalkVariableAssignment(child, commands, varScope);
+                    if (ev.IsTooComplex) return ev.TooComplex;
+                    var r = ev.GetResult();
+                    ApplyVarToScope(varScope, r);
+                    argv.Add($"{r.Name}={r.Value}");
+                    break;
+                }
+                case "variable_name":
+                // export FOO — 裸名,无赋值
                 argv.Add(child.Text);
-                break;
-                case "variable_assignment":
                 break;
                 case "simple_expansion": {
                     var v = ResolveSimpleExpansion(child, varScope, insideString: false);

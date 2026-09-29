@@ -68,18 +68,8 @@ public sealed partial class PluginCommandRegistry : MapRegistry<string, PluginCo
                 "[PluginCommandRegistry] 注册命令: {Command} (插件: {Plugin}, 类型: {HandlerType})",
                 command.CommandName, command.PluginName, command.HandlerType);
 
-            if (command.Aliases is { Count: > 0 }) {
-                foreach (var alias in command.Aliases) {
-                    var aliasDef = new PluginCommandDefinition {
-                        CommandName = alias,
-                        PluginName = command.PluginName,
-                        Description = command.Description,
-                        HandlerType = command.HandlerType,
-                        Parameters = command.Parameters
-                    };
-
-                    AddCore(alias, aliasDef);
-                }
+            foreach (var aliasDef in ExpandAliases(command)) {
+                AddCore(aliasDef.CommandName, aliasDef);
             }
         } else {
             RecordCommandRegistryMetrics("register", command.CommandName, false);
@@ -98,6 +88,26 @@ public sealed partial class PluginCommandRegistry : MapRegistry<string, PluginCo
                 }
             }
         };
+    }
+
+    /// <summary>
+    /// 展开命令别名为独立的命令定义 — 每个别名生成一个继承主命令 PluginName/Description/HandlerType/Parameters 的定义
+    /// <para>纯计算:不修改注册表,仅产出别名定义序列,可独立单测(不依赖时序/IO)</para>
+    /// </summary>
+    /// <param name="command">主命令定义</param>
+    /// <returns>别名命令定义序列(无别名或空别名列表则返回空序列)</returns>
+    internal static IEnumerable<PluginCommandDefinition> ExpandAliases(PluginCommandDefinition command) {
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.Aliases is null or { Count: 0 }) yield break;
+        foreach (var alias in command.Aliases) {
+            yield return new PluginCommandDefinition {
+                CommandName = alias,
+                PluginName = command.PluginName,
+                Description = command.Description,
+                HandlerType = command.HandlerType,
+                Parameters = command.Parameters
+            };
+        }
     }
 
     /// <summary>

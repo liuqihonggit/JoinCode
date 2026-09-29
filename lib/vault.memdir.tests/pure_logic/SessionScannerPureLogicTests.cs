@@ -244,4 +244,446 @@ public sealed class SessionScannerPureLogicTests {
         c1.Should().Be(c2);
         p1.Should().Be(p2);
     }
+
+    // === ProcessAssistantEntry: 助手消息统计 ===
+
+    [Fact]
+    public void ProcessAssistantEntry_PlainAssistant_IncrementsCountAndTokens() {
+        var entry = new TranscriptEntry {
+            Role = "assistant",
+            PromptTokens = 100,
+            CompletionTokens = 50,
+            Timestamp = new DateTime(2026, 1, 1)
+        };
+        var toolCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var assistantCount = 0; var inputTokens = 0L; var outputTokens = 0L;
+        DateTime? lastTime = null;
+        var usesMcp = false; var usesWebSearch = false; var usesWebFetch = false; var usesTaskAgent = false;
+
+        SessionScanner.ProcessAssistantEntry(entry, toolCounts,
+            ref assistantCount, ref inputTokens, ref outputTokens, ref lastTime,
+            ref usesMcp, ref usesWebSearch, ref usesWebFetch, ref usesTaskAgent);
+
+        assistantCount.Should().Be(1);
+        inputTokens.Should().Be(100);
+        outputTokens.Should().Be(50);
+        lastTime.Should().Be(new DateTime(2026, 1, 1));
+        toolCounts.Should().BeEmpty();
+        usesMcp.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ProcessAssistantEntry_WithTool_RecordsToolCount() {
+        var entry = new TranscriptEntry { Role = "assistant", ToolName = "bash" };
+        var toolCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var assistantCount = 0; var inputTokens = 0L; var outputTokens = 0L;
+        DateTime? lastTime = null;
+        var usesMcp = false; var usesWebSearch = false; var usesWebFetch = false; var usesTaskAgent = false;
+
+        SessionScanner.ProcessAssistantEntry(entry, toolCounts,
+            ref assistantCount, ref inputTokens, ref outputTokens, ref lastTime,
+            ref usesMcp, ref usesWebSearch, ref usesWebFetch, ref usesTaskAgent);
+
+        toolCounts.Should().ContainKey("bash").WhoseValue.Should().Be(1);
+    }
+
+    [Fact]
+    public void ProcessAssistantEntry_McpTool_SetsUsesMcpFlag() {
+        var entry = new TranscriptEntry { Role = "assistant", ToolName = "mcp__server__tool" };
+        var toolCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var assistantCount = 0; var inputTokens = 0L; var outputTokens = 0L;
+        DateTime? lastTime = null;
+        var usesMcp = false; var usesWebSearch = false; var usesWebFetch = false; var usesTaskAgent = false;
+
+        SessionScanner.ProcessAssistantEntry(entry, toolCounts,
+            ref assistantCount, ref inputTokens, ref outputTokens, ref lastTime,
+            ref usesMcp, ref usesWebSearch, ref usesWebFetch, ref usesTaskAgent);
+
+        usesMcp.Should().BeTrue();
+        usesWebSearch.Should().BeFalse();
+        usesTaskAgent.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ProcessAssistantEntry_WebSearchTool_SetsUsesWebSearchFlag() {
+        var entry = new TranscriptEntry { Role = "assistant", ToolName = WebToolNameEnumConstants.WebSearch };
+        var toolCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var assistantCount = 0; var inputTokens = 0L; var outputTokens = 0L;
+        DateTime? lastTime = null;
+        var usesMcp = false; var usesWebSearch = false; var usesWebFetch = false; var usesTaskAgent = false;
+
+        SessionScanner.ProcessAssistantEntry(entry, toolCounts,
+            ref assistantCount, ref inputTokens, ref outputTokens, ref lastTime,
+            ref usesMcp, ref usesWebSearch, ref usesWebFetch, ref usesTaskAgent);
+
+        usesWebSearch.Should().BeTrue();
+        usesWebFetch.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ProcessAssistantEntry_WebFetchTool_SetsUsesWebFetchFlag() {
+        var entry = new TranscriptEntry { Role = "assistant", ToolName = WebToolNameEnumConstants.WebFetch };
+        var toolCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var assistantCount = 0; var inputTokens = 0L; var outputTokens = 0L;
+        DateTime? lastTime = null;
+        var usesMcp = false; var usesWebSearch = false; var usesWebFetch = false; var usesTaskAgent = false;
+
+        SessionScanner.ProcessAssistantEntry(entry, toolCounts,
+            ref assistantCount, ref inputTokens, ref outputTokens, ref lastTime,
+            ref usesMcp, ref usesWebSearch, ref usesWebFetch, ref usesTaskAgent);
+
+        usesWebFetch.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ProcessAssistantEntry_AgentTool_SetsUsesTaskAgentFlag() {
+        var entry = new TranscriptEntry { Role = "assistant", ToolName = AgentToolNameEnumConstants.Agent };
+        var toolCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var assistantCount = 0; var inputTokens = 0L; var outputTokens = 0L;
+        DateTime? lastTime = null;
+        var usesMcp = false; var usesWebSearch = false; var usesWebFetch = false; var usesTaskAgent = false;
+
+        SessionScanner.ProcessAssistantEntry(entry, toolCounts,
+            ref assistantCount, ref inputTokens, ref outputTokens, ref lastTime,
+            ref usesMcp, ref usesWebSearch, ref usesWebFetch, ref usesTaskAgent);
+
+        usesTaskAgent.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ProcessAssistantEntry_LegacyTaskTool_SetsUsesTaskAgentFlag() {
+        // 旧工具名 "Task" 也应触发 usesTaskAgent
+        var entry = new TranscriptEntry { Role = "assistant", ToolName = "Task" };
+        var toolCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var assistantCount = 0; var inputTokens = 0L; var outputTokens = 0L;
+        DateTime? lastTime = null;
+        var usesMcp = false; var usesWebSearch = false; var usesWebFetch = false; var usesTaskAgent = false;
+
+        SessionScanner.ProcessAssistantEntry(entry, toolCounts,
+            ref assistantCount, ref inputTokens, ref outputTokens, ref lastTime,
+            ref usesMcp, ref usesWebSearch, ref usesWebFetch, ref usesTaskAgent);
+
+        usesTaskAgent.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ProcessAssistantEntry_MultipleCalls_AccumulateCounts() {
+        var entry = new TranscriptEntry { Role = "assistant", ToolName = "bash", PromptTokens = 10, CompletionTokens = 5 };
+        var toolCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var assistantCount = 0; var inputTokens = 0L; var outputTokens = 0L;
+        DateTime? lastTime = null;
+        var usesMcp = false; var usesWebSearch = false; var usesWebFetch = false; var usesTaskAgent = false;
+
+        for (var i = 0; i < 3; i++) {
+            SessionScanner.ProcessAssistantEntry(entry, toolCounts,
+                ref assistantCount, ref inputTokens, ref outputTokens, ref lastTime,
+                ref usesMcp, ref usesWebSearch, ref usesWebFetch, ref usesTaskAgent);
+        }
+
+        assistantCount.Should().Be(3);
+        inputTokens.Should().Be(30);
+        outputTokens.Should().Be(15);
+        toolCounts["bash"].Should().Be(3);
+    }
+
+    [Fact]
+    public void ProcessAssistantEntry_DefaultTimestamp_DoesNotUpdateLastTime() {
+        var entry = new TranscriptEntry { Role = "assistant", Timestamp = default };
+        var toolCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var assistantCount = 0; var inputTokens = 0L; var outputTokens = 0L;
+        DateTime? lastTime = new DateTime(2026, 1, 1);
+        var usesMcp = false; var usesWebSearch = false; var usesWebFetch = false; var usesTaskAgent = false;
+
+        SessionScanner.ProcessAssistantEntry(entry, toolCounts,
+            ref assistantCount, ref inputTokens, ref outputTokens, ref lastTime,
+            ref usesMcp, ref usesWebSearch, ref usesWebFetch, ref usesTaskAgent);
+
+        lastTime.Should().Be(new DateTime(2026, 1, 1));
+    }
+
+    // === ProcessUserEntry: 用户消息统计 ===
+
+    [Fact]
+    public void ProcessUserEntry_HumanTextMessage_IncrementsCountAndSetsFirstPrompt() {
+        var entry = new TranscriptEntry { Role = "user", Content = "hello world", Timestamp = new DateTime(2026, 1, 1) };
+        var userCount = 0; string? firstPrompt = null;
+        var timestamps = new List<DateTime>();
+        var interruptions = 0;
+
+        SessionScanner.ProcessUserEntry(entry, ref userCount, ref firstPrompt, timestamps, ref interruptions);
+
+        userCount.Should().Be(1);
+        firstPrompt.Should().Be("hello world");
+        timestamps.Should().ContainSingle().Which.Should().Be(new DateTime(2026, 1, 1));
+        interruptions.Should().Be(0);
+    }
+
+    [Fact]
+    public void ProcessUserEntry_ToolResultType_DoesNotIncrementCount() {
+        var entry = new TranscriptEntry { Role = "user", Content = "result text", Type = "tool_result" };
+        var userCount = 0; string? firstPrompt = null;
+        var timestamps = new List<DateTime>();
+        var interruptions = 0;
+
+        SessionScanner.ProcessUserEntry(entry, ref userCount, ref firstPrompt, timestamps, ref interruptions);
+
+        userCount.Should().Be(0);
+        firstPrompt.Should().BeNull();
+        timestamps.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ProcessUserEntry_WhitespaceContent_DoesNotIncrementCount() {
+        var entry = new TranscriptEntry { Role = "user", Content = "   " };
+        var userCount = 0; string? firstPrompt = null;
+        var timestamps = new List<DateTime>();
+        var interruptions = 0;
+
+        SessionScanner.ProcessUserEntry(entry, ref userCount, ref firstPrompt, timestamps, ref interruptions);
+
+        userCount.Should().Be(0);
+        firstPrompt.Should().BeNull();
+    }
+
+    [Fact]
+    public void ProcessUserEntry_LongContent_TruncatesFirstPromptTo200Chars() {
+        var longContent = new string('x', 300);
+        var entry = new TranscriptEntry { Role = "user", Content = longContent };
+        var userCount = 0; string? firstPrompt = null;
+        var timestamps = new List<DateTime>();
+        var interruptions = 0;
+
+        SessionScanner.ProcessUserEntry(entry, ref userCount, ref firstPrompt, timestamps, ref interruptions);
+
+        firstPrompt.Should().HaveLength(200);
+        firstPrompt.Should().Be(new string('x', 200));
+    }
+
+    [Fact]
+    public void ProcessUserEntry_FirstPromptSetOnce_NotOverwrittenByLaterMessages() {
+        var entry1 = new TranscriptEntry { Role = "user", Content = "first" };
+        var entry2 = new TranscriptEntry { Role = "user", Content = "second" };
+        var userCount = 0; string? firstPrompt = null;
+        var timestamps = new List<DateTime>();
+        var interruptions = 0;
+
+        SessionScanner.ProcessUserEntry(entry1, ref userCount, ref firstPrompt, timestamps, ref interruptions);
+        SessionScanner.ProcessUserEntry(entry2, ref userCount, ref firstPrompt, timestamps, ref interruptions);
+
+        firstPrompt.Should().Be("first");
+        userCount.Should().Be(2);
+    }
+
+    [Fact]
+    public void ProcessUserEntry_InterruptedContent_IncrementsInterruptions() {
+        var entry = new TranscriptEntry { Role = "user", Content = "[Request interrupted by user]" };
+        var userCount = 0; string? firstPrompt = null;
+        var timestamps = new List<DateTime>();
+        var interruptions = 0;
+
+        SessionScanner.ProcessUserEntry(entry, ref userCount, ref firstPrompt, timestamps, ref interruptions);
+
+        interruptions.Should().Be(1);
+        // 中断内容也是人类消息,应计数
+        userCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void ProcessUserEntry_InterruptedContent_CaseInsensitive() {
+        var entry = new TranscriptEntry { Role = "user", Content = "[REQUEST INTERRUPTED BY USER]" };
+        var userCount = 0; string? firstPrompt = null;
+        var timestamps = new List<DateTime>();
+        var interruptions = 0;
+
+        SessionScanner.ProcessUserEntry(entry, ref userCount, ref firstPrompt, timestamps, ref interruptions);
+
+        interruptions.Should().Be(1);
+    }
+
+    // === DetectUserInterruption ===
+
+    [Fact]
+    public void DetectUserInterruption_ContainsMarker_ReturnsTrue() {
+        SessionScanner.DetectUserInterruption("[Request interrupted by user]").Should().BeTrue();
+    }
+
+    [Fact]
+    public void DetectUserInterruption_NoMarker_ReturnsFalse() {
+        SessionScanner.DetectUserInterruption("normal user message").Should().BeFalse();
+    }
+
+    [Fact]
+    public void DetectUserInterruption_CaseInsensitive_ReturnsTrue() {
+        SessionScanner.DetectUserInterruption("[request Interrupted By User]").Should().BeTrue();
+    }
+
+    [Fact]
+    public void DetectUserInterruption_MarkerInLongerText_ReturnsTrue() {
+        SessionScanner.DetectUserInterruption("some prefix [Request interrupted by user] suffix").Should().BeTrue();
+    }
+
+    [Fact]
+    public void DetectUserInterruption_EmptyContent_ReturnsFalse() {
+        SessionScanner.DetectUserInterruption("").Should().BeFalse();
+    }
+
+    // === ProcessToolResultEntry: 工具结果统计 ===
+
+    [Fact]
+    public void ProcessToolResultEntry_IsErrorTrue_IncrementsToolErrorsAndCategory() {
+        var entry = new TranscriptEntry { Role = "tool", Content = """{"is_error":true}""" };
+        var errorCategories = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var languages = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var modifiedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var toolErrors = 0; var commits = 0; var pushes = 0; var added = 0; var removed = 0;
+
+        SessionScanner.ProcessToolResultEntry(entry, errorCategories, languages, modifiedFiles,
+            ref toolErrors, ref commits, ref pushes, ref added, ref removed);
+
+        toolErrors.Should().Be(1);
+        errorCategories.Should().ContainKey("Other").WhoseValue.Should().Be(1);
+    }
+
+    [Fact]
+    public void ProcessToolResultEntry_ExitCode_IncrementsToolErrorsAndCommandFailedCategory() {
+        var entry = new TranscriptEntry { Role = "tool", Content = "Command failed with exit code 1" };
+        var errorCategories = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var languages = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var modifiedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var toolErrors = 0; var commits = 0; var pushes = 0; var added = 0; var removed = 0;
+
+        SessionScanner.ProcessToolResultEntry(entry, errorCategories, languages, modifiedFiles,
+            ref toolErrors, ref commits, ref pushes, ref added, ref removed);
+
+        toolErrors.Should().Be(1);
+        errorCategories.Should().ContainKey("Command Failed").WhoseValue.Should().Be(1);
+    }
+
+    [Fact]
+    public void ProcessToolResultEntry_NoError_DoesNotIncrementToolErrors() {
+        var entry = new TranscriptEntry { Role = "tool", Content = "success output" };
+        var errorCategories = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var languages = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var modifiedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var toolErrors = 0; var commits = 0; var pushes = 0; var added = 0; var removed = 0;
+
+        SessionScanner.ProcessToolResultEntry(entry, errorCategories, languages, modifiedFiles,
+            ref toolErrors, ref commits, ref pushes, ref added, ref removed);
+
+        toolErrors.Should().Be(0);
+        errorCategories.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ProcessToolResultEntry_WithFileExtension_RecordsLanguageEvenWithoutError() {
+        var entry = new TranscriptEntry { Role = "tool", Content = "modified src/Program.cs" };
+        var errorCategories = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var languages = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var modifiedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var toolErrors = 0; var commits = 0; var pushes = 0; var added = 0; var removed = 0;
+
+        SessionScanner.ProcessToolResultEntry(entry, errorCategories, languages, modifiedFiles,
+            ref toolErrors, ref commits, ref pushes, ref added, ref removed);
+
+        toolErrors.Should().Be(0);
+        languages.Should().ContainKey("C#");
+    }
+
+    [Fact]
+    public void ProcessToolResultEntry_GitCommit_IncrementsCommitCount() {
+        var entry = new TranscriptEntry { Role = "tool", Content = "git commit -m feat" };
+        var errorCategories = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var languages = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var modifiedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var toolErrors = 0; var commits = 0; var pushes = 0; var added = 0; var removed = 0;
+
+        SessionScanner.ProcessToolResultEntry(entry, errorCategories, languages, modifiedFiles,
+            ref toolErrors, ref commits, ref pushes, ref added, ref removed);
+
+        commits.Should().Be(1);
+        pushes.Should().Be(0);
+    }
+
+    // === BuildSessionMeta: 结果构建 ===
+
+    [Fact]
+    public void BuildSessionMeta_MapsAllFieldsCorrectly() {
+        var sessionId = "sess-123";
+        var creation = new DateTime(2026, 1, 1, 10, 0, 0);
+        var duration = 15.678;
+        var toolCounts = new Dictionary<string, int> { ["bash"] = 3 };
+        var languages = new Dictionary<string, int> { ["C#"] = 2 };
+        var modifiedFiles = new HashSet<string> { "a.cs", "b.cs" };
+        var errorCategories = new Dictionary<string, int> { ["Other"] = 1 };
+        var timestamps = new List<DateTime> { new(2026, 1, 1, 10, 5, 0) };
+
+        var meta = SessionScanner.BuildSessionMeta(sessionId, creation, duration,
+            userMessageCount: 5, assistantMessageCount: 10, inputTokens: 1000, outputTokens: 500,
+            toolCounts, languages, gitCommits: 2, gitPushes: 1, linesAdded: 50, linesRemoved: 20,
+            modifiedFiles, userInterruptions: 1, toolErrors: 3, errorCategories,
+            usesTaskAgent: true, usesMcp: true, usesWebSearch: false, usesWebFetch: true,
+            firstPrompt: "hello", estimatedCost: 0.05m, timestamps);
+
+        meta.SessionId.Should().Be("sess-123");
+        meta.ProjectPath.Should().BeEmpty();
+        meta.StartTime.Should().Be(creation);
+        meta.DurationMinutes.Should().Be(15.7); // 四舍五入1位
+        meta.UserMessageCount.Should().Be(5);
+        meta.AssistantMessageCount.Should().Be(10);
+        meta.InputTokens.Should().Be(1000);
+        meta.OutputTokens.Should().Be(500);
+        meta.ToolCounts.Should().ContainKey("bash").WhoseValue.Should().Be(3);
+        meta.Languages.Should().ContainKey("C#").WhoseValue.Should().Be(2);
+        meta.GitCommits.Should().Be(2);
+        meta.GitPushes.Should().Be(1);
+        meta.LinesAdded.Should().Be(50);
+        meta.LinesRemoved.Should().Be(20);
+        meta.FilesModified.Should().Be(2);
+        meta.UserInterruptions.Should().Be(1);
+        meta.ToolErrors.Should().Be(3);
+        meta.UsesTaskAgent.Should().BeTrue();
+        meta.UsesMcp.Should().BeTrue();
+        meta.UsesWebSearch.Should().BeFalse();
+        meta.UsesWebFetch.Should().BeTrue();
+        meta.FirstPrompt.Should().Be("hello");
+        meta.UserMessageTimestamps.Should().ContainSingle().Which.Should().Be(new DateTime(2026, 1, 1, 10, 5, 0));
+    }
+
+    [Fact]
+    public void BuildSessionMeta_NullFirstPrompt_ConvertsToEmptyString() {
+        var meta = SessionScanner.BuildSessionMeta("s", DateTime.UtcNow, 0,
+            0, 0, 0, 0,
+            new Dictionary<string, int>(), new Dictionary<string, int>(), 0, 0, 0, 0,
+            new HashSet<string>(), 0, 0, new Dictionary<string, int>(),
+            false, false, false, false, null, 0m, new List<DateTime>());
+
+        meta.FirstPrompt.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BuildSessionMeta_DurationRoundedToOneDecimal() {
+        var meta = SessionScanner.BuildSessionMeta("s", DateTime.UtcNow, 12.34,
+            0, 0, 0, 0,
+            new Dictionary<string, int>(), new Dictionary<string, int>(), 0, 0, 0, 0,
+            new HashSet<string>(), 0, 0, new Dictionary<string, int>(),
+            false, false, false, false, null, 0m, new List<DateTime>());
+
+        meta.DurationMinutes.Should().Be(12.3);
+    }
+
+    [Fact]
+    public void BuildSessionMeta_Deterministic_SameInputSameOutput() {
+        var toolCounts = new Dictionary<string, int> { ["bash"] = 1 };
+        var langs = new Dictionary<string, int>();
+        var files = new HashSet<string>();
+        var cats = new Dictionary<string, int>();
+        var ts = new List<DateTime> { new(2026, 1, 1) };
+
+        var m1 = SessionScanner.BuildSessionMeta("s", new DateTime(2026, 1, 1), 10.0,
+            1, 2, 3, 4, toolCounts, langs, 5, 6, 7, 8, files, 9, 10, cats, true, false, true, false, "p", 0m, ts);
+        var m2 = SessionScanner.BuildSessionMeta("s", new DateTime(2026, 1, 1), 10.0,
+            1, 2, 3, 4, toolCounts, langs, 5, 6, 7, 8, files, 9, 10, cats, true, false, true, false, "p", 0m, ts);
+
+        m1.Should().BeEquivalentTo(m2);
+    }
 }

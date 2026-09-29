@@ -251,4 +251,184 @@ public sealed class JsonRepairPipelineTests {
         var result = JsonRepairPipeline.FixUnquotedKeys("""{"a":"x{y}z"}""", hints);
         result.Should().Be("""{"a":"x{y}z"}""");
     }
+
+    // ── AppendQuotedValue: 从 FixUnquotedValues 拆出的纯计算子方法 ──
+    // 给定 (sb, s, start, end) → 加引号 + 裸反斜杠转义为 \\,无时序/IO 依赖
+
+    [Fact]
+    public void AppendQuotedValue_EmptyRange_ProducesEmptyQuotedString() {
+        // start == end → 空内容加引号
+        var sb = new StringBuilder();
+        JsonRepairPipeline.AppendQuotedValue(sb, "abc", 1, 1);
+        sb.ToString().Should().Be("\"\"");
+    }
+
+    [Fact]
+    public void AppendQuotedValue_PlainText_WrappedInQuotes() {
+        var sb = new StringBuilder();
+        JsonRepairPipeline.AppendQuotedValue(sb, "hello", 0, 5);
+        sb.ToString().Should().Be("\"hello\"");
+    }
+
+    [Fact]
+    public void AppendQuotedValue_Subrange_OnlySpecifiedRangeQuoted() {
+        // 只取 [1,4) = "ell"
+        var sb = new StringBuilder();
+        JsonRepairPipeline.AppendQuotedValue(sb, "hello", 1, 4);
+        sb.ToString().Should().Be("\"ell\"");
+    }
+
+    [Fact]
+    public void AppendQuotedValue_BareBackslash_Doubled() {
+        // 裸反斜杠 → \\ (JSON 合法转义)。输入 "a\b" (3字符) → 输出 "a\\b" (6字符)
+        var sb = new StringBuilder();
+        JsonRepairPipeline.AppendQuotedValue(sb, "a\\b", 0, 3);
+        sb.ToString().Should().Be("\"a\\\\b\"");
+    }
+
+    [Fact]
+    public void AppendQuotedValue_MultipleBackslashes_AllDoubled() {
+        var sb = new StringBuilder();
+        JsonRepairPipeline.AppendQuotedValue(sb, "a\\b\\c", 0, 5);
+        sb.ToString().Should().Be("\"a\\\\b\\\\c\"");
+    }
+
+    [Fact]
+    public void AppendQuotedValue_BackslashAtStart_Doubled() {
+        var sb = new StringBuilder();
+        JsonRepairPipeline.AppendQuotedValue(sb, "\\ab", 0, 3);
+        sb.ToString().Should().Be("\"\\\\ab\"");
+    }
+
+    [Fact]
+    public void AppendQuotedValue_BackslashAtEnd_Doubled() {
+        var sb = new StringBuilder();
+        JsonRepairPipeline.AppendQuotedValue(sb, "ab\\", 0, 3);
+        sb.ToString().Should().Be("\"ab\\\\\"");
+    }
+
+    [Fact]
+    public void AppendQuotedValue_DoubleQuote_PreservedAsIs() {
+        // 双引号不转义(此方法只转义反斜杠,双引号由其他阶段处理)
+        var sb = new StringBuilder();
+        JsonRepairPipeline.AppendQuotedValue(sb, "a\"b", 0, 3);
+        sb.ToString().Should().Be("\"a\"b\"");
+    }
+
+    [Fact]
+    public void AppendQuotedValue_AppendsToExistingBuilder() {
+        // 追加到已有内容的 StringBuilder,不重置
+        var sb = new StringBuilder("prefix:");
+        JsonRepairPipeline.AppendQuotedValue(sb, "x", 0, 1);
+        sb.ToString().Should().Be("prefix:\"x\"");
+    }
+
+    [Fact]
+    public void AppendQuotedValue_OnlyBackslash_ProducesQuotedDoubleBackslash() {
+        // 单个反斜杠 → "\\"
+        var sb = new StringBuilder();
+        JsonRepairPipeline.AppendQuotedValue(sb, "\\", 0, 1);
+        sb.ToString().Should().Be("\"\\\\\"");
+    }
+
+    // ── ShouldQuoteValueStart: 从 FixUnquotedValues 拆出的纯计算子方法 ──
+    // 给定 (c, json, i) → bool,判断冒号后 value 起点是否需要加引号
+
+    [Fact]
+    public void ShouldQuoteValueStart_DoubleQuote_ReturnsFalse() {
+        JsonRepairPipeline.ShouldQuoteValueStart('"', """{"a":"x"}""", 5).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_SingleQuote_ReturnsFalse() {
+        JsonRepairPipeline.ShouldQuoteValueStart('\'', """{"a":'x'}""", 5).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_ObjectOpenBrace_ReturnsFalse() {
+        JsonRepairPipeline.ShouldQuoteValueStart('{', """{"a":{"b":1}}""", 5).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_ArrayOpenBracket_ReturnsFalse() {
+        JsonRepairPipeline.ShouldQuoteValueStart('[', """{"a":[1]}""", 5).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_Digit_ReturnsFalse() {
+        JsonRepairPipeline.ShouldQuoteValueStart('1', """{"a":1}""", 5).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_MinusSign_ReturnsFalse() {
+        JsonRepairPipeline.ShouldQuoteValueStart('-', """{"a":-1}""", 5).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_PlusSign_ReturnsFalse() {
+        JsonRepairPipeline.ShouldQuoteValueStart('+', """{"a":+1}""", 5).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_TrueLiteral_ReturnsFalse() {
+        JsonRepairPipeline.ShouldQuoteValueStart('t', """{"a":true}""", 5).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_FalseLiteral_ReturnsFalse() {
+        JsonRepairPipeline.ShouldQuoteValueStart('f', """{"a":false}""", 5).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_NullLiteral_ReturnsFalse() {
+        JsonRepairPipeline.ShouldQuoteValueStart('n', """{"a":null}""", 5).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_TrueCaseInsensitive_ReturnsFalse() {
+        // IsLiteralAt 用 ToLowerInvariant,大写 True 也识别为字面量
+        JsonRepairPipeline.ShouldQuoteValueStart('T', """{"a":True}""", 5).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_LiteralFollowedByLetter_ReturnsTrue() {
+        // truex 后跟字母 → 不是合法字面量边界 → 需要加引号
+        JsonRepairPipeline.ShouldQuoteValueStart('t', """{"a":truex}""", 5).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_LiteralFollowedByDigit_ReturnsTrue() {
+        // null1 后跟数字 → 不是字面量
+        JsonRepairPipeline.ShouldQuoteValueStart('n', """{"a":null1}""", 5).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_LiteralFollowedByUnderscore_ReturnsTrue() {
+        // true_ 后跟下划线 → 不是字面量
+        JsonRepairPipeline.ShouldQuoteValueStart('t', """{"a":true_}""", 5).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_BareWord_ReturnsTrue() {
+        // 裸词 hello → 需要加引号
+        JsonRepairPipeline.ShouldQuoteValueStart('h', """{"a":hello}""", 5).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_LiteralAtEndOfInput_ReturnsFalse() {
+        // 字面量在字符串末尾(无后续字符) → 是合法字面量。":true" i=1 指向 t
+        JsonRepairPipeline.ShouldQuoteValueStart('t', ":true", 1).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_LiteralFollowedByComma_ReturnsFalse() {
+        // true, 后跟逗号 → 是合法字面量边界。构造 ":true," i=1
+        JsonRepairPipeline.ShouldQuoteValueStart('t', ":true,", 1).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldQuoteValueStart_LiteralFollowedByCloseBrace_ReturnsFalse() {
+        // true} 后跟 } → 是合法字面量边界
+        JsonRepairPipeline.ShouldQuoteValueStart('t', ":true}", 1).Should().BeFalse();
+    }
 }

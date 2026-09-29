@@ -182,7 +182,7 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
     /// <summary>
     /// 解码 JWT exp 声明
     /// </summary>
-    private static long? DecodeJwtExpiry(string token) {
+    internal static long? DecodeJwtExpiry(string token) {
         try {
             var parts = token.Split('.');
             if (parts.Length < 2) return null;

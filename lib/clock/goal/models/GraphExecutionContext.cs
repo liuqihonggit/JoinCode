@@ -269,9 +269,24 @@ public sealed class GraphExecutionContext {
     /// <param name="routes">路由标签数组（null 表示无路由）</param>
     /// <param name="matchMode">路由匹配模式</param>
     /// <returns>后继节点 ID 列表</returns>
-    public IReadOnlyList<string> GetNextNodeIds(string fromNodeId, string[]? routes, RouteMatchMode matchMode) {
+    public IReadOnlyList<string> GetNextNodeIds(string fromNodeId, string[]? routes, RouteMatchMode matchMode) =>
+        CollectNextNodeIds(Graph.Dag, fromNodeId, routes, matchMode);
+
+    /// <summary>
+    /// 根据路由匹配模式收集后继节点 ID 列表 — 纯函数,无副作用,确定性输出。
+    /// </summary>
+    /// <param name="dag">目标图 DAG</param>
+    /// <param name="fromNodeId">起始节点 ID</param>
+    /// <param name="routes">路由标签数组(null 表示无路由)</param>
+    /// <param name="matchMode">路由匹配模式</param>
+    /// <returns>后继节点 ID 列表</returns>
+    internal static IReadOnlyList<string> CollectNextNodeIds(
+        Dag<GoalNodePayload> dag,
+        string fromNodeId,
+        string[]? routes,
+        RouteMatchMode matchMode) {
         var nextIds = new List<string>();
-        if (!Graph.Dag.Nodes.TryGetValue(fromNodeId, out var node))
+        if (!dag.Nodes.TryGetValue(fromNodeId, out var node))
             return nextIds;
 
         var routeSet = routes is not null
@@ -281,7 +296,7 @@ public sealed class GraphExecutionContext {
         var hasConditionalMatch = false;
 
         foreach (var edgeId in node.OutEdgeIds) {
-            if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
+            if (!dag.Edges.TryGetValue(edgeId, out var edge))
                 continue;
 
             if (edge.Label.Length == 0) {
@@ -301,7 +316,7 @@ public sealed class GraphExecutionContext {
 
         if (!hasConditionalMatch && matchMode == RouteMatchMode.ConditionalOnly) {
             foreach (var edgeId in node.OutEdgeIds) {
-                if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
+                if (!dag.Edges.TryGetValue(edgeId, out var edge))
                     continue;
                 if (edge.Label.Length == 0) {
                     nextIds.Add(edge.ToId);

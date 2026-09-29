@@ -184,4 +184,167 @@ public sealed class MemoryTruncatorPureLogicTests {
         var r2 = MemoryTruncator.CalculateLineRelevance("database content", new[] { "database", "network" });
         r1.Should().Be(r2);
     }
+
+    // === ScoreAndSelectLines: 评分与选择 ===
+
+    [Fact]
+    public void ScoreAndSelectLines_EmptyLines_ReturnsEmpty() {
+        var result = MemoryTruncator.ScoreAndSelectLines(Array.Empty<string>(), new[] { "query" }, 10);
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ScoreAndSelectLines_AllMatch_TakesHalfMaxLines() {
+        // 4行全部匹配,maxLines=4 → Take(2)
+        var lines = new[] { "query a", "query b", "query c", "query d" };
+        var result = MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, 4);
+        result.Should().HaveCount(2);
+        // 按索引升序恢复 → 前两行
+        result[0].Index.Should().Be(0);
+        result[1].Index.Should().Be(1);
+    }
+
+    [Fact]
+    public void ScoreAndSelectLines_PartialMatch_TakesAllWhenUnderLimit() {
+        var lines = new[] { "unrelated", "query match", "unrelated2", "query match2" };
+        var result = MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, 10);
+        // maxLines/2=5 > 4行 → 全部保留(不过滤score=0),按索引排序
+        result.Should().HaveCount(4);
+        result.Count(x => x.Score > 0).Should().Be(2);
+        result.Count(x => x.Score == 0).Should().Be(2);
+    }
+
+    [Fact]
+    public void ScoreAndSelectLines_PartialMatch_TakeLimitTruncatesLowScore() {
+        // 6行,3匹配3不匹配,maxLines=4 → Take(2) → 只保留2个最高分
+        var lines = new[] { "unrelated1", "query1", "unrelated2", "query2", "unrelated3", "query3" };
+        var result = MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, 4);
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(x => x.Score > 0);
+    }
+
+    [Fact]
+    public void ScoreAndSelectLines_OrdersByScoreDescThenByIndexAsc() {
+        // 行0: 2词全匹配(score=1), 行1: 1词匹配(score=0.5), 行2: 2词全匹配(score=1)
+        var lines = new[] { "db net", "db only", "db net too" };
+        var result = MemoryTruncator.ScoreAndSelectLines(lines, new[] { "db", "net" }, 10);
+        // 分数:行0=1, 行1=0.5, 行2=1 → 降序后行0,行2(score=1),行1(score=0.5)
+        // Take(5) 全部保留 → 按索引升序:行0,行1,行2
+        result.Should().HaveCount(3);
+        result[0].Index.Should().Be(0);
+        result[1].Index.Should().Be(1);
+        result[2].Index.Should().Be(2);
+    }
+
+    [Fact]
+    public void ScoreAndSelectLines_NoQueryWords_AllScoresZero() {
+        var lines = new[] { "a", "b", "c" };
+        var result = MemoryTruncator.ScoreAndSelectLines(lines, Array.Empty<string>(), 4);
+        // 全部score=0,Take(2) → 前两行(按索引稳定排序)
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(x => x.Score == 0);
+    }
+
+    [Fact]
+    public void ScoreAndSelectLines_PreservesLineContent() {
+        var lines = new[] { "first line", "second line" };
+        var result = MemoryTruncator.ScoreAndSelectLines(lines, new[] { "first" }, 4);
+        result.Should().Contain(x => x.Line == "first line" && x.Index == 0);
+    }
+
+    [Fact]
+    public void ScoreAndSelectLines_Deterministic_SameInputSameOutput() {
+        var lines = new[] { "query a", "unrelated", "query b" };
+        var r1 = MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, 4);
+        var r2 = MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, 4);
+        r1.Should().BeEquivalentTo(r2);
+    }
+
+    // === AssembleTruncatedLines: 组装截断输出 ===
+
+    [Fact]
+    public void AssembleTruncatedLines_ContinuousIndices_NoEllipsis() {
+        var scored = new List<MemoryTruncator.ScoredLine> {
+            new("line0", 0, 1.0),
+            new("line1", 1, 1.0),
+            new("line2", 2, 1.0),
+        };
+        var result = MemoryTruncator.AssembleTruncatedLines(scored, totalLineCount: 5, maxLines: 10);
+        // totalLineCount(5) <= maxLines(10) → 无截断提示
+        result.Should().Equal(new[] { "line0", "line1", "line2" });
+    }
+
+    [Fact]
+    public void AssembleTruncatedLines_DiscontinuousIndices_InsertsEllipsis() {
+        var scored = new List<MemoryTruncator.ScoredLine> {
+            new("line0", 0, 1.0),
+            new("line2", 2, 1.0),
+        };
+        var result = MemoryTruncator.AssembleTruncatedLines(scored, totalLineCount: 3, maxLines: 10);
+        // 行0和行2不连续(2 > 0+1) → 插入省略号
+        result.Should().Equal(new[] { "line0", "...", "line2" });
+    }
+
+    [Fact]
+    public void AssembleTruncatedLines_TotalExceedsMax_AppendsTruncationNotice() {
+        var scored = new List<MemoryTruncator.ScoredLine> {
+            new("line0", 0, 1.0),
+        };
+        var result = MemoryTruncator.AssembleTruncatedLines(scored, totalLineCount: 100, maxLines: 10);
+        // totalLineCount(100) > maxLines(10) → 追加空行+截断提示
+        result.Should().HaveCount(3);
+        result[0].Should().Be("line0");
+        result[1].Should().BeEmpty();
+        result[2].Should().Contain("100");
+    }
+
+    [Fact]
+    public void AssembleTruncatedLines_TotalWithinMax_NoTruncationNotice() {
+        var scored = new List<MemoryTruncator.ScoredLine> {
+            new("line0", 0, 1.0),
+        };
+        var result = MemoryTruncator.AssembleTruncatedLines(scored, totalLineCount: 5, maxLines: 10);
+        result.Should().HaveCount(1);
+        result[0].Should().Be("line0");
+    }
+
+    [Fact]
+    public void AssembleTruncatedLines_EmptyScored_WithTruncation_OnlyNotice() {
+        var scored = new List<MemoryTruncator.ScoredLine>();
+        var result = MemoryTruncator.AssembleTruncatedLines(scored, totalLineCount: 100, maxLines: 10);
+        // 无行,但totalLineCount > maxLines → 仅截断提示
+        result.Should().HaveCount(2);
+        result[0].Should().BeEmpty();
+        result[1].Should().Contain("100");
+    }
+
+    [Fact]
+    public void AssembleTruncatedLines_EmptyScored_NoTruncation_EmptyResult() {
+        var scored = new List<MemoryTruncator.ScoredLine>();
+        var result = MemoryTruncator.AssembleTruncatedLines(scored, totalLineCount: 5, maxLines: 10);
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void AssembleTruncatedLines_MultipleGaps_MultipleEllipsis() {
+        var scored = new List<MemoryTruncator.ScoredLine> {
+            new("line0", 0, 1.0),
+            new("line2", 2, 1.0),
+            new("line5", 5, 1.0),
+        };
+        var result = MemoryTruncator.AssembleTruncatedLines(scored, totalLineCount: 6, maxLines: 10);
+        // 0→2 不连续, 2→5 不连续 → 两处省略号
+        result.Should().Equal(new[] { "line0", "...", "line2", "...", "line5" });
+    }
+
+    [Fact]
+    public void AssembleTruncatedLines_Deterministic_SameInputSameOutput() {
+        var scored = new List<MemoryTruncator.ScoredLine> {
+            new("a", 0, 1.0),
+            new("c", 2, 0.5),
+        };
+        var r1 = MemoryTruncator.AssembleTruncatedLines(scored, 10, 5);
+        var r2 = MemoryTruncator.AssembleTruncatedLines(scored, 10, 5);
+        r1.Should().Equal(r2);
+    }
 }

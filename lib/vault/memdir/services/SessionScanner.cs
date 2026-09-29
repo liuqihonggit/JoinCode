@@ -93,66 +93,156 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
 
             // 助手消息统计
             if (string.Equals(role, MessageRoleEnumConstants.Assistant, StringComparison.OrdinalIgnoreCase)) {
-                assistantMessageCount++;
-                inputTokens += entry.PromptTokens;
-                outputTokens += entry.CompletionTokens;
-
-                if (entry.Timestamp != default) {
-                    lastAssistantTime = entry.Timestamp;
-                }
-
-                // 工具使用统计
-                if (!string.IsNullOrEmpty(entry.ToolName)) {
-                    var toolName = entry.ToolName;
-                    toolCounts.TryGetValue(toolName, out var count);
-                    toolCounts[toolName] = count + 1;
-
-                    // 检测特殊工具使用
-                    usesMcp |= toolName.StartsWith("mcp__", StringComparison.OrdinalIgnoreCase);
-                    usesWebSearch |= string.Equals(toolName, WebToolNameEnumConstants.WebSearch, StringComparison.OrdinalIgnoreCase);
-                    usesWebFetch |= string.Equals(toolName, WebToolNameEnumConstants.WebFetch, StringComparison.OrdinalIgnoreCase);
-                    usesTaskAgent |= string.Equals(toolName, AgentToolNameEnumConstants.Agent, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(toolName, "Task", StringComparison.OrdinalIgnoreCase);
-                }
+                ProcessAssistantEntry(entry, toolCounts,
+                    ref assistantMessageCount, ref inputTokens, ref outputTokens, ref lastAssistantTime,
+                    ref usesMcp, ref usesWebSearch, ref usesWebFetch, ref usesTaskAgent);
             }
 
             // 用户消息统计
             if (string.Equals(role, MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase)) {
-                // 仅统计有人类文本的消息（非 tool_result）
-                var isHumanMessage = !string.IsNullOrWhiteSpace(entry.Content) &&
-                    entry.Type != "tool_result";
-
-                if (isHumanMessage) {
-                    userMessageCount++;
-                    firstPrompt ??= entry.Content.Length > 200 ? entry.Content[..200] : entry.Content;
-                }
-
-                if (isHumanMessage && entry.Timestamp != default) {
-                    userMessageTimestamps.Add(entry.Timestamp);
-                }
-
-                // 检测中断
-                if (entry.Content.Contains("[Request interrupted by user", StringComparison.OrdinalIgnoreCase)) {
-                    userInterruptions++;
-                }
+                ProcessUserEntry(entry, ref userMessageCount, ref firstPrompt, userMessageTimestamps, ref userInterruptions);
             }
 
             // 工具结果中的错误统计
             if (string.Equals(role, MessageRoleEnumConstants.Tool, StringComparison.OrdinalIgnoreCase) ||
                 entry.Type == "tool_result") {
-                if (entry.Content.Contains("is_error\":true", StringComparison.OrdinalIgnoreCase) ||
-                    entry.Content.Contains("exit code", StringComparison.OrdinalIgnoreCase)) {
-                    toolErrors++;
-                    var category = CategorizeToolError(entry.Content);
-                    toolErrorCategories.TryGetValue(category, out var catCount);
-                    toolErrorCategories[category] = catCount + 1;
-                }
-
-                // 从工具结果中提取语言和文件信息
-                ExtractLanguageAndFileStats(entry, languages, modifiedFiles, ref gitCommits, ref gitPushes, ref linesAdded, ref linesRemoved);
+                ProcessToolResultEntry(entry, toolErrorCategories, languages, modifiedFiles,
+                    ref toolErrors, ref gitCommits, ref gitPushes, ref linesAdded, ref linesRemoved);
             }
         }
 
+        return BuildSessionMeta(sessionId, creationTimeUtc, durationMinutes,
+            userMessageCount, assistantMessageCount, inputTokens, outputTokens,
+            toolCounts, languages, gitCommits, gitPushes, linesAdded, linesRemoved,
+            modifiedFiles, userInterruptions, toolErrors, toolErrorCategories,
+            usesTaskAgent, usesMcp, usesWebSearch, usesWebFetch, firstPrompt, estimatedCost, userMessageTimestamps);
+    }
+
+    /// <summary>
+    /// 处理助手消息条目 — 统计消息数/Token/工具使用/特殊工具检测 — 纯计算,对齐 TS extractToolStats
+    /// </summary>
+    internal static void ProcessAssistantEntry(
+        TranscriptEntry entry,
+        Dictionary<string, int> toolCounts,
+        ref int assistantMessageCount,
+        ref long inputTokens,
+        ref long outputTokens,
+        ref DateTime? lastAssistantTime,
+        ref bool usesMcp,
+        ref bool usesWebSearch,
+        ref bool usesWebFetch,
+        ref bool usesTaskAgent) {
+        assistantMessageCount++;
+        inputTokens += entry.PromptTokens;
+        outputTokens += entry.CompletionTokens;
+
+        if (entry.Timestamp != default) {
+            lastAssistantTime = entry.Timestamp;
+        }
+
+        // 工具使用统计
+        if (!string.IsNullOrEmpty(entry.ToolName)) {
+            var toolName = entry.ToolName;
+            toolCounts.TryGetValue(toolName, out var count);
+            toolCounts[toolName] = count + 1;
+
+            // 检测特殊工具使用
+            usesMcp |= toolName.StartsWith("mcp__", StringComparison.OrdinalIgnoreCase);
+            usesWebSearch |= string.Equals(toolName, WebToolNameEnumConstants.WebSearch, StringComparison.OrdinalIgnoreCase);
+            usesWebFetch |= string.Equals(toolName, WebToolNameEnumConstants.WebFetch, StringComparison.OrdinalIgnoreCase);
+            usesTaskAgent |= string.Equals(toolName, AgentToolNameEnumConstants.Agent, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(toolName, "Task", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
+    /// 处理用户消息条目 — 统计人类消息数/首次提示/时间戳/中断检测 — 纯计算
+    /// </summary>
+    internal static void ProcessUserEntry(
+        TranscriptEntry entry,
+        ref int userMessageCount,
+        ref string? firstPrompt,
+        List<DateTime> userMessageTimestamps,
+        ref int userInterruptions) {
+        // 仅统计有人类文本的消息（非 tool_result）
+        var isHumanMessage = !string.IsNullOrWhiteSpace(entry.Content) &&
+            entry.Type != "tool_result";
+
+        if (isHumanMessage) {
+            userMessageCount++;
+            firstPrompt ??= entry.Content.Length > 200 ? entry.Content[..200] : entry.Content;
+        }
+
+        if (isHumanMessage && entry.Timestamp != default) {
+            userMessageTimestamps.Add(entry.Timestamp);
+        }
+
+        // 检测中断
+        if (DetectUserInterruption(entry.Content)) {
+            userInterruptions++;
+        }
+    }
+
+    /// <summary>
+    /// 检测用户中断标记 — 纯函数,对齐 TS 中断检测
+    /// </summary>
+    internal static bool DetectUserInterruption(string content) {
+        return content.Contains("[Request interrupted by user", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 处理工具结果条目 — 错误统计/分类/语言与文件统计 — 纯计算
+    /// </summary>
+    internal static void ProcessToolResultEntry(
+        TranscriptEntry entry,
+        Dictionary<string, int> toolErrorCategories,
+        Dictionary<string, int> languages,
+        HashSet<string> modifiedFiles,
+        ref int toolErrors,
+        ref int gitCommits,
+        ref int gitPushes,
+        ref int linesAdded,
+        ref int linesRemoved) {
+        if (entry.Content.Contains("is_error\":true", StringComparison.OrdinalIgnoreCase) ||
+            entry.Content.Contains("exit code", StringComparison.OrdinalIgnoreCase)) {
+            toolErrors++;
+            var category = CategorizeToolError(entry.Content);
+            toolErrorCategories.TryGetValue(category, out var catCount);
+            toolErrorCategories[category] = catCount + 1;
+        }
+
+        // 从工具结果中提取语言和文件信息
+        ExtractLanguageAndFileStats(entry, languages, modifiedFiles, ref gitCommits, ref gitPushes, ref linesAdded, ref linesRemoved);
+    }
+
+    /// <summary>
+    /// 构建 InsightSessionMeta 结果 — 纯计算,集中字段映射
+    /// </summary>
+    internal static InsightSessionMeta BuildSessionMeta(
+        string sessionId,
+        DateTime creationTimeUtc,
+        double durationMinutes,
+        int userMessageCount,
+        int assistantMessageCount,
+        long inputTokens,
+        long outputTokens,
+        Dictionary<string, int> toolCounts,
+        Dictionary<string, int> languages,
+        int gitCommits,
+        int gitPushes,
+        int linesAdded,
+        int linesRemoved,
+        HashSet<string> modifiedFiles,
+        int userInterruptions,
+        int toolErrors,
+        Dictionary<string, int> toolErrorCategories,
+        bool usesTaskAgent,
+        bool usesMcp,
+        bool usesWebSearch,
+        bool usesWebFetch,
+        string? firstPrompt,
+        decimal estimatedCost,
+        List<DateTime> userMessageTimestamps) {
         return new InsightSessionMeta {
             SessionId = sessionId,
             ProjectPath = string.Empty, // C# 端会话文件不存储项目路径

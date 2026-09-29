@@ -130,4 +130,77 @@ public sealed class PluginCommandRegistryTest {
         registry.GetCommand("testcommand").Should().NotBeNull();
         registry.GetCommand("TESTCOMMAND").Should().NotBeNull();
     }
+
+    // ===== ExpandAliases 纯计算子方法确定性测试(不依赖时序/IO/注册表状态) =====
+
+    [Fact]
+    public void ExpandAliases_NoAliases_ReturnsEmpty() {
+        var cmd = MakeCommand("main");
+
+        PluginCommandRegistry.ExpandAliases(cmd).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ExpandAliases_EmptyAliasList_ReturnsEmpty() {
+        var cmd = MakeCommand("main", aliases: Array.Empty<string>());
+
+        PluginCommandRegistry.ExpandAliases(cmd).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ExpandAliases_WithAliases_ReturnsOneDefinitionPerAlias() {
+        var cmd = MakeCommand("main", aliases: ["a1", "a2", "a3"]);
+
+        var expanded = PluginCommandRegistry.ExpandAliases(cmd).ToList();
+
+        expanded.Should().HaveCount(3);
+        expanded.Select(d => d.CommandName).Should().Equal(["a1", "a2", "a3"]);
+    }
+
+    [Fact]
+    public void ExpandAliases_PreservesMainCommandAttributes() {
+        var cmd = new PluginCommandDefinition {
+            CommandName = "main",
+            PluginName = "pluginX",
+            Description = "desc",
+            HandlerType = "HandlerY",
+            Parameters = new Dictionary<string, JsonElement> { ["k"] = default },
+            Aliases = ["alias1"]
+        };
+
+        var aliasDef = PluginCommandRegistry.ExpandAliases(cmd).Single();
+
+        aliasDef.PluginName.Should().Be("pluginX");
+        aliasDef.Description.Should().Be("desc");
+        aliasDef.HandlerType.Should().Be("HandlerY");
+        aliasDef.Parameters.Should().ContainKey("k");
+    }
+
+    [Fact]
+    public void ExpandAliases_AliasCommandNameIsAliasItself_NotMainCommandName() {
+        var cmd = MakeCommand("main", aliases: ["alias1"]);
+
+        var aliasDef = PluginCommandRegistry.ExpandAliases(cmd).Single();
+
+        aliasDef.CommandName.Should().Be("alias1");
+        aliasDef.CommandName.Should().NotBe("main");
+    }
+
+    [Fact]
+    public void ExpandAliases_NullCommand_Throws() {
+        Action act = () => PluginCommandRegistry.ExpandAliases(null!).ToList();
+
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void ExpandAliases_PureFunction_NoMutationOfInputAliasList() {
+        var aliases = new List<string> { "a1", "a2" };
+        var cmd = MakeCommand("main", aliases: aliases.ToArray());
+
+        _ = PluginCommandRegistry.ExpandAliases(cmd).ToList();
+
+        // 纯函数不应修改输入别名的容量/内容
+        aliases.Should().Equal(["a1", "a2"]);
+    }
 }

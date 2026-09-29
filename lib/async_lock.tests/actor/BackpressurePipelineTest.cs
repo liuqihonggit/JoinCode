@@ -19,7 +19,7 @@ public class BackpressurePipelineTest {
         }
 
         gate.SetResult();
-        await Task.Delay(300);
+        await TestWaitHelper.WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(200));
         signals.Should().BeEmpty("消费中的消息不应触发 OnBackpressure(Bug2:反向背压已移除)");
     }
 
@@ -38,7 +38,7 @@ public class BackpressurePipelineTest {
         }
 
         gate.SetResult();
-        await Task.Delay(300);
+        await TestWaitHelper.WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(200));
         signals.Should().BeEmpty("消费中的消息不应触发 OnBackpressure(Bug2:反向背压已移除)");
     }
 
@@ -57,7 +57,7 @@ public class BackpressurePipelineTest {
         }
 
         gate.SetResult();
-        await Task.Delay(300);
+        await TestWaitHelper.WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(200));
         signals.Should().BeEmpty("消费中的消息不应触发 OnBackpressure(Bug2:反向背压已移除)");
     }
 
@@ -68,7 +68,7 @@ public class BackpressurePipelineTest {
         var handler = ActorBase<object, Unit>.CreateBackpressureHandler(() => retried = true);
         handler(new BackpressureSignal(0, "", "", WatermarkLevel.High, TimeSpan.FromMilliseconds(50), 0));
         retried.Should().BeFalse();
-        await WaitUntilAsync(() => retried, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => retried, TimeSpan.FromMilliseconds(500));
     }
 
     /// <summary>CreateBackpressureHandler — Critical 延迟后重试(重试16次等待,不依赖精确时序)</summary>
@@ -78,7 +78,7 @@ public class BackpressurePipelineTest {
         var handler = ActorBase<object, Unit>.CreateBackpressureHandler(() => retried = true);
         handler(new BackpressureSignal(0, "", "", WatermarkLevel.Critical, TimeSpan.FromMilliseconds(200), 0));
         retried.Should().BeFalse();
-        await WaitUntilAsync(() => retried, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => retried, TimeSpan.FromMilliseconds(500));
     }
 
     /// <summary>CreateBackpressureHandler — Normal 立即重试</summary>
@@ -101,20 +101,9 @@ public class BackpressurePipelineTest {
         for (var i = 0; i < 10; i++)
             actor.Tell(new PlainCmd(i));
 
-        await Task.Delay(200);
-        signals.Should().BeEmpty();
         gate.SetResult();
-    }
-
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
-        for (var i = 0; i < 16; i++) {
-            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
-            while (DateTimeOffset.UtcNow < deadline) {
-                if (condition()) return;
-                await Task.Delay(10);
-            }
-        }
-        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
+        await TestWaitHelper.WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(200));
+        signals.Should().BeEmpty();
     }
 }
 
@@ -152,11 +141,7 @@ internal sealed class BackpressurePipelineTestActor : ActorBase<object, Unit> {
     }
 
     protected override void Handle(object command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
-    }
-
-    private async ValueTask HandleAsyncImpl(object command, CancellationToken ct) {
-        if (_gate is not null) await _gate.Task.WaitAsync(ct);
+        if (_gate is not null) _gate.Task.WaitAsync(ct).GetAwaiter().GetResult();
         if (command is BackpressureTestCmd cmd) {
             IdempotencyStore?.TryRegister(cmd.IdempotencyKey, Unit.Value);
             cmd.OnSuccess(Unit.Value);

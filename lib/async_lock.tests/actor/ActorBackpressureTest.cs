@@ -111,7 +111,7 @@ public class ActorBackpressureTest {
             actor.Tell($"msg-{i}");
         }
 
-        await WaitUntilAsync(() => events.Any(e => e.Level == WatermarkLevel.Critical), TimeSpan.FromMilliseconds(2000));
+        await TestWaitHelper.WaitUntilAsync(() => events.Any(e => e.Level == WatermarkLevel.Critical), TimeSpan.FromMilliseconds(2000));
 
         gate.SetResult();
     }
@@ -158,17 +158,6 @@ public class ActorBackpressureTest {
         actor.IsInputHighWatermark.Should().BeFalse();
         actor.IsInputCriticalWatermark.Should().BeFalse();
     }
-
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
-        for (var i = 0; i < 16; i++) {
-            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
-            while (DateTimeOffset.UtcNow < deadline) {
-                if (condition()) return;
-                await Task.Delay(10);
-            }
-        }
-        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
-    }
 }
 
 /// <summary>
@@ -198,13 +187,9 @@ internal sealed class BackpressureTestActor : ActorBase<BackpressureTestActor.IC
     }
 
     protected override void Handle(ICommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
-    }
-
-    private async ValueTask HandleAsyncImpl(ICommand command, CancellationToken ct) {
         switch (command) {
             case IncrementCommand(var tcs):
-            await _gate.Task.WaitAsync(ct);
+            _gate.Task.WaitAsync(ct).GetAwaiter().GetResult();
             _value++;
             tcs.TrySetResult(_value);
             return;

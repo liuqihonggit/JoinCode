@@ -22,7 +22,7 @@ public class TransportE2ETest {
         await using var slave = new BusTransport(pipeName: pipeName, processId: slavePid);
 
         await host.StartAsync();
-        await Task.Delay(500);
+        await TestWaitHelper.WaitUntilAsync(() => Task.FromResult(host.Role == ProcessRole.Host), TimeSpan.FromSeconds(2));
         host.Role.Should().Be(ProcessRole.Host, "第一个启动应为主机");
 
         await slave.StartAsync();
@@ -47,10 +47,10 @@ public class TransportE2ETest {
         await using var transport2 = new BusTransport(pipeName: pipeName, processId: highPid);
 
         await transport1.StartAsync();
-        await Task.Delay(300);
+        await TestWaitHelper.WaitUntilAsync(() => Task.FromResult(transport1.Role == ProcessRole.Host), TimeSpan.FromSeconds(2));
 
         await transport2.StartAsync();
-        await Task.Delay(300);
+        await TestWaitHelper.WaitUntilAsync(() => Task.FromResult(transport2.Role == ProcessRole.Slave), TimeSpan.FromSeconds(2));
 
         transport1.Role.Should().Be(ProcessRole.Host, "先启动的应为主机");
         transport2.Role.Should().Be(ProcessRole.Slave, "后启动的应为从机");
@@ -124,10 +124,11 @@ public class TransportE2ETest {
         await using var slave = new NamedPipeTransport(pipeName: pipeName, processId: slavePid);
 
         await host.StartAsync();
-        await Task.Delay(300);
+        await TestWaitHelper.WaitUntilAsync(() => Task.FromResult(host.Role == ProcessRole.Host), TimeSpan.FromSeconds(2));
 
         await slave.StartAsync();
-        await Task.Delay(300);
+        await TestWaitHelper.WaitUntilAsync(() => Task.FromResult(slave.Role == ProcessRole.Slave), TimeSpan.FromSeconds(2));
+        await Task.Delay(200);
 
         host.Role.Should().Be(ProcessRole.Host);
         slave.Role.Should().Be(ProcessRole.Slave);
@@ -135,7 +136,11 @@ public class TransportE2ETest {
         var data = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("np-e2e-msg"));
         await host.BroadcastAsync(data);
 
-        var received = await ReceiveWithTimeoutAsync(slave.ReceiveAsync(), TimeSpan.FromSeconds(5));
+        TransportFrame? received = null;
+        await TestWaitHelper.WaitUntilAsync(async () => {
+            received = await ReceiveWithTimeoutAsync(slave.ReceiveAsync(), TimeSpan.FromMilliseconds(500));
+            return received is not null;
+        }, TimeSpan.FromMilliseconds(500));
         received.Should().NotBeNull();
         Encoding.UTF8.GetString(received!.Data.Span).Should().Be("np-e2e-msg");
         received.SourceProcessId.Should().Be(hostPid);
@@ -170,16 +175,5 @@ public class TransportE2ETest {
 
         recv2.Should().NotBeNull("slave2 应收到广播");
         Encoding.UTF8.GetString(recv2!.Data.Span).Should().Be("broadcast-all");
-    }
-
-    private static async Task WaitUntilAsync(Func<Task<bool>> predicate, TimeSpan perRetryTimeout) {
-        for (var i = 0; i < 16; i++) {
-            var deadline = DateTime.UtcNow + perRetryTimeout;
-            while (DateTime.UtcNow < deadline) {
-                if (await predicate()) return;
-                await Task.Delay(50);
-            }
-        }
-        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 }

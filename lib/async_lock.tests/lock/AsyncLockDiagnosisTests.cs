@@ -146,9 +146,10 @@ public class AsyncLockDiagnosisTests : IDisposable {
         try {
             using var lk = new AsyncLock("scan-test");
             using var holder = await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
-            await Task.Delay(200);
-            messages.Should().Contain(m => m.Contains("LOCK-SCAN-HOLD") && m.Contains("scan-test"),
-                "后台扫描应检测到持有过长的锁并告警");
+            var detected = System.Threading.SpinWait.SpinUntil(
+                () => messages.Any(m => m.Contains("LOCK-SCAN-HOLD") && m.Contains("scan-test")),
+                TimeSpan.FromSeconds(2));
+            detected.Should().BeTrue("后台扫描应检测到持有过长的锁并告警(2s SpinUntil 等待,容忍CI调度延迟)");
         } finally {
             LockRegistry.StopBackgroundScan();
             LockRegistry.HoldTooLongThreshold = originalThreshold;
@@ -330,11 +331,8 @@ public class AsyncLockDiagnosisTests : IDisposable {
                 }
             });
 
-            for (var round = 0; round < 2 && !LockRegistry.DeadlockDetected; round++) {
-                await Task.Delay(3000);
-            }
-
-            LockRegistry.DeadlockDetected.Should().BeTrue("两个 async 流互相等待对方持有的锁应被自动检测为死锁(两轮3s共6s,容忍CI高负载)");
+            var detected = System.Threading.SpinWait.SpinUntil(() => LockRegistry.DeadlockDetected, TimeSpan.FromSeconds(6));
+            detected.Should().BeTrue("两个 async 流互相等待对方持有的锁应被自动检测为死锁(6s SpinUntil 等待,容忍CI高负载)");
             LockRegistry.LastDeadlockReport.Should().Contain("DEADLOCK-DETECTED");
             messages.Should().Contain(m => m.Contains("DEADLOCK-DETECTED"));
 

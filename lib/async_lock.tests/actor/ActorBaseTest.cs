@@ -11,7 +11,7 @@ public class ActorBaseTest {
         actor.Tell("hello");
         actor.Tell("world");
 
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 2, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 2, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedCommands.Should().Equal("hello", "world");
     }
@@ -21,7 +21,7 @@ public class ActorBaseTest {
     public async Task TrySend_CommandProcessed_ReturnsTrue() {
         await using var actor = new TestActor();
         actor.TrySend("test").Should().BeTrue();
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
         actor.ProcessedCommands.Should().Contain("test");
     }
 
@@ -32,7 +32,7 @@ public class ActorBaseTest {
         for (var i = 0; i < 100; i++)
             actor.Tell($"msg-{i}");
 
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 100, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 100, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedCommands.Should().HaveCount(100);
         for (var i = 0; i < 100; i++)
@@ -46,7 +46,7 @@ public class ActorBaseTest {
         for (var i = 0; i < 500; i++)
             actor.Tell($"msg-{i}");
 
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 500, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 500, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedCommands.Should().HaveCount(500);
     }
@@ -58,7 +58,7 @@ public class ActorBaseTest {
         actor.Tell("throw");
         actor.Tell("normal");
 
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedCommands.Should().Contain("normal");
         actor.ErrorCount.Should().Be(1);
@@ -89,7 +89,7 @@ public class ActorBaseTest {
         await using var actor = new TestActor();
         actor.Tell("hello");
 
-        await WaitUntilAsync(() => actor.OutputCount >= 1, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.OutputCount >= 1, TimeSpan.FromMilliseconds(500));
 
         var output = await actor.OutputAsync().FirstOrDefaultAsync();
         output.Should().Be("processed-hello");
@@ -102,7 +102,7 @@ public class ActorBaseTest {
         for (var i = 0; i < 100; i++)
             actor.Tell($"msg-{i}");
 
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 100, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 100, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedCommands.Should().HaveCount(100);
     }
@@ -112,7 +112,7 @@ public class ActorBaseTest {
     public async Task DisposeAsync_WaitsForConsumerExit() {
         var actor = new TestActor();
         actor.Tell("test");
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
 
         await actor.DisposeAsync();
         await actor.ConsumerTask.WaitAsync(TimeSpan.FromSeconds(5));
@@ -147,7 +147,7 @@ public class ActorBaseTest {
         actor.Gate = gate;
 
         actor.Tell("A");
-        await WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(500));
 
         actor.Tell("B");
         actor.InputCount.Should().Be(1);
@@ -232,7 +232,7 @@ public class ActorBaseTest {
 
         for (var i = 0; i < 6; i++) actor.Tell($"msg-{i}");
 
-        await WaitUntilAsync(() => handler2Called, TimeSpan.FromMilliseconds(2000));
+        await TestWaitHelper.WaitUntilAsync(() => handler2Called, TimeSpan.FromMilliseconds(2000));
         handler2Called.Should().BeTrue();
     }
 
@@ -243,7 +243,7 @@ public class ActorBaseTest {
         actor.OutputCount.Should().Be(0);
 
         actor.Tell("test");
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
 
         actor.OutputCount.Should().Be(1);
     }
@@ -263,7 +263,7 @@ public class ActorBaseTest {
     public async Task OutputAsync_SingleConsumer_ReceivesAllMessages() {
         await using var actor = new TestActor();
         actor.Tell("test");
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
 
         var consumer = actor.OutputAsync().GetAsyncEnumerator();
         (await consumer.MoveNextAsync()).Should().BeTrue();
@@ -277,7 +277,7 @@ public class ActorBaseTest {
         await using var actor = new TestActor(bp) { Gate = new() };
 
         actor.Tell("first");
-        await WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(500));
 
         actor.Tell("second");
 
@@ -291,7 +291,7 @@ public class ActorBaseTest {
         await using IActor<string> actor = new TestActor();
         actor.Tell("via-interface");
         var concrete = (TestActor)actor;
-        await WaitUntilAsync(() => concrete.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => concrete.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
         concrete.ProcessedCommands.Should().Contain("via-interface");
     }
 
@@ -380,7 +380,7 @@ public class ActorBaseTest {
         tell.Tell("via-tell");
         tell.TrySend("via-trysend").Should().BeTrue();
         tell.TryTell("via-trytell").Should().BeTrue();
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 3, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 3, TimeSpan.FromMilliseconds(500));
         actor.ProcessedCommands.Should().Contain("via-tell", "via-trysend", "via-trytell");
     }
 
@@ -390,7 +390,7 @@ public class ActorBaseTest {
         await using var actor = new TestActor();
         IActorOutput<string> output = actor;
         actor.Tell("hello");
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
         var results = new List<string>();
         await foreach (var item in output.OutputAsync(cts.Token)) {
@@ -398,17 +398,6 @@ public class ActorBaseTest {
             break;
         }
         results.Should().ContainSingle().Which.Should().Be("processed-hello");
-    }
-
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
-        for (var i = 0; i < 16; i++) {
-            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
-            while (DateTimeOffset.UtcNow < deadline) {
-                if (condition()) return;
-                await Task.Delay(10);
-            }
-        }
-        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 }
 

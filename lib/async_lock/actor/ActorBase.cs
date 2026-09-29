@@ -139,12 +139,24 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     public bool IsBusy => InputCount > 0 || OutputCount > 0;
 
     /// <summary>输入是否达到高水位线</summary>
-    public bool IsInputHighWatermark => _backpressure is not null
-        && InputCount >= _backpressure.EffectiveHighWatermark;
+    public bool IsInputHighWatermark => CheckHighWatermark(_backpressure, InputCount);
 
     /// <summary>输入是否达到危险水位线</summary>
-    public bool IsInputCriticalWatermark => _backpressure is not null
-        && InputCount >= _backpressure.EffectiveCriticalWatermark;
+    public bool IsInputCriticalWatermark => CheckCriticalWatermark(_backpressure, InputCount);
+
+    /// <summary>判断是否达到高水位线 — 纯函数,不依赖 Actor 状态/时序,供确定性测试</summary>
+    /// <param name="bp">背压配置(null=无背压,总返回 false)</param>
+    /// <param name="inputCount">当前输入计数</param>
+    /// <returns>true=达到高水位线;false=无背压或未达到</returns>
+    internal static bool CheckHighWatermark(ActorBackpressure? bp, int inputCount)
+        => bp is not null && inputCount >= bp.EffectiveHighWatermark;
+
+    /// <summary>判断是否达到危险水位线 — 纯函数,不依赖 Actor 状态/时序,供确定性测试</summary>
+    /// <param name="bp">背压配置(null=无背压,总返回 false)</param>
+    /// <param name="inputCount">当前输入计数</param>
+    /// <returns>true=达到危险水位线;false=无背压或未达到</returns>
+    internal static bool CheckCriticalWatermark(ActorBackpressure? bp, int inputCount)
+        => bp is not null && inputCount >= bp.EffectiveCriticalWatermark;
 
     /// <summary>输入背压水位事件</summary>
     public event EventHandler<BackpressureEventArgs>? InputWatermarkReached;
@@ -307,24 +319,47 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
         try {
             await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
-                CheckInputWatermark();
-                try {
-                    if (_idempotencyGate.TryRestore(cmd)) {
-                        continue;
-                    }
-                    Handle(cmd, _cts.Token);
-                } catch (OperationCanceledException) when (_cts.IsCancellationRequested) {
-                    return;
-                } catch (Exception ex) {
-                    try {
-                        OnConsumerError(ex);
-                    } catch (Exception innerEx) {
-                        _logger?.LogError(innerEx, "[Actor:{ActorId}] OnConsumerError 异常忽略", Id);
-                    }
-                }
+                if (!ProcessSingleCommand(cmd, _cts.Token)) return;
             }
         } catch (OperationCanceledException) { }
     }
+
+    /// <summary>
+    /// 处理单条命令 — 幂等守卫+Handle+异常处理,供测试直接调用(不依赖 Consumer 调度时序)。
+    /// <para>确定性验证入口:测试直接调用此方法处理单条命令,无需启动 Consumer 循环/无需 Tell+等待调度。</para>
+    /// <para>时序分离:ConsumeLoopAsync 只负责循环编排(时序),本方法负责单条命令处理(确定性)。</para>
+    /// </summary>
+    /// <param name="cmd">待处理命令</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>true=已处理(或幂等跳过);false=Actor 关闭需退出循环</returns>
+    internal bool ProcessSingleCommand(TCommand cmd, CancellationToken ct) {
+        CheckInputWatermark();
+        try {
+            if (_idempotencyGate.TryRestore(cmd)) {
+                return true;
+            }
+            Handle(cmd, ct);
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+            return false;
+        } catch (Exception ex) {
+            HandleConsumerErrorSafe(ex);
+        }
+        return true;
+    }
+
+    /// <summary>安全调用 OnConsumerError — 回调异常吞掉记日志(不传播,不中断 Consumer)</summary>
+    private void HandleConsumerErrorSafe(Exception ex) {
+        try {
+            OnConsumerError(ex);
+        } catch (Exception innerEx) {
+            _logger?.LogError(innerEx, "[Actor:{ActorId}] OnConsumerError 异常忽略", Id);
+        }
+    }
+
+    /// <summary>判断背压信号是否需要延迟重试 — 纯函数,不依赖 Actor 状态/时序,供确定性测试</summary>
+    /// <param name="suggestedDelay">背压信号建议延迟</param>
+    /// <returns>true=需要延迟(正延迟);false=立即重试(零或负延迟)</returns>
+    internal static bool ShouldDelayRetry(TimeSpan suggestedDelay) => suggestedDelay > TimeSpan.Zero;
 
     /// <summary>
     /// 标准背压回调 — 根据水位层级计算延迟并异步重试发送命令。
@@ -343,7 +378,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         var capturedWaitGraph = _askWaitGraph.Value;
 
         return signal => {
-            if (signal.SuggestedDelay > TimeSpan.Zero) {
+            if (ShouldDelayRetry(signal.SuggestedDelay)) {
                 _ = Task.Run(async () => {
                     try {
                         using var flowScope = AsyncFlowIdentity.Restore(capturedFlow);
@@ -391,8 +426,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         linkedCts.CancelAfter(timeoutMs);
         try {
             return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-            throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
+        } catch (OperationCanceledException) when (IsTimeoutCancellation(ct)) {
+            throw CreateAskDeadlockException(GetType().Name, timeoutMs);
         }
     }
 
@@ -405,10 +440,35 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         linkedCts.CancelAfter(timeoutMs);
         try {
             await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-            throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
+        } catch (OperationCanceledException) when (IsTimeoutCancellation(ct)) {
+            throw CreateAskDeadlockException(GetType().Name, timeoutMs);
         }
     }
+
+    /// <summary>计算指数退避延迟(ms) — 100×2^attempt,上限5000,attempt>10 钳制为10防溢出</summary>
+    /// <param name="attempt">当前重试次数(0基)</param>
+    /// <returns>退避延迟(ms): attempt=0→100, 1→200, 2→400, ..., ≥10→5000(上限)</returns>
+    internal static int ComputeBackoffDelayMs(int attempt) {
+        if (attempt < 0) return 100;
+        var clamped = Math.Min(attempt, 10);
+        return Math.Min(100 * (1 << clamped), 5000);
+    }
+
+    /// <summary>计算总超时(ms) — singleTimeoutMs × (maxRetries+1),用于诊断异常消息</summary>
+    internal static int ComputeTotalTimeoutMs(int singleTimeoutMs, int maxRetries)
+        => singleTimeoutMs * (maxRetries + 1);
+
+    /// <summary>判断命令是否幂等 — 实现 IIdempotent 标记接口</summary>
+    internal static bool IsIdempotentCommand(TCommand cmd) => cmd is IIdempotent;
+
+    /// <summary>判断取消是否由超时触发(而非外部取消令牌) — OperationCanceledException 捕获时调用</summary>
+    /// <param name="externalCt">外部取消令牌(非 linkedCts)</param>
+    /// <returns>true=超时触发(外部令牌未取消);false=外部取消触发</returns>
+    internal static bool IsTimeoutCancellation(CancellationToken externalCt) => !externalCt.IsCancellationRequested;
+
+    /// <summary>创建 Ask 死锁异常 — 封装诊断信息构造,供 AskAwait/AskWithRetryAsync 统一调用</summary>
+    internal static ActorAskDeadlockException CreateAskDeadlockException(string actorName, int timeoutMs)
+        => new(actorName, timeoutMs);
 
     /// <summary>
     /// Ask 重试模式等待回复 — 内置重试16次+指数退避+全图环检测+幂等支持。
@@ -438,16 +498,16 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
             var cmd = commandFactory(tcs);
             var cmdType = cmd?.GetType().Name ?? "null";
-            if (!allowNonIdempotentRetry && cmd is not IIdempotent) {
+            if (!allowNonIdempotentRetry && !IsIdempotentCommand(cmd)) {
                 throw new InvalidOperationException($"AskWithRetryAsync: 命令 {cmdType} 未实现 IIdempotent，不允许重试");
             }
-            if (cmd is not IIdempotent) {
+            if (!IsIdempotentCommand(cmd)) {
                 _logger?.LogWarning("[Actor:{ActorId}] AskWithRetryAsync 使用非幂等命令 {CmdType}, 重试可能产生重复副作用", Id, cmdType);
             }
             if (!TrySend(cmd)) {
                 if (attempt >= maxRetries)
-                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
+                    throw CreateAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+                var delayMs = ComputeBackoffDelayMs(attempt);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
                 continue;
             }
@@ -455,14 +515,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             linkedCts.CancelAfter(singleTimeoutMs);
             try {
                 return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+            } catch (OperationCanceledException) when (IsTimeoutCancellation(ct)) {
                 if (attempt >= maxRetries)
-                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
+                    throw CreateAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+                var delayMs = ComputeBackoffDelayMs(attempt);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
         }
-        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+        throw CreateAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
     }
 
     /// <summary>
@@ -484,16 +544,16 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var cmd = commandFactory(tcs);
             var cmdType = cmd?.GetType().Name ?? "null";
-            if (!allowNonIdempotentRetry && cmd is not IIdempotent) {
+            if (!allowNonIdempotentRetry && !IsIdempotentCommand(cmd)) {
                 throw new InvalidOperationException($"AskWithRetryAsync: 命令 {cmdType} 未实现 IIdempotent，不允许重试");
             }
-            if (cmd is not IIdempotent) {
+            if (!IsIdempotentCommand(cmd)) {
                 _logger?.LogWarning("[Actor:{ActorId}] AskWithRetryAsync 使用非幂等命令 {CmdType}, 重试可能产生重复副作用", Id, cmdType);
             }
             if (!TrySend(cmd)) {
                 if (attempt >= maxRetries)
-                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
+                    throw CreateAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+                var delayMs = ComputeBackoffDelayMs(attempt);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
                 continue;
             }
@@ -502,14 +562,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             try {
                 await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
                 return;
-            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+            } catch (OperationCanceledException) when (IsTimeoutCancellation(ct)) {
                 if (attempt >= maxRetries)
-                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
+                    throw CreateAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+                var delayMs = ComputeBackoffDelayMs(attempt);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
         }
-        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+        throw CreateAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
     }
 
     /// <summary>

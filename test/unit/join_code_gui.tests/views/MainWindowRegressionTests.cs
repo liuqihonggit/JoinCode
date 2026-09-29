@@ -190,29 +190,35 @@ public sealed class MainWindowRegressionTests {
     }
 
     /// <summary>
-    /// G3 单条消息操作接线 — 点击消息卡片 ✕ 按钮应触发 RemoveMessageCommand 从列表移除该条。
-    /// 回归背景：OnRemoveClick 曾无 XAML 引用（死代码），消息删除用户不可达。
+    /// G3 消息操作接线 — 点击消息卡片 ⤺ 按钮应触发 RewindTurnAtCommand 撤回本条所在轮。
+    /// 回归背景：原 RemoveMessage 只删 UI 不撤回引擎，前后端脱节；改为 RewindTurnAt 对齐 Claude Code /rewind。
     /// </summary>
     [AvaloniaFact]
-    public async Task MessageRemoveButton_RemovesMessage() {
+    public async Task MessageRewindButton_RewindsTurn() {
         await using var session = new StaticReplySession();
         await using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        var target = new ChatUiMessage { Role = MessageRole.Assistant, Content = "待删除", Timestamp = DateTime.Now, IsStreaming = false };
-        vm.Messages.Add(target);
+        var userMsg = new ChatUiMessage { Role = MessageRole.User, Content = "测试输入", Timestamp = DateTime.Now, IsStreaming = false };
+        var assistantMsg = new ChatUiMessage { Role = MessageRole.Assistant, Content = "待撤回", Timestamp = DateTime.Now, IsStreaming = false };
+        vm.Messages.Add(userMsg);
+        vm.Messages.Add(assistantMsg);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        // 定位模板中 CommandParameter 绑定到该消息的 ✕ 按钮（按 Tooltip 区分复制/删除）
-        var removeButton = win.GetVisualDescendants()
+        // 定位模板中 CommandParameter 绑定到该消息的 ⤺ 按钮（按 Tooltip 区分复制/撤回）
+        var rewindButton = win.GetVisualDescendants()
             .OfType<Button>()
-            .First(b => Avalonia.Controls.ToolTip.GetTip(b) is string tip && tip.Contains("删除") && ReferenceEquals(b.CommandParameter, target));
-        removeButton.Command!.Execute(removeButton.CommandParameter);
+            .First(b => Avalonia.Controls.ToolTip.GetTip(b) is string tip && tip.Contains("撤回") && ReferenceEquals(b.CommandParameter, assistantMsg));
+        rewindButton.Command!.Execute(rewindButton.CommandParameter);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        vm.Messages.Should().NotContain(target);
+        // 撤回整轮：User + Assistant 都移除
+        vm.Messages.Should().NotContain(userMsg);
+        vm.Messages.Should().NotContain(assistantMsg);
+        // User 内容恢复到输入框
+        vm.InputText.Should().Be("测试输入");
     }
 
     /// <summary>G3 单条消息操作接线 — 点击 📋 按钮触发 CopyMessageCommand 置已复制反馈态</summary>

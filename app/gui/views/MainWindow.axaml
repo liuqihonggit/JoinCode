@@ -132,8 +132,8 @@
                           <MenuItem Header="📋 复制本条"
                                     Command="{Binding DataContext.CopyMessageCommand, ElementName=Root}"
                                     CommandParameter="{Binding}" />
-                          <MenuItem Header="✕ 删除本条"
-                                    Command="{Binding DataContext.RemoveMessageCommand, ElementName=Root}"
+                          <MenuItem Header="⤺ 撤回本条所在轮"
+                                    Command="{Binding DataContext.RewindTurnAtCommand, ElementName=Root}"
                                     CommandParameter="{Binding}" />
                           <MenuItem Header="↻ 撤回最近一轮并重新生成"
                                     Command="{Binding DataContext.RegenerateLastReplyCommand, ElementName=Root}"
@@ -172,9 +172,9 @@
                                       ToolTip.Tip="复制本条"
                                       Command="{Binding DataContext.CopyMessageCommand, ElementName=Root}"
                                       CommandParameter="{Binding}" />
-                              <Button Classes="ghost" Content="✕" FontSize="10" Padding="5,2" MinHeight="0"
-                                      ToolTip.Tip="删除本条"
-                                      Command="{Binding DataContext.RemoveMessageCommand, ElementName=Root}"
+                              <Button Classes="ghost" Content="⤺" FontSize="10" Padding="5,2" MinHeight="0"
+                                      ToolTip.Tip="撤回本条所在轮"
+                                      Command="{Binding DataContext.RewindTurnAtCommand, ElementName=Root}"
                                       CommandParameter="{Binding}" />
                             </StackPanel>
                           </Grid>

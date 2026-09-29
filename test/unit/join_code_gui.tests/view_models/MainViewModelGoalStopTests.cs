@@ -1,8 +1,8 @@
 namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
-/// goal 三再三确认停止测试 — 验证 StopGoalCommand 需要三次确认才执行 /goal clear。
-/// Feature3+4：GUI goal 进行中按钮 + 三再三确认停止 + 60秒停滞检测。
+/// goal 停止按钮测试 — 验证 StopGoalCommand 直接执行 /goal clear。
+/// 再三确认（a→b→c 提示词逐级注入）由引擎层 GoalEngine 自动处理，GUI 不重复。
 /// </summary>
 public class MainViewModelGoalStopTests {
     private static (MainViewModel vm, JoinCode.Gui.Hosting.PlaceholderChatSession session) Create() {
@@ -15,72 +15,31 @@ public class MainViewModelGoalStopTests {
     }
 
     [Fact]
-    public void StopGoal_FirstConfirm_StepIs1_NoSlashCommandExecuted() {
-        var (vm, session) = Create();
-        vm.IsGoalRunning = true;
-        vm.StopGoalCommand.Execute(null);
-        vm.StopGoalConfirmationStep.Should().Be(1);
-        vm.IsStopConfirmationVisible.Should().BeTrue();
-        session.LastExecutedSlashCommand.Should().BeNull();
-    }
-
-    [Fact]
-    public void StopGoal_SecondConfirm_StepIs2_NoSlashCommandExecuted() {
-        var (vm, session) = Create();
-        vm.IsGoalRunning = true;
-        vm.StopGoalCommand.Execute(null);
-        vm.StopGoalCommand.Execute(null);
-        vm.StopGoalConfirmationStep.Should().Be(2);
-        session.LastExecutedSlashCommand.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task StopGoal_ThirdConfirm_ExecutesGoalClearAndResets() {
+    public async Task StopGoal_ExecutesGoalClearImmediately() {
         var (vm, session) = Create();
         vm.IsGoalRunning = true;
         vm.IsGoalPanelOpen = true;
         await vm.StopGoalCommand.ExecuteAsync(null);
-        await vm.StopGoalCommand.ExecuteAsync(null);
-        await vm.StopGoalCommand.ExecuteAsync(null);
-        vm.StopGoalConfirmationStep.Should().Be(0);
+        session.LastExecutedSlashCommand.Should().Be("/goal clear");
         vm.IsGoalRunning.Should().BeFalse();
         vm.IsGoalPanelOpen.Should().BeFalse();
-        session.LastExecutedSlashCommand.Should().Be("/goal clear");
     }
 
     [Fact]
-    public void CancelStopGoal_ResetsConfirmationStep() {
+    public async Task StopGoal_SetsStatusText() {
         var (vm, _) = Create();
         vm.IsGoalRunning = true;
-        vm.StopGoalCommand.Execute(null);
-        vm.StopGoalCommand.Execute(null);
-        vm.CancelStopGoalCommand.Execute(null);
-        vm.StopGoalConfirmationStep.Should().Be(0);
-        vm.IsStopConfirmationVisible.Should().BeFalse();
+        await vm.StopGoalCommand.ExecuteAsync(null);
+        vm.StatusText.Should().Be("goal 已停止");
     }
 
     [Fact]
-    public void ContinueGoalWait_ClosesPanelAndResetsStep() {
+    public void ToggleGoalPanel_TogglesIsGoalPanelOpen() {
         var (vm, _) = Create();
-        vm.IsGoalRunning = true;
-        vm.IsGoalPanelOpen = true;
-        vm.StopGoalCommand.Execute(null);
-        vm.ContinueGoalWaitCommand.Execute(null);
         vm.IsGoalPanelOpen.Should().BeFalse();
-        vm.StopGoalConfirmationStep.Should().Be(0);
-    }
-
-    [Fact]
-    public void StopGoalConfirmationPrompt_Step1ContainsFirstConfirm() {
-        var (vm, _) = Create();
-        vm.StopGoalConfirmationStep = 1;
-        vm.StopGoalConfirmationPrompt.Should().Contain("第 1/3 次确认");
-    }
-
-    [Fact]
-    public void StopGoalConfirmationPrompt_Step3ContainsFinalConfirm() {
-        var (vm, _) = Create();
-        vm.StopGoalConfirmationStep = 3;
-        vm.StopGoalConfirmationPrompt.Should().Contain("第 3/3 次确认");
+        vm.ToggleGoalPanelCommand.Execute(null);
+        vm.IsGoalPanelOpen.Should().BeTrue();
+        vm.ToggleGoalPanelCommand.Execute(null);
+        vm.IsGoalPanelOpen.Should().BeFalse();
     }
 }

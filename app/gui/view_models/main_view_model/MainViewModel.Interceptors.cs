@@ -98,7 +98,7 @@ public sealed partial class MainViewModel {
             InputText = GetQuickPromptText(prompt);
     }
 
-    #region Goal 进行中按钮 + 60秒停滞检测 + 三再三确认停止
+    #region Goal 进行中按钮 — 状态显示 + 停止（再三确认由引擎层自动注入提示词 a→b→c）
 
     /// <summary>goal 是否正在运行 — 驱动 TopBar "🎯 goal 进行中" 按钮显隐</summary>
     [ObservableProperty]
@@ -108,64 +108,20 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private bool _isGoalPanelOpen;
 
-    /// <summary>停止 goal 确认步骤 — 0=未确认，1/2/3=第N次确认</summary>
-    [ObservableProperty]
-    private int _stopGoalConfirmationStep;
-
-    /// <summary>停止确认面板是否可见 — StopGoalConfirmationStep > 0 时显示确认提示词</summary>
-    [ObservableProperty]
-    private bool _isStopConfirmationVisible;
-
-    partial void OnStopGoalConfirmationStepChanged(int value) =>
-        IsStopConfirmationVisible = value > 0;
-
-    /// <summary>停止 goal 确认提示词 — 三再三确认</summary>
-    public string StopGoalConfirmationPrompt => StopGoalConfirmationStep switch {
-        1 => "🎯 goal 正在运行中。\n\n是否确实要停止？请确认你已经检查了当前进展。\n\n（第 1/3 次确认）",
-        2 => "⚠️ 停止 goal 将放弃未完成的工作。\n\n你确定吗？\n\n（第 2/3 次确认）",
-        3 => "🔴 这是最后一次确认。\n\n停止后无法恢复。确定停止？\n\n（第 3/3 次确认）",
-        _ => string.Empty
-    };
-
-    /// <summary>60 秒输出停滞询问提示词</summary>
-    public const string GoalStagnationPrompt =
-        "⏰ AI 输出已停止超过 1 分钟。\n\n请检查：\n" +
-        "① 是否已完成目标？\n" +
-        "② 是否需要继续等待？\n" +
-        "③ 是否停止 goal？\n\n" +
-        "请选择下一步操作。";
-
     /// <summary>展开/收拢 goal 控制面板</summary>
     [RelayCommand]
     private void ToggleGoalPanel() => IsGoalPanelOpen = !IsGoalPanelOpen;
 
     /// <summary>
-    /// 停止 goal — 三再三确认才能停止。
-    /// 每次调用递增确认步骤，第 3 次确认时执行 /goal clear 停止。
+    /// 停止 goal — 直接执行 /goal clear。
+    /// 再三确认（a→b→c 提示词逐级注入）由引擎层 GoalEngine 自动处理，GUI 不重复。
     /// </summary>
     [RelayCommand]
     private async Task StopGoalAsync() {
-        StopGoalConfirmationStep++;
-        if (StopGoalConfirmationStep >= 3) {
-            StopGoalConfirmationStep = 0;
-            IsGoalRunning = false;
-            IsGoalPanelOpen = false;
-            await _session.ExecuteSlashCommandAsync("/goal clear");
-            StatusText = "goal 已停止";
-        }
-    }
-
-    /// <summary>取消停止 goal — 重置确认步骤</summary>
-    [RelayCommand]
-    private void CancelStopGoal() {
-        StopGoalConfirmationStep = 0;
-    }
-
-    /// <summary>60 秒输出停滞 — 继续等待（关闭弹窗）</summary>
-    [RelayCommand]
-    private void ContinueGoalWait() {
+        IsGoalRunning = false;
         IsGoalPanelOpen = false;
-        StopGoalConfirmationStep = 0;
+        await _session.ExecuteSlashCommandAsync("/goal clear");
+        StatusText = "goal 已停止";
     }
 
     #endregion

@@ -54,34 +54,23 @@
                     Command="{Binding ToggleMockCommand}"
                     IsChecked="{Binding IsMockConnection, Mode=OneWay}"
                     ToolTip.Tip="切换 Mock 演示引擎（本地验证用）" />
-      <!-- 🎯 goal 进行中按钮 — goal 运行时显示，点击弹出控制面板（三再三确认停止） -->
+      <!-- 🎯 goal 进行中按钮 — goal 运行时显示，点击弹出控制面板（停止时引擎层自动注入 a→b→c 提示词） -->
       <Panel Grid.Column="8" VerticalAlignment="Center" IsVisible="{Binding IsGoalRunning}">
         <Button x:Name="GoalButton" Classes="ghost" Padding="9,5" FontSize="13"
                 Content="🎯 goal 进行中" ToolTip.Tip="goal 控制面板"
                 Command="{Binding ToggleGoalPanelCommand}" />
         <Popup IsOpen="{Binding IsGoalPanelOpen}" Placement="Bottom"
                PlacementTarget="{Binding #GoalButton}" VerticalOffset="4">
-          <Border CornerRadius="10" Padding="14,10" Width="340"
+          <Border CornerRadius="10" Padding="14,10" Width="300"
                   Background="{DynamicResource GuiPopupBackground}"
                   BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
             <StackPanel Spacing="8">
               <TextBlock Text="🎯 goal 进行中" FontSize="13" FontWeight="SemiBold"
                          Foreground="{DynamicResource GuiPrimaryText}" />
-              <!-- 确认步骤 0：显示停止按钮 -->
+              <TextBlock Text="停止时引擎自动注入再三确认提示词（a→b→c）" FontSize="10.5"
+                         Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
               <Button Classes="ghost" Content="停止 goal" HorizontalAlignment="Stretch"
-                      Command="{Binding StopGoalCommand}"
-                      IsVisible="{Binding !IsStopConfirmationVisible}" />
-              <!-- 确认步骤 1-3：显示确认提示词 + 确认/取消按钮 -->
-              <Panel IsVisible="{Binding IsStopConfirmationVisible}">
-                <StackPanel Spacing="8">
-                  <TextBlock Text="{Binding StopGoalConfirmationPrompt}" FontSize="12"
-                             TextWrapping="Wrap" Foreground="{DynamicResource GuiPrimaryText}" />
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Classes="ghost" Content="确认停止" Command="{Binding StopGoalCommand}" />
-                    <Button Classes="ghost" Content="取消" Command="{Binding CancelStopGoalCommand}" />
-                  </StackPanel>
-                </StackPanel>
-              </Panel>
+                      Command="{Binding StopGoalCommand}" />
             </StackPanel>
           </Border>
         </Popup>

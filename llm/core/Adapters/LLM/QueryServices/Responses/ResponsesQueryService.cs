@@ -95,7 +95,7 @@ public class ResponsesQueryService : QueryServiceBase {
                     var delta = eventJson.TryGetProperty("delta", out var deltaProp) ? deltaProp.GetString() ?? string.Empty : string.Empty;
                     descRequestAccumulator.Append(delta);
                     var accumulated = descRequestAccumulator.ToString();
-                    if (kernel != null && accumulated.Contains("tool_description_request") && accumulated.TrimEnd().EndsWith('}')) {
+                    if (kernel != null && IsToolDescriptionRequestComplete(accumulated)) {
                         descRequestContent = accumulated;
                         break;
                     }
@@ -120,7 +120,7 @@ public class ResponsesQueryService : QueryServiceBase {
                 case "response.function_call_arguments.delta": {
                     if (eventJson.TryGetProperty("item_id", out var itemIdProp)) {
                         var itemId = itemIdProp.GetString() ?? string.Empty;
-                        var idx = itemId.GetHashCode() & 0x7FFFFFFF;
+                        var idx = GetItemIdIndex(itemId);
                         var delta = eventJson.TryGetProperty("delta", out var deltaProp) ? deltaProp.GetString() ?? string.Empty : string.Empty;
                         if (toolCallAccumulator.TryGetValue(idx, out var existing))
                             existing.Arguments.Append(delta);
@@ -129,11 +129,8 @@ public class ResponsesQueryService : QueryServiceBase {
                 }
                 case "response.output_item.added": {
                     if (eventJson.TryGetProperty("item", out var itemProp) && itemProp.TryGetProperty("type", out var typeProp)) {
-                        var type = typeProp.GetString();
-                        if (type == "function_call") {
-                            var callId = itemProp.TryGetProperty("call_id", out var callIdProp) ? callIdProp.GetString() ?? "" : "";
-                            var name = itemProp.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "" : "";
-                            var idx = (itemProp.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "").GetHashCode() & 0x7FFFFFFF;
+                        if (typeProp.GetString() == "function_call") {
+                            var (callId, name, idx) = ParseFunctionCallItem(itemProp);
                             toolCallAccumulator[idx] = (callId, name, new StringBuilder());
                         }
                     }
@@ -141,27 +138,12 @@ public class ResponsesQueryService : QueryServiceBase {
                 }
                 case "response.completed":
                 case "response.incomplete": {
-                    if (eventJson.TryGetProperty("response", out var respProp) && respProp.TryGetProperty("usage", out var usageProp)) {
-                        var tokenUsage = BuildTokenUsage(usageProp);
-                        metadata["FinishReason"] = JsonElementHelper.FromString("stop");
-                        metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
-                    }
-                    if (toolCallAccumulator.Count > 0) {
-                        var entries = toolCallAccumulator
-                            .Select(kv => new ToolCallEntry { Id = kv.Value.Id, Name = kv.Value.Name, Arguments = kv.Value.Arguments.ToString() })
-                            .ToList();
-                        metadata["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
-                        metadata["FinishReason"] = JsonElementHelper.FromString("tool_calls");
-                    }
-                    if (reasoningAccumulator.Length > 0) {
-                        metadata[MessageMetadataKeyEnumConstants.ReasoningText] = JsonElementHelper.FromString(reasoningAccumulator.ToString());
-                    }
+                    PopulateCompletedMetadata(metadata, eventJson, toolCallAccumulator, reasoningAccumulator);
                     yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelId, metadata);
                     yield break;
                 }
                 case "response.failed": {
-                    var error = eventJson.TryGetProperty("response", out var respProp) && respProp.TryGetProperty("error", out var errProp)
-                        ? errProp.GetRawText() : "unknown error";
+                    var error = ExtractFailedErrorMessage(eventJson);
                     throw new InvalidOperationException($"Responses API failed: {error}");
                 }
             }
@@ -220,7 +202,7 @@ public class ResponsesQueryService : QueryServiceBase {
                 case "response.function_call_arguments.delta": {
                     if (sEventJson.TryGetProperty("item_id", out var itemIdProp)) {
                         var itemId = itemIdProp.GetString() ?? "";
-                        var idx = itemId.GetHashCode() & 0x7FFFFFFF;
+                        var idx = GetItemIdIndex(itemId);
                         var sDelta = sEventJson.TryGetProperty("delta", out var d) ? d.GetString() ?? "" : "";
                         if (secondAccumulator.TryGetValue(idx, out var ex)) ex.Arguments.Append(sDelta);
                     }
@@ -229,9 +211,7 @@ public class ResponsesQueryService : QueryServiceBase {
                 case "response.output_item.added": {
                     if (sEventJson.TryGetProperty("item", out var itemProp) && itemProp.TryGetProperty("type", out var typeProp)) {
                         if (typeProp.GetString() == "function_call") {
-                            var callId = itemProp.TryGetProperty("call_id", out var c) ? c.GetString() ?? "" : "";
-                            var name = itemProp.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                            var idx = (itemProp.TryGetProperty("id", out var i) ? i.GetString() ?? "" : "").GetHashCode() & 0x7FFFFFFF;
+                            var (callId, name, idx) = ParseFunctionCallItem(itemProp);
                             secondAccumulator[idx] = (callId, name, new StringBuilder());
                         }
                     }
@@ -239,24 +219,70 @@ public class ResponsesQueryService : QueryServiceBase {
                 }
                 case "response.completed":
                 case "response.incomplete": {
-                    if (sEventJson.TryGetProperty("response", out var respProp) && respProp.TryGetProperty("usage", out var usageProp)) {
-                        var tu = BuildTokenUsage(usageProp);
-                        sMeta["FinishReason"] = JsonElementHelper.FromString("stop");
-                        sMeta["Usage"] = JsonElementHelper.FromObject(tu, NativeJsonContext.Default.TokenUsage);
-                    }
-                    if (secondAccumulator.Count > 0) {
-                        var entries = secondAccumulator
-                            .Select(kv => new ToolCallEntry { Id = kv.Value.Id, Name = kv.Value.Name, Arguments = kv.Value.Arguments.ToString() })
-                            .ToList();
-                        sMeta["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
-                        sMeta["FinishReason"] = JsonElementHelper.FromString("tool_calls");
-                    }
+                    PopulateCompletedMetadata(sMeta, sEventJson, secondAccumulator, null);
                     yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelId, sMeta);
                     yield break;
                 }
             }
         }
     }
+
+    #region SSE 事件解析辅助 — 纯函数,供确定性测试
+
+    /// <summary>检测累积文本是否为完整的 tool_description_request JSON</summary>
+    internal static bool IsToolDescriptionRequestComplete(string accumulated) {
+        return accumulated.Contains("tool_description_request") && accumulated.TrimEnd().EndsWith('}');
+    }
+
+    /// <summary>计算 SSE item_id 的累积器索引(非负哈希)</summary>
+    internal static int GetItemIdIndex(string itemId) {
+        return itemId.GetHashCode() & 0x7FFFFFFF;
+    }
+
+    /// <summary>解析 response.output_item.added 中 function_call item 的 call_id/name/idx</summary>
+    internal static (string CallId, string Name, int Idx) ParseFunctionCallItem(JsonElement itemProp) {
+        var callId = itemProp.TryGetProperty("call_id", out var callIdProp) ? callIdProp.GetString() ?? "" : "";
+        var name = itemProp.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "" : "";
+        var idx = GetItemIdIndex(itemProp.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "");
+        return (callId, name, idx);
+    }
+
+    /// <summary>从工具调用累积器构建 ToolCallEntry 列表(纯转换)</summary>
+    internal static List<ToolCallEntry> BuildToolCallEntriesFromAccumulator(
+        Dictionary<int, (string Id, string Name, StringBuilder Arguments)> accumulator) {
+        return accumulator
+            .Select(kv => new ToolCallEntry { Id = kv.Value.Id, Name = kv.Value.Name, Arguments = kv.Value.Arguments.ToString() })
+            .ToList();
+    }
+
+    /// <summary>填充 response.completed/response.incomplete 事件的 metadata(usage + tool_calls + reasoning)</summary>
+    internal static void PopulateCompletedMetadata(
+        Dictionary<string, JsonElement> metadata,
+        JsonElement eventJson,
+        Dictionary<int, (string Id, string Name, StringBuilder Arguments)> toolCallAccumulator,
+        StringBuilder? reasoningAccumulator) {
+        if (eventJson.TryGetProperty("response", out var respProp) && respProp.TryGetProperty("usage", out var usageProp)) {
+            var tokenUsage = BuildTokenUsage(usageProp);
+            metadata["FinishReason"] = JsonElementHelper.FromString("stop");
+            metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
+        }
+        if (toolCallAccumulator.Count > 0) {
+            var entries = BuildToolCallEntriesFromAccumulator(toolCallAccumulator);
+            metadata["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
+            metadata["FinishReason"] = JsonElementHelper.FromString("tool_calls");
+        }
+        if (reasoningAccumulator is { Length: > 0 }) {
+            metadata[MessageMetadataKeyEnumConstants.ReasoningText] = JsonElementHelper.FromString(reasoningAccumulator.ToString());
+        }
+    }
+
+    /// <summary>提取 response.failed 事件的错误信息(纯提取,不抛异常)</summary>
+    internal static string ExtractFailedErrorMessage(JsonElement eventJson) {
+        return eventJson.TryGetProperty("response", out var respProp) && respProp.TryGetProperty("error", out var errProp)
+            ? errProp.GetRawText() : "unknown error";
+    }
+
+    #endregion
 
     #region 请求构建
 

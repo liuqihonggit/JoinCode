@@ -726,4 +726,195 @@ public sealed class GraphAnalyticsTests : IDisposable {
         Assert.Empty(dag.Nodes);
         Assert.Empty(dag.Edges);
     }
+
+    // ============ SearchBidirectionalBfs (拆分子方法确定性测试) ============
+
+    [Fact]
+    public void SearchBidirectionalBfs_DirectCall_ReturnsPredecessorWithTarget() {
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var predecessor = GraphAnalytics.SearchBidirectionalBfs(snap.CallsByCaller, snap.CallsByCallee, "A", "B");
+
+        Assert.NotNull(predecessor);
+        Assert.True(predecessor!.ContainsKey("B"));
+        var (from, edge) = predecessor["B"];
+        Assert.Equal("A", from);
+        Assert.Equal("A", edge.CallerSymbol);
+        Assert.Equal("B", edge.CalleeSymbol);
+    }
+
+    [Fact]
+    public void SearchBidirectionalBfs_TwoHopPath_RecordsBothPredecessors() {
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("B", "C", "b.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var predecessor = GraphAnalytics.SearchBidirectionalBfs(snap.CallsByCaller, snap.CallsByCallee, "A", "C");
+
+        Assert.NotNull(predecessor);
+        // C 的前驱是 B,B 的前驱是 A
+        Assert.True(predecessor!.ContainsKey("B"));
+        Assert.True(predecessor.ContainsKey("C"));
+        Assert.Equal("A", predecessor["B"].FromSymbol);
+        Assert.Equal("B", predecessor["C"].FromSymbol);
+    }
+
+    [Fact]
+    public void SearchBidirectionalBfs_ReverseDirection_FindsPathViaCallerEdges() {
+        // A→B 正向边;从 C 出发无正向边,但 B→A 反向追溯应能找到
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        // 从 B 反向到 A:CallsByCallee[B] 包含 A→B 边,可扩展到 A
+        var predecessor = GraphAnalytics.SearchBidirectionalBfs(snap.CallsByCaller, snap.CallsByCallee, "B", "A");
+
+        Assert.NotNull(predecessor);
+        Assert.True(predecessor!.ContainsKey("A"));
+        Assert.Equal("B", predecessor["A"].FromSymbol);
+    }
+
+    [Fact]
+    public void SearchBidirectionalBfs_NoPath_ReturnsNull() {
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("C", "D", "c.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var predecessor = GraphAnalytics.SearchBidirectionalBfs(snap.CallsByCaller, snap.CallsByCallee, "A", "D");
+
+        Assert.Null(predecessor);
+    }
+
+    [Fact]
+    public void SearchBidirectionalBfs_EmptyGraph_ReturnsNull() {
+        var snap = _store.GetSnapshot();
+
+        var predecessor = GraphAnalytics.SearchBidirectionalBfs(snap.CallsByCaller, snap.CallsByCallee, "A", "B");
+
+        Assert.Null(predecessor);
+    }
+
+    [Fact]
+    public void SearchBidirectionalBfs_SelfLoop_NotVisitedAgain() {
+        // A→A 自环:visited 初始含 A,自环边不会重复访问
+        InsertCallEdge("A", "A", "a.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        // A 到 B 仍无路径
+        var predecessor = GraphAnalytics.SearchBidirectionalBfs(snap.CallsByCaller, snap.CallsByCallee, "A", "B");
+
+        Assert.Null(predecessor);
+    }
+
+    [Fact]
+    public void SearchBidirectionalBfs_DiamondGraph_FindsShortestPath() {
+        // 菱形: A→B, A→C, B→D, C→D;从 A 到 D 应找到长度 2 路径
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("A", "C", "a.cs", 2, CallKind.Direct);
+        InsertCallEdge("B", "D", "b.cs", 1, CallKind.Direct);
+        InsertCallEdge("C", "D", "c.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var predecessor = GraphAnalytics.SearchBidirectionalBfs(snap.CallsByCaller, snap.CallsByCallee, "A", "D");
+
+        Assert.NotNull(predecessor);
+        Assert.True(predecessor!.ContainsKey("D"));
+        // D 的前驱是 B 或 C(BFS 先访问 B)
+        var dPrev = predecessor["D"].FromSymbol;
+        Assert.True(dPrev == "B" || dPrev == "C");
+    }
+
+    // ============ RebuildPath (拆分子方法确定性测试) ============
+
+    [Fact]
+    public void RebuildPath_SingleHop_ReturnsFromToInOrder() {
+        var edge = new CallEdge { CallerSymbol = "A", CalleeSymbol = "B", CallSiteFilePath = "a.cs", CallSiteLine = 1, CallKind = CallKind.Direct };
+        var predecessor = new Dictionary<string, (string, CallEdge)> {
+            ["B"] = ("A", edge),
+        };
+
+        var (nodes, edges) = GraphAnalytics.RebuildPath(predecessor, "A", "B");
+
+        Assert.Equal(["A", "B"], nodes);
+        Assert.Single(edges);
+        Assert.Same(edge, edges[0]);
+    }
+
+    [Fact]
+    public void RebuildPath_TwoHop_ReturnsCorrectOrder() {
+        var e1 = new CallEdge { CallerSymbol = "A", CalleeSymbol = "B", CallSiteFilePath = "a.cs", CallSiteLine = 1, CallKind = CallKind.Direct };
+        var e2 = new CallEdge { CallerSymbol = "B", CalleeSymbol = "C", CallSiteFilePath = "b.cs", CallSiteLine = 1, CallKind = CallKind.Direct };
+        var predecessor = new Dictionary<string, (string, CallEdge)> {
+            ["B"] = ("A", e1),
+            ["C"] = ("B", e2),
+        };
+
+        var (nodes, edges) = GraphAnalytics.RebuildPath(predecessor, "A", "C");
+
+        // 节点顺序: A → B → C
+        Assert.Equal(["A", "B", "C"], nodes);
+        // 边顺序: e1 (A→B), e2 (B→C)
+        Assert.Equal(2, edges.Count);
+        Assert.Same(e1, edges[0]);
+        Assert.Same(e2, edges[1]);
+    }
+
+    [Fact]
+    public void RebuildPath_ThreeHop_ReversesCorrectly() {
+        var e1 = new CallEdge { CallerSymbol = "A", CalleeSymbol = "B", CallSiteFilePath = "a.cs", CallSiteLine = 1, CallKind = CallKind.Direct };
+        var e2 = new CallEdge { CallerSymbol = "B", CalleeSymbol = "C", CallSiteFilePath = "b.cs", CallSiteLine = 1, CallKind = CallKind.Direct };
+        var e3 = new CallEdge { CallerSymbol = "C", CalleeSymbol = "D", CallSiteFilePath = "c.cs", CallSiteLine = 1, CallKind = CallKind.Direct };
+        var predecessor = new Dictionary<string, (string, CallEdge)> {
+            ["B"] = ("A", e1),
+            ["C"] = ("B", e2),
+            ["D"] = ("C", e3),
+        };
+
+        var (nodes, edges) = GraphAnalytics.RebuildPath(predecessor, "A", "D");
+
+        Assert.Equal(["A", "B", "C", "D"], nodes);
+        Assert.Equal(3, edges.Count);
+        Assert.Same(e1, edges[0]);
+        Assert.Same(e2, edges[1]);
+        Assert.Same(e3, edges[2]);
+    }
+
+    [Fact]
+    public void RebuildPath_PreservesEdgeIdentity() {
+        // 验证返回的边是原始引用(非拷贝)
+        var edge = new CallEdge { CallerSymbol = "X", CalleeSymbol = "Y", CallSiteFilePath = "x.cs", CallSiteLine = 10, CallKind = CallKind.Virtual };
+        var predecessor = new Dictionary<string, (string, CallEdge)> {
+            ["Y"] = ("X", edge),
+        };
+
+        var (_, edges) = GraphAnalytics.RebuildPath(predecessor, "X", "Y");
+
+        Assert.Single(edges);
+        Assert.Same(edge, edges[0]);
+        Assert.Equal(CallKind.Virtual, edges[0].CallKind);
+        Assert.Equal(10, edges[0].CallSiteLine);
+    }
+
+    // ============ FindPathAsync 拆分后编排一致性 ============
+
+    [Fact]
+    public async Task FindPathAsync_Orchestration_MatchesBfsPlusRebuild() {
+        // 验证主方法 = SearchBidirectionalBfs + RebuildPath 的组合
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("B", "C", "b.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var result = await _analytics.FindPathAsync("A", "C", CancellationToken.None).ConfigureAwait(true);
+
+        // 手动编排子方法
+        var predecessor = GraphAnalytics.SearchBidirectionalBfs(snap.CallsByCaller, snap.CallsByCallee, "A", "C");
+        Assert.NotNull(predecessor);
+        var (nodes, edges) = GraphAnalytics.RebuildPath(predecessor!, "A", "C");
+
+        // 主方法结果应与子方法组合一致
+        Assert.True(result.PathFound);
+        Assert.Equal(nodes, result.PathNodes);
+        Assert.Equal(edges.Count, result.PathLength);
+        Assert.Equal(edges.Select(e => (e.CallerSymbol, e.CalleeSymbol)), result.PathEdges.Select(e => (e.CallerSymbol, e.CalleeSymbol)));
+    }
 }

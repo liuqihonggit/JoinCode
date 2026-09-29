@@ -885,4 +885,294 @@ public sealed class AnthropicQueryServiceTests {
     }
 
     #endregion
+
+    #region BuildMessageStartMetadata — MessageStart metadata 构建
+
+    [Fact]
+    public void BuildMessageStartMetadata_ContainsIdAndModelInBothDictionaries() {
+        var (text, thinking) = AnthropicQueryService.BuildMessageStartMetadata("msg-1", "claude-3");
+
+        text["Id"].GetString().Should().Be("msg-1");
+        text["Model"].GetString().Should().Be("claude-3");
+        thinking["Id"].GetString().Should().Be("msg-1");
+        thinking["Model"].GetString().Should().Be("claude-3");
+    }
+
+    [Fact]
+    public void BuildMessageStartMetadata_ThinkingContainsThinkingContentFlag() {
+        var (_, thinking) = AnthropicQueryService.BuildMessageStartMetadata("msg-1", "claude-3");
+
+        thinking.Should().ContainKey("thinking_content");
+        thinking["thinking_content"].GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public void BuildMessageStartMetadata_TextDoesNotContainThinkingContent() {
+        var (text, _) = AnthropicQueryService.BuildMessageStartMetadata("msg-1", "claude-3");
+
+        text.Should().NotContainKey("thinking_content");
+    }
+
+    [Fact]
+    public void BuildMessageStartMetadata_EmptyStrings_StillBuildsMetadata() {
+        var (text, thinking) = AnthropicQueryService.BuildMessageStartMetadata("", "");
+
+        text["Id"].GetString().Should().Be("");
+        thinking["Model"].GetString().Should().Be("");
+    }
+
+    [Fact]
+    public void BuildMessageStartMetadata_ReturnsFrozenDictionaries() {
+        var (text, thinking) = AnthropicQueryService.BuildMessageStartMetadata("msg-1", "claude-3");
+
+        text.Should().BeAssignableTo<FrozenDictionary<string, JsonElement>>();
+        thinking.Should().BeAssignableTo<FrozenDictionary<string, JsonElement>>();
+    }
+
+    #endregion
+
+    #region BuildServerToolUseStartMetadata — server_tool_use 开始事件 metadata
+
+    [Fact]
+    public void BuildServerToolUseStartMetadata_ContainsAllRequiredFields() {
+        var metadata = AnthropicQueryService.BuildServerToolUseStartMetadata("msg-1", "claude-3", "wsu-1", "web_search");
+
+        metadata["Id"].GetString().Should().Be("msg-1");
+        metadata["Model"].GetString().Should().Be("claude-3");
+        metadata["server_tool_use"].GetBoolean().Should().BeTrue();
+        metadata["tool_use_id"].GetString().Should().Be("wsu-1");
+        metadata["tool_name"].GetString().Should().Be("web_search");
+    }
+
+    [Fact]
+    public void BuildServerToolUseStartMetadata_HasExactlyFiveKeys() {
+        var metadata = AnthropicQueryService.BuildServerToolUseStartMetadata("m", "c", "id", "name");
+
+        metadata.Should().HaveCount(5);
+    }
+
+    [Fact]
+    public void BuildServerToolUseStartMetadata_EmptyStrings_StillBuildsMetadata() {
+        var metadata = AnthropicQueryService.BuildServerToolUseStartMetadata("", "", "", "");
+
+        metadata["Id"].GetString().Should().Be("");
+        metadata["tool_use_id"].GetString().Should().Be("");
+    }
+
+    #endregion
+
+    #region BuildToolCallEntriesFromAccumulator — 累积器转 ToolCallEntry
+
+    [Fact]
+    public void BuildToolCallEntriesFromAccumulator_EmptyAccumulator_ReturnsEmptyList() {
+        var accumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+
+        var entries = AnthropicQueryService.BuildToolCallEntriesFromAccumulator(accumulator);
+
+        entries.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BuildToolCallEntriesFromAccumulator_SingleEntry_MapsAllFields() {
+        var accumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)> {
+            [1] = ("call-1", "get_weather", new StringBuilder("{\"city\":\"SF\"}"))
+        };
+
+        var entries = AnthropicQueryService.BuildToolCallEntriesFromAccumulator(accumulator);
+
+        entries.Should().ContainSingle();
+        entries[0].Id.Should().Be("call-1");
+        entries[0].Name.Should().Be("get_weather");
+        entries[0].Arguments.Should().Be("""{"city":"SF"}""");
+    }
+
+    [Fact]
+    public void BuildToolCallEntriesFromAccumulator_MultipleEntries_AllMapped() {
+        var accumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)> {
+            [1] = ("call-1", "tool_a", new StringBuilder("{}")),
+            [2] = ("call-2", "tool_b", new StringBuilder("{\"x\":1}"))
+        };
+
+        var entries = AnthropicQueryService.BuildToolCallEntriesFromAccumulator(accumulator);
+
+        entries.Should().HaveCount(2);
+        entries.Select(e => e.Name).Should().Contain(["tool_a", "tool_b"]);
+    }
+
+    #endregion
+
+    #region BuildMessageDeltaMetadata — MessageDelta 事件 metadata
+
+    [Fact]
+    public void BuildMessageDeltaMetadata_WithStopReason_AddsFinishReason() {
+        var delta = new AnthropicStreamingDelta { StopReason = AnthropicStopReason.EndTurn };
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+
+        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "claude-3", delta, null, toolAccumulator);
+
+        metadata["Id"].GetString().Should().Be("msg-1");
+        metadata["Model"].GetString().Should().Be("claude-3");
+        metadata["FinishReason"].GetString().Should().Be("end_turn");
+    }
+
+    [Fact]
+    public void BuildMessageDeltaMetadata_WithUsage_AddsUsageMetadata() {
+        var delta = new AnthropicStreamingDelta { StopReason = AnthropicStopReason.EndTurn };
+        var usage = new AnthropicUsage { InputTokens = 10, OutputTokens = 20 };
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+
+        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "claude-3", delta, usage, toolAccumulator);
+
+        metadata.Should().ContainKey("Usage");
+    }
+
+    [Fact]
+    public void BuildMessageDeltaMetadata_ToolUseStopReasonWithAccumulator_AddsAllToolCalls() {
+        var delta = new AnthropicStreamingDelta { StopReason = AnthropicStopReason.ToolUse };
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)> {
+            [1] = ("call-1", "get_weather", new StringBuilder("{\"city\":\"SF\"}"))
+        };
+
+        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "claude-3", delta, null, toolAccumulator);
+
+        metadata.Should().ContainKey("AllToolCalls");
+        metadata["AllToolCalls"].GetArrayLength().Should().Be(1);
+    }
+
+    [Fact]
+    public void BuildMessageDeltaMetadata_EndTurnStopReasonWithAccumulator_NoAllToolCalls() {
+        var delta = new AnthropicStreamingDelta { StopReason = AnthropicStopReason.EndTurn };
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)> {
+            [1] = ("call-1", "tool", new StringBuilder("{}"))
+        };
+
+        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "claude-3", delta, null, toolAccumulator);
+
+        metadata.Should().NotContainKey("AllToolCalls", "非 tool_use 停止原因不写 AllToolCalls");
+    }
+
+    [Fact]
+    public void BuildMessageDeltaMetadata_ToolUseStopReasonEmptyAccumulator_NoAllToolCalls() {
+        var delta = new AnthropicStreamingDelta { StopReason = AnthropicStopReason.ToolUse };
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+
+        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "claude-3", delta, null, toolAccumulator);
+
+        metadata.Should().NotContainKey("AllToolCalls", "空累积器不写 AllToolCalls");
+    }
+
+    [Fact]
+    public void BuildMessageDeltaMetadata_NullDeltaAndUsage_StillBuildsBaseMetadata() {
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+
+        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "claude-3", null, null, toolAccumulator);
+
+        metadata["Id"].GetString().Should().Be("msg-1");
+        metadata["Model"].GetString().Should().Be("claude-3");
+        metadata.Should().NotContainKey("Usage");
+        metadata.Should().NotContainKey("AllToolCalls");
+    }
+
+    #endregion
+
+    #region IsToolDescriptionRequestComplete — tool_description_request 检测
+
+    [Fact]
+    public void IsToolDescriptionRequestComplete_NoMarker_ReturnsFalse() {
+        AnthropicQueryService.IsToolDescriptionRequestComplete("just regular text").Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsToolDescriptionRequestComplete_MarkerButNoClosingBrace_ReturnsFalse() {
+        AnthropicQueryService.IsToolDescriptionRequestComplete("""{"tool_description_request":"partial""").Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsToolDescriptionRequestComplete_MarkerWithClosingBrace_ReturnsTrue() {
+        AnthropicQueryService.IsToolDescriptionRequestComplete("""{"tool_description_request":true}""").Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsToolDescriptionRequestComplete_ClosingBraceWithTrailingWhitespace_ReturnsTrue() {
+        AnthropicQueryService.IsToolDescriptionRequestComplete("""{"tool_description_request":true}   """).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsToolDescriptionRequestComplete_EmptyString_ReturnsFalse() {
+        AnthropicQueryService.IsToolDescriptionRequestComplete("").Should().BeFalse();
+    }
+
+    #endregion
+
+    #region TryBuildQueryUpdateStreamEvent — server_tool_use query 更新检测
+
+    [Fact]
+    public void TryBuildQueryUpdateStreamEvent_NoServerToolUseTracker_ReturnsNull() {
+        var delta = new AnthropicStreamingDelta { PartialJson = """{"query":"x"}""" };
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+        var tracker = new Dictionary<int, (string ToolUseId, string? LastQuery, StringBuilder JsonBuilder, int LastExtractionLength)>();
+
+        var result = AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "claude-3");
+
+        result.Should().BeNull("无 server_tool_use 追踪条目时返回 null");
+    }
+
+    [Fact]
+    public void TryBuildQueryUpdateStreamEvent_PartialJsonTooShort_ReturnsNull() {
+        var delta = new AnthropicStreamingDelta { PartialJson = "short" };
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+        var tracker = new Dictionary<int, (string ToolUseId, string? LastQuery, StringBuilder JsonBuilder, int LastExtractionLength)> {
+            [0] = ("wsu-1", null, new StringBuilder(), 0)
+        };
+
+        var result = AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "claude-3");
+
+        result.Should().BeNull("累积 JSON 不足 50 字符时不提取");
+    }
+
+    [Fact]
+    public void TryBuildQueryUpdateStreamEvent_QueryExtracted_ReturnsStreamEvent() {
+        var partialJson = """{"query":"search term here padding to reach fifty chars"}""";
+        var delta = new AnthropicStreamingDelta { PartialJson = partialJson };
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+        var tracker = new Dictionary<int, (string ToolUseId, string? LastQuery, StringBuilder JsonBuilder, int LastExtractionLength)> {
+            [0] = ("wsu-1", null, new StringBuilder(), 0)
+        };
+
+        var result = AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "claude-3");
+
+        result.Should().NotBeNull("应提取到 query 并返回 StreamEvent");
+        result!.Metadata.Should().ContainKey("query_update");
+    }
+
+    [Fact]
+    public void TryBuildQueryUpdateStreamEvent_SameQueryAsLast_ReturnsNull() {
+        var partialJson = """{"query":"same query padding to reach fifty chars total"}""";
+        var delta = new AnthropicStreamingDelta { PartialJson = partialJson };
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+        var extractedQuery = AnthropicQueryService.ExtractQueryFromPartialJson(partialJson);
+        var tracker = new Dictionary<int, (string ToolUseId, string? LastQuery, StringBuilder JsonBuilder, int LastExtractionLength)> {
+            [0] = ("wsu-1", extractedQuery, new StringBuilder(partialJson), partialJson.Length)
+        };
+
+        var result = AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "claude-3");
+
+        result.Should().BeNull("query 未变化时不发事件");
+    }
+
+    [Fact]
+    public void TryBuildQueryUpdateStreamEvent_ToolCallAccumulatorPresent_AppendsArguments() {
+        var partialJson = """{"query":"x"}""";
+        var delta = new AnthropicStreamingDelta { PartialJson = partialJson };
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)> {
+            [0] = ("call-1", "tool", new StringBuilder())
+        };
+        var tracker = new Dictionary<int, (string ToolUseId, string? LastQuery, StringBuilder JsonBuilder, int LastExtractionLength)>();
+
+        AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "claude-3");
+
+        toolAccumulator[0].Arguments.ToString().Should().Be(partialJson, "工具调用累积器应追加 partial json");
+    }
+
+    #endregion
 }

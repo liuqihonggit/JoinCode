@@ -363,4 +363,196 @@ public sealed class CodeIndexerTests : IDisposable {
         };
         Assert.Equal(4, CodeIndexer.EstimateEdgeTokens(edge));
     }
+
+    // ============ TruncateByTokenBudget (拆分子方法确定性测试) ============
+
+    private static SymbolInfo Sym(string name, string fqn, string file = "a.cs") => new() {
+        Name = name, FullyQualifiedName = fqn, Kind = SymbolKind.Class,
+        FilePath = file, StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1,
+    };
+
+    private static CallEdge Edge(string caller, string callee, string file = "a.cs") => new() {
+        CallerSymbol = caller, CalleeSymbol = callee, CallSiteFilePath = file,
+        CallSiteLine = 1, CallKind = CallKind.Direct,
+    };
+
+    [Fact]
+    public void TruncateByTokenBudget_EmptyInputs_ReturnsAllEmpty() {
+        var (matched, refs, callers, callees, tokens, truncated, truncatedCount) =
+            CodeIndexer.TruncateByTokenBudget([], [], [], [], 1000);
+
+        Assert.Empty(matched);
+        Assert.Empty(refs);
+        Assert.Empty(callers);
+        Assert.Empty(callees);
+        Assert.Equal(0, tokens);
+        Assert.False(truncated);
+        Assert.Equal(0, truncatedCount);
+    }
+
+    [Fact]
+    public void TruncateByBudget_SufficientBudget_KeepsAllItems() {
+        var s1 = Sym("Foo", "Ns.Foo");
+        var s2 = Sym("Bar", "Ns.Bar");
+        var budget = CodeIndexer.EstimateSymbolTokens(s1) + CodeIndexer.EstimateSymbolTokens(s2) + 100;
+
+        var (matched, refs, callers, callees, tokens, truncated, truncatedCount) =
+            CodeIndexer.TruncateByTokenBudget([s1, s2], [], [], [], budget);
+
+        Assert.Equal(2, matched.Count);
+        Assert.False(truncated);
+        Assert.Equal(0, truncatedCount);
+        Assert.Equal(CodeIndexer.EstimateSymbolTokens(s1) + CodeIndexer.EstimateSymbolTokens(s2), tokens);
+    }
+
+    [Fact]
+    public void TruncateByBudget_MatchedPriority_TruncatesMatchedFirst() {
+        // 预算仅够第一个 matched 符号
+        var s1 = Sym("Short", "S");
+        var s2 = Sym("LongerName", "Ns.LongerName");
+        var budget = CodeIndexer.EstimateSymbolTokens(s1);  // 刚好够 s1
+
+        var (matched, refs, callers, callees, _, truncated, truncatedCount) =
+            CodeIndexer.TruncateByTokenBudget([s1, s2], [], [], [], budget);
+
+        Assert.Single(matched);
+        Assert.Equal("S", matched[0].FullyQualifiedName);
+        Assert.True(truncated);
+        // s2 被截断
+        Assert.Equal(1, truncatedCount);
+    }
+
+    [Fact]
+    public void TruncateByBudget_PriorityOrder_MatchedBeforeReferences() {
+        // 预算够 matched 但不够 references
+        var m = Sym("M", "M");
+        var r = Sym("R", "R");
+        var budget = CodeIndexer.EstimateSymbolTokens(m);  // 刚好够 m
+
+        var (matched, references, _, _, _, truncated, truncatedCount) =
+            CodeIndexer.TruncateByTokenBudget([m], [r], [], [], budget);
+
+        Assert.Single(matched);
+        Assert.Empty(references);  // references 被截断
+        Assert.True(truncated);
+        Assert.Equal(1, truncatedCount);
+    }
+
+    [Fact]
+    public void TruncateByBudget_PriorityOrder_ReferencesBeforeCallers() {
+        var r = Sym("R", "R");
+        var c = Edge("A", "B");
+        var budget = CodeIndexer.EstimateSymbolTokens(r);  // 刚好够 r
+
+        var (_, references, callers, _, _, truncated, truncatedCount) =
+            CodeIndexer.TruncateByTokenBudget([], [r], [c], [], budget);
+
+        Assert.Single(references);
+        Assert.Empty(callers);  // callers 被截断
+        Assert.True(truncated);
+        Assert.Equal(1, truncatedCount);
+    }
+
+    [Fact]
+    public void TruncateByBudget_PriorityOrder_CallersBeforeCallees() {
+        var caller = Edge("A", "B");
+        var callee = Edge("C", "D");
+        var budget = CodeIndexer.EstimateEdgeTokens(caller);  // 刚好够 caller
+
+        var (_, _, callers, callees, _, truncated, truncatedCount) =
+            CodeIndexer.TruncateByTokenBudget([], [], [caller], [callee], budget);
+
+        Assert.Single(callers);
+        Assert.Empty(callees);  // callees 被截断
+        Assert.True(truncated);
+        Assert.Equal(1, truncatedCount);
+    }
+
+    [Fact]
+    public void TruncateByBudget_TruncatedCount_SumsAcrossAllCategories() {
+        // 预算仅够 matched 第一个条目,其余类别全部被截断
+        // 验证 truncatedCount 跨四类别正确求和
+        var m1 = Sym("M1", "M1");
+        var m2 = Sym("M2", "M2");
+        var r1 = Sym("R1", "R1");
+        var c1 = Edge("A1", "B1");
+        var e1 = Edge("C1", "D1");
+
+        // 预算 = m1 的 tokens(刚好够 m1,不够 m2)
+        var budget = CodeIndexer.EstimateSymbolTokens(m1);
+
+        var (matched, references, callers, callees, _, truncated, truncatedCount) =
+            CodeIndexer.TruncateByTokenBudget([m1, m2], [r1], [c1], [e1], budget);
+
+        // matched 保留 m1,截断 m2
+        Assert.Single(matched);
+        // 其余类别全部被截断(预算已用尽)
+        Assert.Empty(references);
+        Assert.Empty(callers);
+        Assert.Empty(callees);
+        Assert.True(truncated);
+        // 四类别各截断 1 个,共 4 个
+        Assert.Equal(4, truncatedCount);
+    }
+
+    [Fact]
+    public void TruncateByBudget_ZeroBudget_TruncatesEverything() {
+        var s = Sym("Foo", "Ns.Foo");
+
+        var (matched, _, _, _, tokens, truncated, truncatedCount) =
+            CodeIndexer.TruncateByTokenBudget([s], [], [], [], 0);
+
+        Assert.Empty(matched);
+        Assert.Equal(0, tokens);
+        Assert.True(truncated);
+        Assert.Equal(1, truncatedCount);
+    }
+
+    [Fact]
+    public void TruncateByBudget_EstimatedTokens_EqualsSumOfKeptItems() {
+        var s1 = Sym("S1", "S1");
+        var s2 = Sym("S2", "S2");
+        var e1 = Edge("A", "B");
+        var budget = 10000;  // 足够
+
+        var (matched, _, _, callees, tokens, truncated, _) =
+            CodeIndexer.TruncateByTokenBudget([s1, s2], [], [], [e1], budget);
+
+        Assert.False(truncated);
+        var expected = CodeIndexer.EstimateSymbolTokens(s1) + CodeIndexer.EstimateSymbolTokens(s2) + CodeIndexer.EstimateEdgeTokens(e1);
+        Assert.Equal(expected, tokens);
+        Assert.Equal(2, matched.Count);
+        Assert.Single(callees);
+    }
+
+    [Fact]
+    public void TruncateByBudget_PreservesItemOrder() {
+        var s1 = Sym("First", "First");
+        var s2 = Sym("Second", "Second");
+        var s3 = Sym("Third", "Third");
+        var budget = 10000;
+
+        var (matched, _, _, _, _, _, _) =
+            CodeIndexer.TruncateByTokenBudget([s1, s2, s3], [], [], [], budget);
+
+        Assert.Equal(3, matched.Count);
+        Assert.Equal("First", matched[0].Name);
+        Assert.Equal("Second", matched[1].Name);
+        Assert.Equal("Third", matched[2].Name);
+    }
+
+    [Fact]
+    public void TruncateByBudget_ExactBoundary_IncludesItem() {
+        // 预算 == 已用 + 当前条目 tokens 时,条件 estimatedTokens + t > budget 为 false,应包含
+        var s = Sym("X", "X");
+        var budget = CodeIndexer.EstimateSymbolTokens(s);  // 0 + t == budget,不大于,包含
+
+        var (matched, _, _, _, tokens, truncated, truncatedCount) =
+            CodeIndexer.TruncateByTokenBudget([s], [], [], [], budget);
+
+        Assert.Single(matched);
+        Assert.Equal(CodeIndexer.EstimateSymbolTokens(s), tokens);
+        Assert.False(truncated);
+        Assert.Equal(0, truncatedCount);
+    }
 }

@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- From Core.Tests.Agents -->
-    <ProjectReference Include="$(RepoRoot)kit/composition/Composition.csproj" />
+    <!-- From Core.Tests.Agents — Aliases="global;composition" 用于消解 ServiceRegistration 跨程序集同名冲突（源码生成器在每个程序集都生成 partial class ServiceRegistration） -->
+    <ProjectReference Include="$(RepoRoot)kit/composition/Composition.csproj" Aliases="global,composition" />
 
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />

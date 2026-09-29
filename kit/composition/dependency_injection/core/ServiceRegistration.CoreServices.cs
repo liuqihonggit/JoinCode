@@ -109,29 +109,48 @@ public static partial class ServiceRegistration {
     /// 注册基础设施服务：HttpClientFactory、IHttpClientProvider（含 Mock/Real 切换）、
     /// 韧性层（ResilientHttpClientProvider）、INotificationService、IBrowserAutomationService、
     /// ITaskService、IClockService、IProcessService、IConsoleOutput 等环境切换服务。
+    /// <para>本方法为编排入口，具体环境切换分支拆分到 internal 子方法，便于确定性单元测试覆盖。</para>
     /// </summary>
     /// <param name="services">DI 容器。</param>
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services) {
-        // TelemetryConfig — [Register] 自动注册（无参构造函数从环境变量初始化）
+        RegisterHttpClientFactory(services);
+        RegisterHttpClientProviderSwitch(services);
+        RegisterResilientHttpClientProviderSwitch(services);
+        RegisterNotificationServiceSwitch(services);
+        RegisterBrowserAutomationSwitch(services);
+        RegisterTaskServiceSwitch(services);
+        RegisterClockServiceSwitch(services);
+        RegisterProcessEncodingServices(services);
+        RegisterProcessServiceSwitch(services);
+        RegisterConsoleOutputSwitch(services);
+        return services;
+    }
 
-        // P1-5 推广 HttpClientFactory — 启用 IHttpClientFactory（已在 P1-3 卫星项目 aot-httpclientfactory-test 验证 NativeAOT 兼容）
-        // 决策: 主程序通过 services.AddHttpClient() 启用 IHttpClientFactory
-        // 优势: HttpMessageHandler 生命周期由 IHttpClientFactory 池化管理，避免 socket 耗尽
-        // 影响范围: DefaultHttpClientProvider（Real 路径）通过 DI 自动注入 IHttpClientFactory
+    /// <summary>
+    /// 启用 IHttpClientFactory — HttpMessageHandler 生命周期由 IHttpClientFactory 池化管理，避免 socket 耗尽。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    internal static void RegisterHttpClientFactory(IServiceCollection services) {
         services.AddHttpClient();
+    }
 
-        // IHttpClientProvider — 根据 JCC_HTTP_MODE 环境变量决定后端
-        // 默认 Real（真实网络），Mock=拦截请求返回预设响应（调试/E2E测试用）
-        // 注意: [Register] 自动注册的 DefaultHttpClientProvider 已在此处被覆盖（后注册 wins）
+    /// <summary>
+    /// 注册 IHttpClientProvider 环境切换 — JCC_HTTP_MODE=Mock 用 MockHttpClientProvider，否则 DefaultHttpClientProvider。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    internal static void RegisterHttpClientProviderSwitch(IServiceCollection services) {
         services.AddEnvSwitch<IHttpClientProvider>(
             JccEnvVar.HttpMode, "Mock",
             _ => new Infrastructure.Http.MockHttpClientProvider(),
             sp => sp.GetRequiredService<Infrastructure.Http.DefaultHttpClientProvider>());
+    }
 
-        // 韧性层 — JCC_RESILIENCE_ENABLED=1（默认）时用 ResilientHttpClientProvider 包装
-        // 所有注入 IResilientHttpClientProvider 的消费方自动获得超时+重试+熔断保护
-        // 注入 IHttpClientProvider 的消费方仍获取原始客户端（向后兼容，无韧性）
+    /// <summary>
+    /// 注册 IResilientHttpClientProvider 韧性层切换 — JCC_RESILIENCE_ENABLED≠0 启用超时+重试+熔断，否则禁用韧性策略。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    internal static void RegisterResilientHttpClientProviderSwitch(IServiceCollection services) {
         var resilienceEnabled = EnvHelper.Get(JccEnvVar.ResilienceEnabled) is not "0";
         if (resilienceEnabled) {
             services.AddSingleton<IResilientHttpClientProvider>(sp => {
@@ -149,61 +168,85 @@ public static partial class ServiceRegistration {
                     });
             });
         }
+    }
 
-        // INotificationService — 根据 JCC_NOTIFICATION_MODE 环境变量决定后端
-        // 默认 Windows（气泡通知），Console=纯日志输出（调试用）
+    /// <summary>
+    /// 注册 INotificationService 环境切换 — JCC_NOTIFICATION_MODE=Console 用 ConsoleNotificationService，否则默认 Windows 气泡通知。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    internal static void RegisterNotificationServiceSwitch(IServiceCollection services) {
         services.AddEnvSwitch<INotificationService>(
             JccEnvVar.NotificationMode, "Console",
             _ => new ConsoleNotificationService());
+    }
 
-        // IBrowserAutomationService — 根据 JCC_BROWSER_AUTOMATION 环境变量决定后端
-        // 默认 None（NoOp），Puppeteer=启用浏览器自动化
+    /// <summary>
+    /// 注册 IBrowserAutomationService 环境切换 — JCC_BROWSER_AUTOMATION≠Puppeteer 时用 NoOpBrowserAutomationService。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    internal static void RegisterBrowserAutomationSwitch(IServiceCollection services) {
         var browserMode = EnvHelper.Get(JccEnvVar.BrowserAutomation);
         if (!string.Equals(browserMode, "Puppeteer", StringComparison.OrdinalIgnoreCase)) {
             services.AddSingleton<IBrowserAutomationService>(sp =>
                 EnvSwitchRegistrar.TraceFactory(_ => new NoOpBrowserAutomationService(), "IBrowserAutomationService", "NoOp", sp));
         }
+    }
 
-        // ITaskService — 根据 JCC_TASK_SERVICE_MODE 环境变量决定后端
-        // 默认 File（文件持久化），Memory=纯内存（调试/E2E测试用）
+    /// <summary>
+    /// 注册 ITaskService 环境切换 — JCC_TASK_SERVICE_MODE=Memory 用内存实现，否则默认 TaskService（文件持久化）。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    internal static void RegisterTaskServiceSwitch(IServiceCollection services) {
         services.AddEnvSwitch<ITaskService>(
             JccEnvVar.TaskServiceMode, "Memory",
             sp => sp.GetRequiredService<TaskService>());
+    }
 
-        // IClockService — 根据 JCC_CLOCK_MODE 环境变量决定后端
-        // 默认 Physical（真实系统时间），Fake=可控时间（调试/E2E测试用）
-        // 注意: [Register] 自动注册的 PhysicalClockService 已在此处被覆盖（后注册 wins）
+    /// <summary>
+    /// 注册 IClockService 环境切换 — JCC_CLOCK_MODE=Fake 用 FakeClockService，否则 PhysicalClockService。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    internal static void RegisterClockServiceSwitch(IServiceCollection services) {
         services.AddEnvSwitch<IClockService>(
             JccEnvVar.ClockMode, "Fake",
             _ => new Infrastructure.Time.FakeClockService(),
             sp => sp.GetRequiredService<Infrastructure.Time.PhysicalClockService>());
+    }
 
-        // IProcessEncodingProvider — 进程编码统一管理（单例，支持 UTF8/本地编码随时切换）
+    /// <summary>
+    /// 注册进程编码与启动信息构建器 — IProcessEncodingProvider + ProcessStartInfoBuilder（统一编码 + 三道防线）。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    internal static void RegisterProcessEncodingServices(IServiceCollection services) {
         services.TryAddSingleton<IO.ProcessService.ProcessEncodingProvider>();
         services.TryAddSingleton<IProcessEncodingProvider>(sp => sp.GetRequiredService<IO.ProcessService.ProcessEncodingProvider>());
 
-        // ProcessStartInfoBuilder — 统一构建器，强制三道防线 + 统一编码
         services.TryAddSingleton<IO.ProcessService.ProcessStartInfoBuilder>();
         services.TryAddSingleton<IProcessStartInfoBuilder>(sp => sp.GetRequiredService<IO.ProcessService.ProcessStartInfoBuilder>());
+    }
 
-        // IProcessService — 根据 JCC_PROCESS_MODE 环境变量决定后端
-        // 默认 Physical（真实进程），NoOp=禁止所有进程操作（调试/E2E测试用）
+    /// <summary>
+    /// 注册 IProcessService 环境切换 — JCC_PROCESS_MODE=NoOp 用 NoOpProcessService，否则 PhysicalProcessService。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    internal static void RegisterProcessServiceSwitch(IServiceCollection services) {
         services.AddEnvSwitch<IProcessService>(
             JccEnvVar.ProcessMode, "NoOp",
             _ => new IO.ProcessService.NoOpProcessService(),
             sp => new IO.ProcessService.PhysicalProcessService(
                 sp.GetRequiredService<IO.ProcessService.ProcessStartInfoBuilder>(),
                 sp.GetService<ILogger<IO.ProcessService.PhysicalProcessService>>()));
+    }
 
-        // IConsoleOutput — 根据 JCC_CONSOLE_MODE 环境变量决定后端
-        // 默认 Physical（真实控制台），NoOp=静默所有输出（E2E测试/CI用）
-        // 注意: [Register] 自动注册的 PhysicalConsoleOutput 已在此处被覆盖（后注册 wins）
+    /// <summary>
+    /// 注册 IConsoleOutput 环境切换 — JCC_CONSOLE_MODE=NoOp 用 NoOpConsoleOutput，否则 PhysicalConsoleOutput。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    internal static void RegisterConsoleOutputSwitch(IServiceCollection services) {
         services.AddEnvSwitch<IConsoleOutput>(
             JccEnvVar.ConsoleMode, "NoOp",
             _ => new Infrastructure.IO.NoOpConsoleOutput(),
             sp => sp.GetRequiredService<Infrastructure.IO.PhysicalConsoleOutput>());
-
-        return services;
     }
 }
 

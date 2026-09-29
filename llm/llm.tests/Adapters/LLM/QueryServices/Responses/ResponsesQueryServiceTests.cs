@@ -1055,4 +1055,287 @@ public class ResponsesQueryServiceTests {
     }
 
     #endregion
+
+    #region IsToolDescriptionRequestComplete — tool_description_request 检测
+
+    [Fact]
+    public void IsToolDescriptionRequestComplete_NoMarker_ReturnsFalse() {
+        ResponsesQueryService.IsToolDescriptionRequestComplete("just regular text").Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsToolDescriptionRequestComplete_MarkerButNoClosingBrace_ReturnsFalse() {
+        ResponsesQueryService.IsToolDescriptionRequestComplete("""{"tool_description_request":"partial""").Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsToolDescriptionRequestComplete_MarkerWithClosingBrace_ReturnsTrue() {
+        ResponsesQueryService.IsToolDescriptionRequestComplete("""{"tool_description_request":true}""").Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsToolDescriptionRequestComplete_ClosingBraceWithTrailingWhitespace_ReturnsTrue() {
+        ResponsesQueryService.IsToolDescriptionRequestComplete("""{"tool_description_request":true}   """).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsToolDescriptionRequestComplete_EmptyString_ReturnsFalse() {
+        ResponsesQueryService.IsToolDescriptionRequestComplete("").Should().BeFalse();
+    }
+
+    #endregion
+
+    #region GetItemIdIndex — item_id 哈希索引
+
+    [Fact]
+    public void GetItemIdIndex_AlwaysNonNegative() {
+        var idx = ResponsesQueryService.GetItemIdIndex("some_item_id");
+        idx.Should().BeGreaterThanOrEqualTo(0);
+    }
+
+    [Fact]
+    public void GetItemIdIndex_SameInput_ProducesSameIndex() {
+        var idx1 = ResponsesQueryService.GetItemIdIndex("fc_123");
+        var idx2 = ResponsesQueryService.GetItemIdIndex("fc_123");
+        idx1.Should().Be(idx2);
+    }
+
+    [Fact]
+    public void GetItemIdIndex_DifferentInput_MayProduceDifferentIndex() {
+        var idx1 = ResponsesQueryService.GetItemIdIndex("fc_1");
+        var idx2 = ResponsesQueryService.GetItemIdIndex("fc_2");
+        (idx1 != idx2).Should().BeTrue("不同输入通常产生不同索引");
+    }
+
+    [Fact]
+    public void GetItemIdIndex_EmptyString_NonNegative() {
+        ResponsesQueryService.GetItemIdIndex("").Should().BeGreaterThanOrEqualTo(0);
+    }
+
+    #endregion
+
+    #region ParseFunctionCallItem — function_call item 解析
+
+    [Fact]
+    public void ParseFunctionCallItem_ValidItem_ReturnsCallIdNameIdx() {
+        var item = JsonElementHelper.FromJson("""{"type":"function_call","call_id":"call-1","name":"get_weather","id":"fc_1"}""");
+
+        var (callId, name, idx) = ResponsesQueryService.ParseFunctionCallItem(item);
+
+        callId.Should().Be("call-1");
+        name.Should().Be("get_weather");
+        idx.Should().Be(ResponsesQueryService.GetItemIdIndex("fc_1"));
+    }
+
+    [Fact]
+    public void ParseFunctionCallItem_MissingCallId_ReturnsEmpty() {
+        var item = JsonElementHelper.FromJson("""{"type":"function_call","name":"tool","id":"fc_1"}""");
+
+        var (callId, name, _) = ResponsesQueryService.ParseFunctionCallItem(item);
+
+        callId.Should().Be("");
+        name.Should().Be("tool");
+    }
+
+    [Fact]
+    public void ParseFunctionCallItem_MissingName_ReturnsEmpty() {
+        var item = JsonElementHelper.FromJson("""{"type":"function_call","call_id":"c1","id":"fc_1"}""");
+
+        var (callId, name, _) = ResponsesQueryService.ParseFunctionCallItem(item);
+
+        callId.Should().Be("c1");
+        name.Should().Be("");
+    }
+
+    [Fact]
+    public void ParseFunctionCallItem_MissingId_IdxFromEmptyString() {
+        var item = JsonElementHelper.FromJson("""{"type":"function_call","call_id":"c1","name":"tool"}""");
+
+        var (_, _, idx) = ResponsesQueryService.ParseFunctionCallItem(item);
+
+        idx.Should().Be(ResponsesQueryService.GetItemIdIndex(""));
+    }
+
+    [Fact]
+    public void ParseFunctionCallItem_NullStringValues_ReturnsEmptyStrings() {
+        var item = JsonElementHelper.FromJson("""{"type":"function_call","call_id":null,"name":null,"id":null}""");
+
+        var (callId, name, _) = ResponsesQueryService.ParseFunctionCallItem(item);
+
+        callId.Should().Be("");
+        name.Should().Be("");
+    }
+
+    #endregion
+
+    #region BuildToolCallEntriesFromAccumulator — 累积器转 ToolCallEntry
+
+    [Fact]
+    public void BuildToolCallEntriesFromAccumulator_EmptyAccumulator_ReturnsEmptyList() {
+        var accumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+
+        var entries = ResponsesQueryService.BuildToolCallEntriesFromAccumulator(accumulator);
+
+        entries.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BuildToolCallEntriesFromAccumulator_SingleEntry_MapsAllFields() {
+        var accumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)> {
+            [1] = ("call-1", "get_weather", new StringBuilder("{\"city\":\"SF\"}"))
+        };
+
+        var entries = ResponsesQueryService.BuildToolCallEntriesFromAccumulator(accumulator);
+
+        entries.Should().ContainSingle();
+        entries[0].Id.Should().Be("call-1");
+        entries[0].Name.Should().Be("get_weather");
+        entries[0].Arguments.Should().Be("""{"city":"SF"}""");
+    }
+
+    [Fact]
+    public void BuildToolCallEntriesFromAccumulator_MultipleEntries_AllMapped() {
+        var accumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)> {
+            [1] = ("call-1", "tool_a", new StringBuilder("{}")),
+            [2] = ("call-2", "tool_b", new StringBuilder("{\"x\":1}"))
+        };
+
+        var entries = ResponsesQueryService.BuildToolCallEntriesFromAccumulator(accumulator);
+
+        entries.Should().HaveCount(2);
+        entries.Select(e => e.Name).Should().Contain(["tool_a", "tool_b"]);
+    }
+
+    [Fact]
+    public void BuildToolCallEntriesFromAccumulator_EmptyArguments_ReturnsEmptyString() {
+        var accumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)> {
+            [1] = ("call-1", "tool", new StringBuilder())
+        };
+
+        var entries = ResponsesQueryService.BuildToolCallEntriesFromAccumulator(accumulator);
+
+        entries[0].Arguments.Should().Be("");
+    }
+
+    #endregion
+
+    #region PopulateCompletedMetadata — 终局事件 metadata 填充
+
+    [Fact]
+    public void PopulateCompletedMetadata_WithUsage_AddsFinishReasonAndUsage() {
+        var metadata = new Dictionary<string, JsonElement>();
+        var eventJson = JsonElementHelper.FromJson("""{"response":{"usage":{"input_tokens":10,"output_tokens":20}}}""");
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+
+        ResponsesQueryService.PopulateCompletedMetadata(metadata, eventJson, toolAccumulator, null);
+
+        metadata.Should().ContainKey("FinishReason");
+        metadata["FinishReason"].GetString().Should().Be("stop");
+        metadata.Should().ContainKey("Usage");
+    }
+
+    [Fact]
+    public void PopulateCompletedMetadata_WithToolCalls_OverridesFinishReasonToToolCalls() {
+        var metadata = new Dictionary<string, JsonElement>();
+        var eventJson = JsonElementHelper.FromJson("""{"response":{"usage":{"input_tokens":10,"output_tokens":20}}}""");
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)> {
+            [1] = ("call-1", "get_weather", new StringBuilder("{\"city\":\"SF\"}"))
+        };
+
+        ResponsesQueryService.PopulateCompletedMetadata(metadata, eventJson, toolAccumulator, null);
+
+        metadata["FinishReason"].GetString().Should().Be("tool_calls");
+        metadata.Should().ContainKey("AllToolCalls");
+        metadata["AllToolCalls"].GetArrayLength().Should().Be(1);
+    }
+
+    [Fact]
+    public void PopulateCompletedMetadata_WithReasoning_AddsReasoningText() {
+        var metadata = new Dictionary<string, JsonElement>();
+        var eventJson = JsonElementHelper.FromJson("""{}""");
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+        var reasoning = new StringBuilder("Let me think about this.");
+
+        ResponsesQueryService.PopulateCompletedMetadata(metadata, eventJson, toolAccumulator, reasoning);
+
+        metadata.Should().ContainKey("ReasoningText");
+        metadata["ReasoningText"].GetString().Should().Be("Let me think about this.");
+    }
+
+    [Fact]
+    public void PopulateCompletedMetadata_NullReasoning_DoesNotAddReasoningText() {
+        var metadata = new Dictionary<string, JsonElement>();
+        var eventJson = JsonElementHelper.FromJson("""{}""");
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+
+        ResponsesQueryService.PopulateCompletedMetadata(metadata, eventJson, toolAccumulator, null);
+
+        metadata.Should().NotContainKey("ReasoningText");
+    }
+
+    [Fact]
+    public void PopulateCompletedMetadata_EmptyReasoning_DoesNotAddReasoningText() {
+        var metadata = new Dictionary<string, JsonElement>();
+        var eventJson = JsonElementHelper.FromJson("""{}""");
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+
+        ResponsesQueryService.PopulateCompletedMetadata(metadata, eventJson, toolAccumulator, new StringBuilder());
+
+        metadata.Should().NotContainKey("ReasoningText");
+    }
+
+    [Fact]
+    public void PopulateCompletedMetadata_NoUsage_NoFinishReasonFromUsage() {
+        var metadata = new Dictionary<string, JsonElement>();
+        var eventJson = JsonElementHelper.FromJson("""{}""");
+        var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+
+        ResponsesQueryService.PopulateCompletedMetadata(metadata, eventJson, toolAccumulator, null);
+
+        metadata.Should().NotContainKey("FinishReason");
+        metadata.Should().NotContainKey("Usage");
+    }
+
+    #endregion
+
+    #region ExtractFailedErrorMessage — 失败事件错误提取
+
+    [Fact]
+    public void ExtractFailedErrorMessage_WithErrorObject_ReturnsRawText() {
+        var eventJson = JsonElementHelper.FromJson("""{"response":{"error":{"code":"rate_limited","message":"Too many requests"}}}""");
+
+        var error = ResponsesQueryService.ExtractFailedErrorMessage(eventJson);
+
+        error.Should().Contain("rate_limited");
+        error.Should().Contain("Too many requests");
+    }
+
+    [Fact]
+    public void ExtractFailedErrorMessage_NoErrorField_ReturnsUnknown() {
+        var eventJson = JsonElementHelper.FromJson("""{"response":{}}""");
+
+        var error = ResponsesQueryService.ExtractFailedErrorMessage(eventJson);
+
+        error.Should().Be("unknown error");
+    }
+
+    [Fact]
+    public void ExtractFailedErrorMessage_NoResponseField_ReturnsUnknown() {
+        var eventJson = JsonElementHelper.FromJson("""{}""");
+
+        var error = ResponsesQueryService.ExtractFailedErrorMessage(eventJson);
+
+        error.Should().Be("unknown error");
+    }
+
+    [Fact]
+    public void ExtractFailedErrorMessage_StringError_ReturnsQuotedString() {
+        var eventJson = JsonElementHelper.FromJson("""{"response":{"error":"bad request"}}""");
+
+        var error = ResponsesQueryService.ExtractFailedErrorMessage(eventJson);
+
+        error.Should().Contain("bad request");
+    }
+
+    #endregion
 }

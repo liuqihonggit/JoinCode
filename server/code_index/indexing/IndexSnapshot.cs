@@ -238,47 +238,9 @@ internal sealed record IndexSnapshot {
 
     /// <summary>移除文件相关符号/调用边/依赖边（不含文件追踪）</summary>
     internal IndexSnapshot RemoveFileData(string filePath, bool rebuildSorted = true) {
-        var symbolsByFqn = SymbolsByFqn;
-        var symbolsByName = SymbolsByName;
-        var symbolsByFile = SymbolsByFile;
-        var symbolsByKind = SymbolsByKind;
-
-        if (symbolsByFile.TryGetValue(filePath, out var symbolsInFile)) {
-            foreach (var sym in symbolsInFile) {
-                symbolsByFqn = symbolsByFqn.Remove(sym.FullyQualifiedName);
-                symbolsByName = RemoveFromListIndex(symbolsByName, sym.Name, sym);
-                symbolsByKind = RemoveFromListIndex(symbolsByKind, sym.Kind, sym);
-            }
-            symbolsByFile = symbolsByFile.Remove(filePath);
-        }
-
-        var callEdges = CallEdges;
-        var callsByCaller = CallsByCaller;
-        var callsByCallee = CallsByCallee;
-        var callsByFile = CallsByFile;
-
-        if (callsByFile.TryGetValue(filePath, out var callsInFile)) {
-            foreach (var edge in callsInFile) {
-                callEdges = callEdges.Remove(edge);
-                callsByCaller = RemoveFromListIndex(callsByCaller, edge.CallerSymbol, edge);
-                callsByCallee = RemoveFromListIndex(callsByCallee, edge.CalleeSymbol, edge);
-            }
-            callsByFile = callsByFile.Remove(filePath);
-        }
-
-        var depEdges = DepEdges;
-        var depsBySource = DepsBySource;
-        var depsByTarget = DepsByTarget;
-        var depsByFile = DepsByFile;
-
-        if (depsByFile.TryGetValue(filePath, out var depsInFile)) {
-            foreach (var edge in depsInFile) {
-                depEdges = depEdges.Remove(edge);
-                depsBySource = RemoveFromListIndex(depsBySource, edge.SourceSymbol, edge);
-                depsByTarget = RemoveFromListIndex(depsByTarget, edge.TargetSymbol, edge);
-            }
-            depsByFile = depsByFile.Remove(filePath);
-        }
+        var (symbolsByFqn, symbolsByName, symbolsByFile, symbolsByKind) = RemoveSymbolsOfFile(filePath);
+        var (callEdges, callsByCaller, callsByCallee, callsByFile) = RemoveCallEdgesOfFile(filePath);
+        var (depEdges, depsBySource, depsByTarget, depsByFile) = RemoveDepEdgesOfFile(filePath);
 
         if (!rebuildSorted) {
             return this with {
@@ -316,6 +278,72 @@ internal sealed record IndexSnapshot {
             SymbolsSortedByFqn = newSymbolsSortedByFqn,
             SymbolsSortedByName = newSymbolsSortedByName,
         };
+    }
+
+    /// <summary>移除文件相关符号索引（ByFqn/ByName/ByFile/ByKind 四索引同步）</summary>
+    internal (ImmutableHamT<string, SymbolInfo> ByFqn,
+              ImmutableHamT<string, ImmutableList<SymbolInfo>> ByName,
+              ImmutableHamT<string, ImmutableList<SymbolInfo>> ByFile,
+              ImmutableHamT<SymbolKind, ImmutableList<SymbolInfo>> ByKind) RemoveSymbolsOfFile(string filePath) {
+        var symbolsByFqn = SymbolsByFqn;
+        var symbolsByName = SymbolsByName;
+        var symbolsByFile = SymbolsByFile;
+        var symbolsByKind = SymbolsByKind;
+
+        if (symbolsByFile.TryGetValue(filePath, out var symbolsInFile)) {
+            foreach (var sym in symbolsInFile) {
+                symbolsByFqn = symbolsByFqn.Remove(sym.FullyQualifiedName);
+                symbolsByName = RemoveFromListIndex(symbolsByName, sym.Name, sym);
+                symbolsByKind = RemoveFromListIndex(symbolsByKind, sym.Kind, sym);
+            }
+            symbolsByFile = symbolsByFile.Remove(filePath);
+        }
+
+        return (symbolsByFqn, symbolsByName, symbolsByFile, symbolsByKind);
+    }
+
+    /// <summary>移除文件相关调用边索引（Edges/ByCaller/ByCallee/ByFile 四索引同步）</summary>
+    internal (ImmutableList<CallEdge> Edges,
+              ImmutableHamT<string, ImmutableList<CallEdge>> ByCaller,
+              ImmutableHamT<string, ImmutableList<CallEdge>> ByCallee,
+              ImmutableHamT<string, ImmutableList<CallEdge>> ByFile) RemoveCallEdgesOfFile(string filePath) {
+        var callEdges = CallEdges;
+        var callsByCaller = CallsByCaller;
+        var callsByCallee = CallsByCallee;
+        var callsByFile = CallsByFile;
+
+        if (callsByFile.TryGetValue(filePath, out var callsInFile)) {
+            foreach (var edge in callsInFile) {
+                callEdges = callEdges.Remove(edge);
+                callsByCaller = RemoveFromListIndex(callsByCaller, edge.CallerSymbol, edge);
+                callsByCallee = RemoveFromListIndex(callsByCallee, edge.CalleeSymbol, edge);
+            }
+            callsByFile = callsByFile.Remove(filePath);
+        }
+
+        return (callEdges, callsByCaller, callsByCallee, callsByFile);
+    }
+
+    /// <summary>移除文件相关依赖边索引（Edges/BySource/ByTarget/ByFile 四索引同步）</summary>
+    internal (ImmutableList<DependencyEdge> Edges,
+              ImmutableHamT<string, ImmutableList<DependencyEdge>> BySource,
+              ImmutableHamT<string, ImmutableList<DependencyEdge>> ByTarget,
+              ImmutableHamT<string, ImmutableList<DependencyEdge>> ByFile) RemoveDepEdgesOfFile(string filePath) {
+        var depEdges = DepEdges;
+        var depsBySource = DepsBySource;
+        var depsByTarget = DepsByTarget;
+        var depsByFile = DepsByFile;
+
+        if (depsByFile.TryGetValue(filePath, out var depsInFile)) {
+            foreach (var edge in depsInFile) {
+                depEdges = depEdges.Remove(edge);
+                depsBySource = RemoveFromListIndex(depsBySource, edge.SourceSymbol, edge);
+                depsByTarget = RemoveFromListIndex(depsByTarget, edge.TargetSymbol, edge);
+            }
+            depsByFile = depsByFile.Remove(filePath);
+        }
+
+        return (depEdges, depsBySource, depsByTarget, depsByFile);
     }
 
     internal IndexSnapshot InsertSymbols(IReadOnlyList<SymbolInfo> symbols, bool rebuildSorted = true, bool isRebuild = true) {

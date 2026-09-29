@@ -633,18 +633,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                 if (evt.Message != null) {
                     messageId = evt.Message.Id;
                     modelName = evt.Message.Model;
-
-                    var idElement = JsonElementHelper.FromString(messageId);
-                    var modelElement = JsonElementHelper.FromString(modelName);
-                    textDeltaMetadata = new Dictionary<string, JsonElement> {
-                        ["Id"] = idElement,
-                        ["Model"] = modelElement
-                    }.ToFrozenDictionary();
-                    thinkingDeltaMetadata = new Dictionary<string, JsonElement> {
-                        ["Id"] = idElement,
-                        ["Model"] = modelElement,
-                        ["thinking_content"] = JsonElementHelper.FromBoolean(true)
-                    }.ToFrozenDictionary();
+                    (textDeltaMetadata, thinkingDeltaMetadata) = BuildMessageStartMetadata(messageId, modelName);
                 }
                 break;
 
@@ -661,13 +650,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                         var serverToolUseId = evt.ContentBlock.Id ?? "";
                         serverToolUseTracker[idx] = (serverToolUseId, null, new StringBuilder(), 0);
 
-                        var metadata = new Dictionary<string, JsonElement> {
-                            ["Id"] = JsonElementHelper.FromString(messageId),
-                            ["Model"] = JsonElementHelper.FromString(modelName),
-                            ["server_tool_use"] = JsonElementHelper.FromBoolean(true),
-                            ["tool_use_id"] = JsonElementHelper.FromString(serverToolUseId),
-                            ["tool_name"] = JsonElementHelper.FromString(evt.ContentBlock.Name ?? "")
-                        };
+                        var metadata = BuildServerToolUseStartMetadata(messageId, modelName, serverToolUseId, evt.ContentBlock.Name ?? "");
                         yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, metadata);
                     } else if (evt.ContentBlock.Type == AnthropicContentBlockType.WebSearchToolResult) {
                         var searchMetadata = BuildWebSearchResultMetadata(evt.ContentBlock, messageId, modelName);
@@ -686,7 +669,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                     } else if (delta.Type == AnthropicDeltaType.TextDelta && delta.Text != null) {
                         descRequestAccumulator.Append(delta.Text);
                         var accumulated = descRequestAccumulator.ToString();
-                        if (kernel != null && accumulated.Contains("tool_description_request") && accumulated.TrimEnd().EndsWith('}')) {
+                        if (kernel != null && IsToolDescriptionRequestComplete(accumulated)) {
                             descRequestContent = accumulated;
                             break;
                         }
@@ -703,29 +686,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
 
                 case AnthropicStreamingEventType.MessageDelta:
                 if (evt.Delta?.StopReason != null || evt.Usage != null) {
-                    var metadata = new Dictionary<string, JsonElement> {
-                        ["Id"] = JsonElementHelper.FromString(messageId),
-                        ["Model"] = JsonElementHelper.FromString(modelName),
-                        ["FinishReason"] = JsonElementHelper.FromString(evt.Delta?.StopReason?.ToValue())
-                    };
-
-                    if (evt.Usage != null) {
-                        var tokenUsage = BuildTokenUsage(evt.Usage);
-
-                        metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
-                    }
-
-                    if (evt.Delta?.StopReason == AnthropicStopReason.ToolUse && toolCallAccumulator.Count > 0) {
-                        var entries = toolCallAccumulator.Values
-                            .Select(tc => new ToolCallEntry {
-                                Id = tc.Id,
-                                Name = tc.Name,
-                                Arguments = tc.Arguments.ToString()
-                            })
-                            .ToList();
-                        metadata["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
-                    }
-
+                    var metadata = BuildMessageDeltaMetadata(messageId, modelName, evt.Delta, evt.Usage, toolCallAccumulator);
                     yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, metadata);
                 }
                 break;
@@ -745,6 +706,78 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                 yield return msg;
             }
         }
+    }
+
+    #endregion
+
+    #region SSE 事件解析辅助 — 纯函数,供确定性测试
+
+    /// <summary>构建 MessageStart 事件的 text/thinking delta metadata(复用于后续 delta 事件)</summary>
+    internal static (FrozenDictionary<string, JsonElement> Text, FrozenDictionary<string, JsonElement> Thinking) BuildMessageStartMetadata(string messageId, string modelName) {
+        var idElement = JsonElementHelper.FromString(messageId);
+        var modelElement = JsonElementHelper.FromString(modelName);
+        var text = new Dictionary<string, JsonElement> {
+            ["Id"] = idElement,
+            ["Model"] = modelElement
+        }.ToFrozenDictionary();
+        var thinking = new Dictionary<string, JsonElement> {
+            ["Id"] = idElement,
+            ["Model"] = modelElement,
+            ["thinking_content"] = JsonElementHelper.FromBoolean(true)
+        }.ToFrozenDictionary();
+        return (text, thinking);
+    }
+
+    /// <summary>构建 ContentBlockStart 中 server_tool_use 块的 metadata</summary>
+    internal static Dictionary<string, JsonElement> BuildServerToolUseStartMetadata(string messageId, string modelName, string serverToolUseId, string toolName) {
+        return new Dictionary<string, JsonElement> {
+            ["Id"] = JsonElementHelper.FromString(messageId),
+            ["Model"] = JsonElementHelper.FromString(modelName),
+            ["server_tool_use"] = JsonElementHelper.FromBoolean(true),
+            ["tool_use_id"] = JsonElementHelper.FromString(serverToolUseId),
+            ["tool_name"] = JsonElementHelper.FromString(toolName)
+        };
+    }
+
+    /// <summary>从工具调用累积器构建 ToolCallEntry 列表(纯转换)</summary>
+    internal static List<ToolCallEntry> BuildToolCallEntriesFromAccumulator(
+        Dictionary<int, (string Id, string Name, StringBuilder Arguments)> accumulator) {
+        return accumulator.Values
+            .Select(tc => new ToolCallEntry {
+                Id = tc.Id,
+                Name = tc.Name,
+                Arguments = tc.Arguments.ToString()
+            })
+            .ToList();
+    }
+
+    /// <summary>构建 MessageDelta 事件的 metadata(FinishReason + Usage + AllToolCalls)</summary>
+    internal static Dictionary<string, JsonElement> BuildMessageDeltaMetadata(
+        string messageId, string modelName,
+        AnthropicStreamingDelta? delta, AnthropicUsage? usage,
+        Dictionary<int, (string Id, string Name, StringBuilder Arguments)> toolCallAccumulator) {
+        var metadata = new Dictionary<string, JsonElement> {
+            ["Id"] = JsonElementHelper.FromString(messageId),
+            ["Model"] = JsonElementHelper.FromString(modelName),
+            ["FinishReason"] = JsonElementHelper.FromString(delta?.StopReason?.ToValue())
+        };
+
+        if (usage != null) {
+            var tokenUsage = BuildTokenUsage(usage);
+            metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
+        }
+
+        if (delta?.StopReason == AnthropicStopReason.ToolUse && toolCallAccumulator.Count > 0) {
+            var entries = BuildToolCallEntriesFromAccumulator(toolCallAccumulator);
+            metadata["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
+        }
+
+        return metadata;
+    }
+
+    /// <summary>检测累积文本是否为完整的 tool_description_request JSON</summary>
+    internal static bool IsToolDescriptionRequestComplete(string accumulated) {
+        return accumulated.Contains("tool_description_request") && accumulated.TrimEnd().EndsWith('}');
     }
 
     #endregion
@@ -814,7 +847,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
     }
 
     /// <summary>处理流式 InputJsonDelta: 累积 partial json,当检测到 query 更新时返回 StreamEvent(否则 null)</summary>
-    private static StreamEvent? TryBuildQueryUpdateStreamEvent(
+    internal static StreamEvent? TryBuildQueryUpdateStreamEvent(
         int idx,
         AnthropicStreamingDelta delta,
         Dictionary<int, (string Id, string Name, StringBuilder Arguments)> toolCallAccumulator,

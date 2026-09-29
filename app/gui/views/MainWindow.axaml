@@ -4,6 +4,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="980" d:DesignHeight="680"
         xmlns:vm="using:JoinCode.Gui.ViewModels"
+        xmlns:cnv="using:JoinCode.Gui.Converters"
+        xmlns:sys="using:System"
         xmlns:md="using:JoinCode.Gui.Markdown"
         xmlns:controls="using:JoinCode.Gui.Views.Controls"
         xmlns:edit="using:AvaloniaEdit"
@@ -15,6 +17,14 @@
         x:DataType="vm:MainViewModel"
         MinWidth="800" MinHeight="600"
         Title="JoinCode Ava">
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+I" Command="{Binding ToggleInterceptorPanelCommand}" />
+    <KeyBinding Gesture="Ctrl+G" Command="{Binding ToggleGoalPanelCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding StopGoalCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding BackgroundPanel.PauseAllCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+R" Command="{Binding BackgroundPanel.ResumeAllCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+T" Command="{Binding BackgroundPanel.StopAllCommand}" />
+  </Window.KeyBindings>
   <Window.Styles>
     <!-- 消息卡片：圆角 10，悬停换色 + 操作按钮悬停显现（GuiControlStyles 提供全局按钮基础样式） -->
     <Style Selector="Border.msgCard">
@@ -363,6 +373,7 @@
                   <StackPanel Orientation="Horizontal" Spacing="8" Margin="2,0,2,6">
                     <TextBlock Text="{Binding BackgroundPanel.CountText, FallbackValue='后台代理'}" FontSize="11.5"
                                FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
+                    <TextBox Text="{Binding BackgroundPanel.SearchText}" Watermark="搜索..." FontSize="10" Padding="6,2" MinWidth="80" />
                     <Button Classes="ghost" Content="暂停所有" FontSize="10" Padding="7,2" MinHeight="0"
                             Command="{Binding BackgroundPanel.PauseAllCommand}" ToolTip.Tip="暂停所有运行中子代理" />
                     <Button Classes="ghost" Content="恢复所有" FontSize="10" Padding="7,2" MinHeight="0"
@@ -374,34 +385,58 @@
                     <ItemsControl ItemsSource="{Binding BackgroundPanel.Items}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:BackgroundAgentItemVm">
-                          <Border CornerRadius="8" Padding="10,6" Margin="0,0,0,5" Background="{DynamicResource GuiCardHover}">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                              <StackPanel Spacing="2">
-                                <TextBlock Text="{Binding Description}" FontSize="11.5" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource GuiPrimaryText}" TextTrimming="CharacterEllipsis" />
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                  <TextBlock Text="{Binding Name}" FontSize="10.5" Foreground="{DynamicResource GuiAccentText}" />
-                                  <TextBlock Text="{Binding State}" FontSize="10.5" Foreground="{DynamicResource GuiMutedText}" />
-                                  <TextBlock Text="{Binding ElapsedText}" FontSize="10.5" Foreground="{DynamicResource GuiMutedText}" />
-                                  <TextBlock Text="{Binding StatsText}" FontSize="10.5" Foreground="{DynamicResource GuiMutedText}" />
+                          <Border CornerRadius="8" Padding="10,6" Margin="0,0,0,5" Background="{DynamicResource GuiCardHover}"
+                                  IsVisible="{Binding IsVisible}">
+                            <StackPanel Spacing="4">
+                              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                <Button Classes="ghost" FontSize="10" Padding="4,2" MinHeight="0" MinWidth="0"
+                                        Content="{Binding IsExpanded, Converter={x:Static cnv:ExpandGlyphConverter.Instance}}"
+                                        ToolTip.Tip="展开/收起实时输出"
+                                        Command="{Binding DataContext.BackgroundPanel.ToggleExpandCommand, ElementName=Root}"
+                                        CommandParameter="{Binding AgentId}" />
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                  <TextBlock Text="{Binding Description}" FontSize="11.5" FontWeight="SemiBold"
+                                             Foreground="{DynamicResource GuiPrimaryText}" TextTrimming="CharacterEllipsis" />
+                                  <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Name}" FontSize="10.5" Foreground="{DynamicResource GuiAccentText}" />
+                                    <TextBlock Text="{Binding State}" FontSize="10.5" Foreground="{DynamicResource GuiMutedText}" />
+                                    <TextBlock Text="{Binding ElapsedText}" FontSize="10.5" Foreground="{DynamicResource GuiMutedText}" />
+                                    <TextBlock Text="{Binding StatsText}" FontSize="10.5" Foreground="{DynamicResource GuiMutedText}" />
+                                  </StackPanel>
                                 </StackPanel>
-                              </StackPanel>
-                              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
-                                          IsVisible="{Binding IsRunning}">
-                                <Button Classes="ghost" Content="暂停" FontSize="10" Padding="7,2" MinHeight="0"
-                                        IsVisible="{Binding CanPause}" ToolTip.Tip="暂停该子代理"
-                                        Command="{Binding DataContext.BackgroundPanel.PauseCommand, ElementName=Root}"
-                                        CommandParameter="{Binding AgentId}" />
-                                <Button Classes="ghost" Content="继续" FontSize="10" Padding="7,2" MinHeight="0"
-                                        IsVisible="{Binding CanResume}" ToolTip.Tip="恢复该子代理"
-                                        Command="{Binding DataContext.BackgroundPanel.ResumeCommand, ElementName=Root}"
-                                        CommandParameter="{Binding AgentId}" />
-                                <Button Classes="ghost" Content="终止" FontSize="10" Padding="7,2" MinHeight="0"
-                                        ToolTip.Tip="终止该后台代理"
-                                        Command="{Binding DataContext.BackgroundPanel.StopCommand, ElementName=Root}"
-                                        CommandParameter="{Binding AgentId}" />
-                              </StackPanel>
-                            </Grid>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
+                                            IsVisible="{Binding IsRunning}">
+                                  <Button Classes="ghost" Content="暂停" FontSize="10" Padding="7,2" MinHeight="0"
+                                          IsVisible="{Binding CanPause}" ToolTip.Tip="暂停该子代理"
+                                          Command="{Binding DataContext.BackgroundPanel.PauseCommand, ElementName=Root}"
+                                          CommandParameter="{Binding AgentId}" />
+                                  <Button Classes="ghost" Content="继续" FontSize="10" Padding="7,2" MinHeight="0"
+                                          IsVisible="{Binding CanResume}" ToolTip.Tip="恢复该子代理"
+                                          Command="{Binding DataContext.BackgroundPanel.ResumeCommand, ElementName=Root}"
+                                          CommandParameter="{Binding AgentId}" />
+                                  <Button Classes="ghost" Content="终止" FontSize="10" Padding="7,2" MinHeight="0"
+                                          ToolTip.Tip="终止该后台代理"
+                                          Command="{Binding DataContext.BackgroundPanel.StopCommand, ElementName=Root}"
+                                          CommandParameter="{Binding AgentId}" />
+                                </StackPanel>
+                              </Grid>
+                              <Border IsVisible="{Binding IsExpanded}" CornerRadius="4" Padding="8,4"
+                                      Background="{DynamicResource GuiCardBackground}" Margin="4,0,0,0">
+                                <StackPanel Spacing="2">
+                                  <TextBlock Text="{Binding LastActivityText, FallbackValue='无实时输出'}" FontSize="10"
+                                             Foreground="{DynamicResource GuiMutedText}" TextTrimming="CharacterEllipsis"
+                                             IsVisible="{Binding LastActivityText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                  <ItemsControl ItemsSource="{Binding VisibleActivities}">
+                                    <ItemsControl.ItemTemplate>
+                                      <DataTemplate x:DataType="sys:String">
+                                        <TextBlock Text="{Binding}" FontSize="10" Foreground="{DynamicResource GuiMutedText}"
+                                                   Margin="0,1" TextTrimming="CharacterEllipsis" />
+                                      </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                  </ItemsControl>
+                                </StackPanel>
+                              </Border>
+                            </StackPanel>
                           </Border>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>

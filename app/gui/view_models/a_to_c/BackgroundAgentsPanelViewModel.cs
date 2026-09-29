@@ -42,6 +42,18 @@ public sealed class BackgroundAgentItemVm {
     /// <summary>是否可恢复 — paused 状态显示继续按钮</summary>
     public bool CanResume { get; }
 
+    /// <summary>是否展开 — 控制实时输出流区域显隐</summary>
+    public bool IsExpanded { get; set; }
+
+    /// <summary>最近活动摘要（展开时从 SubAgentRunTracker 填充）</summary>
+    public string? LastActivityText { get; set; }
+
+    /// <summary>尾部可见活动列表（展开时从 SubAgentRunTracker 填充）</summary>
+    public IReadOnlyList<string> VisibleActivities { get; set; } = [];
+
+    /// <summary>是否可见 — 搜索过滤驱动</summary>
+    public bool IsVisible { get; set; } = true;
+
     /// <summary>已运行时长展示文本</summary>
     public string ElapsedText { get; }
     /// <summary>统计摘要文本（工具次数 · token 数）</summary>
@@ -87,12 +99,19 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
     private readonly Func<string, CancellationToken, Task<bool>> _stopper;
     private readonly Func<string, CancellationToken, Task<bool>>? _pauser;
     private readonly Func<string, CancellationToken, Task<bool>>? _resumer;
+    private SubAgentRunTracker? _runTracker;
 
     [ObservableProperty]
     private bool _isOpen;
 
     [ObservableProperty]
     private string _countText = string.Empty;
+
+    /// <summary>搜索关键词 — 按名称/描述/状态过滤卡片</summary>
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
+    partial void OnSearchTextChanged(string value) => ApplyFilter();
 
     /// <summary>后台代理行集合</summary>
     public System.Collections.ObjectModel.ObservableCollection<BackgroundAgentItemVm> Items { get; } = [];
@@ -102,12 +121,17 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
         Func<CancellationToken, Task<IReadOnlyList<BackgroundAgentInfo>>> fetcher,
         Func<string, CancellationToken, Task<bool>> stopper,
         Func<string, CancellationToken, Task<bool>>? pauser = null,
-        Func<string, CancellationToken, Task<bool>>? resumer = null) {
+        Func<string, CancellationToken, Task<bool>>? resumer = null,
+        SubAgentRunTracker? runTracker = null) {
         _fetcher = fetcher ?? throw new ArgumentNullException(nameof(fetcher));
         _stopper = stopper ?? throw new ArgumentNullException(nameof(stopper));
         _pauser = pauser;
         _resumer = resumer;
+        _runTracker = runTracker;
     }
+
+    /// <summary>更新子代理运行追踪器 — 每回合 ChatTurnProcessor 重建 tracker 后同步引用</summary>
+    public void UpdateTracker(SubAgentRunTracker? tracker) => _runTracker = tracker;
 
     /// <summary>pill 点击：关闭时打开并刷新；已打开时仅收起（不重复拉取）</summary>
     [RelayCommand]
@@ -187,6 +211,25 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
         await RefreshAsync();
     }
 
+    /// <summary>展开/收起子代理卡片 — 展开时从 tracker 填充活动数据到 ItemVm</summary>
+    [RelayCommand]
+    public void ToggleExpand(string? agentId) {
+        if (string.IsNullOrEmpty(agentId)) return;
+        var item = Items.FirstOrDefault(i => i.AgentId == agentId);
+        if (item is null) return;
+        item.IsExpanded = !item.IsExpanded;
+        if (item.IsExpanded) FillActivities(item);
+    }
+
+    /// <summary>从 SubAgentRunTracker 填充单个 ItemVm 的活动数据</summary>
+    private void FillActivities(BackgroundAgentItemVm item) {
+        if (_runTracker is null) return;
+        var run = _runTracker.Runs.FirstOrDefault(r => r.AgentId == item.AgentId);
+        if (run is null) return;
+        item.LastActivityText = run.LastActivityText;
+        item.VisibleActivities = run.VisibleActivities;
+    }
+
     /// <summary>面板快照应用事件 — MainViewModel 据此同步 RunStatus 后台计数</summary>
     public event Action<int>? SnapshotApplied;
 
@@ -196,6 +239,21 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
         foreach (var info in snapshot)
             Items.Add(new BackgroundAgentItemVm(info));
         CountText = snapshot.Count > 0 ? $"{snapshot.Count} 个后台代理" : string.Empty;
+        ApplyFilter();
         SnapshotApplied?.Invoke(snapshot.Count);
+    }
+
+    /// <summary>按 SearchText 过滤卡片显隐 — 空 keyword 显示全部</summary>
+    private void ApplyFilter() {
+        if (string.IsNullOrWhiteSpace(SearchText)) {
+            foreach (var item in Items) item.IsVisible = true;
+            return;
+        }
+        var keyword = SearchText.Trim();
+        foreach (var item in Items) {
+            item.IsVisible = item.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                          || item.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                          || item.State.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

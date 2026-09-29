@@ -140,4 +140,111 @@ public class BackgroundAgentsPanelTests {
 
         stopped.Should().BeEmpty("completed 状态不应调用 stopper");
     }
+
+    [Fact]
+    public async Task ToggleExpand_ValidId_TogglesIsExpanded() {
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1")]),
+            stopper: (_, _) => Task.FromResult(true));
+        await panel.ToggleAndRefreshAsync();
+
+        panel.Items[0].IsExpanded.Should().BeFalse();
+        panel.ToggleExpand("a1");
+        panel.Items[0].IsExpanded.Should().BeTrue();
+        panel.ToggleExpand("a1");
+        panel.Items[0].IsExpanded.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ToggleExpand_UnknownId_NoChange() {
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1")]),
+            stopper: (_, _) => Task.FromResult(true));
+        await panel.ToggleAndRefreshAsync();
+
+        panel.ToggleExpand("nonexistent");
+        panel.Items[0].IsExpanded.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ToggleExpand_WithTracker_FillsActivitiesOnExpand() {
+        var tracker = new SubAgentRunTracker();
+        tracker.Observe(ChatStreamEvent.AgentStarted("a1", "explore", "调研任务", "executor"));
+        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, AgentId = "a1", ToolName = "search" });
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1")]),
+            stopper: (_, _) => Task.FromResult(true),
+            runTracker: tracker);
+        await panel.ToggleAndRefreshAsync();
+
+        panel.ToggleExpand("a1");
+        panel.Items[0].IsExpanded.Should().BeTrue();
+        panel.Items[0].LastActivityText.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task ToggleExpand_NoTracker_ActivitiesRemainEmpty() {
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1")]),
+            stopper: (_, _) => Task.FromResult(true));
+        await panel.ToggleAndRefreshAsync();
+
+        panel.ToggleExpand("a1");
+        panel.Items[0].IsExpanded.Should().BeTrue();
+        panel.Items[0].LastActivityText.Should().BeNull();
+        panel.Items[0].VisibleActivities.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SearchText_Empty_AllItemsVisible() {
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1"), Info("a2")]),
+            stopper: (_, _) => Task.FromResult(true));
+        await panel.ToggleAndRefreshAsync();
+
+        panel.Items.Should().AllSatisfy(i => i.IsVisible.Should().BeTrue());
+    }
+
+    [Fact]
+    public async Task SearchText_MatchesName_FiltersItems() {
+        var agents = new List<BackgroundAgentInfo> {
+            new("a1", Name: "explore", Description: "调研", State: "running", StartedAt: null, ToolUseCount: 0, TokenCount: 0),
+            new("a2", Name: "coder", Description: "编码", State: "running", StartedAt: null, ToolUseCount: 0, TokenCount: 0),
+        };
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents),
+            stopper: (_, _) => Task.FromResult(true));
+        await panel.ToggleAndRefreshAsync();
+
+        panel.SearchText = "explore";
+        panel.Items[0].IsVisible.Should().BeTrue();
+        panel.Items[1].IsVisible.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SearchText_MatchesState_FiltersItems() {
+        var agents = new List<BackgroundAgentInfo> {
+            new("a1", Name: "explore", Description: "调研", State: "running", StartedAt: null, ToolUseCount: 0, TokenCount: 0),
+            new("a2", Name: "coder", Description: "编码", State: "paused", StartedAt: null, ToolUseCount: 0, TokenCount: 0),
+        };
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents),
+            stopper: (_, _) => Task.FromResult(true));
+        await panel.ToggleAndRefreshAsync();
+
+        panel.SearchText = "paused";
+        panel.Items[0].IsVisible.Should().BeFalse();
+        panel.Items[1].IsVisible.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SearchText_NoMatch_AllHidden() {
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1")]),
+            stopper: (_, _) => Task.FromResult(true));
+        await panel.ToggleAndRefreshAsync();
+
+        panel.SearchText = "nonexistent";
+        panel.Items.Should().AllSatisfy(i => i.IsVisible.Should().BeFalse());
+    }
 }

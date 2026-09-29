@@ -108,9 +108,27 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private bool _isGoalPanelOpen;
 
+    /// <summary>goal 进度文本（如 "2/5 · explorer"）— 驱动 TopBar goal 按钮进度显示</summary>
+    [ObservableProperty]
+    private string _goalProgressText = string.Empty;
+
     /// <summary>展开/收拢 goal 控制面板</summary>
     [RelayCommand]
     private void ToggleGoalPanel() => IsGoalPanelOpen = !IsGoalPanelOpen;
+
+    /// <summary>刷新 goal 进度文本 — 从 IJccChatSession.GetGoalProgressAsync 拉取</summary>
+    public async Task RefreshGoalProgressAsync() {
+        if (!IsGoalRunning) {
+            GoalProgressText = string.Empty;
+            return;
+        }
+        var progress = await _session.GetGoalProgressAsync();
+        GoalProgressText = progress is null
+            ? string.Empty
+            : string.IsNullOrEmpty(progress.CurrentNodeName)
+                ? progress.ProgressText
+                : $"{progress.ProgressText} · {progress.CurrentNodeName}";
+    }
 
     /// <summary>
     /// 停止 goal — 直接执行 /goal clear。

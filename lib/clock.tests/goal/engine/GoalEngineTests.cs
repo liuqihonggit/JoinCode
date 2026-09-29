@@ -399,5 +399,12 @@ public sealed class GoalEngineTests {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
+
+    [Fact]
+    public async Task GetGoalProgress_NoGraph_ReturnsNull() {
+        var (kernel, evaluator, serviceProvider) = CreateMocks();
+        await using var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
+        engine.GetGoalProgress().Should().BeNull();
+    }
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

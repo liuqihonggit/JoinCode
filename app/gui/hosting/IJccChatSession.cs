@@ -262,6 +262,13 @@ public interface IJccChatSession : IAsyncDisposable {
     /// </summary>
     Task<int> StopAllSubAgentsAsync(CancellationToken cancellationToken = default)
         => Task.FromResult(0);
+
+    /// <summary>
+    /// 获取 Goal 进度快照 — 供 GUI 显示节点级进度（已完成/总数/当前节点名）。
+    /// TopBar goal 按钮进度显示。默认不支持（返回 null）。
+    /// </summary>
+    Task<GoalProgress?> GetGoalProgressAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<GoalProgress?>(null);
 }
 
 /// <summary>子会话信息 — 供 GUI 树形展示（需求11）</summary>

@@ -45,6 +45,7 @@ public sealed partial class MainViewModel {
 
         _turnProcessor = new ChatTurnProcessor(Messages);
         _turnProcessor.BeginTurn();
+        BackgroundPanel.UpdateTracker(_turnProcessor.AgentTracker);
         var processor = _turnProcessor;
 
         await foreach (var evt in _session.StreamAsync(result.Output, ct)) {

@@ -391,8 +391,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         linkedCts.CancelAfter(timeoutMs);
         try {
             return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-            throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
+        } catch (OperationCanceledException) when (IsTimeoutCancellation(ct)) {
+            throw CreateAskDeadlockException(GetType().Name, timeoutMs);
         }
     }
 
@@ -405,8 +405,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         linkedCts.CancelAfter(timeoutMs);
         try {
             await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-            throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
+        } catch (OperationCanceledException) when (IsTimeoutCancellation(ct)) {
+            throw CreateAskDeadlockException(GetType().Name, timeoutMs);
         }
     }
 
@@ -425,6 +425,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
 
     /// <summary>判断命令是否幂等 — 实现 IIdempotent 标记接口</summary>
     internal static bool IsIdempotentCommand(TCommand cmd) => cmd is IIdempotent;
+
+    /// <summary>判断取消是否由超时触发(而非外部取消令牌) — OperationCanceledException 捕获时调用</summary>
+    /// <param name="externalCt">外部取消令牌(非 linkedCts)</param>
+    /// <returns>true=超时触发(外部令牌未取消);false=外部取消触发</returns>
+    internal static bool IsTimeoutCancellation(CancellationToken externalCt) => !externalCt.IsCancellationRequested;
+
+    /// <summary>创建 Ask 死锁异常 — 封装诊断信息构造,供 AskAwait/AskWithRetryAsync 统一调用</summary>
+    internal static ActorAskDeadlockException CreateAskDeadlockException(string actorName, int timeoutMs)
+        => new(actorName, timeoutMs);
 
     /// <summary>
     /// Ask 重试模式等待回复 — 内置重试16次+指数退避+全图环检测+幂等支持。
@@ -462,7 +471,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             }
             if (!TrySend(cmd)) {
                 if (attempt >= maxRetries)
-                    throw new ActorAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+                    throw CreateAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
                 var delayMs = ComputeBackoffDelayMs(attempt);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
                 continue;
@@ -471,14 +480,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             linkedCts.CancelAfter(singleTimeoutMs);
             try {
                 return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+            } catch (OperationCanceledException) when (IsTimeoutCancellation(ct)) {
                 if (attempt >= maxRetries)
-                    throw new ActorAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+                    throw CreateAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
                 var delayMs = ComputeBackoffDelayMs(attempt);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
         }
-        throw new ActorAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+        throw CreateAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
     }
 
     /// <summary>
@@ -508,7 +517,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             }
             if (!TrySend(cmd)) {
                 if (attempt >= maxRetries)
-                    throw new ActorAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+                    throw CreateAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
                 var delayMs = ComputeBackoffDelayMs(attempt);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
                 continue;
@@ -518,14 +527,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             try {
                 await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
                 return;
-            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+            } catch (OperationCanceledException) when (IsTimeoutCancellation(ct)) {
                 if (attempt >= maxRetries)
-                    throw new ActorAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+                    throw CreateAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
                 var delayMs = ComputeBackoffDelayMs(attempt);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
         }
-        throw new ActorAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+        throw CreateAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
     }
 
     /// <summary>

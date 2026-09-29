@@ -226,4 +226,141 @@ public class QueryEngineTests {
         config.MaxToolCallIterations.Should().BeGreaterThan(10);
         config.MaxToolCallIterations.Should().BeLessThan(1000);
     }
+
+    // ===== TASK031 阶段2.1 提取的 internal 子方法确定性测试 =====
+
+    [Fact]
+    public void BuildMaxIterationErrorChunk_ShouldReturnErrorChunkWithCorrectMessage() {
+        var chunk = QueryEngine.BuildMaxIterationErrorChunk(128);
+        chunk.Type.Should().Be(AgentStreamChunkType.Error);
+        chunk.Content.Should().Be("达到最大工具调用次数限制 (128)");
+    }
+
+    [Fact]
+    public void BuildMaxIterationErrorChunk_DifferentValues_ShouldProduceDifferentMessages() {
+        var chunk1 = QueryEngine.BuildMaxIterationErrorChunk(50);
+        var chunk2 = QueryEngine.BuildMaxIterationErrorChunk(100);
+        chunk1.Content.Should().NotBe(chunk2.Content);
+    }
+
+    [Fact]
+    public void BuildRetryExhaustedErrorChunk_ShouldReturnErrorChunkWithCorrectMessage() {
+        var chunk = QueryEngine.BuildRetryExhaustedErrorChunk(3);
+        chunk.Type.Should().Be(AgentStreamChunkType.Error);
+        chunk.Content.Should().Be("执行失败，已达到最大重试次数 (3)");
+    }
+
+    [Fact]
+    public void BuildCompletionChunk_ShouldSetAllFields() {
+        var cacheParams = new JoinCode.Abstractions.LLM.Chat.CacheSafeParams();
+        var chunk = QueryEngine.BuildCompletionChunk("done", 1500L, 5, 0.05m, cacheParams);
+        chunk.Type.Should().Be(AgentStreamChunkType.Complete);
+        chunk.Content.Should().Be("done");
+        chunk.ExecutionTimeMs.Should().Be(1500L);
+        chunk.TotalToolCalls.Should().Be(5);
+        chunk.CostUsd.Should().Be(0.05m);
+        chunk.CacheSafeParams.Should().BeSameAs(cacheParams);
+    }
+
+    [Fact]
+    public void BuildCompletionChunk_WithNullCacheSafeParams_ShouldAllowNull() {
+        var chunk = QueryEngine.BuildCompletionChunk("done", 100L, 0, 0m, null);
+        chunk.CacheSafeParams.Should().BeNull();
+    }
+
+    [Fact]
+    public void IsRetryable_HttpRequestException_ShouldReturnTrue() {
+        IsRetryableWithEnvCleared(new HttpRequestException()).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsRetryable_TimeoutException_ShouldReturnTrue() {
+        IsRetryableWithEnvCleared(new TimeoutException()).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsRetryable_TaskCanceledException_ShouldReturnTrue() {
+        IsRetryableWithEnvCleared(new TaskCanceledException()).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsRetryable_InvalidOperationException_ShouldReturnFalse() {
+        IsRetryableWithEnvCleared(new InvalidOperationException()).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsRetryable_WhenDisabledByEnv_ShouldReturnFalse() {
+        var prev = Environment.GetEnvironmentVariable("JCC_DISABLE_RETRY");
+        Environment.SetEnvironmentVariable("JCC_DISABLE_RETRY", "true");
+        try {
+            QueryEngine.IsRetryable(new HttpRequestException()).Should().BeFalse();
+        } finally {
+            Environment.SetEnvironmentVariable("JCC_DISABLE_RETRY", prev);
+        }
+    }
+
+    [Fact]
+    public void CalculateRetryDelay_NoBackoff_ShouldReturnConstantDelay() {
+        var config = new QueryEngineConfig {
+            Retry = new RetryConfig { RetryDelayMs = 500, EnableExponentialBackoff = false }
+        };
+        var engine = CreateQueryEngine(config);
+        engine.CalculateRetryDelay(1).Should().Be(500);
+        engine.CalculateRetryDelay(2).Should().Be(500);
+        engine.CalculateRetryDelay(5).Should().Be(500);
+    }
+
+    [Fact]
+    public void CalculateRetryDelay_ExponentialBackoff_Retry1_ShouldReturnBaseDelay() {
+        var config = new QueryEngineConfig {
+            Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
+        };
+        var engine = CreateQueryEngine(config);
+        engine.CalculateRetryDelay(1).Should().Be(1000);
+    }
+
+    [Fact]
+    public void CalculateRetryDelay_ExponentialBackoff_Retry2_ShouldReturnDoubleDelay() {
+        var config = new QueryEngineConfig {
+            Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
+        };
+        var engine = CreateQueryEngine(config);
+        engine.CalculateRetryDelay(2).Should().Be(2000);
+    }
+
+    [Fact]
+    public void CalculateRetryDelay_ExponentialBackoff_Retry3_ShouldReturnQuadrupleDelay() {
+        var config = new QueryEngineConfig {
+            Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
+        };
+        var engine = CreateQueryEngine(config);
+        engine.CalculateRetryDelay(3).Should().Be(4000);
+    }
+
+    [Fact]
+    public void CalculateRetryDelay_ShouldClampToMaxDelay() {
+        var config = new QueryEngineConfig {
+            Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
+        };
+        var engine = CreateQueryEngine(config);
+        // retryCount=20: 1000 * 2^19 = 524288000 > MaxDelayMs(30000) → 钳制到 30000
+        engine.CalculateRetryDelay(20).Should().Be(WorkflowConstants.Retry.MaxDelayMs);
+    }
+
+    private static bool IsRetryableWithEnvCleared(Exception ex) {
+        var prev = Environment.GetEnvironmentVariable("JCC_DISABLE_RETRY");
+        Environment.SetEnvironmentVariable("JCC_DISABLE_RETRY", null);
+        try {
+            return QueryEngine.IsRetryable(ex);
+        } finally {
+            Environment.SetEnvironmentVariable("JCC_DISABLE_RETRY", prev);
+        }
+    }
+
+    private static QueryEngine CreateQueryEngine(QueryEngineConfig? config = null) {
+        var mockKernel = new Mock<IChatClient>();
+        var mockRegistry = new Mock<IToolRegistry>();
+        var cfg = config ?? new QueryEngineConfig();
+        return new QueryEngine(mockKernel.Object, mockRegistry.Object, Microsoft.Extensions.Options.Options.Create(cfg));
+    }
 }

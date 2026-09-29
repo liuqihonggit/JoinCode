@@ -61,6 +61,7 @@ global using JoinCode.Abstractions.Models.Todo;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Prompts;
 global using JoinCode.Abstractions.Security;
+global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using McpClient;

@@ -109,4 +109,189 @@ public class AgentStreamExecutionMiddlewareTests {
         await act.Should().NotThrowAsync();
         context.Succeeded.Should().BeTrue();
     }
+
+    // === BuildChunkEvent 纯计算测试 ===
+
+    [Fact]
+    public void BuildChunkEvent_Content_ReturnsContentEventWithAgentId() {
+        var chunk = new AgentStreamChunk { Type = AgentStreamChunkType.Content, Content = "hello", AgentId = "ag-1" };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-1");
+        evt.Should().NotBeNull();
+        evt!.Type.Should().Be(ChatStreamEventType.Content);
+        evt.Content.Should().Be("hello");
+        evt.AgentId.Should().Be("ag-1");
+    }
+
+    [Fact]
+    public void BuildChunkEvent_ThinkingStart_WithContent_ReturnsThinkingEvent() {
+        var chunk = new AgentStreamChunk { Type = AgentStreamChunkType.ThinkingStart, ThinkingContent = "思考中", AgentId = "ag-2" };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-2");
+        evt.Should().NotBeNull();
+        evt!.Type.Should().Be(ChatStreamEventType.Thinking);
+        evt.ThinkingContent.Should().Be("思考中");
+        evt.AgentId.Should().Be("ag-2");
+    }
+
+    [Fact]
+    public void BuildChunkEvent_Thinking_WithContent_ReturnsThinkingEvent() {
+        var chunk = new AgentStreamChunk { Type = AgentStreamChunkType.Thinking, ThinkingContent = "继续思考", AgentId = "ag-3" };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-3");
+        evt.Should().NotBeNull();
+        evt!.Type.Should().Be(ChatStreamEventType.Thinking);
+        evt.ThinkingContent.Should().Be("继续思考");
+    }
+
+    [Fact]
+    public void BuildChunkEvent_Thinking_WithEmptyContent_ReturnsNull() {
+        var chunk = new AgentStreamChunk { Type = AgentStreamChunkType.Thinking, ThinkingContent = "", Content = "", AgentId = "ag-4" };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-4");
+        evt.Should().BeNull();
+    }
+
+    [Fact]
+    public void BuildChunkEvent_ThinkingStart_WithNullContent_ReturnsNull() {
+        var chunk = new AgentStreamChunk { Type = AgentStreamChunkType.ThinkingStart, ThinkingContent = null, Content = null, AgentId = "ag-5" };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-5");
+        evt.Should().BeNull();
+    }
+
+    [Fact]
+    public void BuildChunkEvent_Thinking_WithOnlyContent_FallsBackToContent() {
+        // ThinkingContent 为 null 但 Content 非空时,ThinkingContent 用 Content 填充
+        var chunk = new AgentStreamChunk { Type = AgentStreamChunkType.Thinking, ThinkingContent = null, Content = "fallback", AgentId = "ag-6" };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-6");
+        evt.Should().NotBeNull();
+        evt!.ThinkingContent.Should().Be("fallback");
+    }
+
+    [Fact]
+    public void BuildChunkEvent_ToolCallStart_ReturnsToolCallStartEvent() {
+        var chunk = new AgentStreamChunk {
+            Type = AgentStreamChunkType.ToolCallStart,
+            ToolName = "FileRead",
+            ToolCallId = "call-1",
+            ToolArguments = "{\"path\":\"/tmp\"}",
+            AgentId = "ag-7"
+        };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-7");
+        evt.Should().NotBeNull();
+        evt!.Type.Should().Be(ChatStreamEventType.ToolCallStart);
+        evt.ToolName.Should().Be("FileRead");
+        evt.ToolCallId.Should().Be("call-1");
+        evt.ToolArguments.Should().Be("{\"path\":\"/tmp\"}");
+        evt.AgentId.Should().Be("ag-7");
+    }
+
+    [Fact]
+    public void BuildChunkEvent_ToolCallEnd_ReturnsToolCallEndEvent() {
+        var chunk = new AgentStreamChunk {
+            Type = AgentStreamChunkType.ToolCallEnd,
+            ToolName = "FileEdit",
+            ToolCallId = "call-2",
+            ToolResultText = "ok",
+            IsToolError = false,
+            StructuredPatch = null,
+            AgentId = "ag-8"
+        };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-8");
+        evt.Should().NotBeNull();
+        evt!.Type.Should().Be(ChatStreamEventType.ToolCallEnd);
+        evt.ToolName.Should().Be("FileEdit");
+        evt.ToolCallId.Should().Be("call-2");
+        evt.ToolResultText.Should().Be("ok");
+        evt.IsToolError.Should().BeFalse();
+        evt.StructuredPatch.Should().BeNull();
+        evt.AgentId.Should().Be("ag-8");
+    }
+
+    [Fact]
+    public void BuildChunkEvent_ToolCallEnd_PreservesStructuredPatch() {
+        // StructuredPatch 引用应原样传递（同引用,不拷贝）
+        var patch = new StructuredPatchHunk[] { new() { OldStart = 0, OldLines = 0, NewStart = 0, NewLines = 0 } };
+        var chunk = new AgentStreamChunk {
+            Type = AgentStreamChunkType.ToolCallEnd,
+            ToolName = "FileEdit",
+            StructuredPatch = patch,
+            AgentId = "ag-8b"
+        };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-8b");
+        evt.Should().NotBeNull();
+        evt!.StructuredPatch.Should().BeSameAs(patch);
+    }
+
+    [Fact]
+    public void BuildChunkEvent_ToolCallEnd_WithError_PreservesErrorFlag() {
+        var chunk = new AgentStreamChunk {
+            Type = AgentStreamChunkType.ToolCallEnd,
+            ToolName = "Bash",
+            ToolCallId = "call-3",
+            ToolResultText = "failed",
+            IsToolError = true,
+            AgentId = "ag-9"
+        };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-9");
+        evt.Should().NotBeNull();
+        evt!.IsToolError.Should().BeTrue();
+        evt.ToolResultText.Should().Be("failed");
+    }
+
+    [Fact]
+    public void BuildChunkEvent_ToolProgress_ReturnsToolProgressEvent() {
+        var chunk = new AgentStreamChunk {
+            Type = AgentStreamChunkType.ToolProgress,
+            ToolName = "WebSearch",
+            ToolCallId = "call-4",
+            ProgressType = "query_update",
+            ProgressMessage = "正在搜索...",
+            AgentId = "ag-10"
+        };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-10");
+        evt.Should().NotBeNull();
+        evt!.Type.Should().Be(ChatStreamEventType.ToolProgress);
+        evt.ToolName.Should().Be("WebSearch");
+        evt.ToolCallId.Should().Be("call-4");
+        evt.ProgressType.Should().Be("query_update");
+        evt.ProgressMessage.Should().Be("正在搜索...");
+        evt.AgentId.Should().Be("ag-10");
+    }
+
+    [Fact]
+    public void BuildChunkEvent_Complete_ReturnsNull() {
+        // Complete 块由主流程处理状态(ExecutionTimeMs/finalOutput/finalUsage),不发射事件
+        var chunk = new AgentStreamChunk { Type = AgentStreamChunkType.Complete, Content = "最终输出", ExecutionTimeMs = 100, AgentId = "ag-11" };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-11");
+        evt.Should().BeNull();
+    }
+
+    [Fact]
+    public void BuildChunkEvent_Error_ReturnsNull() {
+        // Error 块由主流程处理状态(succeeded/errorMessage),不发射事件
+        var chunk = new AgentStreamChunk { Type = AgentStreamChunkType.Error, Content = "boom", AgentId = "ag-12" };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, "ag-12");
+        evt.Should().BeNull();
+    }
+
+    [Fact]
+    public void BuildChunkEvent_AllEventTypes_StampAgentId() {
+        // 所有事件类型都应携带 agentId 参数（非 chunk.AgentId）,因为 agentId 在首块后由主流程填充
+        const string expectedAgentId = "resolved-id";
+        var contentChunk = new AgentStreamChunk { Type = AgentStreamChunkType.Content, Content = "x", AgentId = "raw-1" };
+        var toolStartChunk = new AgentStreamChunk { Type = AgentStreamChunkType.ToolCallStart, ToolName = "T", AgentId = "raw-2" };
+        var toolEndChunk = new AgentStreamChunk { Type = AgentStreamChunkType.ToolCallEnd, ToolName = "T", AgentId = "raw-3" };
+        var toolProgChunk = new AgentStreamChunk { Type = AgentStreamChunkType.ToolProgress, ToolName = "T", AgentId = "raw-4" };
+
+        AgentStreamExecutionMiddleware.BuildChunkEvent(contentChunk, expectedAgentId)!.AgentId.Should().Be(expectedAgentId);
+        AgentStreamExecutionMiddleware.BuildChunkEvent(toolStartChunk, expectedAgentId)!.AgentId.Should().Be(expectedAgentId);
+        AgentStreamExecutionMiddleware.BuildChunkEvent(toolEndChunk, expectedAgentId)!.AgentId.Should().Be(expectedAgentId);
+        AgentStreamExecutionMiddleware.BuildChunkEvent(toolProgChunk, expectedAgentId)!.AgentId.Should().Be(expectedAgentId);
+    }
+
+    [Fact]
+    public void BuildChunkEvent_NullAgentId_PreservesNull() {
+        // agentId 参数为 null 时（首块前理论上不会调用,但方法应容忍）,事件 AgentId 为 null
+        var chunk = new AgentStreamChunk { Type = AgentStreamChunkType.Content, Content = "x", AgentId = "ag-13" };
+        var evt = AgentStreamExecutionMiddleware.BuildChunkEvent(chunk, null);
+        evt.Should().NotBeNull();
+        evt!.AgentId.Should().BeNull();
+    }
 }

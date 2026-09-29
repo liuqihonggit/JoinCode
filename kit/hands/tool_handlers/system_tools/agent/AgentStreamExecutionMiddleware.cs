@@ -74,53 +74,24 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
             switch (chunk.Type) {
                 case AgentStreamChunkType.Content:
                 context.ContentBuilder.Append(chunk.Content);
-                channel?.Emit(new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent {
-                    Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.Content,
-                    Content = chunk.Content,
-                    AgentId = agentId
-                });
+                channel?.Emit(BuildChunkEvent(chunk, agentId)!);
                 break;
                 case AgentStreamChunkType.ThinkingStart:
                 case AgentStreamChunkType.Thinking:
-                if (!string.IsNullOrEmpty(chunk.ThinkingContent) || !string.IsNullOrEmpty(chunk.Content)) {
-                    channel?.Emit(new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent {
-                        Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.Thinking,
-                        ThinkingContent = chunk.ThinkingContent ?? chunk.Content,
-                        AgentId = agentId
-                    });
+                {
+                    var evt = BuildChunkEvent(chunk, agentId);
+                    if (evt is not null)
+                        channel?.Emit(evt);
+                    break;
                 }
-                break;
                 case AgentStreamChunkType.ToolCallStart:
                 // 工具调用开始 — 对齐 TS onProgress({type:'agent_progress'})
                 _logger?.LogDebug("[AgentStreamExecution] Agent {AgentId} calling tool: {ToolName}", chunk.AgentId, chunk.ToolName);
-                channel?.Emit(new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent {
-                    Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.ToolCallStart,
-                    ToolName = chunk.ToolName,
-                    ToolCallId = chunk.ToolCallId,
-                    ToolArguments = chunk.ToolArguments,
-                    AgentId = agentId
-                });
+                channel?.Emit(BuildChunkEvent(chunk, agentId)!);
                 break;
                 case AgentStreamChunkType.ToolCallEnd:
-                channel?.Emit(new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent {
-                    Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.ToolCallEnd,
-                    ToolName = chunk.ToolName,
-                    ToolCallId = chunk.ToolCallId,
-                    ToolResultText = chunk.ToolResultText,
-                    IsToolError = chunk.IsToolError,
-                    StructuredPatch = chunk.StructuredPatch,
-                    AgentId = agentId
-                });
-                break;
                 case AgentStreamChunkType.ToolProgress:
-                channel?.Emit(new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent {
-                    Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.ToolProgress,
-                    ToolName = chunk.ToolName,
-                    ToolCallId = chunk.ToolCallId,
-                    ProgressType = chunk.ProgressType,
-                    ProgressMessage = chunk.ProgressMessage,
-                    AgentId = agentId
-                });
+                channel?.Emit(BuildChunkEvent(chunk, agentId)!);
                 break;
                 case AgentStreamChunkType.Complete:
                 context.ExecutionTimeMs = chunk.ExecutionTimeMs;
@@ -153,5 +124,53 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
         }
 
         await next(context, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 根据流式块构造对应的 ChatStreamEvent — 纯计算,无副作用
+    /// </summary>
+    /// <param name="chunk">流式块</param>
+    /// <param name="agentId">代理 ID（首块后填充）</param>
+    /// <returns>对应的事件;null 表示该块无需发射事件（Thinking 空内容、Complete/Error 由主流程处理状态）</returns>
+    internal static JoinCode.Abstractions.LLM.Chat.ChatStreamEvent? BuildChunkEvent(AgentStreamChunk chunk, string? agentId) {
+        return chunk.Type switch {
+            AgentStreamChunkType.Content => new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent {
+                Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.Content,
+                Content = chunk.Content,
+                AgentId = agentId
+            },
+            AgentStreamChunkType.ThinkingStart or AgentStreamChunkType.Thinking
+                when !string.IsNullOrEmpty(chunk.ThinkingContent) || !string.IsNullOrEmpty(chunk.Content)
+                => new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent {
+                Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.Thinking,
+                ThinkingContent = chunk.ThinkingContent ?? chunk.Content,
+                AgentId = agentId
+            },
+            AgentStreamChunkType.ToolCallStart => new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent {
+                Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.ToolCallStart,
+                ToolName = chunk.ToolName,
+                ToolCallId = chunk.ToolCallId,
+                ToolArguments = chunk.ToolArguments,
+                AgentId = agentId
+            },
+            AgentStreamChunkType.ToolCallEnd => new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent {
+                Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.ToolCallEnd,
+                ToolName = chunk.ToolName,
+                ToolCallId = chunk.ToolCallId,
+                ToolResultText = chunk.ToolResultText,
+                IsToolError = chunk.IsToolError,
+                StructuredPatch = chunk.StructuredPatch,
+                AgentId = agentId
+            },
+            AgentStreamChunkType.ToolProgress => new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent {
+                Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.ToolProgress,
+                ToolName = chunk.ToolName,
+                ToolCallId = chunk.ToolCallId,
+                ProgressType = chunk.ProgressType,
+                ProgressMessage = chunk.ProgressMessage,
+                AgentId = agentId
+            },
+            _ => null
+        };
     }
 }

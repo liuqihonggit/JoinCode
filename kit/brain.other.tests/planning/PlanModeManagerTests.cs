@@ -530,4 +530,153 @@ public class PlanModeManagerTests {
                 .GetValue(_planModeManager)!.Should().NotBeNull();
         }
     }
+
+    // ===== TASK031 阶段2.1 提取的 internal 子方法确定性测试 =====
+
+    private static SubAgentContext CreateAgentContext(bool planModeRequired) {
+        return new SubAgentContext {
+            AgentId = "agent-test",
+            Role = AgentRole.Executor,
+            Task = "test task",
+            TeammateMeta = new TeammateMeta {
+                AgentName = "test-teammate",
+                TeamName = "test-team",
+                PlanModeRequired = planModeRequired,
+                ParentSessionId = "parent-session"
+            }
+        };
+    }
+
+    [Fact]
+    public void ShouldEnterApprovalFlow_NullAgentContext_ShouldReturnFalse() {
+        var mockMailbox = new Mock<ITeammateMailboxService>();
+        PlanModeManager.ShouldEnterApprovalFlow(null, mockMailbox.Object).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldEnterApprovalFlow_NullMailbox_ShouldReturnFalse() {
+        var agentContext = CreateAgentContext(planModeRequired: true);
+        PlanModeManager.ShouldEnterApprovalFlow(agentContext, null).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldEnterApprovalFlow_NullTeammateMeta_ShouldReturnFalse() {
+        var mockMailbox = new Mock<ITeammateMailboxService>();
+        var agentContext = new SubAgentContext {
+            AgentId = "agent-1",
+            Role = AgentRole.Executor,
+            Task = "test"
+        };
+        PlanModeManager.ShouldEnterApprovalFlow(agentContext, mockMailbox.Object).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldEnterApprovalFlow_PlanModeNotRequired_ShouldReturnFalse() {
+        var mockMailbox = new Mock<ITeammateMailboxService>();
+        var agentContext = CreateAgentContext(planModeRequired: false);
+        PlanModeManager.ShouldEnterApprovalFlow(agentContext, mockMailbox.Object).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldEnterApprovalFlow_AllConditionsMet_ShouldReturnTrue() {
+        var mockMailbox = new Mock<ITeammateMailboxService>();
+        var agentContext = CreateAgentContext(planModeRequired: true);
+        PlanModeManager.ShouldEnterApprovalFlow(agentContext, mockMailbox.Object).Should().BeTrue();
+    }
+
+    [Fact]
+    public void BuildPlanApprovalRequestId_ShouldContainAgentIdAndTimestamp() {
+        var ts = new DateTimeOffset(2026, 9, 30, 14, 30, 0, TimeSpan.Zero);
+        var id = PlanModeManager.BuildPlanApprovalRequestId("agent-42", ts);
+        id.Should().StartWith("plan_approval_agent-42_");
+        id.Should().Contain("20260930143000");
+    }
+
+    [Fact]
+    public void BuildPlanApprovalRequestId_DifferentAgents_ShouldProduceDifferentIds() {
+        var ts = DateTimeOffset.UtcNow;
+        var id1 = PlanModeManager.BuildPlanApprovalRequestId("agent-A", ts);
+        var id2 = PlanModeManager.BuildPlanApprovalRequestId("agent-B", ts);
+        id1.Should().NotBe(id2);
+    }
+
+    [Fact]
+    public void BuildPlanApprovalRequestMessage_ShouldSetAllFields() {
+        var ts = new DateTimeOffset(2026, 9, 30, 14, 30, 0, TimeSpan.Zero);
+        var msg = PlanModeManager.BuildPlanApprovalRequestMessage("agent-1", ts, "/path/plan.md", "plan content", "req-123");
+        msg.From.Should().Be("agent-1");
+        msg.Timestamp.Should().Be(ts.ToString("o"));
+        msg.PlanFilePath.Should().Be("/path/plan.md");
+        msg.PlanContent.Should().Be("plan content");
+        msg.RequestId.Should().Be("req-123");
+    }
+
+    [Fact]
+    public void BuildPlanApprovalRequestMessage_NullPlanFilePath_ShouldUseEmptyString() {
+        var ts = DateTimeOffset.UtcNow;
+        var msg = PlanModeManager.BuildPlanApprovalRequestMessage("agent-1", ts, null, "content", "req-1");
+        msg.PlanFilePath.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BuildApprovalAwaitingResult_ShouldSetAwaitingFlagAndRequestId() {
+        var plan = new PlanState { PlanId = "plan-1" };
+        var result = PlanModeManager.BuildApprovalAwaitingResult(plan, "req-456");
+        result.Success.Should().BeTrue();
+        result.AwaitingLeaderApproval.Should().BeTrue();
+        result.ApprovalRequestId.Should().Be("req-456");
+        result.PlanState.Should().BeSameAs(plan);
+    }
+
+    [Fact]
+    public void BuildApprovalAwaitingResult_ShouldContainAwaitingMessage() {
+        var plan = new PlanState { PlanId = "plan-1" };
+        var result = PlanModeManager.BuildApprovalAwaitingResult(plan, "req-789");
+        result.ErrorMessage.Should().Contain("Awaiting approval");
+    }
+
+    [Fact]
+    public async Task RegisterAllowedPromptsAsync_NullPrompts_ShouldDoNothing() {
+        var mockPerm = new Mock<IToolPermissionManager>();
+        var manager = CreateManagerWithPermission(mockPerm.Object);
+        await manager.RegisterAllowedPromptsAsync(null, CancellationToken.None).ConfigureAwait(true);
+        mockPerm.Verify(p => p.AddAllowedPromptAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RegisterAllowedPromptsAsync_EmptyPrompts_ShouldDoNothing() {
+        var mockPerm = new Mock<IToolPermissionManager>();
+        var manager = CreateManagerWithPermission(mockPerm.Object);
+        await manager.RegisterAllowedPromptsAsync([], CancellationToken.None).ConfigureAwait(true);
+        mockPerm.Verify(p => p.AddAllowedPromptAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RegisterAllowedPromptsAsync_WithPrompts_ShouldCallAddAllowedPromptForEach() {
+        var mockPerm = new Mock<IToolPermissionManager>();
+        mockPerm.Setup(p => p.AddAllowedPromptAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var manager = CreateManagerWithPermission(mockPerm.Object);
+        var prompts = new[] {
+            new AllowedPrompt { Prompt = "run tests" },
+            new AllowedPrompt { Prompt = "install deps" }
+        };
+        await manager.RegisterAllowedPromptsAsync(prompts, CancellationToken.None).ConfigureAwait(true);
+        mockPerm.Verify(p => p.AddAllowedPromptAsync("run tests", It.IsAny<CancellationToken>()), Times.Once);
+        mockPerm.Verify(p => p.AddAllowedPromptAsync("install deps", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RestorePermissionModeAsync_NoPrePlanMode_ShouldDoNothing() {
+        var mockPerm = new Mock<IToolPermissionManager>();
+        var manager = CreateManagerWithPermission(mockPerm.Object);
+        // 无 PrePlanMode 时应直接返回，不调用 SetPermissionModeAsync
+        await manager.RestorePermissionModeAsync(CancellationToken.None).ConfigureAwait(true);
+        mockPerm.Verify(p => p.SetPermissionModeAsync(It.IsAny<PermissionMode>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    private static PlanModeManager CreateManagerWithPermission(IToolPermissionManager permissionManager) {
+        var fs = new PhysicalFileSystem();
+        return new PlanModeManager(fs, JoinCode.Abstractions.Clock.SystemClockService.Instance, permissionManager: permissionManager);
+    }
 }

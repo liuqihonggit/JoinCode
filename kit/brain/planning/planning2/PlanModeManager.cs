@@ -237,19 +237,13 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         // TS 条件: isTeammate() && isPlanModeRequired()
         // 只有 planModeRequired 的 teammate 才走审批，自愿进入 PlanMode 的 teammate 直接本地退出
         var agentContext = _subAgentContextAccessor.Current;
-        var isPlanModeRequired = agentContext?.TeammateMeta?.PlanModeRequired == true;
-        if (agentContext != null && _mailboxService != null && isPlanModeRequired) {
+        if (ShouldEnterApprovalFlow(agentContext, _mailboxService) && agentContext is not null && _mailboxService is not null) {
             var planContent = PlanFileStore.FormatPlanAsMarkdown(plan);
-            var requestId = $"plan_approval_{agentContext.AgentId}_{_clock.GetUtcNow():yyyyMMddHHmmss}";
+            var now = _clock.GetUtcNow();
+            var requestId = BuildPlanApprovalRequestId(agentContext.AgentId, now);
 
             // 构建审批请求消息 — 对齐 TS PlanApprovalRequestMessageSchema
-            var requestMessage = new PlanApprovalRequestMessage {
-                From = agentContext.AgentId,
-                Timestamp = _clock.GetUtcNow().ToString("o"),
-                PlanFilePath = plan.PlanFilePath ?? "",
-                PlanContent = planContent,
-                RequestId = requestId
-            };
+            var requestMessage = BuildPlanApprovalRequestMessage(agentContext.AgentId, now, plan.PlanFilePath, planContent, requestId);
 
             // 注册等待 — 对齐 TS setAwaitingPlanApproval
             var tcs = new TaskCompletionSource<PlanApprovalResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -272,10 +266,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
                 RecordPlanMetrics("exit_approval_requested", true);
 
                 // 对齐 TS: 返回 awaitingLeaderApproval 状态，告知 teammate 等待审批
-                return new PlanOperationResult(true, plan, "Plan approval request sent to team lead. Awaiting approval before proceeding.") {
-                    AwaitingLeaderApproval = true,
-                    ApprovalRequestId = requestId
-                };
+                return BuildApprovalAwaitingResult(plan, requestId);
             } catch {
                 while (true) {
                     var current = _pendingApprovals;
@@ -313,34 +304,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         ClearActivePlanStateFile();
 
         // 对齐 TS: 恢复进入 Plan 模式前的权限模式
-        var sessionState = CurrentSessionState();
-        if (_permissionManager != null && sessionState.PrePlanMode.HasValue) {
-            var restoreMode = sessionState.PrePlanMode.Value;
-
-            // 对齐 TS Auto模式断路器: 如果之前是 Auto 模式，检查是否仍可恢复
-            // TS 版 isAutoModeGateEnabled: 如果断路器触发，回退到 Default 而非 Auto
-            // 检查 auto mode gate 是否仍然开启
-            // 如果用户在 plan 模式期间手动关闭了 auto mode，则回退到 Default
-            if (restoreMode == PermissionMode.Auto && !await IsAutoModeGateEnabledAsync(cancellationToken).ConfigureAwait(false)) {
-                _logger?.LogWarning("计划模式期间 auto mode gate 被禁用，回退到 Auto 模式");
-            }
-
-            await _permissionManager.SetPermissionModeAsync(restoreMode, cancellationToken).ConfigureAwait(false);
-            sessionState.PrePlanMode = null;
-
-            // 对齐 TS: 恢复之前剥离的危险权限规则
-            if (sessionState.StrippedRuleCount > 0) {
-                await _permissionManager.RestoreDangerousRulesAsync(sessionState.StrippedRuleCount, cancellationToken).ConfigureAwait(false);
-                sessionState.StrippedRuleCount = 0;
-            }
-        }
+        await RestorePermissionModeAsync(cancellationToken).ConfigureAwait(false);
 
         // 对齐 TS allowedPrompts: 退出plan后注册语义级Bash权限
         // 允许LLM在退出plan时请求特定Bash命令的自动批准（如"run tests"、"install dependencies"）
-        if (allowedPrompts != null && allowedPrompts.Length > 0 && _permissionManager != null) {
-            await Task.WhenAll(allowedPrompts.Select(ap =>
-                _permissionManager.AddAllowedPromptAsync(ap.Prompt, cancellationToken))).ConfigureAwait(false);
-        }
+        await RegisterAllowedPromptsAsync(allowedPrompts, cancellationToken).ConfigureAwait(false);
 
         // 对齐 TS: 设置全局状态标志
         CurrentSessionState().HasExitedPlanMode = true;
@@ -348,6 +316,99 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         RecordPlanMetrics("exit", true);
         return new PlanOperationResult(true, plan, planFileContent: diskPlanContent);
+    }
+
+    /// <summary>
+    /// 判断是否进入 teammate 审批流程 — 纯函数（TASK031 阶段2.1 提取）
+    /// 条件: agentContext 非 null + mailboxService 非 null + PlanModeRequired
+    /// </summary>
+    /// <param name="agentContext">子 Agent 上下文（null 表示非 teammate）</param>
+    /// <param name="mailboxService">队友邮箱服务</param>
+    /// <returns>是否需要走审批流程</returns>
+    internal static bool ShouldEnterApprovalFlow(SubAgentContext? agentContext, ITeammateMailboxService? mailboxService) {
+        return agentContext is not null && mailboxService is not null && agentContext.TeammateMeta?.PlanModeRequired == true;
+    }
+
+    /// <summary>
+    /// 构建计划审批请求 ID — 纯函数（TASK031 阶段2.1 提取）
+    /// </summary>
+    /// <param name="agentId">Agent 标识</param>
+    /// <param name="timestamp">时间戳</param>
+    /// <returns>审批请求 ID，格式 plan_approval_{agentId}_{yyyyMMddHHmmss}</returns>
+    internal static string BuildPlanApprovalRequestId(string agentId, DateTimeOffset timestamp) {
+        return $"plan_approval_{agentId}_{timestamp:yyyyMMddHHmmss}";
+    }
+
+    /// <summary>
+    /// 构建计划审批请求消息 — 纯函数（TASK031 阶段2.1 提取）
+    /// </summary>
+    /// <param name="agentId">Agent 标识</param>
+    /// <param name="timestamp">时间戳</param>
+    /// <param name="planFilePath">Plan 文件路径（null 转空串）</param>
+    /// <param name="planContent">Plan 内容</param>
+    /// <param name="requestId">请求 ID</param>
+    /// <returns>审批请求消息</returns>
+    internal static PlanApprovalRequestMessage BuildPlanApprovalRequestMessage(string agentId, DateTimeOffset timestamp, string? planFilePath, string planContent, string requestId) {
+        return new PlanApprovalRequestMessage {
+            From = agentId,
+            Timestamp = timestamp.ToString("o"),
+            PlanFilePath = planFilePath ?? "",
+            PlanContent = planContent,
+            RequestId = requestId
+        };
+    }
+
+    /// <summary>
+    /// 构建审批等待结果 — 纯函数（TASK031 阶段2.1 提取）
+    /// </summary>
+    /// <param name="plan">当前计划状态</param>
+    /// <param name="requestId">审批请求 ID</param>
+    /// <returns>标记 AwaitingLeaderApproval 的操作结果</returns>
+    internal static PlanOperationResult BuildApprovalAwaitingResult(PlanState plan, string requestId) {
+        return new PlanOperationResult(true, plan, "Plan approval request sent to team lead. Awaiting approval before proceeding.") {
+            AwaitingLeaderApproval = true,
+            ApprovalRequestId = requestId
+        };
+    }
+
+    /// <summary>
+    /// 恢复进入 Plan 模式前的权限模式 — TASK031 阶段2.1 提取
+    /// 含 Auto 模式断路器检查与危险权限规则恢复
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    internal async Task RestorePermissionModeAsync(CancellationToken cancellationToken) {
+        var sessionState = CurrentSessionState();
+        if (_permissionManager is null || !sessionState.PrePlanMode.HasValue) return;
+
+        var restoreMode = sessionState.PrePlanMode.Value;
+
+        // 对齐 TS Auto模式断路器: 如果之前是 Auto 模式，检查是否仍可恢复
+        // TS 版 isAutoModeGateEnabled: 如果断路器触发，回退到 Default 而非 Auto
+        // 检查 auto mode gate 是否仍然开启
+        // 如果用户在 plan 模式期间手动关闭了 auto mode，则回退到 Default
+        if (restoreMode == PermissionMode.Auto && !await IsAutoModeGateEnabledAsync(cancellationToken).ConfigureAwait(false)) {
+            _logger?.LogWarning("计划模式期间 auto mode gate 被禁用，回退到 Auto 模式");
+        }
+
+        await _permissionManager.SetPermissionModeAsync(restoreMode, cancellationToken).ConfigureAwait(false);
+        sessionState.PrePlanMode = null;
+
+        // 对齐 TS: 恢复之前剥离的危险权限规则
+        if (sessionState.StrippedRuleCount > 0) {
+            await _permissionManager.RestoreDangerousRulesAsync(sessionState.StrippedRuleCount, cancellationToken).ConfigureAwait(false);
+            sessionState.StrippedRuleCount = 0;
+        }
+    }
+
+    /// <summary>
+    /// 注册 allowedPrompts 语义级 Bash 权限 — TASK031 阶段2.1 提取
+    /// </summary>
+    /// <param name="allowedPrompts">允许的提示列表（null 或空则跳过）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    internal async Task RegisterAllowedPromptsAsync(AllowedPrompt[]? allowedPrompts, CancellationToken cancellationToken) {
+        if (allowedPrompts is null || allowedPrompts.Length == 0 || _permissionManager is null) return;
+        await Task.WhenAll(allowedPrompts.Select(ap =>
+            _permissionManager.AddAllowedPromptAsync(ap.Prompt, cancellationToken))).ConfigureAwait(false);
     }
 
     /// <summary>

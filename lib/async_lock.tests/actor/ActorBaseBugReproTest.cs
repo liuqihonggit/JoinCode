@@ -68,7 +68,7 @@ public class ActorBaseBugReproTest {
                 .ToArray();
             await Task.WhenAll(tellTasks);
 
-            await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 200, TimeSpan.FromMilliseconds(3000));
+            await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 200, TimeSpan.FromMilliseconds(3000));
 
             samplingCts.Cancel();
             await samplingTask;
@@ -124,20 +124,9 @@ public class ActorBaseBugReproTest {
         await Task.Delay(100);
         actor.Gate.SetResult();
 
-        await WaitUntilAsync(() => actor.Processed.Count >= 4, TimeSpan.FromMilliseconds(3000));
+        await TestWaitHelper.WaitUntilAsync(() => actor.Processed.Count >= 4, TimeSpan.FromMilliseconds(3000));
 
         bpSignals.Should().BeEmpty("消息已入队正在消费,背压应发给生产者而非消费中的消息(Bug2:反向背压)");
-    }
-
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
-        for (var i = 0; i < 16; i++) {
-            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
-            while (DateTimeOffset.UtcNow < deadline) {
-                if (condition()) return;
-                await Task.Delay(10);
-            }
-        }
-        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 }
 

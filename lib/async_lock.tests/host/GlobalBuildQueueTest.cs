@@ -76,13 +76,13 @@ public class GlobalBuildQueueTest {
         var request = CreateRequest("long-build");
         var buildTask = queue.EnqueueAsync(request, CancellationToken.None);
 
-        await WaitUntilAsync(() => queue.CurrentBuild is not null, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => queue.CurrentBuild is not null, TimeSpan.FromMilliseconds(500));
         queue.CurrentBuild!.RequestId.Should().Be("long-build");
 
         tcs.SetResult();
         await buildTask;
 
-        await WaitUntilAsync(() => queue.CurrentBuild is null, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => queue.CurrentBuild is null, TimeSpan.FromMilliseconds(500));
         queue.CurrentBuild.Should().BeNull();
     }
 
@@ -126,7 +126,7 @@ public class GlobalBuildQueueTest {
 
         await queue.EnqueueAsync(CreateRequest("build-1"));
 
-        await WaitUntilAsync(() => events.Count >= 2, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => events.Count >= 2, TimeSpan.FromMilliseconds(500));
 
         cts.Cancel();
         await Task.WhenAny(consumeTask, Task.Delay(1000));
@@ -142,15 +142,4 @@ public class GlobalBuildQueueTest {
         Arguments = Array.Empty<string>(),
         RequestingProcessId = Environment.ProcessId.ToString()
     };
-
-    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan perRetryTimeout) {
-        for (var i = 0; i < 16; i++) {
-            var deadline = DateTime.UtcNow + perRetryTimeout;
-            while (DateTime.UtcNow < deadline) {
-                if (predicate()) return;
-                await Task.Delay(50);
-            }
-        }
-        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
-    }
 }

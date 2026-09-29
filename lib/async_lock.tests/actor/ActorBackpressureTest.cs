@@ -111,7 +111,7 @@ public class ActorBackpressureTest {
             actor.Tell($"msg-{i}");
         }
 
-        await WaitUntilAsync(() => events.Any(e => e.Level == WatermarkLevel.Critical), TimeSpan.FromMilliseconds(2000));
+        await TestWaitHelper.WaitUntilAsync(() => events.Any(e => e.Level == WatermarkLevel.Critical), TimeSpan.FromMilliseconds(2000));
 
         gate.SetResult();
     }
@@ -157,17 +157,6 @@ public class ActorBackpressureTest {
         await using var actor = new BackpressureTestActor();
         actor.IsInputHighWatermark.Should().BeFalse();
         actor.IsInputCriticalWatermark.Should().BeFalse();
-    }
-
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
-        for (var i = 0; i < 16; i++) {
-            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
-            while (DateTimeOffset.UtcNow < deadline) {
-                if (condition()) return;
-                await Task.Delay(10);
-            }
-        }
-        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 }
 

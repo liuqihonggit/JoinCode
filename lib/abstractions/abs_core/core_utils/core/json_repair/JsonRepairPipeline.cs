@@ -228,23 +228,40 @@ internal static class JsonRepairPipeline {
     /// <para>跳过数字、true/false/null、嵌套对象{}和数组[]、已加引号的字符串</para>
     /// <para>字符级遍历，正确跳过字符串内的冒号，不会误处理字符串内的 :value, 模式</para>
     /// </summary>
+    /// <summary>
+    /// 将 json[start..end] 加双引号后追加到 sb,裸反斜杠转义为 \\ (JSON 合法)
+    /// <para>纯计算:给定 (sb, s, start, end) → 加引号 + 转义,无副作用除 sb 追加</para>
+    /// </summary>
+    internal static void AppendQuotedValue(StringBuilder sb, string s, int start, int end) {
+        sb.Append('"');
+        var span = s.AsSpan(start, end - start);
+        for (var k = 0; k < span.Length; k++) {
+            if (span[k] == '\\')
+                sb.Append("\\\\");
+            else
+                sb.Append(span[k]);
+        }
+        sb.Append('"');
+    }
+
+    /// <summary>
+    /// 判断冒号后 value 起点字符是否需要加引号。
+    /// <para>返回 false: 已是引号字符串/结构体/数字/true|false|null 字面量(无需加引号)</para>
+    /// <para>返回 true: 裸词,需要加引号</para>
+    /// <para>纯计算:给定 (c, json, i) → bool</para>
+    /// </summary>
+    internal static bool ShouldQuoteValueStart(char c, string json, int i) {
+        if (c == '"' || c == '\'' || c == '{' || c == '[') return false;
+        if (char.IsDigit(c) || c == '-' || c == '+') return false;
+        if (IsLiteralAt(json, i, "true") || IsLiteralAt(json, i, "false") || IsLiteralAt(json, i, "null"))
+            return false;
+        return true;
+    }
+
     internal static string FixUnquotedValues(string json, List<string> hints) {
         var changed = false;
         var result = new StringBuilder(json.Length);
         var i = 0;
-
-        // 将 json[start..end] 加双引号后追加到 result,裸反斜杠转义为 \\ (JSON 合法)
-        static void AppendQuotedValue(StringBuilder sb, string s, int start, int end) {
-            sb.Append('"');
-            var span = s.AsSpan(start, end - start);
-            for (var k = 0; k < span.Length; k++) {
-                if (span[k] == '\\')
-                    sb.Append("\\\\");
-                else
-                    sb.Append(span[k]);
-            }
-            sb.Append('"');
-        }
 
         while (i < json.Length) {
             if (json[i] == '"') {
@@ -281,10 +298,7 @@ internal static class JsonRepairPipeline {
             if (i >= json.Length) continue;
 
             var c = json[i];
-            if (c == '"' || c == '\'' || c == '{' || c == '[') continue;
-            if (char.IsDigit(c) || c == '-' || c == '+') continue;
-            if (IsLiteralAt(json, i, "true") || IsLiteralAt(json, i, "false") || IsLiteralAt(json, i, "null"))
-                continue;
+            if (!ShouldQuoteValueStart(c, json, i)) continue;
 
             var valueStart = i;
             // 保守收集: 到空格/逗号/}/] 停(值不含空格的快速路径)

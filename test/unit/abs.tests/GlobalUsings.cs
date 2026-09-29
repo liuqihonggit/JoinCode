@@ -1,4 +1,5 @@
 global using FluentAssertions;
+global using System.Text;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.Providers;

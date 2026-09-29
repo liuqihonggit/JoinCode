@@ -8,7 +8,7 @@
              x:DataType="vm:MainViewModel">
   <Border Padding="12,7" Background="{DynamicResource GuiTopBarBackground}"
           BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1" ClipToBounds="True">
-    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
       <!-- 左组：主题 / 会话操作（ghost 统一视觉） -->
       <!-- 主题切换：图标随主题切换（暗色显月亮/亮色显太阳），点击切换。
            Segoe UI Symbol 提供 ☾☀ 完整字形（默认字体缺字形会把 ☾ 渲染成 "C"） -->
@@ -54,8 +54,16 @@
                     Command="{Binding ToggleMockCommand}"
                     IsChecked="{Binding IsMockConnection, Mode=OneWay}"
                     ToolTip.Tip="切换 Mock 演示引擎（本地验证用）" />
+      <ToggleButton Grid.Column="8" Classes="ghost" Padding="9,5" FontSize="12"
+                    IsChecked="{Binding IsUnattendedMode, Mode=TwoWay}"
+                    ToolTip.Tip="无人值守模式（自动确认，不弹对话框）">
+        <Panel>
+          <TextBlock Text="🤖" IsVisible="{Binding IsUnattendedMode}" />
+          <TextBlock Text="👤" IsVisible="{Binding !IsUnattendedMode}" />
+        </Panel>
+      </ToggleButton>
       <!-- 🎯 goal 进行中按钮 — goal 运行时显示，点击弹出控制面板（停止时引擎层自动注入 a→b→c 提示词） -->
-      <Panel Grid.Column="8" VerticalAlignment="Center" IsVisible="{Binding IsGoalRunning}">
+      <Panel Grid.Column="9" VerticalAlignment="Center" IsVisible="{Binding IsGoalRunning}">
         <Button x:Name="GoalButton" Classes="ghost" Padding="9,5" FontSize="13"
                 ToolTip.Tip="goal 控制面板"
                 Command="{Binding ToggleGoalPanelCommand}">
@@ -84,7 +92,7 @@
         </Popup>
       </Panel>
       <!-- AI 工具拦截器：点击弹出 Popup 面板，7 个 toggle 开关动态黑名单 AI 调用的工具 -->
-      <Panel Grid.Column="9" VerticalAlignment="Center">
+      <Panel Grid.Column="10" VerticalAlignment="Center">
         <Button x:Name="InterceptorButton" Classes="ghost" Padding="9,5" FontSize="13"
                 Content="🛡" ToolTip.Tip="AI 工具拦截器"
                 Command="{Binding ToggleInterceptorPanelCommand}" />
@@ -121,7 +129,7 @@
           </Border>
         </Popup>
       </Panel>
-      <Button Grid.Column="10" Classes="ghost" Padding="9,5" Content="⚙" FontSize="13"
+      <Button Grid.Column="11" Classes="ghost" Padding="9,5" Content="⚙" FontSize="13"
               ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
     </Grid>
   </Border>

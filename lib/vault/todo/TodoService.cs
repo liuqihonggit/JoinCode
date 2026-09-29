@@ -290,6 +290,8 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         TodoItem? existingTodo,
         DateTime createdAt,
         DateTime updatedAt) {
+        var effectiveCreatedAt = existingTodo?.CreatedAt ?? createdAt;
+        var effectiveUpdatedAt = updatedAt < effectiveCreatedAt ? effectiveCreatedAt : updatedAt;
         return new TodoItem(
             todoId,
             input.Content,
@@ -297,8 +299,8 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
             todoPriority,
             input.ParentId,
             input.ActiveForm,
-            existingTodo?.CreatedAt ?? createdAt,
-            updatedAt,
+            effectiveCreatedAt,
+            effectiveUpdatedAt,
             input.DependsOn,
             input.OwnedFiles);
     }

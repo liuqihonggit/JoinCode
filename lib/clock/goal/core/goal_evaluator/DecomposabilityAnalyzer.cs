@@ -99,6 +99,8 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
     }
 
     internal static string BuildAnalyzerPrompt(string objective, IReadOnlyList<string> constraints) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(objective);
+        ArgumentNullException.ThrowIfNull(constraints);
         var constraintsText = BuildAnalyzerConstraintsText(constraints);
 
         return $$$"""
@@ -182,8 +184,11 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
     /// </summary>
     /// <param name="constraints">约束条件列表</param>
     /// <returns>格式化后的约束文本(空列表返回"无特殊约束")</returns>
-    internal static string BuildAnalyzerConstraintsText(IReadOnlyList<string> constraints) =>
-        constraints.Count > 0
+    /// <exception cref="ArgumentNullException">constraints 为 null</exception>
+    internal static string BuildAnalyzerConstraintsText(IReadOnlyList<string> constraints) {
+        ArgumentNullException.ThrowIfNull(constraints);
+        return constraints.Count > 0
             ? string.Join("\n", constraints.Select(c => $"- {c}"))
             : "无特殊约束";
+    }
 }

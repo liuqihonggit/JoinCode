@@ -96,4 +96,44 @@ public sealed class PluginManagerTestHooksTest {
         // 连续区间应压缩为 RangeCount=1
         ranges.RangeCount.Should().Be(1);
     }
+
+    // ===== null 参数守卫 =====
+
+    [Fact]
+    public void RecordPluginResourceIds_NullPluginName_ThrowsArgumentNullException() {
+        var manager = CreateManager();
+
+        Action act = () => manager.RecordPluginResourceIds(null!, []);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("pluginName");
+    }
+
+    [Fact]
+    public void RecordPluginResourceIds_EmptyPluginName_ThrowsArgumentException() {
+        var manager = CreateManager();
+
+        Action act = () => manager.RecordPluginResourceIds("", []);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void RecordPluginResourceIds_WhiteSpacePluginName_ThrowsArgumentException() {
+        var manager = CreateManager();
+
+        Action act = () => manager.RecordPluginResourceIds("   ", []);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void RecordPluginResourceIds_NullResourceIds_ThrowsArgumentNullException() {
+        var manager = CreateManager();
+
+        Action act = () => manager.RecordPluginResourceIds("p", null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("resourceIds");
+    }
 }

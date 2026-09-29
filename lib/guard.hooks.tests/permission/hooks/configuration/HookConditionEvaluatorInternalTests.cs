@@ -116,6 +116,57 @@ public class HookConditionEvaluatorInternalTests {
 
     #endregion
 
+    #region MatchesPattern — ReDoS 防护
+
+    /// <summary>
+    /// ReDoS 恶意正则 (a+)+$ 配合长输入应受 matchTimeout 保护,不会指数级回溯卡死。
+    /// <para>无超时保护时此用例会指数级回溯(2^n),有 RegexMatchTimeoutMs 超时后快速返回 false。</para>
+    /// </summary>
+    [Fact]
+    public void MatchesPattern_ReDoS_MaliciousRegex_Should_NotHang() {
+        // 经典 ReDoS 正则:(a+)+$ 对 "aaa...b" 产生指数级回溯
+        var maliciousPattern = "^(a+)+$";
+        var evilInput = new string('a', 30) + "b";  // 30 个 a + b,无超时则会 2^30 次回溯
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var result = _evaluator.MatchesPattern(evilInput, maliciousPattern);
+        sw.Stop();
+
+        // 应快速返回(超时保护 RegexMatchTimeoutMs=500ms + 容差)
+        sw.ElapsedMilliseconds.Should().BeLessThan(2000,
+            "ReDoS 正则应受 matchTimeout 保护,不应指数级回溯卡死");
+        // 超时后被 catch 返回 false
+        result.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// ReDoS 嵌套量词 (a|a)*b 配合长输入应受 matchTimeout 保护。
+    /// </summary>
+    [Fact]
+    public void MatchesPattern_ReDoS_NestedQuantifier_Should_NotHang() {
+        var maliciousPattern = "^(a|a)*b$";
+        var evilInput = new string('a', 25) + "c";  // 不匹配,触发最坏回溯
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var result = _evaluator.MatchesPattern(evilInput, maliciousPattern);
+        sw.Stop();
+
+        sw.ElapsedMilliseconds.Should().BeLessThan(2000,
+            "嵌套量词 ReDoS 应受 matchTimeout 保护");
+        result.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// 合法正则仍应正常工作,不受超时影响。
+    /// </summary>
+    [Fact]
+    public void MatchesPattern_LegacyRegex_StillWorks() {
+        _evaluator.MatchesPattern("git status", "^git\\s+\\w+$").Should().BeTrue();
+        _evaluator.MatchesPattern("npm install", "^git\\s+\\w+$").Should().BeFalse();
+    }
+
+    #endregion
+
     #region EvaluateCondition
 
     [Fact]

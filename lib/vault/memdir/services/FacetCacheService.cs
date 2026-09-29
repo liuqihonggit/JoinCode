@@ -77,12 +77,11 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
     /// 校验 Facet 必要字段 — 对齐 TS isValidSessionFacets
     /// </summary>
     internal static bool IsValidFacets(SessionFacets facets) {
-        return !string.IsNullOrEmpty(facets.UnderlyingGoal)
-            && !string.IsNullOrEmpty(facets.Outcome)
-            && !string.IsNullOrEmpty(facets.BriefSummary)
+        return !string.IsNullOrWhiteSpace(facets.UnderlyingGoal)
+            && !string.IsNullOrWhiteSpace(facets.Outcome)
+            && !string.IsNullOrWhiteSpace(facets.BriefSummary)
             && facets.GoalCategories.Count > 0
-            && facets.UserSatisfactionCounts.Count > 0
-            && facets.FrictionCounts.Count >= 0; // friction 可以为空
+            && facets.UserSatisfactionCounts.Count > 0;
     }
 
     internal string GetFacetFilePath(string sessionId) {

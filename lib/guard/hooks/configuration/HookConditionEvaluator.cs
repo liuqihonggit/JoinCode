@@ -36,10 +36,19 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
 
     private static ImmutableHamT<string, Regex> ConditionPatternCache = ImmutableHamT<string, Regex>.Empty;
 
-    /// <summary>无锁 CAS 获取或添加缓存的 Regex</summary>
+    /// <summary>
+    /// 正则匹配超时（毫秒）— ReDoS 防护:超过此时间则视为恶意正则,抛 RegexMatchTimeoutException 被 MatchesPattern catch 后返回 false
+    /// </summary>
+    internal const int RegexMatchTimeoutMs = 500;
+
+    /// <summary>无锁 CAS 获取或添加缓存的 Regex — 带 matchTimeout 防 ReDoS 指数级回溯</summary>
     private static Regex GetOrAddRegex(ref ImmutableHamT<string, Regex> cache, string pattern) {
         if (cache.TryGetValue(pattern, out var existing)) return existing;
-        var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        // matchTimeout: 超过 RegexMatchTimeoutMs 则抛 RegexMatchTimeoutException,被 MatchesPattern catch 后返回 false
+        var regex = new Regex(
+            pattern,
+            RegexOptions.IgnoreCase | RegexOptions.Compiled,
+            matchTimeout: TimeSpan.FromMilliseconds(RegexMatchTimeoutMs));
         while (true) {
             var current = cache;
             if (current.TryGetValue(pattern, out existing)) return existing;

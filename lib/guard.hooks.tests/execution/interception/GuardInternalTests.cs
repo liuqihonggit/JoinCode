@@ -227,6 +227,16 @@ public class GuardInternalTests {
         HeredocGuard.EscapeForDoubleQuotedString("").Should().BeEmpty();
     }
 
+    [Fact]
+    public void EscapeForDoubleQuotedString_DollarSign_Should_Be_Escaped() {
+        HeredocGuard.EscapeForDoubleQuotedString("$var").Should().Be("\\$var");
+    }
+
+    [Fact]
+    public void EscapeForDoubleQuotedString_DollarInContent_Should_Be_Escaped() {
+        HeredocGuard.EscapeForDoubleQuotedString("echo $HOME").Should().Be("echo \\$HOME");
+    }
+
     #endregion
 
     #region GhPrBodyGuard.HasBodyParameter

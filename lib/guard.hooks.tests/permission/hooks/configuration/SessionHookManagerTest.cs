@@ -298,4 +298,70 @@ public sealed class SessionHookManagerTest {
         (await manager.GetSessionHooksAsync("s1")).Should().BeEmpty();
         (await manager.GetSessionHooksAsync("s2")).Should().BeEmpty();
     }
+
+    #region null 守卫 — ArgumentNullException.ThrowIfNull
+
+    [Fact]
+    public async Task AddSessionHookAsync_NullSessionId_应抛ArgumentNullException() {
+        await using var manager = new SessionHookManager();
+        var act = () => manager.AddSessionHookAsync(null!, HookEvent.PreToolUse, null, CreateHook());
+        await act.Should().ThrowAsync<ArgumentNullException>()
+            .WithParameterName("sessionId");
+    }
+
+    [Fact]
+    public async Task AddSessionHookAsync_NullHook_应抛ArgumentNullException() {
+        await using var manager = new SessionHookManager();
+        var act = () => manager.AddSessionHookAsync("s1", HookEvent.PreToolUse, null, null!);
+        await act.Should().ThrowAsync<ArgumentNullException>()
+            .WithParameterName("hook");
+    }
+
+    [Fact]
+    public async Task AddFunctionHookAsync_NullSessionId_应抛ArgumentNullException() {
+        await using var manager = new SessionHookManager();
+        Func<HookInput, CancellationToken, Task<HookResult>> callback = (_, _) => Task.FromResult(new HookResult { Outcome = HookOutcome.Success });
+        var act = () => manager.AddFunctionHookAsync(null!, HookEvent.PreToolUse, null, callback);
+        await act.Should().ThrowAsync<ArgumentNullException>()
+            .WithParameterName("sessionId");
+    }
+
+    [Fact]
+    public async Task AddFunctionHookAsync_NullCallback_应抛ArgumentNullException() {
+        await using var manager = new SessionHookManager();
+        var act = () => manager.AddFunctionHookAsync("s1", HookEvent.PreToolUse, null, null!);
+        await act.Should().ThrowAsync<ArgumentNullException>()
+            .WithParameterName("callback");
+    }
+
+    #endregion
+
+    #region 默认超时常量
+
+    [Fact]
+    public async Task AddFunctionHookAsync_未指定timeout_应使用默认5秒() {
+        await using var manager = new SessionHookManager();
+        Func<HookInput, CancellationToken, Task<HookResult>> callback = (_, _) => Task.FromResult(new HookResult { Outcome = HookOutcome.Success });
+
+        await manager.AddFunctionHookAsync("s1", HookEvent.PreToolUse, null, callback);
+
+        var hooks = await manager.GetSessionFunctionHooksAsync("s1", HookEvent.PreToolUse);
+        hooks.Should().HaveCount(1);
+        hooks[0].Timeout.Should().Be(SessionHookManager.DefaultFunctionHookTimeoutSeconds);
+        SessionHookManager.DefaultFunctionHookTimeoutSeconds.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task AddFunctionHookAsync_指定timeout_应使用指定值() {
+        await using var manager = new SessionHookManager();
+        Func<HookInput, CancellationToken, Task<HookResult>> callback = (_, _) => Task.FromResult(new HookResult { Outcome = HookOutcome.Success });
+
+        await manager.AddFunctionHookAsync("s1", HookEvent.PreToolUse, null, callback, timeout: 30);
+
+        var hooks = await manager.GetSessionFunctionHooksAsync("s1", HookEvent.PreToolUse);
+        hooks.Should().HaveCount(1);
+        hooks[0].Timeout.Should().Be(30);
+    }
+
+    #endregion
 }

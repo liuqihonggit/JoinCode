@@ -204,6 +204,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <para>同步状态查询,可确定性测试(不依赖 IO/异步)</para>
     /// </summary>
     internal void CheckNotDuplicateLoad(string pluginName) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
         if (_plugins.ContainsKey(pluginName)) {
             RecordPluginMetrics("workflow", "load", false);
             throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
@@ -216,6 +217,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <para>同步状态查询,可确定性测试:配合 <see cref="AddToBlacklistForTest"/> 验证</para>
     /// </summary>
     internal void CheckNotBlacklisted(string pluginName) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
         if (Volatile.Read(ref _blacklistedPlugins).Contains(pluginName)) {
             RecordPluginMetrics("workflow", "load", false);
             throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
@@ -635,6 +637,9 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <returns>(插件名, 插件类型) 元组序列,顺序为 external → native → workflow</returns>
     internal static IEnumerable<(string Name, PluginKind Kind)> OrderUnloadSequence(
         IEnumerable<string> external, IEnumerable<string> native, IEnumerable<string> workflowReversed) {
+        ArgumentNullException.ThrowIfNull(external);
+        ArgumentNullException.ThrowIfNull(native);
+        ArgumentNullException.ThrowIfNull(workflowReversed);
         foreach (var name in external) yield return (name, PluginKind.External);
         foreach (var name in native) yield return (name, PluginKind.Native);
         foreach (var name in workflowReversed) yield return (name, PluginKind.Workflow);
@@ -758,6 +763,8 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
     /// <summary>记录插件资源 ObjectId — 加载时调用,按 ObjectType 分组 + LongRangeSet 区间压缩,用于卸载后扫描验证</summary>
     internal void RecordPluginResourceIds(string pluginName, IEnumerable<ObjectId> resourceIds) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
+        ArgumentNullException.ThrowIfNull(resourceIds);
         var byType = resourceIds
             .GroupBy(id => id.Type)
             .ToImmutableHamT(g => g.Key, g => g.Aggregate(LongRangeSet.Empty, (set, id) => set.Add(id.SequenceId)));

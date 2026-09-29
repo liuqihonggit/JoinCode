@@ -410,4 +410,34 @@ public sealed class DecomposabilityAnalyzerTests {
 
         Assert.Equal("- A\n- B", text);
     }
+
+    [Fact]
+    public void BuildAnalyzerConstraintsText_Null_Should_Throw_ArgumentNullException() {
+        Assert.Throws<ArgumentNullException>(() =>
+            DecomposabilityAnalyzer.BuildAnalyzerConstraintsText(null!));
+    }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_NullObjective_Should_Throw_ArgumentNullException() {
+        Assert.Throws<ArgumentNullException>(() =>
+            DecomposabilityAnalyzer.BuildAnalyzerPrompt(null!, []));
+    }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_EmptyObjective_Should_Throw_ArgumentException() {
+        Assert.Throws<ArgumentException>(() =>
+            DecomposabilityAnalyzer.BuildAnalyzerPrompt("", []));
+    }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_WhiteSpaceObjective_Should_Throw_ArgumentException() {
+        Assert.Throws<ArgumentException>(() =>
+            DecomposabilityAnalyzer.BuildAnalyzerPrompt("   ", []));
+    }
+
+    [Fact]
+    public void BuildAnalyzerPrompt_NullConstraints_Should_Throw_ArgumentNullException() {
+        Assert.Throws<ArgumentNullException>(() =>
+            DecomposabilityAnalyzer.BuildAnalyzerPrompt("目标", null!));
+    }
 }

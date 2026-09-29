@@ -25,7 +25,8 @@ public sealed class RoundRobinStrategy<TMessage> : IRouterStrategy<TMessage> {
     /// <returns>Worker 索引(0 到 workerCount-1)。</returns>
     public int Select(int workerCount, TMessage message) {
         if (workerCount <= 0) return 0;
-        return Interlocked.Increment(ref _index) % workerCount;
+        // 用 uint 取模防止 _index 溢出 int.MaxValue 后变负,% 返回负索引
+        return (int)(((uint)Interlocked.Increment(ref _index)) % (uint)workerCount);
     }
 }
 

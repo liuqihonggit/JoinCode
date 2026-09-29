@@ -57,10 +57,13 @@ public static class ContinuationPromptBuilder {
     /// </summary>
     /// <param name="constraints">约束条件列表</param>
     /// <returns>格式化后的约束文本</returns>
-    internal static string BuildConstraintsText(IReadOnlyList<string> constraints) =>
-        constraints.Count > 0
+    /// <exception cref="ArgumentNullException">constraints 为 null</exception>
+    internal static string BuildConstraintsText(IReadOnlyList<string> constraints) {
+        ArgumentNullException.ThrowIfNull(constraints);
+        return constraints.Count > 0
             ? string.Join("\n", constraints.Select(c => $"- {c}"))
             : "无";
+    }
 
     /// <summary>
     /// 构造预算行文本 — 纯函数,无副作用,确定性输出。

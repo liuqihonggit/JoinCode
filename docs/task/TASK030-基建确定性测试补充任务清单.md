@@ -167,45 +167,45 @@
 - [x] 统一 `SelectPrimaryRisk`(CommandDangerClassifier与DangerousCommandProtectionMiddleware重复,优先级数组不一致) — 阶段2.3确认(不重复,委托模式,唯一数据源DangerousCommandCatalog)
 
 #### 2.4 transport.impl — 重试状态机拆分
-- [ ] `BridgeOAuthRetry.ExecuteWithOAuthRetryAsync`(69行)拆纯计算分支为 internal
-- [ ] `V1ReplBridgeTransport.HandleConnectionError`(63行)拆休眠检测+预算计算为 internal
-- [ ] `V2ReplBridgeTransport.RunSseReadLoopAsync` 拆重连逻辑
-- [ ] `SerialBatchEventUploader.DrainAsync`(48行)拆批次排空+失败重试
-- [ ] `HttpRequestSerializer.SerializeAsync`(46行)拆序列化步骤
+- [x] `BridgeOAuthRetry.ExecuteWithOAuthRetryAsync` 拆 `IsAccessTokenValid`/`ShouldRetryAfterRefresh` internal static + 9测试 — 阶段2.4完成
+- [x] `V1ReplBridgeTransport.HandleConnectionError` 拆 `IsPermanentCloseCode`/`ShouldRetryOn4003`/`ShouldResetReconnectBudget`/`IsReconnectBudgetExhausted`/`ComputeReconnectBaseDelay`/`IsStreamEvent` internal static + 22测试 — 阶段2.4完成
+- [x] `V2ReplBridgeTransport.RunSseReadLoopAsync` 拆 `IsSsePermanentRejection`/`TryParseSequenceNumber` internal static + 15测试 — 阶段2.4完成
+- [x] `SerialBatchEventUploader.DrainAsync` 拆 `TakeBatch`/`ComputeBatchTakeCount`/`ComputeRetryDelay`/`ShouldDropBatch`/`ExtractRetryAfterMs` internal + 24测试 — 阶段2.4完成
+- [x] `HttpRequestSerializer.SerializeAsync` 拆 `BuildRequestLine`/`AppendHeaderLine`/`AppendHeaders`/`ParseStatusLine`/`ParseHeaderLine`/`IsContentHeader` internal static + 24测试 — 阶段2.4完成
 
 #### 2.5 abstractions — JsonRepairPipeline 拆状态机
 - [x] `JsonRepairPipeline.StripOuterQuotes`(**实际14行非377行,已internal static+8测试,无需拆分**) — 阶段2.5确认
 - [x] `AhoCorasick.Build`(**在lib/infrastructure/非abstractions,跳过留给阶段2.9**) — 阶段2.5确认
 - [x] `JsonRepairPipeline.FixUnquotedValues`(100行)拆出 `AppendQuotedValue`+`ShouldQuoteValueStart` 两个 internal static + 28确定性测试 — 阶段2.5完成
 - [x] `JsonRepairPipeline.FixUnquotedKeys`(56行逻辑线性,拆分收益小,保留) — 阶段2.5评估
-- [ ] `FileEditor.EditFileAsync`(127行)拆编辑策略选择/上下文匹配/替换应用 internal
-- [ ] `PhysicalProcessService.ExecuteAsync`(65行)拆stdout/stderr读取/编码探测/退出码处理
-- [ ] `GitHubApiClient.ReadLogStreamLinesAsync`(69行)拆流式行分割
+- [x] `FileEditor.EditFileAsync`(127行)拆编辑策略选择/上下文匹配/替换应用 internal — 阶段2.9完成
+- [x] `PhysicalProcessService.ExecuteAsync`(65行)拆stdout/stderr读取/编码探测/退出码处理 — 阶段2.9完成
+- [x] `GitHubApiClient.ReadLogStreamLinesAsync`(69行)拆流式行分割 — 阶段2.9完成
 
 #### 2.6 plugins.infrastructure — PluginManager 拆分
-- [ ] `PluginManager.LoadWorkflowPluginCoreAsync`(95行)拆7职责为 internal 子方法
-- [ ] `PluginManager.UnloadPluginCoreAsync`(59行)拆 `InternalUnloadExternal`/`InternalUnloadNative`/`InternalUnloadWorkflow`
-- [ ] `PluginManager.UnloadAllPluginsCoreAsync` 拆 `OrderUnloadSequence` internal static
-- [ ] `PluginManager.ScanAfterUnload` 拆 `ComputeLeakReport` internal
-- [ ] `PluginHotReloader.HandleAsyncImpl`(48行)拆 HandleStartWatching/HandleStopWatching/HandleReload
-- [ ] `PluginCommandRegistry.RegisterCommandAsync` 拆 `ExpandAliases` internal static
-- [ ] `PluginLifecycleTracker.ExecuteUndoChain` 拆 `ExecuteUndoChainPure` internal static
+- [x] `PluginManager.LoadWorkflowPluginCoreAsync` 拆7职责为 internal 子方法 — 阶段2.6完成(CheckNotDuplicateLoad/CheckNotBlacklisted/TransitionFiberTo/DeclarePluginDependencies/RegisterLoadedWorkflowPlugin全internal)
+- [x] `PluginManager.UnloadPluginCoreAsync` 拆 `InternalUnloadExternal`/`InternalUnloadNative`/`InternalUnloadWorkflow` — 阶段2.6完成(全internal async)
+- [x] `PluginManager.UnloadAllPluginsCoreAsync` 拆 `OrderUnloadSequence` internal static — 阶段2.6完成
+- [x] `PluginManager.ScanAfterUnload` 拆 `ComputeLeakReport` internal — 阶段2.6评估(核心是副作用:原子更新+日志+诊断,ScanPluginResources依赖全局ObjectIdManager,纯计算部分极少,通过UnloadPluginCoreAsync间接覆盖,不拆)
+- [x] `PluginHotReloader.HandleAsyncImpl` 拆 HandleStartWatching/HandleStopWatching/HandleReload — 阶段2.6完成(全internal ValueTask)
+- [x] `PluginCommandRegistry.RegisterCommandAsync` 拆 `ExpandAliases` internal static — 阶段2.6完成(8测试)
+- [x] `PluginLifecycleTracker.ExecuteUndoChain` 拆 `ExecuteUndoChainPure` internal static — 阶段2.6完成(类已internal sealed,13测试覆盖逆序执行+异常隔离)
 
 #### 2.7 vault — SessionScanner 拆分
-- [ ] `SessionScanner.ExtractSessionMetaAsync`(129行)拆6个 internal static:统计用户消息/统计助手消息/统计工具/提取语言文件/检测中断/构建结果
-- [ ] `TodoService.WriteTodosAsync`(88行)拆
-- [ ] `MemorySearchHistory.BuildSearchingPastContextSectionAsync`(79行)拆
-- [ ] `MemoryManagementService.ScanMemoriesCoreAsync`(75行)拆
-- [ ] `CompleteStepToolHandlers.CompleteStepAsync`(68行)拆
-- [ ] `MemoryTruncator.SmartTruncate`(65行)拆
-- [ ] `AppStateConverter.ToDocument`/`FromDocument` 拆
+- [x] `SessionScanner.ExtractSessionMetaAsync` 拆6个 internal static — 阶段2.7完成(ProcessAssistantEntry/ProcessUserEntry/DetectUserInterruption/ProcessToolResultEntry/BuildSessionMeta/CategorizeToolError/ExtractLanguageAndFileStats全internal static)
+- [x] `TodoService.WriteTodosAsync` 拆 — 阶段2.7完成(MapStatus/MapPriority/ResolveTodoPriority/BuildTodoItem全internal static)
+- [x] `MemorySearchHistory.BuildSearchingPastContextSectionAsync` 拆 — 阶段2.7完成(IsQueryRelated internal static)
+- [x] `MemoryManagementService.ScanMemoriesCoreAsync` 拆 — 阶段2.7完成(ScanMemoriesCoreAsync/GetMemoryAgeInfoCoreAsync等6个internal)
+- [x] `CompleteStepToolHandlers.CompleteStepAsync` 拆 — 阶段2.7完成(7个BuildXxxDiagnostic internal static)
+- [x] `MemoryTruncator.SmartTruncate` 拆 — 阶段2.7完成(ScoreAndSelectLines/AssembleTruncatedLines/CalculateLineRelevance/TruncateByBytes全internal static)
+- [x] `AppStateConverter.ToDocument`/`FromDocument` 拆 — 阶段2.7确认(已是public static纯函数+AppStateConverterTests覆盖,无需拆)
 
 #### 2.8 clock — GoalGraphTemplates 拆分
-- [ ] `GoalGraphTemplates` 各 Build* 方法拆 internal static 子方法 + 图构造单测
-- [ ] `GoalGraphTemplates.ClusterExpandFunction`(112行)拆
-- [ ] `DecomposabilityAnalyzer.BuildAnalyzerPrompt`(80行)拆
-- [ ] `GraphExecutionContext.GetNextNodeIds` internal + 拓扑下一节点计算单测
-- [ ] `ContinuationPromptBuilder.BuildContinuationPrompt` internal + 测试
+- [x] `GoalGraphTemplates` 各 Build* 方法拆 internal static 子方法 + 图构造单测 — 阶段2.8完成(14个BuildXxx internal static)
+- [x] `GoalGraphTemplates.ClusterExpandFunction` 拆 — 阶段2.8完成(纯计算部分已拆BuildWorkerId/BuildWorkerNodePayload/BuildClusterMergerSystemPrompt,剩余是mutator副作用+异步调用)
+- [x] `DecomposabilityAnalyzer.BuildAnalyzerPrompt` 拆 — 阶段2.8完成(ParseAnalysisResult/BuildAnalyzerPrompt/BuildAnalyzerConstraintsText全internal static)
+- [x] `GraphExecutionContext.GetNextNodeIds` internal + 拓扑下一节点计算单测 — 阶段2.8完成(CollectNextNodeIds internal static)
+- [x] `ContinuationPromptBuilder.BuildContinuationPrompt` internal + 测试 — 阶段2.8完成(BuildConstraintsText/BuildBudgetLines internal static)
 
 #### 2.9 infrastructure — AhoCorasick + FileEditor
 - [x] `AhoCorasick.Build` 拆 goto/failure 两个 internal static + 算法单测 — 阶段2.9完成
@@ -217,14 +217,14 @@
 
 ### 阶段 3:补测有IO/异步但可mock的方法
 
-- [ ] `PermissionChecker.CheckPermissionAsync` 管道执行
-- [ ] `PermissionCheckingInterceptor.OnBeforeToolInvokeAsync`
-- [ ] `HookConfigurationManager.LoadAllHooksAsync` 缓存+锁
-- [ ] `SessionHookManager` CAS操作
-- [ ] `InteractiveHandler.Handle`/`ExecuteHooksAsync`/`ExecuteClassifierAsync`
-- [ ] `SwarmWorkerHandler.ForwardToLeaderAsync`
-- [ ] `PluginManager` 加载/卸载全流程(mock依赖)
-- [ ] vault 团队同步子系统(`SyncFileScanner`/`SyncFileTransfer`/`SyncConflictResolver`/6中间件)
+- [x] `PermissionChecker.CheckPermissionAsync` 管道执行 — 阶段3确认(36测试,Stub+Moq消除IO)
+- [x] `PermissionCheckingInterceptor.OnBeforeToolInvokeAsync` — 阶段3确认(19测试,Moq消除依赖)
+- [x] `HookConfigurationManager.LoadAllHooksAsync` 缓存+锁 — 阶段3确认(21测试,Moq消除配置文件IO)
+- [x] `SessionHookManager` CAS操作 — 阶段3确认(23测试,纯内存确定性)
+- [x] `InteractiveHandler.Handle`/`ExecuteHooksAsync`/`ExecuteClassifierAsync` — 阶段3完成(11测试,ExtractCommand/CreatePermissionResult拆internal static)
+- [x] `SwarmWorkerHandler.ForwardToLeaderAsync` — 阶段3完成(8测试,ExtractCommand拆internal static+HandleAsync非SwarmWorker分支)
+- [x] `PluginManager` 加载/卸载全流程(mock依赖) — 阶段3确认(80测试,单元用Stub/InMemory,E2E用真实IO)
+- [x] vault 团队同步子系统(`SyncFileScanner`/`SyncFileTransfer`/`SyncConflictResolver`/6中间件) — 阶段3d完成(77测试,InMemoryFileSystem+Mock消除IO)
 
 ---
 

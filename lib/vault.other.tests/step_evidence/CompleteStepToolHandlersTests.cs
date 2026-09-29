@@ -223,4 +223,39 @@ public sealed class CompleteStepToolHandlersTests {
         Assert.False(result.IsError);
         Assert.Contains("files", result.GetTextContent());
     }
+
+    // === Kind null/empty 守卫 ===
+
+    [Fact]
+    public async Task CompleteStep_NullKind_ReturnsInvalidKindError() {
+        var evidence = new List<StepEvidenceInput>
+        {
+            new(Kind: null!, Summary: "Something"),
+        };
+
+        var result = await _handler.CompleteStepAsync(
+            step: "Step 1",
+            result: "Done",
+            evidence: evidence).ConfigureAwait(true);
+
+        Assert.True(result.IsError);
+        Assert.Contains("invalid kind", result.GetTextContent());
+        Assert.Contains("verification|diff|files|manual", result.GetTextContent());
+    }
+
+    [Fact]
+    public async Task CompleteStep_EmptyKind_ReturnsInvalidKindError() {
+        var evidence = new List<StepEvidenceInput>
+        {
+            new(Kind: "", Summary: "Something"),
+        };
+
+        var result = await _handler.CompleteStepAsync(
+            step: "Step 1",
+            result: "Done",
+            evidence: evidence).ConfigureAwait(true);
+
+        Assert.True(result.IsError);
+        Assert.Contains("invalid kind", result.GetTextContent());
+    }
 }

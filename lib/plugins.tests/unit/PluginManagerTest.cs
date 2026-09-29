@@ -98,6 +98,40 @@ public sealed class PluginManagerTest {
             seq.Should().HaveCount(3);
             seq.Select(t => t.Name).Should().Equal(["dup", "dup", "dup"]);
         }
+
+        // ===== null 参数守卫 =====
+
+        [Fact]
+        public void NullExternal_ThrowsArgumentNullException() {
+            Action act = () => PluginManager.OrderUnloadSequence(null!, [], []).ToList();
+
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("external");
+        }
+
+        [Fact]
+        public void NullNative_ThrowsArgumentNullException() {
+            Action act = () => PluginManager.OrderUnloadSequence([], null!, []).ToList();
+
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("native");
+        }
+
+        [Fact]
+        public void NullWorkflowReversed_ThrowsArgumentNullException() {
+            Action act = () => PluginManager.OrderUnloadSequence([], [], null!).ToList();
+
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("workflowReversed");
+        }
+
+        [Fact]
+        public void AllNull_ThrowsArgumentNullExceptionForFirstParameter() {
+            Action act = () => PluginManager.OrderUnloadSequence(null!, null!, null!).ToList();
+
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("external");
+        }
     }
 
     /// <summary>
@@ -160,6 +194,70 @@ public sealed class PluginManagerTest {
             manager.IsBlacklistedForTest("p").Should().BeTrue();
             Action act = () => manager.CheckNotBlacklisted("p");
             act.Should().Throw<InvalidOperationException>();
+        }
+
+        // ===== null 参数守卫 =====
+
+        [Fact]
+        public async Task CheckNotDuplicateLoad_Null_ThrowsArgumentNullException() {
+            var manager = CreateManager();
+            await using var _ = manager;
+
+            Action act = () => manager.CheckNotDuplicateLoad(null!);
+
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("pluginName");
+        }
+
+        [Fact]
+        public async Task CheckNotDuplicateLoad_Empty_ThrowsArgumentException() {
+            var manager = CreateManager();
+            await using var _ = manager;
+
+            Action act = () => manager.CheckNotDuplicateLoad("");
+
+            act.Should().Throw<ArgumentException>();
+        }
+
+        [Fact]
+        public async Task CheckNotDuplicateLoad_WhiteSpace_ThrowsArgumentException() {
+            var manager = CreateManager();
+            await using var _ = manager;
+
+            Action act = () => manager.CheckNotDuplicateLoad("   ");
+
+            act.Should().Throw<ArgumentException>();
+        }
+
+        [Fact]
+        public async Task CheckNotBlacklisted_Null_ThrowsArgumentNullException() {
+            var manager = CreateManager();
+            await using var _ = manager;
+
+            Action act = () => manager.CheckNotBlacklisted(null!);
+
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("pluginName");
+        }
+
+        [Fact]
+        public async Task CheckNotBlacklisted_Empty_ThrowsArgumentException() {
+            var manager = CreateManager();
+            await using var _ = manager;
+
+            Action act = () => manager.CheckNotBlacklisted("");
+
+            act.Should().Throw<ArgumentException>();
+        }
+
+        [Fact]
+        public async Task CheckNotBlacklisted_WhiteSpace_ThrowsArgumentException() {
+            var manager = CreateManager();
+            await using var _ = manager;
+
+            Action act = () => manager.CheckNotBlacklisted("   ");
+
+            act.Should().Throw<ArgumentException>();
         }
     }
 

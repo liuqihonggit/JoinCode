@@ -55,8 +55,8 @@ public class CompleteStepToolHandlers {
         for (var i = 0; i < evidence.Count; i++) {
             var e = evidence[i];
 
-            if (!ValidKinds.Contains(e.Kind)) {
-                var diag = BuildInvalidKindDiagnostic(i + 1, e.Kind);
+            if (string.IsNullOrEmpty(e.Kind) || !ValidKinds.Contains(e.Kind)) {
+                var diag = BuildInvalidKindDiagnostic(i + 1, e.Kind ?? "<null>");
                 return Task.FromResult(ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
             }

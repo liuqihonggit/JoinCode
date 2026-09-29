@@ -380,7 +380,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
                 : await _optional.MemoryScanner.ScanAllAsync(ct).ConfigureAwait(false);
             results = scanResults.ToList();
         } else {
-            results = _memoryStore.Search(query, memoryType, limit * 2).ToList();
+            results = _memoryStore.Search(query, memoryType, (int)Math.Min((long)limit * 2, int.MaxValue)).ToList();
         }
 
         List<DetailedScoredMemory> scoredMemories;
@@ -558,7 +558,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
 
         var pathPrefixes = new HashSet<string>(teamPaths.Select(tp => tp.Path), StringComparer.OrdinalIgnoreCase);
 
-        var filteredMemories = _memoryStore.Search(query, null, limit * 2)
+        var filteredMemories = _memoryStore.Search(query, null, (int)Math.Min((long)limit * 2, int.MaxValue))
             .Where(m => pathPrefixes.Any(prefix => m.Source?.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) == true))
             .ToList();
 
@@ -617,6 +617,13 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         CancellationToken ct = default) {
         var archiveDays = archiveAfterDays ?? 90;
         var deleteDays = deleteAfterDays ?? 180;
+
+        if (archiveDays > deleteDays) {
+            throw new ArgumentOutOfRangeException(
+                nameof(archiveAfterDays),
+                archiveDays,
+                $"归档天数 ({archiveDays}) 不能大于删除天数 ({deleteDays})；归档必须先于删除，请调整参数使 archiveAfterDays <= deleteAfterDays。");
+        }
 
         _logger?.LogInformation(L.T(StringKey.VaultLogStartCleanup),
             archiveDays, deleteDays);

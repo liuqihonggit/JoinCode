@@ -280,11 +280,15 @@ public sealed class GraphExecutionContext {
     /// <param name="routes">路由标签数组(null 表示无路由)</param>
     /// <param name="matchMode">路由匹配模式</param>
     /// <returns>后继节点 ID 列表</returns>
+    /// <exception cref="ArgumentNullException">dag 为 null</exception>
+    /// <exception cref="ArgumentException">fromNodeId 为 null、空或空白</exception>
     internal static IReadOnlyList<string> CollectNextNodeIds(
         Dag<GoalNodePayload> dag,
         string fromNodeId,
         string[]? routes,
         RouteMatchMode matchMode) {
+        ArgumentNullException.ThrowIfNull(dag);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fromNodeId);
         var nextIds = new List<string>();
         if (!dag.Nodes.TryGetValue(fromNodeId, out var node))
             return nextIds;

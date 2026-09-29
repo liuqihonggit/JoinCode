@@ -9,7 +9,11 @@ public static class RuleFrontmatterParser {
     /// </summary>
     /// <param name="rawContent">规则原始内容,可能包含以 --- 分隔的前置元数据</param>
     /// <returns>元组: 正文内容、是否总是应用、glob 匹配模式、描述</returns>
-    public static (string Content, bool AlwaysApply, string Globs, string Description) Parse(string rawContent) {
+    public static (string Content, bool AlwaysApply, string Globs, string Description) Parse(string? rawContent) {
+        if (rawContent is null) {
+            return (string.Empty, false, string.Empty, string.Empty);
+        }
+
         if (!rawContent.StartsWith("---", StringComparison.Ordinal)) {
             return (rawContent, false, string.Empty, string.Empty);
         }

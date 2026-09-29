@@ -455,8 +455,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     }
 
     /// <summary>计算总超时(ms) — singleTimeoutMs × (maxRetries+1),用于诊断异常消息</summary>
-    internal static int ComputeTotalTimeoutMs(int singleTimeoutMs, int maxRetries)
-        => singleTimeoutMs * (maxRetries + 1);
+    /// <para>用 long 计算后钳制到 int.MaxValue,防止 int 乘法溢出(如 singleTimeoutMs=int.MaxValue, maxRetries=1)。</para>
+    internal static int ComputeTotalTimeoutMs(int singleTimeoutMs, int maxRetries) {
+        var total = (long)singleTimeoutMs * ((long)maxRetries + 1);
+        return total > int.MaxValue ? int.MaxValue : (int)total;
+    }
 
     /// <summary>判断命令是否幂等 — 实现 IIdempotent 标记接口</summary>
     internal static bool IsIdempotentCommand(TCommand cmd) => cmd is IIdempotent;

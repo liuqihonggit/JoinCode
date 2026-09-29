@@ -245,4 +245,18 @@ public sealed class AppStateConverterTests {
         state2.Session.SessionId.Should().Be(state1.Session.SessionId);
         state2.Agents.Count.Should().Be(state1.Agents.Count);
     }
+
+    // === null 守卫 ===
+
+    [Fact]
+    public void ToDocument_NullState_ThrowsArgumentNullException() {
+        var act = () => AppStateConverter.ToDocument(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void FromDocument_NullDoc_ThrowsArgumentNullException() {
+        var act = () => AppStateConverter.FromDocument(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

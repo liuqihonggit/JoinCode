@@ -116,6 +116,11 @@ public sealed partial class SessionHookStore {
 [Register(typeof(ISessionHookManagerInternal), ServiceLifetime.Singleton)]
 [Register(typeof(ISessionHookManager), ServiceLifetime.Singleton)]
 public sealed partial class SessionHookManager : ServiceEntity, ISessionHookManagerInternal {
+    /// <summary>
+    /// 函数钩子默认超时（秒）— 与 TS 端 FunctionHook 默认值对齐
+    /// </summary>
+    internal const int DefaultFunctionHookTimeoutSeconds = 5;
+
     private ImmutableHamT<string, SessionHookStore> _sessionStores = ImmutableHamT<string, SessionHookStore>.Empty;
     private readonly ILogger<SessionHookManager>? _logger;
 
@@ -133,6 +138,9 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
         string? matcher,
         HookCommand hook,
         CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(sessionId);
+        ArgumentNullException.ThrowIfNull(hook);
+
         if (!Volatile.Read(ref _sessionStores).TryGetValue(sessionId, out var store)) {
             ImmutableInterlocked.Update(ref _sessionStores, d => d.ContainsKey(sessionId) ? d : d.Add(sessionId, new SessionHookStore()));
             store = Volatile.Read(ref _sessionStores)[sessionId];
@@ -161,13 +169,16 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
         string? errorMessage = null,
         int? timeout = null,
         CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(sessionId);
+        ArgumentNullException.ThrowIfNull(callback);
+
         var hookId = $"function-hook-{Guid.NewGuid():N}";
 
         var functionHook = new FunctionHook {
             Id = hookId,
             Callback = callback,
             ErrorMessage = errorMessage,
-            Timeout = timeout ?? 5
+            Timeout = timeout ?? DefaultFunctionHookTimeoutSeconds
         };
 
         if (!Volatile.Read(ref _sessionStores).TryGetValue(sessionId, out var store)) {

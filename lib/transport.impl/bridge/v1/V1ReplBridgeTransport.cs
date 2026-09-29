@@ -404,8 +404,10 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport {
     /// <param name="baseDelayMs">基础延迟（毫秒）</param>
     /// <param name="maxDelayMs">最大延迟（毫秒）</param>
     /// <returns>基础退避延迟（毫秒），不含抖动</returns>
-    internal static int ComputeReconnectBaseDelay(int attempts, int baseDelayMs, int maxDelayMs)
-        => Math.Min(baseDelayMs * (1 << Math.Min(attempts - 1, 10)), maxDelayMs);
+    internal static int ComputeReconnectBaseDelay(int attempts, int baseDelayMs, int maxDelayMs) {
+        if (attempts < 1) return baseDelayMs;
+        return Math.Min(baseDelayMs * (1 << Math.Min(attempts - 1, 10)), maxDelayMs);
+    }
 
     #endregion
 

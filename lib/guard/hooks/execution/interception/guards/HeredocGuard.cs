@@ -95,6 +95,7 @@ public sealed partial class HeredocGuard : ICommandGuard {
         return content
             .Replace("\\", "\\\\")
             .Replace("\"", "\\\"")
+            .Replace("$", "\\$")
             .Replace("\r\n", "\n")
             .Trim();
     }

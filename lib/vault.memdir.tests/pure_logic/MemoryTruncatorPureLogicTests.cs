@@ -347,4 +347,103 @@ public sealed class MemoryTruncatorPureLogicTests {
         var r2 = MemoryTruncator.AssembleTruncatedLines(scored, 10, 5);
         r1.Should().Equal(r2);
     }
+
+    // === 边界:TruncateByBytes null 守卫 ===
+
+    [Fact]
+    public void TruncateByBytes_NullContent_ThrowsArgumentNullException() {
+        var act = () => MemoryTruncator.TruncateByBytes(null!, 110);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void TruncateByBytes_MaxBytesZero_ReturnsOnlySuffix() {
+        // maxBytes=0 → cutLength=max(0,0-100)=0 → result="" + 后缀
+        var result = MemoryTruncator.TruncateByBytes("abc", 0);
+        result.Should().Be(TruncateSuffix);
+    }
+
+    [Fact]
+    public void TruncateByBytes_MaxBytesEqualsContentLength_ReturnsContentUnchanged() {
+        var content = "abc"; // 3 字节
+        var result = MemoryTruncator.TruncateByBytes(content, 3);
+        result.Should().Be(content);
+    }
+
+    [Fact]
+    public void TruncateByBytes_FourByteEmoji_CutFallsOnContinuationByte_RetreatsToCharBoundary() {
+        // 😀 = U+1F600, UTF-8 = F0 9F 98 80 (4字节),40 个 = 160 字节
+        var content = string.Concat(Enumerable.Repeat("😀", 40));
+        // maxBytes=110 → cutLength=10, bytes[10] 是第3个 emoji 第3字节(续) → 回退到 bytes[8]=emoji3 起始 → 再回退过 emoji2 到 bytes[4]=emoji2 起始 → 再回退到 bytes[0..4]="😀"
+        var result = MemoryTruncator.TruncateByBytes(content, 110);
+        result.Should().Be("😀" + TruncateSuffix);
+    }
+
+    [Fact]
+    public void TruncateByBytes_FourByteEmoji_CutExactlyOnCharBoundary() {
+        // 3 个 emoji = 12 字节,maxBytes=112 → cutLength=12, bytes[12] 是第4个 emoji 起始字节(0xF0)
+        // 0xF0 是多字节起始 → 回退到 cutLength=11,10,9,8 → bytes[8]=第3个 emoji 起始(0xF0) → 退出
+        // result = bytes[0..8] = "😀😀" + 后缀
+        var content = string.Concat(Enumerable.Repeat("😀", 40));
+        var result = MemoryTruncator.TruncateByBytes(content, 112);
+        result.Should().Be("😀😀" + TruncateSuffix);
+    }
+
+    // === 边界:CalculateLineRelevance null 守卫 ===
+
+    [Fact]
+    public void CalculateLineRelevance_NullQueryWords_ThrowsArgumentNullException() {
+        var act = () => MemoryTruncator.CalculateLineRelevance("content", null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void CalculateLineRelevance_NullLine_ReturnsZero() {
+        // string.IsNullOrWhiteSpace(null) → true → 返回 0,不抛异常
+        var result = MemoryTruncator.CalculateLineRelevance(null!, new[] { "query" });
+        result.Should().Be(0.0);
+    }
+
+    // === 边界:ScoreAndSelectLines null 守卫 ===
+
+    [Fact]
+    public void ScoreAndSelectLines_NullLines_ThrowsArgumentNullException() {
+        var act = () => MemoryTruncator.ScoreAndSelectLines(null!, new[] { "query" }, 10);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void ScoreAndSelectLines_NullQueryWords_ThrowsArgumentNullException() {
+        var act = () => MemoryTruncator.ScoreAndSelectLines(new[] { "line" }, null!, 10);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void ScoreAndSelectLines_MaxLinesZero_ThrowsArgumentOutOfRangeException() {
+        var lines = new[] { "query a", "query b" };
+        var act = () => MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, 0);
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void ScoreAndSelectLines_MaxLinesOne_ReturnsOneLine() {
+        var lines = new[] { "query a", "query b" };
+        var result = MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, 1);
+        result.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void ScoreAndSelectLines_MaxLinesNegative_ThrowsArgumentOutOfRangeException() {
+        var lines = new[] { "query a", "query b" };
+        var act = () => MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, -3);
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    // === 边界:AssembleTruncatedLines null 守卫 ===
+
+    [Fact]
+    public void AssembleTruncatedLines_NullScoredLines_ThrowsArgumentNullException() {
+        var act = () => MemoryTruncator.AssembleTruncatedLines(null!, totalLineCount: 5, maxLines: 10);
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

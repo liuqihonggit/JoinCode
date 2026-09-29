@@ -1,10 +1,11 @@
 namespace Structura.Collections;
 
 /// <summary>
-/// 多生产者单消费者无锁有界环形队列 — 生产者用 CAS do-while 抢占尾指针,消费者单线程移动头指针
+/// SPSC(单生产者单消费者)无锁有界环形队列 — 生产者单线程写尾指针,消费者单线程读头指针
 /// 物理缓冲向上取整到 2 次幂,索引用 &amp;(len-1) 位移替代取模;留一空位区分空/满
 /// 生产者尾指针与消费者头指针各占独立缓存行(PaddedInt 填充),避免伪共享
 /// 兼容覆盖式快照语义:Add 满则丢弃最旧再入队,ToArray/indexer/Slice 只读不消费
+/// 契约:TryEnqueue/TryDequeue/Add 均为单线程调用;多生产者场景用 Actor 邮箱/消息管道序列化,勿在此队列内搞 MPMC
 /// </summary>
 /// <typeparam name="T">队列元素类型</typeparam>
 public sealed class RingBuffer<T> {
@@ -71,7 +72,7 @@ public sealed class RingBuffer<T> {
     }
 
     /// <summary>
-    /// 尝试入队(多生产者安全) — CAS do-while 循环抢占尾指针,满则返回 false
+    /// 尝试入队(单生产者) — CAS do-while 循环抢占尾指针,满则返回 false
     /// </summary>
     /// <param name="item">要入队的元素</param>
     /// <returns>成功入队返回 true;队列已满返回 false</returns>
@@ -167,7 +168,8 @@ public sealed class RingBuffer<T> {
     }
 
     /// <summary>
-    /// 添加元素(覆盖式) — TryEnqueue 满则 TryDequeue 丢弃最旧再入队,保证不丢新元素
+    /// 添加元素(覆盖式,单生产者) — TryEnqueue 满则 TryDequeue 丢弃最旧再入队,保证不丢新元素
+    /// 多线程并发调用 Add 违反 SPSC 契约(TryDequeue 非线程安全);多生产者场景用 Actor 邮箱序列化
     /// </summary>
     /// <param name="item">要添加的元素</param>
     public void Add(T item) {
@@ -245,9 +247,25 @@ public sealed class RingBuffer<T> {
     }
 
     /// <summary>
-    /// 向上取整到不小于 value 的最小 2 次幂
+    /// 向上取整到不小于 value 的最小 2 次幂。
+    /// <list type="bullet">
+    /// <item><paramref name="value"/> = 0 → 返回 1(最小 2 次幂)。</item>
+    /// <item><paramref name="value"/> &lt; 0 → 抛 <see cref="ArgumentOutOfRangeException"/>。</item>
+    /// <item><paramref name="value"/> &gt; 2^30 → 返回 2^30(int 范围内最大 2 次幂,避免 2^31 溢出)。</item>
+    /// <item>已是 2 的幂 → 返回原值。</item>
+    /// </list>
     /// </summary>
+    /// <param name="value">待向上取整的值,必须非负。</param>
+    /// <returns>不小于 <paramref name="value"/> 的最小 2 次幂;若超出 int 范围则钳制到 2^30。</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> 为负数。</exception>
     public static int RoundUpToPowerOfTwo(int value) {
+        if (value < 0)
+            throw new ArgumentOutOfRangeException(nameof(value), value, "值不能为负数");
+        if (value == 0)
+            return 1;
+        // value > 2^30 时,下一个 2 次幂 2^31 溢出 int 范围,钳制到最大可表示的 2 次幂 2^30
+        if (value > 0x4000_0000)
+            return 0x4000_0000;
         var v = value - 1;
         v |= v >> 1;
         v |= v >> 2;

@@ -11,6 +11,7 @@ public static class AppStateConverter {
     /// <param name="savedAt">保存时间戳（可选，默认为当前 UTC 时间）</param>
     /// <returns>转换后的文档模型</returns>
     public static AppStateDocument ToDocument(AppState state, DateTime? savedAt = null) {
+        ArgumentNullException.ThrowIfNull(state);
         return new AppStateDocument {
             Id = "current",
             Session = new SessionStateDocument {
@@ -79,6 +80,7 @@ public static class AppStateConverter {
     /// <param name="doc">文档模型</param>
     /// <returns>还原后的应用状态</returns>
     public static AppState FromDocument(AppStateDocument doc) {
+        ArgumentNullException.ThrowIfNull(doc);
         return new AppState {
             Session = new SessionState {
                 SessionId = doc.Session.SessionId,

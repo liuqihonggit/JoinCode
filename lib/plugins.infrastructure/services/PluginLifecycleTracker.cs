@@ -34,6 +34,8 @@ internal sealed class PluginLifecycleTracker {
 
     /// <summary>注册插件的撤销链（同步+异步）</summary>
     public void RegisterUndoChain(string pluginName, List<Action> undoChain, List<IAsyncDisposable>? asyncUndoChain) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
+        ArgumentNullException.ThrowIfNull(undoChain);
         _undoChain[pluginName] = undoChain;
         if (asyncUndoChain is not null)
             _asyncUndoChain[pluginName] = asyncUndoChain;

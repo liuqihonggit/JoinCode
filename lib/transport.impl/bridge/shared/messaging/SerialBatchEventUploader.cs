@@ -243,8 +243,23 @@ public sealed class SerialBatchEventUploader : IDisposable {
             return clamped + jitter;
         }
 
-        var exponential = Math.Min(_options.BaseDelayMs * (1 << (failures - 1)), _options.MaxDelayMs);
-        return exponential + jitter;
+        return ComputeExponentialDelay(failures, _options.BaseDelayMs, _options.MaxDelayMs) + jitter;
+    }
+
+    /// <summary>
+    /// 计算指数退避延迟（不含抖动）— 位移与乘法均钳制防溢出。
+    /// 纯函数，对齐 V1ReplBridgeTransport.ComputeReconnectBaseDelay 的指数上限策略。
+    /// </summary>
+    /// <param name="failures">连续失败次数</param>
+    /// <param name="baseDelayMs">基础延迟（毫秒）</param>
+    /// <param name="maxDelayMs">最大延迟（毫秒）</param>
+    /// <returns>钳制后的指数退避延迟（毫秒）</returns>
+    internal static int ComputeExponentialDelay(int failures, int baseDelayMs, int maxDelayMs) {
+        if (failures <= 1) return Math.Min(baseDelayMs, maxDelayMs);
+        // 位移上限 30 防止 1<<31 变为负数；用 long 计算乘法防止 int 溢出
+        var shift = Math.Min(failures - 1, 30);
+        var exponential = Math.Min((long)baseDelayMs * (1L << shift), maxDelayMs);
+        return (int)Math.Min(exponential, int.MaxValue);
     }
 
     /// <summary>

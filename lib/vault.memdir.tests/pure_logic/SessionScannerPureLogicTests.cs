@@ -686,4 +686,184 @@ public sealed class SessionScannerPureLogicTests {
 
         m1.Should().BeEquivalentTo(m2);
     }
+
+    // === SafeAddTokens: 溢出钳制 ===
+
+    [Fact]
+    public void SafeAddTokens_NormalAddition_ReturnsSum() {
+        SessionScanner.SafeAddTokens(100L, 50).Should().Be(150L);
+    }
+
+    [Fact]
+    public void SafeAddTokens_ZeroAddition_ReturnsCurrent() {
+        SessionScanner.SafeAddTokens(100L, 0).Should().Be(100L);
+    }
+
+    [Fact]
+    public void SafeAddTokens_NegativeAddition_ReturnsCurrent() {
+        SessionScanner.SafeAddTokens(100L, -50).Should().Be(100L);
+    }
+
+    [Fact]
+    public void SafeAddTokens_Overflow_ClampsToLongMaxValue() {
+        SessionScanner.SafeAddTokens(long.MaxValue - 10, 100).Should().Be(long.MaxValue);
+    }
+
+    [Fact]
+    public void SafeAddTokens_ExactlyAtBoundary_NoOverflow() {
+        SessionScanner.SafeAddTokens(long.MaxValue - 100, 100).Should().Be(long.MaxValue);
+    }
+
+    [Fact]
+    public void SafeAddTokens_CurrentAtMax_ReturnsMax() {
+        SessionScanner.SafeAddTokens(long.MaxValue, 1).Should().Be(long.MaxValue);
+    }
+
+    // === ProcessAssistantEntry: long 溢出守卫 ===
+
+    [Fact]
+    public void ProcessAssistantEntry_AccumulateIntMaxValue_DoesNotOverflow() {
+        var entry = new TranscriptEntry { Role = "assistant", PromptTokens = int.MaxValue, CompletionTokens = int.MaxValue };
+        var toolCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var assistantCount = 0; var inputTokens = 0L; var outputTokens = 0L;
+        DateTime? lastTime = null;
+        var usesMcp = false; var usesWebSearch = false; var usesWebFetch = false; var usesTaskAgent = false;
+
+        for (var i = 0; i < 3; i++) {
+            SessionScanner.ProcessAssistantEntry(entry, toolCounts,
+                ref assistantCount, ref inputTokens, ref outputTokens, ref lastTime,
+                ref usesMcp, ref usesWebSearch, ref usesWebFetch, ref usesTaskAgent);
+        }
+
+        inputTokens.Should().Be(3L * int.MaxValue);
+        outputTokens.Should().Be(3L * int.MaxValue);
+        inputTokens.Should().BePositive();
+    }
+
+    [Fact]
+    public void ProcessAssistantEntry_AccumulateToLongMax_ClampsAndDoesNotWrapNegative() {
+        var entry = new TranscriptEntry { Role = "assistant", PromptTokens = int.MaxValue, CompletionTokens = int.MaxValue };
+        var toolCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var assistantCount = 0;
+        var inputTokens = long.MaxValue - 100L;
+        var outputTokens = long.MaxValue - 100L;
+        DateTime? lastTime = null;
+        var usesMcp = false; var usesWebSearch = false; var usesWebFetch = false; var usesTaskAgent = false;
+
+        for (var i = 0; i < 3; i++) {
+            SessionScanner.ProcessAssistantEntry(entry, toolCounts,
+                ref assistantCount, ref inputTokens, ref outputTokens, ref lastTime,
+                ref usesMcp, ref usesWebSearch, ref usesWebFetch, ref usesTaskAgent);
+        }
+
+        inputTokens.Should().Be(long.MaxValue);
+        outputTokens.Should().Be(long.MaxValue);
+        inputTokens.Should().BePositive();
+    }
+
+    // === ProcessUserEntry: 恰好 200/201 字符边界 ===
+
+    [Fact]
+    public void ProcessUserEntry_Exactly200Chars_DoesNotTruncate() {
+        var content = new string('x', 200);
+        var entry = new TranscriptEntry { Role = "user", Content = content };
+        var userCount = 0; string? firstPrompt = null;
+        var timestamps = new List<DateTime>();
+        var interruptions = 0;
+
+        SessionScanner.ProcessUserEntry(entry, ref userCount, ref firstPrompt, timestamps, ref interruptions);
+
+        firstPrompt.Should().HaveLength(200);
+        firstPrompt.Should().Be(content);
+    }
+
+    [Fact]
+    public void ProcessUserEntry_Exactly201Chars_TruncatesTo200() {
+        var content = new string('x', 201);
+        var entry = new TranscriptEntry { Role = "user", Content = content };
+        var userCount = 0; string? firstPrompt = null;
+        var timestamps = new List<DateTime>();
+        var interruptions = 0;
+
+        SessionScanner.ProcessUserEntry(entry, ref userCount, ref firstPrompt, timestamps, ref interruptions);
+
+        firstPrompt.Should().HaveLength(200);
+        firstPrompt.Should().Be(new string('x', 200));
+    }
+
+    [Fact]
+    public void ProcessUserEntry_Exactly199Chars_DoesNotTruncate() {
+        var content = new string('x', 199);
+        var entry = new TranscriptEntry { Role = "user", Content = content };
+        var userCount = 0; string? firstPrompt = null;
+        var timestamps = new List<DateTime>();
+        var interruptions = 0;
+
+        SessionScanner.ProcessUserEntry(entry, ref userCount, ref firstPrompt, timestamps, ref interruptions);
+
+        firstPrompt.Should().HaveLength(199);
+        firstPrompt.Should().Be(content);
+    }
+
+    // === SafeRoundDuration: NaN/Infinity 守卫 ===
+
+    [Fact]
+    public void SafeRoundDuration_NormalValue_RoundsToOneDecimal() {
+        SessionScanner.SafeRoundDuration(15.678).Should().Be(15.7);
+    }
+
+    [Fact]
+    public void SafeRoundDuration_NaN_ReturnsZero() {
+        SessionScanner.SafeRoundDuration(double.NaN).Should().Be(0);
+    }
+
+    [Fact]
+    public void SafeRoundDuration_PositiveInfinity_ReturnsZero() {
+        SessionScanner.SafeRoundDuration(double.PositiveInfinity).Should().Be(0);
+    }
+
+    [Fact]
+    public void SafeRoundDuration_NegativeInfinity_ReturnsZero() {
+        SessionScanner.SafeRoundDuration(double.NegativeInfinity).Should().Be(0);
+    }
+
+    [Fact]
+    public void SafeRoundDuration_Zero_ReturnsZero() {
+        SessionScanner.SafeRoundDuration(0).Should().Be(0);
+    }
+
+    // === BuildSessionMeta: NaN/Infinity duration 守卫 ===
+
+    [Fact]
+    public void BuildSessionMeta_NaNDuration_ReturnsZeroDuration() {
+        var meta = SessionScanner.BuildSessionMeta("s", DateTime.UtcNow, double.NaN,
+            0, 0, 0, 0,
+            new Dictionary<string, int>(), new Dictionary<string, int>(), 0, 0, 0, 0,
+            new HashSet<string>(), 0, 0, new Dictionary<string, int>(),
+            false, false, false, false, null, 0m, new List<DateTime>());
+
+        meta.DurationMinutes.Should().Be(0);
+    }
+
+    [Fact]
+    public void BuildSessionMeta_PositiveInfinityDuration_ReturnsZeroDuration() {
+        var meta = SessionScanner.BuildSessionMeta("s", DateTime.UtcNow, double.PositiveInfinity,
+            0, 0, 0, 0,
+            new Dictionary<string, int>(), new Dictionary<string, int>(), 0, 0, 0, 0,
+            new HashSet<string>(), 0, 0, new Dictionary<string, int>(),
+            false, false, false, false, null, 0m, new List<DateTime>());
+
+        meta.DurationMinutes.Should().Be(0);
+    }
+
+    [Fact]
+    public void BuildSessionMeta_NegativeInfinityDuration_ReturnsZeroDuration() {
+        var meta = SessionScanner.BuildSessionMeta("s", DateTime.UtcNow, double.NegativeInfinity,
+            0, 0, 0, 0,
+            new Dictionary<string, int>(), new Dictionary<string, int>(), 0, 0, 0, 0,
+            new HashSet<string>(), 0, 0, new Dictionary<string, int>(),
+            false, false, false, false, null, 0m, new List<DateTime>());
+
+        meta.DurationMinutes.Should().Be(0);
+    }
 }

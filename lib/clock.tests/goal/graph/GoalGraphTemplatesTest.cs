@@ -144,10 +144,18 @@ public sealed class GoalGraphTemplatesTest {
     }
 
     [Fact]
-    public void BuildWorkerId_Empty_Should_Return_Bare_Prefix() {
-        var id = GoalGraphTemplates.BuildWorkerId("");
+    public void BuildWorkerId_Null_Should_Throw_ArgumentNullException() {
+        Assert.Throws<ArgumentNullException>(() => GoalGraphTemplates.BuildWorkerId(null!));
+    }
 
-        Assert.Equal("worker_", id);
+    [Fact]
+    public void BuildWorkerId_Empty_Should_Throw_ArgumentException() {
+        Assert.Throws<ArgumentException>(() => GoalGraphTemplates.BuildWorkerId(""));
+    }
+
+    [Fact]
+    public void BuildWorkerId_WhiteSpace_Should_Throw_ArgumentException() {
+        Assert.Throws<ArgumentException>(() => GoalGraphTemplates.BuildWorkerId("   "));
     }
 
     [Fact]
@@ -218,6 +226,24 @@ public sealed class GoalGraphTemplatesTest {
         var payload = GoalGraphTemplates.BuildWorkerNodePayload(task);
 
         Assert.Contains("Files you own: ", payload.SystemPrompt);
+    }
+
+    [Fact]
+    public void BuildWorkerNodePayload_NullTask_Should_Throw_ArgumentNullException() {
+        Assert.Throws<ArgumentNullException>(() => GoalGraphTemplates.BuildWorkerNodePayload(null!));
+    }
+
+    [Fact]
+    public void BuildWorkerNodePayload_NullOwnedFiles_Should_Throw_ArgumentNullException() {
+        var task = new SubTaskDefinition {
+            Id = "sub_1",
+            Title = "T",
+            Description = "D",
+            OwnedFiles = null!,
+            Variant = ExecutorVariant.Code,
+        };
+
+        Assert.Throws<ArgumentNullException>(() => GoalGraphTemplates.BuildWorkerNodePayload(task));
     }
 
     [Fact]

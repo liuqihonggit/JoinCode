@@ -22,13 +22,17 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator {
         ["//"] = "Network path"
     }.ToFrozenDictionary();
 
-    // 危险绝对路径前缀
+    // 危险系统目录前缀（仅具体系统目录，盘符根 C:\ D:\ E:\ 和 Unix 根 / 不在此列，
+    // 否则会拦截工作区内合法绝对路径；工作区外路径由 IsPathWithinWorkspace 把关）
     private static readonly FrozenSet<string> DangerousPathPrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        "/",
-        @"C:\",
-        @"D:\",
-        @"E:\",
+        // Windows 系统目录
+        @"C:\Windows",
+        @"C:\Program Files",
+        @"C:\Program Files (x86)",
+        @"C:\System32",
+        @"C:\ProgramData",
+        // Unix 系统目录
         "/home/",
         "/root/",
         "/tmp/",

@@ -134,6 +134,8 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// 检查工具执行权限 — 通过中间件管道执行
     /// </summary>
     public async Task<ToolPermissionCheckResult> CheckPermissionAsync(string toolName, Dictionary<string, JsonElement>? arguments = null, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
+
         var context = new PermissionCheckContext {
             ToolName = toolName,
             Arguments = arguments ?? [],
@@ -153,6 +155,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// 添加工具到自动批准列表
     /// </summary>
     public void AddToAutoApproved(string toolName) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
         _autoApprovedTools.Add(toolName);
         _config.AutoApprovedTools = _config.AutoApprovedTools.SetItem(toolName, new ToolPermissionRule { ToolName = toolName });
     }
@@ -162,6 +165,8 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// WebFetch 使用 "domain:example.com" 格式的 RuleContent
     /// </summary>
     public void AddToAutoApproved(string toolName, string? ruleContent) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
+
         if (string.IsNullOrEmpty(ruleContent)) {
             AddToAutoApproved(toolName);
             return;
@@ -180,6 +185,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// 添加自动批准规则并持久化到 settings.json — 对齐 TS 版 persistPermissionUpdate
     /// </summary>
     public async Task AddToAutoApprovedAndPersistAsync(string toolName, string? ruleContent = null, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
         AddToAutoApproved(toolName, ruleContent);
 
         try {
@@ -224,6 +230,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// 添加工具到自动拒绝列表
     /// </summary>
     public void AddToAutoRejected(string toolName) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
         _autoRejectedTools.Add(toolName);
         _config.AutoRejectedTools = _config.AutoRejectedTools.SetItem(toolName, new ToolPermissionRule { ToolName = toolName });
     }
@@ -232,6 +239,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// 从自动批准列表移除工具
     /// </summary>
     public void RemoveFromAutoApproved(string toolName) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
         _autoApprovedTools.Remove(toolName);
         _config.AutoApprovedTools = _config.AutoApprovedTools.Remove(toolName);
     }
@@ -240,6 +248,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// 从自动拒绝列表移除工具
     /// </summary>
     public void RemoveFromAutoRejected(string toolName) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
         _autoRejectedTools.Remove(toolName);
         _config.AutoRejectedTools = _config.AutoRejectedTools.Remove(toolName);
     }

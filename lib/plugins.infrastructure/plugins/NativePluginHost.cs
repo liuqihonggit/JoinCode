@@ -102,6 +102,7 @@ public sealed unsafe class NativePluginHost : IPluginHost {
     /// <param name="responseCapacity">响应缓冲区初始容量(默认 64KB)</param>
     /// <returns>调用结果</returns>
     public NativePluginInvokeResult Invoke(string requestJson, int responseCapacity = NativePluginAbi.DefaultResponseCapacity) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestJson);
         ObjectDisposedException.ThrowIf(_isDisposed, this);
         if (!_isLoaded || _invokeFn is null)
             return NativePluginInvokeResult.Fail(NativePluginError.NotLoaded, "插件未加载");
@@ -127,7 +128,8 @@ public sealed unsafe class NativePluginHost : IPluginHost {
             }
 
             if (written == (int)NativePluginError.BufferTooSmall) {
-                cap *= 2;
+                if (cap > int.MaxValue / 2) cap = NativePluginAbi.MaxResponseCapacity;
+                else cap *= 2;
                 _logger?.LogDebug("[NativePlugin] {Name} 响应缓冲区不足,重试 {Cap} bytes", _pluginName, cap);
                 continue;
             }

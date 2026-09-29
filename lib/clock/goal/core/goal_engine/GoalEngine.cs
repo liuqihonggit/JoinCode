@@ -836,9 +836,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         return ValueTask.CompletedTask;
     }
 
-    private const int StagnationElapsedThresholdSeconds = 3600;
-    private const int StagnationMaxTurnsThreshold = 10;
-    private const int StagnationCooldownSeconds = 1800;
+    private const int StagnationElapsedThresholdSeconds = 60;
+    private const int StagnationMaxTurnsThreshold = 3;
+    private const int StagnationCooldownSeconds = 60;
 
     private void CheckStagnationAndAlert() {
         if (_state is null || _state.Status != GoalStatus.Pursuing)

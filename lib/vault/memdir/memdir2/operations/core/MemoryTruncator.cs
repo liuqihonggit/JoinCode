@@ -123,20 +123,45 @@ public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator {
         // 仅在需要截断时才 Split
         var lines = content.Split('\n');
 
-        // 找到最相关的行
+        // 找到最相关的行并组装截断输出
         var queryWords = QueryWordHelper.ExtractQueryWords(query);
-        var scoredLines = lines
-            .Select((line, index) => new {
-                Line = line,
-                Index = index,
-                Score = CalculateLineRelevance(line, queryWords)
-            })
+        var scoredLines = ScoreAndSelectLines(lines, queryWords, config.MaxLines);
+        var resultLines = AssembleTruncatedLines(scoredLines, lineCount, config.MaxLines);
+
+        var result = string.Join('\n', resultLines);
+
+        // 检查字节数
+        var resultBytes = System.Text.Encoding.UTF8.GetByteCount(result);
+        if (resultBytes > config.MaxBytes) {
+            return TruncateByBytes(result, config.MaxBytes);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 评分后的行 — 纯数据,用于 SmartTruncate 中间结果传递
+    /// </summary>
+    internal sealed record ScoredLine(string Line, int Index, double Score);
+
+    /// <summary>
+    /// 对行按查询相关性评分并选择 top-N — 纯计算
+    /// 流程:评分 → 按分数降序 → 取 maxLines/2 → 按原索引升序恢复顺序
+    /// </summary>
+    internal static List<ScoredLine> ScoreAndSelectLines(string[] lines, string[] queryWords, int maxLines) {
+        return lines
+            .Select((line, index) => new ScoredLine(line, index, CalculateLineRelevance(line, queryWords)))
             .OrderByDescending(x => x.Score)
-            .Take(config.MaxLines / 2)
+            .Take(maxLines / 2)
             .OrderBy(x => x.Index)
             .ToList();
+    }
 
-        // 构建截断后的内容
+    /// <summary>
+    /// 组装截断后的行列表 — 纯计算
+    /// 不连续行号间插入省略号;行数超阈值时追加截断提示
+    /// </summary>
+    internal static List<string> AssembleTruncatedLines(List<ScoredLine> scoredLines, int totalLineCount, int maxLines) {
         var resultLines = new List<string>();
         int? lastIndex = null;
 
@@ -151,20 +176,12 @@ public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator {
         }
 
         // 添加截断提示
-        if (lineCount > config.MaxLines) {
+        if (totalLineCount > maxLines) {
             resultLines.Add("");
-            resultLines.Add(L.T(StringKey.VaultTruncatedTotalLines, lineCount));
+            resultLines.Add(L.T(StringKey.VaultTruncatedTotalLines, totalLineCount));
         }
 
-        var result = string.Join('\n', resultLines);
-
-        // 检查字节数
-        var resultBytes = System.Text.Encoding.UTF8.GetByteCount(result);
-        if (resultBytes > config.MaxBytes) {
-            return TruncateByBytes(result, config.MaxBytes);
-        }
-
-        return result;
+        return resultLines;
     }
 
     /// <summary>

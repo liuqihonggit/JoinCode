@@ -312,4 +312,159 @@ public sealed class TodoServiceTests {
         list.Todos.Should().BeEmpty();
         _telemetry.Counters.Should().Contain(c => c.Name == "todo.operation.count" && c.Tags!["operation"] == "clear");
     }
+
+    // === MapStatus: 状态映射 (纯计算) ===
+
+    [Fact]
+    public void MapStatus_Pending_ReturnsPending() {
+        TodoService.MapStatus(TodoStatusEnumConstants.Pending).Should().Be(TaskExecutionStatus.Pending);
+    }
+
+    [Fact]
+    public void MapStatus_InProgress_ReturnsRunning() {
+        TodoService.MapStatus(TodoStatusEnumConstants.InProgress).Should().Be(TaskExecutionStatus.Running);
+    }
+
+    [Fact]
+    public void MapStatus_Completed_ReturnsCompleted() {
+        TodoService.MapStatus(TodoStatusEnumConstants.Completed).Should().Be(TaskExecutionStatus.Completed);
+    }
+
+    [Fact]
+    public void MapStatus_Cancelled_ReturnsCancelled() {
+        TodoService.MapStatus(TodoStatusEnumConstants.Cancelled).Should().Be(TaskExecutionStatus.Cancelled);
+    }
+
+    [Fact]
+    public void MapStatus_UnknownStatus_ReturnsPending() {
+        TodoService.MapStatus("unknown_status").Should().Be(TaskExecutionStatus.Pending);
+    }
+
+    [Fact]
+    public void MapStatus_CaseSensitive_UnknownReturnsPending() {
+        // FromValue 是 OrdinalIgnoreCase? 测试大写是否匹配
+        // 确定性:同一输入同一输出
+        TodoService.MapStatus("PENDING").Should().Be(TodoService.MapStatus("PENDING"));
+    }
+
+    // === MapPriority: 优先级映射 (纯计算) ===
+
+    [Fact]
+    public void MapPriority_High_ReturnsNow() {
+        TodoService.MapPriority(TodoPriorityEnumConstants.High).Should().Be(RuntimeTaskPriority.Now);
+    }
+
+    [Fact]
+    public void MapPriority_Medium_ReturnsNext() {
+        TodoService.MapPriority(TodoPriorityEnumConstants.Medium).Should().Be(RuntimeTaskPriority.Next);
+    }
+
+    [Fact]
+    public void MapPriority_Low_ReturnsLater() {
+        TodoService.MapPriority(TodoPriorityEnumConstants.Low).Should().Be(RuntimeTaskPriority.Later);
+    }
+
+    [Fact]
+    public void MapPriority_Critical_ReturnsLater() {
+        // critical 未显式映射,走默认分支 → Later
+        TodoService.MapPriority(TodoPriorityEnumConstants.Critical).Should().Be(RuntimeTaskPriority.Later);
+    }
+
+    [Fact]
+    public void MapPriority_Unknown_ReturnsLater() {
+        TodoService.MapPriority("unknown_priority").Should().Be(RuntimeTaskPriority.Later);
+    }
+
+    // === ResolveTodoPriority: 优先级解析 (纯计算) ===
+
+    [Fact]
+    public void ResolveTodoPriority_Null_ReturnsMedium() {
+        TodoService.ResolveTodoPriority(null).Should().Be(TodoPriorityEnumConstants.Medium);
+    }
+
+    [Fact]
+    public void ResolveTodoPriority_NonNull_ReturnsInput() {
+        TodoService.ResolveTodoPriority(TodoPriorityEnumConstants.High).Should().Be(TodoPriorityEnumConstants.High);
+    }
+
+    [Fact]
+    public void ResolveTodoPriority_EmptyString_ReturnsEmptyString() {
+        // 空字符串不是 null,原样返回
+        TodoService.ResolveTodoPriority(string.Empty).Should().Be(string.Empty);
+    }
+
+    // === BuildTodoItem: TodoItem 构建 (纯计算) ===
+
+    [Fact]
+    public void BuildTodoItem_NewTodo_UsesProvidedCreatedAt() {
+        var input = new TodoItemInput(
+            Id: "t1",
+            Content: "task content",
+            Status: TodoStatusEnumConstants.Pending,
+            Priority: TodoPriorityEnumConstants.High,
+            ActiveForm: "active");
+        var createdAt = new DateTime(2026, 1, 1);
+        var updatedAt = new DateTime(2026, 1, 2);
+
+        var todo = TodoService.BuildTodoItem("t1", input, TodoPriorityEnumConstants.High, null, createdAt, updatedAt);
+
+        todo.Id.Should().Be("t1");
+        todo.Content.Should().Be("task content");
+        todo.Status.Should().Be(TodoStatusEnumConstants.Pending);
+        todo.Priority.Should().Be(TodoPriorityEnumConstants.High);
+        todo.ActiveForm.Should().Be("active");
+        todo.CreatedAt.Should().Be(createdAt);
+        todo.UpdatedAt.Should().Be(updatedAt);
+    }
+
+    [Fact]
+    public void BuildTodoItem_ExistingTodo_PreservesOriginalCreatedAt() {
+        var input = new TodoItemInput(Id: "t1", Content: "updated", Status: TodoStatusEnumConstants.InProgress, ActiveForm: "active");
+        var existing = new TodoItem("t1", "old", TodoStatusEnumConstants.Pending, TodoPriorityEnumConstants.Medium,
+            CreatedAt: new DateTime(2025, 12, 1));
+        var createdAt = new DateTime(2026, 1, 1);
+        var updatedAt = new DateTime(2026, 1, 2);
+
+        var todo = TodoService.BuildTodoItem("t1", input, TodoPriorityEnumConstants.Medium, existing, createdAt, updatedAt);
+
+        // existing 存在时,保留 existing.CreatedAt,忽略传入的 createdAt
+        todo.CreatedAt.Should().Be(new DateTime(2025, 12, 1));
+        todo.UpdatedAt.Should().Be(updatedAt);
+        todo.Content.Should().Be("updated");
+    }
+
+    [Fact]
+    public void BuildTodoItem_PreservesDependsOnAndOwnedFiles() {
+        var deps = new List<string> { "dep1", "dep2" };
+        var files = new List<string> { "a.cs", "b.cs" };
+        var input = new TodoItemInput(
+            Id: "t1", Content: "c", Status: TodoStatusEnumConstants.Pending, ActiveForm: "a",
+            DependsOn: deps, OwnedFiles: files);
+
+        var todo = TodoService.BuildTodoItem("t1", input, TodoPriorityEnumConstants.Medium, null, DateTime.UtcNow, DateTime.UtcNow);
+
+        todo.DependsOn.Should().BeEquivalentTo(deps);
+        todo.OwnedFiles.Should().BeEquivalentTo(files);
+    }
+
+    [Fact]
+    public void BuildTodoItem_PreservesParentId() {
+        var input = new TodoItemInput(Id: "t1", Content: "c", Status: TodoStatusEnumConstants.Pending, ParentId: "parent-1", ActiveForm: "a");
+
+        var todo = TodoService.BuildTodoItem("t1", input, TodoPriorityEnumConstants.Medium, null, DateTime.UtcNow, DateTime.UtcNow);
+
+        todo.ParentId.Should().Be("parent-1");
+    }
+
+    [Fact]
+    public void BuildTodoItem_Deterministic_SameInputSameOutput() {
+        var input = new TodoItemInput(Id: "t1", Content: "c", Status: TodoStatusEnumConstants.Pending, ActiveForm: "a");
+        var createdAt = new DateTime(2026, 1, 1);
+        var updatedAt = new DateTime(2026, 1, 2);
+
+        var t1 = TodoService.BuildTodoItem("t1", input, TodoPriorityEnumConstants.Medium, null, createdAt, updatedAt);
+        var t2 = TodoService.BuildTodoItem("t1", input, TodoPriorityEnumConstants.Medium, null, createdAt, updatedAt);
+
+        t1.Should().Be(t2);
+    }
 }

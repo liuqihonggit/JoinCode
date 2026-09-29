@@ -410,6 +410,22 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         }
     }
 
+    /// <summary>计算指数退避延迟(ms) — 100×2^attempt,上限5000,attempt>10 钳制为10防溢出</summary>
+    /// <param name="attempt">当前重试次数(0基)</param>
+    /// <returns>退避延迟(ms): attempt=0→100, 1→200, 2→400, ..., ≥10→5000(上限)</returns>
+    internal static int ComputeBackoffDelayMs(int attempt) {
+        if (attempt < 0) return 100;
+        var clamped = Math.Min(attempt, 10);
+        return Math.Min(100 * (1 << clamped), 5000);
+    }
+
+    /// <summary>计算总超时(ms) — singleTimeoutMs × (maxRetries+1),用于诊断异常消息</summary>
+    internal static int ComputeTotalTimeoutMs(int singleTimeoutMs, int maxRetries)
+        => singleTimeoutMs * (maxRetries + 1);
+
+    /// <summary>判断命令是否幂等 — 实现 IIdempotent 标记接口</summary>
+    internal static bool IsIdempotentCommand(TCommand cmd) => cmd is IIdempotent;
+
     /// <summary>
     /// Ask 重试模式等待回复 — 内置重试16次+指数退避+全图环检测+幂等支持。
     /// <para><b>与 AskAwait 区别</b>:此方法接收命令工厂委托,内部重试时重新发送命令;AskAwait 只等待已有 tcs。</para>
@@ -438,16 +454,16 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
             var cmd = commandFactory(tcs);
             var cmdType = cmd?.GetType().Name ?? "null";
-            if (!allowNonIdempotentRetry && cmd is not IIdempotent) {
+            if (!allowNonIdempotentRetry && !IsIdempotentCommand(cmd)) {
                 throw new InvalidOperationException($"AskWithRetryAsync: 命令 {cmdType} 未实现 IIdempotent，不允许重试");
             }
-            if (cmd is not IIdempotent) {
+            if (!IsIdempotentCommand(cmd)) {
                 _logger?.LogWarning("[Actor:{ActorId}] AskWithRetryAsync 使用非幂等命令 {CmdType}, 重试可能产生重复副作用", Id, cmdType);
             }
             if (!TrySend(cmd)) {
                 if (attempt >= maxRetries)
-                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
+                    throw new ActorAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+                var delayMs = ComputeBackoffDelayMs(attempt);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
                 continue;
             }
@@ -457,12 +473,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
                 return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
             } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 if (attempt >= maxRetries)
-                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
+                    throw new ActorAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+                var delayMs = ComputeBackoffDelayMs(attempt);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
         }
-        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+        throw new ActorAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
     }
 
     /// <summary>
@@ -484,16 +500,16 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var cmd = commandFactory(tcs);
             var cmdType = cmd?.GetType().Name ?? "null";
-            if (!allowNonIdempotentRetry && cmd is not IIdempotent) {
+            if (!allowNonIdempotentRetry && !IsIdempotentCommand(cmd)) {
                 throw new InvalidOperationException($"AskWithRetryAsync: 命令 {cmdType} 未实现 IIdempotent，不允许重试");
             }
-            if (cmd is not IIdempotent) {
+            if (!IsIdempotentCommand(cmd)) {
                 _logger?.LogWarning("[Actor:{ActorId}] AskWithRetryAsync 使用非幂等命令 {CmdType}, 重试可能产生重复副作用", Id, cmdType);
             }
             if (!TrySend(cmd)) {
                 if (attempt >= maxRetries)
-                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
+                    throw new ActorAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+                var delayMs = ComputeBackoffDelayMs(attempt);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
                 continue;
             }
@@ -504,12 +520,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
                 return;
             } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 if (attempt >= maxRetries)
-                    throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
-                var delayMs = Math.Min(100 * (1 << Math.Min(attempt, 10)), 5000);
+                    throw new ActorAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
+                var delayMs = ComputeBackoffDelayMs(attempt);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
             }
         }
-        throw new ActorAskDeadlockException(GetType().Name, singleTimeoutMs * (maxRetries + 1));
+        throw new ActorAskDeadlockException(GetType().Name, ComputeTotalTimeoutMs(singleTimeoutMs, maxRetries));
     }
 
     /// <summary>

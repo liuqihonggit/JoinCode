@@ -145,4 +145,95 @@ public sealed class DagNodeSummarizerTests {
 
         return dag;
     }
+
+    [Fact]
+    public async Task SummarizeResolvedNodesAsync_WithCompressor_LowRatio_UsesCompressedContent() {
+        var dag = CreateDagWithResolvedNodes(35, 500);
+        var compressor = new Mock<IContextCompressor>();
+        compressor.Setup(x => x.CanCompress(It.IsAny<string>(), ContentType.Text)).Returns(true);
+        compressor.Setup(x => x.CompressAsync(It.IsAny<string>(), ContentType.Text, It.IsAny<CompressionOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CompressionResult {
+                ContentId = "c1",
+                CompressedContent = "压缩摘要",
+                OriginalLength = 500,
+                CompressedLength = 50,
+                ContentType = ContentType.Text,
+                StrategyName = "stub",
+            });
+        var summarizer = new DagNodeSummarizer(compressor.Object);
+
+        await summarizer.SummarizeResolvedNodesAsync(dag, threshold: 30);
+
+        foreach (var node in dag.Nodes.Values.Where(n => n.Payload.State is DataState.Fact)) {
+            Assert.Equal("压缩摘要", node.Payload.Content);
+            Assert.NotNull(node.Payload.OriginalContent);
+            Assert.Equal(500, node.Payload.OriginalContent!.Length);
+        }
+    }
+
+    [Fact]
+    public async Task SummarizeResolvedNodesAsync_WithCompressor_CanCompressFalse_FallsBackToTruncation() {
+        var dag = CreateDagWithResolvedNodes(35, 500);
+        var compressor = new Mock<IContextCompressor>();
+        compressor.Setup(x => x.CanCompress(It.IsAny<string>(), ContentType.Text)).Returns(false);
+        var summarizer = new DagNodeSummarizer(compressor.Object);
+
+        await summarizer.SummarizeResolvedNodesAsync(dag, threshold: 30);
+
+        foreach (var node in dag.Nodes.Values.Where(n => n.Payload.State is DataState.Fact)) {
+            Assert.EndsWith("...", node.Payload.Content);
+            Assert.True(node.Payload.Content.Length < 500);
+            Assert.NotNull(node.Payload.OriginalContent);
+            Assert.Equal(500, node.Payload.OriginalContent!.Length);
+        }
+    }
+
+    [Fact]
+    public async Task SummarizeResolvedNodesAsync_WithCompressor_HighRatio_KeepsOriginalContent() {
+        var dag = CreateDagWithResolvedNodes(35, 500);
+        var compressor = new Mock<IContextCompressor>();
+        compressor.Setup(x => x.CanCompress(It.IsAny<string>(), ContentType.Text)).Returns(true);
+        compressor.Setup(x => x.CompressAsync(It.IsAny<string>(), ContentType.Text, It.IsAny<CompressionOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CompressionResult {
+                ContentId = "c1",
+                CompressedContent = "压缩不够",
+                OriginalLength = 500,
+                CompressedLength = 450,
+                ContentType = ContentType.Text,
+                StrategyName = "stub",
+            });
+        var summarizer = new DagNodeSummarizer(compressor.Object);
+
+        await summarizer.SummarizeResolvedNodesAsync(dag, threshold: 30);
+
+        foreach (var node in dag.Nodes.Values.Where(n => n.Payload.State is DataState.Fact)) {
+            Assert.Equal(500, node.Payload.Content.Length);
+            Assert.Null(node.Payload.OriginalContent);
+        }
+    }
+
+    [Fact]
+    public async Task SummarizeResolvedNodesAsync_WithCompressor_FailedResult_KeepsOriginalContent() {
+        var dag = CreateDagWithResolvedNodes(35, 500);
+        var compressor = new Mock<IContextCompressor>();
+        compressor.Setup(x => x.CanCompress(It.IsAny<string>(), ContentType.Text)).Returns(true);
+        compressor.Setup(x => x.CompressAsync(It.IsAny<string>(), ContentType.Text, It.IsAny<CompressionOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CompressionResult {
+                ContentId = "c1",
+                CompressedContent = string.Empty,
+                OriginalLength = 500,
+                CompressedLength = 500,
+                ContentType = ContentType.Text,
+                StrategyName = "stub",
+                IsSuccess = false,
+            });
+        var summarizer = new DagNodeSummarizer(compressor.Object);
+
+        await summarizer.SummarizeResolvedNodesAsync(dag, threshold: 30);
+
+        foreach (var node in dag.Nodes.Values.Where(n => n.Payload.State is DataState.Fact)) {
+            Assert.Equal(500, node.Payload.Content.Length);
+            Assert.Null(node.Payload.OriginalContent);
+        }
+    }
 }

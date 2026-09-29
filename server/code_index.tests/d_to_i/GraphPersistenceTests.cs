@@ -23,22 +23,127 @@ public sealed class GraphPersistenceTests : IDisposable {
 
     [Fact]
     public async Task IndexFileAsync_WithCallEdges_PersistsCallGraph() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        await using var fs = new IO.FileSystem.InMemoryFileSystem();
+        await using var store = new InMemoryIndexStore();
+        var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
+        await using var persistence = new GraphPersistence(store, fs);
+
+        // 注入含调用边的文件
+        await fs.WriteAllText("a.cs", "public class Foo { public void Bar() { Baz(); } public void Baz() { } }");
+        await index.IndexFileAsync("a.cs", CancellationToken.None).ConfigureAwait(true);
+
+        var preSnap = store.GetSnapshot();
+        Assert.True(preSnap.CallEdges.Count > 0, "索引后应有调用边");
+
+        // 保存 → 加载 → 验证调用边往返一致
+        const string dir = "graph-calledges";
+        await persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
+        await using var loadStore = new InMemoryIndexStore();
+        await using var loadPersistence = new GraphPersistence(loadStore, fs);
+        var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(loaded);
+        var postSnap = loadStore.GetSnapshot();
+        Assert.Equal(preSnap.CallEdges.Count, postSnap.CallEdges.Count);
+        Assert.Contains(postSnap.CallEdges, e => e.CalleeSymbol.Contains("Baz") || e.CallerSymbol.Contains("Foo"));
     }
 
     [Fact]
     public async Task IndexFileAsync_WithDependencies_PersistsDependencyGraph() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        await using var fs = new IO.FileSystem.InMemoryFileSystem();
+        await using var store = new InMemoryIndexStore();
+        var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
+        await using var persistence = new GraphPersistence(store, fs);
+
+        // 注入含依赖关系的文件(继承)
+        await fs.WriteAllText("a.cs", "public interface IFoo { } public class Foo : IFoo { }");
+        await index.IndexFileAsync("a.cs", CancellationToken.None).ConfigureAwait(true);
+
+        var preSnap = store.GetSnapshot();
+        Assert.True(preSnap.DepEdges.Count > 0, "索引后应有依赖边");
+
+        // 保存 → 加载 → 验证依赖边往返一致
+        const string dir = "graph-depedges";
+        await persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
+        await using var loadStore = new InMemoryIndexStore();
+        await using var loadPersistence = new GraphPersistence(loadStore, fs);
+        var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(loaded);
+        var postSnap = loadStore.GetSnapshot();
+        Assert.Equal(preSnap.DepEdges.Count, postSnap.DepEdges.Count);
     }
 
     [Fact]
     public async Task RemoveFileAsync_RemovesCallAndDependencyEdges() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        await using var fs = new IO.FileSystem.InMemoryFileSystem();
+        await using var store = new InMemoryIndexStore();
+        var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
+        await using var persistence = new GraphPersistence(store, fs);
+
+        // 索引两个文件
+        await fs.WriteAllText("a.cs", "public class A { public void M() { } }");
+        await fs.WriteAllText("b.cs", "public class B { public void N() { } }");
+        await index.IndexFileAsync("a.cs", CancellationToken.None).ConfigureAwait(true);
+        await index.IndexFileAsync("b.cs", CancellationToken.None).ConfigureAwait(true);
+        Assert.Equal(2, store.GetSnapshot().FileTracking.Count);
+
+        // 移除 a.cs
+        await index.RemoveFileAsync("a.cs", CancellationToken.None).ConfigureAwait(true);
+
+        var snap = store.GetSnapshot();
+        Assert.False(snap.FileTracking.ContainsKey("a.cs"));
+        Assert.True(snap.FileTracking.ContainsKey("b.cs"));
+        // a.cs 的符号被移除
+        Assert.DoesNotContain(snap.SymbolsByFqn, kvp => kvp.Value.FilePath == "a.cs");
+
+        // 保存 → 加载 → 验证移除后状态一致
+        const string dir = "graph-after-remove";
+        await persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
+        await using var loadStore = new InMemoryIndexStore();
+        await using var loadPersistence = new GraphPersistence(loadStore, fs);
+        var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(loaded);
+        var postSnap = loadStore.GetSnapshot();
+        Assert.Single(postSnap.FileTracking);
+        Assert.True(postSnap.FileTracking.ContainsKey("b.cs"));
     }
 
     [Fact]
     public async Task IndexFileAsync_CrossFileInterface_CorrectsInheritsToImplements() {
-        await Task.CompletedTask.ConfigureAwait(true);
+        await using var fs = new IO.FileSystem.InMemoryFileSystem();
+        await using var store = new InMemoryIndexStore();
+        var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
+        await using var persistence = new GraphPersistence(store, fs);
+
+        // 接口和实现在不同文件
+        await fs.WriteAllText("iface.cs", "public interface IFoo { void Bar(); }");
+        await fs.WriteAllText("impl.cs", "public class FooImpl : IFoo { public void Bar() { } }");
+
+        // 批量索引(单次 CorrectInheritsToImplements)
+        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>();
+        foreach (var path in new[] { "iface.cs", "impl.cs" }) {
+            var content = await fs.ReadAllTextAsync(path, CancellationToken.None).ConfigureAwait(true);
+            var extraction = new CSharpSymbolExtractor().ExtractAll(content, path);
+            batch.Add((path, content, "h", extraction));
+        }
+        await index.IndexFilesBatchAsync(batch, CancellationToken.None).ConfigureAwait(true);
+
+        var preSnap = store.GetSnapshot();
+        // 跨文件 Inherits→Implements 修正
+        Assert.All(preSnap.DepEdges, e => Assert.NotEqual(DependencyKind.Inherits, e.DependencyKind));
+
+        // 保存 → 加载 → 修正后状态一致
+        const string dir = "graph-cross-file";
+        await persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
+        await using var loadStore = new InMemoryIndexStore();
+        await using var loadPersistence = new GraphPersistence(loadStore, fs);
+        var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(loaded);
+        var postSnap = loadStore.GetSnapshot();
+        Assert.All(postSnap.DepEdges, e => Assert.NotEqual(DependencyKind.Inherits, e.DependencyKind));
     }
 
     /// <summary>

@@ -28,6 +28,7 @@ global using McpToolRegistry;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using System.Collections.Concurrent;
 global using System.Collections.Frozen;
+global using System.IO;
 global using System.Net;
 global using System.Net.Http;
 global using System.Net.Http.Headers;

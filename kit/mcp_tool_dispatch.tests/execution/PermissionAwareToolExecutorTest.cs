@@ -254,4 +254,82 @@ public class PermissionAwareToolExecutorTest {
         eventArgs!.ToolName.Should().Be("test_tool");
         eventArgs.IsError.Should().BeFalse();
     }
+
+    /// <summary>桩中间件 — 要求确认但不设置 Result（Result 保持 null）</summary>
+    private sealed class PendingWithoutResultMiddleware : IMiddleware<ToolExecutionContext> {
+        public ErrorBehavior OnError => ErrorBehavior.Propagate;
+        public Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct) {
+            context.PermissionDecision = PermissionDecision.PendingConfirmation;
+            context.PermissionConfirmationPrompt = "confirm?";
+            return Task.CompletedTask;
+        }
+    }
+
+    /// <summary>桩中间件 — 第一次要求确认，第二次不设置 Result（retry 无结果）</summary>
+    private sealed class PendingThenNoResultMiddleware : IMiddleware<ToolExecutionContext> {
+        private int _callCount;
+        public ErrorBehavior OnError => ErrorBehavior.Propagate;
+        public Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct) {
+            var count = Interlocked.Increment(ref _callCount);
+            if (count == 1) {
+                context.PermissionDecision = PermissionDecision.PendingConfirmation;
+                context.PermissionConfirmationPrompt = "confirm?";
+                context.Result = new ToolResult {
+                    Content = [new() { Type = ToolContentType.Text, Text = "need confirm" }],
+                    IsError = true
+                };
+            }
+            // 第二次调用不设置 Result，保持 null
+            return Task.CompletedTask;
+        }
+    }
+
+    // === ExecuteAsync — OperationCanceledException 透传 ===
+
+    [Fact]
+    public async Task ExecuteAsync_PipelineThrowsOperationCanceledException_Propagates() {
+        var handler = CreateStubHandler();
+        await using var executor = new PermissionAwareToolExecutor(
+            CreateRegistry(handler),
+            CreatePipeline(new ThrowingMiddleware(new OperationCanceledException())),
+            CreatePermissionManager(), logger: NullLogger<PermissionAwareToolExecutor>.Instance);
+
+        var act = () => executor.ExecuteAsync("test_tool", []);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    // === HandlePendingConfirmationAsync — 边缘分支 ===
+
+    [Fact]
+    public async Task HandlePendingConfirmation_NoHandlerAndNullResult_ReturnsDefaultDeniedError() {
+        var handler = CreateStubHandler();
+        await using var executor = new PermissionAwareToolExecutor(
+            CreateRegistry(handler), CreatePipeline(new PendingWithoutResultMiddleware()),
+            CreatePermissionManager(), confirmationHandler: null,
+            logger: NullLogger<PermissionAwareToolExecutor>.Instance);
+
+        var result = await executor.ExecuteAsync("test_tool", []);
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("需要确认但无确认处理器");
+    }
+
+    [Fact]
+    public async Task HandlePendingConfirmation_UserAllows_RetryProducesNoResult_ReturnsNoResultError() {
+        var handler = CreateStubHandler();
+        var confirmHandler = new Mock<IPermissionConfirmationHandler>();
+        confirmHandler.Setup(c => c.Confirm(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(PermissionConfirmAction.Allow);
+
+        await using var executor = new PermissionAwareToolExecutor(
+            CreateRegistry(handler), CreatePipeline(new PendingThenNoResultMiddleware()),
+            CreatePermissionManager(), confirmationHandler: confirmHandler.Object,
+            logger: NullLogger<PermissionAwareToolExecutor>.Instance);
+
+        var result = await executor.ExecuteAsync("test_tool", []);
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("no result");
+    }
 }

@@ -13,6 +13,12 @@ internal sealed partial class ChatTimingMiddleware : ServiceEntity, Core.Context
         _debugLog = Diag.IsDebugLog;
     }
 
+    /// <summary>构造 ChatTimingMiddleware（注入 debugLog 开关，供确定性测试使用）。</summary>
+    /// <param name="debugLog">是否在管道末尾追加 TimingSummary 事件。</param>
+    internal ChatTimingMiddleware(bool debugLog) {
+        _debugLog = debugLog;
+    }
+
     /// <summary>执行中间件。</summary>
     public async IAsyncEnumerable<JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> InvokeAsync(
         Core.Context.ChatMiddlewareContext context,

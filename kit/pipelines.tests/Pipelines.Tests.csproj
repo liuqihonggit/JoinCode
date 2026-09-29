@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>test</ProjectType>
+    <RootNamespace>Pipelines.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Pipelines.Tests</AssemblyName>
+    <Description>JoinCode Pipelines 中间件确定性单元测试 — mock 消除 IO/异步依赖，无时序</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)kit/pipelines/Pipelines.csproj" />
+    <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
+  </ItemGroup>
+
+</Project>

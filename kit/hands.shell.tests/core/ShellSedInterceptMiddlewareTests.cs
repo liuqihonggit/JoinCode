@@ -247,4 +247,246 @@ public class ShellSedInterceptMiddlewareTests {
         // AppendLine 使用 Environment.NewLine,用 Contain 验证关键文本（跨平台兼容）
         preview.Should().Contain("Re-run the same sed command to confirm and apply this edit.");
     }
+
+    // === InvokeAsync 分发器 + HandleSedEditAsync 主流程测试 ===
+    // 全部用 Mock<IFileSystem> 隔离 IO;SessionContext.Current 默认 null → GetCurrentCache() 返回 null → 走 _fallbackEdits 分支
+    // 同一个中间件实例的多次调用共享 _fallbackEdits,用于验证"首次预览→二次确认"流程
+    // 确定性:无时序依赖(60s 窗口内连续调用)、无磁盘 IO(全 mock)、无 session 上下文(默认 AsyncLocal null)
+
+    private static Mock<ISystemActuator> CreateBashProvider() {
+        var mock = new Mock<ISystemActuator>();
+        mock.SetupGet(x => x.Kind).Returns(SystemActuatorKind.FromId("bash")!);
+        mock.SetupGet(x => x.ShellPath).Returns("bash");
+        return mock;
+    }
+
+    private static ShellPipelineContext CreateContext(string command, string? workDir = "/work") {
+        return new ShellPipelineContext {
+            Command = command,
+            Provider = CreateBashProvider().Object,
+            WorkingDirectory = workDir,
+        };
+    }
+
+    private static Mock<IFileSystem> CreateFileSystemMock(string currentDir = "/cwd") {
+        var mock = new Mock<IFileSystem>();
+        mock.Setup(x => x.GetCurrentDirectory()).Returns(currentDir);
+        return mock;
+    }
+
+    // --- InvokeAsync 分发器(2 路径) ---
+
+    /// <summary>
+    /// 路径1: 非 sed 命令 → 调用 next 委托,不设置 SedResult
+    /// </summary>
+    [Fact]
+    public async Task InvokeAsync_NonSedCommand_CallsNext_DoesNotSetSedResult() {
+        await using var sut = new ShellSedInterceptMiddleware(CreateFileSystemMock().Object);
+        var context = CreateContext("echo hello");
+
+        var nextCalled = false;
+        await sut.InvokeAsync(context, (ctx, ct) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        nextCalled.Should().BeTrue("非 sed 命令应调用 next 委托");
+        context.SedResult.Should().BeNull("非 sed 命令不应设置 SedResult");
+    }
+
+    /// <summary>
+    /// 路径2: sed -i 命令 → 短路,不调用 next,设置 SedResult 和 Result
+    /// </summary>
+    [Fact]
+    public async Task InvokeAsync_SedCommand_ShortCircuits_SetsSedResult_SkipsNext() {
+        var fs = CreateFileSystemMock();
+        fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
+        fs.Setup(x => x.ReadAllTextAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("foo bar");
+        await using var sut = new ShellSedInterceptMiddleware(fs.Object);
+        var context = CreateContext("sed -i 's/foo/baz/g' file.txt");
+
+        var nextCalled = false;
+        await sut.InvokeAsync(context, (ctx, ct) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        nextCalled.Should().BeFalse("sed 命令应短路不调用 next");
+        context.SedResult.Should().NotBeNull("sed 命令应设置 SedResult");
+        context.Result.Should().NotBeNull("sed 命令应同步设置 Result");
+        context.Result.Should().BeSameAs(context.SedResult);
+    }
+
+    // --- HandleSedEditAsync 主流程(8 路径) ---
+
+    /// <summary>
+    /// 路径1: _fs is null → BuildFileSystemUnavailableDiagnostic
+    /// </summary>
+    [Fact]
+    public async Task InvokeAsync_FsNull_ReturnsFileSystemUnavailableDiagnostic() {
+        await using var sut = new ShellSedInterceptMiddleware(fs: null);
+        var context = CreateContext("sed -i 's/a/b/g' file.txt");
+
+        await sut.InvokeAsync(context, static (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        context.SedResult.Should().NotBeNull();
+        context.SedResult!.IsError.Should().BeTrue();
+        context.SedResult.Diagnostic.Should().NotBeNull();
+        context.SedResult.Diagnostic!.Reason.Should().Be("服务不可用");
+        context.SedResult.Diagnostic.FormattedMessage.Should().Contain("IFileSystem");
+    }
+
+    /// <summary>
+    /// 路径2: 文件不存在 → BuildFileNotFoundDiagnostic
+    /// </summary>
+    [Fact]
+    public async Task InvokeAsync_FileNotExists_ReturnsFileNotFoundDiagnostic() {
+        var fs = CreateFileSystemMock();
+        fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(false);
+        await using var sut = new ShellSedInterceptMiddleware(fs.Object);
+        var context = CreateContext("sed -i 's/a/b/g' missing.txt");
+
+        await sut.InvokeAsync(context, static (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        context.SedResult!.IsError.Should().BeTrue();
+        context.SedResult.Diagnostic!.Reason.Should().Be("文件未找到");
+        context.SedResult.Diagnostic.Details.Should().Contain(d => d.Key == "file_path" && d.Value == "missing.txt");
+        context.SedResult.Diagnostic.Suggestions.Should().HaveCount(2);
+    }
+
+    /// <summary>
+    /// 路径3: 读取失败 → BuildReadFailedDiagnostic
+    /// </summary>
+    [Fact]
+    public async Task InvokeAsync_ReadAllTextThrows_ReturnsReadFailedDiagnostic() {
+        var fs = CreateFileSystemMock();
+        fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
+        fs.Setup(x => x.ReadAllTextAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new IOException("disk read error"));
+        await using var sut = new ShellSedInterceptMiddleware(fs.Object);
+        var context = CreateContext("sed -i 's/a/b/g' file.txt");
+
+        await sut.InvokeAsync(context, static (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        context.SedResult!.IsError.Should().BeTrue();
+        context.SedResult.Diagnostic!.Reason.Should().Be("读取文件失败");
+        context.SedResult.Diagnostic.FormattedMessage.Should().Contain("disk read error");
+        context.SedResult.Diagnostic.Details.Should().Contain(d => d.Key == "error" && d.Value == "disk read error");
+    }
+
+    /// <summary>
+    /// 路径4: 无变更(pattern 不匹配) → BuildNoChangeMessage
+    /// </summary>
+    [Fact]
+    public async Task InvokeAsync_PatternNoMatch_ReturnsNoChangeMessage() {
+        var fs = CreateFileSystemMock();
+        fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
+        fs.Setup(x => x.ReadAllTextAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("hello world");
+        await using var sut = new ShellSedInterceptMiddleware(fs.Object);
+        // pattern xyz 不匹配内容 hello world → ApplySedSubstitution 返回原内容 → oldContent == newContent
+        var context = CreateContext("sed -i 's/xyz/replaced/g' file.txt");
+
+        await sut.InvokeAsync(context, static (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        context.SedResult!.IsError.Should().BeFalse();
+        context.SedResult.GetFirstText().Should().Contain("Pattern did not match any content");
+    }
+
+    /// <summary>
+    /// 路径5: 首次调用 → 返回 BuildSedPreview 预览 + 存 pending(不调用 EditFileAsync)
+    /// </summary>
+    [Fact]
+    public async Task InvokeAsync_FirstCall_ReturnsPreview_StoresPending() {
+        var fs = CreateFileSystemMock();
+        fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
+        fs.Setup(x => x.ReadAllTextAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("foo bar");
+        await using var sut = new ShellSedInterceptMiddleware(fs.Object);
+        var context = CreateContext("sed -i 's/foo/baz/g' file.txt");
+
+        await sut.InvokeAsync(context, static (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        context.SedResult!.IsError.Should().BeFalse();
+        var text = context.SedResult.GetFirstText();
+        text.Should().Contain("Sed edit preview for file.txt:");
+        text.Should().Contain("Pattern: foo");
+        text.Should().Contain("Replacement: baz");
+        text.Should().Contain("Re-run the same sed command to confirm and apply this edit.");
+        // 首次不应调用 EditFileAsync
+        fs.Verify(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<(byte[]?, bool)>>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// 路径6: 二次调用确认匹配 → EditFileAsync 写入成功,返回 Applied 消息
+    /// </summary>
+    [Fact]
+    public async Task InvokeAsync_SecondCall_MatchingSed_AppliesEdit() {
+        var fs = CreateFileSystemMock();
+        fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
+        fs.Setup(x => x.ReadAllTextAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("foo bar");
+        fs.Setup(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<(byte[]?, bool)>>>(), It.IsAny<CancellationToken>()))
+          .ReturnsAsync(true);
+        await using var sut = new ShellSedInterceptMiddleware(fs.Object);
+        var command = "sed -i 's/foo/baz/g' file.txt";
+
+        // 首次:预览
+        var firstCtx = CreateContext(command);
+        await sut.InvokeAsync(firstCtx, static (_, _) => Task.CompletedTask, CancellationToken.None);
+        firstCtx.SedResult!.GetFirstText().Should().Contain("Sed edit preview");
+
+        // 二次:同命令确认匹配 → EditFileAsync 调用
+        var secondCtx = CreateContext(command);
+        await sut.InvokeAsync(secondCtx, static (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        secondCtx.SedResult!.IsError.Should().BeFalse();
+        secondCtx.SedResult.GetFirstText().Should().Contain("Applied sed substitution to file.txt");
+        fs.Verify(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<(byte[]?, bool)>>>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// 路径7: 二次调用写入失败(EditFileAsync 抛异常) → BuildWriteFailedDiagnostic
+    /// </summary>
+    [Fact]
+    public async Task InvokeAsync_SecondCall_WriteFails_ReturnsWriteFailedDiagnostic() {
+        var fs = CreateFileSystemMock();
+        fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
+        fs.Setup(x => x.ReadAllTextAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("foo bar");
+        fs.Setup(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<(byte[]?, bool)>>>(), It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new IOException("disk full"));
+        await using var sut = new ShellSedInterceptMiddleware(fs.Object);
+        var command = "sed -i 's/foo/baz/g' file.txt";
+
+        // 首次:预览
+        var firstCtx = CreateContext(command);
+        await sut.InvokeAsync(firstCtx, static (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        // 二次:EditFileAsync 抛异常
+        var secondCtx = CreateContext(command);
+        await sut.InvokeAsync(secondCtx, static (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        secondCtx.SedResult!.IsError.Should().BeTrue();
+        secondCtx.SedResult.Diagnostic!.Reason.Should().Be("写入文件失败");
+        secondCtx.SedResult.Diagnostic.FormattedMessage.Should().Contain("disk full");
+        secondCtx.SedResult.Diagnostic.Details.Should().Contain(d => d.Key == "error" && d.Value == "disk full");
+    }
+
+    /// <summary>
+    /// 路径8: 二次调用 sed 信息不匹配(同文件不同 pattern) → 清旧 pending + 重新预览(不调用 EditFileAsync)
+    /// </summary>
+    [Fact]
+    public async Task InvokeAsync_SecondCall_MismatchedSed_ClearsPending_Repreview() {
+        var fs = CreateFileSystemMock();
+        fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
+        fs.Setup(x => x.ReadAllTextAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("alpha beta");
+        await using var sut = new ShellSedInterceptMiddleware(fs.Object);
+
+        // 首次:pattern=alpha → 预览并存 pending(SedPattern=alpha)
+        var firstCtx = CreateContext("sed -i 's/alpha/ALPHA/g' file.txt");
+        await sut.InvokeAsync(firstCtx, static (_, _) => Task.CompletedTask, CancellationToken.None);
+        firstCtx.SedResult!.GetFirstText().Should().Contain("Pattern: alpha");
+
+        // 二次:同文件不同 pattern(beta) → pending 存在但 SedPattern 不匹配 → 清 pending → 重新走首次路径 → 新预览
+        var secondCtx = CreateContext("sed -i 's/beta/BETA/g' file.txt");
+        await sut.InvokeAsync(secondCtx, static (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        secondCtx.SedResult!.IsError.Should().BeFalse();
+        var text = secondCtx.SedResult.GetFirstText();
+        text.Should().Contain("Sed edit preview for file.txt:");
+        text.Should().Contain("Pattern: beta");
+        // 未进入确认写入分支,EditFileAsync 不应被调用
+        fs.Verify(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<(byte[]?, bool)>>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

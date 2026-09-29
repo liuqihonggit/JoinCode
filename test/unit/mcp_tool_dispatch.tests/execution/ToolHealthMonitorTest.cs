@@ -445,4 +445,119 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
         var act = () => monitor.ApplyTimeDecay();
         act.Should().NotThrow();
     }
+
+    // === GetEffectiveScore — 未记录工具仅降权（不调 Record*Async） ===
+
+    [Fact]
+    public async Task GetEffectiveScore_UnrecordedToolWithPenalty_ReturnsClampedPenalty() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
+            ScoreMin = -100, ScoreMax = 100
+        }, penalties: new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["penalized_tool"] = -20 });
+
+        // 不调 Record*Async：baseScore = 0，有效评分 = Clamp(0 + (-20), -100, 100) = -20
+        monitor.GetEffectiveScore("penalized_tool").Should().Be(-20);
+    }
+
+    [Fact]
+    public async Task GetEffectiveScore_UnrecordedToolWithoutPenalty_ReturnsZero() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
+            ScoreMin = -100, ScoreMax = 100
+        });
+
+        // 未记录、无降权：Clamp(0 + 0, -100, 100) = 0
+        monitor.GetEffectiveScore("unknown_tool").Should().Be(0);
+    }
+
+    // === UpdateBlacklist — 双变量原子切换 ===
+
+    [Fact]
+    public async Task UpdateBlacklist_ReplacesSnapshot_ReflectsNewBlacklist() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs,
+            blacklist: new HashSet<string>(["old_tool"], StringComparer.OrdinalIgnoreCase));
+
+        // 初始快照
+        monitor.IsBlacklisted("old_tool").Should().BeTrue();
+        monitor.IsBlacklisted("new_tool").Should().BeFalse();
+
+        monitor.UpdateBlacklist(new HashSet<string>(["new_tool"], StringComparer.OrdinalIgnoreCase));
+
+        // 切换后：旧项移除，新项生效
+        monitor.IsBlacklisted("old_tool").Should().BeFalse();
+        monitor.IsBlacklisted("new_tool").Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UpdateBlacklist_WithWildcardPattern_MatchesAfterUpdate() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs);
+
+        monitor.IsBlacklisted("shell_check").Should().BeFalse();
+
+        monitor.UpdateBlacklist(new HashSet<string>(["shell_*"], StringComparer.OrdinalIgnoreCase));
+
+        monitor.IsBlacklisted("shell_check").Should().BeTrue();
+        monitor.IsBlacklisted("shell_background_get").Should().BeTrue();
+        monitor.IsBlacklisted("Bash").Should().BeFalse();
+    }
+
+    // === UpdatePenalties — 字典原子切换 ===
+
+    [Fact]
+    public async Task UpdatePenalties_ReplacesDictionary_ReflectsNewPenalties() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs,
+            penalties: new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["old_tool"] = -10 });
+
+        // 初始
+        monitor.GetPenalty("old_tool").Should().Be(-10);
+        monitor.GetPenalty("new_tool").Should().Be(0);
+
+        monitor.UpdatePenalties(new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["new_tool"] = -30 });
+
+        // 切换后：旧项移除，新项生效
+        monitor.GetPenalty("old_tool").Should().Be(0);
+        monitor.GetPenalty("new_tool").Should().Be(-30);
+    }
+
+    [Fact]
+    public async Task UpdatePenalties_WithWildcardPattern_MatchesAfterUpdate() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs);
+
+        monitor.GetPenalty("shell_check").Should().Be(0);
+
+        monitor.UpdatePenalties(new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["shell_*"] = -25 });
+
+        monitor.GetPenalty("shell_check").Should().Be(-25);
+        monitor.GetPenalty("shell_background_get").Should().Be(-25);
+        monitor.GetPenalty("Bash").Should().Be(0);
+    }
+
+    // === GetAllRecordsAsync — 构造后返回空冻结字典 ===
+
+    [Fact]
+    public async Task GetAllRecordsAsync_EmptyMonitor_ReturnsEmptyDictionary() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs);
+
+        var all = await monitor.GetAllRecordsAsync();
+
+        all.Should().NotBeNull();
+        all.Count.Should().Be(0);
+    }
+
+    // === GetRecordAsync — 构造后立即调用返回 null（无 Record） ===
+
+    [Fact]
+    public async Task GetRecordAsync_EmptyMonitor_ReturnsNull() {
+        var fs = new InMemoryFileSystem();
+        await using var monitor = new ToolHealthMonitor(fs);
+
+        var record = await monitor.GetRecordAsync("any_tool");
+
+        record.Should().BeNull();
+    }
 }

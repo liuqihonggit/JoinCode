@@ -81,11 +81,54 @@ public class JevQueryServiceTests {
 
     #endregion
 
-    #region 降级流式(需 HTTP mock,留给 J7 E2E)
+    #region 降级流式 — HTTP mock 确定性测试
 
-    [Fact(Skip = "需 HTTP mock 或真实 API Key,留给 J7 E2E 验证")]
-    public void GetStreamEventContentsAsync_ShouldYieldSingleEvent_WhenNonStreamFallback() {
-        // J7 E2E:用真实 API Key 或 MockServer 验证降级流式
+    [Fact]
+    public async Task GetStreamEventContentsAsync_ShouldYieldSingleEvent_WhenNonStreamFallback() {
+        // Jev 不支持流式,降级为非流式包装单次 yield — 用 HttpMessageHandler mock 消除 IO
+        var responseJson = """{"model":"jev-latest","answers":{"default":{"choice":"positive","confidence":0.88}}}""";
+        var handler = new FakeJevHttpHandler(new HttpResponseMessage {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
+        });
+        var service = CreateServiceWithHandler(handler);
+
+        var history = new MessageList {
+            new(MessageRole.User, "Classify sentiment")
+        };
+
+        var events = new List<StreamEvent>();
+        await foreach (var evt in service.GetStreamEventContentsAsync(history)) {
+            events.Add(evt);
+        }
+
+        events.Should().ContainSingle("Jev 不支持流式,降级为单次 yield");
+        events[0].Role.Should().Be(MessageRole.Assistant);
+        events[0].Content.Should().Contain("choice=positive");
+        events[0].Content.Should().Contain("confidence=0.88");
+        events[0].ModelId.Should().Be("jev-latest");
+    }
+
+    [Fact]
+    public async Task GetStreamEventContentsAsync_PreservesMetadata_FromApiMessage() {
+        // 验证降级包装时 StreamEvent 携带 ApiMessage 的 metadata
+        var responseJson = """{"model":"jev-latest","answers":{"default":{"noul":0.7,"confidence":0.9}},"usage":{"input_tokens":10}}""";
+        var handler = new FakeJevHttpHandler(new HttpResponseMessage {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
+        });
+        var service = CreateServiceWithHandler(handler);
+
+        var events = new List<StreamEvent>();
+        await foreach (var evt in service.GetStreamEventContentsAsync(new MessageList { new(MessageRole.User, "q") })) {
+            events.Add(evt);
+        }
+
+        events.Should().ContainSingle();
+        events[0].Metadata.Should().ContainKey("JevModelId");
+        events[0].Metadata!["JevModelId"].GetString().Should().Be("jev-latest");
+        events[0].Metadata.Should().ContainKey("JevInputTokens");
+        events[0].Metadata!["JevInputTokens"].GetInt32().Should().Be(10);
     }
 
     #endregion
@@ -357,6 +400,232 @@ public class JevQueryServiceTests {
 
         msg.Metadata!["JevModelId"].ValueKind.Should().Be(JsonValueKind.Null);
         msg.Metadata!["JevInputTokens"].ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    #endregion
+
+    #region GetTypedDecisionsAsync — HTTP mock 确定性测试
+
+    [Fact]
+    public async Task GetTypedDecisionsAsync_ShouldDeserializeResponse_AndMapToTypedDecisionResult() {
+        // Arrange — 伪造 Jev 响应 JSON(Noul 决策 + usage)
+        var responseJson = """{"id":"resp_1","model":"jev-latest","answers":{"q1":{"noul":0.9,"confidence":0.95}},"usage":{"input_tokens":42}}""";
+        var handler = new FakeJevHttpHandler(new HttpResponseMessage {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
+        });
+        var service = CreateServiceWithHandler(handler);
+
+        var questions = new Dictionary<string, TypedDecisionQuestion> {
+            ["q1"] = new() { Kind = TypedDecisionKind.Noul, Instructions = "Is it true?" }
+        };
+
+        // Act
+        var result = await service.GetTypedDecisionsAsync("test state", questions);
+
+        // Assert — 反序列化 + ConvertToTypedDecisionResult 映射正确
+        result.ModelId.Should().Be("jev-latest");
+        result.Answers.Should().ContainKey("q1");
+        result.Answers["q1"].Kind.Should().Be(TypedDecisionKind.Noul);
+        result.Answers["q1"].Confidence.Should().Be(0.95);
+        result.Answers["q1"].RawValue.GetDouble().Should().Be(0.9);
+        result.Usage.Should().NotBeNull();
+        result.Usage!.InputTokens.Should().Be(42);
+
+        // Assert — 请求体包含正确的 model + questions
+        handler.LastRequestBody.Should().NotBeNull();
+        handler.LastRequestBody.Should().Contain("\"model\":\"jev-latest\"");
+        handler.LastRequestBody.Should().Contain("\"q1\"");
+        handler.LastRequestBody.Should().Contain("\"type\":\"noul\"");
+    }
+
+    [Fact]
+    public async Task GetTypedDecisionsAsync_WithChoiceAnswer_MapsChoiceKind() {
+        var responseJson = """{"model":"jev-model","answers":{"sentiment":{"choice":"positive","confidence":0.88}}}""";
+        var handler = new FakeJevHttpHandler(new HttpResponseMessage {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
+        });
+        var service = CreateServiceWithHandler(handler);
+
+        var questions = new Dictionary<string, TypedDecisionQuestion> {
+            ["sentiment"] = new() {
+                Kind = TypedDecisionKind.Choice,
+                Instructions = "Classify",
+                Options = ["positive", "negative"]
+            }
+        };
+
+        var result = await service.GetTypedDecisionsAsync("feedback", questions);
+
+        result.Answers["sentiment"].Kind.Should().Be(TypedDecisionKind.Choice);
+        result.Answers["sentiment"].RawValue.GetString().Should().Be("positive");
+        result.Answers["sentiment"].Confidence.Should().Be(0.88);
+
+        // 请求体应包含 options(Choice 类型)
+        handler.LastRequestBody.Should().Contain("\"options\":[\"positive\",\"negative\"]");
+    }
+
+    [Fact]
+    public async Task GetTypedDecisionsAsync_WithMultipleAnswers_MapsAll() {
+        var responseJson = """{"model":"m","answers":{"q1":{"noul":0.8},"q2":{"choice":"yes","confidence":0.7},"q3":{"score":5.0}}}""";
+        var handler = new FakeJevHttpHandler(new HttpResponseMessage {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
+        });
+        var service = CreateServiceWithHandler(handler);
+
+        var questions = new Dictionary<string, TypedDecisionQuestion> {
+            ["q1"] = new() { Kind = TypedDecisionKind.Noul, Instructions = "a" },
+            ["q2"] = new() { Kind = TypedDecisionKind.Choice, Instructions = "b" },
+            ["q3"] = new() { Kind = TypedDecisionKind.Score, Instructions = "c" }
+        };
+
+        var result = await service.GetTypedDecisionsAsync("state", questions);
+
+        result.Answers.Should().HaveCount(3);
+        result.Answers["q1"].Kind.Should().Be(TypedDecisionKind.Noul);
+        result.Answers["q2"].Kind.Should().Be(TypedDecisionKind.Choice);
+        result.Answers["q3"].Kind.Should().Be(TypedDecisionKind.Score);
+    }
+
+    [Fact]
+    public async Task GetTypedDecisionsAsync_ShouldThrow_WhenHttpReturnsError() {
+        var handler = new FakeJevHttpHandler(new HttpResponseMessage {
+            StatusCode = HttpStatusCode.InternalServerError,
+            Content = new StringContent("{}", Encoding.UTF8, "application/json")
+        });
+        var service = CreateServiceWithHandler(handler);
+
+        var act = () => service.GetTypedDecisionsAsync("state", new Dictionary<string, TypedDecisionQuestion>());
+
+        await act.Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Fact]
+    public async Task GetTypedDecisionsAsync_ShouldThrow_WhenResponseJsonIsNull() {
+        // 返回 "null" JSON → 反序列化为 null → 抛 InvalidOperationException
+        var handler = new FakeJevHttpHandler(new HttpResponseMessage {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent("null", Encoding.UTF8, "application/json")
+        });
+        var service = CreateServiceWithHandler(handler);
+
+        var act = () => service.GetTypedDecisionsAsync("state", new Dictionary<string, TypedDecisionQuestion>());
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    #endregion
+
+    #region GetApiMessageContentsAsync — HTTP mock 确定性测试
+
+    [Fact]
+    public async Task GetApiMessageContentsAsync_ShouldBuildStateAndReturnSummaryMessage() {
+        // 验证:BuildStateFromMessageList 拼接 → GetTypedDecisionsAsync → ConvertToApiMessage 摘要
+        var responseJson = """{"model":"jev-latest","answers":{"default":{"noul":0.8,"confidence":0.9}}}""";
+        var handler = new FakeJevHttpHandler(new HttpResponseMessage {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
+        });
+        var service = CreateServiceWithHandler(handler);
+
+        var history = new MessageList {
+            new(MessageRole.System, "You are a classifier"),
+            new(MessageRole.User, "Is this spam?")
+        };
+
+        var messages = await service.GetApiMessageContentsAsync(history);
+
+        // 返回单条摘要 ApiMessage
+        messages.Should().ContainSingle();
+        var msg = messages[0];
+        msg.Role.Should().Be(MessageRole.Assistant);
+        msg.Content.Should().Contain("default");
+        msg.Content.Should().Contain("noul=0.8");
+        msg.Content.Should().Contain("confidence=0.90");
+        msg.ModelId.Should().Be("jev-latest");
+
+        // 请求体应包含 BuildStateFromMessageList 拼接的 state(含 [System] 和 [User] 前缀)
+        handler.LastRequestBody.Should().Contain("[System]");
+        handler.LastRequestBody.Should().Contain("You are a classifier");
+        handler.LastRequestBody.Should().Contain("[User]");
+        handler.LastRequestBody.Should().Contain("Is this spam?");
+    }
+
+    [Fact]
+    public async Task GetApiMessageContentsAsync_WithChoiceAnswer_SummaryContainsChoice() {
+        var responseJson = """{"model":"m","answers":{"default":{"choice":"positive","confidence":0.77}}}""";
+        var handler = new FakeJevHttpHandler(new HttpResponseMessage {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
+        });
+        var service = CreateServiceWithHandler(handler);
+
+        var messages = await service.GetApiMessageContentsAsync(new MessageList { new(MessageRole.User, "text") });
+
+        messages.Should().ContainSingle();
+        messages[0].Content.Should().Contain("choice=positive");
+        messages[0].Content.Should().Contain("confidence=0.77");
+    }
+
+    [Fact]
+    public async Task GetApiMessageContentsAsync_PopulatesMetadata_WithJevModelIdAndTokens() {
+        var responseJson = """{"model":"jev-m","answers":{"default":{"noul":0.5}},"usage":{"input_tokens":99}}""";
+        var handler = new FakeJevHttpHandler(new HttpResponseMessage {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
+        });
+        var service = CreateServiceWithHandler(handler);
+
+        var messages = await service.GetApiMessageContentsAsync(new MessageList { new(MessageRole.User, "x") });
+
+        messages[0].Metadata.Should().ContainKey("JevModelId");
+        messages[0].Metadata!["JevModelId"].GetString().Should().Be("jev-m");
+        messages[0].Metadata.Should().ContainKey("JevInputTokens");
+        messages[0].Metadata!["JevInputTokens"].GetInt32().Should().Be(99);
+    }
+
+    #endregion
+
+    #region HTTP mock 辅助
+
+    private static JevQueryService CreateServiceWithHandler(FakeJevHttpHandler handler) {
+        var config = new ProviderConfig {
+            Vendor = "jev",
+            ApiKey = "jev-test-key",
+            ModelId = "jev-latest",
+            Definition = new FallbackProviderDefinition(ProtocolKind.Jev)
+        };
+        // 设置 BaseAddress — 端点为相对路径(chat/completions),需 BaseAddress 拼成绝对 URI
+        // Handler 拦截所有请求,实际 URL 不影响测试结果
+        var client = new HttpClient(handler) {
+            BaseAddress = new Uri("https://api.typesafe.ai/v1/")
+        };
+        return new JevQueryService(config, client);
+    }
+
+    /// <summary>
+    /// 伪造 Jev HTTP 响应的 HttpMessageHandler — 捕获请求体供断言,返回预设响应
+    /// 确定性:无网络 IO,无时序,单次请求-响应
+    /// </summary>
+    private sealed class FakeJevHttpHandler : HttpMessageHandler {
+        private readonly HttpResponseMessage _response;
+
+        /// <summary>捕获最近一次请求体(JSON 字符串),供测试断言请求内容</summary>
+        public string? LastRequestBody { get; private set; }
+
+        public FakeJevHttpHandler(HttpResponseMessage response) {
+            _response = response;
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken) {
+            if (request.Content is not null) {
+                LastRequestBody = await request.Content.ReadAsStringAsync(cancellationToken);
+            }
+            return _response;
+        }
     }
 
     #endregion

@@ -119,3 +119,38 @@ internal sealed class FakeMessageBroker : IMailbox {
 
     public string? GetSessionId(string agentId) => null;
 }
+
+/// <summary>
+/// 推理 Agent 桩子 — ReasonAsync 返回固定 AgentAction，记录调用次数与收到的上下文，用于断言引擎调用顺序与视锥注册
+/// </summary>
+internal sealed class StubReasoningAgent : ReasoningAgent {
+    private readonly AgentAction _fixedAction;
+
+    /// <summary>ReasonAsync 被调用的次数</summary>
+    public int ReasonCallCount { get; private set; }
+
+    /// <summary>历次 ReasonAsync 收到的上下文快照（按调用顺序）</summary>
+    public List<ReasoningContext> ReceivedContexts { get; } = [];
+
+    /// <summary>桩子系统提示词</summary>
+    public override string SystemPrompt => "桩子Agent";
+
+    /// <summary>
+    /// 构造桩子 Agent — 绑定角色与固定返回动作
+    /// </summary>
+    /// <param name="role">Agent 角色</param>
+    /// <param name="fixedAction">ReasonAsync 固定返回的动作；为 null 时返回空动作</param>
+    public StubReasoningAgent(AgentRole role, AgentAction? fixedAction = null)
+        : base(new FakeQueryEngine(), NullLogger<StubReasoningAgent>.Instance, role, $"桩子{role}") {
+        _fixedAction = fixedAction ?? new AgentAction { AgentRole = role };
+    }
+
+    /// <summary>
+    /// 返回固定动作并记录调用
+    /// </summary>
+    public override Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct) {
+        ReasonCallCount++;
+        ReceivedContexts.Add(context);
+        return System.Threading.Tasks.Task.FromResult(_fixedAction);
+    }
+}

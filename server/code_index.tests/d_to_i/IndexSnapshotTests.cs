@@ -645,4 +645,458 @@ public sealed class IndexSnapshotTests {
         Assert.Equal(byMain.CallEdges, callEdges);
         Assert.Equal(byMain.DepEdges, depEdges);
     }
+
+    // ============ InsertCallEdges ============
+
+    [Fact]
+    public void InsertCallEdges_EmptyList_ReturnsSameSnapshot() {
+        var snap = IndexSnapshot.Empty;
+        var after = snap.InsertCallEdges([]);
+        Assert.Same(snap, after);
+    }
+
+    [Fact]
+    public void InsertCallEdges_MaintainsAllFourIndexes() {
+        var snap = IndexSnapshot.Empty;
+        var after = snap.InsertCallEdges([
+            Edge("Ns.A", "Ns.B", "a.cs", 5, CallKind.Direct),
+            Edge("Ns.A", "Ns.C", "a.cs", 10, CallKind.Virtual),
+        ]);
+
+        // CallEdges
+        Assert.Equal(2, after.CallEdges.Count);
+        // CallsByCaller — Ns.A 有两条出边
+        var callerA = after.CallsByCaller["Ns.A"];
+        Assert.Equal(2, callerA.Count);
+        // CallsByCallee — Ns.B/Ns.C 各一条入边
+        Assert.Single(after.CallsByCallee["Ns.B"]);
+        Assert.Single(after.CallsByCallee["Ns.C"]);
+        // CallsByFile — a.cs 两条边
+        Assert.Equal(2, after.CallsByFile["a.cs"].Count);
+    }
+
+    [Fact]
+    public void InsertCallEdges_AppendsToExistingEdges() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertCallEdges([Edge("Ns.A", "Ns.B", "a.cs", 1)]);
+
+        var after = snap.InsertCallEdges([Edge("Ns.A", "Ns.C", "a.cs", 2)]);
+
+        Assert.Equal(2, after.CallEdges.Count);
+        Assert.Equal(2, after.CallsByCaller["Ns.A"].Count);
+    }
+
+    // ============ InsertDependencyEdges ============
+
+    [Fact]
+    public void InsertDependencyEdges_EmptyList_ReturnsSameSnapshot() {
+        var snap = IndexSnapshot.Empty;
+        var after = snap.InsertDependencyEdges([]);
+        Assert.Same(snap, after);
+    }
+
+    [Fact]
+    public void InsertDependencyEdges_MaintainsAllFourIndexes() {
+        var snap = IndexSnapshot.Empty;
+        var after = snap.InsertDependencyEdges([
+            Dep("Ns.A", "Ns.B", DependencyKind.Inherits, "a.cs"),
+            Dep("Ns.A", "Ns.C", DependencyKind.Uses, "a.cs"),
+        ]);
+
+        Assert.Equal(2, after.DepEdges.Count);
+        // DepsBySource — Ns.A 两条出边
+        Assert.Equal(2, after.DepsBySource["Ns.A"].Count);
+        // DepsByTarget — Ns.B/Ns.C 各一条入边
+        Assert.Single(after.DepsByTarget["Ns.B"]);
+        Assert.Single(after.DepsByTarget["Ns.C"]);
+        // DepsByFile — a.cs 两条边
+        Assert.Equal(2, after.DepsByFile["a.cs"].Count);
+    }
+
+    [Fact]
+    public void InsertDependencyEdges_NullFilePath_NotIndexedByFile() {
+        var snap = IndexSnapshot.Empty;
+        // SourceFilePath 为 null 的边不进入 DepsByFile
+        var after = snap.InsertDependencyEdges([Dep("A", "B", DependencyKind.Uses, null)]);
+
+        Assert.Single(after.DepEdges);
+        Assert.True(after.DepsBySource.ContainsKey("A"));
+        Assert.True(after.DepsByTarget.ContainsKey("B"));
+        Assert.False(after.DepsByFile.ContainsKey(""));
+    }
+
+    // ============ IndexFile (组合方法) ============
+
+    [Fact]
+    public void IndexFile_AddsSymbolsCallsDepsAndTracking() {
+        var snap = IndexSnapshot.Empty;
+        var now = DateTimeOffset.UtcNow;
+        var extraction = new ExtractionResult {
+            Symbols = [Sym("Foo", "Ns.Foo", SymbolKind.Class, "a.cs", "Ns")],
+            Calls = [Edge("Ns.Foo", "Ns.Bar", "a.cs", 5)],
+            Dependencies = [Dep("Ns.Foo", "Ns.Bar", DependencyKind.Uses, "a.cs")],
+        };
+
+        var after = snap.IndexFile("a.cs", "hash123", extraction, now);
+
+        // 符号
+        Assert.True(after.SymbolsByFqn.ContainsKey("Ns.Foo"));
+        // 调用边
+        Assert.Single(after.CallEdges);
+        // 依赖边
+        Assert.Single(after.DepEdges);
+        // 文件追踪
+        Assert.True(after.FileTracking.ContainsKey("a.cs"));
+        var ft = after.FileTracking["a.cs"];
+        Assert.Equal("hash123", ft.Hash);
+        Assert.Equal(1, ft.SymbolCount);
+        Assert.Equal(now, ft.LastModified);
+        // LastUpdated
+        Assert.Equal(now, after.LastUpdated);
+    }
+
+    [Fact]
+    public void IndexFile_OverwritesExistingFileSymbols() {
+        var snap = IndexSnapshot.Empty;
+        var now = DateTimeOffset.UtcNow;
+        var ext1 = new ExtractionResult {
+            Symbols = [Sym("Old", "Ns.Old", SymbolKind.Method, "a.cs")],
+            Calls = [], Dependencies = [],
+        };
+        snap = snap.IndexFile("a.cs", "h1", ext1, now);
+
+        var ext2 = new ExtractionResult {
+            Symbols = [Sym("New", "Ns.New", SymbolKind.Method, "a.cs")],
+            Calls = [], Dependencies = [],
+        };
+        var after = snap.IndexFile("a.cs", "h2", ext2, now.AddMinutes(1));
+
+        // 旧符号被移除,新符号存在
+        Assert.False(after.SymbolsByFqn.ContainsKey("Ns.Old"));
+        Assert.True(after.SymbolsByFqn.ContainsKey("Ns.New"));
+        // 文件追踪更新
+        Assert.Equal("h2", after.FileTracking["a.cs"].Hash);
+    }
+
+    [Fact]
+    public void IndexFile_CorrectsInheritsToImplements() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertSymbols([Sym("IFoo", "Ns.IFoo", SymbolKind.Interface, "i.cs")]);
+        var now = DateTimeOffset.UtcNow;
+        var extraction = new ExtractionResult {
+            Symbols = [Sym("FooImpl", "Ns.FooImpl", SymbolKind.Class, "f.cs")],
+            Calls = [],
+            Dependencies = [Dep("Ns.FooImpl", "Ns.IFoo", DependencyKind.Inherits, "f.cs")],
+        };
+
+        var after = snap.IndexFile("f.cs", "h", extraction, now);
+
+        Assert.All(after.DepEdges, e => Assert.Equal(DependencyKind.Implements, e.DependencyKind));
+    }
+
+    // ============ IndexFilesBatch (组合方法) ============
+
+    [Fact]
+    public void IndexFilesBatch_MultipleFiles_StoresAllAndRebuildsSorted() {
+        var snap = IndexSnapshot.Empty;
+        var now = DateTimeOffset.UtcNow;
+        var files = new List<(string FilePath, string Hash, ExtractionResult Extraction)> {
+            ("a.cs", "h1", new ExtractionResult {
+                Symbols = [Sym("Foo", "Ns.Foo", SymbolKind.Class, "a.cs")],
+                Calls = [], Dependencies = [],
+            }),
+            ("b.cs", "h2", new ExtractionResult {
+                Symbols = [Sym("Bar", "Ns.Bar", SymbolKind.Method, "b.cs")],
+                Calls = [], Dependencies = [],
+            }),
+        };
+
+        var after = snap.IndexFilesBatch(files, now);
+
+        Assert.Equal(2, after.SymbolsByFqn.Count);
+        Assert.Equal(2, after.FileTracking.Count);
+        // 批量结束后排序列表重建
+        Assert.Equal(2, after.SymbolsSortedByFqn.Count);
+        Assert.Equal(2, after.FileTrackingKeysSorted.Count);
+        Assert.Equal(now, after.LastUpdated);
+    }
+
+    [Fact]
+    public void IndexFilesBatch_EmptyList_ReturnsSameSnapshotWithUpdatedTimestamp() {
+        var snap = IndexSnapshot.Empty;
+        var now = DateTimeOffset.UtcNow;
+
+        var after = snap.IndexFilesBatch([], now);
+
+        Assert.Equal(now, after.LastUpdated);
+    }
+
+    [Fact]
+    public void IndexFilesBatch_ReindexFile_OverwritesOldSymbols() {
+        var snap = IndexSnapshot.Empty;
+        var now = DateTimeOffset.UtcNow;
+        snap = snap.IndexFilesBatch([
+            ("a.cs", "h1", new ExtractionResult {
+                Symbols = [Sym("Old", "Ns.Old", SymbolKind.Method, "a.cs")],
+                Calls = [], Dependencies = [],
+            }),
+        ], now);
+
+        var after = snap.IndexFilesBatch([
+            ("a.cs", "h2", new ExtractionResult {
+                Symbols = [Sym("New", "Ns.New", SymbolKind.Method, "a.cs")],
+                Calls = [], Dependencies = [],
+            }),
+        ], now.AddMinutes(1));
+
+        Assert.False(after.SymbolsByFqn.ContainsKey("Ns.Old"));
+        Assert.True(after.SymbolsByFqn.ContainsKey("Ns.New"));
+        Assert.Single(after.FileTracking);
+    }
+
+    [Fact]
+    public void IndexFilesBatch_SingleCorrectInheritsToImplements() {
+        var snap = IndexSnapshot.Empty;
+        var now = DateTimeOffset.UtcNow;
+        var after = snap.IndexFilesBatch([
+            ("i.cs", "h1", new ExtractionResult {
+                Symbols = [Sym("IFoo", "Ns.IFoo", SymbolKind.Interface, "i.cs")],
+                Calls = [], Dependencies = [],
+            }),
+            ("f.cs", "h2", new ExtractionResult {
+                Symbols = [Sym("FooImpl", "Ns.FooImpl", SymbolKind.Class, "f.cs")],
+                Calls = [],
+                Dependencies = [Dep("Ns.FooImpl", "Ns.IFoo", DependencyKind.Inherits, "f.cs")],
+            }),
+        ], now);
+
+        Assert.All(after.DepEdges, e => Assert.Equal(DependencyKind.Implements, e.DependencyKind));
+    }
+
+    // ============ RemoveFile ============
+
+    [Fact]
+    public void RemoveFile_RemovesSymbolsAndTracking() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertSymbols([
+            Sym("Foo", "Ns.Foo", SymbolKind.Class, "a.cs"),
+            Sym("Bar", "Ns.Bar", SymbolKind.Method, "b.cs"),
+        ]);
+        snap = snap.UpsertFileTracking("a.cs", "h", 1, DateTimeOffset.UtcNow);
+        snap = snap.UpsertFileTracking("b.cs", "h", 1, DateTimeOffset.UtcNow);
+
+        var after = snap.RemoveFile("a.cs");
+
+        // a.cs 符号移除
+        Assert.False(after.SymbolsByFqn.ContainsKey("Ns.Foo"));
+        Assert.True(after.SymbolsByFqn.ContainsKey("Ns.Bar"));
+        // a.cs 文件追踪移除
+        Assert.False(after.FileTracking.ContainsKey("a.cs"));
+        Assert.True(after.FileTracking.ContainsKey("b.cs"));
+        // 排序列表重建
+        Assert.Single(after.FileTrackingKeysSorted);
+    }
+
+    [Fact]
+    public void RemoveFile_NoMatch_ReturnsSameSnapshot() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertSymbols([Sym("Foo", "Ns.Foo", SymbolKind.Class, "a.cs")]);
+
+        var after = snap.RemoveFile("nonexistent.cs");
+
+        Assert.True(after.SymbolsByFqn.ContainsKey("Ns.Foo"));
+    }
+
+    // ============ Load (静态方法) ============
+
+    [Fact]
+    public void Load_RebuildsSnapshotFromPersistenceData() {
+        var data = new GraphPersistenceData {
+            Version = 1,
+            SavedAt = DateTimeOffset.UtcNow,
+            Symbols = [Sym("Foo", "Ns.Foo", SymbolKind.Class, "a.cs", "Ns")],
+            CallEdges = [Edge("Ns.Foo", "Ns.Bar", "a.cs", 5)],
+            DependencyEdges = [Dep("Ns.Foo", "Ns.Bar", DependencyKind.Uses, "a.cs")],
+            Projects = [new ProjectInfo { Name = "P", FilePath = "P.csproj", TargetFramework = "net10.0" }],
+            ProjectReferences = [new ProjectReferenceEdge { SourceProjectPath = "P.csproj", TargetProjectPath = "Q.csproj" }],
+            NuGetReferences = [new NuGetPackageReference { ProjectPath = "P.csproj", PackageName = "Xunit", Version = "2.9.0" }],
+            FileTracking = [new FileTrackingInfo { FilePath = "a.cs", Hash = "h", SymbolCount = 1, LastModified = DateTimeOffset.UtcNow }],
+        };
+
+        var snap = IndexSnapshot.Load(data);
+
+        // 符号
+        Assert.True(snap.SymbolsByFqn.ContainsKey("Ns.Foo"));
+        // 调用边
+        Assert.Single(snap.CallEdges);
+        // 依赖边
+        Assert.Single(snap.DepEdges);
+        // 项目
+        Assert.Single(snap.Projects);
+        Assert.True(snap.Projects.ContainsKey("P.csproj"));
+        // 项目引用 + 反向索引
+        Assert.Single(snap.ProjectRefs["P.csproj"]);
+        var normTarget = InMemoryIndexStore.NormalizeKey("Q.csproj");
+        Assert.True(snap.ProjectRefsByTarget.ContainsKey(normTarget));
+        // NuGet 引用 + 反向索引
+        Assert.Single(snap.NuGetRefs["P.csproj"]);
+        Assert.True(snap.NuGetRefsByPackage.ContainsKey("Xunit"));
+        // 文件追踪
+        Assert.True(snap.FileTracking.ContainsKey("a.cs"));
+        Assert.Single(snap.FileTrackingKeysSorted);
+        // LastUpdated
+        Assert.Equal(data.SavedAt, snap.LastUpdated);
+    }
+
+    [Fact]
+    public void Load_EmptyData_ReturnsEmptySnapshotWithTimestamp() {
+        var savedAt = DateTimeOffset.UtcNow;
+        var data = new GraphPersistenceData {
+            Version = 1,
+            SavedAt = savedAt,
+            Symbols = [], CallEdges = [], DependencyEdges = [],
+            Projects = [], ProjectReferences = [], NuGetReferences = [], FileTracking = [],
+        };
+
+        var snap = IndexSnapshot.Load(data);
+
+        Assert.Empty(snap.SymbolsByFqn);
+        Assert.Empty(snap.CallEdges);
+        Assert.Empty(snap.Projects);
+        Assert.Equal(savedAt, snap.LastUpdated);
+    }
+
+    // ============ IndexProject ============
+
+    [Fact]
+    public void IndexProject_AddsProjectAndRefs() {
+        var snap = IndexSnapshot.Empty;
+        var projPath = "src/Lib/Lib.csproj";
+        var targetPath = "src/Core/Core.csproj";
+        var project = new ProjectInfo { Name = "Lib", FilePath = projPath, TargetFramework = "net10.0" };
+        var projRefs = new List<ProjectReferenceEdge> {
+            new() { SourceProjectPath = projPath, TargetProjectPath = targetPath },
+        };
+        var nugetRefs = new List<NuGetPackageReference> {
+            new() { ProjectPath = projPath, PackageName = "Newtonsoft.Json", Version = "13.0.3" },
+        };
+
+        var after = snap.IndexProject(projPath, project, projRefs, nugetRefs);
+
+        Assert.True(after.Projects.ContainsKey(projPath));
+        Assert.Single(after.ProjectRefs[projPath]);
+        Assert.Single(after.NuGetRefs[projPath]);
+        // 反向索引
+        var normTarget = InMemoryIndexStore.NormalizeKey(targetPath);
+        Assert.True(after.ProjectRefsByTarget.ContainsKey(normTarget));
+        Assert.True(after.NuGetRefsByPackage.ContainsKey("Newtonsoft.Json"));
+    }
+
+    [Fact]
+    public void IndexProject_OverwritesExistingProject() {
+        var snap = IndexSnapshot.Empty;
+        var projPath = "P.csproj";
+        snap = snap.IndexProject(projPath,
+            new ProjectInfo { Name = "Old", FilePath = projPath },
+            [new ProjectReferenceEdge { SourceProjectPath = projPath, TargetProjectPath = "OldTarget.csproj" }],
+            []);
+
+        var after = snap.IndexProject(projPath,
+            new ProjectInfo { Name = "New", FilePath = projPath },
+            [new ProjectReferenceEdge { SourceProjectPath = projPath, TargetProjectPath = "NewTarget.csproj" }],
+            []);
+
+        Assert.Equal("New", after.Projects[projPath].Name);
+        // 旧引用被移除,新引用存在
+        Assert.Single(after.ProjectRefs[projPath]);
+        Assert.Equal("NewTarget.csproj", after.ProjectRefs[projPath][0].TargetProjectPath);
+    }
+
+    [Fact]
+    public void IndexProject_EmptyRefs_OnlyAddsProject() {
+        var snap = IndexSnapshot.Empty;
+        var after = snap.IndexProject("P.csproj",
+            new ProjectInfo { Name = "P", FilePath = "P.csproj" }, [], []);
+
+        Assert.True(after.Projects.ContainsKey("P.csproj"));
+        Assert.False(after.ProjectRefs.ContainsKey("P.csproj"));
+        Assert.False(after.NuGetRefs.ContainsKey("P.csproj"));
+    }
+
+    // ============ RemoveProject ============
+
+    [Fact]
+    public void RemoveProject_RemovesProjectAndRefs() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.IndexProject("P.csproj",
+            new ProjectInfo { Name = "P", FilePath = "P.csproj" },
+            [new ProjectReferenceEdge { SourceProjectPath = "P.csproj", TargetProjectPath = "Q.csproj" }],
+            [new NuGetPackageReference { ProjectPath = "P.csproj", PackageName = "Xunit", Version = "2.9.0" }]);
+
+        var after = snap.RemoveProject("P.csproj");
+
+        Assert.False(after.Projects.ContainsKey("P.csproj"));
+        Assert.False(after.ProjectRefs.ContainsKey("P.csproj"));
+        Assert.False(after.NuGetRefs.ContainsKey("P.csproj"));
+    }
+
+    [Fact]
+    public void RemoveProject_NoMatch_ReturnsSameSnapshot() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.IndexProject("P.csproj",
+            new ProjectInfo { Name = "P", FilePath = "P.csproj" }, [], []);
+
+        var after = snap.RemoveProject("nonexistent.csproj");
+
+        Assert.True(after.Projects.ContainsKey("P.csproj"));
+    }
+
+    // ============ ClearProjects ============
+
+    [Fact]
+    public void ClearProjects_RemovesAllProjectData() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.IndexProject("P1.csproj",
+            new ProjectInfo { Name = "P1", FilePath = "P1.csproj" },
+            [new ProjectReferenceEdge { SourceProjectPath = "P1.csproj", TargetProjectPath = "P2.csproj" }],
+            [new NuGetPackageReference { ProjectPath = "P1.csproj", PackageName = "Xunit", Version = "2.9.0" }]);
+        snap = snap.IndexProject("P2.csproj",
+            new ProjectInfo { Name = "P2", FilePath = "P2.csproj" }, [], []);
+
+        var after = snap.ClearProjects();
+
+        Assert.Empty(after.Projects);
+        Assert.Empty(after.ProjectRefs);
+        Assert.Empty(after.NuGetRefs);
+        Assert.Empty(after.ProjectRefsByTarget);
+        Assert.Empty(after.NuGetRefsByPackage);
+    }
+
+    [Fact]
+    public void ClearProjects_PreservesSymbolsAndCalls() {
+        var snap = IndexSnapshot.Empty;
+        snap = snap.InsertSymbols([Sym("Foo", "Ns.Foo", SymbolKind.Class, "a.cs")]);
+        snap = snap.InsertCallEdges([Edge("Ns.A", "Ns.B", "a.cs", 1)]);
+        snap = snap.IndexProject("P.csproj",
+            new ProjectInfo { Name = "P", FilePath = "P.csproj" }, [], []);
+
+        var after = snap.ClearProjects();
+
+        // 符号和调用边保留
+        Assert.True(after.SymbolsByFqn.ContainsKey("Ns.Foo"));
+        Assert.Single(after.CallEdges);
+        // 项目数据清空
+        Assert.Empty(after.Projects);
+    }
+
+    // ============ Clear (静态方法) ============
+
+    [Fact]
+    public void Clear_ReturnsEmptySnapshot() {
+        var snap = IndexSnapshot.Clear();
+        Assert.Same(IndexSnapshot.Empty, snap);
+        Assert.Empty(snap.SymbolsByFqn);
+        Assert.Empty(snap.CallEdges);
+        Assert.Empty(snap.Projects);
+    }
 }

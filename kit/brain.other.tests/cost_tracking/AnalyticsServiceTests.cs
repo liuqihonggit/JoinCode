@@ -303,4 +303,243 @@ public sealed class AnalyticsServiceTests {
         var ex = Record.Exception(() => service.TrackEvent(AnalyticsEventType.ToolCall, "after"));
         Assert.Null(ex);
     }
+
+    // ---------- ExportDataAsync (日期过滤分支,328行) ----------
+
+    [Fact]
+    public async Task ExportDataAsync_WithStartDate_FiltersOutEarlierEvents() {
+        var fixedTime = new DateTime(2026, 9, 30, 12, 0, 0, DateTimeKind.Utc);
+        var clock = new Infrastructure.Time.FakeClockService(fixedTime);
+        await using var service = new AnalyticsService(clock: clock);
+
+        service.TrackEvent(AnalyticsEventType.ToolCall, "evt_old");
+        clock.Advance(TimeSpan.FromHours(2));
+        service.TrackEvent(AnalyticsEventType.ToolCall, "evt_new");
+
+        var json = await service.ExportDataAsync(startDate: fixedTime.AddHours(1));
+
+        Assert.Contains("evt_new", json);
+        Assert.DoesNotContain("evt_old", json);
+        Assert.Contains("\"eventCount\": 1", json);
+    }
+
+    [Fact]
+    public async Task ExportDataAsync_WithEndDate_FiltersOutLaterEvents() {
+        var fixedTime = new DateTime(2026, 9, 30, 12, 0, 0, DateTimeKind.Utc);
+        var clock = new Infrastructure.Time.FakeClockService(fixedTime);
+        await using var service = new AnalyticsService(clock: clock);
+
+        service.TrackEvent(AnalyticsEventType.ToolCall, "evt_old");
+        clock.Advance(TimeSpan.FromHours(2));
+        service.TrackEvent(AnalyticsEventType.ToolCall, "evt_new");
+
+        var json = await service.ExportDataAsync(endDate: fixedTime.AddHours(1));
+
+        Assert.Contains("evt_old", json);
+        Assert.DoesNotContain("evt_new", json);
+        Assert.Contains("\"eventCount\": 1", json);
+    }
+
+    [Fact]
+    public async Task ExportDataAsync_WithDateRange_ReturnsOnlyMatching() {
+        var fixedTime = new DateTime(2026, 9, 30, 12, 0, 0, DateTimeKind.Utc);
+        var clock = new Infrastructure.Time.FakeClockService(fixedTime);
+        await using var service = new AnalyticsService(clock: clock);
+
+        service.TrackEvent(AnalyticsEventType.ToolCall, "evt_a"); // t0
+        clock.Advance(TimeSpan.FromHours(1));
+        service.TrackEvent(AnalyticsEventType.ToolCall, "evt_b"); // t1
+        clock.Advance(TimeSpan.FromHours(1));
+        service.TrackEvent(AnalyticsEventType.ToolCall, "evt_c"); // t2
+
+        var json = await service.ExportDataAsync(startDate: fixedTime.AddMinutes(30), endDate: fixedTime.AddHours(1).AddMinutes(30));
+
+        Assert.Contains("evt_b", json);
+        Assert.DoesNotContain("evt_a", json);
+        Assert.DoesNotContain("evt_c", json);
+        Assert.Contains("\"eventCount\": 1", json);
+    }
+
+    [Fact]
+    public async Task ExportDataAsync_WithFakeClock_ExportTimeIsDeterministic() {
+        var fixedTime = new DateTime(2026, 9, 30, 12, 0, 0, DateTimeKind.Utc);
+        var clock = new Infrastructure.Time.FakeClockService(fixedTime);
+        await using var service = new AnalyticsService(clock: clock);
+
+        var json = await service.ExportDataAsync();
+
+        // ExportTime 应为 fixedTime(序列化含 2026-09-30)
+        Assert.Contains("2026-09-30", json);
+    }
+
+    // ---------- SaveHistoryAsync (mock IFileOperationService,452行) ----------
+
+    [Fact]
+    public async Task TrackEvent_WithStoragePath_TriggersSaveHistoryOnDispose() {
+        var mockFileOp = new Mock<IFileOperationService>();
+        var writtenContent = string.Empty;
+        mockFileOp.Setup(f => f.ReadFileAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(FileReadResult.FailureResult("path", "not found")));
+        mockFileOp.Setup(f => f.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, CancellationToken>((_, content, _) => writtenContent = content)
+            .Returns(Task.FromResult(FileWriteResult.SuccessResult("path", "content", "write")));
+        var storagePath = "/tmp/analytics_test.json";
+
+        var service = new AnalyticsService(fileOperationService: mockFileOp.Object, storagePath: storagePath);
+        service.TrackEvent(AnalyticsEventType.ToolCall, "persisted_evt");
+
+        await service.DisposeAsync(); // flush 后台任务
+
+        mockFileOp.Verify(f => f.WriteFileAsync(storagePath, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        Assert.Contains("persisted_evt", writtenContent);
+    }
+
+    [Fact]
+    public async Task SaveHistory_WriteFailure_LogsErrorDoesNotThrow() {
+        var mockFileOp = new Mock<IFileOperationService>();
+        mockFileOp.Setup(f => f.ReadFileAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(FileReadResult.FailureResult("path", "not found")));
+        mockFileOp.Setup(f => f.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(FileWriteResult.FailureResult("path", "disk full")));
+
+        var service = new AnalyticsService(fileOperationService: mockFileOp.Object, storagePath: "/tmp/analytics_fail.json");
+        service.TrackEvent(AnalyticsEventType.ToolCall, "evt");
+
+        var ex = await Record.ExceptionAsync(() => service.DisposeAsync().AsTask());
+        Assert.Null(ex); // 写入失败不抛,仅日志
+    }
+
+    // ---------- LoadHistoryAsync (mock IFileOperationService,468行) ----------
+
+    [Fact]
+    public async Task Constructor_WithStoragePath_LoadsHistoryFromFile() {
+        var presetEvents = new List<JoinCode.Abstractions.Models.Analytics.AnalyticsEvent> {
+            new() { EventId = "e1", Type = AnalyticsEventType.ToolCall, Name = "loaded_evt1", Timestamp = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new() { EventId = "e2", Type = AnalyticsEventType.AgentStart, Name = "loaded_evt2", Timestamp = new DateTime(2026, 9, 2, 0, 0, 0, DateTimeKind.Utc) }
+        };
+        var json = JsonSerializer.Serialize(presetEvents, CostTrackingIndentedJsonContext.Default.ListAnalyticsEvent);
+
+        var mockFileOp = new Mock<IFileOperationService>();
+        mockFileOp.Setup(f => f.ReadFileAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(FileReadResult.SuccessResult("/tmp/analytics.json", json, 2, 1, 2)));
+        mockFileOp.Setup(f => f.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(FileWriteResult.SuccessResult("path", "content", "write")));
+
+        var service = new AnalyticsService(fileOperationService: mockFileOp.Object, storagePath: "/tmp/analytics_load.json");
+        await service.DisposeAsync(); // flush LoadHistory 后台任务
+
+        // Dispose 后 GetEventHistory 仍可工作(不检查 _disposed)
+        var history = service.GetEventHistory();
+        Assert.True(history.Count >= 2);
+        Assert.Contains(history, e => e.Name == "loaded_evt1");
+        Assert.Contains(history, e => e.Name == "loaded_evt2");
+    }
+
+    [Fact]
+    public async Task LoadHistory_ReadFailure_DoesNotLoadAndDoesNotThrow() {
+        var mockFileOp = new Mock<IFileOperationService>();
+        mockFileOp.Setup(f => f.ReadFileAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(FileReadResult.FailureResult("path", "permission denied")));
+        mockFileOp.Setup(f => f.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(FileWriteResult.SuccessResult("path", "content", "write")));
+
+        var service = new AnalyticsService(fileOperationService: mockFileOp.Object, storagePath: "/tmp/analytics_noload.json");
+        var ex = await Record.ExceptionAsync(() => service.DisposeAsync().AsTask());
+        Assert.Null(ex);
+
+        Assert.Empty(service.GetEventHistory());
+    }
+
+    // ---------- Track 系列带 telemetry (mock ITelemetryService) ----------
+
+    [Fact]
+    public async Task TrackToolCall_WithTelemetry_RecordsDurationAndCount() {
+        var mockTelemetry = new Mock<ITelemetryService>();
+        var mockHistogram = new Mock<ITelemetryHistogram>();
+        var mockCounter = new Mock<ITelemetryCounter>();
+        mockTelemetry.Setup(t => t.GetHistogram(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>())).Returns(mockHistogram.Object);
+        mockTelemetry.Setup(t => t.GetCounter(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>())).Returns(mockCounter.Object);
+
+        await using var service = new AnalyticsService(telemetryService: mockTelemetry.Object);
+        service.TrackToolCall("bash", success: true, durationMs: 150);
+
+        mockTelemetry.Verify(t => t.GetHistogram("analytics.tool.duration", "ms", "Tool call duration"), Times.Once);
+        mockTelemetry.Verify(t => t.GetCounter("analytics.tool.calls", "count", "Tool call count"), Times.Once);
+        mockHistogram.Verify(h => h.Record(150, It.IsAny<Dictionary<string, string>>()), Times.Once);
+        mockCounter.Verify(c => c.Add(1, It.IsAny<Dictionary<string, string>>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task TrackToolError_WithTelemetry_RecordsErrorCounter() {
+        var mockTelemetry = new Mock<ITelemetryService>();
+        var mockCounter = new Mock<ITelemetryCounter>();
+        mockTelemetry.Setup(t => t.GetCounter(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>())).Returns(mockCounter.Object);
+
+        await using var service = new AnalyticsService(telemetryService: mockTelemetry.Object);
+        service.TrackToolError("grep", "file not found");
+
+        mockTelemetry.Verify(t => t.GetCounter("analytics.tool.errors", "count", "Tool error count"), Times.Once);
+        mockCounter.Verify(c => c.Add(1, It.IsAny<Dictionary<string, string>>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task TrackAgentStart_WithTelemetry_StartsSpanAndStoresTag() {
+        var mockTelemetry = new Mock<ITelemetryService>();
+        var mockSpan = new Mock<ITelemetrySpan>();
+        mockTelemetry.Setup(t => t.StartSpan(It.IsAny<string>(), It.IsAny<JoinCode.Abstractions.Models.Telemetry.TelemetrySpanKind>(), It.IsAny<ITelemetrySpan?>())).Returns(mockSpan.Object);
+
+        await using var service = new AnalyticsService(telemetryService: mockTelemetry.Object);
+        service.TrackAgentStart("planner", sessionId: "sess1");
+
+        mockTelemetry.Verify(t => t.StartSpan("agent.planner", JoinCode.Abstractions.Models.Telemetry.TelemetrySpanKind.Server, It.IsAny<ITelemetrySpan?>()), Times.Once);
+        mockSpan.Verify(s => s.SetTag("agent.name", "planner"), Times.Once);
+        mockSpan.Verify(s => s.SetTag("agent.session_id", "sess1"), Times.Once);
+    }
+
+    [Fact]
+    public async Task TrackAgentCompleteAsync_WithTelemetry_EndsSpanAndRecordsDuration() {
+        var mockTelemetry = new Mock<ITelemetryService>();
+        var mockSpan = new Mock<ITelemetrySpan>();
+        var mockHistogram = new Mock<ITelemetryHistogram>();
+        mockTelemetry.Setup(t => t.StartSpan(It.IsAny<string>(), It.IsAny<JoinCode.Abstractions.Models.Telemetry.TelemetrySpanKind>(), It.IsAny<ITelemetrySpan?>())).Returns(mockSpan.Object);
+        mockTelemetry.Setup(t => t.GetHistogram(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>())).Returns(mockHistogram.Object);
+
+        await using var service = new AnalyticsService(telemetryService: mockTelemetry.Object);
+        service.TrackAgentStart("worker", sessionId: "s1");
+        await service.TrackAgentCompleteAsync("worker", success: true, durationMs: 300, sessionId: "s1");
+
+        mockSpan.Verify(s => s.SetStatus(JoinCode.Abstractions.Models.Telemetry.TelemetryStatusCode.Ok, It.IsAny<string?>()), Times.Once);
+        mockSpan.Verify(s => s.SetTag("agent.duration_ms", 300.0), Times.Once);
+        mockSpan.Verify(s => s.DisposeAsync(), Times.Once);
+        mockHistogram.Verify(h => h.Record(300, It.IsAny<Dictionary<string, string>>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task TrackAgentCompleteAsync_WithTelemetry_FailureSetsErrorStatus() {
+        var mockTelemetry = new Mock<ITelemetryService>();
+        var mockSpan = new Mock<ITelemetrySpan>();
+        var mockHistogram = new Mock<ITelemetryHistogram>();
+        mockTelemetry.Setup(t => t.StartSpan(It.IsAny<string>(), It.IsAny<JoinCode.Abstractions.Models.Telemetry.TelemetrySpanKind>(), It.IsAny<ITelemetrySpan?>())).Returns(mockSpan.Object);
+        mockTelemetry.Setup(t => t.GetHistogram(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>())).Returns(mockHistogram.Object);
+
+        await using var service = new AnalyticsService(telemetryService: mockTelemetry.Object);
+        service.TrackAgentStart("failing", sessionId: "s2");
+        await service.TrackAgentCompleteAsync("failing", success: false, durationMs: 50, sessionId: "s2");
+
+        mockSpan.Verify(s => s.SetStatus(JoinCode.Abstractions.Models.Telemetry.TelemetryStatusCode.Error, It.IsAny<string?>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task TrackAgentCompleteAsync_WithoutPriorStart_OnlyRecordsHistogram() {
+        // 无对应 span(未 TrackAgentStart)时,_agentSpans 无记录,跳过 span 结束,仅 Record histogram
+        var mockTelemetry = new Mock<ITelemetryService>();
+        var mockHistogram = new Mock<ITelemetryHistogram>();
+        mockTelemetry.Setup(t => t.GetHistogram(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>())).Returns(mockHistogram.Object);
+
+        await using var service = new AnalyticsService(telemetryService: mockTelemetry.Object);
+        await service.TrackAgentCompleteAsync("orphan", success: true, durationMs: 10);
+
+        mockHistogram.Verify(h => h.Record(10, It.IsAny<Dictionary<string, string>>()), Times.Once);
+        mockTelemetry.Verify(t => t.StartSpan(It.IsAny<string>(), It.IsAny<JoinCode.Abstractions.Models.Telemetry.TelemetrySpanKind>(), It.IsAny<ITelemetrySpan?>()), Times.Never);
+    }
 }

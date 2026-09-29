@@ -62,4 +62,23 @@ public sealed class InMemoryIndexStoreTests : IDisposable {
 
         Assert.Throws<ObjectDisposedException>(() => _store.Clear());
     }
+
+    // ============ NormalizeKey 确定性测试 ============
+
+    [Theory]
+    [InlineData("a/b/c", "a\\b\\c")]
+    [InlineData("a\\b\\c", "a\\b\\c")]
+    [InlineData("a/b\\c/d", "a\\b\\c\\d")]
+    [InlineData("single", "single")]
+    [InlineData("", "")]
+    public void NormalizeKey_UnifiesPathSeparators(string input, string expected) {
+        Assert.Equal(expected, InMemoryIndexStore.NormalizeKey(input));
+    }
+
+    [Fact]
+    public void NormalizeKey_MixedSeparators_AllBecomeBackslash() {
+        var result = InMemoryIndexStore.NormalizeKey("src/lib\\core/test");
+        Assert.DoesNotContain("/", result);
+        Assert.Contains("\\", result);
+    }
 }

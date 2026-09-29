@@ -207,7 +207,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
                 CallCount = g.Count(),
                 SuccessCount = g.Count(e => e.IsSuccess == true || e.Type == AnalyticsEventType.ToolSuccess),
                 ErrorCount = g.Count(e => e.IsSuccess == false || e.Type == AnalyticsEventType.ToolError),
-                AverageDurationMs = g.Where(e => e.DurationMs.HasValue).Average(e => e.DurationMs ?? 0),
+                AverageDurationMs = g.Where(e => e.DurationMs.HasValue).Select(e => e.DurationMs ?? 0).DefaultIfEmpty(0).Average(),
                 LastCallAt = g.Max(e => e.Timestamp)
             })
             .OrderByDescending(s => s.CallCount)

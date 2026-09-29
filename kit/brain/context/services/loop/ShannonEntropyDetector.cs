@@ -187,7 +187,7 @@ public sealed partial class ShannonEntropyDetector {
     /// <summary>
     /// 计算 Shannon 信息熵 H = -Σ(p_i * log2(p_i))
     /// </summary>
-    private static double ComputeShannonEntropy(string text) {
+    internal static double ComputeShannonEntropy(string text) {
         if (text.Length == 0)
             return 0.0;
 
@@ -211,7 +211,7 @@ public sealed partial class ShannonEntropyDetector {
     /// <summary>
     /// 计算连续下降轮数（从最新往回看，每轮熵差超过 minEntropyDelta 才算下降）
     /// </summary>
-    private int CountConsecutiveDecline() {
+    internal int CountConsecutiveDecline() {
         if (_entropyHistory.Count < 2)
             return 0;
 

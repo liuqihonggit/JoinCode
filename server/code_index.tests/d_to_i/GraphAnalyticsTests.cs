@@ -420,4 +420,310 @@ public sealed class GraphAnalyticsTests : IDisposable {
         }
         return dict.SetItem(key, list.Add(edge));
     }
+
+    // ============ LabelPropagation 确定性测试 ============
+
+    private static ImmutableHamT<string, ImmutableList<CallEdge>> EmptyCallIndex()
+        => ImmutableHamT<string, ImmutableList<CallEdge>>.Empty.WithComparers(StringComparer.Ordinal);
+
+    [Fact]
+    public void LabelPropagation_EmptyGraph_ReturnsEmptyLabels() {
+        var labels = GraphAnalytics.LabelPropagation(EmptyCallIndex(), EmptyCallIndex());
+        Assert.Empty(labels);
+    }
+
+    [Fact]
+    public void LabelPropagation_SingleEdge_TwoSymbolsSameCommunity() {
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var labels = GraphAnalytics.LabelPropagation(snap.CallsByCaller, snap.CallsByCallee);
+
+        Assert.Equal(2, labels.Count);
+        // A 和 B 应收敛到同一标签
+        Assert.Equal(labels["A"], labels["B"]);
+    }
+
+    [Fact]
+    public void LabelPropagation_Chain_ThreeSymbolsConverge() {
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("B", "C", "b.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var labels = GraphAnalytics.LabelPropagation(snap.CallsByCaller, snap.CallsByCallee);
+
+        Assert.Equal(3, labels.Count);
+        // 链式 A→B→C 应收敛到同一社区
+        Assert.Equal(labels["A"], labels["B"]);
+        Assert.Equal(labels["B"], labels["C"]);
+    }
+
+    [Fact]
+    public void LabelPropagation_Cycle_TwoSymbolsSameCommunity() {
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("B", "A", "b.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var labels = GraphAnalytics.LabelPropagation(snap.CallsByCaller, snap.CallsByCallee);
+
+        Assert.Equal(labels["A"], labels["B"]);
+    }
+
+    [Fact]
+    public void LabelPropagation_TwoDisconnectedClusters_DifferentLabels() {
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("C", "D", "c.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var labels = GraphAnalytics.LabelPropagation(snap.CallsByCaller, snap.CallsByCallee);
+
+        Assert.Equal(4, labels.Count);
+        // A-B 同社区,C-D 同社区,但两个社区不同
+        Assert.Equal(labels["A"], labels["B"]);
+        Assert.Equal(labels["C"], labels["D"]);
+        Assert.NotEqual(labels["A"], labels["C"]);
+    }
+
+    [Fact]
+    public void LabelPropagation_TerminatesWithin20Iterations() {
+        // 构造较大图验证不无限循环(20次迭代上限)
+        for (var i = 0; i < 10; i++)
+            InsertCallEdge($"N{i}", $"N{(i + 1) % 10}", $"f{i}.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var labels = GraphAnalytics.LabelPropagation(snap.CallsByCaller, snap.CallsByCallee);
+
+        Assert.Equal(10, labels.Count);
+    }
+
+    // ============ BuildCommunities 确定性测试 ============
+
+    [Fact]
+    public void BuildCommunities_SingleCommunity_StatsCorrect() {
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("B", "A", "b.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var labels = GraphAnalytics.LabelPropagation(snap.CallsByCaller, snap.CallsByCallee);
+        var communities = GraphAnalytics.BuildCommunities(labels, snap.CallsByCaller, snap.CallsByCallee);
+
+        Assert.Single(communities);
+        Assert.Equal(2, communities[0].MemberCount);
+        // A→B 和 B→A 都是内部边
+        Assert.Equal(2, communities[0].InternalEdges);
+        Assert.Equal(0, communities[0].ExternalEdges);
+    }
+
+    [Fact]
+    public void BuildCommunities_TwoCommunities_ReturnsBoth() {
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("C", "D", "c.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var labels = GraphAnalytics.LabelPropagation(snap.CallsByCaller, snap.CallsByCallee);
+        var communities = GraphAnalytics.BuildCommunities(labels, snap.CallsByCaller, snap.CallsByCallee);
+
+        Assert.Equal(2, communities.Count);
+        // 按成员数降序
+        Assert.True(communities[0].MemberCount >= communities[1].MemberCount);
+    }
+
+    [Fact]
+    public void BuildCommunities_ExternalEdgesCounted() {
+        // 两个独立社区 + 跨社区边 A→C
+        InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
+        InsertCallEdge("B", "A", "b.cs", 1, CallKind.Direct);
+        InsertCallEdge("C", "D", "c.cs", 1, CallKind.Direct);
+        InsertCallEdge("D", "C", "d.cs", 1, CallKind.Direct);
+        InsertCallEdge("A", "C", "a.cs", 2, CallKind.Direct); // 跨社区边
+        var snap = _store.GetSnapshot();
+
+        var labels = GraphAnalytics.LabelPropagation(snap.CallsByCaller, snap.CallsByCallee);
+        var communities = GraphAnalytics.BuildCommunities(labels, snap.CallsByCaller, snap.CallsByCallee);
+
+        // A→C 跨社区,至少一个社区有外部边
+        Assert.Contains(communities, c => c.ExternalEdges > 0);
+    }
+
+    [Fact]
+    public void BuildCommunities_EmptyGraph_ReturnsEmpty() {
+        var communities = GraphAnalytics.BuildCommunities([], EmptyCallIndex(), EmptyCallIndex());
+        Assert.Empty(communities);
+    }
+
+    // ============ IsEntryPoint 确定性测试 ============
+
+    private static SymbolInfo SymForEntry(string name, SymbolKind kind) => new() {
+        Name = name, FullyQualifiedName = name, Kind = kind,
+        FilePath = "t.cs", StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1,
+    };
+
+    [Theory]
+    [InlineData("Main")]
+    [InlineData("MainAsync")]
+    [InlineData("Program")]
+    public void IsEntryPoint_WellKnownNames_ReturnsTrue(string name) {
+        Assert.True(GraphAnalytics.IsEntryPoint(SymForEntry(name, SymbolKind.Method)));
+    }
+
+    [Fact]
+    public void IsEntryPoint_OnPrefixMethod_ReturnsTrue() {
+        Assert.True(GraphAnalytics.IsEntryPoint(SymForEntry("OnClick", SymbolKind.Method)));
+        Assert.True(GraphAnalytics.IsEntryPoint(SymForEntry("OnPropertyChanged", SymbolKind.Method)));
+    }
+
+    [Fact]
+    public void IsEntryPoint_OnPrefixNonMethod_ReturnsFalse() {
+        // On 前缀但 Kind 不是 Method → false
+        Assert.False(GraphAnalytics.IsEntryPoint(SymForEntry("OnClick", SymbolKind.Class)));
+    }
+
+    [Fact]
+    public void IsEntryPoint_RegularMethod_ReturnsFalse() {
+        Assert.False(GraphAnalytics.IsEntryPoint(SymForEntry("Process", SymbolKind.Method)));
+        Assert.False(GraphAnalytics.IsEntryPoint(SymForEntry("Validate", SymbolKind.Method)));
+    }
+
+    [Fact]
+    public void IsEntryPoint_LowerCaseOn_ReturnsFalse() {
+        // StartsWith("On") 大小写敏感
+        Assert.False(GraphAnalytics.IsEntryPoint(SymForEntry("onClick", SymbolKind.Method)));
+    }
+
+    // ============ FindFilePath 确定性测试 ============
+
+    [Fact]
+    public void FindFilePath_FqnMatch_ReturnsFilePath() {
+        InsertSymbol("Foo", "Ns.Foo", SymbolKind.Class, "foo.cs", "Ns");
+        var snap = _store.GetSnapshot();
+
+        Assert.Equal("foo.cs", GraphAnalytics.FindFilePath(snap, "Ns.Foo"));
+    }
+
+    [Fact]
+    public void FindFilePath_NameMatch_ReturnsFirstFilePath() {
+        InsertSymbol("Foo", "Ns.Foo", SymbolKind.Class, "foo.cs", "Ns");
+        var snap = _store.GetSnapshot();
+
+        Assert.Equal("foo.cs", GraphAnalytics.FindFilePath(snap, "Foo"));
+    }
+
+    [Fact]
+    public void FindFilePath_NoMatch_ReturnsNull() {
+        InsertSymbol("Foo", "Ns.Foo", SymbolKind.Class, "foo.cs", "Ns");
+        var snap = _store.GetSnapshot();
+
+        Assert.Null(GraphAnalytics.FindFilePath(snap, "NonExistent"));
+    }
+
+    [Fact]
+    public void FindFilePath_EmptySnapshot_ReturnsNull() {
+        var snap = _store.GetSnapshot();
+        Assert.Null(GraphAnalytics.FindFilePath(snap, "Anything"));
+    }
+
+    // ============ BuildCallDag 确定性测试 ============
+
+    [Fact]
+    public void BuildCallDag_SymbolsBecomeNodes() {
+        InsertSymbol("A", "Ns.A", SymbolKind.Method, "a.cs", "Ns");
+        InsertSymbol("B", "Ns.B", SymbolKind.Method, "b.cs", "Ns");
+        var snap = _store.GetSnapshot();
+
+        var dag = GraphAnalytics.BuildCallDag(snap);
+
+        Assert.Equal(2, dag.Nodes.Count);
+        Assert.True(dag.Nodes.ContainsKey("Ns.A"));
+        Assert.True(dag.Nodes.ContainsKey("Ns.B"));
+    }
+
+    [Fact]
+    public void BuildCallDag_CallEdgesBecomeDagEdges() {
+        InsertSymbol("A", "Ns.A", SymbolKind.Method, "a.cs", "Ns");
+        InsertSymbol("B", "Ns.B", SymbolKind.Method, "b.cs", "Ns");
+        InsertCallEdge("Ns.A", "Ns.B", "a.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var dag = GraphAnalytics.BuildCallDag(snap);
+
+        Assert.True(dag.TryGetEdge("Ns.A", "Ns.B", out var edge));
+        Assert.Equal("Direct", edge.Label);
+    }
+
+    [Fact]
+    public void BuildCallDag_EdgeOnlySymbols_BecomeNodes() {
+        // 调用边引用了不在 SymbolsByFqn 中的符号 → 仍应成为节点
+        InsertCallEdge("Ghost", "Phantom", "g.cs", 1, CallKind.Direct);
+        var snap = _store.GetSnapshot();
+
+        var dag = GraphAnalytics.BuildCallDag(snap);
+
+        Assert.True(dag.Nodes.ContainsKey("Ghost"));
+        Assert.True(dag.Nodes.ContainsKey("Phantom"));
+    }
+
+    [Fact]
+    public void BuildCallDag_EmptySnapshot_NoNodesNoEdges() {
+        var snap = _store.GetSnapshot();
+        var dag = GraphAnalytics.BuildCallDag(snap);
+        Assert.Empty(dag.Nodes);
+        Assert.Empty(dag.Edges);
+    }
+
+    // ============ BuildDependencyDag 确定性测试 ============
+
+    [Fact]
+    public void BuildDependencyDag_SymbolsBecomeNodes() {
+        InsertSymbol("A", "Ns.A", SymbolKind.Class, "a.cs", "Ns");
+        InsertSymbol("B", "Ns.B", SymbolKind.Class, "b.cs", "Ns");
+        var snap = _store.GetSnapshot();
+
+        var dag = GraphAnalytics.BuildDependencyDag(snap);
+
+        Assert.Equal(2, dag.Nodes.Count);
+        Assert.True(dag.Nodes.ContainsKey("Ns.A"));
+        Assert.True(dag.Nodes.ContainsKey("Ns.B"));
+    }
+
+    [Fact]
+    public void BuildDependencyDag_DepEdgesBecomeDagEdges() {
+        InsertSymbol("A", "Ns.A", SymbolKind.Class, "a.cs", "Ns");
+        InsertSymbol("B", "Ns.B", SymbolKind.Class, "b.cs", "Ns");
+        _store.Update(snap => snap with {
+            DepEdges = snap.DepEdges.Add(new DependencyEdge {
+                SourceSymbol = "Ns.A", TargetSymbol = "Ns.B",
+                DependencyKind = DependencyKind.Inherits, SourceFilePath = "a.cs",
+            }),
+        });
+        var snap = _store.GetSnapshot();
+
+        var dag = GraphAnalytics.BuildDependencyDag(snap);
+
+        Assert.True(dag.TryGetEdge("Ns.A", "Ns.B", out var edge));
+        Assert.Equal("Inherits", edge.Label);
+    }
+
+    [Fact]
+    public void BuildDependencyDag_EdgeOnlySymbols_BecomeNodes() {
+        _store.Update(snap => snap with {
+            DepEdges = snap.DepEdges.Add(new DependencyEdge {
+                SourceSymbol = "Ghost", TargetSymbol = "Phantom",
+                DependencyKind = DependencyKind.Uses, SourceFilePath = "g.cs",
+            }),
+        });
+        var snap = _store.GetSnapshot();
+
+        var dag = GraphAnalytics.BuildDependencyDag(snap);
+
+        Assert.True(dag.Nodes.ContainsKey("Ghost"));
+        Assert.True(dag.Nodes.ContainsKey("Phantom"));
+    }
+
+    [Fact]
+    public void BuildDependencyDag_EmptySnapshot_NoNodesNoEdges() {
+        var snap = _store.GetSnapshot();
+        var dag = GraphAnalytics.BuildDependencyDag(snap);
+        Assert.Empty(dag.Nodes);
+        Assert.Empty(dag.Edges);
+    }
 }

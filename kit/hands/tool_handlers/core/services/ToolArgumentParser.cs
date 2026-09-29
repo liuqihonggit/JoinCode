@@ -44,7 +44,7 @@ public sealed class ToolArgumentParser {
     /// <summary>
     /// 解析键值对格式参数
     /// </summary>
-    private Dictionary<string, JsonElement> ParseKeyValuePairs(string arguments) {
+    internal Dictionary<string, JsonElement> ParseKeyValuePairs(string arguments) {
         var result = new Dictionary<string, JsonElement>();
         var pairs = SplitArguments(arguments);
 
@@ -66,7 +66,7 @@ public sealed class ToolArgumentParser {
     /// <summary>
     /// 分割参数字符串
     /// </summary>
-    private List<string> SplitArguments(string arguments) {
+    internal List<string> SplitArguments(string arguments) {
         var result = new List<string>();
         var current = new System.Text.StringBuilder();
         var inQuotes = false;
@@ -101,7 +101,7 @@ public sealed class ToolArgumentParser {
     /// <summary>
     /// 解析值为JsonElement
     /// </summary>
-    private JsonElement ParseValue(string value) {
+    internal JsonElement ParseValue(string value) {
         // 去除引号
         if ((value.StartsWith('"') && value.EndsWith('"')) ||
             (value.StartsWith('\'') && value.EndsWith('\''))) {
@@ -170,7 +170,7 @@ public sealed class ToolArgumentParser {
     /// <summary>
     /// 验证JSON元素类型
     /// </summary>
-    private bool ValidateType(JsonElement element, string expectedType) {
+    internal bool ValidateType(JsonElement element, string expectedType) {
         return expectedType.ToLowerInvariant() switch {
             "string" => element.ValueKind == JsonValueKind.String,
             "integer" => element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out _),

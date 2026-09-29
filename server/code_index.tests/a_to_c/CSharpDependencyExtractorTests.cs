@@ -287,4 +287,105 @@ public sealed class CSharpDependencyExtractorTests {
 
         Assert.Contains(deps, d => d.SourceSymbol == "Service" && d.TargetSymbol == "Test" && d.DependencyKind == DependencyKind.Uses);
     }
+
+    // ============ BuildTypeFqnMap 确定性测试 ============
+
+    private static SymbolInfo Sym(string name, string fqn, SymbolKind kind) => new() {
+        Name = name, FullyQualifiedName = fqn, Kind = kind,
+        FilePath = "t.cs", StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1,
+    };
+
+    [Fact]
+    public void BuildTypeFqnMap_TypeSymbols_MapsNameToFqn() {
+        var symbols = new List<SymbolInfo> {
+            Sym("Foo", "Ns.Foo", SymbolKind.Class),
+            Sym("IBar", "Ns.IBar", SymbolKind.Interface),
+        };
+
+        var map = CSharpDependencyExtractor.BuildTypeFqnMap(symbols);
+
+        Assert.Equal("Ns.Foo", map["Foo"]);
+        Assert.Equal("Ns.IBar", map["IBar"]);
+    }
+
+    [Fact]
+    public void BuildTypeFqnMap_NonTypeSymbols_Skipped() {
+        var symbols = new List<SymbolInfo> {
+            Sym("Method", "Ns.Method", SymbolKind.Method),
+            Sym("Field", "Ns.Field", SymbolKind.Field),
+            Sym("Cls", "Ns.Cls", SymbolKind.Class),
+        };
+
+        var map = CSharpDependencyExtractor.BuildTypeFqnMap(symbols);
+
+        Assert.Single(map);
+        Assert.True(map.ContainsKey("Cls"));
+    }
+
+    [Fact]
+    public void BuildTypeFqnMap_DuplicateName_KeepsFirst() {
+        var symbols = new List<SymbolInfo> {
+            Sym("Dup", "NsA.Dup", SymbolKind.Class),
+            Sym("Dup", "NsB.Dup", SymbolKind.Struct),
+        };
+
+        var map = CSharpDependencyExtractor.BuildTypeFqnMap(symbols);
+
+        Assert.Single(map);
+        Assert.Equal("NsA.Dup", map["Dup"]);
+    }
+
+    [Fact]
+    public void BuildTypeFqnMap_EmptyList_ReturnsEmptyMap() {
+        var map = CSharpDependencyExtractor.BuildTypeFqnMap([]);
+        Assert.Empty(map);
+    }
+
+    [Fact]
+    public void BuildTypeFqnMap_AllTypeKinds_Included() {
+        var symbols = new List<SymbolInfo> {
+            Sym("C", "C", SymbolKind.Class),
+            Sym("S", "S", SymbolKind.Struct),
+            Sym("I", "I", SymbolKind.Interface),
+            Sym("E", "E", SymbolKind.Enum),
+            Sym("D", "D", SymbolKind.Delegate),
+            Sym("R", "R", SymbolKind.Record),
+            Sym("RS", "RS", SymbolKind.RecordStruct),
+        };
+
+        var map = CSharpDependencyExtractor.BuildTypeFqnMap(symbols);
+
+        Assert.Equal(7, map.Count);
+    }
+
+    // ============ BuildFileFqn 确定性测试 ============
+
+    [Fact]
+    public void BuildFileFqn_WithNamespace_UsesNamespaceInFqn() {
+        var symbols = new List<SymbolInfo> {
+            new() { Name = "MyApp", FullyQualifiedName = "MyApp", Kind = SymbolKind.Namespace,
+                    FilePath = "service.cs", StartLine = 1, EndLine = 1, StartColumn = 1, EndColumn = 1 },
+        };
+
+        var fqn = CSharpDependencyExtractor.BuildFileFqn("service.cs", symbols);
+
+        Assert.Equal("<MyApp>.service.cs", fqn);
+    }
+
+    [Fact]
+    public void BuildFileFqn_NoNamespace_UsesGlobal() {
+        var symbols = new List<SymbolInfo> {
+            Sym("Svc", "Svc", SymbolKind.Class),
+        };
+
+        var fqn = CSharpDependencyExtractor.BuildFileFqn("service.cs", symbols);
+
+        Assert.Equal("<global>.service.cs", fqn);
+    }
+
+    [Fact]
+    public void BuildFileFqn_EmptySymbols_UsesGlobal() {
+        var fqn = CSharpDependencyExtractor.BuildFileFqn("empty.cs", []);
+        Assert.Equal("<global>.empty.cs", fqn);
+    }
 }

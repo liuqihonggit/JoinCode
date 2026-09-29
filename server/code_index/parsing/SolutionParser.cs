@@ -88,7 +88,7 @@ internal static class SolutionParser {
         return new SolutionParseResult { Projects = projects };
     }
 
-    private static SolutionProjectEntry? ParseProjectLine(string line, string solutionDir) {
+    internal static SolutionProjectEntry? ParseProjectLine(string line, string solutionDir) {
         var eqIndex = line.IndexOf('=');
         if (eqIndex < 0) {
             return null;
@@ -123,7 +123,7 @@ internal static class SolutionParser {
         };
     }
 
-    private static List<string> SplitQuotedParts(ReadOnlySpan<char> input) {
+    internal static List<string> SplitQuotedParts(ReadOnlySpan<char> input) {
         var result = new List<string>();
         var i = 0;
 

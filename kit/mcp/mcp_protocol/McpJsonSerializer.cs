@@ -159,7 +159,7 @@ public static class McpJsonSerializer {
         return SerializeObjectInternal(value);
     }
 
-    private static string SerializeObjectInternal(object value) {
+    internal static string SerializeObjectInternal(object value) {
         if (value is null) return "null";
         if (value is string s) return JsonSerializer.Serialize(s, McpJsonContext.Default.String);
         if (value is int i) return i.ToString();

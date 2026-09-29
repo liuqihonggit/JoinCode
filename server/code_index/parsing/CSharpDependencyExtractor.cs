@@ -102,7 +102,7 @@ public sealed class CSharpDependencyExtractor {
         return deps;
     }
 
-    private static Dictionary<string, string> BuildTypeFqnMap(IReadOnlyList<SymbolInfo> symbols) {
+    internal static Dictionary<string, string> BuildTypeFqnMap(IReadOnlyList<SymbolInfo> symbols) {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var symbol in symbols) {
             if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Enum or SymbolKind.Delegate or SymbolKind.Record or SymbolKind.RecordStruct) {
@@ -114,7 +114,7 @@ public sealed class CSharpDependencyExtractor {
         return map;
     }
 
-    private static string BuildFileFqn(string filePath, IReadOnlyList<SymbolInfo> symbols) {
+    internal static string BuildFileFqn(string filePath, IReadOnlyList<SymbolInfo> symbols) {
         var ns = symbols.FirstOrDefault(s => s.Kind == SymbolKind.Namespace);
         return ns is not null ? $"<{ns.Name}>.{Path.GetFileName(filePath)}" : $"<global>.{Path.GetFileName(filePath)}";
     }

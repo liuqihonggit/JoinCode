@@ -396,7 +396,7 @@ public class OpenAIQueryService : QueryServiceBase {
         };
     }
 
-    private static OpenAIFunctionParameters BuildParameters(IReadOnlyList<IToolParam> parameters) {
+    internal static OpenAIFunctionParameters BuildParameters(IReadOnlyList<IToolParam> parameters) {
         if (parameters.Count == 0) return new OpenAIFunctionParameters();
 
         var props = new Dictionary<string, OpenAIParameterProperty>();

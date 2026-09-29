@@ -774,4 +774,285 @@ public class ResponsesQueryServiceTests {
     }
 
     #endregion
+
+    #region EscapeJsonString — 5种转义字符
+
+    [Theory]
+    [InlineData("", "")]
+    [InlineData("plain", "plain")]
+    [InlineData("\"", "\\\"")]
+    [InlineData("\\", "\\\\")]
+    [InlineData("\n", "\\n")]
+    [InlineData("\r", "\\r")]
+    [InlineData("\t", "\\t")]
+    public void EscapeJsonString_SpecialChars_EscapedCorrectly(string input, string expected) {
+        ResponsesQueryService.EscapeJsonString(input).Should().Be(expected);
+    }
+
+    [Fact]
+    public void EscapeJsonString_MixedChars_AllEscaped() {
+        var input = "a\"b\\c\nd\re\tf";
+
+        var result = ResponsesQueryService.EscapeJsonString(input);
+
+        result.Should().Be("a\\\"b\\\\c\\nd\\re\\tf");
+    }
+
+    [Fact]
+    public void EscapeJsonString_Null_ReturnsEmpty() {
+        ResponsesQueryService.EscapeJsonString(null!).Should().Be("");
+    }
+
+    #endregion
+
+    #region AppendFunctionCallOutput — function_call_output 构建
+
+    [Fact]
+    public void AppendFunctionCallOutput_WithCallId_EmitsFunctionCallOutputItem() {
+        var sb = new StringBuilder();
+        var first = true;
+        var msg = new ApiMessage(MessageRole.Tool, "result body",
+            new Dictionary<string, JsonElement> {
+                [MessageMetadataKeyEnumConstants.ToolCallId] = JsonElementHelper.FromString("call-1")
+            });
+
+        ResponsesQueryService.AppendFunctionCallOutput(sb, msg, ref first);
+
+        var json = sb.ToString();
+        json.Should().Contain("\"type\":\"function_call_output\"");
+        json.Should().Contain("\"call_id\":\"call-1\"");
+        json.Should().Contain("\"output\":\"result body\"");
+        first.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AppendFunctionCallOutput_NoMetadata_CallIdIsEmpty() {
+        var sb = new StringBuilder();
+        var first = true;
+        var msg = new ApiMessage(MessageRole.Tool, "x");
+
+        ResponsesQueryService.AppendFunctionCallOutput(sb, msg, ref first);
+
+        sb.ToString().Should().Contain("\"call_id\":\"\"");
+    }
+
+    [Fact]
+    public void AppendFunctionCallOutput_SecondItem_PrependsComma() {
+        var sb = new StringBuilder("[");
+        var first = false;
+        var msg = new ApiMessage(MessageRole.Tool, "x",
+            new Dictionary<string, JsonElement> {
+                [MessageMetadataKeyEnumConstants.ToolCallId] = JsonElementHelper.FromString("c1")
+            });
+
+        ResponsesQueryService.AppendFunctionCallOutput(sb, msg, ref first);
+
+        sb.ToString().Should().Contain(",{\"type\":\"function_call_output\"");
+    }
+
+    #endregion
+
+    #region TryAppendAssistantMetadata — reasoning + tool_calls 分支
+
+    [Fact]
+    public void TryAppendAssistantMetadata_NonAssistant_ReturnsFalse() {
+        var sb = new StringBuilder();
+        var first = true;
+        var msg = new ApiMessage(MessageRole.User, "hi");
+
+        var result = ResponsesQueryService.TryAppendAssistantMetadata(sb, ref first, msg);
+
+        result.Should().BeFalse();
+        sb.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TryAppendAssistantMetadata_AssistantWithoutMetadata_ReturnsFalse() {
+        var sb = new StringBuilder();
+        var first = true;
+        var msg = new ApiMessage(MessageRole.Assistant, "hi");
+
+        var result = ResponsesQueryService.TryAppendAssistantMetadata(sb, ref first, msg);
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void TryAppendAssistantMetadata_WithReasoning_EmitsReasoningItem() {
+        var sb = new StringBuilder();
+        var first = true;
+        var msg = new ApiMessage(MessageRole.Assistant, null,
+            new Dictionary<string, JsonElement> {
+                [MessageMetadataKeyEnumConstants.ReasoningText] = JsonElementHelper.FromString("think hard")
+            });
+
+        ResponsesQueryService.TryAppendAssistantMetadata(sb, ref first, msg);
+
+        var json = sb.ToString();
+        json.Should().Contain("\"type\":\"reasoning\"");
+        json.Should().Contain("\"text\":\"think hard\"");
+    }
+
+    [Fact]
+    public void TryAppendAssistantMetadata_WithToolCallsArray_EmitsFunctionCallsAndReturnsTrue() {
+        var sb = new StringBuilder();
+        var first = true;
+        var toolCallsJson = "[{\"Id\":\"call-1\",\"Name\":\"grep\",\"Arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}]";
+        var msg = new ApiMessage(MessageRole.Assistant, null,
+            new Dictionary<string, JsonElement> {
+                [MessageMetadataKeyEnumConstants.ToolCalls] = JsonElementHelper.FromJson(toolCallsJson)
+            });
+
+        var result = ResponsesQueryService.TryAppendAssistantMetadata(sb, ref first, msg);
+
+        result.Should().BeTrue();
+        var json = sb.ToString();
+        json.Should().Contain("\"type\":\"function_call\"");
+        json.Should().Contain("\"call_id\":\"call-1\"");
+        json.Should().Contain("\"name\":\"grep\"");
+    }
+
+    [Fact]
+    public void TryAppendAssistantMetadata_WithAllToolCallsArray_EmitsFunctionCalls() {
+        var sb = new StringBuilder();
+        var first = true;
+        var toolCallsJson = "[{\"Id\":\"c2\",\"Name\":\"ls\",\"Arguments\":\"{}\"}]";
+        var msg = new ApiMessage(MessageRole.Assistant, null,
+            new Dictionary<string, JsonElement> {
+                ["AllToolCalls"] = JsonElementHelper.FromJson(toolCallsJson)
+            });
+
+        var result = ResponsesQueryService.TryAppendAssistantMetadata(sb, ref first, msg);
+
+        result.Should().BeTrue();
+        sb.ToString().Should().Contain("\"name\":\"ls\"");
+    }
+
+    [Fact]
+    public void TryAppendAssistantMetadata_ToolCallsNotArray_ReturnsFalse() {
+        var sb = new StringBuilder();
+        var first = true;
+        var msg = new ApiMessage(MessageRole.Assistant, null,
+            new Dictionary<string, JsonElement> {
+                [MessageMetadataKeyEnumConstants.ToolCalls] = JsonElementHelper.FromString("not-array")
+            });
+
+        var result = ResponsesQueryService.TryAppendAssistantMetadata(sb, ref first, msg);
+
+        result.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region BuildParameters — 手写 JSON schema
+
+    [Fact]
+    public void BuildParameters_EmptyParameters_ReturnsNull() {
+        ResponsesQueryService.BuildParameters([]).Should().BeNull();
+    }
+
+    [Fact]
+    public void BuildParameters_SingleParamNoDescription_EmitsTypeOnly() {
+        var param = new ToolParam("name", "", typeof(string), false);
+
+        var result = ResponsesQueryService.BuildParameters([param]);
+
+        result.Should().NotBeNull();
+        var json = result!.Value.GetRawText();
+        json.Should().Contain("\"type\":\"object\"");
+        json.Should().Contain("\"name\":{\"type\":\"string\"}");
+        json.Should().NotContain("\"description\"");
+        json.Should().NotContain("\"required\"");
+    }
+
+    [Fact]
+    public void BuildParameters_WithDescription_EmitsDescriptionField() {
+        var param = new ToolParam("q", "query text", typeof(string), false);
+
+        var result = ResponsesQueryService.BuildParameters([param]);
+
+        var json = result!.Value.GetRawText();
+        json.Should().Contain("\"description\":\"query text\"");
+    }
+
+    [Fact]
+    public void BuildParameters_RequiredParam_EmitsRequiredArray() {
+        var param = new ToolParam("q", "", typeof(string), true);
+
+        var result = ResponsesQueryService.BuildParameters([param]);
+
+        var json = result!.Value.GetRawText();
+        json.Should().Contain("\"required\":[\"q\"]");
+    }
+
+    [Fact]
+    public void BuildParameters_MultipleParams_CommaSeparated() {
+        var parameters = new ToolParam[] {
+            new("a", "", typeof(string), false),
+            new("b", "", typeof(int), true)
+        };
+
+        var result = ResponsesQueryService.BuildParameters(parameters);
+
+        var json = result!.Value.GetRawText();
+        json.Should().Contain("\"a\":{\"type\":\"string\"}");
+        json.Should().Contain("\"b\":{\"type\":\"integer\"}");
+        json.Should().Contain("\"required\":[\"b\"]");
+    }
+
+    #endregion
+
+    #region BuildTokenUsage — token 映射
+
+    [Fact]
+    public void BuildTokenUsage_FromResponsesUsage_MapsAllFields() {
+        var usage = new ResponsesUsage {
+            InputTokens = 10,
+            OutputTokens = 20,
+            InputTokensDetails = new ResponsesTokenDetails { CachedTokens = 5 }
+        };
+
+        var result = ResponsesQueryService.BuildTokenUsage(usage);
+
+        result.PromptTokens.Should().Be(10);
+        result.CompletionTokens.Should().Be(20);
+        result.CacheReadInputTokens.Should().Be(5);
+        result.CacheCreationInputTokens.Should().Be(0);
+    }
+
+    [Fact]
+    public void BuildTokenUsage_FromResponsesUsage_NullDetails_CacheReadZero() {
+        var usage = new ResponsesUsage { InputTokens = 1, OutputTokens = 2 };
+
+        var result = ResponsesQueryService.BuildTokenUsage(usage);
+
+        result.CacheReadInputTokens.Should().Be(0);
+    }
+
+    [Fact]
+    public void BuildTokenUsage_FromJsonElement_MapsAllFields() {
+        var json = JsonElementHelper.FromJson("""
+            {"input_tokens":100,"output_tokens":200,"input_tokens_details":{"cached_tokens":50}}
+            """);
+
+        var result = ResponsesQueryService.BuildTokenUsage(json);
+
+        result.PromptTokens.Should().Be(100);
+        result.CompletionTokens.Should().Be(200);
+        result.CacheReadInputTokens.Should().Be(50);
+        result.CacheCreationInputTokens.Should().Be(0);
+    }
+
+    [Fact]
+    public void BuildTokenUsage_FromJsonElement_MissingFields_DefaultToZero() {
+        var json = JsonElementHelper.FromJson("{}");
+
+        var result = ResponsesQueryService.BuildTokenUsage(json);
+
+        result.PromptTokens.Should().Be(0);
+        result.CompletionTokens.Should().Be(0);
+        result.CacheReadInputTokens.Should().Be(0);
+    }
+
+    #endregion
 }

@@ -433,4 +433,37 @@ public sealed class CSharpSymbolExtractorTests {
         Assert.Equal("Empty", record.Name);
         Assert.DoesNotContain(symbols, s => s.Kind == SymbolKind.Constructor);
     }
+
+    // ============ ComputeFqn 确定性测试 ============
+
+    [Fact]
+    public void ComputeFqn_NamespaceKind_ReturnsNameOnly() {
+        Assert.Equal("MyApp", CSharpSymbolExtractor.ComputeFqn("MyApp", null, null, SymbolKind.Namespace));
+    }
+
+    [Fact]
+    public void ComputeFqn_WithParentFqn_AppendsToParent() {
+        Assert.Equal("Outer.Inner", CSharpSymbolExtractor.ComputeFqn("Inner", "Outer", null, SymbolKind.Class));
+    }
+
+    [Fact]
+    public void ComputeFqn_WithNamespace_AppendsToNamespace() {
+        Assert.Equal("MyApp.Service", CSharpSymbolExtractor.ComputeFqn("Service", null, "MyApp", SymbolKind.Class));
+    }
+
+    [Fact]
+    public void ComputeFqn_ParentFqnTakesPrecedenceOverNamespace() {
+        // parentFqn 优先于 ns
+        Assert.Equal("Outer.Method", CSharpSymbolExtractor.ComputeFqn("Method", "Outer", "MyApp", SymbolKind.Method));
+    }
+
+    [Fact]
+    public void ComputeFqn_NoParentNoNamespace_ReturnsNameOnly() {
+        Assert.Equal("Global", CSharpSymbolExtractor.ComputeFqn("Global", null, null, SymbolKind.Class));
+    }
+
+    [Fact]
+    public void ComputeFqn_EmptyParentFqn_FallsBackToNamespace() {
+        Assert.Equal("MyApp.X", CSharpSymbolExtractor.ComputeFqn("X", "", "MyApp", SymbolKind.Class));
+    }
 }

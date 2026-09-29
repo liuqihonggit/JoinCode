@@ -10,6 +10,7 @@ global using Core.Context.Compression;
 global using Core.Context.Resolution;
 global using Core.CostTracking;
 global using Core.CostTracking.FeatureFlags;
+global using JoinCode.Abstractions.Models.Analytics;
 global using Core.Planning;
 global using Core.Planning.ToolHandlers;
 global using Core.Prompts;

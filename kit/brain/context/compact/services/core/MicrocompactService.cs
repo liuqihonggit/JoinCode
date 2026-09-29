@@ -217,7 +217,7 @@ public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactSe
     /// <param name="messages">原始消息列表</param>
     /// <param name="clearSet">需要清除内容的工具调用ID集合</param>
     /// <returns>替换后的消息列表 + 节省的token数</returns>
-    private static (List<ApiMessage> Messages, int TokensSaved) ClearToolResults(
+    internal static (List<ApiMessage> Messages, int TokensSaved) ClearToolResults(
         IReadOnlyList<ApiMessage> messages,
         HashSet<string> clearSet) {
         var tokensSaved = 0;
@@ -261,7 +261,7 @@ public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactSe
     /// <param name="messages">消息列表</param>
     /// <param name="compactableToolNames">自定义可压缩工具名集合，null则使用默认</param>
     /// <returns>可压缩的工具调用ID列表（按出现顺序）</returns>
-    private static List<string> CollectCompactableToolIds(
+    internal static List<string> CollectCompactableToolIds(
         IReadOnlyList<ApiMessage> messages,
         IReadOnlySet<string>? compactableToolNames) {
         var effectiveToolNames = compactableToolNames ?? CompactableTools;

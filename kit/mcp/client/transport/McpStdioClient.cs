@@ -114,7 +114,7 @@ public sealed class McpStdioClient : McpClientBase {
     /// 解析 endpoint 为 FileName + Arguments — 支持带参数的命令行（如 "node script.js"）。
     /// 如果 endpoint 以引号开头，取引号内为 FileName，引号后为 Arguments；否则按第一个空格拆分。
     /// </summary>
-    private static (string FileName, string Arguments) ParseEndpoint(string endpoint) {
+    internal static (string FileName, string Arguments) ParseEndpoint(string endpoint) {
         if (string.IsNullOrWhiteSpace(endpoint))
             return (endpoint, string.Empty);
 

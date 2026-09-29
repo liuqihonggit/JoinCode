@@ -97,3 +97,4 @@ global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using StreamEvent = JoinCode.Abstractions.LLM.Chat.StreamEvent;
 global using TranscriptEntry = JoinCode.Abstractions.LLM.Chat.TranscriptEntry;
 global using TranscriptSummary = JoinCode.Abstractions.LLM.Chat.TranscriptSummary;
+global using System.Text.RegularExpressions;

@@ -166,11 +166,16 @@ public sealed class StreamingFallbackDecorator : IQueryService {
     /// <summary>
     /// 判断异常是否应触发 fallback — 对齐 TS catch 块中的条件
     /// </summary>
-    private bool ShouldFallback(Exception ex, CancellationToken originalToken) {
+    internal bool ShouldFallback(Exception ex, CancellationToken originalToken) {
         if (originalToken.IsCancellationRequested)
             return false;
 
-        if (ex is OperationCanceledException oce && oce.CancellationToken == originalToken)
+        // 只有当 originalToken 可取消且异常确实携带该 token 时,才视为用户主动取消(不 fallback)
+        // 修复:无 CancellationToken 的 OperationCanceledException/TaskCanceledException(CancellationToken=default=None)
+        //      在 originalToken 为 None 时会被误判为用户取消而漏 fallback;要求 originalToken.CanBeCanceled 才排除
+        if (ex is OperationCanceledException oce
+            && originalToken.CanBeCanceled
+            && oce.CancellationToken == originalToken)
             return false;
 
         if (ex is HttpRequestException httpEx && httpEx.StatusCode.HasValue) {
@@ -194,7 +199,7 @@ public sealed class StreamingFallbackDecorator : IQueryService {
     /// 调整非流式请求参数 — 对齐 TS adjustParamsForNonStreaming
     /// 将 max_tokens 限制到 MaxNonStreamingTokens (64k)
     /// </summary>
-    private ChatOptions? AdjustSettingsForNonStreaming(ChatOptions? settings) {
+    internal ChatOptions? AdjustSettingsForNonStreaming(ChatOptions? settings) {
         if (settings is null)
             return null;
 
@@ -218,7 +223,7 @@ public sealed class StreamingFallbackDecorator : IQueryService {
     /// <summary>
     /// 将非流式 ApiMessage 转换为 StreamEvent 列表 — fallback 后需要统一为流式接口
     /// </summary>
-    private static List<StreamEvent> ConvertToStreamEvents(IReadOnlyList<ApiMessage> messages) {
+    internal static List<StreamEvent> ConvertToStreamEvents(IReadOnlyList<ApiMessage> messages) {
         var result = new List<StreamEvent>(messages.Count);
 
         for (var i = 0; i < messages.Count; i++) {

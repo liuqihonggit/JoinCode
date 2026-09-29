@@ -407,7 +407,7 @@ public class ResponsesQueryService : QueryServiceBase {
         };
     }
 
-    private static JsonElement? BuildParameters(IReadOnlyList<IToolParam> parameters) {
+    internal static JsonElement? BuildParameters(IReadOnlyList<IToolParam> parameters) {
         if (parameters.Count == 0) return null;
 
         var sb = new StringBuilder();
@@ -435,7 +435,7 @@ public class ResponsesQueryService : QueryServiceBase {
         return JsonDocument.Parse(sb.ToString()).RootElement.Clone();
     }
 
-    private static string EscapeJsonString(string s) {
+    internal static string EscapeJsonString(string s) {
         if (string.IsNullOrEmpty(s)) return "";
         var sb = new StringBuilder(s.Length);
         foreach (var c in s) {
@@ -458,7 +458,7 @@ public class ResponsesQueryService : QueryServiceBase {
     }
 
     /// <summary>Tool 结果消息 → function_call_output item（Responses API 官方格式，非 role=tool message）</summary>
-    private static void AppendFunctionCallOutput(StringBuilder sb, ApiMessage msg, ref bool firstInput) {
+    internal static void AppendFunctionCallOutput(StringBuilder sb, ApiMessage msg, ref bool firstInput) {
         var callId = msg.Metadata is not null
             && msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolCallId, out var idProp)
             && idProp.ValueKind == JsonValueKind.String
@@ -470,7 +470,7 @@ public class ResponsesQueryService : QueryServiceBase {
     }
 
     /// <summary>Assistant 消息的 reasoning + tool_calls 元数据 → Responses input items。返回 true 表示已走 tool_calls 分支应 continue</summary>
-    private static bool TryAppendAssistantMetadata(StringBuilder inputSb, ref bool firstInput, ApiMessage msg) {
+    internal static bool TryAppendAssistantMetadata(StringBuilder inputSb, ref bool firstInput, ApiMessage msg) {
         if (msg.Role != MessageRole.Assistant || msg.Metadata is null) return false;
 
         if (msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ReasoningText, out var reasoningProp)
@@ -580,7 +580,7 @@ public class ResponsesQueryService : QueryServiceBase {
         return messages;
     }
 
-    private static TokenUsage BuildTokenUsage(ResponsesUsage usage) {
+    internal static TokenUsage BuildTokenUsage(ResponsesUsage usage) {
         return new TokenUsage {
             PromptTokens = usage.InputTokens,
             CompletionTokens = usage.OutputTokens,
@@ -589,7 +589,7 @@ public class ResponsesQueryService : QueryServiceBase {
         };
     }
 
-    private static TokenUsage BuildTokenUsage(JsonElement usageJson) {
+    internal static TokenUsage BuildTokenUsage(JsonElement usageJson) {
         var inputTokens = usageJson.TryGetProperty("input_tokens", out var itProp) ? itProp.GetInt32() : 0;
         var outputTokens = usageJson.TryGetProperty("output_tokens", out var otProp) ? otProp.GetInt32() : 0;
         var cachedTokens = 0;

@@ -66,7 +66,7 @@ public static partial class McpUnicodeSanitizer {
     /// <summary>
     /// 单轮清理
     /// </summary>
-    private static string SanitizeRound(string input) {
+    internal static string SanitizeRound(string input) {
         // 1. NFKC 规范化 — 处理组合字符序列
         var result = input.Normalize(NormalizationForm.FormKC);
 

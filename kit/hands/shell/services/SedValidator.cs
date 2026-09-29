@@ -40,7 +40,7 @@ public static partial class SedValidator {
     /// 检查是否为行打印命令 — 对齐 TS isLinePrintingCommand
     /// 允许: sed -n 'Np' 或 sed -n 'N,Mp'
     /// </summary>
-    private static bool IsLinePrintingCommand(string command) {
+    internal static bool IsLinePrintingCommand(string command) {
         var tokens = SedEditParser.TryParseShellTokens(command[4..]);
         if (tokens is null) return false;
 
@@ -80,7 +80,7 @@ public static partial class SedValidator {
     /// <summary>
     /// 检查是否为替换命令 — 对齐 TS isSubstitutionCommand
     /// </summary>
-    private static SedValidationResult IsSubstitutionCommand(string command, bool allowFileWrites) {
+    internal static SedValidationResult IsSubstitutionCommand(string command, bool allowFileWrites) {
         var tokens = SedEditParser.TryParseShellTokens(command[4..]);
         if (tokens is null) return new(PermissionBehavior.Deny, "无法解析 sed 命令");
 
@@ -139,16 +139,11 @@ public static partial class SedValidator {
             return new(PermissionBehavior.Deny, "sed 替换命令必须使用 / 作为分隔符");
         }
 
-        // 检查未转义的 / 数量
-        var unescapedSlashCount = 0;
-        for (var i = 1; i < expression.Length; i++) {
-            if (expression[i] == '/' && (i == 0 || expression[i - 1] != '\\')) {
-                unescapedSlashCount++;
-            }
-        }
+        // 检查未转义的 / 数量 — sed 替换命令 s/pat/rep/ 有 3 个 /,空替换 s/pat/ 有 2 个 /
+        var unescapedSlashCount = CountUnescapedSlashes(expression);
 
-        if (unescapedSlashCount != 2) {
-            return new(PermissionBehavior.Deny, "sed 替换命令必须恰好 2 个未转义的 / 分隔符");
+        if (unescapedSlashCount is not (2 or 3)) {
+            return new(PermissionBehavior.Deny, "sed 替换命令必须 2 或 3 个未转义的 / 分隔符");
         }
 
         // 提取并验证标志
@@ -172,7 +167,7 @@ public static partial class SedValidator {
     /// <summary>
     /// 检查表达式是否包含危险操作 — 对齐 TS containsDangerousOperations
     /// </summary>
-    private static bool ContainsDangerousOperations(string expression) {
+    internal static bool ContainsDangerousOperations(string expression) {
         // 非 ASCII 字符
         if (expression.Any(c => c > 127)) return true;
 
@@ -208,7 +203,7 @@ public static partial class SedValidator {
     /// <summary>
     /// 提取 sed 表达式 — 对齐 TS extractSedExpressions
     /// </summary>
-    private static List<string> ExtractSedExpressions(string command) {
+    internal static List<string> ExtractSedExpressions(string command) {
         var tokens = SedEditParser.TryParseShellTokens(command[4..]);
         if (tokens is null) return [];
 
@@ -234,6 +229,20 @@ public static partial class SedValidator {
         }
 
         return expressions;
+    }
+
+    /// <summary>
+    /// 计算未转义的 / 数量 — 对齐 sed 表达式分隔符校验
+    /// 从索引 1 开始(sed 表达式以 s 开头,首字符不是 /)
+    /// </summary>
+    internal static int CountUnescapedSlashes(string expression) {
+        var count = 0;
+        for (var i = 1; i < expression.Length; i++) {
+            if (expression[i] == '/' && (i == 0 || expression[i - 1] != '\\')) {
+                count++;
+            }
+        }
+        return count;
     }
 
     [GeneratedRegex(@"^(?:\d+|\d+,\d+)?p$")]

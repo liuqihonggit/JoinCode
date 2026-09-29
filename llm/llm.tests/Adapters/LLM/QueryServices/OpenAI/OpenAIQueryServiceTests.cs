@@ -439,4 +439,95 @@ public class OpenAIQueryServiceTests {
     }
 
     #endregion
+
+    #region BuildParameters — schema 构建
+
+    [Fact]
+    public void BuildParameters_EmptyParameters_ReturnsDefaultInstance() {
+        var result = OpenAIQueryService.BuildParameters([]);
+
+        result.Should().NotBeNull();
+        result.Properties.Should().BeEmpty();
+        result.Required.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BuildParameters_SingleParam_MapsNameAndType() {
+        var param = new ToolParam("query", "", typeof(string), false);
+
+        var result = OpenAIQueryService.BuildParameters([param]);
+
+        result.Properties.Should().ContainKey("query");
+        result.Properties["query"].Type.Should().Be("string");
+        result.Required.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(typeof(int), "integer")]
+    [InlineData(typeof(long), "integer")]
+    [InlineData(typeof(float), "number")]
+    [InlineData(typeof(double), "number")]
+    [InlineData(typeof(decimal), "number")]
+    [InlineData(typeof(bool), "boolean")]
+    [InlineData(typeof(string), "string")]
+    public void BuildParameters_VariousClrTypes_MappedToJsonSchemaType(Type clrType, string expected) {
+        var param = new ToolParam("p", "", clrType, false);
+
+        var result = OpenAIQueryService.BuildParameters([param]);
+
+        result.Properties["p"].Type.Should().Be(expected);
+    }
+
+    [Fact]
+    public void BuildParameters_NullParameterType_DefaultsToString() {
+        var param = new ToolParam("p", "", null, false);
+
+        var result = OpenAIQueryService.BuildParameters([param]);
+
+        result.Properties["p"].Type.Should().Be("string");
+    }
+
+    [Fact]
+    public void BuildParameters_WithDescription_SetsDescription() {
+        var param = new ToolParam("q", "the query", typeof(string), false);
+
+        var result = OpenAIQueryService.BuildParameters([param]);
+
+        result.Properties["q"].Description.Should().Be("the query");
+    }
+
+    [Fact]
+    public void BuildParameters_EmptyDescription_DescriptionIsNull() {
+        var param = new ToolParam("q", "", typeof(string), false);
+
+        var result = OpenAIQueryService.BuildParameters([param]);
+
+        result.Properties["q"].Description.Should().BeNull();
+    }
+
+    [Fact]
+    public void BuildParameters_RequiredParam_AddedToRequiredList() {
+        var param = new ToolParam("q", "", typeof(string), true);
+
+        var result = OpenAIQueryService.BuildParameters([param]);
+
+        result.Required.Should().ContainSingle().Which.Should().Be("q");
+    }
+
+    [Fact]
+    public void BuildParameters_MultipleParams_AllMappedWithRequired() {
+        var parameters = new ToolParam[] {
+            new("a", "param a", typeof(int), true),
+            new("b", "", typeof(string), false),
+            new("c", "", typeof(bool), true)
+        };
+
+        var result = OpenAIQueryService.BuildParameters(parameters);
+
+        result.Properties.Should().HaveCount(3);
+        result.Required.Should().ContainInOrder(["a", "c"]);
+        result.Required.Should().NotContain("b");
+    }
+
+    #endregion
 }

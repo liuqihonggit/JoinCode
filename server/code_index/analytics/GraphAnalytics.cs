@@ -247,7 +247,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         return Task.FromResult<IReadOnlyList<IReadOnlyList<string>>>(result);
     }
 
-    private static Dag<string> BuildCallDag(IndexSnapshot snap) {
+    internal static Dag<string> BuildCallDag(IndexSnapshot snap) {
         var dag = new Dag<string>();
 
         foreach (var kvp in snap.SymbolsByFqn) {
@@ -273,7 +273,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         return dag;
     }
 
-    private static Dag<string> BuildDependencyDag(IndexSnapshot snap) {
+    internal static Dag<string> BuildDependencyDag(IndexSnapshot snap) {
         var dag = new Dag<string>();
 
         foreach (var kvp in snap.SymbolsByFqn) {
@@ -382,7 +382,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         return result.OrderByDescending(c => c.MemberCount).ToList();
     }
 
-    private static string? FindFilePath(IndexSnapshot snap, string symbolName) {
+    internal static string? FindFilePath(IndexSnapshot snap, string symbolName) {
         if (snap.SymbolsByFqn.TryGetValue(symbolName, out var sym))
             return sym.FilePath;
         if (snap.SymbolsByName.TryGetValue(symbolName, out var list) && list.Count > 0)
@@ -618,7 +618,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         });
     }
 
-    private static bool IsEntryPoint(SymbolInfo symbol) {
+    internal static bool IsEntryPoint(SymbolInfo symbol) {
         if (symbol.Name is "Main" or "MainAsync" or "Program") return true;
         if (symbol.Kind == SymbolKind.Method &&
             symbol.Name.StartsWith("On", StringComparison.Ordinal)) return true;

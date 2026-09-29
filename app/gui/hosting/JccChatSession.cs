@@ -201,6 +201,13 @@ internal sealed class JccChatSession : IJccChatSession {
         monitor?.UpdateBlacklist(blacklistedTools);
     }
 
+    /// <inheritdoc />
+    public async Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) {
+        var manager = _services.GetService<IToolPermissionManager>();
+        if (manager is not null)
+            await manager.SetPermissionModeAsync(mode, cancellationToken);
+    }
+
     /// <summary>settings.json 变更转发 — theme 键变更时解析为 ThemeKind 并触发 ThemeChanged</summary>
     private void OnSettingChanged(object? sender, SettingChangeEventArgs e) {
         if (e.Key == ConfigKeyEnumConstants.Theme && e.NewValue is not null) {

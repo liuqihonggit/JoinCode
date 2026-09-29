@@ -231,6 +231,15 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     /// <summary>占位会话无真实引擎，工具黑名单更新空实现</summary>
     public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
 
+    /// <summary>最后一次设置的权限模式（供测试验证 GUI 开关传导）</summary>
+    public PermissionMode? LastSetPermissionMode { get; private set; }
+
+    /// <summary>占位会话权限模式设置 — 记录调用供测试验证，无真实引擎</summary>
+    public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) {
+        LastSetPermissionMode = mode;
+        return Task.CompletedTask;
+    }
+
     /// <inheritdoc />
     public Task<IReadOnlyList<SubAgentSummary>> GetAvailableSubAgentsAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<SubAgentSummary>>([]);

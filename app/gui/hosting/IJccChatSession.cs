@@ -159,6 +159,13 @@ public interface IJccChatSession : IAsyncDisposable {
     void UpdateToolBlacklist(HashSet<string> blacklistedTools);
 
     /// <summary>
+    /// 设置权限模式 — 运行时切换权限检查行为（Plan/Auto/Ask/Bypass/Unattended）。
+    /// 委托到引擎 IToolPermissionManager.SetPermissionModeAsync。
+    /// GUI 无人值守开关切换时调用，使权限模式实际生效（修复 ADR 0012 GUI 开关断裂缺口）。
+    /// </summary>
+    Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 获取可用子代理清单 — 从 IAgentDefinitionProvider 提取全部代理定义
     /// （内置 + 插件 + 用户.md + 项目.md），供 GUI @子代理补全消费。引擎未注册时返回空列表。
     /// </summary>

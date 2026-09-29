@@ -195,6 +195,14 @@ public sealed partial class MainViewModel {
     }
 
     /// <summary>
+    /// 无人值守模式开关变更 — 传导到引擎权限系统（修复 ADR 0012 GUI 开关断裂缺口）。
+    /// 开启时切换到 PermissionMode.Unattended（红灯自动执行+审计），关闭时恢复 Auto。
+    /// </summary>
+    partial void OnIsUnattendedModeChanged(bool value) {
+        _ = _session.SetPermissionModeAsync(value ? PermissionMode.Unattended : PermissionMode.Auto);
+    }
+
+    /// <summary>
     /// 释放引擎资源 — 窗口关闭时由 MainWindow.OnWindowClosed 调用。
     /// 避免 HTTP 连接池/FileSystemWatcher/后台任务泄漏导致进程不退（孤儿进程 + 文件锁）。
     /// 异步等待真实/模拟会话释放完成，避免 fire-and-forget 丢失异常与释放顺序竞态。

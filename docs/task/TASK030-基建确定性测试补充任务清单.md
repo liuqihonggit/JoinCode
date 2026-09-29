@@ -156,15 +156,15 @@
 - [x] `HostContextSyncService.SerializeSnapshot`/`DeserializeSnapshot`/`ExtractJsonField` private→internal + 测试 — 阶段2.2完成(15测试)
 
 #### 2.3 guard — 守卫纯逻辑 + 防御节点
-- [ ] `GitCommitGuard.ExtractFirstToken`/`IsGitCommitSubCommand` private→internal static + 测试
-- [ ] `CmdIndirectCallGuard.TryExtractCmdInner`/`TryExtractPwshInner`/`ExtractQuotedOrRaw` private→internal static + 测试
-- [ ] `HeredocGuard.EscapeForDoubleQuotedString` private→internal static + 测试
-- [ ] `GhPrBodyGuard.HasBodyParameter`/`EscapeBody` private→internal static + 测试
-- [ ] `RedirectWhitelistNode` 各 private static→internal + 测试
-- [ ] `MtpPerturbationNode` 各 private static→internal + 测试
-- [ ] `HookConditionEvaluator` 各 private→internal + 测试
-- [ ] `RemotePolicyService.EvaluateRule`/`EvaluateUsageLimit`/`EvaluateCostLimit`/`EvaluateRateLimit`/`EvaluateToolRestriction`/`EvaluateTimeRestriction` private→internal + 测试
-- [ ] 统一 `SelectPrimaryRisk`(CommandDangerClassifier与DangerousCommandProtectionMiddleware重复,优先级数组不一致)
+- [x] `GitCommitGuard.ExtractFirstToken`/`IsGitCommitSubCommand` private→internal static + 测试 — 阶段2.3确认(已是internal static+GuardInternalTests覆盖)
+- [x] `CmdIndirectCallGuard.TryExtractCmdInner`/`TryExtractPwshInner`/`ExtractQuotedOrRaw` private→internal static + 测试 — 阶段2.3确认(已是internal static+CmdIndirectCallGuardTests覆盖)
+- [x] `HeredocGuard.EscapeForDoubleQuotedString` private→internal static + 测试 — 阶段2.3确认(已是internal static+6测试)
+- [x] `GhPrBodyGuard.HasBodyParameter`/`EscapeBody` private→internal static + 测试 — 阶段2.3确认(已是internal static+8测试)
+- [x] `RedirectWhitelistNode` 各 private static→internal + 测试 — 阶段2.3确认(已是internal static+RedirectWhitelistNodeInternalTests覆盖)
+- [x] `MtpPerturbationNode` 各 private static→internal + 测试 — 阶段2.3确认(已是internal static+MtpPerturbationNodeInternalTests覆盖)
+- [x] `HookConditionEvaluator` 各 private→internal + 测试 — 阶段2.3确认(已是internal+HookConditionEvaluatorInternalTests覆盖)
+- [x] `RemotePolicyService.EvaluateRule`/`EvaluateUsageLimit`/`EvaluateCostLimit`/`EvaluateRateLimit`/`EvaluateToolRestriction`/`EvaluateTimeRestriction` private→internal + 测试 — 阶段2.3确认(已是internal+RemotePolicyServiceInternalTests覆盖)
+- [x] 统一 `SelectPrimaryRisk`(CommandDangerClassifier与DangerousCommandProtectionMiddleware重复,优先级数组不一致) — 阶段2.3确认(不重复,委托模式,唯一数据源DangerousCommandCatalog)
 
 #### 2.4 transport.impl — 重试状态机拆分
 - [ ] `BridgeOAuthRetry.ExecuteWithOAuthRetryAsync`(69行)拆纯计算分支为 internal

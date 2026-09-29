@@ -26,7 +26,11 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private sealed record AgentRuntimeState(
         TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>? CompletionSource = null,
         ProgressTracker? ProgressTracker = null,
-        CancellationTokenSource? BackgroundCts = null);
+        CancellationTokenSource? BackgroundCts = null,
+        AgentActivityHistory? ActivityHistory = null,
+        string? FinalOutput = null,
+        bool? IsSuccess = null,
+        long? ExecutionTimeMs = null);
 
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider _definitionProvider;
@@ -125,7 +129,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             throw new InvalidOperationException("[AGT008] 中间件管道未创建 Agent");
 
         StartWorkerPermissionResponseRouting(context.Agent.ObjectId.UniqueId);
-        UpdateRuntimeState(context.Agent.ObjectId.UniqueId, s => s with { ProgressTracker = context.ProgressTracker });
+        UpdateRuntimeState(context.Agent.ObjectId.UniqueId, s => s with { ProgressTracker = context.ProgressTracker, ActivityHistory = s.ActivityHistory ?? new AgentActivityHistory(_clock) });
 
         return new SubAgentInitResult(context.Agent, context.SystemPrompt, context.Definition);
     }
@@ -331,6 +335,15 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// </summary>
     public Task<RunningAgentInfo?> GetRunningAgentByIdAsync(string agentId, CancellationToken cancellationToken = default)
         => _lifecycleManager.GetRunningAgentByIdAsync(agentId, cancellationToken);
+
+    /// <summary>
+    /// 按 ID 获取子代理活动历史 — 从 _runtimeStates 读取 ActivityHistory 快照，O(1) 无锁
+    /// </summary>
+    public Task<IReadOnlyList<JoinCode.Abstractions.Interfaces.AgentActivityEntry>?> GetAgentActivityHistoryAsync(string agentId, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
+        var state = GetRuntimeState(agentId);
+        return Task.FromResult(state?.ActivityHistory?.Snapshot());
+    }
 
     /// <summary>
     /// 按名称查找运行中子代理的 ID — O(1) 字典查找

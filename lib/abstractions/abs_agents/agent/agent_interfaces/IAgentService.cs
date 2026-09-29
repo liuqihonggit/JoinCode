@@ -86,6 +86,14 @@ public interface IAgentService {
     Task<RunningAgentInfo?> GetRunningAgentByIdAsync(string agentId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 按 ID 获取子代理活动历史 — O(1) 字典查找，返回最多 200 条活动条目快照
+    /// </summary>
+    /// <param name="agentId">代理 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>活动历史快照；代理不存在返回 null</returns>
+    Task<IReadOnlyList<AgentActivityEntry>?> GetAgentActivityHistoryAsync(string agentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 按名称查找运行中子代理的 ID — O(1) 字典查找
     /// 匹配键: DisplayName → Name → Description → Id（均精确匹配，大小写不敏感）
     /// 几百个子代理场景下用 map 替代遍历，路由性能 O(1)
@@ -372,6 +380,16 @@ public sealed record RunningAgentInfo {
     public long TokenCount { get; init; }
     /// <summary>获取工具使用次数。</summary>
     public int ToolUseCount { get; init; }
+    /// <summary>获取活动历史快照（按时间顺序，最多 200 条）。</summary>
+    public IReadOnlyList<AgentActivityEntry> Activities { get; init; } = Array.Empty<AgentActivityEntry>();
+    /// <summary>获取最后一条活动文本（无活动为 null）。</summary>
+    public string? LastActivityText { get; init; }
+    /// <summary>获取最终输出（完成时填充，运行中为 null）。</summary>
+    public string? FinalOutput { get; init; }
+    /// <summary>获取是否成功（完成时填充，运行中为 null）。</summary>
+    public bool? IsSuccess { get; init; }
+    /// <summary>获取执行时长毫秒（完成时填充，运行中为 null）。</summary>
+    public long? ExecutionTimeMs { get; init; }
 }
 
 /// <summary>
@@ -434,4 +452,44 @@ public interface IProgressTracker {
     void UpdateSummary(string summary);
     /// <summary>转换为代理进度信息。</summary>
     AgentProgress ToProgress();
+}
+
+/// <summary>
+/// 子代理活动类型 — 对应 ChatStreamEvent 的子代理活动事件分类
+/// </summary>
+public enum AgentActivityType {
+    /// <summary>代理启动</summary>
+    [EnumValue("started")] Started = 0,
+    /// <summary>内容输出</summary>
+    [EnumValue("content")] Content = 1,
+    /// <summary>思考</summary>
+    [EnumValue("thinking")] Thinking = 2,
+    /// <summary>工具调用开始</summary>
+    [EnumValue("toolCallStart")] ToolCallStart = 3,
+    /// <summary>工具调用结束</summary>
+    [EnumValue("toolCallEnd")] ToolCallEnd = 4,
+    /// <summary>工具进度</summary>
+    [EnumValue("toolProgress")] ToolProgress = 5,
+    /// <summary>代理完成</summary>
+    [EnumValue("finished")] Finished = 6,
+}
+
+/// <summary>
+/// 子代理活动条目 — 引擎层活动历史的单条记录，供 GUI 展示子代理实时输出流
+/// </summary>
+public sealed record AgentActivityEntry {
+    /// <summary>获取时间戳。</summary>
+    public required DateTime Timestamp { get; init; }
+    /// <summary>获取活动类型。</summary>
+    public required AgentActivityType Type { get; init; }
+    /// <summary>获取活动文本（工具名/内容摘要/思考摘要）。</summary>
+    public required string Text { get; init; }
+    /// <summary>获取图标符号（▶/🔧/💡/✓/✗ 等，供 UI 直接绑定）。</summary>
+    public string? Glyph { get; init; }
+    /// <summary>获取工具调用标识（仅 ToolCallStart/ToolCallEnd 有值）。</summary>
+    public string? ToolCallId { get; init; }
+    /// <summary>获取工具名称（仅 ToolCallStart/ToolCallEnd/ToolProgress 有值）。</summary>
+    public string? ToolName { get; init; }
+    /// <summary>获取是否为错误（ToolCallEnd 时标记工具失败）。</summary>
+    public bool IsError { get; init; }
 }

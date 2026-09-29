@@ -17,6 +17,14 @@
         x:DataType="vm:MainViewModel"
         MinWidth="800" MinHeight="600"
         Title="JoinCode Ava">
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+I" Command="{Binding ToggleInterceptorPanelCommand}" />
+    <KeyBinding Gesture="Ctrl+G" Command="{Binding ToggleGoalPanelCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding StopGoalCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding BackgroundPanel.PauseAllCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+R" Command="{Binding BackgroundPanel.ResumeAllCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+T" Command="{Binding BackgroundPanel.StopAllCommand}" />
+  </Window.KeyBindings>
   <Window.Styles>
     <!-- 消息卡片：圆角 10，悬停换色 + 操作按钮悬停显现（GuiControlStyles 提供全局按钮基础样式） -->
     <Style Selector="Border.msgCard">

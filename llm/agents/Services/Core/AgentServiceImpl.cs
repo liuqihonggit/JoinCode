@@ -210,6 +210,8 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         long? executionTimeMs = null;
         var succeeded = true;
         string? errorMessage = null;
+        var activityHistory = GetRuntimeState(init.SubAgent.ObjectId.UniqueId)?.ActivityHistory;
+        activityHistory?.Append(AgentActivityType.Started, options.Description ?? init.SubAgent.ObjectId.UniqueId, "▶");
 
         await foreach (var chunk in init.SubAgent.ExecuteStreamAsync(cancellationToken).ConfigureAwait(false)) {
             // 收集内容用于最终结果
@@ -226,6 +228,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 errorMessage = chunk.Content;
             }
 
+            AppendChunkActivity(activityHistory, chunk);
             yield return chunk;
         }
 
@@ -327,14 +330,33 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <summary>
     /// 获取所有正在运行的代理 — 委托到 IAgentLifecycleManager
     /// </summary>
-    public Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default)
-        => _lifecycleManager.GetRunningAgentsAsync(cancellationToken);
+    public async Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default) {
+        var agents = await _lifecycleManager.GetRunningAgentsAsync(cancellationToken).ConfigureAwait(false);
+        return agents.Select(EnrichWithActivityState);
+    }
+
+    /// <summary>
+    /// 用 _runtimeStates 中的活动历史/最终输出/成功标志/执行时长填充 RunningAgentInfo — O(1) 无锁读取
+    /// </summary>
+    private RunningAgentInfo EnrichWithActivityState(RunningAgentInfo info) {
+        var state = GetRuntimeState(info.Id);
+        if (state is null) return info;
+        return info with {
+            Activities = state.ActivityHistory?.Snapshot() ?? Array.Empty<JoinCode.Abstractions.Interfaces.AgentActivityEntry>(),
+            LastActivityText = state.ActivityHistory?.LastActivityText(),
+            FinalOutput = state.FinalOutput,
+            IsSuccess = state.IsSuccess,
+            ExecutionTimeMs = state.ExecutionTimeMs,
+        };
+    }
 
     /// <summary>
     /// 按 ID 获取运行中的代理 — 委托到 IAgentLifecycleManager，O(1) 字典查找
     /// </summary>
-    public Task<RunningAgentInfo?> GetRunningAgentByIdAsync(string agentId, CancellationToken cancellationToken = default)
-        => _lifecycleManager.GetRunningAgentByIdAsync(agentId, cancellationToken);
+    public async Task<RunningAgentInfo?> GetRunningAgentByIdAsync(string agentId, CancellationToken cancellationToken = default) {
+        var info = await _lifecycleManager.GetRunningAgentByIdAsync(agentId, cancellationToken).ConfigureAwait(false);
+        return info is null ? null : EnrichWithActivityState(info);
+    }
 
     /// <summary>
     /// 按 ID 获取子代理活动历史 — 从 _runtimeStates 读取 ActivityHistory 快照，O(1) 无锁
@@ -343,6 +365,35 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         var state = GetRuntimeState(agentId);
         return Task.FromResult(state?.ActivityHistory?.Snapshot());
+    }
+
+    /// <summary>
+    /// 将流式 chunk 映射到活动历史条目并追加 — 无锁，null history 时无操作
+    /// </summary>
+    private static void AppendChunkActivity(AgentActivityHistory? history, AgentStreamChunk chunk) {
+        if (history is null) return;
+        switch (chunk.Type) {
+            case AgentStreamChunkType.Content:
+                if (chunk.Content is not null)
+                    history.Append(AgentActivityType.Content, chunk.Content);
+                break;
+            case AgentStreamChunkType.Thinking:
+            case AgentStreamChunkType.ThinkingStart:
+            case AgentStreamChunkType.ThinkingEnd:
+                if (chunk.ThinkingContent is not null)
+                    history.Append(AgentActivityType.Thinking, chunk.ThinkingContent, "💡");
+                break;
+            case AgentStreamChunkType.ToolCallStart:
+                history.Append(AgentActivityType.ToolCallStart, chunk.ToolName ?? "tool", "🔧", chunk.ToolCallId, chunk.ToolName);
+                break;
+            case AgentStreamChunkType.ToolCallEnd:
+                history.Append(AgentActivityType.ToolCallEnd, chunk.ToolName ?? "tool", chunk.ToolResult?.IsError == true ? "✗" : "✓", chunk.ToolCallId, chunk.ToolName, chunk.ToolResult?.IsError == true);
+                break;
+            case AgentStreamChunkType.ToolProgress:
+                if (chunk.Content is not null)
+                    history.Append(AgentActivityType.ToolProgress, chunk.Content, null, chunk.ToolCallId, chunk.ToolName);
+                break;
+        }
     }
 
     /// <summary>
@@ -679,6 +730,13 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 tracker.RecordTokenUsage(concreteAgent.Context.TokenUsage.TotalTokens);
 
             var durationMs = _agentStartTimer.TryRemoveDurationMs(subAgent.ObjectId.UniqueId, _clock.GetUtcNow());
+
+            UpdateRuntimeState(subAgent.ObjectId.UniqueId, s => s with {
+                FinalOutput = result.Output,
+                IsSuccess = result.Success,
+                ExecutionTimeMs = durationMs,
+            });
+            runtimeState?.ActivityHistory?.Append(AgentActivityType.Finished, result.Success ? "✓ 完成" : $"✗ {result.Error}", result.Success ? "✓" : "✗", isError: !result.Success);
 
             var toolUseCount = runtimeState?.ProgressTracker?.ToolUseCount;
             var tokenCount = concreteAgent.Context?.TokenUsage.TotalTokens;

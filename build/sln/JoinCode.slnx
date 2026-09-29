@@ -27,6 +27,7 @@
   <Folder Name="/infrastructure/">
     <Project Path="../../lib/infrastructure/Infrastructure.csproj" />
     <Project Path="../../lib/transport.impl/Transport.Impl.csproj" />
+    <Project Path="../../lib/transport.impl.tests/Transport.Impl.Tests.csproj" />
   </Folder>
   <Folder Name="/core/" />
   <Folder Name="/llm/">

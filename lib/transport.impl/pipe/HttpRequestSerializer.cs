@@ -103,7 +103,7 @@ public static class HttpRequestSerializer {
         return response;
     }
 
-    private static void ParseStatusLine(string statusLine, HttpResponseMessage response) {
+    internal static void ParseStatusLine(string statusLine, HttpResponseMessage response) {
         var parts = statusLine.Split(' ', 3);
         if (parts.Length < 2) {
             throw new InvalidOperationException($"[TRN014] 无效的 HTTP 状态行: {statusLine}");
@@ -122,7 +122,7 @@ public static class HttpRequestSerializer {
         }
     }
 
-    private static void ParseHeaderLine(string line, HttpResponseMessage response, Dictionary<string, string> contentHeaders) {
+    internal static void ParseHeaderLine(string line, HttpResponseMessage response, Dictionary<string, string> contentHeaders) {
         var separatorIndex = line.IndexOf(HeaderSeparator, StringComparison.Ordinal);
         if (separatorIndex <= 0) {
             return;
@@ -151,7 +151,7 @@ public static class HttpRequestSerializer {
         "Expires",
         "Last-Modified");
 
-    private static bool IsContentHeader(string headerName) {
+    internal static bool IsContentHeader(string headerName) {
         return ContentHeaders.Contains(headerName);
     }
 }

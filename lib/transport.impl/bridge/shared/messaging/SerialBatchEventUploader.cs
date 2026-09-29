@@ -201,34 +201,41 @@ public sealed class SerialBatchEventUploader : IDisposable {
     }
 
     /// <summary>从队列中提取一批事件 — 尊重 maxBatchSize 和 maxBatchBytes</summary>
-    private List<string> TakeBatch() {
-        var count = Math.Min(_pending.Count, _options.MaxBatchSize);
-
-        if (_options.MaxBatchBytes <= 0) {
-            var batch = _pending.GetRange(0, count);
-            _pending.RemoveRange(0, count);
-            return batch;
-        }
-
-        // 按字节大小截取
-        var totalBytes = 0;
-        var takeCount = 0;
-        for (var i = 0; i < _pending.Count && i < _options.MaxBatchSize; i++) {
-            var itemBytes = Encoding.UTF8.GetByteCount(_pending[i]);
-            if (i > 0 && totalBytes + itemBytes > _options.MaxBatchBytes) break;
-            totalBytes += itemBytes;
-            takeCount++;
-        }
-
-        if (takeCount == 0 && _pending.Count > 0) takeCount = 1; // 第一条始终发送
-
+    internal List<string> TakeBatch() {
+        var takeCount = ComputeBatchTakeCount(_pending, _options.MaxBatchSize, _options.MaxBatchBytes);
         var result = _pending.GetRange(0, takeCount);
         _pending.RemoveRange(0, takeCount);
         return result;
     }
 
+    /// <summary>
+    /// 计算批次应取条数 — 纯函数，尊重 maxBatchSize 和 maxBatchBytes 字节上限。
+    /// 第一条始终发送（即使超过 MaxBatchBytes），避免队头饥饿。
+    /// </summary>
+    /// <param name="pending">待发送队列</param>
+    /// <param name="maxBatchSize">最大批次条数</param>
+    /// <param name="maxBatchBytes">最大批次字节数（0 表示不限制）</param>
+    /// <returns>应取条数</returns>
+    internal static int ComputeBatchTakeCount(IReadOnlyList<string> pending, int maxBatchSize, int maxBatchBytes) {
+        if (maxBatchBytes <= 0) {
+            return Math.Min(pending.Count, maxBatchSize);
+        }
+
+        var totalBytes = 0;
+        var takeCount = 0;
+        for (var i = 0; i < pending.Count && i < maxBatchSize; i++) {
+            var itemBytes = Encoding.UTF8.GetByteCount(pending[i]);
+            if (i > 0 && totalBytes + itemBytes > maxBatchBytes) break;
+            totalBytes += itemBytes;
+            takeCount++;
+        }
+
+        if (takeCount == 0 && pending.Count > 0) takeCount = 1; // 第一条始终发送
+        return takeCount;
+    }
+
     /// <summary>计算重试延迟 — 指数退避 + 抖动</summary>
-    private int ComputeRetryDelay(int failures, int? retryAfterMs) {
+    internal int ComputeRetryDelay(int failures, int? retryAfterMs) {
         var jitter = Random.Shared.Next(0, _options.JitterMs + 1);
 
         if (retryAfterMs.HasValue) {

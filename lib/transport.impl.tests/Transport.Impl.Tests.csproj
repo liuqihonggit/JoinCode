@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>JoinCode.Transport.Impl.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Infra.Transport.Tests</AssemblyName>
+    <Description>JoinCode Transport.Impl 确定性单元测试</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)lib/transport.impl/Transport.Impl.csproj" />
+  </ItemGroup>
+</Project>

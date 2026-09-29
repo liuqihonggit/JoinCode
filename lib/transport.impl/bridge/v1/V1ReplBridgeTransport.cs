@@ -361,7 +361,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport {
     #region stream_event 缓冲
 
     /// <summary>判断是否为 stream_event 类型消息 — 对齐 TS 端 HybridTransport</summary>
-    private static bool IsStreamEvent(string message) {
+    internal static bool IsStreamEvent(string message) {
         // TS 端: message.type === 'stream_event'
         // JSON 消息中包含 "type":"stream_event" 即视为流事件
         return message.Contains("\"stream_event\"", StringComparison.Ordinal)

@@ -240,8 +240,9 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
 
     /// <summary>
     /// 重载插件核心逻辑 — 由 Consumer 线程独占调用，无需锁。
+    /// <para>internal 暴露用于确定性 mock 测试(不依赖 Actor mailbox/时序)</para>
     /// </summary>
-    private async Task ReloadPluginCoreAsync(string pluginName, string filePath, ReloadReason reason) {
+    internal async Task ReloadPluginCoreAsync(string pluginName, string filePath, ReloadReason reason) {
         var args = new PluginReloadEventArgs {
             PluginName = pluginName,
             PluginPath = filePath,

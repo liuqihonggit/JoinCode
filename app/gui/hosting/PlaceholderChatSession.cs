@@ -156,8 +156,13 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
         => Task.CompletedTask;
 
     /// <summary>占位会话无引擎命令系统 — 斜杠命令返回提示文案（G1 对齐接口契约）</summary>
-    public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
-        => Task.FromResult("（Mock 引擎不支持斜杠命令执行，连接真实引擎后可用）");
+    public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default) {
+        LastExecutedSlashCommand = input;
+        return Task.FromResult("（Mock 引擎不支持斜杠命令执行，连接真实引擎后可用）");
+    }
+
+    /// <summary>最后一次执行的斜杠命令 — 测试追踪字段</summary>
+    public string? LastExecutedSlashCommand { get; private set; }
 
     /// <summary>占位会话流式回显 — 产出思考/工具/正文示例事件供 UI 渲染验证</summary>
     public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
@@ -227,6 +232,18 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     /// <summary>占位会话工具清单 — 固定返回空列表</summary>
     public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+
+    /// <summary>占位会话无真实引擎，工具黑名单更新空实现</summary>
+    public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+
+    /// <summary>最后一次设置的权限模式（供测试验证 GUI 开关传导）</summary>
+    public PermissionMode? LastSetPermissionMode { get; private set; }
+
+    /// <summary>占位会话权限模式设置 — 记录调用供测试验证，无真实引擎</summary>
+    public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) {
+        LastSetPermissionMode = mode;
+        return Task.CompletedTask;
+    }
 
     /// <inheritdoc />
     public Task<IReadOnlyList<SubAgentSummary>> GetAvailableSubAgentsAsync(CancellationToken cancellationToken = default)

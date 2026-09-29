@@ -139,4 +139,36 @@ public static class ContinuationPromptBuilder {
         if (seconds < 3600) return $"{seconds / 60}m{seconds % 60}s";
         return $"{seconds / 3600}h{(seconds % 3600) / 60}m";
     }
+
+    /// <summary>
+    /// 停止再三确认提示词级别 — 60 秒无输出后逐级注入给 AI，三级确认后才允许停止 goal。
+    /// </summary>
+    public enum StopConfirmationLevel {
+        /// <summary>未触发</summary>
+        None = 0,
+        /// <summary>第 1 级：任务遗漏审核</summary>
+        AuditMissingTasks = 1,
+        /// <summary>第 2 级：子代理工作核查</summary>
+        ReviewSubAgentWork = 2,
+        /// <summary>第 3 级：最终确认+补测试</summary>
+        FinalConfirmAndTests = 3,
+        /// <summary>三级确认完成，允许停止</summary>
+        Confirmed = 4,
+    }
+
+    /// <summary>
+    /// 构建停止再三确认提示词 — 60 秒无输出后逐级注入给 AI。
+    /// level=1: 派子代理审核任务遗漏；level=2: 核查子代理工作；level=3: 最终确认+补测试。
+    /// </summary>
+    /// <param name="level">确认级别 1/2/3</param>
+    /// <returns>提示词文本，级别无效返回空串</returns>
+    public static string BuildStopConfirmationPrompt(StopConfirmationLevel level) => level switch {
+        StopConfirmationLevel.AuditMissingTasks =>
+            "您是否有任务遗漏？派出子代理审核一下。请检查所有待办事项是否已完成，未完成的请继续推进。",
+        StopConfirmationLevel.ReviewSubAgentWork =>
+            "子代理完成的工作，你需要核查一次，逐项检查并修正。：单一职责化、补充守卫、补充单元测试、补充压测、相同函数抽取工具类。避免符合项目风格和遗留 bug。请逐项检查子代理产出的代码、测试、文档是否符合项目规范。",
+        StopConfirmationLevel.FinalConfirmAndTests =>
+            "你确认真的要结束任务了吗？是否补充一些单元测试？请确认所有功能已实现、测试已通过、文档已更新，然后才能停止。",
+        _ => string.Empty,
+    };
 }

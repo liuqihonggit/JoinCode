@@ -82,4 +82,62 @@ public class BackgroundAgentsPanelTests {
 
         panel.Items.Should().ContainSingle("引擎拒绝终止时保留该行等待下次刷新");
     }
+
+    [Fact]
+    public async Task PauseAll_ShouldCallPauser_ForRunningItemsOnly() {
+        var paused = new List<string>();
+        var agents = new List<BackgroundAgentInfo> { Info("a1", "running"), Info("a2", "paused"), Info("a3", "completed") };
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents.ToList()),
+            stopper: (_, _) => Task.FromResult(true),
+            pauser: (id, _) => { paused.Add(id); return Task.FromResult(true); });
+        await panel.ToggleAndRefreshAsync();
+
+        await panel.PauseAllAsync();
+
+        paused.Should().ContainSingle(id => id == "a1", "仅 running 状态可暂停");
+    }
+
+    [Fact]
+    public async Task ResumeAll_ShouldCallResumer_ForPausedItemsOnly() {
+        var resumed = new List<string>();
+        var agents = new List<BackgroundAgentInfo> { Info("a1", "running"), Info("a2", "paused"), Info("a3", "paused") };
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents.ToList()),
+            stopper: (_, _) => Task.FromResult(true),
+            resumer: (id, _) => { resumed.Add(id); return Task.FromResult(true); });
+        await panel.ToggleAndRefreshAsync();
+
+        await panel.ResumeAllAsync();
+
+        resumed.Should().BeEquivalentTo(["a2", "a3"], "仅 paused 状态可恢复");
+    }
+
+    [Fact]
+    public async Task StopAll_ShouldCallStopper_ForRunningItemsOnly() {
+        var stopped = new List<string>();
+        var agents = new List<BackgroundAgentInfo> { Info("a1", "running"), Info("a2", "paused"), Info("a3", "completed") };
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents.ToList()),
+            stopper: (id, _) => { stopped.Add(id); return Task.FromResult(true); });
+        await panel.ToggleAndRefreshAsync();
+
+        await panel.StopAllAsync();
+
+        stopped.Should().BeEquivalentTo(["a1", "a2"], "running 和 paused 都应终止，completed 不终止");
+    }
+
+    [Fact]
+    public async Task StopAll_WhenAllCompleted_ShouldCallNoStopper() {
+        var stopped = new List<string>();
+        var agents = new List<BackgroundAgentInfo> { Info("a1", "completed"), Info("a2", "completed") };
+        var panel = new BackgroundAgentsPanelViewModel(
+            fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents.ToList()),
+            stopper: (id, _) => { stopped.Add(id); return Task.FromResult(true); });
+        await panel.ToggleAndRefreshAsync();
+
+        await panel.StopAllAsync();
+
+        stopped.Should().BeEmpty("completed 状态不应调用 stopper");
+    }
 }

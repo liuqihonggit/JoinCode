@@ -78,6 +78,7 @@ public sealed partial class MainViewModel {
             ProxyUrl = prefs.ProxyUrl;
             WindowShakeEnabled = prefs.WindowShakeEnabled;
             ChatRoomEnabled = prefs.ChatRoomEnabled;
+            IsUnattendedMode = prefs.IsUnattendedMode;
             _gate.MarkPreferencesLoaded();
         } catch (Exception ex) {
             _gate.MarkPreferencesLoaded();
@@ -174,7 +175,8 @@ public sealed partial class MainViewModel {
                 NetworkMode = NetworkMode,
                 ProxyUrl = ProxyUrl,
                 WindowShakeEnabled = WindowShakeEnabled,
-                ChatRoomEnabled = ChatRoomEnabled
+                ChatRoomEnabled = ChatRoomEnabled,
+                IsUnattendedMode = IsUnattendedMode
             });
         } catch (Exception ex) {
             ViewModelDiagnosticsLogger.WriteError(ex);

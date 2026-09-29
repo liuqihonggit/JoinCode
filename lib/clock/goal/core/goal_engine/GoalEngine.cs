@@ -836,9 +836,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         return ValueTask.CompletedTask;
     }
 
-    private const int StagnationElapsedThresholdSeconds = 3600;
-    private const int StagnationMaxTurnsThreshold = 10;
-    private const int StagnationCooldownSeconds = 1800;
+    private const int StagnationElapsedThresholdSeconds = 60;
+    private const int StagnationMaxTurnsThreshold = 3;
+    private const int StagnationCooldownSeconds = 60;
 
     private void CheckStagnationAndAlert() {
         if (_state is null || _state.Status != GoalStatus.Pursuing)
@@ -903,13 +903,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
         try {
             var currentMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
-            if (currentMode == PermissionMode.Bypass) {
-                _logger?.LogInformation("[GoalEngine] 当前权限模式为 {Mode}，跳过切换到 Auto", currentMode);
+            if (currentMode is PermissionMode.Bypass or PermissionMode.Unattended) {
+                _logger?.LogInformation("[GoalEngine] 当前权限模式为 {Mode}，跳过切换到 Unattended", currentMode);
                 return;
             }
 
             _savedPermissionMode = currentMode;
-            await _permissionManager.SetPermissionModeAsync(PermissionMode.Auto, cancellationToken).ConfigureAwait(false);
+            await _permissionManager.SetPermissionModeAsync(PermissionMode.Unattended, cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation(L.T(StringKey.PermissionModeSwitched), _savedPermissionMode);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.PermissionModeSwitchFailed));

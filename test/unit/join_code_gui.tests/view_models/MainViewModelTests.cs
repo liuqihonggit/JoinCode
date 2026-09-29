@@ -1091,6 +1091,8 @@ public class MainViewModelTests {
         public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+        public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
         public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1257,6 +1259,8 @@ public class MainViewModelTests {
         public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+        public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
         public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1327,6 +1331,8 @@ public class MainViewModelTests {
         public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+        public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
         public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1379,6 +1385,8 @@ public class MainViewModelTests {
         public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+        public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
         public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1436,6 +1444,8 @@ public class MainViewModelTests {
         public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+        public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
         public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1496,6 +1506,8 @@ public class MainViewModelTests {
         public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+        public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
         public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1558,6 +1570,8 @@ public class MainViewModelTests {
         public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+        public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
         public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;

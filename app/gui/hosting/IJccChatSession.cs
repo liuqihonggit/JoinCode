@@ -150,6 +150,22 @@ public interface IJccChatSession : IAsyncDisposable {
     Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 更新工具黑名单 — 运行时动态拦截 AI 工具调用（MCP 工具）。
+    /// 传入空集合清除所有拦截；传入工具名集合则拦截对应工具（AI 调用时被 ToolHealthScoringMiddleware 拒绝）。
+    /// 委托到引擎 IToolHealthMonitor.UpdateBlacklist（双变量原子切换，立即生效）。
+    /// 占位会话无真实引擎，空实现。
+    /// </summary>
+    /// <param name="blacklistedTools">要拦截的工具名集合（支持精确匹配，如 git_commit/git_push/bash）</param>
+    void UpdateToolBlacklist(HashSet<string> blacklistedTools);
+
+    /// <summary>
+    /// 设置权限模式 — 运行时切换权限检查行为（Plan/Auto/Ask/Bypass/Unattended）。
+    /// 委托到引擎 IToolPermissionManager.SetPermissionModeAsync。
+    /// GUI 无人值守开关切换时调用，使权限模式实际生效（修复 ADR 0012 GUI 开关断裂缺口）。
+    /// </summary>
+    Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 获取可用子代理清单 — 从 IAgentDefinitionProvider 提取全部代理定义
     /// （内置 + 插件 + 用户.md + 项目.md），供 GUI @子代理补全消费。引擎未注册时返回空列表。
     /// </summary>
@@ -204,6 +220,48 @@ public interface IJccChatSession : IAsyncDisposable {
     /// <summary>获取主会话的子会话列表（fork 子代理，需求11 树形展示）。默认不支持（返回空）</summary>
     Task<IReadOnlyList<SubSessionInfo>> GetSubSessionsAsync(string parentSessionId, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<SubSessionInfo>>([]);
+
+    /// <summary>
+    /// 暂停指定子代理 — 委托 InterruptSubAgentAsync（teammate 进 idle 等 next prompt，可恢复）。
+    /// 子代理视图 + MCP subagent_control(pause) 调用。默认不支持（返回 false）。
+    /// </summary>
+    Task<bool> PauseSubAgentAsync(string agentId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
+    /// <summary>
+    /// 恢复指定子代理 — 委托 ForwardInputToSubAgentAsync（转发空消息唤醒 idle teammate）。
+    /// 子代理视图 + MCP subagent_control(resume) 调用。默认不支持（返回 false）。
+    /// </summary>
+    Task<bool> ResumeSubAgentAsync(string agentId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
+    /// <summary>
+    /// 暂停所有运行中子代理 — 遍历 GetBackgroundAgentsAsync 对 running 状态逐个暂停。
+    /// TopBar"暂停所有子代理"按钮 + MCP subagent_control(pause_all) 调用。默认不支持（返回 0）。
+    /// </summary>
+    Task<int> PauseAllSubAgentsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(0);
+
+    /// <summary>
+    /// 恢复所有暂停中子代理 — 遍历 GetBackgroundAgentsAsync 对 paused 状态逐个恢复。
+    /// TopBar"恢复所有子代理"按钮 + MCP subagent_control(resume_all) 调用。默认不支持（返回 0）。
+    /// </summary>
+    Task<int> ResumeAllSubAgentsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(0);
+
+    /// <summary>
+    /// 终止指定子代理 — 委托 IAgentService.StopAgentAsync（终止性，不可恢复）。
+    /// 子代理视图按钮 + MCP subagent_control(stop) 调用。默认不支持（返回 false）。
+    /// </summary>
+    Task<bool> StopSubAgentAsync(string agentId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
+    /// <summary>
+    /// 终止所有运行中子代理 — 遍历 GetBackgroundAgentsAsync 对 running/paused 状态逐个终止。
+    /// TopBar"终止所有子代理"按钮 + MCP subagent_control(stop_all) 调用。默认不支持（返回 0）。
+    /// </summary>
+    Task<int> StopAllSubAgentsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(0);
 }
 
 /// <summary>子会话信息 — 供 GUI 树形展示（需求11）</summary>

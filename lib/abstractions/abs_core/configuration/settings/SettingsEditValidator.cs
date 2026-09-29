@@ -107,10 +107,11 @@ public static class SettingsEditValidator {
                     PermissionMode.Plan.ToValue(),
                     PermissionMode.Auto.ToValue(),
                     PermissionMode.Ask.ToValue(),
-                    PermissionMode.Bypass.ToValue()
+                    PermissionMode.Bypass.ToValue(),
+                    PermissionMode.Unattended.ToValue()
                 };
                 if (!validModes.Contains(mode.GetString()!))
-                    errors.Add($"permissions.defaultMode: 无效的模式 '{mode.GetString()}'，有效值: plan, auto, ask, bypass");
+                    errors.Add($"permissions.defaultMode: 无效的模式 '{mode.GetString()}'，有效值: plan, auto, ask, bypass, unattended");
             }
 
             if (errors.Count > 0)

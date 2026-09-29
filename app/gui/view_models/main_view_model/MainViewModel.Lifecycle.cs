@@ -27,7 +27,9 @@ public sealed partial class MainViewModel {
         // 后台代理管理面板 — 数据源绑定会话门面，快照计数同步到全局状态条
         BackgroundPanel = new BackgroundAgentsPanelViewModel(
             fetcher: ct => _session.GetBackgroundAgentsAsync(ct),
-            stopper: (id, ct) => _session.StopBackgroundAgentAsync(id, ct));
+            stopper: (id, ct) => _session.StopBackgroundAgentAsync(id, ct),
+            pauser: (id, ct) => _session.PauseSubAgentAsync(id, ct),
+            resumer: (id, ct) => _session.ResumeSubAgentAsync(id, ct));
         BackgroundPanel.SnapshotApplied += count => RunStatus.SetBackgroundCount(count);
 
         _selectedEffort = _session.EffortLevel.ToValue();
@@ -192,6 +194,14 @@ public sealed partial class MainViewModel {
         SelectedModelOption = GetModelById(_session.CurrentModelId)
             ?? ModelOptions.FirstOrDefault();
         SelectedModel = SelectedModelOption?.Id;
+    }
+
+    /// <summary>
+    /// 无人值守模式开关变更 — 传导到引擎权限系统（修复 ADR 0012 GUI 开关断裂缺口）。
+    /// 开启时切换到 PermissionMode.Unattended（红灯自动执行+审计），关闭时恢复 Auto。
+    /// </summary>
+    partial void OnIsUnattendedModeChanged(bool value) {
+        _ = _session.SetPermissionModeAsync(value ? PermissionMode.Unattended : PermissionMode.Auto);
     }
 
     /// <summary>

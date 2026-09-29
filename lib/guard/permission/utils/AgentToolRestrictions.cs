@@ -37,6 +37,8 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
             PermissionMode.Plan => _planAllowed,
             PermissionMode.Ask => _askAllowed,
             PermissionMode.Bypass => _autoAllowed,
+            // Unattended：红灯自动执行+审计，黑灯仍拒绝 → 工具限制同 Auto（区别在中间件层）
+            PermissionMode.Unattended => _autoAllowed,
             _ => _autoAllowed
         };
     }
@@ -48,6 +50,8 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
             PermissionMode.Plan => _planDenied,
             PermissionMode.Ask => _askDenied,
             PermissionMode.Bypass => FrozenSet<string>.Empty,
+            // Unattended：黑灯仍拒绝 → 拒绝集同 Auto
+            PermissionMode.Unattended => _autoDenied,
             _ => _autoDenied
         };
     }

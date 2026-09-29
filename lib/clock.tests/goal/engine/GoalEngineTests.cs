@@ -345,7 +345,7 @@ public sealed class GoalEngineTests {
     }
 
     [Fact]
-    public async Task StartAsync_Should_Switch_Permission_Mode_To_Auto() {
+    public async Task StartAsync_Should_Switch_Permission_Mode_To_Unattended() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         var permissionManager = new Mock<IToolPermissionManager>();
 
@@ -360,7 +360,7 @@ public sealed class GoalEngineTests {
 
             await engine.WaitForCompletionAsync().WaitAsync(DisposeTimeout).ConfigureAwait(true);
 
-            permissionManager.Verify(x => x.SetPermissionModeAsync(PermissionMode.Auto, It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            permissionManager.Verify(x => x.SetPermissionModeAsync(PermissionMode.Unattended, It.IsAny<CancellationToken>()), Times.AtLeastOnce);
         } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }

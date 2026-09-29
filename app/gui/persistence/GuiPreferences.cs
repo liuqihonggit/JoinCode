@@ -57,4 +57,7 @@ public sealed class GuiPreferences {
 
     /// <summary>聊天室模式开关 — 是否启用跨进程子代理聊天室广播 — ADR 0109</summary>
     public bool ChatRoomEnabled { get; set; } = true;
+
+    /// <summary>无人值守模式开关 — 开启后权限模式切换到 Unattended（红灯自动执行+审计）— Bug2 修复</summary>
+    public bool IsUnattendedMode { get; set; } = false;
 }

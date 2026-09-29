@@ -248,9 +248,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <summary>
     /// 注册已加载工作流插件 — 撤销链 + 加载顺序 + 资源 ObjectId + Fiber 转 Active
     /// <para>拆自 <see cref="LoadWorkflowPluginCoreAsync"/>,行为不变</para>
-    /// <para>同步状态操作(含 host.Context?.GetAsyncUndoChain().ToList() 快照),可确定性测试</para>
+    /// <para>同步状态操作(含 host.Context?.GetUndoChain()/GetAsyncUndoChain() 快照),可确定性测试</para>
     /// </summary>
     internal void RegisterLoadedWorkflowPlugin(string pluginName, IWorkflowPlugin plugin, WorkflowPluginHost host, List<Action> undoChain) {
+        if (host.Context?.GetUndoChain() is { Count: > 0 } syncChain) {
+            undoChain.AddRange(syncChain.Select(undo => (Action)undo));
+        }
         _lifecycleTracker.RegisterUndoChain(pluginName, undoChain, host.Context?.GetAsyncUndoChain().ToList());
         _lifecycleTracker.AddToLoadOrder(pluginName);
 

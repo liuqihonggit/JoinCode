@@ -147,9 +147,9 @@ public sealed class PluginManagerLoadWorkflowTest {
 
         Func<Task> act = () => manager.LoadWorkflowPluginCoreAsync(plugin, cts.Token);
 
-        // 当前行为:plugin.LoadAsync 抛 OperationCanceledException → host.LoadAsync catch → Fail
-        // → LoadWorkflowPluginCoreAsync 走 !Success 分支 → InvalidOperationException(LoadFailed)
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        // 修复后:plugin.LoadAsync 抛 OperationCanceledException → host.LoadAsync 透传 OCE
+        // → LoadWorkflowPluginCoreAsync catch (not InvalidOperationException) → rethrow OCE
+        await act.Should().ThrowAsync<OperationCanceledException>();
         plugin.Fiber.State.Should().Be(PluginFiberState.Failed);
         manager.IsPluginLoaded("cancel-plugin").Should().BeFalse();
     }

@@ -85,10 +85,12 @@ public sealed class PluginUnloadResult {
     /// <summary>
     /// 创建卸载失败结果
     /// </summary>
+    /// <param name="pluginName">插件名称</param>
+    /// <param name="elapsedTime">卸载耗时</param>
     /// <param name="errorMessage">错误信息</param>
     /// <returns>卸载失败结果实例</returns>
-    public static PluginUnloadResult Failure(string errorMessage) =>
-        new(PluginUnloadStatus.AlcUnloadFailed, string.Empty, TimeSpan.Zero, errorMessage);
+    public static PluginUnloadResult Failure(string pluginName, TimeSpan elapsedTime, string errorMessage) =>
+        new(PluginUnloadStatus.AlcUnloadFailed, pluginName, elapsedTime, errorMessage);
 
     /// <summary>
     /// 创建协作式卸载超时结果（已回退到 ALC 强制卸载）

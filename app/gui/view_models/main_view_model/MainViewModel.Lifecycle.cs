@@ -27,7 +27,9 @@ public sealed partial class MainViewModel {
         // 后台代理管理面板 — 数据源绑定会话门面，快照计数同步到全局状态条
         BackgroundPanel = new BackgroundAgentsPanelViewModel(
             fetcher: ct => _session.GetBackgroundAgentsAsync(ct),
-            stopper: (id, ct) => _session.StopBackgroundAgentAsync(id, ct));
+            stopper: (id, ct) => _session.StopBackgroundAgentAsync(id, ct),
+            pauser: (id, ct) => _session.PauseSubAgentAsync(id, ct),
+            resumer: (id, ct) => _session.ResumeSubAgentAsync(id, ct));
         BackgroundPanel.SnapshotApplied += count => RunStatus.SetBackgroundCount(count);
 
         _selectedEffort = _session.EffortLevel.ToValue();

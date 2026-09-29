@@ -36,6 +36,12 @@ public sealed class BackgroundAgentItemVm {
     /// <summary>是否仍在运行（驱动终止按钮可见性）</summary>
     public bool IsRunning { get; }
 
+    /// <summary>是否可暂停 — running/pending 状态显示暂停按钮</summary>
+    public bool CanPause { get; }
+
+    /// <summary>是否可恢复 — paused 状态显示继续按钮</summary>
+    public bool CanResume { get; }
+
     /// <summary>已运行时长展示文本</summary>
     public string ElapsedText { get; }
     /// <summary>统计摘要文本（工具次数 · token 数）</summary>
@@ -51,6 +57,9 @@ public sealed class BackgroundAgentItemVm {
         ToolUseCount = info.ToolUseCount;
         TokenCount = info.TokenCount;
         IsRunning = RunningStates.Contains(info.State);
+        CanPause = string.Equals(info.State, "running", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(info.State, "pending", StringComparison.OrdinalIgnoreCase);
+        CanResume = string.Equals(info.State, "paused", StringComparison.OrdinalIgnoreCase);
 
         ElapsedText = info.StartedAt is { } started
             ? FormatElapsed(DateTime.Now - started)
@@ -76,6 +85,8 @@ public sealed class BackgroundAgentItemVm {
 public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
     private readonly Func<CancellationToken, Task<IReadOnlyList<BackgroundAgentInfo>>> _fetcher;
     private readonly Func<string, CancellationToken, Task<bool>> _stopper;
+    private readonly Func<string, CancellationToken, Task<bool>>? _pauser;
+    private readonly Func<string, CancellationToken, Task<bool>>? _resumer;
 
     [ObservableProperty]
     private bool _isOpen;
@@ -89,9 +100,13 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
     /// <summary>初始化 BackgroundAgentsPanelViewModel 实例</summary>
     public BackgroundAgentsPanelViewModel(
         Func<CancellationToken, Task<IReadOnlyList<BackgroundAgentInfo>>> fetcher,
-        Func<string, CancellationToken, Task<bool>> stopper) {
+        Func<string, CancellationToken, Task<bool>> stopper,
+        Func<string, CancellationToken, Task<bool>>? pauser = null,
+        Func<string, CancellationToken, Task<bool>>? resumer = null) {
         _fetcher = fetcher ?? throw new ArgumentNullException(nameof(fetcher));
         _stopper = stopper ?? throw new ArgumentNullException(nameof(stopper));
+        _pauser = pauser;
+        _resumer = resumer;
     }
 
     /// <summary>pill 点击：关闭时打开并刷新；已打开时仅收起（不重复拉取）</summary>
@@ -120,6 +135,46 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
         var stopped = await _stopper(agentId, CancellationToken.None);
         if (stopped)
             await RefreshAsync();
+    }
+
+    /// <summary>暂停子代理 — 成功后刷新状态</summary>
+    [RelayCommand]
+    public async Task PauseAsync(string? agentId) {
+        if (string.IsNullOrEmpty(agentId) || _pauser is null)
+            return;
+        if (await _pauser(agentId, CancellationToken.None))
+            await RefreshAsync();
+    }
+
+    /// <summary>恢复子代理 — 成功后刷新状态</summary>
+    [RelayCommand]
+    public async Task ResumeAsync(string? agentId) {
+        if (string.IsNullOrEmpty(agentId) || _resumer is null)
+            return;
+        if (await _resumer(agentId, CancellationToken.None))
+            await RefreshAsync();
+    }
+
+    /// <summary>暂停所有运行中子代理 — 逐个暂停后刷新</summary>
+    [RelayCommand]
+    public async Task PauseAllAsync() {
+        if (_pauser is null) return;
+        foreach (var item in Items) {
+            if (item.CanPause)
+                await _pauser(item.AgentId, CancellationToken.None);
+        }
+        await RefreshAsync();
+    }
+
+    /// <summary>恢复所有暂停中子代理 — 逐个恢复后刷新</summary>
+    [RelayCommand]
+    public async Task ResumeAllAsync() {
+        if (_resumer is null) return;
+        foreach (var item in Items) {
+            if (item.CanResume)
+                await _resumer(item.AgentId, CancellationToken.None);
+        }
+        await RefreshAsync();
     }
 
     /// <summary>面板快照应用事件 — MainViewModel 据此同步 RunStatus 后台计数</summary>

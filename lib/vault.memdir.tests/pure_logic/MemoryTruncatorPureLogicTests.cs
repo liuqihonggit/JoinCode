@@ -419,26 +419,24 @@ public sealed class MemoryTruncatorPureLogicTests {
     }
 
     [Fact]
-    public void ScoreAndSelectLines_MaxLinesZero_ReturnsEmpty() {
+    public void ScoreAndSelectLines_MaxLinesZero_ThrowsArgumentOutOfRangeException() {
         var lines = new[] { "query a", "query b" };
-        var result = MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, 0);
-        result.Should().BeEmpty();
+        var act = () => MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, 0);
+        act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]
-    public void ScoreAndSelectLines_MaxLinesOne_ReturnsEmpty_CounterIntuitive() {
-        // 反直觉:maxLines=1 → Take(1/2)=Take(0) → 返回空,而非 1 行
+    public void ScoreAndSelectLines_MaxLinesOne_ReturnsOneLine() {
         var lines = new[] { "query a", "query b" };
         var result = MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, 1);
-        result.Should().BeEmpty();
+        result.Should().HaveCount(1);
     }
 
     [Fact]
-    public void ScoreAndSelectLines_MaxLinesNegative_ReturnsEmpty() {
-        // .NET Core 中 Take(负数) 返回空序列,不抛异常
+    public void ScoreAndSelectLines_MaxLinesNegative_ThrowsArgumentOutOfRangeException() {
         var lines = new[] { "query a", "query b" };
-        var result = MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, -3);
-        result.Should().BeEmpty();
+        var act = () => MemoryTruncator.ScoreAndSelectLines(lines, new[] { "query" }, -3);
+        act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     // === 边界:AssembleTruncatedLines null 守卫 ===

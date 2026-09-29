@@ -151,10 +151,11 @@ public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator {
     internal static List<ScoredLine> ScoreAndSelectLines(string[] lines, string[] queryWords, int maxLines) {
         ArgumentNullException.ThrowIfNull(lines);
         ArgumentNullException.ThrowIfNull(queryWords);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxLines);
         return lines
             .Select((line, index) => new ScoredLine(line, index, CalculateLineRelevance(line, queryWords)))
             .OrderByDescending(x => x.Score)
-            .Take(maxLines / 2)
+            .Take(Math.Max(1, maxLines / 2))
             .OrderBy(x => x.Index)
             .ToList();
     }

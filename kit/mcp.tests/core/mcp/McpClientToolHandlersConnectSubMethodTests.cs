@@ -82,27 +82,29 @@ public sealed class McpClientToolHandlersConnectSubMethodTests {
             }
         };
         var text = McpClientToolHandlers.BuildConnectResponse("conn", client);
-        text.Should().Contain("ConnectedToMcpServer");
-        text.Should().Contain("SupportsTools");
-        text.Should().Contain("SupportsResources");
-        text.Should().Contain("SupportsPrompts");
+        text.Should().Contain(L.T(StringKey.ConnectedToMcpServer, "conn"));
+        text.Should().Contain(L.T(StringKey.LabelServer, "MyServer"));
+        text.Should().Contain(L.T(StringKey.LabelVersion, "2.0"));
+        text.Should().Contain(L.T(StringKey.SupportsTools));
+        text.Should().Contain(L.T(StringKey.SupportsResources));
+        text.Should().Contain(L.T(StringKey.SupportsPrompts));
     }
 
     [Fact]
     public async Task BuildConnectResponse_NullServerInfo_DoesNotCrash() {
         await using var client = new ConfigurableFakeMcpClient { ServerInfoOverride = null };
         var text = McpClientToolHandlers.BuildConnectResponse("c", client);
-        text.Should().Contain("LabelServer");
-        text.Should().Contain("LabelVersion");
+        text.Should().NotBeNullOrEmpty();
+        text.Should().Contain(L.T(StringKey.ConnectedToMcpServer, "c"));
     }
 
     [Fact]
     public async Task BuildConnectResponse_NullCapabilities_OmitsCapabilityLines() {
         await using var client = new ConfigurableFakeMcpClient { CapabilitiesOverride = null };
         var text = McpClientToolHandlers.BuildConnectResponse("c", client);
-        text.Should().NotContain("SupportsTools");
-        text.Should().NotContain("SupportsResources");
-        text.Should().NotContain("SupportsPrompts");
+        text.Should().NotContain(L.T(StringKey.SupportsTools));
+        text.Should().NotContain(L.T(StringKey.SupportsResources));
+        text.Should().NotContain(L.T(StringKey.SupportsPrompts));
     }
 
     [Fact]
@@ -112,9 +114,9 @@ public sealed class McpClientToolHandlersConnectSubMethodTests {
             CapabilitiesOverride = new ServerCapabilities { Tools = new ToolsCapability() }
         };
         var text = McpClientToolHandlers.BuildConnectResponse("c", client);
-        text.Should().Contain("SupportsTools");
-        text.Should().NotContain("SupportsResources");
-        text.Should().NotContain("SupportsPrompts");
+        text.Should().Contain(L.T(StringKey.SupportsTools));
+        text.Should().NotContain(L.T(StringKey.SupportsResources));
+        text.Should().NotContain(L.T(StringKey.SupportsPrompts));
     }
 
     private sealed class ConfigurableFakeMcpClient : IMcpClient {

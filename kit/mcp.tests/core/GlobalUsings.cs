@@ -3,6 +3,7 @@ global using Infrastructure.Http;
 global using Infrastructure.IO;
 global using Infrastructure.Network.Downloader;
 global using IO.FileSystem;
+global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM;

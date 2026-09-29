@@ -362,13 +362,13 @@ public sealed partial class InteractiveHandler : ServiceEntity {
         }
     }
 
-    private static string? ExtractCommand(Dictionary<string, JsonElement> input) {
+    internal static string? ExtractCommand(Dictionary<string, JsonElement> input) {
         if (input.TryGetValue("command", out var cmd) && cmd.ValueKind == JsonValueKind.String)
             return cmd.GetString();
         return null;
     }
 
-    private static PermissionResult CreatePermissionResult(PermissionAskDecision result) {
+    internal static PermissionResult CreatePermissionResult(PermissionAskDecision result) {
         return result.Behavior switch {
             PermissionBehavior.Allow => PermissionResult.Granted(),
             PermissionBehavior.Deny => PermissionResult.Denied(result.Message ?? "权限被拒绝"),

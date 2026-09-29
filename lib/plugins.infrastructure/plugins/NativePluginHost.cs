@@ -127,7 +127,8 @@ public sealed unsafe class NativePluginHost : IPluginHost {
             }
 
             if (written == (int)NativePluginError.BufferTooSmall) {
-                cap *= 2;
+                if (cap > int.MaxValue / 2) cap = NativePluginAbi.MaxResponseCapacity;
+                else cap *= 2;
                 _logger?.LogDebug("[NativePlugin] {Name} 响应缓冲区不足,重试 {Cap} bytes", _pluginName, cap);
                 continue;
             }

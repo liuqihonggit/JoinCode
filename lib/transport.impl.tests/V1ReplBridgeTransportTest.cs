@@ -222,4 +222,16 @@ public class V1ReplBridgeTransportTest {
         // attempts=11: 2^min(10,10)=2^10=1024
         V1ReplBridgeTransport.ComputeReconnectBaseDelay(11, 1000, 10_000_000).Should().Be(1024 * 1000);
     }
+
+    /// <summary>attempts=0 时返回 baseDelayMs（避免 1 &lt;&lt; -1 未定义行为）。</summary>
+    [Fact]
+    public void ComputeReconnectBaseDelay_ZeroAttempts_ReturnsBaseDelay() {
+        V1ReplBridgeTransport.ComputeReconnectBaseDelay(0, 1000, 30000).Should().Be(1000);
+    }
+
+    /// <summary>attempts=负数 时返回 baseDelayMs（防御性）。</summary>
+    [Fact]
+    public void ComputeReconnectBaseDelay_NegativeAttempts_ReturnsBaseDelay() {
+        V1ReplBridgeTransport.ComputeReconnectBaseDelay(-1, 1000, 30000).Should().Be(1000);
+    }
 }

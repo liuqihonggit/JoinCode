@@ -77,6 +77,21 @@ public sealed class FacetCacheServicePureLogicTests {
         FacetCacheService.IsValidFacets(MakeFacets(userSatisfactionCounts: new Dictionary<string, int>())).Should().BeFalse();
     }
 
+    [Fact]
+    public void IsValidFacets_WhitespaceUnderlyingGoal_ReturnsFalse() {
+        FacetCacheService.IsValidFacets(MakeFacets(underlyingGoal: "   ")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsValidFacets_WhitespaceOutcome_ReturnsFalse() {
+        FacetCacheService.IsValidFacets(MakeFacets(outcome: "   ")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsValidFacets_WhitespaceBriefSummary_ReturnsFalse() {
+        FacetCacheService.IsValidFacets(MakeFacets(briefSummary: "   ")).Should().BeFalse();
+    }
+
     // === IsValidFacets: 确定性 ===
 
     [Fact]

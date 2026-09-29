@@ -380,7 +380,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
                 : await _optional.MemoryScanner.ScanAllAsync(ct).ConfigureAwait(false);
             results = scanResults.ToList();
         } else {
-            results = _memoryStore.Search(query, memoryType, limit * 2).ToList();
+            results = _memoryStore.Search(query, memoryType, (int)Math.Min((long)limit * 2, int.MaxValue)).ToList();
         }
 
         List<DetailedScoredMemory> scoredMemories;
@@ -558,7 +558,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
 
         var pathPrefixes = new HashSet<string>(teamPaths.Select(tp => tp.Path), StringComparer.OrdinalIgnoreCase);
 
-        var filteredMemories = _memoryStore.Search(query, null, limit * 2)
+        var filteredMemories = _memoryStore.Search(query, null, (int)Math.Min((long)limit * 2, int.MaxValue))
             .Where(m => pathPrefixes.Any(prefix => m.Source?.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) == true))
             .ToList();
 

@@ -4,6 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="720" d:DesignHeight="520"
         xmlns:vm="using:JoinCode.Gui.ViewModels"
+        xmlns:abs="using:JoinCode.Abstractions.Interfaces"
         x:Class="JoinCode.Gui.Views.TranscriptWindow"
         Title="子代理回放"
         Width="720" Height="520" MinWidth="520" MinHeight="360"
@@ -37,10 +38,10 @@
     <ScrollViewer Grid.Row="1" x:Name="TranscriptScroll" Padding="12,8">
       <ItemsControl x:Name="TranscriptItems">
         <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="vm:SubAgentTranscriptItem">
+          <DataTemplate x:DataType="abs:AgentActivityEntry">
             <Border Classes="trLine">
               <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
-                <TextBlock Text="{Binding At, StringFormat='HH:mm:ss'}" FontSize="10.5"
+                <TextBlock Text="{Binding Timestamp, StringFormat='HH:mm:ss'}" FontSize="10.5"
                            Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Top" Margin="0,1,0,0" />
                 <TextBlock Grid.Column="1" Text="{Binding Glyph}" FontSize="12" FontWeight="SemiBold"
                            Foreground="{DynamicResource GuiAccentText}" VerticalAlignment="Top" />

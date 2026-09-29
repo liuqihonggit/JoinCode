@@ -84,7 +84,7 @@ public sealed partial class MainViewModel {
 
     /// <summary>F5：打开子代理 worktree 目录 — 懒解析路径，未启用隔离时系统卡片提示</summary>
     [RelayCommand]
-    private async Task OpenWorktreeInExplorerAsync(AgentRunVm? runVm) {
+    private async Task OpenWorktreeInExplorerAsync(BackgroundAgentItemVm? runVm) {
         if (runVm is null)
             return;
 
@@ -92,17 +92,17 @@ public sealed partial class MainViewModel {
             ?? await _session.GetSubAgentWorktreePathAsync(runVm.AgentId);
 
         if (string.IsNullOrEmpty(path) || !System.IO.Directory.Exists(path)) {
-            AddSystemMessage($"⚠ 子代理 {runVm.Run.Name} 未使用 worktree 隔离（无独立目录）");
+            AddSystemMessage($"⚠ 子代理 {runVm.Name} 未使用 worktree 隔离（无独立目录）");
             return;
         }
 
-        runVm.SetWorktreePath(path);
+        runVm.WorktreePath = path;
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
             FileName = "explorer.exe",
             Arguments = $"\"{path}\"",
             UseShellExecute = true
         });
-        AddSystemMessage($"📁 已打开 {runVm.Run.Name} 的工作树: {path}");
+        AddSystemMessage($"📁 已打开 {runVm.Name} 的工作树: {path}");
     }
 
     [RelayCommand]

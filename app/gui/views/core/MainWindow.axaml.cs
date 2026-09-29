@@ -130,7 +130,7 @@ public sealed partial class MainWindow : Window {
     }
 
     /// <summary>打开子代理回放窗口 — 只读快照，可多开（每 agent 一窗）</summary>
-    private void OnTranscriptRequested(SubAgentRun run) {
+    private void OnTranscriptRequested(BackgroundAgentItemVm run) {
         var window = new TranscriptWindow(run);
         window.Show(this);
     }

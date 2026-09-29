@@ -238,14 +238,14 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     /// 请求打开子代理回放窗口 — View 层订阅 <see cref="TranscriptRequested"/>
     /// 弹出 TranscriptWindow（VM 不持有 Window 引用，保持可测性）
     /// </summary>
-    public event Action<SubAgentRun>? TranscriptRequested;
+    public event Action<BackgroundAgentItemVm>? TranscriptRequested;
 
     /// <summary>回放请求（agent 卡片"回放"按钮触发）</summary>
     [RelayCommand]
-    private void OpenAgentTranscript(AgentRunVm? runVm) {
+    private void OpenAgentTranscript(BackgroundAgentItemVm? runVm) {
         if (runVm is null)
             return;
-        TranscriptRequested?.Invoke(runVm.Run);
+        TranscriptRequested?.Invoke(runVm);
     }
 
     /// <summary>向输入框追加文本（光标定位到内容尾部）</summary>

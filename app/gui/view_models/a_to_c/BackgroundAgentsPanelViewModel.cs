@@ -29,7 +29,7 @@ public sealed class BackgroundAgentItemVm {
     /// <summary>代理描述</summary>
     public string Description { get; }
     /// <summary>运行状态</summary>
-    public AgentStatus State { get; }
+    public AgentStatus State { get; set; }
     /// <summary>运行状态小写文本（供 XAML 绑定）</summary>
     public string StateText => State.ToValue();
     /// <summary>启动时间（null=未启动）</summary>
@@ -41,18 +41,40 @@ public sealed class BackgroundAgentItemVm {
     /// <summary>活动历史快照（按时间顺序，最多 200 条）</summary>
     public IReadOnlyList<AgentActivityEntry> Activities { get; }
     /// <summary>最后一条活动文本</summary>
-    public string? LastActivityText { get; }
+    public string? LastActivityText { get; set; }
     /// <summary>最终输出（完成时填充）</summary>
-    public string? FinalOutput { get; }
+    public string? FinalOutput { get; set; }
     /// <summary>是否成功（完成时填充）</summary>
-    public bool? IsSuccess { get; }
+    public bool? IsSuccess { get; set; }
     /// <summary>执行时长毫秒（完成时填充）</summary>
-    public long? ExecutionTimeMs { get; }
+    public long? ExecutionTimeMs { get; set; }
     /// <summary>角色标识</summary>
     public string? Role { get; }
+    /// <summary>Worktree 隔离目录路径（F5 打开资源管理器）</summary>
+    public string? WorktreePath { get; set; }
 
     /// <summary>是否仍在运行（驱动终止按钮可见性）</summary>
     public bool IsRunning { get; }
+
+    /// <summary>是否已完成</summary>
+    public bool IsCompleted => State == AgentStatus.Completed;
+
+    /// <summary>是否失败</summary>
+    public bool IsFailed => State == AgentStatus.Failed;
+
+    /// <summary>状态点字符（运行 ● / 完成 ✓ / 失败 ✗）</summary>
+    public string StateGlyph => State == AgentStatus.Completed ? "✓" : State == AgentStatus.Failed ? "✗" : "●";
+
+    /// <summary>卡片标题文本（名称 — 描述）</summary>
+    public string HeaderText => string.IsNullOrEmpty(Description) ? Name : $"{Name} — {Description}";
+
+    /// <summary>隐藏活动数提示文本</summary>
+    public string HiddenText => Activities.Count > 3 ? $"+{Activities.Count - 3} 更多 ▸" : string.Empty;
+
+    /// <summary>尾部活动行（最近 3 条文本）</summary>
+    public IReadOnlyList<string> ActivityLines => Activities.Count <= 3
+        ? Activities.Select(a => a.Text).ToArray()
+        : Activities.Skip(Activities.Count - 3).Select(a => a.Text).ToArray();
 
     /// <summary>是否可暂停 — running/pending 状态显示暂停按钮</summary>
     public bool CanPause { get; }
@@ -71,8 +93,10 @@ public sealed class BackgroundAgentItemVm {
 
     /// <summary>已运行时长展示文本</summary>
     public string ElapsedText { get; }
-    /// <summary>统计摘要文本（工具次数 · token 数）</summary>
-    public string StatsText { get; }
+    /// <summary>统计摘要文本（工具次数 · token 数 / 完成时含耗时）</summary>
+    public string StatsText => State is AgentStatus.Completed or AgentStatus.Failed
+        ? $"{(State == AgentStatus.Completed ? "完成" : "失败")} · {ToolUseCount} 次工具{FormatDurationSuffix(ExecutionTimeMs, IsSuccess)}"
+        : $"{ToolUseCount} 次工具 · {FormatTokens(TokenCount)}";
 
     /// <summary>初始化 BackgroundAgentItemVm 实例</summary>
     public BackgroundAgentItemVm(BackgroundAgentInfo info) {
@@ -96,7 +120,6 @@ public sealed class BackgroundAgentItemVm {
         ElapsedText = info.StartedAt is { } started
             ? FormatElapsed(DateTime.Now - started)
             : "—";
-        StatsText = $"{ToolUseCount} 次工具 · {FormatTokens(TokenCount)}";
     }
 
     private static string FormatElapsed(TimeSpan elapsed)
@@ -106,6 +129,16 @@ public sealed class BackgroundAgentItemVm {
 
     private static string FormatTokens(long tokens)
         => tokens >= 1000 ? $"{tokens / 1000.0:0.#}k" : tokens.ToString();
+
+    private static string FormatDurationSuffix(long? executionTimeMs, bool? isSuccess) {
+        if (executionTimeMs is not { } ms)
+            return isSuccess == false ? " · 失败" : "";
+        var elapsed = TimeSpan.FromMilliseconds(ms);
+        var text = elapsed.TotalMinutes >= 1
+            ? $"{(int)elapsed.TotalMinutes}m {elapsed.Seconds:D2}s"
+            : $"{elapsed.TotalSeconds:F1}s";
+        return $" · {text}";
+    }
 }
 
 /// <summary>

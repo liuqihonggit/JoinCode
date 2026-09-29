@@ -9,8 +9,7 @@ internal sealed class ChatTurnProcessor {
     private readonly ObservableCollection<ChatUiMessage> _messages;
 
     // === 子代理运行态 ===
-    private SubAgentRunTracker _agentTracker = new();
-    private Dictionary<string, AgentRunVm> _agentRunVms = new(StringComparer.Ordinal);
+    private Dictionary<string, BackgroundAgentItemVm> _agentRunVms = new(StringComparer.Ordinal);
     private ChatUiMessage? _agentGroupCard;
 
     // === 回合内状态 ===
@@ -27,10 +26,7 @@ internal sealed class ChatTurnProcessor {
     public ChatUiMessage AssistantPlaceholder { get; private set; } = null!;
 
     /// <summary>当前全部子代理行 VM（跨组卡片聚合视图，供回放入口查找）</summary>
-    public IReadOnlyList<AgentRunVm> AgentRuns => [.. _agentRunVms.Values];
-
-    /// <summary>子代理运行追踪器 — 供 BackgroundPanel 共享查询实时活动数据</summary>
-    public SubAgentRunTracker AgentTracker => _agentTracker;
+    public IReadOnlyList<BackgroundAgentItemVm> AgentRuns => [.. _agentRunVms.Values];
 
     /// <summary>构造单回合处理器 — 绑定目标 UI 消息集合</summary>
     public ChatTurnProcessor(ObservableCollection<ChatUiMessage> messages)
@@ -50,8 +46,7 @@ internal sealed class ChatTurnProcessor {
         _messages.Add(AssistantPlaceholder);
         _assistantIndex = _messages.Count - 1;
 
-        _agentTracker = new SubAgentRunTracker();
-        _agentRunVms = new Dictionary<string, AgentRunVm>(StringComparer.Ordinal);
+        _agentRunVms = new Dictionary<string, BackgroundAgentItemVm>(StringComparer.Ordinal);
         _agentGroupCard = null;
         _currentThinking = null;
         _currentToolCall = null;
@@ -169,11 +164,11 @@ internal sealed class ChatTurnProcessor {
     }
 
     /// <summary>
-    /// 消费一条子代理事件 — 归约到 tracker，首次事件创建组卡片（插到助手占位之前，
-    /// 整回合复用一张），随后同步行 VM 快照
+    /// 消费一条子代理事件 — 从事件构造/更新 BackgroundAgentItemVm，首次事件创建组卡片
+    /// （插到助手占位之前，整回合复用一张）。活动历史由引擎层维护，此处仅更新 UI 实时文本
     /// </summary>
     private void HandleSubAgentActivity(ChatStreamEvent evt) {
-        _agentTracker.Observe(evt);
+        if (evt.AgentId is null) return;
 
         if (_agentGroupCard is null) {
             _agentGroupCard = new ChatUiMessage {
@@ -186,14 +181,41 @@ internal sealed class ChatTurnProcessor {
             InsertBeforeAssistant(_agentGroupCard);
         }
 
-        foreach (var run in _agentTracker.Runs) {
-            if (_agentRunVms.TryGetValue(run.AgentId, out var vm)) {
-                vm.Refresh();
-            } else {
-                vm = new AgentRunVm(run);
-                _agentRunVms[run.AgentId] = vm;
-                _agentGroupCard.AgentRuns!.Add(vm);
-            }
+        if (!_agentRunVms.TryGetValue(evt.AgentId, out var vm)) {
+            vm = new BackgroundAgentItemVm(new BackgroundAgentInfo(
+                AgentId: evt.AgentId,
+                Name: evt.AgentName ?? evt.AgentId,
+                Description: evt.AgentDescription ?? string.Empty,
+                State: AgentStatus.Running,
+                StartedAt: DateTime.Now,
+                ToolUseCount: 0,
+                TokenCount: 0,
+                Activities: Array.Empty<AgentActivityEntry>(),
+                LastActivityText: null,
+                FinalOutput: null,
+                IsSuccess: null,
+                ExecutionTimeMs: null,
+                Role: evt.AgentRole));
+            _agentRunVms[evt.AgentId] = vm;
+            _agentGroupCard.AgentRuns!.Add(vm);
+        }
+
+        vm.LastActivityText = evt.Type switch {
+            ChatStreamEventType.AgentStarted => "启动中…",
+            ChatStreamEventType.AgentFinished => evt.AgentSuccess == true ? "✓ 完成" : "✗ 失败",
+            ChatStreamEventType.ToolCallStart => $"调用 {evt.ToolName}",
+            ChatStreamEventType.ToolCallEnd => evt.IsToolError ? $"{evt.ToolName} 失败" : $"{evt.ToolName} 完成",
+            ChatStreamEventType.ToolProgress => evt.ProgressMessage,
+            ChatStreamEventType.Content => evt.Content,
+            ChatStreamEventType.Thinking => evt.ThinkingContent,
+            _ => null,
+        };
+
+        if (evt.Type == ChatStreamEventType.AgentFinished) {
+            vm.State = evt.AgentSuccess == true ? AgentStatus.Completed : AgentStatus.Failed;
+            vm.ExecutionTimeMs = evt.AgentExecutionTimeMs;
+            vm.FinalOutput = evt.Content;
+            vm.IsSuccess = evt.AgentSuccess;
         }
     }
 }

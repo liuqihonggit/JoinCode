@@ -173,7 +173,7 @@
                           <!-- 子代理运行组：多 agent 状态卡片（每行一个 subAgent：状态点+名称+活动+统计） -->
                           <ItemsControl IsVisible="{Binding IsAgentRunGroup}" ItemsSource="{Binding AgentRuns}" Margin="0,2">
                             <ItemsControl.ItemTemplate>
-                              <DataTemplate x:DataType="vm:AgentRunVm">
+                              <DataTemplate x:DataType="vm:BackgroundAgentItemVm">
                                 <Border CornerRadius="8" Padding="10,7" Margin="0,0,0,5" Background="{DynamicResource GuiCardHover}">
                                   <Border.ContextMenu>
                                     <ContextMenu>

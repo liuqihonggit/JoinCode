@@ -150,6 +150,15 @@ public interface IJccChatSession : IAsyncDisposable {
     Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 更新工具黑名单 — 运行时动态拦截 AI 工具调用（MCP 工具）。
+    /// 传入空集合清除所有拦截；传入工具名集合则拦截对应工具（AI 调用时被 ToolHealthScoringMiddleware 拒绝）。
+    /// 委托到引擎 IToolHealthMonitor.UpdateBlacklist（双变量原子切换，立即生效）。
+    /// 占位会话无真实引擎，空实现。
+    /// </summary>
+    /// <param name="blacklistedTools">要拦截的工具名集合（支持精确匹配，如 git_commit/git_push/bash）</param>
+    void UpdateToolBlacklist(HashSet<string> blacklistedTools);
+
+    /// <summary>
     /// 获取可用子代理清单 — 从 IAgentDefinitionProvider 提取全部代理定义
     /// （内置 + 插件 + 用户.md + 项目.md），供 GUI @子代理补全消费。引擎未注册时返回空列表。
     /// </summary>

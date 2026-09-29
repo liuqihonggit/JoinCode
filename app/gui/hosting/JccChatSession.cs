@@ -195,6 +195,12 @@ internal sealed class JccChatSession : IJccChatSession {
         return result;
     }
 
+    /// <inheritdoc />
+    public void UpdateToolBlacklist(HashSet<string> blacklistedTools) {
+        var monitor = _services.GetService<IToolHealthMonitor>();
+        monitor?.UpdateBlacklist(blacklistedTools);
+    }
+
     /// <summary>settings.json 变更转发 — theme 键变更时解析为 ThemeKind 并触发 ThemeChanged</summary>
     private void OnSettingChanged(object? sender, SettingChangeEventArgs e) {
         if (e.Key == ConfigKeyEnumConstants.Theme && e.NewValue is not null) {

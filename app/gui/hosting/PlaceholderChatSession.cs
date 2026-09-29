@@ -228,6 +228,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
 
+    /// <summary>占位会话无真实引擎，工具黑名单更新空实现</summary>
+    public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+
     /// <inheritdoc />
     public Task<IReadOnlyList<SubAgentSummary>> GetAvailableSubAgentsAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<SubAgentSummary>>([]);

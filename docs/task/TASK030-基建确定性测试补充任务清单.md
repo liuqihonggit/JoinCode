@@ -272,3 +272,11 @@
 <!-- 原因: 全部一次性推进上下文爆炸,渐进式收益/风险比最优 -->
 <!-- 替代方案: 按模块逐个全做(深度优先,跨模块进度慢) -->
 <!-- 验证: 8个explore子代理检测完成,任务清单已整合 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-09-29 阶段3d vault mock测试 -->
+<!-- 决策: 用 InMemoryFileSystem + Mock<IFileOperationService> + FakeClockService 消除文件IO/远程读/真实时间 -->
+<!-- 原因: SyncFileScanner/Transfer/ConflictResolver/中间件/TeamMemoryPathStore 均依赖 IFileSystem+IFileOperationService,mock后纯逻辑可确定性断言 -->
+<!-- 替代方案: 用 TestFileSystem.Current(但全局静态切换有跨测试污染风险,改用每测试 new InMemoryFileSystem 保证隔离) -->
+<!-- 路径断言: InMemoryFileSystem 在 Windows 返回反斜杠路径且去掉前导斜杠,改用 Values.Select(Path.GetFileName) 断言而非硬编码正斜杠 key -->
+<!-- 事件断言: SyncEventLog.GetRecent 按 Timestamp 降序,同时间戳事件顺序不稳定,改用谓词 First(e=>e.Type==X) 而非 GetRecent(1).Single() -->
+<!-- 验证: vault.memdir.tests 423通过(新增77方法), vault.other.tests 364通过, 0警告0错误 ✅ -->

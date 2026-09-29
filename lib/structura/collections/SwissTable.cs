@@ -621,14 +621,11 @@ namespace Structura.Collections
 
             if (array is KeyValuePair<TKey, TValue>[] pairs)
             {
-                CopyToWorker(pairs, index);
+                CopyToKvp(pairs, index);
             }
             else if (array is DictionaryEntry[] dictEntryArray)
             {
-                foreach (var item in this)
-                {
-                    dictEntryArray[index++] = new DictionaryEntry(item.Key, item.Value);
-                }
+                CopyToDictEntry(dictEntryArray, index);
             }
             else
             {
@@ -639,17 +636,44 @@ namespace Structura.Collections
                     ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                 }
 
-                try
+                CopyToObjectBox(objects!, index);
+            }
+        }
+
+        /// <summary>
+        /// 将字典条目复制到 KeyValuePair 数组。纯函数:给定字典内容和目标数组,确定性地写入。
+        /// </summary>
+        internal void CopyToKvp(KeyValuePair<TKey, TValue>[] array, int index)
+        {
+            CopyToWorker(array, index);
+        }
+
+        /// <summary>
+        /// 将字典条目复制到 DictionaryEntry 数组。纯函数:给定字典内容和目标数组,确定性地写入 DictionaryEntry。
+        /// </summary>
+        internal void CopyToDictEntry(DictionaryEntry[] array, int index)
+        {
+            foreach (var item in this)
+            {
+                array[index++] = new DictionaryEntry(item.Key, item.Value);
+            }
+        }
+
+        /// <summary>
+        /// 将字典条目装箱复制到 object 数组。纯函数:给定字典内容和目标数组,确定性地写入装箱的 KeyValuePair。
+        /// </summary>
+        internal void CopyToObjectBox(object[] array, int index)
+        {
+            try
+            {
+                foreach (var item in this)
                 {
-                    foreach (var item in this)
-                    {
-                        objects[index++] = new KeyValuePair<TKey, TValue>(item.Key, item.Value);
-                    }
+                    array[index++] = new KeyValuePair<TKey, TValue>(item.Key, item.Value);
                 }
-                catch (ArrayTypeMismatchException)
-                {
-                    ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
-                }
+            }
+            catch (ArrayTypeMismatchException)
+            {
+                ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
             }
         }
         #endregion
@@ -741,20 +765,44 @@ namespace Structura.Collections
             // replace
             if (!Unsafe.IsNullRef(ref bucket))
             {
-                if (behavior == InsertionBehavior.OverwriteExisting)
-                {
-                    bucket.Key = key;
-                    bucket.Value = value;
-                    return true;
-                }
-                if (behavior == InsertionBehavior.ThrowOnExisting)
-                {
-                    ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
-                }
-                // InsertionBehavior.None
-                return false;
+                return TryReplaceExisting(ref bucket, key, value, behavior);
             }
-            // insert new
+            InsertNewBucket(key, value, hashOfKey);
+            return true;
+        }
+
+        /// <summary>
+        /// 替换已存在键的值。纯决策函数:根据 <paramref name="behavior"/> 决定覆盖、抛异常或不操作。
+        /// </summary>
+        /// <param name="bucket">已找到的条目引用(非空)。</param>
+        /// <param name="key">键(用于抛异常时报告)。</param>
+        /// <param name="value">新值。</param>
+        /// <param name="behavior">插入行为:OverwriteExisting 覆盖、ThrowOnExisting 抛异常、None 不操作。</param>
+        /// <returns>OverwriteExisting 返回 true;None 返回 false;ThrowOnExisting 抛异常不返回。</returns>
+        internal bool TryReplaceExisting(ref Entry bucket, TKey key, TValue value, InsertionBehavior behavior)
+        {
+            if (behavior == InsertionBehavior.OverwriteExisting)
+            {
+                bucket.Key = key;
+                bucket.Value = value;
+                return true;
+            }
+            if (behavior == InsertionBehavior.ThrowOnExisting)
+            {
+                ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
+            }
+            // InsertionBehavior.None
+            return false;
+        }
+
+        /// <summary>
+        /// 在新桶位插入键值对。纯副作用函数:找到插入槽位、必要时扩容、记录插入、写入条目。
+        /// </summary>
+        /// <param name="key">键。</param>
+        /// <param name="value">值。</param>
+        /// <param name="hashOfKey">键的哈希值。</param>
+        internal void InsertNewBucket(TKey key, TValue value, int hashOfKey)
+        {
             // We can avoid growing the table once we have reached our load
             // factor if we are replacing a tombstone(Delete). This works since the
             // number of EMPTY slots does not change in this case.
@@ -771,7 +819,6 @@ namespace Structura.Collections
             targetEntry.Key = key;
             targetEntry.Value = value;
             _version++;
-            return true;
         }
 
         /// <summary>

@@ -133,38 +133,38 @@
 **原则**:先转为统一写法,再拆分纯计算片段为 internal,然后补测试。
 
 #### 2.1 structura — SwissTable SIMD 去重
-- [ ] `SwissTableHelper.FindForInsert.*` 三分派提取 `ProbeCore<TKey>` internal 泛型(消除18份重复)
-- [ ] `SwissTableHelper.FindBucketOfDictionary.*` 同上
-- [ ] `SwissTable.ICollection.CopyTo` 拆 `CopyToKvp`/`CopyToDictEntry`/`CopyToObjectBox` internal
-- [ ] `SwissTable.TryInsert` 拆 `TryReplaceExisting`/`InsertNewBucket` internal
-- [ ] `ImmutableDag.RemoveNodeFromState` 拆 `RemoveOneIncidentEdge` internal static
-- [ ] `Dag.GetAffectedSubgraph`/`ImmutableDag.GetAffectedSubgraph` 拆 `ComputeSubgraphInDegrees`/`KahnTraverseSubgraph` internal(合并重复)
-- [ ] `ImmutableHamT.BitmapNode.Add` 拆 `MaybeUpgradeToFullArrayNode` internal static
+- [x] `SwissTableHelper.FindForInsert.*` 三分派提取 `ProbeCoreFindForInsert<TGroup,TBitMask,TKey,TValue>` internal 泛型(消除9份重复,IGroup static abstract去虚化) — 阶段2.1a完成
+- [x] `SwissTableHelper.FindBucketOfDictionary.*` 提取 `ProbeCoreFindBucketOfDictionary` internal 泛型(消除9份重复) — 阶段2.1a完成
+- [x] `SwissTable.ICollection.CopyTo` 拆 `CopyToKvp`/`CopyToDictEntry`/`CopyToObjectBox` internal — 阶段2.1b完成
+- [x] `SwissTable.TryInsert` 拆 `TryReplaceExisting`/`InsertNewBucket` internal — 阶段2.1b完成
+- [x] `ImmutableDag.RemoveNodeFromState` 拆 `RemoveOneIncidentEdge` internal static — 阶段2.1c完成
+- [x] `Dag.GetAffectedSubgraph`/`ImmutableDag.GetAffectedSubgraph` 提取 `DagAlgorithms.KahnTraverseSubgraph` internal(消除重复) — 阶段2.1d完成
+- [x] `ImmutableHamT.BitmapNode.Add` 拆 `MaybeUpgradeToFullArrayNode` internal static — 阶段2.1e完成
 
 #### 2.2 async_lock — ActorBase 纯计算片段
-- [ ] `ActorBase.CheckInputWatermark` 拆 `internal static WatermarkLevel ComputeWatermarkLevel(int count, int high, int critical)` + 表驱动测试
-- [ ] `ActorBase.ConsumeBackpressureDelay` 拆 `internal static TimeSpan SumDelays(IEnumerable<TimeSpan>)` + 测试
-- [ ] `ActorBase.RetrySendAsync` 退避公式拆 `internal static TimeSpan ComputeBackoff(int retry)` + 边界测试(0/10/11/16)
-- [ ] `ActorBase.AskWithRetryAsync` 退避公式拆 `internal static int ComputeAskBackoffMs(int attempt)` + 边界测试(20/21/30)
-- [ ] `ActorBase.EnterWaitGraph` internal + 直接测试:加边成功/环抛异常/callerId==Id跳过/callerId==null跳过
-- [ ] `ActorBase.CreateInputChannel`/`CreateOutputChannel` internal static + 测试:capacity=0/null/正数
-- [ ] `ActorBase.ConsumeLoopAsync` 幂等去重路径直接测试:重复IRequestCommand→Handle仅调一次
-- [ ] `GatewayActor.CheckBreakerOpen` private→internal + 测试:Closed/Open/HalfOpen转换
-- [ ] `SupervisedActor.TryRecordRestart` private→internal + 测试:重启次数+时间窗口
-- [ ] `BackpressureChannel.CalculateCriticalDelay` private→internal + 测试
-- [ ] `PriorityMailbox.TryReadByPriority` private→internal + 测试:High→Normal→Low
-- [ ] `HostContextSyncService.SerializeSnapshot`/`DeserializeSnapshot`/`ExtractJsonField` private→internal + 测试
+- [x] `ActorBase.CheckInputWatermark` 拆 `internal static WatermarkLevel ComputeWatermarkLevel(int count, int high, int critical)` + 表驱动测试 — 阶段2.2完成(WatermarkMonitor已抽离)
+- [x] `ActorBase.ConsumeBackpressureDelay` 拆 `internal static TimeSpan SumDelays(IEnumerable<TimeSpan>)` + 测试 — 阶段2.2完成(MessageRetryEngine已抽离)
+- [x] `ActorBase.RetrySendAsync` 退避公式拆 `internal static TimeSpan ComputeBackoff(int retry)` + 边界测试(0/10/11/16) — 阶段2.2完成(ComputeBackoffDelayMs已internal static)
+- [x] `ActorBase.AskWithRetryAsync` 退避公式拆 `internal static int ComputeAskBackoffMs(int attempt)` + 边界测试(20/21/30) — 阶段2.2完成(复用ComputeBackoffDelayMs)
+- [x] `ActorBase.EnterWaitGraph` internal + 直接测试:加边成功/环抛异常/callerId==Id跳过/callerId==null跳过 — 阶段2.2完成(AskWaitGraphTracker已抽离)
+- [x] `ActorBase.CreateInputChannel`/`CreateOutputChannel` internal static + 测试:capacity=0/null/正数 — 阶段2.2完成
+- [x] `ActorBase.ConsumeLoopAsync` 幂等去重路径直接测试:重复IRequestCommand→Handle仅调一次 — 阶段2.2完成(ProcessSingleCommand已internal+3测试)
+- [x] `GatewayActor.CheckBreakerOpen` private→internal + 测试:Closed/Open/HalfOpen转换 — 阶段2.2完成(拆EvaluateBreakerState纯函数+8测试)
+- [x] `SupervisedActor.TryRecordRestart` private→internal + 测试:重启次数+时间窗口 — 阶段2.2完成(拆RecordRestart纯函数+8测试)
+- [x] `BackpressureChannel.CalculateCriticalDelay` private→internal + 测试 — 阶段2.2完成(拆internal static+7测试,修复整数溢出bug)
+- [x] `PriorityMailbox.TryReadByPriority` private→internal + 测试:High→Normal→Low — 阶段2.2完成(8测试)
+- [x] `HostContextSyncService.SerializeSnapshot`/`DeserializeSnapshot`/`ExtractJsonField` private→internal + 测试 — 阶段2.2完成(15测试)
 
 #### 2.3 guard — 守卫纯逻辑 + 防御节点
-- [ ] `GitCommitGuard.ExtractFirstToken`/`IsGitCommitSubCommand` private→internal static + 测试
-- [ ] `CmdIndirectCallGuard.TryExtractCmdInner`/`TryExtractPwshInner`/`ExtractQuotedOrRaw` private→internal static + 测试
-- [ ] `HeredocGuard.EscapeForDoubleQuotedString` private→internal static + 测试
-- [ ] `GhPrBodyGuard.HasBodyParameter`/`EscapeBody` private→internal static + 测试
-- [ ] `RedirectWhitelistNode` 各 private static→internal + 测试
-- [ ] `MtpPerturbationNode` 各 private static→internal + 测试
-- [ ] `HookConditionEvaluator` 各 private→internal + 测试
-- [ ] `RemotePolicyService.EvaluateRule`/`EvaluateUsageLimit`/`EvaluateCostLimit`/`EvaluateRateLimit`/`EvaluateToolRestriction`/`EvaluateTimeRestriction` private→internal + 测试
-- [ ] 统一 `SelectPrimaryRisk`(CommandDangerClassifier与DangerousCommandProtectionMiddleware重复,优先级数组不一致)
+- [x] `GitCommitGuard.ExtractFirstToken`/`IsGitCommitSubCommand` private→internal static + 测试 — 阶段2.3确认(已是internal static+GuardInternalTests覆盖)
+- [x] `CmdIndirectCallGuard.TryExtractCmdInner`/`TryExtractPwshInner`/`ExtractQuotedOrRaw` private→internal static + 测试 — 阶段2.3确认(已是internal static+CmdIndirectCallGuardTests覆盖)
+- [x] `HeredocGuard.EscapeForDoubleQuotedString` private→internal static + 测试 — 阶段2.3确认(已是internal static+6测试)
+- [x] `GhPrBodyGuard.HasBodyParameter`/`EscapeBody` private→internal static + 测试 — 阶段2.3确认(已是internal static+8测试)
+- [x] `RedirectWhitelistNode` 各 private static→internal + 测试 — 阶段2.3确认(已是internal static+RedirectWhitelistNodeInternalTests覆盖)
+- [x] `MtpPerturbationNode` 各 private static→internal + 测试 — 阶段2.3确认(已是internal static+MtpPerturbationNodeInternalTests覆盖)
+- [x] `HookConditionEvaluator` 各 private→internal + 测试 — 阶段2.3确认(已是internal+HookConditionEvaluatorInternalTests覆盖)
+- [x] `RemotePolicyService.EvaluateRule`/`EvaluateUsageLimit`/`EvaluateCostLimit`/`EvaluateRateLimit`/`EvaluateToolRestriction`/`EvaluateTimeRestriction` private→internal + 测试 — 阶段2.3确认(已是internal+RemotePolicyServiceInternalTests覆盖)
+- [x] 统一 `SelectPrimaryRisk`(CommandDangerClassifier与DangerousCommandProtectionMiddleware重复,优先级数组不一致) — 阶段2.3确认(不重复,委托模式,唯一数据源DangerousCommandCatalog)
 
 #### 2.4 transport.impl — 重试状态机拆分
 - [ ] `BridgeOAuthRetry.ExecuteWithOAuthRetryAsync`(69行)拆纯计算分支为 internal

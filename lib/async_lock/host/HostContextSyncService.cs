@@ -114,7 +114,7 @@ public sealed class HostContextSyncService : IAsyncDisposable {
     /// <summary>
     /// 序列化上下文快照为 JSON — 手动拼接避免 AOT 反射。
     /// </summary>
-    private static string SerializeSnapshot(HostContextSnapshot snapshot) {
+    internal static string SerializeSnapshot(HostContextSnapshot snapshot) {
         var sb = new StringBuilder();
         sb.Append('{');
         sb.Append("\"timestamp\":\"").Append(snapshot.Timestamp.ToString("O")).Append("\",");
@@ -137,7 +137,7 @@ public sealed class HostContextSyncService : IAsyncDisposable {
     /// <summary>
     /// 反序列化上下文快照 — 简单 JSON 解析（容错）。
     /// </summary>
-    private static HostContextSnapshot? DeserializeSnapshot(string json) {
+    internal static HostContextSnapshot? DeserializeSnapshot(string json) {
         if (string.IsNullOrWhiteSpace(json)) return null;
         try {
             var timestamp = ExtractJsonField(json, "timestamp") ?? DateTimeOffset.UtcNow.ToString("O");
@@ -159,7 +159,7 @@ public sealed class HostContextSyncService : IAsyncDisposable {
         }
     }
 
-    private static string? ExtractJsonField(string json, string fieldName) {
+    internal static string? ExtractJsonField(string json, string fieldName) {
         var key = "\"" + fieldName + "\":\"";
         var start = json.IndexOf(key, StringComparison.Ordinal);
         if (start < 0) return null;

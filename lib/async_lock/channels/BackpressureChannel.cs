@@ -135,7 +135,7 @@ public sealed class BackpressureChannel<T> : IAsyncDisposable where T : notnull 
 
         _lastNotifiedLevel = level;
         var delay = level switch {
-            WatermarkLevel.Critical => CalculateCriticalDelay(),
+            WatermarkLevel.Critical => CalculateCriticalDelay(Count, _config.EffectiveHighWatermark),
             WatermarkLevel.High => TimeSpan.FromMilliseconds(50),
             WatermarkLevel.Normal => TimeSpan.Zero,
             _ => TimeSpan.Zero
@@ -146,10 +146,18 @@ public sealed class BackpressureChannel<T> : IAsyncDisposable where T : notnull 
         )).ConfigureAwait(false);
     }
 
-    /// <summary>Critical 水位建议延迟 — 超出高水位越多延迟越长,上限1秒</summary>
-    private TimeSpan CalculateCriticalDelay() {
-        var overflow = Count - _config.EffectiveHighWatermark;
-        return TimeSpan.FromMilliseconds(Math.Min(100 * overflow, 1000));
+    /// <summary>
+    /// Critical 水位建议延迟 — 纯函数,不依赖实例状态,供确定性测试。
+    /// <para>超出高水位越多延迟越长,上限1秒。公式: min(100×overflow, 1000)ms。</para>
+    /// </summary>
+    /// <param name="count">当前队列长度</param>
+    /// <param name="highWatermark">高水位线阈值</param>
+    /// <returns>建议延迟时间</returns>
+    internal static TimeSpan CalculateCriticalDelay(int count, int highWatermark) {
+        var overflow = count - highWatermark;
+        if (overflow <= 0) return TimeSpan.Zero;
+        var delayMs = Math.Min(100L * overflow, 1000L);
+        return TimeSpan.FromMilliseconds(delayMs);
     }
 
     /// <summary>完成通道写入</summary>

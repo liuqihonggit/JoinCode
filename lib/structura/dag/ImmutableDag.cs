@@ -188,21 +188,10 @@ public sealed class ImmutableDag<T> {
                     inDegree[node.Id]++;
             }
         }
-        var queue = new Queue<string>();
-        foreach (var kvp in inDegree)
-            if (kvp.Value == 0) queue.Enqueue(kvp.Key);
-        var result = new List<ImmutableDagNode<T>>();
-        while (queue.Count > 0) {
-            var id = queue.Dequeue();
-            result.Add(state.Nodes[id]);
-            if (!state.Adjacency.TryGetValue(id, out var targets)) continue;
-            foreach (var targetId in targets) {
-                if (!descendants.Contains(targetId)) continue;
-                inDegree[targetId]--;
-                if (inDegree[targetId] == 0) queue.Enqueue(targetId);
-            }
-        }
-        return result;
+        var orderedIds = DagAlgorithms.KahnTraverseSubgraph(
+            inDegree, descendants,
+            id => state.Adjacency.TryGetValue(id, out var targets) ? targets : null);
+        return orderedIds.Select(id => state.Nodes[id]);
     }
 
     /// <summary>清空所有节点和边(CAS 无锁)</summary>
@@ -293,17 +282,7 @@ public sealed class ImmutableDag<T> {
         var newRevAdj = state.ReverseAdjacency;
 
         foreach (var edgeId in node.InEdgeIds.Concat(node.OutEdgeIds)) {
-            if (!newEdges.TryGetValue(edgeId, out var edge)) continue;
-            newEdges = newEdges.Remove(edgeId);
-            newEdgeIndex = newEdgeIndex.Remove((edge.FromId, edge.ToId));
-            if (newNodes.TryGetValue(edge.FromId, out var fromNode))
-                newNodes = newNodes.SetItem(edge.FromId, fromNode with { OutEdgeIds = fromNode.OutEdgeIds.Remove(edgeId) });
-            if (newNodes.TryGetValue(edge.ToId, out var toNode))
-                newNodes = newNodes.SetItem(edge.ToId, toNode with { InEdgeIds = toNode.InEdgeIds.Remove(edgeId) });
-            if (newAdj.TryGetValue(edge.FromId, out var adj))
-                newAdj = newAdj.SetItem(edge.FromId, adj.Remove(edge.ToId));
-            if (newRevAdj.TryGetValue(edge.ToId, out var revAdj))
-                newRevAdj = newRevAdj.SetItem(edge.ToId, revAdj.Remove(edge.FromId));
+            RemoveOneIncidentEdge(ref newEdges, ref newEdgeIndex, ref newNodes, ref newAdj, ref newRevAdj, edgeId);
         }
 
         newNodes = newNodes.Remove(nodeId);
@@ -318,6 +297,36 @@ public sealed class ImmutableDag<T> {
             ReverseAdjacency = newRevAdj,
             Version = state.Version + 1
         };
+    }
+
+    /// <summary>
+    /// 从图的边集合、端点索引、节点入出边集合、邻接表和逆邻接表中移除单条关联边及其所有引用。
+    /// 纯函数:给定输入集合和边标识,确定性地返回移除该边后的新集合(不可变集合语义)。
+    /// </summary>
+    /// <param name="edges">边表(按边标识索引),若边存在则移除。</param>
+    /// <param name="edgeIndex">端点到边标识的索引,若边存在则移除对应端点对。</param>
+    /// <param name="nodes">节点表,更新源节点的出边集合和目标节点的入边集合。</param>
+    /// <param name="adj">正向邻接表,从源节点的邻居集合中移除目标节点。</param>
+    /// <param name="revAdj">逆向邻接表,从目标节点的邻居集合中移除源节点。</param>
+    /// <param name="edgeId">待移除的边标识。</param>
+    internal static void RemoveOneIncidentEdge(
+        ref ImmutableHamT<string, DagEdge> edges,
+        ref ImmutableHamT<(string From, string To), string> edgeIndex,
+        ref ImmutableHamT<string, ImmutableDagNode<T>> nodes,
+        ref ImmutableHamT<string, ImmutableHamTSet<string>> adj,
+        ref ImmutableHamT<string, ImmutableHamTSet<string>> revAdj,
+        string edgeId) {
+        if (!edges.TryGetValue(edgeId, out var edge)) return;
+        edges = edges.Remove(edgeId);
+        edgeIndex = edgeIndex.Remove((edge.FromId, edge.ToId));
+        if (nodes.TryGetValue(edge.FromId, out var fromNode))
+            nodes = nodes.SetItem(edge.FromId, fromNode with { OutEdgeIds = fromNode.OutEdgeIds.Remove(edgeId) });
+        if (nodes.TryGetValue(edge.ToId, out var toNode))
+            nodes = nodes.SetItem(edge.ToId, toNode with { InEdgeIds = toNode.InEdgeIds.Remove(edgeId) });
+        if (adj.TryGetValue(edge.FromId, out var adjSet))
+            adj = adj.SetItem(edge.FromId, adjSet.Remove(edge.ToId));
+        if (revAdj.TryGetValue(edge.ToId, out var revAdjSet))
+            revAdj = revAdj.SetItem(edge.ToId, revAdjSet.Remove(edge.FromId));
     }
 
     private static DagState RemoveEdgeFromState(DagState state, string edgeId, DagEdge edge) {

@@ -41,10 +41,11 @@ public sealed partial class MainViewModel {
             Role = MessageRole.User,
             Content = result.Output,
             Timestamp = DateTime.Now,
+            TurnIndex = _turnCounter,
         });
 
         _turnProcessor = new ChatTurnProcessor(Messages);
-        _turnProcessor.BeginTurn();
+        _turnProcessor.BeginTurn(_turnCounter);
         var processor = _turnProcessor;
 
         await foreach (var evt in _session.StreamAsync(result.Output, ct)) {
@@ -57,6 +58,7 @@ public sealed partial class MainViewModel {
         }
 
         processor.CompleteTurn(StreamingEnabled);
+        _turnCounter++;
         TokenUsageText = processor.TotalTokens > 0 ? $"Token:{processor.TotalTokens:N0}" : string.Empty;
     }
 }

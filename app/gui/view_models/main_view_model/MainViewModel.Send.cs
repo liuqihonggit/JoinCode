@@ -8,6 +8,9 @@ public sealed partial class MainViewModel {
     /// <summary>当前生成任务的取消源（停止生成用）</summary>
     private System.Threading.CancellationTokenSource? _sendCts;
 
+    /// <summary>轮次计数器（从0开始递增，驱动轮次互补色）</summary>
+    private int _turnCounter;
+
     // === 多 subAgent 运行期显示（T4）— 组装逻辑已抽取到 ChatTurnProcessor ===
 
     /// <summary>本回合组装器（发送时创建；测试辅助路径懒创建）</summary>
@@ -21,11 +24,14 @@ public sealed partial class MainViewModel {
     internal void HandleSubAgentActivityForTest(ChatStreamEvent evt)
         => GetOrCreateProcessor().Process(evt, streamingEnabled: false);
 
+    /// <summary>测试入口：重置轮次计数器</summary>
+    internal void ResetTurnCounterForTest() => _turnCounter = 0;
+
     private ChatTurnProcessor GetOrCreateProcessor() {
         if (_turnProcessor is not null)
             return _turnProcessor;
         _turnProcessor = new ChatTurnProcessor(Messages);
-        _turnProcessor.BeginTurn();
+        _turnProcessor.BeginTurn(_turnCounter);
         return _turnProcessor;
     }
 
@@ -41,7 +47,7 @@ public sealed partial class MainViewModel {
         }
 
         var (agentName, text) = parsed.Value;
-        Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = rawInput, Timestamp = DateTime.Now });
+        Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = rawInput, Timestamp = DateTime.Now, TurnIndex = _turnCounter });
 
         var agentId = await _session.FindSubAgentIdByNameAsync(agentName);
         if (agentId is null) {
@@ -66,7 +72,7 @@ public sealed partial class MainViewModel {
                 return;
 
             await _session.ForwardInputToSubAgentAsync(agents[0].AgentId, message);
-            Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = message, Timestamp = DateTime.Now });
+            Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = message, Timestamp = DateTime.Now, TurnIndex = _turnCounter });
             AddSystemMessage($"📤 已转发给 @{agents[0].Name}");
         } catch (Exception ex) {
             ViewModelDiagnosticsLogger.WriteError(ex);
@@ -186,13 +192,14 @@ public sealed partial class MainViewModel {
             Messages.Add(new ChatUiMessage {
                 Role = MessageRole.User,
                 Content = message,
-                Timestamp = DateTime.Now
+                Timestamp = DateTime.Now,
+                TurnIndex = _turnCounter
             });
             RenameActiveSessionTo(message);
 
             // 事件→消息组装委托给 ChatTurnProcessor（T7 抽取，可单测）
             _turnProcessor = new ChatTurnProcessor(Messages);
-            _turnProcessor.BeginTurn();
+            _turnProcessor.BeginTurn(_turnCounter);
             var processor = _turnProcessor;
 
             await foreach (var evt in _session.StreamAsync(message, _sendCts.Token)) {
@@ -221,6 +228,7 @@ public sealed partial class MainViewModel {
         } finally {
             _sendCts.Dispose();
             _sendCts = null;
+            _turnCounter++;
             RunStatus.EndTurn(stopReason);
             OnPropertyChanged(nameof(CanStop));
             _ = SaveActiveSessionAsync();

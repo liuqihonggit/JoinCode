@@ -140,9 +140,13 @@
                                     IsEnabled="{Binding DataContext.CanRegenerate, ElementName=Root}" />
                         </ContextMenu>
                       </Border.ContextMenu>
-                      <Grid ColumnDefinitions="Auto,*">
+                      <Grid ColumnDefinitions="Auto,Auto,*">
+                        <!-- 轮次互补色条（2px，任务4）：偶数轮 TurnColorA / 奇数轮 TurnColorB -->
+                        <Rectangle Grid.Column="0" Width="2" RadiusX="1" RadiusY="1"
+                                   VerticalAlignment="Stretch" Margin="0,2,3,2"
+                                   Fill="{Binding TurnIndex, Converter={x:Static cnv:TurnIndexToBrushConverter.Instance}}" />
                         <!-- 角色色条：工具=工具色/思考=紫/用户=蓝/AI=淡青 -->
-                        <Rectangle Grid.Column="0" Width="3" RadiusX="1.5" RadiusY="1.5"
+                        <Rectangle Grid.Column="1" Width="3" RadiusX="1.5" RadiusY="1.5"
                                    VerticalAlignment="Stretch" Margin="0,2,11,2">
                           <Rectangle.Fill>
                             <MultiBinding Converter="{StaticResource MsgBarBrush}">
@@ -151,9 +155,9 @@
                             </MultiBinding>
                           </Rectangle.Fill>
                         </Rectangle>
-                        <StackPanel Grid.Column="1" Spacing="4">
-                          <!-- 头行：角色+时间 / 类型标签 / 悬停操作按钮 -->
-                          <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                        <StackPanel Grid.Column="2" Spacing="4">
+                          <!-- 头行：角色+轮次+时间 / 类型标签 / 悬停操作按钮 -->
+                          <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
                             <TextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold" FontSize="12">
                               <TextBlock.Foreground>
                                 <MultiBinding Converter="{StaticResource MsgBarBrush}">
@@ -162,12 +166,15 @@
                                 </MultiBinding>
                               </TextBlock.Foreground>
                             </TextBlock>
-                            <TextBlock Grid.Column="1" Text="{Binding Timestamp, StringFormat=' {} · HH:mm:ss'}"
+                            <TextBlock Grid.Column="1" Text="{Binding TurnIndex, StringFormat=' T{0}'}"
+                                       FontSize="10" Foreground="{DynamicResource GuiMutedText}"
+                                       VerticalAlignment="Center" Margin="4,0,0,0" />
+                            <TextBlock Grid.Column="2" Text="{Binding Timestamp, StringFormat=' {} · HH:mm:ss'}"
                                        FontSize="10.5" Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="2" Text="{Binding KindLabel}" FontSize="11"
+                            <TextBlock Grid.Column="3" Text="{Binding KindLabel}" FontSize="11"
                                        Foreground="{DynamicResource GuiMutedText}" Margin="8,0,0,0"
                                        VerticalAlignment="Center" />
-                            <StackPanel Grid.Column="3" Classes="actions" Orientation="Horizontal" Spacing="2">
+                            <StackPanel Grid.Column="4" Classes="actions" Orientation="Horizontal" Spacing="2">
                               <Button Classes="ghost" Content="📋" FontSize="10" Padding="5,2" MinHeight="0"
                                       ToolTip.Tip="复制本条"
                                       Command="{Binding DataContext.CopyMessageCommand, ElementName=Root}"

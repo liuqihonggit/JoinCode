@@ -142,6 +142,12 @@ public static class GuiPalette {
         /// <summary>危险等级黑灯色（Dangerous — 危险操作深红）</summary>
         public string DangerLevelBlack { get; init; } = "#8b0000";
 
+        /// <summary>轮次互补色 A（偶数轮 — 深蓝调）— 驱动轮次色条，区分对话轮次（任务4）</summary>
+        public string TurnColorA { get; init; } = "#2b3a52";
+
+        /// <summary>轮次互补色 B（奇数轮 — 深琥珀调，A 的色轮互补）— 驱动轮次色条（任务4）</summary>
+        public string TurnColorB { get; init; } = "#52402b";
+
         /// <summary>遍历全部 token 值，供对比度校验与资源注入使用。</summary>
         public IEnumerable<string> AllTokens() {
             yield return WindowBackground;
@@ -198,6 +204,8 @@ public static class GuiPalette {
             yield return DangerLevelGreen;
             yield return DangerLevelRed;
             yield return DangerLevelBlack;
+            yield return TurnColorA;
+            yield return TurnColorB;
         }
     }
 
@@ -256,7 +264,9 @@ public static class GuiPalette {
         DangerLevelYellow = "#b35c00",
         DangerLevelGreen = "#1a7f37",
         DangerLevelRed = "#c62828",
-        DangerLevelBlack = "#5d0000"
+        DangerLevelBlack = "#5d0000",
+        TurnColorA = "#d5e6ff",
+        TurnColorB = "#fff0d5"
     };
 
     /// <summary>获取指定主题的配色方案。</summary>
@@ -345,6 +355,8 @@ public static class GuiPalette {
         yield return ("GuiDangerLevelGreen", s.DangerLevelGreen);
         yield return ("GuiDangerLevelRed", s.DangerLevelRed);
         yield return ("GuiDangerLevelBlack", s.DangerLevelBlack);
+        yield return ("GuiTurnColorA", s.TurnColorA);
+        yield return ("GuiTurnColorB", s.TurnColorB);
     }
 
     /// <summary>解析十六进制色为不可变画刷（供资源和转换器共用）。</summary>

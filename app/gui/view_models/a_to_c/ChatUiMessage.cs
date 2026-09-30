@@ -44,6 +44,9 @@ public sealed class ChatUiMessage : INotifyPropertyChanged {
     /// <summary>消息展示类型（正文/思考/工具调用/工具结果）</summary>
     public ChatUiMessageKind Kind { get; set; } = ChatUiMessageKind.Text;
 
+    /// <summary>轮次编号（从0开始，同一轮的 User+Assistant+工具消息共享相同值）— 驱动轮次互补色（任务4）</summary>
+    public int TurnIndex { get; set; }
+
     /// <summary>工具名（Kind=ToolCall/ToolResult 时携带）</summary>
     public string? ToolName { get; set; }
 

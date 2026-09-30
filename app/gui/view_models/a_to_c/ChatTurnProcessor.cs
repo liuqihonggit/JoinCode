@@ -22,6 +22,9 @@ internal sealed class ChatTurnProcessor {
     /// <summary>本轮真实 token 用量合计（Complete 事件累加；引擎未上报为 0）</summary>
     public long TotalTokens { get; private set; }
 
+    /// <summary>本轮轮次编号（BeginTurn 传入；驱动轮次互补色）</summary>
+    public int TurnIndex { get; private set; }
+
     /// <summary>助手占位消息（BeginTurn 创建；流式期间实时刷新 Content）</summary>
     public ChatUiMessage AssistantPlaceholder { get; private set; } = null!;
 
@@ -34,14 +37,17 @@ internal sealed class ChatTurnProcessor {
 
     /// <summary>
     /// 回合开始 — 追加流式中的助手占位；此后过程卡片经"插到占位之前"保持
-    /// "过程在前、回复在后"的视觉顺序
+    /// "过程在前、回复在后"的视觉顺序。
+    /// turnIndex 驱动轮次互补色（任务4），同一轮全部消息共享相同 TurnIndex。
     /// </summary>
-    public void BeginTurn() {
+    public void BeginTurn(int turnIndex = 0) {
+        TurnIndex = turnIndex;
         AssistantPlaceholder = new ChatUiMessage {
             Role = MessageRole.Assistant,
             Content = string.Empty,
             Timestamp = DateTime.Now,
-            IsStreaming = true
+            IsStreaming = true,
+            TurnIndex = turnIndex
         };
         _messages.Add(AssistantPlaceholder);
         _assistantIndex = _messages.Count - 1;
@@ -81,7 +87,8 @@ internal sealed class ChatTurnProcessor {
                     Role = MessageRole.Assistant,
                     Content = string.Empty,
                     Timestamp = DateTime.Now,
-                    Kind = ChatUiMessageKind.Thinking
+                    Kind = ChatUiMessageKind.Thinking,
+                    TurnIndex = TurnIndex
                 };
                 InsertBeforeAssistant(_currentThinking);
             }
@@ -98,7 +105,8 @@ internal sealed class ChatTurnProcessor {
                 ToolName = evt.ToolName,
                 ToolArguments = evt.ToolArguments,
                 ToolStartTime = DateTime.Now,
-                IsToolRunning = true
+                IsToolRunning = true,
+                TurnIndex = TurnIndex
             };
             _currentToolCall.RefreshElapsed();
             InsertBeforeAssistant(_currentToolCall);
@@ -122,7 +130,8 @@ internal sealed class ChatTurnProcessor {
                 ToolName = evt.ToolName,
                 ToolResultText = evt.ToolResultText,
                 IsToolError = evt.IsToolError,
-                StructuredPatch = evt.StructuredPatch
+                StructuredPatch = evt.StructuredPatch,
+                TurnIndex = TurnIndex
             });
             _currentToolCall = null;
             break;
@@ -176,7 +185,8 @@ internal sealed class ChatTurnProcessor {
                 Content = string.Empty,
                 Timestamp = DateTime.Now,
                 Kind = ChatUiMessageKind.AgentRunGroup,
-                AgentRuns = []
+                AgentRuns = [],
+                TurnIndex = TurnIndex
             };
             InsertBeforeAssistant(_agentGroupCard);
         }

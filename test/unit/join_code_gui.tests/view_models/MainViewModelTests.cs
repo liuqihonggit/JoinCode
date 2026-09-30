@@ -1700,6 +1700,34 @@ public class MainViewModelTests {
         vm.SelectedModelOption = new ModelOptionItem("small-model", "Test:Small", "", 8192);
         vm.MaxTokens.Should().Be(2048, "8K 上下文应联动 MaxTokens=2048");
     }
+
+    /// <summary>首次发送 — User 和 Assistant 消息共享 TurnIndex=0</summary>
+    [Fact]
+    public async Task Send_FirstTurn_StampTurnIndex0_OnAllMessages() {
+        var vm = CreateVm();
+        vm.InputText = "first";
+        await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+
+        vm.Messages.Should().NotBeEmpty();
+        vm.Messages.Should().AllSatisfy(m => m.TurnIndex.Should().Be(0, "首轮全部消息 TurnIndex=0"));
+    }
+
+    /// <summary>两次发送 — 第二轮消息 TurnIndex=1，与首轮区分</summary>
+    [Fact]
+    public async Task Send_SecondTurn_StampTurnIndex1_OnNewMessages() {
+        var vm = CreateVm();
+        vm.InputText = "first";
+        await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+        var firstTurnCount = vm.Messages.Count;
+
+        vm.InputText = "second";
+        await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+
+        // 第一轮消息保持 TurnIndex=0
+        vm.Messages.Take(firstTurnCount).Should().AllSatisfy(m => m.TurnIndex.Should().Be(0));
+        // 第二轮消息 TurnIndex=1
+        vm.Messages.Skip(firstTurnCount).Should().AllSatisfy(m => m.TurnIndex.Should().Be(1));
+    }
 }
 
 /// <summary>

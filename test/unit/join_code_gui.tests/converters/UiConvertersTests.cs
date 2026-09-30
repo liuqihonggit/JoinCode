@@ -194,4 +194,55 @@ public sealed class UiConvertersTests {
 
         act.Should().Throw<NotSupportedException>();
     }
+
+    // ── TurnIndexToBrushConverter ──
+
+    [AvaloniaFact]
+    public void TurnIndexToBrush_EvenTurn_ReturnsTurnColorA() {
+        var conv = new TurnIndexToBrushConverter();
+        var scheme = GuiPalette.Current;
+
+        var brush = AsBrush(conv.Convert(0, typeof(IBrush), null, C));
+
+        brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.TurnColorA).Color.ToString());
+    }
+
+    [AvaloniaFact]
+    public void TurnIndexToBrush_OddTurn_ReturnsTurnColorB() {
+        var conv = new TurnIndexToBrushConverter();
+        var scheme = GuiPalette.Current;
+
+        var brush = AsBrush(conv.Convert(1, typeof(IBrush), null, C));
+
+        brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.TurnColorB).Color.ToString());
+    }
+
+    [AvaloniaFact]
+    public void TurnIndexToBrush_LargeEvenTurn_ReturnsTurnColorA() {
+        var conv = new TurnIndexToBrushConverter();
+        var scheme = GuiPalette.Current;
+
+        var brush = AsBrush(conv.Convert(10, typeof(IBrush), null, C));
+
+        brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.TurnColorA).Color.ToString());
+    }
+
+    [AvaloniaFact]
+    public void TurnIndexToBrush_NonInt_ReturnsTurnColorA() {
+        var conv = new TurnIndexToBrushConverter();
+        var scheme = GuiPalette.Current;
+
+        var brush = AsBrush(conv.Convert("not-int", typeof(IBrush), null, C));
+
+        brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.TurnColorA).Color.ToString());
+    }
+
+    [AvaloniaFact]
+    public void TurnIndexToBrush_ConvertBack_Throws() {
+        var conv = new TurnIndexToBrushConverter();
+
+        var act = () => conv.ConvertBack(null, typeof(int), null, C);
+
+        act.Should().Throw<NotSupportedException>();
+    }
 }

@@ -50,7 +50,7 @@ public sealed class NotebookCellDiagnosticTests {
             }
         };
 
-        var msg = NotebookToolHandlers.BuildCellNotFoundMessage(notebook, "nonexistent-id");
+        var msg = NotebookDiagnostics.BuildCellNotFoundMessage(notebook, "nonexistent-id");
 
         msg.Should().Contain("not found");
         msg.Should().Contain("[诊断]");
@@ -68,7 +68,7 @@ public sealed class NotebookCellDiagnosticTests {
         }
 
         var notebook = new NotebookDocument { Cells = cells };
-        var msg = NotebookToolHandlers.BuildCellNotFoundMessage(notebook, "nonexistent");
+        var msg = NotebookDiagnostics.BuildCellNotFoundMessage(notebook, "nonexistent");
 
         msg.Should().Contain("25 个 cell");
         msg.Should().Contain("还有 5 个 cell");

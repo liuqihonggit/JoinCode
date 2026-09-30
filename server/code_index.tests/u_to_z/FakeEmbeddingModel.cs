@@ -26,8 +26,9 @@ internal sealed class FakeEmbeddingModel : IEmbeddingModel {
     private float[] Embed(string text) {
         var vector = new float[Dimensions];
         if (string.IsNullOrEmpty(text)) return vector;
-        for (var i = 0; i < Dimensions; i++) {
-            vector[i] = (float)Math.Sin(text.GetHashCode() * (i + 1) * 0.1);
+        foreach (var c in text) {
+            var idx = ((c % Dimensions) + Dimensions) % Dimensions;
+            vector[idx] += 1f;
         }
         return vector;
     }

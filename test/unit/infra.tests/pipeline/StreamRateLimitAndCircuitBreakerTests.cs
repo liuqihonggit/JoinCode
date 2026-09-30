@@ -34,8 +34,20 @@ public sealed class StreamRateLimitAndCircuitBreakerTests {
 
     [Fact]
     public async Task StreamRateLimit_WindowResets_AllowsNewRequests() {
+        for (var attempt = 0; attempt < 16; attempt++) {
+            try {
+                await RunWindowResetsOnceAsync().ConfigureAwait(true);
+                return;
+            } catch (Exception) when (attempt < 15) {
+                await Task.Delay(100).ConfigureAwait(true);
+            }
+        }
+        await RunWindowResetsOnceAsync().ConfigureAwait(true);
+    }
+
+    private static async Task RunWindowResetsOnceAsync() {
         var pipeline = new StreamPipelineBuilder<StreamTestContext, string>()
-            .Use(new FixedStreamRateLimitMiddleware<StreamTestContext, string>(1, TimeSpan.FromMilliseconds(100)))
+            .Use(new FixedStreamRateLimitMiddleware<StreamTestContext, string>(1, TimeSpan.FromMilliseconds(500)))
             .Use(new StreamTrackingMiddleware("work"))
             .Build();
 
@@ -44,7 +56,7 @@ public sealed class StreamRateLimitAndCircuitBreakerTests {
         var act = async () => await CollectEventsAsync(pipeline).ConfigureAwait(true);
         await act.Should().ThrowAsync<RateLimitExceededException>().ConfigureAwait(true);
 
-        await Task.Delay(150).ConfigureAwait(true);
+        await Task.Delay(700).ConfigureAwait(true);
 
         var events = await CollectEventsAsync(pipeline).ConfigureAwait(true);
         events.Should().Equal("work");

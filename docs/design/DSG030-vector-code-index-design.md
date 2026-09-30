@@ -363,6 +363,53 @@ ILanguagePlugin (已有接口)
 - `VectorStore` 不关心语言，只存 `vector + metadata`
 - `ANN` 搜索纯数学运算，语言无关
 
+### 6.5 父文档检索（Parent Document Retriever）
+
+**决策**：采用父文档检索而非重叠块+合并去重。理由：代码符号天然有父子层级（method⊂class⊂file），父文档检索天然契合，无需复杂的重叠区域识别和文本拼接去重。
+
+**机制**：
+
+```
+向量库存小块（方法/属性）          父文档存储存大块（类/文件原文）
+┌────────────────────┐           ┌──────────────────────────┐
+│ chunkId: m1         │           │ chunkId: class-001        │
+│ fqn: N.Foo.Bar      │──Parent──▶│ fqn: N.Foo                │
+│ ParentChunkId: ─────│──Id──────▶│ SourceText: class Foo {  │
+│ SourceText: void..  │           │   void Bar() { }          │
+└────────────────────┘           │   void Baz() { } }        │
+                                  └──────────────────────────┘
+召回 m1 → 查 ParentChunkId → 取 class-001 原文 → 喂 LLM
+```
+
+**数据结构**：
+
+| 类型 | 字段 | 说明 |
+|------|------|------|
+| `ChunkInfo` | `ParentChunkId` (string?) | 指向父文档 ChunkId，null=自身是父文档或未启用 |
+| `ChunkSearchResult` | `ParentDocumentText` (string?) | 召回时填充的父文档原文 |
+| `ChunkSearchResult` | `ParentStartLine/ParentEndLine` (int?) | 父文档行范围 |
+| `ChunkSearchResult` | `ParentSymbolFqn` (string?) | 父文档符号 FQN |
+| `ParentDocument` | `ChunkId/FilePath/SymbolFqn/StartLine/EndLine/SourceText` | 父文档原文存储单元 |
+| `ExtractionResult` | `ParentDocuments` (IReadOnlyList\<ParentDocument\>) | 提取时生成的父文档列表 |
+
+**父子层级建立规则**（`CollectChunksWithParents`）：
+
+1. 类级别符号（Class/Struct/Interface/Record/RecordStruct/Enum/Delegate）→ 既是 ChunkInfo（被嵌入）也是 ParentDocument（存原文）
+2. 子符号（Method/Property/Field/Event/Constructor/Operator/Indexer）→ `ParentChunkId` 指向所属类（通过 FQN 层级推断：`N.C.M` 的父是 `N.C`）
+3. 顶级子符号（无父类，如顶级方法）→ `ParentChunkId` 指向文件级父文档（整个文件原文，不嵌入）
+
+**存储**：`InMemoryParentDocumentStore`（纯内存，`ReaderWriterLockSlim` 线程安全，进程退出释放）
+
+**集成**：
+- `EmbeddingIndex` 构造时可选注入 `IParentDocumentStore`，`SearchAsync` 召回后自动填充父文档原文
+- `CodeIndexer.SetParentDocumentStore` 注入，`BuildIndexAsync` Phase E3 批量填充，Phase F 同步删除
+
+**为什么不选重叠块+合并去重**：
+- 当前按符号切，语义完整，不切断语义（重叠块解决的核心问题不存在）
+- 符号边界清晰，重叠价值有限
+- 合并去重逻辑复杂（识别重叠区+边界对齐+文本拼接）
+- 父文档检索天然利用符号父子层级，零额外推断成本
+
 ## 7. 向量搜索层选型
 
 ### 7.1 起步方案：暴力搜索 + SIMD

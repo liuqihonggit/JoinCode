@@ -24,4 +24,9 @@ public sealed record ChunkInfo {
     public required string ContentHash { get; init; }
     /// <summary>块源码文本 — 嵌入输入，嵌入完成后可置 null 释放内存。</summary>
     public string? SourceText { get; init; }
+    /// <summary>
+    /// 父文档块 ID — 父文档检索用，指向所属类/文件的 ChunkId。
+    /// <para>null 表示该块本身是父文档（类/文件级）或未启用父文档检索。</para>
+    /// </summary>
+    public string? ParentChunkId { get; init; }
 }

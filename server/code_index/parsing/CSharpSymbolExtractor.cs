@@ -120,13 +120,14 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
             var calls = _callExtractor.ExtractCallsFromTree(tree.RootNode, filePath, symbols);
             var deps = _dependencyExtractor.ExtractDependenciesFromTree(tree.RootNode, filePath, symbols);
-            var chunks = CollectChunks(sourceCode, filePath, symbols);
+            var (chunks, parentDocs) = CollectChunksWithParents(sourceCode, filePath, symbols);
 
             return new ExtractionResult {
                 Symbols = symbols,
                 Calls = calls,
                 Dependencies = deps,
-                Chunks = chunks
+                Chunks = chunks,
+                ParentDocuments = parentDocs
             };
         } finally {
             _treeCache.Add(filePath, tree, sourceCode);
@@ -134,14 +135,51 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
     }
 
     /// <summary>
-    /// 从符号列表生成代码块 — 每个符号对应一个块，包含源码片段用于向量嵌入。
+    /// 从符号列表生成代码块 + 父文档 — 建立父子层级关系。
+    /// <para>类级别符号（Class/Struct/Interface/Record/Enum/Delegate）既是 ChunkInfo（被嵌入）也是 ParentDocument（存原文）。</para>
+    /// <para>子符号（Method/Property/Field）的 ParentChunkId 指向所属类；顶级子符号指向文件级父文档。</para>
     /// </summary>
-    private static IReadOnlyList<ChunkInfo> CollectChunks(
-        string sourceCode, string filePath, IReadOnlyList<SymbolInfo> symbols) {
-        if (symbols.Count == 0) return [];
+    private static (IReadOnlyList<ChunkInfo> Chunks, IReadOnlyList<ParentDocument> ParentDocs)
+        CollectChunksWithParents(string sourceCode, string filePath, IReadOnlyList<SymbolInfo> symbols) {
+        if (symbols.Count == 0) return ([], []);
 
         var lines = sourceCode.Split('\n');
         var chunks = new List<ChunkInfo>(symbols.Count);
+        var parentDocs = new List<ParentDocument>();
+
+        var classFqnToChunkId = new Dictionary<string, string>();
+        foreach (var symbol in symbols) {
+            if (!IsParentDocumentKind(symbol.Kind)) continue;
+            var sourceText = ExtractLineRange(lines, symbol.StartLine, symbol.EndLine);
+            if (string.IsNullOrWhiteSpace(sourceText)) continue;
+            var contentHash = HashUtility.ComputeContentHash(sourceText);
+            var chunkId = HashUtility.ComputeContentHash($"{filePath}|{symbol.FullyQualifiedName}|{contentHash}");
+            classFqnToChunkId[symbol.FullyQualifiedName] = chunkId;
+        }
+
+        var hasTopLevelChildren = false;
+        foreach (var symbol in symbols) {
+            if (IsParentDocumentKind(symbol.Kind)) continue;
+            var parentFqn = GetParentFqn(symbol.FullyQualifiedName);
+            if (parentFqn is null || !classFqnToChunkId.ContainsKey(parentFqn)) {
+                hasTopLevelChildren = true;
+                break;
+            }
+        }
+
+        string? fileParentChunkId = null;
+        if (hasTopLevelChildren) {
+            var fileContentHash = HashUtility.ComputeContentHash(sourceCode);
+            fileParentChunkId = HashUtility.ComputeContentHash($"{filePath}|file|{fileContentHash}");
+            parentDocs.Add(new ParentDocument {
+                ChunkId = fileParentChunkId,
+                FilePath = filePath,
+                SymbolFqn = filePath,
+                StartLine = 1,
+                EndLine = lines.Length,
+                SourceText = sourceCode
+            });
+        }
 
         foreach (var symbol in symbols) {
             var sourceText = ExtractLineRange(lines, symbol.StartLine, symbol.EndLine);
@@ -149,6 +187,25 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
             var contentHash = HashUtility.ComputeContentHash(sourceText);
             var chunkId = HashUtility.ComputeContentHash($"{filePath}|{symbol.FullyQualifiedName}|{contentHash}");
+
+            string? parentChunkId = null;
+            if (IsParentDocumentKind(symbol.Kind)) {
+                parentDocs.Add(new ParentDocument {
+                    ChunkId = chunkId,
+                    FilePath = filePath,
+                    SymbolFqn = symbol.FullyQualifiedName,
+                    StartLine = symbol.StartLine,
+                    EndLine = symbol.EndLine,
+                    SourceText = sourceText
+                });
+            } else {
+                var parentFqn = GetParentFqn(symbol.FullyQualifiedName);
+                if (parentFqn is not null && classFqnToChunkId.TryGetValue(parentFqn, out var classParentId)) {
+                    parentChunkId = classParentId;
+                } else {
+                    parentChunkId = fileParentChunkId;
+                }
+            }
 
             chunks.Add(new ChunkInfo {
                 ChunkId = chunkId,
@@ -159,10 +216,28 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
                 EndLine = symbol.EndLine,
                 LanguageId = "c-sharp",
                 ContentHash = contentHash,
-                SourceText = sourceText
+                SourceText = sourceText,
+                ParentChunkId = parentChunkId
             });
         }
-        return chunks;
+
+        return (chunks, parentDocs);
+    }
+
+    /// <summary>
+    /// 判断符号类型是否可作为父文档（类级别容器类型）。
+    /// </summary>
+    private static bool IsParentDocumentKind(SymbolKind kind) =>
+        kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+            or SymbolKind.Record or SymbolKind.RecordStruct
+            or SymbolKind.Enum or SymbolKind.Delegate;
+
+    /// <summary>
+    /// 从完全限定名中提取父级 FQN — 去掉最后一段（如 N.C.M → N.C）。
+    /// </summary>
+    private static string? GetParentFqn(string fqn) {
+        var lastDot = fqn.LastIndexOf('.');
+        return lastDot <= 0 ? null : fqn[..lastDot];
     }
 
     /// <summary>

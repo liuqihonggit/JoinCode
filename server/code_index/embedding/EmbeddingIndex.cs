@@ -9,6 +9,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
 
     private readonly IEmbeddingModel _embedModel;
     private readonly IAnnSearch _ann;
+    private readonly IParentDocumentStore? _parentStore;
     private readonly Dictionary<string, ChunkMetadata> _metadata = new();
     private readonly Dictionary<string, string> _chunkHashes = new();
     private readonly Dictionary<string, HashSet<string>> _fileToChunks = new();
@@ -21,11 +22,13 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
     /// </summary>
     /// <param name="embedModel">嵌入模型（API/ONNX/simhash 均可）。</param>
     /// <param name="ann">ANN 搜索引擎（暴力/HNSW 均可）。</param>
-    public EmbeddingIndex(IEmbeddingModel embedModel, IAnnSearch ann) {
+    /// <param name="parentStore">父文档存储（可选）— 注入后 SearchAsync 返回结果携带父文档原文。</param>
+    public EmbeddingIndex(IEmbeddingModel embedModel, IAnnSearch ann, IParentDocumentStore? parentStore = null) {
         ArgumentNullException.ThrowIfNull(embedModel);
         ArgumentNullException.ThrowIfNull(ann);
         _embedModel = embedModel;
         _ann = ann;
+        _parentStore = parentStore;
         _status = (int)IndexStatus.NotReady;
     }
 
@@ -102,7 +105,8 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
                     FilePath = chunk.FilePath,
                     SymbolFqn = chunk.SymbolFqn,
                     StartLine = chunk.StartLine,
-                    EndLine = chunk.EndLine
+                    EndLine = chunk.EndLine,
+                    ParentChunkId = chunk.ParentChunkId
                 };
                 _chunkHashes[chunk.ChunkId] = chunk.ContentHash;
 
@@ -151,21 +155,36 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
         _lock.EnterReadLock();
         try {
             foreach (var (id, score) in annResults) {
-                if (_metadata.TryGetValue(id, out var meta)) {
-                    results.Add(new ChunkSearchResult {
-                        ChunkId = meta.ChunkId,
-                        FilePath = meta.FilePath,
-                        SymbolFqn = meta.SymbolFqn,
-                        StartLine = meta.StartLine,
-                        EndLine = meta.EndLine,
-                        Score = score
-                    });
-                }
+                if (!_metadata.TryGetValue(id, out var meta)) continue;
+                var result = new ChunkSearchResult {
+                    ChunkId = meta.ChunkId,
+                    FilePath = meta.FilePath,
+                    SymbolFqn = meta.SymbolFqn,
+                    StartLine = meta.StartLine,
+                    EndLine = meta.EndLine,
+                    Score = score
+                };
+                results.Add(TryAttachParentDocument(result, meta.ParentChunkId));
             }
         } finally {
             _lock.ExitReadLock();
         }
         return results;
+    }
+
+    /// <summary>
+    /// 尝试附加父文档原文到搜索结果 — 父文档检索召回时填充完整上下文。
+    /// </summary>
+    private ChunkSearchResult TryAttachParentDocument(ChunkSearchResult result, string? parentChunkId) {
+        if (_parentStore is null || parentChunkId is null) return result;
+        var parentDoc = _parentStore.Get(parentChunkId);
+        if (parentDoc is null) return result;
+        return result with {
+            ParentDocumentText = parentDoc.SourceText,
+            ParentStartLine = parentDoc.StartLine,
+            ParentEndLine = parentDoc.EndLine,
+            ParentSymbolFqn = parentDoc.SymbolFqn
+        };
     }
 
     /// <summary>

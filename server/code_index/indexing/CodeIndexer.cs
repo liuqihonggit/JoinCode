@@ -21,6 +21,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private readonly GraphVisualization _visualization;
     private readonly ILogger<CodeIndexer>? _logger;
     private EmbeddingIndex? _embeddingIndex;
+    private IParentDocumentStore? _parentDocStore;
     private int _disposed;
     private int _autoLoadState;
     private string? _autoDiscoveredWorkspaceRoot;
@@ -73,6 +74,17 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     public void SetEmbeddingIndex(EmbeddingIndex embeddingIndex) {
         ArgumentNullException.ThrowIfNull(embeddingIndex);
         _embeddingIndex = embeddingIndex;
+    }
+
+    /// <summary>
+    /// 设置父文档存储 — 启用父文档检索（召回小块后取完整类/文件上下文）。
+    /// <para>必须在 BuildIndexAsync 前调用，否则父文档不会填充。</para>
+    /// <para>EmbeddingIndex 构造时应注入相同的 ParentDocumentStore，SearchAsync 才能自动填充父文档原文。</para>
+    /// </summary>
+    /// <param name="parentDocStore">父文档存储实例。</param>
+    public void SetParentDocumentStore(IParentDocumentStore parentDocStore) {
+        ArgumentNullException.ThrowIfNull(parentDocStore);
+        _parentDocStore = parentDocStore;
     }
 
     /// <summary>
@@ -184,6 +196,16 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             }
         }
 
+        // Phase E3: 父文档填充（可选，设置了 ParentDocumentStore 才执行）
+        if (_parentDocStore is not null) {
+            var allParentDocs = batch
+                .SelectMany(b => b.Extraction.ParentDocuments)
+                .ToList();
+            if (allParentDocs.Count > 0) {
+                _parentDocStore.AddRange(allParentDocs);
+            }
+        }
+
         // Phase F: 删除已移除文件
         foreach (var trackedFile in trackedFiles) {
             if (!existingFiles.Contains(trackedFile)) {
@@ -191,6 +213,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 if (_embeddingIndex is not null) {
                     await _embeddingIndex.RemoveFileAsync(trackedFile, ct).ConfigureAwait(false);
                 }
+                _parentDocStore?.RemoveFile(trackedFile);
                 deletedCount++;
             }
         }

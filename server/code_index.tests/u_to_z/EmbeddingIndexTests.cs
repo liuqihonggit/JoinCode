@@ -220,4 +220,76 @@ public sealed class EmbeddingIndexTests {
         await index.DisposeAsync();
         await index.DisposeAsync();
     }
+
+    [Fact]
+    public async Task SearchAsync_WithParentStore_ReturnsParentDocumentText() {
+        using var parentStore = new InMemoryParentDocumentStore();
+        var embed = new FakeEmbeddingModel(8);
+        var ann = new BruteForceAnn();
+        await using var index = new EmbeddingIndex(embed, ann, parentStore);
+
+        var methodChunk = CreateChunk(id: "m1", text: "void Bar() { }") with {
+            ParentChunkId = "class-001"
+        };
+        parentStore.Add(new ParentDocument {
+            ChunkId = "class-001",
+            FilePath = "test.cs",
+            SymbolFqn = "Test.Foo",
+            StartLine = 1,
+            EndLine = 10,
+            SourceText = "class Foo { void Bar() { } }"
+        });
+
+        await index.IndexChunksAsync([methodChunk], CancellationToken.None);
+        var results = await index.SearchAsync("Bar", 1, CancellationToken.None);
+
+        var result = Assert.Single(results);
+        Assert.NotNull(result.ParentDocumentText);
+        Assert.Contains("class Foo", result.ParentDocumentText);
+        Assert.Equal("Test.Foo", result.ParentSymbolFqn);
+        Assert.Equal(1, result.ParentStartLine);
+        Assert.Equal(10, result.ParentEndLine);
+    }
+
+    [Fact]
+    public async Task SearchAsync_WithoutParentStore_ParentDocumentTextIsNull() {
+        await using var index = CreateIndex();
+        var chunk = CreateChunk() with { ParentChunkId = "parent-001" };
+
+        await index.IndexChunksAsync([chunk], CancellationToken.None);
+        var results = await index.SearchAsync("Foo", 1, CancellationToken.None);
+
+        var result = Assert.Single(results);
+        Assert.Null(result.ParentDocumentText);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ParentStoreMissingDoc_ParentDocumentTextIsNull() {
+        using var parentStore = new InMemoryParentDocumentStore();
+        var embed = new FakeEmbeddingModel(8);
+        var ann = new BruteForceAnn();
+        await using var index = new EmbeddingIndex(embed, ann, parentStore);
+
+        var chunk = CreateChunk() with { ParentChunkId = "missing-parent" };
+        await index.IndexChunksAsync([chunk], CancellationToken.None);
+
+        var results = await index.SearchAsync("Foo", 1, CancellationToken.None);
+        var result = Assert.Single(results);
+        Assert.Null(result.ParentDocumentText);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ChunkWithoutParent_ParentDocumentTextIsNull() {
+        using var parentStore = new InMemoryParentDocumentStore();
+        var embed = new FakeEmbeddingModel(8);
+        var ann = new BruteForceAnn();
+        await using var index = new EmbeddingIndex(embed, ann, parentStore);
+
+        var chunk = CreateChunk() with { ParentChunkId = null };
+        await index.IndexChunksAsync([chunk], CancellationToken.None);
+
+        var results = await index.SearchAsync("Foo", 1, CancellationToken.None);
+        var result = Assert.Single(results);
+        Assert.Null(result.ParentDocumentText);
+    }
 }

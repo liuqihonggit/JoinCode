@@ -44,4 +44,27 @@ public sealed class ChunkSearchResultTests {
         var r2 = CreateResult(score: 0.8f);
         r1.Should().NotBe(r2);
     }
+
+    [Fact]
+    public void ParentDocumentText_DefaultsToNull_WhenNotSet() {
+        var result = CreateResult();
+        result.ParentDocumentText.Should().BeNull();
+        result.ParentStartLine.Should().BeNull();
+        result.ParentEndLine.Should().BeNull();
+        result.ParentSymbolFqn.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParentDocumentText_CanBeSet_WithFullContext() {
+        var result = CreateResult() with {
+            ParentDocumentText = "class Foo { void Bar() { } void Baz() { } }",
+            ParentStartLine = 1,
+            ParentEndLine = 20,
+            ParentSymbolFqn = "Test.Foo"
+        };
+        result.ParentDocumentText.Should().Contain("class Foo");
+        result.ParentStartLine.Should().Be(1);
+        result.ParentEndLine.Should().Be(20);
+        result.ParentSymbolFqn.Should().Be("Test.Foo");
+    }
 }

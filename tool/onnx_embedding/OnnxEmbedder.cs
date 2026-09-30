@@ -122,32 +122,45 @@ public sealed class OnnxEmbedder : IDisposable {
         int batchIndex, int seqLenDim, int maxSeqLen, int dimensions,
         float[] vector) {
         var maskSum = 0;
-        var simdWidth = Vector<float>.Count;
         var batchBase = batchIndex * seqLenDim * dimensions;
+        var vecSpan = vector.AsSpan(0, dimensions);
         for (var j = 0; j < seqLenDim; j++) {
             if (attentionMask[batchIndex * maxSeqLen + j] == 0) continue;
             maskSum++;
             var rowOffset = batchBase + j * dimensions;
-            var d = 0;
-            for (; d <= dimensions - simdWidth; d += simdWidth) {
-                var v = new Vector<float>(vector.AsSpan(d, simdWidth));
-                var o = new Vector<float>(outputSpan.Slice(rowOffset + d, simdWidth));
-                (v + o).CopyTo(vector.AsSpan(d, simdWidth));
-            }
-            for (; d < dimensions; d++) {
-                vector[d] += outputSpan[rowOffset + d];
-            }
+            VectorAddInPlace(vecSpan, outputSpan.Slice(rowOffset, dimensions));
         }
         if (maskSum > 0) {
-            var inv = 1f / maskSum;
-            var invVec = new Vector<float>(inv);
-            var d = 0;
-            for (; d <= dimensions - simdWidth; d += simdWidth) {
-                (new Vector<float>(vector.AsSpan(d, simdWidth)) * invVec).CopyTo(vector.AsSpan(d, simdWidth));
-            }
-            for (; d < dimensions; d++) {
-                vector[d] *= inv;
-            }
+            VectorScaleInPlace(vecSpan, 1f / maskSum);
+        }
+    }
+
+    /// <summary>SIMD 批量累加 target[d] += source[d]，内联到 MeanPoolSimd。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void VectorAddInPlace(Span<float> target, ReadOnlySpan<float> source) {
+        var simdWidth = Vector<float>.Count;
+        var d = 0;
+        for (; d <= target.Length - simdWidth; d += simdWidth) {
+            var v = new Vector<float>(target.Slice(d, simdWidth));
+            var o = new Vector<float>(source.Slice(d, simdWidth));
+            (v + o).CopyTo(target.Slice(d, simdWidth));
+        }
+        for (; d < target.Length; d++) {
+            target[d] += source[d];
+        }
+    }
+
+    /// <summary>SIMD 批量缩放 target[d] *= scale，内联到 MeanPoolSimd。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void VectorScaleInPlace(Span<float> target, float scale) {
+        var simdWidth = Vector<float>.Count;
+        var scaleVec = new Vector<float>(scale);
+        var d = 0;
+        for (; d <= target.Length - simdWidth; d += simdWidth) {
+            (new Vector<float>(target.Slice(d, simdWidth)) * scaleVec).CopyTo(target.Slice(d, simdWidth));
+        }
+        for (; d < target.Length; d++) {
+            target[d] *= scale;
         }
     }
 

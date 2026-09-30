@@ -48,6 +48,7 @@ public sealed class ChunkSearchResultTests {
     [Fact]
     public void ParentDocumentText_DefaultsToNull_WhenNotSet() {
         var result = CreateResult();
+        result.SourceText.Should().BeNull();
         result.ParentDocumentText.Should().BeNull();
         result.ParentStartLine.Should().BeNull();
         result.ParentEndLine.Should().BeNull();

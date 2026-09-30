@@ -90,15 +90,17 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 语义搜索 — 通过向量嵌入查找相似代码块。
     /// <para>未设置 EmbeddingIndex 时返回空列表。</para>
+    /// <para>options.IncludeSourceText=true 时结果携带块原文；IncludeParentDocument=false 时不返回父文档。</para>
     /// </summary>
     /// <param name="query">查询文本。</param>
     /// <param name="topK">返回结果数上限。</param>
     /// <param name="ct">取消令牌。</param>
+    /// <param name="options">搜索选项 — AI 动态控制召回策略（null 用默认：无块原文+有父文档）。</param>
     /// <returns>匹配的代码块列表，按相似度降序排列。</returns>
     public async Task<IReadOnlyList<ChunkSearchResult>> SearchSemanticAsync(
-        string query, int topK, CancellationToken ct) {
+        string query, int topK, CancellationToken ct, SearchOptions? options = null) {
         if (_embeddingIndex is null) return [];
-        return await _embeddingIndex.SearchAsync(query, topK, ct).ConfigureAwait(false);
+        return await _embeddingIndex.SearchAsync(query, topK, ct, options).ConfigureAwait(false);
     }
 
     /// <summary>符号搜索器 — 支持模糊匹配和引用查找</summary>

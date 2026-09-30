@@ -106,7 +106,8 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
                     SymbolFqn = chunk.SymbolFqn,
                     StartLine = chunk.StartLine,
                     EndLine = chunk.EndLine,
-                    ParentChunkId = chunk.ParentChunkId
+                    ParentChunkId = chunk.ParentChunkId,
+                    SourceText = chunk.SourceText
                 };
                 _chunkHashes[chunk.ChunkId] = chunk.ContentHash;
 
@@ -132,9 +133,10 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
     /// <summary>
     /// 语义搜索 — 查询文本 → 嵌入 → ANN → 元数据。
     /// <para>索引未就绪时返回空列表（调用方可降级到符号搜索）。</para>
+    /// <para>options.IncludeSourceText=true 时结果携带块原文；IncludeParentDocument=false 时不返回父文档。</para>
     /// </summary>
     public async Task<IReadOnlyList<ChunkSearchResult>> SearchAsync(
-        string query, int topK, CancellationToken ct) {
+        string query, int topK, CancellationToken ct, SearchOptions? options = null) {
         ArgumentNullException.ThrowIfNull(query);
         if (topK <= 0) return [];
         if (Status == IndexStatus.NotReady || Status == IndexStatus.Error) return [];
@@ -152,6 +154,8 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
         if (annResults.Count == 0) return [];
 
         var results = new List<ChunkSearchResult>(annResults.Count);
+        var includeSource = options?.IncludeSourceText ?? false;
+        var includeParent = options?.IncludeParentDocument ?? true;
         _lock.EnterReadLock();
         try {
             foreach (var (id, score) in annResults) {
@@ -162,9 +166,12 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
                     SymbolFqn = meta.SymbolFqn,
                     StartLine = meta.StartLine,
                     EndLine = meta.EndLine,
-                    Score = score
+                    Score = score,
+                    SourceText = includeSource ? meta.SourceText : null
                 };
-                results.Add(TryAttachParentDocument(result, meta.ParentChunkId));
+                results.Add(includeParent
+                    ? TryAttachParentDocument(result, meta.ParentChunkId)
+                    : result);
             }
         } finally {
             _lock.ExitReadLock();

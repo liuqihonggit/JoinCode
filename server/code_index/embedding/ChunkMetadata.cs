@@ -16,4 +16,6 @@ internal sealed record ChunkMetadata {
     public required int EndLine { get; init; }
     /// <summary>父文档块 ID — null 表示无父文档（类级块或未启用父文档检索）。</summary>
     public string? ParentChunkId { get; init; }
+    /// <summary>块原文 — 嵌入后保留供 IncludeSourceText=true 时返回。</summary>
+    public string? SourceText { get; init; }
 }

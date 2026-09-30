@@ -16,6 +16,8 @@ public sealed record ChunkSearchResult {
     public required int EndLine { get; init; }
     /// <summary>余弦相似度分数（0~1，越大越相似）。</summary>
     public required float Score { get; init; }
+    /// <summary>块原文（函数源码）— IncludeSourceText=true 时填充，null 表示未请求或未保留。</summary>
+    public string? SourceText { get; init; }
     /// <summary>父文档原文 — 父文档检索召回时填充（所属类/文件完整源码），null 表示未启用或无父文档。</summary>
     public string? ParentDocumentText { get; init; }
     /// <summary>父文档起始行号 — null 表示无父文档。</summary>

@@ -58,7 +58,7 @@ public sealed class OnnxEmbedder : IDisposable {
         var tokenTypeIds = new long[batchSize * maxSeqLen];
 
         for (var i = 0; i < batchSize; i++) {
-            var tokens = _tokenizer.EncodeToIds(texts[i], addSpecialTokens: true, considerPreTokenization: false, considerNormalization: false);
+            var tokens = _tokenizer.EncodeToIds(texts[i], addSpecialTokens: true, considerPreTokenization: true, considerNormalization: false);
             var seqLen = Math.Min(tokens.Count, maxSeqLen);
             for (var j = 0; j < seqLen; j++) {
                 inputIds[i * maxSeqLen + j] = tokens[j];

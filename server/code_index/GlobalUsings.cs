@@ -17,6 +17,7 @@ global using JoinCode.CodeIndex.Analytics;
 global using JoinCode.CodeIndex.Ast;
 global using JoinCode.CodeIndex.Persistence;
 global using JoinCode.CodeIndex.Threading;
+global using JoinCode.CodeIndex.Vector;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
 global using Structura.Dag;

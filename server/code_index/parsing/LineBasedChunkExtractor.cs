@@ -13,11 +13,13 @@ public static class LineBasedChunkExtractor {
     /// <summary>
     /// 按固定行数切块，每块记录覆盖的 AST 符号 FQN。
     /// <para>Span 优化：遍历一次记录行起始偏移，按偏移 Slice 取块文本，0 中间 GC。</para>
+    /// <para>重叠切块：相邻块有 overlap 行重叠，避免函数被切断在块边界。步长=chunkSize-overlap。</para>
     /// </summary>
     /// <param name="filePath">文件路径。</param>
     /// <param name="sourceCode">源代码文本。</param>
     /// <param name="symbols">该文件的 AST 符号列表（用于预嵌入 FQN）。</param>
     /// <param name="chunkSize">每块行数（默认 500）。</param>
+    /// <param name="overlap">相邻块重叠行数（默认 25，即 5%），避免函数跨越块边界被切断。</param>
     /// <param name="languageId">语言标识。</param>
     /// <returns>代码块列表。</returns>
     public static IReadOnlyList<ChunkInfo> Extract(
@@ -25,6 +27,7 @@ public static class LineBasedChunkExtractor {
         string sourceCode,
         IReadOnlyList<SymbolInfo> symbols,
         int chunkSize = 500,
+        int overlap = 25,
         string languageId = "c-sharp") {
         if (string.IsNullOrEmpty(sourceCode)) return [];
 
@@ -37,9 +40,11 @@ public static class LineBasedChunkExtractor {
         var totalLines = lineStarts.Count;
         if (totalLines == 0) return [];
 
-        var chunks = new List<ChunkInfo>((totalLines + chunkSize - 1) / chunkSize);
+        var step = chunkSize - Math.Clamp(overlap, 0, chunkSize - 1);
+        var estimatedChunks = (totalLines + step - 1) / step;
+        var chunks = new List<ChunkInfo>(estimatedChunks);
 
-        for (var start = 0; start < totalLines; start += chunkSize) {
+        for (var start = 0; start < totalLines; start += step) {
             var end = Math.Min(start + chunkSize - 1, totalLines - 1);
             var startLine = start + 1;
             var endLine = end + 1;

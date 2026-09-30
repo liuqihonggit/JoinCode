@@ -87,7 +87,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
                 var batchEnd = Math.Min(batchStart + EmbedBatchSize, toEmbed.Count);
                 var batchTexts = new List<string>(batchEnd - batchStart);
                 for (var i = batchStart; i < batchEnd; i++) {
-                    batchTexts.Add(toEmbed[i].SourceText ?? string.Empty);
+                    batchTexts.Add(BuildEmbedText(toEmbed[i]));
                 }
                 var batchVectors = await _embedModel.EmbedBatchAsync(batchTexts, ct).ConfigureAwait(false);
                 for (var i = 0; i < batchVectors.Length; i++) {
@@ -142,6 +142,38 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
                 ? IndexStatus.Partial
                 : IndexStatus.Error;
         Interlocked.Exchange(ref _status, (int)newStatus);
+    }
+
+    /// <summary>
+    /// 构建嵌入文本 — 符号短名拆分小写前缀 + 块原文，确保核心语义在前 32 token 内。
+    /// <para>例: ContainedSymbolFqns=["A.B.C.CosineSimilarity"] → "cosine similarity\n" + SourceText。</para>
+    /// <para>PascalCase 拆分: BERT tokenizer 不拆 PascalCase,需手动拆为小写词。</para>
+    /// </summary>
+    private static string BuildEmbedText(ChunkInfo chunk) {
+        var prefix = SplitPascalCase(chunk.SymbolFqn);
+        if (chunk.ContainedSymbolFqns.Count > 0) {
+            var parts = new List<string>(chunk.ContainedSymbolFqns.Count);
+            foreach (var fqn in chunk.ContainedSymbolFqns) {
+                var lastDot = fqn.LastIndexOf('.');
+                var shortName = lastDot >= 0 && lastDot < fqn.Length - 1 ? fqn[(lastDot + 1)..] : fqn;
+                parts.Add(SplitPascalCase(shortName));
+            }
+            prefix = string.Join(' ', parts);
+        }
+        return prefix + "\n" + (chunk.SourceText ?? string.Empty);
+    }
+
+    /// <summary>PascalCase 拆分为小写词 — "CosineSimilarity" → "cosine similarity"。</summary>
+    private static string SplitPascalCase(string s) {
+        if (string.IsNullOrEmpty(s)) return s;
+        var sb = new StringBuilder(s.Length * 2);
+        for (var i = 0; i < s.Length; i++) {
+            if (i > 0 && char.IsUpper(s[i]) && !char.IsUpper(s[i - 1])) {
+                sb.Append(' ');
+            }
+            sb.Append(char.ToLowerInvariant(s[i]));
+        }
+        return sb.ToString();
     }
 
     private void CasBulkUpdateMetadata(List<(string ChunkId, ChunkMetadata Meta)> items) {

@@ -685,7 +685,10 @@ public sealed class CodeIndexToolHandlers {
                 IncludeParentDocument = include_parent_document,
                 FileType = file_type
             };
-            var results = await _indexer.SearchSemanticAsync(query, top_k, cancellationToken, options).ConfigureAwait(false);
+            var oversampleK = Math.Max(top_k * 3, top_k + 10);
+            var rawResults = await _indexer.SearchSemanticAsync(query, oversampleK, cancellationToken, options).ConfigureAwait(false);
+            var results = await SemanticSearchReranker.RerankAsync(
+                query, rawResults, top_k, _indexer.CallGraph, cancellationToken).ConfigureAwait(false);
 
             if (results.Count == 0) {
                 var stats = await _indexer.GetStatsAsync(cancellationToken).ConfigureAwait(false);

@@ -132,7 +132,33 @@ public sealed class OnnxEmbedder : IDisposable {
         }
         if (maskSum > 0) {
             VectorScaleInPlace(vecSpan, 1f / maskSum);
+            NormalizeInPlaceSimd(vecSpan);
         }
+    }
+
+    /// <summary>SIMD L2 归一化 — mean pooling 后归一化，all-MiniLM-L6-v2 训练时向量归一化。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void NormalizeInPlaceSimd(Span<float> v) {
+        var norm = MathF.Sqrt(DotSimd(v, v));
+        if (norm > 0f) {
+            VectorScaleInPlace(v, 1f / norm);
+        }
+    }
+
+    /// <summary>SIMD 点积 — 归一化用。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float DotSimd(ReadOnlySpan<float> a, ReadOnlySpan<float> b) {
+        var simdWidth = Vector<float>.Count;
+        var sum = Vector<float>.Zero;
+        var d = 0;
+        for (; d <= a.Length - simdWidth; d += simdWidth) {
+            sum += new Vector<float>(a.Slice(d, simdWidth)) * new Vector<float>(b.Slice(d, simdWidth));
+        }
+        var result = Vector.Dot(sum, Vector<float>.One);
+        for (; d < a.Length; d++) {
+            result += a[d] * b[d];
+        }
+        return result;
     }
 
     /// <summary>SIMD 批量累加 target[d] += source[d]，内联到 MeanPoolSimd。</summary>
@@ -191,6 +217,17 @@ public sealed class OnnxEmbedder : IDisposable {
             if (maskSum > 0) {
                 for (var d = 0; d < dimensions; d++) {
                     vector[d] /= maskSum;
+                }
+                var norm = 0f;
+                for (var d = 0; d < dimensions; d++) {
+                    norm += vector[d] * vector[d];
+                }
+                norm = MathF.Sqrt(norm);
+                if (norm > 0f) {
+                    var invNorm = 1f / norm;
+                    for (var d = 0; d < dimensions; d++) {
+                        vector[d] *= invNorm;
+                    }
                 }
             }
             vectors[i] = vector;

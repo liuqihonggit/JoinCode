@@ -14,7 +14,7 @@ public sealed partial class VoiceOptions : ServiceEntity {
     /// <summary>
     /// Whisper API 端点地址。
     /// </summary>
-    public string WhisperApiEndpoint { get; init; } = "https://api.openai.com/v1/audio/transcriptions";
+    public string WhisperApiEndpoint { get; init; } = JccEndpoints.OpenAiTranscriptionsEndpoint;
 
     /// <summary>
     /// Whisper API 密钥，为 null 表示未配置。

@@ -556,7 +556,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     /// <param name="ex">异常</param>
     /// <returns>是否可重试</returns>
     internal static bool IsRetryable(Exception ex) {
-        if (Environment.GetEnvironmentVariable("JCC_DISABLE_RETRY") is { } val &&
+        if (Environment.GetEnvironmentVariable(JccEnvVar.DisableRetry.ToValue()) is { } val &&
             (val.Equals("true", StringComparison.OrdinalIgnoreCase) || val == "1"))
             return false;
         return ex is HttpRequestException or TimeoutException or TaskCanceledException;

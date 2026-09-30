@@ -1,4 +1,5 @@
 global using FluentAssertions;
+global using McpProtocol.Contracts;
 global using System.Text;
 global using JoinCode.Abstractions.Brain.Context.Hierarchy;
 global using JoinCode.Abstractions.Brain.Context.Resolution;

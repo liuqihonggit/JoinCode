@@ -39,7 +39,7 @@ public sealed class AnthropicProviderDefinition : IProviderDefinition {
 
     /// <inheritdoc />
     public string GetBaseUrl(ProviderConfig config)
-        => !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : "https://api.anthropic.com/";
+        => !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : JccEndpoints.AnthropicApiBase;
 
     /// <inheritdoc />
     public string GetChatEndpoint(ProviderConfig config) => "v1/messages";

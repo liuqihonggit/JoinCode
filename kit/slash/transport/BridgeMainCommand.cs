@@ -249,8 +249,8 @@ public sealed class BridgeMainCommand {
     /// 获取 API 基础 URL
     /// </summary>
     private static string GetBaseUrl() {
-        return Environment.GetEnvironmentVariable("JCC_API_BASE_URL")
-            ?? "https://api.anthropic.com";
+        return Environment.GetEnvironmentVariable(JccEnvVar.ApiBaseUrl.ToValue())
+            ?? JccEndpoints.AnthropicApiBase.TrimEnd('/');
     }
 
     /// <summary>

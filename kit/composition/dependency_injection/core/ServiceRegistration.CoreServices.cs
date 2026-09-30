@@ -90,8 +90,8 @@ public static partial class ServiceRegistration {
 
             ServiceRegistrationConfigValidator.ApplyEnvOverrides(
                 config,
-                Environment.GetEnvironmentVariable("JCC_ABSOLUTE_TIMEOUT_SECONDS"),
-                Environment.GetEnvironmentVariable("JCC_RESUME_TIMEOUT_SECONDS"));
+                Environment.GetEnvironmentVariable(JccEnvVar.AbsoluteTimeoutSeconds.ToValue()),
+                Environment.GetEnvironmentVariable(JccEnvVar.ResumeTimeoutSeconds.ToValue()));
 
             return config;
         });

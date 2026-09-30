@@ -15,7 +15,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     /// 默认 false 使用原锁版,渐进式迁移。
     /// </summary>
     private static readonly bool UseActorToolExecutor =
-        Environment.GetEnvironmentVariable("JCC_ACTOR_TOOL_EXECUTOR") == "1";
+        Environment.GetEnvironmentVariable(JccEnvVar.ActorToolExecutor.ToValue()) == "1";
 
     private readonly IBackgroundNotificationHandler _notificationHandler;
     private readonly ILLMInvocationHandler _llmHandler;

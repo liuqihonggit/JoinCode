@@ -418,3 +418,126 @@ VcsDirectoryExclusions (lib/abstractions, 单数据源)
 <!-- 替代方案: Names.SelectMany(d => new[] { d, d + "/**" }).ToFrozenSet() -->
 <!-- 验证: 编译通过,GlobPatterns 12 个模式正确 ✅ -->
 
+---
+
+## 十、阶段 B4 完成记录(2026-09-30)
+
+### 架构约束发现与方案调整
+
+**原任务文档假设**:McpProtocolVersion 在 kit/mcp,abs_ai/test/mock 无法委托(注释标 P1-⑦)。
+
+**实际架构约束**:
+- `lib/abstractions` 是单一项目(Abstractions.csproj),abs_ai/abs_core 同项目
+- `kit/mcp` 和 `test/mock/mcp.mock_server` 都引用 abstractions
+- McpProtocolVersion 可下沉到 abstractions,消除 abs_ai/test/mock 无法委托的约束
+
+**调整方案**:McpProtocolVersion 从 kit/mcp/constants/JsonRpcConstants.cs 下沉到 lib/abstractions/abs_ai/mcp/protocol/ProtocolVersionConstants.cs(命名空间 McpProtocol.Contracts 不变),kit/mcp 删除原定义,引用 abstractions 的。
+
+### 新建文件(单数据源 + 测试)
+
+| 文件 | 角色 |
+|------|------|
+| `lib/abstractions/abs_ai/mcp/protocol/ProtocolVersionConstants.cs` | McpProtocolVersion 下沉到 abstractions(单数据源,命名空间 McpProtocol.Contracts) |
+| `test/unit/abs.tests/constants/McpProtocolVersionTest.cs` | 确定性测试(9 方法,验证常量值 + Supported 集合) |
+| `test/unit/abs.tests/constants/JccEnvVarTest.cs` | 确定性测试(10 方法/16 用例,验证 7 个新枚举值 ToValue()) |
+| `test/unit/abs.tests/constants/JccEndpointsTest.cs` | 确定性测试(9 方法,验证供应商端点常量) |
+
+### 修改文件(消费方委托改造)
+
+| 文件 | 改造 |
+|------|------|
+| `kit/mcp/constants/JsonRpcConstants.cs` | 删除 McpProtocolVersion 类(下沉到 abstractions,保留 JsonRpc/ErrorCodes/JsonValueTypes) |
+| `lib/abstractions/abs_core/configuration/app_data/JccEnvVar.cs` | 新增 7 个枚举值(DisableRetry/ActorToolExecutor/GithubToken/GithubApiUrl/AbsoluteTimeoutSeconds/ResumeTimeoutSeconds/ClusterDecompositionOverride) |
+| `lib/abstractions/abs_core/core_utils/constants/jcc_mcp/JccEndpoints.cs` | 新增 3 个供应商端点常量(OpenAiApiBase/AnthropicApiBase/OpenAiTranscriptionsEndpoint) |
+| `lib/abstractions/GlobalUsings.cs` | 加 `global using McpProtocol.Contracts;` |
+| `test/mock/mcp.mock_server/GlobalUsings.cs` | 加 `global using McpProtocol.Contracts;` |
+| `test/unit/abs.tests/GlobalUsings.cs` | 加 `global using McpProtocol.Contracts;` |
+| `test/mock/mcp.mock_server/models/McpMockServerConfig.cs` | "2025-11-25" → McpProtocolVersion.Current |
+| `lib/abstractions/abs_ai/mcp/protocol/InitializeModels.cs` | "2024-11-05" → McpProtocolVersion.V2024_11_05(2 处) |
+| `kit/brain/query/query2/token_budget/core/QueryEngine.cs` | "JCC_DISABLE_RETRY" → JccEnvVar.DisableRetry.ToValue() |
+| `kit/brain/context/services/chat/core/QueryLoopMiddleware.cs` | "JCC_ACTOR_TOOL_EXECUTOR" → JccEnvVar.ActorToolExecutor.ToValue() |
+| `lib/infrastructure/io/process/GitHubApiClient.cs` | "JCC_GITHUB_TOKEN"→JccEnvVar.GithubToken.ToValue(), "JCC_GITHUB_API_URL"→JccEnvVar.GithubApiUrl.ToValue(), DefaultBaseUrl→JccEndpoints.GitHubApiBase + "/" |
+| `kit/composition/dependency_injection/core/ServiceRegistration.CoreServices.cs` | 2 处环境变量名委托 |
+| `lib/clock/goal/core/goal_evaluator/DecomposabilityAnalyzer.cs` | "JCC_CLUSTER_DECOMPOSITION_OVERRIDE" → JccEnvVar.ClusterDecompositionOverride.ToValue() |
+| `llm/core/Adapters/LLM/QueryServices/core/FallbackProviderDefinition.cs` | 2 处供应商端点委托(AnthropicApiBase/OpenAiApiBase) |
+| `lib/guard/.../shared/OpenAiCompatibleProviderDefinition.cs` | "https://api.openai.com/v1/" → JccEndpoints.OpenAiApiBase |
+| `lib/guard/.../shared/OpenAICompatibleProviderDefinitionBase.cs` | DefaultBaseUrl → JccEndpoints.OpenAiApiBase |
+| `lib/guard/.../anthropic/AnthropicProviderDefinition.cs` | "https://api.anthropic.com/" → JccEndpoints.AnthropicApiBase |
+| `lib/guard/.../shared/AnthropicCompatibleProviderDefinition.cs` | "https://api.anthropic.com/" → JccEndpoints.AnthropicApiBase |
+| `kit/slash/transport/BridgeMainCommand.cs` | "JCC_API_BASE_URL"→JccEnvVar.ApiBaseUrl.ToValue(), "https://api.anthropic.com"→JccEndpoints.AnthropicApiBase.TrimEnd('/') |
+| `kit/hands/voice/VoiceOptions.cs` | "https://api.openai.com/v1/audio/transcriptions" → JccEndpoints.OpenAiTranscriptionsEndpoint |
+
+### 统一的数据源 + 委托关系
+
+```
+McpProtocolVersion (lib/abstractions, 单数据源,从 kit/mcp 下沉)
+├── McpMockServerConfig.ProtocolVersion (委托 Current)
+├── InitializeRequestParams.ProtocolVersion (委托 V2024_11_05)
+├── InitializeResult.ProtocolVersion (委托 V2024_11_05)
+└── kit/mcp 内部消费方 (McpServer/McpClientBase/HttpTransport/McpClientOptions,引用 abstractions)
+
+JccEnvVar (lib/abstractions,新增 7 个枚举值)
+├── DisableRetry → QueryEngine.IsRetryable
+├── ActorToolExecutor → QueryLoopMiddleware.UseActorToolExecutor
+├── GithubToken → GitHubApiClient.ResolveToken
+├── GithubApiUrl → GitHubApiClient 构造函数
+├── AbsoluteTimeoutSeconds → ServiceRegistration.AddToolServices
+├── ResumeTimeoutSeconds → ServiceRegistration.AddToolServices
+└── ClusterDecompositionOverride → DecomposabilityAnalyzer.AnalyzeAsync
+
+JccEndpoints (lib/abstractions,新增 3 个供应商端点常量)
+├── OpenAiApiBase → FallbackProviderDefinition/OpenAiCompatibleProviderDefinition/OpenAICompatibleProviderDefinitionBase
+├── AnthropicApiBase → FallbackProviderDefinition/AnthropicProviderDefinition/AnthropicCompatibleProviderDefinition/BridgeMainCommand
+├── OpenAiTranscriptionsEndpoint → VoiceOptions
+└── GitHubApiBase → GitHubApiClient.DefaultBaseUrl
+```
+
+### 行为统一说明
+
+- **McpProtocolVersion 下沉**:命名空间 McpProtocol.Contracts 不变,kit/mcp 消费方引用方式不变(同命名空间,类型从 abstractions 来)
+- **JCC_GITHUB_API_URL vs JCC_GITHUB_API_BASE**:两者都是 GitHub API base,但环境变量名不同。GithubApiBase 已被 JccEndpointsResolver 消费(JCC_GITHUB_API_BASE),GithubApiUrl 新增给 GitHubApiClient(JCC_GITHUB_API_URL,ADR 0073 确认)。两者并存(都委托枚举,单数据源是枚举),不破坏现有环境变量名
+- **BridgeMainCommand 无尾斜杠**:"https://api.anthropic.com"(无尾斜杠)用 JccEndpoints.AnthropicApiBase.TrimEnd('/') 处理,避免新增常量
+- **GitHubApiClient DefaultBaseUrl 尾斜杠**:JccEndpoints.GitHubApiBase 无尾斜杠,BaseAddress 需尾斜杠,用 `JccEndpoints.GitHubApiBase + "/"`(编译期常量拼接)保留尾斜杠语义
+
+### 编译结果
+
+- `lib/abstractions`:0 警告 0 错误(--no-incremental,因新增 [EnumValue])
+- 全量解决方案(`build/sln/JoinCode.slnx`):0 警告 0 错误(79 秒)
+
+### 测试结果
+
+- `abs.tests`(McpProtocolVersion + JccEnvVar + JccEndpoints):34 通过
+- `kit/mcp.tests`(HttpTransportOptions,确认下沉没破坏):9 通过
+
+### 新增测试方法数量:34 个
+
+- McpProtocolVersionTest:9 个(常量值 5 + Current 1 + Supported 3)
+- JccEnvVarTest:16 个用例(8 [Fact] + 1 [Theory] 7 InlineData + 1 [Fact] 唯一性)
+- JccEndpointsTest:9 个(常量值 4 + 关系 5)
+
+### 遇到的 bug
+
+无
+
+### 跳过的常量及原因
+
+无跳过。所有 3 部分(MCP 协议版本 + 环境变量名 + 供应商 API 端点)全部完成委托。
+
+<!-- 🤖 Auto Decision: 2026-09-30 -->
+<!-- 决策: McpProtocolVersion 从 kit/mcp 下沉到 lib/abstractions(命名空间 McpProtocol.Contracts 不变) -->
+<!-- 原因: abs_ai/test/mock 不能引用 kit/mcp(底层不能引用高层),下沉到 abstractions 后所有消费方可委托 -->
+<!-- 替代方案: 在 abs_ai 定义局部常量(违反单数据源原则,两套定义) -->
+<!-- 验证: 全量编译通过,kit/mcp.tests HttpTransportOptions 9 测试通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-09-30 -->
+<!-- 决策: JCC_GITHUB_API_URL 新增枚举值 GithubApiUrl,不重命名 GithubApiBase -->
+<!-- 原因: GithubApiBase 已被 JccEndpointsResolver 消费(JCC_GITHUB_API_BASE),GitHubApiClient 用 JCC_GITHUB_API_URL(ADR 0073),两者并存不破坏现有环境变量名 -->
+<!-- 替代方案: 统一到 JCC_GITHUB_API_BASE(破坏 ADR 0073 + 测试)或重命名 GithubApiBase(破坏 JccEndpointsResolver) -->
+<!-- 验证: 编译通过,GitHubApiClient 委托 GithubApiUrl,JccEndpointsResolver 保留 GithubApiBase ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-09-30 -->
+<!-- 决策: BridgeMainCommand 用 JccEndpoints.AnthropicApiBase.TrimEnd('/'),不新增 AnthropicApiBaseNoSlash 常量 -->
+<!-- 原因: 避免新增常量,TrimEnd 开销可忽略(启动时调用一次) -->
+<!-- 替代方案: 新增 AnthropicApiBaseNoSlash = "https://api.anthropic.com"(增加常量,但保持 const) -->
+<!-- 验证: 编译通过,BridgeMainCommand GetBaseUrl 返回无尾斜杠 ✅ -->
+

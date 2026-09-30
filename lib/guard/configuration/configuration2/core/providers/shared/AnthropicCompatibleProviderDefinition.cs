@@ -64,7 +64,7 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition 
         if (!string.IsNullOrEmpty(config.Endpoint))
             return config.Endpoint.TrimEnd('/') + "/";
         if (string.Equals(_providerName, VendorKindEnumConstants.Anthropic, StringComparison.OrdinalIgnoreCase))
-            return "https://api.anthropic.com/";
+            return JccEndpoints.AnthropicApiBase;
         throw new InvalidOperationException(
             $"供应商 '{_providerName}' 使用 Anthropic 协议但未配置 endpoint。" +
             $"请在 settings.json 的 vendor.{_providerName}.endpoint 配置 Anthropic 兼容端点" +

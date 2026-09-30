@@ -32,6 +32,7 @@ global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.Mcp.Client;
 global using JoinCode.Abstractions.Mcp.Protocol;
 global using JoinCode.Abstractions.Mcp.Registry;
+global using McpProtocol.Contracts;
 global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Models.Analytics;

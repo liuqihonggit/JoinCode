@@ -50,9 +50,9 @@ internal sealed class FallbackProviderDefinition : IProviderDefinition {
     /// <summary>获取基础 URL。</summary>
     /// <param name="config">供应商配置。</param>
     public string GetBaseUrl(ProviderConfig config) => _inner?.GetBaseUrl(config) ?? _protocol switch {
-        ProtocolKind.Anthropic => !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : "https://api.anthropic.com/",
+        ProtocolKind.Anthropic => !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : JccEndpoints.AnthropicApiBase,
         ProtocolKind.Azure => $"{config.Endpoint?.TrimEnd('/')}/openai/deployments/{config.ModelId}",
-        _ => !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : "https://api.openai.com/v1/"
+        _ => !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : JccEndpoints.OpenAiApiBase
     };
 
     /// <summary>获取聊天端点。</summary>

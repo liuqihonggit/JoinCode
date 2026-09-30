@@ -48,7 +48,7 @@ public sealed class OpenAiCompatibleProviderDefinition : IProviderDefinition {
 
     /// <inheritdoc />
     public string GetBaseUrl(ProviderConfig config)
-        => !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : "https://api.openai.com/v1/";
+        => !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : JccEndpoints.OpenAiApiBase;
 
     /// <inheritdoc />
     public string GetChatEndpoint(ProviderConfig config) {

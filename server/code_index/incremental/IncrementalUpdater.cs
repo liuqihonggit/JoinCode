@@ -55,7 +55,7 @@ public sealed class IncrementalUpdater : IDisposable {
             var wasTracked = IsFileTracked(filePath);
             if (wasTracked) {
                 await _index.RemoveFileAsync(filePath, ct).ConfigureAwait(false);
-                return new IncrementalUpdateResult { WasUpdated = true };
+                return new IncrementalUpdateResult { WasUpdated = true, WasDeleted = true };
             }
 
             return new IncrementalUpdateResult { WasUpdated = false };
@@ -71,7 +71,7 @@ public sealed class IncrementalUpdater : IDisposable {
         var extraction = _pluginFactory().ExtractAll(sourceCode, filePath);
         await _index.IndexFileWithContentAsync(filePath, sourceCode, currentHash, extraction, ct).ConfigureAwait(false);
 
-        return new IncrementalUpdateResult { WasUpdated = true };
+        return new IncrementalUpdateResult { WasUpdated = true, Extraction = extraction };
     }
 
     /// <summary>

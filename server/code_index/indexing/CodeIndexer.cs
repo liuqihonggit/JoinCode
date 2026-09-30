@@ -300,7 +300,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     }
 
     /// <summary>
-    /// 增量更新单个文件 — 通过 IncrementalUpdater 处理变更并失效相关图缓存
+    /// 增量更新单个文件 — 通过 IncrementalUpdater 处理符号索引变更，同步更新向量索引和父文档存储。
+    /// <para>.cs 文件：IncrementalUpdater 提取符号+chunks，结果复用到向量索引。</para>
+    /// <para>.md 文件：IncrementalUpdater 提取为空（CSharpSymbolExtractor 不支持 md），此处用 MarkdownChunkExtractor 重新提取。</para>
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <param name="ct">取消令牌</param>
@@ -308,8 +310,33 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         ArgumentNullException.ThrowIfNull(filePath);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
-        await _updater.UpdateAsync(filePath, ct).ConfigureAwait(false);
+        var result = await _updater.UpdateAsync(filePath, ct).ConfigureAwait(false);
         await InvalidateGraphCachesForFileAsync(filePath, ct).ConfigureAwait(false);
+
+        if (!result.WasUpdated || _embeddingIndex is null) return;
+
+        await _embeddingIndex.RemoveFileAsync(filePath, ct).ConfigureAwait(false);
+        _parentDocStore?.RemoveFile(filePath);
+
+        if (result.WasDeleted) return;
+
+        var extraction = filePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+            ? await ExtractMarkdownAsync(filePath, ct).ConfigureAwait(false)
+            : result.Extraction;
+        if (extraction is null) return;
+
+        if (extraction.Chunks.Count > 0) {
+            await _embeddingIndex.IndexChunksAsync(extraction.Chunks, ct).ConfigureAwait(false);
+        }
+        if (_parentDocStore is not null && extraction.ParentDocuments.Count > 0) {
+            _parentDocStore.AddRange(extraction.ParentDocuments);
+        }
+    }
+
+    private async Task<ExtractionResult?> ExtractMarkdownAsync(string filePath, CancellationToken ct) {
+        if (!_fs.FileExists(filePath)) return null;
+        var sourceCode = await _fs.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
+        return new MarkdownChunkExtractor().ExtractAll(sourceCode, filePath);
     }
 
     /// <summary>

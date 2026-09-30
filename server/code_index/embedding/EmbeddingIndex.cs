@@ -178,7 +178,10 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
             return [];
         }
 
-        var annResults = _ann.Search(queryVector, topK, ct);
+        var fileType = options?.FileType;
+        var hasFilter = !string.IsNullOrEmpty(fileType);
+        var oversampleK = hasFilter ? topK * 3 : topK;
+        var annResults = _ann.Search(queryVector, oversampleK, ct);
         if (annResults.Count == 0) return [];
 
         var metadataSnapshot = _metadata;
@@ -187,6 +190,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
         var includeParent = options?.IncludeParentDocument ?? false;
         foreach (var (id, score) in annResults) {
             if (!metadataSnapshot.TryGetValue(id, out var meta)) continue;
+            if (hasFilter && !MatchesFileType(meta.FilePath, fileType!)) continue;
             var result = new ChunkSearchResult {
                 ChunkId = meta.ChunkId,
                 FilePath = meta.FilePath,
@@ -199,8 +203,18 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
             results.Add(includeParent
                 ? TryAttachParentDocument(result, meta.ParentChunkId)
                 : result);
+            if (results.Count >= topK) break;
         }
         return results;
+    }
+
+    /// <summary>
+    /// 检查文件路径是否匹配指定类型（扩展名比较，不区分大小写）。
+    /// </summary>
+    private static bool MatchesFileType(string filePath, string fileType) {
+        var ext = Path.GetExtension(filePath.AsSpan());
+        if (ext.Length == 0) return false;
+        return ext[1..].Equals(fileType, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

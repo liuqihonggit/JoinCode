@@ -648,14 +648,16 @@ public sealed class CodeIndexToolHandlers {
     /// <param name="top_k">返回结果数上限</param>
     /// <param name="include_source_text">是否返回匹配块原文（函数源码）</param>
     /// <param name="include_parent_document">是否返回父文档原文（类/文件完整源码）</param>
+    /// <param name="file_type">文件类型过滤（扩展名不含点，如 "cs"/"md"），null=全部</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含匹配代码块列表的工具结果</returns>
-    [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. By default returns ONLY metadata (file path, line range, symbol name, similarity score) — lightweight, use read tool to fetch source by line number. Set include_source_text=true to get matched block source code (function body). Set include_parent_document=true to get parent class/file source code for full context. Tip: start with default (metadata only) to locate, then enable source/parent on follow-up calls if needed.", "code_index")]
+    [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. By default returns ONLY metadata (file path, line range, symbol name, similarity score) — lightweight, use read tool to fetch source by line number. Set include_source_text=true to get matched block source code (function body). Set include_parent_document=true to get parent class/file source code for full context. Set file_type to filter by extension (e.g. 'cs' for C# code only, 'md' for Markdown docs only). Tip: start with default (metadata only) to locate, then enable source/parent on follow-up calls if needed.", "code_index")]
     public async Task<ToolResult> SearchSemanticAsync(
         [McpToolParameter("Natural language query or code snippet (e.g. 'find authentication logic', 'rate limiting implementation')")] string query,
         [McpToolParameter("Maximum number of results to return", Required = false, DefaultValue = "10")] int top_k = 10,
         [McpToolParameter("Include matched block source text (function code) in results. Default false — use read tool to fetch by line number instead", Required = false, DefaultValue = "false")] bool include_source_text = false,
         [McpToolParameter("Include parent document (class/file) source text in results for full context. Default false — enable when you need surrounding context", Required = false, DefaultValue = "false")] bool include_parent_document = false,
+        [McpToolParameter("Filter by file extension without dot, e.g. 'cs' for C# only, 'md' for Markdown only. Default null = all file types", Required = false)] string? file_type = null,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(query)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
@@ -665,7 +667,8 @@ public sealed class CodeIndexToolHandlers {
             await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var options = new SearchOptions {
                 IncludeSourceText = include_source_text,
-                IncludeParentDocument = include_parent_document
+                IncludeParentDocument = include_parent_document,
+                FileType = file_type
             };
             var results = await _indexer.SearchSemanticAsync(query, top_k, cancellationToken, options).ConfigureAwait(false);
 

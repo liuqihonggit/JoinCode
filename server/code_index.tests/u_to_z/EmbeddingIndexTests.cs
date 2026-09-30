@@ -394,4 +394,55 @@ public sealed class EmbeddingIndexTests {
         Assert.NotNull(result.ParentDocumentText);
         Assert.Contains("class Foo", result.ParentDocumentText);
     }
+
+    [Fact]
+    public async Task SearchAsync_FileTypeCs_FiltersOutMd() {
+        await using var index = CreateIndex();
+        await index.IndexChunksAsync([
+            CreateChunk("c1", "Test.Foo", file: "src.cs", text: "void Foo() {}"),
+            CreateChunk("m1", "Doc.Guide", file: "guide.md", text: "# Guide\nFoo usage.")
+        ], CancellationToken.None);
+
+        var results = await index.SearchAsync("Foo", 10, CancellationToken.None,
+            new SearchOptions { FileType = "cs" });
+        Assert.All(results, r => Assert.EndsWith(".cs", r.FilePath));
+    }
+
+    [Fact]
+    public async Task SearchAsync_FileTypeMd_FiltersOutCs() {
+        await using var index = CreateIndex();
+        await index.IndexChunksAsync([
+            CreateChunk("c1", "Test.Foo", file: "src.cs", text: "void Foo() {}"),
+            CreateChunk("m1", "Doc.Guide", file: "guide.md", text: "# Guide\nFoo usage.")
+        ], CancellationToken.None);
+
+        var results = await index.SearchAsync("Foo", 10, CancellationToken.None,
+            new SearchOptions { FileType = "md" });
+        Assert.All(results, r => Assert.EndsWith(".md", r.FilePath));
+    }
+
+    [Fact]
+    public async Task SearchAsync_FileTypeNull_ReturnsAll() {
+        await using var index = CreateIndex();
+        await index.IndexChunksAsync([
+            CreateChunk("c1", "Test.Foo", file: "src.cs", text: "void Foo() {}"),
+            CreateChunk("m1", "Doc.Guide", file: "guide.md", text: "# Guide\nFoo usage.")
+        ], CancellationToken.None);
+
+        var results = await index.SearchAsync("Foo", 10, CancellationToken.None);
+        Assert.True(results.Count >= 2);
+    }
+
+    [Fact]
+    public async Task SearchAsync_FileTypeCs_NoMdResults() {
+        await using var index = CreateIndex();
+        await index.IndexChunksAsync([
+            CreateChunk("c1", "Test.Foo", file: "src.cs", text: "void Foo() {}"),
+            CreateChunk("m1", "Doc.Guide", file: "guide.md", text: "# Guide\nFoo usage.")
+        ], CancellationToken.None);
+
+        var results = await index.SearchAsync("Foo", 10, CancellationToken.None,
+            new SearchOptions { FileType = "cs" });
+        Assert.DoesNotContain(results, r => r.FilePath.EndsWith(".md"));
+    }
 }

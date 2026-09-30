@@ -34,3 +34,4 @@ global using TreeSitter;
 global using Range = System.Range;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Structura.Collections;
+global using OnnxEmbedding;

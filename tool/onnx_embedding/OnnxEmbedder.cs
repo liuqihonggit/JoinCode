@@ -4,7 +4,7 @@ namespace OnnxEmbedding;
 /// ONNX 嵌入器 — 加载量化模型 + BERT tokenizer，执行批量嵌入推理。
 /// <para>使用 all-MiniLM-L6-v2 量化模型（22MB INT8，384维）。</para>
 /// </summary>
-internal sealed class OnnxEmbedder : IDisposable {
+public sealed class OnnxEmbedder : IDisposable {
 
     private readonly InferenceSession _session;
     private readonly BertTokenizer _tokenizer;

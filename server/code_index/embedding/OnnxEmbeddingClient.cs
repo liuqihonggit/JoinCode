@@ -30,14 +30,14 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
     /// <param name="vocabPath">BERT 词表文件路径（vocab.txt）。</param>
     /// <param name="fs">文件系统抽象（检查文件是否存在）。</param>
     /// <param name="modelId">模型标识（默认 onnx-minilm-l6-v2）。</param>
-    /// <param name="degree">并行推理实例数（默认 4，每个实例 IntraOpNumThreads=ProcessorCount/degree，避免线程争抢）。</param>
+    /// <param name="degree">并行推理实例数（默认 0=自动，取 ProcessorCount/2；每个实例 IntraOpNumThreads=ProcessorCount/degree，避免线程争抢）。</param>
     /// <param name="logger">日志记录器（可选）。</param>
     public OnnxEmbeddingClient(
         string modelPath,
         string vocabPath,
         IFileSystem fs,
         string modelId = "onnx-minilm-l6-v2",
-        int degree = 4,
+        int degree = 0,
         ILogger<OnnxEmbeddingClient>? logger = null) {
         ArgumentNullException.ThrowIfNull(modelPath);
         ArgumentNullException.ThrowIfNull(vocabPath);
@@ -49,7 +49,9 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
             throw new FileNotFoundException("BERT 词表文件不存在", vocabPath);
         }
 
-        _degree = Math.Clamp(degree, 1, Environment.ProcessorCount);
+        _degree = degree <= 0
+            ? Math.Max(1, Environment.ProcessorCount / 2)
+            : Math.Clamp(degree, 1, Environment.ProcessorCount);
         var threadsPerInstance = Math.Max(1, Environment.ProcessorCount / _degree);
         _embedders = new OnnxEmbedder[_degree];
         for (var i = 0; i < _degree; i++) {

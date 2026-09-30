@@ -82,7 +82,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         if (!fs.FileExists(modelPath) || !fs.FileExists(vocabPath)) return;
 
         try {
-            var embedModel = new OnnxEmbeddingClient(modelPath, vocabPath, fs);
+            var degree = int.TryParse(Environment.GetEnvironmentVariable("JCC_ONNX_DEGREE"), out var d) && d > 0
+                ? Math.Min(d, Environment.ProcessorCount) : 0;
+            var embedModel = new OnnxEmbeddingClient(modelPath, vocabPath, fs, degree: degree);
             _parentDocStore = new InMemoryParentDocumentStore(fs);
             _embeddingIndex = new EmbeddingIndex(embedModel, new BruteForceAnn(), fs, _parentDocStore);
             logger?.LogInformation("向量索引已自动初始化: dim={Dim}", embedModel.Dimensions);

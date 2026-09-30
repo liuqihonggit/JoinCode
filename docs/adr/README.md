@@ -119,7 +119,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 ## 统计
 
-- 总数：**103** | accepted：**100** | superseded：**5** | proposed：**0**
+- 总数：**123** | accepted：**117** | superseded：**5** | proposed：**1**
 
 ## 完整索引（按编号）
 
@@ -149,6 +149,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0022](0022-csharp-ast-cli-over-regex.md) | C# AST CLI 优先于正则 | accepted | 2026-08-29 |
 | [0023](0023-subtraction-over-addition.md) | 减法思维优先 | accepted | 2026-08-29 |
 | [0024](0024-no-symptomatic-fix-chain.md) | 治标不治本禁令 | accepted | 2026-08-29 |
+| [0025](0025-unified-mailbox-base-named-pipe-host-election.md) | 统一邮箱基类 MailboxBase + 有名管道邮箱 + 主机选举 + 全局编译队列 | accepted | 2026-09-16 |
 | [0026](0026-pr-two-stage-pipeline.md) | PR 两段式流水线验证 | accepted | 2026-08-29 |
 | [0027](0027-treat-warnings-as-errors.md) | TreatWarningsAsErrors 零警告容忍 | accepted | 2026-08-29 |
 | [0028](0028-invariant-globalization.md) | InvariantGlobalization 渐进式双语策略 | accepted | 2026-08-29 |
@@ -172,6 +173,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0046](0046-register-di-pattern.md) | [Register] 特性 DI 自动注册模式 | accepted | 2026-08-29 |
 | [0047](0047-unified-danger-level-classification.md) | 统一危险指令分级系统 | accepted | 2026-08-30 |
 | [0048](0048-subagent-concurrency-unified-config.md) | 子代理并发控制统一配置入口 | accepted | 2026-09-02 |
+| [0049](0049-disk-root-protection-gui-decoupled.md) | 磁盘根保护 GUI 暴露与引擎解耦 | accepted | 2026-09-30 |
 | [0050](0050-spawn-stage-concurrency-limit.md) | spawn 阶段 SemaphoreSlim 限流 | accepted | 2026-09-02 |
 | [0051](0051-fork-concurrency-limit.md) | Fork 并发上限 | accepted | 2026-09-02 |
 | [0052](0052-asynclock-unified-mutex-file-access.md) | AsyncLock 统一互斥锁 + 文件读写可剥离架构 | accepted | 2026-09-02 |
@@ -244,6 +246,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0121](0121-engine-agent-state-source-unification.md) | 引擎层统一子代理状态源 — GUI 双模型合并 | accepted | 2026-09-30 |
 | [0122](0122-ringbuffer-spsc-contract-rollback-cow.md) | RingBuffer 确认为 SPSC 契约,回退 Copy-on-Write 重写 | accepted | 2026-09-30 |
 | [0123](0123-vector-symbol-hybrid-code-index.md) | 向量+符号混合代码索引架构 | accepted | 2026-09-30 |
+| [0124](0124-embedding-model-auto-download.md) | 向量模型缺失自动下载（双源竞赛 HF+hf-mirror） | accepted | 2026-10-01 |
 
 ## 主题索引（按议题）
 
@@ -347,6 +350,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0059](0059-asynclock-reentrancy-detection.md) | AsyncLock 同步重入检测 — LockReentrancyException 提早暴露死锁 | superseded by 0060 | 2026-09-03 |
 | [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) | AsyncLock 同步 TryLock + StreamingToolExecutor 死锁排查 | accepted | 2026-09-04 |
 | [0122](0122-ringbuffer-spsc-contract-rollback-cow.md) | RingBuffer 确认为 SPSC 契约,回退 Copy-on-Write 重写 | accepted | 2026-09-30 |
+| [0049](0049-disk-root-protection-gui-decoupled.md) | 磁盘根保护 GUI 暴露与引擎解耦 | accepted | 2026-09-30 |
 
 ### 上下文与系统提示词
 
@@ -401,6 +405,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0074](0074-actor-supervisor-tree.md) | Actor 监督树 — Router/Gateway/Supervisor/PersistentMailbox 四层扩展 | accepted | 2026-09-08 |
 | [0100](0100-console-actor-serialize-io.md) | ConsoleActor 串行化 Console I/O 消除并发竞态 | accepted | 2026-09-11 |
 | [0101](0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化统一 | accepted | 2026-09-12 |
+| [0025](0025-unified-mailbox-base-named-pipe-host-election.md) | 统一邮箱基类 MailboxBase + 有名管道邮箱 + 主机选举 + 全局编译队列 | accepted | 2026-09-16 |
 
 ### 文件 I/O 与 Span 优化
 
@@ -424,6 +429,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0085](0085-data-container-selection-spec.md) | 数据容器选型规范 | accepted | 2026-09-08 |
 | [0120](0120-immutable-dag-hamt-cas-lockfree.md) | ImmutableDag 不可变无锁 DAG — HAMT + CAS 原子更新 | proposed | 2026-09-29 |
 | [0123](0123-vector-symbol-hybrid-code-index.md) | 向量+符号混合代码索引架构 | accepted | 2026-09-30 |
+| [0124](0124-embedding-model-auto-download.md) | 向量模型缺失自动下载（双源竞赛 HF+hf-mirror） | accepted | 2026-10-01 |
 
 ## 取代链（历史追溯）
 

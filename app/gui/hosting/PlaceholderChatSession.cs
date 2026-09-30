@@ -239,6 +239,14 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     /// <summary>占位会话无真实引擎，保护盘号更新空实现</summary>
     public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
 
+    /// <summary>占位会话无真实引擎，返回错误提示</summary>
+    public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+        => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "占位会话：引擎未就绪" }] });
+
+    /// <summary>占位会话无真实引擎，返回 null</summary>
+    public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+        => Task.FromResult<ToolInfo?>(null);
+
     /// <summary>最后一次设置的权限模式（供测试验证 GUI 开关传导）</summary>
     public PermissionMode? LastSetPermissionMode { get; private set; }
 

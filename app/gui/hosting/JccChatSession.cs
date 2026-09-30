@@ -220,6 +220,22 @@ internal sealed class JccChatSession : IJccChatSession {
     }
 
     /// <inheritdoc />
+    public async Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default) {
+        var registry = _services.GetService<IToolRegistry>();
+        if (registry is null)
+            return new ToolResult { IsError = true, Content = [new() { Text = "引擎未就绪：工具注册表不可用" }] };
+        return await registry.ExecuteToolAsync(toolName, arguments, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default) {
+        var registry = _services.GetService<IToolRegistry>();
+        if (registry is null)
+            return null;
+        return await registry.GetToolInfoAsync(toolName, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) {
         var manager = _services.GetService<IToolPermissionManager>();
         if (manager is not null)

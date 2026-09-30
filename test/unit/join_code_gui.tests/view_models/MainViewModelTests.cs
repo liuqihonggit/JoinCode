@@ -1096,6 +1096,12 @@ public class MainViewModelTests {
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
         public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1265,6 +1271,12 @@ public class MainViewModelTests {
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
         public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1338,6 +1350,12 @@ public class MainViewModelTests {
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
         public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1393,6 +1411,12 @@ public class MainViewModelTests {
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
         public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1453,6 +1477,12 @@ public class MainViewModelTests {
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
         public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1516,6 +1546,12 @@ public class MainViewModelTests {
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
         public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1581,6 +1617,12 @@ public class MainViewModelTests {
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
         public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);

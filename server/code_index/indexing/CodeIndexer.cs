@@ -172,6 +172,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
         var totalSw = Stopwatch.StartNew();
+        var phaseSw = Stopwatch.StartNew();
 
         // Phase A: 索引项目依赖(.slnx/.sln/.csproj)
         await IndexProjectsAsync(options.WorkspaceRoot, ct).ConfigureAwait(false);
@@ -179,6 +180,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         // Phase B: 扫描 .cs 文件(跳过 bin/obj)
         var csFiles = CollectCsFiles(options.WorkspaceRoot, options.ExcludePatterns);
         var trackedFiles = GetTrackedFilesInWorkspace(options.WorkspaceRoot);
+        Console.Error.WriteLine($"[code-index] 扫描: {csFiles.Count} 文件 ({phaseSw.ElapsedMilliseconds}ms)");
+        phaseSw.Restart();
 
         // Phase C: 并行读文件+哈希(Task.WhenAll,对齐 IncrementalUpdater 模式)
         var storedHashes = BatchGetStoredHashes(csFiles);
@@ -223,6 +226,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         }
         await _symbolIndex.IndexFilesBatchAsync(batch, ct).ConfigureAwait(false);
         updatedCount = batch.Count;
+        Console.Error.WriteLine($"[code-index] 符号索引: {updatedCount} 文件 ({phaseSw.ElapsedMilliseconds}ms)");
+        phaseSw.Restart();
 
         // Phase E2: 向量嵌入（可选，设置了 EmbeddingIndex 才执行）
         if (_embeddingIndex is not null) {
@@ -231,6 +236,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 .ToList();
             if (allChunks.Count > 0) {
                 await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
+                Console.Error.WriteLine($"[code-index] 向量嵌入: {allChunks.Count} 块 ({phaseSw.ElapsedMilliseconds}ms)");
+                phaseSw.Restart();
             }
         }
 
@@ -241,6 +248,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 .ToList();
             if (allParentDocs.Count > 0) {
                 _parentDocStore.AddRange(allParentDocs);
+                Console.Error.WriteLine($"[code-index] 父文档: {allParentDocs.Count} 文档 ({phaseSw.ElapsedMilliseconds}ms)");
+                phaseSw.Restart();
             }
         }
 
@@ -269,8 +278,11 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 _logger?.LogWarning(ex, "{Kind}索引持久化失败（内存索引仍可用）", store.Kind);
             }
         }
+        Console.Error.WriteLine($"[code-index] 持久化: {phaseSw.ElapsedMilliseconds}ms");
+        phaseSw.Restart();
 
         totalSw.Stop();
+        Console.Error.WriteLine($"[code-index] 总计: {totalSw.ElapsedMilliseconds}ms");
 
         return new BuildIndexResult {
             UpdatedCount = updatedCount,

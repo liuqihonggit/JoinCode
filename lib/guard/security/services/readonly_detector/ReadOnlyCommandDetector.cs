@@ -15,7 +15,16 @@ public sealed class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCommandDet
     private readonly IRegexValidator _regexValidator;
     private readonly IExpansionDetector _expansionDetector;
 
-    /// <summary>构造只读命令检测器，注入 5 个单一职责服务</summary>
+    /// <summary>DI 默认构造函数 — 内部组装 5 个单一职责服务</summary>
+    public ReadOnlyCommandDetector() {
+        _catalog = new CommandCatalog();
+        _metacharDetector = new ShellMetacharacterDetector();
+        _flagValidator = new FlagValidator();
+        _regexValidator = new RegexValidator(_catalog, _metacharDetector);
+        _expansionDetector = new ExpansionDetector();
+    }
+
+    /// <summary>测试用构造函数，注入 5 个单一职责服务</summary>
     internal ReadOnlyCommandDetector(
         ICommandCatalog catalog,
         IShellMetacharacterDetector metacharDetector,

@@ -91,10 +91,12 @@ public sealed partial class ClusterPlanValidator : ServiceEntity, IClusterPlanVa
     private static List<string>? DetectCycle(IReadOnlyList<SubTaskDefinition> subTasks) {
         var dag = new Dag<SubTaskDefinition>();
         foreach (var task in subTasks) {
+            if (string.IsNullOrWhiteSpace(task.Id)) continue;
             dag.AddNode(new DagNode<SubTaskDefinition> { Id = task.Id, Payload = task });
         }
 
         foreach (var task in subTasks) {
+            if (string.IsNullOrWhiteSpace(task.Id)) continue;
             foreach (var depId in task.DependsOn) {
                 var edgeResult = dag.AddEdge(new DagEdge { FromId = depId, ToId = task.Id, Label = "depends-on" });
                 if (edgeResult.CyclePath.Count > 0) {

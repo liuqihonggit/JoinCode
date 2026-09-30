@@ -23,6 +23,8 @@ public sealed class OnnxEmbedder : IDisposable {
     public OnnxEmbedder(string modelPath, string vocabPath) {
         var options = new SessionOptions {
             GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
+            InterOpNumThreads = 1,
+            IntraOpNumThreads = Math.Max(1, Environment.ProcessorCount / 4),
         };
         _session = new InferenceSession(modelPath, options);
         _hasTokenTypeIds = _session.InputMetadata.ContainsKey("token_type_ids");

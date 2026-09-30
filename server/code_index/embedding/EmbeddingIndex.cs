@@ -79,12 +79,21 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             return;
         }
 
-        var texts = toEmbed
-            .Select(c => c.SourceText ?? string.Empty)
-            .ToList();
-        float[][] vectors;
+        const int EmbedBatchSize = 32;
+        var vectors = new float[toEmbed.Count][];
         try {
-            vectors = await _embedModel.EmbedBatchAsync(texts, ct).ConfigureAwait(false);
+            for (var batchStart = 0; batchStart < toEmbed.Count; batchStart += EmbedBatchSize) {
+                ct.ThrowIfCancellationRequested();
+                var batchEnd = Math.Min(batchStart + EmbedBatchSize, toEmbed.Count);
+                var batchTexts = new List<string>(batchEnd - batchStart);
+                for (var i = batchStart; i < batchEnd; i++) {
+                    batchTexts.Add(toEmbed[i].SourceText ?? string.Empty);
+                }
+                var batchVectors = await _embedModel.EmbedBatchAsync(batchTexts, ct).ConfigureAwait(false);
+                for (var i = 0; i < batchVectors.Length; i++) {
+                    vectors[batchStart + i] = batchVectors[i];
+                }
+            }
         } catch (OperationCanceledException) {
             throw;
         } catch (Exception) {

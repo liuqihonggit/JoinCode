@@ -261,7 +261,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             var allChunks = new List<ChunkInfo>();
             foreach (var b in batch) {
                 allChunks.AddRange(LineBasedChunkExtractor.Extract(
-                    b.FilePath, b.SourceCode, b.Extraction.Symbols));
+                    b.FilePath, b.SourceCode, b.Extraction.Symbols, b.Extraction.ParentDocuments));
             }
             if (allChunks.Count > 0) {
                 await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);

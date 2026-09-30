@@ -29,6 +29,10 @@ public sealed class ProjectStructureRule : IAnalyzerRule {
     private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> Map = RuleDescriptorFactory.CreateAll<ProjectStructureRule>();
     public IReadOnlyList<DiagnosticDescriptor> Descriptors { get; } = Map.Values.ToList();
 
+    // 本地副本 — 与 ExcludedDirectoryCatalog.SearchExcluded 保持一致(7 个: bin/obj/.x/.vs/.idea/.git/node_modules)
+    // 约束: Roslyn 分析器(gen/aot_safety.generator)因独立性约束无法引用 abstractions,
+    //       故无法直接委托 ExcludedDirectoryCatalog.SearchExcluded。
+    //       修改 ExcludedDirectoryCatalog.SearchExcluded 时需同步更新此处(见 ExcludedDirectoryCatalog.cs 注释)。
     private static readonly HashSet<string> ExcludedDirectories = new(StringComparer.OrdinalIgnoreCase)
     {
         "bin", "obj", ".x", ".vs", ".idea", ".git", "node_modules",

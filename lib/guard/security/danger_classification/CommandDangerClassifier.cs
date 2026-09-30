@@ -213,7 +213,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     }
 
     /// <summary>
-    /// 判断 git 子命令是否为只读（不修改仓库状态）
+    /// 判断 git 子命令是否为只读（不修改仓库状态） — 委托 GitCommandCatalog.ReadOnlySubcommands 唯一数据源
     /// </summary>
     internal static bool IsGitReadOnlySubcommand(ShellCommand command) {
         if (!command.CommandName.Equals("git", StringComparison.OrdinalIgnoreCase))
@@ -224,19 +224,6 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
             return true;
 
         var subcommand = command.Arguments[0].ToLowerInvariant();
-
-        // 只读子命令白名单
-        var readOnlySubcommands = FrozenSet.Create(
-            StringComparer.OrdinalIgnoreCase,
-            "status", "log", "diff", "show", "blame", "reflog", "describe", "shortlog",
-            "ls-files", "ls-tree", "cat-file", "rev-parse", "rev-list", "name-rev",
-            "cherry", "cherry-pick" /* --no-commit 时只读，保守起见不加入 */,
-            "branch" /* branch 无 -D/-d 时只读，下面特殊处理 */,
-            "remote", "stash" /* stash list 只读，下面特殊处理 */,
-            "config" /* config --get 只读，下面特殊处理 */,
-            "fetch" /* fetch --dry-run 只读，下面特殊处理 */,
-            "grep", "count-objects", "fsck", "gc" /* --auto 时只读 */,
-            "help", "version", "var");
 
         // branch -D/-d 是删除分支，不是只读
         if (subcommand == "branch") {
@@ -267,7 +254,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
                 a.Equals("--dry-run", StringComparison.OrdinalIgnoreCase));
         }
 
-        return readOnlySubcommands.Contains(subcommand);
+        return GitCommandCatalog.ReadOnlySubcommands.Contains(subcommand);
     }
 
     /// <summary>
@@ -335,13 +322,10 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     }
 
     /// <summary>
-    /// 检查 Remove-Item/rm/del/erase 的 -Recurse -Force 组合
+    /// 检查 Remove-Item/rm/del/erase 的 -Recurse -Force 组合 — 委托 DangerousCommandCatalog.FileDeletionCommands 唯一数据源
     /// </summary>
     internal static CommandDangerLevel CheckRecurseForceCombination(ShellCommand command) {
-        if (!command.CommandName.Equals("Remove-Item", StringComparison.OrdinalIgnoreCase) &&
-            !command.CommandName.Equals("rm", StringComparison.OrdinalIgnoreCase) &&
-            !command.CommandName.Equals("del", StringComparison.OrdinalIgnoreCase) &&
-            !command.CommandName.Equals("erase", StringComparison.OrdinalIgnoreCase))
+        if (!DangerousCommandCatalog.FileDeletionCommands.Contains(command.CommandName))
             return CommandDangerLevel.Safe;
 
         var hasRecurse = command.Arguments.Any(a =>

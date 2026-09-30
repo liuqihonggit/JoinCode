@@ -41,28 +41,16 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
         "whoami", "pwd", "echo", "printenv", "env");
 
     /// <summary>
-    /// 安全的 Git 子命令 — 宽放模式：日常工作命令无条件放行
+    /// 安全的 Git 子命令 — 委托 GitCommandCatalog.SafeSubcommands 唯一数据源
+    /// <para>宽放模式：日常工作命令无条件放行(只读 + 部分写入),禁止重复硬编码</para>
     /// </summary>
-    private static readonly FrozenSet<string> SafeGitSubcommands = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "status", "log", "show", "diff", "branch", "tag", "remote", "config",
-        "help", "version", "stash", "blame", "annotate", "describe",
-        "shortlog", "reflog", "ls-files", "ls-tree", "ls-remote",
-        "name-rev", "rev-parse", "rev-list", "merge-base",
-        "cherry", "cherry-pick" /* --no-commit is read-only preview */,
-        "grep", "whatchanged", "show-branch", "verify-pack",
-        "cat-file", "for-each-ref", "worktree",
-        "add", "commit", "mv", "restore", "switch", "checkout",
-        "fetch", "pull", "merge", "rebase", "stash",
-        "init", "clone", "submodule", "am", "apply", "notes");
+    private static readonly FrozenSet<string> SafeGitSubcommands = GitCommandCatalog.SafeSubcommands;
 
     /// <summary>
-    /// 危险的 Git 子命令 — 仅真正破坏性操作需确认
+    /// 危险的 Git 子命令 — 委托 GitCommandCatalog.DangerousSubcommands 唯一数据源
+    /// <para>仅真正破坏性操作需确认,禁止重复硬编码</para>
     /// </summary>
-    private static readonly FrozenSet<string> DangerousGitSubcommands = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "push", "reset", "rm", "clean",
-        "format-patch", "send-email", "filter-branch", "replace", "update-ref");
+    private static readonly FrozenSet<string> DangerousGitSubcommands = GitCommandCatalog.DangerousSubcommands;
 
     /// <summary>
     /// xargs 自动批准的安全目标命令 — 对齐 TS SAFE_TARGET_COMMANDS_FOR_XARGS

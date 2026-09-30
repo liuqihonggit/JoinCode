@@ -1,6 +1,7 @@
 ﻿global using Infrastructure.Localization;
 global using IO.FileSystem;
 global using JoinCode.Abstractions.CodeIndex;
+global using JoinCode.Abstractions.Constants;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.CodeIndex;

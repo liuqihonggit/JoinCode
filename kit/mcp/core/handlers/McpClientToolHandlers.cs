@@ -642,13 +642,9 @@ public partial class McpClientToolHandlers : ServiceEntity {
     }
 
     private static string GetExtensionFromMimeType(string mimeType) {
-        return mimeType switch {
-            "image/png" => "png",
-            "image/jpeg" or "image/jpg" => "jpg",
-            "image/gif" => "gif",
-            "image/webp" => "webp",
-            "image/svg+xml" => "svg",
-            _ => "png"
-        };
+        // 委托单数据源 MimeExtensionCatalog，未命中回退 png（图片场景默认）
+        if (MimeExtensionCatalog.TryGetExtension(mimeType, out var ext))
+            return ext;
+        return "png";
     }
 }

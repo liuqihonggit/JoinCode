@@ -130,18 +130,8 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
     /// <summary>
     /// 检测路径是否在 bin/obj/.git/.x 目录下(按路径段匹配)
     /// 用于跳过 AST 构造: 这些目录无源码,且并行测试时多个 jcc.exe 同时初始化 SQLite 会导致锁竞争
+    /// 委托 ExcludedDirectoryCatalog.CodeIndexExcluded — 唯一数据源(消除跨模块重复定义)
     /// </summary>
-    private static bool IsInExcludedDirectory(string path) {
-        if (string.IsNullOrEmpty(path)) return false;
-        var excluded = new[] { "bin", "obj", ".git", ".x" };
-        var parts = path.Split(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
-        foreach (var part in parts) {
-            foreach (var ex in excluded) {
-                if (string.Equals(part, ex, StringComparison.OrdinalIgnoreCase)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
+    private static bool IsInExcludedDirectory(string path)
+        => ExcludedDirectoryCatalog.IsInExcludedDirectory(path);
 }

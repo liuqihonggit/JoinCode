@@ -111,6 +111,24 @@ public static partial class DangerousCommandCatalog {
     ];
 
     /// <summary>
+    /// 文件删除命令集合 — RiskType == FileDeletion 的命令名派生集合(rm/del/erase/Remove-Item)
+    /// <para>唯一数据源,供 CommandDangerClassifier.CheckRecurseForceCombination 委托消费,禁止重复硬编码</para>
+    /// </summary>
+    public static readonly FrozenSet<string> FileDeletionCommands = Commands.Values
+        .Where(static c => c.RiskType == CommandRisk.FileDeletion)
+        .Select(static c => c.CommandName)
+        .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 全部删除命令集合 — RiskType == FileDeletion 或 DirectoryDeletion 的命令名派生集合(rm/del/erase/Remove-Item/rmdir/rd)
+    /// <para>唯一数据源,供 ShellDeleteDetector.DeleteCommandNames 委托消费,禁止重复硬编码</para>
+    /// </summary>
+    public static readonly FrozenSet<string> AllDeletionCommands = Commands.Values
+        .Where(static c => c.RiskType == CommandRisk.FileDeletion || c.RiskType == CommandRisk.DirectoryDeletion)
+        .Select(static c => c.CommandName)
+        .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// 选择最高优先级的风险类型 — 唯一逻辑,消费方委托此方法,禁止重复实现。
     /// <para>空列表返回 <see cref="CommandRisk.None"/>;不在优先级表中的风险返回列表第一个。</para>
     /// </summary>

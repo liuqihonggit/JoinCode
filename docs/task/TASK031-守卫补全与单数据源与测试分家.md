@@ -226,3 +226,195 @@
 <!-- 原因: 用户 5 项要求覆盖 4 个方向,需统一规划避免冲突,按风险/收益排序 -->
 <!-- 替代方案: 逐个方向独立推进(跨方向进度慢,可能冲突) -->
 <!-- 验证: 4 个 explore 子代理检测完成,任务清单已整合 ✅ -->
+
+---
+
+## 八、阶段 B1 完成记录(2026-09-30)
+
+### 架构约束发现与方案调整
+
+**原任务文档假设**:保留 `kit/hands` 的 MimeTypeExtensionMapper 和 `kit/mcp` 的 McpBinaryHelper 作为单数据源,消费方委托。
+
+**实际架构约束**(七层架构 ADR 0081):
+- `lib/infrastructure`(③层)不引用 `kit/hands`/`kit/mcp`(④层)→ McpOutputStorage 无法访问 kit 的类
+- `kit/hands` 与 `kit/mcp` 互不引用 → BinaryContentTypeDetector 无法访问 McpBinaryHelper
+
+**调整方案**:单数据源下沉到 `lib/infrastructure`(③层),所有消费方委托。kit 的原类保留公共 API 作为 thin wrapper。
+
+### 新建文件(单数据源 + 测试)
+
+| 文件 | 角色 |
+|------|------|
+| `lib/infrastructure/io/services/file_ops/MimeExtensionCatalog.cs` | MIME→扩展名单数据源(22 映射,GetExtension+TryGetExtension) |
+| `lib/infrastructure/io/services/file_ops/BinaryContentTypeCatalog.cs` | 二进制 Content-Type 检测单数据源(Span+OrdinalIgnoreCase) |
+| `test/unit/infra.tests/file_ops/MimeExtensionCatalogTests.cs` | 单数据源测试(9 方法) |
+| `test/unit/infra.tests/file_ops/BinaryContentTypeCatalogTests.cs` | 单数据源测试(7 方法) |
+
+### 修改文件(消费方委托改造)
+
+| 文件 | 改造 |
+|------|------|
+| `lib/infrastructure/.../McpOutputStorage.cs` | 删除本地 22 项数组,委托 MimeExtensionCatalog.TryGetExtension,保留子类型回退 |
+| `kit/hands/.../MimeTypeExtensionMapper.cs` | 委托 MimeExtensionCatalog.GetExtension(thin wrapper) |
+| `kit/hands/.../BinaryContentTypeDetector.cs` | 委托 BinaryContentTypeCatalog.IsBinaryContentType(thin wrapper) |
+| `kit/mcp/.../McpBinaryHelper.cs` | IsBinaryContentType 委托 BinaryContentTypeCatalog(thin wrapper) |
+| `kit/mcp/.../McpClientToolHandlers.cs` | GetExtensionFromMimeType 委托 MimeExtensionCatalog.TryGetExtension,保留 png 回退 |
+| `kit/mcp/GlobalUsings.cs` | 添加 `global using Infrastructure.IO.Services.FileOps;` |
+| `kit/mcp.tests/GlobalUsings.cs` | 添加 `global using Infrastructure.IO.Services.FileOps;` |
+| `kit/hands.api.tests/.../BinaryContentTests.cs` | 追加 SingleSourceDelegationTests(2 方法,验证委托一致) |
+| `kit/mcp.tests/.../McpBinaryHelperTests.cs` | 追加大小写不敏感 + 委托一致性测试(2 方法) |
+
+### 统一的数据源 + 委托关系
+
+```
+MimeExtensionCatalog (lib/infrastructure, 单数据源)
+├── McpOutputStorage.ExtensionForMimeType (委托 TryGetExtension + 子类型回退)
+├── MimeTypeExtensionMapper.GetExtension (委托 GetExtension)
+└── McpClientToolHandlers.GetExtensionFromMimeType (委托 TryGetExtension + png 回退)
+
+BinaryContentTypeCatalog (lib/infrastructure, 单数据源)
+├── BinaryContentTypeDetector.IsBinaryContentType (委托)
+└── McpBinaryHelper.IsBinaryContentType (委托)
+```
+
+### 行为统一说明
+
+- **大小写不敏感**:原 McpBinaryHelper 区分大小写(Span 无 StringComparison),原 BinaryContentTypeDetector 不敏感(ToLowerInvariant)。统一为大小写不敏感(更健壮,对齐 BinaryContentTypeDetector 期望)
+- **MIME 映射**:统一 22 项(含 gzip),原 MimeTypeExtensionMapper 21 项(缺 gzip)已补全
+- **未知回退**:各消费方保留原回退策略(McpOutputStorage 子类型、McpClientToolHandlers png、MimeTypeExtensionMapper bin)
+
+### 编译结果
+
+- `lib/infrastructure`:0 警告 0 错误
+- `kit/hands`:0 警告 0 错误
+- `kit/mcp`:0 警告 0 错误
+- 3 个测试项目:0 警告 0 错误
+
+### 测试结果
+
+- `infra.tests`(MimeExtensionCatalog + BinaryContentTypeCatalog):60 通过
+- `hands.api.tests`(BinaryContent + SingleSourceDelegation):60 通过
+- `mcp.tests`(McpBinaryHelper):26 通过
+
+### 新增测试方法数量:20 个
+
+### 遇到的 bug
+
+- 并行编译 `kit/hands` + `kit/mcp` 时 artifacts 目录竞争导致 CS0006/MSB3030,改为串行编译解决
+
+---
+
+## 九、阶段 B3 完成记录(2026-09-30)
+
+### 架构约束发现与方案调整
+
+**原任务文档假设**:6 处消费方全部委托 ExcludedDirectoryCatalog。
+
+**实际架构约束**:
+- `gen/aot_safety.generator`(Roslyn 分析器)因独立性约束不引用 abstractions → `ProjectStructureRule.cs` 无法直接委托 `ExcludedDirectoryCatalog.SearchExcluded`
+
+**调整方案**:
+- 5 处可引用 abstractions 的消费方 → 委托 ExcludedDirectoryCatalog
+- `ProjectStructureRule.cs`(分析器)→ 保持本地集合,加注释说明"与 ExcludedDirectoryCatalog.SearchExcluded 保持同步"(7 个目录已一致)
+
+### 新建文件(单数据源 + 测试)
+
+| 文件 | 角色 |
+|------|------|
+| `lib/abstractions/abs_core/core_utils/constants/directory/ExcludedDirectoryCatalog.cs` | 排除目录单数据源(分层集合:核心4/搜索7/热文件17/Markdown13/审计9 + 数组形式 + IsInExcludedDirectory) |
+| `test/unit/abs.tests/constants/ExcludedDirectoryCatalogTests.cs` | 单数据源测试(22 方法,FluentAssertions 风格) |
+| `test/unit/abs.tests/constants/VcsDirectoryExclusionsTests.cs` | VCS glob 模式 + SecurityPatterns 委托测试(12 方法) |
+| `non_deliverables_tools/jcc_audit_ast_cli/GlobalUsings.cs` | jcc_audit_ast_cli 项目 GlobalUsings(新增 Constants using) |
+
+### 修改文件(消费方委托改造)
+
+| 文件 | 改造 |
+|------|------|
+| `server/code_index/core/CodeIndexExcludedDirCatalog.cs` | 删除本地 HashSet+数组,委托 ExcludedDirectoryCatalog.CodeIndexExcluded/CodeIndexExcludedArray/IsInExcludedDirectory |
+| `app/cli/entry/startup/core/SessionInitStep.cs` | 删除本地 IsInExcludedDirectory 实现(13 行),委托 ExcludedDirectoryCatalog.IsInExcludedDirectory |
+| `non_deliverables_tools/jcc_audit_ast_cli/core/FileFilter.cs` | 删除本地 8 项数组,委托 ExcludedDirectoryCatalog.AuditExcludedArray |
+| `lib/infrastructure/hot_spot/HotFileDetector.cs` | 删除本地 FrozenSet.Create(16 项),委托 ExcludedDirectoryCatalog.HotFileExcluded(17 项,+.x) |
+| `lib/infrastructure/utils/text/MarkdownWalker.cs` | 删除本地 12 项数组,委托 ExcludedDirectoryCatalog.MarkdownWalkExcludedArray(13 项,+.x) |
+| `gen/aot_safety.generator/.../ProjectStructureRule.cs` | 保持本地集合(分析器约束),加注释说明与 ExcludedDirectoryCatalog.SearchExcluded 保持同步 |
+| `lib/abstractions/abs_hands/code/VcsDirectoryExclusions.cs` | 新增 GlobPatterns 派生属性(12 模式:6 目录 + 6 glob) |
+| `lib/abstractions/abs_guard/security/scanning/SecurityPatterns.cs` | VcsInternal 从硬编码 3 个改为委托 VcsDirectoryExclusions.GlobPatterns(6 个,补全 .bzr/.jj/.sl) |
+| `server/code_index/GlobalUsings.cs` | 添加 `global using JoinCode.Abstractions.Constants;` |
+| `lib/infrastructure/GlobalUsings.cs` | 添加 `global using JoinCode.Abstractions.Constants;` |
+| `test/unit/abs.tests/GlobalUsings.cs` | 添加 Constants + Security.Scanning using |
+| `server/code_index.tests/d_to_i/GlobalUsings.cs` | 添加 `global using JoinCode.Abstractions.Constants;` |
+| `server/code_index.tests/a_to_c/CodeIndexExcludedDirCatalogTests.cs` | 追加委托一致性验证(3 方法:Assert.Same 引用 + Theory 行为一致) |
+
+### 统一的数据源 + 委托关系
+
+```
+ExcludedDirectoryCatalog (lib/abstractions, 单数据源)
+├── CodeIndexExcluded (核心 4)
+│   ├── CodeIndexExcludedDirCatalog.ExcludedDirs/DefaultExcludedDirs/IsInExcludedDirectory (委托)
+│   └── SessionInitStep.IsInExcludedDirectory (委托)
+├── SearchExcluded (搜索 7)
+│   └── ProjectStructureRule.ExcludedDirectories (本地副本,分析器约束,注释同步)
+├── HotFileExcluded (热文件 17)
+│   └── HotFileDetector.ExcludedDirectories (委托)
+├── MarkdownWalkExcluded (Markdown 13)
+│   └── MarkdownWalkerOptions.ExcludeDirs (委托数组形式)
+└── AuditExcluded (审计 9)
+    └── FileFilter.s_commonExcludedDirs (委托数组形式)
+
+VcsDirectoryExclusions (lib/abstractions, 单数据源)
+├── Names (6 VCS 目录) — RgEngine/SearchService 已委托
+└── GlobPatterns (12 模式,新增派生属性)
+    └── SecurityPatterns.VcsInternal (委托,补全 .bzr/.jj/.sl)
+```
+
+### 行为统一说明
+
+- **.x 归档目录补全**:原 HotFileDetector(16)/MarkdownWalker(12)/FileFilter(8) 均不含 .x,委托后统一补全为 17/13/9(.x 是归档目录,所有扫描都应排除)
+- **VCS 目录补全**:原 SecurityPatterns.VcsInternal 仅 3 个(.git/.svn/.hg),委托后补全为 6 个(.git/.svn/.hg/.bzr/.jj/.sl),与 VcsDirectoryExclusions.Names 一致
+- **大小写不敏感**:所有集合保持 OrdinalIgnoreCase(FrozenSet 比较器)
+- **数组形式**:为不依赖 FrozenSet 的消费方(jcc_audit_ast_cli)提供 *Array 属性
+
+### 编译结果
+
+- `lib/abstractions`:0 警告 0 错误
+- `lib/infrastructure`:0 警告 0 错误
+- `server/code_index`:0 警告 0 错误
+- `app/cli`:0 警告 0 错误
+- `non_deliverables_tools/jcc_audit_ast_cli`:0 警告 0 错误
+- `gen/aot_safety.generator`:0 警告 0 错误
+- `test/unit/abs.tests`:0 警告 0 错误
+- `server/code_index.tests`:0 警告 0 错误
+
+### 测试结果
+
+- `abs.tests`(ExcludedDirectoryCatalog + VcsDirectoryExclusions):34 通过
+- `code_index.tests`(CodeIndexExcludedDirCatalog 委托验证):21 通过(含新增 3 委托验证)
+
+### 新增测试方法数量:37 个
+
+- ExcludedDirectoryCatalogTests:22 个(集合内容 10 + 数组一致 5 + 分层关系 3 + IsInExcludedDirectory 4)
+- VcsDirectoryExclusionsTests:12 个(Names 1 + GlobPatterns 3 + SecurityPatterns 委托 4 + IsVcsPath 2 + 其他 2)
+- CodeIndexExcludedDirCatalogTests 追加:3 个(ExcludedDirs 委托 + DefaultExcludedDirs 委托 + IsInExcludedDirectory 委托 Theory)
+
+### 遇到的 bug
+
+- xUnit Assert.Contains 对 FrozenSet<string> 有二义性(FrozenSet 同时实现 ISet<T> 和 IReadOnlySet<T>)→ 改用 FluentAssertions `.Should().Contain()` 解决
+- xUnit2017 分析器拦截 `Assert.True(collection.Contains(item))` → FluentAssertions 同样解决
+
+<!-- 🤖 Auto Decision: 2026-09-30 -->
+<!-- 决策: ExcludedDirectoryCatalog 放在 abstractions(底层),CodeIndexExcludedDirCatalog 改为委托它(上层委托下层) -->
+<!-- 原因: 避免循环依赖,abstractions 是底层不引用 server/code_index -->
+<!-- 替代方案: ExcludedDirectoryCatalog 委托 CodeIndexExcludedDirCatalog(方向反了,abstractions 不能引用 server) -->
+<!-- 验证: 8 个项目编译通过,55 个测试全部通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-09-30 -->
+<!-- 决策: ProjectStructureRule 保持本地集合,加注释说明与 ExcludedDirectoryCatalog.SearchExcluded 同步 -->
+<!-- 原因: Roslyn 分析器独立性约束,gen/aot_safety.generator 不引用 abstractions -->
+<!-- 替代方案: 在 aot_safety.shared 中新建副本(违反单数据源原则) -->
+<!-- 验证: 集合内容已一致(7 个),注释明确约束 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-09-30 -->
+<!-- 决策: VcsDirectoryExclusions.GlobPatterns 用手动构建(非 LINQ SelectMany) -->
+<!-- 原因: 确保 abstractions 不依赖 System.Linq(虽然 ImplicitUsings 包含,但显式构建更安全) -->
+<!-- 替代方案: Names.SelectMany(d => new[] { d, d + "/**" }).ToFrozenSet() -->
+<!-- 验证: 编译通过,GlobPatterns 12 个模式正确 ✅ -->
+

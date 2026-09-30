@@ -58,9 +58,13 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
     }
 
     /// <summary>
-    /// MIME 类型到扩展名映射 — 对齐 TS extensionForMimeType
+    /// MIME 类型到扩展名映射 — 委托单数据源 MimeExtensionCatalog，未知类型用子类型作为扩展名回退
     /// </summary>
     private static string ExtensionForMimeType(string? mimeType) {
+        if (MimeExtensionCatalog.TryGetExtension(mimeType, out var ext))
+            return ext;
+
+        // 未知类型用子类型作为扩展名（如 application/x-custom → x-custom）
         if (string.IsNullOrEmpty(mimeType))
             return "bin";
 
@@ -70,12 +74,6 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
             mt = mt[..semiIndex];
         mt = mt.Trim();
 
-        foreach (var (mime, ext) in MimeTypeExtensions) {
-            if (mt.SequenceEqual(mime.Span))
-                return ext;
-        }
-
-        // 未知类型用子类型作为扩展名
         var slashIndex = mt.IndexOf('/');
         if (slashIndex >= 0 && slashIndex < mt.Length - 1) {
             var subType = mt[(slashIndex + 1)..];
@@ -102,38 +100,4 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
         return new string(chars);
     }
 
-    /// <summary>
-    /// MIME 类型到扩展名映射表 — 对齐 TS extensionForMimeType
-    /// </summary>
-    private static readonly (ReadOnlyMemory<char> mime, string ext)[] MimeTypeExtensions =
-    [
-        // 文档
-        ("application/pdf".AsMemory(), "pdf"),
-        ("application/json".AsMemory(), "json"),
-        ("text/csv".AsMemory(), "csv"),
-        ("text/plain".AsMemory(), "txt"),
-        ("text/html".AsMemory(), "html"),
-        ("text/markdown".AsMemory(), "md"),
-        ("application/vnd.openxmlformats-officedocument.wordprocessingml.document".AsMemory(), "docx"),
-        ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".AsMemory(), "xlsx"),
-        ("application/vnd.openxmlformats-officedocument.presentationml.presentation".AsMemory(), "pptx"),
-        ("application/msword".AsMemory(), "doc"),
-        ("application/vnd.ms-excel".AsMemory(), "xls"),
-        // 音频
-        ("audio/mpeg".AsMemory(), "mp3"),
-        ("audio/wav".AsMemory(), "wav"),
-        ("audio/ogg".AsMemory(), "ogg"),
-        // 视频
-        ("video/mp4".AsMemory(), "mp4"),
-        ("video/webm".AsMemory(), "webm"),
-        // 图片
-        ("image/png".AsMemory(), "png"),
-        ("image/jpeg".AsMemory(), "jpg"),
-        ("image/gif".AsMemory(), "gif"),
-        ("image/webp".AsMemory(), "webp"),
-        ("image/svg+xml".AsMemory(), "svg"),
-        // 压缩
-        ("application/zip".AsMemory(), "zip"),
-        ("application/gzip".AsMemory(), "gz"),
-    ];
 }

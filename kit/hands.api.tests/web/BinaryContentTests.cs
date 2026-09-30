@@ -201,3 +201,36 @@ public class BinaryContentStorageTests {
         ContentReplacementConstants.FormatFileSize(bytes).Should().Be(expected);
     }
 }
+
+/// <summary>
+/// 单数据源委托一致性测试 — 验证 kit/hands 消费方与 lib/infrastructure 单数据源结果完全一致
+/// </summary>
+[Trait("Category", "Deterministic")]
+public class SingleSourceDelegationTests {
+    [Theory]
+    [InlineData("application/pdf")]
+    [InlineData("application/json")]
+    [InlineData("text/html")]
+    [InlineData("image/png")]
+    [InlineData("image/svg+xml")]
+    [InlineData("application/gzip")]
+    [InlineData("application/x-unknown")]
+    [InlineData("text/html; charset=utf-8")]
+    [InlineData("Application/PDF")]
+    public void MimeTypeExtensionMapper_DelegatesTo_MimeExtensionCatalog(string mimeType) {
+        MimeTypeExtensionMapper.GetExtension(mimeType).Should().Be(MimeExtensionCatalog.GetExtension(mimeType));
+    }
+
+    [Theory]
+    [InlineData("application/pdf")]
+    [InlineData("text/html")]
+    [InlineData("application/json")]
+    [InlineData("application/vnd.api+json")]
+    [InlineData("application/octet-stream")]
+    [InlineData("text/html; charset=utf-8")]
+    [InlineData("Application/PDF")]
+    [InlineData("TEXT/HTML")]
+    public void BinaryContentTypeDetector_DelegatesTo_BinaryContentTypeCatalog(string contentType) {
+        BinaryContentTypeDetector.IsBinaryContentType(contentType).Should().Be(BinaryContentTypeCatalog.IsBinaryContentType(contentType));
+    }
+}

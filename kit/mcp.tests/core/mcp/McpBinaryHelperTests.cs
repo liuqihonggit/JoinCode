@@ -106,4 +106,24 @@ public sealed class McpBinaryHelperTests {
         var msg = McpBinaryHelper.GetBinaryBlobSavedMessage("/tmp/file", null, 0, "");
         msg.Should().Contain("unknown type");
     }
+
+    // ===== 委托单数据源 BinaryContentTypeCatalog 后的大小写不敏感行为 =====
+
+    [Fact]
+    public void IsBinaryContentType_CaseInsensitive_AfterDelegation() {
+        McpBinaryHelper.IsBinaryContentType("Application/PDF").Should().BeTrue();
+        McpBinaryHelper.IsBinaryContentType("TEXT/HTML").Should().BeFalse();
+        McpBinaryHelper.IsBinaryContentType("Application/JSON").Should().BeFalse();
+        McpBinaryHelper.IsBinaryContentType("Application/Vendor.API+JSON").Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("application/pdf")]
+    [InlineData("text/html")]
+    [InlineData("application/json")]
+    [InlineData("application/vnd.api+json")]
+    [InlineData("application/octet-stream")]
+    public void IsBinaryContentType_DelegatesTo_BinaryContentTypeCatalog(string contentType) {
+        McpBinaryHelper.IsBinaryContentType(contentType).Should().Be(BinaryContentTypeCatalog.IsBinaryContentType(contentType));
+    }
 }

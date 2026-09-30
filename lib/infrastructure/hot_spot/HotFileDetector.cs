@@ -19,11 +19,9 @@ public sealed class HotFileDetector : IHotFileDetector {
     private static readonly FrozenSet<string> DefaultConfigExtensions = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase, ".json", ".yaml", ".yml", ".toml");
 
-    private static readonly FrozenSet<string> ExcludedDirectories = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "bin", "obj", ".vs", ".vscode", ".idea", ".git", ".svn",
-        "node_modules", "__pycache__", ".gradle", "build", "dist", "target",
-        "artifacts", ".codegraph", ".jcc");
+    // 委托 ExcludedDirectoryCatalog.HotFileExcluded — 唯一数据源(消除跨模块重复定义)
+    // 含 17 个目录:核心 4 + 搜索 3 + 热文件 10(对齐原 16 个 + .x 归档目录)
+    private static readonly FrozenSet<string> ExcludedDirectories = ExcludedDirectoryCatalog.HotFileExcluded;
 
     /// <summary>
     /// 构造热文件检测器(使用默认规则)

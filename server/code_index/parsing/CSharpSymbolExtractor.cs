@@ -120,15 +120,61 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
             var calls = _callExtractor.ExtractCallsFromTree(tree.RootNode, filePath, symbols);
             var deps = _dependencyExtractor.ExtractDependenciesFromTree(tree.RootNode, filePath, symbols);
+            var chunks = CollectChunks(sourceCode, filePath, symbols);
 
             return new ExtractionResult {
                 Symbols = symbols,
                 Calls = calls,
-                Dependencies = deps
+                Dependencies = deps,
+                Chunks = chunks
             };
         } finally {
             _treeCache.Add(filePath, tree, sourceCode);
         }
+    }
+
+    /// <summary>
+    /// 从符号列表生成代码块 — 每个符号对应一个块，包含源码片段用于向量嵌入。
+    /// </summary>
+    private static IReadOnlyList<ChunkInfo> CollectChunks(
+        string sourceCode, string filePath, IReadOnlyList<SymbolInfo> symbols) {
+        if (symbols.Count == 0) return [];
+
+        var lines = sourceCode.Split('\n');
+        var chunks = new List<ChunkInfo>(symbols.Count);
+
+        foreach (var symbol in symbols) {
+            var sourceText = ExtractLineRange(lines, symbol.StartLine, symbol.EndLine);
+            if (string.IsNullOrWhiteSpace(sourceText)) continue;
+
+            var contentHash = HashUtility.ComputeContentHash(sourceText);
+            var chunkId = HashUtility.ComputeContentHash($"{filePath}|{symbol.FullyQualifiedName}|{contentHash}");
+
+            chunks.Add(new ChunkInfo {
+                ChunkId = chunkId,
+                SymbolFqn = symbol.FullyQualifiedName,
+                Kind = symbol.Kind,
+                FilePath = filePath,
+                StartLine = symbol.StartLine,
+                EndLine = symbol.EndLine,
+                LanguageId = "c-sharp",
+                ContentHash = contentHash,
+                SourceText = sourceText
+            });
+        }
+        return chunks;
+    }
+
+    /// <summary>
+    /// 从行数组中提取指定行范围（1-indexed, 闭区间）。
+    /// </summary>
+    private static string ExtractLineRange(string[] lines, int startLine, int endLine) {
+        if (startLine < 1 || endLine < startLine || startLine > lines.Length) {
+            return string.Empty;
+        }
+        var end = Math.Min(endLine, lines.Length);
+        var span = lines.AsSpan((startLine - 1), (end - startLine + 1));
+        return string.Join('\n', span);
     }
 
     /// <summary>

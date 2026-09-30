@@ -7,7 +7,7 @@ namespace OnnxEmbedding;
 public sealed class OnnxEmbedder : IDisposable {
 
     private readonly InferenceSession _session;
-    private readonly BertTokenizer _tokenizer;
+    private readonly GuardedBertTokenizer _tokenizer;
     private readonly bool _hasTokenTypeIds;
     private readonly int _dimensions;
     private int _disposed;
@@ -36,7 +36,7 @@ public sealed class OnnxEmbedder : IDisposable {
             SeparatorToken = "[SEP]",
             PaddingToken = "[PAD]",
         };
-        _tokenizer = BertTokenizer.Create(vocabPath, bertOptions);
+        _tokenizer = new GuardedBertTokenizer(BertTokenizer.Create(vocabPath, bertOptions));
 
         var outputName = _session.OutputMetadata.Keys.First();
         _dimensions = _session.OutputMetadata[outputName].Dimensions[^1];
@@ -58,7 +58,7 @@ public sealed class OnnxEmbedder : IDisposable {
         var tokenTypeIds = new long[batchSize * maxSeqLen];
 
         for (var i = 0; i < batchSize; i++) {
-            var tokens = _tokenizer.EncodeToIds(texts[i], addSpecialTokens: true, considerPreTokenization: true, considerNormalization: false);
+            var tokens = _tokenizer.EncodeToIdsSafe(texts[i]);
             var seqLen = Math.Min(tokens.Count, maxSeqLen);
             for (var j = 0; j < seqLen; j++) {
                 inputIds[i * maxSeqLen + j] = tokens[j];

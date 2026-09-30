@@ -733,3 +733,26 @@ tool/onnx_embedding/           ← 新增卫星项目（非 AOT）
 **配置**：量化模型 22MB INT8 + seq=32 + batch=128 + 全 CPU + BelowNormal + 固定 500 行切块
 
 **瓶颈分析**：ONNX 推理 10.9s（原生库内部已 SIMD）+ Roslyn 解析 5.4s（无法 SIMD），C# 层优化空间有限。Phase E+E2 并行反而更慢（18.8s，CPU 争抢）已回退。
+
+### 13.6 修复: tokenizer considerPreTokenization=false 导致向量退化（2026-10-01）
+
+**现象**：搜索 Score 全 1.0000，所有块向量完全相同。
+
+**根因**：`BertTokenizer.EncodeToIds` 传 `considerPreTokenization: false`，跳过 BERT 预分词，所有词被当作 `[UNK]` (id=100) 处理。不同文本编码为相同的 `[CLS][UNK][SEP]` (101,100,102)，ONNX 推理产生完全相同的向量。
+
+**诊断过程**：
+1. 写诊断程序嵌入 6 段不同代码，发现所有非空文本向量完全相同
+2. 打印 token IDs，发现全部编码为 `[101, 100, 102]`
+3. 对比 `considerPreTokenization` true/false，确认 false 导致退化
+
+**修复方案**：提取 `GuardedBertTokenizer` 装饰类（`tool/onnx_embedding/GuardedBertTokenizer.cs`），包装 `BertTokenizer`：
+- `EncodeToIdsSafe(text)` — 强制 `considerPreTokenization=true`，调用方无需接触危险参数
+- `EncodeToIds(...)` — 守卫拦截 `considerPreTokenization=false`，抛出带 4 要素诱导报错（①为什么拒绝 ②触发参数 ③拦截守卫 ④正确做法）
+- 守卫元数据：`Name=PreTokenizationGuard`，`Priority=100`（tokenizer 层）
+
+**验证**：
+- 3 个回归测试通过（`OnnxEmbedderRegressionTest`：不同文本向量不同 / 相同文本向量相同 / 非空文本向量非零）
+- jcc 重建索引后搜索 Score=0.22~0.42（非全 1.0）
+- 向量嵌入耗时 15s（tokenize 更多 token，之前所有文本只产生 3 个 token）
+
+**设计理由**：用装饰类而非直接改参数，防止未来误改回 false 导致语义搜索静默失效。守卫报错响亮且带诱导方式，AI 调用时能理解错误含义而非换命令绕过。

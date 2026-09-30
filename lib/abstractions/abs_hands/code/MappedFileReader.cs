@@ -59,9 +59,17 @@ public sealed class MappedFileReader : IDisposable {
     }
 
     /// <summary>
-    /// 读取全部内容为 UTF-8 字符串。
+    /// 读取全部内容为 UTF-8 字符串 — 跳过 UTF-8 BOM（对齐 <c>File.ReadAllText(string)</c> 行为）。
+    /// <para>BOM（EF BB BF）是字节序标记而非文本内容，<see cref="Encoding.UTF8"/>.GetString 会将其解码为 U+FEFF，
+    /// 导致下游 <c>JsonNode.Parse</c> / <c>JsonDocument.Parse</c> 报 "invalid start of value"。</para>
     /// </summary>
-    public string ReadToEnd() => Encoding.UTF8.GetString(ToArray());
+    public string ReadToEnd() {
+        var bytes = ToArray();
+        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
+            return Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
+        }
+        return Encoding.UTF8.GetString(bytes);
+    }
 
     /// <summary>
     /// 释放 mmap 句柄和视图访问器。由 <c>using var</c> 编译器展开的 try-finally 调用。

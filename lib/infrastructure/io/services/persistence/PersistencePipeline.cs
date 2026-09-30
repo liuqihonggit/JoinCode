@@ -34,7 +34,7 @@ public sealed class PersistencePipeline : ActorBase<PersistRequest, Unit>, IPers
     /// 写完后若 Completion 非空则 TrySetResult,异常时 TrySetException。
     /// </summary>
     protected override void Handle(PersistRequest req, CancellationToken ct) {
-        _ = HandleAsyncImpl(req, ct);
+        RegisterInFlight(HandleAsyncImpl(req, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(PersistRequest req, CancellationToken ct) {

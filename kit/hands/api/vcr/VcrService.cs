@@ -263,7 +263,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override void Handle(VcrCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        protected override void Handle(VcrCommand cmd, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask()); }
         private async ValueTask HandleAsyncImpl(VcrCommand cmd, CancellationToken ct) {
             switch (cmd) {
                 case LoadCassetteCmd(var filePath, var name, var reply):

@@ -61,10 +61,11 @@ public sealed class BackgroundTaskActor : ActorBase<BackgroundTaskCommand, Backg
     }
 
     /// <summary>
-    /// 处理后台任务命令 — fire-and-forget 启动任务,不阻塞命令队列。
+    /// 处理后台任务命令 — fire-and-forget 启动任务并通过 RegisterInFlight 注册,不阻塞命令队列。
+    /// <para>DisposeAsync 时由 ActorBase 统一等待所有 in-flight 任务完成(ADR 0125)。</para>
     /// </summary>
     protected override void Handle(BackgroundTaskCommand command, CancellationToken ct) {
-        _ = ExecuteTaskAsync(command, ct);
+        RegisterInFlight(ExecuteTaskAsync(command, ct));
     }
 
     private async Task ExecuteTaskAsync(BackgroundTaskCommand command, CancellationToken ct) {

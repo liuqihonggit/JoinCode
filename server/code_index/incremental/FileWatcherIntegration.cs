@@ -71,7 +71,7 @@ public sealed partial class FileWatcherIntegration : FileWatcherActorBase {
     /// <returns>表示异步操作的任务</returns>
     public Task StartAsync(CancellationToken ct) {
         TrySend(new FileWatcherStartCmd(
-            _workspaceRoot, "*.cs", _debounceInterval,
+            _workspaceRoot, "*.*", _debounceInterval,
             IncludeSubdirectories: true,
             NotifyFilter: NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size
         ));
@@ -89,7 +89,7 @@ public sealed partial class FileWatcherIntegration : FileWatcherActorBase {
     }
 
     /// <summary>
-    /// 处理文件变更事件 — 过滤非 .cs 文件和排除目录后触发索引更新
+    /// 处理文件变更事件 — 过滤非 .cs/.md 文件和排除目录后触发索引更新
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <param name="kind">变更类型</param>
@@ -97,7 +97,7 @@ public sealed partial class FileWatcherIntegration : FileWatcherActorBase {
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的值任务</returns>
     protected override async ValueTask HandleFileChangedAsync(string filePath, WatcherChangeTypes kind, DateTimeOffset timestamp, CancellationToken ct) {
-        if (!IsCsFile(filePath) || IsInExcludedDirectory(filePath)) return;
+        if (!IsIndexableFile(filePath) || IsInExcludedDirectory(filePath)) return;
         await SafeUpdateAsync(filePath, ct).ConfigureAwait(false);
     }
 
@@ -110,9 +110,9 @@ public sealed partial class FileWatcherIntegration : FileWatcherActorBase {
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的值任务</returns>
     protected override async ValueTask HandleFileRenamedAsync(string oldPath, string newPath, DateTimeOffset timestamp, CancellationToken ct) {
-        if (IsCsFile(oldPath) && !IsInExcludedDirectory(oldPath))
+        if (IsIndexableFile(oldPath) && !IsInExcludedDirectory(oldPath))
             await SafeUpdateAsync(oldPath, ct).ConfigureAwait(false);
-        if (IsCsFile(newPath) && !IsInExcludedDirectory(newPath))
+        if (IsIndexableFile(newPath) && !IsInExcludedDirectory(newPath))
             await SafeUpdateAsync(newPath, ct).ConfigureAwait(false);
     }
 
@@ -126,8 +126,9 @@ public sealed partial class FileWatcherIntegration : FileWatcherActorBase {
         }
     }
 
-    private bool IsCsFile(string filePath) {
-        return filePath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase);
+    private bool IsIndexableFile(string filePath) {
+        return filePath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
+            || filePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
     }
 
     private bool IsInExcludedDirectory(string filePath) {

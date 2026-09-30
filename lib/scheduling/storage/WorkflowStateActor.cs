@@ -41,7 +41,7 @@ internal sealed class WorkflowStateActor : ActorBase<IWorkflowStateCommand, Unit
     }
 
     protected override void Handle(IWorkflowStateCommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
+        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(IWorkflowStateCommand command, CancellationToken ct) {

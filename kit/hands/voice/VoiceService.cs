@@ -111,7 +111,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     /// <summary>
     /// Actor Consumer — 线程独占 _recordingStream/_recordingCts，串行处理命令，无需锁。
     /// </summary>
-    protected override void Handle(IVoiceCommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+    protected override void Handle(IVoiceCommand command, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(command, ct).AsTask()); }
     private async ValueTask HandleAsyncImpl(IVoiceCommand command, CancellationToken ct) {
         switch (command) {
             case StartRecordingCmd cmd:

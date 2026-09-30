@@ -124,7 +124,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// <param name="command">要处理的命令。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>表示异步操作的值任务。</returns>
-    protected override void Handle(IAwaySummaryCommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+    protected override void Handle(IAwaySummaryCommand command, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(command, ct).AsTask()); }
     private async ValueTask HandleAsyncImpl(IAwaySummaryCommand command, CancellationToken ct) {
         switch (command) {
             case MarkAwayCmd mark: {

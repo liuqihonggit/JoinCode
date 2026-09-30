@@ -244,7 +244,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
                 record.ConsecutiveFailures = 0;
                 record.LastAdjusted = DateTime.UtcNow;
                 record.LastErrorMessage = null;
-                _ = SaveToDiskAsync();
+                RegisterInFlight(SaveToDiskAsync());
                 success.Tcs.TrySetResult(record);
             }
             break;
@@ -262,7 +262,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
                         failure.ToolName, record.ConsecutiveFailures, record.Score);
                 }
 
-                _ = SaveToDiskAsync();
+                RegisterInFlight(SaveToDiskAsync());
                 failure.Tcs.TrySetResult(record);
             }
             break;
@@ -273,7 +273,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
                     record.ConsecutiveFailures = 0;
                     record.IsEnabled = true;
                     record.LastAdjusted = DateTime.UtcNow;
-                    _ = SaveToDiskAsync();
+                    RegisterInFlight(SaveToDiskAsync());
                 }
                 reset.Tcs.TrySetResult();
             }
@@ -311,7 +311,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
             }
         }
 
-        _ = SaveToDiskAsync();
+        RegisterInFlight(SaveToDiskAsync());
     }
 
     private async Task LoadFromDiskAsync() {

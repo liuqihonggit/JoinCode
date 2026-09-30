@@ -7,4 +7,5 @@ global using JoinCode.CodeIndex;
 global using JoinCode.CodeIndex.Ast;
 global using JoinCode.CodeIndex.Persistence;
 global using System.Runtime.CompilerServices;
+global using OnnxEmbedding;
 global using Xunit;

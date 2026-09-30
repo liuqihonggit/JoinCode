@@ -17,9 +17,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private ILanguagePlugin _plugin;
     private Func<ILanguagePlugin> _pluginFactory;
     private readonly GraphAnalytics _analytics;
-    private readonly GraphPersistence _persistence;
+    private readonly IIndexStore _persistence;
     private readonly GraphVisualization _visualization;
     private readonly ILogger<CodeIndexer>? _logger;
+    private readonly IHttpClientProvider? _httpClient;
+    private EmbeddingIndex? _embeddingIndex;
+    private IParentDocumentStore? _parentDocStore;
+    private List<IIndexStore> _indexStores = [];
+    private string? _lastVectorIndexDir;
     private int _disposed;
     private int _autoLoadState;
     private string? _autoDiscoveredWorkspaceRoot;
@@ -31,13 +36,15 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <param name="store">内存索引存储</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null) {
+    /// <param name="httpClient">可选 HTTP 客户端（用于模型缺失时自动下载，> ADR: 0124）</param>
+    public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null, IHttpClientProvider? httpClient = null) {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(fs);
 
         _store = store;
         _fs = fs;
         _logger = logger;
+        _httpClient = httpClient;
         _pluginFactory = static () => new CSharpSymbolExtractor();
         _plugin = _pluginFactory();
         _symbolIndex = new SymbolIndex(store, fs, _plugin);
@@ -50,6 +57,58 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _analytics = new GraphAnalytics(store);
         _persistence = new GraphPersistence(store, fs);
         _visualization = new GraphVisualization(store);
+        TryInitEmbeddingIndex(fs, logger);
+        BuildIndexStoreList();
+    }
+
+    /// <summary>
+    /// 构建 _indexStores 列表 — 统一管理所有 IIndexStore 实现，供 LINQ 链式加载/保存。
+    /// </summary>
+    private void BuildIndexStoreList() {
+        _indexStores = [_persistence];
+        if (_embeddingIndex is not null) _indexStores.Add(_embeddingIndex);
+        if (_parentDocStore is not null) _indexStores.Add(_parentDocStore);
+    }
+
+    /// <summary>
+    /// 自动初始化向量索引 — 模型文件存在时创建 OnnxEmbeddingClient + EmbeddingIndex + ParentDocumentStore。
+    /// <para>模型路径：%AppData%/jcc/embedding/model_quantized.onnx + vocab.txt</para>
+    /// <para>文件不存在时静默跳过（向量搜索降级为不可用）。</para>
+    /// </summary>
+    private void TryInitEmbeddingIndex(IFileSystem fs, ILogger<CodeIndexer>? logger) {
+        var appData = EmbeddingModelDownloader.DefaultTargetDir;
+        var modelPath = Path.Combine(appData, EmbeddingModelDownloader.ModelFileName);
+        var vocabPath = Path.Combine(appData, EmbeddingModelDownloader.VocabFileName);
+        if (!fs.FileExists(modelPath) || !fs.FileExists(vocabPath)) return;
+
+        try {
+            var degree = int.TryParse(Environment.GetEnvironmentVariable("JCC_ONNX_DEGREE"), out var d) && d > 0
+                ? Math.Min(d, Environment.ProcessorCount) : 0;
+            var embedModel = new OnnxEmbeddingClient(modelPath, vocabPath, fs, degree: degree);
+            _parentDocStore = new InMemoryParentDocumentStore(fs);
+            _embeddingIndex = new EmbeddingIndex(embedModel, new BruteForceAnn(), fs, _parentDocStore);
+            logger?.LogInformation("向量索引已自动初始化: dim={Dim}", embedModel.Dimensions);
+        } catch (Exception ex) {
+            logger?.LogWarning(ex, "向量索引自动初始化失败，语义搜索将不可用");
+        }
+    }
+
+    /// <summary>
+    /// 确保向量模型存在 — 缺失且有 HttpClient 时自动下载（对齐 git submodule update --init，> ADR: 0124）。
+    /// <para>下载后重新初始化 EmbeddingIndex + ParentDocumentStore + BuildIndexStoreList。</para>
+    /// <para>已初始化/无 HttpClient/下载失败时静默降级（保持原行为）。</para>
+    /// </summary>
+    public async Task EnsureEmbeddingModelAsync(CancellationToken ct = default) {
+        if (_embeddingIndex is not null) return;
+        if (_httpClient is null) return;
+        try {
+            var downloader = new EmbeddingModelDownloader(_logger as ILogger<EmbeddingModelDownloader>);
+            await downloader.EnsureAsync(EmbeddingModelDownloader.DefaultTargetDir, _fs, _httpClient, ct).ConfigureAwait(false);
+            TryInitEmbeddingIndex(_fs, _logger);
+            BuildIndexStoreList();
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "向量模型自动下载失败，语义搜索将不可用");
+        }
     }
 
     /// <summary>
@@ -62,6 +121,43 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _plugin = _pluginFactory();
         _symbolIndex = new SymbolIndex(_store, _fs, _plugin);
         _updater = new IncrementalUpdater(_symbolIndex, _store, _fs, _pluginFactory);
+    }
+
+    /// <summary>
+    /// 设置向量嵌入索引 — 启用语义搜索功能。
+    /// <para>必须在 BuildIndexAsync 前调用，否则向量索引不会填充。</para>
+    /// </summary>
+    /// <param name="embeddingIndex">向量嵌入索引实例。</param>
+    public void SetEmbeddingIndex(EmbeddingIndex embeddingIndex) {
+        ArgumentNullException.ThrowIfNull(embeddingIndex);
+        _embeddingIndex = embeddingIndex;
+    }
+
+    /// <summary>
+    /// 设置父文档存储 — 启用父文档检索（召回小块后取完整类/文件上下文）。
+    /// <para>必须在 BuildIndexAsync 前调用，否则父文档不会填充。</para>
+    /// <para>EmbeddingIndex 构造时应注入相同的 ParentDocumentStore，SearchAsync 才能自动填充父文档原文。</para>
+    /// </summary>
+    /// <param name="parentDocStore">父文档存储实例。</param>
+    public void SetParentDocumentStore(IParentDocumentStore parentDocStore) {
+        ArgumentNullException.ThrowIfNull(parentDocStore);
+        _parentDocStore = parentDocStore;
+    }
+
+    /// <summary>
+    /// 语义搜索 — 通过向量嵌入查找相似代码块。
+    /// <para>未设置 EmbeddingIndex 时返回空列表。</para>
+    /// <para>options.IncludeSourceText=true 时结果携带块原文；IncludeParentDocument=false 时不返回父文档。</para>
+    /// </summary>
+    /// <param name="query">查询文本。</param>
+    /// <param name="topK">返回结果数上限。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <param name="options">搜索选项 — AI 动态控制召回策略（null 用默认：仅元数据，无原文）。</param>
+    /// <returns>匹配的代码块列表，按相似度降序排列。</returns>
+    public async Task<IReadOnlyList<ChunkSearchResult>> SearchSemanticAsync(
+        string query, int topK, CancellationToken ct, SearchOptions? options = null) {
+        if (_embeddingIndex is null) return [];
+        return await _embeddingIndex.SearchAsync(query, topK, ct, options).ConfigureAwait(false);
     }
 
     /// <summary>符号搜索器 — 支持模糊匹配和引用查找</summary>
@@ -80,7 +176,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     public IGraphAnalytics Analytics => _analytics;
 
     /// <summary>图持久化 — 索引的加载和保存</summary>
-    public IGraphPersistence Persistence => _persistence;
+    public IIndexStore Persistence => _persistence;
 
     /// <summary>图可视化 — 生成图的可视化输出</summary>
     public IGraphVisualization Visualization => _visualization;
@@ -97,6 +193,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
         var totalSw = Stopwatch.StartNew();
+        var phaseSw = Stopwatch.StartNew();
 
         // Phase A: 索引项目依赖(.slnx/.sln/.csproj)
         await IndexProjectsAsync(options.WorkspaceRoot, ct).ConfigureAwait(false);
@@ -104,6 +201,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         // Phase B: 扫描 .cs 文件(跳过 bin/obj)
         var csFiles = CollectCsFiles(options.WorkspaceRoot, options.ExcludePatterns);
         var trackedFiles = GetTrackedFilesInWorkspace(options.WorkspaceRoot);
+        Console.Error.WriteLine($"[code-index] 扫描: {csFiles.Count} 文件 ({phaseSw.ElapsedMilliseconds}ms)");
+        phaseSw.Restart();
 
         // Phase C: 并行读文件+哈希(Task.WhenAll,对齐 IncrementalUpdater 模式)
         var storedHashes = BatchGetStoredHashes(csFiles);
@@ -118,8 +217,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         // 并行 IO: 一次性启动所有读+哈希任务,Task.WhenAll 等待全部完成
         // (IncrementalUpdater.UpdateDirectoryAsync 已验证此模式,OS 处理 IO 并发)
+        // 大文件(>1MB)用 mmap 零拷贝读取，小文件用 ReadAllTextAsync
+        const long MmapThreshold = 1024 * 1024;
         var readTasks = csFiles.Select(async filePath => {
             ct.ThrowIfCancellationRequested();
+            if (_fs.GetFileLength(filePath) > MmapThreshold) {
+                var mapped = await HashUtility.ReadFileAndComputeHashMappedAsync(filePath, ct).ConfigureAwait(false);
+                return (FilePath: filePath, SourceCode: mapped.Content, Hash: mapped.Hash);
+            }
             var (sourceCode, currentHash) = await HashUtility.ReadFileAndComputeHashAsync(filePath, _fs, ct).ConfigureAwait(false);
             return (FilePath: filePath, SourceCode: sourceCode, Hash: currentHash);
         }).ToArray();
@@ -148,11 +253,43 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         }
         await _symbolIndex.IndexFilesBatchAsync(batch, ct).ConfigureAwait(false);
         updatedCount = batch.Count;
+        Console.Error.WriteLine($"[code-index] 符号索引: {updatedCount} 文件 ({phaseSw.ElapsedMilliseconds}ms)");
+        phaseSw.Restart();
+
+        // Phase E2: 向量嵌入（按固定行数切块，预嵌入AST符号FQN组成知识图谱）
+        if (_embeddingIndex is not null) {
+            var allChunks = new List<ChunkInfo>();
+            foreach (var b in batch) {
+                allChunks.AddRange(LineBasedChunkExtractor.Extract(
+                    b.FilePath, b.SourceCode, b.Extraction.Symbols, b.Extraction.ParentDocuments));
+            }
+            if (allChunks.Count > 0) {
+                await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
+                Console.Error.WriteLine($"[code-index] 向量嵌入: {allChunks.Count} 块 ({phaseSw.ElapsedMilliseconds}ms)");
+                phaseSw.Restart();
+            }
+        }
+
+        // Phase E3: 父文档填充（可选，设置了 ParentDocumentStore 才执行）
+        if (_parentDocStore is not null) {
+            var allParentDocs = batch
+                .SelectMany(b => b.Extraction.ParentDocuments)
+                .ToList();
+            if (allParentDocs.Count > 0) {
+                _parentDocStore.AddRange(allParentDocs);
+                Console.Error.WriteLine($"[code-index] 父文档: {allParentDocs.Count} 文档 ({phaseSw.ElapsedMilliseconds}ms)");
+                phaseSw.Restart();
+            }
+        }
 
         // Phase F: 删除已移除文件
         foreach (var trackedFile in trackedFiles) {
             if (!existingFiles.Contains(trackedFile)) {
                 await _symbolIndex.RemoveFileAsync(trackedFile, ct).ConfigureAwait(false);
+                if (_embeddingIndex is not null) {
+                    await _embeddingIndex.RemoveFileAsync(trackedFile, ct).ConfigureAwait(false);
+                }
+                _parentDocStore?.RemoveFile(trackedFile);
                 deletedCount++;
             }
         }
@@ -160,12 +297,28 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         // Phase G: 失效图缓存
         InvalidateGraphCaches();
 
+        // Phase H: 统一持久化所有 IIndexStore — LINQ 链式（CLI 单次调用模式跨进程恢复）
+        _lastVectorIndexDir = Path.Combine(options.WorkspaceRoot, ".jcc", "code-index");
+        foreach (var store in _indexStores) {
+            ct.ThrowIfCancellationRequested();
+            try {
+                await store.SaveAsync(_lastVectorIndexDir, ct).ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "{Kind}索引持久化失败（内存索引仍可用）", store.Kind);
+            }
+        }
+        Console.Error.WriteLine($"[code-index] 持久化: {phaseSw.ElapsedMilliseconds}ms");
+        phaseSw.Restart();
+
         totalSw.Stop();
+        Console.Error.WriteLine($"[code-index] 总计: {totalSw.ElapsedMilliseconds}ms");
 
         return new BuildIndexResult {
             UpdatedCount = updatedCount,
             SkippedCount = skippedCount,
-            DeletedCount = deletedCount
+            DeletedCount = deletedCount,
+            VectorChunkCount = _embeddingIndex?.ChunkCount ?? 0,
+            ParentDocumentCount = _parentDocStore?.Count ?? 0
         };
     }
 
@@ -222,11 +375,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 LockRegistry.RegisterFlow();
                 using var parser = TreeSitterParserPool.CreateDisposable();
                 using var extractor = new CSharpSymbolExtractor(parser);
+                var mdExtractor = new MarkdownChunkExtractor();
 
                 for (var i = range.Item1; i < range.Item2; i++) {
                     ct.ThrowIfCancellationRequested();
                     var f = files[i];
-                    results[i] = extractor.ExtractAll(f.SourceCode, f.FilePath);
+                    results[i] = f.FilePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+                        ? mdExtractor.ExtractAll(f.SourceCode, f.FilePath)
+                        : extractor.ExtractAll(f.SourceCode, f.FilePath);
                 }
             });
 
@@ -234,7 +390,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     }
 
     /// <summary>
-    /// 增量更新单个文件 — 通过 IncrementalUpdater 处理变更并失效相关图缓存
+    /// 增量更新单个文件 — 通过 IncrementalUpdater 处理符号索引变更，同步更新向量索引和父文档存储。
+    /// <para>.cs 文件：IncrementalUpdater 提取符号+chunks，结果复用到向量索引。</para>
+    /// <para>.md 文件：IncrementalUpdater 提取为空（CSharpSymbolExtractor 不支持 md），此处用 MarkdownChunkExtractor 重新提取。</para>
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <param name="ct">取消令牌</param>
@@ -242,8 +400,33 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         ArgumentNullException.ThrowIfNull(filePath);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
-        await _updater.UpdateAsync(filePath, ct).ConfigureAwait(false);
+        var result = await _updater.UpdateAsync(filePath, ct).ConfigureAwait(false);
         await InvalidateGraphCachesForFileAsync(filePath, ct).ConfigureAwait(false);
+
+        if (!result.WasUpdated || _embeddingIndex is null) return;
+
+        await _embeddingIndex.RemoveFileAsync(filePath, ct).ConfigureAwait(false);
+        _parentDocStore?.RemoveFile(filePath);
+
+        if (result.WasDeleted) return;
+
+        var extraction = filePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+            ? await ExtractMarkdownAsync(filePath, ct).ConfigureAwait(false)
+            : result.Extraction;
+        if (extraction is null) return;
+
+        if (extraction.Chunks.Count > 0) {
+            await _embeddingIndex.IndexChunksAsync(extraction.Chunks, ct).ConfigureAwait(false);
+        }
+        if (_parentDocStore is not null && extraction.ParentDocuments.Count > 0) {
+            _parentDocStore.AddRange(extraction.ParentDocuments);
+        }
+    }
+
+    private async Task<ExtractionResult?> ExtractMarkdownAsync(string filePath, CancellationToken ct) {
+        if (!_fs.FileExists(filePath)) return null;
+        var sourceCode = await _fs.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
+        return new MarkdownChunkExtractor().ExtractAll(sourceCode, filePath);
     }
 
     /// <summary>
@@ -461,6 +644,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             foreach (var file in _fs.EnumerateFiles(currentDir, "*.cs", SearchOption.TopDirectoryOnly)) {
                 result.Add(file);
             }
+            foreach (var file in _fs.EnumerateFiles(currentDir, "*.md", SearchOption.TopDirectoryOnly)) {
+                result.Add(file);
+            }
         } catch (UnauthorizedAccessException ex) { _logger?.LogWarning(ex, "CodeIndexer: 扫描目录时访问被拒绝"); }
     }
 
@@ -495,29 +681,48 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     }
 
     /// <summary>
-    /// 确保索引已加载 — 自动发现 .git 工作区，加载持久化索引或按需重建
+    /// 确保索引已加载 — 统一加载符号索引(code-index.bin) + 向量索引(vector_index.bin) + 父文档(parent_docs.bin)。
+    /// persistDir 为 null 时自动发现 .git 工作区根；不为 null 时从指定目录加载。
+    /// 用 Interlocked 保证只执行一次。
     /// </summary>
-    /// <param name="ct">取消令牌</param>
-    public async Task EnsureIndexLoadedAsync(CancellationToken ct) {
+    /// <param name="ct">取消令牌。</param>
+    /// <param name="persistDir">持久化目录路径(null 时自动发现 git 工作区根)。</param>
+    public async Task EnsureIndexLoadedAsync(CancellationToken ct, string? persistDir = null) {
         if (Interlocked.CompareExchange(ref _autoLoadState, 1, 0) != 0) return;
 
         try {
-            _logger?.LogDebug("CodeIndexer: EnsureIndexLoadedAsync — FindGitWorkspaceDir...");
-            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
-            if (root is null) {
-                _logger?.LogDebug("CodeIndexer: 未发现 .git 工作区根,跳过自动加载");
-                return;
+            await EnsureEmbeddingModelAsync(ct).ConfigureAwait(false);
+            string dir;
+            if (persistDir is not null) {
+                dir = persistDir;
+                _logger?.LogDebug("CodeIndexer: EnsureIndexLoadedAsync — 使用外部持久化路径 {Dir}", dir);
+            } else {
+                _logger?.LogDebug("CodeIndexer: EnsureIndexLoadedAsync — FindGitWorkspaceDir...");
+                var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
+                if (root is null) {
+                    _logger?.LogDebug("CodeIndexer: 未发现 .git 工作区根,跳过自动加载");
+                    return;
+                }
+                _autoDiscoveredWorkspaceRoot = root;
+                dir = Path.Combine(root, AutoLoadSubDir);
             }
 
-            _autoDiscoveredWorkspaceRoot = root;
-            var dir = Path.Combine(root, AutoLoadSubDir);
-            _logger?.LogDebug("CodeIndexer: 检查持久化索引 {Dir}", dir);
-            if (await _persistence.ExistsAsync(dir, ct).ConfigureAwait(false)) {
-                var loaded = await _persistence.LoadAsync(dir, ct).ConfigureAwait(false);
-                if (loaded) {
-                    _logger?.LogInformation("CodeIndexer: 自动加载索引成功 from {Dir}", dir);
-                } else {
-                    _logger?.LogDebug("CodeIndexer: 持久化索引版本不匹配或为空 {Dir}", dir);
+            _lastVectorIndexDir = dir;
+
+            // 统一加载所有 IIndexStore — LINQ 链式，不再写三段 if
+            foreach (var store in _indexStores) {
+                ct.ThrowIfCancellationRequested();
+                if (store.IsReady) continue;
+                if (!await store.ExistsAsync(dir, ct).ConfigureAwait(false)) continue;
+                try {
+                    var loaded = await store.LoadAsync(dir, ct).ConfigureAwait(false);
+                    if (loaded) {
+                        _logger?.LogInformation("CodeIndexer: 自动加载{Kind}索引成功 from {Dir}", store.Kind, dir);
+                    } else {
+                        _logger?.LogDebug("CodeIndexer: {Kind}索引版本不匹配或为空 {Dir}", store.Kind, dir);
+                    }
+                } catch (Exception ex) {
+                    _logger?.LogWarning(ex, "CodeIndexer: {Kind}索引加载失败 {Dir}", store.Kind, dir);
                 }
             }
 

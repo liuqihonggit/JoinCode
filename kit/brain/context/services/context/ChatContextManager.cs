@@ -459,7 +459,7 @@ public sealed class ChatContextManager : IChatContextManager, IAsyncDisposable {
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override void Handle(ChatContextCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        protected override void Handle(ChatContextCommand cmd, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask()); }
         private async ValueTask HandleAsyncImpl(ChatContextCommand cmd, CancellationToken ct) {
             try {
                 switch (cmd) {

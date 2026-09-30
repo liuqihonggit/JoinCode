@@ -89,7 +89,7 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
     /// <param name="command">待处理命令</param>
     /// <param name="ct">取消令牌</param>
     protected override void Handle(IBridgeTokenRefreshCommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
+        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(IBridgeTokenRefreshCommand command, CancellationToken ct) {

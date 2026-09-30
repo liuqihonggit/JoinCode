@@ -60,6 +60,10 @@ public enum CodeToolName {
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexExplore,
 
+    [EnumValue("code_index_search_semantic")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    CodeIndexSearchSemantic,
+
     [EnumValue("code_index_get_project_deps")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetProjectDeps,

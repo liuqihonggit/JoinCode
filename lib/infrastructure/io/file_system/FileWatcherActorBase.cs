@@ -50,7 +50,7 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
     /// 命令分发 — 由 Consumer 线程串行调用,所有状态访问无需锁。
     /// </summary>
     protected override void Handle(FileWatcherCommand cmd, CancellationToken ct) {
-        _ = HandleAsyncImpl(cmd, ct);
+        RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask());
     }
 
     private ValueTask HandleAsyncImpl(FileWatcherCommand cmd, CancellationToken ct) {

@@ -207,7 +207,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override void Handle(MagicDocsCommand cmd, CancellationToken ct) => _ = HandleAsyncImpl(cmd, ct);
+        protected override void Handle(MagicDocsCommand cmd, CancellationToken ct) => RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask());
 
         private async ValueTask HandleAsyncImpl(MagicDocsCommand cmd, CancellationToken ct) {
             try {

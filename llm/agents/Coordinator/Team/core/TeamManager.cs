@@ -724,7 +724,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override void Handle(TeamCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        protected override void Handle(TeamCommand cmd, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask()); }
 
         private async ValueTask HandleAsyncImpl(TeamCommand cmd, CancellationToken ct) {
             switch (cmd) {

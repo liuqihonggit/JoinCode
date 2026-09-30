@@ -36,5 +36,7 @@ public enum SymbolKind {
     [EnumValue("destructor")]
     Destructor,
     [EnumValue("local_function")]
-    LocalFunction
+    LocalFunction,
+    [EnumValue("document")]
+    Document
 }

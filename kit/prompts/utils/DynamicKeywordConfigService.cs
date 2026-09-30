@@ -141,7 +141,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
             _logger = logger;
         }
 
-        protected override void Handle(ReloadConfigCmd cmd, CancellationToken ct) => _ = HandleAsyncImpl(cmd, ct);
+        protected override void Handle(ReloadConfigCmd cmd, CancellationToken ct) => RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask());
 
         private async ValueTask HandleAsyncImpl(ReloadConfigCmd cmd, CancellationToken ct) {
             try {

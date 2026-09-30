@@ -128,7 +128,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
     }
 
     protected override void Handle(IRemoteCacheRefreshCommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
+        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(IRemoteCacheRefreshCommand command, CancellationToken ct) {

@@ -113,4 +113,20 @@ public sealed class MappedFileReaderTests {
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void Open_Utf8BomFile_ReadToEnd_SkipsBom() {
+        var path = Path.Combine(Path.GetTempPath(), $"mmap_bom_{Guid.NewGuid():N}.json");
+        var bom = new byte[] { 0xEF, 0xBB, 0xBF };
+        var json = "{\"vendor\":null}"u8.ToArray();
+        File.WriteAllBytes(path, [.. bom, .. json]);
+        try {
+            using var reader = new MappedFileReader(path);
+            var content = reader.ReadToEnd();
+            Assert.Equal("{\"vendor\":null}", content);
+            Assert.NotEqual('\uFEFF', content[0]);
+        } finally {
+            File.Delete(path);
+        }
+    }
 }

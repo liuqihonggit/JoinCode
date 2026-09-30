@@ -71,14 +71,14 @@ internal sealed class P13ProxyActor : ActorBase<P13ProxyCmd, Unit> {
     public P13ProxyActor(P13EchoActor target) => _target = target;
 
     protected override void Handle(P13ProxyCmd command, CancellationToken ct) {
-        _ = Task.Run(async () => {
+        RegisterInFlight(Task.Run(async () => {
             try {
                 var result = await _target.AskEchoDirectAsync(command.Message);
                 command.Tcs.TrySetResult(result);
             } catch (Exception ex) {
                 command.Tcs.TrySetException(ex);
             }
-        });
+        }));
     }
 
     public async Task<string> AskEchoAsync(string message, int timeoutMs = 5000) {

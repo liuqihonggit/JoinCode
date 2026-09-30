@@ -452,7 +452,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
             _logger = logger;
         }
 
-        protected override void Handle(ReloadCmd cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        protected override void Handle(ReloadCmd cmd, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask()); }
         private async ValueTask HandleAsyncImpl(ReloadCmd cmd, CancellationToken ct) {
             try {
                 var result = await _owner.ReloadInternalAsync(cmd.SkillName, cmd.Ctx, ct).ConfigureAwait(false);

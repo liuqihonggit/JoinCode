@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>OnnxEmbedding</RootNamespace>
+    <AssemblyName>OnnxEmbedding</AssemblyName>
+    <Description>ONNX 嵌入类库 — 量化模型推理，AOT 兼容</Description>
+    <NoWarn>$(NoWarn);JCC9001;JCC1011;IL2026;IL3050</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.1" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" Version="1.0.1" />
+  </ItemGroup>
+
+</Project>

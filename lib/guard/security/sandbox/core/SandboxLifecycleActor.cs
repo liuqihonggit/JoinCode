@@ -83,7 +83,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
-    protected override void Handle(ISandboxCommand command, CancellationToken ct) => _ = HandleAsyncImpl(command, ct);
+    protected override void Handle(ISandboxCommand command, CancellationToken ct) => RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
 
     private async ValueTask HandleAsyncImpl(ISandboxCommand command, CancellationToken ct) {
         switch (command) {

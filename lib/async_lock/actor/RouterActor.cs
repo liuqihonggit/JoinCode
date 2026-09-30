@@ -140,7 +140,7 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
 
             var worker = children[idx];
             if (worker.Instance is not null) {
-                _ = deliver(msg, worker.Instance);
+                RegisterInFlight(deliver(msg, worker.Instance).AsTask());
                 TryPublish(new RouterEvent<TMessage>(worker.Id, msg, idx));
             }
         }

@@ -66,7 +66,7 @@ public sealed class CommandExecutionAuditor : ActorBase<CommandAuditCommand, Uni
     protected override void Handle(CommandAuditCommand cmd, CancellationToken ct) {
         switch (cmd) {
             case CommandAuditCommand.RecordEntry c:
-                _ = HandleRecordAsync(c);
+                RegisterInFlight(HandleRecordAsync(c).AsTask());
                 break;
         }
     }

@@ -688,7 +688,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             _logger = logger;
         }
 
-        protected override void Handle(GetDefinitionsCmd cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        protected override void Handle(GetDefinitionsCmd cmd, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask()); }
 
         private async ValueTask HandleAsyncImpl(GetDefinitionsCmd cmd, CancellationToken ct) {
             try {

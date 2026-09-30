@@ -147,7 +147,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
             _logger = logger;
         }
 
-        protected override void Handle(SessionTagCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        protected override void Handle(SessionTagCommand cmd, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask()); }
 
         private async ValueTask HandleAsyncImpl(SessionTagCommand cmd, CancellationToken ct) {
             switch (cmd) {

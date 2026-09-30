@@ -5,7 +5,7 @@
   <RootNamespace>CodeIndex.E2E.Tests</RootNamespace>
     <AssemblyName>JoinCode.CodeIndex.E2E.Tests</AssemblyName>
     <Description>JoinCode CodeIndex E2E 集成测试</Description>
-    <NoWarn>$(NoWarn);JCC3007</NoWarn>
+    <NoWarn>$(NoWarn);JCC3007;JCC9001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

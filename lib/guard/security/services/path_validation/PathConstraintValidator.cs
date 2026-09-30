@@ -3,6 +3,10 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// <summary>
 /// 路径约束验证器实现 — 对齐 TS pathValidation.ts
 /// 核心功能: 34个命令的路径提取 + 操作类型映射 + 危险路径检查 + 重定向验证
+/// 拆分后职责：接口实现 + 主入口编排 + 命令操作类型/动作描述映射。
+/// 路径提取/命令解析/安全包装剥离 → <see cref="PathExpansionDetector"/>。
+/// 重定向提取/验证 → <see cref="PathRedirectionValidator"/>。
+/// 危险删除路径检测 → <see cref="PathRemovalChecker"/>。
 /// </summary>
 [Register(typeof(IPathConstraintValidator), ServiceLifetime.Singleton)]
 public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstraintValidator {
@@ -95,37 +99,6 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         [PathCommand.Md5sum] = "compute MD5 of files in",
     }.ToFrozenDictionary();
 
-    /// <summary>
-    /// 预归一化危险路径 — Replace('\\','/')+TrimEnd('/') 在静态初始化时一次性计算,消除循环内重复分配
-    /// P2-⑨ 源+派生缓存合并: 直接从路径列表构建,消除中间 FrozenSet 源字段
-    /// </summary>
-    private static readonly string[] DangerousRemovalPathsNormalized = new string[]
-        {
-            "/", "/tmp", "/etc", "/usr", "/bin", "/sbin", "/var", "/root",
-            "/home", "/opt", "/sys", "/proc", "/dev", "/lib",
-            @"C:\", @"C:\Windows", @"C:\Program Files", @"C:\Users",
-            @"D:\", @"E:\",
-        }
-        .Select(d => d.Replace('\\', '/').TrimEnd('/'))
-        .ToArray();
-
-    /// <summary>
-    /// 安全包装命令集合 — 委托 BashSecurityConstants.SafeWrapperCommands 保持单数据源
-    /// </summary>
-    private static readonly FrozenSet<string> SafeWrapperCommands = BashSecurityConstants.SafeWrapperCommands;
-
-    /// <summary>
-    /// 进程替换模式 — 对齐 TS checkPathConstraints 中的进程替换检测
-    /// </summary>
-    private static readonly Regex ProcessSubstitutionPattern = new(
-        @">>\s*>\s*\(|>\s*>\s*\(|<\s*\(", RegexOptions.Compiled);
-
-    /// <summary>
-    /// Shell 展开模式 — 检测重定向目标中的变量引用
-    /// </summary>
-    private static readonly Regex ShellExpansionPattern = new(
-        @"\$[A-Za-z_]|%[A-Za-z_]%|\$\{", RegexOptions.Compiled);
-
     private readonly IPathValidator _pathValidator;
 
     /// <summary>
@@ -147,18 +120,18 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         }
 
         // 1. 进程替换检测 — 对齐 TS: >>(cmd) 或 <(...) 要求手动审批
-        if (ProcessSubstitutionPattern.IsMatch(command)) {
+        if (PathRedirectionValidator.ProcessSubstitutionPattern.IsMatch(command)) {
             return new PathConstraintResult(
                 PermissionBehavior.Ask,
                 "Process substitution detected — requires manual approval");
         }
 
         // 2. 提取输出重定向
-        var redirections = ExtractOutputRedirections(command);
+        var redirections = PathRedirectionValidator.ExtractOutputRedirections(command);
         if (redirections.Count > 0) {
             // 危险重定向检测: 重定向目标含 shell 展开语法
             foreach (var redirect in redirections) {
-                if (ShellExpansionPattern.IsMatch(redirect.Target)) {
+                if (PathRedirectionValidator.ShellExpansionPattern.IsMatch(redirect.Target)) {
                     return new PathConstraintResult(
                         PermissionBehavior.Ask,
                         $"Shell expansion in redirection target: {redirect.Target}");
@@ -166,7 +139,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             }
 
             // 验证输出重定向路径
-            var redirectResult = ValidateOutputRedirections(
+            var redirectResult = PathRedirectionValidator.ValidateOutputRedirections(
                 redirections, workingDirectory, compoundCommandHasCd);
             if (redirectResult.Behavior != PermissionBehavior.Passthrough) {
                 return redirectResult;
@@ -174,13 +147,13 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         }
 
         // 3. 解析命令并验证路径
-        var (cmdName, args) = ParseCommandParts(command);
+        var (cmdName, args) = PathExpansionDetector.ParseCommandParts(command);
         if (string.IsNullOrEmpty(cmdName)) {
             return new PathConstraintResult(PermissionBehavior.Passthrough);
         }
 
         // 剥离安全包装命令
-        var (innerCmd, innerArgs) = StripSafeWrappers(cmdName, args);
+        var (innerCmd, innerArgs) = PathExpansionDetector.StripSafeWrappers(cmdName, args);
 
         // 查找匹配的 PathCommand
         var pathCommand = PathCommandExtensions.FromValue(innerCmd);
@@ -224,7 +197,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         }
 
         // 3. 提取路径
-        var paths = ExtractPaths(command, args, workingDirectory);
+        var paths = PathExpansionDetector.ExtractPaths(command, args, workingDirectory);
 
         // 4. 验证每个路径
         foreach (var path in paths) {
@@ -256,13 +229,13 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         PathCommand command,
         IReadOnlyList<string> args,
         string workingDirectory) {
-        var paths = FilterOutFlags(args);
+        var paths = PathExpansionDetector.FilterOutFlags(args);
 
         foreach (var rawPath in paths) {
-            var expandedPath = ExpandTilde(rawPath);
-            var absolutePath = ResolvePath(expandedPath, workingDirectory);
+            var expandedPath = PathExpansionDetector.ExpandTilde(rawPath);
+            var absolutePath = PathExpansionDetector.ResolvePath(expandedPath, workingDirectory);
 
-            if (IsDangerousRemovalPath(absolutePath)) {
+            if (PathRemovalChecker.IsDangerousRemovalPath(absolutePath)) {
                 return new PathConstraintResult(
                     PermissionBehavior.Ask,
                     $"Dangerous {command.ToValue()} operation detected — removing from system path: {absolutePath}",
@@ -276,733 +249,4 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             PermissionBehavior.Passthrough,
             "No dangerous removals detected");
     }
-
-    #region 路径提取器 — 对齐 TS PATH_EXTRACTORS
-
-    /// <summary>
-    /// 提取命令中的路径 — 对齐 TS PATH_EXTRACTORS[command]
-    /// </summary>
-    private static IReadOnlyList<string> ExtractPaths(
-        PathCommand command, IReadOnlyList<string> args, string workingDirectory) {
-        return command switch {
-            PathCommand.Cd => ExtractCdPaths(args),
-            PathCommand.Ls => FilterOutFlags(args, defaultPaths: ["."]),
-            PathCommand.Find => ExtractFindPaths(args),
-            PathCommand.Grep => ExtractGrepPaths(args),
-            PathCommand.Rg => ExtractRgPaths(args),
-            PathCommand.Sed => ExtractSedPaths(args),
-            PathCommand.Jq => ExtractJqPaths(args),
-            PathCommand.Git => ExtractGitPaths(args),
-            PathCommand.Tr => ExtractTrPaths(args),
-            // 大多数命令直接使用 FilterOutFlags
-            _ => FilterOutFlags(args),
-        };
-    }
-
-    /// <summary>
-    /// cd 路径提取 — 对齐 TS: 所有参数拼接为单个路径，无参数则返回 home
-    /// </summary>
-    private static IReadOnlyList<string> ExtractCdPaths(IReadOnlyList<string> args) {
-        if (args.Count == 0) {
-            return [Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)];
-        }
-
-        // cd 的所有参数拼接为单个路径
-        return [string.Join(" ", args)];
-    }
-
-    /// <summary>
-    /// find 路径提取 — 对齐 TS: 收集路径直到遇到非全局标志
-    /// </summary>
-    private static IReadOnlyList<string> ExtractFindPaths(IReadOnlyList<string> args) {
-        var paths = new List<string>();
-        var i = 0;
-
-        while (i < args.Count) {
-            var arg = args[i];
-
-            // -- 定界符后全是路径
-            if (arg == "--") {
-                i++;
-                while (i < args.Count) {
-                    paths.Add(args[i]);
-                    i++;
-                }
-
-                break;
-            }
-
-            // 以 - 开头的是标志（find 的标志如 -name, -type 等）
-            if (arg.StartsWith('-')) {
-                break;
-            }
-
-            paths.Add(arg);
-            i++;
-        }
-
-        return paths.Count > 0 ? paths : ["."];
-    }
-
-    /// <summary>
-    /// grep 路径提取 — 对齐 TS parsePatternCommand
-    /// </summary>
-    private static IReadOnlyList<string> ExtractGrepPaths(IReadOnlyList<string> args) {
-        var grepFlagsWithArgs = FrozenSet.Create(
-            StringComparer.OrdinalIgnoreCase,
-            "-e", "--regexp", "-f", "--file", "--include", "--exclude",
-            "--exclude-from", "--exclude-dir", "--color");
-
-        var defaults = args.Any(a => a is "-r" or "-R" or "--recursive") ? (IReadOnlyList<string>)["."] : [];
-
-        return ParsePatternCommand(args, grepFlagsWithArgs, defaults);
-    }
-
-    /// <summary>
-    /// rg 路径提取 — 对齐 TS parsePatternCommand
-    /// </summary>
-    private static IReadOnlyList<string> ExtractRgPaths(IReadOnlyList<string> args) {
-        var rgFlagsWithArgs = FrozenSet.Create(
-            StringComparer.OrdinalIgnoreCase,
-            "-e", "--regexp", "-f", "--file", "-g", "--glob",
-            "--iglob", "--type-add", "--type-not", "--color",
-            "--max-columns", "--max-count", "--max-depth",
-            "--max-filesize", "--mmap", "--sort", "--sort-path");
-
-        return ParsePatternCommand(args, rgFlagsWithArgs, ["."]);
-    }
-
-    /// <summary>
-    /// sed 路径提取 — 对齐 TS: 处理 -e/-f 标志，支持 -- 定界符
-    /// </summary>
-    private static IReadOnlyList<string> ExtractSedPaths(IReadOnlyList<string> args) {
-        var paths = new List<string>();
-        var pastFlags = false;
-        var i = 0;
-
-        while (i < args.Count) {
-            var arg = args[i];
-
-            if (arg == "--") {
-                pastFlags = true;
-                i++;
-                continue;
-            }
-
-            if (!pastFlags) {
-                if (arg is "-e" or "--expression") {
-                    i += 2; // 跳过标志和值
-                    continue;
-                }
-
-                if (arg is "-f" or "--file") {
-                    i += 2; // 跳过标志和值
-                    continue;
-                }
-
-                if (arg.StartsWith('-')) {
-                    i++;
-                    continue;
-                }
-
-                // 第一个非标志参数是脚本，跳过
-                pastFlags = true;
-                i++;
-                continue;
-            }
-
-            paths.Add(arg);
-            i++;
-        }
-
-        return paths;
-    }
-
-    /// <summary>
-    /// jq 路径提取 — 对齐 TS: filter 后跟文件路径
-    /// </summary>
-    private static IReadOnlyList<string> ExtractJqPaths(IReadOnlyList<string> args) {
-        var jqFlagsWithArgs = FrozenSet.Create(
-            StringComparer.OrdinalIgnoreCase,
-            "-f", "--from-file", "-L", "--arg", "--argjson",
-            "--slurpfile", "--rawfile", "--args", "--jsonargs");
-
-        return ParsePatternCommand(args, jqFlagsWithArgs, []);
-    }
-
-    /// <summary>
-    /// git 路径提取 — 对齐 TS: 仅处理 git diff --no-index
-    /// </summary>
-    private static IReadOnlyList<string> ExtractGitPaths(IReadOnlyList<string> args) {
-        if (args.Count > 0
-            && args[0].Equals("diff", StringComparison.OrdinalIgnoreCase)
-            && args.Any(a => a.Equals("--no-index", StringComparison.OrdinalIgnoreCase))) {
-            // git diff --no-index: 提取前2个非标志路径
-            var paths = FilterOutFlags(SliceFrom(args, 1));
-            return paths.Take(2).ToList();
-        }
-
-        // 其他 git 命令不做路径约束
-        return [];
-    }
-
-    /// <summary>
-    /// tr 路径提取 — 对齐 TS: 跳过字符集
-    /// </summary>
-    private static IReadOnlyList<string> ExtractTrPaths(IReadOnlyList<string> args) {
-        // tr 命令: tr [选项] 字符集1 [字符集2] — 通常从 stdin 读取，无文件路径
-        // 仅当有 -d 标志时跳1个字符集，否则跳2个
-        var hasDelete = args.Any(a => a is "-d" or "--delete");
-        var skipCount = hasDelete ? 1 : 2;
-
-        var nonFlagArgs = args.Where(a => !a.StartsWith('-')).Skip(skipCount).ToList();
-        return nonFlagArgs;
-    }
-
-    #endregion
-
-    #region 辅助方法
-
-    /// <summary>
-    /// 过滤标志参数，保留位置参数 — 对齐 TS filterOutFlags
-    /// 正确处理 POSIX -- 端标志定界符
-    /// </summary>
-    private static IReadOnlyList<string> FilterOutFlags(
-        IReadOnlyList<string> args, IReadOnlyList<string>? defaultPaths = null) {
-        var positional = new List<string>();
-        var pastDelimiter = false;
-
-        foreach (var arg in args) {
-            if (pastDelimiter) {
-                positional.Add(arg);
-                continue;
-            }
-
-            if (arg == "--") {
-                pastDelimiter = true;
-                continue;
-            }
-
-            if (!arg.StartsWith('-')) {
-                positional.Add(arg);
-            }
-        }
-
-        return positional.Count > 0 ? positional : defaultPaths ?? [];
-    }
-
-    /// <summary>
-    /// 解析 grep/rg 风格命令 — 对齐 TS parsePatternCommand
-    /// </summary>
-    private static IReadOnlyList<string> ParsePatternCommand(
-        IReadOnlyList<string> args,
-        FrozenSet<string> flagsWithArgs,
-        IReadOnlyList<string> defaults) {
-        var paths = new List<string>();
-        var pastDelimiter = false;
-        var pastPattern = false;
-        var i = 0;
-
-        while (i < args.Count) {
-            var arg = args[i];
-
-            if (pastDelimiter) {
-                paths.Add(arg);
-                i++;
-                continue;
-            }
-
-            if (arg == "--") {
-                pastDelimiter = true;
-                i++;
-                continue;
-            }
-
-            // 跳过带参数的标志
-            if (i + 1 < args.Count && flagsWithArgs.Contains(arg)) {
-                i += 2;
-                continue;
-            }
-
-            // 跳过标志
-            if (arg.StartsWith('-')) {
-                i++;
-                continue;
-            }
-
-            // 第一个非标志参数是 pattern，跳过
-            if (!pastPattern) {
-                pastPattern = true;
-                i++;
-                continue;
-            }
-
-            paths.Add(arg);
-            i++;
-        }
-
-        return paths.Count > 0 ? paths : defaults;
-    }
-
-    /// <summary>
-    /// 验证输出重定向 — 对齐 TS validateOutputRedirections
-    /// </summary>
-    private static PathConstraintResult ValidateOutputRedirections(
-        IReadOnlyList<OutputRedirection> redirections,
-        string workingDirectory,
-        bool compoundCommandHasCd) {
-        // cd + 重定向 → 要求手动审批
-        if (compoundCommandHasCd && redirections.Count > 0) {
-            return new PathConstraintResult(
-                PermissionBehavior.Ask,
-                "cd + output redirection requires manual approval");
-        }
-
-        foreach (var redirect in redirections) {
-            // /dev/null 始终安全
-            if (redirect.Target.Equals("/dev/null", StringComparison.OrdinalIgnoreCase)) {
-                continue;
-            }
-
-            // 保留设备名重定向需确认 — git bash 中会创建同名普通文件（Windows 保留设备名）— ADR 0012
-            // 委托 RetainedDeviceNames.IsMatch（唯一数据源）— P0-③ 单数据源改造
-            if (RetainedDeviceNames.IsMatch(redirect.Target)) {
-                return new PathConstraintResult(
-                    PermissionBehavior.Ask,
-                    $"检测到保留设备名重定向 '{redirect.Target}' — 在 git bash 中会创建同名普通文件（Windows 保留设备名）。若本意是丢弃输出，请改用 /dev/null");
-            }
-
-            // 检查路径是否在工作区内
-            if (!IsPathWithinWorkspaceSimple(redirect.Target, workingDirectory)) {
-                return new PathConstraintResult(
-                    PermissionBehavior.Ask,
-                    $"Cannot write to '{redirect.Target}' — outside working directory",
-                    BlockedPath: redirect.Target,
-                    OperationType: FileOperationType.Create);
-            }
-        }
-
-        return new PathConstraintResult(PermissionBehavior.Passthrough);
-    }
-
-    /// <summary>
-    /// 提取输出重定向 — 对齐 TS extractOutputRedirections
-    /// </summary>
-    private static IReadOnlyList<OutputRedirection> ExtractOutputRedirections(string command) {
-        var results = new List<OutputRedirection>();
-        var i = 0;
-
-        while (i < command.Length) {
-            // 跳过引号内容
-            if (command[i] is '"' or '\'') {
-                var quote = command[i];
-                i++;
-                while (i < command.Length && command[i] != quote) {
-                    i++;
-                }
-
-                i++;
-                continue;
-            }
-
-            // 检测 >> 或 >
-            if (command[i] == '>') {
-                var isAppend = i + 1 < command.Length && command[i + 1] == '>';
-                var start = isAppend ? i + 2 : i + 1;
-
-                // 跳过空格
-                while (start < command.Length && char.IsWhiteSpace(command[start])) {
-                    start++;
-                }
-
-                // 提取目标路径
-                var end = start;
-                while (end < command.Length && !char.IsWhiteSpace(command[end])
-                       && command[end] != '|' && command[end] != ';'
-                       && command[end] != '&' && command[end] != '>') {
-                    end++;
-                }
-
-                if (end > start) {
-                    var target = command[start..end].Trim('"', '\'');
-                    results.Add(new OutputRedirection(
-                        target,
-                        isAppend ? ">>" : ">"));
-                }
-
-                i = end;
-                continue;
-            }
-
-            i++;
-        }
-
-        return results;
-    }
-
-    /// <summary>
-    /// 剥离安全包装命令 — 对齐 TS stripSafeWrappers / stripWrappersFromArgv
-    /// </summary>
-    private static (string Command, IReadOnlyList<string> Args) StripSafeWrappers(
-        string command, IReadOnlyList<string> args) {
-        var currentCmd = command;
-        var currentArgs = args;
-        var offset = 0;
-
-        // 循环剥离包装命令 — 用 offset 索引替代 Skip+ToList 消除循环内 O(n) 拷贝
-        while (offset < currentArgs.Count && SafeWrapperCommands.Contains(currentCmd)) {
-            switch (currentCmd.ToLowerInvariant()) {
-                case "time":
-                case "nohup":
-                // 直接剥离，支持 -- 定界符
-                if (offset < currentArgs.Count && currentArgs[offset] == "--") {
-                    offset++;
-                }
-
-                if (offset < currentArgs.Count) {
-                    currentCmd = currentArgs[offset];
-                    offset++;
-                }
-
-                break;
-
-                case "timeout":
-                // 跳过 timeout 的 GNU 标志，找到 duration 参数后的命令
-                var timeoutIdx = SkipTimeoutFlags(currentArgs, offset);
-                if (timeoutIdx >= 0 && timeoutIdx + 1 < currentArgs.Count) {
-                    currentCmd = currentArgs[timeoutIdx + 1];
-                    offset = timeoutIdx + 2;
-                } else {
-                    // 无法解析，返回原始
-                    return (currentCmd, SliceFrom(currentArgs, offset));
-                }
-
-                break;
-
-                case "nice":
-                // nice cmd / nice -N cmd / nice -n N cmd
-                var niceIdx = 0;
-                var remaining = currentArgs.Count - offset;
-                if (remaining > 0 && currentArgs[offset].StartsWith("-")
-                    && !currentArgs[offset].Equals("--", StringComparison.Ordinal)) {
-                    if (currentArgs[offset] == "-n" && remaining > 1) {
-                        niceIdx = 2;
-                    } else {
-                        niceIdx = 1;
-                    }
-                }
-
-                if (niceIdx + 1 <= remaining && niceIdx < remaining) {
-                    currentCmd = currentArgs[offset + niceIdx];
-                    offset += niceIdx + 1;
-                } else {
-                    return (currentCmd, SliceFrom(currentArgs, offset));
-                }
-
-                break;
-
-                case "stdbuf":
-                // 跳过 -i/-o/-e 标志
-                var stdbufIdx = SkipStdbufFlags(currentArgs, offset);
-                if (stdbufIdx < currentArgs.Count) {
-                    currentCmd = currentArgs[stdbufIdx];
-                    offset = stdbufIdx + 1;
-                } else {
-                    return (currentCmd, SliceFrom(currentArgs, offset));
-                }
-
-                break;
-
-                case "env":
-                // 跳过 VAR=val 和安全标志
-                var envIdx = SkipEnvFlags(currentArgs, offset);
-                if (envIdx < currentArgs.Count) {
-                    currentCmd = currentArgs[envIdx];
-                    offset = envIdx + 1;
-                } else {
-                    return (currentCmd, SliceFrom(currentArgs, offset));
-                }
-
-                break;
-
-                default:
-                return (currentCmd, SliceFrom(currentArgs, offset));
-            }
-        }
-
-        return (currentCmd, SliceFrom(currentArgs, offset));
-    }
-
-    /// <summary>
-    /// 从指定位置切片返回不可变列表 — 消除 Skip+ToList 拷贝
-    /// </summary>
-    private static IReadOnlyList<string> SliceFrom(IReadOnlyList<string> list, int start) {
-        if (start == 0) return list;
-        if (start >= list.Count) return Array.Empty<string>();
-        var result = new string[list.Count - start];
-        for (var i = 0; i < result.Length; i++) {
-            result[i] = list[start + i];
-        }
-        return result;
-    }
-
-    /// <summary>
-    /// 跳过 timeout 的 GNU 标志 — 对齐 TS skipTimeoutFlags
-    /// </summary>
-    private static int SkipTimeoutFlags(IReadOnlyList<string> args, int start) {
-        var i = start;
-        while (i < args.Count) {
-            var arg = args[i];
-
-            if (arg == "--foreground") {
-                i++;
-                continue;
-            }
-
-            if (arg is "--kill-after" or "-k" or "--signal" or "-s" or "-v") {
-                i += 2; // 标志 + 值
-                continue;
-            }
-
-            // duration 参数: 数字+[smhd]?
-            if (Regex.IsMatch(arg, @"^\d+(?:\.\d+)?[smhd]?$")) {
-                return i;
-            }
-
-            // 未知标志，无法解析
-            return -1;
-        }
-
-        return -1;
-    }
-
-    /// <summary>
-    /// 跳过 stdbuf 的 -i/-o/-e 标志 — 对齐 TS skipStdbufFlags
-    /// </summary>
-    private static int SkipStdbufFlags(IReadOnlyList<string> args, int start) {
-        var i = start;
-        while (i < args.Count) {
-            var arg = args[i];
-
-            // -iVAL, -oVAL, -eVAL (融合选项)
-            if (arg.Length >= 3 && arg[0] == '-'
-                && (arg[1] is 'i' or 'o' or 'e')) {
-                i++;
-                continue;
-            }
-
-            // --input=VAL, --output=VAL, --error=VAL (长选项)
-            if (arg.StartsWith("--input=", StringComparison.Ordinal)
-                || arg.StartsWith("--output=", StringComparison.Ordinal)
-                || arg.StartsWith("--error=", StringComparison.Ordinal)) {
-                i++;
-                continue;
-            }
-
-            // -i VAL, -o VAL, -e VAL (短选项+空格)
-            if (arg is "-i" or "-o" or "-e" && i + 1 < args.Count) {
-                i += 2;
-                continue;
-            }
-
-            // 非标志，这是命令开始
-            break;
-        }
-
-        return i;
-    }
-
-    /// <summary>
-    /// 跳过 env 的 VAR=val 和安全标志 — 对齐 TS skipEnvFlags
-    /// </summary>
-    private static int SkipEnvFlags(IReadOnlyList<string> args, int start) {
-        var i = start;
-        while (i < args.Count) {
-            var arg = args[i];
-
-            // VAR=val 形式
-            if (!arg.StartsWith('-') && arg.Contains('=')) {
-                i++;
-                continue;
-            }
-
-            // 安全标志
-            if (arg is "-i" or "-0" or "-v" or "-u") {
-                i += arg is "-u" ? 2 : 1;
-                continue;
-            }
-
-            // 拒绝危险标志
-            if (arg is "-S" or "-C" or "-P") {
-                return args.Count; // fail-closed
-            }
-
-            // 非标志，命令开始
-            break;
-        }
-
-        return i;
-    }
-
-    /// <summary>
-    /// 展开 tilde — 对齐 TS expandTilde
-    /// </summary>
-    private static string ExpandTilde(string path) {
-        if (string.IsNullOrEmpty(path)) {
-            return path;
-        }
-
-        if (path.StartsWith("~/", StringComparison.Ordinal)) {
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            return home + path[1..];
-        }
-
-        if (path == "~") {
-            return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        }
-
-        return path;
-    }
-
-    /// <summary>
-    /// 解析为绝对路径（不解析符号链接）— 对齐 TS resolve(path, cwd)
-    /// </summary>
-    private static string ResolvePath(string path, string workingDirectory) {
-        if (string.IsNullOrEmpty(path)) {
-            return workingDirectory;
-        }
-
-        // 去除引号
-        path = path.Trim('"', '\'');
-
-        if (Path.IsPathRooted(path)) {
-            return Path.GetFullPath(path);
-        }
-
-        try {
-            return Path.GetFullPath(Path.Combine(workingDirectory, path));
-        } catch {
-            return path;
-        }
-    }
-
-    /// <summary>
-    /// 检查是否为危险删除路径 — 对齐 TS isDangerousRemovalPath
-    /// 预归一化危险路径 + stackalloc Span 归一化输入,零堆分配(原每次调用 60 次分配)
-    /// </summary>
-    private static bool IsDangerousRemovalPath(string absolutePath) {
-        if (string.IsNullOrEmpty(absolutePath)) {
-            return false;
-        }
-
-        Span<char> normalized = stackalloc char[absolutePath.Length];
-        var source = absolutePath.AsSpan();
-        for (var i = 0; i < source.Length; i++)
-            normalized[i] = source[i] == '\\' ? '/' : source[i];
-        var normalizedSpan = normalized.TrimEnd('/');
-
-        foreach (var dangerous in DangerousRemovalPathsNormalized) {
-            var dangerousSpan = dangerous.AsSpan();
-            if (normalizedSpan.Equals(dangerousSpan, StringComparison.OrdinalIgnoreCase))
-                return true;
-            if (normalizedSpan.Length > dangerousSpan.Length
-                && normalizedSpan.StartsWith(dangerousSpan, StringComparison.OrdinalIgnoreCase)
-                && normalizedSpan[dangerousSpan.Length] == '/')
-                return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// 简化版路径工作区检查（不依赖 IPathValidator）
-    /// </summary>
-    private static bool IsPathWithinWorkspaceSimple(string path, string workingDirectory) {
-        if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(workingDirectory)) {
-            return false;
-        }
-
-        try {
-            var fullPath = Path.IsPathRooted(path)
-                ? Path.GetFullPath(path)
-                : Path.GetFullPath(Path.Combine(workingDirectory, path));
-            var fullWorkDir = Path.GetFullPath(workingDirectory);
-
-            return fullPath.StartsWith(fullWorkDir, StringComparison.OrdinalIgnoreCase);
-        } catch {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// 解析命令部分 — 提取命令名和参数
-    /// </summary>
-    private static (string CommandName, IReadOnlyList<string> Arguments) ParseCommandParts(
-        string command) {
-        var parts = SplitCommandTokens(command);
-        if (parts.Count == 0) {
-            return (string.Empty, Array.Empty<string>());
-        }
-
-        return (parts[0], SliceFrom(parts, 1));
-    }
-
-    /// <summary>
-    /// 分割命令为 token — 对齐 TS tryParseShellCommand
-    /// </summary>
-    private static List<string> SplitCommandTokens(string command) {
-        var parts = new List<string>();
-        var current = new StringBuilder();
-        var inQuotes = false;
-        var quoteChar = '\0';
-
-        for (var i = 0; i < command.Length; i++) {
-            var c = command[i];
-
-            if ((c == '"' || c == '\'') && !inQuotes) {
-                inQuotes = true;
-                quoteChar = c;
-                continue;
-            }
-
-            if (c == quoteChar && inQuotes) {
-                inQuotes = false;
-                quoteChar = '\0';
-                continue;
-            }
-
-            // 遇到管道/分号/&& 结束当前命令
-            if (!inQuotes && (c == '|' || c == ';' || c == '&')) {
-                if (current.Length > 0) {
-                    parts.Add(current.ToString());
-                    current.Clear();
-                }
-
-                break;
-            }
-
-            if (char.IsWhiteSpace(c) && !inQuotes) {
-                if (current.Length > 0) {
-                    parts.Add(current.ToString());
-                    current.Clear();
-                }
-
-                continue;
-            }
-
-            current.Append(c);
-        }
-
-        if (current.Length > 0) {
-            parts.Add(current.ToString());
-        }
-
-        return parts;
-    }
-
-    #endregion
 }
-
-/// <summary>
-/// 输出重定向信息
-/// </summary>
-internal sealed record OutputRedirection(string Target, string Operator);

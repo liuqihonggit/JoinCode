@@ -18,6 +18,7 @@ public sealed partial class MainViewModel {
         _session = session ?? new Hosting.PlaceholderChatSession(_configService, _modelConfigLoader);
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _preferencesStore = preferencesStore ?? new Persistence.GuiPreferencesStore(new IO.FileSystem.PhysicalFileSystem());
+        _turnLogPersistence = new Persistence.TurnLogPersistence(_fileSystem, _sessionStore.SessionsDirectory);
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
         // T9：斜杠命令确认/退出 — handler 由 View 注入（弹确认框），退出事件转发给 View 关窗

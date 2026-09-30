@@ -216,6 +216,7 @@ public sealed partial class MainViewModel {
 
         // 保存该轮 User 内容（放回输入框，不重发 — 对齐 Claude Code rewind 语义）
         var userContent = Messages[turnStartIndex].Content;
+        var rewoundTurnIndex = Messages[turnStartIndex].TurnIndex;
 
         // 计算从该轮到末尾有多少轮（数 User 消息数，含 turnStartIndex 的 User）
         var turnsToRewind = 0;
@@ -228,6 +229,10 @@ public sealed partial class MainViewModel {
         // TrimLastTurn 幂等安全，多调无副作用
         for (var i = 0; i < turnsToRewind; i++)
             await _session.ExecuteSlashCommandAsync("/rewind last");
+
+        // 任务8：撤回标记 — 将 turns.log 重命名为 .undo 后缀，保留审计追踪（用移动代替删除）
+        if (_turnLogPersistence is not null && _activeSession is not null)
+            await _turnLogPersistence.MarkUndoAsync(_activeSession.Id, rewoundTurnIndex);
 
         // UI 移除从 turnStartIndex 到末尾的全部消息
         while (Messages.Count > turnStartIndex)

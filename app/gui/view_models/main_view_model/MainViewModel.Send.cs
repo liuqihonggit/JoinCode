@@ -226,6 +226,16 @@ public sealed partial class MainViewModel {
             _turnProcessor?.CancelTurn();
             stopReason = MarqueeStopReason.Abnormal;
         } finally {
+            // 任务8：轮次日志追加 — 收集本轮消息写入 turns.log（fire-and-forget，不阻塞 UI）
+            var currentTurn = _turnCounter;
+            if (_turnLogPersistence is not null && _activeSession is not null) {
+                var turnEntries = Messages
+                    .Where(m => m.TurnIndex == currentTurn)
+                    .Select(m => new Persistence.TurnLogEntry(m.Role.ToValue(), m.Content))
+                    .ToList();
+                if (turnEntries.Count > 0)
+                    _ = _turnLogPersistence.AppendTurnAsync(_activeSession.Id, currentTurn, turnEntries);
+            }
             _sendCts.Dispose();
             _sendCts = null;
             _turnCounter++;

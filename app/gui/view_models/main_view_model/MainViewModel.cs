@@ -10,6 +10,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     private IJccChatSession _session;
     private readonly Persistence.GuiSessionStore _sessionStore;
     private readonly Persistence.GuiPreferencesStore _preferencesStore;
+    /// <summary>轮次日志持久化 — 每轮追加 turns.log，撤回重命名 .undo（任务8）</summary>
+    private readonly Persistence.TurnLogPersistence? _turnLogPersistence;
     private readonly IModelConfigLoader _modelConfigLoader;
     /// <summary>独立配置服务 — 引擎加载失败时仍可持久化 settings.json（主题/供应商/模型/推理力度）</summary>
     private readonly IConfigurationService _configService;

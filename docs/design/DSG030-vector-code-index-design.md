@@ -674,3 +674,62 @@ tool/onnx_embedding/           ← 新增卫星项目（非 AOT）
 <!-- 原因: 符号图用不可变快照(CAS无锁)，向量层用可变Dictionary(写少读多+ANN内部状态)，两者并发模型不同 -->
 <!-- 替代方案: 向量数据放进 IndexSnapshot（被否决：向量量大时每次 CAS 复制整批向量，O(n) 内存压力） -->
 <!-- 验证: 待 Phase 1 编译验证 -->
+
+## 13. 实现进展与优化记录（2026-10-01）
+
+### 13.1 切块策略：固定 500 行切块 + 预嵌入 AST 符号 FQN
+
+**决策**：向量索引用固定 500 行/块（非 AST 符号切块），每块记录覆盖的 AST 符号 FQN（`ContainedSymbolFqns`）。
+
+**原因**：AST 符号切块产生 ~32000 块（太多，ONNX 推理 60s+），固定 500 行切块产生 ~5970 块（10x 少）。块内预嵌入 FQN，搜索时直接查 CallGraph/DependencyGraph 组成知识图谱。
+
+**实现**：`LineBasedChunkExtractor`（Span 优化，`ReadOnlySpan.Slice` 替代 `Split+Join`）
+
+### 13.2 SIMD 加速
+
+| 优化点 | 改动 | 收益 |
+|--------|------|------|
+| **Mean pooling** | `Vector<float>` 批量累加+归一化，提取 `VectorAddInPlace`/`VectorScaleInPlace` + `[AggressiveInlining]` | 73M 浮点加法 SIMD 化 |
+| **持久化读写** | `MemoryMarshal.AsBytes` 批量读写，替代逐 float `bw.Write`/`br.ReadSingle` | 2.3M 次函数调用 → 5970 次批量 |
+| **NormalizeInPlace** | `Vector<float>` 批量乘法 | 搜索时归一化加速 |
+| **回退逻辑** | `Vector.IsHardwareAccelerated` 显式回退到标量 | 不支持 SIMD 的硬件健壮性 |
+
+**结论**：SIMD 收益有限（~0.5s），真正瓶颈是 ONNX 推理（10.9s）和 Roslyn 解析（5.4s），这些是原生库内部已用 SIMD。
+
+### 13.3 mmap 大文件零拷贝读取
+
+**决策**：>1MB 文件用 `MemoryMappedFile` + `ArrayPool<byte>` 替代 `ReadAllTextAsync`，避免 byte[] 中间分配。
+
+**实现**：`HashUtility.ReadFileAndComputeHashMappedAsync`（`await using` + `ReadExactlyAsync`）
+
+### 13.4 知识图谱关联（核心功能）
+
+**问题**：`ContainedSymbolFqns` 被填充+持久化，但 `SearchSemanticAsync` 从未读取它查图谱 — 设计与实现有差距。
+
+**修复**：`SearchSemanticAsync` 加 `include_graph` 参数（默认 true），对每个搜索结果的 `ContainedSymbolFqns` 查 `CallGraph.GetCallersAsync`/`GetCalleesAsync`，拼进返回文本。每块最多 5 个 FQN，每类最多 2 条边，跨结果去重。
+
+**效果**：AI 在语义搜索结果中直接看到调用方/被调用方关系，不需要额外调用 `code_index_get_callers` 等工具。
+
+### 13.5 全项目实测数据
+
+```
+[code-index] 扫描: 5809 文件 (439ms)
+[code-index] 符号索引: 5809 文件 (5383ms)
+[code-index] 向量嵌入: 5970 块 (10952ms)
+[code-index] 父文档: 13867 文档 (31ms)
+[code-index] 持久化: 680ms
+[code-index] 总计: 17486ms
+```
+
+| 阶段 | 耗时 | 说明 |
+|------|------|------|
+| 扫描 | 439ms | 5809 文件 |
+| 符号索引 | 5383ms | Roslyn AST 解析 + 符号写入 |
+| 向量嵌入 | 10952ms | ONNX 推理（全 CPU）+ SIMD mean pooling |
+| 父文档 | 31ms | 13867 文档 |
+| 持久化 | 680ms | 三索引批量写入 |
+| **总计** | **17.5s** | 全 CPU + BelowNormal 优先级 |
+
+**配置**：量化模型 22MB INT8 + seq=32 + batch=128 + 全 CPU + BelowNormal + 固定 500 行切块
+
+**瓶颈分析**：ONNX 推理 10.9s（原生库内部已 SIMD）+ Roslyn 解析 5.4s（无法 SIMD），C# 层优化空间有限。Phase E+E2 并行反而更慢（18.8s，CPU 争抢）已回退。

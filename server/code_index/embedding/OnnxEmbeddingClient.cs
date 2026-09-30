@@ -10,6 +10,7 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
 
     private readonly OnnxEmbedder[] _embedders;
     private readonly int _degree;
+    private readonly int _maxSeqLen;
     private readonly string _modelId;
     private readonly ILogger<OnnxEmbeddingClient>? _logger;
     private int _disposed;
@@ -22,6 +23,9 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
 
     /// <summary>并行实例数。</summary>
     public int Degree => _degree;
+
+    /// <summary>最大序列长度。</summary>
+    public int MaxSeqLen => _maxSeqLen;
 
     /// <summary>
     /// 构造 ONNX 嵌入模型 — 加载量化模型和 BERT 词表，创建 N 个推理实例并行。
@@ -59,6 +63,8 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
         }
         _modelId = modelId;
         _logger = logger;
+        _maxSeqLen = int.TryParse(Environment.GetEnvironmentVariable("JCC_ONNX_MAX_SEQ_LEN"), out var msl) && msl > 0
+            ? msl : 32;
     }
 
     /// <summary>
@@ -87,7 +93,7 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
         if (texts.Count == 0) return Task.FromResult(Array.Empty<float[]>());
         ct.ThrowIfCancellationRequested();
 
-        if (_degree == 1) return Task.FromResult(_embedders[0].EmbedBatch(texts));
+        if (_degree == 1) return Task.FromResult(_embedders[0].EmbedBatch(texts, _maxSeqLen));
 
         return EmbedBatchParallelAsync(texts, ct);
     }
@@ -108,7 +114,7 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
                 for (var i = 0; i < subTexts.Length; i++) {
                     subTexts[i] = texts[start + i];
                 }
-                var subVectors = embedder.EmbedBatch(subTexts);
+                var subVectors = embedder.EmbedBatch(subTexts, _maxSeqLen);
                 for (var i = 0; i < subVectors.Length; i++) {
                     results[start + i] = subVectors[i];
                 }

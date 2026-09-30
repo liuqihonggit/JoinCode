@@ -1581,6 +1581,44 @@ public class MainViewModelTests {
         public event EventHandler<JoinCode.Abstractions.UI.ThemeKind>? ThemeChanged { add { } remove { } }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
+
+    /// <summary>
+    /// IsBusy 单一权威源验证 — MainViewModel.IsBusy 必须始终等于 RunStatus.IsBusy，
+    /// 消除双源真相（缺失点6修复）。RunStatus.StartTurn/EndTurn 是唯一设置点。
+    /// </summary>
+    [Fact]
+    public void IsBusy_AlwaysMirrorsRunStatus_IsBusy() {
+        var vm = CreateVm();
+        vm.IsBusy.Should().Be(vm.RunStatus.IsBusy,
+            "初始态 IsBusy 必须与 RunStatus.IsBusy 一致");
+
+        vm.RunStatus.StartTurn();
+        vm.IsBusy.Should().BeTrue("RunStatus.StartTurn 后 IsBusy 应为 true（代理）");
+        vm.IsBusy.Should().Be(vm.RunStatus.IsBusy,
+            "忙碌态 IsBusy 必须与 RunStatus.IsBusy 一致");
+
+        vm.RunStatus.EndTurn(MarqueeStopReason.Normal);
+        vm.IsBusy.Should().BeFalse("RunStatus.EndTurn 后 IsBusy 应为 false（代理）");
+        vm.IsBusy.Should().Be(vm.RunStatus.IsBusy,
+            "结束态 IsBusy 必须与 RunStatus.IsBusy 一致");
+    }
+
+    /// <summary>IsBusy PropertyChanged 转发验证 — RunStatus.IsBusy 变更时 MainViewModel 必须 raise IsBusy</summary>
+    [Fact]
+    public void IsBusy_PropertyChanged_ForwardedFromRunStatus() {
+        var vm = CreateVm();
+        var busyChanges = new List<bool>();
+        vm.PropertyChanged += (_, e) => {
+            if (e.PropertyName == nameof(MainViewModel.IsBusy))
+                busyChanges.Add(vm.IsBusy);
+        };
+
+        vm.RunStatus.StartTurn();
+        vm.RunStatus.EndTurn(MarqueeStopReason.Normal);
+
+        busyChanges.Should().Contain(true, "StartTurn 后应转发 IsBusy=true 变更");
+        busyChanges.Should().Contain(false, "EndTurn 后应转发 IsBusy=false 变更");
+    }
 }
 
 /// <summary>

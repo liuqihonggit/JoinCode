@@ -263,6 +263,23 @@ public sealed class MainWindowRegressionTests {
         mdView.Children.Should().NotBeEmpty("Markdown 应解析出块级控件");
     }
 
+    /// <summary>
+    /// 状态圆点接线验证 — StatusDot 控件必须存在于状态栏，始终可见，
+    /// 绑定 StatusKind 经 StatusToBrushConverter 驱动配色（缺失点1接线验证）。
+    /// </summary>
+    [AvaloniaFact]
+    public async Task StatusDot_AlwaysVisible_BoundToStatusKind() {
+        await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        var win = new MainWindow { DataContext = vm };
+        win.Show();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        var dot = win.FindControl<TextBlock>("StatusDot");
+        Assert.NotNull(dot);
+        Assert.True(dot!.IsVisible, "状态圆点应始终可见（不只在 Busy 时）");
+        Assert.Equal("●", dot.Text);
+    }
+
     /// <summary>静态回复假会话（供模板渲染测试挂载消息）</summary>
     private sealed class StaticReplySession : IJccChatSession {
         public ITranscriptService? TranscriptService => null;

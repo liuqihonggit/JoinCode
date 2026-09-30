@@ -41,6 +41,9 @@ public sealed class BoolToRoleBrushConverter : IValueConverter {
 /// 会话状态 → 指示器颜色：就绪绿 / 思考黄 / 错误红。取自身份配色，随主题切换。
 /// </summary>
 public sealed class StatusToBrushConverter : IValueConverter {
+    /// <summary>单例实例 — 供 XAML 静态绑定</summary>
+    public static readonly StatusToBrushConverter Instance = new();
+
     /// <summary>转换值</summary>
     public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) {
         var s = GuiPalette.Current;

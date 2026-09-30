@@ -208,7 +208,10 @@ public sealed class GuiBeautifyRenderTests {
             var sideMarquee = sidebarBar.GetVisualDescendants()
                 .OfType<JoinCode.Gui.Views.Controls.MarqueeTextBlock>().First();
             var sideText = sideMarquee.GetVisualDescendants().OfType<TextBlock>().First();
-            var mainText = mainBar.GetVisualDescendants().OfType<TextBlock>().First();
+            // 主状态栏走马灯文字（跳过状态圆点/spinner 等前置 TextBlock，取走马灯内文字）
+            var mainMarquee = mainBar.GetVisualDescendants()
+                .OfType<JoinCode.Gui.Views.Controls.MarqueeTextBlock>().First();
+            var mainText = mainMarquee.GetVisualDescendants().OfType<TextBlock>().First();
             var textDiff = Math.Abs(BoundsInWindow(sideText).Top - BoundsInWindow(mainText).Top);
             Assert.True(textDiff <= 0.75,
                 $"侧栏状态文字顶 {BoundsInWindow(sideText).Top:F1} 与主状态栏文字顶 {BoundsInWindow(mainText).Top:F1} 错位 {textDiff:F1}px（内容未垂直居中？）");

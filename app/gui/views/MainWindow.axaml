@@ -349,11 +349,14 @@
       <Border Grid.Row="4" x:Name="MainStatusBar" Height="30" Padding="12,0" Background="{DynamicResource GuiStatusBarBackground}"
               BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
         <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" VerticalAlignment="Center">
-          <!-- 全局运行状态区（T5）：spinner 动词 + 耗时 + token 聚合，仅 Busy 时可见 -->
-          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                      IsVisible="{Binding RunStatus.IsBusy}">
-            <!-- 双 glyph 切换实现卡死变色（正常青/卡死红），免动态画刷键 -->
-            <Panel>
+          <!-- 全局运行状态区（T5）：状态圆点 + spinner 动词 + 耗时 + token 聚合 -->
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <!-- 状态圆点：始终可见，就绪绿/思考黄/错误红（StatusKind 三态驱动，缺失点1接线） -->
+            <TextBlock x:Name="StatusDot" Text="●" FontSize="11" VerticalAlignment="Center"
+                       Foreground="{Binding StatusKind, Converter={x:Static cnv:StatusToBrushConverter.Instance}}" />
+            <!-- spinner 动词：仅 Busy 时可见 -->
+            <Panel IsVisible="{Binding RunStatus.IsBusy}">
+              <!-- 双 glyph 切换实现卡死变色（正常青/卡死红），免动态画刷键 -->
               <TextBlock Text="⟳" FontSize="12" VerticalAlignment="Center"
                          Foreground="{DynamicResource GuiAccentText}"
                          IsVisible="{Binding !RunStatus.IsStalled}" />
@@ -362,7 +365,8 @@
                          IsVisible="{Binding RunStatus.IsStalled}" />
             </Panel>
             <TextBlock Text="{Binding RunStatus.Verb}" FontSize="11" FontWeight="SemiBold"
-                       Foreground="{DynamicResource GuiAccentText}" VerticalAlignment="Center" />
+                       Foreground="{DynamicResource GuiAccentText}" VerticalAlignment="Center"
+                       IsVisible="{Binding RunStatus.IsBusy}" />
           </StackPanel>
           <!-- F1 走马灯（学习 opencode）：活动摘要流滚动，替代原"就绪"绿点+文字 -->
           <controls:MarqueeTextBlock Grid.Column="5" x:Name="StatusMarquee" Height="16"

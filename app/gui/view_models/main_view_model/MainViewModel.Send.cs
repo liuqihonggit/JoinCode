@@ -140,7 +140,6 @@ public sealed partial class MainViewModel {
         _historyIndex = -1;
 
         InputText = string.Empty;
-        IsBusy = true;
         StatusText = "思考中…";
         RunStatus.StartTurn();
         _sendCts = new System.Threading.CancellationTokenSource();
@@ -222,7 +221,6 @@ public sealed partial class MainViewModel {
         } finally {
             _sendCts.Dispose();
             _sendCts = null;
-            IsBusy = false;
             RunStatus.EndTurn(stopReason);
             OnPropertyChanged(nameof(CanStop));
             _ = SaveActiveSessionAsync();

@@ -25,8 +25,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     [ObservableProperty]
     private string _inputText = string.Empty;
 
-    [ObservableProperty]
-    private bool _isBusy;
+    /// <summary>是否处于运行忙碌态 — 代理 RunStatus.IsBusy（单一权威源，消除双源真相）</summary>
+    public bool IsBusy => RunStatus.IsBusy;
 
     [ObservableProperty]
     private string _statusText = "未连接";

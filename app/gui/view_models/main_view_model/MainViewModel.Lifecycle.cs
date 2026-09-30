@@ -32,6 +32,13 @@ public sealed partial class MainViewModel {
             resumer: (id, ct) => _session.ResumeSubAgentAsync(id, ct));
         BackgroundPanel.SnapshotApplied += count => RunStatus.SetBackgroundCount(count);
 
+        // IsBusy 单一权威源：RunStatus.IsBusy 变更时转发为 MainViewModel.IsBusy 的 PropertyChanged
+        // （消除双源真相 — 所有消费者统一读 RunStatus.IsBusy，XAML 绑定 IsBusy 仍工作）
+        RunStatus.PropertyChanged += (_, e) => {
+            if (e.PropertyName == nameof(GlobalRunStatusViewModel.IsBusy))
+                OnPropertyChanged(nameof(IsBusy));
+        };
+
         _selectedEffort = _session.EffortLevel.ToValue();
         Messages.CollectionChanged += OnMessagesChanged;
         _ = LoadPersistedSessionsAsync();

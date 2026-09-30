@@ -795,3 +795,39 @@ tool/onnx_embedding/           ← 新增卫星项目（非 AOT）
 <!-- 原因: 平衡召回率与延迟,3x 候选集重排序开销可控,5x 在大库上延迟明显 -->
 <!-- 替代方案: 动态倍数(根据 topK 调整),但增加复杂度暂不采用 -->
 <!-- 验证: 编译通过,1100 测试全通过,搜索 VectorMath.cs 排第 2 位 ✅ -->
+
+### 13.8 多 ONNX 实例并行推理（2026-10-01）
+
+**现象**：修复 tokenizer 后全量重建 22s，向量嵌入 15.5s 占 71%。单 OnnxEmbedder 实例 IntraOpNumThreads=ProcessorCount，但 ONNX 内部多线程对 batch 间串行无效。
+
+**优化方案**：`OnnxEmbeddingClient` 持有 N 个 `OnnxEmbedder` 实例，每个 `IntraOpNumThreads = ProcessorCount / N`，`EmbedBatchAsync` 分 N 组 `Task.Run` 并行推理。
+
+**关键改动**：
+1. `OnnxEmbedder` 加 `intraOpNumThreads` 构造参数（默认 ProcessorCount，多实例传 ProcessorCount/N）
+2. `OnnxEmbeddingClient` 持有 `OnnxEmbedder[]`，`degree` 默认 0=自动取 `ProcessorCount/2`
+3. `EmbedBatchAsync` 分 N 组并行：degree=1 直接调，degree>1 用 `Task.Run` + `WhenAll`
+4. `CodeIndexer` 加环境变量 `JCC_ONNX_DEGREE` 可调 degree
+
+**degree 调优实测**（16 核机器，5981 块）：
+
+| degree | 向量嵌入 | 总计 | 加速比 |
+|--------|----------|------|--------|
+| 1（原单实例） | 15.5s | 22.0s | 1.0x |
+| 4 | 9.4s | 16.2s | 1.36x |
+| **8（=CPU/2）** | **7.9s** | **14.5s** | **1.52x** |
+| 16（=CPU） | 7.9s | 14.4s | 1.53x |
+
+degree=8 已饱和，degree=16 无额外收益（tokenize 串行 + 内存带宽瓶颈）。
+
+**设计决策**：
+- degree 默认 `ProcessorCount/2` 而非固定值：适配不同核数机器
+- degree=8 饱和原因：ONNX 推理内部 IntraOpNumThreads=2（16/8），单实例已利用 2 核，8 实例 × 2 核 = 16 核打满；degree=16 时每实例 1 核，并行度增加但单实例变慢，抵消
+- 环境变量 `JCC_ONNX_DEGREE` 保留可调：不同硬件/负载可微调
+
+**验证**：753 单元 + 3 E2E 回归全通过；总计 22s → 14.4s
+
+<!-- 🤖 Auto Decision: 2026-10-01 -->
+<!-- 决策: degree 默认 ProcessorCount/2 而非固定 8 -->
+<!-- 原因: 适配不同核数机器,16核=8实例已饱和,8核=4实例,32核=16实例 -->
+<!-- 替代方案: 固定 8,但在非 16 核机器上不合理 -->
+<!-- 验证: 编译通过,753+3 测试全通过,总计 22s→14.4s ✅ -->

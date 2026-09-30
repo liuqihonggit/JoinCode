@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 系统提示存储 — 管理静态系统提示、动态系统消息和系统消息缓存
 /// 从 ChatContextManager 提取,降低大类字段数和复杂度
 /// </summary>
-internal sealed class SystemPromptStore {
+internal sealed class SystemPromptStore : IPromptStore {
     private string _staticPrompt = string.Empty;
     private readonly List<string> _dynamicMessages = [];
     private string _previousDynamicHash = string.Empty;
@@ -42,7 +42,7 @@ internal sealed class SystemPromptStore {
     public List<string> GetDynamicMessages() => _dynamicMessages;
 
     /// <summary>获取或创建缓存的系统消息列表 — 动态消息未变时复用缓存</summary>
-    public List<ApiMessage> GetOrCreateCachedSystemMessages() {
+    public IReadOnlyList<ApiMessage> GetOrCreateCachedSystemMessages() {
         var dynamicContent = GetDynamicContent();
         var currentDynamicHash = string.IsNullOrEmpty(dynamicContent)
             ? string.Empty

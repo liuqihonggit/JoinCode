@@ -5,6 +5,7 @@ namespace Core.Utils;
 /// <para>覆盖:超时 vs 外部取消区分(未取消/已取消/default/None)、死锁异常属性(actorName/timeoutMs/Message)。</para>
 /// <para>static 方法通过 PureFuncActor(AskRetryPureFunctionsTest 中定义)调用,不实例化 Actor,无时序依赖。</para>
 /// </summary>
+[Trait("Category", "Deterministic")]
 public class AskAwaitPureFunctionsTest {
 
     #region IsTimeoutCancellation — 超时 vs 外部取消判断纯函数

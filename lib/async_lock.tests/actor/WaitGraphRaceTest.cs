@@ -5,6 +5,8 @@ namespace Core.Utils;
 /// <para>根因: Dag&lt;T&gt; 内部用 Dictionary（非线程安全），多异步流共享同一实例并发修改竞态。</para>
 /// <para>修复: _askWaitGraph 改为 AsyncLocal&lt;ImmutableDag&lt;string&gt;?&gt;，每次 EnterWaitGraph 创建新副本。</para>
 /// </summary>
+[Trait("Category", "Flaky")]
+[Trait("Category", "Timing")]
 public class WaitGraphRaceTest {
     /// <summary>
     /// P1-3 修复验证: _askWaitGraph 类型从 AsyncLocal&lt;Dag&lt;string&gt;?&gt; 改为 AsyncLocal&lt;ImmutableDag&lt;string&gt;?&gt;。

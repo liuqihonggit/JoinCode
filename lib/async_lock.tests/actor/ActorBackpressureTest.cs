@@ -76,6 +76,7 @@ public class ActorBackpressureTest {
     }
 
     [Fact]
+    [Trait("Category", "Timing")]
     public async Task WatermarkReached_EventFiresOnHighWatermark() {
         var bp = new ActorBackpressure(Capacity: 20, HighWatermark: 3, CriticalWatermark: 15);
         await using var actor = new BackpressureTestActor(bp);
@@ -97,6 +98,7 @@ public class ActorBackpressureTest {
     }
 
     [Fact]
+    [Trait("Category", "Timing")]
     public async Task WatermarkReached_EventFiresOnCriticalWatermark() {
         var bp = new ActorBackpressure(Capacity: 30, HighWatermark: 5, CriticalWatermark: 10);
         await using var actor = new TestActor(bp);

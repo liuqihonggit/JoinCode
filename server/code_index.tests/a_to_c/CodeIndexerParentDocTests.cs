@@ -94,4 +94,59 @@ public sealed class CodeIndexerParentDocTests : IDisposable {
 
         Assert.True(_parentStore.Count >= 2);
     }
+
+    [Fact]
+    public async Task BuildIndex_MarkdownFile_IndexesChunks() {
+        var root = Path.Combine(Path.GetTempPath(), $"ci_md_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        await _fs.WriteAllText(Path.Combine(root, "doc.md"),
+            "# Guide\n\nAuthentication steps.\n");
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+
+        await _indexer.BuildIndexAsync(options, CancellationToken.None);
+
+        Assert.True(_embeddingIndex.ChunkCount > 0);
+    }
+
+    [Fact]
+    public async Task SearchSemantic_MarkdownFile_ReturnsResults() {
+        var root = Path.Combine(Path.GetTempPath(), $"ci_md_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        await _fs.WriteAllText(Path.Combine(root, "auth.md"),
+            "# Authentication\n\nHow to authenticate users.\n");
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+
+        await _indexer.BuildIndexAsync(options, CancellationToken.None);
+
+        var results = await _indexer.SearchSemanticAsync("authentication", 5, CancellationToken.None);
+        Assert.NotEmpty(results);
+    }
+
+    [Fact]
+    public async Task BuildIndex_MarkdownParentDoc_Filled() {
+        var root = Path.Combine(Path.GetTempPath(), $"ci_md_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        await _fs.WriteAllText(Path.Combine(root, "doc.md"),
+            "# Title\n\nContent here.\n");
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+
+        await _indexer.BuildIndexAsync(options, CancellationToken.None);
+
+        Assert.True(_parentStore.Count > 0);
+    }
+
+    [Fact]
+    public async Task BuildIndex_CsAndMd_BothIndexed() {
+        var root = Path.Combine(Path.GetTempPath(), $"ci_mix_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        await _fs.WriteAllText(Path.Combine(root, "code.cs"),
+            "public class Foo { public void Bar() { } }");
+        await _fs.WriteAllText(Path.Combine(root, "doc.md"),
+            "# Guide\n\nUsage guide.\n");
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+
+        await _indexer.BuildIndexAsync(options, CancellationToken.None);
+
+        Assert.True(_embeddingIndex.ChunkCount >= 2);
+    }
 }

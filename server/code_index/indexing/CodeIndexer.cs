@@ -285,11 +285,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 LockRegistry.RegisterFlow();
                 using var parser = TreeSitterParserPool.CreateDisposable();
                 using var extractor = new CSharpSymbolExtractor(parser);
+                var mdExtractor = new MarkdownChunkExtractor();
 
                 for (var i = range.Item1; i < range.Item2; i++) {
                     ct.ThrowIfCancellationRequested();
                     var f = files[i];
-                    results[i] = extractor.ExtractAll(f.SourceCode, f.FilePath);
+                    results[i] = f.FilePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+                        ? mdExtractor.ExtractAll(f.SourceCode, f.FilePath)
+                        : extractor.ExtractAll(f.SourceCode, f.FilePath);
                 }
             });
 
@@ -522,6 +525,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             }
 
             foreach (var file in _fs.EnumerateFiles(currentDir, "*.cs", SearchOption.TopDirectoryOnly)) {
+                result.Add(file);
+            }
+            foreach (var file in _fs.EnumerateFiles(currentDir, "*.md", SearchOption.TopDirectoryOnly)) {
                 result.Add(file);
             }
         } catch (UnauthorizedAccessException ex) { _logger?.LogWarning(ex, "CodeIndexer: 扫描目录时访问被拒绝"); }

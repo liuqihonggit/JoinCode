@@ -544,8 +544,11 @@ public sealed class CodeIndexToolHandlers {
         }
 
         try {
-            var options = new CodeIndexOptions { WorkspaceRoot = workspace_root };
-            var result = await _indexer.BuildIndexAsync(options, cancellationToken).ConfigureAwait(false);
+            var prevPriority = System.Diagnostics.Process.GetCurrentProcess().PriorityClass;
+            System.Diagnostics.Process.GetCurrentProcess().PriorityClass = System.Diagnostics.ProcessPriorityClass.BelowNormal;
+            try {
+                var options = new CodeIndexOptions { WorkspaceRoot = workspace_root };
+                var result = await _indexer.BuildIndexAsync(options, cancellationToken).ConfigureAwait(false);
 
             var persistDir = Path.Combine(workspace_root, ".jcc", "code-index");
             var sb = new System.Text.StringBuilder();
@@ -567,6 +570,9 @@ public sealed class CodeIndexToolHandlers {
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
+            } finally {
+                System.Diagnostics.Process.GetCurrentProcess().PriorityClass = prevPriority;
+            }
         } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.IndexRebuildFailed, ex.Message)).Build();
         }

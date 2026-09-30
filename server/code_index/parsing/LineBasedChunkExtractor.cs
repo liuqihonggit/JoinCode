@@ -6,11 +6,13 @@ namespace JoinCode.CodeIndex.Parsing;
 /// <para>  向量索引 = 固定行数块（粗粒度，快速召回，~500行/块）</para>
 /// <para>  符号索引 = AST 符号（细粒度，精确查询，调用图/依赖图）</para>
 /// <para>  关联方式 = 块内预嵌入 ContainedSymbolFqns，搜索时直接查图谱</para>
+/// <para>Span 优化：用 ReadOnlySpan 切片替代 Split+Join，消除中间 string[] 分配。</para>
 /// </summary>
 public static class LineBasedChunkExtractor {
 
     /// <summary>
     /// 按固定行数切块，每块记录覆盖的 AST 符号 FQN。
+    /// <para>Span 优化：遍历一次记录行起始偏移，按偏移 Slice 取块文本，0 中间 GC。</para>
     /// </summary>
     /// <param name="filePath">文件路径。</param>
     /// <param name="sourceCode">源代码文本。</param>
@@ -25,19 +27,31 @@ public static class LineBasedChunkExtractor {
         int chunkSize = 500,
         string languageId = "c-sharp") {
         if (string.IsNullOrEmpty(sourceCode)) return [];
-        var lines = sourceCode.Split('\n');
-        if (lines.Length == 0) return [];
 
-        var chunks = new List<ChunkInfo>((lines.Length + chunkSize - 1) / chunkSize);
+        var span = sourceCode.AsSpan();
 
-        for (var start = 0; start < lines.Length; start += chunkSize) {
-            var end = Math.Min(start + chunkSize - 1, lines.Length - 1);
+        var lineStarts = new List<int>(Math.Min(span.Length / 40 + 1, 1024)) { 0 };
+        for (var i = 0; i < span.Length; i++) {
+            if (span[i] == '\n') lineStarts.Add(i + 1);
+        }
+        var totalLines = lineStarts.Count;
+        if (totalLines == 0) return [];
+
+        var chunks = new List<ChunkInfo>((totalLines + chunkSize - 1) / chunkSize);
+
+        for (var start = 0; start < totalLines; start += chunkSize) {
+            var end = Math.Min(start + chunkSize - 1, totalLines - 1);
             var startLine = start + 1;
             var endLine = end + 1;
 
-            var sourceText = string.Join('\n', lines, start, end - start + 1);
-            if (string.IsNullOrWhiteSpace(sourceText)) continue;
+            var startOffset = lineStarts[start];
+            var endOffset = (end + 1 < totalLines) ? lineStarts[end + 1] - 1 : span.Length;
+            var length = endOffset - startOffset;
+            if (length <= 0) continue;
+            var chunkSpan = span.Slice(startOffset, length);
+            if (chunkSpan.IsWhiteSpace()) continue;
 
+            var sourceText = chunkSpan.ToString();
             var contentHash = HashUtility.ComputeContentHash(sourceText);
             var chunkId = HashUtility.ComputeContentHash($"{filePath}|{startLine}|{endLine}|{contentHash}");
 

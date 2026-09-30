@@ -79,7 +79,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             return;
         }
 
-        const int EmbedBatchSize = 32;
+        const int EmbedBatchSize = 128;
         var vectors = new float[toEmbed.Count][];
         try {
             for (var batchStart = 0; batchStart < toEmbed.Count; batchStart += EmbedBatchSize) {
@@ -236,7 +236,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             }
             hashesSnapshot.TryGetValue(chunkId, out var hash);
             WriteString(bw, hash ?? string.Empty);
-            for (var d = 0; d < dims; d++) bw.Write(vector[d]);
+            bw.Write(MemoryMarshal.AsBytes(vector.AsSpan(0, dims)));
         }
         bw.Flush();
         _fs.CreateDirectory(dirPath);
@@ -285,7 +285,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             }
             var hash = ReadString(br);
             var vector = new float[dims];
-            for (var d = 0; d < dims; d++) vector[d] = br.ReadSingle();
+            br.Read(MemoryMarshal.AsBytes(vector.AsSpan()));
 
             _ann.Add(chunkId, vector);
             metadataItems.Add((chunkId, new ChunkMetadata {

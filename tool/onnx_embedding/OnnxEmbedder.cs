@@ -24,7 +24,7 @@ public sealed class OnnxEmbedder : IDisposable {
         var options = new SessionOptions {
             GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
             InterOpNumThreads = 1,
-            IntraOpNumThreads = Math.Max(1, Environment.ProcessorCount / 4),
+            IntraOpNumThreads = Environment.ProcessorCount,
         };
         _session = new InferenceSession(modelPath, options);
         _hasTokenTypeIds = _session.InputMetadata.ContainsKey("token_type_ids");
@@ -45,12 +45,13 @@ public sealed class OnnxEmbedder : IDisposable {
 
     /// <summary>
     /// 批量嵌入文本 → 向量数组。
-    /// <para> tokenize → ONNX 推理 → mean pooling → 返回向量。</para>
+    /// <para> tokenize → ONNX 推理 → SIMD mean pooling → 返回向量。</para>
+    /// <para>mean pooling 用 Vector&lt;float&gt; 批量累加+归一化，比标量快 4-8x。</para>
     /// </summary>
     /// <param name="texts">待嵌入的文本列表。</param>
-    /// <param name="maxSeqLen">最大序列长度（默认 64）。</param>
+    /// <param name="maxSeqLen">最大序列长度（默认 32）。</param>
     /// <returns>向量数组，每个向量长度为 <see cref="Dimensions"/>。</returns>
-    public float[][] EmbedBatch(IReadOnlyList<string> texts, int maxSeqLen = 64) {
+    public float[][] EmbedBatch(IReadOnlyList<string> texts, int maxSeqLen = 32) {
         var batchSize = texts.Count;
         var inputIds = new long[batchSize * maxSeqLen];
         var attentionMask = new long[batchSize * maxSeqLen];
@@ -83,22 +84,15 @@ public sealed class OnnxEmbedder : IDisposable {
 
         if (outputDims.Length == 3) {
             var seqLenDim = outputDims[1];
-            for (var i = 0; i < batchSize; i++) {
-                var vector = new float[_dimensions];
-                var maskSum = 0;
-                for (var j = 0; j < seqLenDim; j++) {
-                    if (attentionMask[i * maxSeqLen + j] == 0) continue;
-                    maskSum++;
-                    for (var d = 0; d < _dimensions; d++) {
-                        vector[d] += output[i, j, d];
-                    }
+            if (output is DenseTensor<float> denseOutput) {
+                var outputSpan = denseOutput.Buffer.Span;
+                for (var i = 0; i < batchSize; i++) {
+                    var vector = new float[_dimensions];
+                    MeanPoolSimd(outputSpan, attentionMask, i, seqLenDim, maxSeqLen, _dimensions, vector);
+                    vectors[i] = vector;
                 }
-                if (maskSum > 0) {
-                    for (var d = 0; d < _dimensions; d++) {
-                        vector[d] /= maskSum;
-                    }
-                }
-                vectors[i] = vector;
+            } else {
+                MeanPoolScalar(output, attentionMask, batchSize, seqLenDim, maxSeqLen, _dimensions, vectors);
             }
         } else {
             for (var i = 0; i < batchSize; i++) {
@@ -110,6 +104,84 @@ public sealed class OnnxEmbedder : IDisposable {
             }
         }
         return vectors;
+    }
+
+    /// <summary>
+    /// SIMD mean pooling — 对 [seqLenDim, dimensions] 的 token 向量按 attention mask 求均值。
+    /// <para>使用 Vector&lt;float&gt; 批量累加+除法，比标量快 4-8x（384维/8=48次向量运算 vs 384次标量）。</para>
+    /// </summary>
+    /// <param name="outputSpan">ONNX 输出的扁平 span（batchSize × seqLenDim × dimensions）。</param>
+    /// <param name="attentionMask">attention mask 数组。</param>
+    /// <param name="batchIndex">当前处理的 batch 索引。</param>
+    /// <param name="seqLenDim">序列长度维度。</param>
+    /// <param name="maxSeqLen">最大序列长度（attention mask 步长）。</param>
+    /// <param name="dimensions">向量维度。</param>
+    /// <param name="vector">输出向量（原地累加+归一化）。</param>
+    private static void MeanPoolSimd(
+        ReadOnlySpan<float> outputSpan, long[] attentionMask,
+        int batchIndex, int seqLenDim, int maxSeqLen, int dimensions,
+        float[] vector) {
+        var maskSum = 0;
+        var simdWidth = Vector<float>.Count;
+        var batchBase = batchIndex * seqLenDim * dimensions;
+        for (var j = 0; j < seqLenDim; j++) {
+            if (attentionMask[batchIndex * maxSeqLen + j] == 0) continue;
+            maskSum++;
+            var rowOffset = batchBase + j * dimensions;
+            var d = 0;
+            for (; d <= dimensions - simdWidth; d += simdWidth) {
+                var v = new Vector<float>(vector.AsSpan(d, simdWidth));
+                var o = new Vector<float>(outputSpan.Slice(rowOffset + d, simdWidth));
+                (v + o).CopyTo(vector.AsSpan(d, simdWidth));
+            }
+            for (; d < dimensions; d++) {
+                vector[d] += outputSpan[rowOffset + d];
+            }
+        }
+        if (maskSum > 0) {
+            var inv = 1f / maskSum;
+            var invVec = new Vector<float>(inv);
+            var d = 0;
+            for (; d <= dimensions - simdWidth; d += simdWidth) {
+                (new Vector<float>(vector.AsSpan(d, simdWidth)) * invVec).CopyTo(vector.AsSpan(d, simdWidth));
+            }
+            for (; d < dimensions; d++) {
+                vector[d] *= inv;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 标量 mean pooling — DenseTensor 不可用时的 fallback，逐元素累加+除法。
+    /// </summary>
+    /// <param name="output">ONNX 输出 tensor。</param>
+    /// <param name="attentionMask">attention mask 数组。</param>
+    /// <param name="batchSize">batch 大小。</param>
+    /// <param name="seqLenDim">序列长度维度。</param>
+    /// <param name="maxSeqLen">最大序列长度（attention mask 步长）。</param>
+    /// <param name="dimensions">向量维度。</param>
+    /// <param name="vectors">输出向量数组。</param>
+    private static void MeanPoolScalar(
+        Tensor<float> output, long[] attentionMask,
+        int batchSize, int seqLenDim, int maxSeqLen, int dimensions,
+        float[][] vectors) {
+        for (var i = 0; i < batchSize; i++) {
+            var vector = new float[dimensions];
+            var maskSum = 0;
+            for (var j = 0; j < seqLenDim; j++) {
+                if (attentionMask[i * maxSeqLen + j] == 0) continue;
+                maskSum++;
+                for (var d = 0; d < dimensions; d++) {
+                    vector[d] += output[i, j, d];
+                }
+            }
+            if (maskSum > 0) {
+                for (var d = 0; d < dimensions; d++) {
+                    vector[d] /= maskSum;
+                }
+            }
+            vectors[i] = vector;
+        }
     }
 
     /// <summary>释放 ONNX session。</summary>

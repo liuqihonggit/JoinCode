@@ -67,13 +67,19 @@ public static class VectorMath {
 
     /// <summary>
     /// 归一化向量（原地修改，使其 L2 范数 = 1）。
-    /// <para>零向量保持不变。</para>
+    /// <para>零向量保持不变。SIMD 批量乘法加速。</para>
     /// </summary>
     public static void NormalizeInPlace(Span<float> a) {
         var norm = L2Norm(a);
         if (norm == 0f) return;
         var invNorm = 1f / norm;
-        for (var i = 0; i < a.Length; i++) {
+        var invVec = new System.Numerics.Vector<float>(invNorm);
+        var simdWidth = System.Numerics.Vector<float>.Count;
+        var i = 0;
+        for (; i <= a.Length - simdWidth; i += simdWidth) {
+            (new System.Numerics.Vector<float>(a.Slice(i, simdWidth)) * invVec).CopyTo(a.Slice(i, simdWidth));
+        }
+        for (; i < a.Length; i++) {
             a[i] *= invNorm;
         }
     }

@@ -124,6 +124,11 @@
             <ScrollViewer x:Name="MessageScrollViewer" IsVisible="{Binding HasMessages}"
                           ScrollChanged="OnMessageScrollChanged">
               <ItemsControl x:Name="MessageItems" ItemsSource="{Binding FilteredMessages}" Margin="12,6">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <VirtualizingStackPanel />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <Border Classes="msgCard">

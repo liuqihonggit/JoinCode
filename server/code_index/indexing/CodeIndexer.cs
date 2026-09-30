@@ -95,7 +95,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <param name="query">查询文本。</param>
     /// <param name="topK">返回结果数上限。</param>
     /// <param name="ct">取消令牌。</param>
-    /// <param name="options">搜索选项 — AI 动态控制召回策略（null 用默认：无块原文+有父文档）。</param>
+    /// <param name="options">搜索选项 — AI 动态控制召回策略（null 用默认：仅元数据，无原文）。</param>
     /// <returns>匹配的代码块列表，按相似度降序排列。</returns>
     public async Task<IReadOnlyList<ChunkSearchResult>> SearchSemanticAsync(
         string query, int topK, CancellationToken ct, SearchOptions? options = null) {

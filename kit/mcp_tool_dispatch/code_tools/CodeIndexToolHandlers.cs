@@ -650,12 +650,12 @@ public sealed class CodeIndexToolHandlers {
     /// <param name="include_parent_document">是否返回父文档原文（类/文件完整源码）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含匹配代码块列表的工具结果</returns>
-    [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. Returns matched chunks with file path, line range, similarity score. Set include_source_text=true to get function source code in results. Set include_parent_document=true to get parent class/file context.", "code_index")]
+    [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. By default returns ONLY metadata (file path, line range, symbol name, similarity score) — lightweight, use read tool to fetch source by line number. Set include_source_text=true to get matched block source code (function body). Set include_parent_document=true to get parent class/file source code for full context. Tip: start with default (metadata only) to locate, then enable source/parent on follow-up calls if needed.", "code_index")]
     public async Task<ToolResult> SearchSemanticAsync(
         [McpToolParameter("Natural language query or code snippet (e.g. 'find authentication logic', 'rate limiting implementation')")] string query,
         [McpToolParameter("Maximum number of results to return", Required = false, DefaultValue = "10")] int top_k = 10,
-        [McpToolParameter("Include matched block source text (function code) in results", Required = false, DefaultValue = "false")] bool include_source_text = false,
-        [McpToolParameter("Include parent document (class/file) source text in results for full context", Required = false, DefaultValue = "true")] bool include_parent_document = true,
+        [McpToolParameter("Include matched block source text (function code) in results. Default false — use read tool to fetch by line number instead", Required = false, DefaultValue = "false")] bool include_source_text = false,
+        [McpToolParameter("Include parent document (class/file) source text in results for full context. Default false — enable when you need surrounding context", Required = false, DefaultValue = "false")] bool include_parent_document = false,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(query)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();

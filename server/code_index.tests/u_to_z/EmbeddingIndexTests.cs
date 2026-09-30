@@ -241,7 +241,8 @@ public sealed class EmbeddingIndexTests {
         });
 
         await index.IndexChunksAsync([methodChunk], CancellationToken.None);
-        var results = await index.SearchAsync("Bar", 1, CancellationToken.None);
+        var results = await index.SearchAsync("Bar", 1, CancellationToken.None,
+            new SearchOptions { IncludeParentDocument = true });
 
         var result = Assert.Single(results);
         Assert.NotNull(result.ParentDocumentText);
@@ -318,6 +319,29 @@ public sealed class EmbeddingIndexTests {
         var results = await index.SearchAsync("Foo", 1, CancellationToken.None);
         var result = Assert.Single(results);
         Assert.Null(result.SourceText);
+    }
+
+    [Fact]
+    public async Task SearchAsync_DefaultOptions_ParentDocumentTextIsNull() {
+        using var parentStore = new InMemoryParentDocumentStore();
+        var embed = new FakeEmbeddingModel(8);
+        var ann = new BruteForceAnn();
+        await using var index = new EmbeddingIndex(embed, ann, parentStore);
+
+        var chunk = CreateChunk() with { ParentChunkId = "class-001" };
+        parentStore.Add(new ParentDocument {
+            ChunkId = "class-001",
+            FilePath = "test.cs",
+            SymbolFqn = "Test.Foo",
+            StartLine = 1,
+            EndLine = 10,
+            SourceText = "class Foo { }"
+        });
+        await index.IndexChunksAsync([chunk], CancellationToken.None);
+
+        var results = await index.SearchAsync("Foo", 1, CancellationToken.None);
+        var result = Assert.Single(results);
+        Assert.Null(result.ParentDocumentText);
     }
 
     [Fact]

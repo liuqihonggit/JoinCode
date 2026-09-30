@@ -56,7 +56,8 @@ public sealed class CodeIndexerParentDocTests : IDisposable {
 
         await _indexer.BuildIndexAsync(options, CancellationToken.None);
 
-        var results = await _indexer.SearchSemanticAsync("Bar", 5, CancellationToken.None);
+        var results = await _indexer.SearchSemanticAsync("Bar", 5, CancellationToken.None,
+            new SearchOptions { IncludeParentDocument = true });
         Assert.NotEmpty(results);
         var resultWithParent = results.FirstOrDefault(r => r.ParentDocumentText != null);
         Assert.NotNull(resultWithParent);

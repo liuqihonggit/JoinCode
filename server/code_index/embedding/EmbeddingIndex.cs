@@ -184,7 +184,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
         var metadataSnapshot = _metadata;
         var results = new List<ChunkSearchResult>(annResults.Count);
         var includeSource = options?.IncludeSourceText ?? false;
-        var includeParent = options?.IncludeParentDocument ?? true;
+        var includeParent = options?.IncludeParentDocument ?? false;
         foreach (var (id, score) in annResults) {
             if (!metadataSnapshot.TryGetValue(id, out var meta)) continue;
             var result = new ChunkSearchResult {

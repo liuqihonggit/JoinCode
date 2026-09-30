@@ -642,6 +642,77 @@ public sealed class CodeIndexToolHandlers {
     }
 
     /// <summary>
+    /// 语义搜索代码块 — 通过向量嵌入按语义相似度召回（找类似代码，不是精确匹配）。
+    /// </summary>
+    /// <param name="query">自然语言查询或代码片段</param>
+    /// <param name="top_k">返回结果数上限</param>
+    /// <param name="include_source_text">是否返回匹配块原文（函数源码）</param>
+    /// <param name="include_parent_document">是否返回父文档原文（类/文件完整源码）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含匹配代码块列表的工具结果</returns>
+    [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. Returns matched chunks with file path, line range, similarity score. Set include_source_text=true to get function source code in results. Set include_parent_document=true to get parent class/file context.", "code_index")]
+    public async Task<ToolResult> SearchSemanticAsync(
+        [McpToolParameter("Natural language query or code snippet (e.g. 'find authentication logic', 'rate limiting implementation')")] string query,
+        [McpToolParameter("Maximum number of results to return", Required = false, DefaultValue = "10")] int top_k = 10,
+        [McpToolParameter("Include matched block source text (function code) in results", Required = false, DefaultValue = "false")] bool include_source_text = false,
+        [McpToolParameter("Include parent document (class/file) source text in results for full context", Required = false, DefaultValue = "true")] bool include_parent_document = true,
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(query)) {
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
+        }
+
+        try {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+            var options = new SearchOptions {
+                IncludeSourceText = include_source_text,
+                IncludeParentDocument = include_parent_document
+            };
+            var results = await _indexer.SearchSemanticAsync(query, top_k, cancellationToken, options).ConfigureAwait(false);
+
+            if (results.Count == 0) {
+                return ToolResultBuilder.Success().WithText($"No semantically similar code found for: {query}").Build();
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Found {results.Count} semantically similar code block(s) for: \"{query}\"");
+            sb.AppendLine();
+
+            for (var i = 0; i < results.Count; i++) {
+                var r = results[i];
+                sb.AppendLine($"{i + 1}. [{r.Score:F4}] {r.SymbolFqn}");
+                sb.AppendLine($"   {r.FilePath}:{r.StartLine}-{r.EndLine}");
+
+                if (include_source_text && !string.IsNullOrEmpty(r.SourceText)) {
+                    sb.AppendLine($"   --- Source ---");
+                    var sourceLines = r.SourceText.Split('\n');
+                    foreach (var line in sourceLines) {
+                        sb.AppendLine($"   {line}");
+                    }
+                    sb.AppendLine($"   --- End Source ---");
+                }
+
+                if (include_parent_document && !string.IsNullOrEmpty(r.ParentDocumentText)) {
+                    sb.AppendLine($"   --- Parent: {r.ParentSymbolFqn} ({r.ParentStartLine}-{r.ParentEndLine}) ---");
+                    var parentLines = r.ParentDocumentText.Split('\n');
+                    var previewLines = parentLines.Length > 50
+                        ? parentLines.Take(50).Concat(new[] { $"... ({parentLines.Length} lines total)" })
+                        : parentLines;
+                    foreach (var line in previewLines) {
+                        sb.AppendLine($"   {line}");
+                    }
+                    sb.AppendLine($"   --- End Parent ---");
+                }
+
+                sb.AppendLine();
+            }
+
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
+        } catch (Exception ex) {
+            return ToolResultBuilder.Error().WithText($"Semantic search failed: {ex.Message}").Build();
+        }
+    }
+
+    /// <summary>
     /// 查找指定项目的项目依赖
     /// </summary>
     /// <param name="project_path">项目文件路径（.csproj）</param>

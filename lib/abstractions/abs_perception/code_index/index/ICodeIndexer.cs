@@ -55,4 +55,18 @@ public interface ICodeIndexer {
     /// <param name="includeAst">是否包含 AST 扩展搜索(引用+调用方/被调用方),默认 true; 设 false 仅返回符号匹配结果,节省 token</param>
     /// <param name="ct">取消令牌</param>
     Task<ComprehensiveSearchResult> SearchComprehensiveAsync(string pattern, int maxTokenBudget, CancellationToken ct, bool includeAst = true);
+
+    /// <summary>
+    /// 语义搜索 — 通过向量嵌入查找相似代码块（按语义相似度召回）。
+    /// <para>未启用向量索引时返回空列表。</para>
+    /// <para>options.IncludeSourceText=true 时结果携带块原文（函数源码）。</para>
+    /// <para>options.IncludeParentDocument=true 时结果携带父文档原文（类/文件完整源码）。</para>
+    /// </summary>
+    /// <param name="query">查询文本（自然语言或代码片段）。</param>
+    /// <param name="topK">返回结果数上限。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <param name="options">搜索选项 — AI 动态控制召回策略（null 用默认：无块原文+有父文档）。</param>
+    /// <returns>匹配的代码块列表，按相似度降序排列。</returns>
+    Task<IReadOnlyList<ChunkSearchResult>> SearchSemanticAsync(
+        string query, int topK, CancellationToken ct, SearchOptions? options = null);
 }

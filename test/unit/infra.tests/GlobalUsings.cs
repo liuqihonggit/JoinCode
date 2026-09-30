@@ -28,6 +28,7 @@ global using Infrastructure.Pipeline.Middlewares;
 global using Infrastructure.Shell;
 global using Infrastructure.Subprocess;
 global using Infrastructure.Time;
+global using Infrastructure.Utils.Cpu;
 global using Infrastructure.Utils.Diagnostics;
 global using Infrastructure.Utils.Resilience;
 global using Infrastructure.Utils.Text;

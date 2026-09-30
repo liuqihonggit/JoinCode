@@ -11,6 +11,7 @@ internal sealed class MemoryRelevanceScorer {
     /// </summary>
     /// <param name="clock">时钟服务，用于计算时间衰减</param>
     public MemoryRelevanceScorer(IClockService clock) {
+        ArgumentNullException.ThrowIfNull(clock);
         _clock = clock;
     }
 
@@ -21,6 +22,8 @@ internal sealed class MemoryRelevanceScorer {
     /// <param name="query">查询字符串</param>
     /// <returns>相关性分数，越高越相关</returns>
     public double CalculateAdvancedRelevanceScore(MemoryEntry memory, string query) {
+        ArgumentNullException.ThrowIfNull(memory);
+        ArgumentNullException.ThrowIfNull(query);
         var score = 0.0;
         var queryWords = QueryWordHelper.ExtractQueryWords(query);
         var contentSpan = memory.Content.AsSpan();

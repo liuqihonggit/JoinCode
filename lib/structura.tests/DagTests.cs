@@ -626,4 +626,92 @@ public class DagTests {
         var imm = BuildImmutableDag(nodes, edges);
         dag.GetAffectedSubgraph("a").Select(n => n.Id).Should().BeEquivalentTo(imm.GetAffectedSubgraph("a").Select(n => n.Id));
     }
+
+    // ===== 守卫补全:null/空输入抛异常(确定性测试,不依赖时序/IO) =====
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void AddNode_NullNode_ThrowsArgumentNullException() {
+        var dag = new Dag<string>();
+        var act = () => dag.AddNode(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void AddNode_NullId_ThrowsArgumentException() {
+        var dag = new Dag<string>();
+        var node = new DagNode<string> { Id = null!, Payload = "x" };
+        var act = () => dag.AddNode(node);
+        act.Should().Throw<ArgumentException>().WithMessage("*节点 Id*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void AddNode_EmptyId_ThrowsArgumentException() {
+        var dag = new Dag<string>();
+        var node = new DagNode<string> { Id = "", Payload = "x" };
+        var act = () => dag.AddNode(node);
+        act.Should().Throw<ArgumentException>().WithMessage("*节点 Id*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void AddEdge_NullEdge_ThrowsArgumentNullException() {
+        var dag = new Dag<string>();
+        var act = () => dag.AddEdge(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void AddEdge_NullFromId_ThrowsArgumentException() {
+        var dag = new Dag<string>();
+        var edge = new DagEdge { FromId = null!, ToId = "b" };
+        var act = () => dag.AddEdge(edge);
+        act.Should().Throw<ArgumentException>().WithMessage("*FromId*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void AddEdge_EmptyFromId_ThrowsArgumentException() {
+        var dag = new Dag<string>();
+        var edge = new DagEdge { FromId = "", ToId = "b" };
+        var act = () => dag.AddEdge(edge);
+        act.Should().Throw<ArgumentException>().WithMessage("*FromId*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void AddEdge_NullToId_ThrowsArgumentException() {
+        var dag = new Dag<string>();
+        var edge = new DagEdge { FromId = "a", ToId = null! };
+        var act = () => dag.AddEdge(edge);
+        act.Should().Throw<ArgumentException>().WithMessage("*ToId*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void AddEdge_EmptyToId_ThrowsArgumentException() {
+        var dag = new Dag<string>();
+        var edge = new DagEdge { FromId = "a", ToId = "" };
+        var act = () => dag.AddEdge(edge);
+        act.Should().Throw<ArgumentException>().WithMessage("*ToId*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void WouldCreateCycle_NullFromId_ThrowsArgumentNullException() {
+        var dag = new Dag<string>();
+        var act = () => dag.WouldCreateCycle(null!, "b");
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void WouldCreateCycle_NullToId_ThrowsArgumentNullException() {
+        var dag = new Dag<string>();
+        var act = () => dag.WouldCreateCycle("a", null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

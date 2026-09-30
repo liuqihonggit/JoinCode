@@ -194,4 +194,90 @@ public class MessageRetryEngineTest {
         engine.Complete();
         cts.Cancel();
     }
+
+    // ===== 守卫补全:构造函数取值范围边界值(确定性测试,不依赖时序/IO) =====
+
+    private static Channel<string> MakeInput() => Channel.CreateBounded<string>(new BoundedChannelOptions(100) {
+        FullMode = BoundedChannelFullMode.Wait,
+        SingleReader = true,
+        SingleWriter = false
+    });
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_NullActorId_ThrowsArgumentNullException() {
+        var input = MakeInput();
+        var act = () => new MessageRetryEngine<string>(
+            retryQueueCapacity: 1024, maxRetries: 16, inputWriter: input.Writer,
+            actorId: null!, logger: null, shutdownCt: CancellationToken.None,
+            onSendFailed: (_, _) => { }, onEnqueuedToInput: () => { });
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_EmptyActorId_ThrowsArgumentException() {
+        var input = MakeInput();
+        var act = () => new MessageRetryEngine<string>(
+            retryQueueCapacity: 1024, maxRetries: 16, inputWriter: input.Writer,
+            actorId: "", logger: null, shutdownCt: CancellationToken.None,
+            onSendFailed: (_, _) => { }, onEnqueuedToInput: () => { });
+        act.Should().Throw<ArgumentException>().WithMessage("*actorId*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_RetryQueueCapacity_Zero_ThrowsArgumentOutOfRangeException() {
+        var input = MakeInput();
+        var act = () => new MessageRetryEngine<string>(
+            retryQueueCapacity: 0, maxRetries: 16, inputWriter: input.Writer,
+            actorId: "a", logger: null, shutdownCt: CancellationToken.None,
+            onSendFailed: (_, _) => { }, onEnqueuedToInput: () => { });
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*retryQueueCapacity*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_RetryQueueCapacity_Negative_ThrowsArgumentOutOfRangeException() {
+        var input = MakeInput();
+        var act = () => new MessageRetryEngine<string>(
+            retryQueueCapacity: -1, maxRetries: 16, inputWriter: input.Writer,
+            actorId: "a", logger: null, shutdownCt: CancellationToken.None,
+            onSendFailed: (_, _) => { }, onEnqueuedToInput: () => { });
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*retryQueueCapacity*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_MaxRetries_Zero_ThrowsArgumentOutOfRangeException() {
+        var input = MakeInput();
+        var act = () => new MessageRetryEngine<string>(
+            retryQueueCapacity: 1024, maxRetries: 0, inputWriter: input.Writer,
+            actorId: "a", logger: null, shutdownCt: CancellationToken.None,
+            onSendFailed: (_, _) => { }, onEnqueuedToInput: () => { });
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*maxRetries*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_MaxRetries_Negative_ThrowsArgumentOutOfRangeException() {
+        var input = MakeInput();
+        var act = () => new MessageRetryEngine<string>(
+            retryQueueCapacity: 1024, maxRetries: -1, inputWriter: input.Writer,
+            actorId: "a", logger: null, shutdownCt: CancellationToken.None,
+            onSendFailed: (_, _) => { }, onEnqueuedToInput: () => { });
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*maxRetries*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_ValidArguments_DoesNotThrow() {
+        var input = MakeInput();
+        var engine = new MessageRetryEngine<string>(
+            retryQueueCapacity: 1024, maxRetries: 16, inputWriter: input.Writer,
+            actorId: "valid-actor", logger: null, shutdownCt: CancellationToken.None,
+            onSendFailed: (_, _) => { }, onEnqueuedToInput: () => { });
+        engine.RetryQueueCount.Should().Be(0);
+        engine.Complete();
+    }
 }

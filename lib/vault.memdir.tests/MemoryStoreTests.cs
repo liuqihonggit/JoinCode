@@ -494,4 +494,89 @@ public class MemoryStoreTests : IDisposable {
         // Assert - 物化后结果不超过 limit
         result.Should().HaveCount(3);
     }
+
+    // === 守卫补全确定性测试 (TASK031) ===
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void AddMemory_NullContent_ThrowsArgumentNullException() {
+        var act = () => _store.AddMemory(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("content");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [Trait("Category", "Deterministic")]
+    public void AddMemory_EmptyOrWhitespaceContent_ThrowsArgumentException(string content) {
+        var act = () => _store.AddMemory(content);
+        act.Should().Throw<ArgumentException>().WithParameterName("content");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void GetMemory_NullId_ThrowsArgumentNullException() {
+        var act = () => _store.GetMemory(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("id");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [Trait("Category", "Deterministic")]
+    public void GetMemory_EmptyOrWhitespaceId_ThrowsArgumentException(string id) {
+        var act = () => _store.GetMemory(id);
+        act.Should().Throw<ArgumentException>().WithParameterName("id");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void DeleteMemory_NullId_ThrowsArgumentNullException() {
+        var act = () => _store.DeleteMemory(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("id");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [Trait("Category", "Deterministic")]
+    public void DeleteMemory_EmptyOrWhitespaceId_ThrowsArgumentException(string id) {
+        var act = () => _store.DeleteMemory(id);
+        act.Should().Throw<ArgumentException>().WithParameterName("id");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Search_NullQuery_ThrowsArgumentNullException() {
+        var act = () => _store.Search(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("query");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Search_NegativeLimit_ThrowsArgumentOutOfRangeException() {
+        var act = () => _store.Search("test", limit: -1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("limit");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void SearchByTags_NullTags_ThrowsArgumentNullException() {
+        var act = () => _store.SearchByTags(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("tags");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void SearchByTags_NegativeLimit_ThrowsArgumentOutOfRangeException() {
+        var act = () => _store.SearchByTags(new List<string>(), limit: -1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("limit");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void SearchByType_NegativeLimit_ThrowsArgumentOutOfRangeException() {
+        var act = () => _store.SearchByType(MemoryType.User, limit: -1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("limit");
+    }
 }

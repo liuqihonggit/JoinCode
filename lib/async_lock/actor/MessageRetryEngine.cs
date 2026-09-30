@@ -37,6 +37,13 @@ internal sealed class MessageRetryEngine<TCommand> {
         CancellationToken shutdownCt,
         Action<TCommand, int> onSendFailed,
         Action onEnqueuedToInput) {
+        ArgumentNullException.ThrowIfNull(actorId);
+        if (string.IsNullOrEmpty(actorId))
+            throw new ArgumentException("actorId 不能为 null 或空", nameof(actorId));
+        if (retryQueueCapacity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(retryQueueCapacity), retryQueueCapacity, "retryQueueCapacity 必须 > 0");
+        if (maxRetries <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxRetries), maxRetries, "maxRetries 必须 > 0");
         _maxRetries = maxRetries;
         _actorId = actorId;
         _logger = logger;

@@ -566,4 +566,38 @@ public class BashAstSecurityWalkerTest : IDisposable {
     }
 
     #endregion
+
+    #region null 节点守卫 — CollectCommands/WalkCommand private 防御性守卫,通过反射验证
+
+    /// <summary>
+    /// CollectCommands/WalkCommand 是 private static,正常路径不可达 null(调用方有 null 守卫)。
+    /// 此处通过反射验证防御性守卫:null node → TooComplex(NULL_NODE),fail-closed 设计。
+    /// </summary>
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void CollectCommands_NullNode_ReturnsTooComplexNullNode() {
+        var method = typeof(BashAstSecurityWalker).GetMethod(
+            "CollectCommands", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        method.Should().NotBeNull("CollectCommands 应存在");
+        var result = (BashAstSecurityResult?)method!.Invoke(null,
+            [null, new List<BashSimpleCommandInfo>(), new Dictionary<string, string>()]);
+        var tc = result as BashAstSecurityResult.TooComplex;
+        tc.Should().NotBeNull("null node 应返回 TooComplex");
+        tc!.NodeType.Should().Be("NULL_NODE");
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void WalkCommand_NullNode_ReturnsTooComplexNullNode() {
+        var method = typeof(BashAstSecurityWalker).GetMethod(
+            "WalkCommand", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        method.Should().NotBeNull("WalkCommand 应存在");
+        var result = (BashAstSecurityResult?)method!.Invoke(null,
+            [null, Array.Empty<BashRedirectInfo>(), new List<BashSimpleCommandInfo>(), new Dictionary<string, string>()]);
+        var tc = result as BashAstSecurityResult.TooComplex;
+        tc.Should().NotBeNull("null node 应返回 TooComplex");
+        tc!.NodeType.Should().Be("NULL_NODE");
+    }
+
+    #endregion
 }

@@ -6,6 +6,8 @@ public sealed partial class BashAstSecurityWalker {
         BashRedirectInfo[] extraRedirects,
         List<BashSimpleCommandInfo> innerCommands,
         Dictionary<string, string> varScope) {
+        if (node is null)
+            return new BashAstSecurityResult.TooComplex("Null node", "NULL_NODE");
         var argv = new List<string>();
         var envVars = new List<BashEnvVarInfo>();
         var redirects = new List<BashRedirectInfo>();

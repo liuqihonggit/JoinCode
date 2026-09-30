@@ -40,6 +40,9 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 添加记忆
     /// </summary>
     public void AddMemory(string content, MemoryType type = MemoryType.User, string? title = null, List<string>? tags = null, string? source = null) {
+        ArgumentNullException.ThrowIfNull(content);
+        if (string.IsNullOrWhiteSpace(content))
+            throw new ArgumentException("记忆内容不能为空或空白", nameof(content));
         var entry = MemoryEntry.Create(
             type: type,
             content: content,
@@ -58,6 +61,9 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 搜索记忆
     /// </summary>
     public IEnumerable<MemoryEntry> Search(string query, MemoryType? type = null, int limit = 10) {
+        ArgumentNullException.ThrowIfNull(query);
+        if (limit < 0)
+            throw new ArgumentOutOfRangeException(nameof(limit), limit, "limit 不能为负数");
         var snapshot = Volatile.Read(ref _memories);
         var results = snapshot.Values;
 
@@ -89,6 +95,9 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 按标签搜索 - 使用 HashSet 优化 O(n²) 查找
     /// </summary>
     public IEnumerable<MemoryEntry> SearchByTags(List<string> tags, int limit = 10) {
+        ArgumentNullException.ThrowIfNull(tags);
+        if (limit < 0)
+            throw new ArgumentOutOfRangeException(nameof(limit), limit, "limit 不能为负数");
         // 使用 HashSet 缓存标签，实现 O(1) 查找
         var tagSet = new HashSet<string>(tags, StringComparer.OrdinalIgnoreCase);
 
@@ -103,6 +112,8 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 按类型搜索
     /// </summary>
     public IEnumerable<MemoryEntry> SearchByType(MemoryType type, int limit = 10) {
+        if (limit < 0)
+            throw new ArgumentOutOfRangeException(nameof(limit), limit, "limit 不能为负数");
         return Volatile.Read(ref _memories).Values
             .Where(m => m.Type == type)
             .OrderByDescending(m => m.AccessCount)
@@ -114,6 +125,9 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 获取记忆
     /// </summary>
     public MemoryEntry? GetMemory(string id) {
+        ArgumentNullException.ThrowIfNull(id);
+        if (string.IsNullOrWhiteSpace(id))
+            throw new ArgumentException("记忆 ID 不能为空或空白", nameof(id));
         if (Volatile.Read(ref _memories).TryGetValue(id, out var memory)) {
             var updated = memory.WithAccessed(_clock.GetUtcNow());
             ImmutableInterlocked.Update(ref _memories, d => d.SetItem(updated.Id, updated));
@@ -127,6 +141,9 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     /// 删除记忆
     /// </summary>
     public bool DeleteMemory(string id) {
+        ArgumentNullException.ThrowIfNull(id);
+        if (string.IsNullOrWhiteSpace(id))
+            throw new ArgumentException("记忆 ID 不能为空或空白", nameof(id));
         var hadKey = Volatile.Read(ref _memories).ContainsKey(id);
         ImmutableInterlocked.Update(ref _memories, d => d.Remove(id));
         if (!hadKey) return false;

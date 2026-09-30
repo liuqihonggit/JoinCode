@@ -10,6 +10,9 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
     /// 构造 Bash 权限检查器
     /// </summary>
     public BashPermissionChecker(IBashSecurityValidator securityValidator, IPathConstraintValidator pathConstraintValidator, IReadOnlyCommandDetector readOnlyDetector) {
+        ArgumentNullException.ThrowIfNull(securityValidator);
+        ArgumentNullException.ThrowIfNull(pathConstraintValidator);
+        ArgumentNullException.ThrowIfNull(readOnlyDetector);
         _securityValidator = securityValidator;
         _pathConstraintValidator = pathConstraintValidator;
         _readOnlyDetector = readOnlyDetector;
@@ -43,6 +46,7 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
     public BashPermissionResult CheckPermission(
         string command,
         string workingDirectory) {
+        ArgumentException.ThrowIfNullOrEmpty(workingDirectory);
         if (string.IsNullOrWhiteSpace(command)) {
             return new BashPermissionResult(PermissionBehavior.Passthrough);
         }

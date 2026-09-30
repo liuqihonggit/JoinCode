@@ -142,4 +142,57 @@ public sealed class BashPermissionCheckerBoundaryTests {
     }
 
     #endregion
+
+    #region 构造函数 null 守卫
+
+    [Fact]
+    public void Constructor_NullSecurityValidator_ThrowsArgumentNullException() {
+        var act = () => new BashPermissionChecker(
+            null!,
+            Mock.Of<IPathConstraintValidator>(),
+            Mock.Of<IReadOnlyCommandDetector>());
+        act.Should().Throw<ArgumentNullException>()
+            .Which.ParamName.Should().Be("securityValidator");
+    }
+
+    [Fact]
+    public void Constructor_NullPathConstraintValidator_ThrowsArgumentNullException() {
+        var act = () => new BashPermissionChecker(
+            Mock.Of<IBashSecurityValidator>(),
+            null!,
+            Mock.Of<IReadOnlyCommandDetector>());
+        act.Should().Throw<ArgumentNullException>()
+            .Which.ParamName.Should().Be("pathConstraintValidator");
+    }
+
+    [Fact]
+    public void Constructor_NullReadOnlyDetector_ThrowsArgumentNullException() {
+        var act = () => new BashPermissionChecker(
+            Mock.Of<IBashSecurityValidator>(),
+            Mock.Of<IPathConstraintValidator>(),
+            null!);
+        act.Should().Throw<ArgumentNullException>()
+            .Which.ParamName.Should().Be("readOnlyDetector");
+    }
+
+    #endregion
+
+    #region CheckPermission workingDirectory null/空 守卫
+
+    [Fact]
+    public void CheckPermission_NullWorkingDirectory_ThrowsArgumentNullException() {
+        var checker = CreateChecker();
+        var act = () => checker.CheckPermission("echo hello", null!);
+        act.Should().Throw<ArgumentNullException>()
+            .Which.ParamName.Should().Be("workingDirectory");
+    }
+
+    [Fact]
+    public void CheckPermission_EmptyWorkingDirectory_ThrowsArgumentException() {
+        var checker = CreateChecker();
+        var act = () => checker.CheckPermission("echo hello", "");
+        act.Should().Throw<ArgumentException>();
+    }
+
+    #endregion
 }

@@ -224,4 +224,30 @@ public sealed class MemoryRelevanceScorerTests {
         var s2 = sut.CalculateAdvancedRelevanceScore(memory, "database");
         s1.Should().Be(s2);
     }
+
+    // === 守卫补全确定性测试 (TASK031) ===
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Ctor_NullClock_ThrowsArgumentNullException() {
+        var act = () => new MemoryRelevanceScorer(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("clock");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void CalculateAdvancedRelevanceScore_NullMemory_ThrowsArgumentNullException() {
+        var sut = CreateSut();
+        var act = () => sut.CalculateAdvancedRelevanceScore(null!, "query");
+        act.Should().Throw<ArgumentNullException>().WithParameterName("memory");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void CalculateAdvancedRelevanceScore_NullQuery_ThrowsArgumentNullException() {
+        var sut = CreateSut();
+        var memory = Make("content");
+        var act = () => sut.CalculateAdvancedRelevanceScore(memory, null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("query");
+    }
 }

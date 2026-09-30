@@ -200,6 +200,11 @@ public sealed class TcpPortHealthCheck : ITransportHealthCheck {
     /// <param name="port">目标端口</param>
     /// <param name="transportType">传输类型名称，默认 "tcp"</param>
     public TcpPortHealthCheck(string host, int port, string transportType = "tcp") {
+        ArgumentNullException.ThrowIfNull(host);
+        if (string.IsNullOrWhiteSpace(host))
+            throw new ArgumentException("主机名不能为空或空白", nameof(host));
+        if (port < 0 || port > 65535)
+            throw new ArgumentOutOfRangeException(nameof(port), port, "端口必须在 [0, 65535] 范围内");
         _host = host;
         _port = port;
         _transportType = transportType;

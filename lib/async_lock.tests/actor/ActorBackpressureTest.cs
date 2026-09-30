@@ -158,6 +158,103 @@ public class ActorBackpressureTest {
         actor.IsInputHighWatermark.Should().BeFalse();
         actor.IsInputCriticalWatermark.Should().BeFalse();
     }
+
+    // ===== 守卫补全:构造函数取值范围边界值(确定性测试,不依赖时序/IO) =====
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_MaxRetries_Zero_ThrowsArgumentOutOfRangeException() {
+        var act = () => new ActorBackpressure(Capacity: 100, MaxRetries: 0);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*MaxRetries*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_MaxRetries_Negative_ThrowsArgumentOutOfRangeException() {
+        var act = () => new ActorBackpressure(Capacity: 100, MaxRetries: -1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*MaxRetries*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_RetryQueueCapacity_Zero_ThrowsArgumentOutOfRangeException() {
+        var act = () => new ActorBackpressure(Capacity: 100, RetryQueueCapacity: 0);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*RetryQueueCapacity*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_RetryQueueCapacity_Negative_ThrowsArgumentOutOfRangeException() {
+        var act = () => new ActorBackpressure(Capacity: 100, RetryQueueCapacity: -1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*RetryQueueCapacity*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_HighWatermark_Negative_ThrowsArgumentOutOfRangeException() {
+        var act = () => new ActorBackpressure(Capacity: 100, HighWatermark: -1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*HighWatermark*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_HighWatermark_GreaterThanCapacity_ThrowsArgumentOutOfRangeException() {
+        var act = () => new ActorBackpressure(Capacity: 100, HighWatermark: 101);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*HighWatermark*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_CriticalWatermark_Negative_ThrowsArgumentOutOfRangeException() {
+        var act = () => new ActorBackpressure(Capacity: 100, CriticalWatermark: -1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*CriticalWatermark*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_CriticalWatermark_GreaterThanCapacity_ThrowsArgumentOutOfRangeException() {
+        var act = () => new ActorBackpressure(Capacity: 100, CriticalWatermark: 101);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*CriticalWatermark*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_HighWatermark_GreaterOrEqualCriticalWatermark_ThrowsArgumentException() {
+        var actEqual = () => new ActorBackpressure(Capacity: 100, HighWatermark: 90, CriticalWatermark: 90);
+        actEqual.Should().Throw<ArgumentException>().WithMessage("*必须 < CriticalWatermark*");
+
+        var actGreater = () => new ActorBackpressure(Capacity: 100, HighWatermark: 95, CriticalWatermark: 80);
+        actGreater.Should().Throw<ArgumentException>().WithMessage("*必须 < CriticalWatermark*");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_ValidArguments_DoesNotThrow() {
+        var bp = new ActorBackpressure(Capacity: 100, HighWatermark: 80, CriticalWatermark: 90, MaxRetries: 16, RetryQueueCapacity: 1024);
+        bp.Capacity.Should().Be(100);
+        bp.MaxRetries.Should().Be(16);
+        bp.RetryQueueCapacity.Should().Be(1024);
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_CapacityZero_WithNullWatermarks_DoesNotThrow() {
+        // 无界通道(Capacity=0)+ null 水位线是合法用法,不应抛异常
+        var bp = new ActorBackpressure(Capacity: 0);
+        bp.Capacity.Should().Be(0);
+        bp.EffectiveHighWatermark.Should().Be(0);
+        bp.EffectiveCriticalWatermark.Should().Be(0);
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void Constructor_DefaultArguments_DoesNotThrow() {
+        var bp = new ActorBackpressure(Capacity: 100);
+        bp.MaxRetries.Should().Be(16);
+        bp.RetryQueueCapacity.Should().Be(1024);
+        bp.EffectiveHighWatermark.Should().Be(80);
+        bp.EffectiveCriticalWatermark.Should().Be(95);
+    }
 }
 
 /// <summary>

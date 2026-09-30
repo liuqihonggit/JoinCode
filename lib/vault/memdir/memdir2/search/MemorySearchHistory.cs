@@ -302,6 +302,8 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
 
     /// <inheritdoc />
     public IReadOnlyList<SearchHistoryEntry> GetRecentSearches(int limit = 20) {
+        if (limit < 0)
+            throw new ArgumentOutOfRangeException(nameof(limit), limit, "limit 不能为负数");
         return Volatile.Read(ref _searchHistory).Take(limit).ToImmutableList();
     }
 

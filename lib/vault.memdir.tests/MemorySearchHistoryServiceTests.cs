@@ -185,6 +185,14 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable {
         searches.Should().Contain(s => s.Query == "query-099");
     }
 
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void GetRecentSearches_NegativeLimit_ThrowsArgumentOutOfRangeException() {
+        var sut = CreateSut();
+        var act = () => sut.GetRecentSearches(limit: -1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("limit");
+    }
+
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;

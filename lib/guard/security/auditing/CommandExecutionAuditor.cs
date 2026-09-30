@@ -46,6 +46,7 @@ public sealed class CommandExecutionAuditor : ActorBase<CommandAuditCommand, Uni
         string? auditDirectory = null,
         ILogger<CommandExecutionAuditor>? logger = null)
         : base(new ActorBackpressure(2048, BoundedChannelFullMode.DropOldest)) {
+        ArgumentNullException.ThrowIfNull(fs);
         _fs = fs;
         _auditDirectory = auditDirectory ?? ".audit";
         _logger = logger;
@@ -53,6 +54,7 @@ public sealed class CommandExecutionAuditor : ActorBase<CommandAuditCommand, Uni
 
     /// <inheritdoc/>
     public async ValueTask Record(CommandExecutionAuditEntry entry) {
+        ArgumentNullException.ThrowIfNull(entry);
         var tcs = new TaskCompletionSource();
         Tell(new CommandAuditCommand.RecordEntry(entry, tcs));
         await AskAwait(tcs).ConfigureAwait(false);

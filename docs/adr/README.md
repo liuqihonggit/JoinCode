@@ -247,6 +247,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0122](0122-ringbuffer-spsc-contract-rollback-cow.md) | RingBuffer 确认为 SPSC 契约,回退 Copy-on-Write 重写 | accepted | 2026-09-30 |
 | [0123](0123-vector-symbol-hybrid-code-index.md) | 向量+符号混合代码索引架构 | accepted | 2026-09-30 |
 | [0124](0124-embedding-model-auto-download.md) | 向量模型缺失自动下载（双源竞赛 HF+hf-mirror） | accepted | 2026-10-01 |
+| [0125](0125-search-rerank-graph-weighting.md) | 语义搜索重排序与图谱加权 | proposed | 2026-10-01 |
 
 ## 主题索引（按议题）
 
@@ -430,6 +431,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0120](0120-immutable-dag-hamt-cas-lockfree.md) | ImmutableDag 不可变无锁 DAG — HAMT + CAS 原子更新 | proposed | 2026-09-29 |
 | [0123](0123-vector-symbol-hybrid-code-index.md) | 向量+符号混合代码索引架构 | accepted | 2026-09-30 |
 | [0124](0124-embedding-model-auto-download.md) | 向量模型缺失自动下载（双源竞赛 HF+hf-mirror） | accepted | 2026-10-01 |
+| [0125](0125-search-rerank-graph-weighting.md) | 语义搜索重排序与图谱加权 | proposed | 2026-10-01 |
 
 ## 取代链（历史追溯）
 

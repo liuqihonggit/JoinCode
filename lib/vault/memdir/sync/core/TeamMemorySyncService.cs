@@ -313,7 +313,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     /// <summary>
     /// 处理同步命令 — 根据命令类型分发到启动、停止、同步、冲突解决与文件变更等处理分支。
     /// </summary>
-    protected override void Handle(ITeamMemorySyncCommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+    protected override void Handle(ITeamMemorySyncCommand command, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(command, ct).AsTask()); }
 
     private async ValueTask HandleAsyncImpl(ITeamMemorySyncCommand command, CancellationToken ct) {
         switch (command) {

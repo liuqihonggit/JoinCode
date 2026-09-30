@@ -44,8 +44,6 @@ public sealed class BackgroundTaskFailedEventArgs : EventArgs {
 public sealed class BackgroundTaskActor : ActorBase<BackgroundTaskCommand, BackgroundTaskEvent> {
     private readonly ILogger? _logger;
     private readonly bool _parallel;
-    private readonly ConcurrentBag<Task> _inFlightTasks = new();
-    private int _disposed;
 
     /// <summary>后台任务失败事件 — 异常不吞没,外部可订阅处理</summary>
     public event EventHandler<BackgroundTaskFailedEventArgs>? TaskFailed;
@@ -63,28 +61,12 @@ public sealed class BackgroundTaskActor : ActorBase<BackgroundTaskCommand, Backg
     }
 
     /// <summary>
-    /// 处理后台任务命令 — fire-and-forget 启动任务并跟踪,不阻塞命令队列。
-    /// <para>DisposeAsync 时等待所有 in-flight 任务完成,确保资源真正释放(CI #691 根因修复)。</para>
+    /// 处理后台任务命令 — fire-and-forget 启动任务并通过 RegisterInFlight 注册,不阻塞命令队列。
+    /// <para>DisposeAsync 时由 ActorBase 统一等待所有 in-flight 任务完成(ADR 0125)。</para>
     /// </summary>
     protected override void Handle(BackgroundTaskCommand command, CancellationToken ct) {
-        _inFlightTasks.Add(ExecuteTaskAsync(command, ct));
+        RegisterInFlight(ExecuteTaskAsync(command, ct));
     }
-
-    /// <summary>
-    /// 异步释放 — 先等 Consumer 退出(base.DisposeAsync),再等所有 in-flight 任务完成。
-    /// <para>in-flight 任务在 Consumer 退出后可能仍在跑(fire-and-forget),必须等待确保资源真正释放。</para>
-    /// <para>任务应响应 CancellationToken 及时退出;不响应取消的任务由其自身负责终止。</para>
-    /// </summary>
-#pragma warning disable JCC9304 // Actor 模式: base.DisposeAsync() 等 Consumer 退出后才能安全读 _inFlightTasks(Consumer 已退出，无并发)
-    public override async ValueTask DisposeAsync() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        await base.DisposeAsync().ConfigureAwait(false);
-        var tasks = _inFlightTasks.ToArray();
-        if (tasks.Length > 0) {
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-        }
-    }
-#pragma warning restore JCC9304
 
     private async Task ExecuteTaskAsync(BackgroundTaskCommand command, CancellationToken ct) {
         try {

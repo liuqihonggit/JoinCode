@@ -22,6 +22,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     private readonly IdempotencyGate _idempotencyGate;
     private readonly AskWaitGraphTracker _waitGraphTracker;
     private readonly MessageRetryEngine<TCommand> _retryEngine;
+    private readonly ConcurrentBag<Task> _inFlightTasks = new();
     private int _disposed;
     private readonly ILogger? _logger;
 
@@ -269,6 +270,17 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
 
     /// <summary>TryPublish 内部接口 — 供测试直接调用,不依赖 Consumer 调度时序</summary>
     internal bool TryPublishInternal(TOut msg) => TryPublish(msg);
+
+    /// <summary>
+    /// 注册 in-flight 任务 — 子类 Handle 里 fire-and-forget 启动的任务应通过此方法注册。
+    /// <para>DisposeAsync 在 Consumer 退出后自动等待所有注册的 in-flight 任务完成,确保资源真正释放。</para>
+    /// <para>ADR: [0125](docs/adr/0125-actor-register-inflight-dispose-guard.md) — 统一 in-flight 守卫基础设施。</para>
+    /// </summary>
+    /// <param name="task">fire-and-forget 启动的任务引用</param>
+    protected void RegisterInFlight(Task task) {
+        ThrowIfDisposed();
+        _inFlightTasks.Add(task);
+    }
 
     /// <summary>
     /// 外部拉取输出流 — 阻塞式 IAsyncEnumerable。
@@ -590,9 +602,10 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     private string? TryGetCallerActorId() => AsyncFlowIdentity.CurrentActorId;
 
     /// <summary>
-    /// 释放 Actor — 取消 Consumer、完成通道,等待 Consumer 真正退出后释放 CTS。
+    /// 释放 Actor — 取消 Consumer、完成通道,等待 Consumer 真正退出后等待所有 in-flight 任务,最后释放 CTS。
     /// <para>Consumer 用 LongRunning 专用线程运行(不占线程池),Dispose await 不会导致线程池饥饿死锁。</para>
     /// <para>设计理由:fire-and-forget 会掩盖 Consumer 未完成清理的问题,改回 await 确保资源真正释放。</para>
+    /// <para>in-flight 守卫:子类 Handle 里通过 <see cref="RegisterInFlight"/> 注册的任务,在 Consumer 退出后统一等待(ADR 0125)。</para>
     /// </summary>
     public virtual async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -606,6 +619,10 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         try {
             await _retryEngine.WaitForCompletionAsync().ConfigureAwait(false);
         } catch (OperationCanceledException) { }
+        var inflight = _inFlightTasks.ToArray();
+        if (inflight.Length > 0) {
+            await Task.WhenAll(inflight).ConfigureAwait(false);
+        }
         _cts.Dispose();
     }
 }

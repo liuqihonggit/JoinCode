@@ -425,7 +425,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     /// Actor Consumer — 线程独占 _registry，串行处理命令，无需锁。
     /// </summary>
     protected override void Handle(ITeammateCommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
+        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(ITeammateCommand command, CancellationToken ct) {

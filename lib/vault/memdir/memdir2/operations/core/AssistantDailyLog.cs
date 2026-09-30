@@ -369,7 +369,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override void Handle(AssistantDailyLogCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        protected override void Handle(AssistantDailyLogCommand cmd, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask()); }
 
         private async ValueTask HandleAsyncImpl(AssistantDailyLogCommand cmd, CancellationToken ct) {
             switch (cmd) {

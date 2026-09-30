@@ -705,7 +705,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
         protected override void Handle(EditFileCmd cmd, CancellationToken ct) {
-            _ = HandleAsyncImpl(cmd, ct);
+            RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask());
         }
 
         private async ValueTask HandleAsyncImpl(EditFileCmd cmd, CancellationToken ct) {

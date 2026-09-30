@@ -167,7 +167,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             _logger = logger;
         }
 
-        protected override void Handle(ThinkingStoreCommand cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        protected override void Handle(ThinkingStoreCommand cmd, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask()); }
 
         private async ValueTask HandleAsyncImpl(ThinkingStoreCommand cmd, CancellationToken ct) {
             switch (cmd) {

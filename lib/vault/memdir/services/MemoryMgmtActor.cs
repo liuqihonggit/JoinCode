@@ -72,7 +72,7 @@ internal sealed class MemoryMgmtActor : ActorBase<IMemoryMgmtCommand, Unit> {
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
-    protected override void Handle(IMemoryMgmtCommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+    protected override void Handle(IMemoryMgmtCommand command, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(command, ct).AsTask()); }
 
     private async ValueTask HandleAsyncImpl(IMemoryMgmtCommand command, CancellationToken ct) {
         switch (command) {

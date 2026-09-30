@@ -56,7 +56,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit> {
     /// </summary>
     /// <param name="command">待处理的 LSP 命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override void Handle(ILspCommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+    protected override void Handle(ILspCommand command, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(command, ct).AsTask()); }
 
     private async ValueTask HandleAsyncImpl(ILspCommand command, CancellationToken ct) {
         switch (command) {

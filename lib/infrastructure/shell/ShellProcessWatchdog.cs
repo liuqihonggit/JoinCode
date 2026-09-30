@@ -71,7 +71,7 @@ public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit
     /// <param name="command">监控命令</param>
     /// <param name="ct">取消令牌</param>
     protected override void Handle(IShellWatchdogCommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
+        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(IShellWatchdogCommand command, CancellationToken ct) {

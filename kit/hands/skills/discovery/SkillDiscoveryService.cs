@@ -416,7 +416,7 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
             _logger = logger;
         }
 
-        protected override void Handle(DiscoverCmd cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        protected override void Handle(DiscoverCmd cmd, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask()); }
         private async ValueTask HandleAsyncImpl(DiscoverCmd cmd, CancellationToken ct) {
             try {
                 var result = await _owner.DiscoverInternalAsync(ct).ConfigureAwait(false);

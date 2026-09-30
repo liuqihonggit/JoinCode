@@ -187,16 +187,17 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
 
     /// <summary>
     /// 命令处理 — Consumer 线程独占执行，路由表无需锁。
+    /// <para>异步发送/广播通过 RegisterInFlight 守卫,DisposeAsync 等待 in-flight 完成(ADR 0125)。</para>
     /// </summary>
     /// <param name="cmd">邮箱命令</param>
     /// <param name="ct">取消令牌</param>
     protected override void Handle(MailboxCmd<TMessage> cmd, CancellationToken ct) {
         switch (cmd) {
             case SendCmd<TMessage> send:
-            _ = HandleSendAsync(send.AgentId, send.Message, ct);
+            RegisterInFlight(HandleSendAsync(send.AgentId, send.Message, ct).AsTask());
             break;
             case BroadcastCmd<TMessage> broadcast:
-            _ = HandleBroadcastAsync(broadcast.Message, broadcast.ExcludeAgentId, ct);
+            RegisterInFlight(HandleBroadcastAsync(broadcast.Message, broadcast.ExcludeAgentId, ct).AsTask());
             break;
             case RegisterAgentCmd<TMessage> register:
             HandleRegisterAgent(register.AgentId, register.SessionId);

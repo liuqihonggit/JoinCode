@@ -119,7 +119,7 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit> {
     /// </summary>
     /// <param name="command">日志簿命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override void Handle(IJournalCommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+    protected override void Handle(IJournalCommand command, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(command, ct).AsTask()); }
     private async ValueTask HandleAsyncImpl(IJournalCommand command, CancellationToken ct) {
         switch (command) {
             case JournalRecordCommand(var entry):

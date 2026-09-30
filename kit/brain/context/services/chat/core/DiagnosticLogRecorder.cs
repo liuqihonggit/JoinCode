@@ -230,7 +230,7 @@ internal sealed class DiagnosticEntryWriter : IAsyncDisposable {
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override void Handle(WriteEntryCmd cmd, CancellationToken ct) { _ = HandleAsyncImpl(cmd, ct); }
+        protected override void Handle(WriteEntryCmd cmd, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(cmd, ct).AsTask()); }
         private async ValueTask HandleAsyncImpl(WriteEntryCmd cmd, CancellationToken ct) {
             try {
                 await _fs.AppendAllTextAsync(_logPath, cmd.Line + "\n", ct).ConfigureAwait(false);

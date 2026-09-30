@@ -156,7 +156,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     /// Actor Consumer — 线程独占 _sessionTasks 和文件 I/O，串行处理命令，无需锁。
     /// </summary>
     protected override void Handle(ICronStoreCommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
+        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(ICronStoreCommand command, CancellationToken ct) {

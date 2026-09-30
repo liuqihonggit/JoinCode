@@ -172,7 +172,7 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
     /// <param name="command">要处理的调度器命令。</param>
     /// <param name="ct">取消令牌。</param>
     protected override void Handle(ICronSchedulerCommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
+        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(ICronSchedulerCommand command, CancellationToken ct) {

@@ -110,7 +110,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     /// <param name="command">心跳命令</param>
     /// <param name="ct">取消令牌</param>
     protected override void Handle(IGoalHeartbeatCommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
+        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(IGoalHeartbeatCommand command, CancellationToken ct) {

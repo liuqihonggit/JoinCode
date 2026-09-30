@@ -456,7 +456,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <summary>
     /// Actor Consumer — 线程独占 _pollingCts/_pollingTask/_authToken/_stats.StartedAt，串行处理命令，无需锁。
     /// </summary>
-    protected override void Handle(IBridgeCommand command, CancellationToken ct) => _ = HandleAsyncImpl(command, ct);
+    protected override void Handle(IBridgeCommand command, CancellationToken ct) => RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
 
     private async ValueTask HandleAsyncImpl(IBridgeCommand command, CancellationToken ct) {
         switch (command) {

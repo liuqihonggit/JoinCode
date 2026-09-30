@@ -127,11 +127,12 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
 
     /// <summary>
     /// 命令处理 — Consumer 线程串行执行，保证同一时刻只有一个编译在跑。
+    /// <para>异步编译通过 RegisterInFlight 守卫,DisposeAsync 等待 in-flight 完成(ADR 0125)。</para>
     /// </summary>
     protected override void Handle(GlobalBuildCommand cmd, CancellationToken ct) {
         switch (cmd) {
             case EnqueueGlobalBuildCmd enqueue:
-            _ = HandleEnqueueAsync(enqueue, ct);
+            RegisterInFlight(HandleEnqueueAsync(enqueue, ct).AsTask());
             break;
             case CancelGlobalBuildCmd cancel:
             HandleCancel(cancel.RequestId);

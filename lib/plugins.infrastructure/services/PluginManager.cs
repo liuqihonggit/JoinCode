@@ -841,7 +841,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// Actor 命令处理 — Consumer 线程独占,所有可变状态无需锁(ADR 0098)
     /// </summary>
     protected override void Handle(PluginManagerCommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
+        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(PluginManagerCommand command, CancellationToken ct) {

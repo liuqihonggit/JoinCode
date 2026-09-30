@@ -42,7 +42,7 @@ internal sealed class TaskPersistActor : ActorBase<ITaskPersistCommand, Unit> {
     }
 
     protected override void Handle(ITaskPersistCommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
+        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(ITaskPersistCommand command, CancellationToken ct) {

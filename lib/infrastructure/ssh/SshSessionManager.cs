@@ -104,7 +104,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// Actor Consumer — 线程独占 _sessions，串行处理命令，无需锁。
     /// </summary>
     protected override void Handle(ISshCommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
+        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(ISshCommand command, CancellationToken ct) {

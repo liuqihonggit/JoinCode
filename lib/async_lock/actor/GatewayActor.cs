@@ -103,10 +103,10 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
-    /// <summary>Consumer 线程内处理调用命令</summary>
+    /// <summary>Consumer 线程内处理调用命令 — fire-and-forget 启动调用,通过 RegisterInFlight 守卫(ADR 0125)</summary>
     protected override void Handle(IGatewayCommand command, CancellationToken ct) {
         if (command is CallCommand(var req, var tcs)) {
-            _ = ExecuteCallAsync(req, tcs, ct);
+            RegisterInFlight(ExecuteCallAsync(req, tcs, ct));
         }
     }
 

@@ -184,7 +184,7 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent> 
     /// <param name="command">要提交的命令。</param>
     public ValueTask SubmitAsync(ICommand command) { Tell(command); return ValueTask.CompletedTask; }
 
-    protected override void Handle(ICommand command, CancellationToken ct) { _ = HandleAsyncImpl(command, ct); }
+    protected override void Handle(ICommand command, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(command, ct).AsTask()); }
     private async ValueTask HandleAsyncImpl(ICommand command, CancellationToken ct) {
         if (command is not ExecuteBuildCommand(var entry, var tcs, var buildCt))
             return;

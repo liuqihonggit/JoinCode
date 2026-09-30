@@ -251,7 +251,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
                 if (hasDetermining) continue;
                 tool.Status = ToolStatus.Determining;
                 hasDetermining = true;
-                _ = Task.Run(() => DetermineSafetyAndScheduleAsync(tool));
+                RegisterInFlight(Task.Run(() => DetermineSafetyAndScheduleAsync(tool)));
                 continue;
             }
 
@@ -260,7 +260,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
                 _executingCount++;
                 if (!tool.IsConcurrencySafe)
                     _nonSafeExecutingCount++;
-                _ = Task.Run(() => ExecuteToolAsync(tool));
+                RegisterInFlight(Task.Run(() => ExecuteToolAsync(tool)));
             }
         }
     }
@@ -291,7 +291,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
             _executingCount++;
             if (!tool.IsConcurrencySafe)
                 _nonSafeExecutingCount++;
-            _ = Task.Run(() => ExecuteToolAsync(tool));
+            RegisterInFlight(Task.Run(() => ExecuteToolAsync(tool)));
         } else {
             tool.Status = ToolStatus.Queued;
         }

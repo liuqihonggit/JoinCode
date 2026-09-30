@@ -157,7 +157,7 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
     /// Actor Consumer — 线程独占 _watcher 和重载逻辑，串行处理命令，无需锁。
     /// </summary>
     protected override void Handle(IPluginReloadCommand command, CancellationToken ct) {
-        _ = HandleAsyncImpl(command, ct);
+        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
     }
 
     private async ValueTask HandleAsyncImpl(IPluginReloadCommand command, CancellationToken ct) {

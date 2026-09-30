@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>OnnxEmbedding</RootNamespace>
+    <AssemblyName>onnx_embedding_exe</AssemblyName>
+    <Description>ONNX 嵌入独立 exe — 量化模型推理 + stdin/stdout IPC</Description>
+    <IsAotCompatible>false</IsAotCompatible>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);JCC9001;JCC1011;IL2026;IL3050</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.1" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" Version="1.0.1" />
+  </ItemGroup>
+
+</Project>

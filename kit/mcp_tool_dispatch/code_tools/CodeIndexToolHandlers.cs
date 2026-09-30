@@ -659,16 +659,18 @@ public sealed class CodeIndexToolHandlers {
     /// <param name="top_k">返回结果数上限</param>
     /// <param name="include_source_text">是否返回匹配块原文（函数源码）</param>
     /// <param name="include_parent_document">是否返回父文档原文（类/文件完整源码）</param>
+    /// <param name="include_graph">是否返回知识图谱关联（调用方/被调用方），默认 true</param>
     /// <param name="file_type">文件类型过滤@过滤（扩展名不含点，如 "cs"/"md"），null=全部</param>
     /// <param name="persist_dir">持久化目录路径，用于从外部位置加载索引。null=自动发现 git 工作区</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含匹配代码块列表的工具结果</returns>
-    [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. By default returns ONLY metadata (file path, line range, symbol name, similarity score) — lightweight, use read tool to fetch source by line number. Set include_source_text=true to get matched block source code (function body). Set include_parent_document=true to get parent class/file source code for full context. Set file_type to filter by extension (e.g. 'cs' for C# code only, 'md' for Markdown docs only). Set persist_dir to load index from a custom directory (default: auto-discover git workspace). Tip: start with default (metadata only) to locate, then enable source/parent on follow-up calls if needed.", "code_index")]
+    [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. By default returns ONLY metadata (file path, line range, symbol name, similarity score) + knowledge graph relations (callers/callees) — lightweight, use read tool to fetch source by line number. Set include_source_text=true to get matched block source code (function body). Set include_parent_document=true to get parent class/file source code for full context. Set include_graph=false to disable knowledge graph relations. Set file_type to filter by extension (e.g. 'cs' for C# code only, 'md' for Markdown docs only). Set persist_dir to load index from a custom directory (default: auto-discover git workspace). Tip: start with default (metadata + graph) to locate, then enable source/parent on follow-up calls if needed.", "code_index")]
     public async Task<ToolResult> SearchSemanticAsync(
         [McpToolParameter("Natural language query or code snippet (e.g. 'find authentication logic', 'rate limiting implementation')")] string query,
         [McpToolParameter("Maximum number of results to return", Required = false, DefaultValue = "10")] int top_k = 10,
         [McpToolParameter("Include matched block source text (function code) in results. Default false — use read tool to fetch by line number instead", Required = false, DefaultValue = "false")] bool include_source_text = false,
         [McpToolParameter("Include parent document (class/file) source text in results for full context. Default false — enable when you need surrounding context", Required = false, DefaultValue = "false")] bool include_parent_document = false,
+        [McpToolParameter("Include knowledge graph relations (callers/callees) for symbols in each chunk. Default true — AI sees call dependencies without extra tool calls", Required = false, DefaultValue = "true")] bool include_graph = true,
         [McpToolParameter("Filter by file extension without dot, e.g. 'cs' for C# only, 'md' for Markdown only. Default null = all file types", Required = false)] string? file_type = null,
         [McpToolParameter("Persistence directory path to load index from. Default null = auto-discover git workspace root", Required = false)] string? persist_dir = null,
         CancellationToken cancellationToken = default) {
@@ -703,6 +705,7 @@ public sealed class CodeIndexToolHandlers {
             }
 
             var sb = new StringBuilder();
+            var seenFqns = new HashSet<string>(StringComparer.Ordinal);
             sb.AppendLine($"Found {results.Count} semantically similar code block(s) for: \"{query}\"");
             sb.AppendLine();
 
@@ -730,6 +733,43 @@ public sealed class CodeIndexToolHandlers {
                         sb.AppendLine($"   {line}");
                     }
                     sb.AppendLine($"   --- End Parent ---");
+                }
+
+                if (include_graph && r.ContainedSymbolFqns.Count > 0) {
+                    var graphWritten = false;
+                    const int FqnLimit = 5;
+                    const int EdgeLimit = 2;
+                    var fqnProcessed = 0;
+                    foreach (var fqn in r.ContainedSymbolFqns) {
+                        if (fqnProcessed >= FqnLimit) break;
+                        if (!seenFqns.Add(fqn)) continue;
+                        fqnProcessed++;
+
+                        var callers = await _indexer.CallGraph.GetCallersAsync(fqn, cancellationToken).ConfigureAwait(false);
+                        var callees = await _indexer.CallGraph.GetCalleesAsync(fqn, cancellationToken).ConfigureAwait(false);
+
+                        if (callers.Count == 0 && callees.Count == 0) continue;
+                        if (!graphWritten) {
+                            sb.AppendLine("   --- Graph ---");
+                            graphWritten = true;
+                        }
+
+                        if (callers.Count > 0) {
+                            sb.AppendLine($"   {fqn} <- 调用方:");
+                            foreach (var c in callers.Take(EdgeLimit)) {
+                                sb.AppendLine($"     {c.CallerSymbol} at {c.CallSiteFilePath}:{c.CallSiteLine}");
+                            }
+                        }
+                        if (callees.Count > 0) {
+                            sb.AppendLine($"   {fqn} -> 被调用方:");
+                            foreach (var c in callees.Take(EdgeLimit)) {
+                                sb.AppendLine($"     {c.CalleeSymbol} at {c.CallSiteFilePath}:{c.CallSiteLine}");
+                            }
+                        }
+                    }
+                    if (graphWritten) {
+                        sb.AppendLine("   --- End Graph ---");
+                    }
                 }
 
                 sb.AppendLine();

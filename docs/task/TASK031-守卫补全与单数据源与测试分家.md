@@ -9,7 +9,7 @@
 >
 > **创建时间**:2026-09-30
 >
-> **状态**:待执行
+> **状态**:已完成 ✅ (2026-10-01)
 
 ---
 
@@ -193,9 +193,9 @@
 
 ### 阶段 D: 单一职责拆分(P0 → P1)
 
-- D1: ChatContextManager 拆分(1022 行 → 6 个类)
-- D2: ReadOnlyCommandDetector 拆分(2551 行 → 6 个类)
-- D3: NotebookToolHandlers + PathConstraintValidator + AgentToolHandlers 拆分
+- D1: ChatContextManager 拆分(1022 行 → 7个单一数据源服务+编排器) ✅ commit ac3e82c52
+- D2: ReadOnlyCommandDetector 拆分(2551 行 → 6个服务+CommandCatalog/GitFlagBuilders/NonGitFlagBuilders) ✅ commit 1337f8fdb
+- D3: NotebookToolHandlers + PathConstraintValidator + AgentToolHandlers 拆分 ✅ commit b174806ca, d0d76acf2, dec0b985e
 
 ### 并行规则
 

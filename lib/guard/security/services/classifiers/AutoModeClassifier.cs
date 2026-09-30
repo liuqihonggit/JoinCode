@@ -29,7 +29,13 @@ public sealed partial class ClassificationResult {
     /// <summary>安全分类级别</summary>
     public required SecurityClassification Classification { get; init; }
     /// <summary>置信度(0.0-1.0)</summary>
-    public required double Confidence { get; init; }
+    public required double Confidence {
+        get => field;
+        init {
+            if (value < 0.0 || value > 1.0) throw new ArgumentOutOfRangeException(nameof(Confidence), value, "置信度必须在 [0, 1]");
+            field = value;
+        }
+    }
     /// <summary>分类原因</summary>
     public string? Reason { get; init; }
     /// <summary>建议的安全动作</summary>

@@ -73,6 +73,7 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
 
     /// <inheritdoc />
     public async Task SaveAsync(DreamTaskState task, CancellationToken ct = default) {
+        ArgumentNullException.ThrowIfNull(task);
         var filePath = GetFilePath(task.Id);
         var dto = DreamTaskDto.FromState(task);
 
@@ -88,6 +89,7 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
 
     /// <inheritdoc />
     public async Task<DreamTaskState?> LoadAsync(string taskId, CancellationToken ct = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(taskId);
         var filePath = GetFilePath(taskId);
 
         try {
@@ -136,6 +138,7 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
 
     /// <inheritdoc />
     public async Task DeleteAsync(string taskId, CancellationToken ct = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(taskId);
         var filePath = GetFilePath(taskId);
 
         await using var fileLock = await FileLock.AcquireAsync(filePath, TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
@@ -146,6 +149,9 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
 
     /// <inheritdoc />
     public async Task CleanupCompletedAsync(int keepCount, CancellationToken ct = default) {
+        if (keepCount < 0) {
+            throw new ArgumentOutOfRangeException(nameof(keepCount), keepCount, "keepCount must be non-negative");
+        }
         var allTasks = await LoadAllAsync(ct).ConfigureAwait(false);
 
         var completedTasks = allTasks
@@ -163,6 +169,15 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
     }
 
     private string GetFilePath(string taskId) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(taskId);
+        if (taskId.Contains("..", StringComparison.Ordinal)) {
+            throw new ArgumentException("taskId 含目录穿越字符 '..'", nameof(taskId));
+        }
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var idx = taskId.AsSpan().IndexOfAny(invalidChars);
+        if (idx >= 0) {
+            throw new ArgumentException($"taskId 含非法路径字符 '{taskId[idx]}'", nameof(taskId));
+        }
         return Path.Combine(_storageDir, $"{taskId}.json");
     }
 

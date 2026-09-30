@@ -270,4 +270,18 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         Assert.Equal("持久化测试", task.Title);
         Assert.Equal("测试描述", task.Description);
     }
+
+    // ===== 守卫确定性测试(TASK031:offset/limit 范围) =====
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task ListTasksAsync_NegativeOffset_ThrowsArgumentOutOfRangeException() {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _service.ListTasksAsync(null, null, null, 10, -1)).ConfigureAwait(true);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task ListTasksAsync_NegativeLimit_ThrowsArgumentOutOfRangeException() {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _service.ListTasksAsync(null, null, null, -1, 0)).ConfigureAwait(true);
+    }
 }

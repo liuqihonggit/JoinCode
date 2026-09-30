@@ -186,6 +186,71 @@ public sealed class DreamTaskPersistenceTests : IDisposable {
         Assert.Equal(2, loaded.FilesTouched.Count);
     }
 
+    // ===== 守卫确定性测试(TASK031:null + 路径注入 + 范围) =====
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task SaveAsync_NullTask_ThrowsArgumentNullException() {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _persistence.SaveAsync(null!)).ConfigureAwait(true);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task LoadAsync_NullTaskId_ThrowsArgumentNullException() {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _persistence.LoadAsync(null!)).ConfigureAwait(true);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task LoadAsync_EmptyTaskId_ThrowsArgumentException() {
+        await Assert.ThrowsAsync<ArgumentException>(() => _persistence.LoadAsync("")).ConfigureAwait(true);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task LoadAsync_WhitespaceTaskId_ThrowsArgumentException() {
+        await Assert.ThrowsAsync<ArgumentException>(() => _persistence.LoadAsync("   ")).ConfigureAwait(true);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task LoadAsync_DirectoryTraversalTaskId_ThrowsArgumentException() {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _persistence.LoadAsync("../etc")).ConfigureAwait(true);
+        Assert.Contains("..", ex.Message);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task LoadAsync_PathSeparatorInTaskId_ThrowsArgumentException() {
+        // '/' 在 Windows + Linux 均为非法文件名字符(跨平台确定性)
+        await Assert.ThrowsAsync<ArgumentException>(() => _persistence.LoadAsync("a/b")).ConfigureAwait(true);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task DeleteAsync_NullTaskId_ThrowsArgumentNullException() {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _persistence.DeleteAsync(null!)).ConfigureAwait(true);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task DeleteAsync_DirectoryTraversalTaskId_ThrowsArgumentException() {
+        await Assert.ThrowsAsync<ArgumentException>(() => _persistence.DeleteAsync("../evil")).ConfigureAwait(true);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task CleanupCompletedAsync_NegativeKeepCount_ThrowsArgumentOutOfRangeException() {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _persistence.CleanupCompletedAsync(-1)).ConfigureAwait(true);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task CleanupCompletedAsync_ZeroKeepCount_IsAllowed() {
+        // 0 合法(清理所有已完成),不应抛异常
+        await _persistence.CleanupCompletedAsync(0).ConfigureAwait(true);
+    }
+
     private static DreamTaskState CreateTestTask(string? id = null, DateTime? startTime = null) => new() {
         Id = id ?? TaskIdGenerator.GenerateTaskId(TaskType.Dream),
         Description = "test",

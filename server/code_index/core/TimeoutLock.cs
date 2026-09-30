@@ -19,8 +19,13 @@ internal sealed class TimeoutLock : IDisposable {
     public TimeoutLock(string lockName, TimeSpan? defaultTimeout = null, Action<string>? log = null) {
         ArgumentNullException.ThrowIfNull(lockName);
 
+        var actualDefault = defaultTimeout ?? TimeSpan.FromSeconds(5);
+        if (actualDefault < TimeSpan.Zero) {
+            throw new ArgumentOutOfRangeException(nameof(defaultTimeout), actualDefault, "timeout must be non-negative");
+        }
+
         _lockName = lockName;
-        _defaultTimeout = defaultTimeout ?? TimeSpan.FromSeconds(5);
+        _defaultTimeout = actualDefault;
 
         _log = log;
     }
@@ -35,6 +40,9 @@ internal sealed class TimeoutLock : IDisposable {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
         var actualTimeout = timeout ?? _defaultTimeout;
+        if (actualTimeout < TimeSpan.Zero) {
+            throw new ArgumentOutOfRangeException(nameof(timeout), actualTimeout, "timeout must be non-negative");
+        }
         _log?.Invoke($"[TimeoutLock:{_lockName}] Acquiring (timeout={actualTimeout.TotalSeconds}s)...");
 
         var guard = _semaphore.TryLock();
@@ -58,6 +66,9 @@ internal sealed class TimeoutLock : IDisposable {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
         var actualTimeout = timeout ?? _defaultTimeout;
+        if (actualTimeout < TimeSpan.Zero) {
+            throw new ArgumentOutOfRangeException(nameof(timeout), actualTimeout, "timeout must be non-negative");
+        }
         _log?.Invoke($"[TimeoutLock:{_lockName}] Acquiring sync (timeout={actualTimeout.TotalSeconds}s)...");
 
         var guard = _semaphore.TryLock();

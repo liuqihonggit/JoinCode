@@ -78,4 +78,34 @@ public sealed class TimeoutLockTests : IDisposable {
         Assert.Contains(messages, m => m.Contains("Acquired"));
         Assert.Contains(messages, m => m.Contains("Released"));
     }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void Constructor_NegativeDefaultTimeout_ThrowsArgumentOutOfRangeException() {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TimeoutLock("NegDefault", TimeSpan.FromSeconds(-1)));
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task AcquireAsync_NegativeTimeout_ThrowsArgumentOutOfRangeException() {
+        using var l = new TimeoutLock("NegAsync");
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => {
+            using var _ = await l.AcquireAsync(CancellationToken.None, TimeSpan.FromSeconds(-1)).ConfigureAwait(true);
+        }).ConfigureAwait(true);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void Acquire_NegativeTimeout_ThrowsArgumentOutOfRangeException() {
+        using var l = new TimeoutLock("NegSync");
+        Assert.Throws<ArgumentOutOfRangeException>(() => l.Acquire(TimeSpan.FromSeconds(-1)));
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void Constructor_ZeroDefaultTimeout_IsAllowed() {
+        // TimeSpan.Zero 合法(立即超时策略),不应抛异常
+        using var l = new TimeoutLock("ZeroDefault", TimeSpan.Zero);
+        Assert.NotNull(l);
+    }
 }

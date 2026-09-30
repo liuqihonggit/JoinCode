@@ -10,6 +10,7 @@ internal static class HashUtility {
     /// <param name="content">待哈希的文本内容</param>
     /// <returns>大写十六进制哈希字符串</returns>
     internal static string ComputeContentHash(string content) {
+        ArgumentNullException.ThrowIfNull(content);
         var bytes = System.Text.Encoding.UTF8.GetBytes(content);
         var hashBytes = System.Security.Cryptography.SHA256.HashData(bytes);
         return Convert.ToHexString(hashBytes);
@@ -33,6 +34,8 @@ internal static class HashUtility {
     /// <param name="ct">取消令牌</param>
     /// <returns>文件内容与哈希的元组</returns>
     internal static async Task<(string Content, string Hash)> ReadFileAndComputeHashAsync(string filePath, IFileSystem fs, CancellationToken ct) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        ArgumentNullException.ThrowIfNull(fs);
         var content = await fs.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
         var hash = ComputeContentHash(content);
         return (content, hash);

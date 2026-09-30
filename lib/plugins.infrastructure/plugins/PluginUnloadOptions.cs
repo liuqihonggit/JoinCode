@@ -82,6 +82,9 @@ public sealed class PluginUnloadOptionsBuilder {
     /// 设置超时时间
     /// </summary>
     public PluginUnloadOptionsBuilder WithTimeout(TimeSpan timeout) {
+        if (timeout < TimeSpan.Zero) {
+            throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "timeout must be non-negative");
+        }
         _cooperativeTimeout = timeout;
         return this;
     }
@@ -90,6 +93,9 @@ public sealed class PluginUnloadOptionsBuilder {
     /// 设置超时时间（秒）
     /// </summary>
     public PluginUnloadOptionsBuilder WithTimeoutSeconds(int seconds) {
+        if (seconds < 0) {
+            throw new ArgumentOutOfRangeException(nameof(seconds), seconds, "seconds must be non-negative");
+        }
         _cooperativeTimeout = TimeSpan.FromSeconds(seconds);
         return this;
     }
@@ -98,6 +104,9 @@ public sealed class PluginUnloadOptionsBuilder {
     /// 设置超时时间（毫秒）
     /// </summary>
     public PluginUnloadOptionsBuilder WithTimeoutMilliseconds(int milliseconds) {
+        if (milliseconds < 0) {
+            throw new ArgumentOutOfRangeException(nameof(milliseconds), milliseconds, "milliseconds must be non-negative");
+        }
         _cooperativeTimeout = TimeSpan.FromMilliseconds(milliseconds);
         return this;
     }

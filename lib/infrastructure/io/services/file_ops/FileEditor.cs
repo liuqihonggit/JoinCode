@@ -718,6 +718,10 @@ public sealed class FileEditor {
     /// <param name="replacedLinesCount">替换行数。</param>
     /// <returns>被替换行的原始内容(\n 分隔)。</returns>
     internal static string ExtractOriginalContent(List<string> allLines, int startLine, int replacedLinesCount) {
+        ArgumentNullException.ThrowIfNull(allLines);
+        if (startLine < 1) throw new ArgumentOutOfRangeException(nameof(startLine), startLine, "startLine must be at least 1");
+        if (replacedLinesCount < 0) throw new ArgumentOutOfRangeException(nameof(replacedLinesCount), replacedLinesCount, "replacedLinesCount must be non-negative");
+        if (startLine - 1 + replacedLinesCount > allLines.Count) throw new ArgumentOutOfRangeException(nameof(replacedLinesCount), replacedLinesCount, "startLine + replacedLinesCount exceeds allLines count");
         var originalLines = allLines.Skip(startLine - 1).Take(replacedLinesCount).ToList();
         return string.Join("\n", originalLines);
     }
@@ -733,6 +737,13 @@ public sealed class FileEditor {
     /// <param name="newContent">新内容(可能含 \n 表示多行)。</param>
     /// <returns>更新后的完整文件内容(\n 分隔)。</returns>
     internal static string BuildUpdatedFileContent(List<string> allLines, int startLine, int actualEndLine, int totalLines, string newContent) {
+        ArgumentNullException.ThrowIfNull(allLines);
+        ArgumentNullException.ThrowIfNull(newContent);
+        if (startLine < 1) throw new ArgumentOutOfRangeException(nameof(startLine), startLine, "startLine must be at least 1");
+        if (totalLines < 0) throw new ArgumentOutOfRangeException(nameof(totalLines), totalLines, "totalLines must be non-negative");
+        if (totalLines != allLines.Count) throw new ArgumentException("totalLines must equal allLines.Count", nameof(totalLines));
+        if (actualEndLine < startLine) throw new ArgumentOutOfRangeException(nameof(actualEndLine), actualEndLine, "actualEndLine must be >= startLine");
+        if (actualEndLine > totalLines) throw new ArgumentOutOfRangeException(nameof(actualEndLine), actualEndLine, "actualEndLine must be <= totalLines");
         var newLines = newContent.Split('\n').ToList();
         var resultLines = new List<string>();
 

@@ -214,6 +214,12 @@ internal sealed class JccChatSession : IJccChatSession {
     }
 
     /// <inheritdoc />
+    public void UpdateProtectedDrives(HashSet<string> protectedDrives) {
+        var store = _services.GetService<Core.Hooks.Execution.Interception.IProtectedDriveStore>();
+        store?.Update(protectedDrives.ToFrozenSet(StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <inheritdoc />
     public async Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) {
         var manager = _services.GetService<IToolPermissionManager>();
         if (manager is not null)

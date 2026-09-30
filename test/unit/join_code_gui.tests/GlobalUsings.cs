@@ -1,4 +1,6 @@
 global using Api.Chat;
+global using Core.Hooks.Execution.Interception;
+global using Core.Hooks.Execution.Interception.Guards;
 global using Avalonia;
 global using Avalonia.Controls;
 global using Avalonia.Controls.Documents;
@@ -43,6 +45,8 @@ global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
 global using System;
 global using System.Collections.ObjectModel;
+global using System.Collections.Generic;
+global using System.Collections.Frozen;
 global using System.ComponentModel;
 global using System.Globalization;
 global using System.IO;

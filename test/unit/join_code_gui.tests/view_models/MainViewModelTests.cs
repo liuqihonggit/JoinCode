@@ -1095,6 +1095,7 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1263,6 +1264,7 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1335,6 +1337,7 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1389,6 +1392,7 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1448,6 +1452,7 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1510,6 +1515,7 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1574,6 +1580,7 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1618,6 +1625,28 @@ public class MainViewModelTests {
 
         busyChanges.Should().Contain(true, "StartTurn 后应转发 IsBusy=true 变更");
         busyChanges.Should().Contain(false, "EndTurn 后应转发 IsBusy=false 变更");
+    }
+
+    /// <summary>
+    /// 磁盘根保护初始化验证 — 启动时扫描盘号填充 ProtectedDrives 集合，每项默认勾选（ADR 0123）。
+    /// </summary>
+    [Fact]
+    public void ProtectedDrives_Initialized_AllDefaultProtected() {
+        var vm = CreateVm();
+        vm.ProtectedDrives.Should().NotBeEmpty("至少应扫描到一个一个盘号");
+        vm.ProtectedDrives.Should().AllSatisfy(item =>
+            item.IsProtected.Should().BeTrue("所有盘号默认应勾选（保护开启）"));
+    }
+
+    /// <summary>ProtectedDrives 盘号格式验证 — 每项 DriveLetter 应为 大写字母+冒号 格式</summary>
+    [Fact]
+    public void ProtectedDrives_DriveLetterFormat_UppercaseLetterColon() {
+        var vm = CreateVm();
+        vm.ProtectedDrives.Should().AllSatisfy(item => {
+            item.DriveLetter.Should().HaveLength(2);
+            item.DriveLetter[0].Should().BeInRange('A', 'Z', "盘号首字符应为大写字母");
+            item.DriveLetter[1].Should().Be(':', "盘号第二字符应为冒号");
+        });
     }
 }
 

@@ -39,6 +39,9 @@ public sealed partial class MainViewModel {
                 OnPropertyChanged(nameof(IsBusy));
         };
 
+        // 磁盘根保护 — 扫描盘号填充 ProtectedDrives 集合，默认勾选，应用到引擎（ADR 0123）
+        InitializeProtectedDrives();
+
         _selectedEffort = _session.EffortLevel.ToValue();
         Messages.CollectionChanged += OnMessagesChanged;
         _ = LoadPersistedSessionsAsync();

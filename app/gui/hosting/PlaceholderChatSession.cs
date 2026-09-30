@@ -236,6 +236,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     /// <summary>占位会话无真实引擎，工具黑名单更新空实现</summary>
     public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
 
+    /// <summary>占位会话无真实引擎，保护盘号更新空实现</summary>
+    public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
     /// <summary>最后一次设置的权限模式（供测试验证 GUI 开关传导）</summary>
     public PermissionMode? LastSetPermissionMode { get; private set; }
 

@@ -324,6 +324,7 @@ public sealed class MainWindowRegressionTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -381,6 +382,7 @@ public sealed class MainWindowRegressionTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);

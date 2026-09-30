@@ -159,6 +159,15 @@ public interface IJccChatSession : IAsyncDisposable {
     void UpdateToolBlacklist(HashSet<string> blacklistedTools);
 
     /// <summary>
+    /// 更新受保护盘号集合 — 运行时动态拦截涉及保护盘根目录的扫盘/删盘命令（ADR 0123）。
+    /// 传入空集合清除所有盘保护；传入盘号集合（如 {"C:", "D:"}）则拦截涉及这些盘根目录的命令。
+    /// 委托到引擎 IProtectedDriveStore.Update（volatile 双变量原子切换，立即生效）。
+    /// 占位会话无真实引擎，空实现。
+    /// </summary>
+    /// <param name="protectedDrives">受保护盘号集合（如 {"C:", "D:"}，盘号格式为大写字母+冒号）</param>
+    void UpdateProtectedDrives(HashSet<string> protectedDrives);
+
+    /// <summary>
     /// 设置权限模式 — 运行时切换权限检查行为（Plan/Auto/Ask/Bypass/Unattended）。
     /// 委托到引擎 IToolPermissionManager.SetPermissionModeAsync。
     /// GUI 无人值守开关切换时调用，使权限模式实际生效（修复 ADR 0012 GUI 开关断裂缺口）。

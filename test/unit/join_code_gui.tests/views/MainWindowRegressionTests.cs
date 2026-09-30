@@ -274,7 +274,7 @@ public sealed class MainWindowRegressionTests {
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        var dot = win.FindControl<TextBlock>("StatusDot");
+        var dot = win.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.Name == "StatusDot");
         Assert.NotNull(dot);
         Assert.True(dot!.IsVisible, "状态圆点应始终可见（不只在 Busy 时）");
         Assert.Equal("●", dot.Text);

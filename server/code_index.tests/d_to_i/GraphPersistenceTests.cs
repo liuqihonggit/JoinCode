@@ -157,13 +157,12 @@ public sealed class GraphPersistenceTests : IDisposable {
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
-        var path = Path.Combine(dir, "code-index.json");
+        var path = Path.Combine(dir, "code-index.bin");
         Assert.True(_fs.FileExists(path), "持久化文件应存在");
-        var json = await _fs.ReadAllTextAsync(path, CancellationToken.None).ConfigureAwait(true);
-        Assert.False(string.IsNullOrEmpty(json), "JSON 内容不应为空");
-        Assert.Contains("\"version\"", json);
-        Assert.Contains("A.B.C", json);
-        Assert.Contains("Newtonsoft.Json", json);
+        var bytes = await _fs.ReadAllBytesAsync(path, CancellationToken.None).ConfigureAwait(true);
+        Assert.True(bytes.Length > 10, "二进制内容不应为空");
+        var magic = System.Text.Encoding.UTF8.GetString(bytes, 0, 6);
+        Assert.Equal("CGIDX1", magic);
     }
 
     /// <summary>
@@ -206,22 +205,23 @@ public sealed class GraphPersistenceTests : IDisposable {
     }
 
     /// <summary>
-    /// SaveAsync 在空索引时也能正常保存，生成有效 JSON 且可被 LoadAsync 读回。
+    /// SaveAsync 在空索引时也能正常保存，生成有效二进制且可被 LoadAsync 读回。
     /// </summary>
     [Fact]
-    public async Task SaveAsync_EmptyStore_WritesValidJson() {
+    public async Task SaveAsync_EmptyStore_WritesValidBinary() {
         const string dir = "graph-empty";
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
-        var path = Path.Combine(dir, "code-index.json");
+        var path = Path.Combine(dir, "code-index.bin");
         Assert.True(_fs.FileExists(path), "空索引也应生成持久化文件");
-        var json = await _fs.ReadAllTextAsync(path, CancellationToken.None).ConfigureAwait(true);
-        Assert.Contains("\"symbols\"", json);
-        Assert.Contains("\"callEdges\"", json);
+        var bytes = await _fs.ReadAllBytesAsync(path, CancellationToken.None).ConfigureAwait(true);
+        Assert.True(bytes.Length > 10, "二进制内容不应为空");
+        var magic = System.Text.Encoding.UTF8.GetString(bytes, 0, 6);
+        Assert.Equal("CGIDX1", magic);
 
         var loaded = await _persistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
-        Assert.True(loaded, "空索引的 JSON 应能被 LoadAsync 成功加载");
+        Assert.True(loaded, "空索引的二进制应能被 LoadAsync 成功加载");
 
         var snap = _store.GetSnapshot();
         Assert.Empty(snap.SymbolsByFqn);
@@ -256,7 +256,7 @@ public sealed class GraphPersistenceTests : IDisposable {
 
         Assert.Empty(exceptions);
         foreach (var d in dirs) {
-            Assert.True(_fs.FileExists(Path.Combine(d, "code-index.json")), $"并发保存后 {d} 应存在文件");
+            Assert.True(_fs.FileExists(Path.Combine(d, "code-index.bin")), $"并发保存后 {d} 应存在文件");
         }
     }
 

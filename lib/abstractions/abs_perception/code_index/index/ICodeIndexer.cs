@@ -28,17 +28,21 @@ public interface ICodeIndexer {
     /// <summary>获取图分析器。</summary>
     IGraphAnalytics Analytics { get; }
     /// <summary>获取图持久化器。</summary>
-    IGraphPersistence Persistence { get; }
+    IBinaryPersistence Persistence { get; }
     /// <summary>获取图可视化器。</summary>
     IGraphVisualization Visualization { get; }
 
     /// <summary>
     /// 自动加载已持久化的索引(若存在且尚未加载)。
-    /// 从当前工作目录向上发现 .git 根,加载 &lt;root&gt;/.jcc/code-index/code-index.json。
+    /// 统一加载符号索引(code-index.bin) + 向量索引(vector_index.bin) + 父文档(parent_docs.bin)。
+    /// persistDir 为 null 时从当前工作目录向上发现 .git 根,加载 &lt;root&gt;/.jcc/code-index/。
+    /// persistDir 不为 null 时从指定目录加载（支持外部持久化路径重定向）。
     /// 用 Interlocked 保证只执行一次,后续调用立即返回。跨进程索引复用的入口。
     /// 不自动重建索引 — 索引为空时请用 <see cref="RebuildIndexAsync"/> 显式构建。
     /// </summary>
-    Task EnsureIndexLoadedAsync(CancellationToken ct);
+    /// <param name="ct">取消令牌。</param>
+    /// <param name="persistDir">持久化目录路径(null 时自动发现 git 工作区根)。</param>
+    Task EnsureIndexLoadedAsync(CancellationToken ct, string? persistDir = null);
 
     /// <summary>
     /// 显式重建索引并持久化到磁盘 — 供斜杠命令 /index 调用。
@@ -69,4 +73,5 @@ public interface ICodeIndexer {
     /// <returns>匹配的代码块列表，按相似度降序排列。</returns>
     Task<IReadOnlyList<ChunkSearchResult>> SearchSemanticAsync(
         string query, int topK, CancellationToken ct, SearchOptions? options = null);
+
 }

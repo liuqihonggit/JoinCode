@@ -17,11 +17,12 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private ILanguagePlugin _plugin;
     private Func<ILanguagePlugin> _pluginFactory;
     private readonly GraphAnalytics _analytics;
-    private readonly GraphPersistence _persistence;
+    private readonly IBinaryPersistence _persistence;
     private readonly GraphVisualization _visualization;
     private readonly ILogger<CodeIndexer>? _logger;
     private EmbeddingIndex? _embeddingIndex;
     private IParentDocumentStore? _parentDocStore;
+    private string? _lastVectorIndexDir;
     private int _disposed;
     private int _autoLoadState;
     private string? _autoDiscoveredWorkspaceRoot;
@@ -52,6 +53,30 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _analytics = new GraphAnalytics(store);
         _persistence = new GraphPersistence(store, fs);
         _visualization = new GraphVisualization(store);
+        TryInitEmbeddingIndex(fs, logger);
+    }
+
+    /// <summary>
+    /// 自动初始化向量索引 — 模型文件存在时创建 OnnxEmbeddingClient + EmbeddingIndex + ParentDocumentStore。
+    /// <para>模型路径：%AppData%/jcc/embedding/model_quantized.onnx + vocab.txt</para>
+    /// <para>文件不存在时静默跳过（向量搜索降级为不可用）。</para>
+    /// </summary>
+    private void TryInitEmbeddingIndex(IFileSystem fs, ILogger<CodeIndexer>? logger) {
+        var appData = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "jcc", "embedding");
+        var modelPath = Path.Combine(appData, "model_quantized.onnx");
+        var vocabPath = Path.Combine(appData, "vocab.txt");
+        if (!fs.FileExists(modelPath) || !fs.FileExists(vocabPath)) return;
+
+        try {
+            var embedModel = new OnnxEmbeddingClient(modelPath, vocabPath, fs);
+            _parentDocStore = new InMemoryParentDocumentStore(fs);
+            _embeddingIndex = new EmbeddingIndex(embedModel, new BruteForceAnn(), fs, _parentDocStore);
+            logger?.LogInformation("向量索引已自动初始化: dim={Dim}", embedModel.Dimensions);
+        } catch (Exception ex) {
+            logger?.LogWarning(ex, "向量索引自动初始化失败，语义搜索将不可用");
+        }
     }
 
     /// <summary>
@@ -119,7 +144,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     public IGraphAnalytics Analytics => _analytics;
 
     /// <summary>图持久化 — 索引的加载和保存</summary>
-    public IGraphPersistence Persistence => _persistence;
+    public IBinaryPersistence Persistence => _persistence;
 
     /// <summary>图可视化 — 生成图的可视化输出</summary>
     public IGraphVisualization Visualization => _visualization;
@@ -222,6 +247,19 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         // Phase G: 失效图缓存
         InvalidateGraphCaches();
+
+        // Phase H: 持久化向量索引+父文档（CLI 单次调用模式跨进程恢复）
+        _lastVectorIndexDir = Path.Combine(options.WorkspaceRoot, ".jcc", "code-index");
+        if (_embeddingIndex is not null) {
+            try {
+                await _embeddingIndex.SaveAsync(_lastVectorIndexDir, ct).ConfigureAwait(false);
+                if (_parentDocStore is not null) {
+                    await _parentDocStore.SaveAsync(_lastVectorIndexDir, ct).ConfigureAwait(false);
+                }
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "向量索引持久化失败（内存索引仍可用）");
+            }
+        }
 
         totalSw.Stop();
 
@@ -591,29 +629,59 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     }
 
     /// <summary>
-    /// 确保索引已加载 — 自动发现 .git 工作区，加载持久化索引或按需重建
+    /// 确保索引已加载 — 统一加载符号索引(code-index.bin) + 向量索引(vector_index.bin) + 父文档(parent_docs.bin)。
+    /// persistDir 为 null 时自动发现 .git 工作区根；不为 null 时从指定目录加载。
+    /// 用 Interlocked 保证只执行一次。
     /// </summary>
-    /// <param name="ct">取消令牌</param>
-    public async Task EnsureIndexLoadedAsync(CancellationToken ct) {
+    /// <param name="ct">取消令牌。</param>
+    /// <param name="persistDir">持久化目录路径(null 时自动发现 git 工作区根)。</param>
+    public async Task EnsureIndexLoadedAsync(CancellationToken ct, string? persistDir = null) {
         if (Interlocked.CompareExchange(ref _autoLoadState, 1, 0) != 0) return;
 
         try {
-            _logger?.LogDebug("CodeIndexer: EnsureIndexLoadedAsync — FindGitWorkspaceDir...");
-            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
-            if (root is null) {
-                _logger?.LogDebug("CodeIndexer: 未发现 .git 工作区根,跳过自动加载");
-                return;
+            string dir;
+            if (persistDir is not null) {
+                dir = persistDir;
+                _logger?.LogDebug("CodeIndexer: EnsureIndexLoadedAsync — 使用外部持久化路径 {Dir}", dir);
+            } else {
+                _logger?.LogDebug("CodeIndexer: EnsureIndexLoadedAsync — FindGitWorkspaceDir...");
+                var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
+                if (root is null) {
+                    _logger?.LogDebug("CodeIndexer: 未发现 .git 工作区根,跳过自动加载");
+                    return;
+                }
+                _autoDiscoveredWorkspaceRoot = root;
+                dir = Path.Combine(root, AutoLoadSubDir);
             }
 
-            _autoDiscoveredWorkspaceRoot = root;
-            var dir = Path.Combine(root, AutoLoadSubDir);
-            _logger?.LogDebug("CodeIndexer: 检查持久化索引 {Dir}", dir);
+            _lastVectorIndexDir = dir;
+
+            // 1. 加载符号索引
+            _logger?.LogDebug("CodeIndexer: 检查持久化符号索引 {Dir}", dir);
             if (await _persistence.ExistsAsync(dir, ct).ConfigureAwait(false)) {
                 var loaded = await _persistence.LoadAsync(dir, ct).ConfigureAwait(false);
                 if (loaded) {
-                    _logger?.LogInformation("CodeIndexer: 自动加载索引成功 from {Dir}", dir);
+                    _logger?.LogInformation("CodeIndexer: 自动加载符号索引成功 from {Dir}", dir);
                 } else {
-                    _logger?.LogDebug("CodeIndexer: 持久化索引版本不匹配或为空 {Dir}", dir);
+                    _logger?.LogDebug("CodeIndexer: 持久化符号索引版本不匹配或为空 {Dir}", dir);
+                }
+            }
+
+            // 2. 加载向量索引 + 父文档（统一加载，不再惰性）
+            if (_embeddingIndex is not null && _embeddingIndex.Status == IndexStatus.NotReady) {
+                try {
+                    await _embeddingIndex.LoadAsync(dir, ct).ConfigureAwait(false);
+                    _logger?.LogInformation("CodeIndexer: 自动加载向量索引成功 from {Dir}", dir);
+                } catch (Exception ex) {
+                    _logger?.LogWarning(ex, "CodeIndexer: 向量索引加载失败 {Dir}", dir);
+                }
+            }
+            if (_parentDocStore is not null) {
+                try {
+                    await _parentDocStore.LoadAsync(dir, ct).ConfigureAwait(false);
+                    _logger?.LogInformation("CodeIndexer: 自动加载父文档成功 from {Dir}", dir);
+                } catch (Exception ex) {
+                    _logger?.LogWarning(ex, "CodeIndexer: 父文档加载失败 {Dir}", dir);
                 }
             }
 

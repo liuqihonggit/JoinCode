@@ -14,11 +14,12 @@ public sealed class CodeIndexerParentDocTests : IDisposable {
     public CodeIndexerParentDocTests() {
         _store = new InMemoryIndexStore();
         _fs = new IO.FileSystem.InMemoryFileSystem();
-        _parentStore = new InMemoryParentDocumentStore();
+        _parentStore = new InMemoryParentDocumentStore(_fs);
         _indexer = new CodeIndexer(_store, _fs);
         _embeddingIndex = new EmbeddingIndex(
             new FakeEmbeddingModel(8),
             new BruteForceAnn(),
+            _fs,
             _parentStore);
         _indexer.SetEmbeddingIndex(_embeddingIndex);
         _indexer.SetParentDocumentStore(_parentStore);

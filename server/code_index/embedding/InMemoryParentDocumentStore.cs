@@ -6,11 +6,21 @@ namespace JoinCode.CodeIndex.Embedding;
 /// <para>进程退出释放，下次重建（纯内存无持久化）。</para>
 /// <para>读操作完全无锁 O(log₃₂ N) 查找；写操作 CAS 路径复制，读多写少场景最优。</para>
 /// </summary>
-public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IDisposable {
+public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IBinaryPersistence, IDisposable {
 
+    private readonly IFileSystem _fs;
     private volatile ImmutableHamT<string, ParentDocument> _documents = ImmutableHamT<string, ParentDocument>.Empty;
     private volatile ImmutableHamT<string, ImmutableHashSet<string>> _fileToDocs = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
     private int _disposed;
+
+    /// <summary>
+    /// 构造内存父文档存储。
+    /// </summary>
+    /// <param name="fs">文件系统抽象。</param>
+    public InMemoryParentDocumentStore(IFileSystem fs) {
+        ArgumentNullException.ThrowIfNull(fs);
+        _fs = fs;
+    }
 
     /// <summary>当前父文档数量。</summary>
     public int Count => _documents.Count;
@@ -98,6 +108,89 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IDisposa
     public void Clear() {
         _documents = ImmutableHamT<string, ParentDocument>.Empty;
         _fileToDocs = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
+    }
+
+    /// <summary>
+    /// 持久化父文档到目录 — 写 parent_docs.bin 二进制文件。
+    /// </summary>
+    /// <param name="dirPath">目标目录路径。</param>
+    /// <param name="ct">取消令牌。</param>
+    public async Task SaveAsync(string dirPath, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        var snapshot = _documents;
+
+        await using var ms = new MemoryStream();
+        await using var bw = new BinaryWriter(ms, System.Text.Encoding.UTF8);
+        bw.Write(System.Text.Encoding.UTF8.GetBytes("PRTDOC1"));
+        bw.Write(snapshot.Count);
+        foreach (var (_, doc) in snapshot) {
+            ct.ThrowIfCancellationRequested();
+            WriteString(bw, doc.ChunkId);
+            WriteString(bw, doc.FilePath);
+            WriteString(bw, doc.SymbolFqn);
+            bw.Write(doc.StartLine);
+            bw.Write(doc.EndLine);
+            WriteString(bw, doc.SourceText);
+            bw.Write(doc.IsTruncated);
+        }
+        bw.Flush();
+        _fs.CreateDirectory(dirPath);
+        var filePath = Path.Combine(dirPath, "parent_docs.bin");
+        await _fs.WriteAllBytesAsync(filePath, ms.ToArray(), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 从目录加载父文档 — 读 parent_docs.bin。
+    /// </summary>
+    /// <param name="dirPath">源目录路径。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>true 表示加载成功；false 表示文件不存在或格式不匹配。</returns>
+    public async Task<bool> LoadAsync(string dirPath, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        var filePath = Path.Combine(dirPath, "parent_docs.bin");
+        if (!_fs.FileExists(filePath)) return false;
+
+        var bytes = await _fs.ReadAllBytesAsync(filePath, ct).ConfigureAwait(false);
+        await using var ms = new MemoryStream(bytes, writable: false);
+        using var br = new BinaryReader(ms, System.Text.Encoding.UTF8);
+        var magic = System.Text.Encoding.UTF8.GetString(br.ReadBytes(7));
+        if (magic != "PRTDOC1") return false;
+        var count = br.ReadInt32();
+        var docs = new List<ParentDocument>(count);
+        for (var i = 0; i < count; i++) {
+            ct.ThrowIfCancellationRequested();
+            docs.Add(new ParentDocument {
+                ChunkId = ReadString(br),
+                FilePath = ReadString(br),
+                SymbolFqn = ReadString(br),
+                StartLine = br.ReadInt32(),
+                EndLine = br.ReadInt32(),
+                SourceText = ReadString(br),
+                IsTruncated = br.ReadBoolean()
+            });
+        }
+        AddRange(docs);
+        return true;
+    }
+
+    /// <summary>
+    /// 检查指定目录是否存在父文档持久化文件。
+    /// </summary>
+    public Task<bool> ExistsAsync(string dirPath, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        var filePath = Path.Combine(dirPath, "parent_docs.bin");
+        return Task.FromResult(_fs.FileExists(filePath));
+    }
+
+    private static void WriteString(BinaryWriter bw, string s) {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(s);
+        bw.Write(bytes.Length);
+        bw.Write(bytes);
+    }
+
+    private static string ReadString(BinaryReader br) {
+        var len = br.ReadInt32();
+        return System.Text.Encoding.UTF8.GetString(br.ReadBytes(len));
     }
 
     /// <summary>释放资源（无锁实现，空操作）。</summary>

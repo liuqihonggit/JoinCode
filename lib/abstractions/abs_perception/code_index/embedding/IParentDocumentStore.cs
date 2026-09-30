@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.CodeIndex;
 /// <para>向量库存小块（方法/属性），召回小块后通过 ParentChunkId 查此存储取父文档原文。</para>
 /// <para>纯内存实现（InMemoryParentDocumentStore），进程退出释放，下次重建。</para>
 /// </summary>
-public interface IParentDocumentStore {
+public interface IParentDocumentStore : IBinaryPersistence {
     /// <summary>添加单个父文档。</summary>
     void Add(ParentDocument document);
     /// <summary>批量添加父文档。</summary>

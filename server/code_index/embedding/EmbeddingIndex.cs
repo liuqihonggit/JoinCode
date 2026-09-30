@@ -6,14 +6,16 @@ namespace JoinCode.CodeIndex.Embedding;
 /// <para>无锁并发安全：读操作（Search）完全无锁；写操作（Index/Remove）CAS 路径复制。</para>
 /// <para>_ann 自身线程安全（BruteForceAnn 内部有锁），EmbeddingIndex 不再加全局锁。</para>
 /// </summary>
-public sealed class EmbeddingIndex : IAsyncDisposable {
+public sealed class EmbeddingIndex : IAsyncDisposable, IBinaryPersistence {
 
     private readonly IEmbeddingModel _embedModel;
     private readonly IAnnSearch _ann;
     private readonly IParentDocumentStore? _parentStore;
+    private readonly IFileSystem _fs;
     private volatile ImmutableHamT<string, ChunkMetadata> _metadata = ImmutableHamT<string, ChunkMetadata>.Empty;
     private volatile ImmutableHamT<string, string> _chunkHashes = ImmutableHamT<string, string>.Empty;
     private volatile ImmutableHamT<string, ImmutableHashSet<string>> _fileToChunks = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
+    private volatile ImmutableHamT<string, float[]> _vectors = ImmutableHamT<string, float[]>.Empty;
     private volatile int _status;
     private int _disposed;
 
@@ -22,12 +24,15 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
     /// </summary>
     /// <param name="embedModel">嵌入模型（API/ONNX/simhash 均可）。</param>
     /// <param name="ann">ANN 搜索引擎（暴力/HNSW 均可，需自身线程安全）。</param>
+    /// <param name="fs">文件系统抽象 — 用于持久化读写。</param>
     /// <param name="parentStore">父文档存储（可选）— 注入后 SearchAsync 返回结果携带父文档原文。</param>
-    public EmbeddingIndex(IEmbeddingModel embedModel, IAnnSearch ann, IParentDocumentStore? parentStore = null) {
+    public EmbeddingIndex(IEmbeddingModel embedModel, IAnnSearch ann, IFileSystem fs, IParentDocumentStore? parentStore = null) {
         ArgumentNullException.ThrowIfNull(embedModel);
         ArgumentNullException.ThrowIfNull(ann);
+        ArgumentNullException.ThrowIfNull(fs);
         _embedModel = embedModel;
         _ann = ann;
+        _fs = fs;
         _parentStore = parentStore;
         _status = (int)IndexStatus.NotReady;
     }
@@ -106,6 +111,11 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
         CasBulkUpdateMetadata(metadataToAdd);
         CasBulkUpdateHashes(hashesToAdd);
         CasBulkUpdateFileChunks(fileChunksToAdd);
+        var vectorsToAdd = new List<(string ChunkId, float[] Vector)>(toEmbed.Count);
+        for (var i = 0; i < toEmbed.Count; i++) {
+            vectorsToAdd.Add((toEmbed[i].ChunkId, vectors[i]));
+        }
+        CasBulkUpdateVectors(vectorsToAdd);
 
         var newStatus = successCount == toEmbed.Count
             ? IndexStatus.Ready
@@ -156,6 +166,149 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
             if (Interlocked.CompareExchange(ref _fileToChunks, updated, current) == current) break;
             spin.SpinOnce();
         }
+    }
+
+    private void CasBulkUpdateVectors(List<(string ChunkId, float[] Vector)> items) {
+        if (items.Count == 0) return;
+        var spin = new SpinWait();
+        while (true) {
+            var current = _vectors;
+            var updated = current;
+            foreach (var (chunkId, vector) in items) {
+                updated = updated.SetItem(chunkId, vector);
+            }
+            if (Interlocked.CompareExchange(ref _vectors, updated, current) == current) break;
+            spin.SpinOnce();
+        }
+    }
+
+    /// <summary>
+    /// 持久化向量索引到目录 — 写 vector_index.bin 二进制文件。
+    /// <para>格式：magic(7B) + chunkCount + dims + 每块(chunkId+filePath+fqn+lines+parent+source+hash+vector)。</para>
+    /// </summary>
+    /// <param name="dirPath">目标目录路径。</param>
+    /// <param name="ct">取消令牌。</param>
+    public async Task SaveAsync(string dirPath, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        var vectorsSnapshot = _vectors;
+        var metadataSnapshot = _metadata;
+        var hashesSnapshot = _chunkHashes;
+
+        await using var ms = new MemoryStream();
+        await using var bw = new BinaryWriter(ms, System.Text.Encoding.UTF8);
+        bw.Write(System.Text.Encoding.UTF8.GetBytes("VECIDX1"));
+        var count = vectorsSnapshot.Count;
+        bw.Write(count);
+        var dims = count > 0 ? vectorsSnapshot.First().Value.Length : 0;
+        bw.Write(dims);
+        foreach (var (chunkId, vector) in vectorsSnapshot) {
+            ct.ThrowIfCancellationRequested();
+            if (!metadataSnapshot.TryGetValue(chunkId, out var meta)) continue;
+            WriteString(bw, chunkId);
+            WriteString(bw, meta.FilePath);
+            WriteString(bw, meta.SymbolFqn);
+            bw.Write(meta.StartLine);
+            bw.Write(meta.EndLine);
+            WriteNullableString(bw, meta.ParentChunkId);
+            WriteNullableString(bw, meta.SourceText);
+            hashesSnapshot.TryGetValue(chunkId, out var hash);
+            WriteString(bw, hash ?? string.Empty);
+            for (var d = 0; d < dims; d++) bw.Write(vector[d]);
+        }
+        bw.Flush();
+        _fs.CreateDirectory(dirPath);
+        var filePath = Path.Combine(dirPath, "vector_index.bin");
+        await _fs.WriteAllBytesAsync(filePath, ms.ToArray(), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 从目录加载向量索引 — 读 vector_index.bin，恢复元数据+哈希+向量+ANN。
+    /// </summary>
+    /// <param name="dirPath">源目录路径。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>true 表示加载成功；false 表示文件不存在或格式不匹配。</returns>
+    public async Task<bool> LoadAsync(string dirPath, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        var filePath = Path.Combine(dirPath, "vector_index.bin");
+        if (!_fs.FileExists(filePath)) return false;
+
+        var bytes = await _fs.ReadAllBytesAsync(filePath, ct).ConfigureAwait(false);
+        await using var ms = new MemoryStream(bytes, writable: false);
+        using var br = new BinaryReader(ms, System.Text.Encoding.UTF8);
+        var magic = System.Text.Encoding.UTF8.GetString(br.ReadBytes(7));
+        if (magic != "VECIDX1") return false;
+        var count = br.ReadInt32();
+        var dims = br.ReadInt32();
+        if (count == 0) return false;
+
+        var metadataItems = new List<(string, ChunkMetadata)>(count);
+        var hashItems = new List<(string, string)>(count);
+        var vectorItems = new List<(string, float[])>(count);
+        var fileChunksItems = new List<(string, string)>(count);
+
+        for (var i = 0; i < count; i++) {
+            ct.ThrowIfCancellationRequested();
+            var chunkId = ReadString(br);
+            var filePath2 = ReadString(br);
+            var fqn = ReadString(br);
+            var startLine = br.ReadInt32();
+            var endLine = br.ReadInt32();
+            var parentChunkId = ReadNullableString(br);
+            var sourceText = ReadNullableString(br);
+            var hash = ReadString(br);
+            var vector = new float[dims];
+            for (var d = 0; d < dims; d++) vector[d] = br.ReadSingle();
+
+            _ann.Add(chunkId, vector);
+            metadataItems.Add((chunkId, new ChunkMetadata {
+                ChunkId = chunkId, FilePath = filePath2, SymbolFqn = fqn,
+                StartLine = startLine, EndLine = endLine,
+                ParentChunkId = parentChunkId, SourceText = sourceText
+            }));
+            hashItems.Add((chunkId, hash));
+            vectorItems.Add((chunkId, vector));
+            fileChunksItems.Add((filePath2, chunkId));
+        }
+
+        CasBulkUpdateMetadata(metadataItems);
+        CasBulkUpdateHashes(hashItems);
+        CasBulkUpdateVectors(vectorItems);
+        CasBulkUpdateFileChunks(fileChunksItems);
+        Interlocked.Exchange(ref _status, (int)IndexStatus.Ready);
+        return true;
+    }
+
+    /// <summary>
+    /// 检查指定目录是否存在向量索引文件。
+    /// </summary>
+    public Task<bool> ExistsAsync(string dirPath, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        var filePath = Path.Combine(dirPath, "vector_index.bin");
+        return Task.FromResult(_fs.FileExists(filePath));
+    }
+
+    private static void WriteString(BinaryWriter bw, string s) {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(s);
+        bw.Write(bytes.Length);
+        bw.Write(bytes);
+    }
+
+    private static void WriteNullableString(BinaryWriter bw, string? s) {
+        if (s is null) { bw.Write(-1); return; }
+        var bytes = System.Text.Encoding.UTF8.GetBytes(s);
+        bw.Write(bytes.Length);
+        bw.Write(bytes);
+    }
+
+    private static string ReadString(BinaryReader br) {
+        var len = br.ReadInt32();
+        return System.Text.Encoding.UTF8.GetString(br.ReadBytes(len));
+    }
+
+    private static string? ReadNullableString(BinaryReader br) {
+        var len = br.ReadInt32();
+        if (len < 0) return null;
+        return System.Text.Encoding.UTF8.GetString(br.ReadBytes(len));
     }
 
     /// <summary>
@@ -260,6 +413,12 @@ public sealed class EmbeddingIndex : IAsyncDisposable {
             var current = _fileToChunks;
             var updated = current.Remove(filePath);
             if (Interlocked.CompareExchange(ref _fileToChunks, updated, current) == current) break;
+            spin.SpinOnce();
+        }
+        while (true) {
+            var current = _vectors;
+            var updated = current.RemoveRange(chunkIds);
+            if (Interlocked.CompareExchange(ref _vectors, updated, current) == current) break;
             spin.SpinOnce();
         }
         if (_metadata.Count == 0) {

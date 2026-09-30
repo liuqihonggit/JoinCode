@@ -13,7 +13,8 @@ public sealed class CodeIndexerSemanticTests : IDisposable {
         _indexer = new CodeIndexer(_store, _fs);
         _embeddingIndex = new EmbeddingIndex(
             new FakeEmbeddingModel(8),
-            new BruteForceAnn());
+            new BruteForceAnn(),
+            _fs);
         _indexer.SetEmbeddingIndex(_embeddingIndex);
     }
 

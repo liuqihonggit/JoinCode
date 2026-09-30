@@ -761,7 +761,7 @@ public sealed class CodeIndexerTests : IDisposable {
     public async Task Persistence_ReturnsGraphPersistenceInstance() {
         await Task.CompletedTask.ConfigureAwait(true);
         Assert.NotNull(_indexer.Persistence);
-        Assert.IsAssignableFrom<IGraphPersistence>(_indexer.Persistence);
+        Assert.IsAssignableFrom<IBinaryPersistence>(_indexer.Persistence);
     }
 
     [Fact]

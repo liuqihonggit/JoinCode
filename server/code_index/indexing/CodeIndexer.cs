@@ -20,6 +20,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private readonly GraphPersistence _persistence;
     private readonly GraphVisualization _visualization;
     private readonly ILogger<CodeIndexer>? _logger;
+    private EmbeddingIndex? _embeddingIndex;
     private int _disposed;
     private int _autoLoadState;
     private string? _autoDiscoveredWorkspaceRoot;
@@ -62,6 +63,30 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _plugin = _pluginFactory();
         _symbolIndex = new SymbolIndex(_store, _fs, _plugin);
         _updater = new IncrementalUpdater(_symbolIndex, _store, _fs, _pluginFactory);
+    }
+
+    /// <summary>
+    /// 设置向量嵌入索引 — 启用语义搜索功能。
+    /// <para>必须在 BuildIndexAsync 前调用，否则向量索引不会填充。</para>
+    /// </summary>
+    /// <param name="embeddingIndex">向量嵌入索引实例。</param>
+    public void SetEmbeddingIndex(EmbeddingIndex embeddingIndex) {
+        ArgumentNullException.ThrowIfNull(embeddingIndex);
+        _embeddingIndex = embeddingIndex;
+    }
+
+    /// <summary>
+    /// 语义搜索 — 通过向量嵌入查找相似代码块。
+    /// <para>未设置 EmbeddingIndex 时返回空列表。</para>
+    /// </summary>
+    /// <param name="query">查询文本。</param>
+    /// <param name="topK">返回结果数上限。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>匹配的代码块列表，按相似度降序排列。</returns>
+    public async Task<IReadOnlyList<ChunkSearchResult>> SearchSemanticAsync(
+        string query, int topK, CancellationToken ct) {
+        if (_embeddingIndex is null) return [];
+        return await _embeddingIndex.SearchAsync(query, topK, ct).ConfigureAwait(false);
     }
 
     /// <summary>符号搜索器 — 支持模糊匹配和引用查找</summary>
@@ -149,10 +174,23 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         await _symbolIndex.IndexFilesBatchAsync(batch, ct).ConfigureAwait(false);
         updatedCount = batch.Count;
 
+        // Phase E2: 向量嵌入（可选，设置了 EmbeddingIndex 才执行）
+        if (_embeddingIndex is not null) {
+            var allChunks = batch
+                .SelectMany(b => b.Extraction.Chunks)
+                .ToList();
+            if (allChunks.Count > 0) {
+                await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
+            }
+        }
+
         // Phase F: 删除已移除文件
         foreach (var trackedFile in trackedFiles) {
             if (!existingFiles.Contains(trackedFile)) {
                 await _symbolIndex.RemoveFileAsync(trackedFile, ct).ConfigureAwait(false);
+                if (_embeddingIndex is not null) {
+                    await _embeddingIndex.RemoveFileAsync(trackedFile, ct).ConfigureAwait(false);
+                }
                 deletedCount++;
             }
         }

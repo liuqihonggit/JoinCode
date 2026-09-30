@@ -547,18 +547,23 @@ public sealed class CodeIndexToolHandlers {
             var options = new CodeIndexOptions { WorkspaceRoot = workspace_root };
             var result = await _indexer.BuildIndexAsync(options, cancellationToken).ConfigureAwait(false);
 
+            var persistDir = Path.Combine(workspace_root, ".jcc", "code-index");
             var sb = new System.Text.StringBuilder();
             sb.AppendLine(L.T(StringKey.IndexRebuildComplete));
             sb.AppendLine(L.T(StringKey.UpdatedFiles, result.UpdatedCount));
             sb.AppendLine(L.T(StringKey.SkippedFiles, result.SkippedCount));
             sb.AppendLine(L.T(StringKey.DeletedFiles, result.DeletedCount));
-
-            var persistDir = Path.Combine(workspace_root, ".jcc", "code-index");
-            try {
-                await _indexer.Persistence.SaveAsync(persistDir, cancellationToken).ConfigureAwait(false);
-                sb.AppendLine($"索引已持久化到: {persistDir}");
-            } catch (Exception persistEx) {
-                sb.AppendLine($"⚠ 索引持久化失败(内存索引仍可用): {persistEx.Message}");
+            sb.AppendLine($"持久化目录: {persistDir}");
+            sb.AppendLine($"  ✅ 符号索引: code-index.bin ({_indexer.Persistence.Count} 个符号)");
+            if (result.VectorChunkCount > 0) {
+                sb.AppendLine($"  ✅ 向量索引: vector_index.bin ({result.VectorChunkCount} 个块)");
+            } else {
+                sb.AppendLine($"  ⚠ 向量索引: 未建立（模型文件不存在，语义搜索不可用）");
+            }
+            if (result.ParentDocumentCount > 0) {
+                sb.AppendLine($"  ✅ 父文档: parent_docs.bin ({result.ParentDocumentCount} 个文档)");
+            } else {
+                sb.AppendLine($"  ⚠ 父文档: 未建立");
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
@@ -675,7 +680,20 @@ public sealed class CodeIndexToolHandlers {
             var results = await _indexer.SearchSemanticAsync(query, top_k, cancellationToken, options).ConfigureAwait(false);
 
             if (results.Count == 0) {
-                return ToolResultBuilder.Success().WithText($"No semantically similar code found for: {query}\n\nIf the index has not been built yet, run /index to build it first.").Build();
+                var stats = await _indexer.GetStatsAsync(cancellationToken).ConfigureAwait(false);
+                if (stats.SymbolCount == 0) {
+                    return ToolResultBuilder.Success().WithText(
+                        $"当前为无索引状态 — 未找到任何已构建的代码索引。\n" +
+                        $"查询: \"{query}\"\n\n" +
+                        "要构建索引，请调用 code_index_rebuild 工具：\n" +
+                        "  code_index_rebuild(workspace_root=\"<你的工作区根目录路径>\")\n" +
+                        "构建完成后再次调用 code_index_search_semantic 即可进行语义搜索。"
+                    ).Build();
+                }
+                return ToolResultBuilder.Success().WithText(
+                    $"已索引 {stats.SymbolCount} 个符号，但未找到与 \"{query}\" 语义相似的代码块。\n" +
+                    "建议：换用不同关键词，或调用 code_index_search 进行精确符号搜索。"
+                ).Build();
             }
 
             var sb = new StringBuilder();

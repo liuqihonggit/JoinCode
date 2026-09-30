@@ -17,11 +17,12 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private ILanguagePlugin _plugin;
     private Func<ILanguagePlugin> _pluginFactory;
     private readonly GraphAnalytics _analytics;
-    private readonly IBinaryPersistence _persistence;
+    private readonly IIndexStore _persistence;
     private readonly GraphVisualization _visualization;
     private readonly ILogger<CodeIndexer>? _logger;
     private EmbeddingIndex? _embeddingIndex;
     private IParentDocumentStore? _parentDocStore;
+    private List<IIndexStore> _indexStores = [];
     private string? _lastVectorIndexDir;
     private int _disposed;
     private int _autoLoadState;
@@ -54,6 +55,16 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _persistence = new GraphPersistence(store, fs);
         _visualization = new GraphVisualization(store);
         TryInitEmbeddingIndex(fs, logger);
+        BuildIndexStoreList();
+    }
+
+    /// <summary>
+    /// 构建 _indexStores 列表 — 统一管理所有 IIndexStore 实现，供 LINQ 链式加载/保存。
+    /// </summary>
+    private void BuildIndexStoreList() {
+        _indexStores = [_persistence];
+        if (_embeddingIndex is not null) _indexStores.Add(_embeddingIndex);
+        if (_parentDocStore is not null) _indexStores.Add(_parentDocStore);
     }
 
     /// <summary>
@@ -144,7 +155,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     public IGraphAnalytics Analytics => _analytics;
 
     /// <summary>图持久化 — 索引的加载和保存</summary>
-    public IBinaryPersistence Persistence => _persistence;
+    public IIndexStore Persistence => _persistence;
 
     /// <summary>图可视化 — 生成图的可视化输出</summary>
     public IGraphVisualization Visualization => _visualization;
@@ -248,16 +259,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         // Phase G: 失效图缓存
         InvalidateGraphCaches();
 
-        // Phase H: 持久化向量索引+父文档（CLI 单次调用模式跨进程恢复）
+        // Phase H: 统一持久化所有 IIndexStore — LINQ 链式（CLI 单次调用模式跨进程恢复）
         _lastVectorIndexDir = Path.Combine(options.WorkspaceRoot, ".jcc", "code-index");
-        if (_embeddingIndex is not null) {
+        foreach (var store in _indexStores) {
+            ct.ThrowIfCancellationRequested();
             try {
-                await _embeddingIndex.SaveAsync(_lastVectorIndexDir, ct).ConfigureAwait(false);
-                if (_parentDocStore is not null) {
-                    await _parentDocStore.SaveAsync(_lastVectorIndexDir, ct).ConfigureAwait(false);
-                }
+                await store.SaveAsync(_lastVectorIndexDir, ct).ConfigureAwait(false);
             } catch (Exception ex) {
-                _logger?.LogWarning(ex, "向量索引持久化失败（内存索引仍可用）");
+                _logger?.LogWarning(ex, "{Kind}索引持久化失败（内存索引仍可用）", store.Kind);
             }
         }
 
@@ -266,7 +275,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         return new BuildIndexResult {
             UpdatedCount = updatedCount,
             SkippedCount = skippedCount,
-            DeletedCount = deletedCount
+            DeletedCount = deletedCount,
+            VectorChunkCount = _embeddingIndex?.ChunkCount ?? 0,
+            ParentDocumentCount = _parentDocStore?.Count ?? 0
         };
     }
 
@@ -656,32 +667,20 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
             _lastVectorIndexDir = dir;
 
-            // 1. 加载符号索引
-            _logger?.LogDebug("CodeIndexer: 检查持久化符号索引 {Dir}", dir);
-            if (await _persistence.ExistsAsync(dir, ct).ConfigureAwait(false)) {
-                var loaded = await _persistence.LoadAsync(dir, ct).ConfigureAwait(false);
-                if (loaded) {
-                    _logger?.LogInformation("CodeIndexer: 自动加载符号索引成功 from {Dir}", dir);
-                } else {
-                    _logger?.LogDebug("CodeIndexer: 持久化符号索引版本不匹配或为空 {Dir}", dir);
-                }
-            }
-
-            // 2. 加载向量索引 + 父文档（统一加载，不再惰性）
-            if (_embeddingIndex is not null && _embeddingIndex.Status == IndexStatus.NotReady) {
+            // 统一加载所有 IIndexStore — LINQ 链式，不再写三段 if
+            foreach (var store in _indexStores) {
+                ct.ThrowIfCancellationRequested();
+                if (store.IsReady) continue;
+                if (!await store.ExistsAsync(dir, ct).ConfigureAwait(false)) continue;
                 try {
-                    await _embeddingIndex.LoadAsync(dir, ct).ConfigureAwait(false);
-                    _logger?.LogInformation("CodeIndexer: 自动加载向量索引成功 from {Dir}", dir);
+                    var loaded = await store.LoadAsync(dir, ct).ConfigureAwait(false);
+                    if (loaded) {
+                        _logger?.LogInformation("CodeIndexer: 自动加载{Kind}索引成功 from {Dir}", store.Kind, dir);
+                    } else {
+                        _logger?.LogDebug("CodeIndexer: {Kind}索引版本不匹配或为空 {Dir}", store.Kind, dir);
+                    }
                 } catch (Exception ex) {
-                    _logger?.LogWarning(ex, "CodeIndexer: 向量索引加载失败 {Dir}", dir);
-                }
-            }
-            if (_parentDocStore is not null) {
-                try {
-                    await _parentDocStore.LoadAsync(dir, ct).ConfigureAwait(false);
-                    _logger?.LogInformation("CodeIndexer: 自动加载父文档成功 from {Dir}", dir);
-                } catch (Exception ex) {
-                    _logger?.LogWarning(ex, "CodeIndexer: 父文档加载失败 {Dir}", dir);
+                    _logger?.LogWarning(ex, "CodeIndexer: {Kind}索引加载失败 {Dir}", store.Kind, dir);
                 }
             }
 

@@ -6,7 +6,7 @@ namespace JoinCode.CodeIndex.Embedding;
 /// <para>无锁并发安全：读操作（Search）完全无锁；写操作（Index/Remove）CAS 路径复制。</para>
 /// <para>_ann 自身线程安全（BruteForceAnn 内部有锁），EmbeddingIndex 不再加全局锁。</para>
 /// </summary>
-public sealed class EmbeddingIndex : IAsyncDisposable, IBinaryPersistence {
+public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
 
     private readonly IEmbeddingModel _embedModel;
     private readonly IAnnSearch _ann;
@@ -42,6 +42,15 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IBinaryPersistence {
 
     /// <summary>当前已索引的块数量。无锁读取。</summary>
     public int ChunkCount => _metadata.Count;
+
+    /// <summary>索引类型标识。</summary>
+    public IndexKind Kind => IndexKind.Vector;
+
+    /// <summary>当前索引项数量（接口统一）。</summary>
+    public int Count => ChunkCount;
+
+    /// <summary>是否已就绪可查询。</summary>
+    public bool IsReady => Status is IndexStatus.Ready or IndexStatus.Partial;
 
     /// <summary>
     /// 批量索引代码块 — 跳过哈希未变的块。

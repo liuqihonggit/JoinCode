@@ -27,8 +27,8 @@ public interface ICodeIndexer {
     IProjectDependencyGraph ProjectDependencyGraph { get; }
     /// <summary>获取图分析器。</summary>
     IGraphAnalytics Analytics { get; }
-    /// <summary>获取图持久化器。</summary>
-    IBinaryPersistence Persistence { get; }
+    /// <summary>获取图持久化器（统一索引存储接口）。</summary>
+    IIndexStore Persistence { get; }
     /// <summary>获取图可视化器。</summary>
     IGraphVisualization Visualization { get; }
 

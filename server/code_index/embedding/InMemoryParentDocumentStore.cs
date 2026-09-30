@@ -6,7 +6,7 @@ namespace JoinCode.CodeIndex.Embedding;
 /// <para>进程退出释放，下次重建（纯内存无持久化）。</para>
 /// <para>读操作完全无锁 O(log₃₂ N) 查找；写操作 CAS 路径复制，读多写少场景最优。</para>
 /// </summary>
-public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IBinaryPersistence, IDisposable {
+public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexStore, IDisposable {
 
     private readonly IFileSystem _fs;
     private volatile ImmutableHamT<string, ParentDocument> _documents = ImmutableHamT<string, ParentDocument>.Empty;
@@ -22,8 +22,14 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IBinaryP
         _fs = fs;
     }
 
+    /// <summary>索引类型标识。</summary>
+    public IndexKind Kind => IndexKind.Parent;
+
     /// <summary>当前父文档数量。</summary>
     public int Count => _documents.Count;
+
+    /// <summary>是否已就绪（有文档即就绪）。</summary>
+    public bool IsReady => Count > 0;
 
     /// <summary>添加单个父文档。</summary>
     public void Add(ParentDocument document) {

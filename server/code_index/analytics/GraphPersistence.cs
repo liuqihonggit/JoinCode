@@ -4,7 +4,7 @@ namespace JoinCode.CodeIndex.Analytics;
 /// 图持久化实现 — 将 InMemoryIndexStore 序列化为二进制文件 code-index.bin
 /// </summary>
 [Register(typeof(IBinaryPersistence), ServiceLifetime.Singleton)]
-public sealed class GraphPersistence : ServiceEntity, IBinaryPersistence {
+public sealed class GraphPersistence : ServiceEntity, IIndexStore {
     private readonly InMemoryIndexStore _store;
     private readonly IFileSystem _fs;
     private const int CurrentVersion = 1;
@@ -20,6 +20,15 @@ public sealed class GraphPersistence : ServiceEntity, IBinaryPersistence {
         _store = store;
         _fs = fs;
     }
+
+    /// <summary>索引类型标识。</summary>
+    public IndexKind Kind => IndexKind.Symbol;
+
+    /// <summary>当前符号数量。</summary>
+    public int Count => _store.GetSnapshot().SymbolsByFqn.Count;
+
+    /// <summary>是否已就绪（有符号即就绪）。</summary>
+    public bool IsReady => Count > 0;
 
     /// <summary>
     /// 将索引存储序列化保存到指定目录的 code-index.bin 文件（二进制格式）

@@ -14,4 +14,8 @@ public sealed record BuildIndexResult {
     public required int SkippedCount { get; init; }
     /// <summary>获取已删除数量。</summary>
     public required int DeletedCount { get; init; }
+    /// <summary>向量索引块数量（0=未建立，模型未安装或无代码块）。</summary>
+    public int VectorChunkCount { get; init; }
+    /// <summary>父文档数量（0=未建立）。</summary>
+    public int ParentDocumentCount { get; init; }
 }

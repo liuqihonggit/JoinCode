@@ -20,11 +20,13 @@ public sealed class OnnxEmbedder : IDisposable {
     /// </summary>
     /// <param name="modelPath">ONNX 模型文件路径。</param>
     /// <param name="vocabPath">BERT 词表文件路径（vocab.txt）。</param>
-    public OnnxEmbedder(string modelPath, string vocabPath) {
+    /// <param name="intraOpNumThreads">ONNX session 内部并行线程数（默认 ProcessorCount，多实例场景传 ProcessorCount/N 避免争抢）。</param>
+    public OnnxEmbedder(string modelPath, string vocabPath, int? intraOpNumThreads = null) {
+        var threads = intraOpNumThreads is null or <= 0 ? Environment.ProcessorCount : intraOpNumThreads.Value;
         var options = new SessionOptions {
             GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
             InterOpNumThreads = 1,
-            IntraOpNumThreads = Environment.ProcessorCount,
+            IntraOpNumThreads = threads,
         };
         _session = new InferenceSession(modelPath, options);
         _hasTokenTypeIds = _session.InputMetadata.ContainsKey("token_type_ids");

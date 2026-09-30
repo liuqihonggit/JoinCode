@@ -1,16 +1,112 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
 /// <summary>
-/// 只读命令检测器 — Git 子命令安全标志构建器
-/// 包含所有 Git 相关的 BuildGitXxxSafeFlags、CheckGitXxxDangerous 方法
+/// Git命令的安全标志构建器 — 所有 Git 的 BuildGit*SafeFlags、CheckGit*Dangerous 和共享标志组方法
+/// <para>单一数据源: Git命令的 FrozenDictionary 标志配置</para>
 /// </summary>
-public sealed partial class ReadOnlyCommandDetector {
-    #region Git 子命令安全标志构建器
+internal static class GitFlagBuilders {
 
     /// <summary>
-    /// git diff 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git diff"]
+    /// 合并多个 Git 标志字典 — 后传入的字典覆盖先传入的同名键
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitDiffSafeFlags() =>
+    internal static Dictionary<string, FlagArgType> MergeGitFlags(params Dictionary<string, FlagArgType>[] dicts) {
+        var result = new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase);
+        foreach (var dict in dicts)
+            foreach (var kvp in dict)
+                result[kvp.Key] = kvp.Value;
+        return result;
+    }
+
+    #region Git 共享标志组
+
+    /// <summary>
+    /// Git 引用选择标志组: --all, --branches, --tags, --remotes
+    /// </summary>
+    internal static Dictionary<string, FlagArgType> GitRefSelectionFlags() =>
+        new(StringComparer.OrdinalIgnoreCase) {
+            ["--all"] = FlagArgType.None,
+            ["--branches"] = FlagArgType.None,
+            ["--tags"] = FlagArgType.None,
+            ["--remotes"] = FlagArgType.None,
+        };
+
+    /// <summary>
+    /// Git 日期过滤标志组: --since/--after, --until/--before (均 Required)
+    /// </summary>
+    internal static Dictionary<string, FlagArgType> GitDateFilterFlags() =>
+        new(StringComparer.OrdinalIgnoreCase) {
+            ["--since"] = FlagArgType.Required,
+            ["--after"] = FlagArgType.Required,
+            ["--until"] = FlagArgType.Required,
+            ["--before"] = FlagArgType.Required,
+        };
+
+    /// <summary>
+    /// Git 日志显示标志组: --oneline, --graph, --decorate, --no-decorate, --date(Req), --relative-date
+    /// </summary>
+    internal static Dictionary<string, FlagArgType> GitLogDisplayFlags() =>
+        new(StringComparer.OrdinalIgnoreCase) {
+            ["--oneline"] = FlagArgType.None,
+            ["--graph"] = FlagArgType.None,
+            ["--decorate"] = FlagArgType.None,
+            ["--no-decorate"] = FlagArgType.None,
+            ["--date"] = FlagArgType.Required,
+            ["--relative-date"] = FlagArgType.None,
+        };
+
+    /// <summary>
+    /// Git 计数标志组: --max-count(Req), -n(Req)
+    /// </summary>
+    internal static Dictionary<string, FlagArgType> GitCountFlags() =>
+        new(StringComparer.OrdinalIgnoreCase) {
+            ["--max-count"] = FlagArgType.Required,
+            ["-n"] = FlagArgType.Required,
+        };
+
+    /// <summary>
+    /// Git 统计标志组: --stat, --numstat, --shortstat, --name-only, --name-status
+    /// </summary>
+    internal static Dictionary<string, FlagArgType> GitStatFlags() =>
+        new(StringComparer.OrdinalIgnoreCase) {
+            ["--stat"] = FlagArgType.None,
+            ["--numstat"] = FlagArgType.None,
+            ["--shortstat"] = FlagArgType.None,
+            ["--name-only"] = FlagArgType.None,
+            ["--name-status"] = FlagArgType.None,
+        };
+
+    /// <summary>
+    /// Git 颜色标志组: --color(Opt), --no-color
+    /// </summary>
+    internal static Dictionary<string, FlagArgType> GitColorFlags() =>
+        new(StringComparer.OrdinalIgnoreCase) {
+            ["--color"] = FlagArgType.Optional,
+            ["--no-color"] = FlagArgType.None,
+        };
+
+    /// <summary>
+    /// Git 补丁标志组: --patch, -p, --no-patch, --no-ext-diff, -s
+    /// </summary>
+    internal static Dictionary<string, FlagArgType> GitPatchFlags() =>
+        new(StringComparer.OrdinalIgnoreCase) {
+            ["--patch"] = FlagArgType.None,
+            ["-p"] = FlagArgType.None,
+            ["--no-patch"] = FlagArgType.None,
+            ["--no-ext-diff"] = FlagArgType.None,
+            ["-s"] = FlagArgType.None,
+        };
+
+    /// <summary>
+    /// Git 作者过滤标志组: --author(Req), --committer(Req), --grep(Req)
+    /// </summary>
+    internal static Dictionary<string, FlagArgType> GitAuthorFilterFlags() =>
+        new(StringComparer.OrdinalIgnoreCase) {
+            ["--author"] = FlagArgType.Required,
+            ["--committer"] = FlagArgType.Required,
+            ["--grep"] = FlagArgType.Required,
+        };
+
+    internal static FrozenDictionary<string, FlagArgType> BuildGitDiffSafeFlags() =>
         MergeGitFlags(
             GitStatFlags(),
             GitColorFlags(),
@@ -70,7 +166,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git log 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git log"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitLogSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitLogSafeFlags() =>
         MergeGitFlags(
             GitLogDisplayFlags(),
             GitRefSelectionFlags(),
@@ -120,7 +216,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git show 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git show"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitShowSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitShowSafeFlags() =>
         MergeGitFlags(
             GitLogDisplayFlags(),
             GitStatFlags(),
@@ -144,7 +240,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git shortlog 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git shortlog"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitShortlogSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitShortlogSafeFlags() =>
         MergeGitFlags(
             GitRefSelectionFlags(),
             GitDateFilterFlags(),
@@ -168,7 +264,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// git reflog 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git reflog"]
     /// AdditionalDangerousCallback: 阻止 expire/delete/exists 子命令
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitReflogSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitReflogSafeFlags() =>
         MergeGitFlags(
             GitLogDisplayFlags(),
             GitRefSelectionFlags(),
@@ -180,7 +276,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git stash list 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git stash list"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitStashListSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitStashListSafeFlags() =>
         MergeGitFlags(
             GitLogDisplayFlags(),
             GitRefSelectionFlags(),
@@ -191,7 +287,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// git ls-remote 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git ls-remote"]
     /// 故意排除 --server-option/-o
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitLsRemoteSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitLsRemoteSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--branches"] = FlagArgType.None,
             ["-b"] = FlagArgType.None,
@@ -211,7 +307,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git status 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git status"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitStatusSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitStatusSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--short"] = FlagArgType.None,
             ["-s"] = FlagArgType.None,
@@ -238,7 +334,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git blame 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git blame"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitBlameSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitBlameSafeFlags() =>
         MergeGitFlags(
             GitColorFlags(),
             new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
@@ -272,7 +368,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git ls-files 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git ls-files"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitLsFilesSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitLsFilesSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--cached"] = FlagArgType.None,
             ["-c"] = FlagArgType.None,
@@ -314,7 +410,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// git config --get 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git config --get"]
     /// 三词键注册，仅允许读取模式
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitConfigGetSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitConfigGetSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--local"] = FlagArgType.None,
             ["--global"] = FlagArgType.None,
@@ -338,7 +434,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// git remote show 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git remote show"]
     /// AdditionalDangerousCallback: 位置参数必须是字母数字远程名
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitRemoteShowSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitRemoteShowSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-n"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
@@ -347,7 +443,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// git remote 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git remote"]
     /// AdditionalDangerousCallback: 仅允许裸命令或 -v/--verbose
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitRemoteSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitRemoteSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-v"] = FlagArgType.None,
             ["--verbose"] = FlagArgType.None,
@@ -356,7 +452,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git merge-base 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git merge-base"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitMergeBaseSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitMergeBaseSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--is-ancestor"] = FlagArgType.None,
             ["--fork-point"] = FlagArgType.None,
@@ -368,7 +464,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git rev-parse 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git rev-parse"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitRevParseSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitRevParseSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--verify"] = FlagArgType.None,
             ["--short"] = FlagArgType.Required,
@@ -393,7 +489,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git rev-list 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git rev-list"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitRevListSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitRevListSafeFlags() =>
         MergeGitFlags(
             GitRefSelectionFlags(),
             GitDateFilterFlags(),
@@ -430,7 +526,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git describe 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git describe"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitDescribeSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitDescribeSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--tags"] = FlagArgType.None,
             ["--match"] = FlagArgType.Required,
@@ -450,7 +546,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// git cat-file 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git cat-file"]
     /// 故意排除 --batch（从 stdin 读取，可管道转储敏感对象）
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitCatFileSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitCatFileSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-t"] = FlagArgType.None,
             ["-s"] = FlagArgType.None,
@@ -463,7 +559,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git for-each-ref 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git for-each-ref"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitForEachRefSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitForEachRefSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--format"] = FlagArgType.Required,
             ["--sort"] = FlagArgType.Required,
@@ -478,7 +574,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git grep 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git grep"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitGrepSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitGrepSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-e"] = FlagArgType.Required,
             ["-E"] = FlagArgType.None,
@@ -534,7 +630,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git stash show 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git stash show"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitStashShowSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitStashShowSafeFlags() =>
         MergeGitFlags(
             GitStatFlags(),
             GitColorFlags(),
@@ -550,7 +646,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git worktree list 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git worktree list"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitWorktreeListSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitWorktreeListSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--porcelain"] = FlagArgType.None,
             ["-v"] = FlagArgType.None,
@@ -562,7 +658,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// git tag 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git tag"]
     /// AdditionalDangerousCallback: 阻止位置参数创建标签（仅允许 -l/--list 后的位置参数）
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitTagSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitTagSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-l"] = FlagArgType.None,
             ["--list"] = FlagArgType.None,
@@ -584,7 +680,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// git branch 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git branch"]
     /// AdditionalDangerousCallback: 阻止位置参数创建分支（仅允许列表模式）
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitBranchSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitBranchSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-l"] = FlagArgType.None,
             ["--list"] = FlagArgType.None,
@@ -616,7 +712,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// git cherry-pick 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git cherry-pick"]
     /// 仅允许 --no-commit 预览模式和安全操作标志
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitCherryPickSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitCherryPickSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--no-commit"] = FlagArgType.None,
             ["-n"] = FlagArgType.None,
@@ -629,7 +725,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// git whatchanged 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git whatchanged"]
     /// 与 git log 相同的标志组
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitWhatchangedSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitWhatchangedSafeFlags() =>
         MergeGitFlags(
             GitLogDisplayFlags(),
             GitRefSelectionFlags(),
@@ -641,7 +737,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git show-branch 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git show-branch"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitShowBranchSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitShowBranchSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--all"] = FlagArgType.None,
             ["--remotes"] = FlagArgType.None,
@@ -658,7 +754,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git verify-pack 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git verify-pack"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitVerifyPackSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitVerifyPackSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-v"] = FlagArgType.None,
             ["--verbose"] = FlagArgType.None,
@@ -671,13 +767,13 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git annotate 安全标志 — 与 git blame 相同
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitAnnotateSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitAnnotateSafeFlags() =>
         BuildGitBlameSafeFlags();
 
     /// <summary>
     /// git name-rev 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git name-rev"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildGitNameRevSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGitNameRevSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--name-only"] = FlagArgType.None,
             ["--tags"] = FlagArgType.None,
@@ -695,7 +791,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git reflog 危险回调 — 阻止 expire/delete/exists 子命令（写入 .git/logs/**）
     /// </summary>
-    private static bool CheckGitReflogDangerous(string command, IReadOnlyList<string> args) {
+    internal static bool CheckGitReflogDangerous(string command, IReadOnlyList<string> args) {
         return args.Count > 0 &&
             (args[0].Equals("expire", StringComparison.OrdinalIgnoreCase) ||
              args[0].Equals("delete", StringComparison.OrdinalIgnoreCase) ||
@@ -705,7 +801,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git remote show 危险回调 — 位置参数必须是字母数字远程名
     /// </summary>
-    private static bool CheckGitRemoteShowDangerous(string command, IReadOnlyList<string> args) {
+    internal static bool CheckGitRemoteShowDangerous(string command, IReadOnlyList<string> args) {
         string? firstPositionArg = null;
         var positionArgCount = 0;
         foreach (var a in args) {
@@ -722,14 +818,14 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git remote 危险回调 — 仅允许裸命令或 -v/--verbose，阻止任何位置参数
     /// </summary>
-    private static bool CheckGitRemoteDangerous(string command, IReadOnlyList<string> args) {
+    internal static bool CheckGitRemoteDangerous(string command, IReadOnlyList<string> args) {
         return args.Any(a => !a.StartsWith('-'));
     }
 
     /// <summary>
     /// git tag 危险回调 — 阻止位置参数创建标签（仅允许 -l/--list 后的位置参数）
     /// </summary>
-    private static bool CheckGitTagDangerous(string command, IReadOnlyList<string> args) {
+    internal static bool CheckGitTagDangerous(string command, IReadOnlyList<string> args) {
         var hasList = args.Any(a => a.Equals("-l", StringComparison.OrdinalIgnoreCase) ||
                                      a.Equals("--list", StringComparison.OrdinalIgnoreCase));
         if (!hasList) {
@@ -741,7 +837,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// git branch 危险回调 — 阻止位置参数创建分支（仅允许列表模式）
     /// </summary>
-    private static bool CheckGitBranchDangerous(string command, IReadOnlyList<string> args) {
+    internal static bool CheckGitBranchDangerous(string command, IReadOnlyList<string> args) {
         var hasList = args.Any(a => a.Equals("-l", StringComparison.OrdinalIgnoreCase) ||
                                      a.Equals("--list", StringComparison.OrdinalIgnoreCase) ||
                                      a.Equals("-a", StringComparison.OrdinalIgnoreCase) ||

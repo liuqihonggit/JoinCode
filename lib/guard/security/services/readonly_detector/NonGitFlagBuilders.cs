@@ -1,159 +1,12 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
 /// <summary>
-/// 只读命令检测器 — 非 Git 标志构建器
-/// 包含 BuildCommandAllowlist、非 Git 的 BuildXxxSafeFlags/CheckXxxDangerous 方法、Git 共享标志组
+/// 非Git命令的安全标志构建器 — 所有非Git的 Build*SafeFlags 和 Check*Dangerous 方法
+/// <para>单一数据源: 非Git命令的 FrozenDictionary 标志配置</para>
 /// </summary>
-public sealed partial class ReadOnlyCommandDetector {
-    /// <summary>
-    /// 构建命令白名单 — 对齐 TS COMMAND_ALLOWLIST
-    /// </summary>
-    private static FrozenDictionary<string, CommandConfig> BuildCommandAllowlist() {
-        var builder = new Dictionary<string, CommandConfig>(StringComparer.OrdinalIgnoreCase);
+internal static class NonGitFlagBuilders {
 
-        // file 命令
-        builder["file"] = new CommandConfig(BuildFileSafeFlags());
-
-        // sort 命令
-        builder["sort"] = new CommandConfig(BuildSortSafeFlags());
-
-        // man 命令
-        builder["man"] = new CommandConfig(BuildManSafeFlags());
-
-        // help 命令（bash 内建）
-        builder["help"] = new CommandConfig(
-            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
-                ["-d"] = FlagArgType.None,
-                ["-m"] = FlagArgType.None,
-                ["-s"] = FlagArgType.None,
-            }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase));
-
-        // netstat 命令
-        builder["netstat"] = new CommandConfig(BuildNetstatSafeFlags());
-
-        // ps 命令
-        builder["ps"] = new CommandConfig(BuildPsSafeFlags(),
-            AdditionalDangerousCallback: CheckPsDangerous);
-
-        // base64 命令（macOS 不尊重 --）
-        builder["base64"] = new CommandConfig(BuildBase64SafeFlags(),
-            RespectsDoubleDash: false);
-
-        // grep 命令
-        builder["grep"] = new CommandConfig(BuildGrepSafeFlags());
-
-        // rg (ripgrep) 命令 — 对齐 TS COMMAND_ALLOWLIST.rg
-        builder["rg"] = new CommandConfig(BuildRgSafeFlags());
-
-        // jq 命令 — 对齐 TS READONLY_COMMAND_REGEXES.jq（排除危险标志）
-        builder["jq"] = new CommandConfig(BuildJqSafeFlags(),
-            AdditionalDangerousCallback: CheckJqDangerous);
-
-        // find 命令 — 对齐 TS READONLY_COMMAND_REGEXES.find（排除危险操作）
-        builder["find"] = new CommandConfig(BuildFindSafeFlags(),
-            AdditionalDangerousCallback: CheckFindDangerous);
-
-        // sha256sum / sha1sum / md5sum
-        builder["sha256sum"] = new CommandConfig(BuildChecksumSafeFlags());
-        builder["sha1sum"] = new CommandConfig(BuildChecksumSafeFlags());
-        builder["md5sum"] = new CommandConfig(BuildChecksumSafeFlags());
-
-        // tree 命令（排除 -R 和 -o/--output）
-        builder["tree"] = new CommandConfig(BuildTreeSafeFlags());
-
-        // date 命令（位置参数必须以 + 开头）
-        builder["date"] = new CommandConfig(BuildDateSafeFlags(),
-            AdditionalDangerousCallback: CheckDateDangerous);
-
-        // hostname 命令（阻止位置参数）
-        builder["hostname"] = new CommandConfig(BuildHostnameSafeFlags(),
-            Regex: new Regex(@"^hostname(?:\s+(?:-[a-zA-Z]|--[a-zA-Z-]+))*\s*$", RegexOptions.Compiled));
-
-        // lsof 命令（阻止 +m）
-        builder["lsof"] = new CommandConfig(BuildLsofSafeFlags(),
-            AdditionalDangerousCallback: CheckLsofDangerous);
-
-        // pgrep 命令
-        builder["pgrep"] = new CommandConfig(BuildPgrepSafeFlags());
-
-        // tput 命令（阻止危险能力名和 -S）
-        builder["tput"] = new CommandConfig(
-            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
-                ["-T"] = FlagArgType.Required,
-                ["--terminal"] = FlagArgType.Required,
-            }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
-            AdditionalDangerousCallback: CheckTputDangerous);
-
-        // ss 命令（排除 -K/--kill, -D/--diag, -F/--filter, -N/--net）
-        builder["ss"] = new CommandConfig(BuildSsSafeFlags());
-
-        // fd / fdfind 命令
-        builder["fd"] = new CommandConfig(BuildFdSafeFlags());
-        builder["fdfind"] = new CommandConfig(BuildFdSafeFlags());
-
-        // xargs 命令
-        builder["xargs"] = new CommandConfig(BuildXargsSafeFlags());
-
-        // sed 命令 — 对齐 TS sedValidation.ts 双层防御
-        builder["sed"] = new CommandConfig(BuildSedSafeFlags(),
-            AdditionalDangerousCallback: CheckSedDangerous);
-
-        // docker 只读子命令 — 对齐 TS DOCKER_READ_ONLY_COMMANDS
-        builder["docker logs"] = new CommandConfig(BuildDockerLogsSafeFlags());
-        builder["docker inspect"] = new CommandConfig(BuildDockerInspectSafeFlags());
-
-        // docker ps / docker images — 对齐 TS EXTERNAL_READONLY_COMMANDS
-        builder["docker ps"] = new CommandConfig(BuildDockerPsSafeFlags());
-        builder["docker images"] = new CommandConfig(BuildDockerImagesSafeFlags());
-
-        // pyright 命令 — 对齐 TS PYRIGHT_READ_ONLY_COMMANDS
-        builder["pyright"] = new CommandConfig(BuildPyrightSafeFlags(),
-            RespectsDoubleDash: false,
-            AdditionalDangerousCallback: CheckPyrightDangerous);
-
-        // git 只读子命令 — 对齐 TS GIT_READ_ONLY_COMMANDS（24个独立注册，每个子命令有专属安全标志）
-        builder["git diff"] = new CommandConfig(BuildGitDiffSafeFlags());
-        builder["git log"] = new CommandConfig(BuildGitLogSafeFlags());
-        builder["git show"] = new CommandConfig(BuildGitShowSafeFlags());
-        builder["git shortlog"] = new CommandConfig(BuildGitShortlogSafeFlags());
-        builder["git reflog"] = new CommandConfig(BuildGitReflogSafeFlags(),
-            AdditionalDangerousCallback: CheckGitReflogDangerous);
-        builder["git stash list"] = new CommandConfig(BuildGitStashListSafeFlags());
-        builder["git ls-remote"] = new CommandConfig(BuildGitLsRemoteSafeFlags());
-        builder["git status"] = new CommandConfig(BuildGitStatusSafeFlags());
-        builder["git blame"] = new CommandConfig(BuildGitBlameSafeFlags());
-        builder["git ls-files"] = new CommandConfig(BuildGitLsFilesSafeFlags());
-        builder["git config --get"] = new CommandConfig(BuildGitConfigGetSafeFlags());
-        builder["git remote show"] = new CommandConfig(BuildGitRemoteShowSafeFlags(),
-            AdditionalDangerousCallback: CheckGitRemoteShowDangerous);
-        builder["git remote"] = new CommandConfig(BuildGitRemoteSafeFlags(),
-            AdditionalDangerousCallback: CheckGitRemoteDangerous);
-        builder["git merge-base"] = new CommandConfig(BuildGitMergeBaseSafeFlags());
-        builder["git rev-parse"] = new CommandConfig(BuildGitRevParseSafeFlags());
-        builder["git rev-list"] = new CommandConfig(BuildGitRevListSafeFlags());
-        builder["git describe"] = new CommandConfig(BuildGitDescribeSafeFlags());
-        builder["git cat-file"] = new CommandConfig(BuildGitCatFileSafeFlags());
-        builder["git for-each-ref"] = new CommandConfig(BuildGitForEachRefSafeFlags());
-        builder["git grep"] = new CommandConfig(BuildGitGrepSafeFlags());
-        builder["git stash show"] = new CommandConfig(BuildGitStashShowSafeFlags());
-        builder["git worktree list"] = new CommandConfig(BuildGitWorktreeListSafeFlags());
-        builder["git tag"] = new CommandConfig(BuildGitTagSafeFlags(),
-            AdditionalDangerousCallback: CheckGitTagDangerous);
-        builder["git branch"] = new CommandConfig(BuildGitBranchSafeFlags(),
-            AdditionalDangerousCallback: CheckGitBranchDangerous);
-        builder["git cherry-pick"] = new CommandConfig(BuildGitCherryPickSafeFlags());
-        builder["git whatchanged"] = new CommandConfig(BuildGitWhatchangedSafeFlags());
-        builder["git show-branch"] = new CommandConfig(BuildGitShowBranchSafeFlags());
-        builder["git verify-pack"] = new CommandConfig(BuildGitVerifyPackSafeFlags());
-        builder["git annotate"] = new CommandConfig(BuildGitAnnotateSafeFlags());
-        builder["git name-rev"] = new CommandConfig(BuildGitNameRevSafeFlags());
-
-        return builder.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
-    }
-
-    #region 安全标志构建器
-
-    private static FrozenDictionary<string, FlagArgType> BuildFileSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildFileSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-b"] = FlagArgType.None,
             ["--brief"] = FlagArgType.None,
@@ -194,7 +47,7 @@ public sealed partial class ReadOnlyCommandDetector {
             ["--no-sandbox"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static FrozenDictionary<string, FlagArgType> BuildSortSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildSortSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-b"] = FlagArgType.None,
             ["--ignore-leading-blanks"] = FlagArgType.None,
@@ -244,7 +97,7 @@ public sealed partial class ReadOnlyCommandDetector {
             ["--version"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static FrozenDictionary<string, FlagArgType> BuildManSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildManSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-a"] = FlagArgType.None,
             ["--all"] = FlagArgType.None,
@@ -278,7 +131,7 @@ public sealed partial class ReadOnlyCommandDetector {
             ["--version"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static FrozenDictionary<string, FlagArgType> BuildNetstatSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildNetstatSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-a"] = FlagArgType.None,
             ["--all"] = FlagArgType.None,
@@ -320,7 +173,7 @@ public sealed partial class ReadOnlyCommandDetector {
             ["--help"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static FrozenDictionary<string, FlagArgType> BuildPsSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildPsSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-a"] = FlagArgType.None,
             ["-A"] = FlagArgType.None,
@@ -361,12 +214,12 @@ public sealed partial class ReadOnlyCommandDetector {
             ["--info"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static bool CheckPsDangerous(string _, IReadOnlyList<string> args) {
+    internal static bool CheckPsDangerous(string _, IReadOnlyList<string> args) {
         // BSD 风格 e 修饰符显示环境变量
         return args.Any(a => a.Length > 0 && !a.StartsWith('-') && a.Contains('e'));
     }
 
-    private static FrozenDictionary<string, FlagArgType> BuildBase64SafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildBase64SafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-d"] = FlagArgType.None,
             ["--decode"] = FlagArgType.None,
@@ -388,7 +241,7 @@ public sealed partial class ReadOnlyCommandDetector {
             ["--wrap"] = FlagArgType.Required,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static FrozenDictionary<string, FlagArgType> BuildGrepSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildGrepSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-E"] = FlagArgType.None,
             ["--extended-regexp"] = FlagArgType.None,
@@ -462,7 +315,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// rg (ripgrep) 安全标志 — 对齐 TS COMMAND_ALLOWLIST.rg
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildRgSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildRgSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             // 搜索模式
             ["-e"] = FlagArgType.Required,
@@ -553,7 +406,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// jq 安全标志 — 对齐 TS READONLY_COMMAND_REGEXES.jq
     /// 故意排除: -f/--from-file/--rawfile/--slurpfile/--run-tests/-L/--library-path
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildJqSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildJqSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-e"] = FlagArgType.None,
             ["--exit-status"] = FlagArgType.None,
@@ -591,7 +444,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// jq 危险回调 — 阻止 $env/$ENV 访问（可能泄露环境变量）
     /// </summary>
-    private static bool CheckJqDangerous(string command, IReadOnlyList<string> _) {
+    internal static bool CheckJqDangerous(string command, IReadOnlyList<string> _) {
         if (command.Contains("$env", StringComparison.Ordinal)
             || command.Contains("$ENV", StringComparison.Ordinal)) {
             return true;
@@ -604,7 +457,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// find 安全标志 — 对齐 TS READONLY_COMMAND_REGEXES.find
     /// 故意排除: -delete, -exec, -execdir, -ok, -okdir, -fprint0?, -fls, -fprintf
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildFindSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildFindSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             // 搜索条件
             ["-name"] = FlagArgType.Required,
@@ -669,7 +522,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// find 危险回调 — 阻止 -delete/-exec/-execdir/-ok/-okdir/-fprint/-fls/-fprintf
     /// </summary>
-    private static bool CheckFindDangerous(string _, IReadOnlyList<string> args) {
+    internal static bool CheckFindDangerous(string _, IReadOnlyList<string> args) {
         var dangerousOps = FrozenSet.Create(
             StringComparer.OrdinalIgnoreCase,
             "-delete", "-exec", "-execdir", "-ok", "-okdir",
@@ -684,7 +537,7 @@ public sealed partial class ReadOnlyCommandDetector {
         return false;
     }
 
-    private static FrozenDictionary<string, FlagArgType> BuildChecksumSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildChecksumSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-b"] = FlagArgType.None,
             ["--binary"] = FlagArgType.None,
@@ -705,7 +558,7 @@ public sealed partial class ReadOnlyCommandDetector {
             ["--version"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static FrozenDictionary<string, FlagArgType> BuildTreeSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildTreeSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-a"] = FlagArgType.None,
             ["--all"] = FlagArgType.None,
@@ -745,7 +598,7 @@ public sealed partial class ReadOnlyCommandDetector {
             // 故意排除 -R（递归时写 00Tree.html）和 -o/--output
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static FrozenDictionary<string, FlagArgType> BuildDateSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildDateSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-d"] = FlagArgType.Required,
             ["--date"] = FlagArgType.Required,
@@ -767,12 +620,12 @@ public sealed partial class ReadOnlyCommandDetector {
             ["--version"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static bool CheckDateDangerous(string _, IReadOnlyList<string> args) {
+    internal static bool CheckDateDangerous(string _, IReadOnlyList<string> args) {
         // 位置参数必须以 + 开头（格式字符串），否则可能是设置系统时间的 MMDDhhmm 格式
         return args.Any(a => !a.StartsWith('-') && !a.StartsWith('+'));
     }
 
-    private static FrozenDictionary<string, FlagArgType> BuildHostnameSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildHostnameSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-a"] = FlagArgType.None,
             ["--alias"] = FlagArgType.None,
@@ -796,7 +649,7 @@ public sealed partial class ReadOnlyCommandDetector {
             ["--version"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static FrozenDictionary<string, FlagArgType> BuildLsofSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildLsofSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-a"] = FlagArgType.None,
             ["-b"] = FlagArgType.None,
@@ -831,10 +684,10 @@ public sealed partial class ReadOnlyCommandDetector {
             ["+L"] = FlagArgType.Optional,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static bool CheckLsofDangerous(string _, IReadOnlyList<string> args) =>
+    internal static bool CheckLsofDangerous(string _, IReadOnlyList<string> args) =>
         args.Any(a => a.StartsWith("+m", StringComparison.Ordinal));
 
-    private static FrozenDictionary<string, FlagArgType> BuildPgrepSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildPgrepSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-d"] = FlagArgType.Required,
             ["--delimiter"] = FlagArgType.Required,
@@ -880,7 +733,7 @@ public sealed partial class ReadOnlyCommandDetector {
             ["--version"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static bool CheckTputDangerous(string command, IReadOnlyList<string> _) {
+    internal static bool CheckTputDangerous(string command, IReadOnlyList<string> _) {
         // 阻止 -S 标志（从 stdin 读取能力名）
         if (command.Contains("-S", StringComparison.Ordinal)) {
             return true;
@@ -905,11 +758,11 @@ public sealed partial class ReadOnlyCommandDetector {
     /// sed 危险回调 — 对齐 TS sedValidation.ts 双层防御
     /// 调用 SedValidation 检查 w/W(写文件) 和 e/E(执行命令) 危险操作
     /// </summary>
-    private static bool CheckSedDangerous(string command, IReadOnlyList<string> _) {
+    internal static bool CheckSedDangerous(string command, IReadOnlyList<string> _) {
         return !SedValidation.IsSedCommandSafe(command);
     }
 
-    private static FrozenDictionary<string, FlagArgType> BuildSsSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildSsSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-a"] = FlagArgType.None,
             ["--all"] = FlagArgType.None,
@@ -958,7 +811,7 @@ public sealed partial class ReadOnlyCommandDetector {
             // 故意排除 -K/--kill, -D/--diag, -F/--filter, -N/--net
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static FrozenDictionary<string, FlagArgType> BuildFdSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildFdSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-H"] = FlagArgType.None,
             ["--hidden"] = FlagArgType.None,
@@ -1006,7 +859,7 @@ public sealed partial class ReadOnlyCommandDetector {
             // 故意排除 -x/--exec, -X/--exec-batch, -l/--list-details
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static FrozenDictionary<string, FlagArgType> BuildXargsSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildXargsSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-I"] = FlagArgType.Required,
             ["-n"] = FlagArgType.Required,
@@ -1024,7 +877,7 @@ public sealed partial class ReadOnlyCommandDetector {
             ["--version"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static FrozenDictionary<string, FlagArgType> BuildSedSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildSedSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-n"] = FlagArgType.None,
             ["--quiet"] = FlagArgType.None,
@@ -1055,7 +908,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// docker logs 安全标志 — 对齐 TS DOCKER_READ_ONLY_COMMANDS["docker logs"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildDockerLogsSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildDockerLogsSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--follow"] = FlagArgType.None,
             ["-f"] = FlagArgType.None,
@@ -1071,7 +924,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// docker inspect 安全标志 — 对齐 TS DOCKER_READ_ONLY_COMMANDS["docker inspect"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildDockerInspectSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildDockerInspectSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--format"] = FlagArgType.Required,
             ["-f"] = FlagArgType.Required,
@@ -1083,7 +936,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// docker ps 安全标志 — 对齐 TS EXTERNAL_READONLY_COMMANDS["docker ps"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildDockerPsSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildDockerPsSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--all"] = FlagArgType.None,
             ["-a"] = FlagArgType.None,
@@ -1104,7 +957,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// <summary>
     /// docker images 安全标志 — 对齐 TS EXTERNAL_READONLY_COMMANDS["docker images"]
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildDockerImagesSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildDockerImagesSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--all"] = FlagArgType.None,
             ["-a"] = FlagArgType.None,
@@ -1121,7 +974,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// pyright 安全标志 — 对齐 TS PYRIGHT_READ_ONLY_COMMANDS
     /// 注意: pyright 不尊重 -- 约定（RespectsDoubleDash=false）
     /// </summary>
-    private static FrozenDictionary<string, FlagArgType> BuildPyrightSafeFlags() =>
+    internal static FrozenDictionary<string, FlagArgType> BuildPyrightSafeFlags() =>
         new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--outputjson"] = FlagArgType.None,
             ["--project"] = FlagArgType.Required,
@@ -1141,7 +994,7 @@ public sealed partial class ReadOnlyCommandDetector {
     /// pyright 危险标志检查 — 阻止 --watch/-w（持续监听模式）
     /// 对齐 TS PYRIGHT_READ_ONLY_COMMANDS additionalCommandIsDangerousCallback
     /// </summary>
-    private static bool CheckPyrightDangerous(string command, IReadOnlyList<string> args) {
+    internal static bool CheckPyrightDangerous(string command, IReadOnlyList<string> args) {
         for (var i = 0; i < args.Count; i++) {
             var arg = args[i];
             if (string.Equals(arg, "--watch", StringComparison.OrdinalIgnoreCase) ||
@@ -1152,108 +1005,4 @@ public sealed partial class ReadOnlyCommandDetector {
 
         return false;
     }
-
-    /// <summary>
-    /// 合并多个 Git 标志字典 — 后传入的字典覆盖先传入的同名键
-    /// </summary>
-    private static Dictionary<string, FlagArgType> MergeGitFlags(params Dictionary<string, FlagArgType>[] dicts) {
-        var result = new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase);
-        foreach (var dict in dicts)
-            foreach (var kvp in dict)
-                result[kvp.Key] = kvp.Value;
-        return result;
-    }
-
-    #region Git 共享标志组
-
-    /// <summary>
-    /// Git 引用选择标志组: --all, --branches, --tags, --remotes
-    /// </summary>
-    private static Dictionary<string, FlagArgType> GitRefSelectionFlags() =>
-        new(StringComparer.OrdinalIgnoreCase) {
-            ["--all"] = FlagArgType.None,
-            ["--branches"] = FlagArgType.None,
-            ["--tags"] = FlagArgType.None,
-            ["--remotes"] = FlagArgType.None,
-        };
-
-    /// <summary>
-    /// Git 日期过滤标志组: --since/--after, --until/--before (均 Required)
-    /// </summary>
-    private static Dictionary<string, FlagArgType> GitDateFilterFlags() =>
-        new(StringComparer.OrdinalIgnoreCase) {
-            ["--since"] = FlagArgType.Required,
-            ["--after"] = FlagArgType.Required,
-            ["--until"] = FlagArgType.Required,
-            ["--before"] = FlagArgType.Required,
-        };
-
-    /// <summary>
-    /// Git 日志显示标志组: --oneline, --graph, --decorate, --no-decorate, --date(Req), --relative-date
-    /// </summary>
-    private static Dictionary<string, FlagArgType> GitLogDisplayFlags() =>
-        new(StringComparer.OrdinalIgnoreCase) {
-            ["--oneline"] = FlagArgType.None,
-            ["--graph"] = FlagArgType.None,
-            ["--decorate"] = FlagArgType.None,
-            ["--no-decorate"] = FlagArgType.None,
-            ["--date"] = FlagArgType.Required,
-            ["--relative-date"] = FlagArgType.None,
-        };
-
-    /// <summary>
-    /// Git 计数标志组: --max-count(Req), -n(Req)
-    /// </summary>
-    private static Dictionary<string, FlagArgType> GitCountFlags() =>
-        new(StringComparer.OrdinalIgnoreCase) {
-            ["--max-count"] = FlagArgType.Required,
-            ["-n"] = FlagArgType.Required,
-        };
-
-    /// <summary>
-    /// Git 统计标志组: --stat, --numstat, --shortstat, --name-only, --name-status
-    /// </summary>
-    private static Dictionary<string, FlagArgType> GitStatFlags() =>
-        new(StringComparer.OrdinalIgnoreCase) {
-            ["--stat"] = FlagArgType.None,
-            ["--numstat"] = FlagArgType.None,
-            ["--shortstat"] = FlagArgType.None,
-            ["--name-only"] = FlagArgType.None,
-            ["--name-status"] = FlagArgType.None,
-        };
-
-    /// <summary>
-    /// Git 颜色标志组: --color(Opt), --no-color
-    /// </summary>
-    private static Dictionary<string, FlagArgType> GitColorFlags() =>
-        new(StringComparer.OrdinalIgnoreCase) {
-            ["--color"] = FlagArgType.Optional,
-            ["--no-color"] = FlagArgType.None,
-        };
-
-    /// <summary>
-    /// Git 补丁标志组: --patch, -p, --no-patch, --no-ext-diff, -s
-    /// </summary>
-    private static Dictionary<string, FlagArgType> GitPatchFlags() =>
-        new(StringComparer.OrdinalIgnoreCase) {
-            ["--patch"] = FlagArgType.None,
-            ["-p"] = FlagArgType.None,
-            ["--no-patch"] = FlagArgType.None,
-            ["--no-ext-diff"] = FlagArgType.None,
-            ["-s"] = FlagArgType.None,
-        };
-
-    /// <summary>
-    /// Git 作者过滤标志组: --author(Req), --committer(Req), --grep(Req)
-    /// </summary>
-    private static Dictionary<string, FlagArgType> GitAuthorFilterFlags() =>
-        new(StringComparer.OrdinalIgnoreCase) {
-            ["--author"] = FlagArgType.Required,
-            ["--committer"] = FlagArgType.Required,
-            ["--grep"] = FlagArgType.Required,
-        };
-
-    #endregion
-
-    #endregion
 }

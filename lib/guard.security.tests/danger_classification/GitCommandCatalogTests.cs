@@ -167,9 +167,9 @@ public class GitCommandCatalogTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public void ReadOnlyCommandDetector_SafeGitSubcommands_Should_Delegate_To_SafeSubcommands() {
-        // 验证 ReadOnlyCommandDetector.SafeGitSubcommands 委托 GitCommandCatalog.SafeSubcommands
+        // 验证 CommandCatalog.SafeGitSubcommands 委托 GitCommandCatalog.SafeSubcommands
         // 通过反射获取 private static 字段,验证引用一致(单数据源委托)
-        var field = typeof(ReadOnlyCommandDetector).GetField("SafeGitSubcommands",
+        var field = typeof(CommandCatalog).GetField("SafeGitSubcommands",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         field.Should().NotBeNull("SafeGitSubcommands 字段应存在");
         var value = field!.GetValue(null);
@@ -180,9 +180,9 @@ public class GitCommandCatalogTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public void ReadOnlyCommandDetector_DangerousGitSubcommands_Should_Delegate_To_DangerousSubcommands() {
-        // 验证 ReadOnlyCommandDetector.DangerousGitSubcommands 委托 GitCommandCatalog.DangerousSubcommands
+        // 验证 CommandCatalog.DangerousGitSubcommands 委托 GitCommandCatalog.DangerousSubcommands
         // 通过反射获取 private static 字段,验证引用一致(单数据源委托)
-        var field = typeof(ReadOnlyCommandDetector).GetField("DangerousGitSubcommands",
+        var field = typeof(CommandCatalog).GetField("DangerousGitSubcommands",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         field.Should().NotBeNull("DangerousGitSubcommands 字段应存在");
         var value = field!.GetValue(null);

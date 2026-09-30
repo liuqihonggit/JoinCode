@@ -34,19 +34,29 @@ public sealed class HandleFireAndForgetRule : AnalyzerRuleBase<HandleFireAndForg
         foreach (var stmt in body.DescendantNodes().OfType<ExpressionStatementSyntax>()) {
             if (AotSafetyHelpers.IsInsideLambdaOrLocalFunction(stmt, body)) continue;
 
-            if (stmt.Expression is not AssignmentExpressionSyntax assignment) continue;
-            if (assignment.Left is not IdentifierNameSyntax { Identifier.ValueText: "_" }) continue;
-
-            var rightExpr = assignment.Right;
-            var invocation = rightExpr as InvocationExpressionSyntax ?? FindInnermostInvocation(rightExpr);
-            if (invocation is null) continue;
-
-            var symbol = ctx.SemanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-            if (!AotSafetyHelpers.ReturnsTaskLike(symbol)) continue;
-
-            var calledName = symbol!.ContainingType?.Name is { } tn ? $"{tn}.{symbol.Name}" : symbol.Name;
-            ctx.ReportDiagnostic(Diagnostic.Create(Descriptor, invocation.GetLocation(), calledName));
+            switch (stmt.Expression) {
+                case AssignmentExpressionSyntax assignment:
+                    if (assignment.Left is not IdentifierNameSyntax { Identifier.ValueText: "_" }) break;
+                    ReportIfTaskLike(ctx, assignment.Right);
+                    break;
+                case InvocationExpressionSyntax invocation:
+                    var symbol = ctx.SemanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+                    if (symbol is { Name: "RegisterInFlight" }) break;
+                    if (!AotSafetyHelpers.ReturnsTaskLike(symbol)) break;
+                    var calledName = symbol!.ContainingType?.Name is { } tn ? $"{tn}.{symbol.Name}" : symbol.Name;
+                    ctx.ReportDiagnostic(Diagnostic.Create(Descriptor, invocation.GetLocation(), calledName));
+                    break;
+            }
         }
+    }
+
+    private static void ReportIfTaskLike(SyntaxNodeAnalysisContext ctx, ExpressionSyntax expr) {
+        var invocation = expr as InvocationExpressionSyntax ?? FindInnermostInvocation(expr);
+        if (invocation is null) return;
+        var symbol = ctx.SemanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+        if (!AotSafetyHelpers.ReturnsTaskLike(symbol)) return;
+        var calledName = symbol!.ContainingType?.Name is { } tn ? $"{tn}.{symbol.Name}" : symbol.Name;
+        ctx.ReportDiagnostic(Diagnostic.Create(Descriptor, invocation.GetLocation(), calledName));
     }
 
     private static InvocationExpressionSyntax? FindInnermostInvocation(ExpressionSyntax expr) {

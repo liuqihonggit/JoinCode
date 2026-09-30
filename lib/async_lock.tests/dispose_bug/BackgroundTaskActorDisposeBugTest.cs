@@ -61,6 +61,25 @@ public class BackgroundTaskActorDisposeBugTest {
     }
 
     /// <summary>
+    /// 确定性验证: in-flight 任务抛异常时 DisposeAsync 不传播异常,继续释放 CTS。
+    /// </summary>
+    [Fact]
+    public async Task DisposeAsync_InFlightTaskThrows_DoesNotPropagate_Deterministic() {
+        var taskStarted = new TaskCompletionSource<bool>();
+        var actor = new BackgroundTaskActor();
+
+        actor.Tell(new BackgroundTaskCommand("throwing-test", async ct => {
+            taskStarted.TrySetResult(true);
+            await Task.Delay(20);
+            throw new InvalidOperationException("in-flight task failure");
+        }));
+
+        await taskStarted.Task;
+        var dispose = async () => await actor.DisposeAsync();
+        await dispose.Should().NotThrowAsync("DisposeAsync 应吞没 in-flight 任务异常,确保 CTS 释放");
+    }
+
+    /// <summary>
     /// 时序验证: DisposeAsync 阻塞等待 in-flight 任务,不会在 500ms 内返回。
     /// <para>用 releaseGate 挂起 in-flight 任务,Dispose 必须阻塞。重试16次×500ms 防偶发。</para>
     /// </summary>

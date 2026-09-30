@@ -71,4 +71,55 @@ public class HandleFireAndForgetRuleTests {
         };
         await test.RunAsync().ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task Handle_BareInvocation_ReportsJCC9305() {
+        var test = new CSharpAnalyzerTest<ConcurrencyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading;
+                using System.Threading.Tasks;
+
+                class TestActor : ActorBase {
+                    protected override void Handle(string cmd, CancellationToken ct) {
+                        {|#0:DoAsync()|};
+                    }
+                    private async Task DoAsync() { await Task.Delay(1); }
+                }
+                abstract class ActorBase {
+                    protected abstract void Handle(string cmd, CancellationToken ct);
+                }
+                """,
+            ExpectedDiagnostics = {
+                new DiagnosticResult("JCC9305", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("TestActor.DoAsync"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task Handle_BareTaskRun_ReportsJCC9305() {
+        var test = new CSharpAnalyzerTest<ConcurrencyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading;
+                using System.Threading.Tasks;
+
+                class TestActor : ActorBase {
+                    protected override void Handle(string cmd, CancellationToken ct) {
+                        {|#0:Task.Run(async () => { await Task.Delay(1); })|};
+                    }
+                }
+                abstract class ActorBase {
+                    protected abstract void Handle(string cmd, CancellationToken ct);
+                }
+                """,
+            ExpectedDiagnostics = {
+                new DiagnosticResult("JCC9305", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("Task.Run"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
 }

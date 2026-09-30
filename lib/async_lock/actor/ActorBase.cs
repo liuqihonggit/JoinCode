@@ -625,7 +625,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         } catch (OperationCanceledException) { }
         var inflight = _inFlightTasks.ToArray();
         if (inflight.Length > 0) {
-            await Task.WhenAll(inflight).ConfigureAwait(false);
+            try {
+                await Task.WhenAll(inflight).ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[Actor:{ActorId}] in-flight 任务异常忽略,继续释放 CTS", Id);
+            }
         }
         _cts.Dispose();
     }

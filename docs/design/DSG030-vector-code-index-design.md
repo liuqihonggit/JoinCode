@@ -756,3 +756,42 @@ tool/onnx_embedding/           ← 新增卫星项目（非 AOT）
 - 向量嵌入耗时 15s（tokenize 更多 token，之前所有文本只产生 3 个 token）
 
 **设计理由**：用装饰类而非直接改参数，防止未来误改回 false 导致语义搜索静默失效。守卫报错响亮且带诱导方式，AI 调用时能理解错误含义而非换命令绕过。
+
+### 13.7 搜索质量优化：重排序 + 图谱加权 + L2 归一化 + 符号前缀（2026-10-01）
+
+**现象**：13.6 修复向量退化后，搜索能返回不同 Score，但目标代码 `VectorMath.cs`（含 `CosineSimilarity` 方法）未排在前列。搜 "cosine similarity calculation SIMD" 时 `VectorMathTests.cs` 排第 1 位而实现文件 `VectorMath.cs` 排不上。
+
+**根因分析**（三个叠加问题）：
+
+1. **maxSeqLen=32 截断核心语义**：BERT 只取前 32 token，代码块前 32 token 多为 `namespace`+`class` 声明，核心方法名被截断
+2. **BERT tokenizer 不拆分 PascalCase**：`CosineSimilarity` 作为一个整体 token，与查询 `cosine similarity`（两个词）不匹配
+3. **缺少重排序和图谱加权**：仅靠向量余弦单信号排序，无法利用符号名、关键词、调用关系等结构化信号
+
+**修复方案**（四项协同）：
+
+1. **L2 归一化**（`OnnxEmbedder.MeanPoolSimd/Scalar`）：mean pooling 后对向量做 L2 归一化。对余弦相似度无影响（余弦本身归一化无关），但为未来切换到点积搜索做准备，且提高数值稳定性
+
+2. **符号短名 PascalCase 拆分小写前缀**（`EmbeddingIndex.BuildEmbedText`）：嵌入文本 = `拆分小写的符号短名 + "\n" + SourceText`。例：`CosineSimilarity` → `cosine similarity`，确保核心语义在前 32 token 内被 BERT 编码
+
+3. **SemanticSearchReranker 多信号重排序**（`kit/mcp_tool_dispatch/code_tools/SemanticSearchReranker.cs`）：
+   - oversample topK×3 召回候选
+   - 多信号加权：向量余弦 0.5 + 关键词重叠 0.3 + 符号名匹配 0.2
+   - 图谱加权（上限 0.5，防止淹没向量主信号）：调用关系 +0.05 + 同文件 +0.03 + 同命名空间 +0.02
+   - 取 topK 返回
+
+4. **SearchSemanticAsync 集成**（`CodeIndexToolHandlers`）：改为 oversample → RerankAsync → 取 topK 流水线
+
+**验证**：
+- 753 单元 + 344 单元 + 3 E2E 回归全通过
+- 搜 "cosine similarity calculation SIMD" → `VectorMathTests.cs` 第 1 位（1.0451），`VectorMath.cs` 第 2 位（0.9345）— 实现文件成功上榜
+
+**设计决策**：
+- oversample 倍数选 3 而非 5：平衡召回率与延迟（3× 候选集重排序开销可控）
+- 图谱加权上限 0.5：防止结构化信号淹没向量相似度主信号（向量是语义搜索的根基）
+- 信号权重 0.5/0.3/0.2：向量为主、关键词为辅、符号名补充，符合"语义为主、精确为辅"原则
+
+<!-- 🤖 Auto Decision: 2026-10-01 -->
+<!-- 决策: oversample 倍数选 3 而非 5 -->
+<!-- 原因: 平衡召回率与延迟,3x 候选集重排序开销可控,5x 在大库上延迟明显 -->
+<!-- 替代方案: 动态倍数(根据 topK 调整),但增加复杂度暂不采用 -->
+<!-- 验证: 编译通过,1100 测试全通过,搜索 VectorMath.cs 排第 2 位 ✅ -->

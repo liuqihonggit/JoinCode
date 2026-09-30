@@ -229,11 +229,13 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         Console.Error.WriteLine($"[code-index] 符号索引: {updatedCount} 文件 ({phaseSw.ElapsedMilliseconds}ms)");
         phaseSw.Restart();
 
-        // Phase E2: 向量嵌入（可选，设置了 EmbeddingIndex 才执行）
+        // Phase E2: 向量嵌入（按固定行数切块，预嵌入AST符号FQN组成知识图谱）
         if (_embeddingIndex is not null) {
-            var allChunks = batch
-                .SelectMany(b => b.Extraction.Chunks)
-                .ToList();
+            var allChunks = new List<ChunkInfo>();
+            foreach (var b in batch) {
+                allChunks.AddRange(LineBasedChunkExtractor.Extract(
+                    b.FilePath, b.SourceCode, b.Extraction.Symbols));
+            }
             if (allChunks.Count > 0) {
                 await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
                 Console.Error.WriteLine($"[code-index] 向量嵌入: {allChunks.Count} 块 ({phaseSw.ElapsedMilliseconds}ms)");

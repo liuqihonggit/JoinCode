@@ -58,11 +58,11 @@ public sealed class CodeIndexerParentDocTests : IDisposable {
         await _indexer.BuildIndexAsync(options, CancellationToken.None);
 
         var results = await _indexer.SearchSemanticAsync("Bar", 5, CancellationToken.None,
-            new SearchOptions { IncludeParentDocument = true });
+            new SearchOptions { IncludeSourceText = true });
         Assert.NotEmpty(results);
-        var resultWithParent = results.FirstOrDefault(r => r.ParentDocumentText != null);
-        Assert.NotNull(resultWithParent);
-        Assert.Contains("Foo", resultWithParent!.ParentDocumentText!);
+        var resultWithSymbols = results.FirstOrDefault(r => r.ContainedSymbolFqns.Count > 0);
+        Assert.NotNull(resultWithSymbols);
+        Assert.Contains(resultWithSymbols!.ContainedSymbolFqns, fqn => fqn.Contains("Bar"));
     }
 
     [Fact]

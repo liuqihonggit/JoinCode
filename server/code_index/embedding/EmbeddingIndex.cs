@@ -119,7 +119,8 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
                 StartLine = chunk.StartLine,
                 EndLine = chunk.EndLine,
                 ParentChunkId = chunk.ParentChunkId,
-                SourceText = chunk.SourceText
+                SourceText = chunk.SourceText,
+                ContainedSymbolFqns = chunk.ContainedSymbolFqns
             }));
             hashesToAdd.Add((chunk.ChunkId, chunk.ContentHash));
             fileChunksToAdd.Add((chunk.FilePath, chunk.ChunkId));
@@ -229,6 +230,10 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             bw.Write(meta.EndLine);
             WriteNullableString(bw, meta.ParentChunkId);
             WriteNullableString(bw, meta.SourceText);
+            bw.Write(meta.ContainedSymbolFqns.Count);
+            foreach (var fqn in meta.ContainedSymbolFqns) {
+                WriteString(bw, fqn);
+            }
             hashesSnapshot.TryGetValue(chunkId, out var hash);
             WriteString(bw, hash ?? string.Empty);
             for (var d = 0; d < dims; d++) bw.Write(vector[d]);
@@ -273,6 +278,11 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             var endLine = br.ReadInt32();
             var parentChunkId = ReadNullableString(br);
             var sourceText = ReadNullableString(br);
+            var fqnCount = br.ReadInt32();
+            var containedFqns = new List<string>(fqnCount);
+            for (var f = 0; f < fqnCount; f++) {
+                containedFqns.Add(ReadString(br));
+            }
             var hash = ReadString(br);
             var vector = new float[dims];
             for (var d = 0; d < dims; d++) vector[d] = br.ReadSingle();
@@ -281,7 +291,8 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             metadataItems.Add((chunkId, new ChunkMetadata {
                 ChunkId = chunkId, FilePath = filePath2, SymbolFqn = fqn,
                 StartLine = startLine, EndLine = endLine,
-                ParentChunkId = parentChunkId, SourceText = sourceText
+                ParentChunkId = parentChunkId, SourceText = sourceText,
+                ContainedSymbolFqns = containedFqns
             }));
             hashItems.Add((chunkId, hash));
             vectorItems.Add((chunkId, vector));
@@ -369,7 +380,8 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
                 StartLine = meta.StartLine,
                 EndLine = meta.EndLine,
                 Score = score,
-                SourceText = includeSource ? meta.SourceText : null
+                SourceText = includeSource ? meta.SourceText : null,
+                ContainedSymbolFqns = meta.ContainedSymbolFqns
             };
             results.Add(includeParent
                 ? TryAttachParentDocument(result, meta.ParentChunkId)

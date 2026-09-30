@@ -18,4 +18,6 @@ internal sealed record ChunkMetadata {
     public string? ParentChunkId { get; init; }
     /// <summary>块原文 — 嵌入后保留供 IncludeSourceText=true 时返回。</summary>
     public string? SourceText { get; init; }
+    /// <summary>块覆盖的 AST 符号 FQN 列表 — 知识图谱关联用。</summary>
+    public IReadOnlyList<string> ContainedSymbolFqns { get; init; } = [];
 }

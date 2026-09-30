@@ -29,4 +29,11 @@ public sealed record ChunkInfo {
     /// <para>null 表示该块本身是父文档（类/文件级）或未启用父文档检索。</para>
     /// </summary>
     public string? ParentChunkId { get; init; }
+
+    /// <summary>
+    /// 块覆盖的 AST 符号 FQN 列表 — 固定行数切块时，记录该行号范围内包含的所有符号。
+    /// <para>用于关联向量索引与符号索引/调用图/依赖图，组成知识图谱。</para>
+    /// <para>AST 符号切块时为空（SymbolFqn 已标识唯一符号）。</para>
+    /// </summary>
+    public IReadOnlyList<string> ContainedSymbolFqns { get; init; } = [];
 }

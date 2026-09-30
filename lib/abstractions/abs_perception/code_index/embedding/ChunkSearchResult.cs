@@ -26,4 +26,6 @@ public sealed record ChunkSearchResult {
     public int? ParentEndLine { get; init; }
     /// <summary>父文档符号完全限定名 — null 表示无父文档。</summary>
     public string? ParentSymbolFqn { get; init; }
+    /// <summary>块覆盖的 AST 符号 FQN 列表 — 用于关联调用图/依赖图组成知识图谱。</summary>
+    public IReadOnlyList<string> ContainedSymbolFqns { get; init; } = [];
 }

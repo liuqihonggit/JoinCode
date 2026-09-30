@@ -14,6 +14,11 @@ public sealed class EmbeddingModelDownloader {
     /// <summary>词表文件名。</summary>
     public const string VocabFileName = "vocab.txt";
 
+    /// <summary>默认目标目录 — %AppData%/jcc/embedding/，下载与识别共用此路径（唯一数据源）。</summary>
+    public static string DefaultTargetDir => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "jcc", "embedding");
+
     /// <summary>下载源基础 URL（官方 + 镜像），竞赛选最快。</summary>
     public static readonly string[] BaseUrls = [
         "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/",

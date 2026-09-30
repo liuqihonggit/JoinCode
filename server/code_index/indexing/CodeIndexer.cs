@@ -76,11 +76,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <para>文件不存在时静默跳过（向量搜索降级为不可用）。</para>
     /// </summary>
     private void TryInitEmbeddingIndex(IFileSystem fs, ILogger<CodeIndexer>? logger) {
-        var appData = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "jcc", "embedding");
-        var modelPath = Path.Combine(appData, "model_quantized.onnx");
-        var vocabPath = Path.Combine(appData, "vocab.txt");
+        var appData = EmbeddingModelDownloader.DefaultTargetDir;
+        var modelPath = Path.Combine(appData, EmbeddingModelDownloader.ModelFileName);
+        var vocabPath = Path.Combine(appData, EmbeddingModelDownloader.VocabFileName);
         if (!fs.FileExists(modelPath) || !fs.FileExists(vocabPath)) return;
 
         try {
@@ -102,11 +100,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         if (_embeddingIndex is not null) return;
         if (_httpClient is null) return;
         try {
-            var appData = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "jcc", "embedding");
             var downloader = new EmbeddingModelDownloader(_logger as ILogger<EmbeddingModelDownloader>);
-            await downloader.EnsureAsync(appData, _fs, _httpClient, ct).ConfigureAwait(false);
+            await downloader.EnsureAsync(EmbeddingModelDownloader.DefaultTargetDir, _fs, _httpClient, ct).ConfigureAwait(false);
             TryInitEmbeddingIndex(_fs, _logger);
             BuildIndexStoreList();
         } catch (Exception ex) {

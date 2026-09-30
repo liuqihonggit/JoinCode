@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>tool</ProjectType>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <PublishAot>false</PublishAot>
+    <AssemblyName>simd-vector-verify</AssemblyName>
+    <RootNamespace>SimdVectorVerify</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

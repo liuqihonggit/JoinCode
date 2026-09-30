@@ -240,6 +240,10 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0117](0117-objectid-range-compression-longrangeset-sparselongset.md) | ObjectId 区间压缩 — LongRangeSet + SparseLongSet | accepted | 2026-09-26 |
 | [0118](0118-actor-sync-handle-no-async.md) | Actor 邮箱模型同步 Handle — 消除 async/await 状态机 | accepted | 2026-09-28 |
 | [0119](0119-swiss-table-high-perf-mutable-hashmap.md) | SwissTable 高性能可变哈希表 — 开放寻址 + SIMD 批量探测 | accepted | 2026-09-28 |
+| [0120](0120-immutable-dag-hamt-cas-lockfree.md) | ImmutableDag 不可变无锁 DAG — HAMT + CAS 原子更新 | proposed | 2026-09-29 |
+| [0121](0121-engine-agent-state-source-unification.md) | 引擎层统一子代理状态源 — GUI 双模型合并 | accepted | 2026-09-30 |
+| [0122](0122-ringbuffer-spsc-contract-rollback-cow.md) | RingBuffer 确认为 SPSC 契约,回退 Copy-on-Write 重写 | accepted | 2026-09-30 |
+| [0123](0123-vector-symbol-hybrid-code-index.md) | 向量+符号混合代码索引架构 | accepted | 2026-09-30 |
 
 ## 主题索引（按议题）
 
@@ -286,6 +290,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0079](0079-anti-pattern-examples.md) | 反例清单（踩过的坑，禁止再犯） | accepted | 2026-09-08 |
 | [0086](0086-core-tech-selection-lock-design.md) | 核心技术选型与锁设计 | accepted | 2026-09-08 |
 | [0087](0087-batch-replace-csharp-source-rules.md) | 批量替换 C# 源码禁令与导向 | accepted | 2026-09-08 |
+| [0121](0121-engine-agent-state-source-unification.md) | 引擎层统一子代理状态源 — GUI 双模型合并 | accepted | 2026-09-30 |
 
 ### 工程实践 / CI / 测试
 
@@ -341,6 +346,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0052](0052-asynclock-unified-mutex-file-access.md) | AsyncLock 统一互斥锁 + 文件读写可剥离架构 | accepted | 2026-09-02 |
 | [0059](0059-asynclock-reentrancy-detection.md) | AsyncLock 同步重入检测 — LockReentrancyException 提早暴露死锁 | superseded by 0060 | 2026-09-03 |
 | [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) | AsyncLock 同步 TryLock + StreamingToolExecutor 死锁排查 | accepted | 2026-09-04 |
+| [0122](0122-ringbuffer-spsc-contract-rollback-cow.md) | RingBuffer 确认为 SPSC 契约,回退 Copy-on-Write 重写 | accepted | 2026-09-30 |
 
 ### 上下文与系统提示词
 
@@ -416,6 +422,8 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
 | [0085](0085-data-container-selection-spec.md) | 数据容器选型规范 | accepted | 2026-09-08 |
+| [0120](0120-immutable-dag-hamt-cas-lockfree.md) | ImmutableDag 不可变无锁 DAG — HAMT + CAS 原子更新 | proposed | 2026-09-29 |
+| [0123](0123-vector-symbol-hybrid-code-index.md) | 向量+符号混合代码索引架构 | accepted | 2026-09-30 |
 
 ## 取代链（历史追溯）
 

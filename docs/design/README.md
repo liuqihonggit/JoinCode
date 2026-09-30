@@ -54,6 +54,13 @@
 | DSG021 | [DSG021-rg-engine-acceleration-and-unification.md](DSG021-rg-engine-acceleration-and-unification.md) | RgEngine 加速与全局统一 |
 | DSG022 | [DSG022-RangeDownloader-PRD.md](DSG022-RangeDownloader-PRD.md) | RangeDownloader 基建 PRD |
 
+### 代码索引
+
+| 编号 | 文件 | 标题 |
+|------|------|------|
+| DSG029 | [DSG029-inmemory-index-store-immutable-cas-refactor.md](DSG029-inmemory-index-store-immutable-cas-refactor.md) | InMemoryIndexStore 不可变+CAS 改造 |
+| DSG030 | [DSG030-vector-code-index-design.md](DSG030-vector-code-index-design.md) | 语言无关向量代码索引设计 |
+
 ### 其他
 
 | 编号 | 文件 | 标题 |

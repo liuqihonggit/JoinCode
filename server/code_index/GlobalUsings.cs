@@ -15,6 +15,7 @@ global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Utils.Text;
 global using JoinCode.CodeIndex.Analytics;
 global using JoinCode.CodeIndex.Ast;
+global using JoinCode.CodeIndex.Embedding;
 global using JoinCode.CodeIndex.Persistence;
 global using JoinCode.CodeIndex.Threading;
 global using JoinCode.CodeIndex.Vector;

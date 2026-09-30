@@ -130,9 +130,11 @@ internal sealed class DemoActor : ActorBase<DemoCmd, DemoOutput> {
         }
     }
 
+#pragma warning disable JCC9305 // 死锁演示测试:故意 fire-and-forget 演示 Consumer 阻塞场景,不能用 RegisterInFlight(会改变死锁时序)
     protected override void Handle(DemoCmd command, CancellationToken ct) {
         _ = HandleAsyncImpl(command, ct);
     }
+#pragma warning restore JCC9305
 
     private async ValueTask HandleAsyncImpl(DemoCmd command, CancellationToken ct) {
         if (Gate is not null) await Gate.Task.WaitAsync(ct);

@@ -278,7 +278,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// </summary>
     /// <param name="task">fire-and-forget 启动的任务引用</param>
     protected void RegisterInFlight(Task task) {
-        ThrowIfDisposed();
+        // 不调 ThrowIfDisposed — Dispose 与 Handle 存在竞态:Dispose 设 _disposed=1 后,
+        // Handle 里的 RegisterInFlight 若抛异常则任务不入 bag,Dispose 的 WhenAll 空集合立即完成(CI #691 根因)。
+        // 任务已 fire-and-forget 启动,必须入 bag 让 Dispose 等待,否则泄漏。
+        // 安全保证:RegisterInFlight 仅在 Handle 内调用,Handle 在 Consumer 线程串行执行,
+        // Consumer 退出(await _consumerTask)前所有 RegisterInFlight 已完成,Dispose 的 ToArray 必包含全部 in-flight 任务。
         _inFlightTasks.Add(task);
     }
 

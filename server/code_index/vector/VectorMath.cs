@@ -39,6 +39,14 @@ public static class VectorMath {
             ThrowDimensionMismatch(a.Length, b.Length);
         }
 
+        if (!System.Numerics.Vector.IsHardwareAccelerated) {
+            var scalarResult = 0f;
+            for (var i = 0; i < a.Length; i++) {
+                scalarResult += a[i] * b[i];
+            }
+            return scalarResult;
+        }
+
         var simdWidth = System.Numerics.Vector<float>.Count;
         var vectorCount = a.Length / simdWidth;
         var remainder = a.Length - vectorCount * simdWidth;
@@ -73,6 +81,12 @@ public static class VectorMath {
         var norm = L2Norm(a);
         if (norm == 0f) return;
         var invNorm = 1f / norm;
+        if (!System.Numerics.Vector.IsHardwareAccelerated) {
+            for (var j = 0; j < a.Length; j++) {
+                a[j] *= invNorm;
+            }
+            return;
+        }
         var invVec = new System.Numerics.Vector<float>(invNorm);
         var simdWidth = System.Numerics.Vector<float>.Count;
         var i = 0;

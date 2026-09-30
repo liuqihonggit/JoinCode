@@ -196,8 +196,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         // 并行 IO: 一次性启动所有读+哈希任务,Task.WhenAll 等待全部完成
         // (IncrementalUpdater.UpdateDirectoryAsync 已验证此模式,OS 处理 IO 并发)
+        // 大文件(>1MB)用 mmap 零拷贝读取，小文件用 ReadAllTextAsync
+        const long MmapThreshold = 1024 * 1024;
         var readTasks = csFiles.Select(async filePath => {
             ct.ThrowIfCancellationRequested();
+            if (_fs.GetFileLength(filePath) > MmapThreshold) {
+                var mapped = await HashUtility.ReadFileAndComputeHashMappedAsync(filePath, ct).ConfigureAwait(false);
+                return (FilePath: filePath, SourceCode: mapped.Content, Hash: mapped.Hash);
+            }
             var (sourceCode, currentHash) = await HashUtility.ReadFileAndComputeHashAsync(filePath, _fs, ct).ConfigureAwait(false);
             return (FilePath: filePath, SourceCode: sourceCode, Hash: currentHash);
         }).ToArray();

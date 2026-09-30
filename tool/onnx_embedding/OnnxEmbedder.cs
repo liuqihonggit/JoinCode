@@ -84,7 +84,7 @@ public sealed class OnnxEmbedder : IDisposable {
 
         if (outputDims.Length == 3) {
             var seqLenDim = outputDims[1];
-            if (output is DenseTensor<float> denseOutput) {
+            if (output is DenseTensor<float> denseOutput && Vector.IsHardwareAccelerated) {
                 var outputSpan = denseOutput.Buffer.Span;
                 for (var i = 0; i < batchSize; i++) {
                     var vector = new float[_dimensions];

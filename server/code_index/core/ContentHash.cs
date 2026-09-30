@@ -40,4 +40,28 @@ internal static class HashUtility {
         var hash = ComputeContentHash(content);
         return (content, hash);
     }
+
+    /// <summary>
+    /// 用 mmap 读取大文件内容并计算哈希 — 零拷贝内存映射，避免 ReadAllTextAsync 的 byte[] 中间分配。
+    /// <para>仅用于大文件（&gt;1MB），小文件用 ReadFileAndComputeHashAsync 更快（mmap 创建有固定开销）。</para>
+    /// <para>用 ArrayPool 租借缓冲区，减少 GC 压力。</para>
+    /// </summary>
+    /// <param name="filePath">文件路径（必须是磁盘上的真实文件）。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>文件内容与哈希的元组。</returns>
+    internal static async Task<(string Content, string Hash)> ReadFileAndComputeHashMappedAsync(string filePath, CancellationToken ct) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        using var mmf = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+        await using var vs = mmf.CreateViewStream(0, 0, MemoryMappedFileAccess.Read);
+        var length = (int)vs.Length;
+        var bytes = System.Buffers.ArrayPool<byte>.Shared.Rent(length);
+        try {
+            await vs.ReadExactlyAsync(bytes, 0, length, ct).ConfigureAwait(false);
+            var hash = ComputeContentHash(bytes.AsSpan(0, length));
+            var content = System.Text.Encoding.UTF8.GetString(bytes, 0, length);
+            return (content, hash);
+        } finally {
+            System.Buffers.ArrayPool<byte>.Shared.Return(bytes);
+        }
+    }
 }

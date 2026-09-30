@@ -32,7 +32,10 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     private string _statusText = "未连接";
 
     [ObservableProperty]
-    private bool _isDarkTheme = true;
+    private GuiPalette.GuiThemeVariant _currentTheme = GuiPalette.GuiThemeVariant.Dark;
+
+    /// <summary>深色主题判定（派生属性 — Dark/SolarizedDark 为 true，兼容旧绑定）</summary>
+    public bool IsDarkTheme => CurrentTheme is GuiPalette.GuiThemeVariant.Dark or GuiPalette.GuiThemeVariant.SolarizedDark;
 
     [ObservableProperty]
     private string? _selectedModel;
@@ -61,8 +64,13 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     [ObservableProperty]
     private bool _isUnattendedMode = false;
 
-    /// <summary>主题切换按钮提示（区分深浅态）</summary>
-    public string ThemeToggleToolTip => IsDarkTheme ? "切换到浅色主题 ☀" : "切换到深色主题 ☾";
+    /// <summary>主题切换按钮提示（循环：Dark→Light→SolarizedDark→SolarizedLight）</summary>
+    public string ThemeToggleToolTip => CurrentTheme switch {
+        GuiPalette.GuiThemeVariant.Dark => "切换到浅色主题 ☀",
+        GuiPalette.GuiThemeVariant.Light => "切换到 Solarized Dark ◑",
+        GuiPalette.GuiThemeVariant.SolarizedDark => "切换到 Solarized Light ◐",
+        _ => "切换到深色主题 ☾"
+    };
     /// <summary>Mock 切换按钮提示（区分开关态）</summary>
     public string MockToggleToolTip => IsMockConnection ? "Mock 演示引擎：已开启 Ⓘ" : "Mock 演示引擎：已关闭";
     /// <summary>无人值守按钮提示（区分开关态）</summary>

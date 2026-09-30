@@ -199,13 +199,14 @@ public sealed partial class MainWindow : Window {
 
     /// <summary>ViewModel 状态变化时联动 View（主题切换、复制反馈 toast 等视图级响应）</summary>
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
-        if (e.PropertyName == nameof(MainViewModel.IsDarkTheme)) {
-            GuiPalette.CurrentVariant = _vm!.IsDarkTheme
-                ? GuiPalette.GuiThemeVariant.Dark
-                : GuiPalette.GuiThemeVariant.Light;
-            RequestedThemeVariant = _vm.IsDarkTheme
-                ? Avalonia.Styling.ThemeVariant.Dark
-                : Avalonia.Styling.ThemeVariant.Light;
+        if (e.PropertyName == nameof(MainViewModel.CurrentTheme)) {
+            GuiPalette.CurrentVariant = _vm!.CurrentTheme;
+            var isLight = _vm.CurrentTheme is GuiPalette.GuiThemeVariant.Light or GuiPalette.GuiThemeVariant.SolarizedLight;
+            RequestedThemeVariant = isLight
+                ? Avalonia.Styling.ThemeVariant.Light
+                : Avalonia.Styling.ThemeVariant.Dark;
+            // 更新 ThemeDictionaries 槽位为当前主题配色（Solarized 复用 Dark/Light 槽位）
+            GuiAppResources.ApplyTheme(_vm.CurrentTheme);
             // 重新赋值 DataContext，强制所有转换器按新主题重算颜色（气泡/指示器/角色标签）
             var dc = DataContext;
             DataContext = null;

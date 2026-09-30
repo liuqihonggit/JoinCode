@@ -7,7 +7,7 @@ namespace JoinCode.Gui.Theming;
 /// 应用资源字典，使 XAML 中 {DynamicResource} 自动解析对应主题的 <see cref="IBrush"/>。
 /// </summary>
 public static class GuiPalette {
-    /// <summary>主题变体：Dark（默认）/ Light，可扩展未来主题。</summary>
+    /// <summary>主题变体：Dark（默认）/ Light / SolarizedDark / SolarizedLight。</summary>
     public enum GuiThemeVariant {
         /// <summary>暗色主题（默认）</summary>
         [EnumValue("dark")]
@@ -15,6 +15,12 @@ public static class GuiPalette {
         /// <summary>亮色主题</summary>
         [EnumValue("light")]
         Light,
+        /// <summary>Solarized 暗色主题（经典程序员配色）</summary>
+        [EnumValue("solarized-dark")]
+        SolarizedDark,
+        /// <summary>Solarized 亮色主题</summary>
+        [EnumValue("solarized-light")]
+        SolarizedLight,
     }
 
     /// <summary>一组语义颜色（单个主题的静态数据）。</summary>
@@ -269,9 +275,133 @@ public static class GuiPalette {
         TurnColorB = "#fff0d5"
     };
 
+    /// <summary>Solarized Dark — 经典程序员暗色配色（base03 底色，base1 正文，blue 强调）</summary>
+    private static readonly Scheme SolarizedDark = new() {
+        WindowBackground = "#002b36",
+        SidebarBackground = "#073642",
+        SidebarTitle = "#93a1a1",
+        TopBarBackground = "#073642",
+        InputBarBackground = "#073642",
+        StatusBarBackground = "#002b36",
+        SearchBarBackground = "#073642",
+        SettingsBackground = "#002b36",
+        Divider = "#586e75",
+        PrimaryText = "#93a1a1",
+        SecondaryText = "#839496",
+        MutedText = "#657b83",
+        AccentText = "#268bd2",
+        RoleUser = "#268bd2",
+        RoleAssistant = "#2aa198",
+        BubbleText = "#073642",
+        BubbleUser = "#073642",
+        BubbleThinking = "#073642",
+        BubbleToolCall = "#073642",
+        BubbleToolResult = "#073642",
+        ThinkingLabel = "#6c71c4",
+        ToolLabel = "#268bd2",
+        ToolArgument = "#839496",
+        ToolResult = "#859900",
+        WarnText = "#cb4b16",
+        ErrorText = "#dc322f",
+        SuccessText = "#859900",
+        BusyText = "#b58900",
+        SessionHighlight = "#073642",
+        ButtonBackground = "#073642",
+        ButtonHover = "#094858",
+        ButtonPressed = "#0a5060",
+        ButtonBorder = "#586e75",
+        ButtonForeground = "#93a1a1",
+        EditorForeground = "#93a1a1",
+        ToastSuccess = "#268bd2",
+        ToastError = "#dc322f",
+        ToastShadow = "#90000000",
+        SlashMatched = "#b58900",
+        ToastForeground = "#93a1a1",
+        PopupBackground = "#073642",
+        PaletteSelectedRow = "#094858",
+        AccentSubtle = "#094858",
+        AccentSubtleHover = "#0a5060",
+        AccentHover = "#3a9bd8",
+        CardHover = "#094858",
+        ComposerBackground = "#073642",
+        CodeBlockBackground = "#003845",
+        DiffAddedBackground = "#073642",
+        DiffRemovedBackground = "#073642",
+        DangerLevelYellow = "#b58900",
+        DangerLevelGreen = "#859900",
+        DangerLevelRed = "#dc322f",
+        DangerLevelBlack = "#851501",
+        TurnColorA = "#094858",
+        TurnColorB = "#584832"
+    };
+
+    /// <summary>Solarized Light — 经典程序员亮色配色（base3 底色，base00 正文，blue 强调）</summary>
+    private static readonly Scheme SolarizedLight = new() {
+        WindowBackground = "#fdf6e3",
+        SidebarBackground = "#eee8d5",
+        SidebarTitle = "#586e75",
+        TopBarBackground = "#eee8d5",
+        InputBarBackground = "#eee8d5",
+        StatusBarBackground = "#fdf6e3",
+        SearchBarBackground = "#eee8d5",
+        SettingsBackground = "#fdf6e3",
+        Divider = "#93a1a1",
+        PrimaryText = "#657b83",
+        SecondaryText = "#586e75",
+        MutedText = "#93a1a1",
+        AccentText = "#268bd2",
+        RoleUser = "#268bd2",
+        RoleAssistant = "#2aa198",
+        BubbleText = "#586e75",
+        BubbleUser = "#eee8d5",
+        BubbleThinking = "#eee8d5",
+        BubbleToolCall = "#eee8d5",
+        BubbleToolResult = "#eee8d5",
+        ThinkingLabel = "#6c71c4",
+        ToolLabel = "#268bd2",
+        ToolArgument = "#586e75",
+        ToolResult = "#859900",
+        WarnText = "#cb4b16",
+        ErrorText = "#dc322f",
+        SuccessText = "#859900",
+        BusyText = "#b58900",
+        SessionHighlight = "#eee8d5",
+        ButtonBackground = "#eee8d5",
+        ButtonHover = "#e0d8c4",
+        ButtonPressed = "#d6cdb6",
+        ButtonBorder = "#93a1a1",
+        ButtonForeground = "#657b83",
+        EditorForeground = "#657b83",
+        ToastSuccess = "#268bd2",
+        ToastError = "#dc322f",
+        ToastShadow = "#90000000",
+        SlashMatched = "#b58900",
+        ToastForeground = "#657b83",
+        PopupBackground = "#eee8d5",
+        PaletteSelectedRow = "#e0d8c4",
+        AccentSubtle = "#e0d8c4",
+        AccentSubtleHover = "#d6cdb6",
+        AccentHover = "#1a7fc0",
+        CardHover = "#e0d8c4",
+        ComposerBackground = "#eee8d5",
+        CodeBlockBackground = "#eee8d5",
+        DiffAddedBackground = "#eee8d5",
+        DiffRemovedBackground = "#eee8d5",
+        DangerLevelYellow = "#b58900",
+        DangerLevelGreen = "#859900",
+        DangerLevelRed = "#dc322f",
+        DangerLevelBlack = "#851501",
+        TurnColorA = "#d5e6ff",
+        TurnColorB = "#fff0d5"
+    };
+
     /// <summary>获取指定主题的配色方案。</summary>
-    public static Scheme SchemeFor(GuiThemeVariant variant)
-        => variant == GuiThemeVariant.Light ? Light : Dark;
+    public static Scheme SchemeFor(GuiThemeVariant variant) => variant switch {
+        GuiThemeVariant.Light => Light,
+        GuiThemeVariant.SolarizedDark => SolarizedDark,
+        GuiThemeVariant.SolarizedLight => SolarizedLight,
+        _ => Dark
+    };
 
     private static GuiThemeVariant _currentVariant = GuiThemeVariant.Dark;
 
@@ -288,10 +418,16 @@ public static class GuiPalette {
     public static IReadOnlyDictionary<GuiThemeVariant, ResourceDictionary> BuildResourceDictionaries() {
         var result = new Dictionary<GuiThemeVariant, ResourceDictionary> {
             [GuiThemeVariant.Dark] = BuildDictionary(Dark),
-            [GuiThemeVariant.Light] = BuildDictionary(Light)
+            [GuiThemeVariant.Light] = BuildDictionary(Light),
+            [GuiThemeVariant.SolarizedDark] = BuildDictionary(SolarizedDark),
+            [GuiThemeVariant.SolarizedLight] = BuildDictionary(SolarizedLight)
         };
         return result;
     }
+
+    /// <summary>构建指定主题的资源字典（供 GuiAppResources 主题切换时替换 ThemeDictionaries 槽位）。</summary>
+    public static ResourceDictionary BuildDictionaryFor(GuiThemeVariant variant)
+        => BuildDictionary(SchemeFor(variant));
 
     private static ResourceDictionary BuildDictionary(Scheme scheme) {
         var dict = new ResourceDictionary();

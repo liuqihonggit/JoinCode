@@ -47,7 +47,8 @@ internal sealed class ConnectionDropdownManager {
         ModelOptions.Clear();
         foreach (var id in source) {
             var tags = BuildModalityTags(configLoader, provider, id);
-            ModelOptions.Add(new ModelOptionItem(id, $"{providerDisplay}:{id}", tags));
+            var contextWindow = configLoader.FindModel(provider, id)?.ContextWindow ?? 0;
+            ModelOptions.Add(new ModelOptionItem(id, $"{providerDisplay}:{id}", tags, contextWindow));
         }
         _modelById = ModelOptions.ToLookup(m => m.Id, StringComparer.OrdinalIgnoreCase);
     }

@@ -15,11 +15,15 @@ public sealed class ModelOptionItem {
     /// <summary>模态能力标签文本（如 "📷🖼🔧"），空字符串表示仅文本</summary>
     public string ModalityTags { get; }
 
+    /// <summary>上下文窗口大小（token 数，0 表示未知）— 驱动 MaxTokens 联动（任务3）</summary>
+    public int ContextWindow { get; }
+
     /// <summary>创建展示项</summary>
-    public ModelOptionItem(string id, string displayText, string modalityTags = "") {
+    public ModelOptionItem(string id, string displayText, string modalityTags = "", int contextWindow = 0) {
         Id = id;
         DisplayText = displayText;
         ModalityTags = modalityTags;
+        ContextWindow = contextWindow;
     }
 
     /// <summary>比较两个实例是否相等</summary>

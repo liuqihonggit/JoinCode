@@ -185,8 +185,10 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     /// </summary>
     public BackgroundAgentsPanelViewModel BackgroundPanel { get; }
 
-    /// <summary>输入字符数上限（超过即警示）</summary>
-    public int MaxInputChars => MaxTokens * 3;
+    /// <summary>输入字符数上限（超过即警示）— 优先用模型 ContextWindow，回退 MaxTokens*3（任务3联动）</summary>
+    public int MaxInputChars => SelectedModelOption is { ContextWindow: > 0 } opt
+        ? opt.ContextWindow * 3
+        : MaxTokens * 3;
 
     /// <summary>输入是否超过建议上限（驱动顶栏警示与计数标红）</summary>
     public bool IsInputTooLong => CharsCount > MaxInputChars;

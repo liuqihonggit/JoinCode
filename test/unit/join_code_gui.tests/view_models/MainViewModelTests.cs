@@ -1648,6 +1648,58 @@ public class MainViewModelTests {
             item.DriveLetter[1].Should().Be(':', "盘号第二字符应为冒号");
         });
     }
+
+    // === Token 上限模型联动测试（任务3） ===
+
+    /// <summary>EstimateMaxOutputTokens 估算逻辑 — ContextWindow 的 1/4，下限 1024，上限 32768</summary>
+    [Theory]
+    [InlineData(0, 4096)]       // 未知 → 默认 4096
+    [InlineData(-1, 4096)]      // 负值 → 默认 4096
+    [InlineData(1000, 1024)]    // 小模型 → 下限 1024
+    [InlineData(4096, 1024)]    // 4K 上下文 → 1024
+    [InlineData(16384, 4096)]   // 16K → 4096
+    [InlineData(65536, 16384)]  // 64K → 16384
+    [InlineData(131072, 32768)] // 128K → 32768
+    [InlineData(1048576, 32768)] // 1M → 上限 32768
+    public void EstimateMaxOutputTokens_BoundsClamped(int contextWindow, int expected) {
+        MainViewModel.EstimateMaxOutputTokens(contextWindow).Should().Be(expected);
+    }
+
+    /// <summary>MaxInputChars 优先用模型 ContextWindow — 无模型时回退 MaxTokens*3</summary>
+    [Fact]
+    public void MaxInputChars_PrefersModelContextWindow_OverMaxTokens() {
+        var vm = CreateVm();
+        var maxTokensBased = vm.MaxTokens * 3;
+
+        // 无模型选中时 → 回退 MaxTokens*3
+        vm.SelectedModelOption = null;
+        vm.MaxInputChars.Should().Be(maxTokensBased);
+
+        // 有模型且 ContextWindow>0 → 用 ContextWindow*3
+        var modelWithCtx = new ModelOptionItem("test-model", "Test:Model", "", 32768);
+        vm.SelectedModelOption = modelWithCtx;
+        vm.MaxInputChars.Should().Be(32768 * 3, "应优先用模型 ContextWindow");
+
+        // 模型 ContextWindow=0 → 回退 MaxTokens*3（此时 MaxTokens 已被之前联动改过）
+        var modelNoCtx = new ModelOptionItem("test-model2", "Test:Model2", "", 0);
+        vm.SelectedModelOption = modelNoCtx;
+        vm.MaxInputChars.Should().Be(vm.MaxTokens * 3, "ContextWindow=0 时回退到当前 MaxTokens*3");
+    }
+
+    /// <summary>切换模型联动 MaxTokens — ContextWindow 变化时 MaxTokens 自动调整</summary>
+    [Fact]
+    public void SelectedModelOption_Change_UpdatesMaxTokens_ByContextWindow() {
+        var vm = CreateVm();
+        var originalMaxTokens = vm.MaxTokens;
+
+        // 切换到 128K 上下文模型 → MaxTokens 应联动为 32768
+        vm.SelectedModelOption = new ModelOptionItem("big-model", "Test:Big", "", 131072);
+        vm.MaxTokens.Should().Be(32768, "128K 上下文应联动 MaxTokens=32768");
+
+        // 切换到 8K 上下文模型 → MaxTokens 应联动为 2048
+        vm.SelectedModelOption = new ModelOptionItem("small-model", "Test:Small", "", 8192);
+        vm.MaxTokens.Should().Be(2048, "8K 上下文应联动 MaxTokens=2048");
+    }
 }
 
 /// <summary>

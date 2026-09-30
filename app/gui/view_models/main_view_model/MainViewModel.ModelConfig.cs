@@ -18,12 +18,29 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private ModelOptionItem? _selectedModelOption;
 
-    /// <summary>用户切换模型下拉项时回写共享配置（绑定同一个配置源，下次请求引擎生效）</summary>
+    /// <summary>用户切换模型下拉项时回写共享配置 + 联动更新 MaxTokens（任务3双向联动）</summary>
     partial void OnSelectedModelOptionChanged(ModelOptionItem? value) {
         if (value is not null && value.Id != _session.CurrentModelId) {
             SelectedModel = value.Id;
         }
+        // 联动：切换模型时按 ContextWindow 自动更新 MaxTokens（模型上限）
+        if (value is not null && value.ContextWindow > 0) {
+            var suggested = EstimateMaxOutputTokens(value.ContextWindow);
+            if (MaxTokens != suggested) {
+                MaxTokens = suggested;
+            }
+        }
+        OnPropertyChanged(nameof(MaxInputChars));
     }
+
+    /// <summary>
+    /// 估算合理输出 token 上限 — ContextWindow 的 1/4（留 75% 给输入+系统提示），
+    /// 下限 1024（保证可用），上限 32768（避免过大）。0 或负值返回 4096 默认值。
+    /// </summary>
+    internal static int EstimateMaxOutputTokens(int contextWindow)
+        => contextWindow > 0
+            ? Math.Clamp(contextWindow / 4, 1024, 32768)
+            : 4096;
 
     /// <summary>用户切换模型时持久化由 OnPropertyChanged 自动路由处理（SelectedModel 映射 SetModelAsync）</summary>
 

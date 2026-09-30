@@ -10,8 +10,8 @@ public sealed class McpMockServerConfig : MockServerConfigBase<McpMockServerConf
     /// <summary>服务器版本（返回给客户端的 serverInfo.version）</summary>
     public string ServerVersion { get; set; } = "1.0.0";
 
-    /// <summary>MCP 协议版本 — 必须与 McpProtocolVersion.Current 保持同步(P1-⑦: test/mock 不引用 kit/mcp,无法委托)</summary>
-    public string ProtocolVersion { get; set; } = "2025-11-25";
+    /// <summary>MCP 协议版本 — 委托 McpProtocolVersion.Current(TASK031 阶段B4:常量已下沉到 abstractions)</summary>
+    public string ProtocolVersion { get; set; } = McpProtocolVersion.Current;
 
     /// <summary>Mock 工具列表</summary>
     public List<McpToolDefinition> Tools { get; set; } = [];

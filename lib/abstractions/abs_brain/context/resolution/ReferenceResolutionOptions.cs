@@ -220,6 +220,7 @@ public sealed class ReferenceResolutionOptionsBuilder {
     /// 设置最小相关度评分阈值
     /// </summary>
     public ReferenceResolutionOptionsBuilder WithMinRelevanceScore(double score) {
+        if (score < 0.0 || score > 1.0) throw new ArgumentOutOfRangeException(nameof(score), score, "相关度评分必须在 [0, 1]");
         _minRelevanceScore = score;
         return this;
     }
@@ -228,6 +229,7 @@ public sealed class ReferenceResolutionOptionsBuilder {
     /// 设置最大返回结果数
     /// </summary>
     public ReferenceResolutionOptionsBuilder WithMaxResults(int maxResults) {
+        if (maxResults <= 0) throw new ArgumentOutOfRangeException(nameof(maxResults), maxResults, "最大结果数必须 > 0");
         _maxResults = maxResults;
         return this;
     }
@@ -260,6 +262,7 @@ public sealed class ReferenceResolutionOptionsBuilder {
     /// 设置模糊匹配的相似度阈值
     /// </summary>
     public ReferenceResolutionOptionsBuilder WithFuzzyMatchThreshold(double threshold) {
+        if (threshold < 0.0 || threshold > 1.0) throw new ArgumentOutOfRangeException(nameof(threshold), threshold, "模糊匹配阈值必须在 [0, 1]");
         _fuzzyMatchThreshold = threshold;
         return this;
     }

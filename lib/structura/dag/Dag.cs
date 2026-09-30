@@ -27,6 +27,9 @@ public sealed class Dag<T> {
     /// 添加节点
     /// </summary>
     public DagResult AddNode(DagNode<T> node) {
+        ArgumentNullException.ThrowIfNull(node);
+        if (string.IsNullOrEmpty(node.Id))
+            throw new ArgumentException("节点 Id 不能为 null 或空", nameof(node));
         if (_nodes.ContainsKey(node.Id))
             return DagResult.Fail($"Node already exists: {node.Id}");
 
@@ -43,6 +46,11 @@ public sealed class Dag<T> {
     /// 添加边 — 自动检测环
     /// </summary>
     public DagResult AddEdge(DagEdge edge) {
+        ArgumentNullException.ThrowIfNull(edge);
+        if (string.IsNullOrEmpty(edge.FromId))
+            throw new ArgumentException("边 FromId 不能为 null 或空", nameof(edge));
+        if (string.IsNullOrEmpty(edge.ToId))
+            throw new ArgumentException("边 ToId 不能为 null 或空", nameof(edge));
         if (!_nodes.ContainsKey(edge.FromId))
             return DagResult.Fail($"Source node not found: {edge.FromId}");
         if (!_nodes.ContainsKey(edge.ToId))
@@ -72,6 +80,8 @@ public sealed class Dag<T> {
     /// 判断添加 from→to 边是否会产生环
     /// </summary>
     public bool WouldCreateCycle(string fromId, string toId) {
+        ArgumentNullException.ThrowIfNull(fromId);
+        ArgumentNullException.ThrowIfNull(toId);
         if (fromId == toId) return true;
         return GetDescendants(toId).Any(d => d.Id == fromId);
     }

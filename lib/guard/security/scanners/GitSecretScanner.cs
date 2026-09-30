@@ -18,6 +18,7 @@ public sealed partial class GitSecretScanner : ServiceEntity, IGitSecretScanner 
 
     /// <inheritdoc />
     public Task<ScanResult> ScanFileNamesAsync(IReadOnlyList<string> stagedFiles, CancellationToken ct = default) {
+        ArgumentNullException.ThrowIfNull(stagedFiles);
         var findings = new List<SecretFinding>();
 
         foreach (var file in stagedFiles) {

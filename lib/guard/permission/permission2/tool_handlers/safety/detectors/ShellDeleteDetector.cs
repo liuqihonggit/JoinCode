@@ -13,10 +13,11 @@ public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperatio
         ShellToolNameEnumConstants.Powershell
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly FrozenSet<string> DeleteCommandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        "rm", "del", "erase", "Remove-Item", "rmdir", "rd"
-    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// 删除命令名集合 — 委托 DangerousCommandCatalog.AllDeletionCommands 唯一数据源
+    /// <para>覆盖 rm/del/erase/Remove-Item/rmdir/rd(FileDeletion + DirectoryDeletion),禁止重复硬编码</para>
+    /// </summary>
+    private static readonly FrozenSet<string> DeleteCommandNames = DangerousCommandCatalog.AllDeletionCommands;
 
     private readonly IDestructiveCommandDetector? _destructiveCommandDetector;
 

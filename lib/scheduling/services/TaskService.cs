@@ -75,6 +75,12 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         int limit,
         int offset,
         CancellationToken cancellationToken = default) {
+        if (offset < 0) {
+            throw new ArgumentOutOfRangeException(nameof(offset), offset, "offset must be non-negative");
+        }
+        if (limit < 0) {
+            throw new ArgumentOutOfRangeException(nameof(limit), limit, "limit must be non-negative");
+        }
         var query = _tasks.Values.Select(e => e.Item).AsEnumerable();
 
         if (!string.IsNullOrEmpty(status)) {

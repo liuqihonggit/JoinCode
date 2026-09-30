@@ -45,7 +45,7 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
     public abstract string? EndpointEnvironmentVariable { get; }
 
     /// <summary>默认基础 URL，默认为 OpenAI 官方端点</summary>
-    protected virtual string DefaultBaseUrl => "https://api.openai.com/v1/";
+    protected virtual string DefaultBaseUrl => JccEndpoints.OpenAiApiBase;
     /// <summary>聊天补全路径，默认为 "chat/completions"</summary>
     protected virtual string ChatCompletionsPath => "chat/completions";
     /// <summary>认证头名称，默认为 "Authorization"</summary>

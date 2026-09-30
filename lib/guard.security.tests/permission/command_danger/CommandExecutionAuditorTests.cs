@@ -102,4 +102,24 @@ public class CommandExecutionAuditorTests {
 
         await act.Should().NotThrowAsync();
     }
+
+    #region null 守卫
+
+    [Fact]
+    public void Constructor_NullFileSystem_ThrowsArgumentNullException() {
+        var act = () => new CommandExecutionAuditor(null!);
+        act.Should().Throw<ArgumentNullException>()
+            .Which.ParamName.Should().Be("fs");
+    }
+
+    [Fact]
+    public async Task Record_NullEntry_ThrowsArgumentNullException() {
+        await using var fs = new InMemoryFileSystem();
+        await using var auditor = CreateAuditor(fs);
+        var act = async () => await auditor.Record(null!);
+        var thrown = await act.Should().ThrowAsync<ArgumentNullException>();
+        thrown.Which.ParamName.Should().Be("entry");
+    }
+
+    #endregion
 }

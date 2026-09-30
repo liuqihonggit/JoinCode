@@ -12,14 +12,10 @@ public sealed class MarkdownWalkerOptions {
 
     /// <summary>
     /// 要排除的目录名称列表
+    /// 委托 ExcludedDirectoryCatalog.MarkdownWalkExcludedArray — 唯一数据源(消除跨模块重复定义)
+    /// 含 13 个目录:核心 4 + Markdown 9(对齐原 12 个 + .x 归档目录)
     /// </summary>
-    public IReadOnlyList<string> ExcludeDirs { get; init; } = new[]
-    {
-        ".git", ".svn", ".hg",
-        "node_modules", "bin", "obj",
-        ".vs", ".vscode", ".idea",
-        "dist", "build", "out"
-    };
+    public IReadOnlyList<string> ExcludeDirs { get; init; } = ExcludedDirectoryCatalog.MarkdownWalkExcludedArray;
 
     /// <summary>
     /// 技能文件名（不含扩展名）

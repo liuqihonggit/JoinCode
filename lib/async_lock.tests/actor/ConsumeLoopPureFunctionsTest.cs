@@ -6,6 +6,7 @@ namespace Core.Utils;
 /// <para>覆盖:普通命令/幂等命中跳过/幂等未命中执行/Handle异常/OnConsumerError异常/取消退出/取消未退出。</para>
 /// <para>测试直接调用 ProcessSingleCommand,无需 Tell+等待 Consumer 调度,完全确定性。</para>
 /// </summary>
+[Trait("Category", "Deterministic")]
 public class ConsumeLoopPureFunctionsTest {
 
     /// <summary>普通命令(无幂等存储) → Handle 被调用,返回 true(继续循环)</summary>

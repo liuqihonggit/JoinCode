@@ -146,25 +146,32 @@ public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISw
         return updates;
     }
 
-    private static bool IsAutoApprovedTool(string toolName) {
-        var autoApproved = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "read_file", "list_files", "search_files", "get_file_info",
-            "code_search", "symbol_search", "grep", "glob",
-            "agent_list", "agent_status", "agent_get_messages"
-        };
+    /// <summary>
+    /// 自动批准的工具名集合 — 只读/查询类工具,无需权限确认
+    /// </summary>
+    private static readonly FrozenSet<string> AutoApprovedToolNames = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "read_file", "list_files", "search_files", "get_file_info",
+        "code_search", "symbol_search", "grep", "glob",
+        "agent_list", "agent_status", "agent_get_messages");
 
-        return autoApproved.Contains(toolName);
-    }
+    /// <summary>
+    /// 危险工具名集合 — Swarm 协议工具名(非 shell 命令名),语义与 DangerousCommandCatalog(命令名)不同
+    /// <para>
+    /// 这里是工具名语义:file_delete 是删除文件的工具,git_reset/git_clean/git_push 是 git 子命令的下划线形式。
+    /// 与 DangerousCommandCatalog(shell 命令名)语义不同,故保留独立定义。
+    /// 命令名部分(rm/shutdown)虽与 Catalog 重叠,但在此上下文中是工具名,保留以维持语义清晰。
+    /// </para>
+    /// </summary>
+    private static readonly FrozenSet<string> DangerousToolNames = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "file_delete", "rm", "delete",
+        "git_reset", "git_clean", "git_push",
+        "format_disk", "shutdown");
 
-    private static bool IsDangerousTool(string toolName) {
-        var dangerous = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "file_delete", "rm", "delete",
-            "git_reset", "git_clean", "git_push",
-            "format_disk", "shutdown"
-        };
+    private static bool IsAutoApprovedTool(string toolName)
+        => AutoApprovedToolNames.Contains(toolName);
 
-        return dangerous.Contains(toolName);
-    }
+    private static bool IsDangerousTool(string toolName)
+        => DangerousToolNames.Contains(toolName);
 }

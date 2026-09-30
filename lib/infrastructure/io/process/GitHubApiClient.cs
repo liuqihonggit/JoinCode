@@ -15,7 +15,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
     private readonly Func<string?>? _ghTokenResolver;
     private readonly ILogger<GitHubApiClient>? _logger;
 
-    private const string DefaultBaseUrl = "https://api.github.com/";
+    private const string DefaultBaseUrl = JccEndpoints.GitHubApiBase + "/";
     private const string AcceptHeader = "application/vnd.github+json";
     private const string UserAgent = "jcc/1.0";
     private const int MaxRateLimitRetries = 3;
@@ -38,7 +38,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         _logger = logger;
 
         if (_httpClient.BaseAddress is null) {
-            var baseUrl = Environment.GetEnvironmentVariable("JCC_GITHUB_API_URL");
+            var baseUrl = Environment.GetEnvironmentVariable(JccEnvVar.GithubApiUrl.ToValue());
             _httpClient.BaseAddress = new Uri(string.IsNullOrWhiteSpace(baseUrl) ? DefaultBaseUrl : EnsureTrailingSlash(baseUrl));
         }
 
@@ -425,7 +425,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
     // === 私有辅助方法 ===
 
     private string ResolveToken() {
-        var token = Environment.GetEnvironmentVariable("JCC_GITHUB_TOKEN")
+        var token = Environment.GetEnvironmentVariable(JccEnvVar.GithubToken.ToValue())
             ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN");
         if (string.IsNullOrWhiteSpace(token)) {
             // Fallback: 从 gh CLI 存储位置读取 token(不调 gh 进程)

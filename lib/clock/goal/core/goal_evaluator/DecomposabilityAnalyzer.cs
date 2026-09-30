@@ -26,7 +26,7 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
         CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
 
-        var envOverride = Environment.GetEnvironmentVariable("JCC_CLUSTER_DECOMPOSITION_OVERRIDE");
+        var envOverride = Environment.GetEnvironmentVariable(JccEnvVar.ClusterDecompositionOverride.ToValue());
         if (!string.IsNullOrWhiteSpace(envOverride)) {
             _logger?.LogInformation("Decomposability analyzer using environment override");
             return ParseAnalysisResult(envOverride, _logger);

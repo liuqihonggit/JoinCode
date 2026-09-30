@@ -5,6 +5,7 @@ namespace Core.Utils;
 /// <para>覆盖:无背压(null)、未达阈值、等于阈值(边界)、超过阈值、零计数、默认水位线比例。</para>
 /// <para>static 方法通过 PureFuncActor(AskRetryPureFunctionsTest 中定义)调用,不实例化 Actor,无时序依赖。</para>
 /// </summary>
+[Trait("Category", "Deterministic")]
 public class WatermarkPureFunctionsTest {
     private static ActorBackpressure Bp(int cap, int high, int crit)
         => new(Capacity: cap, HighWatermark: high, CriticalWatermark: crit);

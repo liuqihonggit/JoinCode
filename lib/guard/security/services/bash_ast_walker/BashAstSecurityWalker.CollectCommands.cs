@@ -3,6 +3,8 @@ namespace JoinCode.Abstractions.Security.Shell;
 public sealed partial class BashAstSecurityWalker {
     private static BashAstSecurityResult? CollectCommands(
         Node node, List<BashSimpleCommandInfo> commands, Dictionary<string, string> varScope) {
+        if (node is null)
+            return new BashAstSecurityResult.TooComplex("Null node", "NULL_NODE");
         switch (node.Type) {
             case "command":
             return WalkCommand(node, [], commands, varScope);

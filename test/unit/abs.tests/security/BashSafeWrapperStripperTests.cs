@@ -3,7 +3,9 @@ namespace Abs.Tests.Security;
 /// <summary>
 /// BashSafeWrapperStripper 确定性单元测试 — 覆盖 StripSafeWrappers(public)。
 /// 纯数组剥离逻辑,不依赖时序/IO。包装命令: time/nohup/timeout/nice/env/stdbuf。
+/// 终止性测试(超时保护)已迁移到 BashSafeWrapperStripperTerminationTests.cs。
 /// </summary>
+[Trait("Category", "Deterministic")]
 public sealed class BashSafeWrapperStripperTests {
 
     [Fact]
@@ -120,50 +122,6 @@ public sealed class BashSafeWrapperStripperTests {
     [Fact]
     public void Strip_DeepNesting_Stripped() {
         BashSafeWrapperStripper.StripSafeWrappers(["time", "nohup", "env", "FOO=1", "ls"]).Should().Equal(["ls"]);
-    }
-
-    [Fact]
-    public async Task Strip_TimeoutAlone_DoesNotInfiniteLoop() {
-        // 验证 ["timeout"] 单独输入(无后续命令)不会无限循环
-        // 用 WhenAny + Delay: 若 2s 未完成则判定为无限循环 bug
-        var work = Task.Run(() => BashSafeWrapperStripper.StripSafeWrappers(["timeout"]));
-        var winner = await Task.WhenAny(work, Task.Delay(2000));
-        winner.Should().Be(work, "StripSafeWrappers([\"timeout\"]) 应在有限时间内返回,不应无限循环");
-    }
-
-    [Fact]
-    public async Task Strip_NohupAlone_DoesNotInfiniteLoop() {
-        var work = Task.Run(() => BashSafeWrapperStripper.StripSafeWrappers(["nohup"]));
-        var winner = await Task.WhenAny(work, Task.Delay(2000));
-        winner.Should().Be(work);
-    }
-
-    [Fact]
-    public async Task Strip_TimeAlone_DoesNotInfiniteLoop() {
-        var work = Task.Run(() => BashSafeWrapperStripper.StripSafeWrappers(["time"]));
-        var winner = await Task.WhenAny(work, Task.Delay(2000));
-        winner.Should().Be(work);
-    }
-
-    [Fact]
-    public async Task Strip_NiceAlone_DoesNotInfiniteLoop() {
-        var work = Task.Run(() => BashSafeWrapperStripper.StripSafeWrappers(["nice"]));
-        var winner = await Task.WhenAny(work, Task.Delay(2000));
-        winner.Should().Be(work);
-    }
-
-    [Fact]
-    public async Task Strip_EnvAlone_DoesNotInfiniteLoop() {
-        var work = Task.Run(() => BashSafeWrapperStripper.StripSafeWrappers(["env"]));
-        var winner = await Task.WhenAny(work, Task.Delay(2000));
-        winner.Should().Be(work);
-    }
-
-    [Fact]
-    public async Task Strip_StdbufAlone_DoesNotInfiniteLoop() {
-        var work = Task.Run(() => BashSafeWrapperStripper.StripSafeWrappers(["stdbuf"]));
-        var winner = await Task.WhenAny(work, Task.Delay(2000));
-        winner.Should().Be(work);
     }
 
     [Fact]

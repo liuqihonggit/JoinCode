@@ -52,4 +52,24 @@ public sealed class ContentHashTests {
     public void ComputeContentHash_NullString_Throws() {
         Assert.Throws<ArgumentNullException>(() => HashUtility.ComputeContentHash((string)null!));
     }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task ReadFileAndComputeHashAsync_NullFilePath_ThrowsArgumentNullException() {
+        await using var fs = new InMemoryFileSystem();
+        await Assert.ThrowsAsync<ArgumentNullException>(() => HashUtility.ReadFileAndComputeHashAsync(null!, fs, CancellationToken.None)).ConfigureAwait(true);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task ReadFileAndComputeHashAsync_EmptyFilePath_ThrowsArgumentException() {
+        await using var fs = new InMemoryFileSystem();
+        await Assert.ThrowsAsync<ArgumentException>(() => HashUtility.ReadFileAndComputeHashAsync("", fs, CancellationToken.None)).ConfigureAwait(true);
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public async Task ReadFileAndComputeHashAsync_NullFileSystem_ThrowsArgumentNullException() {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => HashUtility.ReadFileAndComputeHashAsync("/tmp/x.cs", null!, CancellationToken.None)).ConfigureAwait(true);
+    }
 }

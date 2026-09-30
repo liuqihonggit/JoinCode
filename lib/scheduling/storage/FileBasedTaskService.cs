@@ -101,6 +101,12 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
         int limit,
         int offset,
         CancellationToken cancellationToken = default) {
+        if (offset < 0) {
+            throw new ArgumentOutOfRangeException(nameof(offset), offset, "offset must be non-negative");
+        }
+        if (limit < 0) {
+            throw new ArgumentOutOfRangeException(nameof(limit), limit, "limit must be non-negative");
+        }
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         try {

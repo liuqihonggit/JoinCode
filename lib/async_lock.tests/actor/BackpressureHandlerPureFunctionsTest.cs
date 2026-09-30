@@ -5,6 +5,7 @@ namespace Core.Utils;
 /// <para>覆盖:ShouldDelayRetry 边界(零/正/负/最大值)、零延迟同步调用 resend、resend 异常吞掉。</para>
 /// <para>static 方法通过 PureFuncActor(AskRetryPureFunctionsTest 中定义)调用,不实例化 Actor,无时序依赖。</para>
 /// </summary>
+[Trait("Category", "Deterministic")]
 public class BackpressureHandlerPureFunctionsTest {
     private static BackpressureSignal Signal(TimeSpan delay)
         => new(0, "src", "tgt", WatermarkLevel.High, delay, 0);

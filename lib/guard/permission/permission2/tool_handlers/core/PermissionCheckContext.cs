@@ -50,6 +50,7 @@ public sealed class PermissionCheckContext {
     /// 从工具参数中提取路径
     /// </summary>
     public static string? ExtractPathFromArguments(Dictionary<string, JsonElement> arguments) {
+        ArgumentNullException.ThrowIfNull(arguments);
         if (arguments.TryGetValue("file_path", out var filePathEl) && filePathEl.ValueKind == JsonValueKind.String)
             return filePathEl.GetString();
 
@@ -135,6 +136,7 @@ public sealed class PermissionCheckContext {
     /// 检查路径是否为敏感路径
     /// </summary>
     public static bool IsSensitivePath(string path, List<SensitivePathPattern> patterns) {
+        ArgumentException.ThrowIfNullOrEmpty(path);
         var fullPath = Path.GetFullPath(path);
 
         for (var i = 0; i < patterns.Count; i++) {
@@ -169,6 +171,7 @@ public sealed class PermissionCheckContext {
     /// 检查命令是否为危险命令
     /// </summary>
     public static bool IsDangerousCommand(string command, List<DangerousCommandPattern> patterns) {
+        ArgumentNullException.ThrowIfNull(command);
         var commandSpan = command.AsSpan();
 
         for (var i = 0; i < patterns.Count; i++) {
@@ -183,6 +186,7 @@ public sealed class PermissionCheckContext {
     /// 模式匹配
     /// </summary>
     public static bool MatchesPattern(string input, string pattern, PatternType patternType) {
+        ArgumentNullException.ThrowIfNull(pattern);
         if (string.IsNullOrEmpty(input))
             return false;
 

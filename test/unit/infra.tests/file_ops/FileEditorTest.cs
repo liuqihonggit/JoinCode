@@ -318,4 +318,96 @@ public sealed class FileEditorTest {
 
         updated.Should().Be("a\nX\nY\nZ\nc");
     }
+
+    // ===== ExtractOriginalContent 守卫(确定性) =====
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void ExtractOriginalContent_NullAllLines_ThrowsArgumentNullException() {
+        Action act = () => FileEditor.ExtractOriginalContent(null!, 1, 1);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("allLines");
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void ExtractOriginalContent_StartLineLessThanOne_ThrowsArgumentOutOfRangeException() {
+        var lines = new List<string> { "a" };
+        Action act = () => FileEditor.ExtractOriginalContent(lines, 0, 1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("startLine");
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void ExtractOriginalContent_NegativeReplacedLinesCount_ThrowsArgumentOutOfRangeException() {
+        var lines = new List<string> { "a" };
+        Action act = () => FileEditor.ExtractOriginalContent(lines, 1, -1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("replacedLinesCount");
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void ExtractOriginalContent_RangeExceedsAllLines_ThrowsArgumentOutOfRangeException() {
+        var lines = new List<string> { "a", "b" };
+        // startLine=1, replacedLinesCount=3 → 1-1+3=3 > allLines.Count=2
+        Action act = () => FileEditor.ExtractOriginalContent(lines, 1, 3);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("replacedLinesCount");
+    }
+
+    // ===== BuildUpdatedFileContent 守卫(确定性) =====
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void BuildUpdatedFileContent_NullAllLines_ThrowsArgumentNullException() {
+        Action act = () => FileEditor.BuildUpdatedFileContent(null!, 1, 1, 1, "x");
+        act.Should().Throw<ArgumentNullException>().WithParameterName("allLines");
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void BuildUpdatedFileContent_NullNewContent_ThrowsArgumentNullException() {
+        var lines = new List<string> { "a" };
+        Action act = () => FileEditor.BuildUpdatedFileContent(lines, 1, 1, 1, null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("newContent");
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void BuildUpdatedFileContent_StartLineLessThanOne_ThrowsArgumentOutOfRangeException() {
+        var lines = new List<string> { "a" };
+        Action act = () => FileEditor.BuildUpdatedFileContent(lines, 0, 1, 1, "x");
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("startLine");
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void BuildUpdatedFileContent_NegativeTotalLines_ThrowsArgumentOutOfRangeException() {
+        var lines = new List<string> { "a" };
+        Action act = () => FileEditor.BuildUpdatedFileContent(lines, 1, 1, -1, "x");
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("totalLines");
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void BuildUpdatedFileContent_TotalLinesMismatch_ThrowsArgumentException() {
+        var lines = new List<string> { "a" };
+        // allLines.Count=1 但 totalLines=2 → 不一致
+        Action act = () => FileEditor.BuildUpdatedFileContent(lines, 1, 1, 2, "x");
+        act.Should().Throw<ArgumentException>().WithParameterName("totalLines");
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void BuildUpdatedFileContent_ActualEndLineLessThanStartLine_ThrowsArgumentOutOfRangeException() {
+        var lines = new List<string> { "a", "b" };
+        Action act = () => FileEditor.BuildUpdatedFileContent(lines, 2, 1, 2, "x");
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("actualEndLine");
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void BuildUpdatedFileContent_ActualEndLineExceedsTotalLines_ThrowsArgumentOutOfRangeException() {
+        var lines = new List<string> { "a", "b" };
+        Action act = () => FileEditor.BuildUpdatedFileContent(lines, 1, 3, 2, "x");
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("actualEndLine");
+    }
 }

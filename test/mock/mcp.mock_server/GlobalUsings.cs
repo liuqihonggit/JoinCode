@@ -1,4 +1,5 @@
 global using JoinCode.Abstractions.Mcp.Protocol;
+global using McpProtocol.Contracts;
 global using JoinCode.Abstractions.Models;
 global using Mcp.MockServer.Engine;
 global using Mcp.MockServer.Models;

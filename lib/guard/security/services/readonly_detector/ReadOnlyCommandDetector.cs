@@ -3,118 +3,39 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// <summary>
 /// 只读命令检测器实现 — 深度对齐 TS readOnlyValidation.ts
 /// 核心功能: 白名单标志验证 + 正则验证 + 变量扩展检测 + git 沙箱逃逸防护
+/// <para>TASK031-D2: 拆分为 5 个单一数据源服务 + 编排器</para>
+/// <para>ICommandCatalog: 命令配置数据 | IShellMetacharacterDetector: 元字符检测</para>
+/// <para>IFlagValidator: 标志验证 | IRegexValidator: 正则验证 | IExpansionDetector: 扩展检测</para>
 /// </summary>
 [Register(typeof(IReadOnlyCommandDetector), ServiceLifetime.Singleton)]
-public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCommandDetector {
-    /// <summary>
-    /// 简单只读命令列表 — 对齐 TS READONLY_COMMANDS
-    /// </summary>
-    private static readonly FrozenSet<string> SimpleReadOnlyCommands = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        // 时间日期
-        "cal", "uptime",
-        // 文件内容查看
-        "cat", "head", "tail", "wc", "stat", "strings", "hexdump", "od", "nl",
-        // 系统信息
-        "id", "uname", "free", "df", "du", "locale", "groups", "nproc",
-        // 路径信息
-        "basename", "dirname", "realpath",
-        // 文本处理
-        "cut", "paste", "tr", "column", "tac", "rev", "fold", "expand", "unexpand",
-        "fmt", "comm", "cmp", "numfmt",
-        // 路径信息（附加）
-        "readlink",
-        // 文件比较
-        "diff",
-        // 布尔值
-        "true", "false",
-        // 杂项安全命令
-        "sleep", "which", "type", "expr", "test", "getconf", "seq", "tsort", "pr",
-        // 目录列表
-        "ls", "dir", "ll", "la",
-        // 搜索（find/grep/rg 走白名单标志验证，不在此列表）
-        // 进程
-        "ps", "top", "htop",
-        // 网络
-        "ping", "netstat", "ifconfig", "nslookup", "traceroute",
-        // 版本
-        "whoami", "pwd", "echo", "printenv", "env");
+public sealed class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCommandDetector {
+    private readonly ICommandCatalog _catalog;
+    private readonly IShellMetacharacterDetector _metacharDetector;
+    private readonly IFlagValidator _flagValidator;
+    private readonly IRegexValidator _regexValidator;
+    private readonly IExpansionDetector _expansionDetector;
 
-    /// <summary>
-    /// 安全的 Git 子命令 — 宽放模式：日常工作命令无条件放行
-    /// </summary>
-    private static readonly FrozenSet<string> SafeGitSubcommands = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "status", "log", "show", "diff", "branch", "tag", "remote", "config",
-        "help", "version", "stash", "blame", "annotate", "describe",
-        "shortlog", "reflog", "ls-files", "ls-tree", "ls-remote",
-        "name-rev", "rev-parse", "rev-list", "merge-base",
-        "cherry", "cherry-pick" /* --no-commit is read-only preview */,
-        "grep", "whatchanged", "show-branch", "verify-pack",
-        "cat-file", "for-each-ref", "worktree",
-        "add", "commit", "mv", "restore", "switch", "checkout",
-        "fetch", "pull", "merge", "rebase", "stash",
-        "init", "clone", "submodule", "am", "apply", "notes");
+    /// <summary>DI 默认构造函数 — 内部组装 5 个单一职责服务</summary>
+    public ReadOnlyCommandDetector() {
+        _catalog = new CommandCatalog();
+        _metacharDetector = new ShellMetacharacterDetector();
+        _flagValidator = new FlagValidator();
+        _regexValidator = new RegexValidator(_catalog, _metacharDetector);
+        _expansionDetector = new ExpansionDetector();
+    }
 
-    /// <summary>
-    /// 危险的 Git 子命令 — 仅真正破坏性操作需确认
-    /// </summary>
-    private static readonly FrozenSet<string> DangerousGitSubcommands = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "push", "reset", "rm", "clean",
-        "format-patch", "send-email", "filter-branch", "replace", "update-ref");
-
-    /// <summary>
-    /// xargs 自动批准的安全目标命令 — 对齐 TS SAFE_TARGET_COMMANDS_FOR_XARGS
-    /// </summary>
-    private static readonly FrozenSet<string> SafeXargsTargets = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "echo", "printf", "wc", "grep", "head", "tail");
-
-    /// <summary>
-    /// 命令白名单配置 — 对齐 TS COMMAND_ALLOWLIST
-    /// </summary>
-    private static readonly FrozenDictionary<string, CommandConfig> CommandAllowlist = BuildCommandAllowlist();
-
-    /// <summary>
-    /// Git 内部路径模式 — 对齐 TS GIT_INTERNAL_PATTERNS
-    /// </summary>
-    private static readonly Regex[] GitInternalPatterns =
-    [
-        new(@"^HEAD$", RegexOptions.Compiled),
-        new(@"^objects(?:\/|$)", RegexOptions.Compiled),
-        new(@"^refs(?:\/|$)", RegexOptions.Compiled),
-        new(@"^hooks(?:\/|$)", RegexOptions.Compiled),
-    ];
-
-    /// <summary>
-    /// 非创建型写入命令 — 对齐 TS NON_CREATING_WRITE_COMMANDS
-    /// </summary>
-    private static readonly FrozenSet<string> NonCreatingWriteCommands = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "rm", "rmdir", "sed");
-
-    /// <summary>
-    /// Shell 元字符位掩码 — 用于检测注入。128 位覆盖 ASCII 0-127，分高低两个 ulong。
-    /// 替代原 FrozenSet&lt;char&gt;，O(1) 位运算无哈希查找、无内存访问。
-    /// 低 64 位 (char 0-63): \n \r ! # $ &amp; ; &lt; &gt;
-    /// 高 64 位 (char 64-127): ` \ { | }
-    /// </summary>
-    private const ulong ShellMetaLowMask =
-        (1UL << '\n') | (1UL << '\r') | (1UL << '!') | (1UL << '#') |
-        (1UL << '$') | (1UL << '&') | (1UL << ';') | (1UL << '<') | (1UL << '>');
-    private const ulong ShellMetaHighMask =
-        (1UL << ('`' - 64)) | (1UL << ('\\' - 64)) | (1UL << ('{' - 64)) |
-        (1UL << ('|' - 64)) | (1UL << ('}' - 64));
-
-    /// <summary>
-    /// 判断字符是否为 Shell 元字符 — 位掩码 O(1) 查找，替代 FrozenSet&lt;char&gt;.Contains
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsShellMetacharacter(char c) {
-        if (c < 64) return BitMask.Contains64(ShellMetaLowMask, c);
-        if (c < 128) return BitMask.Contains64(ShellMetaHighMask, c - 64);
-        return false;
+    /// <summary>测试用构造函数，注入 5 个单一职责服务</summary>
+    internal ReadOnlyCommandDetector(
+        ICommandCatalog catalog,
+        IShellMetacharacterDetector metacharDetector,
+        IFlagValidator flagValidator,
+        IRegexValidator regexValidator,
+        IExpansionDetector expansionDetector) {
+        _catalog = catalog;
+        _metacharDetector = metacharDetector;
+        _flagValidator = flagValidator;
+        _regexValidator = regexValidator;
+        _expansionDetector = expansionDetector;
     }
 
     /// <summary>
@@ -146,7 +67,7 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
         }
 
         // 3. 检查未引用的变量扩展
-        if (ContainsUnquotedExpansion(trimmed)) {
+        if (_expansionDetector.ContainsUnquotedExpansion(trimmed)) {
             return new ShellPermissionCheckResult(PermissionBehavior.Passthrough);
         }
 
@@ -156,9 +77,9 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
         }
 
         // 5. 正则验证
-        if (MatchesReadOnlyRegex(trimmed)) {
+        if (_regexValidator.MatchesReadOnlyRegex(trimmed)) {
             // 额外检查 git 命令的危险标志
-            if (ContainsGitDangerousFlags(trimmed)) {
+            if (_regexValidator.ContainsGitDangerousFlags(trimmed)) {
                 return new ShellPermissionCheckResult(PermissionBehavior.Passthrough);
             }
 
@@ -170,25 +91,23 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
 
     /// <summary>
     /// 白名单标志验证 — 对齐 TS isCommandSafeViaFlagParsing
+    /// <para>编排 IExpansionDetector + IShellMetacharacterDetector + ICommandCatalog + IFlagValidator</para>
     /// </summary>
-    private static bool IsCommandSafeViaFlagParsing(string command) {
-        var tokens = SplitCommandTokens(command);
+    private bool IsCommandSafeViaFlagParsing(string command) {
+        var tokens = _expansionDetector.SplitCommandTokens(command);
         if (tokens.Count == 0) {
             return false;
         }
 
         // 存在操作符（管道/重定向等）→ 不安全
-        if (ContainsShellOperators(command)) {
+        if (_metacharDetector.ContainsShellOperators(command)) {
             return false;
         }
 
         var baseCommand = tokens[0];
 
         // 在白名单中查找匹配的命令配置（支持1/2/3-token键，如 "git config --get"）
-        // 优化: 用 string.Concat 直拼替代 Take().ToArray() + Join, 避免数组分配(热路径每命令检测)
-        if (!CommandAllowlist.TryGetValue(baseCommand, out var config)
-            && !CommandAllowlist.TryGetValue(TwoTokenKey(tokens), out config)
-            && !CommandAllowlist.TryGetValue(ThreeTokenKey(tokens), out config)) {
+        if (!_catalog.TryGetConfig(tokens, out var config)) {
             return false;
         }
 
@@ -205,7 +124,7 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
         }
 
         // 验证标志合法性
-        if (!ValidateFlags(args, config.SafeFlags, config.RespectsDoubleDash)) {
+        if (!_flagValidator.ValidateFlags(args, config.SafeFlags, config.RespectsDoubleDash)) {
             return false;
         }
 
@@ -234,270 +153,5 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// 验证标志合法性 — 对齐 TS validateFlags
-    /// </summary>
-    private static bool ValidateFlags(
-        IReadOnlyList<string> args,
-        FrozenDictionary<string, FlagArgType> safeFlags,
-        bool respectsDoubleDash) {
-        var i = 0;
-        var pastDelimiter = false;
-
-        while (i < args.Count) {
-            var arg = args[i];
-
-            if (pastDelimiter) {
-                // -- 之后全是位置参数，安全
-                i++;
-                continue;
-            }
-
-            if (arg == "--") {
-                if (!respectsDoubleDash) {
-                    return false;
-                }
-
-                pastDelimiter = true;
-                i++;
-                continue;
-            }
-
-            // 非标志参数（位置参数），安全
-            if (!arg.StartsWith('-') || arg.Length == 1) {
-                i++;
-                continue;
-            }
-
-            // 长选项 --flag
-            if (arg.StartsWith("--")) {
-                // --flag=value 形式
-                var eqIdx = arg.IndexOf('=');
-                var flagName = eqIdx >= 0 ? arg[..eqIdx] : arg;
-
-                if (!safeFlags.TryGetValue(flagName, out var flagType)) {
-                    return false; // 未知标志
-                }
-
-                if (flagType == FlagArgType.Required && eqIdx < 0) {
-                    i += 2; // 跳过标志和值
-                } else {
-                    i++;
-                }
-
-                continue;
-            }
-
-            // 短选项 -abc (融合选项)
-            for (var j = 1; j < arg.Length; j++) {
-                var shortFlag = $"-{arg[j]}";
-                if (!safeFlags.TryGetValue(shortFlag, out var flagType)) {
-                    return false; // 未知短选项
-                }
-
-                if (flagType == FlagArgType.Required) {
-                    // 参数可能是融合的（如 -n5）或下一个 token
-                    if (j + 1 < arg.Length) {
-                        break; // 融合参数，跳过剩余
-                    }
-
-                    i++; // 跳过下一个 token（参数值）
-                    break;
-                }
-            }
-
-            i++;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// 正则验证 — 对齐 TS READONLY_COMMAND_REGEXES
-    /// </summary>
-    private static bool MatchesReadOnlyRegex(string command) {
-        // 简单命令: 命令名后无 shell 元字符
-        var spaceIdx = command.IndexOf(' ');
-        var cmdName = spaceIdx >= 0 ? command[..spaceIdx] : command;
-
-        if (SimpleReadOnlyCommands.Contains(cmdName)) {
-            // 检查无 shell 元字符
-            if (!ContainsShellMetacharacters(command)) {
-                return true;
-            }
-        }
-
-        // 特殊正则匹配
-        return command is "pwd" or "whoami"
-            || Regex.IsMatch(command, @"^echo(?:\s|$)")
-            || Regex.IsMatch(command, @"^cd\s+")
-            || Regex.IsMatch(command, @"^ls(?:\s|$)")
-            || Regex.IsMatch(command, @"^find(?:\s|$)")
-            || Regex.IsMatch(command, @"^node\s+-v$")
-            || Regex.IsMatch(command, @"^node\s+--version$")
-            || Regex.IsMatch(command, @"^python3?\s+--version$")
-            || Regex.IsMatch(command, @"^history(?:\s+\d+)?\s*$")
-            || Regex.IsMatch(command, @"^alias\s*$")
-            || Regex.IsMatch(command, @"^arch(?:\s+(?:--help|-h))?\s*$")
-            || Regex.IsMatch(command, @"^hostname(?:\s+(?:-[a-zA-Z]|--[a-zA-Z-]+))*\s*$");
-    }
-
-    /// <summary>
-    /// 检查未引用的变量扩展 — 对齐 TS containsUnquotedExpansion
-    /// </summary>
-    private static bool ContainsUnquotedExpansion(string command) {
-        var inSingleQuote = false;
-        var inDoubleQuote = false;
-
-        for (var i = 0; i < command.Length; i++) {
-            var c = command[i];
-
-            if (c == '\'' && !inDoubleQuote) {
-                inSingleQuote = !inSingleQuote;
-                continue;
-            }
-
-            if (c == '"' && !inSingleQuote) {
-                inDoubleQuote = !inDoubleQuote;
-                continue;
-            }
-
-            // 单引号内一切为字面量
-            if (inSingleQuote) {
-                continue;
-            }
-
-            // $ 变量扩展（双引号内也会扩展）
-            if (c == '$' && i + 1 < command.Length
-                && (char.IsLetterOrDigit(command[i + 1]) || command[i + 1] == '_' || command[i + 1] == '{')) {
-                return true;
-            }
-
-            // 双引号外检查 glob
-            if (!inDoubleQuote && (c is '?' or '*' || c == '[')) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// 检查 git 命令的危险标志 — 对齐 TS 中的额外检查
-    /// </summary>
-    private static bool ContainsGitDangerousFlags(string command) {
-        if (!command.StartsWith("git", StringComparison.OrdinalIgnoreCase)) {
-            return false;
-        }
-
-        // -c 可执行 git 命令
-        if (command.Contains(" -c ", StringComparison.Ordinal)
-            || command.Contains(" --exec-path", StringComparison.Ordinal)
-            || command.Contains(" --config-env", StringComparison.Ordinal)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// 检查是否包含 shell 操作符
-    /// </summary>
-    private static bool ContainsShellOperators(string command) {
-        var inSingleQuote = false;
-        var inDoubleQuote = false;
-
-        for (var i = 0; i < command.Length; i++) {
-            var c = command[i];
-
-            if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
-            if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
-            if (inSingleQuote || inDoubleQuote) continue;
-
-            if (c is '|' or ';' or '&' or '<' or '>' or '`') return true;
-            if (c == '>' && i + 1 < command.Length && command[i + 1] == '>') return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// 检查是否包含 shell 元字符
-    /// </summary>
-    private static bool ContainsShellMetacharacters(string command) {
-        var inSingleQuote = false;
-        var inDoubleQuote = false;
-
-        for (var i = 0; i < command.Length; i++) {
-            var c = command[i];
-
-            if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
-            if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
-            if (inSingleQuote || inDoubleQuote) continue;
-
-            if (IsShellMetacharacter(c)) return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// 构造 2-token 查找键 — 用 string.Concat 直拼避免 Take().ToArray() 数组分配
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static string TwoTokenKey(List<string> tokens)
-        => tokens.Count >= 2 ? string.Concat(tokens[0], " ", tokens[1]) : tokens[0];
-
-    /// <summary>
-    /// 构造 3-token 查找键 — 用 string.Concat 直拼避免 Take().ToArray() 数组分配
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static string ThreeTokenKey(List<string> tokens)
-        => tokens.Count >= 3 ? string.Concat(tokens[0], " ", tokens[1], " ", tokens[2])
-        : TwoTokenKey(tokens);
-
-    /// <summary>
-    /// 分割命令为 token
-    /// </summary>
-    private static List<string> SplitCommandTokens(string command) {
-        var parts = new List<string>();
-        var current = new StringBuilder();
-        var inQuotes = false;
-        var quoteChar = '\0';
-
-        for (var i = 0; i < command.Length; i++) {
-            var c = command[i];
-
-            if ((c == '"' || c == '\'') && !inQuotes) {
-                inQuotes = true;
-                quoteChar = c;
-                continue;
-            }
-
-            if (c == quoteChar && inQuotes) {
-                inQuotes = false;
-                quoteChar = '\0';
-                continue;
-            }
-
-            if (char.IsWhiteSpace(c) && !inQuotes) {
-                if (current.Length > 0) {
-                    parts.Add(current.ToString());
-                    current.Clear();
-                }
-
-                continue;
-            }
-
-            current.Append(c);
-        }
-
-        if (current.Length > 0) {
-            parts.Add(current.ToString());
-        }
-
-        return parts;
     }
 }

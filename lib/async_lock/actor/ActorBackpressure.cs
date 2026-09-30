@@ -45,6 +45,15 @@ public sealed record ActorBackpressure {
         int RetryQueueCapacity = 1024) {
         if (Capacity < 0)
             throw new ArgumentOutOfRangeException(nameof(Capacity), Capacity, "Capacity 不能为负数(0=无界,正数=有界通道容量)");
+        if (MaxRetries <= 0)
+            throw new ArgumentOutOfRangeException(nameof(MaxRetries), MaxRetries, "MaxRetries 必须 > 0");
+        if (RetryQueueCapacity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(RetryQueueCapacity), RetryQueueCapacity, "RetryQueueCapacity 必须 > 0");
+        if (HighWatermark.HasValue && (HighWatermark.Value < 0 || HighWatermark.Value > Capacity))
+            throw new ArgumentOutOfRangeException(nameof(HighWatermark), HighWatermark.Value, "HighWatermark 必须 >= 0 且 <= Capacity");
+        if (CriticalWatermark.HasValue && (CriticalWatermark.Value < 0 || CriticalWatermark.Value > Capacity))
+            throw new ArgumentOutOfRangeException(nameof(CriticalWatermark), CriticalWatermark.Value, "CriticalWatermark 必须 >= 0 且 <= Capacity");
+
         this.Capacity = Capacity;
         this.FullMode = FullMode;
         this.HighWatermark = HighWatermark;
@@ -52,6 +61,11 @@ public sealed record ActorBackpressure {
         this.SendTimeout = SendTimeout;
         this.MaxRetries = MaxRetries;
         this.RetryQueueCapacity = RetryQueueCapacity;
+
+        // 水位线倒置检查:仅当用户显式设置两个水位线时才校验 High < Critical
+        // (默认值 null 时由 Effective 计算,整数截断可能使小容量的 High==Critical,属计算精度而非用户错误,不抛)
+        if (HighWatermark.HasValue && CriticalWatermark.HasValue && HighWatermark.Value >= CriticalWatermark.Value)
+            throw new ArgumentException("HighWatermark 必须 < CriticalWatermark", nameof(HighWatermark));
     }
 
     /// <summary>高水位线 — null 时取容量*0.8</summary>

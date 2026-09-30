@@ -7,6 +7,23 @@ namespace JoinCode.Abstractions.Utils;
 /// > ADR: 0063
 /// </summary>
 public static class JccEndpoints {
+    // ── 供应商 API 默认端点（TASK031 阶段B4:常量委托统一）──
+
+    /// <summary>
+    /// OpenAI API 基址（含 /v1/ 路径，供应商未配置 endpoint 时回退使用）
+    /// </summary>
+    public const string OpenAiApiBase = "https://api.openai.com/v1/";
+
+    /// <summary>
+    /// Anthropic API 基址（含尾斜杠，供应商未配置 endpoint 时回退使用）
+    /// </summary>
+    public const string AnthropicApiBase = "https://api.anthropic.com/";
+
+    /// <summary>
+    /// OpenAI Whisper 语音转录端点（完整 URL）
+    /// </summary>
+    public const string OpenAiTranscriptionsEndpoint = "https://api.openai.com/v1/audio/transcriptions";
+
     // ── GitHub API（更新/Release Notes）──
 
     /// <summary>

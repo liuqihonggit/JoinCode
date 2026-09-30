@@ -10,10 +10,9 @@ internal static class FileFilter {
 
     /// <summary>
     /// 通用排除目录（路径段匹配，大小写不敏感）— 所有工具共用
+    /// 委托 ExcludedDirectoryCatalog.AuditExcludedArray — 唯一数据源(消除跨模块重复定义)
     /// </summary>
-    internal static readonly string[] s_commonExcludedDirs = new[] {
-        "bin", "obj", ".xxx", ".git", ".vs", "artifacts", "node_modules", ".nuget"
-    };
+    internal static readonly string[] s_commonExcludedDirs = ExcludedDirectoryCatalog.AuditExcludedArray;
 
     /// <summary>
     /// 修复器额外排除目录 — fixer 不碰分析器自身源码和 BCL 桥接

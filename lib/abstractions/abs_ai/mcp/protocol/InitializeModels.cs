@@ -4,7 +4,7 @@ namespace JoinCode.Abstractions.Mcp.Protocol;
 public sealed record InitializeRequestParams {
     /// <summary>获取或设置协议版本。</summary>
     [JsonPropertyName("protocolVersion")]
-    public string ProtocolVersion { get; set; } = "2024-11-05";
+    public string ProtocolVersion { get; set; } = McpProtocolVersion.V2024_11_05;
 
     /// <summary>获取或设置客户端能力声明。</summary>
     [JsonPropertyName("capabilities")]
@@ -19,7 +19,7 @@ public sealed record InitializeRequestParams {
 public sealed record InitializeResult {
     /// <summary>获取或设置协议版本。</summary>
     [JsonPropertyName("protocolVersion")]
-    public string ProtocolVersion { get; set; } = "2024-11-05";
+    public string ProtocolVersion { get; set; } = McpProtocolVersion.V2024_11_05;
 
     /// <summary>获取或设置服务端能力声明。</summary>
     [JsonPropertyName("capabilities")]

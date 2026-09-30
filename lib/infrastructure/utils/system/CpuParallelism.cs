@@ -27,6 +27,8 @@ public static class CpuParallelism {
     /// <param name="maxDegree">并行度上限</param>
     /// <returns>推荐的并行度，不超过 maxDegree</returns>
     public static int GetDegree(int maxDegree) {
+        if (maxDegree <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxDegree), maxDegree, "maxDegree 必须 > 0");
         return Math.Min(GetDegree(), maxDegree);
     }
 

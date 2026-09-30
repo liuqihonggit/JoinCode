@@ -55,4 +55,41 @@ public sealed class CodeIndexExcludedDirCatalogTests {
             Assert.True(CodeIndexExcludedDirCatalog.ExcludedDirs.Contains(d), $"Missing: {d}");
         }
     }
+
+    #region 委托 ExcludedDirectoryCatalog 一致性验证
+
+    /// <summary>
+    /// 验证 CodeIndexExcludedDirCatalog.ExcludedDirs 委托 ExcludedDirectoryCatalog.CodeIndexExcluded(同一引用)
+    /// </summary>
+    [Fact]
+    public void ExcludedDirs_DelegatesToExcludedDirectoryCatalog() {
+        Assert.Same(ExcludedDirectoryCatalog.CodeIndexExcluded, CodeIndexExcludedDirCatalog.ExcludedDirs);
+    }
+
+    /// <summary>
+    /// 验证 CodeIndexExcludedDirCatalog.DefaultExcludedDirs 委托 ExcludedDirectoryCatalog.CodeIndexExcludedArray(同一引用)
+    /// </summary>
+    [Fact]
+    public void DefaultExcludedDirs_DelegatesToExcludedDirectoryCatalog() {
+        Assert.Same(ExcludedDirectoryCatalog.CodeIndexExcludedArray, CodeIndexExcludedDirCatalog.DefaultExcludedDirs);
+    }
+
+    /// <summary>
+    /// 验证 CodeIndexExcludedDirCatalog.IsInExcludedDirectory 委托 ExcludedDirectoryCatalog.IsInExcludedDirectory(行为一致)
+    /// </summary>
+    [Theory]
+    [InlineData("src/bin/x.dll", true)]
+    [InlineData("src/obj/y.cs", true)]
+    [InlineData("src/.git/config", true)]
+    [InlineData("src/.x/old.cs", true)]
+    [InlineData("src/core/file.cs", false)]
+    [InlineData("", false)]
+    public void IsInExcludedDirectory_DelegatesToExcludedDirectoryCatalog(string path, bool expected) {
+        Assert.Equal(
+            ExcludedDirectoryCatalog.IsInExcludedDirectory(path),
+            CodeIndexExcludedDirCatalog.IsInExcludedDirectory(path));
+        Assert.Equal(expected, CodeIndexExcludedDirCatalog.IsInExcludedDirectory(path));
+    }
+
+    #endregion
 }

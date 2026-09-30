@@ -13,17 +13,38 @@ public sealed class FlushGateOptions {
     /// <summary>最大等待时间（毫秒），超过此时间强制刷新</summary>
     public const int DefaultMaxWaitMs = 5000;
 
+    private int _maxBatchSize = DefaultMaxBatchSize;
     /// <summary>每批最大条目数</summary>
     [JsonPropertyName("maxBatchSize")]
-    public int MaxBatchSize { get; init; } = DefaultMaxBatchSize;
+    public int MaxBatchSize {
+        get => _maxBatchSize;
+        init {
+            if (value <= 0) throw new ArgumentOutOfRangeException(nameof(MaxBatchSize), value, "MaxBatchSize must be positive");
+            _maxBatchSize = value;
+        }
+    }
 
+    private int _flushIntervalMs = DefaultFlushIntervalMs;
     /// <summary>定时刷新间隔（毫秒）</summary>
     [JsonPropertyName("flushIntervalMs")]
-    public int FlushIntervalMs { get; init; } = DefaultFlushIntervalMs;
+    public int FlushIntervalMs {
+        get => _flushIntervalMs;
+        init {
+            if (value <= 0) throw new ArgumentOutOfRangeException(nameof(FlushIntervalMs), value, "FlushIntervalMs must be positive");
+            _flushIntervalMs = value;
+        }
+    }
 
+    private int _maxWaitMs = DefaultMaxWaitMs;
     /// <summary>最大等待时间（毫秒）</summary>
     [JsonPropertyName("maxWaitMs")]
-    public int MaxWaitMs { get; init; } = DefaultMaxWaitMs;
+    public int MaxWaitMs {
+        get => _maxWaitMs;
+        init {
+            if (value <= 0) throw new ArgumentOutOfRangeException(nameof(MaxWaitMs), value, "MaxWaitMs must be positive");
+            _maxWaitMs = value;
+        }
+    }
 
     /// <summary>
     /// 创建默认配置的选项实例

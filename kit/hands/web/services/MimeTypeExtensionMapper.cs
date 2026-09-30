@@ -1,50 +1,14 @@
 namespace Services.Web;
 
 /// <summary>
-/// MIME类型到文件扩展名映射 — 对齐TS版 mcpOutputStorage.ts 的 extensionForMimeType
-/// 覆盖PDF、Office全家桶、音视频、图片、压缩包等常见类型，未知回退.bin
+/// MIME类型到文件扩展名映射 — 委托单数据源 MimeExtensionCatalog
+/// 保留公共 API 以兼容 kit/hands 内部消费方（BinaryContentStorage 等）
 /// </summary>
 internal static class MimeTypeExtensionMapper {
     /// <summary>
-    /// 根据MIME类型获取文件扩展名（不含点号）
+    /// 根据MIME类型获取文件扩展名（不含点号） — 委托 MimeExtensionCatalog.GetExtension
     /// </summary>
-    /// <param name="mimeType">MIME 类型字符串，可包含 charset 参数。</param>
+    /// <param name="mimeType">MIME 类型字符串，可包含 charset 参数。大小写不敏感。</param>
     /// <returns>对应的文件扩展名（不含点号），未知类型返回 "bin"。</returns>
-    public static string GetExtension(string? mimeType) {
-        if (string.IsNullOrEmpty(mimeType)) return "bin";
-
-        var mt = GetMimeType(mimeType);
-
-        return mt switch {
-            "application/pdf" => "pdf",
-            "application/json" => "json",
-            "text/csv" => "csv",
-            "text/plain" => "txt",
-            "text/html" => "html",
-            "text/markdown" => "md",
-            "application/zip" => "zip",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation" => "pptx",
-            "application/msword" => "doc",
-            "application/vnd.ms-excel" => "xls",
-            "audio/mpeg" => "mp3",
-            "audio/wav" => "wav",
-            "audio/ogg" => "ogg",
-            "video/mp4" => "mp4",
-            "video/webm" => "webm",
-            "image/png" => "png",
-            "image/jpeg" => "jpg",
-            "image/gif" => "gif",
-            "image/webp" => "webp",
-            "image/svg+xml" => "svg",
-            _ => "bin"
-        };
-    }
-
-    private static string GetMimeType(string mimeType) {
-        var separatorIndex = mimeType.IndexOf(';');
-        var mime = separatorIndex >= 0 ? mimeType[..separatorIndex] : mimeType;
-        return mime.Trim().ToLowerInvariant();
-    }
+    public static string GetExtension(string? mimeType) => MimeExtensionCatalog.GetExtension(mimeType);
 }

@@ -38,6 +38,9 @@ public sealed partial class StdioProcessManager : IAsyncDisposable {
     /// 启动CLI进程
     /// </summary>
     public async Task StartAsync(StdioProcessConfig config, CancellationToken ct = default) {
+        ArgumentNullException.ThrowIfNull(config);
+        if (string.IsNullOrWhiteSpace(config.ExecutablePath))
+            throw new ArgumentException("可执行文件路径不能为空或空白", "config.ExecutablePath");
         var argsDisplay = config.ArgumentList is { Count: > 0 }
             ? string.Join(' ', config.ArgumentList)
             : config.Arguments;
@@ -72,6 +75,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable {
     /// 向进程发送消息
     /// </summary>
     public async Task SendAsync(string message, CancellationToken ct = default) {
+        ArgumentNullException.ThrowIfNull(message);
         if (_stdinWriter == null)
             throw new InvalidOperationException("[TRN010] 进程未启动");
 
@@ -89,6 +93,8 @@ public sealed partial class StdioProcessManager : IAsyncDisposable {
         TimeSpan? timeout = null,
         CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(predicate);
+        if (timeout.HasValue && timeout.Value < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(timeout), timeout.Value, "超时时间不能为负数");
         timeout ??= TimeSpan.FromSeconds(30);
         var startTime = _clock.GetUtcNow();
 
@@ -137,6 +143,8 @@ public sealed partial class StdioProcessManager : IAsyncDisposable {
         TimeSpan? timeout = null,
         CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(predicate);
+        if (timeout.HasValue && timeout.Value < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(timeout), timeout.Value, "超时时间不能为负数");
         timeout ??= TimeSpan.FromSeconds(30);
         var startTime = _clock.GetUtcNow();
 

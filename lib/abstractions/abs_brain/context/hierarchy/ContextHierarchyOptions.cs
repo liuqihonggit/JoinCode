@@ -75,12 +75,14 @@ public sealed class ContextHierarchyOptionsBuilder {
 
     /// <summary>设置最大层级数。</summary>
     public ContextHierarchyOptionsBuilder WithMaxLayers(int layers) {
+        if (layers <= 0) throw new ArgumentOutOfRangeException(nameof(layers), layers, "最大层级数必须 > 0");
         _maxLayers = layers;
         return this;
     }
 
     /// <summary>设置压缩比率。</summary>
     public ContextHierarchyOptionsBuilder WithCompressionRatio(double ratio) {
+        if (ratio < 0.0 || ratio > 1.0) throw new ArgumentOutOfRangeException(nameof(ratio), ratio, "压缩比率必须在 [0, 1]");
         _defaultCompressionRatio = ratio;
         return this;
     }

@@ -49,9 +49,10 @@ public static partial class SecurityPatterns {
                 "secrets.yml", "secrets.yaml", "secrets.json",
             ],
             [SensitiveFilePattern.VcsInternal] =
-            [
-                ".git", ".git/**", ".svn", ".svn/**", ".hg", ".hg/**",
-            ],
+                // 委托 VcsDirectoryExclusions.GlobPatterns — 唯一数据源(消除跨模块重复定义)
+                // 含 12 个模式: 6 VCS 目录(.git/.svn/.hg/.bzr/.jj/.sl) + 6 glob(目录/**)
+                // 扩展: 原 3 个(.git/.svn/.hg) → 6 个(补全 .bzr/.jj/.sl)
+                VcsDirectoryExclusions.GlobPatterns.ToArray(),
         }.ToFrozenDictionary();
 
     /// <summary>

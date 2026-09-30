@@ -4,6 +4,7 @@ namespace Core.Utils;
 /// TransportFrame 确定性单元测试 — 验证消息帧构造/属性/编解码,不依赖管道通信/时序。
 /// <para>补充 E2E 测试缺少的确定性验证部分:TransportFrame 的构造、相等性、UTF-8 编解码往返、边界。</para>
 /// </summary>
+[Trait("Category", "Deterministic")]
 public class TransportFramePureFunctionsTest {
 
     /// <summary>构造 — SourceProcessId 和 Data 属性正确</summary>

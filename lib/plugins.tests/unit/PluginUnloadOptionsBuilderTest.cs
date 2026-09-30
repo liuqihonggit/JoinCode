@@ -114,12 +114,26 @@ public sealed class PluginUnloadOptionsBuilderTest {
         options.CooperativeTimeout.Should().Be(TimeSpan.Zero);
     }
 
+    [Trait("Category", "Deterministic")]
     [Fact]
-    public void WithTimeout_NegativeTimeout_AcceptsValue() {
-        // 构建器不做范围校验,仅赋值(与文档契约一致)
-        var options = PluginUnloadOptionsBuilder.Create().WithTimeout(TimeSpan.FromSeconds(-1)).Build();
+    public void WithTimeout_NegativeTimeout_ThrowsArgumentOutOfRangeException() {
+        // 守卫补全(TASK031):负 timeout 抛 ArgumentOutOfRangeException — 变更旧契约(原"接受负值")
+        Action act = () => PluginUnloadOptionsBuilder.Create().WithTimeout(TimeSpan.FromSeconds(-1));
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("timeout");
+    }
 
-        options.CooperativeTimeout.Should().Be(TimeSpan.FromSeconds(-1));
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void WithTimeoutSeconds_NegativeSeconds_ThrowsArgumentOutOfRangeException() {
+        Action act = () => PluginUnloadOptionsBuilder.Create().WithTimeoutSeconds(-1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("seconds");
+    }
+
+    [Trait("Category", "Deterministic")]
+    [Fact]
+    public void WithTimeoutMilliseconds_NegativeMilliseconds_ThrowsArgumentOutOfRangeException() {
+        Action act = () => PluginUnloadOptionsBuilder.Create().WithTimeoutMilliseconds(-1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("milliseconds");
     }
 
     // ===== WithTimeoutSeconds =====

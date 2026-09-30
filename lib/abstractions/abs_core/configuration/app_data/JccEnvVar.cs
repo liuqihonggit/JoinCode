@@ -229,6 +229,15 @@ public enum JccEnvVar {
     [EnumValue("JCC_UPDATE_MANIFEST_URL")] UpdateManifestUrl,
     [EnumValue("JCC_UPDATE_SOURCE_TYPE")] UpdateSourceType,
     [EnumValue("JCC_UPDATE_CHANNEL")] UpdateChannel,
+
+    // TASK031 阶段B4 新增 — 常量委托统一(原硬编码字符串改为枚举委托)
+    [EnumValue("JCC_DISABLE_RETRY")] DisableRetry,
+    [EnumValue("JCC_ACTOR_TOOL_EXECUTOR")] ActorToolExecutor,
+    [EnumValue("JCC_GITHUB_TOKEN")] GithubToken,
+    [EnumValue("JCC_GITHUB_API_URL")] GithubApiUrl,
+    [EnumValue("JCC_ABSOLUTE_TIMEOUT_SECONDS")] AbsoluteTimeoutSeconds,
+    [EnumValue("JCC_RESUME_TIMEOUT_SECONDS")] ResumeTimeoutSeconds,
+    [EnumValue("JCC_CLUSTER_DECOMPOSITION_OVERRIDE")] ClusterDecompositionOverride,
 }
 
 /// <summary>

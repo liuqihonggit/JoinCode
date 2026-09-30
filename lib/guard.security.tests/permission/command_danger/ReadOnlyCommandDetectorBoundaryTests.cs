@@ -6,7 +6,13 @@ namespace Core.Tests.Permission;
 /// <para>边界: char 63(低掩码末位)、char 64(高掩码首位)、char 127(高掩码末位)、char 128+(超出范围)</para>
 /// </summary>
 public sealed class ReadOnlyCommandDetectorBoundaryTests {
-    private readonly ReadOnlyCommandDetector _sut = new();
+    private readonly ReadOnlyCommandDetector _sut = CreateDefault();
+
+    private static ReadOnlyCommandDetector CreateDefault() {
+        var catalog = new CommandCatalog();
+        var meta = new ShellMetacharacterDetector();
+        return new(catalog, meta, new FlagValidator(), new RegexValidator(catalog, meta), new ExpansionDetector());
+    }
 
     #region 元字符 — 应阻止 Allow
 

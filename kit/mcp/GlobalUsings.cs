@@ -1,6 +1,7 @@
 ﻿global using Api.LLM;
 global using Core.Utils;
 global using Infrastructure.Http;
+global using Infrastructure.IO.Services.FileOps;
 global using Infrastructure.Network.Downloader;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Utils.IO;

@@ -5,6 +5,7 @@ namespace Core.Utils;
 /// <para>覆盖:退避延迟边界(0/1/10/负数/上限钳制)、总超时计算、幂等命令判断(IIdempotent/null/普通)。</para>
 /// <para>static 方法通过具体化泛型(PureFuncActor)调用,不实例化 Actor,无 Consumer 线程,无时序依赖。</para>
 /// </summary>
+[Trait("Category", "Deterministic")]
 public class AskRetryPureFunctionsTest {
 
     #region ComputeBackoffDelayMs — 指数退避延迟纯函数

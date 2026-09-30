@@ -287,4 +287,86 @@ public class DangerousCommandCatalogIntegrityTests {
     }
 
     #endregion
+
+    #region FileDeletionCommands / AllDeletionCommands 派生属性
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void FileDeletionCommands_Should_Contain_Only_FileDeletion_RiskType() {
+        // FileDeletionCommands 应包含 rm/del/erase/Remove-Item(4个,FileDeletion)
+        var expected = new[] { "rm", "del", "erase", "Remove-Item" };
+        foreach (var cmd in expected) {
+            DangerousCommandCatalog.FileDeletionCommands.Should().Contain(cmd,
+                $"文件删除命令 '{cmd}' 必须在 FileDeletionCommands 中");
+        }
+        DangerousCommandCatalog.FileDeletionCommands.Count.Should().Be(expected.Length,
+            "FileDeletionCommands 应仅包含 FileDeletion 风险类型的命令(4个)");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void FileDeletionCommands_Should_Not_Contain_DirectoryDeletion_Commands() {
+        // FileDeletionCommands 不应包含 rmdir/rd(DirectoryDeletion)
+        DangerousCommandCatalog.FileDeletionCommands.Should().NotContain("rmdir");
+        DangerousCommandCatalog.FileDeletionCommands.Should().NotContain("rd");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void AllDeletionCommands_Should_Contain_FileAndDirectoryDeletion() {
+        // AllDeletionCommands 应包含 rm/del/erase/Remove-Item/rmdir/rd(6个)
+        var expected = new[] { "rm", "del", "erase", "Remove-Item", "rmdir", "rd" };
+        foreach (var cmd in expected) {
+            DangerousCommandCatalog.AllDeletionCommands.Should().Contain(cmd,
+                $"删除命令 '{cmd}' 必须在 AllDeletionCommands 中");
+        }
+        DangerousCommandCatalog.AllDeletionCommands.Count.Should().Be(expected.Length,
+            "AllDeletionCommands 应包含 FileDeletion + DirectoryDeletion 风险类型的命令(6个)");
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void AllDeletionCommands_Should_Be_Superset_Of_FileDeletionCommands() {
+        // AllDeletionCommands 应是 FileDeletionCommands 的超集
+        foreach (var cmd in DangerousCommandCatalog.FileDeletionCommands) {
+            DangerousCommandCatalog.AllDeletionCommands.Should().Contain(cmd);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void FileDeletionCommands_Should_Use_OrdinalIgnoreCase_Comparer() {
+        // 验证大小写不敏感
+        DangerousCommandCatalog.FileDeletionCommands.Contains("RM").Should().BeTrue();
+        DangerousCommandCatalog.FileDeletionCommands.Contains("DEL").Should().BeTrue();
+        DangerousCommandCatalog.FileDeletionCommands.Contains("remove-item").Should().BeTrue();
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void AllDeletionCommands_Should_Use_OrdinalIgnoreCase_Comparer() {
+        // 验证大小写不敏感
+        DangerousCommandCatalog.AllDeletionCommands.Contains("RMDIR").Should().BeTrue();
+        DangerousCommandCatalog.AllDeletionCommands.Contains("RD").Should().BeTrue();
+    }
+
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void CheckRecurseForceCombination_Should_Delegate_To_FileDeletionCommands() {
+        // 验证 CommandDangerClassifier.CheckRecurseForceCombination 委托 FileDeletionCommands
+        // rm/Remove-Item 应触发检查(返回非 Safe),rmdir/rd 不应触发(返回 Safe)
+        var rmCmd = ShellCommand.Parse("rm -rf /");
+        CommandDangerClassifier.CheckRecurseForceCombination(rmCmd)
+            .Should().NotBe(CommandDangerLevel.Safe, "rm 在 FileDeletionCommands 中,应触发递归强制检查");
+
+        var rmdirCmd = ShellCommand.Parse("rmdir -rf /");
+        CommandDangerClassifier.CheckRecurseForceCombination(rmdirCmd)
+            .Should().Be(CommandDangerLevel.Safe, "rmdir 不在 FileDeletionCommands 中,不应触发递归强制检查");
+
+        var rdCmd = ShellCommand.Parse("rd -rf /");
+        CommandDangerClassifier.CheckRecurseForceCombination(rdCmd)
+            .Should().Be(CommandDangerLevel.Safe, "rd 不在 FileDeletionCommands 中,不应触发递归强制检查");
+    }
+
+    #endregion
 }

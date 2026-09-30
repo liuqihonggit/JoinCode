@@ -269,4 +269,82 @@ public sealed class InteractiveHandlerTests {
         InteractiveHandler.ShouldAutoApprove(0.5, threshold: 0.5).Should().BeTrue();
         InteractiveHandler.ShouldAutoApprove(0.49, threshold: 0.5).Should().BeFalse();
     }
+
+    // === ShouldAutoApprove: 取值范围 [0,1] 守卫(确定性) ===
+
+    /// <summary>confidence &lt; 0 抛 ArgumentOutOfRangeException。</summary>
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void ShouldAutoApprove_ConfidenceBelowZero_ThrowsArgumentOutOfRangeException() {
+        var act = () => InteractiveHandler.ShouldAutoApprove(-0.01);
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+           .WithParameterName("confidence");
+    }
+
+    /// <summary>confidence &gt; 1 抛 ArgumentOutOfRangeException。</summary>
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void ShouldAutoApprove_ConfidenceAboveOne_ThrowsArgumentOutOfRangeException() {
+        var act = () => InteractiveHandler.ShouldAutoApprove(1.01);
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+           .WithParameterName("confidence");
+    }
+
+    /// <summary>threshold &lt; 0 抛 ArgumentOutOfRangeException。</summary>
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void ShouldAutoApprove_ThresholdBelowZero_ThrowsArgumentOutOfRangeException() {
+        var act = () => InteractiveHandler.ShouldAutoApprove(0.5, threshold: -0.01);
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+           .WithParameterName("threshold");
+    }
+
+    /// <summary>threshold &gt; 1 抛 ArgumentOutOfRangeException。</summary>
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void ShouldAutoApprove_ThresholdAboveOne_ThrowsArgumentOutOfRangeException() {
+        var act = () => InteractiveHandler.ShouldAutoApprove(0.5, threshold: 1.01);
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+           .WithParameterName("threshold");
+    }
+
+    /// <summary>边界值 confidence=0.0 合法 — 不抛异常。</summary>
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void ShouldAutoApprove_ConfidenceZeroBoundary_DoesNotThrow() {
+        var act = () => InteractiveHandler.ShouldAutoApprove(0.0);
+
+        act.Should().NotThrow();
+    }
+
+    /// <summary>边界值 confidence=1.0 合法 — 不抛异常。</summary>
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void ShouldAutoApprove_ConfidenceOneBoundary_DoesNotThrow() {
+        var act = () => InteractiveHandler.ShouldAutoApprove(1.0);
+
+        act.Should().NotThrow();
+    }
+
+    /// <summary>边界值 threshold=0.0 合法 — 不抛异常。</summary>
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void ShouldAutoApprove_ThresholdZeroBoundary_DoesNotThrow() {
+        var act = () => InteractiveHandler.ShouldAutoApprove(0.5, threshold: 0.0);
+
+        act.Should().NotThrow();
+    }
+
+    /// <summary>边界值 threshold=1.0 合法 — 不抛异常。</summary>
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public void ShouldAutoApprove_ThresholdOneBoundary_DoesNotThrow() {
+        var act = () => InteractiveHandler.ShouldAutoApprove(0.5, threshold: 1.0);
+
+        act.Should().NotThrow();
+    }
 }

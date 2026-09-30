@@ -5,31 +5,9 @@ namespace McpClient;
 /// </summary>
 public static class McpBinaryHelper {
     /// <summary>
-    /// 判断 MIME 类型是否为二进制 — 对齐 TS isBinaryContentType
+    /// 判断 MIME 类型是否为二进制 — 委托单数据源 BinaryContentTypeCatalog.IsBinaryContentType
     /// </summary>
-    public static bool IsBinaryContentType(string? contentType) {
-        if (string.IsNullOrEmpty(contentType))
-            return false;
-
-        var mt = contentType.AsSpan();
-        var semiIndex = mt.IndexOf(';');
-        if (semiIndex >= 0)
-            mt = mt[..semiIndex];
-        mt = mt.Trim();
-
-        if (mt.StartsWith("text/"))
-            return false;
-        if (mt.EndsWith("+json") || mt.SequenceEqual("application/json"))
-            return false;
-        if (mt.EndsWith("+xml") || mt.SequenceEqual("application/xml"))
-            return false;
-        if (mt.StartsWith("application/javascript"))
-            return false;
-        if (mt.SequenceEqual("application/x-www-form-urlencoded"))
-            return false;
-
-        return true;
-    }
+    public static bool IsBinaryContentType(string? contentType) => BinaryContentTypeCatalog.IsBinaryContentType(contentType);
 
     /// <summary>
     /// 判断 MIME 类型是否为图片 — 图片走 base64 内联路径，不写盘

@@ -371,8 +371,11 @@ public sealed partial class InteractiveHandler : ServiceEntity {
     /// <param name="confidence">分类器输出的置信度,范围通常为 [0.0, 1.0]。</param>
     /// <param name="threshold">自动批准阈值,默认 <see cref="AutoApproveConfidenceThreshold"/>。</param>
     /// <returns>置信度 ≥ 阈值时返回 true;NaN 永远返回 false(IEEE 754 语义)。</returns>
-    internal static bool ShouldAutoApprove(double confidence, double threshold = AutoApproveConfidenceThreshold)
-        => confidence >= threshold;
+    internal static bool ShouldAutoApprove(double confidence, double threshold = AutoApproveConfidenceThreshold) {
+        if (confidence < 0.0 || confidence > 1.0) throw new ArgumentOutOfRangeException(nameof(confidence), confidence, "置信度必须在 [0, 1]");
+        if (threshold < 0.0 || threshold > 1.0) throw new ArgumentOutOfRangeException(nameof(threshold), threshold, "阈值必须在 [0, 1]");
+        return confidence >= threshold;
+    }
 
     internal static string? ExtractCommand(Dictionary<string, JsonElement> input) {
         ArgumentNullException.ThrowIfNull(input);

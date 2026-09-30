@@ -20,6 +20,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private readonly IIndexStore _persistence;
     private readonly GraphVisualization _visualization;
     private readonly ILogger<CodeIndexer>? _logger;
+    private readonly IHttpClientProvider? _httpClient;
     private EmbeddingIndex? _embeddingIndex;
     private IParentDocumentStore? _parentDocStore;
     private List<IIndexStore> _indexStores = [];
@@ -35,13 +36,15 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <param name="store">内存索引存储</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null) {
+    /// <param name="httpClient">可选 HTTP 客户端（用于模型缺失时自动下载，> ADR: 0124）</param>
+    public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null, IHttpClientProvider? httpClient = null) {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(fs);
 
         _store = store;
         _fs = fs;
         _logger = logger;
+        _httpClient = httpClient;
         _pluginFactory = static () => new CSharpSymbolExtractor();
         _plugin = _pluginFactory();
         _symbolIndex = new SymbolIndex(store, fs, _plugin);
@@ -87,6 +90,27 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             logger?.LogInformation("向量索引已自动初始化: dim={Dim}", embedModel.Dimensions);
         } catch (Exception ex) {
             logger?.LogWarning(ex, "向量索引自动初始化失败，语义搜索将不可用");
+        }
+    }
+
+    /// <summary>
+    /// 确保向量模型存在 — 缺失且有 HttpClient 时自动下载（对齐 git submodule update --init，> ADR: 0124）。
+    /// <para>下载后重新初始化 EmbeddingIndex + ParentDocumentStore + BuildIndexStoreList。</para>
+    /// <para>已初始化/无 HttpClient/下载失败时静默降级（保持原行为）。</para>
+    /// </summary>
+    public async Task EnsureEmbeddingModelAsync(CancellationToken ct = default) {
+        if (_embeddingIndex is not null) return;
+        if (_httpClient is null) return;
+        try {
+            var appData = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "jcc", "embedding");
+            var downloader = new EmbeddingModelDownloader(_logger as ILogger<EmbeddingModelDownloader>);
+            await downloader.EnsureAsync(appData, _fs, _httpClient, ct).ConfigureAwait(false);
+            TryInitEmbeddingIndex(_fs, _logger);
+            BuildIndexStoreList();
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "向量模型自动下载失败，语义搜索将不可用");
         }
     }
 
@@ -670,6 +694,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         if (Interlocked.CompareExchange(ref _autoLoadState, 1, 0) != 0) return;
 
         try {
+            await EnsureEmbeddingModelAsync(ct).ConfigureAwait(false);
             string dir;
             if (persistDir is not null) {
                 dir = persistDir;

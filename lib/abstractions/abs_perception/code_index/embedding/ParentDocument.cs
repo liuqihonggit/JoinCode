@@ -16,6 +16,8 @@ public sealed record ParentDocument {
     public required int StartLine { get; init; }
     /// <summary>结束行号。</summary>
     public required int EndLine { get; init; }
-    /// <summary>父文档源码原文 — 召回时喂给 LLM 的完整上下文。</summary>
+    /// <summary>父文档源码原文 — 召回时喂给 LLM 的完整上下文（超限时截断）。</summary>
     public required string SourceText { get; init; }
+    /// <summary>是否因超过行数限制被截断 — true 表示 SourceText 是截断后的版本。</summary>
+    public bool IsTruncated { get; init; }
 }

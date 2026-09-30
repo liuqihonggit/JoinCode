@@ -161,4 +161,34 @@ public sealed class ParentDocumentExtractionTests {
             Assert.Contains(result.ParentDocuments, d => d.ChunkId == chunk.ChunkId);
         }
     }
+
+    [Fact]
+    public void SmallClass_ParentDocument_NotTruncated() {
+        var source = """
+            public class Foo {
+                public void Bar() { }
+            }
+            """;
+
+        var result = _extractor.ExtractAll(source, "test.cs");
+
+        var classDoc = Assert.Single(result.ParentDocuments);
+        Assert.False(classDoc.IsTruncated);
+    }
+
+    [Fact]
+    public void LargeClass_ParentDocument_TruncatedWithMarker() {
+        var lines = new List<string> { "public class Big {" };
+        for (var i = 0; i < 2100; i++) {
+            lines.Add($"    public void M{i}() {{ }}");
+        }
+        lines.Add("}");
+        var source = string.Join("\n", lines);
+
+        var result = _extractor.ExtractAll(source, "big.cs");
+
+        var classDoc = Assert.Single(result.ParentDocuments, d => d.SymbolFqn.Contains("Big"));
+        Assert.True(classDoc.IsTruncated);
+        Assert.Contains("truncated", classDoc.SourceText);
+    }
 }

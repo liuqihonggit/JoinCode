@@ -29,6 +29,7 @@ public sealed class ParentDocumentTests {
         doc.StartLine.Should().Be(1);
         doc.EndLine.Should().Be(50);
         doc.SourceText.Should().Be("class Foo { }");
+        doc.IsTruncated.Should().BeFalse();
     }
 
     [Fact]

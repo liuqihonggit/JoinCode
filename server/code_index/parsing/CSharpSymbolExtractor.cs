@@ -171,14 +171,8 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         if (hasTopLevelChildren) {
             var fileContentHash = HashUtility.ComputeContentHash(sourceCode);
             fileParentChunkId = HashUtility.ComputeContentHash($"{filePath}|file|{fileContentHash}");
-            parentDocs.Add(new ParentDocument {
-                ChunkId = fileParentChunkId,
-                FilePath = filePath,
-                SymbolFqn = filePath,
-                StartLine = 1,
-                EndLine = lines.Length,
-                SourceText = sourceCode
-            });
+            parentDocs.Add(CreateParentDocument(
+                fileParentChunkId, filePath, filePath, 1, lines.Length, lines));
         }
 
         foreach (var symbol in symbols) {
@@ -190,14 +184,9 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
             string? parentChunkId = null;
             if (IsParentDocumentKind(symbol.Kind)) {
-                parentDocs.Add(new ParentDocument {
-                    ChunkId = chunkId,
-                    FilePath = filePath,
-                    SymbolFqn = symbol.FullyQualifiedName,
-                    StartLine = symbol.StartLine,
-                    EndLine = symbol.EndLine,
-                    SourceText = sourceText
-                });
+                parentDocs.Add(CreateParentDocument(
+                    chunkId, filePath, symbol.FullyQualifiedName,
+                    symbol.StartLine, symbol.EndLine, lines));
             } else {
                 var parentFqn = GetParentFqn(symbol.FullyQualifiedName);
                 if (parentFqn is not null && classFqnToChunkId.TryGetValue(parentFqn, out var classParentId)) {
@@ -222,6 +211,41 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         }
 
         return (chunks, parentDocs);
+    }
+
+    /// <summary>父文档最大行数 — 超过则截断，避免大类占用过多内存和 LLM context。</summary>
+    private const int MaxParentDocumentLines = 2000;
+
+    /// <summary>
+    /// 创建父文档 — 超过 MaxParentDocumentLines 行时截断并加标记。
+    /// </summary>
+    private static ParentDocument CreateParentDocument(
+        string chunkId, string filePath, string symbolFqn,
+        int startLine, int endLine, string[] lines) {
+        var lineCount = endLine - startLine + 1;
+        var sourceText = ExtractLineRange(lines, startLine, endLine);
+        if (lineCount <= MaxParentDocumentLines) {
+            return new ParentDocument {
+                ChunkId = chunkId,
+                FilePath = filePath,
+                SymbolFqn = symbolFqn,
+                StartLine = startLine,
+                EndLine = endLine,
+                SourceText = sourceText
+            };
+        }
+        var truncatedEnd = startLine + MaxParentDocumentLines - 1;
+        var truncatedText = ExtractLineRange(lines, startLine, truncatedEnd)
+            + $"\n// ... truncated (original: {lineCount} lines)";
+        return new ParentDocument {
+            ChunkId = chunkId,
+            FilePath = filePath,
+            SymbolFqn = symbolFqn,
+            StartLine = startLine,
+            EndLine = truncatedEnd,
+            SourceText = truncatedText,
+            IsTruncated = true
+        };
     }
 
     /// <summary>

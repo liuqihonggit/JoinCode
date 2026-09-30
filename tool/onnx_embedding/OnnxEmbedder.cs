@@ -76,13 +76,36 @@ public sealed class OnnxEmbedder : IDisposable {
 
         using var results = _session.Run(inputs);
         var output = results.First().AsTensor<float>();
+        var outputDims = output.Dimensions;
         var vectors = new float[batchSize][];
-        for (var i = 0; i < batchSize; i++) {
-            var vector = new float[_dimensions];
-            for (var d = 0; d < _dimensions; d++) {
-                vector[d] = output[i, d];
+
+        if (outputDims.Length == 3) {
+            var seqLenDim = outputDims[1];
+            for (var i = 0; i < batchSize; i++) {
+                var vector = new float[_dimensions];
+                var maskSum = 0;
+                for (var j = 0; j < seqLenDim; j++) {
+                    if (attentionMask[i * maxSeqLen + j] == 0) continue;
+                    maskSum++;
+                    for (var d = 0; d < _dimensions; d++) {
+                        vector[d] += output[i, j, d];
+                    }
+                }
+                if (maskSum > 0) {
+                    for (var d = 0; d < _dimensions; d++) {
+                        vector[d] /= maskSum;
+                    }
+                }
+                vectors[i] = vector;
             }
-            vectors[i] = vector;
+        } else {
+            for (var i = 0; i < batchSize; i++) {
+                var vector = new float[_dimensions];
+                for (var d = 0; d < _dimensions; d++) {
+                    vector[d] = output[i, d];
+                }
+                vectors[i] = vector;
+            }
         }
         return vectors;
     }

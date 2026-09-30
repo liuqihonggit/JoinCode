@@ -144,11 +144,49 @@ public class GuiPaletteContrastTests {
         var dicts = GuiPalette.BuildResourceDictionaries();
         dicts.Should().ContainKey(GuiPalette.GuiThemeVariant.Dark);
         dicts.Should().ContainKey(GuiPalette.GuiThemeVariant.Light);
+        dicts.Should().ContainKey(GuiPalette.GuiThemeVariant.SolarizedDark);
+        dicts.Should().ContainKey(GuiPalette.GuiThemeVariant.SolarizedLight);
 
         var light = dicts[GuiPalette.GuiThemeVariant.Light];
         light.ContainsKey("GuiWindowBackground").Should().BeTrue();
         var brush = light["GuiWindowBackground"].Should().BeAssignableTo<ISolidColorBrush>().Subject;
         brush.Color.ToString().Should().Be(Color.Parse("#f5f5f5").ToString());
+    }
+
+    [Fact]
+    public async Task ToggleThemeVm_CyclesThrough4Themes() {
+        await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.Dark);
+
+        vm.ToggleThemeCommand.Execute(null);
+        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.Light);
+
+        vm.ToggleThemeCommand.Execute(null);
+        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.SolarizedDark);
+
+        vm.ToggleThemeCommand.Execute(null);
+        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.SolarizedLight);
+
+        vm.ToggleThemeCommand.Execute(null);
+        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.Dark, "4 主题循环回 Dark");
+    }
+
+    [Fact]
+    public void SolarizedDark_HasDistinctColors_FromDark() {
+        var dark = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Dark);
+        var solDark = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.SolarizedDark);
+
+        solDark.WindowBackground.Should().NotBe(dark.WindowBackground, "Solarized Dark 底色应与基础 Dark 不同");
+        solDark.AccentText.Should().NotBe(dark.AccentText);
+    }
+
+    [Fact]
+    public void SolarizedLight_HasDistinctColors_FromLight() {
+        var light = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Light);
+        var solLight = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.SolarizedLight);
+
+        solLight.WindowBackground.Should().NotBe(light.WindowBackground, "Solarized Light 底色应与基础 Light 不同");
+        solLight.AccentText.Should().NotBe(light.AccentText);
     }
 
     [Fact]

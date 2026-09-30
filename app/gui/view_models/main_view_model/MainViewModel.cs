@@ -10,6 +10,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     private IJccChatSession _session;
     private readonly Persistence.GuiSessionStore _sessionStore;
     private readonly Persistence.GuiPreferencesStore _preferencesStore;
+    /// <summary>轮次日志持久化 — 每轮追加 turns.log，撤回重命名 .undo（任务8）</summary>
+    private readonly Persistence.TurnLogPersistence? _turnLogPersistence;
     private readonly IModelConfigLoader _modelConfigLoader;
     /// <summary>独立配置服务 — 引擎加载失败时仍可持久化 settings.json（主题/供应商/模型/推理力度）</summary>
     private readonly IConfigurationService _configService;
@@ -25,14 +27,17 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     [ObservableProperty]
     private string _inputText = string.Empty;
 
-    [ObservableProperty]
-    private bool _isBusy;
+    /// <summary>是否处于运行忙碌态 — 代理 RunStatus.IsBusy（单一权威源，消除双源真相）</summary>
+    public bool IsBusy => RunStatus.IsBusy;
 
     [ObservableProperty]
     private string _statusText = "未连接";
 
     [ObservableProperty]
-    private bool _isDarkTheme = true;
+    private GuiPalette.GuiThemeVariant _currentTheme = GuiPalette.GuiThemeVariant.Dark;
+
+    /// <summary>深色主题判定（派生属性 — Dark/SolarizedDark 为 true，兼容旧绑定）</summary>
+    public bool IsDarkTheme => CurrentTheme is GuiPalette.GuiThemeVariant.Dark or GuiPalette.GuiThemeVariant.SolarizedDark;
 
     [ObservableProperty]
     private string? _selectedModel;
@@ -61,8 +66,13 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     [ObservableProperty]
     private bool _isUnattendedMode = false;
 
-    /// <summary>主题切换按钮提示（区分深浅态）</summary>
-    public string ThemeToggleToolTip => IsDarkTheme ? "切换到浅色主题 ☀" : "切换到深色主题 ☾";
+    /// <summary>主题切换按钮提示（循环：Dark→Light→SolarizedDark→SolarizedLight）</summary>
+    public string ThemeToggleToolTip => CurrentTheme switch {
+        GuiPalette.GuiThemeVariant.Dark => "切换到浅色主题 ☀",
+        GuiPalette.GuiThemeVariant.Light => "切换到 Solarized Dark ◑",
+        GuiPalette.GuiThemeVariant.SolarizedDark => "切换到 Solarized Light ◐",
+        _ => "切换到深色主题 ☾"
+    };
     /// <summary>Mock 切换按钮提示（区分开关态）</summary>
     public string MockToggleToolTip => IsMockConnection ? "Mock 演示引擎：已开启 Ⓘ" : "Mock 演示引擎：已关闭";
     /// <summary>无人值守按钮提示（区分开关态）</summary>
@@ -185,8 +195,10 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     /// </summary>
     public BackgroundAgentsPanelViewModel BackgroundPanel { get; }
 
-    /// <summary>输入字符数上限（超过即警示）</summary>
-    public int MaxInputChars => MaxTokens * 3;
+    /// <summary>输入字符数上限（超过即警示）— 优先用模型 ContextWindow，回退 MaxTokens*3（任务3联动）</summary>
+    public int MaxInputChars => SelectedModelOption is { ContextWindow: > 0 } opt
+        ? opt.ContextWindow * 3
+        : MaxTokens * 3;
 
     /// <summary>输入是否超过建议上限（驱动顶栏警示与计数标红）</summary>
     public bool IsInputTooLong => CharsCount > MaxInputChars;

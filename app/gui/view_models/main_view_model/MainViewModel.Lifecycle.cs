@@ -18,6 +18,7 @@ public sealed partial class MainViewModel {
         _session = session ?? new Hosting.PlaceholderChatSession(_configService, _modelConfigLoader);
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _preferencesStore = preferencesStore ?? new Persistence.GuiPreferencesStore(new IO.FileSystem.PhysicalFileSystem());
+        _turnLogPersistence = new Persistence.TurnLogPersistence(_fileSystem, _sessionStore.SessionsDirectory);
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
         // T9：斜杠命令确认/退出 — handler 由 View 注入（弹确认框），退出事件转发给 View 关窗
@@ -31,6 +32,16 @@ public sealed partial class MainViewModel {
             pauser: (id, ct) => _session.PauseSubAgentAsync(id, ct),
             resumer: (id, ct) => _session.ResumeSubAgentAsync(id, ct));
         BackgroundPanel.SnapshotApplied += count => RunStatus.SetBackgroundCount(count);
+
+        // IsBusy 单一权威源：RunStatus.IsBusy 变更时转发为 MainViewModel.IsBusy 的 PropertyChanged
+        // （消除双源真相 — 所有消费者统一读 RunStatus.IsBusy，XAML 绑定 IsBusy 仍工作）
+        RunStatus.PropertyChanged += (_, e) => {
+            if (e.PropertyName == nameof(GlobalRunStatusViewModel.IsBusy))
+                OnPropertyChanged(nameof(IsBusy));
+        };
+
+        // 磁盘根保护 — 扫描盘号填充 ProtectedDrives 集合，默认勾选，应用到引擎（ADR 0123）
+        InitializeProtectedDrives();
 
         _selectedEffort = _session.EffortLevel.ToValue();
         Messages.CollectionChanged += OnMessagesChanged;

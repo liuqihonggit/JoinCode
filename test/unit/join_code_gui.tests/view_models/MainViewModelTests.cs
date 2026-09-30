@@ -1095,6 +1095,13 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1263,6 +1270,13 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1335,6 +1349,13 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1389,6 +1410,13 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1448,6 +1476,13 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1510,6 +1545,13 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
@@ -1574,12 +1616,159 @@ public class MainViewModelTests {
         public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
         public void UpdateToolBlacklist(HashSet<string> blacklistedTools) { }
+        public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
+
+        public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
+
+        public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
+            => Task.FromResult<ToolInfo?>(null);
         public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
         public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public event EventHandler<JoinCode.Abstractions.UI.ThemeKind>? ThemeChanged { add { } remove { } }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// IsBusy 单一权威源验证 — MainViewModel.IsBusy 必须始终等于 RunStatus.IsBusy，
+    /// 消除双源真相（缺失点6修复）。RunStatus.StartTurn/EndTurn 是唯一设置点。
+    /// </summary>
+    [Fact]
+    public void IsBusy_AlwaysMirrorsRunStatus_IsBusy() {
+        var vm = CreateVm();
+        vm.IsBusy.Should().Be(vm.RunStatus.IsBusy,
+            "初始态 IsBusy 必须与 RunStatus.IsBusy 一致");
+
+        vm.RunStatus.StartTurn();
+        vm.IsBusy.Should().BeTrue("RunStatus.StartTurn 后 IsBusy 应为 true（代理）");
+        vm.IsBusy.Should().Be(vm.RunStatus.IsBusy,
+            "忙碌态 IsBusy 必须与 RunStatus.IsBusy 一致");
+
+        vm.RunStatus.EndTurn(MarqueeStopReason.Normal);
+        vm.IsBusy.Should().BeFalse("RunStatus.EndTurn 后 IsBusy 应为 false（代理）");
+        vm.IsBusy.Should().Be(vm.RunStatus.IsBusy,
+            "结束态 IsBusy 必须与 RunStatus.IsBusy 一致");
+    }
+
+    /// <summary>IsBusy PropertyChanged 转发验证 — RunStatus.IsBusy 变更时 MainViewModel 必须 raise IsBusy</summary>
+    [Fact]
+    public void IsBusy_PropertyChanged_ForwardedFromRunStatus() {
+        var vm = CreateVm();
+        var busyChanges = new List<bool>();
+        vm.PropertyChanged += (_, e) => {
+            if (e.PropertyName == nameof(MainViewModel.IsBusy))
+                busyChanges.Add(vm.IsBusy);
+        };
+
+        vm.RunStatus.StartTurn();
+        vm.RunStatus.EndTurn(MarqueeStopReason.Normal);
+
+        busyChanges.Should().Contain(true, "StartTurn 后应转发 IsBusy=true 变更");
+        busyChanges.Should().Contain(false, "EndTurn 后应转发 IsBusy=false 变更");
+    }
+
+    /// <summary>
+    /// 磁盘根保护初始化验证 — 启动时扫描盘号填充 ProtectedDrives 集合，每项默认勾选（ADR 0123）。
+    /// </summary>
+    [Fact]
+    public void ProtectedDrives_Initialized_AllDefaultProtected() {
+        var vm = CreateVm();
+        vm.ProtectedDrives.Should().NotBeEmpty("至少应扫描到一个一个盘号");
+        vm.ProtectedDrives.Should().AllSatisfy(item =>
+            item.IsProtected.Should().BeTrue("所有盘号默认应勾选（保护开启）"));
+    }
+
+    /// <summary>ProtectedDrives 盘号格式验证 — 每项 DriveLetter 应为 大写字母+冒号 格式</summary>
+    [Fact]
+    public void ProtectedDrives_DriveLetterFormat_UppercaseLetterColon() {
+        var vm = CreateVm();
+        vm.ProtectedDrives.Should().AllSatisfy(item => {
+            item.DriveLetter.Should().HaveLength(2);
+            item.DriveLetter[0].Should().BeInRange('A', 'Z', "盘号首字符应为大写字母");
+            item.DriveLetter[1].Should().Be(':', "盘号第二字符应为冒号");
+        });
+    }
+
+    // === Token 上限模型联动测试（任务3） ===
+
+    /// <summary>EstimateMaxOutputTokens 估算逻辑 — ContextWindow 的 1/4，下限 1024，上限 32768</summary>
+    [Theory]
+    [InlineData(0, 4096)]       // 未知 → 默认 4096
+    [InlineData(-1, 4096)]      // 负值 → 默认 4096
+    [InlineData(1000, 1024)]    // 小模型 → 下限 1024
+    [InlineData(4096, 1024)]    // 4K 上下文 → 1024
+    [InlineData(16384, 4096)]   // 16K → 4096
+    [InlineData(65536, 16384)]  // 64K → 16384
+    [InlineData(131072, 32768)] // 128K → 32768
+    [InlineData(1048576, 32768)] // 1M → 上限 32768
+    public void EstimateMaxOutputTokens_BoundsClamped(int contextWindow, int expected) {
+        MainViewModel.EstimateMaxOutputTokens(contextWindow).Should().Be(expected);
+    }
+
+    /// <summary>MaxInputChars 优先用模型 ContextWindow — 无模型时回退 MaxTokens*3</summary>
+    [Fact]
+    public void MaxInputChars_PrefersModelContextWindow_OverMaxTokens() {
+        var vm = CreateVm();
+        var maxTokensBased = vm.MaxTokens * 3;
+
+        // 无模型选中时 → 回退 MaxTokens*3
+        vm.SelectedModelOption = null;
+        vm.MaxInputChars.Should().Be(maxTokensBased);
+
+        // 有模型且 ContextWindow>0 → 用 ContextWindow*3
+        var modelWithCtx = new ModelOptionItem("test-model", "Test:Model", "", 32768);
+        vm.SelectedModelOption = modelWithCtx;
+        vm.MaxInputChars.Should().Be(32768 * 3, "应优先用模型 ContextWindow");
+
+        // 模型 ContextWindow=0 → 回退 MaxTokens*3（此时 MaxTokens 已被之前联动改过）
+        var modelNoCtx = new ModelOptionItem("test-model2", "Test:Model2", "", 0);
+        vm.SelectedModelOption = modelNoCtx;
+        vm.MaxInputChars.Should().Be(vm.MaxTokens * 3, "ContextWindow=0 时回退到当前 MaxTokens*3");
+    }
+
+    /// <summary>切换模型联动 MaxTokens — ContextWindow 变化时 MaxTokens 自动调整</summary>
+    [Fact]
+    public void SelectedModelOption_Change_UpdatesMaxTokens_ByContextWindow() {
+        var vm = CreateVm();
+        var originalMaxTokens = vm.MaxTokens;
+
+        // 切换到 128K 上下文模型 → MaxTokens 应联动为 32768
+        vm.SelectedModelOption = new ModelOptionItem("big-model", "Test:Big", "", 131072);
+        vm.MaxTokens.Should().Be(32768, "128K 上下文应联动 MaxTokens=32768");
+
+        // 切换到 8K 上下文模型 → MaxTokens 应联动为 2048
+        vm.SelectedModelOption = new ModelOptionItem("small-model", "Test:Small", "", 8192);
+        vm.MaxTokens.Should().Be(2048, "8K 上下文应联动 MaxTokens=2048");
+    }
+
+    /// <summary>首次发送 — User 和 Assistant 消息共享 TurnIndex=0</summary>
+    [Fact]
+    public async Task Send_FirstTurn_StampTurnIndex0_OnAllMessages() {
+        var vm = CreateVm();
+        vm.InputText = "first";
+        await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+
+        vm.Messages.Should().NotBeEmpty();
+        vm.Messages.Should().AllSatisfy(m => m.TurnIndex.Should().Be(0, "首轮全部消息 TurnIndex=0"));
+    }
+
+    /// <summary>两次发送 — 第二轮消息 TurnIndex=1，与首轮区分</summary>
+    [Fact]
+    public async Task Send_SecondTurn_StampTurnIndex1_OnNewMessages() {
+        var vm = CreateVm();
+        vm.InputText = "first";
+        await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+        var firstTurnCount = vm.Messages.Count;
+
+        vm.InputText = "second";
+        await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+
+        // 第一轮消息保持 TurnIndex=0
+        vm.Messages.Take(firstTurnCount).Should().AllSatisfy(m => m.TurnIndex.Should().Be(0));
+        // 第二轮消息 TurnIndex=1
+        vm.Messages.Skip(firstTurnCount).Should().AllSatisfy(m => m.TurnIndex.Should().Be(1));
     }
 }
 

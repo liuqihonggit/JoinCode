@@ -78,4 +78,40 @@ public class ChatTurnProcessorTests {
         p.AssistantPlaceholder.Content.Should().BeEmpty("子代理事件不得污染主对话正文");
         p.AgentRuns.Should().ContainSingle(r => r.AgentId == "a1");
     }
+
+    [Fact]
+    public void BeginTurn_WithTurnIndex_ShouldStampOnAssistantPlaceholder() {
+        var messages = new ObservableCollection<ChatUiMessage>();
+        var processor = new ChatTurnProcessor(messages);
+        processor.BeginTurn(turnIndex: 3);
+        processor.TurnIndex.Should().Be(3);
+        processor.AssistantPlaceholder.TurnIndex.Should().Be(3);
+    }
+
+    [Fact]
+    public void Process_ThinkingAndTool_WithTurnIndex_ShouldStampOnAllMessages() {
+        var messages = new ObservableCollection<ChatUiMessage>();
+        var processor = new ChatTurnProcessor(messages);
+        processor.BeginTurn(turnIndex: 5);
+
+        processor.Process(new ChatStreamEvent { Type = ChatStreamEventType.Thinking, ThinkingContent = "想" }, true);
+        processor.Process(ChatStreamEvent.ToolStart("bash", "c1", "ls"), true);
+        processor.Process(ChatStreamEvent.ToolEnd("bash", "ok", "c1", isError: false), true);
+        processor.CompleteTurn(true);
+
+        messages.Should().AllSatisfy(m => m.TurnIndex.Should().Be(5, "同一轮全部消息共享 TurnIndex"));
+    }
+
+    [Fact]
+    public void Process_SubAgentGroup_WithTurnIndex_ShouldStampOnGroupCard() {
+        var messages = new ObservableCollection<ChatUiMessage>();
+        var processor = new ChatTurnProcessor(messages);
+        processor.BeginTurn(turnIndex: 7);
+
+        processor.Process(ChatStreamEvent.AgentStarted("a1", "explore", "调研", "executor"), true);
+        processor.CompleteTurn(true);
+
+        var groupCard = messages.Should().ContainSingle(m => m.Kind == ChatUiMessageKind.AgentRunGroup).Subject;
+        groupCard.TurnIndex.Should().Be(7);
+    }
 }

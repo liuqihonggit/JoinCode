@@ -116,8 +116,8 @@ public sealed partial class MainViewModel {
     /// 复杂属性（SelectedConnection/SelectedEffort）保留 OnXxxChanged 手动调 PersistSync。
     /// </summary>
     private void RegisterPersistActions() {
-        _persistActions[nameof(IsDarkTheme)] = () =>
-            PersistSync(() => _session.SetThemeAsync(ThemeConverter.FromIsDark(IsDarkTheme)));
+        _persistActions[nameof(CurrentTheme)] = () =>
+            PersistSync(() => _session.SetThemeAsync(ThemeConverter.FromVariant(CurrentTheme)));
         _persistActions[nameof(SelectedModel)] = () => {
             var m = SelectedModel;
             if (!string.IsNullOrWhiteSpace(m) && !string.Equals(m, _session.CurrentModelId, StringComparison.Ordinal))

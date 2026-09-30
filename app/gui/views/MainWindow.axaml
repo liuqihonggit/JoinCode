@@ -124,6 +124,11 @@
             <ScrollViewer x:Name="MessageScrollViewer" IsVisible="{Binding HasMessages}"
                           ScrollChanged="OnMessageScrollChanged">
               <ItemsControl x:Name="MessageItems" ItemsSource="{Binding FilteredMessages}" Margin="12,6">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <VirtualizingStackPanel />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <Border Classes="msgCard">
@@ -140,9 +145,13 @@
                                     IsEnabled="{Binding DataContext.CanRegenerate, ElementName=Root}" />
                         </ContextMenu>
                       </Border.ContextMenu>
-                      <Grid ColumnDefinitions="Auto,*">
+                      <Grid ColumnDefinitions="Auto,Auto,*">
+                        <!-- 轮次互补色条（2px，任务4）：偶数轮 TurnColorA / 奇数轮 TurnColorB -->
+                        <Rectangle Grid.Column="0" Width="2" RadiusX="1" RadiusY="1"
+                                   VerticalAlignment="Stretch" Margin="0,2,3,2"
+                                   Fill="{Binding TurnIndex, Converter={x:Static cnv:TurnIndexToBrushConverter.Instance}}" />
                         <!-- 角色色条：工具=工具色/思考=紫/用户=蓝/AI=淡青 -->
-                        <Rectangle Grid.Column="0" Width="3" RadiusX="1.5" RadiusY="1.5"
+                        <Rectangle Grid.Column="1" Width="3" RadiusX="1.5" RadiusY="1.5"
                                    VerticalAlignment="Stretch" Margin="0,2,11,2">
                           <Rectangle.Fill>
                             <MultiBinding Converter="{StaticResource MsgBarBrush}">
@@ -151,9 +160,9 @@
                             </MultiBinding>
                           </Rectangle.Fill>
                         </Rectangle>
-                        <StackPanel Grid.Column="1" Spacing="4">
-                          <!-- 头行：角色+时间 / 类型标签 / 悬停操作按钮 -->
-                          <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                        <StackPanel Grid.Column="2" Spacing="4">
+                          <!-- 头行：角色+轮次+时间 / 类型标签 / 悬停操作按钮 -->
+                          <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
                             <TextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold" FontSize="12">
                               <TextBlock.Foreground>
                                 <MultiBinding Converter="{StaticResource MsgBarBrush}">
@@ -162,12 +171,15 @@
                                 </MultiBinding>
                               </TextBlock.Foreground>
                             </TextBlock>
-                            <TextBlock Grid.Column="1" Text="{Binding Timestamp, StringFormat=' {} · HH:mm:ss'}"
+                            <TextBlock Grid.Column="1" Text="{Binding TurnIndex, StringFormat=' T{0}'}"
+                                       FontSize="10" Foreground="{DynamicResource GuiMutedText}"
+                                       VerticalAlignment="Center" Margin="4,0,0,0" />
+                            <TextBlock Grid.Column="2" Text="{Binding Timestamp, StringFormat=' {} · HH:mm:ss'}"
                                        FontSize="10.5" Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="2" Text="{Binding KindLabel}" FontSize="11"
+                            <TextBlock Grid.Column="3" Text="{Binding KindLabel}" FontSize="11"
                                        Foreground="{DynamicResource GuiMutedText}" Margin="8,0,0,0"
                                        VerticalAlignment="Center" />
-                            <StackPanel Grid.Column="3" Classes="actions" Orientation="Horizontal" Spacing="2">
+                            <StackPanel Grid.Column="4" Classes="actions" Orientation="Horizontal" Spacing="2">
                               <Button Classes="ghost" Content="📋" FontSize="10" Padding="5,2" MinHeight="0"
                                       ToolTip.Tip="复制本条"
                                       Command="{Binding DataContext.CopyMessageCommand, ElementName=Root}"
@@ -345,138 +357,8 @@
       <!-- Row 3：底部输入栏 -->
       <local:InputBarView Grid.Row="3" x:Name="InputBar" />
 
-      <!-- Row 4：状态栏（与侧栏底部状态栏同高同固定值；Grid 内容收缩垂直居中 — 与侧栏 StackPanel Center 同构，文字基线恒对齐） -->
-      <Border Grid.Row="4" x:Name="MainStatusBar" Height="30" Padding="12,0" Background="{DynamicResource GuiStatusBarBackground}"
-              BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
-        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" VerticalAlignment="Center">
-          <!-- 全局运行状态区（T5）：spinner 动词 + 耗时 + token 聚合，仅 Busy 时可见 -->
-          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                      IsVisible="{Binding RunStatus.IsBusy}">
-            <!-- 双 glyph 切换实现卡死变色（正常青/卡死红），免动态画刷键 -->
-            <Panel>
-              <TextBlock Text="⟳" FontSize="12" VerticalAlignment="Center"
-                         Foreground="{DynamicResource GuiAccentText}"
-                         IsVisible="{Binding !RunStatus.IsStalled}" />
-              <TextBlock Text="⟳" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"
-                         Foreground="{DynamicResource GuiErrorText}"
-                         IsVisible="{Binding RunStatus.IsStalled}" />
-            </Panel>
-            <TextBlock Text="{Binding RunStatus.Verb}" FontSize="11" FontWeight="SemiBold"
-                       Foreground="{DynamicResource GuiAccentText}" VerticalAlignment="Center" />
-          </StackPanel>
-          <!-- F1 走马灯（学习 opencode）：活动摘要流滚动，替代原"就绪"绿点+文字 -->
-          <controls:MarqueeTextBlock Grid.Column="5" x:Name="StatusMarquee" Height="16"
-                                     MinWidth="120" Margin="10,0"
-                                     Foreground="{DynamicResource GuiMutedText}"
-                                     Text="{Binding RunStatus.MarqueeText, FallbackValue='JoinCode 就绪'}" />
-          <!-- 后台代理 pill：点击开合管理面板（Popup 向上弹出，置于按钮同级避免双内容） -->
-          <Panel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-            <Button x:Name="BackgroundPill" Classes="pill" MinHeight="0" Padding="9,1"
-                    Background="{DynamicResource GuiAccentSubtle}"
-                    IsVisible="{Binding RunStatus.BackgroundPillText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                    Command="{Binding BackgroundPanel.ToggleAndRefreshCommand}">
-              <TextBlock Text="{Binding RunStatus.BackgroundPillText}" Foreground="{DynamicResource GuiAccentText}"
-                         FontSize="11" VerticalAlignment="Center" />
-            </Button>
-            <Popup IsOpen="{Binding BackgroundPanel.IsOpen}" Placement="Top" PlacementTarget="{Binding #BackgroundPill}"
-                   VerticalOffset="-6">
-              <Border CornerRadius="10" Padding="12,8" Width="380" MaxHeight="320"
-                      Background="{DynamicResource GuiPopupBackground}"
-                      BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
-                <Grid RowDefinitions="Auto,*">
-                  <StackPanel Orientation="Horizontal" Spacing="8" Margin="2,0,2,6">
-                    <TextBlock Text="{Binding BackgroundPanel.CountText, FallbackValue='后台代理'}" FontSize="11.5"
-                               FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
-                    <TextBox Text="{Binding BackgroundPanel.SearchText}" Watermark="搜索..." FontSize="10" Padding="6,2" MinWidth="80" />
-                    <Button Classes="ghost" Content="暂停所有" FontSize="10" Padding="7,2" MinHeight="0"
-                            Command="{Binding BackgroundPanel.PauseAllCommand}" ToolTip.Tip="暂停所有运行中子代理" />
-                    <Button Classes="ghost" Content="恢复所有" FontSize="10" Padding="7,2" MinHeight="0"
-                            Command="{Binding BackgroundPanel.ResumeAllCommand}" ToolTip.Tip="恢复所有暂停中子代理" />
-                    <Button Classes="ghost" Content="终止所有" FontSize="10" Padding="7,2" MinHeight="0"
-                            Command="{Binding BackgroundPanel.StopAllCommand}" ToolTip.Tip="终止所有运行中子代理" />
-                  </StackPanel>
-                  <ScrollViewer Grid.Row="1" MaxHeight="270">
-                    <ItemsControl ItemsSource="{Binding BackgroundPanel.Items}">
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:BackgroundAgentItemVm">
-                          <Border CornerRadius="8" Padding="10,6" Margin="0,0,0,5" Background="{DynamicResource GuiCardHover}"
-                                  IsVisible="{Binding IsVisible}">
-                            <StackPanel Spacing="4">
-                              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
-                                <Button Classes="ghost" FontSize="10" Padding="4,2" MinHeight="0" MinWidth="0"
-                                        Content="{Binding IsExpanded, Converter={x:Static cnv:ExpandGlyphConverter.Instance}}"
-                                        ToolTip.Tip="展开/收起实时输出"
-                                        Command="{Binding DataContext.BackgroundPanel.ToggleExpandCommand, ElementName=Root}"
-                                        CommandParameter="{Binding AgentId}" />
-                                <StackPanel Grid.Column="1" Spacing="2">
-                                  <TextBlock Text="{Binding Description}" FontSize="11.5" FontWeight="SemiBold"
-                                             Foreground="{DynamicResource GuiPrimaryText}" TextTrimming="CharacterEllipsis" />
-                                  <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="{Binding Name}" FontSize="10.5" Foreground="{DynamicResource GuiAccentText}" />
-                                    <TextBlock Text="{Binding StateText}" FontSize="10.5" Foreground="{DynamicResource GuiMutedText}" />
-                                    <TextBlock Text="{Binding ElapsedText}" FontSize="10.5" Foreground="{DynamicResource GuiMutedText}" />
-                                    <TextBlock Text="{Binding StatsText}" FontSize="10.5" Foreground="{DynamicResource GuiMutedText}" />
-                                  </StackPanel>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
-                                            IsVisible="{Binding IsRunning}">
-                                  <Button Classes="ghost" Content="暂停" FontSize="10" Padding="7,2" MinHeight="0"
-                                          IsVisible="{Binding CanPause}" ToolTip.Tip="暂停该子代理"
-                                          Command="{Binding DataContext.BackgroundPanel.PauseCommand, ElementName=Root}"
-                                          CommandParameter="{Binding AgentId}" />
-                                  <Button Classes="ghost" Content="继续" FontSize="10" Padding="7,2" MinHeight="0"
-                                          IsVisible="{Binding CanResume}" ToolTip.Tip="恢复该子代理"
-                                          Command="{Binding DataContext.BackgroundPanel.ResumeCommand, ElementName=Root}"
-                                          CommandParameter="{Binding AgentId}" />
-                                  <Button Classes="ghost" Content="终止" FontSize="10" Padding="7,2" MinHeight="0"
-                                          ToolTip.Tip="终止该后台代理"
-                                          Command="{Binding DataContext.BackgroundPanel.StopCommand, ElementName=Root}"
-                                          CommandParameter="{Binding AgentId}" />
-                                </StackPanel>
-                              </Grid>
-                              <Border IsVisible="{Binding IsExpanded}" CornerRadius="4" Padding="8,4"
-                                      Background="{DynamicResource GuiCardBackground}" Margin="4,0,0,0">
-                                <StackPanel Spacing="2">
-                                  <TextBlock Text="{Binding LastActivityText, FallbackValue='无实时输出'}" FontSize="10"
-                                             Foreground="{DynamicResource GuiMutedText}" TextTrimming="CharacterEllipsis"
-                                             IsVisible="{Binding LastActivityText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                  <ItemsControl ItemsSource="{Binding VisibleActivities}">
-                                    <ItemsControl.ItemTemplate>
-                                      <DataTemplate x:DataType="abs:AgentActivityEntry">
-                                        <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,1">
-                                          <TextBlock Text="{Binding Glyph}" FontSize="10" Foreground="{DynamicResource GuiMutedText}" />
-                                          <TextBlock Text="{Binding Text}" FontSize="10" Foreground="{DynamicResource GuiMutedText}"
-                                                     TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
-                                      </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                  </ItemsControl>
-                                </StackPanel>
-                              </Border>
-                            </StackPanel>
-                          </Border>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                  </ScrollViewer>
-                </Grid>
-              </Border>
-            </Popup>
-          </Panel>
-          <TextBlock Grid.Column="2" Text="{Binding Sessions.Count, StringFormat='{}会话 {0}', FallbackValue='会话 0'}" Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="10,0,0,0" />
-          <TextBlock Grid.Column="3" Text="{Binding MessageCount, StringFormat='{}  · 消息 {0}', FallbackValue='  · 消息 0'}"
-                     Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="10,0" />
-          <TextBlock Grid.Column="4" Text="{Binding TokenUsageText, FallbackValue=''}"
-                     Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="10,0,0,0" />
-          <!-- F1：原"就绪"绿点+文字已由走马灯（Grid.Column=5 StatusMarquee）替代 -->
-          <Border Grid.Column="6" CornerRadius="9" Padding="9,1" Margin="10,0,0,0"
-                  Background="{DynamicResource GuiAccentSubtle}" VerticalAlignment="Center"
-                  IsVisible="{Binding SelectedModel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock Text="{Binding SelectedModel, FallbackValue=''}" Foreground="{DynamicResource GuiAccentText}" FontSize="11"
-                       TextTrimming="CharacterEllipsis" MaxLines="1" />
-          </Border>
-        </Grid>
-      </Border>
+      <!-- Row 4：状态栏（模块化提取为 StatusBarView — 任务6） -->
+      <local:StatusBarView Grid.Row="4" />
       </Grid>
     </Grid>
   </Grid>

@@ -41,6 +41,9 @@ public sealed class BoolToRoleBrushConverter : IValueConverter {
 /// 会话状态 → 指示器颜色：就绪绿 / 思考黄 / 错误红。取自身份配色，随主题切换。
 /// </summary>
 public sealed class StatusToBrushConverter : IValueConverter {
+    /// <summary>单例实例 — 供 XAML 静态绑定</summary>
+    public static readonly StatusToBrushConverter Instance = new();
+
     /// <summary>转换值</summary>
     public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) {
         var s = GuiPalette.Current;
@@ -112,6 +115,27 @@ public sealed class ExpandGlyphConverter : IValueConverter {
     /// <summary>转换值</summary>
     public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
         => value is true ? "▼" : "▶";
+
+    /// <summary>转换回原值</summary>
+    public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// 轮次编号 → 互补色画刷：偶数轮 TurnColorA，奇数轮 TurnColorB。
+/// 取自身份配色，随主题切换。驱动轮次色条区分对话轮次（任务4）。
+/// </summary>
+public sealed class TurnIndexToBrushConverter : IValueConverter {
+    /// <summary>单例实例 — 供 XAML 静态绑定</summary>
+    public static readonly TurnIndexToBrushConverter Instance = new();
+
+    /// <summary>转换值</summary>
+    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) {
+        var s = GuiPalette.Current;
+        return value is int turn && turn % 2 != 0
+            ? GuiPalette.ToBrush(s.TurnColorB)
+            : GuiPalette.ToBrush(s.TurnColorA);
+    }
 
     /// <summary>转换回原值</summary>
     public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)

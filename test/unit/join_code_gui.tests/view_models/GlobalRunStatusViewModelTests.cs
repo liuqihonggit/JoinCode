@@ -103,4 +103,119 @@ public class GlobalRunStatusViewModelTests {
         vm.SetBackgroundCount(2);
         vm.BackgroundPillText.Should().Contain("2").And.Contain("后台");
     }
+
+    // === MarqueeText 拼接逻辑测试（缺失点2补全） ===
+
+    [Fact]
+    public void MarqueeText_Idle_ShowsDefaultWelcome() {
+        var (vm, _, _) = Create();
+        vm.MarqueeText.Should().Contain("JoinCode Ava 就绪",
+            "空闲时应显示默认欢迎语引导用户操作");
+    }
+
+    [Fact]
+    public void MarqueeText_Busy_ShouldContainVerb() {
+        var (vm, _, _) = Create();
+        vm.StartTurn();
+        vm.MarqueeText.Should().Contain(vm.Verb,
+            "忙碌时走马灯应包含当前回合采样的动词");
+    }
+
+    [Fact]
+    public void MarqueeText_WithActivity_ShouldContainActivityLabel() {
+        var (vm, _, _) = Create();
+        vm.StartTurn();
+        vm.ReportActivity(hasActiveTool: true, label: "bash");
+        vm.MarqueeText.Should().Contain("bash",
+            "走马灯应包含最近活动标签（工具名/子代理名）");
+    }
+
+    [Fact]
+    public void MarqueeText_WithTokens_ShouldContainFormattedTokens() {
+        var (vm, _, _) = Create();
+        vm.StartTurn();
+        vm.AddTokens(5000);
+        vm.MarqueeText.Should().Contain("5k").And.Contain("tokens",
+            "走马灯应包含格式化后的 token 消耗");
+    }
+
+    [Fact]
+    public void MarqueeText_WithElapsed_ShouldContainElapsedSeconds() {
+        var (vm, clock, _) = Create();
+        vm.StartTurn();
+        clock.AdvanceSeconds(5);
+        vm.OnHeartbeatTick();
+        vm.MarqueeText.Should().Contain("5",
+            "走马灯应包含回合耗时");
+    }
+
+    [Fact]
+    public void MarqueeText_AllPartsJoinedBySeparator() {
+        var (vm, clock, _) = Create();
+        vm.StartTurn();
+        vm.ReportActivity(false, "grep");
+        clock.AdvanceSeconds(3);
+        vm.OnHeartbeatTick();
+        vm.AddTokens(2000);
+        vm.MarqueeText.Should().Contain("·",
+            "多段内容应用分隔符连接");
+    }
+
+    // === MarqueeStopped 事件触发测试（缺失点3补全） ===
+
+    [Fact]
+    public void MarqueeStopped_EndTurnNormal_ShouldFireNormal() {
+        var (vm, _, _) = Create();
+        vm.StartTurn();
+        MarqueeStopReason? fired = null;
+        vm.MarqueeStopped += r => fired = r;
+        vm.EndTurn(MarqueeStopReason.Normal);
+        fired.Should().Be(MarqueeStopReason.Normal,
+            "正常结束应触发 Normal 原因");
+    }
+
+    [Fact]
+    public void MarqueeStopped_EndTurnUserAborted_ShouldFireUserAborted() {
+        var (vm, _, _) = Create();
+        vm.StartTurn();
+        MarqueeStopReason? fired = null;
+        vm.MarqueeStopped += r => fired = r;
+        vm.EndTurn(MarqueeStopReason.UserAborted);
+        fired.Should().Be(MarqueeStopReason.UserAborted,
+            "用户终止应触发 UserAborted 原因");
+    }
+
+    [Fact]
+    public void MarqueeStopped_EndTurnAbnormal_ShouldFireAbnormal() {
+        var (vm, _, _) = Create();
+        vm.StartTurn();
+        MarqueeStopReason? fired = null;
+        vm.MarqueeStopped += r => fired = r;
+        vm.EndTurn(MarqueeStopReason.Abnormal);
+        fired.Should().Be(MarqueeStopReason.Abnormal,
+            "异常结束应触发 Abnormal 原因");
+    }
+
+    [Fact]
+    public void MarqueeStopped_StalledState_ShouldFireStalled() {
+        var (vm, clock, tick) = Create();
+        MarqueeStopReason? fired = null;
+        vm.MarqueeStopped += r => fired = r;
+        vm.StartTurn();
+        vm.ReportActivity(hasActiveTool: false);
+        clock.AdvanceSeconds(5);
+        tick();
+        fired.Should().Be(MarqueeStopReason.Stalled,
+            "状态机进入 Stalled 应自动触发 MarqueeStopped 事件");
+    }
+
+    [Fact]
+    public void MarqueeStopped_EndTurnWhenNotBusy_ShouldNotFire() {
+        var (vm, _, _) = Create();
+        MarqueeStopReason? fired = null;
+        vm.MarqueeStopped += r => fired = r;
+        vm.EndTurn(MarqueeStopReason.Abnormal);
+        fired.Should().BeNull(
+            "非忙碌态 EndTurn 不应触发事件（wasBusy=false 守卫）");
+    }
 }

@@ -159,6 +159,33 @@ public interface IJccChatSession : IAsyncDisposable {
     void UpdateToolBlacklist(HashSet<string> blacklistedTools);
 
     /// <summary>
+    /// 更新受保护盘号集合 — 运行时动态拦截涉及保护盘根目录的扫盘/删盘命令（ADR 0123）。
+    /// 传入空集合清除所有盘保护；传入盘号集合（如 {"C:", "D:"}）则拦截涉及这些盘根目录的命令。
+    /// 委托到引擎 IProtectedDriveStore.Update（volatile 双变量原子切换，立即生效）。
+    /// 占位会话无真实引擎，空实现。
+    /// </summary>
+    /// <param name="protectedDrives">受保护盘号集合（如 {"C:", "D:"}，盘号格式为大写字母+冒号）</param>
+    void UpdateProtectedDrives(HashSet<string> protectedDrives);
+
+    /// <summary>
+    /// 直接执行引擎工具（绕过 AI/聊天流）— 供 GUI 按钮直接调用引擎能力（任务5）。
+    /// 委托到引擎 IToolRegistry.ExecuteToolAsync。工具不存在时返回 IsError=true 的错误结果。
+    /// 占位会话返回错误提示"引擎未就绪"。
+    /// </summary>
+    /// <param name="toolName">工具名（如 "bash"、"file_read"、"git_status"）</param>
+    /// <param name="arguments">工具参数（JSON 元素字典，schema 用 GetToolInfoAsync 查询）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 获取工具参数 schema — 供 GUI 构造参数表单（任务5）。
+    /// 委托到引擎 IToolRegistry.GetToolInfoAsync。占位会话返回 null。
+    /// </summary>
+    /// <param name="toolName">工具名</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 设置权限模式 — 运行时切换权限检查行为（Plan/Auto/Ask/Bypass/Unattended）。
     /// 委托到引擎 IToolPermissionManager.SetPermissionModeAsync。
     /// GUI 无人值守开关切换时调用，使权限模式实际生效（修复 ADR 0012 GUI 开关断裂缺口）。

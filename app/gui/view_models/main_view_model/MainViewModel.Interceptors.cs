@@ -38,6 +38,37 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private bool _blockShell;
 
+    // === 磁盘根保护（ADR 0123）— 扫描盘号列表，默认勾选，用户可取消 ===
+
+    /// <summary>受保护盘号列表 — 启动时扫描磁盘盘号填充，每项默认勾选（保护开启）</summary>
+    public ObservableCollection<DriveProtectionItem> ProtectedDrives { get; } = [];
+
+    /// <summary>扫描可用盘号并填充 ProtectedDrives 集合 — 构造时调用，每项默认 IsProtected=true</summary>
+    private void InitializeProtectedDrives() {
+        foreach (var drive in System.IO.DriveInfo.GetDrives()) {
+            if (!drive.IsReady)
+                continue;
+            var letter = char.ToUpperInvariant(drive.Name[0]).ToString() + ":";
+            var label = string.IsNullOrWhiteSpace(drive.VolumeLabel)
+                ? letter
+                : $"{letter} {drive.VolumeLabel}";
+            var item = new DriveProtectionItem(letter, label);
+            item.ProtectionChanged += _ => ApplyProtectedDrives();
+            ProtectedDrives.Add(item);
+        }
+        ApplyProtectedDrives();
+    }
+
+    /// <summary>应用保护盘号到引擎 — 收集所有勾选的盘号，委托到 session（ADR 0123）</summary>
+    private void ApplyProtectedDrives() {
+        var protectedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in ProtectedDrives) {
+            if (item.IsProtected)
+                protectedSet.Add(item.DriveLetter);
+        }
+        _session.UpdateProtectedDrives(protectedSet);
+    }
+
     partial void OnBlockGitCommitChanged(bool value) => ApplyInterceptorBlacklist();
     partial void OnBlockGitPushChanged(bool value) => ApplyInterceptorBlacklist();
     partial void OnBlockGhPrMergeChanged(bool value) => ApplyInterceptorBlacklist();

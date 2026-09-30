@@ -186,4 +186,32 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     }
 
     #endregion
+
+    #region 构造函数同步初始化验证 — 修复 fire-and-forget 竞态
+
+    /// <summary>
+    /// 模拟异步延迟完成的 IFileSystem — 复现 fire-and-forget 竞态：
+    /// 构造函数启动异步初始化但不等待，构造后立即查询时 _definitions 仍为空初始值。
+    /// </summary>
+    private static IFileSystem CreateDelayedFs(string json, int delayMs = 10) {
+        var mock = new Mock<IFileSystem>();
+        mock.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
+        mock.Setup(x => x.ReadAllText(It.IsAny<string>()))
+            .Returns(() => new ValueTask<string>(Task.Delay(delayMs).ContinueWith(_ => json, TaskScheduler.Default)));
+        return mock.Object;
+    }
+
+    [Fact]
+    public void Constructor_WithAsyncRead_CompletesInitializationBeforeReturn() {
+        var json = """{"vendor":{"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
+
+        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateDelayedFs(json));
+
+        // 构造后立即查询应能拿到已注册供应商 — 不应因 fire-and-forget 竞态返回空
+        registry.GetRegisteredProviders().Should().NotBeEmpty(
+            "构造函数必须同步完成初始化，调用方不应看到空注册表");
+        registry.Contains("deepseek").Should().BeTrue();
+    }
+
+    #endregion
 }

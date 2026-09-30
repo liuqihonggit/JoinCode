@@ -11,20 +11,17 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
 
     /// <summary>
     /// 构造供应商定义注册表 — 从 settings.json 的 vendor 节点构建，并始终保留 Azure 供应商
-    /// <para>IFileSystem 异步化后构造函数 fire-and-forget 异步初始化；PhysicalFileSystem UTF-8 走 mmap 同步完成，实际不阻塞。</para>
+    /// <para>同步等待初始化完成，消除 fire-and-forget 竞态（调用方构造后立即查询能看到已注册供应商）。</para>
+    /// <para>PhysicalFileSystem UTF-8 走 mmap 零拷贝同步完成，实际不阻塞；脏读重试时短暂等待是合理的。</para>
     /// </summary>
     public ProviderDefinitionRegistry(IModelConfigLoader modelConfigLoader, IFileSystem? fs = null, ILogger? logger = null) {
-        _ = InitializeAsync(modelConfigLoader, fs, logger);
+        InitializeAsync(modelConfigLoader, fs, logger).GetAwaiter().GetResult();
     }
 
     private async Task InitializeAsync(IModelConfigLoader modelConfigLoader, IFileSystem? fs, ILogger? logger) {
         var dict = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase);
         await ApplyVendorFromSettingsAsync(dict, modelConfigLoader, fs, logger).ConfigureAwait(false);
-        var newDefinitions = dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
-        while (true) {
-            var current = _definitions;
-            if (Interlocked.CompareExchange(ref _definitions, newDefinitions, current) == current) break;
-        }
+        _definitions = dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

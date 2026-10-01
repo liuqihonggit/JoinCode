@@ -678,10 +678,6 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 > ADR: [0078](docs/adr/0078-merge-e2e-synonym-rules.md) — 详见 ADR 文档（含 rebase vs merge、reset --hard 生死线、两阶段流水线、PR创建/同步流程、auto-merge BLOCKED 排查、E2E定义）
 
-## 用户说的E2E
-
-> ADR: [0078](docs/adr/0078-merge-e2e-synonym-rules.md) — 同上，详见 ADR 文档
-
 # 八荣八耻
 以瞎猜接口为耻,以认真查询为荣;
 以模糊执行为耻,以寻求确认为荣;
@@ -695,104 +691,6 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 # 本项目规则
 
 > 📖 各规则已收编为 ADR，详见 [docs/adr/README.md](docs/adr/README.md) 索引。下方每条规则标注对应 ADR 编号，可二次打开查看完整决策上下文与替代方案。
-
-### 规则1：超图与DAG不统一，但 ChainOrder 可升级
-
-> ADR: [0013](docs/adr/0013-hypergraph-vs-dag-separation.md)
-
-- **结论**：DAG 管**执行顺序+硬依赖**（拓扑排序、环检测、增量重算），超图管**评分共享+链路推荐**（语义关联、权重传播）
-- **当前**：`ToolHyperedge.ChainOrder` 是 `string[]?`（简单线性链），是 DAG 的特例
-- **升级条件**：当 ChainOrder 需要支持分支/汇合（如"分析后可走代码生成或测试生成两条路"）时，改用 `Dag<string>` 替代 `string[]`
-- **禁止**：在无实际需求时强行统一两者，造成过度抽象
-
-### 规则2：MCP工具覆盖原则 — 338个工具已覆盖55个Category
-
-> ADR: [0014](docs/adr/0014-mcp-tool-coverage-principle.md)
-
-- **现状**：91个Handler类，338个McpTool方法，覆盖55个ToolCategory
-- **新增工具原则**：
-  1. 新工具必须归属已有 ToolCategory 枚举值，除非有充分理由新增枚举
-  2. 新增 ToolCategory 枚举值需同步更新 `ToolHypergraphPresets`（如有关联工具链）
-  3. 优先用 `[McpTool]` + 源码生成器模式，禁止手动实现 `IToolHandler`
-  4. 工具描述用中文（对齐 ErrorRecoveryToolHandlers 风格）
-  5. 新增工具后必须更新 `ToolCategory` 枚举的 `[EnumValue]` 并全量重建
-
-### 规则3：配置热重载 — 双变量切换模式
-
-> ADR: [0015](docs/adr/0015-config-hotreload-dual-variable.md)
-
-- **现状**：`IConfigChangeNotifier` + `SettingsChangeApplier` 管道已监控 settings.json 变更，但只更新部分字段（EffortLevel、Hook缓存、Permission缓存），**不重建 WorkflowConfig**
-- **双变量切换模式**：
-  1. 每个可热重载的配置项维护两个变量：`_active`（当前生效）和 `_staging`（新值待切换）
-  2. 文件变更时：加载新值到 `_staging` → 验证合法性 → 原子交换 `_active = _staging`
-  3. 交换用 `Interlocked.Exchange` 或 `lock`，确保读取端无锁
-  4. WorkflowConfig 中的可热重载字段改为 `volatile` 或用 `FrozenDictionary` 不可变快照
-- **新增热重载字段**：ToolScoreSettings、BlacklistedTools、ToolPenalties、HyperedgeSettings（评分配置变更最频繁）
-- **禁止**：直接修改 `_active` 而不经过 `_staging` 验证
-
-### 规则5：参数传递传父类/接口，不传属性
-
-> ADR: [0016](docs/adr/0016-pass-interface-not-property.md)
-
-- **核心原则**：函数参数尽可能传父类/接口/完整对象，到了末尾才拆开使用
-- **反面案例**：`bool isBash = shell.Type == ShellType.Bash`，然后传 `isBash` 给下游
-- **正面案例**：直接传 `ShellProvider shell`，下游在需要时才 `shell.Type == ShellType.Bash`
-- **适用范围**：
-  1. 构造函数参数：传接口/完整对象
-  2. 方法参数：传接口/完整对象，除非方法只需要一个原始值（如 `int timeoutMs`）
-  3. 中间件管道：传 `TContext` 上下文对象，不传上下文的某个属性
-- **例外**：当拆开的属性是原始类型且语义独立（如 `string filePath`），不需要传整个 `IFileSystem`
-- **重构策略**：渐进式，每次发现一个就修一个，禁止一次性大规模重构
-
-### 规则6：归纳性重构不放弃
-
-> ADR: [0017](docs/adr/0017-inductive-refactor-no-abandon.md)
-
-- **原则**：无论扫描的地方如何复杂，只要存在归纳可能性，都不要放弃重构
-- **操作**：
-  1. 发现重复模式 → 提取公共方法/基类/接口
-  2. 发现相似逻辑 → 用策略模式或模板方法统一
-  3. 发现散落的常量 → 枚举化 + `[EnumValue]` + 源码生成器
-  4. 发现冗余的 Builder/Helper → 合并到统一入口
-- **放弃条件**：必须用户明确同意，AI不得自行放弃
-- **验证**：每次重构后编译+测试，确保不破坏现有功能
-
-### 规则7：文件驱动界面 — 配置文件是界面数据的唯一数据源
-
-> ADR: [0005](docs/adr/0005-file-driven-ui.md)
-
-- **核心原则**：任何界面下拉/列表/表格的数据源必须绑定配置文件（如 `models.json`、`settings.json`），禁止硬编码枚举遍历或固定列表。改配置文件 → 自动驱动界面更新，无需改代码重新编译。
-- **适用范围**：
-  1. 供应商下拉 → 绑定 `ModelConfigLoader.Config.Providers`（`models.json` 的 `providers` 节点）
-  2. 模型下拉 → 绑定 `IJccChatSession.AvailableModels`（从 `ModelConfigLoader` 按当前供应商读取）
-  3. 工具补全 → 绑定 `IJccChatSession.GetAvailableToolsAsync()`（从引擎 `IToolRegistry` 读取）
-  4. 斜杠命令 → 绑定 `IJccChatSession.GetAvailableSlashCommands()`（从源码生成器 `[ChatCommand]` 提取）
-  5. 任何未来新增的界面列表数据 → 必须有对应配置文件或引擎数据源，禁止硬编码
-- **禁止行为**：
-  - **⛔ 禁止硬编码枚举遍历构建下拉列表** — 如 `Enum.GetValues<ProviderKind>()` 填充 ComboBox，改枚举要重新编译
-  - **⛔ 禁止在 ViewModel 中写固定列表** — 如 `new[] { "openai", "deepseek" }`，改列表要改代码
-  - **✅ 正确做法**：通过 `IJccChatSession` 接口从配置读取，配置文件是唯一数据源
-- **热重载**：配置文件变更时通过 `IConfigChangeNotifier` 触发 `OnPropertyChanged(nameof(XxxOptions))` 驱动界面刷新（见规则3双变量切换模式）
-- **测试桩**：测试 mock session 实现 `AvailableProviders` 返回固定列表（如 `["fake"]`），不依赖真实配置文件
-
-### 规则8：循环检测器状态机设计风格（推荐）
-
-> ADR: [0018](docs/adr/0018-loop-detector-state-machine.md)（superseded by [0038](docs/adr/0038-state-machine-flags-guard.md)） | [0054](docs/adr/0054-llm-output-loop-detection-intervention.md)（完整机制）
-
-- **状态机模式**：检测器内部用显式状态枚举 + switch 表达式实现状态转换，不用隐式 `if-else` + 标志变量
-  - 状态定义：`enum XxxDetectionState { Monitoring, Suspected, Confirmed }`
-  - 转换驱动：`Record(input)` 方法内 `_state switch { ... }` 链式流转
-  - 每次返回的结果携带 `State` 字段，调用方可观察当前状态
-- **时间窗口二次确认（去抖）**：检测器触发后不立即干预，进入 `Suspected` 状态等待二次确认
-  - 确认窗口内（如5s）再次触发 → `Confirmed`（确认为真死循环）
-  - 窗口超时 → 复位到 `Monitoring`（误报消除）
-  - 时钟通过 `Func<DateTimeOffset>? clock = null` 注入，测试可控、生产用 `DateTimeOffset.UtcNow`
-- **配置统一到 Options 子配置类**：检测器所有参数集中到 `LoopInterventionOptions` 的子配置类（如 `ShannonEntropyConfig`），不散落在构造函数默认值
-  - 配置类属性有默认值（系统默认配置）
-  - `InformationEntropyGuardian` 从 `LoopInterventionOptions` 统一创建所有检测器（生产路径）
-  - 测试可直接传入检测器实例（测试路径，保留构造函数默认值）
-- **干预层显式状态枚举**：干预级别用 `enum InterventionLevel { None, Soft, Hard, Compact }` + 决策方法 `ClassifyIntervention(count)`，不用 `if-else` 链
-- **适用范围**：所有循环/异常检测器（OutputLoop、LogicFingerprint、ToolCallSequence、ShannonEntropy）及干预中间件
 
 ## ⚠️ 反例清单（踩过的坑，禁止再犯）
 

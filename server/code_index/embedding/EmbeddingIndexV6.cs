@@ -8,6 +8,9 @@ namespace JoinCode.CodeIndex.Embedding;
 /// </summary>
 public sealed partial class EmbeddingIndex {
 
+    private PithosKvStore? _kvStoreV6;
+    private string? _kvDirV6;
+
     private static byte[] KeyVector(string chunkId) => Encoding.UTF8.GetBytes($"v:{chunkId}");
     private static byte[] KeyMeta(string chunkId) => Encoding.UTF8.GetBytes($"m:{chunkId}");
     private static byte[] KeyHash(string chunkId) => Encoding.UTF8.GetBytes($"h:{chunkId}");
@@ -215,5 +218,64 @@ public sealed partial class EmbeddingIndex {
                 _ann.Add(id, vec);
             }
         }
+    }
+
+    /// <summary>
+    /// 打开 V6 KV 存储 — 后续增量写入/删除直接操作此实例,无需全量 SaveAsyncV6。
+    /// </summary>
+    /// <param name="dirPath">数据目录路径(kvstore 子目录存储 KV 数据)。</param>
+    /// <param name="ct">取消令牌。</param>
+    public async Task OpenKvStoreV6(string dirPath, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        var kvDir = Path.Combine(dirPath, "kvstore");
+        _fs.CreateDirectory(kvDir);
+        _kvDirV6 = kvDir;
+        _kvStoreV6 = new PithosKvStore(kvDir);
+        await Task.CompletedTask.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 增量写入单个 chunk — 直接 PutAsync 到 KV 存储,无需全量重建索引。
+    /// <para>需先调用 OpenKvStoreV6 打开 KV 存储。</para>
+    /// </summary>
+    internal async Task PersistChunkAsyncV6(
+        string chunkId, float[] vector, ChunkMetadata meta, string hash,
+        CancellationToken ct = default) {
+        await EnsureKvStoreV6().ConfigureAwait(false);
+        var store = _kvStoreV6!;
+        var vectorBytes = MemoryMarshal.AsBytes(vector.AsSpan()).ToArray();
+        await store.PutAsync(KeyVector(chunkId), vectorBytes, ct).ConfigureAwait(false);
+        await store.PutAsync(KeyMeta(chunkId), SerializeMeta(meta), ct).ConfigureAwait(false);
+        await store.PutAsync(KeyHash(chunkId), Encoding.UTF8.GetBytes(hash), ct).ConfigureAwait(false);
+        var dims = vector.Length;
+        await store.PutAsync(KeyDims, BitConverter.GetBytes(dims), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 增量删除单个 chunk — 写入墓碑标记,压实时物理删除。
+    /// <para>需先调用 OpenKvStoreV6 打开 KV 存储。</para>
+    /// </summary>
+    public async Task DeleteChunkAsyncV6(string chunkId, CancellationToken ct = default) {
+        await EnsureKvStoreV6().ConfigureAwait(false);
+        var store = _kvStoreV6!;
+        await store.DeleteAsync(KeyVector(chunkId), ct).ConfigureAwait(false);
+        await store.DeleteAsync(KeyMeta(chunkId), ct).ConfigureAwait(false);
+        await store.DeleteAsync(KeyHash(chunkId), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>关闭 V6 KV 存储 — 在 Dispose 中调用。</summary>
+    private async Task CloseKvStoreV6Async() {
+        if (_kvStoreV6 is not null) {
+            await _kvStoreV6.DisposeAsync().ConfigureAwait(false);
+            _kvStoreV6 = null;
+        }
+    }
+
+    /// <summary>确保 KV 存储已打开。</summary>
+    private async Task EnsureKvStoreV6() {
+        if (_kvStoreV6 is null) {
+            throw new InvalidOperationException("V6 KV 存储未打开,请先调用 OpenKvStoreV6");
+        }
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 }

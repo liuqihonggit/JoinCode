@@ -87,7 +87,7 @@ internal readonly struct MetaEntryFixed {
 /// <para>无锁并发安全：读操作（Search）完全无锁；写操作（Index/Remove）CAS 路径复制。</para>
 /// <para>_ann 自身线程安全（BruteForceAnn 内部有锁），EmbeddingIndex 不再加全局锁。</para>
 /// </summary>
-public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
+public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
 
     private readonly IEmbeddingModel _embedModel;
     private readonly IAnnSearch _ann;
@@ -862,9 +862,9 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         Interlocked.Exchange(ref _disposed, 1);
     }
 
-    /// <summary>异步释放资源（无锁实现，空操作）。</summary>
-    public ValueTask DisposeAsync() {
+    /// <summary>异步释放资源 — 关闭 V6 KV 存储。</summary>
+    public async ValueTask DisposeAsync() {
         Interlocked.Exchange(ref _disposed, 1);
-        return ValueTask.CompletedTask;
+        await CloseKvStoreV6Async().ConfigureAwait(false);
     }
 }

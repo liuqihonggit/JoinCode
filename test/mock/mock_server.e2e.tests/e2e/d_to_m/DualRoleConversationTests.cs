@@ -1,27 +1,8 @@
 namespace MockServer.E2E.Tests;
 
-[Trait("Category", "Integration")]
-public sealed class DualRoleConversationTests : IAsyncLifetime {
-    private readonly ITestOutputHelper _output;
-    private readonly ILoggerFactory _loggerFactory;
-
-    /// <summary>重试间隔 — 固定1s,16次共16s,防CI雪崩</summary>
-    private static readonly TimeSpan RetryInterval = TimeSpan.FromSeconds(1);
-
-    public DualRoleConversationTests(ITestOutputHelper output) {
-        _output = output;
-        _loggerFactory = LoggerFactory.Create(builder => {
-            builder.AddConsole();
-            builder.SetMinimumLevel(LogLevel.Debug);
-        });
-    }
-
-    public Task InitializeAsync() => Task.CompletedTask;
-
-    public Task DisposeAsync() {
-        _loggerFactory.Dispose();
-        return Task.CompletedTask;
-    }
+/// <summary>DualRole 对话 E2E 分组 A — 基础/工具/流式/SessionController（19测试,~97s）</summary>
+public sealed class DualRoleConversationTestsA : DualRoleConversationTestBase {
+    public DualRoleConversationTestsA(ITestOutputHelper output) : base(output) { }
 
     [Fact]
     public async Task SingleTurn_TextOnly_ShouldGetResponse() {
@@ -59,28 +40,8 @@ public sealed class DualRoleConversationTests : IAsyncLifetime {
     }
 
     [Fact]
-    public async Task FiveRoundMemory_ShouldMaintainContext() {
-        await RunScriptAsync(MultiTurnScripts.FiveRoundMemory).ConfigureAwait(true);
-    }
-
-    [Fact]
     public async Task ToolCallThenFollowUp_ShouldMaintainContext() {
         await RunScriptAsync(MultiTurnScripts.ToolCallThenFollowUp).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task NegativeKeyword_ShouldGetResponse() {
-        await RunScriptAsync(PromptInjectionScripts.NegativeKeyword).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task KeepGoingKeyword_ShouldGetContinuation() {
-        await RunScriptAsync(PromptInjectionScripts.KeepGoingKeyword).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task NormalInput_ShouldNotTriggerInjection() {
-        await RunScriptAsync(PromptInjectionScripts.NormalInputNoInjection).ConfigureAwait(true);
     }
 
     [Fact]
@@ -90,38 +51,13 @@ public sealed class DualRoleConversationTests : IAsyncLifetime {
     }
 
     [Fact]
-    public async Task UnknownToolCall_ShouldShowFailure() {
-        await RunScriptAsync(ToolCallScripts.UnknownToolCall).ConfigureAwait(true);
-    }
-
-    [Fact]
     public async Task ThinkingThenResponse_ShouldShowBoth() {
         await RunScriptAsync(ToolCallScripts.ThinkingThenResponse).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ToolCallWithFollowUpText_ShouldShowBoth() {
-        await RunScriptAsync(ToolCallScripts.ToolCallWithFollowUpText).ConfigureAwait(true);
-    }
-
-    [Fact]
     public async Task SequentialToolCalls_ShouldExecuteInOrder() {
         await RunScriptAsync(ToolIterationScripts.SequentialToolCalls).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task ToolCallThenErrorRecovery_ShouldRecover() {
-        await RunScriptAsync(ToolIterationScripts.ToolCallThenErrorRecovery).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task ThreeRoundToolIteration_ShouldMaintainContext() {
-        await RunScriptAsync(ToolIterationScripts.ThreeRoundToolIteration).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task ToolCallContextPreservation_ShouldRememberAfterToolCall() {
-        await RunScriptAsync(ToolIterationScripts.ToolCallContextPreservation).ConfigureAwait(true);
     }
 
     [Fact]
@@ -132,31 +68,6 @@ public sealed class DualRoleConversationTests : IAsyncLifetime {
     [Fact]
     public async Task TokenUsage_Deserialization_ShouldNotThrow() {
         await RunScriptAsync(EdgeCaseScripts.TokenUsageNoError).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task LongStreamingResponse_ShouldReceiveFullContent() {
-        await RunScriptAsync(EdgeCaseScripts.LongStreamingResponse).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task ThreeTurn_PrefixCacheStable_ShouldDumpFiles() {
-        var result = await RunScriptWithCacheAnalysisAsync(PrefixCacheScripts.ThreeTurnPrefixStable).ConfigureAwait(true);
-
-        result.DumpFiles.Should().NotBeEmpty("应生成 dump 文件");
-        result.CacheAnalysis.Should().NotBeNull("应有缓存分析结果");
-        result.CacheAnalysis!.AllPrefixesStable.Should().BeTrue(
-            $"前缀缓存应稳定。失效: {FormatCacheBreaks(result.CacheAnalysis)}");
-    }
-
-    [Fact]
-    public async Task FiveTurn_PrefixCacheStable_ShouldDumpFiles() {
-        var result = await RunScriptWithCacheAnalysisAsync(PrefixCacheScripts.FiveTurnPrefixStable).ConfigureAwait(true);
-
-        result.DumpFiles.Should().NotBeEmpty("应生成 dump 文件");
-        result.CacheAnalysis.Should().NotBeNull("应有缓存分析结果");
-        result.CacheAnalysis!.AllPrefixesStable.Should().BeTrue(
-            $"前缀缓存应稳定。失效: {FormatCacheBreaks(result.CacheAnalysis)}");
     }
 
     [Fact]
@@ -172,23 +83,8 @@ public sealed class DualRoleConversationTests : IAsyncLifetime {
     // === Reasonix 移植功能 E2E 测试 ===
 
     [Fact]
-    public async Task CompleteStep_ToolCall_ShouldShowStepCompletion() {
-        await RunScriptAsync(CompleteStepScripts.CompleteStepToolCall).ConfigureAwait(true);
-    }
-
-    [Fact]
     public async Task CompleteStep_MultiRound_ShouldShowMultipleSteps() {
         await RunScriptAsync(CompleteStepScripts.CompleteStepMultiRound).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task WebFetch_ToolCall_ShouldHandleSsrfGuardPath() {
-        await RunScriptAsync(SsrfGuardScripts.WebFetchToolCall).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task StreamingText_ViaSessionController_ShouldWork() {
-        await RunScriptAsync(SessionControllerScripts.StreamingTextViaController).ConfigureAwait(true);
     }
 
     [Fact]
@@ -207,175 +103,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime {
     }
 
     [Fact]
-    public async Task DualModel_ToolCallThenAnalysis_ShouldWork() {
-        await RunScriptAsync(DualModelScripts.ToolCallThenAnalysis).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task DualModel_MultiToolCallThenSynthesis_ShouldWork() {
-        await RunScriptAsync(DualModelScripts.MultiToolCallThenSynthesis).ConfigureAwait(true);
-    }
-
-    [Fact]
     public async Task DualModel_DirectTextNoPlan_ShouldWork() {
         await RunScriptAsync(DualModelScripts.DirectTextNoPlan).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task EventStream_ThreeTurnContextPreservation_ShouldWork() {
-        await RunScriptAsync(EventStreamScripts.ThreeTurnContextPreservation).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task EventStream_ToolProgressEventStream_ShouldWork() {
-        await RunScriptAsync(EventStreamScripts.ToolProgressEventStream).ConfigureAwait(true);
-    }
-
-    private async Task RunScriptAsync(ConversationScript script) {
-        await RunScriptWithRetryAsync(script).ConfigureAwait(true);
-    }
-
-    private async Task RunScriptWithRetryAsync(ConversationScript script, int maxAttempts = 16) {
-        for (var attempt = 1; attempt <= maxAttempts; attempt++) {
-            var runner = new DualRoleConversationRunner(
-                _loggerFactory.CreateLogger<DualRoleConversationRunner>());
-
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            try {
-                var result = await runner.RunAsync(script, VendorKind.OpenAi, timeoutCts.Token).ConfigureAwait(true);
-
-                LogResult(result);
-
-                if (result.AllPassed)
-                    return;
-
-                if (attempt < maxAttempts) {
-                    _output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name}");
-                    await Task.Delay(RetryInterval).ConfigureAwait(true);
-                    continue;
-                }
-
-                result.AllPassed.Should().BeTrue($"所有断言应通过。失败: {FormatFailures(result)}");
-            } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested) {
-                if (attempt < maxAttempts) {
-                    _output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name}");
-                    await Task.Delay(RetryInterval).ConfigureAwait(true);
-                    continue;
-                }
-                throw new TimeoutException($"[GEN036] 测试超时(>60s): {script.Name}");
-            } finally {
-                await runner.DisposeAsync().ConfigureAwait(true);
-            }
-        }
-    }
-
-    private async Task<ConversationResult> RunScriptWithCacheAnalysisAsync(ConversationScript script) {
-        return await RunScriptWithCacheAnalysisRetryAsync(script).ConfigureAwait(true);
-    }
-
-    private async Task<ConversationResult> RunScriptWithCacheAnalysisRetryAsync(ConversationScript script, int maxAttempts = 16) {
-        for (var attempt = 1; attempt <= maxAttempts; attempt++) {
-            var runner = new DualRoleConversationRunner(
-                _loggerFactory.CreateLogger<DualRoleConversationRunner>());
-
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            try {
-                var result = await runner.RunAsync(script, VendorKind.OpenAi, timeoutCts.Token).ConfigureAwait(true);
-
-                LogResult(result);
-
-                if (result.AllPassed)
-                    return result;
-
-                if (attempt < maxAttempts) {
-                    _output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name}");
-                    await Task.Delay(RetryInterval).ConfigureAwait(true);
-                    continue;
-                }
-
-                result.AllPassed.Should().BeTrue($"所有断言应通过。失败: {FormatFailures(result)}");
-                return result;
-            } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested) {
-                if (attempt < maxAttempts) {
-                    _output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name}");
-                    await Task.Delay(RetryInterval).ConfigureAwait(true);
-                    continue;
-                }
-                throw new TimeoutException($"[GEN037] 测试超时(>60s): {script.Name}");
-            } finally {
-                await runner.DisposeAsync().ConfigureAwait(true);
-            }
-        }
-
-        throw new InvalidOperationException("[GEN038] [E2E010] 不应到达此处");
-    }
-
-    private void LogResult(ConversationResult result) {
-        _output.WriteLine($"脚本: {result.ScriptName}");
-        _output.WriteLine($"轮次数: {result.TurnRecords.Count}");
-        _output.WriteLine($"断言: {result.AssertResults.Count(a => a.IsPassed)} 通过 / {result.AssertResults.Count(a => !a.IsPassed)} 失败");
-
-        var hasFailures = result.AssertResults.Any(a => !a.IsPassed);
-
-        foreach (var turn in result.TurnRecords) {
-            _output.WriteLine($"--- Turn: UserInput=\"{turn.UserInput}\"");
-            _output.WriteLine($"    ToolCalls: {turn.ToolCalls.Count}");
-
-            foreach (var tc in turn.ToolCalls) {
-                var status = tc.IsSuccess ? "OK" : "FAIL";
-                var resultPreview = tc.Result.Length > 200 ? tc.Result[..200] + "..." : tc.Result;
-                _output.WriteLine($"    [{status}] {tc.ToolName}: {resultPreview}");
-            }
-
-            _output.WriteLine($"    AssistantResponse: {turn.AssistantResponse[..Math.Min(100, turn.AssistantResponse.Length)]}...");
-            _output.WriteLine($"    Errors: {turn.Errors.Count}");
-
-            if (turn.Errors.Count > 0) {
-                foreach (var err in turn.Errors.Take(10)) {
-                    var errPreview = err.Length > 300 ? err[..300] + "..." : err;
-                    _output.WriteLine($"    ERROR: {errPreview}");
-                }
-            }
-        }
-
-        foreach (var assert in result.AssertResults.Where(a => !a.IsPassed)) {
-            var actual = string.IsNullOrWhiteSpace(assert.ActualValue) ? "" : $" Actual=\"{Truncate(assert.ActualValue, 200)}\"";
-            _output.WriteLine($"FAIL: {assert.Type} Expected=\"{assert.Expected}\"{actual} Desc=\"{assert.Description}\"");
-        }
-
-        if (hasFailures) {
-            _output.WriteLine("[DualRole] === 诊断: RawOutput 片段 ===");
-            foreach (var turn in result.TurnRecords) {
-                if (turn.RawOutput.Length > 0) {
-                    var rawPreview = turn.RawOutput.Length > 2000 ? turn.RawOutput[..2000] + "..." : turn.RawOutput;
-                    _output.WriteLine($"--- Turn RawOutput (len={turn.RawOutput.Length}):");
-                    _output.WriteLine(rawPreview);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(result.StderrOutput)) {
-                var stderrPreview = result.StderrOutput.Length > 2000 ? result.StderrOutput[..2000] + "..." : result.StderrOutput;
-                _output.WriteLine($"--- StderrOutput (len={result.StderrOutput.Length}):");
-                _output.WriteLine(stderrPreview);
-            }
-        }
-    }
-
-    private static string Truncate(string s, int maxLen) =>
-        string.IsNullOrEmpty(s) ? s : s.Length <= maxLen ? s : s[..maxLen] + "...";
-
-    private static string FormatFailures(ConversationResult result) {
-        var failures = result.AssertResults.Where(a => !a.IsPassed).ToList();
-        if (failures.Count == 0) return "(无)";
-        return string.Join("; ", failures.Select(f => {
-            var actual = string.IsNullOrWhiteSpace(f.ActualValue) ? "" : $", Actual=\"{Truncate(f.ActualValue, 100)}\"";
-            return $"{f.Type}: Expected=\"{f.Expected}\"{actual} Desc=\"{f.Description}\"";
-        }));
-    }
-
-    private static string FormatCacheBreaks(PrefixCacheAnalysis analysis) {
-        if (analysis.Breaks.Count == 0) return "(无)";
-        return string.Join("; ", analysis.Breaks.Select(b =>
-            $"Turn{b.FromTurn}->Turn{b.ToTurn}: {b.Reason}"));
     }
 }

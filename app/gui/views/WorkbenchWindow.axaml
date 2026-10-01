@@ -1,0 +1,135 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:JoinCode.Gui.ViewModels" xmlns:edit="using:AvaloniaEdit"
+        xmlns:theme="using:JoinCode.Gui.Theming" xmlns:host="using:JoinCode.Gui.Hosting"
+        x:Class="JoinCode.Gui.Views.WorkbenchWindow" x:DataType="vm:WorkbenchViewModel"
+        Title="JoinCode · 工作台" Width="1100" Height="780" MinWidth="760" MinHeight="560"
+        Background="{DynamicResource GuiWindowBackground}" Classes.motion="{Binding Main.AnimationsEnabled}">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="20" RowSpacing="14">
+    <Border Classes="workbenchHero" CornerRadius="12" Padding="18" Background="{DynamicResource GuiPopupBackground}"
+            BorderBrush="{DynamicResource GuiAccentText}" BorderThickness="1">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="5">
+          <TextBlock Text="开发工作台" FontSize="23" FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}" />
+          <TextBlock Text="浏览代码 · 检查变更 · 管理引擎" Foreground="{DynamicResource GuiSecondaryText}" />
+        </StackPanel>
+        <ToggleSwitch Grid.Column="1" Content="动画" IsChecked="{Binding Main.AnimationsEnabled}" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+    <TabControl Grid.Row="1" SelectedIndex="{Binding TabIndex}">
+      <TabItem Header="文件">
+        <Grid RowDefinitions="Auto,*" RowSpacing="12" Margin="0,14,0,0">
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+            <TextBox Text="{Binding Directory}" Watermark="工作区目录" />
+            <Button Grid.Column="1" Content="上一级" Command="{Binding ParentDirectoryCommand}" />
+            <Button Grid.Column="2" Content="刷新目录" Command="{Binding RefreshFilesCommand}" />
+            <Button Grid.Column="3" Content="选择目录…" Click="OnChooseFolder" />
+          </Grid>
+          <Grid Grid.Row="1" ColumnDefinitions="250,5,*" ColumnSpacing="8">
+            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+              <TextBox Text="{Binding FileSearch}" Watermark="筛选文件…" />
+              <ListBox Grid.Row="1" ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}" DoubleTapped="OnEntryDoubleTapped">
+                <ListBox.ItemTemplate><DataTemplate x:DataType="vm:WorkspaceFile"><TextBlock Text="{Binding Display}" /></DataTemplate></ListBox.ItemTemplate>
+              </ListBox>
+              <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="5">
+                <Button Content="打开目录" Command="{Binding OpenEntryCommand}" />
+                <Button Content="查看差异" Command="{Binding FileDiffCommand}" />
+              </StackPanel>
+            </Grid>
+            <GridSplitter Grid.Column="1" ResizeDirection="Columns" HorizontalAlignment="Stretch" />
+            <Border Grid.Column="2" CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource GuiDivider}" ClipToBounds="True">
+              <edit:TextEditor Name="CodePreview" IsReadOnly="True" ShowLineNumbers="True"
+                               FontFamily="Consolas" FontSize="13" Background="{DynamicResource GuiSearchBarBackground}"
+                               Foreground="{DynamicResource GuiPrimaryText}" />
+            </Border>
+          </Grid>
+        </Grid>
+      </TabItem>
+      <TabItem Header="Git 变更">
+        <Grid RowDefinitions="Auto,*" RowSpacing="12" Margin="0,14,0,0">
+          <WrapPanel>
+            <TextBox Text="{Binding Directory}" Width="390" Watermark="Git 仓库目录" Margin="0,0,8,8" />
+            <Button Content="状态" Command="{Binding GitStatusCommand}" Margin="0,0,8,8" />
+            <Button Content="工作区差异" Command="{Binding GitDiffCommand}" Margin="0,0,8,8" />
+            <Button Content="已暂存差异" Command="{Binding GitStagedCommand}" Margin="0,0,8,8" />
+          </WrapPanel>
+          <edit:TextEditor Grid.Row="1" Name="GitPreview" IsReadOnly="True" ShowLineNumbers="True"
+                           FontFamily="Consolas" FontSize="13" Background="{DynamicResource GuiSearchBarBackground}"
+                           Foreground="{DynamicResource GuiPrimaryText}" />
+        </Grid>
+      </TabItem>
+      <TabItem Header="模型 / 外观">
+        <ScrollViewer><StackPanel Spacing="14" Margin="12,20" MaxWidth="560" HorizontalAlignment="Left">
+          <TextBlock Text="供应商与模型" FontSize="19" FontWeight="SemiBold" />
+          <ComboBox ItemsSource="{Binding Main.ConnectionOptions}" SelectedItem="{Binding Main.SelectedConnection}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ConnectionOptionItem"><TextBlock Text="{Binding DisplayText}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox ItemsSource="{Binding Main.ModelOptions}" SelectedItem="{Binding Main.SelectedModelOption}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ModelOptionItem"><TextBlock Text="{Binding Id}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Text="推理力度" />
+          <ComboBox ItemsSource="{Binding Main.EffortOptions}" SelectedItem="{Binding Main.SelectedEffort}" HorizontalAlignment="Stretch" />
+          <TextBlock Text="外观" FontSize="19" FontWeight="SemiBold" Margin="0,12,0,0" />
+          <ComboBox ItemsSource="{Binding Main.ThemeOptions}" SelectedItem="{Binding Main.SelectedThemeOption}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate><DataTemplate x:DataType="theme:ThemeOption"><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox ItemsSource="{Binding Main.AccentOptions}" SelectedItem="{Binding Main.SelectedAccent}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate><DataTemplate x:DataType="theme:AccentOption"><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Text="配置与主窗口共享，切换后即时生效。" Foreground="{DynamicResource GuiMutedText}" />
+        </StackPanel></ScrollViewer>
+      </TabItem>
+      <TabItem Header="MCP / 工具">
+        <Grid RowDefinitions="Auto,*" Margin="0,14,0,0" RowSpacing="10">
+          <Grid ColumnDefinitions="200,*,Auto" ColumnSpacing="8">
+            <ComboBox ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}" PlaceholderText="工具分组" HorizontalAlignment="Stretch" />
+            <TextBox Grid.Column="1" Text="{Binding ToolSearch}" Watermark="搜索名称或描述…" />
+            <Button Grid.Column="2" Content="刷新引擎目录" Command="{Binding RefreshCatalogCommand}" />
+          </Grid>
+          <Grid Grid.Row="1" ColumnDefinitions="260,*" ColumnSpacing="12">
+            <ListBox ItemsSource="{Binding Tools}" SelectedItem="{Binding SelectedTool}">
+              <ListBox.ItemTemplate><DataTemplate x:DataType="host:ToolSummary"><StackPanel Spacing="3" Margin="4,6">
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" FontSize="11" Foreground="{DynamicResource GuiMutedText}" />
+              </StackPanel></DataTemplate></ListBox.ItemTemplate>
+            </ListBox>
+            <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,*" RowSpacing="8">
+              <TextBlock Text="{Binding ToolDescription}" TextWrapping="Wrap" MaxLines="4" />
+              <ScrollViewer Grid.Row="1"><ItemsControl ItemsSource="{Binding Parameters}">
+                <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:WorkbenchParameter"><StackPanel Spacing="3" Margin="0,0,0,12">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Hint}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource GuiMutedText}" />
+                  <TextBox Text="{Binding Value}" Watermark="填写参数值" />
+                </StackPanel></DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl></ScrollViewer>
+              <Button Grid.Row="2" Content="执行所选工具" Classes="primary" Command="{Binding RunToolCommand}" IsEnabled="{Binding !IsWorking}" HorizontalAlignment="Left" />
+              <TextBox Grid.Row="3" Text="{Binding OperationResult}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas" />
+            </Grid>
+          </Grid>
+        </Grid>
+      </TabItem>
+      <TabItem Header="插件">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="14" Margin="12,20">
+          <TextBlock Text="插件管理" FontSize="19" FontWeight="SemiBold" />
+          <TextBlock Grid.Row="1" Text="{Binding PluginUsage}" TextWrapping="Wrap" />
+          <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <TextBox Text="{Binding PluginTarget}" Watermark="插件名称，安装时填写 EXE 完整路径" />
+            <Button Grid.Column="1" Content="查看插件" Command="{Binding PluginActionCommand}" CommandParameter="list" IsEnabled="{Binding !IsWorking}" />
+            <Button Grid.Column="2" Content="刷新目录" Command="{Binding RefreshCatalogCommand}" />
+          </Grid>
+          <WrapPanel Grid.Row="3" IsEnabled="{Binding !IsWorking}">
+            <Button Content="安装插件" Command="{Binding PluginActionCommand}" CommandParameter="install" Margin="0,0,8,0" />
+            <Button Content="启用" Command="{Binding PluginActionCommand}" CommandParameter="enable" Margin="0,0,8,0" />
+            <Button Content="禁用" Command="{Binding PluginActionCommand}" CommandParameter="disable" Margin="0,0,8,0" />
+            <Button Content="卸载" Command="{Binding PluginActionCommand}" CommandParameter="uninstall" />
+          </WrapPanel>
+          <TextBox Grid.Row="4" Text="{Binding OperationResult}" AcceptsReturn="True" IsReadOnly="True" FontFamily="Consolas" />
+        </Grid>
+      </TabItem>
+    </TabControl>
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+      <TextBlock Classes="busyIndicator" Text="{Binding Status}" TextWrapping="Wrap" Foreground="{DynamicResource GuiSecondaryText}" />
+      <ProgressBar Grid.Column="1" IsIndeterminate="True" IsVisible="{Binding IsWorking}" Width="140" Height="4" VerticalAlignment="Center" />
+      <Button Grid.Column="2" Content="取消" IsVisible="{Binding IsWorking}" Command="{Binding CancelOperationCommand}" />
+    </Grid>
+  </Grid>
+</Window>

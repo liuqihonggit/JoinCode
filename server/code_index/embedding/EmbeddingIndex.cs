@@ -1,5 +1,86 @@
 namespace JoinCode.CodeIndex.Embedding;
 
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+internal readonly struct VectorIndexHeader {
+    /// <summary>块数量。</summary>
+    public readonly int Count;
+    /// <summary>向量维度。</summary>
+    public readonly int Dims;
+    /// <summary>元数据段偏移量。</summary>
+    public readonly long MetaOffset;
+    /// <summary>SourceText 段偏移量。</summary>
+    public readonly long SourceOffset;
+    /// <summary>图段偏移量（0=无图）。</summary>
+    public readonly long GraphOffset;
+
+    /// <summary>构造文件头。</summary>
+    public VectorIndexHeader(int count, int dims, long metaOffset, long sourceOffset, long graphOffset) {
+        Count = count;
+        Dims = dims;
+        MetaOffset = metaOffset;
+        SourceOffset = sourceOffset;
+        GraphOffset = graphOffset;
+    }
+}
+
+/// <summary>
+/// 元数据固定段条目 — 8字节对齐，MemoryMarshal.Cast 直接映射。
+/// <para>定长字段直接存储，变长字符串用 StringOffset/StringLen 指向字符串区。</para>
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+internal readonly struct MetaEntryFixed {
+    public readonly int StartLine;
+    public readonly int EndLine;
+    public readonly int SourceTextLen;
+    public readonly int ContainedFqnCount;
+    public readonly int ChunkIdLen;
+    public readonly int FilePathLen;
+    public readonly int FqnLen;
+    public readonly int SymbolKindLen;
+    public readonly int ParentChunkIdLen;
+    public readonly int HashLen;
+    public readonly int ContainedFqnsTotalLen;
+    public readonly int _padding;
+    public readonly long SourceTextOffset;
+    public readonly long ChunkIdOffset;
+    public readonly long FilePathOffset;
+    public readonly long FqnOffset;
+    public readonly long SymbolKindOffset;
+    public readonly long ParentChunkIdOffset;
+    public readonly long HashOffset;
+    public readonly long ContainedFqnsOffset;
+
+    /// <summary>构造元数据固定段条目。</summary>
+    public MetaEntryFixed(
+        int startLine, int endLine, int sourceTextLen, int containedFqnCount,
+        int chunkIdLen, int filePathLen, int fqnLen, int symbolKindLen,
+        int parentChunkIdLen, int hashLen, int containedFqnsTotalLen,
+        long sourceTextOffset, long chunkIdOffset, long filePathOffset,
+        long fqnOffset, long symbolKindOffset, long parentChunkIdOffset,
+        long hashOffset, long containedFqnsOffset) {
+        StartLine = startLine;
+        EndLine = endLine;
+        SourceTextLen = sourceTextLen;
+        ContainedFqnCount = containedFqnCount;
+        ChunkIdLen = chunkIdLen;
+        FilePathLen = filePathLen;
+        FqnLen = fqnLen;
+        SymbolKindLen = symbolKindLen;
+        ParentChunkIdLen = parentChunkIdLen;
+        HashLen = hashLen;
+        ContainedFqnsTotalLen = containedFqnsTotalLen;
+        _padding = 0;
+        SourceTextOffset = sourceTextOffset;
+        ChunkIdOffset = chunkIdOffset;
+        FilePathOffset = filePathOffset;
+        FqnOffset = fqnOffset;
+        SymbolKindOffset = symbolKindOffset;
+        ParentChunkIdOffset = parentChunkIdOffset;
+        HashOffset = hashOffset;
+        ContainedFqnsOffset = containedFqnsOffset;
+    }
+}
+
 /// <summary>
 /// 向量索引 — 串联嵌入模型、向量存储、ANN 搜索。
 /// <para>维护块哈希缓存：块没变就不重新嵌入（省 API 调用/计算）。</para>
@@ -18,6 +99,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     private volatile ImmutableHamT<string, float[]> _vectors = ImmutableHamT<string, float[]>.Empty;
     private volatile int _status;
     private int _disposed;
+    private string? _indexFilePath;
 
     /// <summary>
     /// 构造向量索引。
@@ -235,59 +317,197 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     }
 
     /// <summary>
-    /// 持久化向量索引到目录 — 写 vector_index.bin 二进制文件。
-    /// <para>格式：magic(7B) + chunkCount + dims + 每块(chunkId+filePath+fqn+lines+parent+source+hash+vector)。</para>
+    /// 持久化向量索引到目录 — VECIDX4 分页格式，结构体 Pack=8 对齐。
+    /// <para>格式：Magic(8B) + Header(32B) + 向量段 + MetaEntryFixed[] + 字符串区 + SourceText段 + 图段。</para>
+    /// <para>加载时 MemoryMarshal.Cast 零拷贝映射向量段和 MetaEntryFixed[]，跳过 SourceText 段。</para>
     /// </summary>
     /// <param name="dirPath">目标目录路径。</param>
     /// <param name="ct">取消令牌。</param>
     public async Task SaveAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
+        var chunks = CollectChunksForSave();
+        var count = chunks.Count;
+        var dims = count > 0 ? chunks[0].Vector.Length : 0;
+
+        await using var stringRegion = new MemoryStream();
+        await using var sourceRegion = new MemoryStream();
+        var entries = new MetaEntryFixed[count];
+        for (var i = 0; i < count; i++) {
+            ct.ThrowIfCancellationRequested();
+            entries[i] = BuildMetaEntry(chunks[i], stringRegion, sourceRegion);
+        }
+
+        var graphRegion = await BuildGraphRegionAsync().ConfigureAwait(false);
+        var layout = ComputeIndexLayout(count, dims, stringRegion.Length, sourceRegion.Length, graphRegion.Length);
+
+        _fs.CreateDirectory(dirPath);
+        var filePath = Path.Combine(dirPath, "vector_index.bin");
+        await WriteIndexFileAsync(filePath, layout, chunks, dims, entries, stringRegion, sourceRegion, graphRegion, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>收集待持久化的块快照 — 向量+元数据+哈希三元组对齐。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private List<(string ChunkId, float[] Vector, ChunkMetadata Meta, string Hash)> CollectChunksForSave() {
         var vectorsSnapshot = _vectors;
         var metadataSnapshot = _metadata;
         var hashesSnapshot = _chunkHashes;
+        var chunks = new List<(string, float[], ChunkMetadata, string)>(vectorsSnapshot.Count);
+        foreach (var (chunkId, vector) in vectorsSnapshot) {
+            if (!metadataSnapshot.TryGetValue(chunkId, out var meta)) continue;
+            hashesSnapshot.TryGetValue(chunkId, out var hash);
+            chunks.Add((chunkId, vector, meta, hash ?? string.Empty));
+        }
+        return chunks;
+    }
 
+    /// <summary>构建单个元数据条目 — 写字符串区+SourceText段，返回 MetaEntryFixed 结构体。</summary>
+    private static MetaEntryFixed BuildMetaEntry(
+        (string ChunkId, float[] Vector, ChunkMetadata Meta, string Hash) chunk,
+        MemoryStream stringRegion, MemoryStream sourceRegion) {
+        var (chunkId, _, meta, hash) = chunk;
+
+        WriteStringRegion(stringRegion, chunkId, out var chunkIdOff, out var chunkIdLen);
+        WriteStringRegion(stringRegion, meta.FilePath, out var filePathOff, out var filePathLen);
+        WriteStringRegion(stringRegion, meta.SymbolFqn, out var fqnOff, out var fqnLen);
+        WriteStringRegion(stringRegion, meta.SymbolKind, out var symbolKindOff, out var symbolKindLen);
+        WriteNullableStringRegion(stringRegion, meta.ParentChunkId, out var parentChunkIdOff, out var parentChunkIdLen);
+        WriteStringRegion(stringRegion, hash, out var hashOff, out var hashLen);
+        WriteContainedFqnsRegion(stringRegion, meta.ContainedSymbolFqns, out var containedFqnsOff, out var containedFqnsTotalLen);
+        WriteSourceTextRegion(sourceRegion, meta.SourceText, out var sourceTextOff, out var sourceTextLen);
+
+        return new MetaEntryFixed(
+            meta.StartLine, meta.EndLine, sourceTextLen, meta.ContainedSymbolFqns.Count,
+            chunkIdLen, filePathLen, fqnLen, symbolKindLen,
+            parentChunkIdLen, hashLen, containedFqnsTotalLen,
+            sourceTextOff, chunkIdOff, filePathOff, fqnOff, symbolKindOff,
+            parentChunkIdOff, hashOff, containedFqnsOff);
+    }
+
+    /// <summary>写字符串到区，记录偏移和长度。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void WriteStringRegion(MemoryStream ms, string s, out long offset, out int len) {
+        offset = ms.Position;
+        var bytes = System.Text.Encoding.UTF8.GetBytes(s);
+        ms.Write(bytes);
+        len = bytes.Length;
+    }
+
+    /// <summary>写可空字符串到区 — null 记 offset=-1, len=0。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void WriteNullableStringRegion(MemoryStream ms, string? s, out long offset, out int len) {
+        if (s is null) { offset = -1; len = 0; return; }
+        WriteStringRegion(ms, s, out offset, out len);
+    }
+
+    /// <summary>写 ContainedFqns 到字符串区 — 每条前缀 4 字节长度（小端）+ UTF8 内容。</summary>
+    private static void WriteContainedFqnsRegion(MemoryStream ms, IReadOnlyList<string> fqns, out long offset, out int totalLen) {
+        offset = ms.Position;
+        totalLen = 0;
+        Span<byte> intBuf = stackalloc byte[4];
+        foreach (var fqn in fqns) {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(fqn);
+            BinaryPrimitives.WriteInt32LittleEndian(intBuf, bytes.Length);
+            ms.Write(intBuf);
+            ms.Write(bytes);
+            totalLen += bytes.Length + 4;
+        }
+    }
+
+    /// <summary>写 SourceText 到段 — null 记 offset=-1, len=0。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void WriteSourceTextRegion(MemoryStream ms, string? sourceText, out long offset, out int len) {
+        if (sourceText is null) { offset = -1; len = 0; return; }
+        offset = ms.Position;
+        var bytes = System.Text.Encoding.UTF8.GetBytes(sourceText);
+        ms.Write(bytes);
+        len = bytes.Length;
+    }
+
+    /// <summary>构建图段 — HNSW 图持久化或空标记。</summary>
+    private async Task<byte[]> BuildGraphRegionAsync() {
         await using var ms = new MemoryStream();
         await using var bw = new BinaryWriter(ms, System.Text.Encoding.UTF8);
-        bw.Write(System.Text.Encoding.UTF8.GetBytes("VECIDX3"));
-        var count = vectorsSnapshot.Count;
-        bw.Write(count);
-        var dims = count > 0 ? vectorsSnapshot.First().Value.Length : 0;
-        bw.Write(dims);
-        foreach (var (chunkId, vector) in vectorsSnapshot) {
-            ct.ThrowIfCancellationRequested();
-            if (!metadataSnapshot.TryGetValue(chunkId, out var meta)) continue;
-            WriteString(bw, chunkId);
-            WriteString(bw, meta.FilePath);
-            WriteString(bw, meta.SymbolFqn);
-            WriteString(bw, meta.SymbolKind);
-            bw.Write(meta.StartLine);
-            bw.Write(meta.EndLine);
-            WriteNullableString(bw, meta.ParentChunkId);
-            WriteNullableString(bw, meta.SourceText);
-            bw.Write(meta.ContainedSymbolFqns.Count);
-            foreach (var fqn in meta.ContainedSymbolFqns) {
-                WriteString(bw, fqn);
-            }
-            hashesSnapshot.TryGetValue(chunkId, out var hash);
-            WriteString(bw, hash ?? string.Empty);
-            bw.Write(MemoryMarshal.AsBytes(vector.AsSpan(0, dims)));
-        }
-
         if (_ann is IAnnSearchGraphPersistence graphPersist) {
             bw.Write((byte)1);
             graphPersist.SaveGraph(bw);
         } else {
             bw.Write((byte)0);
         }
-
         bw.Flush();
-        _fs.CreateDirectory(dirPath);
-        var filePath = Path.Combine(dirPath, "vector_index.bin");
+        return ms.ToArray();
+    }
+
+    /// <summary>索引文件布局 — 各段偏移量，Pack=8 对齐。</summary>
+    [StructLayout(LayoutKind.Sequential, Pack = 8)]
+    private readonly struct IndexLayout {
+        /// <summary>块数量。</summary>
+        public readonly int Count;
+        /// <summary>向量维度。</summary>
+        public readonly int Dims;
+        /// <summary>头总大小（Magic+Header）。</summary>
+        public readonly long HeaderSize;
+        /// <summary>元数据段偏移量。</summary>
+        public readonly long MetaOffset;
+        /// <summary>字符串区偏移量。</summary>
+        public readonly long StringOffset;
+        /// <summary>SourceText 段偏移量。</summary>
+        public readonly long SourceOffset;
+        /// <summary>图段偏移量。</summary>
+        public readonly long GraphOffset;
+        /// <summary>构造索引布局。</summary>
+        public IndexLayout(int count, int dims, long headerSize, long metaOffset, long stringOffset, long sourceOffset, long graphOffset) {
+            Count = count; Dims = dims; HeaderSize = headerSize;
+            MetaOffset = metaOffset; StringOffset = stringOffset;
+            SourceOffset = sourceOffset; GraphOffset = graphOffset;
+        }
+    }
+
+    /// <summary>计算索引文件各段偏移量。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IndexLayout ComputeIndexLayout(int count, int dims, long stringLen, long sourceLen, long graphLen) {
+        const int MagicSize = 8;
+        var headerSize = MagicSize + Unsafe.SizeOf<VectorIndexHeader>();
+        var vectorSize = (long)count * dims * sizeof(float);
+        var metaSize = (long)count * Unsafe.SizeOf<MetaEntryFixed>();
+        var metaOffset = headerSize + vectorSize;
+        var stringOffset = metaOffset + metaSize;
+        var sourceOffset = stringOffset + stringLen;
+        var graphOffset = sourceOffset + sourceLen;
+        return new IndexLayout(count, dims, headerSize, metaOffset, stringOffset, sourceOffset, graphOffset);
+    }
+
+    /// <summary>写入索引文件 — Magic+Header+向量段+Meta段+字符串区+SourceText段+图段。</summary>
+    private async Task WriteIndexFileAsync(
+        string filePath, IndexLayout layout,
+        List<(string ChunkId, float[] Vector, ChunkMetadata Meta, string Hash)> chunks,
+        int dims, MetaEntryFixed[] entries,
+        MemoryStream stringRegion, MemoryStream sourceRegion, byte[] graphRegion,
+        CancellationToken ct) {
+        await using var ms = new MemoryStream();
+        await using var bw = new BinaryWriter(ms, System.Text.Encoding.UTF8);
+        bw.Write(System.Text.Encoding.UTF8.GetBytes("VECIDX4\0"));
+        var header = new VectorIndexHeader(layout.Count, layout.Dims, layout.MetaOffset, layout.SourceOffset, layout.GraphOffset);
+        WriteStruct(bw, header);
+        foreach (var (_, vector, _, _) in chunks) {
+            bw.Write(MemoryMarshal.AsBytes(vector.AsSpan(0, dims)));
+        }
+        bw.Write(MemoryMarshal.AsBytes(entries.AsSpan()));
+        bw.Write(stringRegion.GetBuffer(), 0, (int)stringRegion.Length);
+        bw.Write(sourceRegion.GetBuffer(), 0, (int)sourceRegion.Length);
+        bw.Write(graphRegion);
+        bw.Flush();
         await _fs.WriteAllBytesAsync(filePath, ms.ToArray(), ct).ConfigureAwait(false);
     }
 
+    /// <summary>泛型写结构体到 BinaryWriter — MemoryMarshal.AsBytes 零分配。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void WriteStruct<T>(BinaryWriter bw, T value) where T : struct {
+        bw.Write(MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref value, 1)));
+    }
+
     /// <summary>
-    /// 从目录加载向量索引 — 读 vector_index.bin，恢复元数据+哈希+向量+ANN。
+    /// 从目录加载向量索引 — VECIDX4 分页格式，跳过 SourceText 段。
+    /// <para>MemoryMarshal.Cast 零拷贝映射向量段和 MetaEntryFixed[]。</para>
     /// </summary>
     /// <param name="dirPath">源目录路径。</param>
     /// <param name="ct">取消令牌。</param>
@@ -296,70 +516,16 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         ArgumentNullException.ThrowIfNull(dirPath);
         var filePath = Path.Combine(dirPath, "vector_index.bin");
         if (!_fs.FileExists(filePath)) return false;
+        _indexFilePath = filePath;
 
-        var bytes = await _fs.ReadAllBytesAsync(filePath, ct).ConfigureAwait(false);
-        await using var ms = new MemoryStream(bytes, writable: false);
-        using var br = new BinaryReader(ms, System.Text.Encoding.UTF8);
-        var magic = System.Text.Encoding.UTF8.GetString(br.ReadBytes(7));
-        if (magic != "VECIDX3") return false;
-        var count = br.ReadInt32();
-        var dims = br.ReadInt32();
-        if (count == 0) return false;
+        await using var fs = _fs.OpenRead(filePath);
+        var header = await ReadIndexHeaderAsync(fs, ct).ConfigureAwait(false);
+        if (header.Count == 0) return false;
 
-        var supportsGraphPersistence = _ann is IAnnSearchGraphPersistence;
-        var metadataItems = new List<(string, ChunkMetadata)>(count);
-        var hashItems = new List<(string, string)>(count);
-        var vectorItems = new List<(string, float[])>(count);
-        var fileChunksItems = new List<(string, string)>(count);
-        var vectorsDict = supportsGraphPersistence ? new Dictionary<string, float[]>(count) : null;
+        var loadData = await ReadLoadDataAsync(fs, header, ct).ConfigureAwait(false);
+        var (metadataItems, hashItems, vectorItems, fileChunksItems, vectorsDict) = ParseMetadataEntries(in header, loadData, ct);
 
-        for (var i = 0; i < count; i++) {
-            ct.ThrowIfCancellationRequested();
-            var chunkId = ReadString(br);
-            var filePath2 = ReadString(br);
-            var fqn = ReadString(br);
-            var symbolKind = ReadString(br);
-            var startLine = br.ReadInt32();
-            var endLine = br.ReadInt32();
-            var parentChunkId = ReadNullableString(br);
-            var sourceText = ReadNullableString(br);
-            var fqnCount = br.ReadInt32();
-            var containedFqns = new List<string>(fqnCount);
-            for (var f = 0; f < fqnCount; f++) {
-                containedFqns.Add(ReadString(br));
-            }
-            var hash = ReadString(br);
-            var vector = new float[dims];
-            br.Read(MemoryMarshal.AsBytes(vector.AsSpan()));
-
-            if (supportsGraphPersistence) {
-                vectorsDict![chunkId] = vector;
-            } else {
-                _ann.Add(chunkId, vector);
-            }
-            metadataItems.Add((chunkId, new ChunkMetadata {
-                ChunkId = chunkId, FilePath = filePath2, SymbolFqn = fqn,
-                SymbolKind = symbolKind,
-                StartLine = startLine, EndLine = endLine,
-                ParentChunkId = parentChunkId, SourceText = sourceText,
-                ContainedSymbolFqns = containedFqns
-            }));
-            hashItems.Add((chunkId, hash));
-            vectorItems.Add((chunkId, vector));
-            fileChunksItems.Add((filePath2, chunkId));
-        }
-
-        if (_ann is IAnnSearchGraphPersistence gp) {
-            var hasGraph = br.ReadByte();
-            if (hasGraph == 1) {
-                gp.LoadGraph(br, vectorsDict!);
-            } else {
-                foreach (var (id, vec) in vectorsDict!) {
-                    ct.ThrowIfCancellationRequested();
-                    _ann.Add(id, vec);
-                }
-            }
-        }
+        await LoadGraphSegmentAsync(fs, header, vectorsDict, ct).ConfigureAwait(false);
 
         CasBulkUpdateMetadata(metadataItems);
         CasBulkUpdateHashes(hashItems);
@@ -367,6 +533,122 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         CasBulkUpdateFileChunks(fileChunksItems);
         Interlocked.Exchange(ref _status, (int)IndexStatus.Ready);
         return true;
+    }
+
+    /// <summary>读索引头 — Magic(8B) + VectorIndexHeader(32B)，校验 VECIDX4 魔数。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static async Task<VectorIndexHeader> ReadIndexHeaderAsync(Stream fs, CancellationToken ct) {
+        const int MagicSize = 8;
+        var headerSize = MagicSize + Unsafe.SizeOf<VectorIndexHeader>();
+        var headerBytes = new byte[headerSize];
+        await fs.ReadExactlyAsync(headerBytes, ct).ConfigureAwait(false);
+        var magic = System.Text.Encoding.UTF8.GetString(headerBytes, 0, 7);
+        if (magic != "VECIDX4") return default;
+        return MemoryMarshal.Read<VectorIndexHeader>(headerBytes.AsSpan(MagicSize));
+    }
+
+    /// <summary>读加载数据 — 向量段+Meta段+字符串区（跳过 SourceText 段）。</summary>
+    private static async Task<byte[]> ReadLoadDataAsync(Stream fs, VectorIndexHeader header, CancellationToken ct) {
+        const int MagicSize = 8;
+        var headerSize = MagicSize + Unsafe.SizeOf<VectorIndexHeader>();
+        var loadDataLen = (int)(header.SourceOffset - headerSize);
+        var loadData = new byte[loadDataLen];
+        await fs.ReadExactlyAsync(loadData, ct).ConfigureAwait(false);
+        return loadData;
+    }
+
+    /// <summary>解析 MetaEntryFixed[] → ChunkMetadata 列表 — MemoryMarshal.Cast 零拷贝映射。</summary>
+    private (List<(string, ChunkMetadata)>, List<(string, string)>, List<(string, float[])>, List<(string, string)>, Dictionary<string, float[]>?) ParseMetadataEntries(
+        in VectorIndexHeader header, byte[] loadData, CancellationToken ct) {
+        var count = header.Count;
+        var dims = header.Dims;
+        var vectorBytes = count * dims * sizeof(float);
+        var entrySize = Unsafe.SizeOf<MetaEntryFixed>();
+        var vectorSpan = MemoryMarshal.Cast<byte, float>(loadData.AsSpan(0, vectorBytes));
+        var entrySpan = MemoryMarshal.Cast<byte, MetaEntryFixed>(loadData.AsSpan(vectorBytes, count * entrySize));
+        var stringRegion = loadData.AsSpan(vectorBytes + count * entrySize);
+        var stringBytes = stringRegion.ToArray();
+
+        var supportsGraphPersistence = _ann is IAnnSearchGraphPersistence;
+        var vectorsDict = supportsGraphPersistence ? new Dictionary<string, float[]>(count) : null;
+        var metadataItems = new List<(string, ChunkMetadata)>(count);
+        var hashItems = new List<(string, string)>(count);
+        var vectorItems = new List<(string, float[])>(count);
+        var fileChunksItems = new List<(string, string)>(count);
+
+        for (var i = 0; i < count; i++) {
+            ct.ThrowIfCancellationRequested();
+            var entry = entrySpan[i];
+            var vector = vectorSpan.Slice(i * dims, dims).ToArray();
+
+            var chunkId = ReadStringFromBuffer(stringBytes, entry.ChunkIdOffset, entry.ChunkIdLen);
+            var filePath = ReadStringFromBuffer(stringBytes, entry.FilePathOffset, entry.FilePathLen);
+            var fqn = ReadStringFromBuffer(stringBytes, entry.FqnOffset, entry.FqnLen);
+            var symbolKind = ReadStringFromBuffer(stringBytes, entry.SymbolKindOffset, entry.SymbolKindLen);
+            var parentChunkId = entry.ParentChunkIdLen > 0
+                ? ReadStringFromBuffer(stringBytes, entry.ParentChunkIdOffset, entry.ParentChunkIdLen)
+                : null;
+            var hash = ReadStringFromBuffer(stringBytes, entry.HashOffset, entry.HashLen);
+            var containedFqns = ReadContainedFqns(stringBytes, entry.ContainedFqnsOffset, entry.ContainedFqnCount);
+
+            if (supportsGraphPersistence) {
+                vectorsDict![chunkId] = vector;
+            } else {
+                _ann.Add(chunkId, vector);
+            }
+            metadataItems.Add((chunkId, new ChunkMetadata {
+                ChunkId = chunkId, FilePath = filePath, SymbolFqn = fqn,
+                SymbolKind = symbolKind,
+                StartLine = entry.StartLine, EndLine = entry.EndLine,
+                ParentChunkId = parentChunkId, SourceText = null,
+                SourceTextOffset = entry.SourceTextOffset, SourceTextLen = entry.SourceTextLen,
+                ContainedSymbolFqns = containedFqns
+            }));
+            hashItems.Add((chunkId, hash));
+            vectorItems.Add((chunkId, vector));
+            fileChunksItems.Add((filePath, chunkId));
+        }
+        return (metadataItems, hashItems, vectorItems, fileChunksItems, vectorsDict);
+    }
+
+    /// <summary>读 ContainedFqns — 每条前缀 4 字节长度（小端）+ UTF8 内容。</summary>
+    private static List<string> ReadContainedFqns(byte[] stringBytes, long offset, int count) {
+        var result = new List<string>(count);
+        var pos = (int)offset;
+        for (var f = 0; f < count; f++) {
+            var fqnLen = BitConverter.ToInt32(stringBytes, pos);
+            pos += 4;
+            result.Add(System.Text.Encoding.UTF8.GetString(stringBytes, pos, fqnLen));
+            pos += fqnLen;
+        }
+        return result;
+    }
+
+    /// <summary>加载图段 — HNSW 图持久化或逐条重建。</summary>
+    private async Task LoadGraphSegmentAsync(Stream fs, VectorIndexHeader header, Dictionary<string, float[]>? vectorsDict, CancellationToken ct) {
+        if (header.GraphOffset <= 0 || _ann is not IAnnSearchGraphPersistence gp) return;
+        fs.Seek(header.GraphOffset, SeekOrigin.Begin);
+        var hasGraph = fs.ReadByte();
+        if (hasGraph == 1) {
+            var graphDataLen = (int)(fs.Length - header.GraphOffset - 1);
+            var graphData = new byte[graphDataLen];
+            await fs.ReadExactlyAsync(graphData, ct).ConfigureAwait(false);
+            await using var graphMs = new MemoryStream(graphData, writable: false);
+            using var graphBr = new BinaryReader(graphMs, System.Text.Encoding.UTF8);
+            gp.LoadGraph(graphBr, vectorsDict!);
+        } else {
+            foreach (var (id, vec) in vectorsDict!) {
+                ct.ThrowIfCancellationRequested();
+                _ann.Add(id, vec);
+            }
+        }
+    }
+
+    /// <summary>从缓冲区读 UTF8 字符串 — 热路径内联。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static string ReadStringFromBuffer(byte[] buffer, long offset, int len) {
+        if (len <= 0 || offset < 0) return string.Empty;
+        return System.Text.Encoding.UTF8.GetString(buffer, (int)offset, len);
     }
 
     /// <summary>
@@ -400,6 +682,23 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         var len = br.ReadInt32();
         if (len < 0) return null;
         return System.Text.Encoding.UTF8.GetString(br.ReadBytes(len));
+    }
+
+    /// <summary>
+    /// 按偏移量从索引文件读取 SourceText — 分页持久化，搜索时不加载 SourceText 段。
+    /// </summary>
+    private async Task<string?> ReadSourceTextAsync(ChunkMetadata meta, CancellationToken ct) {
+        if (meta.SourceText is not null) return meta.SourceText;
+        if (meta.SourceTextOffset < 0 || meta.SourceTextLen == 0 || _indexFilePath is null) return null;
+        try {
+            await using var stream = _fs.OpenRead(_indexFilePath);
+            stream.Seek(meta.SourceTextOffset, SeekOrigin.Begin);
+            var buffer = new byte[meta.SourceTextLen];
+            await stream.ReadAsync(buffer, ct).ConfigureAwait(false);
+            return System.Text.Encoding.UTF8.GetString(buffer);
+        } catch {
+            return null;
+        }
     }
 
     /// <summary>
@@ -450,7 +749,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
                 StartLine = meta.StartLine,
                 EndLine = meta.EndLine,
                 Score = score,
-                SourceText = includeSource ? meta.SourceText : null,
+                SourceText = includeSource ? await ReadSourceTextAsync(meta, ct).ConfigureAwait(false) : null,
                 ContainedSymbolFqns = meta.ContainedSymbolFqns
             };
             results.Add(includeParent

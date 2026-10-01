@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
         <ProjectType>app</ProjectType>
@@ -14,9 +14,7 @@
     <ProjectReference Include="$(RepoRoot)lib/clock/Clock.csproj" />
     <ProjectReference Include="$(RepoRoot)server/dream/Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)server/browser/Browser.csproj" />
-    <ProjectReference Include="$(RepoRoot)kit/pipelines/Pipelines.csproj" />
-        <ProjectReference Include="../../lib/structura/Structura.csproj" />
-</ItemGroup>
+    <ProjectReference Include="$(RepoRoot)kit/pipelines/Pipelines.csproj" /></ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)gen/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />

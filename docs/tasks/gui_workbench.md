@@ -6,8 +6,8 @@
 - [x] 模型切换、MCP 与插件管理，动态工具目录、schema 参数表单、必填/类型/枚举校验、执行结果及取消。
 - [x] 工作台入场、列表悬停/选中、按钮按下与加载状态动效；关闭动画时立即切换。
 - [x] 红绿测试、GUI 编译、539 项 GUI 测试与五个标签 Skia 截图检查。
-- [ ] 独立发布程序启动。
-- [ ] 提交与推送，更新无需安装 .NET 的发布版。
+- [x] Windows win-x64 自包含发布程序启动，窗口标题正确，正常关闭退出码 0。
+- [x] 提交与推送，更新无需安装 .NET 的发布版。
 
 参考：VS Code source control https://code.visualstudio.com/docs/sourcecontrol/overview
 与 Fluent 2 motion https://fluent2.microsoft.design/motion 。
@@ -25,3 +25,10 @@
 真实外部 MCP 连接与插件安装需要用户已有服务器/插件；本次未安装外部插件或改变服务器配置，也未调用收费模型。
 系统目录选择对话框尚未自动操作；代码预览使用 UTF-8，超过 2 MB 或二进制文件显示提示。
 原有编辑器样式只在真实 App 注册，截图检查发现测试预览空白；已统一移入共享 XAML 样式，保持 AOT 编译安全。
+
+## 发布
+
+运行 `artifacts/启动JoinCode.lnk`，或 `artifacts/publish/JoinCode.Gui/JoinCode.Gui.exe`。
+发布目录携带 Microsoft.NETCore.App 10.0.9、coreclr.dll 和 hostfxr.dll。
+构建重新生成的 `artifacts/bin/JoinCodeGui` 再次移入根目录 `.xxx`，避免误启动依赖系统运行时的版本。
+539 项 GUI 测试通过；构建/发布零警告、零错误。截图保存在 `dumps/gui_workbench`。

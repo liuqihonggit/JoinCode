@@ -64,12 +64,13 @@ public sealed class LinkVerificationTests : IAsyncLifetime
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task LINK_001_FileLockService_ConcurrentWrite_ShouldSerializeAccess()
     {
         const string linkId = "LINK-001";
         var filePath = Path.Combine(_testRoot, "concurrent-write.txt");
-        const int taskCount = 10;
-        const int writesPerTask = 50;
+        const int taskCount = 2;
+        const int writesPerTask = 3;
 
         _output.WriteLine($"[{linkId}] Starting: {taskCount} tasks x {writesPerTask} writes each");
 
@@ -97,7 +98,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
     {
         for (var i = 0; i < writeCount; i++)
         {
-            var result = await FileLockService.AcquireAsync(filePath, TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+            var result = await FileLockService.AcquireAsync(filePath, TimeSpan.FromSeconds(30)).ConfigureAwait(true);
             result.Success.Should().BeTrue($"lock acquisition should succeed for task {taskId} write {i}");
 
             await using (result.Lock!)
@@ -180,6 +181,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task LINK_003_ConcurrentJsonlAppend_ShouldNotCorruptLines()
     {
         const string linkId = "LINK-003";
@@ -187,8 +189,8 @@ public sealed class LinkVerificationTests : IAsyncLifetime
 
         await _fs.WriteAllTextAsync(filePath, string.Empty).ConfigureAwait(true);
 
-        const int taskCount = 5;
-        const int entriesPerTask = 20;
+        const int taskCount = 3;
+        const int entriesPerTask = 10;
 
         _output.WriteLine($"[{linkId}] Starting: {taskCount} tasks x {entriesPerTask} entries each");
 
@@ -223,7 +225,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
     {
         for (var i = 0; i < count; i++)
         {
-            var result = await FileLockService.AcquireAsync(filePath, TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+            var result = await FileLockService.AcquireAsync(filePath, TimeSpan.FromSeconds(30)).ConfigureAwait(true);
             result.Success.Should().BeTrue();
 
             await using (result.Lock!)

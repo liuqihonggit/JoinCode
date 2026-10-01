@@ -851,12 +851,12 @@ degree=8 已饱和，degree=16 无额外收益（tokenize 串行 + 内存带宽�
 **消费点**：
 | 消费点 | 改动 | 实现 | 验收 |
 |--------|------|------|------|
-| GraphTriple record | 新增抽象层结构 | ☐ | ☐ |
-| ExtractSubgraphAsync | 输出 Triples 段 | ☐ | ☐ |
-| ExplainAsync | 输出 Triples 段 | ☐ | ☐ |
-| GetCallersAsync | 输出 Triples 段 | ☐ | ☐ |
-| GetCalleesAsync | 输出 Triples 段 | ☐ | ☐ |
-| FindPathAsync | 输出 Triples 段 | ☐ | ☐ |
+| GraphTriple record | 新增抽象层结构 | ✅ | ✅ |
+| ExtractSubgraphAsync | 输出 Triples 段 | ✅ | ✅ |
+| ExplainAsync | 输出 Triples 段 | ✅ | ✅ |
+| GetCallersAsync | 输出 Triples 段 | ✅ | ✅ |
+| GetCalleesAsync | 输出 Triples 段 | ✅ | ✅ |
+| FindPathAsync | 输出 Triples 段 | ✅ | ✅ |
 
 #### 13.9.2 引用截断 + AI 可控参数
 
@@ -867,11 +867,11 @@ degree=8 已饱和，degree=16 无额外收益（tokenize 串行 + 内存带宽�
 **消费点**：
 | 消费点 | 改动 | 实现 | 验收 |
 |--------|------|------|------|
-| FindReferencesAsync | 加 limit=5 + 截断提示 | ☐ | ☐ |
-| GetCallersAsync | 加 limit=5 + 截断提示 | ☐ | ☐ |
-| GetCalleesAsync | 加 limit=5 + 截断提示 | ☐ | ☐ |
-| ExplainAsync | 加 limit=5 替代硬截断 | ☐ | ☐ |
-| ExtractSubgraphAsync | 加 max_edges=50 限制 | ☐ | ☐ |
+| FindReferencesAsync | 加 limit=5 + 截断提示 | ✅ | ✅ |
+| GetCallersAsync | 加 limit=5 + 截断提示 | ✅ | ✅ |
+| GetCalleesAsync | 加 limit=5 + 截断提示 | ✅ | ✅ |
+| ExplainAsync | 加 limit=5 替代硬截断 | ✅ | ✅ |
+| ExtractSubgraphAsync | 加 max_edges=50 限制 | ✅ | ✅ |
 
 #### 13.9.3 属性过滤搜索增强
 
@@ -882,6 +882,6 @@ degree=8 已饱和，degree=16 无额外收益（tokenize 串行 + 内存带宽�
 **消费点**：
 | 消费点 | 改动 | 实现 | 验收 |
 |--------|------|------|------|
-| SearchOptions | 加 Namespace/SymbolKind | ☐ | ☐ |
-| EmbeddingIndex.SearchAsync | 加 Namespace/SymbolKind 过滤 | ☐ | ☐ |
-| SearchSemanticAsync | 加 namespace/symbol_kind 参数 | ☐ | ☐ |
+| SearchOptions | 加 Namespace/SymbolKind | ✅ | ✅ |
+| EmbeddingIndex.SearchAsync | 加 Namespace/SymbolKind 过滤 | ✅ | ✅ |
+| SearchSemanticAsync | 加 namespace/symbol_kind 参数 | ✅ | ✅ |

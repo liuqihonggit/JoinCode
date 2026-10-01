@@ -831,3 +831,57 @@ degree=8 已饱和，degree=16 无额外收益（tokenize 串行 + 内存带宽�
 <!-- 原因: 适配不同核数机器,16核=8实例已饱和,8核=4实例,32核=16实例 -->
 <!-- 替代方案: 固定 8,但在非 16 核机器上不合理 -->
 <!-- 验证: 编译通过,753+3 测试全通过,总计 22s→14.4s ✅ -->
+
+### 13.9 三元组返回 + 引用截断 + 属性过滤增强（2026-10-01）
+
+> 参考 Redis 8.0 VectorSet 设计：属性过滤（FILTER）、结构化返回
+
+#### 13.9.1 三元组返回格式
+
+**问题**：图谱查询返回文本化边列表 `Caller -> Callee [CallKind]`，AI 需解析自由文本，不可靠且易出错。
+
+**方案**：新增 `GraphTriple` record `(string Subject, string Predicate, string Object)`，图谱查询在文本输出中附加结构化三元组段 `Triples:`，AI 可直接解析。
+
+**三元组映射**：
+- 调用边 `CallEdge(Caller, Callee, CallKind)` → `(Caller, "calls", Callee)`
+- 依赖边 `DependencyEdge(Source, Target, Kind)` → `(Source, "depends", Target)`
+- 同社区 `~ {c}` → `(Symbol, "sameCommunity", c)`
+- 同文件 `# {c}` → `(Symbol, "sameFile", c)`
+
+**消费点**：
+| 消费点 | 改动 | 实现 | 验收 |
+|--------|------|------|------|
+| GraphTriple record | 新增抽象层结构 | ☐ | ☐ |
+| ExtractSubgraphAsync | 输出 Triples 段 | ☐ | ☐ |
+| ExplainAsync | 输出 Triples 段 | ☐ | ☐ |
+| GetCallersAsync | 输出 Triples 段 | ☐ | ☐ |
+| GetCalleesAsync | 输出 Triples 段 | ☐ | ☐ |
+| FindPathAsync | 输出 Triples 段 | ☐ | ☐ |
+
+#### 13.9.2 引用截断 + AI 可控参数
+
+**问题**：`FindReferences`/`GetCallers`/`GetCallees` 无 limit 参数，返回全部引用，大图可能爆 token。`ExplainAsync` 硬截断 `Take(15)`，AI 无法获取更多。
+
+**方案**：加 `limit` 参数（默认 5），截断时提示 `"还有 N 个，传 limit=N 获取更多"`。最少返回 5 个（不足 5 个时返回全部）。
+
+**消费点**：
+| 消费点 | 改动 | 实现 | 验收 |
+|--------|------|------|------|
+| FindReferencesAsync | 加 limit=5 + 截断提示 | ☐ | ☐ |
+| GetCallersAsync | 加 limit=5 + 截断提示 | ☐ | ☐ |
+| GetCalleesAsync | 加 limit=5 + 截断提示 | ☐ | ☐ |
+| ExplainAsync | 加 limit=5 替代硬截断 | ☐ | ☐ |
+| ExtractSubgraphAsync | 加 max_edges=50 限制 | ☐ | ☐ |
+
+#### 13.9.3 属性过滤搜索增强
+
+**问题**：`SearchOptions` 已有 `FileType` 过滤（已实现），但缺少命名空间/符号类型过滤。Redis 8.0 VectorSet 的 `FILTER` 支持属性前置过滤，本方案借鉴。
+
+**方案**：`SearchOptions` 加 `Namespace`（string?）和 `SymbolKind`（string?）属性，`EmbeddingIndex.SearchAsync` 在 oversample 后按元数据过滤。
+
+**消费点**：
+| 消费点 | 改动 | 实现 | 验收 |
+|--------|------|------|------|
+| SearchOptions | 加 Namespace/SymbolKind | ☐ | ☐ |
+| EmbeddingIndex.SearchAsync | 加 Namespace/SymbolKind 过滤 | ☐ | ☐ |
+| SearchSemanticAsync | 加 namespace/symbol_kind 参数 | ☐ | ☐ |

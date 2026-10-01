@@ -116,6 +116,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
                 ChunkId = chunk.ChunkId,
                 FilePath = chunk.FilePath,
                 SymbolFqn = chunk.SymbolFqn,
+                SymbolKind = chunk.Kind.ToString(),
                 StartLine = chunk.StartLine,
                 EndLine = chunk.EndLine,
                 ParentChunkId = chunk.ParentChunkId,
@@ -247,7 +248,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
 
         await using var ms = new MemoryStream();
         await using var bw = new BinaryWriter(ms, System.Text.Encoding.UTF8);
-        bw.Write(System.Text.Encoding.UTF8.GetBytes("VECIDX1"));
+        bw.Write(System.Text.Encoding.UTF8.GetBytes("VECIDX2"));
         var count = vectorsSnapshot.Count;
         bw.Write(count);
         var dims = count > 0 ? vectorsSnapshot.First().Value.Length : 0;
@@ -258,6 +259,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             WriteString(bw, chunkId);
             WriteString(bw, meta.FilePath);
             WriteString(bw, meta.SymbolFqn);
+            WriteString(bw, meta.SymbolKind);
             bw.Write(meta.StartLine);
             bw.Write(meta.EndLine);
             WriteNullableString(bw, meta.ParentChunkId);
@@ -291,7 +293,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         await using var ms = new MemoryStream(bytes, writable: false);
         using var br = new BinaryReader(ms, System.Text.Encoding.UTF8);
         var magic = System.Text.Encoding.UTF8.GetString(br.ReadBytes(7));
-        if (magic != "VECIDX1") return false;
+        if (magic != "VECIDX2") return false;
         var count = br.ReadInt32();
         var dims = br.ReadInt32();
         if (count == 0) return false;
@@ -306,6 +308,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             var chunkId = ReadString(br);
             var filePath2 = ReadString(br);
             var fqn = ReadString(br);
+            var symbolKind = ReadString(br);
             var startLine = br.ReadInt32();
             var endLine = br.ReadInt32();
             var parentChunkId = ReadNullableString(br);
@@ -322,6 +325,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             _ann.Add(chunkId, vector);
             metadataItems.Add((chunkId, new ChunkMetadata {
                 ChunkId = chunkId, FilePath = filePath2, SymbolFqn = fqn,
+                SymbolKind = symbolKind,
                 StartLine = startLine, EndLine = endLine,
                 ParentChunkId = parentChunkId, SourceText = sourceText,
                 ContainedSymbolFqns = containedFqns
@@ -393,7 +397,11 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         }
 
         var fileType = options?.FileType;
-        var hasFilter = !string.IsNullOrEmpty(fileType);
+        var namespaceFilter = options?.Namespace;
+        var symbolKindFilter = options?.SymbolKind;
+        var hasFilter = !string.IsNullOrEmpty(fileType)
+            || !string.IsNullOrEmpty(namespaceFilter)
+            || !string.IsNullOrEmpty(symbolKindFilter);
         var oversampleK = hasFilter ? topK * 3 : topK;
         var annResults = _ann.Search(queryVector, oversampleK, ct);
         if (annResults.Count == 0) return [];
@@ -404,7 +412,11 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         var includeParent = options?.IncludeParentDocument ?? false;
         foreach (var (id, score) in annResults) {
             if (!metadataSnapshot.TryGetValue(id, out var meta)) continue;
-            if (hasFilter && !MatchesFileType(meta.FilePath, fileType!)) continue;
+            if (hasFilter) {
+                if (!string.IsNullOrEmpty(fileType) && !MatchesFileType(meta.FilePath, fileType!)) continue;
+                if (!string.IsNullOrEmpty(namespaceFilter) && !MatchesNamespace(meta.SymbolFqn, namespaceFilter!)) continue;
+                if (!string.IsNullOrEmpty(symbolKindFilter) && !MatchesSymbolKind(meta.SymbolKind, symbolKindFilter!)) continue;
+            }
             var result = new ChunkSearchResult {
                 ChunkId = meta.ChunkId,
                 FilePath = meta.FilePath,
@@ -430,6 +442,20 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         var ext = Path.GetExtension(filePath.AsSpan());
         if (ext.Length == 0) return false;
         return ext[1..].Equals(fileType, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 检查符号 FQN 是否属于指定命名空间（前缀匹配）。
+    /// </summary>
+    private static bool MatchesNamespace(string fqn, string namespaceFilter) {
+        return fqn.StartsWith(namespaceFilter, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 检查符号类型是否匹配（不区分大小写）。
+    /// </summary>
+    private static bool MatchesSymbolKind(string symbolKind, string symbolKindFilter) {
+        return symbolKind.Equals(symbolKindFilter, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

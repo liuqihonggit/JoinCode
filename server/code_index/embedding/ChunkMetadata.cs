@@ -10,6 +10,8 @@ internal sealed record ChunkMetadata {
     public required string FilePath { get; init; }
     /// <summary>关联符号的完全限定名。</summary>
     public required string SymbolFqn { get; init; }
+    /// <summary>符号类型名称（Method/Class/Function/...），用于属性过滤。</summary>
+    public string SymbolKind { get; init; } = string.Empty;
     /// <summary>起始行号。</summary>
     public required int StartLine { get; init; }
     /// <summary>结束行号。</summary>

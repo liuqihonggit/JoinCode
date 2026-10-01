@@ -218,11 +218,13 @@ public sealed class CodeIndexToolHandlers {
     /// 查找指定 C# 符号的所有引用
     /// </summary>
     /// <param name="symbol_name">符号名称</param>
+    /// <param name="limit">最大返回引用数（默认 5，传更大值获取更多）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含符号所有引用位置的工具结果</returns>
     [McpTool(CodeToolNameEnumConstants.CodeIndexFindReferences, "Find all references to a C# symbol in AST index", "code_index")]
     public async Task<ToolResult> FindReferencesAsync(
         [McpToolParameter("Symbol name")] string symbol_name,
+        [McpToolParameter("Maximum references to return (default 5, pass larger to see more)")] int limit = 5,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(symbol_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
@@ -237,10 +239,12 @@ public sealed class CodeIndexToolHandlers {
             }
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine(L.T(StringKey.FoundReferencesCount, references.Count));
+            var totalCount = references.Count;
+            var toShow = references.Take(limit).ToList();
+            sb.AppendLine(L.T(StringKey.FoundReferencesCount, totalCount));
             sb.AppendLine();
 
-            var grouped = references.GroupBy(r => r.FilePath);
+            var grouped = toShow.GroupBy(r => r.FilePath);
 
             foreach (var group in grouped) {
                 sb.AppendLine($"{ObjectSymbol.File.ToValue()} {group.Key}");
@@ -252,6 +256,9 @@ public sealed class CodeIndexToolHandlers {
                 sb.AppendLine();
             }
 
+            if (totalCount > limit)
+                sb.AppendLine($"... and {totalCount - limit} more (pass limit={totalCount} to see all)");
+
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.FindReferencesFailed, ex.Message)).Build();
@@ -262,11 +269,13 @@ public sealed class CodeIndexToolHandlers {
     /// 查找指定 C# 符号的所有调用方
     /// </summary>
     /// <param name="symbol_name">符号名称</param>
+    /// <param name="limit">最大返回调用方数（默认 5，传更大值获取更多）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含所有调用方信息的工具结果</returns>
     [McpTool(CodeToolNameEnumConstants.CodeIndexGetCallers, "Find all callers of a specified C# symbol in AST index", "code_index")]
     public async Task<ToolResult> GetCallersAsync(
         [McpToolParameter("Symbol name")] string symbol_name,
+        [McpToolParameter("Maximum callers to return (default 5, pass larger to see more)")] int limit = 5,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(symbol_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
@@ -281,15 +290,24 @@ public sealed class CodeIndexToolHandlers {
             }
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine(L.T(StringKey.CallersOfSymbol, symbol_name, callers.Count));
+            var totalCount = callers.Count;
+            var toShow = callers.Take(limit).ToList();
+            sb.AppendLine(L.T(StringKey.CallersOfSymbol, symbol_name, totalCount));
             sb.AppendLine();
 
-            for (var i = 0; i < callers.Count; i++) {
-                var edge = callers[i];
+            for (var i = 0; i < toShow.Count; i++) {
+                var edge = toShow[i];
                 sb.AppendLine($"{i + 1}. {edge.CallerSymbol} [{edge.CallKind}]");
                 sb.AppendLine($"   {L.T(StringKey.LabelCallSite, edge.CallSiteFilePath, edge.CallSiteLine)}");
                 sb.AppendLine();
             }
+
+            if (totalCount > limit)
+                sb.AppendLine($"... and {totalCount - limit} more (pass limit={totalCount} to see all)");
+
+            sb.AppendLine("Triples:");
+            foreach (var edge in toShow)
+                sb.AppendLine($"  ({edge.CallerSymbol}, calls, {symbol_name})");
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         } catch (Exception ex) {
@@ -301,11 +319,13 @@ public sealed class CodeIndexToolHandlers {
     /// 查找指定 C# 符号调用的所有被调用方
     /// </summary>
     /// <param name="symbol_name">符号名称</param>
+    /// <param name="limit">最大返回被调用方数（默认 5，传更大值获取更多）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含所有被调用方信息的工具结果</returns>
     [McpTool(CodeToolNameEnumConstants.CodeIndexGetCallees, "Find all callees invoked by a specified C# symbol in AST index", "code_index")]
     public async Task<ToolResult> GetCalleesAsync(
         [McpToolParameter("Symbol name")] string symbol_name,
+        [McpToolParameter("Maximum callees to return (default 5, pass larger to see more)")] int limit = 5,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(symbol_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.SymbolNameCannotBeEmpty)).Build();
@@ -320,15 +340,24 @@ public sealed class CodeIndexToolHandlers {
             }
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine(L.T(StringKey.CalleesOfSymbol, symbol_name, callees.Count));
+            var totalCount = callees.Count;
+            var toShow = callees.Take(limit).ToList();
+            sb.AppendLine(L.T(StringKey.CalleesOfSymbol, symbol_name, totalCount));
             sb.AppendLine();
 
-            for (var i = 0; i < callees.Count; i++) {
-                var edge = callees[i];
+            for (var i = 0; i < toShow.Count; i++) {
+                var edge = toShow[i];
                 sb.AppendLine($"{i + 1}. {edge.CalleeSymbol} [{edge.CallKind}]");
                 sb.AppendLine($"   {L.T(StringKey.LabelCallSite, edge.CallSiteFilePath, edge.CallSiteLine)}");
                 sb.AppendLine();
             }
+
+            if (totalCount > limit)
+                sb.AppendLine($"... and {totalCount - limit} more (pass limit={totalCount} to see all)");
+
+            sb.AppendLine("Triples:");
+            foreach (var edge in toShow)
+                sb.AppendLine($"  ({symbol_name}, calls, {edge.CalleeSymbol})");
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         } catch (Exception ex) {
@@ -661,6 +690,8 @@ public sealed class CodeIndexToolHandlers {
     /// <param name="include_parent_document">是否返回父文档原文（类/文件完整源码）</param>
     /// <param name="include_graph">是否返回知识图谱关联（调用方/被调用方），默认 true</param>
     /// <param name="file_type">文件类型过滤@过滤（扩展名不含点，如 "cs"/"md"），null=全部</param>
+    /// <param name="namespace_filter">命名空间过滤（前缀匹配，如 "JoinCode.CodeIndex"），null=全部</param>
+    /// <param name="symbol_kind">符号类型过滤（如 "Method"/"Class"），null=全部</param>
     /// <param name="persist_dir">持久化目录路径，用于从外部位置加载索引。null=自动发现 git 工作区</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含匹配代码块列表的工具结果</returns>
@@ -672,6 +703,8 @@ public sealed class CodeIndexToolHandlers {
         [McpToolParameter("Include parent document (class/file) source text in results for full context. Default false — enable when you need surrounding context", Required = false, DefaultValue = "false")] bool include_parent_document = false,
         [McpToolParameter("Include knowledge graph relations (callers/callees) for symbols in each chunk. Default true — AI sees call dependencies without extra tool calls", Required = false, DefaultValue = "true")] bool include_graph = true,
         [McpToolParameter("Filter by file extension without dot, e.g. 'cs' for C# only, 'md' for Markdown only. Default null = all file types", Required = false)] string? file_type = null,
+        [McpToolParameter("Filter by namespace prefix, e.g. 'JoinCode.CodeIndex' for code in that namespace only. Default null = all namespaces", Required = false)] string? namespace_filter = null,
+        [McpToolParameter("Filter by symbol kind, e.g. 'Method' for methods only, 'Class' for classes only. Default null = all kinds", Required = false)] string? symbol_kind = null,
         [McpToolParameter("Persistence directory path to load index from. Default null = auto-discover git workspace root", Required = false)] string? persist_dir = null,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(query)) {
@@ -683,7 +716,9 @@ public sealed class CodeIndexToolHandlers {
             var options = new SearchOptions {
                 IncludeSourceText = include_source_text,
                 IncludeParentDocument = include_parent_document,
-                FileType = file_type
+                FileType = file_type,
+                Namespace = namespace_filter,
+                SymbolKind = symbol_kind
             };
             var oversampleK = Math.Max(top_k * 3, top_k + 10);
             var rawResults = await _indexer.SearchSemanticAsync(query, oversampleK, cancellationToken, options).ConfigureAwait(false);

@@ -506,8 +506,9 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     }
 
     /// <summary>
-    /// 从目录加载向量索引 — VECIDX4 分页格式，跳过 SourceText 段。
-    /// <para>MemoryMarshal.Cast 零拷贝映射向量段和 MetaEntryFixed[]。</para>
+    /// 从目录加载向量索引 — VECIDX4 分页格式，mmap 零拷贝映射。
+    /// <para>mmap 同步解析 Header+向量段+Meta段+字符串区，跳过 SourceText 段。</para>
+    /// <para>图段 async 加载（span 不能跨 await）。</para>
     /// </summary>
     /// <param name="dirPath">源目录路径。</param>
     /// <param name="ct">取消令牌。</param>
@@ -518,13 +519,21 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         if (!_fs.FileExists(filePath)) return false;
         _indexFilePath = filePath;
 
+        VectorIndexHeader header;
+        List<(string, ChunkMetadata)> metadataItems;
+        List<(string, string)> hashItems;
+        List<(string, float[])> vectorItems;
+        List<(string, string)> fileChunksItems;
+        Dictionary<string, float[]>? vectorsDict;
+
+        using (var mmap = _fs.OpenMemoryMappedRead(filePath)) {
+            var data = mmap.AsSpan();
+            header = ReadHeaderFromSpan(data);
+            if (header.Count == 0) return false;
+            (metadataItems, hashItems, vectorItems, fileChunksItems, vectorsDict) = ParseMetadataEntriesFromSpan(header, data, ct);
+        }
+
         await using var fs = _fs.OpenRead(filePath);
-        var header = await ReadIndexHeaderAsync(fs, ct).ConfigureAwait(false);
-        if (header.Count == 0) return false;
-
-        var loadData = await ReadLoadDataAsync(fs, header, ct).ConfigureAwait(false);
-        var (metadataItems, hashItems, vectorItems, fileChunksItems, vectorsDict) = ParseMetadataEntries(in header, loadData, ct);
-
         await LoadGraphSegmentAsync(fs, header, vectorsDict, ct).ConfigureAwait(false);
 
         CasBulkUpdateMetadata(metadataItems);
@@ -535,39 +544,28 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         return true;
     }
 
-    /// <summary>读索引头 — Magic(8B) + VectorIndexHeader(32B)，校验 VECIDX4 魔数。</summary>
+    /// <summary>从 span 读索引头 — 校验 VECIDX4 魔数 + MemoryMarshal.Read 零拷贝。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static async Task<VectorIndexHeader> ReadIndexHeaderAsync(Stream fs, CancellationToken ct) {
+    private static VectorIndexHeader ReadHeaderFromSpan(ReadOnlySpan<byte> data) {
         const int MagicSize = 8;
-        var headerSize = MagicSize + Unsafe.SizeOf<VectorIndexHeader>();
-        var headerBytes = new byte[headerSize];
-        await fs.ReadExactlyAsync(headerBytes, ct).ConfigureAwait(false);
-        var magic = System.Text.Encoding.UTF8.GetString(headerBytes, 0, 7);
+        var magic = Encoding.UTF8.GetString(data.Slice(0, 7));
         if (magic != "VECIDX4") return default;
-        return MemoryMarshal.Read<VectorIndexHeader>(headerBytes.AsSpan(MagicSize));
+        return MemoryMarshal.Read<VectorIndexHeader>(data.Slice(MagicSize, Unsafe.SizeOf<VectorIndexHeader>()));
     }
 
-    /// <summary>读加载数据 — 向量段+Meta段+字符串区（跳过 SourceText 段）。</summary>
-    private static async Task<byte[]> ReadLoadDataAsync(Stream fs, VectorIndexHeader header, CancellationToken ct) {
-        const int MagicSize = 8;
-        var headerSize = MagicSize + Unsafe.SizeOf<VectorIndexHeader>();
-        var loadDataLen = (int)(header.SourceOffset - headerSize);
-        var loadData = new byte[loadDataLen];
-        await fs.ReadExactlyAsync(loadData, ct).ConfigureAwait(false);
-        return loadData;
-    }
-
-    /// <summary>解析 MetaEntryFixed[] → ChunkMetadata 列表 — MemoryMarshal.Cast 零拷贝映射。</summary>
-    private (List<(string, ChunkMetadata)>, List<(string, string)>, List<(string, float[])>, List<(string, string)>, Dictionary<string, float[]>?) ParseMetadataEntries(
-        in VectorIndexHeader header, byte[] loadData, CancellationToken ct) {
+    /// <summary>从 span 解析 MetaEntryFixed[] → ChunkMetadata — MemoryMarshal.Cast 零拷贝映射，字符串区不拷贝。</summary>
+    private (List<(string, ChunkMetadata)>, List<(string, string)>, List<(string, float[])>, List<(string, string)>, Dictionary<string, float[]>?) ParseMetadataEntriesFromSpan(
+        VectorIndexHeader header, ReadOnlySpan<byte> data, CancellationToken ct) {
         var count = header.Count;
         var dims = header.Dims;
+        const int MagicSize = 8;
+        var headerSize = MagicSize + Unsafe.SizeOf<VectorIndexHeader>();
         var vectorBytes = count * dims * sizeof(float);
         var entrySize = Unsafe.SizeOf<MetaEntryFixed>();
-        var vectorSpan = MemoryMarshal.Cast<byte, float>(loadData.AsSpan(0, vectorBytes));
-        var entrySpan = MemoryMarshal.Cast<byte, MetaEntryFixed>(loadData.AsSpan(vectorBytes, count * entrySize));
-        var stringRegion = loadData.AsSpan(vectorBytes + count * entrySize);
-        var stringBytes = stringRegion.ToArray();
+
+        var vectorSpan = MemoryMarshal.Cast<byte, float>(data.Slice(headerSize, vectorBytes));
+        var entrySpan = MemoryMarshal.Cast<byte, MetaEntryFixed>(data.Slice(headerSize + vectorBytes, count * entrySize));
+        var stringSpan = data.Slice(headerSize + vectorBytes + count * entrySize);
 
         var supportsGraphPersistence = _ann is IAnnSearchGraphPersistence;
         var vectorsDict = supportsGraphPersistence ? new Dictionary<string, float[]>(count) : null;
@@ -581,15 +579,15 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             var entry = entrySpan[i];
             var vector = vectorSpan.Slice(i * dims, dims).ToArray();
 
-            var chunkId = ReadStringFromBuffer(stringBytes, entry.ChunkIdOffset, entry.ChunkIdLen);
-            var filePath = ReadStringFromBuffer(stringBytes, entry.FilePathOffset, entry.FilePathLen);
-            var fqn = ReadStringFromBuffer(stringBytes, entry.FqnOffset, entry.FqnLen);
-            var symbolKind = ReadStringFromBuffer(stringBytes, entry.SymbolKindOffset, entry.SymbolKindLen);
+            var chunkId = ReadStringFromSpan(stringSpan, entry.ChunkIdOffset, entry.ChunkIdLen);
+            var filePath = ReadStringFromSpan(stringSpan, entry.FilePathOffset, entry.FilePathLen);
+            var fqn = ReadStringFromSpan(stringSpan, entry.FqnOffset, entry.FqnLen);
+            var symbolKind = ReadStringFromSpan(stringSpan, entry.SymbolKindOffset, entry.SymbolKindLen);
             var parentChunkId = entry.ParentChunkIdLen > 0
-                ? ReadStringFromBuffer(stringBytes, entry.ParentChunkIdOffset, entry.ParentChunkIdLen)
+                ? ReadStringFromSpan(stringSpan, entry.ParentChunkIdOffset, entry.ParentChunkIdLen)
                 : null;
-            var hash = ReadStringFromBuffer(stringBytes, entry.HashOffset, entry.HashLen);
-            var containedFqns = ReadContainedFqns(stringBytes, entry.ContainedFqnsOffset, entry.ContainedFqnCount);
+            var hash = ReadStringFromSpan(stringSpan, entry.HashOffset, entry.HashLen);
+            var containedFqns = ReadContainedFqnsFromSpan(stringSpan, entry.ContainedFqnsOffset, entry.ContainedFqnCount);
 
             if (supportsGraphPersistence) {
                 vectorsDict![chunkId] = vector;
@@ -611,14 +609,14 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         return (metadataItems, hashItems, vectorItems, fileChunksItems, vectorsDict);
     }
 
-    /// <summary>读 ContainedFqns — 每条前缀 4 字节长度（小端）+ UTF8 内容。</summary>
-    private static List<string> ReadContainedFqns(byte[] stringBytes, long offset, int count) {
+    /// <summary>从 span 读 ContainedFqns — BinaryPrimitives 小端读取，零拷贝。</summary>
+    private static List<string> ReadContainedFqnsFromSpan(ReadOnlySpan<byte> stringSpan, long offset, int count) {
         var result = new List<string>(count);
         var pos = (int)offset;
         for (var f = 0; f < count; f++) {
-            var fqnLen = BitConverter.ToInt32(stringBytes, pos);
+            var fqnLen = BinaryPrimitives.ReadInt32LittleEndian(stringSpan.Slice(pos, 4));
             pos += 4;
-            result.Add(System.Text.Encoding.UTF8.GetString(stringBytes, pos, fqnLen));
+            result.Add(Encoding.UTF8.GetString(stringSpan.Slice(pos, fqnLen)));
             pos += fqnLen;
         }
         return result;
@@ -634,7 +632,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             var graphData = new byte[graphDataLen];
             await fs.ReadExactlyAsync(graphData, ct).ConfigureAwait(false);
             await using var graphMs = new MemoryStream(graphData, writable: false);
-            using var graphBr = new BinaryReader(graphMs, System.Text.Encoding.UTF8);
+            using var graphBr = new BinaryReader(graphMs, Encoding.UTF8);
             gp.LoadGraph(graphBr, vectorsDict!);
         } else {
             foreach (var (id, vec) in vectorsDict!) {
@@ -644,11 +642,11 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         }
     }
 
-    /// <summary>从缓冲区读 UTF8 字符串 — 热路径内联。</summary>
+    /// <summary>从 span 读 UTF8 字符串 — 热路径内联，零拷贝。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static string ReadStringFromBuffer(byte[] buffer, long offset, int len) {
+    private static string ReadStringFromSpan(ReadOnlySpan<byte> buffer, long offset, int len) {
         if (len <= 0 || offset < 0) return string.Empty;
-        return System.Text.Encoding.UTF8.GetString(buffer, (int)offset, len);
+        return Encoding.UTF8.GetString(buffer.Slice((int)offset, len));
     }
 
     /// <summary>

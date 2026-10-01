@@ -310,6 +310,12 @@ public sealed class InMemoryFileSystem : IFileSystem {
     }
 
     /// <inheritdoc />
+    public IMemoryMappedRead OpenMemoryMappedRead(string path) {
+        var bytes = ReadAllBytes(path);
+        return new InMemoryMemoryMappedRead(bytes);
+    }
+
+    /// <inheritdoc />
     public Stream Open(string path, FileMode mode) {
         var normalizedPath = NormalizePath(path);
         var exists = _files.ContainsKey(normalizedPath);

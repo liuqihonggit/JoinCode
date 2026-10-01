@@ -6,9 +6,9 @@ namespace Tools;
 /// </summary>
 [Register(typeof(IToolRegistry), ServiceLifetime.Singleton)]
 public sealed partial class LocalToolRegistry : IToolRegistry {
-    private readonly Dictionary<string, IToolHandler> _tools = new();
-    private readonly Dictionary<ToolKind, Dictionary<string, IToolHandler>> _kindIndex = new();
-    private readonly Dictionary<string, Dictionary<string, IToolHandler>> _groupIndex = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SwissTable<string, IToolHandler> _tools = new();
+    private readonly SwissTable<ToolKind, SwissTable<string, IToolHandler>> _kindIndex = new();
+    private readonly SwissTable<string, SwissTable<string, IToolHandler>> _groupIndex = new(StringComparer.OrdinalIgnoreCase);
     private readonly AsyncLock _lock = new();
     private readonly ILogger? _logger;
     private int _disposed;
@@ -307,14 +307,14 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
 
     private void AddToIndex(IToolHandler handler) {
         if (!_kindIndex.TryGetValue(handler.Kind, out var kindBucket)) {
-            kindBucket = new Dictionary<string, IToolHandler>();
+            kindBucket = new SwissTable<string, IToolHandler>();
             _kindIndex[handler.Kind] = kindBucket;
         }
         kindBucket[handler.Name] = handler;
 
         if (handler.GroupName is not null) {
             if (!_groupIndex.TryGetValue(handler.GroupName, out var groupBucket)) {
-                groupBucket = new Dictionary<string, IToolHandler>(StringComparer.OrdinalIgnoreCase);
+                groupBucket = new SwissTable<string, IToolHandler>(StringComparer.OrdinalIgnoreCase);
                 _groupIndex[handler.GroupName] = groupBucket;
             }
             groupBucket[handler.Name] = handler;

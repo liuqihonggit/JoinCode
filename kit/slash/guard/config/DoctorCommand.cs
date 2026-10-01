@@ -81,6 +81,9 @@ public sealed class DoctorCommand : ChatCommandBase {
         sb.AppendLine("\n[MCP 服务]");
         await AppendMcpServicesAsync(sb, context).ConfigureAwait(false);
 
+        sb.AppendLine("\n[ONNX 嵌入模型]");
+        AppendOnnxEmbeddingStatus(sb, context);
+
         var dialog = new Dialog("环境诊断", sb.ToString(), ["关闭"]);
         await dialog.ShowAsync(context.CancellationToken).ConfigureAwait(false);
 
@@ -274,5 +277,34 @@ public sealed class DoctorCommand : ChatCommandBase {
         } catch (Exception ex) {
             sb.AppendLine($"  {TerminalColors.Error}MCP状态检查失败: {ex.Message}{AnsiStyleEnumConstants.Reset}");
         }
+    }
+
+    private static void AppendOnnxEmbeddingStatus(StringBuilder sb, ChatCommandContext context) {
+        var fs = context.GetCommandServices().FileSystem;
+        var targetDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "jcc", "embedding");
+        var modelPath = Path.Combine(targetDir, "model_quantized.onnx");
+        var vocabPath = Path.Combine(targetDir, "vocab.txt");
+
+        sb.AppendLine($"  模型目录: {targetDir}");
+
+        if (fs.FileExists(modelPath)) {
+            var modelSizeMB = fs.GetFileLength(modelPath) / (1024.0 * 1024.0);
+            sb.AppendLine($"  {TerminalColors.Success}模型: 已下载 ({modelSizeMB:F1} MB){AnsiStyleEnumConstants.Reset}");
+        } else {
+            sb.AppendLine($"  {TerminalColors.Warning}模型: 未下载 (首次使用代码索引时自动下载){AnsiStyleEnumConstants.Reset}");
+        }
+
+        if (fs.FileExists(vocabPath)) {
+            sb.AppendLine($"  {TerminalColors.Success}词表: 已下载{AnsiStyleEnumConstants.Reset}");
+        } else {
+            sb.AppendLine($"  {TerminalColors.Warning}词表: 未下载{AnsiStyleEnumConstants.Reset}");
+        }
+
+        var maxSeqLen = Environment.GetEnvironmentVariable("JCC_ONNX_MAX_SEQ_LEN");
+        sb.AppendLine($"  最大序列长度: {(string.IsNullOrEmpty(maxSeqLen) ? "32 (默认)" : maxSeqLen)}");
+        var degree = Math.Max(1, Environment.ProcessorCount / 2);
+        sb.AppendLine($"  并行实例: {degree} (自动, CPU/2)");
     }
 }

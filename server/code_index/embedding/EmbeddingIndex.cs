@@ -317,33 +317,13 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     }
 
     /// <summary>
-    /// 持久化向量索引到目录 — VECIDX4 分页格式，结构体 Pack=8 对齐。
-    /// <para>格式：Magic(8B) + Header(32B) + 向量段 + MetaEntryFixed[] + 字符串区 + SourceText段 + 图段。</para>
-    /// <para>加载时 MemoryMarshal.Cast 零拷贝映射向量段和 MetaEntryFixed[]，跳过 SourceText 段。</para>
+    /// 持久化向量索引到目录 — V6 PithosDB LSM-Tree 增量持久化。
+    /// <para>每个 chunk 的向量/元数据/哈希作为独立 KV 条目,支持增量写入和崩溃恢复。</para>
+    /// <para>Key 编码: v:{chunkId}=向量, m:{chunkId}=元数据, h:{chunkId}=哈希, g:graph=图, s:dims=维度。</para>
     /// </summary>
     /// <param name="dirPath">目标目录路径。</param>
     /// <param name="ct">取消令牌。</param>
-    public async Task SaveAsync(string dirPath, CancellationToken ct) {
-        ArgumentNullException.ThrowIfNull(dirPath);
-        var chunks = CollectChunksForSave();
-        var count = chunks.Count;
-        var dims = count > 0 ? chunks[0].Vector.Length : 0;
-
-        await using var stringRegion = new MemoryStream();
-        await using var sourceRegion = new MemoryStream();
-        var entries = new MetaEntryFixed[count];
-        for (var i = 0; i < count; i++) {
-            ct.ThrowIfCancellationRequested();
-            entries[i] = BuildMetaEntry(chunks[i], stringRegion, sourceRegion);
-        }
-
-        var graphRegion = await BuildGraphRegionAsync().ConfigureAwait(false);
-        var layout = ComputeIndexLayout(count, dims, stringRegion.Length, sourceRegion.Length, graphRegion.Length);
-
-        _fs.CreateDirectory(dirPath);
-        var filePath = Path.Combine(dirPath, "vector_index.bin");
-        await WriteIndexFileAsync(filePath, layout, chunks, dims, entries, stringRegion, sourceRegion, graphRegion, ct).ConfigureAwait(false);
-    }
+    public Task SaveAsync(string dirPath, CancellationToken ct) => SaveAsyncV6(dirPath, ct);
 
     /// <summary>收集待持久化的块快照 — 向量+元数据+哈希三元组对齐。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -507,42 +487,12 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
 
     /// <summary>
     /// 从目录加载向量索引 — VECIDX4 分页格式，mmap 零拷贝映射。
-    /// <para>mmap 同步解析 Header+向量段+Meta段+字符串区，跳过 SourceText 段。</para>
-    /// <para>图段 async 加载（span 不能跨 await）。</para>
+    /// <para>从 PithosDB LSM-Tree 逐条 ScanAsync 恢复向量/元数据/哈希,构建 HAMT 字典。</para>
     /// </summary>
     /// <param name="dirPath">源目录路径。</param>
     /// <param name="ct">取消令牌。</param>
-    /// <returns>true 表示加载成功；false 表示文件不存在或格式不匹配。</returns>
-    public async Task<bool> LoadAsync(string dirPath, CancellationToken ct) {
-        ArgumentNullException.ThrowIfNull(dirPath);
-        var filePath = Path.Combine(dirPath, "vector_index.bin");
-        if (!_fs.FileExists(filePath)) return false;
-        _indexFilePath = filePath;
-
-        VectorIndexHeader header;
-        List<(string, ChunkMetadata)> metadataItems;
-        List<(string, string)> hashItems;
-        List<(string, float[])> vectorItems;
-        List<(string, string)> fileChunksItems;
-        Dictionary<string, float[]>? vectorsDict;
-
-        using (var mmap = _fs.OpenMemoryMappedRead(filePath)) {
-            var data = mmap.AsSpan();
-            header = ReadHeaderFromSpan(data);
-            if (header.Count == 0) return false;
-            (metadataItems, hashItems, vectorItems, fileChunksItems, vectorsDict) = ParseMetadataEntriesFromSpan(header, data, ct);
-        }
-
-        await using var fs = _fs.OpenRead(filePath);
-        await LoadGraphSegmentAsync(fs, header, vectorsDict, ct).ConfigureAwait(false);
-
-        CasBulkUpdateMetadata(metadataItems);
-        CasBulkUpdateHashes(hashItems);
-        CasBulkUpdateVectors(vectorItems);
-        CasBulkUpdateFileChunks(fileChunksItems);
-        Interlocked.Exchange(ref _status, (int)IndexStatus.Ready);
-        return true;
-    }
+    /// <returns>true 表示加载成功；false 表示 KV 存储不存在或维度缺失。</returns>
+    public Task<bool> LoadAsync(string dirPath, CancellationToken ct) => LoadAsyncV6(dirPath, ct);
 
     /// <summary>从 span 读索引头 — 校验 VECIDX4 魔数 + MemoryMarshal.Read 零拷贝。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -650,12 +600,12 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     }
 
     /// <summary>
-    /// 检查指定目录是否存在向量索引文件。
+    /// 检查指定目录是否存在 V6 LSM KV 存储。
     /// </summary>
     public Task<bool> ExistsAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
-        var filePath = Path.Combine(dirPath, "vector_index.bin");
-        return Task.FromResult(_fs.FileExists(filePath));
+        var kvDir = Path.Combine(dirPath, "kvstore");
+        return Task.FromResult(_fs.DirectoryExists(kvDir));
     }
 
     private static void WriteString(BinaryWriter bw, string s) {

@@ -99,6 +99,10 @@ public sealed partial class EmbeddingIndex {
         var graphBytes = await store.GetAsync(KeyGraph, ct).ConfigureAwait(false);
         if (graphBytes is not null) {
             LoadGraphV6(graphBytes, vectors);
+        } else {
+            foreach (var (id, vec) in vectors) {
+                _ann.Add(id, vec);
+            }
         }
 
         var metadataBuilder = ImmutableHamT.CreateBuilder<string, ChunkMetadata>();

@@ -44,6 +44,7 @@ global using Infrastructure.Configuration;
 global using Infrastructure.Http;
 global using Infrastructure.IO;
 global using Infrastructure.IO.Services.FileOps;
+global using Infrastructure.Persistence;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Pipeline.Middlewares;
 global using Infrastructure.Time;

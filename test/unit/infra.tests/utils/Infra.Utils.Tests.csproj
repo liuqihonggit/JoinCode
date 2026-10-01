@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <Compile Include="..\Async\**\*.cs" />
-    <Compile Include="..\AsyncFileLock\**\*.cs" />
+    <Compile Include="..\async_file_lock\**\*.cs" />
     <Compile Include="..\Cache\**\*.cs" />
     <Compile Include="..\Text\**\*.cs" />
     <Compile Include="..\Resilience\**\*.cs" />

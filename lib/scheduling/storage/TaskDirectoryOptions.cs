@@ -28,10 +28,10 @@ public sealed class TaskDirectoryOptions {
     public const string TaskFilePrefix = "task-";
 
     /// <summary>
-    /// 获取高水位标记文件完整路径
+    /// 获取高水位标记 KV 存储键 — 增量更新,单值写入
     /// </summary>
-    public string GetHighWaterMarkPath() {
-        return Path.Combine(TaskDirectoryPath, HighWaterMarkFileName);
+    public string GetHighWaterMarkKey() {
+        return $"hwm:{TaskDirectoryPath}";
     }
 
     /// <summary>

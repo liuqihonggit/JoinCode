@@ -8,7 +8,8 @@ public sealed record TaskFileOperations(
     IFileOperationService FileOperationService,
     ITaskFileWriter TaskFileWriter,
     ITaskFileReader TaskFileReader,
-    IFileSystem FileSystem) {
+    IFileSystem FileSystem,
+    IKvStore KvStore) {
     /// <summary>
     /// 从服务提供者创建 TaskFileOperations 实例，用于 DI 注册
     /// </summary>
@@ -17,6 +18,7 @@ public sealed record TaskFileOperations(
             sp.GetRequiredService<IFileOperationService>(),
             sp.GetRequiredService<ITaskFileWriter>(),
             sp.GetRequiredService<ITaskFileReader>(),
-            sp.GetRequiredService<IFileSystem>());
+            sp.GetRequiredService<IFileSystem>(),
+            sp.GetRequiredService<IKvStore>());
     }
 }

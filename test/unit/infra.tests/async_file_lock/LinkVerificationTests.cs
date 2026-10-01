@@ -132,7 +132,8 @@ public sealed class LinkVerificationTests : IAsyncLifetime
             .WithTaskDirectoryPath(taskDir)
             .Build();
 
-        var manager = new HighWaterMarkManager(_fs, options);
+        await using var kvStore = new InMemoryKvStore();
+        using var manager = new HighWaterMarkManager(kvStore, options.GetHighWaterMarkKey());
         const int incrementCount = 20;
         const int taskCount = 5;
 
@@ -343,7 +344,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
             await readStarted.Task.ConfigureAwait(true);
             await Task.Delay(100).ConfigureAwait(true);
 
-            using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            await using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             using var reader = new StreamReader(stream);
             var content = await reader.ReadToEndAsync().ConfigureAwait(true);
 
@@ -410,7 +411,8 @@ public sealed class LinkVerificationTests : IAsyncLifetime
             .WithTaskDirectoryPath(taskDir)
             .Build();
 
-        var manager = new HighWaterMarkManager(_fs, options);
+        await using var kvStore = new InMemoryKvStore();
+        using var manager = new HighWaterMarkManager(kvStore, options.GetHighWaterMarkKey());
 
         await manager.UpdateAsync(0).ConfigureAwait(true);
 

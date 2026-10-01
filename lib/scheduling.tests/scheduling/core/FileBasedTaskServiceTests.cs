@@ -23,7 +23,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
             TaskDirectoryPath = "tasks"
         };
 
-        var fileOps = new TaskFileOperations(_fileOperationService, taskFileWriter, taskFileReader, _fs);
+        var fileOps = new TaskFileOperations(_fileOperationService, taskFileWriter, taskFileReader, _fs, new InMemoryKvStore());
 
         _service = new FileBasedTaskService(fileOps, options);
     }
@@ -260,7 +260,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         await using var taskFileReader = new TaskFileReader(_fileOperationService);
 
         var options = new TaskDirectoryOptions { TaskDirectoryPath = "tasks" };
-        var fileOps = new TaskFileOperations(_fileOperationService, taskFileWriter, taskFileReader, _fs);
+        var fileOps = new TaskFileOperations(_fileOperationService, taskFileWriter, taskFileReader, _fs, new InMemoryKvStore());
         await using var newService = new FileBasedTaskService(fileOps, options);
 
         var task = await newService.GetTaskAsync(taskId).ConfigureAwait(true);

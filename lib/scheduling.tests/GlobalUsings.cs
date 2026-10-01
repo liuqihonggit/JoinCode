@@ -6,6 +6,7 @@ global using Core.Scheduling.Cron;
 global using Core.Scheduling.Runtime;
 global using Core.Scheduling.Tasks;
 global using Infrastructure.Pipeline;
+global using Infrastructure.Persistence;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Configuration;

@@ -41,6 +41,9 @@ public sealed class SkipList<TKey, TValue> where TKey : IComparable<TKey> {
         _count = 0;
     }
 
+    /// <summary>构造跳表（预分配提示容量）。</summary>
+    public SkipList(int capacity) : this() { }
+
     /// <summary>条目数量。</summary>
     public int Count => _count;
 

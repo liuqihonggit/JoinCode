@@ -4,6 +4,7 @@
              xmlns:cnv="using:JoinCode.Gui.Converters"
              xmlns:abs="using:JoinCode.Abstractions.Interfaces"
              xmlns:controls="using:JoinCode.Gui.Views.Controls"
+             xmlns:local="using:JoinCode.Gui.Views"
              x:Class="JoinCode.Gui.Views.StatusBarView"
              x:DataType="vm:MainViewModel">
   <Border x:Name="MainStatusBar" Height="30" Padding="12,0" Background="{DynamicResource GuiStatusBarBackground}"
@@ -66,7 +67,7 @@
                             <Button Classes="ghost" FontSize="10" Padding="4,2" MinHeight="0" MinWidth="0"
                                     Content="{Binding IsExpanded, Converter={x:Static cnv:ExpandGlyphConverter.Instance}}"
                                     ToolTip.Tip="展开/收起实时输出"
-                                    Command="{ReflectionBinding DataContext.BackgroundPanel.ToggleExpandCommand, ElementName=Root}"
+                                    Command="{Binding ViewModel.BackgroundPanel.ToggleExpandCommand, RelativeSource={RelativeSource AncestorType=local:StatusBarView}}"
                                     CommandParameter="{Binding AgentId}" />
                             <StackPanel Grid.Column="1" Spacing="2">
                               <TextBlock Text="{Binding Description}" FontSize="11.5" FontWeight="SemiBold"
@@ -82,15 +83,15 @@
                                         IsVisible="{Binding IsRunning}">
                               <Button Classes="ghost" Content="暂停" FontSize="10" Padding="7,2" MinHeight="0"
                                       IsVisible="{Binding CanPause}" ToolTip.Tip="暂停该子代理"
-                                      Command="{ReflectionBinding DataContext.BackgroundPanel.PauseCommand, ElementName=Root}"
+                                      Command="{Binding ViewModel.BackgroundPanel.PauseCommand, RelativeSource={RelativeSource AncestorType=local:StatusBarView}}"
                                       CommandParameter="{Binding AgentId}" />
                               <Button Classes="ghost" Content="继续" FontSize="10" Padding="7,2" MinHeight="0"
                                       IsVisible="{Binding CanResume}" ToolTip.Tip="恢复该子代理"
-                                      Command="{ReflectionBinding DataContext.BackgroundPanel.ResumeCommand, ElementName=Root}"
+                                      Command="{Binding ViewModel.BackgroundPanel.ResumeCommand, RelativeSource={RelativeSource AncestorType=local:StatusBarView}}"
                                       CommandParameter="{Binding AgentId}" />
                               <Button Classes="ghost" Content="终止" FontSize="10" Padding="7,2" MinHeight="0"
                                       ToolTip.Tip="终止该后台代理"
-                                      Command="{ReflectionBinding DataContext.BackgroundPanel.StopCommand, ElementName=Root}"
+                                      Command="{Binding ViewModel.BackgroundPanel.StopCommand, RelativeSource={RelativeSource AncestorType=local:StatusBarView}}"
                                       CommandParameter="{Binding AgentId}" />
                             </StackPanel>
                           </Grid>

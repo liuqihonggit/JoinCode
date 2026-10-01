@@ -5,6 +5,9 @@ namespace JoinCode.Gui.Views;
 /// 从 MainWindow.axaml 提取（任务6 模块化），DataContext 自动继承 MainViewModel。
 /// </summary>
 public partial class StatusBarView : UserControl {
+    /// <summary>当前 MainViewModel（供 XAML CompiledBindings 解析命令类型）</summary>
+    public MainViewModel? ViewModel => DataContext as MainViewModel;
+
     /// <summary>构造状态栏视图</summary>
     public StatusBarView() => InitializeComponent();
 }

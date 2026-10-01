@@ -414,7 +414,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             if (!metadataSnapshot.TryGetValue(id, out var meta)) continue;
             if (hasFilter) {
                 if (!string.IsNullOrEmpty(fileType) && !MatchesFileType(meta.FilePath, fileType!)) continue;
-                if (!string.IsNullOrEmpty(namespaceFilter) && !MatchesNamespace(meta.SymbolFqn, namespaceFilter!)) continue;
+                if (!string.IsNullOrEmpty(namespaceFilter) && !MatchesNamespaceAny(meta.SymbolFqn, meta.ContainedSymbolFqns, namespaceFilter!)) continue;
                 if (!string.IsNullOrEmpty(symbolKindFilter) && !MatchesSymbolKind(meta.SymbolKind, symbolKindFilter!)) continue;
             }
             var result = new ChunkSearchResult {
@@ -449,6 +449,17 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     /// </summary>
     private static bool MatchesNamespace(string fqn, string namespaceFilter) {
         return fqn.StartsWith(namespaceFilter, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 检查符号 FQN 或其包含的符号 FQN 是否属于指定命名空间（前缀匹配）。
+    /// </summary>
+    private static bool MatchesNamespaceAny(string fqn, IReadOnlyList<string> containedFqns, string namespaceFilter) {
+        if (MatchesNamespace(fqn, namespaceFilter)) return true;
+        foreach (var cfqn in containedFqns) {
+            if (MatchesNamespace(cfqn, namespaceFilter)) return true;
+        }
+        return false;
     }
 
     /// <summary>

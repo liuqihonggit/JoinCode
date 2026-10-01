@@ -143,10 +143,13 @@ public sealed class MainWindowRenderTests {
             ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null");
         var bytes = ReadPixels(frame);
         var stride = frame.PixelSize.Width * 4;
-        // 选中的第一个会话条目渲染在侧栏顶部区域,采样它的背景像素
+        // 从真实选中卡片的几何边界采样，不把侧栏头部高度写死。
+        var selected = win.GetVisualDescendants().OfType<Border>()
+            .First(b => b.Classes.Contains("sessionItem") && b.Classes.Contains("selected"));
+        var origin = (selected.TransformToVisual(win) ?? default).Transform(default);
         var found = false;
-        for (var y = 100; y < 180; y++) {
-            for (var x = 40; x < 200; x++) {
+        for (var y = (int)origin.Y + 3; y < (int)(origin.Y + selected.Bounds.Height) - 3; y++) {
+            for (var x = (int)origin.X + 5; x < (int)(origin.X + selected.Bounds.Width) - 5; x++) {
                 var i = y * stride + x * 4;
                 var c = $"{bytes[i]:X2}{bytes[i + 1]:X2}{bytes[i + 2]:X2}";
                 if (c.Equals(hex, StringComparison.OrdinalIgnoreCase)) {

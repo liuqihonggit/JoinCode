@@ -7,14 +7,17 @@ namespace JoinCode.Gui.Theming;
 /// </summary>
 public static class GuiAppResources {
     private static ResourceDictionary? _themeHost;
+    private static FluentTheme? _fluentTheme;
     private static AccentOption? _accent;
 
     /// <summary>将 Fluent 主题、语义配色 ThemeDictionaries、全部转换器注册进应用资源。</summary>
     public static void Register(Application app) {
-        app.Styles.Add(new FluentTheme());
+        _fluentTheme = new FluentTheme();
+        app.Styles.Add(_fluentTheme);
         // 共享控件样式（设计语言单一数据源）：必须在 FluentTheme 之后追加以覆盖默认外观
         app.Styles.Add(new GuiControlStyles());
         app.Resources["GuiMonoFont"] = new Avalonia.Media.FontFamily("Consolas,Cascadia Mono,Menlo,monospace");
+        app.Resources["GuiMotionDuration"] = TimeSpan.FromMilliseconds(160);
         app.Resources["GuiPopupShadow"] = new Avalonia.Media.BoxShadows(Avalonia.Media.BoxShadow.Parse("0 6 16 0 #90000000"));
         // 底部升起式补全面板专用：向上弥散的环境阴影（面板从输入栏背后向上滑出，阴影朝上）
         app.Resources["GuiPaletteShadowUp"] = new Avalonia.Media.BoxShadows(Avalonia.Media.BoxShadow.Parse("0 -10 28 0 #55000000"));
@@ -28,6 +31,11 @@ public static class GuiAppResources {
     /// <summary>应用配置驱动的强调色，保留消息角色和安全状态的语义颜色。</summary>
     public static void ApplyAccent(AccentOption accent) {
         _accent = accent;
+        if (_fluentTheme is not null) {
+            var color = Color.Parse(accent.Fill);
+            _fluentTheme.Palettes[ThemeVariant.Dark] = new Avalonia.Themes.Fluent.ColorPaletteResources { Accent = color };
+            _fluentTheme.Palettes[ThemeVariant.Light] = new Avalonia.Themes.Fluent.ColorPaletteResources { Accent = color };
+        }
         ApplySchemeToHost(GuiPalette.CurrentVariant);
     }
 
@@ -52,7 +60,6 @@ public static class GuiAppResources {
             dictionary["GuiAccentSubtleHover"] = GuiPalette.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
             dictionary["GuiAccentFill"] = GuiPalette.ToBrush(_accent.Fill);
             dictionary["GuiAccentHover"] = GuiPalette.ToBrush(_accent.Fill);
-            dictionary["GuiSessionHighlight"] = GuiPalette.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
         }
         _themeHost!.ThemeDictionaries[avaVariant] = dictionary;
     }

@@ -14,6 +14,7 @@ public sealed class MarqueeTextBlock : Control {
 
     private double _offset;
     private bool _scrolling;
+    private bool _attached;
     private DateTime _lastStep = DateTime.UtcNow;
 
     /// <summary>Text 依赖属性</summary>
@@ -27,6 +28,16 @@ public sealed class MarqueeTextBlock : Control {
     /// <summary>滚动速度（px/秒）</summary>
     public static readonly StyledProperty<double> SpeedProperty =
         AvaloniaProperty.Register<MarqueeTextBlock, double>(nameof(Speed), 40);
+
+    /// <summary>动效开关，关闭后完整文本可通过工具提示读取。</summary>
+    public static readonly StyledProperty<bool> AnimationsEnabledProperty =
+        AvaloniaProperty.Register<MarqueeTextBlock, bool>(nameof(AnimationsEnabled), true);
+
+    /// <summary>是否允许滚动。</summary>
+    public bool AnimationsEnabled {
+        get => GetValue(AnimationsEnabledProperty);
+        set => SetValue(AnimationsEnabledProperty, value);
+    }
 
     /// <summary>显示文本</summary>
     public string Text {
@@ -48,10 +59,9 @@ public sealed class MarqueeTextBlock : Control {
 
     private readonly DispatcherTimerStub _timer;
 
-    /// <summary>初始化走马灯文本控件并启动计时器</summary>
+    /// <summary>初始化走马灯文本控件；仅挂载且需要滚动时启动计时器。</summary>
     public MarqueeTextBlock() {
         _timer = new DispatcherTimerStub(Step);
-        _timer.Start();
         VisualChildren.Add(_inner);
         LogicalChildren.Add(_inner);
     }
@@ -75,20 +85,41 @@ public sealed class MarqueeTextBlock : Control {
         base.OnPropertyChanged(e);
         if (e.Property == TextProperty) {
             _inner.Text = e.NewValue as string ?? string.Empty;
+            ToolTip.SetTip(this, _inner.Text);
             _offset = 0;
             InvalidateArrange();
         } else if (e.Property == ForegroundProperty) {
             _inner.Foreground = e.NewValue as IBrush ?? Brushes.Gray;
+        } else if (e.Property == AnimationsEnabledProperty) {
+            _offset = 0;
+            _lastStep = DateTime.UtcNow;
+            UpdateScrollState(Bounds.Width);
+            InvalidateArrange();
         }
+    }
+
+    /// <summary>挂载时恢复动画。</summary>
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e) {
+        base.OnAttachedToVisualTree(e);
+        _attached = true;
+        UpdateScrollState(Bounds.Width);
+    }
+
+    /// <summary>卸载时停止计时器，避免脱离窗口仍有回调。</summary>
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e) {
+        _attached = false;
+        _timer.Stop();
+        base.OnDetachedFromVisualTree(e);
     }
 
     private void UpdateScrollState(double viewportWidth) {
         var textWidth = _inner.DesiredSize.Width;
-        _scrolling = textWidth > viewportWidth && !string.IsNullOrEmpty(Text);
+        _scrolling = AnimationsEnabled && textWidth > viewportWidth && !string.IsNullOrEmpty(Text);
+        if (_scrolling && _attached) _timer.Start(); else _timer.Stop();
         if (!_scrolling) {
             _offset = 0;
             // 静态时右对齐展示
-            var x = Math.Max(0, viewportWidth - textWidth);
+            var x = AnimationsEnabled ? Math.Max(0, viewportWidth - textWidth) : 0;
             _inner.RenderTransform = new TranslateTransform(x, 0);
         } else {
             _inner.RenderTransform = new TranslateTransform(_offset, 0);
@@ -111,17 +142,21 @@ public sealed class MarqueeTextBlock : Control {
     }
 
     /// <summary>UI 线程计时器（50ms 步进，仅本控件热路径）</summary>
-    private sealed class DispatcherTimerStub(Action callback) {
-        private readonly Avalonia.Threading.DispatcherTimer _timer = new() {
-            Interval = TimeSpan.FromMilliseconds(50)
-        };
+    private sealed class DispatcherTimerStub {
+        private readonly Avalonia.Threading.DispatcherTimer _timer;
 
-        /// <summary>启动计时器</summary>
-        public void Start() {
+        /// <summary>只注册一次回调，重复启停不累计事件。</summary>
+        public DispatcherTimerStub(Action callback) {
+            _timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
             _timer.Tick += (_, _) => {
                 try { callback(); } catch (Exception ex) { App.LogDiag($"[MarqueeTextBlock] tick 异常: {ex.Message}"); }
             };
-            _timer.Start();
         }
+
+        /// <summary>启动计时器</summary>
+        public void Start() => _timer.Start();
+
+        /// <summary>停止计时器。</summary>
+        public void Stop() => _timer.Stop();
     }
 }

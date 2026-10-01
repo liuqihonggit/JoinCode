@@ -44,6 +44,7 @@ public sealed partial class MainViewModel {
         InitializeProtectedDrives();
 
         _selectedEffort = _session.EffortLevel.ToValue();
+        Sessions.CollectionChanged += OnSessionListChanged;
         Messages.CollectionChanged += OnMessagesChanged;
         _ = LoadPersistedSessionsAsync();
         NewConversation();
@@ -226,6 +227,7 @@ public sealed partial class MainViewModel {
     public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
+        DetachSessionFilter();
         if (_modelConfigWatcher is not null) await _modelConfigWatcher.DisposeAsync();
         _modelConfigWatcher = null;
         _sendCts?.Cancel();

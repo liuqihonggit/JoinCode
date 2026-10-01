@@ -49,9 +49,32 @@ public sealed class AppearanceExperienceTests {
                     .Should().BeGreaterThanOrEqualTo(4.5, $"{theme.Name} / {accent.Name}");
                 GuiPalette.ContrastRatio(text, Color.Parse(light ? accent.LightSubtle : accent.DarkSubtle))
                     .Should().BeGreaterThanOrEqualTo(4.5, $"subtle {theme.Name} / {accent.Name}");
-                GuiPalette.ContrastRatio(Colors.White, Color.Parse(accent.Fill))
+                GuiPalette.ContrastRatio(Color.Parse(scheme.ToastForeground), Color.Parse(accent.Fill))
                     .Should().BeGreaterThanOrEqualTo(4.5, $"button {accent.Name}");
             }
         }
+    }
+
+    [Theory]
+    [InlineData(GuiPalette.GuiThemeVariant.SolarizedDark)]
+    [InlineData(GuiPalette.GuiThemeVariant.SolarizedLight)]
+    public void Solarized_TextAndMessageSurfacesMeetAA(GuiPalette.GuiThemeVariant variant) {
+        var s = GuiPalette.SchemeFor(variant);
+        foreach (var surface in new[] { s.WindowBackground, s.SidebarBackground, s.SearchBarBackground, s.ButtonPressed }) {
+            foreach (var text in new[] { s.PrimaryText, s.SecondaryText, s.MutedText })
+                GuiPalette.ContrastRatio(Color.Parse(text), Color.Parse(surface))
+                    .Should().BeGreaterThanOrEqualTo(4.5, $"{variant}: {text} on {surface}");
+        }
+        GuiPalette.ContrastRatio(Color.Parse(s.PrimaryText), Color.Parse(s.BubbleText)).Should().BeGreaterThanOrEqualTo(4.5);
+    }
+
+    [AvaloniaFact]
+    public void AccentSelection_AlsoThemesNativeFluentControls() {
+        var accent = AppearanceCatalog.Load().Accents.Single(a => a.Id == "violet");
+        GuiAppResources.ApplyAccent(accent);
+        var fluent = Application.Current!.Styles.OfType<Avalonia.Themes.Fluent.FluentTheme>().Single();
+        fluent.Palettes.TryGetValue(Avalonia.Styling.ThemeVariant.Dark, out var palette).Should().BeTrue();
+        palette!.Accent.Should().Be(Color.Parse(accent.Fill));
+        GuiAppResources.ApplyAccent(AppearanceCatalog.Load().Accents[0]);
     }
 }

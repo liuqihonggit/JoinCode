@@ -56,6 +56,11 @@ public sealed partial class MainWindow : Window {
     /// 遥测网络为独立服务不受影响。F3 快捷键面板可关闭该手势。
     /// </summary>
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e) {
+        if (e.Key == Key.K && e.KeyModifiers == KeyModifiers.Control) {
+            this.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(t => t.Name == "SessionSearchBox")?.Focus();
+            e.Handled = true;
+            return;
+        }
         if (e.Key is not Key.Escape || _vm is null)
             return;
         if (!_vm.DoubleEscStop) // F3 快捷键面板可关闭该手势
@@ -139,6 +144,8 @@ public sealed partial class MainWindow : Window {
         if (_vm.SelectedAccent is { } accent) GuiAppResources.ApplyAccent(accent);
         GuiAppResources.ApplyTheme(_vm.CurrentTheme);
         Classes.Set("motion", _vm.AnimationsEnabled);
+        if (Application.Current is { } app)
+            app.Resources["GuiMotionDuration"] = _vm.AnimationsEnabled ? TimeSpan.FromMilliseconds(160) : TimeSpan.Zero;
     }
 
     /// <summary>打开子代理回放窗口 — 只读快照，可多开（每 agent 一窗）</summary>
@@ -312,6 +319,10 @@ public sealed partial class MainWindow : Window {
     /// <summary>淡出错误 toast：透明度动画结束后清除 VM 状态（触发 IsVisible=false）</summary>
     private void StartErrorToastFadeOut() {
         _errorToastFadeCts?.Cancel();
+        if (_vm is { AnimationsEnabled: false }) {
+            _vm.DismissErrorToastCommand.Execute(null);
+            return;
+        }
         _errorToastFadeCts = new System.Threading.CancellationTokenSource();
         var token = _errorToastFadeCts.Token;
         ErrorToast.Opacity = 0;

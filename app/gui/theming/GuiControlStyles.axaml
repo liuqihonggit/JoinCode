@@ -14,6 +14,31 @@
     <Setter Property="Background" Value="{DynamicResource GuiButtonBackground}" />
     <Setter Property="BorderBrush" Value="{DynamicResource GuiButtonBorder}" />
     <Setter Property="Foreground" Value="{DynamicResource GuiButtonForeground}" />
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Setter Property="RenderTransform" Value="scale(1)" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="{DynamicResource GuiMotionDuration}" />
+        <BrushTransition Property="BorderBrush" Duration="{DynamicResource GuiMotionDuration}" />
+        <DoubleTransition Property="Opacity" Duration="{DynamicResource GuiMotionDuration}" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="{DynamicResource GuiMotionDuration}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Window.motion Button:pressed">
+    <Setter Property="RenderTransform" Value="scale(0.97)" />
+  </Style>
+  <Style Selector="Button:focus-visible">
+    <Setter Property="BorderBrush" Value="{DynamicResource GuiAccentText}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="Window.motion TextBlock.busyIndicator">
+    <Style.Animations>
+      <Animation Duration="0:0:1.2" IterationCount="INFINITE" PlaybackDirection="Alternate">
+        <KeyFrame Cue="0%"><Setter Property="Opacity" Value="1" /></KeyFrame>
+        <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.4" /></KeyFrame>
+      </Animation>
+    </Style.Animations>
   </Style>
   <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />

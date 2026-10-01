@@ -33,6 +33,11 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private bool _animationsEnabled = true;
 
+    /// <summary>设置抽屉的目标宽度，关闭时不占位。</summary>
+    public double SettingsPanelWidth => IsSettingsPanelOpen ? 312 : 0;
+
+    partial void OnIsSettingsPanelOpenChanged(bool value) => OnPropertyChanged(nameof(SettingsPanelWidth));
+
     partial void OnAccentIdChanged(string value) => OnPropertyChanged(nameof(SelectedAccent));
 
     /// <summary>恢复 GUI 外观；无效配置回退至目录默认值。</summary>

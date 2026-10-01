@@ -317,13 +317,17 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     }
 
     /// <summary>
-    /// 持久化向量索引到目录 — V6 PithosDB LSM-Tree 增量持久化。
-    /// <para>每个 chunk 的向量/元数据/哈希作为独立 KV 条目,支持增量写入和崩溃恢复。</para>
-    /// <para>Key 编码: v:{chunkId}=向量, m:{chunkId}=元数据, h:{chunkId}=哈希, g:graph=图, s:dims=维度。</para>
+    /// 持久化向量索引 — 根据环境变量 JCC_EMBEDDING_BACKEND 选择 V5(mmap) 或 V6(LSM-Tree)。
+    /// <para>默认 V6。设为 V5 时用 VECIDX5 mmap 批量序列化。</para>
     /// </summary>
     /// <param name="dirPath">目标目录路径。</param>
     /// <param name="ct">取消令牌。</param>
-    public Task SaveAsync(string dirPath, CancellationToken ct) => SaveAsyncV6(dirPath, ct);
+    public Task SaveAsync(string dirPath, CancellationToken ct) =>
+        UseV6Backend ? SaveAsyncV6(dirPath, ct) : SaveAsyncV5(dirPath, ct);
+
+    /// <summary>环境变量 JCC_EMBEDDING_BACKEND 控制 V5/V6 后端，默认 V6。</summary>
+    private static readonly bool UseV6Backend =
+        Environment.GetEnvironmentVariable("JCC_EMBEDDING_BACKEND") is not { } v || v != "V5";
 
     /// <summary>收集待持久化的块快照 — 向量+元数据+哈希三元组对齐。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -486,13 +490,13 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     }
 
     /// <summary>
-    /// 从目录加载向量索引 — VECIDX4 分页格式，mmap 零拷贝映射。
-    /// <para>从 PithosDB LSM-Tree 逐条 ScanAsync 恢复向量/元数据/哈希,构建 HAMT 字典。</para>
+    /// 加载向量索引 — 根据环境变量 JCC_EMBEDDING_BACKEND 选择 V5(mmap) 或 V6(LSM-Tree)。
     /// </summary>
     /// <param name="dirPath">源目录路径。</param>
     /// <param name="ct">取消令牌。</param>
-    /// <returns>true 表示加载成功；false 表示 KV 存储不存在或维度缺失。</returns>
-    public Task<bool> LoadAsync(string dirPath, CancellationToken ct) => LoadAsyncV6(dirPath, ct);
+    /// <returns>true 表示加载成功。</returns>
+    public Task<bool> LoadAsync(string dirPath, CancellationToken ct) =>
+        UseV6Backend ? LoadAsyncV6(dirPath, ct) : LoadAsyncV5(dirPath, ct);
 
     /// <summary>从 span 读索引头 — 校验 VECIDX4 魔数 + MemoryMarshal.Read 零拷贝。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -600,12 +604,16 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     }
 
     /// <summary>
-    /// 检查指定目录是否存在 V6 LSM KV 存储。
+    /// 检查指定目录是否存在向量索引 — V6 检查 kvstore/ 目录，V5 检查 vector_index.bin 文件。
     /// </summary>
     public Task<bool> ExistsAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
-        var kvDir = Path.Combine(dirPath, "kvstore");
-        return Task.FromResult(_fs.DirectoryExists(kvDir));
+        if (UseV6Backend) {
+            var kvDir = Path.Combine(dirPath, "kvstore");
+            return Task.FromResult(_fs.DirectoryExists(kvDir));
+        }
+        var binPath = Path.Combine(dirPath, "vector_index.bin");
+        return Task.FromResult(_fs.FileExists(binPath));
     }
 
     private static void WriteString(BinaryWriter bw, string s) {

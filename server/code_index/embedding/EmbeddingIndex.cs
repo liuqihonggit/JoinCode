@@ -248,7 +248,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
 
         await using var ms = new MemoryStream();
         await using var bw = new BinaryWriter(ms, System.Text.Encoding.UTF8);
-        bw.Write(System.Text.Encoding.UTF8.GetBytes("VECIDX2"));
+        bw.Write(System.Text.Encoding.UTF8.GetBytes("VECIDX3"));
         var count = vectorsSnapshot.Count;
         bw.Write(count);
         var dims = count > 0 ? vectorsSnapshot.First().Value.Length : 0;
@@ -272,6 +272,14 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             WriteString(bw, hash ?? string.Empty);
             bw.Write(MemoryMarshal.AsBytes(vector.AsSpan(0, dims)));
         }
+
+        if (_ann is IAnnSearchGraphPersistence graphPersist) {
+            bw.Write((byte)1);
+            graphPersist.SaveGraph(bw);
+        } else {
+            bw.Write((byte)0);
+        }
+
         bw.Flush();
         _fs.CreateDirectory(dirPath);
         var filePath = Path.Combine(dirPath, "vector_index.bin");
@@ -293,15 +301,17 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         await using var ms = new MemoryStream(bytes, writable: false);
         using var br = new BinaryReader(ms, System.Text.Encoding.UTF8);
         var magic = System.Text.Encoding.UTF8.GetString(br.ReadBytes(7));
-        if (magic != "VECIDX2") return false;
+        if (magic != "VECIDX3") return false;
         var count = br.ReadInt32();
         var dims = br.ReadInt32();
         if (count == 0) return false;
 
+        var supportsGraphPersistence = _ann is IAnnSearchGraphPersistence;
         var metadataItems = new List<(string, ChunkMetadata)>(count);
         var hashItems = new List<(string, string)>(count);
         var vectorItems = new List<(string, float[])>(count);
         var fileChunksItems = new List<(string, string)>(count);
+        var vectorsDict = supportsGraphPersistence ? new Dictionary<string, float[]>(count) : null;
 
         for (var i = 0; i < count; i++) {
             ct.ThrowIfCancellationRequested();
@@ -322,7 +332,11 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             var vector = new float[dims];
             br.Read(MemoryMarshal.AsBytes(vector.AsSpan()));
 
-            _ann.Add(chunkId, vector);
+            if (supportsGraphPersistence) {
+                vectorsDict![chunkId] = vector;
+            } else {
+                _ann.Add(chunkId, vector);
+            }
             metadataItems.Add((chunkId, new ChunkMetadata {
                 ChunkId = chunkId, FilePath = filePath2, SymbolFqn = fqn,
                 SymbolKind = symbolKind,
@@ -333,6 +347,18 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             hashItems.Add((chunkId, hash));
             vectorItems.Add((chunkId, vector));
             fileChunksItems.Add((filePath2, chunkId));
+        }
+
+        if (_ann is IAnnSearchGraphPersistence gp) {
+            var hasGraph = br.ReadByte();
+            if (hasGraph == 1) {
+                gp.LoadGraph(br, vectorsDict!);
+            } else {
+                foreach (var (id, vec) in vectorsDict!) {
+                    ct.ThrowIfCancellationRequested();
+                    _ann.Add(id, vec);
+                }
+            }
         }
 
         CasBulkUpdateMetadata(metadataItems);

@@ -126,7 +126,19 @@ public sealed partial class MainWindow : Window {
             _vm.ScrollToBottomRequested += OnScrollToBottomRequested;
             _vm.TranscriptRequested += OnTranscriptRequested;
             _vm.RunStatus.MarqueeStopped += OnMarqueeStopped;
+            ApplyAppearance();
         }
+    }
+
+    /// <summary>首次绑定和偏好变更时统一应用主题、强调色与动效。</summary>
+    private void ApplyAppearance() {
+        if (_vm is null) return;
+        GuiPalette.CurrentVariant = _vm.CurrentTheme;
+        RequestedThemeVariant = _vm.IsDarkTheme
+            ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light;
+        if (_vm.SelectedAccent is { } accent) GuiAppResources.ApplyAccent(accent);
+        GuiAppResources.ApplyTheme(_vm.CurrentTheme);
+        Classes.Set("motion", _vm.AnimationsEnabled);
     }
 
     /// <summary>打开子代理回放窗口 — 只读快照，可多开（每 agent 一窗）</summary>
@@ -199,7 +211,9 @@ public sealed partial class MainWindow : Window {
 
     /// <summary>ViewModel 状态变化时联动 View（主题切换、复制反馈 toast 等视图级响应）</summary>
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
-        if (e.PropertyName == nameof(MainViewModel.CurrentTheme)) {
+        if (e.PropertyName is nameof(MainViewModel.AccentId) or nameof(MainViewModel.AnimationsEnabled)) {
+            ApplyAppearance();
+        } else if (e.PropertyName == nameof(MainViewModel.CurrentTheme)) {
             GuiPalette.CurrentVariant = _vm!.CurrentTheme;
             var isLight = _vm.CurrentTheme is GuiPalette.GuiThemeVariant.Light or GuiPalette.GuiThemeVariant.SolarizedLight;
             RequestedThemeVariant = isLight

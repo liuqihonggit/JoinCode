@@ -7,6 +7,7 @@ namespace JoinCode.Gui.Theming;
 /// </summary>
 public static class GuiAppResources {
     private static ResourceDictionary? _themeHost;
+    private static AccentOption? _accent;
 
     /// <summary>将 Fluent 主题、语义配色 ThemeDictionaries、全部转换器注册进应用资源。</summary>
     public static void Register(Application app) {
@@ -21,6 +22,13 @@ public static class GuiAppResources {
         ApplySchemeToHost(GuiPalette.GuiThemeVariant.Dark);
         app.Resources.MergedDictionaries.Add(_themeHost);
         app.Resources.MergedDictionaries.Add(BuildConverters());
+        ApplyAccent(AppearanceCatalog.Load().Accents[0]);
+    }
+
+    /// <summary>应用配置驱动的强调色，保留消息角色和安全状态的语义颜色。</summary>
+    public static void ApplyAccent(AccentOption accent) {
+        _accent = accent;
+        ApplySchemeToHost(GuiPalette.CurrentVariant);
     }
 
     /// <summary>
@@ -36,7 +44,17 @@ public static class GuiAppResources {
         var avaVariant = variant is GuiPalette.GuiThemeVariant.Light or GuiPalette.GuiThemeVariant.SolarizedLight
             ? ThemeVariant.Light
             : ThemeVariant.Dark;
-        _themeHost!.ThemeDictionaries[avaVariant] = GuiPalette.BuildDictionaryFor(variant);
+        var dictionary = GuiPalette.BuildDictionaryFor(variant);
+        if (_accent is not null) {
+            var light = avaVariant == ThemeVariant.Light;
+            dictionary["GuiAccentText"] = GuiPalette.ToBrush(light ? _accent.LightText : _accent.DarkText);
+            dictionary["GuiAccentSubtle"] = GuiPalette.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
+            dictionary["GuiAccentSubtleHover"] = GuiPalette.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
+            dictionary["GuiAccentFill"] = GuiPalette.ToBrush(_accent.Fill);
+            dictionary["GuiAccentHover"] = GuiPalette.ToBrush(_accent.Fill);
+            dictionary["GuiSessionHighlight"] = GuiPalette.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
+        }
+        _themeHost!.ThemeDictionaries[avaVariant] = dictionary;
     }
 
     /// <summary>构建转换器资源字典（键名必须与 App.axaml 原声明一致，供 XAML {StaticResource} 解析）。</summary>

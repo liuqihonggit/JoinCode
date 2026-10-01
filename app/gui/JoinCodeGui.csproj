@@ -15,6 +15,7 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" Exclude="Assets\*.xshd" />
     <EmbeddedResource Include="Assets\ChatHighlighting.xshd" />
+    <EmbeddedResource Include="theming\Appearance.json" LogicalName="JoinCode.Gui.Appearance.json" />
   </ItemGroup>
 
   <ItemGroup>

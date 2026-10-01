@@ -44,7 +44,7 @@
 
   <!-- ===== primary 主操作按钮：accent 实底白字（发送） ===== -->
   <Style Selector="Button.primary">
-    <Setter Property="Background" Value="{DynamicResource GuiAccentText}" />
+    <Setter Property="Background" Value="{DynamicResource GuiAccentFill}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="Foreground" Value="{DynamicResource GuiToastForeground}" />
     <Setter Property="FontWeight" Value="SemiBold" />
@@ -53,7 +53,7 @@
     <Setter Property="Background" Value="{DynamicResource GuiAccentHover}" />
   </Style>
   <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource GuiAccentText}" />
+    <Setter Property="Background" Value="{DynamicResource GuiAccentFill}" />
   </Style>
 
   <!-- ===== accentSubtle 强调淡底：accent 12% 底 + accent 字（新建对话/建议药丸/模型徽章） ===== -->

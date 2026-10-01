@@ -6,7 +6,7 @@
     <AssemblyName>CodeIndex</AssemblyName>
     <PackageId>JoinCode.CodeIndex</PackageId>
     <AllowPack>true</AllowPack>
-    <NoWarn>$(NoWarn);NU5100</NoWarn>
+    <NoWarn>$(NoWarn);NU5100;JCC9104</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

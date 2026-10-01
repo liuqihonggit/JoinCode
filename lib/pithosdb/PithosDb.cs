@@ -577,6 +577,14 @@ public sealed class PithosDb : IDisposable
 
     private void RecoverSSTables()
     {
+        foreach (var path in Directory.GetFiles(_directory, "*.sst"))
+        {
+            if (new FileInfo(path).Length == 0)
+            {
+                try { File.Delete(path); } catch { }
+            }
+        }
+
         if (_manifest.TryRead(out var manifestLevels))
         {
             for (int i = 0; i < manifestLevels.Count; i++)

@@ -885,3 +885,37 @@ degree=8 已饱和，degree=16 无额外收益（tokenize 串行 + 内存带宽�
 | SearchOptions | 加 Namespace/SymbolKind | ✅ | ✅ |
 | EmbeddingIndex.SearchAsync | 加 Namespace/SymbolKind 过滤 | ✅ | ✅ |
 | SearchSemanticAsync | 加 namespace/symbol_kind 参数 | ✅ | ✅ |
+
+#### 13.9.4 HNSW 近似最近邻搜索 + 图持久化
+
+**问题**：暴力搜索 O(N) 在 6007 块规模虽可用（~8ms），但扩展性差。HNSW O(efSearch×log N) 查询更快，但构图慢（O(N×efConstruction×log N)），且 jcc.exe 每次新进程需重新加载索引 — HNSW 重新构图 35s+ 超过 30s MCP 超时。
+
+**方案**：
+1. **HnswAnn 实现 IAnnSearch** — 多层图结构，SwissTable 存储向量+邻接表，PriorityQueue 做堆搜索
+2. **IAnnSearchGraphPersistence 接口** — SaveGraph/LoadGraph 持久化邻接表
+3. **VECIDX3 持久化格式** — 向量数据后追加 hasGraph 标志 + HNSW 图数据（HNSW1 magic）
+4. **加载时直接恢复图** — 不重新构图，O(N) 加载 vs O(N×efConstruction×log N) 构图
+
+**压测结果**（384维随机向量，efConstruction=200，efSearch=50）：
+| 规模 | HNSW构图 | 暴力搜索 | HNSW搜索 | 召回率 | 图加载 | 图大小 |
+|------|---------|---------|---------|--------|--------|--------|
+| 100  | 152ms   | 0.54ms  | 0.56ms  | 100%   | 1ms    | 18KB   |
+| 500  | 1228ms  | 1.98ms  | 1.68ms  | 98.0%  | 2ms    | 101KB  |
+| 1000 | 3360ms  | 4.00ms  | 2.64ms  | 93.6%  | 5ms    | 199KB  |
+| 2000 | 9722ms  | 7.82ms  | 3.42ms  | 83.8%  | 5ms    | 414KB  |
+
+**ADR0080 验收**（6010 块真实代码索引）：
+- 索引重建：76.6s（向量嵌入 69.9s + 持久化 0.9s）
+- 搜索耗时：4.5-7.1s（之前暴力搜索超时 30s+）
+- 搜索结果正确：返回相关代码块 + 图谱信息
+
+**消费点**：
+| 消费点 | 改动 | 实现 | 验收 |
+|--------|------|------|------|
+| HnswAnn | 新建 HNSW 实现 IAnnSearch | ✅ | ✅ |
+| IAnnSearchGraphPersistence | 新建图持久化接口 | ✅ | ✅ |
+| HnswAnn.SaveGraph/LoadGraph | 邻接表二进制持久化 | ✅ | ✅ |
+| EmbeddingIndex.SaveAsync | VECIDX3 + hasGraph + 图数据 | ✅ | ✅ |
+| EmbeddingIndex.LoadAsync | 图持久化加载不重新构图 | ✅ | ✅ |
+| CodeIndexer | BruteForceAnn → HnswAnn | ✅ | ✅ |
+| SearchLayer | CancellationToken + 最大迭代限制 | ✅ | ✅ |

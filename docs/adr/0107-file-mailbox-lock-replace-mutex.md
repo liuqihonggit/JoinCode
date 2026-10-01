@@ -2,7 +2,7 @@
 
 ## 状态
 
-accepted
+superseded by 0128（锁机制部分；Actor 邮箱模型、Agent 发现、消息去重仍有效，被 0128 继承）
 
 ## 背景
 

@@ -64,7 +64,6 @@ public sealed class LinkVerificationTests : IAsyncLifetime
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task LINK_001_FileLockService_ConcurrentWrite_ShouldSerializeAccess()
     {
         const string linkId = "LINK-001";
@@ -181,7 +180,6 @@ public sealed class LinkVerificationTests : IAsyncLifetime
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task LINK_003_ConcurrentJsonlAppend_ShouldNotCorruptLines()
     {
         const string linkId = "LINK-003";

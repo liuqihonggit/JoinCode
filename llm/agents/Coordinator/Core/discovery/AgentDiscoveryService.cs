@@ -3,7 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// 跨进程 Agent 发现服务 — 基于文件注册表实现本机 agent 注册、心跳、发现
 /// <para>注册表路径：~/.jcc/agents/registry.json</para>
-/// <para>写入用 FileMailboxLock 跨进程互斥 + MailboxActor 串行化</para>
+/// <para>写入用 NamedMutexMailboxLock 跨进程互斥 + MailboxActor 串行化</para>
 /// <para>心跳超时（默认30秒）的 agent 自动过滤</para>
 /// </summary>
 [Register(typeof(IAgentDiscovery), ServiceLifetime.Singleton)]
@@ -125,7 +125,7 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
 
     private async Task UpdateRegistryAsync(Action<List<AgentRegistryInfo>> update, CancellationToken cancellationToken) {
         var fs = _fs;
-        await using var fileLock = await FileMailboxLock.AcquireAsync(_registryPath, TimeSpan.FromSeconds(10), cancellationToken, _logger).ConfigureAwait(false);
+        await using var fileLock = await NamedMutexMailboxLock.AcquireAsync(_registryPath, TimeSpan.FromSeconds(10), cancellationToken, _logger).ConfigureAwait(false);
 
         var agents = await ReadRegistryRawAsync(fs, cancellationToken).ConfigureAwait(false);
         update(agents);
@@ -137,7 +137,7 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
         if (!fs.FileExists(_registryPath))
             return [];
 
-        await using var fileLock = await FileMailboxLock.AcquireAsync(_registryPath, TimeSpan.FromSeconds(10), cancellationToken, _logger).ConfigureAwait(false);
+        await using var fileLock = await NamedMutexMailboxLock.AcquireAsync(_registryPath, TimeSpan.FromSeconds(10), cancellationToken, _logger).ConfigureAwait(false);
         return await ReadRegistryRawAsync(fs, cancellationToken).ConfigureAwait(false);
     }
 

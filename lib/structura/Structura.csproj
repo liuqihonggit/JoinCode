@@ -6,6 +6,7 @@
     <RootNamespace>Structura</RootNamespace>
     <AssemblyName>Structura</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ExcludeStructura>true</ExcludeStructura>
   </PropertyGroup>
 
   <PropertyGroup>

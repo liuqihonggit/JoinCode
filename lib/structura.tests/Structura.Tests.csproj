@@ -4,6 +4,7 @@
   <RootNamespace>Structura.Tests</RootNamespace>
     <AssemblyName>JoinCode.Structura.Tests</AssemblyName>
     <Description>JoinCode Structura 单元测试</Description>
+    <ExcludeStructura>true</ExcludeStructura>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)lib/structura/Structura.csproj" />

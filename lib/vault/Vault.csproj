@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
         <ProjectType>library</ProjectType>
@@ -21,9 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
-        <ProjectReference Include="../structura/Structura.csproj" />
-</ItemGroup>
+    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" /></ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Vault.Tests" />

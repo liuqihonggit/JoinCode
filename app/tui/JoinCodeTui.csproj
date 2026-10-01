@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
         <ProjectType>ui</ProjectType>
@@ -11,9 +11,7 @@
 
   <ItemGroup>
     <!-- 引用 JoinCode 复用 EngineSessionFactory + Abstractions 门面；TUI 不走 CLI 管道，用 CreateGuiSessionAsync 组装 DI -->
-    <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" />
-        <ProjectReference Include="../../lib/structura/Structura.csproj" />
-</ItemGroup>
+    <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" /></ItemGroup>
 
   <ItemGroup>
     <!-- [EnumValue] 源码生成器 — TUI 枚举(ToolBarAction/FooterTab等)生成 XxxConstants -->

@@ -8,9 +8,7 @@
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)lib/vault/Vault.csproj" />
-    <ProjectReference Include="$(RepoRoot)lib/structura/Structura.csproj" />
-    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/vault/Vault.csproj" />    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/vault.testing.common/Vault.Testing.Common.csproj" />
   </ItemGroup>

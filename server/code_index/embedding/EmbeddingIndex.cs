@@ -1,28 +1,5 @@
 namespace JoinCode.CodeIndex.Embedding;
 
-[StructLayout(LayoutKind.Sequential, Pack = 8)]
-internal readonly struct VectorIndexHeader {
-    /// <summary>块数量。</summary>
-    public readonly int Count;
-    /// <summary>向量维度。</summary>
-    public readonly int Dims;
-    /// <summary>元数据段偏移量。</summary>
-    public readonly long MetaOffset;
-    /// <summary>SourceText 段偏移量。</summary>
-    public readonly long SourceOffset;
-    /// <summary>图段偏移量（0=无图）。</summary>
-    public readonly long GraphOffset;
-
-    /// <summary>构造文件头。</summary>
-    public VectorIndexHeader(int count, int dims, long metaOffset, long sourceOffset, long graphOffset) {
-        Count = count;
-        Dims = dims;
-        MetaOffset = metaOffset;
-        SourceOffset = sourceOffset;
-        GraphOffset = graphOffset;
-    }
-}
-
 /// <summary>
 /// 元数据固定段条目 — 8字节对齐，MemoryMarshal.Cast 直接映射。
 /// <para>定长字段直接存储，变长字符串用 StringOffset/StringLen 指向字符串区。</para>
@@ -421,68 +398,6 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         return ms.ToArray();
     }
 
-    /// <summary>索引文件布局 — 各段偏移量，Pack=8 对齐。</summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 8)]
-    private readonly struct IndexLayout {
-        /// <summary>块数量。</summary>
-        public readonly int Count;
-        /// <summary>向量维度。</summary>
-        public readonly int Dims;
-        /// <summary>头总大小（Magic+Header）。</summary>
-        public readonly long HeaderSize;
-        /// <summary>元数据段偏移量。</summary>
-        public readonly long MetaOffset;
-        /// <summary>字符串区偏移量。</summary>
-        public readonly long StringOffset;
-        /// <summary>SourceText 段偏移量。</summary>
-        public readonly long SourceOffset;
-        /// <summary>图段偏移量。</summary>
-        public readonly long GraphOffset;
-        /// <summary>构造索引布局。</summary>
-        public IndexLayout(int count, int dims, long headerSize, long metaOffset, long stringOffset, long sourceOffset, long graphOffset) {
-            Count = count; Dims = dims; HeaderSize = headerSize;
-            MetaOffset = metaOffset; StringOffset = stringOffset;
-            SourceOffset = sourceOffset; GraphOffset = graphOffset;
-        }
-    }
-
-    /// <summary>计算索引文件各段偏移量。</summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static IndexLayout ComputeIndexLayout(int count, int dims, long stringLen, long sourceLen, long graphLen) {
-        const int MagicSize = 8;
-        var headerSize = MagicSize + Unsafe.SizeOf<VectorIndexHeader>();
-        var vectorSize = (long)count * dims * sizeof(float);
-        var metaSize = (long)count * Unsafe.SizeOf<MetaEntryFixed>();
-        var metaOffset = headerSize + vectorSize;
-        var stringOffset = metaOffset + metaSize;
-        var sourceOffset = stringOffset + stringLen;
-        var graphOffset = sourceOffset + sourceLen;
-        return new IndexLayout(count, dims, headerSize, metaOffset, stringOffset, sourceOffset, graphOffset);
-    }
-
-    /// <summary>写入索引文件 — Magic+Header+向量段+Meta段+字符串区+SourceText段+图段。</summary>
-    private async Task WriteIndexFileAsync(
-        string filePath, IndexLayout layout,
-        List<(string ChunkId, float[] Vector, ChunkMetadata Meta, string Hash)> chunks,
-        int dims, MetaEntryFixed[] entries,
-        MemoryStream stringRegion, MemoryStream sourceRegion, byte[] graphRegion,
-        CancellationToken ct) {
-        await using var ms = new MemoryStream();
-        await using var bw = new BinaryWriter(ms, System.Text.Encoding.UTF8);
-        bw.Write(System.Text.Encoding.UTF8.GetBytes("VECIDX4\0"));
-        var header = new VectorIndexHeader(layout.Count, layout.Dims, layout.MetaOffset, layout.SourceOffset, layout.GraphOffset);
-        WriteStruct(bw, header);
-        foreach (var (_, vector, _, _) in chunks) {
-            bw.Write(MemoryMarshal.AsBytes(vector.AsSpan(0, dims)));
-        }
-        bw.Write(MemoryMarshal.AsBytes(entries.AsSpan()));
-        bw.Write(stringRegion.GetBuffer(), 0, (int)stringRegion.Length);
-        bw.Write(sourceRegion.GetBuffer(), 0, (int)sourceRegion.Length);
-        bw.Write(graphRegion);
-        bw.Flush();
-        await _fs.WriteAllBytesAsync(filePath, ms.ToArray(), ct).ConfigureAwait(false);
-    }
-
     /// <summary>泛型写结构体到 BinaryWriter — MemoryMarshal.AsBytes 零分配。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void WriteStruct<T>(BinaryWriter bw, T value) where T : struct {
@@ -498,71 +413,6 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     public Task<bool> LoadAsync(string dirPath, CancellationToken ct) =>
         UseV6Backend ? LoadAsyncV6(dirPath, ct) : LoadAsyncV5(dirPath, ct);
 
-    /// <summary>从 span 读索引头 — 校验 VECIDX4 魔数 + MemoryMarshal.Read 零拷贝。</summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static VectorIndexHeader ReadHeaderFromSpan(ReadOnlySpan<byte> data) {
-        const int MagicSize = 8;
-        var magic = Encoding.UTF8.GetString(data.Slice(0, 7));
-        if (magic != "VECIDX4") return default;
-        return MemoryMarshal.Read<VectorIndexHeader>(data.Slice(MagicSize, Unsafe.SizeOf<VectorIndexHeader>()));
-    }
-
-    /// <summary>从 span 解析 MetaEntryFixed[] → ChunkMetadata — MemoryMarshal.Cast 零拷贝映射，字符串区不拷贝。</summary>
-    private (List<(string, ChunkMetadata)>, List<(string, string)>, List<(string, float[])>, List<(string, string)>, Dictionary<string, float[]>?) ParseMetadataEntriesFromSpan(
-        VectorIndexHeader header, ReadOnlySpan<byte> data, CancellationToken ct) {
-        var count = header.Count;
-        var dims = header.Dims;
-        const int MagicSize = 8;
-        var headerSize = MagicSize + Unsafe.SizeOf<VectorIndexHeader>();
-        var vectorBytes = count * dims * sizeof(float);
-        var entrySize = Unsafe.SizeOf<MetaEntryFixed>();
-
-        var vectorSpan = MemoryMarshal.Cast<byte, float>(data.Slice(headerSize, vectorBytes));
-        var entrySpan = MemoryMarshal.Cast<byte, MetaEntryFixed>(data.Slice(headerSize + vectorBytes, count * entrySize));
-        var stringSpan = data.Slice(headerSize + vectorBytes + count * entrySize);
-
-        var supportsGraphPersistence = _ann is IAnnSearchGraphPersistence;
-        var vectorsDict = supportsGraphPersistence ? new Dictionary<string, float[]>(count) : null;
-        var metadataItems = new List<(string, ChunkMetadata)>(count);
-        var hashItems = new List<(string, string)>(count);
-        var vectorItems = new List<(string, float[])>(count);
-        var fileChunksItems = new List<(string, string)>(count);
-
-        for (var i = 0; i < count; i++) {
-            ct.ThrowIfCancellationRequested();
-            var entry = entrySpan[i];
-            var vector = vectorSpan.Slice(i * dims, dims).ToArray();
-
-            var chunkId = ReadStringFromSpan(stringSpan, entry.ChunkIdOffset, entry.ChunkIdLen);
-            var filePath = ReadStringFromSpan(stringSpan, entry.FilePathOffset, entry.FilePathLen);
-            var fqn = ReadStringFromSpan(stringSpan, entry.FqnOffset, entry.FqnLen);
-            var symbolKind = ReadStringFromSpan(stringSpan, entry.SymbolKindOffset, entry.SymbolKindLen);
-            var parentChunkId = entry.ParentChunkIdLen > 0
-                ? ReadStringFromSpan(stringSpan, entry.ParentChunkIdOffset, entry.ParentChunkIdLen)
-                : null;
-            var hash = ReadStringFromSpan(stringSpan, entry.HashOffset, entry.HashLen);
-            var containedFqns = ReadContainedFqnsFromSpan(stringSpan, entry.ContainedFqnsOffset, entry.ContainedFqnCount);
-
-            if (supportsGraphPersistence) {
-                vectorsDict![chunkId] = vector;
-            } else {
-                _ann.Add(chunkId, vector);
-            }
-            metadataItems.Add((chunkId, new ChunkMetadata {
-                ChunkId = chunkId, FilePath = filePath, SymbolFqn = fqn,
-                SymbolKind = symbolKind,
-                StartLine = entry.StartLine, EndLine = entry.EndLine,
-                ParentChunkId = parentChunkId, SourceText = null,
-                SourceTextOffset = entry.SourceTextOffset, SourceTextLen = entry.SourceTextLen,
-                ContainedSymbolFqns = containedFqns
-            }));
-            hashItems.Add((chunkId, hash));
-            vectorItems.Add((chunkId, vector));
-            fileChunksItems.Add((filePath, chunkId));
-        }
-        return (metadataItems, hashItems, vectorItems, fileChunksItems, vectorsDict);
-    }
-
     /// <summary>从 span 读 ContainedFqns — BinaryPrimitives 小端读取，零拷贝。</summary>
     private static List<string> ReadContainedFqnsFromSpan(ReadOnlySpan<byte> stringSpan, long offset, int count) {
         var result = new List<string>(count);
@@ -574,26 +424,6 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             pos += fqnLen;
         }
         return result;
-    }
-
-    /// <summary>加载图段 — HNSW 图持久化或逐条重建。</summary>
-    private async Task LoadGraphSegmentAsync(Stream fs, VectorIndexHeader header, Dictionary<string, float[]>? vectorsDict, CancellationToken ct) {
-        if (header.GraphOffset <= 0 || _ann is not IAnnSearchGraphPersistence gp) return;
-        fs.Seek(header.GraphOffset, SeekOrigin.Begin);
-        var hasGraph = fs.ReadByte();
-        if (hasGraph == 1) {
-            var graphDataLen = (int)(fs.Length - header.GraphOffset - 1);
-            var graphData = new byte[graphDataLen];
-            await fs.ReadExactlyAsync(graphData, ct).ConfigureAwait(false);
-            await using var graphMs = new MemoryStream(graphData, writable: false);
-            using var graphBr = new BinaryReader(graphMs, Encoding.UTF8);
-            gp.LoadGraph(graphBr, vectorsDict!);
-        } else {
-            foreach (var (id, vec) in vectorsDict!) {
-                ct.ThrowIfCancellationRequested();
-                _ann.Add(id, vec);
-            }
-        }
     }
 
     /// <summary>从 span 读 UTF8 字符串 — 热路径内联，零拷贝。</summary>

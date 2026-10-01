@@ -506,9 +506,9 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     }
 
     /// <summary>
-    /// 从目录加载向量索引 — VECIDX4 分页格式，mmap 零拷贝映射。
-    /// <para>mmap 同步解析 Header+向量段+Meta段+字符串区，跳过 SourceText 段。</para>
-    /// <para>图段 async 加载（span 不能跨 await）。</para>
+    /// 从目录加载向量索引 — VECIDX4 分页格式，ReadExactlyAsync + span 零拷贝。
+    /// <para>读取 Header+向量段+Meta段+字符串区（跳过 SourceText 段），MemoryMarshal.Cast 映射。</para>
+    /// <para>字符串区直接用 span 引用 loadData，不 ToArray 零拷贝。</para>
     /// </summary>
     /// <param name="dirPath">源目录路径。</param>
     /// <param name="ct">取消令牌。</param>
@@ -519,21 +519,13 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         if (!_fs.FileExists(filePath)) return false;
         _indexFilePath = filePath;
 
-        VectorIndexHeader header;
-        List<(string, ChunkMetadata)> metadataItems;
-        List<(string, string)> hashItems;
-        List<(string, float[])> vectorItems;
-        List<(string, string)> fileChunksItems;
-        Dictionary<string, float[]>? vectorsDict;
-
-        using (var mmap = _fs.OpenMemoryMappedRead(filePath)) {
-            var data = mmap.AsSpan();
-            header = ReadHeaderFromSpan(data);
-            if (header.Count == 0) return false;
-            (metadataItems, hashItems, vectorItems, fileChunksItems, vectorsDict) = ParseMetadataEntriesFromSpan(header, data, ct);
-        }
-
         await using var fs = _fs.OpenRead(filePath);
+        var header = await ReadIndexHeaderAsync(fs, ct).ConfigureAwait(false);
+        if (header.Count == 0) return false;
+
+        var loadData = await ReadLoadDataAsync(fs, header, ct).ConfigureAwait(false);
+        var (metadataItems, hashItems, vectorItems, fileChunksItems, vectorsDict) = ParseMetadataEntriesFromSpan(header, loadData, ct);
+
         await LoadGraphSegmentAsync(fs, header, vectorsDict, ct).ConfigureAwait(false);
 
         CasBulkUpdateMetadata(metadataItems);
@@ -544,13 +536,26 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         return true;
     }
 
-    /// <summary>从 span 读索引头 — 校验 VECIDX4 魔数 + MemoryMarshal.Read 零拷贝。</summary>
+    /// <summary>读索引头 — Magic(8B) + VectorIndexHeader(32B)，校验 VECIDX4 魔数。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static VectorIndexHeader ReadHeaderFromSpan(ReadOnlySpan<byte> data) {
+    private static async Task<VectorIndexHeader> ReadIndexHeaderAsync(Stream fs, CancellationToken ct) {
         const int MagicSize = 8;
-        var magic = Encoding.UTF8.GetString(data.Slice(0, 7));
+        var headerSize = MagicSize + Unsafe.SizeOf<VectorIndexHeader>();
+        var headerBytes = new byte[headerSize];
+        await fs.ReadExactlyAsync(headerBytes, ct).ConfigureAwait(false);
+        var magic = Encoding.UTF8.GetString(headerBytes, 0, 7);
         if (magic != "VECIDX4") return default;
-        return MemoryMarshal.Read<VectorIndexHeader>(data.Slice(MagicSize, Unsafe.SizeOf<VectorIndexHeader>()));
+        return MemoryMarshal.Read<VectorIndexHeader>(headerBytes.AsSpan(MagicSize));
+    }
+
+    /// <summary>读加载数据 — 向量段+Meta段+字符串区（跳过 SourceText 段）。</summary>
+    private static async Task<byte[]> ReadLoadDataAsync(Stream fs, VectorIndexHeader header, CancellationToken ct) {
+        const int MagicSize = 8;
+        var headerSize = MagicSize + Unsafe.SizeOf<VectorIndexHeader>();
+        var loadDataLen = (int)(header.SourceOffset - headerSize);
+        var loadData = new byte[loadDataLen];
+        await fs.ReadExactlyAsync(loadData, ct).ConfigureAwait(false);
+        return loadData;
     }
 
     /// <summary>从 span 解析 MetaEntryFixed[] → ChunkMetadata — MemoryMarshal.Cast 零拷贝映射，字符串区不拷贝。</summary>

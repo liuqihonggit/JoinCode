@@ -100,3 +100,4 @@ global using ExecutionContext = JoinCode.Abstractions.Execution.ExecutionContext
 global using IAsyncDisposable = System.IAsyncDisposable;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Structura.Collections;
+global using PithosDB.Core;

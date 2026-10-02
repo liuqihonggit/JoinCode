@@ -225,6 +225,22 @@ public sealed class EffortIndexToLabelConverter : IValueConverter {
 }
 
 /// <summary>
+/// 布尔 → FontStyle：true=Italic(预览标签), false=Normal(固定标签)。
+/// </summary>
+public sealed class PreviewToFontStyleConverter : IValueConverter {
+    /// <summary>单例实例 — 供 XAML 静态绑定</summary>
+    public static readonly PreviewToFontStyleConverter Instance = new();
+
+    /// <summary>转换值</summary>
+    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+        => value is true ? Avalonia.Media.FontStyle.Italic : Avalonia.Media.FontStyle.Normal;
+
+    /// <summary>转换回原值</summary>
+    public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
 /// 轮次编号 → 互补色画刷：偶数轮 TurnColorA，奇数轮 TurnColorB。
 /// 取自身份配色，随主题切换。驱动轮次色条区分对话轮次（任务4）。
 /// </summary>

@@ -20,6 +20,14 @@ public sealed partial class EditorTabVm : ViewModelBase {
     [ObservableProperty]
     private bool _isModified;
 
+    /// <summary>是否锁定(锁定标签不可关闭,显示在左侧)</summary>
+    [ObservableProperty]
+    private bool _isPinned;
+
+    /// <summary>是否为预览标签(单击打开=预览斜体,双击=固定)</summary>
+    [ObservableProperty]
+    private bool _isPreview;
+
     /// <summary>是否为当前激活标签</summary>
     public bool IsActive {
         get => _isActive;

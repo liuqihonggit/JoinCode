@@ -131,4 +131,43 @@ public sealed partial class MainViewModel {
             App.LogDiag($"[Editor] Save failed: {ex.Message}");
         }
     }
+
+    /// <summary>关闭所有编辑器标签页 — 锁定标签保留</summary>
+    [RelayCommand]
+    private void CloseAllEditorTabs() {
+        var toClose = EditorTabs.Where(t => !t.IsPinned).ToList();
+        foreach (var tab in toClose)
+            EditorTabs.Remove(tab);
+        if (EditorTabs.Count == 0) {
+            SetActiveEditorTab(null);
+            ActiveMainArea = MainAreaKind.Messages;
+        } else {
+            SetActiveEditorTab(EditorTabs[0]);
+        }
+    }
+
+    /// <summary>关闭除指定标签外的所有标签 — 锁定标签保留</summary>
+    [RelayCommand]
+    private void CloseOtherEditorTabs(EditorTabVm? keep) {
+        if (keep is null)
+            return;
+        var toClose = EditorTabs.Where(t => t != keep && !t.IsPinned).ToList();
+        foreach (var tab in toClose)
+            EditorTabs.Remove(tab);
+        SetActiveEditorTab(keep);
+    }
+
+    /// <summary>切换标签页锁定状态 — 锁定标签不可被关闭</summary>
+    [RelayCommand]
+    private void TogglePinTab(EditorTabVm? tab) {
+        if (tab is not null)
+            tab.IsPinned = !tab.IsPinned;
+    }
+
+    /// <summary>将标签页固定为非预览状态 — 双击标签时调用</summary>
+    [RelayCommand]
+    private void PinTab(EditorTabVm? tab) {
+        if (tab is not null)
+            tab.IsPreview = false;
+    }
 }

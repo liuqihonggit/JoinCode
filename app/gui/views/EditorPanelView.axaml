@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              xmlns:vm="using:JoinCode.Gui.ViewModels"
+             xmlns:cnv="using:JoinCode.Gui.Converters"
              xmlns:edit="using:AvaloniaEdit"
              xmlns:sys="using:System"
              x:Class="JoinCode.Gui.Views.EditorPanelView"
@@ -52,23 +53,44 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:EditorTabVm">
               <Border BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0">
+                <Border.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="📌 锁定/解锁"
+                              Command="{Binding DataContext.TogglePinTabCommand, ElementName=EditorPanelRoot}"
+                              CommandParameter="{Binding}" />
+                    <MenuItem Header="✕ 关闭"
+                              Command="{Binding DataContext.CloseEditorTabCommand, ElementName=EditorPanelRoot}"
+                              CommandParameter="{Binding}"
+                              IsEnabled="{Binding !IsPinned}" />
+                    <MenuItem Header="✕ 关闭其他"
+                              Command="{Binding DataContext.CloseOtherEditorTabsCommand, ElementName=EditorPanelRoot}"
+                              CommandParameter="{Binding}" />
+                    <MenuItem Header="✕ 关闭全部"
+                              Command="{Binding DataContext.CloseAllEditorTabsCommand, ElementName=EditorPanelRoot}" />
+                  </ContextMenu>
+                </Border.ContextMenu>
                 <Grid ColumnDefinitions="*,Auto">
                   <!-- 标签页名称(点击激活) -->
                   <Button Grid.Column="0" Classes="editorTab"
                           Command="{Binding DataContext.ActivateEditorTabCommand, ElementName=EditorPanelRoot}"
                           CommandParameter="{Binding}">
                     <StackPanel Orientation="Horizontal" Spacing="5">
-                      <TextBlock Text="📄" FontSize="10" VerticalAlignment="Center" />
-                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                      <TextBlock Text="📌" FontSize="8" VerticalAlignment="Center"
+                                 IsVisible="{Binding IsPinned}" />
+                      <TextBlock Text="📄" FontSize="10" VerticalAlignment="Center"
+                                 IsVisible="{Binding !IsPinned}" />
+                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                 FontStyle="{Binding IsPreview, Converter={x:Static cnv:PreviewToFontStyleConverter.Instance}}" />
                       <TextBlock Text="●" FontSize="8" VerticalAlignment="Center"
                                  Foreground="{DynamicResource GuiAccentText}"
                                  IsVisible="{Binding IsModified}" />
                     </StackPanel>
                   </Button>
-                  <!-- 关闭按钮 -->
+                  <!-- 关闭按钮(锁定时隐藏) -->
                   <Button Grid.Column="1" Classes="editorTabClose" Content="✕"
                           Command="{Binding DataContext.CloseEditorTabCommand, ElementName=EditorPanelRoot}"
                           CommandParameter="{Binding}"
+                          IsVisible="{Binding !IsPinned}"
                           ToolTip.Tip="关闭" />
                 </Grid>
               </Border>

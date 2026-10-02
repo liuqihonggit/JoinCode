@@ -1091,14 +1091,17 @@ public sealed class CodeIndexToolHandlers {
         [McpToolParameter("Include source text in results")] bool include_source_text = false,
         [McpToolParameter("Include parent document source")] bool include_parent_document = false,
         [McpToolParameter("Include graph relations (callers/callees)")] bool include_graph = false,
-        [McpToolParameter("Graph relation: callers|callees|references|definition|call_chain|path|impact_scope|dependencies|affected_files|all")] string? graph_relation = null,
+        [McpToolParameter("Graph relation: callers|callees|references|definition|call_chain|path|impact_scope|inheritors|dependencies|affected_files|subgraph|explain|all")] string? graph_relation = null,
         [McpToolParameter("Call chain start symbol (for call_chain/path)")] string? from_symbol = null,
         [McpToolParameter("Call chain end symbol (for call_chain/path)")] string? to_symbol = null,
         [McpToolParameter("Project relation: deps|dependents|affected|nugets|nuget_projects|all")] string? project_relation = null,
         [McpToolParameter("Index directory (default: auto-discover git workspace)")] string? persist_dir = null,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(query)) {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
+            if (string.IsNullOrEmpty(from_symbol)) {
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
+            }
+            query = from_symbol;
         }
 
         var searchMode = SearchModeExtensions.FromValue(mode);
@@ -1248,6 +1251,69 @@ public sealed class CodeIndexToolHandlers {
                 }
                 break;
             }
+            case "inheritors": {
+                var inheritors = await _indexer.DependencyGraph.GetInheritorsAsync(query, ct).ConfigureAwait(false);
+                sb.AppendLine($"Inheritors ({inheritors.Count}):");
+                foreach (var d in inheritors) {
+                    sb.AppendLine($"  {d.SourceSymbol} [{d.DependencyKind}]");
+                }
+                break;
+            }
+            case "path": {
+                if (string.IsNullOrEmpty(fromSymbol) || string.IsNullOrEmpty(toSymbol)) {
+                    return ToolResultBuilder.Error().WithText("path requires from_symbol and to_symbol").Build();
+                }
+                var path = await _indexer.Analytics.FindPathAsync(fromSymbol, toSymbol, ct).ConfigureAwait(false);
+                if (!path.PathFound) {
+                    sb.AppendLine($"No path found: {fromSymbol} -> {toSymbol}");
+                } else {
+                    sb.AppendLine($"Path: {path.FromSymbol} -> {path.ToSymbol} (length={path.PathLength})");
+                    for (var i = 0; i < path.PathNodes.Count; i++) {
+                        sb.AppendLine($"  {i + 1}. {path.PathNodes[i]}");
+                    }
+                }
+                break;
+            }
+            case "subgraph": {
+                var subgraph = await _indexer.Analytics.ExtractSubgraphAsync(query, 2, ct).ConfigureAwait(false);
+                sb.AppendLine($"Subgraph centered on: {subgraph.CenterSymbol} (hops={subgraph.Hops})");
+                sb.AppendLine($"Nodes ({subgraph.Nodes.Count}):");
+                foreach (var n in subgraph.Nodes) {
+                    sb.AppendLine($"  {n}");
+                }
+                sb.AppendLine($"Edges ({subgraph.Edges.Count}):");
+                foreach (var e in subgraph.Edges) {
+                    sb.AppendLine($"  {e.CallerSymbol} -> {e.CalleeSymbol}");
+                }
+                break;
+            }
+            case "explain": {
+                var explain = await _indexer.Analytics.ExplainAsync(query, ct).ConfigureAwait(false);
+                sb.AppendLine($"Symbol: {explain.SymbolName} ({explain.Kind})");
+                sb.AppendLine($"  File: {explain.FilePath.Replace('\\', '/')}");
+                if (explain.Namespace is not null) {
+                    sb.AppendLine($"  Namespace: {explain.Namespace}");
+                }
+                sb.AppendLine($"  InDegree: {explain.InDegree}, OutDegree: {explain.OutDegree}");
+                sb.AppendLine();
+                sb.AppendLine($"Callers ({explain.Callers.Count}):");
+                foreach (var c in explain.Callers) {
+                    sb.AppendLine($"  {c}");
+                }
+                sb.AppendLine($"Callees ({explain.Callees.Count}):");
+                foreach (var c in explain.Callees) {
+                    sb.AppendLine($"  {c}");
+                }
+                sb.AppendLine($"Same community ({explain.SameCommunity.Count}):");
+                foreach (var c in explain.SameCommunity) {
+                    sb.AppendLine($"  {c}");
+                }
+                sb.AppendLine($"Same file ({explain.SameFile.Count}):");
+                foreach (var c in explain.SameFile) {
+                    sb.AppendLine($"  {c}");
+                }
+                break;
+            }
             case "all": {
                 var callers = await _indexer.CallGraph.GetCallersAsync(query, ct).ConfigureAwait(false);
                 var callees = await _indexer.CallGraph.GetCalleesAsync(query, ct).ConfigureAwait(false);
@@ -1264,7 +1330,7 @@ public sealed class CodeIndexToolHandlers {
             }
             default:
                 return ToolResultBuilder.Error().WithText(
-                    $"Unknown graph_relation: \"{relation}\". Valid: callers|callees|references|definition|call_chain|path|impact_scope|dependencies|affected_files|all").Build();
+                    $"Unknown graph_relation: \"{relation}\". Valid: callers|callees|references|definition|call_chain|path|impact_scope|inheritors|dependencies|affected_files|subgraph|explain|all").Build();
         }
         return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
     }
@@ -1361,6 +1427,28 @@ public sealed class CodeIndexToolHandlers {
             idx++;
             sb.AppendLine($"{idx}. [symbol] {s.Kind} {s.FullyQualifiedName}");
             sb.AppendLine($"   {s.FilePath.Replace('\\', '/')}:{s.StartLine}-{s.EndLine}");
+            if (includeGraph) {
+                await AppendGraphRelationsAsync(sb, s.FullyQualifiedName, ct).ConfigureAwait(false);
+            }
+        }
+
+        foreach (var r in vectorResult) {
+            var key = $"{r.FilePath}:{r.StartLine}";
+            if (!seen.Add(key)) continue;
+            idx++;
+            sb.AppendLine($"{idx}. [vector {r.Score:F4}] {r.SymbolFqn}");
+            sb.AppendLine($"   {r.FilePath.Replace('\\', '/')}:{r.StartLine}-{r.EndLine}");
+            if (includeSource && !string.IsNullOrEmpty(r.SourceText)) {
+                sb.AppendLine("   --- Source ---");
+                foreach (var line in r.SourceText.Split('\n')) {
+                    sb.AppendLine($"   {line}");
+                }
+                sb.AppendLine("   --- End Source ---");
+            }
+            if (includeGraph && !string.IsNullOrEmpty(r.SymbolFqn)) {
+                await AppendGraphRelationsAsync(sb, r.SymbolFqn, ct).ConfigureAwait(false);
+            }
+            if (idx >= topK) break;
         }
 
         foreach (var r in vectorResult) {
@@ -1383,6 +1471,26 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine("No results found.");
         }
         return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
+    }
+
+    private async Task AppendGraphRelationsAsync(StringBuilder sb, string fqn, CancellationToken ct) {
+        var callers = await _indexer.CallGraph.GetCallersAsync(fqn, ct).ConfigureAwait(false);
+        var callees = await _indexer.CallGraph.GetCalleesAsync(fqn, ct).ConfigureAwait(false);
+        if (callers.Count == 0 && callees.Count == 0) return;
+        sb.AppendLine("   --- Graph ---");
+        if (callers.Count > 0) {
+            sb.AppendLine($"   Callers ({callers.Count}):");
+            foreach (var c in callers.Take(3)) {
+                sb.AppendLine($"     {c.CallerSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
+            }
+        }
+        if (callees.Count > 0) {
+            sb.AppendLine($"   Callees ({callees.Count}):");
+            foreach (var c in callees.Take(3)) {
+                sb.AppendLine($"     {c.CalleeSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
+            }
+        }
+        sb.AppendLine("   --- End Graph ---");
     }
 
     private static StringBuilder FormatVectorResults(IReadOnlyList<ChunkSearchResult> results, string query, string mode, bool includeSource) {

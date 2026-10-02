@@ -116,10 +116,10 @@ class McpStdioClient:
         self._proc.stdin.write(json.dumps(req) + "\n")
         self._proc.stdin.flush()
 
-    def search_semantic(self, query: str, top_k: int = 10) -> list[str]:
+    def search_semantic(self, query: str, top_k: int = 10, mode: str = "hybrid") -> list[str]:
         result = self._call("tools/call", {
-            "name": "code_index_search_semantic",
-            "arguments": {"query": query, "top_k": top_k, "include_source_text": False},
+            "name": "code_query",
+            "arguments": {"query": query, "mode": mode, "top_k": top_k, "include_source_text": False},
         })
         content = result.get("content", [])
         if not content:
@@ -137,6 +137,7 @@ def main():
     parser.add_argument("--count", type=int, default=50, help="测试用例数（默认50）")
     parser.add_argument("--workspace", type=str, default="D:/project/w2", help="工作区根目录")
     parser.add_argument("--seed", type=int, default=42, help="随机种子（默认42，可复现）")
+    parser.add_argument("--mode", type=str, default="hybrid", help="检索模式（默认hybrid）")
     args = parser.parse_args()
 
     print(f"收集 .cs 文件...")
@@ -170,7 +171,7 @@ def main():
     for i, (filepath, symbols) in enumerate(sample, 1):
         keyword = symbols[0]
         rel_path = str(filepath).replace("\\", "/")
-        search_hits = client.search_semantic(keyword, top_k=10)
+        search_hits = client.search_semantic(keyword, top_k=10, mode=args.mode)
 
         matched = any(rel_path.replace("/", "\\") in h or rel_path in h.replace("\\", "/") for h in search_hits)
         if matched:

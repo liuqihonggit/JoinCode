@@ -237,24 +237,34 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         progress?.Report(new IndexProgress { Current = total, Total = total });
 
         // Phase D: 并行提取符号(已并行,4度)
+        var phaseDSw = Stopwatch.StartNew();
         var extractionResults = ParallelExtractAll(filesToIndex, ct);
+        phaseDSw.Stop();
+        Console.Error.WriteLine($"[code-index] Phase D 提取: {filesToIndex.Count} 文件 ({phaseDSw.ElapsedMilliseconds}ms)");
 
         // Phase E: 批量索引写入(单写锁 + 单次 CorrectInheritsToImplements,替代每文件锁+每文件全量扫描)
+        var phaseESw = Stopwatch.StartNew();
         var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>(filesToIndex.Count);
         for (var i = 0; i < filesToIndex.Count; i++) {
             var (filePath, sourceCode, hash) = filesToIndex[i];
             batch.Add((filePath, sourceCode, hash, extractionResults[i]));
         }
         await _symbolIndex.IndexFilesBatchAsync(batch, ct).ConfigureAwait(false);
+        phaseESw.Stop();
         updatedCount = batch.Count;
-        Console.Error.WriteLine($"[code-index] 符号索引: {updatedCount} 文件 ({phaseSw.ElapsedMilliseconds}ms)");
+        Console.Error.WriteLine($"[code-index] Phase E 写入: {updatedCount} 文件 ({phaseESw.ElapsedMilliseconds}ms)");
         phaseSw.Restart();
 
         // Phase E2: 向量嵌入（按固定行数切块，预嵌入AST符号FQN组成知识图谱）
         if (_embeddingIndex is not null) {
+            var phaseE2RemoveSw = Stopwatch.StartNew();
             foreach (var b in batch) {
                 await _embeddingIndex.RemoveFileAsync(b.FilePath, ct).ConfigureAwait(false);
             }
+            phaseE2RemoveSw.Stop();
+            Console.Error.WriteLine($"[code-index] Phase E2 删旧: ({phaseE2RemoveSw.ElapsedMilliseconds}ms)");
+
+            var phaseE2ChunkSw = Stopwatch.StartNew();
             var allChunks = new List<ChunkInfo>();
             foreach (var b in batch) {
                 var parentLocations = b.Extraction.Symbols
@@ -264,9 +274,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 allChunks.AddRange(LineBasedChunkExtractor.Extract(
                     b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations));
             }
+            phaseE2ChunkSw.Stop();
+            Console.Error.WriteLine($"[code-index] Phase E2 切块: {allChunks.Count} 块 ({phaseE2ChunkSw.ElapsedMilliseconds}ms)");
+
             if (allChunks.Count > 0) {
+                var phaseE2EmbedSw = Stopwatch.StartNew();
                 await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
-                Console.Error.WriteLine($"[code-index] 向量嵌入: {allChunks.Count} 块 ({phaseSw.ElapsedMilliseconds}ms)");
+                phaseE2EmbedSw.Stop();
+                Console.Error.WriteLine($"[code-index] Phase E2 嵌入: ({phaseE2EmbedSw.ElapsedMilliseconds}ms)");
                 phaseSw.Restart();
             }
         }

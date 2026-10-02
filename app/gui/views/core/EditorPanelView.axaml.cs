@@ -97,4 +97,14 @@ public sealed partial class EditorPanelView : UserControl {
         if (sender is Button btn && btn.DataContext is EditorTabVm tab && _vm is not null)
             _vm.PinTabCommand.Execute(tab);
     }
+
+    /// <summary>标签页中键点击 — 关闭标签页(VSCode 风格)</summary>
+    private void OnTabPointerPressed(object? sender, PointerPressedEventArgs e) {
+        if (e.GetCurrentPoint(this).Properties.PointerUpdateKind != PointerUpdateKind.MiddleButtonPressed)
+            return;
+        if (sender is Button btn && btn.DataContext is EditorTabVm tab && _vm is not null) {
+            _vm.CloseEditorTabCommand.Execute(tab);
+            e.Handled = true;
+        }
+    }
 }

@@ -74,7 +74,8 @@
                   <Button Grid.Column="0" Classes="editorTab"
                           Command="{Binding DataContext.ActivateEditorTabCommand, ElementName=EditorPanelRoot}"
                           CommandParameter="{Binding}"
-                          DoubleTapped="OnTabDoubleTapped">
+                          DoubleTapped="OnTabDoubleTapped"
+                          PointerPressed="OnTabPointerPressed">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                       <TextBlock Text="📌" FontSize="8" VerticalAlignment="Center"
                                  IsVisible="{Binding IsPinned}" />

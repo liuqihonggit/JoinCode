@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>ADR: 0071 — P0 底层优化，供 PhysicalFileSystem / RgEngine / 文件编辑核心复用。</para>
 /// <para>用法：</para>
 /// <code>
-/// using var reader = new MappedFileReader(path);
+/// using var reader = MappedFileReader.Open(path);
 /// var content = reader.ReadToEnd();
 /// </code>
 /// </summary>
@@ -26,20 +26,28 @@ public sealed class MappedFileReader : IDisposable {
     /// <param name="path">文件绝对路径。</param>
     /// <exception cref="FileNotFoundException">文件不存在。</exception>
     /// <exception cref="IOException">文件被独占锁定或 IO 错误。</exception>
-    public MappedFileReader(string path) {
-        var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+    public static MappedFileReader Open(string path) {
+#pragma warning disable JCC9104 // 同步工厂方法，FileStream 生命周期由 using 管理，leaveOpen=true 让 mmf 独立持有句柄
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+#pragma warning restore JCC9104
+        var fileSize = fs.Length;
+        if (fileSize == 0) {
+            return new MappedFileReader(null, null, 0);
+        }
+        var mmf = MemoryMappedFile.CreateFromFile(fs, null, fileSize, MemoryMappedFileAccess.Read, HandleInheritability.None, true);
         try {
-            _fileSize = fs.Length;
-            if (_fileSize == 0) {
-                fs.Dispose();
-                return;
-            }
-            _mmf = MemoryMappedFile.CreateFromFile(fs, null, _fileSize, MemoryMappedFileAccess.Read, HandleInheritability.None, false);
-            _accessor = _mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
+            var accessor = mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
+            return new MappedFileReader(mmf, accessor, fileSize);
         } catch {
-            fs.Dispose();
+            mmf.Dispose();
             throw;
         }
+    }
+
+    private MappedFileReader(MemoryMappedFile? mmf, MemoryMappedViewAccessor? accessor, long fileSize) {
+        _mmf = mmf;
+        _accessor = accessor;
+        _fileSize = fileSize;
     }
 
     /// <summary>

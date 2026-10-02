@@ -14,7 +14,7 @@ public sealed class MappedFileReaderTests {
     public void Open_ReadToEnd_ReturnsFileContent() {
         var path = CreateTempFile("hello world");
         try {
-            using var reader = new MappedFileReader(path);
+            using var reader = MappedFileReader.Open(path);
             var content = reader.ReadToEnd();
             Assert.Equal("hello world", content);
         } finally {
@@ -26,7 +26,7 @@ public sealed class MappedFileReaderTests {
     public void Open_ToArray_ReturnsFileBytes() {
         var path = CreateTempFile("ABC");
         try {
-            using var reader = new MappedFileReader(path);
+            using var reader = MappedFileReader.Open(path);
             var bytes = reader.ToArray();
             Assert.Equal(new byte[] { 0x41, 0x42, 0x43 }, bytes);
         } finally {
@@ -38,7 +38,7 @@ public sealed class MappedFileReaderTests {
     public void Open_Length_ReturnsFileSize() {
         var path = CreateTempFile("1234567890");
         try {
-            using var reader = new MappedFileReader(path);
+            using var reader = MappedFileReader.Open(path);
             Assert.Equal(10, reader.Length);
         } finally {
             File.Delete(path);
@@ -49,7 +49,7 @@ public sealed class MappedFileReaderTests {
     public void Open_EmptyFile_ReturnsEmptyContent() {
         var path = CreateTempFile("");
         try {
-            using var reader = new MappedFileReader(path);
+            using var reader = MappedFileReader.Open(path);
             Assert.Equal("", reader.ReadToEnd());
             Assert.Equal(0, reader.Length);
         } finally {
@@ -62,7 +62,7 @@ public sealed class MappedFileReaderTests {
         var expected = new string('x', 100_000);
         var path = CreateTempFile(expected);
         try {
-            using var reader = new MappedFileReader(path);
+            using var reader = MappedFileReader.Open(path);
             var content = reader.ReadToEnd();
             Assert.Equal(expected, content);
             Assert.Equal(100_000, reader.Length);
@@ -74,14 +74,14 @@ public sealed class MappedFileReaderTests {
     [Fact]
     public void Open_NonExistentFile_ThrowsFileNotFoundException() {
         var path = Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid():N}.txt");
-        Assert.Throws<FileNotFoundException>(() => new MappedFileReader(path));
+        Assert.Throws<FileNotFoundException>(() => MappedFileReader.Open(path));
     }
 
     [Fact]
     public void Open_Utf8Content_ReturnsCorrectString() {
         var path = CreateTempFile("你好世界");
         try {
-            using var reader = new MappedFileReader(path);
+            using var reader = MappedFileReader.Open(path);
             var content = reader.ReadToEnd();
             Assert.Equal("你好世界", content);
         } finally {
@@ -93,7 +93,7 @@ public sealed class MappedFileReaderTests {
     public void Dispose_CalledTwice_DoesNotThrow() {
         var path = CreateTempFile("test");
         try {
-            var reader = new MappedFileReader(path);
+            var reader = MappedFileReader.Open(path);
             reader.Dispose();
             reader.Dispose();
         } finally {
@@ -105,8 +105,8 @@ public sealed class MappedFileReaderTests {
     public void Open_MultipleReaders_OnSameFile_AllSucceed() {
         var path = CreateTempFile("shared content");
         try {
-            using var r1 = new MappedFileReader(path);
-            using var r2 = new MappedFileReader(path);
+            using var r1 = MappedFileReader.Open(path);
+            using var r2 = MappedFileReader.Open(path);
             Assert.Equal("shared content", r1.ReadToEnd());
             Assert.Equal("shared content", r2.ReadToEnd());
         } finally {
@@ -121,7 +121,7 @@ public sealed class MappedFileReaderTests {
         var json = "{\"vendor\":null}"u8.ToArray();
         File.WriteAllBytes(path, [.. bom, .. json]);
         try {
-            using var reader = new MappedFileReader(path);
+            using var reader = MappedFileReader.Open(path);
             var content = reader.ReadToEnd();
             Assert.Equal("{\"vendor\":null}", content);
             Assert.NotEqual('\uFEFF', content[0]);

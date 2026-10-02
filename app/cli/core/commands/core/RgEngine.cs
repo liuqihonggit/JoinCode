@@ -194,7 +194,7 @@ internal static class RgEngine {
     /// mmap 零拷贝读取文件内容。用 MappedFileReader 封装，using 释放句柄。
     /// </summary>
     private static string ReadViaMmap(string path) {
-        using var reader = new MappedFileReader(path);
+        using var reader = MappedFileReader.Open(path);
         return reader.ReadToEnd();
     }
 

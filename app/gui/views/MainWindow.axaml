@@ -81,7 +81,7 @@
     <local:TopBarView Grid.Row="0" />
 
     <!-- ===== Row 1：Activity Bar + Side Bar + 主区 (VSCode 风格) ===== -->
-    <Grid Grid.Row="1" ColumnDefinitions="48,Auto,*">
+    <Grid Grid.Row="1" ColumnDefinitions="48,Auto,6,*">
 
     <!-- ===== Column 0：Activity Bar (图标列,固定48px) ===== -->
     <Border Grid.Column="0" Background="{DynamicResource GuiSidebarBackground}"
@@ -122,8 +122,17 @@
       </Panel>
     </Border>
 
-    <!-- ===== Column 2：主区（四行布局：消息区/补全面板/输入栏/状态栏） ===== -->
-    <Grid Grid.Column="2">
+    <!-- ===== Column 2：拖拽手柄 (调整 Side Bar 宽度) ===== -->
+    <Border Grid.Column="2" Width="6" HorizontalAlignment="Stretch"
+            Background="{DynamicResource GuiDivider}"
+            Cursor="SizeWestEast"
+            PointerPressed="OnSidePanelResizePointerPressed"
+            PointerMoved="OnSidePanelResizePointerMoved"
+            PointerReleased="OnSidePanelResizePointerReleased"
+            ToolTip.Tip="拖拽调整面板宽度" />
+
+    <!-- ===== Column 3：主区（四行布局：消息区/补全面板/输入栏/状态栏） ===== -->
+    <Grid Grid.Column="3">
       <Grid RowDefinitions="*,Auto,Auto,Auto">
 
       <!-- Row 0：消息区（消息内容(*) : 设置面板(Auto)） -->

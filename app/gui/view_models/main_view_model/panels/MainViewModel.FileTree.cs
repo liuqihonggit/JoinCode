@@ -18,19 +18,22 @@ public enum SidePanelKind {
 /// 再点同一个图标收起面板。同一时刻最多展开一个面板。
 /// </summary>
 public sealed partial class MainViewModel {
-    /// <summary>展开态面板宽度(完整面板)</summary>
-    private const double SidePanelExpandedWidth = 236;
+    /// <summary>展开态面板默认宽度</summary>
+    private const double SidePanelDefaultWidth = 236;
+
+    /// <summary>磁吸折叠阈值 — 拖拽宽度低于此值自动折叠</summary>
+    private const double SidePanelSnapCollapseThreshold = 80;
 
     /// <summary>当前激活的侧边面板 — 点击 Activity Bar 图标切换</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SidePanelWidth))]
     [NotifyPropertyChangedFor(nameof(IsSessionPanelActive))]
     [NotifyPropertyChangedFor(nameof(IsFileTreePanelActive))]
     [NotifyPropertyChangedFor(nameof(IsSidePanelExpanded))]
     private SidePanelKind _activeSidePanel = SidePanelKind.Sessions;
 
-    /// <summary>侧边面板区宽度 — None=0, 其他=236,带过渡动画</summary>
-    public double SidePanelWidth => ActiveSidePanel == SidePanelKind.None ? 0 : SidePanelExpandedWidth;
+    /// <summary>侧边面板区宽度 — 可拖拽调整,带磁吸(低于阈值自动折叠)</summary>
+    [ObservableProperty]
+    private double _sidePanelWidth = SidePanelDefaultWidth;
 
     /// <summary>会话面板是否激活(图标高亮)</summary>
     public bool IsSessionPanelActive => ActiveSidePanel == SidePanelKind.Sessions;
@@ -46,7 +49,23 @@ public sealed partial class MainViewModel {
     private void ToggleSidePanel(SidePanelKind? kind) {
         if (kind is null)
             return;
-        ActiveSidePanel = ActiveSidePanel == kind ? SidePanelKind.None : kind.Value;
+        if (ActiveSidePanel == kind) {
+            ActiveSidePanel = SidePanelKind.None;
+            SidePanelWidth = 0;
+        } else {
+            ActiveSidePanel = kind.Value;
+            if (SidePanelWidth < SidePanelSnapCollapseThreshold)
+                SidePanelWidth = SidePanelDefaultWidth;
+        }
+    }
+
+    /// <summary>侧边面板宽度变化时磁吸 — 宽度低于阈值自动折叠</summary>
+    partial void OnSidePanelWidthChanged(double value) {
+        if (ActiveSidePanel != SidePanelKind.None && value > 0 && value < SidePanelSnapCollapseThreshold) {
+            ActiveSidePanel = SidePanelKind.None;
+        } else if (ActiveSidePanel == SidePanelKind.None && value >= SidePanelSnapCollapseThreshold) {
+            ActiveSidePanel = SidePanelKind.Sessions;
+        }
     }
 
     // ===== 目录树数据源 =====

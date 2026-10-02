@@ -80,6 +80,44 @@ public sealed partial class MainWindow : Window {
     /// <summary>点击候选项完成补全 → 回焦输入框</summary>
     private void OnSlashPaletteCompleted(object? sender, RoutedEventArgs e) => InputBar?.FocusInput();
 
+    /// <summary>侧边面板拖拽调整宽度 — 起始 X 坐标</summary>
+    private double _sidePanelResizeStartX;
+
+    /// <summary>侧边面板拖拽调整宽度 — 起始宽度</summary>
+    private double _sidePanelResizeStartWidth;
+
+    /// <summary>侧边面板拖拽中标志</summary>
+    private bool _isSidePanelResizing;
+
+    /// <summary>拖拽手柄按下 — 记录起始位置</summary>
+    private void OnSidePanelResizePointerPressed(object? sender, PointerPressedEventArgs e) {
+        if (_vm is null)
+            return;
+        _sidePanelResizeStartX = e.GetCurrentPoint(this).Position.X;
+        _sidePanelResizeStartWidth = _vm.SidePanelWidth;
+        _isSidePanelResizing = true;
+        e.Pointer.Capture(sender as Avalonia.Input.IInputElement);
+        e.Handled = true;
+    }
+
+    /// <summary>拖拽手柄移动 — 实时更新面板宽度</summary>
+    private void OnSidePanelResizePointerMoved(object? sender, PointerEventArgs e) {
+        if (!_isSidePanelResizing || _vm is null)
+            return;
+        var delta = e.GetCurrentPoint(this).Position.X - _sidePanelResizeStartX;
+        _vm.SidePanelWidth = Math.Clamp(_sidePanelResizeStartWidth + delta, 0, 600);
+        e.Handled = true;
+    }
+
+    /// <summary>拖拽手柄释放 — 结束拖拽</summary>
+    private void OnSidePanelResizePointerReleased(object? sender, PointerReleasedEventArgs e) {
+        if (!_isSidePanelResizing)
+            return;
+        _isSidePanelResizing = false;
+        e.Pointer.Capture(null);
+        e.Handled = true;
+    }
+
     /// <summary>全局按下捕获：补全面板打开时，点击面板外区域收起面板</summary>
     private void OnGlobalPointerPressed(object? sender, PointerPressedEventArgs e) {
         if (_vm is not { IsSlashPopupOpen: true } || SlashPalette is null)

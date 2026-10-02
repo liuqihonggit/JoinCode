@@ -21,6 +21,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private readonly GraphVisualization _visualization;
     private readonly ILogger<CodeIndexer>? _logger;
     private readonly IHttpClientProvider? _httpClient;
+    private readonly IKvStore _kvStore;
     private EmbeddingIndex? _embeddingIndex;
     private IParentDocumentStore? _parentDocStore;
     private List<IIndexStore> _indexStores = [];
@@ -37,7 +38,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="httpClient">可选 HTTP 客户端（用于模型缺失时自动下载，> ADR: 0124）</param>
-    public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null, IHttpClientProvider? httpClient = null) {
+    /// <param name="kvStore">可选 KV 存储抽象（用于持久化，默认 InMemoryKvStore）</param>
+    public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null, IHttpClientProvider? httpClient = null, IKvStore? kvStore = null) {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(fs);
 
@@ -55,9 +57,11 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _projectDependencyGraph = new ProjectDependencyGraph(store);
         _projectIndex = new ProjectIndex(store, fs, logger);
         _analytics = new GraphAnalytics(store);
-        _persistence = new GraphPersistence(store, fs);
+        var kv = kvStore ?? new InMemoryKvStore();
+        _kvStore = kv;
+        _persistence = new GraphPersistence(store, kv);
         _visualization = new GraphVisualization(store);
-        TryInitEmbeddingIndex(fs, logger);
+        TryInitEmbeddingIndex(fs, kv, logger);
         BuildIndexStoreList();
     }
 
@@ -75,7 +79,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <para>模型路径：%AppData%/jcc/embedding/model_quantized.onnx + vocab.txt</para>
     /// <para>文件不存在时静默跳过（向量搜索降级为不可用）。</para>
     /// </summary>
-    private void TryInitEmbeddingIndex(IFileSystem fs, ILogger<CodeIndexer>? logger) {
+    private void TryInitEmbeddingIndex(IFileSystem fs, IKvStore kvStore, ILogger<CodeIndexer>? logger) {
         var appData = EmbeddingModelDownloader.DefaultTargetDir;
         var modelPath = Path.Combine(appData, EmbeddingModelDownloader.ModelFileName);
         var vocabPath = Path.Combine(appData, EmbeddingModelDownloader.VocabFileName);
@@ -85,9 +89,13 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             var degree = int.TryParse(Environment.GetEnvironmentVariable("JCC_ONNX_DEGREE"), out var d) && d > 0
                 ? Math.Min(d, Environment.ProcessorCount) : 0;
             var embedModel = new OnnxEmbeddingClient(modelPath, vocabPath, fs, degree: degree);
-            _parentDocStore = new InMemoryParentDocumentStore(fs);
-            _embeddingIndex = new EmbeddingIndex(embedModel, new BruteForceAnn(), fs, _parentDocStore);
-            logger?.LogInformation("向量索引已自动初始化: dim={Dim}", embedModel.Dimensions);
+            _parentDocStore = new InMemoryParentDocumentStore(kvStore);
+            var annType = Environment.GetEnvironmentVariable("JCC_ANN_TYPE") ?? "brute";
+            IAnnSearch ann = annType.Equals("hnsw", StringComparison.OrdinalIgnoreCase)
+                ? new HnswAnn()
+                : new BruteForceAnn();
+            _embeddingIndex = new EmbeddingIndex(embedModel, ann, fs, _parentDocStore);
+            logger?.LogInformation("向量索引已自动初始化: dim={Dim}, ann={Ann}", embedModel.Dimensions, annType);
         } catch (Exception ex) {
             logger?.LogWarning(ex, "向量索引自动初始化失败，语义搜索将不可用");
         }
@@ -104,7 +112,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         try {
             var downloader = new EmbeddingModelDownloader(_logger as ILogger<EmbeddingModelDownloader>);
             await downloader.EnsureAsync(EmbeddingModelDownloader.DefaultTargetDir, _fs, _httpClient, ct).ConfigureAwait(false);
-            TryInitEmbeddingIndex(_fs, _logger);
+            TryInitEmbeddingIndex(_fs, _kvStore, _logger);
             BuildIndexStoreList();
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "向量模型自动下载失败，语义搜索将不可用");
@@ -681,7 +689,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     }
 
     /// <summary>
-    /// 确保索引已加载 — 统一加载符号索引(code-index.bin) + 向量索引(vector_index.bin) + 父文档(parent_docs.bin)。
+    /// 确保索引已加载 — 统一加载符号索引(IKvStore) + 向量索引(LSM-Tree) + 父文档(IKvStore)。
     /// persistDir 为 null 时自动发现 .git 工作区根；不为 null 时从指定目录加载。
     /// 用 Interlocked 保证只执行一次。
     /// </summary>

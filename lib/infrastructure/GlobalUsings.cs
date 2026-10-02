@@ -78,6 +78,7 @@ global using System.Diagnostics;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Diagnostics.Metrics;
 global using System.Globalization;
+global using System.IO.MemoryMappedFiles;
 global using System.IO.Pipes;
 global using System.Net;
 global using System.Net.Http.Headers;
@@ -99,3 +100,4 @@ global using ExecutionContext = JoinCode.Abstractions.Execution.ExecutionContext
 global using IAsyncDisposable = System.IAsyncDisposable;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Structura.Collections;
+global using PithosDB.Core;

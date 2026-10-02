@@ -1,24 +1,24 @@
 namespace JoinCode.CodeIndex.Analytics;
 
 /// <summary>
-/// 图持久化实现 — 将 InMemoryIndexStore 序列化为二进制文件 code-index.bin
+/// 图持久化实现 — 将 InMemoryIndexStore 序列化到 IKvStore（LSM-Tree）
 /// </summary>
 [Register(typeof(IBinaryPersistence), ServiceLifetime.Singleton)]
 public sealed class GraphPersistence : ServiceEntity, IIndexStore {
     private readonly InMemoryIndexStore _store;
-    private readonly IFileSystem _fs;
+    private readonly IKvStore _kvStore;
     private const int CurrentVersion = 1;
-    private const string FileName = "code-index.bin";
     private static readonly byte[] Magic = System.Text.Encoding.UTF8.GetBytes("CGIDX1");
+    private static readonly byte[] KeyCodeIndex = System.Text.Encoding.UTF8.GetBytes("code-index");
 
     /// <summary>
     /// 构造 GraphPersistence
     /// </summary>
-    public GraphPersistence(InMemoryIndexStore store, IFileSystem fs) {
+    public GraphPersistence(InMemoryIndexStore store, IKvStore kvStore) {
         ArgumentNullException.ThrowIfNull(store);
-        ArgumentNullException.ThrowIfNull(fs);
+        ArgumentNullException.ThrowIfNull(kvStore);
         _store = store;
-        _fs = fs;
+        _kvStore = kvStore;
     }
 
     /// <summary>索引类型标识。</summary>
@@ -31,7 +31,7 @@ public sealed class GraphPersistence : ServiceEntity, IIndexStore {
     public bool IsReady => Count > 0;
 
     /// <summary>
-    /// 将索引存储序列化保存到指定目录的 code-index.bin 文件（二进制格式）
+    /// 将索引存储序列化保存到 IKvStore（LSM-Tree，二进制格式）
     /// </summary>
     public async Task SaveAsync(string directory, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(directory);
@@ -127,22 +127,17 @@ public sealed class GraphPersistence : ServiceEntity, IIndexStore {
         }
 
         bw.Flush();
-        _fs.CreateDirectory(directory);
-        var path = Path.Combine(directory, FileName);
-        await _fs.WriteAllBytesAsync(path, ms.ToArray(), ct).ConfigureAwait(false);
+        await _kvStore.PutAsync(KeyCodeIndex, ms.ToArray(), ct).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// 从指定目录加载 code-index.bin 并重建索引存储
+    /// 从 IKvStore 加载并重建索引存储
     /// </summary>
     public async Task<bool> LoadAsync(string directory, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(directory);
-        var path = Path.Combine(directory, FileName);
+        var bytes = await _kvStore.GetAsync(KeyCodeIndex, ct).ConfigureAwait(false);
+        if (bytes is null) return false;
 
-        if (!_fs.FileExists(path))
-            return false;
-
-        var bytes = await _fs.ReadAllBytesAsync(path, ct).ConfigureAwait(false);
         await using var ms = new MemoryStream(bytes, writable: false);
         using var br = new BinaryReader(ms, System.Text.Encoding.UTF8);
 
@@ -258,10 +253,10 @@ public sealed class GraphPersistence : ServiceEntity, IIndexStore {
     /// <summary>
     /// 检查指定目录是否存在持久化索引文件
     /// </summary>
-    public Task<bool> ExistsAsync(string directory, CancellationToken ct) {
+    public async Task<bool> ExistsAsync(string directory, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(directory);
-        var path = Path.Combine(directory, FileName);
-        return Task.FromResult(_fs.FileExists(path));
+        var bytes = await _kvStore.GetAsync(KeyCodeIndex, ct).ConfigureAwait(false);
+        return bytes is not null;
     }
 
     private static void WriteNullableString(BinaryWriter bw, string? s) {

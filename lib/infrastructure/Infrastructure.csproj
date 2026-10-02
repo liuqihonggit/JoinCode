@@ -53,6 +53,10 @@
     <PackageReference Include="YamlDotNet" Version="$(YamlDotNetVersion)" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)lib/pithosdb/PithosDB.Core.csproj" />
+  </ItemGroup>
+
 
 
   </Project>

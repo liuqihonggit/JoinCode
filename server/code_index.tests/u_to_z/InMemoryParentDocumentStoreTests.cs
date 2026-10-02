@@ -22,7 +22,7 @@ public sealed class InMemoryParentDocumentStoreTests {
 
     [Fact]
     public void Add_SingleDocument_CountIncreases() {
-        using var store = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
         store.Count.Should().Be(0);
         store.Add(CreateDoc());
         store.Count.Should().Be(1);
@@ -30,7 +30,7 @@ public sealed class InMemoryParentDocumentStoreTests {
 
     [Fact]
     public void Add_OverwriteSameChunkId_ReplacesDocument() {
-        using var store = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
         store.Add(CreateDoc(sourceText: "class A { }"));
         store.Add(CreateDoc(sourceText: "class B { }"));
         store.Count.Should().Be(1);
@@ -39,7 +39,7 @@ public sealed class InMemoryParentDocumentStoreTests {
 
     [Fact]
     public void Get_ExistingChunkId_ReturnsDocument() {
-        using var store = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
         store.Add(CreateDoc());
         var doc = store.Get("parent-001");
         doc.Should().NotBeNull();
@@ -48,13 +48,13 @@ public sealed class InMemoryParentDocumentStoreTests {
 
     [Fact]
     public void Get_NonExistingChunkId_ReturnsNull() {
-        using var store = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
         store.Get("nonexistent").Should().BeNull();
     }
 
     [Fact]
     public void AddRange_BatchInsert_AllAccessible() {
-        using var store = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var docs = new[] {
             CreateDoc(chunkId: "p1", filePath: "a.cs"),
             CreateDoc(chunkId: "p2", filePath: "b.cs"),
@@ -69,7 +69,7 @@ public sealed class InMemoryParentDocumentStoreTests {
 
     [Fact]
     public void Remove_SingleChunkId_DeletesDocument() {
-        using var store = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
         store.Add(CreateDoc());
         store.Remove("parent-001");
         store.Count.Should().Be(0);
@@ -78,14 +78,14 @@ public sealed class InMemoryParentDocumentStoreTests {
 
     [Fact]
     public void Remove_NonExistingChunkId_NoOp() {
-        using var store = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
         store.Remove("nonexistent");
         store.Count.Should().Be(0);
     }
 
     [Fact]
     public void RemoveFile_DeletesAllDocsForFile() {
-        using var store = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
         store.Add(CreateDoc(chunkId: "p1", filePath: "a.cs"));
         store.Add(CreateDoc(chunkId: "p2", filePath: "a.cs"));
         store.Add(CreateDoc(chunkId: "p3", filePath: "b.cs"));
@@ -98,7 +98,7 @@ public sealed class InMemoryParentDocumentStoreTests {
 
     [Fact]
     public void RemoveFile_NonExistingFile_NoOp() {
-        using var store = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
         store.Add(CreateDoc());
         store.RemoveFile("nonexistent.cs");
         store.Count.Should().Be(1);
@@ -106,7 +106,7 @@ public sealed class InMemoryParentDocumentStoreTests {
 
     [Fact]
     public void Clear_RemovesAllDocuments() {
-        using var store = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
         store.Add(CreateDoc(chunkId: "p1"));
         store.Add(CreateDoc(chunkId: "p2", filePath: "b.cs"));
         store.Clear();
@@ -115,14 +115,14 @@ public sealed class InMemoryParentDocumentStoreTests {
 
     [Fact]
     public void Add_NullDocument_Throws() {
-        using var store = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var act = () => store.Add(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
     public void Get_NullChunkId_Throws() {
-        using var store = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var act = () => store.Get(null!);
         act.Should().Throw<ArgumentNullException>();
     }

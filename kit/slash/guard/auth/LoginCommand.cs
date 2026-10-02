@@ -130,7 +130,7 @@ public sealed class LoginCommand : ChatCommandBase {
             var pkce = services.PkceGenerator.Generate();
             var state = Guid.NewGuid().ToString("N");
 
-            using var httpClient = Infrastructure.Http.HttpClientProviderFactory.Create().GetClient();
+            using var httpClient = HttpClientProviderFactory.Create().GetClient();
             await using var oauthClient = new OAuthClient(httpClient, null);
 
             var authUrl = oauthClient.BuildAuthorizationUrl(config, state, pkce);

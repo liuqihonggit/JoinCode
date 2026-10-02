@@ -145,6 +145,7 @@ public sealed class GraphToolHandlers {
     /// </summary>
     /// <param name="center_symbol">中心符号名称</param>
     /// <param name="hops">跳数（半径）</param>
+    /// <param name="max_edges">最大返回边数（默认 50，传更大值获取更多）</param>
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含子图节点和边的工具结果</returns>
@@ -152,6 +153,7 @@ public sealed class GraphToolHandlers {
     public async Task<ToolResult> ExtractSubgraphAsync(
         [McpToolParameter("Center symbol name")] string center_symbol,
         [McpToolParameter("Number of hops (radius, default 2)")] int hops = 2,
+        [McpToolParameter("Maximum edges to return (default 50, pass larger to see more)")] int max_edges = 50,
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(center_symbol))
@@ -162,7 +164,9 @@ public sealed class GraphToolHandlers {
             var result = await indexer.Analytics.ExtractSubgraphAsync(center_symbol, hops, cancellationToken).ConfigureAwait(false);
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"Subgraph centered on '{result.CenterSymbol}' ({result.Hops} hops): {result.Nodes.Count} nodes, {result.Edges.Count} edges");
+            var totalEdges = result.Edges.Count;
+            var edgesToShow = max_edges > 0 ? result.Edges.Take(max_edges).ToList() : result.Edges;
+            sb.AppendLine($"Subgraph centered on '{result.CenterSymbol}' ({result.Hops} hops): {result.Nodes.Count} nodes, {totalEdges} edges");
             sb.AppendLine();
 
             sb.AppendLine("Nodes:");
@@ -171,8 +175,15 @@ public sealed class GraphToolHandlers {
             sb.AppendLine();
 
             sb.AppendLine("Edges:");
-            foreach (var edge in result.Edges)
+            foreach (var edge in edgesToShow)
                 sb.AppendLine($"  {edge.CallerSymbol} -> {edge.CalleeSymbol} [{edge.CallKind}]");
+            if (totalEdges > edgesToShow.Count)
+                sb.AppendLine($"  ... and {totalEdges - edgesToShow.Count} more (pass max_edges={totalEdges} to see all)");
+            sb.AppendLine();
+
+            sb.AppendLine("Triples:");
+            foreach (var edge in edgesToShow)
+                sb.AppendLine($"  ({edge.CallerSymbol}, calls, {edge.CalleeSymbol})");
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         } catch (Exception ex) {
@@ -404,6 +415,13 @@ public sealed class GraphToolHandlers {
                     sb.AppendLine($"     └─[{result.PathEdges[i].CallKind}]→");
             }
 
+            if (result.PathEdges.Count > 0) {
+                sb.AppendLine();
+                sb.AppendLine("Triples:");
+                for (var i = 0; i < result.PathEdges.Count; i++)
+                    sb.AppendLine($"  ({result.PathNodes[i]}, calls, {result.PathNodes[i + 1]})");
+            }
+
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Path search failed: {ex.Message}").Build();
@@ -414,12 +432,14 @@ public sealed class GraphToolHandlers {
     /// 解释符号在代码库中的角色和关系（调用方、被调用方、社区、同文件符号）
     /// </summary>
     /// <param name="symbol_name">要解释的符号名称</param>
+    /// <param name="limit">每类最大返回数（默认 5，传更大值获取更多）</param>
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含符号角色和关系信息的工具结果</returns>
     [McpTool(CodeToolNameEnumConstants.GraphExplain, "Explain a symbol's role and relationships in the codebase (callers, callees, community, same-file)", "graph")]
     public async Task<ToolResult> ExplainAsync(
         [McpToolParameter("Symbol name to explain")] string symbol_name,
+        [McpToolParameter("Maximum items per category (default 5, pass larger to see more)")] int limit = 5,
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(symbol_name))
@@ -438,39 +458,56 @@ public sealed class GraphToolHandlers {
             sb.AppendLine($"Degree: in={result.InDegree}, out={result.OutDegree}");
             sb.AppendLine();
 
+            var triples = new List<(string Subject, string Predicate, string Object)>();
+
             if (result.Callers.Count > 0) {
                 sb.AppendLine($"Callers ({result.Callers.Count}):");
-                foreach (var c in result.Callers.Take(15))
+                foreach (var c in result.Callers.Take(limit)) {
                     sb.AppendLine($"  ← {c}");
-                if (result.Callers.Count > 15)
-                    sb.AppendLine($"  ... and {result.Callers.Count - 15} more");
+                    triples.Add((c, "calls", result.SymbolName));
+                }
+                if (result.Callers.Count > limit)
+                    sb.AppendLine($"  ... and {result.Callers.Count - limit} more (pass limit={result.Callers.Count} to see all)");
                 sb.AppendLine();
             }
 
             if (result.Callees.Count > 0) {
                 sb.AppendLine($"Callees ({result.Callees.Count}):");
-                foreach (var c in result.Callees.Take(15))
+                foreach (var c in result.Callees.Take(limit)) {
                     sb.AppendLine($"  → {c}");
-                if (result.Callees.Count > 15)
-                    sb.AppendLine($"  ... and {result.Callees.Count - 15} more");
+                    triples.Add((result.SymbolName, "calls", c));
+                }
+                if (result.Callees.Count > limit)
+                    sb.AppendLine($"  ... and {result.Callees.Count - limit} more (pass limit={result.Callees.Count} to see all)");
                 sb.AppendLine();
             }
 
             if (result.SameCommunity.Count > 0) {
                 sb.AppendLine($"Same community ({result.SameCommunity.Count}):");
-                foreach (var c in result.SameCommunity.Take(10))
+                foreach (var c in result.SameCommunity.Take(limit)) {
                     sb.AppendLine($"  ~ {c}");
-                if (result.SameCommunity.Count > 10)
-                    sb.AppendLine($"  ... and {result.SameCommunity.Count - 10} more");
+                    triples.Add((result.SymbolName, "sameCommunity", c));
+                }
+                if (result.SameCommunity.Count > limit)
+                    sb.AppendLine($"  ... and {result.SameCommunity.Count - limit} more (pass limit={result.SameCommunity.Count} to see all)");
                 sb.AppendLine();
             }
 
             if (result.SameFile.Count > 0) {
                 sb.AppendLine($"Same file ({result.SameFile.Count}):");
-                foreach (var c in result.SameFile.Take(10))
+                foreach (var c in result.SameFile.Take(limit)) {
                     sb.AppendLine($"  # {c}");
-                if (result.SameFile.Count > 10)
-                    sb.AppendLine($"  ... and {result.SameFile.Count - 10} more");
+                    triples.Add((result.SymbolName, "sameFile", c));
+                }
+                if (result.SameFile.Count > limit)
+                    sb.AppendLine($"  ... and {result.SameFile.Count - limit} more (pass limit={result.SameFile.Count} to see all)");
+            }
+
+            if (triples.Count > 0) {
+                sb.AppendLine();
+                sb.AppendLine("Triples:");
+                foreach (var (s, p, o) in triples)
+                    sb.AppendLine($"  ({s}, {p}, {o})");
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();

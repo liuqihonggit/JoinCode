@@ -298,6 +298,12 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
     }
 
     /// <inheritdoc />
+    public IMemoryMappedRead OpenMemoryMappedRead(string path) {
+        var bytes = ReadAllBytesCore(path);
+        return new InMemoryMemoryMappedRead(bytes);
+    }
+
+    /// <inheritdoc />
     public Stream Open(string path, FileMode mode) {
         var normalizedPath = NormalizePath(path);
         var exists = _files.ContainsKey(normalizedPath);

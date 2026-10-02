@@ -5,7 +5,7 @@
   <RootNamespace>Infra.IO.Tests</RootNamespace>
     <AssemblyName>JoinCode.Infra.IO.Tests</AssemblyName>
     <Description>JoinCode Infrastructure IO 单元测试</Description>
-    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012;JCC9001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,6 +24,7 @@
     <Compile Include="..\Http\**\*.cs" />
     <Compile Include="..\Subprocess\**\*.cs" />
     <Compile Include="..\file_ops\**\*.cs" />
+    <Compile Include="..\persistence\**\*.cs" />
     <Compile Include="..\GlobalUsings.cs" Link="GlobalUsings.cs" />
     <None Include="..\test_data\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

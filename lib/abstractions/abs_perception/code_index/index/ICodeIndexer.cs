@@ -34,7 +34,7 @@ public interface ICodeIndexer {
 
     /// <summary>
     /// 自动加载已持久化的索引(若存在且尚未加载)。
-    /// 统一加载符号索引(code-index.bin) + 向量索引(vector_index.bin) + 父文档(parent_docs.bin)。
+    /// 统一加载符号索引(IKvStore) + 向量索引(LSM-Tree) + 父文档(IKvStore)。
     /// persistDir 为 null 时从当前工作目录向上发现 .git 根,加载 &lt;root&gt;/.jcc/code-index/。
     /// persistDir 不为 null 时从指定目录加载（支持外部持久化路径重定向）。
     /// 用 Interlocked 保证只执行一次,后续调用立即返回。跨进程索引复用的入口。

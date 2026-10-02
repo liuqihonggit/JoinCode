@@ -19,7 +19,7 @@ public sealed class VectorIndexE2ETests : IDisposable {
         _store = new InMemoryIndexStore();
         _fs = new IO.FileSystem.InMemoryFileSystem();
         _realFs = new PhysicalFileSystem();
-        _parentStore = new InMemoryParentDocumentStore(_realFs);
+        _parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
 
         var appData = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

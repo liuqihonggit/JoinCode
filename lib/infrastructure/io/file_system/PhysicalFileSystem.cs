@@ -159,6 +159,10 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
         => new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
     /// <inheritdoc />
+    public IMemoryMappedRead OpenMemoryMappedRead(string path)
+        => new PhysicalMemoryMappedRead(path);
+
+    /// <inheritdoc />
     public Stream Open(string path, FileMode mode)
         => new FileStream(path, mode, FileAccess.ReadWrite, FileShare.ReadWrite);
 

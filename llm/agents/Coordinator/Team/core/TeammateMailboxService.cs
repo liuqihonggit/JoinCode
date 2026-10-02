@@ -1,7 +1,7 @@
 namespace Core.Agents.Coordinator;
 
 /// <summary>队友邮箱服务 — 基于 MailboxActor 串行化写操作，无锁防死锁。
-/// <para>crossProcess=true 时，Actor 内部用 FileMailboxLock 跨进程互斥，支持多 jcc.exe 进程并发。</para>
+/// <para>crossProcess=true 时，Actor 内部用 NamedMutexMailboxLock 跨进程互斥，支持多 jcc.exe 进程并发。</para>
 /// <para>crossProcess=false 时（默认），纯 Actor 串行化，零锁零跨进程开销。</para>
 /// <para>写操作通过 Actor 邮箱消息传递串行化，读操作直接读文件（幂等）。</para>
 /// </summary>

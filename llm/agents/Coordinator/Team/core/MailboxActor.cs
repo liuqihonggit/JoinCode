@@ -13,7 +13,7 @@ internal sealed record MarkAsReadCmd(HashSet<string> MessageIds, TaskCompletionS
 
 /// <summary>
 /// 邮箱 Actor — 单 Consumer 线程独占访问邮箱文件，无锁串行化写操作。
-/// <para>crossProcess=true 时，写操作用 FileMailboxLock 跨进程互斥。</para>
+/// <para>crossProcess=true 时，写操作用 NamedMutexMailboxLock 跨进程互斥。</para>
 /// <para>crossProcess=false 时，纯进程内 Actor 串行化，零锁零跨进程开销。</para>
 /// </summary>
 internal sealed class MailboxActor : ActorBase<MailboxCommand, Unit> {
@@ -58,7 +58,7 @@ internal sealed class MailboxActor : ActorBase<MailboxCommand, Unit> {
     private async ValueTask AppendMessageCoreAsync(MailboxMessage message, CancellationToken ct) {
         var line = JsonSerializer.Serialize(message, MailboxJsonContext.Default.CoordinatorMessage);
         if (_crossProcess) {
-            await using var fileLock = await FileMailboxLock.AcquireAsync(_filePath, TimeSpan.FromSeconds(30), ct, _logger).ConfigureAwait(false);
+            await using var fileLock = await NamedMutexMailboxLock.AcquireAsync(_filePath, TimeSpan.FromSeconds(30), ct, _logger).ConfigureAwait(false);
             await _fs.AppendAllTextAsync(_filePath, line + '\n', ct).ConfigureAwait(false);
         } else {
             await _fs.AppendAllTextAsync(_filePath, line + '\n', ct).ConfigureAwait(false);
@@ -90,7 +90,7 @@ internal sealed class MailboxActor : ActorBase<MailboxCommand, Unit> {
         if (!modified) return;
 
         if (_crossProcess) {
-            await using var fileLock = await FileMailboxLock.AcquireAsync(_filePath, TimeSpan.FromSeconds(30), ct, _logger).ConfigureAwait(false);
+            await using var fileLock = await NamedMutexMailboxLock.AcquireAsync(_filePath, TimeSpan.FromSeconds(30), ct, _logger).ConfigureAwait(false);
             await RewriteFileCoreAsync(messages, ct).ConfigureAwait(false);
         } else {
             await RewriteFileCoreAsync(messages, ct).ConfigureAwait(false);

@@ -3,23 +3,24 @@ namespace JoinCode.CodeIndex.Embedding;
 /// <summary>
 /// 内存父文档存储 — 纯内存实现，无锁并发安全（ImmutableHamT + CAS）。
 /// <para>父文档检索：向量库存小块，召回小块后通过 ParentChunkId 查此存储取父文档原文。</para>
-/// <para>进程退出释放，下次重建（纯内存无持久化）。</para>
+/// <para>持久化通过 IKvStore（9LSM-Tree）存储，不再用 bin 文件。</para>
 /// <para>读操作完全无锁 O(log₃₂ N) 查找；写操作 CAS 路径复制，读多写少场景最优。</para>
 /// </summary>
 public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexStore, IDisposable {
 
-    private readonly IFileSystem _fs;
+    private readonly IKvStore _kvStore;
     private volatile ImmutableHamT<string, ParentDocument> _documents = ImmutableHamT<string, ParentDocument>.Empty;
     private volatile ImmutableHamT<string, ImmutableHashSet<string>> _fileToDocs = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
     private int _disposed;
+    private static readonly byte[] KeyParentDocs = System.Text.Encoding.UTF8.GetBytes("parent-docs");
 
     /// <summary>
     /// 构造内存父文档存储。
     /// </summary>
-    /// <param name="fs">文件系统抽象。</param>
-    public InMemoryParentDocumentStore(IFileSystem fs) {
-        ArgumentNullException.ThrowIfNull(fs);
-        _fs = fs;
+    /// <param name="kvStore">KV 存储抽象 — 用于持久化。</param>
+    public InMemoryParentDocumentStore(IKvStore kvStore) {
+        ArgumentNullException.ThrowIfNull(kvStore);
+        _kvStore = kvStore;
     }
 
     /// <summary>索引类型标识。</summary>
@@ -117,9 +118,9 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
     }
 
     /// <summary>
-    /// 持久化父文档到目录 — 写 parent_docs.bin 二进制文件。
+    /// 持久化父文档到 IKvStore（LSM-Tree）。
     /// </summary>
-    /// <param name="dirPath">目标目录路径。</param>
+    /// <param name="dirPath">目标目录路径（保留接口兼容，KV 存储自管理目录）。</param>
     /// <param name="ct">取消令牌。</param>
     public async Task SaveAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
@@ -140,23 +141,20 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
             bw.Write(doc.IsTruncated);
         }
         bw.Flush();
-        _fs.CreateDirectory(dirPath);
-        var filePath = Path.Combine(dirPath, "parent_docs.bin");
-        await _fs.WriteAllBytesAsync(filePath, ms.ToArray(), ct).ConfigureAwait(false);
+        await _kvStore.PutAsync(KeyParentDocs, ms.ToArray(), ct).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// 从目录加载父文档 — 读 parent_docs.bin。
+    /// 从 IKvStore 加载父文档。
     /// </summary>
-    /// <param name="dirPath">源目录路径。</param>
+    /// <param name="dirPath">源目录路径（保留接口兼容）。</param>
     /// <param name="ct">取消令牌。</param>
-    /// <returns>true 表示加载成功；false 表示文件不存在或格式不匹配。</returns>
+    /// <returns>true 表示加载成功；false 表示数据不存在或格式不匹配。</returns>
     public async Task<bool> LoadAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
-        var filePath = Path.Combine(dirPath, "parent_docs.bin");
-        if (!_fs.FileExists(filePath)) return false;
+        var bytes = await _kvStore.GetAsync(KeyParentDocs, ct).ConfigureAwait(false);
+        if (bytes is null) return false;
 
-        var bytes = await _fs.ReadAllBytesAsync(filePath, ct).ConfigureAwait(false);
         await using var ms = new MemoryStream(bytes, writable: false);
         using var br = new BinaryReader(ms, System.Text.Encoding.UTF8);
         var magic = System.Text.Encoding.UTF8.GetString(br.ReadBytes(7));
@@ -180,12 +178,12 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
     }
 
     /// <summary>
-    /// 检查指定目录是否存在父文档持久化文件。
+    /// 检查 IKvStore 中是否存在父文档持久化数据。
     /// </summary>
-    public Task<bool> ExistsAsync(string dirPath, CancellationToken ct) {
+    public async Task<bool> ExistsAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
-        var filePath = Path.Combine(dirPath, "parent_docs.bin");
-        return Task.FromResult(_fs.FileExists(filePath));
+        var bytes = await _kvStore.GetAsync(KeyParentDocs, ct).ConfigureAwait(false);
+        return bytes is not null;
     }
 
     private static void WriteString(BinaryWriter bw, string s) {

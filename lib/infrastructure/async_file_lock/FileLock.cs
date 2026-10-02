@@ -1,16 +1,16 @@
 namespace AsyncFileLock;
 
 /// <summary>
-/// 异步文件锁 — 委托 FileMailboxLock 实现跨进程互斥
+/// 异步文件锁 — 委托 NamedMutexMailboxLock 实现跨进程互斥
 /// </summary>
 internal sealed class FileLock : System.IAsyncDisposable {
-    private readonly FileMailboxLock _inner;
+    private readonly NamedMutexMailboxLock _inner;
     private int _disposed;
 
     /// <summary>已锁定的文件绝对路径</summary>
     public string FilePath { get; }
 
-    private FileLock(FileMailboxLock inner) {
+    private FileLock(NamedMutexMailboxLock inner) {
         _inner = inner;
         FilePath = inner.FilePath;
     }
@@ -28,7 +28,7 @@ internal sealed class FileLock : System.IAsyncDisposable {
         TimeSpan timeout,
         CancellationToken cancellationToken = default,
         ILogger? logger = null) {
-        var inner = await FileMailboxLock.AcquireAsync(filePath, timeout, cancellationToken, logger).ConfigureAwait(false);
+        var inner = await NamedMutexMailboxLock.AcquireAsync(filePath, timeout, cancellationToken, logger).ConfigureAwait(false);
         return new FileLock(inner);
     }
 
@@ -43,8 +43,9 @@ internal sealed class FileLock : System.IAsyncDisposable {
     /// <summary>
     /// 同步释放文件锁，语义与 DisposeAsync 等价
     /// </summary>
-    internal async ValueTask Release() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        await _inner.Release().ConfigureAwait(false);
+    internal ValueTask Release() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        _inner.Release();
+        return ValueTask.CompletedTask;
     }
 }

@@ -93,6 +93,15 @@ public interface IFileSystem {
     /// <summary>打开文件读取流 — 对齐 File.OpenRead</summary>
     Stream OpenRead(string path);
 
+    /// <summary>
+    /// 内存映射只读打开 — 零拷贝文件访问。
+    /// <para>生产: MemoryMappedFile 映射；测试: byte[] 内存。</para>
+    /// <para>调用方负责 Dispose。AsSpan 返回的 span 在 Dispose 前有效。</para>
+    /// </summary>
+    /// <param name="path">文件路径。</param>
+    /// <returns>内存映射只读视图。</returns>
+    IMemoryMappedRead OpenMemoryMappedRead(string path);
+
     /// <summary>打开文件流 — 对齐 File.Open</summary>
     Stream Open(string path, FileMode mode);
 

@@ -223,7 +223,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_WithParentStore_ReturnsParentDocumentText() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -266,7 +266,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_ParentStoreMissingDoc_ParentDocumentTextIsNull() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -281,7 +281,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_ChunkWithoutParent_ParentDocumentTextIsNull() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -296,7 +296,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_IncludeSourceText_ReturnsSourceText() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -323,7 +323,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_DefaultOptions_ParentDocumentTextIsNull() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -346,7 +346,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_IncludeParentDocumentFalse_ParentDocumentTextIsNull() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -370,7 +370,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_BothOptionsTrue_ReturnsBothSourceTextAndParent() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -444,5 +444,64 @@ public sealed class EmbeddingIndexTests {
         var results = await index.SearchAsync("Foo", 10, CancellationToken.None,
             new SearchOptions { FileType = "cs" });
         Assert.DoesNotContain(results, r => r.FilePath.EndsWith(".md"));
+    }
+
+    [Fact]
+    public async Task SaveLoadLsm_RoundTrip_PreservesData() {
+        TestFileSystem.UseRealFileSystem = true;
+        try {
+            await using var index = CreateIndex();
+            var chunks = new List<ChunkInfo> {
+                CreateChunk("c1", "Test.A", file: "a.cs", start: 1, end: 10, hash: "h1", text: "void A() {}"),
+                CreateChunk("c2", "Test.B", file: "b.cs", start: 5, end: 20, hash: "h2", text: "void B() {}"),
+                CreateChunk("c3", "Test.C", file: "c.cs", start: 1, end: 5, hash: "h3", text: "void C() {}")
+            };
+            await index.IndexChunksAsync(chunks, CancellationToken.None);
+            Assert.Equal(3, index.ChunkCount);
+
+            var dir = Path.Combine(Path.GetTempPath(), $"test_lsm_idx_{Guid.NewGuid():N}");
+            await index.SaveAsync(dir, CancellationToken.None);
+
+            await using var index2 = CreateIndex();
+            var loaded = await index2.LoadAsync(dir, CancellationToken.None);
+            Assert.True(loaded);
+            Assert.Equal(3, index2.ChunkCount);
+            Assert.Equal(IndexStatus.Ready, index2.Status);
+        }
+        finally {
+            TestFileSystem.UseRealFileSystem = false;
+        }
+    }
+
+    [Fact]
+    public async Task SaveLoadLsm_LargeDataset_PreservesCount() {
+        TestFileSystem.UseRealFileSystem = true;
+        try {
+            await using var index = CreateIndex();
+            var chunks = new List<ChunkInfo>();
+            for (var i = 0; i < 300; i++) {
+                chunks.Add(CreateChunk($"c{i}", $"Test.N{i}", file: $"f{i}.cs", start: i, end: i + 10, hash: $"h{i}", text: $"void N{i}() {{}}"));
+            }
+            await index.IndexChunksAsync(chunks, CancellationToken.None);
+            Assert.Equal(300, index.ChunkCount);
+
+            var dir = Path.Combine(Path.GetTempPath(), $"test_lsm_large_{Guid.NewGuid():N}");
+            await index.SaveAsync(dir, CancellationToken.None);
+
+            await using var index2 = CreateIndex();
+            var loaded = await index2.LoadAsync(dir, CancellationToken.None);
+            Assert.True(loaded);
+            Assert.Equal(300, index2.ChunkCount);
+        }
+        finally {
+            TestFileSystem.UseRealFileSystem = false;
+        }
+    }
+
+    [Fact]
+    public async Task LoadLsm_FileNotExists_ReturnsFalse() {
+        await using var index = CreateIndex();
+        var loaded = await index.LoadAsync("nonexistent_dir_lsm", CancellationToken.None);
+        Assert.False(loaded);
     }
 }

@@ -59,6 +59,13 @@ public static partial class ServiceRegistration {
             .Validate(config => ServiceRegistrationConfigValidator.ValidateFileOperationConfig(config), L.T(StringKey.FileOperationConfigValidationFailed))
             .ValidateOnStart();
 
+        // IKvStore — 根据 JCC_FILE_SYSTEM_MODE 环境变量决定后端
+        // 默认 PithosKvStore（LSM-Tree 磁盘持久化），InMemory=纯内存（调试/E2E测试用）
+        services.AddEnvSwitch<IKvStore>(
+            JccEnvVar.FileSystemMode, "InMemory",
+            _ => new InMemoryKvStore(),
+            _ => new PithosKvStore(Path.Combine(AppDataConstants.Paths.JccDirectory, "kvstore")));
+
         // FileOperationConfig — 直接注册供 FileOperationService 构造函数使用
         // （FileOperationService 有手动构造函数，不使用 生成器）
         services.AddSingleton(sp => {

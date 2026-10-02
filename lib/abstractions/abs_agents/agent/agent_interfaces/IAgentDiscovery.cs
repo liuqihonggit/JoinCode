@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 跨进程 Agent 发现接口 — 本机 agent 注册、心跳、发现
 /// <para>每个 jcc.exe 进程启动时注册自己的 agent，其他进程可查询发现所有活跃 agent。</para>
-/// <para>注册表持久化到 ~/.jcc/agents/registry.json，用 FileMailboxLock 保护写入。</para>
+/// <para>注册表持久化到 ~/.jcc/agents/registry.json，用 NamedMutexMailboxLock 保护写入。</para>
 /// <para>心跳超时（默认30秒）的 agent 自动注销。</para>
 /// </summary>
 public interface IAgentDiscovery : IAsyncDisposable {

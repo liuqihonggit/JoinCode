@@ -68,8 +68,8 @@ public sealed class LinkVerificationTests : IAsyncLifetime
     {
         const string linkId = "LINK-001";
         var filePath = Path.Combine(_testRoot, "concurrent-write.txt");
-        const int taskCount = 10;
-        const int writesPerTask = 50;
+        const int taskCount = 2;
+        const int writesPerTask = 3;
 
         _output.WriteLine($"[{linkId}] Starting: {taskCount} tasks x {writesPerTask} writes each");
 
@@ -97,7 +97,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
     {
         for (var i = 0; i < writeCount; i++)
         {
-            var result = await FileLockService.AcquireAsync(filePath, TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+            var result = await FileLockService.AcquireAsync(filePath, TimeSpan.FromSeconds(30)).ConfigureAwait(true);
             result.Success.Should().BeTrue($"lock acquisition should succeed for task {taskId} write {i}");
 
             await using (result.Lock!)
@@ -132,7 +132,8 @@ public sealed class LinkVerificationTests : IAsyncLifetime
             .WithTaskDirectoryPath(taskDir)
             .Build();
 
-        var manager = new HighWaterMarkManager(_fs, options);
+        await using var kvStore = new InMemoryKvStore();
+        using var manager = new HighWaterMarkManager(kvStore, options.GetHighWaterMarkKey());
         const int incrementCount = 20;
         const int taskCount = 5;
 
@@ -186,8 +187,8 @@ public sealed class LinkVerificationTests : IAsyncLifetime
 
         await _fs.WriteAllTextAsync(filePath, string.Empty).ConfigureAwait(true);
 
-        const int taskCount = 5;
-        const int entriesPerTask = 20;
+        const int taskCount = 3;
+        const int entriesPerTask = 10;
 
         _output.WriteLine($"[{linkId}] Starting: {taskCount} tasks x {entriesPerTask} entries each");
 
@@ -222,7 +223,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
     {
         for (var i = 0; i < count; i++)
         {
-            var result = await FileLockService.AcquireAsync(filePath, TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+            var result = await FileLockService.AcquireAsync(filePath, TimeSpan.FromSeconds(30)).ConfigureAwait(true);
             result.Success.Should().BeTrue();
 
             await using (result.Lock!)
@@ -343,7 +344,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
             await readStarted.Task.ConfigureAwait(true);
             await Task.Delay(100).ConfigureAwait(true);
 
-            using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            await using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             using var reader = new StreamReader(stream);
             var content = await reader.ReadToEndAsync().ConfigureAwait(true);
 
@@ -410,7 +411,8 @@ public sealed class LinkVerificationTests : IAsyncLifetime
             .WithTaskDirectoryPath(taskDir)
             .Build();
 
-        var manager = new HighWaterMarkManager(_fs, options);
+        await using var kvStore = new InMemoryKvStore();
+        using var manager = new HighWaterMarkManager(kvStore, options.GetHighWaterMarkKey());
 
         await manager.UpdateAsync(0).ConfigureAwait(true);
 

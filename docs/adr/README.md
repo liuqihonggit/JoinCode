@@ -244,7 +244,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0104](0104-write-defense-extract-public-node.md) | 写防御 — 提取公共节点 | accepted | 2026-09-14 |
 | [0105](0105-desktop-scene-orchestration.md) | 桌面情景模式编排层 — 场景菜单+工具链路推荐+状态持久化 | accepted | 2026-09-14 |
 | [0106](0106-subagent-stall-defense-in-depth.md) | 子代理卡死防护纵深防御体系 — L1预防+L2检测+L3干预+L4恢复 | accepted | 2026-09-15 |
-| [0107](0107-file-mailbox-lock-replace-mutex.md) | 文件邮箱锁替代跨进程共享锁 + Actor 邮箱模型 + Agent 发现 | accepted | 2026-09-15 |
+| [0107](0107-file-mailbox-lock-replace-mutex.md) | 文件邮箱锁替代跨进程共享锁 + Actor 邮箱模型 + Agent 发现 | superseded by 0128 | 2026-09-15 |
 | [0108](0108-dispose-consistency-analyzer-rules.md) | Dispose 一致性分析器规则与 OnDispose 间接层消除 | accepted | 2026-09-16 |
 | [0109](0109-window-shake-notification-and-bot-name.md) | 窗口震动通知与机器人名称 | accepted | 2026-09-16 |
 | [0110](0110-platform-bot-adapter-pattern.md) | 平台机器人适配器模式 | accepted | 2026-09-16 |
@@ -262,6 +262,9 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0123](0123-vector-symbol-hybrid-code-index.md) | 向量+符号混合代码索引架构 | accepted | 2026-09-30 |
 | [0124](0124-embedding-model-auto-download.md) | 向量模型缺失自动下载（双源竞赛 HF+hf-mirror） | accepted | 2026-10-01 |
 | [0125](0125-search-rerank-graph-weighting.md) | 语义搜索重排序与图谱加权 | proposed | 2026-10-01 |
+| [0126](0126-hnsw-ann-search.md) | HNSW 近似最近邻搜索替代暴力搜索 | accepted | 2026-10-01 |
+| [0127](0127-skiplist-incremental-index.md) | 跳表索引表用于增量索引 | accepted | 2026-10-01 |
+| [0128](0128-named-mutex-replace-file-mailbox-lock.md) | 命名 Mutex 替代文件邮箱锁（回归内核 Mutex） | accepted | 2026-10-02 |
 
 ## 主题索引（按议题）
 
@@ -494,7 +497,8 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0104](0104-write-defense-extract-public-node.md) | 写入防御链公共化 | 一切皆为 node/插件 |
 | [0105](0105-desktop-scene-orchestration.md) | 桌面情景模式编排 | 场景菜单 + 工具链路推荐 + 状态持久化 |
 | [0106](0106-subagent-stall-defense-in-depth.md) | 子代理卡死防护 | 纵深防御体系 |
-| [0107](0107-file-mailbox-lock-replace-mutex.md) | 文件邮箱锁替代 Mutex | Actor 邮箱模型 + Agent 发现 |
+| [0107](0107-file-mailbox-lock-replace-mutex.md) | 文件邮箱锁替代 Mutex（已废弃，锁机制由 0128 代替） | Actor 邮箱模型 + Agent 发现 |
+| [0128](0128-named-mutex-replace-file-mailbox-lock.md) | 命名 Mutex 替代文件邮箱锁 | 回归内核 Mutex，消除杀毒软件 flaky |
 | [0108](0108-dispose-consistency-analyzer-rules.md) | Dispose 一致性分析器 | JCC9103/9104/9107 规则 + OnDispose 间接层消除 |
 | [0109](0109-window-shake-notification-and-bot-name.md) | 窗口震动通知 | 子代理 bot 中文名 |
 | [0110](0110-platform-bot-adapter-pattern.md) | 平台机器人适配器 | IPlatformBotAdapter 抽象 QQ/飞书/Discord |

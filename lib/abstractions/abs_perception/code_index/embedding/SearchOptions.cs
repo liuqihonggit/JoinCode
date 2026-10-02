@@ -14,4 +14,8 @@ public sealed record SearchOptions {
     public bool IncludeParentDocument { get; init; }
     /// <summary>文件类型过滤 — 传 "cs" 只返回 .cs 文件结果，传 "md" 只返回 .md 文档结果，null（默认）返回全部。</summary>
     public string? FileType { get; init; }
+    /// <summary>命名空间过滤 — 传 "JoinCode.CodeIndex" 只返回该命名空间下的结果，null（默认）返回全部。支持前缀匹配。</summary>
+    public string? Namespace { get; init; }
+    /// <summary>符号类型过滤 — 传 "Method" 只返回方法符号，传 "Class" 只返回类符号，null（默认）返回全部。</summary>
+    public string? SymbolKind { get; init; }
 }

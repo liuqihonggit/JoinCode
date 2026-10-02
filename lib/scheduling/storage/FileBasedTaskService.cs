@@ -32,7 +32,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
         _taskFileWriter = fileOps.TaskFileWriter ?? throw new ArgumentNullException(nameof(fileOps), "TaskFileWriter cannot be null");
         _taskFileReader = fileOps.TaskFileReader ?? throw new ArgumentNullException(nameof(fileOps), "TaskFileReader cannot be null");
         _logger = logger;
-        _highWaterMarkManager = new HighWaterMarkManager(fileOps.FileSystem, _options);
+        _highWaterMarkManager = new HighWaterMarkManager(fileOps.KvStore, _options.GetHighWaterMarkKey());
 
     }
 
@@ -384,9 +384,8 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
             .DefaultIfEmpty(0)
             .Max();
 
-        // 更新高水位标记
-        var highWaterMarkPath = _options.GetHighWaterMarkPath();
-        await _fileOperationService.WriteFileAsync(highWaterMarkPath, maxId.ToString(), cancellationToken).ConfigureAwait(false);
+        // 增量更新高水位标记 — 避免全量持久化
+        await _highWaterMarkManager.UpdateAsync(maxId, cancellationToken).ConfigureAwait(false);
 
         // 删除所有任务文件
         var taskFiles = _fileOperationService.GetFiles(
@@ -441,11 +440,12 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
         return 0;
     }
 
-    /// <summary>释放资源时回调，释放初始化锁。</summary>
+    /// <summary>释放资源时回调，释放初始化锁与高水位标记管理器。</summary>
     public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _initLock.Dispose();
+        _highWaterMarkManager.Dispose();
         base.Dispose();
     }
 }

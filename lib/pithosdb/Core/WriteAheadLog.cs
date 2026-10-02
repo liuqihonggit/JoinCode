@@ -49,7 +49,7 @@ public sealed class WriteAheadLog : IDisposable
     public WriteAheadLog(string path, WalSyncMode syncMode = WalSyncMode.Full, int syncIntervalMs = 200)
     {
         _syncMode = syncMode;
-        _stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read);
+        _stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
         _writer = new BinaryWriter(_stream);
 
         if (syncMode == WalSyncMode.Periodic)

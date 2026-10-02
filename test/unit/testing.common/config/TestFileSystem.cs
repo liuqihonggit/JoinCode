@@ -6,9 +6,6 @@ namespace Testing.Common;
 /// <para>默认 UseRealFileSystem = false 使用内存文件系统（InMemoryFileSystem，0磁盘IO）</para>
 /// </summary>
 public static class TestFileSystem {
-    private static readonly IFileSystem _inMemoryInstance = new IO.FileSystem.InMemoryFileSystem();
-    private static readonly IFileSystem _physicalInstance = new IO.FileSystem.PhysicalFileSystem();
-
     /// <summary>
     /// 全局切换: true = PhysicalFileSystem (真实磁盘), false = InMemoryFileSystem (内存)
     /// 可在 AssemblyInitialize 或任意测试前设置
@@ -16,9 +13,9 @@ public static class TestFileSystem {
     public static bool UseRealFileSystem { get; set; } = false;
 
     /// <summary>
-    /// 获取当前配置的文件系统实例（单例，保证同一测试内多个对象共享同一文件系统视图）
+    /// 获取当前配置的文件系统实例（每次调用创建新实例，保证测试隔离）
     /// </summary>
     public static IFileSystem Current => UseRealFileSystem
-        ? _physicalInstance
-        : _inMemoryInstance;
+        ? new IO.FileSystem.PhysicalFileSystem()
+        : new IO.FileSystem.InMemoryFileSystem();
 }

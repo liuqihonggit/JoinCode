@@ -133,25 +133,29 @@ def main():
     # 测试恢复默认设置
     print("\n--- 恢复默认设置 ---")
     bring_to_front(win)
+    found_reset = False
     for d in win.descendants():
         try:
             t = d.window_text() or ""
-            if "默认" in t and "恢复" in t:
+            if "默认" in t and ("↺" in t or "恢复" in t or "默认" in t):
                 d.click_input()
                 time.sleep(0.5)
                 ok("点击恢复默认设置", True)
+                found_reset = True
                 break
         except: pass
-    else:
-        ok("找到恢复默认按钮", False)
+    if not found_reset:
+        ok("找到恢复默认按钮(↺ 默认)", False)
 
-    # 关闭设置面板
+    # 关闭设置面板 — 再点 ⚙ 切换关闭
     print("\n--- 关闭设置面板 ---")
     bring_to_front(win)
-    # 按 ESC 关闭
-    win.type_keys("{ESC}")
     time.sleep(0.5)
-    ok("ESC 关闭设置面板", not has_text(win, "外观"))
+    btn_close = find_button(win, "⚙")
+    if btn_close:
+        btn_close.click_input()
+        time.sleep(1)
+    ok("再点 ⚙ 关闭设置面板", not has_text(win, "外观"))
 
     app.kill()
     print(f"\n=== 结果: {PASS} 通过, {FAIL} 失败 ===")

@@ -93,7 +93,7 @@
 | ✅ 1be0975 | `ToolTemplateService` | `kit/mcp_tool_dispatch/core/execution/ToolTemplateService.cs:22` | EnsureTemplatesDir 实例方法 + fire-and-forget → _loadTask 持有 |
 | ✅ 0bd72cf | `ToolInterventionManager` | `kit/mcp/core/management/ToolInterventionManager.cs:19` | fire-and-forget LoadFromDiskAsync → _loadTask 持有 |
 | ✅ 3d1d9f0 | `McpAuthToolHandlers` | `kit/mcp/core/handlers/McpAuthToolHandlers.cs:24` | fire-and-forget LoadAuthStateAsync → _loadTask 持有 + DisposeAsync await |
-| ⏳ | `DynamicKeywordConfigService` | `kit/prompts/utils/DynamicKeywordConfigService.cs:26` | ReloadActor + fire-and-forget + FileSystemWatcher |
+| ✅ 7736844 | `DynamicKeywordConfigService` | `kit/prompts/utils/DynamicKeywordConfigService.cs:26` | ReloadActor + fire-and-forget + FileSystemWatcher → _loadTask 持有 + DisposeAsync await |
 | ⏳ | `WindowShakeCoordinator` | `kit/hands/desktop/services/WindowShakeCoordinator.cs:42` | fire-and-forget + 事件订阅悬挂 |
 | ⏳ | `TeamManager` | `llm/agents/Coordinator/Team/core/TeamManager.cs:43` | 5 对象 + fire-and-forget LoadStateAsync |
 | ⏳ | `AgentMemoryService` | `llm/agents/Services/Support/AgentMemoryService.cs:35` | fs.GetCurrentDirectory 实例方法 |

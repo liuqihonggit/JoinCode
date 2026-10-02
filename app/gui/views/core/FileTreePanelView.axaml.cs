@@ -21,4 +21,41 @@ public sealed partial class FileTreePanelView : UserControl {
         if (DataContext is ViewModels.MainViewModel vm)
             vm.OpenEditorFilePinned(item.FullPath);
     }
+
+    /// <summary>右键菜单 — 在资源管理器中显示文件/文件夹</summary>
+    private void OnOpenInExplorer(object? sender, Avalonia.Interactivity.RoutedEventArgs e) {
+        if (GetTreeItemFromMenu(sender) is not { } item)
+            return;
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
+            FileName = "explorer.exe",
+            Arguments = $"/select,\"{item.FullPath}\"",
+            UseShellExecute = true
+        });
+    }
+
+    /// <summary>右键菜单 — 复制完整路径到剪贴板</summary>
+    private void OnCopyPath(object? sender, Avalonia.Interactivity.RoutedEventArgs e) {
+        if (GetTreeItemFromMenu(sender) is not { } item)
+            return;
+        var clip = Avalonia.Controls.TopLevel.GetTopLevel(this)?.Clipboard;
+        _ = clip?.SetTextAsync(item.FullPath);
+    }
+
+    /// <summary>右键菜单 — 复制相对路径到剪贴板</summary>
+    private void OnCopyRelativePath(object? sender, Avalonia.Interactivity.RoutedEventArgs e) {
+        if (GetTreeItemFromMenu(sender) is not { } item)
+            return;
+        if (DataContext is not ViewModels.MainViewModel vm)
+            return;
+        var rel = System.IO.Path.GetRelativePath(vm.FileTreeRootPath, item.FullPath);
+        var clip = Avalonia.Controls.TopLevel.GetTopLevel(this)?.Clipboard;
+        _ = clip?.SetTextAsync(rel);
+    }
+
+    /// <summary>从菜单项向上查找 TreeItem ViewModel</summary>
+    private ViewModels.FileTreeItemVm? GetTreeItemFromMenu(object? sender) {
+        if (sender is not Avalonia.Controls.MenuItem mi)
+            return null;
+        return mi.DataContext as ViewModels.FileTreeItemVm;
+    }
 }

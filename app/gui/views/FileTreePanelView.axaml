@@ -32,6 +32,13 @@
         <TreeDataTemplate ItemsSource="{Binding Children}">
             <StackPanel Orientation="Horizontal" Spacing="6"
                         DoubleTapped="OnFileDoubleTapped">
+              <StackPanel.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="在资源管理器中显示" Click="OnOpenInExplorer" />
+                  <MenuItem Header="复制路径" Click="OnCopyPath" />
+                  <MenuItem Header="复制相对路径" Click="OnCopyRelativePath" />
+                </ContextMenu>
+              </StackPanel.ContextMenu>
               <TextBlock Text="{Binding Icon}" FontSize="11" VerticalAlignment="Center" />
               <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
                          Foreground="{DynamicResource GuiPrimaryText}" TextTrimming="CharacterEllipsis" />

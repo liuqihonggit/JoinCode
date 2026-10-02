@@ -66,14 +66,11 @@ public sealed class ActivityBarFileTreeDiagTests {
             .FirstOrDefault(b => (b.Content as string)?.Contains("📁") == true);
         fileTreeBtn.Should().NotBeNull();
 
-        // 初始未选中
         fileTreeBtn!.IsChecked.Should().BeFalse("初始 📁 按钮未选中");
 
-        // 点击
         vm.ToggleSidePanelCommand.Execute(SidePanelKind.FileTree);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        // OneWay 绑定应更新 IsChecked
         fileTreeBtn.IsChecked.Should().BeTrue("点击后 📁 按钮应选中");
     }
 
@@ -119,7 +116,7 @@ public sealed class ActivityBarFileTreeDiagTests {
         // CommandParameter 应为 SidePanelKind.FileTree
         fileTreeBtn.CommandParameter.Should().Be(SidePanelKind.FileTree);
 
-        // 通过 ToggleButton 的 Command 执行（模拟真实点击的 Command 调用）
+        // 通过 Button 的 Command 执行（模拟真实点击的 Command 调用）
         fileTreeBtn.Command!.Execute(fileTreeBtn.CommandParameter);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
@@ -127,9 +124,8 @@ public sealed class ActivityBarFileTreeDiagTests {
     }
 
     /// <summary>
-    /// 模拟真实点击：通过 ToggleButton.IsChecked setter 触发 OnClick → Command。
-    /// 在 Avalonia 中，ToggleButton 点击时 IsChecked 切换并执行 Command。
-    /// OneWay 绑定不应阻止 Command 执行。
+    /// 模拟真实点击：通过 Button.Command.Execute 触发面板切换。
+    /// Button 无 IsChecked 绑定，点击直接执行 Command，避免 ToggleButton OneWay 绑定问题。
     /// </summary>
     [AvaloniaFact]
     public async Task FileTreeButton_SimulateRealClick_CommandExecutes() {

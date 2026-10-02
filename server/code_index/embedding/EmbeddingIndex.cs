@@ -82,7 +82,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             return;
         }
 
-        const int EmbedBatchSize = 128;
+        const int EmbedBatchSize = 256;
         var vectors = new float[toEmbed.Count][];
         try {
             for (var batchStart = 0; batchStart < toEmbed.Count; batchStart += EmbedBatchSize) {

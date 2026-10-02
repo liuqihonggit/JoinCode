@@ -89,7 +89,7 @@
 
 | 状态 | 类 | 文件:行 | 风险 |
 |------|----|---------|------|
-| ⏳ | `ToolHealthMonitor` | `kit/mcp_tool_dispatch/core/execution/ToolHealthMonitor.cs:75` | fire-and-forget LoadFromDiskAsync + Timer |
+| ✅ 29a8061 | `ToolHealthMonitor` | `kit/mcp_tool_dispatch/core/execution/ToolHealthMonitor.cs:75` | fire-and-forget LoadFromDiskAsync + Timer → _loadTask 持有 + DisposeAsync await（DI Singleton 保留 public ctor） |
 | ⏳ | `ToolTemplateService` | `kit/mcp_tool_dispatch/core/execution/ToolTemplateService.cs:22` | EnsureTemplatesDir 实例方法 + fire-and-forget |
 | ⏳ | `ToolInterventionManager` | `kit/mcp/core/management/ToolInterventionManager.cs:19` | fire-and-forget LoadFromDiskAsync |
 | ⏳ | `McpAuthToolHandlers` | `kit/mcp/core/handlers/McpAuthToolHandlers.cs:24` | fire-and-forget LoadAuthStateAsync |

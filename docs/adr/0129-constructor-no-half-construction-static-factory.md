@@ -122,7 +122,7 @@
 | 状态 | 类 | 文件:行 | 风险 | 工厂方法 |
 |------|----|---------|------|---------|
 | ✅ a43c0a7 | `ProviderDefinitionRegistry` | `lib/guard/configuration/configuration2/core/providers/shared/ProviderDefinitionRegistry.cs:17` | InitializeAsync().GetAwaiter().GetResult() 阻塞（死锁风险） | `static CreateAsync` + `static Create` |
-| ⏳ | `UpdateServer` | `server/update/UpdateServer.cs:24` | 构造函数内 GetAvailablePort（TcpListener.Start） | 移到 StartAsync() |
+| ✅ b68a209 | `UpdateServer` | `server/update/UpdateServer.cs:24` | 构造函数内 GetAvailablePort（TcpListener.Start） | `static Create` |
 
 ### P4 — Avalonia 框架惯例（1 个）
 

@@ -14,6 +14,10 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private bool _isCenteredLayout;
 
+    /// <summary>Minimap 是否可见 — 代码缩略图</summary>
+    [ObservableProperty]
+    private bool _isMinimapVisible = true;
+
     /// <summary>居中布局最大宽度 — 编辑器内容最大宽度限制</summary>
     private const double CenteredLayoutMaxWidth = 1200;
 
@@ -37,6 +41,12 @@ public sealed partial class MainViewModel {
     [RelayCommand]
     private void ToggleCenteredLayout() {
         IsCenteredLayout = !IsCenteredLayout;
+    }
+
+    /// <summary>切换 Minimap 可见性</summary>
+    [RelayCommand]
+    private void ToggleMinimap() {
+        IsMinimapVisible = !IsMinimapVisible;
     }
 
     /// <summary>Zen Mode 属性变化时联动 — 进入时切到编辑器,退出时恢复消息区</summary>

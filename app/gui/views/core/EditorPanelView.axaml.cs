@@ -44,6 +44,7 @@ public sealed partial class EditorPanelView : UserControl {
             return;
         _suppressTextChanged = true;
         Editor.Text = tab.Content;
+        Minimap.Text = tab.Content;
         _suppressTextChanged = false;
         UpdateBreadcrumb(BreadcrumbItems, tab.FilePath);
     }
@@ -74,12 +75,13 @@ public sealed partial class EditorPanelView : UserControl {
         breadcrumb.ItemsSource = segments;
     }
 
-    /// <summary>编辑器组1内容变更时同步到活跃标签页 Content + 标记已修改</summary>
+    /// <summary>编辑器组1内容变更时同步到活跃标签页 Content + 标记已修改 + 同步 Minimap</summary>
     private void OnEditorTextChanged(object? sender, EventArgs e) {
         if (_suppressTextChanged || _vm?.ActiveEditorTab is not { } tab)
             return;
         tab.Content = Editor.Text;
         tab.IsModified = true;
+        Minimap.Text = Editor.Text;
     }
 
     /// <summary>编辑器组2内容变更时同步到活跃标签页2 Content + 标记已修改</summary>

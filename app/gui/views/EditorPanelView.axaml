@@ -129,13 +129,29 @@
 
     <!-- Row 2：编辑器区（分屏：左组 + GridSplitter + 右组） -->
     <Grid Grid.Row="2" ColumnDefinitions="*,6,*">
-      <!-- 左侧编辑器(组1) -->
-      <edit:TextEditor Grid.Column="0" x:Name="Editor"
-                       ShowLineNumbers="True"
-                       FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                       FontSize="13"
-                       Background="{DynamicResource GuiWindowBackground}"
-                       Foreground="{DynamicResource GuiPrimaryText}" />
+      <!-- 左侧编辑器(组1) + Minimap -->
+      <Grid Grid.Column="0" ColumnDefinitions="*,Auto">
+        <edit:TextEditor Grid.Column="0" x:Name="Editor"
+                         ShowLineNumbers="True"
+                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                         FontSize="13"
+                         Background="{DynamicResource GuiWindowBackground}"
+                         Foreground="{DynamicResource GuiPrimaryText}" />
+        <!-- Minimap 代码缩略图 -->
+        <Border Grid.Column="1" Width="80" IsVisible="{Binding IsMinimapVisible}"
+                Background="{DynamicResource GuiWindowBackground}"
+                BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1,0,0,0">
+          <edit:TextEditor x:Name="Minimap"
+                           ShowLineNumbers="False"
+                           IsReadOnly="True"
+                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                           FontSize="2.5"
+                           Background="{DynamicResource GuiWindowBackground}"
+                           Foreground="{DynamicResource GuiMutedText}"
+                           HorizontalScrollBarVisibility="Hidden"
+                           VerticalScrollBarVisibility="Hidden" />
+        </Border>
+      </Grid>
 
       <!-- GridSplitter（分屏时可见） -->
       <Border Grid.Column="1" Width="6" HorizontalAlignment="Stretch"

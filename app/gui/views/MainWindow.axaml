@@ -99,19 +99,16 @@
       <Grid RowDefinitions="*,Auto,Auto">
         <!-- 顶部组：面板切换 -->
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,8">
-          <ToggleButton Classes="activityIcon" Content="💬" FontSize="20"
+          <ToggleButton x:Name="SessionBtn" Classes="activityIcon" Content="💬" FontSize="20"
                         Command="{Binding ToggleSidePanelCommand}"
                         CommandParameter="{x:Static vm:SidePanelKind.Sessions}"
-                        IsChecked="{Binding IsSessionPanelActive, Mode=OneWay}"
                         ToolTip.Tip="会话列表" />
-          <ToggleButton Classes="activityIcon" Content="📁" FontSize="20"
+          <ToggleButton x:Name="FileTreeBtn" Classes="activityIcon" Content="📁" FontSize="20"
                         Command="{Binding ToggleSidePanelCommand}"
                         CommandParameter="{x:Static vm:SidePanelKind.FileTree}"
-                        IsChecked="{Binding IsFileTreePanelActive, Mode=OneWay}"
                         ToolTip.Tip="目录树" />
-          <ToggleButton Classes="activityIcon" Content="📝" FontSize="20"
+          <ToggleButton x:Name="EditorBtn" Classes="activityIcon" Content="📝" FontSize="20"
                         Command="{Binding ToggleEditorViewCommand}"
-                        IsChecked="{Binding IsEditorViewActive, Mode=OneWay}"
                         ToolTip.Tip="代码编辑器" />
         </StackPanel>
         <!-- 中部组：功能按钮(带 Popup) -->

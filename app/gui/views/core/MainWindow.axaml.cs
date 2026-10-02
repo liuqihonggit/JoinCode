@@ -171,6 +171,8 @@ public sealed partial class MainWindow : Window {
             _vm.TranscriptRequested += OnTranscriptRequested;
             _vm.RunStatus.MarqueeStopped += OnMarqueeStopped;
             ApplyAppearance();
+            SyncActivityBarButtons();
+            CenterOnScreen();
             _vm.LoadFileTree(System.IO.Directory.GetCurrentDirectory());
         }
     }
@@ -186,6 +188,24 @@ public sealed partial class MainWindow : Window {
         Classes.Set("motion", _vm.AnimationsEnabled);
         if (Application.Current is { } app)
             app.Resources["GuiMotionDuration"] = _vm.AnimationsEnabled ? TimeSpan.FromMilliseconds(160) : TimeSpan.Zero;
+    }
+
+    /// <summary>同步 Activity Bar 按钮选中状态 — 从 ViewModel 读取,手动设置 IsChecked</summary>
+    private void SyncActivityBarButtons() {
+        if (_vm is null) return;
+        SessionBtn.IsChecked = _vm.IsSessionPanelActive;
+        FileTreeBtn.IsChecked = _vm.IsFileTreePanelActive;
+        EditorBtn.IsChecked = _vm.IsEditorViewActive;
+    }
+
+    /// <summary>窗口居中屏幕 — 在打开时固定到屏幕中间</summary>
+    private void CenterOnScreen() {
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen is null) return;
+        var workArea = screen.WorkingArea;
+        var x = workArea.X + (workArea.Width - Width) / 2;
+        var y = workArea.Y + (workArea.Height - Height) / 2;
+        Position = new Avalonia.PixelPoint((int)x, (int)y);
     }
 
     /// <summary>打开子代理回放窗口 — 只读快照，可多开（每 agent 一窗）</summary>
@@ -277,6 +297,10 @@ public sealed partial class MainWindow : Window {
             // 更新 ThemeDictionaries 槽位为当前主题配色（Solarized 复用 Dark/Light 槽位）
             // DynamicResource 绑定自动刷新,无需手动重赋 DataContext（会导致 Popup 内 NRE 闪退）
             GuiAppResources.ApplyTheme(_vm.CurrentTheme);
+        } else if (e.PropertyName is nameof(MainViewModel.IsSessionPanelActive)
+                                     or nameof(MainViewModel.IsFileTreePanelActive)
+                                     or nameof(MainViewModel.IsEditorViewActive)) {
+            SyncActivityBarButtons();
         } else if (e.PropertyName == nameof(MainViewModel.HasCopied) && _vm!.HasCopied) {
             ScheduleCopyToastHide();
         } else if (e.PropertyName == nameof(MainViewModel.CopiedMessageCopy) && !string.IsNullOrEmpty(_vm!.CopiedMessageCopy)) {

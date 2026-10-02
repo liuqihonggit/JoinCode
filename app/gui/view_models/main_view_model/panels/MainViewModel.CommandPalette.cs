@@ -29,6 +29,8 @@ public sealed partial class MainViewModel {
         new() { Name = "视图: 切换主题", Icon = "🎨", CommandId = "view.toggleTheme" },
         new() { Name = "视图: 设置面板", Icon = "⚙", CommandId = "view.settings" },
         new() { Name = "视图: 底部面板", Icon = "▾", CommandId = "view.panel" },
+        new() { Name = "视图: 代码编辑器", Icon = "📝", CommandId = "view.editor" },
+        new() { Name = "视图: 对话区", Icon = "💬", CommandId = "view.messages" },
         new() { Name = "视图: Mock 引擎", Icon = "Ⓘ", CommandId = "view.mock" },
         new() { Name = "会话: 切换会话栏", Icon = "💬", CommandId = "sidebar.sessions" },
         new() { Name = "会话: 切换目录树", Icon = "📁", CommandId = "sidebar.filetree" }
@@ -121,6 +123,12 @@ public sealed partial class MainViewModel {
                 break;
             case "view.panel":
                 TogglePanelCommand.Execute(null);
+                break;
+            case "view.editor":
+                ShowEditorViewCommand.Execute(null);
+                break;
+            case "view.messages":
+                ShowMessagesViewCommand.Execute(null);
                 break;
             case "view.mock":
                 ToggleMockCommand.Execute(null);

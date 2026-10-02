@@ -194,11 +194,9 @@ public sealed partial class MainWindow : Window {
         window.Show(this);
     }
 
-    /// <summary>打开文件编辑器窗口 — 从命令面板/快速打开触发</summary>
+    /// <summary>打开文件 — 在内嵌编辑器面板中打开(非弹窗)</summary>
     private void OnOpenFile(string path) {
-        var window = new EditorWindow();
-        window.OpenFile(path);
-        window.Show(this);
+        _vm?.OpenEditorFile(path);
     }
 
     /// <summary>T9：斜杠命令确认回调 — 弹极简确认窗；后台线程经 UI 线程同步等待（对齐 TUI painter.Invoke 模式）</summary>

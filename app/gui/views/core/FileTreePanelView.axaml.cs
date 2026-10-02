@@ -2,7 +2,7 @@ namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 目录树面板 UserControl — 展示当前工作目录的文件结构,支持懒加载子目录。
-/// 双击文件打开 EditorWindow 代码编辑器。
+/// 双击文件在内嵌编辑器面板中打开(非弹窗)。
 /// </summary>
 public sealed partial class FileTreePanelView : UserControl {
     /// <summary>初始化 FileTreePanelView 实例</summary>
@@ -10,7 +10,7 @@ public sealed partial class FileTreePanelView : UserControl {
         InitializeComponent();
     }
 
-    /// <summary>双击文件项 — 打开 EditorWindow 编辑文件(仅文件,非文件夹)</summary>
+    /// <summary>双击文件项 — 在内嵌编辑器中打开文件(仅文件,非文件夹)</summary>
     private void OnFileDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e) {
         if (sender is not StackPanel panel)
             return;
@@ -18,8 +18,7 @@ public sealed partial class FileTreePanelView : UserControl {
             return;
         if (item.IsFolder)
             return;
-        var window = new EditorWindow();
-        window.OpenFile(item.FullPath);
-        window.Show(this.GetVisualRoot() as Window);
+        if (DataContext is ViewModels.MainViewModel vm)
+            vm.OpenEditorFile(item.FullPath);
     }
 }

@@ -25,6 +25,7 @@
     <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding StopGoalCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding OpenCommandPaletteCommand}" />
     <KeyBinding Gesture="Ctrl+P" Command="{Binding OpenQuickOpenCommand}" />
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveActiveTabCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding BackgroundPanel.PauseAllCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+R" Command="{Binding BackgroundPanel.ResumeAllCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+T" Command="{Binding BackgroundPanel.StopAllCommand}" />
@@ -106,6 +107,10 @@
                         CommandParameter="{x:Static vm:SidePanelKind.FileTree}"
                         IsChecked="{Binding IsFileTreePanelActive, Mode=OneWay}"
                         ToolTip.Tip="目录树" />
+          <ToggleButton Classes="activityIcon" Content="📝" FontSize="20"
+                        Command="{Binding ToggleEditorViewCommand}"
+                        IsChecked="{Binding IsEditorViewActive, Mode=OneWay}"
+                        ToolTip.Tip="代码编辑器" />
         </StackPanel>
         <!-- 中部组：功能按钮(带 Popup) -->
         <StackPanel Grid.Row="1" Spacing="4">
@@ -179,8 +184,9 @@
     <Grid Grid.Column="3">
       <Grid RowDefinitions="*,Auto,Auto,Auto,Auto">
 
-      <!-- Row 0：消息区（消息内容(*) : 设置面板(Auto)） -->
-      <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ClipToBounds="True">
+      <!-- Row 0：主区（消息区 / 编辑器区切换） -->
+      <Panel Grid.Row="0" ClipToBounds="True">
+      <Grid IsVisible="{Binding IsMessagesViewActive}" ColumnDefinitions="*,Auto" ClipToBounds="True">
 
         <!-- Column 0：消息内容（搜索栏 + 消息列表） -->
         <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
@@ -473,6 +479,8 @@
           <local:SettingsPanelView HorizontalAlignment="Left" ClipToBounds="True" />
         </Border>
       </Grid>
+      <local:EditorPanelView IsVisible="{Binding IsEditorViewActive}" />
+      </Panel>
 
       <!-- Row 1：底部面板(输出/终端/问题,可折叠) -->
       <local:PanelView Grid.Row="1" IsVisible="{Binding IsPanelOpen}" Height="{Binding PanelHeight}" />

@@ -45,6 +45,7 @@ VSCode 工作区由 7 个核心区域组成，全部用 Grid 布局，禁止绝�
 | 面板调整大小 | 拖拽 sash 边缘调整大小 | ✅ Side Bar |
 | 面板折叠/展开 | 点击 Activity Bar 图标切换 | ✅ |
 | 面板位置切换 | Panel 移到底部/右侧/左侧/顶部 | ✅ |
+| Side Bar 位置切换 | Primary Side Bar 移到左侧/右侧 | ✅ 代码隐藏Grid.Column |
 | 标签页管理 | 拖拽重排序/锁定/关闭/关闭其他/关闭全部/预览 | ✅ |
 | 命令面板 | Ctrl+Shift+P 快速访问所有命令 | ✅ |
 | 快速打开 | Ctrl+P 快速打开文件 | ✅ |

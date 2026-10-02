@@ -47,6 +47,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     private readonly ConcurrentDictionary<string, ToolHealthRecord> _records = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _configPath;
     private readonly Timer? _decayTimer;
+    private readonly Task _loadTask;
     private volatile BlacklistSnapshot _blacklistSnapshot;
     private volatile Dictionary<string, int> _penalties;
     private int _disposed;
@@ -81,9 +82,8 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         _configPath = Path.Combine(
             JoinCode.Abstractions.Configuration.AppData.AppDataConstants.JccDirectory,
             "tool-health.json");
-        _ = LoadFromDiskAsync();
-
         _decayTimer = new Timer(_ => TrySend(new DecayTickCmd()), null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
+        _loadTask = LoadFromDiskAsync();
     }
 
 
@@ -355,6 +355,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _decayTimer?.Dispose();
+        await _loadTask.ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

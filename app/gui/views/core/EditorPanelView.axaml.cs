@@ -100,12 +100,54 @@ public sealed partial class EditorPanelView : UserControl {
 
     /// <summary>标签页中键点击 — 关闭标签页(VSCode 风格)</summary>
     private void OnTabPointerPressed(object? sender, PointerPressedEventArgs e) {
-        if (e.GetCurrentPoint(this).Properties.PointerUpdateKind != PointerUpdateKind.MiddleButtonPressed)
+        if (e.GetCurrentPoint(this).Properties.PointerUpdateKind == PointerUpdateKind.MiddleButtonPressed) {
+            if (sender is Button btn && btn.DataContext is EditorTabVm tab && _vm is not null) {
+                _vm.CloseEditorTabCommand.Execute(tab);
+                e.Handled = true;
+            }
             return;
-        if (sender is Button btn && btn.DataContext is EditorTabVm tab && _vm is not null) {
-            _vm.CloseEditorTabCommand.Execute(tab);
-            e.Handled = true;
         }
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed && sender is Button dragBtn && dragBtn.DataContext is EditorTabVm dragTab) {
+            _draggingTab = dragTab;
+            e.Pointer.Capture(dragBtn);
+        }
+    }
+
+    /// <summary>拖拽中标签页</summary>
+    private EditorTabVm? _draggingTab;
+
+    /// <summary>标签页拖拽移动 — 检测目标位置并重排序</summary>
+    private void OnTabPointerMoved(object? sender, PointerEventArgs e) {
+        if (_draggingTab is null || _vm is null)
+            return;
+        var pos = e.GetCurrentPoint(this).Position;
+        var target = FindTabAtPosition(pos);
+        if (target is not null && target != _draggingTab)
+            _vm.ReorderEditorTabCommand.Execute((_draggingTab, target));
+    }
+
+    /// <summary>标签页拖拽释放 — 结束拖拽</summary>
+    private void OnTabPointerReleased(object? sender, PointerReleasedEventArgs e) {
+        if (_draggingTab is null)
+            return;
+        _draggingTab = null;
+        e.Pointer.Capture(null);
+    }
+
+    /// <summary>在指定位置查找标签页</summary>
+    private EditorTabVm? FindTabAtPosition(Point pos) {
+        if (_vm is null)
+            return null;
+        foreach (var tab in _vm.EditorTabs) {
+            if (this.GetVisualDescendants().OfType<Button>()
+                .FirstOrDefault(b => b.DataContext == tab && b.Classes.Contains("editorTab")) is { } btn) {
+                var bounds = btn.Bounds;
+                var origin = (btn.TransformToVisual(this) ?? default).Transform(default);
+                if (pos.X >= origin.X && pos.X <= origin.X + bounds.Width)
+                    return tab;
+            }
+        }
+        return null;
     }
 
     /// <summary>标签页栏滚轮 — 切换标签页(VSCode 风格)</summary>

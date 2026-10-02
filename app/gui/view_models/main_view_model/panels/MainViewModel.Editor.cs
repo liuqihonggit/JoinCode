@@ -208,6 +208,16 @@ public sealed partial class MainViewModel {
             tab.IsPinned = !tab.IsPinned;
     }
 
+    /// <summary>重排标签页 — 将 source 移到 target 位置</summary>
+    [RelayCommand]
+    private void ReorderEditorTab((EditorTabVm Source, EditorTabVm Target) args) {
+        var srcIndex = EditorTabs.IndexOf(args.Source);
+        var tgtIndex = EditorTabs.IndexOf(args.Target);
+        if (srcIndex < 0 || tgtIndex < 0 || srcIndex == tgtIndex)
+            return;
+        EditorTabs.Move(srcIndex, tgtIndex);
+    }
+
     /// <summary>将标签页固定为非预览状态 — 双击标签时调用</summary>
     [RelayCommand]
     private void PinTab(EditorTabVm? tab) {

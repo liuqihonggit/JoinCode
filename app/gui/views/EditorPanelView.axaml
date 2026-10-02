@@ -76,7 +76,9 @@
                           Command="{Binding DataContext.ActivateEditorTabCommand, ElementName=EditorPanelRoot}"
                           CommandParameter="{Binding}"
                           DoubleTapped="OnTabDoubleTapped"
-                          PointerPressed="OnTabPointerPressed">
+                          PointerPressed="OnTabPointerPressed"
+                          PointerMoved="OnTabPointerMoved"
+                          PointerReleased="OnTabPointerReleased">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                       <TextBlock Text="📌" FontSize="8" VerticalAlignment="Center"
                                  IsVisible="{Binding IsPinned}" />

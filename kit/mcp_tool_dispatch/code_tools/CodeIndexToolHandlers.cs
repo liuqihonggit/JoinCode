@@ -586,14 +586,14 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.SkippedFiles, result.SkippedCount));
             sb.AppendLine(L.T(StringKey.DeletedFiles, result.DeletedCount));
             sb.AppendLine($"持久化目录: {persistDir}");
-            sb.AppendLine($"  ✅ 符号索引: code-index.bin ({_indexer.Persistence.Count} 个符号)");
+            sb.AppendLine($"  ✅ 符号索引: KV store ({_indexer.Persistence.Count} 个符号)");
             if (result.VectorChunkCount > 0) {
                 sb.AppendLine($"  ✅ 向量索引: vector_index.bin ({result.VectorChunkCount} 个块)");
             } else {
                 sb.AppendLine($"  ⚠ 向量索引: 未建立（模型文件不存在，语义搜索不可用）");
             }
             if (result.ParentDocumentCount > 0) {
-                sb.AppendLine($"  ✅ 父文档: parent_docs.bin ({result.ParentDocumentCount} 个文档)");
+                sb.AppendLine($"  ✅ 父文档: KV store ({result.ParentDocumentCount} 个文档)");
             } else {
                 sb.AppendLine($"  ⚠ 父文档: 未建立");
             }

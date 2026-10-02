@@ -689,7 +689,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     }
 
     /// <summary>
-    /// 确保索引已加载 — 统一加载符号索引(code-index.bin) + 向量索引(vector_index.bin) + 父文档(parent_docs.bin)。
+    /// 确保索引已加载 — 统一加载符号索引(IKvStore) + 向量索引(LSM-Tree) + 父文档(IKvStore)。
     /// persistDir 为 null 时自动发现 .git 工作区根；不为 null 时从指定目录加载。
     /// 用 Interlocked 保证只执行一次。
     /// </summary>

@@ -31,7 +31,7 @@ public sealed class GraphPersistence : ServiceEntity, IIndexStore {
     public bool IsReady => Count > 0;
 
     /// <summary>
-    /// 将索引存储序列化保存到指定目录的 code-index.bin 文件（二进制格式）
+    /// 将索引存储序列化保存到 IKvStore（LSM-Tree，二进制格式）
     /// </summary>
     public async Task SaveAsync(string directory, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(directory);
@@ -131,7 +131,7 @@ public sealed class GraphPersistence : ServiceEntity, IIndexStore {
     }
 
     /// <summary>
-    /// 从指定目录加载 code-index.bin 并重建索引存储
+    /// 从 IKvStore 加载并重建索引存储
     /// </summary>
     public async Task<bool> LoadAsync(string directory, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(directory);

@@ -1062,415 +1062,130 @@ public sealed class CodeIndexToolHandlers {
     }
 
     /// <summary>
-    /// 统一代码检索 — 通过 SearchMode 枚举区分 6 种检索模式，默认混合召回。
+    /// 混合检索 — 符号+向量并行召回，去重合并。符号结果优先，向量结果补充。
     /// </summary>
     /// <param name="query">搜索查询（符号名、自然语言或代码片段）。</param>
-    /// <param name="mode">检索模式：hybrid|symbol|vector|graph|document|project。</param>
     /// <param name="top_k">最大结果数。</param>
     /// <param name="symbol_kind">符号类型过滤（class/method/constructor/...）。</param>
     /// <param name="file_type">文件类型过滤（cs/md/...）。</param>
     /// <param name="namespace_filter">命名空间前缀过滤。</param>
     /// <param name="include_source_text">包含块原文。</param>
-    /// <param name="include_parent_document">包含父文档原文。</param>
     /// <param name="include_graph">包含图谱关系（调用方/被调用方）。</param>
-    /// <param name="graph_relation">图谱关系类型（mode=graph 时使用）。</param>
-    /// <param name="from_symbol">调用链起点符号（call_chain/path 时使用）。</param>
-    /// <param name="to_symbol">调用链终点符号（call_chain/path 时使用）。</param>
-    /// <param name="project_relation">项目关系类型（mode=project 时使用）。</param>
     /// <param name="persist_dir">索引目录（默认自动发现 git 工作区）。</param>
     /// <param name="cancellationToken">取消令牌。</param>
-    /// <returns>包含检索结果的工具结果。</returns>
-    [McpTool(CodeToolNameEnumConstants.CodeQuery, "Unified code query. Search by symbol name, semantic meaning, graph relations, docs, or project deps. Default mode=hybrid returns merged symbol+vector+document results.", "code_index")]
-    public async Task<ToolResult> CodeQueryAsync(
+    /// <returns>包含混合检索结果的工具结果。</returns>
+    [McpTool(CodeToolNameEnumConstants.SearchHybrid, "Hybrid search: symbol + vector parallel recall, dedup merge. Symbol results first, vector fills in. Set include_graph=true for caller/callee relations.", "code_index")]
+    public async Task<ToolResult> SearchHybridAsync(
         [McpToolParameter("Search query (symbol name, natural language, or code snippet)")] string query,
-        [McpToolParameter("Search mode: hybrid|symbol|vector|graph|document|project", Required = false, DefaultValue = "hybrid")] string mode = "hybrid",
         [McpToolParameter("Maximum results", Required = false, DefaultValue = "10")] int top_k = 10,
         [McpToolParameter("Filter by symbol kind (class/method/constructor/...)")] string? symbol_kind = null,
         [McpToolParameter("Filter by file extension (cs/md/...)")] string? file_type = null,
         [McpToolParameter("Filter by namespace prefix")] string? namespace_filter = null,
         [McpToolParameter("Include source text in results")] bool include_source_text = false,
-        [McpToolParameter("Include parent document source")] bool include_parent_document = false,
         [McpToolParameter("Include graph relations (callers/callees)")] bool include_graph = false,
-        [McpToolParameter("Graph relation: callers|callees|references|definition|call_chain|path|impact_scope|inheritors|dependencies|affected_files|subgraph|explain|all")] string? graph_relation = null,
-        [McpToolParameter("Call chain start symbol (for call_chain/path)")] string? from_symbol = null,
-        [McpToolParameter("Call chain end symbol (for call_chain/path)")] string? to_symbol = null,
-        [McpToolParameter("Project relation: deps|dependents|affected|nugets|nuget_projects|all")] string? project_relation = null,
         [McpToolParameter("Index directory (default: auto-discover git workspace)")] string? persist_dir = null,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(query)) {
-            if (string.IsNullOrEmpty(from_symbol)) {
-                return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
-            }
-            query = from_symbol;
-        }
-
-        var searchMode = SearchModeExtensions.FromValue(mode);
-        if (searchMode is null) {
-            return ToolResultBuilder.Error().WithText(
-                $"Unknown mode: \"{mode}\". Valid modes: hybrid|symbol|vector|graph|document|project").Build();
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
         }
 
         try {
             await EnsureLoadedAsync(cancellationToken, persist_dir).ConfigureAwait(false);
-            return searchMode.Value switch {
-                SearchMode.Symbol => await QuerySymbolModeAsync(query, top_k, cancellationToken).ConfigureAwait(false),
-                SearchMode.Vector => await QueryVectorModeAsync(query, top_k, symbol_kind, file_type, namespace_filter, include_source_text, include_parent_document, cancellationToken).ConfigureAwait(false),
-                SearchMode.Document => await QueryDocumentModeAsync(query, top_k, include_source_text, cancellationToken).ConfigureAwait(false),
-                SearchMode.Graph => await QueryGraphModeAsync(query, graph_relation, from_symbol, to_symbol, cancellationToken).ConfigureAwait(false),
-                SearchMode.Project => await QueryProjectModeAsync(query, project_relation, cancellationToken).ConfigureAwait(false),
-                _ => await QueryHybridModeAsync(query, top_k, symbol_kind, file_type, namespace_filter, include_source_text, include_parent_document, include_graph, cancellationToken).ConfigureAwait(false),
+
+            var symbolTask = _indexer.Searcher.SearchAsync(query, cancellationToken);
+            var vectorOptions = new SearchOptions {
+                IncludeSourceText = include_source_text,
+                FileType = file_type,
+                Namespace = namespace_filter,
+                SymbolKind = symbol_kind
             };
-        } catch (Exception ex) {
-            return ToolResultBuilder.Error().WithText($"code_query failed: {ex.Message}").Build();
-        }
-    }
+            var vectorTask = _indexer.SearchSemanticAsync(query, top_k, cancellationToken, vectorOptions);
+            await Task.WhenAll(symbolTask, vectorTask).ConfigureAwait(false);
 
-    private async Task<ToolResult> QuerySymbolModeAsync(string query, int topK, CancellationToken ct) {
-        var result = await _indexer.Searcher.SearchAsync(query, ct).ConfigureAwait(false);
-        if (result.Items.Count == 0) {
-            return ToolResultBuilder.Success().WithText($"No symbols found for: \"{query}\" (mode=symbol)").Build();
-        }
-        var sb = new StringBuilder();
-        sb.AppendLine($"Found {result.TotalCount} symbol(s) for: \"{query}\" (mode=symbol)");
-        sb.AppendLine();
-        var limit = Math.Min(result.Items.Count, topK);
-        for (var i = 0; i < limit; i++) {
-            var s = result.Items[i];
-            sb.AppendLine($"{i + 1}. {s.Kind} {s.FullyQualifiedName}");
-            sb.AppendLine($"   {s.FilePath.Replace('\\', '/')}:{s.StartLine}-{s.EndLine}");
-        }
-        return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-    }
+            var symbolResult = await symbolTask.ConfigureAwait(false);
+            var vectorResult = await vectorTask.ConfigureAwait(false);
+            var sb = new StringBuilder();
+            sb.AppendLine($"Hybrid results for: \"{query}\"");
+            sb.AppendLine();
 
-    private async Task<ToolResult> QueryVectorModeAsync(
-        string query, int topK, string? symbolKind, string? fileType, string? namespaceFilter,
-        bool includeSource, bool includeParent, CancellationToken ct) {
-        var options = new SearchOptions {
-            IncludeSourceText = includeSource,
-            IncludeParentDocument = includeParent,
-            FileType = fileType,
-            Namespace = namespaceFilter,
-            SymbolKind = symbolKind
-        };
-        var results = await _indexer.SearchSemanticAsync(query, topK, ct, options).ConfigureAwait(false);
-        if (results.Count == 0) {
-            return ToolResultBuilder.Success().WithText($"No semantic matches for: \"{query}\" (mode=vector)").Build();
-        }
-        var sb = FormatVectorResults(results, query, "vector", includeSource);
-        return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-    }
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var idx = 0;
+            var symbolLimit = Math.Min(symbolResult.Items.Count, top_k);
+            for (var i = 0; i < symbolLimit; i++) {
+                var s = symbolResult.Items[i];
+                var key = $"{s.FilePath}:{s.StartLine}";
+                if (!seen.Add(key)) continue;
+                idx++;
+                sb.AppendLine($"{idx}. [symbol] {s.Kind} {s.FullyQualifiedName}");
+                sb.AppendLine($"   {s.FilePath.Replace('\\', '/')}:{s.StartLine}-{s.EndLine}");
+                if (include_graph) {
+                    await AppendGraphRelationsAsync(sb, s.FullyQualifiedName, cancellationToken).ConfigureAwait(false);
+                }
+            }
 
-    private async Task<ToolResult> QueryDocumentModeAsync(string query, int topK, bool includeSource, CancellationToken ct) {
-        var options = new SearchOptions {
-            IncludeSourceText = includeSource,
-            FileType = "md"
-        };
-        var results = await _indexer.SearchSemanticAsync(query, topK, ct, options).ConfigureAwait(false);
-        if (results.Count == 0) {
-            return ToolResultBuilder.Success().WithText($"No document matches for: \"{query}\" (mode=document)").Build();
-        }
-        var sb = FormatVectorResults(results, query, "document", includeSource);
-        return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-    }
-
-    private async Task<ToolResult> QueryGraphModeAsync(
-        string query, string? graphRelation, string? fromSymbol, string? toSymbol, CancellationToken ct) {
-        var relation = graphRelation ?? "all";
-        var sb = new StringBuilder();
-        sb.AppendLine($"Graph query: \"{query}\" (relation={relation})");
-        sb.AppendLine();
-
-        switch (relation) {
-            case "callers": {
-                var callers = await _indexer.CallGraph.GetCallersAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"Callers ({callers.Count}):");
-                foreach (var c in callers) {
-                    sb.AppendLine($"  {c.CallerSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
-                }
-                break;
-            }
-            case "callees": {
-                var callees = await _indexer.CallGraph.GetCalleesAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"Callees ({callees.Count}):");
-                foreach (var c in callees) {
-                    sb.AppendLine($"  {c.CalleeSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
-                }
-                break;
-            }
-            case "references": {
-                var refs = await _indexer.Searcher.FindReferencesAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"References ({refs.Count}):");
-                foreach (var r in refs) {
-                    sb.AppendLine($"  {r.FullyQualifiedName} at {r.FilePath.Replace('\\', '/')}:{r.StartLine}");
-                }
-                break;
-            }
-            case "definition": {
-                var def = await _indexer.Searcher.FindDefinitionAsync(query, ct).ConfigureAwait(false);
-                if (def is not null) {
-                    sb.AppendLine($"Definition:");
-                    sb.AppendLine($"  {def.Kind} {def.FullyQualifiedName}");
-                    sb.AppendLine($"  {def.FilePath.Replace('\\', '/')}:{def.StartLine}-{def.EndLine}");
-                } else {
-                    sb.AppendLine("Definition not found.");
-                }
-                break;
-            }
-            case "call_chain": {
-                if (string.IsNullOrEmpty(fromSymbol) || string.IsNullOrEmpty(toSymbol)) {
-                    return ToolResultBuilder.Error().WithText("call_chain requires from_symbol and to_symbol").Build();
-                }
-                var chain = await _indexer.CallGraph.GetCallChainAsync(fromSymbol, toSymbol, ct).ConfigureAwait(false);
-                sb.AppendLine($"Call chain: {fromSymbol} -> {toSymbol} ({chain.Count} hops):");
-                foreach (var c in chain) {
-                    sb.AppendLine($"  {c.CallerSymbol} -> {c.CalleeSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
-                }
-                break;
-            }
-            case "impact_scope": {
-                var scope = await _indexer.CallGraph.GetImpactScopeAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"Impact scope ({scope.Count} symbols):");
-                foreach (var s in scope) {
-                    sb.AppendLine($"  {s}");
-                }
-                break;
-            }
-            case "dependencies": {
-                var deps = await _indexer.DependencyGraph.GetDependenciesAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"Dependencies ({deps.Count}):");
-                foreach (var d in deps) {
-                    sb.AppendLine($"  {d.TargetSymbol}");
-                }
-                break;
-            }
-            case "affected_files": {
-                var files = await _indexer.DependencyGraph.GetAffectedFilesAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"Affected files ({files.Count}):");
-                foreach (var f in files) {
-                    sb.AppendLine($"  {f.Replace('\\', '/')}");
-                }
-                break;
-            }
-            case "inheritors": {
-                var inheritors = await _indexer.DependencyGraph.GetInheritorsAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"Inheritors ({inheritors.Count}):");
-                foreach (var d in inheritors) {
-                    sb.AppendLine($"  {d.SourceSymbol} [{d.DependencyKind}]");
-                }
-                break;
-            }
-            case "path": {
-                if (string.IsNullOrEmpty(fromSymbol) || string.IsNullOrEmpty(toSymbol)) {
-                    return ToolResultBuilder.Error().WithText("path requires from_symbol and to_symbol").Build();
-                }
-                var path = await _indexer.Analytics.FindPathAsync(fromSymbol, toSymbol, ct).ConfigureAwait(false);
-                if (!path.PathFound) {
-                    sb.AppendLine($"No path found: {fromSymbol} -> {toSymbol}");
-                } else {
-                    sb.AppendLine($"Path: {path.FromSymbol} -> {path.ToSymbol} (length={path.PathLength})");
-                    for (var i = 0; i < path.PathNodes.Count; i++) {
-                        sb.AppendLine($"  {i + 1}. {path.PathNodes[i]}");
+            foreach (var r in vectorResult) {
+                var key = $"{r.FilePath}:{r.StartLine}";
+                if (!seen.Add(key)) continue;
+                idx++;
+                sb.AppendLine($"{idx}. [vector {r.Score:F4}] {r.SymbolFqn}");
+                sb.AppendLine($"   {r.FilePath.Replace('\\', '/')}:{r.StartLine}-{r.EndLine}");
+                if (include_source_text && !string.IsNullOrEmpty(r.SourceText)) {
+                    sb.AppendLine("   --- Source ---");
+                    foreach (var line in r.SourceText.Split('\n')) {
+                        sb.AppendLine($"   {line}");
                     }
+                    sb.AppendLine("   --- End Source ---");
                 }
-                break;
+                if (include_graph && !string.IsNullOrEmpty(r.SymbolFqn)) {
+                    await AppendGraphRelationsAsync(sb, r.SymbolFqn, cancellationToken).ConfigureAwait(false);
+                }
+                if (idx >= top_k) break;
             }
-            case "subgraph": {
-                var subgraph = await _indexer.Analytics.ExtractSubgraphAsync(query, 2, ct).ConfigureAwait(false);
-                sb.AppendLine($"Subgraph centered on: {subgraph.CenterSymbol} (hops={subgraph.Hops})");
-                sb.AppendLine($"Nodes ({subgraph.Nodes.Count}):");
-                foreach (var n in subgraph.Nodes) {
-                    sb.AppendLine($"  {n}");
-                }
-                sb.AppendLine($"Edges ({subgraph.Edges.Count}):");
-                foreach (var e in subgraph.Edges) {
-                    sb.AppendLine($"  {e.CallerSymbol} -> {e.CalleeSymbol}");
-                }
-                break;
+
+            if (idx == 0) {
+                sb.AppendLine("No results found.");
             }
-            case "explain": {
-                var explain = await _indexer.Analytics.ExplainAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"Symbol: {explain.SymbolName} ({explain.Kind})");
-                sb.AppendLine($"  File: {explain.FilePath.Replace('\\', '/')}");
-                if (explain.Namespace is not null) {
-                    sb.AppendLine($"  Namespace: {explain.Namespace}");
-                }
-                sb.AppendLine($"  InDegree: {explain.InDegree}, OutDegree: {explain.OutDegree}");
-                sb.AppendLine();
-                sb.AppendLine($"Callers ({explain.Callers.Count}):");
-                foreach (var c in explain.Callers) {
-                    sb.AppendLine($"  {c}");
-                }
-                sb.AppendLine($"Callees ({explain.Callees.Count}):");
-                foreach (var c in explain.Callees) {
-                    sb.AppendLine($"  {c}");
-                }
-                sb.AppendLine($"Same community ({explain.SameCommunity.Count}):");
-                foreach (var c in explain.SameCommunity) {
-                    sb.AppendLine($"  {c}");
-                }
-                sb.AppendLine($"Same file ({explain.SameFile.Count}):");
-                foreach (var c in explain.SameFile) {
-                    sb.AppendLine($"  {c}");
-                }
-                break;
-            }
-            case "all": {
-                var callers = await _indexer.CallGraph.GetCallersAsync(query, ct).ConfigureAwait(false);
-                var callees = await _indexer.CallGraph.GetCalleesAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"Callers ({callers.Count}):");
-                foreach (var c in callers) {
-                    sb.AppendLine($"  {c.CallerSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
-                }
-                sb.AppendLine();
-                sb.AppendLine($"Callees ({callees.Count}):");
-                foreach (var c in callees) {
-                    sb.AppendLine($"  {c.CalleeSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
-                }
-                break;
-            }
-            default:
-                return ToolResultBuilder.Error().WithText(
-                    $"Unknown graph_relation: \"{relation}\". Valid: callers|callees|references|definition|call_chain|path|impact_scope|inheritors|dependencies|affected_files|subgraph|explain|all").Build();
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
+        } catch (Exception ex) {
+            return ToolResultBuilder.Error().WithText($"search_hybrid failed: {ex.Message}").Build();
         }
-        return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
     }
 
-    private async Task<ToolResult> QueryProjectModeAsync(string query, string? projectRelation, CancellationToken ct) {
-        var relation = projectRelation ?? "all";
-        var sb = new StringBuilder();
-        sb.AppendLine($"Project query: \"{query}\" (relation={relation})");
-        sb.AppendLine();
-
-        switch (relation) {
-            case "deps": {
-                var deps = await _indexer.ProjectDependencyGraph.GetProjectDependenciesAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"Dependencies ({deps.Count}):");
-                foreach (var d in deps) {
-                    sb.AppendLine($"  {d.TargetProjectPath.Replace('\\', '/')}");
-                }
-                break;
-            }
-            case "dependents": {
-                var dependents = await _indexer.ProjectDependencyGraph.GetProjectDependentsAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"Dependents ({dependents.Count}):");
-                foreach (var d in dependents) {
-                    sb.AppendLine($"  {d.SourceProjectPath.Replace('\\', '/')}");
-                }
-                break;
-            }
-            case "affected": {
-                var affected = await _indexer.ProjectDependencyGraph.GetAffectedProjectsAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"Affected projects ({affected.Count}):");
-                foreach (var p in affected) {
-                    sb.AppendLine($"  {p.Replace('\\', '/')}");
-                }
-                break;
-            }
-            case "nugets": {
-                var nugets = await _indexer.ProjectDependencyGraph.GetProjectNuGetPackagesAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"NuGet packages ({nugets.Count}):");
-                foreach (var n in nugets) {
-                    sb.AppendLine($"  {n.PackageName} {n.Version}");
-                }
-                break;
-            }
-            case "nuget_projects": {
-                var projects = await _indexer.ProjectDependencyGraph.GetProjectsUsingNuGetPackageAsync(query, ct).ConfigureAwait(false);
-                sb.AppendLine($"Projects using {query} ({projects.Count}):");
-                foreach (var p in projects) {
-                    sb.AppendLine($"  {p.Replace('\\', '/')}");
-                }
-                break;
-            }
-            case "all": {
-                var all = await _indexer.ProjectDependencyGraph.GetAllProjectsAsync(ct).ConfigureAwait(false);
-                sb.AppendLine($"All projects ({all.Count}):");
-                foreach (var p in all) {
-                    sb.AppendLine($"  {p.FilePath.Replace('\\', '/')}");
-                }
-                break;
-            }
-            default:
-                return ToolResultBuilder.Error().WithText(
-                    $"Unknown project_relation: \"{relation}\". Valid: deps|dependents|affected|nugets|nuget_projects|all").Build();
-        }
-        return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-    }
-
-    private async Task<ToolResult> QueryHybridModeAsync(
-        string query, int topK, string? symbolKind, string? fileType, string? namespaceFilter,
-        bool includeSource, bool includeParent, bool includeGraph, CancellationToken ct) {
-        var symbolTask = _indexer.Searcher.SearchAsync(query, ct);
-        var vectorOptions = new SearchOptions {
-            IncludeSourceText = includeSource,
-            IncludeParentDocument = includeParent,
-            FileType = fileType,
-            Namespace = namespaceFilter,
-            SymbolKind = symbolKind
-        };
-        var vectorTask = _indexer.SearchSemanticAsync(query, topK, ct, vectorOptions);
-        await Task.WhenAll(symbolTask, vectorTask).ConfigureAwait(false);
-
-        var symbolResult = await symbolTask.ConfigureAwait(false);
-        var vectorResult = await vectorTask.ConfigureAwait(false);
-        var sb = new StringBuilder();
-        sb.AppendLine($"Hybrid results for: \"{query}\" (mode=hybrid)");
-        sb.AppendLine();
-
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var idx = 0;
-        var symbolLimit = Math.Min(symbolResult.Items.Count, topK);
-        for (var i = 0; i < symbolLimit; i++) {
-            var s = symbolResult.Items[i];
-            var key = $"{s.FilePath}:{s.StartLine}";
-            if (!seen.Add(key)) continue;
-            idx++;
-            sb.AppendLine($"{idx}. [symbol] {s.Kind} {s.FullyQualifiedName}");
-            sb.AppendLine($"   {s.FilePath.Replace('\\', '/')}:{s.StartLine}-{s.EndLine}");
-            if (includeGraph) {
-                await AppendGraphRelationsAsync(sb, s.FullyQualifiedName, ct).ConfigureAwait(false);
-            }
+    /// <summary>
+    /// 文档检索 — .md 文件语义搜索。
+    /// </summary>
+    /// <param name="query">搜索查询（自然语言）。</param>
+    /// <param name="top_k">最大结果数。</param>
+    /// <param name="include_source_text">包含块原文。</param>
+    /// <param name="persist_dir">索引目录（默认自动发现 git 工作区）。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含文档检索结果的工具结果。</returns>
+    [McpTool(CodeToolNameEnumConstants.SearchDocument, "Document search: semantic search over .md files only. Returns matching markdown chunks.", "code_index")]
+    public async Task<ToolResult> SearchDocumentAsync(
+        [McpToolParameter("Search query (natural language)")] string query,
+        [McpToolParameter("Maximum results", Required = false, DefaultValue = "10")] int top_k = 10,
+        [McpToolParameter("Include source text in results")] bool include_source_text = false,
+        [McpToolParameter("Index directory (default: auto-discover git workspace)")] string? persist_dir = null,
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(query)) {
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
         }
 
-        foreach (var r in vectorResult) {
-            var key = $"{r.FilePath}:{r.StartLine}";
-            if (!seen.Add(key)) continue;
-            idx++;
-            sb.AppendLine($"{idx}. [vector {r.Score:F4}] {r.SymbolFqn}");
-            sb.AppendLine($"   {r.FilePath.Replace('\\', '/')}:{r.StartLine}-{r.EndLine}");
-            if (includeSource && !string.IsNullOrEmpty(r.SourceText)) {
-                sb.AppendLine("   --- Source ---");
-                foreach (var line in r.SourceText.Split('\n')) {
-                    sb.AppendLine($"   {line}");
-                }
-                sb.AppendLine("   --- End Source ---");
+        try {
+            await EnsureLoadedAsync(cancellationToken, persist_dir).ConfigureAwait(false);
+            var options = new SearchOptions {
+                IncludeSourceText = include_source_text,
+                FileType = "md"
+            };
+            var results = await _indexer.SearchSemanticAsync(query, top_k, cancellationToken, options).ConfigureAwait(false);
+            if (results.Count == 0) {
+                return ToolResultBuilder.Success().WithText($"No document matches for: \"{query}\"").Build();
             }
-            if (includeGraph && !string.IsNullOrEmpty(r.SymbolFqn)) {
-                await AppendGraphRelationsAsync(sb, r.SymbolFqn, ct).ConfigureAwait(false);
-            }
-            if (idx >= topK) break;
+            var sb = FormatVectorResults(results, query, "document", include_source_text);
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
+        } catch (Exception ex) {
+            return ToolResultBuilder.Error().WithText($"search_document failed: {ex.Message}").Build();
         }
-
-        foreach (var r in vectorResult) {
-            var key = $"{r.FilePath}:{r.StartLine}";
-            if (!seen.Add(key)) continue;
-            idx++;
-            sb.AppendLine($"{idx}. [vector {r.Score:F4}] {r.SymbolFqn}");
-            sb.AppendLine($"   {r.FilePath.Replace('\\', '/')}:{r.StartLine}-{r.EndLine}");
-            if (includeSource && !string.IsNullOrEmpty(r.SourceText)) {
-                sb.AppendLine("   --- Source ---");
-                foreach (var line in r.SourceText.Split('\n')) {
-                    sb.AppendLine($"   {line}");
-                }
-                sb.AppendLine("   --- End Source ---");
-            }
-            if (idx >= topK) break;
-        }
-
-        if (idx == 0) {
-            sb.AppendLine("No results found.");
-        }
-        return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
     }
 
     private async Task AppendGraphRelationsAsync(StringBuilder sb, string fqn, CancellationToken ct) {

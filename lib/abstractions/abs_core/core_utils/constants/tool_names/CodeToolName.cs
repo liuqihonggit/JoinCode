@@ -4,9 +4,13 @@ namespace JoinCode.Abstractions.Utils;
 /// 代码相关工具名称枚举（CodeIndex + LSP + 代码执行 + 分析 + 生成）
 /// </summary>
 public enum CodeToolName {
-    [EnumValue("code_query")]
+    [EnumValue("search_hybrid")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
-    CodeQuery,
+    SearchHybrid,
+
+    [EnumValue("search_document")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    SearchDocument,
 
     [EnumValue("search_symbol")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]

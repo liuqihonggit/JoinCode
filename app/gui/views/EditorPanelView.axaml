@@ -41,7 +41,8 @@
     <Border Grid.Row="0" Background="{DynamicResource GuiTopBarBackground}"
             BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
       <Grid ColumnDefinitions="*,Auto,Auto">
-        <ItemsControl Grid.Column="0" ItemsSource="{Binding EditorTabs}" VerticalAlignment="Center">
+        <ItemsControl Grid.Column="0" ItemsSource="{Binding EditorTabs}" VerticalAlignment="Center"
+                      PointerWheelChanged="OnTabWheelChanged">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
               <StackPanel Orientation="Horizontal" Spacing="0" />

@@ -107,4 +107,17 @@ public sealed partial class EditorPanelView : UserControl {
             e.Handled = true;
         }
     }
+
+    /// <summary>标签页栏滚轮 — 切换标签页(VSCode 风格)</summary>
+    private void OnTabWheelChanged(object? sender, PointerWheelEventArgs e) {
+        if (_vm is null || _vm.EditorTabs.Count == 0)
+            return;
+        var current = _vm.EditorTabs.IndexOf(_vm.ActiveEditorTab);
+        if (current < 0)
+            return;
+        var delta = e.Delta.Y > 0 ? -1 : 1;
+        var next = (current + delta + _vm.EditorTabs.Count) % _vm.EditorTabs.Count;
+        _vm.ActivateEditorTabCommand.Execute(_vm.EditorTabs[next]);
+        e.Handled = true;
+    }
 }

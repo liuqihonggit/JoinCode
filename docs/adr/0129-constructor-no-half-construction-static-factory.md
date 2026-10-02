@@ -110,9 +110,9 @@
 | ✅ d555222 | `V2ReplBridgeTransport` | `lib/transport.impl/bridge/v2/V2ReplBridgeTransport.cs:48` | CTS + HttpClient×2 + SerialBatchEventUploader×2 → private ctor + static Create |
 | ✅ cf0c9b2 | `V1ReplBridgeTransport` | `lib/transport.impl/bridge/v1/V1ReplBridgeTransport.cs:66` | HttpClient + WebSocketTransport + CTS + 事件订阅×2 → private ctor + static Create |
 | ⏭️ 已评估 | `PriorityMailbox` | `lib/async_lock/mailbox/PriorityMailbox.cs:61` | Channel×3 + fire-and-forget StartConsumingAsync → 已评估：_consumerTask 字段持有 Task，DisposeAsync await，非真正 fire-and-forget |
-| ⏳ | `CodeIndexer` | `server/code_index/indexing/CodeIndexer.cs:42` | 11 协作对象 + TryInitEmbeddingIndex 实例方法 + BuildIndexStoreList |
-| ⏳ | `V1BridgeHandle` | `server/bridge/transport/v1/core/V1BridgeHandle.cs:50` | Timer×2 立即启动，回调访问未完全构造对象 |
-| ⏳ | `BridgeRequestScope` | `server/bridge/client/BridgeClient.cs:217` | CTS×2 + TaskCompletionSource + 事件订阅 |
+| ⏭️ 已评估 | `CodeIndexer` | `server/code_index/indexing/CodeIndexer.cs:42` | 11 协作对象 + TryInitEmbeddingIndex + BuildIndexStoreList → 已评估：DI Singleton 约束，大部分对象非 IDisposable，TryInitEmbeddingIndex 有 try-catch，无 fire-and-forget |
+| ⏭️ 已评估 | `V1BridgeHandle` | `server/bridge/transport/v1/core/V1BridgeHandle.cs:50` | Timer×2 立即启动 → 已评估：字段全先赋值，dueTime=120s/1h 非立即，回调有 try-catch，Dispose 释放 Timer |
+| ⏭️ 已评估 | `BridgeRequestScope` | `server/bridge/client/BridgeClient.cs:217` | CTS×2 + TaskCompletionSource + 事件订阅 → 已评估：CTS 创建仅 OOM 可能抛异常，GC finalize 兜底，Dispose 释放全部 |
 | ⏳ | `BridgeSubprocessHandle` | `server/bridge/session/core/BridgeSubprocessManager.cs:64` | 已部分合规（private ctor + CreateAsync），工厂内仍有半构造风险 |
 | ⏳ | `CostTracker` | `kit/brain/cost_tracking/services/core/CostTracker.cs:27` | 5 对象 + ValidateOrThrow + 后台 LoadCostHistory |
 | ⏳ | `QueryServiceBase` | `llm/core/Adapters/LLM/core/QueryServiceBase.cs:30` | CreateHttpClient 内 new Uri（UriFormatException）+ ConfigureHttpClient 多态 |

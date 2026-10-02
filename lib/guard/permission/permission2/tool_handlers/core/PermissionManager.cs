@@ -15,6 +15,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     private PermissionMode _currentMode;
     private List<ToolPermissionRule> _strippedRules = [];
     private bool _disposed;
+    private readonly Task _loadTask;
 
     /// <summary>
     /// 缓存过期时间
@@ -35,7 +36,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _logger = logger;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _currentMode = PermissionMode.Auto;
-        _ = InitializeModeAsync(fs);
+        _loadTask = InitializeModeAsync(fs);
     }
 
     /// <summary>
@@ -245,6 +246,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
 
         _disposed = true;
 
+        await _loadTask.ConfigureAwait(false);
         _modeLock.Dispose();
         while (true) {
             var current = _approvedTools;

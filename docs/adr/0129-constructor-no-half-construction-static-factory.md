@@ -95,8 +95,8 @@
 | ✅ 3d1d9f0 | `McpAuthToolHandlers` | `kit/mcp/core/handlers/McpAuthToolHandlers.cs:24` | fire-and-forget LoadAuthStateAsync → _loadTask 持有 + DisposeAsync await |
 | ✅ 7736844 | `DynamicKeywordConfigService` | `kit/prompts/utils/DynamicKeywordConfigService.cs:26` | ReloadActor + fire-and-forget + FileSystemWatcher → _loadTask 持有 + DisposeAsync await |
 | ✅ 84488a3 | `WindowShakeCoordinator` | `kit/hands/desktop/services/WindowShakeCoordinator.cs:42` | fire-and-forget + 事件订阅悬挂 → _loadTask 持有 |
-| ⏳ | `TeamManager` | `llm/agents/Coordinator/Team/core/TeamManager.cs:43` | 5 对象 + fire-and-forget LoadStateAsync |
-| ⏳ | `AgentMemoryService` | `llm/agents/Services/Support/AgentMemoryService.cs:35` | fs.GetCurrentDirectory 实例方法 |
+| ✅ 6c848a9 | `TeamManager` | `llm/agents/Coordinator/Team/core/TeamManager.cs:43` | 5 对象 + fire-and-forget LoadStateAsync → _loadTask 持有 + DisposeAsync await |
+| ⏭️ 已评估 | `AgentMemoryService` | `llm/agents/Services/Support/AgentMemoryService.cs:35` | fs.GetCurrentDirectory 同步调用，抛异常对象不可达，无半构造化风险 |
 | ⏳ | `PermissionChecker` | `lib/guard/permission/permission2/tool_handlers/core/PermissionChecker.cs:25` | fire-and-forget InitializeModeAsync（读 env+settings.json） |
 | ⏳ | `PermissionManager` | `lib/guard/permission/permission2/tool_handlers/core/PermissionManager.cs:32` | fire-and-forget InitializeModeAsync |
 | ⏳ | `BriefModeService` | `lib/guard/configuration/services/BriefModeService.cs:18` | fire-and-forget LoadFromFileAsync |

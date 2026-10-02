@@ -1099,11 +1099,14 @@ public sealed class CodeIndexToolHandlers {
                 Namespace = namespace_filter,
                 SymbolKind = symbol_kind
             };
-            var vectorTask = _indexer.SearchSemanticAsync(query, top_k, cancellationToken, vectorOptions);
+            var oversampleK = Math.Max(top_k * 3, top_k + 10);
+            var vectorTask = _indexer.SearchSemanticAsync(query, oversampleK, cancellationToken, vectorOptions);
             await Task.WhenAll(symbolTask, vectorTask).ConfigureAwait(false);
 
             var symbolResult = await symbolTask.ConfigureAwait(false);
-            var vectorResult = await vectorTask.ConfigureAwait(false);
+            var rawVectorResult = await vectorTask.ConfigureAwait(false);
+            var vectorResult = await SemanticSearchReranker.RerankAsync(
+                query, rawVectorResult, top_k, _indexer.CallGraph, cancellationToken).ConfigureAwait(false);
             var sb = new StringBuilder();
             sb.AppendLine($"Hybrid results for: \"{query}\"");
             sb.AppendLine();

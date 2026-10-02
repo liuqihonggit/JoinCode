@@ -406,7 +406,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
 
         float[] queryVector;
         try {
-            queryVector = await _embedModel.EmbedAsync(query, ct).ConfigureAwait(false);
+            queryVector = await _embedModel.EmbedAsync(SplitPascalCase(query), ct).ConfigureAwait(false);
         } catch (OperationCanceledException) {
             throw;
         } catch (Exception) {

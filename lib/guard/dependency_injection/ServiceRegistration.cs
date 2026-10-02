@@ -34,7 +34,10 @@ public static partial class ServiceRegistration {
     /// </summary>
     public static IServiceCollection AddConfigurationServices(this IServiceCollection services) {
         services.TryAddSingleton<IModelConfigLoader, ModelConfigLoader>();
-        services.TryAddSingleton<IProviderDefinitionRegistry, Core.Configuration.Providers.ProviderDefinitionRegistry>();
+        services.TryAddSingleton<IProviderDefinitionRegistry>(sp => Core.Configuration.Providers.ProviderDefinitionRegistry.Create(
+            sp.GetRequiredService<IModelConfigLoader>(),
+            sp.GetService<IFileSystem>(),
+            sp.GetService<ILogger<Core.Configuration.Providers.ProviderDefinitionRegistry>>()));
         return services;
     }
 

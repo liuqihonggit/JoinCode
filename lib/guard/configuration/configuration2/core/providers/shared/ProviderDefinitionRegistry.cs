@@ -10,12 +10,28 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
     private volatile FrozenDictionary<string, IProviderDefinition> _definitions = new Dictionary<string, IProviderDefinition>(0, StringComparer.OrdinalIgnoreCase).ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// 构造供应商定义注册表 — 从 settings.json 的 vendor 节点构建，并始终保留 Azure 供应商
-    /// <para>同步等待初始化完成，消除 fire-and-forget 竞态（调用方构造后立即查询能看到已注册供应商）。</para>
-    /// <para>PhysicalFileSystem UTF-8 走 mmap 零拷贝同步完成，实际不阻塞；脏读重试时短暂等待是合理的。</para>
+    /// 私有构造 — 仅字段赋值（_definitions 已有初始化器），IO/初始化由静态工厂完成
+    /// <para>消除半构造化：ctor 不抛异常、不阻塞、不启动异步操作。</para>
     /// </summary>
-    public ProviderDefinitionRegistry(IModelConfigLoader modelConfigLoader, IFileSystem? fs = null, ILogger? logger = null) {
-        InitializeAsync(modelConfigLoader, fs, logger).GetAwaiter().GetResult();
+    private ProviderDefinitionRegistry() { }
+
+    /// <summary>
+    /// 异步创建供应商定义注册表 — 从 settings.json 的 vendor 节点构建，并始终保留 Azure 供应商
+    /// <para>异步路径：await 完成初始化后再返回，消除 .GetAwaiter().GetResult() 阻塞（死锁风险）。</para>
+    /// </summary>
+    public static async Task<ProviderDefinitionRegistry> CreateAsync(IModelConfigLoader modelConfigLoader, IFileSystem? fs = null, ILogger? logger = null) {
+        var registry = new ProviderDefinitionRegistry();
+        await registry.InitializeAsync(modelConfigLoader, fs, logger).ConfigureAwait(false);
+        return registry;
+    }
+
+    /// <summary>
+    /// 同步创建供应商定义注册表 — 供 DI 容器激活和同步调用方使用
+    /// <para>PhysicalFileSystem UTF-8 走 mmap 零拷贝同步完成，实际不阻塞；脏读重试时短暂等待是合理的。</para>
+    /// <para>CLI 环境 SynchronizationContext 为 null，.GetAwaiter().GetResult() 不会死锁。</para>
+    /// </summary>
+    public static ProviderDefinitionRegistry Create(IModelConfigLoader modelConfigLoader, IFileSystem? fs = null, ILogger? logger = null) {
+        return CreateAsync(modelConfigLoader, fs, logger).GetAwaiter().GetResult();
     }
 
     private async Task InitializeAsync(IModelConfigLoader modelConfigLoader, IFileSystem? fs, ILogger? logger) {

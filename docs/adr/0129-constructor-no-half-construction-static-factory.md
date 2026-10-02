@@ -146,3 +146,47 @@
 6. **中风险（14 个）** — 高风险全完后评估
 
 状态标记：⏳ 待推进 / 🔧 进行中 / ✅ 已完成（补 commit hash）/ ⏭️ 已评估无需改
+
+## 第二轮扫描（Roslyn 语法分析器，2026-10-03）
+
+> 扫描器：`tool/ctor_scanner/`（Roslyn 语法树精确分析，commit f1d53ff38）
+> 扫描范围：`lib/` + `kit/` + `server/` + `llm/` + `app/`，4576 个 .cs 文件
+> 总构造函数：1947 个 | 有风险：155 个 | 已有工厂方法：41 个
+> 排除第一轮已处理 + 测试代码 + 已重构后：**115 个候选**
+
+### 第二轮 P0 — 高风险（9 个）
+
+| 状态 | 类 | 文件:行 | 风险 |
+|------|----|---------|------|
+| ⏳ | `BuildQueueRouter` | `kit/hands/build/BuildQueueRouter.cs:21` | BlockingAsync_GetResult（构造函数内 .GetAwaiter().GetResult()） |
+| ⏳ | `ReaperScheduler` | `lib/infrastructure/reaper_scheduler/ReaperScheduler.cs:27` | ThreadCreation（构造函数内 new Thread + 赋值字段） |
+| ⏳ | `ActorBase` | `lib/async_lock/actor/ActorBase.cs:66` | TaskRun（构造函数内 Task.Run 启动后台循环） |
+| ⏳ | `BusClientConnection` | `lib/async_lock/transport/BusTransport.cs:276` | TaskRun + IDisposable（NamedPipeServerStream + Task.Run） |
+| ⏳ | `MeshPeerConnection` | `lib/async_lock/transport/MeshTransport.cs:237` | TaskRun + IDisposable（NamedPipeClientStream + Task.Run） |
+| ⏳ | `PipeConnection` | `lib/async_lock/transport/NamedPipeTransport.cs:441` | TaskRun + IDisposable（NamedPipeServerStream + Task.Run） |
+| ⏳ | `AnalyticsFileSink` | `lib/infrastructure/telemetry/AnalyticsFileSink.cs:106` | TaskRun + CTS + IDisposable（后台刷新任务） |
+| ⏳ | `SystemActuatorCommandContext` | `kit/hands/system_actuator/abstractions/SystemActuatorCommandContext.cs:46` | FireAndForget + CTS + IDisposable（private ctor，需评估） |
+| ⏳ | `MainViewModel.Lifecycle` | `app/gui/view_models/main_view_model/MainViewModel.Lifecycle.cs:11` | FireAndForget + EventSubscription（GUI ViewModel，需评估） |
+
+### 第二轮 P1 — 中风险（12 个）
+
+| 状态 | 类 | 文件:行 | 风险 |
+|------|----|---------|------|
+| ⏳ | `McpClientToolHandlers` | `kit/mcp/core/handlers/McpClientToolHandlers.cs:22` | IDisposableAllocation + CTS |
+| ⏳ | `HostContextSyncService` | `lib/async_lock/host/HostContextSyncService.cs:33` | IDisposableAllocation + CTS |
+| ⏳ | `HostElectionService` | `lib/async_lock/host/HostElectionService.cs:58` | IDisposableAllocation + CTS |
+| ⏳ | `BusTransport` | `lib/async_lock/transport/BusTransport.cs:33` | IDisposableAllocation + CTS |
+| ⏳ | `MeshTransport` | `lib/async_lock/transport/MeshTransport.cs:29` | IDisposableAllocation + CTS |
+| ⏳ | `NamedPipeTransport` | `lib/async_lock/transport/NamedPipeTransport.cs:32` | IDisposableAllocation + CTS |
+| ⏳ | `ParallelExecutionEngine` | `lib/scheduling/execution/ParallelExecutionEngine.cs:20` | IDisposableAllocation + CTS + EventSubscription |
+| ⏳ | `ParallelExecutionEngine` | `lib/scheduling/execution/ParallelExecutionEngine.cs:34` | IDisposableAllocation + CTS + EventSubscription（第二个 ctor） |
+| ⏳ | `StreamMailboxBase` | `llm/agents/Coordinator/Core/Messaging/StreamMailboxBase.cs:25` | IDisposableAllocation + CTS |
+| ⏳ | `AgentBase` | `llm/agents/Coordinator/Fork/AgentBase.cs:121` | IDisposableAllocation + CTS |
+| ⏳ | `BridgeServer` | `server/bridge/server/BridgeServer.cs:52` | IDisposableAllocation + CTS + EventSubscription |
+| ⏳ | `SubprocessIoChannels` | `server/bridge/session/core/SubprocessIoChannels.cs:47` | IDisposableAllocation + CTS + EventSubscription |
+
+### 第二轮 P2 — 低风险（94 个，大部分可忽略）
+
+> 评估结论：大部分是 UI EventSubscription（Avalonia/TUI View 类，框架管理生命周期）、Timer/SemaphoreSlim/Channel 创建（托管资源，GC 回收）、已重构残留风险。逐个评估后标记 ⏭️ 或 ✅。
+>
+> 完整清单见 `tool/ctor_scanner/ctor_scan_report.json`

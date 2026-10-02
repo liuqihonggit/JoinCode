@@ -1,71 +1,67 @@
-﻿using System.Buffers;
 using System.Buffers.Binary;
 using System.IO.Hashing;
+using System.IO.MemoryMappedFiles;
 using K4os.Compression.LZ4;
-using Microsoft.Win32.SafeHandles;
 using PithosDB.Core.Core;
 
 namespace PithosDB.Core.Storage;
 
 /// <summary>
 /// Reads an immutable SSTable file written by <see cref="SSTableWriter"/>.
-/// On open, the sparse index and bloom filter are loaded into memory; data
-/// blocks remain on disk and are read on demand. Each instance holds an open
-/// file handle — dispose when done.
+/// Uses memory-mapped I/O for zero-copy reads — the entire file is mapped into
+/// virtual address space and accessed via <see cref="ReadOnlySpan{Byte}"/> slices.
+/// On open, the sparse index and bloom filter are parsed from the mapped span;
+/// data blocks are sliced directly from the mapping (no syscall, no ArrayPool).
 /// </summary>
-public sealed class SSTableReader : IDisposable
+public sealed unsafe class SSTableReader : IDisposable
 {
-    private readonly FileStream _stream;
-    private readonly BinaryReader _reader;
+    private readonly MemoryMappedFile _mmf;
+    private readonly MemoryMappedViewAccessor _accessor;
+    private readonly byte* _ptr;
+    private readonly long _length;
     private readonly List<(byte[] firstKey, long offset)> _index;
     private readonly BloomFilter _bloom;
     private readonly long _bloomOffset;
     private readonly IBlockCache? _blockCache;
+    private int _disposed;
 
     /// <summary>Absolute path to the SSTable file.</summary>
     public string Path { get; }
 
     /// <summary>
-    /// Opens the SSTable at <paramref name="path"/> and loads its index and
-    /// bloom filter into memory.
+    /// Opens the SSTable at <paramref name="path"/> via memory-mapped I/O and
+    /// loads its index and bloom filter into memory.
     /// </summary>
     /// <param name="path">Absolute path to the SSTable file.</param>
     /// <param name="blockCache">
-    /// Optional shared block cache. When provided, block reads are served from
-    /// cache on subsequent accesses to the same block. The cache stores decompressed
-    /// block bytes so decompression only happens once per block per cache warm-up.
+    /// Optional shared block cache. When provided, decompressed block bytes are
+    /// served from cache on subsequent accesses.
     /// </param>
     public SSTableReader(string path, IBlockCache? blockCache = null)
     {
         Path = path;
         _blockCache = blockCache;
-        _stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        _reader = new BinaryReader(_stream);
+        _length = new FileInfo(path).Length;
+        _mmf = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+        _accessor = _mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
+        byte* ptr = null;
+        _accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
+        _ptr = ptr;
         (_index, _bloom, _bloomOffset) = ReadMetadata();
     }
+
+    /// <summary>The entire file as a zero-copy span. Valid until Dispose.</summary>
+    private ReadOnlySpan<byte> Data => new(_ptr, (int)_length);
 
     /// <summary>
     /// Looks up <paramref name="key"/> in this SSTable. The bloom filter is
     /// consulted first; a definite miss returns <see langword="false"/> without
-    /// any block I/O. Returns <see langword="true"/> for tombstones (with a
-    /// <see langword="null"/> <paramref name="value"/>), allowing callers to
-    /// distinguish "found a tombstone" from "not present".
+    /// any block access. Returns <see langword="true"/> for tombstones.
     /// <para>
     /// Thread-safe: the bloom filter and index are pure in-memory reads; the block
-    /// is fetched with a single positional <see cref="RandomAccess.Read"/> call
-    /// (does not advance <c>_stream.Position</c>) and parsed entirely in memory,
-    /// so concurrent callers never share mutable state.
+    /// is sliced from the mmap span and parsed entirely in memory.
     /// </para>
     /// </summary>
-    /// <param name="key">The key to look up.</param>
-    /// <param name="value">
-    /// The stored value on success, <see langword="null"/> for a tombstone,
-    /// or <see langword="null"/> when the method returns <see langword="false"/>.
-    /// </param>
-    /// <exception cref="InvalidDataException">
-    /// Thrown when the block's CRC32 checksum does not match the stored checksum,
-    /// indicating data corruption.
-    /// </exception>
     public bool TryGet(byte[] key, out byte[]? value)
     {
         value = null;
@@ -75,28 +71,21 @@ public sealed class SSTableReader : IDisposable
         if (blockOffset < 0) return false;
 
         int blockLen = (int)(blockEnd - blockOffset);
+        var data = Data;
 
         // Cache hit — block was already decompressed and checksum-verified when first read.
         if (_blockCache is not null && _blockCache.TryGet(Path, blockOffset, out var cached))
             return ParseBlock(cached, key, out value);
 
-        // Cache miss — read raw block, verify CRC, decompress, cache, then parse.
-        byte[] buf = ArrayPool<byte>.Shared.Rent(blockLen);
-        try
-        {
-            ReadAt(_stream.SafeFileHandle, buf.AsSpan(0, blockLen), blockOffset);
-            VerifyChecksum(buf.AsSpan(0, blockLen), blockOffset);
-            byte[] decompressed = Decompress(buf.AsSpan(0, blockLen));
+        // Cache miss — slice from mmap, verify CRC, decompress, cache, then parse.
+        var blockSpan = data.Slice((int)blockOffset, blockLen);
+        VerifyChecksum(blockSpan, blockOffset);
+        byte[] decompressed = Decompress(blockSpan);
 
-            if (_blockCache is not null)
-                _blockCache.Put(Path, blockOffset, decompressed);
+        if (_blockCache is not null)
+            _blockCache.Put(Path, blockOffset, decompressed);
 
-            return ParseBlock(decompressed, key, out value);
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buf);
-        }
+        return ParseBlock(decompressed, key, out value);
     }
 
     private static bool ParseBlock(ReadOnlySpan<byte> block, byte[] key, out byte[]? value)
@@ -166,65 +155,54 @@ public sealed class SSTableReader : IDisposable
         };
     }
 
-    // Positional read that retries until the buffer is full. RandomAccess.Read
-    // does not advance _stream.Position, so concurrent callers share the handle safely.
-    private static void ReadAt(SafeFileHandle handle, Span<byte> buffer, long offset)
-    {
-        while (!buffer.IsEmpty)
-        {
-            int n = RandomAccess.Read(handle, buffer, offset);
-            if (n == 0) throw new EndOfStreamException();
-            buffer = buffer[n..];
-            offset += n;
-        }
-    }
-
     /// <summary>
     /// Streams all entries in byte-lexicographic key order, including tombstones.
     /// Used by <see cref="Compaction.LeveledCompactor"/> during compaction.
+    /// Reads directly from the mmap pointer — no FileStream, no per-block allocation.
     /// </summary>
     public IEnumerable<KeyValuePair<byte[], byte[]?>> ReadAllEntries()
     {
         if (_index.Count == 0) yield break;
 
-        _stream.Seek(_index[0].offset, SeekOrigin.Begin);
+        long pos = _index[0].offset;
 
-        while (_stream.Position < _bloomOffset)
+        while (pos < _bloomOffset)
         {
             // Block layout: [compression:1][payloadLen:4][payload:N][CRC32:4]
-            byte compressionByte = _reader.ReadByte();
-            int payloadLen = _reader.ReadInt32();
-            byte[] payload = _reader.ReadBytes(payloadLen);
-            _reader.ReadUInt32(); // consume CRC32 (verified on TryGet path; skip here for compaction speed)
+            var data = Data;
+            byte compressionByte = data[(int)pos];
+            int payloadLen = BinaryPrimitives.ReadInt32LittleEndian(data.Slice((int)pos + 1, 4));
+            var payload = data.Slice((int)pos + 5, payloadLen);
+            pos += 5 + payloadLen + 4; // skip compression + payloadLen + payload + CRC32
 
             byte[] block = compressionByte switch
             {
-                SSTableWriter.CompressionNone => payload,
+                SSTableWriter.CompressionNone => payload.ToArray(),
                 SSTableWriter.CompressionLz4  => LZ4Pickler.Unpickle(payload),
                 _ => throw new InvalidDataException($"Unknown compression type 0x{compressionByte:X2}.")
             };
 
-            int pos = 0;
-            int count = BinaryPrimitives.ReadInt32LittleEndian(block.AsSpan(pos));
-            pos += 4;
+            int bpos = 0;
+            int count = BinaryPrimitives.ReadInt32LittleEndian(block.AsSpan(bpos));
+            bpos += 4;
 
             for (int i = 0; i < count; i++)
             {
-                int keyLen = BinaryPrimitives.ReadInt32LittleEndian(block.AsSpan(pos));
-                pos += 4;
-                var key = block[pos..(pos + keyLen)];
-                pos += keyLen;
+                int keyLen = BinaryPrimitives.ReadInt32LittleEndian(block.AsSpan(bpos));
+                bpos += 4;
+                var key = block[bpos..(bpos + keyLen)];
+                bpos += keyLen;
 
-                bool isTombstone = block[pos] != 0;
-                pos += 1;
+                bool isTombstone = block[bpos] != 0;
+                bpos += 1;
 
                 byte[]? value = null;
                 if (!isTombstone)
                 {
-                    int valLen = BinaryPrimitives.ReadInt32LittleEndian(block.AsSpan(pos));
-                    pos += 4;
-                    value = block[pos..(pos + valLen)];
-                    pos += valLen;
+                    int valLen = BinaryPrimitives.ReadInt32LittleEndian(block.AsSpan(bpos));
+                    bpos += 4;
+                    value = block[bpos..(bpos + valLen)];
+                    bpos += valLen;
                 }
 
                 yield return new KeyValuePair<byte[], byte[]?>(key, value);
@@ -234,10 +212,7 @@ public sealed class SSTableReader : IDisposable
 
     /// <summary>
     /// Returns the number of SSTable blocks whose key range overlaps
-    /// [<paramref name="from"/>, <paramref name="to"/>]. Each block holds
-    /// approximately one block's worth of keys; callers should treat this as a
-    /// rough order-of-magnitude estimate rather than an exact count. Omit either
-    /// bound for an open-ended range.
+    /// [<paramref name="from"/>, <paramref name="to"/>).
     /// </summary>
     public int ApproximateKeyCount(byte[]? from, byte[]? to)
     {
@@ -246,10 +221,8 @@ public sealed class SSTableReader : IDisposable
         for (int i = 0; i < _index.Count; i++)
         {
             var blockStart = _index[i].firstKey;
-            // Next block's first key is the exclusive upper bound for block i.
             var blockEnd = i + 1 < _index.Count ? _index[i + 1].firstKey : null;
 
-            // Block overlaps [from, to] when blockStart <= to AND blockEnd > from.
             bool beforeTo = to  == null || cmp.Compare(blockStart, to)  <= 0;
             bool afterFrom = from == null || blockEnd == null || cmp.Compare(blockEnd, from) > 0;
 
@@ -260,10 +233,7 @@ public sealed class SSTableReader : IDisposable
 
     /// <summary>
     /// Binary-searches the sparse index for the last block whose first key is
-    /// ≤ <paramref name="key"/>. Returns <c>(-1, -1)</c> if the key precedes the
-    /// first block. The <c>end</c> value is the exclusive byte offset of the block's
-    /// last byte — either the next block's start or <c>_bloomOffset</c> for the
-    /// last block.
+    /// ≤ <paramref name="key"/>.
     /// </summary>
     private (long start, long end) FindBlockBounds(byte[] key)
     {
@@ -283,31 +253,44 @@ public sealed class SSTableReader : IDisposable
 
     /// <summary>
     /// Reads the 16-byte footer to locate the bloom filter and index sections,
-    /// then deserializes both into memory.
+    /// then deserializes both from the mmap span.
     /// </summary>
     private (List<(byte[] firstKey, long offset)> index, BloomFilter bloom, long bloomOffset) ReadMetadata()
     {
-        // Footer layout (last 16 bytes): [bloomOffset (8)] [indexOffset (8)]
-        _stream.Seek(-16, SeekOrigin.End);
-        long bloomOffset = _reader.ReadInt64();
-        long indexOffset = _reader.ReadInt64();
+        var data = Data;
 
-        _stream.Seek(bloomOffset, SeekOrigin.Begin);
-        int hashCount = _reader.ReadInt32();
-        int bitCount = _reader.ReadInt32();
+        // Footer layout (last 16 bytes): [bloomOffset (8)] [indexOffset (8)]
+        int footerPos = (int)_length - 16;
+        long bloomOffset = BinaryPrimitives.ReadInt64LittleEndian(data.Slice(footerPos, 8));
+        long indexOffset = BinaryPrimitives.ReadInt64LittleEndian(data.Slice(footerPos + 8, 8));
+
+        // Bloom filter
+        int pos = (int)bloomOffset;
+        int hashCount = BinaryPrimitives.ReadInt32LittleEndian(data.Slice(pos, 4));
+        pos += 4;
+        int bitCount = BinaryPrimitives.ReadInt32LittleEndian(data.Slice(pos, 4));
+        pos += 4;
         var bits = new bool[bitCount];
         for (int i = 0; i < bitCount; i++)
-            bits[i] = _reader.ReadBoolean();
+        {
+            bits[i] = data[pos] != 0;
+            pos += 1;
+        }
         var bloom = new BloomFilter(bits, hashCount);
 
-        _stream.Seek(indexOffset, SeekOrigin.Begin);
-        int count = _reader.ReadInt32();
+        // Sparse index
+        pos = (int)indexOffset;
+        int count = BinaryPrimitives.ReadInt32LittleEndian(data.Slice(pos, 4));
+        pos += 4;
         var index = new List<(byte[], long)>(count);
         for (int i = 0; i < count; i++)
         {
-            var keyLen = _reader.ReadInt32();
-            var key = _reader.ReadBytes(keyLen);
-            var offset = _reader.ReadInt64();
+            int keyLen = BinaryPrimitives.ReadInt32LittleEndian(data.Slice(pos, 4));
+            pos += 4;
+            var key = data.Slice(pos, keyLen).ToArray();
+            pos += keyLen;
+            long offset = BinaryPrimitives.ReadInt64LittleEndian(data.Slice(pos, 8));
+            pos += 8;
             index.Add((key, offset));
         }
 
@@ -317,7 +300,8 @@ public sealed class SSTableReader : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        _reader.Dispose();
-        _stream.Dispose();
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _accessor.Dispose();
+        _mmf.Dispose();
     }
 }

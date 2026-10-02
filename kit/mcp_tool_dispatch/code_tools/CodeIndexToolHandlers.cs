@@ -717,8 +717,11 @@ public sealed class CodeIndexToolHandlers {
             };
             var oversampleK = Math.Max(top_k * 3, top_k + 10);
             var rawResults = await _indexer.SearchSemanticAsync(query, oversampleK, cancellationToken, options).ConfigureAwait(false);
+            var expanded = include_graph
+                ? await ExpandByGraphAsync(rawResults, top_k, cancellationToken).ConfigureAwait(false)
+                : rawResults;
             var results = await SemanticSearchReranker.RerankAsync(
-                query, rawResults, top_k, _indexer.CallGraph, cancellationToken).ConfigureAwait(false);
+                query, expanded, top_k, _indexer.CallGraph, cancellationToken).ConfigureAwait(false);
 
             if (results.Count == 0) {
                 var stats = await _indexer.GetStatsAsync(cancellationToken).ConfigureAwait(false);
@@ -783,25 +786,19 @@ public sealed class CodeIndexToolHandlers {
 
                         if (callers.Count == 0 && callees.Count == 0) continue;
                         if (!graphWritten) {
-                            sb.AppendLine("   --- Graph ---");
+                            sb.AppendLine("   --- Triples ---");
                             graphWritten = true;
                         }
 
-                        if (callers.Count > 0) {
-                            sb.AppendLine($"   {fqn} <- 调用方:");
-                            foreach (var c in callers.Take(EdgeLimit)) {
-                                sb.AppendLine($"     {c.CallerSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
-                            }
+                        foreach (var c in callers.Take(EdgeLimit)) {
+                            sb.AppendLine($"   ({c.CallerSymbol}, calls, {fqn})");
                         }
-                        if (callees.Count > 0) {
-                            sb.AppendLine($"   {fqn} -> 被调用方:");
-                            foreach (var c in callees.Take(EdgeLimit)) {
-                                sb.AppendLine($"     {c.CalleeSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
-                            }
+                        foreach (var c in callees.Take(EdgeLimit)) {
+                            sb.AppendLine($"   ({fqn}, calls, {c.CalleeSymbol})");
                         }
                     }
                     if (graphWritten) {
-                        sb.AppendLine("   --- End Graph ---");
+                        sb.AppendLine("   --- End Triples ---");
                     }
                 }
 
@@ -1096,6 +1093,71 @@ public sealed class CodeIndexToolHandlers {
         } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"search_document failed: {ex.Message}").Build();
         }
+    }
+
+    /// <summary>
+    /// GraphRAG 边扩展 — 对向量召回结果沿图谱边找邻居，加入候选集。
+    /// <para>邻居符号不在向量结果中时，用 SymbolSearcher 查找位置，降权加入候选。</para>
+    /// </summary>
+    private async Task<IReadOnlyList<ChunkSearchResult>> ExpandByGraphAsync(
+        IReadOnlyList<ChunkSearchResult> results, int topK, CancellationToken ct) {
+        if (results.Count == 0) return results;
+
+        var existingFqns = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var r in results) {
+            existingFqns.Add(r.SymbolFqn);
+            foreach (var fqn in r.ContainedSymbolFqns) existingFqns.Add(fqn);
+        }
+
+        var expanded = new List<ChunkSearchResult>(results);
+        var expansionTarget = results.Count + topK;
+
+        for (var i = 0; i < Math.Min(results.Count, 5) && expanded.Count < expansionTarget; i++) {
+            var r = results[i];
+            foreach (var fqn in r.ContainedSymbolFqns.Take(3)) {
+                if (expanded.Count >= expansionTarget) break;
+
+                var callees = await _indexer.CallGraph.GetCalleesAsync(fqn, ct).ConfigureAwait(false);
+                foreach (var edge in callees.Take(2)) {
+                    if (expanded.Count >= expansionTarget) break;
+                    if (existingFqns.Contains(edge.CalleeSymbol)) continue;
+                    var symResult = await _indexer.Searcher.SearchAsync(edge.CalleeSymbol, ct).ConfigureAwait(false);
+                    if (symResult.Items.Count == 0) continue;
+                    var sym = symResult.Items[0];
+                    expanded.Add(new ChunkSearchResult {
+                        ChunkId = sym.FullyQualifiedName,
+                        FilePath = sym.FilePath,
+                        SymbolFqn = sym.FullyQualifiedName,
+                        StartLine = sym.StartLine,
+                        EndLine = sym.EndLine,
+                        Score = r.Score * 0.4f,
+                        ContainedSymbolFqns = [sym.FullyQualifiedName]
+                    });
+                    existingFqns.Add(sym.FullyQualifiedName);
+                }
+
+                var callers = await _indexer.CallGraph.GetCallersAsync(fqn, ct).ConfigureAwait(false);
+                foreach (var edge in callers.Take(2)) {
+                    if (expanded.Count >= expansionTarget) break;
+                    if (existingFqns.Contains(edge.CallerSymbol)) continue;
+                    var symResult = await _indexer.Searcher.SearchAsync(edge.CallerSymbol, ct).ConfigureAwait(false);
+                    if (symResult.Items.Count == 0) continue;
+                    var sym = symResult.Items[0];
+                    expanded.Add(new ChunkSearchResult {
+                        ChunkId = sym.FullyQualifiedName,
+                        FilePath = sym.FilePath,
+                        SymbolFqn = sym.FullyQualifiedName,
+                        StartLine = sym.StartLine,
+                        EndLine = sym.EndLine,
+                        Score = r.Score * 0.4f,
+                        ContainedSymbolFqns = [sym.FullyQualifiedName]
+                    });
+                    existingFqns.Add(sym.FullyQualifiedName);
+                }
+            }
+        }
+
+        return expanded;
     }
 
     private async Task AppendGraphRelationsAsync(StringBuilder sb, string fqn, CancellationToken ct) {

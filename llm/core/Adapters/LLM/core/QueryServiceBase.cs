@@ -67,18 +67,25 @@ public abstract partial class QueryServiceBase : IQueryService {
         // 决策: SocketsHttpHandler 默认 PooledConnectionLifetime=Infinity，DNS 变更不刷新
         // 替代方案已否决: 改用 IHttpClientFactory（需重构 QueryServiceFactory + 所有派生类，风险大且 QueryService 是长生命周期单例，Socket 耗尽风险低）
         var handler = SocketsHttpHandlerFactory.CreateWithDnsRefresh();
-        var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
+        HttpClient? client = null;
+        try {
+            client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
 
-        var baseUrl = GetBaseUrl(config);
-        client.BaseAddress = new Uri(baseUrl);
-        client.DefaultRequestHeaders.Add("Accept", "application/json");
+            var baseUrl = GetBaseUrl(config);
+            client.BaseAddress = new Uri(baseUrl);
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
 
-        // IProviderDefinition 多态配置认证 Header — 完全消除 switch/if
-        // Definition 由 ctor 强制非空，此处无需再校验
-        var definition = config.Definition ?? throw new InvalidOperationException("Provider definition is required.");
-        definition.ConfigureHttpClient(client, config);
+            // IProviderDefinition 多态配置认证 Header — 完全消除 switch/if
+            // Definition 由 ctor 强制非空，此处无需再校验
+            var definition = config.Definition ?? throw new InvalidOperationException("Provider definition is required.");
+            definition.ConfigureHttpClient(client, config);
 
-        return client;
+            return client;
+        } catch {
+            if (client is not null) client.Dispose();
+            else handler.Dispose();
+            throw;
+        }
     }
 
     /// <summary>Base URL 构建 — 委托 IProviderDefinition.GetBaseUrl，消除 switch</summary>

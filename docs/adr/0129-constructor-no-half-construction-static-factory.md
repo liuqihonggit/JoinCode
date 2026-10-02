@@ -113,8 +113,8 @@
 | ⏭️ 已评估 | `CodeIndexer` | `server/code_index/indexing/CodeIndexer.cs:42` | 11 协作对象 + TryInitEmbeddingIndex + BuildIndexStoreList → 已评估：DI Singleton 约束，大部分对象非 IDisposable，TryInitEmbeddingIndex 有 try-catch，无 fire-and-forget |
 | ⏭️ 已评估 | `V1BridgeHandle` | `server/bridge/transport/v1/core/V1BridgeHandle.cs:50` | Timer×2 立即启动 → 已评估：字段全先赋值，dueTime=120s/1h 非立即，回调有 try-catch，Dispose 释放 Timer |
 | ⏭️ 已评估 | `BridgeRequestScope` | `server/bridge/client/BridgeClient.cs:217` | CTS×2 + TaskCompletionSource + 事件订阅 → 已评估：CTS 创建仅 OOM 可能抛异常，GC finalize 兜底，Dispose 释放全部 |
-| ⏳ | `BridgeSubprocessHandle` | `server/bridge/session/core/BridgeSubprocessManager.cs:64` | 已部分合规（private ctor + CreateAsync），工厂内仍有半构造风险 |
-| ⏳ | `CostTracker` | `kit/brain/cost_tracking/services/core/CostTracker.cs:27` | 5 对象 + ValidateOrThrow + 后台 LoadCostHistory |
+| ✅ 850d0e0 | `BridgeSubprocessHandle` | `server/bridge/session/core/BridgeSubprocessManager.cs:64` | 已部分合规，private ctor 内 fire-and-forget MonitorExitAsync → _monitorExitTask 持有 + DisposeAsync await |
+| ⏭️ 已评估 | `CostTracker` | `kit/brain/cost_tracking/services/core/CostTracker.cs:27` | 5 对象 + ValidateOrThrow + 后台 LoadCostHistory → 已评估：DI Singleton 约束，Tell 是 Actor 邮箱投递非 fire-and-forget，ValidateOrThrow 是配置验证，DisposeAsync await Actor |
 | ⏳ | `QueryServiceBase` | `llm/core/Adapters/LLM/core/QueryServiceBase.cs:30` | CreateHttpClient 内 new Uri（UriFormatException）+ ConfigureHttpClient 多态 |
 
 ### P3 — 阻塞异步 + 网络 IO（2 个）

@@ -1,6 +1,6 @@
 using System.Buffers.Binary;
 using System.IO.Hashing;
-using System.IO.MemoryMappedFiles;
+using System.Runtime.InteropServices;
 using K4os.Compression.LZ4;
 using PithosDB.Core.Core;
 
@@ -8,15 +8,16 @@ namespace PithosDB.Core.Storage;
 
 /// <summary>
 /// Reads an immutable SSTable file written by <see cref="SSTableWriter"/>.
-/// Uses memory-mapped I/O for zero-copy reads — the entire file is mapped into
-/// virtual address space and accessed via <see cref="ReadOnlySpan{Byte}"/> slices.
-/// On open, the sparse index and bloom filter are parsed from the mapped span;
-/// data blocks are sliced directly from the mapping (no syscall, no ArrayPool).
+/// Loads the file into a pinned byte array for zero-copy span access — no
+/// MemoryMappedFile is used, so multiple readers can open the same SST file
+/// concurrently without Windows file-lock conflicts (cross-process safe).
+/// On open, the sparse index and bloom filter are parsed from the buffer;
+/// data blocks are sliced directly (no syscall, no ArrayPool).
 /// </summary>
 public sealed unsafe class SSTableReader : IDisposable
 {
-    private readonly MemoryMappedFile _mmf;
-    private readonly MemoryMappedViewAccessor _accessor;
+    private readonly byte[] _buffer;
+    private readonly GCHandle _handle;
     private readonly byte* _ptr;
     private readonly long _length;
     private readonly List<(byte[] firstKey, long offset)> _index;
@@ -29,8 +30,8 @@ public sealed unsafe class SSTableReader : IDisposable
     public string Path { get; }
 
     /// <summary>
-    /// Opens the SSTable at <paramref name="path"/> via memory-mapped I/O and
-    /// loads its index and bloom filter into memory.
+    /// Opens the SSTable at <paramref name="path"/>, reads it into a pinned
+    /// buffer, and loads its index and bloom filter into memory.
     /// </summary>
     /// <param name="path">Absolute path to the SSTable file.</param>
     /// <param name="blockCache">
@@ -42,11 +43,11 @@ public sealed unsafe class SSTableReader : IDisposable
         Path = path;
         _blockCache = blockCache;
         _length = new FileInfo(path).Length;
-        _mmf = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
-        _accessor = _mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
-        byte* ptr = null;
-        _accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
-        _ptr = ptr;
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        _buffer = new byte[_length];
+        fs.ReadExactly(_buffer);
+        _handle = GCHandle.Alloc(_buffer, GCHandleType.Pinned);
+        _ptr = (byte*)_handle.AddrOfPinnedObject();
         (_index, _bloom, _bloomOffset) = ReadMetadata();
     }
 
@@ -301,7 +302,6 @@ public sealed unsafe class SSTableReader : IDisposable
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _accessor.Dispose();
-        _mmf.Dispose();
+        _handle.Free();
     }
 }

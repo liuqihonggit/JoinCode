@@ -162,6 +162,14 @@ public sealed class PithosOptions
     /// </summary>
     public bool InMemory { get; init; } = false;
 
+    /// <summary>
+    /// When <see langword="true"/>, the background compaction thread is not started
+    /// and no compaction is triggered on open. Useful for read-only access where
+    /// the caller only needs to scan existing SSTables without risk of them being
+    /// merged or deleted during the scan. Default: <see langword="false"/>.
+    /// </summary>
+    public bool DisableCompaction { get; init; } = false;
+
     /// <summary>Default options — equivalent to <c>new PithosOptions()</c>.</summary>
     public static readonly PithosOptions Default = new();
 

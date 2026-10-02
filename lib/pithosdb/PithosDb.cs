@@ -61,15 +61,17 @@ public sealed class PithosDb : IDisposable
             RecoverFromWal();
             RecoverSSTables();
 
-            _compactionThread = new Thread(CompactionLoop)
-            {
-                IsBackground = true,
-                Name = "PithosDB-Compaction"
-            };
-            _compactionThread.Start();
+            if (!_options.DisableCompaction) {
+                _compactionThread = new Thread(CompactionLoop)
+                {
+                    IsBackground = true,
+                    Name = "PithosDB-Compaction"
+                };
+                _compactionThread.Start();
 
-            // Trigger an initial check in case recovered levels already need compaction.
-            SignalCompaction();
+                // Trigger an initial check in case recovered levels already need compaction.
+                SignalCompaction();
+            }
         }
     }
 
@@ -599,10 +601,12 @@ public sealed class PithosDb : IDisposable
                 }
             }
 
-            var knownFiles = new HashSet<string>(manifestLevels.SelectMany(l => l));
+            var knownFiles = new HashSet<string>(
+                manifestLevels.SelectMany(l => l).Select(p => Path.GetFullPath(p)),
+                StringComparer.OrdinalIgnoreCase);
             foreach (var path in Directory.GetFiles(_directory, "*.sst"))
             {
-                if (!knownFiles.Contains(path))
+                if (!knownFiles.Contains(Path.GetFullPath(path)))
                     File.Delete(path);
             }
         }

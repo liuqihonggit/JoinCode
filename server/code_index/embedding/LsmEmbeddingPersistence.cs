@@ -48,7 +48,7 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         var kvDir = Path.Combine(dirPath, "kvstore");
         _fs.CreateDirectory(kvDir);
 
-        await using var store = new PithosKvStore(kvDir);
+        await using var store = new PithosKvStore(kvDir, new PithosOptions { DisableCompaction = true });
         await store.PutAsync(KeyDims, BitConverter.GetBytes(dims), ct).ConfigureAwait(false);
 
         foreach (var (chunkId, vector, meta, hash) in chunks) {
@@ -70,7 +70,7 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         var kvDir = Path.Combine(dirPath, "kvstore");
         if (!_fs.DirectoryExists(kvDir)) return null;
 
-        await using var store = new PithosKvStore(kvDir);
+        await using var store = new PithosKvStore(kvDir, new PithosOptions { DisableCompaction = true });
 
         var dimsBytes = await store.GetAsync(KeyDims, ct).ConfigureAwait(false);
         if (dimsBytes is null) return null;

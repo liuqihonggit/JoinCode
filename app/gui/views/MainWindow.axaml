@@ -182,10 +182,16 @@
 
     <!-- ===== Column 3：主区（四行布局：消息区/补全面板/输入栏/状态栏） ===== -->
     <Grid Grid.Column="3">
-      <Grid RowDefinitions="*,Auto,Auto,Auto,Auto">
+      <Grid RowDefinitions="*,Auto,Auto,Auto">
 
-      <!-- Row 0：主区（消息区 / 编辑器区切换） -->
-      <Panel Grid.Row="0" ClipToBounds="True">
+      <!-- Row 0：内容+面板区（支持面板四方向位置：底部/右侧/左侧/顶部） -->
+      <Grid Grid.Row="0" RowDefinitions="Auto,*,Auto" ColumnDefinitions="Auto,*,Auto">
+        <!-- 面板顶部 -->
+        <local:PanelView Grid.Row="0" Grid.Column="1" IsVisible="{Binding IsPanelTop}" Height="{Binding PanelHeight}" />
+        <!-- 面板左侧 -->
+        <local:PanelView Grid.Row="1" Grid.Column="0" IsVisible="{Binding IsPanelLeft}" Width="{Binding PanelWidth}" />
+        <!-- 主内容（消息区 / 编辑器区切换） -->
+        <Panel Grid.Row="1" Grid.Column="1" ClipToBounds="True">
       <Grid IsVisible="{Binding IsMessagesViewActive}" ColumnDefinitions="*,Auto" ClipToBounds="True">
 
         <!-- Column 0：消息内容（搜索栏 + 消息列表） -->
@@ -481,20 +487,22 @@
       </Grid>
       <local:EditorPanelView IsVisible="{Binding IsEditorViewActive}" />
       </Panel>
+        <!-- 面板右侧 -->
+        <local:PanelView Grid.Row="1" Grid.Column="2" IsVisible="{Binding IsPanelRight}" Width="{Binding PanelWidth}" />
+        <!-- 面板底部 -->
+        <local:PanelView Grid.Row="2" Grid.Column="1" IsVisible="{Binding IsPanelBottom}" Height="{Binding PanelHeight}" />
+      </Grid>
 
-      <!-- Row 1：底部面板(输出/终端/问题,可折叠) -->
-      <local:PanelView Grid.Row="1" IsVisible="{Binding IsPanelOpen}" Height="{Binding PanelHeight}" />
-
-      <!-- Row 2：斜杠补全面板（布局行 — 关闭时 IsVisible=False 零占位；ClipToBounds 裁剪升起动画的越界位移） -->
-      <Panel Grid.Row="2" ClipToBounds="True">
+      <!-- Row 1：斜杠补全面板（布局行 — 关闭时 IsVisible=False 零占位；ClipToBounds 裁剪升起动画的越界位移） -->
+      <Panel Grid.Row="1" ClipToBounds="True">
         <local:SlashPaletteView x:Name="SlashPalette" Completed="OnSlashPaletteCompleted" />
       </Panel>
 
-      <!-- Row 3：底部输入栏 -->
-      <local:InputBarView Grid.Row="3" x:Name="InputBar" />
+      <!-- Row 2：底部输入栏 -->
+      <local:InputBarView Grid.Row="2" x:Name="InputBar" />
 
-      <!-- Row 4：状态栏（模块化提取为 StatusBarView — 任务6） -->
-      <local:StatusBarView Grid.Row="4" />
+      <!-- Row 3：状态栏（模块化提取为 StatusBarView — 任务6） -->
+      <local:StatusBarView Grid.Row="3" />
       </Grid>
     </Grid>
     </Grid>

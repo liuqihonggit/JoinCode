@@ -29,6 +29,10 @@ public sealed partial class MainViewModel {
         new() { Name = "视图: 切换主题", Icon = "🎨", CommandId = "view.toggleTheme" },
         new() { Name = "视图: 设置面板", Icon = "⚙", CommandId = "view.settings" },
         new() { Name = "视图: 底部面板", Icon = "▾", CommandId = "view.panel" },
+        new() { Name = "视图: 面板位置→底部", Icon = "⤓", CommandId = "view.panelBottom" },
+        new() { Name = "视图: 面板位置→右侧", Icon = "⇥", CommandId = "view.panelRight" },
+        new() { Name = "视图: 面板位置→左侧", Icon = "⇤", CommandId = "view.panelLeft" },
+        new() { Name = "视图: 面板位置→顶部", Icon = "⤒", CommandId = "view.panelTop" },
         new() { Name = "视图: 代码编辑器", Icon = "📝", CommandId = "view.editor" },
         new() { Name = "视图: 对话区", Icon = "💬", CommandId = "view.messages" },
         new() { Name = "视图: Mock 引擎", Icon = "Ⓘ", CommandId = "view.mock" },
@@ -123,6 +127,18 @@ public sealed partial class MainViewModel {
                 break;
             case "view.panel":
                 TogglePanelCommand.Execute(null);
+                break;
+            case "view.panelBottom":
+                SetPanelPositionCommand.Execute(PanelPosition.Bottom);
+                break;
+            case "view.panelRight":
+                SetPanelPositionCommand.Execute(PanelPosition.Right);
+                break;
+            case "view.panelLeft":
+                SetPanelPositionCommand.Execute(PanelPosition.Left);
+                break;
+            case "view.panelTop":
+                SetPanelPositionCommand.Execute(PanelPosition.Top);
                 break;
             case "view.editor":
                 ShowEditorViewCommand.Execute(null);

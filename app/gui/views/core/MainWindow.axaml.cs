@@ -251,7 +251,10 @@ public sealed partial class MainWindow : Window {
             e.Handled = true;
             _vm.ClearHistoryCommand.Execute(null);
         } else if (e.Key == Key.Escape) {
-            if (_vm.IsSettingsPanelOpen) {
+            if (_vm.IsZenMode) {
+                e.Handled = true;
+                _vm.ToggleZenModeCommand.Execute(null);
+            } else if (_vm.IsSettingsPanelOpen) {
                 e.Handled = true;
                 _vm.ToggleSettingsPanelCommand.Execute(null);
             } else if (_vm.CanStop) {

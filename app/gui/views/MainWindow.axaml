@@ -26,6 +26,7 @@
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding OpenCommandPaletteCommand}" />
     <KeyBinding Gesture="Ctrl+P" Command="{Binding OpenQuickOpenCommand}" />
     <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveActiveTabCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding ToggleZenModeCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding BackgroundPanel.PauseAllCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+R" Command="{Binding BackgroundPanel.ResumeAllCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+T" Command="{Binding BackgroundPanel.StopAllCommand}" />
@@ -81,7 +82,7 @@
   <Grid RowDefinitions="Auto,*">
 
     <!-- ===== Row 0：顶部菜单栏(横跨全宽) ===== -->
-    <local:TopBarView Grid.Row="0" />
+    <local:TopBarView Grid.Row="0" IsVisible="{Binding IsNotZenMode}" />
 
     <!-- 命令面板 Overlay (Ctrl+Shift+P) — 居中浮在顶部 -->
     <Panel Grid.RowSpan="2" IsVisible="{Binding IsCommandPaletteOpen}" ZIndex="100">
@@ -93,7 +94,8 @@
 
     <!-- ===== Column 0：Activity Bar (图标列,固定48px) ===== -->
     <Border Grid.Column="0" Background="{DynamicResource GuiSidebarBackground}"
-            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0">
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0"
+            IsVisible="{Binding IsNotZenMode}">
       <Grid RowDefinitions="*,Auto,Auto">
         <!-- 顶部组：面板切换 -->
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,8">
@@ -163,7 +165,8 @@
     <!-- ===== Column 1：Side Bar (面板区,宽度绑定SidePanelWidth) ===== -->
     <Border Grid.Column="1" Width="{Binding SidePanelWidth}" ClipToBounds="True"
             Background="{DynamicResource GuiSidebarBackground}"
-            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0">
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0"
+            IsVisible="{Binding IsNotZenMode}">
       <Border.Transitions>
         <Transitions>
           <DoubleTransition Property="Width" Duration="{DynamicResource GuiMotionDuration}" />
@@ -179,6 +182,7 @@
     <Border Grid.Column="2" Width="6" HorizontalAlignment="Stretch"
             Background="{DynamicResource GuiDivider}"
             Cursor="SizeWestEast"
+            IsVisible="{Binding IsNotZenMode}"
             PointerPressed="OnSidePanelResizePointerPressed"
             PointerMoved="OnSidePanelResizePointerMoved"
             PointerReleased="OnSidePanelResizePointerReleased"
@@ -498,15 +502,15 @@
       </Grid>
 
       <!-- Row 1：斜杠补全面板（布局行 — 关闭时 IsVisible=False 零占位；ClipToBounds 裁剪升起动画的越界位移） -->
-      <Panel Grid.Row="1" ClipToBounds="True">
+      <Panel Grid.Row="1" ClipToBounds="True" IsVisible="{Binding IsNotZenMode}">
         <local:SlashPaletteView x:Name="SlashPalette" Completed="OnSlashPaletteCompleted" />
       </Panel>
 
       <!-- Row 2：底部输入栏 -->
-      <local:InputBarView Grid.Row="2" x:Name="InputBar" />
+      <local:InputBarView Grid.Row="2" x:Name="InputBar" IsVisible="{Binding IsNotZenMode}" />
 
       <!-- Row 3：状态栏（模块化提取为 StatusBarView — 任务6） -->
-      <local:StatusBarView Grid.Row="3" />
+      <local:StatusBarView Grid.Row="3" IsVisible="{Binding IsNotZenMode}" />
       </Grid>
 
     <!-- ===== Column 4：Secondary Side Bar 拖拽手柄 ===== -->

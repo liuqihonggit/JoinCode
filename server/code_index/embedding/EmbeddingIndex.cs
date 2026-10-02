@@ -1,75 +1,19 @@
 namespace JoinCode.CodeIndex.Embedding;
 
 /// <summary>
-/// 元数据固定段条目 — 8字节对齐，MemoryMarshal.Cast 直接映射。
-/// <para>定长字段直接存储，变长字符串用 StringOffset/StringLen 指向字符串区。</para>
-/// </summary>
-[StructLayout(LayoutKind.Sequential, Pack = 8)]
-internal readonly struct MetaEntryFixed {
-    public readonly int StartLine;
-    public readonly int EndLine;
-    public readonly int SourceTextLen;
-    public readonly int ContainedFqnCount;
-    public readonly int ChunkIdLen;
-    public readonly int FilePathLen;
-    public readonly int FqnLen;
-    public readonly int SymbolKindLen;
-    public readonly int ParentChunkIdLen;
-    public readonly int HashLen;
-    public readonly int ContainedFqnsTotalLen;
-    public readonly int _padding;
-    public readonly long SourceTextOffset;
-    public readonly long ChunkIdOffset;
-    public readonly long FilePathOffset;
-    public readonly long FqnOffset;
-    public readonly long SymbolKindOffset;
-    public readonly long ParentChunkIdOffset;
-    public readonly long HashOffset;
-    public readonly long ContainedFqnsOffset;
-
-    /// <summary>构造元数据固定段条目。</summary>
-    public MetaEntryFixed(
-        int startLine, int endLine, int sourceTextLen, int containedFqnCount,
-        int chunkIdLen, int filePathLen, int fqnLen, int symbolKindLen,
-        int parentChunkIdLen, int hashLen, int containedFqnsTotalLen,
-        long sourceTextOffset, long chunkIdOffset, long filePathOffset,
-        long fqnOffset, long symbolKindOffset, long parentChunkIdOffset,
-        long hashOffset, long containedFqnsOffset) {
-        StartLine = startLine;
-        EndLine = endLine;
-        SourceTextLen = sourceTextLen;
-        ContainedFqnCount = containedFqnCount;
-        ChunkIdLen = chunkIdLen;
-        FilePathLen = filePathLen;
-        FqnLen = fqnLen;
-        SymbolKindLen = symbolKindLen;
-        ParentChunkIdLen = parentChunkIdLen;
-        HashLen = hashLen;
-        ContainedFqnsTotalLen = containedFqnsTotalLen;
-        _padding = 0;
-        SourceTextOffset = sourceTextOffset;
-        ChunkIdOffset = chunkIdOffset;
-        FilePathOffset = filePathOffset;
-        FqnOffset = fqnOffset;
-        SymbolKindOffset = symbolKindOffset;
-        ParentChunkIdOffset = parentChunkIdOffset;
-        HashOffset = hashOffset;
-        ContainedFqnsOffset = containedFqnsOffset;
-    }
-}
-
-/// <summary>
 /// 向量索引 — 串联嵌入模型、向量存储、ANN 搜索。
 /// <para>维护块哈希缓存：块没变就不重新嵌入（省 API 调用/计算）。</para>
 /// <para>无锁并发安全：读操作（Search）完全无锁；写操作（Index/Remove）CAS 路径复制。</para>
 /// <para>_ann 自身线程安全（BruteForceAnn 内部有锁），EmbeddingIndex 不再加全局锁。</para>
+/// <para>持久化通过 IEmbeddingPersistence 多态委托，支持 bin(mmap) 和 LSM(PithosDB) 两种后端。</para>
 /// </summary>
-public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
+public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
 
     private readonly IEmbeddingModel _embedModel;
     private readonly IAnnSearch _ann;
     private readonly IParentDocumentStore? _parentStore;
     private readonly IFileSystem _fs;
+    private readonly IEmbeddingPersistence _persistence;
     private volatile ImmutableHamT<string, ChunkMetadata> _metadata = ImmutableHamT<string, ChunkMetadata>.Empty;
     private volatile ImmutableHamT<string, string> _chunkHashes = ImmutableHamT<string, string>.Empty;
     private volatile ImmutableHamT<string, ImmutableHashSet<string>> _fileToChunks = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
@@ -93,6 +37,8 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         _ann = ann;
         _fs = fs;
         _parentStore = parentStore;
+        var useLsm = Environment.GetEnvironmentVariable("JCC_EMBEDDING_BACKEND") is not { } v || v != "bin";
+        _persistence = useLsm ? new LsmEmbeddingPersistence(fs) : new BinEmbeddingPersistence(fs);
         _status = (int)IndexStatus.NotReady;
     }
 
@@ -294,17 +240,23 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     }
 
     /// <summary>
-    /// 持久化向量索引 — 根据环境变量 JCC_EMBEDDING_BACKEND 选择 V5(mmap) 或 V6(LSM-Tree)。
-    /// <para>默认 V6。设为 V5 时用 VECIDX5 mmap 批量序列化。</para>
+    /// 持久化向量索引 — 委托 IEmbeddingPersistence 多态后端。
+    /// <para>环境变量 JCC_EMBEDDING_BACKEND=bin 用 mmap 二进制，=lsm 用 PithosDB LSM-Tree（默认）。</para>
     /// </summary>
     /// <param name="dirPath">目标目录路径。</param>
     /// <param name="ct">取消令牌。</param>
-    public Task SaveAsync(string dirPath, CancellationToken ct) =>
-        UseV6Backend ? SaveAsyncV6(dirPath, ct) : SaveAsyncV5(dirPath, ct);
-
-    /// <summary>环境变量 JCC_EMBEDDING_BACKEND 控制 V5/V6 后端，默认 V6。</summary>
-    private static readonly bool UseV6Backend =
-        Environment.GetEnvironmentVariable("JCC_EMBEDDING_BACKEND") is not { } v || v != "V5";
+    public async Task SaveAsync(string dirPath, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        var chunks = CollectChunksForSave();
+        var dims = chunks.Count > 0 ? chunks[0].Vector.Length : 0;
+        var graphBytes = BuildGraphBytes();
+        var snapshot = new EmbeddingSnapshot {
+            Dims = dims,
+            Chunks = chunks,
+            GraphBytes = graphBytes
+        };
+        await _persistence.SaveAsync(dirPath, snapshot, ct).ConfigureAwait(false);
+    }
 
     /// <summary>收集待持久化的块快照 — 向量+元数据+哈希三元组对齐。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -321,153 +273,80 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         return chunks;
     }
 
-    /// <summary>构建单个元数据条目 — 写字符串区+SourceText段，返回 MetaEntryFixed 结构体。</summary>
-    private static MetaEntryFixed BuildMetaEntry(
-        (string ChunkId, float[] Vector, ChunkMetadata Meta, string Hash) chunk,
-        MemoryStream stringRegion, MemoryStream sourceRegion) {
-        var (chunkId, _, meta, hash) = chunk;
-
-        WriteStringRegion(stringRegion, chunkId, out var chunkIdOff, out var chunkIdLen);
-        WriteStringRegion(stringRegion, meta.FilePath, out var filePathOff, out var filePathLen);
-        WriteStringRegion(stringRegion, meta.SymbolFqn, out var fqnOff, out var fqnLen);
-        WriteStringRegion(stringRegion, meta.SymbolKind, out var symbolKindOff, out var symbolKindLen);
-        WriteNullableStringRegion(stringRegion, meta.ParentChunkId, out var parentChunkIdOff, out var parentChunkIdLen);
-        WriteStringRegion(stringRegion, hash, out var hashOff, out var hashLen);
-        WriteContainedFqnsRegion(stringRegion, meta.ContainedSymbolFqns, out var containedFqnsOff, out var containedFqnsTotalLen);
-        WriteSourceTextRegion(sourceRegion, meta.SourceText, out var sourceTextOff, out var sourceTextLen);
-
-        return new MetaEntryFixed(
-            meta.StartLine, meta.EndLine, sourceTextLen, meta.ContainedSymbolFqns.Count,
-            chunkIdLen, filePathLen, fqnLen, symbolKindLen,
-            parentChunkIdLen, hashLen, containedFqnsTotalLen,
-            sourceTextOff, chunkIdOff, filePathOff, fqnOff, symbolKindOff,
-            parentChunkIdOff, hashOff, containedFqnsOff);
-    }
-
-    /// <summary>写字符串到区，记录偏移和长度。</summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void WriteStringRegion(MemoryStream ms, string s, out long offset, out int len) {
-        offset = ms.Position;
-        var bytes = System.Text.Encoding.UTF8.GetBytes(s);
-        ms.Write(bytes);
-        len = bytes.Length;
-    }
-
-    /// <summary>写可空字符串到区 — null 记 offset=-1, len=0。</summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void WriteNullableStringRegion(MemoryStream ms, string? s, out long offset, out int len) {
-        if (s is null) { offset = -1; len = 0; return; }
-        WriteStringRegion(ms, s, out offset, out len);
-    }
-
-    /// <summary>写 ContainedFqns 到字符串区 — 每条前缀 4 字节长度（小端）+ UTF8 内容。</summary>
-    private static void WriteContainedFqnsRegion(MemoryStream ms, IReadOnlyList<string> fqns, out long offset, out int totalLen) {
-        offset = ms.Position;
-        totalLen = 0;
-        Span<byte> intBuf = stackalloc byte[4];
-        foreach (var fqn in fqns) {
-            var bytes = System.Text.Encoding.UTF8.GetBytes(fqn);
-            BinaryPrimitives.WriteInt32LittleEndian(intBuf, bytes.Length);
-            ms.Write(intBuf);
-            ms.Write(bytes);
-            totalLen += bytes.Length + 4;
-        }
-    }
-
-    /// <summary>写 SourceText 到段 — null 记 offset=-1, len=0。</summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void WriteSourceTextRegion(MemoryStream ms, string? sourceText, out long offset, out int len) {
-        if (sourceText is null) { offset = -1; len = 0; return; }
-        offset = ms.Position;
-        var bytes = System.Text.Encoding.UTF8.GetBytes(sourceText);
-        ms.Write(bytes);
-        len = bytes.Length;
-    }
-
-    /// <summary>构建图段 — HNSW 图持久化或空标记。</summary>
-    private async Task<byte[]> BuildGraphRegionAsync() {
-        await using var ms = new MemoryStream();
-        await using var bw = new BinaryWriter(ms, System.Text.Encoding.UTF8);
-        if (_ann is IAnnSearchGraphPersistence graphPersist) {
-            bw.Write((byte)1);
-            graphPersist.SaveGraph(bw);
-        } else {
-            bw.Write((byte)0);
-        }
+    /// <summary>构建图段字节 — IAnnSearchGraphPersistence 时序列化图，否则 null。</summary>
+    private byte[]? BuildGraphBytes() {
+        if (_ann is not IAnnSearchGraphPersistence graphPersist) return null;
+        using var ms = new MemoryStream();
+        using var bw = new BinaryWriter(ms, Encoding.UTF8);
+        bw.Write((byte)1);
+        graphPersist.SaveGraph(bw);
         bw.Flush();
         return ms.ToArray();
     }
 
-    /// <summary>泛型写结构体到 BinaryWriter — MemoryMarshal.AsBytes 零分配。</summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void WriteStruct<T>(BinaryWriter bw, T value) where T : struct {
-        bw.Write(MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref value, 1)));
-    }
-
     /// <summary>
-    /// 加载向量索引 — 根据环境变量 JCC_EMBEDDING_BACKEND 选择 V5(mmap) 或 V6(LSM-Tree)。
+    /// 加载向量索引 — 委托 IEmbeddingPersistence 多态后端，填充内存索引 + 恢复 ANN 图。
     /// </summary>
     /// <param name="dirPath">源目录路径。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>true 表示加载成功。</returns>
-    public Task<bool> LoadAsync(string dirPath, CancellationToken ct) =>
-        UseV6Backend ? LoadAsyncV6(dirPath, ct) : LoadAsyncV5(dirPath, ct);
+    public async Task<bool> LoadAsync(string dirPath, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        var snapshot = await _persistence.LoadAsync(dirPath, ct).ConfigureAwait(false);
+        if (snapshot is null) return false;
+        ApplySnapshot(snapshot);
+        RestoreAnnGraph(snapshot);
+        _indexFilePath = Path.Combine(dirPath, "vector_index.bin");
+        Interlocked.Exchange(ref _status, (int)IndexStatus.Ready);
+        return true;
+    }
 
-    /// <summary>从 span 读 ContainedFqns — BinaryPrimitives 小端读取，零拷贝。</summary>
-    private static List<string> ReadContainedFqnsFromSpan(ReadOnlySpan<byte> stringSpan, long offset, int count) {
-        var result = new List<string>(count);
-        var pos = (int)offset;
-        for (var f = 0; f < count; f++) {
-            var fqnLen = BinaryPrimitives.ReadInt32LittleEndian(stringSpan.Slice(pos, 4));
-            pos += 4;
-            result.Add(Encoding.UTF8.GetString(stringSpan.Slice(pos, fqnLen)));
-            pos += fqnLen;
+    /// <summary>将快照填充到内存索引字段 — CAS 批量更新 metadata/vectors/hashes/fileToChunks。</summary>
+    private void ApplySnapshot(EmbeddingSnapshot snapshot) {
+        var metadataBuilder = ImmutableHamT.CreateBuilder<string, ChunkMetadata>();
+        var hashBuilder = ImmutableHamT.CreateBuilder<string, string>();
+        var vectorBuilder = ImmutableHamT.CreateBuilder<string, float[]>();
+        var fileToChunksBuilder = ImmutableHamT.CreateBuilder<string, ImmutableHashSet<string>>();
+
+        foreach (var (chunkId, vector, meta, hash) in snapshot.Chunks) {
+            vectorBuilder.Add(chunkId, vector);
+            metadataBuilder.Add(chunkId, meta);
+            fileToChunksBuilder.TryGetValue(meta.FilePath, out var existing);
+            fileToChunksBuilder[meta.FilePath] = (existing ?? ImmutableHashSet<string>.Empty).Add(chunkId);
+            hashBuilder.Add(chunkId, hash);
         }
-        return result;
+
+        Interlocked.Exchange(ref _metadata, metadataBuilder.ToImmutable());
+        Interlocked.Exchange(ref _chunkHashes, hashBuilder.ToImmutable());
+        Interlocked.Exchange(ref _vectors, vectorBuilder.ToImmutable());
+        Interlocked.Exchange(ref _fileToChunks, fileToChunksBuilder.ToImmutable());
     }
 
-    /// <summary>从 span 读 UTF8 字符串 — 热路径内联，零拷贝。</summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static string ReadStringFromSpan(ReadOnlySpan<byte> buffer, long offset, int len) {
-        if (len <= 0 || offset < 0) return string.Empty;
-        return Encoding.UTF8.GetString(buffer.Slice((int)offset, len));
+    /// <summary>恢复 ANN 图 — 有图段字节时 LoadGraph，否则遍历 vectors 逐个 Add。</summary>
+    private void RestoreAnnGraph(EmbeddingSnapshot snapshot) {
+        if (snapshot.GraphBytes is { } graphBytes && graphBytes.Length > 0
+            && _ann is IAnnSearchGraphPersistence gp) {
+            using var ms = new MemoryStream(graphBytes);
+            using var br = new BinaryReader(ms, Encoding.UTF8);
+            var hasGraph = br.ReadByte();
+            if (hasGraph == 1) {
+                var vectorsDict = new Dictionary<string, float[]>(snapshot.Chunks.Count);
+                foreach (var (id, vec, _, _) in snapshot.Chunks) {
+                    vectorsDict[id] = vec;
+                }
+                gp.LoadGraph(br, vectorsDict);
+                return;
+            }
+        }
+        foreach (var (id, vec, _, _) in snapshot.Chunks) {
+            _ann.Add(id, vec);
+        }
     }
 
-    /// <summary>
-    /// 检查指定目录是否存在向量索引 — V6 检查 kvstore/ 目录，V5 检查 vector_index.bin 文件。
-    /// </summary>
+    /// <summary>检查指定目录是否存在持久化数据 — 委托后端。</summary>
     public Task<bool> ExistsAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
-        if (UseV6Backend) {
-            var kvDir = Path.Combine(dirPath, "kvstore");
-            return Task.FromResult(_fs.DirectoryExists(kvDir));
-        }
-        var binPath = Path.Combine(dirPath, "vector_index.bin");
-        return Task.FromResult(_fs.FileExists(binPath));
-    }
-
-    private static void WriteString(BinaryWriter bw, string s) {
-        var bytes = System.Text.Encoding.UTF8.GetBytes(s);
-        bw.Write(bytes.Length);
-        bw.Write(bytes);
-    }
-
-    private static void WriteNullableString(BinaryWriter bw, string? s) {
-        if (s is null) { bw.Write(-1); return; }
-        var bytes = System.Text.Encoding.UTF8.GetBytes(s);
-        bw.Write(bytes.Length);
-        bw.Write(bytes);
-    }
-
-    private static string ReadString(BinaryReader br) {
-        var len = br.ReadInt32();
-        return System.Text.Encoding.UTF8.GetString(br.ReadBytes(len));
-    }
-
-    private static string? ReadNullableString(BinaryReader br) {
-        var len = br.ReadInt32();
-        if (len < 0) return null;
-        return System.Text.Encoding.UTF8.GetString(br.ReadBytes(len));
+        return _persistence.ExistsAsync(dirPath, ct);
     }
 
     /// <summary>
@@ -481,7 +360,7 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             stream.Seek(meta.SourceTextOffset, SeekOrigin.Begin);
             var buffer = new byte[meta.SourceTextLen];
             await stream.ReadAsync(buffer, ct).ConfigureAwait(false);
-            return System.Text.Encoding.UTF8.GetString(buffer);
+            return Encoding.UTF8.GetString(buffer);
         } catch {
             return null;
         }
@@ -645,14 +524,14 @@ public sealed partial class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         Interlocked.Exchange(ref _status, (int)IndexStatus.NotReady);
     }
 
-    /// <summary>释放资源（无锁实现，空操作）。</summary>
+    /// <summary>释放资源（无锁实现，标记已释放）。</summary>
     public void Dispose() {
         Interlocked.Exchange(ref _disposed, 1);
     }
 
-    /// <summary>异步释放资源 — 关闭 V6 KV 存储。</summary>
+    /// <summary>异步释放资源 — 关闭持久化后端。</summary>
     public async ValueTask DisposeAsync() {
         Interlocked.Exchange(ref _disposed, 1);
-        await CloseKvStoreV6Async().ConfigureAwait(false);
+        await _persistence.DisposeAsync().ConfigureAwait(false);
     }
 }

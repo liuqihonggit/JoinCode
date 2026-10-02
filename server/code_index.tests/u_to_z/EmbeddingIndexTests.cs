@@ -447,55 +447,8 @@ public sealed class EmbeddingIndexTests {
     }
 
     [Fact]
-    public async Task SaveLoadV5_RoundTrip_PreservesData() {
-        await using var index = CreateIndex();
-        var chunks = new List<ChunkInfo> {
-            CreateChunk("c1", "Test.A", file: "a.cs", start: 1, end: 10, hash: "h1", text: "void A() {}"),
-            CreateChunk("c2", "Test.B", file: "b.cs", start: 5, end: 20, hash: "h2", text: "void B() {}"),
-            CreateChunk("c3", "Test.C", file: "c.cs", start: 1, end: 5, hash: "h3", text: "void C() {}")
-        };
-        await index.IndexChunksAsync(chunks, CancellationToken.None);
-        Assert.Equal(3, index.ChunkCount);
-
-        var dir = Path.Combine(TestFileSystem.Current.GetCurrentDirectory(), "test_v5_idx");
-        await index.SaveAsyncV5(dir, CancellationToken.None);
-
-        await using var index2 = CreateIndex();
-        var loaded = await index2.LoadAsyncV5(dir, CancellationToken.None);
-        Assert.True(loaded);
-        Assert.Equal(3, index2.ChunkCount);
-        Assert.Equal(IndexStatus.Ready, index2.Status);
-    }
-
-    [Fact]
-    public async Task SaveLoadV5_LargeDataset_PreservesCount() {
-        await using var index = CreateIndex();
-        var chunks = new List<ChunkInfo>();
-        for (var i = 0; i < 300; i++) {
-            chunks.Add(CreateChunk($"c{i}", $"Test.N{i}", file: $"f{i}.cs", start: i, end: i + 10, hash: $"h{i}", text: $"void N{i}() {{}}"));
-        }
-        await index.IndexChunksAsync(chunks, CancellationToken.None);
-        Assert.Equal(300, index.ChunkCount);
-
-        var dir = Path.Combine(TestFileSystem.Current.GetCurrentDirectory(), "test_v5_large");
-        await index.SaveAsyncV5(dir, CancellationToken.None);
-
-        await using var index2 = CreateIndex();
-        var loaded = await index2.LoadAsyncV5(dir, CancellationToken.None);
-        Assert.True(loaded);
-        Assert.Equal(300, index2.ChunkCount);
-    }
-
-    [Fact]
-    public async Task LoadV5_FileNotExists_ReturnsFalse() {
-        await using var index = CreateIndex();
-        var loaded = await index.LoadAsyncV5("nonexistent_dir_v5", CancellationToken.None);
-        Assert.False(loaded);
-    }
-
-    [Fact]
-    public async Task SaveLoadV6_RoundTrip_PreservesData() {
-        TestFileSystem.UseRealFileSystem = true;
+    public async Task SaveLoadBin_RoundTrip_PreservesData() {
+        Environment.SetEnvironmentVariable("JCC_EMBEDDING_BACKEND", "bin");
         try {
             await using var index = CreateIndex();
             var chunks = new List<ChunkInfo> {
@@ -506,23 +459,23 @@ public sealed class EmbeddingIndexTests {
             await index.IndexChunksAsync(chunks, CancellationToken.None);
             Assert.Equal(3, index.ChunkCount);
 
-            var dir = Path.Combine(Path.GetTempPath(), $"test_v6_idx_{Guid.NewGuid():N}");
-            await index.SaveAsyncV6(dir, CancellationToken.None);
+            var dir = Path.Combine(TestFileSystem.Current.GetCurrentDirectory(), "test_bin_idx");
+            await index.SaveAsync(dir, CancellationToken.None);
 
             await using var index2 = CreateIndex();
-            var loaded = await index2.LoadAsyncV6(dir, CancellationToken.None);
+            var loaded = await index2.LoadAsync(dir, CancellationToken.None);
             Assert.True(loaded);
             Assert.Equal(3, index2.ChunkCount);
             Assert.Equal(IndexStatus.Ready, index2.Status);
         }
         finally {
-            TestFileSystem.UseRealFileSystem = false;
+            Environment.SetEnvironmentVariable("JCC_EMBEDDING_BACKEND", null);
         }
     }
 
     [Fact]
-    public async Task SaveLoadV6_LargeDataset_PreservesCount() {
-        TestFileSystem.UseRealFileSystem = true;
+    public async Task SaveLoadBin_LargeDataset_PreservesCount() {
+        Environment.SetEnvironmentVariable("JCC_EMBEDDING_BACKEND", "bin");
         try {
             await using var index = CreateIndex();
             var chunks = new List<ChunkInfo>();
@@ -532,23 +485,98 @@ public sealed class EmbeddingIndexTests {
             await index.IndexChunksAsync(chunks, CancellationToken.None);
             Assert.Equal(300, index.ChunkCount);
 
-            var dir = Path.Combine(Path.GetTempPath(), $"test_v6_large_{Guid.NewGuid():N}");
-            await index.SaveAsyncV6(dir, CancellationToken.None);
+            var dir = Path.Combine(TestFileSystem.Current.GetCurrentDirectory(), "test_bin_large");
+            await index.SaveAsync(dir, CancellationToken.None);
 
             await using var index2 = CreateIndex();
-            var loaded = await index2.LoadAsyncV6(dir, CancellationToken.None);
+            var loaded = await index2.LoadAsync(dir, CancellationToken.None);
             Assert.True(loaded);
             Assert.Equal(300, index2.ChunkCount);
         }
         finally {
+            Environment.SetEnvironmentVariable("JCC_EMBEDDING_BACKEND", null);
+        }
+    }
+
+    [Fact]
+    public async Task LoadBin_FileNotExists_ReturnsFalse() {
+        Environment.SetEnvironmentVariable("JCC_EMBEDDING_BACKEND", "bin");
+        try {
+            await using var index = CreateIndex();
+            var loaded = await index.LoadAsync("nonexistent_dir_bin", CancellationToken.None);
+            Assert.False(loaded);
+        }
+        finally {
+            Environment.SetEnvironmentVariable("JCC_EMBEDDING_BACKEND", null);
+        }
+    }
+
+    [Fact]
+    public async Task SaveLoadLsm_RoundTrip_PreservesData() {
+        TestFileSystem.UseRealFileSystem = true;
+        Environment.SetEnvironmentVariable("JCC_EMBEDDING_BACKEND", "lsm");
+        try {
+            await using var index = CreateIndex();
+            var chunks = new List<ChunkInfo> {
+                CreateChunk("c1", "Test.A", file: "a.cs", start: 1, end: 10, hash: "h1", text: "void A() {}"),
+                CreateChunk("c2", "Test.B", file: "b.cs", start: 5, end: 20, hash: "h2", text: "void B() {}"),
+                CreateChunk("c3", "Test.C", file: "c.cs", start: 1, end: 5, hash: "h3", text: "void C() {}")
+            };
+            await index.IndexChunksAsync(chunks, CancellationToken.None);
+            Assert.Equal(3, index.ChunkCount);
+
+            var dir = Path.Combine(Path.GetTempPath(), $"test_lsm_idx_{Guid.NewGuid():N}");
+            await index.SaveAsync(dir, CancellationToken.None);
+
+            await using var index2 = CreateIndex();
+            var loaded = await index2.LoadAsync(dir, CancellationToken.None);
+            Assert.True(loaded);
+            Assert.Equal(3, index2.ChunkCount);
+            Assert.Equal(IndexStatus.Ready, index2.Status);
+        }
+        finally {
+            Environment.SetEnvironmentVariable("JCC_EMBEDDING_BACKEND", null);
             TestFileSystem.UseRealFileSystem = false;
         }
     }
 
     [Fact]
-    public async Task LoadV6_FileNotExists_ReturnsFalse() {
-        await using var index = CreateIndex();
-        var loaded = await index.LoadAsyncV6("nonexistent_dir_v6", CancellationToken.None);
-        Assert.False(loaded);
+    public async Task SaveLoadLsm_LargeDataset_PreservesCount() {
+        TestFileSystem.UseRealFileSystem = true;
+        Environment.SetEnvironmentVariable("JCC_EMBEDDING_BACKEND", "lsm");
+        try {
+            await using var index = CreateIndex();
+            var chunks = new List<ChunkInfo>();
+            for (var i = 0; i < 300; i++) {
+                chunks.Add(CreateChunk($"c{i}", $"Test.N{i}", file: $"f{i}.cs", start: i, end: i + 10, hash: $"h{i}", text: $"void N{i}() {{}}"));
+            }
+            await index.IndexChunksAsync(chunks, CancellationToken.None);
+            Assert.Equal(300, index.ChunkCount);
+
+            var dir = Path.Combine(Path.GetTempPath(), $"test_lsm_large_{Guid.NewGuid():N}");
+            await index.SaveAsync(dir, CancellationToken.None);
+
+            await using var index2 = CreateIndex();
+            var loaded = await index2.LoadAsync(dir, CancellationToken.None);
+            Assert.True(loaded);
+            Assert.Equal(300, index2.ChunkCount);
+        }
+        finally {
+            Environment.SetEnvironmentVariable("JCC_EMBEDDING_BACKEND", null);
+            TestFileSystem.UseRealFileSystem = false;
+        }
+    }
+
+    [Fact]
+    public async Task LoadLsm_FileNotExists_ReturnsFalse() {
+        Environment.SetEnvironmentVariable("JCC_EMBEDDING_BACKEND", "lsm");
+        try {
+            await using var index = CreateIndex();
+            var loaded = await index.LoadAsync("nonexistent_dir_lsm", CancellationToken.None);
+            Assert.False(loaded);
+        }
+        finally {
+            Environment.SetEnvironmentVariable("JCC_EMBEDDING_BACKEND", null);
+        }
     }
 }

@@ -27,6 +27,9 @@
     <KeyBinding Gesture="Ctrl+P" Command="{Binding OpenQuickOpenCommand}" />
     <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveActiveTabCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding ToggleZenModeCommand}" />
+    <KeyBinding Gesture="Ctrl+B" Command="{Binding ToggleSidePanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.FileTree}" />
+    <KeyBinding Gesture="Ctrl+J" Command="{Binding TogglePanelCommand}" />
+    <KeyBinding Gesture="Ctrl+OemBackslash" Command="{Binding ToggleSplitEditorCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding BackgroundPanel.PauseAllCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+R" Command="{Binding BackgroundPanel.ResumeAllCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+T" Command="{Binding BackgroundPanel.StopAllCommand}" />

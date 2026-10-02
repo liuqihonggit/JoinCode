@@ -119,6 +119,7 @@ def main():
 
     # 8. 点击 📝 打开编辑器视图
     print("\n--- 8. 点击 📝 编辑器视图 ---")
+    win = app.top_window()
     bring_to_front(win)
     btn_edit = find_button(win, "📝")
     if btn_edit:
@@ -130,31 +131,53 @@ def main():
 
     # 9. 再点 📁 切回目录树
     print("\n--- 9. 再点 📁 切回目录树 ---")
+    time.sleep(2)  # 等待 UI 稳定
+    win = app.top_window()  # 重新获取窗口引用
     bring_to_front(win)
-    time.sleep(0.5)
-    # 调试：打印所有 emoji 按钮
-    emoji_btns = []
-    for d in win.descendants():
-        try:
-            t = d.window_text() or ""
-            if any(e in t for e in ["📁", "💬", "📝"]):
-                emoji_btns.append((t, d.control_type()))
-        except: pass
-    print(f"  emoji 按钮: {emoji_btns}")
+    time.sleep(1)
+    # 调试：检查 descendants
+    all_d = win.descendants()
+    print(f"  descendants 总数: {len(all_d)}")
     btn2 = find_button(win, "📁")
     if btn2:
-        btn2.click_input()
+        r = btn2.rectangle()
+        cx = (r.left + r.right) // 2
+        cy = (r.top + r.bottom) // 2
+        print(f"  📁 按钮 rect={r}, 中心=({cx},{cy})")
+        # 先点窗口标题栏取消编辑器焦点
+        wr = win.rectangle()
+        mouse.click(coords=((wr.left + wr.right)//2, wr.top + 10))
+        time.sleep(0.3)
+        bring_to_front(win)
+        time.sleep(0.3)
+        # 再点 📁
+        mouse.click(coords=(cx, cy))
         time.sleep(1.5)
         tree3 = win.descendants(control_type="TreeItem")
         ok("切回目录树", len(tree3) > 0)
     else:
-        ok("找到 📁 按钮", False)
+        print("  ❌ find_button 找不到 📁")
+        # 尝试用鼠标坐标点击 Activity Bar 区域
+        rect = win.rectangle()
+        # 📁 按钮在 Activity Bar 左侧 48px 列，约 y=234
+        mouse.click(coords=(rect.left + 24, 234))
+        time.sleep(1.5)
+        tree3 = win.descendants(control_type="TreeItem")
+        ok("坐标点击 📁 切回目录树", len(tree3) > 0)
 
     # 10. 右键菜单 — 复制路径(用坐标点击菜单项)
     print("\n--- 10. 右键菜单复制路径 ---")
+    win = app.top_window()
     bring_to_front(win)
     time.sleep(0.5)
     tree4 = win.descendants(control_type="TreeItem")
+    if not tree4:
+        # 可能需要先点 📁 打开目录树
+        btn3 = find_button(win, "📁")
+        if btn3:
+            btn3.click_input()
+            time.sleep(1.5)
+            tree4 = win.descendants(control_type="TreeItem")
     if tree4:
         r4 = tree4[0].rectangle()
         cx4 = (r4.left + r4.right) // 2

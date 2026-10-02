@@ -115,6 +115,8 @@ public sealed partial class MainViewModel {
             }
         }
         ActiveMainArea = MainAreaKind.Editor;
+        ActiveSidePanel = SidePanelKind.None;
+        SidePanelWidth = 0;
     }
 
     /// <summary>读取文件内容 — 失败返回错误提示文本</summary>

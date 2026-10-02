@@ -39,49 +39,69 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
     public int DroppedBatchCount => 0; // v2 写路径不设置 maxConsecutiveFailures
 
     /// <summary>
-    /// 构造 v2 传输适配器
+    /// 构造 v2 传输适配器 — private，仅做字段赋值。资源创建由 <see cref="Create"/> 工厂方法负责。
+    /// </summary>
+    private V2ReplBridgeTransport(V2TransportOptions options, ILogger? logger, HttpClient writeClient, HttpClient sseClient, CancellationTokenSource heartbeatCts, SerialBatchEventUploader eventUploader, SerialBatchEventUploader deliveryUploader) {
+        _options = options;
+        _logger = logger;
+        _lastSequenceNum = options.InitialSequenceNum;
+        _epoch = options.Epoch ?? 0;
+        _heartbeatCts = heartbeatCts;
+        _writeClient = writeClient;
+        _sseClient = sseClient;
+        _eventUploader = eventUploader;
+        _deliveryUploader = deliveryUploader;
+    }
+
+    /// <summary>
+    /// 创建 v2 传输适配器 — 工厂方法，逐步创建资源，任一步骤失败时释放已分配资源后重新抛出。
     /// </summary>
     /// <param name="options">v2 传输选项</param>
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="writeClient">自定义写入 HTTP 客户端（可选，默认新建）</param>
     /// <param name="sseClient">自定义 SSE 读流 HTTP 客户端（可选，默认新建）</param>
-    public V2ReplBridgeTransport(V2TransportOptions options, ILogger? logger = null, HttpClient? writeClient = null, HttpClient? sseClient = null) {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
-        _logger = logger;
-        _lastSequenceNum = options.InitialSequenceNum;
-        _epoch = options.Epoch ?? 0;
-        _heartbeatCts = new CancellationTokenSource();
+    public static V2ReplBridgeTransport Create(V2TransportOptions options, ILogger? logger = null, HttpClient? writeClient = null, HttpClient? sseClient = null) {
+        ArgumentNullException.ThrowIfNull(options);
 
-        // P1-12: 兜底 HttpClient 添加 SocketsHttpHandler 配置解决 DNS 不刷新
-        // 决策: 保留 ?? 兜底模式（测试场景可注入自定义 client），仅修改兜底 handler 配置
-        _writeClient = writeClient ?? new HttpClient(SocketsHttpHandlerFactory.CreateWithDnsRefresh());
-        SetAuthHeaders(_writeClient, options.IngressToken);
+        var heartbeatCts = new CancellationTokenSource();
+        HttpClient? ownedWriteClient = null;
+        HttpClient? ownedSseClient = null;
 
-        _sseClient = sseClient ?? new HttpClient(SocketsHttpHandlerFactory.CreateWithDnsRefresh());
+        try {
+            var actualWriteClient = writeClient ?? (ownedWriteClient = new HttpClient(SocketsHttpHandlerFactory.CreateWithDnsRefresh()));
+            SetAuthHeaders(actualWriteClient, options.IngressToken);
 
-        // 事件上传器（100ms 延迟缓冲，最大批次 100）
-        _eventUploader = new SerialBatchEventUploader(
-            _writeClient,
-            $"{options.ApiBaseUrl}/worker/events",
-            new SerialBatchUploaderOptions {
-                MaxBatchSize = 100,
-                MaxQueueSize = 10_000,
-                BaseDelayMs = 100,
-                JitterMs = 500,
-            },
-            logger);
+            var actualSseClient = sseClient ?? (ownedSseClient = new HttpClient(SocketsHttpHandlerFactory.CreateWithDnsRefresh()));
 
-        // 投递确认上传器
-        _deliveryUploader = new SerialBatchEventUploader(
-            _writeClient,
-            $"{options.ApiBaseUrl}/worker/events/delivery",
-            new SerialBatchUploaderOptions {
-                MaxBatchSize = 100,
-                MaxQueueSize = 10_000,
-                BaseDelayMs = 50,
-                JitterMs = 500,
-            },
-            logger);
+            var eventUploader = new SerialBatchEventUploader(
+                actualWriteClient,
+                $"{options.ApiBaseUrl}/worker/events",
+                new SerialBatchUploaderOptions {
+                    MaxBatchSize = 100,
+                    MaxQueueSize = 10_000,
+                    BaseDelayMs = 100,
+                    JitterMs = 500,
+                },
+                logger);
+
+            var deliveryUploader = new SerialBatchEventUploader(
+                actualWriteClient,
+                $"{options.ApiBaseUrl}/worker/events/delivery",
+                new SerialBatchUploaderOptions {
+                    MaxBatchSize = 100,
+                    MaxQueueSize = 10_000,
+                    BaseDelayMs = 50,
+                    JitterMs = 500,
+                },
+                logger);
+
+            return new V2ReplBridgeTransport(options, logger, actualWriteClient, actualSseClient, heartbeatCts, eventUploader, deliveryUploader);
+        } catch {
+            ownedWriteClient?.Dispose();
+            ownedSseClient?.Dispose();
+            heartbeatCts.Dispose();
+            throw;
+        }
     }
 
     /// <summary>

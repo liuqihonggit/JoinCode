@@ -132,6 +132,7 @@ public sealed partial class MainWindow : Window {
             _vm.TranscriptRequested += OnTranscriptRequested;
             _vm.RunStatus.MarqueeStopped += OnMarqueeStopped;
             ApplyAppearance();
+            _vm.LoadFileTree(System.IO.Directory.GetCurrentDirectory());
         }
     }
 

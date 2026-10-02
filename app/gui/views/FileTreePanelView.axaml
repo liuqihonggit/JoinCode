@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
+             x:Class="JoinCode.Gui.Views.FileTreePanelView"
+             x:DataType="vm:MainViewModel">
+  <Grid RowDefinitions="Auto,*"
+        Background="{DynamicResource GuiSidebarBackground}" ClipToBounds="True">
+    <!-- 头部 -->
+    <StackPanel Grid.Row="0" Spacing="8" Margin="12,12,12,4">
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <TextBlock Text="📂" FontSize="14" VerticalAlignment="Center" />
+        <TextBlock Text="目录树" FontSize="14" FontWeight="SemiBold"
+                   Foreground="{DynamicResource GuiSidebarTitle}" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Text="{Binding FileTreeRootPath, FallbackValue='未加载'}" FontSize="10"
+                 Foreground="{DynamicResource GuiMutedText}" TextTrimming="CharacterEllipsis" />
+    </StackPanel>
+    <!-- 目录树 -->
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,4,0,4">
+      <TreeView ItemsSource="{Binding FileTreeItems}" Margin="4,0">
+        <TreeView.ItemTemplate>
+          <TreeDataTemplate ItemsSource="{Binding Children}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="{Binding Icon}" FontSize="11" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
+                         Foreground="{DynamicResource GuiPrimaryText}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </TreeDataTemplate>
+        </TreeView.ItemTemplate>
+      </TreeView>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

@@ -25,7 +25,7 @@ public sealed partial class DefaultReplBridgeTransportFactory : ServiceEntity, I
     /// <inheritdoc />
     public IReplBridgeTransport CreateV1Transport(V1TransportOptions options, ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(options);
-        return new V1ReplBridgeTransport(options, logger);
+        return V1ReplBridgeTransport.Create(options, logger);
     }
 
     /// <inheritdoc />

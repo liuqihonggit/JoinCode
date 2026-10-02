@@ -107,7 +107,7 @@
 
 | 状态 | 类 | 文件:行 | 风险 |
 |------|----|---------|------|
-| ⏳ | `V2ReplBridgeTransport` | `lib/transport.impl/bridge/v2/V2ReplBridgeTransport.cs:48` | CTS + HttpClient×2 + SerialBatchEventUploader×2 |
+| ✅ d555222 | `V2ReplBridgeTransport` | `lib/transport.impl/bridge/v2/V2ReplBridgeTransport.cs:48` | CTS + HttpClient×2 + SerialBatchEventUploader×2 → private ctor + static Create |
 | ⏳ | `V1ReplBridgeTransport` | `lib/transport.impl/bridge/v1/V1ReplBridgeTransport.cs:66` | HttpClient + WebSocketTransport + CTS + 事件订阅×2 |
 | ⏳ | `PriorityMailbox` | `lib/async_lock/mailbox/PriorityMailbox.cs:61` | Channel×3 + fire-and-forget StartConsumingAsync |
 | ⏳ | `CodeIndexer` | `server/code_index/indexing/CodeIndexer.cs:42` | 11 协作对象 + TryInitEmbeddingIndex 实例方法 + BuildIndexStoreList |

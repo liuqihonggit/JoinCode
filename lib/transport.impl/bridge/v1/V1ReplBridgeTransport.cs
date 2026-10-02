@@ -58,21 +58,17 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport {
     private readonly IClockService _clock;
 
     /// <summary>
-    /// 构造 v1 传输适配器
+    /// 构造 v1 传输适配器 — private，接收已创建的资源。uploader 在此创建（需要实例方法 OnBatchDropped）。
     /// </summary>
-    /// <param name="options">v1 传输选项</param>
-    /// <param name="logger">日志记录器（可选）</param>
-    /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
-    public V1ReplBridgeTransport(V1TransportOptions options, ILogger? logger = null, IClockService? clock = null) {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+    private V1ReplBridgeTransport(V1TransportOptions options, ILogger? logger, IClockService clock, HttpClient httpClient, WebSocketTransport wsTransport, CancellationTokenSource disposeCts) {
+        _options = options;
         _logger = logger;
-        _clock = clock ?? SystemClockService.Instance;
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromMilliseconds(PostTimeoutMs) };
-        _wsTransport = new WebSocketTransport(options.WebSocketEndpoint, logger);
-        _disposeCts = new CancellationTokenSource();
+        _clock = clock;
+        _httpClient = httpClient;
+        _wsTransport = wsTransport;
+        _disposeCts = disposeCts;
         _streamEventBuffer = [];
 
-        // 创建 SerialBatchEventUploader — 对齐 TS 端 HybridTransport.uploader
         _uploader = new SerialBatchEventUploader(
             _httpClient,
             options.PostEndpoint,
@@ -87,9 +83,34 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport {
             },
             logger);
 
-        // WS 传输消息转发到 onData 回调
         _wsTransport.MessageReceived += OnWsMessageReceived;
         _wsTransport.ErrorOccurred += OnWsError;
+    }
+
+    /// <summary>
+    /// 创建 v1 传输适配器 — 工厂方法，逐步创建资源，任一步骤失败时释放已分配资源后重新抛出。
+    /// </summary>
+    /// <param name="options">v1 传输选项</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
+    public static V1ReplBridgeTransport Create(V1TransportOptions options, ILogger? logger = null, IClockService? clock = null) {
+        ArgumentNullException.ThrowIfNull(options);
+        var actualClock = clock ?? SystemClockService.Instance;
+
+        HttpClient? httpClient = null;
+        WebSocketTransport? wsTransport = null;
+        CancellationTokenSource? disposeCts = null;
+
+        try {
+            httpClient = new HttpClient { Timeout = TimeSpan.FromMilliseconds(PostTimeoutMs) };
+            wsTransport = new WebSocketTransport(options.WebSocketEndpoint, logger);
+            disposeCts = new CancellationTokenSource();
+            return new V1ReplBridgeTransport(options, logger, actualClock, httpClient, wsTransport, disposeCts);
+        } catch {
+            httpClient?.Dispose();
+            disposeCts?.Dispose();
+            throw;
+        }
     }
 
     #region IReplBridgeTransport

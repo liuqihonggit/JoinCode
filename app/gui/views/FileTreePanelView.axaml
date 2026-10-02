@@ -18,19 +18,25 @@
       <TextBlock Text="{Binding FileTreeRootPath, FallbackValue='未加载'}" FontSize="10"
                  Foreground="{DynamicResource GuiMutedText}" TextTrimming="CharacterEllipsis" />
     </StackPanel>
-    <!-- 目录树 -->
-    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,4,0,4">
-      <TreeView ItemsSource="{Binding FileTreeItems}" Margin="4,0">
-        <TreeView.ItemTemplate>
-          <TreeDataTemplate ItemsSource="{Binding Children}">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <TextBlock Text="{Binding Icon}" FontSize="11" VerticalAlignment="Center" />
-              <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
-                         Foreground="{DynamicResource GuiPrimaryText}" TextTrimming="CharacterEllipsis" />
-            </StackPanel>
-          </TreeDataTemplate>
-        </TreeView.ItemTemplate>
-      </TreeView>
-    </ScrollViewer>
+    <!-- 目录树 — TreeView 自带滚动,无需外层 ScrollViewer -->
+    <TreeView Grid.Row="1" ItemsSource="{Binding FileTreeItems}" Margin="4,4"
+              Background="Transparent" BorderThickness="0">
+      <TreeView.Styles>
+        <!-- 绑定 TreeViewItem.IsExpanded → FileTreeItemVm.IsExpanded (TwoWay)
+             展开时触发 VM 懒加载子节点 LoadChildren() -->
+        <Style Selector="TreeViewItem" x:DataType="vm:FileTreeItemVm">
+          <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+        </Style>
+      </TreeView.Styles>
+      <TreeView.ItemTemplate>
+        <TreeDataTemplate ItemsSource="{Binding Children}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="{Binding Icon}" FontSize="11" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
+                       Foreground="{DynamicResource GuiPrimaryText}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+        </TreeDataTemplate>
+      </TreeView.ItemTemplate>
+    </TreeView>
   </Grid>
 </UserControl>

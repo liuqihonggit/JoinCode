@@ -585,17 +585,12 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.UpdatedFiles, result.UpdatedCount));
             sb.AppendLine(L.T(StringKey.SkippedFiles, result.SkippedCount));
             sb.AppendLine(L.T(StringKey.DeletedFiles, result.DeletedCount));
-            sb.AppendLine($"持久化目录: {persistDir}");
+            sb.AppendLine($"持久化目录: {persistDir.Replace('\\', '/')}");
             sb.AppendLine($"  ✅ 符号索引: KV store ({_indexer.Persistence.Count} 个符号)");
             if (result.VectorChunkCount > 0) {
                 sb.AppendLine($"  ✅ 向量索引: vector_index.bin ({result.VectorChunkCount} 个块)");
             } else {
                 sb.AppendLine($"  ⚠ 向量索引: 未建立（模型文件不存在，语义搜索不可用）");
-            }
-            if (result.ParentDocumentCount > 0) {
-                sb.AppendLine($"  ✅ 父文档: KV store ({result.ParentDocumentCount} 个文档)");
-            } else {
-                sb.AppendLine($"  ⚠ 父文档: 未建立");
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
@@ -695,13 +690,13 @@ public sealed class CodeIndexToolHandlers {
     /// <param name="persist_dir">持久化目录路径，用于从外部位置加载索引。null=自动发现 git 工作区</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含匹配代码块列表的工具结果</returns>
-    [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. By default returns ONLY metadata (file path, line range, symbol name, similarity score) + knowledge graph relations (callers/callees) — lightweight, use read tool to fetch source by line number. Set include_source_text=true to get matched block source code (function body). Set include_parent_document=true to get parent class/file source code for full context. Set include_graph=false to disable knowledge graph relations. Set file_type to filter by extension (e.g. 'cs' for C# code only, 'md' for Markdown docs only). Set persist_dir to load index from a custom directory (default: auto-discover git workspace). Tip: start with default (metadata + graph) to locate, then enable source/parent on follow-up calls if needed.", "code_index")]
+    [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. Returns metadata (file path, line range, symbol name, similarity score). Set include_source_text=true to get matched block source code. Set include_parent_document=true to get parent class/file source. Set include_graph=true to get caller/callee relations.", "code_index")]
     public async Task<ToolResult> SearchSemanticAsync(
         [McpToolParameter("Natural language query or code snippet (e.g. 'find authentication logic', 'rate limiting implementation')")] string query,
         [McpToolParameter("Maximum number of results to return", Required = false, DefaultValue = "10")] int top_k = 10,
-        [McpToolParameter("Include matched block source text (function code) in results. Default false — use read tool to fetch by line number instead", Required = false, DefaultValue = "false")] bool include_source_text = false,
-        [McpToolParameter("Include parent document (class/file) source text in results for full context. Default false — enable when you need surrounding context", Required = false, DefaultValue = "false")] bool include_parent_document = false,
-        [McpToolParameter("Include knowledge graph relations (callers/callees) for symbols in each chunk. Default true — AI sees call dependencies without extra tool calls", Required = false, DefaultValue = "true")] bool include_graph = true,
+        [McpToolParameter("Include matched block source text (function code) in results", Required = false, DefaultValue = "false")] bool include_source_text = false,
+        [McpToolParameter("Include parent document (class/file) source text in results for full context", Required = false, DefaultValue = "false")] bool include_parent_document = false,
+        [McpToolParameter("Include knowledge graph triples (caller,calls,callee). GraphRAG: vector recall + graph triples correct AI cognition", Required = false, DefaultValue = "true")] bool include_graph = true,
         [McpToolParameter("Filter by file extension without dot, e.g. 'cs' for C# only, 'md' for Markdown only. Default null = all file types", Required = false)] string? file_type = null,
         [McpToolParameter("Filter by namespace prefix, e.g. 'JoinCode.CodeIndex' for code in that namespace only. Default null = all namespaces", Required = false)] string? namespace_filter = null,
         [McpToolParameter("Filter by symbol kind, e.g. 'Method' for methods only, 'Class' for classes only. Default null = all kinds", Required = false)] string? symbol_kind = null,
@@ -722,8 +717,11 @@ public sealed class CodeIndexToolHandlers {
             };
             var oversampleK = Math.Max(top_k * 3, top_k + 10);
             var rawResults = await _indexer.SearchSemanticAsync(query, oversampleK, cancellationToken, options).ConfigureAwait(false);
+            var expanded = include_graph
+                ? await ExpandByGraphAsync(rawResults, top_k, cancellationToken).ConfigureAwait(false)
+                : rawResults;
             var results = await SemanticSearchReranker.RerankAsync(
-                query, rawResults, top_k, _indexer.CallGraph, cancellationToken).ConfigureAwait(false);
+                query, expanded, top_k, _indexer.CallGraph, cancellationToken).ConfigureAwait(false);
 
             if (results.Count == 0) {
                 var stats = await _indexer.GetStatsAsync(cancellationToken).ConfigureAwait(false);
@@ -750,7 +748,7 @@ public sealed class CodeIndexToolHandlers {
             for (var i = 0; i < results.Count; i++) {
                 var r = results[i];
                 sb.AppendLine($"{i + 1}. [{r.Score:F4}] {r.SymbolFqn}");
-                sb.AppendLine($"   {r.FilePath}:{r.StartLine}-{r.EndLine}");
+                sb.AppendLine($"   {r.FilePath.Replace('\\', '/')}:{r.StartLine}-{r.EndLine}");
 
                 if (include_source_text && !string.IsNullOrEmpty(r.SourceText)) {
                     sb.AppendLine($"   --- Source ---");
@@ -788,25 +786,19 @@ public sealed class CodeIndexToolHandlers {
 
                         if (callers.Count == 0 && callees.Count == 0) continue;
                         if (!graphWritten) {
-                            sb.AppendLine("   --- Graph ---");
+                            sb.AppendLine("   --- Triples ---");
                             graphWritten = true;
                         }
 
-                        if (callers.Count > 0) {
-                            sb.AppendLine($"   {fqn} <- 调用方:");
-                            foreach (var c in callers.Take(EdgeLimit)) {
-                                sb.AppendLine($"     {c.CallerSymbol} at {c.CallSiteFilePath}:{c.CallSiteLine}");
-                            }
+                        foreach (var c in callers.Take(EdgeLimit)) {
+                            sb.AppendLine($"   ({c.CallerSymbol}, calls, {fqn})");
                         }
-                        if (callees.Count > 0) {
-                            sb.AppendLine($"   {fqn} -> 被调用方:");
-                            foreach (var c in callees.Take(EdgeLimit)) {
-                                sb.AppendLine($"     {c.CalleeSymbol} at {c.CallSiteFilePath}:{c.CallSiteLine}");
-                            }
+                        foreach (var c in callees.Take(EdgeLimit)) {
+                            sb.AppendLine($"   ({fqn}, calls, {c.CalleeSymbol})");
                         }
                     }
                     if (graphWritten) {
-                        sb.AppendLine("   --- End Graph ---");
+                        sb.AppendLine("   --- End Triples ---");
                     }
                 }
 
@@ -1064,6 +1056,158 @@ public sealed class CodeIndexToolHandlers {
             SymbolKind.LocalFunction => ObjectSymbol.LocalFunction.ToValue(),
             _ => ObjectSymbol.File.ToValue()
         };
+    }
+
+    /// <summary>
+    /// 文档检索 — .md 文件语义搜索。
+    /// </summary>
+    /// <param name="query">搜索查询（自然语言）。</param>
+    /// <param name="top_k">最大结果数。</param>
+    /// <param name="include_source_text">包含块原文。</param>
+    /// <param name="persist_dir">索引目录（默认自动发现 git 工作区）。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含文档检索结果的工具结果。</returns>
+    [McpTool(CodeToolNameEnumConstants.SearchDocument, "Document search: semantic search over .md files only. Returns matching markdown chunks.", "code_index")]
+    public async Task<ToolResult> SearchDocumentAsync(
+        [McpToolParameter("Search query (natural language)")] string query,
+        [McpToolParameter("Maximum results", Required = false, DefaultValue = "10")] int top_k = 10,
+        [McpToolParameter("Include source text in results")] bool include_source_text = false,
+        [McpToolParameter("Index directory (default: auto-discover git workspace)")] string? persist_dir = null,
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(query)) {
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
+        }
+
+        try {
+            await EnsureLoadedAsync(cancellationToken, persist_dir).ConfigureAwait(false);
+            var options = new SearchOptions {
+                IncludeSourceText = include_source_text,
+                FileType = "md"
+            };
+            var results = await _indexer.SearchSemanticAsync(query, top_k, cancellationToken, options).ConfigureAwait(false);
+            if (results.Count == 0) {
+                return ToolResultBuilder.Success().WithText($"No document matches for: \"{query}\"").Build();
+            }
+            var sb = FormatVectorResults(results, query, "document", include_source_text);
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
+        } catch (Exception ex) {
+            return ToolResultBuilder.Error().WithText($"search_document failed: {ex.Message}").Build();
+        }
+    }
+
+    /// <summary>
+    /// GraphRAG 边扩展 — 对向量召回结果沿图谱边找邻居，加入候选集。
+    /// <para>并行查图谱+并行查符号，2轮Task.WhenAll替代90串行调用。</para>
+    /// </summary>
+    private async Task<IReadOnlyList<ChunkSearchResult>> ExpandByGraphAsync(
+        IReadOnlyList<ChunkSearchResult> results, int topK, CancellationToken ct) {
+        if (results.Count == 0) return results;
+
+        var existingFqns = new HashSet<string>(StringComparer.Ordinal);
+        var fqnToScore = new Dictionary<string, float>(StringComparer.Ordinal);
+        foreach (var r in results) {
+            existingFqns.Add(r.SymbolFqn);
+            foreach (var fqn in r.ContainedSymbolFqns) {
+                existingFqns.Add(fqn);
+                fqnToScore.TryAdd(fqn, r.Score);
+            }
+        }
+
+        var expanded = new List<ChunkSearchResult>(results);
+        var expansionTarget = results.Count + topK;
+
+        var fqnsToExpand = results.Take(3)
+            .SelectMany(r => r.ContainedSymbolFqns.Take(2))
+            .Where(f => !string.IsNullOrEmpty(f))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (fqnsToExpand.Count == 0) return expanded;
+
+        var graphTasks = fqnsToExpand.Select(async fqn => {
+            var callees = await _indexer.CallGraph.GetCalleesAsync(fqn, ct).ConfigureAwait(false);
+            var callers = await _indexer.CallGraph.GetCallersAsync(fqn, ct).ConfigureAwait(false);
+            return (fqn, callees, callers);
+        }).ToArray();
+        await Task.WhenAll(graphTasks).ConfigureAwait(false);
+
+        var neighborFqns = new List<(string Fqn, float BaseScore)>();
+        foreach (var task in graphTasks) {
+            var (fqn, callees, callers) = await task.ConfigureAwait(false);
+            var baseScore = fqnToScore.GetValueOrDefault(fqn, 0.5f);
+            foreach (var edge in callees.Take(2)) {
+                if (!existingFqns.Contains(edge.CalleeSymbol))
+                    neighborFqns.Add((edge.CalleeSymbol, baseScore));
+            }
+            foreach (var edge in callers.Take(2)) {
+                if (!existingFqns.Contains(edge.CallerSymbol))
+                    neighborFqns.Add((edge.CallerSymbol, baseScore));
+            }
+        }
+
+        var distinctNeighbors = neighborFqns
+            .GroupBy(n => n.Fqn, StringComparer.Ordinal)
+            .Select(g => g.First())
+            .Take(topK)
+            .ToList();
+        if (distinctNeighbors.Count == 0) return expanded;
+
+        var symTasks = distinctNeighbors.Select(async n => {
+            var result = await _indexer.Searcher.SearchAsync(n.Fqn, ct).ConfigureAwait(false);
+            return (n.BaseScore, result);
+        }).ToArray();
+        await Task.WhenAll(symTasks).ConfigureAwait(false);
+
+        foreach (var task in symTasks) {
+            var (baseScore, symResult) = await task.ConfigureAwait(false);
+            if (expanded.Count >= expansionTarget) break;
+            if (symResult.Items.Count == 0) continue;
+            var sym = symResult.Items[0];
+            if (!existingFqns.Add(sym.FullyQualifiedName)) continue;
+            expanded.Add(new ChunkSearchResult {
+                ChunkId = sym.FullyQualifiedName,
+                FilePath = sym.FilePath,
+                SymbolFqn = sym.FullyQualifiedName,
+                StartLine = sym.StartLine,
+                EndLine = sym.EndLine,
+                Score = baseScore * 0.4f,
+                ContainedSymbolFqns = [sym.FullyQualifiedName]
+            });
+        }
+
+        return expanded;
+    }
+
+    private async Task AppendGraphRelationsAsync(StringBuilder sb, string fqn, CancellationToken ct) {
+        var callers = await _indexer.CallGraph.GetCallersAsync(fqn, ct).ConfigureAwait(false);
+        var callees = await _indexer.CallGraph.GetCalleesAsync(fqn, ct).ConfigureAwait(false);
+        if (callers.Count == 0 && callees.Count == 0) return;
+        sb.AppendLine("   --- Triples ---");
+        foreach (var c in callers.Take(3)) {
+            sb.AppendLine($"   ({c.CallerSymbol}, calls, {fqn})");
+        }
+        foreach (var c in callees.Take(3)) {
+            sb.AppendLine($"   ({fqn}, calls, {c.CalleeSymbol})");
+        }
+        sb.AppendLine("   --- End Triples ---");
+    }
+
+    private static StringBuilder FormatVectorResults(IReadOnlyList<ChunkSearchResult> results, string query, string mode, bool includeSource) {
+        var sb = new StringBuilder();
+        sb.AppendLine($"Found {results.Count} match(s) for: \"{query}\" (mode={mode})");
+        sb.AppendLine();
+        for (var i = 0; i < results.Count; i++) {
+            var r = results[i];
+            sb.AppendLine($"{i + 1}. [{r.Score:F4}] {r.SymbolFqn}");
+            sb.AppendLine($"   {r.FilePath.Replace('\\', '/')}:{r.StartLine}-{r.EndLine}");
+            if (includeSource && !string.IsNullOrEmpty(r.SourceText)) {
+                sb.AppendLine("   --- Source ---");
+                foreach (var line in r.SourceText.Split('\n')) {
+                    sb.AppendLine($"   {line}");
+                }
+                sb.AppendLine("   --- End Source ---");
+            }
+        }
+        return sb;
     }
 
     private Task EnsureLoadedAsync(CancellationToken ct, string? persistDir = null) => _indexer.EnsureIndexLoadedAsync(ct, persistDir);

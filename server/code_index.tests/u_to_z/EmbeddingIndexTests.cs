@@ -469,4 +469,80 @@ public sealed class EmbeddingIndexTests {
         var loaded = await index.LoadAsync("nonexistent_dir_lsm", CancellationToken.None);
         Assert.False(loaded);
     }
+
+    [Fact]
+    public async Task SearchAsync_SymbolKindFilter_WithContainedSymbolKinds_ReturnsMatchingChunks() {
+        await using var index = CreateIndex();
+        var chunkWithCtor = CreateChunk("c1", "Test.Foo", file: "src.cs", text: "Foo() {}")
+            with { ContainedSymbolKinds = BitMask.Of(SymbolKind.Constructor, SymbolKind.Method) };
+        var chunkWithMethodOnly = CreateChunk("c2", "Test.Bar", file: "src.cs", text: "void Bar() {}")
+            with { ContainedSymbolKinds = BitMask.Of(SymbolKind.Method) };
+        await index.IndexChunksAsync([chunkWithCtor, chunkWithMethodOnly], CancellationToken.None);
+
+        var results = await index.SearchAsync("Foo", 10, CancellationToken.None,
+            new SearchOptions { SymbolKind = "constructor" });
+
+        Assert.Contains(results, r => r.ChunkId == "c1");
+        Assert.DoesNotContain(results, r => r.ChunkId == "c2");
+    }
+
+    [Fact]
+    public async Task SearchAsync_SymbolKindFilter_Constructor_FindsChunksContainingConstructor() {
+        await using var index = CreateIndex();
+        var chunks = new List<ChunkInfo> {
+            CreateChunk("c1", "Test.Foo", file: "src.cs", text: "Foo() {}")
+                with { ContainedSymbolKinds = BitMask.Of(SymbolKind.Class, SymbolKind.Constructor) },
+            CreateChunk("c2", "Test.Bar", file: "src.cs", text: "void Bar() {}")
+                with { ContainedSymbolKinds = BitMask.Of(SymbolKind.Class, SymbolKind.Method) },
+            CreateChunk("c3", "Test.Baz", file: "src.cs", text: "Baz() {}")
+                with { ContainedSymbolKinds = BitMask.Of(SymbolKind.Constructor) }
+        };
+        await index.IndexChunksAsync(chunks, CancellationToken.None);
+
+        var results = await index.SearchAsync("test", 10, CancellationToken.None,
+            new SearchOptions { SymbolKind = "constructor" });
+
+        var resultIds = results.Select(r => r.ChunkId).ToHashSet();
+        Assert.Contains("c1", resultIds);
+        Assert.Contains("c3", resultIds);
+        Assert.DoesNotContain("c2", resultIds);
+    }
+
+    [Fact]
+    public async Task SearchAsync_SymbolKindFilter_NoMatch_ReturnsEmpty() {
+        await using var index = CreateIndex();
+        var chunk = CreateChunk("c1", "Test.Foo", file: "src.cs", text: "void Foo() {}")
+            with { ContainedSymbolKinds = BitMask.Of(SymbolKind.Method) };
+        await index.IndexChunksAsync([chunk], CancellationToken.None);
+
+        var results = await index.SearchAsync("Foo", 10, CancellationToken.None,
+            new SearchOptions { SymbolKind = "constructor" });
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task SaveLoadLsm_ContainedSymbolKinds_Preserved() {
+        TestFileSystem.UseRealFileSystem = true;
+        try {
+            await using var index = CreateIndex();
+            var chunk = CreateChunk("c1", "Test.Foo", file: "a.cs", text: "Foo() {}")
+                with { ContainedSymbolKinds = BitMask.Of(SymbolKind.Constructor, SymbolKind.Method) };
+            await index.IndexChunksAsync([chunk], CancellationToken.None);
+
+            var dir = Path.Combine(Path.GetTempPath(), $"test_lsm_kinds_{Guid.NewGuid():N}");
+            await index.SaveAsync(dir, CancellationToken.None);
+
+            await using var index2 = CreateIndex();
+            var loaded = await index2.LoadAsync(dir, CancellationToken.None);
+            Assert.True(loaded);
+
+            var results = await index2.SearchAsync("Foo", 10, CancellationToken.None,
+                new SearchOptions { SymbolKind = "constructor" });
+            Assert.NotEmpty(results);
+        }
+        finally {
+            TestFileSystem.UseRealFileSystem = false;
+        }
+    }
 }

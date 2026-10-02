@@ -82,7 +82,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             return;
         }
 
-        const int EmbedBatchSize = 128;
+        const int EmbedBatchSize = 256;
         var vectors = new float[toEmbed.Count][];
         try {
             for (var batchStart = 0; batchStart < toEmbed.Count; batchStart += EmbedBatchSize) {
@@ -127,7 +127,8 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
                 ParentEndLine = chunk.ParentEndLine,
                 ParentSymbolFqn = chunk.ParentSymbolFqn,
                 SourceText = chunk.SourceText,
-                ContainedSymbolFqns = chunk.ContainedSymbolFqns
+                ContainedSymbolFqns = chunk.ContainedSymbolFqns,
+                ContainedSymbolKinds = chunk.ContainedSymbolKinds
             }));
             hashesToAdd.Add((chunk.ChunkId, chunk.ContentHash));
             fileChunksToAdd.Add((chunk.FilePath, chunk.ChunkId));
@@ -432,7 +433,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             if (hasFilter) {
                 if (!string.IsNullOrEmpty(fileType) && !MatchesFileType(meta.FilePath, fileType!)) continue;
                 if (!string.IsNullOrEmpty(namespaceFilter) && !MatchesNamespaceAny(meta.SymbolFqn, meta.ContainedSymbolFqns, namespaceFilter!)) continue;
-                if (!string.IsNullOrEmpty(symbolKindFilter) && !MatchesSymbolKind(meta.SymbolKind, symbolKindFilter!)) continue;
+                if (!string.IsNullOrEmpty(symbolKindFilter) && !MatchesSymbolKindAny(meta.SymbolKind, meta.ContainedSymbolKinds, symbolKindFilter!)) continue;
             }
             var result = new ChunkSearchResult {
                 ChunkId = meta.ChunkId,
@@ -480,9 +481,15 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     }
 
     /// <summary>
-    /// 检查符号类型是否匹配（不区分大小写）。
+    /// 检查符号类型是否匹配 — 优先用 ContainedSymbolKinds BitMask 检查块内所有符号类型，回退到 SymbolKind 字符串比较。
+    /// <para>BitMask 路径：LineBasedChunkExtractor 块的 Kind 全是 Document，但 ContainedSymbolKinds 记录了块内所有符号类型。</para>
+    /// <para>字符串路径：CollectChunksWithParents 块的 Kind 是真实符号类型，ContainedSymbolKinds 为 0。</para>
     /// </summary>
-    private static bool MatchesSymbolKind(string symbolKind, string symbolKindFilter) {
+    private static bool MatchesSymbolKindAny(string symbolKind, int containedSymbolKinds, string symbolKindFilter) {
+        var kind = SymbolKindExtensions.FromValue(symbolKindFilter);
+        if (kind is not null) {
+            return BitMask.Contains(containedSymbolKinds, kind.Value);
+        }
         return symbolKind.Equals(symbolKindFilter, StringComparison.OrdinalIgnoreCase);
     }
 

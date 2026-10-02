@@ -67,10 +67,14 @@ public static class LineBasedChunkExtractor {
             var contentHash = HashUtility.ComputeContentHash(sourceText);
             var chunkId = HashUtility.ComputeContentHash($"{filePath}|{startLine}|{endLine}|{contentHash}");
 
-            var containedFqns = symbols
-                .Where(s => s.StartLine <= endLine && s.EndLine >= startLine)
-                .Select(s => s.FullyQualifiedName)
-                .ToList();
+            var containedFqns = new List<string>();
+            var containedKinds = 0;
+            foreach (var s in symbols) {
+                if (s.StartLine <= endLine && s.EndLine >= startLine) {
+                    containedFqns.Add(s.FullyQualifiedName);
+                    containedKinds |= 1 << (int)s.Kind;
+                }
+            }
 
             var parent = FindParentLocation(parentLocations, startLine, endLine);
 
@@ -85,6 +89,7 @@ public static class LineBasedChunkExtractor {
                 ContentHash = contentHash,
                 SourceText = sourceText,
                 ContainedSymbolFqns = containedFqns,
+                ContainedSymbolKinds = containedKinds,
                 ParentFilePath = parent?.FilePath,
                 ParentStartLine = parent?.StartLine ?? 0,
                 ParentEndLine = parent?.EndLine ?? 0,

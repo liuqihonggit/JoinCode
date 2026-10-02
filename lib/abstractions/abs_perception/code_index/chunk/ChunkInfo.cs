@@ -42,4 +42,11 @@ public sealed record ChunkInfo {
     /// <para>AST 符号切块时为空（SymbolFqn 已标识唯一符号）。</para>
     /// </summary>
     public IReadOnlyList<string> ContainedSymbolFqns { get; init; } = [];
+
+    /// <summary>
+    /// 块覆盖的 AST 符号类型 BitMask — 固定行数切块时，记录该行号范围内包含的所有符号类型。
+    /// <para>用于 symbol_kind 过滤：BitMask.Contains(ContainedSymbolKinds, SymbolKind.Constructor) 判断块内是否含构造函数。</para>
+    /// <para>AST 符号切块时为 0（Kind 字段已标识唯一符号类型）。</para>
+    /// </summary>
+    public int ContainedSymbolKinds { get; init; }
 }

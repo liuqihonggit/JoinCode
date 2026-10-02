@@ -4,87 +4,91 @@ namespace JoinCode.Abstractions.Utils;
 /// 代码相关工具名称枚举（CodeIndex + LSP + 代码执行 + 分析 + 生成）
 /// </summary>
 public enum CodeToolName {
-    [EnumValue("code_index_search")]
+    [EnumValue("search_document")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    SearchDocument,
+
+    [EnumValue("search_symbol")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexSearch,
 
-    [EnumValue("code_index_search_comprehensive")]
+    [EnumValue("search_comprehensive")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexSearchComprehensive,
 
-    [EnumValue("code_index_find_definition")]
+    [EnumValue("search_definition")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexFindDefinition,
 
-    [EnumValue("code_index_find_references")]
+    [EnumValue("search_references")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexFindReferences,
 
-    [EnumValue("code_index_get_callers")]
+    [EnumValue("search_callers")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetCallers,
 
-    [EnumValue("code_index_get_callees")]
+    [EnumValue("search_callees")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetCallees,
 
-    [EnumValue("code_index_get_call_chain")]
+    [EnumValue("search_call_chain")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetCallChain,
 
-    [EnumValue("code_index_get_impact_scope")]
+    [EnumValue("search_impact_scope")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetImpactScope,
 
-    [EnumValue("code_index_get_inheritors")]
+    [EnumValue("search_inheritors")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetInheritors,
 
-    [EnumValue("code_index_get_dependencies")]
+    [EnumValue("search_dependencies")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetDependencies,
 
-    [EnumValue("code_index_get_affected_files")]
+    [EnumValue("search_affected_files")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetAffectedFiles,
 
-    [EnumValue("code_index_rebuild")]
+    [EnumValue("create_index")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     CodeIndexRebuild,
 
-    [EnumValue("code_index_stats")]
+    [EnumValue("search_stats")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexStats,
 
-    [EnumValue("code_index_explore")]
+    [EnumValue("search_explore")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexExplore,
 
-    [EnumValue("code_index_search_semantic")]
+    [EnumValue("search_semantic")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexSearchSemantic,
 
-    [EnumValue("code_index_get_project_deps")]
+    [EnumValue("search_project_deps")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetProjectDeps,
 
-    [EnumValue("code_index_get_project_dependents")]
+    [EnumValue("search_project_dependents")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetProjectDependents,
 
-    [EnumValue("code_index_get_affected_projects")]
+    [EnumValue("search_affected_projects")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetAffectedProjects,
 
-    [EnumValue("code_index_get_project_nugets")]
+    [EnumValue("search_project_nugets")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetProjectNuGets,
 
-    [EnumValue("code_index_get_nuget_projects")]
+    [EnumValue("search_nuget_projects")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetNuGetProjects,
 
-    [EnumValue("code_index_get_all_projects")]
+    [EnumValue("search_all_projects")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexGetAllProjects,
 
@@ -184,7 +188,7 @@ public enum CodeToolName {
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GraphDetectDeadCode,
 
-    [EnumValue("graph_extract_subgraph")]
+    [EnumValue("search_subgraph")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GraphExtractSubgraph,
 
@@ -208,15 +212,15 @@ public enum CodeToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GraphExportHtml,
 
-    [EnumValue("graph_query")]
+    [EnumValue("search_graph")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GraphQuery,
 
-    [EnumValue("graph_path")]
+    [EnumValue("search_path")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GraphPath,
 
-    [EnumValue("graph_explain")]
+    [EnumValue("search_explain")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GraphExplain,
 

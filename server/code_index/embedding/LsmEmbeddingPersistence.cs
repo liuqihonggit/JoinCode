@@ -46,6 +46,9 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         var dims = snapshot.Dims;
 
         var kvDir = Path.Combine(dirPath, "kvstore");
+        if (_fs.DirectoryExists(kvDir)) {
+            _fs.DeleteDirectory(kvDir, recursive: true);
+        }
         _fs.CreateDirectory(kvDir);
 
         await using var store = new PithosKvStore(kvDir, new PithosOptions { DisableCompaction = true });
@@ -142,6 +145,7 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         foreach (var fqn in meta.ContainedSymbolFqns) {
             bw.Write(fqn);
         }
+        bw.Write(meta.ContainedSymbolKinds);
         bw.Flush();
         return ms.ToArray();
     }
@@ -177,6 +181,7 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         for (var i = 0; i < fqnCount; i++) {
             fqns[i] = br.ReadString();
         }
+        var containedSymbolKinds = br.ReadInt32();
         return new ChunkMetadata {
             ChunkId = chunkId,
             FilePath = filePath,
@@ -192,6 +197,7 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
             SourceTextOffset = sourceTextOffset,
             SourceTextLen = sourceTextLen,
             ContainedSymbolFqns = fqns,
+            ContainedSymbolKinds = containedSymbolKinds,
         };
     }
 

@@ -38,6 +38,7 @@
 | TASK027 | [TASK027-管道缓冲区零导致写阻塞-bug修复记录.md](TASK027-管道缓冲区零导致写阻塞-bug修复记录.md) | 管道缓冲区零导致写阻塞 bug 修复记录 |
 | TASK028 | [TASK028-严格语法规范与卫语句检测.md](TASK028-严格语法规范与卫语句检测.md) | 严格语法规范与卫语句检测 |
 | TASK029 | [TASK029-Jev类型化决策模型接入任务.md](TASK029-Jev类型化决策模型接入任务.md) | Jev 类型化决策模型接入 — ITypedDecision 抽象层 |
+| TASK034 | [TASK034-统一检索接口-5模式枚举.md](TASK034-统一检索接口-5模式枚举.md) | 统一检索接口 — 5 模式枚举(hybrid/symbol/vector/graph/document) |
 
 ## 子目录
 

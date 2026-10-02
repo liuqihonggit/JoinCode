@@ -7,6 +7,8 @@ namespace JoinCode.CodeIndex.Embedding;
 /// </summary>
 internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
     private readonly IFileSystem _fs;
+    private PithosKvStore? _incrementalStore;
+    private string? _incrementalDir;
 
     private static byte[] KeyVector(string chunkId) => Encoding.UTF8.GetBytes($"v:{chunkId}");
     private static byte[] KeyMeta(string chunkId) => Encoding.UTF8.GetBytes($"m:{chunkId}");
@@ -175,6 +177,50 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         };
     }
 
-    /// <summary>释放资源 — LSM 后端无长生命周期 KV 存储需关闭（每次 Save/Load 用 using）。</summary>
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    /// <summary>增量写入单个 chunk — 自动打开/复用 LSM 存储，无需显式打开。</summary>
+    public async Task PersistChunkAsync(string dirPath, string chunkId, float[] vector, ChunkMetadata meta, string hash, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        ArgumentNullException.ThrowIfNull(chunkId);
+        await EnsureStoreOpenAsync(dirPath, ct).ConfigureAwait(false);
+        var store = _incrementalStore!;
+        var vectorBytes = MemoryMarshal.AsBytes(vector.AsSpan()).ToArray();
+        await store.PutAsync(KeyVector(chunkId), vectorBytes, ct).ConfigureAwait(false);
+        await store.PutAsync(KeyMeta(chunkId), SerializeMeta(meta), ct).ConfigureAwait(false);
+        await store.PutAsync(KeyHash(chunkId), Encoding.UTF8.GetBytes(hash), ct).ConfigureAwait(false);
+        await store.PutAsync(KeyDims, BitConverter.GetBytes(vector.Length), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>增量删除单个 chunk — 自动打开/复用 LSM 存储，写入墓碑标记。</summary>
+    public async Task DeleteChunkAsync(string dirPath, string chunkId, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        ArgumentNullException.ThrowIfNull(chunkId);
+        await EnsureStoreOpenAsync(dirPath, ct).ConfigureAwait(false);
+        var store = _incrementalStore!;
+        await store.DeleteAsync(KeyVector(chunkId), ct).ConfigureAwait(false);
+        await store.DeleteAsync(KeyMeta(chunkId), ct).ConfigureAwait(false);
+        await store.DeleteAsync(KeyHash(chunkId), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>刷盘 — LSM 每次 PutAsync 已持久化，空操作。</summary>
+    public Task FlushAsync(string dirPath, CancellationToken ct) => Task.CompletedTask;
+
+    /// <summary>确保 LSM 存储已打开且对应正确目录 — 目录不匹配时自动切换。</summary>
+    private async Task EnsureStoreOpenAsync(string dirPath, CancellationToken ct) {
+        var kvDir = Path.Combine(dirPath, "kvstore");
+        if (_incrementalStore is not null && _incrementalDir == kvDir) return;
+        if (_incrementalStore is not null) {
+            await _incrementalStore.DisposeAsync().ConfigureAwait(false);
+        }
+        _fs.CreateDirectory(kvDir);
+        _incrementalDir = kvDir;
+        _incrementalStore = new PithosKvStore(kvDir);
+    }
+
+    /// <summary>释放资源 — 关闭增量存储。</summary>
+    public async ValueTask DisposeAsync() {
+        if (_incrementalStore is not null) {
+            await _incrementalStore.DisposeAsync().ConfigureAwait(false);
+            _incrementalStore = null;
+        }
+    }
 }

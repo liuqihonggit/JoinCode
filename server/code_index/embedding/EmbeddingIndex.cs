@@ -13,7 +13,12 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     private readonly IAnnSearch _ann;
     private readonly IParentDocumentStore? _parentStore;
     private readonly IFileSystem _fs;
-    private readonly IEmbeddingPersistence _persistence;
+    private IEmbeddingPersistence _persistence;
+    private string? _incrementalDir;
+
+    /// <summary>bin 后端 chunk 数上限 — 超过千万行自动切换到 LSM。</summary>
+    private const int BinMaxChunks = 10_000_000;
+
     private volatile ImmutableHamT<string, ChunkMetadata> _metadata = ImmutableHamT<string, ChunkMetadata>.Empty;
     private volatile ImmutableHamT<string, string> _chunkHashes = ImmutableHamT<string, string>.Empty;
     private volatile ImmutableHamT<string, ImmutableHashSet<string>> _fileToChunks = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
@@ -347,6 +352,50 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     public Task<bool> ExistsAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
         return _persistence.ExistsAsync(dirPath, ct);
+    }
+
+    /// <summary>
+    /// 增量写入单个 chunk — 直接追加到存储，无需全量重建索引。
+    /// <para>bin 后端超过千万行时自动切换到 LSM 后端。</para>
+    /// <para>无需显式打开，直接可用。</para>
+    /// </summary>
+    internal async Task PersistChunkAsync(string dirPath, string chunkId, float[] vector, ChunkMetadata meta, string hash, CancellationToken ct = default) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        ArgumentNullException.ThrowIfNull(chunkId);
+        _incrementalDir = dirPath;
+        await _persistence.PersistChunkAsync(dirPath, chunkId, vector, meta, hash, ct).ConfigureAwait(false);
+        if (_persistence is BinEmbeddingPersistence && ChunkCount > BinMaxChunks) {
+            await SwitchToLsmAsync(ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>增量删除单个 chunk — 从存储移除，无需全量重建。无需显式打开。</summary>
+    public Task DeleteChunkAsync(string dirPath, string chunkId, CancellationToken ct = default) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        ArgumentNullException.ThrowIfNull(chunkId);
+        _incrementalDir = dirPath;
+        return _persistence.DeleteChunkAsync(dirPath, chunkId, ct);
+    }
+
+    /// <summary>刷盘 — bin 把扩展字典缓冲合并写入 bin 文件，LSM 空操作。</summary>
+    public Task FlushAsync(string dirPath, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        return _persistence.FlushAsync(dirPath, ct);
+    }
+
+    /// <summary>
+    /// 自适应切换：bin → LSM — flush bin 数据，加载全量快照，用 LSM 重新持久化。
+    /// <para>触发条件：bin 后端 chunk 数超过 BinMaxChunks（千万行）。</para>
+    /// </summary>
+    private async Task SwitchToLsmAsync(CancellationToken ct) {
+        if (_incrementalDir is null) return;
+        var dir = _incrementalDir;
+        await _persistence.FlushAsync(dir, ct).ConfigureAwait(false);
+        var snapshot = await _persistence.LoadAsync(dir, ct).ConfigureAwait(false);
+        if (snapshot is null) return;
+        await _persistence.DisposeAsync().ConfigureAwait(false);
+        _persistence = new LsmEmbeddingPersistence(_fs);
+        await _persistence.SaveAsync(dir, snapshot, ct).ConfigureAwait(false);
     }
 
     /// <summary>

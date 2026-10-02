@@ -62,13 +62,18 @@ internal readonly struct MetaEntryFixed {
 /// bin 二进制持久化后端 — mmap 零拷贝加载，VECIDX5 分页格式。
 /// <para>格式：Magic + HeaderV5 + 跳表区 + 页头数组 + 向量段 + Meta段 + 字符串区 + SourceText段 + 图段。</para>
 /// <para>向量段和 Meta 段连续存储（MemoryMarshal.Cast 零拷贝），跳表索引块ID→页编号+页内索引。</para>
-/// <para>未来可扩展增量写入能力。</para>
+/// <para>增量写入通过扩展字典缓冲实现，FlushAsync 时合并已有 bin 文件全量重写。</para>
 /// </summary>
 internal sealed class BinEmbeddingPersistence : IEmbeddingPersistence {
     private readonly IFileSystem _fs;
 
     /// <summary>默认每页块数。</summary>
     private const int DefaultPageCapacity = 256;
+
+    /// <summary>增量缓冲 — 扩展字典，追加/修改的 chunk 暂存于此。始终可用，无需显式打开。</summary>
+    private readonly Dictionary<string, (float[] Vector, ChunkMetadata Meta, string Hash)> _incrementalBuffer = [];
+    /// <summary>增量删除集 — 待删除的 chunkId。始终可用。</summary>
+    private readonly HashSet<string> _incrementalDeletes = [];
 
     /// <summary>
     /// 构造 bin 持久化后端。
@@ -432,6 +437,59 @@ internal sealed class BinEmbeddingPersistence : IEmbeddingPersistence {
     private static string ReadStringFromSpan(ReadOnlySpan<byte> buffer, long offset, int len) {
         if (len <= 0 || offset < 0) return string.Empty;
         return Encoding.UTF8.GetString(buffer.Slice((int)offset, len));
+    }
+
+    /// <summary>增量写入单个 chunk — 追加到扩展字典缓冲，FlushAsync 时合并刷盘。无需显式打开。</summary>
+    public Task PersistChunkAsync(string dirPath, string chunkId, float[] vector, ChunkMetadata meta, string hash, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        ArgumentNullException.ThrowIfNull(chunkId);
+        _incrementalBuffer[chunkId] = (vector, meta, hash);
+        _incrementalDeletes.Remove(chunkId);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>增量删除单个 chunk — 加入删除集，FlushAsync 时排除。无需显式打开。</summary>
+    public Task DeleteChunkAsync(string dirPath, string chunkId, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        ArgumentNullException.ThrowIfNull(chunkId);
+        _incrementalBuffer.Remove(chunkId);
+        _incrementalDeletes.Add(chunkId);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>刷盘 — 合并已有 bin 文件 + 增量缓冲 - 删除集，全量重写 bin 文件。</summary>
+    public async Task FlushAsync(string dirPath, CancellationToken ct) {
+        ArgumentNullException.ThrowIfNull(dirPath);
+        if (_incrementalBuffer.Count == 0 && _incrementalDeletes.Count == 0) return;
+
+        var existing = await LoadAsync(dirPath, ct).ConfigureAwait(false);
+        var dims = existing?.Dims ?? (_incrementalBuffer.Count > 0 ? _incrementalBuffer.First().Value.Vector.Length : 0);
+        var graphBytes = existing?.GraphBytes;
+
+        var merged = new Dictionary<string, (float[] Vector, ChunkMetadata Meta, string Hash)>();
+        if (existing is not null) {
+            foreach (var (chunkId, vector, meta, hash) in existing.Chunks) {
+                merged[chunkId] = (vector, meta, hash);
+            }
+        }
+        foreach (var (chunkId, data) in _incrementalBuffer) {
+            ct.ThrowIfCancellationRequested();
+            merged[chunkId] = data;
+        }
+        foreach (var chunkId in _incrementalDeletes) {
+            merged.Remove(chunkId);
+        }
+
+        var chunks = merged.Select(kv => (kv.Key, kv.Value.Vector, kv.Value.Meta, kv.Value.Hash)).ToList();
+        var snapshot = new EmbeddingSnapshot {
+            Dims = dims,
+            Chunks = chunks,
+            GraphBytes = graphBytes
+        };
+        await SaveAsync(dirPath, snapshot, ct).ConfigureAwait(false);
+
+        _incrementalBuffer.Clear();
+        _incrementalDeletes.Clear();
     }
 
     /// <summary>释放资源 — bin 后端无托管资源需释放。</summary>

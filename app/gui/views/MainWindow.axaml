@@ -496,6 +496,36 @@
         <local:PanelView Grid.Row="1" Grid.Column="2" IsVisible="{Binding IsPanelRight}" Width="{Binding PanelWidth}" />
         <!-- 面板底部 -->
         <local:PanelView Grid.Row="2" Grid.Column="1" IsVisible="{Binding IsPanelBottom}" Height="{Binding PanelHeight}" />
+
+        <!-- Panel 拖拽手柄（sash）— 叠加在主内容边缘，仅对应位置可见时显示 -->
+        <Border Grid.Row="1" Grid.Column="1" VerticalAlignment="Top" Height="6" HorizontalAlignment="Stretch"
+                Background="{DynamicResource GuiDivider}" Cursor="SizeNorthSouth"
+                IsVisible="{Binding IsPanelTop}"
+                PointerPressed="OnPanelResizePointerPressed"
+                PointerMoved="OnPanelResizePointerMoved"
+                PointerReleased="OnPanelResizePointerReleased"
+                ToolTip.Tip="拖拽调整面板高度" />
+        <Border Grid.Row="1" Grid.Column="1" VerticalAlignment="Bottom" Height="6" HorizontalAlignment="Stretch"
+                Background="{DynamicResource GuiDivider}" Cursor="SizeNorthSouth"
+                IsVisible="{Binding IsPanelBottom}"
+                PointerPressed="OnPanelResizePointerPressed"
+                PointerMoved="OnPanelResizePointerMoved"
+                PointerReleased="OnPanelResizePointerReleased"
+                ToolTip.Tip="拖拽调整面板高度" />
+        <Border Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Width="6" VerticalAlignment="Stretch"
+                Background="{DynamicResource GuiDivider}" Cursor="SizeWestEast"
+                IsVisible="{Binding IsPanelLeft}"
+                PointerPressed="OnPanelResizePointerPressed"
+                PointerMoved="OnPanelResizePointerMoved"
+                PointerReleased="OnPanelResizePointerReleased"
+                ToolTip.Tip="拖拽调整面板宽度" />
+        <Border Grid.Row="1" Grid.Column="1" HorizontalAlignment="Right" Width="6" VerticalAlignment="Stretch"
+                Background="{DynamicResource GuiDivider}" Cursor="SizeWestEast"
+                IsVisible="{Binding IsPanelRight}"
+                PointerPressed="OnPanelResizePointerPressed"
+                PointerMoved="OnPanelResizePointerMoved"
+                PointerReleased="OnPanelResizePointerReleased"
+                ToolTip.Tip="拖拽调整面板宽度" />
       </Grid>
 
       <!-- Row 1：斜杠补全面板（布局行 — 关闭时 IsVisible=False 零占位；ClipToBounds 裁剪升起动画的越界位移） -->

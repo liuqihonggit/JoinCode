@@ -89,6 +89,60 @@ public sealed partial class MainWindow : Window {
     /// <summary>侧边面板拖拽中标志</summary>
     private bool _isSidePanelResizing;
 
+    /// <summary>面板拖拽调整大小 — 起始 Y 坐标</summary>
+    private double _panelResizeStartY;
+
+    /// <summary>面板拖拽调整大小 — 起始 X 坐标</summary>
+    private double _panelResizeStartX;
+
+    /// <summary>面板拖拽调整大小 — 起始高度</summary>
+    private double _panelResizeStartHeight;
+
+    /// <summary>面板拖拽调整大小 — 起始宽度</summary>
+    private double _panelResizeStartWidth;
+
+    /// <summary>面板拖拽中标志</summary>
+    private bool _isPanelResizing;
+
+    /// <summary>面板拖拽手柄按下 — 记录起始位置</summary>
+    private void OnPanelResizePointerPressed(object? sender, PointerPressedEventArgs e) {
+        if (_vm is null)
+            return;
+        _panelResizeStartX = e.GetCurrentPoint(this).Position.X;
+        _panelResizeStartY = e.GetCurrentPoint(this).Position.Y;
+        _panelResizeStartHeight = _vm.PanelHeight;
+        _panelResizeStartWidth = _vm.PanelWidth;
+        _isPanelResizing = true;
+        e.Pointer.Capture(sender as Avalonia.Input.IInputElement);
+        e.Handled = true;
+    }
+
+    /// <summary>面板拖拽手柄移动 — 实时更新面板大小</summary>
+    private void OnPanelResizePointerMoved(object? sender, PointerEventArgs e) {
+        if (!_isPanelResizing || _vm is null)
+            return;
+        var dx = e.GetCurrentPoint(this).Position.X - _panelResizeStartX;
+        var dy = e.GetCurrentPoint(this).Position.Y - _panelResizeStartY;
+        if (_vm.IsPanelTop)
+            _vm.PanelHeight = Math.Clamp(_panelResizeStartHeight - dy, 0, 800);
+        else if (_vm.IsPanelBottom)
+            _vm.PanelHeight = Math.Clamp(_panelResizeStartHeight + dy, 0, 800);
+        else if (_vm.IsPanelLeft)
+            _vm.PanelWidth = Math.Clamp(_panelResizeStartWidth - dx, 0, 800);
+        else if (_vm.IsPanelRight)
+            _vm.PanelWidth = Math.Clamp(_panelResizeStartWidth + dx, 0, 800);
+        e.Handled = true;
+    }
+
+    /// <summary>面板拖拽手柄释放 — 结束拖拽</summary>
+    private void OnPanelResizePointerReleased(object? sender, PointerReleasedEventArgs e) {
+        if (!_isPanelResizing)
+            return;
+        _isPanelResizing = false;
+        e.Pointer.Capture(null);
+        e.Handled = true;
+    }
+
     /// <summary>拖拽手柄按下 — 记录起始位置</summary>
     private void OnSidePanelResizePointerPressed(object? sender, PointerPressedEventArgs e) {
         if (_vm is null)

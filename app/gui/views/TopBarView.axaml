@@ -46,6 +46,7 @@
         <MenuItem Header="视图">
           <MenuItem Header="切换主题" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}" />
           <MenuItem Header="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
+          <MenuItem Header="底部面板" Command="{Binding TogglePanelCommand}" IsChecked="{Binding IsPanelOpen, Mode=OneWay}" />
           <Separator />
           <MenuItem Header="Mock 引擎" Command="{Binding ToggleMockCommand}" IsChecked="{Binding IsMockConnection, Mode=OneWay}" />
           <MenuItem Header="无人值守" IsChecked="{Binding IsUnattendedMode, Mode=TwoWay}" ToolTip.Tip="{Binding UnattendedToggleToolTip}" />

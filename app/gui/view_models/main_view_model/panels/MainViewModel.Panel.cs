@@ -136,4 +136,43 @@ public sealed partial class MainViewModel {
     public void AppendPanelOutput(string text) {
         PanelOutputText += text + "\n";
     }
+
+    /// <summary>拖拽生效的最小移动距离(像素) — 小于此值视为点击而非拖拽</summary>
+    private const double PanelDragThreshold = 20;
+
+    /// <summary>停靠区域的边缘占比 — 终点落在窗口边缘 1/3 范围内才停靠</summary>
+    private const double PanelDockEdgeRatio = 1.0 / 3.0;
+
+    /// <summary>
+    /// 根据拖拽终点相对于窗口边缘的位置，计算面板应停靠的位置。
+    /// 返回 null 表示不停靠(拖拽距离不足或终点远离所有边缘)。
+    /// </summary>
+    /// <param name="x">拖拽终点 X 坐标(相对于窗口左上角)</param>
+    /// <param name="y">拖拽终点 Y 坐标(相对于窗口左上角)</param>
+    /// <param name="width">窗口宽度</param>
+    /// <param name="height">窗口高度</param>
+    /// <param name="dragDistance">拖拽总移动距离(像素)，默认 double.MaxValue 表示已确认是拖拽</param>
+    /// <returns>停靠位置或 null</returns>
+    public PanelPosition? ComputePanelDropPosition(double x, double y, double width, double height, double dragDistance = double.MaxValue) {
+        if (dragDistance < PanelDragThreshold)
+            return null;
+
+        var distTop = y;
+        var distBottom = height - y;
+        var distLeft = x;
+        var distRight = width - x;
+
+        var thresholdH = height * PanelDockEdgeRatio;
+        var thresholdW = width * PanelDockEdgeRatio;
+
+        var candidates = new (double Dist, double Threshold, PanelPosition Pos)[] {
+            (distTop,    thresholdH, PanelPosition.Top),
+            (distBottom, thresholdH, PanelPosition.Bottom),
+            (distLeft,   thresholdW, PanelPosition.Left),
+            (distRight,  thresholdW, PanelPosition.Right),
+        };
+
+        var best = candidates.OrderBy(c => c.Dist).First();
+        return best.Dist <= best.Threshold ? best.Pos : null;
+    }
 }

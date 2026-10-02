@@ -37,7 +37,8 @@ public sealed partial class MainViewModel {
         new() { Name = "视图: 对话区", Icon = "💬", CommandId = "view.messages" },
         new() { Name = "视图: Mock 引擎", Icon = "Ⓘ", CommandId = "view.mock" },
         new() { Name = "会话: 切换会话栏", Icon = "💬", CommandId = "sidebar.sessions" },
-        new() { Name = "会话: 切换目录树", Icon = "📁", CommandId = "sidebar.filetree" }
+        new() { Name = "会话: 切换目录树", Icon = "📁", CommandId = "sidebar.filetree" },
+        new() { Name = "视图: Secondary Side Bar", Icon = "⇥", CommandId = "view.secondarySidebar" }
     ];
 
     /// <summary>过滤后的命令列表 — 文件模式搜索文件,命令模式搜索命令</summary>
@@ -154,6 +155,9 @@ public sealed partial class MainViewModel {
                 break;
             case "sidebar.filetree":
                 ToggleSidePanelCommand.Execute(SidePanelKind.FileTree);
+                break;
+            case "view.secondarySidebar":
+                ToggleSecondarySideBarCommand.Execute(null);
                 break;
         }
     }

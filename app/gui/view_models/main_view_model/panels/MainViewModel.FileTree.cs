@@ -44,6 +44,26 @@ public sealed partial class MainViewModel {
     /// <summary>侧边面板是否展开</summary>
     public bool IsSidePanelExpanded => ActiveSidePanel != SidePanelKind.None;
 
+    /// <summary>Secondary Side Bar 是否展开 — Primary 对侧边栏</summary>
+    [ObservableProperty]
+    private bool _isSecondarySideBarOpen;
+
+    /// <summary>Secondary Side Bar 宽度</summary>
+    [ObservableProperty]
+    private double _secondarySideBarWidth = 236;
+
+    /// <summary>Secondary Side Bar 显示的面板类型</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSecondaryFileTree))]
+    [NotifyPropertyChangedFor(nameof(IsSecondarySessions))]
+    private SidePanelKind _secondarySidePanelKind = SidePanelKind.FileTree;
+
+    /// <summary>Secondary Side Bar 是否显示目录树</summary>
+    public bool IsSecondaryFileTree => SecondarySidePanelKind == SidePanelKind.FileTree;
+
+    /// <summary>Secondary Side Bar 是否显示会话列表</summary>
+    public bool IsSecondarySessions => SecondarySidePanelKind == SidePanelKind.Sessions;
+
     /// <summary>切换侧边面板 — 点击当前已激活的面板收起,点击另一个面板切换</summary>
     [RelayCommand]
     private void ToggleSidePanel(SidePanelKind? kind) {
@@ -57,6 +77,12 @@ public sealed partial class MainViewModel {
             if (SidePanelWidth < SidePanelSnapCollapseThreshold)
                 SidePanelWidth = SidePanelDefaultWidth;
         }
+    }
+
+    /// <summary>切换 Secondary Side Bar — 开关右侧边栏</summary>
+    [RelayCommand]
+    private void ToggleSecondarySideBar() {
+        IsSecondarySideBarOpen = !IsSecondarySideBarOpen;
     }
 
     /// <summary>侧边面板宽度变化时磁吸 — 宽度低于阈值自动折叠</summary>

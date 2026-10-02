@@ -13,10 +13,19 @@ public sealed partial class EditorPanelView : UserControl {
     /// <summary>初始化 EditorPanelView 实例</summary>
     public EditorPanelView() {
         InitializeComponent();
+        ConfigureEditorOptions(Editor);
+        ConfigureEditorOptions(Editor2);
         Editor.TextChanged += OnEditorTextChanged;
         Editor2.TextChanged += OnEditor2TextChanged;
         _searchPanel = AvaloniaEdit.Search.SearchPanel.Install(Editor);
         _searchPanel2 = AvaloniaEdit.Search.SearchPanel.Install(Editor2);
+    }
+
+    /// <summary>配置编辑器选项 — 自动缩进+制表符4空格+括号匹配+允许自动换行</summary>
+    private static void ConfigureEditorOptions(AvaloniaEdit.TextEditor editor) {
+        editor.Options.IndentationSize = 4;
+        editor.Options.AllowScrollBelowDocument = true;
+        editor.Options.WordWrapIndentation = 4;
     }
 
     private readonly AvaloniaEdit.Search.SearchPanel? _searchPanel;

@@ -425,12 +425,22 @@ public sealed class AnalyticsServiceTests {
         mockFileOp.Setup(f => f.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.FromResult(FileWriteResult.SuccessResult("path", "content", "write")));
 
-        var service = new AnalyticsService(fileOperationService: mockFileOp.Object, storagePath: "/tmp/analytics_load.json");
-        await service.DisposeAsync(); // flush LoadHistory 后台任务
+        var loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var logger = new Mock<Microsoft.Extensions.Logging.ILogger<AnalyticsService>>();
+        logger.Setup(l => l.Log(
+                Microsoft.Extensions.Logging.LogLevel.Information,
+                It.IsAny<Microsoft.Extensions.Logging.EventId>(),
+                It.Is<It.IsAnyType>((state, _) => state.ToString() == "已加载 2 条历史分析数据"),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback(new InvocationAction(_ => loaded.TrySetResult()));
 
-        // Dispose 后 GetEventHistory 仍可工作(不检查 _disposed)
+        await using var service = new AnalyticsService(logger: logger.Object, fileOperationService: mockFileOp.Object, storagePath: "/tmp/analytics_load.json");
+        // Dispose 会取消尚未消费的消息；等待加载后的信号才能验证构造器行为。
+        await loaded.Task.WaitAsync(TimeSpan.FromSeconds(30));
+
         var history = service.GetEventHistory();
-        Assert.True(history.Count >= 2);
+        Assert.Equal(2, history.Count);
         Assert.Contains(history, e => e.Name == "loaded_evt1");
         Assert.Contains(history, e => e.Name == "loaded_evt2");
     }

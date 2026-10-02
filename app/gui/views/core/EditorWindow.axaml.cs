@@ -13,17 +13,34 @@ public sealed partial class EditorWindow : Window {
         Editor.TextChanged += OnTextChanged;
     }
 
-    /// <summary>打开指定文件 — 读取内容到编辑器,设置标题</summary>
+    /// <summary>打开指定文件 — 读取内容到编辑器,设置标题和面包屑</summary>
     public void OpenFile(string filePath) {
         _filePath = filePath;
         FileNameText.Text = System.IO.Path.GetFileName(filePath);
         Title = $"{System.IO.Path.GetFileName(filePath)} — 编辑器";
+        SetBreadcrumb(filePath);
         try {
             Editor.Text = System.IO.File.ReadAllText(filePath);
             ModifiedIndicator.IsVisible = false;
         } catch (Exception ex) {
             Editor.Text = $"无法读取文件: {ex.Message}";
         }
+    }
+
+    /// <summary>设置面包屑 — 从根目录到文件名的路径段</summary>
+    private void SetBreadcrumb(string filePath) {
+        var segments = new List<string>();
+        var dir = System.IO.Path.GetDirectoryName(filePath);
+        while (!string.IsNullOrEmpty(dir)) {
+            segments.Add(System.IO.Path.GetFileName(dir));
+            var parent = System.IO.Path.GetDirectoryName(dir);
+            if (parent == dir)
+                break;
+            dir = parent;
+        }
+        segments.Reverse();
+        segments.Add(System.IO.Path.GetFileName(filePath));
+        BreadcrumbItems.ItemsSource = segments;
     }
 
     /// <summary>内容变更时显示修改指示器</summary>

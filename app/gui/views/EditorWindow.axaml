@@ -4,10 +4,11 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
         xmlns:edit="using:AvaloniaEdit"
+        xmlns:sys="using:System"
         x:Class="JoinCode.Gui.Views.EditorWindow"
         Title="编辑器" Width="900" Height="700"
         Background="{DynamicResource GuiWindowBackground}">
-  <Grid RowDefinitions="Auto,*">
+  <Grid RowDefinitions="Auto,Auto,*">
     <!-- 标题栏：文件名 + 保存按钮 -->
     <Border Grid.Row="0" Padding="12,6" Background="{DynamicResource GuiTopBarBackground}"
             BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
@@ -23,8 +24,29 @@
                 Click="OnSaveClick" ToolTip.Tip="Ctrl+S 保存" />
       </Grid>
     </Border>
+    <!-- 面包屑导航：文件路径 -->
+    <Border Grid.Row="1" Padding="12,4" Background="{DynamicResource GuiSearchBarBackground}"
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
+      <ItemsControl x:Name="BreadcrumbItems" HorizontalAlignment="Left">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="2" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="sys:String">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+              <TextBlock Text="›" FontSize="11" Foreground="{DynamicResource GuiMutedText}"
+                         VerticalAlignment="Center" Margin="2,0" />
+              <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource GuiSecondaryText}"
+                         VerticalAlignment="Center" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Border>
     <!-- 代码编辑器 -->
-    <edit:TextEditor Grid.Row="1" x:Name="Editor"
+    <edit:TextEditor Grid.Row="2" x:Name="Editor"
                      ShowLineNumbers="True"
                      FontFamily="Cascadia Code,Consolas,Menlo,monospace"
                      FontSize="13"

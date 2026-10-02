@@ -53,12 +53,17 @@ public sealed partial class MainViewModel {
     /// <summary>第二编辑器组是否有标签页</summary>
     public bool HasEditorTabs2 => EditorTabs2.Count > 0;
 
-    /// <summary>切换主区视图 — 在消息区和编辑器区之间切换</summary>
+    /// <summary>切换主区视图 — 在消息区和编辑器区之间切换。
+    /// 互斥规则：切到编辑器时收起 Side Bar(面板消失),实现 Activity Bar 图标互斥。</summary>
     [RelayCommand]
     private void ToggleEditorView() {
-        ActiveMainArea = ActiveMainArea == MainAreaKind.Editor
-            ? MainAreaKind.Messages
-            : MainAreaKind.Editor;
+        if (ActiveMainArea == MainAreaKind.Editor) {
+            ActiveMainArea = MainAreaKind.Messages;
+        } else {
+            ActiveMainArea = MainAreaKind.Editor;
+            ActiveSidePanel = SidePanelKind.None;
+            SidePanelWidth = 0;
+        }
     }
 
     /// <summary>切换到消息区视图</summary>

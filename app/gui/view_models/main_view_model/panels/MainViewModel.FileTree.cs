@@ -64,7 +64,8 @@ public sealed partial class MainViewModel {
     /// <summary>Secondary Side Bar 是否显示会话列表</summary>
     public bool IsSecondarySessions => SecondarySidePanelKind == SidePanelKind.Sessions;
 
-    /// <summary>切换侧边面板 — 点击当前已激活的面板收起,点击另一个面板切换</summary>
+    /// <summary>切换侧边面板 — 点击当前已激活的面板收起,点击另一个面板切换。
+    /// 互斥规则：展开 Side Bar 面板时,主区切回消息区(编辑器消失),实现 Activity Bar 图标互斥。</summary>
     [RelayCommand]
     private void ToggleSidePanel(SidePanelKind? kind) {
         if (kind is null)
@@ -76,6 +77,7 @@ public sealed partial class MainViewModel {
             ActiveSidePanel = kind.Value;
             if (SidePanelWidth < SidePanelSnapCollapseThreshold)
                 SidePanelWidth = SidePanelDefaultWidth;
+            ActiveMainArea = MainAreaKind.Messages;
         }
     }
 

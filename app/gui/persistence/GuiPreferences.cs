@@ -7,6 +7,15 @@ namespace JoinCode.Gui.Persistence;
 /// gui-preferences.json 管 GUI 专属偏好（CLI 不消费，避免破坏 CLI "温度不持久化" 语义）。
 /// </summary>
 public sealed class GuiPreferences {
+    /// <summary>GUI 原始主题名称，保留 Solarized；null 时从引擎初始化。</summary>
+    public string? GuiTheme { get; set; }
+
+    /// <summary>强调色配置标识。</summary>
+    public string AccentId { get; set; } = "ocean";
+
+    /// <summary>界面动效开关；关闭后立即呈现状态变化。</summary>
+    public bool AnimationsEnabled { get; set; } = true;
+
     /// <summary>采样温度（设置面板滑块，默认 0.7）</summary>
     public double Temperature { get; set; } = 0.7;
 

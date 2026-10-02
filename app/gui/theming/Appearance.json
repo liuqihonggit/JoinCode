@@ -1,0 +1,18 @@
+{
+  "themes": [
+    { "id": "Dark", "name": "深空 · Dark" },
+    { "id": "Light", "name": "纸白 · Light" },
+    { "id": "SolarizedDark", "name": "海墨 · Solarized Dark" },
+    { "id": "SolarizedLight", "name": "暖纸 · Solarized Light" }
+  ],
+  "accents": [
+    { "id": "ocean", "name": "海蓝", "darkText": "#8CC8FF", "lightText": "#155DA8", "darkSubtle": "#173047", "lightSubtle": "#E0EFFF", "fill": "#1864AB" },
+    { "id": "violet", "name": "鸢尾紫", "darkText": "#C4B5FD", "lightText": "#6D28D9", "darkSubtle": "#302546", "lightSubtle": "#EEE8FF", "fill": "#7134BC" },
+    { "id": "rose", "name": "玫瑰", "darkText": "#FDA4C2", "lightText": "#AC2455", "darkSubtle": "#422435", "lightSubtle": "#FCE7EF", "fill": "#AD2455" },
+    { "id": "amber", "name": "琥珀", "darkText": "#FBD38D", "lightText": "#8C4C08", "darkSubtle": "#3C3021", "lightSubtle": "#FFF0D5", "fill": "#94520B" },
+    { "id": "mint", "name": "薄荷", "darkText": "#7DE2C1", "lightText": "#086B51", "darkSubtle": "#173A33", "lightSubtle": "#DCF5EA", "fill": "#0A7057" },
+    { "id": "cyan", "name": "青瓷", "darkText": "#80DFEA", "lightText": "#0B6678", "darkSubtle": "#193941", "lightSubtle": "#DDF3F8", "fill": "#086C80" },
+    { "id": "orange", "name": "日落橙", "darkText": "#FDBA8C", "lightText": "#A13D0A", "darkSubtle": "#412C23", "lightSubtle": "#FFEBDD", "fill": "#AE430E" },
+    { "id": "indigo", "name": "靛青", "darkText": "#B3BFFF", "lightText": "#3E49B9", "darkSubtle": "#252E4A", "lightSubtle": "#E8ECFF", "fill": "#4652B8" }
+  ]
+}

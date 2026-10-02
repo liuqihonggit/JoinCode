@@ -16,8 +16,9 @@
         x:Name="Root"
         d:DataContext="{x:Static design:DesignData.Sample}"
         x:DataType="vm:MainViewModel"
-        MinWidth="800" MinHeight="600"
-        Title="JoinCode Ava">
+        MinWidth="800" MinHeight="600" Width="1240" Height="820"
+        Background="{DynamicResource GuiWindowBackground}"
+        Title="JoinCode · AI 编程工作区">
   <Window.KeyBindings>
     <KeyBinding Gesture="Ctrl+I" Command="{Binding ToggleInterceptorPanelCommand}" />
     <KeyBinding Gesture="Ctrl+G" Command="{Binding ToggleGoalPanelCommand}" />
@@ -35,7 +36,7 @@
       <Setter Property="Margin" Value="0,2" />
       <Setter Property="Transitions">
         <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.12" />
+          <BrushTransition Property="Background" Duration="{DynamicResource GuiMotionDuration}" />
         </Transitions>
       </Setter>
     </Style>
@@ -46,7 +47,7 @@
       <Setter Property="Opacity" Value="0" />
       <Setter Property="Transitions">
         <Transitions>
-          <DoubleTransition Property="Opacity" Duration="0:0:0.12" />
+          <DoubleTransition Property="Opacity" Duration="{DynamicResource GuiMotionDuration}" />
         </Transitions>
       </Setter>
     </Style>
@@ -56,7 +57,7 @@
   </Window.Styles>
 
   <!-- 根 Grid：侧边栏(*) : 主区(4*) 比例对齐 -->
-  <Grid ColumnDefinitions="*,4*">
+  <Grid ColumnDefinitions="236,*">
 
     <!-- ===== Column 0：侧边栏 ===== -->
     <local:SidebarView Grid.Column="0" />
@@ -76,49 +77,57 @@
           <!-- 搜索栏：紧凑布局（搜索框固定宽 + 统计右对齐） -->
           <Border Grid.Row="0" Padding="12,6" Background="{DynamicResource GuiSearchBarBackground}"
                   BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-              <TextBox Text="{Binding SearchText}" Watermark="搜索消息…" FontSize="12" Width="340"
-                       HorizontalAlignment="Left" VerticalAlignment="Center" MinHeight="0" Padding="8,4" />
-              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12"
-                          HorizontalAlignment="Right" VerticalAlignment="Center">
+            <StackPanel Spacing="6">
+              <TextBox Text="{Binding SearchText}" Watermark="搜索消息…" FontSize="12"
+                       HorizontalAlignment="Stretch" VerticalAlignment="Center" MinHeight="30" Padding="8,4"
+                       AutomationProperties.Name="搜索消息正文" />
+              <WrapPanel Orientation="Horizontal">
                 <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center"
                            Foreground="{DynamicResource GuiAccentText}" IsVisible="{Binding IsSearching}" />
                 <TextBlock Text="{Binding MessageCount, StringFormat='{}消息 {0}'}"
-                           Foreground="{DynamicResource GuiMutedText}" FontSize="11" VerticalAlignment="Center" />
+                           Margin="0,0,12,0" Foreground="{DynamicResource GuiMutedText}" FontSize="11" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding EstimatedTokens, StringFormat='{}约 {0} tokens'}"
-                           Foreground="{DynamicResource GuiMutedText}" FontSize="11" VerticalAlignment="Center" />
+                           Margin="0,0,12,0" Foreground="{DynamicResource GuiMutedText}" FontSize="11" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding TotalChars, StringFormat='{}{0} 字符'}"
-                           Foreground="{DynamicResource GuiMutedText}" FontSize="11" VerticalAlignment="Center" />
-              </StackPanel>
-              <Button Grid.Column="2" Classes="ghost" Content="⧉ 导出" Command="{Binding CopySessionExportCommand}"
+                           Margin="0,0,12,0" Foreground="{DynamicResource GuiMutedText}" FontSize="11" VerticalAlignment="Center" />
+              <Button Classes="ghost" Content="⧉ 复制" Command="{Binding CopySessionExportCommand}"
                       FontSize="11" Padding="9,3" MinHeight="0" IsEnabled="{Binding HasMessages}"
                       ToolTip.Tip="复制会话为文本" />
-            </Grid>
+              <Button Classes="accentSubtle" Content="↓ Markdown" Click="OnSaveSessionMarkdown"
+                      FontSize="11" Padding="9,3" MinHeight="0" IsEnabled="{Binding HasMessages}"
+                      ToolTip.Tip="保存当前完整会话为 Markdown 文件" />
+              </WrapPanel>
+            </StackPanel>
           </Border>
           <!-- 消息列表区：单条消息卡片化（G3 接线 Markdown 渲染 + 复制/删除/思考折叠命令） -->
           <Panel Grid.Row="1" ClipToBounds="True">
-            <StackPanel x:Name="EmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10"
+            <StackPanel x:Name="EmptyState" VerticalAlignment="Center" HorizontalAlignment="Stretch" MaxWidth="560" Margin="12" Spacing="10"
                         IsVisible="{Binding !HasMessages}">
-              <TextBlock Text="👋" FontSize="44" HorizontalAlignment="Center" />
-              <TextBlock Text="开始与 JoinCode 对话" FontSize="20" FontWeight="SemiBold"
+              <Border Width="72" Height="72" CornerRadius="24" HorizontalAlignment="Center"
+                      Background="{DynamicResource GuiAccentSubtle}" BorderBrush="{DynamicResource GuiAccentText}" BorderThickness="1">
+                <TextBlock Text="◆" FontSize="32" Foreground="{DynamicResource GuiAccentText}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <TextBlock Text="把想法变成代码" FontSize="26" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center"
                           HorizontalAlignment="Center" Foreground="{DynamicResource GuiPrimaryText}" />
-              <TextBlock Text="在下方输入消息，Enter 发送" FontSize="12.5"
+              <TextBlock Text="探索代码 · 执行工具 · 协作完成任务" FontSize="14" TextWrapping="Wrap" TextAlignment="Center"
+                          HorizontalAlignment="Center" Foreground="{DynamicResource GuiSecondaryText}" />
+              <TextBlock Text="{Binding SendHintText}" FontSize="12.5" TextWrapping="Wrap" MaxWidth="440"
                           HorizontalAlignment="Center" Foreground="{DynamicResource GuiMutedText}" />
-              <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0"
-                          HorizontalAlignment="Center">
+              <Border Margin="0,12,0,0" MaxWidth="480" HorizontalAlignment="Stretch">
                 <ItemsControl ItemsSource="{Binding SuggestedPrompts}">
                   <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="8" /></ItemsPanelTemplate>
+                    <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" MaxWidth="480" /></ItemsPanelTemplate>
                   </ItemsControl.ItemsPanel>
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
                       <Button Classes="pill accentSubtle" FontWeight="Normal" FontSize="12" Padding="14,6"
-                              Content="{Binding}" Command="{Binding DataContext.UseSuggestionCommand, ElementName=Root}"
+                              Margin="4" Content="{Binding}" Command="{Binding DataContext.UseSuggestionCommand, ElementName=Root}"
                               CommandParameter="{Binding}" />
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
-              </StackPanel>
+              </Border>
             </StackPanel>
             <!-- 消息列表（FilteredMessages 驱动，搜索即过滤） -->
             <ScrollViewer x:Name="MessageScrollViewer" IsVisible="{Binding HasMessages}"
@@ -320,7 +329,7 @@
                     PointerEntered="OnErrorToastPointerEnter" PointerExited="OnErrorToastPointerLeave">
               <Border.Transitions>
                 <Transitions>
-                  <DoubleTransition Property="Opacity" Duration="0:0:0.45" />
+                  <DoubleTransition Property="Opacity" Duration="{DynamicResource GuiMotionDuration}" />
                 </Transitions>
               </Border.Transitions>
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
@@ -346,7 +355,13 @@
         </Grid>
 
         <!-- Column 1：设置面板 -->
-        <local:SettingsPanelView Grid.Column="1" IsVisible="{Binding IsSettingsPanelOpen}" ClipToBounds="True" />
+        <Border Grid.Column="1" Classes="settingsDrawer" Width="{Binding SettingsPanelWidth}"
+                ClipToBounds="True" IsHitTestVisible="{Binding IsSettingsPanelOpen}">
+          <Border.Transitions>
+            <Transitions><DoubleTransition Property="Width" Duration="{DynamicResource GuiMotionDuration}" /></Transitions>
+          </Border.Transitions>
+          <local:SettingsPanelView HorizontalAlignment="Left" ClipToBounds="True" />
+        </Border>
       </Grid>
 
       <!-- Row 2：斜杠补全面板（布局行 — 关闭时 IsVisible=False 零占位；ClipToBounds 裁剪升起动画的越界位移） -->

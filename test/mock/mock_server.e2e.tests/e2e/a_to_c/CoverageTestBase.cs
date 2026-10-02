@@ -91,9 +91,9 @@ public abstract class CoverageTestBase : IAsyncLifetime {
                     continue;
                 }
                 throw new TimeoutException($"[GEN035] 测试超时(>60s): {script.Name} (provider={provider})");
-            } catch (InvalidOperationException ex) when (ex.Message.Contains("GEN019", StringComparison.Ordinal) && attempt < maxAttempts) {
+            } catch (InvalidOperationException ex) when (IsRetryableProcessFailure(ex) && attempt < maxAttempts) {
                 sw.Stop();
-                Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试进程退出无输出(GEN019)，自动重试: {script.Name} (provider={provider})");
+                Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试进程暂时失败，自动重试: {script.Name} (provider={provider})，原因: {ex.Message}");
                 await Task.Delay(RetryInterval).ConfigureAwait(true);
                 continue;
             } finally {
@@ -101,6 +101,12 @@ public abstract class CoverageTestBase : IAsyncLifetime {
             }
         }
     }
+
+    /// <summary>仅重试已知的进程无输出或就绪超时，配置与脚本错误保持立即失败。</summary>
+    internal static bool IsRetryableProcessFailure(InvalidOperationException exception) =>
+        exception.Message.StartsWith("[GEN019]", StringComparison.Ordinal)
+        || exception.Message.StartsWith("[GEN027]", StringComparison.Ordinal)
+        || exception.Message.StartsWith("[GEN028]", StringComparison.Ordinal);
 
     /// <summary>
     /// 从 stderr 输出中解析 [STEP] 和 [Timing] 行，记录组件 ✓ 验证和计时

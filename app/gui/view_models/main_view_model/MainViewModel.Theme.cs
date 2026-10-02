@@ -13,6 +13,7 @@ public sealed partial class MainViewModel {
                 if (theme is ThemeKind.Auto)
                     return;
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                    if (_hasGuiThemePreference) return;
                     using var _ = _gate.EnterApplyingThemeScope();
                     CurrentTheme = ThemeConverter.ToVariant(theme);
                 });
@@ -25,6 +26,7 @@ public sealed partial class MainViewModel {
     /// <summary>settings.json theme 外部变更事件处理 — 驱动 GUI 热重载（双向绑定）</summary>
     private void OnThemeChanged(object? sender, ThemeKind theme) {
         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+            if (ThemeConverter.FromVariant(CurrentTheme) == theme) return;
             using var _ = _gate.EnterApplyingThemeScope();
             CurrentTheme = ThemeConverter.ToVariant(theme);
         });
@@ -42,5 +44,6 @@ public sealed partial class MainViewModel {
     partial void OnCurrentThemeChanged(GuiPalette.GuiThemeVariant value) {
         OnPropertyChanged(nameof(IsDarkTheme));
         OnPropertyChanged(nameof(ThemeToggleToolTip));
+        OnPropertyChanged(nameof(SelectedThemeOption));
     }
 }

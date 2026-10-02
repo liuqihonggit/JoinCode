@@ -59,6 +59,7 @@ public sealed partial class MainViewModel {
         try {
             var prefs = await _preferencesStore.LoadAsync();
             _gate.MarkPreferencesLoading();
+            LoadAppearance(prefs);
             Temperature = prefs.Temperature;
             MaxTokens = prefs.MaxTokens;
             SystemPrompt = prefs.SystemPrompt;
@@ -116,8 +117,13 @@ public sealed partial class MainViewModel {
     /// 复杂属性（SelectedConnection/SelectedEffort）保留 OnXxxChanged 手动调 PersistSync。
     /// </summary>
     private void RegisterPersistActions() {
-        _persistActions[nameof(CurrentTheme)] = () =>
+        _persistActions[nameof(CurrentTheme)] = () => {
+            _hasGuiThemePreference = true;
             PersistSync(() => _session.SetThemeAsync(ThemeConverter.FromVariant(CurrentTheme)));
+            _ = SavePreferencesAsync();
+        };
+        _persistActions[nameof(AccentId)] = () => _ = SavePreferencesAsync();
+        _persistActions[nameof(AnimationsEnabled)] = () => _ = SavePreferencesAsync();
         _persistActions[nameof(SelectedModel)] = () => {
             var m = SelectedModel;
             if (!string.IsNullOrWhiteSpace(m) && !string.Equals(m, _session.CurrentModelId, StringComparison.Ordinal))
@@ -159,6 +165,9 @@ public sealed partial class MainViewModel {
             return;
         try {
             await _preferencesStore.SaveAsync(new Persistence.GuiPreferences {
+                GuiTheme = CurrentTheme.ToString(),
+                AccentId = AccentId,
+                AnimationsEnabled = AnimationsEnabled,
                 Temperature = Temperature,
                 MaxTokens = MaxTokens,
                 SystemPrompt = SystemPrompt,

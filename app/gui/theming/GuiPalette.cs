@@ -26,29 +26,29 @@ public static class GuiPalette {
     /// <summary>一组语义颜色（单个主题的静态数据）。</summary>
     public sealed class Scheme {
         /// <summary>窗口背景色</summary>
-        public string WindowBackground { get; init; } = "#1e1e1e";
+        public string WindowBackground { get; init; } = "#10151F";
         /// <summary>侧边栏背景色</summary>
-        public string SidebarBackground { get; init; } = "#161616";
+        public string SidebarBackground { get; init; } = "#0B1019";
         /// <summary>侧边栏标题色</summary>
         public string SidebarTitle { get; init; } = "#eeeeee";
         /// <summary>顶栏背景色</summary>
-        public string TopBarBackground { get; init; } = "#252525";
+        public string TopBarBackground { get; init; } = "#151D2B";
         /// <summary>输入栏背景色</summary>
-        public string InputBarBackground { get; init; } = "#2a2a2a";
+        public string InputBarBackground { get; init; } = "#151D2B";
         /// <summary>状态栏背景色</summary>
-        public string StatusBarBackground { get; init; } = "#181818";
+        public string StatusBarBackground { get; init; } = "#0B1019";
         /// <summary>搜索栏背景色</summary>
-        public string SearchBarBackground { get; init; } = "#202020";
+        public string SearchBarBackground { get; init; } = "#182131";
         /// <summary>设置面板背景色</summary>
-        public string SettingsBackground { get; init; } = "#1a1a1a";
+        public string SettingsBackground { get; init; } = "#121A27";
         /// <summary>分隔线颜色</summary>
-        public string Divider { get; init; } = "#333333";
+        public string Divider { get; init; } = "#2A374B";
         /// <summary>主要文字色</summary>
         public string PrimaryText { get; init; } = "#e0e0e0";
         /// <summary>次要文字色</summary>
-        public string SecondaryText { get; init; } = "#b8b8b8";
+        public string SecondaryText { get; init; } = "#B4C1D4";
         /// <summary>弱化文字色</summary>
-        public string MutedText { get; init; } = "#979797";
+        public string MutedText { get; init; } = "#97A9BF";
         /// <summary>强调文字色</summary>
         public string AccentText { get; init; } = "#4da6ff";
         /// <summary>用户角色色</summary>
@@ -84,11 +84,11 @@ public static class GuiPalette {
         /// <summary>会话高亮色</summary>
         public string SessionHighlight { get; init; } = "#3a4a5a";
         /// <summary>按钮背景色</summary>
-        public string ButtonBackground { get; init; } = "#2b2b2b";
+        public string ButtonBackground { get; init; } = "#1C2738";
         /// <summary>按钮悬停色</summary>
-        public string ButtonHover { get; init; } = "#353535";
+        public string ButtonHover { get; init; } = "#26354A";
         /// <summary>按钮按下色</summary>
-        public string ButtonPressed { get; init; } = "#3d3d3d";
+        public string ButtonPressed { get; init; } = "#2B3E56";
         /// <summary>按钮边框色</summary>
         public string ButtonBorder { get; init; } = "#3a3a3a";
         /// <summary>按钮前景色</summary>
@@ -107,7 +107,7 @@ public static class GuiPalette {
         public string ToastForeground { get; init; } = "#FFFFFF";
 
         /// <summary>弹层背景（补全面板等浮层）— 比窗口底色略抬升制造层次</summary>
-        public string PopupBackground { get; init; } = "#232327";
+        public string PopupBackground { get; init; } = "#1A2536";
 
         /// <summary>补全面板选中行背景 — accent 蓝的低饱和暗色调，选中态醒目但不刺眼</summary>
         public string PaletteSelectedRow { get; init; } = "#2c3a4d";
@@ -122,10 +122,10 @@ public static class GuiPalette {
         public string AccentHover { get; init; } = "#63b1ff";
 
         /// <summary>消息卡片悬停态背景</summary>
-        public string CardHover { get; init; } = "#242429";
+        public string CardHover { get; init; } = "#202D40";
 
         /// <summary>输入栏内嵌 composer 卡片表面色（无边框 TextBox + 发送按钮的承载卡片）</summary>
-        public string ComposerBackground { get; init; } = "#202020";
+        public string ComposerBackground { get; init; } = "#182131";
 
         /// <summary>Markdown 代码块背景（暗色深灰 / 亮色浅灰，保证代码文字两主题均可读）</summary>
         public string CodeBlockBackground { get; init; } = "#141414";
@@ -279,16 +279,16 @@ public static class GuiPalette {
     private static readonly Scheme SolarizedDark = new() {
         WindowBackground = "#002b36",
         SidebarBackground = "#073642",
-        SidebarTitle = "#93a1a1",
+        SidebarTitle = "#D6E5E8",
         TopBarBackground = "#073642",
         InputBarBackground = "#073642",
         StatusBarBackground = "#002b36",
         SearchBarBackground = "#073642",
         SettingsBackground = "#002b36",
         Divider = "#586e75",
-        PrimaryText = "#93a1a1",
-        SecondaryText = "#839496",
-        MutedText = "#657b83",
+        PrimaryText = "#D6E5E8",
+        SecondaryText = "#C1D4D8",
+        MutedText = "#B7CCD1",
         AccentText = "#268bd2",
         RoleUser = "#268bd2",
         RoleAssistant = "#2aa198",
@@ -297,26 +297,26 @@ public static class GuiPalette {
         BubbleThinking = "#073642",
         BubbleToolCall = "#073642",
         BubbleToolResult = "#073642",
-        ThinkingLabel = "#6c71c4",
-        ToolLabel = "#268bd2",
-        ToolArgument = "#839496",
-        ToolResult = "#859900",
-        WarnText = "#cb4b16",
-        ErrorText = "#dc322f",
-        SuccessText = "#859900",
-        BusyText = "#b58900",
+        ThinkingLabel = "#B5ADF1",
+        ToolLabel = "#72B8ED",
+        ToolArgument = "#C1D4D8",
+        ToolResult = "#B9CB64",
+        WarnText = "#FDA77F",
+        ErrorText = "#FF9F9F",
+        SuccessText = "#B9CB64",
+        BusyText = "#FFD166",
         SessionHighlight = "#073642",
         ButtonBackground = "#073642",
         ButtonHover = "#094858",
         ButtonPressed = "#0a5060",
         ButtonBorder = "#586e75",
-        ButtonForeground = "#93a1a1",
-        EditorForeground = "#93a1a1",
+        ButtonForeground = "#D6E5E8",
+        EditorForeground = "#D6E5E8",
         ToastSuccess = "#268bd2",
         ToastError = "#dc322f",
         ToastShadow = "#90000000",
         SlashMatched = "#b58900",
-        ToastForeground = "#93a1a1",
+        ToastForeground = "#FFFFFF",
         PopupBackground = "#073642",
         PaletteSelectedRow = "#094858",
         AccentSubtle = "#094858",
@@ -346,37 +346,37 @@ public static class GuiPalette {
         SearchBarBackground = "#eee8d5",
         SettingsBackground = "#fdf6e3",
         Divider = "#93a1a1",
-        PrimaryText = "#657b83",
-        SecondaryText = "#586e75",
-        MutedText = "#93a1a1",
+        PrimaryText = "#314A54",
+        SecondaryText = "#3C545C",
+        MutedText = "#3C545C",
         AccentText = "#268bd2",
         RoleUser = "#268bd2",
         RoleAssistant = "#2aa198",
-        BubbleText = "#586e75",
+        BubbleText = "#FFFFFF",
         BubbleUser = "#eee8d5",
         BubbleThinking = "#eee8d5",
         BubbleToolCall = "#eee8d5",
         BubbleToolResult = "#eee8d5",
-        ThinkingLabel = "#6c71c4",
-        ToolLabel = "#268bd2",
+        ThinkingLabel = "#5650A1",
+        ToolLabel = "#17669A",
         ToolArgument = "#586e75",
-        ToolResult = "#859900",
-        WarnText = "#cb4b16",
-        ErrorText = "#dc322f",
-        SuccessText = "#859900",
-        BusyText = "#b58900",
+        ToolResult = "#586909",
+        WarnText = "#9A3E14",
+        ErrorText = "#B4232B",
+        SuccessText = "#586909",
+        BusyText = "#896300",
         SessionHighlight = "#eee8d5",
         ButtonBackground = "#eee8d5",
         ButtonHover = "#e0d8c4",
         ButtonPressed = "#d6cdb6",
         ButtonBorder = "#93a1a1",
-        ButtonForeground = "#657b83",
-        EditorForeground = "#657b83",
+        ButtonForeground = "#314A54",
+        EditorForeground = "#314A54",
         ToastSuccess = "#268bd2",
         ToastError = "#dc322f",
         ToastShadow = "#90000000",
         SlashMatched = "#b58900",
-        ToastForeground = "#657b83",
+        ToastForeground = "#FFFFFF",
         PopupBackground = "#eee8d5",
         PaletteSelectedRow = "#e0d8c4",
         AccentSubtle = "#e0d8c4",

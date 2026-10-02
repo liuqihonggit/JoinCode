@@ -48,8 +48,8 @@ public sealed partial class SlashPaletteView : UserControl {
     }
 
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
-        if (e.PropertyName == nameof(MainViewModel.IsSlashPopupOpen))
-            ApplyOpenState(_vm?.IsSlashPopupOpen ?? false, animate: true);
+        if (e.PropertyName is nameof(MainViewModel.IsSlashPopupOpen) or nameof(MainViewModel.AnimationsEnabled))
+            ApplyOpenState(_vm?.IsSlashPopupOpen ?? false, animate: _vm?.AnimationsEnabled == true);
         else if (e.PropertyName == nameof(MainViewModel.SlashSelectedIndex))
             ScrollSuggestionIntoView();
     }
@@ -61,6 +61,12 @@ public sealed partial class SlashPaletteView : UserControl {
             return;
         root.IsHitTestVisible = open;
         _animGeneration++;
+        if (!animate) {
+            root.IsVisible = open;
+            root.Opacity = open ? 1 : 0;
+            root.RenderTransform = TransformOperations.Parse("translateY(0px)");
+            return;
+        }
         if (!open) {
             if (!animate || root.Opacity <= 0) {
                 root.Opacity = 0;

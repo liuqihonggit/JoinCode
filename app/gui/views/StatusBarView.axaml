@@ -12,7 +12,7 @@
     <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" VerticalAlignment="Center">
       <!-- 全局运行状态区（T5）：状态圆点 + spinner 动词 + 耗时 + token 聚合 -->
       <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-        <TextBlock x:Name="StatusDot" Text="●" FontSize="11" VerticalAlignment="Center"
+        <TextBlock x:Name="StatusDot" Text="●" FontSize="11" VerticalAlignment="Center" Classes.busyIndicator="{Binding IsBusy}"
                    Foreground="{Binding StatusKind, Converter={x:Static cnv:StatusToBrushConverter.Instance}}" />
         <Panel IsVisible="{Binding RunStatus.IsBusy}">
           <TextBlock Text="⟳" FontSize="12" VerticalAlignment="Center"
@@ -27,7 +27,7 @@
                    IsVisible="{Binding RunStatus.IsBusy}" />
       </StackPanel>
       <!-- F1 走马灯 -->
-      <controls:MarqueeTextBlock Grid.Column="5" Height="16" MinWidth="120" Margin="10,0"
+      <controls:MarqueeTextBlock Grid.Column="5" Height="16" MinWidth="120" Margin="10,0" AnimationsEnabled="{Binding AnimationsEnabled}"
                                  Foreground="{DynamicResource GuiMutedText}"
                                  Text="{Binding RunStatus.MarqueeText, FallbackValue='JoinCode 就绪'}" />
       <!-- 后台代理 pill -->

@@ -7,13 +7,17 @@ namespace JoinCode.Gui.Theming;
 /// </summary>
 public static class GuiAppResources {
     private static ResourceDictionary? _themeHost;
+    private static FluentTheme? _fluentTheme;
+    private static AccentOption? _accent;
 
     /// <summary>将 Fluent 主题、语义配色 ThemeDictionaries、全部转换器注册进应用资源。</summary>
     public static void Register(Application app) {
-        app.Styles.Add(new FluentTheme());
+        _fluentTheme = new FluentTheme();
+        app.Styles.Add(_fluentTheme);
         // 共享控件样式（设计语言单一数据源）：必须在 FluentTheme 之后追加以覆盖默认外观
         app.Styles.Add(new GuiControlStyles());
         app.Resources["GuiMonoFont"] = new Avalonia.Media.FontFamily("Consolas,Cascadia Mono,Menlo,monospace");
+        app.Resources["GuiMotionDuration"] = TimeSpan.FromMilliseconds(160);
         app.Resources["GuiPopupShadow"] = new Avalonia.Media.BoxShadows(Avalonia.Media.BoxShadow.Parse("0 6 16 0 #90000000"));
         // 底部升起式补全面板专用：向上弥散的环境阴影（面板从输入栏背后向上滑出，阴影朝上）
         app.Resources["GuiPaletteShadowUp"] = new Avalonia.Media.BoxShadows(Avalonia.Media.BoxShadow.Parse("0 -10 28 0 #55000000"));
@@ -21,6 +25,18 @@ public static class GuiAppResources {
         ApplySchemeToHost(GuiPalette.GuiThemeVariant.Dark);
         app.Resources.MergedDictionaries.Add(_themeHost);
         app.Resources.MergedDictionaries.Add(BuildConverters());
+        ApplyAccent(AppearanceCatalog.Load().Accents[0]);
+    }
+
+    /// <summary>应用配置驱动的强调色，保留消息角色和安全状态的语义颜色。</summary>
+    public static void ApplyAccent(AccentOption accent) {
+        _accent = accent;
+        if (_fluentTheme is not null) {
+            var color = Color.Parse(accent.Fill);
+            _fluentTheme.Palettes[ThemeVariant.Dark] = new Avalonia.Themes.Fluent.ColorPaletteResources { Accent = color };
+            _fluentTheme.Palettes[ThemeVariant.Light] = new Avalonia.Themes.Fluent.ColorPaletteResources { Accent = color };
+        }
+        ApplySchemeToHost(GuiPalette.CurrentVariant);
     }
 
     /// <summary>
@@ -36,7 +52,16 @@ public static class GuiAppResources {
         var avaVariant = variant is GuiPalette.GuiThemeVariant.Light or GuiPalette.GuiThemeVariant.SolarizedLight
             ? ThemeVariant.Light
             : ThemeVariant.Dark;
-        _themeHost!.ThemeDictionaries[avaVariant] = GuiPalette.BuildDictionaryFor(variant);
+        var dictionary = GuiPalette.BuildDictionaryFor(variant);
+        if (_accent is not null) {
+            var light = avaVariant == ThemeVariant.Light;
+            dictionary["GuiAccentText"] = GuiPalette.ToBrush(light ? _accent.LightText : _accent.DarkText);
+            dictionary["GuiAccentSubtle"] = GuiPalette.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
+            dictionary["GuiAccentSubtleHover"] = GuiPalette.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
+            dictionary["GuiAccentFill"] = GuiPalette.ToBrush(_accent.Fill);
+            dictionary["GuiAccentHover"] = GuiPalette.ToBrush(_accent.Fill);
+        }
+        _themeHost!.ThemeDictionaries[avaVariant] = dictionary;
     }
 
     /// <summary>构建转换器资源字典（键名必须与 App.axaml 原声明一致，供 XAML {StaticResource} 解析）。</summary>

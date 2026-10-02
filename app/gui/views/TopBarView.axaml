@@ -6,6 +6,12 @@
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              x:Class="JoinCode.Gui.Views.TopBarView"
              x:DataType="vm:MainViewModel">
+  <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+  <StackPanel>
+  <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,5">
+    <Button Content="文件 / 变更" Classes="accentSubtle" Click="OnOpenFiles" />
+    <Button Content="模型 / MCP / 插件" Classes="accentSubtle" Click="OnOpenManagement" />
+  </StackPanel>
   <Border Padding="12,7" Background="{DynamicResource GuiTopBarBackground}"
           BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1" ClipToBounds="True">
     <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
@@ -145,4 +151,6 @@
               ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
     </Grid>
   </Border>
+  </StackPanel>
+  </ScrollViewer>
 </UserControl>

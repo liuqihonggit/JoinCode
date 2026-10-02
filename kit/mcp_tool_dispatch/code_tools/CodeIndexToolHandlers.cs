@@ -1097,64 +1097,81 @@ public sealed class CodeIndexToolHandlers {
 
     /// <summary>
     /// GraphRAG 边扩展 — 对向量召回结果沿图谱边找邻居，加入候选集。
-    /// <para>邻居符号不在向量结果中时，用 SymbolSearcher 查找位置，降权加入候选。</para>
+    /// <para>并行查图谱+并行查符号，2轮Task.WhenAll替代90串行调用。</para>
     /// </summary>
     private async Task<IReadOnlyList<ChunkSearchResult>> ExpandByGraphAsync(
         IReadOnlyList<ChunkSearchResult> results, int topK, CancellationToken ct) {
         if (results.Count == 0) return results;
 
         var existingFqns = new HashSet<string>(StringComparer.Ordinal);
+        var fqnToScore = new Dictionary<string, float>(StringComparer.Ordinal);
         foreach (var r in results) {
             existingFqns.Add(r.SymbolFqn);
-            foreach (var fqn in r.ContainedSymbolFqns) existingFqns.Add(fqn);
+            foreach (var fqn in r.ContainedSymbolFqns) {
+                existingFqns.Add(fqn);
+                fqnToScore.TryAdd(fqn, r.Score);
+            }
         }
 
         var expanded = new List<ChunkSearchResult>(results);
         var expansionTarget = results.Count + topK;
 
-        for (var i = 0; i < Math.Min(results.Count, 5) && expanded.Count < expansionTarget; i++) {
-            var r = results[i];
-            foreach (var fqn in r.ContainedSymbolFqns.Take(3)) {
-                if (expanded.Count >= expansionTarget) break;
+        var fqnsToExpand = results.Take(3)
+            .SelectMany(r => r.ContainedSymbolFqns.Take(2))
+            .Where(f => !string.IsNullOrEmpty(f))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (fqnsToExpand.Count == 0) return expanded;
 
-                var callees = await _indexer.CallGraph.GetCalleesAsync(fqn, ct).ConfigureAwait(false);
-                foreach (var edge in callees.Take(2)) {
-                    if (expanded.Count >= expansionTarget) break;
-                    if (existingFqns.Contains(edge.CalleeSymbol)) continue;
-                    var symResult = await _indexer.Searcher.SearchAsync(edge.CalleeSymbol, ct).ConfigureAwait(false);
-                    if (symResult.Items.Count == 0) continue;
-                    var sym = symResult.Items[0];
-                    expanded.Add(new ChunkSearchResult {
-                        ChunkId = sym.FullyQualifiedName,
-                        FilePath = sym.FilePath,
-                        SymbolFqn = sym.FullyQualifiedName,
-                        StartLine = sym.StartLine,
-                        EndLine = sym.EndLine,
-                        Score = r.Score * 0.4f,
-                        ContainedSymbolFqns = [sym.FullyQualifiedName]
-                    });
-                    existingFqns.Add(sym.FullyQualifiedName);
-                }
+        var graphTasks = fqnsToExpand.Select(async fqn => {
+            var callees = await _indexer.CallGraph.GetCalleesAsync(fqn, ct).ConfigureAwait(false);
+            var callers = await _indexer.CallGraph.GetCallersAsync(fqn, ct).ConfigureAwait(false);
+            return (fqn, callees, callers);
+        }).ToArray();
+        await Task.WhenAll(graphTasks).ConfigureAwait(false);
 
-                var callers = await _indexer.CallGraph.GetCallersAsync(fqn, ct).ConfigureAwait(false);
-                foreach (var edge in callers.Take(2)) {
-                    if (expanded.Count >= expansionTarget) break;
-                    if (existingFqns.Contains(edge.CallerSymbol)) continue;
-                    var symResult = await _indexer.Searcher.SearchAsync(edge.CallerSymbol, ct).ConfigureAwait(false);
-                    if (symResult.Items.Count == 0) continue;
-                    var sym = symResult.Items[0];
-                    expanded.Add(new ChunkSearchResult {
-                        ChunkId = sym.FullyQualifiedName,
-                        FilePath = sym.FilePath,
-                        SymbolFqn = sym.FullyQualifiedName,
-                        StartLine = sym.StartLine,
-                        EndLine = sym.EndLine,
-                        Score = r.Score * 0.4f,
-                        ContainedSymbolFqns = [sym.FullyQualifiedName]
-                    });
-                    existingFqns.Add(sym.FullyQualifiedName);
-                }
+        var neighborFqns = new List<(string Fqn, float BaseScore)>();
+        foreach (var task in graphTasks) {
+            var (fqn, callees, callers) = await task.ConfigureAwait(false);
+            var baseScore = fqnToScore.GetValueOrDefault(fqn, 0.5f);
+            foreach (var edge in callees.Take(2)) {
+                if (!existingFqns.Contains(edge.CalleeSymbol))
+                    neighborFqns.Add((edge.CalleeSymbol, baseScore));
             }
+            foreach (var edge in callers.Take(2)) {
+                if (!existingFqns.Contains(edge.CallerSymbol))
+                    neighborFqns.Add((edge.CallerSymbol, baseScore));
+            }
+        }
+
+        var distinctNeighbors = neighborFqns
+            .GroupBy(n => n.Fqn, StringComparer.Ordinal)
+            .Select(g => g.First())
+            .Take(topK)
+            .ToList();
+        if (distinctNeighbors.Count == 0) return expanded;
+
+        var symTasks = distinctNeighbors.Select(async n => {
+            var result = await _indexer.Searcher.SearchAsync(n.Fqn, ct).ConfigureAwait(false);
+            return (n.BaseScore, result);
+        }).ToArray();
+        await Task.WhenAll(symTasks).ConfigureAwait(false);
+
+        foreach (var task in symTasks) {
+            var (baseScore, symResult) = await task.ConfigureAwait(false);
+            if (expanded.Count >= expansionTarget) break;
+            if (symResult.Items.Count == 0) continue;
+            var sym = symResult.Items[0];
+            if (!existingFqns.Add(sym.FullyQualifiedName)) continue;
+            expanded.Add(new ChunkSearchResult {
+                ChunkId = sym.FullyQualifiedName,
+                FilePath = sym.FilePath,
+                SymbolFqn = sym.FullyQualifiedName,
+                StartLine = sym.StartLine,
+                EndLine = sym.EndLine,
+                Score = baseScore * 0.4f,
+                ContainedSymbolFqns = [sym.FullyQualifiedName]
+            });
         }
 
         return expanded;

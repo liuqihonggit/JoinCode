@@ -128,7 +128,7 @@
 
 | 状态 | 类 | 文件:行 | 风险 |
 |------|----|---------|------|
-| ⏳ | `MainWindow` | `app/gui/views/core/MainWindow.axaml.cs:36` | InitializeComponent IO + 事件订阅×4 + Timer.Start。Avalonia 惯例，确保 InitializeComponent 失败时事件订阅不悬挂 |
+| ⏭️ 已评估 | `MainWindow` | `app/gui/views/core/MainWindow.axaml.cs:36` | Avalonia 框架约定：public 无参 ctor + InitializeComponent 是 Window 标准模式。`App.axaml.cs:27` 用 `desktop.MainWindow = new MainWindow{...}`，30 处测试用对象初始化器。改 private ctor 违反框架约定且破坏 30 处测试。风险极低：InitializeComponent 失败是 XAML 编译错误（开发阶段发现）；事件订阅/Timer.Start 不抛异常 |
 
 ### 中风险（14 个，非平凡方法调用但不易抛异常）
 

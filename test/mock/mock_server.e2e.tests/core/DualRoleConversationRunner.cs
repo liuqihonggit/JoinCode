@@ -1236,6 +1236,39 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
             _dumpDir = null;
         }
 
+        // 清理 jcc.exe 创建的 agent worktree（agent_stop 故意保留，E2E 测试结束后强制回收）
+        try {
+            var listPsi = new ProcessStartInfo {
+                FileName = "git",
+                Arguments = "worktree list --porcelain",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            var listProc = Process.Start(listPsi);
+            if (listProc is not null) {
+                var wtOutput = listProc.StandardOutput.ReadToEnd();
+                listProc.WaitForExit(5000);
+                foreach (var line in wtOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
+                    if (line.StartsWith("worktree ", StringComparison.Ordinal) && line.Contains("agent-", StringComparison.Ordinal)) {
+                        var wtPath = line["worktree ".Length..].Trim();
+                        _logger.LogInformation("[DualRoleRunner] 清理残留 agent worktree: {Path}", wtPath);
+                        var removePsi = new ProcessStartInfo {
+                            FileName = "git",
+                            Arguments = $"worktree remove --force \"{wtPath}\"",
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                            RedirectStandardError = true
+                        };
+                        var removeProc = Process.Start(removePsi);
+                        removeProc?.WaitForExit(5000);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            _logger.LogDebug(ex, "[DualRoleRunner] 清理 agent worktree 时异常");
+        }
+
         _loggerFactory.Dispose();
     }
 

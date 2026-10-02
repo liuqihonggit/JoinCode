@@ -57,7 +57,7 @@ public sealed class PithosDb : IDisposable
         _compactor = new LeveledCompactor(directory, _options, _readerCache, _blockCache, _manifest, _lock);
         if (!_options.InMemory)
         {
-            _wal = new WriteAheadLog(Path.Combine(directory, "wal.log"), _options.WalSyncMode, _options.WalSyncIntervalMs);
+            _wal = WriteAheadLog.Open(Path.Combine(directory, "wal.log"), _options.WalSyncMode, _options.WalSyncIntervalMs);
             RecoverFromWal();
             RecoverSSTables();
 
@@ -535,7 +535,7 @@ public sealed class PithosDb : IDisposable
 
         _wal!.Dispose();
         File.Delete(Path.Combine(_directory, "wal.log"));
-        _wal = new WriteAheadLog(Path.Combine(_directory, "wal.log"), _options.WalSyncMode, _options.WalSyncIntervalMs);
+        _wal = WriteAheadLog.Open(Path.Combine(_directory, "wal.log"), _options.WalSyncMode, _options.WalSyncIntervalMs);
 
         _manifest.Write(_levels);
         SignalCompaction();

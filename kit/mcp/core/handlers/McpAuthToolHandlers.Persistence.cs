@@ -8,6 +8,7 @@ namespace McpToolDispatch;
 public sealed partial class McpAuthToolHandlers {
     private readonly IFileSystem? _authPersistenceFs;
     private readonly string? _authStateFilePath;
+    private readonly Task _loadTask;
 
     /// <summary>
     /// 获取 MCP 认证状态文件路径: ~/.jcc/mcp/auth.json

@@ -543,6 +543,7 @@ public sealed class PithosDb : IDisposable
 
     private void SignalCompaction()
     {
+        if (_options.DisableCompaction) return;
         // Release at most one token so the background thread wakes up.
         // SemaphoreFullException means a signal is already pending — that's fine.
         try { _compactionSignal.Release(); } catch (SemaphoreFullException) { }
@@ -579,10 +580,12 @@ public sealed class PithosDb : IDisposable
 
     private void RecoverSSTables()
     {
+        var log = _options.DiagnosticLog;
         foreach (var path in Directory.GetFiles(_directory, "*.sst"))
         {
             if (new FileInfo(path).Length == 0)
             {
+                log?.Invoke($"[PithosDB.RecoverSSTables] deleting empty SST file: {path}");
                 try { File.Delete(path); } catch { }
             }
         }
@@ -607,7 +610,10 @@ public sealed class PithosDb : IDisposable
             foreach (var path in Directory.GetFiles(_directory, "*.sst"))
             {
                 if (!knownFiles.Contains(Path.GetFullPath(path)))
+                {
+                    log?.Invoke($"[PithosDB.RecoverSSTables] deleting orphaned SST file not in manifest: {path}");
                     File.Delete(path);
+                }
             }
         }
         else

@@ -170,6 +170,14 @@ public sealed class PithosOptions
     /// </summary>
     public bool DisableCompaction { get; init; } = false;
 
+    /// <summary>
+    /// Optional diagnostic sink — invoked with human-readable messages for low-level
+    /// events (SST file deletion during recovery, compaction decisions, etc.).
+    /// Pass <c>Console.Error.WriteLine</c> or a logger adapter to trace internals.
+    /// Default: <see langword="null"/> (silent).
+    /// </summary>
+    public Action<string>? DiagnosticLog { get; init; } = null;
+
     /// <summary>Default options — equivalent to <c>new PithosOptions()</c>.</summary>
     public static readonly PithosOptions Default = new();
 

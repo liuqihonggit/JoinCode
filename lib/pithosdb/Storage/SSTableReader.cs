@@ -42,13 +42,46 @@ public sealed unsafe class SSTableReader : IDisposable
     {
         Path = path;
         _blockCache = blockCache;
+
+        if (!File.Exists(path))
+            throw new FileNotFoundException(
+                $"SSTable file not found: '{path}'. The file may have been deleted by a concurrent compaction or the manifest is stale. " +
+                "Hint: ensure DisableCompaction=true when opening for read-only access, and never share a kvstore directory across concurrent PithosDb instances.");
+
         _length = new FileInfo(path).Length;
-        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        _buffer = new byte[_length];
-        fs.ReadExactly(_buffer);
+        if (_length == 0)
+            throw new InvalidDataException(
+                $"SSTable file is empty (0 bytes): '{path}'. The file was likely partially written or corrupted during a flush. " +
+                "Hint: delete the empty .sst file and rebuild the index, or restore from a backup.");
+
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            _buffer = new byte[_length];
+            fs.ReadExactly(_buffer);
+        }
+        catch (IOException ex)
+        {
+            throw new IOException(
+                $"Cannot read SSTable file '{path}' — it may be locked by another process. " +
+                "Hint: SSTableReader opens with FileShare.ReadWrite, so this should not happen under normal operation. " +
+                "If it does, check whether an external tool (antivirus, backup, indexer) is holding an exclusive lock on the .sst file.",
+                ex);
+        }
+
         _handle = GCHandle.Alloc(_buffer, GCHandleType.Pinned);
         _ptr = (byte*)_handle.AddrOfPinnedObject();
-        (_index, _bloom, _bloomOffset) = ReadMetadata();
+        try
+        {
+            (_index, _bloom, _bloomOffset) = ReadMetadata();
+        }
+        catch (Exception ex) when (ex is not InvalidDataException)
+        {
+            throw new InvalidDataException(
+                $"SSTable file '{path}' is corrupted — metadata (index/bloom filter) could not be parsed. " +
+                "Hint: the file may have been truncated or written by an incompatible version. Delete it and rebuild the index.",
+                ex);
+        }
     }
 
     /// <summary>The entire file as a zero-copy span. Valid until Dispose.</summary>

@@ -15,7 +15,12 @@ public sealed partial class EditorPanelView : UserControl {
         InitializeComponent();
         Editor.TextChanged += OnEditorTextChanged;
         Editor2.TextChanged += OnEditor2TextChanged;
+        _searchPanel = AvaloniaEdit.Search.SearchPanel.Install(Editor);
+        _searchPanel2 = AvaloniaEdit.Search.SearchPanel.Install(Editor2);
     }
+
+    private readonly AvaloniaEdit.Search.SearchPanel? _searchPanel;
+    private readonly AvaloniaEdit.Search.SearchPanel? _searchPanel2;
 
     /// <summary>DataContext 变更时订阅 ViewModel 属性变化</summary>
     protected override void OnDataContextChanged(EventArgs e) {

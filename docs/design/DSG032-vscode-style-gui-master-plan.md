@@ -1,6 +1,6 @@
 # DSG032 — VSCode 风格 GUI 全局规划
 
-> 状态：proposed  
+> 状态：accepted  
 > 日期：2026-10-02  
 > 关联：[DSG031](DSG031-gui-topbar-inputbar-redesign.md) 顶栏+输入栏重设计
 
@@ -32,9 +32,9 @@ VSCode 工作区由 7 个核心区域组成，全部用 Grid 布局，禁止绝�
 | **Title Bar** | 菜单栏 + 布局控制按钮 + Customize Layout 下拉 | ✅ TopBarView |
 | **Activity Bar** | 48px 图标列，切换视图，底部 Account/Manage | ✅ 已实现 |
 | **Primary Side Bar** | 当前激活视图内容，可拖拽调整宽度 | ✅ 已实现+磁吸 |
-| **Secondary Side Bar** | Primary 对侧，可拖拽放入视图 | ❌ 未实现 |
-| **Editor Group** | 代码编辑器，多标签页，可分割 Grid | ❌ 未实现 |
-| **Panel** | Terminal/Output/Problems/Debug Console | ❌ 未实现 |
+| **Secondary Side Bar** | Primary 对侧，可拖拽放入视图 | ✅ 已实现 |
+| **Editor Group** | 代码编辑器，多标签页，可分割 Grid | ✅ 已实现(内嵌) |
+| **Panel** | Terminal/Output/Problems/Debug Console | ✅ 已实现 |
 | **Status Bar** | 文件信息/分支/错误/模式/编码/行列 | ✅ StatusBarView |
 
 ### 关键交互模式
@@ -44,16 +44,19 @@ VSCode 工作区由 7 个核心区域组成，全部用 Grid 布局，禁止绝�
 | 面板拖拽停靠 | 拖拽视图标题栏到上/下/左/右/浮动 | ❌ |
 | 面板调整大小 | 拖拽 sash 边缘调整大小 | ✅ Side Bar |
 | 面板折叠/展开 | 点击 Activity Bar 图标切换 | ✅ |
-| 标签页管理 | 拖拽重排序/拖出浮动窗口/锁定/置顶 | ❌ |
-| 命令面板 | Ctrl+Shift+P 快速访问所有命令 | ❌ |
-| 快速打开 | Ctrl+P 快速打开文件 | ❌ |
-| 面包屑导航 | 编辑器顶部文件路径+符号路径 | ❌ |
+| 面板位置切换 | Panel 移到底部/右侧/左侧/顶部 | ✅ |
+| 标签页管理 | 拖拽重排序/锁定/关闭/关闭其他/关闭全部/预览 | ✅ |
+| 命令面板 | Ctrl+Shift+P 快速访问所有命令 | ✅ |
+| 快速打开 | Ctrl+P 快速打开文件 | ✅ |
+| 面包屑导航 | 编辑器顶部文件路径+符号路径 | ✅ |
 | Minimap | 代码缩略图 | ❌ |
 | Sticky Scroll | 粘性滚动（嵌套作用域顶部固定） | ❌ |
-| 分屏编辑 | 并排编辑多个文件 | ❌ |
-| Zen Mode | 全屏专注模式 | ❌ |
-| 居中布局 | 居中编辑器 | ❌ |
-| 浮动窗口 | 拖出标签页创建独立窗口 | ❌ |
+| 分屏编辑 | 并排编辑多个文件 | ❌ 需大幅重构 |
+| Zen Mode | 全屏专注模式 | ✅ Ctrl+Shift+Z |
+| 居中布局 | 居中编辑器 | ✅ |
+| 浮动窗口 | 拖出标签页创建独立窗口 | ❌ 用户要求不弹窗 |
+| 标签页预览模式 | 单击预览（斜体），双击固定 | ✅ |
+| Secondary Side Bar | Primary 对侧边栏 | ✅ |
 
 ## 2. 当前 GUI 已有功能
 

@@ -8,6 +8,11 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private bool _isCommandPaletteOpen;
 
+    /// <summary>文件搜索模式(Ctrl+P) vs 命令搜索模式(Ctrl+Shift+P)</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilteredCommands))]
+    private bool _isFileSearchMode;
+
     /// <summary>命令面板搜索查询</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FilteredCommands))]
@@ -29,20 +34,59 @@ public sealed partial class MainViewModel {
         new() { Name = "会话: 切换目录树", Icon = "📁", CommandId = "sidebar.filetree" }
     ];
 
-    /// <summary>过滤后的命令列表 — Fuzzy Contains 匹配</summary>
+    /// <summary>过滤后的命令列表 — 文件模式搜索文件,命令模式搜索命令</summary>
     public IReadOnlyList<CommandEntryVm> FilteredCommands =>
+        IsFileSearchMode ? SearchFiles() : SearchCommands();
+
+    /// <summary>搜索命令 — Fuzzy Contains 匹配</summary>
+    private IReadOnlyList<CommandEntryVm> SearchCommands() =>
         string.IsNullOrWhiteSpace(CommandPaletteQuery)
             ? RegisteredCommands
             : RegisteredCommands
                 .Where(c => c.Name.Contains(CommandPaletteQuery, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
-    /// <summary>打开命令面板</summary>
+    /// <summary>搜索文件 — 从当前工作目录递归搜索,限 50 条</summary>
+    private IReadOnlyList<CommandEntryVm> SearchFiles() {
+        if (string.IsNullOrEmpty(FileTreeRootPath))
+            return [];
+        try {
+            var query = CommandPaletteQuery;
+            var files = System.IO.Directory.EnumerateFiles(FileTreeRootPath, "*", System.IO.SearchOption.AllDirectories)
+                .Where(p => !IsHiddenOrIgnored(p))
+                .Where(p => string.IsNullOrWhiteSpace(query)
+                            || System.IO.Path.GetFileName(p).Contains(query, StringComparison.OrdinalIgnoreCase))
+                .Take(50)
+                .Select(p => new CommandEntryVm {
+                    Name = System.IO.Path.GetFileName(p),
+                    Icon = "📄",
+                    CommandId = $"file.open:{p}"
+                })
+                .ToList();
+            return files;
+        } catch {
+            return [];
+        }
+    }
+
+    /// <summary>打开命令面板(Ctrl+Shift+P) — 命令搜索模式</summary>
     [RelayCommand]
     private void OpenCommandPalette() {
         CommandPaletteQuery = "";
+        IsFileSearchMode = false;
         IsCommandPaletteOpen = true;
     }
+
+    /// <summary>打开快速打开(Ctrl+P) — 文件搜索模式</summary>
+    [RelayCommand]
+    private void OpenQuickOpen() {
+        CommandPaletteQuery = "";
+        IsFileSearchMode = true;
+        IsCommandPaletteOpen = true;
+    }
+
+    /// <summary>打开文件回调 — MainWindow 设置,ViewModel 调用以打开 EditorWindow</summary>
+    public Action<string>? OpenFileCallback { get; set; }
 
     /// <summary>执行命令 — 根据命令标识分发到对应命令</summary>
     [RelayCommand]
@@ -50,6 +94,11 @@ public sealed partial class MainViewModel {
         if (entry is null)
             return;
         IsCommandPaletteOpen = false;
+        if (entry.CommandId.StartsWith("file.open:")) {
+            var path = entry.CommandId["file.open:".Length..];
+            OpenFileCallback?.Invoke(path);
+            return;
+        }
         switch (entry.CommandId) {
             case "file.newSession":
                 NewConversationCommand.Execute(null);

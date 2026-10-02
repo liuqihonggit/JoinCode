@@ -163,6 +163,7 @@ public sealed partial class MainWindow : Window {
             _vm.PermissionConfirmCallback = ShowPermissionDialogAsync;
             _vm.AskUserQuestionCallback = ShowAskUserQuestionDialogAsync;
             _vm.SlashConfirmHandler = ShowConfirmDialog;
+            _vm.OpenFileCallback = OnOpenFile;
             _vm.ExitRequested += OnExitRequested;
             _vm.Messages.CollectionChanged += OnMessagesChanged;
             _vm.PropertyChanged += OnVmPropertyChanged;
@@ -190,6 +191,13 @@ public sealed partial class MainWindow : Window {
     /// <summary>打开子代理回放窗口 — 只读快照，可多开（每 agent 一窗）</summary>
     private void OnTranscriptRequested(BackgroundAgentItemVm run) {
         var window = new TranscriptWindow(run);
+        window.Show(this);
+    }
+
+    /// <summary>打开文件编辑器窗口 — 从命令面板/快速打开触发</summary>
+    private void OnOpenFile(string path) {
+        var window = new EditorWindow();
+        window.OpenFile(path);
         window.Show(this);
     }
 

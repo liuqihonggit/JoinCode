@@ -24,6 +24,7 @@
     <KeyBinding Gesture="Ctrl+G" Command="{Binding ToggleGoalPanelCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding StopGoalCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding OpenCommandPaletteCommand}" />
+    <KeyBinding Gesture="Ctrl+P" Command="{Binding OpenQuickOpenCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding BackgroundPanel.PauseAllCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+R" Command="{Binding BackgroundPanel.ResumeAllCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+T" Command="{Binding BackgroundPanel.StopAllCommand}" />

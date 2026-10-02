@@ -3,7 +3,7 @@ namespace Core.Context;
 public class StreamTokenDetectorTests {
     [Fact]
     public void Ingest_WritesToRingBuffer_TokenCountIncrements() {
-        using var detector = new StreamTokenDetector(windowCapacity: 100, detectInterval: TimeSpan.FromMilliseconds(50));
+        using var detector = StreamTokenDetector.Create(windowCapacity: 100, detectInterval: TimeSpan.FromMilliseconds(50));
         detector.TokenCount.Should().Be(0);
 
         detector.Ingest("hello");
@@ -14,14 +14,14 @@ public class StreamTokenDetectorTests {
 
     [Fact]
     public void DetectNow_EmptyWindow_ReturnsNoLoop() {
-        using var detector = new StreamTokenDetector();
+        using var detector = StreamTokenDetector.Create();
         var result = detector.DetectNow();
         result.IsLoopDetected.Should().BeFalse();
     }
 
     [Fact]
     public void DetectNow_NonRepeatingTokens_ReturnsNoLoop() {
-        using var detector = new StreamTokenDetector(windowCapacity: 100);
+        using var detector = StreamTokenDetector.Create(windowCapacity: 100);
         foreach (var t in new[] { "apple", "banana", "cherry", "date", "elderberry" })
             detector.Ingest(t);
 
@@ -31,7 +31,7 @@ public class StreamTokenDetectorTests {
 
     [Fact]
     public void DetectNow_RepeatingPattern_ReturnsLoop() {
-        using var detector = new StreamTokenDetector(
+        using var detector = StreamTokenDetector.Create(
             windowCapacity: 50, minPatternLength: 2, requiredRepeats: 3);
         foreach (var t in new[] { "read", "grep", "read", "grep", "read", "grep" })
             detector.Ingest(t);
@@ -43,7 +43,7 @@ public class StreamTokenDetectorTests {
 
     [Fact]
     public void DetectNow_SingleTokenRepeating_ReturnsLoop() {
-        using var detector = new StreamTokenDetector(
+        using var detector = StreamTokenDetector.Create(
             windowCapacity: 50, minPatternLength: 1, requiredRepeats: 4);
         foreach (var t in new[] { "yes", "yes", "yes", "yes", "yes" })
             detector.Ingest(t);
@@ -54,7 +54,7 @@ public class StreamTokenDetectorTests {
 
     [Fact]
     public void Reset_ClearsWindow() {
-        using var detector = new StreamTokenDetector();
+        using var detector = StreamTokenDetector.Create();
         detector.Ingest("a");
         detector.Ingest("b");
         detector.TokenCount.Should().Be(2);
@@ -67,7 +67,7 @@ public class StreamTokenDetectorTests {
 
     [Fact]
     public void Dispose_StopsBackgroundThread_DoesNotHang() {
-        var detector = new StreamTokenDetector(detectInterval: TimeSpan.FromMilliseconds(10));
+        var detector = StreamTokenDetector.Create(detectInterval: TimeSpan.FromMilliseconds(10));
         detector.Ingest("test");
 
         var act = () => detector.Dispose();
@@ -76,7 +76,7 @@ public class StreamTokenDetectorTests {
 
     [Fact]
     public async Task BackgroundThread_DetectsLoop_AsyncResultAvailable() {
-        using var detector = new StreamTokenDetector(
+        using var detector = StreamTokenDetector.Create(
             windowCapacity: 50,
             detectInterval: TimeSpan.FromMilliseconds(20),
             minPatternLength: 1,
@@ -95,7 +95,7 @@ public class StreamTokenDetectorTests {
 
     [Fact]
     public void Funnel_TailRepetitionTriggersBeforeNgram() {
-        using var detector = new StreamTokenDetector(
+        using var detector = StreamTokenDetector.Create(
             windowCapacity: 50, minPatternLength: 2, requiredRepeats: 3);
         foreach (var t in new[] { "x", "y", "read", "grep", "read", "grep", "read", "grep" })
             detector.Ingest(t);
@@ -107,7 +107,7 @@ public class StreamTokenDetectorTests {
 
     [Fact]
     public void Ingest_OverCapacity_OverwritesOldest() {
-        using var detector = new StreamTokenDetector(windowCapacity: 4);
+        using var detector = StreamTokenDetector.Create(windowCapacity: 4);
         var cap = detector.WindowCapacity;
         for (var i = 0; i < cap + 1; i++)
             detector.Ingest(((char)('a' + i)).ToString());
@@ -116,7 +116,7 @@ public class StreamTokenDetectorTests {
 
     [Fact]
     public async Task BackgroundThread_NoLoop_LatestResultStaysNull() {
-        using var detector = new StreamTokenDetector(
+        using var detector = StreamTokenDetector.Create(
             windowCapacity: 100, detectInterval: TimeSpan.FromMilliseconds(20));
         foreach (var t in new[] { "alpha", "beta", "gamma", "delta" })
             detector.Ingest(t);
@@ -128,7 +128,7 @@ public class StreamTokenDetectorTests {
 
     [Fact]
     public async Task TriggerCount_IncrementsOnDetection() {
-        using var detector = new StreamTokenDetector(
+        using var detector = StreamTokenDetector.Create(
             windowCapacity: 50,
             detectInterval: TimeSpan.FromMilliseconds(20),
             minPatternLength: 1,

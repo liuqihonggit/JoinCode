@@ -86,7 +86,8 @@
     <!-- ===== Column 0：Activity Bar (图标列,固定48px) ===== -->
     <Border Grid.Column="0" Background="{DynamicResource GuiSidebarBackground}"
             BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0">
-      <Grid RowDefinitions="*,Auto">
+      <Grid RowDefinitions="*,Auto,Auto">
+        <!-- 顶部组：面板切换 -->
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,8">
           <ToggleButton Classes="activityIcon" Content="💬" FontSize="20"
                         Command="{Binding ToggleSidePanelCommand}"
@@ -99,11 +100,47 @@
                         IsChecked="{Binding IsFileTreePanelActive, Mode=OneWay}"
                         ToolTip.Tip="目录树" />
         </StackPanel>
+        <!-- 中部组：功能按钮(带 Popup) -->
+        <StackPanel Grid.Row="1" Spacing="4">
+          <Button x:Name="GoalButton" Classes="activityIcon" Content="🎯" FontSize="20"
+                  Command="{Binding ToggleGoalPanelCommand}" ToolTip.Tip="goal 控制"
+                  IsVisible="{Binding IsGoalRunning}" />
+          <Button x:Name="InterceptorButton" Classes="activityIcon" Content="🛡" FontSize="20"
+                  Command="{Binding ToggleInterceptorPanelCommand}" ToolTip.Tip="AI 工具拦截器" />
+        </StackPanel>
         <StackPanel Grid.Row="1" Spacing="4" Margin="0,0,0,8">
+          <ToggleButton Classes="activityIcon" FontSize="20"
+                        Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}">
+            <Panel>
+              <TextBlock Text="🌙" FontSize="20" IsVisible="{Binding IsDarkTheme}" />
+              <TextBlock Text="☀️" FontSize="20" IsVisible="{Binding !IsDarkTheme}" />
+            </Panel>
+          </ToggleButton>
           <ToggleButton Classes="activityIcon" Content="⚙" FontSize="20"
                         Command="{Binding ToggleSettingsPanelCommand}"
                         ToolTip.Tip="设置" />
         </StackPanel>
+        <!-- goal Popup -->
+        <Popup IsOpen="{Binding IsGoalPanelOpen}" Placement="Right"
+               PlacementTarget="{Binding #GoalButton}" HorizontalOffset="4">
+          <Border CornerRadius="10" Padding="14,10" Width="300"
+                  Background="{DynamicResource GuiPopupBackground}"
+                  BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
+            <StackPanel Spacing="8">
+              <TextBlock Text="🎯 goal 进行中" FontSize="13" FontWeight="SemiBold"
+                         Foreground="{DynamicResource GuiPrimaryText}" />
+              <TextBlock Text="停止时引擎自动注入再三确认提示词（a→b→c）" FontSize="10.5"
+                         Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+              <Button Classes="ghost" Content="停止 goal" HorizontalAlignment="Stretch"
+                      Command="{Binding StopGoalCommand}" />
+            </StackPanel>
+          </Border>
+        </Popup>
+        <!-- AI 拦截器 Popup -->
+        <Popup IsOpen="{Binding IsInterceptorPanelOpen}" Placement="Right"
+               PlacementTarget="{Binding #InterceptorButton}" HorizontalOffset="4">
+          <local:InterceptorPopupContent />
+        </Popup>
       </Grid>
     </Border>
 

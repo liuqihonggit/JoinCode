@@ -68,10 +68,10 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
 
     /// <summary>主题切换按钮提示（循环：Dark→Light→SolarizedDark→SolarizedLight）</summary>
     public string ThemeToggleToolTip => CurrentTheme switch {
-        GuiPalette.GuiThemeVariant.Dark => "切换到浅色主题 ☀",
+        GuiPalette.GuiThemeVariant.Dark => "切换到浅色主题 ☀️",
         GuiPalette.GuiThemeVariant.Light => "切换到 Solarized Dark ◑",
         GuiPalette.GuiThemeVariant.SolarizedDark => "切换到 Solarized Light ◐",
-        _ => "切换到深色主题 ☾"
+        _ => "切换到深色主题 🌙"
     };
     /// <summary>Mock 切换按钮提示（区分开关态）</summary>
     public string MockToggleToolTip => IsMockConnection ? "Mock 演示引擎：已开启 Ⓘ" : "Mock 演示引擎：已关闭";

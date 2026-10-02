@@ -1,17 +1,19 @@
-﻿namespace JoinCode.CodeIndex.Tests;
+namespace JoinCode.CodeIndex.Tests;
 
 public sealed class GraphPersistenceTests : IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly SymbolIndex _index;
     private readonly IFileSystem _fs;
     private readonly GraphPersistence _persistence;
+    private readonly IKvStore _kvStore;
     private bool _disposed;
 
     public GraphPersistenceTests() {
         _store = new InMemoryIndexStore();
         _fs = TestFileSystem.Current;
+        _kvStore = new InMemoryKvStore();
         _index = new SymbolIndex(_store, _fs, new CSharpSymbolExtractor());
-        _persistence = new GraphPersistence(_store, _fs);
+        _persistence = new GraphPersistence(_store, _kvStore);
     }
 
     public void Dispose() {
@@ -26,7 +28,8 @@ public sealed class GraphPersistenceTests : IDisposable {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
         var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
-        await using var persistence = new GraphPersistence(store, fs);
+        var kv = new InMemoryKvStore();
+        await using var persistence = new GraphPersistence(store, kv);
 
         // 注入含调用边的文件
         await fs.WriteAllText("a.cs", "public class Foo { public void Bar() { Baz(); } public void Baz() { } }");
@@ -39,7 +42,7 @@ public sealed class GraphPersistenceTests : IDisposable {
         const string dir = "graph-calledges";
         await persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
         await using var loadStore = new InMemoryIndexStore();
-        await using var loadPersistence = new GraphPersistence(loadStore, fs);
+        await using var loadPersistence = new GraphPersistence(loadStore, kv);
         var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(loaded);
@@ -53,7 +56,8 @@ public sealed class GraphPersistenceTests : IDisposable {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
         var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
-        await using var persistence = new GraphPersistence(store, fs);
+        var kv = new InMemoryKvStore();
+        await using var persistence = new GraphPersistence(store, kv);
 
         // 注入含依赖关系的文件(继承)
         await fs.WriteAllText("a.cs", "public interface IFoo { } public class Foo : IFoo { }");
@@ -66,7 +70,7 @@ public sealed class GraphPersistenceTests : IDisposable {
         const string dir = "graph-depedges";
         await persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
         await using var loadStore = new InMemoryIndexStore();
-        await using var loadPersistence = new GraphPersistence(loadStore, fs);
+        await using var loadPersistence = new GraphPersistence(loadStore, kv);
         var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(loaded);
@@ -79,7 +83,8 @@ public sealed class GraphPersistenceTests : IDisposable {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
         var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
-        await using var persistence = new GraphPersistence(store, fs);
+        var kv = new InMemoryKvStore();
+        await using var persistence = new GraphPersistence(store, kv);
 
         // 索引两个文件
         await fs.WriteAllText("a.cs", "public class A { public void M() { } }");
@@ -101,7 +106,7 @@ public sealed class GraphPersistenceTests : IDisposable {
         const string dir = "graph-after-remove";
         await persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
         await using var loadStore = new InMemoryIndexStore();
-        await using var loadPersistence = new GraphPersistence(loadStore, fs);
+        await using var loadPersistence = new GraphPersistence(loadStore, kv);
         var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(loaded);
@@ -115,7 +120,8 @@ public sealed class GraphPersistenceTests : IDisposable {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
         var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
-        await using var persistence = new GraphPersistence(store, fs);
+        var kv = new InMemoryKvStore();
+        await using var persistence = new GraphPersistence(store, kv);
 
         // 接口和实现在不同文件
         await fs.WriteAllText("iface.cs", "public interface IFoo { void Bar(); }");
@@ -138,7 +144,7 @@ public sealed class GraphPersistenceTests : IDisposable {
         const string dir = "graph-cross-file";
         await persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
         await using var loadStore = new InMemoryIndexStore();
-        await using var loadPersistence = new GraphPersistence(loadStore, fs);
+        await using var loadPersistence = new GraphPersistence(loadStore, kv);
         var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(loaded);
@@ -147,7 +153,7 @@ public sealed class GraphPersistenceTests : IDisposable {
     }
 
     /// <summary>
-    /// SaveAsync 在有数据时能正确保存到磁盘，不抛 "read lock is being released without being held" 异常。
+    /// SaveAsync 在有数据时能正确保存到 KV store，不抛 "read lock is being released without being held" 异常。
     /// 回归 bug: ReaderWriterLockSlim 锁 scope 跨越 await 调用，线程亲和性导致释放锁抛异常。
     /// </summary>
     [Fact]
@@ -157,9 +163,8 @@ public sealed class GraphPersistenceTests : IDisposable {
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
-        var path = Path.Combine(dir, "code-index.bin");
-        Assert.True(_fs.FileExists(path), "持久化文件应存在");
-        var bytes = await _fs.ReadAllBytesAsync(path, CancellationToken.None).ConfigureAwait(true);
+        var bytes = await _kvStore.GetAsync(System.Text.Encoding.UTF8.GetBytes("code-index"), CancellationToken.None).ConfigureAwait(true);
+        Assert.NotNull(bytes);
         Assert.True(bytes.Length > 10, "二进制内容不应为空");
         var magic = System.Text.Encoding.UTF8.GetString(bytes, 0, 6);
         Assert.Equal("CGIDX1", magic);
@@ -175,7 +180,7 @@ public sealed class GraphPersistenceTests : IDisposable {
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
         await using var loadStore = new InMemoryIndexStore();
-        await using var loadPersistence = new GraphPersistence(loadStore, _fs);
+        await using var loadPersistence = new GraphPersistence(loadStore, _kvStore);
         var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
         Assert.True(loaded, "LoadAsync 应返回 true 表示成功加载");
 
@@ -213,9 +218,8 @@ public sealed class GraphPersistenceTests : IDisposable {
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
-        var path = Path.Combine(dir, "code-index.bin");
-        Assert.True(_fs.FileExists(path), "空索引也应生成持久化文件");
-        var bytes = await _fs.ReadAllBytesAsync(path, CancellationToken.None).ConfigureAwait(true);
+        var bytes = await _kvStore.GetAsync(System.Text.Encoding.UTF8.GetBytes("code-index"), CancellationToken.None).ConfigureAwait(true);
+        Assert.NotNull(bytes);
         Assert.True(bytes.Length > 10, "二进制内容不应为空");
         var magic = System.Text.Encoding.UTF8.GetString(bytes, 0, 6);
         Assert.Equal("CGIDX1", magic);
@@ -255,9 +259,9 @@ public sealed class GraphPersistenceTests : IDisposable {
         await Task.WhenAll(tasks).ConfigureAwait(true);
 
         Assert.Empty(exceptions);
-        foreach (var d in dirs) {
-            Assert.True(_fs.FileExists(Path.Combine(d, "code-index.bin")), $"并发保存后 {d} 应存在文件");
-        }
+        var bytes = await _kvStore.GetAsync(System.Text.Encoding.UTF8.GetBytes("code-index"), CancellationToken.None).ConfigureAwait(true);
+        Assert.NotNull(bytes);
+        Assert.True(bytes.Length > 10, "并发保存后 KV store 应有数据");
     }
 
     /// <summary>

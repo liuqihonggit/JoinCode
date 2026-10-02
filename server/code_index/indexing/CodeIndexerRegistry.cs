@@ -47,7 +47,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
         var store = new InMemoryIndexStore();
-        var concreteIndexer = new CodeIndexer(store, _fs);
+        var concreteIndexer = new CodeIndexer(store, _fs, kvStore: new InMemoryKvStore());
         var registration = new RepoRegistration {
             RepoId = repoId,
             WorkspaceRoot = workspaceRoot,

@@ -14,7 +14,7 @@ public sealed class CodeIndexerIncrementalVectorTests : IDisposable {
     public CodeIndexerIncrementalVectorTests() {
         _store = new InMemoryIndexStore();
         _fs = new IO.FileSystem.InMemoryFileSystem();
-        _parentStore = new InMemoryParentDocumentStore(_fs);
+        _parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         _indexer = new CodeIndexer(_store, _fs);
         _embeddingIndex = new EmbeddingIndex(
             new FakeEmbeddingModel(8),

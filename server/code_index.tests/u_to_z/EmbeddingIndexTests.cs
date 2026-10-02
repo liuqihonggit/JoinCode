@@ -223,7 +223,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_WithParentStore_ReturnsParentDocumentText() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -266,7 +266,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_ParentStoreMissingDoc_ParentDocumentTextIsNull() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -281,7 +281,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_ChunkWithoutParent_ParentDocumentTextIsNull() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -296,7 +296,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_IncludeSourceText_ReturnsSourceText() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -323,7 +323,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_DefaultOptions_ParentDocumentTextIsNull() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -346,7 +346,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_IncludeParentDocumentFalse_ParentDocumentTextIsNull() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
@@ -370,7 +370,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_BothOptionsTrue_ReturnsBothSourceTextAndParent() {
-        using var parentStore = new InMemoryParentDocumentStore(TestFileSystem.Current);
+        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
         await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);

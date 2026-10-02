@@ -10,16 +10,20 @@ public sealed partial class FileTreePanelView : UserControl {
         InitializeComponent();
     }
 
-    /// <summary>单击文件夹项 — 切换展开/收起(VSCode 风格:单击文件夹名即可展开)</summary>
-    private void OnItemTapped(object? sender, Avalonia.Input.TappedEventArgs e) {
-        if (sender is not StackPanel panel)
-            return;
-        if (panel.DataContext is not ViewModels.FileTreeItemVm item)
-            return;
-        if (!item.IsFolder)
-            return;
-        item.IsExpanded = !item.IsExpanded;
-        e.Handled = true;
+    /// <summary>单击 TreeView 任意位置 — 文件夹切换展开/收起(VSCode 风格:点击整行即可展开)</summary>
+    private void OnTreeTapped(object? sender, Avalonia.Input.TappedEventArgs e) {
+        // 从事件源向上找 FileTreeItemVm
+        var source = e.Source as Avalonia.Visual;
+        while (source is not null) {
+            if (source.DataContext is ViewModels.FileTreeItemVm item) {
+                if (item.IsFolder) {
+                    item.IsExpanded = !item.IsExpanded;
+                    e.Handled = true;
+                }
+                return;
+            }
+            source = source.GetVisualParent() as Avalonia.Visual;
+        }
     }
 
     /// <summary>双击文件项 — 在内嵌编辑器中固定打开文件(非预览)</summary>

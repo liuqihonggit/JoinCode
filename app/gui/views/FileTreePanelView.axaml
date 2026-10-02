@@ -20,7 +20,8 @@
     </StackPanel>
     <!-- 目录树 — TreeView 自带滚动,无需外层 ScrollViewer -->
     <TreeView Grid.Row="1" ItemsSource="{Binding FileTreeItems}" Margin="4,4"
-              Background="Transparent" BorderThickness="0">
+              Background="Transparent" BorderThickness="0"
+              Tapped="OnTreeTapped">
       <TreeView.Styles>
         <!-- 绑定 TreeViewItem.IsExpanded → FileTreeItemVm.IsExpanded (TwoWay)
              展开时触发 VM 懒加载子节点 LoadChildren() -->
@@ -31,7 +32,6 @@
       <TreeView.ItemTemplate>
         <TreeDataTemplate ItemsSource="{Binding Children}">
             <StackPanel Orientation="Horizontal" Spacing="6"
-                        Tapped="OnItemTapped"
                         DoubleTapped="OnFileDoubleTapped">
               <StackPanel.ContextMenu>
                 <ContextMenu>

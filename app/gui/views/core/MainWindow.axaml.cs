@@ -228,11 +228,8 @@ public sealed partial class MainWindow : Window {
                 ? Avalonia.Styling.ThemeVariant.Light
                 : Avalonia.Styling.ThemeVariant.Dark;
             // 更新 ThemeDictionaries 槽位为当前主题配色（Solarized 复用 Dark/Light 槽位）
+            // DynamicResource 绑定自动刷新,无需手动重赋 DataContext（会导致 Popup 内 NRE 闪退）
             GuiAppResources.ApplyTheme(_vm.CurrentTheme);
-            // 重新赋值 DataContext，强制所有转换器按新主题重算颜色（气泡/指示器/角色标签）
-            var dc = DataContext;
-            DataContext = null;
-            DataContext = dc;
         } else if (e.PropertyName == nameof(MainViewModel.HasCopied) && _vm!.HasCopied) {
             ScheduleCopyToastHide();
         } else if (e.PropertyName == nameof(MainViewModel.CopiedMessageCopy) && !string.IsNullOrEmpty(_vm!.CopiedMessageCopy)) {

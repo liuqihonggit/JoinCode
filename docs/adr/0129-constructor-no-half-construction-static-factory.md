@@ -158,15 +158,15 @@
 
 | 状态 | 类 | 文件:行 | 风险 |
 |------|----|---------|------|
-| ⏳ | `BuildQueueRouter` | `kit/hands/build/BuildQueueRouter.cs:21` | BlockingAsync_GetResult（构造函数内 .GetAwaiter().GetResult()） |
-| ⏳ | `ReaperScheduler` | `lib/infrastructure/reaper_scheduler/ReaperScheduler.cs:27` | ThreadCreation（构造函数内 new Thread + 赋值字段） |
-| ⏳ | `ActorBase` | `lib/async_lock/actor/ActorBase.cs:66` | TaskRun（构造函数内 Task.Run 启动后台循环） |
-| ⏳ | `BusClientConnection` | `lib/async_lock/transport/BusTransport.cs:276` | TaskRun + IDisposable（NamedPipeServerStream + Task.Run） |
-| ⏳ | `MeshPeerConnection` | `lib/async_lock/transport/MeshTransport.cs:237` | TaskRun + IDisposable（NamedPipeClientStream + Task.Run） |
-| ⏳ | `PipeConnection` | `lib/async_lock/transport/NamedPipeTransport.cs:441` | TaskRun + IDisposable（NamedPipeServerStream + Task.Run） |
-| ⏳ | `AnalyticsFileSink` | `lib/infrastructure/telemetry/AnalyticsFileSink.cs:106` | TaskRun + CTS + IDisposable（后台刷新任务） |
-| ⏳ | `SystemActuatorCommandContext` | `kit/hands/system_actuator/abstractions/SystemActuatorCommandContext.cs:46` | FireAndForget + CTS + IDisposable（private ctor，需评估） |
-| ⏳ | `MainViewModel.Lifecycle` | `app/gui/view_models/main_view_model/MainViewModel.Lifecycle.cs:11` | FireAndForget + EventSubscription（GUI ViewModel，需评估） |
+| ✅ 688d6c5 | `BuildQueueRouter` | `kit/hands/build/BuildQueueRouter.cs:21` | BlockingAsync_GetResult → `static CreateAsync` |
+| ⏭️ 已评估 | `ReaperScheduler` | `lib/infrastructure/reaper_scheduler/ReaperScheduler.cs:27` | DI Singleton + Thread 创建未启动（Start() 方法才启动），CTS/BlockingCollection 不抛异常，无需重构 |
+| ⏭️ 已评估 | `ActorBase` | `lib/async_lock/actor/ActorBase.cs:66` | 抽象基类 protected ctor 正常，字段全先赋值后 Task.Factory.StartNew，后台任务不访问半构造化对象，派生类众多不可改 private |
+| ⏭️ 已评估 | `BusClientConnection` | `lib/async_lock/transport/BusTransport.cs:276` | stream 外部传入 + 字段全先赋值后 Task.Run + Channel 托管资源，无需重构 |
+| ⏭️ 已评估 | `MeshPeerConnection` | `lib/async_lock/transport/MeshTransport.cs:237` | 同 BusClientConnection 模式 |
+| ⏭️ 已评估 | `PipeConnection` | `lib/async_lock/transport/NamedPipeTransport.cs:441` | 同 BusClientConnection 模式 |
+| ⏭️ 已评估 | `AnalyticsFileSink` | `lib/infrastructure/telemetry/AnalyticsFileSink.cs:106` | DI Singleton + 字段全先赋值后 Task.Run + Channel/CTS 托管资源，无需重构 |
+| ⏭️ 已评估 | `SystemActuatorCommandContext` | `kit/hands/system_actuator/abstractions/SystemActuatorCommandContext.cs:46` | 已有 private ctor + static StartAsync，ctor 内 fire-and-forget 是监控任务非资源分配，已合规 |
+| ⏭️ 已评估 | `MainViewModel.Lifecycle` | `app/gui/view_models/main_view_model/MainViewModel.Lifecycle.cs:11` | GUI ViewModel + Avalonia 框架约定，fire-and-forget 是 UI 初始化，无需重构 |
 
 ### 第二轮 P1 — 中风险（12 个）
 

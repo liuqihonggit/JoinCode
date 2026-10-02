@@ -64,7 +64,7 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
         _modelId = modelId;
         _logger = logger;
         _maxSeqLen = int.TryParse(Environment.GetEnvironmentVariable("JCC_ONNX_MAX_SEQ_LEN"), out var msl) && msl > 0
-            ? msl : 32;
+            ? msl : 8;
     }
 
     /// <summary>

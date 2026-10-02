@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
 > 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-10-02
 - 决策者：用户 + AI
 
@@ -77,11 +77,11 @@
 
 | 状态 | 类 | 文件:行 | 风险 | 工厂方法 |
 |------|----|---------|------|---------|
-| ⏳ | `PithosDb` | `lib/pithosdb/PithosDb.cs:44` | 多资源+后台线程+WAL恢复 | `static Open(directory, options)` |
-| ⏳ | `WriteAheadLog` | `lib/pithosdb/Core/WriteAheadLog.cs:49` | FileStream+BinaryWriter+Timer | `static Open(path, syncMode, interval)` |
-| ⏳ | `SSTableReader` | `lib/pithosdb/Storage/SSTableReader.cs:41` | FileStream+GCHandle+ReadMetadata（GCHandle 泄漏 bug） | `static Open(path, blockCache)` |
-| ⏳ | `PhysicalMemoryMappedRead` | `lib/infrastructure/io/file_system/PhysicalMemoryMappedRead.cs:15` | mmf+accessor+AcquirePointer | `static Open(path)` |
-| ⏳ | `StreamTokenDetector` | `kit/brain/context/services/loop/StreamTokenDetector.cs:30` | RingBuffer+CTS+Thread.Start | `static Create(...)` |
+| ✅ 73a544d | `PithosDb` | `lib/pithosdb/PithosDb.cs:44` | 多资源+后台线程+WAL恢复 | `static Open(directory, options)` |
+| ✅ 6db3a44 | `WriteAheadLog` | `lib/pithosdb/Core/WriteAheadLog.cs:49` | FileStream+BinaryWriter+Timer | `static Open(path, syncMode, interval)` |
+| ✅ b5bbae1 | `SSTableReader` | `lib/pithosdb/Storage/SSTableReader.cs:41` | FileStream+GCHandle+ReadMetadata（GCHandle 泄漏 bug 已修） | `static Open(path, blockCache)` |
+| ✅ b13a729 | `PhysicalMemoryMappedRead` | `lib/infrastructure/io/file_system/PhysicalMemoryMappedRead.cs:15` | mmf+accessor+AcquirePointer | `static Open(path)` |
+| ✅ 21da9e5 | `StreamTokenDetector` | `kit/brain/context/services/loop/StreamTokenDetector.cs:30` | RingBuffer+CTS+Thread.Start | `static Create(...)` |
 
 ### P1 — fire-and-forget 异步初始化（11 个）
 

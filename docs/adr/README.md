@@ -133,7 +133,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 ## 统计
 
-- 总数：**124** | accepted：**117** | superseded：**5** | proposed：**2**
+- 总数：**124** | accepted：**118** | superseded：**5** | proposed：**1**
 
 ## 完整索引（按编号）
 
@@ -265,7 +265,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0126](0126-hnsw-ann-search.md) | HNSW 近似最近邻搜索替代暴力搜索 | accepted | 2026-10-01 |
 | [0127](0127-skiplist-incremental-index.md) | 跳表索引表用于增量索引 | accepted | 2026-10-01 |
 | [0128](0128-named-mutex-replace-file-mailbox-lock.md) | 命名 Mutex 替代文件邮箱锁（回归内核 Mutex） | accepted | 2026-10-02 |
-| [0129](0129-constructor-no-half-construction-static-factory.md) | 构造函数安全模式 — 禁止半构造化，强制 private ctor + static 工厂 | proposed | 2026-10-02 |
+| [0129](0129-constructor-no-half-construction-static-factory.md) | 构造函数安全模式 — 禁止半构造化，强制 private ctor + static 工厂 | accepted | 2026-10-02 |
 
 ## 主题索引（按议题）
 

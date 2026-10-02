@@ -252,6 +252,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         // Phase E2: 向量嵌入（按固定行数切块，预嵌入AST符号FQN组成知识图谱）
         if (_embeddingIndex is not null) {
+            foreach (var b in batch) {
+                await _embeddingIndex.RemoveFileAsync(b.FilePath, ct).ConfigureAwait(false);
+            }
             var allChunks = new List<ChunkInfo>();
             foreach (var b in batch) {
                 var parentLocations = b.Extraction.Symbols

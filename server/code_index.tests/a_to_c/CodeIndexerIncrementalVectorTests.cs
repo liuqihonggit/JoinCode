@@ -123,4 +123,24 @@ public sealed class CodeIndexerIncrementalVectorTests : IDisposable {
         var resultWithParent = results.FirstOrDefault(r => r.ParentDocumentText != null);
         Assert.NotNull(resultWithParent);
     }
+
+    /// <summary>
+    /// BuildIndexAsync 修改文件后不应残留旧分块 — 先删后插，ChunkCount 保持一致而非翻倍。
+    /// </summary>
+    [Fact]
+    public async Task BuildIndexAsync_ModifiedCs_NoStaleChunksResidue() {
+        var root = Path.Combine(Path.GetTempPath(), $"ci_inc_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        var file = Path.Combine(root, "A.cs");
+        await _fs.WriteAllText(file, "public class Foo { public void Bar() { } }");
+        await _indexer.BuildIndexAsync(new CodeIndexOptions { WorkspaceRoot = root }, CancellationToken.None);
+        var chunkCountAfterFirstBuild = _embeddingIndex.ChunkCount;
+        Assert.True(chunkCountAfterFirstBuild > 0);
+
+        await _fs.WriteAllText(file, "public class Foo { public void Baz() { } }");
+        await _indexer.BuildIndexAsync(new CodeIndexOptions { WorkspaceRoot = root }, CancellationToken.None);
+        var chunkCountAfterSecondBuild = _embeddingIndex.ChunkCount;
+
+        Assert.Equal(chunkCountAfterFirstBuild, chunkCountAfterSecondBuild);
+    }
 }

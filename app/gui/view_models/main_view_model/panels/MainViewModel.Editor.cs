@@ -59,18 +59,41 @@ public sealed partial class MainViewModel {
         ActiveMainArea = MainAreaKind.Editor;
     }
 
-    /// <summary>在编辑器中打开文件 — 已打开则激活对应标签,否则新建标签并切换到编辑器区</summary>
+    /// <summary>在编辑器中打开文件(预览模式) — 已打开则激活,预览标签被替换,否则新建预览标签</summary>
     public void OpenEditorFile(string filePath) {
+        OpenEditorFileCore(filePath, isPreview: true);
+    }
+
+    /// <summary>在编辑器中打开文件(固定模式) — 已打开则激活并取消预览,否则新建固定标签</summary>
+    public void OpenEditorFilePinned(string filePath) {
+        OpenEditorFileCore(filePath, isPreview: false);
+    }
+
+    /// <summary>打开文件核心逻辑 — 预览模式下替换当前预览标签,固定模式下新建固定标签</summary>
+    private void OpenEditorFileCore(string filePath, bool isPreview) {
         var existing = EditorTabs.FirstOrDefault(t => t.FilePath == filePath);
         if (existing is not null) {
+            if (!isPreview)
+                existing.IsPreview = false;
             SetActiveEditorTab(existing);
         } else {
-            var tab = new EditorTabVm {
-                FilePath = filePath,
-                Content = ReadFileContent(filePath)
-            };
-            EditorTabs.Add(tab);
-            SetActiveEditorTab(tab);
+            if (isPreview && ActiveEditorTab is { IsPreview: true } previewTab) {
+                var index = EditorTabs.IndexOf(previewTab);
+                EditorTabs[index] = new EditorTabVm {
+                    FilePath = filePath,
+                    Content = ReadFileContent(filePath),
+                    IsPreview = true
+                };
+                SetActiveEditorTab(EditorTabs[index]);
+            } else {
+                var tab = new EditorTabVm {
+                    FilePath = filePath,
+                    Content = ReadFileContent(filePath),
+                    IsPreview = isPreview
+                };
+                EditorTabs.Add(tab);
+                SetActiveEditorTab(tab);
+            }
         }
         ActiveMainArea = MainAreaKind.Editor;
     }

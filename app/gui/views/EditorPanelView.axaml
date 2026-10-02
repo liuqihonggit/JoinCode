@@ -70,10 +70,11 @@
                   </ContextMenu>
                 </Border.ContextMenu>
                 <Grid ColumnDefinitions="*,Auto">
-                  <!-- 标签页名称(点击激活) -->
+                  <!-- 标签页名称(单击激活,双击固定) -->
                   <Button Grid.Column="0" Classes="editorTab"
                           Command="{Binding DataContext.ActivateEditorTabCommand, ElementName=EditorPanelRoot}"
-                          CommandParameter="{Binding}">
+                          CommandParameter="{Binding}"
+                          DoubleTapped="OnTabDoubleTapped">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                       <TextBlock Text="📌" FontSize="8" VerticalAlignment="Center"
                                  IsVisible="{Binding IsPinned}" />

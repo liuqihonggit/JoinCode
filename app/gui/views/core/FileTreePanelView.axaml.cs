@@ -10,7 +10,7 @@ public sealed partial class FileTreePanelView : UserControl {
         InitializeComponent();
     }
 
-    /// <summary>双击文件项 — 在内嵌编辑器中打开文件(仅文件,非文件夹)</summary>
+    /// <summary>双击文件项 — 在内嵌编辑器中固定打开文件(非预览)</summary>
     private void OnFileDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e) {
         if (sender is not StackPanel panel)
             return;
@@ -19,6 +19,6 @@ public sealed partial class FileTreePanelView : UserControl {
         if (item.IsFolder)
             return;
         if (DataContext is ViewModels.MainViewModel vm)
-            vm.OpenEditorFile(item.FullPath);
+            vm.OpenEditorFilePinned(item.FullPath);
     }
 }

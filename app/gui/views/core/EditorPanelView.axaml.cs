@@ -65,4 +65,10 @@ public sealed partial class EditorPanelView : UserControl {
         tab.Content = Editor.Text;
         tab.IsModified = true;
     }
+
+    /// <summary>标签页双击 — 固定标签(取消预览状态)</summary>
+    private void OnTabDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e) {
+        if (sender is Button btn && btn.DataContext is EditorTabVm tab && _vm is not null)
+            _vm.PinTabCommand.Execute(tab);
+    }
 }

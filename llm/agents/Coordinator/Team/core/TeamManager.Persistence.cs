@@ -7,6 +7,7 @@ namespace Core.Agents.Coordinator;
 public sealed partial class TeamManager {
     private readonly IFileSystem? _persistenceFs;
     private readonly string? _stateFilePath;
+    private readonly Task _loadTask;
 
     /// <summary>
     /// 获取团队状态文件路径: ~/.jcc/teams/state.json

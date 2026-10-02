@@ -696,7 +696,7 @@ public sealed class CodeIndexToolHandlers {
         [McpToolParameter("Maximum number of results to return", Required = false, DefaultValue = "10")] int top_k = 10,
         [McpToolParameter("Include matched block source text (function code) in results", Required = false, DefaultValue = "false")] bool include_source_text = false,
         [McpToolParameter("Include parent document (class/file) source text in results for full context", Required = false, DefaultValue = "false")] bool include_parent_document = false,
-        [McpToolParameter("Include knowledge graph relations (callers/callees) for symbols in each chunk", Required = false, DefaultValue = "false")] bool include_graph = false,
+        [McpToolParameter("Include knowledge graph triples (caller,calls,callee). GraphRAG: vector recall + graph triples correct AI cognition", Required = false, DefaultValue = "true")] bool include_graph = true,
         [McpToolParameter("Filter by file extension without dot, e.g. 'cs' for C# only, 'md' for Markdown only. Default null = all file types", Required = false)] string? file_type = null,
         [McpToolParameter("Filter by namespace prefix, e.g. 'JoinCode.CodeIndex' for code in that namespace only. Default null = all namespaces", Required = false)] string? namespace_filter = null,
         [McpToolParameter("Filter by symbol kind, e.g. 'Method' for methods only, 'Class' for classes only. Default null = all kinds", Required = false)] string? symbol_kind = null,
@@ -1062,99 +1062,6 @@ public sealed class CodeIndexToolHandlers {
     }
 
     /// <summary>
-    /// 混合检索 — 符号+向量并行召回，去重合并。符号结果优先，向量结果补充。
-    /// </summary>
-    /// <param name="query">搜索查询（符号名、自然语言或代码片段）。</param>
-    /// <param name="top_k">最大结果数。</param>
-    /// <param name="symbol_kind">符号类型过滤（class/method/constructor/...）。</param>
-    /// <param name="file_type">文件类型过滤（cs/md/...）。</param>
-    /// <param name="namespace_filter">命名空间前缀过滤。</param>
-    /// <param name="include_source_text">包含块原文。</param>
-    /// <param name="include_graph">包含图谱关系（调用方/被调用方）。</param>
-    /// <param name="persist_dir">索引目录（默认自动发现 git 工作区）。</param>
-    /// <param name="cancellationToken">取消令牌。</param>
-    /// <returns>包含混合检索结果的工具结果。</returns>
-    [McpTool(CodeToolNameEnumConstants.SearchHybrid, "Hybrid search: symbol + vector parallel recall, dedup merge. Symbol results first, vector fills in. Set include_graph=true for caller/callee relations.", "code_index")]
-    public async Task<ToolResult> SearchHybridAsync(
-        [McpToolParameter("Search query (symbol name, natural language, or code snippet)")] string query,
-        [McpToolParameter("Maximum results", Required = false, DefaultValue = "10")] int top_k = 10,
-        [McpToolParameter("Filter by symbol kind (class/method/constructor/...)")] string? symbol_kind = null,
-        [McpToolParameter("Filter by file extension (cs/md/...)")] string? file_type = null,
-        [McpToolParameter("Filter by namespace prefix")] string? namespace_filter = null,
-        [McpToolParameter("Include source text in results")] bool include_source_text = false,
-        [McpToolParameter("Include graph relations (callers/callees)")] bool include_graph = false,
-        [McpToolParameter("Index directory (default: auto-discover git workspace)")] string? persist_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (string.IsNullOrWhiteSpace(query)) {
-            return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
-        }
-
-        try {
-            await EnsureLoadedAsync(cancellationToken, persist_dir).ConfigureAwait(false);
-
-            var symbolTask = _indexer.Searcher.SearchAsync(query, cancellationToken);
-            var vectorOptions = new SearchOptions {
-                IncludeSourceText = include_source_text,
-                FileType = file_type,
-                Namespace = namespace_filter,
-                SymbolKind = symbol_kind
-            };
-            var oversampleK = Math.Max(top_k * 3, top_k + 10);
-            var vectorTask = _indexer.SearchSemanticAsync(query, oversampleK, cancellationToken, vectorOptions);
-            await Task.WhenAll(symbolTask, vectorTask).ConfigureAwait(false);
-
-            var symbolResult = await symbolTask.ConfigureAwait(false);
-            var rawVectorResult = await vectorTask.ConfigureAwait(false);
-            var vectorResult = await SemanticSearchReranker.RerankAsync(
-                query, rawVectorResult, top_k, _indexer.CallGraph, cancellationToken).ConfigureAwait(false);
-            var sb = new StringBuilder();
-            sb.AppendLine($"Hybrid results for: \"{query}\"");
-            sb.AppendLine();
-
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            var idx = 0;
-            var symbolLimit = Math.Min(symbolResult.Items.Count, top_k);
-            for (var i = 0; i < symbolLimit; i++) {
-                var s = symbolResult.Items[i];
-                var key = $"{s.FilePath}:{s.StartLine}";
-                if (!seen.Add(key)) continue;
-                idx++;
-                sb.AppendLine($"{idx}. [symbol] {s.Kind} {s.FullyQualifiedName}");
-                sb.AppendLine($"   {s.FilePath.Replace('\\', '/')}:{s.StartLine}-{s.EndLine}");
-                if (include_graph) {
-                    await AppendGraphRelationsAsync(sb, s.FullyQualifiedName, cancellationToken).ConfigureAwait(false);
-                }
-            }
-
-            foreach (var r in vectorResult) {
-                var key = $"{r.FilePath}:{r.StartLine}";
-                if (!seen.Add(key)) continue;
-                idx++;
-                sb.AppendLine($"{idx}. [vector {r.Score:F4}] {r.SymbolFqn}");
-                sb.AppendLine($"   {r.FilePath.Replace('\\', '/')}:{r.StartLine}-{r.EndLine}");
-                if (include_source_text && !string.IsNullOrEmpty(r.SourceText)) {
-                    sb.AppendLine("   --- Source ---");
-                    foreach (var line in r.SourceText.Split('\n')) {
-                        sb.AppendLine($"   {line}");
-                    }
-                    sb.AppendLine("   --- End Source ---");
-                }
-                if (include_graph && !string.IsNullOrEmpty(r.SymbolFqn)) {
-                    await AppendGraphRelationsAsync(sb, r.SymbolFqn, cancellationToken).ConfigureAwait(false);
-                }
-                if (idx >= top_k) break;
-            }
-
-            if (idx == 0) {
-                sb.AppendLine("No results found.");
-            }
-            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-        } catch (Exception ex) {
-            return ToolResultBuilder.Error().WithText($"search_hybrid failed: {ex.Message}").Build();
-        }
-    }
-
-    /// <summary>
     /// 文档检索 — .md 文件语义搜索。
     /// </summary>
     /// <param name="query">搜索查询（自然语言）。</param>
@@ -1195,20 +1102,14 @@ public sealed class CodeIndexToolHandlers {
         var callers = await _indexer.CallGraph.GetCallersAsync(fqn, ct).ConfigureAwait(false);
         var callees = await _indexer.CallGraph.GetCalleesAsync(fqn, ct).ConfigureAwait(false);
         if (callers.Count == 0 && callees.Count == 0) return;
-        sb.AppendLine("   --- Graph ---");
-        if (callers.Count > 0) {
-            sb.AppendLine($"   Callers ({callers.Count}):");
-            foreach (var c in callers.Take(3)) {
-                sb.AppendLine($"     {c.CallerSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
-            }
+        sb.AppendLine("   --- Triples ---");
+        foreach (var c in callers.Take(3)) {
+            sb.AppendLine($"   ({c.CallerSymbol}, calls, {fqn})");
         }
-        if (callees.Count > 0) {
-            sb.AppendLine($"   Callees ({callees.Count}):");
-            foreach (var c in callees.Take(3)) {
-                sb.AppendLine($"     {c.CalleeSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
-            }
+        foreach (var c in callees.Take(3)) {
+            sb.AppendLine($"   ({fqn}, calls, {c.CalleeSymbol})");
         }
-        sb.AppendLine("   --- End Graph ---");
+        sb.AppendLine("   --- End Triples ---");
     }
 
     private static StringBuilder FormatVectorResults(IReadOnlyList<ChunkSearchResult> results, string query, string mode, bool includeSource) {

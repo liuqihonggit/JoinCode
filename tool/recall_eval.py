@@ -117,7 +117,7 @@ class McpStdioClient:
         self._proc.stdin.flush()
 
     def search_semantic(self, query: str, top_k: int = 10, mode: str = "hybrid") -> list[str]:
-        tool_name = {"hybrid": "search_hybrid", "vector": "search_semantic"}.get(mode, "search_hybrid")
+        tool_name = "search_semantic"
         result = self._call("tools/call", {
             "name": tool_name,
             "arguments": {"query": query, "top_k": top_k, "include_source_text": False},

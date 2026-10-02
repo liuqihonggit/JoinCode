@@ -23,6 +23,7 @@
     <KeyBinding Gesture="Ctrl+I" Command="{Binding ToggleInterceptorPanelCommand}" />
     <KeyBinding Gesture="Ctrl+G" Command="{Binding ToggleGoalPanelCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding StopGoalCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding OpenCommandPaletteCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding BackgroundPanel.PauseAllCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+R" Command="{Binding BackgroundPanel.ResumeAllCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+T" Command="{Binding BackgroundPanel.StopAllCommand}" />
@@ -79,6 +80,11 @@
 
     <!-- ===== Row 0：顶部菜单栏(横跨全宽) ===== -->
     <local:TopBarView Grid.Row="0" />
+
+    <!-- 命令面板 Overlay (Ctrl+Shift+P) — 居中浮在顶部 -->
+    <Panel Grid.RowSpan="2" IsVisible="{Binding IsCommandPaletteOpen}" ZIndex="100">
+      <local:CommandPaletteView HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,48,0,0" />
+    </Panel>
 
     <!-- ===== Row 1：Activity Bar + Side Bar + 主区 (VSCode 风格) ===== -->
     <Grid Grid.Row="1" ColumnDefinitions="48,Auto,6,*">

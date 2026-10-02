@@ -108,8 +108,8 @@
 | 状态 | 类 | 文件:行 | 风险 |
 |------|----|---------|------|
 | ✅ d555222 | `V2ReplBridgeTransport` | `lib/transport.impl/bridge/v2/V2ReplBridgeTransport.cs:48` | CTS + HttpClient×2 + SerialBatchEventUploader×2 → private ctor + static Create |
-| ⏳ | `V1ReplBridgeTransport` | `lib/transport.impl/bridge/v1/V1ReplBridgeTransport.cs:66` | HttpClient + WebSocketTransport + CTS + 事件订阅×2 |
-| ⏳ | `PriorityMailbox` | `lib/async_lock/mailbox/PriorityMailbox.cs:61` | Channel×3 + fire-and-forget StartConsumingAsync |
+| ✅ cf0c9b2 | `V1ReplBridgeTransport` | `lib/transport.impl/bridge/v1/V1ReplBridgeTransport.cs:66` | HttpClient + WebSocketTransport + CTS + 事件订阅×2 → private ctor + static Create |
+| ⏭️ 已评估 | `PriorityMailbox` | `lib/async_lock/mailbox/PriorityMailbox.cs:61` | Channel×3 + fire-and-forget StartConsumingAsync → 已评估：_consumerTask 字段持有 Task，DisposeAsync await，非真正 fire-and-forget |
 | ⏳ | `CodeIndexer` | `server/code_index/indexing/CodeIndexer.cs:42` | 11 协作对象 + TryInitEmbeddingIndex 实例方法 + BuildIndexStoreList |
 | ⏳ | `V1BridgeHandle` | `server/bridge/transport/v1/core/V1BridgeHandle.cs:50` | Timer×2 立即启动，回调访问未完全构造对象 |
 | ⏳ | `BridgeRequestScope` | `server/bridge/client/BridgeClient.cs:217` | CTS×2 + TaskCompletionSource + 事件订阅 |

@@ -530,7 +530,7 @@ public sealed class PithosDb : IDisposable
         string sstPath = Path.Combine(_directory, $"L0_{Guid.NewGuid():N}.sst");
         SSTableWriter.Write(sstPath, _memTable.GetSortedEntries(), _options.BloomFilterFalsePositiveRate, _options.Compression);
         _levels[0].Add(sstPath);
-        _readerCache[sstPath] = new SSTableReader(sstPath, _blockCache);
+        _readerCache[sstPath] = SSTableReader.Open(sstPath, _blockCache);
         _memTable.Clear();
 
         _wal!.Dispose();
@@ -600,7 +600,7 @@ public sealed class PithosDb : IDisposable
                     if (!File.Exists(path)) continue;
                     if (new FileInfo(path).Length == 0) continue;
                     _levels[i].Add(path);
-                    _readerCache[path] = new SSTableReader(path, _blockCache);
+                    _readerCache[path] = SSTableReader.Open(path, _blockCache);
                 }
             }
 
@@ -628,7 +628,7 @@ public sealed class PithosDb : IDisposable
 
                 while (_levels.Count <= level) _levels.Add([]);
                 _levels[level].Add(path);
-                _readerCache[path] = new SSTableReader(path, _blockCache);
+                _readerCache[path] = SSTableReader.Open(path, _blockCache);
             }
 
             if (_levels.Count > 0)
@@ -748,7 +748,7 @@ public sealed class PithosDb : IDisposable
             var levelPaths = _levels.Select(l => l.ToList()).ToList();
             var readers = new Dictionary<string, SSTableReader>(StringComparer.Ordinal);
             foreach (var path in levelPaths.SelectMany(l => l))
-                readers[path] = new SSTableReader(path);
+                readers[path] = SSTableReader.Open(path);
 
             return new Snapshot(mem, levelPaths, readers, _options);
         }

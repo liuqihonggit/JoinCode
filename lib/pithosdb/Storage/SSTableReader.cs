@@ -38,27 +38,29 @@ public sealed unsafe class SSTableReader : IDisposable
     /// Optional shared block cache. When provided, decompressed block bytes are
     /// served from cache on subsequent accesses.
     /// </param>
-    public SSTableReader(string path, IBlockCache? blockCache = null)
+    /// <remarks>
+    /// 工厂方法（ADR 0129）：GCHandle.Alloc 后若 ReadMetadata 失败，在 catch 中 Free handle，
+    /// 避免半构造化导致 GCHandle 泄漏（原构造函数此处有泄漏 bug）。
+    /// </remarks>
+    public static SSTableReader Open(string path, IBlockCache? blockCache = null)
     {
-        Path = path;
-        _blockCache = blockCache;
-
         if (!File.Exists(path))
             throw new FileNotFoundException(
                 $"SSTable file not found: '{path}'. The file may have been deleted by a concurrent compaction or the manifest is stale. " +
                 "Hint: ensure DisableCompaction=true when opening for read-only access, and never share a kvstore directory across concurrent PithosDb instances.");
 
-        _length = new FileInfo(path).Length;
-        if (_length == 0)
+        long length = new FileInfo(path).Length;
+        if (length == 0)
             throw new InvalidDataException(
                 $"SSTable file is empty (0 bytes): '{path}'. The file was likely partially written or corrupted during a flush. " +
                 "Hint: delete the empty .sst file and rebuild the index, or restore from a backup.");
 
+        byte[] buffer;
         try
         {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            _buffer = new byte[_length];
-            fs.ReadExactly(_buffer);
+            buffer = new byte[length];
+            fs.ReadExactly(buffer);
         }
         catch (IOException ex)
         {
@@ -69,19 +71,38 @@ public sealed unsafe class SSTableReader : IDisposable
                 ex);
         }
 
-        _handle = GCHandle.Alloc(_buffer, GCHandleType.Pinned);
-        _ptr = (byte*)_handle.AddrOfPinnedObject();
+        var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+        var ptr = (byte*)handle.AddrOfPinnedObject();
         try
         {
-            (_index, _bloom, _bloomOffset) = ReadMetadata();
+            var (index, bloom, bloomOffset) = ReadMetadata(ptr, length);
+            return new SSTableReader(path, blockCache, buffer, handle, ptr, length, index, bloom, bloomOffset);
         }
         catch (Exception ex) when (ex is not InvalidDataException)
         {
+            handle.Free();
             throw new InvalidDataException(
                 $"SSTable file '{path}' is corrupted — metadata (index/bloom filter) could not be parsed. " +
                 "Hint: the file may have been truncated or written by an incompatible version. Delete it and rebuild the index.",
                 ex);
         }
+    }
+
+    /// <summary>
+    /// 私有构造函数 — 仅字段赋值，不执行任何可能抛异常的 IO（ADR 0129）。
+    /// </summary>
+    private SSTableReader(string path, IBlockCache? blockCache, byte[] buffer, GCHandle handle, byte* ptr, long length,
+        List<(byte[] firstKey, long offset)> index, BloomFilter bloom, long bloomOffset)
+    {
+        Path = path;
+        _blockCache = blockCache;
+        _buffer = buffer;
+        _handle = handle;
+        _ptr = ptr;
+        _length = length;
+        _index = index;
+        _bloom = bloom;
+        _bloomOffset = bloomOffset;
     }
 
     /// <summary>The entire file as a zero-copy span. Valid until Dispose.</summary>
@@ -289,12 +310,12 @@ public sealed unsafe class SSTableReader : IDisposable
     /// Reads the 16-byte footer to locate the bloom filter and index sections,
     /// then deserializes both from the mmap span.
     /// </summary>
-    private (List<(byte[] firstKey, long offset)> index, BloomFilter bloom, long bloomOffset) ReadMetadata()
+    private static (List<(byte[] firstKey, long offset)> index, BloomFilter bloom, long bloomOffset) ReadMetadata(byte* ptr, long length)
     {
-        var data = Data;
+        var data = new ReadOnlySpan<byte>(ptr, (int)length);
 
         // Footer layout (last 16 bytes): [bloomOffset (8)] [indexOffset (8)]
-        int footerPos = (int)_length - 16;
+        int footerPos = (int)length - 16;
         long bloomOffset = BinaryPrimitives.ReadInt64LittleEndian(data.Slice(footerPos, 8));
         long indexOffset = BinaryPrimitives.ReadInt64LittleEndian(data.Slice(footerPos + 8, 8));
 

@@ -10,6 +10,7 @@ public sealed class ToolInterventionManager : ServiceEntity {
     private readonly IFileSystem _fs;
     private ImmutableHamT<string, InterventionRule> _rules = ImmutableHamT<string, InterventionRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly string _configPath;
+    private readonly Task _loadTask;
 
     /// <summary>
     /// 初始化工具干预管理器，从磁盘加载已保存的干预规则
@@ -22,7 +23,7 @@ public sealed class ToolInterventionManager : ServiceEntity {
         _configPath = Path.Combine(
             JoinCode.Abstractions.Configuration.AppData.AppDataConstants.JccDirectory,
             "tool-interventions.json");
-        _ = LoadFromDiskAsync();
+        _loadTask = LoadFromDiskAsync();
     }
 
     /// <summary>

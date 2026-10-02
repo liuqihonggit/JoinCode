@@ -14,6 +14,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     private readonly PermissionConfig _config;
     private PermissionMode _currentMode;
     private readonly IFileSystem _fs;
+    private readonly Task _loadTask;
 
     /// <summary>
     /// 创建 PermissionChecker
@@ -32,7 +33,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         _config = configOptions.Value;
         _currentMode = PermissionMode.Auto;
         _fs = fs;
-        _ = InitializeModeAsync(fs);
+        _loadTask = InitializeModeAsync(fs);
 
         _autoApprovedTools = _config.AutoApprovedTools
             .Keys

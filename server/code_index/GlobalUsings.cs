@@ -45,3 +45,4 @@ global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Structura.Collections;
 global using OnnxEmbedding;
 global using Infrastructure.Persistence;
+global using PithosDB.Core;

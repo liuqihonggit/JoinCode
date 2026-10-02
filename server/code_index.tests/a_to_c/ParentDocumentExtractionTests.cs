@@ -1,13 +1,13 @@
 namespace JoinCode.CodeIndex.Tests;
 
 /// <summary>
-/// 父文档检索切块测试 — 验证 CollectChunksWithParents 建立的父子层级关系。
+/// 父文档检索切块测试 — 验证 CollectChunksWithParents 建立的父子层级关系（定位信息写入 ChunkInfo）。
 /// </summary>
 public sealed class ParentDocumentExtractionTests {
     private readonly CSharpSymbolExtractor _extractor = new();
 
     [Fact]
-    public void ClassChunk_HasNullParentChunkId() {
+    public void ClassChunk_HasNullParentFilePath() {
         var source = """
             public class Foo {
                 public void Bar() { }
@@ -17,11 +17,11 @@ public sealed class ParentDocumentExtractionTests {
         var result = _extractor.ExtractAll(source, "test.cs");
 
         var classChunk = Assert.Single(result.Chunks, c => c.Kind == SymbolKind.Class);
-        Assert.Null(classChunk.ParentChunkId);
+        Assert.Null(classChunk.ParentFilePath);
     }
 
     [Fact]
-    public void MethodChunk_ParentChunkId_PointsToClass() {
+    public void MethodChunk_ParentFilePath_PointsToClass() {
         var source = """
             public class Foo {
                 public void Bar() { }
@@ -32,25 +32,11 @@ public sealed class ParentDocumentExtractionTests {
 
         var classChunk = Assert.Single(result.Chunks, c => c.Kind == SymbolKind.Class);
         var methodChunk = Assert.Single(result.Chunks, c => c.Kind == SymbolKind.Method);
-        Assert.NotNull(methodChunk.ParentChunkId);
-        Assert.Equal(classChunk.ChunkId, methodChunk.ParentChunkId);
-    }
-
-    [Fact]
-    public void ParentDocuments_ContainsClassDocument_WithSourceText() {
-        var source = """
-            public class Foo {
-                public void Bar() { }
-            }
-            """;
-
-        var result = _extractor.ExtractAll(source, "test.cs");
-
-        var classChunk = Assert.Single(result.Chunks, c => c.Kind == SymbolKind.Class);
-        var classDoc = Assert.Single(result.ParentDocuments, d => d.ChunkId == classChunk.ChunkId);
-        Assert.Contains("Foo", classDoc.SourceText);
-        Assert.Equal(classChunk.StartLine, classDoc.StartLine);
-        Assert.Equal(classChunk.EndLine, classDoc.EndLine);
+        Assert.NotNull(methodChunk.ParentFilePath);
+        Assert.Equal("test.cs", methodChunk.ParentFilePath);
+        Assert.Equal(classChunk.StartLine, methodChunk.ParentStartLine);
+        Assert.Equal(classChunk.EndLine, methodChunk.ParentEndLine);
+        Assert.Contains("Foo", methodChunk.ParentSymbolFqn);
     }
 
     [Fact]
@@ -69,7 +55,9 @@ public sealed class ParentDocumentExtractionTests {
         var childChunks = result.Chunks.Where(c => c.Kind != SymbolKind.Class).ToList();
         Assert.True(childChunks.Count >= 3);
         foreach (var child in childChunks) {
-            Assert.Equal(classChunk.ChunkId, child.ParentChunkId);
+            Assert.Equal("test.cs", child.ParentFilePath);
+            Assert.Equal(classChunk.StartLine, child.ParentStartLine);
+            Assert.Equal(classChunk.EndLine, child.ParentEndLine);
         }
     }
 
@@ -87,7 +75,9 @@ public sealed class ParentDocumentExtractionTests {
 
         var innerClass = Assert.Single(result.Chunks, c => c.Kind == SymbolKind.Class && c.SymbolFqn.Contains("Inner"));
         var method = Assert.Single(result.Chunks, c => c.Kind == SymbolKind.Method);
-        Assert.Equal(innerClass.ChunkId, method.ParentChunkId);
+        Assert.Equal("test.cs", method.ParentFilePath);
+        Assert.Equal(innerClass.StartLine, method.ParentStartLine);
+        Assert.Equal(innerClass.EndLine, method.ParentEndLine);
     }
 
     [Fact]
@@ -101,8 +91,7 @@ public sealed class ParentDocumentExtractionTests {
         var result = _extractor.ExtractAll(source, "test.cs");
 
         var ifaceChunk = Assert.Single(result.Chunks, c => c.Kind == SymbolKind.Interface);
-        Assert.Null(ifaceChunk.ParentChunkId);
-        Assert.Contains(result.ParentDocuments, d => d.ChunkId == ifaceChunk.ChunkId);
+        Assert.Null(ifaceChunk.ParentFilePath);
     }
 
     [Fact]
@@ -117,7 +106,7 @@ public sealed class ParentDocumentExtractionTests {
         var result = _extractor.ExtractAll(source, "test.cs");
 
         var structChunk = Assert.Single(result.Chunks, c => c.Kind == SymbolKind.Struct);
-        Assert.Null(structChunk.ParentChunkId);
+        Assert.Null(structChunk.ParentFilePath);
     }
 
     [Fact]
@@ -133,18 +122,17 @@ public sealed class ParentDocumentExtractionTests {
         var result = _extractor.ExtractAll(source, "test.cs");
 
         var enumChunk = Assert.Single(result.Chunks, c => c.Kind == SymbolKind.Enum);
-        Assert.Null(enumChunk.ParentChunkId);
+        Assert.Null(enumChunk.ParentFilePath);
     }
 
     [Fact]
-    public void ParentDocuments_Empty_WhenNoSymbols() {
+    public void NoChunks_WhenNoSymbols() {
         var result = _extractor.ExtractAll("", "empty.cs");
-
-        Assert.Empty(result.ParentDocuments);
+        Assert.Empty(result.Chunks);
     }
 
     [Fact]
-    public void ParentDocuments_ContainsAllClassLevelSymbols() {
+    public void ClassLevelSymbols_HaveNullParentFilePath() {
         var source = """
             public class Foo { }
             public class Bar { }
@@ -158,37 +146,7 @@ public sealed class ParentDocumentExtractionTests {
                 or SymbolKind.Record or SymbolKind.Enum).ToList();
         Assert.True(classLevelChunks.Count >= 3);
         foreach (var chunk in classLevelChunks) {
-            Assert.Contains(result.ParentDocuments, d => d.ChunkId == chunk.ChunkId);
+            Assert.Null(chunk.ParentFilePath);
         }
-    }
-
-    [Fact]
-    public void SmallClass_ParentDocument_NotTruncated() {
-        var source = """
-            public class Foo {
-                public void Bar() { }
-            }
-            """;
-
-        var result = _extractor.ExtractAll(source, "test.cs");
-
-        var classDoc = Assert.Single(result.ParentDocuments);
-        Assert.False(classDoc.IsTruncated);
-    }
-
-    [Fact]
-    public void LargeClass_ParentDocument_TruncatedWithMarker() {
-        var lines = new List<string> { "public class Big {" };
-        for (var i = 0; i < 2100; i++) {
-            lines.Add($"    public void M{i}() {{ }}");
-        }
-        lines.Add("}");
-        var source = string.Join("\n", lines);
-
-        var result = _extractor.ExtractAll(source, "big.cs");
-
-        var classDoc = Assert.Single(result.ParentDocuments, d => d.SymbolFqn.Contains("Big"));
-        Assert.True(classDoc.IsTruncated);
-        Assert.Contains("truncated", classDoc.SourceText);
     }
 }

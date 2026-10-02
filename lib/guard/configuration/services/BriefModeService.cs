@@ -19,7 +19,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
         _clock = clock;
         _fs = fs;
         _logger = logger;
-        _ = LoadFromFileAsync();
+        _loadTask = LoadFromFileAsync().AsTask();
     }
     private bool _isEnabled;
     private DateTime? _enabledAt;
@@ -27,6 +27,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
     private readonly IClockService _clock;
     private readonly IFileSystem? _fs;
     private readonly ILogger<BriefModeService>? _logger;
+    private readonly Task _loadTask;
     private static readonly string ModeSubDir = Path.Combine(AppDataConstants.AppDataFolder, "mode");
     private const string ModeFileName = "brief.json";
 

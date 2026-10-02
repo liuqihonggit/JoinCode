@@ -16,15 +16,26 @@ public sealed class UpdateServer {
     public string Url => $"http://localhost:{_port}";
 
     /// <summary>
-    /// 构造更新服务器
+    /// 私有构造 — 仅字段赋值，网络 IO（GetAvailablePort）由静态工厂完成
+    /// <para>消除半构造化：GetAvailablePort 抛 SocketException 时对象未创建，无悬垂字段。</para>
+    /// </summary>
+    private UpdateServer(IFileSystem fs, int port, string contentRoot) {
+        _fs = fs;
+        _port = port;
+        _contentRoot = contentRoot;
+    }
+
+    /// <summary>
+    /// 创建更新服务器 — 端口 0 表示自动分配可用端口
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="port">监听端口（0=自动分配）</param>
     /// <param name="contentRoot">内容根目录（包含 manifest.json 和 releases/ 子目录）</param>
-    public UpdateServer(IFileSystem fs, int port = 0, string? contentRoot = null) {
-        _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _port = port == 0 ? GetAvailablePort() : port;
-        _contentRoot = contentRoot ?? AppDataConstants.Paths.UpdateContentDirectory;
+    public static UpdateServer Create(IFileSystem fs, int port = 0, string? contentRoot = null) {
+        ArgumentNullException.ThrowIfNull(fs);
+        var actualPort = port == 0 ? GetAvailablePort() : port;
+        var actualContentRoot = contentRoot ?? AppDataConstants.Paths.UpdateContentDirectory;
+        return new UpdateServer(fs, actualPort, actualContentRoot);
     }
 
     private static int GetAvailablePort() {

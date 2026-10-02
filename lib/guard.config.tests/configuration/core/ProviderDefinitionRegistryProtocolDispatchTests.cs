@@ -37,7 +37,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     [Fact]
     public void DeepSeek_WithAnthropicProtocol_ShouldDispatchToAnthropicCompatible_VendorPreserved() {
         var json = """{"vendor":{"deepseek":{"protocol":"anthropic","endpoint":"https://api.deepseek.com/anthropic","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
-        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+        var registry = ProviderDefinitionRegistry.Create(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("deepseek");
 
@@ -51,7 +51,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     [Fact]
     public void DeepSeek_WithAnthropicProtocol_EndpointShouldBeFromConfig() {
         var json = """{"vendor":{"deepseek":{"protocol":"anthropic","endpoint":"https://api.deepseek.com/anthropic","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
-        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+        var registry = ProviderDefinitionRegistry.Create(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("deepseek")!;
         var baseUrl = def.GetBaseUrl(new ProviderConfig { Endpoint = "https://api.deepseek.com/anthropic" });
@@ -66,7 +66,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     [Fact]
     public void DeepSeek_WithAnthropicProtocol_AndAnthropicBetaConfigured_ShouldSendBetaHeader() {
         var json = """{"vendor":{"deepseek":{"protocol":"anthropic","endpoint":"https://api.deepseek.com/anthropic","apiKeyEnvVar":"DEEPSEEK_API_KEY","anthropicBeta":"prompt-caching-2024-07-31"}}}""";
-        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+        var registry = ProviderDefinitionRegistry.Create(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("deepseek")!;
         using var client = new HttpClient();
@@ -80,7 +80,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     [Fact]
     public void DeepSeek_WithAnthropicProtocol_WithoutAnthropicBeta_ShouldNotSendBetaHeader() {
         var json = """{"vendor":{"deepseek":{"protocol":"anthropic","endpoint":"https://api.deepseek.com/anthropic","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
-        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+        var registry = ProviderDefinitionRegistry.Create(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("deepseek")!;
         using var client = new HttpClient();
@@ -93,7 +93,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     [Fact]
     public void Anthropic_WithAnthropicProtocol_WithoutBetaConfig_ShouldSendDefaultBetaHeader() {
         var json = """{"vendor":{"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY"}}}""";
-        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+        var registry = ProviderDefinitionRegistry.Create(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("anthropic")!;
         using var client = new HttpClient();
@@ -107,7 +107,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     [Fact]
     public void Anthropic_WithAnthropicProtocol_AndBetaConfigured_ShouldUseConfiguredBeta() {
         var json = """{"vendor":{"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","anthropicBeta":"custom-beta-feature"}}}""";
-        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+        var registry = ProviderDefinitionRegistry.Create(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("anthropic")!;
         using var client = new HttpClient();
@@ -125,7 +125,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     [Fact]
     public void DeepSeek_WithOpenAiCompatibleProtocol_ShouldStillDispatchToOpenAiCompatible() {
         var json = """{"vendor":{"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
-        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+        var registry = ProviderDefinitionRegistry.Create(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("deepseek")!;
 
@@ -137,7 +137,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     [Fact]
     public void Anthropic_WithOpenAiCompatibleProtocol_ShouldDispatchToOpenAiCompatible() {
         var json = """{"vendor":{"anthropic":{"protocol":"openai-compatible","apiKeyEnvVar":"ANTHROPIC_API_KEY"}}}""";
-        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+        var registry = ProviderDefinitionRegistry.Create(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("anthropic")!;
 
@@ -152,7 +152,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     [Fact]
     public void Azure_WithoutSettingsConfig_ShouldNotBeRegistered() {
         var json = """{"vendor":{"deepseek":{"protocol":"openai-compatible"}}}""";
-        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+        var registry = ProviderDefinitionRegistry.Create(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("azure");
 
@@ -163,7 +163,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     [Fact]
     public void Azure_WithAzureProtocol_ShouldUseAzureProviderDefinition() {
         var json = """{"vendor":{"azure":{"protocol":"azure","endpoint":"https://my-azure-proxy.com","apiKeyEnvVar":"AZURE_OPENAI_API_KEY"}}}""";
-        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+        var registry = ProviderDefinitionRegistry.Create(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("azure")!;
 
@@ -175,7 +175,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     [Fact]
     public void Azure_WithResponsesProtocol_ShouldUseOpenAiCompatibleWithResponsesEndpoint() {
         var json = """{"vendor":{"azure":{"protocol":"responses","endpoint":"https://my-azure-proxy.com","apiKeyEnvVar":"AZURE_OPENAI_API_KEY"}}}""";
-        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+        var registry = ProviderDefinitionRegistry.Create(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("azure")!;
 
@@ -205,7 +205,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     public void Constructor_WithAsyncRead_CompletesInitializationBeforeReturn() {
         var json = """{"vendor":{"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
 
-        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateDelayedFs(json));
+        var registry = ProviderDefinitionRegistry.Create(CreateLoader(), CreateDelayedFs(json));
 
         // 构造后立即查询应能拿到已注册供应商 — 不应因 fire-and-forget 竞态返回空
         registry.GetRegisteredProviders().Should().NotBeEmpty(

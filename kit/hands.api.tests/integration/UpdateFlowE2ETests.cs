@@ -13,7 +13,7 @@ public sealed class UpdateFlowE2ETests {
         var sha256 = await ComputeSha256Async(exeContent);
 
         var contentRoot = fs.CombinePath(Path.GetTempPath(), $"update_e2e_{Guid.NewGuid():N}");
-        var server = new UpdateServer(fs, port: 0, contentRoot: contentRoot);
+        var server = UpdateServer.Create(fs, port: 0, contentRoot: contentRoot);
         await server.GenerateContent("999.0.0", sha256, exeContent);
 
         try {
@@ -56,7 +56,7 @@ public sealed class UpdateFlowE2ETests {
         var wrongSha256 = "0000000000000000000000000000000000000000000000000000000000000000";
 
         var contentRoot = fs.CombinePath(Path.GetTempPath(), $"update_e2e_{Guid.NewGuid():N}");
-        var server = new UpdateServer(fs, port: 0, contentRoot: contentRoot);
+        var server = UpdateServer.Create(fs, port: 0, contentRoot: contentRoot);
         await server.GenerateContent("999.0.0", wrongSha256, exeContent);
 
         try {
@@ -84,7 +84,7 @@ public sealed class UpdateFlowE2ETests {
     public async Task FullUpdateFlow_HealthCheck_ServerResponds() {
         await using var fs = new IO.FileSystem.PhysicalFileSystem();
         var contentRoot = fs.CombinePath(Path.GetTempPath(), $"update_e2e_{Guid.NewGuid():N}");
-        var server = new UpdateServer(fs, port: 0, contentRoot: contentRoot);
+        var server = UpdateServer.Create(fs, port: 0, contentRoot: contentRoot);
         await server.GenerateContent("1.0.0", "abc", "exe"u8.ToArray());
 
         try {
@@ -107,7 +107,7 @@ public sealed class UpdateFlowE2ETests {
         var exeContent = "test exe"u8.ToArray();
         var sha256 = await ComputeSha256Async(exeContent);
         var contentRoot = fs.CombinePath(Path.GetTempPath(), $"update_e2e_{Guid.NewGuid():N}");
-        var server = new UpdateServer(fs, port: 0, contentRoot: contentRoot);
+        var server = UpdateServer.Create(fs, port: 0, contentRoot: contentRoot);
         await server.GenerateContent("2.0.0", sha256, exeContent);
 
         try {

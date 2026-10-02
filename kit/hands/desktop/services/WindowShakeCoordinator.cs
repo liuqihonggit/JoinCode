@@ -32,6 +32,7 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
     /// 从配置缓存的启用状态 — 默认 true，后台任务读取后更新。
     /// </summary>
     private volatile bool _cachedEnabled = true;
+    private readonly Task _loadTask;
 
     /// <summary>
     /// 构造窗口震动去抖协调器。
@@ -47,8 +48,10 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
         _configService = configService;
 
         if (configService is not null) {
-            _ = ReadConfigAsync(configService, logger);
+            _loadTask = ReadConfigAsync(configService, logger);
             configService.SettingChanged += OnSettingChanged;
+        } else {
+            _loadTask = Task.CompletedTask;
         }
     }
 

@@ -8,21 +8,17 @@ public sealed class CodeIndexerIncrementalVectorTests : IDisposable {
     private readonly CodeIndexer _indexer;
     private readonly IFileSystem _fs;
     private readonly EmbeddingIndex _embeddingIndex;
-    private readonly InMemoryParentDocumentStore _parentStore;
     private bool _disposed;
 
     public CodeIndexerIncrementalVectorTests() {
         _store = new InMemoryIndexStore();
         _fs = new IO.FileSystem.InMemoryFileSystem();
-        _parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         _indexer = new CodeIndexer(_store, _fs);
         _embeddingIndex = new EmbeddingIndex(
             new FakeEmbeddingModel(8),
             new BruteForceAnn(),
-            _fs,
-            _parentStore);
+            _fs);
         _indexer.SetEmbeddingIndex(_embeddingIndex);
-        _indexer.SetParentDocumentStore(_parentStore);
     }
 
     public void Dispose() {
@@ -31,7 +27,7 @@ public sealed class CodeIndexerIncrementalVectorTests : IDisposable {
         _indexer.DisposeSafe();
         _store.Dispose();
         _embeddingIndex.Dispose();
-        _parentStore.Dispose();
+        _embeddingIndex.DisposeAsync().AsTask().Wait();
     }
 
     [Fact]
@@ -117,7 +113,7 @@ public sealed class CodeIndexerIncrementalVectorTests : IDisposable {
         var file = Path.Combine(root, "A.cs");
         await _fs.WriteAllText(file, "public class Foo { public void Bar() { } }");
         await _indexer.BuildIndexAsync(new CodeIndexOptions { WorkspaceRoot = root }, CancellationToken.None);
-        Assert.True(_parentStore.Count > 0);
+        Assert.True(_embeddingIndex.ChunkCount > 0);
 
         await _fs.WriteAllText(file, "public class Foo { public void Baz() { } public void Qux() { } }");
         await _indexer.UpdateFileAsync(file, CancellationToken.None);
@@ -126,5 +122,25 @@ public sealed class CodeIndexerIncrementalVectorTests : IDisposable {
             new SearchOptions { IncludeParentDocument = true });
         var resultWithParent = results.FirstOrDefault(r => r.ParentDocumentText != null);
         Assert.NotNull(resultWithParent);
+    }
+
+    /// <summary>
+    /// BuildIndexAsync 修改文件后不应残留旧分块 — 先删后插，ChunkCount 保持一致而非翻倍。
+    /// </summary>
+    [Fact]
+    public async Task BuildIndexAsync_ModifiedCs_NoStaleChunksResidue() {
+        var root = Path.Combine(Path.GetTempPath(), $"ci_inc_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        var file = Path.Combine(root, "A.cs");
+        await _fs.WriteAllText(file, "public class Foo { public void Bar() { } }");
+        await _indexer.BuildIndexAsync(new CodeIndexOptions { WorkspaceRoot = root }, CancellationToken.None);
+        var chunkCountAfterFirstBuild = _embeddingIndex.ChunkCount;
+        Assert.True(chunkCountAfterFirstBuild > 0);
+
+        await _fs.WriteAllText(file, "public class Foo { public void Baz() { } }");
+        await _indexer.BuildIndexAsync(new CodeIndexOptions { WorkspaceRoot = root }, CancellationToken.None);
+        var chunkCountAfterSecondBuild = _embeddingIndex.ChunkCount;
+
+        Assert.Equal(chunkCountAfterFirstBuild, chunkCountAfterSecondBuild);
     }
 }

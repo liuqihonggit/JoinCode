@@ -118,7 +118,7 @@ public sealed class LeveledCompactor
         // ── Phase 2: merge I/O (no lock) ─────────────────────────────────────
         // Source files are immutable so reads can access them concurrently.
         string outPath = System.IO.Path.Combine(_directory, $"L{level + 1}_{Guid.NewGuid():N}.sst");
-        var readers = sources.Select(p => new SSTableReader(p)).ToList();
+        var readers = sources.Select(p => SSTableReader.Open(p)).ToList();
         try
         {
             var merged = MergeEntries(readers, _options.EnableTtl, _filter);
@@ -143,7 +143,7 @@ public sealed class LeveledCompactor
         try
         {
             levels[level + 1].Add(outPath);
-            _readerCache[outPath] = new SSTableReader(outPath, _blockCache);
+            _readerCache[outPath] = SSTableReader.Open(outPath, _blockCache);
 
             foreach (var p in sources)
             {

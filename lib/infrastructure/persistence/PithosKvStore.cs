@@ -16,7 +16,7 @@ public sealed class PithosKvStore : IKvStore {
     /// <param name="dataDirectory">数据目录路径</param>
     /// <param name="options">可选配置(null=默认配置)</param>
     public PithosKvStore(string dataDirectory, PithosOptions? options = null) {
-        _db = options is not null ? new PithosDb(dataDirectory, options) : new PithosDb(dataDirectory);
+        _db = options is not null ? PithosDb.Open(dataDirectory, options) : PithosDb.Open(dataDirectory);
         _ownsDb = true;
     }
 

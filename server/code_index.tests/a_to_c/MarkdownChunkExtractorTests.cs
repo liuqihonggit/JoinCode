@@ -33,18 +33,20 @@ public sealed class MarkdownChunkExtractorTests {
     public void ExtractAll_ParentDocument_IsWholeFile() {
         var source = "# Title\nContent\n";
         var result = _extractor.ExtractAll(source, "test.md");
-        var parentDoc = Assert.Single(result.ParentDocuments);
-        Assert.Contains("Title", parentDoc.SourceText);
-        Assert.Contains("Content", parentDoc.SourceText);
+        foreach (var chunk in result.Chunks) {
+            Assert.Equal("test.md", chunk.ParentFilePath);
+            Assert.Equal(1, chunk.ParentStartLine);
+            Assert.Equal(3, chunk.ParentEndLine);
+        }
     }
 
     [Fact]
     public void ExtractAll_ChunkParentChunkId_PointsToFileParent() {
         var source = "# Title\nContent\n";
         var result = _extractor.ExtractAll(source, "test.md");
-        var parentDoc = Assert.Single(result.ParentDocuments);
         foreach (var chunk in result.Chunks) {
-            Assert.Equal(parentDoc.ChunkId, chunk.ParentChunkId);
+            Assert.Equal("test.md", chunk.ParentFilePath);
+            Assert.Equal("test.md", chunk.ParentSymbolFqn);
         }
     }
 
@@ -52,7 +54,6 @@ public sealed class MarkdownChunkExtractorTests {
     public void ExtractAll_EmptySource_NoChunks() {
         var result = _extractor.ExtractAll("", "empty.md");
         Assert.Empty(result.Chunks);
-        Assert.Empty(result.ParentDocuments);
     }
 
     [Fact]

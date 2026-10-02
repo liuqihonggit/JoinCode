@@ -11,7 +11,6 @@ public sealed class VectorIndexE2ETests : IDisposable {
     private readonly CodeIndexer? _indexer;
     private readonly IFileSystem _fs;
     private readonly EmbeddingIndex? _embeddingIndex;
-    private readonly InMemoryParentDocumentStore _parentStore;
     private readonly PhysicalFileSystem _realFs;
     private bool _disposed;
 
@@ -19,7 +18,6 @@ public sealed class VectorIndexE2ETests : IDisposable {
         _store = new InMemoryIndexStore();
         _fs = new IO.FileSystem.InMemoryFileSystem();
         _realFs = new PhysicalFileSystem();
-        _parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
 
         var appData = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -32,10 +30,9 @@ public sealed class VectorIndexE2ETests : IDisposable {
         }
 
         var embeddingModel = new OnnxEmbeddingClient(modelPath, vocabPath, _realFs);
-        _embeddingIndex = new EmbeddingIndex(embeddingModel, new BruteForceAnn(), _realFs, _parentStore);
+        _embeddingIndex = new EmbeddingIndex(embeddingModel, new BruteForceAnn(), _realFs);
         _indexer = new CodeIndexer(_store, _fs);
         _indexer.SetEmbeddingIndex(_embeddingIndex);
-        _indexer.SetParentDocumentStore(_parentStore);
     }
 
     public void Dispose() {
@@ -44,7 +41,7 @@ public sealed class VectorIndexE2ETests : IDisposable {
         _indexer?.DisposeSafe();
         _store?.Dispose();
         _embeddingIndex?.Dispose();
-        _parentStore?.Dispose();
+        _embeddingIndex?.DisposeAsync().AsTask().Wait();
     }
 
     private bool IsModelAvailable => _indexer is not null;

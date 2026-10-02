@@ -12,6 +12,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase {
     private readonly SubprocessIoChannels _io;
     private readonly SubprocessState _state;
     private readonly ILogger? _logger;
+    private readonly Task _monitorExitTask;
 
     /// <summary>会话 ID</summary>
     public new string SessionId { get; }
@@ -71,7 +72,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase {
 
         var stdoutTask = ReadStdoutAsync(_io.ReadCancellationToken);
         _io.SetStdoutReadTask(stdoutTask);
-        _ = MonitorExitAsync(_io.ReadCancellationToken);
+        _monitorExitTask = MonitorExitAsync(_io.ReadCancellationToken);
     }
 
     /// <summary>
@@ -291,6 +292,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase {
         if (!_state.MarkDisposed()) return;
 
         await TerminateProcessAsync().ConfigureAwait(false);
+        await _monitorExitTask.ConfigureAwait(false);
         await _io.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }

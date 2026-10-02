@@ -18,14 +18,15 @@ public sealed class StreamTokenDetector : IDisposable {
     private bool _disposed;
 
     /// <summary>
-    /// 初始化流式 token 序列检测器
+    /// 创建流式 token 序列检测器 — 工厂方法（ADR 0129）。
+    /// 后台线程在工厂内 Start，构造函数仅赋值 + 创建 Thread（不 Start）。
     /// </summary>
     /// <param name="windowCapacity">环形队列容量(存储最近 N 个 token)</param>
     /// <param name="detectInterval">后台线程检测间隔(像麦克风采样周期)</param>
     /// <param name="minPatternLength">最小重复模式长度(token 数)</param>
     /// <param name="requiredRepeats">触发所需的最少重复次数</param>
     /// <param name="maxPatternLength">最大重复模式长度(token 数)</param>
-    public StreamTokenDetector(
+    public static StreamTokenDetector Create(
         int windowCapacity = 500,
         TimeSpan? detectInterval = null,
         int minPatternLength = 3,
@@ -35,14 +36,30 @@ public sealed class StreamTokenDetector : IDisposable {
         ArgumentOutOfRangeException.ThrowIfLessThan(minPatternLength, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(requiredRepeats, 2);
 
-        _tokenWindow = new RingBuffer<string>(RingBuffer<string>.RoundUpToPowerOfTwo(windowCapacity));
-        _detectInterval = detectInterval ?? TimeSpan.FromMilliseconds(100);
+        var tokenWindow = new RingBuffer<string>(RingBuffer<string>.RoundUpToPowerOfTwo(windowCapacity));
+        var interval = detectInterval ?? TimeSpan.FromMilliseconds(100);
+        var cts = new CancellationTokenSource();
+        var detector = new StreamTokenDetector(tokenWindow, interval, minPatternLength, requiredRepeats, maxPatternLength, cts);
+        try {
+            detector._detectThread.Start();
+            return detector;
+        }
+        catch {
+            detector.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>私有构造函数 — 仅字段赋值 + 创建 Thread（不 Start），不执行可能抛异常的启动操作（ADR 0129）。</summary>
+    private StreamTokenDetector(RingBuffer<string> tokenWindow, TimeSpan detectInterval, int minPatternLength,
+        int requiredRepeats, int maxPatternLength, CancellationTokenSource cts) {
+        _tokenWindow = tokenWindow;
+        _detectInterval = detectInterval;
         _minPatternLength = minPatternLength;
         _requiredRepeats = requiredRepeats;
         _maxPatternLength = maxPatternLength;
-        _cts = new CancellationTokenSource();
+        _cts = cts;
         _detectThread = new Thread(DetectLoop) { IsBackground = true, Name = "StreamTokenDetector" };
-        _detectThread.Start();
     }
 
     /// <summary>
@@ -191,7 +208,8 @@ public sealed class StreamTokenDetector : IDisposable {
             return;
         _disposed = true;
         _cts.Cancel();
-        _detectThread.Join();
+        if (_detectThread.IsAlive)
+            _detectThread.Join();
         _cts.Dispose();
     }
 }

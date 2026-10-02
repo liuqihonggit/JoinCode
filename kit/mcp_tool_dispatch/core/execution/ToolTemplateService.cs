@@ -12,6 +12,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     private readonly CancellationTokenSource _disposeCts = new();
     private volatile List<ToolTemplate> _cache = [];
     private volatile ImmutableHamT<string, ToolTemplate> _byKey = ImmutableHamT<string, ToolTemplate>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private readonly Task _loadTask;
     private bool _disposed;
 
     /// <summary>
@@ -25,7 +26,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         _templatesDir = AppDataConstants.Paths.ToolTemplatesDirectory;
 
         EnsureTemplatesDir();
-        _ = LoadTemplatesAsync(_disposeCts.Token);
+        _loadTask = LoadTemplatesAsync(_disposeCts.Token);
     }
 
     /// <summary>

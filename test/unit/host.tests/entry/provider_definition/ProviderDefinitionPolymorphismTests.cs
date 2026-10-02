@@ -9,7 +9,7 @@ public sealed class ProviderDefinitionPolymorphismTests {
             JoinCode.Abstractions.Configuration.AppData.AppDataConstants.Paths.JccDirectory,
             JoinCode.Abstractions.Configuration.AppData.AppDataConstants.SettingsFileName);
         fs.WriteAllText(settingsPath, """{"vendor":{"azure":{"protocol":"azure"}}}""");
-        return new Core.Configuration.Providers.ProviderDefinitionRegistry(ModelConfigLoader, fs);
+        return Core.Configuration.Providers.ProviderDefinitionRegistry.Create(ModelConfigLoader, fs);
     }
 
     private static readonly Core.Configuration.Providers.ProviderDefinitionRegistry Registry = CreateRegistry();

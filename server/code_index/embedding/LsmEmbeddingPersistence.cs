@@ -48,7 +48,7 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         var kvDir = Path.Combine(dirPath, "kvstore");
         _fs.CreateDirectory(kvDir);
 
-        await using var store = new PithosKvStore(kvDir);
+        await using var store = new PithosKvStore(kvDir, new PithosOptions { DisableCompaction = true });
         await store.PutAsync(KeyDims, BitConverter.GetBytes(dims), ct).ConfigureAwait(false);
 
         foreach (var (chunkId, vector, meta, hash) in chunks) {
@@ -70,7 +70,7 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         var kvDir = Path.Combine(dirPath, "kvstore");
         if (!_fs.DirectoryExists(kvDir)) return null;
 
-        await using var store = new PithosKvStore(kvDir);
+        await using var store = new PithosKvStore(kvDir, new PithosOptions { DisableCompaction = true });
 
         var dimsBytes = await store.GetAsync(KeyDims, ct).ConfigureAwait(false);
         if (dimsBytes is null) return null;
@@ -127,8 +127,13 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         bw.Write(meta.SymbolKind ?? string.Empty);
         bw.Write(meta.StartLine);
         bw.Write(meta.EndLine);
-        bw.Write(meta.ParentChunkId is not null);
-        if (meta.ParentChunkId is not null) bw.Write(meta.ParentChunkId);
+        bw.Write(meta.ParentFilePath is not null);
+        if (meta.ParentFilePath is not null) {
+            bw.Write(meta.ParentFilePath);
+            bw.Write(meta.ParentStartLine);
+            bw.Write(meta.ParentEndLine);
+            bw.Write(meta.ParentSymbolFqn ?? string.Empty);
+        }
         bw.Write(meta.SourceText is not null);
         if (meta.SourceText is not null) bw.Write(meta.SourceText);
         bw.Write(meta.SourceTextOffset);
@@ -152,7 +157,17 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         var startLine = br.ReadInt32();
         var endLine = br.ReadInt32();
         var hasParent = br.ReadBoolean();
-        var parentChunkId = hasParent ? br.ReadString() : null;
+        string? parentFilePath = null;
+        var parentStartLine = 0;
+        var parentEndLine = 0;
+        string? parentSymbolFqn = null;
+        if (hasParent) {
+            parentFilePath = br.ReadString();
+            parentStartLine = br.ReadInt32();
+            parentEndLine = br.ReadInt32();
+            var fqn = br.ReadString();
+            parentSymbolFqn = fqn.Length == 0 ? null : fqn;
+        }
         var hasSourceText = br.ReadBoolean();
         var sourceText = hasSourceText ? br.ReadString() : null;
         var sourceTextOffset = br.ReadInt64();
@@ -169,7 +184,10 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
             SymbolKind = symbolKind,
             StartLine = startLine,
             EndLine = endLine,
-            ParentChunkId = parentChunkId,
+            ParentFilePath = parentFilePath,
+            ParentStartLine = parentStartLine,
+            ParentEndLine = parentEndLine,
+            ParentSymbolFqn = parentSymbolFqn,
             SourceText = sourceText,
             SourceTextOffset = sourceTextOffset,
             SourceTextLen = sourceTextLen,

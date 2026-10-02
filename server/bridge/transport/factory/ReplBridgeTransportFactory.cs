@@ -13,7 +13,7 @@ public static class ReplBridgeTransportFactory {
     /// </summary>
     public static IReplBridgeTransport CreateV1Transport(V1TransportOptions options, ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(options);
-        return new JoinCode.Transport.Bridge.V1ReplBridgeTransport(options, logger);
+        return JoinCode.Transport.Bridge.V1ReplBridgeTransport.Create(options, logger);
     }
 
     /// <summary>
@@ -21,7 +21,7 @@ public static class ReplBridgeTransportFactory {
     /// </summary>
     public static IReplBridgeTransport CreateV2Transport(V2TransportOptions options, ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(options);
-        return new JoinCode.Transport.Bridge.V2ReplBridgeTransport(options, logger);
+        return JoinCode.Transport.Bridge.V2ReplBridgeTransport.Create(options, logger);
     }
 
     /// <summary>

@@ -30,7 +30,7 @@ internal sealed class DotEnvConfig {
                 return null;
 
             var config = new DotEnvConfig();
-            registry ??= new Core.Configuration.Providers.ProviderDefinitionRegistry(new ModelConfigLoader());
+            registry ??= Core.Configuration.Providers.ProviderDefinitionRegistry.Create(new ModelConfigLoader());
 
             // 多态：遍历 ProviderDefinitionRegistry 注册表匹配环境变量，替代 if-else 链硬编码
             // 新增供应商时无需修改此文件，只需在 ProviderDefinitionRegistry 注册即可
@@ -131,7 +131,7 @@ internal sealed class DotEnvConfig {
     /// 将配置应用到内存中的 WorkflowConfig
     /// </summary>
     public void ApplyToMemory(WorkflowConfig config) {
-        ApplyToMemory(config, new Core.Configuration.Providers.ProviderDefinitionRegistry(new ModelConfigLoader()));
+        ApplyToMemory(config, Core.Configuration.Providers.ProviderDefinitionRegistry.Create(new ModelConfigLoader()));
     }
 
     /// <summary>

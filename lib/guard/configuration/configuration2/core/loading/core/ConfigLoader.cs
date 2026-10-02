@@ -25,7 +25,7 @@ public class ConfigLoader {
     /// <param name="modelConfigLoader">模型配置加载器(可选),用于灌入 vendor 模型数据</param>
     public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null) {
         _logger = loggerFactory?.CreateLogger<ConfigLoader>();
-        _registry = registry ?? new ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader(), logger: loggerFactory?.CreateLogger<ProviderDefinitionRegistry>());
+        _registry = registry ?? ProviderDefinitionRegistry.Create(modelConfigLoader ?? new ModelConfigLoader(), logger: loggerFactory?.CreateLogger<ProviderDefinitionRegistry>());
         _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);
         _modelConfigLoader = modelConfigLoader;
         if (middlewares is not null && loggerFactory is not null) {

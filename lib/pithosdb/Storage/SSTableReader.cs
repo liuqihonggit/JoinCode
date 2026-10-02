@@ -1,6 +1,6 @@
 using System.Buffers.Binary;
 using System.IO.Hashing;
-using System.IO.MemoryMappedFiles;
+using System.Runtime.InteropServices;
 using K4os.Compression.LZ4;
 using PithosDB.Core.Core;
 
@@ -8,15 +8,16 @@ namespace PithosDB.Core.Storage;
 
 /// <summary>
 /// Reads an immutable SSTable file written by <see cref="SSTableWriter"/>.
-/// Uses memory-mapped I/O for zero-copy reads — the entire file is mapped into
-/// virtual address space and accessed via <see cref="ReadOnlySpan{Byte}"/> slices.
-/// On open, the sparse index and bloom filter are parsed from the mapped span;
-/// data blocks are sliced directly from the mapping (no syscall, no ArrayPool).
+/// Loads the file into a pinned byte array for zero-copy span access — no
+/// MemoryMappedFile is used, so multiple readers can open the same SST file
+/// concurrently without Windows file-lock conflicts (cross-process safe).
+/// On open, the sparse index and bloom filter are parsed from the buffer;
+/// data blocks are sliced directly (no syscall, no ArrayPool).
 /// </summary>
 public sealed unsafe class SSTableReader : IDisposable
 {
-    private readonly MemoryMappedFile _mmf;
-    private readonly MemoryMappedViewAccessor _accessor;
+    private readonly byte[] _buffer;
+    private readonly GCHandle _handle;
     private readonly byte* _ptr;
     private readonly long _length;
     private readonly List<(byte[] firstKey, long offset)> _index;
@@ -29,25 +30,79 @@ public sealed unsafe class SSTableReader : IDisposable
     public string Path { get; }
 
     /// <summary>
-    /// Opens the SSTable at <paramref name="path"/> via memory-mapped I/O and
-    /// loads its index and bloom filter into memory.
+    /// Opens the SSTable at <paramref name="path"/>, reads it into a pinned
+    /// buffer, and loads its index and bloom filter into memory.
     /// </summary>
     /// <param name="path">Absolute path to the SSTable file.</param>
     /// <param name="blockCache">
     /// Optional shared block cache. When provided, decompressed block bytes are
     /// served from cache on subsequent accesses.
     /// </param>
-    public SSTableReader(string path, IBlockCache? blockCache = null)
+    /// <remarks>
+    /// 工厂方法（ADR 0129）：GCHandle.Alloc 后若 ReadMetadata 失败，在 catch 中 Free handle，
+    /// 避免半构造化导致 GCHandle 泄漏（原构造函数此处有泄漏 bug）。
+    /// </remarks>
+    public static SSTableReader Open(string path, IBlockCache? blockCache = null)
+    {
+        if (!File.Exists(path))
+            throw new FileNotFoundException(
+                $"SSTable file not found: '{path}'. The file may have been deleted by a concurrent compaction or the manifest is stale. " +
+                "Hint: ensure DisableCompaction=true when opening for read-only access, and never share a kvstore directory across concurrent PithosDb instances.");
+
+        long length = new FileInfo(path).Length;
+        if (length == 0)
+            throw new InvalidDataException(
+                $"SSTable file is empty (0 bytes): '{path}'. The file was likely partially written or corrupted during a flush. " +
+                "Hint: delete the empty .sst file and rebuild the index, or restore from a backup.");
+
+        byte[] buffer;
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            buffer = new byte[length];
+            fs.ReadExactly(buffer);
+        }
+        catch (IOException ex)
+        {
+            throw new IOException(
+                $"Cannot read SSTable file '{path}' — it may be locked by another process. " +
+                "Hint: SSTableReader opens with FileShare.ReadWrite, so this should not happen under normal operation. " +
+                "If it does, check whether an external tool (antivirus, backup, indexer) is holding an exclusive lock on the .sst file.",
+                ex);
+        }
+
+        var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+        var ptr = (byte*)handle.AddrOfPinnedObject();
+        try
+        {
+            var (index, bloom, bloomOffset) = ReadMetadata(ptr, length);
+            return new SSTableReader(path, blockCache, buffer, handle, ptr, length, index, bloom, bloomOffset);
+        }
+        catch (Exception ex) when (ex is not InvalidDataException)
+        {
+            handle.Free();
+            throw new InvalidDataException(
+                $"SSTable file '{path}' is corrupted — metadata (index/bloom filter) could not be parsed. " +
+                "Hint: the file may have been truncated or written by an incompatible version. Delete it and rebuild the index.",
+                ex);
+        }
+    }
+
+    /// <summary>
+    /// 私有构造函数 — 仅字段赋值，不执行任何可能抛异常的 IO（ADR 0129）。
+    /// </summary>
+    private SSTableReader(string path, IBlockCache? blockCache, byte[] buffer, GCHandle handle, byte* ptr, long length,
+        List<(byte[] firstKey, long offset)> index, BloomFilter bloom, long bloomOffset)
     {
         Path = path;
         _blockCache = blockCache;
-        _length = new FileInfo(path).Length;
-        _mmf = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
-        _accessor = _mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
-        byte* ptr = null;
-        _accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
+        _buffer = buffer;
+        _handle = handle;
         _ptr = ptr;
-        (_index, _bloom, _bloomOffset) = ReadMetadata();
+        _length = length;
+        _index = index;
+        _bloom = bloom;
+        _bloomOffset = bloomOffset;
     }
 
     /// <summary>The entire file as a zero-copy span. Valid until Dispose.</summary>
@@ -255,12 +310,12 @@ public sealed unsafe class SSTableReader : IDisposable
     /// Reads the 16-byte footer to locate the bloom filter and index sections,
     /// then deserializes both from the mmap span.
     /// </summary>
-    private (List<(byte[] firstKey, long offset)> index, BloomFilter bloom, long bloomOffset) ReadMetadata()
+    private static (List<(byte[] firstKey, long offset)> index, BloomFilter bloom, long bloomOffset) ReadMetadata(byte* ptr, long length)
     {
-        var data = Data;
+        var data = new ReadOnlySpan<byte>(ptr, (int)length);
 
         // Footer layout (last 16 bytes): [bloomOffset (8)] [indexOffset (8)]
-        int footerPos = (int)_length - 16;
+        int footerPos = (int)length - 16;
         long bloomOffset = BinaryPrimitives.ReadInt64LittleEndian(data.Slice(footerPos, 8));
         long indexOffset = BinaryPrimitives.ReadInt64LittleEndian(data.Slice(footerPos + 8, 8));
 
@@ -301,7 +356,6 @@ public sealed unsafe class SSTableReader : IDisposable
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _accessor.Dispose();
-        _mmf.Dispose();
+        _handle.Free();
     }
 }

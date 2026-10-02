@@ -120,14 +120,13 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
             var calls = _callExtractor.ExtractCallsFromTree(tree.RootNode, filePath, symbols);
             var deps = _dependencyExtractor.ExtractDependenciesFromTree(tree.RootNode, filePath, symbols);
-            var (chunks, parentDocs) = CollectChunksWithParents(sourceCode, filePath, symbols);
+            var chunks = CollectChunksWithParents(sourceCode, filePath, symbols);
 
             return new ExtractionResult {
                 Symbols = symbols,
                 Calls = calls,
                 Dependencies = deps,
-                Chunks = chunks,
-                ParentDocuments = parentDocs
+                Chunks = chunks
             };
         } finally {
             _treeCache.Add(filePath, tree, sourceCode);
@@ -135,45 +134,37 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
     }
 
     /// <summary>
-    /// 从符号列表生成代码块 + 父文档 — 建立父子层级关系。
-    /// <para>类级别符号（Class/Struct/Interface/Record/Enum/Delegate）既是 ChunkInfo（被嵌入）也是 ParentDocument（存原文）。</para>
-    /// <para>子符号（Method/Property/Field）的 ParentChunkId 指向所属类；顶级子符号指向文件级父文档。</para>
+    /// 从符号列表生成代码块 — 建立父子层级关系，父文档定位信息直接写入 ChunkInfo。
+    /// <para>类级别符号（Class/Struct/Interface/Record/Enum/Delegate）自身即父文档，无需额外定位。</para>
+    /// <para>子符号（Method/Property/Field）的 ParentFilePath/StartLine/EndLine 指向所属类；顶级子符号指向文件级。</para>
     /// </summary>
-    private static (IReadOnlyList<ChunkInfo> Chunks, IReadOnlyList<ParentDocument> ParentDocs)
+    private static IReadOnlyList<ChunkInfo>
         CollectChunksWithParents(string sourceCode, string filePath, IReadOnlyList<SymbolInfo> symbols) {
-        if (symbols.Count == 0) return ([], []);
+        if (symbols.Count == 0) return [];
 
         var lines = sourceCode.Split('\n');
         var chunks = new List<ChunkInfo>(symbols.Count);
-        var parentDocs = new List<ParentDocument>();
 
-        var classFqnToChunkId = new Dictionary<string, string>();
+        var classFqnToLocation = new Dictionary<string, (int StartLine, int EndLine)>();
         foreach (var symbol in symbols) {
             if (!IsParentDocumentKind(symbol.Kind)) continue;
             var sourceText = ExtractLineRange(lines, symbol.StartLine, symbol.EndLine);
             if (string.IsNullOrWhiteSpace(sourceText)) continue;
-            var contentHash = HashUtility.ComputeContentHash(sourceText);
-            var chunkId = HashUtility.ComputeContentHash($"{filePath}|{symbol.FullyQualifiedName}|{contentHash}");
-            classFqnToChunkId[symbol.FullyQualifiedName] = chunkId;
+            classFqnToLocation[symbol.FullyQualifiedName] = (symbol.StartLine, symbol.EndLine);
         }
 
         var hasTopLevelChildren = false;
         foreach (var symbol in symbols) {
             if (IsParentDocumentKind(symbol.Kind)) continue;
             var parentFqn = GetParentFqn(symbol.FullyQualifiedName);
-            if (parentFqn is null || !classFqnToChunkId.ContainsKey(parentFqn)) {
+            if (parentFqn is null || !classFqnToLocation.ContainsKey(parentFqn)) {
                 hasTopLevelChildren = true;
                 break;
             }
         }
 
-        string? fileParentChunkId = null;
-        if (hasTopLevelChildren) {
-            var fileContentHash = HashUtility.ComputeContentHash(sourceCode);
-            fileParentChunkId = HashUtility.ComputeContentHash($"{filePath}|file|{fileContentHash}");
-            parentDocs.Add(CreateParentDocument(
-                fileParentChunkId, filePath, filePath, 1, lines.Length, lines));
-        }
+        var fileParentStartLine = 1;
+        var fileParentEndLine = lines.Length;
 
         foreach (var symbol in symbols) {
             var sourceText = ExtractLineRange(lines, symbol.StartLine, symbol.EndLine);
@@ -182,17 +173,23 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             var contentHash = HashUtility.ComputeContentHash(sourceText);
             var chunkId = HashUtility.ComputeContentHash($"{filePath}|{symbol.FullyQualifiedName}|{contentHash}");
 
-            string? parentChunkId = null;
-            if (IsParentDocumentKind(symbol.Kind)) {
-                parentDocs.Add(CreateParentDocument(
-                    chunkId, filePath, symbol.FullyQualifiedName,
-                    symbol.StartLine, symbol.EndLine, lines));
-            } else {
+            string? parentFilePath = null;
+            var parentStartLine = 0;
+            var parentEndLine = 0;
+            string? parentSymbolFqn = null;
+
+            if (!IsParentDocumentKind(symbol.Kind)) {
                 var parentFqn = GetParentFqn(symbol.FullyQualifiedName);
-                if (parentFqn is not null && classFqnToChunkId.TryGetValue(parentFqn, out var classParentId)) {
-                    parentChunkId = classParentId;
-                } else {
-                    parentChunkId = fileParentChunkId;
+                if (parentFqn is not null && classFqnToLocation.TryGetValue(parentFqn, out var loc)) {
+                    parentFilePath = filePath;
+                    parentStartLine = loc.StartLine;
+                    parentEndLine = loc.EndLine;
+                    parentSymbolFqn = parentFqn;
+                } else if (hasTopLevelChildren) {
+                    parentFilePath = filePath;
+                    parentStartLine = fileParentStartLine;
+                    parentEndLine = fileParentEndLine;
+                    parentSymbolFqn = filePath;
                 }
             }
 
@@ -206,46 +203,14 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
                 LanguageId = "c-sharp",
                 ContentHash = contentHash,
                 SourceText = sourceText,
-                ParentChunkId = parentChunkId
+                ParentFilePath = parentFilePath,
+                ParentStartLine = parentStartLine,
+                ParentEndLine = parentEndLine,
+                ParentSymbolFqn = parentSymbolFqn
             });
         }
 
-        return (chunks, parentDocs);
-    }
-
-    /// <summary>父文档最大行数 — 超过则截断，避免大类占用过多内存和 LLM context。</summary>
-    private const int MaxParentDocumentLines = 2000;
-
-    /// <summary>
-    /// 创建父文档 — 超过 MaxParentDocumentLines 行时截断并加标记。
-    /// </summary>
-    private static ParentDocument CreateParentDocument(
-        string chunkId, string filePath, string symbolFqn,
-        int startLine, int endLine, string[] lines) {
-        var lineCount = endLine - startLine + 1;
-        var sourceText = ExtractLineRange(lines, startLine, endLine);
-        if (lineCount <= MaxParentDocumentLines) {
-            return new ParentDocument {
-                ChunkId = chunkId,
-                FilePath = filePath,
-                SymbolFqn = symbolFqn,
-                StartLine = startLine,
-                EndLine = endLine,
-                SourceText = sourceText
-            };
-        }
-        var truncatedEnd = startLine + MaxParentDocumentLines - 1;
-        var truncatedText = ExtractLineRange(lines, startLine, truncatedEnd)
-            + $"\n// ... truncated (original: {lineCount} lines)";
-        return new ParentDocument {
-            ChunkId = chunkId,
-            FilePath = filePath,
-            SymbolFqn = symbolFqn,
-            StartLine = startLine,
-            EndLine = truncatedEnd,
-            SourceText = truncatedText,
-            IsTruncated = true
-        };
+        return chunks;
     }
 
     /// <summary>

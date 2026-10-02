@@ -19,18 +19,18 @@ public sealed partial class DefaultReplBridgeTransportFactory : ServiceEntity, I
             HeartbeatIntervalMs = connectTimeoutMs,
         };
 
-        return new V2ReplBridgeTransport(options);
+        return V2ReplBridgeTransport.Create(options);
     }
 
     /// <inheritdoc />
     public IReplBridgeTransport CreateV1Transport(V1TransportOptions options, ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(options);
-        return new V1ReplBridgeTransport(options, logger);
+        return V1ReplBridgeTransport.Create(options, logger);
     }
 
     /// <inheritdoc />
     public IReplBridgeTransport CreateV2Transport(V2TransportOptions options, ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(options);
-        return new V2ReplBridgeTransport(options, logger);
+        return V2ReplBridgeTransport.Create(options, logger);
     }
 }

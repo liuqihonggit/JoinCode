@@ -346,7 +346,7 @@ public sealed class ApplicationBuilder {
             }
         }
 
-        var registry = new Core.Configuration.Providers.ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader(), logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>());
+        var registry = await Core.Configuration.Providers.ProviderDefinitionRegistry.CreateAsync(modelConfigLoader ?? new ModelConfigLoader(), logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>()).ConfigureAwait(false);
 
         if (dotEnv is not null) {
             dotEnv.ApplyToMemory(config, registry);

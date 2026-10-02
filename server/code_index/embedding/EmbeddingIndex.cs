@@ -11,7 +11,6 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
 
     private readonly IEmbeddingModel _embedModel;
     private readonly IAnnSearch _ann;
-    private readonly IParentDocumentStore? _parentStore;
     private readonly IFileSystem _fs;
     private readonly IEmbeddingPersistence _persistence;
     private string? _incrementalDir;
@@ -29,16 +28,14 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     /// </summary>
     /// <param name="embedModel">嵌入模型（API/ONNX/simhash 均可）。</param>
     /// <param name="ann">ANN 搜索引擎（暴力/HNSW 均可，需自身线程安全）。</param>
-    /// <param name="fs">文件系统抽象 — 用于持久化读写。</param>
-    /// <param name="parentStore">父文档存储（可选）— 注入后 SearchAsync 返回结果携带父文档原文。</param>
-    public EmbeddingIndex(IEmbeddingModel embedModel, IAnnSearch ann, IFileSystem fs, IParentDocumentStore? parentStore = null) {
+    /// <param name="fs">文件系统抽象 — 用于持久化读写 + 父文档源码按行读取。</param>
+    public EmbeddingIndex(IEmbeddingModel embedModel, IAnnSearch ann, IFileSystem fs) {
         ArgumentNullException.ThrowIfNull(embedModel);
         ArgumentNullException.ThrowIfNull(ann);
         ArgumentNullException.ThrowIfNull(fs);
         _embedModel = embedModel;
         _ann = ann;
         _fs = fs;
-        _parentStore = parentStore;
         _persistence = new LsmEmbeddingPersistence(fs);
         _status = (int)IndexStatus.NotReady;
     }
@@ -125,7 +122,10 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
                 SymbolKind = chunk.Kind.ToString(),
                 StartLine = chunk.StartLine,
                 EndLine = chunk.EndLine,
-                ParentChunkId = chunk.ParentChunkId,
+                ParentFilePath = chunk.ParentFilePath,
+                ParentStartLine = chunk.ParentStartLine,
+                ParentEndLine = chunk.ParentEndLine,
+                ParentSymbolFqn = chunk.ParentSymbolFqn,
                 SourceText = chunk.SourceText,
                 ContainedSymbolFqns = chunk.ContainedSymbolFqns
             }));
@@ -406,7 +406,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
 
         float[] queryVector;
         try {
-            queryVector = await _embedModel.EmbedAsync(query, ct).ConfigureAwait(false);
+            queryVector = await _embedModel.EmbedAsync(SplitPascalCase(query), ct).ConfigureAwait(false);
         } catch (OperationCanceledException) {
             throw;
         } catch (Exception) {
@@ -445,7 +445,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
                 ContainedSymbolFqns = meta.ContainedSymbolFqns
             };
             results.Add(includeParent
-                ? TryAttachParentDocument(result, meta.ParentChunkId)
+                ? await TryAttachParentDocumentAsync(result, meta, ct).ConfigureAwait(false)
                 : result);
             if (results.Count >= topK) break;
         }
@@ -487,17 +487,31 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     }
 
     /// <summary>
-    /// 尝试附加父文档原文到搜索结果 — 父文档检索召回时填充完整上下文。
+    /// 尝试附加父文档原文到搜索结果 — 从文件系统按行范围读取父文档源码。
+    /// <para>父文档定位信息（FilePath/StartLine/EndLine/SymbolFqn）存在 ChunkMetadata 中，搜索时零额外存储。</para>
     /// </summary>
-    private ChunkSearchResult TryAttachParentDocument(ChunkSearchResult result, string? parentChunkId) {
-        if (_parentStore is null || parentChunkId is null) return result;
-        var parentDoc = _parentStore.Get(parentChunkId);
-        if (parentDoc is null) return result;
+    private async Task<ChunkSearchResult> TryAttachParentDocumentAsync(ChunkSearchResult result, ChunkMetadata meta, CancellationToken ct) {
+        if (meta.ParentFilePath is null) return result;
+        if (!_fs.FileExists(meta.ParentFilePath)) return result;
+        string[] allLines;
+        try {
+            allLines = await _fs.ReadAllLinesAsync(meta.ParentFilePath, ct).ConfigureAwait(false);
+        } catch {
+            return result;
+        }
+        var start = Math.Max(0, meta.ParentStartLine - 1);
+        var end = Math.Min(allLines.Length, meta.ParentEndLine);
+        if (end <= start) return result;
+        var parentLines = allLines[start..end];
+        const int maxLines = 2000;
+        if (parentLines.Length > maxLines) {
+            parentLines = parentLines[..maxLines];
+        }
         return result with {
-            ParentDocumentText = parentDoc.SourceText,
-            ParentStartLine = parentDoc.StartLine,
-            ParentEndLine = parentDoc.EndLine,
-            ParentSymbolFqn = parentDoc.SymbolFqn
+            ParentDocumentText = string.Join('\n', parentLines),
+            ParentStartLine = meta.ParentStartLine,
+            ParentEndLine = meta.ParentEndLine,
+            ParentSymbolFqn = meta.ParentSymbolFqn
         };
     }
 

@@ -19,15 +19,15 @@ public sealed class PithosDb : IDisposable
     private readonly PithosOptions _options;
     private readonly LeveledCompactor _compactor;
     private readonly List<List<string>> _levels = [];
-    private readonly Dictionary<string, SSTableReader> _readerCache = new();
+    private readonly Dictionary<string, SSTableReader> _readerCache;
     private readonly IBlockCache? _blockCache;
     private readonly Manifest _manifest;
-    private readonly ReaderWriterLockSlim _lock = new();
+    private readonly ReaderWriterLockSlim _lock;
 
     // Background compaction
     private readonly SemaphoreSlim _compactionSignal = new(0, 1);
     private readonly CancellationTokenSource _compactionCts = new();
-    private readonly Thread? _compactionThread;
+    private Thread? _compactionThread;
 
     private MemTable _memTable = new();
     private WriteAheadLog? _wal;
@@ -41,36 +41,86 @@ public sealed class PithosDb : IDisposable
     /// <param name="options">
     /// Tuning options. Pass <see langword="null"/> or omit to use <see cref="PithosOptions.Default"/>.
     /// </param>
-    public PithosDb(string directory, PithosOptions? options = null)
+    /// <remarks>
+    /// 工厂方法（ADR 0129）：所有资源（blockCache/manifest/compactor/wal）在工厂内逐步创建，
+    /// 任一失败时释放已分配资源；RecoverFromWal/RecoverSSTables/后台线程在对象构造后执行，
+    /// 失败时 db.Dispose() 释放全部。构造函数仅做字段赋值，禁止半构造化。
+    /// </remarks>
+    public static PithosDb Open(string directory, PithosOptions? options = null)
     {
-        _options = options ?? PithosOptions.Default;
-        _options.Validate();
-        _directory = directory;
-        if (!_options.InMemory)
+        options = options ?? PithosOptions.Default;
+        options.Validate();
+
+        if (!options.InMemory)
             Directory.CreateDirectory(directory);
-        _blockCache = _options.BlockCacheSizeBytes > 0
-            ? _options.BlockCacheKind == BlockCacheKind.S3Fifo
-                ? new S3FifoBlockCache(_options.BlockCacheSizeBytes)
-                : new LruBlockCache(_options.BlockCacheSizeBytes)
-            : null;
-        _manifest = new Manifest(directory);
-        _compactor = new LeveledCompactor(directory, _options, _readerCache, _blockCache, _manifest, _lock);
-        if (!_options.InMemory)
+
+        PithosDb? db = null;
+        IBlockCache? blockCache = null;
+        Manifest? manifest = null;
+        Dictionary<string, SSTableReader>? readerCache = null;
+        ReaderWriterLockSlim? rwLock = null;
+        LeveledCompactor? compactor = null;
+        WriteAheadLog? wal = null;
+        try
         {
-            _wal = new WriteAheadLog(Path.Combine(directory, "wal.log"), _options.WalSyncMode, _options.WalSyncIntervalMs);
-            RecoverFromWal();
-            RecoverSSTables();
+            blockCache = options.BlockCacheSizeBytes > 0
+                ? options.BlockCacheKind == BlockCacheKind.S3Fifo
+                    ? new S3FifoBlockCache(options.BlockCacheSizeBytes)
+                    : new LruBlockCache(options.BlockCacheSizeBytes)
+                : null;
+            manifest = new Manifest(directory);
+            readerCache = new Dictionary<string, SSTableReader>();
+            rwLock = new ReaderWriterLockSlim();
+            compactor = new LeveledCompactor(directory, options, readerCache, blockCache, manifest, rwLock);
+            if (!options.InMemory)
+                wal = WriteAheadLog.Open(Path.Combine(directory, "wal.log"), options.WalSyncMode, options.WalSyncIntervalMs);
 
-            _compactionThread = new Thread(CompactionLoop)
+            db = new PithosDb(directory, options, blockCache, manifest, readerCache, rwLock, compactor, wal);
+
+            if (!options.InMemory)
             {
-                IsBackground = true,
-                Name = "PithosDB-Compaction"
-            };
-            _compactionThread.Start();
+                db.RecoverFromWal();
+                db.RecoverSSTables();
+                if (!options.DisableCompaction)
+                {
+                    db._compactionThread = new Thread(db.CompactionLoop) { IsBackground = true, Name = "PithosDB-Compaction" };
+                    db._compactionThread.Start();
+                    // Trigger an initial check in case recovered levels already need compaction.
+                    db.SignalCompaction();
+                }
+            }
 
-            // Trigger an initial check in case recovered levels already need compaction.
-            SignalCompaction();
+            return db;
         }
+        catch
+        {
+            db?.Dispose();
+            if (db is null)
+            {
+                wal?.Dispose();
+                rwLock?.Dispose();
+                if (readerCache is not null)
+                    foreach (var r in readerCache.Values) r.Dispose();
+                (blockCache as IDisposable)?.Dispose();
+            }
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 私有构造函数 — 仅字段赋值，不执行任何可能抛异常的 IO 或恢复逻辑（ADR 0129）。
+    /// </summary>
+    private PithosDb(string directory, PithosOptions options, IBlockCache? blockCache, Manifest manifest,
+        Dictionary<string, SSTableReader> readerCache, ReaderWriterLockSlim rwLock, LeveledCompactor compactor, WriteAheadLog? wal)
+    {
+        _directory = directory;
+        _options = options;
+        _blockCache = blockCache;
+        _manifest = manifest;
+        _readerCache = readerCache;
+        _lock = rwLock;
+        _compactor = compactor;
+        _wal = wal;
     }
 
     /// <summary>
@@ -528,12 +578,12 @@ public sealed class PithosDb : IDisposable
         string sstPath = Path.Combine(_directory, $"L0_{Guid.NewGuid():N}.sst");
         SSTableWriter.Write(sstPath, _memTable.GetSortedEntries(), _options.BloomFilterFalsePositiveRate, _options.Compression);
         _levels[0].Add(sstPath);
-        _readerCache[sstPath] = new SSTableReader(sstPath, _blockCache);
+        _readerCache[sstPath] = SSTableReader.Open(sstPath, _blockCache);
         _memTable.Clear();
 
         _wal!.Dispose();
         File.Delete(Path.Combine(_directory, "wal.log"));
-        _wal = new WriteAheadLog(Path.Combine(_directory, "wal.log"), _options.WalSyncMode, _options.WalSyncIntervalMs);
+        _wal = WriteAheadLog.Open(Path.Combine(_directory, "wal.log"), _options.WalSyncMode, _options.WalSyncIntervalMs);
 
         _manifest.Write(_levels);
         SignalCompaction();
@@ -541,6 +591,7 @@ public sealed class PithosDb : IDisposable
 
     private void SignalCompaction()
     {
+        if (_options.DisableCompaction) return;
         // Release at most one token so the background thread wakes up.
         // SemaphoreFullException means a signal is already pending — that's fine.
         try { _compactionSignal.Release(); } catch (SemaphoreFullException) { }
@@ -577,10 +628,12 @@ public sealed class PithosDb : IDisposable
 
     private void RecoverSSTables()
     {
+        var log = _options.DiagnosticLog;
         foreach (var path in Directory.GetFiles(_directory, "*.sst"))
         {
             if (new FileInfo(path).Length == 0)
             {
+                log?.Invoke($"[PithosDB.RecoverSSTables] deleting empty SST file: {path}");
                 try { File.Delete(path); } catch { }
             }
         }
@@ -595,15 +648,20 @@ public sealed class PithosDb : IDisposable
                     if (!File.Exists(path)) continue;
                     if (new FileInfo(path).Length == 0) continue;
                     _levels[i].Add(path);
-                    _readerCache[path] = new SSTableReader(path, _blockCache);
+                    _readerCache[path] = SSTableReader.Open(path, _blockCache);
                 }
             }
 
-            var knownFiles = new HashSet<string>(manifestLevels.SelectMany(l => l));
+            var knownFiles = new HashSet<string>(
+                manifestLevels.SelectMany(l => l).Select(p => Path.GetFullPath(p)),
+                StringComparer.OrdinalIgnoreCase);
             foreach (var path in Directory.GetFiles(_directory, "*.sst"))
             {
-                if (!knownFiles.Contains(path))
+                if (!knownFiles.Contains(Path.GetFullPath(path)))
+                {
+                    log?.Invoke($"[PithosDB.RecoverSSTables] deleting orphaned SST file not in manifest: {path}");
                     File.Delete(path);
+                }
             }
         }
         else
@@ -618,7 +676,7 @@ public sealed class PithosDb : IDisposable
 
                 while (_levels.Count <= level) _levels.Add([]);
                 _levels[level].Add(path);
-                _readerCache[path] = new SSTableReader(path, _blockCache);
+                _readerCache[path] = SSTableReader.Open(path, _blockCache);
             }
 
             if (_levels.Count > 0)
@@ -738,7 +796,7 @@ public sealed class PithosDb : IDisposable
             var levelPaths = _levels.Select(l => l.ToList()).ToList();
             var readers = new Dictionary<string, SSTableReader>(StringComparer.Ordinal);
             foreach (var path in levelPaths.SelectMany(l => l))
-                readers[path] = new SSTableReader(path);
+                readers[path] = SSTableReader.Open(path);
 
             return new Snapshot(mem, levelPaths, readers, _options);
         }
@@ -764,7 +822,7 @@ public sealed class PithosDb : IDisposable
                 $"Options passed to {nameof(OpenInMemory)} must have {nameof(PithosOptions.InMemory)} = true.",
                 nameof(options));
 
-        return new PithosDb(":memory:", options ?? new PithosOptions { InMemory = true });
+        return Open(":memory:", options ?? new PithosOptions { InMemory = true });
     }
 
     // ── Async API ──────────────────────────────────────────────────────────────

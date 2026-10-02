@@ -46,15 +46,39 @@ public sealed class WriteAheadLog : IDisposable
     /// Background flush interval in milliseconds. Only used when
     /// <paramref name="syncMode"/> is <see cref="WalSyncMode.Periodic"/>.
     /// </param>
-    public WriteAheadLog(string path, WalSyncMode syncMode = WalSyncMode.Full, int syncIntervalMs = 200)
+    /// <remarks>
+    /// 工厂方法（ADR 0129）：FileStream 打开可能抛 IOException，若后续 BinaryWriter/Timer
+    /// 构造失败，已打开的 FileStream 在 catch 中释放，避免半构造化泄漏。
+    /// </remarks>
+    public static WriteAheadLog Open(string path, WalSyncMode syncMode = WalSyncMode.Full, int syncIntervalMs = 200)
     {
-        _syncMode = syncMode;
-        _stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
-        _writer = new BinaryWriter(_stream);
+        var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+        Timer? syncTimer = null;
+        try
+        {
+            var writer = new BinaryWriter(stream);
+            if (syncMode == WalSyncMode.Periodic)
+                syncTimer = new Timer(_ => { try { stream.Flush(); } catch { } },
+                    null, syncIntervalMs, syncIntervalMs);
+            return new WriteAheadLog(stream, writer, syncMode, syncTimer);
+        }
+        catch
+        {
+            syncTimer?.Dispose();
+            stream.Dispose();
+            throw;
+        }
+    }
 
-        if (syncMode == WalSyncMode.Periodic)
-            _syncTimer = new Timer(_ => { try { _stream.Flush(); } catch { } },
-                null, syncIntervalMs, syncIntervalMs);
+    /// <summary>
+    /// 私有构造函数 — 仅字段赋值，不执行任何可能抛异常的 IO（ADR 0129）。
+    /// </summary>
+    private WriteAheadLog(FileStream stream, BinaryWriter writer, WalSyncMode syncMode, Timer? syncTimer)
+    {
+        _stream = stream;
+        _writer = writer;
+        _syncMode = syncMode;
+        _syncTimer = syncTimer;
     }
 
     /// <summary>

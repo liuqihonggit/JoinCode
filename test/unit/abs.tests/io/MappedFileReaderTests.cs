@@ -129,4 +129,90 @@ public sealed class MappedFileReaderTests {
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void Open_WithNullPath_ThrowsArgumentNullException() {
+        Assert.Throws<ArgumentNullException>(() => MappedFileReader.Open(null!));
+    }
+
+    [Fact]
+    public void Open_WithEmptyPath_ThrowsArgumentException() {
+        Assert.ThrowsAny<ArgumentException>(() => MappedFileReader.Open(""));
+    }
+
+    [Fact]
+    public void Open_AfterDispose_ToArray_ThrowsObjectDisposedException() {
+        var path = CreateTempFile("dispose test");
+        try {
+            var reader = MappedFileReader.Open(path);
+            reader.Dispose();
+            Assert.Throws<ObjectDisposedException>(() => reader.ToArray());
+        } finally {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Open_AfterDispose_ReadToEnd_ThrowsObjectDisposedException() {
+        var path = CreateTempFile("dispose readtoend");
+        try {
+            var reader = MappedFileReader.Open(path);
+            reader.Dispose();
+            Assert.Throws<ObjectDisposedException>(() => reader.ReadToEnd());
+        } finally {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Open_WithBinaryContent_ToArray_ReturnsExactBytes() {
+        var expected = new byte[] { 0x00, 0xFF, 0x42, 0x6F, 0x6F, 0x21, 0x0A, 0x0D, 0x01 };
+        var path = Path.Combine(Path.GetTempPath(), $"mmap_bin_{Guid.NewGuid():N}.bin");
+        File.WriteAllBytes(path, expected);
+        try {
+            using var reader = MappedFileReader.Open(path);
+            var actual = reader.ToArray();
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected.Length, reader.Length);
+        } finally {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void ToArray_AfterReadToEnd_ReturnsConsistentData() {
+        var path = CreateTempFile("consistency check");
+        try {
+            using var reader = MappedFileReader.Open(path);
+            var str = reader.ReadToEnd();
+            var bytes = reader.ToArray();
+            Assert.Equal(str, Encoding.UTF8.GetString(bytes));
+        } finally {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Open_WithWhitespaceOnlyContent_ReturnsWhitespace() {
+        var path = CreateTempFile("   \n\t  \r\n  ");
+        try {
+            using var reader = MappedFileReader.Open(path);
+            Assert.Equal("   \n\t  \r\n  ", reader.ReadToEnd());
+        } finally {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Open_SingleByteFile_ReadsCorrectly() {
+        var path = CreateTempFile("X");
+        try {
+            using var reader = MappedFileReader.Open(path);
+            Assert.Equal("X", reader.ReadToEnd());
+            Assert.Equal(1, reader.Length);
+            Assert.Equal(new byte[] { 0x58 }, reader.ToArray());
+        } finally {
+            File.Delete(path);
+        }
+    }
 }

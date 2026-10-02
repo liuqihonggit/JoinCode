@@ -192,6 +192,61 @@ public class BuildQueueRouterTests {
             logger: logger).ConfigureAwait(true);
     }
 
+    [Fact]
+    public async Task CreateAsync_WithZeroWorkerCount_StillWorks() {
+        await using var sut = await CreateSut(workerCount: 0);
+        var buildId = await sut.SubmitAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(true);
+        buildId.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithNegativeWorkerCount_StillWorks() {
+        await using var sut = await CreateSut(workerCount: -5);
+        var buildId = await sut.SubmitAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(true);
+        buildId.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task SubmitAsync_ConcurrentSubmits_AllGetUniqueBuildIds() {
+        await using var sut = await CreateSut(workerCount: 4);
+        const int count = 20;
+        var tasks = Enumerable.Range(0, count)
+            .Select(_ => sut.SubmitAsync(CreateRequest(), CancellationToken.None))
+            .ToArray();
+        var buildIds = await Task.WhenAll(tasks).ConfigureAwait(true);
+        buildIds.Should().HaveCount(count);
+        buildIds.Distinct().Should().HaveCount(count, "所有并发提交应获得唯一 buildId");
+    }
+
+    [Fact]
+    public async Task WaitAsync_NonExistentBuild_ThrowsInvalidOperationException() {
+        await using var sut = await CreateSut();
+        var act = async () => await sut.WaitAsync("nonexistent-id", CancellationToken.None).ConfigureAwait(true);
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*nonexistent-id*");
+    }
+
+    [Fact]
+    public async Task GetBuild_NonExistent_ReturnsNull() {
+        await using var sut = await CreateSut();
+        sut.GetBuild("nonexistent-id").Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetOutputRange_NonExistentBuild_ReturnsNotFoundMessage() {
+        await using var sut = await CreateSut();
+        var result = sut.GetOutputRange("nonexistent-id", 0, 0);
+        result.Should().Contain("nonexistent-id");
+    }
+
+    [Fact]
+    public async Task DisposeAsync_CalledTwice_DoesNotThrow() {
+        var sut = await CreateSut();
+        await sut.DisposeAsync().ConfigureAwait(true);
+        var act = async () => await sut.DisposeAsync().ConfigureAwait(true);
+        await act.Should().NotThrowAsync();
+    }
+
     private static BuildRequest CreateRequest(string? command = null, string? agentId = null) {
         return new BuildRequest {
             Command = command ?? "dotnet build JoinCode.slnx -c Release",

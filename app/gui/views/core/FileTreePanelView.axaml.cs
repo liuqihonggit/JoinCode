@@ -10,6 +10,18 @@ public sealed partial class FileTreePanelView : UserControl {
         InitializeComponent();
     }
 
+    /// <summary>单击文件夹项 — 切换展开/收起(VSCode 风格:单击文件夹名即可展开)</summary>
+    private void OnItemTapped(object? sender, Avalonia.Input.TappedEventArgs e) {
+        if (sender is not StackPanel panel)
+            return;
+        if (panel.DataContext is not ViewModels.FileTreeItemVm item)
+            return;
+        if (!item.IsFolder)
+            return;
+        item.IsExpanded = !item.IsExpanded;
+        e.Handled = true;
+    }
+
     /// <summary>双击文件项 — 在内嵌编辑器中固定打开文件(非预览)</summary>
     private void OnFileDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e) {
         if (sender is not StackPanel panel)

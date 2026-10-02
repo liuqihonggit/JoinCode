@@ -23,7 +23,6 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private readonly IHttpClientProvider? _httpClient;
     private readonly IKvStore _kvStore;
     private EmbeddingIndex? _embeddingIndex;
-    private IParentDocumentStore? _parentDocStore;
     private List<IIndexStore> _indexStores = [];
     private string? _lastVectorIndexDir;
     private int _disposed;
@@ -71,11 +70,10 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private void BuildIndexStoreList() {
         _indexStores = [_persistence];
         if (_embeddingIndex is not null) _indexStores.Add(_embeddingIndex);
-        if (_parentDocStore is not null) _indexStores.Add(_parentDocStore);
     }
 
     /// <summary>
-    /// 自动初始化向量索引 — 模型文件存在时创建 OnnxEmbeddingClient + EmbeddingIndex + ParentDocumentStore。
+    /// 自动初始化向量索引 — 模型文件存在时创建 OnnxEmbeddingClient + EmbeddingIndex。
     /// <para>模型路径：%AppData%/jcc/embedding/model_quantized.onnx + vocab.txt</para>
     /// <para>文件不存在时静默跳过（向量搜索降级为不可用）。</para>
     /// </summary>
@@ -89,12 +87,11 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             var degree = int.TryParse(Environment.GetEnvironmentVariable("JCC_ONNX_DEGREE"), out var d) && d > 0
                 ? Math.Min(d, Environment.ProcessorCount) : 0;
             var embedModel = new OnnxEmbeddingClient(modelPath, vocabPath, fs, degree: degree);
-            _parentDocStore = new InMemoryParentDocumentStore(kvStore);
             var annType = Environment.GetEnvironmentVariable("JCC_ANN_TYPE") ?? "brute";
             IAnnSearch ann = annType.Equals("hnsw", StringComparison.OrdinalIgnoreCase)
                 ? new HnswAnn()
                 : new BruteForceAnn();
-            _embeddingIndex = new EmbeddingIndex(embedModel, ann, fs, _parentDocStore);
+            _embeddingIndex = new EmbeddingIndex(embedModel, ann, fs);
             logger?.LogInformation("向量索引已自动初始化: dim={Dim}, ann={Ann}", embedModel.Dimensions, annType);
         } catch (Exception ex) {
             logger?.LogWarning(ex, "向量索引自动初始化失败，语义搜索将不可用");
@@ -103,7 +100,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
     /// <summary>
     /// 确保向量模型存在 — 缺失且有 HttpClient 时自动下载（对齐 git submodule update --init，> ADR: 0124）。
-    /// <para>下载后重新初始化 EmbeddingIndex + ParentDocumentStore + BuildIndexStoreList。</para>
+    /// <para>下载后重新初始化 EmbeddingIndex + BuildIndexStoreList。</para>
     /// <para>已初始化/无 HttpClient/下载失败时静默降级（保持原行为）。</para>
     /// </summary>
     public async Task EnsureEmbeddingModelAsync(CancellationToken ct = default) {
@@ -142,20 +139,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     }
 
     /// <summary>
-    /// 设置父文档存储 — 启用父文档检索（召回小块后取完整类/文件上下文）。
-    /// <para>必须在 BuildIndexAsync 前调用，否则父文档不会填充。</para>
-    /// <para>EmbeddingIndex 构造时应注入相同的 ParentDocumentStore，SearchAsync 才能自动填充父文档原文。</para>
-    /// </summary>
-    /// <param name="parentDocStore">父文档存储实例。</param>
-    public void SetParentDocumentStore(IParentDocumentStore parentDocStore) {
-        ArgumentNullException.ThrowIfNull(parentDocStore);
-        _parentDocStore = parentDocStore;
-    }
-
-    /// <summary>
     /// 语义搜索 — 通过向量嵌入查找相似代码块。
     /// <para>未设置 EmbeddingIndex 时返回空列表。</para>
-    /// <para>options.IncludeSourceText=true 时结果携带块原文；IncludeParentDocument=false 时不返回父文档。</para>
+    /// <para>options.IncludeSourceText=true 时结果携带块原文；IncludeParentDocument=true 时从文件系统读取父文档原文。</para>
     /// </summary>
     /// <param name="query">查询文本。</param>
     /// <param name="topK">返回结果数上限。</param>
@@ -268,24 +254,16 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         if (_embeddingIndex is not null) {
             var allChunks = new List<ChunkInfo>();
             foreach (var b in batch) {
+                var parentLocations = b.Extraction.Symbols
+                    .Where(s => IsParentDocumentKind(s.Kind))
+                    .Select(s => new LineBasedChunkExtractor.ParentLocation(b.FilePath, s.StartLine, s.EndLine, s.FullyQualifiedName))
+                    .ToList();
                 allChunks.AddRange(LineBasedChunkExtractor.Extract(
-                    b.FilePath, b.SourceCode, b.Extraction.Symbols, b.Extraction.ParentDocuments));
+                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations));
             }
             if (allChunks.Count > 0) {
                 await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
                 Console.Error.WriteLine($"[code-index] 向量嵌入: {allChunks.Count} 块 ({phaseSw.ElapsedMilliseconds}ms)");
-                phaseSw.Restart();
-            }
-        }
-
-        // Phase E3: 父文档填充（可选，设置了 ParentDocumentStore 才执行）
-        if (_parentDocStore is not null) {
-            var allParentDocs = batch
-                .SelectMany(b => b.Extraction.ParentDocuments)
-                .ToList();
-            if (allParentDocs.Count > 0) {
-                _parentDocStore.AddRange(allParentDocs);
-                Console.Error.WriteLine($"[code-index] 父文档: {allParentDocs.Count} 文档 ({phaseSw.ElapsedMilliseconds}ms)");
                 phaseSw.Restart();
             }
         }
@@ -297,7 +275,6 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 if (_embeddingIndex is not null) {
                     await _embeddingIndex.RemoveFileAsync(trackedFile, ct).ConfigureAwait(false);
                 }
-                _parentDocStore?.RemoveFile(trackedFile);
                 deletedCount++;
             }
         }
@@ -326,7 +303,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             SkippedCount = skippedCount,
             DeletedCount = deletedCount,
             VectorChunkCount = _embeddingIndex?.ChunkCount ?? 0,
-            ParentDocumentCount = _parentDocStore?.Count ?? 0
+            ParentDocumentCount = 0
         };
     }
 
@@ -414,7 +391,6 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         if (!result.WasUpdated || _embeddingIndex is null) return;
 
         await _embeddingIndex.RemoveFileAsync(filePath, ct).ConfigureAwait(false);
-        _parentDocStore?.RemoveFile(filePath);
 
         if (result.WasDeleted) return;
 
@@ -425,9 +401,6 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         if (extraction.Chunks.Count > 0) {
             await _embeddingIndex.IndexChunksAsync(extraction.Chunks, ct).ConfigureAwait(false);
-        }
-        if (_parentDocStore is not null && extraction.ParentDocuments.Count > 0) {
-            _parentDocStore.AddRange(extraction.ParentDocuments);
         }
     }
 
@@ -831,4 +804,11 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _symbolIndex.Dispose();
         base.Dispose();
     }
+
+    /// <summary>
+    /// 判断符号类型是否可作为父文档（类级别容器类型）。
+    /// </summary>
+    private static bool IsParentDocumentKind(SymbolKind kind) =>
+        kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+            or SymbolKind.Record or SymbolKind.RecordStruct or SymbolKind.Enum or SymbolKind.Delegate;
 }

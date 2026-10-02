@@ -11,6 +11,11 @@ namespace JoinCode.CodeIndex.Parsing;
 public static class LineBasedChunkExtractor {
 
     /// <summary>
+    /// 父文档定位信息 — 用于关联固定行数块到父文档（类/文件级源码）。
+    /// </summary>
+    public readonly record struct ParentLocation(string FilePath, int StartLine, int EndLine, string SymbolFqn);
+
+    /// <summary>
     /// 按固定行数切块，每块记录覆盖的 AST 符号 FQN。
     /// <para>Span 优化：遍历一次记录行起始偏移，按偏移 Slice 取块文本，0 中间 GC。</para>
     /// <para>重叠切块：相邻块有 overlap 行重叠，避免函数被切断在块边界。步长=chunkSize-overlap。</para>
@@ -18,7 +23,7 @@ public static class LineBasedChunkExtractor {
     /// <param name="filePath">文件路径。</param>
     /// <param name="sourceCode">源代码文本。</param>
     /// <param name="symbols">该文件的 AST 符号列表（用于预嵌入 FQN）。</param>
-    /// <param name="parentDocuments">该文件的父文档列表（用于关联块的 ParentChunkId）。</param>
+    /// <param name="parentLocations">该文件的父文档定位信息列表（用于关联块的父文档）。</param>
     /// <param name="chunkSize">每块行数（默认 500）。</param>
     /// <param name="overlap">相邻块重叠行数（默认 25，即 5%），避免函数跨越块边界被切断。</param>
     /// <param name="languageId">语言标识。</param>
@@ -27,7 +32,7 @@ public static class LineBasedChunkExtractor {
         string filePath,
         string sourceCode,
         IReadOnlyList<SymbolInfo> symbols,
-        IReadOnlyList<ParentDocument>? parentDocuments = null,
+        IReadOnlyList<ParentLocation>? parentLocations = null,
         int chunkSize = 500,
         int overlap = 25,
         string languageId = "c-sharp") {
@@ -67,6 +72,8 @@ public static class LineBasedChunkExtractor {
                 .Select(s => s.FullyQualifiedName)
                 .ToList();
 
+            var parent = FindParentLocation(parentLocations, startLine, endLine);
+
             chunks.Add(new ChunkInfo {
                 ChunkId = chunkId,
                 SymbolFqn = $"{Path.GetFileName(filePath)}:{startLine}-{endLine}",
@@ -78,7 +85,10 @@ public static class LineBasedChunkExtractor {
                 ContentHash = contentHash,
                 SourceText = sourceText,
                 ContainedSymbolFqns = containedFqns,
-                ParentChunkId = FindParentChunkId(parentDocuments, startLine, endLine),
+                ParentFilePath = parent?.FilePath,
+                ParentStartLine = parent?.StartLine ?? 0,
+                ParentEndLine = parent?.EndLine ?? 0,
+                ParentSymbolFqn = parent?.SymbolFqn,
             });
         }
 
@@ -86,24 +96,24 @@ public static class LineBasedChunkExtractor {
     }
 
     /// <summary>
-    /// 查找包含指定行号范围的父文档 ChunkId — 优先返回最小包含范围的父文档（最精确匹配）。
+    /// 查找包含指定行号范围的父文档定位信息 — 优先返回最小包含范围（最精确匹配）。
     /// </summary>
-    private static string? FindParentChunkId(
-        IReadOnlyList<ParentDocument>? parentDocuments,
+    private static ParentLocation? FindParentLocation(
+        IReadOnlyList<ParentLocation>? parentLocations,
         int chunkStartLine,
         int chunkEndLine) {
-        if (parentDocuments is null || parentDocuments.Count == 0) return null;
-        string? bestId = null;
+        if (parentLocations is null || parentLocations.Count == 0) return null;
+        ParentLocation? best = null;
         var bestSpan = int.MaxValue;
-        foreach (var pd in parentDocuments) {
+        foreach (var pd in parentLocations) {
             if (pd.StartLine <= chunkStartLine && pd.EndLine >= chunkEndLine) {
                 var span = pd.EndLine - pd.StartLine;
                 if (span < bestSpan) {
                     bestSpan = span;
-                    bestId = pd.ChunkId;
+                    best = pd;
                 }
             }
         }
-        return bestId;
+        return best;
     }
 }

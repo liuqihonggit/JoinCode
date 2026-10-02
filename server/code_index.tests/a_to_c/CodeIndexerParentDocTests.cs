@@ -8,21 +8,17 @@ public sealed class CodeIndexerParentDocTests : IDisposable {
     private readonly CodeIndexer _indexer;
     private readonly IFileSystem _fs;
     private readonly EmbeddingIndex _embeddingIndex;
-    private readonly InMemoryParentDocumentStore _parentStore;
     private bool _disposed;
 
     public CodeIndexerParentDocTests() {
         _store = new InMemoryIndexStore();
         _fs = new IO.FileSystem.InMemoryFileSystem();
-        _parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
         _indexer = new CodeIndexer(_store, _fs);
         _embeddingIndex = new EmbeddingIndex(
             new FakeEmbeddingModel(8),
             new BruteForceAnn(),
-            _fs,
-            _parentStore);
+            _fs);
         _indexer.SetEmbeddingIndex(_embeddingIndex);
-        _indexer.SetParentDocumentStore(_parentStore);
     }
 
     public void Dispose() {
@@ -31,7 +27,7 @@ public sealed class CodeIndexerParentDocTests : IDisposable {
         _indexer.DisposeSafe();
         _store.Dispose();
         _embeddingIndex.Dispose();
-        _parentStore.Dispose();
+        _embeddingIndex.DisposeAsync().AsTask().Wait();
     }
 
     [Fact]
@@ -44,7 +40,7 @@ public sealed class CodeIndexerParentDocTests : IDisposable {
 
         await _indexer.BuildIndexAsync(options, CancellationToken.None);
 
-        Assert.True(_parentStore.Count > 0);
+        Assert.True(_embeddingIndex.ChunkCount > 0);
     }
 
     [Fact]
@@ -74,12 +70,12 @@ public sealed class CodeIndexerParentDocTests : IDisposable {
         var options = new CodeIndexOptions { WorkspaceRoot = root };
 
         await _indexer.BuildIndexAsync(options, CancellationToken.None);
-        Assert.True(_parentStore.Count > 0);
+        Assert.True(_embeddingIndex.ChunkCount > 0);
 
         _fs.DeleteFile(fileA);
         await _indexer.BuildIndexAsync(options, CancellationToken.None);
 
-        Assert.Equal(0, _parentStore.Count);
+        Assert.Equal(0, _embeddingIndex.ChunkCount);
     }
 
     [Fact]
@@ -94,7 +90,7 @@ public sealed class CodeIndexerParentDocTests : IDisposable {
 
         await _indexer.BuildIndexAsync(options, CancellationToken.None);
 
-        Assert.True(_parentStore.Count >= 2);
+        Assert.True(_embeddingIndex.ChunkCount >= 2);
     }
 
     [Fact]
@@ -134,7 +130,7 @@ public sealed class CodeIndexerParentDocTests : IDisposable {
 
         await _indexer.BuildIndexAsync(options, CancellationToken.None);
 
-        Assert.True(_parentStore.Count > 0);
+        Assert.True(_embeddingIndex.ChunkCount > 0);
     }
 
     [Fact]

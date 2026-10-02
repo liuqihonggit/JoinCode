@@ -223,22 +223,18 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_WithParentStore_ReturnsParentDocumentText() {
-        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
+        var fs = new IO.FileSystem.InMemoryFileSystem();
+        await fs.WriteAllText("test.cs", "class Foo { void Bar() { } }");
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
-        await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
+        await using var index = new EmbeddingIndex(embed, ann, fs);
 
         var methodChunk = CreateChunk(id: "m1", text: "void Bar() { }") with {
-            ParentChunkId = "class-001"
+            ParentFilePath = "test.cs",
+            ParentStartLine = 1,
+            ParentEndLine = 1,
+            ParentSymbolFqn = "Test.Foo"
         };
-        parentStore.Add(new ParentDocument {
-            ChunkId = "class-001",
-            FilePath = "test.cs",
-            SymbolFqn = "Test.Foo",
-            StartLine = 1,
-            EndLine = 10,
-            SourceText = "class Foo { void Bar() { } }"
-        });
 
         await index.IndexChunksAsync([methodChunk], CancellationToken.None);
         var results = await index.SearchAsync("Bar", 1, CancellationToken.None,
@@ -249,13 +245,13 @@ public sealed class EmbeddingIndexTests {
         Assert.Contains("class Foo", result.ParentDocumentText);
         Assert.Equal("Test.Foo", result.ParentSymbolFqn);
         Assert.Equal(1, result.ParentStartLine);
-        Assert.Equal(10, result.ParentEndLine);
+        Assert.Equal(1, result.ParentEndLine);
     }
 
     [Fact]
     public async Task SearchAsync_WithoutParentStore_ParentDocumentTextIsNull() {
         await using var index = CreateIndex();
-        var chunk = CreateChunk() with { ParentChunkId = "parent-001" };
+        var chunk = CreateChunk();
 
         await index.IndexChunksAsync([chunk], CancellationToken.None);
         var results = await index.SearchAsync("Foo", 1, CancellationToken.None);
@@ -266,12 +262,12 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_ParentStoreMissingDoc_ParentDocumentTextIsNull() {
-        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
+        var fs = new IO.FileSystem.InMemoryFileSystem();
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
-        await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
+        await using var index = new EmbeddingIndex(embed, ann, fs);
 
-        var chunk = CreateChunk() with { ParentChunkId = "missing-parent" };
+        var chunk = CreateChunk() with { ParentFilePath = "missing.cs", ParentStartLine = 1, ParentEndLine = 10, ParentSymbolFqn = "Test.Foo" };
         await index.IndexChunksAsync([chunk], CancellationToken.None);
 
         var results = await index.SearchAsync("Foo", 1, CancellationToken.None);
@@ -281,12 +277,9 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_ChunkWithoutParent_ParentDocumentTextIsNull() {
-        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
-        var embed = new FakeEmbeddingModel(8);
-        var ann = new BruteForceAnn();
-        await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
+        await using var index = CreateIndex();
 
-        var chunk = CreateChunk() with { ParentChunkId = null };
+        var chunk = CreateChunk();
         await index.IndexChunksAsync([chunk], CancellationToken.None);
 
         var results = await index.SearchAsync("Foo", 1, CancellationToken.None);
@@ -296,10 +289,7 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_IncludeSourceText_ReturnsSourceText() {
-        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
-        var embed = new FakeEmbeddingModel(8);
-        var ann = new BruteForceAnn();
-        await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
+        await using var index = CreateIndex();
 
         var chunk = CreateChunk(text: "void Bar() { }");
         await index.IndexChunksAsync([chunk], CancellationToken.None);
@@ -323,20 +313,9 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_DefaultOptions_ParentDocumentTextIsNull() {
-        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
-        var embed = new FakeEmbeddingModel(8);
-        var ann = new BruteForceAnn();
-        await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
+        await using var index = CreateIndex();
 
-        var chunk = CreateChunk() with { ParentChunkId = "class-001" };
-        parentStore.Add(new ParentDocument {
-            ChunkId = "class-001",
-            FilePath = "test.cs",
-            SymbolFqn = "Test.Foo",
-            StartLine = 1,
-            EndLine = 10,
-            SourceText = "class Foo { }"
-        });
+        var chunk = CreateChunk();
         await index.IndexChunksAsync([chunk], CancellationToken.None);
 
         var results = await index.SearchAsync("Foo", 1, CancellationToken.None);
@@ -346,20 +325,13 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_IncludeParentDocumentFalse_ParentDocumentTextIsNull() {
-        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
+        var fs = new IO.FileSystem.InMemoryFileSystem();
+        await fs.WriteAllText("test.cs", "class Foo { }");
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
-        await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
+        await using var index = new EmbeddingIndex(embed, ann, fs);
 
-        var chunk = CreateChunk() with { ParentChunkId = "class-001" };
-        parentStore.Add(new ParentDocument {
-            ChunkId = "class-001",
-            FilePath = "test.cs",
-            SymbolFqn = "Test.Foo",
-            StartLine = 1,
-            EndLine = 10,
-            SourceText = "class Foo { }"
-        });
+        var chunk = CreateChunk() with { ParentFilePath = "test.cs", ParentStartLine = 1, ParentEndLine = 1, ParentSymbolFqn = "Test.Foo" };
         await index.IndexChunksAsync([chunk], CancellationToken.None);
 
         var results = await index.SearchAsync("Foo", 1, CancellationToken.None,
@@ -370,20 +342,13 @@ public sealed class EmbeddingIndexTests {
 
     [Fact]
     public async Task SearchAsync_BothOptionsTrue_ReturnsBothSourceTextAndParent() {
-        using var parentStore = new InMemoryParentDocumentStore(new InMemoryKvStore());
+        var fs = new IO.FileSystem.InMemoryFileSystem();
+        await fs.WriteAllText("test.cs", "class Foo { void Bar() { } }");
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
-        await using var index = new EmbeddingIndex(embed, ann, TestFileSystem.Current, parentStore);
+        await using var index = new EmbeddingIndex(embed, ann, fs);
 
-        var chunk = CreateChunk(text: "void Bar() { }") with { ParentChunkId = "class-001" };
-        parentStore.Add(new ParentDocument {
-            ChunkId = "class-001",
-            FilePath = "test.cs",
-            SymbolFqn = "Test.Foo",
-            StartLine = 1,
-            EndLine = 10,
-            SourceText = "class Foo { void Bar() { } }"
-        });
+        var chunk = CreateChunk(text: "void Bar() { }") with { ParentFilePath = "test.cs", ParentStartLine = 1, ParentEndLine = 1, ParentSymbolFqn = "Test.Foo" };
         await index.IndexChunksAsync([chunk], CancellationToken.None);
 
         var results = await index.SearchAsync("Bar", 1, CancellationToken.None,

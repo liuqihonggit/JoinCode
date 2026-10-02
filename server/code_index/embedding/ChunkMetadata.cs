@@ -16,8 +16,14 @@ internal sealed record ChunkMetadata {
     public required int StartLine { get; init; }
     /// <summary>结束行号。</summary>
     public required int EndLine { get; init; }
-    /// <summary>父文档块 ID — null 表示无父文档（类级块或未启用父文档检索）。</summary>
-    public string? ParentChunkId { get; init; }
+    /// <summary>父文档文件路径 — null 表示无父文档（类级块或未启用父文档检索）。</summary>
+    public string? ParentFilePath { get; init; }
+    /// <summary>父文档起始行号。</summary>
+    public int ParentStartLine { get; init; }
+    /// <summary>父文档结束行号。</summary>
+    public int ParentEndLine { get; init; }
+    /// <summary>父文档符号完全限定名。</summary>
+    public string? ParentSymbolFqn { get; init; }
     /// <summary>块原文 — 嵌入后保留供 IncludeSourceText=true 时返回。</summary>
     public string? SourceText { get; init; }
     /// <summary>SourceText 在索引文件中的偏移量（-1=无SourceText或已加载到SourceText字段）。</summary>

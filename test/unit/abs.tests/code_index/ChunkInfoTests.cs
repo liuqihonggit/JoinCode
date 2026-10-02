@@ -69,21 +69,24 @@ public sealed class ChunkInfoTests {
     }
 
     [Fact]
-    public void ParentChunkId_DefaultsToNull_WhenNotSet() {
+    public void ParentFilePath_DefaultsToNull_WhenNotSet() {
         var chunk = CreateChunk();
-        chunk.ParentChunkId.Should().BeNull();
+        chunk.ParentFilePath.Should().BeNull();
     }
 
     [Fact]
-    public void ParentChunkId_CanBeSet_ForChildChunk() {
-        var chunk = CreateChunk() with { ParentChunkId = "parent-chunk-001" };
-        chunk.ParentChunkId.Should().Be("parent-chunk-001");
+    public void ParentFilePath_CanBeSet_ForChildChunk() {
+        var chunk = CreateChunk() with { ParentFilePath = "parent.cs", ParentStartLine = 1, ParentEndLine = 10, ParentSymbolFqn = "Test.Foo" };
+        chunk.ParentFilePath.Should().Be("parent.cs");
+        chunk.ParentStartLine.Should().Be(1);
+        chunk.ParentEndLine.Should().Be(10);
+        chunk.ParentSymbolFqn.Should().Be("Test.Foo");
     }
 
     [Fact]
-    public void RecordEquality_DifferentParentChunkId_ShouldNotBeEqual() {
-        var chunk1 = CreateChunk() with { ParentChunkId = "parent-A" };
-        var chunk2 = CreateChunk() with { ParentChunkId = "parent-B" };
+    public void RecordEquality_DifferentParentFilePath_ShouldNotBeEqual() {
+        var chunk1 = CreateChunk() with { ParentFilePath = "parent-A.cs" };
+        var chunk2 = CreateChunk() with { ParentFilePath = "parent-B.cs" };
         chunk1.Should().NotBe(chunk2);
     }
 }

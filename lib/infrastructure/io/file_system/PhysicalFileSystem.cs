@@ -94,7 +94,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
 
     /// <inheritdoc />
     public string[] ReadAllLines(string path) {
-        using var reader = new MappedFileReader(path);
+        using var reader = MappedFileReader.Open(path);
         var content = reader.ReadToEnd();
         var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan());
         var lines = new string[ranges.Count];
@@ -300,7 +300,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     /// </summary>
     private static async ValueTask<string> ReadAllTextWithShare(string path, Encoding encoding) {
         if (encoding is UTF8Encoding) {
-            using var mmapReader = new MappedFileReader(path);
+            using var mmapReader = MappedFileReader.Open(path);
             return mmapReader.ReadToEnd();
         }
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -323,7 +323,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     /// </summary>
     private static Task<string> ReadAllTextWithShareAsync(string path, CancellationToken cancellationToken) {
         cancellationToken.ThrowIfCancellationRequested();
-        using var reader = new MappedFileReader(path);
+        using var reader = MappedFileReader.Open(path);
         return Task.FromResult(reader.ReadToEnd());
     }
 
@@ -333,7 +333,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     private static Task<string> ReadAllTextWithShareAsync(string path, Encoding encoding, CancellationToken cancellationToken) {
         cancellationToken.ThrowIfCancellationRequested();
         if (encoding is UTF8Encoding) {
-            using var reader = new MappedFileReader(path);
+            using var reader = MappedFileReader.Open(path);
             return Task.FromResult(reader.ReadToEnd());
         }
         return ReadAllTextWithShareAsyncCore(path, encoding, cancellationToken);
@@ -353,7 +353,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     /// </summary>
     private static Task<string[]> ReadAllLinesWithShareAsync(string path, CancellationToken cancellationToken) {
         cancellationToken.ThrowIfCancellationRequested();
-        using var reader = new MappedFileReader(path);
+        using var reader = MappedFileReader.Open(path);
         var content = reader.ReadToEnd();
         var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan());
         var lines = new string[ranges.Count];

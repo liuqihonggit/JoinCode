@@ -1,0 +1,1588 @@
+生产代码候选: 105 个
+
+--- [1] ReplStepScope | app/cli/entry/startup/core/ReplLoopStep.cs:301 ---
+risks: EventSubscription
+params: (CancellationToken loopCt, Action<int> setProcessing)
+body: {
+            _setProcessing = setProcessing;
+            _stepCts = CancellationTokenSource.CreateLinkedTokenSource(loopCt);
+            _aliveCts = CancellationTokenSource.CreateLinkedTokenSource(loopCt);
+            _onCancelKeyPress = (_, e) => { e.Cancel = true; _stepCts.Cancel(); };
+            Console.CancelKeyPress += _onCancelKeyPress;
+            _aliveTask = RunAliveLoopAsync(_aliveCts.Token);
+            _setProcessing(1);
+        }
+
+--- [2] JccChatSession | app/gui/hosting/JccChatSession.cs:39 ---
+risks: EventSubscription
+params: (
+        IServiceProvider services,
+        IChatService chat,
+        JoinCode.Abstractions.Configuration.WorkflowConfig config,
+        IExecutionSettingsProvider? executionSettings = null,
+        IModelConfigLoader? modelConfigLoader = null,
+        Func<ValueTask>? disposeAsync = null)
+body: {
+        _services = services;
+        _chat = chat;
+        _config = config;
+        _executionSettings = executionSettings;
+        _modelConfigLoader = modelConfigLoader ?? services.GetService<IModelConfigLoader>() ?? new ModelConfigLoader();
+        _disposeAsync = disposeAsync;
+
+        _interactiveService = services.GetService<IInteractiveService>() as AvaloniaInteractiveService;
+
+        // 订阅 settings.json 变更 — theme 键变更时触发 ThemeChanged 驱动 GUI 热重载（双向绑定）
+        var configSer
+
+--- [3] SubAgentIdleTimer | app/gui/view_models/g_to_s/SubAgentIdleTimer.cs:24 ---
+risks: IDisposableAllocation+EventSubscription
+params: (int timeoutSeconds = 60, Action<int>? onTick = null)
+body: {
+        _timeoutSeconds = timeoutSeconds;
+        _onTick = onTick;
+        _timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _timer.Tick += OnTimerTick;
+    }
+
+--- [4] MainViewModel | app/gui/view_models/main_view_model/MainViewModel.Lifecycle.cs:11 ---
+risks: EventSubscription+FireAndForget
+params: (IJccChatSession? session = null, Persistence.GuiSessionStore? store = null, Persistence.GuiPreferencesStore? preferencesStore = null, IModelConfigLoader? modelConfigLoader = null)
+body: {
+        _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
+        _realSession = session;
+        // 配置服务的文件系统跟随 preferencesStore：生产传 null → PhysicalFileSystem；
+        // 测试传 InMemory store → 全程密闭，不读写真实 ~/.jcc/settings.json（防并行测试互扰+污染用户配置）
+        _fileSystem = preferencesStore?.FileSystem ?? new IO.FileSystem.PhysicalFileSystem();
+        _configService = new Core.Configuration.ConfigurationService(_fileSystem);
+        _session = session ?? new Hosting.PlaceholderCha
+
+--- [5] MarqueeTextBlock | app/gui/views/controls/MarqueeTextBlock.cs:63 ---
+risks: IDisposableAllocation
+params: ()
+body: {
+        _timer = new DispatcherTimerStub(Step);
+        VisualChildren.Add(_inner);
+        LogicalChildren.Add(_inner);
+    }
+
+--- [6] DispatcherTimerStub | app/gui/views/controls/MarqueeTextBlock.cs:149 ---
+risks: IDisposableAllocation+EventSubscription
+params: (Action callback)
+body: {
+            _timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+            _timer.Tick += (_, _) => {
+                try { callback(); } catch (Exception ex) { App.LogDiag($"[MarqueeTextBlock] tick 异常: {ex.Message}"); }
+            };
+        }
+
+--- [7] AskUserQuestionDialog | app/gui/views/core/AskUserQuestionDialog.axaml.cs:14 ---
+risks: EventSubscription
+params: ()
+body: {
+        InitializeComponent();
+        CancelButton.Click += (_, _) => Close(null);
+        ConfirmFreeInputButton.Click += (_, _) => OnConfirmFreeInput();
+    }
+
+--- [8] AskUserQuestionDialog | app/gui/views/core/AskUserQuestionDialog.axaml.cs:21 ---
+risks: EventSubscription
+params: (QuestionItem question)
+body: {
+        _options = question.Options;
+        _multiSelect = question.MultiSelect;
+
+        HeaderBlock.Text = question.Header;
+        QuestionBlock.Text = question.Question;
+
+        for (var i = 0; i < question.Options.Count; i++) {
+            var idx = i;
+            var opt = question.Options[i];
+            var display = string.IsNullOrWhiteSpace(opt.Description)
+                ? opt.Label
+                : $"{opt.Label} — {opt.Description}";
+
+            var btn = CreateO
+
+--- [9] InputBarView | app/gui/views/core/InputBarView.axaml.cs:18 ---
+risks: EventSubscription
+params: ()
+body: {
+        InitializeComponent();
+        _slashDebounceTimer.Tick += OnSlashDebounceTick;
+        if (InputTextBox is not null)
+            InputTextBox.AddHandler(InputElement.KeyDownEvent, OnInputKeyDown, RoutingStrategies.Tunnel);
+    }
+
+--- [10] MainWindow | app/gui/views/core/MainWindow.axaml.cs:36 ---
+risks: EventSubscription
+params: ()
+body: {
+        App.LogDiag("[MainWindow] ctor begin");
+        InitializeComponent();
+        App.LogDiag("[MainWindow] ctor end");
+        _errorToastTimer.Tick += OnErrorToastTimerTick;
+        _toolTimer.Tick += OnToolTimerTick;
+        _runStatusTimer.Tick += OnRunStatusTimerTick;
+        _runStatusTimer.Start();
+        Closed += OnWindowClosed;
+        AddHandler(PointerPressedEvent, OnGlobalPointerPressed, RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, OnGlobalKeyDown, R
+
+--- [11] SlashPaletteView | app/gui/views/core/SlashPaletteView.axaml.cs:32 ---
+risks: EventSubscription
+params: ()
+body: {
+        InitializeComponent();
+        if (PaletteList is not null)
+            PaletteList.Tapped += OnPaletteListTapped;
+    }
+
+--- [12] TranscriptWindow | app/gui/views/core/TranscriptWindow.axaml.cs:21 ---
+risks: EventSubscription
+params: (BackgroundAgentItemVm run)
+body: {
+        _run = run ?? throw new ArgumentNullException(nameof(run));
+        InitializeComponent();
+        Title = $"{run.Name} — 子代理回放";
+        TitleText.Text = $"{run.Name}{(string.IsNullOrEmpty(run.Description) ? "" : $" — {run.Description}")}";
+        TitleGlyph.Text = run.State == AgentStatus.Failed ? "✗" : run.State == AgentStatus.Completed ? "✓" : "▶";
+        StatsText.Text = $"{run.ToolUseCount} 次工具调用 · {run.Activities.Count} 条记录";
+        TranscriptItems.ItemsSource = run.Ac
+
+--- [13] WorkbenchWindow | app/gui/views/core/WorkbenchWindow.axaml.cs:7 ---
+risks: EventSubscription
+params: ()
+body: {
+        InitializeComponent();
+        GitPreview.TextArea.TextView.LineTransformers.Add(new Markdown.UnifiedDiffColorizer());
+        DataContextChanged += OnContextChanged;
+        Closed += (_, _) => {
+            if (_vm is not null) { _vm.CancelOperationCommand.Execute(null); _vm.PropertyChanged -= OnViewModelChanged; _vm.Main.PropertyChanged -= OnMainChanged; }
+        };
+    }
+
+--- [14] AskUserDialogView | app/tui/core/tui/views/AskUserDialogView.cs:23 ---
+risks: EventSubscription
+params: ()
+body: {
+        _container = new View {
+            Width = Dim.Fill(),
+            Height = Dim.Auto(),
+            Visible = false,
+        };
+
+        _headerLabel = new Label {
+            Text = string.Empty,
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+        };
+
+        _questionLabel = new Label {
+            Text = string.Empty,
+            X = 0,
+            Y = Pos.Bottom(_headerLabel),
+            Width = Dim.Fill(),
+        };
+
+        _optio
+
+--- [15] FooterTabView | app/tui/core/tui/views/FooterTabView.cs:34 ---
+risks: EventSubscription
+params: ()
+body: {
+        _container = new View {
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+
+        _logTab = new Button { Text = "[Log]", X = 0, Y = 0 };
+        _filesTab = new Button { Text = "Files", X = Pos.Right(_logTab) + 1, Y = 0 };
+        _memoryTab = new Button { Text = "Memory", X = Pos.Right(_filesTab) + 1, Y = 0 };
+        _settingsTab = new Button { Text = "Settings", X = Pos.Right(_memoryTab) + 1, Y = 0 };
+
+        _timerLabel = new Label {
+            Text 
+
+--- [16] PermissionDialogView | app/tui/core/tui/views/PermissionDialogView.cs:22 ---
+risks: EventSubscription
+params: ()
+body: {
+        _container = new View {
+            Width = Dim.Fill(),
+            Height = Dim.Auto(),
+            Visible = false,
+        };
+
+        _titleLabel = new Label {
+            Text = "权限确认",
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+        };
+
+        _toolLabel = new Label {
+            Text = "",
+            X = 0,
+            Y = Pos.Bottom(_titleLabel),
+            Width = Dim.Fill(),
+        };
+
+        _descriptionLabel = new Labe
+
+--- [17] PromptView | app/tui/core/tui/views/PromptView.cs:20 ---
+risks: EventSubscription
+params: (CommandQueue queue)
+body: {
+        _queue = queue ?? throw new ArgumentNullException(nameof(queue));
+
+        _container = new View {
+            Width = Dim.Fill(),
+            Height = InputHeight,
+            CanFocus = true,
+        };
+
+        _promptLabel = new Label {
+            Text = "> ",
+            X = 0,
+            Y = 0,
+            Height = 1,
+        };
+
+        _editor = new Editor {
+            X = Pos.Right(_promptLabel),
+            Y = 0,
+            Width = Dim.Fill(),
+       
+
+--- [18] ToolBarView | app/tui/core/tui/views/ToolBarView.cs:35 ---
+risks: EventSubscription
+params: ()
+body: {
+        _container = new View {
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+
+        _newButton = new Button { Text = "▶ New (F1)", X = 0, Y = 0 };
+        _pauseButton = new Button { Text = "⏸ Pause (F2)", X = Pos.Right(_newButton) + 1, Y = 0 };
+        _stopButton = new Button { Text = "⏹ Stop (F3)", X = Pos.Right(_pauseButton) + 1, Y = 0 };
+        _chatButton = new Button { Text = "💬 Chat (F4)", X = Pos.Right(_stopButton) + 1, Y = 0 };
+        _statsButton 
+
+--- [19] ShannonEntropyDetector | kit/brain/context/services/loop/ShannonEntropyDetector.cs:89 ---
+risks: EventSubscription
+params: (
+        int windowSize,
+        int declineThreshold,
+        double minEntropyDelta,
+        TimeSpan confirmationWindow,
+        Func<DateTimeOffset>? clock = null)
+body: {
+        ArgumentOutOfRangeException.ThrowIfLessThan(windowSize, 3);
+        ArgumentOutOfRangeException.ThrowIfLessThan(declineThreshold, 2);
+        ArgumentOutOfRangeException.ThrowIfNegative(minEntropyDelta);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(confirmationWindow, TimeSpan.Zero);
+
+        _windowSize = windowSize;
+        _declineThreshold = declineThreshold;
+        _minEntropyDelta = minEntropyDelta;
+        _confirmationWindow = confirmationWindow;
+      
+
+--- [20] StreamTokenDetector | kit/brain/context/services/loop/StreamTokenDetector.cs:54 ---
+risks: IDisposableAllocation+ThreadCreation
+params: (RingBuffer<string> tokenWindow, TimeSpan detectInterval, int minPatternLength,
+        int requiredRepeats, int maxPatternLength, CancellationTokenSource cts)
+body: {
+        _tokenWindow = tokenWindow;
+        _detectInterval = detectInterval;
+        _minPatternLength = minPatternLength;
+        _requiredRepeats = requiredRepeats;
+        _maxPatternLength = maxPatternLength;
+        _cts = cts;
+        _detectThread = new Thread(DetectLoop) { IsBackground = true, Name = "StreamTokenDetector" };
+    }
+
+--- [21] QueryEngine | kit/brain/query/query2/token_budget/core/QueryEngine.cs:45 ---
+risks: IDisposableAllocation
+params: (
+        IChatClient kernel,
+        IToolRegistry toolRegistry,
+        IOptions<QueryEngineConfig> configOptions,
+        IServiceProvider? serviceProvider = null,
+        ILogger<QueryEngine>? logger = null,
+        ILoggerFactory? loggerFactory = null,
+        IToolExecutionGateway? toolExecutionGateway = null)
+body: {
+        _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
+        _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
+        _toolExecutionGateway = toolExecutionGateway;
+        _config = configOptions?.Value ?? new QueryEngineConfig();
+        _serviceProvider = serviceProvider;
+        _logger = logger;
+        _loggerFactory = loggerFactory;
+        _pipeline = new Lazy<MiddlewarePipeline<QueryMiddlewareContext>>(BuildPipeline,
+
+--- [22] QueryStateTransitions | kit/brain/query/query2/transitions/QueryStateTransitions.cs:107 ---
+risks: EventSubscription
+params: (ITelemetryService? telemetryService = null, IClockService? clock = null)
+body: {
+        _telemetryService = telemetryService;
+        _stateMachine = new StateMachine<QueryState>(TransitionTable, QueryState.Idle, clock);
+        _stateMachine.StateChanged += OnStateChanged;
+    }
+
+--- [23] ApiClient | kit/hands/api/core/ApiClient.cs:68 ---
+risks: EventSubscription
+params: (ApiClientOptions options, ILogger<ApiClient>? logger = null,
+        IMtlsService? mtlsService = null, IHttpProxyService? httpProxyService = null,
+        INetworkConnectivityService? networkService = null)
+body: {
+        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _logger = logger;
+        _networkService = networkService;
+        _mtlsService = mtlsService;
+        _httpProxyService = httpProxyService;
+
+        _httpClient = BuildHttpClient();
+
+        _retryPolicy = new RetryPolicy(options.RetryOptions ?? RetryPolicyOptions.Default);
+
+        _logger?.LogInformation("[ApiClient] 初始化完成 - BaseUrl: {BaseUrl}, Timeout: {Timeout}s",
+            options.BaseU
+
+--- [24] BuildQueueService | kit/hands/build/BuildQueueService.cs:32 ---
+risks: IDisposableAllocation
+params: (
+        ISystemActuatorRegistry actuatorRegistry,
+        IFileSystem fs,
+        IPreventSleepService? preventSleepService = null,
+        ILogger<BuildQueueService>? logger = null,
+        string? crossProcessLockPath = null)
+body: {
+        _actuatorRegistry = actuatorRegistry;
+        _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _preventSleepService = preventSleepService;
+        _logger = logger;
+
+        var fingerprintCache = new SourceFingerprintCache(logger);
+        _resultBuffer = new BuildResultBuffer(fingerprintCache, logger);
+        _crossProcessLock = new CrossProcessBuildLock(fs, logger, crossProcessLockPath);
+
+        _processingTask = ProcessQueueAsync(_shutdownCts.Token);
+  
+
+--- [25] WindowShakeCoordinator | kit/hands/desktop/services/WindowShakeCoordinator.cs:43 ---
+risks: EventSubscription
+params: (
+        IConfigurationService? configService = null,
+        Func<bool?>? shakeEnabledProvider = null,
+        ILogger<WindowShakeCoordinator>? logger = null)
+body: {
+        _shakeEnabledProvider = shakeEnabledProvider;
+        _configService = configService;
+
+        if (configService is not null) {
+            _loadTask = ReadConfigAsync(configService, logger);
+            configService.SettingChanged += OnSettingChanged;
+        } else {
+            _loadTask = Task.CompletedTask;
+        }
+    }
+
+--- [26] FileToolHandlers | kit/hands/tool_handlers/dev_tools/handlers/FileToolHandlers.cs:36 ---
+risks: IDisposableAllocation
+params: (
+        IFileOperationService fileOperationService,
+        IFileSystem fs,
+        FileToolHandlersContext? context = null,
+        ILogger<FileToolHandlers>? logger = null)
+body: {
+        _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
+        _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _logger = logger;
+        _ctx = context ?? new FileToolHandlersContext();
+        _telemetry = new FileTelemetryRecorder(_ctx.TelemetryService);
+        _pathResolver = new FilePathResolver(_ctx.SandboxManager);
+        _specialReader = new FileSpecialFormatReader(_fs, _ctx.FileOperationConfig!, _
+
+--- [27] McpFallbackClient | kit/mcp/client/transport/McpFallbackClient.cs:17 ---
+risks: EventSubscription
+params: (
+        McpServerConnectionConfig config,
+        (IMcpTransport[] Transports, ITransportHealthCheck[] HealthChecks) chainSpec,
+        TransportFallbackConfig? fallbackConfig = null,
+        ILogger? logger = null)
+body: {
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        ServerName = _config.Name;
+
+        _chain = new McpTransportFallbackChain(
+            chainSpec.Transports, chainSpec.HealthChecks,
+            fallbackConfig ?? TransportFallbackConfig.FromEnvironment(), logger);
+
+        _chain.MessageReceived += OnChainMessageReceived;
+        _chain.ErrorOccurred += OnChainError;
+        _chain.FallbackOccurred += OnChainFallback;
+    }
+
+--- [28] McpNetworkClient | kit/mcp/client/transport/McpNetworkClient.cs:23 ---
+risks: EventSubscription
+params: (
+        McpServerConnectionConfig config,
+        McpClientOptions? options,
+        ILogger? logger,
+        IMcpAuthProvider? authProvider,
+        TTransport transport)
+body: {
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        ServerName = _config.Name;
+        _transport = transport;
+        _transport.MessageReceived += OnTransportMessageReceived;
+        _transport.ErrorOccurred += OnTransportError;
+    }
+
+--- [29] McpbLoader | kit/mcp/core/management/McpbLoader.cs:19 ---
+risks: IDisposableAllocation
+params: (
+        IEnumerable<IMcpbMiddleware> middlewares,
+        IFileSystem fs,
+        ILoggerFactory? loggerFactory = null,
+        ILogger<McpbLoader>? logger = null)
+body: {
+        ArgumentNullException.ThrowIfNull(fs);
+        _pipeline = loggerFactory is not null
+            ? new PipelineBuilder<McpbLoadContext>()
+                .WithLoggingScope(loggerFactory)
+                .UseRange(middlewares)
+                .Build()
+            : new MiddlewarePipeline<McpbLoadContext>(middlewares);
+    }
+
+--- [30] RemoteClientManager | kit/mcp/remote/core/RemoteClientManager.cs:39 ---
+risks: IDisposableAllocation
+params: (
+        IToolRegistry toolRegistry,
+        ILogger<RemoteClientManager> logger,
+        ILoggerFactory? loggerFactory = null,
+        McpReconnectAcceptLevel acceptLevel = McpReconnectAcceptLevel.IdentityOnly,
+        IEnumerable<IRemoteSyncMiddleware>? syncMiddlewares = null,
+        IClockService? clock = null,
+        INetworkConnectivityService? networkService = null)
+body: {
+        ArgumentNullException.ThrowIfNull(toolRegistry);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _toolRegistry = toolRegistry;
+        _logger = logger;
+        _acceptLevel = acceptLevel;
+        _networkService = networkService;
+
+        _clients = new RemoteClientRegistry(clock ?? SystemClockService.Instance);
+        _toolSpecCache = new RemoteToolSpecCache();
+        _reconnectCts = new RemoteReconnectCtsRegistry();
+
+        if (syncMiddlewares is not null
+
+--- [31] HttpTransport | kit/mcp/transports/http/HttpTransport.cs:40 ---
+risks: EventSubscription
+params: (HttpTransportOptions options, IMcpAuthProvider? authProvider = null, ILogger<HttpTransport>? logger = null)
+body: {
+        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _authProvider = authProvider;
+        _logger = logger;
+
+        _httpClient = new HttpClient {
+            Timeout = TimeSpan.FromMilliseconds(PostTimeoutMs)
+        };
+
+        _httpClient.DefaultRequestHeaders.Add("User-Agent", "JoinCode-MCP/1.0");
+        _httpClient.DefaultRequestHeaders.Add("Accept", StreamableHttpAccept);
+
+        // 订阅基类事件，桥接到 MCP 事件
+        base.ErrorOccurred += (_, e)
+
+--- [32] StdioTransport | kit/mcp/transports/stdio/StdioTransport.cs:32 ---
+risks: EventSubscription
+params: (TextReader input, TextWriter output, ILogger<StdioTransport>? logger = null)
+body: {
+        _input = input ?? throw new ArgumentNullException(nameof(input));
+        _output = output ?? throw new ArgumentNullException(nameof(output));
+        _logger = logger;
+        _logger?.LogDebug("StdioTransport initialized");
+
+        // 订阅基类事件，桥接到 MCP 事件
+        base.ErrorOccurred += (_, e) =>
+            ErrorOccurred?.Invoke(this, new McpTransportErrorEventArgs { Exception = e.Exception, ConnectionId = "stdio" });
+    }
+
+--- [33] WebSocketTransport | kit/mcp/transports/web_socket/WebSocketTransport.cs:26 ---
+risks: EventSubscription
+params: (
+        McpServerConnectionConfig config,
+        IMcpAuthProvider? authProvider = null,
+        ILogger<WebSocketTransport>? logger = null)
+body: {
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _authProvider = authProvider;
+        _logger = logger;
+
+        // 订阅基类事件，桥接到 MCP 事件
+        base.ErrorOccurred += (_, e) =>
+            ErrorOccurred?.Invoke(this, new McpTransportErrorEventArgs { Exception = e.Exception });
+    }
+
+--- [34] ToolHealthMonitor | kit/mcp_tool_dispatch/core/execution/ToolHealthMonitor.cs:70 ---
+risks: IDisposableAllocation
+params: (IFileSystem fs, ILogger<ToolHealthMonitor>? logger = null, ToolScoreConfig? config = null,
+        HashSet<string>? blacklist = null, Dictionary<string, int>? penalties = null)
+body: {
+        _fs = fs;
+        _logger = logger;
+        _config = config ?? new ToolScoreConfig();
+        var bl = blacklist ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        _blacklistSnapshot = new BlacklistSnapshot {
+            Exact = bl.Where(b => !b.Contains('*')).ToFrozenSet(StringComparer.OrdinalIgnoreCase),
+            Patterns = bl.Where(b => b.Contains('*')).ToFrozenSet(StringComparer.OrdinalIgnoreCase)
+        };
+        _penalties = penalties ?? new Dictiona
+
+--- [35] ToolHypergraphScorer | kit/mcp_tool_dispatch/core/execution/ToolHypergraphScorer.cs:21 ---
+risks: IDisposableAllocation
+params: (ILogger<ToolHypergraphScorer>? logger = null, IToolHealthMonitor? monitor = null)
+body: {
+        _logger = logger;
+        _monitor = monitor;
+        _graph = BuildGraph(ToolHypergraphPresets.GetPresets());
+
+        if (_monitor is not null) {
+            _syncTimer = new Timer(async _ => await SyncSharedScoresAsync().ConfigureAwait(false),
+                null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
+        }
+    }
+
+--- [36] ConsoleCancelScope | lib/abstractions/abs_core/core_utils/core/scopes/ConsoleCancelScope.cs:22 ---
+risks: EventSubscription
+params: (CancellationToken ct)
+body: {
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _handler = (_, e) => { e.Cancel = true; _cts.Cancel(); };
+        System.Console.CancelKeyPress += _handler;
+    }
+
+--- [37] RemoteCacheRefreshServiceBase | lib/abstractions/abs_core/interfaces/services/RemoteCacheRefreshServiceBase.cs:44 ---
+risks: IDisposableAllocation
+params: (
+        HttpClient httpClient,
+        IRemoteRefreshOptions options,
+        ILogger? logger,
+        ITelemetryService? telemetryService,
+        IClockService? clock)
+body: {
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        RefreshOptions = options;
+        Logger = logger;
+        _telemetryService = telemetryService;
+        _clock = clock ?? SystemClockService.Instance;
+
+        if (!string.IsNullOrEmpty(options.ApiEndpoint)) {
+            _refreshTimer = new Timer(
+                _ => { if (Volatile.Read(ref _disposed) == 0) TrySend(new RefreshCacheCmd(new IdempotencyKey("refresh-cache-timer", Guid.NewGu
+
+--- [38] GatewayActor | lib/async_lock/actor/GatewayActor.cs:87 ---
+risks: IDisposableAllocation
+params: (
+        Func<TRequest, CancellationToken, Task<TResponse>> handler,
+        GatewayOptions? options = null,
+        ActorBackpressure? backpressure = null)
+body: {
+        _handler = handler;
+        _options = options ?? GatewayOptions.LlmGateway;
+        _rateLimiter = new SemaphoreSlim(_options.MaxConcurrency, _options.MaxConcurrency);
+    }
+
+--- [39] MessageRetryEngine | lib/async_lock/actor/MessageRetryEngine.cs:31 ---
+risks: IDisposableAllocation
+params: (
+        int retryQueueCapacity,
+        int maxRetries,
+        ChannelWriter<TCommand> inputWriter,
+        string actorId,
+        ILogger? logger,
+        CancellationToken shutdownCt,
+        Action<TCommand, int> onSendFailed,
+        Action onEnqueuedToInput)
+body: {
+        ArgumentNullException.ThrowIfNull(actorId);
+        if (string.IsNullOrEmpty(actorId))
+            throw new ArgumentException("actorId 不能为 null 或空", nameof(actorId));
+        if (retryQueueCapacity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(retryQueueCapacity), retryQueueCapacity, "retryQueueCapacity 必须 > 0");
+        if (maxRetries <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxRetries), maxRetries, "maxRetries 必须 > 0");
+        _maxRetr
+
+--- [40] BackpressureChannel | lib/async_lock/channels/BackpressureChannel.cs:46 ---
+risks: IDisposableAllocation
+params: (
+        string ownerId,
+        ActorBackpressure config,
+        Func<BackpressureSignal, ValueTask>? notifyBackpressureAsync = null,
+        bool singleReader = true,
+        bool singleWriter = false)
+body: {
+        ArgumentNullException.ThrowIfNull(ownerId);
+        ArgumentNullException.ThrowIfNull(config);
+        _ownerId = ownerId;
+        _config = config;
+        _notifyBackpressureAsync = notifyBackpressureAsync;
+        _data = Channel.CreateBounded<BackpressureMessage<T>>(new BoundedChannelOptions(config.Capacity) {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = singleReader,
+            SingleWriter = singleWriter
+        });
+        _signalQue
+
+--- [41] AsyncLock | lib/async_lock/lock/AsyncLock.cs:37 ---
+risks: IDisposableAllocation
+params: ()
+body: {
+        _semaphore = new SemaphoreSlim(1, 1);
+        _name = $"AsyncLock#{LockRegistry.Count + 1}";
+        _timeout = DefaultTimeout;
+        _timeoutPolicy = LockTimeoutPolicy.Throw;
+        _registryId = LockRegistry.Register(_name);
+    }
+
+--- [42] AsyncLock | lib/async_lock/lock/AsyncLock.cs:48 ---
+risks: IDisposableAllocation
+params: (string name)
+body: {
+        _semaphore = new SemaphoreSlim(1, 1);
+        _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
+        _timeout = DefaultTimeout;
+        _timeoutPolicy = LockTimeoutPolicy.Throw;
+        _registryId = LockRegistry.Register(_name);
+    }
+
+--- [43] AsyncLock | lib/async_lock/lock/AsyncLock.cs:59 ---
+risks: IDisposableAllocation
+params: (string name, LockTimeoutPolicy timeoutPolicy)
+body: {
+        _semaphore = new SemaphoreSlim(1, 1);
+        _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
+        _timeout = DefaultTimeout;
+        _timeoutPolicy = timeoutPolicy;
+        _registryId = LockRegistry.Register(_name);
+    }
+
+--- [44] AsyncLock | lib/async_lock/lock/AsyncLock.cs:70 ---
+risks: IDisposableAllocation
+params: (string name, TimeSpan timeout)
+body: {
+        if (timeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(timeout), "超时必须为正值。");
+        _semaphore = new SemaphoreSlim(1, 1);
+        _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
+        _timeout = timeout;
+        _timeoutPolicy = LockTimeoutPolicy.Throw;
+        _registryId = LockRegistry.Register(_name);
+    }
+
+--- [45] AsyncLock | lib/async_lock/lock/AsyncLock.cs:83 ---
+risks: IDisposableAllocation
+params: (string name, TimeSpan timeout, LockTimeoutPolicy timeoutPolicy)
+body: {
+        if (timeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(timeout), "超时必须为正值。");
+        _semaphore = new SemaphoreSlim(1, 1);
+        _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
+        _timeout = timeout;
+        _timeoutPolicy = timeoutPolicy;
+        _registryId = LockRegistry.Register(_name);
+    }
+
+--- [46] AsyncLock | lib/async_lock/lock/AsyncLock.cs:96 ---
+risks: IDisposableAllocation
+params: (int initialCount, int maxCount)
+body: {
+        if (initialCount < 0 || maxCount < 1 || initialCount > maxCount)
+            throw new ArgumentOutOfRangeException(
+                nameof(initialCount),
+                "initialCount 必须 >= 0,maxCount 必须 >= 1,且 initialCount <= maxCount。");
+        _semaphore = new SemaphoreSlim(initialCount, maxCount);
+        _name = $"AsyncLock#{LockRegistry.Count + 1}";
+        _timeout = DefaultTimeout;
+        _timeoutPolicy = LockTimeoutPolicy.Throw;
+        _registryId = LockRegistry.Re
+
+--- [47] AsyncLock | lib/async_lock/lock/AsyncLock.cs:111 ---
+risks: IDisposableAllocation
+params: (string name, int initialCount, int maxCount)
+body: {
+        if (initialCount < 0 || maxCount < 1 || initialCount > maxCount)
+            throw new ArgumentOutOfRangeException(
+                nameof(initialCount),
+                "initialCount 必须 >= 0,maxCount 必须 >= 1,且 initialCount <= maxCount。");
+        _semaphore = new SemaphoreSlim(initialCount, maxCount);
+        _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
+        _timeout = DefaultTimeout;
+        _timeoutPolicy = LockTimeoutPolicy.Thro
+
+--- [48] AsyncLock | lib/async_lock/lock/AsyncLock.cs:126 ---
+risks: IDisposableAllocation
+params: (string name, int initialCount, int maxCount, TimeSpan timeout)
+body: {
+        if (initialCount < 0 || maxCount < 1 || initialCount > maxCount)
+            throw new ArgumentOutOfRangeException(
+                nameof(initialCount),
+                "initialCount 必须 >= 0,maxCount 必须 >= 1,且 initialCount <= maxCount。");
+        if (timeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(timeout), "超时必须为正值。");
+        _semaphore = new SemaphoreSlim(initialCount, maxCount);
+        _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLoc
+
+--- [49] PriorityMailbox | lib/async_lock/mailbox/PriorityMailbox.cs:61 ---
+risks: IDisposableAllocation+FireAndForget
+params: (
+        ActorBackpressure? highBackpressure = null,
+        ActorBackpressure? normalBackpressure = null,
+        ActorBackpressure? lowBackpressure = null,
+        bool startConsuming = true)
+body: {
+        _highBackpressure = highBackpressure;
+        _normalBackpressure = normalBackpressure;
+        _lowBackpressure = lowBackpressure;
+        _highChannel = CreateChannel(highBackpressure);
+        _normalChannel = CreateChannel(normalBackpressure);
+        _lowChannel = CreateChannel(lowBackpressure);
+        _outputChannel = Channel.CreateBounded<PriorityEvt<TCommand>>(new BoundedChannelOptions(ActorBase<object, object>.DefaultChannelCapacity) {
+            FullMode = BoundedCh
+
+--- [50] GoalEngine | lib/clock/goal/core/goal_engine/GoalEngine.cs:184 ---
+risks: IDisposableAllocation
+params: (
+        IChatClient kernel,
+        IGoalEvaluator evaluator,
+        ILogger<GoalEngine>? logger = null,
+        ILoggerFactory? loggerFactory = null,
+        IToolPermissionManager? permissionManager = null,
+        IEnumerable<IGoalLifecycleMiddleware>? lifecycleMiddlewares = null,
+        IGoalHeartbeat? heartbeat = null,
+        IClockService? clock = null,
+        IServiceProvider? serviceProvider = null,
+        IGoalStateStore? stateStore = null)
+body: {
+        _kernel = kernel;
+        _evaluator = evaluator;
+        _logger = logger;
+        _clock = clock ?? SystemClockService.Instance;
+        _permissionManager = permissionManager;
+        _serviceProvider = serviceProvider ?? _serviceProvider;
+
+        _chatHistory = new MessageList();
+        _heartbeat = heartbeat ?? throw new ArgumentNullException(nameof(heartbeat));
+        _stateStore = stateStore;
+        _heartbeat.RegisterCallback(OnHeartbeatAsync);
+
+        if (lif
+
+--- [51] GoalHeartbeat | lib/clock/goal/core/goal_engine/GoalHeartbeat.cs:71 ---
+risks: IDisposableAllocation
+params: (TimeSpan? heartbeatInterval = null, ILogger<GoalHeartbeat>? logger = null, IClockService? clock = null)
+body: {
+        _heartbeatInterval = heartbeatInterval ?? TimeSpan.FromSeconds(30);
+        _logger = logger;
+        _clock = clock ?? SystemClockService.Instance;
+        _heartbeatTimer = new Timer(_ => TrySend(new HeartbeatTickCmd()), null, Timeout.Infinite, Timeout.Infinite);
+    }
+
+--- [52] GoalGraphEngine | lib/clock/goal/core/goal_graph/GoalGraphEngine.cs:43 ---
+risks: IDisposableAllocation
+params: (
+        IChatClient kernel,
+        IGoalEvaluator evaluator,
+        IServiceProvider serviceProvider,
+        ILogger<GoalGraphEngine>? logger = null,
+        IGoalHeartbeat? heartbeat = null,
+        IClockService? clock = null,
+        IGoalUserInteraction? userInteraction = null,
+        IGoalNodeInspector? nodeInspector = null,
+        IGoalConflictMessenger? conflictMessenger = null,
+        SubAgentConcurrencyOptions? concurrencyOptions = null,
+        IGraphScheduler? graphScheduler = null)
+body: {
+        _kernel = kernel;
+        _evaluator = evaluator;
+        _serviceProvider = serviceProvider;
+        _logger = logger;
+        _heartbeat = heartbeat ?? new GoalHeartbeat();
+        _clock = clock ?? SystemClockService.Instance;
+        _userInteraction = userInteraction ?? serviceProvider.GetService<IGoalUserInteraction>();
+        _nodeInspector = nodeInspector ?? serviceProvider.GetService<IGoalNodeInspector>();
+        _conflictMessenger = conflictMessenger ?? serviceProv
+
+--- [53] AppEventBus | lib/clock/hosting/AppEventBus.cs:18 ---
+risks: EventSubscription
+params: (ServiceMessageBus messageBus, ILogger<AppEventBus>? logger = null)
+body: {
+        _messageBus = messageBus;
+        _logger = logger;
+        _messageBus.MessageReceived += OnMessageReceivedAsync;
+    }
+
+--- [54] WorkflowApplication | lib/clock/hosting/WorkflowApplication.cs:27 ---
+risks: EventSubscription
+params: (
+        ILogger<ServiceHost>? hostLogger = null,
+        ICronTaskStore? cronTaskStore = null,
+
+        INotificationService? notificationService = null,
+        ILogger<CronSchedulerService>? cronLogger = null,
+        ILogger<WorkflowApplication>? logger = null,
+        IClockService? clock = null)
+body: {
+        _cronTaskStore = cronTaskStore;
+        _notificationService = notificationService;
+        _cronLogger = cronLogger;
+        _logger = logger;
+        _clock = clock ?? SystemClockService.Instance;
+
+        _serviceHost = new ServiceHost(hostLogger);
+
+        _messageBus = new ServiceMessageBus();
+
+        _serviceHost.ServiceStatusChanged += OnServiceStatusChanged;
+    }
+
+--- [55] SettingsChangeApplier | lib/guard/configuration/configuration2/core/change_tracking/SettingsChangeApplier.cs:19 ---
+risks: EventSubscription
+params: (
+        IConfigChangeNotifier configChangeNotifier,
+        MiddlewarePipeline<SettingsContext> pipeline,
+        IFileSystem fs,
+        ILogger<SettingsChangeApplier>? logger = null,
+        ITelemetryService? telemetryService = null)
+body: {
+        _configChangeNotifier = configChangeNotifier;
+        _pipeline = pipeline;
+        _fs = fs;
+        _logger = logger;
+        _telemetryService = telemetryService;
+        _configChangeNotifier.ConfigChanged += OnConfigChanged;
+    }
+
+--- [56] ConfigLoader | lib/guard/configuration/configuration2/core/loading/core/ConfigLoader.cs:26 ---
+risks: IDisposableAllocation
+params: (IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null)
+body: {
+        _logger = loggerFactory?.CreateLogger<ConfigLoader>();
+        _registry = registry ?? ProviderDefinitionRegistry.Create(modelConfigLoader ?? new ModelConfigLoader(), logger: loggerFactory?.CreateLogger<ProviderDefinitionRegistry>());
+        _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);
+        _modelConfigLoader = modelConfigLoader;
+        if (middlewares is not null && loggerFactory is not null) {
+            _pipeline = new PipelineBuilder<ConfigLoadCont
+
+--- [57] InMemoryFileStream | lib/infrastructure/io/file_system/InMemoryFileSystem.cs:639 ---
+risks: IDisposableAllocation
+params: (InMemoryFileSystem fs, string path, FileMode mode, bool exists)
+body: {
+            _fs = fs;
+            _path = path;
+
+            var initialData = exists && mode != FileMode.CreateNew
+                ? (fs._files.TryGetValue(path, out var entry)
+                    ? entry.ByteContent ?? System.Text.Encoding.UTF8.GetBytes(entry.TextContent ?? string.Empty)
+                    : [])
+                : [];
+
+            // 使用可扩展的 MemoryStream — new MemoryStream(byte[], writable) 创建固定大小流，
+            // 写入超过初始大小时抛 NotSupportedException，导致 JsonSerializer.
+
+--- [58] PhysicalFileSystemWatcher | lib/infrastructure/io/file_system/PhysicalFileSystemWatcher.cs:16 ---
+risks: IDisposableAllocation+EventSubscription
+params: (string path, string filter = "*.*")
+body: {
+        _inner = new FileSystemWatcher(path, filter);
+        _inner.Changed += OnChanged;
+        _inner.Created += OnCreated;
+        _inner.Deleted += OnDeleted;
+        _inner.Renamed += OnRenamed;
+    }
+
+--- [59] PhysicalInteractiveProcess | lib/infrastructure/io/process/PhysicalProcessService.cs:200 ---
+risks: IDisposableAllocation+EventSubscription
+params: (System.Diagnostics.Process process, ILogger? logger)
+body: {
+            _process = process;
+            _logger = logger;
+            StandardInput = new StreamWriter(_process.StandardInput.BaseStream) { AutoFlush = true };
+            StandardOutput = new StreamReader(_process.StandardOutput.BaseStream);
+            _process.ErrorDataReceived += (_, e) => {
+                if (e.Data != null) ErrorDataReceived?.Invoke(this, e.Data);
+            };
+        }
+
+--- [60] FileOperationService | lib/infrastructure/io/services/file_ops/FileOperationService.cs:21 ---
+risks: IDisposableAllocation
+params: (IFileSystem fs, FileOperationConfig config, ILogger<FileOperationService>? logger = null)
+body: {
+        _fs = fs;
+        _fileReader = new FileReader(fs, config, logger);
+        _fileWriter = new FileWriter(fs, config, logger);
+        _fileEditor = new FileEditor(fs, config, logger);
+        _logger = logger;
+    }
+
+--- [61] DownloadStateMachine | lib/infrastructure/network/downloader/state_machine/DownloadStateMachine.cs:26 ---
+risks: EventSubscription
+params: ()
+body: {
+        _fsm = new Fsm<DownloadState, DownloadOperation>(_fsmSortedKeys, _fsmRules, DownloadState.Idle);
+        _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
+    }
+
+--- [62] ProcessHealthMonitor | lib/infrastructure/process/ProcessHealthMonitor.cs:58 ---
+risks: IDisposableAllocation
+params: (
+        IInteractiveProcess process,
+        HealthCheckConfig config,
+        ILogger? logger = null)
+body: {
+        _process = process ?? throw new ArgumentNullException(nameof(process));
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _logger = logger;
+
+        _timer = new Timer(
+            _ => TrySend(new HealthCheckTickCmd()),
+            null,
+            _config.Interval,
+            _config.Interval);
+    }
+
+--- [63] ResilientSubprocess | lib/infrastructure/process/ResilientSubprocess.cs:43 ---
+risks: IDisposableAllocation
+params: (
+        IInteractiveProcess process,
+        Func<CancellationToken, Task<IInteractiveProcess>> spawnFunc,
+        SubprocessResiliencePolicy policy,
+        ILogger? logger = null)
+body: {
+        _process = process ?? throw new ArgumentNullException(nameof(process));
+        _spawnFunc = spawnFunc ?? throw new ArgumentNullException(nameof(spawnFunc));
+        _policy = policy ?? throw new ArgumentNullException(nameof(policy));
+        _logger = logger;
+
+        _circuitBreaker = new UnifiedCircuitBreaker(_policy.Name, _policy.CircuitBreaker);
+
+        _inputChannel = new ResilientChannel(
+            $"{_policy.Name}/stdin", _circuitBreaker, _policy.WriteTimeout, _logg
+
+--- [64] ShellProcessWatchdog | lib/infrastructure/shell/ShellProcessWatchdog.cs:39 ---
+risks: IDisposableAllocation
+params: (ILogger? logger = null)
+body: {
+        _logger = logger;
+        _timer = new Timer(_ => TrySend(new ShellCheckAllTickCmd()), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+--- [65] SshSession | lib/infrastructure/ssh/SshSession.cs:35 ---
+risks: EventSubscription
+params: (SshSessionConfig config, IFileSystem fs, ILogger? logger = null)
+body: {
+        Config = config;
+        _fs = fs;
+        _logger = logger;
+        SessionId = Guid.NewGuid().ToString("N")[..16];
+        _portForwardManager = new SshPortForwardManager(logger);
+        _stateMachine = new StateMachine<SshConnectionState>(SshTransitions, SshConnectionState.Disconnected);
+        _stateMachine.StateChanged += OnStateChanged;
+    }
+
+--- [66] DebugLogBuffer | lib/infrastructure/utils/diagnostics/DebugLogBuffer.cs:15 ---
+risks: EventSubscription
+params: (int maxCapacity = 2000)
+body: {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCapacity);
+        _maxCapacity = maxCapacity;
+
+        Diag.DiagnosticLineWritten += OnDiagnosticLineWritten;
+    }
+
+--- [67] UnifiedCircuitBreaker | lib/infrastructure/utils/resilience/UnifiedCircuitBreaker.cs:144 ---
+risks: EventSubscription
+params: (string name, int failureThreshold = 5, TimeSpan? openDuration = null, int halfOpenMaxProbe = 1)
+body: {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(failureThreshold);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(halfOpenMaxProbe);
+
+        Name = name;
+        _openDuration = openDuration ?? TimeSpan.FromSeconds(30);
+        _ctx = new CircuitBreakerContext {
+            FailureThreshold = failureThreshold,
+            HalfOpenMaxProbe = halfOpenMaxProbe,
+            OpenedAt = DateTimeOffset.MinValue,
+    
+
+--- [68] LeveledCompactor | lib/pithosdb/Compaction/LeveledCompactor.cs:44 ---
+risks: IDisposableAllocation
+params: (string directory, PithosOptions options, Dictionary<string, SSTableReader> readerCache,
+        IBlockCache? blockCache = null, Manifest? manifest = null, ReaderWriterLockSlim? dbLock = null)
+body: {
+        _directory = directory;
+        _options = options;
+        _readerCache = readerCache;
+        _blockCache = blockCache;
+        _manifest = manifest;
+        _filter = options.CompactionFilter;
+        _dbLock = dbLock ?? new ReaderWriterLockSlim();
+        _levelSizeLimits = new int[options.LevelCount];
+        int size = options.LevelZeroFileCountLimit;
+        for (int i = 0; i < options.LevelCount; i++) { _levelSizeLimits[i] = size; size *= options.LevelSizeMultiplier; 
+
+--- [69] TaskStateMachine | lib/scheduling/core/TaskStateMachine.cs:15 ---
+risks: EventSubscription
+params: (TaskState initialState = TaskState.Pending)
+body: {
+        _stateMachine = new StateMachine<TaskState>(Transitions, initialState);
+        _stateMachine.StateChanged += OnStateChanged;
+    }
+
+--- [70] CronScheduler | lib/scheduling/cron/CronScheduler.cs:124 ---
+risks: IDisposableAllocation
+params: (CronSchedulerOptions options, ICronTaskStore taskStore, IClockService? clock = null, ILogger<CronScheduler>? logger = null)
+body: {
+        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _taskStore = taskStore ?? throw new ArgumentNullException(nameof(taskStore));
+        _clock = clock ?? SystemClockService.Instance;
+        _logger = logger;
+        _timer = new Timer(_ => TrySend(new CronCheckTickCmd()), null, Timeout.Infinite, Timeout.Infinite);
+    }
+
+--- [71] ToolPortingScheduler | lib/scheduling/porting/ToolPortingScheduler.cs:14 ---
+risks: EventSubscription
+params: (ILogger<ToolPortingScheduler>? logger = null)
+body: {
+        _logger = logger;
+        _scheduler = new ParallelTaskScheduler();
+        _scheduler.TaskStatusChanged += OnTaskStatusChanged;
+    }
+
+--- [72] InProcessTeammateTaskExecutor | lib/scheduling/tasks/core/InProcessTeammateTask.cs:247 ---
+risks: IDisposableAllocation
+params: (
+        IAgentLifecycleManager agentLifecycleManager,
+        IMailbox messageBroker,
+        ILogger<InProcessTeammateTaskExecutor>? logger = null,
+        ILoggerFactory? loggerFactory = null,
+        ITelemetryService? telemetryService = null,
+        IMailboxPoller? mailboxPoller = null,
+        IPlanModeManager? planModeManager = null,
+        IEnumerable<ITeammateExecutionMiddleware>? executeMiddlewares = null,
+        ISubAgentContextAccessor? subAgentContextAccessor = null,
+        IClockService? clock = null,
+        IAgentWorktreeService? worktreeService = null,
+        IAgentWorktreeManager? worktreeManager = null)
+body: {
+        _agentLifecycleManager = agentLifecycleManager;
+        _messageBroker = messageBroker;
+        _logger = logger;
+        _telemetryService = telemetryService;
+        _mailboxPoller = mailboxPoller;
+        _planModeManager = planModeManager;
+        _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
+        _clock = clock ?? SystemClockService.Instance;
+        _worktreeService = worktreeService;
+        _worktreeManager = worktreeManager;
+
+--- [73] MonitorSession | lib/scheduling/tasks/core/MonitorMcpTask.cs:382 ---
+risks: EventSubscription
+params: (string monitorId, McpMonitorConfig config)
+body: {
+        MonitorId = monitorId;
+        Config = config;
+        _fsm = new Fsm<MonitorState, MonitorSessionEvent>(_fsmSortedKeys, _fsmRules, MonitorState.Starting);
+        _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
+    }
+
+--- [74] V1ReplBridgeTransport | lib/transport.impl/bridge/v1/V1ReplBridgeTransport.cs:63 ---
+risks: EventSubscription
+params: (V1TransportOptions options, ILogger? logger, IClockService clock, HttpClient httpClient, WebSocketTransport wsTransport, CancellationTokenSource disposeCts)
+body: {
+        _options = options;
+        _logger = logger;
+        _clock = clock;
+        _httpClient = httpClient;
+        _wsTransport = wsTransport;
+        _disposeCts = disposeCts;
+        _streamEventBuffer = [];
+
+        _uploader = new SerialBatchEventUploader(
+            _httpClient,
+            options.PostEndpoint,
+            new SerialBatchUploaderOptions {
+                MaxBatchSize = 500,
+                MaxQueueSize = 100_000,
+                BaseDelayMs = 500,
+ 
+
+--- [75] PipeHttpClient | lib/transport.impl/pipe/PipeHttpClient.cs:16 ---
+risks: IDisposableAllocation
+params: (string pipeName, ILogger? logger = null)
+body: {
+        ArgumentException.ThrowIfNullOrEmpty(pipeName);
+
+        _logger = logger;
+        _httpClient = new HttpClient(new PipeHttpMessageHandler(pipeName, logger));
+
+        _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+
+        _logger?.LogDebug("{Method} Created PipeHttpClient with pipe: {PipeName}", nameof(PipeHttpClient), pipeName);
+    }
+
+--- [76] StdioAgentTransport | lib/transport.impl/stdio/StdioAgentTransport.cs:37 ---
+risks: IDisposableAllocation
+params: (
+        StdioProcessConfig config,
+        ILogger<StdioAgentTransport>? logger = null)
+body: {
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _logger = logger;
+        _processManager = new StdioProcessManager();
+        _state = TransportState.Disconnected;
+    }
+
+--- [77] TeamMemorySyncService | lib/vault/memdir/sync/core/TeamMemorySyncService.cs:64 ---
+risks: IDisposableAllocation
+params: (
+        IFileSystem fs,
+        IFileOperationService fileOperationService,
+        IOptions<TeamMemorySyncOptions>? options = null,
+        ILogger<TeamMemorySyncService>? logger = null,
+        ILoggerFactory? loggerFactory = null,
+        ITelemetryService? telemetryService = null,
+        IEnumerable<ISyncStartMiddleware>? startMiddlewares = null,
+        IClockService? clock = null)
+body: {
+        _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _logger = logger;
+        _telemetryService = telemetryService;
+        _clock = clock ?? SystemClockService.Instance;
+        _options = options?.Value ?? new TeamMemorySyncOptions();
+
+        _eventLog = new SyncEventLog();
+        _scanner = new SyncFileScanner(_fs, fileOperationService, _options, logger, _localEntries, _remoteEntries);
+        _transfer = new SyncFileTransfer(_fs, fileOperationService, _optio
+
+--- [78] AppStateSettingSyncService | lib/vault/state/store/AppStateSettingSyncService.cs:31 ---
+risks: EventSubscription
+params: (
+        IConfigurationService configurationService,
+        IStore<AppState> store,
+        ILogger<AppStateSettingSyncService>? logger = null)
+body: {
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _store = store ?? throw new ArgumentNullException(nameof(store));
+        _logger = logger;
+
+        _configurationService.SettingChanged += OnSettingChanged;
+    }
+
+--- [79] AgentTranscriptService | lib/vault/state/transcript/core/AgentTranscriptService.cs:22 ---
+risks: IDisposableAllocation
+params: (IFileSystem fs, string? sessionsDirectory = null, ILogger<AgentTranscriptService>? logger = null, IPasteStore? pasteStore = null)
+body: {
+        _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _sessionsDirectory = sessionsDirectory
+            ?? Path.Combine(
+                AppDataConstants.Paths.JccDirectory,
+                AppDataConstants.SessionsFolderName);
+        _logger = logger;
+        _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger, pasteStore);
+        _actor = new AgentTranscriptActor(this, logger);
+    }
+
+--- [80] TranscriptFileWriter | lib/vault/state/transcript/core/TranscriptFileWriter.cs:26 ---
+risks: IDisposableAllocation
+params: (IFileSystem fs, string sessionsDirectory, ILogger? logger = null, IPasteStore? pasteStore = null)
+body: {
+        _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _sessionsDirectory = sessionsDirectory;
+        _logger = logger;
+        _pasteStore = pasteStore;
+        _actor = new TranscriptFileWriterActor(this, logger);
+    }
+
+--- [81] TranscriptService | lib/vault/state/transcript/core/TranscriptService.cs:23 ---
+risks: IDisposableAllocation
+params: (IFileSystem fs, string? sessionsDirectory = null, ILogger<TranscriptService>? logger = null, IClockService? clock = null, IPasteStore? pasteStore = null)
+body: {
+        _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _sessionsDirectory = sessionsDirectory
+            ?? Path.Combine(
+                AppDataConstants.Paths.JccDirectory,
+                AppDataConstants.SessionsFolderName);
+        _logger = logger;
+        _clock = clock ?? SystemClockService.Instance;
+        _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger, pasteStore);
+    }
+
+--- [82] SubAgentLivenessScanner | llm/agents/Coordinator/Core/Liveness/SubAgentLivenessScanner.cs:67 ---
+risks: IDisposableAllocation
+params: (
+        AgentStateMachine stateMachine,
+        IAgentLifecycleManager lifecycleManager,
+        IForkSubAgentManager forkManager,
+        SubAgentLivenessOptions options,
+        ILogger? logger = null,
+        Func<DateTimeOffset>? clock = null)
+body: {
+        _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
+        _lifecycleManager = lifecycleManager ?? throw new ArgumentNullException(nameof(lifecycleManager));
+        _forkManager = forkManager ?? throw new ArgumentNullException(nameof(forkManager));
+        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _logger = logger;
+        _clock = clock ?? (() => DateTimeOffset.UtcNow);
+        _chainDetector = new SubAg
+
+--- [83] MailboxHub | llm/agents/Coordinator/Core/Messaging/MailboxHub.cs:24 ---
+risks: IDisposableAllocation
+params: (
+        IMailbox inProcess,
+        ITeammateMailboxService? fileMailbox = null,
+        ILogger<MailboxHub>? logger = null)
+body: {
+        _inProcess = inProcess ?? throw new ArgumentNullException(nameof(inProcess));
+        _fileMailbox = fileMailbox;
+        _agentChannels = new AgentChannelRegistry();
+        _logger = logger;
+    }
+
+--- [84] PlatformBotAdapterBase | llm/agents/Coordinator/Core/Messaging/PlatformBotAdapterBase.cs:25 ---
+risks: IDisposableAllocation
+params: (TConfig config, HttpClient httpClient, ILogger? logger = null)
+body: {
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _logger = logger;
+        _receiveChannel = Channel.CreateBounded<PlatformMessage>(new BoundedChannelOptions(512) {
+            SingleReader = true,
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.Wait
+        });
+    }
+
+--- [85] SubAgentPool | llm/agents/Coordinator/Core/Pool/SubAgentPool.cs:35 ---
+risks: IDisposableAllocation
+params: (SubAgentLivenessOptions options, ILogger? logger = null, Func<DateTimeOffset>? clock = null)
+body: {
+        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _logger = logger;
+        _clock = clock ?? (() => DateTimeOffset.UtcNow);
+        _cleanupTimer = new PeriodicTimer(TimeSpan.FromSeconds(60));
+    }
+
+--- [86] AgentCoordinator | llm/agents/Coordinator/Core/services/AgentCoordinator.cs:48 ---
+risks: EventSubscription
+params: (
+        AgentCoreDependencies core,
+        IClockService clock,
+        MiddlewarePipeline<AgentDisposeContext> disposePipeline,
+        MiddlewarePipeline<UnifiedSpawnContext> spawnPipeline,
+        AgentPermissionDependencies? permission = null,
+        AgentTeamDependencies? team = null,
+        IForkSubAgentManager? forkManager = null,
+        ILogger<AgentCoordinator>? logger = null,
+        ISubAgentContextAccessor? subAgentContextAccessor = null,
+        ISubagentStopHookManager? subagentStopHookManager = null,
+        SubAgentConcurrencyOptions? concurrencyOptions = null,
+        IAutoRebaseService? autoRebaseService = null)
+body: {
+        _lifecycleManager = core.LifecycleManager ?? throw new ArgumentNullException(nameof(core.LifecycleManager));
+        _worktreeManager = core.WorktreeManager ?? throw new ArgumentNullException(nameof(core.WorktreeManager));
+        _messageBroker = core.MessageBroker ?? throw new ArgumentNullException(nameof(core.MessageBroker));
+        _executionEngine = core.ExecutionEngine ?? throw new ArgumentNullException(nameof(core.ExecutionEngine));
+        _clock = clock ?? throw new Argu
+
+--- [87] AgentStateContext | llm/agents/Coordinator/Core/services/AgentStateMachine.cs:258 ---
+risks: EventSubscription
+params: (string agentId, string task, SubAgentOptions? options, DateTime createdAt, IClockService? clock = null)
+body: {
+        AgentId = agentId;
+        Task = task;
+        Options = options ?? new SubAgentOptions();
+        CreatedAt = createdAt;
+        LastTransitionTime = createdAt;
+        LastTransitionFrom = TaskExecutionStatus.Pending;
+        TransitionHistory = new List<StateTransition>();
+        Lock = new AsyncLock(nameof(AgentStateContext));
+        _stateMachine = new StateMachine<TaskExecutionStatus>(
+            AgentStateMachine.GetTransitions(), TaskExecutionStatus.Pending, clock
+
+--- [88] AgentDefinitionProvider | llm/agents/Services/Support/AgentDefinitionProvider.cs:12 ---
+risks: EventSubscription
+params: (IFileSystem fs, ILogger<AgentDefinitionProvider>? logger = null, IPluginAgentLoader? pluginAgentLoader = null)
+body: {
+        _fs = fs;
+        _logger = logger;
+        _pluginAgentLoader = pluginAgentLoader;
+        _actor = new DefinitionLoaderActor(this, logger);
+        if (pluginAgentLoader is not null) {
+            pluginAgentLoader.Changed += (_, _) => ClearCache();
+        }
+    }
+
+--- [89] AgentWorktreeService | llm/agents/Services/Support/AgentWorktreeService.cs:25 ---
+risks: IDisposableAllocation
+params: (
+        IFileOperationService fileOperationService,
+        IGitCommandRunner gitRunner,
+        IFileSystem fs,
+        IEnumerable<IWorktreeCreateMiddleware>? createMiddlewares = null,
+        ILoggerFactory? loggerFactory = null,
+        ILogger<AgentWorktreeService>? logger = null,
+        WorktreeOptions? defaultOptions = null,
+        ITelemetryService? telemetryService = null,
+        IClockService? clock = null)
+body: {
+        _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
+        _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
+        _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _logger = logger;
+        _clock = clock ?? SystemClockService.Instance;
+        _defaultOptions = defaultOptions ?? new WorktreeOptions();
+        _telemetryService = telemetryService;
+
+        if (createMiddle
+
+--- [90] StreamIdleWatchdog | llm/core/Adapters/LLM/Fallback/StreamIdleWatchdog.cs:45 ---
+risks: IDisposableAllocation
+params: (int idleTimeoutMs, CancellationToken originalToken, bool enabled = true)
+body: {
+        _idleTimeoutMs = idleTimeoutMs;
+
+        if (!enabled || originalToken.IsCancellationRequested) {
+            CombinedToken = originalToken;
+            _watchdogCts = CancellationTokenSource.CreateLinkedTokenSource(originalToken);
+            return;
+        }
+
+        _watchdogCts = CancellationTokenSource.CreateLinkedTokenSource(originalToken);
+        CombinedToken = _watchdogCts.Token;
+
+        _originalRegistration = originalToken.Register(static state => {
+         
+
+--- [91] StreamingFallbackDecorator | llm/core/Adapters/LLM/Fallback/StreamingFallbackDecorator.cs:36 ---
+risks: IDisposableAllocation
+params: (
+        IQueryService inner,
+        StreamingFallbackConfig? config = null,
+        ILogger? logger = null)
+body: {
+        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        _config = config ?? new StreamingFallbackConfig();
+        _logger = logger;
+    }
+
+--- [92] BridgeClient | server/bridge/client/BridgeClient.cs:107 ---
+risks: EventSubscription
+params: (
+        ITransportManager transportManager,
+        MessageHandlerCoordinator messageHandler,
+        BridgeClientSession? clientSession = null,
+        BridgeClientOptions? options = null,
+        ILogger<BridgeClient>? logger = null,
+        IClockService? clock = null)
+body: {
+        _transportManager = transportManager ?? throw new ArgumentNullException(nameof(transportManager));
+        _messageHandler = messageHandler ?? throw new ArgumentNullException(nameof(messageHandler));
+        _options = options ?? new BridgeClientOptions();
+        _logger = logger;
+        _clock = clock ?? SystemClockService.Instance;
+        _processedMessageIds = new BoundedUUIDSet(_options.MessageDeduplicationCapacity);
+
+        _jwtService = clientSession?.JwtService;
+   
+
+--- [93] BridgeRequestScope | server/bridge/client/BridgeClient.cs:217 ---
+risks: IDisposableAllocation+CancellationTokenSourceCreation+EventSubscription
+params: (BridgeClient client, string requestId, TimeSpan timeout, CancellationToken ct)
+body: {
+            _client = client;
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            _timeoutCts = new CancellationTokenSource(timeout);
+            _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, _timeoutCts.Token);
+            _tcs = new TaskCompletionSource<BridgeMessage?>();
+            _onMessageReceived = (_, e) => {
+                if (e.Response is ControlResponse controlResponse && controlResponse.RequestId == requestId)
+  
+
+--- [94] MessageHandlerCoordinator | server/bridge/messaging/MessageHandlers.cs:488 ---
+risks: IDisposableAllocation
+params: (MessageHandlerContext context, ILogger? logger = null)
+body: {
+        _context = context;
+        _logger = logger;
+        _registry = new MessageHandlerRegistry();
+        RegisterDefaultHandlers();
+    }
+
+--- [95] BridgeSubprocessHandle | server/bridge/session/core/BridgeSubprocessManager.cs:65 ---
+risks: IDisposableAllocation
+params: (IInteractiveProcess process, BridgeSubprocessOptions options, ILogger? logger, ResilientSubprocess? resilientSubprocess = null)
+body: {
+        SessionId = options.SessionId;
+        AccessToken = options.AccessToken;
+        _logger = logger;
+        _state = new SubprocessState();
+        _io = new SubprocessIoChannels(process, resilientSubprocess, logger, options.SessionId);
+
+        var stdoutTask = ReadStdoutAsync(_io.ReadCancellationToken);
+        _io.SetStdoutReadTask(stdoutTask);
+        _monitorExitTask = MonitorExitAsync(_io.ReadCancellationToken);
+    }
+
+--- [96] BridgeMain | server/bridge/session/main/core/BridgeMain.cs:86 ---
+risks: IDisposableAllocation
+params: (
+        BridgeMainDeps deps,
+        MiddlewarePipeline<HandleWorkContext>? handleWorkPipeline = null,
+        MiddlewarePipeline<ShutdownContext>? shutdownPipeline = null,
+        MiddlewarePipeline<BridgeRunContext>? runPipeline = null,
+        ILogger? logger = null,
+        IClockService? clock = null,
+        INetworkConnectivityService? networkService = null,
+        TimeSpan? giveUpThreshold = null)
+body: {
+        _deps = deps ?? throw new ArgumentNullException(nameof(deps));
+        _logger = logger;
+        _fs = deps.FileSystem;
+        _telemetry = deps.TelemetryService;
+        _clock = clock ?? SystemClockService.Instance;
+        _backoff = new BridgeBackoffStrategy(_clock, _logger, giveUpThreshold);
+        _pointerManager = new BridgePointerManager(deps.PointerService, _logger);
+        _workApi = new BridgeWorkApiClient(deps.ApiClient, _logger);
+        _handleWorkPipeline = h
+
+--- [97] TransportManager | server/bridge/session/transport/TransportManager.cs:52 ---
+risks: EventSubscription
+params: (
+        IConnectionManager connectionManager,
+        IMessageRouter messageRouter,
+        ILogger<TransportManager>? logger = null)
+body: {
+        _logger = logger;
+        _connectionManager = connectionManager;
+        _messageRouter = messageRouter;
+
+        // 连接消息流
+        _connectionManager.OnMessageReceived(ProcessTransportMessageAsync);
+        _messageRouter.MessageReceived += OnStringMessageReceived;
+    }
+
+--- [98] V1BridgeHandle | server/bridge/transport/v1/core/V1BridgeHandle.cs:47 ---
+risks: IDisposableAllocation+FireAndForget
+params: (
+        BridgeSessionInfo session,
+        BridgeCoreContext coreContext,
+        BridgeTransportContext transportContext,
+        BridgeInitState state,
+        IFileSystem fs,
+        ILogger? logger = null)
+body: {
+        SessionId = session.SessionId;
+        EnvironmentId = session.EnvironmentId;
+        SessionIngressUrl = session.SessionIngressUrl;
+        _coreContext = coreContext;
+        _transportContext = transportContext;
+        _state = state;
+        _fs = fs;
+        _logger = logger;
+        _reconnectState = new V1ReconnectState(session.EnvironmentId, string.Empty, session.SessionId);
+
+        // 对齐 TS 端: keepAliveTimer — 每 120s 发送 keep_alive 帧防止代理 GC
+        _keepAliveTimer
+
+--- [99] FileWatcherIntegrationRegistry | server/code_index/incremental/FileWatcherIntegrationRegistry.cs:24 ---
+risks: EventSubscription
+params: (ICodeIndexerRegistry registry, IFileSystem fs, ILogger<FileWatcherIntegrationRegistry>? logger = null)
+body: {
+        ArgumentNullException.ThrowIfNull(registry);
+        ArgumentNullException.ThrowIfNull(fs);
+        _registry = registry;
+        _fs = fs;
+        _logger = logger;
+        _registry.RepoRegistered += OnRepoRegistered;
+        _registry.RepoUnregistered += OnRepoUnregistered;
+    }
+
+--- [100] CSharpSymbolExtractor | server/code_index/parsing/CSharpSymbolExtractor.cs:54 ---
+risks: IDisposableAllocation
+params: (ILogger? logger = null)
+body: {
+        _logger = logger;
+        _treeCache = new TreeCache(maxEntries: 500, logger);
+        _parseLock = new Threading.TimeoutLock("CSharpExtractor.Parse", TimeSpan.FromSeconds(30), Log);
+    }
+
+--- [101] CSharpSymbolExtractor | server/code_index/parsing/CSharpSymbolExtractor.cs:65 ---
+risks: IDisposableAllocation
+params: (TreeCache treeCache, ILogger? logger = null)
+body: {
+        _logger = logger;
+        _treeCache = treeCache;
+        _parseLock = new Threading.TimeoutLock("CSharpExtractor.Parse", TimeSpan.FromSeconds(30), Log);
+    }
+
+--- [102] CSharpSymbolExtractor | server/code_index/parsing/CSharpSymbolExtractor.cs:76 ---
+risks: IDisposableAllocation
+params: (TreeSitterParser dedicatedParser, ILogger? logger = null)
+body: {
+        ArgumentNullException.ThrowIfNull(dedicatedParser);
+
+        _logger = logger;
+        _treeCache = new TreeCache(maxEntries: 500, logger);
+        _parseLock = new Threading.TimeoutLock("CSharpExtractor.Parse", TimeSpan.FromSeconds(30), Log);
+        _dedicatedParser = dedicatedParser;
+    }
+
+--- [103] LspIntegration | server/eyes/code_index_adapter/LspIntegration.cs:22 ---
+risks: EventSubscription
+params: (ICodeIndexer indexer, ILspService? lspService = null, ILspFileSync? lspFileSync = null, ILogger<LspIntegration>? logger = null)
+body: {
+        _indexer = indexer ?? throw new ArgumentNullException(nameof(indexer));
+        _lspService = lspService;
+        _lspFileSync = lspFileSync;
+        _logger = logger;
+
+        if (_lspFileSync is not null) {
+            _lspFileSync.DocumentChanged += OnLspDocumentChanged;
+        }
+    }
+
+--- [104] LspClient | server/eyes/lsp/server/LspClient.cs:347 ---
+risks: IDisposableAllocation+EventSubscription
+params: (IFileSystem fs, IProcessService processService, ILogger? logger = null)
+body: {
+        _logger = logger;
+        _channel = new LspProcessChannel(fs, processService, logger);
+        _router = new LspMessageRouter();
+        _router.NotificationReceived += (_, e) => NotificationReceived?.Invoke(this, e);
+    }
+
+--- [105] LspServerInstance | server/eyes/lsp/server/LspServerInstance.cs:187 ---
+risks: EventSubscription
+params: (LspInstanceConfig config, IFileSystem fs, IProcessService processService, ILogger logger)
+body: {
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _client = new LspClient(fs, processService, logger);
+        _stateMachine = new Fsm<LspServerState, LspServerEvent>(_fsmSortedKeys, _fsmRules, LspServerState.Stopped);
+        _stateMachine.StateChanged += OnStateChanged;
+        _stateMachine.StateChanged += (_, e) => FsmDispatchEvent(e);
+    }
+

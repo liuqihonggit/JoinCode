@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>tool</ProjectType>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <PublishAot>false</PublishAot>
+    <AssemblyName>ctor-scanner</AssemblyName>
+    <RootNamespace>CtorScanner</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(MicrosoftCodeAnalysisVersion)" />
+  </ItemGroup>
+
+</Project>

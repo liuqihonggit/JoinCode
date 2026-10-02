@@ -12,32 +12,40 @@ public sealed class BuildQueueRouter : BuildQueueBase {
     private readonly ILogger<BuildQueueRouter>? _logger;
 
     /// <summary>
-    /// 构造多 Worker 编译队列。
+    /// 创建多 Worker 编译队列。
     /// </summary>
     /// <param name="actuatorRegistry">系统执行器注册表(获取 Bash 执行编译)</param>
     /// <param name="workerCount">Worker 数量(默认 2,建议等于 CPU 核心数)</param>
     /// <param name="preventSleepService">防睡眠服务(可选)</param>
     /// <param name="logger">日志(可选)</param>
-    public BuildQueueRouter(
+    public static async Task<BuildQueueRouter> CreateAsync(
         ISystemActuatorRegistry actuatorRegistry,
         int workerCount = 2,
         IPreventSleepService? preventSleepService = null,
         ILogger<BuildQueueRouter>? logger = null) {
-        _logger = logger;
-        _router = new BuildQueueRouterActor();
+        var router = new BuildQueueRouterActor();
 
         workerCount = Math.Max(1, workerCount);
         for (var i = 0; i < workerCount; i++) {
             var workerId = $"build-worker-{i}";
-            _router.AddWorkerAsync(workerId, _ => {
+            await router.AddWorkerAsync(workerId, _ => {
                 var worker = new BuildWorker(
                     workerId, actuatorRegistry, preventSleepService,
                     logger as ILogger);
                 return new ValueTask<IAsyncDisposable>(worker);
-            }).AsTask().GetAwaiter().GetResult();
+            }).ConfigureAwait(false);
         }
 
-        _logger?.LogInformation("BuildQueueRouter initialized with {WorkerCount} workers", workerCount);
+        var instance = new BuildQueueRouter(router, logger);
+        logger?.LogInformation("BuildQueueRouter initialized with {WorkerCount} workers", workerCount);
+        return instance;
+    }
+
+    private BuildQueueRouter(
+        BuildQueueRouterActor router,
+        ILogger<BuildQueueRouter>? logger) {
+        _router = router;
+        _logger = logger;
     }
 
     /// <inheritdoc />

@@ -146,3 +146,71 @@
 6. **中风险（14 个）** — 高风险全完后评估
 
 状态标记：⏳ 待推进 / 🔧 进行中 / ✅ 已完成（补 commit hash）/ ⏭️ 已评估无需改
+
+## 第二轮扫描（Roslyn 语法分析器，2026-10-03）
+
+> 扫描器：`tool/ctor_scanner/`（Roslyn 语法树精确分析，commit f1d53ff38）
+> 扫描范围：`lib/` + `kit/` + `server/` + `llm/` + `app/`，4576 个 .cs 文件
+> 总构造函数：1947 个 | 有风险：155 个 | 已有工厂方法：41 个
+> 排除第一轮已处理 + 测试代码 + 已重构后：**115 个候选**
+
+### 第二轮 P0 — 高风险（9 个）
+
+| 状态 | 类 | 文件:行 | 风险 |
+|------|----|---------|------|
+| ✅ 688d6c5 | `BuildQueueRouter` | `kit/hands/build/BuildQueueRouter.cs:21` | BlockingAsync_GetResult → `static CreateAsync` |
+| ⏭️ 已评估 | `ReaperScheduler` | `lib/infrastructure/reaper_scheduler/ReaperScheduler.cs:27` | DI Singleton + Thread 创建未启动（Start() 方法才启动），CTS/BlockingCollection 不抛异常，无需重构 |
+| ⏭️ 已评估 | `ActorBase` | `lib/async_lock/actor/ActorBase.cs:66` | 抽象基类 protected ctor 正常，字段全先赋值后 Task.Factory.StartNew，后台任务不访问半构造化对象，派生类众多不可改 private |
+| ⏭️ 已评估 | `BusClientConnection` | `lib/async_lock/transport/BusTransport.cs:276` | stream 外部传入 + 字段全先赋值后 Task.Run + Channel 托管资源，无需重构 |
+| ⏭️ 已评估 | `MeshPeerConnection` | `lib/async_lock/transport/MeshTransport.cs:237` | 同 BusClientConnection 模式 |
+| ⏭️ 已评估 | `PipeConnection` | `lib/async_lock/transport/NamedPipeTransport.cs:441` | 同 BusClientConnection 模式 |
+| ⏭️ 已评估 | `AnalyticsFileSink` | `lib/infrastructure/telemetry/AnalyticsFileSink.cs:106` | DI Singleton + 字段全先赋值后 Task.Run + Channel/CTS 托管资源，无需重构 |
+| ⏭️ 已评估 | `SystemActuatorCommandContext` | `kit/hands/system_actuator/abstractions/SystemActuatorCommandContext.cs:46` | 已有 private ctor + static StartAsync，ctor 内 fire-and-forget 是监控任务非资源分配，已合规 |
+| ⏭️ 已评估 | `MainViewModel.Lifecycle` | `app/gui/view_models/main_view_model/MainViewModel.Lifecycle.cs:11` | GUI ViewModel + Avalonia 框架约定，fire-and-forget 是 UI 初始化，无需重构 |
+
+### 第二轮 P1 — 中风险（12 个）
+
+| 状态 | 类 | 文件:行 | 风险 |
+|------|----|---------|------|
+| ⏭️ 已评估 | `McpClientToolHandlers` | `kit/mcp/core/handlers/McpClientToolHandlers.cs:22` | 已合规：_restoreTask 持有 Task + DisposeAsync 处理 CTS，与第一轮 P1 模式一致 |
+| ⏭️ 已评估 | `HostContextSyncService` | `lib/async_lock/host/HostContextSyncService.cs:33` | 字段赋值 + CTS + Channel，托管资源，无 IO/后台线程 |
+| ⏭️ 已评估 | `HostElectionService` | `lib/async_lock/host/HostElectionService.cs:58` | 字段赋值 + CTS + Channel×2，托管资源，无 IO/后台线程 |
+| ⏭️ 已评估 | `BusTransport` | `lib/async_lock/transport/BusTransport.cs:33` | 字段赋值 + Channel + CTS + new HostElectionService（内存对象），无 IO |
+| ⏭️ 已评估 | `MeshTransport` | `lib/async_lock/transport/MeshTransport.cs:29` | 字段赋值 + Channel + CTS，托管资源，无 IO/后台线程 |
+| ⏭️ 已评估 | `NamedPipeTransport` | `lib/async_lock/transport/NamedPipeTransport.cs:32` | 同 BusTransport 模式 |
+| ⏭️ 已评估 | `ParallelExecutionEngine` | `lib/scheduling/execution/ParallelExecutionEngine.cs:20` | DI Singleton + CTS + ToolPortingScheduler，不可改 private ctor |
+| ⏭️ 已评估 | `ParallelExecutionEngine` | `lib/scheduling/execution/ParallelExecutionEngine.cs:34` | DI Singleton 模拟模式 ctor，同上 |
+| ⏭️ 已评估 | `StreamMailboxBase` | `llm/agents/Coordinator/Core/Messaging/StreamMailboxBase.cs:25` | 抽象基类 + 仅 CTS 创建，不可改 private ctor |
+| ⏭️ 已评估 | `AgentBase` | `llm/agents/Coordinator/Fork/AgentBase.cs:121` | 基类 + 字段赋值 + CTS + AsyncLock（内存对象），派生类众多不可改 private |
+| ⏭️ 已评估 | `BridgeServer` | `server/bridge/server/BridgeServer.cs:52` | DI Singleton + 字段赋值 + CTS + 事件订阅，不可改 private ctor |
+| ⏭️ 已评估 | `SubprocessIoChannels` | `server/bridge/session/core/SubprocessIoChannels.cs:47` | internal class + 字段赋值 + CTS + StdinActor（内存对象）+ 事件订阅（process 外部传入），无需重构 |
+
+### 第二轮 P2 — 低风险（134 个，1 重构 + 133 评估无需改）
+
+> 完整清单见 `tool/ctor_scanner/ctor_scan_report.json`，按 `p2_non_event.txt`（90 非纯事件）+ `p2_pure_event.txt`（44 纯事件）分类。
+
+| 状态 | 类 | 文件:行 | 评估结论 |
+|------|----|---------|---------|
+| ✅ | `MappedFileReader` | `lib/abstractions/abs_hands/code/MappedFileReader.cs` | CreateViewAccessor 失败时 mmf 句柄泄漏，已改 `static Open`（commit de52a97） |
+| ⏭️ 已评估 | 29 个测试类 | `*.tests/` 下 | 测试框架管理生命周期，无需重构 |
+| ⏭️ 已评估 | 11 个 UI View 类 | `app/gui/views/` + `app/tui/` | Avalonia/TUI 框架管理生命周期，事件订阅由框架 Dispose 回收 |
+| ⏭️ 已评估 | 6 个含 "Process" 关键词 | ReplStepScope/BuildQueueService/StdioAgentTransport/MailboxHub/TransportManager/LspClient | "Process" 均为方法名/参数名/内存对象（StdioProcessManager/LspProcessChannel），非 `new Process`/`Process.Start` |
+| ⏭️ 已评估 | 4 个含 "Thread" 关键词 | StreamTokenDetector(×1)/CSharpSymbolExtractor(×3) | StreamTokenDetector: `new Thread` 创建未启动；CSharpSymbolExtractor: "Thread" 为 Threading.TimeoutLock 命名空间 |
+| ⏭️ 已评估 | 84 个 IDisposableAllocation | AsyncLock(×8)/CSharpSymbolExtractor(×2)/GoalEngine/GoalHeartbeat/... | 全部为 CTS/Channel/SemaphoreSlim/Timer/AsyncLock 等托管资源，GC 回收，无 IO 资源创建后跟可能失败的操作 |
+
+**P2 评估方法**：用 Python 脚本扫描全部 105 个生产候选的 `bodyPreview`，搜索 `new Process`/`Process.Start`/`new FileStream`/`MemoryMappedFile`/`new SemaphoreSlim`/`File.Open`/`new StreamReader`/`new StreamWriter` 等 IO 资源创建关键词，以及 `GetAwaiter().GetResult()`/`.Wait()`/`.Result` 等阻塞异步关键词。结果：**零命中**。所有 P2 候选均为托管资源创建 + 事件订阅，无半构造化风险。
+
+### 第二轮总结
+
+| 优先级 | 候选数 | 重构数 | 评估无需改 | 结论 |
+|--------|--------|--------|-----------|------|
+| P0 高风险 | 9 | 1（BuildQueueRouter） | 8 | DI Singleton/抽象基类/已合规/stream 外部传入/字段先赋值后 Task.Run |
+| P1 中风险 | 12 | 0 | 12 | 2 DI Singleton + 2 基类 + 1 已合规 + 7 字段赋值+托管资源 |
+| P2 低风险 | 134 | 1（MappedFileReader） | 133 | 全部托管资源+事件订阅，无 IO 资源创建，无阻塞异步 |
+| **合计** | **155** | **2** | **153** | 第二轮重构 2 个，其余 153 个评估无需改 |
+
+**第二轮重构清单**：
+1. `BuildQueueRouter` — `static CreateAsync`（消除 `.GetAwaiter().GetResult()` 阻塞异步，commit 688d6c5）
+2. `MappedFileReader` — `static Open`（消除 `CreateViewAccessor` 失败时 mmf 句柄泄漏，commit de52a97）
+
+**两轮合计**：第一轮重构 28 个（PR #358），第二轮重构 2 个，总计 **30 个构造函数改为 private ctor + static 工厂**。

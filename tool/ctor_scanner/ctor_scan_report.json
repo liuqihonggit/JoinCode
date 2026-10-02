@@ -1,0 +1,2494 @@
+{
+  "summary": {
+    "totalFiles": 4576,
+    "totalConstructors": 1947,
+    "riskConstructors": 155,
+    "byRiskType": {
+      "TaskRun": 5,
+      "ThreadCreation": 2,
+      "EventSubscription": 56,
+      "IOOperation": 1,
+      "FireAndForget": 6,
+      "CancellationTokenSourceCreation": 15,
+      "BlockingAsync_GetResult": 1,
+      "IDisposableAllocation": 105
+    },
+    "alreadyRefactored": 41
+  },
+  "results": [
+    {
+      "file": "app/cli/entry/startup/core/ReplLoopStep.cs",
+      "line": 301,
+      "className": "ReplStepScope",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 306"
+      ],
+      "bodyPreview": "{\r\n            _setProcessing = setProcessing;\r\n            _stepCts = CancellationTokenSource.CreateLinkedTokenSource(loopCt);\r\n            _aliveCts = CancellationTokenSource.CreateLinkedTokenSource(loopCt);\r\n            _onCancelKeyPress = (_, e) => { e.Cancel = true; _stepCts.Cancel(); };\r\n            Console.CancelKeyPress += _onCancelKeyPress;\r\n            _aliveTask = RunAliveLoopAsync(_aliveCts.Token);\r\n            _setProcessing(1);\r\n        }",
+      "parameterList": "(CancellationToken loopCt, Action<int> setProcessing)"
+    },
+    {
+      "file": "app/gui/hosting/JccChatSession.cs",
+      "line": 39,
+      "className": "JccChatSession",
+      "accessibility": "internal",
+      "hasStaticFactory": true,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 58"
+      ],
+      "bodyPreview": "{\r\n        _services = services;\r\n        _chat = chat;\r\n        _config = config;\r\n        _executionSettings = executionSettings;\r\n        _modelConfigLoader = modelConfigLoader ?? services.GetService<IModelConfigLoader>() ?? new ModelConfigLoader();\r\n        _disposeAsync = disposeAsync;\r\n\r\n        _interactiveService = services.GetService<IInteractiveService>() as AvaloniaInteractiveService;\r\n\r\n        // 订阅 settings.json 变更 — theme 键变更时触发 ThemeChanged 驱动 GUI 热重载（双向绑定）\r\n        var configSer ...",
+      "parameterList": "(\r\n        IServiceProvider services,\r\n        IChatService chat,\r\n        JoinCode.Abstractions.Configuration.WorkflowConfig config,\r\n        IExecutionSettingsProvider? executionSettings = null,\r\n        IModelConfigLoader? modelConfigLoader = null,\r\n        Func<ValueTask>? disposeAsync = null)"
+    },
+    {
+      "file": "app/gui/view_models/g_to_s/SubAgentIdleTimer.cs",
+      "line": 24,
+      "className": "SubAgentIdleTimer",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "EventSubscription"
+      ],
+      "details": [
+        "new Avalonia.Threading.DispatcherTimer at line 27",
+        "+= at line 28"
+      ],
+      "bodyPreview": "{\r\n        _timeoutSeconds = timeoutSeconds;\r\n        _onTick = onTick;\r\n        _timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };\r\n        _timer.Tick += OnTimerTick;\r\n    }",
+      "parameterList": "(int timeoutSeconds = 60, Action<int>? onTick = null)"
+    },
+    {
+      "file": "app/gui/view_models/main_view_model/MainViewModel.Lifecycle.cs",
+      "line": 11,
+      "className": "MainViewModel",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription",
+        "FireAndForget"
+      ],
+      "details": [
+        "+= at line 26",
+        "+= at line 34",
+        "+= at line 38",
+        "+= at line 47",
+        "+= at line 48",
+        "_ = LoadPersistedSessionsAsync() at line 49",
+        "_ = LoadPreferencesAsync() at line 56",
+        "+= at line 72"
+      ],
+      "bodyPreview": "{\r\n        _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();\r\n        _realSession = session;\r\n        // 配置服务的文件系统跟随 preferencesStore：生产传 null → PhysicalFileSystem；\r\n        // 测试传 InMemory store → 全程密闭，不读写真实 ~/.jcc/settings.json（防并行测试互扰+污染用户配置）\r\n        _fileSystem = preferencesStore?.FileSystem ?? new IO.FileSystem.PhysicalFileSystem();\r\n        _configService = new Core.Configuration.ConfigurationService(_fileSystem);\r\n        _session = session ?? new Hosting.PlaceholderCha ...",
+      "parameterList": "(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null, Persistence.GuiPreferencesStore? preferencesStore = null, IModelConfigLoader? modelConfigLoader = null)"
+    },
+    {
+      "file": "app/gui/views/controls/MarqueeTextBlock.cs",
+      "line": 63,
+      "className": "MarqueeTextBlock",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new DispatcherTimerStub at line 64"
+      ],
+      "bodyPreview": "{\r\n        _timer = new DispatcherTimerStub(Step);\r\n        VisualChildren.Add(_inner);\r\n        LogicalChildren.Add(_inner);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "app/gui/views/controls/MarqueeTextBlock.cs",
+      "line": 149,
+      "className": "DispatcherTimerStub",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "EventSubscription"
+      ],
+      "details": [
+        "new Avalonia.Threading.DispatcherTimer at line 150",
+        "+= at line 151"
+      ],
+      "bodyPreview": "{\r\n            _timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };\r\n            _timer.Tick += (_, _) => {\r\n                try { callback(); } catch (Exception ex) { App.LogDiag($\"[MarqueeTextBlock] tick 异常: {ex.Message}\"); }\r\n            };\r\n        }",
+      "parameterList": "(Action callback)"
+    },
+    {
+      "file": "app/gui/views/core/AskUserQuestionDialog.axaml.cs",
+      "line": 14,
+      "className": "AskUserQuestionDialog",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 16",
+        "+= at line 17"
+      ],
+      "bodyPreview": "{\r\n        InitializeComponent();\r\n        CancelButton.Click += (_, _) => Close(null);\r\n        ConfirmFreeInputButton.Click += (_, _) => OnConfirmFreeInput();\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "app/gui/views/core/AskUserQuestionDialog.axaml.cs",
+      "line": 21,
+      "className": "AskUserQuestionDialog",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 36",
+        "+= at line 41"
+      ],
+      "bodyPreview": "{\r\n        _options = question.Options;\r\n        _multiSelect = question.MultiSelect;\r\n\r\n        HeaderBlock.Text = question.Header;\r\n        QuestionBlock.Text = question.Question;\r\n\r\n        for (var i = 0; i < question.Options.Count; i++) {\r\n            var idx = i;\r\n            var opt = question.Options[i];\r\n            var display = string.IsNullOrWhiteSpace(opt.Description)\r\n                ? opt.Label\r\n                : $\"{opt.Label} — {opt.Description}\";\r\n\r\n            var btn = CreateO ...",
+      "parameterList": "(QuestionItem question)"
+    },
+    {
+      "file": "app/gui/views/core/InputBarView.axaml.cs",
+      "line": 18,
+      "className": "InputBarView",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 20"
+      ],
+      "bodyPreview": "{\r\n        InitializeComponent();\r\n        _slashDebounceTimer.Tick += OnSlashDebounceTick;\r\n        if (InputTextBox is not null)\r\n            InputTextBox.AddHandler(InputElement.KeyDownEvent, OnInputKeyDown, RoutingStrategies.Tunnel);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "app/gui/views/core/MainWindow.axaml.cs",
+      "line": 36,
+      "className": "MainWindow",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 40",
+        "+= at line 41",
+        "+= at line 42",
+        "+= at line 44"
+      ],
+      "bodyPreview": "{\r\n        App.LogDiag(\"[MainWindow] ctor begin\");\r\n        InitializeComponent();\r\n        App.LogDiag(\"[MainWindow] ctor end\");\r\n        _errorToastTimer.Tick += OnErrorToastTimerTick;\r\n        _toolTimer.Tick += OnToolTimerTick;\r\n        _runStatusTimer.Tick += OnRunStatusTimerTick;\r\n        _runStatusTimer.Start();\r\n        Closed += OnWindowClosed;\r\n        AddHandler(PointerPressedEvent, OnGlobalPointerPressed, RoutingStrategies.Tunnel);\r\n        AddHandler(KeyDownEvent, OnGlobalKeyDown, R ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "app/gui/views/core/SlashPaletteView.axaml.cs",
+      "line": 32,
+      "className": "SlashPaletteView",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 35"
+      ],
+      "bodyPreview": "{\r\n        InitializeComponent();\r\n        if (PaletteList is not null)\r\n            PaletteList.Tapped += OnPaletteListTapped;\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "app/gui/views/core/TranscriptWindow.axaml.cs",
+      "line": 21,
+      "className": "TranscriptWindow",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 29"
+      ],
+      "bodyPreview": "{\r\n        _run = run ?? throw new ArgumentNullException(nameof(run));\r\n        InitializeComponent();\r\n        Title = $\"{run.Name} — 子代理回放\";\r\n        TitleText.Text = $\"{run.Name}{(string.IsNullOrEmpty(run.Description) ? \"\" : $\" — {run.Description}\")}\";\r\n        TitleGlyph.Text = run.State == AgentStatus.Failed ? \"✗\" : run.State == AgentStatus.Completed ? \"✓\" : \"▶\";\r\n        StatsText.Text = $\"{run.ToolUseCount} 次工具调用 · {run.Activities.Count} 条记录\";\r\n        TranscriptItems.ItemsSource = run.Ac ...",
+      "parameterList": "(BackgroundAgentItemVm run)"
+    },
+    {
+      "file": "app/gui/views/core/WorkbenchWindow.axaml.cs",
+      "line": 7,
+      "className": "WorkbenchWindow",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 10",
+        "+= at line 11"
+      ],
+      "bodyPreview": "{\r\n        InitializeComponent();\r\n        GitPreview.TextArea.TextView.LineTransformers.Add(new Markdown.UnifiedDiffColorizer());\r\n        DataContextChanged += OnContextChanged;\r\n        Closed += (_, _) => {\r\n            if (_vm is not null) { _vm.CancelOperationCommand.Execute(null); _vm.PropertyChanged -= OnViewModelChanged; _vm.Main.PropertyChanged -= OnMainChanged; }\r\n        };\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "app/tui/core/tui/views/AskUserDialogView.cs",
+      "line": 23,
+      "className": "AskUserDialogView",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 62",
+        "+= at line 69"
+      ],
+      "bodyPreview": "{\r\n        _container = new View {\r\n            Width = Dim.Fill(),\r\n            Height = Dim.Auto(),\r\n            Visible = false,\r\n        };\r\n\r\n        _headerLabel = new Label {\r\n            Text = string.Empty,\r\n            X = 0,\r\n            Y = 0,\r\n            Width = Dim.Fill(),\r\n        };\r\n\r\n        _questionLabel = new Label {\r\n            Text = string.Empty,\r\n            X = 0,\r\n            Y = Pos.Bottom(_headerLabel),\r\n            Width = Dim.Fill(),\r\n        };\r\n\r\n        _optio ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "app/tui/core/tui/views/FooterTabView.cs",
+      "line": 34,
+      "className": "FooterTabView",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 51",
+        "+= at line 52",
+        "+= at line 53",
+        "+= at line 54"
+      ],
+      "bodyPreview": "{\r\n        _container = new View {\r\n            Width = Dim.Fill(),\r\n            Height = 1,\r\n        };\r\n\r\n        _logTab = new Button { Text = \"[Log]\", X = 0, Y = 0 };\r\n        _filesTab = new Button { Text = \"Files\", X = Pos.Right(_logTab) + 1, Y = 0 };\r\n        _memoryTab = new Button { Text = \"Memory\", X = Pos.Right(_filesTab) + 1, Y = 0 };\r\n        _settingsTab = new Button { Text = \"Settings\", X = Pos.Right(_memoryTab) + 1, Y = 0 };\r\n\r\n        _timerLabel = new Label {\r\n            Text  ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "app/tui/core/tui/views/PermissionDialogView.cs",
+      "line": 22,
+      "className": "PermissionDialogView",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 55",
+        "+= at line 62",
+        "+= at line 69"
+      ],
+      "bodyPreview": "{\r\n        _container = new View {\r\n            Width = Dim.Fill(),\r\n            Height = Dim.Auto(),\r\n            Visible = false,\r\n        };\r\n\r\n        _titleLabel = new Label {\r\n            Text = \"权限确认\",\r\n            X = 0,\r\n            Y = 0,\r\n            Width = Dim.Fill(),\r\n        };\r\n\r\n        _toolLabel = new Label {\r\n            Text = \"\",\r\n            X = 0,\r\n            Y = Pos.Bottom(_titleLabel),\r\n            Width = Dim.Fill(),\r\n        };\r\n\r\n        _descriptionLabel = new Labe ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "app/tui/core/tui/views/PromptView.cs",
+      "line": 20,
+      "className": "PromptView",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 50",
+        "+= at line 52"
+      ],
+      "bodyPreview": "{\r\n        _queue = queue ?? throw new ArgumentNullException(nameof(queue));\r\n\r\n        _container = new View {\r\n            Width = Dim.Fill(),\r\n            Height = InputHeight,\r\n            CanFocus = true,\r\n        };\r\n\r\n        _promptLabel = new Label {\r\n            Text = \"> \",\r\n            X = 0,\r\n            Y = 0,\r\n            Height = 1,\r\n        };\r\n\r\n        _editor = new Editor {\r\n            X = Pos.Right(_promptLabel),\r\n            Y = 0,\r\n            Width = Dim.Fill(),\r\n        ...",
+      "parameterList": "(CommandQueue queue)"
+    },
+    {
+      "file": "app/tui/core/tui/views/ToolBarView.cs",
+      "line": 35,
+      "className": "ToolBarView",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 47",
+        "+= at line 48",
+        "+= at line 49",
+        "+= at line 50",
+        "+= at line 51"
+      ],
+      "bodyPreview": "{\r\n        _container = new View {\r\n            Width = Dim.Fill(),\r\n            Height = 1,\r\n        };\r\n\r\n        _newButton = new Button { Text = \"▶ New (F1)\", X = 0, Y = 0 };\r\n        _pauseButton = new Button { Text = \"⏸ Pause (F2)\", X = Pos.Right(_newButton) + 1, Y = 0 };\r\n        _stopButton = new Button { Text = \"⏹ Stop (F3)\", X = Pos.Right(_pauseButton) + 1, Y = 0 };\r\n        _chatButton = new Button { Text = \"\uD83D\uDCAC Chat (F4)\", X = Pos.Right(_stopButton) + 1, Y = 0 };\r\n        _statsButton ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/brain/context/services/loop/ShannonEntropyDetector.cs",
+      "line": 89,
+      "className": "ShannonEntropyDetector",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 108"
+      ],
+      "bodyPreview": "{\r\n        ArgumentOutOfRangeException.ThrowIfLessThan(windowSize, 3);\r\n        ArgumentOutOfRangeException.ThrowIfLessThan(declineThreshold, 2);\r\n        ArgumentOutOfRangeException.ThrowIfNegative(minEntropyDelta);\r\n        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(confirmationWindow, TimeSpan.Zero);\r\n\r\n        _windowSize = windowSize;\r\n        _declineThreshold = declineThreshold;\r\n        _minEntropyDelta = minEntropyDelta;\r\n        _confirmationWindow = confirmationWindow;\r\n       ...",
+      "parameterList": "(\r\n        int windowSize,\r\n        int declineThreshold,\r\n        double minEntropyDelta,\r\n        TimeSpan confirmationWindow,\r\n        Func<DateTimeOffset>? clock = null)"
+    },
+    {
+      "file": "kit/brain/context/services/loop/StreamTokenDetector.cs",
+      "line": 54,
+      "className": "StreamTokenDetector",
+      "accessibility": "private",
+      "hasStaticFactory": true,
+      "risks": [
+        "IDisposableAllocation",
+        "ThreadCreation"
+      ],
+      "details": [
+        "new Thread at line 62",
+        "new Thread at line 62"
+      ],
+      "bodyPreview": "{\r\n        _tokenWindow = tokenWindow;\r\n        _detectInterval = detectInterval;\r\n        _minPatternLength = minPatternLength;\r\n        _requiredRepeats = requiredRepeats;\r\n        _maxPatternLength = maxPatternLength;\r\n        _cts = cts;\r\n        _detectThread = new Thread(DetectLoop) { IsBackground = true, Name = \"StreamTokenDetector\" };\r\n    }",
+      "parameterList": "(RingBuffer<string> tokenWindow, TimeSpan detectInterval, int minPatternLength,\r\n        int requiredRepeats, int maxPatternLength, CancellationTokenSource cts)"
+    },
+    {
+      "file": "kit/brain/query/query2/token_budget/core/QueryEngine.cs",
+      "line": 45,
+      "className": "QueryEngine",
+      "accessibility": "public",
+      "hasStaticFactory": true,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Lazy<MiddlewarePipeline<QueryMiddlewareContext>> at line 60"
+      ],
+      "bodyPreview": "{\r\n        _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));\r\n        _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));\r\n        _toolExecutionGateway = toolExecutionGateway;\r\n        _config = configOptions?.Value ?? new QueryEngineConfig();\r\n        _serviceProvider = serviceProvider;\r\n        _logger = logger;\r\n        _loggerFactory = loggerFactory;\r\n        _pipeline = new Lazy<MiddlewarePipeline<QueryMiddlewareContext>>(BuildPipeline, ...",
+      "parameterList": "(\r\n        IChatClient kernel,\r\n        IToolRegistry toolRegistry,\r\n        IOptions<QueryEngineConfig> configOptions,\r\n        IServiceProvider? serviceProvider = null,\r\n        ILogger<QueryEngine>? logger = null,\r\n        ILoggerFactory? loggerFactory = null,\r\n        IToolExecutionGateway? toolExecutionGateway = null)"
+    },
+    {
+      "file": "kit/brain/query/query2/transitions/QueryStateTransitions.cs",
+      "line": 107,
+      "className": "QueryStateTransitions",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 110"
+      ],
+      "bodyPreview": "{\r\n        _telemetryService = telemetryService;\r\n        _stateMachine = new StateMachine<QueryState>(TransitionTable, QueryState.Idle, clock);\r\n        _stateMachine.StateChanged += OnStateChanged;\r\n    }",
+      "parameterList": "(ITelemetryService? telemetryService = null, IClockService? clock = null)"
+    },
+    {
+      "file": "kit/hands.api.tests/integration/GitHubServiceTests.cs",
+      "line": 9,
+      "className": "GitHubServiceTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new FakeHttpMessageHandler at line 10"
+      ],
+      "bodyPreview": "{\r\n        _handler = new FakeHttpMessageHandler();\r\n        _httpClient = new HttpClient(_handler);\r\n        _configMock = new Mock<IConfigurationService>();\r\n        _service = new GitHubService(_httpClient, _configMock.Object);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/hands.api.tests/integration/UpgradeServiceTests.cs",
+      "line": 8,
+      "className": "UpgradeServiceTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new FakeHttpMessageHandler at line 9"
+      ],
+      "bodyPreview": "{\r\n        _handler = new FakeHttpMessageHandler();\r\n        _httpClient = new HttpClient(_handler);\r\n        _service = new UpgradeService(_httpClient, TestFileSystem.Current);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/hands.api.tests/network/RemoteTriggerServiceTests.cs",
+      "line": 8,
+      "className": "RemoteTriggerServiceTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new FakeHttpMessageHandler at line 9"
+      ],
+      "bodyPreview": "{\r\n        _handler = new FakeHttpMessageHandler();\r\n        _httpClient = new HttpClient(_handler) { BaseAddress = new Uri(\"http://localhost:9999\") };\r\n        _service = new RemoteTriggerService(_httpClient);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/hands.tool_handlers.tests/vcr/VcrServiceTests.cs",
+      "line": 11,
+      "className": "VcrServiceTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IOOperation"
+      ],
+      "details": [
+        "Directory.CreateDirectory at line 13"
+      ],
+      "bodyPreview": "{\r\n        _tempDir = Path.Combine(Path.GetTempPath(), $\"vcr_test_{Guid.NewGuid():N}\");\r\n        Directory.CreateDirectory(_tempDir);\r\n        _options = new VcrOptions {\r\n            Mode = VcrMode.None,\r\n            CassettesDirectory = _tempDir\r\n        };\r\n        _service = new VcrService(_options, new IO.FileSystem.PhysicalFileSystem());\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/hands/api/core/ApiClient.cs",
+      "line": 68,
+      "className": "ApiClient",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 85"
+      ],
+      "bodyPreview": "{\r\n        _options = options ?? throw new ArgumentNullException(nameof(options));\r\n        _logger = logger;\r\n        _networkService = networkService;\r\n        _mtlsService = mtlsService;\r\n        _httpProxyService = httpProxyService;\r\n\r\n        _httpClient = BuildHttpClient();\r\n\r\n        _retryPolicy = new RetryPolicy(options.RetryOptions ?? RetryPolicyOptions.Default);\r\n\r\n        _logger?.LogInformation(\"[ApiClient] 初始化完成 - BaseUrl: {BaseUrl}, Timeout: {Timeout}s\",\r\n            options.BaseU ...",
+      "parameterList": "(ApiClientOptions options, ILogger<ApiClient>? logger = null,\r\n        IMtlsService? mtlsService = null, IHttpProxyService? httpProxyService = null,\r\n        INetworkConnectivityService? networkService = null)"
+    },
+    {
+      "file": "kit/hands/build/BuildQueueRouter.cs",
+      "line": 21,
+      "className": "BuildQueueRouter",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "BlockingAsync_GetResult"
+      ],
+      "details": [
+        ".GetResult() at line 32"
+      ],
+      "bodyPreview": "{\r\n        _logger = logger;\r\n        _router = new BuildQueueRouterActor();\r\n\r\n        workerCount = Math.Max(1, workerCount);\r\n        for (var i = 0; i < workerCount; i++) {\r\n            var workerId = $\"build-worker-{i}\";\r\n            _router.AddWorkerAsync(workerId, _ => {\r\n                var worker = new BuildWorker(\r\n                    workerId, actuatorRegistry, preventSleepService,\r\n                    logger as ILogger);\r\n                return new ValueTask<IAsyncDisposable>(worker) ...",
+      "parameterList": "(\r\n        ISystemActuatorRegistry actuatorRegistry,\r\n        int workerCount = 2,\r\n        IPreventSleepService? preventSleepService = null,\r\n        ILogger<BuildQueueRouter>? logger = null)"
+    },
+    {
+      "file": "kit/hands/build/BuildQueueService.cs",
+      "line": 32,
+      "className": "BuildQueueService",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new CrossProcessBuildLock at line 45"
+      ],
+      "bodyPreview": "{\r\n        _actuatorRegistry = actuatorRegistry;\r\n        _fs = fs ?? throw new ArgumentNullException(nameof(fs));\r\n        _preventSleepService = preventSleepService;\r\n        _logger = logger;\r\n\r\n        var fingerprintCache = new SourceFingerprintCache(logger);\r\n        _resultBuffer = new BuildResultBuffer(fingerprintCache, logger);\r\n        _crossProcessLock = new CrossProcessBuildLock(fs, logger, crossProcessLockPath);\r\n\r\n        _processingTask = ProcessQueueAsync(_shutdownCts.Token);\r\n   ...",
+      "parameterList": "(\r\n        ISystemActuatorRegistry actuatorRegistry,\r\n        IFileSystem fs,\r\n        IPreventSleepService? preventSleepService = null,\r\n        ILogger<BuildQueueService>? logger = null,\r\n        string? crossProcessLockPath = null)"
+    },
+    {
+      "file": "kit/hands/desktop/services/WindowShakeCoordinator.cs",
+      "line": 43,
+      "className": "WindowShakeCoordinator",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 52"
+      ],
+      "bodyPreview": "{\r\n        _shakeEnabledProvider = shakeEnabledProvider;\r\n        _configService = configService;\r\n\r\n        if (configService is not null) {\r\n            _loadTask = ReadConfigAsync(configService, logger);\r\n            configService.SettingChanged += OnSettingChanged;\r\n        } else {\r\n            _loadTask = Task.CompletedTask;\r\n        }\r\n    }",
+      "parameterList": "(\r\n        IConfigurationService? configService = null,\r\n        Func<bool?>? shakeEnabledProvider = null,\r\n        ILogger<WindowShakeCoordinator>? logger = null)"
+    },
+    {
+      "file": "kit/hands/system_actuator/abstractions/SystemActuatorCommandContext.cs",
+      "line": 46,
+      "className": "SystemActuatorCommandContext",
+      "accessibility": "private",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation",
+        "EventSubscription",
+        "FireAndForget"
+      ],
+      "details": [
+        "new CancellationTokenSource at line 63",
+        "new CancellationTokenSource at line 63",
+        "new ProcessOutputCollector at line 67",
+        "+= at line 70",
+        "+= at line 73",
+        "new Timer at line 78",
+        "_ = MonitorProcessExitAsync().WaitAsync(TimeSpan.FromSeconds(10), _processCts.Token).ConfigureAwait(false) at line 85"
+      ],
+      "bodyPreview": "{\r\n        _process = process;\r\n        _command = command;\r\n        _workingDirectory = workingDirectory;\r\n        _timeoutMs = timeoutMs;\r\n        _logger = logger;\r\n        _fs = fs;\r\n        _detached = detached;\r\n        _processCts = new CancellationTokenSource();\r\n        _stopwatch.Start();\r\n        ShouldAutoBackground = shouldAutoBackground;\r\n\r\n        _outputCollector = new ProcessOutputCollector(fs, logger, TaskId);\r\n        _cwdTracker = new CwdTracker(fs, logger, cwdFilePath, worki ...",
+      "parameterList": "(\r\n        Process process,\r\n        string command,\r\n        string workingDirectory,\r\n        int? timeoutMs,\r\n        bool shouldAutoBackground,\r\n        ILogger? logger,\r\n        IFileSystem fs,\r\n        string? cwdFilePath,\r\n        bool detached)"
+    },
+    {
+      "file": "kit/hands/tool_handlers/dev_tools/handlers/FileToolHandlers.cs",
+      "line": 36,
+      "className": "FileToolHandlers",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new FileToolHandlersContext at line 44",
+        "new FileSpecialFormatReader at line 47"
+      ],
+      "bodyPreview": "{\r\n        _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));\r\n        _fs = fs ?? throw new ArgumentNullException(nameof(fs));\r\n        _logger = logger;\r\n        _ctx = context ?? new FileToolHandlersContext();\r\n        _telemetry = new FileTelemetryRecorder(_ctx.TelemetryService);\r\n        _pathResolver = new FilePathResolver(_ctx.SandboxManager);\r\n        _specialReader = new FileSpecialFormatReader(_fs, _ctx.FileOperationConfig!, _ ...",
+      "parameterList": "(\r\n        IFileOperationService fileOperationService,\r\n        IFileSystem fs,\r\n        FileToolHandlersContext? context = null,\r\n        ILogger<FileToolHandlers>? logger = null)"
+    },
+    {
+      "file": "kit/mcp.tests/core/a_to_t/GitHubToolHandlersTests.cs",
+      "line": 7,
+      "className": "GitHubToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new GitHubToolHandlers at line 9",
+        "new PersistencePipeline at line 12"
+      ],
+      "bodyPreview": "{\r\n        MemoryCache.Default.Trim(100);\r\n        _handler = new GitHubToolHandlers(\r\n            new FakeDownloader(),\r\n            new InMemoryFileSystem(),\r\n            new PersistencePipeline(new InMemoryFileSystem()),\r\n            _api,\r\n            null,\r\n            NullLogger<GitHubToolHandlers>.Instance);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/mcp.tests/transports/WebSocketTransportTest.cs",
+      "line": 30,
+      "className": "WebSocketTestServer",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "FireAndForget"
+      ],
+      "details": [
+        "_ = AcceptLoopAsync() at line 34"
+      ],
+      "bodyPreview": "{\r\n            _listener = new HttpListener();\r\n            _listener.Prefixes.Add($\"http://localhost:{port}/\");\r\n            _listener.Start();\r\n            _ = AcceptLoopAsync();\r\n        }",
+      "parameterList": "(int port)"
+    },
+    {
+      "file": "kit/mcp/client/transport/McpFallbackClient.cs",
+      "line": 17,
+      "className": "McpFallbackClient",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 30",
+        "+= at line 31",
+        "+= at line 32"
+      ],
+      "bodyPreview": "{\r\n        _config = config ?? throw new ArgumentNullException(nameof(config));\r\n        ServerName = _config.Name;\r\n\r\n        _chain = new McpTransportFallbackChain(\r\n            chainSpec.Transports, chainSpec.HealthChecks,\r\n            fallbackConfig ?? TransportFallbackConfig.FromEnvironment(), logger);\r\n\r\n        _chain.MessageReceived += OnChainMessageReceived;\r\n        _chain.ErrorOccurred += OnChainError;\r\n        _chain.FallbackOccurred += OnChainFallback;\r\n    }",
+      "parameterList": "(\r\n        McpServerConnectionConfig config,\r\n        (IMcpTransport[] Transports, ITransportHealthCheck[] HealthChecks) chainSpec,\r\n        TransportFallbackConfig? fallbackConfig = null,\r\n        ILogger? logger = null)"
+    },
+    {
+      "file": "kit/mcp/client/transport/McpNetworkClient.cs",
+      "line": 23,
+      "className": "McpNetworkClient",
+      "accessibility": "protected",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 33",
+        "+= at line 34"
+      ],
+      "bodyPreview": "{\r\n        _config = config ?? throw new ArgumentNullException(nameof(config));\r\n        ServerName = _config.Name;\r\n        _transport = transport;\r\n        _transport.MessageReceived += OnTransportMessageReceived;\r\n        _transport.ErrorOccurred += OnTransportError;\r\n    }",
+      "parameterList": "(\r\n        McpServerConnectionConfig config,\r\n        McpClientOptions? options,\r\n        ILogger? logger,\r\n        IMcpAuthProvider? authProvider,\r\n        TTransport transport)"
+    },
+    {
+      "file": "kit/mcp/core/handlers/McpClientToolHandlers.cs",
+      "line": 22,
+      "className": "McpClientToolHandlers",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation"
+      ],
+      "details": [
+        "new CancellationTokenSource at line 30",
+        "new CancellationTokenSource at line 30"
+      ],
+      "bodyPreview": "{\r\n        _deps = deps ?? new McpClientToolDeps();\r\n        _logger = logger;\r\n        _persistenceFs = fileSystem;\r\n        _stateFilePath = fileSystem is not null ? GetStateFilePath() : null;\r\n\r\n        if (_persistenceFs is not null) {\r\n            _restoreCts = new CancellationTokenSource();\r\n            _restoreTask = LoadAndRestoreAsync();\r\n        }\r\n    }",
+      "parameterList": "(McpClientToolDeps? deps = null, ILogger<McpClientToolHandlers>? logger = null, IFileSystem? fileSystem = null)"
+    },
+    {
+      "file": "kit/mcp/core/management/McpbLoader.cs",
+      "line": 19,
+      "className": "McpbLoader",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new PipelineBuilder<McpbLoadContext> at line 26",
+        "new MiddlewarePipeline<McpbLoadContext> at line 30"
+      ],
+      "bodyPreview": "{\r\n        ArgumentNullException.ThrowIfNull(fs);\r\n        _pipeline = loggerFactory is not null\r\n            ? new PipelineBuilder<McpbLoadContext>()\r\n                .WithLoggingScope(loggerFactory)\r\n                .UseRange(middlewares)\r\n                .Build()\r\n            : new MiddlewarePipeline<McpbLoadContext>(middlewares);\r\n    }",
+      "parameterList": "(\r\n        IEnumerable<IMcpbMiddleware> middlewares,\r\n        IFileSystem fs,\r\n        ILoggerFactory? loggerFactory = null,\r\n        ILogger<McpbLoader>? logger = null)"
+    },
+    {
+      "file": "kit/mcp/remote/core/RemoteClientManager.cs",
+      "line": 39,
+      "className": "RemoteClientManager",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new PipelineBuilder<RemoteSyncContext> at line 60",
+        "new MiddlewarePipeline<RemoteSyncContext> at line 65"
+      ],
+      "bodyPreview": "{\r\n        ArgumentNullException.ThrowIfNull(toolRegistry);\r\n        ArgumentNullException.ThrowIfNull(logger);\r\n\r\n        _toolRegistry = toolRegistry;\r\n        _logger = logger;\r\n        _acceptLevel = acceptLevel;\r\n        _networkService = networkService;\r\n\r\n        _clients = new RemoteClientRegistry(clock ?? SystemClockService.Instance);\r\n        _toolSpecCache = new RemoteToolSpecCache();\r\n        _reconnectCts = new RemoteReconnectCtsRegistry();\r\n\r\n        if (syncMiddlewares is not null ...",
+      "parameterList": "(\r\n        IToolRegistry toolRegistry,\r\n        ILogger<RemoteClientManager> logger,\r\n        ILoggerFactory? loggerFactory = null,\r\n        McpReconnectAcceptLevel acceptLevel = McpReconnectAcceptLevel.IdentityOnly,\r\n        IEnumerable<IRemoteSyncMiddleware>? syncMiddlewares = null,\r\n        IClockService? clock = null,\r\n        INetworkConnectivityService? networkService = null)"
+    },
+    {
+      "file": "kit/mcp/transports/http/HttpTransport.cs",
+      "line": 40,
+      "className": "HttpTransport",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 53"
+      ],
+      "bodyPreview": "{\r\n        _options = options ?? throw new ArgumentNullException(nameof(options));\r\n        _authProvider = authProvider;\r\n        _logger = logger;\r\n\r\n        _httpClient = new HttpClient {\r\n            Timeout = TimeSpan.FromMilliseconds(PostTimeoutMs)\r\n        };\r\n\r\n        _httpClient.DefaultRequestHeaders.Add(\"User-Agent\", \"JoinCode-MCP/1.0\");\r\n        _httpClient.DefaultRequestHeaders.Add(\"Accept\", StreamableHttpAccept);\r\n\r\n        // 订阅基类事件，桥接到 MCP 事件\r\n        base.ErrorOccurred += (_, e) ...",
+      "parameterList": "(HttpTransportOptions options, IMcpAuthProvider? authProvider = null, ILogger<HttpTransport>? logger = null)"
+    },
+    {
+      "file": "kit/mcp/transports/stdio/StdioTransport.cs",
+      "line": 32,
+      "className": "StdioTransport",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 39"
+      ],
+      "bodyPreview": "{\r\n        _input = input ?? throw new ArgumentNullException(nameof(input));\r\n        _output = output ?? throw new ArgumentNullException(nameof(output));\r\n        _logger = logger;\r\n        _logger?.LogDebug(\"StdioTransport initialized\");\r\n\r\n        // 订阅基类事件，桥接到 MCP 事件\r\n        base.ErrorOccurred += (_, e) =>\r\n            ErrorOccurred?.Invoke(this, new McpTransportErrorEventArgs { Exception = e.Exception, ConnectionId = \"stdio\" });\r\n    }",
+      "parameterList": "(TextReader input, TextWriter output, ILogger<StdioTransport>? logger = null)"
+    },
+    {
+      "file": "kit/mcp/transports/web_socket/WebSocketTransport.cs",
+      "line": 26,
+      "className": "WebSocketTransport",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 35"
+      ],
+      "bodyPreview": "{\r\n        _config = config ?? throw new ArgumentNullException(nameof(config));\r\n        _authProvider = authProvider;\r\n        _logger = logger;\r\n\r\n        // 订阅基类事件，桥接到 MCP 事件\r\n        base.ErrorOccurred += (_, e) =>\r\n            ErrorOccurred?.Invoke(this, new McpTransportErrorEventArgs { Exception = e.Exception });\r\n    }",
+      "parameterList": "(\r\n        McpServerConnectionConfig config,\r\n        IMcpAuthProvider? authProvider = null,\r\n        ILogger<WebSocketTransport>? logger = null)"
+    },
+    {
+      "file": "kit/mcp_tool_dispatch.tests/mcp_tool_handlers/AgentToolHandlersTests.cs",
+      "line": 8,
+      "className": "AgentToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new MiddlewarePipeline<Tools.Handlers.AgentToolContext> at line 70",
+        "new AgentToolHandlers at line 72"
+      ],
+      "bodyPreview": "{\r\n        CleanupDryRunAgentFiles();\r\n\r\n        _agentService.Setup(x => x.SpawnAgentAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))\r\n            .ReturnsAsync((AgentSpawnOptions opt, CancellationToken _) => new JoinCode.Abstractions.Interfaces.AgentInfo {\r\n                Id = Guid.NewGuid().ToString(\"N\")[..8],\r\n                Description = opt.Description,\r\n                Role = AgentRole.Executor,\r\n                Variant = opt.Variant,\r\n                Status = opt.Ru ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/mcp_tool_dispatch.tests/mcp_tool_handlers/BriefToolHandlersTests.cs",
+      "line": 8,
+      "className": "BriefToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new BriefToolHandlers at line 18"
+      ],
+      "bodyPreview": "{\r\n        _briefService.Setup(x => x.FormatMessageWithPaths(\r\n                It.IsAny<string>(),\r\n                It.IsAny<string[]?>(),\r\n                It.IsAny<bool>()))\r\n            .Returns((string msg, string[]? att, bool pro) => $\"[{(pro ? \"proactive\" : \"normal\")}] {msg}\");\r\n\r\n        _briefModeService.Setup(x => x.IsEnabled).Returns(false);\r\n        _briefModeService.Setup(x => x.GetStatus()).Returns(BriefModeStatus.Disabled());\r\n\r\n        _handler = new BriefToolHandlers(_briefModeSer ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/mcp_tool_dispatch.tests/mcp_tool_handlers/CodeIndexToolHandlersTests.cs",
+      "line": 7,
+      "className": "CodeIndexToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new CodeIndexToolHandlers at line 8"
+      ],
+      "bodyPreview": "{\r\n        _handler = new CodeIndexToolHandlers(_indexer.Object);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/mcp_tool_dispatch.tests/mcp_tool_handlers/CtxInspectToolHandlersTests.cs",
+      "line": 7,
+      "className": "CtxInspectToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new CtxInspectToolHandlers at line 14"
+      ],
+      "bodyPreview": "{\r\n        _contextManager.Setup(x => x.GetContextMaxTokens()).Returns(128000);\r\n        _contextManager.Setup(x => x.GetMessageListAsync(It.IsAny<CancellationToken>()))\r\n            .ReturnsAsync(new MessageList());\r\n        _contextManager.Setup(x => x.GetDeferredTools())\r\n            .Returns(new List<DeferredToolInfo>().AsReadOnly());\r\n\r\n        _handler = new CtxInspectToolHandlers(_contextManager.Object, NullLogger<CtxInspectToolHandlers>.Instance);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/mcp_tool_dispatch.tests/mcp_tool_handlers/MonitorToolHandlersTests.cs",
+      "line": 7,
+      "className": "MonitorToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Dictionary<string, IToolHandler> at line 13",
+        "new MonitorToolHandlers at line 15"
+      ],
+      "bodyPreview": "{\r\n        _toolRegistry.Setup(x => x.GetLocalToolCountAsync(It.IsAny<CancellationToken>()))\r\n            .ReturnsAsync(5);\r\n        _toolRegistry.Setup(x => x.GetRemoteClientCountAsync(It.IsAny<CancellationToken>()))\r\n            .ReturnsAsync(2);\r\n        _toolRegistry.Setup(x => x.GetAllToolsAsync(It.IsAny<CancellationToken>()))\r\n            .ReturnsAsync(new Dictionary<string, IToolHandler>());\r\n\r\n        _handler = new MonitorToolHandlers(_toolRegistry.Object, NullLogger<MonitorToolHandlers ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/mcp_tool_dispatch.tests/mcp_tool_handlers/SendUserFileToolHandlersTests.cs",
+      "line": 7,
+      "className": "SendUserFileToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new SendUserFileToolHandlers at line 8"
+      ],
+      "bodyPreview": "{\r\n        _handler = new SendUserFileToolHandlers(_fs, NullLogger<SendUserFileToolHandlers>.Instance);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/mcp_tool_dispatch.tests/mcp_tool_handlers/SnipToolHandlersTests.cs",
+      "line": 7,
+      "className": "SnipToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new SnipToolHandlers at line 15"
+      ],
+      "bodyPreview": "{\r\n        _contextManager.Setup(x => x.RewindLastTurnAsync(It.IsAny<CancellationToken>()))\r\n            .ReturnsAsync(RewindResult.Ok(RewindKind.TrimLastTurn, 2, 5));\r\n        _contextManager.Setup(x => x.RewindToMessageIndexAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))\r\n            .ReturnsAsync(RewindResult.Ok(RewindKind.TruncateToIndex, 3, 4));\r\n        _contextManager.Setup(x => x.RewindToStartAsync(It.IsAny<CancellationToken>()))\r\n            .ReturnsAsync(RewindResult.Ok(RewindKi ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/mcp_tool_dispatch.tests/mcp_tool_handlers/TaskOutputToolHandlersTests.cs",
+      "line": 7,
+      "className": "TaskOutputToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new TaskOutputToolHandlers at line 8"
+      ],
+      "bodyPreview": "{\r\n        _handler = new TaskOutputToolHandlers(_taskService.Object, NullLogger<TaskOutputToolHandlers>.Instance);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/mcp_tool_dispatch.tests/mcp_tool_handlers/ToolSearchToolHandlersTests.cs",
+      "line": 7,
+      "className": "ToolSearchToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new ToolSearchToolHandlers at line 8"
+      ],
+      "bodyPreview": "{\r\n        _handler = new ToolSearchToolHandlers(_toolRegistry.Object, NullLogger<ToolSearchToolHandlers>.Instance);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/mcp_tool_dispatch.tests/mcp_tool_handlers/VerifyPlanExecutionToolHandlersTests.cs",
+      "line": 7,
+      "className": "VerifyPlanExecutionToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new VerifyPlanExecutionToolHandlers at line 8"
+      ],
+      "bodyPreview": "{\r\n        _handler = new VerifyPlanExecutionToolHandlers(_planService.Object, NullLogger<VerifyPlanExecutionToolHandlers>.Instance);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "kit/mcp_tool_dispatch/core/execution/ToolHealthMonitor.cs",
+      "line": 70,
+      "className": "ToolHealthMonitor",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Timer at line 85"
+      ],
+      "bodyPreview": "{\r\n        _fs = fs;\r\n        _logger = logger;\r\n        _config = config ?? new ToolScoreConfig();\r\n        var bl = blacklist ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);\r\n        _blacklistSnapshot = new BlacklistSnapshot {\r\n            Exact = bl.Where(b => !b.Contains('*')).ToFrozenSet(StringComparer.OrdinalIgnoreCase),\r\n            Patterns = bl.Where(b => b.Contains('*')).ToFrozenSet(StringComparer.OrdinalIgnoreCase)\r\n        };\r\n        _penalties = penalties ?? new Dictiona ...",
+      "parameterList": "(IFileSystem fs, ILogger<ToolHealthMonitor>? logger = null, ToolScoreConfig? config = null,\r\n        HashSet<string>? blacklist = null, Dictionary<string, int>? penalties = null)"
+    },
+    {
+      "file": "kit/mcp_tool_dispatch/core/execution/ToolHypergraphScorer.cs",
+      "line": 21,
+      "className": "ToolHypergraphScorer",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Timer at line 27"
+      ],
+      "bodyPreview": "{\r\n        _logger = logger;\r\n        _monitor = monitor;\r\n        _graph = BuildGraph(ToolHypergraphPresets.GetPresets());\r\n\r\n        if (_monitor is not null) {\r\n            _syncTimer = new Timer(async _ => await SyncSharedScoresAsync().ConfigureAwait(false),\r\n                null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));\r\n        }\r\n    }",
+      "parameterList": "(ILogger<ToolHypergraphScorer>? logger = null, IToolHealthMonitor? monitor = null)"
+    },
+    {
+      "file": "lib/abstractions/abs_core/core_utils/core/scopes/ConsoleCancelScope.cs",
+      "line": 22,
+      "className": "ConsoleCancelScope",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 25"
+      ],
+      "bodyPreview": "{\r\n        _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);\r\n        _handler = (_, e) => { e.Cancel = true; _cts.Cancel(); };\r\n        System.Console.CancelKeyPress += _handler;\r\n    }",
+      "parameterList": "(CancellationToken ct)"
+    },
+    {
+      "file": "lib/abstractions/abs_core/interfaces/services/RemoteCacheRefreshServiceBase.cs",
+      "line": 44,
+      "className": "RemoteCacheRefreshServiceBase",
+      "accessibility": "protected",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Timer at line 58",
+        "new Timer at line 64"
+      ],
+      "bodyPreview": "{\r\n        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));\r\n        RefreshOptions = options;\r\n        Logger = logger;\r\n        _telemetryService = telemetryService;\r\n        _clock = clock ?? SystemClockService.Instance;\r\n\r\n        if (!string.IsNullOrEmpty(options.ApiEndpoint)) {\r\n            _refreshTimer = new Timer(\r\n                _ => { if (Volatile.Read(ref _disposed) == 0) TrySend(new RefreshCacheCmd(new IdempotencyKey(\"refresh-cache-timer\", Guid.NewGu ...",
+      "parameterList": "(\r\n        HttpClient httpClient,\r\n        IRemoteRefreshOptions options,\r\n        ILogger? logger,\r\n        ITelemetryService? telemetryService,\r\n        IClockService? clock)"
+    },
+    {
+      "file": "lib/abstractions/abs_hands/code/MappedFileReader.cs",
+      "line": 29,
+      "className": "MappedFileReader",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new FileStream at line 30"
+      ],
+      "bodyPreview": "{\r\n        var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);\r\n        try {\r\n            _fileSize = fs.Length;\r\n            if (_fileSize == 0) {\r\n                fs.Dispose();\r\n                return;\r\n            }\r\n            _mmf = MemoryMappedFile.CreateFromFile(fs, null, _fileSize, MemoryMappedFileAccess.Read, HandleInheritability.None, false);\r\n            _accessor = _mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);\r\n        } catch {\r\n       ...",
+      "parameterList": "(string path)"
+    },
+    {
+      "file": "lib/async_lock/actor/ActorBase.cs",
+      "line": 66,
+      "className": "ActorBase",
+      "accessibility": "protected",
+      "hasStaticFactory": false,
+      "risks": [
+        "TaskRun"
+      ],
+      "details": [
+        "Task.Factory.StartNew(\r\n            ConsumeLoopAsync,\r\n            CancellationToken.None,\r\n            taskOptions,\r\n            TaskScheduler.Default).Unwrap at line 86",
+        "Task.Factory.StartNew at line 86"
+      ],
+      "bodyPreview": "{\r\n        Id = $\"{GetType().Name}-{Guid.NewGuid():N}\"[..8];\r\n        _logger = logger;\r\n        _backpressure = backpressure;\r\n        _watermarkMonitor = backpressure is null ? null : new WatermarkMonitor(backpressure);\r\n        IdempotencyStore = idempotencyStore;\r\n        _idempotencyGate = new IdempotencyGate(idempotencyStore);\r\n        _waitGraphTracker = new AskWaitGraphTracker(_askWaitGraph);\r\n        _inputChannel = CreateInputChannel(backpressure);\r\n        _outputChannel = CreateOutpu ...",
+      "parameterList": "(ActorBackpressure? backpressure = null, int? outputCapacity = null, BoundedChannelFullMode outputFullMode = BoundedChannelFullMode.DropOldest, ILogger? logger = null, IIdempotencyStore? idempotencyStore = null, bool useLongRunning = true)"
+    },
+    {
+      "file": "lib/async_lock/actor/GatewayActor.cs",
+      "line": 87,
+      "className": "GatewayActor",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new SemaphoreSlim at line 94"
+      ],
+      "bodyPreview": "{\r\n        _handler = handler;\r\n        _options = options ?? GatewayOptions.LlmGateway;\r\n        _rateLimiter = new SemaphoreSlim(_options.MaxConcurrency, _options.MaxConcurrency);\r\n    }",
+      "parameterList": "(\r\n        Func<TRequest, CancellationToken, Task<TResponse>> handler,\r\n        GatewayOptions? options = null,\r\n        ActorBackpressure? backpressure = null)"
+    },
+    {
+      "file": "lib/async_lock/actor/MessageRetryEngine.cs",
+      "line": 31,
+      "className": "MessageRetryEngine",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new BoundedChannelOptions at line 54",
+        "new BoundedChannelOptions at line 59"
+      ],
+      "bodyPreview": "{\r\n        ArgumentNullException.ThrowIfNull(actorId);\r\n        if (string.IsNullOrEmpty(actorId))\r\n            throw new ArgumentException(\"actorId 不能为 null 或空\", nameof(actorId));\r\n        if (retryQueueCapacity <= 0)\r\n            throw new ArgumentOutOfRangeException(nameof(retryQueueCapacity), retryQueueCapacity, \"retryQueueCapacity 必须 > 0\");\r\n        if (maxRetries <= 0)\r\n            throw new ArgumentOutOfRangeException(nameof(maxRetries), maxRetries, \"maxRetries 必须 > 0\");\r\n        _maxRetr ...",
+      "parameterList": "(\r\n        int retryQueueCapacity,\r\n        int maxRetries,\r\n        ChannelWriter<TCommand> inputWriter,\r\n        string actorId,\r\n        ILogger? logger,\r\n        CancellationToken shutdownCt,\r\n        Action<TCommand, int> onSendFailed,\r\n        Action onEnqueuedToInput)"
+    },
+    {
+      "file": "lib/async_lock/channels/BackpressureChannel.cs",
+      "line": 46,
+      "className": "BackpressureChannel",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new BoundedChannelOptions at line 57",
+        "new BoundedChannelOptions at line 62"
+      ],
+      "bodyPreview": "{\r\n        ArgumentNullException.ThrowIfNull(ownerId);\r\n        ArgumentNullException.ThrowIfNull(config);\r\n        _ownerId = ownerId;\r\n        _config = config;\r\n        _notifyBackpressureAsync = notifyBackpressureAsync;\r\n        _data = Channel.CreateBounded<BackpressureMessage<T>>(new BoundedChannelOptions(config.Capacity) {\r\n            FullMode = BoundedChannelFullMode.Wait,\r\n            SingleReader = singleReader,\r\n            SingleWriter = singleWriter\r\n        });\r\n        _signalQue ...",
+      "parameterList": "(\r\n        string ownerId,\r\n        ActorBackpressure config,\r\n        Func<BackpressureSignal, ValueTask>? notifyBackpressureAsync = null,\r\n        bool singleReader = true,\r\n        bool singleWriter = false)"
+    },
+    {
+      "file": "lib/async_lock/host/HostContextSyncService.cs",
+      "line": 33,
+      "className": "HostContextSyncService",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation"
+      ],
+      "details": [
+        "new CancellationTokenSource at line 44",
+        "new CancellationTokenSource at line 44"
+      ],
+      "bodyPreview": "{\r\n        _transport = transport ?? throw new ArgumentNullException(nameof(transport));\r\n        _election = election ?? throw new ArgumentNullException(nameof(election));\r\n        _snapshotProvider = snapshotProvider;\r\n        _logger = logger;\r\n        _syncInterval = syncInterval ?? TimeSpan.FromSeconds(5);\r\n        _cts = new CancellationTokenSource();\r\n    }",
+      "parameterList": "(\r\n        ITransportTopology transport,\r\n        HostElectionService election,\r\n        ContextSnapshotProvider? snapshotProvider = null,\r\n        ILogger? logger = null,\r\n        TimeSpan? syncInterval = null)"
+    },
+    {
+      "file": "lib/async_lock/host/HostElectionService.cs",
+      "line": 58,
+      "className": "HostElectionService",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation"
+      ],
+      "details": [
+        "new CancellationTokenSource at line 69",
+        "new CancellationTokenSource at line 69",
+        "new BoundedChannelOptions at line 70",
+        "new BoundedChannelOptions at line 75"
+      ],
+      "bodyPreview": "{\r\n        _pipeName = pipeName;\r\n        _logger = logger;\r\n        _processId = processId ?? Environment.ProcessId.ToString();\r\n        _heartbeatInterval = heartbeatInterval ?? TimeSpan.FromSeconds(3);\r\n        _heartbeatTimeout = heartbeatTimeout ?? TimeSpan.FromSeconds(10);\r\n        _cts = new CancellationTokenSource();\r\n        _electionChannel = Channel.CreateBounded<HostElectionResult>(new BoundedChannelOptions(16) {\r\n            FullMode = BoundedChannelFullMode.DropOldest,\r\n            ...",
+      "parameterList": "(\r\n        string pipeName = \"jcc-mailbox-host\",\r\n        ILogger? logger = null,\r\n        TimeSpan? heartbeatInterval = null,\r\n        TimeSpan? heartbeatTimeout = null,\r\n        string? processId = null)"
+    },
+    {
+      "file": "lib/async_lock/lock/AsyncLock.cs",
+      "line": 37,
+      "className": "AsyncLock",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new SemaphoreSlim at line 38"
+      ],
+      "bodyPreview": "{\r\n        _semaphore = new SemaphoreSlim(1, 1);\r\n        _name = $\"AsyncLock#{LockRegistry.Count + 1}\";\r\n        _timeout = DefaultTimeout;\r\n        _timeoutPolicy = LockTimeoutPolicy.Throw;\r\n        _registryId = LockRegistry.Register(_name);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "lib/async_lock/lock/AsyncLock.cs",
+      "line": 48,
+      "className": "AsyncLock",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new SemaphoreSlim at line 49"
+      ],
+      "bodyPreview": "{\r\n        _semaphore = new SemaphoreSlim(1, 1);\r\n        _name = string.IsNullOrWhiteSpace(name) ? $\"AsyncLock#{LockRegistry.Count + 1}\" : name;\r\n        _timeout = DefaultTimeout;\r\n        _timeoutPolicy = LockTimeoutPolicy.Throw;\r\n        _registryId = LockRegistry.Register(_name);\r\n    }",
+      "parameterList": "(string name)"
+    },
+    {
+      "file": "lib/async_lock/lock/AsyncLock.cs",
+      "line": 59,
+      "className": "AsyncLock",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new SemaphoreSlim at line 60"
+      ],
+      "bodyPreview": "{\r\n        _semaphore = new SemaphoreSlim(1, 1);\r\n        _name = string.IsNullOrWhiteSpace(name) ? $\"AsyncLock#{LockRegistry.Count + 1}\" : name;\r\n        _timeout = DefaultTimeout;\r\n        _timeoutPolicy = timeoutPolicy;\r\n        _registryId = LockRegistry.Register(_name);\r\n    }",
+      "parameterList": "(string name, LockTimeoutPolicy timeoutPolicy)"
+    },
+    {
+      "file": "lib/async_lock/lock/AsyncLock.cs",
+      "line": 70,
+      "className": "AsyncLock",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new SemaphoreSlim at line 73"
+      ],
+      "bodyPreview": "{\r\n        if (timeout <= TimeSpan.Zero)\r\n            throw new ArgumentOutOfRangeException(nameof(timeout), \"超时必须为正值。\");\r\n        _semaphore = new SemaphoreSlim(1, 1);\r\n        _name = string.IsNullOrWhiteSpace(name) ? $\"AsyncLock#{LockRegistry.Count + 1}\" : name;\r\n        _timeout = timeout;\r\n        _timeoutPolicy = LockTimeoutPolicy.Throw;\r\n        _registryId = LockRegistry.Register(_name);\r\n    }",
+      "parameterList": "(string name, TimeSpan timeout)"
+    },
+    {
+      "file": "lib/async_lock/lock/AsyncLock.cs",
+      "line": 83,
+      "className": "AsyncLock",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new SemaphoreSlim at line 86"
+      ],
+      "bodyPreview": "{\r\n        if (timeout <= TimeSpan.Zero)\r\n            throw new ArgumentOutOfRangeException(nameof(timeout), \"超时必须为正值。\");\r\n        _semaphore = new SemaphoreSlim(1, 1);\r\n        _name = string.IsNullOrWhiteSpace(name) ? $\"AsyncLock#{LockRegistry.Count + 1}\" : name;\r\n        _timeout = timeout;\r\n        _timeoutPolicy = timeoutPolicy;\r\n        _registryId = LockRegistry.Register(_name);\r\n    }",
+      "parameterList": "(string name, TimeSpan timeout, LockTimeoutPolicy timeoutPolicy)"
+    },
+    {
+      "file": "lib/async_lock/lock/AsyncLock.cs",
+      "line": 96,
+      "className": "AsyncLock",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new SemaphoreSlim at line 101"
+      ],
+      "bodyPreview": "{\r\n        if (initialCount < 0 || maxCount < 1 || initialCount > maxCount)\r\n            throw new ArgumentOutOfRangeException(\r\n                nameof(initialCount),\r\n                \"initialCount 必须 >= 0,maxCount 必须 >= 1,且 initialCount <= maxCount。\");\r\n        _semaphore = new SemaphoreSlim(initialCount, maxCount);\r\n        _name = $\"AsyncLock#{LockRegistry.Count + 1}\";\r\n        _timeout = DefaultTimeout;\r\n        _timeoutPolicy = LockTimeoutPolicy.Throw;\r\n        _registryId = LockRegistry.Re ...",
+      "parameterList": "(int initialCount, int maxCount)"
+    },
+    {
+      "file": "lib/async_lock/lock/AsyncLock.cs",
+      "line": 111,
+      "className": "AsyncLock",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new SemaphoreSlim at line 116"
+      ],
+      "bodyPreview": "{\r\n        if (initialCount < 0 || maxCount < 1 || initialCount > maxCount)\r\n            throw new ArgumentOutOfRangeException(\r\n                nameof(initialCount),\r\n                \"initialCount 必须 >= 0,maxCount 必须 >= 1,且 initialCount <= maxCount。\");\r\n        _semaphore = new SemaphoreSlim(initialCount, maxCount);\r\n        _name = string.IsNullOrWhiteSpace(name) ? $\"AsyncLock#{LockRegistry.Count + 1}\" : name;\r\n        _timeout = DefaultTimeout;\r\n        _timeoutPolicy = LockTimeoutPolicy.Thro ...",
+      "parameterList": "(string name, int initialCount, int maxCount)"
+    },
+    {
+      "file": "lib/async_lock/lock/AsyncLock.cs",
+      "line": 126,
+      "className": "AsyncLock",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new SemaphoreSlim at line 133"
+      ],
+      "bodyPreview": "{\r\n        if (initialCount < 0 || maxCount < 1 || initialCount > maxCount)\r\n            throw new ArgumentOutOfRangeException(\r\n                nameof(initialCount),\r\n                \"initialCount 必须 >= 0,maxCount 必须 >= 1,且 initialCount <= maxCount。\");\r\n        if (timeout <= TimeSpan.Zero)\r\n            throw new ArgumentOutOfRangeException(nameof(timeout), \"超时必须为正值。\");\r\n        _semaphore = new SemaphoreSlim(initialCount, maxCount);\r\n        _name = string.IsNullOrWhiteSpace(name) ? $\"AsyncLoc ...",
+      "parameterList": "(string name, int initialCount, int maxCount, TimeSpan timeout)"
+    },
+    {
+      "file": "lib/async_lock/mailbox/PriorityMailbox.cs",
+      "line": 61,
+      "className": "PriorityMailbox",
+      "accessibility": "protected",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "FireAndForget"
+      ],
+      "details": [
+        "new BoundedChannelOptions at line 72",
+        "_ = StartConsumingAsync() at line 78"
+      ],
+      "bodyPreview": "{\r\n        _highBackpressure = highBackpressure;\r\n        _normalBackpressure = normalBackpressure;\r\n        _lowBackpressure = lowBackpressure;\r\n        _highChannel = CreateChannel(highBackpressure);\r\n        _normalChannel = CreateChannel(normalBackpressure);\r\n        _lowChannel = CreateChannel(lowBackpressure);\r\n        _outputChannel = Channel.CreateBounded<PriorityEvt<TCommand>>(new BoundedChannelOptions(ActorBase<object, object>.DefaultChannelCapacity) {\r\n            FullMode = BoundedCh ...",
+      "parameterList": "(\r\n        ActorBackpressure? highBackpressure = null,\r\n        ActorBackpressure? normalBackpressure = null,\r\n        ActorBackpressure? lowBackpressure = null,\r\n        bool startConsuming = true)"
+    },
+    {
+      "file": "lib/async_lock/transport/BusTransport.cs",
+      "line": 33,
+      "className": "BusTransport",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation"
+      ],
+      "details": [
+        "new BoundedChannelOptions at line 42",
+        "new CancellationTokenSource at line 47",
+        "new CancellationTokenSource at line 47"
+      ],
+      "bodyPreview": "{\r\n        _pipeName = pipeName;\r\n        _processId = processId ?? Environment.ProcessId.ToString();\r\n        _election = election ?? new HostElectionService(pipeName, logger, processId: _processId);\r\n        _logger = logger;\r\n        _receiveChannel = Channel.CreateBounded<TransportFrame>(new BoundedChannelOptions(1024) {\r\n            SingleReader = true,\r\n            SingleWriter = false,\r\n            FullMode = BoundedChannelFullMode.Wait\r\n        });\r\n        _cts = new CancellationTokenSo ...",
+      "parameterList": "(\r\n        string pipeName = \"jcc-bus\",\r\n        HostElectionService? election = null,\r\n        ILogger? logger = null,\r\n        string? processId = null)"
+    },
+    {
+      "file": "lib/async_lock/transport/BusTransport.cs",
+      "line": 276,
+      "className": "BusClientConnection",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "TaskRun"
+      ],
+      "details": [
+        "new BoundedChannelOptions at line 280",
+        "Task.Run at line 285"
+      ],
+      "bodyPreview": "{\r\n        ProcessId = processId;\r\n        _stream = stream;\r\n        _logger = logger;\r\n        _writeQueue = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(512) {\r\n            SingleReader = true,\r\n            SingleWriter = false,\r\n            FullMode = BoundedChannelFullMode.Wait\r\n        });\r\n        _writeLoop = Task.Run(WriteLoopAsync);\r\n    }",
+      "parameterList": "(string processId, NamedPipeServerStream stream, ILogger? logger)"
+    },
+    {
+      "file": "lib/async_lock/transport/MeshTransport.cs",
+      "line": 29,
+      "className": "MeshTransport",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation"
+      ],
+      "details": [
+        "new BoundedChannelOptions at line 36",
+        "new CancellationTokenSource at line 41",
+        "new CancellationTokenSource at line 41"
+      ],
+      "bodyPreview": "{\r\n        _basePipeName = basePipeName;\r\n        _logger = logger;\r\n        _processId = processId ?? Environment.ProcessId.ToString();\r\n        _receiveChannel = Channel.CreateBounded<TransportFrame>(new BoundedChannelOptions(1024) {\r\n            SingleReader = true,\r\n            SingleWriter = false,\r\n            FullMode = BoundedChannelFullMode.Wait\r\n        });\r\n        _cts = new CancellationTokenSource();\r\n    }",
+      "parameterList": "(\r\n        string basePipeName = \"jcc-mesh\",\r\n        ILogger? logger = null,\r\n        string? processId = null)"
+    },
+    {
+      "file": "lib/async_lock/transport/MeshTransport.cs",
+      "line": 237,
+      "className": "MeshPeerConnection",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "TaskRun"
+      ],
+      "details": [
+        "new BoundedChannelOptions at line 241",
+        "Task.Run at line 246"
+      ],
+      "bodyPreview": "{\r\n        PeerProcessId = peerPid;\r\n        _stream = stream;\r\n        _logger = logger;\r\n        _writeQueue = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(512) {\r\n            SingleReader = true,\r\n            SingleWriter = false,\r\n            FullMode = BoundedChannelFullMode.Wait\r\n        });\r\n        _writeLoop = Task.Run(WriteLoopAsync);\r\n    }",
+      "parameterList": "(string peerPid, NamedPipeClientStream stream, ILogger? logger)"
+    },
+    {
+      "file": "lib/async_lock/transport/NamedPipeTransport.cs",
+      "line": 32,
+      "className": "NamedPipeTransport",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation"
+      ],
+      "details": [
+        "new BoundedChannelOptions at line 41",
+        "new CancellationTokenSource at line 46",
+        "new CancellationTokenSource at line 46"
+      ],
+      "bodyPreview": "{\r\n        _pipeName = pipeName;\r\n        _processId = processId ?? Environment.ProcessId.ToString();\r\n        _election = election ?? new HostElectionService(pipeName, logger, processId: _processId);\r\n        _logger = logger;\r\n        _receiveChannel = Channel.CreateBounded<TransportFrame>(new BoundedChannelOptions(1024) {\r\n            SingleReader = true,\r\n            SingleWriter = false,\r\n            FullMode = BoundedChannelFullMode.Wait\r\n        });\r\n        _cts = new CancellationTokenSo ...",
+      "parameterList": "(\r\n        string pipeName = \"jcc-mailbox-host\",\r\n        HostElectionService? election = null,\r\n        ILogger? logger = null,\r\n        string? processId = null)"
+    },
+    {
+      "file": "lib/async_lock/transport/NamedPipeTransport.cs",
+      "line": 441,
+      "className": "PipeConnection",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "TaskRun"
+      ],
+      "details": [
+        "new BoundedChannelOptions at line 445",
+        "Task.Run at line 450"
+      ],
+      "bodyPreview": "{\r\n        ProcessId = processId;\r\n        _stream = stream;\r\n        _logger = logger;\r\n        _writeQueue = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(512) {\r\n            SingleReader = true,\r\n            SingleWriter = false,\r\n            FullMode = BoundedChannelFullMode.Wait\r\n        });\r\n        _writeLoop = Task.Run(WriteLoopAsync);\r\n    }",
+      "parameterList": "(string processId, NamedPipeServerStream stream, ILogger? logger)"
+    },
+    {
+      "file": "lib/clock/goal/core/goal_engine/GoalEngine.cs",
+      "line": 184,
+      "className": "GoalEngine",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new PipelineBuilder<GoalLifecycleContext> at line 208",
+        "new MiddlewarePipeline<GoalLifecycleContext> at line 213"
+      ],
+      "bodyPreview": "{\r\n        _kernel = kernel;\r\n        _evaluator = evaluator;\r\n        _logger = logger;\r\n        _clock = clock ?? SystemClockService.Instance;\r\n        _permissionManager = permissionManager;\r\n        _serviceProvider = serviceProvider ?? _serviceProvider;\r\n\r\n        _chatHistory = new MessageList();\r\n        _heartbeat = heartbeat ?? throw new ArgumentNullException(nameof(heartbeat));\r\n        _stateStore = stateStore;\r\n        _heartbeat.RegisterCallback(OnHeartbeatAsync);\r\n\r\n        if (lif ...",
+      "parameterList": "(\r\n        IChatClient kernel,\r\n        IGoalEvaluator evaluator,\r\n        ILogger<GoalEngine>? logger = null,\r\n        ILoggerFactory? loggerFactory = null,\r\n        IToolPermissionManager? permissionManager = null,\r\n        IEnumerable<IGoalLifecycleMiddleware>? lifecycleMiddlewares = null,\r\n        IGoalHeartbeat? heartbeat = null,\r\n        IClockService? clock = null,\r\n        IServiceProvider? serviceProvider = null,\r\n        IGoalStateStore? stateStore = null)"
+    },
+    {
+      "file": "lib/clock/goal/core/goal_engine/GoalHeartbeat.cs",
+      "line": 71,
+      "className": "GoalHeartbeat",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Timer at line 76"
+      ],
+      "bodyPreview": "{\r\n        _heartbeatInterval = heartbeatInterval ?? TimeSpan.FromSeconds(30);\r\n        _logger = logger;\r\n        _clock = clock ?? SystemClockService.Instance;\r\n        _heartbeatTimer = new Timer(_ => TrySend(new HeartbeatTickCmd()), null, Timeout.Infinite, Timeout.Infinite);\r\n    }",
+      "parameterList": "(TimeSpan? heartbeatInterval = null, ILogger<GoalHeartbeat>? logger = null, IClockService? clock = null)"
+    },
+    {
+      "file": "lib/clock/goal/core/goal_graph/GoalGraphEngine.cs",
+      "line": 43,
+      "className": "GoalGraphEngine",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new RetryHandler at line 69",
+        "new NodeCompletionPipeline at line 75",
+        "new MetadataExtractHandler at line 76",
+        "new UserInteractionHandler at line 77",
+        "new LoopObservationHandler at line 78",
+        "new TerminationCheckHandler at line 79"
+      ],
+      "bodyPreview": "{\r\n        _kernel = kernel;\r\n        _evaluator = evaluator;\r\n        _serviceProvider = serviceProvider;\r\n        _logger = logger;\r\n        _heartbeat = heartbeat ?? new GoalHeartbeat();\r\n        _clock = clock ?? SystemClockService.Instance;\r\n        _userInteraction = userInteraction ?? serviceProvider.GetService<IGoalUserInteraction>();\r\n        _nodeInspector = nodeInspector ?? serviceProvider.GetService<IGoalNodeInspector>();\r\n        _conflictMessenger = conflictMessenger ?? serviceProv ...",
+      "parameterList": "(\r\n        IChatClient kernel,\r\n        IGoalEvaluator evaluator,\r\n        IServiceProvider serviceProvider,\r\n        ILogger<GoalGraphEngine>? logger = null,\r\n        IGoalHeartbeat? heartbeat = null,\r\n        IClockService? clock = null,\r\n        IGoalUserInteraction? userInteraction = null,\r\n        IGoalNodeInspector? nodeInspector = null,\r\n        IGoalConflictMessenger? conflictMessenger = null,\r\n        SubAgentConcurrencyOptions? concurrencyOptions = null,\r\n        IGraphScheduler? graphScheduler = null)"
+    },
+    {
+      "file": "lib/clock/hosting/AppEventBus.cs",
+      "line": 18,
+      "className": "AppEventBus",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 21"
+      ],
+      "bodyPreview": "{\r\n        _messageBus = messageBus;\r\n        _logger = logger;\r\n        _messageBus.MessageReceived += OnMessageReceivedAsync;\r\n    }",
+      "parameterList": "(ServiceMessageBus messageBus, ILogger<AppEventBus>? logger = null)"
+    },
+    {
+      "file": "lib/clock/hosting/WorkflowApplication.cs",
+      "line": 27,
+      "className": "WorkflowApplication",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 45"
+      ],
+      "bodyPreview": "{\r\n        _cronTaskStore = cronTaskStore;\r\n        _notificationService = notificationService;\r\n        _cronLogger = cronLogger;\r\n        _logger = logger;\r\n        _clock = clock ?? SystemClockService.Instance;\r\n\r\n        _serviceHost = new ServiceHost(hostLogger);\r\n\r\n        _messageBus = new ServiceMessageBus();\r\n\r\n        _serviceHost.ServiceStatusChanged += OnServiceStatusChanged;\r\n    }",
+      "parameterList": "(\r\n        ILogger<ServiceHost>? hostLogger = null,\r\n        ICronTaskStore? cronTaskStore = null,\r\n\r\n        INotificationService? notificationService = null,\r\n        ILogger<CronSchedulerService>? cronLogger = null,\r\n        ILogger<WorkflowApplication>? logger = null,\r\n        IClockService? clock = null)"
+    },
+    {
+      "file": "lib/guard.config.tests/configuration/core/ConfigLoaderTests.cs",
+      "line": 25,
+      "className": "ConfigLoaderTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "FireAndForget"
+      ],
+      "details": [
+        "_ = _fs.WriteAllText(AppDataConstants.Paths.SettingsFilePath, settingsJson) at line 44"
+      ],
+      "bodyPreview": "{\r\n        _originalAppDataFolder = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder);\r\n        _originalProvider = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.Vendor);\r\n        _originalModelId = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.ModelId);\r\n        _originalAgnesApiKey = Environment.GetEnvironmentVariable(ProviderEnvVarEnumConstants.AgnesApiKey);\r\n        _originalOpenAiApiKey = Environment.GetEnvironmentVariable(ProviderEnvVarEnumCon ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "lib/guard.config.tests/plugins/plugin_a_to_m/PluginHotReloaderTests.cs",
+      "line": 9,
+      "className": "PluginHotReloaderTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new PhysicalFileSystemWatcher at line 13"
+      ],
+      "bodyPreview": "{\r\n        _pluginManager = new Mock<IPluginManager>();\r\n        _fileSystem = new Mock<IFileSystem>();\r\n        _fileSystem.Setup(fs => fs.Watch(It.IsAny<string>(), It.IsAny<string>()))\r\n            .Returns((string path, string filter) => new PhysicalFileSystemWatcher(path, filter));\r\n        _reloader = new PluginHotReloader(_pluginManager.Object, _fileSystem.Object, NullLogger<PluginHotReloader>.Instance);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "lib/guard.hooks.tests/permission/hooks/tool_permission/CoordinatorHandlerTests.cs",
+      "line": 13,
+      "className": "CoordinatorHandlerTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new CoordinatorHandler at line 14"
+      ],
+      "bodyPreview": "{\r\n        _handler = new CoordinatorHandler(NullLogger<CoordinatorHandler>.Instance);\r\n        _orchestratorMock = new Mock<IHookOrchestrator>();\r\n        _hookExecutor = new PermissionHookExecutor(_orchestratorMock.Object, NullLogger<PermissionHookExecutor>.Instance);\r\n        _logger = new TestPermissionLogger();\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "lib/guard/configuration/configuration2/core/change_tracking/SettingsChangeApplier.cs",
+      "line": 19,
+      "className": "SettingsChangeApplier",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 31"
+      ],
+      "bodyPreview": "{\r\n        _configChangeNotifier = configChangeNotifier;\r\n        _pipeline = pipeline;\r\n        _fs = fs;\r\n        _logger = logger;\r\n        _telemetryService = telemetryService;\r\n        _configChangeNotifier.ConfigChanged += OnConfigChanged;\r\n    }",
+      "parameterList": "(\r\n        IConfigChangeNotifier configChangeNotifier,\r\n        MiddlewarePipeline<SettingsContext> pipeline,\r\n        IFileSystem fs,\r\n        ILogger<SettingsChangeApplier>? logger = null,\r\n        ITelemetryService? telemetryService = null)"
+    },
+    {
+      "file": "lib/guard/configuration/configuration2/core/loading/core/ConfigLoader.cs",
+      "line": 26,
+      "className": "ConfigLoader",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new PipelineBuilder<ConfigLoadContext> at line 32",
+        "new MiddlewarePipeline<ConfigLoadContext> at line 37"
+      ],
+      "bodyPreview": "{\r\n        _logger = loggerFactory?.CreateLogger<ConfigLoader>();\r\n        _registry = registry ?? ProviderDefinitionRegistry.Create(modelConfigLoader ?? new ModelConfigLoader(), logger: loggerFactory?.CreateLogger<ProviderDefinitionRegistry>());\r\n        _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);\r\n        _modelConfigLoader = modelConfigLoader;\r\n        if (middlewares is not null && loggerFactory is not null) {\r\n            _pipeline = new PipelineBuilder<ConfigLoadCont ...",
+      "parameterList": "(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null)"
+    },
+    {
+      "file": "lib/infrastructure/io/file_system/InMemoryFileSystem.cs",
+      "line": 639,
+      "className": "InMemoryFileStream",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new MemoryStream at line 651"
+      ],
+      "bodyPreview": "{\r\n            _fs = fs;\r\n            _path = path;\r\n\r\n            var initialData = exists && mode != FileMode.CreateNew\r\n                ? (fs._files.TryGetValue(path, out var entry)\r\n                    ? entry.ByteContent ?? System.Text.Encoding.UTF8.GetBytes(entry.TextContent ?? string.Empty)\r\n                    : [])\r\n                : [];\r\n\r\n            // 使用可扩展的 MemoryStream — new MemoryStream(byte[], writable) 创建固定大小流，\r\n            // 写入超过初始大小时抛 NotSupportedException，导致 JsonSerializer. ...",
+      "parameterList": "(InMemoryFileSystem fs, string path, FileMode mode, bool exists)"
+    },
+    {
+      "file": "lib/infrastructure/io/file_system/PhysicalFileSystemWatcher.cs",
+      "line": 16,
+      "className": "PhysicalFileSystemWatcher",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "EventSubscription"
+      ],
+      "details": [
+        "new FileSystemWatcher at line 17",
+        "+= at line 18",
+        "+= at line 19",
+        "+= at line 20",
+        "+= at line 21"
+      ],
+      "bodyPreview": "{\r\n        _inner = new FileSystemWatcher(path, filter);\r\n        _inner.Changed += OnChanged;\r\n        _inner.Created += OnCreated;\r\n        _inner.Deleted += OnDeleted;\r\n        _inner.Renamed += OnRenamed;\r\n    }",
+      "parameterList": "(string path, string filter = \"*.*\")"
+    },
+    {
+      "file": "lib/infrastructure/io/process/PhysicalProcessService.cs",
+      "line": 200,
+      "className": "PhysicalInteractiveProcess",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "EventSubscription"
+      ],
+      "details": [
+        "new StreamWriter at line 203",
+        "new StreamReader at line 204",
+        "+= at line 205"
+      ],
+      "bodyPreview": "{\r\n            _process = process;\r\n            _logger = logger;\r\n            StandardInput = new StreamWriter(_process.StandardInput.BaseStream) { AutoFlush = true };\r\n            StandardOutput = new StreamReader(_process.StandardOutput.BaseStream);\r\n            _process.ErrorDataReceived += (_, e) => {\r\n                if (e.Data != null) ErrorDataReceived?.Invoke(this, e.Data);\r\n            };\r\n        }",
+      "parameterList": "(System.Diagnostics.Process process, ILogger? logger)"
+    },
+    {
+      "file": "lib/infrastructure/io/services/file_ops/FileOperationService.cs",
+      "line": 21,
+      "className": "FileOperationService",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new FileReader at line 23",
+        "new FileWriter at line 24"
+      ],
+      "bodyPreview": "{\r\n        _fs = fs;\r\n        _fileReader = new FileReader(fs, config, logger);\r\n        _fileWriter = new FileWriter(fs, config, logger);\r\n        _fileEditor = new FileEditor(fs, config, logger);\r\n        _logger = logger;\r\n    }",
+      "parameterList": "(IFileSystem fs, FileOperationConfig config, ILogger<FileOperationService>? logger = null)"
+    },
+    {
+      "file": "lib/infrastructure/network/downloader/state_machine/DownloadStateMachine.cs",
+      "line": 26,
+      "className": "DownloadStateMachine",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 28"
+      ],
+      "bodyPreview": "{\r\n        _fsm = new Fsm<DownloadState, DownloadOperation>(_fsmSortedKeys, _fsmRules, DownloadState.Idle);\r\n        _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "lib/infrastructure/process/ProcessHealthMonitor.cs",
+      "line": 58,
+      "className": "ProcessHealthMonitor",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Timer at line 67"
+      ],
+      "bodyPreview": "{\r\n        _process = process ?? throw new ArgumentNullException(nameof(process));\r\n        _config = config ?? throw new ArgumentNullException(nameof(config));\r\n        _logger = logger;\r\n\r\n        _timer = new Timer(\r\n            _ => TrySend(new HealthCheckTickCmd()),\r\n            null,\r\n            _config.Interval,\r\n            _config.Interval);\r\n    }",
+      "parameterList": "(\r\n        IInteractiveProcess process,\r\n        HealthCheckConfig config,\r\n        ILogger? logger = null)"
+    },
+    {
+      "file": "lib/infrastructure/process/ResilientSubprocess.cs",
+      "line": 43,
+      "className": "ResilientSubprocess",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new ResilientChannel at line 55",
+        "new ResilientChannel at line 58"
+      ],
+      "bodyPreview": "{\r\n        _process = process ?? throw new ArgumentNullException(nameof(process));\r\n        _spawnFunc = spawnFunc ?? throw new ArgumentNullException(nameof(spawnFunc));\r\n        _policy = policy ?? throw new ArgumentNullException(nameof(policy));\r\n        _logger = logger;\r\n\r\n        _circuitBreaker = new UnifiedCircuitBreaker(_policy.Name, _policy.CircuitBreaker);\r\n\r\n        _inputChannel = new ResilientChannel(\r\n            $\"{_policy.Name}/stdin\", _circuitBreaker, _policy.WriteTimeout, _logg ...",
+      "parameterList": "(\r\n        IInteractiveProcess process,\r\n        Func<CancellationToken, Task<IInteractiveProcess>> spawnFunc,\r\n        SubprocessResiliencePolicy policy,\r\n        ILogger? logger = null)"
+    },
+    {
+      "file": "lib/infrastructure/reaper_scheduler/ReaperScheduler.cs",
+      "line": 27,
+      "className": "ReaperScheduler",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "ThreadCreation"
+      ],
+      "details": [
+        "new Thread at line 29",
+        "new Thread at line 29"
+      ],
+      "bodyPreview": "{\r\n        _logger = logger;\r\n        _scanThread = new Thread(ScanLoop) { IsBackground = true, Name = \"ReaperScheduler\" };\r\n    }",
+      "parameterList": "(ILogger<ReaperScheduler>? logger = null)"
+    },
+    {
+      "file": "lib/infrastructure/shell/ShellProcessWatchdog.cs",
+      "line": 39,
+      "className": "ShellProcessWatchdog",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Timer at line 42"
+      ],
+      "bodyPreview": "{\r\n        _logger = logger;\r\n        _timer = new Timer(_ => TrySend(new ShellCheckAllTickCmd()), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));\r\n    }",
+      "parameterList": "(ILogger? logger = null)"
+    },
+    {
+      "file": "lib/infrastructure/ssh/SshSession.cs",
+      "line": 35,
+      "className": "SshSession",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 42"
+      ],
+      "bodyPreview": "{\r\n        Config = config;\r\n        _fs = fs;\r\n        _logger = logger;\r\n        SessionId = Guid.NewGuid().ToString(\"N\")[..16];\r\n        _portForwardManager = new SshPortForwardManager(logger);\r\n        _stateMachine = new StateMachine<SshConnectionState>(SshTransitions, SshConnectionState.Disconnected);\r\n        _stateMachine.StateChanged += OnStateChanged;\r\n    }",
+      "parameterList": "(SshSessionConfig config, IFileSystem fs, ILogger? logger = null)"
+    },
+    {
+      "file": "lib/infrastructure/telemetry/AnalyticsFileSink.cs",
+      "line": 106,
+      "className": "AnalyticsFileSink",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation",
+        "TaskRun"
+      ],
+      "details": [
+        "new BoundedChannelOptions at line 119",
+        "new CancellationTokenSource at line 124",
+        "new CancellationTokenSource at line 124",
+        "Task.Run at line 127"
+      ],
+      "bodyPreview": "{\r\n        _fileSystem = fileSystem;\r\n        _killswitch = killswitch ?? new AnalyticsSinkKillswitch();\r\n        _logger = logger;\r\n        _flushInterval = flushInterval ?? TimeSpan.FromSeconds(5);\r\n        _batchSize = batchSize;\r\n        _outputDirectory = outputDirectory ?? JoinCode.Abstractions.Configuration.AppData.AppDataConstants.AnalyticsDirectory;\r\n        _channel = Channel.CreateBounded<AnalyticsEvent>(new BoundedChannelOptions(1000) {\r\n            FullMode = BoundedChannelFullMode. ...",
+      "parameterList": "(\r\n        IFileSystem? fileSystem = null,\r\n        AnalyticsSinkKillswitch? killswitch = null,\r\n        ILogger<AnalyticsFileSink>? logger = null,\r\n        TimeSpan? flushInterval = null,\r\n        int batchSize = 100,\r\n        string? outputDirectory = null)"
+    },
+    {
+      "file": "lib/infrastructure/utils/diagnostics/DebugLogBuffer.cs",
+      "line": 15,
+      "className": "DebugLogBuffer",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 19"
+      ],
+      "bodyPreview": "{\r\n        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCapacity);\r\n        _maxCapacity = maxCapacity;\r\n\r\n        Diag.DiagnosticLineWritten += OnDiagnosticLineWritten;\r\n    }",
+      "parameterList": "(int maxCapacity = 2000)"
+    },
+    {
+      "file": "lib/infrastructure/utils/resilience/UnifiedCircuitBreaker.cs",
+      "line": 144,
+      "className": "UnifiedCircuitBreaker",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 158"
+      ],
+      "bodyPreview": "{\r\n        ArgumentException.ThrowIfNullOrEmpty(name);\r\n        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(failureThreshold);\r\n        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(halfOpenMaxProbe);\r\n\r\n        Name = name;\r\n        _openDuration = openDuration ?? TimeSpan.FromSeconds(30);\r\n        _ctx = new CircuitBreakerContext {\r\n            FailureThreshold = failureThreshold,\r\n            HalfOpenMaxProbe = halfOpenMaxProbe,\r\n            OpenedAt = DateTimeOffset.MinValue,\r\n     ...",
+      "parameterList": "(string name, int failureThreshold = 5, TimeSpan? openDuration = null, int halfOpenMaxProbe = 1)"
+    },
+    {
+      "file": "lib/pithosdb/Compaction/LeveledCompactor.cs",
+      "line": 44,
+      "className": "LeveledCompactor",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new ReaderWriterLockSlim at line 53"
+      ],
+      "bodyPreview": "{\r\n        _directory = directory;\r\n        _options = options;\r\n        _readerCache = readerCache;\r\n        _blockCache = blockCache;\r\n        _manifest = manifest;\r\n        _filter = options.CompactionFilter;\r\n        _dbLock = dbLock ?? new ReaderWriterLockSlim();\r\n        _levelSizeLimits = new int[options.LevelCount];\r\n        int size = options.LevelZeroFileCountLimit;\r\n        for (int i = 0; i < options.LevelCount; i++) { _levelSizeLimits[i] = size; size *= options.LevelSizeMultiplier;  ...",
+      "parameterList": "(string directory, PithosOptions options, Dictionary<string, SSTableReader> readerCache,\r\n        IBlockCache? blockCache = null, Manifest? manifest = null, ReaderWriterLockSlim? dbLock = null)"
+    },
+    {
+      "file": "lib/scheduling.tests/scheduling/core/FileBasedTaskServiceTests.cs",
+      "line": 14,
+      "className": "FileBasedTaskServiceTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new TaskFileWriter at line 19",
+        "new TaskFileReader at line 20"
+      ],
+      "bodyPreview": "{\r\n        _output = output;\r\n        _fileOperationService = new InMemoryFileOperationService();\r\n        _fs = TestFileSystem.Current;\r\n\r\n        var taskFileWriter = new TaskFileWriter(_fileOperationService);\r\n        var taskFileReader = new TaskFileReader(_fileOperationService);\r\n\r\n        var options = new TaskDirectoryOptions {\r\n            TaskDirectoryPath = \"tasks\"\r\n        };\r\n\r\n        var fileOps = new TaskFileOperations(_fileOperationService, taskFileWriter, taskFileReader, _fs, ne ...",
+      "parameterList": "(ITestOutputHelper output)"
+    },
+    {
+      "file": "lib/scheduling.tests/scheduling/tasks/InProcessTeammateTaskExecutorTests.cs",
+      "line": 9,
+      "className": "InProcessTeammateTaskExecutorTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new InProcessTeammateTaskExecutor at line 12"
+      ],
+      "bodyPreview": "{\r\n        _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();\r\n        _messageBrokerMock = new Mock<IMailbox>();\r\n        _executor = new InProcessTeammateTaskExecutor(\r\n            _lifecycleManagerMock.Object,\r\n            _messageBrokerMock.Object,\r\n            NullLogger<InProcessTeammateTaskExecutor>.Instance);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "lib/scheduling.tests/scheduling/tasks/RemoteAgentTaskExecutorTests.cs",
+      "line": 9,
+      "className": "RemoteAgentTaskExecutorTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new FakeHttpMessageHandler at line 10"
+      ],
+      "bodyPreview": "{\r\n        _handler = new FakeHttpMessageHandler();\r\n        _httpClient = new HttpClient(_handler);\r\n        _executor = new RemoteAgentTaskExecutor(_httpClient, NullLogger<RemoteAgentTaskExecutor>.Instance);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "lib/scheduling/core/TaskStateMachine.cs",
+      "line": 15,
+      "className": "TaskStateMachine",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 17"
+      ],
+      "bodyPreview": "{\r\n        _stateMachine = new StateMachine<TaskState>(Transitions, initialState);\r\n        _stateMachine.StateChanged += OnStateChanged;\r\n    }",
+      "parameterList": "(TaskState initialState = TaskState.Pending)"
+    },
+    {
+      "file": "lib/scheduling/cron/CronScheduler.cs",
+      "line": 124,
+      "className": "CronScheduler",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Timer at line 130"
+      ],
+      "bodyPreview": "{\r\n        _options = options ?? throw new ArgumentNullException(nameof(options));\r\n        _taskStore = taskStore ?? throw new ArgumentNullException(nameof(taskStore));\r\n        _clock = clock ?? SystemClockService.Instance;\r\n        _logger = logger;\r\n        _timer = new Timer(_ => TrySend(new CronCheckTickCmd()), null, Timeout.Infinite, Timeout.Infinite);\r\n    }",
+      "parameterList": "(CronSchedulerOptions options, ICronTaskStore taskStore, IClockService? clock = null, ILogger<CronScheduler>? logger = null)"
+    },
+    {
+      "file": "lib/scheduling/execution/ParallelExecutionEngine.cs",
+      "line": 20,
+      "className": "ParallelExecutionEngine",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation",
+        "EventSubscription"
+      ],
+      "details": [
+        "new CancellationTokenSource at line 26",
+        "new CancellationTokenSource at line 26",
+        "+= at line 28"
+      ],
+      "bodyPreview": "{\r\n        ArgumentNullException.ThrowIfNull(agentCoordinator);\r\n        _scheduler = new ToolPortingScheduler();\r\n        _agentCoordinator = agentCoordinator;\r\n        _logger = logger;\r\n        _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();\r\n        _cts = new CancellationTokenSource();\r\n\r\n        _scheduler.OnDependencyMet += OnDependencyMet;\r\n    }",
+      "parameterList": "(ISubAgentCoordinator agentCoordinator, ILogger<ParallelExecutionEngine>? logger = null, ISubAgentContextAccessor? subAgentContextAccessor = null)"
+    },
+    {
+      "file": "lib/scheduling/execution/ParallelExecutionEngine.cs",
+      "line": 34,
+      "className": "ParallelExecutionEngine",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation",
+        "EventSubscription"
+      ],
+      "details": [
+        "new CancellationTokenSource at line 42",
+        "new CancellationTokenSource at line 42",
+        "+= at line 44"
+      ],
+      "bodyPreview": "{\r\n        if (!simulationMode) {\r\n            throw new ArgumentException(\"[SCH005] 此构造函数仅用于模拟模式\", nameof(simulationMode));\r\n        }\r\n        _scheduler = new ToolPortingScheduler();\r\n        _agentCoordinator = null;\r\n        _logger = logger;\r\n        _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();\r\n        _cts = new CancellationTokenSource();\r\n\r\n        _scheduler.OnDependencyMet += OnDependencyMet;\r\n    }",
+      "parameterList": "(bool simulationMode, ILogger<ParallelExecutionEngine>? logger = null, ISubAgentContextAccessor? subAgentContextAccessor = null)"
+    },
+    {
+      "file": "lib/scheduling/porting/ToolPortingScheduler.cs",
+      "line": 14,
+      "className": "ToolPortingScheduler",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 17"
+      ],
+      "bodyPreview": "{\r\n        _logger = logger;\r\n        _scheduler = new ParallelTaskScheduler();\r\n        _scheduler.TaskStatusChanged += OnTaskStatusChanged;\r\n    }",
+      "parameterList": "(ILogger<ToolPortingScheduler>? logger = null)"
+    },
+    {
+      "file": "lib/scheduling/tasks/core/InProcessTeammateTask.cs",
+      "line": 247,
+      "className": "InProcessTeammateTaskExecutor",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new PipelineBuilder<TeammateExecutionContext> at line 280",
+        "new MiddlewarePipeline<TeammateExecutionContext> at line 285"
+      ],
+      "bodyPreview": "{\r\n        _agentLifecycleManager = agentLifecycleManager;\r\n        _messageBroker = messageBroker;\r\n        _logger = logger;\r\n        _telemetryService = telemetryService;\r\n        _mailboxPoller = mailboxPoller;\r\n        _planModeManager = planModeManager;\r\n        _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();\r\n        _clock = clock ?? SystemClockService.Instance;\r\n        _worktreeService = worktreeService;\r\n        _worktreeManager = worktreeManager;\r ...",
+      "parameterList": "(\r\n        IAgentLifecycleManager agentLifecycleManager,\r\n        IMailbox messageBroker,\r\n        ILogger<InProcessTeammateTaskExecutor>? logger = null,\r\n        ILoggerFactory? loggerFactory = null,\r\n        ITelemetryService? telemetryService = null,\r\n        IMailboxPoller? mailboxPoller = null,\r\n        IPlanModeManager? planModeManager = null,\r\n        IEnumerable<ITeammateExecutionMiddleware>? executeMiddlewares = null,\r\n        ISubAgentContextAccessor? subAgentContextAccessor = null,\r\n        IClockService? clock = null,\r\n        IAgentWorktreeService? worktreeService = null,\r\n        IAgentWorktreeManager? worktreeManager = null)"
+    },
+    {
+      "file": "lib/scheduling/tasks/core/MonitorMcpTask.cs",
+      "line": 382,
+      "className": "MonitorSession",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 386"
+      ],
+      "bodyPreview": "{\r\n        MonitorId = monitorId;\r\n        Config = config;\r\n        _fsm = new Fsm<MonitorState, MonitorSessionEvent>(_fsmSortedKeys, _fsmRules, MonitorState.Starting);\r\n        _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);\r\n    }",
+      "parameterList": "(string monitorId, McpMonitorConfig config)"
+    },
+    {
+      "file": "lib/transport.impl/bridge/v1/V1ReplBridgeTransport.cs",
+      "line": 63,
+      "className": "V1ReplBridgeTransport",
+      "accessibility": "private",
+      "hasStaticFactory": true,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 86",
+        "+= at line 87"
+      ],
+      "bodyPreview": "{\r\n        _options = options;\r\n        _logger = logger;\r\n        _clock = clock;\r\n        _httpClient = httpClient;\r\n        _wsTransport = wsTransport;\r\n        _disposeCts = disposeCts;\r\n        _streamEventBuffer = [];\r\n\r\n        _uploader = new SerialBatchEventUploader(\r\n            _httpClient,\r\n            options.PostEndpoint,\r\n            new SerialBatchUploaderOptions {\r\n                MaxBatchSize = 500,\r\n                MaxQueueSize = 100_000,\r\n                BaseDelayMs = 500,\r\n  ...",
+      "parameterList": "(V1TransportOptions options, ILogger? logger, IClockService clock, HttpClient httpClient, WebSocketTransport wsTransport, CancellationTokenSource disposeCts)"
+    },
+    {
+      "file": "lib/transport.impl/pipe/PipeHttpClient.cs",
+      "line": 16,
+      "className": "PipeHttpClient",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new PipeHttpMessageHandler at line 20"
+      ],
+      "bodyPreview": "{\r\n        ArgumentException.ThrowIfNullOrEmpty(pipeName);\r\n\r\n        _logger = logger;\r\n        _httpClient = new HttpClient(new PipeHttpMessageHandler(pipeName, logger));\r\n\r\n        _httpClient.DefaultRequestHeaders.Add(\"Accept\", \"application/json\");\r\n\r\n        _logger?.LogDebug(\"{Method} Created PipeHttpClient with pipe: {PipeName}\", nameof(PipeHttpClient), pipeName);\r\n    }",
+      "parameterList": "(string pipeName, ILogger? logger = null)"
+    },
+    {
+      "file": "lib/transport.impl/stdio/StdioAgentTransport.cs",
+      "line": 37,
+      "className": "StdioAgentTransport",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new StdioProcessManager at line 42"
+      ],
+      "bodyPreview": "{\r\n        _config = config ?? throw new ArgumentNullException(nameof(config));\r\n        _logger = logger;\r\n        _processManager = new StdioProcessManager();\r\n        _state = TransportState.Disconnected;\r\n    }",
+      "parameterList": "(\r\n        StdioProcessConfig config,\r\n        ILogger<StdioAgentTransport>? logger = null)"
+    },
+    {
+      "file": "lib/vault.other.tests/state/TranscriptFileWriterPasteStoreTests.cs",
+      "line": 12,
+      "className": "TranscriptFileWriterPasteStoreTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new TranscriptFileWriter at line 15"
+      ],
+      "bodyPreview": "{\r\n        _tempDir = Path.Combine(Path.GetTempPath(), $\"paste_store_test_{Guid.NewGuid():N}\");\r\n        _fs.CreateDirectory(_tempDir);\r\n        _writer = new TranscriptFileWriter(_fs, _tempDir, NullLogger.Instance, _pasteStore.Object);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "lib/vault.other.tests/state/TranscriptFileWriterPhysicalTests.cs",
+      "line": 25,
+      "className": "TranscriptFileWriterPhysicalTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new TranscriptFileWriter at line 29"
+      ],
+      "bodyPreview": "{\r\n        _tempDir = Path.Combine(Path.GetTempPath(), $\"transcript_test_{Guid.NewGuid():N}\");\r\n        _fs = new IO.FileSystem.PhysicalFileSystem();\r\n        _fs.CreateDirectory(_tempDir);\r\n        _writer = new TranscriptFileWriter(_fs, _tempDir, NullLogger.Instance);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "lib/vault/memdir/sync/core/TeamMemorySyncService.cs",
+      "line": 64,
+      "className": "TeamMemorySyncService",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new System.Threading.Timer at line 85",
+        "new PipelineBuilder<SyncStartContext> at line 88",
+        "new MiddlewarePipeline<SyncStartContext> at line 93"
+      ],
+      "bodyPreview": "{\r\n        _fs = fs ?? throw new ArgumentNullException(nameof(fs));\r\n        _logger = logger;\r\n        _telemetryService = telemetryService;\r\n        _clock = clock ?? SystemClockService.Instance;\r\n        _options = options?.Value ?? new TeamMemorySyncOptions();\r\n\r\n        _eventLog = new SyncEventLog();\r\n        _scanner = new SyncFileScanner(_fs, fileOperationService, _options, logger, _localEntries, _remoteEntries);\r\n        _transfer = new SyncFileTransfer(_fs, fileOperationService, _optio ...",
+      "parameterList": "(\r\n        IFileSystem fs,\r\n        IFileOperationService fileOperationService,\r\n        IOptions<TeamMemorySyncOptions>? options = null,\r\n        ILogger<TeamMemorySyncService>? logger = null,\r\n        ILoggerFactory? loggerFactory = null,\r\n        ITelemetryService? telemetryService = null,\r\n        IEnumerable<ISyncStartMiddleware>? startMiddlewares = null,\r\n        IClockService? clock = null)"
+    },
+    {
+      "file": "lib/vault/state/store/AppStateSettingSyncService.cs",
+      "line": 31,
+      "className": "AppStateSettingSyncService",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 39"
+      ],
+      "bodyPreview": "{\r\n        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));\r\n        _store = store ?? throw new ArgumentNullException(nameof(store));\r\n        _logger = logger;\r\n\r\n        _configurationService.SettingChanged += OnSettingChanged;\r\n    }",
+      "parameterList": "(\r\n        IConfigurationService configurationService,\r\n        IStore<AppState> store,\r\n        ILogger<AppStateSettingSyncService>? logger = null)"
+    },
+    {
+      "file": "lib/vault/state/transcript/core/AgentTranscriptService.cs",
+      "line": 22,
+      "className": "AgentTranscriptService",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new TranscriptFileWriter at line 29"
+      ],
+      "bodyPreview": "{\r\n        _fs = fs ?? throw new ArgumentNullException(nameof(fs));\r\n        _sessionsDirectory = sessionsDirectory\r\n            ?? Path.Combine(\r\n                AppDataConstants.Paths.JccDirectory,\r\n                AppDataConstants.SessionsFolderName);\r\n        _logger = logger;\r\n        _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger, pasteStore);\r\n        _actor = new AgentTranscriptActor(this, logger);\r\n    }",
+      "parameterList": "(IFileSystem fs, string? sessionsDirectory = null, ILogger<AgentTranscriptService>? logger = null, IPasteStore? pasteStore = null)"
+    },
+    {
+      "file": "lib/vault/state/transcript/core/TranscriptFileWriter.cs",
+      "line": 26,
+      "className": "TranscriptFileWriter",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new TranscriptFileWriterActor at line 31"
+      ],
+      "bodyPreview": "{\r\n        _fs = fs ?? throw new ArgumentNullException(nameof(fs));\r\n        _sessionsDirectory = sessionsDirectory;\r\n        _logger = logger;\r\n        _pasteStore = pasteStore;\r\n        _actor = new TranscriptFileWriterActor(this, logger);\r\n    }",
+      "parameterList": "(IFileSystem fs, string sessionsDirectory, ILogger? logger = null, IPasteStore? pasteStore = null)"
+    },
+    {
+      "file": "lib/vault/state/transcript/core/TranscriptService.cs",
+      "line": 23,
+      "className": "TranscriptService",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new TranscriptFileWriter at line 31"
+      ],
+      "bodyPreview": "{\r\n        _fs = fs ?? throw new ArgumentNullException(nameof(fs));\r\n        _sessionsDirectory = sessionsDirectory\r\n            ?? Path.Combine(\r\n                AppDataConstants.Paths.JccDirectory,\r\n                AppDataConstants.SessionsFolderName);\r\n        _logger = logger;\r\n        _clock = clock ?? SystemClockService.Instance;\r\n        _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger, pasteStore);\r\n    }",
+      "parameterList": "(IFileSystem fs, string? sessionsDirectory = null, ILogger<TranscriptService>? logger = null, IClockService? clock = null, IPasteStore? pasteStore = null)"
+    },
+    {
+      "file": "llm/agents.tests/Agents/Coordinator/agent_tests/AgentCoordinatorConcurrencyTests.cs",
+      "line": 14,
+      "className": "AgentCoordinatorConcurrencyTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new MiddlewarePipeline<UnifiedSpawnContext> at line 21",
+        "new MiddlewarePipeline<AgentDisposeContext> at line 33"
+      ],
+      "bodyPreview": "{\r\n        _queryEngineMock = new Mock<IQueryEngine>();\r\n        _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();\r\n        _worktreeManagerMock = new Mock<IAgentWorktreeManager>();\r\n        _messageBrokerMock = new Mock<IMailbox>();\r\n        _executionEngineMock = new Mock<IAgentExecutionEngine>();\r\n\r\n        var spawnPipeline = new MiddlewarePipeline<UnifiedSpawnContext>(\r\n            [new ActionMiddleware<UnifiedSpawnContext>(async (ctx, next, ct) => {\r\n                ctx.Agent = a ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "llm/agents.tests/Agents/Coordinator/agent_tests/AgentCoordinatorExtendedTests.cs",
+      "line": 12,
+      "className": "AgentCoordinatorExtendedTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new MiddlewarePipeline<UnifiedSpawnContext> at line 19",
+        "new MiddlewarePipeline<AgentDisposeContext> at line 33"
+      ],
+      "bodyPreview": "{\r\n        _queryEngineMock = new Mock<IQueryEngine>();\r\n        _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();\r\n        _worktreeManagerMock = new Mock<IAgentWorktreeManager>();\r\n        _messageBrokerMock = new Mock<IMailbox>();\r\n        _executionEngineMock = new Mock<IAgentExecutionEngine>();\r\n\r\n        var spawnPipeline = new MiddlewarePipeline<UnifiedSpawnContext>(\r\n            [new ActionMiddleware<UnifiedSpawnContext>(async (ctx, next, ct) =>\r\n            {\r\n                 ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "llm/agents.tests/Agents/Coordinator/agent_tests/AgentCoordinatorSecretaryTests.cs",
+      "line": 12,
+      "className": "AgentCoordinatorSecretaryTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new MiddlewarePipeline<UnifiedSpawnContext> at line 19",
+        "new MiddlewarePipeline<AgentDisposeContext> at line 33"
+      ],
+      "bodyPreview": "{\r\n        _queryEngineMock = new Mock<IQueryEngine>();\r\n        _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();\r\n        _worktreeManagerMock = new Mock<IAgentWorktreeManager>();\r\n        _messageBrokerMock = new Mock<IMailbox>();\r\n        _executionEngineMock = new Mock<IAgentExecutionEngine>();\r\n\r\n        var spawnPipeline = new MiddlewarePipeline<UnifiedSpawnContext>(\r\n            [new ActionMiddleware<UnifiedSpawnContext>(async (ctx, next, ct) =>\r\n            {\r\n                 ...",
+      "parameterList": "()"
+    },
+    {
+      "file": "llm/agents/Coordinator/Core/Liveness/SubAgentLivenessScanner.cs",
+      "line": 67,
+      "className": "SubAgentLivenessScanner",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new PeriodicTimer at line 81"
+      ],
+      "bodyPreview": "{\r\n        _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));\r\n        _lifecycleManager = lifecycleManager ?? throw new ArgumentNullException(nameof(lifecycleManager));\r\n        _forkManager = forkManager ?? throw new ArgumentNullException(nameof(forkManager));\r\n        _options = options ?? throw new ArgumentNullException(nameof(options));\r\n        _logger = logger;\r\n        _clock = clock ?? (() => DateTimeOffset.UtcNow);\r\n        _chainDetector = new SubAg ...",
+      "parameterList": "(\r\n        AgentStateMachine stateMachine,\r\n        IAgentLifecycleManager lifecycleManager,\r\n        IForkSubAgentManager forkManager,\r\n        SubAgentLivenessOptions options,\r\n        ILogger? logger = null,\r\n        Func<DateTimeOffset>? clock = null)"
+    },
+    {
+      "file": "llm/agents/Coordinator/Core/Messaging/MailboxHub.cs",
+      "line": 24,
+      "className": "MailboxHub",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new AgentChannelRegistry at line 30"
+      ],
+      "bodyPreview": "{\r\n        _inProcess = inProcess ?? throw new ArgumentNullException(nameof(inProcess));\r\n        _fileMailbox = fileMailbox;\r\n        _agentChannels = new AgentChannelRegistry();\r\n        _logger = logger;\r\n    }",
+      "parameterList": "(\r\n        IMailbox inProcess,\r\n        ITeammateMailboxService? fileMailbox = null,\r\n        ILogger<MailboxHub>? logger = null)"
+    },
+    {
+      "file": "llm/agents/Coordinator/Core/Messaging/PlatformBotAdapterBase.cs",
+      "line": 25,
+      "className": "PlatformBotAdapterBase",
+      "accessibility": "protected",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new BoundedChannelOptions at line 29"
+      ],
+      "bodyPreview": "{\r\n        _config = config ?? throw new ArgumentNullException(nameof(config));\r\n        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));\r\n        _logger = logger;\r\n        _receiveChannel = Channel.CreateBounded<PlatformMessage>(new BoundedChannelOptions(512) {\r\n            SingleReader = true,\r\n            SingleWriter = false,\r\n            FullMode = BoundedChannelFullMode.Wait\r\n        });\r\n    }",
+      "parameterList": "(TConfig config, HttpClient httpClient, ILogger? logger = null)"
+    },
+    {
+      "file": "llm/agents/Coordinator/Core/Messaging/StreamMailboxBase.cs",
+      "line": 25,
+      "className": "StreamMailboxBase",
+      "accessibility": "protected",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation"
+      ],
+      "details": [
+        "new CancellationTokenSource at line 30",
+        "new CancellationTokenSource at line 30"
+      ],
+      "bodyPreview": "{\r\n        _cts = new CancellationTokenSource();\r\n    }",
+      "parameterList": "(\r\n        ActorBackpressure? commandBackpressure = null,\r\n        ActorBackpressure? agentBackpressure = null,\r\n        int? outputCapacity = null)"
+    },
+    {
+      "file": "llm/agents/Coordinator/Core/Pool/SubAgentPool.cs",
+      "line": 35,
+      "className": "SubAgentPool",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new PeriodicTimer at line 39"
+      ],
+      "bodyPreview": "{\r\n        _options = options ?? throw new ArgumentNullException(nameof(options));\r\n        _logger = logger;\r\n        _clock = clock ?? (() => DateTimeOffset.UtcNow);\r\n        _cleanupTimer = new PeriodicTimer(TimeSpan.FromSeconds(60));\r\n    }",
+      "parameterList": "(SubAgentLivenessOptions options, ILogger? logger = null, Func<DateTimeOffset>? clock = null)"
+    },
+    {
+      "file": "llm/agents/Coordinator/Core/services/AgentCoordinator.cs",
+      "line": 48,
+      "className": "AgentCoordinator",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 78"
+      ],
+      "bodyPreview": "{\r\n        _lifecycleManager = core.LifecycleManager ?? throw new ArgumentNullException(nameof(core.LifecycleManager));\r\n        _worktreeManager = core.WorktreeManager ?? throw new ArgumentNullException(nameof(core.WorktreeManager));\r\n        _messageBroker = core.MessageBroker ?? throw new ArgumentNullException(nameof(core.MessageBroker));\r\n        _executionEngine = core.ExecutionEngine ?? throw new ArgumentNullException(nameof(core.ExecutionEngine));\r\n        _clock = clock ?? throw new Argu ...",
+      "parameterList": "(\r\n        AgentCoreDependencies core,\r\n        IClockService clock,\r\n        MiddlewarePipeline<AgentDisposeContext> disposePipeline,\r\n        MiddlewarePipeline<UnifiedSpawnContext> spawnPipeline,\r\n        AgentPermissionDependencies? permission = null,\r\n        AgentTeamDependencies? team = null,\r\n        IForkSubAgentManager? forkManager = null,\r\n        ILogger<AgentCoordinator>? logger = null,\r\n        ISubAgentContextAccessor? subAgentContextAccessor = null,\r\n        ISubagentStopHookManager? subagentStopHookManager = null,\r\n        SubAgentConcurrencyOptions? concurrencyOptions = null,\r\n        IAutoRebaseService? autoRebaseService = null)"
+    },
+    {
+      "file": "llm/agents/Coordinator/Core/services/AgentStateMachine.cs",
+      "line": 258,
+      "className": "AgentStateContext",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 269"
+      ],
+      "bodyPreview": "{\r\n        AgentId = agentId;\r\n        Task = task;\r\n        Options = options ?? new SubAgentOptions();\r\n        CreatedAt = createdAt;\r\n        LastTransitionTime = createdAt;\r\n        LastTransitionFrom = TaskExecutionStatus.Pending;\r\n        TransitionHistory = new List<StateTransition>();\r\n        Lock = new AsyncLock(nameof(AgentStateContext));\r\n        _stateMachine = new StateMachine<TaskExecutionStatus>(\r\n            AgentStateMachine.GetTransitions(), TaskExecutionStatus.Pending, clock ...",
+      "parameterList": "(string agentId, string task, SubAgentOptions? options, DateTime createdAt, IClockService? clock = null)"
+    },
+    {
+      "file": "llm/agents/Coordinator/Fork/AgentBase.cs",
+      "line": 121,
+      "className": "AgentBase",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation"
+      ],
+      "details": [
+        "new CancellationTokenSource at line 157",
+        "new CancellationTokenSource at line 157"
+      ],
+      "bodyPreview": "{\r\n        Task = task;\r\n        Name = name ?? UniqueId;\r\n        Role = role;\r\n        Variant = variant;\r\n        ParentObjectId = parentObjectId;\r\n        SystemPrompt = systemPrompt;\r\n        Instruction = instruction;\r\n        FreshContext = freshContext;\r\n        Budget = new AgentBudget(tokenBudget);\r\n        GoalId = goalId;\r\n        GraphNodeId = graphNodeId;\r\n        Options = options ?? new SubAgentOptions();\r\n        _queryEngine = queryEngine;\r\n        _logger = logger;\r\n        _c ...",
+      "parameterList": "(\r\n        string task,\r\n        SubAgentOptions? options,\r\n        IQueryEngine queryEngine,\r\n        ILogger? logger,\r\n        IClockService? clock = null,\r\n        string? name = null,\r\n        AgentRole role = AgentRole.Executor,\r\n        ExecutorVariant? variant = null,\r\n        ObjectId? parentObjectId = default,\r\n        string? systemPrompt = null,\r\n        string? instruction = null,\r\n        bool freshContext = false,\r\n        int? tokenBudget = null,\r\n        string? goalId = null,\r\n        string? graphNodeId = null,\r\n        ObjectId sessionId = default,\r\n        IChatContextManager? contextManager = null,\r\n        string? customUniqueId = null)"
+    },
+    {
+      "file": "llm/agents/Services/Support/AgentDefinitionProvider.cs",
+      "line": 12,
+      "className": "AgentDefinitionProvider",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 18"
+      ],
+      "bodyPreview": "{\r\n        _fs = fs;\r\n        _logger = logger;\r\n        _pluginAgentLoader = pluginAgentLoader;\r\n        _actor = new DefinitionLoaderActor(this, logger);\r\n        if (pluginAgentLoader is not null) {\r\n            pluginAgentLoader.Changed += (_, _) => ClearCache();\r\n        }\r\n    }",
+      "parameterList": "(IFileSystem fs, ILogger<AgentDefinitionProvider>? logger = null, IPluginAgentLoader? pluginAgentLoader = null)"
+    },
+    {
+      "file": "llm/agents/Services/Support/AgentWorktreeService.cs",
+      "line": 25,
+      "className": "AgentWorktreeService",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new PipelineBuilder<WorktreeCreateContext> at line 44",
+        "new MiddlewarePipeline<WorktreeCreateContext> at line 49"
+      ],
+      "bodyPreview": "{\r\n        _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));\r\n        _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));\r\n        _fs = fs ?? throw new ArgumentNullException(nameof(fs));\r\n        _logger = logger;\r\n        _clock = clock ?? SystemClockService.Instance;\r\n        _defaultOptions = defaultOptions ?? new WorktreeOptions();\r\n        _telemetryService = telemetryService;\r\n\r\n        if (createMiddle ...",
+      "parameterList": "(\r\n        IFileOperationService fileOperationService,\r\n        IGitCommandRunner gitRunner,\r\n        IFileSystem fs,\r\n        IEnumerable<IWorktreeCreateMiddleware>? createMiddlewares = null,\r\n        ILoggerFactory? loggerFactory = null,\r\n        ILogger<AgentWorktreeService>? logger = null,\r\n        WorktreeOptions? defaultOptions = null,\r\n        ITelemetryService? telemetryService = null,\r\n        IClockService? clock = null)"
+    },
+    {
+      "file": "llm/core/Adapters/LLM/Fallback/StreamIdleWatchdog.cs",
+      "line": 45,
+      "className": "StreamIdleWatchdog",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Timer at line 62"
+      ],
+      "bodyPreview": "{\r\n        _idleTimeoutMs = idleTimeoutMs;\r\n\r\n        if (!enabled || originalToken.IsCancellationRequested) {\r\n            CombinedToken = originalToken;\r\n            _watchdogCts = CancellationTokenSource.CreateLinkedTokenSource(originalToken);\r\n            return;\r\n        }\r\n\r\n        _watchdogCts = CancellationTokenSource.CreateLinkedTokenSource(originalToken);\r\n        CombinedToken = _watchdogCts.Token;\r\n\r\n        _originalRegistration = originalToken.Register(static state => {\r\n          ...",
+      "parameterList": "(int idleTimeoutMs, CancellationToken originalToken, bool enabled = true)"
+    },
+    {
+      "file": "llm/core/Adapters/LLM/Fallback/StreamingFallbackDecorator.cs",
+      "line": 36,
+      "className": "StreamingFallbackDecorator",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new StreamingFallbackConfig at line 41"
+      ],
+      "bodyPreview": "{\r\n        _inner = inner ?? throw new ArgumentNullException(nameof(inner));\r\n        _config = config ?? new StreamingFallbackConfig();\r\n        _logger = logger;\r\n    }",
+      "parameterList": "(\r\n        IQueryService inner,\r\n        StreamingFallbackConfig? config = null,\r\n        ILogger? logger = null)"
+    },
+    {
+      "file": "server/bridge/client/BridgeClient.cs",
+      "line": 107,
+      "className": "BridgeClient",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 128",
+        "+= at line 129",
+        "+= at line 130",
+        "+= at line 131",
+        "+= at line 132"
+      ],
+      "bodyPreview": "{\r\n        _transportManager = transportManager ?? throw new ArgumentNullException(nameof(transportManager));\r\n        _messageHandler = messageHandler ?? throw new ArgumentNullException(nameof(messageHandler));\r\n        _options = options ?? new BridgeClientOptions();\r\n        _logger = logger;\r\n        _clock = clock ?? SystemClockService.Instance;\r\n        _processedMessageIds = new BoundedUUIDSet(_options.MessageDeduplicationCapacity);\r\n\r\n        _jwtService = clientSession?.JwtService;\r\n    ...",
+      "parameterList": "(\r\n        ITransportManager transportManager,\r\n        MessageHandlerCoordinator messageHandler,\r\n        BridgeClientSession? clientSession = null,\r\n        BridgeClientOptions? options = null,\r\n        ILogger<BridgeClient>? logger = null,\r\n        IClockService? clock = null)"
+    },
+    {
+      "file": "server/bridge/client/BridgeClient.cs",
+      "line": 217,
+      "className": "BridgeRequestScope",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation",
+        "EventSubscription"
+      ],
+      "details": [
+        "new CancellationTokenSource at line 220",
+        "new CancellationTokenSource at line 220",
+        "+= at line 229"
+      ],
+      "bodyPreview": "{\r\n            _client = client;\r\n            _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);\r\n            _timeoutCts = new CancellationTokenSource(timeout);\r\n            _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, _timeoutCts.Token);\r\n            _tcs = new TaskCompletionSource<BridgeMessage?>();\r\n            _onMessageReceived = (_, e) => {\r\n                if (e.Response is ControlResponse controlResponse && controlResponse.RequestId == requestId)\r\n   ...",
+      "parameterList": "(BridgeClient client, string requestId, TimeSpan timeout, CancellationToken ct)"
+    },
+    {
+      "file": "server/bridge/messaging/MessageHandlers.cs",
+      "line": 488,
+      "className": "MessageHandlerCoordinator",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new MessageHandlerRegistry at line 491"
+      ],
+      "bodyPreview": "{\r\n        _context = context;\r\n        _logger = logger;\r\n        _registry = new MessageHandlerRegistry();\r\n        RegisterDefaultHandlers();\r\n    }",
+      "parameterList": "(MessageHandlerContext context, ILogger? logger = null)"
+    },
+    {
+      "file": "server/bridge/server/BridgeServer.cs",
+      "line": 52,
+      "className": "BridgeServer",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation",
+        "EventSubscription"
+      ],
+      "details": [
+        "new CancellationTokenSource at line 72",
+        "new CancellationTokenSource at line 72",
+        "+= at line 83",
+        "+= at line 87"
+      ],
+      "bodyPreview": "{\r\n        _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));\r\n        _port = port;\r\n        _jwtService = security?.JwtService;\r\n        _sessionRunner = session?.SessionRunner;\r\n        _trustedDeviceStore = security?.TrustedDeviceStore;\r\n        _peerSessionManager = session?.PeerSessionManager;\r\n        _bridgeUIService = session?.UIService;\r\n        _logger = logger;\r\n        _clock = clock ?? SystemClockService.Instance;\r\n        ...",
+      "parameterList": "(\r\n        IFileOperationService fileOperationService,\r\n        BridgeServerSecurity? security = null,\r\n        BridgeServerSession? session = null,\r\n        int port = 3456,\r\n        ILogger<BridgeServer>? logger = null,\r\n        IClockService? clock = null,\r\n        ISystemActuatorRegistry? actuatorRegistry = null,\r\n        IIdeIntegrationService? ideService = null)"
+    },
+    {
+      "file": "server/bridge/session/core/BridgeSubprocessManager.cs",
+      "line": 65,
+      "className": "BridgeSubprocessHandle",
+      "accessibility": "private",
+      "hasStaticFactory": true,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new SubprocessState at line 70",
+        "new SubprocessIoChannels at line 71"
+      ],
+      "bodyPreview": "{\r\n        SessionId = options.SessionId;\r\n        AccessToken = options.AccessToken;\r\n        _logger = logger;\r\n        _state = new SubprocessState();\r\n        _io = new SubprocessIoChannels(process, resilientSubprocess, logger, options.SessionId);\r\n\r\n        var stdoutTask = ReadStdoutAsync(_io.ReadCancellationToken);\r\n        _io.SetStdoutReadTask(stdoutTask);\r\n        _monitorExitTask = MonitorExitAsync(_io.ReadCancellationToken);\r\n    }",
+      "parameterList": "(IInteractiveProcess process, BridgeSubprocessOptions options, ILogger? logger, ResilientSubprocess? resilientSubprocess = null)"
+    },
+    {
+      "file": "server/bridge/session/core/SubprocessIoChannels.cs",
+      "line": 47,
+      "className": "SubprocessIoChannels",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "CancellationTokenSourceCreation",
+        "EventSubscription"
+      ],
+      "details": [
+        "new CancellationTokenSource at line 54",
+        "new CancellationTokenSource at line 54",
+        "+= at line 56"
+      ],
+      "bodyPreview": "{\r\n        _process = process;\r\n        _resilientSubprocess = resilientSubprocess;\r\n        _logger = logger;\r\n        _sessionId = sessionId;\r\n        _stderrQueue = new Queue<string>(MaxStderrLines);\r\n        _activityQueue = new Queue<string>(MaxActivities);\r\n        _readCts = new CancellationTokenSource();\r\n        _actor = new StdinActor(this, logger);\r\n        _process.ErrorDataReceived += OnErrorDataReceived;\r\n    }",
+      "parameterList": "(IInteractiveProcess process, ResilientSubprocess? resilientSubprocess, ILogger? logger, string sessionId)"
+    },
+    {
+      "file": "server/bridge/session/main/core/BridgeMain.cs",
+      "line": 86,
+      "className": "BridgeMain",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new BridgeShutdownHandler at line 108",
+        "new BridgeWorkHandler at line 111"
+      ],
+      "bodyPreview": "{\r\n        _deps = deps ?? throw new ArgumentNullException(nameof(deps));\r\n        _logger = logger;\r\n        _fs = deps.FileSystem;\r\n        _telemetry = deps.TelemetryService;\r\n        _clock = clock ?? SystemClockService.Instance;\r\n        _backoff = new BridgeBackoffStrategy(_clock, _logger, giveUpThreshold);\r\n        _pointerManager = new BridgePointerManager(deps.PointerService, _logger);\r\n        _workApi = new BridgeWorkApiClient(deps.ApiClient, _logger);\r\n        _handleWorkPipeline = h ...",
+      "parameterList": "(\r\n        BridgeMainDeps deps,\r\n        MiddlewarePipeline<HandleWorkContext>? handleWorkPipeline = null,\r\n        MiddlewarePipeline<ShutdownContext>? shutdownPipeline = null,\r\n        MiddlewarePipeline<BridgeRunContext>? runPipeline = null,\r\n        ILogger? logger = null,\r\n        IClockService? clock = null,\r\n        INetworkConnectivityService? networkService = null,\r\n        TimeSpan? giveUpThreshold = null)"
+    },
+    {
+      "file": "server/bridge/session/transport/TransportManager.cs",
+      "line": 52,
+      "className": "TransportManager",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 62"
+      ],
+      "bodyPreview": "{\r\n        _logger = logger;\r\n        _connectionManager = connectionManager;\r\n        _messageRouter = messageRouter;\r\n\r\n        // 连接消息流\r\n        _connectionManager.OnMessageReceived(ProcessTransportMessageAsync);\r\n        _messageRouter.MessageReceived += OnStringMessageReceived;\r\n    }",
+      "parameterList": "(\r\n        IConnectionManager connectionManager,\r\n        IMessageRouter messageRouter,\r\n        ILogger<TransportManager>? logger = null)"
+    },
+    {
+      "file": "server/bridge/transport/v1/core/V1BridgeHandle.cs",
+      "line": 47,
+      "className": "V1BridgeHandle",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "FireAndForget"
+      ],
+      "details": [
+        "new Timer at line 65",
+        "_ = transport.WriteAsync(keepAliveJson, _disposeCts.Token) at line 70",
+        "new Timer at line 77"
+      ],
+      "bodyPreview": "{\r\n        SessionId = session.SessionId;\r\n        EnvironmentId = session.EnvironmentId;\r\n        SessionIngressUrl = session.SessionIngressUrl;\r\n        _coreContext = coreContext;\r\n        _transportContext = transportContext;\r\n        _state = state;\r\n        _fs = fs;\r\n        _logger = logger;\r\n        _reconnectState = new V1ReconnectState(session.EnvironmentId, string.Empty, session.SessionId);\r\n\r\n        // 对齐 TS 端: keepAliveTimer — 每 120s 发送 keep_alive 帧防止代理 GC\r\n        _keepAliveTimer ...",
+      "parameterList": "(\r\n        BridgeSessionInfo session,\r\n        BridgeCoreContext coreContext,\r\n        BridgeTransportContext transportContext,\r\n        BridgeInitState state,\r\n        IFileSystem fs,\r\n        ILogger? logger = null)"
+    },
+    {
+      "file": "server/code_index/incremental/FileWatcherIntegrationRegistry.cs",
+      "line": 24,
+      "className": "FileWatcherIntegrationRegistry",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 31",
+        "+= at line 32"
+      ],
+      "bodyPreview": "{\r\n        ArgumentNullException.ThrowIfNull(registry);\r\n        ArgumentNullException.ThrowIfNull(fs);\r\n        _registry = registry;\r\n        _fs = fs;\r\n        _logger = logger;\r\n        _registry.RepoRegistered += OnRepoRegistered;\r\n        _registry.RepoUnregistered += OnRepoUnregistered;\r\n    }",
+      "parameterList": "(ICodeIndexerRegistry registry, IFileSystem fs, ILogger<FileWatcherIntegrationRegistry>? logger = null)"
+    },
+    {
+      "file": "server/code_index/parsing/CSharpSymbolExtractor.cs",
+      "line": 54,
+      "className": "CSharpSymbolExtractor",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Threading.TimeoutLock at line 57"
+      ],
+      "bodyPreview": "{\r\n        _logger = logger;\r\n        _treeCache = new TreeCache(maxEntries: 500, logger);\r\n        _parseLock = new Threading.TimeoutLock(\"CSharpExtractor.Parse\", TimeSpan.FromSeconds(30), Log);\r\n    }",
+      "parameterList": "(ILogger? logger = null)"
+    },
+    {
+      "file": "server/code_index/parsing/CSharpSymbolExtractor.cs",
+      "line": 65,
+      "className": "CSharpSymbolExtractor",
+      "accessibility": "internal",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Threading.TimeoutLock at line 68"
+      ],
+      "bodyPreview": "{\r\n        _logger = logger;\r\n        _treeCache = treeCache;\r\n        _parseLock = new Threading.TimeoutLock(\"CSharpExtractor.Parse\", TimeSpan.FromSeconds(30), Log);\r\n    }",
+      "parameterList": "(TreeCache treeCache, ILogger? logger = null)"
+    },
+    {
+      "file": "server/code_index/parsing/CSharpSymbolExtractor.cs",
+      "line": 76,
+      "className": "CSharpSymbolExtractor",
+      "accessibility": "internal",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new Threading.TimeoutLock at line 81"
+      ],
+      "bodyPreview": "{\r\n        ArgumentNullException.ThrowIfNull(dedicatedParser);\r\n\r\n        _logger = logger;\r\n        _treeCache = new TreeCache(maxEntries: 500, logger);\r\n        _parseLock = new Threading.TimeoutLock(\"CSharpExtractor.Parse\", TimeSpan.FromSeconds(30), Log);\r\n        _dedicatedParser = dedicatedParser;\r\n    }",
+      "parameterList": "(TreeSitterParser dedicatedParser, ILogger? logger = null)"
+    },
+    {
+      "file": "server/eyes/code_index_adapter/LspIntegration.cs",
+      "line": 22,
+      "className": "LspIntegration",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 29"
+      ],
+      "bodyPreview": "{\r\n        _indexer = indexer ?? throw new ArgumentNullException(nameof(indexer));\r\n        _lspService = lspService;\r\n        _lspFileSync = lspFileSync;\r\n        _logger = logger;\r\n\r\n        if (_lspFileSync is not null) {\r\n            _lspFileSync.DocumentChanged += OnLspDocumentChanged;\r\n        }\r\n    }",
+      "parameterList": "(ICodeIndexer indexer, ILspService? lspService = null, ILspFileSync? lspFileSync = null, ILogger<LspIntegration>? logger = null)"
+    },
+    {
+      "file": "server/eyes/lsp/server/LspClient.cs",
+      "line": 347,
+      "className": "LspClient",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation",
+        "EventSubscription"
+      ],
+      "details": [
+        "new LspProcessChannel at line 349",
+        "+= at line 351"
+      ],
+      "bodyPreview": "{\r\n        _logger = logger;\r\n        _channel = new LspProcessChannel(fs, processService, logger);\r\n        _router = new LspMessageRouter();\r\n        _router.NotificationReceived += (_, e) => NotificationReceived?.Invoke(this, e);\r\n    }",
+      "parameterList": "(IFileSystem fs, IProcessService processService, ILogger? logger = null)"
+    },
+    {
+      "file": "server/eyes/lsp/server/LspServerInstance.cs",
+      "line": 187,
+      "className": "LspServerInstance",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "EventSubscription"
+      ],
+      "details": [
+        "+= at line 192",
+        "+= at line 193"
+      ],
+      "bodyPreview": "{\r\n        _config = config ?? throw new ArgumentNullException(nameof(config));\r\n        _logger = logger ?? throw new ArgumentNullException(nameof(logger));\r\n        _client = new LspClient(fs, processService, logger);\r\n        _stateMachine = new Fsm<LspServerState, LspServerEvent>(_fsmSortedKeys, _fsmRules, LspServerState.Stopped);\r\n        _stateMachine.StateChanged += OnStateChanged;\r\n        _stateMachine.StateChanged += (_, e) => FsmDispatchEvent(e);\r\n    }",
+      "parameterList": "(LspInstanceConfig config, IFileSystem fs, IProcessService processService, ILogger logger)"
+    },
+    {
+      "file": "server/vision.tests/tool_handlers/QuadtreeDesktopOverlayToolHandlersTests.cs",
+      "line": 9,
+      "className": "QuadtreeDesktopOverlayToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new QuadtreeDesktopOverlayToolHandlers at line 12"
+      ],
+      "bodyPreview": "{\r\n        var annotator = new QuadtreeEncoder();\r\n        var mapper = new QuadtreeDesktopOverlayMapper();\r\n        _handlers = new QuadtreeDesktopOverlayToolHandlers(annotator, mapper);\r\n    }",
+      "parameterList": "()"
+    },
+    {
+      "file": "server/vision.tests/tool_handlers/QuadtreeToolHandlersTests.cs",
+      "line": 11,
+      "className": "QuadtreeToolHandlersTests",
+      "accessibility": "public",
+      "hasStaticFactory": false,
+      "risks": [
+        "IDisposableAllocation"
+      ],
+      "details": [
+        "new QuadtreeToolHandlers at line 14"
+      ],
+      "bodyPreview": "{\r\n        var annotator = new QuadtreeEncoder();\r\n        var renderer = new QuadtreeRenderer(annotator);\r\n        _handlers = new QuadtreeToolHandlers(annotator, renderer);\r\n    }",
+      "parameterList": "()"
+    }
+  ]
+}

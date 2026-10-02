@@ -130,9 +130,11 @@
 |------|----|---------|------|
 | ⏭️ 已评估 | `MainWindow` | `app/gui/views/core/MainWindow.axaml.cs:36` | Avalonia 框架约定：public 无参 ctor + InitializeComponent 是 Window 标准模式。`App.axaml.cs:27` 用 `desktop.MainWindow = new MainWindow{...}`，30 处测试用对象初始化器。改 private ctor 违反框架约定且破坏 30 处测试。风险极低：InitializeComponent 失败是 XAML 编译错误（开发阶段发现）；事件订阅/Timer.Start 不抛异常 |
 
-### 中风险（14 个，非平凡方法调用但不易抛异常）
+### 中风险（14 个，已全部评估 — 无需重构）
 
-> 优先级低于高风险，P0-P4 完成后再评估。清单：`PithosKvStore.cs:18`、`SshSession.cs:35`、`CronScheduler.cs:124`、`ShellProcessWatchdog.cs:39`、`ReaperScheduler.cs:27`、`TranscriptFileWriter.cs:26`、`ThinkingStore.cs:21`、`SessionTagService.cs:21`、`LspServerInstance.cs:187`、`EmbeddingIndex.cs:32`、`ToolHypergraphScorer.cs:21`、`McpSecureTokenStorage.cs:20`、`MonitorMcpTask.cs:382`、`SubAgentOutputTruncator.cs:24`
+> 评估结论：5 个 DI Singleton（`[Register]`）改 private ctor 不可行；其余全是字段赋值 + 内存操作（new Actor/Timer/Thread/Fsm、事件订阅），不易抛异常；异常传播后对象不可达（GC 回收），无半构造化风险。
+>
+> 清单：`PithosKvStore.cs:18`（PithosDb.Open 抛异常→对象不可达）、`SshSession.cs:35`（全字段赋值）、`CronScheduler.cs:124`（DI+全字段赋值+new Timer）、`ShellProcessWatchdog.cs:39`（DI Singleton+new Timer）、`ReaperScheduler.cs:27`（DI Singleton+new Thread）、`TranscriptFileWriter.cs:26`（全字段赋值+new Actor）、`ThinkingStore.cs:21`（DI Singleton+全字段赋值）、`SessionTagService.cs:21`（DI Singleton+全字段赋值）、`LspServerInstance.cs:187`（全字段赋值+new LspClient+Fsm）、`EmbeddingIndex.cs:32`（全字段赋值+new LsmEmbeddingPersistence）、`ToolHypergraphScorer.cs:21`（DI Singleton+BuildGraph+new Timer）、`McpSecureTokenStorage.cs:20`（DeriveKey 纯内存）、`MonitorMcpTask.cs:382`（MonitorSession 嵌套类，全字段赋值+Fsm）、`SubAgentOutputTruncator.cs:24`（DI Singleton+GetCurrentDirectory 极少抛异常）
 
 ## 推进顺序
 

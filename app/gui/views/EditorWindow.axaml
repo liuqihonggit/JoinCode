@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        xmlns:edit="using:AvaloniaEdit"
+        x:Class="JoinCode.Gui.Views.EditorWindow"
+        Title="编辑器" Width="900" Height="700"
+        Background="{DynamicResource GuiWindowBackground}">
+  <Grid RowDefinitions="Auto,*">
+    <!-- 标题栏：文件名 + 保存按钮 -->
+    <Border Grid.Row="0" Padding="12,6" Background="{DynamicResource GuiTopBarBackground}"
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="📄" FontSize="14" VerticalAlignment="Center" />
+          <TextBlock x:Name="FileNameText" Text="未命名" FontSize="13" FontWeight="SemiBold"
+                     Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
+          <TextBlock x:Name="ModifiedIndicator" Text="●" FontSize="12" Foreground="{DynamicResource GuiAccentText}"
+                     VerticalAlignment="Center" IsVisible="False" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="ghost" Content="💾 保存" FontSize="12" Padding="8,3"
+                Click="OnSaveClick" ToolTip.Tip="Ctrl+S 保存" />
+      </Grid>
+    </Border>
+    <!-- 代码编辑器 -->
+    <edit:TextEditor Grid.Row="1" x:Name="Editor"
+                     ShowLineNumbers="True"
+                     FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                     FontSize="13"
+                     Background="{DynamicResource GuiWindowBackground}"
+                     Foreground="{DynamicResource GuiPrimaryText}" />
+  </Grid>
+</Window>

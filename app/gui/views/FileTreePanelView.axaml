@@ -30,12 +30,13 @@
       </TreeView.Styles>
       <TreeView.ItemTemplate>
         <TreeDataTemplate ItemsSource="{Binding Children}">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <TextBlock Text="{Binding Icon}" FontSize="11" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
-                       Foreground="{DynamicResource GuiPrimaryText}" TextTrimming="CharacterEllipsis" />
-          </StackPanel>
-        </TreeDataTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="6"
+                        DoubleTapped="OnFileDoubleTapped">
+              <TextBlock Text="{Binding Icon}" FontSize="11" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
+                         Foreground="{DynamicResource GuiPrimaryText}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </TreeDataTemplate>
       </TreeView.ItemTemplate>
     </TreeView>
   </Grid>

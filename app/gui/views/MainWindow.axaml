@@ -54,6 +54,24 @@
     <Style Selector="Border.msgCard:pointerover StackPanel.actions">
       <Setter Property="Opacity" Value="1" />
     </Style>
+    <!-- Activity Bar 图标按钮：48x48 方形,透明背景,悬停浅色,激活强调色 -->
+    <Style Selector="ToggleButton.activityIcon">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Width" Value="48" />
+      <Setter Property="Height" Value="48" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <Style Selector="ToggleButton.activityIcon:pointerover">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    </Style>
+    <Style Selector="ToggleButton.activityIcon:checked">
+      <Setter Property="Background" Value="{DynamicResource GuiAccentSubtle}" />
+      <Setter Property="Foreground" Value="{DynamicResource GuiAccentText}" />
+    </Style>
   </Window.Styles>
 
   <!-- 根 Grid：顶栏(横跨全宽) : 下区(侧边栏+主区) — 菜单栏在最顶,客户区不被侧边栏遮挡 -->
@@ -62,36 +80,35 @@
     <!-- ===== Row 0：顶部菜单栏(横跨全宽) ===== -->
     <local:TopBarView Grid.Row="0" />
 
-    <!-- ===== Row 1：双可折叠面板 + 主区 ===== -->
-    <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*">
+    <!-- ===== Row 1：Activity Bar + Side Bar + 主区 (VSCode 风格) ===== -->
+    <Grid Grid.Row="1" ColumnDefinitions="48,Auto,*">
 
-    <!-- ===== Column 0：会话栏面板(可折叠,磁吸) ===== -->
-    <Border Grid.Column="0" Width="{Binding SessionPanelWidth}" ClipToBounds="True"
-            Background="{DynamicResource GuiSidebarBackground}"
+    <!-- ===== Column 0：Activity Bar (图标列,固定48px) ===== -->
+    <Border Grid.Column="0" Background="{DynamicResource GuiSidebarBackground}"
             BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0">
-      <Border.Transitions>
-        <Transitions>
-          <DoubleTransition Property="Width" Duration="{DynamicResource GuiMotionDuration}" />
-        </Transitions>
-      </Border.Transitions>
       <Grid RowDefinitions="*,Auto">
-        <local:SidebarView Grid.Row="0" IsVisible="{Binding !IsSessionPanelCollapsed}" />
-        <StackPanel Grid.Row="0" IsVisible="{Binding IsSessionPanelCollapsed}"
-                    HorizontalAlignment="Stretch" Width="48" Spacing="14" Margin="0,12">
-          <Button Classes="ghost" Content="💬" FontSize="18" Padding="0" MinHeight="0"
-                  HorizontalAlignment="Center" ToolTip.Tip="会话列表"
-                  Command="{Binding ToggleSessionPanelCommand}" />
-          <Button Classes="ghost" Content="➕" FontSize="18" Padding="0" MinHeight="0"
-                  HorizontalAlignment="Center" ToolTip.Tip="新建会话" />
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,8">
+          <ToggleButton Classes="activityIcon" Content="💬" FontSize="20"
+                        Command="{Binding ToggleSidePanelCommand}"
+                        CommandParameter="{x:Static vm:SidePanelKind.Sessions}"
+                        IsChecked="{Binding IsSessionPanelActive, Mode=OneWay}"
+                        ToolTip.Tip="会话列表" />
+          <ToggleButton Classes="activityIcon" Content="📁" FontSize="20"
+                        Command="{Binding ToggleSidePanelCommand}"
+                        CommandParameter="{x:Static vm:SidePanelKind.FileTree}"
+                        IsChecked="{Binding IsFileTreePanelActive, Mode=OneWay}"
+                        ToolTip.Tip="目录树" />
         </StackPanel>
-        <Button Grid.Row="1" Classes="ghost" Margin="4" Padding="6,3" MinHeight="0"
-                HorizontalAlignment="Center" Command="{Binding ToggleSessionPanelCommand}"
-                Content="◀" ToolTip.Tip="折叠会话栏" />
+        <StackPanel Grid.Row="1" Spacing="4" Margin="0,0,0,8">
+          <ToggleButton Classes="activityIcon" Content="⚙" FontSize="20"
+                        Command="{Binding ToggleSettingsPanelCommand}"
+                        ToolTip.Tip="设置" />
+        </StackPanel>
       </Grid>
     </Border>
 
-    <!-- ===== Column 1：目录树面板(可折叠,磁吸) ===== -->
-    <Border Grid.Column="1" Width="{Binding FileTreePanelWidth}" ClipToBounds="True"
+    <!-- ===== Column 1：Side Bar (面板区,宽度绑定SidePanelWidth) ===== -->
+    <Border Grid.Column="1" Width="{Binding SidePanelWidth}" ClipToBounds="True"
             Background="{DynamicResource GuiSidebarBackground}"
             BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0">
       <Border.Transitions>
@@ -99,18 +116,10 @@
           <DoubleTransition Property="Width" Duration="{DynamicResource GuiMotionDuration}" />
         </Transitions>
       </Border.Transitions>
-      <Grid RowDefinitions="*,Auto">
-        <local:FileTreePanelView Grid.Row="0" IsVisible="{Binding !IsFileTreePanelCollapsed}" />
-        <StackPanel Grid.Row="0" IsVisible="{Binding IsFileTreePanelCollapsed}"
-                    HorizontalAlignment="Stretch" Width="48" Spacing="14" Margin="0,12">
-          <Button Classes="ghost" Content="📁" FontSize="18" Padding="0" MinHeight="0"
-                  HorizontalAlignment="Center" ToolTip.Tip="目录树"
-                  Command="{Binding ToggleFileTreePanelCommand}" />
-        </StackPanel>
-        <Button Grid.Row="1" Classes="ghost" Margin="4" Padding="6,3" MinHeight="0"
-                HorizontalAlignment="Center" Command="{Binding ToggleFileTreePanelCommand}"
-                Content="◀" ToolTip.Tip="折叠目录树" />
-      </Grid>
+      <Panel>
+        <local:SidebarView IsVisible="{Binding IsSessionPanelActive}" />
+        <local:FileTreePanelView IsVisible="{Binding IsFileTreePanelActive}" />
+      </Panel>
     </Border>
 
     <!-- ===== Column 2：主区（四行布局：消息区/补全面板/输入栏/状态栏） ===== -->

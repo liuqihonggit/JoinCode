@@ -87,7 +87,7 @@ public sealed partial class MainViewModel {
         IsCommandPaletteOpen = true;
     }
 
-    /// <summary>打开文件回调 — MainWindow 设置,ViewModel 调用以打开 EditorWindow</summary>
+    /// <summary>打开文件回调 — MainWindow 设置,ViewModel 调用以在内嵌编辑器中打开文件</summary>
     public Action<string>? OpenFileCallback { get; set; }
 
     /// <summary>执行命令 — 根据命令标识分发到对应命令</summary>

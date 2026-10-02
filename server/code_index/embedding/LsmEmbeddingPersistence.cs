@@ -142,6 +142,7 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         foreach (var fqn in meta.ContainedSymbolFqns) {
             bw.Write(fqn);
         }
+        bw.Write(meta.ContainedSymbolKinds);
         bw.Flush();
         return ms.ToArray();
     }
@@ -177,6 +178,7 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         for (var i = 0; i < fqnCount; i++) {
             fqns[i] = br.ReadString();
         }
+        var containedSymbolKinds = br.ReadInt32();
         return new ChunkMetadata {
             ChunkId = chunkId,
             FilePath = filePath,
@@ -192,6 +194,7 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
             SourceTextOffset = sourceTextOffset,
             SourceTextLen = sourceTextLen,
             ContainedSymbolFqns = fqns,
+            ContainedSymbolKinds = containedSymbolKinds,
         };
     }
 

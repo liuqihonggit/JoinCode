@@ -32,4 +32,7 @@ internal sealed record ChunkMetadata {
     public int SourceTextLen { get; init; }
     /// <summary>块覆盖的 AST 符号 FQN 列表 — 知识图谱关联用。</summary>
     public IReadOnlyList<string> ContainedSymbolFqns { get; init; } = [];
+
+    /// <summary>块覆盖的 AST 符号类型 BitMask — symbol_kind 过滤用，BitMask.Contains 判断块内是否含指定类型。</summary>
+    public int ContainedSymbolKinds { get; init; }
 }

@@ -26,6 +26,7 @@ public sealed partial class MainViewModel {
         new() { Name = "编辑: 重新生成", Icon = "↻", CommandId = "edit.regenerate" },
         new() { Name = "编辑: 清空当前会话", Icon = "🗑", CommandId = "edit.clearHistory" },
         new() { Name = "编辑: 全部重置", Icon = "⚡", CommandId = "edit.clearAll" },
+        new() { Name = "编辑: 切换分屏", Icon = "⬗", CommandId = "edit.toggleSplit" },
         new() { Name = "视图: 切换主题", Icon = "🎨", CommandId = "view.toggleTheme" },
         new() { Name = "视图: 设置面板", Icon = "⚙", CommandId = "view.settings" },
         new() { Name = "视图: 底部面板", Icon = "▾", CommandId = "view.panel" },
@@ -121,6 +122,9 @@ public sealed partial class MainViewModel {
                 break;
             case "edit.clearAll":
                 ClearAllSessionsCommand.Execute(null);
+                break;
+            case "edit.toggleSplit":
+                ToggleSplitEditorCommand.Execute(null);
                 break;
             case "view.toggleTheme":
                 ToggleThemeCommand.Execute(null);

@@ -39,6 +39,20 @@ public sealed partial class MainViewModel {
     /// <summary>是否有打开的编辑器标签页</summary>
     public bool HasEditorTabs => EditorTabs.Count > 0;
 
+    /// <summary>是否分屏编辑 — 左右两组独立标签页</summary>
+    [ObservableProperty]
+    private bool _isSplitEditor;
+
+    /// <summary>第二编辑器组标签页列表</summary>
+    public ObservableCollection<EditorTabVm> EditorTabs2 { get; } = [];
+
+    /// <summary>第二编辑器组当前激活标签页</summary>
+    [ObservableProperty]
+    private EditorTabVm? _activeEditorTab2;
+
+    /// <summary>第二编辑器组是否有标签页</summary>
+    public bool HasEditorTabs2 => EditorTabs2.Count > 0;
+
     /// <summary>切换主区视图 — 在消息区和编辑器区之间切换</summary>
     [RelayCommand]
     private void ToggleEditorView() {
@@ -192,5 +206,91 @@ public sealed partial class MainViewModel {
     private void PinTab(EditorTabVm? tab) {
         if (tab is not null)
             tab.IsPreview = false;
+    }
+
+    /// <summary>切换分屏编辑 — 开关右侧第二编辑器组</summary>
+    [RelayCommand]
+    private void ToggleSplitEditor() {
+        IsSplitEditor = !IsSplitEditor;
+        if (IsSplitEditor && EditorTabs2.Count == 0 && ActiveEditorTab is not null) {
+            var tab = new EditorTabVm {
+                FilePath = ActiveEditorTab.FilePath,
+                Content = ActiveEditorTab.Content
+            };
+            EditorTabs2.Add(tab);
+            SetActiveEditorTab2(tab);
+        }
+    }
+
+    /// <summary>在第二编辑器组中打开文件</summary>
+    public void OpenEditorFileInGroup2(string filePath) {
+        var existing = EditorTabs2.FirstOrDefault(t => t.FilePath == filePath);
+        if (existing is not null) {
+            SetActiveEditorTab2(existing);
+        } else {
+            var tab = new EditorTabVm {
+                FilePath = filePath,
+                Content = ReadFileContent(filePath)
+            };
+            EditorTabs2.Add(tab);
+            SetActiveEditorTab2(tab);
+        }
+        IsSplitEditor = true;
+        ActiveMainArea = MainAreaKind.Editor;
+    }
+
+    /// <summary>设置第二编辑器组激活标签页</summary>
+    private void SetActiveEditorTab2(EditorTabVm? tab) {
+        foreach (var t in EditorTabs2)
+            t.IsActive = false;
+        if (tab is not null)
+            tab.IsActive = true;
+        ActiveEditorTab2 = tab;
+    }
+
+    /// <summary>关闭第二编辑器组标签页</summary>
+    [RelayCommand]
+    private void CloseEditorTab2(EditorTabVm? tab) {
+        if (tab is null)
+            return;
+        var index = EditorTabs2.IndexOf(tab);
+        EditorTabs2.Remove(tab);
+        if (ActiveEditorTab2 == tab) {
+            if (EditorTabs2.Count == 0) {
+                SetActiveEditorTab2(null);
+            } else {
+                var nextIndex = Math.Min(index, EditorTabs2.Count - 1);
+                SetActiveEditorTab2(EditorTabs2[nextIndex]);
+            }
+        }
+    }
+
+    /// <summary>激活第二编辑器组标签页</summary>
+    [RelayCommand]
+    private void ActivateEditorTab2(EditorTabVm? tab) {
+        if (tab is not null)
+            SetActiveEditorTab2(tab);
+    }
+
+    /// <summary>移动标签页到另一组 — 从组1移到组2或反之</summary>
+    [RelayCommand]
+    private void MoveTabToOtherGroup(EditorTabVm? tab) {
+        if (tab is null)
+            return;
+        if (EditorTabs.Contains(tab)) {
+            EditorTabs.Remove(tab);
+            EditorTabs2.Add(tab);
+            if (ActiveEditorTab == tab) {
+                SetActiveEditorTab(EditorTabs.Count > 0 ? EditorTabs[0] : null);
+            }
+            SetActiveEditorTab2(tab);
+        } else if (EditorTabs2.Contains(tab)) {
+            EditorTabs2.Remove(tab);
+            EditorTabs.Add(tab);
+            if (ActiveEditorTab2 == tab) {
+                SetActiveEditorTab2(EditorTabs2.Count > 0 ? EditorTabs2[0] : null);
+            }
+            SetActiveEditorTab(tab);
+        }
     }
 }

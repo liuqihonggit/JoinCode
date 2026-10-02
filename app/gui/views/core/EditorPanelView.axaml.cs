@@ -2,16 +2,19 @@ namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 编辑器面板 UserControl — 内嵌在主区(非弹窗),多标签页 + 面包屑 + AvaloniaEdit 代码编辑器。
+/// 支持分屏编辑:左右两组独立标签页,用 GridSplitter 分割。
 /// 标签页列表和活跃标签由 MainViewModel 管理,本控件负责同步 AvaloniaEdit.Text 与活跃标签 Content。
 /// </summary>
 public sealed partial class EditorPanelView : UserControl {
     private MainViewModel? _vm;
     private bool _suppressTextChanged;
+    private bool _suppressTextChanged2;
 
     /// <summary>初始化 EditorPanelView 实例</summary>
     public EditorPanelView() {
         InitializeComponent();
         Editor.TextChanged += OnEditorTextChanged;
+        Editor2.TextChanged += OnEditor2TextChanged;
     }
 
     /// <summary>DataContext 变更时订阅 ViewModel 属性变化</summary>
@@ -23,6 +26,7 @@ public sealed partial class EditorPanelView : UserControl {
         if (_vm is not null) {
             _vm.PropertyChanged += OnVmPropertyChanged;
             UpdateEditorFromActiveTab();
+            UpdateEditor2FromActiveTab();
         }
     }
 
@@ -30,20 +34,32 @@ public sealed partial class EditorPanelView : UserControl {
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e) {
         if (e.PropertyName == nameof(MainViewModel.ActiveEditorTab))
             UpdateEditorFromActiveTab();
+        else if (e.PropertyName == nameof(MainViewModel.ActiveEditorTab2))
+            UpdateEditor2FromActiveTab();
     }
 
-    /// <summary>从活跃标签页同步内容到编辑器 — 切换标签时加载对应文件内容</summary>
+    /// <summary>从活跃标签页同步内容到编辑器组1 — 切换标签时加载对应文件内容</summary>
     private void UpdateEditorFromActiveTab() {
         if (_vm?.ActiveEditorTab is not { } tab)
             return;
         _suppressTextChanged = true;
         Editor.Text = tab.Content;
         _suppressTextChanged = false;
-        UpdateBreadcrumb(tab.FilePath);
+        UpdateBreadcrumb(BreadcrumbItems, tab.FilePath);
+    }
+
+    /// <summary>从活跃标签页同步内容到编辑器组2</summary>
+    private void UpdateEditor2FromActiveTab() {
+        if (_vm?.ActiveEditorTab2 is not { } tab)
+            return;
+        _suppressTextChanged2 = true;
+        Editor2.Text = tab.Content;
+        _suppressTextChanged2 = false;
+        UpdateBreadcrumb(BreadcrumbItems2, tab.FilePath);
     }
 
     /// <summary>设置面包屑 — 从根目录到文件名的路径段</summary>
-    private void UpdateBreadcrumb(string filePath) {
+    private static void UpdateBreadcrumb(ItemsControl breadcrumb, string filePath) {
         var segments = new List<string>();
         var dir = System.IO.Path.GetDirectoryName(filePath);
         while (!string.IsNullOrEmpty(dir)) {
@@ -55,14 +71,22 @@ public sealed partial class EditorPanelView : UserControl {
         }
         segments.Reverse();
         segments.Add(System.IO.Path.GetFileName(filePath));
-        BreadcrumbItems.ItemsSource = segments;
+        breadcrumb.ItemsSource = segments;
     }
 
-    /// <summary>编辑器内容变更时同步到活跃标签页 Content + 标记已修改</summary>
+    /// <summary>编辑器组1内容变更时同步到活跃标签页 Content + 标记已修改</summary>
     private void OnEditorTextChanged(object? sender, EventArgs e) {
         if (_suppressTextChanged || _vm?.ActiveEditorTab is not { } tab)
             return;
         tab.Content = Editor.Text;
+        tab.IsModified = true;
+    }
+
+    /// <summary>编辑器组2内容变更时同步到活跃标签页2 Content + 标记已修改</summary>
+    private void OnEditor2TextChanged(object? sender, EventArgs e) {
+        if (_suppressTextChanged2 || _vm?.ActiveEditorTab2 is not { } tab)
+            return;
+        tab.Content = Editor2.Text;
         tab.IsModified = true;
     }
 

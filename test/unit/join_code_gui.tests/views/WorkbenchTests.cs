@@ -11,9 +11,12 @@ public sealed class WorkbenchTests {
         var window = new MainWindow { DataContext = vm };
         try {
             window.Show();
-            var contents = window.GetVisualDescendants().OfType<Button>().Select(b => b.Content).ToArray();
-            contents.Should().Contain("文件 / 变更");
-            contents.Should().Contain("模型 / MCP / 插件");
+            var topMenuItems = window.GetVisualDescendants().OfType<Avalonia.Controls.MenuItem>().ToArray();
+            var fileMenu = topMenuItems.FirstOrDefault(m => m.Header is string h && h == "文件");
+            fileMenu.Should().NotBeNull("应存在'文件'顶层菜单");
+            var childHeaders = fileMenu!.Items.OfType<Avalonia.Controls.MenuItem>().Select(m => m.Header).ToArray();
+            childHeaders.Should().Contain("文件 / 变更");
+            childHeaders.Should().Contain("模型 / MCP / 插件");
         } finally { window.Close(); }
     }
 

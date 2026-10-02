@@ -585,17 +585,12 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.UpdatedFiles, result.UpdatedCount));
             sb.AppendLine(L.T(StringKey.SkippedFiles, result.SkippedCount));
             sb.AppendLine(L.T(StringKey.DeletedFiles, result.DeletedCount));
-            sb.AppendLine($"持久化目录: {persistDir}");
+            sb.AppendLine($"持久化目录: {persistDir.Replace('\\', '/')}");
             sb.AppendLine($"  ✅ 符号索引: KV store ({_indexer.Persistence.Count} 个符号)");
             if (result.VectorChunkCount > 0) {
                 sb.AppendLine($"  ✅ 向量索引: vector_index.bin ({result.VectorChunkCount} 个块)");
             } else {
                 sb.AppendLine($"  ⚠ 向量索引: 未建立（模型文件不存在，语义搜索不可用）");
-            }
-            if (result.ParentDocumentCount > 0) {
-                sb.AppendLine($"  ✅ 父文档: KV store ({result.ParentDocumentCount} 个文档)");
-            } else {
-                sb.AppendLine($"  ⚠ 父文档: 未建立");
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
@@ -695,13 +690,13 @@ public sealed class CodeIndexToolHandlers {
     /// <param name="persist_dir">持久化目录路径，用于从外部位置加载索引。null=自动发现 git 工作区</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含匹配代码块列表的工具结果</returns>
-    [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. By default returns ONLY metadata (file path, line range, symbol name, similarity score) + knowledge graph relations (callers/callees) — lightweight, use read tool to fetch source by line number. Set include_source_text=true to get matched block source code (function body). Set include_parent_document=true to get parent class/file source code for full context. Set include_graph=false to disable knowledge graph relations. Set file_type to filter by extension (e.g. 'cs' for C# code only, 'md' for Markdown docs only). Set persist_dir to load index from a custom directory (default: auto-discover git workspace). Tip: start with default (metadata + graph) to locate, then enable source/parent on follow-up calls if needed.", "code_index")]
+    [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. Returns metadata (file path, line range, symbol name, similarity score). Set include_source_text=true to get matched block source code. Set include_parent_document=true to get parent class/file source. Set include_graph=true to get caller/callee relations.", "code_index")]
     public async Task<ToolResult> SearchSemanticAsync(
         [McpToolParameter("Natural language query or code snippet (e.g. 'find authentication logic', 'rate limiting implementation')")] string query,
         [McpToolParameter("Maximum number of results to return", Required = false, DefaultValue = "10")] int top_k = 10,
-        [McpToolParameter("Include matched block source text (function code) in results. Default false — use read tool to fetch by line number instead", Required = false, DefaultValue = "false")] bool include_source_text = false,
-        [McpToolParameter("Include parent document (class/file) source text in results for full context. Default false — enable when you need surrounding context", Required = false, DefaultValue = "false")] bool include_parent_document = false,
-        [McpToolParameter("Include knowledge graph relations (callers/callees) for symbols in each chunk. Default true — AI sees call dependencies without extra tool calls", Required = false, DefaultValue = "true")] bool include_graph = true,
+        [McpToolParameter("Include matched block source text (function code) in results", Required = false, DefaultValue = "false")] bool include_source_text = false,
+        [McpToolParameter("Include parent document (class/file) source text in results for full context", Required = false, DefaultValue = "false")] bool include_parent_document = false,
+        [McpToolParameter("Include knowledge graph relations (callers/callees) for symbols in each chunk", Required = false, DefaultValue = "false")] bool include_graph = false,
         [McpToolParameter("Filter by file extension without dot, e.g. 'cs' for C# only, 'md' for Markdown only. Default null = all file types", Required = false)] string? file_type = null,
         [McpToolParameter("Filter by namespace prefix, e.g. 'JoinCode.CodeIndex' for code in that namespace only. Default null = all namespaces", Required = false)] string? namespace_filter = null,
         [McpToolParameter("Filter by symbol kind, e.g. 'Method' for methods only, 'Class' for classes only. Default null = all kinds", Required = false)] string? symbol_kind = null,
@@ -750,7 +745,7 @@ public sealed class CodeIndexToolHandlers {
             for (var i = 0; i < results.Count; i++) {
                 var r = results[i];
                 sb.AppendLine($"{i + 1}. [{r.Score:F4}] {r.SymbolFqn}");
-                sb.AppendLine($"   {r.FilePath}:{r.StartLine}-{r.EndLine}");
+                sb.AppendLine($"   {r.FilePath.Replace('\\', '/')}:{r.StartLine}-{r.EndLine}");
 
                 if (include_source_text && !string.IsNullOrEmpty(r.SourceText)) {
                     sb.AppendLine($"   --- Source ---");
@@ -795,13 +790,13 @@ public sealed class CodeIndexToolHandlers {
                         if (callers.Count > 0) {
                             sb.AppendLine($"   {fqn} <- 调用方:");
                             foreach (var c in callers.Take(EdgeLimit)) {
-                                sb.AppendLine($"     {c.CallerSymbol} at {c.CallSiteFilePath}:{c.CallSiteLine}");
+                                sb.AppendLine($"     {c.CallerSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
                             }
                         }
                         if (callees.Count > 0) {
                             sb.AppendLine($"   {fqn} -> 被调用方:");
                             foreach (var c in callees.Take(EdgeLimit)) {
-                                sb.AppendLine($"     {c.CalleeSymbol} at {c.CallSiteFilePath}:{c.CallSiteLine}");
+                                sb.AppendLine($"     {c.CalleeSymbol} at {c.CallSiteFilePath.Replace('\\', '/')}:{c.CallSiteLine}");
                             }
                         }
                     }

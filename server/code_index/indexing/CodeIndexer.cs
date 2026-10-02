@@ -320,8 +320,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             UpdatedCount = updatedCount,
             SkippedCount = skippedCount,
             DeletedCount = deletedCount,
-            VectorChunkCount = _embeddingIndex?.ChunkCount ?? 0,
-            ParentDocumentCount = 0
+            VectorChunkCount = _embeddingIndex?.ChunkCount ?? 0
         };
     }
 

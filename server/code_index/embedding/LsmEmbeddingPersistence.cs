@@ -46,6 +46,9 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
         var dims = snapshot.Dims;
 
         var kvDir = Path.Combine(dirPath, "kvstore");
+        if (_fs.DirectoryExists(kvDir)) {
+            _fs.DeleteDirectory(kvDir, recursive: true);
+        }
         _fs.CreateDirectory(kvDir);
 
         await using var store = new PithosKvStore(kvDir, new PithosOptions { DisableCompaction = true });

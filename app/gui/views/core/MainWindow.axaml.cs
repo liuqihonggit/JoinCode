@@ -100,11 +100,13 @@ public sealed partial class MainWindow : Window {
         e.Handled = true;
     }
 
-    /// <summary>拖拽手柄移动 — 实时更新面板宽度</summary>
+    /// <summary>拖拽手柄移动 — 实时更新面板宽度(Side Bar 在右侧时 delta 方向反转)</summary>
     private void OnSidePanelResizePointerMoved(object? sender, PointerEventArgs e) {
         if (!_isSidePanelResizing || _vm is null)
             return;
         var delta = e.GetCurrentPoint(this).Position.X - _sidePanelResizeStartX;
+        if (_vm.PrimarySideBarPosition == SideBarPosition.Right)
+            delta = -delta;
         _vm.SidePanelWidth = Math.Clamp(_sidePanelResizeStartWidth + delta, 0, 600);
         e.Handled = true;
     }
@@ -172,6 +174,7 @@ public sealed partial class MainWindow : Window {
             _vm.RunStatus.MarqueeStopped += OnMarqueeStopped;
             ApplyAppearance();
             SyncActivityBarButtons();
+            ApplySideBarPosition();
             CenterOnScreen();
             _vm.LoadFileTree(System.IO.Directory.GetCurrentDirectory());
         }
@@ -207,6 +210,40 @@ public sealed partial class MainWindow : Window {
         var y = workArea.Y + (workArea.Height - Height) / 2;
         Position = new Avalonia.PixelPoint((int)x, (int)y);
     }
+
+    /// <summary>应用 Side Bar 位置 — 左侧(默认)或右侧,重新分配 Grid.Column + 调整 BorderThickness</summary>
+    private void ApplySideBarPosition() {
+        if (_vm is null)
+            return;
+        var isLeft = _vm.PrimarySideBarPosition == SideBarPosition.Left;
+        if (isLeft) {
+            // 左侧(默认): ActivityBar=0, SideBar=1, LeftSash=2, MainArea=3, RightSash=4, Secondary=5
+            SetColumn(ActivityBarCol, 0);
+            SetColumn(SideBarCol, 1);
+            SetColumn(LeftSashCol, 2);
+            SetColumn(MainAreaCol, 3);
+            SetColumn(RightSashCol, 4);
+            SetColumn(SecondarySideBarCol, 5);
+            ActivityBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
+            SideBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
+            SecondarySideBarCol.BorderThickness = new Thickness(1, 0, 0, 0);
+        } else {
+            // 右侧: Secondary=0, RightSash=1, MainArea=2, LeftSash=3, SideBar=4, ActivityBar=5
+            SetColumn(SecondarySideBarCol, 0);
+            SetColumn(RightSashCol, 1);
+            SetColumn(MainAreaCol, 2);
+            SetColumn(LeftSashCol, 3);
+            SetColumn(SideBarCol, 4);
+            SetColumn(ActivityBarCol, 5);
+            ActivityBarCol.BorderThickness = new Thickness(1, 0, 0, 0);
+            SideBarCol.BorderThickness = new Thickness(1, 0, 0, 0);
+            SecondarySideBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
+        }
+    }
+
+    /// <summary>设置控件的 Grid.Column 附加属性</summary>
+    private static void SetColumn(Avalonia.Controls.Control control, int column)
+        => Avalonia.Controls.Grid.SetColumn(control, column);
 
     /// <summary>打开子代理回放窗口 — 只读快照，可多开（每 agent 一窗）</summary>
     private void OnTranscriptRequested(BackgroundAgentItemVm run) {
@@ -301,6 +338,8 @@ public sealed partial class MainWindow : Window {
                                      or nameof(MainViewModel.IsFileTreePanelActive)
                                      or nameof(MainViewModel.IsEditorViewActive)) {
             SyncActivityBarButtons();
+        } else if (e.PropertyName == nameof(MainViewModel.PrimarySideBarPosition)) {
+            ApplySideBarPosition();
         } else if (e.PropertyName == nameof(MainViewModel.HasCopied) && _vm!.HasCopied) {
             ScheduleCopyToastHide();
         } else if (e.PropertyName == nameof(MainViewModel.CopiedMessageCopy) && !string.IsNullOrEmpty(_vm!.CopiedMessageCopy)) {

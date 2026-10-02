@@ -42,7 +42,8 @@ public sealed partial class MainViewModel {
         new() { Name = "视图: Secondary Side Bar", Icon = "⇥", CommandId = "view.secondarySidebar" },
         new() { Name = "视图: Zen Mode", Icon = "🔮", CommandId = "view.zenMode", Shortcut = "Ctrl+Shift+Z" },
         new() { Name = "视图: 居中布局", Icon = "⬌", CommandId = "view.centeredLayout" },
-        new() { Name = "视图: 切换 Minimap", Icon = "🗺", CommandId = "view.toggleMinimap" }
+        new() { Name = "视图: 切换 Minimap", Icon = "🗺", CommandId = "view.toggleMinimap" },
+        new() { Name = "视图: 切换 Side Bar 位置", Icon = "⇄", CommandId = "view.toggleSideBarPosition" }
     ];
 
     /// <summary>过滤后的命令列表 — 文件模式搜索文件,命令模式搜索命令</summary>
@@ -174,6 +175,9 @@ public sealed partial class MainViewModel {
                 break;
             case "view.toggleMinimap":
                 ToggleMinimapCommand.Execute(null);
+                break;
+            case "view.toggleSideBarPosition":
+                ToggleSideBarPositionCommand.Execute(null);
                 break;
         }
     }

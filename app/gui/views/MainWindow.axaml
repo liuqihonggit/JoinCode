@@ -13,6 +13,7 @@
         xmlns:local="using:JoinCode.Gui.Views"
         xmlns:design="using:JoinCode.Gui.Design"
         xmlns:dock="using:Dock.Avalonia.Controls"
+        xmlns:dvm="using:JoinCode.Gui.ViewModels.Docking"
         x:Class="JoinCode.Gui.Views.MainWindow"
         x:Name="Root"
         d:DataContext="{x:Static design:DesignData.Sample}"
@@ -82,6 +83,18 @@
     <Style Selector="ToggleButton.activityIcon:checked">
       <Setter Property="Background" Value="{DynamicResource GuiAccentSubtle}" />
       <Setter Property="Foreground" Value="{DynamicResource GuiAccentText}" />
+    </Style>
+    <!-- Dock ToolControl 标题栏：显示 Title（含 emoji） -->
+    <Style Selector="ToolControl">
+      <Setter Property="HeaderTemplate">
+        <DataTemplate DataType="dvm:PanelTool">
+          <TextBlock Text="{Binding Title}" Padding="4,2" FontSize="12" />
+        </DataTemplate>
+      </Setter>
+    </Style>
+    <!-- Dock ToolChromeControl 透明背景融入侧边栏 -->
+    <Style Selector="ToolChromeControl">
+      <Setter Property="Background" Value="Transparent" />
     </Style>
   </Window.Styles>
 

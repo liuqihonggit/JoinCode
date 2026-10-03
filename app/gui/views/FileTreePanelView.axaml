@@ -16,7 +16,8 @@
                    Foreground="{DynamicResource GuiSidebarTitle}" VerticalAlignment="Center" />
       </StackPanel>
       <TextBlock Text="{Binding FileTreeRootPath, FallbackValue='未加载'}" FontSize="10"
-                 Foreground="{DynamicResource GuiMutedText}" TextTrimming="CharacterEllipsis" />
+                 Foreground="{DynamicResource GuiMutedText}" TextTrimming="CharacterEllipsis"
+                 Tapped="OnRootPathTapped" Cursor="Hand" />
     </StackPanel>
     <!-- 目录树 — TreeView 自带滚动,无需外层 ScrollViewer -->
     <TreeView Grid.Row="1" ItemsSource="{Binding FileTreeItems}" Margin="4,4"

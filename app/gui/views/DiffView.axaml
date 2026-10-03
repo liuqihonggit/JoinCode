@@ -18,7 +18,8 @@
           <TextBlock Text="📝 代码变更" FontSize="14" FontWeight="SemiBold"
                      Foreground="{DynamicResource GuiPrimaryText}" />
           <TextBlock Text="{Binding DiffFilePath, FallbackValue=''}" FontSize="11"
-                     Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" />
+                     Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center"
+                     Tapped="OnDiffFilePathTapped" Cursor="Hand" />
         </StackPanel>
         <Button Grid.Column="1" Classes="ghost" Content="✕" FontSize="14" Padding="8,2"
                 Command="{Binding CloseDiffViewCommand}" ToolTip.Tip="关闭" />

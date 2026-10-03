@@ -135,19 +135,18 @@
                   IsVisible="{Binding ChatRoomEnabled}" />
         </StackPanel>
         <StackPanel Grid.Row="2" Spacing="4" Margin="0,0,0,8" HorizontalAlignment="Center">
-          <ToggleButton Classes="activityIcon" FontSize="20"
-                        Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}">
+          <Button Classes="activityIcon" FontSize="20"
+                  Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}">
             <Panel>
               <TextBlock Text="🌙" FontSize="20" IsVisible="{Binding IsDarkTheme}" />
               <TextBlock Text="☀️" FontSize="20" IsVisible="{Binding !IsDarkTheme}" />
             </Panel>
-          </ToggleButton>
+          </Button>
           <ToggleButton Classes="activityIcon" Content="⚙" FontSize="20"
-                        Command="{Binding ToggleSettingsPanelCommand}"
+                        IsChecked="{Binding IsSettingsPanelOpen, Mode=TwoWay}"
                         ToolTip.Tip="设置" />
           <ToggleButton Classes="activityIcon" Content="⇥" FontSize="20"
-                        Command="{Binding ToggleSecondarySideBarCommand}"
-                        IsChecked="{Binding IsSecondarySideBarOpen, Mode=OneWay}"
+                        IsChecked="{Binding IsSecondarySideBarOpen, Mode=TwoWay}"
                         ToolTip.Tip="Secondary Side Bar" />
           <Button Classes="activityIcon" FontSize="14"
                   Content="{Binding LanguageToggleDisplay}"

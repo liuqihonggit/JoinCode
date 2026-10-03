@@ -226,7 +226,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         var readResults = await Task.WhenAll(readTasks).ConfigureAwait(false);
 
         foreach (var r in readResults) {
-            if (storedHashes.TryGetValue(r.FilePath, out var storedHash) && storedHash == r.Hash) {
+            if (!options.Force && storedHashes.TryGetValue(r.FilePath, out var storedHash) && storedHash == r.Hash) {
                 skippedCount++;
             } else {
                 filesToIndex.Add((r.FilePath, r.SourceCode, r.Hash));
@@ -236,13 +236,13 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         progress?.Report(new IndexProgress { Current = total, Total = total });
 
-        // Phase D: 并行提取符号(已并行,4度)
+        // Phase D: 并行提取符号
         var phaseDSw = Stopwatch.StartNew();
         var extractionResults = ParallelExtractAll(filesToIndex, ct);
         phaseDSw.Stop();
         Console.Error.WriteLine($"[code-index] Phase D 提取: {filesToIndex.Count} 文件 ({phaseDSw.ElapsedMilliseconds}ms)");
 
-        // Phase E: 批量索引写入(单写锁 + 单次 CorrectInheritsToImplements,替代每文件锁+每文件全量扫描)
+        // Phase E: 批量索引写入
         var phaseESw = Stopwatch.StartNew();
         var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>(filesToIndex.Count);
         for (var i = 0; i < filesToIndex.Count; i++) {
@@ -255,16 +255,11 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         Console.Error.WriteLine($"[code-index] Phase E 写入: {updatedCount} 文件 ({phaseESw.ElapsedMilliseconds}ms)");
         phaseSw.Restart();
 
-        // Phase E2: 向量嵌入（按固定行数切块，预嵌入AST符号FQN组成知识图谱）
+        // Phase E2: 向量嵌入
         if (_embeddingIndex is not null) {
-            var phaseE2RemoveSw = Stopwatch.StartNew();
             foreach (var b in batch) {
                 await _embeddingIndex.RemoveFileAsync(b.FilePath, ct).ConfigureAwait(false);
             }
-            phaseE2RemoveSw.Stop();
-            Console.Error.WriteLine($"[code-index] Phase E2 删旧: ({phaseE2RemoveSw.ElapsedMilliseconds}ms)");
-
-            var phaseE2ChunkSw = Stopwatch.StartNew();
             var allChunks = new List<ChunkInfo>();
             foreach (var b in batch) {
                 var parentLocations = b.Extraction.Symbols
@@ -274,17 +269,12 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 allChunks.AddRange(LineBasedChunkExtractor.Extract(
                     b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations));
             }
-            phaseE2ChunkSw.Stop();
-            Console.Error.WriteLine($"[code-index] Phase E2 切块: {allChunks.Count} 块 ({phaseE2ChunkSw.ElapsedMilliseconds}ms)");
-
             if (allChunks.Count > 0) {
-                var phaseE2EmbedSw = Stopwatch.StartNew();
                 await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
-                phaseE2EmbedSw.Stop();
-                Console.Error.WriteLine($"[code-index] Phase E2 嵌入: ({phaseE2EmbedSw.ElapsedMilliseconds}ms)");
-                phaseSw.Restart();
             }
+            Console.Error.WriteLine($"[code-index] Phase E2 嵌入: {allChunks.Count} 块 ({phaseSw.ElapsedMilliseconds}ms)");
         }
+        phaseSw.Restart();
 
         // Phase F: 删除已移除文件
         foreach (var trackedFile in trackedFiles) {
@@ -300,16 +290,16 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         // Phase G: 失效图缓存
         InvalidateGraphCaches();
 
-        // Phase H: 统一持久化所有 IIndexStore — LINQ 链式（CLI 单次调用模式跨进程恢复）
+        // Phase H: 统一持久化所有 IIndexStore — 并行保存（CLI 单次调用模式跨进程恢复）
         _lastVectorIndexDir = Path.Combine(options.WorkspaceRoot, ".jcc", "code-index");
-        foreach (var store in _indexStores) {
-            ct.ThrowIfCancellationRequested();
+        var saveTasks = _indexStores.Select(async store => {
             try {
                 await store.SaveAsync(_lastVectorIndexDir, ct).ConfigureAwait(false);
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "{Kind}索引持久化失败（内存索引仍可用）", store.Kind);
             }
-        }
+        }).ToArray();
+        await Task.WhenAll(saveTasks).ConfigureAwait(false);
         Console.Error.WriteLine($"[code-index] 持久化: {phaseSw.ElapsedMilliseconds}ms");
         phaseSw.Restart();
 
@@ -389,6 +379,41 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             });
 
         return [.. results];
+    }
+
+    /// <summary>处理一批文件 — 符号写入和向量嵌入并行</summary>
+    private async Task ProcessBatchAsync(
+        List<(string FilePath, string SourceCode, string Hash)> files,
+        List<ExtractionResult> extractionResults,
+        CancellationToken ct) {
+        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>(files.Count);
+        for (var i = 0; i < files.Count; i++) {
+            var (filePath, sourceCode, hash) = files[i];
+            batch.Add((filePath, sourceCode, hash, extractionResults[i]));
+        }
+
+        var symbolTask = _symbolIndex.IndexFilesBatchAsync(batch, ct);
+
+        var embeddingTask = Task.Run(async () => {
+            if (_embeddingIndex is null) return;
+            foreach (var b in batch) {
+                await _embeddingIndex.RemoveFileAsync(b.FilePath, ct).ConfigureAwait(false);
+            }
+            var allChunks = new List<ChunkInfo>();
+            foreach (var b in batch) {
+                var parentLocations = b.Extraction.Symbols
+                    .Where(s => IsParentDocumentKind(s.Kind))
+                    .Select(s => new LineBasedChunkExtractor.ParentLocation(b.FilePath, s.StartLine, s.EndLine, s.FullyQualifiedName))
+                    .ToList();
+                allChunks.AddRange(LineBasedChunkExtractor.Extract(
+                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations));
+            }
+            if (allChunks.Count > 0) {
+                await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
+            }
+        }, ct);
+
+        await Task.WhenAll(symbolTask, embeddingTask).ConfigureAwait(false);
     }
 
     /// <summary>

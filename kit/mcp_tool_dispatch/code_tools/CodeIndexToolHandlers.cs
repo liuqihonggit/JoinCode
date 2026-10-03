@@ -562,11 +562,13 @@ public sealed class CodeIndexToolHandlers {
     /// 重建代码索引
     /// </summary>
     /// <param name="workspace_root">工作区根目录路径</param>
+    /// <param name="force">是否强制全量重建（跳过 hash 检查）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含重建统计信息的工具结果</returns>
     [McpTool(CodeToolNameEnumConstants.CodeIndexRebuild, "Rebuild the code index", "code_index")]
     public async Task<ToolResult> RebuildAsync(
         [McpToolParameter("Workspace root directory path")] string workspace_root,
+        [McpToolParameter("Force full rebuild, skip hash check")] bool force = false,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(workspace_root)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorkspaceRootCannotBeEmpty)).Build();
@@ -576,10 +578,12 @@ public sealed class CodeIndexToolHandlers {
             var prevPriority = System.Diagnostics.Process.GetCurrentProcess().PriorityClass;
             System.Diagnostics.Process.GetCurrentProcess().PriorityClass = System.Diagnostics.ProcessPriorityClass.BelowNormal;
             try {
-                var options = new CodeIndexOptions { WorkspaceRoot = workspace_root };
+                var persistDir = Path.Combine(workspace_root, ".jcc", "code-index");
+                if (!force) {
+                    await _indexer.EnsureIndexLoadedAsync(cancellationToken, persistDir).ConfigureAwait(false);
+                }
+                var options = new CodeIndexOptions { WorkspaceRoot = workspace_root, Force = force };
                 var result = await _indexer.BuildIndexAsync(options, cancellationToken).ConfigureAwait(false);
-
-            var persistDir = Path.Combine(workspace_root, ".jcc", "code-index");
             var sb = new System.Text.StringBuilder();
             sb.AppendLine(L.T(StringKey.IndexRebuildComplete));
             sb.AppendLine(L.T(StringKey.UpdatedFiles, result.UpdatedCount));
@@ -588,7 +592,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine($"持久化目录: {persistDir.Replace('\\', '/')}");
             sb.AppendLine($"  ✅ 符号索引: KV store ({_indexer.Persistence.Count} 个符号)");
             if (result.VectorChunkCount > 0) {
-                sb.AppendLine($"  ✅ 向量索引: vector_index.bin ({result.VectorChunkCount} 个块)");
+                sb.AppendLine($"  ✅ 向量索引: kvstore/LSM-Tree ({result.VectorChunkCount} 个块)");
             } else {
                 sb.AppendLine($"  ⚠ 向量索引: 未建立（模型文件不存在，语义搜索不可用）");
             }
@@ -693,7 +697,7 @@ public sealed class CodeIndexToolHandlers {
     [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. Returns metadata (file path, line range, symbol name, similarity score). Set include_source_text=true to get matched block source code. Set include_parent_document=true to get parent class/file source. Set include_graph=true to get caller/callee relations.", "code_index")]
     public async Task<ToolResult> SearchSemanticAsync(
         [McpToolParameter("Natural language query or code snippet (e.g. 'find authentication logic', 'rate limiting implementation')")] string query,
-        [McpToolParameter("Maximum number of results to return", Required = false, DefaultValue = "10")] int top_k = 10,
+        [McpToolParameter("Maximum number of results to return", Required = false, DefaultValue = "20")] int top_k = 20,
         [McpToolParameter("Include matched block source text (function code) in results", Required = false, DefaultValue = "false")] bool include_source_text = false,
         [McpToolParameter("Include parent document (class/file) source text in results for full context", Required = false, DefaultValue = "false")] bool include_parent_document = false,
         [McpToolParameter("Include knowledge graph triples (caller,calls,callee). GraphRAG: vector recall + graph triples correct AI cognition", Required = false, DefaultValue = "true")] bool include_graph = true,
@@ -715,11 +719,12 @@ public sealed class CodeIndexToolHandlers {
                 Namespace = namespace_filter,
                 SymbolKind = symbol_kind
             };
-            var oversampleK = Math.Max(top_k * 3, top_k + 10);
+            var oversampleK = SearchConfig.ComputeOversampleK(top_k);
             var rawResults = await _indexer.SearchSemanticAsync(query, oversampleK, cancellationToken, options).ConfigureAwait(false);
+            var withSymbols = await InjectSymbolMatchesAsync(rawResults, query, oversampleK, cancellationToken).ConfigureAwait(false);
             var expanded = include_graph
-                ? await ExpandByGraphAsync(rawResults, top_k, cancellationToken).ConfigureAwait(false)
-                : rawResults;
+                ? await ExpandByGraphAsync(withSymbols, top_k, cancellationToken).ConfigureAwait(false)
+                : withSymbols;
             var results = await SemanticSearchReranker.RerankAsync(
                 query, expanded, top_k, _indexer.CallGraph, cancellationToken).ConfigureAwait(false);
 
@@ -1093,6 +1098,73 @@ public sealed class CodeIndexToolHandlers {
         } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"search_document failed: {ex.Message}").Build();
         }
+    }
+
+    /// <summary>
+    /// 符号索引精确匹配注入 — 查询看起来像符号名时，用符号索引查找定义并注入候选集。
+    /// <para>向量搜索可能遗漏精确匹配的文件（嵌入向量不够近），符号索引直接查找弥补。</para>
+    /// <para>精确名称匹配用高分注入，模糊匹配用中等分注入。</para>
+    /// </summary>
+    private async Task<IReadOnlyList<ChunkSearchResult>> InjectSymbolMatchesAsync(
+        IReadOnlyList<ChunkSearchResult> vectorResults, string query, int maxResults, CancellationToken ct) {
+        if (!LooksLikeSymbolName(query)) return vectorResults;
+
+        var existingFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in vectorResults) existingFiles.Add(r.FilePath);
+
+        var symbolResults = new List<ChunkSearchResult>(vectorResults);
+
+        try {
+            var searchResult = await _indexer.Searcher.SearchAsync(query, ct).ConfigureAwait(false);
+            var exactMatches = new List<SymbolInfo>();
+            var fuzzyMatches = new List<SymbolInfo>();
+
+            foreach (var sym in searchResult.Items) {
+                if (string.Equals(sym.Name, query, StringComparison.OrdinalIgnoreCase))
+                    exactMatches.Add(sym);
+                else
+                    fuzzyMatches.Add(sym);
+            }
+
+            foreach (var sym in exactMatches.Take(maxResults)) {
+                if (existingFiles.Contains(sym.FilePath)) continue;
+                existingFiles.Add(sym.FilePath);
+                symbolResults.Add(CreateInjectedResult(sym, SearchConfig.SymbolExactInjectionScore));
+            }
+
+            foreach (var sym in fuzzyMatches.Take(maxResults / 2)) {
+                if (existingFiles.Contains(sym.FilePath)) continue;
+                existingFiles.Add(sym.FilePath);
+                symbolResults.Add(CreateInjectedResult(sym, SearchConfig.SymbolInjectionScore));
+            }
+        } catch (OperationCanceledException) {
+            throw;
+        } catch (Exception ex) {
+            Console.Error.WriteLine($"[symbol-inject] 符号搜索失败，跳过: {ex.Message}");
+        }
+
+        return symbolResults;
+    }
+
+    /// <summary>从 SymbolInfo 创建注入的 ChunkSearchResult。</summary>
+    private static ChunkSearchResult CreateInjectedResult(SymbolInfo sym, float score) => new() {
+        ChunkId = $"symbol:{sym.FullyQualifiedName}",
+        FilePath = sym.FilePath,
+        SymbolFqn = sym.FullyQualifiedName,
+        StartLine = sym.StartLine,
+        EndLine = sym.EndLine,
+        Score = score,
+        ContainedSymbolFqns = [sym.FullyQualifiedName]
+    };
+
+    /// <summary>查询是否看起来像符号名 — 无空格、长度>2、字母开头。</summary>
+    private static bool LooksLikeSymbolName(string query) {
+        if (query.Length <= 2) return false;
+        if (!char.IsLetter(query[0])) return false;
+        for (var i = 1; i < query.Length; i++) {
+            if (!char.IsLetterOrDigit(query[i]) && query[i] != '_') return false;
+        }
+        return true;
     }
 
     /// <summary>

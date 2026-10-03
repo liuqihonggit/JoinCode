@@ -43,6 +43,25 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private double _inputAreaHeight = 72;
 
+    /// <summary>系统日志是否展开(▲ 向上展开显示完整日志)</summary>
+    [ObservableProperty]
+    private bool _isStatusLogExpanded;
+
+    /// <summary>系统日志条目(最近的状态变化/错误/切换记录,最多保留 50 条)</summary>
+    public System.Collections.ObjectModel.ObservableCollection<string> StatusLogEntries { get; } = new();
+
+    /// <summary>追加系统日志条目(超过 50 条时移除最旧的)</summary>
+    public void AddStatusLog(string entry) {
+        var stamped = $"[{DateTime.Now:HH:mm:ss}] {entry}";
+        StatusLogEntries.Insert(0, stamped);
+        while (StatusLogEntries.Count > 50)
+            StatusLogEntries.RemoveAt(StatusLogEntries.Count - 1);
+    }
+
+    /// <summary>切换系统日志展开/收起</summary>
+    [RelayCommand]
+    private void ToggleStatusLog() => IsStatusLogExpanded = !IsStatusLogExpanded;
+
     /// <summary>紧凑布局阈值 — 窗口宽度低于此值切换到垂直布局</summary>
     public const double CompactLayoutThreshold = 700;
 

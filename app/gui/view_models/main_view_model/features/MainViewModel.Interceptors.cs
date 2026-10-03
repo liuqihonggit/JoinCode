@@ -305,6 +305,7 @@ public sealed partial class MainViewModel {
         }
         await _session.SetPermissionModeAsync(CurrentPermissionMode == PermissionMode.Auto ? PermissionMode.Ask : CurrentPermissionMode);
         StatusText = $"权限模式: {PermissionModeDisplay}";
+        AddStatusLog($"权限模式 → {PermissionModeDisplay}");
     }
 
     #endregion

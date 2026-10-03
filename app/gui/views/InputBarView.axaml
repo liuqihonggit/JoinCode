@@ -57,11 +57,53 @@
           Background="{DynamicResource GuiComposerBackground}"
           BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
     <Grid RowDefinitions="Auto,Auto,Auto,Auto">
-      <!-- Row 0：拖拽手柄 — 在输入区最顶部,向上拖增大输入框高度(QQ 风格可拉伸输入区) -->
-      <Border Grid.Row="0" Height="6" HorizontalAlignment="Stretch"
-              Background="Transparent" Cursor="SizeNorthSouth"
+      <!-- Row 0：系统状态条(悬浮,比输入栏窄) — 左侧状态文字+右侧▲展开日志,整行可拖拽调高度 -->
+      <Border x:Name="StatusStrip" Grid.Row="0" Height="20" HorizontalAlignment="Stretch" Margin="16,0"
+              Background="{DynamicResource GuiCardHover}" CornerRadius="0,0,6,6"
+              Cursor="SizeNorthSouth"
               PointerPressed="OnInputResizePointerPressed"
-              ToolTip.Tip="拖拽调节输入框高度" />
+              ToolTip.Tip="拖拽调节输入框高度">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0" Text="{Binding RunStatus.MarqueeText, FallbackValue='JoinCode 就绪'}"
+                     FontSize="10" Foreground="{DynamicResource GuiMutedText}"
+                     Margin="8,0,0,0" VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis" />
+          <Button Grid.Column="1" Classes="ghost" Padding="6,1" MinHeight="0" FontSize="9"
+                  Cursor="Arrow"
+                  Command="{Binding ToggleStatusLogCommand}"
+                  ToolTip.Tip="展开/收起系统日志">
+            <Panel>
+              <TextBlock Text="▲" FontSize="9" IsVisible="{Binding !IsStatusLogExpanded}" />
+              <TextBlock Text="▼" FontSize="9" IsVisible="{Binding IsStatusLogExpanded}" />
+            </Panel>
+          </Button>
+        </Grid>
+      </Border>
+      <!-- 系统日志向上展开 Popup(悬浮,对齐状态条宽度) -->
+      <Popup IsOpen="{Binding IsStatusLogExpanded}" Placement="Top"
+             PlacementTarget="{Binding #StatusStrip}" MaxHeight="340"
+             Width="{Binding #StatusStrip.Bounds.Width}"
+             HorizontalOffset="0" VerticalOffset="-2">
+        <Border CornerRadius="0,0,8,8" Padding="10,8" Background="{DynamicResource GuiPopupBackground}"
+                BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+                BoxShadow="{DynamicResource GuiPopupShadow}">
+          <Grid RowDefinitions="Auto,*">
+            <TextBlock Grid.Row="0" Text="系统日志" FontSize="11" FontWeight="SemiBold"
+                       Foreground="{DynamicResource GuiPrimaryText}" Margin="0,0,0,6" />
+            <ScrollViewer Grid.Row="1" MaxHeight="280">
+              <ItemsControl ItemsSource="{Binding StatusLogEntries}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <SelectableTextBlock Text="{Binding}" FontSize="10"
+                               Foreground="{DynamicResource GuiMutedText}"
+                               Margin="0,2" TextWrapping="Wrap" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Grid>
+        </Border>
+      </Popup>
       <!-- Row 1：工具栏行（QQ 风格 — 一排控件在输入框上方，消除底部拥挤） -->
       <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" Margin="7,4,7,4">
           <!-- 权限模式：图标随模式变化(📋🟢🟡🔴🔓🤖)，点击弹出列表选择（Shift+Tab 才循环） -->

@@ -186,7 +186,8 @@ public sealed partial class MainViewModel {
         if (modelItem is not null) {
             SelectedModelOption = modelItem;
             SelectedModel = modelItem.Id;
-            try { await _session.SetModelAsync(modelId).WaitAsync(Timeout); } catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); }
+            try { await _session.SetModelAsync(modelId).WaitAsync(Timeout); } catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); AddStatusLog($"模型切换失败: {ex.Message}"); }
+            AddStatusLog($"模型 → {providerId}/{modelId}");
         }
         OnPropertyChanged(nameof(CurrentModelDisplay));
     }

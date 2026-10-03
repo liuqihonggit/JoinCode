@@ -4,4 +4,11 @@ namespace JoinCode.Gui.Views;
 public partial class GoalView : UserControl {
     /// <summary>初始化 GoalView 实例</summary>
     public GoalView() => InitializeComponent();
+
+    /// <summary>拖拽手柄按下时发起 DragDrop — 携带面板标识</summary>
+    private void OnDragHandlePressed(object? sender, PointerPressedEventArgs e) {
+        var data = new DataObject();
+        data.Set("PanelDrag", nameof(GoalView));
+        _ = DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+    }
 }

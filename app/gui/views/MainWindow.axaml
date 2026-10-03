@@ -167,7 +167,8 @@
     <Border x:Name="SideBarCol" Grid.Column="1" Width="{Binding SidePanelWidth}" ClipToBounds="True"
             Background="{DynamicResource GuiSidebarBackground}"
             BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0"
-            IsVisible="{Binding IsNotZenMode}">
+            IsVisible="{Binding IsNotZenMode}"
+            DragDrop.DragOver="OnPanelDragOver" DragDrop.Drop="OnPanelDropLeft">
       <Border.Transitions>
         <Transitions>
           <DoubleTransition Property="Width" Duration="{DynamicResource GuiMotionDuration}" />
@@ -540,7 +541,8 @@
     <Border x:Name="SecondarySideBarCol" Grid.Column="5" Width="{Binding SecondarySideBarWidth}" ClipToBounds="True"
             IsVisible="{Binding IsSecondarySideBarOpen}"
             Background="{DynamicResource GuiSidebarBackground}"
-            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1,0,0,0">
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1,0,0,0"
+            DragDrop.DragOver="OnPanelDragOver" DragDrop.Drop="OnPanelDropRight">
       <Panel>
         <local:FileTreePanelView IsVisible="{Binding IsSecondaryFileTree}" />
         <local:SidebarView IsVisible="{Binding IsSecondarySessions}" />

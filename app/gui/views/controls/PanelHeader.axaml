@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
+             x:Class="JoinCode.Gui.Views.Controls.PanelHeader"
+             x:DataType="vm:PanelHeaderVm">
+  <Border Padding="10,6" Background="{DynamicResource GuiSearchBarBackground}"
+          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
+    <Grid ColumnDefinitions="Auto,*,Auto">
+      <!-- 拖拽手柄(⠿) -->
+      <TextBlock Grid.Column="0" Text="⠿" FontSize="12" Margin="0,0,8,0"
+                 Foreground="{DynamicResource GuiMutedText}"
+                 Cursor="SizeAll" ToolTip.Tip="拖拽停靠到其他位置"
+                 PointerPressed="OnDragHandlePressed" />
+      <!-- 标题 -->
+      <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="12" FontWeight="SemiBold"
+                 Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
+      <!-- 关闭按钮 -->
+      <Button Grid.Column="2" Classes="ghost" Content="✕" FontSize="10" Padding="4,2" MinHeight="0"
+              Command="{Binding CloseCommand}" ToolTip.Tip="关闭面板" />
+    </Grid>
+  </Border>
+</UserControl>

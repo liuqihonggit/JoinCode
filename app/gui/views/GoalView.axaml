@@ -7,11 +7,17 @@
              x:Class="JoinCode.Gui.Views.GoalView"
              x:DataType="vm:MainViewModel">
   <Grid RowDefinitions="Auto,*" Background="{DynamicResource GuiSidebarBackground}">
-    <!-- 标题栏 -->
-    <Border Grid.Row="0" Padding="12,10" Background="{DynamicResource GuiSearchBarBackground}"
+    <!-- 标题栏(含拖拽手柄) -->
+    <Border Grid.Row="0" Padding="10,6" Background="{DynamicResource GuiSearchBarBackground}"
             BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
-      <TextBlock Text="🎯 goal 控制" FontSize="13" FontWeight="SemiBold"
-                 Foreground="{DynamicResource GuiPrimaryText}" />
+      <Grid ColumnDefinitions="Auto,*">
+        <TextBlock Grid.Column="0" Text="⠿" FontSize="12" Margin="0,0,8,0"
+                   Foreground="{DynamicResource GuiMutedText}" Cursor="SizeAll"
+                   ToolTip.Tip="拖拽到窗口左/右边缘切换停靠位置"
+                   PointerPressed="OnDragHandlePressed" />
+        <TextBlock Grid.Column="1" Text="🎯 goal 控制" FontSize="12" FontWeight="SemiBold"
+                   Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
+      </Grid>
     </Border>
     <!-- 内容 -->
     <ScrollViewer Grid.Row="1" Padding="12,10">

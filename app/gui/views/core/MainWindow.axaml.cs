@@ -277,6 +277,7 @@ public sealed partial class MainWindow : Window {
             ApplyAppearance();
             SyncActivityBarButtons();
             ApplySideBarPosition();
+            ApplyPanelDock();
             CenterOnScreen();
             _vm.LoadFileTree(System.IO.Directory.GetCurrentDirectory());
         }
@@ -305,6 +306,45 @@ public sealed partial class MainWindow : Window {
         GoalButton.IsChecked = _vm.IsGoalPanelActive;
         InterceptorButton.IsChecked = _vm.IsInterceptorPanelActive;
         ChatRoomButton.IsChecked = _vm.IsChatRoomPanelActive;
+    }
+
+    /// <summary>应用面板停靠位置 — Left:SideBarCol在Column1+LeftSash在Column2; Right:SideBarCol在Column5+RightSash在Column4</summary>
+    private void ApplyPanelDock() {
+        if (_vm is null)
+            return;
+        if (_vm.IsPanelDockedRight) {
+            SetColumn(SideBarCol, 5);
+            SetColumn(LeftSashCol, 4);
+            SideBarCol.BorderThickness = new Thickness(1, 0, 0, 0);
+            SecondarySideBarCol.IsVisible = false;
+        } else {
+            SetColumn(SideBarCol, 1);
+            SetColumn(LeftSashCol, 2);
+            SideBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
+            SecondarySideBarCol.IsVisible = _vm.IsSecondarySideBarOpen;
+        }
+    }
+
+    /// <summary>面板拖拽经过 — 允许 Move 效果</summary>
+    private void OnPanelDragOver(object? sender, DragEventArgs e) {
+        if (e.Data.Contains("PanelDrag"))
+            e.DragEffects = DragDropEffects.Move;
+        else
+            e.DragEffects = DragDropEffects.None;
+    }
+
+    /// <summary>拖拽释放到左侧 → 面板停靠在左</summary>
+    private void OnPanelDropLeft(object? sender, DragEventArgs e) {
+        if (_vm is not null && e.Data.Contains("PanelDrag"))
+            _vm.ActivePanelDock = DockPosition.Left;
+        e.Handled = true;
+    }
+
+    /// <summary>拖拽释放到右侧 → 面板停靠在右</summary>
+    private void OnPanelDropRight(object? sender, DragEventArgs e) {
+        if (_vm is not null && e.Data.Contains("PanelDrag"))
+            _vm.ActivePanelDock = DockPosition.Right;
+        e.Handled = true;
     }
 
     /// <summary>窗口居中屏幕 — 在打开时固定到屏幕中间</summary>
@@ -471,6 +511,8 @@ public sealed partial class MainWindow : Window {
             SyncActivityBarButtons();
         } else if (e.PropertyName == nameof(MainViewModel.PrimarySideBarPosition)) {
             ApplySideBarPosition();
+        } else if (e.PropertyName == nameof(MainViewModel.ActivePanelDock)) {
+            ApplyPanelDock();
         } else if (e.PropertyName == nameof(MainViewModel.IsCompactLayout)) {
             ApplyCompactLayout();
         } else if (e.PropertyName == nameof(MainViewModel.HasCopied) && _vm!.HasCopied) {

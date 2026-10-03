@@ -43,6 +43,18 @@ public sealed partial class MainViewModel {
     [NotifyPropertyChangedFor(nameof(IsSidePanelExpanded))]
     private SidePanelKind _activeSidePanel = SidePanelKind.Sessions;
 
+    /// <summary>当前面板停靠位置 — Left(默认)/Right,拖拽面板标题栏切换</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPanelDockedLeft))]
+    [NotifyPropertyChangedFor(nameof(IsPanelDockedRight))]
+    private DockPosition _activePanelDock = DockPosition.Left;
+
+    /// <summary>面板是否停靠在左侧</summary>
+    public bool IsPanelDockedLeft => ActivePanelDock == DockPosition.Left;
+
+    /// <summary>面板是否停靠在右侧</summary>
+    public bool IsPanelDockedRight => ActivePanelDock == DockPosition.Right;
+
     /// <summary>侧边面板区宽度 — 可拖拽调整,带磁吸(低于阈值自动折叠)</summary>
     [ObservableProperty]
     private double _sidePanelWidth = SidePanelDefaultWidth;

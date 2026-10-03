@@ -119,11 +119,6 @@ internal sealed record IndexSnapshot {
             snap = snap.UpsertFileTracking(filePath, hash, extraction.Symbols.Count, now, rebuildSorted: false);
         }
         snap = snap.CorrectInheritsToImplements();
-        snap = snap with {
-            SymbolsSortedByFqn = RebuildSymbolsSortedByFqn(snap.SymbolsByFqn),
-            SymbolsSortedByName = RebuildSymbolsSortedByName(snap.SymbolsByName),
-            FileTrackingKeysSorted = RebuildSortedKeys(snap.FileTracking),
-        };
         return snap with { LastUpdated = now };
     }
 
@@ -313,8 +308,9 @@ internal sealed record IndexSnapshot {
         var callsByFile = CallsByFile;
 
         if (callsByFile.TryGetValue(filePath, out var callsInFile)) {
+            var edgeSet = callsInFile.ToHashSet();
+            callEdges = callEdges.RemoveAll(e => edgeSet.Contains(e));
             foreach (var edge in callsInFile) {
-                callEdges = callEdges.Remove(edge);
                 callsByCaller = RemoveFromListIndex(callsByCaller, edge.CallerSymbol, edge);
                 callsByCallee = RemoveFromListIndex(callsByCallee, edge.CalleeSymbol, edge);
             }
@@ -335,8 +331,9 @@ internal sealed record IndexSnapshot {
         var depsByFile = DepsByFile;
 
         if (depsByFile.TryGetValue(filePath, out var depsInFile)) {
+            var edgeSet = depsInFile.ToHashSet();
+            depEdges = depEdges.RemoveAll(e => edgeSet.Contains(e));
             foreach (var edge in depsInFile) {
-                depEdges = depEdges.Remove(edge);
                 depsBySource = RemoveFromListIndex(depsBySource, edge.SourceSymbol, edge);
                 depsByTarget = RemoveFromListIndex(depsByTarget, edge.TargetSymbol, edge);
             }

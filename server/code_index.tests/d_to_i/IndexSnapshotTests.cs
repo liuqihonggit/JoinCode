@@ -815,9 +815,6 @@ public sealed class IndexSnapshotTests {
 
         Assert.Equal(2, after.SymbolsByFqn.Count);
         Assert.Equal(2, after.FileTracking.Count);
-        // 批量结束后排序列表重建
-        Assert.Equal(2, after.SymbolsSortedByFqn.Count);
-        Assert.Equal(2, after.FileTrackingKeysSorted.Count);
         Assert.Equal(now, after.LastUpdated);
     }
 

@@ -300,16 +300,16 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         // Phase G: 失效图缓存
         InvalidateGraphCaches();
 
-        // Phase H: 统一持久化所有 IIndexStore — LINQ 链式（CLI 单次调用模式跨进程恢复）
+        // Phase H: 统一持久化所有 IIndexStore — 并行保存（CLI 单次调用模式跨进程恢复）
         _lastVectorIndexDir = Path.Combine(options.WorkspaceRoot, ".jcc", "code-index");
-        foreach (var store in _indexStores) {
-            ct.ThrowIfCancellationRequested();
+        var saveTasks = _indexStores.Select(async store => {
             try {
                 await store.SaveAsync(_lastVectorIndexDir, ct).ConfigureAwait(false);
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "{Kind}索引持久化失败（内存索引仍可用）", store.Kind);
             }
-        }
+        }).ToArray();
+        await Task.WhenAll(saveTasks).ConfigureAwait(false);
         Console.Error.WriteLine($"[code-index] 持久化: {phaseSw.ElapsedMilliseconds}ms");
         phaseSw.Restart();
 

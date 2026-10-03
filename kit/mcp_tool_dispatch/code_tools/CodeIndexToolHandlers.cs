@@ -576,10 +576,10 @@ public sealed class CodeIndexToolHandlers {
             var prevPriority = System.Diagnostics.Process.GetCurrentProcess().PriorityClass;
             System.Diagnostics.Process.GetCurrentProcess().PriorityClass = System.Diagnostics.ProcessPriorityClass.BelowNormal;
             try {
+                var persistDir = Path.Combine(workspace_root, ".jcc", "code-index");
+                await _indexer.EnsureIndexLoadedAsync(cancellationToken, persistDir).ConfigureAwait(false);
                 var options = new CodeIndexOptions { WorkspaceRoot = workspace_root };
                 var result = await _indexer.BuildIndexAsync(options, cancellationToken).ConfigureAwait(false);
-
-            var persistDir = Path.Combine(workspace_root, ".jcc", "code-index");
             var sb = new System.Text.StringBuilder();
             sb.AppendLine(L.T(StringKey.IndexRebuildComplete));
             sb.AppendLine(L.T(StringKey.UpdatedFiles, result.UpdatedCount));

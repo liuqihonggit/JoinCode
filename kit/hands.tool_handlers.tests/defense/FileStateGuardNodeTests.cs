@@ -122,8 +122,9 @@ public class FileStateGuardNodeTests {
         var result = await node.CheckStaleWriteAsync(filePath, CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.Equal(lastWriteMs, result!.Value.LastWriteMs);
-        Assert.Equal(lastWriteMs - 10_000, result.Value.ReadTimestampMs);
+        Assert.Equal(lastWriteMs, result!.LastWriteMs);
+        Assert.Equal(lastWriteMs - 10_000, result.ReadTimestampMs);
+        Assert.False(result.IsNotRead);
     }
 
     /// <summary>
@@ -167,11 +168,11 @@ public class FileStateGuardNodeTests {
     }
 
     /// <summary>
-    /// 边缘场景：缓存无记录（LRU 淘汰或未读）→ 放行。
-    /// 实际守卫链中 RequireReadBeforeWrite 会先拦下，此处为防御性放行。
+    /// 边缘场景：缓存无记录（LRU 淘汰）→ 防御性拒绝（IsNotRead=true），对齐 TS FileWriteTool.ts L282。
+    /// 实际守卫链中 RequireReadBeforeWrite 会先拦下，此处为防御性兜底。
     /// </summary>
     [Fact]
-    public async Task CheckStaleWriteAsync_ReadStateNull_ReturnsNull() {
+    public async Task CheckStaleWriteAsync_ReadStateNull_ReturnsStaleNotRead() {
         var filePath = CreateFile("content");
 
         var cache = new Mock<IFileStateCache>();
@@ -180,7 +181,8 @@ public class FileStateGuardNodeTests {
 
         var result = await node.CheckStaleWriteAsync(filePath, CancellationToken.None);
 
-        Assert.Null(result);
+        Assert.NotNull(result);
+        Assert.True(result!.IsNotRead);
     }
 
     /// <summary>

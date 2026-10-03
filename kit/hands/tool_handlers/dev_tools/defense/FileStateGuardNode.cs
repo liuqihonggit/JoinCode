@@ -1,6 +1,15 @@
 namespace Tools.Handlers;
 
 /// <summary>
+/// 脏写检测结果 — 区分"未读"（LRU 淘汰/无记录）与"脏写"（外部修改）两种拒绝原因。
+/// 对齐 TS FileWriteTool.ts L282: 无读记录时防御性拒绝，不静默放行。
+/// </summary>
+/// <param name="LastWriteMs">文件最近写入时间戳（Unix 毫秒）；未读时为 0</param>
+/// <param name="ReadTimestampMs">上次读取时间戳（Unix 毫秒）；未读时为 0</param>
+/// <param name="IsNotRead">true 表示无读记录（防御性拒绝），false 表示检测到外部修改</param>
+public sealed record StaleWriteDetection(long LastWriteMs, long ReadTimestampMs, bool IsNotRead = false);
+
+/// <summary>
 /// 文件状态守卫 node — 独立公共对象，包装 <see cref="IFileStateCache"/>，提供读前校验与脏写保护。
 /// 文件写入/编辑工具注入此 node 确保先读后写、检测外部修改。
 /// 对齐 TS: FileWriteTool.ts L198/L212 / FileEditTool.ts L275/L290。
@@ -46,25 +55,28 @@ public sealed class FileStateGuardNode {
     /// 脏写保护（Stale-write guard）— 文件读后被外部修改则拒绝写入。
     /// 部分读无法做内容兜底（缓存内容不是全量），直接拒绝，对齐 TS FileWriteTool.ts L286-289。
     /// 全量读时 Windows 时间戳误报回退：用检测编码读取文件比对内容，内容不变则放行。
+    /// 无读记录（LRU 淘汰）防御性拒绝，对齐 TS FileWriteTool.ts L282。
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <param name="ct">取消令牌</param>
-    /// <returns>null 表示安全，(lastWriteMs, readTimestampMs) 表示检测到外部修改</returns>
-    public async ValueTask<(long LastWriteMs, long ReadTimestampMs)?> CheckStaleWriteAsync(string filePath, CancellationToken ct) {
+    /// <returns>null 表示安全；非 null 表示拒绝（IsNotRead=true 未读，false 脏写）</returns>
+    public async ValueTask<StaleWriteDetection?> CheckStaleWriteAsync(string filePath, CancellationToken ct) {
         if (_fileStateCache is null || !_fs.FileExists(filePath) || TestEnvironmentDetector.ForceNonInteractive)
             return null;
 
         var readState = _fileStateCache.GetReadState(filePath);
-        if (readState is null)
-            return null;
-
         var lastWriteMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(filePath)).ToUnixTimeMilliseconds();
+
+        // 对齐 TS FileWriteTool.ts L282: 无读记录（LRU 淘汰）防御性拒绝，不静默放行
+        if (readState is null)
+            return new StaleWriteDetection(lastWriteMs, 0, IsNotRead: true);
+
         if (lastWriteMs <= readState.TimestampMs + 1000) // 1s 容忍
             return null;
 
         // 对齐 TS FileWriteTool.ts L286-289: 部分读无法做内容兜底（缓存内容不是全量），直接拒绝
         if (readState.IsPartialView)
-            return (lastWriteMs, readState.TimestampMs);
+            return new StaleWriteDetection(lastWriteMs, readState.TimestampMs);
 
         // 时间戳显示已修改，但 Windows 上云同步/杀毒等会改时间戳而不改内容，比对内容兜底
         // 对齐 TS: 用检测到的编码读取文件，避免 UTF-16LE 内容比对错误
@@ -73,6 +85,6 @@ public sealed class FileStateGuardNode {
         if (currentContent == readState.Content)
             return null; // 内容未变，安全放行
 
-        return (lastWriteMs, readState.TimestampMs);
+        return new StaleWriteDetection(lastWriteMs, readState.TimestampMs);
     }
 }

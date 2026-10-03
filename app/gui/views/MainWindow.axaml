@@ -128,8 +128,7 @@
           <ToggleButton x:Name="GoalButton" Classes="activityIcon" Content="🎯" FontSize="20"
                         Command="{Binding ToggleSidePanelCommand}"
                         CommandParameter="{x:Static vm:SidePanelKind.Goal}"
-                        ToolTip.Tip="goal 控制"
-                        IsVisible="{Binding IsGoalRunning}" />
+                        ToolTip.Tip="goal 控制" />
           <ToggleButton x:Name="InterceptorButton" Classes="activityIcon" Content="🛡" FontSize="20"
                         Command="{Binding ToggleSidePanelCommand}"
                         CommandParameter="{x:Static vm:SidePanelKind.Interceptor}"

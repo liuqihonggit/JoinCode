@@ -47,6 +47,14 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
                 return;
             }
 
+            var keywordCooldownKey = $"keyword-{keywordResult.Type}";
+            if (!CooldownService.ShouldTrigger(keywordCooldownKey)) {
+                _logger?.LogDebug("[UserPromptInjection] 关键词 '{Keyword}' 在冷却期内，跳过注入", keywordResult.MatchedKeyword);
+                await next(context, ct).ConfigureAwait(false);
+                return;
+            }
+            CooldownService.RecordTrigger(keywordCooldownKey);
+
             _logger?.LogDebug("[UserPromptInjection] 检测到关键词 '{Keyword}'，类型: {Type}",
                 keywordResult.MatchedKeyword, keywordResult.Type);
 

@@ -27,6 +27,12 @@ public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePre
     /// <inheritdoc/>
     public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct) {
         if (_lspDiagnosticProvider is not null && _lspDiagnosticProvider.CheckPendingDiagnostics() is { Count: > 0 } pendingDiagnostics) {
+            if (!CooldownService.ShouldTrigger("lsp-diagnostics")) {
+                await next(context, ct).ConfigureAwait(false);
+                return;
+            }
+            CooldownService.RecordTrigger("lsp-diagnostics");
+
             var diagnosticText = FormatLspDiagnostics(pendingDiagnostics);
             context.LspDiagnosticText = diagnosticText;
 

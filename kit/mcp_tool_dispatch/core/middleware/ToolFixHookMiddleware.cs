@@ -51,6 +51,10 @@ public sealed partial class ToolFixHookMiddleware : ServiceEntity, IToolExecutio
 
             if (!fixResult.Success) return;
 
+            var fixCooldownKey = $"tool-fix-{context.ToolName}";
+            if (!CooldownService.ShouldTrigger(fixCooldownKey)) return;
+            CooldownService.RecordTrigger(fixCooldownKey);
+
             _logger.LogInformation("工具 {ToolName} 自动修正: {Description}", context.ToolName, fixResult.Description);
 
             var fixMessage = new JoinCode.Abstractions.LLM.Chat.ApiMessage(

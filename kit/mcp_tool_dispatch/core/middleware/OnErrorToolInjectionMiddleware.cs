@@ -52,6 +52,12 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
             return;
         }
 
+        var onerrorCooldownKey = $"onerror-{context.ToolName}";
+        if (!CooldownService.ShouldTrigger(onerrorCooldownKey)) {
+            return;
+        }
+        CooldownService.RecordTrigger(onerrorCooldownKey);
+
         var sb = new StringBuilder(1024);
 
         sb.AppendLine($"工具 '{context.ToolName}' 执行失败。");

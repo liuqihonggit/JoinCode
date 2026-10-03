@@ -49,6 +49,9 @@ public sealed partial class MainViewModel {
         _ = LoadPersistedSessionsAsync();
         NewConversation();
 
+        // Dock 停靠布局初始化
+        InitDockLayout();
+
         // 注册持久化路由（在 LoadPreferences 之前，加载期门控关闭不触发）
         RegisterPersistActions();
 

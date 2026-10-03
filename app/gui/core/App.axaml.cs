@@ -9,6 +9,8 @@ public sealed partial class App : Application {
         App.LogDiag("[App] Initialize begin");
         AvaloniaXamlLoader.Load(this);
         GuiAppResources.Register(this);
+        // Dock 面板 View 映射 — 把 PanelTool 映射到对应面板 View
+        DataTemplates.Add(new Views.Docking.PanelViewLocator());
         App.LogDiag("[App] Initialize end");
     }
 

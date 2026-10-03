@@ -12,6 +12,7 @@
         xmlns:edit="using:AvaloniaEdit"
         xmlns:local="using:JoinCode.Gui.Views"
         xmlns:design="using:JoinCode.Gui.Design"
+        xmlns:dock="using:Dock.Avalonia.Controls"
         x:Class="JoinCode.Gui.Views.MainWindow"
         x:Name="Root"
         d:DataContext="{x:Static design:DesignData.Sample}"
@@ -198,15 +199,8 @@
                     Command="{Binding CloseActivePanelCommand}" ToolTip.Tip="关闭面板" />
           </Grid>
         </Border>
-        <!-- 面板内容 -->
-        <Panel Grid.Row="1">
-          <local:SidebarView IsVisible="{Binding IsSessionPanelActive}" />
-          <local:FileTreePanelView IsVisible="{Binding IsFileTreePanelActive}" />
-          <local:SettingsPanelView IsVisible="{Binding IsSettingsPanelActive}" />
-          <local:GoalView IsVisible="{Binding IsGoalPanelActive}" />
-          <local:InterceptorPopupContent IsVisible="{Binding IsInterceptorPanelActive}" />
-          <local:ChatRoomView IsVisible="{Binding IsChatRoomPanelActive}" />
-        </Panel>
+        <!-- 面板内容 — Dock.Avalonia 停靠布局（可拖拽排序/浮动窗口/停靠） -->
+        <dock:DockControl Grid.Row="1" Layout="{Binding DockLayout}" />
       </Grid>
     </Border>
 

@@ -9,7 +9,8 @@
   <Border CornerRadius="10" Padding="16,12" Margin="8"
           Background="{DynamicResource GuiPopupBackground}"
           BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
-          BoxShadow="{DynamicResource GuiPopupShadow}">
+          BoxShadow="{DynamicResource GuiPopupShadow}"
+          PointerExited="OnPointerExited">
     <StackPanel Spacing="12">
       <TextBlock Text="📊 会话统计" FontSize="14" FontWeight="SemiBold"
                  Foreground="{DynamicResource GuiPrimaryText}" />

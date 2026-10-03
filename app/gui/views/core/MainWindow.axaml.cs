@@ -549,6 +549,14 @@ public sealed partial class MainWindow : Window {
         }
     }
 
+    /// <summary>Popup 面板鼠标离开时自动关闭（goal popup 等）</summary>
+    private void OnPopupPointerExited(object? sender, Avalonia.Input.PointerEventArgs e) {
+        if (_vm is null)
+            return;
+        if (_vm.IsGoalPanelOpen)
+            _vm.IsGoalPanelOpen = false;
+    }
+
     /// <summary>新消息加入时，若未上滑浏览则自动滚动到底部（G3：ScrollViewer 化）</summary>
     private void OnMessagesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) {
         if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add

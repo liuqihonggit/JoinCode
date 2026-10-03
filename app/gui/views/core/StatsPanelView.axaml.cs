@@ -7,4 +7,10 @@ namespace JoinCode.Gui.Views;
 public sealed partial class StatsPanelView : UserControl {
     /// <summary>初始化 StatsPanelView 实例</summary>
     public StatsPanelView() => InitializeComponent();
+
+    /// <summary>鼠标离开时自动关闭统计面板</summary>
+    private void OnPointerExited(object? sender, Avalonia.Input.PointerEventArgs e) {
+        if (DataContext is ViewModels.MainViewModel vm)
+            vm.IsStatsPanelOpen = false;
+    }
 }

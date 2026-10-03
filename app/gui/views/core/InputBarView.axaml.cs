@@ -133,6 +133,12 @@ public sealed partial class InputBarView : UserControl {
         }
     }
 
+    /// <summary>模型选择器 Popup 鼠标离开时自动关闭</summary>
+    private void OnModelPickerPointerExited(object? sender, Avalonia.Input.PointerEventArgs e) {
+        if (DataContext is MainViewModel vm)
+            vm.IsModelPickerOpen = false;
+    }
+
     /// <summary>从视觉树分离时处理</summary>
     protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e) {
         _slashDebounceTimer.Stop();

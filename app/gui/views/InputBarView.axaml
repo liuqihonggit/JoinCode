@@ -83,18 +83,29 @@
                      HorizontalOffset="-4" MinWidth="320">
                 <Border CornerRadius="10" Padding="8,6" Background="{DynamicResource GuiPopupBackground}"
                         BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
-                        BoxShadow="{DynamicResource GuiPopupShadow}">
+                        BoxShadow="{DynamicResource GuiPopupShadow}"
+                        PointerExited="OnModelPickerPointerExited">
                   <ScrollViewer MaxHeight="420" HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl ItemsSource="{Binding ProviderModelGroups}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:ProviderModelGroupVm">
                           <StackPanel Margin="0,0,0,8">
-                            <!-- 供应商标题行:首字母圆形图标 + 供应商名 -->
+                            <!-- 供应商标题行:SVG 图标(无图标回退首字母圆形) + 供应商名 -->
                             <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,0,0,4">
-                              <Border Width="18" Height="18" CornerRadius="9" Background="{Binding BrandColor}">
-                                <TextBlock Text="{Binding Initial}" FontSize="10" FontWeight="Bold"
-                                           Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                              </Border>
+                              <Panel Width="18" Height="18">
+                                <!-- SVG 路径图标 -->
+                                <Path Width="16" Height="16" Stretch="Uniform"
+                                      Data="{Binding IconPath}"
+                                      Fill="{Binding BrandColor}"
+                                      IsVisible="{Binding HasIcon}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <!-- 回退:首字母圆形 -->
+                                <Border Width="18" Height="18" CornerRadius="9" Background="{Binding BrandColor}"
+                                        IsVisible="{Binding !HasIcon}">
+                                  <TextBlock Text="{Binding Initial}" FontSize="10" FontWeight="Bold"
+                                             Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                              </Panel>
                               <TextBlock Text="{Binding ProviderName}" FontSize="12" FontWeight="SemiBold"
                                          Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
                             </StackPanel>

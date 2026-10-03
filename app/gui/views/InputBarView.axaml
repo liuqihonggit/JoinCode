@@ -64,7 +64,7 @@
                  BorderThickness="0" Background="Transparent" Padding="11,8,11,2"
                  TextWrapping="Wrap" />
         <!-- 动作行：模型/推理档位 | 快捷插入(右弹性) | 字符计数 | 停止+发送 -->
-        <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="7,2,7,7">
+        <Grid ColumnDefinitions="Auto,*,Auto" Margin="7,2,7,7">
           <!-- 左组：模型选择器 + 推理档位五色按钮(对齐 Codex 发送区域) -->
           <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
             <!-- 权限模式指示器 — Shift+Tab 循环切换(Plan→Auto→Ask) -->
@@ -169,26 +169,17 @@
             <Button Classes="ghost" Content="添加注释" FontSize="11" Padding="9,3" MinHeight="0"
                     Command="{Binding UseQuickPromptCommand}" CommandParameter="添加注释" />
           </WrapPanel>
-          <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0"
-                     FontSize="11" Foreground="{Binding IsInputTooLong, Converter={StaticResource BoolToWarnBrush}}"
-                     ToolTip.Tip="{Binding MaxInputChars, StringFormat='{}建议上限 {0} 字符'}">
-            <TextBlock.Text>
-              <MultiBinding StringFormat="{}{0} / {1}">
-                <Binding Path="CharsCount" />
-                <Binding Path="MaxInputChars" />
-              </MultiBinding>
-            </TextBlock.Text>
-          </TextBlock>
-          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
             <Button Classes="ghost" Content="停止" Padding="12,6" CornerRadius="8"
                     Foreground="{DynamicResource GuiWarnText}"
                     Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />
             <!-- 发送按钮 + 下拉选择发送方式（QQ 风格分裂按钮） -->
             <StackPanel Orientation="Horizontal" Spacing="0">
               <Button Classes="primary" Content="发送" Padding="16,6" CornerRadius="8,0,0,8" MinWidth="84"
+                      VerticalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                       Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
               <ToggleButton x:Name="SendModeButton" Classes="primary" Padding="4,6" CornerRadius="0,8,8,0" MinWidth="24"
-                      VerticalAlignment="Stretch" FontSize="10"
+                      VerticalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" FontSize="10"
                       Content="▼" IsEnabled="{Binding !IsBusy}"
                       IsChecked="{Binding IsSendModePopupOpen, Mode=TwoWay}" />
               <Popup IsOpen="{Binding IsSendModePopupOpen}" Placement="Top"

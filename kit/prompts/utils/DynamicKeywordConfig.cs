@@ -32,6 +32,12 @@ public sealed record DynamicKeywordSection {
     /// </summary>
     [JsonPropertyName("custom_content")]
     public string? CustomContent { get; init; }
+
+    /// <summary>
+    /// 触发正则模式列表（可选）— 对用户输入做正则匹配，作为关键词精确匹配的补充
+    /// </summary>
+    [JsonPropertyName("regexes")]
+    public List<string> Regexes { get; init; } = [];
 }
 
 /// <summary>
@@ -181,6 +187,8 @@ public static class InputTokenizer {
 /// </summary>
 public static class DynamicKeywordMatcher {
     private static readonly ConditionalWeakTable<DynamicKeywordConfig, HashSet<string>> DictionaryCache = new();
+    private static readonly ConcurrentDictionary<string, Regex?> RegexCache = new();
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(500);
 
     /// <summary>
     /// 在给定配置中匹配用户输入的关键词
@@ -218,7 +226,45 @@ public static class DynamicKeywordMatcher {
             }
         }
 
+        // 正则匹配分支（关键词精确匹配的补充）
+        foreach (var (sectionName, section) in config.Sections) {
+            if (!section.Enabled || section.Regexes.Count == 0)
+                continue;
+
+            foreach (var pattern in section.Regexes) {
+                if (string.IsNullOrEmpty(pattern))
+                    continue;
+                var regex = GetOrCompileRegex(pattern);
+                if (regex is null)
+                    continue;
+                try {
+                    if (regex.IsMatch(input)) {
+                        return new DynamicKeywordMatchResult {
+                            SectionName = sectionName,
+                            MatchedKeyword = pattern,
+                            CustomContent = section.CustomContent
+                        };
+                    }
+                } catch (RegexMatchTimeoutException) {
+                    continue;
+                }
+            }
+        }
+
         return null;
+    }
+
+    /// <summary>
+    /// 获取或编译正则 — 按 pattern 缓存，无效 pattern 返回 null
+    /// </summary>
+    private static Regex? GetOrCompileRegex(string pattern) {
+        return RegexCache.GetOrAdd(pattern, static p => {
+            try {
+                return new Regex(p, RegexOptions.None, RegexTimeout);
+            } catch (ArgumentException) {
+                return null;
+            }
+        });
     }
 
     /// <summary>

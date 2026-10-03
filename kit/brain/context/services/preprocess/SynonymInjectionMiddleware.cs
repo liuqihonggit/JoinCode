@@ -29,7 +29,13 @@ public sealed partial class SynonymInjectionMiddleware : ServiceEntity, IAnalyze
 
     /// <inheritdoc/>
     public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct) {
-        var synonymMatches = SynonymAnalyzer.Analyze(context.Message, _synonymMap);
+        var allMatches = SynonymAnalyzer.Analyze(context.Message, _synonymMap);
+        var synonymMatches = allMatches
+            .Where(m => CooldownService.ShouldTrigger($"synonym-{m.MatchedKey}"))
+            .ToList();
+        foreach (var m in synonymMatches) {
+            CooldownService.RecordTrigger($"synonym-{m.MatchedKey}");
+        }
         var synonymInjectionIds = new List<string>();
 
         foreach (var match in synonymMatches) {

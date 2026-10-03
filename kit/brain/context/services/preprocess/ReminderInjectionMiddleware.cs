@@ -26,10 +26,13 @@ public sealed partial class ReminderInjectionMiddleware : ServiceEntity, IPrepar
 
     /// <inheritdoc/>
     public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct) {
-        var idleReminders = await _toolIdleReminder.CheckAndGenerateRemindersAsync(ct).ConfigureAwait(false);
-        if (idleReminders.Count > 0) {
-            await Task.WhenAll(idleReminders.Select(ir =>
-                _reminderManager.AddReminderAsync($"tool-idle-{ir.ToolName}", ir.Message, priority: 80, ct: ct))).ConfigureAwait(false);
+        if (CooldownService.ShouldTrigger("tool-idle-reminder", TimeSpan.FromMinutes(2))) {
+            CooldownService.RecordTrigger("tool-idle-reminder");
+            var idleReminders = await _toolIdleReminder.CheckAndGenerateRemindersAsync(ct).ConfigureAwait(false);
+            if (idleReminders.Count > 0) {
+                await Task.WhenAll(idleReminders.Select(ir =>
+                    _reminderManager.AddReminderAsync($"tool-idle-{ir.ToolName}", ir.Message, priority: 80, ct: ct))).ConfigureAwait(false);
+            }
         }
 
         var reminders = await _reminderManager.FormatAsSystemRemindersAsync().ConfigureAwait(false);

@@ -71,6 +71,10 @@ public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolEx
         _scorer.UpdateSharedScores(allRecords);
 
         if (consecutiveFailuresBefore >= _monitor.Config.WarningThreshold && context.Result.IsError) {
+            var healthCooldownKey = $"health-warn-{context.ToolName}";
+            if (!CooldownService.ShouldTrigger(healthCooldownKey)) return;
+            CooldownService.RecordTrigger(healthCooldownKey);
+
             var effectiveScore = _scorer.CalculateFinalScore(context.ToolName, recordBefore?.Score ?? 0);
             _logger.LogWarning("工具 {ToolName} 连续失败{Count}次（评分{EffectiveScore}），注入提示词",
                 context.ToolName, consecutiveFailuresBefore, effectiveScore);

@@ -47,6 +47,14 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
                 return;
             }
 
+            var keywordCooldownKey = $"keyword-{keywordResult.Type}";
+            if (!CooldownService.ShouldTrigger(keywordCooldownKey)) {
+                _logger?.LogDebug("[UserPromptInjection] 关键词 '{Keyword}' 在冷却期内，跳过注入", keywordResult.MatchedKeyword);
+                await next(context, ct).ConfigureAwait(false);
+                return;
+            }
+            CooldownService.RecordTrigger(keywordCooldownKey);
+
             _logger?.LogDebug("[UserPromptInjection] 检测到关键词 '{Keyword}'，类型: {Type}",
                 keywordResult.MatchedKeyword, keywordResult.Type);
 
@@ -90,6 +98,13 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
             _logger?.LogDebug("[DynamicKeyword] Section '{Section}' 无内容，跳过注入", dynamicMatch.SectionName);
             return;
         }
+
+        var cooldownKey = $"dynamic-{dynamicMatch.SectionName}";
+        if (!CooldownService.ShouldTrigger(cooldownKey)) {
+            _logger?.LogDebug("[DynamicKeyword] Section '{Section}' 在冷却期内，跳过注入", dynamicMatch.SectionName);
+            return;
+        }
+        CooldownService.RecordTrigger(cooldownKey);
 
         var injectionId = $"dynamic-keyword-injection-{dynamicMatch.SectionName}";
         await _reminderManager.AddReminderAsync(

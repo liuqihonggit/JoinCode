@@ -101,7 +101,11 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
             }
 
             if (result.Action == PolicyAction.Warn) {
-                Logger?.LogWarning("策略警告: {RuleName} - {Reason}", rule.Name, result.Reason);
+                var warnKey = $"policy-warn-{rule.Name}";
+                if (CooldownService.ShouldTrigger(warnKey)) {
+                    CooldownService.RecordTrigger(warnKey);
+                    Logger?.LogWarning("策略警告: {RuleName} - {Reason}", rule.Name, result.Reason);
+                }
             }
         }
 

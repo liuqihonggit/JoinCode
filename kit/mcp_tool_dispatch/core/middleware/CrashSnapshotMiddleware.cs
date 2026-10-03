@@ -33,6 +33,10 @@ public sealed partial class CrashSnapshotMiddleware : ServiceEntity, IToolExecut
         await next(context, ct).ConfigureAwait(false);
 
         if (context.Result is { IsError: true }) {
+            var crashCooldownKey = $"crash-{context.ToolName}";
+            if (!CooldownService.ShouldTrigger(crashCooldownKey)) return;
+            CooldownService.RecordTrigger(crashCooldownKey);
+
             var errorMsg = context.Result.GetFirstText();
             var snapshot = new CrashSnapshot(
                 "ToolPipeline",

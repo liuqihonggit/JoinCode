@@ -33,8 +33,10 @@ public sealed partial class GitCommitConstraintHidingMiddleware : ServiceEntity,
             if (CooldownService.ShouldTrigger(ConstraintEchoKey)) {
                 CooldownService.RecordTrigger(ConstraintEchoKey);
                 context.Deny(BuildDenyReason());
-                return;
+            } else {
+                context.Deny("commit 消息疑似回显约束，已拦截（已提示过，详见历史）。请重写commit消息，只描述变更本身。");
             }
+            return;
         }
         await next(context, ct).ConfigureAwait(false);
     }

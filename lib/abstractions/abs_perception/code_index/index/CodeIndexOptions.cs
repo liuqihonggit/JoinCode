@@ -13,7 +13,7 @@ public sealed record CodeIndexOptions {
     /// <summary>获取文件匹配模式列表。</summary>
     public IEnumerable<string> FilePatterns { get; init; } = new[] { "*.cs" };
     /// <summary>获取排除模式列表。</summary>
-    public IEnumerable<string> ExcludePatterns { get; init; } = new[] { "bin/", "obj/", ".git/", ".x/" };
+    public IEnumerable<string> ExcludePatterns { get; init; } = new[] { "bin/", "obj/", ".git/", ".xxx/" };
     /// <summary>是否强制全量重建（忽略 hash 跳过）。</summary>
     public bool Force { get; init; }
 }

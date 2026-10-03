@@ -183,8 +183,41 @@
             <Button Classes="ghost" Content="停止" Padding="12,6" CornerRadius="8"
                     Foreground="{DynamicResource GuiWarnText}"
                     Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />
-            <Button Classes="primary" Content="发送" Padding="16,6" CornerRadius="8" MinWidth="84"
-                    Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
+            <!-- 发送按钮 + 下拉选择发送方式（QQ 风格） -->
+            <Panel>
+              <Button Classes="primary" Content="发送" Padding="16,6" CornerRadius="8" MinWidth="84"
+                      Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
+              <ToggleButton x:Name="SendModeButton" Classes="primary" Padding="4,6" CornerRadius="0,8,8,0" MinWidth="20"
+                      VerticalAlignment="Stretch" FontSize="10"
+                      Content="▼" IsEnabled="{Binding !IsBusy}"
+                      IsChecked="{Binding IsSendModePopupOpen, Mode=TwoWay}" />
+              <Popup IsOpen="{Binding IsSendModePopupOpen}" Placement="Top"
+                     PlacementTarget="{Binding #SendModeButton}" VerticalOffset="4" MinWidth="180">
+                <Border CornerRadius="8" Padding="6" Background="{DynamicResource GuiPopupBackground}"
+                        BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+                        BoxShadow="{DynamicResource GuiPopupShadow}"
+                        PointerExited="OnSendModePopupPointerExited">
+                  <StackPanel Spacing="2">
+                    <Button Classes="ghost" HorizontalAlignment="Stretch" Padding="10,6" MinHeight="0"
+                            Command="{Binding SetSendModeCommand}" CommandParameter="True"
+                            FontSize="12">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="✓" FontSize="11" IsVisible="{Binding EnterSends}" Foreground="{DynamicResource GuiAccentText}" />
+                        <TextBlock Text="Enter 发送" FontSize="12" />
+                      </StackPanel>
+                    </Button>
+                    <Button Classes="ghost" HorizontalAlignment="Stretch" Padding="10,6" MinHeight="0"
+                            Command="{Binding SetSendModeCommand}" CommandParameter="False"
+                            FontSize="12">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="✓" FontSize="11" IsVisible="{Binding !EnterSends}" Foreground="{DynamicResource GuiAccentText}" />
+                        <TextBlock Text="Ctrl+Enter 发送" FontSize="12" />
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
+                </Border>
+              </Popup>
+            </Panel>
           </StackPanel>
         </Grid>
       </StackPanel>

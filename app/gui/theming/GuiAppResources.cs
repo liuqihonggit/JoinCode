@@ -15,6 +15,8 @@ public static class GuiAppResources {
     public static void Register(Application app) {
         _fluentTheme = new FluentTheme();
         app.Styles.Add(_fluentTheme);
+        // Dock.Avalonia 停靠布局主题（必须在 FluentTheme 之后）
+        app.Styles.Add(new Dock.Avalonia.Themes.Fluent.DockFluentTheme());
         // 共享控件样式（设计语言单一数据源）：必须在 FluentTheme 之后追加以覆盖默认外观
         app.Styles.Add(new GuiControlStyles());
         app.Resources["GuiMonoFont"] = new Avalonia.Media.FontFamily("Consolas,Cascadia Mono,Menlo,monospace");

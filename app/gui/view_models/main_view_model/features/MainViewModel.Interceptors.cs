@@ -6,10 +6,6 @@ namespace JoinCode.Gui.ViewModels;
 /// （双变量原子切换，立即生效）。AI 调用被拦截的工具时由 ToolHealthScoringMiddleware 拒绝。
 /// </summary>
 public sealed partial class MainViewModel {
-    /// <summary>拦截器面板是否展开</summary>
-    [ObservableProperty]
-    private bool _isInterceptorPanelOpen;
-
     /// <summary>git_commit 拦截开关 — 开启时 AI 调用 git_commit 工具被拒绝</summary>
     [ObservableProperty]
     private bool _blockGitCommit;
@@ -96,10 +92,6 @@ public sealed partial class MainViewModel {
         _session.UpdateToolBlacklist(blacklist);
     }
 
-    /// <summary>展开/收拢拦截器面板</summary>
-    [RelayCommand]
-    private void ToggleInterceptorPanel() => IsInterceptorPanelOpen = !IsInterceptorPanelOpen;
-
     /// <summary>快速提示词标签列表 — 点击填充到输入框（不直接发送）</summary>
     public IReadOnlyList<string> QuickPrompts { get; } =
     [
@@ -135,17 +127,9 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private bool _isGoalRunning;
 
-    /// <summary>goal 控制面板是否展开</summary>
-    [ObservableProperty]
-    private bool _isGoalPanelOpen;
-
     /// <summary>goal 进度文本（如 "2/5 · explorer"）— 驱动 TopBar goal 按钮进度显示</summary>
     [ObservableProperty]
     private string _goalProgressText = string.Empty;
-
-    /// <summary>展开/收拢 goal 控制面板</summary>
-    [RelayCommand]
-    private void ToggleGoalPanel() => IsGoalPanelOpen = !IsGoalPanelOpen;
 
     /// <summary>刷新 goal 进度文本 — 从 IJccChatSession.GetGoalProgressAsync 拉取</summary>
     public async Task RefreshGoalProgressAsync() {
@@ -168,7 +152,8 @@ public sealed partial class MainViewModel {
     [RelayCommand]
     private async Task StopGoalAsync() {
         IsGoalRunning = false;
-        IsGoalPanelOpen = false;
+        if (ActiveSidePanel == SidePanelKind.Goal)
+            ActiveSidePanel = SidePanelKind.None;
         await _session.ExecuteSlashCommandAsync("/goal clear");
         StatusText = "goal 已停止";
     }

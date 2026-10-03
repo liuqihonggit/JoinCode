@@ -20,8 +20,8 @@
         Background="{DynamicResource GuiWindowBackground}"
         Title="JoinCode · AI 编程工作区">
   <Window.KeyBindings>
-    <KeyBinding Gesture="Ctrl+I" Command="{Binding ToggleInterceptorPanelCommand}" />
-    <KeyBinding Gesture="Ctrl+G" Command="{Binding ToggleGoalPanelCommand}" />
+    <KeyBinding Gesture="Ctrl+I" Command="{Binding ToggleSidePanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Interceptor}" />
+    <KeyBinding Gesture="Ctrl+G" Command="{Binding ToggleSidePanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Goal}" />
     <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding StopGoalCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding OpenCommandPaletteCommand}" />
     <KeyBinding Gesture="Ctrl+P" Command="{Binding OpenQuickOpenCommand}" />
@@ -123,16 +123,22 @@
                         Command="{Binding ToggleEditorViewCommand}"
                         ToolTip.Tip="代码编辑器" />
         </StackPanel>
-        <!-- 中部组：功能按钮(带 Popup) -->
+        <!-- 中部组：功能面板(从左侧 SideBar 弹出) -->
         <StackPanel Grid.Row="1" Spacing="4" HorizontalAlignment="Center">
-          <Button x:Name="GoalButton" Classes="activityIcon" Content="🎯" FontSize="20"
-                  Command="{Binding ToggleGoalPanelCommand}" ToolTip.Tip="goal 控制"
-                  IsVisible="{Binding IsGoalRunning}" />
-          <Button x:Name="InterceptorButton" Classes="activityIcon" Content="🛡" FontSize="20"
-                  Command="{Binding ToggleInterceptorPanelCommand}" ToolTip.Tip="AI 工具拦截器" />
-          <Button x:Name="ChatRoomButton" Classes="activityIcon" Content="👥" FontSize="20"
-                  Command="{Binding ToggleChatRoomPanelCommand}" ToolTip.Tip="聊天室"
-                  IsVisible="{Binding ChatRoomEnabled}" />
+          <ToggleButton x:Name="GoalButton" Classes="activityIcon" Content="🎯" FontSize="20"
+                        Command="{Binding ToggleSidePanelCommand}"
+                        CommandParameter="{x:Static vm:SidePanelKind.Goal}"
+                        ToolTip.Tip="goal 控制"
+                        IsVisible="{Binding IsGoalRunning}" />
+          <ToggleButton x:Name="InterceptorButton" Classes="activityIcon" Content="🛡" FontSize="20"
+                        Command="{Binding ToggleSidePanelCommand}"
+                        CommandParameter="{x:Static vm:SidePanelKind.Interceptor}"
+                        ToolTip.Tip="AI 工具拦截器" />
+          <ToggleButton x:Name="ChatRoomButton" Classes="activityIcon" Content="👥" FontSize="20"
+                        Command="{Binding ToggleSidePanelCommand}"
+                        CommandParameter="{x:Static vm:SidePanelKind.ChatRoom}"
+                        ToolTip.Tip="聊天室"
+                        IsVisible="{Binding ChatRoomEnabled}" />
         </StackPanel>
         <StackPanel Grid.Row="2" Spacing="4" Margin="0,0,0,8" HorizontalAlignment="Center">
           <Button Classes="activityIcon" FontSize="20"
@@ -142,8 +148,9 @@
               <TextBlock Text="☀️" FontSize="20" IsVisible="{Binding !IsDarkTheme}" />
             </Panel>
           </Button>
-          <ToggleButton Classes="activityIcon" Content="⚙" FontSize="20"
-                        IsChecked="{Binding IsSettingsPanelOpen, Mode=TwoWay}"
+          <ToggleButton x:Name="SettingsButton" Classes="activityIcon" Content="⚙" FontSize="20"
+                        Command="{Binding ToggleSidePanelCommand}"
+                        CommandParameter="{x:Static vm:SidePanelKind.Settings}"
                         ToolTip.Tip="设置" />
           <ToggleButton Classes="activityIcon" Content="⇥" FontSize="20"
                         IsChecked="{Binding IsSecondarySideBarOpen, Mode=TwoWay}"
@@ -153,33 +160,6 @@
                   Command="{Binding ToggleLanguageCommand}"
                   ToolTip.Tip="中/En 切换语言" />
         </StackPanel>
-        <!-- goal Popup -->
-        <Popup IsOpen="{Binding IsGoalPanelOpen}" Placement="Right"
-               PlacementTarget="{Binding #GoalButton}" HorizontalOffset="4">
-          <Border CornerRadius="10" Padding="14,10" Width="300"
-                  Background="{DynamicResource GuiPopupBackground}"
-                  BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
-                  PointerExited="OnPopupPointerExited">
-            <StackPanel Spacing="8">
-              <TextBlock Text="🎯 goal 进行中" FontSize="13" FontWeight="SemiBold"
-                         Foreground="{DynamicResource GuiPrimaryText}" />
-              <TextBlock Text="停止时引擎自动注入再三确认提示词（a→b→c）" FontSize="10.5"
-                         Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
-              <Button Classes="ghost" Content="停止 goal" HorizontalAlignment="Stretch"
-                      Command="{Binding StopGoalCommand}" />
-            </StackPanel>
-          </Border>
-        </Popup>
-        <!-- AI 拦截器 Popup -->
-        <Popup IsOpen="{Binding IsInterceptorPanelOpen}" Placement="Right"
-               PlacementTarget="{Binding #InterceptorButton}" HorizontalOffset="4">
-          <local:InterceptorPopupContent />
-        </Popup>
-        <!-- 聊天室 Popup -->
-        <Popup IsOpen="{Binding IsChatRoomPanelOpen}" Placement="Right"
-               PlacementTarget="{Binding #ChatRoomButton}" HorizontalOffset="4">
-          <local:ChatRoomView />
-        </Popup>
       </Grid>
     </Border>
 
@@ -196,6 +176,10 @@
       <Panel>
         <local:SidebarView IsVisible="{Binding IsSessionPanelActive}" />
         <local:FileTreePanelView IsVisible="{Binding IsFileTreePanelActive}" />
+        <local:SettingsPanelView IsVisible="{Binding IsSettingsPanelActive}" />
+        <local:GoalView IsVisible="{Binding IsGoalPanelActive}" />
+        <local:InterceptorPopupContent IsVisible="{Binding IsInterceptorPanelActive}" />
+        <local:ChatRoomView IsVisible="{Binding IsChatRoomPanelActive}" />
       </Panel>
     </Border>
 
@@ -497,15 +481,6 @@
                   Foreground="{DynamicResource GuiPrimaryText}"
                   Command="{Binding ScrollToBottomCommand}" />
         </Grid>
-
-        <!-- Column 1：设置面板 -->
-        <Border Grid.Column="1" Classes="settingsDrawer" Width="{Binding SettingsPanelWidth}"
-                ClipToBounds="True" IsHitTestVisible="{Binding IsSettingsPanelOpen}">
-          <Border.Transitions>
-            <Transitions><DoubleTransition Property="Width" Duration="{DynamicResource GuiMotionDuration}" /></Transitions>
-          </Border.Transitions>
-          <local:SettingsPanelView HorizontalAlignment="Left" ClipToBounds="True" />
-        </Border>
       </Grid>
       <local:EditorPanelView IsVisible="{Binding IsEditorViewActive}" />
       </Panel>

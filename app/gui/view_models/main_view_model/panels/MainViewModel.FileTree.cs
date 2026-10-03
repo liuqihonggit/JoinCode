@@ -9,7 +9,15 @@ public enum SidePanelKind {
     /// <summary>会话列表面板</summary>
     Sessions,
     /// <summary>目录树面板</summary>
-    FileTree
+    FileTree,
+    /// <summary>设置面板</summary>
+    Settings,
+    /// <summary>goal 控制面板</summary>
+    Goal,
+    /// <summary>AI 工具拦截器面板</summary>
+    Interceptor,
+    /// <summary>聊天室面板</summary>
+    ChatRoom
 }
 
 /// <summary>
@@ -28,6 +36,10 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSessionPanelActive))]
     [NotifyPropertyChangedFor(nameof(IsFileTreePanelActive))]
+    [NotifyPropertyChangedFor(nameof(IsSettingsPanelActive))]
+    [NotifyPropertyChangedFor(nameof(IsGoalPanelActive))]
+    [NotifyPropertyChangedFor(nameof(IsInterceptorPanelActive))]
+    [NotifyPropertyChangedFor(nameof(IsChatRoomPanelActive))]
     [NotifyPropertyChangedFor(nameof(IsSidePanelExpanded))]
     private SidePanelKind _activeSidePanel = SidePanelKind.Sessions;
 
@@ -40,6 +52,18 @@ public sealed partial class MainViewModel {
 
     /// <summary>目录树面板是否激活(图标高亮)</summary>
     public bool IsFileTreePanelActive => ActiveSidePanel == SidePanelKind.FileTree;
+
+    /// <summary>设置面板是否激活(图标高亮)</summary>
+    public bool IsSettingsPanelActive => ActiveSidePanel == SidePanelKind.Settings;
+
+    /// <summary>goal 面板是否激活(图标高亮)</summary>
+    public bool IsGoalPanelActive => ActiveSidePanel == SidePanelKind.Goal;
+
+    /// <summary>拦截器面板是否激活(图标高亮)</summary>
+    public bool IsInterceptorPanelActive => ActiveSidePanel == SidePanelKind.Interceptor;
+
+    /// <summary>聊天室面板是否激活(图标高亮)</summary>
+    public bool IsChatRoomPanelActive => ActiveSidePanel == SidePanelKind.ChatRoom;
 
     /// <summary>侧边面板是否展开</summary>
     public bool IsSidePanelExpanded => ActiveSidePanel != SidePanelKind.None;
@@ -65,7 +89,7 @@ public sealed partial class MainViewModel {
     public bool IsSecondarySessions => SecondarySidePanelKind == SidePanelKind.Sessions;
 
     /// <summary>切换侧边面板 — 点击当前已激活的面板收起,点击另一个面板切换。
-    /// 互斥规则：展开 Side Bar 面板时,主区切回消息区(编辑器消失),实现 Activity Bar 图标互斥。</summary>
+    /// SideBar 面板与主区独立,不互斥(参考 VSCode)。</summary>
     [RelayCommand]
     private void ToggleSidePanel(SidePanelKind? kind) {
         if (kind is null)
@@ -77,7 +101,6 @@ public sealed partial class MainViewModel {
             ActiveSidePanel = kind.Value;
             if (SidePanelWidth < SidePanelSnapCollapseThreshold)
                 SidePanelWidth = SidePanelDefaultWidth;
-            ActiveMainArea = MainAreaKind.Messages;
         }
     }
 

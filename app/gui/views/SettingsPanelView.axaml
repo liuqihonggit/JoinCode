@@ -41,7 +41,7 @@
                        Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
           </StackPanel>
           <Button Classes="ghost" Grid.Column="1" Content="✕" FontSize="11" Padding="6,3" MinHeight="0"
-                  Command="{Binding ToggleSettingsPanelCommand}" ToolTip.Tip="收起设置面板" />
+                  Command="{Binding ToggleSidePanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Settings}" ToolTip.Tip="收起设置面板" />
         </Grid>
 
         <Border Classes="settingsCard">

@@ -301,6 +301,10 @@ public sealed partial class MainWindow : Window {
         SessionBtn.IsChecked = _vm.IsSessionPanelActive;
         FileTreeBtn.IsChecked = _vm.IsFileTreePanelActive;
         EditorBtn.IsChecked = _vm.IsEditorViewActive;
+        SettingsButton.IsChecked = _vm.IsSettingsPanelActive;
+        GoalButton.IsChecked = _vm.IsGoalPanelActive;
+        InterceptorButton.IsChecked = _vm.IsInterceptorPanelActive;
+        ChatRoomButton.IsChecked = _vm.IsChatRoomPanelActive;
     }
 
     /// <summary>窗口居中屏幕 — 在打开时固定到屏幕中间</summary>
@@ -434,9 +438,9 @@ public sealed partial class MainWindow : Window {
             if (_vm.IsZenMode) {
                 e.Handled = true;
                 _vm.ToggleZenModeCommand.Execute(null);
-            } else if (_vm.IsSettingsPanelOpen) {
+            } else if (_vm.IsSettingsPanelActive) {
                 e.Handled = true;
-                _vm.ToggleSettingsPanelCommand.Execute(null);
+                _vm.ToggleSidePanelCommand.Execute(SidePanelKind.Settings);
             } else if (_vm.CanStop) {
                 e.Handled = true;
                 _vm.StopGeneratingCommand.Execute(null);
@@ -459,6 +463,10 @@ public sealed partial class MainWindow : Window {
             GuiAppResources.ApplyTheme(_vm.CurrentTheme);
         } else if (e.PropertyName is nameof(MainViewModel.IsSessionPanelActive)
                                      or nameof(MainViewModel.IsFileTreePanelActive)
+                                     or nameof(MainViewModel.IsSettingsPanelActive)
+                                     or nameof(MainViewModel.IsGoalPanelActive)
+                                     or nameof(MainViewModel.IsInterceptorPanelActive)
+                                     or nameof(MainViewModel.IsChatRoomPanelActive)
                                      or nameof(MainViewModel.IsEditorViewActive)) {
             SyncActivityBarButtons();
         } else if (e.PropertyName == nameof(MainViewModel.PrimarySideBarPosition)) {
@@ -581,14 +589,6 @@ public sealed partial class MainWindow : Window {
             else
                 _errorToastTimer.Start();
         }
-    }
-
-    /// <summary>Popup 面板鼠标离开时自动关闭（goal popup 等）</summary>
-    private void OnPopupPointerExited(object? sender, Avalonia.Input.PointerEventArgs e) {
-        if (_vm is null)
-            return;
-        if (_vm.IsGoalPanelOpen)
-            _vm.IsGoalPanelOpen = false;
     }
 
     /// <summary>新消息加入时，若未上滑浏览则自动滚动到底部（G3：ScrollViewer 化）</summary>

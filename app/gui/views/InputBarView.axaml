@@ -9,11 +9,19 @@
              x:Name="InputBarRoot"
              x:DataType="vm:MainViewModel">
   <UserControl.Styles>
-    <!-- 输入框聚焦时不显示蓝色边框/背景变化(覆盖全局 TextBox:focus 样式) -->
+    <!-- 输入框 hover/focus 时均无色变(覆盖 Avalonia 默认主题 + 全局 TextBox:focus) -->
+    <Style Selector="TextBox.noFocusRing:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
     <Style Selector="TextBox.noFocusRing:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderBrush" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.noFocusRing:pointerover">
       <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
     </Style>
     <Style Selector="TextBox.noFocusRing:focus">
       <Setter Property="Background" Value="Transparent" />

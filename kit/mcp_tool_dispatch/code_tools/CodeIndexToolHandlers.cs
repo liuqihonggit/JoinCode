@@ -719,7 +719,7 @@ public sealed class CodeIndexToolHandlers {
                 Namespace = namespace_filter,
                 SymbolKind = symbol_kind
             };
-            var oversampleK = Math.Max(top_k * 3, top_k + 10);
+            var oversampleK = Math.Max(top_k * 5, top_k + 20);
             var rawResults = await _indexer.SearchSemanticAsync(query, oversampleK, cancellationToken, options).ConfigureAwait(false);
             var expanded = include_graph
                 ? await ExpandByGraphAsync(rawResults, top_k, cancellationToken).ConfigureAwait(false)

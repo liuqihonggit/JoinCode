@@ -54,12 +54,12 @@ public static class SemanticSearchReranker {
     }
 
     /// <summary>
-    /// 多信号重排序分数 = 向量余弦(0.5) + 关键词重叠(0.3) + 符号名匹配(0.2)。
+    /// 多信号重排序分数 = 向量余弦(0.4) + 关键词重叠(0.3) + 符号名匹配(0.3)。
     /// </summary>
     private static float ComputeRerankScore(ChunkSearchResult candidate, FrozenSet<string> queryTerms) {
-        const float VectorWeight = 0.5f;
+        const float VectorWeight = 0.4f;
         const float KeywordWeight = 0.3f;
-        const float SymbolWeight = 0.2f;
+        const float SymbolWeight = 0.3f;
 
         var vectorScore = candidate.Score;
 

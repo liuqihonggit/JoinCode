@@ -135,7 +135,7 @@ class McpStdioClient:
 
 def main():
     parser = argparse.ArgumentParser(description="题库验证召回率")
-    parser.add_argument("--count", type=int, default=50, help="测试用例数（默认50）")
+    parser.add_argument("--count", type=int, default=100, help="测试用例数（默认100）")
     parser.add_argument("--workspace", type=str, default="D:/project/w2", help="工作区根目录")
     parser.add_argument("--seed", type=int, default=42, help="随机种子（默认42，可复现）")
     parser.add_argument("--mode", type=str, default="hybrid", help="检索模式（默认hybrid）")

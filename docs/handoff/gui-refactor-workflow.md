@@ -156,6 +156,75 @@ var delta = _resizeStartY - e.GetPosition(null).Y;  // 向上拖 = 正 = 增大
 - `OnWindowClosed` 调 `SaveWindowBounds()`
 - `SavePreferencesAsync` 改为**先 Load 再更新**，避免覆盖窗口尺寸字段为 0
 
+### 6. 输入框 hover/focus 无色变
+
+Avalonia 默认主题在 `:pointerover` 和 `:focus` 时改变 TextBox 模板内部 Border 的 Background/BorderBrush。需用 4 个样式覆盖：
+
+```xml
+<!-- /template/ 穿透到 TextBox 内部 Border#PART_BorderElement -->
+<Style Selector="TextBox.noFocusRing:pointerover /template/ Border#PART_BorderElement">
+  <Setter Property="Background" Value="Transparent" />
+  <Setter Property="BorderBrush" Value="Transparent" />
+</Style>
+<Style Selector="TextBox.noFocusRing:focus /template/ Border#PART_BorderElement">
+  <Setter Property="Background" Value="Transparent" />
+  <Setter Property="BorderBrush" Value="Transparent" />
+  <Setter Property="BorderThickness" Value="0" />
+</Style>
+<!-- TextBox 本身也要覆盖 -->
+<Style Selector="TextBox.noFocusRing:pointerover"> ...
+<Style Selector="TextBox.noFocusRing:focus"> ...
+```
+
+**关键**：局部样式（UserControl.Styles）优先于全局样式（GuiControlStyles.axaml），但必须同时覆盖 `/template/` 内部和控件本身两层。
+
+### 7. Popup 不置顶（不挡其他进程窗口）
+
+```xml
+<Popup Topmost="False" ... />
+```
+
+默认 Popup 的 Topmost=true 会浮在所有窗口之上（包括其他进程）。设 `Topmost="False"` 使其仅高于本窗口。
+
+### 8. Ctrl+滚轮缩放 + 双击中键重置
+
+```csharp
+// Ctrl+滚轮放大缩小字体
+private void OnLogPointerWheel(object? sender, PointerWheelEventArgs e) {
+    if ((e.KeyModifiers & KeyModifiers.Control) != 0) {
+        e.Handled = true;
+        if (e.Delta.Y > 0) vm.EnlargeLogFontCommand.Execute(null);
+        else vm.ShrinkLogFontCommand.Execute(null);
+    }
+}
+
+// 双击中键重置（用 ClickCount >= 2 + IsMiddleButtonPressed）
+private void OnLogPointerPressed(object? sender, PointerPressedEventArgs e) {
+    var point = e.GetCurrentPoint(null);
+    if (point.Properties.IsMiddleButtonPressed && e.ClickCount >= 2) {
+        e.Handled = true;
+        vm.StatusLogFontSize = 10;
+    }
+}
+```
+
+**注意**：Avalonia 的 `PointerPressedEventArgs` 没有 `InitialMouseButton` 属性，用 `e.GetCurrentPoint(null).Properties.IsMiddleButtonPressed` 检测中键。
+
+### 9. Mock 作为供应商（非工具栏按钮）
+
+- `RefreshProviderModelGroups()` 末尾追加 Mock 条目
+- **只赋值一次** `ProviderModelGroups = groups`（先加完 Mock 再赋值，避免引用不变不触发 PropertyChanged）
+- `SelectModelFromPopupAsync` 检查 `providerId == "mock"` 时调 `ToggleMockCommand`
+
+### 10. async void 分析器禁令
+
+JCC3005 分析器禁止 async void 方法（UI 事件处理器也报错）。拆分模式：
+
+```csharp
+private void OnSaveMarkdown(object? sender, RoutedEventArgs e) => _ = SaveMarkdownAsync();
+private async Task SaveMarkdownAsync() { ... }
+```
+
 ---
 
 ## 四、本次重构完成的内容
@@ -173,6 +242,10 @@ var delta = _resizeStartY - e.GetPosition(null).Y;  // 向上拖 = 正 = 增大
 | 9 | 去掉输入框聚焦蓝色边框 | 95fc626f0 |
 | 10 | 悬浮系统日志面板（▲向上展开+可复制+对齐状态条） | 4dc33ded6 |
 | 11 | GUI 默认尺寸改小 + 窗口尺寸/位置持久化 | a6040549d |
+| 12 | 删顶部StatusText + 状态变化自动写入日志 + 背景色统一 | 848c2a685 |
+| 13 | hover/focus 均无色变 + 日志倒序 + 统计/复制/Markdown移到工具栏 | ab72dec6b |
+| 14 | Mock 从工具栏移除，作为供应商出现在模型选择器列表 | 1082732f3 |
+| 15 | 日志面板全屏+字体缩放+Ctrl滚轮+双击中键重置+Topmost=False+默认展开3条 | 1ba13ff2b |
 
 ---
 
@@ -215,7 +288,37 @@ GUI 进程锁 DLL，不杀掉编译会失败。
 
 ## 六、后续可扩展方向
 
-1. **日志数据源丰富** — 当前只在权限/模型切换时追加日志，可在更多操作处加 `AddStatusLog()`
-2. **输入框高度持久化** — InputAreaHeight 保存到 gui-preferences.json
-3. **日志面板宽度自适应** — 当前绑定状态条宽度，可改为可拖拽调节
-4. **状态条 MarqueeText 滚动** — 当前静态显示，可加滚动动画（StatusBarView 有 MarqueeTextBlock 组件可复用）
+1. **维修主题（Mock 专属）** — 橙色+黑色斜线警示纹主题，Mock 引擎激活时自动切换
+2. **Ctrl+滚轮缩放推广到全局** — 当前仅日志面板，可推广到消息区/编辑器
+3. **输入框高度持久化** — InputAreaHeight 保存到 gui-preferences.json
+4. **日志面板宽度可拖拽** — 当前绑定状态条宽度，可改为可拖拽调节
+5. **状态条 MarqueeText 滚动** — 当前静态显示，可加滚动动画（MarqueeTextBlock 可复用）
+6. **日志数据源丰富** — OnStatusTextChanged 已自动写入，可在更多操作处显式调 AddStatusLog()
+
+---
+
+## 七、当前 InputBarView 布局结构
+
+```
+┌──────────────────────────────────────────┐
+│ 系统状态文字 · MarqueeText        ▲/▼  │  Row 0: 状态条(可拖拽调高+展开日志)
+├──────────────────────────────────────────┤
+│ [🟢][🎭][🧠][⚡][📊]        [⧉][↓]    │  Row 1: 工具栏(左:功能图标 右:复制/Markdown)
+├──────────────────────────────────────────┤
+│                                          │
+│  输入消息，Ctrl+Enter 发送 / Enter 换行…  │  Row 2: 输入框(Height绑定InputAreaHeight)
+│                                          │
+├──────────────────────────────────────────┤
+│                           [停止] [发送▼] │  Row 3: 发送区(右下角)
+└──────────────────────────────────────────┘
+```
+
+**日志面板展开后（向上悬浮）**：
+```
+┌──────────────────────────────────────────┐
+│ 系统日志              A+ A- ⤢/⤡        │  标题行(全屏+字体按钮)
+│ [10:30:15] 权限模式 → Ask               │  SelectableTextBlock(可复制)
+│ [10:30:20] 模型 → deepseek/chat         │  Ctrl+滚轮缩放字体
+│ [10:30:25] 就绪                         │  双击中键重置字体
+└──────────────────────────────────────────┘
+```

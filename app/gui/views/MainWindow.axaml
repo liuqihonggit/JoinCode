@@ -73,6 +73,8 @@
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="FontFamily" Value="Segoe UI Emoji, Segoe UI Symbol, Inter" />
+      <Setter Property="FontSize" Value="20" />
     </Style>
     <Style Selector="Button.activityIcon:pointerover, ToggleButton.activityIcon:pointerover">
       <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />

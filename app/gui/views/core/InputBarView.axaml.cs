@@ -198,6 +198,29 @@ public sealed partial class InputBarView : UserControl {
         base.OnDetachedFromVisualTree(e);
     }
 
+    /// <summary>Ctrl+滚轮=放大缩小日志字体,普通滚轮=滚动</summary>
+    private void OnLogPointerWheel(object? sender, Avalonia.Input.PointerWheelEventArgs e) {
+        if (DataContext is not MainViewModel vm)
+            return;
+        if ((e.KeyModifiers & KeyModifiers.Control) != 0) {
+            e.Handled = true;
+            if (e.Delta.Y > 0)
+                vm.EnlargeLogFontCommand.Execute(null);
+            else if (e.Delta.Y < 0)
+                vm.ShrinkLogFontCommand.Execute(null);
+        }
+    }
+
+    /// <summary>鼠标中键双击=重置日志字体到默认10</summary>
+    private void OnLogPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e) {
+        var point = e.GetCurrentPoint(null);
+        if (point.Properties.IsMiddleButtonPressed && e.ClickCount >= 2) {
+            e.Handled = true;
+            if (DataContext is MainViewModel vm)
+                vm.StatusLogFontSize = 10;
+        }
+    }
+
     /// <summary>保存会话为 Markdown — 通过 StorageProvider 弹出保存对话框</summary>
     private void OnSaveMarkdown(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => _ = SaveMarkdownAsync();
 

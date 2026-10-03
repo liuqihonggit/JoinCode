@@ -3,6 +3,8 @@ namespace Core.Tests;
 public class FileStateGuardNodeTests {
     private readonly IFileSystem _fs = TestFileSystem.Current;
 
+    // === HasBeenRead ===
+
     [Fact]
     public void HasBeenRead_NullCache_ReturnsTrue() {
         var node = new FileStateGuardNode(_fs);
@@ -23,10 +25,10 @@ public class FileStateGuardNodeTests {
     }
 
     [Fact]
-    public void HasBeenRead_FileExistsInCache_ReturnsTrue() {
+    public void HasBeenRead_FullRead_ReturnsTrue() {
         var filePath = CreateFile("test");
         var cache = new Mock<IFileStateCache>();
-        cache.Setup(c => c.HasBeenRead(filePath)).Returns(true);
+        cache.Setup(c => c.GetReadState(filePath)).Returns(FullReadState("test", 0));
         var node = new FileStateGuardNode(_fs, cache.Object);
 
         var result = node.HasBeenRead(filePath);
@@ -35,16 +37,33 @@ public class FileStateGuardNodeTests {
     }
 
     [Fact]
-    public void HasBeenRead_FileExistsNotInCache_ReturnsFalse() {
+    public void HasBeenRead_NotInCache_ReturnsFalse() {
         var filePath = CreateFile("test");
         var cache = new Mock<IFileStateCache>();
-        cache.Setup(c => c.HasBeenRead(filePath)).Returns(false);
+        cache.Setup(c => c.GetReadState(filePath)).Returns((FileReadState?)null);
         var node = new FileStateGuardNode(_fs, cache.Object);
 
         var result = node.HasBeenRead(filePath);
 
         Assert.False(result);
     }
+
+    /// <summary>
+    /// 部分读（isPartialView）视为未读，对齐 TS FileWriteTool.ts L199 / FileEditTool.ts L276。
+    /// </summary>
+    [Fact]
+    public void HasBeenRead_PartialRead_ReturnsFalse() {
+        var filePath = CreateFile("test");
+        var cache = new Mock<IFileStateCache>();
+        cache.Setup(c => c.GetReadState(filePath)).Returns(PartialReadState("partial", 0));
+        var node = new FileStateGuardNode(_fs, cache.Object);
+
+        var result = node.HasBeenRead(filePath);
+
+        Assert.False(result);
+    }
+
+    // === CheckStaleWriteAsync 短路 ===
 
     [Fact]
     public async Task CheckStaleWriteAsync_NullCache_ReturnsNull() {
@@ -78,8 +97,7 @@ public class FileStateGuardNodeTests {
         var lastWriteMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(filePath)).ToUnixTimeMilliseconds();
 
         var cache = new Mock<IFileStateCache>();
-        cache.Setup(c => c.GetReadTimestampMs(filePath)).Returns(lastWriteMs - 10_000);
-        cache.Setup(c => c.GetReadContent(filePath)).Returns(content);
+        cache.Setup(c => c.GetReadState(filePath)).Returns(FullReadState(content, lastWriteMs - 10_000));
         var node = new FileStateGuardNode(_fs, cache.Object);
 
         var result = await node.CheckStaleWriteAsync(filePath, CancellationToken.None);
@@ -98,8 +116,7 @@ public class FileStateGuardNodeTests {
         var lastWriteMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(filePath)).ToUnixTimeMilliseconds();
 
         var cache = new Mock<IFileStateCache>();
-        cache.Setup(c => c.GetReadTimestampMs(filePath)).Returns(lastWriteMs - 10_000);
-        cache.Setup(c => c.GetReadContent(filePath)).Returns(readContent);
+        cache.Setup(c => c.GetReadState(filePath)).Returns(FullReadState(readContent, lastWriteMs - 10_000));
         var node = new FileStateGuardNode(_fs, cache.Object);
 
         var result = await node.CheckStaleWriteAsync(filePath, CancellationToken.None);
@@ -119,7 +136,7 @@ public class FileStateGuardNodeTests {
         var lastWriteMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(filePath)).ToUnixTimeMilliseconds();
 
         var cache = new Mock<IFileStateCache>();
-        cache.Setup(c => c.GetReadTimestampMs(filePath)).Returns(lastWriteMs);
+        cache.Setup(c => c.GetReadState(filePath)).Returns(FullReadState(content, lastWriteMs));
         var node = new FileStateGuardNode(_fs, cache.Object);
 
         var result = await node.CheckStaleWriteAsync(filePath, CancellationToken.None);
@@ -130,19 +147,18 @@ public class FileStateGuardNodeTests {
     // === 边缘场景 ===
 
     /// <summary>
-    /// 边缘场景：AI 只读了文件部分视图（offset/limit），rebase 后全量内容与部分内容比对不等 → 拒绝。
-    /// 保守安全策略：部分读无法确认全量未变，强制重读。rebase 内容没变也会误拒，但安全优先。
+    /// 边缘场景：部分读 + 时间戳变 → 直接拒绝，不进内容兜底。
+    /// 对齐 TS FileWriteTool.ts L286-289: 部分读缓存内容不是全量，无法比对，保守拒绝。
     /// </summary>
     [Fact]
-    public async Task CheckStaleWriteAsync_PartialRead_ContentMismatch_ReturnsStale() {
+    public async Task CheckStaleWriteAsync_PartialRead_TimestampNewer_ReturnsStale() {
         const string fullContent = "line1\nline2\nline3\nline4\nline5";
         const string partialContent = "line2\nline3";
         var filePath = CreateFile(fullContent);
         var lastWriteMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(filePath)).ToUnixTimeMilliseconds();
 
         var cache = new Mock<IFileStateCache>();
-        cache.Setup(c => c.GetReadTimestampMs(filePath)).Returns(lastWriteMs - 10_000);
-        cache.Setup(c => c.GetReadContent(filePath)).Returns(partialContent);
+        cache.Setup(c => c.GetReadState(filePath)).Returns(PartialReadState(partialContent, lastWriteMs - 10_000));
         var node = new FileStateGuardNode(_fs, cache.Object);
 
         var result = await node.CheckStaleWriteAsync(filePath, CancellationToken.None);
@@ -151,39 +167,20 @@ public class FileStateGuardNodeTests {
     }
 
     /// <summary>
-    /// 边缘场景：缓存被 LRU 淘汰，GetReadTimestampMs 返回 null → 直接放行。
-    /// 已知取舍：大文件被淘汰后脏写保护失效，依赖 RequireReadBeforeWrite 守卫兜底。
+    /// 边缘场景：缓存无记录（LRU 淘汰或未读）→ 放行。
+    /// 实际守卫链中 RequireReadBeforeWrite 会先拦下，此处为防御性放行。
     /// </summary>
     [Fact]
-    public async Task CheckStaleWriteAsync_ReadTimestampNull_ReturnsNull() {
+    public async Task CheckStaleWriteAsync_ReadStateNull_ReturnsNull() {
         var filePath = CreateFile("content");
 
         var cache = new Mock<IFileStateCache>();
-        cache.Setup(c => c.GetReadTimestampMs(filePath)).Returns((long?)null);
+        cache.Setup(c => c.GetReadState(filePath)).Returns((FileReadState?)null);
         var node = new FileStateGuardNode(_fs, cache.Object);
 
         var result = await node.CheckStaleWriteAsync(filePath, CancellationToken.None);
 
         Assert.Null(result);
-    }
-
-    /// <summary>
-    /// 边缘场景：有 readTimestamp 但 readContent 为 null（防御性：理论上不应发生）。
-    /// 无法做内容兜底 → 保守拒绝。
-    /// </summary>
-    [Fact]
-    public async Task CheckStaleWriteAsync_ReadContentNullButTimestampPresent_ReturnsStale() {
-        var filePath = CreateFile("content");
-        var lastWriteMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(filePath)).ToUnixTimeMilliseconds();
-
-        var cache = new Mock<IFileStateCache>();
-        cache.Setup(c => c.GetReadTimestampMs(filePath)).Returns(lastWriteMs - 10_000);
-        cache.Setup(c => c.GetReadContent(filePath)).Returns((string?)null);
-        var node = new FileStateGuardNode(_fs, cache.Object);
-
-        var result = await node.CheckStaleWriteAsync(filePath, CancellationToken.None);
-
-        Assert.NotNull(result);
     }
 
     /// <summary>
@@ -195,14 +192,31 @@ public class FileStateGuardNodeTests {
         var lastWriteMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(filePath)).ToUnixTimeMilliseconds();
 
         var cache = new Mock<IFileStateCache>();
-        cache.Setup(c => c.GetReadTimestampMs(filePath)).Returns(lastWriteMs - 10_000);
-        cache.Setup(c => c.GetReadContent(filePath)).Returns("");
+        cache.Setup(c => c.GetReadState(filePath)).Returns(FullReadState("", lastWriteMs - 10_000));
         var node = new FileStateGuardNode(_fs, cache.Object);
 
         var result = await node.CheckStaleWriteAsync(filePath, CancellationToken.None);
 
         Assert.Null(result);
     }
+
+    // === helpers ===
+
+    private static FileReadState FullReadState(string content, long timestampMs) => new() {
+        Content = content,
+        TimestampMs = timestampMs,
+        Offset = null,
+        Limit = null,
+        IsPartialView = false,
+    };
+
+    private static FileReadState PartialReadState(string content, long timestampMs) => new() {
+        Content = content,
+        TimestampMs = timestampMs,
+        Offset = 2,
+        Limit = 2,
+        IsPartialView = true,
+    };
 
     private string CreateFile(string content) {
         var path = Path.Combine(Path.GetTempPath(), $"state_test_{Guid.NewGuid():N}.txt");

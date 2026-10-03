@@ -229,7 +229,6 @@ public sealed partial class MainViewModel {
                 Models = entries
             });
         }
-        ProviderModelGroups = groups;
         // Mock 作为供应商展示在列表末尾(选择时切换到 Mock 引擎)
         groups.Add(new ProviderModelGroupVm {
             ProviderId = "mock",

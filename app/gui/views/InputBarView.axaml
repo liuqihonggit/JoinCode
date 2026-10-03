@@ -154,25 +154,25 @@
                        Text="{Binding SelectedEffort, Converter={StaticResource EffortToLabel}}"
                        Foreground="{DynamicResource GuiMutedText}" />
           </StackPanel>
-          <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
-            <Button Classes="ghost" Content="─ 分隔线" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding InsertDividerCommand}" />
-            <Button Classes="ghost" Content="⏱ 时间戳" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding InsertTimestampCommand}" />
-            <TextBlock Text="│" FontSize="11" Foreground="{DynamicResource GuiMutedText}" Margin="4,0" VerticalAlignment="Center" />
-            <Button Classes="ghost" Content="审核代码" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding UseQuickPromptCommand}" CommandParameter="审核代码" />
-            <Button Classes="ghost" Content="解释代码" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding UseQuickPromptCommand}" CommandParameter="解释代码" />
-            <Button Classes="ghost" Content="重构代码" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding UseQuickPromptCommand}" CommandParameter="重构代码" />
-            <Button Classes="ghost" Content="写单元测试" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding UseQuickPromptCommand}" CommandParameter="写单元测试" />
-            <Button Classes="ghost" Content="优化性能" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding UseQuickPromptCommand}" CommandParameter="优化性能" />
-            <Button Classes="ghost" Content="添加注释" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding UseQuickPromptCommand}" CommandParameter="添加注释" />
-          </WrapPanel>
+          <!-- Col 1：快捷操作图标按钮（MenuFlyout 二次展开，QQ 风格工具栏 — 平时一个图标，点击弹出下拉菜单） -->
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0,0,0">
+            <Button Classes="ghost" Content="⚡" FontSize="14" Padding="7,4" MinHeight="0"
+                    ToolTip.Tip="快捷操作">
+              <Button.Flyout>
+                <MenuFlyout Placement="Top">
+                  <MenuItem Header="📋 审核代码" Command="{Binding UseQuickPromptCommand}" CommandParameter="审核代码" />
+                  <MenuItem Header="📖 解释代码" Command="{Binding UseQuickPromptCommand}" CommandParameter="解释代码" />
+                  <MenuItem Header="🔧 重构代码" Command="{Binding UseQuickPromptCommand}" CommandParameter="重构代码" />
+                  <MenuItem Header="🧪 写单元测试" Command="{Binding UseQuickPromptCommand}" CommandParameter="写单元测试" />
+                  <MenuItem Header="⚡ 优化性能" Command="{Binding UseQuickPromptCommand}" CommandParameter="优化性能" />
+                  <MenuItem Header="💬 添加注释" Command="{Binding UseQuickPromptCommand}" CommandParameter="添加注释" />
+                  <Separator />
+                  <MenuItem Header="─ 分隔线" Command="{Binding InsertDividerCommand}" />
+                  <MenuItem Header="⏱ 时间戳" Command="{Binding InsertTimestampCommand}" />
+                </MenuFlyout>
+              </Button.Flyout>
+            </Button>
+          </StackPanel>
           <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
             <Button Classes="ghost" Content="停止" Padding="12,6" CornerRadius="8"
                     Foreground="{DynamicResource GuiWarnText}"

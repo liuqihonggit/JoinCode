@@ -71,7 +71,8 @@
                         Classes.selected="{Binding IsSelected}"
                         DoubleTapped="OnSessionDoubleTapped"
                         Tapped="OnSessionSingleTapped"
-                        Cursor="Hand">
+                        Cursor="Hand"
+                        ToolTip.Tip="{Binding Title}">
                   <Grid ColumnDefinitions="Auto,*,Auto">
                     <Button Grid.Column="0" Classes="ghost" Padding="0" MinHeight="0" MinWidth="0"
                             IsVisible="{Binding HasChildren}"
@@ -110,7 +111,8 @@
                               Classes.selected="{Binding IsSelected}"
                               Classes.finished="{Binding IsSubSessionFinished}"
                               Tapped="OnSessionSingleTapped"
-                              Cursor="Hand">
+                              Cursor="Hand"
+                              ToolTip.Tip="{Binding Title}">
                         <Border.ContextMenu>
                           <ContextMenu>
                             <MenuItem Header="📁 打开 worktree 文件夹"

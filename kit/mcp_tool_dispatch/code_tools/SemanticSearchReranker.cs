@@ -54,12 +54,13 @@ public static class SemanticSearchReranker {
     }
 
     /// <summary>
-    /// 多信号重排序分数 = 向量余弦(0.4) + 关键词重叠(0.3) + 符号名匹配(0.3)。
+    /// 多信号重排序分数 = 向量余弦(0.35) + 关键词重叠(0.25) + 符号名匹配(0.25) + 文件名匹配(0.15)。
     /// </summary>
     private static float ComputeRerankScore(ChunkSearchResult candidate, FrozenSet<string> queryTerms) {
-        const float VectorWeight = 0.4f;
-        const float KeywordWeight = 0.3f;
-        const float SymbolWeight = 0.3f;
+        const float VectorWeight = 0.35f;
+        const float KeywordWeight = 0.25f;
+        const float SymbolWeight = 0.25f;
+        const float FileNameWeight = 0.15f;
 
         var vectorScore = candidate.Score;
 
@@ -75,7 +76,12 @@ public static class SemanticSearchReranker {
         var symbolOverlap = queryTerms.Intersect(symbolTerms).Count();
         var symbolScore = queryTerms.Count > 0 ? (float)symbolOverlap / queryTerms.Count : 0f;
 
-        return vectorScore * VectorWeight + keywordScore * KeywordWeight + symbolScore * SymbolWeight;
+        var fileName = Path.GetFileNameWithoutExtension(candidate.FilePath.AsSpan());
+        var fileNameTerms = ExtractTerms(fileName.ToString());
+        var fileNameOverlap = queryTerms.Intersect(fileNameTerms).Count();
+        var fileNameScore = queryTerms.Count > 0 ? (float)fileNameOverlap / queryTerms.Count : 0f;
+
+        return vectorScore * VectorWeight + keywordScore * KeywordWeight + symbolScore * SymbolWeight + fileNameScore * FileNameWeight;
     }
 
     /// <summary>

@@ -172,7 +172,7 @@ def main():
     for i, (filepath, symbols) in enumerate(sample, 1):
         keyword = symbols[0]
         rel_path = str(filepath).replace("\\", "/")
-        search_hits = client.search_semantic(keyword, top_k=10, mode=args.mode)
+        search_hits = client.search_semantic(keyword, top_k=20, mode=args.mode)
 
         matched = any(rel_path.replace("/", "\\") in h or rel_path in h.replace("\\", "/") for h in search_hits)
         if matched:

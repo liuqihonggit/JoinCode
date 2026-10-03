@@ -174,4 +174,47 @@ public sealed partial class MainViewModel {
     }
 
     #endregion
+
+    #region 权限模式切换
+
+    /// <summary>当前权限模式 — Shift+Tab 循环切换(Plan→Auto→Ask)</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PermissionModeDisplay))]
+    [NotifyPropertyChangedFor(nameof(PermissionModeToolTip))]
+    private PermissionMode _currentPermissionMode = PermissionMode.Auto;
+
+    /// <summary>权限模式显示文本</summary>
+    public string PermissionModeDisplay => CurrentPermissionMode switch {
+        PermissionMode.Plan => "📋 Plan",
+        PermissionMode.Auto => "🟢 Auto",
+        PermissionMode.Ask => "🟡 Ask",
+        PermissionMode.Bypass => "🔴 Bypass",
+        PermissionMode.Unattended => "🤖 Unattended",
+        _ => "🟢 Auto"
+    };
+
+    /// <summary>权限模式提示文本</summary>
+    public string PermissionModeToolTip => CurrentPermissionMode switch {
+        PermissionMode.Plan => "Plan 模式：AI 只规划不执行",
+        PermissionMode.Auto => "Auto 模式：AI 自动执行（默认）",
+        PermissionMode.Ask => "Ask 模式：每次执行前确认",
+        PermissionMode.Bypass => "Bypass 模式：跳过所有权限检查",
+        PermissionMode.Unattended => "无人值守模式：红灯自动执行+审计",
+        _ => "Auto 模式"
+    };
+
+    /// <summary>循环切换权限模式 — Shift+Tab 触发(Plan→Auto→Ask→Plan)</summary>
+    [RelayCommand]
+    private async Task CyclePermissionModeAsync() {
+        CurrentPermissionMode = CurrentPermissionMode switch {
+            PermissionMode.Plan => PermissionMode.Auto,
+            PermissionMode.Auto => PermissionMode.Ask,
+            PermissionMode.Ask => PermissionMode.Plan,
+            _ => PermissionMode.Auto
+        };
+        await _session.SetPermissionModeAsync(CurrentPermissionMode);
+        StatusText = $"权限模式: {PermissionModeDisplay}";
+    }
+
+    #endregion
 }

@@ -69,6 +69,12 @@ public sealed partial class MainWindow : Window {
             e.Handled = true;
             return;
         }
+        if (e.Key == Key.Tab && e.KeyModifiers == KeyModifiers.Shift && _vm is not null) {
+            if (_vm.CyclePermissionModeCommand.CanExecute(null))
+                _vm.CyclePermissionModeCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
         if (e.Key is not Key.Escape || _vm is null)
             return;
         if (!_vm.DoubleEscStop) // F3 快捷键面板可关闭该手势

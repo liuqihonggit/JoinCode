@@ -67,6 +67,11 @@
         <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="7,2,7,7">
           <!-- 左组：模型选择器 + 推理档位五色按钮(对齐 Codex 发送区域) -->
           <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+            <!-- 权限模式指示器 — Shift+Tab 循环切换(Plan→Auto→Ask) -->
+            <Button Classes="ghost" Padding="7,3" MinHeight="0" FontSize="11"
+                    Content="{Binding PermissionModeDisplay, FallbackValue='🟢 Auto'}"
+                    Command="{Binding CyclePermissionModeCommand}"
+                    ToolTip.Tip="{Binding PermissionModeToolTip, FallbackValue='Shift+Tab 切换权限模式'}" />
             <!-- 模型选择器按钮+Popup — 点击弹出按供应商分组的模型列表(DSG031) -->
             <Panel>
               <Button x:Name="ModelPickerButton" Classes="ghost" Padding="9,3" MinHeight="0" FontSize="11"

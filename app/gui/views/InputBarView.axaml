@@ -140,6 +140,13 @@
                 </Border>
               </Popup>
             </Panel>
+            <!-- Mock 引擎切换按钮 — 模型选择器旁，Ⓘ 徽标 -->
+            <Button Classes="ghost" Padding="5,3" MinHeight="0" FontSize="10"
+                    Command="{Binding ToggleMockCommand}"
+                    ToolTip.Tip="{Binding MockToggleToolTip}"
+                    IsVisible="{Binding IsEngineLoaded}">
+              <TextBlock Text="Ⓘ" FontSize="11" Foreground="{Binding IsMockConnection, Converter={StaticResource BoolToWarnBrush}, FallbackValue='#3dd68c'}" />
+            </Button>
             <TextBlock Text="│" FontSize="11" Foreground="{DynamicResource GuiMutedText}" Margin="2,0" VerticalAlignment="Center" />
             <TextBlock Text="推理" FontSize="10" Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" Margin="0,0,4,0" />
             <!-- 推理档位滑块(对齐 Codex 横杠拖拉风格) — 5 档: low=0 medium=1 high=2 max=3 auto=4

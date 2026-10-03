@@ -180,8 +180,8 @@
                 DragDrop.DragOver="OnPanelDragOver" DragDrop.Drop="OnPanelDropLeft">
           <Grid ColumnDefinitions="Auto,*,Auto,Auto">
             <TextBlock Grid.Column="0" Text="⠿" FontSize="11" Margin="0,0,6,0"
-                       Foreground="{DynamicResource GuiMutedText}" Cursor="SizeAll"
-                       ToolTip.Tip="拖拽到窗口左/右边缘切换停靠位置"
+                       Foreground="{DynamicResource GuiMutedText}" Background="Transparent"
+                       Cursor="SizeAll" ToolTip.Tip="拖拽到窗口左/右边缘切换停靠位置"
                        IsVisible="{Binding !IsPanelPinned}"
                        PointerPressed="OnPanelDragHandlePressed" />
             <TextBlock Grid.Column="1" Text="{Binding ActivePanelTitle}" FontSize="12" FontWeight="SemiBold"

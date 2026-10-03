@@ -337,6 +337,7 @@ public sealed partial class MainWindow : Window {
     private void OnPanelDragHandlePressed(object? sender, PointerPressedEventArgs e) {
         if (_vm is null || _vm.IsPanelPinned)
             return;
+        e.Handled = true;
         var data = new DataObject();
         data.Set("PanelDrag", _vm.ActivePanelTitle);
         _ = DragDrop.DoDragDrop(e, data, DragDropEffects.Move);

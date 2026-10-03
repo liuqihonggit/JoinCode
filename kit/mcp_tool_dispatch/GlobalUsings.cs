@@ -1,4 +1,5 @@
-﻿global using Core.Utils;
+﻿global using Core.Security.Interceptors;
+global using Core.Utils;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;

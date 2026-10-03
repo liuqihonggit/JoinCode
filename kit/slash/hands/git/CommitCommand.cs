@@ -84,6 +84,13 @@ public sealed class CommitCommand : ChatCommandBase {
             message = resolved;
         }
 
+        // 约束回显检查 — 与 git_commit 工具共用同一个检查器（CommitConstraintEchoChecker）
+        if (CommitConstraintEchoChecker.ContainsConstraintEcho(message)) {
+            TerminalHelper.WriteLine($"{TerminalColors.Error}提交被拦截：commit 消息疑似回显了元指令/规则约束。{AnsiStyleEnumConstants.Reset}");
+            TerminalHelper.WriteLine(CommitConstraintEchoChecker.BuildDenyReason());
+            return ChatCommandResult.Continue();
+        }
+
         if (!(context.Confirm?.Invoke("确认提交这些变更？") ?? false)) {
             TerminalHelper.WriteLine("取消提交");
             return ChatCommandResult.Continue();

@@ -86,13 +86,17 @@
       <Setter Property="Background" Value="{DynamicResource GuiAccentSubtle}" />
       <Setter Property="Foreground" Value="{DynamicResource GuiAccentText}" />
     </Style>
-    <!-- Dock ToolControl 标题栏：显示 Title（含 emoji） -->
+    <!-- Dock ToolControl 标题栏：显示 Title（含 emoji），tab 移到顶部 -->
     <Style Selector="ToolControl">
       <Setter Property="HeaderTemplate">
         <DataTemplate DataType="dvm:PanelTool">
           <TextBlock Text="{Binding Title}" Padding="4,2" FontSize="12" />
         </DataTemplate>
       </Setter>
+    </Style>
+    <!-- Dock ToolTabStrip 移到顶部（默认 Bottom） -->
+    <Style Selector="ToolControl /template/ ToolTabStrip">
+      <Setter Property="(DockPanel.Dock)" Value="Top" />
     </Style>
     <!-- Dock ToolChromeControl 透明背景融入侧边栏 -->
     <Style Selector="ToolChromeControl">
@@ -189,34 +193,8 @@
           <DoubleTransition Property="Width" Duration="{DynamicResource GuiMotionDuration}" />
         </Transitions>
       </Border.Transitions>
-      <Grid RowDefinitions="Auto,*">
-        <!-- 统一面板标题栏(拖拽手柄+标题+固定+关闭) -->
-        <Border Grid.Row="0" Padding="8,5" Background="{DynamicResource GuiSearchBarBackground}"
-                BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1"
-                DragDrop.DragOver="OnPanelDragOver" DragDrop.Drop="OnPanelDropLeft">
-          <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-            <TextBlock Grid.Column="0" Text="⠿" FontSize="11" Margin="0,0,6,0"
-                       Foreground="{DynamicResource GuiMutedText}" Background="Transparent"
-                       Cursor="SizeAll" ToolTip.Tip="拖拽到窗口左/右边缘切换停靠位置"
-                       IsVisible="{Binding !IsPanelPinned}"
-                       PointerPressed="OnPanelDragHandlePressed" />
-            <TextBlock Grid.Column="1" Text="{Binding ActivePanelTitle}" FontSize="12" FontWeight="SemiBold"
-                       Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center"
-                       Margin="4,0,0,0" />
-            <Button Grid.Column="2" Classes="ghost" FontSize="11" Padding="4,2" MinHeight="0"
-                    Command="{Binding TogglePanelPinCommand}" ToolTip.Tip="固定/解锁拖拽">
-              <Panel>
-                <TextBlock Text="📌" IsVisible="{Binding IsPanelPinned}" />
-                <TextBlock Text="📍" IsVisible="{Binding !IsPanelPinned}" />
-              </Panel>
-            </Button>
-            <Button Grid.Column="3" Classes="ghost" Content="✕" FontSize="10" Padding="4,2" MinHeight="0"
-                    Command="{Binding CloseActivePanelCommand}" ToolTip.Tip="关闭面板" />
-          </Grid>
-        </Border>
-        <!-- 面板内容 — Dock.Avalonia 停靠布局（可拖拽排序/浮动窗口/停靠） -->
-        <dock:DockControl Grid.Row="1" Layout="{Binding DockLayout}" />
-      </Grid>
+      <!-- Dock.Avalonia 停靠布局（自带 tab 标签栏+图钉+关闭+拖拽，按 DockMvvmSample 适配） -->
+      <dock:DockControl Layout="{Binding DockLayout}" />
     </Border>
 
     <!-- ===== Column 2：拖拽手柄 (调整 Side Bar 宽度) ===== -->

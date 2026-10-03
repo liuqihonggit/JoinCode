@@ -7,15 +7,19 @@ namespace JoinCode.Gui.ViewModels.Docking;
 /// </summary>
 public sealed class DockFactory : Factory {
     private IRootDock? _root;
+    private readonly object _context;
+
+    /// <param name="context">主 ViewModel，设为每个 Tool 的 Context 供 View 绑定</param>
+    public DockFactory(object context) => _context = context;
 
     /// <summary>创建停靠布局：RootDock → ToolDock(Left, 6 面板)</summary>
     public override IRootDock CreateLayout() {
-        var sessions = new PanelTool { Id = "Sessions", Title = "💬 会话列表", Kind = SidePanelKind.Sessions };
-        var fileTree = new PanelTool { Id = "FileTree", Title = "📁 目录树", Kind = SidePanelKind.FileTree };
-        var goal = new PanelTool { Id = "Goal", Title = "🎯 goal 控制", Kind = SidePanelKind.Goal };
-        var interceptor = new PanelTool { Id = "Interceptor", Title = "🛡 拦截器", Kind = SidePanelKind.Interceptor };
-        var chatRoom = new PanelTool { Id = "ChatRoom", Title = "👥 聊天室", Kind = SidePanelKind.ChatRoom };
-        var settings = new PanelTool { Id = "Settings", Title = "⚙ 设置", Kind = SidePanelKind.Settings };
+        var sessions = new PanelTool { Id = "Sessions", Title = "💬 会话列表", Kind = SidePanelKind.Sessions, Context = _context };
+        var fileTree = new PanelTool { Id = "FileTree", Title = "📁 目录树", Kind = SidePanelKind.FileTree, Context = _context };
+        var goal = new PanelTool { Id = "Goal", Title = "🎯 goal 控制", Kind = SidePanelKind.Goal, Context = _context };
+        var interceptor = new PanelTool { Id = "Interceptor", Title = "🛡 拦截器", Kind = SidePanelKind.Interceptor, Context = _context };
+        var chatRoom = new PanelTool { Id = "ChatRoom", Title = "👥 聊天室", Kind = SidePanelKind.ChatRoom, Context = _context };
+        var settings = new PanelTool { Id = "Settings", Title = "⚙ 设置", Kind = SidePanelKind.Settings, Context = _context };
 
         var toolDock = new ToolDock {
             Id = "LeftTools",

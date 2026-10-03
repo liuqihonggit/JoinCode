@@ -236,22 +236,44 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         progress?.Report(new IndexProgress { Current = total, Total = total });
 
-        // Phase D+E+E2: 分批流水线 — 提取和嵌入重叠执行
-        var pipelineSw = Stopwatch.StartNew();
-        var half = filesToIndex.Count / 2;
-        var batch1Files = filesToIndex.GetRange(0, half);
-        var batch2Files = filesToIndex.GetRange(half, filesToIndex.Count - half);
+        // Phase D: 并行提取符号
+        var phaseDSw = Stopwatch.StartNew();
+        var extractionResults = ParallelExtractAll(filesToIndex, ct);
+        phaseDSw.Stop();
+        Console.Error.WriteLine($"[code-index] Phase D 提取: {filesToIndex.Count} 文件 ({phaseDSw.ElapsedMilliseconds}ms)");
 
-        var batch1Results = ParallelExtractAll(batch1Files, ct);
-        var batch1Task = ProcessBatchAsync(batch1Files, batch1Results, ct);
+        // Phase E: 批量索引写入
+        var phaseESw = Stopwatch.StartNew();
+        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>(filesToIndex.Count);
+        for (var i = 0; i < filesToIndex.Count; i++) {
+            var (filePath, sourceCode, hash) = filesToIndex[i];
+            batch.Add((filePath, sourceCode, hash, extractionResults[i]));
+        }
+        await _symbolIndex.IndexFilesBatchAsync(batch, ct).ConfigureAwait(false);
+        phaseESw.Stop();
+        updatedCount = batch.Count;
+        Console.Error.WriteLine($"[code-index] Phase E 写入: {updatedCount} 文件 ({phaseESw.ElapsedMilliseconds}ms)");
+        phaseSw.Restart();
 
-        var batch2Results = ParallelExtractAll(batch2Files, ct);
-        var batch2Task = ProcessBatchAsync(batch2Files, batch2Results, ct);
-
-        await Task.WhenAll(batch1Task, batch2Task).ConfigureAwait(false);
-        updatedCount = filesToIndex.Count;
-        pipelineSw.Stop();
-        Console.Error.WriteLine($"[code-index] Phase D+E+E2 流水线: {updatedCount} 文件 ({pipelineSw.ElapsedMilliseconds}ms)");
+        // Phase E2: 向量嵌入
+        if (_embeddingIndex is not null) {
+            foreach (var b in batch) {
+                await _embeddingIndex.RemoveFileAsync(b.FilePath, ct).ConfigureAwait(false);
+            }
+            var allChunks = new List<ChunkInfo>();
+            foreach (var b in batch) {
+                var parentLocations = b.Extraction.Symbols
+                    .Where(s => IsParentDocumentKind(s.Kind))
+                    .Select(s => new LineBasedChunkExtractor.ParentLocation(b.FilePath, s.StartLine, s.EndLine, s.FullyQualifiedName))
+                    .ToList();
+                allChunks.AddRange(LineBasedChunkExtractor.Extract(
+                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations));
+            }
+            if (allChunks.Count > 0) {
+                await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
+            }
+            Console.Error.WriteLine($"[code-index] Phase E2 嵌入: {allChunks.Count} 块 ({phaseSw.ElapsedMilliseconds}ms)");
+        }
         phaseSw.Restart();
 
         // Phase F: 删除已移除文件

@@ -2,7 +2,8 @@ namespace McpToolDispatch;
 
 /// <summary>
 /// 语义搜索重排序器 — 多信号重排序 + 图谱加权。
-/// <para>重排序信号: 向量余弦(0.5) + 关键词重叠(0.3) + 符号名匹配(0.2)。</para>
+/// <para>重排序信号: 向量余弦(0.35) + 关键词重叠(0.25) + 符号名匹配(0.25) + 文件名匹配(0.15)。</para>
+/// <para>附加信号: 精确符号名匹配 boost(+0.10) + 测试文件 penalty(-0.05) + 接口文件 boost(+0.05)。</para>
 /// <para>图谱加权: 调用关系(+0.05) + 同文件(+0.03) + 同命名空间(+0.02)。</para>
 /// <para>设计见 ADR 0125。</para>
 /// </summary>
@@ -37,8 +38,9 @@ public static class SemanticSearchReranker {
         if (candidates.Count <= topK) return candidates;
 
         var queryTerms = ExtractTerms(query);
+        var queryLower = query.AsSpan().Trim().ToString().ToLowerInvariant();
         var reranked = candidates
-            .Select(c => c with { Score = ComputeRerankScore(c, queryTerms) })
+            .Select(c => c with { Score = ComputeRerankScore(c, queryTerms, queryLower) })
             .OrderByDescending(c => c.Score)
             .Take(topK * 2)
             .ToList();
@@ -55,8 +57,9 @@ public static class SemanticSearchReranker {
 
     /// <summary>
     /// 多信号重排序分数 = 向量余弦 + 关键词重叠 + 符号名匹配 + 文件名匹配（权重见 SearchConfig）。
+    /// <para>附加: 精确符号名匹配 boost + 测试文件 penalty + 接口文件 boost。</para>
     /// </summary>
-    private static float ComputeRerankScore(ChunkSearchResult candidate, FrozenSet<string> queryTerms) {
+    private static float ComputeRerankScore(ChunkSearchResult candidate, FrozenSet<string> queryTerms, string queryLower) {
         var vectorScore = candidate.Score;
 
         var sourceTerms = ExtractTerms(candidate.SourceText ?? candidate.SymbolFqn);
@@ -76,10 +79,61 @@ public static class SemanticSearchReranker {
         var fileNameOverlap = queryTerms.Intersect(fileNameTerms).Count();
         var fileNameScore = queryTerms.Count > 0 ? (float)fileNameOverlap / queryTerms.Count : 0f;
 
-        return vectorScore * SearchConfig.VectorWeight
+        var score = vectorScore * SearchConfig.VectorWeight
             + keywordScore * SearchConfig.KeywordWeight
             + symbolScore * SearchConfig.SymbolWeight
             + fileNameScore * SearchConfig.FileNameWeight;
+
+        score += ComputeExactMatchBoost(candidate, queryLower);
+        score += ComputeFilePreferenceAdjustment(candidate.FilePath.AsSpan(), candidate.SymbolFqn.AsSpan());
+
+        return score;
+    }
+
+    /// <summary>
+    /// 精确符号名匹配 boost — 查询完全匹配符号名或文件名时加分。
+    /// </summary>
+    private static float ComputeExactMatchBoost(ChunkSearchResult candidate, string queryLower) {
+        if (queryLower.Length <= 1) return 0f;
+
+        if (IsLastComponentEqual(candidate.SymbolFqn, queryLower)) return SearchConfig.ExactSymbolMatchBoost;
+
+        foreach (var fqn in candidate.ContainedSymbolFqns) {
+            if (IsLastComponentEqual(fqn, queryLower)) return SearchConfig.ExactSymbolMatchBoost;
+        }
+
+        var fileName = Path.GetFileNameWithoutExtension(candidate.FilePath.AsSpan());
+        if (fileName.Equals(queryLower, StringComparison.OrdinalIgnoreCase)) return SearchConfig.ExactSymbolMatchBoost;
+
+        return 0f;
+    }
+
+    /// <summary>FQN 最后一个组件是否等于 query（忽略大小写）— "A.B.Foo" vs "foo" → true。</summary>
+    private static bool IsLastComponentEqual(string fqn, string queryLower) {
+        var span = fqn.AsSpan();
+        var lastDot = span.LastIndexOf('.');
+        var component = lastDot < 0 ? span : span[(lastDot + 1)..];
+        return component.Equals(queryLower, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 文件偏好调整 — 测试文件 penalty + 接口文件 boost。
+    /// </summary>
+    private static float ComputeFilePreferenceAdjustment(ReadOnlySpan<char> filePath, ReadOnlySpan<char> symbolFqn) {
+        var adjustment = 0f;
+
+        var isTestFile = filePath.Contains("/test/".AsSpan(), StringComparison.OrdinalIgnoreCase)
+                         || filePath.Contains("\\test\\".AsSpan(), StringComparison.OrdinalIgnoreCase)
+                         || filePath.EndsWith("tests.cs".AsSpan(), StringComparison.OrdinalIgnoreCase)
+                         || filePath.EndsWith("test.cs".AsSpan(), StringComparison.OrdinalIgnoreCase);
+        if (isTestFile) adjustment -= SearchConfig.TestFilePenalty;
+
+        var fileName = Path.GetFileNameWithoutExtension(filePath);
+        var isInterfaceFile = fileName.Length > 1 && fileName[0] == 'I' && char.IsUpper(fileName[1])
+                              && symbolFqn.Contains(".I".AsSpan(), StringComparison.Ordinal);
+        if (isInterfaceFile) adjustment += SearchConfig.InterfaceFileBoost;
+
+        return adjustment;
     }
 
     /// <summary>

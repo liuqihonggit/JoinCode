@@ -721,9 +721,10 @@ public sealed class CodeIndexToolHandlers {
             };
             var oversampleK = SearchConfig.ComputeOversampleK(top_k);
             var rawResults = await _indexer.SearchSemanticAsync(query, oversampleK, cancellationToken, options).ConfigureAwait(false);
+            var withSymbols = await InjectSymbolMatchesAsync(rawResults, query, oversampleK, cancellationToken).ConfigureAwait(false);
             var expanded = include_graph
-                ? await ExpandByGraphAsync(rawResults, top_k, cancellationToken).ConfigureAwait(false)
-                : rawResults;
+                ? await ExpandByGraphAsync(withSymbols, top_k, cancellationToken).ConfigureAwait(false)
+                : withSymbols;
             var results = await SemanticSearchReranker.RerankAsync(
                 query, expanded, top_k, _indexer.CallGraph, cancellationToken).ConfigureAwait(false);
 
@@ -1097,6 +1098,54 @@ public sealed class CodeIndexToolHandlers {
         } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"search_document failed: {ex.Message}").Build();
         }
+    }
+
+    /// <summary>
+    /// 符号索引精确匹配注入 — 查询看起来像符号名时，用符号索引查找定义并注入候选集。
+    /// <para>向量搜索可能遗漏精确匹配的文件（嵌入向量不够近），符号索引直接查找弥补。</para>
+    /// </summary>
+    private async Task<IReadOnlyList<ChunkSearchResult>> InjectSymbolMatchesAsync(
+        IReadOnlyList<ChunkSearchResult> vectorResults, string query, int maxResults, CancellationToken ct) {
+        if (!LooksLikeSymbolName(query)) return vectorResults;
+
+        var existingFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in vectorResults) existingFiles.Add(r.FilePath);
+
+        var symbolResults = new List<ChunkSearchResult>(vectorResults);
+
+        try {
+            var searchResult = await _indexer.Searcher.SearchAsync(query, ct).ConfigureAwait(false);
+            foreach (var sym in searchResult.Items.Take(maxResults)) {
+                if (existingFiles.Contains(sym.FilePath)) continue;
+                existingFiles.Add(sym.FilePath);
+
+                symbolResults.Add(new ChunkSearchResult {
+                    ChunkId = $"symbol:{sym.FullyQualifiedName}",
+                    FilePath = sym.FilePath,
+                    SymbolFqn = sym.FullyQualifiedName,
+                    StartLine = sym.StartLine,
+                    EndLine = sym.EndLine,
+                    Score = SearchConfig.SymbolInjectionScore,
+                    ContainedSymbolFqns = [sym.FullyQualifiedName]
+                });
+            }
+        } catch (OperationCanceledException) {
+            throw;
+        } catch (Exception ex) {
+            Console.Error.WriteLine($"[symbol-inject] 符号搜索失败，跳过: {ex.Message}");
+        }
+
+        return symbolResults;
+    }
+
+    /// <summary>查询是否看起来像符号名 — 无空格、长度>2、字母开头。</summary>
+    private static bool LooksLikeSymbolName(string query) {
+        if (query.Length <= 2) return false;
+        if (!char.IsLetter(query[0])) return false;
+        for (var i = 1; i < query.Length; i++) {
+            if (!char.IsLetterOrDigit(query[i]) && query[i] != '_') return false;
+        }
+        return true;
     }
 
     /// <summary>

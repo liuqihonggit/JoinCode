@@ -90,6 +90,43 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     [ObservableProperty]
     private bool _chatRoomEnabled = true;
 
+    /// <summary>聊天室面板是否展开（鼠标离开自动关闭）</summary>
+    [ObservableProperty]
+    private bool _isChatRoomPanelOpen;
+
+    /// <summary>展开/收拢聊天室面板</summary>
+    [RelayCommand]
+    private void ToggleChatRoomPanel() => IsChatRoomPanelOpen = !IsChatRoomPanelOpen;
+
+    /// <summary>聊天室成员列表（横向头像排列）</summary>
+    public IReadOnlyList<ChatRoomMemberVm> ChatRoomMembers { get; private set; } = Array.Empty<ChatRoomMemberVm>();
+
+    /// <summary>聊天室消息列表（按时间正序）</summary>
+    public IReadOnlyList<ChatRoomMessageVm> ChatRoomMessages { get; private set; } = Array.Empty<ChatRoomMessageVm>();
+
+    /// <summary>聊天室在线成员数</summary>
+    public int ChatRoomMemberCount => ChatRoomMembers.Count(static m => m.IsOnline);
+
+    /// <summary>刷新聊天室数据（从引擎拉取成员和消息后调用）</summary>
+    public void RefreshChatRoom(IReadOnlyList<ChatRoomMemberVm> members, IReadOnlyList<ChatRoomMessageVm> messages) {
+        ChatRoomMembers = members;
+        ChatRoomMessages = messages;
+        OnPropertyChanged(nameof(ChatRoomMembers));
+        OnPropertyChanged(nameof(ChatRoomMessages));
+        OnPropertyChanged(nameof(ChatRoomMemberCount));
+    }
+
+    /// <summary>发送方式下拉 Popup 开关</summary>
+    [ObservableProperty]
+    private bool _isSendModePopupOpen;
+
+    /// <summary>设置发送方式 — Enter 发送或 Ctrl+Enter 发送</summary>
+    [RelayCommand]
+    private void SetSendMode(string mode) {
+        EnterSends = bool.Parse(mode);
+        IsSendModePopupOpen = false;
+    }
+
     /// <summary>输入栏占位提示 — 随发送键位偏好联动</summary>
     public string SendHintText => EnterSends
         ? "输入消息，Enter 发送 / Shift+Enter 换行…"

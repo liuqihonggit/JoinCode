@@ -9,6 +9,7 @@ public static class GuiAppResources {
     private static ResourceDictionary? _themeHost;
     private static FluentTheme? _fluentTheme;
     private static AccentOption? _accent;
+    private static ResourceDictionary? _stringHost;
 
     /// <summary>将 Fluent 主题、语义配色 ThemeDictionaries、全部转换器注册进应用资源。</summary>
     public static void Register(Application app) {
@@ -25,8 +26,47 @@ public static class GuiAppResources {
         ApplySchemeToHost(GuiPalette.GuiThemeVariant.Dark);
         app.Resources.MergedDictionaries.Add(_themeHost);
         app.Resources.MergedDictionaries.Add(BuildConverters());
+        // 国际化字符串字典（默认中文）
+        _stringHost = new ResourceDictionary();
+        ApplyLanguage(ViewModels.LanguageKind.Zh);
+        app.Resources.MergedDictionaries.Add(_stringHost);
         ApplyAccent(AppearanceCatalog.Load().Accents[0]);
     }
+
+    /// <summary>切换界面语言 — 替换字符串资源字典槽位</summary>
+    public static void ApplyLanguage(ViewModels.LanguageKind lang) {
+        if (_stringHost is null)
+            return;
+        _stringHost.Clear();
+        var strings = GetStrings(lang);
+        foreach (var (key, value) in strings)
+            _stringHost[key] = value;
+    }
+
+    /// <summary>获取指定语言的字符串字典 — AOT 兼容,硬编码无反射</summary>
+    private static IReadOnlyDictionary<string, string> GetStrings(ViewModels.LanguageKind lang) => lang switch {
+        ViewModels.LanguageKind.Zh => new Dictionary<string, string> {
+            ["Menu.File"] = "文件", ["Menu.Edit"] = "编辑", ["Menu.View"] = "视图", ["Menu.Help"] = "帮助",
+            ["Activity.Sessions"] = "会话列表", ["Activity.FileTree"] = "目录树", ["Activity.Editor"] = "代码编辑器",
+            ["Activity.Interceptor"] = "AI 工具拦截器", ["Activity.Settings"] = "设置", ["Activity.Language"] = "中/En 切换",
+            ["Input.Placeholder"] = "输入消息，Ctrl+Enter 发送 / Enter 换行…", ["Input.Send"] = "发送", ["Input.SelectModel"] = "选择模型",
+            ["Stats.Title"] = "📊 会话统计", ["Stats.Messages"] = "消息数", ["Stats.Sessions"] = "会话数",
+            ["Stats.Chars"] = "字符数", ["Stats.Tokens"] = "估算 Token",
+            ["Empty.Title"] = "把想法变成代码", ["Empty.Subtitle"] = "探索代码 · 执行工具 · 协作完成任务",
+            ["Common.NewSession"] = "＋ 新建对话", ["Common.SearchMessages"] = "搜索消息正文", ["Common.Statistics"] = "📊 统计"
+        },
+        ViewModels.LanguageKind.En => new Dictionary<string, string> {
+            ["Menu.File"] = "File", ["Menu.Edit"] = "Edit", ["Menu.View"] = "View", ["Menu.Help"] = "Help",
+            ["Activity.Sessions"] = "Sessions", ["Activity.FileTree"] = "File Tree", ["Activity.Editor"] = "Code Editor",
+            ["Activity.Interceptor"] = "AI Tool Interceptor", ["Activity.Settings"] = "Settings", ["Activity.Language"] = "Zh/En Toggle",
+            ["Input.Placeholder"] = "Type a message, Ctrl+Enter to send / Enter for newline…", ["Input.Send"] = "Send", ["Input.SelectModel"] = "Select Model",
+            ["Stats.Title"] = "📊 Session Stats", ["Stats.Messages"] = "Messages", ["Stats.Sessions"] = "Sessions",
+            ["Stats.Chars"] = "Characters", ["Stats.Tokens"] = "Est. Tokens",
+            ["Empty.Title"] = "Turn ideas into code", ["Empty.Subtitle"] = "Explore code · Run tools · Collaborate",
+            ["Common.NewSession"] = "＋ New Chat", ["Common.SearchMessages"] = "Search messages", ["Common.Statistics"] = "📊 Stats"
+        },
+        _ => new Dictionary<string, string>()
+    };
 
     /// <summary>应用配置驱动的强调色，保留消息角色和安全状态的语义颜色。</summary>
     public static void ApplyAccent(AccentOption accent) {

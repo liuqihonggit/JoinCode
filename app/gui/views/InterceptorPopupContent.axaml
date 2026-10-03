@@ -8,7 +8,8 @@
              x:DataType="vm:MainViewModel">
   <Border CornerRadius="10" Padding="14,10" Width="300"
           Background="{DynamicResource GuiPopupBackground}"
-          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
+          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+          PointerExited="OnPointerExited">
     <StackPanel Spacing="8">
       <TextBlock Text="🛡 AI 工具拦截器" FontSize="13" FontWeight="SemiBold"
                  Foreground="{DynamicResource GuiPrimaryText}" />

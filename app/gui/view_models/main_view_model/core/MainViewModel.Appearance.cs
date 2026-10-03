@@ -33,6 +33,23 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private bool _animationsEnabled = true;
 
+    /// <summary>当前界面语言（中/英），默认中文。</summary>
+    [ObservableProperty]
+    private LanguageKind _currentLanguage = LanguageKind.Zh;
+
+    /// <summary>语言切换显示文本</summary>
+    public string LanguageToggleDisplay => CurrentLanguage == LanguageKind.Zh ? "中" : "En";
+
+    /// <summary>切换界面语言</summary>
+    [RelayCommand]
+    private void ToggleLanguage() {
+        CurrentLanguage = CurrentLanguage == LanguageKind.Zh ? LanguageKind.En : LanguageKind.Zh;
+        Theming.GuiAppResources.ApplyLanguage(CurrentLanguage);
+        OnPropertyChanged(nameof(LanguageToggleDisplay));
+    }
+
+    partial void OnCurrentLanguageChanged(LanguageKind value) => OnPropertyChanged(nameof(LanguageToggleDisplay));
+
     /// <summary>设置抽屉的目标宽度，关闭时不占位。</summary>
     public double SettingsPanelWidth => IsSettingsPanelOpen ? 312 : 0;
 

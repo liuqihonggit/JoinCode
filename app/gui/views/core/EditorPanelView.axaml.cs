@@ -19,9 +19,11 @@ public sealed partial class EditorPanelView : UserControl {
         Editor2.TextChanged += OnEditor2TextChanged;
         _searchPanel = AvaloniaEdit.Search.SearchPanel.Install(Editor);
         _searchPanel2 = AvaloniaEdit.Search.SearchPanel.Install(Editor2);
+        _foldingManager = AvaloniaEdit.Folding.FoldingManager.Install(Editor.TextArea);
+        _foldingManager2 = AvaloniaEdit.Folding.FoldingManager.Install(Editor2.TextArea);
     }
 
-    /// <summary>配置编辑器选项 — 自动缩进+制表符4空格+括号匹配+允许自动换行</summary>
+    /// <summary>配置编辑器选项 — 自动缩进+制表符4空格+允许自动换行</summary>
     private static void ConfigureEditorOptions(AvaloniaEdit.TextEditor editor) {
         editor.Options.IndentationSize = 4;
         editor.Options.AllowScrollBelowDocument = true;
@@ -30,6 +32,8 @@ public sealed partial class EditorPanelView : UserControl {
 
     private readonly AvaloniaEdit.Search.SearchPanel? _searchPanel;
     private readonly AvaloniaEdit.Search.SearchPanel? _searchPanel2;
+    private readonly AvaloniaEdit.Folding.FoldingManager? _foldingManager;
+    private readonly AvaloniaEdit.Folding.FoldingManager? _foldingManager2;
 
     /// <summary>DataContext 变更时订阅 ViewModel 属性变化</summary>
     protected override void OnDataContextChanged(EventArgs e) {
@@ -52,13 +56,14 @@ public sealed partial class EditorPanelView : UserControl {
             UpdateEditor2FromActiveTab();
     }
 
-    /// <summary>从活跃标签页同步内容到编辑器组1 — 切换标签时加载对应文件内容</summary>
+    /// <summary>从活跃标签页同步内容到编辑器组1 — 切换标签时加载对应文件内容+语法高亮</summary>
     private void UpdateEditorFromActiveTab() {
         if (_vm?.ActiveEditorTab is not { } tab)
             return;
         _suppressTextChanged = true;
         Editor.Text = tab.Content;
         Minimap.Text = tab.Content;
+        ApplySyntaxHighlighting(Editor, tab.FilePath);
         _suppressTextChanged = false;
         UpdateBreadcrumb(BreadcrumbItems, tab.FilePath);
     }
@@ -69,8 +74,19 @@ public sealed partial class EditorPanelView : UserControl {
             return;
         _suppressTextChanged2 = true;
         Editor2.Text = tab.Content;
+        ApplySyntaxHighlighting(Editor2, tab.FilePath);
         _suppressTextChanged2 = false;
         UpdateBreadcrumb(BreadcrumbItems2, tab.FilePath);
+    }
+
+    /// <summary>按文件扩展名应用语法高亮 — 使用 AvaloniaEdit 内置 HighlightingManager</summary>
+    private static void ApplySyntaxHighlighting(AvaloniaEdit.TextEditor editor, string filePath) {
+        var ext = System.IO.Path.GetExtension(filePath);
+        if (string.IsNullOrEmpty(ext))
+            return;
+        var def = AvaloniaEdit.Highlighting.HighlightingManager.Instance.GetDefinitionByExtension(ext);
+        if (def is not null)
+            editor.SyntaxHighlighting = def;
     }
 
     /// <summary>设置面包屑 — 从根目录到文件名的路径段</summary>

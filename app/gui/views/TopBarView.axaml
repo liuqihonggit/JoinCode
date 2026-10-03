@@ -22,18 +22,11 @@
     </Style>
   </UserControl.Styles>
 
-  <!-- 菜单栏(横跨全宽) — Logo + 文件/编辑/视图/帮助 + 状态文本 -->
+  <!-- 菜单栏(横跨全宽) — 文件/编辑/视图/帮助 + 状态文本 -->
   <Border Background="{DynamicResource GuiTopBarBackground}" BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
-    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-      <!-- Logo -->
-      <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0,0,0">
-        <TextBlock Text="◆" FontSize="14" Foreground="{DynamicResource GuiAccentText}"
-                   VerticalAlignment="Center" />
-        <TextBlock Text="JoinCode" FontSize="12.5" FontWeight="SemiBold"
-                   Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" Margin="6,0,0,0" />
-      </StackPanel>
+    <Grid ColumnDefinitions="Auto,*,Auto">
       <!-- 菜单栏 -->
-      <Menu Grid.Column="1" Classes="vscodeMenu" Margin="8,0,0,0">
+      <Menu Grid.Column="0" Classes="vscodeMenu" Margin="12,0,0,0">
         <MenuItem Header="文件">
           <MenuItem Header="文件 / 变更" Click="OnOpenFiles" />
           <MenuItem Header="模型 / MCP / 插件" Click="OnOpenManagement" />
@@ -57,11 +50,11 @@
         </MenuItem>
       </Menu>
       <!-- 状态文本(居中) -->
-      <TextBlock Grid.Column="2" Text="{Binding StatusText}" FontSize="11"
+      <TextBlock Grid.Column="1" Text="{Binding StatusText}" FontSize="11"
                  Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center"
                  HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="12,3" />
       <!-- goal 进行中指示(右侧) -->
-      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,0"
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,0"
                   IsVisible="{Binding IsGoalRunning}">
         <TextBlock Text="🎯" FontSize="12" />
         <TextBlock Text="{Binding GoalProgressText, FallbackValue='goal 进行中'}" FontSize="11"

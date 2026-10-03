@@ -8,4 +8,10 @@ public sealed partial class InterceptorPopupContent : UserControl {
     public InterceptorPopupContent() {
         InitializeComponent();
     }
+
+    /// <summary>鼠标离开时自动关闭拦截器面板</summary>
+    private void OnPointerExited(object? sender, Avalonia.Input.PointerEventArgs e) {
+        if (DataContext is ViewModels.MainViewModel vm)
+            vm.IsInterceptorPanelOpen = false;
+    }
 }

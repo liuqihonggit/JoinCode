@@ -92,6 +92,12 @@
       <local:CommandPaletteView HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,48,0,0" />
     </Panel>
 
+    <!-- Diff 视图 Overlay — 居中浮在窗口中央 -->
+    <Panel Grid.RowSpan="2" IsVisible="{Binding IsDiffViewOpen}" ZIndex="100">
+      <Border Background="#80000000" />
+      <local:DiffView HorizontalAlignment="Center" VerticalAlignment="Center" />
+    </Panel>
+
     <!-- ===== Row 1：Activity Bar + Side Bar + 主区 + Secondary Side Bar (VSCode 风格) ===== -->
     <Grid Grid.Row="1" ColumnDefinitions="48,Auto,6,*,6,Auto">
 
@@ -121,8 +127,11 @@
                   IsVisible="{Binding IsGoalRunning}" />
           <Button x:Name="InterceptorButton" Classes="activityIcon" Content="🛡" FontSize="20"
                   Command="{Binding ToggleInterceptorPanelCommand}" ToolTip.Tip="AI 工具拦截器" />
+          <Button x:Name="ChatRoomButton" Classes="activityIcon" Content="👥" FontSize="20"
+                  Command="{Binding ToggleChatRoomPanelCommand}" ToolTip.Tip="聊天室"
+                  IsVisible="{Binding ChatRoomEnabled}" />
         </StackPanel>
-        <StackPanel Grid.Row="1" Spacing="4" Margin="0,0,0,8">
+        <StackPanel Grid.Row="2" Spacing="4" Margin="0,0,0,8">
           <ToggleButton Classes="activityIcon" FontSize="20"
                         Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}">
             <Panel>
@@ -137,13 +146,18 @@
                         Command="{Binding ToggleSecondarySideBarCommand}"
                         IsChecked="{Binding IsSecondarySideBarOpen, Mode=OneWay}"
                         ToolTip.Tip="Secondary Side Bar" />
+          <Button Classes="activityIcon" FontSize="14"
+                  Content="{Binding LanguageToggleDisplay}"
+                  Command="{Binding ToggleLanguageCommand}"
+                  ToolTip.Tip="中/En 切换语言" />
         </StackPanel>
         <!-- goal Popup -->
         <Popup IsOpen="{Binding IsGoalPanelOpen}" Placement="Right"
                PlacementTarget="{Binding #GoalButton}" HorizontalOffset="4">
           <Border CornerRadius="10" Padding="14,10" Width="300"
                   Background="{DynamicResource GuiPopupBackground}"
-                  BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
+                  BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+                  PointerExited="OnPopupPointerExited">
             <StackPanel Spacing="8">
               <TextBlock Text="🎯 goal 进行中" FontSize="13" FontWeight="SemiBold"
                          Foreground="{DynamicResource GuiPrimaryText}" />
@@ -158,6 +172,11 @@
         <Popup IsOpen="{Binding IsInterceptorPanelOpen}" Placement="Right"
                PlacementTarget="{Binding #InterceptorButton}" HorizontalOffset="4">
           <local:InterceptorPopupContent />
+        </Popup>
+        <!-- 聊天室 Popup -->
+        <Popup IsOpen="{Binding IsChatRoomPanelOpen}" Placement="Right"
+               PlacementTarget="{Binding #ChatRoomButton}" HorizontalOffset="4">
+          <local:ChatRoomView />
         </Popup>
       </Grid>
     </Border>
@@ -214,12 +233,9 @@
               <WrapPanel Orientation="Horizontal">
                 <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center"
                            Foreground="{DynamicResource GuiAccentText}" IsVisible="{Binding IsSearching}" />
-                <TextBlock Text="{Binding MessageCount, StringFormat='{}消息 {0}'}"
-                           Margin="0,0,12,0" Foreground="{DynamicResource GuiMutedText}" FontSize="11" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding EstimatedTokens, StringFormat='{}约 {0} tokens'}"
-                           Margin="0,0,12,0" Foreground="{DynamicResource GuiMutedText}" FontSize="11" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding TotalChars, StringFormat='{}{0} 字符'}"
-                           Margin="0,0,12,0" Foreground="{DynamicResource GuiMutedText}" FontSize="11" VerticalAlignment="Center" />
+                <Button Classes="ghost" Content="📊 统计" Command="{Binding ToggleStatsPanelCommand}"
+                        FontSize="11" Padding="9,3" MinHeight="0"
+                        ToolTip.Tip="查看会话统计" />
               <Button Classes="ghost" Content="⧉ 复制" Command="{Binding CopySessionExportCommand}"
                       FontSize="11" Padding="9,3" MinHeight="0" IsEnabled="{Binding HasMessages}"
                       ToolTip.Tip="复制会话为文本" />
@@ -227,6 +243,11 @@
                       FontSize="11" Padding="9,3" MinHeight="0" IsEnabled="{Binding HasMessages}"
                       ToolTip.Tip="保存当前完整会话为 Markdown 文件" />
               </WrapPanel>
+              <!-- 统计面板 Popup -->
+              <Popup IsOpen="{Binding IsStatsPanelOpen}" Placement="Bottom"
+                     HorizontalAlignment="Left" MinWidth="320">
+                <local:StatsPanelView />
+              </Popup>
             </StackPanel>
           </Border>
           <!-- 消息列表区：单条消息卡片化（G3 接线 Markdown 渲染 + 复制/删除/思考折叠命令） -->
@@ -432,6 +453,11 @@
                                          TextTrimming="CharacterEllipsis" MaxLines="6"
                                          Foreground="{DynamicResource GuiSecondaryText}" />
                               <md:DiffViewer Hunks="{Binding StructuredPatch}" IsVisible="{Binding HasDiff}" />
+                              <Button Classes="ghost" Content="🔍 查看完整 diff" FontSize="11" Padding="8,2" MinHeight="0"
+                                      IsVisible="{Binding HasDiff}"
+                                      Command="{Binding DataContext.OpenDiffViewCommand, ElementName=Root}"
+                                      CommandParameter="{Binding}"
+                                      ToolTip.Tip="全屏查看代码变更" />
                             </StackPanel>
                             <!-- 通用正文：流式期间纯文本（避免逐 token 重建控件树），完成后 Markdown 渲染 -->
                             <Panel IsVisible="{Binding !IsToolCall}">

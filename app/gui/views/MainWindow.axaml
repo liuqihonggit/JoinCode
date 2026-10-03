@@ -127,6 +127,9 @@
                   IsVisible="{Binding IsGoalRunning}" />
           <Button x:Name="InterceptorButton" Classes="activityIcon" Content="🛡" FontSize="20"
                   Command="{Binding ToggleInterceptorPanelCommand}" ToolTip.Tip="AI 工具拦截器" />
+          <Button x:Name="ChatRoomButton" Classes="activityIcon" Content="👥" FontSize="20"
+                  Command="{Binding ToggleChatRoomPanelCommand}" ToolTip.Tip="聊天室"
+                  IsVisible="{Binding ChatRoomEnabled}" />
         </StackPanel>
         <StackPanel Grid.Row="2" Spacing="4" Margin="0,0,0,8">
           <ToggleButton Classes="activityIcon" FontSize="20"
@@ -169,6 +172,11 @@
         <Popup IsOpen="{Binding IsInterceptorPanelOpen}" Placement="Right"
                PlacementTarget="{Binding #InterceptorButton}" HorizontalOffset="4">
           <local:InterceptorPopupContent />
+        </Popup>
+        <!-- 聊天室 Popup -->
+        <Popup IsOpen="{Binding IsChatRoomPanelOpen}" Placement="Right"
+               PlacementTarget="{Binding #ChatRoomButton}" HorizontalOffset="4">
+          <local:ChatRoomView />
         </Popup>
       </Grid>
     </Border>

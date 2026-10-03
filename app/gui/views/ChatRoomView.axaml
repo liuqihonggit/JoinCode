@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
+             x:Class="JoinCode.Gui.Views.ChatRoomView"
+             x:DataType="vm:MainViewModel">
+  <Border CornerRadius="10" Padding="12,10" Margin="8"
+          Background="{DynamicResource GuiPopupBackground}"
+          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+          BoxShadow="{DynamicResource GuiPopupShadow}"
+          PointerExited="OnPointerExited">
+    <Grid RowDefinitions="Auto,*,Auto">
+      <!-- 头部：聊天室标题 + 在线人数 -->
+      <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,8">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0" Text="💬 聊天室" FontSize="14" FontWeight="SemiBold"
+                     Foreground="{DynamicResource GuiPrimaryText}" />
+          <TextBlock Grid.Column="1" Text="{Binding ChatRoomMemberCount, StringFormat='{}{0} 在线'}"
+                     FontSize="11" Foreground="{DynamicResource GuiMutedText}" />
+        </Grid>
+        <!-- 成员列表（横向头像排列） -->
+        <ItemsControl ItemsSource="{Binding ChatRoomMembers}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ChatRoomMemberVm">
+              <Border Width="28" Height="28" CornerRadius="14" Background="{Binding AvatarColor}"
+                      ToolTip.Tip="{Binding DisplayName}">
+                <TextBlock Text="{Binding Initial}" FontSize="12" FontWeight="Bold"
+                           Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <!-- 消息列表 -->
+      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="400">
+        <ItemsControl ItemsSource="{Binding ChatRoomMessages}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ChatRoomMessageVm">
+              <StackPanel Margin="0,0,0,8">
+                <!-- 发送者名称 + 时间 -->
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="{Binding SenderName}" FontSize="11" FontWeight="SemiBold"
+                             Foreground="{Binding SenderColor}" />
+                  <TextBlock Text="{Binding TimeDisplay}" FontSize="9.5"
+                             Foreground="{DynamicResource GuiMutedText}" />
+                </StackPanel>
+                <!-- 消息内容 -->
+                <TextBlock Text="{Binding Content}" FontSize="12"
+                           Foreground="{DynamicResource GuiPrimaryText}" TextWrapping="Wrap"
+                           Margin="20,2,0,0" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <!-- 底部：聊天室模式提示 -->
+      <TextBlock Grid.Row="2" Text="🟢 聊天室模式已启用 — 可见每个 bot 对话"
+                 FontSize="10" Foreground="{DynamicResource GuiMutedText}" Margin="0,8,0,0" />
+    </Grid>
+  </Border>
+</UserControl>

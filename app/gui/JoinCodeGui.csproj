@@ -9,7 +9,7 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <NoWarn>$(NoWarn);JCC9001;JCC10001;JCC10002;CS8604;CS1573;CS1587;NU1903</NoWarn>
+    <NoWarn>$(NoWarn);JCC9001;JCC10001;JCC10002;CS8604;CS1573;CS1587;NU1903;CS0618</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,10 +24,13 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Diagnostics" Version="$(AvaloniaVersion)" />
-    <PackageReference Include="Avalonia.ReactiveUI" Version="$(AvaloniaVersion)" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="$(CommunityToolkitMvvmVersion)" />
     <PackageReference Include="Markdig" Version="$(MarkdigVersion)" />
     <PackageReference Include="OneWare.AvaloniaEdit" Version="11.3.3" />
+    <PackageReference Include="Dock.Avalonia.v11" Version="$(DockVersion)" />
+    <PackageReference Include="Dock.Avalonia.Themes.Fluent.v11" Version="$(DockVersion)" />
+    <PackageReference Include="Dock.Model.Mvvm" Version="12.1.0.6" />
+    <PackageReference Include="Dock.Serializer.SystemTextJson" Version="12.1.0.6" />
   </ItemGroup>
 
   <ItemGroup>

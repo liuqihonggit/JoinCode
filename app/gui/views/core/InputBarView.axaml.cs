@@ -20,6 +20,8 @@ public sealed partial class InputBarView : UserControl {
         _slashDebounceTimer.Tick += OnSlashDebounceTick;
         if (InputTextBox is not null)
             InputTextBox.AddHandler(InputElement.KeyDownEvent, OnInputKeyDown, RoutingStrategies.Tunnel);
+        InputBarRoot.PointerMoved += OnInputResizePointerMoved;
+        InputBarRoot.PointerReleased += OnInputResizePointerReleased;
     }
 
     /// <summary>当前 MainViewModel（供外部访问）</summary>
@@ -150,14 +152,14 @@ public sealed partial class InputBarView : UserControl {
     private double _resizeStartY;
     private double _resizeStartHeight;
 
-    /// <summary>拖拽手柄按下 — 记录起始 Y 坐标和输入框高度</summary>
+    /// <summary>拖拽手柄按下 — 记录起始 Y 坐标和输入框高度,capture 到根控件确保移出手柄仍收事件</summary>
     private void OnInputResizePointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e) {
         if (DataContext is not MainViewModel vm)
             return;
         _isResizingInput = true;
         _resizeStartY = e.GetPosition(null).Y;
         _resizeStartHeight = vm.InputAreaHeight;
-        e.Pointer.Capture((Avalonia.Input.IInputElement?)sender);
+        e.Pointer.Capture(InputBarRoot);
         e.Handled = true;
     }
 
@@ -175,7 +177,7 @@ public sealed partial class InputBarView : UserControl {
         vm.InputAreaHeight = newHeight;
     }
 
-    /// <summary>拖拽手柄释放 — 结束拖拽</summary>
+    /// <summary>拖拽手柄释放 — 结束拖拽,释放 capture</summary>
     private void OnInputResizePointerReleased(object? sender, Avalonia.Input.PointerReleasedEventArgs e) {
         if (!_isResizingInput)
             return;
@@ -191,6 +193,8 @@ public sealed partial class InputBarView : UserControl {
             _vm.PropertyChanged -= OnVmPropertyChanged;
         if (InputTextBox is not null)
             InputTextBox.RemoveHandler(InputElement.KeyDownEvent, OnInputKeyDown);
+        InputBarRoot.PointerMoved -= OnInputResizePointerMoved;
+        InputBarRoot.PointerReleased -= OnInputResizePointerReleased;
         base.OnDetachedFromVisualTree(e);
     }
 }

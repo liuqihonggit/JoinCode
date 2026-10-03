@@ -21,7 +21,6 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     private volatile ImmutableHamT<string, float[]> _vectors = ImmutableHamT<string, float[]>.Empty;
     private volatile int _status;
     private int _disposed;
-    private string? _indexFilePath;
 
     /// <summary>
     /// 构造向量索引。
@@ -298,7 +297,6 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         if (snapshot is null) return false;
         ApplySnapshot(snapshot);
         RestoreAnnGraph(snapshot);
-        _indexFilePath = Path.Combine(dirPath, "vector_index.bin");
         Interlocked.Exchange(ref _status, (int)IndexStatus.Ready);
         return true;
     }
@@ -378,20 +376,10 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     }
 
     /// <summary>
-    /// 按偏移量从索引文件读取 SourceText — 分页持久化，搜索时不加载 SourceText 段。
+    /// 按偏移量从索引文件读取 SourceText — LSM 后端 SourceText 已在 meta 中，直接返回。
     /// </summary>
-    private async Task<string?> ReadSourceTextAsync(ChunkMetadata meta, CancellationToken ct) {
-        if (meta.SourceText is not null) return meta.SourceText;
-        if (meta.SourceTextOffset < 0 || meta.SourceTextLen == 0 || _indexFilePath is null) return null;
-        try {
-            await using var stream = _fs.OpenRead(_indexFilePath);
-            stream.Seek(meta.SourceTextOffset, SeekOrigin.Begin);
-            var buffer = new byte[meta.SourceTextLen];
-            await stream.ReadAsync(buffer, ct).ConfigureAwait(false);
-            return Encoding.UTF8.GetString(buffer);
-        } catch {
-            return null;
-        }
+    private static Task<string?> ReadSourceTextAsync(ChunkMetadata meta, CancellationToken ct) {
+        return Task.FromResult(meta.SourceText);
     }
 
     /// <summary>

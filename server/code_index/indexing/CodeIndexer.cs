@@ -236,46 +236,22 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         progress?.Report(new IndexProgress { Current = total, Total = total });
 
-        // Phase D: 并行提取符号(已并行,4度)
-        var phaseDSw = Stopwatch.StartNew();
-        var extractionResults = ParallelExtractAll(filesToIndex, ct);
-        phaseDSw.Stop();
-        Console.Error.WriteLine($"[code-index] Phase D 提取: {filesToIndex.Count} 文件 ({phaseDSw.ElapsedMilliseconds}ms)");
+        // Phase D+E+E2: 分批流水线 — 提取和嵌入重叠执行
+        var pipelineSw = Stopwatch.StartNew();
+        var half = filesToIndex.Count / 2;
+        var batch1Files = filesToIndex.GetRange(0, half);
+        var batch2Files = filesToIndex.GetRange(half, filesToIndex.Count - half);
 
-        // Phase E + E2: 并行执行符号写入和向量嵌入（两者写入不同索引，无数据依赖）
-        var phaseESw = Stopwatch.StartNew();
-        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>(filesToIndex.Count);
-        for (var i = 0; i < filesToIndex.Count; i++) {
-            var (filePath, sourceCode, hash) = filesToIndex[i];
-            batch.Add((filePath, sourceCode, hash, extractionResults[i]));
-        }
+        var batch1Results = ParallelExtractAll(batch1Files, ct);
+        var batch1Task = ProcessBatchAsync(batch1Files, batch1Results, ct);
 
-        var symbolTask = _symbolIndex.IndexFilesBatchAsync(batch, ct);
+        var batch2Results = ParallelExtractAll(batch2Files, ct);
+        var batch2Task = ProcessBatchAsync(batch2Files, batch2Results, ct);
 
-        List<ChunkInfo>? allChunks = null;
-        var embeddingTask = Task.Run(async () => {
-            if (_embeddingIndex is null) return;
-            foreach (var b in batch) {
-                await _embeddingIndex.RemoveFileAsync(b.FilePath, ct).ConfigureAwait(false);
-            }
-            allChunks = new List<ChunkInfo>();
-            foreach (var b in batch) {
-                var parentLocations = b.Extraction.Symbols
-                    .Where(s => IsParentDocumentKind(s.Kind))
-                    .Select(s => new LineBasedChunkExtractor.ParentLocation(b.FilePath, s.StartLine, s.EndLine, s.FullyQualifiedName))
-                    .ToList();
-                allChunks.AddRange(LineBasedChunkExtractor.Extract(
-                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations));
-            }
-            if (allChunks.Count > 0) {
-                await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
-            }
-        }, ct);
-
-        await Task.WhenAll(symbolTask, embeddingTask).ConfigureAwait(false);
-        phaseESw.Stop();
-        updatedCount = batch.Count;
-        Console.Error.WriteLine($"[code-index] Phase E+E2 写入+嵌入: {updatedCount} 文件 {allChunks?.Count ?? 0} 块 ({phaseESw.ElapsedMilliseconds}ms)");
+        await Task.WhenAll(batch1Task, batch2Task).ConfigureAwait(false);
+        updatedCount = filesToIndex.Count;
+        pipelineSw.Stop();
+        Console.Error.WriteLine($"[code-index] Phase D+E+E2 流水线: {updatedCount} 文件 ({pipelineSw.ElapsedMilliseconds}ms)");
         phaseSw.Restart();
 
         // Phase F: 删除已移除文件
@@ -381,6 +357,41 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             });
 
         return [.. results];
+    }
+
+    /// <summary>处理一批文件 — 符号写入和向量嵌入并行</summary>
+    private async Task ProcessBatchAsync(
+        List<(string FilePath, string SourceCode, string Hash)> files,
+        List<ExtractionResult> extractionResults,
+        CancellationToken ct) {
+        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>(files.Count);
+        for (var i = 0; i < files.Count; i++) {
+            var (filePath, sourceCode, hash) = files[i];
+            batch.Add((filePath, sourceCode, hash, extractionResults[i]));
+        }
+
+        var symbolTask = _symbolIndex.IndexFilesBatchAsync(batch, ct);
+
+        var embeddingTask = Task.Run(async () => {
+            if (_embeddingIndex is null) return;
+            foreach (var b in batch) {
+                await _embeddingIndex.RemoveFileAsync(b.FilePath, ct).ConfigureAwait(false);
+            }
+            var allChunks = new List<ChunkInfo>();
+            foreach (var b in batch) {
+                var parentLocations = b.Extraction.Symbols
+                    .Where(s => IsParentDocumentKind(s.Kind))
+                    .Select(s => new LineBasedChunkExtractor.ParentLocation(b.FilePath, s.StartLine, s.EndLine, s.FullyQualifiedName))
+                    .ToList();
+                allChunks.AddRange(LineBasedChunkExtractor.Extract(
+                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations));
+            }
+            if (allChunks.Count > 0) {
+                await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
+            }
+        }, ct);
+
+        await Task.WhenAll(symbolTask, embeddingTask).ConfigureAwait(false);
     }
 
     /// <summary>

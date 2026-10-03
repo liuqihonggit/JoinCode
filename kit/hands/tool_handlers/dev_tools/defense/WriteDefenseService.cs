@@ -150,7 +150,10 @@ public sealed class WriteDefenseService {
             return null;
 
         RecordFileMetrics(ctx.Operation, FileOperationResult.Stale);
-        var diag = BuildFileModifiedSinceReadDiagnostic(ctx.OperationLabel, ctx.ResolvedPath, stale.Value.LastWriteMs, stale.Value.ReadTimestampMs);
+        // IsNotRead: 无读记录（LRU 淘汰）用"未读"诊断；否则用"脏写"诊断
+        var diag = stale.IsNotRead
+            ? BuildFileNotReadBeforeWriteDiagnostic()
+            : BuildFileModifiedSinceReadDiagnostic(ctx.OperationLabel, ctx.ResolvedPath, stale.LastWriteMs, stale.ReadTimestampMs);
         return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
     }
 

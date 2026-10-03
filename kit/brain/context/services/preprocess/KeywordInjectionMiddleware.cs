@@ -91,6 +91,13 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
             return;
         }
 
+        var cooldownKey = $"dynamic-{dynamicMatch.SectionName}";
+        if (!CooldownService.ShouldTrigger(cooldownKey)) {
+            _logger?.LogDebug("[DynamicKeyword] Section '{Section}' 在冷却期内，跳过注入", dynamicMatch.SectionName);
+            return;
+        }
+        CooldownService.RecordTrigger(cooldownKey);
+
         var injectionId = $"dynamic-keyword-injection-{dynamicMatch.SectionName}";
         await _reminderManager.AddReminderAsync(
             injectionId,

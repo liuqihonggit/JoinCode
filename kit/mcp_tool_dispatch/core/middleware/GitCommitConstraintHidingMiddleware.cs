@@ -8,6 +8,7 @@ namespace McpToolRegistry;
 public sealed partial class GitCommitConstraintHidingMiddleware : ServiceEntity, IToolExecutionMiddleware {
     private const string GitCommitToolName = "git_commit";
     private const string MessageParam = "message";
+    private const string ConstraintEchoKey = "commit-constraint-echo";
 
     private static readonly Regex[] ConstraintEchoPatterns = [
         new(@"\([^)]*(?:不含|不放|不删|不提|无.{0,4}版|非.{0,4}版|按.{0,6}要求|隐匿|省略若干)[^)]*\)", RegexOptions.None, TimeSpan.FromMilliseconds(500)),
@@ -29,8 +30,11 @@ public sealed partial class GitCommitConstraintHidingMiddleware : ServiceEntity,
     /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct) {
         if (IsConstraintEchoCommit(context)) {
-            context.Deny(BuildDenyReason());
-            return;
+            if (CooldownService.ShouldTrigger(ConstraintEchoKey)) {
+                CooldownService.RecordTrigger(ConstraintEchoKey);
+                context.Deny(BuildDenyReason());
+                return;
+            }
         }
         await next(context, ct).ConfigureAwait(false);
     }

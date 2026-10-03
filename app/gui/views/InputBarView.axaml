@@ -61,11 +61,21 @@
       <Grid RowDefinitions="Auto,*,Auto">
         <!-- Row 0：工具栏行（QQ 风格 — 一排控件在输入框上方，消除底部拥挤） -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4" Margin="7,7,7,4">
-          <!-- 权限模式：纯圆点图标，Tooltip 显示模式名 -->
-          <Button Classes="ghost" Padding="7,4" MinHeight="0"
-                  Command="{Binding CyclePermissionModeCommand}"
-                  ToolTip.Tip="{Binding PermissionModeDisplay, FallbackValue='Auto'}">
-            <Ellipse Width="10" Height="10" Fill="{Binding PermissionModeLightColor, FallbackValue='#3dd68c'}" />
+          <!-- 权限模式：图标随模式变化(📋🟢🟡🔴🔓🤖)，点击弹出列表选择（Shift+Tab 才循环） -->
+          <Button Classes="ghost" Padding="7,4" MinHeight="0" FontSize="14"
+                  Content="{Binding PermissionModeIcon, FallbackValue='🟢'}"
+                  ToolTip.Tip="{Binding PermissionModeToolTip, FallbackValue='Ask'}">
+            <Button.Flyout>
+              <MenuFlyout Placement="Top">
+                <MenuItem Header="📋 Plan" Command="{Binding SetPermissionModeCommand}" CommandParameter="Plan" />
+                <MenuItem Header="🟢 Ask 绿" Command="{Binding SetPermissionModeCommand}" CommandParameter="AskGreen" />
+                <MenuItem Header="🟡 Ask 黄" Command="{Binding SetPermissionModeCommand}" CommandParameter="AskYellow" />
+                <MenuItem Header="🔴 Ask 红" Command="{Binding SetPermissionModeCommand}" CommandParameter="AskRed" />
+                <Separator />
+                <MenuItem Header="🔓 Bypass" Command="{Binding SetPermissionModeCommand}" CommandParameter="Bypass" />
+                <MenuItem Header="🤖 Unattended" Command="{Binding SetPermissionModeCommand}" CommandParameter="Unattended" />
+              </MenuFlyout>
+            </Button.Flyout>
           </Button>
           <!-- 模型选择器：纯图标，Tooltip 显示当前模型名，点击弹出模型列表 -->
           <Panel>

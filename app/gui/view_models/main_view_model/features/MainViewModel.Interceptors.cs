@@ -183,6 +183,7 @@ public sealed partial class MainViewModel {
     [NotifyPropertyChangedFor(nameof(PermissionModeDisplay))]
     [NotifyPropertyChangedFor(nameof(PermissionModeLightColor))]
     [NotifyPropertyChangedFor(nameof(PermissionModeToolTip))]
+    [NotifyPropertyChangedFor(nameof(PermissionModeIcon))]
     private PermissionMode _currentPermissionMode = PermissionMode.Ask;
 
     /// <summary>Ask 模式灯色等级 — 绿/黄/红，区分不同危险等级的询问确认</summary>
@@ -190,6 +191,7 @@ public sealed partial class MainViewModel {
     [NotifyPropertyChangedFor(nameof(PermissionModeDisplay))]
     [NotifyPropertyChangedFor(nameof(PermissionModeLightColor))]
     [NotifyPropertyChangedFor(nameof(PermissionModeToolTip))]
+    [NotifyPropertyChangedFor(nameof(PermissionModeIcon))]
     private AskLightLevel _askLight = AskLightLevel.Green;
 
     /// <summary>权限模式显示文本 — 模式图标+纯文本(灯色由 Ellipse 圆点展示)</summary>
@@ -237,6 +239,20 @@ public sealed partial class MainViewModel {
         _ => "Ask 模式"
     };
 
+    /// <summary>权限模式图标 — 不同模式显示不同 emoji，工具栏纯图标用</summary>
+    public string PermissionModeIcon => CurrentPermissionMode switch {
+        PermissionMode.Plan => "📋",
+        PermissionMode.Ask => AskLight switch {
+            AskLightLevel.Green => "🟢",
+            AskLightLevel.Yellow => "🟡",
+            AskLightLevel.Red => "🔴",
+            _ => "🟢"
+        },
+        PermissionMode.Bypass => "🔓",
+        PermissionMode.Unattended => "🤖",
+        _ => "🟢"
+    };
+
     /// <summary>循环切换权限模式 — Shift+Tab 触发(Plan→Ask绿→Ask黄→Ask红→Plan)
     /// Bypass/Unattended 不参与循环（安全设计：Bypass 仅 CLI --bypass，Unattended 仅设置面板开关）</summary>
     [RelayCommand]
@@ -256,6 +272,37 @@ public sealed partial class MainViewModel {
             }
         }
         // Bypass/Unattended 保持不变
+        await _session.SetPermissionModeAsync(CurrentPermissionMode == PermissionMode.Auto ? PermissionMode.Ask : CurrentPermissionMode);
+        StatusText = $"权限模式: {PermissionModeDisplay}";
+    }
+
+    /// <summary>设置特定权限模式 — 鼠标点击 MenuFlyout 选项触发（区别于 Shift+Tab 循环）
+    /// 参数: "Plan" / "AskGreen" / "AskYellow" / "AskRed" / "Bypass" / "Unattended"</summary>
+    [RelayCommand]
+    private async Task SetPermissionModeAsync(string mode) {
+        switch (mode) {
+            case "Plan":
+                CurrentPermissionMode = PermissionMode.Plan;
+                break;
+            case "AskGreen":
+                CurrentPermissionMode = PermissionMode.Ask;
+                AskLight = AskLightLevel.Green;
+                break;
+            case "AskYellow":
+                CurrentPermissionMode = PermissionMode.Ask;
+                AskLight = AskLightLevel.Yellow;
+                break;
+            case "AskRed":
+                CurrentPermissionMode = PermissionMode.Ask;
+                AskLight = AskLightLevel.Red;
+                break;
+            case "Bypass":
+                CurrentPermissionMode = PermissionMode.Bypass;
+                break;
+            case "Unattended":
+                CurrentPermissionMode = PermissionMode.Unattended;
+                break;
+        }
         await _session.SetPermissionModeAsync(CurrentPermissionMode == PermissionMode.Auto ? PermissionMode.Ask : CurrentPermissionMode);
         StatusText = $"权限模式: {PermissionModeDisplay}";
     }

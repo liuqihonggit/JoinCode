@@ -50,12 +50,12 @@ public sealed partial class MainViewModel {
     /// <summary>系统日志条目(最近的状态变化/错误/切换记录,最多保留 50 条)</summary>
     public System.Collections.ObjectModel.ObservableCollection<string> StatusLogEntries { get; } = new();
 
-    /// <summary>追加系统日志条目(超过 50 条时移除最旧的)</summary>
+    /// <summary>追加系统日志条目(倒序:旧的在上新的在下,最多保留 50 条)</summary>
     public void AddStatusLog(string entry) {
         var stamped = $"[{DateTime.Now:HH:mm:ss}] {entry}";
-        StatusLogEntries.Insert(0, stamped);
+        StatusLogEntries.Add(stamped);
         while (StatusLogEntries.Count > 50)
-            StatusLogEntries.RemoveAt(StatusLogEntries.Count - 1);
+            StatusLogEntries.RemoveAt(0);
     }
 
     /// <summary>切换系统日志展开/收起</summary>

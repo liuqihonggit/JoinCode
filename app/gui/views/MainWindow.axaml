@@ -232,24 +232,8 @@
               <TextBox Text="{Binding SearchText}" Watermark="搜索消息…" FontSize="12"
                        HorizontalAlignment="Stretch" VerticalAlignment="Center" MinHeight="30" Padding="8,4"
                        AutomationProperties.Name="搜索消息正文" />
-              <WrapPanel Orientation="Horizontal">
-                <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center"
-                           Foreground="{DynamicResource GuiAccentText}" IsVisible="{Binding IsSearching}" />
-                <Button Classes="ghost" Content="📊 统计" Command="{Binding ToggleStatsPanelCommand}"
-                        FontSize="11" Padding="9,3" MinHeight="0"
-                        ToolTip.Tip="查看会话统计" />
-              <Button Classes="ghost" Content="⧉ 复制" Command="{Binding CopySessionExportCommand}"
-                      FontSize="11" Padding="9,3" MinHeight="0" IsEnabled="{Binding HasMessages}"
-                      ToolTip.Tip="复制会话为文本" />
-              <Button Classes="accentSubtle" Content="↓ Markdown" Click="OnSaveSessionMarkdown"
-                      FontSize="11" Padding="9,3" MinHeight="0" IsEnabled="{Binding HasMessages}"
-                      ToolTip.Tip="保存当前完整会话为 Markdown 文件" />
-              </WrapPanel>
-              <!-- 统计面板 Popup -->
-              <Popup IsOpen="{Binding IsStatsPanelOpen}" Placement="Bottom"
-                     HorizontalAlignment="Left" MinWidth="320">
-                <local:StatsPanelView />
-              </Popup>
+              <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center"
+                         Foreground="{DynamicResource GuiAccentText}" IsVisible="{Binding IsSearching}" />
             </StackPanel>
           </Border>
           <!-- 消息列表区：单条消息卡片化（G3 接线 Markdown 渲染 + 复制/删除/思考折叠命令） -->

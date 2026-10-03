@@ -3,14 +3,22 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             xmlns:vm="using:JoinCode.Gui.ViewModels"
+              xmlns:vm="using:JoinCode.Gui.ViewModels"
+              xmlns:local="using:JoinCode.Gui.Views"
              x:Class="JoinCode.Gui.Views.InputBarView"
              x:Name="InputBarRoot"
              x:DataType="vm:MainViewModel">
   <UserControl.Styles>
-    <!-- 输入框聚焦时不显示蓝色边框(覆盖全局 TextBox:focus 样式) -->
+    <!-- 输入框聚焦时不显示蓝色边框/背景变化(覆盖全局 TextBox:focus 样式) -->
     <Style Selector="TextBox.noFocusRing:focus /template/ Border#PART_BorderElement">
       <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TextBox.noFocusRing:focus">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
     </Style>
     <!-- 推理档位按钮基础样式 — 紧凑圆角,切换时背景/前景色渐变动画(对齐 Codex 风格) -->
     <Style Selector="RadioButton.effortBtn">
@@ -104,8 +112,9 @@
           </Grid>
         </Border>
       </Popup>
-      <!-- Row 1：工具栏行（QQ 风格 — 一排控件在输入框上方，消除底部拥挤） -->
-      <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" Margin="7,4,7,4">
+      <!-- Row 1：工具栏行（QQ 风格 — 左侧功能图标+统计,右侧复制/Markdown） -->
+      <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="7,4,7,4">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
           <!-- 权限模式：图标随模式变化(📋🟢🟡🔴🔓🤖)，点击弹出列表选择（Shift+Tab 才循环） -->
           <Button Classes="ghost" Padding="7,4" MinHeight="0" FontSize="14"
                   Content="{Binding PermissionModeIcon, FallbackValue='🟢'}"
@@ -228,7 +237,27 @@
               </MenuFlyout>
             </Button.Flyout>
           </Button>
+          <!-- 统计按钮(从搜索栏移入工具栏) + Popup -->
+          <Panel>
+            <Button x:Name="StatsButton" Classes="ghost" Content="📊" FontSize="14" Padding="7,4" MinHeight="0"
+                    Command="{Binding ToggleStatsPanelCommand}"
+                    ToolTip.Tip="查看会话统计" />
+            <Popup IsOpen="{Binding IsStatsPanelOpen}" Placement="Top"
+                   PlacementTarget="{Binding #StatsButton}" MinWidth="320">
+              <local:StatsPanelView />
+            </Popup>
+          </Panel>
         </StackPanel>
+        <!-- 右侧：复制/Markdown(从搜索栏移入工具栏右侧) -->
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+          <Button Classes="ghost" Content="⧉" FontSize="14" Padding="7,4" MinHeight="0"
+                  Command="{Binding CopySessionExportCommand}" IsEnabled="{Binding HasMessages}"
+                  ToolTip.Tip="复制会话为文本" />
+          <Button Classes="ghost" Content="↓" FontSize="14" Padding="7,4" MinHeight="0"
+                  Click="OnSaveMarkdown" IsEnabled="{Binding HasMessages}"
+                  ToolTip.Tip="保存为 Markdown 文件" />
+        </StackPanel>
+      </Grid>
         <!-- Row 2：输入框（高度可拖拽调节 — 绑定 InputAreaHeight,顶部手柄拖拽） -->
         <TextBox Grid.Row="2" x:Name="InputTextBox" Classes="noFocusRing" Text="{Binding InputText}" Watermark="{Binding SendHintText, FallbackValue='输入消息，Ctrl+Enter 发送 / Enter 换行…'}"
                  IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="12"

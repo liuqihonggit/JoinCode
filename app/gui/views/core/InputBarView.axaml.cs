@@ -197,4 +197,31 @@ public sealed partial class InputBarView : UserControl {
         InputBarRoot.PointerReleased -= OnInputResizePointerReleased;
         base.OnDetachedFromVisualTree(e);
     }
+
+    /// <summary>保存会话为 Markdown — 通过 StorageProvider 弹出保存对话框</summary>
+    private void OnSaveMarkdown(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => _ = SaveMarkdownAsync();
+
+    private async Task SaveMarkdownAsync() {
+        if (DataContext is not MainViewModel vm || !vm.HasMessages) return;
+        var snapshot = vm.ExportSessionMarkdown;
+        try {
+            var storage = Avalonia.Controls.TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storage is null) return;
+            var file = await storage.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions {
+                Title = "导出会话为 Markdown",
+                SuggestedFileName = $"JoinCode-{DateTime.Now:yyyyMMdd-HHmmss}.md",
+                DefaultExtension = "md",
+                ShowOverwritePrompt = true,
+                FileTypeChoices = [new Avalonia.Platform.Storage.FilePickerFileType("Markdown") { Patterns = ["*.md"] }]
+            });
+            if (file is null) return;
+            await using var stream = await file.OpenWriteAsync();
+            stream.SetLength(0);
+            await using var writer = new System.IO.StreamWriter(stream, new System.Text.UTF8Encoding(false));
+            await writer.WriteAsync(snapshot);
+            vm.StatusText = "Markdown 已导出";
+        } catch (Exception ex) {
+            vm.StatusText = $"导出失败: {ex.Message}";
+        }
+    }
 }

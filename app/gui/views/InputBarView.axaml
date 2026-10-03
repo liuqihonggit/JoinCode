@@ -203,13 +203,6 @@
               </Border>
             </Popup>
           </Panel>
-          <!-- Mock 引擎切换按钮 — 模型选择器旁，Ⓘ 徽标 -->
-          <Button Classes="ghost" Padding="5,3" MinHeight="0" FontSize="10"
-                  Command="{Binding ToggleMockCommand}"
-                  ToolTip.Tip="{Binding MockToggleToolTip}"
-                  IsVisible="{Binding IsEngineLoaded}">
-            <TextBlock Text="Ⓘ" FontSize="11" Foreground="{Binding IsMockConnection, Converter={StaticResource BoolToWarnBrush}, FallbackValue='#3dd68c'}" />
-          </Button>
           <!-- 推理档位：纯图标 + Flyout 含 Slider（隐藏到图标内，点击展开） -->
           <Button Classes="ghost" Content="🧠" FontSize="14" Padding="7,4" MinHeight="0"
                   ToolTip.Tip="推理力度">

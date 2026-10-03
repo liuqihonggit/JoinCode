@@ -172,6 +172,14 @@ public sealed partial class MainViewModel {
         var providerId = parameter[..pipe];
         var modelId = parameter[(pipe + 1)..];
 
+        // Mock 供应商：切换到 Mock 引擎
+        if (string.Equals(providerId, "mock", StringComparison.OrdinalIgnoreCase)) {
+            if (!IsMockConnection)
+                ToggleMockCommand.Execute(null);
+            AddStatusLog("切换到 Mock 演示引擎");
+            return;
+        }
+
         // 切换供应商(若不同) → 切换模型
         if (!string.Equals(providerId, _session.CurrentVendor, StringComparison.OrdinalIgnoreCase)) {
             var conn = GetConnectionById(providerId);
@@ -221,6 +229,20 @@ public sealed partial class MainViewModel {
                 Models = entries
             });
         }
+        ProviderModelGroups = groups;
+        // Mock 作为供应商展示在列表末尾(选择时切换到 Mock 引擎)
+        groups.Add(new ProviderModelGroupVm {
+            ProviderId = "mock",
+            ProviderName = "Mock 演示",
+            Initial = "M",
+            BrandColor = "#F59E0B",
+            Models = [new ProviderModelEntryVm {
+                ModelId = "demo",
+                DisplayName = "Mock 演示引擎",
+                ContextWindow = 0,
+                SelectionKey = "mock|demo"
+            }]
+        });
         ProviderModelGroups = groups;
     }
 

@@ -178,8 +178,10 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
         _ => StatusKind.Ready
     };
 
-    partial void OnStatusTextChanged(string value)
-        => OnPropertyChanged(nameof(StatusKind));
+    partial void OnStatusTextChanged(string value) {
+        OnPropertyChanged(nameof(StatusKind));
+        AddStatusLog(value);
+    }
 
     /// <summary>当前字符数（随输入变化，驱动计数显示）</summary>
     [ObservableProperty]

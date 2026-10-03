@@ -59,7 +59,7 @@
     <Grid RowDefinitions="Auto,Auto,Auto,Auto">
       <!-- Row 0：系统状态条(悬浮,比输入栏窄) — 左侧状态文字+右侧▲展开日志,整行可拖拽调高度 -->
       <Border x:Name="StatusStrip" Grid.Row="0" Height="20" HorizontalAlignment="Stretch" Margin="16,0"
-              Background="{DynamicResource GuiCardHover}" CornerRadius="0,0,6,6"
+              Background="{DynamicResource GuiComposerBackground}" CornerRadius="0,0,6,6"
               Cursor="SizeNorthSouth"
               PointerPressed="OnInputResizePointerPressed"
               ToolTip.Tip="拖拽调节输入框高度">

@@ -49,10 +49,6 @@
           <MenuItem Header="关于 JoinCode" IsEnabled="False" />
         </MenuItem>
       </Menu>
-      <!-- 状态文本(居中) -->
-      <TextBlock Grid.Column="1" Text="{Binding StatusText}" FontSize="11"
-                 Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center"
-                 HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="12,3" />
       <!-- goal 进行中指示(右侧) -->
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,0"
                   IsVisible="{Binding IsGoalRunning}">

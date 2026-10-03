@@ -15,7 +15,7 @@ public sealed class WorkspacePreviewTests {
         var prefs = new GuiPreferencesStore(fs, "mem/preferences.json");
         await prefs.SaveAsync(new GuiPreferences { GuiTheme = theme.ToString(), AccentId = accent, AnimationsEnabled = false });
         await using var vm = new MainViewModel(new PlaceholderChatSession(), new GuiSessionStore(fs, "mem/sessions"), prefs);
-        vm.IsSettingsPanelOpen = settings;
+        vm.ActiveSidePanel = settings ? SidePanelKind.Settings : SidePanelKind.None;
         var window = new MainWindow { DataContext = vm, Width = width, Height = 820 };
         try {
             window.Show();
@@ -24,7 +24,7 @@ public sealed class WorkspacePreviewTests {
             composer.Bounds.Width.Should().BeGreaterThan(100);
             if (settings) {
                 var drawer = window.GetVisualDescendants().OfType<SettingsPanelView>().Single();
-                drawer.Bounds.Width.Should().Be(312);
+                drawer.Bounds.Width.Should().Be(236);
             }
             using var frame = window.CaptureRenderedFrame() ?? throw new InvalidOperationException("No Skia frame.");
             var root = new DirectoryInfo(AppContext.BaseDirectory);

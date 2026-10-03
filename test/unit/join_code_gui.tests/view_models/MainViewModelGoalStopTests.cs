@@ -18,11 +18,11 @@ public class MainViewModelGoalStopTests {
     public async Task StopGoal_ExecutesGoalClearImmediately() {
         var (vm, session) = Create();
         vm.IsGoalRunning = true;
-        vm.IsGoalPanelOpen = true;
+        vm.ActiveSidePanel = SidePanelKind.Goal;
         await vm.StopGoalCommand.ExecuteAsync(null);
         session.LastExecutedSlashCommand.Should().Be("/goal clear");
         vm.IsGoalRunning.Should().BeFalse();
-        vm.IsGoalPanelOpen.Should().BeFalse();
+        vm.IsGoalPanelActive.Should().BeFalse();
     }
 
     [Fact]
@@ -36,10 +36,10 @@ public class MainViewModelGoalStopTests {
     [Fact]
     public void ToggleGoalPanel_TogglesIsGoalPanelOpen() {
         var (vm, _) = Create();
-        vm.IsGoalPanelOpen.Should().BeFalse();
-        vm.ToggleGoalPanelCommand.Execute(null);
-        vm.IsGoalPanelOpen.Should().BeTrue();
-        vm.ToggleGoalPanelCommand.Execute(null);
-        vm.IsGoalPanelOpen.Should().BeFalse();
+        vm.IsGoalPanelActive.Should().BeFalse();
+        vm.ToggleSidePanelCommand.Execute(SidePanelKind.Goal);
+        vm.IsGoalPanelActive.Should().BeTrue();
+        vm.ToggleSidePanelCommand.Execute(SidePanelKind.Goal);
+        vm.IsGoalPanelActive.Should().BeFalse();
     }
 }

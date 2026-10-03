@@ -124,7 +124,7 @@ public sealed class GuiBeautifyRenderTests {
         win.Show();
         try {
             var vm = (MainViewModel)win.DataContext!;
-            vm.ToggleSettingsPanelCommand.Execute(null); // 打开右侧设置抽屉
+            vm.ToggleSidePanelCommand.Execute(SidePanelKind.Settings); // 打开左侧设置面板
             Dispatcher.UIThread.RunJobs();
             var frame = win.CaptureRenderedFrame()
                 ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null");

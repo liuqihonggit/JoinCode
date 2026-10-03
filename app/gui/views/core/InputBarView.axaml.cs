@@ -141,8 +141,46 @@ public sealed partial class InputBarView : UserControl {
 
     /// <summary>发送方式 Popup 鼠标离开时自动关闭</summary>
     private void OnSendModePopupPointerExited(object? sender, Avalonia.Input.PointerEventArgs e) {
-        if (DataContext is MainViewModel vm)
-            vm.IsSendModePopupOpen = false;
+        if (DataContext is not MainViewModel vm)
+            return;
+        vm.IsSendModePopupOpen = false;
+    }
+
+    private bool _isResizingInput;
+    private double _resizeStartY;
+    private double _resizeStartHeight;
+
+    /// <summary>拖拽手柄按下 — 记录起始 Y 坐标和输入框高度</summary>
+    private void OnInputResizePointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e) {
+        if (DataContext is not MainViewModel vm)
+            return;
+        _isResizingInput = true;
+        _resizeStartY = e.GetPosition(null).Y;
+        _resizeStartHeight = vm.InputAreaHeight;
+        e.Pointer.Capture((Avalonia.Input.IInputElement?)sender);
+        e.Handled = true;
+    }
+
+    /// <summary>拖拽手柄移动 — 向上拖增大高度,向下拖减小高度</summary>
+    private void OnInputResizePointerMoved(object? sender, Avalonia.Input.PointerEventArgs e) {
+        if (!_isResizingInput || DataContext is not MainViewModel vm)
+            return;
+        var currentY = e.GetPosition(null).Y;
+        var delta = _resizeStartY - currentY;
+        var newHeight = _resizeStartHeight + delta;
+        if (newHeight < 38)
+            newHeight = 38;
+        if (newHeight > 240)
+            newHeight = 240;
+        vm.InputAreaHeight = newHeight;
+    }
+
+    /// <summary>拖拽手柄释放 — 结束拖拽</summary>
+    private void OnInputResizePointerReleased(object? sender, Avalonia.Input.PointerReleasedEventArgs e) {
+        if (!_isResizingInput)
+            return;
+        _isResizingInput = false;
+        e.Pointer.Capture(null);
     }
 
     /// <summary>从视觉树分离时处理</summary>

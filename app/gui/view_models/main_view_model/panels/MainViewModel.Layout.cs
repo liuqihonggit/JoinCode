@@ -39,6 +39,10 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private bool _isCompactLayout;
 
+    /// <summary>输入栏文本区高度(可拖拽调节) — 默认三行约 72px,最小 38px,最大 240px</summary>
+    [ObservableProperty]
+    private double _inputAreaHeight = 72;
+
     /// <summary>紧凑布局阈值 — 窗口宽度低于此值切换到垂直布局</summary>
     public const double CompactLayoutThreshold = 700;
 

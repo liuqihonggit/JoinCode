@@ -209,7 +209,7 @@
 
     <!-- ===== Column 3：主区（四行布局：消息区/补全面板/输入栏/状态栏） ===== -->
     <Grid x:Name="MainAreaCol" Grid.Column="3">
-      <Grid RowDefinitions="*,Auto,Auto,Auto">
+      <Grid RowDefinitions="*,Auto,Auto">
 
       <!-- Row 0：内容+面板区（支持面板四方向位置：底部/右侧/左侧/顶部） -->
       <Grid Grid.Row="0" RowDefinitions="Auto,*,Auto" ColumnDefinitions="Auto,*,Auto">
@@ -264,7 +264,9 @@
               <TextBlock Text="探索代码 · 执行工具 · 协作完成任务" FontSize="14" TextWrapping="Wrap" TextAlignment="Center"
                           HorizontalAlignment="Center" Foreground="{DynamicResource GuiSecondaryText}" />
               <TextBlock Text="{Binding SendHintText}" FontSize="12.5" TextWrapping="Wrap" MaxWidth="440"
-                          HorizontalAlignment="Center" Foreground="{DynamicResource GuiMutedText}" />
+                         HorizontalAlignment="Center" Foreground="{DynamicResource GuiMutedText}" />
+              <TextBlock Text="@子代理名 可直发 · 双击 ESC 终止" FontSize="11.5" TextWrapping="Wrap" MaxWidth="440"
+                         HorizontalAlignment="Center" Foreground="{DynamicResource GuiMutedText}" Margin="0,2,0,0" />
               <Border Margin="0,12,0,0" MaxWidth="480" HorizontalAlignment="Stretch">
                 <ItemsControl ItemsSource="{Binding SuggestedPrompts}">
                   <ItemsControl.ItemsPanel>
@@ -564,9 +566,6 @@
 
       <!-- Row 2：底部输入栏 -->
       <local:InputBarView Grid.Row="2" x:Name="InputBar" IsVisible="{Binding IsNotZenMode}" />
-
-      <!-- Row 3：状态栏（模块化提取为 StatusBarView — 任务6） -->
-      <local:StatusBarView Grid.Row="3" IsVisible="{Binding IsNotZenMode}" />
       </Grid>
 
     <!-- ===== Column 4：Secondary Side Bar 拖拽手柄 ===== -->

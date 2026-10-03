@@ -52,15 +52,13 @@
     </Style>
   </UserControl.Styles>
 
-  <Border Padding="12,8" Background="{DynamicResource GuiInputBarBackground}"
+  <!-- 输入区(QQ 风格) — 顶部分割线 + 矩形背景,无圆角无边框,三行层次:工具栏/输入框/发送区 -->
+  <Border x:Name="ComposerBox" Classes="composer" Margin="0,0,0,0"
+          Background="{DynamicResource GuiComposerBackground}"
           BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
-    <!-- composer 卡片：TextBox 透明无边框内嵌，发送按钮嵌入卡片内部右下（现代聊天输入区范式） -->
-    <Border x:Name="ComposerBox" Classes="composer" CornerRadius="10"
-            Background="{DynamicResource GuiComposerBackground}"
-            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
-      <Grid RowDefinitions="Auto,*,Auto">
-        <!-- Row 0：工具栏行（QQ 风格 — 一排控件在输入框上方，消除底部拥挤） -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4" Margin="7,7,7,4">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto">
+      <!-- Row 0：工具栏行（QQ 风格 — 一排控件在输入框上方，消除底部拥挤） -->
+      <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4" Margin="7,7,7,4">
           <!-- 权限模式：图标随模式变化(📋🟢🟡🔴🔓🤖)，点击弹出列表选择（Shift+Tab 才循环） -->
           <Button Classes="ghost" Padding="7,4" MinHeight="0" FontSize="14"
                   Content="{Binding PermissionModeIcon, FallbackValue='🟢'}"
@@ -184,13 +182,21 @@
             </Button.Flyout>
           </Button>
         </StackPanel>
-        <!-- Row 1：输入框 -->
-        <TextBox Grid.Row="1" x:Name="InputTextBox" Text="{Binding InputText}" Watermark="{Binding SendHintText, FallbackValue='输入消息，Ctrl+Enter 发送 / Enter 换行…'}"
-                 IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="5" MinHeight="38"
+        <!-- Row 1：拖拽手柄 — 拖拽调节输入框高度(QQ 风格可拉伸输入区) -->
+        <Border Grid.Row="1" Height="4" HorizontalAlignment="Stretch" Margin="0,0,0,0"
+                Background="Transparent" Cursor="SizeNorthSouth"
+                PointerPressed="OnInputResizePointerPressed"
+                PointerMoved="OnInputResizePointerMoved"
+                PointerReleased="OnInputResizePointerReleased"
+                ToolTip.Tip="拖拽调节输入框高度" />
+        <!-- Row 2：输入框（高度可拖拽调节 — 绑定 InputAreaHeight,上方有拖拽手柄） -->
+        <TextBox Grid.Row="2" x:Name="InputTextBox" Text="{Binding InputText}" Watermark="{Binding SendHintText, FallbackValue='输入消息，Ctrl+Enter 发送 / Enter 换行…'}"
+                 IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="12"
+                 Height="{Binding InputAreaHeight, Mode=TwoWay}"
                  BorderThickness="0" Background="Transparent" Padding="11,4"
                  TextWrapping="Wrap" />
-        <!-- Row 2：发送区（QQ 风格 — 右下角停止+发送下拉分裂按钮） -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="7,2,7,7">
+        <!-- Row 3：发送区（QQ 风格 — 右下角停止+发送下拉分裂按钮） -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="7,2,7,7">
           <Button Classes="ghost" Content="停止" Padding="12,6" CornerRadius="8"
                   Foreground="{DynamicResource GuiWarnText}"
                   Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />
@@ -233,5 +239,4 @@
         </StackPanel>
       </Grid>
     </Border>
-  </Border>
 </UserControl>

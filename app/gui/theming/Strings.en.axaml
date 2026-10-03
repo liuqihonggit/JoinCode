@@ -1,0 +1,37 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Menu Bar -->
+  <x:String x:Key="Menu.File">File</x:String>
+  <x:String x:Key="Menu.Edit">Edit</x:String>
+  <x:String x:Key="Menu.View">View</x:String>
+  <x:String x:Key="Menu.Help">Help</x:String>
+
+  <!-- Activity Bar -->
+  <x:String x:Key="Activity.Sessions">Sessions</x:String>
+  <x:String x:Key="Activity.FileTree">File Tree</x:String>
+  <x:String x:Key="Activity.Editor">Code Editor</x:String>
+  <x:String x:Key="Activity.Interceptor">AI Tool Interceptor</x:String>
+  <x:String x:Key="Activity.Settings">Settings</x:String>
+  <x:String x:Key="Activity.Language">Zh/En Toggle</x:String>
+
+  <!-- Input Bar -->
+  <x:String x:Key="Input.Placeholder">Type a message, Ctrl+Enter to send / Enter for newline…</x:String>
+  <x:String x:Key="Input.Send">Send</x:String>
+  <x:String x:Key="Input.SelectModel">Select Model</x:String>
+
+  <!-- Stats Panel -->
+  <x:String x:Key="Stats.Title">📊 Session Stats</x:String>
+  <x:String x:Key="Stats.Messages">Messages</x:String>
+  <x:String x:Key="Stats.Sessions">Sessions</x:String>
+  <x:String x:Key="Stats.Chars">Characters</x:String>
+  <x:String x:Key="Stats.Tokens">Est. Tokens</x:String>
+
+  <!-- Empty State -->
+  <x:String x:Key="Empty.Title">Turn ideas into code</x:String>
+  <x:String x:Key="Empty.Subtitle">Explore code · Run tools · Collaborate</x:String>
+
+  <!-- Common -->
+  <x:String x:Key="Common.NewSession">＋ New Chat</x:String>
+  <x:String x:Key="Common.SearchMessages">Search messages</x:String>
+  <x:String x:Key="Common.Statistics">📊 Stats</x:String>
+</ResourceDictionary>

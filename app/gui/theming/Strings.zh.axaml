@@ -1,0 +1,37 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- 菜单栏 -->
+  <x:String x:Key="Menu.File">文件</x:String>
+  <x:String x:Key="Menu.Edit">编辑</x:String>
+  <x:String x:Key="Menu.View">视图</x:String>
+  <x:String x:Key="Menu.Help">帮助</x:String>
+
+  <!-- Activity Bar -->
+  <x:String x:Key="Activity.Sessions">会话列表</x:String>
+  <x:String x:Key="Activity.FileTree">目录树</x:String>
+  <x:String x:Key="Activity.Editor">代码编辑器</x:String>
+  <x:String x:Key="Activity.Interceptor">AI 工具拦截器</x:String>
+  <x:String x:Key="Activity.Settings">设置</x:String>
+  <x:String x:Key="Activity.Language">中/En 切换</x:String>
+
+  <!-- 输入栏 -->
+  <x:String x:Key="Input.Placeholder">输入消息，Ctrl+Enter 发送 / Enter 换行…</x:String>
+  <x:String x:Key="Input.Send">发送</x:String>
+  <x:String x:Key="Input.SelectModel">选择模型</x:String>
+
+  <!-- 统计面板 -->
+  <x:String x:Key="Stats.Title">📊 会话统计</x:String>
+  <x:String x:Key="Stats.Messages">消息数</x:String>
+  <x:String x:Key="Stats.Sessions">会话G数</x:String>
+  <x:String x:Key="Stats.Chars">字符数</x:String>
+  <x:String x:Key="Stats.Tokens">估算 Token</x:String>
+
+  <!-- 空状态 -->
+  <x:String x:Key="Empty.Title">把想法变成代码</x:String>
+  <x:String x:Key="Empty.Subtitle">探索代码 · 执行工具 · 协作完成任务</x:String>
+
+  <!-- 通用 -->
+  <x:String x:Key="Common.NewSession">＋ 新建对话</x:String>
+  <x:String x:Key="Common.SearchMessages">搜索消息正文</x:String>
+  <x:String x:Key="Common.Statistics">📊 统计</x:String>
+</ResourceDictionary>

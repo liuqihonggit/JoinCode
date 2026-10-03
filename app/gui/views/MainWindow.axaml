@@ -143,6 +143,10 @@
                         Command="{Binding ToggleSecondarySideBarCommand}"
                         IsChecked="{Binding IsSecondarySideBarOpen, Mode=OneWay}"
                         ToolTip.Tip="Secondary Side Bar" />
+          <Button Classes="activityIcon" FontSize="14"
+                  Content="{Binding LanguageToggleDisplay}"
+                  Command="{Binding ToggleLanguageCommand}"
+                  ToolTip.Tip="中/En 切换语言" />
         </StackPanel>
         <!-- goal Popup -->
         <Popup IsOpen="{Binding IsGoalPanelOpen}" Placement="Right"

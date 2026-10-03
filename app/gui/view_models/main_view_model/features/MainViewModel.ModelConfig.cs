@@ -194,6 +194,9 @@ public sealed partial class MainViewModel {
     /// <summary>刷新供应商模型分组 — 从 VendorModelMap 和 ModelConfigLoader 构建 Popup 数据源</summary>
     private void RefreshProviderModelGroups() {
         var map = _session.VendorModelMap;
+        // Fallback: VendorModelMap 为空时（ModelConfigLoader 未被 ApplyProviders 注入），直接从 settings.json 读
+        if (map.Count == 0)
+            map = LoadVendorMapFromSettingsFile();
         var groups = new List<ProviderModelGroupVm>(map.Count);
         foreach (var (providerId, models) in map) {
             if (models is null || models.Count == 0)
@@ -218,6 +221,30 @@ public sealed partial class MainViewModel {
             });
         }
         ProviderModelGroups = groups;
+    }
+
+    /// <summary>从 settings.json 直接读 vendor→models 构建 VendorModelMap（Fallback：ModelConfigLoader 未被注入时用）</summary>
+    private IReadOnlyDictionary<string, IReadOnlyList<string>> LoadVendorMapFromSettingsFile() {
+        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        try {
+            var settingsPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".jcc", "settings.json");
+            if (!System.IO.File.Exists(settingsPath)) return result;
+            using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(settingsPath));
+            if (!doc.RootElement.TryGetProperty("vendor", out var vendorEl)) return result;
+            foreach (var vendor in vendorEl.EnumerateObject()) {
+                if (!vendor.Value.TryGetProperty("models", out var modelsEl)) continue;
+                var ids = new List<string>();
+                foreach (var m in modelsEl.EnumerateArray()) {
+                    if (m.TryGetProperty("id", out var idEl))
+                        ids.Add(idEl.GetString() ?? "");
+                }
+                if (ids.Count > 0)
+                    result[vendor.Name] = ids.ToArray();
+            }
+        } catch (Exception ex) {
+            ViewModelDiagnosticsLogger.WriteError(ex);
+        }
+        return result;
     }
 
     /// <summary>供应商品牌信息(显示名+首字母+品牌色) — 唯一数据源,对齐 DSG031</summary>

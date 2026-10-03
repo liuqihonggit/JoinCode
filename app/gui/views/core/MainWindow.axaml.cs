@@ -44,6 +44,14 @@ public sealed partial class MainWindow : Window {
         Closed += OnWindowClosed;
         AddHandler(PointerPressedEvent, OnGlobalPointerPressed, RoutingStrategies.Tunnel);
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
+        SizeChanged += OnWindowSizeChanged;
+    }
+
+    /// <summary>窗口尺寸变化 — 根据宽度切换紧凑布局(openCode 风格响应式分栏)</summary>
+    private void OnWindowSizeChanged(object? sender, SizeChangedEventArgs e) {
+        if (_vm is null)
+            return;
+        _vm.IsCompactLayout = e.NewSize.Width < MainViewModel.CompactLayoutThreshold;
     }
 
     /// <summary>双击 ESC 判定窗口 — 两次按键间隔上限</summary>
@@ -299,6 +307,27 @@ public sealed partial class MainWindow : Window {
     private static void SetColumn(Avalonia.Controls.Control control, int column)
         => Avalonia.Controls.Grid.SetColumn(control, column);
 
+    /// <summary>应用紧凑布局 — 窄屏时 Side Bar 移到主区上方(openCode 风格)</summary>
+    private void ApplyCompactLayout() {
+        if (_vm is null)
+            return;
+        var compact = _vm.IsCompactLayout;
+        if (compact) {
+            // 窄屏：垂直布局 — ActivityBar(横向48px高) + SideBar(固定200px高) + 主区
+            SetColumn(ActivityBarCol, 3);
+            SetColumn(SideBarCol, 3);
+            SetColumn(LeftSashCol, 3);
+            SideBarCol.Height = 200;
+            SideBarCol.Width = double.NaN;
+            SideBarCol.BorderThickness = new Thickness(0, 0, 0, 1);
+        } else {
+            // 宽屏：恢复水平布局
+            SideBarCol.Height = double.NaN;
+            SideBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
+            ApplySideBarPosition();
+        }
+    }
+
     /// <summary>打开子代理回放窗口 — 只读快照，可多开（每 agent 一窗）</summary>
     private void OnTranscriptRequested(BackgroundAgentItemVm run) {
         var window = new TranscriptWindow(run);
@@ -394,6 +423,8 @@ public sealed partial class MainWindow : Window {
             SyncActivityBarButtons();
         } else if (e.PropertyName == nameof(MainViewModel.PrimarySideBarPosition)) {
             ApplySideBarPosition();
+        } else if (e.PropertyName == nameof(MainViewModel.IsCompactLayout)) {
+            ApplyCompactLayout();
         } else if (e.PropertyName == nameof(MainViewModel.HasCopied) && _vm!.HasCopied) {
             ScheduleCopyToastHide();
         } else if (e.PropertyName == nameof(MainViewModel.CopiedMessageCopy) && !string.IsNullOrEmpty(_vm!.CopiedMessageCopy)) {

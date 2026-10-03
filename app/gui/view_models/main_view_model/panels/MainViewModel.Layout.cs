@@ -35,6 +35,13 @@ public sealed partial class MainViewModel {
     [NotifyPropertyChangedFor(nameof(IsPrimarySideBarRight))]
     private SideBarPosition _primarySideBarPosition = SideBarPosition.Left;
 
+    /// <summary>紧凑布局(窄屏) — 宽屏左右分栏,窄屏垂直上下分栏(openCode 风格)</summary>
+    [ObservableProperty]
+    private bool _isCompactLayout;
+
+    /// <summary>紧凑布局阈值 — 窗口宽度低于此值切换到垂直布局</summary>
+    public const double CompactLayoutThreshold = 700;
+
     /// <summary>居中布局最大宽度 — 编辑器内容最大宽度限制</summary>
     private const double CenteredLayoutMaxWidth = 1200;
 

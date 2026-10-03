@@ -21,7 +21,7 @@ public sealed partial class EditorPanelView : UserControl {
         _searchPanel2 = AvaloniaEdit.Search.SearchPanel.Install(Editor2);
     }
 
-    /// <summary>配置编辑器选项 — 自动缩进+制表符4空格+括号匹配+允许自动换行</summary>
+    /// <summary>配置编辑器选项 — 自动缩进+制表符4空格+允许自动换行</summary>
     private static void ConfigureEditorOptions(AvaloniaEdit.TextEditor editor) {
         editor.Options.IndentationSize = 4;
         editor.Options.AllowScrollBelowDocument = true;

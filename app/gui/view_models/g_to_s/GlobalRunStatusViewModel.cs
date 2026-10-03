@@ -120,7 +120,7 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged {
                 parts.Add(tokens);
             return parts.Count > 0
                 ? string.Join("  ·  ", parts)
-                : "JoinCode Ava 就绪 · Ctrl+Enter 发送 · @子代理名 可直发 · 双击 ESC 终止";
+                : "JoinCode Ava 就绪 · Ctrl+Enter 发送";
         }
     }
 

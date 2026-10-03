@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
+             x:Class="JoinCode.Gui.Views.GoalView"
+             x:DataType="vm:MainViewModel">
+  <Grid RowDefinitions="Auto,*" Background="{DynamicResource GuiSidebarBackground}">
+    <!-- 标题栏(含拖拽手柄) -->
+    <Border Grid.Row="0" Padding="10,6" Background="{DynamicResource GuiSearchBarBackground}"
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="Auto,*">
+        <TextBlock Grid.Column="0" Text="⠿" FontSize="12" Margin="0,0,8,0"
+                   Foreground="{DynamicResource GuiMutedText}" Cursor="SizeAll"
+                   ToolTip.Tip="拖拽到窗口左/右边缘切换停靠位置"
+                   PointerPressed="OnDragHandlePressed" />
+        <TextBlock Grid.Column="1" Text="🎯 goal 控制" FontSize="12" FontWeight="SemiBold"
+                   Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+    <!-- 内容 -->
+    <ScrollViewer Grid.Row="1" Padding="12,10">
+      <StackPanel Spacing="8">
+        <TextBlock Text="goal 进行中" FontSize="12" FontWeight="SemiBold"
+                   Foreground="{DynamicResource GuiPrimaryText}"
+                   IsVisible="{Binding IsGoalRunning}" />
+        <TextBlock Text="未运行 goal" FontSize="12"
+                   Foreground="{DynamicResource GuiMutedText}"
+                   IsVisible="{Binding !IsGoalRunning}" />
+        <TextBlock Text="停止时引擎自动注入再三确认提示词（a→b→c）" FontSize="11"
+                   Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+        <Button Classes="ghost" Content="停止 goal" HorizontalAlignment="Stretch"
+                Command="{Binding StopGoalCommand}"
+                IsEnabled="{Binding IsGoalRunning}" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

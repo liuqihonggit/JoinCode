@@ -3,14 +3,30 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             xmlns:vm="using:JoinCode.Gui.ViewModels"
+              xmlns:vm="using:JoinCode.Gui.ViewModels"
+              xmlns:local="using:JoinCode.Gui.Views"
              x:Class="JoinCode.Gui.Views.InputBarView"
              x:Name="InputBarRoot"
              x:DataType="vm:MainViewModel">
   <UserControl.Styles>
-    <!-- composer 卡片聚焦态：无边框 TextBox 获焦时点亮承载卡片边框 -->
-    <Style Selector="Border.composer:focus-within">
-      <Setter Property="BorderBrush" Value="{DynamicResource GuiAccentText}" />
+    <!-- 输入框 hover/focus 时均无色变(覆盖 Avalonia 默认主题 + 全局 TextBox:focus) -->
+    <Style Selector="TextBox.noFocusRing:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="TextBox.noFocusRing:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.noFocusRing:pointerover">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="TextBox.noFocusRing:focus">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
     </Style>
     <!-- 推理档位按钮基础样式 — 紧凑圆角,切换时背景/前景色渐变动画(对齐 Codex 风格) -->
     <Style Selector="RadioButton.effortBtn">
@@ -52,175 +68,263 @@
     </Style>
   </UserControl.Styles>
 
-  <Border Padding="12,8" Background="{DynamicResource GuiInputBarBackground}"
+  <!-- 输入区(QQ 风格) — 顶部分割线 + 矩形背景,无圆角无边框,三行层次:工具栏/输入框/发送区 -->
+  <Border x:Name="ComposerBox" Classes="composer" Margin="0,0,0,0"
+          Background="{DynamicResource GuiComposerBackground}"
           BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
-    <!-- composer 卡片：TextBox 透明无边框内嵌，发送按钮嵌入卡片内部右下（现代聊天输入区范式） -->
-    <Border x:Name="ComposerBox" Classes="composer" CornerRadius="10"
-            Background="{DynamicResource GuiComposerBackground}"
-            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
-      <StackPanel>
-        <TextBox x:Name="InputTextBox" Text="{Binding InputText}" Watermark="{Binding SendHintText, FallbackValue='输入消息，Ctrl+Enter 发送 / Enter 换行…'}"
-                 IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="5" MinHeight="38"
-                 BorderThickness="0" Background="Transparent" Padding="11,8,11,2"
-                 TextWrapping="Wrap" />
-        <!-- 动作行：模型/推理档位 | 快捷插入(右弹性) | 字符计数 | 停止+发送 -->
-        <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="7,2,7,7">
-          <!-- 左组：模型选择器 + 推理档位五色按钮(对齐 Codex 发送区域) -->
-          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
-            <!-- 权限模式指示器 — Shift+Tab 循环切换(Plan→Auto→Ask) -->
-            <Button Classes="ghost" Padding="7,3" MinHeight="0" FontSize="11"
-                    Content="{Binding PermissionModeDisplay, FallbackValue='🟢 Auto'}"
-                    Command="{Binding CyclePermissionModeCommand}"
-                    ToolTip.Tip="{Binding PermissionModeToolTip, FallbackValue='Shift+Tab 切换权限模式'}" />
-            <!-- 模型选择器按钮+Popup — 点击弹出按供应商分组的模型列表(DSG031) -->
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto">
+      <!-- Row 0：系统状态条(悬浮,比输入栏窄) — 左侧状态文字+右侧▲展开日志,整行可拖拽调高度 -->
+      <Border x:Name="StatusStrip" Grid.Row="0" Height="20" HorizontalAlignment="Stretch" Margin="16,0"
+              Background="{DynamicResource GuiComposerBackground}" CornerRadius="0,0,6,6"
+              Cursor="SizeNorthSouth"
+              PointerPressed="OnInputResizePointerPressed"
+              ToolTip.Tip="拖拽调节输入框高度">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0" Text="{Binding RunStatus.MarqueeText, FallbackValue='JoinCode 就绪'}"
+                     FontSize="10" Foreground="{DynamicResource GuiMutedText}"
+                     Margin="8,0,0,0" VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis" />
+          <Button Grid.Column="1" Classes="ghost" Padding="6,1" MinHeight="0" FontSize="9"
+                  Cursor="Arrow"
+                  Command="{Binding ToggleStatusLogCommand}"
+                  ToolTip.Tip="展开/收起系统日志">
             <Panel>
-              <Button x:Name="ModelPickerButton" Classes="ghost" Padding="9,3" MinHeight="0" FontSize="11"
-                      Content="{Binding CurrentModelDisplay, FallbackValue='选择模型'}"
-                      Command="{Binding ToggleModelPickerCommand}"
-                      ToolTip.Tip="选择模型 — 按供应商分组" />
-              <Popup IsOpen="{Binding IsModelPickerOpen}" Placement="Top"
-                     PlacementTarget="{Binding #ModelPickerButton}" VerticalOffset="4"
-                     HorizontalOffset="-4" MinWidth="320">
-                <Border CornerRadius="10" Padding="8,6" Background="{DynamicResource GuiPopupBackground}"
-                        BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
-                        BoxShadow="{DynamicResource GuiPopupShadow}"
-                        PointerExited="OnModelPickerPointerExited">
-                  <ScrollViewer MaxHeight="420" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl ItemsSource="{Binding ProviderModelGroups}">
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ProviderModelGroupVm">
-                          <StackPanel Margin="0,0,0,8">
-                            <!-- 供应商标题行:SVG 图标(无图标回退首字母圆形) + 供应商名 -->
-                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,0,0,4">
-                              <Panel Width="18" Height="18">
-                                <!-- SVG 路径图标 -->
-                                <Path Width="16" Height="16" Stretch="Uniform"
-                                      Data="{Binding IconPath}"
-                                      Fill="{Binding BrandColor}"
-                                      IsVisible="{Binding HasIcon}"
-                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <!-- 回退:首字母圆形 -->
-                                <Border Width="18" Height="18" CornerRadius="9" Background="{Binding BrandColor}"
-                                        IsVisible="{Binding !HasIcon}">
-                                  <TextBlock Text="{Binding Initial}" FontSize="10" FontWeight="Bold"
-                                             Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-                              </Panel>
-                              <TextBlock Text="{Binding ProviderName}" FontSize="12" FontWeight="SemiBold"
-                                         Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <!-- 模型列表 -->
-                            <ItemsControl ItemsSource="{Binding Models}" Margin="20,0,0,0">
-                              <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:ProviderModelEntryVm">
-                                  <Button Classes="ghost" HorizontalAlignment="Stretch" Padding="8,4" MinHeight="0"
-                                          Command="{Binding DataContext.SelectModelFromPopupCommand, ElementName=InputBarRoot}"
-                                          CommandParameter="{Binding SelectionKey}">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                      <TextBlock Grid.Column="0" Text="{Binding DisplayName}" FontSize="11.5"
-                                                 TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                      <TextBlock Grid.Column="1" Text="{Binding ContextWindowDisplay}" FontSize="10"
-                                                 Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center"
-                                                 Margin="8,0,0,0"
-                                                 IsVisible="{Binding ContextWindowDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                    </Grid>
-                                  </Button>
-                                </DataTemplate>
-                              </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                          </StackPanel>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                  </ScrollViewer>
-                </Border>
-              </Popup>
+              <TextBlock Text="▲" FontSize="9" IsVisible="{Binding !IsStatusLogExpanded}" />
+              <TextBlock Text="▼" FontSize="9" IsVisible="{Binding IsStatusLogExpanded}" />
             </Panel>
-            <TextBlock Text="│" FontSize="11" Foreground="{DynamicResource GuiMutedText}" Margin="2,0" VerticalAlignment="Center" />
-            <TextBlock Text="推理" FontSize="10" Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" Margin="0,0,4,0" />
-            <!-- 推理档位滑块(对齐 Codex 横杠拖拉风格) — 5 档: low=0 medium=1 high=2 max=3 auto=4
-                 矩形包裹+背景色,滑块颜色固定不变,灰色档位文字 -->
-            <Border CornerRadius="4" Padding="6,2" Background="{DynamicResource GuiCardHover}">
-              <Slider Minimum="0" Maximum="4" TickFrequency="1"
-                      Value="{Binding SelectedEffort, Converter={StaticResource EffortToDouble}, Mode=TwoWay}"
-                      Width="100" MinHeight="0" Padding="0" Margin="0"
-                      ToolTip.Tip="推理力度: 左=快速 右=自动" />
-            </Border>
-            <TextBlock FontSize="10" FontWeight="SemiBold" Margin="4,0,0,0" VerticalAlignment="Center"
-                       Text="{Binding SelectedEffort, Converter={StaticResource EffortToLabel}}"
-                       Foreground="{DynamicResource GuiMutedText}" />
-          </StackPanel>
-          <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
-            <Button Classes="ghost" Content="─ 分隔线" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding InsertDividerCommand}" />
-            <Button Classes="ghost" Content="⏱ 时间戳" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding InsertTimestampCommand}" />
-            <TextBlock Text="│" FontSize="11" Foreground="{DynamicResource GuiMutedText}" Margin="4,0" VerticalAlignment="Center" />
-            <Button Classes="ghost" Content="审核代码" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding UseQuickPromptCommand}" CommandParameter="审核代码" />
-            <Button Classes="ghost" Content="解释代码" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding UseQuickPromptCommand}" CommandParameter="解释代码" />
-            <Button Classes="ghost" Content="重构代码" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding UseQuickPromptCommand}" CommandParameter="重构代码" />
-            <Button Classes="ghost" Content="写单元测试" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding UseQuickPromptCommand}" CommandParameter="写单元测试" />
-            <Button Classes="ghost" Content="优化性能" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding UseQuickPromptCommand}" CommandParameter="优化性能" />
-            <Button Classes="ghost" Content="添加注释" FontSize="11" Padding="9,3" MinHeight="0"
-                    Command="{Binding UseQuickPromptCommand}" CommandParameter="添加注释" />
-          </WrapPanel>
-          <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0"
-                     FontSize="11" Foreground="{Binding IsInputTooLong, Converter={StaticResource BoolToWarnBrush}}"
-                     ToolTip.Tip="{Binding MaxInputChars, StringFormat='{}建议上限 {0} 字符'}">
-            <TextBlock.Text>
-              <MultiBinding StringFormat="{}{0} / {1}">
-                <Binding Path="CharsCount" />
-                <Binding Path="MaxInputChars" />
-              </MultiBinding>
-            </TextBlock.Text>
-          </TextBlock>
-          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-            <Button Classes="ghost" Content="停止" Padding="12,6" CornerRadius="8"
-                    Foreground="{DynamicResource GuiWarnText}"
-                    Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />
-            <!-- 发送按钮 + 下拉选择发送方式（QQ 风格） -->
-            <Panel>
-              <Button Classes="primary" Content="发送" Padding="16,6" CornerRadius="8" MinWidth="84"
-                      Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
-              <ToggleButton x:Name="SendModeButton" Classes="primary" Padding="4,6" CornerRadius="0,8,8,0" MinWidth="20"
-                      VerticalAlignment="Stretch" FontSize="10"
-                      Content="▼" IsEnabled="{Binding !IsBusy}"
-                      IsChecked="{Binding IsSendModePopupOpen, Mode=TwoWay}" />
-              <Popup IsOpen="{Binding IsSendModePopupOpen}" Placement="Top"
-                     PlacementTarget="{Binding #SendModeButton}" VerticalOffset="4" MinWidth="180">
-                <Border CornerRadius="8" Padding="6" Background="{DynamicResource GuiPopupBackground}"
-                        BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
-                        BoxShadow="{DynamicResource GuiPopupShadow}"
-                        PointerExited="OnSendModePopupPointerExited">
-                  <StackPanel Spacing="2">
-                    <Button Classes="ghost" HorizontalAlignment="Stretch" Padding="10,6" MinHeight="0"
-                            Command="{Binding SetSendModeCommand}" CommandParameter="True"
-                            FontSize="12">
-                      <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="✓" FontSize="11" IsVisible="{Binding EnterSends}" Foreground="{DynamicResource GuiAccentText}" />
-                        <TextBlock Text="Enter 发送" FontSize="12" />
-                      </StackPanel>
-                    </Button>
-                    <Button Classes="ghost" HorizontalAlignment="Stretch" Padding="10,6" MinHeight="0"
-                            Command="{Binding SetSendModeCommand}" CommandParameter="False"
-                            FontSize="12">
-                      <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="✓" FontSize="11" IsVisible="{Binding !EnterSends}" Foreground="{DynamicResource GuiAccentText}" />
-                        <TextBlock Text="Ctrl+Enter 发送" FontSize="12" />
-                      </StackPanel>
-                    </Button>
-                  </StackPanel>
-                </Border>
-              </Popup>
-            </Panel>
-          </StackPanel>
+          </Button>
         </Grid>
-      </StackPanel>
+      </Border>
+      <!-- 系统日志向上展开 Popup(悬浮,对齐状态条宽度) -->
+      <Popup IsOpen="{Binding IsStatusLogExpanded}" Placement="Top"
+             PlacementTarget="{Binding #StatusStrip}" MaxHeight="340"
+             Width="{Binding #StatusStrip.Bounds.Width}"
+             Topmost="False"
+             HorizontalOffset="0" VerticalOffset="-2">
+        <Border CornerRadius="8,8,0,0" Padding="10,8" Background="{DynamicResource GuiPopupBackground}"
+                BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+                BoxShadow="{DynamicResource GuiPopupShadow}"
+                PointerWheelChanged="OnLogPointerWheel"
+                PointerPressed="OnLogPointerPressed">
+          <Grid RowDefinitions="Auto,*">
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+              <TextBlock Grid.Column="0" Text="系统日志" FontSize="11" FontWeight="SemiBold"
+                         Foreground="{DynamicResource GuiPrimaryText}" />
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                <Button Classes="ghost" Padding="4,1" MinHeight="0" FontSize="10" Content="A+"
+                        Command="{Binding EnlargeLogFontCommand}" ToolTip.Tip="放大字体" />
+                <Button Classes="ghost" Padding="4,1" MinHeight="0" FontSize="10" Content="A-"
+                        Command="{Binding ShrinkLogFontCommand}" ToolTip.Tip="缩小字体" />
+                <Button Classes="ghost" Padding="4,1" MinHeight="0" FontSize="10"
+                        Command="{Binding ToggleLogFullscreenCommand}" ToolTip.Tip="全屏/恢复">
+                  <Panel>
+                    <TextBlock Text="⤢" FontSize="11" IsVisible="{Binding !IsStatusLogFullscreen}" />
+                    <TextBlock Text="⤡" FontSize="11" IsVisible="{Binding IsStatusLogFullscreen}" />
+                  </Panel>
+                </Button>
+              </StackPanel>
+            </Grid>
+            <ScrollViewer Grid.Row="1" MaxHeight="{Binding StatusLogScrollHeight}" VerticalScrollBarVisibility="Auto">
+              <ItemsControl ItemsSource="{Binding StatusLogEntries}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <SelectableTextBlock Text="{Binding}" FontSize="{Binding DataContext.StatusLogFontSize, ElementName=InputBarRoot}"
+                               Foreground="{DynamicResource GuiMutedText}"
+                               Margin="0,2" TextWrapping="Wrap" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Grid>
+        </Border>
+      </Popup>
+      <!-- Row 1：工具栏行（QQ 风格 — 左侧功能图标+统计,右侧复制/Markdown） -->
+      <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="7,4,7,4">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+          <!-- 权限模式：图标随模式变化(📋🟢🟡🔴🔓🤖)，点击弹出列表选择（Shift+Tab 才循环） -->
+          <Button Classes="ghost" Padding="7,4" MinHeight="0" FontSize="14"
+                  Content="{Binding PermissionModeIcon, FallbackValue='🟢'}"
+                  ToolTip.Tip="{Binding PermissionModeToolTip, FallbackValue='Ask'}">
+            <Button.Flyout>
+              <MenuFlyout Placement="Top">
+                <MenuItem Header="📋 Plan" Command="{Binding SetPermissionModeCommand}" CommandParameter="Plan" />
+                <MenuItem Header="🟢 Ask 绿" Command="{Binding SetPermissionModeCommand}" CommandParameter="AskGreen" />
+                <MenuItem Header="🟡 Ask 黄" Command="{Binding SetPermissionModeCommand}" CommandParameter="AskYellow" />
+                <MenuItem Header="🔴 Ask 红" Command="{Binding SetPermissionModeCommand}" CommandParameter="AskRed" />
+                <Separator />
+                <MenuItem Header="🔓 Bypass" Command="{Binding SetPermissionModeCommand}" CommandParameter="Bypass" />
+                <MenuItem Header="🤖 Unattended" Command="{Binding SetPermissionModeCommand}" CommandParameter="Unattended" />
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+          <!-- 模型选择器：纯图标，Tooltip 显示当前模型名，点击弹出模型列表 -->
+          <Panel>
+            <Button x:Name="ModelPickerButton" Classes="ghost" Padding="7,4" MinHeight="0" FontSize="14"
+                    Content="🎭"
+                    Command="{Binding ToggleModelPickerCommand}"
+                    ToolTip.Tip="{Binding CurrentModelDisplay, FallbackValue='选择模型'}" />
+            <Popup IsOpen="{Binding IsModelPickerOpen}" Placement="Top"
+                   PlacementTarget="{Binding #ModelPickerButton}" VerticalOffset="4"
+                   HorizontalOffset="-4" MinWidth="320">
+              <Border CornerRadius="10" Padding="8,6" Background="{DynamicResource GuiPopupBackground}"
+                      BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+                      BoxShadow="{DynamicResource GuiPopupShadow}"
+                      PointerExited="OnModelPickerPointerExited">
+                <ScrollViewer MaxHeight="420" HorizontalScrollBarVisibility="Disabled">
+                  <ItemsControl ItemsSource="{Binding ProviderModelGroups}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:ProviderModelGroupVm">
+                        <StackPanel Margin="0,0,0,8">
+                          <!-- 供应商标题行:SVG 图标(无图标回退首字母圆形) + 供应商名 -->
+                          <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,0,0,4">
+                            <Panel Width="18" Height="18">
+                              <!-- SVG 路径图标 -->
+                              <Path Width="16" Height="16" Stretch="Uniform"
+                                    Data="{Binding IconPath}"
+                                    Fill="{Binding BrandColor}"
+                                    IsVisible="{Binding HasIcon}"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+                              <!-- 回退:首字母圆形 -->
+                              <Border Width="18" Height="18" CornerRadius="9" Background="{Binding BrandColor}"
+                                      IsVisible="{Binding !HasIcon}">
+                                <TextBlock Text="{Binding Initial}" FontSize="10" FontWeight="Bold"
+                                           Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                              </Border>
+                            </Panel>
+                            <TextBlock Text="{Binding ProviderName}" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
+                          </StackPanel>
+                          <!-- 模型列表 -->
+                          <ItemsControl ItemsSource="{Binding Models}" Margin="20,0,0,0">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="vm:ProviderModelEntryVm">
+                                <Button Classes="ghost" HorizontalAlignment="Stretch" Padding="8,4" MinHeight="0"
+                                        Command="{Binding DataContext.SelectModelFromPopupCommand, ElementName=InputBarRoot}"
+                                        CommandParameter="{Binding SelectionKey}">
+                                  <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="{Binding DisplayName}" FontSize="11.5"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding ContextWindowDisplay}" FontSize="10"
+                                               Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center"
+                                               Margin="8,0,0,0"
+                                               IsVisible="{Binding ContextWindowDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                  </Grid>
+                                </Button>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </Border>
+            </Popup>
+          </Panel>
+          <!-- 推理档位：纯图标 + Flyout 含 Slider（隐藏到图标内，点击展开） -->
+          <Button Classes="ghost" Content="🧠" FontSize="14" Padding="7,4" MinHeight="0"
+                  ToolTip.Tip="推理力度">
+            <Button.Flyout>
+              <Flyout Placement="Top">
+                <StackPanel Spacing="6" Width="200">
+                  <TextBlock Text="推理力度" FontSize="11" Foreground="{DynamicResource GuiMutedText}" />
+                  <Slider Minimum="0" Maximum="4" TickFrequency="1"
+                          Value="{Binding SelectedEffort, Converter={StaticResource EffortToDouble}, Mode=TwoWay}"
+                          Width="180" MinHeight="0" Padding="0" Margin="0"
+                          ToolTip.Tip="左=快速 右=自动" />
+                  <TextBlock FontSize="11" FontWeight="SemiBold"
+                             Text="{Binding SelectedEffort, Converter={StaticResource EffortToLabel}}"
+                             Foreground="{DynamicResource GuiMutedText}" />
+                </StackPanel>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+          <!-- 快捷操作图标按钮（MenuFlyout 二次展开 — 平时一个图标，点击弹出下拉菜单） -->
+          <Button Classes="ghost" Content="⚡" FontSize="14" Padding="7,4" MinHeight="0"
+                  ToolTip.Tip="快捷操作">
+            <Button.Flyout>
+              <MenuFlyout Placement="Top">
+                <MenuItem Header="📋 审核代码" Command="{Binding UseQuickPromptCommand}" CommandParameter="审核代码" />
+                <MenuItem Header="📖 解释代码" Command="{Binding UseQuickPromptCommand}" CommandParameter="解释代码" />
+                <MenuItem Header="🔧 重构代码" Command="{Binding UseQuickPromptCommand}" CommandParameter="重构代码" />
+                <MenuItem Header="🧪 写单元测试" Command="{Binding UseQuickPromptCommand}" CommandParameter="写单元测试" />
+                <MenuItem Header="⚡ 优化性能" Command="{Binding UseQuickPromptCommand}" CommandParameter="优化性能" />
+                <MenuItem Header="💬 添加注释" Command="{Binding UseQuickPromptCommand}" CommandParameter="添加注释" />
+                <Separator />
+                <MenuItem Header="─ 分隔线" Command="{Binding InsertDividerCommand}" />
+                <MenuItem Header="⏱ 时间戳" Command="{Binding InsertTimestampCommand}" />
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+          <!-- 统计按钮(从搜索栏移入工具栏) + Popup -->
+          <Panel>
+            <Button x:Name="StatsButton" Classes="ghost" Content="📊" FontSize="14" Padding="7,4" MinHeight="0"
+                    Command="{Binding ToggleStatsPanelCommand}"
+                    ToolTip.Tip="查看会话统计" />
+            <Popup IsOpen="{Binding IsStatsPanelOpen}" Placement="Top"
+                   PlacementTarget="{Binding #StatsButton}" MinWidth="320">
+              <local:StatsPanelView />
+            </Popup>
+          </Panel>
+        </StackPanel>
+        <!-- 右侧：复制/Markdown(从搜索栏移入工具栏右侧) -->
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+          <Button Classes="ghost" Content="⧉" FontSize="14" Padding="7,4" MinHeight="0"
+                  Command="{Binding CopySessionExportCommand}" IsEnabled="{Binding HasMessages}"
+                  ToolTip.Tip="复制会话为文本" />
+          <Button Classes="ghost" Content="↓" FontSize="14" Padding="7,4" MinHeight="0"
+                  Click="OnSaveMarkdown" IsEnabled="{Binding HasMessages}"
+                  ToolTip.Tip="保存为 Markdown 文件" />
+        </StackPanel>
+      </Grid>
+        <!-- Row 2：输入框（高度可拖拽调节 — 绑定 InputAreaHeight,顶部手柄拖拽） -->
+        <TextBox Grid.Row="2" x:Name="InputTextBox" Classes="noFocusRing" Text="{Binding InputText}" Watermark="{Binding SendHintText, FallbackValue='输入消息，Ctrl+Enter 发送 / Enter 换行…'}"
+                 IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="12"
+                 Height="{Binding InputAreaHeight, Mode=TwoWay}"
+                 BorderThickness="0" Background="Transparent" Padding="11,4"
+                 TextWrapping="Wrap" />
+        <!-- Row 3：发送区（QQ 风格 — 右下角停止+发送下拉分裂按钮） -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="7,2,7,7">
+          <Button Classes="ghost" Content="停止" Padding="12,6" CornerRadius="8"
+                  Foreground="{DynamicResource GuiWarnText}"
+                  Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />
+          <!-- 发送按钮 + 下拉选择发送方式（QQ 风格分裂按钮） -->
+          <StackPanel Orientation="Horizontal" Spacing="0">
+            <Button Classes="primary" Content="发送" Padding="16,6" CornerRadius="8,0,0,8" MinWidth="84"
+                    VerticalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                    Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
+            <ToggleButton x:Name="SendModeButton" Classes="primary" Padding="4,6" CornerRadius="0,8,8,0" MinWidth="24"
+                    VerticalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" FontSize="10"
+                    Content="▼" IsEnabled="{Binding !IsBusy}"
+                    IsChecked="{Binding IsSendModePopupOpen, Mode=TwoWay}" />
+            <Popup IsOpen="{Binding IsSendModePopupOpen}" Placement="Top"
+                   PlacementTarget="{Binding #SendModeButton}" VerticalOffset="4" MinWidth="180">
+              <Border CornerRadius="8" Padding="6" Background="{DynamicResource GuiPopupBackground}"
+                      BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+                      BoxShadow="{DynamicResource GuiPopupShadow}"
+                      PointerExited="OnSendModePopupPointerExited">
+                <StackPanel Spacing="2">
+                  <Button Classes="ghost" HorizontalAlignment="Stretch" Padding="10,6" MinHeight="0"
+                          Command="{Binding SetSendModeCommand}" CommandParameter="True"
+                          FontSize="12">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="✓" FontSize="11" IsVisible="{Binding EnterSends}" Foreground="{DynamicResource GuiAccentText}" />
+                      <TextBlock Text="Enter 发送" FontSize="12" />
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="ghost" HorizontalAlignment="Stretch" Padding="10,6" MinHeight="0"
+                          Command="{Binding SetSendModeCommand}" CommandParameter="False"
+                          FontSize="12">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="✓" FontSize="11" IsVisible="{Binding !EnterSends}" Foreground="{DynamicResource GuiAccentText}" />
+                      <TextBlock Text="Ctrl+Enter 发送" FontSize="12" />
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
+              </Border>
+            </Popup>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
     </Border>
-  </Border>
 </UserControl>

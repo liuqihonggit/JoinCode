@@ -16,12 +16,12 @@
         x:Name="Root"
         d:DataContext="{x:Static design:DesignData.Sample}"
         x:DataType="vm:MainViewModel"
-        MinWidth="800" MinHeight="600" Width="1240" Height="820"
+        MinWidth="800" MinHeight="600" Width="1080" Height="720"
         Background="{DynamicResource GuiWindowBackground}"
         Title="JoinCode · AI 编程工作区">
   <Window.KeyBindings>
-    <KeyBinding Gesture="Ctrl+I" Command="{Binding ToggleInterceptorPanelCommand}" />
-    <KeyBinding Gesture="Ctrl+G" Command="{Binding ToggleGoalPanelCommand}" />
+    <KeyBinding Gesture="Ctrl+I" Command="{Binding ToggleSidePanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Interceptor}" />
+    <KeyBinding Gesture="Ctrl+G" Command="{Binding ToggleSidePanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Goal}" />
     <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding StopGoalCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding OpenCommandPaletteCommand}" />
     <KeyBinding Gesture="Ctrl+P" Command="{Binding OpenQuickOpenCommand}" />
@@ -61,19 +61,22 @@
     <Style Selector="Border.msgCard:pointerover StackPanel.actions">
       <Setter Property="Opacity" Value="1" />
     </Style>
-    <!-- Activity Bar 图标按钮：48x48 方形,透明背景,悬停浅色,激活强调色 -->
-    <Style Selector="ToggleButton.activityIcon">
+    <!-- Activity Bar 图标按钮：40x40 圆角方块,透明背景,悬停浅色,激活强调色（Button+ToggleButton 统一,参考 QQ） -->
+    <Style Selector="Button.activityIcon, ToggleButton.activityIcon">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="Padding" Value="0" />
-      <Setter Property="Width" Value="48" />
-      <Setter Property="Height" Value="48" />
+      <Setter Property="Width" Value="40" />
+      <Setter Property="Height" Value="40" />
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="CornerRadius" Value="8" />
     </Style>
-    <Style Selector="ToggleButton.activityIcon:pointerover">
+    <Style Selector="Button.activityIcon:pointerover, ToggleButton.activityIcon:pointerover">
       <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    </Style>
+    <Style Selector="Button.activityIcon:pressed, ToggleButton.activityIcon:pressed">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonPressed}" />
     </Style>
     <Style Selector="ToggleButton.activityIcon:checked">
       <Setter Property="Background" Value="{DynamicResource GuiAccentSubtle}" />
@@ -107,7 +110,7 @@
             IsVisible="{Binding IsNotZenMode}">
       <Grid RowDefinitions="*,Auto,Auto">
         <!-- 顶部组：面板切换 -->
-        <StackPanel Grid.Row="0" Spacing="4" Margin="0,8">
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,8" HorizontalAlignment="Center">
           <ToggleButton x:Name="SessionBtn" Classes="activityIcon" Content="💬" FontSize="20"
                         Command="{Binding ToggleSidePanelCommand}"
                         CommandParameter="{x:Static vm:SidePanelKind.Sessions}"
@@ -120,64 +123,42 @@
                         Command="{Binding ToggleEditorViewCommand}"
                         ToolTip.Tip="代码编辑器" />
         </StackPanel>
-        <!-- 中部组：功能按钮(带 Popup) -->
-        <StackPanel Grid.Row="1" Spacing="4">
-          <Button x:Name="GoalButton" Classes="activityIcon" Content="🎯" FontSize="20"
-                  Command="{Binding ToggleGoalPanelCommand}" ToolTip.Tip="goal 控制"
-                  IsVisible="{Binding IsGoalRunning}" />
-          <Button x:Name="InterceptorButton" Classes="activityIcon" Content="🛡" FontSize="20"
-                  Command="{Binding ToggleInterceptorPanelCommand}" ToolTip.Tip="AI 工具拦截器" />
-          <Button x:Name="ChatRoomButton" Classes="activityIcon" Content="👥" FontSize="20"
-                  Command="{Binding ToggleChatRoomPanelCommand}" ToolTip.Tip="聊天室"
-                  IsVisible="{Binding ChatRoomEnabled}" />
+        <!-- 中部组：功能面板(从左侧 SideBar 弹出) -->
+        <StackPanel Grid.Row="1" Spacing="4" HorizontalAlignment="Center">
+          <ToggleButton x:Name="GoalButton" Classes="activityIcon" Content="🎯" FontSize="20"
+                        Command="{Binding ToggleSidePanelCommand}"
+                        CommandParameter="{x:Static vm:SidePanelKind.Goal}"
+                        ToolTip.Tip="goal 控制" />
+          <ToggleButton x:Name="InterceptorButton" Classes="activityIcon" Content="🛡" FontSize="20"
+                        Command="{Binding ToggleSidePanelCommand}"
+                        CommandParameter="{x:Static vm:SidePanelKind.Interceptor}"
+                        ToolTip.Tip="AI 工具拦截器" />
+          <ToggleButton x:Name="ChatRoomButton" Classes="activityIcon" Content="👥" FontSize="20"
+                        Command="{Binding ToggleSidePanelCommand}"
+                        CommandParameter="{x:Static vm:SidePanelKind.ChatRoom}"
+                        ToolTip.Tip="聊天室"
+                        IsVisible="{Binding ChatRoomEnabled}" />
         </StackPanel>
-        <StackPanel Grid.Row="2" Spacing="4" Margin="0,0,0,8">
-          <ToggleButton Classes="activityIcon" FontSize="20"
-                        Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}">
+        <StackPanel Grid.Row="2" Spacing="4" Margin="0,0,0,8" HorizontalAlignment="Center">
+          <Button Classes="activityIcon" FontSize="20"
+                  Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}">
             <Panel>
               <TextBlock Text="🌙" FontSize="20" IsVisible="{Binding IsDarkTheme}" />
               <TextBlock Text="☀️" FontSize="20" IsVisible="{Binding !IsDarkTheme}" />
             </Panel>
-          </ToggleButton>
-          <ToggleButton Classes="activityIcon" Content="⚙" FontSize="20"
-                        Command="{Binding ToggleSettingsPanelCommand}"
+          </Button>
+          <ToggleButton x:Name="SettingsButton" Classes="activityIcon" Content="⚙" FontSize="20"
+                        Command="{Binding ToggleSidePanelCommand}"
+                        CommandParameter="{x:Static vm:SidePanelKind.Settings}"
                         ToolTip.Tip="设置" />
           <ToggleButton Classes="activityIcon" Content="⇥" FontSize="20"
-                        Command="{Binding ToggleSecondarySideBarCommand}"
-                        IsChecked="{Binding IsSecondarySideBarOpen, Mode=OneWay}"
+                        IsChecked="{Binding IsSecondarySideBarOpen, Mode=TwoWay}"
                         ToolTip.Tip="Secondary Side Bar" />
           <Button Classes="activityIcon" FontSize="14"
                   Content="{Binding LanguageToggleDisplay}"
                   Command="{Binding ToggleLanguageCommand}"
                   ToolTip.Tip="中/En 切换语言" />
         </StackPanel>
-        <!-- goal Popup -->
-        <Popup IsOpen="{Binding IsGoalPanelOpen}" Placement="Right"
-               PlacementTarget="{Binding #GoalButton}" HorizontalOffset="4">
-          <Border CornerRadius="10" Padding="14,10" Width="300"
-                  Background="{DynamicResource GuiPopupBackground}"
-                  BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
-                  PointerExited="OnPopupPointerExited">
-            <StackPanel Spacing="8">
-              <TextBlock Text="🎯 goal 进行中" FontSize="13" FontWeight="SemiBold"
-                         Foreground="{DynamicResource GuiPrimaryText}" />
-              <TextBlock Text="停止时引擎自动注入再三确认提示词（a→b→c）" FontSize="10.5"
-                         Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
-              <Button Classes="ghost" Content="停止 goal" HorizontalAlignment="Stretch"
-                      Command="{Binding StopGoalCommand}" />
-            </StackPanel>
-          </Border>
-        </Popup>
-        <!-- AI 拦截器 Popup -->
-        <Popup IsOpen="{Binding IsInterceptorPanelOpen}" Placement="Right"
-               PlacementTarget="{Binding #InterceptorButton}" HorizontalOffset="4">
-          <local:InterceptorPopupContent />
-        </Popup>
-        <!-- 聊天室 Popup -->
-        <Popup IsOpen="{Binding IsChatRoomPanelOpen}" Placement="Right"
-               PlacementTarget="{Binding #ChatRoomButton}" HorizontalOffset="4">
-          <local:ChatRoomView />
-        </Popup>
       </Grid>
     </Border>
 
@@ -185,16 +166,48 @@
     <Border x:Name="SideBarCol" Grid.Column="1" Width="{Binding SidePanelWidth}" ClipToBounds="True"
             Background="{DynamicResource GuiSidebarBackground}"
             BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0"
-            IsVisible="{Binding IsNotZenMode}">
+            IsVisible="{Binding IsNotZenMode}"
+            DragDrop.DragOver="OnPanelDragOver" DragDrop.Drop="OnPanelDropLeft">
       <Border.Transitions>
         <Transitions>
           <DoubleTransition Property="Width" Duration="{DynamicResource GuiMotionDuration}" />
         </Transitions>
       </Border.Transitions>
-      <Panel>
-        <local:SidebarView IsVisible="{Binding IsSessionPanelActive}" />
-        <local:FileTreePanelView IsVisible="{Binding IsFileTreePanelActive}" />
-      </Panel>
+      <Grid RowDefinitions="Auto,*">
+        <!-- 统一面板标题栏(拖拽手柄+标题+固定+关闭) -->
+        <Border Grid.Row="0" Padding="8,5" Background="{DynamicResource GuiSearchBarBackground}"
+                BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1"
+                DragDrop.DragOver="OnPanelDragOver" DragDrop.Drop="OnPanelDropLeft">
+          <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+            <TextBlock Grid.Column="0" Text="⠿" FontSize="11" Margin="0,0,6,0"
+                       Foreground="{DynamicResource GuiMutedText}" Background="Transparent"
+                       Cursor="SizeAll" ToolTip.Tip="拖拽到窗口左/右边缘切换停靠位置"
+                       IsVisible="{Binding !IsPanelPinned}"
+                       PointerPressed="OnPanelDragHandlePressed" />
+            <TextBlock Grid.Column="1" Text="{Binding ActivePanelTitle}" FontSize="12" FontWeight="SemiBold"
+                       Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center"
+                       Margin="4,0,0,0" />
+            <Button Grid.Column="2" Classes="ghost" FontSize="11" Padding="4,2" MinHeight="0"
+                    Command="{Binding TogglePanelPinCommand}" ToolTip.Tip="固定/解锁拖拽">
+              <Panel>
+                <TextBlock Text="📌" IsVisible="{Binding IsPanelPinned}" />
+                <TextBlock Text="📍" IsVisible="{Binding !IsPanelPinned}" />
+              </Panel>
+            </Button>
+            <Button Grid.Column="3" Classes="ghost" Content="✕" FontSize="10" Padding="4,2" MinHeight="0"
+                    Command="{Binding CloseActivePanelCommand}" ToolTip.Tip="关闭面板" />
+          </Grid>
+        </Border>
+        <!-- 面板内容 -->
+        <Panel Grid.Row="1">
+          <local:SidebarView IsVisible="{Binding IsSessionPanelActive}" />
+          <local:FileTreePanelView IsVisible="{Binding IsFileTreePanelActive}" />
+          <local:SettingsPanelView IsVisible="{Binding IsSettingsPanelActive}" />
+          <local:GoalView IsVisible="{Binding IsGoalPanelActive}" />
+          <local:InterceptorPopupContent IsVisible="{Binding IsInterceptorPanelActive}" />
+          <local:ChatRoomView IsVisible="{Binding IsChatRoomPanelActive}" />
+        </Panel>
+      </Grid>
     </Border>
 
     <!-- ===== Column 2：拖拽手柄 (调整 Side Bar 宽度) ===== -->
@@ -208,8 +221,9 @@
             ToolTip.Tip="拖拽调整面板宽度" />
 
     <!-- ===== Column 3：主区（四行布局：消息区/补全面板/输入栏/状态栏） ===== -->
-    <Grid x:Name="MainAreaCol" Grid.Column="3">
-      <Grid RowDefinitions="*,Auto,Auto,Auto">
+    <Grid x:Name="MainAreaCol" Grid.Column="3"
+          DragDrop.DragOver="OnPanelDragOver" DragDrop.Drop="OnPanelDropMainArea">
+      <Grid RowDefinitions="*,Auto,Auto">
 
       <!-- Row 0：内容+面板区（支持面板四方向位置：底部/右侧/左侧/顶部） -->
       <Grid Grid.Row="0" RowDefinitions="Auto,*,Auto" ColumnDefinitions="Auto,*,Auto">
@@ -230,24 +244,8 @@
               <TextBox Text="{Binding SearchText}" Watermark="搜索消息…" FontSize="12"
                        HorizontalAlignment="Stretch" VerticalAlignment="Center" MinHeight="30" Padding="8,4"
                        AutomationProperties.Name="搜索消息正文" />
-              <WrapPanel Orientation="Horizontal">
-                <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center"
-                           Foreground="{DynamicResource GuiAccentText}" IsVisible="{Binding IsSearching}" />
-                <Button Classes="ghost" Content="📊 统计" Command="{Binding ToggleStatsPanelCommand}"
-                        FontSize="11" Padding="9,3" MinHeight="0"
-                        ToolTip.Tip="查看会话统计" />
-              <Button Classes="ghost" Content="⧉ 复制" Command="{Binding CopySessionExportCommand}"
-                      FontSize="11" Padding="9,3" MinHeight="0" IsEnabled="{Binding HasMessages}"
-                      ToolTip.Tip="复制会话为文本" />
-              <Button Classes="accentSubtle" Content="↓ Markdown" Click="OnSaveSessionMarkdown"
-                      FontSize="11" Padding="9,3" MinHeight="0" IsEnabled="{Binding HasMessages}"
-                      ToolTip.Tip="保存当前完整会话为 Markdown 文件" />
-              </WrapPanel>
-              <!-- 统计面板 Popup -->
-              <Popup IsOpen="{Binding IsStatsPanelOpen}" Placement="Bottom"
-                     HorizontalAlignment="Left" MinWidth="320">
-                <local:StatsPanelView />
-              </Popup>
+              <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center"
+                         Foreground="{DynamicResource GuiAccentText}" IsVisible="{Binding IsSearching}" />
             </StackPanel>
           </Border>
           <!-- 消息列表区：单条消息卡片化（G3 接线 Markdown 渲染 + 复制/删除/思考折叠命令） -->
@@ -264,7 +262,9 @@
               <TextBlock Text="探索代码 · 执行工具 · 协作完成任务" FontSize="14" TextWrapping="Wrap" TextAlignment="Center"
                           HorizontalAlignment="Center" Foreground="{DynamicResource GuiSecondaryText}" />
               <TextBlock Text="{Binding SendHintText}" FontSize="12.5" TextWrapping="Wrap" MaxWidth="440"
-                          HorizontalAlignment="Center" Foreground="{DynamicResource GuiMutedText}" />
+                         HorizontalAlignment="Center" Foreground="{DynamicResource GuiMutedText}" />
+              <TextBlock Text="@子代理名 可直发 · 双击 ESC 终止" FontSize="11.5" TextWrapping="Wrap" MaxWidth="440"
+                         HorizontalAlignment="Center" Foreground="{DynamicResource GuiMutedText}" Margin="0,2,0,0" />
               <Border Margin="0,12,0,0" MaxWidth="480" HorizontalAlignment="Stretch">
                 <ItemsControl ItemsSource="{Binding SuggestedPrompts}">
                   <ItemsControl.ItemsPanel>
@@ -509,15 +509,6 @@
                   Foreground="{DynamicResource GuiPrimaryText}"
                   Command="{Binding ScrollToBottomCommand}" />
         </Grid>
-
-        <!-- Column 1：设置面板 -->
-        <Border Grid.Column="1" Classes="settingsDrawer" Width="{Binding SettingsPanelWidth}"
-                ClipToBounds="True" IsHitTestVisible="{Binding IsSettingsPanelOpen}">
-          <Border.Transitions>
-            <Transitions><DoubleTransition Property="Width" Duration="{DynamicResource GuiMotionDuration}" /></Transitions>
-          </Border.Transitions>
-          <local:SettingsPanelView HorizontalAlignment="Left" ClipToBounds="True" />
-        </Border>
       </Grid>
       <local:EditorPanelView IsVisible="{Binding IsEditorViewActive}" />
       </Panel>
@@ -564,9 +555,6 @@
 
       <!-- Row 2：底部输入栏 -->
       <local:InputBarView Grid.Row="2" x:Name="InputBar" IsVisible="{Binding IsNotZenMode}" />
-
-      <!-- Row 3：状态栏（模块化提取为 StatusBarView — 任务6） -->
-      <local:StatusBarView Grid.Row="3" IsVisible="{Binding IsNotZenMode}" />
       </Grid>
 
     <!-- ===== Column 4：Secondary Side Bar 拖拽手柄 ===== -->
@@ -580,7 +568,8 @@
     <Border x:Name="SecondarySideBarCol" Grid.Column="5" Width="{Binding SecondarySideBarWidth}" ClipToBounds="True"
             IsVisible="{Binding IsSecondarySideBarOpen}"
             Background="{DynamicResource GuiSidebarBackground}"
-            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1,0,0,0">
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1,0,0,0"
+            DragDrop.DragOver="OnPanelDragOver" DragDrop.Drop="OnPanelDropRight">
       <Panel>
         <local:FileTreePanelView IsVisible="{Binding IsSecondaryFileTree}" />
         <local:SidebarView IsVisible="{Binding IsSecondarySessions}" />

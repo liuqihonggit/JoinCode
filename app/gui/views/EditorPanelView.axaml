@@ -5,6 +5,7 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              xmlns:cnv="using:JoinCode.Gui.Converters"
+             xmlns:core="using:JoinCode.Gui.Views"
              xmlns:edit="using:AvaloniaEdit"
              xmlns:sys="using:System"
              x:Class="JoinCode.Gui.Views.EditorPanelView"
@@ -119,12 +120,13 @@
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="sys:String">
+          <DataTemplate x:DataType="core:BreadcrumbSegment">
             <StackPanel Orientation="Horizontal" Spacing="2">
               <TextBlock Text="›" FontSize="11" Foreground="{DynamicResource GuiMutedText}"
                          VerticalAlignment="Center" Margin="2,0" />
-              <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource GuiSecondaryText}"
-                         VerticalAlignment="Center" />
+              <TextBlock Text="{Binding Name}" FontSize="11" Foreground="{DynamicResource GuiSecondaryText}"
+                          VerticalAlignment="Center" Cursor="Hand"
+                          Tapped="OnBreadcrumbTapped" />
             </StackPanel>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
@@ -222,12 +224,13 @@
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="sys:String">
+              <DataTemplate x:DataType="core:BreadcrumbSegment">
                 <StackPanel Orientation="Horizontal" Spacing="2">
                   <TextBlock Text="›" FontSize="11" Foreground="{DynamicResource GuiMutedText}"
                              VerticalAlignment="Center" Margin="2,0" />
-                  <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource GuiSecondaryText}"
-                             VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding Name}" FontSize="11" Foreground="{DynamicResource GuiSecondaryText}"
+                             VerticalAlignment="Center" Cursor="Hand"
+                             Tapped="OnBreadcrumbTapped" />
                 </StackPanel>
               </DataTemplate>
             </ItemsControl.ItemTemplate>

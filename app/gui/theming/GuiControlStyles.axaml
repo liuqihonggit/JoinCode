@@ -96,17 +96,20 @@
   </Style>
 
   <!-- ===== primary 主操作按钮：accent 实底白字（发送） ===== -->
-  <Style Selector="Button.primary">
+  <Style Selector="Button.primary, ToggleButton.primary">
     <Setter Property="Background" Value="{DynamicResource GuiAccentFill}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="Foreground" Value="{DynamicResource GuiToastForeground}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
-  <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource GuiAccentHover}" />
   </Style>
-  <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource GuiAccentFill}" />
+  </Style>
+  <Style Selector="ToggleButton.primary:checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource GuiAccentHover}" />
   </Style>
 
   <!-- ===== accentSubtle 强调淡底：accent 12% 底 + accent 字（新建对话/建议药丸/模型徽章） ===== -->

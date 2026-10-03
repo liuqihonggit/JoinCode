@@ -89,20 +89,33 @@ public sealed partial class EditorPanelView : UserControl {
             editor.SyntaxHighlighting = def;
     }
 
-    /// <summary>设置面包屑 — 从根目录到文件名的路径段</summary>
+    /// <summary>设置面包屑 — 从根目录到文件名的路径段(可点击)</summary>
     private static void UpdateBreadcrumb(ItemsControl breadcrumb, string filePath) {
-        var segments = new List<string>();
+        var segments = new List<BreadcrumbSegment>();
         var dir = System.IO.Path.GetDirectoryName(filePath);
         while (!string.IsNullOrEmpty(dir)) {
-            segments.Add(System.IO.Path.GetFileName(dir));
+            segments.Add(new BreadcrumbSegment(System.IO.Path.GetFileName(dir), dir));
             var parent = System.IO.Path.GetDirectoryName(dir);
             if (parent == dir)
                 break;
             dir = parent;
         }
         segments.Reverse();
-        segments.Add(System.IO.Path.GetFileName(filePath));
+        segments.Add(new BreadcrumbSegment(System.IO.Path.GetFileName(filePath), filePath));
         breadcrumb.ItemsSource = segments;
+    }
+
+    /// <summary>点击面包屑段 — 在资源管理器中打开对应目录/文件</summary>
+    private void OnBreadcrumbTapped(object? sender, Avalonia.Input.TappedEventArgs e) {
+        if (sender is not Avalonia.Controls.TextBlock tb)
+            return;
+        if (tb.DataContext is not BreadcrumbSegment seg)
+            return;
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
+            FileName = "explorer.exe",
+            Arguments = $"/select,\"{seg.FullPath}\"",
+            UseShellExecute = true
+        });
     }
 
     /// <summary>编辑器组1内容变更时同步到活跃标签页 Content + 标记已修改 + 同步 Minimap</summary>

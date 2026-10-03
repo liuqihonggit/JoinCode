@@ -9,7 +9,7 @@ public sealed class WorkspaceExperienceTests {
         await using var vm = new MainViewModel(new PlaceholderChatSession(),
             new GuiSessionStore(fs, "mem/sessions"), new GuiPreferencesStore(fs, "mem/preferences.json"));
         vm.AnimationsEnabled = false;
-        vm.IsSettingsPanelOpen = true;
+        vm.ActiveSidePanel = SidePanelKind.Settings;
         var window = new MainWindow { DataContext = vm, Width = 800, Height = 820 };
         try {
             window.Show();

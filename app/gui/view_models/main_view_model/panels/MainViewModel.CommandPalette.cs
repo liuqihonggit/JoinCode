@@ -132,7 +132,7 @@ public sealed partial class MainViewModel {
                 ToggleThemeCommand.Execute(null);
                 break;
             case "view.settings":
-                ToggleSettingsPanelCommand.Execute(null);
+                ToggleSidePanelCommand.Execute(SidePanelKind.Settings);
                 break;
             case "view.panel":
                 TogglePanelCommand.Execute(null);

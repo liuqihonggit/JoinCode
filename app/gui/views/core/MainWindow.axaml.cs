@@ -32,6 +32,9 @@ public sealed partial class MainWindow : Window {
         Interval = TimeSpan.FromMilliseconds(500)
     };
 
+    /// <summary>GUI 偏好存储 — 窗口尺寸/位置持久化(独立于 ViewModel,启动时直接读取)</summary>
+    private readonly Persistence.GuiPreferencesStore _prefsStore = new(new IO.FileSystem.PhysicalFileSystem());
+
     /// <summary>初始化 MainWindow 实例</summary>
     public MainWindow() {
         App.LogDiag("[MainWindow] ctor begin");
@@ -45,6 +48,36 @@ public sealed partial class MainWindow : Window {
         AddHandler(PointerPressedEvent, OnGlobalPointerPressed, RoutingStrategies.Tunnel);
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
         SizeChanged += OnWindowSizeChanged;
+        RestoreWindowBounds();
+    }
+
+    /// <summary>从 gui-preferences.json 恢复窗口尺寸/位置</summary>
+    private void RestoreWindowBounds() {
+        try {
+            var prefs = _prefsStore.LoadAsync().GetAwaiter().GetResult();
+            if (prefs.WindowWidth >= MinWidth)
+                Width = prefs.WindowWidth;
+            if (prefs.WindowHeight >= MinHeight)
+                Height = prefs.WindowHeight;
+            if (prefs.WindowX != 0 || prefs.WindowY != 0)
+                Position = new Avalonia.PixelPoint(prefs.WindowX, prefs.WindowY);
+        } catch (Exception ex) {
+            App.LogDiag($"[MainWindow] RestoreWindowBounds failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>保存窗口尺寸/位置到 gui-preferences.json</summary>
+    private void SaveWindowBounds() {
+        try {
+            var prefs = _prefsStore.LoadAsync().GetAwaiter().GetResult();
+            prefs.WindowWidth = Width;
+            prefs.WindowHeight = Height;
+            prefs.WindowX = Position.X;
+            prefs.WindowY = Position.Y;
+            _ = _prefsStore.SaveAsync(prefs);
+        } catch (Exception ex) {
+            App.LogDiag($"[MainWindow] SaveWindowBounds failed: {ex.Message}");
+        }
     }
 
     /// <summary>窗口尺寸变化 — 根据宽度切换紧凑布局(openCode 风格响应式分栏)</summary>
@@ -199,6 +232,7 @@ public sealed partial class MainWindow : Window {
     }
 
     private void OnWindowClosed(object? sender, EventArgs e) {
+        SaveWindowBounds();
         _errorToastTimer.Stop();
         _errorToastTimer.Tick -= OnErrorToastTimerTick;
         _toolTimer.Stop();
@@ -243,6 +277,7 @@ public sealed partial class MainWindow : Window {
             ApplyAppearance();
             SyncActivityBarButtons();
             ApplySideBarPosition();
+            ApplyPanelDock();
             CenterOnScreen();
             _vm.LoadFileTree(System.IO.Directory.GetCurrentDirectory());
         }
@@ -267,6 +302,68 @@ public sealed partial class MainWindow : Window {
         SessionBtn.IsChecked = _vm.IsSessionPanelActive;
         FileTreeBtn.IsChecked = _vm.IsFileTreePanelActive;
         EditorBtn.IsChecked = _vm.IsEditorViewActive;
+        SettingsButton.IsChecked = _vm.IsSettingsPanelActive;
+        GoalButton.IsChecked = _vm.IsGoalPanelActive;
+        InterceptorButton.IsChecked = _vm.IsInterceptorPanelActive;
+        ChatRoomButton.IsChecked = _vm.IsChatRoomPanelActive;
+    }
+
+    /// <summary>应用面板停靠位置 — Left:SideBarCol在Column1+LeftSash在Column2; Right:SideBarCol在Column5+RightSash在Column4</summary>
+    private void ApplyPanelDock() {
+        if (_vm is null)
+            return;
+        if (_vm.IsPanelDockedRight) {
+            SetColumn(SideBarCol, 5);
+            SetColumn(LeftSashCol, 4);
+            SideBarCol.BorderThickness = new Thickness(1, 0, 0, 0);
+            SecondarySideBarCol.IsVisible = false;
+        } else {
+            SetColumn(SideBarCol, 1);
+            SetColumn(LeftSashCol, 2);
+            SideBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
+            SecondarySideBarCol.IsVisible = _vm.IsSecondarySideBarOpen;
+        }
+    }
+
+    /// <summary>面板拖拽经过 — 允许 Move 效果</summary>
+    private void OnPanelDragOver(object? sender, DragEventArgs e) {
+        if (e.Data.Contains("PanelDrag"))
+            e.DragEffects = DragDropEffects.Move;
+        else
+            e.DragEffects = DragDropEffects.None;
+    }
+
+    /// <summary>拖拽手柄按下时发起 DragDrop — 携带面板标识</summary>
+    private void OnPanelDragHandlePressed(object? sender, PointerPressedEventArgs e) {
+        if (_vm is null || _vm.IsPanelPinned)
+            return;
+        e.Handled = true;
+        var data = new DataObject();
+        data.Set("PanelDrag", _vm.ActivePanelTitle);
+        _ = DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+    }
+
+    /// <summary>拖拽释放到左侧 → 面板停靠在左</summary>
+    private void OnPanelDropLeft(object? sender, DragEventArgs e) {
+        if (_vm is not null && e.Data.Contains("PanelDrag"))
+            _vm.ActivePanelDock = DockPosition.Left;
+        e.Handled = true;
+    }
+
+    /// <summary>拖拽释放到右侧 → 面板停靠在右</summary>
+    private void OnPanelDropRight(object? sender, DragEventArgs e) {
+        if (_vm is not null && e.Data.Contains("PanelDrag"))
+            _vm.ActivePanelDock = DockPosition.Right;
+        e.Handled = true;
+    }
+
+    /// <summary>拖拽释放到主区 — 根据鼠标 X 坐标决定停靠左/右</summary>
+    private void OnPanelDropMainArea(object? sender, DragEventArgs e) {
+        if (_vm is not null && e.Data.Contains("PanelDrag")) {
+            var pos = e.GetPosition(this);
+            _vm.ActivePanelDock = pos.X < Width / 2 ? DockPosition.Left : DockPosition.Right;
+        }
+        e.Handled = true;
     }
 
     /// <summary>窗口居中屏幕 — 在打开时固定到屏幕中间</summary>
@@ -400,9 +497,9 @@ public sealed partial class MainWindow : Window {
             if (_vm.IsZenMode) {
                 e.Handled = true;
                 _vm.ToggleZenModeCommand.Execute(null);
-            } else if (_vm.IsSettingsPanelOpen) {
+            } else if (_vm.IsSettingsPanelActive) {
                 e.Handled = true;
-                _vm.ToggleSettingsPanelCommand.Execute(null);
+                _vm.ToggleSidePanelCommand.Execute(SidePanelKind.Settings);
             } else if (_vm.CanStop) {
                 e.Handled = true;
                 _vm.StopGeneratingCommand.Execute(null);
@@ -425,10 +522,16 @@ public sealed partial class MainWindow : Window {
             GuiAppResources.ApplyTheme(_vm.CurrentTheme);
         } else if (e.PropertyName is nameof(MainViewModel.IsSessionPanelActive)
                                      or nameof(MainViewModel.IsFileTreePanelActive)
+                                     or nameof(MainViewModel.IsSettingsPanelActive)
+                                     or nameof(MainViewModel.IsGoalPanelActive)
+                                     or nameof(MainViewModel.IsInterceptorPanelActive)
+                                     or nameof(MainViewModel.IsChatRoomPanelActive)
                                      or nameof(MainViewModel.IsEditorViewActive)) {
             SyncActivityBarButtons();
         } else if (e.PropertyName == nameof(MainViewModel.PrimarySideBarPosition)) {
             ApplySideBarPosition();
+        } else if (e.PropertyName == nameof(MainViewModel.ActivePanelDock)) {
+            ApplyPanelDock();
         } else if (e.PropertyName == nameof(MainViewModel.IsCompactLayout)) {
             ApplyCompactLayout();
         } else if (e.PropertyName == nameof(MainViewModel.HasCopied) && _vm!.HasCopied) {
@@ -547,14 +650,6 @@ public sealed partial class MainWindow : Window {
             else
                 _errorToastTimer.Start();
         }
-    }
-
-    /// <summary>Popup 面板鼠标离开时自动关闭（goal popup 等）</summary>
-    private void OnPopupPointerExited(object? sender, Avalonia.Input.PointerEventArgs e) {
-        if (_vm is null)
-            return;
-        if (_vm.IsGoalPanelOpen)
-            _vm.IsGoalPanelOpen = false;
     }
 
     /// <summary>新消息加入时，若未上滑浏览则自动滚动到底部（G3：ScrollViewer 化）</summary>

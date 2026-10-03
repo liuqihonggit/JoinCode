@@ -20,6 +20,8 @@ public sealed partial class InputBarView : UserControl {
         _slashDebounceTimer.Tick += OnSlashDebounceTick;
         if (InputTextBox is not null)
             InputTextBox.AddHandler(InputElement.KeyDownEvent, OnInputKeyDown, RoutingStrategies.Tunnel);
+        InputBarRoot.PointerMoved += OnInputResizePointerMoved;
+        InputBarRoot.PointerReleased += OnInputResizePointerReleased;
     }
 
     /// <summary>当前 MainViewModel（供外部访问）</summary>
@@ -141,8 +143,46 @@ public sealed partial class InputBarView : UserControl {
 
     /// <summary>发送方式 Popup 鼠标离开时自动关闭</summary>
     private void OnSendModePopupPointerExited(object? sender, Avalonia.Input.PointerEventArgs e) {
-        if (DataContext is MainViewModel vm)
-            vm.IsSendModePopupOpen = false;
+        if (DataContext is not MainViewModel vm)
+            return;
+        vm.IsSendModePopupOpen = false;
+    }
+
+    private bool _isResizingInput;
+    private double _resizeStartY;
+    private double _resizeStartHeight;
+
+    /// <summary>拖拽手柄按下 — 记录起始 Y 坐标和输入框高度,capture 到根控件确保移出手柄仍收事件</summary>
+    private void OnInputResizePointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e) {
+        if (DataContext is not MainViewModel vm)
+            return;
+        _isResizingInput = true;
+        _resizeStartY = e.GetPosition(null).Y;
+        _resizeStartHeight = vm.InputAreaHeight;
+        e.Pointer.Capture(InputBarRoot);
+        e.Handled = true;
+    }
+
+    /// <summary>拖拽手柄移动 — 向上拖增大高度,向下拖减小高度</summary>
+    private void OnInputResizePointerMoved(object? sender, Avalonia.Input.PointerEventArgs e) {
+        if (!_isResizingInput || DataContext is not MainViewModel vm)
+            return;
+        var currentY = e.GetPosition(null).Y;
+        var delta = _resizeStartY - currentY;
+        var newHeight = _resizeStartHeight + delta;
+        if (newHeight < 38)
+            newHeight = 38;
+        if (newHeight > 240)
+            newHeight = 240;
+        vm.InputAreaHeight = newHeight;
+    }
+
+    /// <summary>拖拽手柄释放 — 结束拖拽,释放 capture</summary>
+    private void OnInputResizePointerReleased(object? sender, Avalonia.Input.PointerReleasedEventArgs e) {
+        if (!_isResizingInput)
+            return;
+        _isResizingInput = false;
+        e.Pointer.Capture(null);
     }
 
     /// <summary>从视觉树分离时处理</summary>
@@ -153,6 +193,58 @@ public sealed partial class InputBarView : UserControl {
             _vm.PropertyChanged -= OnVmPropertyChanged;
         if (InputTextBox is not null)
             InputTextBox.RemoveHandler(InputElement.KeyDownEvent, OnInputKeyDown);
+        InputBarRoot.PointerMoved -= OnInputResizePointerMoved;
+        InputBarRoot.PointerReleased -= OnInputResizePointerReleased;
         base.OnDetachedFromVisualTree(e);
+    }
+
+    /// <summary>Ctrl+滚轮=放大缩小日志字体,普通滚轮=滚动</summary>
+    private void OnLogPointerWheel(object? sender, Avalonia.Input.PointerWheelEventArgs e) {
+        if (DataContext is not MainViewModel vm)
+            return;
+        if ((e.KeyModifiers & KeyModifiers.Control) != 0) {
+            e.Handled = true;
+            if (e.Delta.Y > 0)
+                vm.EnlargeLogFontCommand.Execute(null);
+            else if (e.Delta.Y < 0)
+                vm.ShrinkLogFontCommand.Execute(null);
+        }
+    }
+
+    /// <summary>鼠标中键双击=重置日志字体到默认10</summary>
+    private void OnLogPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e) {
+        var point = e.GetCurrentPoint(null);
+        if (point.Properties.IsMiddleButtonPressed && e.ClickCount >= 2) {
+            e.Handled = true;
+            if (DataContext is MainViewModel vm)
+                vm.StatusLogFontSize = 10;
+        }
+    }
+
+    /// <summary>保存会话为 Markdown — 通过 StorageProvider 弹出保存对话框</summary>
+    private void OnSaveMarkdown(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => _ = SaveMarkdownAsync();
+
+    private async Task SaveMarkdownAsync() {
+        if (DataContext is not MainViewModel vm || !vm.HasMessages) return;
+        var snapshot = vm.ExportSessionMarkdown;
+        try {
+            var storage = Avalonia.Controls.TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storage is null) return;
+            var file = await storage.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions {
+                Title = "导出会话为 Markdown",
+                SuggestedFileName = $"JoinCode-{DateTime.Now:yyyyMMdd-HHmmss}.md",
+                DefaultExtension = "md",
+                ShowOverwritePrompt = true,
+                FileTypeChoices = [new Avalonia.Platform.Storage.FilePickerFileType("Markdown") { Patterns = ["*.md"] }]
+            });
+            if (file is null) return;
+            await using var stream = await file.OpenWriteAsync();
+            stream.SetLength(0);
+            await using var writer = new System.IO.StreamWriter(stream, new System.Text.UTF8Encoding(false));
+            await writer.WriteAsync(snapshot);
+            vm.StatusText = "Markdown 已导出";
+        } catch (Exception ex) {
+            vm.StatusText = $"导出失败: {ex.Message}";
+        }
     }
 }

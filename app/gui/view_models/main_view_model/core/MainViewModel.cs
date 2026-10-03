@@ -90,14 +90,6 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     [ObservableProperty]
     private bool _chatRoomEnabled = true;
 
-    /// <summary>聊天室面板是否展开（鼠标离开自动关闭）</summary>
-    [ObservableProperty]
-    private bool _isChatRoomPanelOpen;
-
-    /// <summary>展开/收拢聊天室面板</summary>
-    [RelayCommand]
-    private void ToggleChatRoomPanel() => IsChatRoomPanelOpen = !IsChatRoomPanelOpen;
-
     /// <summary>聊天室成员列表（横向头像排列）</summary>
     public IReadOnlyList<ChatRoomMemberVm> ChatRoomMembers { get; private set; } = Array.Empty<ChatRoomMemberVm>();
 
@@ -151,10 +143,6 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
         PersistSync(() => _session.SetEffortLevelAsync(effort));
     }
 
-    /// <summary>设置面板是否展开</summary>
-    [ObservableProperty]
-    private bool _isSettingsPanelOpen;
-
     /// <summary>回底按钮是否可见（上滑浏览时显示，贴底时隐藏）</summary>
     [ObservableProperty]
     private bool _isBackToBottomVisible;
@@ -178,8 +166,10 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
         _ => StatusKind.Ready
     };
 
-    partial void OnStatusTextChanged(string value)
-        => OnPropertyChanged(nameof(StatusKind));
+    partial void OnStatusTextChanged(string value) {
+        OnPropertyChanged(nameof(StatusKind));
+        AddStatusLog(value);
+    }
 
     /// <summary>当前字符数（随输入变化，驱动计数显示）</summary>
     [ObservableProperty]
@@ -265,10 +255,6 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
         InputText = _inputHistory[next];
         _isNavigating = false;
     }
-
-    /// <summary>展开/收拢右侧设置面板</summary>
-    [RelayCommand]
-    private void ToggleSettingsPanel() => IsSettingsPanelOpen = !IsSettingsPanelOpen;
 
     /// <summary>恢复设置面板默认值（温度/最大长度/流式/系统提示词）</summary>
     [RelayCommand]

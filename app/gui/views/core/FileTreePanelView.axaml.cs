@@ -10,6 +10,19 @@ public sealed partial class FileTreePanelView : UserControl {
         InitializeComponent();
     }
 
+    /// <summary>点击根路径 — 在资源管理器中打开根目录</summary>
+    private void OnRootPathTapped(object? sender, Avalonia.Input.TappedEventArgs e) {
+        if (DataContext is not ViewModels.MainViewModel vm)
+            return;
+        if (string.IsNullOrEmpty(vm.FileTreeRootPath))
+            return;
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
+            FileName = "explorer.exe",
+            Arguments = $"\"{vm.FileTreeRootPath}\"",
+            UseShellExecute = true
+        });
+    }
+
     /// <summary>单击 TreeView 任意位置 — 文件夹切换展开/收起(VSCode 风格:点击整行即可展开)</summary>
     private void OnTreeTapped(object? sender, Avalonia.Input.TappedEventArgs e) {
         // 从事件源向上找 FileTreeItemVm

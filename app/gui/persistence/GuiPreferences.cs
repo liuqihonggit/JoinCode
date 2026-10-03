@@ -69,4 +69,16 @@ public sealed class GuiPreferences {
 
     /// <summary>无人值守模式开关 — 开启后权限模式切换到 Unattended（红灯自动执行+审计）— Bug2 修复</summary>
     public bool IsUnattendedMode { get; set; } = false;
+
+    /// <summary>窗口宽度(像素) — 0 表示用默认值</summary>
+    public double WindowWidth { get; set; }
+
+    /// <summary>窗口高度(像素) — 0 表示用默认值</summary>
+    public double WindowHeight { get; set; }
+
+    /// <summary>窗口 X 坐标(像素) — 0 表示用默认值</summary>
+    public int WindowX { get; set; }
+
+    /// <summary>窗口 Y 坐标(像素) — 0 表示用默认值</summary>
+    public int WindowY { get; set; }
 }

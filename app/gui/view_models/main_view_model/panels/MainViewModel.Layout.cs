@@ -39,6 +39,64 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private bool _isCompactLayout;
 
+    /// <summary>输入栏文本区高度(可拖拽调节) — 默认三行约 72px,最小 38px,最大 240px</summary>
+    [ObservableProperty]
+    private double _inputAreaHeight = 72;
+
+    /// <summary>系统日志是否展开(▲ 向上展开显示完整日志,默认展开显示最近三条)</summary>
+    [ObservableProperty]
+    private bool _isStatusLogExpanded = true;
+
+    /// <summary>系统日志是否全屏显示(占满主窗口高度)</summary>
+    [ObservableProperty]
+    private bool _isStatusLogFullscreen;
+
+    /// <summary>系统日志字体大小(可放大缩小,默认10,范围8~20)</summary>
+    [ObservableProperty]
+    private double _statusLogFontSize = 10;
+
+    /// <summary>系统日志 ScrollViewer 最大高度(全屏600,非全屏72)</summary>
+    public double StatusLogScrollHeight => IsStatusLogFullscreen ? 600 : 72;
+
+    /// <summary>放大日志字体</summary>
+    [RelayCommand]
+    private void EnlargeLogFont() {
+        if (StatusLogFontSize < 20)
+            StatusLogFontSize += 1;
+    }
+
+    /// <summary>缩小日志字体</summary>
+    [RelayCommand]
+    private void ShrinkLogFont() {
+        if (StatusLogFontSize > 8)
+            StatusLogFontSize -= 1;
+    }
+
+    /// <summary>切换日志全屏/非全屏</summary>
+    [RelayCommand]
+    private void ToggleLogFullscreen() {
+        IsStatusLogFullscreen = !IsStatusLogFullscreen;
+        OnPropertyChanged(nameof(StatusLogScrollHeight));
+    }
+
+    partial void OnIsStatusLogFullscreenChanged(bool value)
+        => OnPropertyChanged(nameof(StatusLogScrollHeight));
+
+    /// <summary>系统日志条目(最近的状态变化/错误/切换记录,最多保留 50 条)</summary>
+    public System.Collections.ObjectModel.ObservableCollection<string> StatusLogEntries { get; } = new();
+
+    /// <summary>追加系统日志条目(倒序:旧的在上新的在下,最多保留 50 条)</summary>
+    public void AddStatusLog(string entry) {
+        var stamped = $"[{DateTime.Now:HH:mm:ss}] {entry}";
+        StatusLogEntries.Add(stamped);
+        while (StatusLogEntries.Count > 50)
+            StatusLogEntries.RemoveAt(0);
+    }
+
+    /// <summary>切换系统日志展开/收起</summary>
+    [RelayCommand]
+    private void ToggleStatusLog() => IsStatusLogExpanded = !IsStatusLogExpanded;
+
     /// <summary>紧凑布局阈值 — 窗口宽度低于此值切换到垂直布局</summary>
     public const double CompactLayoutThreshold = 700;
 

@@ -54,15 +54,13 @@ public sealed partial class MainViewModel {
     public bool HasEditorTabs2 => EditorTabs2.Count > 0;
 
     /// <summary>切换主区视图 — 在消息区和编辑器区之间切换。
-    /// 互斥规则：切到编辑器时收起 Side Bar(面板消失),实现 Activity Bar 图标互斥。</summary>
+    /// 不收起 Side Bar,编辑器与目录树并列显示(参考 VSCode)。</summary>
     [RelayCommand]
     private void ToggleEditorView() {
         if (ActiveMainArea == MainAreaKind.Editor) {
             ActiveMainArea = MainAreaKind.Messages;
         } else {
             ActiveMainArea = MainAreaKind.Editor;
-            ActiveSidePanel = SidePanelKind.None;
-            SidePanelWidth = 0;
         }
     }
 
@@ -115,8 +113,6 @@ public sealed partial class MainViewModel {
             }
         }
         ActiveMainArea = MainAreaKind.Editor;
-        ActiveSidePanel = SidePanelKind.None;
-        SidePanelWidth = 0;
     }
 
     /// <summary>读取文件内容 — 失败返回错误提示文本</summary>

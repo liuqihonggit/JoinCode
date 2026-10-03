@@ -6,16 +6,12 @@
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              x:Class="JoinCode.Gui.Views.ChatRoomView"
              x:DataType="vm:MainViewModel">
-  <Border CornerRadius="10" Padding="12,10" Margin="8"
-          Background="{DynamicResource GuiPopupBackground}"
-          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
-          BoxShadow="{DynamicResource GuiPopupShadow}"
-          PointerExited="OnPointerExited">
-    <Grid RowDefinitions="Auto,*,Auto">
+  <Grid RowDefinitions="Auto,*,Auto" Background="{DynamicResource GuiSidebarBackground}">
       <!-- 头部：聊天室标题 + 在线人数 -->
-      <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,8">
+      <StackPanel Grid.Row="0" Spacing="4" Margin="12,10,12,8"
+                  Background="{DynamicResource GuiSearchBarBackground}">
         <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Grid.Column="0" Text="💬 聊天室" FontSize="14" FontWeight="SemiBold"
+          <TextBlock Grid.Column="0" Text="💬 聊天室" FontSize="13" FontWeight="SemiBold"
                      Foreground="{DynamicResource GuiPrimaryText}" />
           <TextBlock Grid.Column="1" Text="{Binding ChatRoomMemberCount, StringFormat='{}{0} 在线'}"
                      FontSize="11" Foreground="{DynamicResource GuiMutedText}" />
@@ -64,7 +60,6 @@
 
       <!-- 底部：聊天室模式提示 -->
       <TextBlock Grid.Row="2" Text="🟢 聊天室模式已启用 — 可见每个 bot 对话"
-                 FontSize="10" Foreground="{DynamicResource GuiMutedText}" Margin="0,8,0,0" />
+                 FontSize="10" Foreground="{DynamicResource GuiMutedText}" Margin="12,8,12,10" />
     </Grid>
-  </Border>
 </UserControl>

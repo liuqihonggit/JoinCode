@@ -172,6 +172,14 @@ public sealed partial class MainViewModel {
         var providerId = parameter[..pipe];
         var modelId = parameter[(pipe + 1)..];
 
+        // Mock 供应商：切换到 Mock 引擎
+        if (string.Equals(providerId, "mock", StringComparison.OrdinalIgnoreCase)) {
+            if (!IsMockConnection)
+                ToggleMockCommand.Execute(null);
+            AddStatusLog("切换到 Mock 演示引擎");
+            return;
+        }
+
         // 切换供应商(若不同) → 切换模型
         if (!string.Equals(providerId, _session.CurrentVendor, StringComparison.OrdinalIgnoreCase)) {
             var conn = GetConnectionById(providerId);
@@ -186,7 +194,8 @@ public sealed partial class MainViewModel {
         if (modelItem is not null) {
             SelectedModelOption = modelItem;
             SelectedModel = modelItem.Id;
-            try { await _session.SetModelAsync(modelId).WaitAsync(Timeout); } catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); }
+            try { await _session.SetModelAsync(modelId).WaitAsync(Timeout); } catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); AddStatusLog($"模型切换失败: {ex.Message}"); }
+            AddStatusLog($"模型 → {providerId}/{modelId}");
         }
         OnPropertyChanged(nameof(CurrentModelDisplay));
     }
@@ -194,6 +203,9 @@ public sealed partial class MainViewModel {
     /// <summary>刷新供应商模型分组 — 从 VendorModelMap 和 ModelConfigLoader 构建 Popup 数据源</summary>
     private void RefreshProviderModelGroups() {
         var map = _session.VendorModelMap;
+        // Fallback: VendorModelMap 为空时（ModelConfigLoader 未被 ApplyProviders 注入），直接从 settings.json 读
+        if (map.Count == 0)
+            map = LoadVendorMapFromSettingsFile();
         var groups = new List<ProviderModelGroupVm>(map.Count);
         foreach (var (providerId, models) in map) {
             if (models is null || models.Count == 0)
@@ -217,7 +229,44 @@ public sealed partial class MainViewModel {
                 Models = entries
             });
         }
+        // Mock 作为供应商展示在列表末尾(选择时切换到 Mock 引擎)
+        groups.Add(new ProviderModelGroupVm {
+            ProviderId = "mock",
+            ProviderName = "Mock 演示",
+            Initial = "M",
+            BrandColor = "#F59E0B",
+            Models = [new ProviderModelEntryVm {
+                ModelId = "demo",
+                DisplayName = "Mock 演示引擎",
+                ContextWindow = 0,
+                SelectionKey = "mock|demo"
+            }]
+        });
         ProviderModelGroups = groups;
+    }
+
+    /// <summary>从 settings.json 直接读 vendor→models 构建 VendorModelMap（Fallback：ModelConfigLoader 未被注入时用）</summary>
+    private IReadOnlyDictionary<string, IReadOnlyList<string>> LoadVendorMapFromSettingsFile() {
+        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        try {
+            var settingsPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".jcc", "settings.json");
+            if (!System.IO.File.Exists(settingsPath)) return result;
+            using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(settingsPath));
+            if (!doc.RootElement.TryGetProperty("vendor", out var vendorEl)) return result;
+            foreach (var vendor in vendorEl.EnumerateObject()) {
+                if (!vendor.Value.TryGetProperty("models", out var modelsEl)) continue;
+                var ids = new List<string>();
+                foreach (var m in modelsEl.EnumerateArray()) {
+                    if (m.TryGetProperty("id", out var idEl))
+                        ids.Add(idEl.GetString() ?? "");
+                }
+                if (ids.Count > 0)
+                    result[vendor.Name] = ids.ToArray();
+            }
+        } catch (Exception ex) {
+            ViewModelDiagnosticsLogger.WriteError(ex);
+        }
+        return result;
     }
 
     /// <summary>供应商品牌信息(显示名+首字母+品牌色) — 唯一数据源,对齐 DSG031</summary>

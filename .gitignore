@@ -20,6 +20,9 @@ boxc/
 # 快照测试临时文件（approved 入库，received 仅本地调试）
 *.received.txt
 
+# 调试图片
+*.png
+
 # Stryker 变异测试输出
 **/StrykerOutput/
 

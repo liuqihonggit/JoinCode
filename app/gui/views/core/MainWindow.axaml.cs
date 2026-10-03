@@ -333,6 +333,15 @@ public sealed partial class MainWindow : Window {
             e.DragEffects = DragDropEffects.None;
     }
 
+    /// <summary>拖拽手柄按下时发起 DragDrop — 携带面板标识</summary>
+    private void OnPanelDragHandlePressed(object? sender, PointerPressedEventArgs e) {
+        if (_vm is null || _vm.IsPanelPinned)
+            return;
+        var data = new DataObject();
+        data.Set("PanelDrag", _vm.ActivePanelTitle);
+        _ = DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+    }
+
     /// <summary>拖拽释放到左侧 → 面板停靠在左</summary>
     private void OnPanelDropLeft(object? sender, DragEventArgs e) {
         if (_vm is not null && e.Data.Contains("PanelDrag"))
@@ -344,6 +353,15 @@ public sealed partial class MainWindow : Window {
     private void OnPanelDropRight(object? sender, DragEventArgs e) {
         if (_vm is not null && e.Data.Contains("PanelDrag"))
             _vm.ActivePanelDock = DockPosition.Right;
+        e.Handled = true;
+    }
+
+    /// <summary>拖拽释放到主区 — 根据鼠标 X 坐标决定停靠左/右</summary>
+    private void OnPanelDropMainArea(object? sender, DragEventArgs e) {
+        if (_vm is not null && e.Data.Contains("PanelDrag")) {
+            var pos = e.GetPosition(this);
+            _vm.ActivePanelDock = pos.X < Width / 2 ? DockPosition.Left : DockPosition.Right;
+        }
         e.Handled = true;
     }
 

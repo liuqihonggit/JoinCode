@@ -173,14 +173,41 @@
           <DoubleTransition Property="Width" Duration="{DynamicResource GuiMotionDuration}" />
         </Transitions>
       </Border.Transitions>
-      <Panel>
-        <local:SidebarView IsVisible="{Binding IsSessionPanelActive}" />
-        <local:FileTreePanelView IsVisible="{Binding IsFileTreePanelActive}" />
-        <local:SettingsPanelView IsVisible="{Binding IsSettingsPanelActive}" />
-        <local:GoalView IsVisible="{Binding IsGoalPanelActive}" />
-        <local:InterceptorPopupContent IsVisible="{Binding IsInterceptorPanelActive}" />
-        <local:ChatRoomView IsVisible="{Binding IsChatRoomPanelActive}" />
-      </Panel>
+      <Grid RowDefinitions="Auto,*">
+        <!-- 统一面板标题栏(拖拽手柄+标题+固定+关闭) -->
+        <Border Grid.Row="0" Padding="8,5" Background="{DynamicResource GuiSearchBarBackground}"
+                BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1"
+                DragDrop.DragOver="OnPanelDragOver" DragDrop.Drop="OnPanelDropLeft">
+          <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+            <TextBlock Grid.Column="0" Text="⠿" FontSize="11" Margin="0,0,6,0"
+                       Foreground="{DynamicResource GuiMutedText}" Cursor="SizeAll"
+                       ToolTip.Tip="拖拽到窗口左/右边缘切换停靠位置"
+                       IsVisible="{Binding !IsPanelPinned}"
+                       PointerPressed="OnPanelDragHandlePressed" />
+            <TextBlock Grid.Column="1" Text="{Binding ActivePanelTitle}" FontSize="12" FontWeight="SemiBold"
+                       Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center"
+                       Margin="4,0,0,0" />
+            <Button Grid.Column="2" Classes="ghost" FontSize="11" Padding="4,2" MinHeight="0"
+                    Command="{Binding TogglePanelPinCommand}" ToolTip.Tip="固定/解锁拖拽">
+              <Panel>
+                <TextBlock Text="📌" IsVisible="{Binding IsPanelPinned}" />
+                <TextBlock Text="📍" IsVisible="{Binding !IsPanelPinned}" />
+              </Panel>
+            </Button>
+            <Button Grid.Column="3" Classes="ghost" Content="✕" FontSize="10" Padding="4,2" MinHeight="0"
+                    Command="{Binding CloseActivePanelCommand}" ToolTip.Tip="关闭面板" />
+          </Grid>
+        </Border>
+        <!-- 面板内容 -->
+        <Panel Grid.Row="1">
+          <local:SidebarView IsVisible="{Binding IsSessionPanelActive}" />
+          <local:FileTreePanelView IsVisible="{Binding IsFileTreePanelActive}" />
+          <local:SettingsPanelView IsVisible="{Binding IsSettingsPanelActive}" />
+          <local:GoalView IsVisible="{Binding IsGoalPanelActive}" />
+          <local:InterceptorPopupContent IsVisible="{Binding IsInterceptorPanelActive}" />
+          <local:ChatRoomView IsVisible="{Binding IsChatRoomPanelActive}" />
+        </Panel>
+      </Grid>
     </Border>
 
     <!-- ===== Column 2：拖拽手柄 (调整 Side Bar 宽度) ===== -->
@@ -194,7 +221,8 @@
             ToolTip.Tip="拖拽调整面板宽度" />
 
     <!-- ===== Column 3：主区（四行布局：消息区/补全面板/输入栏/状态栏） ===== -->
-    <Grid x:Name="MainAreaCol" Grid.Column="3">
+    <Grid x:Name="MainAreaCol" Grid.Column="3"
+          DragDrop.DragOver="OnPanelDragOver" DragDrop.Drop="OnPanelDropMainArea">
       <Grid RowDefinitions="*,Auto,Auto">
 
       <!-- Row 0：内容+面板区（支持面板四方向位置：底部/右侧/左侧/顶部） -->

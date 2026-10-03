@@ -41,6 +41,7 @@ public sealed partial class MainViewModel {
     [NotifyPropertyChangedFor(nameof(IsInterceptorPanelActive))]
     [NotifyPropertyChangedFor(nameof(IsChatRoomPanelActive))]
     [NotifyPropertyChangedFor(nameof(IsSidePanelExpanded))]
+    [NotifyPropertyChangedFor(nameof(ActivePanelTitle))]
     private SidePanelKind _activeSidePanel = SidePanelKind.Sessions;
 
     /// <summary>当前面板停靠位置 — Left(默认)/Right,拖拽面板标题栏切换</summary>
@@ -54,6 +55,21 @@ public sealed partial class MainViewModel {
 
     /// <summary>面板是否停靠在右侧</summary>
     public bool IsPanelDockedRight => ActivePanelDock == DockPosition.Right;
+
+    /// <summary>面板是否固定(固定后不可拖拽)</summary>
+    [ObservableProperty]
+    private bool _isPanelPinned;
+
+    /// <summary>当前面板标题 — 根据ActiveSidePanel返回对应标题</summary>
+    public string ActivePanelTitle => ActiveSidePanel switch {
+        SidePanelKind.Sessions => "会话列表",
+        SidePanelKind.FileTree => "目录树",
+        SidePanelKind.Settings => "设置",
+        SidePanelKind.Goal => "🎯 goal 控制",
+        SidePanelKind.Interceptor => "🛡 AI 工具拦截器",
+        SidePanelKind.ChatRoom => "💬 聊天室",
+        _ => string.Empty
+    };
 
     /// <summary>侧边面板区宽度 — 可拖拽调整,带磁吸(低于阈值自动折叠)</summary>
     [ObservableProperty]
@@ -114,6 +130,17 @@ public sealed partial class MainViewModel {
             if (SidePanelWidth < SidePanelSnapCollapseThreshold)
                 SidePanelWidth = SidePanelDefaultWidth;
         }
+    }
+
+    /// <summary>切换面板固定状态 — 固定后不可拖拽</summary>
+    [RelayCommand]
+    private void TogglePanelPin() => IsPanelPinned = !IsPanelPinned;
+
+    /// <summary>关闭当前激活的面板</summary>
+    [RelayCommand]
+    private void CloseActivePanel() {
+        ActiveSidePanel = SidePanelKind.None;
+        SidePanelWidth = 0;
     }
 
     /// <summary>切换 Secondary Side Bar — 开关右侧边栏</summary>

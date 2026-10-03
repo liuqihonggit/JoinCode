@@ -697,7 +697,7 @@ public sealed class CodeIndexToolHandlers {
     [McpTool(CodeToolNameEnumConstants.CodeIndexSearchSemantic, "Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. Returns metadata (file path, line range, symbol name, similarity score). Set include_source_text=true to get matched block source code. Set include_parent_document=true to get parent class/file source. Set include_graph=true to get caller/callee relations.", "code_index")]
     public async Task<ToolResult> SearchSemanticAsync(
         [McpToolParameter("Natural language query or code snippet (e.g. 'find authentication logic', 'rate limiting implementation')")] string query,
-        [McpToolParameter("Maximum number of results to return", Required = false, DefaultValue = "10")] int top_k = 10,
+        [McpToolParameter("Maximum number of results to return", Required = false, DefaultValue = "20")] int top_k = 20,
         [McpToolParameter("Include matched block source text (function code) in results", Required = false, DefaultValue = "false")] bool include_source_text = false,
         [McpToolParameter("Include parent document (class/file) source text in results for full context", Required = false, DefaultValue = "false")] bool include_parent_document = false,
         [McpToolParameter("Include knowledge graph triples (caller,calls,callee). GraphRAG: vector recall + graph triples correct AI cognition", Required = false, DefaultValue = "true")] bool include_graph = true,
@@ -719,7 +719,7 @@ public sealed class CodeIndexToolHandlers {
                 Namespace = namespace_filter,
                 SymbolKind = symbol_kind
             };
-            var oversampleK = Math.Max(top_k * 5, top_k + 20);
+            var oversampleK = SearchConfig.ComputeOversampleK(top_k);
             var rawResults = await _indexer.SearchSemanticAsync(query, oversampleK, cancellationToken, options).ConfigureAwait(false);
             var expanded = include_graph
                 ? await ExpandByGraphAsync(rawResults, top_k, cancellationToken).ConfigureAwait(false)

@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
+             xmlns:md="using:JoinCode.Gui.Markdown"
+             x:Class="JoinCode.Gui.Views.DiffView"
+             x:DataType="vm:MainViewModel">
+  <Border CornerRadius="10" Padding="16,12" Margin="8"
+          Background="{DynamicResource GuiPopupBackground}"
+          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+          BoxShadow="{DynamicResource GuiPopupShadow}">
+    <Grid RowDefinitions="Auto,Auto,*">
+      <!-- 标题栏 -->
+      <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="📝 代码变更" FontSize="14" FontWeight="SemiBold"
+                     Foreground="{DynamicResource GuiPrimaryText}" />
+          <TextBlock Text="{Binding DiffFilePath, FallbackValue=''}" FontSize="11"
+                     Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="ghost" Content="✕" FontSize="14" Padding="8,2"
+                Command="{Binding CloseDiffViewCommand}" ToolTip.Tip="关闭" />
+      </Grid>
+      <!-- 统计信息 -->
+      <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" Margin="0,0,0,8">
+        <TextBlock FontSize="11" Foreground="{DynamicResource GuiMutedText}">
+          <Run Text="新增 " />
+          <Run Text="{Binding DiffAddedLines}" Foreground="{DynamicResource GuiSuccessText}" FontWeight="Bold" />
+          <Run Text=" 行" />
+        </TextBlock>
+        <TextBlock FontSize="11" Foreground="{DynamicResource GuiMutedText}">
+          <Run Text="删除 " />
+          <Run Text="{Binding DiffRemovedLines}" Foreground="{DynamicResource GuiErrorText}" FontWeight="Bold" />
+          <Run Text=" 行" />
+        </TextBlock>
+      </StackPanel>
+      <!-- Diff 内容 -->
+      <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                    MaxHeight="500">
+        <md:DiffViewer Hunks="{Binding CurrentDiffPatch}" />
+      </ScrollViewer>
+    </Grid>
+  </Border>
+</UserControl>

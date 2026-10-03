@@ -92,6 +92,12 @@
       <local:CommandPaletteView HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,48,0,0" />
     </Panel>
 
+    <!-- Diff 视图 Overlay — 居中浮在窗口中央 -->
+    <Panel Grid.RowSpan="2" IsVisible="{Binding IsDiffViewOpen}" ZIndex="100">
+      <Border Background="#80000000" />
+      <local:DiffView HorizontalAlignment="Center" VerticalAlignment="Center" />
+    </Panel>
+
     <!-- ===== Row 1：Activity Bar + Side Bar + 主区 + Secondary Side Bar (VSCode 风格) ===== -->
     <Grid Grid.Row="1" ColumnDefinitions="48,Auto,6,*,6,Auto">
 
@@ -434,6 +440,11 @@
                                          TextTrimming="CharacterEllipsis" MaxLines="6"
                                          Foreground="{DynamicResource GuiSecondaryText}" />
                               <md:DiffViewer Hunks="{Binding StructuredPatch}" IsVisible="{Binding HasDiff}" />
+                              <Button Classes="ghost" Content="🔍 查看完整 diff" FontSize="11" Padding="8,2" MinHeight="0"
+                                      IsVisible="{Binding HasDiff}"
+                                      Command="{Binding DataContext.OpenDiffViewCommand, ElementName=Root}"
+                                      CommandParameter="{Binding}"
+                                      ToolTip.Tip="全屏查看代码变更" />
                             </StackPanel>
                             <!-- 通用正文：流式期间纯文本（避免逐 token 重建控件树），完成后 Markdown 渲染 -->
                             <Panel IsVisible="{Binding !IsToolCall}">

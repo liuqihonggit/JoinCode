@@ -45,6 +45,45 @@ public sealed partial class MainViewModel {
     /// <summary>估算 token 数（中文约 1.6 字符/token，英文约 4 字符/token，取保守下限 4）</summary>
     public int EstimatedTokens => TotalChars / 4;
 
+    #region AI 代码 Diff 显示
+
+    /// <summary>Diff 视图是否打开</summary>
+    [ObservableProperty]
+    private bool _isDiffViewOpen;
+
+    /// <summary>当前 Diff Patch</summary>
+    [ObservableProperty]
+    private StructuredPatchHunk[]? _currentDiffPatch;
+
+    /// <summary>Diff 文件路径</summary>
+    [ObservableProperty]
+    private string _diffFilePath = "";
+
+    /// <summary>Diff 新增行数</summary>
+    [ObservableProperty]
+    private int _diffAddedLines;
+
+    /// <summary>Diff 删除行数</summary>
+    [ObservableProperty]
+    private int _diffRemovedLines;
+
+    /// <summary>打开 Diff 视图 — 从消息中提取 patch 并显示</summary>
+    [RelayCommand]
+    private void OpenDiffView(ChatUiMessage? message) {
+        if (message?.StructuredPatch is not { Length: > 0 } patch)
+            return;
+        CurrentDiffPatch = patch;
+        DiffFilePath = message.ToolName ?? "";
+        (DiffAddedLines, DiffRemovedLines) = StructuredPatchGenerator.CountLinesChanged(patch);
+        IsDiffViewOpen = true;
+    }
+
+    /// <summary>关闭 Diff 视图</summary>
+    [RelayCommand]
+    private void CloseDiffView() => IsDiffViewOpen = false;
+
+    #endregion
+
     /// <summary>
     /// 本轮真实 token 用量文案（如 "Token:1,234"）— 来自引擎 Complete 事件上报的 Usage，
     /// 对齐 TUI statusBar.SetTokenCount；空串表示引擎未上报。

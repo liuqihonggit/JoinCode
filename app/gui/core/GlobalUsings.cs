@@ -22,6 +22,7 @@ global using Core.DependencyInjection;
 global using Core.Scheduling.Tasks;
 global using Core.Utils;
 global using Infrastructure.IO.Services.FileOps;
+global using Infrastructure.IO.Services.Diff;
 global using IO.FileSystem;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Configuration.AppData;

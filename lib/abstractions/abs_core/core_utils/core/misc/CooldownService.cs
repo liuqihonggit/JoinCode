@@ -30,4 +30,9 @@ public static class CooldownService {
     public static void RecordTrigger(string key) {
         LastTrigger[key] = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// 重置全部冷却状态 — 仅供测试使用，清除所有 key 的触发记录。
+    /// </summary>
+    public static void Reset() => LastTrigger.Clear();
 }

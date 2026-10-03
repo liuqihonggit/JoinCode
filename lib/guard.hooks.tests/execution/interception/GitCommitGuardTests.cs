@@ -6,6 +6,11 @@ namespace Guard.Tests.Hooks.Execution.Interception;
 public sealed class GitCommitGuardTests {
     private static readonly GuardContext EmptyContext = new(SystemActuatorKind.Bash, "");
 
+    /// <summary>
+    /// 每个测试前重置冷却状态，避免 CooldownService 全局静态状态污染。
+    /// </summary>
+    public GitCommitGuardTests() => CooldownService.Reset();
+
     // === CanHandle 命中 ===
 
     [Theory]

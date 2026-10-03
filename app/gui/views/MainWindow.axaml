@@ -61,19 +61,22 @@
     <Style Selector="Border.msgCard:pointerover StackPanel.actions">
       <Setter Property="Opacity" Value="1" />
     </Style>
-    <!-- Activity Bar 图标按钮：48x48 方形,透明背景,悬停浅色,激活强调色 -->
-    <Style Selector="ToggleButton.activityIcon">
+    <!-- Activity Bar 图标按钮：40x40 圆角方块,透明背景,悬停浅色,激活强调色（Button+ToggleButton 统一,参考 QQ） -->
+    <Style Selector="Button.activityIcon, ToggleButton.activityIcon">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="Padding" Value="0" />
-      <Setter Property="Width" Value="48" />
-      <Setter Property="Height" Value="48" />
+      <Setter Property="Width" Value="40" />
+      <Setter Property="Height" Value="40" />
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="CornerRadius" Value="8" />
     </Style>
-    <Style Selector="ToggleButton.activityIcon:pointerover">
+    <Style Selector="Button.activityIcon:pointerover, ToggleButton.activityIcon:pointerover">
       <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    </Style>
+    <Style Selector="Button.activityIcon:pressed, ToggleButton.activityIcon:pressed">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonPressed}" />
     </Style>
     <Style Selector="ToggleButton.activityIcon:checked">
       <Setter Property="Background" Value="{DynamicResource GuiAccentSubtle}" />
@@ -107,7 +110,7 @@
             IsVisible="{Binding IsNotZenMode}">
       <Grid RowDefinitions="*,Auto,Auto">
         <!-- 顶部组：面板切换 -->
-        <StackPanel Grid.Row="0" Spacing="4" Margin="0,8">
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,8" HorizontalAlignment="Center">
           <ToggleButton x:Name="SessionBtn" Classes="activityIcon" Content="💬" FontSize="20"
                         Command="{Binding ToggleSidePanelCommand}"
                         CommandParameter="{x:Static vm:SidePanelKind.Sessions}"
@@ -121,7 +124,7 @@
                         ToolTip.Tip="代码编辑器" />
         </StackPanel>
         <!-- 中部组：功能按钮(带 Popup) -->
-        <StackPanel Grid.Row="1" Spacing="4">
+        <StackPanel Grid.Row="1" Spacing="4" HorizontalAlignment="Center">
           <Button x:Name="GoalButton" Classes="activityIcon" Content="🎯" FontSize="20"
                   Command="{Binding ToggleGoalPanelCommand}" ToolTip.Tip="goal 控制"
                   IsVisible="{Binding IsGoalRunning}" />
@@ -131,7 +134,7 @@
                   Command="{Binding ToggleChatRoomPanelCommand}" ToolTip.Tip="聊天室"
                   IsVisible="{Binding ChatRoomEnabled}" />
         </StackPanel>
-        <StackPanel Grid.Row="2" Spacing="4" Margin="0,0,0,8">
+        <StackPanel Grid.Row="2" Spacing="4" Margin="0,0,0,8" HorizontalAlignment="Center">
           <ToggleButton Classes="activityIcon" FontSize="20"
                         Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}">
             <Panel>

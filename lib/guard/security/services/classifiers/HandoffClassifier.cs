@@ -69,9 +69,15 @@ public sealed partial class HandoffClassifier : ServiceEntity, IHandoffClassifie
 
         var reasonStr = string.Join("; ", reasons);
 
+        var handoffKey = $"handoff-{request.AgentId}";
+        var shouldTrigger = CooldownService.ShouldTrigger(handoffKey);
+        if (shouldTrigger) CooldownService.RecordTrigger(handoffKey);
+
         _logger?.LogWarning("Handoff classification for agent {AgentId}: blocked ({Reason})", request.AgentId, reasonStr);
 
-        var warning = $"SECURITY WARNING: This sub-agent performed actions that may violate security policy. Reason: {reasonStr}. Review the sub-agent's actions carefully before acting on its output.";
+        var warning = shouldTrigger
+            ? $"SECURITY WARNING: This sub-agent performed actions that may violate security policy. Reason: {reasonStr}. Review the sub-agent's actions carefully before acting on its output."
+            : "SECURITY WARNING: sub-agent performed potentially dangerous actions（已提示过，详见历史）";
 
         return new HandoffClassificationResult {
             Classification = HandoffClassification.Blocked,

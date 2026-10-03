@@ -34,7 +34,11 @@ public sealed partial class GitCommitGuard : ICommandGuard {
 
     /// <inheritdoc/>
     public CommandDecision Evaluate(string command, GuardContext context) {
-        return new CommandDecision.Redirect("/commit", RedirectHint);
+        if (CooldownService.ShouldTrigger("git-commit-redirect")) {
+            CooldownService.RecordTrigger("git-commit-redirect");
+            return new CommandDecision.Redirect("/commit", RedirectHint);
+        }
+        return new CommandDecision.Redirect("/commit", "已引导到 /commit（已提示过，详见历史）");
     }
 
     /// <summary>

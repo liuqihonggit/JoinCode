@@ -183,11 +183,11 @@
             <Button Classes="ghost" Content="停止" Padding="12,6" CornerRadius="8"
                     Foreground="{DynamicResource GuiWarnText}"
                     Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />
-            <!-- 发送按钮 + 下拉选择发送方式（QQ 风格） -->
-            <Panel>
-              <Button Classes="primary" Content="发送" Padding="16,6" CornerRadius="8" MinWidth="84"
+            <!-- 发送按钮 + 下拉选择发送方式（QQ 风格分裂按钮） -->
+            <StackPanel Orientation="Horizontal" Spacing="0">
+              <Button Classes="primary" Content="发送" Padding="16,6" CornerRadius="8,0,0,8" MinWidth="84"
                       Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
-              <ToggleButton x:Name="SendModeButton" Classes="primary" Padding="4,6" CornerRadius="0,8,8,0" MinWidth="20"
+              <ToggleButton x:Name="SendModeButton" Classes="primary" Padding="4,6" CornerRadius="0,8,8,0" MinWidth="24"
                       VerticalAlignment="Stretch" FontSize="10"
                       Content="▼" IsEnabled="{Binding !IsBusy}"
                       IsChecked="{Binding IsSendModePopupOpen, Mode=TwoWay}" />
@@ -217,7 +217,7 @@
                   </StackPanel>
                 </Border>
               </Popup>
-            </Panel>
+            </StackPanel>
           </StackPanel>
         </Grid>
       </StackPanel>

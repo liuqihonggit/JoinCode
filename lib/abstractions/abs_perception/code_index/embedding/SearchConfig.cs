@@ -50,6 +50,9 @@ public static class SearchConfig {
     /// <summary>符号索引注入候选的初始分数 — 中等值，让重排序 boost 接管最终排名。</summary>
     public const float SymbolInjectionScore = 0.50f;
 
+    /// <summary>符号索引精确匹配注入分数 — 高值，确保精确匹配进入候选集前列。</summary>
+    public const float SymbolExactInjectionScore = 0.75f;
+
     /// <summary>计算过采样 K 值。</summary>
     public static int ComputeOversampleK(int topK) =>
         Math.Max(topK * OversampleFactor, topK + OversampleMinOffset);

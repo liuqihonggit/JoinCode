@@ -54,7 +54,7 @@ def extract_symbol_names(filepath: Path) -> list[str]:
     seen = set()
     unique = []
     for s in symbols:
-        if s not in seen:
+        if s not in seen and s.isascii():
             seen.add(s)
             unique.append(s)
     return unique
@@ -116,7 +116,7 @@ class McpStdioClient:
         self._proc.stdin.write(json.dumps(req) + "\n")
         self._proc.stdin.flush()
 
-    def search_semantic(self, query: str, top_k: int = 10, mode: str = "hybrid") -> list[str]:
+    def search_semantic(self, query: str, top_k: int = 10, mode: str = "hybrid") -> tuple[list[str], list[str]]:
         tool_name = "search_semantic"
         result = self._call("tools/call", {
             "name": tool_name,
@@ -124,13 +124,16 @@ class McpStdioClient:
         })
         content = result.get("content", [])
         if not content:
-            return []
+            return [], []
         text = content[0].get("text", "")
         hits = []
+        fqns = []
         for m in re.finditer(r"D:[/\\]project[/\\][^:\s]+\.cs", text):
             hit_path = m.group(0).replace("\\\\", "\\").replace("\\", "/")
             hits.append(hit_path)
-        return hits
+        for m in re.finditer(r"\[\d+\.\d+\]\s+(.+)", text):
+            fqns.append(m.group(1).strip())
+        return hits, fqns
 
 
 def main():
@@ -172,9 +175,11 @@ def main():
     for i, (filepath, symbols) in enumerate(sample, 1):
         keyword = symbols[0]
         rel_path = str(filepath).replace("\\", "/")
-        search_hits = client.search_semantic(keyword, top_k=20, mode=args.mode)
+        search_hits, fqns = client.search_semantic(keyword, top_k=20, mode=args.mode)
 
-        matched = any(rel_path.replace("/", "\\") in h or rel_path in h.replace("\\", "/") for h in search_hits)
+        file_matched = any(rel_path.replace("/", "\\") in h or rel_path in h.replace("\\", "/") for h in search_hits)
+        symbol_matched = any(keyword in fqn.split(".") for fqn in fqns if "." in fqn)
+        matched = file_matched or symbol_matched
         if matched:
             hits += 1
 

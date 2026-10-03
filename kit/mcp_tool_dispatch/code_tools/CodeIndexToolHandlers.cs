@@ -1103,6 +1103,7 @@ public sealed class CodeIndexToolHandlers {
     /// <summary>
     /// 符号索引精确匹配注入 — 查询看起来像符号名时，用符号索引查找定义并注入候选集。
     /// <para>向量搜索可能遗漏精确匹配的文件（嵌入向量不够近），符号索引直接查找弥补。</para>
+    /// <para>精确名称匹配用高分注入，模糊匹配用中等分注入。</para>
     /// </summary>
     private async Task<IReadOnlyList<ChunkSearchResult>> InjectSymbolMatchesAsync(
         IReadOnlyList<ChunkSearchResult> vectorResults, string query, int maxResults, CancellationToken ct) {
@@ -1115,19 +1116,26 @@ public sealed class CodeIndexToolHandlers {
 
         try {
             var searchResult = await _indexer.Searcher.SearchAsync(query, ct).ConfigureAwait(false);
-            foreach (var sym in searchResult.Items.Take(maxResults)) {
+            var exactMatches = new List<SymbolInfo>();
+            var fuzzyMatches = new List<SymbolInfo>();
+
+            foreach (var sym in searchResult.Items) {
+                if (string.Equals(sym.Name, query, StringComparison.OrdinalIgnoreCase))
+                    exactMatches.Add(sym);
+                else
+                    fuzzyMatches.Add(sym);
+            }
+
+            foreach (var sym in exactMatches.Take(maxResults)) {
                 if (existingFiles.Contains(sym.FilePath)) continue;
                 existingFiles.Add(sym.FilePath);
+                symbolResults.Add(CreateInjectedResult(sym, SearchConfig.SymbolExactInjectionScore));
+            }
 
-                symbolResults.Add(new ChunkSearchResult {
-                    ChunkId = $"symbol:{sym.FullyQualifiedName}",
-                    FilePath = sym.FilePath,
-                    SymbolFqn = sym.FullyQualifiedName,
-                    StartLine = sym.StartLine,
-                    EndLine = sym.EndLine,
-                    Score = SearchConfig.SymbolInjectionScore,
-                    ContainedSymbolFqns = [sym.FullyQualifiedName]
-                });
+            foreach (var sym in fuzzyMatches.Take(maxResults / 2)) {
+                if (existingFiles.Contains(sym.FilePath)) continue;
+                existingFiles.Add(sym.FilePath);
+                symbolResults.Add(CreateInjectedResult(sym, SearchConfig.SymbolInjectionScore));
             }
         } catch (OperationCanceledException) {
             throw;
@@ -1137,6 +1145,17 @@ public sealed class CodeIndexToolHandlers {
 
         return symbolResults;
     }
+
+    /// <summary>从 SymbolInfo 创建注入的 ChunkSearchResult。</summary>
+    private static ChunkSearchResult CreateInjectedResult(SymbolInfo sym, float score) => new() {
+        ChunkId = $"symbol:{sym.FullyQualifiedName}",
+        FilePath = sym.FilePath,
+        SymbolFqn = sym.FullyQualifiedName,
+        StartLine = sym.StartLine,
+        EndLine = sym.EndLine,
+        Score = score,
+        ContainedSymbolFqns = [sym.FullyQualifiedName]
+    };
 
     /// <summary>查询是否看起来像符号名 — 无空格、长度>2、字母开头。</summary>
     private static bool LooksLikeSymbolName(string query) {

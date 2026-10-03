@@ -32,6 +32,9 @@ public sealed partial class MainWindow : Window {
         Interval = TimeSpan.FromMilliseconds(500)
     };
 
+    /// <summary>GUI 偏好存储 — 窗口尺寸/位置持久化(独立于 ViewModel,启动时直接读取)</summary>
+    private readonly Persistence.GuiPreferencesStore _prefsStore = new(new IO.FileSystem.PhysicalFileSystem());
+
     /// <summary>初始化 MainWindow 实例</summary>
     public MainWindow() {
         App.LogDiag("[MainWindow] ctor begin");
@@ -45,6 +48,36 @@ public sealed partial class MainWindow : Window {
         AddHandler(PointerPressedEvent, OnGlobalPointerPressed, RoutingStrategies.Tunnel);
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
         SizeChanged += OnWindowSizeChanged;
+        RestoreWindowBounds();
+    }
+
+    /// <summary>从 gui-preferences.json 恢复窗口尺寸/位置</summary>
+    private void RestoreWindowBounds() {
+        try {
+            var prefs = _prefsStore.LoadAsync().GetAwaiter().GetResult();
+            if (prefs.WindowWidth >= MinWidth)
+                Width = prefs.WindowWidth;
+            if (prefs.WindowHeight >= MinHeight)
+                Height = prefs.WindowHeight;
+            if (prefs.WindowX != 0 || prefs.WindowY != 0)
+                Position = new Avalonia.PixelPoint(prefs.WindowX, prefs.WindowY);
+        } catch (Exception ex) {
+            App.LogDiag($"[MainWindow] RestoreWindowBounds failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>保存窗口尺寸/位置到 gui-preferences.json</summary>
+    private void SaveWindowBounds() {
+        try {
+            var prefs = _prefsStore.LoadAsync().GetAwaiter().GetResult();
+            prefs.WindowWidth = Width;
+            prefs.WindowHeight = Height;
+            prefs.WindowX = Position.X;
+            prefs.WindowY = Position.Y;
+            _ = _prefsStore.SaveAsync(prefs);
+        } catch (Exception ex) {
+            App.LogDiag($"[MainWindow] SaveWindowBounds failed: {ex.Message}");
+        }
     }
 
     /// <summary>窗口尺寸变化 — 根据宽度切换紧凑布局(openCode 风格响应式分栏)</summary>
@@ -199,6 +232,7 @@ public sealed partial class MainWindow : Window {
     }
 
     private void OnWindowClosed(object? sender, EventArgs e) {
+        SaveWindowBounds();
         _errorToastTimer.Stop();
         _errorToastTimer.Tick -= OnErrorToastTimerTick;
         _toolTimer.Stop();

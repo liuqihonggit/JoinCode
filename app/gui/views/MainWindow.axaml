@@ -16,7 +16,7 @@
         x:Name="Root"
         d:DataContext="{x:Static design:DesignData.Sample}"
         x:DataType="vm:MainViewModel"
-        MinWidth="800" MinHeight="600" Width="1240" Height="820"
+        MinWidth="800" MinHeight="600" Width="1080" Height="720"
         Background="{DynamicResource GuiWindowBackground}"
         Title="JoinCode · AI 编程工作区">
   <Window.KeyBindings>

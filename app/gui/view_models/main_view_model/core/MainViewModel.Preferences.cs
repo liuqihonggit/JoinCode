@@ -164,29 +164,29 @@ public sealed partial class MainViewModel {
         if (!_gate.PreferencesLoaded)
             return;
         try {
-            await _preferencesStore.SaveAsync(new Persistence.GuiPreferences {
-                GuiTheme = CurrentTheme.ToString(),
-                AccentId = AccentId,
-                AnimationsEnabled = AnimationsEnabled,
-                Temperature = Temperature,
-                MaxTokens = MaxTokens,
-                SystemPrompt = SystemPrompt,
-                FontSize = FontSize,
-                StreamingEnabled = StreamingEnabled,
-                EnterSends = EnterSends,
-                DoubleEscStop = DoubleEscStop,
-                HotkeySend = GetHotkeyGesture("Send"),
-                HotkeyNewline = GetHotkeyGesture("Newline"),
-                HotkeyStop = GetHotkeyGesture("Stop"),
-                HotkeyNewSession = GetHotkeyGesture("NewSession"),
-                HotkeyClearHistory = GetHotkeyGesture("ClearHistory"),
-                HotkeyToggleSettings = GetHotkeyGesture("ToggleSettings"),
-                NetworkMode = NetworkMode,
-                ProxyUrl = ProxyUrl,
-                WindowShakeEnabled = WindowShakeEnabled,
-                ChatRoomEnabled = ChatRoomEnabled,
-                IsUnattendedMode = IsUnattendedMode
-            });
+            var existing = await _preferencesStore.LoadAsync();
+            existing.GuiTheme = CurrentTheme.ToString();
+            existing.AccentId = AccentId;
+            existing.AnimationsEnabled = AnimationsEnabled;
+            existing.Temperature = Temperature;
+            existing.MaxTokens = MaxTokens;
+            existing.SystemPrompt = SystemPrompt;
+            existing.FontSize = FontSize;
+            existing.StreamingEnabled = StreamingEnabled;
+            existing.EnterSends = EnterSends;
+            existing.DoubleEscStop = DoubleEscStop;
+            existing.HotkeySend = GetHotkeyGesture("Send");
+            existing.HotkeyNewline = GetHotkeyGesture("Newline");
+            existing.HotkeyStop = GetHotkeyGesture("Stop");
+            existing.HotkeyNewSession = GetHotkeyGesture("NewSession");
+            existing.HotkeyClearHistory = GetHotkeyGesture("ClearHistory");
+            existing.HotkeyToggleSettings = GetHotkeyGesture("ToggleSettings");
+            existing.NetworkMode = NetworkMode;
+            existing.ProxyUrl = ProxyUrl;
+            existing.WindowShakeEnabled = WindowShakeEnabled;
+            existing.ChatRoomEnabled = ChatRoomEnabled;
+            existing.IsUnattendedMode = IsUnattendedMode;
+            await _preferencesStore.SaveAsync(existing);
         } catch (Exception ex) {
             ViewModelDiagnosticsLogger.WriteError(ex);
         }

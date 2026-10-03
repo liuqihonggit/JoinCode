@@ -34,8 +34,11 @@ public sealed class WorkspaceExperienceTests {
     }
 
     [AvaloniaFact]
-    public void Sidebar_OffersSessionSearch() {
-        var window = new MainWindow { Width = 1200, Height = 800 };
+    public async Task Sidebar_OffersSessionSearch() {
+        var fs = new InMemoryFileSystem();
+        await using var vm = new MainViewModel(new PlaceholderChatSession(),
+            new GuiSessionStore(fs, "mem/sessions"), new GuiPreferencesStore(fs, "mem/preferences.json"));
+        var window = new MainWindow { DataContext = vm, Width = 1200, Height = 800 };
         try {
             window.Show();
             window.GetVisualDescendants().OfType<TextBox>().Select(t => t.Watermark)

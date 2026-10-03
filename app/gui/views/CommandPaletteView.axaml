@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
+             x:Class="JoinCode.Gui.Views.CommandPaletteView"
+             x:DataType="vm:MainViewModel">
+  <Border CornerRadius="8" Padding="0" Width="500"
+          Background="{DynamicResource GuiPopupBackground}"
+          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+          BoxShadow="{DynamicResource GuiPopupShadow}">
+    <Grid RowDefinitions="Auto,*">
+      <!-- 输入框 -->
+      <TextBox Grid.Row="0" x:Name="CommandInput" Watermark="输入命令名称…"
+               Text="{Binding CommandPaletteQuery, Mode=TwoWay}"
+               FontSize="13" Padding="12,8" BorderThickness="0,0,0,1"
+               BorderBrush="{DynamicResource GuiDivider}"
+               Background="{DynamicResource GuiPopupBackground}"
+               KeyDown="OnCommandInputKeyDown" />
+      <!-- 命令列表 -->
+      <ScrollViewer Grid.Row="1" MaxHeight="400" VerticalScrollBarVisibility="Auto">
+        <ItemsControl ItemsSource="{Binding FilteredCommands}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:CommandEntryVm">
+              <Button Background="Transparent" BorderThickness="0" Padding="12,7"
+                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                      Command="{Binding DataContext.ExecuteCommandCommand, ElementName=CommandInput}"
+                      CommandParameter="{Binding}">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <TextBlock Text="{Binding Icon}" FontSize="14" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding Name}" FontSize="12.5"
+                             Foreground="{DynamicResource GuiPrimaryText}"
+                             VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding Shortcut}" FontSize="10.5"
+                             Foreground="{DynamicResource GuiMutedText}"
+                             VerticalAlignment="Center" Margin="8,0,0,0"
+                             IsVisible="{Binding Shortcut, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Grid>
+  </Border>
+</UserControl>

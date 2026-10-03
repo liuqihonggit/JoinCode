@@ -6,151 +6,67 @@
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              x:Class="JoinCode.Gui.Views.TopBarView"
              x:DataType="vm:MainViewModel">
-  <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-  <StackPanel>
-  <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,5">
-    <Button Content="文件 / 变更" Classes="accentSubtle" Click="OnOpenFiles" />
-    <Button Content="模型 / MCP / 插件" Classes="accentSubtle" Click="OnOpenManagement" />
-  </StackPanel>
-  <Border Padding="12,7" Background="{DynamicResource GuiTopBarBackground}"
-          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1" ClipToBounds="True">
-    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
-      <!-- 左组：主题 / 会话操作（ghost 统一视觉） -->
-      <!-- 主题切换：图标随主题切换（暗色显月亮/亮色显太阳），点击切换。
-           Segoe UI Symbol 提供 ☾☀ 完整字形（默认字体缺字形会把 ☾ 渲染成 "C"） -->
-      <ToggleButton Classes="ghost" Padding="9,5" FontSize="13"
-                    Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}">
-        <Panel>
-          <TextBlock Text="☾" FontFamily="Segoe UI Symbol" IsVisible="{Binding IsDarkTheme}" />
-          <TextBlock Text="☀" FontFamily="Segoe UI Symbol" IsVisible="{Binding !IsDarkTheme}" />
-        </Panel>
-      </ToggleButton>
-      <Button Grid.Column="1" Classes="ghost" Content="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}"
-              IsEnabled="{Binding CanRegenerate}" ToolTip.Tip="撤回上一轮并重新生成" />
-      <Button Grid.Column="2" Classes="ghost" Content="清空" Command="{Binding ClearHistoryCommand}"
-              IsEnabled="{Binding HasMessages}" ToolTip.Tip="清空当前会话消息" />
-      <Button Grid.Column="3" Classes="ghost" Content="全部重置" Command="{Binding ClearAllSessionsCommand}"
-              ToolTip.Tip="清空全部会话并重置" />
-      <!-- Column 4：* 弹性空隙 — 把右组（连接+模型+Ⓘ+⚙）推到最右且两下拉紧靠相邻 -->
-      <ComboBox Grid.Column="5" ItemsSource="{Binding ConnectionOptions}" SelectedItem="{Binding SelectedConnection}"
-                IsVisible="{Binding IsEngineLoaded}" MinWidth="130" MaxWidth="200"
-                PlaceholderText="选择供应商"
-                ToolTip.Tip="当前供应商（从 models.json 读取）">
-        <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:ConnectionOptionItem">
-            <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
-      <ComboBox Grid.Column="6" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModelOption}"
-                IsVisible="{Binding IsEngineLoaded}" MinWidth="170" MaxWidth="260"
-                PlaceholderText="选择模型">
-        <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:ModelOptionItem">
-            <StackPanel Orientation="Horizontal" Spacing="4">
-              <TextBlock Text="{Binding ModalityTags}" FontSize="10" VerticalAlignment="Center"
-                         Foreground="{DynamicResource GuiMutedText}"
-                         IsVisible="{Binding ModalityTags, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-              <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
-            </StackPanel>
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
-      <ToggleButton Grid.Column="7" Classes="ghost" Padding="9,5" Content="Ⓘ" FontSize="12"
-                    Command="{Binding ToggleMockCommand}"
-                    IsChecked="{Binding IsMockConnection, Mode=OneWay}"
-                    ToolTip.Tip="{Binding MockToggleToolTip}" />
-      <ToggleButton Grid.Column="8" Classes="ghost" Padding="9,5" FontSize="12"
-                    IsChecked="{Binding IsUnattendedMode, Mode=TwoWay}"
-                    ToolTip.Tip="{Binding UnattendedToggleToolTip}">
-        <Panel>
-          <TextBlock Text="🤖" IsVisible="{Binding IsUnattendedMode}" />
-          <TextBlock Text="👤" IsVisible="{Binding !IsUnattendedMode}" />
-        </Panel>
-      </ToggleButton>
-      <!-- 🎯 goal 进行中按钮 — goal 运行时显示，点击弹出控制面板（停止时引擎层自动注入 a→b→c 提示词） -->
-      <Panel Grid.Column="9" VerticalAlignment="Center" IsVisible="{Binding IsGoalRunning}">
-        <Button x:Name="GoalButton" Classes="ghost" Padding="9,5" FontSize="13"
-                ToolTip.Tip="goal 控制面板"
-                Command="{Binding ToggleGoalPanelCommand}">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <TextBlock Text="🎯" />
-            <TextBlock Text="goal" />
-            <TextBlock Text="{Binding GoalProgressText, FallbackValue='进行中'}" FontSize="11"
-                       Foreground="{DynamicResource GuiMutedText}"
-                       IsVisible="{Binding GoalProgressText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-          </StackPanel>
-        </Button>
-        <Popup IsOpen="{Binding IsGoalPanelOpen}" Placement="Bottom"
-               PlacementTarget="{Binding #GoalButton}" VerticalOffset="4">
-          <Border CornerRadius="10" Padding="14,10" Width="300"
-                  Background="{DynamicResource GuiPopupBackground}"
-                  BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
-            <StackPanel Spacing="8">
-              <TextBlock Text="🎯 goal 进行中" FontSize="13" FontWeight="SemiBold"
-                         Foreground="{DynamicResource GuiPrimaryText}" />
-              <TextBlock Text="停止时引擎自动注入再三确认提示词（a→b→c）" FontSize="10.5"
-                         Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
-              <Button Classes="ghost" Content="停止 goal" HorizontalAlignment="Stretch"
-                      Command="{Binding StopGoalCommand}" />
-            </StackPanel>
-          </Border>
-        </Popup>
-      </Panel>
-      <!-- AI 工具拦截器：点击弹出 Popup 面板，7 个 toggle 开关动态黑名单 AI 调用的工具 -->
-      <Panel Grid.Column="10" VerticalAlignment="Center">
-        <Button x:Name="InterceptorButton" Classes="ghost" Padding="9,5" FontSize="13"
-                Content="🛡" ToolTip.Tip="AI 工具拦截器"
-                Command="{Binding ToggleInterceptorPanelCommand}" />
-        <Popup IsOpen="{Binding IsInterceptorPanelOpen}" Placement="Bottom"
-               PlacementTarget="{Binding #InterceptorButton}" VerticalOffset="4">
-          <Border CornerRadius="10" Padding="14,10" Width="300"
-                  Background="{DynamicResource GuiPopupBackground}"
-                  BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
-            <StackPanel Spacing="8">
-              <TextBlock Text="🛡 AI 工具拦截器" FontSize="13" FontWeight="SemiBold"
-                         Foreground="{DynamicResource GuiPrimaryText}" />
-              <TextBlock Text="开启后 AI 调用对应工具会被拒绝" FontSize="10.5"
-                         Foreground="{DynamicResource GuiMutedText}" Margin="0,0,0,4" />
-              <StackPanel Spacing="3">
-                <TextBlock Text="📊 Git" FontSize="11" FontWeight="SemiBold" Foreground="#E89A3C" />
-                <CheckBox Content="commit（提交）" IsChecked="{Binding BlockGitCommit}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
-                <CheckBox Content="push（推送）" IsChecked="{Binding BlockGitPush}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
-              </StackPanel>
-              <StackPanel Spacing="3">
-                <TextBlock Text="🐙 GitHub" FontSize="11" FontWeight="SemiBold" Foreground="#9B59B6" />
-                <CheckBox Content="pr_merge（合并PR）" IsChecked="{Binding BlockGhPrMerge}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
-                <CheckBox Content="pr_create（创建PR）" IsChecked="{Binding BlockGhPrCreate}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
-                <CheckBox Content="release_delete（删除release）" IsChecked="{Binding BlockGhReleaseDelete}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
-              </StackPanel>
-              <StackPanel Spacing="3">
-                <TextBlock Text="📄 文件" FontSize="11" FontWeight="SemiBold" Foreground="#E74C3C" />
-                <CheckBox Content="delete（删文件）" IsChecked="{Binding BlockFileDelete}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
-              </StackPanel>
-              <StackPanel Spacing="3">
-                <TextBlock Text="⚡ Shell" FontSize="11" FontWeight="SemiBold" Foreground="#3498DB" />
-                <CheckBox Content="bash/powershell（shell）" IsChecked="{Binding BlockShell}" FontSize="12" Padding="4,2" Margin="8,0,0,0" />
-              </StackPanel>
-              <!-- 磁盘根保护（ADR 0123）— 扫描盘号列表，默认勾选，用户可取消勾选放行 -->
-              <StackPanel Spacing="3">
-                <TextBlock Text="💾 磁盘根保护" FontSize="11" FontWeight="SemiBold" Foreground="#E74C3C" />
-                <TextBlock Text="勾选=禁止AI扫盘/删盘，取消=放行" FontSize="10" Foreground="{DynamicResource GuiMutedText}" Margin="8,0,0,0" />
-                <ItemsControl ItemsSource="{Binding ProtectedDrives}" Margin="8,0,0,0">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:DriveProtectionItem">
-                      <CheckBox Content="{Binding DisplayText}" IsChecked="{Binding IsProtected}" FontSize="12" Padding="4,2" />
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </StackPanel>
-            </StackPanel>
-          </Border>
-        </Popup>
-      </Panel>
-      <Button Grid.Column="11" Classes="ghost" Padding="9,5" Content="⚙" FontSize="13"
-              ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
+  <UserControl.Styles>
+    <!-- VSCode 风格菜单栏 — 紧凑、无边框、悬停高亮 -->
+    <Style Selector="Menu.vscodeMenu">
+      <Setter Property="Background" Value="{DynamicResource GuiTopBarBackground}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource GuiDivider}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="4,0" />
+      <Setter Property="FontFamily" Value="{DynamicResource FontFamily}" />
+    </Style>
+    <Style Selector="Menu.vscodeMenu > MenuItem">
+      <Setter Property="Padding" Value="8,3" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="FontSize" Value="12.5" />
+    </Style>
+  </UserControl.Styles>
+
+  <!-- 菜单栏(横跨全宽) — Logo + 文件/编辑/视图/帮助 + 状态文本 -->
+  <Border Background="{DynamicResource GuiTopBarBackground}" BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
+    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+      <!-- Logo -->
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0,0,0">
+        <TextBlock Text="◆" FontSize="14" Foreground="{DynamicResource GuiAccentText}"
+                   VerticalAlignment="Center" />
+        <TextBlock Text="JoinCode" FontSize="12.5" FontWeight="SemiBold"
+                   Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" Margin="6,0,0,0" />
+      </StackPanel>
+      <!-- 菜单栏 -->
+      <Menu Grid.Column="1" Classes="vscodeMenu" Margin="8,0,0,0">
+        <MenuItem Header="文件">
+          <MenuItem Header="文件 / 变更" Click="OnOpenFiles" />
+          <MenuItem Header="模型 / MCP / 插件" Click="OnOpenManagement" />
+        </MenuItem>
+        <MenuItem Header="编辑">
+          <MenuItem Header="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}" IsEnabled="{Binding CanRegenerate}" />
+          <MenuItem Header="清空当前会话" Command="{Binding ClearHistoryCommand}" IsEnabled="{Binding HasMessages}" />
+          <MenuItem Header="全部重置" Command="{Binding ClearAllSessionsCommand}" />
+        </MenuItem>
+        <MenuItem Header="视图">
+          <MenuItem Header="切换主题" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}" />
+          <MenuItem Header="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
+          <MenuItem Header="底部面板" Command="{Binding TogglePanelCommand}" IsChecked="{Binding IsPanelOpen, Mode=OneWay}" />
+          <Separator />
+          <MenuItem Header="Mock 引擎" Command="{Binding ToggleMockCommand}" IsChecked="{Binding IsMockConnection, Mode=OneWay}" />
+          <MenuItem Header="无人值守" IsChecked="{Binding IsUnattendedMode, Mode=TwoWay}" ToolTip.Tip="{Binding UnattendedToggleToolTip}" />
+        </MenuItem>
+        <MenuItem Header="帮助">
+          <MenuItem Header="快捷键" IsEnabled="False" />
+          <MenuItem Header="关于 JoinCode" IsEnabled="False" />
+        </MenuItem>
+      </Menu>
+      <!-- 状态文本(居中) -->
+      <TextBlock Grid.Column="2" Text="{Binding StatusText}" FontSize="11"
+                 Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center"
+                 HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="12,3" />
+      <!-- goal 进行中指示(右侧) -->
+      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,0"
+                  IsVisible="{Binding IsGoalRunning}">
+        <TextBlock Text="🎯" FontSize="12" />
+        <TextBlock Text="{Binding GoalProgressText, FallbackValue='goal 进行中'}" FontSize="11"
+                   Foreground="{DynamicResource GuiAccentText}" />
+      </StackPanel>
     </Grid>
   </Border>
-  </StackPanel>
-  </ScrollViewer>
 </UserControl>

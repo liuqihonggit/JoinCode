@@ -80,6 +80,100 @@ public sealed partial class MainWindow : Window {
     /// <summary>点击候选项完成补全 → 回焦输入框</summary>
     private void OnSlashPaletteCompleted(object? sender, RoutedEventArgs e) => InputBar?.FocusInput();
 
+    /// <summary>侧边面板拖拽调整宽度 — 起始 X 坐标</summary>
+    private double _sidePanelResizeStartX;
+
+    /// <summary>侧边面板拖拽调整宽度 — 起始宽度</summary>
+    private double _sidePanelResizeStartWidth;
+
+    /// <summary>侧边面板拖拽中标志</summary>
+    private bool _isSidePanelResizing;
+
+    /// <summary>面板拖拽调整大小 — 起始 Y 坐标</summary>
+    private double _panelResizeStartY;
+
+    /// <summary>面板拖拽调整大小 — 起始 X 坐标</summary>
+    private double _panelResizeStartX;
+
+    /// <summary>面板拖拽调整大小 — 起始高度</summary>
+    private double _panelResizeStartHeight;
+
+    /// <summary>面板拖拽调整大小 — 起始宽度</summary>
+    private double _panelResizeStartWidth;
+
+    /// <summary>面板拖拽中标志</summary>
+    private bool _isPanelResizing;
+
+    /// <summary>面板拖拽手柄按下 — 记录起始位置</summary>
+    private void OnPanelResizePointerPressed(object? sender, PointerPressedEventArgs e) {
+        if (_vm is null)
+            return;
+        _panelResizeStartX = e.GetCurrentPoint(this).Position.X;
+        _panelResizeStartY = e.GetCurrentPoint(this).Position.Y;
+        _panelResizeStartHeight = _vm.PanelHeight;
+        _panelResizeStartWidth = _vm.PanelWidth;
+        _isPanelResizing = true;
+        e.Pointer.Capture(sender as Avalonia.Input.IInputElement);
+        e.Handled = true;
+    }
+
+    /// <summary>面板拖拽手柄移动 — 实时更新面板大小</summary>
+    private void OnPanelResizePointerMoved(object? sender, PointerEventArgs e) {
+        if (!_isPanelResizing || _vm is null)
+            return;
+        var dx = e.GetCurrentPoint(this).Position.X - _panelResizeStartX;
+        var dy = e.GetCurrentPoint(this).Position.Y - _panelResizeStartY;
+        if (_vm.IsPanelTop)
+            _vm.PanelHeight = Math.Clamp(_panelResizeStartHeight - dy, 0, 800);
+        else if (_vm.IsPanelBottom)
+            _vm.PanelHeight = Math.Clamp(_panelResizeStartHeight + dy, 0, 800);
+        else if (_vm.IsPanelLeft)
+            _vm.PanelWidth = Math.Clamp(_panelResizeStartWidth - dx, 0, 800);
+        else if (_vm.IsPanelRight)
+            _vm.PanelWidth = Math.Clamp(_panelResizeStartWidth + dx, 0, 800);
+        e.Handled = true;
+    }
+
+    /// <summary>面板拖拽手柄释放 — 结束拖拽</summary>
+    private void OnPanelResizePointerReleased(object? sender, PointerReleasedEventArgs e) {
+        if (!_isPanelResizing)
+            return;
+        _isPanelResizing = false;
+        e.Pointer.Capture(null);
+        e.Handled = true;
+    }
+
+    /// <summary>拖拽手柄按下 — 记录起始位置</summary>
+    private void OnSidePanelResizePointerPressed(object? sender, PointerPressedEventArgs e) {
+        if (_vm is null)
+            return;
+        _sidePanelResizeStartX = e.GetCurrentPoint(this).Position.X;
+        _sidePanelResizeStartWidth = _vm.SidePanelWidth;
+        _isSidePanelResizing = true;
+        e.Pointer.Capture(sender as Avalonia.Input.IInputElement);
+        e.Handled = true;
+    }
+
+    /// <summary>拖拽手柄移动 — 实时更新面板宽度(Side Bar 在右侧时 delta 方向反转)</summary>
+    private void OnSidePanelResizePointerMoved(object? sender, PointerEventArgs e) {
+        if (!_isSidePanelResizing || _vm is null)
+            return;
+        var delta = e.GetCurrentPoint(this).Position.X - _sidePanelResizeStartX;
+        if (_vm.PrimarySideBarPosition == SideBarPosition.Right)
+            delta = -delta;
+        _vm.SidePanelWidth = Math.Clamp(_sidePanelResizeStartWidth + delta, 0, 600);
+        e.Handled = true;
+    }
+
+    /// <summary>拖拽手柄释放 — 结束拖拽</summary>
+    private void OnSidePanelResizePointerReleased(object? sender, PointerReleasedEventArgs e) {
+        if (!_isSidePanelResizing)
+            return;
+        _isSidePanelResizing = false;
+        e.Pointer.Capture(null);
+        e.Handled = true;
+    }
+
     /// <summary>全局按下捕获：补全面板打开时，点击面板外区域收起面板</summary>
     private void OnGlobalPointerPressed(object? sender, PointerPressedEventArgs e) {
         if (_vm is not { IsSlashPopupOpen: true } || SlashPalette is null)
@@ -125,6 +219,7 @@ public sealed partial class MainWindow : Window {
             _vm.PermissionConfirmCallback = ShowPermissionDialogAsync;
             _vm.AskUserQuestionCallback = ShowAskUserQuestionDialogAsync;
             _vm.SlashConfirmHandler = ShowConfirmDialog;
+            _vm.OpenFileCallback = OnOpenFile;
             _vm.ExitRequested += OnExitRequested;
             _vm.Messages.CollectionChanged += OnMessagesChanged;
             _vm.PropertyChanged += OnVmPropertyChanged;
@@ -132,6 +227,10 @@ public sealed partial class MainWindow : Window {
             _vm.TranscriptRequested += OnTranscriptRequested;
             _vm.RunStatus.MarqueeStopped += OnMarqueeStopped;
             ApplyAppearance();
+            SyncActivityBarButtons();
+            ApplySideBarPosition();
+            CenterOnScreen();
+            _vm.LoadFileTree(System.IO.Directory.GetCurrentDirectory());
         }
     }
 
@@ -148,10 +247,67 @@ public sealed partial class MainWindow : Window {
             app.Resources["GuiMotionDuration"] = _vm.AnimationsEnabled ? TimeSpan.FromMilliseconds(160) : TimeSpan.Zero;
     }
 
+    /// <summary>同步 Activity Bar 按钮选中状态 — 从 ViewModel 读取,手动设置 IsChecked</summary>
+    private void SyncActivityBarButtons() {
+        if (_vm is null) return;
+        SessionBtn.IsChecked = _vm.IsSessionPanelActive;
+        FileTreeBtn.IsChecked = _vm.IsFileTreePanelActive;
+        EditorBtn.IsChecked = _vm.IsEditorViewActive;
+    }
+
+    /// <summary>窗口居中屏幕 — 在打开时固定到屏幕中间</summary>
+    private void CenterOnScreen() {
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen is null) return;
+        var workArea = screen.WorkingArea;
+        var x = workArea.X + (workArea.Width - Width) / 2;
+        var y = workArea.Y + (workArea.Height - Height) / 2;
+        Position = new Avalonia.PixelPoint((int)x, (int)y);
+    }
+
+    /// <summary>应用 Side Bar 位置 — 左侧(默认)或右侧,重新分配 Grid.Column + 调整 BorderThickness</summary>
+    private void ApplySideBarPosition() {
+        if (_vm is null)
+            return;
+        var isLeft = _vm.PrimarySideBarPosition == SideBarPosition.Left;
+        if (isLeft) {
+            // 左侧(默认): ActivityBar=0, SideBar=1, LeftSash=2, MainArea=3, RightSash=4, Secondary=5
+            SetColumn(ActivityBarCol, 0);
+            SetColumn(SideBarCol, 1);
+            SetColumn(LeftSashCol, 2);
+            SetColumn(MainAreaCol, 3);
+            SetColumn(RightSashCol, 4);
+            SetColumn(SecondarySideBarCol, 5);
+            ActivityBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
+            SideBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
+            SecondarySideBarCol.BorderThickness = new Thickness(1, 0, 0, 0);
+        } else {
+            // 右侧: Secondary=0, RightSash=1, MainArea=2, LeftSash=3, SideBar=4, ActivityBar=5
+            SetColumn(SecondarySideBarCol, 0);
+            SetColumn(RightSashCol, 1);
+            SetColumn(MainAreaCol, 2);
+            SetColumn(LeftSashCol, 3);
+            SetColumn(SideBarCol, 4);
+            SetColumn(ActivityBarCol, 5);
+            ActivityBarCol.BorderThickness = new Thickness(1, 0, 0, 0);
+            SideBarCol.BorderThickness = new Thickness(1, 0, 0, 0);
+            SecondarySideBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
+        }
+    }
+
+    /// <summary>设置控件的 Grid.Column 附加属性</summary>
+    private static void SetColumn(Avalonia.Controls.Control control, int column)
+        => Avalonia.Controls.Grid.SetColumn(control, column);
+
     /// <summary>打开子代理回放窗口 — 只读快照，可多开（每 agent 一窗）</summary>
     private void OnTranscriptRequested(BackgroundAgentItemVm run) {
         var window = new TranscriptWindow(run);
         window.Show(this);
+    }
+
+    /// <summary>打开文件 — 在内嵌编辑器面板中打开(非弹窗)</summary>
+    private void OnOpenFile(string path) {
+        _vm?.OpenEditorFile(path);
     }
 
     /// <summary>T9：斜杠命令确认回调 — 弹极简确认窗；后台线程经 UI 线程同步等待（对齐 TUI painter.Invoke 模式）</summary>
@@ -206,7 +362,10 @@ public sealed partial class MainWindow : Window {
             e.Handled = true;
             _vm.ClearHistoryCommand.Execute(null);
         } else if (e.Key == Key.Escape) {
-            if (_vm.IsSettingsPanelOpen) {
+            if (_vm.IsZenMode) {
+                e.Handled = true;
+                _vm.ToggleZenModeCommand.Execute(null);
+            } else if (_vm.IsSettingsPanelOpen) {
                 e.Handled = true;
                 _vm.ToggleSettingsPanelCommand.Execute(null);
             } else if (_vm.CanStop) {
@@ -227,11 +386,14 @@ public sealed partial class MainWindow : Window {
                 ? Avalonia.Styling.ThemeVariant.Light
                 : Avalonia.Styling.ThemeVariant.Dark;
             // 更新 ThemeDictionaries 槽位为当前主题配色（Solarized 复用 Dark/Light 槽位）
+            // DynamicResource 绑定自动刷新,无需手动重赋 DataContext（会导致 Popup 内 NRE 闪退）
             GuiAppResources.ApplyTheme(_vm.CurrentTheme);
-            // 重新赋值 DataContext，强制所有转换器按新主题重算颜色（气泡/指示器/角色标签）
-            var dc = DataContext;
-            DataContext = null;
-            DataContext = dc;
+        } else if (e.PropertyName is nameof(MainViewModel.IsSessionPanelActive)
+                                     or nameof(MainViewModel.IsFileTreePanelActive)
+                                     or nameof(MainViewModel.IsEditorViewActive)) {
+            SyncActivityBarButtons();
+        } else if (e.PropertyName == nameof(MainViewModel.PrimarySideBarPosition)) {
+            ApplySideBarPosition();
         } else if (e.PropertyName == nameof(MainViewModel.HasCopied) && _vm!.HasCopied) {
             ScheduleCopyToastHide();
         } else if (e.PropertyName == nameof(MainViewModel.CopiedMessageCopy) && !string.IsNullOrEmpty(_vm!.CopiedMessageCopy)) {

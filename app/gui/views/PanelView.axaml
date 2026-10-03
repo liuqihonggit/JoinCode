@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
+             x:Class="JoinCode.Gui.Views.PanelView"
+             x:DataType="vm:MainViewModel">
+  <UserControl.Styles>
+    <Style Selector="ToggleButton.panelTab">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="ToggleButton.panelTab:pointerover">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    </Style>
+    <Style Selector="ToggleButton.panelTab:checked">
+      <Setter Property="Foreground" Value="{DynamicResource GuiAccentText}" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Background="{DynamicResource GuiSearchBarBackground}"
+          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0"
+          ClipToBounds="True">
+    <Grid RowDefinitions="Auto,*">
+      <Border Grid.Row="0" Background="{DynamicResource GuiTopBarBackground}"
+              BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1"
+              x:Name="PanelHeaderBar"
+              PointerPressed="OnHeaderPointerPressed"
+              PointerMoved="OnHeaderPointerMoved"
+              PointerReleased="OnHeaderPointerReleased">
+        <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0">
+          <ToggleButton Classes="panelTab" Content="输出"
+                        Command="{Binding SwitchPanelTabCommand}" CommandParameter="Output"
+                        IsChecked="{Binding IsPanelTabOutput, Mode=OneWay}" />
+          <ToggleButton Classes="panelTab" Content="终端"
+                        Command="{Binding SwitchPanelTabCommand}" CommandParameter="Terminal"
+                        IsChecked="{Binding IsPanelTabTerminal, Mode=OneWay}" />
+          <ToggleButton Classes="panelTab" Content="问题"
+                        Command="{Binding SwitchPanelTabCommand}" CommandParameter="Problems"
+                        IsChecked="{Binding IsPanelTabProblems, Mode=OneWay}" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="ghost" Content="▾" FontSize="14" Padding="6,3"
+                Command="{Binding TogglePanelCommand}" ToolTip.Tip="折叠面板" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0" Margin="0,0,28,0" HorizontalAlignment="Right">
+          <Button Classes="ghost" Content="⤒" FontSize="10" Padding="4,2" MinHeight="0"
+                  Command="{Binding SetPanelPositionCommand}"
+                  CommandParameter="{x:Static vm:PanelPosition.Top}" ToolTip.Tip="面板→顶部" />
+          <Button Classes="ghost" Content="⤓" FontSize="10" Padding="4,2" MinHeight="0"
+                  Command="{Binding SetPanelPositionCommand}"
+                  CommandParameter="{x:Static vm:PanelPosition.Bottom}" ToolTip.Tip="面板→底部" />
+          <Button Classes="ghost" Content="⇤" FontSize="10" Padding="4,2" MinHeight="0"
+                  Command="{Binding SetPanelPositionCommand}"
+                  CommandParameter="{x:Static vm:PanelPosition.Left}" ToolTip.Tip="面板→左侧" />
+          <Button Classes="ghost" Content="⇥" FontSize="10" Padding="4,2" MinHeight="0"
+                  Command="{Binding SetPanelPositionCommand}"
+                  CommandParameter="{x:Static vm:PanelPosition.Right}" ToolTip.Tip="面板→右侧" />
+        </StackPanel>
+        </Grid>
+      </Border>
+      <Panel Grid.Row="1" ClipToBounds="True">
+        <ScrollViewer IsVisible="{Binding IsPanelTabOutput}"
+                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+          <SelectableTextBlock Text="{Binding PanelOutputText}" FontSize="12"
+                                FontFamily="{DynamicResource GuiMonoFont}"
+                                Foreground="{DynamicResource GuiSecondaryText}"
+                                TextWrapping="NoWrap" Margin="8,4" />
+        </ScrollViewer>
+        <StackPanel IsVisible="{Binding IsPanelTabTerminal}"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+          <TextBlock Text="终端功能开发中…" FontSize="13"
+                     Foreground="{DynamicResource GuiMutedText}" />
+        </StackPanel>
+        <StackPanel IsVisible="{Binding IsPanelTabProblems}"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+          <TextBlock Text="没有发现问题" FontSize="13"
+                     Foreground="{DynamicResource GuiMutedText}" />
+        </StackPanel>
+      </Panel>
+    </Grid>
+  </Border>
+</UserControl>

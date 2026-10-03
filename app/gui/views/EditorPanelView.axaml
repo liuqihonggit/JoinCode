@@ -1,0 +1,246 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
+             xmlns:cnv="using:JoinCode.Gui.Converters"
+             xmlns:edit="using:AvaloniaEdit"
+             xmlns:sys="using:System"
+             x:Class="JoinCode.Gui.Views.EditorPanelView"
+             x:Name="EditorPanelRoot"
+             x:DataType="vm:MainViewModel">
+  <UserControl.Styles>
+    <Style Selector="Button.editorTab">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <Style Selector="Button.editorTab:pointerover">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    </Style>
+    <Style Selector="Button.editorTabClose">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="4,2" />
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="CornerRadius" Value="3" />
+    </Style>
+    <Style Selector="Button.editorTabClose:pointerover">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,Auto,*">
+    <!-- Row 0：标签页栏 + 分屏按钮 + 保存按钮 -->
+    <Border Grid.Row="0" Background="{DynamicResource GuiTopBarBackground}"
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <ItemsControl Grid.Column="0" ItemsSource="{Binding EditorTabs}" VerticalAlignment="Center"
+                      PointerWheelChanged="OnTabWheelChanged">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="0" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:EditorTabVm">
+              <Border BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0">
+                <Border.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="📌 锁定/解锁"
+                              Command="{Binding DataContext.TogglePinTabCommand, ElementName=EditorPanelRoot}"
+                              CommandParameter="{Binding}" />
+                    <MenuItem Header="✕ 关闭"
+                              Command="{Binding DataContext.CloseEditorTabCommand, ElementName=EditorPanelRoot}"
+                              CommandParameter="{Binding}"
+                              IsEnabled="{Binding !IsPinned}" />
+                    <MenuItem Header="✕ 关闭其他"
+                              Command="{Binding DataContext.CloseOtherEditorTabsCommand, ElementName=EditorPanelRoot}"
+                              CommandParameter="{Binding}" />
+                    <MenuItem Header="✕ 关闭全部"
+                              Command="{Binding DataContext.CloseAllEditorTabsCommand, ElementName=EditorPanelRoot}" />
+                    <MenuItem Header="→ 移到另一组"
+                              Command="{Binding DataContext.MoveTabToOtherGroupCommand, ElementName=EditorPanelRoot}"
+                              CommandParameter="{Binding}"
+                              IsVisible="{Binding DataContext.IsSplitEditor, ElementName=EditorPanelRoot}" />
+                  </ContextMenu>
+                </Border.ContextMenu>
+                <Grid ColumnDefinitions="*,Auto">
+                  <Button Grid.Column="0" Classes="editorTab"
+                          Command="{Binding DataContext.ActivateEditorTabCommand, ElementName=EditorPanelRoot}"
+                          CommandParameter="{Binding}"
+                          DoubleTapped="OnTabDoubleTapped"
+                          PointerPressed="OnTabPointerPressed"
+                          PointerMoved="OnTabPointerMoved"
+                          PointerReleased="OnTabPointerReleased">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                      <TextBlock Text="📌" FontSize="8" VerticalAlignment="Center"
+                                 IsVisible="{Binding IsPinned}" />
+                      <TextBlock Text="📄" FontSize="10" VerticalAlignment="Center"
+                                 IsVisible="{Binding !IsPinned}" />
+                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                 FontStyle="{Binding IsPreview, Converter={x:Static cnv:PreviewToFontStyleConverter.Instance}}" />
+                      <TextBlock Text="●" FontSize="8" VerticalAlignment="Center"
+                                 Foreground="{DynamicResource GuiAccentText}"
+                                 IsVisible="{Binding IsModified}" />
+                    </StackPanel>
+                  </Button>
+                  <Button Grid.Column="1" Classes="editorTabClose" Content="✕"
+                          Command="{Binding DataContext.CloseEditorTabCommand, ElementName=EditorPanelRoot}"
+                          CommandParameter="{Binding}"
+                          IsVisible="{Binding !IsPinned}"
+                          ToolTip.Tip="关闭" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Button Grid.Column="1" Classes="ghost" Content="⬗" FontSize="14" Padding="6,3"
+                Margin="4,0" Command="{Binding ToggleSplitEditorCommand}"
+                ToolTip.Tip="切换分屏" />
+        <Button Grid.Column="2" Classes="ghost" Content="💾 保存" FontSize="12" Padding="10,4"
+                Margin="4,0" Command="{Binding SaveActiveTabCommand}" ToolTip.Tip="Ctrl+S 保存" />
+      </Grid>
+    </Border>
+
+    <!-- Row 1：面包屑导航(文件路径) -->
+    <Border Grid.Row="1" Padding="12,4" Background="{DynamicResource GuiSearchBarBackground}"
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
+      <ItemsControl x:Name="BreadcrumbItems" HorizontalAlignment="Left">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="2" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="sys:String">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+              <TextBlock Text="›" FontSize="11" Foreground="{DynamicResource GuiMutedText}"
+                         VerticalAlignment="Center" Margin="2,0" />
+              <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource GuiSecondaryText}"
+                         VerticalAlignment="Center" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Border>
+
+    <!-- Row 2：编辑器区（分屏：左组 + GridSplitter + 右组） -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,6,*">
+      <!-- 左侧编辑器(组1) + Minimap -->
+      <Grid Grid.Column="0" ColumnDefinitions="*,Auto">
+        <edit:TextEditor Grid.Column="0" x:Name="Editor"
+                         ShowLineNumbers="True"
+                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                         FontSize="13"
+                         Background="{DynamicResource GuiWindowBackground}"
+                         Foreground="{DynamicResource GuiPrimaryText}" />
+        <!-- Minimap 代码缩略图 -->
+        <Border Grid.Column="1" Width="80" IsVisible="{Binding IsMinimapVisible}"
+                Background="{DynamicResource GuiWindowBackground}"
+                BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1,0,0,0">
+          <edit:TextEditor x:Name="Minimap"
+                           ShowLineNumbers="False"
+                           IsReadOnly="True"
+                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                           FontSize="2.5"
+                           Background="{DynamicResource GuiWindowBackground}"
+                           Foreground="{DynamicResource GuiMutedText}"
+                           HorizontalScrollBarVisibility="Hidden"
+                           VerticalScrollBarVisibility="Hidden" />
+        </Border>
+      </Grid>
+
+      <!-- GridSplitter（分屏时可见） -->
+      <Border Grid.Column="1" Width="6" HorizontalAlignment="Stretch"
+              Background="{DynamicResource GuiDivider}"
+              Cursor="SizeWestEast"
+              IsVisible="{Binding IsSplitEditor}"
+              ToolTip.Tip="拖拽调整分屏宽度" />
+
+      <!-- 右侧编辑器组2（分屏时可见） -->
+      <Grid Grid.Column="2" IsVisible="{Binding IsSplitEditor}"
+            RowDefinitions="Auto,Auto,*"
+            Background="{DynamicResource GuiWindowBackground}">
+        <!-- 组2 标签栏 -->
+        <Border Grid.Row="0" Background="{DynamicResource GuiTopBarBackground}"
+                BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
+          <ItemsControl ItemsSource="{Binding EditorTabs2}" VerticalAlignment="Center">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="0" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:EditorTabVm">
+                <Border BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0">
+                  <Border.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="✕ 关闭"
+                                Command="{Binding DataContext.CloseEditorTab2Command, ElementName=EditorPanelRoot}"
+                                CommandParameter="{Binding}" />
+                      <MenuItem Header="← 移到另一组"
+                                Command="{Binding DataContext.MoveTabToOtherGroupCommand, ElementName=EditorPanelRoot}"
+                                CommandParameter="{Binding}" />
+                    </ContextMenu>
+                  </Border.ContextMenu>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <Button Grid.Column="0" Classes="editorTab"
+                            Command="{Binding DataContext.ActivateEditorTab2Command, ElementName=EditorPanelRoot}"
+                            CommandParameter="{Binding}">
+                      <StackPanel Orientation="Horizontal" Spacing="5">
+                        <TextBlock Text="📄" FontSize="10" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                        <TextBlock Text="●" FontSize="8" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource GuiAccentText}"
+                                   IsVisible="{Binding IsModified}" />
+                      </StackPanel>
+                    </Button>
+                    <Button Grid.Column="1" Classes="editorTabClose" Content="✕"
+                            Command="{Binding DataContext.CloseEditorTab2Command, ElementName=EditorPanelRoot}"
+                            CommandParameter="{Binding}"
+                            ToolTip.Tip="关闭" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+        <!-- 组2 面包屑 -->
+        <Border Grid.Row="1" Padding="12,4" Background="{DynamicResource GuiSearchBarBackground}"
+                BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
+          <ItemsControl x:Name="BreadcrumbItems2" HorizontalAlignment="Left">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="2" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="sys:String">
+                <StackPanel Orientation="Horizontal" Spacing="2">
+                  <TextBlock Text="›" FontSize="11" Foreground="{DynamicResource GuiMutedText}"
+                             VerticalAlignment="Center" Margin="2,0" />
+                  <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource GuiSecondaryText}"
+                             VerticalAlignment="Center" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+        <!-- 组2 编辑器 -->
+        <edit:TextEditor Grid.Row="2" x:Name="Editor2"
+                         ShowLineNumbers="True"
+                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                         FontSize="13"
+                         Background="{DynamicResource GuiWindowBackground}"
+                         Foreground="{DynamicResource GuiPrimaryText}" />
+      </Grid>
+    </Grid>
+  </Grid>
+</UserControl>

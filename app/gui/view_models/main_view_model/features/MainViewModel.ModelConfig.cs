@@ -31,6 +31,7 @@ public sealed partial class MainViewModel {
             }
         }
         OnPropertyChanged(nameof(MaxInputChars));
+        OnPropertyChanged(nameof(CurrentModelDisplay));
     }
 
     /// <summary>
@@ -116,6 +117,7 @@ public sealed partial class MainViewModel {
             _session.RefreshVendorModelMap();
             RebuildConnectionOptions();
             RefreshModelOptions();
+            RefreshProviderModelGroups();
 
             // 恢复连接选择（RebuildConnectionOptions 重建了对象引用），用门控 scope 绕过 OnSelectedConnectionChanged 持久化副作用避免循环
             using var _ = _gate.EnterRefreshingConfigScope();
@@ -135,4 +137,98 @@ public sealed partial class MainViewModel {
             ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
+
+    // ===== 模型选择器 Popup（发送区域集成 — DSG031）=====
+
+    /// <summary>模型选择器 Popup 是否展开</summary>
+    [ObservableProperty]
+    private bool _isModelPickerOpen;
+
+    /// <summary>所有供应商分组的模型列表 — 模型选择器 Popup 数据源,按供应商分组展示</summary>
+    [ObservableProperty]
+    private IReadOnlyList<ProviderModelGroupVm> _providerModelGroups = [];
+
+    /// <summary>当前选中模型的显示文本(用于模型选择器按钮,如 "glm-5.2")</summary>
+    public string CurrentModelDisplay => SelectedModelOption?.Id ?? _session.CurrentModelId ?? "选择模型";
+
+    /// <summary>切换模型选择器 Popup 显隐</summary>
+    [RelayCommand]
+    private void ToggleModelPicker() {
+        if (!IsModelPickerOpen)
+            RefreshProviderModelGroups();
+        IsModelPickerOpen = !IsModelPickerOpen;
+    }
+
+    /// <summary>从 Popup 选择模型 — 切换供应商+模型并关闭 Popup</summary>
+    /// <param name="parameter">格式 "providerId|modelId" 的选择键</param>
+    [RelayCommand]
+    private async Task SelectModelFromPopupAsync(string? parameter) {
+        IsModelPickerOpen = false;
+        if (string.IsNullOrEmpty(parameter))
+            return;
+        var pipe = parameter.IndexOf('|');
+        if (pipe <= 0 || pipe >= parameter.Length - 1)
+            return;
+        var providerId = parameter[..pipe];
+        var modelId = parameter[(pipe + 1)..];
+
+        // 切换供应商(若不同) → 切换模型
+        if (!string.Equals(providerId, _session.CurrentVendor, StringComparison.OrdinalIgnoreCase)) {
+            var conn = GetConnectionById(providerId);
+            if (conn is not null) {
+                using var _ = _gate.EnterRefreshingConfigScope();
+                SelectedConnection = conn;
+                try { await _session.SetVendorAsync(providerId).WaitAsync(Timeout); } catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); }
+                RefreshModelOptions();
+            }
+        }
+        var modelItem = GetModelById(modelId) ?? ModelOptions.FirstOrDefault(m => string.Equals(m.Id, modelId, StringComparison.OrdinalIgnoreCase));
+        if (modelItem is not null) {
+            SelectedModelOption = modelItem;
+            SelectedModel = modelItem.Id;
+            try { await _session.SetModelAsync(modelId).WaitAsync(Timeout); } catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); }
+        }
+        OnPropertyChanged(nameof(CurrentModelDisplay));
+    }
+
+    /// <summary>刷新供应商模型分组 — 从 VendorModelMap 和 ModelConfigLoader 构建 Popup 数据源</summary>
+    private void RefreshProviderModelGroups() {
+        var map = _session.VendorModelMap;
+        var groups = new List<ProviderModelGroupVm>(map.Count);
+        foreach (var (providerId, models) in map) {
+            if (models is null || models.Count == 0)
+                continue;
+            var (name, initial, color) = GetProviderBranding(providerId);
+            var entries = new List<ProviderModelEntryVm>(models.Count);
+            foreach (var modelId in models) {
+                var model = _modelConfigLoader.FindModel(providerId, modelId);
+                entries.Add(new ProviderModelEntryVm {
+                    ModelId = modelId,
+                    DisplayName = model?.DisplayName ?? modelId,
+                    ContextWindow = model?.ContextWindow ?? 0,
+                    SelectionKey = $"{providerId}|{modelId}"
+                });
+            }
+            groups.Add(new ProviderModelGroupVm {
+                ProviderId = providerId,
+                ProviderName = name,
+                Initial = initial,
+                BrandColor = color,
+                Models = entries
+            });
+        }
+        ProviderModelGroups = groups;
+    }
+
+    /// <summary>供应商品牌信息(显示名+首字母+品牌色) — 唯一数据源,对齐 DSG031</summary>
+    private static (string Name, string Initial, string Color) GetProviderBranding(string providerId)
+        => providerId.ToLowerInvariant() switch {
+        "openai" => ("OpenAI", "O", "#10A37F"),
+        "deepseek" => ("DeepSeek", "D", "#4D6BFE"),
+        "anthropic" => ("Anthropic", "A", "#D97757"),
+        "zhipu" => ("Zhipu", "Z", "#4D6BFE"),
+        "sensenova" => ("SenseNova", "S", "#E1251B"),
+        "agnes" => ("Agnes", "A", "#9B59B6"),
+        var other => (other, other[..1].ToUpperInvariant(), "#6B7280")
+    };
 }

@@ -72,7 +72,11 @@ public static class GuiAppResources {
             ["BoolToSessHighlight"] = new Converters.BoolToSessionHighlightConverter(),
             ["StatusToBrush"] = new Converters.StatusToBrushConverter(),
             ["BoolToWarnBrush"] = new Converters.BoolToWarnBrushConverter(),
-            ["BoolToThinkingOpacity"] = new Converters.BoolToThinkingOpacityConverter()
+            ["BoolToThinkingOpacity"] = new Converters.BoolToThinkingOpacityConverter(),
+            ["StringEquals"] = Converters.StringEqualsConverter.Instance,
+            ["EffortToDouble"] = Converters.EffortLevelToDoubleConverter.Instance,
+            ["EffortToBrush"] = Converters.EffortIndexToBrushConverter.Instance,
+            ["EffortToLabel"] = Converters.EffortIndexToLabelConverter.Instance
         };
         return dict;
     }

@@ -7,7 +7,7 @@ namespace JoinCode.Gui.Tests.Views;
 
 /// <summary>
 /// 对话框与主题切换截图测试：
-/// ① 主题切换按钮图标随主题切换（暗=☾ / 亮=☀）；
+/// ① 主题切换按钮图标随主题切换（暗=🌙 / 亮=☀️）；
 /// ② 三类对话框（确认/权限/提问）主题化渲染，暗色帧保存 dumps/gui_beautify/ 供人工核对。
 /// </summary>
 [Collection("GuiUiSequential")]
@@ -55,19 +55,19 @@ public sealed class DialogRenderTests {
             Assert.True(vm.IsDarkTheme, "初始应为暗色主题");
 
             // 暗色：月亮可见、太阳隐藏
-            var moon = win.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text == "☾");
-            var sun = win.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text == "☀");
+            var moon = win.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text == "🌙");
+            var sun = win.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text == "☀️");
             Assert.True(moon.IsVisible, "暗色主题应显示月亮图标");
             Assert.False(sun.IsVisible, "暗色主题不应显示太阳图标");
 
-            // 切换到亮色：太阳可见、月亮隐藏（缺陷回归：旧实现 Content 硬编码 ☾ 不随主题切换）
+            // 切换到亮色：太阳可见、月亮隐藏（缺陷回归：旧实现 Content 硬编码 🌙 不随主题切换）
             vm.ToggleThemeCommand.Execute(null);
             Dispatcher.UIThread.RunJobs();
             Assert.False(vm.IsDarkTheme, "切换后应为亮色主题");
             Assert.False(moon.IsVisible, "亮色主题不应显示月亮图标");
             Assert.True(sun.IsVisible, "亮色主题应显示太阳图标");
 
-            // 帧图保存供人工核对字形（☾ 缺字形会被 fallback 渲染成 "C"）
+            // 帧图保存供人工核对字形（🌙 缺字形会被 fallback 渲染成 "C"）
             var frame = win.CaptureRenderedFrame()
                 ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null");
             SavePng(frame, Path.Combine(DumpDir(), "theme-icon-light.png"));

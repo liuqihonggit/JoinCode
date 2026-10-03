@@ -23,6 +23,13 @@
     <KeyBinding Gesture="Ctrl+I" Command="{Binding ToggleInterceptorPanelCommand}" />
     <KeyBinding Gesture="Ctrl+G" Command="{Binding ToggleGoalPanelCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding StopGoalCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding OpenCommandPaletteCommand}" />
+    <KeyBinding Gesture="Ctrl+P" Command="{Binding OpenQuickOpenCommand}" />
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveActiveTabCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding ToggleZenModeCommand}" />
+    <KeyBinding Gesture="Ctrl+B" Command="{Binding ToggleSidePanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.FileTree}" />
+    <KeyBinding Gesture="Ctrl+J" Command="{Binding TogglePanelCommand}" />
+    <KeyBinding Gesture="Ctrl+OemBackslash" Command="{Binding ToggleSplitEditorCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+P" Command="{Binding BackgroundPanel.PauseAllCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+R" Command="{Binding BackgroundPanel.ResumeAllCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+T" Command="{Binding BackgroundPanel.StopAllCommand}" />
@@ -54,23 +61,146 @@
     <Style Selector="Border.msgCard:pointerover StackPanel.actions">
       <Setter Property="Opacity" Value="1" />
     </Style>
+    <!-- Activity Bar 图标按钮：48x48 方形,透明背景,悬停浅色,激活强调色 -->
+    <Style Selector="ToggleButton.activityIcon">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Width" Value="48" />
+      <Setter Property="Height" Value="48" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <Style Selector="ToggleButton.activityIcon:pointerover">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    </Style>
+    <Style Selector="ToggleButton.activityIcon:checked">
+      <Setter Property="Background" Value="{DynamicResource GuiAccentSubtle}" />
+      <Setter Property="Foreground" Value="{DynamicResource GuiAccentText}" />
+    </Style>
   </Window.Styles>
 
-  <!-- 根 Grid：侧边栏(*) : 主区(4*) 比例对齐 -->
-  <Grid ColumnDefinitions="236,*">
+  <!-- 根 Grid：顶栏(横跨全宽) : 下区(侧边栏+主区) — 菜单栏在最顶,客户区不被侧边栏遮挡 -->
+  <Grid RowDefinitions="Auto,*">
 
-    <!-- ===== Column 0：侧边栏 ===== -->
-    <local:SidebarView Grid.Column="0" />
+    <!-- ===== Row 0：顶部菜单栏(横跨全宽) ===== -->
+    <local:TopBarView Grid.Row="0" IsVisible="{Binding IsNotZenMode}" />
 
-    <!-- ===== Column 1：主区（五行布局：顶栏/消息区/补全面板/输入栏/状态栏 — 面板与输入栏同列约束，天然对齐零重叠） ===== -->
-    <Grid Grid.Column="1">
-      <Grid RowDefinitions="Auto,*,Auto,Auto,Auto">
+    <!-- 命令面板 Overlay (Ctrl+Shift+P) — 居中浮在顶部 -->
+    <Panel Grid.RowSpan="2" IsVisible="{Binding IsCommandPaletteOpen}" ZIndex="100">
+      <local:CommandPaletteView HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,48,0,0" />
+    </Panel>
 
-      <!-- Row 0：顶部工具栏 -->
-      <local:TopBarView Grid.Row="0" />
+    <!-- ===== Row 1：Activity Bar + Side Bar + 主区 + Secondary Side Bar (VSCode 风格) ===== -->
+    <Grid Grid.Row="1" ColumnDefinitions="48,Auto,6,*,6,Auto">
 
-      <!-- Row 1：消息区（消息内容(*) : 设置面板(Auto)） -->
-      <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ClipToBounds="True">
+    <!-- ===== Column 0：Activity Bar (图标列,固定48px) ===== -->
+    <Border x:Name="ActivityBarCol" Grid.Column="0" Background="{DynamicResource GuiSidebarBackground}"
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0"
+            IsVisible="{Binding IsNotZenMode}">
+      <Grid RowDefinitions="*,Auto,Auto">
+        <!-- 顶部组：面板切换 -->
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,8">
+          <ToggleButton x:Name="SessionBtn" Classes="activityIcon" Content="💬" FontSize="20"
+                        Command="{Binding ToggleSidePanelCommand}"
+                        CommandParameter="{x:Static vm:SidePanelKind.Sessions}"
+                        ToolTip.Tip="会话列表" />
+          <ToggleButton x:Name="FileTreeBtn" Classes="activityIcon" Content="📁" FontSize="20"
+                        Command="{Binding ToggleSidePanelCommand}"
+                        CommandParameter="{x:Static vm:SidePanelKind.FileTree}"
+                        ToolTip.Tip="目录树" />
+          <ToggleButton x:Name="EditorBtn" Classes="activityIcon" Content="📝" FontSize="20"
+                        Command="{Binding ToggleEditorViewCommand}"
+                        ToolTip.Tip="代码编辑器" />
+        </StackPanel>
+        <!-- 中部组：功能按钮(带 Popup) -->
+        <StackPanel Grid.Row="1" Spacing="4">
+          <Button x:Name="GoalButton" Classes="activityIcon" Content="🎯" FontSize="20"
+                  Command="{Binding ToggleGoalPanelCommand}" ToolTip.Tip="goal 控制"
+                  IsVisible="{Binding IsGoalRunning}" />
+          <Button x:Name="InterceptorButton" Classes="activityIcon" Content="🛡" FontSize="20"
+                  Command="{Binding ToggleInterceptorPanelCommand}" ToolTip.Tip="AI 工具拦截器" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Spacing="4" Margin="0,0,0,8">
+          <ToggleButton Classes="activityIcon" FontSize="20"
+                        Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}">
+            <Panel>
+              <TextBlock Text="🌙" FontSize="20" IsVisible="{Binding IsDarkTheme}" />
+              <TextBlock Text="☀️" FontSize="20" IsVisible="{Binding !IsDarkTheme}" />
+            </Panel>
+          </ToggleButton>
+          <ToggleButton Classes="activityIcon" Content="⚙" FontSize="20"
+                        Command="{Binding ToggleSettingsPanelCommand}"
+                        ToolTip.Tip="设置" />
+          <ToggleButton Classes="activityIcon" Content="⇥" FontSize="20"
+                        Command="{Binding ToggleSecondarySideBarCommand}"
+                        IsChecked="{Binding IsSecondarySideBarOpen, Mode=OneWay}"
+                        ToolTip.Tip="Secondary Side Bar" />
+        </StackPanel>
+        <!-- goal Popup -->
+        <Popup IsOpen="{Binding IsGoalPanelOpen}" Placement="Right"
+               PlacementTarget="{Binding #GoalButton}" HorizontalOffset="4">
+          <Border CornerRadius="10" Padding="14,10" Width="300"
+                  Background="{DynamicResource GuiPopupBackground}"
+                  BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
+            <StackPanel Spacing="8">
+              <TextBlock Text="🎯 goal 进行中" FontSize="13" FontWeight="SemiBold"
+                         Foreground="{DynamicResource GuiPrimaryText}" />
+              <TextBlock Text="停止时引擎自动注入再三确认提示词（a→b→c）" FontSize="10.5"
+                         Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+              <Button Classes="ghost" Content="停止 goal" HorizontalAlignment="Stretch"
+                      Command="{Binding StopGoalCommand}" />
+            </StackPanel>
+          </Border>
+        </Popup>
+        <!-- AI 拦截器 Popup -->
+        <Popup IsOpen="{Binding IsInterceptorPanelOpen}" Placement="Right"
+               PlacementTarget="{Binding #InterceptorButton}" HorizontalOffset="4">
+          <local:InterceptorPopupContent />
+        </Popup>
+      </Grid>
+    </Border>
+
+    <!-- ===== Column 1：Side Bar (面板区,宽度绑定SidePanelWidth) ===== -->
+    <Border x:Name="SideBarCol" Grid.Column="1" Width="{Binding SidePanelWidth}" ClipToBounds="True"
+            Background="{DynamicResource GuiSidebarBackground}"
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0"
+            IsVisible="{Binding IsNotZenMode}">
+      <Border.Transitions>
+        <Transitions>
+          <DoubleTransition Property="Width" Duration="{DynamicResource GuiMotionDuration}" />
+        </Transitions>
+      </Border.Transitions>
+      <Panel>
+        <local:SidebarView IsVisible="{Binding IsSessionPanelActive}" />
+        <local:FileTreePanelView IsVisible="{Binding IsFileTreePanelActive}" />
+      </Panel>
+    </Border>
+
+    <!-- ===== Column 2：拖拽手柄 (调整 Side Bar 宽度) ===== -->
+    <Border x:Name="LeftSashCol" Grid.Column="2" Width="6" HorizontalAlignment="Stretch"
+            Background="{DynamicResource GuiDivider}"
+            Cursor="SizeWestEast"
+            IsVisible="{Binding IsNotZenMode}"
+            PointerPressed="OnSidePanelResizePointerPressed"
+            PointerMoved="OnSidePanelResizePointerMoved"
+            PointerReleased="OnSidePanelResizePointerReleased"
+            ToolTip.Tip="拖拽调整面板宽度" />
+
+    <!-- ===== Column 3：主区（四行布局：消息区/补全面板/输入栏/状态栏） ===== -->
+    <Grid x:Name="MainAreaCol" Grid.Column="3">
+      <Grid RowDefinitions="*,Auto,Auto,Auto">
+
+      <!-- Row 0：内容+面板区（支持面板四方向位置：底部/右侧/左侧/顶部） -->
+      <Grid Grid.Row="0" RowDefinitions="Auto,*,Auto" ColumnDefinitions="Auto,*,Auto">
+        <!-- 面板顶部 -->
+        <local:PanelView Grid.Row="0" Grid.Column="1" IsVisible="{Binding IsPanelTop}" Height="{Binding PanelHeight}" />
+        <!-- 面板左侧 -->
+        <local:PanelView Grid.Row="1" Grid.Column="0" IsVisible="{Binding IsPanelLeft}" Width="{Binding PanelWidth}" />
+        <!-- 主内容（消息区 / 编辑器区切换） -->
+        <Panel Grid.Row="1" Grid.Column="1" ClipToBounds="True">
+      <Grid IsVisible="{Binding IsMessagesViewActive}" ColumnDefinitions="*,Auto" ClipToBounds="True">
 
         <!-- Column 0：消息内容（搜索栏 + 消息列表） -->
         <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
@@ -363,18 +493,74 @@
           <local:SettingsPanelView HorizontalAlignment="Left" ClipToBounds="True" />
         </Border>
       </Grid>
+      <local:EditorPanelView IsVisible="{Binding IsEditorViewActive}" />
+      </Panel>
+        <!-- 面板右侧 -->
+        <local:PanelView Grid.Row="1" Grid.Column="2" IsVisible="{Binding IsPanelRight}" Width="{Binding PanelWidth}" />
+        <!-- 面板底部 -->
+        <local:PanelView Grid.Row="2" Grid.Column="1" IsVisible="{Binding IsPanelBottom}" Height="{Binding PanelHeight}" />
 
-      <!-- Row 2：斜杠补全面板（布局行 — 关闭时 IsVisible=False 零占位；ClipToBounds 裁剪升起动画的越界位移） -->
-      <Panel Grid.Row="2" ClipToBounds="True">
+        <!-- Panel 拖拽手柄（sash）— 叠加在主内容边缘，仅对应位置可见时显示 -->
+        <Border Grid.Row="1" Grid.Column="1" VerticalAlignment="Top" Height="6" HorizontalAlignment="Stretch"
+                Background="{DynamicResource GuiDivider}" Cursor="SizeNorthSouth"
+                IsVisible="{Binding IsPanelTop}"
+                PointerPressed="OnPanelResizePointerPressed"
+                PointerMoved="OnPanelResizePointerMoved"
+                PointerReleased="OnPanelResizePointerReleased"
+                ToolTip.Tip="拖拽调整面板高度" />
+        <Border Grid.Row="1" Grid.Column="1" VerticalAlignment="Bottom" Height="6" HorizontalAlignment="Stretch"
+                Background="{DynamicResource GuiDivider}" Cursor="SizeNorthSouth"
+                IsVisible="{Binding IsPanelBottom}"
+                PointerPressed="OnPanelResizePointerPressed"
+                PointerMoved="OnPanelResizePointerMoved"
+                PointerReleased="OnPanelResizePointerReleased"
+                ToolTip.Tip="拖拽调整面板高度" />
+        <Border Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Width="6" VerticalAlignment="Stretch"
+                Background="{DynamicResource GuiDivider}" Cursor="SizeWestEast"
+                IsVisible="{Binding IsPanelLeft}"
+                PointerPressed="OnPanelResizePointerPressed"
+                PointerMoved="OnPanelResizePointerMoved"
+                PointerReleased="OnPanelResizePointerReleased"
+                ToolTip.Tip="拖拽调整面板宽度" />
+        <Border Grid.Row="1" Grid.Column="1" HorizontalAlignment="Right" Width="6" VerticalAlignment="Stretch"
+                Background="{DynamicResource GuiDivider}" Cursor="SizeWestEast"
+                IsVisible="{Binding IsPanelRight}"
+                PointerPressed="OnPanelResizePointerPressed"
+                PointerMoved="OnPanelResizePointerMoved"
+                PointerReleased="OnPanelResizePointerReleased"
+                ToolTip.Tip="拖拽调整面板宽度" />
+      </Grid>
+
+      <!-- Row 1：斜杠补全面板（布局行 — 关闭时 IsVisible=False 零占位；ClipToBounds 裁剪升起动画的越界位移） -->
+      <Panel Grid.Row="1" ClipToBounds="True" IsVisible="{Binding IsNotZenMode}">
         <local:SlashPaletteView x:Name="SlashPalette" Completed="OnSlashPaletteCompleted" />
       </Panel>
 
-      <!-- Row 3：底部输入栏 -->
-      <local:InputBarView Grid.Row="3" x:Name="InputBar" />
+      <!-- Row 2：底部输入栏 -->
+      <local:InputBarView Grid.Row="2" x:Name="InputBar" IsVisible="{Binding IsNotZenMode}" />
 
-      <!-- Row 4：状态栏（模块化提取为 StatusBarView — 任务6） -->
-      <local:StatusBarView Grid.Row="4" />
+      <!-- Row 3：状态栏（模块化提取为 StatusBarView — 任务6） -->
+      <local:StatusBarView Grid.Row="3" IsVisible="{Binding IsNotZenMode}" />
       </Grid>
+
+    <!-- ===== Column 4：Secondary Side Bar 拖拽手柄 ===== -->
+    <Border x:Name="RightSashCol" Grid.Column="4" Width="6" HorizontalAlignment="Stretch"
+            Background="{DynamicResource GuiDivider}"
+            Cursor="SizeWestEast"
+            IsVisible="{Binding IsSecondarySideBarOpen}"
+            ToolTip.Tip="拖拽调整面板宽度" />
+
+    <!-- ===== Column 5：Secondary Side Bar (右侧边栏) ===== -->
+    <Border x:Name="SecondarySideBarCol" Grid.Column="5" Width="{Binding SecondarySideBarWidth}" ClipToBounds="True"
+            IsVisible="{Binding IsSecondarySideBarOpen}"
+            Background="{DynamicResource GuiSidebarBackground}"
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1,0,0,0">
+      <Panel>
+        <local:FileTreePanelView IsVisible="{Binding IsSecondaryFileTree}" />
+        <local:SidebarView IsVisible="{Binding IsSecondarySessions}" />
+      </Panel>
+    </Border>
+    </Grid>
     </Grid>
   </Grid>
 </Window>

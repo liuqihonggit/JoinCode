@@ -226,7 +226,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         var readResults = await Task.WhenAll(readTasks).ConfigureAwait(false);
 
         foreach (var r in readResults) {
-            if (storedHashes.TryGetValue(r.FilePath, out var storedHash) && storedHash == r.Hash) {
+            if (!options.Force && storedHashes.TryGetValue(r.FilePath, out var storedHash) && storedHash == r.Hash) {
                 skippedCount++;
             } else {
                 filesToIndex.Add((r.FilePath, r.SourceCode, r.Hash));

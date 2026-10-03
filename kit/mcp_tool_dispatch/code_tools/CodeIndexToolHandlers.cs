@@ -562,11 +562,13 @@ public sealed class CodeIndexToolHandlers {
     /// 重建代码索引
     /// </summary>
     /// <param name="workspace_root">工作区根目录路径</param>
+    /// <param name="force">是否强制全量重建（跳过 hash 检查）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含重建统计信息的工具结果</returns>
     [McpTool(CodeToolNameEnumConstants.CodeIndexRebuild, "Rebuild the code index", "code_index")]
     public async Task<ToolResult> RebuildAsync(
         [McpToolParameter("Workspace root directory path")] string workspace_root,
+        [McpToolParameter("Force full rebuild, skip hash check")] bool force = false,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(workspace_root)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorkspaceRootCannotBeEmpty)).Build();
@@ -577,8 +579,10 @@ public sealed class CodeIndexToolHandlers {
             System.Diagnostics.Process.GetCurrentProcess().PriorityClass = System.Diagnostics.ProcessPriorityClass.BelowNormal;
             try {
                 var persistDir = Path.Combine(workspace_root, ".jcc", "code-index");
-                await _indexer.EnsureIndexLoadedAsync(cancellationToken, persistDir).ConfigureAwait(false);
-                var options = new CodeIndexOptions { WorkspaceRoot = workspace_root };
+                if (!force) {
+                    await _indexer.EnsureIndexLoadedAsync(cancellationToken, persistDir).ConfigureAwait(false);
+                }
+                var options = new CodeIndexOptions { WorkspaceRoot = workspace_root, Force = force };
                 var result = await _indexer.BuildIndexAsync(options, cancellationToken).ConfigureAwait(false);
             var sb = new System.Text.StringBuilder();
             sb.AppendLine(L.T(StringKey.IndexRebuildComplete));

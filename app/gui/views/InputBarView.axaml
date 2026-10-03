@@ -8,10 +8,6 @@
              x:Name="InputBarRoot"
              x:DataType="vm:MainViewModel">
   <UserControl.Styles>
-    <!-- composer 卡片聚焦态：无边框 TextBox 获焦时点亮承载卡片边框 -->
-    <Style Selector="Border.composer:focus-within">
-      <Setter Property="BorderBrush" Value="{DynamicResource GuiAccentText}" />
-    </Style>
     <!-- 推理档位按钮基础样式 — 紧凑圆角,切换时背景/前景色渐变动画(对齐 Codex 风格) -->
     <Style Selector="RadioButton.effortBtn">
       <Setter Property="Padding" Value="9,3" />

@@ -80,7 +80,7 @@
           <!-- 模型选择器：纯图标，Tooltip 显示当前模型名，点击弹出模型列表 -->
           <Panel>
             <Button x:Name="ModelPickerButton" Classes="ghost" Padding="7,4" MinHeight="0" FontSize="14"
-                    Content="🤖"
+                    Content="🎭"
                     Command="{Binding ToggleModelPickerCommand}"
                     ToolTip.Tip="{Binding CurrentModelDisplay, FallbackValue='选择模型'}" />
             <Popup IsOpen="{Binding IsModelPickerOpen}" Placement="Top"

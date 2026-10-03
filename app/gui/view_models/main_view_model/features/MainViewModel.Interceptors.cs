@@ -180,10 +180,11 @@ public sealed partial class MainViewModel {
     /// <summary>当前权限模式 — Shift+Tab 循环切换(Plan→Auto→Ask)</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PermissionModeDisplay))]
+    [NotifyPropertyChangedFor(nameof(PermissionModeLightColor))]
     [NotifyPropertyChangedFor(nameof(PermissionModeToolTip))]
     private PermissionMode _currentPermissionMode = PermissionMode.Auto;
 
-    /// <summary>权限模式显示文本</summary>
+    /// <summary>权限模式显示文本 — 灯色 emoji 对标五色灯(白/黄/绿/红/黑)</summary>
     public string PermissionModeDisplay => CurrentPermissionMode switch {
         PermissionMode.Plan => "📋 Plan",
         PermissionMode.Auto => "🟢 Auto",
@@ -193,23 +194,36 @@ public sealed partial class MainViewModel {
         _ => "🟢 Auto"
     };
 
+    /// <summary>权限模式灯色 — 用于 UI 灯色指示器背景色</summary>
+    public string PermissionModeLightColor => CurrentPermissionMode switch {
+        PermissionMode.Plan => "#80b3ff",
+        PermissionMode.Auto => "#3dd68c",
+        PermissionMode.Ask => "#ffc107",
+        PermissionMode.Bypass => "#e5484d",
+        PermissionMode.Unattended => "#8b7ee0",
+        _ => "#3dd68c"
+    };
+
     /// <summary>权限模式提示文本</summary>
     public string PermissionModeToolTip => CurrentPermissionMode switch {
-        PermissionMode.Plan => "Plan 模式：AI 只规划不执行",
-        PermissionMode.Auto => "Auto 模式：AI 自动执行（默认）",
-        PermissionMode.Ask => "Ask 模式：每次执行前确认",
-        PermissionMode.Bypass => "Bypass 模式：跳过所有权限检查",
-        PermissionMode.Unattended => "无人值守模式：红灯自动执行+审计",
+        PermissionMode.Plan => "📋 Plan：AI 只规划不执行（蓝灯）",
+        PermissionMode.Auto => "🟢 Auto：AI 自动执行，危险操作需确认（绿灯）",
+        PermissionMode.Ask => "🟡 Ask：每次执行前确认（黄灯）",
+        PermissionMode.Bypass => "🔴 Bypass：跳过所有权限检查（红灯）",
+        PermissionMode.Unattended => "🤖 无人值守：红灯自动执行+审计",
         _ => "Auto 模式"
     };
 
-    /// <summary>循环切换权限模式 — Shift+Tab 触发(Plan→Auto→Ask→Plan)</summary>
+    /// <summary>循环切换权限模式 — Shift+Tab 触发(Plan→Auto→Ask→Plan)
+    /// Bypass/Unattended 不参与循环（安全设计：Bypass 仅 CLI --bypass，Unattended 仅设置面板开关）</summary>
     [RelayCommand]
     private async Task CyclePermissionModeAsync() {
         CurrentPermissionMode = CurrentPermissionMode switch {
             PermissionMode.Plan => PermissionMode.Auto,
             PermissionMode.Auto => PermissionMode.Ask,
             PermissionMode.Ask => PermissionMode.Plan,
+            PermissionMode.Bypass => PermissionMode.Bypass,
+            PermissionMode.Unattended => PermissionMode.Unattended,
             _ => PermissionMode.Auto
         };
         await _session.SetPermissionModeAsync(CurrentPermissionMode);

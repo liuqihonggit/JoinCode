@@ -8,6 +8,9 @@
   -->
 
   <!-- ===== Button 默认：实底 + 主题边框，悬停/按下反馈 ===== -->
+  <Style Selector="Button, ToggleButton">
+    <Setter Property="FontFamily" Value="Segoe UI Emoji, Segoe UI Symbol, Inter" />
+  </Style>
   <Style Selector="Button">
     <Setter Property="CornerRadius" Value="6" />
     <Setter Property="Padding" Value="11,5" />

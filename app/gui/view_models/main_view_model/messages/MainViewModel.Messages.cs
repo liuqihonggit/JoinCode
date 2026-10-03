@@ -22,6 +22,17 @@ public sealed partial class MainViewModel {
     /// <summary>测试可见的助手消息计数（与 _assistantMessageCount 同源，供一致性断言）</summary>
     internal int AssistantMessageCountForTest => _assistantMessageCount;
 
+    /// <summary>用户消息计数（统计面板用）</summary>
+    public int UserMessageCount => Messages.Count(m => m.Role == MessageRole.User);
+
+    /// <summary>统计面板是否展开</summary>
+    [ObservableProperty]
+    private bool _isStatsPanelOpen;
+
+    /// <summary>切换统计面板</summary>
+    [RelayCommand]
+    private void ToggleStatsPanel() => IsStatsPanelOpen = !IsStatsPanelOpen;
+
     /// <summary>消息条数（随集合变化更新，驱动 UI 计数显示）</summary>
     public int MessageCount => Messages.Count;
 

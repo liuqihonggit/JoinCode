@@ -1,0 +1,89 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
+             x:Class="JoinCode.Gui.Views.StatsPanelView"
+             x:DataType="vm:MainViewModel">
+  <Border CornerRadius="10" Padding="16,12" Margin="8"
+          Background="{DynamicResource GuiPopupBackground}"
+          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+          BoxShadow="{DynamicResource GuiPopupShadow}">
+    <StackPanel Spacing="12">
+      <TextBlock Text="📊 会话统计" FontSize="14" FontWeight="SemiBold"
+                 Foreground="{DynamicResource GuiPrimaryText}" />
+
+      <!-- 统计卡片网格 -->
+      <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,4">
+        <!-- 消息数 -->
+        <Border Grid.Row="0" Grid.Column="0" CornerRadius="8" Padding="12,8" Margin="0,0,4,4"
+                Background="{DynamicResource GuiCardHover}">
+          <StackPanel Spacing="2">
+            <TextBlock Text="消息数" FontSize="10" Foreground="{DynamicResource GuiMutedText}" />
+            <TextBlock Text="{Binding MessageCount}" FontSize="22" FontWeight="Bold"
+                       Foreground="{DynamicResource GuiAccentText}" />
+          </StackPanel>
+        </Border>
+        <!-- 会话数 -->
+        <Border Grid.Row="0" Grid.Column="1" CornerRadius="8" Padding="12,8" Margin="4,0,0,4"
+                Background="{DynamicResource GuiCardHover}">
+          <StackPanel Spacing="2">
+            <TextBlock Text="会话数" FontSize="10" Foreground="{DynamicResource GuiMutedText}" />
+            <TextBlock Text="{Binding Sessions.Count}" FontSize="22" FontWeight="Bold"
+                       Foreground="{DynamicResource GuiAccentText}" />
+          </StackPanel>
+        </Border>
+        <!-- 字符数 -->
+        <Border Grid.Row="1" Grid.Column="0" CornerRadius="8" Padding="12,8" Margin="0,4,4,0"
+                Background="{DynamicResource GuiCardHover}">
+          <StackPanel Spacing="2">
+            <TextBlock Text="字符数" FontSize="10" Foreground="{DynamicResource GuiMutedText}" />
+            <TextBlock Text="{Binding TotalChars, StringFormat='{}{0:N0}'}" FontSize="22" FontWeight="Bold"
+                       Foreground="{DynamicResource GuiPrimaryText}" />
+          </StackPanel>
+        </Border>
+        <!-- 估算 Token -->
+        <Border Grid.Row="1" Grid.Column="1" CornerRadius="8" Padding="12,8" Margin="4,4,0,0"
+                Background="{DynamicResource GuiCardHover}">
+          <StackPanel Spacing="2">
+            <TextBlock Text="估算 Token" FontSize="10" Foreground="{DynamicResource GuiMutedText}" />
+            <TextBlock Text="{Binding EstimatedTokens, StringFormat='{}{0:N0}'}" FontSize="22" FontWeight="Bold"
+                       Foreground="{DynamicResource GuiPrimaryText}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Token 使用进度条 -->
+      <StackPanel Spacing="4">
+        <Grid ColumnDefinitions="Auto,*">
+          <TextBlock Grid.Column="0" Text="Token 使用量" FontSize="11" Foreground="{DynamicResource GuiMutedText}" />
+          <TextBlock Grid.Column="1" Text="{Binding TokenUsageText, FallbackValue='Token: 0'}"
+                     FontSize="11" Foreground="{DynamicResource GuiAccentText}"
+                     HorizontalAlignment="Right" />
+        </Grid>
+        <ProgressBar Value="{Binding EstimatedTokens}" Maximum="100000" Height="6"
+                     CornerRadius="3" Foreground="{DynamicResource GuiAccentText}" />
+      </StackPanel>
+
+      <!-- 消息分布 -->
+      <StackPanel Spacing="4">
+        <TextBlock Text="消息分布" FontSize="11" Foreground="{DynamicResource GuiMutedText}" />
+        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+          <TextBlock Grid.Column="0" Text="用户消息" FontSize="10" Foreground="{DynamicResource GuiSecondaryText}" />
+          <ProgressBar Grid.Column="1" Value="{Binding UserMessageCount}" Maximum="{Binding MessageCount}"
+                       Height="4" CornerRadius="2" Foreground="{DynamicResource GuiAccentText}" Margin="8,0" />
+          <TextBlock Grid.Column="2" Text="{Binding UserMessageCount}" FontSize="10"
+                     Foreground="{DynamicResource GuiMutedText}" />
+        </Grid>
+        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+          <TextBlock Grid.Column="0" Text="AI 消息" FontSize="10" Foreground="{DynamicResource GuiSecondaryText}" />
+          <ProgressBar Grid.Column="1" Value="{Binding AssistantMessageCountForTest}" Maximum="{Binding MessageCount}"
+                       Height="4" CornerRadius="2" Foreground="{DynamicResource GuiSuccessText}" Margin="8,0" />
+          <TextBlock Grid.Column="2" Text="{Binding AssistantMessageCountForTest}" FontSize="10"
+                     Foreground="{DynamicResource GuiMutedText}" />
+        </Grid>
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</UserControl>

@@ -803,6 +803,39 @@ public class ActorBaseTest {
         await TestWaitHelper.WaitUntilAsync(() => fsm.State == TurnstileState.Open, TimeSpan.FromMilliseconds(500));
         fsm.Data.Count.Should().Be(1);
     }
+
+    /// <summary>TestProbe 发消息并期望回复(Akka TestKit 对齐)</summary>
+    [Fact]
+    public async Task TestProbe_Send_ExpectMsg() {
+        await using var actor = new ProbeTargetActor();
+        await using var probe = new TestProbe();
+        probe.Send(actor, "hello");
+        var reply = await probe.ExpectMsgAsync<string>(TimeSpan.FromSeconds(1));
+        reply.Should().Be("echo-hello");
+    }
+
+    /// <summary>TestProbe ExpectMsg 类型不匹配抛异常(Akka TestKit 对齐)</summary>
+    [Fact]
+    public async Task TestProbe_ExpectMsg_TypeMismatch_Throws() {
+        await using var actor = new ProbeTargetActor();
+        await using var probe = new TestProbe();
+        probe.Send(actor, "hello");
+        await FluentActions.Awaiting(() => probe.ExpectMsgAsync<int>(TimeSpan.FromSeconds(1)))
+            .Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    /// <summary>TestProbe Reply 回复 Actor(Akka TestKit 对齐)</summary>
+    [Fact]
+    public async Task TestProbe_Reply_ToActor() {
+        await using var actor = new ProbeReplyActor();
+        await using var probe = new TestProbe();
+        actor.Tell("ask", probe);
+        var question = await probe.ExpectMsgAsync<string>(TimeSpan.FromSeconds(1));
+        question.Should().Be("what?");
+        probe.Reply("answer");
+        await TestWaitHelper.WaitUntilAsync(() => actor.ReceivedAnswer, TimeSpan.FromMilliseconds(500));
+        actor.ReceivedAnswer.Should().BeTrue();
+    }
 }
 
 /// <summary>
@@ -980,6 +1013,28 @@ internal sealed class TurnstileFsm : ActorFsm<TurnstileState, TurnstileData, Tur
     private FsmResult<TurnstileState, TurnstileData> HandleOpen(TurnstileCommand cmd, TurnstileData data, CancellationToken ct) {
         if (cmd == TurnstileCommand.Coin) return GoTo(TurnstileState.Closed);
         return Stay();
+    }
+}
+
+/// <summary>TestProbe 目标 Actor — 收到消息后回复 echo-{msg}(Akka TestKit 对齐)</summary>
+internal sealed class ProbeTargetActor : ActorBase<object, Unit> {
+    protected override void Handle(object command, CancellationToken ct) {
+        if (command is string msg && Sender is IActorTell<object> replyTo) {
+            replyTo.Tell($"echo-{msg}", this);
+        }
+    }
+}
+
+/// <summary>TestProbe 回复测试 Actor — 发问题给 sender,等回复后记录(Akka TestKit 对齐)</summary>
+internal sealed class ProbeReplyActor : ActorBase<object, Unit> {
+    public bool ReceivedAnswer;
+    protected override void Handle(object command, CancellationToken ct) {
+        if (command is string s && s == "ask" && Sender is IActorTell<object> probe) {
+            probe.Tell("what?", this);
+        }
+        if (command is string s2 && s2 == "answer") {
+            ReceivedAnswer = true;
+        }
     }
 }
 

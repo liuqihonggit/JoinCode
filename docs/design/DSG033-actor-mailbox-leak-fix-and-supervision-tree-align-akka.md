@@ -438,6 +438,12 @@ public sealed record BackoffStrategy(
 | R1: ActorBase 重构拆分（ActorBehaviorStack/ActorMessageStash/ActorInFlightRegistry） | ActorBase.cs 943→757 行 | ✅ | ✅ 564 测试通过 |
 | R2: 防御守卫（Become/Watch/Stash null 检查） | API 健壮性 | ✅ | ✅ 3 守卫测试通过 |
 | R3: LockRegistryConfig 不可变快照（LockRegistryConfig.cs） | 多线程配置竞态消除 | ✅ | ✅ 20 次并行测试稳定 |
+| S14: PoisonPill + GracefulStop（IPoisonPill + ActorGracefulStop） | 毒丸消息自动停止 + 优雅停止 | ✅ | ✅ 4 测试通过 |
+| S15: Identify/ActorIdentity（IIdentify + ActorIdentify） | Actor 身份查询 | ✅ | ✅ 2 测试通过 |
+| S16: Inbox（Channel + Send/ReceiveAsync） | 测试用消息收件箱 | ✅ | ✅ 3 测试通过 |
+| S17: IActorContext（Self/Sender/IsDisposed 统一入口） | Actor 上下文封装 | ✅ | ✅ 2 测试通过 |
+| S18: ActorSelection（路径寻址 + Tell/IdentifyAsync） | 解耦路径寻址发消息 | ✅ | ✅ 3 测试通过 |
+| S19: ActorFsm（StartWith/When/GoTo/Stay/Using） | 有限状态机 | ✅ | ✅ 4 测试通过 |
 
 ---
 
@@ -476,3 +482,9 @@ public sealed record BackoffStrategy(
 <!-- 原因: 用户要求全部对齐 Akka；ActorBase.cs 943 行太长拆分为 ActorBehaviorStack/ActorMessageStash/ActorInFlightRegistry 组合件；LockDiagnosis flaky 根因是 TryLockAsync 和 OnAcquired 用不同配置读取有竞态窗口，用 LockRegistryConfig 不可变 record+统一快照消除 -->
 <!-- 替代方案: [Collection] 限制并行（逃避问题，用户拒绝）；LockRegistry 非静态化（巨大工程，暂不采用） -->
 <!-- 验证: 564 测试全通过，20 次并行测试稳定 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-05 -->
+<!-- 决策: 6 个 Akka API 对齐（S14-S19）+ JCC10001 文件数限制 20→40 -->
+<!-- 原因: 用户要求继续对齐 Akka API；PoisonPill 用 fire-and-forget DisposeAsync 避免 Consumer 线程死锁；Identify 用 ReplyChannel 包装 TCS 实现类型安全回复；Inbox 用 Channel 缓冲消息；ActorContext 轻量封装 ActorBase 已有能力；ActorSelection 泛型 Tell 类型安全；ActorFsm 继承 ActorBase 用状态处理函数表 -->
+<!-- 替代方案: Context API 可不实现（语法糖），但用户要求全部对齐；ActorSelection 可用反射（不类型安全，放弃） -->
+<!-- 验证: 582 测试全通过 ✅ -->

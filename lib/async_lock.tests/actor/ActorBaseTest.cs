@@ -768,6 +768,41 @@ public class ActorBaseTest {
         await TestWaitHelper.WaitUntilAsync(() => actor.CapturedSender is not null, TimeSpan.FromMilliseconds(500));
         actor.CapturedSender.Should().BeSameAs(sender);
     }
+
+    /// <summary>FSM 初始状态正确(Akka 对齐)</summary>
+    [Fact]
+    public async Task FSM_InitialState_Correct() {
+        await using var fsm = new TurnstileFsm();
+        fsm.State.Should().Be(TurnstileState.Closed);
+        fsm.Data.Count.Should().Be(0);
+    }
+
+    /// <summary>FSM GoTo 状态转换(Akka 对齐)</summary>
+    [Fact]
+    public async Task FSM_GoTo_StateTransition() {
+        await using var fsm = new TurnstileFsm();
+        fsm.Tell(TurnstileCommand.Push);
+        await TestWaitHelper.WaitUntilAsync(() => fsm.State == TurnstileState.Open, TimeSpan.FromMilliseconds(500));
+        fsm.State.Should().Be(TurnstileState.Open);
+    }
+
+    /// <summary>FSM Stay 保持状态(Akka 对齐)</summary>
+    [Fact]
+    public async Task FSM_Stay_KeepState() {
+        await using var fsm = new TurnstileFsm();
+        fsm.Tell(TurnstileCommand.Coin);
+        await Task.Delay(100);
+        fsm.State.Should().Be(TurnstileState.Closed);
+    }
+
+    /// <summary>FSM Using 更新数据(Akka 对齐)</summary>
+    [Fact]
+    public async Task FSM_Using_UpdateData() {
+        await using var fsm = new TurnstileFsm();
+        fsm.Tell(TurnstileCommand.Push);
+        await TestWaitHelper.WaitUntilAsync(() => fsm.State == TurnstileState.Open, TimeSpan.FromMilliseconds(500));
+        fsm.Data.Count.Should().Be(1);
+    }
 }
 
 /// <summary>
@@ -914,6 +949,37 @@ internal sealed class ContextActor : ActorBase<string, Unit> {
     protected override void Handle(string command, CancellationToken ct) {
         if (command == "get-self") CapturedSelf = Context.Self;
         if (command == "get-sender") CapturedSender = Context.Sender;
+    }
+}
+
+/// <summary>Turnstile FSM 状态(Akka FSM 对齐)</summary>
+internal enum TurnstileState { Closed, Open }
+
+/// <summary>Turnstile FSM 命令</summary>
+internal enum TurnstileCommand { Push, Coin }
+
+/// <summary>Turnstile FSM 数据</summary>
+internal sealed record TurnstileData(int Count);
+
+/// <summary>Turnstile FSM — Push 开门,Coin 关门,计数 Push 次数(Akka FSM 对齐)</summary>
+internal sealed class TurnstileFsm : ActorFsm<TurnstileState, TurnstileData, TurnstileCommand, Unit> {
+    public TurnstileState State => CurrentState;
+    public TurnstileData Data => CurrentData;
+
+    protected override void PreStart() {
+        When(TurnstileState.Closed, HandleClosed);
+        When(TurnstileState.Open, HandleOpen);
+        StartWith(TurnstileState.Closed, new TurnstileData(0));
+    }
+
+    private FsmResult<TurnstileState, TurnstileData> HandleClosed(TurnstileCommand cmd, TurnstileData data, CancellationToken ct) {
+        if (cmd == TurnstileCommand.Push) return GoTo(TurnstileState.Open).Using(new TurnstileData(data.Count + 1));
+        return Stay();
+    }
+
+    private FsmResult<TurnstileState, TurnstileData> HandleOpen(TurnstileCommand cmd, TurnstileData data, CancellationToken ct) {
+        if (cmd == TurnstileCommand.Coin) return GoTo(TurnstileState.Closed);
+        return Stay();
     }
 }
 

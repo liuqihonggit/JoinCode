@@ -720,6 +720,35 @@ public class ActorBaseTest {
         await FluentActions.Awaiting(() => ActorIdentify.IdentifyAsync(actor, "identify", TimeSpan.FromMilliseconds(50)))
             .Should().ThrowAsync<TimeoutException>();
     }
+
+    /// <summary>Inbox 发消息给 Actor,Actor 回复,Inbox 收到回复(Akka 对齐)</summary>
+    [Fact]
+    public async Task Inbox_SendActor_ReceivesReply() {
+        await using var actor = new ReplyActor();
+        await using var inbox = new Inbox();
+        inbox.Send(actor, "hello");
+        var reply = await inbox.ReceiveAsync(TimeSpan.FromSeconds(1));
+        reply.Should().Be("reply-hello");
+    }
+
+    /// <summary>Inbox 超时抛 TimeoutException(Akka 对齐)</summary>
+    [Fact]
+    public async Task Inbox_ReceiveTimeout_ThrowsTimeoutException() {
+        await using var inbox = new Inbox();
+        await FluentActions.Awaiting(() => inbox.ReceiveAsync(TimeSpan.FromMilliseconds(50)))
+            .Should().ThrowAsync<TimeoutException>();
+    }
+
+    /// <summary>Inbox ReceiveWhere 等待满足条件的消息(Akka 对齐)</summary>
+    [Fact]
+    public async Task Inbox_ReceiveWhere_FiltersMessages() {
+        await using var actor = new ReplyActor();
+        await using var inbox = new Inbox();
+        inbox.Send(actor, "a");
+        inbox.Send(actor, "b");
+        var reply = await inbox.ReceiveWhereAsync(m => m is string s && s == "reply-b", TimeSpan.FromSeconds(1));
+        reply.Should().Be("reply-b");
+    }
 }
 
 /// <summary>
@@ -848,6 +877,15 @@ internal sealed class NoPoisonPillActor : ActorBase<string, Unit> {
 /// <summary>无 Identify 支持的 Actor — TCommand=string 无法接收 IdentifyMessage</summary>
 internal sealed class NoIdentifyActor : ActorBase<string, Unit> {
     protected override void Handle(string command, CancellationToken ct) { }
+}
+
+/// <summary>回复测试 Actor — 收到消息后通过 Sender.Tell 回复(Akka 对齐)</summary>
+internal sealed class ReplyActor : ActorBase<object, Unit> {
+    protected override void Handle(object command, CancellationToken ct) {
+        if (command is string msg && Sender is Inbox inbox) {
+            inbox.Tell($"reply-{msg}");
+        }
+    }
 }
 
 /// <summary>防御守卫测试 Actor — 暴露 protected Become/BecomeStacked/Stash 供测试调用</summary>

@@ -442,6 +442,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     internal bool ProcessSingleCommand(TCommand cmd, CancellationToken ct) {
         CheckInputWatermark();
         try {
+            OnBeforeProcessCommand();
             if (_idempotencyGate.TryRestore(cmd)) {
                 return true;
             }
@@ -458,6 +459,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         }
         return true;
     }
+
+    /// <summary>处理命令前检查 — 子类可重写以加前置守卫(如 DeathPact:watch 的子终止后抛异常)</summary>
+    protected virtual void OnBeforeProcessCommand() { }
 
     /// <summary>安全调用 OnConsumerError — 回调异常吞掉记日志(不传播,不中断 Consumer)</summary>
     private void HandleConsumerErrorSafe(Exception ex) {

@@ -216,6 +216,38 @@ public class SupervisedActorTest {
         sawTerminated.Should().BeFalse("Unwatch 后不应收到 Terminated 事件");
     }
 
+    /// <summary>DeathPact: watch(deathPact:true) 的子终止后,父处理下一条命令时抛 DeathPactException(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task DeathPact_子终止后父抛DeathPactException() {
+        await using var parent = new TestSupervisedActor();
+        var child = await parent.SpawnTestChild("c1");
+        parent.WatchTestChild(child, deathPact: true);
+
+        await child.StopAsync();
+
+        parent.Tell(new TestSupervisedActor.NoopCmd());
+
+        await TestWaitHelper.WaitUntilAsync(() => parent.LastConsumerError is not null, TimeSpan.FromMilliseconds(500));
+
+        parent.LastConsumerError.Should().BeOfType<DeathPactException>("watch(deathPact:true) 的子终止后应抛 DeathPactException");
+    }
+
+    /// <summary>DeathPact: watch(deathPact:false) 的子终止后,父不抛异常(仅通知)(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task DeathPact_不启用_子终止后父不抛异常() {
+        await using var parent = new TestSupervisedActor();
+        var child = await parent.SpawnTestChild("c1");
+        parent.WatchTestChild(child, deathPact: false);
+
+        await child.StopAsync();
+
+        parent.Tell(new TestSupervisedActor.NoopCmd());
+
+        await TestWaitHelper.WaitUntilAsync(() => parent.OutputCount >= 1, TimeSpan.FromMilliseconds(500));
+
+        parent.LastConsumerError.Should().BeNull("deathPact=false 时不应抛异常");
+    }
+
     /// <summary>
     /// AllForOne 语义对齐 Akka: 任何子超出重启限制 → 全部 Stop(不重启)(DSG033 API对齐)。
     /// </summary>
@@ -242,10 +274,12 @@ public class SupervisedActorTest {
 /// </summary>
 internal sealed class TestSupervisedActor : SupervisedActor<TestSupervisedActor.ICommand> {
     internal interface ICommand;
+    internal sealed record NoopCmd : ICommand;
 
     private readonly List<(string, Exception)> _failureReports = new();
 
     public List<(string, Exception)> FailureReports => _failureReports;
+    public Exception? LastConsumerError;
 
     protected override ValueTask OnChildFailureAsync(ChildActorHandle child, Exception ex, CancellationToken ct) {
         _failureReports.Add((child.Id, ex));
@@ -254,6 +288,10 @@ internal sealed class TestSupervisedActor : SupervisedActor<TestSupervisedActor.
 
     protected override void Handle(ICommand command, CancellationToken ct) { }
 
+    protected override void OnConsumerError(Exception ex) {
+        LastConsumerError = ex;
+    }
+
     public async ValueTask<ChildActorHandle> SpawnTestChild(string id, SupervisorStrategy? strategy = null) {
         return await SpawnChildAsync(id, _ => new ValueTask<IAsyncDisposable>(new DisposableStub()), strategy ?? SupervisorStrategy.OneForOne);
     }
@@ -261,7 +299,7 @@ internal sealed class TestSupervisedActor : SupervisedActor<TestSupervisedActor.
     public IReadOnlyCollection<ChildActorHandle> GetTestChildren() => GetChildren();
     public ChildActorHandle? GetTestChild(string id) => GetChild(id);
     public ValueTask StopAllTestChildrenAsync() => StopAllChildrenAsync();
-    public void WatchTestChild(ChildActorHandle child) => Watch(child);
+    public void WatchTestChild(ChildActorHandle child, bool deathPact = false) => Watch(child, deathPact);
     public void UnwatchTestChild(ChildActorHandle child) => Unwatch(child);
 }
 

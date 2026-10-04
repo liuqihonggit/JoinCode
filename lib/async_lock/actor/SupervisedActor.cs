@@ -266,6 +266,8 @@ public sealed record Terminated(string ChildId, TerminationReason Reason) : Supe
 /// <typeparam name="TCommand">命令类型</typeparam>
 public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, SupervisorEvent> {
     private readonly ConcurrentDictionary<string, ChildActorHandle> _children = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, byte> _deathPactChildren = new(StringComparer.Ordinal);
+    private volatile bool _deathPactPending;
 
     /// <summary>构造监督 Actor — 无背压(无界通道)</summary>
     protected SupervisedActor() : base() { }
@@ -336,18 +338,36 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
     /// <summary>
     /// 监视子 Actor — 子终止时本 Actor 通过 OutputAsync 收到 Terminated 事件(DSG033 S3)。
     /// <para>对齐 Akka context.watch: 被动感知子 Actor 终止,无需主动轮询。</para>
+    /// <para><paramref name="deathPact"/>=true 时启用 DeathPact:子终止后本 Actor 处理下一条命令时抛 <see cref="DeathPactException"/>(Akka 对齐)。</para>
     /// </summary>
-    protected void Watch(ChildActorHandle child) {
+    /// <param name="child">被监视的子 Actor</param>
+    /// <param name="deathPact">true=子终止后本 Actor 自动失败(DeathPact);false=仅通知不失败</param>
+    protected void Watch(ChildActorHandle child, bool deathPact = false) {
         child.Terminated += OnChildTerminated;
+        if (deathPact) {
+            _deathPactChildren.TryAdd(child.Id, 0);
+        }
     }
 
     /// <summary>取消监视子 Actor — 不再接收其 Terminated 事件(DSG033 S3)</summary>
     protected void Unwatch(ChildActorHandle child) {
         child.Terminated -= OnChildTerminated;
+        _deathPactChildren.TryRemove(child.Id, out _);
     }
 
     private void OnChildTerminated(ChildActorHandle child, TerminationReason reason) {
         TryPublish(new Terminated(child.Id, reason));
+        if (_deathPactChildren.ContainsKey(child.Id)) {
+            _deathPactPending = true;
+        }
+    }
+
+    /// <summary>DeathPact 检查 — watch(deathPact:true) 的子终止后,处理下一条命令时抛 DeathPactException(Akka 对齐)</summary>
+    protected override void OnBeforeProcessCommand() {
+        if (_deathPactPending) {
+            _deathPactPending = false;
+            throw new DeathPactException("watch 的子 Actor 终止,本 Actor 未处理 Terminated,触发 DeathPact");
+        }
     }
 
     /// <summary>停止所有子 Actor — 父 Actor Dispose 时级联</summary>
@@ -369,4 +389,13 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
         await StopAllChildrenAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
+}
+
+/// <summary>
+/// DeathPact 异常 — watch(deathPact:true) 的子 Actor 终止后,父 Actor 未处理 Terminated 时抛出(Akka 对齐)。
+/// <para>语义:Actor watch 了子并启用 deathPact,子终止后父处理下一条命令时抛此异常,触发 OnConsumerError。</para>
+/// </summary>
+public sealed class DeathPactException : Exception {
+    /// <summary>初始化 DeathPact 异常</summary>
+    public DeathPactException(string message) : base(message) { }
 }

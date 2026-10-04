@@ -342,7 +342,9 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
     /// </summary>
     /// <param name="child">被监视的子 Actor</param>
     /// <param name="deathPact">true=子终止后本 Actor 自动失败(DeathPact);false=仅通知不失败</param>
+    /// <exception cref="ArgumentNullException">child 为 null</exception>
     protected void Watch(ChildActorHandle child, bool deathPact = false) {
+        ArgumentNullException.ThrowIfNull(child);
         child.Terminated += OnChildTerminated;
         if (deathPact) {
             _deathPactChildren.TryAdd(child.Id, 0);
@@ -350,7 +352,9 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
     }
 
     /// <summary>取消监视子 Actor — 不再接收其 Terminated 事件(DSG033 S3)</summary>
+    /// <exception cref="ArgumentNullException">child 为 null</exception>
     protected void Unwatch(ChildActorHandle child) {
+        ArgumentNullException.ThrowIfNull(child);
         child.Terminated -= OnChildTerminated;
         _deathPactChildren.TryRemove(child.Id, out _);
     }

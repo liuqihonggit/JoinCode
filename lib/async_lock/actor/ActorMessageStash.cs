@@ -28,7 +28,13 @@ internal sealed class ActorMessageStash<TCommand> {
     /// 暂存当前消息 — 存入内部队列,稍后 Unstash 取出处理(Akka 对齐)。
     /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程),Stash 后通常 return 不处理当前命令。</para>
     /// </summary>
-    public void Stash() => _stash.Enqueue(_current!);
+    /// <exception cref="InvalidOperationException">在 Handle 外调用(当前消息为 null)</exception>
+    public void Stash() {
+        if (_current is null) {
+            throw new InvalidOperationException("Stash() 必须在 Handle/行为内调用 — 当前无消息处理中");
+        }
+        _stash.Enqueue(_current);
+    }
 
     /// <summary>
     /// 取出一条暂存消息 — FIFO 顺序 Tell 回自己,进入 Channel 尾部(Akka 对齐)。

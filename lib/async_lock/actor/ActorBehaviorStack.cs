@@ -27,14 +27,20 @@ internal sealed class ActorBehaviorStack<TCommand> {
     /// <para>适合不可逆状态转换(如初始化→运行态)。</para>
     /// </summary>
     /// <param name="receive">新行为委托</param>
-    public void Become(ActorReceive<TCommand> receive) => _current = receive;
+    /// <exception cref="ArgumentNullException">receive 为 null</exception>
+    public void Become(ActorReceive<TCommand> receive) {
+        ArgumentNullException.ThrowIfNull(receive);
+        _current = receive;
+    }
 
     /// <summary>
     /// 压入新行为(入栈) — UnbecomeStacked 弹出恢复上一个行为。
     /// <para>可逆状态转换(如临时进入处理态后恢复)。</para>
     /// </summary>
     /// <param name="receive">新行为委托</param>
+    /// <exception cref="ArgumentNullException">receive 为 null</exception>
     public void BecomeStacked(ActorReceive<TCommand> receive) {
+        ArgumentNullException.ThrowIfNull(receive);
         _stack.Push(_current);
         _current = receive;
     }

@@ -462,6 +462,30 @@ public class ActorBaseTest {
         actor.State1Processed.Should().NotContain("msg2");
     }
 
+    /// <summary>Become(null) 抛 ArgumentNullException(防御守卫)</summary>
+    [Fact]
+    public async Task Become_null参数_抛ArgumentNullException() {
+        await using var actor = new GuardTestActor();
+        var act = () => actor.BecomeExposed(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    /// <summary>BecomeStacked(null) 抛 ArgumentNullException(防御守卫)</summary>
+    [Fact]
+    public async Task BecomeStacked_null参数_抛ArgumentNullException() {
+        await using var actor = new GuardTestActor();
+        var act = () => actor.BecomeStackedExposed(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    /// <summary>Stash() 在 Handle 外调用抛 InvalidOperationException(防御守卫)</summary>
+    [Fact]
+    public async Task Stash_在Handle外调用_抛InvalidOperationException() {
+        await using var actor = new GuardTestActor();
+        var act = () => actor.StashExposed();
+        act.Should().Throw<InvalidOperationException>();
+    }
+
     /// <summary>Tell 带 sender,Handle 中可通过 Sender 属性获取(DSG033 API对齐Akka)</summary>
     [Fact]
     public async Task Tell_带Sender_Handle中可获取Sender() {
@@ -735,6 +759,15 @@ internal sealed class PipeToActor : ActorBase<string, string> {
     protected override void Handle(string command, CancellationToken ct) {
         ProcessedCommands.Add(command);
     }
+}
+
+/// <summary>防御守卫测试 Actor — 暴露 protected Become/BecomeStacked/Stash 供测试调用</summary>
+internal sealed class GuardTestActor : ActorBase<string, string> {
+    protected override void Handle(string command, CancellationToken ct) { }
+
+    public void BecomeExposed(ActorReceive<string> receive) => Become(receive);
+    public void BecomeStackedExposed(ActorReceive<string> receive) => BecomeStacked(receive);
+    public void StashExposed() => Stash();
 }
 
 /// <summary>Stash 测试 Actor(DSG033 API对齐Akka)</summary>

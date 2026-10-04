@@ -25,21 +25,25 @@ public enum SupervisorDirective {
 public sealed record SupervisorStrategy(
     int MaxRestarts,
     TimeSpan Within,
-    Func<Exception, SupervisorDirective> Decider) {
+    Func<Exception, SupervisorDirective> Decider,
+    bool RestartAllSiblings = false) {
     /// <summary>OneForOne — 只重启失败的子 Actor,最多 3 次/分钟</summary>
     public static readonly SupervisorStrategy OneForOne = new(
         3, TimeSpan.FromMinutes(1),
-        static ex => ex is OperationCanceledException ? SupervisorDirective.Stop : SupervisorDirective.Restart);
+        static ex => ex is OperationCanceledException ? SupervisorDirective.Stop : SupervisorDirective.Restart,
+        RestartAllSiblings: false);
 
     /// <summary>AllForOne — 重启所有子 Actor(一个失败影响全部),最多 3 次/分钟</summary>
     public static readonly SupervisorStrategy AllForOne = new(
         3, TimeSpan.FromMinutes(1),
-        static ex => ex is OperationCanceledException ? SupervisorDirective.Stop : SupervisorDirective.Restart);
+        static ex => ex is OperationCanceledException ? SupervisorDirective.Stop : SupervisorDirective.Restart,
+        RestartAllSiblings: true);
 
     /// <summary>Escalate — 向上抛给父 Actor 处理</summary>
     public static readonly SupervisorStrategy Escalate = new(
         0, TimeSpan.MaxValue,
-        static _ => SupervisorDirective.Escalate);
+        static _ => SupervisorDirective.Escalate,
+        RestartAllSiblings: false);
 }
 
 /// <summary>
@@ -68,6 +72,7 @@ public sealed class ChildActorHandle : IAsyncDisposable {
     private readonly Func<CancellationToken, ValueTask<IAsyncDisposable>> _factory;
     private readonly SupervisorStrategy _strategy;
     private readonly Func<ChildActorHandle, Exception, CancellationToken, ValueTask> _onFailure;
+    private readonly Func<CancellationToken, ValueTask>? _restartAllSiblings;
     private IAsyncDisposable? _instance;
     private int _restartCount;
     private ImmutableList<DateTimeOffset> _restartTimes = ImmutableList<DateTimeOffset>.Empty;
@@ -91,11 +96,13 @@ public sealed class ChildActorHandle : IAsyncDisposable {
         string id,
         Func<CancellationToken, ValueTask<IAsyncDisposable>> factory,
         SupervisorStrategy strategy,
-        Func<ChildActorHandle, Exception, CancellationToken, ValueTask> onFailure) {
+        Func<ChildActorHandle, Exception, CancellationToken, ValueTask> onFailure,
+        Func<CancellationToken, ValueTask>? restartAllSiblings = null) {
         Id = id;
         _factory = factory;
         _strategy = strategy;
         _onFailure = onFailure;
+        _restartAllSiblings = restartAllSiblings;
     }
 
     /// <summary>启动子 Actor</summary>
@@ -112,7 +119,11 @@ public sealed class ChildActorHandle : IAsyncDisposable {
             State = ChildActorState.Running;
             break;
             case SupervisorDirective.Restart:
-            await RestartAsync(ct).ConfigureAwait(false);
+            if (_strategy.RestartAllSiblings && _restartAllSiblings is not null) {
+                await _restartAllSiblings(ct).ConfigureAwait(false);
+            } else {
+                await RestartAsync(ct).ConfigureAwait(false);
+            }
             break;
             case SupervisorDirective.Stop:
             await StopAsync().ConfigureAwait(false);
@@ -166,6 +177,9 @@ public sealed class ChildActorHandle : IAsyncDisposable {
         _instance = await _factory(ct).ConfigureAwait(false);
         State = ChildActorState.Running;
     }
+
+    /// <summary>重启本子 Actor — 供 AllForOne 父 Actor 批量调用(internal)</summary>
+    internal ValueTask RestartInternalAsync(CancellationToken ct) => RestartAsync(ct);
 
     /// <summary>停止子 Actor</summary>
     public async ValueTask StopAsync() {
@@ -226,11 +240,24 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
         string childId,
         Func<CancellationToken, ValueTask<IAsyncDisposable>> factory,
         SupervisorStrategy strategy) {
-        var handle = new ChildActorHandle(childId, factory, strategy, ReportChildFailureAsync);
+        var handle = new ChildActorHandle(childId, factory, strategy, ReportChildFailureAsync, RestartAllChildrenAsync);
         _children[childId] = handle;
         await handle.StartAsync(CancellationToken.None).ConfigureAwait(false);
         TryPublish(new SupervisorEvent(childId, ChildActorState.Running));
         return handle;
+    }
+
+    /// <summary>
+    /// 重启所有 Running 状态的子 Actor — AllForOne 策略使用(DSG033 S1)。
+    /// <para>已 Stopped/Failed 的子不参与重启。每个子独立计 RestartCount。</para>
+    /// </summary>
+    protected async ValueTask RestartAllChildrenAsync(CancellationToken ct) {
+        foreach (var child in _children.Values) {
+            if (child.State == ChildActorState.Running) {
+                await child.RestartInternalAsync(ct).ConfigureAwait(false);
+                TryPublish(new SupervisorEvent(child.Id, ChildActorState.Running, "all-for-one restart"));
+            }
+        }
     }
 
     /// <summary>获取所有子 Actor 句柄</summary>

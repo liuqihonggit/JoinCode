@@ -140,6 +140,41 @@ public class SupervisedActorTest {
         await using var parent = new TestSupervisedActor();
         parent.FailureReports.Should().BeEmpty();
     }
+
+    /// <summary>
+    /// AllForOne 策略: 一个子失败应重启所有兄弟子 Actor(DSG033 S1)。
+    /// 红测试: 当前只重启失败子,兄弟 RestartCount=0,断言=1 失败。
+    /// </summary>
+    [Fact]
+    public async Task AllForOne_OneChildFails_AllSiblingsRestarted() {
+        await using var parent = new TestSupervisedActor();
+        var h1 = await parent.SpawnTestChild("c1", SupervisorStrategy.AllForOne);
+        var h2 = await parent.SpawnTestChild("c2", SupervisorStrategy.AllForOne);
+        var h3 = await parent.SpawnTestChild("c3", SupervisorStrategy.AllForOne);
+
+        await h2.HandleTestFailureAsync(new InvalidOperationException("crash"));
+
+        h2.RestartCount.Should().Be(1);
+        h1.RestartCount.Should().Be(1, "AllForOne 应重启所有兄弟");
+        h3.RestartCount.Should().Be(1, "AllForOne 应重启所有兄弟");
+    }
+
+    /// <summary>
+    /// AllForOne 策略: 已 Stopped 的子不参与重启(DSG033 S1)。
+    /// </summary>
+    [Fact]
+    public async Task AllForOne_StoppedSiblingNotRestarted() {
+        await using var parent = new TestSupervisedActor();
+        var h1 = await parent.SpawnTestChild("c1", SupervisorStrategy.AllForOne);
+        var h2 = await parent.SpawnTestChild("c2", SupervisorStrategy.AllForOne);
+
+        await h1.StopAsync();
+        await h2.HandleTestFailureAsync(new InvalidOperationException("crash"));
+
+        h2.RestartCount.Should().Be(1);
+        h1.RestartCount.Should().Be(0, "已 Stopped 的子不参与 AllForOne 重启");
+        h1.State.Should().Be(ChildActorState.Stopped);
+    }
 }
 
 /// <summary>

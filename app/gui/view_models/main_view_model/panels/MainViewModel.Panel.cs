@@ -44,7 +44,7 @@ public sealed partial class MainViewModel {
     [NotifyPropertyChangedFor(nameof(IsPanelTabLog))]
     [NotifyPropertyChangedFor(nameof(IsPanelTabTerminal))]
     [NotifyPropertyChangedFor(nameof(IsPanelTabProblems))]
-    private bool _isPanelOpen;
+    private bool _isPanelOpen = true;
 
     /// <summary>当前激活的面板标签</summary>
     [ObservableProperty]
@@ -52,7 +52,7 @@ public sealed partial class MainViewModel {
     [NotifyPropertyChangedFor(nameof(IsPanelTabLog))]
     [NotifyPropertyChangedFor(nameof(IsPanelTabTerminal))]
     [NotifyPropertyChangedFor(nameof(IsPanelTabProblems))]
-    private PanelTabKind _activePanelTab = PanelTabKind.Output;
+    private PanelTabKind _activePanelTab = PanelTabKind.Log;
 
     /// <summary>面板位置 — 底部/右侧/左侧/顶部</summary>
     [ObservableProperty]

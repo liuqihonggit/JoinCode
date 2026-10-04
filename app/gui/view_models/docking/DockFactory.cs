@@ -8,6 +8,7 @@ namespace JoinCode.Gui.ViewModels.Docking;
 public sealed class DockFactory : Factory {
     private IRootDock? _root;
     private IToolDock? _leftToolDock;
+    private IDocumentDock? _documentDock;
     private readonly object _context;
 
     /// <param name="context">主 ViewModel，设为每个 Tool/Document 的 Context 供 View 绑定</param>
@@ -32,20 +33,15 @@ public sealed class DockFactory : Factory {
             VisibleDockables = CreateList<IDockable>(sessions, fileTree, goal, interceptor, chatRoom, settings)
         };
 
-        var messageArea = new MessageAreaDocument {
-            Id = "MessageArea",
-            Title = "消息区",
-            Context = _context
-        };
-
+        var messageDocs = CreateMessageDocuments();
         var documentDock = new DocumentDock {
             Id = "Documents",
             Title = "文档",
             IsCollapsable = false,
             CanCreateDocument = false,
             EnableWindowDrag = true,
-            ActiveDockable = messageArea,
-            VisibleDockables = CreateList<IDockable>(messageArea)
+            ActiveDockable = messageDocs[0],
+            VisibleDockables = messageDocs
         };
 
         var inputBar = new InputBarTool {
@@ -66,14 +62,35 @@ public sealed class DockFactory : Factory {
             CanFloat = true
         };
 
-        var bottomToolDock = new ToolDock {
-            Id = "BottomTools",
-            Title = "底部面板",
-            Alignment = Alignment.Bottom,
-            Proportion = 0.35,
+        var bottomLeftDock = new ToolDock {
+            Id = "BottomLeftTools",
+            Title = "终端/日志",
+            Alignment = Alignment.Left,
+            Proportion = 0.5,
+            GripMode = GripMode.Visible,
+            ActiveDockable = terminal,
+            VisibleDockables = CreateList<IDockable>(terminal)
+        };
+
+        var bottomRightDock = new ToolDock {
+            Id = "BottomRightTools",
+            Title = "输入区",
+            Alignment = Alignment.Right,
+            Proportion = 0.5,
             GripMode = GripMode.Visible,
             ActiveDockable = inputBar,
-            VisibleDockables = CreateList<IDockable>(inputBar, terminal)
+            VisibleDockables = CreateList<IDockable>(inputBar)
+        };
+
+        var bottomLayout = new ProportionalDock {
+            Id = "Bottom",
+            Title = "底部区",
+            Orientation = Dock.Model.Core.Orientation.Horizontal,
+            ActiveDockable = bottomLeftDock,
+            VisibleDockables = CreateList<IDockable>(
+                bottomLeftDock,
+                new ProportionalDockSplitter { CanResize = true, ResizePreview = true },
+                bottomRightDock)
         };
 
         var centerLayout = new ProportionalDock {
@@ -84,7 +101,7 @@ public sealed class DockFactory : Factory {
             VisibleDockables = CreateList<IDockable>(
                 documentDock,
                 new ProportionalDockSplitter { CanResize = true, ResizePreview = true },
-                bottomToolDock)
+                bottomLayout)
         };
 
         var mainLayout = new ProportionalDock {
@@ -108,16 +125,76 @@ public sealed class DockFactory : Factory {
 
         _root = root;
         _leftToolDock = leftToolDock;
+        _documentDock = documentDock;
         return root;
     }
 
-    /// <summary>初始化布局 — 注册 HostWindowLocator，委托基类，默认收拢左侧面板</summary>
+    /// <summary>为每个会话创建一个消息区 Document，无会话时创建默认</summary>
+    private List<IDockable> CreateMessageDocuments() {
+        var docs = new List<IDockable>();
+        if (_context is MainViewModel vm && vm.Sessions.Count > 0) {
+            foreach (var session in vm.Sessions) {
+                docs.Add(new MessageAreaDocument {
+                    Id = $"Msg_{session.Id}",
+                    Title = session.Title,
+                    Context = _context
+                });
+            }
+        } else {
+            docs.Add(new MessageAreaDocument { Id = "MessageArea", Title = "消息区", Context = _context });
+        }
+        return docs;
+    }
+
+    /// <summary>初始化布局 — 注册 HostWindowLocator，委托基类，默认收拢左侧面板，监听会话变化</summary>
     public override void InitLayout(IDockable layout) {
         HostWindowLocator = new Dictionary<string, Func<IHostWindow?>> {
             [nameof(IDockWindow)] = () => new Dock.Avalonia.Controls.HostWindow()
         };
         base.InitLayout(layout);
         DefaultPinLeftPanels();
+        WatchSessionChanges();
+    }
+
+    /// <summary>监听 Sessions 集合变化，动态增删消息区 Document</summary>
+    private void WatchSessionChanges() {
+        if (_context is not MainViewModel vm) return;
+        if (_documentDock is not { } dock) return;
+        vm.Sessions.CollectionChanged += (_, e) => OnSessionsChanged(dock, e);
+    }
+
+    /// <summary>Sessions 集合变化处理 — 扁平化避免深嵌套</summary>
+    private void OnSessionsChanged(IDocumentDock dock, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) {
+        if (e.NewItems is not null) AddSessionDocuments(dock, e.NewItems);
+        if (e.OldItems is not null) RemoveSessionDocuments(dock, e.OldItems);
+    }
+
+    /// <summary>新增会话 → 创建对应 Document 并激活</summary>
+    private void AddSessionDocuments(IDocumentDock dock, System.Collections.IList newItems) {
+        dock.VisibleDockables ??= CreateList<IDockable>();
+        foreach (SessionItem s in newItems) {
+            var doc = new MessageAreaDocument { Id = $"Msg_{s.Id}", Title = s.Title, Context = _context };
+            dock.VisibleDockables.Add(doc);
+            dock.ActiveDockable = doc;
+        }
+    }
+
+    /// <summary>删除会话 → 移除对应 Document</summary>
+    private void RemoveSessionDocuments(IDocumentDock dock, System.Collections.IList oldItems) {
+        var list = dock.VisibleDockables;
+        if (list is null) return;
+        foreach (SessionItem s in oldItems) {
+            for (var i = list.Count - 1; i >= 0; i--) {
+                if (list[i].Id == $"Msg_{s.Id}") list.RemoveAt(i);
+            }
+        }
+    }
+
+    /// <summary>激活指定会话的 Document — 供会话选中时调用</summary>
+    public void ActivateSession(string sessionId) {
+        if (_documentDock?.VisibleDockables is not { } list) return;
+        var doc = list.FirstOrDefault(d => d.Id == $"Msg_{sessionId}");
+        if (doc is not null) _documentDock.ActiveDockable = doc;
     }
 
     /// <summary>把左侧面板默认 pin（收拢为侧边图标条），鼠标悬停才展开</summary>

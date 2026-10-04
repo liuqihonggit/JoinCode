@@ -38,6 +38,7 @@ public sealed partial class MainViewModel {
         _activeSession = item;
         Messages.Clear();
         _session.SwitchSession(item.Id);
+        _dockFactory?.ActivateSession(item.Id);
         OnPropertyChanged(nameof(Sessions));
     }
 
@@ -110,6 +111,7 @@ public sealed partial class MainViewModel {
             s.IsSelected = s == session;
         _activeSession = session;
         _session.SwitchSession(session.Id);
+        _dockFactory?.ActivateSession(session.Id);
 
         // 需求11：子会话点击展示内容（SubSessionMessages 缓存或引擎加载）
         if (session.IsSubSession) {

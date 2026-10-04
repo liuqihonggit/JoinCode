@@ -1,8 +1,7 @@
 namespace JoinCode.Gui.Views.Docking;
 
 /// <summary>
-/// Dock 面板 View 映射 — 根据 <see cref="ViewModels.Docking.PanelTool.Kind"/> 创建对应面板 View。
-/// <see cref="ViewModels.Docking.MessageAreaDocument"/> 映射到 <see cref="MessageAreaView"/>。
+/// Dock 面板 View 映射 — 根据 dockable 类型创建对应 View。
 /// DataContext 继承 Dock Tool/Document 的 Context（即 MainViewModel），保持现有绑定路径不变。
 /// </summary>
 public sealed class PanelViewLocator : IDataTemplate {
@@ -12,12 +11,19 @@ public sealed class PanelViewLocator : IDataTemplate {
             case PanelTool tool:
                 return BuildPanelView(tool);
             case MessageAreaDocument doc:
-                var view = new MessageAreaView();
-                view.DataContext = doc.Context;
-                return view;
+                return BuildWithContext(new MessageAreaView(), doc.Context);
+            case InputBarTool inputBar:
+                return BuildWithContext(new InputBarView(), inputBar.Context);
+            case TerminalTool terminal:
+                return BuildWithContext(new PanelView(), terminal.Context);
             default:
                 return new TextBlock { Text = data?.ToString() ?? "" };
         }
+    }
+
+    private static Control BuildWithContext(Control view, object? context) {
+        view.DataContext = context;
+        return view;
     }
 
     private Control BuildPanelView(PanelTool tool) {

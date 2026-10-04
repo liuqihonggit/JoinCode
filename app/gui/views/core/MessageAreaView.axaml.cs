@@ -1,8 +1,9 @@
 namespace JoinCode.Gui.Views;
 
 /// <summary>
-/// 消息区 View — 消息列表+编辑器+面板+斜杠补全+输入栏+错误 toast。
-/// 从 MainWindow 提取，DataContext 为 MainViewModel。
+/// 消息区 View — 消息列表+编辑器+斜杠补全+错误 toast。
+/// InputBar 和 PanelView 已提取为独立 Dock Tool，由 DockFactory 管理。
+/// DataContext 为 MainViewModel。
 /// </summary>
 public sealed partial class MessageAreaView : UserControl {
     private MainViewModel? _vm;
@@ -21,21 +22,6 @@ public sealed partial class MessageAreaView : UserControl {
 
     private int _errorToastRemainingMs;
 
-    /// <summary>面板拖拽调整大小 — 起始 Y 坐标</summary>
-    private double _panelResizeStartY;
-
-    /// <summary>面板拖拽调整大小 — 起始 X 坐标</summary>
-    private double _panelResizeStartX;
-
-    /// <summary>面板拖拽调整大小 — 起始高度</summary>
-    private double _panelResizeStartHeight;
-
-    /// <summary>面板拖拽调整大小 — 起始宽度</summary>
-    private double _panelResizeStartWidth;
-
-    /// <summary>面板拖拽中标志</summary>
-    private bool _isPanelResizing;
-
     /// <summary>初始化 MessageAreaView 实例</summary>
     public MessageAreaView() {
         InitializeComponent();
@@ -43,11 +29,8 @@ public sealed partial class MessageAreaView : UserControl {
         DataContextChanged += OnDataContextChanged;
     }
 
-    /// <summary>斜杠补全面板 — 供 MainWindow 全局点击检测</summary>
+    /// <summary>斜杠补全面板 — 供外部全局点击检测</summary>
     public SlashPaletteView? SlashPaletteControl => SlashPalette;
-
-    /// <summary>输入栏 — 供 MainWindow 焦点控制</summary>
-    public InputBarView? InputBarControl => InputBar;
 
     /// <summary>滚动到底部 — 供外部调用</summary>
     public void ScrollToBottom() {
@@ -71,65 +54,9 @@ public sealed partial class MessageAreaView : UserControl {
     }
 
     /// <summary>点击候选项完成补全 → 回焦输入框</summary>
-    private void OnSlashPaletteCompleted(object? sender, RoutedEventArgs e) => InputBar?.FocusInput();
-
-    /// <summary>面板拖拽手柄按下 — 记录起始位置</summary>
-    private void OnPanelResizePointerPressed(object? sender, PointerPressedEventArgs e) {
-        if (_vm is null)
-            return;
-        _panelResizeStartX = e.GetCurrentPoint(this).Position.X;
-        _panelResizeStartY = e.GetCurrentPoint(this).Position.Y;
-        _panelResizeStartHeight = _vm.PanelHeight;
-        _panelResizeStartWidth = _vm.PanelWidth;
-        _isPanelResizing = true;
-        e.Pointer.Capture(sender as Avalonia.Input.IInputElement);
-        e.Handled = true;
-    }
-
-    /// <summary>面板拖拽手柄移动 — 实时更新面板大小</summary>
-    private void OnPanelResizePointerMoved(object? sender, PointerEventArgs e) {
-        if (!_isPanelResizing || _vm is null)
-            return;
-        var dx = e.GetCurrentPoint(this).Position.X - _panelResizeStartX;
-        var dy = e.GetCurrentPoint(this).Position.Y - _panelResizeStartY;
-        if (_vm.IsPanelTop)
-            _vm.PanelHeight = Math.Clamp(_panelResizeStartHeight - dy, 0, 800);
-        else if (_vm.IsPanelBottom)
-            _vm.PanelHeight = Math.Clamp(_panelResizeStartHeight + dy, 0, 800);
-        else if (_vm.IsPanelLeft)
-            _vm.PanelWidth = Math.Clamp(_panelResizeStartWidth - dx, 0, 800);
-        else if (_vm.IsPanelRight)
-            _vm.PanelWidth = Math.Clamp(_panelResizeStartWidth + dx, 0, 800);
-        e.Handled = true;
-    }
-
-    /// <summary>面板拖拽手柄释放 — 结束拖拽</summary>
-    private void OnPanelResizePointerReleased(object? sender, PointerReleasedEventArgs e) {
-        if (!_isPanelResizing)
-            return;
-        _isPanelResizing = false;
-        e.Pointer.Capture(null);
-        e.Handled = true;
-    }
-
-    /// <summary>面板拖拽经过 — 允许 Move 效果</summary>
-    private void OnPanelDragOver(object? sender, DragEventArgs e) {
-        if (e.Data.Contains("PanelDrag"))
-            e.DragEffects = DragDropEffects.Move;
-        else
-            e.DragEffects = DragDropEffects.None;
-    }
-
-    /// <summary>拖拽释放到主区 — 根据鼠标 X 坐标决定停靠左/右</summary>
-    private void OnPanelDropMainArea(object? sender, DragEventArgs e) {
-        if (_vm is not null && e.Data.Contains("PanelDrag")) {
-            var topLevel = TopLevel.GetTopLevel(this);
-            if (topLevel is not null) {
-                var pos = e.GetPosition(topLevel);
-                _vm.ActivePanelDock = pos.X < topLevel.Bounds.Width / 2 ? DockPosition.Left : DockPosition.Right;
-            }
-        }
-        e.Handled = true;
+    private void OnSlashPaletteCompleted(object? sender, RoutedEventArgs e) {
+        // InputBar 现在是独立 Dock Tool，通过 VM 事件通知
+        _vm?.RequestFocusInput();
     }
 
     /// <summary>ViewModel 状态变化时联动 View（错误 toast、复制反馈、剪贴板）</summary>

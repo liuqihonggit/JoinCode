@@ -27,9 +27,8 @@
     </Style>
   </UserControl.Styles>
 
-  <!-- 右侧抽屉：固定宽 280，左边框分隔（Padding 12 对齐全局栏节奏） -->
-  <Border Width="312" Background="{DynamicResource GuiSettingsBackground}"
-          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1,0,0,0"
+  <!-- 设置面板：弹性填充 Dock 区域，Padding 12 对齐全局栏节奏 -->
+  <Border Background="{DynamicResource GuiSettingsBackground}"
           Padding="12,12" ClipToBounds="True">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel Spacing="12">

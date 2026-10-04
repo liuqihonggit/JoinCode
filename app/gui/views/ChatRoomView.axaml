@@ -36,7 +36,7 @@
       </StackPanel>
 
       <!-- 消息列表 -->
-      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="400">
+      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
         <ItemsControl ItemsSource="{Binding ChatRoomMessages}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:ChatRoomMessageVm">

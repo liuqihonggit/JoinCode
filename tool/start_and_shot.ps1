@@ -16,7 +16,7 @@ if (-not $p) {
 }
 Write-Output "GUI running: PID=$($p.Id), Title=$($p.MainWindowTitle)"
 
-# 截图
+# 截图 — 前置窗口确保可见
 Add-Type -AssemblyName System.Drawing
 Add-Type @'
 using System;
@@ -24,13 +24,20 @@ using System.Runtime.InteropServices;
 public class Win32Shot {
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
+  [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
 }
 '@
+# SW_RESTORE = 9
+[Win32Shot]::ShowWindow($p.MainWindowHandle, 9) | Out-Null
+Start-Sleep -Milliseconds 300
+[Win32Shot]::BringWindowToTop($p.MainWindowHandle) | Out-Null
+[Win32Shot]::SetForegroundWindow($p.MainWindowHandle) | Out-Null
+Start-Sleep -Milliseconds 1200
+
 $r = New-Object Win32Shot+RECT
 [Win32Shot]::GetWindowRect($p.MainWindowHandle, [ref]$r) | Out-Null
-[Win32Shot]::SetForegroundWindow($p.MainWindowHandle) | Out-Null
-Start-Sleep -Milliseconds 800
 $w = $r.Right - $r.Left
 $ht = $r.Bottom - $r.Top
 if ($w -le 0 -or $ht -le 0) {

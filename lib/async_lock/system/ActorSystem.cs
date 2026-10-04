@@ -45,6 +45,16 @@ public sealed class ActorSystem : IAsyncDisposable {
         return null;
     }
 
+    /// <summary>
+    /// 创建 ActorSelection — 通过路径寻址 Actor,支持 Tell/Identify(Akka 对齐)。
+    /// </summary>
+    /// <param name="path">Actor 路径(如 "my-actor")</param>
+    /// <returns>ActorSelection 实例</returns>
+    public ActorSelection ActorSelection(string path) {
+        ThrowIfDisposed();
+        return new ActorSelection(this, path);
+    }
+
     /// <summary>获取所有已注册顶层 Actor 标识快照</summary>
     public string[] GetRegisteredIds() => _actors.Keys.ToArray();
 

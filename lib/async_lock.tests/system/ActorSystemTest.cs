@@ -57,9 +57,48 @@ public class ActorSystemTest {
         var act = () => system.Register("x", new DisposableTestActor());
         act.Should().Throw<ObjectDisposedException>();
     }
+
+    /// <summary>ActorSelection.Resolve 找到注册的 Actor(Akka 对齐)</summary>
+    [Fact]
+    public async Task ActorSelection_Resolve_FindsActor() {
+        await using var system = new ActorSystem();
+        var actor = new SelectionTestActor();
+        system.Register("target", actor);
+
+        var selection = system.ActorSelection("target");
+        selection.Resolve().Should().BeSameAs(actor);
+    }
+
+    /// <summary>ActorSelection.Tell 发消息给选中的 Actor(Akka 对齐)</summary>
+    [Fact]
+    public async Task ActorSelection_Tell_SendsMessage() {
+        await using var system = new ActorSystem();
+        var actor = new SelectionTestActor();
+        system.Register("target", actor);
+
+        system.ActorSelection("target").Tell("hello");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+        actor.ProcessedCommands.Should().Contain("hello");
+    }
+
+    /// <summary>ActorSelection.Resolve 不存在时返回 null(Akka 对齐)</summary>
+    [Fact]
+    public async Task ActorSelection_Resolve_ReturnsNull_WhenNotFound() {
+        await using var system = new ActorSystem();
+        system.ActorSelection("nope").Resolve().Should().BeNull();
+    }
 }
 
 /// <summary>可追踪 Dispose 状态的测试 Actor — IsDisposed 由 ActorBase 提供</summary>
 internal sealed class DisposableTestActor : ActorBase<string, string> {
     protected override void Handle(string command, CancellationToken ct) { }
+}
+
+/// <summary>ActorSelection 测试 Actor — 记录处理过的命令</summary>
+internal sealed class SelectionTestActor : ActorBase<string, Unit> {
+    public readonly List<string> ProcessedCommands = new();
+    protected override void Handle(string command, CancellationToken ct) {
+        ProcessedCommands.Add(command);
+    }
 }

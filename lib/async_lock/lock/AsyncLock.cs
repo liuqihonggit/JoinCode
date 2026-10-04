@@ -164,7 +164,7 @@ public sealed class AsyncLock : IDisposable {
             LockRegistry.OnLockTimeout(_name, timeout);
             return null;
         }
-        LockRegistry.OnAcquired(_registryId, _name);
+        LockRegistry.OnAcquired(LockRegistry.CurrentConfig, _registryId, _name);
         return new Releaser(this);
     }
 
@@ -185,22 +185,24 @@ public sealed class AsyncLock : IDisposable {
     /// async 方法中用此方法避免 <c>TryLock</c> 同步阻塞线程池导致饥饿。
     /// </summary>
     public async ValueTask<IDisposable?> TryLockAsync(CancellationToken ct = default) {
-        var acquireStack = LockRegistry.DiagnosticsEnabled ? LockRegistry.CaptureCurrentStack(skipFrames: 1) : null;
-        return await TryLockAsyncCore(_timeout, ct, acquireStack).ConfigureAwait(false);
+        var cfg = LockRegistry.CurrentConfig;
+        var acquireStack = cfg.DiagnosticsEnabled ? LockRegistry.CaptureCurrentStack(skipFrames: 1) : null;
+        return await TryLockAsyncCore(_timeout, ct, acquireStack, cfg).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 尝试异步获取锁,指定超时覆盖实例默认超时。
     /// </summary>
     public async ValueTask<IDisposable?> TryLockAsync(TimeSpan timeout, CancellationToken ct = default) {
-        var acquireStack = LockRegistry.DiagnosticsEnabled ? LockRegistry.CaptureCurrentStack(skipFrames: 1) : null;
-        return await TryLockAsyncCore(timeout, ct, acquireStack).ConfigureAwait(false);
+        var cfg = LockRegistry.CurrentConfig;
+        var acquireStack = cfg.DiagnosticsEnabled ? LockRegistry.CaptureCurrentStack(skipFrames: 1) : null;
+        return await TryLockAsyncCore(timeout, ct, acquireStack, cfg).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// TryLockAsync 核心实现 — 接收预捕获的栈,避免 async 转发后栈丢失调用方(flaky 根因修复)。
+    /// TryLockAsync 核心实现 — 接收预捕获的栈+配置快照,整个操作用同一快照,消除竞态窗口。
     /// </summary>
-    private async ValueTask<IDisposable?> TryLockAsyncCore(TimeSpan timeout, CancellationToken ct, string? acquireStack) {
+    private async ValueTask<IDisposable?> TryLockAsyncCore(TimeSpan timeout, CancellationToken ct, string? acquireStack, LockRegistryConfig cfg) {
         ThrowIfDisposed();
         EnsureFlowRegistered();
         LockRegistry.OnWaitStart(_registryId, _name);
@@ -216,7 +218,7 @@ public sealed class AsyncLock : IDisposable {
             LockRegistry.OnLockTimeout(_name, timeout);
             return null;
         }
-        LockRegistry.OnAcquired(_registryId, _name, acquireStack);
+        LockRegistry.OnAcquired(cfg, _registryId, _name, acquireStack);
         return new Releaser(this);
     }
 

@@ -5,18 +5,17 @@ namespace LockDiagnosis.Tests;
 /// <para>拆分自 AsyncLockDiagnosisTests,与 AsyncLockDiagnosisTests(时序部分)互补。</para>
 /// <para>构造/Dispose 与原类一致:重置 LockRegistry 状态,隔离测试。</para>
 /// </summary>
-[Collection("lock-diagnosis")]
 public class AsyncLockDiagnosisPureTests : IDisposable {
     public AsyncLockDiagnosisPureTests() {
         LockRegistry.ClearForTesting();
-        LockRegistry.DiagnosticsEnabled = true;
-        LockRegistry.HoldTooLongThreshold = TimeSpan.FromMilliseconds(100);
-        LockRegistry.WaitTimeoutThreshold = TimeSpan.FromMilliseconds(200);
+        LockRegistry.SetDiagnosticsEnabled(true);
+        LockRegistry.SetHoldTooLongThreshold(TimeSpan.FromMilliseconds(100));
+        LockRegistry.SetWaitTimeoutThreshold(TimeSpan.FromMilliseconds(200));
     }
 
     public void Dispose() {
         LockRegistry.StopBackgroundScan();
-        LockRegistry.DiagnosticSink = null;
+        LockRegistry.SetDiagnosticSink(null);
     }
 
     [Fact]
@@ -65,7 +64,7 @@ public class AsyncLockDiagnosisPureTests : IDisposable {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task DumpAll_包含获取调用栈() {
-        LockRegistry.DiagnosticsEnabled = true;
+        LockRegistry.SetDiagnosticsEnabled(true);
         using var lk = new AsyncLock("stack-test");
         using (await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
             var dump = LockRegistry.DumpAll();
@@ -83,7 +82,7 @@ public class AsyncLockDiagnosisPureTests : IDisposable {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task DumpAll_异步获取后调用栈仍包含调用方() {
-        LockRegistry.DiagnosticsEnabled = true;
+        LockRegistry.SetDiagnosticsEnabled(true);
         using var lk = new AsyncLock("async-stack-test");
         using var barrier = new Barrier(2);
         var holderTask = Task.Run(async () => {

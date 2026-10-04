@@ -98,6 +98,16 @@ public sealed record ActorIdentity(object? CorrelationId, IActorLifecycle? Subje
 public sealed record DeadLetter(object Message, object? Sender, string Path, string Reason);
 
 /// <summary>
+/// 未处理消息事件 — Actor 收到消息但 Handle 不认识时通过 <c>Unhandled(msg)</c> 触发(Akka 对齐)。
+/// <para>语义:Actor 在 Handle 中遇到不认识的消息,调 Unhandled(msg) 标记未处理,触发此事件。</para>
+/// <para>外部可订阅此事件收集未处理消息,用于调试或日志。</para>
+/// </summary>
+/// <param name="Message">未处理的消息</param>
+/// <param name="Sender">发送者(null=无 sender)</param>
+/// <param name="ActorId">目标 Actor Id</param>
+public sealed record UnhandledMessage(object Message, object? Sender, string ActorId);
+
+/// <summary>
 /// Actor 生命周期接口 — 提供释放状态查询(Akka 对齐)。
 /// <para>ActorBase 实现此接口,GracefulStop 等工具通过此接口查询 Actor 是否已终止。</para>
 /// </summary>

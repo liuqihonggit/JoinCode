@@ -175,6 +175,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <summary>输出通道满丢弃消息事件 — TryPublish 写入失败时触发(FullMode=DropWrite 且通道满,或通道已完成)</summary>
     public event EventHandler<OutputDroppedEventArgs<TOut>>? OutputMessageDropped;
 
+    /// <summary>未处理消息事件 — Handle 中调 Unhandled(msg) 时触发(Akka 对齐)</summary>
+    public event EventHandler<UnhandledMessage>? UnhandledMessage;
+
     /// <summary>
     /// 向 Actor 同步发送命令 — Tell 模式(射后不理,不阻塞调用方)。
     /// <para>TryWrite(非阻塞),通道满时后台重试(16次+指数退避+换流水号),射后不理不阻塞Actor消费循环。</para>
@@ -314,6 +317,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         if (_watermarkMonitor.Check(InputCount, GetType().Name, out var args) && args is not null) {
             RaiseEvent(InputWatermarkReached, this, args, "InputWatermarkReached");
         }
+    }
+
+    /// <summary>
+    /// 标记消息未处理 — 子类在 Handle 中遇到不认识的消息时调用,触发 <see cref="UnhandledMessage"/> 事件(Akka 对齐)。
+    /// <para>语义:Actor 收到消息但无法处理,通知外部用于调试或日志。</para>
+    /// </summary>
+    /// <param name="message">未处理的消息</param>
+    protected void Unhandled(object message) {
+        RaiseEvent(UnhandledMessage, this, new UnhandledMessage(message, Sender, Id), nameof(UnhandledMessage));
     }
 
     /// <summary>

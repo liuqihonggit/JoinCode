@@ -836,6 +836,21 @@ public class ActorBaseTest {
         await TestWaitHelper.WaitUntilAsync(() => actor.ReceivedAnswer, TimeSpan.FromMilliseconds(500));
         actor.ReceivedAnswer.Should().BeTrue();
     }
+
+    /// <summary>Unhandled 触发 UnhandledMessage 事件(Akka 对齐)</summary>
+    [Fact]
+    public async Task Unhandled_PublishesEvent() {
+        await using var actor = new UnhandledActor();
+        UnhandledMessage? captured = null;
+        actor.UnhandledMessage += (_, msg) => captured = msg;
+
+        actor.Tell("unknown");
+
+        await TestWaitHelper.WaitUntilAsync(() => captured is not null, TimeSpan.FromMilliseconds(500));
+        captured.Should().NotBeNull();
+        captured!.Message.Should().Be("unknown");
+        captured.ActorId.Should().Be(actor.Id);
+    }
 }
 
 /// <summary>
@@ -1035,6 +1050,13 @@ internal sealed class ProbeReplyActor : ActorBase<object, Unit> {
         if (command is string s2 && s2 == "answer") {
             ReceivedAnswer = true;
         }
+    }
+}
+
+/// <summary>Unhandled 测试 Actor — 不认识的消息调 Unhandled(Akka 对齐)</summary>
+internal sealed class UnhandledActor : ActorBase<string, Unit> {
+    protected override void Handle(string command, CancellationToken ct) {
+        if (command != "known") Unhandled(command);
     }
 }
 

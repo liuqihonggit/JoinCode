@@ -872,6 +872,51 @@ public class ActorBaseTest {
         await Task.Delay(200);
         actor.ProcessedCommands.Should().NotContain("fired");
     }
+
+    /// <summary>Status.Success 携带结果(Akka 对齐)</summary>
+    [Fact]
+    public void Status_Success_ContainsResult() {
+        var success = Status.Success(42);
+        success.Should().BeOfType<StatusSuccess<int>>();
+        ((StatusSuccess<int>)success).Result.Should().Be(42);
+    }
+
+    /// <summary>Status.Failure 携带异常(Akka 对齐)</summary>
+    [Fact]
+    public void Status_Failure_ContainsException() {
+        var ex = new InvalidOperationException("test");
+        var failure = Status.Failure(ex);
+        failure.Should().BeOfType<StatusFailure>();
+        ((StatusFailure)failure).Exception.Should().BeSameAs(ex);
+    }
+
+    /// <summary>Props.Create 创建 Actor 实例(Akka 对齐)</summary>
+    [Fact]
+    public async Task Props_Create_ReturnsInstance() {
+        var props = Props.Create(() => new DisposableTestActor());
+        await using var actor = props.Create();
+        actor.Should().NotBeNull();
+        actor.Should().BeOfType<DisposableTestActor>();
+    }
+
+    /// <summary>ActorSystem.ActorOf 注册 Actor(Akka 对齐)</summary>
+    [Fact]
+    public async Task ActorSystem_ActorOf_RegistersActor() {
+        await using var system = new ActorSystem();
+        var actor = system.ActorOf(Props.Create(() => new DisposableTestActor()), "my-actor");
+        actor.Should().NotBeNull();
+        system.Selection("my-actor").Should().BeSameAs(actor);
+    }
+
+    /// <summary>Receptionist Register/Find 服务发现(Akka 对齐)</summary>
+    [Fact]
+    public async Task Receptionist_Register_Find() {
+        await using var system = new ActorSystem();
+        var actor = new DisposableTestActor();
+        system.Receptionist.Register("service-a", actor);
+        system.Receptionist.Find("service-a").Should().BeSameAs(actor);
+        system.Receptionist.Find("unknown").Should().BeNull();
+    }
 }
 
 /// <summary>

@@ -108,6 +108,35 @@ public sealed record DeadLetter(object Message, object? Sender, string Path, str
 public sealed record UnhandledMessage(object Message, object? Sender, string ActorId);
 
 /// <summary>
+/// 成功状态消息 — Actor 操作成功时回复,携带结果(Akka Status.Success 对齐)。
+/// </summary>
+/// <typeparam name="T">结果类型</typeparam>
+/// <param name="Result">操作结果</param>
+public sealed record StatusSuccess<T>(T Result);
+
+/// <summary>
+/// 失败状态消息 — Actor 操作失败时回复,携带异常(Akka Status.Failure 对齐)。
+/// </summary>
+/// <param name="Exception">失败异常</param>
+public sealed record StatusFailure(Exception Exception);
+
+/// <summary>
+/// 状态消息工厂 — 创建 Success/Failure 消息(Akka Status 对齐)。
+/// </summary>
+public static class Status {
+    /// <summary>创建成功状态消息</summary>
+    /// <typeparam name="T">结果类型</typeparam>
+    /// <param name="result">操作结果</param>
+    /// <returns>成功状态消息</returns>
+    public static object Success<T>(T result) => new StatusSuccess<T>(result);
+
+    /// <summary>创建失败状态消息</summary>
+    /// <param name="exception">失败异常</param>
+    /// <returns>失败状态消息</returns>
+    public static object Failure(Exception exception) => new StatusFailure(exception);
+}
+
+/// <summary>
 /// Actor 生命周期接口 — 提供释放状态查询(Akka 对齐)。
 /// <para>ActorBase 实现此接口,GracefulStop 等工具通过此接口查询 Actor 是否已终止。</para>
 /// </summary>

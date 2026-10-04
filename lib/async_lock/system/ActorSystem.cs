@@ -15,6 +15,9 @@ public sealed class ActorSystem : IAsyncDisposable {
     /// <summary>系统级事件流 — 发布 DeadLetter 等系统事件(Akka 对齐)</summary>
     public EventStream EventStream { get; } = new();
 
+    /// <summary>服务发现 — 按 service key 注册/查找 Actor 引用(Akka Receptionist 对齐)</summary>
+    public Receptionist Receptionist { get; } = new();
+
     /// <summary>构造 Actor 系统</summary>
     /// <param name="name">系统名称(默认 "user")</param>
     public ActorSystem(string name = "user") {
@@ -56,6 +59,21 @@ public sealed class ActorSystem : IAsyncDisposable {
     public ActorSelection ActorSelection(string path) {
         ThrowIfDisposed();
         return new ActorSelection(this, path);
+    }
+
+    /// <summary>
+    /// 用 Props 创建并注册 Actor — 解耦创建与注册(Akka ActorOf 对齐)。
+    /// </summary>
+    /// <typeparam name="TActor">Actor 类型</typeparam>
+    /// <param name="props">创建配置(封装工厂委托)</param>
+    /// <param name="name">注册名称</param>
+    /// <returns>创建的 Actor 实例</returns>
+    public TActor ActorOf<TActor>(Props<TActor> props, string name) where TActor : IAsyncDisposable {
+        ArgumentNullException.ThrowIfNull(props);
+        ThrowIfDisposed();
+        var actor = props.Create();
+        _actors[name] = actor;
+        return actor;
     }
 
     /// <summary>获取所有已注册顶层 Actor 标识快照</summary>

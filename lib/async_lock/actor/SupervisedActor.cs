@@ -26,7 +26,8 @@ public sealed record SupervisorStrategy(
     int MaxRestarts,
     TimeSpan Within,
     Func<Exception, SupervisorDirective> Decider,
-    bool RestartAllSiblings = false) {
+    bool RestartAllSiblings = false,
+    ActorBackoffStrategy? Backoff = null) {
     /// <summary>OneForOne — 只重启失败的子 Actor,最多 3 次/分钟</summary>
     public static readonly SupervisorStrategy OneForOne = new(
         3, TimeSpan.FromMinutes(1),
@@ -44,6 +45,28 @@ public sealed record SupervisorStrategy(
         0, TimeSpan.MaxValue,
         static _ => SupervisorDirective.Escalate,
         RestartAllSiblings: false);
+}
+
+/// <summary>
+/// 退避策略 — 子 Actor 持续崩溃时指数退避重启(DSG033 S5)。
+/// <para>对齐 Akka BackoffSupervisor: MinBackoff → 2×MinBackoff → 4×MinBackoff → ... → MaxBackoff。</para>
+/// <para>RandomFactor 抖动防止多个子 Actor 同步重启惊群。</para>
+/// </summary>
+/// <param name="MinBackoff">最小退避(第 0 次重试)</param>
+/// <param name="MaxBackoff">最大退避(延迟上限)</param>
+/// <param name="RandomFactor">抖动因子(0=无抖动,0.2=±20%抖动)</param>
+public sealed record ActorBackoffStrategy(TimeSpan MinBackoff, TimeSpan MaxBackoff, double RandomFactor = 0.2) {
+    /// <summary>
+    /// 计算第 n 次重试的退避延迟 — MinBackoff×2^n,上限 MaxBackoff,带 ±RandomFactor 抖动。
+    /// </summary>
+    /// <param name="restartCount">当前重试次数(0 基)</param>
+    /// <returns>退避延迟(>= TimeSpan.Zero)</returns>
+    public TimeSpan ComputeDelay(int restartCount) {
+        var baseMs = MinBackoff.TotalMilliseconds * Math.Pow(2, restartCount);
+        var cappedMs = Math.Min(baseMs, MaxBackoff.TotalMilliseconds);
+        var jitter = cappedMs * RandomFactor * (Random.Shared.NextDouble() * 2 - 1);
+        return TimeSpan.FromMilliseconds(Math.Max(0, cappedMs + jitter));
+    }
 }
 
 /// <summary>
@@ -169,6 +192,10 @@ public sealed class ChildActorHandle : IAsyncDisposable {
             return;
         }
         State = ChildActorState.Restarting;
+
+        if (_strategy.Backoff is { } backoff) {
+            await Task.Delay(backoff.ComputeDelay(Volatile.Read(ref _restartCount)), ct).ConfigureAwait(false);
+        }
 
         if (_instance is not null) {
             try { await _instance.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { Console.WriteLine($"[ChildActor:{Id}] Dispose 旧实例异常忽略: {ex.Message}"); }

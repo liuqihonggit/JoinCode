@@ -88,6 +88,21 @@ public class ActorSystemTest {
         await using var system = new ActorSystem();
         system.ActorSelection("nope").Resolve().Should().BeNull();
     }
+
+    /// <summary>ActorSelection.Tell 找不到 Actor 时发布 DeadLetter 事件(Akka 对齐)</summary>
+    [Fact]
+    public async Task DeadLetter_Published_WhenActorNotFound() {
+        await using var system = new ActorSystem();
+        DeadLetter? captured = null;
+        system.EventStream.Subscribe<DeadLetter>(dl => captured = dl);
+
+        system.ActorSelection("nonexistent").Tell("lost-msg");
+
+        await TestWaitHelper.WaitUntilAsync(() => captured is not null, TimeSpan.FromMilliseconds(500));
+        captured.Should().NotBeNull();
+        captured!.Message.Should().Be("lost-msg");
+        captured.Path.Should().Be("nonexistent");
+    }
 }
 
 /// <summary>可追踪 Dispose 状态的测试 Actor — IsDisposed 由 ActorBase 提供</summary>

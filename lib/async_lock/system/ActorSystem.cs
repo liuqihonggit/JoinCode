@@ -12,6 +12,9 @@ public sealed class ActorSystem : IAsyncDisposable {
     /// <summary>系统名称(默认 "user",对齐 Akka /user Guardian)</summary>
     public string Name { get; }
 
+    /// <summary>系统级事件流 — 发布 DeadLetter 等系统事件(Akka 对齐)</summary>
+    public EventStream EventStream { get; } = new();
+
     /// <summary>构造 Actor 系统</summary>
     /// <param name="name">系统名称(默认 "user")</param>
     public ActorSystem(string name = "user") {

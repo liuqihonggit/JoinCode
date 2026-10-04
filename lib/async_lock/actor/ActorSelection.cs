@@ -21,7 +21,7 @@ public sealed class ActorSelection {
     public IAsyncDisposable? Resolve() => _system.Selection(_path);
 
     /// <summary>
-    /// 发消息给选中的 Actor — 类型安全泛型版,Actor 未注册或类型不匹配时静默忽略。
+    /// 发消息给选中的 Actor — 类型安全泛型版,Actor 未注册或类型不匹配时发布 DeadLetter 事件。
     /// </summary>
     /// <typeparam name="TCommand">命令类型</typeparam>
     /// <param name="msg">消息</param>
@@ -29,6 +29,8 @@ public sealed class ActorSelection {
     public void Tell<TCommand>(TCommand msg, object? sender = null) {
         if (_system.Selection(_path) is IActor<TCommand> actor) {
             actor.Tell(msg, sender);
+        } else {
+            _system.EventStream.Publish(new DeadLetter(msg!, sender, _path, "Actor 不存在或类型不匹配"));
         }
     }
 

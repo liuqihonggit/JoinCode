@@ -87,6 +87,17 @@ public sealed record IdentifyMessage(object? CorrelationId) : IIdentify;
 public sealed record ActorIdentity(object? CorrelationId, IActorLifecycle? Subject);
 
 /// <summary>
+/// 死信事件 — 消息发送失败(目标 Actor 不存在)时发布到 EventStream(Akka 对齐)。
+/// <para>包含原始消息、发送者、目标路径和失败原因。</para>
+/// <para>外部可订阅 EventStream&lt;DeadLetter&gt; 收集死信,计入死信队列或重投。</para>
+/// </summary>
+/// <param name="Message">未能投递的消息</param>
+/// <param name="Sender">发送者(null=无 sender)</param>
+/// <param name="Path">目标 Actor 路径</param>
+/// <param name="Reason">失败原因</param>
+public sealed record DeadLetter(object Message, object? Sender, string Path, string Reason);
+
+/// <summary>
 /// Actor 生命周期接口 — 提供释放状态查询(Akka 对齐)。
 /// <para>ActorBase 实现此接口,GracefulStop 等工具通过此接口查询 Actor 是否已终止。</para>
 /// </summary>

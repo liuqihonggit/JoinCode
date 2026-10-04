@@ -348,17 +348,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <param name="ct">取消令牌(Actor 释放时触发取消)</param>
     protected abstract void Handle(TCommand command, CancellationToken ct);
 
-    /// <summary>
-    /// 行为委托 — 处理命令,签名与 <see cref="Handle"/> 一致。
-    /// Become/BecomeStacked 切换此委托,实现状态机行为切换(Akka 对齐)。
-    /// </summary>
-    protected delegate void Receive(TCommand command, CancellationToken ct);
-
-    /// <summary>行为栈 — BecomeStacked/UnbecomeStacked 管理,Consumer 线程独占访问无需锁</summary>
-    private readonly Stack<Receive?> _behaviorStack = new();
-
-    /// <summary>当前行为 — null 表示用 <see cref="Handle"/> 默认行为</summary>
-    private Receive? _currentBehavior;
+    /// <summary>行为栈 — Become/BecomeStacked/UnbecomeStacked 管理(Akka 对齐)</summary>
+    private readonly ActorBehaviorStack<TCommand> _behaviorStack = new();
 
     /// <summary>
     /// 替换当前行为(不入栈) — UnbecomeStacked 不会恢复到此行为之前的状态。
@@ -366,7 +357,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程),禁止跨线程调用。</para>
     /// </summary>
     /// <param name="receive">新行为委托</param>
-    protected void Become(Receive receive) => _currentBehavior = receive;
+    protected void Become(ActorReceive<TCommand> receive) => _behaviorStack.Become(receive);
 
     /// <summary>
     /// 压入新行为(入栈) — UnbecomeStacked 弹出恢复上一个行为。
@@ -374,21 +365,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程),禁止跨线程调用。</para>
     /// </summary>
     /// <param name="receive">新行为委托</param>
-    protected void BecomeStacked(Receive receive) {
-        _behaviorStack.Push(_currentBehavior);
-        _currentBehavior = receive;
-    }
+    protected void BecomeStacked(ActorReceive<TCommand> receive) => _behaviorStack.BecomeStacked(receive);
 
     /// <summary>
     /// 弹出行为 — 恢复到上一个 BecomeStacked 之前的行为。
     /// <para>栈空时无操作(保持当前行为)。</para>
     /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程),禁止跨线程调用。</para>
     /// </summary>
-    protected void UnbecomeStacked() {
-        if (_behaviorStack.Count > 0) {
-            _currentBehavior = _behaviorStack.Pop();
-        }
-    }
+    protected void UnbecomeStacked() => _behaviorStack.UnbecomeStacked();
 
     /// <summary>当前消息的发送者 — AsyncLocal 跨 await 流转,Handle 中获取 Tell 时传入的 sender(Akka 对齐)</summary>
     private readonly AsyncLocal<object?> _currentSender = new();
@@ -516,7 +500,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
                 return true;
             }
             _currentMessage = cmd;
-            var behavior = _currentBehavior;
+            var behavior = _behaviorStack.Current;
             if (behavior is not null) {
                 behavior(cmd, ct);
             } else {

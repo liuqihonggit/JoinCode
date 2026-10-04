@@ -53,7 +53,7 @@
     <StackPanel Grid.Row="0" Spacing="12" Margin="12,12,12,4">
       <Button Classes="accentSubtle" Content="＋ 新建对话" Command="{Binding NewConversationCommand}"
               CornerRadius="8" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="8,6" />
-      <TextBox x:Name="SessionSearchBox" Text="{Binding SessionSearchText}" Watermark="筛选会话…"
+      <TextBox x:Name="SessionSearchBox" Text="{Binding SessionSearchText}" PlaceholderText="筛选会话…"
                AutomationProperties.Name="筛选会话" ToolTip.Tip="按标题筛选会话；Ctrl+K 聚焦" />
     </StackPanel>
     <!-- 会话列表 -->

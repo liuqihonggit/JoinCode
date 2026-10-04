@@ -12,7 +12,7 @@
           BoxShadow="{DynamicResource GuiPopupShadow}">
     <Grid RowDefinitions="Auto,*">
       <!-- 输入框 -->
-      <TextBox Grid.Row="0" x:Name="CommandInput" Watermark="输入命令名称…"
+      <TextBox Grid.Row="0" x:Name="CommandInput" PlaceholderText="输入命令名称…"
                Text="{Binding CommandPaletteQuery, Mode=TwoWay}"
                FontSize="13" Padding="12,8" BorderThickness="0,0,0,1"
                BorderBrush="{DynamicResource GuiDivider}"

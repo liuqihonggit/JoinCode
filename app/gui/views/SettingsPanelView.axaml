@@ -236,7 +236,7 @@
                         SelectedItem="{Binding NetworkMode}" MinWidth="90" />
             </Grid>
             <TextBox Text="{Binding ProxyUrl}" FontSize="11"
-                     Watermark="代理地址（Proxy 模式时使用，如 http://127.0.0.1:7890）" />
+                     PlaceholderText="代理地址（Proxy 模式时使用，如 http://127.0.0.1:7890）" />
             <Button Classes="accentSubtle" Content="应用网络模式" FontSize="11" Padding="8,4" MinHeight="0"
                     HorizontalAlignment="Left"
                     Command="{Binding ApplyNetworkModeCommand}" />

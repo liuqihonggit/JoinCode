@@ -282,7 +282,7 @@
         </StackPanel>
       </Grid>
         <!-- Row 2：输入框（高度可拖拽调节 — 绑定 InputAreaHeight,顶部手柄拖拽） -->
-        <TextBox Grid.Row="2" x:Name="InputTextBox" Classes="noFocusRing" Text="{Binding InputText}" Watermark="{Binding SendHintText, FallbackValue='输入消息，Ctrl+Enter 发送 / Enter 换行…'}"
+        <TextBox Grid.Row="2" x:Name="InputTextBox" Classes="noFocusRing" Text="{Binding InputText}" PlaceholderText="{Binding SendHintText, FallbackValue='输入消息，Ctrl+Enter 发送 / Enter 换行…'}"
                  IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="12"
                  Height="{Binding InputAreaHeight, Mode=TwoWay}"
                  BorderThickness="0" Background="Transparent" Padding="11,4"

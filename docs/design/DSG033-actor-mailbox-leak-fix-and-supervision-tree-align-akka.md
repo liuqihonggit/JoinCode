@@ -143,8 +143,8 @@ public virtual async ValueTask DisposeAsync() {
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `ConcurrentQueue<Task>` + `CleanupCompletedInFlight`（ActorBase.cs） | 全项目 42 处 `RegisterInFlight` 调用 | ❌ | ❌ 待手动 exe 验收（ADR 0080） |
-| 水位线清理测试（async_lock.tests） | — | ❌ | ❌ |
+| `ConcurrentQueue<Task>` + `CleanupCompletedInFlight`（ActorBase.cs） | 全项目 42 处 `RegisterInFlight` 调用 | ✅ | ✅ 541 测试通过 |
+| 水位线清理测试（async_lock.tests/leak） | — | ✅ | ✅ InFlightLeakTest 2 测试 |
 
 ---
 
@@ -416,11 +416,11 @@ public sealed record BackoffStrategy(
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| S1: AllForOne 遍历兄弟重启（SupervisedActor.cs） | 所有用 AllForOne 策略的 SpawnChildAsync | ❌ | ❌ 待手动 exe 验收 |
-| S2: PreStart/PostStop/PreRestart/PostRestart（ActorBase.cs） | 需保存崩溃前状态的 Actor | ❌ | ❌ |
-| S3: Watch/Unwatch/Terminated（SupervisedActor.cs） | 需被动感知子终止的父 Actor | ❌ | ❌ |
-| S4: ActorSystem 注册表 + 路径寻址（新文件） | 顶层 Actor 管理 | ❌ | ❌ |
-| S5: BackoffStrategy 退避重启（SupervisedActor.cs） | 持续崩溃的子 Actor | ❌ | ❌ |
+| S1: AllForOne 遍历兄弟重启（SupervisedActor.cs） | 所有用 AllForOne 策略的 SpawnChildAsync | ✅ | ✅ 16 测试通过 |
+| S2: PreStart/PostStop/PreRestart/PostRestart（ActorBase.cs） | 需保存崩溃前状态的 Actor | ✅ | ✅ 2 测试通过 |
+| S3: Watch/Unwatch/Terminated（SupervisedActor.cs） | 需被动感知子终止的父 Actor | ✅ | ✅ 2 测试通过 |
+| S4: ActorSystem 注册表 + 路径寻址（新文件） | 顶层 Actor 管理 | ✅ | ✅ 6 测试通过 |
+| S5: BackoffStrategy 退避重启（SupervisedActor.cs） | 持续崩溃的子 Actor | ✅ | ✅ 4 测试通过 |
 
 ---
 

@@ -22,7 +22,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     private readonly IdempotencyGate _idempotencyGate;
     private readonly AskWaitGraphTracker _waitGraphTracker;
     private readonly MessageRetryEngine<TCommand> _retryEngine;
-    private readonly ConcurrentBag<Task> _inFlightTasks = new();
+    private readonly ConcurrentQueue<Task> _inFlightTasks = new();
+    private const int InFlightCleanupThreshold = 256;
+    private const int InFlightCleanupRetain = 64;
     private int _disposed;
     private readonly ILogger? _logger;
 
@@ -279,12 +281,38 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <param name="task">fire-and-forget 启动的任务引用</param>
     protected void RegisterInFlight(Task task) {
         // 不调 ThrowIfDisposed — Dispose 与 Handle 存在竞态:Dispose 设 _disposed=1 后,
-        // Handle 里的 RegisterInFlight 若抛异常则任务不入 bag,Dispose 的 WhenAll 空集合立即完成(CI #691 根因)。
-        // 任务已 fire-and-forget 启动,必须入 bag 让 Dispose 等待,否则泄漏。
+        // Handle 里的 RegisterInFlight 若抛异常则任务不入队列,Dispose 的 WhenAll 空集合立即完成(CI #691 根因)。
+        // 任务已 fire-and-forget 启动,必须入队让 Dispose 等待,否则泄漏。
         // 安全保证:RegisterInFlight 仅在 Handle 内调用,Handle 在 Consumer 线程串行执行,
         // Consumer 退出(await _consumerTask)前所有 RegisterInFlight 已完成,Dispose 的 ToArray 必包含全部 in-flight 任务。
-        _inFlightTasks.Add(task);
+        // DSG033 方案B: 水位线清理已完成 Task,防止长生命周期 Actor ConcurrentQueue 无限增长。
+        _inFlightTasks.Enqueue(task);
+        if (_inFlightTasks.Count > InFlightCleanupThreshold) {
+            CleanupCompletedInFlight();
+        }
     }
+
+    /// <summary>
+    /// 清理已完成的 in-flight 任务 — 从队列头部 Dequeue 已完成项,保留最近 InFlightCleanupRetain 个供诊断。
+    /// <para>线程安全:ConcurrentQueue 线程安全,偶发并发清理无副作用(多清一次仅少保留几个已完成项)。</para>
+    /// <para>正确性:未完成 Task(IsCompleted==false)一定被保留,DisposeAsync 的 WhenAll 仍等待全部未完成项。</para>
+    /// </summary>
+    private void CleanupCompletedInFlight() {
+        var retained = 0;
+        var toRequeue = new List<Task>();
+        while (_inFlightTasks.TryDequeue(out var t)) {
+            if (!t.IsCompleted && retained < InFlightCleanupRetain) {
+                toRequeue.Add(t);
+                retained++;
+            }
+        }
+        foreach (var t in toRequeue) {
+            _inFlightTasks.Enqueue(t);
+        }
+    }
+
+    /// <summary>in-flight 任务当前数 — 供测试验证清理有效性(DSG033 方案B)</summary>
+    internal int InFlightCountForTest => _inFlightTasks.Count;
 
     /// <summary>
     /// 外部拉取输出流 — 阻塞式 IAsyncEnumerable。
@@ -631,6 +659,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
                 _logger?.LogWarning(ex, "[Actor:{ActorId}] in-flight 任务异常忽略,继续释放 CTS", Id);
             }
         }
+        _inFlightTasks.Clear();
         _cts.Dispose();
     }
 }

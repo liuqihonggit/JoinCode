@@ -444,6 +444,10 @@ public sealed record BackoffStrategy(
 | S17: IActorContext（Self/Sender/IsDisposed 统一入口） | Actor 上下文封装 | ✅ | ✅ 2 测试通过 |
 | S18: ActorSelection（路径寻址 + Tell/IdentifyAsync） | 解耦路径寻址发消息 | ✅ | ✅ 3 测试通过 |
 | S19: ActorFsm（StartWith/When/GoTo/Stay/Using） | 有限状态机 | ✅ | ✅ 4 测试通过 |
+| S20: TestProbe（ExpectMsg/Reply/FishForMessage） | 测试探针 | ✅ | ✅ 3 测试通过 |
+| S21: DeadLetter + ActorSystem.EventStream | 死信事件 + 系统事件流 | ✅ | ✅ 1 测试通过 |
+| S22: UnhandledMessage + ActorBase.Unhandled | 未处理消息事件 | ✅ | ✅ 1 测试通过 |
+| S23: ActorTimers（StartSingleTimer/StartPeriodicTimer/Cancel） | Actor 生命周期定时器 | ✅ | ✅ 2 测试通过 |
 
 ---
 

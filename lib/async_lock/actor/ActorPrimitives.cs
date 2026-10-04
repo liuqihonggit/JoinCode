@@ -64,6 +64,29 @@ public sealed record OutputDroppedEventArgs<TOut>(TOut Message);
 public interface IPoisonPill { }
 
 /// <summary>
+/// Identify 消息接口 — 查询 Actor 身份,Actor 收到后自动回复 <see cref="ActorIdentity"/>(Akka 对齐)。
+/// <para>用于查询 Actor 是否存在/可达,获取 Actor 引用。</para>
+/// </summary>
+public interface IIdentify {
+    /// <summary>关联标识 — 匹配请求和回复</summary>
+    object? CorrelationId { get; }
+}
+
+/// <summary>
+/// Identify 消息 — 查询 Actor 身份(Akka 对齐)。
+/// <para>Actor 收到后自动回复 <see cref="ActorIdentity"/>,无需用户 Handle 处理。</para>
+/// </summary>
+/// <param name="CorrelationId">关联标识 — 匹配请求和回复</param>
+public sealed record IdentifyMessage(object? CorrelationId) : IIdentify;
+
+/// <summary>
+/// Actor 身份回复 — Identify 查询的回复消息(Akka 对齐)。
+/// </summary>
+/// <param name="CorrelationId">关联标识 — 匹配请求和回复</param>
+/// <param name="Subject">Actor 引用(null=Actor 不存在)</param>
+public sealed record ActorIdentity(object? CorrelationId, IActorLifecycle? Subject);
+
+/// <summary>
 /// Actor 生命周期接口 — 提供释放状态查询(Akka 对齐)。
 /// <para>ActorBase 实现此接口,GracefulStop 等工具通过此接口查询 Actor 是否已终止。</para>
 /// </summary>

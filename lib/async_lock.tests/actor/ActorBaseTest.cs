@@ -702,6 +702,24 @@ public class ActorBaseTest {
         await FluentActions.Awaiting(() => ActorGracefulStop.GracefulStopAsync(actor, "poison", TimeSpan.FromMilliseconds(50)))
             .Should().ThrowAsync<TimeoutException>();
     }
+
+    /// <summary>Identify 收到后自动回复 ActorIdentity(Akka 对齐)</summary>
+    [Fact]
+    public async Task Identify_AutoReplies_ActorIdentity() {
+        await using var actor = new PoisonPillActor();
+        var identity = await ActorIdentify.IdentifyAsync(actor, new IdentifyMessage("corr-1"), TimeSpan.FromSeconds(1));
+        identity.CorrelationId.Should().Be("corr-1");
+        identity.Subject.Should().NotBeNull();
+        identity.Subject.Should().BeSameAs(actor);
+    }
+
+    /// <summary>IdentifyAsync 超时抛 TimeoutException(Akka 对齐)</summary>
+    [Fact]
+    public async Task IdentifyAsync_Timeout_ThrowsTimeoutException() {
+        await using var actor = new NoIdentifyActor();
+        await FluentActions.Awaiting(() => ActorIdentify.IdentifyAsync(actor, "identify", TimeSpan.FromMilliseconds(50)))
+            .Should().ThrowAsync<TimeoutException>();
+    }
 }
 
 /// <summary>
@@ -824,6 +842,11 @@ internal sealed class PoisonPillActor : ActorBase<object, Unit> {
 
 /// <summary>无 PoisonPill 支持的 Actor — TCommand=string 无法接收 PoisonPill</summary>
 internal sealed class NoPoisonPillActor : ActorBase<string, Unit> {
+    protected override void Handle(string command, CancellationToken ct) { }
+}
+
+/// <summary>无 Identify 支持的 Actor — TCommand=string 无法接收 IdentifyMessage</summary>
+internal sealed class NoIdentifyActor : ActorBase<string, Unit> {
     protected override void Handle(string command, CancellationToken ct) { }
 }
 

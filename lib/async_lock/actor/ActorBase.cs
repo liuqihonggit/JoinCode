@@ -469,6 +469,13 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             return false;
         }
 
+        if (cmd is IIdentify identify) {
+            if (Sender is ActorIdentify.ReplyChannel channel) {
+                channel.Reply(new ActorIdentity(identify.CorrelationId, this));
+            }
+            return true;
+        }
+
         try {
             OnBeforeProcessCommand();
             if (_idempotencyGate.TryRestore(cmd)) {

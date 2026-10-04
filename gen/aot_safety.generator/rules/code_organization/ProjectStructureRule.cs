@@ -8,12 +8,12 @@ namespace AotSafety.Generator.Rules;
 [AnalyzerRule(
     AnalyzerId = "CodeOrganization",
     Id = "JCC10001",
-    Title = "项目结构: 文件夹内直接暴露文件超过20个应拆分",
-    Description = "文件夹 '{0}' 内直接暴露 {1} 个文件，超过20个上限。应按职责拆分为多层子文件夹，每个文件夹内直接暴露文件少于20个。",
+    Title = "项目结构: 文件夹内直接暴露文件超过40个应拆分",
+    Description = "文件夹 '{0}' 内直接暴露 {1} 个文件，超过40个上限。应按职责拆分为多层子文件夹，每个文件夹内直接暴露文件少于40个。",
     Category = "ProjectStructure",
     Severity = DiagnosticSeverity.Warning,
     IsEnabledByDefault = true,
-    HelpLinkUri = "文件夹内直接暴露文件超过20个会降低可导航性和可维护性. 正确做法: 1) 按职责/功能/层级拆分子文件夹; 2) 每个子文件夹内文件数 < 20; 3) 可以多层嵌套. 排除: bin/obj/.x/ 目录和生成的代码.",
+    HelpLinkUri = "文件夹内直接暴露文件超过40个会降低可导航性和可维护性. 正确做法: 1) 按职责/功能/层级拆分子文件夹; 2) 每个子文件夹内文件数 < 40; 3) 可以多层嵌套. 排除: bin/obj/.x/ 目录和生成的代码.",
     IsCompilationEnd = true)]
 [AnalyzerRule(
     AnalyzerId = "CodeOrganization",
@@ -88,7 +88,7 @@ public sealed class ProjectStructureRule : IAnalyzerRule {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var fileCount = directoryFiles.TryGetValue(dir, out var files) ? files.Count : 0;
-            if (fileCount > 20) {
+            if (fileCount > 40) {
                 var lastSlash = dir.LastIndexOfAny(new[] { '\\', '/' });
                 var dirName = lastSlash >= 0 ? dir.Substring(lastSlash + 1) : dir;
                 var location = compilation.SyntaxTrees

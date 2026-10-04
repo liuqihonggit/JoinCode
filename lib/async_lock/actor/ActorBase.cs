@@ -84,6 +84,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             shutdownCt: _cts.Token,
             onSendFailed: RaiseSendFailed,
             onEnqueuedToInput: CheckInputWatermark);
+        PreStart();
         var taskOptions = (useLongRunning ? TaskCreationOptions.LongRunning : TaskCreationOptions.None) | TaskCreationOptions.DenyChildAttach;
         _consumerTask = Task.Factory.StartNew(
             ConsumeLoopAsync,
@@ -91,7 +92,6 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             taskOptions,
             TaskScheduler.Default).Unwrap();
         _retryEngine.Start();
-        PreStart();
     }
 
     internal static Channel<MessageEnvelope<TCommand>> CreateInputChannel(ActorBackpressure? backpressure) {
@@ -399,6 +399,25 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// </summary>
     protected object? Sender => _currentSender.Value;
 
+    /// <summary>ReceiveTimeout 配置 — 0=不启用,>0=超时 tick 数(Akka 对齐)</summary>
+    private long _receiveTimeoutTicks;
+
+    /// <summary>
+    /// 设置空闲超时 — 在指定时间内无消息则触发 <see cref="OnReceiveTimeout"/>(Akka 对齐)。
+    /// <para>收到任何消息后重置计时器。<c>TimeSpan.Zero</c> 或负值取消超时。</para>
+    /// <para>⚠️ 仅在 Handle/构造函数中调用(Consumer 线程),禁止跨线程调用。</para>
+    /// </summary>
+    /// <param name="timeout">空闲超时阈值(Zero/负值=取消)</param>
+    protected void SetReceiveTimeout(TimeSpan timeout) {
+        Interlocked.Exchange(ref _receiveTimeoutTicks, timeout <= TimeSpan.Zero ? 0 : timeout.Ticks);
+    }
+
+    /// <summary>
+    /// 空闲超时回调 — 设置 <see cref="SetReceiveTimeout"/> 后,指定时间内无消息时调用(Akka 对齐)。
+    /// <para>在 Consumer 线程调用,子类可重写处理超时(如发心跳、清理资源)。</para>
+    /// </summary>
+    protected virtual void OnReceiveTimeout() { }
+
     /// <summary>Actor 启动前调用(构造函数末尾,Consumer 启动前)— 初始化资源(DSG033 S2)</summary>
     protected virtual void PreStart() { }
 
@@ -424,9 +443,27 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     private async Task ConsumeLoopAsync() {
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
         try {
-            await foreach (var envelope in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
-                _currentSender.Value = envelope.Sender;
-                if (!ProcessSingleCommand(envelope.Command, _cts.Token)) return;
+            while (true) {
+                var ticks = Interlocked.Read(ref _receiveTimeoutTicks);
+                if (ticks > 0) {
+                    var t = TimeSpan.FromTicks(ticks);
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+                    linkedCts.CancelAfter(t);
+                    bool hasData;
+                    try {
+                        hasData = await _inputChannel.Reader.WaitToReadAsync(linkedCts.Token).ConfigureAwait(false);
+                    } catch (OperationCanceledException) when (linkedCts.IsCancellationRequested && !_cts.IsCancellationRequested) {
+                        try { OnReceiveTimeout(); } catch (Exception ex) { HandleConsumerErrorSafe(ex); }
+                        continue;
+                    }
+                    if (!hasData) break;
+                } else {
+                    if (!await _inputChannel.Reader.WaitToReadAsync(_cts.Token).ConfigureAwait(false)) break;
+                }
+                while (_inputChannel.Reader.TryRead(out var envelope)) {
+                    _currentSender.Value = envelope.Sender;
+                    if (!ProcessSingleCommand(envelope.Command, _cts.Token)) return;
+                }
             }
         } catch (OperationCanceledException) { }
     }

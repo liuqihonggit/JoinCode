@@ -484,6 +484,28 @@ public class ActorBaseTest {
 
         actor.LastSender.Should().BeNull();
     }
+
+    /// <summary>ReceiveTimeout: 空闲超时触发 OnReceiveTimeout(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task ReceiveTimeout_空闲超时触发OnReceiveTimeout() {
+        await using var actor = new ReceiveTimeoutActor(TimeSpan.FromMilliseconds(100));
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.TimeoutCount >= 1, TimeSpan.FromMilliseconds(1000));
+
+        actor.TimeoutCount.Should().BeGreaterThanOrEqualTo(1, "空闲超时应触发 OnReceiveTimeout");
+    }
+
+    /// <summary>ReceiveTimeout: 收到消息后重置计时器,不误触发(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task ReceiveTimeout_收到消息不触发超时() {
+        await using var actor = new ReceiveTimeoutActor(TimeSpan.FromMilliseconds(300));
+        actor.Tell("msg1");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCount >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.ProcessedCount.Should().BeGreaterThanOrEqualTo(1);
+        actor.TimeoutCount.Should().Be(0, "收到消息期间不应触发超时");
+    }
 }
 
 /// <summary>
@@ -566,5 +588,21 @@ internal sealed class SenderActor : ActorBase<string, string> {
     protected override void Handle(string command, CancellationToken ct) {
         LastSender = Sender;
         ProcessedCount++;
+    }
+}
+
+/// <summary>ReceiveTimeout 测试 Actor(DSG033 API对齐Akka)</summary>
+internal sealed class ReceiveTimeoutActor(TimeSpan timeout) : ActorBase<string, string> {
+    public int TimeoutCount;
+    public int ProcessedCount;
+
+    protected override void PreStart() => SetReceiveTimeout(timeout);
+
+    protected override void Handle(string command, CancellationToken ct) {
+        ProcessedCount++;
+    }
+
+    protected override void OnReceiveTimeout() {
+        TimeoutCount++;
     }
 }

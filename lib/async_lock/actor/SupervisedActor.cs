@@ -115,6 +115,9 @@ public sealed class ChildActorHandle : IAsyncDisposable {
     /// <summary>监督策略</summary>
     public SupervisorStrategy Strategy => _strategy;
 
+    /// <summary>子 Actor 终止事件 — Watch 后父 Actor 订阅,子终止时触发(DSG033 S3)</summary>
+    internal event Action<ChildActorHandle, TerminationReason>? Terminated;
+
     internal ChildActorHandle(
         string id,
         Func<CancellationToken, ValueTask<IAsyncDisposable>> factory,
@@ -215,6 +218,7 @@ public sealed class ChildActorHandle : IAsyncDisposable {
             _instance = null;
         }
         State = ChildActorState.Stopped;
+        Terminated?.Invoke(this, TerminationReason.Stopped);
     }
 
     /// <summary>释放 — 等同于 StopAsync</summary>
@@ -224,7 +228,20 @@ public sealed class ChildActorHandle : IAsyncDisposable {
 /// <summary>
 /// 监督事件 — 子 Actor 生命周期事件,通过 OutputAsync 流输出。
 /// </summary>
-public sealed record SupervisorEvent(string ChildId, ChildActorState State, string? Message = null);
+public record SupervisorEvent(string ChildId, ChildActorState State, string? Message = null);
+
+/// <summary>子 Actor 终止原因 — DSG033 S3 DeathWatch</summary>
+public enum TerminationReason {
+    /// <summary>正常停止</summary>
+    [EnumValue("stopped")] Stopped,
+    /// <summary>失败终止</summary>
+    [EnumValue("failed")] Failed,
+    /// <summary>Dispose 释放</summary>
+    [EnumValue("disposed")] Disposed
+}
+
+/// <summary>子 Actor 终止事件 — Watch 后父 Actor 通过 OutputAsync 收到(DSG033 S3)</summary>
+public sealed record Terminated(string ChildId, TerminationReason Reason) : SupervisorEvent(ChildId, ChildActorState.Stopped);
 
 /// <summary>
 /// 监督 Actor — 继承 ActorBase 获得消息处理 + 输出流,新增树形父子关系 + 监督策略。
@@ -293,6 +310,23 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
     /// <summary>按 ID 获取子 Actor 句柄</summary>
     protected ChildActorHandle? GetChild(string childId) =>
         _children.TryGetValue(childId, out var handle) ? handle : null;
+
+    /// <summary>
+    /// 监视子 Actor — 子终止时本 Actor 通过 OutputAsync 收到 Terminated 事件(DSG033 S3)。
+    /// <para>对齐 Akka context.watch: 被动感知子 Actor 终止,无需主动轮询。</para>
+    /// </summary>
+    protected void Watch(ChildActorHandle child) {
+        child.Terminated += OnChildTerminated;
+    }
+
+    /// <summary>取消监视子 Actor — 不再接收其 Terminated 事件(DSG033 S3)</summary>
+    protected void Unwatch(ChildActorHandle child) {
+        child.Terminated -= OnChildTerminated;
+    }
+
+    private void OnChildTerminated(ChildActorHandle child, TerminationReason reason) {
+        TryPublish(new Terminated(child.Id, reason));
+    }
 
     /// <summary>停止所有子 Actor — 父 Actor Dispose 时级联</summary>
     protected async ValueTask StopAllChildrenAsync() {

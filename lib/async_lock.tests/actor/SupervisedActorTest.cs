@@ -175,6 +175,46 @@ public class SupervisedActorTest {
         h1.RestartCount.Should().Be(0, "已 Stopped 的子不参与 AllForOne 重启");
         h1.State.Should().Be(ChildActorState.Stopped);
     }
+
+    /// <summary>DeathWatch: Watch 后子 Stop,父收到 Terminated 事件(DSG033 S3)</summary>
+    [Fact]
+    public async Task DeathWatch_ChildStops_ParentReceivesTerminated() {
+        await using var parent = new TestSupervisedActor();
+        var child = await parent.SpawnTestChild("c1");
+        parent.WatchTestChild(child);
+
+        await child.StopAsync();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        SupervisorEvent? received = null;
+        try {
+            await foreach (var evt in parent.OutputAsync(cts.Token)) {
+                received = evt;
+                if (evt is Terminated) break;
+            }
+        } catch (OperationCanceledException) { }
+        received.Should().BeOfType<Terminated>("Watch 后子 Stop 应触发 Terminated 事件");
+    }
+
+    /// <summary>DeathWatch: Unwatch 后不再收到 Terminated(DSG033 S3)</summary>
+    [Fact]
+    public async Task DeathWatch_Unwatch_StopsReceiving() {
+        await using var parent = new TestSupervisedActor();
+        var child = await parent.SpawnTestChild("c1");
+        parent.WatchTestChild(child);
+        parent.UnwatchTestChild(child);
+
+        await child.StopAsync();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+        var sawTerminated = false;
+        try {
+            await foreach (var evt in parent.OutputAsync(cts.Token)) {
+                if (evt is Terminated) { sawTerminated = true; break; }
+            }
+        } catch (OperationCanceledException) { }
+        sawTerminated.Should().BeFalse("Unwatch 后不应收到 Terminated 事件");
+    }
 }
 
 /// <summary>
@@ -201,6 +241,8 @@ internal sealed class TestSupervisedActor : SupervisedActor<TestSupervisedActor.
     public IReadOnlyCollection<ChildActorHandle> GetTestChildren() => GetChildren();
     public ChildActorHandle? GetTestChild(string id) => GetChild(id);
     public ValueTask StopAllTestChildrenAsync() => StopAllChildrenAsync();
+    public void WatchTestChild(ChildActorHandle child) => Watch(child);
+    public void UnwatchTestChild(ChildActorHandle child) => Unwatch(child);
 }
 
 /// <summary>简单可释放对象 — 用于测试子 Actor 实例</summary>

@@ -12,7 +12,7 @@ namespace Core.Utils;
 /// </summary>
 /// <typeparam name="TCommand">命令类型 — 建议用 record 或 sealed class,实现标记接口以约束合法命令</typeparam>
 /// <typeparam name="TOut">输出消息类型 — 建议用 record 或 sealed class</typeparam>
-public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<TCommand>, IActorOutput<TOut>, IAsyncDisposable {
+public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<TCommand>, IActorOutput<TOut>, IActorLifecycle {
     private readonly Channel<MessageEnvelope<TCommand>> _inputChannel;
     private readonly Channel<TOut> _outputChannel;
     private readonly Task _consumerTask;
@@ -121,6 +121,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
 
     /// <summary>Actor 唯一标识 — 用于日志和监控</summary>
     public string Id { get; }
+
+    /// <summary>Actor 是否已释放(DisposeAsync 已完成)(Akka 对齐)</summary>
+    public bool IsDisposed => Volatile.Read(ref _disposed) != 0;
 
     /// <summary>
     /// Consumer 任务 — 用于等待 Consumer 退出(Dispose 时)或观察异常。
@@ -460,6 +463,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <returns>true=已处理(或幂等跳过);false=Actor 关闭需退出循环</returns>
     internal bool ProcessSingleCommand(TCommand cmd, CancellationToken ct) {
         CheckInputWatermark();
+
+        if (cmd is IPoisonPill) {
+            TriggerPoisonPillStop();
+            return false;
+        }
+
         try {
             OnBeforeProcessCommand();
             if (_idempotencyGate.TryRestore(cmd)) {
@@ -724,6 +733,19 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     }
 
     private string? TryGetCallerActorId() => AsyncFlowIdentity.CurrentActorId;
+
+    /// <summary>
+    /// PoisonPill 触发停止 — 取消 Consumer + 完成通道,fire-and-forget 触发 DisposeAsync 做完整清理(Akka 对齐)。
+    /// <para>在 Consumer 线程内调用,不能 await 自己的 DisposeAsync(死锁),用 fire-and-forget。</para>
+    /// <para>DisposeAsync 在 ThreadPool 线程 await _consumerTask,等 Consumer 退出后继续清理(in-flight/PostStop/CTS)。</para>
+    /// </summary>
+    private void TriggerPoisonPillStop() {
+        _cts.Cancel();
+        _inputChannel.Writer.TryComplete();
+        _outputChannel.Writer.TryComplete();
+        _retryEngine.Complete();
+        _ = DisposeAsync().AsTask();
+    }
 
     /// <summary>
     /// 释放 Actor — 取消 Consumer、完成通道,等待 Consumer 真正退出后等待所有 in-flight 任务,最后释放 CTS。

@@ -59,12 +59,7 @@ public class ActorSystemTest {
     }
 }
 
-/// <summary>可追踪 Dispose 状态的测试 Actor</summary>
+/// <summary>可追踪 Dispose 状态的测试 Actor — IsDisposed 由 ActorBase 提供</summary>
 internal sealed class DisposableTestActor : ActorBase<string, string> {
-    public bool IsDisposed;
     protected override void Handle(string command, CancellationToken ct) { }
-    public override ValueTask DisposeAsync() {
-        IsDisposed = true;
-        return base.DisposeAsync();
-    }
 }

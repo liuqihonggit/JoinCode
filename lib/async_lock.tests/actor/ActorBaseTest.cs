@@ -652,6 +652,56 @@ public class ActorBaseTest {
 
         actor.ProcessedCommands.Should().Contain("scheduled-msg");
     }
+
+    /// <summary>PoisonPill 收到后 Actor 停止(Akka 对齐)</summary>
+    [Fact]
+    public async Task PoisonPill_ActorStops_AfterReceive() {
+        await using var actor = new PoisonPillActor();
+        actor.Tell("msg1");
+        actor.Tell(new PoisonPillMsg());
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Contains("msg1"), TimeSpan.FromMilliseconds(500));
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.IsDisposed, TimeSpan.FromMilliseconds(500));
+        actor.IsDisposed.Should().BeTrue();
+
+        actor.TrySend("msg2").Should().BeFalse("Actor 已停止,不应接受新消息");
+        actor.ProcessedCommands.Should().NotContain("msg2");
+    }
+
+    /// <summary>PoisonPill 前面的消息处理完才停止(Akka 对齐)</summary>
+    [Fact]
+    public async Task PoisonPill_ProcessesPriorMessages_First() {
+        await using var actor = new PoisonPillActor();
+        actor.Tell("msg1");
+        actor.Tell("msg2");
+        actor.Tell(new PoisonPillMsg());
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.IsDisposed, TimeSpan.FromMilliseconds(500));
+
+        actor.ProcessedCommands.Should().Contain("msg1");
+        actor.ProcessedCommands.Should().Contain("msg2");
+    }
+
+    /// <summary>GracefulStop 发 PoisonPill 等待 Actor 终止(Akka 对齐)</summary>
+    [Fact]
+    public async Task GracefulStop_SendsPoisonPill_WaitsForTermination() {
+        await using var actor = new PoisonPillActor();
+        actor.Tell("msg1");
+
+        await ActorGracefulStop.GracefulStopAsync(actor, new PoisonPillMsg(), TimeSpan.FromSeconds(1));
+
+        actor.IsDisposed.Should().BeTrue();
+        actor.ProcessedCommands.Should().Contain("msg1");
+    }
+
+    /// <summary>GracefulStop 超时抛 TimeoutException(Akka 对齐)</summary>
+    [Fact]
+    public async Task GracefulStop_Timeout_ThrowsTimeoutException() {
+        await using var actor = new NoPoisonPillActor();
+        await FluentActions.Awaiting(() => ActorGracefulStop.GracefulStopAsync(actor, "poison", TimeSpan.FromMilliseconds(50)))
+            .Should().ThrowAsync<TimeoutException>();
+    }
 }
 
 /// <summary>
@@ -759,6 +809,22 @@ internal sealed class PipeToActor : ActorBase<string, string> {
     protected override void Handle(string command, CancellationToken ct) {
         ProcessedCommands.Add(command);
     }
+}
+
+/// <summary>PoisonPill 标记消息(DSG033 API对齐Akka)</summary>
+internal sealed record PoisonPillMsg : IPoisonPill;
+
+/// <summary>PoisonPill 测试 Actor — TCommand=object 可接收任何消息</summary>
+internal sealed class PoisonPillActor : ActorBase<object, Unit> {
+    public readonly List<object> ProcessedCommands = new();
+    protected override void Handle(object command, CancellationToken ct) {
+        ProcessedCommands.Add(command);
+    }
+}
+
+/// <summary>无 PoisonPill 支持的 Actor — TCommand=string 无法接收 PoisonPill</summary>
+internal sealed class NoPoisonPillActor : ActorBase<string, Unit> {
+    protected override void Handle(string command, CancellationToken ct) { }
 }
 
 /// <summary>防御守卫测试 Actor — 暴露 protected Become/BecomeStacked/Stash 供测试调用</summary>

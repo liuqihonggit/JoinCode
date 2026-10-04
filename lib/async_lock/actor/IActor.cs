@@ -19,15 +19,17 @@ public interface IActor<TCommand> : IAsyncDisposable {
     /// <para>16次重试失败触发 SendFailed 事件(不丢弃,外部可计入死信队列)。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
+    /// <param name="sender">发送者引用(null=无 sender,Actor 间通信时传入回复目标)</param>
     /// <exception cref="ObjectDisposedException">Actor 已释放</exception>
-    void Tell(TCommand cmd);
+    void Tell(TCommand cmd, object? sender = null);
 
     /// <summary>
     /// 同步尝试发送命令 — 通道已关闭、已释放或（有界通道）已满时返回 false。
     /// </summary>
     /// <param name="cmd">命令实例</param>
+    /// <param name="sender">发送者引用(null=无 sender,Actor 间通信时传入回复目标)</param>
     /// <returns>true 表示已入队，false 表示未入队</returns>
-    bool TrySend(TCommand cmd);
+    bool TrySend(TCommand cmd, object? sender = null);
 }
 
 /// <summary>
@@ -40,21 +42,24 @@ public interface IActorTell<TCommand> {
     /// 同步发送命令 — Tell 模式(射后不理,不阻塞调用方)。
     /// </summary>
     /// <param name="cmd">命令实例</param>
-    void Tell(TCommand cmd);
+    /// <param name="sender">发送者引用(null=无 sender,Actor 间通信时传入回复目标)</param>
+    void Tell(TCommand cmd, object? sender = null);
 
     /// <summary>
     /// 同步尝试发送命令 — 通道已关闭、已释放或已满时返回 false。
     /// </summary>
     /// <param name="cmd">命令实例</param>
+    /// <param name="sender">发送者引用(null=无 sender)</param>
     /// <returns>true 表示已入队，false 表示未入队</returns>
-    bool TrySend(TCommand cmd);
+    bool TrySend(TCommand cmd, object? sender = null);
 
     /// <summary>
     /// TrySend 的语义别名 — 强调严格 FIFO 保证,入队失败直接返回 false 不进重试队列。
     /// </summary>
     /// <param name="cmd">命令实例</param>
+    /// <param name="sender">发送者引用(null=无 sender)</param>
     /// <returns>true 表示已入队，false 表示未入队</returns>
-    bool TryTell(TCommand cmd);
+    bool TryTell(TCommand cmd, object? sender = null);
 }
 
 /// <summary>

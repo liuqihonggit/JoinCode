@@ -10,7 +10,7 @@ namespace Core.Utils;
 internal sealed class MessageRetryEngine<TCommand> {
     private readonly Channel<RetryEntry<TCommand>> _retryQueue;
     private readonly Channel<TimeSpan> _bpDelayQueue;
-    private readonly ChannelWriter<TCommand> _inputWriter;
+    private readonly ChannelWriter<MessageEnvelope<TCommand>> _inputWriter;
     private readonly ILogger? _logger;
     private readonly string _actorId;
     private readonly int _maxRetries;
@@ -31,7 +31,7 @@ internal sealed class MessageRetryEngine<TCommand> {
     public MessageRetryEngine(
         int retryQueueCapacity,
         int maxRetries,
-        ChannelWriter<TCommand> inputWriter,
+        ChannelWriter<MessageEnvelope<TCommand>> inputWriter,
         string actorId,
         ILogger? logger,
         CancellationToken shutdownCt,
@@ -116,7 +116,7 @@ internal sealed class MessageRetryEngine<TCommand> {
     /// </summary>
     /// <returns>true=回写输入通道成功;false=回写失败(已 TryRequeue)</returns>
     internal bool ProcessOneEntryImmediate(RetryEntry<TCommand> entry) {
-        if (_inputWriter.TryWrite(entry.Command)) {
+        if (_inputWriter.TryWrite(new MessageEnvelope<TCommand>(entry.Command, entry.Sender))) {
             _onEnqueuedToInput();
             return true;
         }

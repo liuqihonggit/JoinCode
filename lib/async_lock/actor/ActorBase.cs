@@ -13,7 +13,7 @@ namespace Core.Utils;
 /// <typeparam name="TCommand">命令类型 — 建议用 record 或 sealed class,实现标记接口以约束合法命令</typeparam>
 /// <typeparam name="TOut">输出消息类型 — 建议用 record 或 sealed class</typeparam>
 public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<TCommand>, IActorOutput<TOut>, IAsyncDisposable {
-    private readonly Channel<TCommand> _inputChannel;
+    private readonly Channel<MessageEnvelope<TCommand>> _inputChannel;
     private readonly Channel<TOut> _outputChannel;
     private readonly Task _consumerTask;
     private readonly CancellationTokenSource _cts = new();
@@ -94,16 +94,16 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         PreStart();
     }
 
-    internal static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure) {
+    internal static Channel<MessageEnvelope<TCommand>> CreateInputChannel(ActorBackpressure? backpressure) {
         if (backpressure is null || backpressure.Capacity == 0) {
-            return Channel.CreateBounded<TCommand>(new BoundedChannelOptions(DefaultChannelCapacity) {
+            return Channel.CreateBounded<MessageEnvelope<TCommand>>(new BoundedChannelOptions(DefaultChannelCapacity) {
                 FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = true,
                 SingleWriter = false
             });
         }
 
-        return Channel.CreateBounded<TCommand>(new BoundedChannelOptions(backpressure.Capacity) {
+        return Channel.CreateBounded<MessageEnvelope<TCommand>>(new BoundedChannelOptions(backpressure.Capacity) {
             FullMode = backpressure.FullMode,
             SingleReader = true,
             SingleWriter = false
@@ -181,15 +181,17 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <para><b>⚠️ FIFO 不保证</b>:消息入队失败进入重试队列后,可能晚于后续成功入队的消息被消费,命令顺序不保证严格 FIFO。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
+    /// <param name="sender">发送者引用(null=无 sender,Actor 间通信时传入回复目标,Handle 中通过 <see cref="Sender"/> 获取)</param>
     /// <exception cref="ObjectDisposedException">Actor 已释放</exception>
-    public void Tell(TCommand cmd) {
+    public void Tell(TCommand cmd, object? sender = null) {
         ThrowIfDisposed();
 
-        if (_inputChannel.Writer.TryWrite(cmd)) {
+        var envelope = new MessageEnvelope<TCommand>(cmd, sender);
+        if (_inputChannel.Writer.TryWrite(envelope)) {
             CheckInputWatermark();
             return;
         }
-        if (!_retryEngine.TryEnqueue(new RetryEntry<TCommand>(cmd, 1))) {
+        if (!_retryEngine.TryEnqueue(new RetryEntry<TCommand>(cmd, 1, sender))) {
             _logger?.LogWarning("[Actor:{ActorId}] 重试队列满,首次入队失败,触发SendFailed", Id);
             RaiseSendFailed(cmd, 0);
         }
@@ -235,10 +237,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <para><b>与 <see cref="Tell"/> 区别</b>:Tell 入队失败进重试队列(不保证FIFO);TrySend 入队失败返回false(保证FIFO,调用方自行处理)。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
+    /// <param name="sender">发送者引用(null=无 sender)</param>
     /// <returns>true 表示已入队,false 表示未入队</returns>
-    public bool TrySend(TCommand cmd) {
+    public bool TrySend(TCommand cmd, object? sender = null) {
         if (Volatile.Read(ref _disposed) != 0) return false;
-        var written = _inputChannel.Writer.TryWrite(cmd);
+        var written = _inputChannel.Writer.TryWrite(new MessageEnvelope<TCommand>(cmd, sender));
         if (written) {
             CheckInputWatermark();
         }
@@ -251,8 +254,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <para>适合需要严格命令顺序的场景(如状态机、事务序列)。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
-    /// <returns>true 表示已入队,false 表示未入队(通道满或已释放)</returns>
-    public bool TryTell(TCommand cmd) => TrySend(cmd);
+    /// <param name="sender">发送者引用(null=无 sender)</param>
+    /// <returns>true 表示已入队,false 表示未入队</returns>
+    public bool TryTell(TCommand cmd, object? sender = null) => TrySend(cmd, sender);
 
     /// <summary>
     /// Actor 主动推送消息到输出 Channel — 外部通过 OutputAsync 拉取。
@@ -386,6 +390,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         }
     }
 
+    /// <summary>当前消息的发送者 — AsyncLocal 跨 await 流转,Handle 中获取 Tell 时传入的 sender(Akka 对齐)</summary>
+    private readonly AsyncLocal<object?> _currentSender = new();
+
+    /// <summary>
+    /// 当前消息的发送者 — 在 Handle/行为中调用,获取 Tell 时传入的 sender 引用(Akka 对齐)。
+    /// <para>null 表示无 sender(外部 Tell 未传 sender)。</para>
+    /// </summary>
+    protected object? Sender => _currentSender.Value;
+
     /// <summary>Actor 启动前调用(构造函数末尾,Consumer 启动前)— 初始化资源(DSG033 S2)</summary>
     protected virtual void PreStart() { }
 
@@ -411,8 +424,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     private async Task ConsumeLoopAsync() {
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
         try {
-            await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
-                if (!ProcessSingleCommand(cmd, _cts.Token)) return;
+            await foreach (var envelope in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
+                _currentSender.Value = envelope.Sender;
+                if (!ProcessSingleCommand(envelope.Command, _cts.Token)) return;
             }
         } catch (OperationCanceledException) { }
     }
@@ -808,9 +822,21 @@ public sealed record BackpressureSendFailedEventArgs<TCommand>(
 /// <typeparam name="TCommand">命令类型</typeparam>
 /// <param name="Command">待重试命令</param>
 /// <param name="Attempt">当前重试次数(1=首次重试)</param>
+/// <param name="Sender">发送者引用(null=无 sender,重试时保留原 sender)</param>
 internal sealed record RetryEntry<TCommand>(
     TCommand Command,
-    int Attempt);
+    int Attempt,
+    object? Sender = null);
+
+/// <summary>
+/// 消息信封 — 包装命令 + 发送者引用,供 Channel 传递(Akka Envelope 对齐)。
+/// </summary>
+/// <typeparam name="T">命令类型</typeparam>
+/// <param name="Command">命令</param>
+/// <param name="Sender">发送者引用(null=无 sender)</param>
+internal readonly record struct MessageEnvelope<T>(
+    T Command,
+    object? Sender);
 
 /// <summary>
 /// 输出消息丢弃事件参数 — 输出通道满时 TryPublish 丢弃的消息

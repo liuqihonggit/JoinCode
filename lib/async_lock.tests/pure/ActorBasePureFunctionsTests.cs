@@ -185,8 +185,8 @@ public class ActorBaseCreateChannelTests {
         var bp = new ActorBackpressure(Capacity: 10);
         var ch = ActorBase<string, string>.CreateInputChannel(bp);
         ch.Should().NotBeNull();
-        for (var i = 0; i < 10; i++) ch.Writer.TryWrite($"msg{i}").Should().BeTrue();
-        ch.Writer.TryWrite("overflow").Should().BeFalse();
+        for (var i = 0; i < 10; i++) ch.Writer.TryWrite(new MessageEnvelope<string>($"msg{i}", null)).Should().BeTrue();
+        ch.Writer.TryWrite(new MessageEnvelope<string>("overflow", null)).Should().BeFalse();
         ch.Reader.Count.Should().Be(10);
     }
 

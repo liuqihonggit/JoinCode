@@ -461,6 +461,29 @@ public class ActorBaseTest {
         actor.State1Processed.Should().Contain("become");
         actor.State1Processed.Should().NotContain("msg2");
     }
+
+    /// <summary>Tell 带 sender,Handle 中可通过 Sender 属性获取(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Tell_带Sender_Handle中可获取Sender() {
+        await using var actor = new SenderActor();
+        var sender = new object();
+        actor.Tell("msg", sender);
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCount >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.LastSender.Should().BeSameAs(sender);
+    }
+
+    /// <summary>Tell 不带 sender,Sender 为 null(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Tell_不带Sender_Sender为null() {
+        await using var actor = new SenderActor();
+        actor.Tell("msg");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCount >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.LastSender.Should().BeNull();
+    }
 }
 
 /// <summary>
@@ -533,5 +556,15 @@ internal sealed class BecomeActor : ActorBase<string, string> {
         if (command == "unbecome") {
             UnbecomeStacked();
         }
+    }
+}
+
+/// <summary>Sender 测试 Actor(DSG033 API对齐Akka)</summary>
+internal sealed class SenderActor : ActorBase<string, string> {
+    public object? LastSender;
+    public int ProcessedCount;
+    protected override void Handle(string command, CancellationToken ct) {
+        LastSender = Sender;
+        ProcessedCount++;
     }
 }

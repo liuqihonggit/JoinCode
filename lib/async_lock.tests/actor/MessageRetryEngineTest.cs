@@ -5,9 +5,9 @@ namespace Core.Utils;
 /// <para>覆盖:TryEnqueue/TryRequeue 边界(超 maxRetries/队列满/成功)、ReceiveBackpressureSignal、RetryQueueCount、Complete、循环回写输入通道。</para>
 /// </summary>
 public class MessageRetryEngineTest {
-    private static (MessageRetryEngine<string> engine, Channel<string> input, CancellationTokenSource cts, List<(string Cmd, int Retry)> sendFailed, int[] enqueuedCount) NewEngine(
+    private static (MessageRetryEngine<string> engine, Channel<MessageEnvelope<string>> input, CancellationTokenSource cts, List<(string Cmd, int Retry)> sendFailed, int[] enqueuedCount) NewEngine(
         int retryQueueCapacity = 1024, int maxRetries = 16) {
-        var input = Channel.CreateBounded<string>(new BoundedChannelOptions(100) {
+        var input = Channel.CreateBounded<MessageEnvelope<string>>(new BoundedChannelOptions(100) {
             FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true,
             SingleWriter = false
@@ -154,8 +154,8 @@ public class MessageRetryEngineTest {
         result.Should().BeTrue("输入通道可写,回写成功");
         Volatile.Read(ref enqueuedCount[0]).Should().Be(1, "回写成功调用 onEnqueuedToInput 回调");
         sendFailed.Should().BeEmpty("回写成功不触发 SendFailed");
-        input.Reader.TryRead(out var cmd).Should().BeTrue();
-        cmd.Should().Be("retry-cmd");
+        input.Reader.TryRead(out var envelope).Should().BeTrue();
+        envelope.Command.Should().Be("retry-cmd");
 
         engine.Complete();
         cts.Cancel();
@@ -164,7 +164,7 @@ public class MessageRetryEngineTest {
     /// <summary>ProcessOneEntryImmediate 输入满 → TryRequeue 重新入队(确定性,无退避延迟)</summary>
     [Fact]
     public void ProcessOneEntryImmediate_InputFull_TryRequeues() {
-        var input = Channel.CreateBounded<string>(new BoundedChannelOptions(1) {
+        var input = Channel.CreateBounded<MessageEnvelope<string>>(new BoundedChannelOptions(1) {
             FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true,
             SingleWriter = false
@@ -182,7 +182,7 @@ public class MessageRetryEngineTest {
             onSendFailed: (cmd, retry) => sendFailed.Add((cmd, retry)),
             onEnqueuedToInput: () => Interlocked.Increment(ref enqueuedCount));
 
-        input.Writer.TryWrite("occupier").Should().BeTrue("占满输入通道");
+        input.Writer.TryWrite(new MessageEnvelope<string>("occupier", null)).Should().BeTrue("占满输入通道");
 
         var result = engine.ProcessOneEntryImmediate(new RetryEntry<string>("blocked-cmd", 1));
 
@@ -197,7 +197,7 @@ public class MessageRetryEngineTest {
 
     // ===== 守卫补全:构造函数取值范围边界值(确定性测试,不依赖时序/IO) =====
 
-    private static Channel<string> MakeInput() => Channel.CreateBounded<string>(new BoundedChannelOptions(100) {
+    private static Channel<MessageEnvelope<string>> MakeInput() => Channel.CreateBounded<MessageEnvelope<string>>(new BoundedChannelOptions(100) {
         FullMode = BoundedChannelFullMode.Wait,
         SingleReader = true,
         SingleWriter = false

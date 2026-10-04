@@ -28,17 +28,20 @@ public sealed record SupervisorStrategy(
     Func<Exception, SupervisorDirective> Decider,
     bool RestartAllSiblings = false,
     ActorBackoffStrategy? Backoff = null) {
+    /// <summary>
+    /// 默认异常分类 — 对齐 Akka DefaultDecider(DSG033 API对齐)。
+    /// <para>OperationCanceledException → Stop(取消是正常终止),其他 → Restart(临时故障)。</para>
+    /// </summary>
+    public static readonly Func<Exception, SupervisorDirective> DefaultDecider =
+        static ex => ex is OperationCanceledException ? SupervisorDirective.Stop : SupervisorDirective.Restart;
+
     /// <summary>OneForOne — 只重启失败的子 Actor,最多 3 次/分钟</summary>
     public static readonly SupervisorStrategy OneForOne = new(
-        3, TimeSpan.FromMinutes(1),
-        static ex => ex is OperationCanceledException ? SupervisorDirective.Stop : SupervisorDirective.Restart,
-        RestartAllSiblings: false);
+        3, TimeSpan.FromMinutes(1), DefaultDecider, RestartAllSiblings: false);
 
     /// <summary>AllForOne — 重启所有子 Actor(一个失败影响全部),最多 3 次/分钟</summary>
     public static readonly SupervisorStrategy AllForOne = new(
-        3, TimeSpan.FromMinutes(1),
-        static ex => ex is OperationCanceledException ? SupervisorDirective.Stop : SupervisorDirective.Restart,
-        RestartAllSiblings: true);
+        3, TimeSpan.FromMinutes(1), DefaultDecider, RestartAllSiblings: true);
 
     /// <summary>Escalate — 向上抛给父 Actor 处理</summary>
     public static readonly SupervisorStrategy Escalate = new(

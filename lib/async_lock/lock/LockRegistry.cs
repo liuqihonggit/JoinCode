@@ -175,9 +175,17 @@ public static class LockRegistry {
     }
 
     /// <summary>
-    /// 记录锁获取成功（清除等待标记 + 记录持有信息）。
+    /// 在调用方同步上下文中捕获调用栈 — 供 <see cref="AsyncLock.TryLockAsync(TimeSpan, CancellationToken)"/> 在 await 之前调用,
+    /// 避免 await 后线程池调度导致 <see cref="Environment.StackTrace"/> 丢失原始调用方。
     /// </summary>
-    internal static void OnAcquired(int id, string name) {
+    internal static string CaptureCurrentStack(int skipFrames) => CaptureStackTrace(skipFrames + 1);
+
+    /// <summary>
+    /// 记录锁获取成功（清除等待标记 + 记录持有信息）。
+    /// <para><paramref name="stack"/> 由调用方在 await 之前捕获并传入,确保含原始调用方帧;
+    /// 传 null 则在此处即时捕获(同步路径适用,async 路径应传预捕获栈)。</para>
+    /// </summary>
+    internal static void OnAcquired(int id, string name, string? stack = null) {
         if (!IsEnabled) return;
         if (Volatile.Read(ref _locks).TryGetValue(id, out var info)) {
             var waitTicks = info.WaitStartedTicks;
@@ -195,7 +203,7 @@ public static class LockRegistry {
                 $"获取成功,等待 {waited.TotalSeconds:F3}s。");
             info.HoldingFlowId = ResolveFlowId();
             info.AcquiredTicks = DateTimeOffset.UtcNow.Ticks;
-            info.AcquireStack = CaptureStackTrace(skipFrames: 3);
+            info.AcquireStack = stack ?? CaptureStackTrace(skipFrames: 3);
             info.WaitingFlowId = 0;
             info.WaitStartedTicks = 0;
             info.WaitStack = null;

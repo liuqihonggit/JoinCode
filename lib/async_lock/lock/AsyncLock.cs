@@ -194,6 +194,7 @@ public sealed class AsyncLock : IDisposable {
     public async ValueTask<IDisposable?> TryLockAsync(TimeSpan timeout, CancellationToken ct = default) {
         ThrowIfDisposed();
         EnsureFlowRegistered();
+        var acquireStack = LockRegistry.DiagnosticsEnabled ? LockRegistry.CaptureCurrentStack(skipFrames: 2) : null;
         LockRegistry.OnWaitStart(_registryId, _name);
         bool acquired;
         try {
@@ -207,7 +208,7 @@ public sealed class AsyncLock : IDisposable {
             LockRegistry.OnLockTimeout(_name, timeout);
             return null;
         }
-        LockRegistry.OnAcquired(_registryId, _name);
+        LockRegistry.OnAcquired(_registryId, _name, acquireStack);
         return new Releaser(this);
     }
 

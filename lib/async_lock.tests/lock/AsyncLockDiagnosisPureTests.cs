@@ -73,6 +73,32 @@ public class AsyncLockDiagnosisPureTests : IDisposable {
         }
     }
 
+    /// <summary>
+    /// 异步获取锁(被迫等待)后,DumpAll 调用栈仍应包含调用方方法名。
+    /// 复现 flaky 根因:OnAcquired 在 await 之后捕获 Environment.StackTrace,
+    /// 若 WaitAsync 异步完成(线程池调度),栈已不含原始调用方。
+    /// 修复:在 await 之前捕获栈,传给 OnAcquired。
+    /// </summary>
+    [Fact]
+    [Trait("Category", "Deterministic")]
+    public async Task DumpAll_异步获取后调用栈仍包含调用方() {
+        LockRegistry.DiagnosticsEnabled = true;
+        using var lk = new AsyncLock("async-stack-test");
+        using var barrier = new Barrier(2);
+        var holderTask = Task.Run(async () => {
+            using var holder = await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' holder 等待超时");
+            barrier.SignalAndWait();
+            await Task.Delay(150);
+        });
+        barrier.SignalAndWait();
+        using (await lk.TryLockAsync(TimeSpan.FromSeconds(3)) ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
+            var dump = LockRegistry.DumpAll();
+            dump.Should().Contain("获取调用栈", "诊断开启时 DumpAll 应包含获取调用栈");
+            dump.Should().Contain("AsyncLockDiagnosisPureTests", "异步获取后调用栈仍应包含调用方方法名");
+        }
+        await holderTask;
+    }
+
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task Lock带CancellationToken_取消时抛OperationCanceledException() {

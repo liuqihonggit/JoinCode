@@ -5,9 +5,8 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              xmlns:cnv="using:JoinCode.Gui.Converters"
-             xmlns:core="using:JoinCode.Gui.Views"
-             xmlns:edit="using:AvaloniaEdit"
-             xmlns:sys="using:System"
+              xmlns:core="using:JoinCode.Gui.Views"
+              xmlns:sys="using:System"
              x:Class="JoinCode.Gui.Views.EditorPanelView"
              x:Name="EditorPanelRoot"
              x:DataType="vm:MainViewModel">
@@ -137,25 +136,22 @@
     <Grid Grid.Row="2" ColumnDefinitions="*,6,*">
       <!-- 左侧编辑器(组1) + Minimap -->
       <Grid Grid.Column="0" ColumnDefinitions="*,Auto">
-        <edit:TextEditor Grid.Column="0" x:Name="Editor"
-                         ShowLineNumbers="True"
-                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                         FontSize="13"
-                         Background="{DynamicResource GuiWindowBackground}"
-                         Foreground="{DynamicResource GuiPrimaryText}" />
+        <TextBox Grid.Column="0" x:Name="Editor"
+                 AcceptsReturn="True" TextWrapping="NoWrap"
+                 FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                 FontSize="13"
+                 Background="{DynamicResource GuiWindowBackground}"
+                 Foreground="{DynamicResource GuiPrimaryText}" />
         <!-- Minimap 代码缩略图 -->
         <Border Grid.Column="1" Width="80" IsVisible="{Binding IsMinimapVisible}"
                 Background="{DynamicResource GuiWindowBackground}"
                 BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1,0,0,0">
-          <edit:TextEditor x:Name="Minimap"
-                           ShowLineNumbers="False"
-                           IsReadOnly="True"
-                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                           FontSize="2.5"
-                           Background="{DynamicResource GuiWindowBackground}"
-                           Foreground="{DynamicResource GuiMutedText}"
-                           HorizontalScrollBarVisibility="Hidden"
-                           VerticalScrollBarVisibility="Hidden" />
+          <TextBox x:Name="Minimap"
+                   AcceptsReturn="True" TextWrapping="NoWrap" IsReadOnly="True"
+                   FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                   FontSize="2.5"
+                   Background="{DynamicResource GuiWindowBackground}"
+                   Foreground="{DynamicResource GuiMutedText}" />
         </Border>
       </Grid>
 
@@ -237,12 +233,12 @@
           </ItemsControl>
         </Border>
         <!-- 组2 编辑器 -->
-        <edit:TextEditor Grid.Row="2" x:Name="Editor2"
-                         ShowLineNumbers="True"
-                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                         FontSize="13"
-                         Background="{DynamicResource GuiWindowBackground}"
-                         Foreground="{DynamicResource GuiPrimaryText}" />
+        <TextBox Grid.Row="2" x:Name="Editor2"
+                 AcceptsReturn="True" TextWrapping="NoWrap"
+                 FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                 FontSize="13"
+                 Background="{DynamicResource GuiWindowBackground}"
+                 Foreground="{DynamicResource GuiPrimaryText}" />
       </Grid>
     </Grid>
   </Grid>

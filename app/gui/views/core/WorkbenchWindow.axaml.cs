@@ -6,7 +6,6 @@ public sealed partial class WorkbenchWindow : Window {
     /// <summary>初始化界面。</summary>
     public WorkbenchWindow() {
         InitializeComponent();
-        GitPreview.TextArea.TextView.LineTransformers.Add(new Markdown.UnifiedDiffColorizer());
         DataContextChanged += OnContextChanged;
         Closed += (_, _) => {
             if (_vm is not null) { _vm.CancelOperationCommand.Execute(null); _vm.PropertyChanged -= OnViewModelChanged; _vm.Main.PropertyChanged -= OnMainChanged; }
@@ -23,7 +22,6 @@ public sealed partial class WorkbenchWindow : Window {
     private void ApplyTheme() {
         if (_vm is null) return;
         RequestedThemeVariant = _vm.Main.IsDarkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
-        GitPreview.TextArea.TextView.Redraw();
     }
     private void OnChooseFolder(object? sender, RoutedEventArgs e) => _ = ChooseFolderAsync();
     private async Task ChooseFolderAsync() {
@@ -45,9 +43,6 @@ public sealed partial class WorkbenchWindow : Window {
         if (_vm is null) return;
         CodePreview.Text = _vm.FileContent;
         GitPreview.Text = _vm.GitContent;
-        CodePreview.SyntaxHighlighting = AvaloniaEdit.Highlighting.HighlightingManager.Instance.GetDefinitionByExtension(
-            System.IO.Path.GetExtension(_vm.SelectedFile?.Path ?? string.Empty));
-        GitPreview.SyntaxHighlighting = AvaloniaEdit.Highlighting.HighlightingManager.Instance.GetDefinition("Diff");
     }
     private void OnEntryDoubleTapped(object? sender, TappedEventArgs e) {
         if (DataContext is WorkbenchViewModel vm) vm.OpenEntryCommand.Execute(null);

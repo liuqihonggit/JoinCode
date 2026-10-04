@@ -9,7 +9,6 @@
         xmlns:abs="using:JoinCode.Abstractions.Interfaces"
         xmlns:md="using:JoinCode.Gui.Markdown"
         xmlns:controls="using:JoinCode.Gui.Views.Controls"
-        xmlns:edit="using:AvaloniaEdit"
         xmlns:local="using:JoinCode.Gui.Views"
         xmlns:design="using:JoinCode.Gui.Design"
         xmlns:dock="using:Dock.Avalonia.Controls"
@@ -86,43 +85,6 @@
     <Style Selector="ToggleButton.activityIcon:checked">
       <Setter Property="Background" Value="{DynamicResource GuiAccentSubtle}" />
       <Setter Property="Foreground" Value="{DynamicResource GuiAccentText}" />
-    </Style>
-    <!-- Dock ToolControl 标题栏：显示 Title（含 emoji），tab 移到顶部 -->
-    <Style Selector="ToolControl">
-      <Setter Property="HeaderTemplate">
-        <DataTemplate DataType="dockMvvm:Tool">
-          <TextBlock Text="{Binding Title}" Padding="4,2" FontSize="12" FontFamily="Segoe UI Emoji, Segoe UI Symbol, Inter" />
-        </DataTemplate>
-      </Setter>
-    </Style>
-    <!-- Dock ToolTabStrip 移到顶部（默认 Bottom） -->
-    <Style Selector="ToolControl /template/ ToolTabStrip">
-      <Setter Property="(DockPanel.Dock)" Value="Top" />
-    </Style>
-    <!-- Dock ToolChromeControl 透明背景融入侧边栏 -->
-    <Style Selector="ToolChromeControl">
-      <Setter Property="Background" Value="Transparent" />
-    </Style>
-    <!-- Dock ToolChromeControl 标题颜色对齐主题 -->
-    <Style Selector="ToolChromeControl /template/ TextBlock#PART_Title">
-      <Setter Property="Foreground" Value="{DynamicResource GuiPrimaryText}" />
-      <Setter Property="FontSize" Value="12" />
-      <Setter Property="FontFamily" Value="Segoe UI Emoji, Segoe UI Symbol, Inter" />
-    </Style>
-    <!-- Dock ToolChromeControl 标题栏背景对齐主题 -->
-    <Style Selector="ToolChromeControl /template/ Grid#PART_Grip">
-      <Setter Property="Background" Value="{DynamicResource GuiSidebarBackground}" />
-    </Style>
-    <!-- Dock ToolChromeControl 按钮图标颜色 — 用主题色填充 Path(固定/关闭/菜单按钮) -->
-    <Style Selector="ToolChromeControl /template/ Path">
-      <Setter Property="Fill" Value="{DynamicResource GuiSecondaryText}" />
-    </Style>
-    <Style Selector="ToolChromeControl /template/ Path#PART_ClosePath">
-      <Setter Property="Fill" Value="{DynamicResource GuiErrorText}" />
-    </Style>
-    <!-- Dock ToolChromeControl 按钮悬停反馈 -->
-    <Style Selector="ToolChromeControl /template/ Button:pointerover">
-      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
     </Style>
   </Window.Styles>
 

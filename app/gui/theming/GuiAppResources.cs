@@ -10,13 +10,12 @@ public static class GuiAppResources {
     private static FluentTheme? _fluentTheme;
     private static AccentOption? _accent;
     private static ResourceDictionary? _stringHost;
+    private static Application? _app;
 
     /// <summary>将 Fluent 主题、语义配色 ThemeDictionaries、全部转换器注册进应用资源。</summary>
     public static void Register(Application app) {
-        _fluentTheme = new FluentTheme();
-        app.Styles.Add(_fluentTheme);
-        // Dock.Avalonia 停靠布局主题（必须在 FluentTheme 之后）
-        app.Styles.Add(new Dock.Avalonia.Themes.Fluent.DockFluentTheme());
+        _app = app;
+        _fluentTheme = app.Styles.OfType<FluentTheme>().FirstOrDefault();
         // 共享控件样式（设计语言单一数据源）：必须在 FluentTheme 之后追加以覆盖默认外观
         app.Styles.Add(new GuiControlStyles());
         app.Resources["GuiMonoFont"] = new Avalonia.Media.FontFamily("Consolas,Cascadia Mono,Menlo,monospace");
@@ -88,6 +87,10 @@ public static class GuiAppResources {
     public static void ApplyTheme(GuiPalette.GuiThemeVariant variant) {
         if (_themeHost is null) return;
         ApplySchemeToHost(variant);
+        if (_app is not null) {
+            var isLight = variant is GuiPalette.GuiThemeVariant.Light or GuiPalette.GuiThemeVariant.SolarizedLight;
+            _app.RequestedThemeVariant = isLight ? ThemeVariant.Light : ThemeVariant.Dark;
+        }
     }
 
     private static void ApplySchemeToHost(GuiPalette.GuiThemeVariant variant) {

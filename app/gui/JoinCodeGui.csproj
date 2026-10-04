@@ -23,15 +23,15 @@
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="$(AvaloniaVersion)" />
-    <PackageReference Include="Avalonia.Diagnostics" Version="$(AvaloniaVersion)" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="$(CommunityToolkitMvvmVersion)" />
     <PackageReference Include="Markdig" Version="$(MarkdigVersion)" />
-    <PackageReference Include="OneWare.AvaloniaEdit" Version="11.3.3" />
-    <PackageReference Include="Dock.Avalonia.v11" Version="$(DockVersion)" />
-    <PackageReference Include="Dock.Avalonia.Themes.Fluent.v11" Version="$(DockVersion)" />
-    <PackageReference Include="Dock.Model" Version="12.1.0.6" />
-    <PackageReference Include="Dock.Model.Mvvm" Version="12.1.0.6" />
-    <PackageReference Include="Dock.Serializer.SystemTextJson" Version="12.1.0.6" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="D:\project\DockRef\src\Dock.Avalonia\Dock.Avalonia.csproj" />
+    <ProjectReference Include="D:\project\DockRef\src\Dock.Avalonia.Themes.Fluent\Dock.Avalonia.Themes.Fluent.csproj" />
+    <ProjectReference Include="D:\project\DockRef\src\Dock.Model\Dock.Model.csproj" />
+    <ProjectReference Include="D:\project\DockRef\src\Dock.Model.Mvvm\Dock.Model.Mvvm.csproj" />
+    <ProjectReference Include="D:\project\DockRef\src\Dock.Serializer.SystemTextJson\Dock.Serializer.SystemTextJson.csproj" />
   </ItemGroup>
 
   <ItemGroup>

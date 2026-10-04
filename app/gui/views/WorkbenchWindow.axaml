@@ -1,5 +1,5 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:JoinCode.Gui.ViewModels" xmlns:edit="using:AvaloniaEdit"
+        xmlns:vm="using:JoinCode.Gui.ViewModels"
         xmlns:theme="using:JoinCode.Gui.Theming" xmlns:host="using:JoinCode.Gui.Hosting"
         x:Class="JoinCode.Gui.Views.WorkbenchWindow" x:DataType="vm:WorkbenchViewModel"
         Title="JoinCode · 工作台" Width="1100" Height="780" MinWidth="760" MinHeight="560"
@@ -37,9 +37,9 @@
             </Grid>
             <GridSplitter Grid.Column="1" ResizeDirection="Columns" HorizontalAlignment="Stretch" />
             <Border Grid.Column="2" CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource GuiDivider}" ClipToBounds="True">
-              <edit:TextEditor Name="CodePreview" IsReadOnly="True" ShowLineNumbers="True"
-                               FontFamily="Consolas" FontSize="13" Background="{DynamicResource GuiSearchBarBackground}"
-                               Foreground="{DynamicResource GuiPrimaryText}" />
+              <TextBox Name="CodePreview" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                       FontFamily="Consolas" FontSize="13" Background="{DynamicResource GuiSearchBarBackground}"
+                       Foreground="{DynamicResource GuiPrimaryText}" />
             </Border>
           </Grid>
         </Grid>
@@ -52,9 +52,9 @@
             <Button Content="工作区差异" Command="{Binding GitDiffCommand}" Margin="0,0,8,8" />
             <Button Content="已暂存差异" Command="{Binding GitStagedCommand}" Margin="0,0,8,8" />
           </WrapPanel>
-          <edit:TextEditor Grid.Row="1" Name="GitPreview" IsReadOnly="True" ShowLineNumbers="True"
-                           FontFamily="Consolas" FontSize="13" Background="{DynamicResource GuiSearchBarBackground}"
-                           Foreground="{DynamicResource GuiPrimaryText}" />
+          <TextBox Grid.Row="1" Name="GitPreview" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                   FontFamily="Consolas" FontSize="13" Background="{DynamicResource GuiSearchBarBackground}"
+                   Foreground="{DynamicResource GuiPrimaryText}" />
         </Grid>
       </TabItem>
       <TabItem Header="模型 / 外观">

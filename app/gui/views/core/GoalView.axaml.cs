@@ -7,8 +7,8 @@ public partial class GoalView : UserControl {
 
     /// <summary>拖拽手柄按下时发起 DragDrop — 携带面板标识</summary>
     private void OnDragHandlePressed(object? sender, PointerPressedEventArgs e) {
-        var data = new DataObject();
-        data.Set("PanelDrag", nameof(GoalView));
-        _ = DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        var data = new DataTransfer();
+        data.Add(DataTransferItem.Create(DataFormat.CreateInProcessFormat<string>("PanelDrag"), nameof(GoalView)));
+        _ = DragDrop.DoDragDropAsync(e, data, DragDropEffects.Move);
     }
 }

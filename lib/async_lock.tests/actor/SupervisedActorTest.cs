@@ -215,6 +215,26 @@ public class SupervisedActorTest {
         } catch (OperationCanceledException) { }
         sawTerminated.Should().BeFalse("Unwatch 后不应收到 Terminated 事件");
     }
+
+    /// <summary>
+    /// AllForOne 语义对齐 Akka: 任何子超出重启限制 → 全部 Stop(不重启)(DSG033 API对齐)。
+    /// </summary>
+    [Fact]
+    public async Task AllForOne_AnyChildExceedsLimit_AllStopped() {
+        var strategy = new SupervisorStrategy(1, TimeSpan.FromMinutes(1),
+            static _ => SupervisorDirective.Restart, RestartAllSiblings: true);
+        await using var parent = new TestSupervisedActor();
+        var h1 = await parent.SpawnTestChild("c1", strategy);
+        var h2 = await parent.SpawnTestChild("c2", strategy);
+
+        await h1.HandleTestFailureAsync(new InvalidOperationException("crash1"));
+        h1.RestartCount.Should().Be(1);
+
+        await h2.HandleTestFailureAsync(new InvalidOperationException("crash2"));
+
+        h1.State.Should().Be(ChildActorState.Stopped, "h1 已达重启上限,AllForOne 应 Stop 全部而非重启");
+        h2.State.Should().Be(ChildActorState.Stopped, "AllForOne 兄弟超限,本子也应 Stop");
+    }
 }
 
 /// <summary>

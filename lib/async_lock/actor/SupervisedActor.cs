@@ -211,6 +211,17 @@ public sealed class ChildActorHandle : IAsyncDisposable {
     /// <summary>重启本子 Actor — 供 AllForOne 父 Actor 批量调用(internal)</summary>
     internal ValueTask RestartInternalAsync(CancellationToken ct) => RestartAsync(ct);
 
+    /// <summary>
+    /// 只读检查是否允许重启(不实际增加计数) — AllForOne 语义对齐 Akka(DSG033 API对齐)。
+    /// <para>Akka: children.All(c => c.RequestRestartPermission(...)) — 所有子都允许才重启全部。</para>
+    /// </summary>
+    internal bool CanRestart() {
+        var now = DateTimeOffset.UtcNow;
+        var current = Volatile.Read(ref _restartTimes);
+        var filtered = current.RemoveAll(t => now - t > _strategy.Within);
+        return filtered.Count < _strategy.MaxRestarts;
+    }
+
     /// <summary>停止子 Actor</summary>
     public async ValueTask StopAsync() {
         if (_instance is not null) {
@@ -296,10 +307,18 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
     /// <para>已 Stopped/Failed 的子不参与重启。每个子独立计 RestartCount。</para>
     /// </summary>
     protected async ValueTask RestartAllChildrenAsync(CancellationToken ct) {
-        foreach (var child in _children.Values) {
-            if (child.State == ChildActorState.Running) {
+        var runningChildren = _children.Values.Where(c => c.State == ChildActorState.Running).ToArray();
+        if (runningChildren.Length == 0) return;
+
+        if (runningChildren.All(c => c.CanRestart())) {
+            foreach (var child in runningChildren) {
                 await child.RestartInternalAsync(ct).ConfigureAwait(false);
                 TryPublish(new SupervisorEvent(child.Id, ChildActorState.Running, "all-for-one restart"));
+            }
+        } else {
+            foreach (var child in runningChildren) {
+                await child.StopAsync().ConfigureAwait(false);
+                TryPublish(new SupervisorEvent(child.Id, ChildActorState.Stopped, "all-for-one stop"));
             }
         }
     }

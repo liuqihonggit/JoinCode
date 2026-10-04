@@ -1,26 +1,12 @@
 namespace JoinCode.Gui.Views;
 
 /// <summary>
-/// 主窗口 code-behind — 仅承载视图逻辑（输入回车发送、新消息自动滚动到底、错误 toast 显示）。
-/// 消息区为 ItemsControl 模板化渲染（G3）：Markdown 正文 + 单条复制/删除/思考折叠命令。
+/// 主窗口 code-behind — 仅承载窗口级视图逻辑（窗口尺寸、Activity Bar、Side Bar 位置、面板拖拽）。
+/// 消息区逻辑已提取到 MessageAreaView。
 /// 业务均走 ViewModel。
 /// </summary>
 public sealed partial class MainWindow : Window {
     private MainViewModel? _vm;
-
-    private System.Threading.CancellationTokenSource? _toastCts;
-
-    private System.Threading.CancellationTokenSource? _errorToastFadeCts;
-
-    private bool _autoScrollEnabled = true;
-
-    private static readonly TimeSpan ErrorToastDuration = TimeSpan.FromSeconds(5);
-
-    private readonly Avalonia.Threading.DispatcherTimer _errorToastTimer = new() {
-        Interval = TimeSpan.FromMilliseconds(100)
-    };
-
-    private int _errorToastRemainingMs;
 
     /// <summary>工具调用倒计时刷新计时器 — 每 100ms 更新正在运行的工具的已运行时长</summary>
     private readonly Avalonia.Threading.DispatcherTimer _toolTimer = new() {
@@ -40,7 +26,6 @@ public sealed partial class MainWindow : Window {
         App.LogDiag("[MainWindow] ctor begin");
         InitializeComponent();
         App.LogDiag("[MainWindow] ctor end");
-        _errorToastTimer.Tick += OnErrorToastTimerTick;
         _toolTimer.Tick += OnToolTimerTick;
         _runStatusTimer.Tick += OnRunStatusTimerTick;
         _runStatusTimer.Start();
@@ -124,9 +109,6 @@ public sealed partial class MainWindow : Window {
         _lastEscapeAt = now;
     }
 
-    /// <summary>点击候选项完成补全 → 回焦输入框</summary>
-    private void OnSlashPaletteCompleted(object? sender, RoutedEventArgs e) => InputBar?.FocusInput();
-
     /// <summary>侧边面板拖拽调整宽度 — 起始 X 坐标</summary>
     private double _sidePanelResizeStartX;
 
@@ -135,60 +117,6 @@ public sealed partial class MainWindow : Window {
 
     /// <summary>侧边面板拖拽中标志</summary>
     private bool _isSidePanelResizing;
-
-    /// <summary>面板拖拽调整大小 — 起始 Y 坐标</summary>
-    private double _panelResizeStartY;
-
-    /// <summary>面板拖拽调整大小 — 起始 X 坐标</summary>
-    private double _panelResizeStartX;
-
-    /// <summary>面板拖拽调整大小 — 起始高度</summary>
-    private double _panelResizeStartHeight;
-
-    /// <summary>面板拖拽调整大小 — 起始宽度</summary>
-    private double _panelResizeStartWidth;
-
-    /// <summary>面板拖拽中标志</summary>
-    private bool _isPanelResizing;
-
-    /// <summary>面板拖拽手柄按下 — 记录起始位置</summary>
-    private void OnPanelResizePointerPressed(object? sender, PointerPressedEventArgs e) {
-        if (_vm is null)
-            return;
-        _panelResizeStartX = e.GetCurrentPoint(this).Position.X;
-        _panelResizeStartY = e.GetCurrentPoint(this).Position.Y;
-        _panelResizeStartHeight = _vm.PanelHeight;
-        _panelResizeStartWidth = _vm.PanelWidth;
-        _isPanelResizing = true;
-        e.Pointer.Capture(sender as Avalonia.Input.IInputElement);
-        e.Handled = true;
-    }
-
-    /// <summary>面板拖拽手柄移动 — 实时更新面板大小</summary>
-    private void OnPanelResizePointerMoved(object? sender, PointerEventArgs e) {
-        if (!_isPanelResizing || _vm is null)
-            return;
-        var dx = e.GetCurrentPoint(this).Position.X - _panelResizeStartX;
-        var dy = e.GetCurrentPoint(this).Position.Y - _panelResizeStartY;
-        if (_vm.IsPanelTop)
-            _vm.PanelHeight = Math.Clamp(_panelResizeStartHeight - dy, 0, 800);
-        else if (_vm.IsPanelBottom)
-            _vm.PanelHeight = Math.Clamp(_panelResizeStartHeight + dy, 0, 800);
-        else if (_vm.IsPanelLeft)
-            _vm.PanelWidth = Math.Clamp(_panelResizeStartWidth - dx, 0, 800);
-        else if (_vm.IsPanelRight)
-            _vm.PanelWidth = Math.Clamp(_panelResizeStartWidth + dx, 0, 800);
-        e.Handled = true;
-    }
-
-    /// <summary>面板拖拽手柄释放 — 结束拖拽</summary>
-    private void OnPanelResizePointerReleased(object? sender, PointerReleasedEventArgs e) {
-        if (!_isPanelResizing)
-            return;
-        _isPanelResizing = false;
-        e.Pointer.Capture(null);
-        e.Handled = true;
-    }
 
     /// <summary>拖拽手柄按下 — 记录起始位置</summary>
     private void OnSidePanelResizePointerPressed(object? sender, PointerPressedEventArgs e) {
@@ -223,27 +151,27 @@ public sealed partial class MainWindow : Window {
 
     /// <summary>全局按下捕获：补全面板打开时，点击面板外区域收起面板</summary>
     private void OnGlobalPointerPressed(object? sender, PointerPressedEventArgs e) {
-        if (_vm is not { IsSlashPopupOpen: true } || SlashPalette is null)
+        var slashPalette = MessageArea?.SlashPaletteControl;
+        if (_vm is not { IsSlashPopupOpen: true } || slashPalette is null)
             return;
         var hit = this.InputHitTest(e.GetCurrentPoint(this).Position) as Visual;
-        if (hit is not null && (ReferenceEquals(hit, SlashPalette) || this.GetVisualDescendants().Contains(hit)))
+        if (hit is not null && (ReferenceEquals(hit, slashPalette) || this.GetVisualDescendants().Contains(hit)))
             return;
         _vm.CloseSlashPopup();
     }
 
     private void OnWindowClosed(object? sender, EventArgs e) {
         SaveWindowBounds();
-        _errorToastTimer.Stop();
-        _errorToastTimer.Tick -= OnErrorToastTimerTick;
         _toolTimer.Stop();
         _toolTimer.Tick -= OnToolTimerTick;
         _runStatusTimer.Stop();
         _runStatusTimer.Tick -= OnRunStatusTimerTick;
         RemoveHandler(PointerPressedEvent, OnGlobalPointerPressed);
-        _toastCts?.Cancel();
-        _errorToastFadeCts?.Cancel();
         if (_vm is not null) {
-            _vm.ScrollToBottomRequested -= OnScrollToBottomRequested;
+            _vm.PropertyChanged -= OnVmPropertyChanged;
+            _vm.ExitRequested -= OnExitRequested;
+            _vm.TranscriptRequested -= OnTranscriptRequested;
+            _vm.RunStatus.MarqueeStopped -= OnMarqueeStopped;
             _ = _vm.DisposeAsync().AsTask().ContinueWith(t => {
                 if (t.IsFaulted) App.LogDiag($"[MainWindow] DisposeAsync failed: {t.Exception?.Message}");
             }, TaskScheduler.Default);
@@ -255,9 +183,7 @@ public sealed partial class MainWindow : Window {
     protected override void OnDataContextChanged(EventArgs e) {
         base.OnDataContextChanged(e);
         if (_vm is not null) {
-            _vm.Messages.CollectionChanged -= OnMessagesChanged;
             _vm.PropertyChanged -= OnVmPropertyChanged;
-            _vm.ScrollToBottomRequested -= OnScrollToBottomRequested;
             _vm.ExitRequested -= OnExitRequested;
             _vm.TranscriptRequested -= OnTranscriptRequested;
             _vm.RunStatus.MarqueeStopped -= OnMarqueeStopped;
@@ -269,9 +195,7 @@ public sealed partial class MainWindow : Window {
             _vm.SlashConfirmHandler = ShowConfirmDialog;
             _vm.OpenFileCallback = OnOpenFile;
             _vm.ExitRequested += OnExitRequested;
-            _vm.Messages.CollectionChanged += OnMessagesChanged;
             _vm.PropertyChanged += OnVmPropertyChanged;
-            _vm.ScrollToBottomRequested += OnScrollToBottomRequested;
             _vm.TranscriptRequested += OnTranscriptRequested;
             _vm.RunStatus.MarqueeStopped += OnMarqueeStopped;
             ApplyAppearance();
@@ -308,7 +232,7 @@ public sealed partial class MainWindow : Window {
         ChatRoomButton.IsChecked = _vm.IsChatRoomPanelActive;
     }
 
-    /// <summary>应用面板停靠位置 — Left:SideBarCol在Column1+LeftSash在Column2; Right:SideBarCol在Column5+RightSash在Column4</summary>
+    /// <summary>应用面板停靠位置 — Left:SideBarCol在Column1+LeftSash在Column2; Right:SideBarCol在Column5+LeftSash在Column4</summary>
     private void ApplyPanelDock() {
         if (_vm is null)
             return;
@@ -354,15 +278,6 @@ public sealed partial class MainWindow : Window {
     private void OnPanelDropRight(object? sender, DragEventArgs e) {
         if (_vm is not null && e.Data.Contains("PanelDrag"))
             _vm.ActivePanelDock = DockPosition.Right;
-        e.Handled = true;
-    }
-
-    /// <summary>拖拽释放到主区 — 根据鼠标 X 坐标决定停靠左/右</summary>
-    private void OnPanelDropMainArea(object? sender, DragEventArgs e) {
-        if (_vm is not null && e.Data.Contains("PanelDrag")) {
-            var pos = e.GetPosition(this);
-            _vm.ActivePanelDock = pos.X < Width / 2 ? DockPosition.Left : DockPosition.Right;
-        }
         e.Handled = true;
     }
 
@@ -507,7 +422,7 @@ public sealed partial class MainWindow : Window {
         }
     }
 
-    /// <summary>ViewModel 状态变化时联动 View（主题切换、复制反馈 toast 等视图级响应）</summary>
+    /// <summary>ViewModel 状态变化时联动 View（主题切换、Activity Bar、Side Bar 位置等窗口级响应）</summary>
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
         if (e.PropertyName is nameof(MainViewModel.AccentId) or nameof(MainViewModel.AnimationsEnabled)) {
             ApplyAppearance();
@@ -517,8 +432,6 @@ public sealed partial class MainWindow : Window {
             RequestedThemeVariant = isLight
                 ? Avalonia.Styling.ThemeVariant.Light
                 : Avalonia.Styling.ThemeVariant.Dark;
-            // 更新 ThemeDictionaries 槽位为当前主题配色（Solarized 复用 Dark/Light 槽位）
-            // DynamicResource 绑定自动刷新,无需手动重赋 DataContext（会导致 Popup 内 NRE 闪退）
             GuiAppResources.ApplyTheme(_vm.CurrentTheme);
         } else if (e.PropertyName is nameof(MainViewModel.IsSessionPanelActive)
                                      or nameof(MainViewModel.IsFileTreePanelActive)
@@ -534,34 +447,12 @@ public sealed partial class MainWindow : Window {
             ApplyPanelDock();
         } else if (e.PropertyName == nameof(MainViewModel.IsCompactLayout)) {
             ApplyCompactLayout();
-        } else if (e.PropertyName == nameof(MainViewModel.HasCopied) && _vm!.HasCopied) {
-            ScheduleCopyToastHide();
-        } else if (e.PropertyName == nameof(MainViewModel.CopiedMessageCopy) && !string.IsNullOrEmpty(_vm!.CopiedMessageCopy)) {
-            Clipboard?.SetTextAsync(_vm.CopiedMessageCopy);
-            _vm.ClearCopiedMessageCopy();
-            ScheduleCopyToastHide();
-        } else if (e.PropertyName == nameof(MainViewModel.ExportedSessionCopy) && !string.IsNullOrEmpty(_vm!.ExportedSessionCopy)) {
-            Clipboard?.SetTextAsync(_vm.ExportedSessionCopy);
-            _vm.ClearSessionExport();
-            ScheduleCopyToastHide();
-        } else if (e.PropertyName == nameof(MainViewModel.ErrorToastText)) {
-            if (_vm!.HasErrorToast)
-                ShowErrorToast();
-            else
-                HideErrorToast();
-        } else if (e.PropertyName == nameof(MainViewModel.ErrorToastCopy) && !string.IsNullOrEmpty(_vm!.ErrorToastCopy)) {
-            Clipboard?.SetTextAsync(_vm.ErrorToastCopy);
-            _vm.ClearErrorToastCopy();
-            ScheduleCopyToastHide();
-        } else if (e.PropertyName == nameof(MainViewModel.StatusText)) {
         } else if (e.PropertyName == nameof(MainViewModel.IsBusy)) {
             if (_vm!.IsBusy)
                 _toolTimer.Start();
             else
                 _toolTimer.Stop();
         }
-        // G3：消息区改为 ItemsControl 模板化渲染，FilteredMessages 绑定自动更新，
-        // AllMessagesText 仅保留导出/复制用途，不再驱动显示
     }
 
     /// <summary>工具倒计时 tick：刷新所有正在运行工具消息的已运行时长</summary>
@@ -581,100 +472,5 @@ public sealed partial class MainWindow : Window {
         _vm.RunStatus.OnHeartbeatTick();
         if (_vm.BackgroundPanel.IsOpen)
             _ = _vm.BackgroundPanel.RefreshAsync();
-    }
-
-    /// <summary>1.5s 后自动隐藏"已复制" toast（每次复制重置计时）</summary>
-    private void ScheduleCopyToastHide() {
-        _toastCts?.Cancel();
-        _toastCts = new System.Threading.CancellationTokenSource();
-        var token = _toastCts.Token;
-        _ = Task.Delay(1500, token).ContinueWith(
-            _ => _vm?.ClearCopiedState(),
-            token,
-            TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.FromCurrentSynchronizationContext());
-    }
-
-    /// <summary>显示错误 toast：淡入并启动 5s 自动隐藏计时（hover 暂停）</summary>
-    private void ShowErrorToast() {
-        _errorToastFadeCts?.Cancel();
-        ErrorToast.Opacity = 1;
-        _errorToastRemainingMs = (int)ErrorToastDuration.TotalMilliseconds;
-        _errorToastTimer.Start();
-    }
-
-    /// <summary>隐藏错误 toast：立即停止计时并清除状态（✕/复制按钮走此路径）</summary>
-    private void HideErrorToast() {
-        _errorToastTimer.Stop();
-        _errorToastFadeCts?.Cancel();
-    }
-
-    /// <summary>错误 toast 计时 tick：倒计时结束则淡出（0.45s 过渡后清除状态）</summary>
-    private void OnErrorToastTimerTick(object? sender, EventArgs e) {
-        _errorToastRemainingMs -= (int)_errorToastTimer.Interval.TotalMilliseconds;
-        if (_errorToastRemainingMs <= 0) {
-            _errorToastTimer.Stop();
-            StartErrorToastFadeOut();
-        }
-    }
-
-    /// <summary>淡出错误 toast：透明度动画结束后清除 VM 状态（触发 IsVisible=false）</summary>
-    private void StartErrorToastFadeOut() {
-        _errorToastFadeCts?.Cancel();
-        if (_vm is { AnimationsEnabled: false }) {
-            _vm.DismissErrorToastCommand.Execute(null);
-            return;
-        }
-        _errorToastFadeCts = new System.Threading.CancellationTokenSource();
-        var token = _errorToastFadeCts.Token;
-        ErrorToast.Opacity = 0;
-        _ = Task.Delay(500, token).ContinueWith(
-            _ => _vm?.DismissErrorToastCommand.Execute(null),
-            token,
-            TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.FromCurrentSynchronizationContext());
-    }
-
-    /// <summary>鼠标悬停在 toast 上：暂停自动隐藏计时并取消淡出（维持显示）</summary>
-    private void OnErrorToastPointerEnter(object? sender, Avalonia.Input.PointerEventArgs e) {
-        _errorToastTimer.Stop();
-        _errorToastFadeCts?.Cancel();
-        ErrorToast.Opacity = 1;
-    }
-
-    /// <summary>鼠标离开 toast：恢复自动隐藏计时（已到期的立即淡出）</summary>
-    private void OnErrorToastPointerLeave(object? sender, Avalonia.Input.PointerEventArgs e) {
-        if (_vm is { HasErrorToast: true }) {
-            if (_errorToastRemainingMs <= 0)
-                StartErrorToastFadeOut();
-            else
-                _errorToastTimer.Start();
-        }
-    }
-
-    /// <summary>新消息加入时，若未上滑浏览则自动滚动到底部（G3：ScrollViewer 化）</summary>
-    private void OnMessagesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) {
-        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add
-            && _autoScrollEnabled
-            && MessageScrollViewer is not null) {
-            MessageScrollViewer.ScrollToEnd();
-        }
-    }
-
-    /// <summary>滚动变化时：上滑超过阈值则暂停自动滚动并显示回底浮钮</summary>
-    private void OnMessageScrollChanged(object? sender, Avalonia.Controls.ScrollChangedEventArgs e) {
-        var scroll = sender as ScrollViewer;
-        if (scroll is null)
-            return;
-        var isNearBottom = scroll.Offset.Y >= scroll.Extent.Height - scroll.Viewport.Height - 40;
-        _autoScrollEnabled = isNearBottom;
-        if (_vm is not null)
-            _vm.IsBackToBottomVisible = !isNearBottom;
-    }
-
-    /// <summary>VM 请求滚动到底部时执行 UI 滚动操作</summary>
-    private void OnScrollToBottomRequested() {
-        MessageScrollViewer?.ScrollToEnd();
-        _autoScrollEnabled = true;
     }
 }

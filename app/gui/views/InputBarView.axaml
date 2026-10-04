@@ -76,74 +76,9 @@
   <Border x:Name="ComposerBox" Classes="composer" Margin="0,0,0,0"
           Background="{DynamicResource GuiComposerBackground}"
           BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
-    <Grid RowDefinitions="Auto,Auto,Auto,*">
-      <!-- Row 0：系统状态条(悬浮,比输入栏窄) — 左侧状态文字+右侧▲展开日志,整行可拖拽调高度 -->
-      <Border x:Name="StatusStrip" Grid.Row="0" Height="20" HorizontalAlignment="Stretch" Margin="16,0"
-              Background="{DynamicResource GuiComposerBackground}" CornerRadius="0,0,6,6"
-              Cursor="SizeNorthSouth"
-              PointerPressed="OnInputResizePointerPressed"
-              ToolTip.Tip="拖拽调节输入框高度">
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Grid.Column="0" Text="{Binding RunStatus.MarqueeText, FallbackValue='JoinCode 就绪'}"
-                     FontSize="10" Foreground="{DynamicResource GuiMutedText}"
-                     Margin="8,0,0,0" VerticalAlignment="Center"
-                     TextTrimming="CharacterEllipsis" />
-          <Button Grid.Column="1" Classes="ghost" Padding="6,1" MinHeight="0" FontSize="9"
-                  Cursor="Arrow"
-                  Command="{Binding ToggleStatusLogCommand}"
-                  ToolTip.Tip="展开/收起系统日志">
-            <Panel>
-              <TextBlock Text="▲" FontSize="9" IsVisible="{Binding !IsStatusLogExpanded}" />
-              <TextBlock Text="▼" FontSize="9" IsVisible="{Binding IsStatusLogExpanded}" />
-            </Panel>
-          </Button>
-        </Grid>
-      </Border>
-      <!-- 系统日志向上展开 Popup(悬浮,对齐状态条宽度) -->
-      <Popup IsOpen="{Binding IsStatusLogExpanded}" Placement="Top"
-             PlacementTarget="{Binding #StatusStrip}" MaxHeight="340"
-             Width="{Binding #StatusStrip.Bounds.Width}"
-             Topmost="False"
-             HorizontalOffset="0" VerticalOffset="-2">
-        <Border CornerRadius="8,8,0,0" Padding="10,8" Background="{DynamicResource GuiPopupBackground}"
-                BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
-                BoxShadow="{DynamicResource GuiPopupShadow}"
-                PointerWheelChanged="OnLogPointerWheel"
-                PointerPressed="OnLogPointerPressed">
-          <Grid RowDefinitions="Auto,*">
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
-              <TextBlock Grid.Column="0" Text="系统日志" FontSize="11" FontWeight="SemiBold"
-                         Foreground="{DynamicResource GuiPrimaryText}" />
-              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
-                <Button Classes="ghost" Padding="4,1" MinHeight="0" FontSize="10" Content="A+"
-                        Command="{Binding EnlargeLogFontCommand}" ToolTip.Tip="放大字体" />
-                <Button Classes="ghost" Padding="4,1" MinHeight="0" FontSize="10" Content="A-"
-                        Command="{Binding ShrinkLogFontCommand}" ToolTip.Tip="缩小字体" />
-                <Button Classes="ghost" Padding="4,1" MinHeight="0" FontSize="10"
-                        Command="{Binding ToggleLogFullscreenCommand}" ToolTip.Tip="全屏/恢复">
-                  <Panel>
-                    <TextBlock Text="⤢" FontSize="11" IsVisible="{Binding !IsStatusLogFullscreen}" />
-                    <TextBlock Text="⤡" FontSize="11" IsVisible="{Binding IsStatusLogFullscreen}" />
-                  </Panel>
-                </Button>
-              </StackPanel>
-            </Grid>
-            <ScrollViewer Grid.Row="1" MaxHeight="{Binding StatusLogScrollHeight}" VerticalScrollBarVisibility="Auto">
-              <ItemsControl ItemsSource="{Binding StatusLogEntries}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate>
-                    <SelectableTextBlock Text="{Binding}" FontSize="{Binding DataContext.StatusLogFontSize, ElementName=InputBarRoot}"
-                               Foreground="{DynamicResource GuiMutedText}"
-                               Margin="0,2" TextWrapping="Wrap" />
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </ScrollViewer>
-          </Grid>
-        </Border>
-      </Popup>
-      <!-- Row 1：工具栏行（QQ 风格 — 左侧功能图标+统计,右侧复制/Markdown） -->
-      <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="7,4,7,4">
+    <Grid RowDefinitions="Auto,*,Auto">
+      <!-- Row 0：工具栏行（QQ 风格 — 左侧功能图标+统计,右侧复制/Markdown） -->
+      <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="7,4,7,4">
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
           <!-- 权限模式：图标随模式变化(📋🟢🟡🔴🔓🤖)，点击弹出列表选择（Shift+Tab 才循环） -->
           <Button Classes="ghost" Padding="7,4" MinHeight="0" FontSize="14"
@@ -281,14 +216,14 @@
                   ToolTip.Tip="保存为 Markdown 文件" />
         </StackPanel>
       </Grid>
-        <!-- Row 2：输入框（高度可拖拽调节 — 绑定 InputAreaHeight,顶部手柄拖拽） -->
-        <TextBox Grid.Row="2" x:Name="InputTextBox" Classes="noFocusRing" Text="{Binding InputText}" PlaceholderText="{Binding SendHintText, FallbackValue='输入消息，Ctrl+Enter 发送 / Enter 换行…'}"
+        <!-- Row 1：输入框（弹性高度，Dock 降低时收缩保证发送区可见） -->
+        <TextBox Grid.Row="1" x:Name="InputTextBox" Classes="noFocusRing" Text="{Binding InputText}" PlaceholderText="{Binding SendHintText, FallbackValue='输入消息，Ctrl+Enter 发送 / Enter 换行…'}"
                  IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="12"
-                 Height="{Binding InputAreaHeight, Mode=TwoWay}"
+                 MinHeight="30"
                  BorderThickness="0" Background="Transparent" Padding="11,4"
                  TextWrapping="Wrap" />
-        <!-- Row 3：发送区（QQ 风格 — 右下角停止+发送下拉分裂按钮） -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="7,2,7,7">
+        <!-- Row 2：发送区（QQ 风格 — 右下角停止+发送下拉分裂按钮） -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="7,2,7,7">
           <Button Classes="ghost" Content="停止" Padding="12,6" CornerRadius="8"
                   Foreground="{DynamicResource GuiWarnText}"
                   Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />

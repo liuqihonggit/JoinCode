@@ -448,6 +448,10 @@ public sealed record BackoffStrategy(
 | S21: DeadLetter + ActorSystem.EventStream | 死信事件 + 系统事件流 | ✅ | ✅ 1 测试通过 |
 | S22: UnhandledMessage + ActorBase.Unhandled | 未处理消息事件 | ✅ | ✅ 1 测试通过 |
 | S23: ActorTimers（StartSingleTimer/StartPeriodicTimer/Cancel） | Actor 生命周期定时器 | ✅ | ✅ 2 测试通过 |
+| S24: Status（StatusSuccess/StatusFailure/Status 工厂） | 成功/失败状态消息 | ✅ | ✅ 2 测试通过 |
+| S25: Props（Props&lt;TActor&gt; + Props.Create 工厂） | Actor 创建配置封装 | ✅ | ✅ 1 测试通过 |
+| S26: Receptionist（Register/Find/Unregister） | 服务发现 | ✅ | ✅ 1 测试通过 |
+| S27: ActorSystem.ActorOf（Props 创建+注册） | 解耦创建与注册 | ✅ | ✅ 1 测试通过 |
 
 ---
 

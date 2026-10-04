@@ -28,6 +28,10 @@
       <Setter Property="BorderBrush" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
     </Style>
+    <!-- ghost 按钮 emoji 字体回退链 — 工具栏图标(🎭🧠⚡📊)恢复彩色 -->
+    <Style Selector="Button.ghost">
+      <Setter Property="FontFamily" Value="Segoe UI Emoji, Segoe UI Symbol, Inter" />
+    </Style>
     <!-- 推理档位按钮基础样式 — 紧凑圆角,切换时背景/前景色渐变动画(对齐 Codex 风格) -->
     <Style Selector="RadioButton.effortBtn">
       <Setter Property="Padding" Value="9,3" />

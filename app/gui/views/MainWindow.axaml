@@ -13,6 +13,7 @@
         xmlns:local="using:JoinCode.Gui.Views"
         xmlns:design="using:JoinCode.Gui.Design"
         xmlns:dock="using:Dock.Avalonia.Controls"
+        xmlns:dockMvvm="using:Dock.Model.Mvvm.Controls"
         xmlns:dvm="using:JoinCode.Gui.ViewModels.Docking"
         x:Class="JoinCode.Gui.Views.MainWindow"
         x:Name="Root"
@@ -89,8 +90,8 @@
     <!-- Dock ToolControl 标题栏：显示 Title（含 emoji），tab 移到顶部 -->
     <Style Selector="ToolControl">
       <Setter Property="HeaderTemplate">
-        <DataTemplate DataType="dvm:PanelTool">
-          <TextBlock Text="{Binding Title}" Padding="4,2" FontSize="12" />
+        <DataTemplate DataType="dockMvvm:Tool">
+          <TextBlock Text="{Binding Title}" Padding="4,2" FontSize="12" FontFamily="Segoe UI Emoji, Segoe UI Symbol, Inter" />
         </DataTemplate>
       </Setter>
     </Style>

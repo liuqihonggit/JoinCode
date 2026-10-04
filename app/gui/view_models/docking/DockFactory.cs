@@ -25,7 +25,7 @@ public sealed class DockFactory : Factory {
             Id = "LeftTools",
             Title = "面板",
             Alignment = Alignment.Left,
-            Proportion = 0.2,
+            Proportion = 0.22,
             GripMode = GripMode.Visible,
             ActiveDockable = sessions,
             VisibleDockables = CreateList<IDockable>(sessions, fileTree, goal, interceptor, chatRoom, settings)
@@ -63,7 +63,7 @@ public sealed class DockFactory : Factory {
             Id = "BottomTools",
             Title = "底部面板",
             Alignment = Alignment.Bottom,
-            Proportion = 0.3,
+            Proportion = 0.35,
             GripMode = GripMode.Visible,
             ActiveDockable = inputBar,
             VisibleDockables = CreateList<IDockable>(inputBar, terminal)

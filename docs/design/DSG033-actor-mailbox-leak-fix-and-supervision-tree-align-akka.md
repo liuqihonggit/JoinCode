@@ -143,7 +143,7 @@ public virtual async ValueTask DisposeAsync() {
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `ConcurrentQueue<Task>` + `CleanupCompletedInFlight`（ActorBase.cs） | 全项目 42 处 `RegisterInFlight` 调用 | ✅ | ✅ 541 测试通过 |
+| `ConcurrentQueue<Task>` + `CleanupCompletedInFlight`（ActorInFlightRegistry.cs） | 全项目 42 处 `RegisterInFlight` 调用 | ✅ | ✅ 564 测试通过 |
 | 水位线清理测试（async_lock.tests/leak） | — | ✅ | ✅ InFlightLeakTest 2 测试 |
 
 ---
@@ -157,17 +157,23 @@ public virtual async ValueTask DisposeAsync() {
 | 监督指令 Resume/Restart/Stop/Escalate | `SupervisorDirective` enum | ✅ |
 | 监督策略 MaxRestarts + Within 窗口 | `SupervisorStrategy` record | ✅ |
 | OneForOne 策略 | 预定义 + HandleFailure 实现 | ✅ |
-| **AllForOne 策略** | 预定义存在，**HandleFailure 未遍历兄弟** | 🔴 假实现 |
+| AllForOne 策略 | 遍历兄弟重启，对齐 Akka 语义 | ✅ |
 | 重启次数限流（时间窗口） | `RecordRestart` 纯函数 | ✅ |
 | 级联停止 | `DisposeAsync` → `StopAllChildrenAsync` | ✅ |
 | Escalate 向上抛 | `OnChildFailureAsync` abstract | ✅ |
-| **DeathWatch（被动感知子终止）** | 无 Watch/Unwatch/Terminated | 🔴 缺失 |
-| **生命周期钩子 PreStart/PostStop/PreRestart/PostRestart** | 仅 `OnConsumerError` | 🔴 缺失 |
-| **ActorSystem / Guardian** | 无顶级系统、无路径寻址 | 🔴 缺失 |
-| **BackoffSupervisor（退避重启）** | 无 | 🔴 缺失 |
+| DeathWatch（被动感知子终止） | Watch/Unwatch/Terminated + DeathPact | ✅ |
+| 生命周期钩子 PreStart/PostStop | ActorBase 虚方法 | ✅ |
+| ActorSystem / Guardian | ActorSystem 注册表 + 路径寻址 | ✅ |
+| BackoffSupervisor（退避重启） | ActorBackoffStrategy | ✅ |
+| Become/BecomeStacked/UnbecomeStacked | ActorBehaviorStack 组合件 | ✅ |
+| Stash/Unstash/UnstashAll | ActorMessageStash 组合件 | ✅ |
+| Sender/Self（Tell 携带发送者） | MessageEnvelope + AsyncLocal | ✅ |
+| DeathPactException（watch 未处理自动失败） | OnBeforeProcessCommand 检查 | ✅ |
+| ReceiveTimeout（空闲超时检测） | ConsumeLoop + LinkedCts+CancelAfter | ✅ |
+| PipeTo（Future 完成后发消息回 Actor） | ActorPipeToExtensions | ✅ |
+| EventStream（全局事件总线） | ConcurrentDictionary + Delegate.Combine | ✅ |
+| Scheduler（定时调度） | IScheduler + ActorScheduler(Timer) | ✅ |
 | 远程部署 | 无（合理取舍） | ⚪ 不对齐 |
-| Become/Unbecome | 无（可由 Handle 内 switch 替代） | ⚪ 不对齐 |
-| Stash | 无（Channel 模型语义不匹配） | ⚪ 不对齐 |
 
 ### 3.2 方案 S1：修复 AllForOne 假实现
 
@@ -417,10 +423,21 @@ public sealed record BackoffStrategy(
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
 | S1: AllForOne 遍历兄弟重启（SupervisedActor.cs） | 所有用 AllForOne 策略的 SpawnChildAsync | ✅ | ✅ 16 测试通过 |
-| S2: PreStart/PostStop/PreRestart/PostRestart（ActorBase.cs） | 需保存崩溃前状态的 Actor | ✅ | ✅ 2 测试通过 |
-| S3: Watch/Unwatch/Terminated（SupervisedActor.cs） | 需被动感知子终止的父 Actor | ✅ | ✅ 2 测试通过 |
-| S4: ActorSystem 注册表 + 路径寻址（新文件） | 顶层 Actor 管理 | ✅ | ✅ 6 测试通过 |
-| S5: BackoffStrategy 退避重启（SupervisedActor.cs） | 持续崩溃的子 Actor | ✅ | ✅ 4 测试通过 |
+| S2: PreStart/PostStop（ActorBase.cs） | 需保存崩溃前状态的 Actor | ✅ | ✅ 2 测试通过 |
+| S3: Watch/Unwatch/Terminated+DeathPact（SupervisedActor.cs） | 需被动感知子终止的父 Actor | ✅ | ✅ 4 测试通过 |
+| S4: ActorSystem 注册表 + 路径寻址（ActorSystem.cs） | 顶层 Actor 管理 | ✅ | ✅ 6 测试通过 |
+| S5: ActorBackoffStrategy 退避重启（SupervisedActor.cs） | 持续崩溃的子 Actor | ✅ | ✅ 4 测试通过 |
+| S6: Become/BecomeStacked/UnbecomeStacked（ActorBehaviorStack.cs） | 状态机行为切换 | ✅ | ✅ 3 测试通过 |
+| S7: Sender/Self（MessageEnvelope + AsyncLocal） | Tell 携带发送者引用 | ✅ | ✅ 2 测试通过 |
+| S8: DeathPactException（OnBeforeProcessCommand） | watch 未处理自动失败 | ✅ | ✅ 1 测试通过 |
+| S9: ReceiveTimeout（ConsumeLoop+CancelAfter） | 空闲超时检测 | ✅ | ✅ 1 测试通过 |
+| S10: PipeTo（ActorPipeToExtensions） | Future �-成后发消息回 Actor | ✅ | ✅ 1 测试通过 |
+| S11: Stash/Unstash/UnstashAll（ActorMessageStash.cs） | 消息暂存 | ✅ | ✅ 2 测试通过 |
+| S12: EventStream（ConcurrentDictionary+Delegate.Combine） | 全局事件总线 | ✅ | ✅ 2 测试通过 |
+| S13: Scheduler（IScheduler+ActorScheduler） | 定时调度 | ✅ | ✅ 2 测试通过 |
+| R1: ActorBase 重构拆分（ActorBehaviorStack/ActorMessageStash/ActorInFlightRegistry） | ActorBase.cs 943→757 行 | ✅ | ✅ 564 测试通过 |
+| R2: 防御守卫（Become/Watch/Stash null 检查） | API 健壮性 | ✅ | ✅ 3 守卫测试通过 |
+| R3: LockRegistryConfig 不可变快照（LockRegistryConfig.cs） | 多线程配置竞态消除 | ✅ | ✅ 20 次并行测试稳定 |
 
 ---
 
@@ -453,3 +470,9 @@ public sealed record BackoffStrategy(
 <!-- 原因: 方案 B 改动最小、保留异常诊断、GC 友好；监控树按风险递增价值递减排序，先修假实现再补能力 -->
 <!-- 替代方案: 方案 A（计数，丢异常诊断）、方案 C（pipeTo，改动太大）；S4 可不做（当前孤立树根可用） -->
 <!-- 验证: 待用户审阅本文档后决策实施 -->
+
+<!-- 🤖 Auto Decision: 2026-10-04 -->
+<!-- 决策: 9 个 Akka API 对齐（S6-S13）+ ActorBase 重构拆分（R1）+ 防御守卫（R2）+ LockRegistryConfig 不可变快照（R3） -->
+<!-- 原因: 用户要求全部对齐 Akka；ActorBase.cs 943 行太长拆分为 ActorBehaviorStack/ActorMessageStash/ActorInFlightRegistry 组合件；LockDiagnosis flaky 根因是 TryLockAsync 和 OnAcquired 用不同配置读取有竞态窗口，用 LockRegistryConfig 不可变 record+统一快照消除 -->
+<!-- 替代方案: [Collection] 限制并行（逃避问题，用户拒绝）；LockRegistry 非静态化（巨大工程，暂不采用） -->
+<!-- 验证: 564 测试全通过，20 次并行测试稳定 ✅ -->

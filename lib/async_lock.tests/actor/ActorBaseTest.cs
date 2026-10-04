@@ -592,6 +592,42 @@ public class ActorBaseTest {
         received1.Should().Contain(42);
         received2.Should().Contain(42);
     }
+
+    /// <summary>Scheduler: ScheduleOnce 延迟后执行(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Scheduler_ScheduleOnce_延迟后执行() {
+        var scheduler = new ActorScheduler();
+        var executed = false;
+        using var sub = scheduler.ScheduleOnce(TimeSpan.FromMilliseconds(100), () => executed = true);
+
+        await Task.Delay(300);
+
+        executed.Should().BeTrue("100ms 后应执行");
+    }
+
+    /// <summary>Scheduler: ScheduleRepeatedly 重复执行(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Scheduler_ScheduleRepeatedly_重复执行() {
+        var scheduler = new ActorScheduler();
+        var count = 0;
+        using var sub = scheduler.ScheduleRepeatedly(TimeSpan.FromMilliseconds(50), TimeSpan.FromMilliseconds(50), () => Interlocked.Increment(ref count));
+
+        await Task.Delay(300);
+
+        count.Should().BeGreaterThanOrEqualTo(3, "300ms 内应执行至少 3 次");
+    }
+
+    /// <summary>Scheduler: ScheduleTellOnce 延迟后发消息给 Actor(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Scheduler_ScheduleTellOnce_延迟后发消息() {
+        var scheduler = new ActorScheduler();
+        await using var actor = new PipeToActor();
+        using var sub = scheduler.ScheduleTellOnce(TimeSpan.FromMilliseconds(100), actor, "scheduled-msg");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.ProcessedCommands.Should().Contain("scheduled-msg");
+    }
 }
 
 /// <summary>

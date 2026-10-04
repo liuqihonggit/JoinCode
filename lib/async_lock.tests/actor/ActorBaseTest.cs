@@ -749,6 +749,25 @@ public class ActorBaseTest {
         var reply = await inbox.ReceiveWhereAsync(m => m is string s && s == "reply-b", TimeSpan.FromSeconds(1));
         reply.Should().Be("reply-b");
     }
+
+    /// <summary>Context.Self 返回 Actor Id(Akka 对齐)</summary>
+    [Fact]
+    public async Task Context_Self_ReturnsActorId() {
+        await using var actor = new ContextActor();
+        actor.Tell("get-self");
+        await TestWaitHelper.WaitUntilAsync(() => actor.CapturedSelf is not null, TimeSpan.FromMilliseconds(500));
+        actor.CapturedSelf.Should().Be(actor.Id);
+    }
+
+    /// <summary>Context.Sender 返回当前消息发送者(Akka 对齐)</summary>
+    [Fact]
+    public async Task Context_Sender_ReturnsCurrentSender() {
+        await using var actor = new ContextActor();
+        var sender = new object();
+        actor.Tell("get-sender", sender);
+        await TestWaitHelper.WaitUntilAsync(() => actor.CapturedSender is not null, TimeSpan.FromMilliseconds(500));
+        actor.CapturedSender.Should().BeSameAs(sender);
+    }
 }
 
 /// <summary>
@@ -885,6 +904,16 @@ internal sealed class ReplyActor : ActorBase<object, Unit> {
         if (command is string msg && Sender is Inbox inbox) {
             inbox.Tell($"reply-{msg}");
         }
+    }
+}
+
+/// <summary>Context API 测试 Actor — 暴露 Context 供测试验证(Akka 对齐)</summary>
+internal sealed class ContextActor : ActorBase<string, Unit> {
+    public string? CapturedSelf;
+    public object? CapturedSender;
+    protected override void Handle(string command, CancellationToken ct) {
+        if (command == "get-self") CapturedSelf = Context.Self;
+        if (command == "get-sender") CapturedSender = Context.Sender;
     }
 }
 

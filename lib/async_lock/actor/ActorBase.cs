@@ -73,6 +73,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         _waitGraphTracker = new AskWaitGraphTracker(_askWaitGraph);
         _inputChannel = CreateInputChannel(backpressure);
         _outputChannel = CreateOutputChannel(outputCapacity, outputFullMode);
+        Context = new ActorContextImpl(this);
         _retryEngine = new MessageRetryEngine<TCommand>(
             retryQueueCapacity: backpressure?.RetryQueueCapacity ?? 1024,
             maxRetries: EffectiveMaxRetries,
@@ -362,6 +363,21 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <para>null 表示无 sender(外部 Tell 未传 sender)。</para>
     /// </summary>
     protected object? Sender => _currentSender.Value;
+
+    /// <summary>
+    /// Actor 上下文 — 封装 Self/Sender/IsDisposed 统一入口(Akka 对齐)。
+    /// <para>在 Handle 中通过 <c>Context.Sender</c> 访问当前消息发送者。</para>
+    /// </summary>
+    protected IActorContext Context { get; }
+
+    private sealed class ActorContextImpl(ActorBase<TCommand, TOut> actor) : IActorContext {
+        /// <summary>自身 Actor Id</summary>
+        public string Self => actor.Id;
+        /// <summary>当前消息发送者</summary>
+        public object? Sender => actor._currentSender.Value;
+        /// <summary>Actor 是否已释放</summary>
+        public bool IsDisposed => actor.IsDisposed;
+    }
 
     /// <summary>ReceiveTimeout 配置 — 0=不启用,>0=超时 tick 数(Akka 对齐)</summary>
     private long _receiveTimeoutTicks;

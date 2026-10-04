@@ -96,6 +96,22 @@ public interface IActorLifecycle : IAsyncDisposable {
 }
 
 /// <summary>
+/// Actor 上下文接口 — 封装 Self/Sender/IsDisposed 统一入口(Akka 对齐)。
+/// <para>在 Handle 中通过 <c>Context.Sender</c> 访问当前消息发送者,通过 <c>Context.Self</c> 访问自身 Id。</para>
+/// <para>SupervisedActor 扩展为 <c>ISupervisedActorContext</c>,添加 Children/Watch/Unwatch。</para>
+/// </summary>
+public interface IActorContext {
+    /// <summary>自身 Actor Id — 等同于 ActorBase.Id</summary>
+    string Self { get; }
+
+    /// <summary>当前消息发送者 — 等同于 ActorBase.Sender,Handle 中获取 Tell 时传入的 sender</summary>
+    object? Sender { get; }
+
+    /// <summary>Actor 是否已释放 — 等同于 ActorBase.IsDisposed</summary>
+    bool IsDisposed { get; }
+}
+
+/// <summary>
 /// Actor Ask 模式死锁异常 — Ask 超时后抛出,带诊断信息指导修复。
 /// </summary>
 /// <remarks>

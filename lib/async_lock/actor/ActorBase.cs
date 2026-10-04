@@ -344,6 +344,48 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <param name="ct">取消令牌(Actor 释放时触发取消)</param>
     protected abstract void Handle(TCommand command, CancellationToken ct);
 
+    /// <summary>
+    /// 行为委托 — 处理命令,签名与 <see cref="Handle"/> 一致。
+    /// Become/BecomeStacked 切换此委托,实现状态机行为切换(Akka 对齐)。
+    /// </summary>
+    protected delegate void Receive(TCommand command, CancellationToken ct);
+
+    /// <summary>行为栈 — BecomeStacked/UnbecomeStacked 管理,Consumer 线程独占访问无需锁</summary>
+    private readonly Stack<Receive?> _behaviorStack = new();
+
+    /// <summary>当前行为 — null 表示用 <see cref="Handle"/> 默认行为</summary>
+    private Receive? _currentBehavior;
+
+    /// <summary>
+    /// 替换当前行为(不入栈) — UnbecomeStacked 不会恢复到此行为之前的状态。
+    /// <para>适合不可逆状态转换(如初始化→运行态)。</para>
+    /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程),禁止跨线程调用。</para>
+    /// </summary>
+    /// <param name="receive">新行为委托</param>
+    protected void Become(Receive receive) => _currentBehavior = receive;
+
+    /// <summary>
+    /// 压入新行为(入栈) — UnbecomeStacked 弹出恢复上一个行为。
+    /// <para>可逆状态转换(如临时进入处理态后恢复)。</para>
+    /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程),禁止跨线程调用。</para>
+    /// </summary>
+    /// <param name="receive">新行为委托</param>
+    protected void BecomeStacked(Receive receive) {
+        _behaviorStack.Push(_currentBehavior);
+        _currentBehavior = receive;
+    }
+
+    /// <summary>
+    /// 弹出行为 — 恢复到上一个 BecomeStacked 之前的行为。
+    /// <para>栈空时无操作(保持当前行为)。</para>
+    /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程),禁止跨线程调用。</para>
+    /// </summary>
+    protected void UnbecomeStacked() {
+        if (_behaviorStack.Count > 0) {
+            _currentBehavior = _behaviorStack.Pop();
+        }
+    }
+
     /// <summary>Actor 启动前调用(构造函数末尾,Consumer 启动前)— 初始化资源(DSG033 S2)</summary>
     protected virtual void PreStart() { }
 
@@ -389,7 +431,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             if (_idempotencyGate.TryRestore(cmd)) {
                 return true;
             }
-            Handle(cmd, ct);
+            var behavior = _currentBehavior;
+            if (behavior is not null) {
+                behavior(cmd, ct);
+            } else {
+                Handle(cmd, ct);
+            }
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             return false;
         } catch (Exception ex) {

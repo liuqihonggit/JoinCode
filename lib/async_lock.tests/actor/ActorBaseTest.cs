@@ -415,6 +415,52 @@ public class ActorBaseTest {
         await actor.DisposeAsync();
         actor.PostStopCalled.Should().BeTrue("PostStop 应在 Dispose 后调用");
     }
+
+    /// <summary>BecomeStacked 切换行为后,新消息由新行为处理(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task BecomeStacked_切换行为_新消息由新行为处理() {
+        await using var actor = new BecomeActor();
+        actor.Tell("msg1");
+        actor.Tell("become-stacked");
+        actor.Tell("msg2");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.State1Processed.Count >= 2 && actor.State2Processed.Count >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.State1Processed.Should().Contain("msg1");
+        actor.State1Processed.Should().Contain("become-stacked");
+        actor.State2Processed.Should().Contain("msg2");
+    }
+
+    /// <summary>UnbecomeStacked 恢复行为后,新消息由原行为处理(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task UnbecomeStacked_恢复行为_新消息由原行为处理() {
+        await using var actor = new BecomeActor();
+        actor.Tell("become-stacked");
+        actor.Tell("msg2");
+        actor.Tell("unbecome");
+        actor.Tell("msg1");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.State2Processed.Count >= 2 && actor.State1Processed.Count >= 2, TimeSpan.FromMilliseconds(500));
+
+        actor.State2Processed.Should().Contain("msg2");
+        actor.State2Processed.Should().Contain("unbecome");
+        actor.State1Processed.Should().Contain("become-stacked");
+        actor.State1Processed.Should().Contain("msg1");
+    }
+
+    /// <summary>Become 替换行为不入栈,UnbecomeStacked 栈空无操作(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Become_替换行为_不入栈() {
+        await using var actor = new BecomeActor();
+        actor.Tell("become");
+        actor.Tell("msg2");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.State2Processed.Count >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.State2Processed.Should().Contain("msg2");
+        actor.State1Processed.Should().Contain("become");
+        actor.State1Processed.Should().NotContain("msg2");
+    }
 }
 
 /// <summary>
@@ -466,4 +512,26 @@ internal sealed class LifecycleActor : ActorBase<string, string> {
     protected override void PreStart() => PreStartCalled = true;
     protected override void PostStop() => PostStopCalled = true;
     protected override void Handle(string command, CancellationToken ct) { }
+}
+
+/// <summary>Become/Unbecome 行为切换测试 Actor(DSG033 API对齐Akka)</summary>
+internal sealed class BecomeActor : ActorBase<string, string> {
+    public readonly List<string> State1Processed = new();
+    public readonly List<string> State2Processed = new();
+
+    protected override void Handle(string command, CancellationToken ct) {
+        State1Processed.Add(command);
+        if (command == "become-stacked") {
+            BecomeStacked(State2Behavior);
+        } else if (command == "become") {
+            Become(State2Behavior);
+        }
+    }
+
+    private void State2Behavior(string command, CancellationToken ct) {
+        State2Processed.Add(command);
+        if (command == "unbecome") {
+            UnbecomeStacked();
+        }
+    }
 }

@@ -59,11 +59,12 @@ public static class LockRegistry {
 
     /// <summary>
     /// 诊断总开关（默认关闭，需 --debuglog 或 JCC_DEBUGLOG=1 开启）。设为 false 关闭所有诊断记录与后台扫描，退化为零开销。
-    /// <para>⚠️ setter 为 internal — 生产代码启动时设置一次,运行期间不可修改;测试通过 InternalsVisibleTo 修改。</para>
+    /// <para>⚠️ 仅在启动时调用一次,运行期间不可修改;测试通过 InternalsVisibleTo 修改其他阈值。</para>
     /// </summary>
     public static bool DiagnosticsEnabled => Volatile.Read(ref _config).DiagnosticsEnabled;
 
-    internal static void SetDiagnosticsEnabled(bool value) {
+    /// <summary>设置诊断总开关 — 仅在应用启动时调用一次,运行期间不可修改</summary>
+    public static void SetDiagnosticsEnabled(bool value) {
         UpdateConfig(c => c with { DiagnosticsEnabled = value });
         if (!value) StopBackgroundScan();
     }

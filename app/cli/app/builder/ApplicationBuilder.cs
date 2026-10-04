@@ -242,7 +242,7 @@ public sealed class ApplicationBuilder {
 
         // 锁诊断日志跟随 debuglog 开关 — 默认关闭，--debuglog 或 JCC_DEBUGLOG=1 时才开启
         if (Abstractions.Utils.Diagnostics.Diag.IsDebugLog)
-            Core.Utils.LockRegistry.DiagnosticsEnabled = true;
+            Core.Utils.LockRegistry.SetDiagnosticsEnabled(true);
 
         var options = new CommandLineOptions {
             ShowHelp = result.Help,

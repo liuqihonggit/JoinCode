@@ -851,6 +851,27 @@ public class ActorBaseTest {
         captured!.Message.Should().Be("unknown");
         captured.ActorId.Should().Be(actor.Id);
     }
+
+    /// <summary>Timers 单次定时器 delay 后发消息(Akka 对齐)</summary>
+    [Fact]
+    public async Task Timers_StartSingleTimer_SendsMessage() {
+        await using var actor = new TimerTestActor();
+        actor.StartTimerTest("key1", "fired", TimeSpan.FromMilliseconds(100));
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Contains("fired"), TimeSpan.FromMilliseconds(500));
+        actor.ProcessedCommands.Should().Contain("fired");
+    }
+
+    /// <summary>Timers Cancel 取消定时器(Akka 对齐)</summary>
+    [Fact]
+    public async Task Timers_Cancel_StopsTimer() {
+        await using var actor = new TimerTestActor();
+        actor.StartTimerTest("key1", "fired", TimeSpan.FromMilliseconds(100));
+        actor.CancelTimerTest("key1");
+
+        await Task.Delay(200);
+        actor.ProcessedCommands.Should().NotContain("fired");
+    }
 }
 
 /// <summary>
@@ -1058,6 +1079,16 @@ internal sealed class UnhandledActor : ActorBase<string, Unit> {
     protected override void Handle(string command, CancellationToken ct) {
         if (command != "known") Unhandled(command);
     }
+}
+
+/// <summary>Timers 测试 Actor — 暴露 Timers 供测试调用(Akka 对齐)</summary>
+internal sealed class TimerTestActor : ActorBase<string, Unit> {
+    public readonly List<string> ProcessedCommands = new();
+    protected override void Handle(string command, CancellationToken ct) {
+        ProcessedCommands.Add(command);
+    }
+    public void StartTimerTest(string key, string msg, TimeSpan delay) => Timers.StartSingleTimer(key, msg, delay);
+    public void CancelTimerTest(string key) => Timers.Cancel(key);
 }
 
 /// <summary>防御守卫测试 Actor — 暴露 protected Become/BecomeStacked/Stash 供测试调用</summary>

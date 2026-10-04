@@ -74,6 +74,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         _inputChannel = CreateInputChannel(backpressure);
         _outputChannel = CreateOutputChannel(outputCapacity, outputFullMode);
         Context = new ActorContextImpl(this);
+        Timers = new ActorTimers<TCommand>(this);
         _retryEngine = new MessageRetryEngine<TCommand>(
             retryQueueCapacity: backpressure?.RetryQueueCapacity ?? 1024,
             maxRetries: EffectiveMaxRetries,
@@ -381,6 +382,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <para>在 Handle 中通过 <c>Context.Sender</c> 访问当前消息发送者。</para>
     /// </summary>
     protected IActorContext Context { get; }
+
+    /// <summary>
+    /// Actor 定时器 — 绑定到生命周期的定时器,Dispose 时自动取消所有(Akka 对齐)。
+    /// </summary>
+    protected ActorTimers<TCommand> Timers { get; }
 
     private sealed class ActorContextImpl(ActorBase<TCommand, TOut> actor) : IActorContext {
         /// <summary>自身 Actor Id</summary>
@@ -790,6 +796,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// </summary>
     public virtual async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        Timers.CancelAll();
         _cts.Cancel();
         _inputChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();

@@ -27,11 +27,11 @@
     <PackageReference Include="Markdig" Version="$(MarkdigVersion)" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="D:\project\DockRef\src\Dock.Avalonia\Dock.Avalonia.csproj" />
-    <ProjectReference Include="D:\project\DockRef\src\Dock.Avalonia.Themes.Fluent\Dock.Avalonia.Themes.Fluent.csproj" />
-    <ProjectReference Include="D:\project\DockRef\src\Dock.Model\Dock.Model.csproj" />
-    <ProjectReference Include="D:\project\DockRef\src\Dock.Model.Mvvm\Dock.Model.Mvvm.csproj" />
-    <ProjectReference Include="D:\project\DockRef\src\Dock.Serializer.SystemTextJson\Dock.Serializer.SystemTextJson.csproj" />
+    <ProjectReference Include="..\..\libs\Dock\src\Dock.Avalonia\Dock.Avalonia.csproj" />
+    <ProjectReference Include="..\..\libs\Dock\src\Dock.Avalonia.Themes.Fluent\Dock.Avalonia.Themes.Fluent.csproj" />
+    <ProjectReference Include="..\..\libs\Dock\src\Dock.Model\Dock.Model.csproj" />
+    <ProjectReference Include="..\..\libs\Dock\src\Dock.Model.Mvvm\Dock.Model.Mvvm.csproj" />
+    <ProjectReference Include="..\..\libs\Dock\src\Dock.Serializer.SystemTextJson\Dock.Serializer.SystemTextJson.csproj" />
   </ItemGroup>
 
   <ItemGroup>

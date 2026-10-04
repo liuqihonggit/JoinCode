@@ -84,6 +84,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             shutdownCt: _cts.Token,
             onSendFailed: RaiseSendFailed,
             onEnqueuedToInput: CheckInputWatermark);
+        _messageStash = new ActorMessageStash<TCommand>(cmd => Tell(cmd));
         PreStart();
         var taskOptions = (useLongRunning ? TaskCreationOptions.LongRunning : TaskCreationOptions.None) | TaskCreationOptions.DenyChildAttach;
         _consumerTask = Task.Factory.StartNew(
@@ -402,37 +403,26 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// </summary>
     protected virtual void OnReceiveTimeout() { }
 
-    /// <summary>暂存队列 — Stash/Unstash 管理,Consumer 线程独占访问无需锁(Akka 对齐)</summary>
-    private readonly Queue<TCommand> _stash = new();
-
-    /// <summary>当前处理的消息 — Stash 时读此字段,ProcessSingleCommand 开头设置</summary>
-    private TCommand? _currentMessage;
+    /// <summary>消息暂存队列 — Stash/Unstash/UnstashAll 管理(Akka 对齐)</summary>
+    private readonly ActorMessageStash<TCommand> _messageStash;
 
     /// <summary>
     /// 暂存当前消息 — 存入内部队列,稍后 Unstash 取出处理(Akka 对齐)。
     /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程),Stash 后通常 return 不处理当前消息。</para>
     /// </summary>
-    protected void Stash() => _stash.Enqueue(_currentMessage!);
+    protected void Stash() => _messageStash.Stash();
 
     /// <summary>
     /// 取出一条暂存消息 — FIFO 顺序 Tell 回自己,进入 Channel 尾部(Akka 对齐)。
     /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程)。</para>
     /// </summary>
-    protected void Unstash() {
-        if (_stash.Count > 0) {
-            Tell(_stash.Dequeue());
-        }
-    }
+    protected void Unstash() => _messageStash.Unstash();
 
     /// <summary>
     /// 取出所有暂存消息 — FIFO 顺序 Tell 回自己(Akka 对齐)。
     /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程)。</para>
     /// </summary>
-    protected void UnstashAll() {
-        while (_stash.Count > 0) {
-            Tell(_stash.Dequeue());
-        }
-    }
+    protected void UnstashAll() => _messageStash.UnstashAll();
 
     /// <summary>Actor 启动前调用(构造函数末尾,Consumer 启动前)— 初始化资源(DSG033 S2)</summary>
     protected virtual void PreStart() { }
@@ -499,7 +489,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             if (_idempotencyGate.TryRestore(cmd)) {
                 return true;
             }
-            _currentMessage = cmd;
+            _messageStash.SetCurrent(cmd);
             var behavior = _behaviorStack.Current;
             if (behavior is not null) {
                 behavior(cmd, ct);

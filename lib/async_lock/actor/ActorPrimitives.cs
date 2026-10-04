@@ -16,3 +16,42 @@ public readonly record struct Unit {
     /// <summary>唯一实例</summary>
     public static readonly Unit Value = default;
 }
+
+/// <summary>
+/// 重试队列条目 — 命令 + 当前重试次数(P1-2: 单例重试队列)
+/// </summary>
+/// <typeparam name="TCommand">命令类型</typeparam>
+/// <param name="Command">待重试命令</param>
+/// <param name="Attempt">当前重试次数(1=首次重试)</param>
+/// <param name="Sender">发送者引用(null=无 sender,重试时保留原 sender)</param>
+internal sealed record RetryEntry<TCommand>(
+    TCommand Command,
+    int Attempt,
+    object? Sender = null);
+
+/// <summary>
+/// 消息信封 — 包装命令 + 发送者引用,供 Channel 传递(Akka Envelope 对齐)。
+/// </summary>
+/// <typeparam name="T">命令类型</typeparam>
+/// <param name="Command">命令</param>
+/// <param name="Sender">发送者引用(null=无 sender)</param>
+internal readonly record struct MessageEnvelope<T>(
+    T Command,
+    object? Sender);
+
+/// <summary>
+/// 背压重试失败事件参数 — 16次重试后消息仍未能入队
+/// </summary>
+/// <typeparam name="TCommand">命令类型</typeparam>
+/// <param name="Command">未能入队的命令(外部可计入死信队列)</param>
+/// <param name="RetryCount">重试次数</param>
+public sealed record BackpressureSendFailedEventArgs<TCommand>(
+    TCommand Command,
+    int RetryCount);
+
+/// <summary>
+/// 输出消息丢弃事件参数 — 输出通道满时 TryPublish 丢弃的消息
+/// </summary>
+/// <typeparam name="TOut">输出消息类型</typeparam>
+/// <param name="Message">被丢弃的消息(外部可计入死信队列或重投)</param>
+public sealed record OutputDroppedEventArgs<TOut>(TOut Message);

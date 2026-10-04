@@ -43,9 +43,9 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private double _inputAreaHeight = 72;
 
-    /// <summary>系统日志是否展开(▲ 向上展开显示完整日志,默认展开显示最近三条)</summary>
+    /// <summary>系统日志是否展开(▲ 向上展开显示完整日志,默认收起避免遮挡消息区)</summary>
     [ObservableProperty]
-    private bool _isStatusLogExpanded = true;
+    private bool _isStatusLogExpanded = false;
 
     /// <summary>系统日志是否全屏显示(占满主窗口高度)</summary>
     [ObservableProperty]

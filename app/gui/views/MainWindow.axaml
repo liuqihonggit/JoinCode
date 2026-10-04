@@ -103,6 +103,27 @@
     <Style Selector="ToolChromeControl">
       <Setter Property="Background" Value="Transparent" />
     </Style>
+    <!-- Dock ToolChromeControl 标题颜色对齐主题 -->
+    <Style Selector="ToolChromeControl /template/ TextBlock#PART_Title">
+      <Setter Property="Foreground" Value="{DynamicResource GuiPrimaryText}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontFamily" Value="Segoe UI Emoji, Segoe UI Symbol, Inter" />
+    </Style>
+    <!-- Dock ToolChromeControl 标题栏背景对齐主题 -->
+    <Style Selector="ToolChromeControl /template/ Grid#PART_Grip">
+      <Setter Property="Background" Value="{DynamicResource GuiSidebarBackground}" />
+    </Style>
+    <!-- Dock ToolChromeControl 按钮图标颜色 — 用主题色填充 Path(固定/关闭/菜单按钮) -->
+    <Style Selector="ToolChromeControl /template/ Path">
+      <Setter Property="Fill" Value="{DynamicResource GuiSecondaryText}" />
+    </Style>
+    <Style Selector="ToolChromeControl /template/ Path#PART_ClosePath">
+      <Setter Property="Fill" Value="{DynamicResource GuiErrorText}" />
+    </Style>
+    <!-- Dock ToolChromeControl 按钮悬停反馈 -->
+    <Style Selector="ToolChromeControl /template/ Button:pointerover">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    </Style>
   </Window.Styles>
 
   <!-- 根 Grid：顶栏(横跨全宽) : 下区(侧边栏+主区) — 菜单栏在最顶,客户区不被侧边栏遮挡 -->

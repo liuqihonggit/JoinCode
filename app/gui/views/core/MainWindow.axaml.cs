@@ -1,8 +1,8 @@
 namespace JoinCode.Gui.Views;
 
 /// <summary>
-/// 主窗口 code-behind — 仅承载窗口级视图逻辑（窗口尺寸、Activity Bar、Side Bar 位置、面板拖拽）。
-/// 消息区逻辑已提取到 MessageAreaView。
+/// 主窗口 code-behind — 仅承载窗口级视图逻辑（窗口尺寸、Activity Bar、主题切换）。
+/// 消息区逻辑在 MessageAreaView，停靠布局由 Dock.Avalonia DockControl 管理。
 /// 业务均走 ViewModel。
 /// </summary>
 public sealed partial class MainWindow : Window {
@@ -109,50 +109,12 @@ public sealed partial class MainWindow : Window {
         _lastEscapeAt = now;
     }
 
-    /// <summary>侧边面板拖拽调整宽度 — 起始 X 坐标</summary>
-    private double _sidePanelResizeStartX;
-
-    /// <summary>侧边面板拖拽调整宽度 — 起始宽度</summary>
-    private double _sidePanelResizeStartWidth;
-
-    /// <summary>侧边面板拖拽中标志</summary>
-    private bool _isSidePanelResizing;
-
-    /// <summary>拖拽手柄按下 — 记录起始位置</summary>
-    private void OnSidePanelResizePointerPressed(object? sender, PointerPressedEventArgs e) {
-        if (_vm is null)
-            return;
-        _sidePanelResizeStartX = e.GetCurrentPoint(this).Position.X;
-        _sidePanelResizeStartWidth = _vm.SidePanelWidth;
-        _isSidePanelResizing = true;
-        e.Pointer.Capture(sender as Avalonia.Input.IInputElement);
-        e.Handled = true;
-    }
-
-    /// <summary>拖拽手柄移动 — 实时更新面板宽度(Side Bar 在右侧时 delta 方向反转)</summary>
-    private void OnSidePanelResizePointerMoved(object? sender, PointerEventArgs e) {
-        if (!_isSidePanelResizing || _vm is null)
-            return;
-        var delta = e.GetCurrentPoint(this).Position.X - _sidePanelResizeStartX;
-        if (_vm.PrimarySideBarPosition == SideBarPosition.Right)
-            delta = -delta;
-        _vm.SidePanelWidth = Math.Clamp(_sidePanelResizeStartWidth + delta, 0, 600);
-        e.Handled = true;
-    }
-
-    /// <summary>拖拽手柄释放 — 结束拖拽</summary>
-    private void OnSidePanelResizePointerReleased(object? sender, PointerReleasedEventArgs e) {
-        if (!_isSidePanelResizing)
-            return;
-        _isSidePanelResizing = false;
-        e.Pointer.Capture(null);
-        e.Handled = true;
-    }
-
     /// <summary>全局按下捕获：补全面板打开时，点击面板外区域收起面板</summary>
     private void OnGlobalPointerPressed(object? sender, PointerPressedEventArgs e) {
-        var slashPalette = MessageArea?.SlashPaletteControl;
-        if (_vm is not { IsSlashPopupOpen: true } || slashPalette is null)
+        if (_vm is not { IsSlashPopupOpen: true })
+            return;
+        var slashPalette = this.GetVisualDescendants().OfType<SlashPaletteView>().FirstOrDefault();
+        if (slashPalette is null)
             return;
         var hit = this.InputHitTest(e.GetCurrentPoint(this).Position) as Visual;
         if (hit is not null && (ReferenceEquals(hit, slashPalette) || this.GetVisualDescendants().Contains(hit)))
@@ -200,8 +162,6 @@ public sealed partial class MainWindow : Window {
             _vm.RunStatus.MarqueeStopped += OnMarqueeStopped;
             ApplyAppearance();
             SyncActivityBarButtons();
-            ApplySideBarPosition();
-            ApplyPanelDock();
             CenterOnScreen();
             _vm.LoadFileTree(System.IO.Directory.GetCurrentDirectory());
         }
@@ -232,55 +192,6 @@ public sealed partial class MainWindow : Window {
         ChatRoomButton.IsChecked = _vm.IsChatRoomPanelActive;
     }
 
-    /// <summary>应用面板停靠位置 — Left:SideBarCol在Column1+LeftSash在Column2; Right:SideBarCol在Column5+LeftSash在Column4</summary>
-    private void ApplyPanelDock() {
-        if (_vm is null)
-            return;
-        if (_vm.IsPanelDockedRight) {
-            SetColumn(SideBarCol, 5);
-            SetColumn(LeftSashCol, 4);
-            SideBarCol.BorderThickness = new Thickness(1, 0, 0, 0);
-            SecondarySideBarCol.IsVisible = false;
-        } else {
-            SetColumn(SideBarCol, 1);
-            SetColumn(LeftSashCol, 2);
-            SideBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
-            SecondarySideBarCol.IsVisible = _vm.IsSecondarySideBarOpen;
-        }
-    }
-
-    /// <summary>面板拖拽经过 — 允许 Move 效果</summary>
-    private void OnPanelDragOver(object? sender, DragEventArgs e) {
-        if (e.Data.Contains("PanelDrag"))
-            e.DragEffects = DragDropEffects.Move;
-        else
-            e.DragEffects = DragDropEffects.None;
-    }
-
-    /// <summary>拖拽手柄按下时发起 DragDrop — 携带面板标识</summary>
-    private void OnPanelDragHandlePressed(object? sender, PointerPressedEventArgs e) {
-        if (_vm is null || _vm.IsPanelPinned)
-            return;
-        e.Handled = true;
-        var data = new DataObject();
-        data.Set("PanelDrag", _vm.ActivePanelTitle);
-        _ = DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
-    }
-
-    /// <summary>拖拽释放到左侧 → 面板停靠在左</summary>
-    private void OnPanelDropLeft(object? sender, DragEventArgs e) {
-        if (_vm is not null && e.Data.Contains("PanelDrag"))
-            _vm.ActivePanelDock = DockPosition.Left;
-        e.Handled = true;
-    }
-
-    /// <summary>拖拽释放到右侧 → 面板停靠在右</summary>
-    private void OnPanelDropRight(object? sender, DragEventArgs e) {
-        if (_vm is not null && e.Data.Contains("PanelDrag"))
-            _vm.ActivePanelDock = DockPosition.Right;
-        e.Handled = true;
-    }
-
     /// <summary>窗口居中屏幕 — 在打开时固定到屏幕中间</summary>
     private void CenterOnScreen() {
         var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
@@ -289,61 +200,6 @@ public sealed partial class MainWindow : Window {
         var x = workArea.X + (workArea.Width - Width) / 2;
         var y = workArea.Y + (workArea.Height - Height) / 2;
         Position = new Avalonia.PixelPoint((int)x, (int)y);
-    }
-
-    /// <summary>应用 Side Bar 位置 — 左侧(默认)或右侧,重新分配 Grid.Column + 调整 BorderThickness</summary>
-    private void ApplySideBarPosition() {
-        if (_vm is null)
-            return;
-        var isLeft = _vm.PrimarySideBarPosition == SideBarPosition.Left;
-        if (isLeft) {
-            // 左侧(默认): ActivityBar=0, SideBar=1, LeftSash=2, MainArea=3, RightSash=4, Secondary=5
-            SetColumn(ActivityBarCol, 0);
-            SetColumn(SideBarCol, 1);
-            SetColumn(LeftSashCol, 2);
-            SetColumn(MainAreaCol, 3);
-            SetColumn(RightSashCol, 4);
-            SetColumn(SecondarySideBarCol, 5);
-            ActivityBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
-            SideBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
-            SecondarySideBarCol.BorderThickness = new Thickness(1, 0, 0, 0);
-        } else {
-            // 右侧: Secondary=0, RightSash=1, MainArea=2, LeftSash=3, SideBar=4, ActivityBar=5
-            SetColumn(SecondarySideBarCol, 0);
-            SetColumn(RightSashCol, 1);
-            SetColumn(MainAreaCol, 2);
-            SetColumn(LeftSashCol, 3);
-            SetColumn(SideBarCol, 4);
-            SetColumn(ActivityBarCol, 5);
-            ActivityBarCol.BorderThickness = new Thickness(1, 0, 0, 0);
-            SideBarCol.BorderThickness = new Thickness(1, 0, 0, 0);
-            SecondarySideBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
-        }
-    }
-
-    /// <summary>设置控件的 Grid.Column 附加属性</summary>
-    private static void SetColumn(Avalonia.Controls.Control control, int column)
-        => Avalonia.Controls.Grid.SetColumn(control, column);
-
-    /// <summary>应用紧凑布局 — 窄屏时 Side Bar 移到主区上方(openCode 风格)</summary>
-    private void ApplyCompactLayout() {
-        if (_vm is null)
-            return;
-        var compact = _vm.IsCompactLayout;
-        if (compact) {
-            // 窄屏：垂直布局 — ActivityBar(横向48px高) + SideBar(固定200px高) + 主区
-            SetColumn(ActivityBarCol, 3);
-            SetColumn(SideBarCol, 3);
-            SetColumn(LeftSashCol, 3);
-            SideBarCol.Height = 200;
-            SideBarCol.Width = double.NaN;
-            SideBarCol.BorderThickness = new Thickness(0, 0, 0, 1);
-        } else {
-            // 宽屏：恢复水平布局
-            SideBarCol.Height = double.NaN;
-            SideBarCol.BorderThickness = new Thickness(0, 0, 1, 0);
-            ApplySideBarPosition();
-        }
     }
 
     /// <summary>打开子代理回放窗口 — 只读快照，可多开（每 agent 一窗）</summary>
@@ -422,7 +278,7 @@ public sealed partial class MainWindow : Window {
         }
     }
 
-    /// <summary>ViewModel 状态变化时联动 View（主题切换、Activity Bar、Side Bar 位置等窗口级响应）</summary>
+    /// <summary>ViewModel 状态变化时联动 View（主题切换、Activity Bar 等窗口级响应）</summary>
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
         if (e.PropertyName is nameof(MainViewModel.AccentId) or nameof(MainViewModel.AnimationsEnabled)) {
             ApplyAppearance();
@@ -441,12 +297,6 @@ public sealed partial class MainWindow : Window {
                                      or nameof(MainViewModel.IsChatRoomPanelActive)
                                      or nameof(MainViewModel.IsEditorViewActive)) {
             SyncActivityBarButtons();
-        } else if (e.PropertyName == nameof(MainViewModel.PrimarySideBarPosition)) {
-            ApplySideBarPosition();
-        } else if (e.PropertyName == nameof(MainViewModel.ActivePanelDock)) {
-            ApplyPanelDock();
-        } else if (e.PropertyName == nameof(MainViewModel.IsCompactLayout)) {
-            ApplyCompactLayout();
         } else if (e.PropertyName == nameof(MainViewModel.IsBusy)) {
             if (_vm!.IsBusy)
                 _toolTimer.Start();

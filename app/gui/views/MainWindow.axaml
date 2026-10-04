@@ -122,7 +122,7 @@
     </Panel>
 
     <!-- ===== Row 1：Activity Bar + Side Bar + 主区 + Secondary Side Bar (VSCode 风格) ===== -->
-    <Grid Grid.Row="1" ColumnDefinitions="48,Auto,6,*,6,Auto">
+    <Grid Grid.Row="1" ColumnDefinitions="48,*">
 
     <!-- ===== Column 0：Activity Bar (图标列,固定48px) ===== -->
     <Border x:Name="ActivityBarCol" Grid.Column="0" Background="{DynamicResource GuiSidebarBackground}"
@@ -182,54 +182,8 @@
       </Grid>
     </Border>
 
-    <!-- ===== Column 1：Side Bar (面板区,宽度绑定SidePanelWidth) ===== -->
-    <Border x:Name="SideBarCol" Grid.Column="1" Width="{Binding SidePanelWidth}" ClipToBounds="True"
-            Background="{DynamicResource GuiSidebarBackground}"
-            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0"
-            IsVisible="{Binding IsNotZenMode}"
-            DragDrop.DragOver="OnPanelDragOver" DragDrop.Drop="OnPanelDropLeft">
-      <Border.Transitions>
-        <Transitions>
-          <DoubleTransition Property="Width" Duration="{DynamicResource GuiMotionDuration}" />
-        </Transitions>
-      </Border.Transitions>
-      <!-- Dock.Avalonia 停靠布局（自带 tab 标签栏+图钉+关闭+拖拽，按 DockMvvmSample 适配） -->
-      <dock:DockControl Layout="{Binding DockLayout}" />
-    </Border>
-
-    <!-- ===== Column 2：拖拽手柄 (调整 Side Bar 宽度) ===== -->
-    <Border x:Name="LeftSashCol" Grid.Column="2" Width="6" HorizontalAlignment="Stretch"
-            Background="{DynamicResource GuiDivider}"
-            Cursor="SizeWestEast"
-            IsVisible="{Binding IsNotZenMode}"
-            PointerPressed="OnSidePanelResizePointerPressed"
-            PointerMoved="OnSidePanelResizePointerMoved"
-            PointerReleased="OnSidePanelResizePointerReleased"
-            ToolTip.Tip="拖拽调整面板宽度" />
-
-    <!-- ===== Column 3：主区（MessageAreaView — 消息列表+编辑器+面板+输入栏） ===== -->
-    <Grid x:Name="MainAreaCol" Grid.Column="3">
-      <local:MessageAreaView x:Name="MessageArea" />
-    </Grid>
-
-    <!-- ===== Column 4：Secondary Side Bar 拖拽手柄 ===== -->
-    <Border x:Name="RightSashCol" Grid.Column="4" Width="6" HorizontalAlignment="Stretch"
-            Background="{DynamicResource GuiDivider}"
-            Cursor="SizeWestEast"
-            IsVisible="{Binding IsSecondarySideBarOpen}"
-            ToolTip.Tip="拖拽调整面板宽度" />
-
-    <!-- ===== Column 5：Secondary Side Bar (右侧边栏) ===== -->
-    <Border x:Name="SecondarySideBarCol" Grid.Column="5" Width="{Binding SecondarySideBarWidth}" ClipToBounds="True"
-            IsVisible="{Binding IsSecondarySideBarOpen}"
-            Background="{DynamicResource GuiSidebarBackground}"
-            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1,0,0,0"
-            DragDrop.DragOver="OnPanelDragOver" DragDrop.Drop="OnPanelDropRight">
-      <Panel>
-        <local:FileTreePanelView IsVisible="{Binding IsSecondaryFileTree}" />
-        <local:SidebarView IsVisible="{Binding IsSecondarySessions}" />
-      </Panel>
-    </Border>
+    <!-- ===== Column 1：Dock.Avalonia 完整停靠布局（左面板+消息区，自带拖拽/分割/停靠） ===== -->
+    <dock:DockControl Grid.Column="1" Layout="{Binding DockLayout}" />
     </Grid>
   </Grid>
 </Window>

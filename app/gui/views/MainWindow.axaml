@@ -63,29 +63,6 @@
     <Style Selector="Border.msgCard:pointerover StackPanel.actions">
       <Setter Property="Opacity" Value="1" />
     </Style>
-    <!-- Activity Bar 图标按钮：40x40 圆角方块,透明背景,悬停浅色,激活强调色（Button+ToggleButton 统一,参考 QQ） -->
-    <Style Selector="Button.activityIcon, ToggleButton.activityIcon">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="Padding" Value="0" />
-      <Setter Property="Width" Value="40" />
-      <Setter Property="Height" Value="40" />
-      <Setter Property="HorizontalContentAlignment" Value="Center" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="FontFamily" Value="Segoe UI Emoji, Segoe UI Symbol, Inter" />
-      <Setter Property="FontSize" Value="20" />
-    </Style>
-    <Style Selector="Button.activityIcon:pointerover, ToggleButton.activityIcon:pointerover">
-      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
-    </Style>
-    <Style Selector="Button.activityIcon:pressed, ToggleButton.activityIcon:pressed">
-      <Setter Property="Background" Value="{DynamicResource GuiButtonPressed}" />
-    </Style>
-    <Style Selector="ToggleButton.activityIcon:checked">
-      <Setter Property="Background" Value="{DynamicResource GuiAccentSubtle}" />
-      <Setter Property="Foreground" Value="{DynamicResource GuiAccentText}" />
-    </Style>
   </Window.Styles>
 
   <!-- 根 Grid：顶栏(横跨全宽) : 下区(侧边栏+主区) — 菜单栏在最顶,客户区不被侧边栏遮挡 -->
@@ -105,69 +82,7 @@
       <local:DiffView HorizontalAlignment="Center" VerticalAlignment="Center" />
     </Panel>
 
-    <!-- ===== Row 1：Activity Bar + Side Bar + 主区 + Secondary Side Bar (VSCode 风格) ===== -->
-    <Grid Grid.Row="1" ColumnDefinitions="48,*">
-
-    <!-- ===== Column 0：Activity Bar (图标列,固定48px) ===== -->
-    <Border x:Name="ActivityBarCol" Grid.Column="0" Background="{DynamicResource GuiSidebarBackground}"
-            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,1,0"
-            IsVisible="{Binding IsNotZenMode}">
-      <Grid RowDefinitions="*,Auto,Auto">
-        <!-- 顶部组：面板切换 -->
-        <StackPanel Grid.Row="0" Spacing="4" Margin="0,8" HorizontalAlignment="Center">
-          <ToggleButton x:Name="SessionBtn" Classes="activityIcon" Content="💬" FontSize="20"
-                        Command="{Binding ToggleSidePanelCommand}"
-                        CommandParameter="{x:Static vm:SidePanelKind.Sessions}"
-                        ToolTip.Tip="会话列表" />
-          <ToggleButton x:Name="FileTreeBtn" Classes="activityIcon" Content="📁" FontSize="20"
-                        Command="{Binding ToggleSidePanelCommand}"
-                        CommandParameter="{x:Static vm:SidePanelKind.FileTree}"
-                        ToolTip.Tip="目录树" />
-          <ToggleButton x:Name="EditorBtn" Classes="activityIcon" Content="📝" FontSize="20"
-                        Command="{Binding ToggleEditorViewCommand}"
-                        ToolTip.Tip="代码编辑器" />
-        </StackPanel>
-        <!-- 中部组：功能面板(从左侧 SideBar 弹出) -->
-        <StackPanel Grid.Row="1" Spacing="4" HorizontalAlignment="Center">
-          <ToggleButton x:Name="GoalButton" Classes="activityIcon" Content="🎯" FontSize="20"
-                        Command="{Binding ToggleSidePanelCommand}"
-                        CommandParameter="{x:Static vm:SidePanelKind.Goal}"
-                        ToolTip.Tip="goal 控制" />
-          <ToggleButton x:Name="InterceptorButton" Classes="activityIcon" Content="🛡" FontSize="20"
-                        Command="{Binding ToggleSidePanelCommand}"
-                        CommandParameter="{x:Static vm:SidePanelKind.Interceptor}"
-                        ToolTip.Tip="AI 工具拦截器" />
-          <ToggleButton x:Name="ChatRoomButton" Classes="activityIcon" Content="👥" FontSize="20"
-                        Command="{Binding ToggleSidePanelCommand}"
-                        CommandParameter="{x:Static vm:SidePanelKind.ChatRoom}"
-                        ToolTip.Tip="聊天室"
-                        IsVisible="{Binding ChatRoomEnabled}" />
-        </StackPanel>
-        <StackPanel Grid.Row="2" Spacing="4" Margin="0,0,0,8" HorizontalAlignment="Center">
-          <Button Classes="activityIcon" FontSize="20"
-                  Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}">
-            <Panel>
-              <TextBlock Text="🌙" FontSize="20" IsVisible="{Binding IsDarkTheme}" />
-              <TextBlock Text="☀️" FontSize="20" IsVisible="{Binding !IsDarkTheme}" />
-            </Panel>
-          </Button>
-          <ToggleButton x:Name="SettingsButton" Classes="activityIcon" Content="⚙" FontSize="20"
-                        Command="{Binding ToggleSidePanelCommand}"
-                        CommandParameter="{x:Static vm:SidePanelKind.Settings}"
-                        ToolTip.Tip="设置" />
-          <ToggleButton Classes="activityIcon" Content="⇥" FontSize="20"
-                        IsChecked="{Binding IsSecondarySideBarOpen, Mode=TwoWay}"
-                        ToolTip.Tip="Secondary Side Bar" />
-          <Button Classes="activityIcon" FontSize="14"
-                  Content="{Binding LanguageToggleDisplay}"
-                  Command="{Binding ToggleLanguageCommand}"
-                  ToolTip.Tip="中/En 切换语言" />
-        </StackPanel>
-      </Grid>
-    </Border>
-
-    <!-- ===== Column 1：Dock.Avalonia 完整停靠布局（左面板+消息区，自带拖拽/分割/停靠） ===== -->
-    <dock:DockControl Grid.Column="1" Layout="{Binding DockLayout}" />
-    </Grid>
+    <!-- ===== Row 1：Dock.Avalonia 完整停靠布局（活动栏+左面板+消息区，自带拖拽/分割/停靠） ===== -->
+    <dock:DockControl Grid.Row="1" Layout="{Binding DockLayout}" IsVisible="{Binding IsNotZenMode}" />
   </Grid>
 </Window>

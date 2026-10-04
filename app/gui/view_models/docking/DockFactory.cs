@@ -7,6 +7,7 @@ namespace JoinCode.Gui.ViewModels.Docking;
 /// </summary>
 public sealed class DockFactory : Factory {
     private IRootDock? _root;
+    private IToolDock? _leftToolDock;
     private readonly object _context;
 
     /// <param name="context">主 ViewModel，设为每个 Tool/Document 的 Context 供 View 绑定</param>
@@ -106,14 +107,25 @@ public sealed class DockFactory : Factory {
         root.PinnedDock = null;
 
         _root = root;
+        _leftToolDock = leftToolDock;
         return root;
     }
 
-    /// <summary>初始化布局 — 注册 HostWindowLocator 并委托基类</summary>
+    /// <summary>初始化布局 — 注册 HostWindowLocator，委托基类，默认收拢左侧面板</summary>
     public override void InitLayout(IDockable layout) {
         HostWindowLocator = new Dictionary<string, Func<IHostWindow?>> {
             [nameof(IDockWindow)] = () => new Dock.Avalonia.Controls.HostWindow()
         };
         base.InitLayout(layout);
+        DefaultPinLeftPanels();
+    }
+
+    /// <summary>把左侧面板默认 pin（收拢为侧边图标条），鼠标悬停才展开</summary>
+    private void DefaultPinLeftPanels() {
+        if (_leftToolDock?.VisibleDockables is { } dockables) {
+            foreach (var dockable in dockables.ToList()) {
+                PinDockable(dockable);
+            }
+        }
     }
 }

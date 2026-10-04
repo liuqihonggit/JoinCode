@@ -161,7 +161,6 @@ public sealed partial class MainWindow : Window {
             _vm.TranscriptRequested += OnTranscriptRequested;
             _vm.RunStatus.MarqueeStopped += OnMarqueeStopped;
             ApplyAppearance();
-            SyncActivityBarButtons();
             CenterOnScreen();
             _vm.LoadFileTree(System.IO.Directory.GetCurrentDirectory());
         }
@@ -178,18 +177,6 @@ public sealed partial class MainWindow : Window {
         Classes.Set("motion", _vm.AnimationsEnabled);
         if (Application.Current is { } app)
             app.Resources["GuiMotionDuration"] = _vm.AnimationsEnabled ? TimeSpan.FromMilliseconds(160) : TimeSpan.Zero;
-    }
-
-    /// <summary>同步 Activity Bar 按钮选中状态 — 从 ViewModel 读取,手动设置 IsChecked</summary>
-    private void SyncActivityBarButtons() {
-        if (_vm is null) return;
-        SessionBtn.IsChecked = _vm.IsSessionPanelActive;
-        FileTreeBtn.IsChecked = _vm.IsFileTreePanelActive;
-        EditorBtn.IsChecked = _vm.IsEditorViewActive;
-        SettingsButton.IsChecked = _vm.IsSettingsPanelActive;
-        GoalButton.IsChecked = _vm.IsGoalPanelActive;
-        InterceptorButton.IsChecked = _vm.IsInterceptorPanelActive;
-        ChatRoomButton.IsChecked = _vm.IsChatRoomPanelActive;
     }
 
     /// <summary>窗口居中屏幕 — 在打开时固定到屏幕中间</summary>
@@ -289,14 +276,6 @@ public sealed partial class MainWindow : Window {
                 ? Avalonia.Styling.ThemeVariant.Light
                 : Avalonia.Styling.ThemeVariant.Dark;
             GuiAppResources.ApplyTheme(_vm.CurrentTheme);
-        } else if (e.PropertyName is nameof(MainViewModel.IsSessionPanelActive)
-                                     or nameof(MainViewModel.IsFileTreePanelActive)
-                                     or nameof(MainViewModel.IsSettingsPanelActive)
-                                     or nameof(MainViewModel.IsGoalPanelActive)
-                                     or nameof(MainViewModel.IsInterceptorPanelActive)
-                                     or nameof(MainViewModel.IsChatRoomPanelActive)
-                                     or nameof(MainViewModel.IsEditorViewActive)) {
-            SyncActivityBarButtons();
         } else if (e.PropertyName == nameof(MainViewModel.IsBusy)) {
             if (_vm!.IsBusy)
                 _toolTimer.Start();

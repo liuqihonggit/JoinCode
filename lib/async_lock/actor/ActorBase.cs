@@ -12,8 +12,8 @@ namespace Core.Utils;
 /// </summary>
 /// <typeparam name="TCommand">命令类型 — 建议用 record 或 sealed class,实现标记接口以约束合法命令</typeparam>
 /// <typeparam name="TOut">输出消息类型 — 建议用 record 或 sealed class</typeparam>
-public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<TCommand>, IActorOutput<TOut>, IAsyncDisposable {
-    private readonly Channel<TCommand> _inputChannel;
+public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<TCommand>, IActorOutput<TOut>, IActorLifecycle {
+    private readonly Channel<MessageEnvelope<TCommand>> _inputChannel;
     private readonly Channel<TOut> _outputChannel;
     private readonly Task _consumerTask;
     private readonly CancellationTokenSource _cts = new();
@@ -22,7 +22,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     private readonly IdempotencyGate _idempotencyGate;
     private readonly AskWaitGraphTracker _waitGraphTracker;
     private readonly MessageRetryEngine<TCommand> _retryEngine;
-    private readonly ConcurrentBag<Task> _inFlightTasks = new();
+    private readonly ActorInFlightRegistry _inFlightTasks = new();
     private int _disposed;
     private readonly ILogger? _logger;
 
@@ -73,6 +73,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         _waitGraphTracker = new AskWaitGraphTracker(_askWaitGraph);
         _inputChannel = CreateInputChannel(backpressure);
         _outputChannel = CreateOutputChannel(outputCapacity, outputFullMode);
+        Context = new ActorContextImpl(this);
+        Timers = new ActorTimers<TCommand>(this);
         _retryEngine = new MessageRetryEngine<TCommand>(
             retryQueueCapacity: backpressure?.RetryQueueCapacity ?? 1024,
             maxRetries: EffectiveMaxRetries,
@@ -82,6 +84,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             shutdownCt: _cts.Token,
             onSendFailed: RaiseSendFailed,
             onEnqueuedToInput: CheckInputWatermark);
+        // cmd => Tell(cmd) 捕获 this,但延迟执行 — Unstash 在 Handle 中调用时 _inputChannel 已初始化完成
+        _messageStash = new ActorMessageStash<TCommand>(cmd => Tell(cmd));
+        PreStart();
         var taskOptions = (useLongRunning ? TaskCreationOptions.LongRunning : TaskCreationOptions.None) | TaskCreationOptions.DenyChildAttach;
         _consumerTask = Task.Factory.StartNew(
             ConsumeLoopAsync,
@@ -91,16 +96,16 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         _retryEngine.Start();
     }
 
-    internal static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure) {
+    internal static Channel<MessageEnvelope<TCommand>> CreateInputChannel(ActorBackpressure? backpressure) {
         if (backpressure is null || backpressure.Capacity == 0) {
-            return Channel.CreateBounded<TCommand>(new BoundedChannelOptions(DefaultChannelCapacity) {
+            return Channel.CreateBounded<MessageEnvelope<TCommand>>(new BoundedChannelOptions(DefaultChannelCapacity) {
                 FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = true,
                 SingleWriter = false
             });
         }
 
-        return Channel.CreateBounded<TCommand>(new BoundedChannelOptions(backpressure.Capacity) {
+        return Channel.CreateBounded<MessageEnvelope<TCommand>>(new BoundedChannelOptions(backpressure.Capacity) {
             FullMode = backpressure.FullMode,
             SingleReader = true,
             SingleWriter = false
@@ -118,6 +123,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
 
     /// <summary>Actor 唯一标识 — 用于日志和监控</summary>
     public string Id { get; }
+
+    /// <summary>Actor 是否已释放(DisposeAsync 已完成)(Akka 对齐)</summary>
+    public bool IsDisposed => Volatile.Read(ref _disposed) != 0;
 
     /// <summary>
     /// Consumer 任务 — 用于等待 Consumer 退出(Dispose 时)或观察异常。
@@ -168,6 +176,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <summary>输出通道满丢弃消息事件 — TryPublish 写入失败时触发(FullMode=DropWrite 且通道满,或通道已完成)</summary>
     public event EventHandler<OutputDroppedEventArgs<TOut>>? OutputMessageDropped;
 
+    /// <summary>未处理消息事件 — Handle 中调 Unhandled(msg) 时触发(Akka 对齐)</summary>
+    public event EventHandler<UnhandledMessage>? UnhandledMessage;
+
     /// <summary>
     /// 向 Actor 同步发送命令 — Tell 模式(射后不理,不阻塞调用方)。
     /// <para>TryWrite(非阻塞),通道满时后台重试(16次+指数退避+换流水号),射后不理不阻塞Actor消费循环。</para>
@@ -178,15 +189,17 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <para><b>⚠️ FIFO 不保证</b>:消息入队失败进入重试队列后,可能晚于后续成功入队的消息被消费,命令顺序不保证严格 FIFO。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
+    /// <param name="sender">发送者引用(null=无 sender,Actor 间通信时传入回复目标,Handle 中通过 <see cref="Sender"/> 获取)</param>
     /// <exception cref="ObjectDisposedException">Actor 已释放</exception>
-    public void Tell(TCommand cmd) {
+    public void Tell(TCommand cmd, object? sender = null) {
         ThrowIfDisposed();
 
-        if (_inputChannel.Writer.TryWrite(cmd)) {
+        var envelope = new MessageEnvelope<TCommand>(cmd, sender);
+        if (_inputChannel.Writer.TryWrite(envelope)) {
             CheckInputWatermark();
             return;
         }
-        if (!_retryEngine.TryEnqueue(new RetryEntry<TCommand>(cmd, 1))) {
+        if (!_retryEngine.TryEnqueue(new RetryEntry<TCommand>(cmd, 1, sender))) {
             _logger?.LogWarning("[Actor:{ActorId}] 重试队列满,首次入队失败,触发SendFailed", Id);
             RaiseSendFailed(cmd, 0);
         }
@@ -232,10 +245,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <para><b>与 <see cref="Tell"/> 区别</b>:Tell 入队失败进重试队列(不保证FIFO);TrySend 入队失败返回false(保证FIFO,调用方自行处理)。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
+    /// <param name="sender">发送者引用(null=无 sender)</param>
     /// <returns>true 表示已入队,false 表示未入队</returns>
-    public bool TrySend(TCommand cmd) {
+    public bool TrySend(TCommand cmd, object? sender = null) {
         if (Volatile.Read(ref _disposed) != 0) return false;
-        var written = _inputChannel.Writer.TryWrite(cmd);
+        var written = _inputChannel.Writer.TryWrite(new MessageEnvelope<TCommand>(cmd, sender));
         if (written) {
             CheckInputWatermark();
         }
@@ -248,8 +262,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <para>适合需要严格命令顺序的场景(如状态机、事务序列)。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
-    /// <returns>true 表示已入队,false 表示未入队(通道满或已释放)</returns>
-    public bool TryTell(TCommand cmd) => TrySend(cmd);
+    /// <param name="sender">发送者引用(null=无 sender)</param>
+    /// <returns>true 表示已入队,false 表示未入队</returns>
+    public bool TryTell(TCommand cmd, object? sender = null) => TrySend(cmd, sender);
 
     /// <summary>
     /// Actor 主动推送消息到输出 Channel — 外部通过 OutputAsync 拉取。
@@ -279,12 +294,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <param name="task">fire-and-forget 启动的任务引用</param>
     protected void RegisterInFlight(Task task) {
         // 不调 ThrowIfDisposed — Dispose 与 Handle 存在竞态:Dispose 设 _disposed=1 后,
-        // Handle 里的 RegisterInFlight 若抛异常则任务不入 bag,Dispose 的 WhenAll 空集合立即完成(CI #691 根因)。
-        // 任务已 fire-and-forget 启动,必须入 bag 让 Dispose 等待,否则泄漏。
+        // Handle 里的 RegisterInFlight 若抛异常则任务不入队列,Dispose 的 WhenAll 空集合立即完成(CI #691 根因)。
+        // 任务已 fire-and-forget 启动,必须入队让 Dispose 等待,否则泄漏。
         // 安全保证:RegisterInFlight 仅在 Handle 内调用,Handle 在 Consumer 线程串行执行,
         // Consumer 退出(await _consumerTask)前所有 RegisterInFlight 已完成,Dispose 的 ToArray 必包含全部 in-flight 任务。
-        _inFlightTasks.Add(task);
+        _inFlightTasks.Register(task);
     }
+
+    /// <summary>in-flight 任务当前数 — 供测试验证清理有效性(DSG033 方案B)</summary>
+    internal int InFlightCountForTest => _inFlightTasks.Count;
 
     /// <summary>
     /// 外部拉取输出流 — 阻塞式 IAsyncEnumerable。
@@ -303,6 +321,15 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     }
 
     /// <summary>
+    /// 标记消息未处理 — 子类在 Handle 中遇到不认识的消息时调用,触发 <see cref="UnhandledMessage"/> 事件(Akka 对齐)。
+    /// <para>语义:Actor 收到消息但无法处理,通知外部用于调试或日志。</para>
+    /// </summary>
+    /// <param name="message">未处理的消息</param>
+    protected void Unhandled(object message) {
+        RaiseEvent(UnhandledMessage, this, new UnhandledMessage(message, Sender, Id), nameof(UnhandledMessage));
+    }
+
+    /// <summary>
     /// 子类实现命令处理逻辑 — 由 Consumer 线程串行同步调用,此方法内访问实例可变状态无需锁。
     /// <para><b>⚠️ 同步 Handle 铁律</b>:</para>
     /// <para>1. <b>禁止 async/await</b> — 签名为 void,编译器无法阻止 async lambda,但运行时会破坏 Consumer 串行不变量</para>
@@ -314,6 +341,107 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <param name="command">待处理命令</param>
     /// <param name="ct">取消令牌(Actor 释放时触发取消)</param>
     protected abstract void Handle(TCommand command, CancellationToken ct);
+
+    /// <summary>行为栈 — Become/BecomeStacked/UnbecomeStacked 管理(Akka 对齐)</summary>
+    private readonly ActorBehaviorStack<TCommand> _behaviorStack = new();
+
+    /// <summary>
+    /// 替换当前行为(不入栈) — UnbecomeStacked 不会恢复到此行为之前的状态。
+    /// <para>适合不可逆状态转换(如初始化→运行态)。</para>
+    /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程),禁止跨线程调用。</para>
+    /// </summary>
+    /// <param name="receive">新行为委托</param>
+    protected void Become(ActorReceive<TCommand> receive) => _behaviorStack.Become(receive);
+
+    /// <summary>
+    /// 压入新行为(入栈) — UnbecomeStacked 弹出恢复上一个行为。
+    /// <para>可逆状态转换(如临时进入处理态后恢复)。</para>
+    /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程),禁止跨线程调用。</para>
+    /// </summary>
+    /// <param name="receive">新行为委托</param>
+    protected void BecomeStacked(ActorReceive<TCommand> receive) => _behaviorStack.BecomeStacked(receive);
+
+    /// <summary>
+    /// 弹出行为 — 恢复到上一个 BecomeStacked 之前的行为。
+    /// <para>栈空时无操作(保持当前行为)。</para>
+    /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程),禁止跨线程调用。</para>
+    /// </summary>
+    protected void UnbecomeStacked() => _behaviorStack.UnbecomeStacked();
+
+    /// <summary>当前消息的发送者 — AsyncLocal 跨 await 流转,Handle 中获取 Tell 时传入的 sender(Akka 对齐)</summary>
+    private readonly AsyncLocal<object?> _currentSender = new();
+
+    /// <summary>
+    /// 当前消息的发送者 — 在 Handle/行为中调用,获取 Tell 时传入的 sender 引用(Akka 对齐)。
+    /// <para>null 表示无 sender(外部 Tell 未传 sender)。</para>
+    /// </summary>
+    protected object? Sender => _currentSender.Value;
+
+    /// <summary>
+    /// Actor 上下文 — 封装 Self/Sender/IsDisposed 统一入口(Akka 对齐)。
+    /// <para>在 Handle 中通过 <c>Context.Sender</c> 访问当前消息发送者。</para>
+    /// </summary>
+    protected IActorContext Context { get; }
+
+    /// <summary>
+    /// Actor 定时器 — 绑定到生命周期的定时器,Dispose 时自动取消所有(Akka 对齐)。
+    /// </summary>
+    protected ActorTimers<TCommand> Timers { get; }
+
+    private sealed class ActorContextImpl(ActorBase<TCommand, TOut> actor) : IActorContext {
+        /// <summary>自身 Actor Id</summary>
+        public string Self => actor.Id;
+        /// <summary>当前消息发送者</summary>
+        public object? Sender => actor._currentSender.Value;
+        /// <summary>Actor 是否已释放</summary>
+        public bool IsDisposed => actor.IsDisposed;
+    }
+
+    /// <summary>ReceiveTimeout 配置 — 0=不启用,>0=超时 tick 数(Akka 对齐)</summary>
+    private long _receiveTimeoutTicks;
+
+    /// <summary>
+    /// 设置空闲超时 — 在指定时间内无消息则触发 <see cref="OnReceiveTimeout"/>(Akka 对齐)。
+    /// <para>收到任何消息后重置计时器。<c>TimeSpan.Zero</c> 或负值取消超时。</para>
+    /// <para>⚠️ 仅在 Handle/构造函数中调用(Consumer 线程),禁止跨线程调用。</para>
+    /// </summary>
+    /// <param name="timeout">空闲超时阈值(Zero/负值=取消)</param>
+    protected void SetReceiveTimeout(TimeSpan timeout) {
+        Interlocked.Exchange(ref _receiveTimeoutTicks, timeout <= TimeSpan.Zero ? 0 : timeout.Ticks);
+    }
+
+    /// <summary>
+    /// 空闲超时回调 — 设置 <see cref="SetReceiveTimeout"/> 后,指定时间内无消息时调用(Akka 对齐)。
+    /// <para>在 Consumer 线程调用,子类可重写处理超时(如发心跳、清理资源)。</para>
+    /// </summary>
+    protected virtual void OnReceiveTimeout() { }
+
+    /// <summary>消息暂存队列 — Stash/Unstash/UnstashAll 管理(Akka 对齐)</summary>
+    private readonly ActorMessageStash<TCommand> _messageStash;
+
+    /// <summary>
+    /// 暂存当前消息 — 存入内部队列,稍后 Unstash 取出处理(Akka 对齐)。
+    /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程),Stash 后通常 return 不处理当前消息。</para>
+    /// </summary>
+    protected void Stash() => _messageStash.Stash();
+
+    /// <summary>
+    /// 取出一条暂存消息 — FIFO 顺序 Tell 回自己,进入 Channel 尾部(Akka 对齐)。
+    /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程)。</para>
+    /// </summary>
+    protected void Unstash() => _messageStash.Unstash();
+
+    /// <summary>
+    /// 取出所有暂存消息 — FIFO 顺序 Tell 回自己(Akka 对齐)。
+    /// <para>⚠️ 仅在 Handle/行为内调用(Consumer 线程)。</para>
+    /// </summary>
+    protected void UnstashAll() => _messageStash.UnstashAll();
+
+    /// <summary>Actor 启动前调用(构造函数末尾,Consumer 启动前)— 初始化资源(DSG033 S2)</summary>
+    protected virtual void PreStart() { }
+
+    /// <summary>Actor 停止后调用(DisposeAsync 中 Consumer 退出后)— 释放资源(DSG033 S2)</summary>
+    protected virtual void PostStop() { }
 
     /// <summary>
     /// Consumer 处理单条命令异常的回调 — 默认忽略,子类可重写以记录日志或计数。
@@ -334,8 +462,27 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     private async Task ConsumeLoopAsync() {
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
         try {
-            await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
-                if (!ProcessSingleCommand(cmd, _cts.Token)) return;
+            while (true) {
+                var ticks = Interlocked.Read(ref _receiveTimeoutTicks);
+                if (ticks > 0) {
+                    var t = TimeSpan.FromTicks(ticks);
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+                    linkedCts.CancelAfter(t);
+                    bool hasData;
+                    try {
+                        hasData = await _inputChannel.Reader.WaitToReadAsync(linkedCts.Token).ConfigureAwait(false);
+                    } catch (OperationCanceledException) when (linkedCts.IsCancellationRequested && !_cts.IsCancellationRequested) {
+                        try { OnReceiveTimeout(); } catch (Exception ex) { HandleConsumerErrorSafe(ex); }
+                        continue;
+                    }
+                    if (!hasData) break;
+                } else {
+                    if (!await _inputChannel.Reader.WaitToReadAsync(_cts.Token).ConfigureAwait(false)) break;
+                }
+                while (_inputChannel.Reader.TryRead(out var envelope)) {
+                    _currentSender.Value = envelope.Sender;
+                    if (!ProcessSingleCommand(envelope.Command, _cts.Token)) return;
+                }
             }
         } catch (OperationCanceledException) { }
     }
@@ -350,11 +497,31 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <returns>true=已处理(或幂等跳过);false=Actor 关闭需退出循环</returns>
     internal bool ProcessSingleCommand(TCommand cmd, CancellationToken ct) {
         CheckInputWatermark();
+
+        if (cmd is IPoisonPill) {
+            TriggerPoisonPillStop();
+            return false;
+        }
+
+        if (cmd is IIdentify identify) {
+            if (Sender is ActorIdentify.ReplyChannel channel) {
+                channel.Reply(new ActorIdentity(identify.CorrelationId, this));
+            }
+            return true;
+        }
+
         try {
+            OnBeforeProcessCommand();
             if (_idempotencyGate.TryRestore(cmd)) {
                 return true;
             }
-            Handle(cmd, ct);
+            _messageStash.SetCurrent(cmd);
+            var behavior = _behaviorStack.Current;
+            if (behavior is not null) {
+                behavior(cmd, ct);
+            } else {
+                Handle(cmd, ct);
+            }
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             return false;
         } catch (Exception ex) {
@@ -362,6 +529,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         }
         return true;
     }
+
+    /// <summary>处理命令前检查 — 子类可重写以加前置守卫(如 DeathPact:watch 的子终止后抛异常)</summary>
+    protected virtual void OnBeforeProcessCommand() { }
 
     /// <summary>安全调用 OnConsumerError — 回调异常吞掉记日志(不传播,不中断 Consumer)</summary>
     private void HandleConsumerErrorSafe(Exception ex) {
@@ -606,6 +776,19 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     private string? TryGetCallerActorId() => AsyncFlowIdentity.CurrentActorId;
 
     /// <summary>
+    /// PoisonPill 触发停止 — 取消 Consumer + 完成通道,fire-and-forget 触发 DisposeAsync 做完整清理(Akka 对齐)。
+    /// <para>在 Consumer 线程内调用,不能 await 自己的 DisposeAsync(死锁),用 fire-and-forget。</para>
+    /// <para>DisposeAsync 在 ThreadPool 线程 await _consumerTask,等 Consumer 退出后继续清理(in-flight/PostStop/CTS)。</para>
+    /// </summary>
+    private void TriggerPoisonPillStop() {
+        _cts.Cancel();
+        _inputChannel.Writer.TryComplete();
+        _outputChannel.Writer.TryComplete();
+        _retryEngine.Complete();
+        _ = DisposeAsync().AsTask();
+    }
+
+    /// <summary>
     /// 释放 Actor — 取消 Consumer、完成通道,等待 Consumer 真正退出后等待所有 in-flight 任务,最后释放 CTS。
     /// <para>Consumer 用 LongRunning 专用线程运行(不占线程池),Dispose await 不会导致线程池饥饿死锁。</para>
     /// <para>设计理由:fire-and-forget 会掩盖 Consumer 未完成清理的问题,改回 await 确保资源真正释放。</para>
@@ -613,6 +796,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// </summary>
     public virtual async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        Timers.CancelAll();
         _cts.Cancel();
         _inputChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();
@@ -631,106 +815,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
                 _logger?.LogWarning(ex, "[Actor:{ActorId}] in-flight 任务异常忽略,继续释放 CTS", Id);
             }
         }
+        _inFlightTasks.Clear();
+        PostStop();
         _cts.Dispose();
     }
 }
-
-/// <summary>
-/// Actor Ask 模式死锁异常 — Ask 超时后抛出,带诊断信息指导修复。
-/// </summary>
-/// <remarks>
-/// <para>触发条件:AskAwait 超时(默认10s) — Consumer 未在超时内处理命令并设置 Tcs。</para>
-/// <para>常见根因:线程池饥饿 — 所有线程被阻塞等待,Consumer 任务无法被调度。</para>
-/// <para>修复指导:Dispose 路径改用 Tell(TrySend);查询路径检查 Consumer 是否阻塞或线程池是否不足。</para>
-/// </remarks>
-public sealed class ActorAskDeadlockException : TimeoutException {
-    /// <summary>Actor 类型名</summary>
-    public string ActorName { get; }
-
-    /// <summary>超时毫秒数</summary>
-    public int TimeoutMs { get; }
-
-    /// <summary>
-    /// 构造 Ask 死锁异常
-    /// </summary>
-    /// <param name="actorName">Actor 类型名</param>
-    /// <param name="timeoutMs">超时毫秒数</param>
-    public ActorAskDeadlockException(string actorName, int timeoutMs)
-        : base($"Actor {actorName} Ask 超时({timeoutMs}ms) — 可能线程池饥饿导致 Consumer 无法调度。" +
-               "Dispose 路径改用 Tell(TrySend);查询路径检查 Consumer 是否阻塞或线程池是否不足。") {
-        ActorName = actorName;
-        TimeoutMs = timeoutMs;
-    }
-}
-
-/// <summary>
-/// Actor 循环 Ask 异常 — 等待图检测到环时抛出,预防循环 Ask 死锁(类型2)。
-/// </summary>
-/// <remarks>
-/// <para>触发条件:AskAwait 检测到等待图环 — Actor A 等 B 回复,同时 B 等 A 回复。</para>
-/// <para>检测机制:静态等待图(wait-for graph),通过线程ID自动识别调用方Actor,记入等待边,检测到环即抛异常。</para>
-/// <para>修复指导:打破循环 — 其中一方改用 Tell(不等回复),或重构调用链消除循环依赖。</para>
-/// </remarks>
-public sealed class ActorCyclicAskException : InvalidOperationException {
-    /// <summary>调用方 Actor ID</summary>
-    public string CallerActorId { get; }
-
-    /// <summary>目标 Actor ID</summary>
-    public string TargetActorId { get; }
-
-    /// <summary>
-    /// 构造循环 Ask 异常
-    /// </summary>
-    /// <param name="callerActorId">调用方 Actor ID</param>
-    /// <param name="targetActorId">目标 Actor ID</param>
-    public ActorCyclicAskException(string callerActorId, string targetActorId)
-        : base($"循环 Ask 检测: Actor {callerActorId} 等 {targetActorId} 回复,同时 {targetActorId} 等 {callerActorId} 回复 → 等待图环 → 死锁。" +
-               "修复:其中一方改用 Tell(TrySend,不等回复),或重构调用链消除循环依赖。") {
-        CallerActorId = callerActorId;
-        TargetActorId = targetActorId;
-    }
-}
-
-/// <summary>
-/// 幂等命令标记接口 — 纯开发规约标记,框架不自动处理重试安全。
-/// <para><b>⚠️ 框架行为</b>:ActorBase 不读取此接口,不自动缓存或校验幂等性。重试安全由调用方保证。</para>
-/// <para><b>与 IRequestCommand 区别</b>:IRequestCommand 携带幂等键+TryRestoreFromCache,框架 ConsumeLoop 自动做缓存命中跳过;本接口仅为文档标记。</para>
-/// <para>典型幂等命令:查询(Get/Read)、取消(Cancel)、状态切换到固定值(SetXxx)。</para>
-/// <para>非幂等命令:追加(Append)、递增(Increment)、创建(Create) — 重试可能产生重复副作用。</para>
-/// </summary>
-public interface IIdempotent { }
-
-/// <summary>
-/// 单元类型 — 用于不需要输出的 Actor 的 TOut 参数。
-/// </summary>
-public readonly record struct Unit {
-    /// <summary>唯一实例</summary>
-    public static readonly Unit Value = default;
-}
-
-/// <summary>
-/// 背压重试失败事件参数 — 16次重试后消息仍未能入队
-/// </summary>
-/// <typeparam name="TCommand">命令类型</typeparam>
-/// <param name="Command">未能入队的命令(外部可计入死信队列)</param>
-/// <param name="RetryCount">重试次数</param>
-public sealed record BackpressureSendFailedEventArgs<TCommand>(
-    TCommand Command,
-    int RetryCount);
-
-/// <summary>
-/// 重试队列条目 — 命令 + 当前重试次数(P1-2: 单例重试队列)
-/// </summary>
-/// <typeparam name="TCommand">命令类型</typeparam>
-/// <param name="Command">待重试命令</param>
-/// <param name="Attempt">当前重试次数(1=首次重试)</param>
-internal sealed record RetryEntry<TCommand>(
-    TCommand Command,
-    int Attempt);
-
-/// <summary>
-/// 输出消息丢弃事件参数 — 输出通道满时 TryPublish 丢弃的消息
-/// </summary>
-/// <typeparam name="TOut">输出消息类型</typeparam>
-/// <param name="Message">被丢弃的消息(外部可计入死信队列或重投)</param>
-public sealed record OutputDroppedEventArgs<TOut>(TOut Message);

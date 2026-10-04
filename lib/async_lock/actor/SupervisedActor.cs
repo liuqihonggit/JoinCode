@@ -25,21 +25,51 @@ public enum SupervisorDirective {
 public sealed record SupervisorStrategy(
     int MaxRestarts,
     TimeSpan Within,
-    Func<Exception, SupervisorDirective> Decider) {
+    Func<Exception, SupervisorDirective> Decider,
+    bool RestartAllSiblings = false,
+    ActorBackoffStrategy? Backoff = null) {
+    /// <summary>
+    /// 默认异常分类 — 对齐 Akka DefaultDecider(DSG033 API对齐)。
+    /// <para>OperationCanceledException → Stop(取消是正常终止),其他 → Restart(临时故障)。</para>
+    /// </summary>
+    public static readonly Func<Exception, SupervisorDirective> DefaultDecider =
+        static ex => ex is OperationCanceledException ? SupervisorDirective.Stop : SupervisorDirective.Restart;
+
     /// <summary>OneForOne — 只重启失败的子 Actor,最多 3 次/分钟</summary>
     public static readonly SupervisorStrategy OneForOne = new(
-        3, TimeSpan.FromMinutes(1),
-        static ex => ex is OperationCanceledException ? SupervisorDirective.Stop : SupervisorDirective.Restart);
+        3, TimeSpan.FromMinutes(1), DefaultDecider, RestartAllSiblings: false);
 
     /// <summary>AllForOne — 重启所有子 Actor(一个失败影响全部),最多 3 次/分钟</summary>
     public static readonly SupervisorStrategy AllForOne = new(
-        3, TimeSpan.FromMinutes(1),
-        static ex => ex is OperationCanceledException ? SupervisorDirective.Stop : SupervisorDirective.Restart);
+        3, TimeSpan.FromMinutes(1), DefaultDecider, RestartAllSiblings: true);
 
     /// <summary>Escalate — 向上抛给父 Actor 处理</summary>
     public static readonly SupervisorStrategy Escalate = new(
         0, TimeSpan.MaxValue,
-        static _ => SupervisorDirective.Escalate);
+        static _ => SupervisorDirective.Escalate,
+        RestartAllSiblings: false);
+}
+
+/// <summary>
+/// 退避策略 — 子 Actor 持续崩溃时指数退避重启(DSG033 S5)。
+/// <para>对齐 Akka BackoffSupervisor: MinBackoff → 2×MinBackoff → 4×MinBackoff → ... → MaxBackoff。</para>
+/// <para>RandomFactor 抖动防止多个子 Actor 同步重启惊群。</para>
+/// </summary>
+/// <param name="MinBackoff">最小退避(第 0 次重试)</param>
+/// <param name="MaxBackoff">最大退避(延迟上限)</param>
+/// <param name="RandomFactor">抖动因子(0=无抖动,0.2=±20%抖动)</param>
+public sealed record ActorBackoffStrategy(TimeSpan MinBackoff, TimeSpan MaxBackoff, double RandomFactor = 0.2) {
+    /// <summary>
+    /// 计算第 n 次重试的退避延迟 — MinBackoff×2^n,上限 MaxBackoff,带 ±RandomFactor 抖动。
+    /// </summary>
+    /// <param name="restartCount">当前重试次数(0 基)</param>
+    /// <returns>退避延迟(>= TimeSpan.Zero)</returns>
+    public TimeSpan ComputeDelay(int restartCount) {
+        var baseMs = MinBackoff.TotalMilliseconds * Math.Pow(2, restartCount);
+        var cappedMs = Math.Min(baseMs, MaxBackoff.TotalMilliseconds);
+        var jitter = cappedMs * RandomFactor * (Random.Shared.NextDouble() * 2 - 1);
+        return TimeSpan.FromMilliseconds(Math.Max(0, cappedMs + jitter));
+    }
 }
 
 /// <summary>
@@ -68,6 +98,7 @@ public sealed class ChildActorHandle : IAsyncDisposable {
     private readonly Func<CancellationToken, ValueTask<IAsyncDisposable>> _factory;
     private readonly SupervisorStrategy _strategy;
     private readonly Func<ChildActorHandle, Exception, CancellationToken, ValueTask> _onFailure;
+    private readonly Func<CancellationToken, ValueTask>? _restartAllSiblings;
     private IAsyncDisposable? _instance;
     private int _restartCount;
     private ImmutableList<DateTimeOffset> _restartTimes = ImmutableList<DateTimeOffset>.Empty;
@@ -87,15 +118,20 @@ public sealed class ChildActorHandle : IAsyncDisposable {
     /// <summary>监督策略</summary>
     public SupervisorStrategy Strategy => _strategy;
 
+    /// <summary>子 Actor 终止事件 — Watch 后父 Actor 订阅,子终止时触发(DSG033 S3)</summary>
+    internal event Action<ChildActorHandle, TerminationReason>? Terminated;
+
     internal ChildActorHandle(
         string id,
         Func<CancellationToken, ValueTask<IAsyncDisposable>> factory,
         SupervisorStrategy strategy,
-        Func<ChildActorHandle, Exception, CancellationToken, ValueTask> onFailure) {
+        Func<ChildActorHandle, Exception, CancellationToken, ValueTask> onFailure,
+        Func<CancellationToken, ValueTask>? restartAllSiblings = null) {
         Id = id;
         _factory = factory;
         _strategy = strategy;
         _onFailure = onFailure;
+        _restartAllSiblings = restartAllSiblings;
     }
 
     /// <summary>启动子 Actor</summary>
@@ -112,7 +148,11 @@ public sealed class ChildActorHandle : IAsyncDisposable {
             State = ChildActorState.Running;
             break;
             case SupervisorDirective.Restart:
-            await RestartAsync(ct).ConfigureAwait(false);
+            if (_strategy.RestartAllSiblings && _restartAllSiblings is not null) {
+                await _restartAllSiblings(ct).ConfigureAwait(false);
+            } else {
+                await RestartAsync(ct).ConfigureAwait(false);
+            }
             break;
             case SupervisorDirective.Stop:
             await StopAsync().ConfigureAwait(false);
@@ -159,12 +199,30 @@ public sealed class ChildActorHandle : IAsyncDisposable {
         }
         State = ChildActorState.Restarting;
 
+        if (_strategy.Backoff is { } backoff) {
+            await Task.Delay(backoff.ComputeDelay(Volatile.Read(ref _restartCount)), ct).ConfigureAwait(false);
+        }
+
         if (_instance is not null) {
             try { await _instance.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { Console.WriteLine($"[ChildActor:{Id}] Dispose 旧实例异常忽略: {ex.Message}"); }
         }
 
         _instance = await _factory(ct).ConfigureAwait(false);
         State = ChildActorState.Running;
+    }
+
+    /// <summary>重启本子 Actor — 供 AllForOne 父 Actor 批量调用(internal)</summary>
+    internal ValueTask RestartInternalAsync(CancellationToken ct) => RestartAsync(ct);
+
+    /// <summary>
+    /// 只读检查是否允许重启(不实际增加计数) — AllForOne 语义对齐 Akka(DSG033 API对齐)。
+    /// <para>Akka: children.All(c => c.RequestRestartPermission(...)) — 所有子都允许才重启全部。</para>
+    /// </summary>
+    internal bool CanRestart() {
+        var now = DateTimeOffset.UtcNow;
+        var current = Volatile.Read(ref _restartTimes);
+        var filtered = current.RemoveAll(t => now - t > _strategy.Within);
+        return filtered.Count < _strategy.MaxRestarts;
     }
 
     /// <summary>停止子 Actor</summary>
@@ -174,6 +232,7 @@ public sealed class ChildActorHandle : IAsyncDisposable {
             _instance = null;
         }
         State = ChildActorState.Stopped;
+        Terminated?.Invoke(this, TerminationReason.Stopped);
     }
 
     /// <summary>释放 — 等同于 StopAsync</summary>
@@ -183,7 +242,20 @@ public sealed class ChildActorHandle : IAsyncDisposable {
 /// <summary>
 /// 监督事件 — 子 Actor 生命周期事件,通过 OutputAsync 流输出。
 /// </summary>
-public sealed record SupervisorEvent(string ChildId, ChildActorState State, string? Message = null);
+public record SupervisorEvent(string ChildId, ChildActorState State, string? Message = null);
+
+/// <summary>子 Actor 终止原因 — DSG033 S3 DeathWatch</summary>
+public enum TerminationReason {
+    /// <summary>正常停止</summary>
+    [EnumValue("stopped")] Stopped,
+    /// <summary>失败终止</summary>
+    [EnumValue("failed")] Failed,
+    /// <summary>Dispose 释放</summary>
+    [EnumValue("disposed")] Disposed
+}
+
+/// <summary>子 Actor 终止事件 — Watch 后父 Actor 通过 OutputAsync 收到(DSG033 S3)</summary>
+public sealed record Terminated(string ChildId, TerminationReason Reason) : SupervisorEvent(ChildId, ChildActorState.Stopped);
 
 /// <summary>
 /// 监督 Actor — 继承 ActorBase 获得消息处理 + 输出流,新增树形父子关系 + 监督策略。
@@ -194,6 +266,8 @@ public sealed record SupervisorEvent(string ChildId, ChildActorState State, stri
 /// <typeparam name="TCommand">命令类型</typeparam>
 public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, SupervisorEvent> {
     private readonly ConcurrentDictionary<string, ChildActorHandle> _children = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, byte> _deathPactChildren = new(StringComparer.Ordinal);
+    private volatile bool _deathPactPending;
 
     /// <summary>构造监督 Actor — 无背压(无界通道)</summary>
     protected SupervisedActor() : base() { }
@@ -226,11 +300,32 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
         string childId,
         Func<CancellationToken, ValueTask<IAsyncDisposable>> factory,
         SupervisorStrategy strategy) {
-        var handle = new ChildActorHandle(childId, factory, strategy, ReportChildFailureAsync);
+        var handle = new ChildActorHandle(childId, factory, strategy, ReportChildFailureAsync, RestartAllChildrenAsync);
         _children[childId] = handle;
         await handle.StartAsync(CancellationToken.None).ConfigureAwait(false);
         TryPublish(new SupervisorEvent(childId, ChildActorState.Running));
         return handle;
+    }
+
+    /// <summary>
+    /// 重启所有 Running 状态的子 Actor — AllForOne 策略使用(DSG033 S1)。
+    /// <para>已 Stopped/Failed 的子不参与重启。每个子独立计 RestartCount。</para>
+    /// </summary>
+    protected async ValueTask RestartAllChildrenAsync(CancellationToken ct) {
+        var runningChildren = _children.Values.Where(c => c.State == ChildActorState.Running).ToArray();
+        if (runningChildren.Length == 0) return;
+
+        if (runningChildren.All(c => c.CanRestart())) {
+            foreach (var child in runningChildren) {
+                await child.RestartInternalAsync(ct).ConfigureAwait(false);
+                TryPublish(new SupervisorEvent(child.Id, ChildActorState.Running, "all-for-one restart"));
+            }
+        } else {
+            foreach (var child in runningChildren) {
+                await child.StopAsync().ConfigureAwait(false);
+                TryPublish(new SupervisorEvent(child.Id, ChildActorState.Stopped, "all-for-one stop"));
+            }
+        }
     }
 
     /// <summary>获取所有子 Actor 句柄</summary>
@@ -239,6 +334,45 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
     /// <summary>按 ID 获取子 Actor 句柄</summary>
     protected ChildActorHandle? GetChild(string childId) =>
         _children.TryGetValue(childId, out var handle) ? handle : null;
+
+    /// <summary>
+    /// 监视子 Actor — 子终止时本 Actor 通过 OutputAsync 收到 Terminated 事件(DSG033 S3)。
+    /// <para>对齐 Akka context.watch: 被动感知子 Actor 终止,无需主动轮询。</para>
+    /// <para><paramref name="deathPact"/>=true 时启用 DeathPact:子终止后本 Actor 处理下一条命令时抛 <see cref="DeathPactException"/>(Akka 对齐)。</para>
+    /// </summary>
+    /// <param name="child">被监视的子 Actor</param>
+    /// <param name="deathPact">true=子终止后本 Actor 自动失败(DeathPact);false=仅通知不失败</param>
+    /// <exception cref="ArgumentNullException">child 为 null</exception>
+    protected void Watch(ChildActorHandle child, bool deathPact = false) {
+        ArgumentNullException.ThrowIfNull(child);
+        child.Terminated += OnChildTerminated;
+        if (deathPact) {
+            _deathPactChildren.TryAdd(child.Id, 0);
+        }
+    }
+
+    /// <summary>取消监视子 Actor — 不再接收其 Terminated 事件(DSG033 S3)</summary>
+    /// <exception cref="ArgumentNullException">child 为 null</exception>
+    protected void Unwatch(ChildActorHandle child) {
+        ArgumentNullException.ThrowIfNull(child);
+        child.Terminated -= OnChildTerminated;
+        _deathPactChildren.TryRemove(child.Id, out _);
+    }
+
+    private void OnChildTerminated(ChildActorHandle child, TerminationReason reason) {
+        TryPublish(new Terminated(child.Id, reason));
+        if (_deathPactChildren.ContainsKey(child.Id)) {
+            _deathPactPending = true;
+        }
+    }
+
+    /// <summary>DeathPact 检查 — watch(deathPact:true) 的子终止后,处理下一条命令时抛 DeathPactException(Akka 对齐)</summary>
+    protected override void OnBeforeProcessCommand() {
+        if (_deathPactPending) {
+            _deathPactPending = false;
+            throw new DeathPactException("watch 的子 Actor 终止,本 Actor 未处理 Terminated,触发 DeathPact");
+        }
+    }
 
     /// <summary>停止所有子 Actor — 父 Actor Dispose 时级联</summary>
     protected async ValueTask StopAllChildrenAsync() {
@@ -259,4 +393,13 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
         await StopAllChildrenAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
+}
+
+/// <summary>
+/// DeathPact 异常 — watch(deathPact:true) 的子 Actor 终止后,父 Actor 未处理 Terminated 时抛出(Akka 对齐)。
+/// <para>语义:Actor watch 了子并启用 deathPact,子终止后父处理下一条命令时抛此异常,触发 OnConsumerError。</para>
+/// </summary>
+public sealed class DeathPactException : Exception {
+    /// <summary>初始化 DeathPact 异常</summary>
+    public DeathPactException(string message) : base(message) { }
 }

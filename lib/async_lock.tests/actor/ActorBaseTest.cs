@@ -399,6 +399,524 @@ public class ActorBaseTest {
         }
         results.Should().ContainSingle().Which.Should().Be("processed-hello");
     }
+
+    /// <summary>PreStart 在构造函数中调用,先于 Consumer 启动(DSG033 S2)</summary>
+    [Fact]
+    public async Task Lifecycle_PreStart_CalledDuringConstruction() {
+        var actor = new LifecycleActor();
+        actor.PreStartCalled.Should().BeTrue("PreStart 应在构造函数中调用");
+        await actor.DisposeAsync();
+    }
+
+    /// <summary>PostStop 在 DisposeAsync 后调用(DSG033 S2)</summary>
+    [Fact]
+    public async Task Lifecycle_PostStop_CalledAfterDispose() {
+        var actor = new LifecycleActor();
+        await actor.DisposeAsync();
+        actor.PostStopCalled.Should().BeTrue("PostStop 应在 Dispose 后调用");
+    }
+
+    /// <summary>BecomeStacked 切换行为后,新消息由新行为处理(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task BecomeStacked_切换行为_新消息由新行为处理() {
+        await using var actor = new BecomeActor();
+        actor.Tell("msg1");
+        actor.Tell("become-stacked");
+        actor.Tell("msg2");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.State1Processed.Count >= 2 && actor.State2Processed.Count >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.State1Processed.Should().Contain("msg1");
+        actor.State1Processed.Should().Contain("become-stacked");
+        actor.State2Processed.Should().Contain("msg2");
+    }
+
+    /// <summary>UnbecomeStacked 恢复行为后,新消息由原行为处理(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task UnbecomeStacked_恢复行为_新消息由原行为处理() {
+        await using var actor = new BecomeActor();
+        actor.Tell("become-stacked");
+        actor.Tell("msg2");
+        actor.Tell("unbecome");
+        actor.Tell("msg1");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.State2Processed.Count >= 2 && actor.State1Processed.Count >= 2, TimeSpan.FromMilliseconds(500));
+
+        actor.State2Processed.Should().Contain("msg2");
+        actor.State2Processed.Should().Contain("unbecome");
+        actor.State1Processed.Should().Contain("become-stacked");
+        actor.State1Processed.Should().Contain("msg1");
+    }
+
+    /// <summary>Become 替换行为不入栈,UnbecomeStacked 栈空无操作(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Become_替换行为_不入栈() {
+        await using var actor = new BecomeActor();
+        actor.Tell("become");
+        actor.Tell("msg2");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.State2Processed.Count >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.State2Processed.Should().Contain("msg2");
+        actor.State1Processed.Should().Contain("become");
+        actor.State1Processed.Should().NotContain("msg2");
+    }
+
+    /// <summary>Become(null) 抛 ArgumentNullException(防御守卫)</summary>
+    [Fact]
+    public async Task Become_null参数_抛ArgumentNullException() {
+        await using var actor = new GuardTestActor();
+        var act = () => actor.BecomeExposed(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    /// <summary>BecomeStacked(null) 抛 ArgumentNullException(防御守卫)</summary>
+    [Fact]
+    public async Task BecomeStacked_null参数_抛ArgumentNullException() {
+        await using var actor = new GuardTestActor();
+        var act = () => actor.BecomeStackedExposed(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    /// <summary>Stash() 在 Handle 外调用抛 InvalidOperationException(防御守卫)</summary>
+    [Fact]
+    public async Task Stash_在Handle外调用_抛InvalidOperationException() {
+        await using var actor = new GuardTestActor();
+        var act = () => actor.StashExposed();
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    /// <summary>Tell 带 sender,Handle 中可通过 Sender 属性获取(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Tell_带Sender_Handle中可获取Sender() {
+        await using var actor = new SenderActor();
+        var sender = new object();
+        actor.Tell("msg", sender);
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCount >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.LastSender.Should().BeSameAs(sender);
+    }
+
+    /// <summary>Tell 不带 sender,Sender 为 null(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Tell_不带Sender_Sender为null() {
+        await using var actor = new SenderActor();
+        actor.Tell("msg");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCount >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.LastSender.Should().BeNull();
+    }
+
+    /// <summary>ReceiveTimeout: 空闲超时触发 OnReceiveTimeout(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task ReceiveTimeout_空闲超时触发OnReceiveTimeout() {
+        await using var actor = new ReceiveTimeoutActor(TimeSpan.FromMilliseconds(100));
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.TimeoutCount >= 1, TimeSpan.FromMilliseconds(1000));
+
+        actor.TimeoutCount.Should().BeGreaterThanOrEqualTo(1, "空闲超时应触发 OnReceiveTimeout");
+    }
+
+    /// <summary>ReceiveTimeout: 收到消息后重置计时器,不误触发(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task ReceiveTimeout_收到消息不触发超时() {
+        await using var actor = new ReceiveTimeoutActor(TimeSpan.FromMilliseconds(300));
+        actor.Tell("msg1");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCount >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.ProcessedCount.Should().BeGreaterThanOrEqualTo(1);
+        actor.TimeoutCount.Should().Be(0, "收到消息期间不应触发超时");
+    }
+
+    /// <summary>PipeTo: Task 完成后结果发给 Actor(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task PipeTo_Task完成_结果发给Actor() {
+        await using var actor = new PipeToActor();
+        var tcs = new TaskCompletionSource<string>();
+        tcs.Task.PipeTo(actor);
+
+        tcs.SetResult("done");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.ProcessedCommands.Should().Contain("done");
+    }
+
+    /// <summary>PipeTo: Task 未完成时不发消息(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task PipeTo_Task未完成_不发消息() {
+        await using var actor = new PipeToActor();
+        var tcs = new TaskCompletionSource<string>();
+        tcs.Task.PipeTo(actor);
+
+        await Task.Delay(200);
+
+        actor.ProcessedCommands.Should().BeEmpty("Task 未完成,不应发消息");
+    }
+
+    /// <summary>Stash/UnstashAll: 暂存消息后取出处理(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Stash_UnstashAll_暂存后取出处理() {
+        await using var actor = new StashActor();
+        actor.Tell("stash-me");
+        actor.Tell("process-next");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.ProcessedCommands.Should().Contain("process-next");
+        actor.ProcessedCommands.Should().NotContain("stash-me");
+
+        actor.Tell("unstash");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 3, TimeSpan.FromMilliseconds(500));
+
+        actor.ProcessedCommands.Should().Contain("stash-me");
+        actor.ProcessedCommands.Should().Contain("unstash");
+    }
+
+    /// <summary>EventStream: Subscribe + Publish 订阅者收到事件(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public void EventStream_Subscribe_Publish_订阅者收到事件() {
+        var stream = new EventStream();
+        var received = new List<string>();
+        using var sub = stream.Subscribe<string>(s => received.Add(s));
+
+        stream.Publish("hello");
+
+        received.Should().Contain("hello");
+    }
+
+    /// <summary>EventStream: Dispose 取消订阅后不再收到(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public void EventStream_Unsubscribe_不再收到事件() {
+        var stream = new EventStream();
+        var received = new List<string>();
+        var sub = stream.Subscribe<string>(s => received.Add(s));
+        sub.Dispose();
+
+        stream.Publish("hello");
+
+        received.Should().BeEmpty("Dispose 后不应收到事件");
+    }
+
+    /// <summary>EventStream: 多个订阅者都收到事件(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public void EventStream_多订阅者_都收到事件() {
+        var stream = new EventStream();
+        var received1 = new List<int>();
+        var received2 = new List<int>();
+        using var sub1 = stream.Subscribe<int>(n => received1.Add(n));
+        using var sub2 = stream.Subscribe<int>(n => received2.Add(n));
+
+        stream.Publish(42);
+
+        received1.Should().Contain(42);
+        received2.Should().Contain(42);
+    }
+
+    /// <summary>Scheduler: ScheduleOnce 延迟后执行(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Scheduler_ScheduleOnce_延迟后执行() {
+        var scheduler = new ActorScheduler();
+        var executed = false;
+        using var sub = scheduler.ScheduleOnce(TimeSpan.FromMilliseconds(100), () => executed = true);
+
+        await Task.Delay(300);
+
+        executed.Should().BeTrue("100ms 后应执行");
+    }
+
+    /// <summary>Scheduler: ScheduleRepeatedly 重复执行(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Scheduler_ScheduleRepeatedly_重复执行() {
+        var scheduler = new ActorScheduler();
+        var count = 0;
+        using var sub = scheduler.ScheduleRepeatedly(TimeSpan.FromMilliseconds(50), TimeSpan.FromMilliseconds(50), () => Interlocked.Increment(ref count));
+
+        await Task.Delay(300);
+
+        count.Should().BeGreaterThanOrEqualTo(3, "300ms 内应执行至少 3 次");
+    }
+
+    /// <summary>Scheduler: ScheduleTellOnce 延迟后发消息给 Actor(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Scheduler_ScheduleTellOnce_延迟后发消息() {
+        var scheduler = new ActorScheduler();
+        await using var actor = new PipeToActor();
+        using var sub = scheduler.ScheduleTellOnce(TimeSpan.FromMilliseconds(100), actor, "scheduled-msg");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.ProcessedCommands.Should().Contain("scheduled-msg");
+    }
+
+    /// <summary>PoisonPill 收到后 Actor 停止(Akka 对齐)</summary>
+    [Fact]
+    public async Task PoisonPill_ActorStops_AfterReceive() {
+        await using var actor = new PoisonPillActor();
+        actor.Tell("msg1");
+        actor.Tell(new PoisonPillMsg());
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Contains("msg1"), TimeSpan.FromMilliseconds(500));
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.IsDisposed, TimeSpan.FromMilliseconds(500));
+        actor.IsDisposed.Should().BeTrue();
+
+        actor.TrySend("msg2").Should().BeFalse("Actor 已停止,不应接受新消息");
+        actor.ProcessedCommands.Should().NotContain("msg2");
+    }
+
+    /// <summary>PoisonPill 前面的消息处理完才停止(Akka 对齐)</summary>
+    [Fact]
+    public async Task PoisonPill_ProcessesPriorMessages_First() {
+        await using var actor = new PoisonPillActor();
+        actor.Tell("msg1");
+        actor.Tell("msg2");
+        actor.Tell(new PoisonPillMsg());
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.IsDisposed, TimeSpan.FromMilliseconds(500));
+
+        actor.ProcessedCommands.Should().Contain("msg1");
+        actor.ProcessedCommands.Should().Contain("msg2");
+    }
+
+    /// <summary>GracefulStop 发 PoisonPill 等待 Actor 终止(Akka 对齐)</summary>
+    [Fact]
+    public async Task GracefulStop_SendsPoisonPill_WaitsForTermination() {
+        await using var actor = new PoisonPillActor();
+        actor.Tell("msg1");
+
+        await ActorGracefulStop.GracefulStopAsync(actor, new PoisonPillMsg(), TimeSpan.FromSeconds(1));
+
+        actor.IsDisposed.Should().BeTrue();
+        actor.ProcessedCommands.Should().Contain("msg1");
+    }
+
+    /// <summary>GracefulStop 超时抛 TimeoutException(Akka 对齐)</summary>
+    [Fact]
+    public async Task GracefulStop_Timeout_ThrowsTimeoutException() {
+        await using var actor = new NoPoisonPillActor();
+        await FluentActions.Awaiting(() => ActorGracefulStop.GracefulStopAsync(actor, "poison", TimeSpan.FromMilliseconds(50)))
+            .Should().ThrowAsync<TimeoutException>();
+    }
+
+    /// <summary>Identify 收到后自动回复 ActorIdentity(Akka 对齐)</summary>
+    [Fact]
+    public async Task Identify_AutoReplies_ActorIdentity() {
+        await using var actor = new PoisonPillActor();
+        var identity = await ActorIdentify.IdentifyAsync(actor, new IdentifyMessage("corr-1"), TimeSpan.FromSeconds(1));
+        identity.CorrelationId.Should().Be("corr-1");
+        identity.Subject.Should().NotBeNull();
+        identity.Subject.Should().BeSameAs(actor);
+    }
+
+    /// <summary>IdentifyAsync 超时抛 TimeoutException(Akka 对齐)</summary>
+    [Fact]
+    public async Task IdentifyAsync_Timeout_ThrowsTimeoutException() {
+        await using var actor = new NoIdentifyActor();
+        await FluentActions.Awaiting(() => ActorIdentify.IdentifyAsync(actor, "identify", TimeSpan.FromMilliseconds(50)))
+            .Should().ThrowAsync<TimeoutException>();
+    }
+
+    /// <summary>Inbox 发消息给 Actor,Actor 回复,Inbox 收到回复(Akka 对齐)</summary>
+    [Fact]
+    public async Task Inbox_SendActor_ReceivesReply() {
+        await using var actor = new ReplyActor();
+        await using var inbox = new Inbox();
+        inbox.Send(actor, "hello");
+        var reply = await inbox.ReceiveAsync(TimeSpan.FromSeconds(1));
+        reply.Should().Be("reply-hello");
+    }
+
+    /// <summary>Inbox 超时抛 TimeoutException(Akka 对齐)</summary>
+    [Fact]
+    public async Task Inbox_ReceiveTimeout_ThrowsTimeoutException() {
+        await using var inbox = new Inbox();
+        await FluentActions.Awaiting(() => inbox.ReceiveAsync(TimeSpan.FromMilliseconds(50)))
+            .Should().ThrowAsync<TimeoutException>();
+    }
+
+    /// <summary>Inbox ReceiveWhere 等待满足条件的消息(Akka 对齐)</summary>
+    [Fact]
+    public async Task Inbox_ReceiveWhere_FiltersMessages() {
+        await using var actor = new ReplyActor();
+        await using var inbox = new Inbox();
+        inbox.Send(actor, "a");
+        inbox.Send(actor, "b");
+        var reply = await inbox.ReceiveWhereAsync(m => m is string s && s == "reply-b", TimeSpan.FromSeconds(1));
+        reply.Should().Be("reply-b");
+    }
+
+    /// <summary>Context.Self 返回 Actor Id(Akka 对齐)</summary>
+    [Fact]
+    public async Task Context_Self_ReturnsActorId() {
+        await using var actor = new ContextActor();
+        actor.Tell("get-self");
+        await TestWaitHelper.WaitUntilAsync(() => actor.CapturedSelf is not null, TimeSpan.FromMilliseconds(500));
+        actor.CapturedSelf.Should().Be(actor.Id);
+    }
+
+    /// <summary>Context.Sender 返回当前消息发送者(Akka 对齐)</summary>
+    [Fact]
+    public async Task Context_Sender_ReturnsCurrentSender() {
+        await using var actor = new ContextActor();
+        var sender = new object();
+        actor.Tell("get-sender", sender);
+        await TestWaitHelper.WaitUntilAsync(() => actor.CapturedSender is not null, TimeSpan.FromMilliseconds(500));
+        actor.CapturedSender.Should().BeSameAs(sender);
+    }
+
+    /// <summary>FSM 初始状态正确(Akka 对齐)</summary>
+    [Fact]
+    public async Task FSM_InitialState_Correct() {
+        await using var fsm = new TurnstileFsm();
+        fsm.State.Should().Be(TurnstileState.Closed);
+        fsm.Data.Count.Should().Be(0);
+    }
+
+    /// <summary>FSM GoTo 状态转换(Akka 对齐)</summary>
+    [Fact]
+    public async Task FSM_GoTo_StateTransition() {
+        await using var fsm = new TurnstileFsm();
+        fsm.Tell(TurnstileCommand.Push);
+        await TestWaitHelper.WaitUntilAsync(() => fsm.State == TurnstileState.Open, TimeSpan.FromMilliseconds(500));
+        fsm.State.Should().Be(TurnstileState.Open);
+    }
+
+    /// <summary>FSM Stay 保持状态(Akka 对齐)</summary>
+    [Fact]
+    public async Task FSM_Stay_KeepState() {
+        await using var fsm = new TurnstileFsm();
+        fsm.Tell(TurnstileCommand.Coin);
+        await Task.Delay(100);
+        fsm.State.Should().Be(TurnstileState.Closed);
+    }
+
+    /// <summary>FSM Using 更新数据(Akka 对齐)</summary>
+    [Fact]
+    public async Task FSM_Using_UpdateData() {
+        await using var fsm = new TurnstileFsm();
+        fsm.Tell(TurnstileCommand.Push);
+        await TestWaitHelper.WaitUntilAsync(() => fsm.State == TurnstileState.Open, TimeSpan.FromMilliseconds(500));
+        fsm.Data.Count.Should().Be(1);
+    }
+
+    /// <summary>TestProbe 发消息并期望回复(Akka TestKit 对齐)</summary>
+    [Fact]
+    public async Task TestProbe_Send_ExpectMsg() {
+        await using var actor = new ProbeTargetActor();
+        await using var probe = new TestProbe();
+        probe.Send(actor, "hello");
+        var reply = await probe.ExpectMsgAsync<string>(TimeSpan.FromSeconds(1));
+        reply.Should().Be("echo-hello");
+    }
+
+    /// <summary>TestProbe ExpectMsg 类型不匹配抛异常(Akka TestKit 对齐)</summary>
+    [Fact]
+    public async Task TestProbe_ExpectMsg_TypeMismatch_Throws() {
+        await using var actor = new ProbeTargetActor();
+        await using var probe = new TestProbe();
+        probe.Send(actor, "hello");
+        await FluentActions.Awaiting(() => probe.ExpectMsgAsync<int>(TimeSpan.FromSeconds(1)))
+            .Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    /// <summary>TestProbe Reply 回复 Actor(Akka TestKit 对齐)</summary>
+    [Fact]
+    public async Task TestProbe_Reply_ToActor() {
+        await using var actor = new ProbeReplyActor();
+        await using var probe = new TestProbe();
+        actor.Tell("ask", probe);
+        var question = await probe.ExpectMsgAsync<string>(TimeSpan.FromSeconds(1));
+        question.Should().Be("what?");
+        probe.Reply("answer");
+        await TestWaitHelper.WaitUntilAsync(() => actor.ReceivedAnswer, TimeSpan.FromMilliseconds(500));
+        actor.ReceivedAnswer.Should().BeTrue();
+    }
+
+    /// <summary>Unhandled 触发 UnhandledMessage 事件(Akka 对齐)</summary>
+    [Fact]
+    public async Task Unhandled_PublishesEvent() {
+        await using var actor = new UnhandledActor();
+        UnhandledMessage? captured = null;
+        actor.UnhandledMessage += (_, msg) => captured = msg;
+
+        actor.Tell("unknown");
+
+        await TestWaitHelper.WaitUntilAsync(() => captured is not null, TimeSpan.FromMilliseconds(500));
+        captured.Should().NotBeNull();
+        captured!.Message.Should().Be("unknown");
+        captured.ActorId.Should().Be(actor.Id);
+    }
+
+    /// <summary>Timers 单次定时器 delay 后发消息(Akka 对齐)</summary>
+    [Fact]
+    public async Task Timers_StartSingleTimer_SendsMessage() {
+        await using var actor = new TimerTestActor();
+        actor.StartTimerTest("key1", "fired", TimeSpan.FromMilliseconds(100));
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Contains("fired"), TimeSpan.FromMilliseconds(500));
+        actor.ProcessedCommands.Should().Contain("fired");
+    }
+
+    /// <summary>Timers Cancel 取消定时器(Akka 对齐)</summary>
+    [Fact]
+    public async Task Timers_Cancel_StopsTimer() {
+        await using var actor = new TimerTestActor();
+        actor.StartTimerTest("key1", "fired", TimeSpan.FromMilliseconds(100));
+        actor.CancelTimerTest("key1");
+
+        await Task.Delay(200);
+        actor.ProcessedCommands.Should().NotContain("fired");
+    }
+
+    /// <summary>Status.Success 携带结果(Akka 对齐)</summary>
+    [Fact]
+    public void Status_Success_ContainsResult() {
+        var success = Status.Success(42);
+        success.Should().BeOfType<StatusSuccess<int>>();
+        ((StatusSuccess<int>)success).Result.Should().Be(42);
+    }
+
+    /// <summary>Status.Failure 携带异常(Akka 对齐)</summary>
+    [Fact]
+    public void Status_Failure_ContainsException() {
+        var ex = new InvalidOperationException("test");
+        var failure = Status.Failure(ex);
+        failure.Should().BeOfType<StatusFailure>();
+        ((StatusFailure)failure).Exception.Should().BeSameAs(ex);
+    }
+
+    /// <summary>Props.Create 创建 Actor 实例(Akka 对齐)</summary>
+    [Fact]
+    public async Task Props_Create_ReturnsInstance() {
+        var props = Props.Create(() => new DisposableTestActor());
+        await using var actor = props.Create();
+        actor.Should().NotBeNull();
+        actor.Should().BeOfType<DisposableTestActor>();
+    }
+
+    /// <summary>ActorSystem.ActorOf 注册 Actor(Akka 对齐)</summary>
+    [Fact]
+    public async Task ActorSystem_ActorOf_RegistersActor() {
+        await using var system = new ActorSystem();
+        var actor = system.ActorOf(Props.Create(() => new DisposableTestActor()), "my-actor");
+        actor.Should().NotBeNull();
+        system.Selection("my-actor").Should().BeSameAs(actor);
+    }
+
+    /// <summary>Receptionist Register/Find 服务发现(Akka 对齐)</summary>
+    [Fact]
+    public async Task Receptionist_Register_Find() {
+        await using var system = new ActorSystem();
+        var actor = new DisposableTestActor();
+        system.Receptionist.Register("service-a", actor);
+        system.Receptionist.Find("service-a").Should().BeSameAs(actor);
+        system.Receptionist.Find("unknown").Should().BeNull();
+    }
 }
 
 /// <summary>
@@ -440,5 +958,208 @@ internal sealed class TestActor : ActorBase<string, string> {
 
     protected override void OnConsumerError(Exception ex) {
         ErrorCount++;
+    }
+}
+
+/// <summary>生命周期钩子测试 Actor(DSG033 S2)</summary>
+internal sealed class LifecycleActor : ActorBase<string, string> {
+    public bool PreStartCalled;
+    public bool PostStopCalled;
+    protected override void PreStart() => PreStartCalled = true;
+    protected override void PostStop() => PostStopCalled = true;
+    protected override void Handle(string command, CancellationToken ct) { }
+}
+
+/// <summary>Become/Unbecome 行为切换测试 Actor(DSG033 API对齐Akka)</summary>
+internal sealed class BecomeActor : ActorBase<string, string> {
+    public readonly List<string> State1Processed = new();
+    public readonly List<string> State2Processed = new();
+
+    protected override void Handle(string command, CancellationToken ct) {
+        State1Processed.Add(command);
+        if (command == "become-stacked") {
+            BecomeStacked(State2Behavior);
+        } else if (command == "become") {
+            Become(State2Behavior);
+        }
+    }
+
+    private void State2Behavior(string command, CancellationToken ct) {
+        State2Processed.Add(command);
+        if (command == "unbecome") {
+            UnbecomeStacked();
+        }
+    }
+}
+
+/// <summary>Sender 测试 Actor(DSG033 API对齐Akka)</summary>
+internal sealed class SenderActor : ActorBase<string, string> {
+    public object? LastSender;
+    public int ProcessedCount;
+    protected override void Handle(string command, CancellationToken ct) {
+        LastSender = Sender;
+        ProcessedCount++;
+    }
+}
+
+/// <summary>ReceiveTimeout 测试 Actor(DSG033 API对齐Akka)</summary>
+internal sealed class ReceiveTimeoutActor(TimeSpan timeout) : ActorBase<string, string> {
+    public int TimeoutCount;
+    public int ProcessedCount;
+
+    protected override void PreStart() => SetReceiveTimeout(timeout);
+
+    protected override void Handle(string command, CancellationToken ct) {
+        ProcessedCount++;
+    }
+
+    protected override void OnReceiveTimeout() {
+        TimeoutCount++;
+    }
+}
+
+/// <summary>PipeTo 测试 Actor(DSG033 API对齐Akka)</summary>
+internal sealed class PipeToActor : ActorBase<string, string> {
+    public readonly List<string> ProcessedCommands = new();
+    protected override void Handle(string command, CancellationToken ct) {
+        ProcessedCommands.Add(command);
+    }
+}
+
+/// <summary>PoisonPill 标记消息(DSG033 API对齐Akka)</summary>
+internal sealed record PoisonPillMsg : IPoisonPill;
+
+/// <summary>PoisonPill 测试 Actor — TCommand=object 可接收任何消息</summary>
+internal sealed class PoisonPillActor : ActorBase<object, Unit> {
+    public readonly List<object> ProcessedCommands = new();
+    protected override void Handle(object command, CancellationToken ct) {
+        ProcessedCommands.Add(command);
+    }
+}
+
+/// <summary>无 PoisonPill 支持的 Actor — TCommand=string 无法接收 PoisonPill</summary>
+internal sealed class NoPoisonPillActor : ActorBase<string, Unit> {
+    protected override void Handle(string command, CancellationToken ct) { }
+}
+
+/// <summary>无 Identify 支持的 Actor — TCommand=string 无法接收 IdentifyMessage</summary>
+internal sealed class NoIdentifyActor : ActorBase<string, Unit> {
+    protected override void Handle(string command, CancellationToken ct) { }
+}
+
+/// <summary>回复测试 Actor — 收到消息后通过 Sender.Tell 回复(Akka 对齐)</summary>
+internal sealed class ReplyActor : ActorBase<object, Unit> {
+    protected override void Handle(object command, CancellationToken ct) {
+        if (command is string msg && Sender is Inbox inbox) {
+            inbox.Tell($"reply-{msg}");
+        }
+    }
+}
+
+/// <summary>Context API 测试 Actor — 暴露 Context 供测试验证(Akka 对齐)</summary>
+internal sealed class ContextActor : ActorBase<string, Unit> {
+    public string? CapturedSelf;
+    public object? CapturedSender;
+    protected override void Handle(string command, CancellationToken ct) {
+        if (command == "get-self") CapturedSelf = Context.Self;
+        if (command == "get-sender") CapturedSender = Context.Sender;
+    }
+}
+
+/// <summary>Turnstile FSM 状态(Akka FSM 对齐)</summary>
+internal enum TurnstileState { Closed, Open }
+
+/// <summary>Turnstile FSM 命令</summary>
+internal enum TurnstileCommand { Push, Coin }
+
+/// <summary>Turnstile FSM 数据</summary>
+internal sealed record TurnstileData(int Count);
+
+/// <summary>Turnstile FSM — Push 开门,Coin 关门,计数 Push 次数(Akka FSM 对齐)</summary>
+internal sealed class TurnstileFsm : ActorFsm<TurnstileState, TurnstileData, TurnstileCommand, Unit> {
+    public TurnstileState State => CurrentState;
+    public TurnstileData Data => CurrentData;
+
+    protected override void PreStart() {
+        When(TurnstileState.Closed, HandleClosed);
+        When(TurnstileState.Open, HandleOpen);
+        StartWith(TurnstileState.Closed, new TurnstileData(0));
+    }
+
+    private FsmResult<TurnstileState, TurnstileData> HandleClosed(TurnstileCommand cmd, TurnstileData data, CancellationToken ct) {
+        if (cmd == TurnstileCommand.Push) return GoTo(TurnstileState.Open).Using(new TurnstileData(data.Count + 1));
+        return Stay();
+    }
+
+    private FsmResult<TurnstileState, TurnstileData> HandleOpen(TurnstileCommand cmd, TurnstileData data, CancellationToken ct) {
+        if (cmd == TurnstileCommand.Coin) return GoTo(TurnstileState.Closed);
+        return Stay();
+    }
+}
+
+/// <summary>TestProbe 目标 Actor — 收到消息后回复 echo-{msg}(Akka TestKit 对齐)</summary>
+internal sealed class ProbeTargetActor : ActorBase<object, Unit> {
+    protected override void Handle(object command, CancellationToken ct) {
+        if (command is string msg && Sender is IActorTell<object> replyTo) {
+            replyTo.Tell($"echo-{msg}", this);
+        }
+    }
+}
+
+/// <summary>TestProbe 回复测试 Actor — 发问题给 sender,等回复后记录(Akka TestKit 对齐)</summary>
+internal sealed class ProbeReplyActor : ActorBase<object, Unit> {
+    public bool ReceivedAnswer;
+    protected override void Handle(object command, CancellationToken ct) {
+        if (command is string s && s == "ask" && Sender is IActorTell<object> probe) {
+            probe.Tell("what?", this);
+        }
+        if (command is string s2 && s2 == "answer") {
+            ReceivedAnswer = true;
+        }
+    }
+}
+
+/// <summary>Unhandled 测试 Actor — 不认识的消息调 Unhandled(Akka 对齐)</summary>
+internal sealed class UnhandledActor : ActorBase<string, Unit> {
+    protected override void Handle(string command, CancellationToken ct) {
+        if (command != "known") Unhandled(command);
+    }
+}
+
+/// <summary>Timers 测试 Actor — 暴露 Timers 供测试调用(Akka 对齐)</summary>
+internal sealed class TimerTestActor : ActorBase<string, Unit> {
+    public readonly List<string> ProcessedCommands = new();
+    protected override void Handle(string command, CancellationToken ct) {
+        ProcessedCommands.Add(command);
+    }
+    public void StartTimerTest(string key, string msg, TimeSpan delay) => Timers.StartSingleTimer(key, msg, delay);
+    public void CancelTimerTest(string key) => Timers.Cancel(key);
+}
+
+/// <summary>防御守卫测试 Actor — 暴露 protected Become/BecomeStacked/Stash 供测试调用</summary>
+internal sealed class GuardTestActor : ActorBase<string, string> {
+    protected override void Handle(string command, CancellationToken ct) { }
+
+    public void BecomeExposed(ActorReceive<string> receive) => Become(receive);
+    public void BecomeStackedExposed(ActorReceive<string> receive) => BecomeStacked(receive);
+    public void StashExposed() => Stash();
+}
+
+/// <summary>Stash 测试 Actor(DSG033 API对齐Akka)</summary>
+internal sealed class StashActor : ActorBase<string, string> {
+    public readonly List<string> ProcessedCommands = new();
+    private bool _stashed;
+    protected override void Handle(string command, CancellationToken ct) {
+        if (command == "stash-me" && !_stashed) {
+            _stashed = true;
+            Stash();
+            return;
+        }
+        if (command == "unstash") {
+            UnstashAll();
+            ProcessedCommands.Add(command);
+            return;
+        }
+        ProcessedCommands.Add(command);
     }
 }

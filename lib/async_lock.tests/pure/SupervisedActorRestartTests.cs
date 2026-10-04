@@ -88,3 +88,37 @@ public class SupervisedActorRecordRestartTests {
         newList[0].Should().Be(BaseTime);
     }
 }
+
+/// <summary>
+/// BackoffStrategy 纯函数测试 — DSG033 S5 指数退避重启。
+/// </summary>
+public class BackoffStrategyTests {
+    [Fact]
+    public void delay_at_restart_0_equals_min_backoff() {
+        var strategy = new ActorBackoffStrategy(TimeSpan.FromMilliseconds(10), TimeSpan.FromSeconds(1), 0);
+        strategy.ComputeDelay(0).TotalMilliseconds.Should().BeApproximately(10, 0.1);
+    }
+
+    [Fact]
+    public void delay_increases_exponentially() {
+        var strategy = new ActorBackoffStrategy(TimeSpan.FromMilliseconds(10), TimeSpan.FromSeconds(1), 0);
+        strategy.ComputeDelay(1).TotalMilliseconds.Should().BeApproximately(20, 0.1);
+        strategy.ComputeDelay(2).TotalMilliseconds.Should().BeApproximately(40, 0.1);
+        strategy.ComputeDelay(3).TotalMilliseconds.Should().BeApproximately(80, 0.1);
+    }
+
+    [Fact]
+    public void delay_capped_at_max_backoff() {
+        var strategy = new ActorBackoffStrategy(TimeSpan.FromMilliseconds(10), TimeSpan.FromMilliseconds(50), 0);
+        strategy.ComputeDelay(10).TotalMilliseconds.Should().BeLessThanOrEqualTo(50);
+    }
+
+    [Fact]
+    public void jitter_within_random_factor_range() {
+        var strategy = new ActorBackoffStrategy(TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(10), 0.2);
+        for (var i = 0; i < 100; i++) {
+            var delay = strategy.ComputeDelay(0).TotalMilliseconds;
+            delay.Should().BeInRange(80, 120, "抖动应在 ±20% 范围(100±20)");
+        }
+    }
+}

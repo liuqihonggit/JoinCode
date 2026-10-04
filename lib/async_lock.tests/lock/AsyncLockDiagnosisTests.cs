@@ -7,14 +7,14 @@ namespace LockDiagnosis.Tests;
 public class AsyncLockDiagnosisTests : IDisposable {
     public AsyncLockDiagnosisTests() {
         LockRegistry.ClearForTesting();
-        LockRegistry.DiagnosticsEnabled = true;
-        LockRegistry.HoldTooLongThreshold = TimeSpan.FromMilliseconds(100);
-        LockRegistry.WaitTimeoutThreshold = TimeSpan.FromMilliseconds(200);
+        LockRegistry.SetDiagnosticsEnabled(true);
+        LockRegistry.SetHoldTooLongThreshold(TimeSpan.FromMilliseconds(100));
+        LockRegistry.SetWaitTimeoutThreshold(TimeSpan.FromMilliseconds(200));
     }
 
     public void Dispose() {
         LockRegistry.StopBackgroundScan();
-        LockRegistry.DiagnosticSink = null;
+        LockRegistry.SetDiagnosticSink(null);
     }
 
     [Fact]
@@ -63,8 +63,8 @@ public class AsyncLockDiagnosisTests : IDisposable {
     [Trait("Category", "Timing")]
     public async Task 诊断Sink_持有过长时收到告警() {
         var messages = new ConcurrentQueue<string>();
-        LockRegistry.DiagnosticSink = messages.Enqueue;
-        LockRegistry.HoldTooLongThreshold = TimeSpan.FromMilliseconds(50);
+        LockRegistry.SetDiagnosticSink(messages.Enqueue);
+        LockRegistry.SetHoldTooLongThreshold(TimeSpan.FromMilliseconds(50));
         using var lk = new AsyncLock("hold-long-test");
         using (await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
             await Task.Delay(120);
@@ -77,8 +77,8 @@ public class AsyncLockDiagnosisTests : IDisposable {
     [Trait("Category", "Timing")]
     public async Task 诊断Sink_等待过长时收到告警() {
         var messages = new ConcurrentQueue<string>();
-        LockRegistry.DiagnosticSink = messages.Enqueue;
-        LockRegistry.WaitTimeoutThreshold = TimeSpan.FromMilliseconds(50);
+        LockRegistry.SetDiagnosticSink(messages.Enqueue);
+        LockRegistry.SetWaitTimeoutThreshold(TimeSpan.FromMilliseconds(50));
         using var lk = new AsyncLock("wait-long-test");
         using var holder = await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
         // TryLock 同步阻塞, 在另一线程调用以记录等待诊断
@@ -96,9 +96,9 @@ public class AsyncLockDiagnosisTests : IDisposable {
     [Trait("Category", "Timing")]
     public async Task 后台扫描_持有过长时输出告警() {
         var messages = new ConcurrentQueue<string>();
-        LockRegistry.DiagnosticSink = messages.Enqueue;
+        LockRegistry.SetDiagnosticSink(messages.Enqueue);
         var originalThreshold = LockRegistry.HoldTooLongThreshold;
-        LockRegistry.HoldTooLongThreshold = TimeSpan.FromMilliseconds(50);
+        LockRegistry.SetHoldTooLongThreshold(TimeSpan.FromMilliseconds(50));
         LockRegistry.StartBackgroundScan(TimeSpan.FromMilliseconds(30));
         try {
             using var lk = new AsyncLock("scan-test");
@@ -109,23 +109,23 @@ public class AsyncLockDiagnosisTests : IDisposable {
             detected.Should().BeTrue("后台扫描应检测到持有过长的锁并告警(2s SpinUntil 等待,容忍CI调度延迟)");
         } finally {
             LockRegistry.StopBackgroundScan();
-            LockRegistry.HoldTooLongThreshold = originalThreshold;
-            LockRegistry.DiagnosticSink = null;
+            LockRegistry.SetHoldTooLongThreshold(originalThreshold);
+            LockRegistry.SetDiagnosticSink(null);
         }
     }
 
     [Fact]
     [Trait("Category", "Timing")]
     public async Task DiagnosticsEnabled关闭时_不记录诊断() {
-        LockRegistry.DiagnosticsEnabled = false;
+        LockRegistry.SetDiagnosticsEnabled(false);
         var messages = new ConcurrentQueue<string>();
-        LockRegistry.DiagnosticSink = messages.Enqueue;
+        LockRegistry.SetDiagnosticSink(messages.Enqueue);
         using var lk = new AsyncLock("disabled-test");
         using (await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
             await Task.Delay(60);
         }
         messages.Should().BeEmpty("诊断关闭时不应产生任何告警");
-        LockRegistry.DiagnosticsEnabled = true;
+        LockRegistry.SetDiagnosticsEnabled(true);
     }
 
     [Fact]
@@ -142,10 +142,10 @@ public class AsyncLockDiagnosisTests : IDisposable {
     [Trait("Category", "Timing")]
     public Task 死锁检测_两个线程互相等待时自动检测() {
         var originalWaitThreshold = LockRegistry.WaitTimeoutThreshold;
-        LockRegistry.WaitTimeoutThreshold = TimeSpan.FromMilliseconds(100);
+        LockRegistry.SetWaitTimeoutThreshold(TimeSpan.FromMilliseconds(100));
         LockRegistry.StartBackgroundScan(TimeSpan.FromMilliseconds(50));
         var messages = new ConcurrentQueue<string>();
-        LockRegistry.DiagnosticSink = messages.Enqueue;
+        LockRegistry.SetDiagnosticSink(messages.Enqueue);
         using var lockA = new AsyncLock("deadlock-A", TimeSpan.FromSeconds(3));
         using var lockB = new AsyncLock("deadlock-B", TimeSpan.FromSeconds(3));
 
@@ -183,8 +183,8 @@ public class AsyncLockDiagnosisTests : IDisposable {
         t2Done.Wait(8000);
 
         LockRegistry.StopBackgroundScan();
-        LockRegistry.WaitTimeoutThreshold = originalWaitThreshold;
-        LockRegistry.DiagnosticSink = null;
+        LockRegistry.SetWaitTimeoutThreshold(originalWaitThreshold);
+        LockRegistry.SetDiagnosticSink(null);
         return Task.CompletedTask;
     }
 
@@ -197,7 +197,7 @@ public class AsyncLockDiagnosisTests : IDisposable {
     [Trait("Category", "Timing")]
     public async Task 死锁检测_OnWaitStart即时检测_不依赖后台扫描() {
         var messages = new ConcurrentQueue<string>();
-        LockRegistry.DiagnosticSink = messages.Enqueue;
+        LockRegistry.SetDiagnosticSink(messages.Enqueue);
         using var lockA = new AsyncLock("imm-deadlock-A", TimeSpan.FromSeconds(5));
         using var lockB = new AsyncLock("imm-deadlock-B", TimeSpan.FromSeconds(5));
         LockRegistry.StopBackgroundScan(); // 模拟 CI 高负载:后台扫描不执行
@@ -231,7 +231,7 @@ public class AsyncLockDiagnosisTests : IDisposable {
         t1Done.Wait(8000);
         t2Done.Wait(8000);
 
-        LockRegistry.DiagnosticSink = null;
+        LockRegistry.SetDiagnosticSink(null);
         await Task.CompletedTask;
     }
 
@@ -239,9 +239,9 @@ public class AsyncLockDiagnosisTests : IDisposable {
     [Trait("Category", "Timing")]
     public async Task 死锁检测_async两个流互相等待时自动检测() {
         var messages = new ConcurrentQueue<string>();
-        LockRegistry.DiagnosticSink = messages.Enqueue;
+        LockRegistry.SetDiagnosticSink(messages.Enqueue);
         var originalWaitThreshold = LockRegistry.WaitTimeoutThreshold;
-        LockRegistry.WaitTimeoutThreshold = TimeSpan.FromMilliseconds(100);
+        LockRegistry.SetWaitTimeoutThreshold(TimeSpan.FromMilliseconds(100));
         LockRegistry.StartBackgroundScan(TimeSpan.FromMilliseconds(50));
         try {
             using var lockA = new AsyncLock("async-deadlock-A", TimeSpan.FromSeconds(2));
@@ -278,8 +278,8 @@ public class AsyncLockDiagnosisTests : IDisposable {
             await Task.WhenAll(t1, t2);
         } finally {
             LockRegistry.StopBackgroundScan();
-            LockRegistry.WaitTimeoutThreshold = originalWaitThreshold;
-            LockRegistry.DiagnosticSink = null;
+            LockRegistry.SetWaitTimeoutThreshold(originalWaitThreshold);
+            LockRegistry.SetDiagnosticSink(null);
         }
     }
 

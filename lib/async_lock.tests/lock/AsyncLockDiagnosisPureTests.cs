@@ -5,6 +5,7 @@ namespace LockDiagnosis.Tests;
 /// <para>拆分自 AsyncLockDiagnosisTests,与 AsyncLockDiagnosisTests(时序部分)互补。</para>
 /// <para>构造/Dispose 与原类一致:重置 LockRegistry 状态,隔离测试。</para>
 /// </summary>
+[Collection("lock-diagnosis")]
 public class AsyncLockDiagnosisPureTests : IDisposable {
     public AsyncLockDiagnosisPureTests() {
         LockRegistry.ClearForTesting();

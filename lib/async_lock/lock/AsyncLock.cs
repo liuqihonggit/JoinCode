@@ -185,16 +185,24 @@ public sealed class AsyncLock : IDisposable {
     /// async 方法中用此方法避免 <c>TryLock</c> 同步阻塞线程池导致饥饿。
     /// </summary>
     public async ValueTask<IDisposable?> TryLockAsync(CancellationToken ct = default) {
-        return await TryLockAsync(_timeout, ct).ConfigureAwait(false);
+        var acquireStack = LockRegistry.DiagnosticsEnabled ? LockRegistry.CaptureCurrentStack(skipFrames: 1) : null;
+        return await TryLockAsyncCore(_timeout, ct, acquireStack).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 尝试异步获取锁,指定超时覆盖实例默认超时。
     /// </summary>
     public async ValueTask<IDisposable?> TryLockAsync(TimeSpan timeout, CancellationToken ct = default) {
+        var acquireStack = LockRegistry.DiagnosticsEnabled ? LockRegistry.CaptureCurrentStack(skipFrames: 1) : null;
+        return await TryLockAsyncCore(timeout, ct, acquireStack).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// TryLockAsync 核心实现 — 接收预捕获的栈,避免 async 转发后栈丢失调用方(flaky 根因修复)。
+    /// </summary>
+    private async ValueTask<IDisposable?> TryLockAsyncCore(TimeSpan timeout, CancellationToken ct, string? acquireStack) {
         ThrowIfDisposed();
         EnsureFlowRegistered();
-        var acquireStack = LockRegistry.DiagnosticsEnabled ? LockRegistry.CaptureCurrentStack(skipFrames: 2) : null;
         LockRegistry.OnWaitStart(_registryId, _name);
         bool acquired;
         try {

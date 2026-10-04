@@ -91,6 +91,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             taskOptions,
             TaskScheduler.Default).Unwrap();
         _retryEngine.Start();
+        PreStart();
     }
 
     internal static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure) {
@@ -342,6 +343,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <param name="command">待处理命令</param>
     /// <param name="ct">取消令牌(Actor 释放时触发取消)</param>
     protected abstract void Handle(TCommand command, CancellationToken ct);
+
+    /// <summary>Actor 启动前调用(构造函数末尾,Consumer 启动前)— 初始化资源(DSG033 S2)</summary>
+    protected virtual void PreStart() { }
+
+    /// <summary>Actor 停止后调用(DisposeAsync 中 Consumer 退出后)— 释放资源(DSG033 S2)</summary>
+    protected virtual void PostStop() { }
 
     /// <summary>
     /// Consumer 处理单条命令异常的回调 — 默认忽略,子类可重写以记录日志或计数。
@@ -660,6 +667,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             }
         }
         _inFlightTasks.Clear();
+        PostStop();
         _cts.Dispose();
     }
 }

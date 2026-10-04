@@ -399,6 +399,22 @@ public class ActorBaseTest {
         }
         results.Should().ContainSingle().Which.Should().Be("processed-hello");
     }
+
+    /// <summary>PreStart 在构造函数中调用,先于 Consumer 启动(DSG033 S2)</summary>
+    [Fact]
+    public async Task Lifecycle_PreStart_CalledDuringConstruction() {
+        var actor = new LifecycleActor();
+        actor.PreStartCalled.Should().BeTrue("PreStart 应在构造函数中调用");
+        await actor.DisposeAsync();
+    }
+
+    /// <summary>PostStop 在 DisposeAsync 后调用(DSG033 S2)</summary>
+    [Fact]
+    public async Task Lifecycle_PostStop_CalledAfterDispose() {
+        var actor = new LifecycleActor();
+        await actor.DisposeAsync();
+        actor.PostStopCalled.Should().BeTrue("PostStop 应在 Dispose 后调用");
+    }
 }
 
 /// <summary>
@@ -441,4 +457,13 @@ internal sealed class TestActor : ActorBase<string, string> {
     protected override void OnConsumerError(Exception ex) {
         ErrorCount++;
     }
+}
+
+/// <summary>生命周期钩子测试 Actor(DSG033 S2)</summary>
+internal sealed class LifecycleActor : ActorBase<string, string> {
+    public bool PreStartCalled;
+    public bool PostStopCalled;
+    protected override void PreStart() => PreStartCalled = true;
+    protected override void PostStop() => PostStopCalled = true;
+    protected override void Handle(string command, CancellationToken ct) { }
 }

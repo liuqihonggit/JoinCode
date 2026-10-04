@@ -532,6 +532,26 @@ public class ActorBaseTest {
 
         actor.ProcessedCommands.Should().BeEmpty("Task 未完成,不应发消息");
     }
+
+    /// <summary>Stash/UnstashAll: 暂存消息后取出处理(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task Stash_UnstashAll_暂存后取出处理() {
+        await using var actor = new StashActor();
+        actor.Tell("stash-me");
+        actor.Tell("process-next");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.ProcessedCommands.Should().Contain("process-next");
+        actor.ProcessedCommands.Should().NotContain("stash-me");
+
+        actor.Tell("unstash");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 3, TimeSpan.FromMilliseconds(500));
+
+        actor.ProcessedCommands.Should().Contain("stash-me");
+        actor.ProcessedCommands.Should().Contain("unstash");
+    }
 }
 
 /// <summary>
@@ -637,6 +657,25 @@ internal sealed class ReceiveTimeoutActor(TimeSpan timeout) : ActorBase<string, 
 internal sealed class PipeToActor : ActorBase<string, string> {
     public readonly List<string> ProcessedCommands = new();
     protected override void Handle(string command, CancellationToken ct) {
+        ProcessedCommands.Add(command);
+    }
+}
+
+/// <summary>Stash 测试 Actor(DSG033 API对齐Akka)</summary>
+internal sealed class StashActor : ActorBase<string, string> {
+    public readonly List<string> ProcessedCommands = new();
+    private bool _stashed;
+    protected override void Handle(string command, CancellationToken ct) {
+        if (command == "stash-me" && !_stashed) {
+            _stashed = true;
+            Stash();
+            return;
+        }
+        if (command == "unstash") {
+            UnstashAll();
+            ProcessedCommands.Add(command);
+            return;
+        }
         ProcessedCommands.Add(command);
     }
 }

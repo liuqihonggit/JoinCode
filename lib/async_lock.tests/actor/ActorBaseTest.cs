@@ -506,6 +506,32 @@ public class ActorBaseTest {
         actor.ProcessedCount.Should().BeGreaterThanOrEqualTo(1);
         actor.TimeoutCount.Should().Be(0, "收到消息期间不应触发超时");
     }
+
+    /// <summary>PipeTo: Task 完成后结果发给 Actor(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task PipeTo_Task完成_结果发给Actor() {
+        await using var actor = new PipeToActor();
+        var tcs = new TaskCompletionSource<string>();
+        tcs.Task.PipeTo(actor);
+
+        tcs.SetResult("done");
+
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+
+        actor.ProcessedCommands.Should().Contain("done");
+    }
+
+    /// <summary>PipeTo: Task 未完成时不发消息(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public async Task PipeTo_Task未完成_不发消息() {
+        await using var actor = new PipeToActor();
+        var tcs = new TaskCompletionSource<string>();
+        tcs.Task.PipeTo(actor);
+
+        await Task.Delay(200);
+
+        actor.ProcessedCommands.Should().BeEmpty("Task 未完成,不应发消息");
+    }
 }
 
 /// <summary>
@@ -604,5 +630,13 @@ internal sealed class ReceiveTimeoutActor(TimeSpan timeout) : ActorBase<string, 
 
     protected override void OnReceiveTimeout() {
         TimeoutCount++;
+    }
+}
+
+/// <summary>PipeTo 测试 Actor(DSG033 API对齐Akka)</summary>
+internal sealed class PipeToActor : ActorBase<string, string> {
+    public readonly List<string> ProcessedCommands = new();
+    protected override void Handle(string command, CancellationToken ct) {
+        ProcessedCommands.Add(command);
     }
 }

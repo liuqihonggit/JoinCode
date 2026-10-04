@@ -76,7 +76,7 @@
   <Border x:Name="ComposerBox" Classes="composer" Margin="0,0,0,0"
           Background="{DynamicResource GuiComposerBackground}"
           BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto">
+    <Grid RowDefinitions="Auto,Auto,Auto,*">
       <!-- Row 0：系统状态条(悬浮,比输入栏窄) — 左侧状态文字+右侧▲展开日志,整行可拖拽调高度 -->
       <Border x:Name="StatusStrip" Grid.Row="0" Height="20" HorizontalAlignment="Stretch" Margin="16,0"
               Background="{DynamicResource GuiComposerBackground}" CornerRadius="0,0,6,6"
@@ -288,7 +288,7 @@
                  BorderThickness="0" Background="Transparent" Padding="11,4"
                  TextWrapping="Wrap" />
         <!-- Row 3：发送区（QQ 风格 — 右下角停止+发送下拉分裂按钮） -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="7,2,7,7">
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="7,2,7,7">
           <Button Classes="ghost" Content="停止" Padding="12,6" CornerRadius="8"
                   Foreground="{DynamicResource GuiWarnText}"
                   Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />

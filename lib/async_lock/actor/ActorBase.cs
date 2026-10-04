@@ -82,6 +82,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
             shutdownCt: _cts.Token,
             onSendFailed: RaiseSendFailed,
             onEnqueuedToInput: CheckInputWatermark);
+        // cmd => Tell(cmd) 捕获 this,但延迟执行 — Unstash 在 Handle 中调用时 _inputChannel 已初始化完成
         _messageStash = new ActorMessageStash<TCommand>(cmd => Tell(cmd));
         PreStart();
         var taskOptions = (useLongRunning ? TaskCreationOptions.LongRunning : TaskCreationOptions.None) | TaskCreationOptions.DenyChildAttach;

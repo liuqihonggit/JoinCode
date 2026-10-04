@@ -552,6 +552,46 @@ public class ActorBaseTest {
         actor.ProcessedCommands.Should().Contain("stash-me");
         actor.ProcessedCommands.Should().Contain("unstash");
     }
+
+    /// <summary>EventStream: Subscribe + Publish 订阅者收到事件(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public void EventStream_Subscribe_Publish_订阅者收到事件() {
+        var stream = new EventStream();
+        var received = new List<string>();
+        using var sub = stream.Subscribe<string>(s => received.Add(s));
+
+        stream.Publish("hello");
+
+        received.Should().Contain("hello");
+    }
+
+    /// <summary>EventStream: Dispose 取消订阅后不再收到(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public void EventStream_Unsubscribe_不再收到事件() {
+        var stream = new EventStream();
+        var received = new List<string>();
+        var sub = stream.Subscribe<string>(s => received.Add(s));
+        sub.Dispose();
+
+        stream.Publish("hello");
+
+        received.Should().BeEmpty("Dispose 后不应收到事件");
+    }
+
+    /// <summary>EventStream: 多个订阅者都收到事件(DSG033 API对齐Akka)</summary>
+    [Fact]
+    public void EventStream_多订阅者_都收到事件() {
+        var stream = new EventStream();
+        var received1 = new List<int>();
+        var received2 = new List<int>();
+        using var sub1 = stream.Subscribe<int>(n => received1.Add(n));
+        using var sub2 = stream.Subscribe<int>(n => received2.Add(n));
+
+        stream.Publish(42);
+
+        received1.Should().Contain(42);
+        received2.Should().Contain(42);
+    }
 }
 
 /// <summary>

@@ -47,8 +47,7 @@ public sealed partial class PollConfig {
 [Register(typeof(PollConfigManager), ServiceLifetime.Singleton)]
 public sealed partial class PollConfigManager : ServiceEntity, IDisposable {
     private readonly ILogger<PollConfigManager>? _logger;
-    private readonly AsyncLock _configLock = new();
-    private PollConfig _currentConfig;
+    private volatile PollConfig _currentConfig;
     private int _consecutiveErrors;
     private bool _disposed;
 
@@ -62,7 +61,6 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable {
         ILogger<PollConfigManager>? logger = null) {
         _logger = logger;
         _currentConfig = initialConfig ?? new PollConfig();
-        _consecutiveErrors = 0;
     }
 
     /// <summary>
@@ -70,16 +68,15 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable {
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>当前配置快照</returns>
-    public async Task<PollConfig> GetCurrentConfigAsync(CancellationToken ct = default) {
-        using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时")) {
-            return new PollConfig {
-                IntervalMs = _currentConfig.IntervalMs,
-                MaxIntervalMs = _currentConfig.MaxIntervalMs,
-                BackoffMultiplier = _currentConfig.BackoffMultiplier,
-                JitterPercent = _currentConfig.JitterPercent,
-                TimeoutMs = _currentConfig.TimeoutMs
-            };
-        }
+    public Task<PollConfig> GetCurrentConfigAsync(CancellationToken ct = default) {
+        var c = _currentConfig;
+        return Task.FromResult(new PollConfig {
+            IntervalMs = c.IntervalMs,
+            MaxIntervalMs = c.MaxIntervalMs,
+            BackoffMultiplier = c.BackoffMultiplier,
+            JitterPercent = c.JitterPercent,
+            TimeoutMs = c.TimeoutMs
+        });
     }
 
     /// <summary>
@@ -87,22 +84,22 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable {
     /// </summary>
     /// <param name="newConfig">新配置</param>
     /// <param name="ct">取消令牌</param>
-    public async Task UpdateConfigAsync(PollConfig newConfig, CancellationToken ct = default) {
+    public Task UpdateConfigAsync(PollConfig newConfig, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(newConfig);
 
-        using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时")) {
-            _currentConfig = new PollConfig {
-                IntervalMs = newConfig.IntervalMs,
-                MaxIntervalMs = newConfig.MaxIntervalMs,
-                BackoffMultiplier = newConfig.BackoffMultiplier,
-                JitterPercent = newConfig.JitterPercent,
-                TimeoutMs = newConfig.TimeoutMs
-            };
+        var stored = new PollConfig {
+            IntervalMs = newConfig.IntervalMs,
+            MaxIntervalMs = newConfig.MaxIntervalMs,
+            BackoffMultiplier = newConfig.BackoffMultiplier,
+            JitterPercent = newConfig.JitterPercent,
+            TimeoutMs = newConfig.TimeoutMs
+        };
+        _currentConfig = stored;
 
-            _logger?.LogInformation(
-                "[PollConfigManager] 轮询配置已更新，间隔: {IntervalMs}ms，最大间隔: {MaxIntervalMs}ms",
-                _currentConfig.IntervalMs, _currentConfig.MaxIntervalMs);
-        }
+        _logger?.LogInformation(
+            "[PollConfigManager] 轮询配置已更新，间隔: {IntervalMs}ms，最大间隔: {MaxIntervalMs}ms",
+            stored.IntervalMs, stored.MaxIntervalMs);
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -111,48 +108,42 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable {
     /// <param name="hasError">上次轮询是否出错</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>下一次轮询间隔（毫秒）</returns>
-    public async Task<int> CalculateNextIntervalAsync(bool hasError, CancellationToken ct = default) {
-        using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时")) {
-            if (hasError) {
-                _consecutiveErrors++;
-            } else {
-                _consecutiveErrors = 0;
-            }
-
-            var config = _currentConfig;
-
-            // 基础间隔 × 退避倍数的连续错误次方
-            var baseInterval = config.IntervalMs * Math.Pow(config.BackoffMultiplier, _consecutiveErrors);
-
-            // 限制不超过最大间隔
-            var clampedInterval = Math.Min(baseInterval, config.MaxIntervalMs);
-
-            // 应用抖动：在 [1 - jitter, 1 + jitter] 范围内随机
-            var jitterRange = config.JitterPercent;
-            var jitterFactor = 1.0 + (Random.Shared.NextDouble() * 2.0 - 1.0) * jitterRange;
-            var finalInterval = clampedInterval * jitterFactor;
-
-            var result = (int)Math.Max(config.IntervalMs, Math.Round(finalInterval));
-
-            _logger?.LogDebug(
-                "[PollConfigManager] 计算下次轮询间隔: {IntervalMs}ms (连续错误: {Errors}, 退避倍数: {Multiplier})",
-                result, _consecutiveErrors, config.BackoffMultiplier);
-
-            return result;
+    public Task<int> CalculateNextIntervalAsync(bool hasError, CancellationToken ct = default) {
+        int errors;
+        if (hasError) {
+            errors = Interlocked.Increment(ref _consecutiveErrors);
+        } else {
+            Interlocked.Exchange(ref _consecutiveErrors, 0);
+            errors = 0;
         }
+
+        var config = _currentConfig;
+
+        var baseInterval = config.IntervalMs * Math.Pow(config.BackoffMultiplier, errors);
+        var clampedInterval = Math.Min(baseInterval, config.MaxIntervalMs);
+        var jitterRange = config.JitterPercent;
+        var jitterFactor = 1.0 + (Random.Shared.NextDouble() * 2.0 - 1.0) * jitterRange;
+        var finalInterval = clampedInterval * jitterFactor;
+
+        var result = (int)Math.Max(config.IntervalMs, Math.Round(finalInterval));
+
+        _logger?.LogDebug(
+            "[PollConfigManager] 计算下次轮询间隔: {IntervalMs}ms (连续错误: {Errors}, 退避倍数: {Multiplier})",
+            result, errors, config.BackoffMultiplier);
+
+        return Task.FromResult(result);
     }
 
     /// <summary>
     /// 重置为默认配置
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    public async Task ResetToDefaultAsync(CancellationToken ct = default) {
-        using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时")) {
-            _currentConfig = new PollConfig();
-            _consecutiveErrors = 0;
+    public Task ResetToDefaultAsync(CancellationToken ct = default) {
+        _currentConfig = new PollConfig();
+        Interlocked.Exchange(ref _consecutiveErrors, 0);
 
-            _logger?.LogInformation("[PollConfigManager] 已重置为默认配置");
-        }
+        _logger?.LogInformation("[PollConfigManager] 已重置为默认配置");
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -161,7 +152,6 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable {
     public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        _configLock.Dispose();
         base.Dispose();
     }
 }

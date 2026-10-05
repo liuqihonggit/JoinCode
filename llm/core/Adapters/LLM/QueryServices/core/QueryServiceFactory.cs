@@ -51,7 +51,7 @@ public sealed class QueryServiceFactory : IQueryServiceFactory {
 
         // 兜底注入：当 ConfigLoader 未注入 Definition 时（如 Dream 组件），使用最小化定义
         if (config.Definition is null) {
-            config.Definition = new FallbackProviderDefinition(config.ProtocolKind);
+            config = config with { Definition = new FallbackProviderDefinition(config.ProtocolKind) };
         }
 
         // 注册表查找 — 找不到则用默认工厂

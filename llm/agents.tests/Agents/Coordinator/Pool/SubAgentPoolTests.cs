@@ -27,8 +27,7 @@ public sealed class SubAgentPoolTests {
 
     [Fact]
     public async Task Return_PoolFull_DisposesAgent() {
-        var options = DefaultOptions();
-        options.PoolMaxSize = 1;
+        var options = DefaultOptions() with { PoolMaxSize = 1 };
         await using var pool = new SubAgentPool(options);
         var agent1 = CreateAgent("task A");
         var agent2 = CreateAgent("task B");
@@ -42,8 +41,7 @@ public sealed class SubAgentPoolTests {
 
     [Fact]
     public async Task Return_PoolDisabled_DisposesAgent() {
-        var options = DefaultOptions();
-        options.PoolMaxSize = 0;
+        var options = DefaultOptions() with { PoolMaxSize = 0 };
         await using var pool = new SubAgentPool(options);
         var agent = CreateAgent();
 
@@ -128,8 +126,7 @@ public sealed class SubAgentPoolTests {
 
     [Fact]
     public async Task IsFull_WhenCountReachesMax_ReturnsTrue() {
-        var options = DefaultOptions();
-        options.PoolMaxSize = 2;
+        var options = DefaultOptions() with { PoolMaxSize = 2 };
         await using var pool = new SubAgentPool(options);
 
         await pool.Return(CreateAgent("task A"));

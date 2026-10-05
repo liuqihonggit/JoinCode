@@ -111,7 +111,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         GoalState goalState,
         MessageList chatHistory,
         CancellationToken ct) {
-        var context = new GraphExecutionContext {
+        await using var context = new GraphExecutionContext {
             Graph = graph,
             State = goalState,
             ChatHistory = chatHistory,

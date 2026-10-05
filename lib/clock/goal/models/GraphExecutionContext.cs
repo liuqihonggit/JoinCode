@@ -30,7 +30,7 @@ public sealed record NodeExecutionState {
 /// Graph 执行的运行时上下文 — 持有可变状态、队列、重试计数
 /// </summary>
 /// <remarks>由 <see cref="IGraphScheduler"/> 实现访问，public 以支持自定义调度器。</remarks>
-public sealed class GraphExecutionContext {
+public sealed class GraphExecutionContext : IAsyncDisposable {
     /// <summary>目标图定义</summary>
     public required GoalGraph Graph { get; init; }
     /// <summary>目标状态</summary>
@@ -330,4 +330,14 @@ public sealed class GraphExecutionContext {
 
         return nextIds;
     }
+
+    /// <summary>释放资源 — NodeCompletedSignal 和 StateLock（幂等）</summary>
+    public ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        NodeCompletedSignal.Dispose();
+        StateLock.Dispose();
+        return ValueTask.CompletedTask;
+    }
+
+    private int _disposed;
 }

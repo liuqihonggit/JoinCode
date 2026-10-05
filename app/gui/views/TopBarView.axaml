@@ -28,8 +28,8 @@
       <!-- 菜单栏 -->
       <Menu Grid.Column="0" Classes="vscodeMenu" Margin="12,0,0,0">
         <MenuItem Header="文件">
-          <MenuItem Header="文件 / 变更" Click="OnOpenFiles" />
-          <MenuItem Header="模型 / MCP / 插件" Click="OnOpenManagement" />
+          <MenuItem Header="文件变更" Click="OnOpenFiles" />
+          <MenuItem Header="模型管理" Click="OnOpenManagement" />
         </MenuItem>
         <MenuItem Header="编辑">
           <MenuItem Header="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}" IsEnabled="{Binding CanRegenerate}" />
@@ -40,6 +40,14 @@
           <MenuItem Header="切换主题" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}" />
           <MenuItem Header="设置面板" Command="{Binding ToggleSidePanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Settings}" />
           <MenuItem Header="底部面板" Command="{Binding TogglePanelCommand}" IsChecked="{Binding IsPanelOpen, Mode=OneWay}" />
+          <MenuItem Header="面板">
+            <MenuItem Header="💬 会话列表" Command="{Binding ToggleDockPanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Sessions}" />
+            <MenuItem Header="📁 目录树" Command="{Binding ToggleDockPanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.FileTree}" />
+            <MenuItem Header="🎯 Goal 控制" Command="{Binding ToggleDockPanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Goal}" />
+            <MenuItem Header="🛡 拦截器" Command="{Binding ToggleDockPanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Interceptor}" />
+            <MenuItem Header="👥 聊天室" Command="{Binding ToggleDockPanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.ChatRoom}" />
+            <MenuItem Header="⚙ 设置" Command="{Binding ToggleDockPanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Settings}" />
+          </MenuItem>
           <Separator />
           <MenuItem Header="Mock 引擎" Command="{Binding ToggleMockCommand}" IsChecked="{Binding IsMockConnection, Mode=OneWay}" />
           <MenuItem Header="无人值守" IsChecked="{Binding IsUnattendedMode, Mode=TwoWay}" ToolTip.Tip="{Binding UnattendedToggleToolTip}" />

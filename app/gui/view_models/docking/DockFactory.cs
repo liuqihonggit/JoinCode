@@ -11,6 +11,9 @@ public sealed class DockFactory : Factory {
     private IDocumentDock? _documentDock;
     private readonly object _context;
 
+    /// <summary>所有左侧面板引用（即使关闭后也保留，供视图菜单重新打开）</summary>
+    private readonly Dictionary<SidePanelKind, PanelTool> _allPanels = new();
+
     /// <param name="context">主 ViewModel，设为每个 Tool/Document 的 Context 供 View 绑定</param>
     public DockFactory(object context) => _context = context;
 
@@ -22,6 +25,13 @@ public sealed class DockFactory : Factory {
         var interceptor = new PanelTool { Id = "Interceptor", Title = "🛡 拦截器", Kind = SidePanelKind.Interceptor, Context = _context, CanClose = true, CanPin = true, CanFloat = true, MinWidth = 300 };
         var chatRoom = new PanelTool { Id = "ChatRoom", Title = "👥 聊天室", Kind = SidePanelKind.ChatRoom, Context = _context, CanClose = true, CanPin = true, CanFloat = true, MinWidth = 300 };
         var settings = new PanelTool { Id = "Settings", Title = "⚙ 设置", Kind = SidePanelKind.Settings, Context = _context, CanClose = true, CanPin = true, CanFloat = true, MinWidth = 300 };
+
+        _allPanels[SidePanelKind.Sessions] = sessions;
+        _allPanels[SidePanelKind.FileTree] = fileTree;
+        _allPanels[SidePanelKind.Goal] = goal;
+        _allPanels[SidePanelKind.Interceptor] = interceptor;
+        _allPanels[SidePanelKind.ChatRoom] = chatRoom;
+        _allPanels[SidePanelKind.Settings] = settings;
 
         var leftToolDock = new ToolDock {
             Id = "LeftTools",
@@ -205,5 +215,25 @@ public sealed class DockFactory : Factory {
                 dockable.PinnedBounds = new DockRect(0, 0, 300, 600);
             }
         }
+    }
+
+    /// <summary>切换面板可见性 — 可见则关闭，不可见则重新显示</summary>
+    public void TogglePanel(SidePanelKind kind) {
+        if (!_allPanels.TryGetValue(kind, out var panel)) return;
+        if (_leftToolDock is null) return;
+        var list = _leftToolDock.VisibleDockables;
+        if (list is null) return;
+        if (list.Contains(panel)) {
+            CloseDockable(panel);
+        } else {
+            AddDockable(_leftToolDock, panel);
+            _leftToolDock.ActiveDockable = panel;
+        }
+    }
+
+    /// <summary>面板是否当前可见</summary>
+    public bool IsPanelVisible(SidePanelKind kind) {
+        if (!_allPanels.TryGetValue(kind, out var panel)) return false;
+        return _leftToolDock?.VisibleDockables?.Contains(panel) ?? false;
     }
 }

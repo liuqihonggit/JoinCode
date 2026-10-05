@@ -6,7 +6,7 @@ namespace Core.Scheduling;
 /// 单值 KV 存储,PutAsync 天然增量更新,无需全量重写。
 /// Actor 模式 — 内部组合 HwmActor(继承 ActorBase)串行化 IncrementAndGetAsync 读-改-写原子性,获得监督/背压/生命周期/错误恢复。
 /// </summary>
-public sealed class HighWaterMarkManager : IAsyncDisposable {
+public sealed class HighWaterMarkManager : IDisposable {
     private readonly IKvStore _kvStore;
     private readonly byte[] _key;
     private readonly HwmActor _actor;
@@ -124,10 +124,10 @@ public sealed class HighWaterMarkManager : IAsyncDisposable {
     }
 
     /// <summary>
-    /// 异步释放 Actor;幂等 — IKvStore 由 DI 容器管理生命周期
+    /// 释放 Actor;幂等 — IKvStore 由 DI 容器管理生命周期
     /// </summary>
-    public async ValueTask DisposeAsync() {
+    public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, true)) return;
-        await _actor.DisposeAsync().ConfigureAwait(false);
+        _actor.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 }

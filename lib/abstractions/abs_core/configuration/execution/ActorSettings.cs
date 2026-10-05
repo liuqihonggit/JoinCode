@@ -16,12 +16,12 @@ namespace JoinCode.Abstractions.Configuration.Execution;
 /// }
 /// </code>
 /// </summary>
-public sealed class ActorSettings {
+public sealed record ActorSettings {
     /// <summary>编译队列配置</summary>
-    public BuildQueueSettings BuildQueue { get; set; } = new();
+    public BuildQueueSettings BuildQueue { get; init; } = new();
 
     /// <summary>背压预设配置 — 四档: CodingAgentTask/LlmGateway/Router/Build</summary>
-    public BackpressureSettings Backpressure { get; set; } = new();
+    public BackpressureSettings Backpressure { get; init; } = new();
 
     /// <summary>
     /// 校验配置合法性 — 配置加载时调用,非法值抛 ArgumentException 带友好提示。
@@ -35,25 +35,25 @@ public sealed class ActorSettings {
 /// <summary>
 /// 编译队列配置 — 模式选择 + Worker 数量。
 /// </summary>
-public sealed class BuildQueueSettings {
+public sealed record BuildQueueSettings {
     /// <summary>
     /// 编译队列模式: "serial"(串行,BuildQueueService)或 "parallel"(并行,BuildQueueRouter)。
     /// 默认 "serial",向后兼容。
     /// </summary>
-    public string Mode { get; set; } = EventDispatchMode.Serial.ToValue();
+    public string Mode { get; init; } = EventDispatchMode.Serial.ToValue();
 
     /// <summary>
     /// 并行模式 Worker 数量(仅 parallel 模式生效)。
     /// 默认 2,建议等于 CPU 核心数。最小 1,最大 16。
     /// </summary>
-    public int WorkerCount { get; set; } = 2;
+    public int WorkerCount { get; init; } = 2;
 
     /// <summary>
     /// 跨进程编译锁文件路径(可选)。
     /// serial 模式默认放在 .git/JoinCode.Build.lock。
     /// parallel 模式不需要跨进程锁(同进程内 Actor 串行化)@。
     /// </summary>
-    public string? CrossProcessLockPath { get; set; }
+    public string? CrossProcessLockPath { get; init; }
 
     /// <summary>是否并行模式</summary>
     public bool IsParallel => string.Equals(Mode, "parallel", StringComparison.OrdinalIgnoreCase);
@@ -80,18 +80,18 @@ public sealed class BuildQueueSettings {
 /// <summary>
 /// 背压预设配置 — 四档,对应 ActorBackpressure 的四个静态预设。
 /// </summary>
-public sealed class BackpressureSettings {
+public sealed record BackpressureSettings {
     /// <summary>Coding Agent 任务队列 — 容量 2000 + 30s 超时</summary>
-    public BackpressurePreset CodingAgentTask { get; set; } = new(2000, 30);
+    public BackpressurePreset CodingAgentTask { get; init; } = new(2000, 30);
 
     /// <summary>LLM Gateway — 容量 200 + 60s 超时</summary>
-    public BackpressurePreset LlmGateway { get; set; } = new(200, 60);
+    public BackpressurePreset LlmGateway { get; init; } = new(200, 60);
 
     /// <summary>Router → Worker 分发 — 容量 1000 + 10s 超时</summary>
-    public BackpressurePreset Router { get; set; } = new(1000, 10);
+    public BackpressurePreset Router { get; init; } = new(1000, 10);
 
     /// <summary>编译队列 — 容量 100 + 60s 超时</summary>
-    public BackpressurePreset Build { get; set; } = new(100, 60);
+    public BackpressurePreset Build { get; init; } = new(100, 60);
 
     /// <summary>校验合法性</summary>
     public void Validate() {
@@ -105,18 +105,18 @@ public sealed class BackpressureSettings {
 /// <summary>
 /// 单档背压预设 — 容量 + 水位线 + 发送超时。
 /// </summary>
-public sealed class BackpressurePreset {
+public sealed record BackpressurePreset {
     /// <summary>有界通道容量(0=无界)</summary>
-    public int Capacity { get; set; }
+    public int Capacity { get; init; }
 
     /// <summary>高水位线(null=容量*0.8)</summary>
-    public int? HighWatermark { get; set; }
+    public int? HighWatermark { get; init; }
 
     /// <summary>危险水位线(null=容量*0.95)</summary>
-    public int? CriticalWatermark { get; set; }
+    public int? CriticalWatermark { get; init; }
 
     /// <summary>发送超时秒数(null=不超时)</summary>
-    public double? SendTimeoutSeconds { get; set; }
+    public double? SendTimeoutSeconds { get; init; }
 
     public BackpressurePreset() { }
 

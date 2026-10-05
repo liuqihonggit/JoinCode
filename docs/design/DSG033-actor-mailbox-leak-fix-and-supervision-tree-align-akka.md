@@ -1,7 +1,8 @@
 # DSG033 — Actor 邮箱内存泄漏修复 + 监控树对齐 Akka
 
-> 状态：proposed
+> 状态：accepted
 > 日期：2026-10-04
+> 完成日期：2026-10-05
 > 关联：ADR 0125（in-flight 守卫）、ADR 0086（核心技术选型锁设计）
 > 审核依据：`lib/async_lock/actor/ActorBase.cs`、`SupervisedActor.cs`、`BackgroundTaskActor.cs`、`MailboxBase.cs`
 
@@ -512,3 +513,26 @@ public sealed record BackoffStrategy(
 <!-- 改造: HostElectionService→ActorBase<ElectCmd/UpdateSnapshotCmd/FailoverCmd,Unit>；AnalyticsFileSink→ActorBase<LogEventCmd/FlushCmd,Unit>；BuildQueueService→组合 BuildQueueActor(ActorBase<SubmitCmd/CancelCmd/BuildCompletedCmd,Unit>) -->
 <!-- 替代方案: BuildQueueService 不能直接继承 ActorBase（C# 无多重继承，已继承 BuildQueueBase），用组合模式 -->
 <!-- 验证: 596 async_lock + 17 BuildQueueService + 12 AnalyticsFileSink + 6 GlobalBuildQueue 测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-05 -->
+<!-- 决策: 跳过的 2 处 Actor Timer 改用 ActorTimers — RemoteCacheRefreshServiceBase + TeamMemorySyncService -->
+<!-- 原因: 用户要求处理之前跳过的 2 处 Actor -->
+<!-- 改造: RemoteCacheRefreshServiceBase 新增 TimerRefreshCmd(Handle 内生成动态 IdempotencyKey)；TeamMemorySyncService 中间件管道接口变更(SyncStartContext.SyncTimer→StartAutoSync 回调) -->
+<!-- 替代方案: 无，用户明确要求处理 -->
+<!-- 验证: 596 async_lock + 22 TeamMemorySync + 16 FeatureFlag + 8 RemoteManagedSettings 测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-05 -->
+<!-- 决策: 全项目 Actor Timer 审计 — 扫描所有 ActorBase 子类是否还有用 System.Threading.Timer 的遗漏 -->
+<!-- 审计范围: 21 处 `new Timer(` + 10 处 `private.*Timer _` + ActorBase 子类中的 `Task.Delay` 循环 -->
+<!-- 审计结果: 仅 ProcessHealthMonitor.cs 一处遗漏（继承 ActorBase 但用 System.Threading.Timer） -->
+<!-- 改造: ProcessHealthMonitor `Timer _timer` → `ActorTimers<IProcessHealthCommand> _timers`，StartPeriodicTimer 绑定生命周期 -->
+<!-- 其他 Timer 位置: LockRegistry/Scheduler/WriteAheadLog/DebounceTracker/HookEventBroadcaster/V1BridgeHandle/BridgeRunOrchestrator/BridgePointerManager/ToolHypergraphScorer/SystemActuatorCommandContext/ShellExecutionMiddleware/AsyncStderrWriter/StreamIdleWatchdog 均非 ActorBase 子类，不需要改造 -->
+<!-- Task.Delay 在 Actor 内部: HostElectionService/VoiceService/BridgeClient 是 fire-and-forget 后台循环（CancellationToken 控制）；ShellProcessWatchdog/AgentWorktreeService/PluginManager 是 Handle 内部单次延迟 — 均合理，不需要改用 ActorTimers -->
+<!-- 验证: 596 async_lock + 327 Infra.IO.Tests 全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-05 -->
+<!-- 决策: DSG033 最终验收 — 三项审计全部通过 -->
+<!-- 审计1: Actor 生命周期一致性 — 所有直接继承 ActorBase 且 override DisposeAsync 的类都正确调用 base.DisposeAsync()；1 个 JCC9304 违规(FileWatcherIntegrationRegistry)有 pragma 注释说明原因(有意为之)；组合模式类正确调用内部 actor DisposeAsync -->
+<!-- 审计2: Become/Watch 模式覆盖 — Become 3 处生产代码使用(CronScheduler/BridgeClient/VoiceService 状态切换)；Watch 在 RouterActor 中实现(SupervisorStrategy 自动处理子 Actor 故障)；无遗漏场景 -->
+<!-- 审计3: 全量测试 — 47 个测试项目 17347 测试全通过，0 失败，0 退化 -->
+<!-- 结论: DSG033 状态改为 accepted，全部完成 -->

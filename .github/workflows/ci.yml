@@ -3,28 +3,50 @@ name: CI/CD
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - '**.txt'
-      - '.xxx/**'
-      - 'LICENSE'
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      non-docs: ${{ steps.detect.outputs.non-docs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: detect
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          FILES=$(git diff --name-only "$BASE" "$HEAD")
+          NON_DOCS=$(echo "$FILES" | grep -vE '\.(md|txt)$|^\.xxx/|^LICENSE$' || true)
+          if [ -n "$NON_DOCS" ]; then
+            echo "non-docs=true" >> "$GITHUB_OUTPUT"
+            echo "📋 代码改动，跑全量 CI"
+          else
+            echo "non-docs=false" >> "$GITHUB_OUTPUT"
+            echo "📄 纯文档改动，跳过全量 CI"
+          fi
+
   build:
+    needs: detect
+    if: needs.detect.outputs.non-docs == 'true'
     uses: ./.github/workflows/ci-build.yml
 
   unit-tests:
-    needs: build
+    needs: [detect, build]
+    if: needs.detect.outputs.non-docs == 'true'
     uses: ./.github/workflows/ci-unit-tests.yml
 
   integration:
-    needs: build
+    needs: [detect, build]
+    if: needs.detect.outputs.non-docs == 'true'
     uses: ./.github/workflows/ci-integration.yml
 
   e2e:
-    needs: build
+    needs: [detect, build]
+    if: needs.detect.outputs.non-docs == 'true'
     uses: ./.github/workflows/ci-e2e.yml

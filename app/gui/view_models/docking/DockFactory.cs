@@ -50,6 +50,7 @@ public sealed class DockFactory : Factory {
             CanCreateDocument = true,
             CreateDocument = _context is MainViewModel vm ? vm.NewConversationCommand : null,
             EnableWindowDrag = true,
+            Proportion = 0.75,
             ActiveDockable = messageDocs[0],
             VisibleDockables = messageDocs
         };

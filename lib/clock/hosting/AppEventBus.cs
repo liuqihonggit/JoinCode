@@ -4,7 +4,7 @@ namespace Core.Hosting;
 /// 应用级事件总线实现 — 基于 ServiceMessageBus 的强类型包装
 /// 对齐 Reasonix event.Sink: 将弱类型 ServiceMessage 转换为强类型 AppEvent
 /// </summary>
-public sealed class AppEventBus : IAppEventBus {
+public sealed class AppEventBus : IAppEventBus, IDisposable {
     private readonly ServiceMessageBus _messageBus;
     private readonly ConcurrentDictionary<ServiceMessageType, ImmutableList<Action<AppEvent>>> _subscribers = new();
     private readonly object _lock = new();
@@ -97,6 +97,14 @@ public sealed class AppEventBus : IAppEventBus {
             }
         }
     }
+
+    /// <summary>释放 — 取消事件订阅（幂等）</summary>
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _messageBus.MessageReceived -= OnMessageReceivedAsync;
+    }
+
+    private int _disposed;
 }
 
 /// <summary>

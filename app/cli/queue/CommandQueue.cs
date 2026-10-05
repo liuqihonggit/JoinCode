@@ -47,7 +47,7 @@ public sealed record QueuedCommand(string Content, CommandOrigin Origin, QueuePr
 /// 优先级命令队列 — 三级优先级（Now &gt; Next &gt; Later），同优先级 FIFO，线程安全。
 /// 对齐 TS 原版 的 messageQueueManager.ts 设计。
 /// </summary>
-public sealed class CommandQueue {
+public sealed class CommandQueue : IDisposable {
     private readonly ConcurrentQueue<QueuedCommand> _now = new();
     private readonly ConcurrentQueue<QueuedCommand> _next = new();
     private readonly ConcurrentQueue<QueuedCommand> _later = new();
@@ -110,6 +110,14 @@ public sealed class CommandQueue {
         var later = _later.ToArray();
         return new QueueSnapshot(now, next, later);
     }
+
+    /// <summary>释放信号量资源（幂等）</summary>
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _signal.Dispose();
+    }
+
+    private int _disposed;
 }
 
 /// <summary>

@@ -208,4 +208,19 @@ public sealed class GuiSessionStore {
     }
 
     private string GetSessionPath(string sessionId) => _fs.CombinePath(_sessionsDir, sessionId, "gui.json");
+
+    /// <summary>枚举主会话的子会话(subagents/agent-xxx/) — 用目录名作子会话Id</summary>
+    public IReadOnlyList<(string Id, string Title)> ListSubSessions(string parentSessionId) {
+        var subAgentsDir = _fs.CombinePath(_sessionsDir, parentSessionId, "subagents");
+        if (!_fs.DirectoryExists(subAgentsDir))
+            return [];
+        var result = new List<(string, string)>();
+        foreach (var dir in _fs.EnumerateDirectories(subAgentsDir, "*", SearchOption.TopDirectoryOnly)) {
+            var agentId = System.IO.Path.GetFileName(dir);
+            if (string.IsNullOrEmpty(agentId))
+                continue;
+            result.Add((agentId, agentId));
+        }
+        return result;
+    }
 }

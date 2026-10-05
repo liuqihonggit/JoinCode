@@ -21,10 +21,12 @@ public sealed partial class MainViewModel {
         ViewModelDiagnosticsLogger.WriteDebug($"LoadPersistedSessions: 读取到 {summaries.Count} 个会话: [{string.Join(", ", summaries.Select(s => $"{s.Id}({s.Title})"))}]");
         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
             foreach (var summary in summaries) {
-                Sessions.Add(new SessionItem {
+                var item = new SessionItem {
                     Id = summary.Id,
                     Title = summary.Title
-                });
+                };
+                LoadSubSessionsInto(item);
+                Sessions.Add(item);
             }
             ViewModelDiagnosticsLogger.WriteDebug($"LoadPersistedSessions: Sessions 现有 {Sessions.Count} 个, 调用 RefreshDocuments");
             _dockFactory?.RefreshDocuments();
@@ -46,6 +48,19 @@ public sealed partial class MainViewModel {
         _session.SwitchSession(item.Id);
         _dockFactory?.ActivateSession(item.Id);
         OnPropertyChanged(nameof(Sessions));
+    }
+
+    /// <summary>从磁盘枚举子会话填充 session.Children</summary>
+    private void LoadSubSessionsInto(SessionItem session) {
+        session.Children.Clear();
+        foreach (var (id, title) in _sessionStore.ListSubSessions(session.Id)) {
+            session.Children.Add(new SessionItem {
+                Id = id,
+                Title = title,
+                ParentId = session.Id
+            });
+        }
+        ViewModelDiagnosticsLogger.WriteDebug($"LoadSubSessionsInto: 会话 {session.Id} 有 {session.Children.Count} 个子会话");
     }
 
     /// <summary>将当前会话消息持久化到 ~/.jcc/sessions/{Id}.json（含自动命名标题）</summary>
@@ -114,6 +129,8 @@ public sealed partial class MainViewModel {
         _activeSession = session;
         _session.SwitchSession(session.Id);
         _dockFactory?.ActivateSession(session.Id);
+        LoadSubSessionsInto(session);
+        OnPropertyChanged(nameof(SelectedSession));
 
         // 需求11：子会话点击展示内容（SubSessionMessages 缓存或引擎加载）
         if (session.IsSubSession) {

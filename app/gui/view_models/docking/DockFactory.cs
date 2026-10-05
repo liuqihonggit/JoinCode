@@ -155,7 +155,7 @@ public sealed class DockFactory : Factory {
 
     /// <summary>为会话创建 Document 并绑定标题同步</summary>
     private MessageAreaDocument CreateDocumentForSession(SessionItem session) {
-        var doc = new MessageAreaDocument { Id = $"Msg_{session.Id}", Title = session.Title, Context = _context };
+        var doc = new MessageAreaDocument { Id = $"Msg_{session.Id}", Title = session.Title, Context = _context, Session = session };
         session.PropertyChanged += (_, e) => {
             if (e.PropertyName == nameof(SessionItem.Title))
                 doc.Title = session.Title;

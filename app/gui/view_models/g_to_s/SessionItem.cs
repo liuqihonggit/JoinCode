@@ -8,6 +8,17 @@ public sealed partial class SessionItem : ObservableObject {
     /// <summary>会话唯一 ID（持久化到 ~/.jcc/sessions/{Id}.json，用于恢复与删除）</summary>
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
 
+    /// <summary>子会话数量 — 供角标绑定（监听 Children.CollectionChanged 通知 UI）</summary>
+    public int SubSessionCount => Children.Count;
+
+    /// <summary>构造函数 — 订阅 Children 变化通知 HasChildren/SubSessionCount 更新</summary>
+    public SessionItem() {
+        Children.CollectionChanged += (_, _) => {
+            OnPropertyChanged(nameof(HasChildren));
+            OnPropertyChanged(nameof(SubSessionCount));
+        };
+    }
+
     [ObservableProperty]
     private string _title = string.Empty;
 

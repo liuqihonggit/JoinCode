@@ -1,6 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:core="using:Dock.Model.Core"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
              x:Class="JoinCode.Gui.App">
   <Application.Resources>
     <ResourceDictionary>
@@ -47,8 +48,32 @@
       <Setter Property="HeaderTemplate">
         <DataTemplate DataType="core:IDockable">
           <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-            <TextBlock Text="💬" FontSize="12" VerticalAlignment="Center" />
+            <TextBlock Text="🌿" FontSize="12" VerticalAlignment="Center" />
             <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Padding="2" />
+            <ToggleButton x:Name="BadgeBtn" Padding="4,1" MinHeight="0" FontSize="10"
+                          Background="{DynamicResource GuiAccentText}" Foreground="White"
+                          CornerRadius="8" VerticalAlignment="Center" Margin="0"
+                          Content="{ReflectionBinding Session.SubSessionCount}"
+                          IsVisible="{ReflectionBinding Session.HasChildren}" />
+            <Popup IsOpen="{Binding #BadgeBtn.IsChecked, Mode=TwoWay}"
+                   PlacementTarget="{Binding #BadgeBtn}"
+                   Placement="BottomEdgeAlignedLeft"
+                   HorizontalOffset="0" VerticalOffset="2">
+              <Border Background="{DynamicResource GuiCardBackground}"
+                      BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+                      CornerRadius="4" Padding="2" MinWidth="160" MaxWidth="280">
+                <ItemsControl ItemsSource="{ReflectionBinding Session.Children}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:SessionItem">
+                      <Button Content="{Binding Title}" FontSize="11" Padding="8,4" MinHeight="0"
+                              HorizontalAlignment="Stretch"
+                              Command="{ReflectionBinding $parent[ItemsControl].DataContext.SelectSubSessionCommand}"
+                              CommandParameter="{Binding}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Border>
+            </Popup>
           </StackPanel>
         </DataTemplate>
       </Setter>

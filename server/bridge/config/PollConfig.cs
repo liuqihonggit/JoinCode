@@ -22,23 +22,23 @@ public sealed partial class PollConfig {
 
     /// <summary>轮询间隔（毫秒）</summary>
     [JsonPropertyName("intervalMs")]
-    public int IntervalMs { get; set; } = DefaultIntervalMs;
+    public int IntervalMs { get; init; } = DefaultIntervalMs;
 
     /// <summary>最大轮询间隔（毫秒）</summary>
     [JsonPropertyName("maxIntervalMs")]
-    public int MaxIntervalMs { get; set; } = DefaultMaxIntervalMs;
+    public int MaxIntervalMs { get; init; } = DefaultMaxIntervalMs;
 
     /// <summary>指数退避倍数</summary>
     [JsonPropertyName("backoffMultiplier")]
-    public double BackoffMultiplier { get; set; } = DefaultBackoffMultiplier;
+    public double BackoffMultiplier { get; init; } = DefaultBackoffMultiplier;
 
     /// <summary>抖动百分比（0.0 ~ 1.0），用于防止惊群效应</summary>
     [JsonPropertyName("jitterPercent")]
-    public double JitterPercent { get; set; } = DefaultJitterPercent;
+    public double JitterPercent { get; init; } = DefaultJitterPercent;
 
     /// <summary>单次轮询超时（毫秒）</summary>
     [JsonPropertyName("timeoutMs")]
-    public int TimeoutMs { get; set; } = DefaultTimeoutMs;
+    public int TimeoutMs { get; init; } = DefaultTimeoutMs;
 }
 
 /// <summary>
@@ -69,14 +69,7 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable {
     /// <param name="ct">取消令牌</param>
     /// <returns>当前配置快照</returns>
     public Task<PollConfig> GetCurrentConfigAsync(CancellationToken ct = default) {
-        var c = _currentConfig;
-        return Task.FromResult(new PollConfig {
-            IntervalMs = c.IntervalMs,
-            MaxIntervalMs = c.MaxIntervalMs,
-            BackoffMultiplier = c.BackoffMultiplier,
-            JitterPercent = c.JitterPercent,
-            TimeoutMs = c.TimeoutMs
-        });
+        return Task.FromResult(_currentConfig);
     }
 
     /// <summary>
@@ -86,19 +79,11 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable {
     /// <param name="ct">取消令牌</param>
     public Task UpdateConfigAsync(PollConfig newConfig, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(newConfig);
-
-        var stored = new PollConfig {
-            IntervalMs = newConfig.IntervalMs,
-            MaxIntervalMs = newConfig.MaxIntervalMs,
-            BackoffMultiplier = newConfig.BackoffMultiplier,
-            JitterPercent = newConfig.JitterPercent,
-            TimeoutMs = newConfig.TimeoutMs
-        };
-        _currentConfig = stored;
+        _currentConfig = newConfig;
 
         _logger?.LogInformation(
             "[PollConfigManager] 轮询配置已更新，间隔: {IntervalMs}ms，最大间隔: {MaxIntervalMs}ms",
-            stored.IntervalMs, stored.MaxIntervalMs);
+            newConfig.IntervalMs, newConfig.MaxIntervalMs);
         return Task.CompletedTask;
     }
 

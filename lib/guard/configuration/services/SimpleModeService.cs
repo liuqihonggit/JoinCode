@@ -5,14 +5,14 @@ namespace Core.Configuration;
 /// </summary>
 [Register(typeof(ISimpleModeService), ServiceLifetime.Singleton)]
 public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeService {
-    private SimpleModeState _state = new(false, SimpleModeConfig.Default);
+    private volatile SimpleModeState _state = new(false, SimpleModeConfig.Default);
     private readonly IBriefModeService? _briefModeService;
     private readonly ILogger<SimpleModeService>? _logger;
 
     private sealed record SimpleModeState(bool IsSimpleMode, SimpleModeConfig Config);
 
     /// <summary>是否已启用精简模式</summary>
-    public bool IsSimpleMode => Volatile.Read(ref _state).IsSimpleMode;
+    public bool IsSimpleMode => _state.IsSimpleMode;
 
     /// <summary>精简模式状态变更事件 — 启用/禁用/配置更新时触发</summary>
     public event EventHandler<SimpleModeChangedEventArgs>? SimpleModeChanged;
@@ -29,12 +29,9 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
 
     /// <inheritdoc />
     public void Enable() {
-        SimpleModeState old;
-        while (true) {
-            old = Volatile.Read(ref _state);
-            if (old.IsSimpleMode) return;
-            if (Interlocked.CompareExchange(ref _state, old with { IsSimpleMode = true }, old) == old) break;
-        }
+        var old = _state;
+        if (old.IsSimpleMode) return;
+        _state = new SimpleModeState(true, old.Config);
 
         _logger?.LogInformation("Simple Mode enabled");
         _briefModeService?.Enable();
@@ -47,12 +44,9 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
 
     /// <inheritdoc />
     public void Disable() {
-        SimpleModeState old;
-        while (true) {
-            old = Volatile.Read(ref _state);
-            if (!old.IsSimpleMode) return;
-            if (Interlocked.CompareExchange(ref _state, old with { IsSimpleMode = false }, old) == old) break;
-        }
+        var old = _state;
+        if (!old.IsSimpleMode) return;
+        _state = new SimpleModeState(false, old.Config);
 
         _logger?.LogInformation("Simple Mode disabled");
         _briefModeService?.Disable();
@@ -65,13 +59,9 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
 
     /// <inheritdoc />
     public bool Toggle() {
-        SimpleModeState old;
-        bool newState;
-        while (true) {
-            old = Volatile.Read(ref _state);
-            newState = !old.IsSimpleMode;
-            if (Interlocked.CompareExchange(ref _state, old with { IsSimpleMode = newState }, old) == old) break;
-        }
+        var old = _state;
+        var newState = !old.IsSimpleMode;
+        _state = new SimpleModeState(newState, old.Config);
 
         _logger?.LogInformation(newState ? "Simple Mode enabled" : "Simple Mode disabled");
 
@@ -89,17 +79,14 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
     }
 
     /// <inheritdoc />
-    public SimpleModeConfig GetCurrentConfig() => Volatile.Read(ref _state).Config;
+    public SimpleModeConfig GetCurrentConfig() => _state.Config;
 
     /// <inheritdoc />
     public void UpdateConfig(SimpleModeConfig config) {
         ArgumentNullException.ThrowIfNull(config);
 
-        SimpleModeState old;
-        while (true) {
-            old = Volatile.Read(ref _state);
-            if (Interlocked.CompareExchange(ref _state, old with { Config = config }, old) == old) break;
-        }
+        var old = _state;
+        _state = new SimpleModeState(old.IsSimpleMode, config);
 
         _logger?.LogDebug("Simple Mode config updated");
 

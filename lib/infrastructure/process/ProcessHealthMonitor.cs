@@ -17,7 +17,7 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
     private readonly IInteractiveProcess _process;
     private readonly HealthCheckConfig _config;
     private readonly ILogger? _logger;
-    private readonly Timer _timer;
+    private readonly ActorTimers<IProcessHealthCommand> _timers;
     private int _isDisposed;
 
     private int _consecutiveFailures;
@@ -64,9 +64,10 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
 
-        _timer = new Timer(
-            _ => TrySend(new HealthCheckTickCmd()),
-            null,
+        _timers = new ActorTimers<IProcessHealthCommand>(this);
+        _timers.StartPeriodicTimer(
+            "health",
+            new HealthCheckTickCmd(),
             _config.Interval,
             _config.Interval);
     }
@@ -127,8 +128,7 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
     /// </summary>
     public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
-        _timer.Change(Timeout.Infinite, Timeout.Infinite);
-        _timer.Dispose();
+        await _timers.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

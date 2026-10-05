@@ -88,6 +88,7 @@ public class HostElectionServiceTest {
         };
 
         service.UpdateSnapshot(snapshot);
+        await TestWaitHelper.WaitUntilAsync(() => service.LastSnapshot is not null, TimeSpan.FromMilliseconds(500));
         service.LastSnapshot.Should().NotBeNull();
         service.LastSnapshot!.HostProcessId.Should().Be("12345");
     }

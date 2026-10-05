@@ -143,11 +143,6 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
-    /// <summary>标记客户端为已停止（原子操作，无需锁）</summary>
-    private void MarkStopped() {
-        Interlocked.Exchange(ref _isRunning, 0);
-    }
-
     /// <summary>
     /// 停止 Bridge 客户端 — 发命令到 Consumer，由 Consumer 线程串行执行。
     /// </summary>
@@ -454,100 +449,109 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     #endregion
 
     /// <summary>
-    /// Actor Consumer — 线程独占 _pollingCts/_pollingTask/_authToken/_stats.StartedAt，串行处理命令，无需锁。
+    /// Actor Consumer — 初始行为(Stopped 状态),StartCmd 时 Become(RunningReceive)。
     /// </summary>
-    protected override void Handle(IBridgeCommand command, CancellationToken ct) => RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
+    protected override void Handle(IBridgeCommand command, CancellationToken ct) {
+        if (command is StartCmd startCmd) {
+            RegisterInFlight(StartAsync(startCmd, ct).AsTask());
+            return;
+        }
+        if (command is StopCmd stopCmd) {
+            stopCmd.Tcs.TrySetResult();
+            return;
+        }
+        RegisterInFlight(HandleCommonAsync(command, ct).AsTask());
+    }
 
-    private async ValueTask HandleAsyncImpl(IBridgeCommand command, CancellationToken ct) {
-        switch (command) {
-            case StartCmd cmd: {
-                if (IsRunning) {
-                    _logger?.LogWarning("[BridgeClient] 客户端已在运行");
-                    cmd.Tcs.TrySetResult();
-                    break;
-                }
+    private void RunningReceive(IBridgeCommand command, CancellationToken ct) {
+        if (command is StartCmd startCmd) {
+            _logger?.LogWarning("[BridgeClient] 客户端已在运行");
+            startCmd.Tcs.TrySetResult();
+            return;
+        }
+        if (command is StopCmd stopCmd) {
+            RegisterInFlight(StopAsync(stopCmd, ct).AsTask());
+            return;
+        }
+        RegisterInFlight(HandleCommonAsync(command, ct).AsTask());
+    }
 
-                try {
-                    _logger?.LogInformation("[BridgeClient] 启动客户端...");
+    private async ValueTask StartAsync(StartCmd cmd, CancellationToken ct) {
+        try {
+            _logger?.LogInformation("[BridgeClient] 启动客户端...");
 
-                    Interlocked.Exchange(ref _isRunning, 1);
-                    _stats.MarkStarted(_clock.GetUtcNow());
+            Interlocked.Exchange(ref _isRunning, 1);
+            _stats.MarkStarted(_clock.GetUtcNow());
 
-                    await _transportManager.StartAsync(cmd.Ct).ConfigureAwait(false);
+            await _transportManager.StartAsync(cmd.Ct).ConfigureAwait(false);
 
-                    if (_jwtService != null) {
-                        _authToken = _jwtService.GenerateToken("bridge-client", _options.HeartbeatIntervalMs / 1000 * 300);
-                        _logger?.LogInformation("[BridgeClient] JWT Token 已生成");
-                    }
-
-                    if (_sessionRunner != null) {
-                        await _sessionRunner.StartSessionAsync("bridge-client", new Dictionary<string, string> { ["transport"] = "websocket" }).ConfigureAwait(false);
-                        _logger?.LogInformation("[BridgeClient] Bridge 会话已创建");
-                    }
-
-                    _pollingCts = CancellationTokenSource.CreateLinkedTokenSource(cmd.Ct);
-                    _pollingTask = RunPollingLoopAsync(_pollingCts.Token);
-
-                    Started?.Invoke(this, EventArgs.Empty);
-                    _logger?.LogInformation("[BridgeClient] 客户端已启动");
-                    cmd.Tcs.TrySetResult();
-                } catch (Exception ex) {
-                    MarkStopped();
-                    _logger?.LogError(ex, "[BridgeClient] 启动失败");
-                    ErrorOccurred?.Invoke(this, new BridgeClientErrorEventArgs(ex, "启动失败"));
-                    cmd.Tcs.TrySetException(ex);
-                }
-
-                break;
+            if (_jwtService != null) {
+                _authToken = _jwtService.GenerateToken("bridge-client", _options.HeartbeatIntervalMs / 1000 * 300);
+                _logger?.LogInformation("[BridgeClient] JWT Token 已生成");
             }
 
-            case StopCmd cmd: {
-                if (!IsRunning) {
-                    cmd.Tcs.TrySetResult();
-                    break;
-                }
-                Interlocked.Exchange(ref _isRunning, 0);
-
-                _logger?.LogInformation("[BridgeClient] 停止客户端...");
-
-                await (_pollingCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
-
-                if (_pollingTask is not null) {
-                    try {
-                        await _pollingTask.WaitAsync(cmd.Ct).ConfigureAwait(false);
-                    } catch (OperationCanceledException) {
-                    }
-                }
-
-                if (_sessionRunner != null) {
-                    var activeSessions = _sessionRunner.GetActiveSessions();
-                    await Task.WhenAll(activeSessions.Select(session => _sessionRunner.StopSessionAsync(session.SessionId))).ConfigureAwait(false);
-                    _logger?.LogInformation("[BridgeClient] Bridge 会话已关闭");
-                }
-
-                await _transportManager.StopAsync(cmd.Ct).ConfigureAwait(false);
-
-                Stopped?.Invoke(this, EventArgs.Empty);
-                _logger?.LogInformation("[BridgeClient] 客户端已停止");
-                cmd.Tcs.TrySetResult();
-                break;
+            if (_sessionRunner != null) {
+                await _sessionRunner.StartSessionAsync("bridge-client", new Dictionary<string, string> { ["transport"] = "websocket" }).ConfigureAwait(false);
+                _logger?.LogInformation("[BridgeClient] Bridge 会话已创建");
             }
 
-            case GetStateCmd cmd: {
-                var state = new BridgeClientState {
-                    IsRunning = IsRunning,
-                    ConnectionState = _transportManager.ConnectionState,
-                    TotalMessagesReceived = _stats.Received,
-                    TotalMessagesProcessed = _stats.Processed,
-                    TotalEchoFiltered = _stats.EchoFiltered,
-                    TotalDuplicatesFiltered = _stats.DuplicatesFiltered,
-                    Uptime = _clock.GetUtcNow() - _stats.StartedAt,
-                    HasJwtToken = _authToken != null,
-                    HasActiveSession = _sessionRunner?.GetActiveSessions().Count > 0,
-                };
-                cmd.Tcs.TrySetResult(state);
-                break;
+            _pollingCts = CancellationTokenSource.CreateLinkedTokenSource(cmd.Ct);
+            _pollingTask = RunPollingLoopAsync(_pollingCts.Token);
+
+            Started?.Invoke(this, EventArgs.Empty);
+            _logger?.LogInformation("[BridgeClient] 客户端已启动");
+            Become(RunningReceive);
+            cmd.Tcs.TrySetResult();
+        } catch (Exception ex) {
+            Interlocked.Exchange(ref _isRunning, 0);
+            _logger?.LogError(ex, "[BridgeClient] 启动失败");
+            ErrorOccurred?.Invoke(this, new BridgeClientErrorEventArgs(ex, "启动失败"));
+            cmd.Tcs.TrySetException(ex);
+        }
+    }
+
+    private async ValueTask StopAsync(StopCmd cmd, CancellationToken ct) {
+        Interlocked.Exchange(ref _isRunning, 0);
+
+        _logger?.LogInformation("[BridgeClient] 停止客户端...");
+
+        await (_pollingCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
+
+        if (_pollingTask is not null) {
+            try {
+                await _pollingTask.WaitAsync(cmd.Ct).ConfigureAwait(false);
+            } catch (OperationCanceledException) {
             }
+        }
+
+        if (_sessionRunner != null) {
+            var activeSessions = _sessionRunner.GetActiveSessions();
+            await Task.WhenAll(activeSessions.Select(session => _sessionRunner.StopSessionAsync(session.SessionId))).ConfigureAwait(false);
+            _logger?.LogInformation("[BridgeClient] Bridge 会话已关闭");
+        }
+
+        await _transportManager.StopAsync(cmd.Ct).ConfigureAwait(false);
+
+        Stopped?.Invoke(this, EventArgs.Empty);
+        _logger?.LogInformation("[BridgeClient] 客户端已停止");
+        Become(Handle);
+        cmd.Tcs.TrySetResult();
+    }
+
+    private async ValueTask HandleCommonAsync(IBridgeCommand command, CancellationToken ct) {
+        if (command is GetStateCmd cmd) {
+            var state = new BridgeClientState {
+                IsRunning = IsRunning,
+                ConnectionState = _transportManager.ConnectionState,
+                TotalMessagesReceived = _stats.Received,
+                TotalMessagesProcessed = _stats.Processed,
+                TotalEchoFiltered = _stats.EchoFiltered,
+                TotalDuplicatesFiltered = _stats.DuplicatesFiltered,
+                Uptime = _clock.GetUtcNow() - _stats.StartedAt,
+                HasJwtToken = _authToken != null,
+                HasActiveSession = _sessionRunner?.GetActiveSessions().Count > 0,
+            };
+            cmd.Tcs.TrySetResult(state);
         }
     }
 

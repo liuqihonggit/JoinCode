@@ -90,11 +90,11 @@ DSG033 已完成 Actor 基建对齐 Akka + 统一 Actor 模式。本次继续：
 | 内存泄露 #11 CommandQueue | app/cli/queue/ | ✅ IDisposable | ✅ 编译通过 |
 | 内存泄露 #12 GoalConflictMessenger | lib/clock/goal/ | ✅ override Dispose | ✅ 519 Clock 测试 |
 | 内存泄露 #13 AgentOutputChannelManager | llm/agents/ | ✅ override Dispose | ✅ 628 Agents 测试 |
-| Actor 改造 P1: ConcurrentDag | lib/structura/dag/ | ❌ | ❌ |
-| Actor 改造 P2: ContextHierarchy | kit/brain/context/ | ❌ | ❌ |
-| Actor 改造 P3: HighWaterMarkManager | lib/scheduling/storage/ | ❌ | ❌ |
-| Actor 改造 P4: S3FifoBlockCache | lib/pithosdb/Core/ | ❌ | ❌ |
-| Actor 改造 P5: LruBlockCache | lib/pithosdb/Core/ | ❌ | ❌ |
+| Actor 改造 P1: ConcurrentDag | lib/structura/dag/ | ⏸️ 不改造(数据结构) | ADR 0130 |
+| Actor 改造 P2: ContextHierarchy | kit/brain/context/ | ✅ ActorBase | ✅ 36 测试 |
+| Actor 改造 P3: HighWaterMarkManager | lib/scheduling/storage/ | ✅ ActorBase | ✅ 1 测试 |
+| Actor 改造 P4: S3FifoBlockCache | lib/pithos#osdb/Core/ | ⏸️ 不改造(数据结构) | ADR 0130 |
+| Actor 改造 P5: LruBlockCache | lib/pithosdb/Core/ | ⏸️ 不改造(数据结构) | ADR 0130 |
 | Actor 改造 P6: SubAgentPool | llm/agents/Coordinator/ | ❌ | ❌ |
 
 ## 五、执行顺序

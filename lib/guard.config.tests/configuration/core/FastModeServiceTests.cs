@@ -16,6 +16,9 @@ public sealed class FastModeServiceTests : IDisposable {
             cooldownDuration: TimeSpan.FromMilliseconds(200));
     }
 
+    /// <summary>屏障 — QuerySync 发查询命令,FIFO 确保之前所有 Tell 命令都处理完</summary>
+    private void Drain() => _ = _service.IsFastModeActive;
+
     [Fact]
     public void Initial_State_Should_Not_Be_Active() {
         Assert.False(_service.IsFastModeActive);
@@ -44,6 +47,7 @@ public sealed class FastModeServiceTests : IDisposable {
         _service.FastModeChanged += (_, e) => eventArgs = e;
 
         _service.Activate();
+        Drain();
 
         Assert.NotNull(eventArgs);
         Assert.True(eventArgs.IsFastModeActive);
@@ -66,6 +70,7 @@ public sealed class FastModeServiceTests : IDisposable {
         _service.FastModeChanged += (_, e) => eventArgs = e;
 
         _service.Deactivate();
+        Drain();
 
         Assert.NotNull(eventArgs);
         Assert.False(eventArgs.IsFastModeActive);
@@ -143,6 +148,7 @@ public sealed class FastModeServiceTests : IDisposable {
 
         _service.Activate();
         _service.Activate();
+        Drain();
 
         Assert.Equal(1, eventCount);
     }
@@ -153,6 +159,7 @@ public sealed class FastModeServiceTests : IDisposable {
         _service.FastModeChanged += (_, _) => eventCount++;
 
         _service.Deactivate();
+        Drain();
 
         Assert.Equal(0, eventCount);
     }
@@ -160,7 +167,7 @@ public sealed class FastModeServiceTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        _service.DisposeSafe();
+        _service.DisposeAsync().AsTask().Wait();
     }
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

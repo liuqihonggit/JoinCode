@@ -54,7 +54,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     private int _disposed;
 
     private long _awaySinceTicks;
-    private Timer? _autoSaveTimer;
+    private readonly ActorTimers<IAwaySummaryCommand> _timers;
     private readonly Queue<AwayEvent> _events = new();
 
     /// <summary>
@@ -81,6 +81,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
         _options = options ?? new AwaySummaryOptions();
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
+        _timers = new ActorTimers<IAwaySummaryCommand>(this);
     }
 
 
@@ -132,8 +133,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
                 Volatile.Write(ref _awaySinceTicks, now.Ticks);
                 _events.Clear();
 
-                _autoSaveTimer?.Dispose();
-                _autoSaveTimer = new Timer(_ => TrySend(new AutoSaveTickCmd()), null, _options.AutoSaveInterval, _options.AutoSaveInterval);
+                _timers.StartPeriodicTimer("autosave", new AutoSaveTickCmd(), _options.AutoSaveInterval, _options.AutoSaveInterval);
 
                 _logger?.LogInformation("用户离开标记: {Time}", now);
                 mark.Tcs.TrySetResult();
@@ -217,8 +217,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
                 keyEvents,
                 errors);
 
-            _autoSaveTimer?.Dispose();
-            _autoSaveTimer = null;
+            _timers.Cancel("autosave");
             Volatile.Write(ref _awaySinceTicks, 0);
 
             _logger?.LogInformation(
@@ -323,8 +322,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// </summary>
     public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _autoSaveTimer?.Dispose();
-        _autoSaveTimer = null;
+        await _timers.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

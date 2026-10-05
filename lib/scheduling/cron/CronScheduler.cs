@@ -107,7 +107,7 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
     private readonly ICronTaskStore _taskStore;
     private readonly IClockService _clock;
     private readonly ILogger<CronScheduler>? _logger;
-    private readonly Timer _timer;
+    private readonly ActorTimers<ICronSchedulerCommand> _timers;
     private int _disposed;
 
     private readonly Dictionary<string, long> _nextFireAt = new();
@@ -127,7 +127,7 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
         _taskStore = taskStore ?? throw new ArgumentNullException(nameof(taskStore));
         _clock = clock ?? SystemClockService.Instance;
         _logger = logger;
-        _timer = new Timer(_ => TrySend(new CronCheckTickCmd()), null, Timeout.Infinite, Timeout.Infinite);
+        _timers = new ActorTimers<ICronSchedulerCommand>(this);
     }
 
     /// <summary>
@@ -180,14 +180,14 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
             case CronStartCmd:
             if (_started) return;
             _started = true;
-            _timer.Change(0, _options.CheckIntervalMs);
+            _timers.StartPeriodicTimer("check", new CronCheckTickCmd(), TimeSpan.Zero, TimeSpan.FromMilliseconds(_options.CheckIntervalMs));
             _logger?.LogInformation("[CronScheduler] 已启动，检查间隔: {IntervalMs}ms", _options.CheckIntervalMs);
             break;
 
             case CronStopCmd:
             if (!_started) return;
             _started = false;
-            _timer.Change(Timeout.Infinite, Timeout.Infinite);
+            _timers.Cancel("check");
             break;
 
             case CronCheckTickCmd:
@@ -310,11 +310,10 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
     }
 
     /// <inheritdoc/>
-    public override ValueTask DisposeAsync() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+    public override async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
-        _timer.Change(Timeout.Infinite, Timeout.Infinite);
-        _timer.Dispose();
-        return base.DisposeAsync();
+        await _timers.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

@@ -46,7 +46,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     internal ToolScoreConfig Config => _config;
     private readonly ConcurrentDictionary<string, ToolHealthRecord> _records = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _configPath;
-    private readonly Timer? _decayTimer;
+    private readonly ActorTimers<IToolHealthCommand> _timers;
     private readonly Task _loadTask;
     private volatile BlacklistSnapshot _blacklistSnapshot;
     private volatile Dictionary<string, int> _penalties;
@@ -82,7 +82,8 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         _configPath = Path.Combine(
             JoinCode.Abstractions.Configuration.AppData.AppDataConstants.JccDirectory,
             "tool-health.json");
-        _decayTimer = new Timer(_ => TrySend(new DecayTickCmd()), null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
+        _timers = new ActorTimers<IToolHealthCommand>(this);
+        _timers.StartPeriodicTimer("decay", new DecayTickCmd(), TimeSpan.FromHours(1), TimeSpan.FromHours(1));
         _loadTask = LoadFromDiskAsync();
     }
 
@@ -345,7 +346,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// </summary>
     public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _decayTimer?.Dispose();
+        _timers.CancelAll();
     }
 
     /// <summary>
@@ -354,7 +355,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <returns>表示异步释放操作的任务。</returns>
     public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _decayTimer?.Dispose();
+        await _timers.DisposeAsync().ConfigureAwait(false);
         await _loadTask.ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }

@@ -47,7 +47,8 @@ public sealed class DockFactory : Factory {
             Id = "Documents",
             Title = "文档",
             IsCollapsable = false,
-            CanCreateDocument = false,
+            CanCreateDocument = true,
+            CreateDocument = _context is MainViewModel vm ? vm.NewConversationCommand : null,
             EnableWindowDrag = true,
             ActiveDockable = messageDocs[0],
             VisibleDockables = messageDocs
@@ -144,16 +145,22 @@ public sealed class DockFactory : Factory {
         var docs = new List<IDockable>();
         if (_context is MainViewModel vm && vm.Sessions.Count > 0) {
             foreach (var session in vm.Sessions) {
-                docs.Add(new MessageAreaDocument {
-                    Id = $"Msg_{session.Id}",
-                    Title = session.Title,
-                    Context = _context
-                });
+                docs.Add(CreateDocumentForSession(session));
             }
         } else {
             docs.Add(new MessageAreaDocument { Id = "MessageArea", Title = "消息区", Context = _context });
         }
         return docs;
+    }
+
+    /// <summary>为会话创建 Document 并绑定标题同步</summary>
+    private MessageAreaDocument CreateDocumentForSession(SessionItem session) {
+        var doc = new MessageAreaDocument { Id = $"Msg_{session.Id}", Title = session.Title, Context = _context };
+        session.PropertyChanged += (_, e) => {
+            if (e.PropertyName == nameof(SessionItem.Title))
+                doc.Title = session.Title;
+        };
+        return doc;
     }
 
     /// <summary>初始化布局 — 注册 HostWindowLocator，委托基类，默认收拢左侧面板，监听会话变化</summary>
@@ -164,6 +171,7 @@ public sealed class DockFactory : Factory {
         base.InitLayout(layout);
         DefaultPinLeftPanels();
         WatchSessionChanges();
+        WatchActiveDocumentChanged();
     }
 
     /// <summary>监听 Sessions 集合变化，动态增删消息区 Document</summary>
@@ -172,6 +180,27 @@ public sealed class DockFactory : Factory {
         if (_documentDock is not { } dock) return;
         vm.Sessions.CollectionChanged += (_, e) => OnSessionsChanged(dock, e);
     }
+
+    /// <summary>监听 Document tab 切换 → 选中对应会话（用户点击 tab 时触发）</summary>
+    private void WatchActiveDocumentChanged() {
+        if (_documentDock is not { } dock) return;
+        if (_context is not MainViewModel vm) return;
+        if (dock is not System.ComponentModel.INotifyPropertyChanged npc) return;
+        npc.PropertyChanged += (_, e) => {
+            if (_internalActivate) return;
+            if (e.PropertyName != nameof(IDocumentDock.ActiveDockable)) return;
+            if (dock.ActiveDockable is not MessageAreaDocument doc) return;
+            if (!doc.Id.StartsWith("Msg_")) return;
+            var sessionId = doc.Id["Msg_".Length..];
+            var session = vm.Sessions.FirstOrDefault(s => s.Id == sessionId);
+            if (session is null || session.IsSelected) return;
+            _internalActivate = true;
+            vm.SelectSessionCommand.Execute(session);
+            _internalActivate = false;
+        };
+    }
+
+    private bool _internalActivate;
 
     /// <summary>Sessions 集合变化处理 — 扁平化避免深嵌套</summary>
     private void OnSessionsChanged(IDocumentDock dock, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) {
@@ -183,9 +212,11 @@ public sealed class DockFactory : Factory {
     private void AddSessionDocuments(IDocumentDock dock, System.Collections.IList newItems) {
         dock.VisibleDockables ??= CreateList<IDockable>();
         foreach (SessionItem s in newItems) {
-            var doc = new MessageAreaDocument { Id = $"Msg_{s.Id}", Title = s.Title, Context = _context };
+            var doc = CreateDocumentForSession(s);
             dock.VisibleDockables.Add(doc);
+            _internalActivate = true;
             dock.ActiveDockable = doc;
+            _internalActivate = false;
         }
     }
 
@@ -204,7 +235,11 @@ public sealed class DockFactory : Factory {
     public void ActivateSession(string sessionId) {
         if (_documentDock?.VisibleDockables is not { } list) return;
         var doc = list.FirstOrDefault(d => d.Id == $"Msg_{sessionId}");
-        if (doc is not null) _documentDock.ActiveDockable = doc;
+        if (doc is not null) {
+            _internalActivate = true;
+            _documentDock.ActiveDockable = doc;
+            _internalActivate = false;
+        }
     }
 
     /// <summary>把左侧面板默认 pin（收拢为侧边图标条），鼠标悬停才展开</summary>

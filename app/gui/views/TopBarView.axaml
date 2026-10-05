@@ -56,14 +56,11 @@
         </MenuItem>
       </Menu>
       <!-- goal 进行中指示(右侧) -->
-      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,0">
-        <Button Classes="ghost" Content="+" FontSize="16" Padding="6,2" MinHeight="0"
-                Command="{Binding NewConversationCommand}" ToolTip.Tip="新建会话" />
-        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsGoalRunning}">
-          <TextBlock Text="🎯" FontSize="12" />
-          <TextBlock Text="{Binding GoalProgressText, FallbackValue='goal 进行中'}" FontSize="11"
-                     Foreground="{DynamicResource GuiAccentText}" />
-        </StackPanel>
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,0"
+                  IsVisible="{Binding IsGoalRunning}">
+        <TextBlock Text="🎯" FontSize="12" />
+        <TextBlock Text="{Binding GoalProgressText, FallbackValue='goal 进行中'}" FontSize="11"
+                   Foreground="{DynamicResource GuiAccentText}" />
       </StackPanel>
     </Grid>
   </Border>

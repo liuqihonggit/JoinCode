@@ -10,6 +10,10 @@
           <ControlRecycling x:Key="ControlRecyclingKey" />
         </ResourceDictionary>
         <ResourceDictionary>
+          <Dock x:Key="DockDocumentTabStripHorizontalCreateButtonDock">Left</Dock>
+          <HorizontalAlignment x:Key="DockDocumentTabStripHorizontalCreateButtonAlignment">Left</HorizontalAlignment>
+        </ResourceDictionary>
+        <ResourceDictionary>
           <ResourceDictionary.ThemeDictionaries>
             <ResourceDictionary x:Key='Default'>
               <Color x:Key="RegionColor">#FFFAFAFA</Color>
@@ -42,7 +46,10 @@
     <Style Selector="DocumentControl">
       <Setter Property="HeaderTemplate">
         <DataTemplate DataType="core:IDockable">
-          <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Padding="2" />
+          <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <TextBlock Text="💬" FontSize="12" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Padding="2" />
+          </StackPanel>
         </DataTemplate>
       </Setter>
     </Style>

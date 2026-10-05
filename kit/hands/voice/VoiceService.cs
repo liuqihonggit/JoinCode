@@ -109,41 +109,62 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     }
 
     /// <summary>
-    /// Actor Consumer — 线程独占 _recordingStream/_recordingCts，串行处理命令，无需锁。
+    /// Actor Consumer — 初始行为(Idle/Error 状态),StartRecordingCmd 时 Become(RecordingReceive)。
     /// </summary>
-    protected override void Handle(IVoiceCommand command, CancellationToken ct) { RegisterInFlight(HandleAsyncImpl(command, ct).AsTask()); }
-    private async ValueTask HandleAsyncImpl(IVoiceCommand command, CancellationToken ct) {
-        switch (command) {
-            case StartRecordingCmd cmd:
-            if ((VoiceRecordingState)_stateInt == VoiceRecordingState.Recording) {
-                _logger?.LogWarning(L.T(StringKey.VoiceAlreadyRecording));
-                cmd.Tcs.TrySetResult();
-                break;
+    protected override void Handle(IVoiceCommand command, CancellationToken ct) {
+        if (command is StartRecordingCmd startCmd) {
+            RegisterInFlight(StartRecordingAsync(startCmd, ct).AsTask());
+            return;
+        }
+        if (command is StopRecordingCmd stopCmd) {
+            stopCmd.Tcs.TrySetResult(new VoiceRecordingResult {
+                Success = false,
+                AudioData = Array.Empty<byte>(),
+                Duration = TimeSpan.Zero,
+                ErrorMessage = L.T(StringKey.VoiceNotRecording)
+            });
+            return;
+        }
+        if (command is WriteAudioCmd writeCmd) {
+            writeCmd.Tcs.TrySetResult();
+            return;
+        }
+    }
+
+    private void RecordingReceive(IVoiceCommand command, CancellationToken ct) {
+        if (command is StartRecordingCmd startCmd) {
+            _logger?.LogWarning(L.T(StringKey.VoiceAlreadyRecording));
+            startCmd.Tcs.TrySetResult();
+            return;
+        }
+        RegisterInFlight(HandleRecordingAsync(command, ct).AsTask());
+    }
+
+    private async ValueTask StartRecordingAsync(StartRecordingCmd cmd, CancellationToken ct) {
+        _recordingStream = new MemoryStream();
+        _recordingCts = CancellationTokenSource.CreateLinkedTokenSource(cmd.Ct);
+        _recordingStartTime = _clock.GetUtcNow();
+
+        SetState(VoiceRecordingState.Recording);
+        Become(RecordingReceive);
+        _logger?.LogInformation(L.T(StringKey.VoiceStartRecording));
+
+        _ = Task.Run(() => RecordLoopAsync(_recordingCts.Token));
+        cmd.Tcs.TrySetResult();
+    }
+
+    private async ValueTask HandleRecordingAsync(IVoiceCommand command, CancellationToken ct) {
+        if (command is WriteAudioCmd writeCmd) {
+            if (_recordingStream != null) {
+                GenerateSilenceBuffer(writeCmd.Buffer, _options.SampleRate);
+                await _recordingStream.WriteAsync(writeCmd.Buffer, writeCmd.Buffer.Length == 0 ? default : CancellationToken.None).ConfigureAwait(false);
             }
+            writeCmd.Tcs.TrySetResult();
+            return;
+        }
 
-            _recordingStream = new MemoryStream();
-            _recordingCts = CancellationTokenSource.CreateLinkedTokenSource(cmd.Ct);
-            _recordingStartTime = _clock.GetUtcNow();
-
-            SetState(VoiceRecordingState.Recording);
-            _logger?.LogInformation(L.T(StringKey.VoiceStartRecording));
-
-            _ = Task.Run(() => RecordLoopAsync(_recordingCts.Token));
-            cmd.Tcs.TrySetResult();
-            break;
-
-            case StopRecordingCmd cmd:
+        if (command is StopRecordingCmd cmd) {
             try {
-                if ((VoiceRecordingState)_stateInt != VoiceRecordingState.Recording) {
-                    cmd.Tcs.TrySetResult(new VoiceRecordingResult {
-                        Success = false,
-                        AudioData = Array.Empty<byte>(),
-                        Duration = TimeSpan.Zero,
-                        ErrorMessage = L.T(StringKey.VoiceNotRecording)
-                    });
-                    break;
-                }
-
                 _recordingCts?.Cancel();
                 SetState(VoiceRecordingState.Processing);
 
@@ -155,13 +176,14 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
 
                 if (audioData.Length == 0) {
                     SetState(VoiceRecordingState.Idle);
+                    Become(Handle);
                     cmd.Tcs.TrySetResult(new VoiceRecordingResult {
                         Success = false,
                         AudioData = audioData,
                         Duration = duration,
                         ErrorMessage = L.T(StringKey.VoiceRecordingDataEmpty)
                     });
-                    break;
+                    return;
                 }
 
                 string? transcription = null;
@@ -172,6 +194,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
                 }
 
                 SetState(VoiceRecordingState.Idle);
+                Become(Handle);
                 _logger?.LogInformation(L.T(StringKey.VoiceRecordingComplete, duration.TotalMilliseconds, transcription?.Length ?? 0));
 
                 cmd.Tcs.TrySetResult(new VoiceRecordingResult {
@@ -182,6 +205,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
                 });
             } catch (Exception ex) {
                 SetState(VoiceRecordingState.Error);
+                Become(Handle);
                 cmd.Tcs.TrySetResult(new VoiceRecordingResult {
                     Success = false,
                     AudioData = Array.Empty<byte>(),
@@ -189,15 +213,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
                     ErrorMessage = ex.Message
                 });
             }
-            break;
-
-            case WriteAudioCmd cmd:
-            if (_recordingStream != null) {
-                GenerateSilenceBuffer(cmd.Buffer, _options.SampleRate);
-                await _recordingStream.WriteAsync(cmd.Buffer, cmd.Buffer.Length == 0 ? default : CancellationToken.None).ConfigureAwait(false);
-            }
-            cmd.Tcs.TrySetResult();
-            break;
+            return;
         }
     }
 

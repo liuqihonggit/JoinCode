@@ -131,13 +131,10 @@ public sealed partial class MainViewModel {
     [ObservableProperty]
     private string _goalProgressText = string.Empty;
 
-    /// <summary>刷新 goal 进度文本 — 从 IJccChatSession.GetGoalProgressAsync 拉取</summary>
+    /// <summary>刷新 goal 进度文本 — 从 IJccChatSession.GetGoalProgressAsync 拉取，同时更新 IsGoalRunning</summary>
     public async Task RefreshGoalProgressAsync() {
-        if (!IsGoalRunning) {
-            GoalProgressText = string.Empty;
-            return;
-        }
         var progress = await _session.GetGoalProgressAsync();
+        IsGoalRunning = progress is not null;
         GoalProgressText = progress is null
             ? string.Empty
             : string.IsNullOrEmpty(progress.CurrentNodeName)

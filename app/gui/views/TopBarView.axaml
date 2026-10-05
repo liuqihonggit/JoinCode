@@ -40,6 +40,7 @@
           <MenuItem Header="切换主题" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}" />
           <MenuItem Header="设置面板" Command="{Binding ToggleSidePanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Settings}" />
           <MenuItem Header="底部面板" Command="{Binding TogglePanelCommand}" IsChecked="{Binding IsPanelOpen, Mode=OneWay}" />
+          <MenuItem Header="编辑器" Command="{Binding ToggleEditorViewCommand}" />
           <MenuItem Header="面板">
             <MenuItem Header="💬 会话列表" Command="{Binding ToggleDockPanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Sessions}" />
             <MenuItem Header="📁 目录树" Command="{Binding ToggleDockPanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.FileTree}" />
@@ -53,8 +54,8 @@
           <MenuItem Header="无人值守" IsChecked="{Binding IsUnattendedMode, Mode=TwoWay}" ToolTip.Tip="{Binding UnattendedToggleToolTip}" />
         </MenuItem>
         <MenuItem Header="帮助">
-          <MenuItem Header="快捷键" IsEnabled="False" />
-          <MenuItem Header="关于 JoinCode" IsEnabled="False" />
+          <MenuItem Header="快捷键" Click="OnShowShortcuts" />
+          <MenuItem Header="关于 JoinCode" Click="OnShowAbout" />
         </MenuItem>
       </Menu>
       <!-- goal 进行中指示(右侧) -->

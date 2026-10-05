@@ -71,3 +71,16 @@
 | DSG026 | [DSG026-window-shake-notification-design.md](DSG026-window-shake-notification-design.md) | 窗口震动通知设计 |
 | DSG027 | [DSG027-cli_arg_io_unify_analysis.md](DSG027-cli_arg_io_unify_analysis.md) | CLI 参数 I/O 统一分析 |
 | DSG028 | [DSG028-subagent-stall-defense.md](DSG028-subagent-stall-defense.md) | 子代理卡死防御 |
+
+### Actor / 并发 / 内存
+
+| 编号 | 文件 | 标题 |
+|------|------|------|
+| DSG031 | [DSG031-gui-topbar-inputbar-redesign.md](DSG031-gui-topbar-inputbar-redesign.md) | GUI TopBar/InputBar 重设计 |
+| DSG032 | [DSG032-vscode-style-gui-master-plan.md](DSG032-vscode-style-gui-master-plan.md) | VSCode 风格 GUI 总纲 |
+| DSG033 | [DSG033-actor-mailbox-leak-fix-and-supervision-tree-align-akka.md](DSG033-actor-mailbox-leak-fix-and-supervision-tree-align-akka.md) | Actor 邮箱泄漏修复 + 监督树对齐 Akka |
+| DSG034 | [DSG034-actor-refactor-and-memory-leak-fix.md](DSG034-actor-refactor-and-memory-leak-fix.md) | Actor 改造无锁化 + 内存泄露修复 |
+| DSG035 | [DSG035-dock-layout-fix-plan.md](DSG035-dock-layout-fix-plan.md) | Dock 布局修复计划 |
+| DSG036 | [DSG036-vecidx5-paged-incremental-index.md](DSG036-vecidx5-paged-incremental-index.md) | VECIDX5 分页索引格式 + 跳表增量索引 |
+| DSG037 | [DSG037-interaction-tool-name-cleanup.md](DSG037-interaction-tool-name-cleanup.md) | InteractionToolName 枚举命名误导清理 + 并发防御加固 |
+| DSG038 | [DSG038-deadlock-elimination-overhaul-master-plan.md](DSG038-deadlock-elimination-overhaul-master-plan.md) | 消除死锁设计全面改造总纲 |

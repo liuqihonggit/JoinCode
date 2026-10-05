@@ -20,14 +20,12 @@ public sealed class DockFactory : Factory {
 
     /// <summary>创建完整停靠布局</summary>
     public override IRootDock CreateLayout() {
-        var sessions = new PanelTool { Id = "Sessions", Title = "💬 会话列表", Kind = SidePanelKind.Sessions, Context = _context, CanClose = true, CanPin = true, CanFloat = true, MinWidth = 300 };
         var fileTree = new PanelTool { Id = "FileTree", Title = "📁 目录树", Kind = SidePanelKind.FileTree, Context = _context, CanClose = true, CanPin = true, CanFloat = true, MinWidth = 300 };
         var goal = new PanelTool { Id = "Goal", Title = "🎯 goal 控制", Kind = SidePanelKind.Goal, Context = _context, CanClose = true, CanPin = true, CanFloat = true, MinWidth = 300 };
         var interceptor = new PanelTool { Id = "Interceptor", Title = "🛡 拦截器", Kind = SidePanelKind.Interceptor, Context = _context, CanClose = true, CanPin = true, CanFloat = true, MinWidth = 300 };
         var chatRoom = new PanelTool { Id = "ChatRoom", Title = "👥 聊天室", Kind = SidePanelKind.ChatRoom, Context = _context, CanClose = true, CanPin = true, CanFloat = true, MinWidth = 300 };
         var settings = new PanelTool { Id = "Settings", Title = "⚙ 设置", Kind = SidePanelKind.Settings, Context = _context, CanClose = true, CanPin = true, CanFloat = true, MinWidth = 300 };
 
-        _allPanels[SidePanelKind.Sessions] = sessions;
         _allPanels[SidePanelKind.FileTree] = fileTree;
         _allPanels[SidePanelKind.Goal] = goal;
         _allPanels[SidePanelKind.Interceptor] = interceptor;
@@ -40,8 +38,8 @@ public sealed class DockFactory : Factory {
             Alignment = Alignment.Left,
             Proportion = 0.22,
             GripMode = GripMode.Visible,
-            ActiveDockable = sessions,
-            VisibleDockables = CreateList<IDockable>(sessions, fileTree, goal, interceptor, chatRoom, settings)
+            ActiveDockable = fileTree,
+            VisibleDockables = CreateList<IDockable>(fileTree, goal, interceptor, chatRoom, settings)
         };
 
         var messageDocs = CreateMessageDocuments();

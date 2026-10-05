@@ -155,8 +155,12 @@ public sealed partial class MainViewModel {
         // 构造时 LoadPersistedSessions 用旧 .json 兜底,此处切换后重新加载刷新侧边栏
         if (session.TranscriptService is not null) {
             _sessionStore.SetTranscriptService(session.TranscriptService);
+            ViewModelDiagnosticsLogger.WriteDebug($"AttachRealSession: TranscriptService 注入, Sessions.Clear (现有 {Sessions.Count} 个)");
             Sessions.Clear();
+            ViewModelDiagnosticsLogger.WriteDebug($"AttachRealSession: Sessions.Clear 后 {Sessions.Count} 个, 启动 LoadPersistedSessionsAsync");
             _ = LoadPersistedSessionsAsync();
+        } else {
+            ViewModelDiagnosticsLogger.WriteDebug($"AttachRealSession: TranscriptService 为 null, 不重新加载会话");
         }
     }
 

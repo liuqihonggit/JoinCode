@@ -17,12 +17,18 @@ public sealed partial class MainViewModel {
 
     /// <summary>启动时从同一 sessions 目录恢复历史会话到侧边栏（CLI 与 GUI 共享会话文件）</summary>
     private async Task LoadPersistedSessionsAsync() {
-        foreach (var summary in await _sessionStore.ListSessionsAsync()) {
-            Sessions.Add(new SessionItem {
-                Id = summary.Id,
-                Title = summary.Title
-            });
-        }
+        var summaries = await _sessionStore.ListSessionsAsync();
+        ViewModelDiagnosticsLogger.WriteDebug($"LoadPersistedSessions: 读取到 {summaries.Count} 个会话: [{string.Join(", ", summaries.Select(s => $"{s.Id}({s.Title})"))}]");
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+            foreach (var summary in summaries) {
+                Sessions.Add(new SessionItem {
+                    Id = summary.Id,
+                    Title = summary.Title
+                });
+            }
+            ViewModelDiagnosticsLogger.WriteDebug($"LoadPersistedSessions: Sessions 现有 {Sessions.Count} 个, 调用 RefreshDocuments");
+            _dockFactory?.RefreshDocuments();
+        });
     }
 
     /// <summary>新建一个会话（加入侧边栏并选中）</summary>

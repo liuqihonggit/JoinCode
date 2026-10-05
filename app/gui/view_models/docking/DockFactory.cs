@@ -204,13 +204,22 @@ public sealed class DockFactory : Factory {
 
     /// <summary>Sessions 集合变化处理 — 扁平化避免深嵌套</summary>
     private void OnSessionsChanged(IDocumentDock dock, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) {
-        if (e.NewItems is not null) AddSessionDocuments(dock, e.NewItems);
-        if (e.OldItems is not null) RemoveSessionDocuments(dock, e.OldItems);
+        if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Reset) {
+            if (e.NewItems is not null) AddSessionDocuments(dock, e.NewItems);
+            if (e.OldItems is not null) RemoveSessionDocuments(dock, e.OldItems);
+            return;
+        }
+        var list = dock.VisibleDockables;
+        if (list is null) return;
+        for (var i = list.Count - 1; i >= 0; i--) {
+            if (list[i].Id.StartsWith("Msg_")) list.RemoveAt(i);
+        }
     }
 
     /// <summary>新增会话 → 创建对应 Document 并激活</summary>
     private void AddSessionDocuments(IDocumentDock dock, System.Collections.IList newItems) {
         dock.VisibleDockables ??= CreateList<IDockable>();
+        ViewModelDiagnosticsLogger.WriteDebug($"AddSessionDocuments: 添加 {newItems.Count} 个, VisibleDockables 现有 {dock.VisibleDockables.Count} 个");
         foreach (SessionItem s in newItems) {
             var doc = CreateDocumentForSession(s);
             dock.VisibleDockables.Add(doc);
@@ -238,6 +247,27 @@ public sealed class DockFactory : Factory {
         if (doc is not null) {
             _internalActivate = true;
             _documentDock.ActiveDockable = doc;
+            _internalActivate = false;
+        }
+    }
+
+    /// <summary>从 Sessions 重建所有会话 Document tab — 引擎加载后可靠刷新</summary>
+    public void RefreshDocuments() {
+        if (_documentDock is not { } dock) return;
+        if (_context is not MainViewModel vm) return;
+        var list = dock.VisibleDockables;
+        if (list is null) return;
+        ViewModelDiagnosticsLogger.WriteDebug($"RefreshDocuments: 开始, VisibleDockables 现有 {list.Count} 个, Sessions 有 {vm.Sessions.Count} 个");
+        for (var i = list.Count - 1; i >= 0; i--) {
+            if (list[i].Id.StartsWith("Msg_")) list.RemoveAt(i);
+        }
+        foreach (var session in vm.Sessions) {
+            list.Add(CreateDocumentForSession(session));
+        }
+        ViewModelDiagnosticsLogger.WriteDebug($"RefreshDocuments: 完成, VisibleDockables 现有 {list.Count} 个: [{string.Join(", ", list.Select(d => d.Id))}]");
+        if (list.Count > 0) {
+            _internalActivate = true;
+            dock.ActiveDockable = list[0];
             _internalActivate = false;
         }
     }

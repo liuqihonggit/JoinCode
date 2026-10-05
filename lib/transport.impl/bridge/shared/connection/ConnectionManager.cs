@@ -128,6 +128,7 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
         if (_currentTransport is not null) {
             await _currentTransport.StopAsync(cancellationToken).ConfigureAwait(false);
             _currentTransport.ErrorOccurred -= OnTransportError;
+            _currentTransport.MessageReceived -= OnTransportMessageReceived;
             _currentTransport = null;
         }
 
@@ -166,8 +167,17 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// 注册消息接收回调
     /// </summary>
     public void OnMessageReceived(Func<string, Task> handler) {
+        _messageHandler = handler;
         if (_currentTransport is not null) {
-            _currentTransport.MessageReceived += async (_, e) => await handler(e.Message).ConfigureAwait(false);
+            _currentTransport.MessageReceived += OnTransportMessageReceived;
+        }
+    }
+
+    private Func<string, Task>? _messageHandler;
+
+    private void OnTransportMessageReceived(object? sender, TransportMessageReceivedEventArgs e) {
+        if (_messageHandler is not null) {
+            _ = _messageHandler(e.Message);
         }
     }
 

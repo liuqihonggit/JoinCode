@@ -4,6 +4,9 @@ namespace JoinCode.Abstractions.Services;
 /// <summary>远程缓存刷新命令标记接口</summary>
 public interface IRemoteCacheRefreshCommand;
 
+/// <summary>定时刷新命令 — ActorTimers 定时触发，Handle 内生成动态 IdempotencyKey。</summary>
+public sealed record TimerRefreshCmd : IRemoteCacheRefreshCommand;
+
 /// <summary>刷新缓存命令 — 携带幂等键与 OnSuccess/OnFailure 回调，由 Consumer 串行处理</summary>
 public sealed record RefreshCacheCmd(
     IdempotencyKey IdempotencyKey,
@@ -24,7 +27,6 @@ public sealed record RefreshCacheCmd(
 public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCacheRefreshCommand, Unit> {
     private readonly HttpClient _httpClient;
     private readonly ITelemetryService? _telemetryService;
-    private readonly Timer _refreshTimer;
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly IClockService _clock;
     private ImmutableHamT<string, TItem> _cache = ImmutableHamT<string, TItem>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
@@ -55,13 +57,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         _clock = clock ?? SystemClockService.Instance;
 
         if (!string.IsNullOrEmpty(options.ApiEndpoint)) {
-            _refreshTimer = new Timer(
-                _ => { if (Volatile.Read(ref _disposed) == 0) TrySend(new RefreshCacheCmd(new IdempotencyKey("refresh-cache-timer", Guid.NewGuid().ToString()), _ => { }, _ => { }, _ => { })); },
-                null,
-                options.RefreshInterval,
-                options.RefreshInterval);
-        } else {
-            _refreshTimer = new Timer(_ => { }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            Timers.StartPeriodicTimer("refresh", new TimerRefreshCmd(), options.RefreshInterval, options.RefreshInterval);
         }
     }
 
@@ -133,6 +129,10 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
 
     private async ValueTask HandleAsyncImpl(IRemoteCacheRefreshCommand command, CancellationToken ct) {
         switch (command) {
+            case TimerRefreshCmd:
+            await DoRefreshAsync(ct).ConfigureAwait(false);
+            break;
+
             case RefreshCacheCmd refresh:
             await DoRefreshAsync(ct).ConfigureAwait(false);
             IdempotencyStore?.TryRegister(refresh.IdempotencyKey, Unit.Value);
@@ -147,7 +147,6 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
     public override async ValueTask DisposeAsync() {
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
         _disposeCts.Cancel();
-        _refreshTimer.Dispose();
         _disposeCts.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);
     }

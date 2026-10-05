@@ -1,0 +1,10 @@
+<Project>
+  <Target Name="FixSourceRootTrailingSlash" BeforeTargets="InitializeSourceRootMappedPaths">
+    <ItemGroup>
+      <_BadSourceRoot Include="@(SourceRoot)" Condition="!$([System.String]::Copy('%(Identity)').EndsWith('\')) AND !$([System.String]::Copy('%(Identity)').EndsWith('/'))" />
+      <SourceRoot Remove="@(_BadSourceRoot)" />
+      <SourceRoot Include="%(_BadSourceRoot.Identity)\" />
+      <_BadSourceRoot Remove="@(_BadSourceRoot)" />
+    </ItemGroup>
+  </Target>
+</Project>

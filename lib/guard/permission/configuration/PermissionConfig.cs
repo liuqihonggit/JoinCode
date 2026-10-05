@@ -132,58 +132,82 @@ public class PermissionConfig {
 /// 工具权限规则
 /// 对齐 TS 版 PermissionRuleValue — 支持 ToolName 级和 RuleContent 级（如 domain:xxx.com）匹配
 /// </summary>
-public class ToolPermissionRule : DescribedRule {
+public sealed record ToolPermissionRule {
+    /// <summary>规则值（工具名）</summary>
+    public string Value { get; init; } = string.Empty;
+
+    /// <summary>规则描述</summary>
+    public string Description { get; init; } = string.Empty;
+
     /// <summary>
     /// 工具名称（兼容旧配置，委托到 Value）
     /// </summary>
-    public string ToolName { get => Value; set => Value = value; }
+    public string ToolName { get => Value; init => Value = value; }
 
     /// <summary>
     /// 规则内容 — 用于细粒度匹配，格式为 "domain:hostname"
     /// 对齐 TS 版 ruleContent — web_fetch 工具使用 "domain:example.com" 格式
     /// 为空时仅匹配 ToolName
     /// </summary>
-    public string? RuleContent { get; set; }
+    public string? RuleContent { get; init; }
 }
 
 /// <summary>
 /// 操作模式定义
 /// </summary>
-public class OperationPattern : DescribedRule {
+public sealed record OperationPattern {
+    /// <summary>规则值（模式）</summary>
+    public string Value { get; init; } = string.Empty;
+
+    /// <summary>规则描述</summary>
+    public string Description { get; init; } = string.Empty;
+
     /// <summary>
     /// 匹配模式（兼容旧配置，委托到 Value）
     /// </summary>
-    public string Pattern { get => Value; set => Value = value; }
+    public string Pattern { get => Value; init => Value = value; }
 
     /// <summary>
     /// 匹配类型
     /// </summary>
-    public PatternType PatternType { get; set; } = PatternType.Contains;
+    public PatternType PatternType { get; init; } = PatternType.Contains;
 }
 
 /// <summary>
 /// 敏感路径模式
 /// </summary>
-public class SensitivePathPattern : DescribedRule {
+public sealed record SensitivePathPattern {
+    /// <summary>规则值（路径）</summary>
+    public string Value { get; init; } = string.Empty;
+
+    /// <summary>规则描述</summary>
+    public string Description { get; init; } = string.Empty;
+
     /// <summary>
     /// 路径（兼容旧配置，委托到 Value）
     /// </summary>
-    public string Path { get => Value; set => Value = value; }
+    public string Path { get => Value; init => Value = value; }
 
     /// <summary>
     /// 路径匹配类型
     /// </summary>
-    public PathType PathType { get; set; } = PathType.Contains;
+    public PathType PathType { get; init; } = PathType.Contains;
 }
 
 /// <summary>
 /// 危险命令模式
 /// </summary>
-public class DangerousCommandPattern : DescribedRule {
+public sealed record DangerousCommandPattern {
+    /// <summary>规则值（命令模式）</summary>
+    public string Value { get; init; } = string.Empty;
+
+    /// <summary>规则描述</summary>
+    public string Description { get; init; } = string.Empty;
+
     /// <summary>
     /// 匹配模式（兼容旧配置，委托到 Value）
     /// </summary>
-    public string Pattern { get => Value; set => Value = value; }
+    public string Pattern { get => Value; init => Value = value; }
 }
 
 /// <summary>

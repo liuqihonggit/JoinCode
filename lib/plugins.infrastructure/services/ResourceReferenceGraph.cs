@@ -75,17 +75,18 @@ public sealed class ResourceReferenceGraph : IResourceReferenceGraph {
 
     /// <summary>移除某插件的所有引用关系 — 卸载完成后清理</summary>
     public void RemoveAllForPlugin(string pluginName) {
+        var refsToRemove = new List<(ObjectId, ObjectId)>();
         var snapshot = Volatile.Read(ref _byConsumer);
         if (snapshot.TryGetValue(pluginName, out var consumerList)) {
             ImmutableInterlocked.Update(ref _byConsumer, d => d.Remove(pluginName));
-            foreach (var r in consumerList)
-                ImmutableInterlocked.Update(ref _references, d => d.Remove((r.ConsumerResourceId, r.TargetResourceId)));
+            refsToRemove.AddRange(consumerList.Select(r => (r.ConsumerResourceId, r.TargetResourceId)));
         }
         var snapshot2 = Volatile.Read(ref _byTarget);
         if (snapshot2.TryGetValue(pluginName, out var targetList)) {
             ImmutableInterlocked.Update(ref _byTarget, d => d.Remove(pluginName));
-            foreach (var r in targetList)
-                ImmutableInterlocked.Update(ref _references, d => d.Remove((r.ConsumerResourceId, r.TargetResourceId)));
+            refsToRemove.AddRange(targetList.Select(r => (r.ConsumerResourceId, r.TargetResourceId)));
         }
+        if (refsToRemove.Count > 0)
+            ImmutableInterlocked.Update(ref _references, d => d.RemoveRange(refsToRemove));
     }
 }

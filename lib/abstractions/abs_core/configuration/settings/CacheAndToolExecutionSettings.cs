@@ -3,68 +3,68 @@ namespace JoinCode.Abstractions.Configuration.Settings;
 /// <summary>
 /// 缓存配置设置
 /// </summary>
-public class CacheSettings {
+public record CacheSettings {
     /// <summary>
     /// 缓存过期时间（分钟）
     /// </summary>
-    public int ExpirationMinutes { get; set; } = 60;
+    public int ExpirationMinutes { get; init; } = 60;
 
     /// <summary>
     /// 最大缓存项数
     /// </summary>
-    public int MaxCacheItems { get; set; } = WorkflowConstants.Cache.MaxCacheItems;
+    public int MaxCacheItems { get; init; } = WorkflowConstants.Cache.MaxCacheItems;
 
     /// <summary>
     /// 是否启用压缩
     /// </summary>
-    public bool EnableCompression { get; set; } = true;
+    public bool EnableCompression { get; init; } = true;
 
     /// <summary>
     /// 压缩阈值（字节）
     /// </summary>
-    public int CompressionThresholdBytes { get; set; } = 1024;
+    public int CompressionThresholdBytes { get; init; } = 1024;
 }
 
 /// <summary>
 /// 工具执行配置设置
 /// </summary>
-public class ToolExecutionSettings {
+public record ToolExecutionSettings {
     /// <summary>
     /// 工具执行超时时间（秒）
     /// </summary>
-    public int ExecutionTimeoutSeconds { get; set; } = WorkflowConstants.Timeouts.ToolDefaultTimeoutSeconds;
+    public int ExecutionTimeoutSeconds { get; init; } = WorkflowConstants.Timeouts.ToolDefaultTimeoutSeconds;
 
     /// <summary>
     /// 是否启用工具缓存
     /// </summary>
-    public bool EnableToolCache { get; set; } = true;
+    public bool EnableToolCache { get; init; } = true;
 
     /// <summary>
     /// 工具缓存过期时间（分钟）
     /// </summary>
-    public int ToolCacheExpirationMinutes { get; set; } = 60;
+    public int ToolCacheExpirationMinutes { get; init; } = 60;
 
     /// <summary>
     /// 最大工具并行执行数
     /// </summary>
-    public int MaxParallelToolExecution { get; set; } = 5;
+    public int MaxParallelToolExecution { get; init; } = 5;
 
     /// <summary>
     /// 是否启用流式工具并发执行 — 对齐 TS tengu_streaming_tool_execution2 特性门控
     /// 启用后，LLM 流式响应期间收到 tool_use block 就立即执行，而非等待流式结束
     /// 并发安全工具可并行执行，非并发安全工具独占执行
     /// </summary>
-    public bool UseStreamingToolExecution { get; set; } = false;
+    public bool UseStreamingToolExecution { get; init; } = false;
 
     /// <summary>
     /// 是否启用工具结果验证
     /// </summary>
-    public bool EnableResultValidation { get; set; } = true;
+    public bool EnableResultValidation { get; init; } = true;
 
     /// <summary>
     /// 危险工具列表
     /// </summary>
-    public List<string> DangerousTools { get; set; } = new()
+    public List<string> DangerousTools { get; init; } = new()
     {
         ToolCategoryEnumConstants.Shell,
         FileToolNameEnumConstants.FileWrite,
@@ -74,52 +74,52 @@ public class ToolExecutionSettings {
     /// <summary>
     /// 工具健康评分配置 — 控制奖惩幅度、熔断阈值、时间衰减率
     /// </summary>
-    public ToolScoreSettings ToolScore { get; set; } = new();
+    public ToolScoreSettings ToolScore { get; init; } = new();
 
     /// <summary>
     /// 工具黑名单 — 完全禁止调用的工具（用户主动禁用）
     /// </summary>
-    public List<string> BlacklistedTools { get; set; } = [];
+    public List<string> BlacklistedTools { get; init; } = [];
 
     /// <summary>
     /// 工具降权配置 — 键为工具名，值为额外扣分（负数降低排序优先级）
     /// </summary>
-    public Dictionary<string, int> ToolPenalties { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, int> ToolPenalties { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 自定义工具链超边 — 用户可覆盖或扩展预设超边
     /// </summary>
-    public List<HyperedgeSettings> CustomHyperedges { get; set; } = [];
+    public List<HyperedgeSettings> CustomHyperedges { get; init; } = [];
 
     /// <summary>
     /// 搜索范围安全配置 — 控制搜索命令的危险标志和过大路径检测
     /// </summary>
-    public SearchScopeSettings SearchScope { get; set; } = new();
+    public SearchScopeSettings SearchScope { get; init; } = new();
 }
 
 /// <summary>
 /// 超边配置 — 定义一组语义关联的工具共享评分空间
 /// </summary>
-public class HyperedgeSettings {
+public record HyperedgeSettings {
     /// <summary>
     /// 超边标识
     /// </summary>
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; init; } = string.Empty;
 
     /// <summary>
     /// 成员工具名称列表
     /// </summary>
-    public List<string> ToolNames { get; set; } = [];
+    public List<string> ToolNames { get; init; } = [];
 
     /// <summary>
     /// 超边权重（0-1），影响共享评分在最终评分中的占比
     /// </summary>
-    public double Weight { get; set; } = 0.5;
+    public double Weight { get; init; } = 0.5;
 
     /// <summary>
     /// 链路顺序 — LLM使用工具A后推荐的后续工具序列
     /// </summary>
-    public List<string> ChainOrder { get; set; } = [];
+    public List<string> ChainOrder { get; init; } = [];
 
     /// <summary>
     /// 转换为 ToolHyperedge
@@ -135,41 +135,41 @@ public class HyperedgeSettings {
 /// <summary>
 /// 工具健康评分配置 — 控制奖惩幅度、熔断阈值、时间衰减率
 /// </summary>
-public class ToolScoreSettings {
+public record ToolScoreSettings {
     /// <summary>
     /// 成功执行评分增量
     /// </summary>
-    public int SuccessDelta { get; set; } = 1;
+    public int SuccessDelta { get; init; } = 1;
 
     /// <summary>
     /// 失败执行评分增量（负数）
     /// </summary>
-    public int FailDelta { get; set; } = -5;
+    public int FailDelta { get; init; } = -5;
 
     /// <summary>
     /// 提示词阈值 — 连续失败次数达到此值时注入提示词提醒LLM换策略（不禁用工具）
     /// </summary>
-    public int WarningThreshold { get; set; } = 3;
+    public int WarningThreshold { get; init; } = 3;
 
     /// <summary>
     /// 评分下限
     /// </summary>
-    public int ScoreMin { get; set; } = -100;
+    public int ScoreMin { get; init; } = -100;
 
     /// <summary>
     /// 评分上限
     /// </summary>
-    public int ScoreMax { get; set; } = 100;
+    public int ScoreMax { get; init; } = 100;
 
     /// <summary>
     /// 每小时时间衰减率 — 闲置工具的负分逐渐恢复
     /// </summary>
-    public double DecayRatePerHour { get; set; } = 0.1;
+    public double DecayRatePerHour { get; init; } = 0.1;
 
     /// <summary>
     /// 每次衰减恢复的分数
     /// </summary>
-    public int DecayRecoveryScore { get; set; } = 1;
+    public int DecayRecoveryScore { get; init; } = 1;
 
     /// <summary>
     /// 转换为 ToolScoreConfig
@@ -188,76 +188,76 @@ public class ToolScoreSettings {
 /// <summary>
 /// LLM 执行配置设置
 /// </summary>
-public class LlmExecutionSettings {
+public record LlmExecutionSettings {
     /// <summary>
     /// 温度参数 (0-2)
     /// </summary>
-    public double Temperature { get; set; } = 0.7;
+    public double Temperature { get; init; } = 0.7;
 
     /// <summary>
     /// 最大令牌数
     /// </summary>
-    public int MaxTokens { get; set; } = 4096;
+    public int MaxTokens { get; init; } = 4096;
 
     /// <summary>
     /// Top P 采样参数
     /// </summary>
-    public double TopP { get; set; } = 1.0;
+    public double TopP { get; init; } = 1.0;
 
     /// <summary>
     /// 频率惩罚
     /// </summary>
-    public double FrequencyPenalty { get; set; } = 0.0;
+    public double FrequencyPenalty { get; init; } = 0.0;
 
     /// <summary>
     /// 存在惩罚
     /// </summary>
-    public double PresencePenalty { get; set; } = 0.0;
+    public double PresencePenalty { get; init; } = 0.0;
 
     /// <summary>
     /// 停止序列
     /// </summary>
-    public List<string> StopSequences { get; set; } = [];
+    public List<string> StopSequences { get; init; } = [];
 
     /// <summary>
     /// 超时时间（秒）
     /// </summary>
-    public int TimeoutSeconds { get; set; } = 120;
+    public int TimeoutSeconds { get; init; } = 120;
 
     /// <summary>
     /// 重试次数
     /// </summary>
-    public int RetryCount { get; set; } = 3;
+    public int RetryCount { get; init; } = 3;
 
     /// <summary>
     /// 重试延迟（毫秒）
     /// </summary>
-    public int RetryDelayMs { get; set; } = WorkflowConstants.Retry.DefaultRetryDelayMs;
+    public int RetryDelayMs { get; init; } = WorkflowConstants.Retry.DefaultRetryDelayMs;
 }
 
 /// <summary>
 /// 搜索范围安全配置 — 控制搜索命令的危险标志和过大路径检测
 /// 支持热重载：settings.json 变更时自动更新 SearchScopeValidator
 /// </summary>
-public class SearchScopeSettings {
+public record SearchScopeSettings {
     /// <summary>
     /// 是否启用搜索范围检测（默认启用）
     /// </summary>
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get; init; } = true;
 
     /// <summary>
     /// 搜索类命令超时时间（秒，默认30）— 搜索命令超时自动缩短
     /// </summary>
-    public int SearchCommandTimeoutSeconds { get; set; } = 30;
+    public int SearchCommandTimeoutSeconds { get; init; } = 30;
 
     /// <summary>
     /// 额外的危险标志映射 — 键为命令名（如 "rg"），值为该命令的危险标志列表
     /// 合并到内置默认值之上，不需要重复定义已有标志
     /// </summary>
-    public Dictionary<string, List<string>> ExtraDangerousFlags { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, List<string>> ExtraDangerousFlags { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 额外的过大路径前缀 — 合并到内置默认值之上
     /// </summary>
-    public List<string> ExtraExcessivePathPrefixes { get; set; } = [];
+    public List<string> ExtraExcessivePathPrefixes { get; init; } = [];
 }

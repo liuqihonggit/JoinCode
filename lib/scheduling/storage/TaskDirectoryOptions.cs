@@ -4,11 +4,11 @@ namespace Core.Scheduling;
 /// <summary>
 /// 任务目录配置选项
 /// </summary>
-public sealed class TaskDirectoryOptions {
+public sealed record TaskDirectoryOptions {
     /// <summary>
     /// 任务目录路径，默认为 .jcc/tasks
     /// </summary>
-    public string TaskDirectoryPath { get; set; } = Path.Combine(
+    public string TaskDirectoryPath { get; init; } = Path.Combine(
         AppDataConstants.Paths.JccDirectory,
         "tasks");
 

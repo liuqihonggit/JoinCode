@@ -4,7 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 并行任务调度器 - 用于协调多智能体并行执行任务
 /// </summary>
-public sealed class ParallelTaskScheduler {
+public sealed class ParallelTaskScheduler : IDisposable {
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, ScheduledTask> _scheduledTasks = new();
     private readonly ConcurrentDictionary<string, List<string>> _taskDependencies = new();
@@ -194,6 +194,16 @@ public sealed class ParallelTaskScheduler {
             await Task.Delay(100, cancellationToken).ConfigureAwait(false);
         }
     }
+
+    /// <summary>释放 — 清空任务字典防止内存泄露（幂等）</summary>
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _scheduledTasks.Clear();
+        _taskDependencies.Clear();
+        _reverseDependencies.Clear();
+    }
+
+    private int _disposed;
 }
 
 /// <summary>

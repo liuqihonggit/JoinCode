@@ -4,17 +4,17 @@ namespace JoinCode.Entry;
 /// .env/api.json 本地开发配置 — Debug/Release 均可使用
 /// 解析 JoinCode 格式的 JSON 配置，映射到 JoinCode 配置系统
 /// </summary>
-internal sealed class DotEnvConfig {
+internal sealed record DotEnvConfig {
     /// <summary>API Key</summary>
-    public string? ApiKey { get; set; }
+    public string? ApiKey { get; init; }
     /// <summary>供应商名称</summary>
-    public string? Vendor { get; set; }
+    public string? Vendor { get; init; }
     /// <summary>API 端点地址</summary>
-    public string? Endpoint { get; set; }
+    public string? Endpoint { get; init; }
     /// <summary>模型 ID</summary>
-    public string? ModelId { get; set; }
+    public string? ModelId { get; init; }
     /// <summary>推理努力级别</summary>
-    public string? EffortLevel { get; set; }
+    public string? EffortLevel { get; init; }
 
     /// <summary>
     /// 从 .env/api.json 文件解析配置
@@ -29,29 +29,31 @@ internal sealed class DotEnvConfig {
             if (!json.RootElement.TryGetProperty("env", out var envObj))
                 return null;
 
-            var config = new DotEnvConfig();
             registry ??= Core.Configuration.Providers.ProviderDefinitionRegistry.Create(new ModelConfigLoader());
+
+            string? vendor = null;
+            string? apiKey = null;
 
             // 多态：遍历 ProviderDefinitionRegistry 注册表匹配环境变量，替代 if-else 链硬编码
             // 新增供应商时无需修改此文件，只需在 ProviderDefinitionRegistry 注册即可
             foreach (var providerName in registry.GetRegisteredProviders()) {
                 var def = registry.TryGet(providerName);
                 if (def?.ApiKeyEnvironmentVariable is not null && envObj.TryGetProperty(def.ApiKeyEnvironmentVariable, out var keyVal) && keyVal.ValueKind == System.Text.Json.JsonValueKind.String) {
-                    config.Vendor = providerName;
-                    config.ApiKey = keyVal.GetString();
+                    vendor = providerName;
+                    apiKey = keyVal.GetString();
                     break;
                 }
             }
 
             // ANTHROPIC_AUTH_TOKEN 兼容（Anthropic 旧版环境变量名，不在 ApiKeyEnvironmentVariable 中）— 委托 VendorKind 枚举 — P1-⑤
-            if (config.Vendor is null && envObj.TryGetProperty("ANTHROPIC_AUTH_TOKEN", out var authTokenVal) && authTokenVal.ValueKind == System.Text.Json.JsonValueKind.String) {
-                config.Vendor = VendorKind.Anthropic.ToValue();
-                config.ApiKey = authTokenVal.GetString();
+            if (vendor is null && envObj.TryGetProperty("ANTHROPIC_AUTH_TOKEN", out var authTokenVal) && authTokenVal.ValueKind == System.Text.Json.JsonValueKind.String) {
+                vendor = VendorKind.Anthropic.ToValue();
+                apiKey = authTokenVal.GetString();
             }
 
             // JCC_VENDOR 显式指定 — 委托 JccEnvVar 枚举（唯一数据源）— P0-④
             if (envObj.TryGetProperty(JccEnvVar.Vendor.ToValue(), out var providerVal) && providerVal.ValueKind == System.Text.Json.JsonValueKind.String)
-                config.Vendor = providerVal.GetString();
+                vendor = providerVal.GetString();
 
             // 多态：遍历注册表匹配 Endpoint 环境变量，替代硬编码 ANTHROPIC_BASE_URL — 委托 JccEnvVar 枚举（唯一数据源）— P0-④
             var jccEndpointName = JccEnvVar.Endpoint.ToValue();
@@ -61,8 +63,8 @@ internal sealed class DotEnvConfig {
                 : null;
 
             // 各 Provider 的 Endpoint 环境变量匹配
-            if (rawEndpoint is null && config.Vendor is not null) {
-                var def = registry.TryGet(config.Vendor);
+            if (rawEndpoint is null && vendor is not null) {
+                var def = registry.TryGet(vendor);
                 if (def?.EndpointEnvironmentVariable is not null && envObj.TryGetProperty(def.EndpointEnvironmentVariable, out var epVal) && epVal.ValueKind == System.Text.Json.JsonValueKind.String) {
                     rawEndpoint = epVal.GetString();
                 }
@@ -73,17 +75,18 @@ internal sealed class DotEnvConfig {
                 rawEndpoint = anthropicBaseVal.GetString();
             }
 
+            string? endpoint = null;
             if (rawEndpoint is not null) {
                 // 去掉末尾的 /v1 或 /v1/，因为 GetChatEndpoint 会追加 "v1/messages"
                 var trimmed = rawEndpoint.TrimEnd('/');
                 if (trimmed.EndsWith("/v1", System.StringComparison.OrdinalIgnoreCase))
                     trimmed = trimmed[..^3];
-                config.Endpoint = trimmed + "/";
+                endpoint = trimmed + "/";
             }
 
             // Model: JCC_MODEL_ID（通用，委托 JccEnvVar 枚举），ANTHROPIC_DEFAULT_SONNET_MODEL（兼容旧版）— P0-④
             var jccModelIdName = JccEnvVar.ModelId.ToValue();
-            config.ModelId = envObj.EnumerateObject()
+            var modelId = envObj.EnumerateObject()
                 .FirstOrDefault(p => p.Name == jccModelIdName || p.Name == "ANTHROPIC_DEFAULT_SONNET_MODEL")
                 .Value.ValueKind == System.Text.Json.JsonValueKind.String
                 ? envObj.EnumerateObject()
@@ -92,10 +95,17 @@ internal sealed class DotEnvConfig {
                 : null;
 
             // Effort Level — 委托 JccEnvVar 枚举（唯一数据源）— P0-④
+            string? effortLevel = null;
             if (envObj.TryGetProperty(JccEnvVar.EffortLevel.ToValue(), out var effortVal) && effortVal.ValueKind == System.Text.Json.JsonValueKind.String)
-                config.EffortLevel = effortVal.GetString();
+                effortLevel = effortVal.GetString();
 
-            return config;
+            return new DotEnvConfig {
+                ApiKey = apiKey,
+                Vendor = vendor,
+                Endpoint = endpoint,
+                ModelId = modelId,
+                EffortLevel = effortLevel
+            };
         } catch (System.Text.Json.JsonException ex) {
             logger?.LogWarning(ex, "DotEnvConfig: JSON 解析失败");
             return null;
@@ -130,8 +140,8 @@ internal sealed class DotEnvConfig {
     /// <summary>
     /// 将配置应用到内存中的 WorkflowConfig
     /// </summary>
-    public void ApplyToMemory(WorkflowConfig config) {
-        ApplyToMemory(config, Core.Configuration.Providers.ProviderDefinitionRegistry.Create(new ModelConfigLoader()));
+    public WorkflowConfig ApplyToMemory(WorkflowConfig config) {
+        return ApplyToMemory(config, Core.Configuration.Providers.ProviderDefinitionRegistry.Create(new ModelConfigLoader()));
     }
 
     /// <summary>
@@ -139,27 +149,34 @@ internal sealed class DotEnvConfig {
     /// </summary>
     /// <param name="config">目标 WorkflowConfig 实例</param>
     /// <param name="registry">供应商定义注册表</param>
-    public void ApplyToMemory(WorkflowConfig config, IProviderDefinitionRegistry registry) {
-        if (ApiKey is not null)
-            config.Provider.ApiKey = ApiKey;
-
-        if (Vendor is not null)
-            config.Provider.Vendor = Vendor;
-
-        if (Endpoint is not null)
-            config.Provider.Endpoint = Endpoint;
-
-        if (ModelId is not null)
-            config.Provider.ModelId = ModelId;
+    public WorkflowConfig ApplyToMemory(WorkflowConfig config, IProviderDefinitionRegistry registry) {
+        var p = config.Provider;
+        var newApiKey = ApiKey ?? p.ApiKey;
+        var newVendor = Vendor ?? p.Vendor;
+        var newEndpoint = Endpoint ?? p.Endpoint;
+        var newModelId = ModelId ?? p.ModelId;
+        var newDefinition = p.Definition;
+        var newProtocol = p.Protocol;
 
         if (Vendor is not null) {
             var definition = registry.TryGet(Vendor);
             if (definition is not null) {
-                config.Provider.Definition = definition;
-                config.Provider.Protocol = definition.Protocol.ToValue();
-                config.Provider.ModelId ??= definition.DefaultModelId;
-                config.Provider.Endpoint ??= definition.DefaultEndpoint;
+                newDefinition = definition;
+                newProtocol = definition.Protocol.ToValue();
+                newModelId ??= definition.DefaultModelId;
+                newEndpoint ??= definition.DefaultEndpoint;
             }
         }
+
+        return config with {
+            Provider = p with {
+                ApiKey = newApiKey,
+                Vendor = newVendor,
+                Endpoint = newEndpoint,
+                ModelId = newModelId,
+                Definition = newDefinition,
+                Protocol = newProtocol,
+            },
+        };
     }
 }

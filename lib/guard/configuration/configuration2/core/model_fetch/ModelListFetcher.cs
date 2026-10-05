@@ -154,26 +154,33 @@ public sealed class ModelListFetcher : IModelListFetcher {
 
             var list = new List<RemoteModelInfo>();
             foreach (var item in data.EnumerateArray()) {
-                var info = new RemoteModelInfo();
+                string? id = null;
                 if (item.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.String)
-                    info.Id = idProp.GetString() ?? string.Empty;
-                if (string.IsNullOrEmpty(info.Id))
+                    id = idProp.GetString();
+                if (string.IsNullOrEmpty(id))
                     continue;
 
+                var description = string.Empty;
                 if (item.TryGetProperty("description", out var descProp) && descProp.ValueKind == JsonValueKind.String)
-                    info.Description = descProp.GetString() ?? string.Empty;
+                    description = descProp.GetString() ?? string.Empty;
 
+                var contextLength = 0;
                 if (item.TryGetProperty("context_length", out var ctxProp) && ctxProp.ValueKind == JsonValueKind.Number)
-                    info.ContextLength = ctxProp.GetInt32();
+                    contextLength = ctxProp.GetInt32();
 
+                var maxOutputLength = 0;
                 if (item.TryGetProperty("max_output_length", out var maxOutProp) && maxOutProp.ValueKind == JsonValueKind.Number)
-                    info.MaxOutputLength = maxOutProp.GetInt32();
+                    maxOutputLength = maxOutProp.GetInt32();
 
-                info.InputModalities = ParseStringArray(item, "input_modalities");
-                info.OutputModalities = ParseStringArray(item, "output_modalities");
-                info.SupportedFeatures = ParseStringArray(item, "supported_features");
-
-                list.Add(info);
+                list.Add(new RemoteModelInfo {
+                    Id = id!,
+                    Description = description,
+                    ContextLength = contextLength,
+                    MaxOutputLength = maxOutputLength,
+                    InputModalities = ParseStringArray(item, "input_modalities"),
+                    OutputModalities = ParseStringArray(item, "output_modalities"),
+                    SupportedFeatures = ParseStringArray(item, "supported_features")
+                });
             }
             return list;
         } catch {

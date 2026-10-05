@@ -92,9 +92,11 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             var data = RelaxedJsonSerializer.Deserialize(json, ThinkingStoreJsonContext.Default.ThinkingStoreData);
             if (data?.Entries == null) return;
 
-            foreach (var kvp in data.Entries) {
-                ImmutableInterlocked.Update(ref _entries, d => d.SetItem(kvp.Key, kvp.Value.ToImmutableList()));
-            }
+            ImmutableInterlocked.Update(ref _entries, d => {
+                foreach (var kvp in data.Entries)
+                    d = d.SetItem(kvp.Key, kvp.Value.ToImmutableList());
+                return d;
+            });
         } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.VaultLogThinkingLoadFailed));
         }

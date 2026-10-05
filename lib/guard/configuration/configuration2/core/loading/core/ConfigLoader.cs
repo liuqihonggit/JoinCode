@@ -113,15 +113,18 @@ public class ConfigLoader {
             var config = _settingsMapper.ToWorkflowConfig(settings);
 
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）
-            await _settingsMapper.ApplyEnvOverridesAsync(config, settings).ConfigureAwait(false);
+            config = await _settingsMapper.ApplyEnvOverridesAsync(config, settings).ConfigureAwait(false);
 
             // Step 5: 统一 API Key 解析（auth.json → Provider 专属变量）— auth.json 已在 Step 1 预读
-            config.Provider.ApiKey = await ResolveApiKeyAsync(
+            var resolvedApiKey = await ResolveApiKeyAsync(
                 config.Provider.Vendor, config.Provider.Definition, fs, cancellationToken, preloadedAuthData).ConfigureAwait(false);
+            config = config with { Provider = config.Provider with { ApiKey = resolvedApiKey } };
 
             // Step 6: 规则赋值
-            config.ProjectRules = await projectRulesTask.ConfigureAwait(false);
-            config.ExternalRules = await externalRulesTask.ConfigureAwait(false);
+            config = config with {
+                ProjectRules = await projectRulesTask.ConfigureAwait(false),
+                ExternalRules = await externalRulesTask.ConfigureAwait(false)
+            };
 
             // Step 7: 验证 Provider 配置 — Provider 必须有 API Key
             // 元命令模式（mcp_list/slash_call 等）跳过验证，CI 环境无 API Key 时也能运行

@@ -1,10 +1,10 @@
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
-public class PingResult {
+public sealed record PingResult {
 }
 
-public class LoggingSetLevelRequestParams {
+public sealed record LoggingSetLevelRequestParams {
     /// <summary>获取或设置日志级别。</summary>
     [JsonPropertyName("level")]
-    public string Level { get; set; } = "info";
+    public string Level { get; init; } = "info";
 }

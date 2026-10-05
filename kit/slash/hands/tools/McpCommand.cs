@@ -205,17 +205,14 @@ public sealed class McpCommand : ChatCommandBase {
             return;
         }
 
+        var isStdio = transport == McpTransportType.Stdio.ToValue();
         var entry = new McpServerConfigEntry {
             Type = transport,
-            Env = envVars.Count > 0 ? envVars : []
+            Env = envVars.Count > 0 ? envVars : [],
+            Command = isStdio ? commandOrUrl : null,
+            Args = isStdio && remainingArgs.Count > 0 ? remainingArgs : [],
+            Url = isStdio ? null : commandOrUrl,
         };
-
-        if (transport == McpTransportType.Stdio.ToValue()) {
-            entry.Command = commandOrUrl;
-            entry.Args = remainingArgs.Count > 0 ? remainingArgs : [];
-        } else {
-            entry.Url = commandOrUrl;
-        }
 
         try {
             var configStore = ResolveConfigStore(context);

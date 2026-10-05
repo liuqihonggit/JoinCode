@@ -53,4 +53,11 @@ public sealed class MergeQueueService : IMergeQueueService {
 
     /// <inheritdoc/>
     public int PendingCount => _queue.Count;
+
+    /// <summary>
+    /// 释放资源，清空合并队列
+    /// </summary>
+    public void Dispose() {
+        while (_queue.TryDequeue(out _)) { }
+    }
 }

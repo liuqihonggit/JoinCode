@@ -128,7 +128,7 @@ public sealed class EngineSessionFactory {
         var config = await ApplicationBuilder.LoadConfigAsync(options, fs, modelConfigLoader).ConfigureAwait(false);
 
         if (clearPipeEndpoint)
-            config.PipeEndpoint = null;
+            config = config with { PipeEndpoint = null };
 
         var builder = configureModules(new ApplicationBuilder());
 

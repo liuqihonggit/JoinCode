@@ -39,6 +39,23 @@ public sealed class DebounceTracker : IDisposable {
             var current = _internalWriteTimestamps;
             if (Interlocked.CompareExchange(ref _internalWriteTimestamps, current.SetItem(normalizedPath, now), current) == current) break;
         }
+        CleanupExpiredTimestamps(now);
+    }
+
+    /// <summary>
+    /// 清理过期的内部写入标记 — 超过 InternalWriteWindowMs 的标记将被移除，防止无限累积
+    /// </summary>
+    /// <param name="now">当前时间戳（毫秒）</param>
+    private void CleanupExpiredTimestamps(long now) {
+        var threshold = now - InternalWriteWindowMs;
+        while (true) {
+            var current = _internalWriteTimestamps;
+            if (current.IsEmpty) return;
+            var toRemove = current.Where(kvp => kvp.Value < threshold).Select(kvp => kvp.Key).ToList();
+            if (toRemove.Count == 0) return;
+            var updated = toRemove.Aggregate(current, (d, key) => d.Remove(key));
+            if (Interlocked.CompareExchange(ref _internalWriteTimestamps, updated, current) == current) break;
+        }
     }
 
     /// <summary>

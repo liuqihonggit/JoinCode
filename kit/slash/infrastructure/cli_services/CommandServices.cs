@@ -61,8 +61,8 @@ public sealed class CommandServices {
     /// <summary>Bridge 客户端</summary>
     public BridgeClient? BridgeClient { get; init; }
 
-    /// <summary>工作流配置</summary>
-    public WorkflowConfig? WorkflowConfig { get; init; }
+    /// <summary>工作流配置 — 运行时可替换引用（/vendor、/fast 等命令通过 with 表达式构造新 config 后写回）</summary>
+    public WorkflowConfig? WorkflowConfig { get; set; }
 
     /// <summary>执行设置提供者</summary>
     public IExecutionSettingsProvider? ExecutionSettingsProvider { get; init; }

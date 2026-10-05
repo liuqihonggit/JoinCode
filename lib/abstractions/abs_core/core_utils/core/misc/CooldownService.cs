@@ -35,4 +35,18 @@ public static class CooldownService {
     /// 重置全部冷却状态 — 仅供测试使用，清除所有 key 的触发记录。
     /// </summary>
     public static void Reset() => LastTrigger.Clear();
+
+    /// <summary>
+    /// 清理过期冷却记录 — 删除上次触发时间超过指定时长的 key，防止 key 无限增长。
+    /// 供外部定时调用（如每 5 分钟一次），maxAge 默认 1 小时。
+    /// </summary>
+    /// <param name="maxAge">最大存活时长，超过此时长未再触发的 key 将被移除，默认 1 小时</param>
+    public static void Cleanup(TimeSpan? maxAge = null) {
+        var threshold = DateTime.UtcNow - (maxAge ?? TimeSpan.FromHours(1));
+        foreach (var kvp in LastTrigger) {
+            if (kvp.Value < threshold) {
+                LastTrigger.TryRemove(kvp.Key, out _);
+            }
+        }
+    }
 }

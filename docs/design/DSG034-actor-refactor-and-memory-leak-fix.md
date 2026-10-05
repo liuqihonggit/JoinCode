@@ -1,6 +1,6 @@
 # DSG034 — Actor 改造无锁化 + 内存泄露修复
 
-> 状态：proposed
+> 状态：accepted
 > 日期：2026-10-05
 > 关联：DSG033（Actor 邮箱泄漏修复 + 监督树对齐 Akka）、ADR 0086（核心技术选型锁设计）
 
@@ -59,31 +59,54 @@ DSG033 已完成 Actor 基建对齐 Akka + 统一 Actor 模式。本次继续：
 
 ### 低严重程度（11 处）
 
-| # | 文件 | 问题 |
-|---|------|------|
-| 14 | `lib/scheduling/tasks/core/MonitorMcpTask.cs:386` | 匿名 lambda 事件订阅（字段随对象 GC） |
-| 15 | `lib/infrastructure/utils/resilience/UnifiedCircuitBreaker.cs:158` | 同上 |
-| 16 | `lib/infrastructure/network/downloader/state_machine/DownloadStateMachine.cs:28` | 同上 |
-| 17 | `lib/scheduling/core/TaskStateMachine.cs:17` | 事件订阅未取消 |
-| 18 | `lib/infrastructure/hot_spot/ContractChangeNotificationRouter.cs:10` | 队列映射依赖外部清理 |
-| 19 | `lib/infrastructure/pipeline/core/AgentNotificationQueue.cs:8` | 队列不主动消费 |
-| 20 | `lib/infrastructure/hot_spot/MergeQueueService.cs:9` | 队列不主动消费 |
-| 21 | `llm/agents/Coordinator/Core/Messaging/AgentInputForwardQueue.cs:9` | Channel 映射依赖外部清理 |
-| 22 | `lib/scheduling/tasks/core/WorkflowTask.cs:207` | 异常退出时字典未清理 |
-| 23 | `lib/abstractions/abs_core/core_utils/core/misc/CooldownService.cs:9` | 静态字典 |
-| 24 | `lib/infrastructure/utils/io/DebounceTracker.cs:8` | 内部写入标记未消费时累积 |
+| # | 文件 | 问题 | 状态 |
+|---|------|------|------|
+| 14 | `lib/scheduling/tasks/core/MonitorMcpTask.cs:386` | 匿名 lambda 事件订阅 | ✅ 改有名方法 + DisposeAsync 取消 |
+| 15 | `lib/infrastructure/utils/resilience/UnifiedCircuitBreaker.cs:158` | 同上 | ✅ IDisposable 取消订阅+释放锁 |
+| 16 | `lib/infrastructure/network/downloader/state_machine/DownloadStateMachine.cs:28` | 同上 | ✅ IDisposable 取消订阅 |
+| 17 | `lib/scheduling/core/TaskStateMachine.cs:17` | 事件订阅未取消 | ✅ IDisposable 取消订阅 |
+| 18 | `lib/infrastructure/hot_spot/ContractChangeNotificationRouter.cs:10` | 队列映射依赖外部清理 | ✅ IDisposable + ClearAllQueues |
+| 19 | `lib/infrastructure/pipeline/core/AgentNotificationQueue.cs:8` | 队列不主动消费 | ✅ override Dispose Clear |
+| 20 | `lib/infrastructure/hot_spot/MergeQueueService.cs:9` | 队列不主动消费 | ✅ IDisposable Clear |
+| 21 | `llm/agents/Coordinator/Core/Messaging/AgentInputForwardQueue.cs:9` | Channel 映射依赖外部清理 | ✅ override Dispose Complete 所有 Channel |
+| 22 | `lib/scheduling/tasks/core/WorkflowTask.cs:207` | 异常退出时字典未清理 | ✅ 赋值移入 try + Dispose 取消所有工作流 |
+| 23 | `lib/abstractions/abs_core/core_utils/core/misc/CooldownService.cs:9` | 静态字典 | ✅ Cleanup 方法惰性清理过期 key |
+| 24 | `lib/infrastructure/utils/io/DebounceTracker.cs:8` | 内部写入标记未消费时累积 | ✅ MarkInternalWrite 时惰性清理过期 timestamp |
 
 ## 四、验收表
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| 内存泄露修复（13 处中严重） | 见上表 | ❌ | ❌ |
-| Actor 改造 P1: ConcurrentDag | lib/structura/dag/ | ❌ | ❌ |
-| Actor 改造 P2: ContextHierarchy | kit/brain/context/ | ❌ | ❌ |
-| Actor 改造 P3: HighWaterMarkManager | lib/scheduling/storage/ | ❌ | ❌ |
-| Actor 改造 P4: S3FifoBlockCache | lib/pithosdb/Core/ | ❌ | ❌ |
-| Actor 改造 P5: LruBlockCache | lib/pithosdb/Core/ | ❌ | ❌ |
-| Actor 改造 P6: SubAgentPool | llm/agents/Coordinator/ | ❌ | ❌ |
+| 内存泄露 #1 UsageTracker | kit/hands/api/ | ✅ Dispose Clear | ✅ 287 Scheduling 测试 |
+| 内存泄露 #2 ParallelTaskScheduler | lib/scheduling/execution/ | ✅ 新增 IDisposable | ✅ 287 Scheduling 测试 |
+| 内存泄露 #3 ParallelExecutionEngine | lib/scheduling/execution/ | ✅ DisposeAsync Clear | ✅ 287 Scheduling 测试 |
+| 内存泄露 #4 TaskService | lib/scheduling/services/ | ✅ Dispose Clear | ✅ 287 Scheduling 测试 |
+| 内存泄露 #5 SshSession | lib/infrastructure/ssh/ | ✅ DisposeAsync -= | ✅ 327 Infra.IO 测试 |
+| 内存泄露 #6 ConnectionManager | lib/transport.impl/ | ✅ 有名方法 | ✅ 207 Transport 测试 |
+| 内存泄露 #7 DebugLogBuffer | lib/infrastructure/utils/ | ✅ IDisposable | ✅ 327 Infra.IO 测试 |
+| 内存泄露 #8 AppEventBus | lib/clock/hosting/ | ✅ IDisposable | ✅ 519 Clock 测试 |
+| 内存泄露 #9 NamedMutexMailboxLock | lib/infrastructure/async_file_lock/ | ⚠️ 降级低 | 路径数量有限 |
+| 内存泄露 #10 GraphExecutionContext | lib/clock/goal/ | ✅ IAsyncDisposable | ✅ 519 Clock 测试 |
+| 内存泄露 #11 CommandQueue | app/cli/queue/ | ✅ IDisposable | ✅ 编译通过 |
+| 内存泄露 #12 GoalConflictMessenger | lib/clock/goal/ | ✅ override Dispose | ✅ 519 Clock 测试 |
+| 内存泄露 #13 AgentOutputChannelManager | llm/agents/ | ✅ override Dispose | ✅ 628 Agents 测试 |
+| 内存泄露 #14 MonitorMcpTask | lib/scheduling/tasks/ | ✅ 有名方法+DisposeAsync | ✅ 287 Scheduling 测试 |
+| 内存泄露 #15 UnifiedCircuitBreaker | lib/infrastructure/utils/ | ✅ IDisposable | ✅ Infrastructure 编译通过 |
+| 内存泄露 #16 DownloadStateMachine | lib/infrastructure/network/ | ✅ IDisposable | ✅ Infrastructure 编译通过 |
+| 内存泄露 #17 TaskStateMachine | lib/scheduling/core/ | ✅ IDisposable | ✅ 287 Scheduling 测试 |
+| 内存泄露 #18 ContractChangeNotificationRouter | lib/infrastructure/hot_spot/ | ✅ IDisposable+ClearAllQueues | ✅ 495 Infra.Services 测试 |
+| 内存泄露 #19 AgentNotificationQueue | lib/infrastructure/pipeline/ | ✅ override Dispose Clear | ✅ 495 Infra.Services 测试 |
+| 内存泄露 #20 MergeQueueService | lib/infrastructure/hot_spot/ | ✅ IDisposable Clear | ✅ 495 Infra.Services 测试 |
+| 内存泄露 #21 AgentInputForwardQueue | llm/agents/Coordinator/ | ✅ override Dispose Complete | ✅ 628 Agents 测试 |
+| 内存泄露 #22 WorkflowTask | lib/scheduling/tasks/ | ✅ try+Dispose 取消 | ✅ 287 Scheduling 测试 |
+| 内存泄露 #23 CooldownService | lib/abstractions/ | ✅ Cleanup 惰性清理 | ✅ 631 Abs 测试 |
+| 内存泄露 #24 DebounceTracker | lib/infrastructure/utils/io/ | ✅ 惰性清理过期 timestamp | ✅ 589 Infra.Utils 测试 |
+| Actor 改造 P1: ConcurrentDag | lib/structura/dag/ | ⏸️ 不改造(数据结构) | ADR 0130 |
+| Actor 改造 P2: ContextHierarchy | kit/brain/context/ | ✅ ActorBase | ✅ 36 测试 |
+| Actor 改造 P3: HighWaterMarkManager | lib/scheduling/storage/ | ✅ ActorBase | ✅ 1 测试 |
+| Actor 改造 P4: S3FifoBlockCache | lib/pithos#osdb/Core/ | ⏸️ 不改造(数据结构) | ADR 0130 |
+| Actor 改造 P5: LruBlockCache | lib/pithosdb/Core/ | ⏸️ 不改造(数据结构) | ADR 0130 |
+| Actor 改造 P6: SubAgentPool | llm/agents/Coordinator/ | ✅ ActorBase | ✅ 12 测试 |
 
 ## 五、执行顺序
 

@@ -123,9 +123,9 @@ public sealed class McpCliCommand {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true, SkipProviderValidation = true };
         if (!string.IsNullOrEmpty(vendor))
-            options.Vendor = vendor;
+            options = options with { Vendor = vendor };
         if (!string.IsNullOrEmpty(model))
-            options.Model = model;
+            options = options with { Model = model };
         Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         // 子命令模式抑制初始化警告（ShellCapabilityInitializer 的 pwsh/python 检测警告）
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");

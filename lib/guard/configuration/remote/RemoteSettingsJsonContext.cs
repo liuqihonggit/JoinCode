@@ -16,13 +16,13 @@ public partial class RemoteSettingsJsonContext : JsonSerializerContext;
 /// <summary>
 /// 远程设置响应 — 从远程端点拉取的托管设置集合
 /// </summary>
-public sealed class RemoteSettingsResponse {
+public sealed record RemoteSettingsResponse {
     /// <summary>
     /// 托管设置列表
     /// </summary>
-    public List<ManagedSetting> Settings { get; set; } = [];
+    public List<ManagedSetting> Settings { get; init; } = [];
     /// <summary>
     /// 拉取时间戳
     /// </summary>
-    public DateTime? FetchedAt { get; set; }
+    public DateTime? FetchedAt { get; init; }
 }

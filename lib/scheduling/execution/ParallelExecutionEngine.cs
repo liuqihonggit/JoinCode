@@ -220,6 +220,7 @@ public sealed partial class ParallelExecutionEngine : IAsyncDisposable {
             _scheduler.OnDependencyMet -= OnDependencyMet;
         } finally {
             _cts.Dispose();
+            _agentExecutionRecords.Clear();
             GC.SuppressFinalize(this);
         }
 

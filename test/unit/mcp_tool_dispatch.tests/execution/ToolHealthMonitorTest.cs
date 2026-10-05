@@ -359,7 +359,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
         await monitor.RecordFailureAsync("tool_a", "err");
         var record = await monitor.GetRecordAsync("tool_a");
         record!.Score.Should().Be(-5);
-        record.LastAdjusted = DateTime.UtcNow - TimeSpan.FromMinutes(30);
+        monitor.SetRecordForTest("tool_a", record! with { LastAdjusted = DateTime.UtcNow - TimeSpan.FromMinutes(30) });
 
         monitor.ApplyTimeDecay();
 
@@ -376,7 +376,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
         await monitor.RecordFailureAsync("tool_a", "err");
         var record = await monitor.GetRecordAsync("tool_a");
         record!.Score.Should().Be(-5);
-        record.LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(2);
+        monitor.SetRecordForTest("tool_a", record! with { LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(2) });
 
         monitor.ApplyTimeDecay();
 
@@ -393,7 +393,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
         await monitor.RecordFailureAsync("tool_a", "err");
         var record = await monitor.GetRecordAsync("tool_a");
         record!.Score.Should().Be(-5);
-        record.LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(2);
+        monitor.SetRecordForTest("tool_a", record! with { LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(2) });
 
         monitor.ApplyTimeDecay();
 
@@ -410,7 +410,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
         await monitor.RecordSuccessAsync("tool_a");
         var record = await monitor.GetRecordAsync("tool_a");
         record!.Score.Should().Be(1);
-        record.LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(10);
+        monitor.SetRecordForTest("tool_a", record! with { LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(10) });
 
         monitor.ApplyTimeDecay();
 
@@ -427,8 +427,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
         await monitor.RecordFailureAsync("tool_a", "err");
         var record = await monitor.GetRecordAsync("tool_a");
         record!.Score.Should().Be(-5);
-        record.IsEnabled = false;
-        record.LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(5);
+        monitor.SetRecordForTest("tool_a", record! with { IsEnabled = false, LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(5) });
 
         monitor.ApplyTimeDecay();
 

@@ -286,11 +286,9 @@ public static class ServiceRegistrationConfigValidator {
     /// <para>JCC_ABSOLUTE_TIMEOUT_SECONDS: TryParse + ≥0 校验</para>
     /// <para>JCC_RESUME_TIMEOUT_SECONDS: TryParse + ≥60 校验</para>
     /// </summary>
-    internal static void ApplyEnvOverrides(ShellExecutionConfig config, string? envAbsolute, string? envResume) {
-        if (int.TryParse(envAbsolute, out var absSeconds) && absSeconds >= 0)
-            config.AbsoluteTimeoutSeconds = absSeconds;
-
-        if (int.TryParse(envResume, out var resumeSeconds) && resumeSeconds >= 60)
-            config.ResumeTimeoutSeconds = resumeSeconds;
+    internal static ShellExecutionConfig ApplyEnvOverrides(ShellExecutionConfig config, string? envAbsolute, string? envResume) {
+        var newAbsolute = int.TryParse(envAbsolute, out var absSeconds) && absSeconds >= 0 ? absSeconds : config.AbsoluteTimeoutSeconds;
+        var newResume = int.TryParse(envResume, out var resumeSeconds) && resumeSeconds >= 60 ? resumeSeconds : config.ResumeTimeoutSeconds;
+        return config with { AbsoluteTimeoutSeconds = newAbsolute, ResumeTimeoutSeconds = newResume };
     }
 }

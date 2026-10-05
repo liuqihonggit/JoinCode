@@ -114,8 +114,9 @@ class Program {
                     "请检查配置文件或环境变量后重试");
                 WriteJsonError(error);
             } else {
-                App.ErrorConsole.Warning(ex.Message);
-                if (!string.IsNullOrEmpty(ex.ConfigurationKey))
+            App.ErrorConsole.Warning(ex.Message);
+            Diag.WriteLine($"[CONFIG-ERROR] 完整异常: {ex}");
+            if (!string.IsNullOrEmpty(ex.ConfigurationKey))
                     Cli.TerminalHelper.WriteError($"  配置项: {ex.ConfigurationKey}");
                 if (!string.IsNullOrEmpty(ex.ConfigurationFilePath))
                     Cli.TerminalHelper.WriteError($"  配置文件: {ex.ConfigurationFilePath}");

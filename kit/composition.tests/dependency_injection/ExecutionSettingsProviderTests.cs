@@ -5,7 +5,7 @@ namespace Core.Tests.DependencyInjection;
 /// <para>LoadPersistedEffort/LoadPersistedThinkingEnabled 依赖 SyncFileReader+ConfigLoader(IO)，跳过直接测试。</para>
 /// </summary>
 public sealed class ExecutionSettingsProviderTests {
-    private readonly WorkflowConfig _config;
+    private WorkflowConfig _config;
     private readonly Mock<IFileSystem> _fs;
     private readonly Mock<IProviderDefinitionRegistry> _registry;
 
@@ -127,7 +127,7 @@ public sealed class ExecutionSettingsProviderTests {
 
     [Fact]
     public void FastMode_ReflectsConfigFastMode() {
-        _config.FastMode = true;
+        _config = _config with { FastMode = true };
         var sut = CreateSut();
         sut.FastMode.Should().BeTrue();
     }

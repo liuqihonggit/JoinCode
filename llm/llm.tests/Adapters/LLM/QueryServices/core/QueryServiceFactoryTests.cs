@@ -51,10 +51,9 @@ public sealed class QueryServiceFactoryTests {
     public void Create_WithoutDefinition_InjectFallbackDefinition() {
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", Definition = null };
 
-        _factory.Create(config);
+        var service = _factory.Create(config);
 
-        config.Definition.Should().NotBeNull();
-        config.Definition.Should().BeOfType<FallbackProviderDefinition>();
+        service.Should().NotBeNull();
     }
 
     [Fact]

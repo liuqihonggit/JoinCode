@@ -95,10 +95,11 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
             var data = RelaxedJsonSerializer.Deserialize(result.Content, SessionTagJsonContext.Default.SessionTagData);
             if (data?.Entries == null) return;
 
-            foreach (var kvp in data.Entries) {
-                var tags = ImmutableHamTSet.CreateRange(kvp.Value, StringComparer.OrdinalIgnoreCase);
-                ImmutableInterlocked.Update(ref _tags, d => d.SetItem(kvp.Key, tags));
-            }
+            ImmutableInterlocked.Update(ref _tags, d => {
+                foreach (var kvp in data.Entries)
+                    d = d.SetItem(kvp.Key, ImmutableHamTSet.CreateRange(kvp.Value, StringComparer.OrdinalIgnoreCase));
+                return d;
+            });
 
             _logger?.LogDebug(L.T(StringKey.VaultLogLoadedSessionTags), data.Entries.Count);
         } catch (Exception ex) {

@@ -6,12 +6,12 @@ namespace JoinCode.Abstractions.Configuration.Execution;
 /// <remarks>
 /// 手动注册（有自定义验证逻辑），不使用 [RegisterOptions]
 /// </remarks>
-public sealed class FileOperationConfig {
+public sealed record FileOperationConfig {
     /// <summary>
     /// 最大读取大小（字节，默认 256KB，与 TS 对齐）
     /// </summary>
     [Range(1024, 1024L * 1024 * 1024, ErrorMessage = "MaxReadSize must be between 1KB and 1GB")]
-    public long MaxReadSize { get; set; } = 256 * 1024;
+    public long MaxReadSize { get; init; } = 256 * 1024;
 
     /// <summary>
     /// 最大读取Token数（默认 25000，与 TS 对齐）
@@ -19,25 +19,25 @@ public sealed class FileOperationConfig {
     /// 读取后按token估算截断，防止超大文件消耗全部上下文
     /// </summary>
     [Range(1000, 500000, ErrorMessage = "MaxReadTokens must be between 1000 and 500000")]
-    public int MaxReadTokens { get; set; } = 25000;
+    public int MaxReadTokens { get; init; } = 25000;
 
     /// <summary>
     /// 最大写入大小（字节，默认 10MB）
     /// </summary>
     [Range(1024, 1024 * 1024 * 1024, ErrorMessage = "MaxWriteSize must be between 1KB and 1GB")]
-    public int MaxWriteSize { get; set; } = 10 * 1024 * 1024;
+    public int MaxWriteSize { get; init; } = 10 * 1024 * 1024;
 
     /// <summary>
     /// 缓冲区大小（字节，默认 8KB）
     /// </summary>
     [Range(512, 1024 * 1024, ErrorMessage = "BufferSize must be between 512 bytes and 1MB")]
-    public int BufferSize { get; set; } = 8 * 1024;
+    public int BufferSize { get; init; } = 8 * 1024;
 
     /// <summary>
     /// 二进制文件检测缓冲区大小（字节，默认 8KB）
     /// </summary>
     [Range(1024, 64 * 1024, ErrorMessage = "BinaryDetectionBufferSize must be between 1KB and 64KB")]
-    public int BinaryDetectionBufferSize { get; set; } = 8 * 1024;
+    public int BinaryDetectionBufferSize { get; init; } = 8 * 1024;
 
     /// <summary>
     /// 是否启用紧凑行号前缀格式（行号 + 制表符 + 内容，如 "1\tcontent"）。
@@ -46,7 +46,7 @@ public sealed class FileOperationConfig {
     /// 关闭（false）时使用宽格式：行号右对齐到 ≥6 位 + 箭头 → + 内容（如 "     1→content"）。
     /// 官方实测：宽格式每行 9 字节开销，占未缓存输入 2.18%；compact 无 Edit 错误回归（6.29% vs 6.86%）。
     /// </summary>
-    public bool CompactLinePrefix { get; set; } = true;
+    public bool CompactLinePrefix { get; init; } = true;
 
     #region 图像限制（对齐 TS: constants/apiLimits.ts）
 

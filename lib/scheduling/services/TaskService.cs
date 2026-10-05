@@ -344,10 +344,11 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         return TaskDependencyTypeExtensions.FromValue(label) ?? TaskDependencyType.Blocks;
     }
 
-    /// <summary>释放资源时回调，释放内部 DAG。</summary>
+    /// <summary>释放资源时回调，释放内部 DAG 和任务字典。</summary>
     public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _tasks.Clear();
         _dag.Dispose();
         base.Dispose();
     }

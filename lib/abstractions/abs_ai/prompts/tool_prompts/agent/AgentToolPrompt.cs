@@ -214,47 +214,47 @@ assistant: ""我将使用 {AgentToolNameEnumConstants.Agent} 工具启动 greeti
 /// <summary>
 /// 代理定义
 /// </summary>
-public class AgentDefinition {
+public sealed record AgentDefinition {
     /// <summary>获取或设置代理角色。</summary>
-    public required AgentRole Role { get; set; }
+    public required AgentRole Role { get; init; }
     /// <summary>获取或设置执行器变体。</summary>
-    public ExecutorVariant? Variant { get; set; }
+    public ExecutorVariant? Variant { get; init; }
     /// <summary>获取或设置使用时机描述。</summary>
-    public required string WhenToUse { get; set; }
+    public required string WhenToUse { get; init; }
     /// <summary>获取或设置允许使用的工具列表。</summary>
-    public List<string> Tools { get; set; } = [];
+    public List<string> Tools { get; init; } = [];
     /// <summary>获取或设置禁止使用的工具列表。</summary>
-    public List<string> DisallowedTools { get; set; } = [];
+    public List<string> DisallowedTools { get; init; } = [];
     /// <summary>获取或设置代理描述。</summary>
-    public string? Description { get; set; }
+    public string? Description { get; init; }
     /// <summary>获取或设置系统提示词。</summary>
-    public string? SystemPrompt { get; set; }
+    public string? SystemPrompt { get; init; }
     /// <summary>获取或设置模型名称。</summary>
-    public string? ModelName { get; set; }
+    public string? ModelName { get; init; }
     /// <summary>获取或设置采样温度。</summary>
-    public float? Temperature { get; set; }
+    public float? Temperature { get; init; }
     /// <summary>获取或设置最大生成令牌数。</summary>
-    public int? MaxTokens { get; set; }
+    public int? MaxTokens { get; init; }
     /// <summary>获取或设置是否为后台代理。</summary>
-    public bool IsBackground { get; set; }
+    public bool IsBackground { get; init; }
     /// <summary>获取或设置代理定义源文件路径。</summary>
-    public string? SourcePath { get; set; }
+    public string? SourcePath { get; init; }
     /// <summary>获取或设置技能列表。</summary>
-    public List<string> Skills { get; set; } = [];
+    public List<string> Skills { get; init; } = [];
     /// <summary>获取或设置权限模式。</summary>
-    public string? PermissionMode { get; set; }
+    public string? PermissionMode { get; init; }
     /// <summary>获取或设置钩子配置。</summary>
-    public Dictionary<string, List<AgentHookMatcher>> Hooks { get; set; } = [];
+    public Dictionary<string, List<AgentHookMatcher>> Hooks { get; init; } = [];
     /// <summary>获取或设置 MCP 服务器规格列表。</summary>
-    public List<AgentMcpServerSpec> McpServers { get; set; } = [];
+    public List<AgentMcpServerSpec> McpServers { get; init; } = [];
     /// <summary>获取或设置必需的 MCP 服务器名称列表。</summary>
-    public List<string> RequiredMcpServers { get; set; } = [];
+    public List<string> RequiredMcpServers { get; init; } = [];
 
     /// <summary>
     /// 记忆作用域 — 对齐 TS AgentDefinition.memory
     /// null 表示不启用记忆
     /// </summary>
-    public AgentMemoryScope? Memory { get; set; }
+    public AgentMemoryScope? Memory { get; init; }
 
     /// <summary>
     /// 是否省略项目规则上下文 — 只读 Agent (Explore/Plan) 不需要 CLAUDE.md 上下文
@@ -285,27 +285,27 @@ public class AgentDefinition {
 /// <summary>
 /// Agent Hook 匹配器配置 - frontmatter 中的 hooks 定义
 /// </summary>
-public sealed class AgentHookMatcher {
+public sealed record AgentHookMatcher {
     /// <summary>获取或设置匹配器表达式。</summary>
-    public string? Matcher { get; set; }
+    public string? Matcher { get; init; }
     /// <summary>获取或设置钩子命令列表。</summary>
-    public required List<AgentHookCommand> Hooks { get; set; }
+    public required List<AgentHookCommand> Hooks { get; init; }
 }
 
 /// <summary>
 /// Agent Hook 命令配置
 /// </summary>
-public sealed class AgentHookCommand {
+public sealed record AgentHookCommand {
     /// <summary>获取或设置钩子类型。</summary>
-    public required string Type { get; set; }
+    public required string Type { get; init; }
     /// <summary>获取或设置要执行的命令。</summary>
-    public string? Command { get; set; }
+    public string? Command { get; init; }
     /// <summary>获取或设置提示词。</summary>
-    public string? Prompt { get; set; }
+    public string? Prompt { get; init; }
     /// <summary>获取或设置执行条件表达式。</summary>
-    public string? If { get; set; }
+    public string? If { get; init; }
     /// <summary>获取或设置超时时间(毫秒)。</summary>
-    public int? Timeout { get; set; }
+    public int? Timeout { get; init; }
 }
 
 public sealed class AgentMcpServerSpec {

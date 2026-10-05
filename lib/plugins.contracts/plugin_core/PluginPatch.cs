@@ -4,7 +4,7 @@ namespace JoinCode.Abstractions.Entity;
 /// patch 条目 — 对齐 DSH cordis.patch.yml 行
 /// <para>两种操作：insert（按 id 在目标追加子列表）/ 按 id 覆盖整行</para>
 /// </summary>
-public sealed class PluginPatchEntry {
+public sealed record PluginPatchEntry {
     /// <summary>条目 id（定位目标行）</summary>
     public required string Id { get; init; }
 
@@ -44,30 +44,30 @@ public sealed class PluginPatch {
 /// <summary>
 /// 配置行 — 被 patch 操作的目标
 /// </summary>
-public sealed class PluginConfigRow {
+public sealed record PluginConfigRow {
     /// <summary>行 id</summary>
-    public required string Id { get; set; }
+    public required string Id { get; init; }
 
     /// <summary>插件名</summary>
-    public string? Name { get; set; }
+    public string? Name { get; init; }
 
     /// <summary>配置（整行替换）</summary>
-    public object? Config { get; set; }
+    public object? Config { get; init; }
 
     /// <summary>是否禁用</summary>
-    public bool Disabled { get; set; }
+    public bool Disabled { get; init; }
 
     /// <summary>inject 声明</summary>
-    public string[]? Inject { get; set; }
+    public string[]? Inject { get; init; }
 
     /// <summary>group 归属</summary>
-    public string? Group { get; set; }
+    public string? Group { get; init; }
 
     /// <summary>isolate 隔离</summary>
-    public bool Isolate { get; set; }
+    public bool Isolate { get; init; }
 
     /// <summary>intercept 拦截</summary>
-    public string? Intercept { get; set; }
+    public string? Intercept { get; init; }
 }
 
 /// <summary>
@@ -132,13 +132,15 @@ public static class PluginPatchApplicator {
                     warnings.Add($"patch id '{entry.Id}' name '{entry.Name}' 与目标 '{target.Name}' 不符，跳过");
                     continue;
                 }
-                if (entry.Name is not null) target.Name = entry.Name;
-                if (entry.Config is not null) target.Config = entry.Config;
-                if (entry.Disabled is not null) target.Disabled = entry.Disabled.Value;
-                if (entry.Inject is not null) target.Inject = entry.Inject;
-                if (entry.Group is not null) target.Group = entry.Group;
-                if (entry.Isolate is not null) target.Isolate = entry.Isolate.Value;
-                if (entry.Intercept is not null) target.Intercept = entry.Intercept;
+                result[idx] = target with {
+                    Name = entry.Name ?? target.Name,
+                    Config = entry.Config ?? target.Config,
+                    Disabled = entry.Disabled ?? target.Disabled,
+                    Inject = entry.Inject ?? target.Inject,
+                    Group = entry.Group ?? target.Group,
+                    Isolate = entry.Isolate ?? target.Isolate,
+                    Intercept = entry.Intercept ?? target.Intercept,
+                };
             } else {
                 warnings.Add($"patch id '{entry.Id}' 找不到目标行，跳过");
             }

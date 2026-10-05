@@ -30,23 +30,23 @@ public interface IToolHealthMonitor {
 /// <summary>
 /// 工具健康记录 — 追踪单个工具的执行成功/失败/评分状态
 /// </summary>
-public sealed class ToolHealthRecord {
+public sealed record ToolHealthRecord {
     /// <summary>获取工具名称。</summary>
     public required string ToolName { get; init; }
     /// <summary>获取或设置评分。</summary>
-    public int Score { get; set; }
+    public int Score { get; init; }
     /// <summary>获取或设置成功次数。</summary>
-    public int SuccessCount { get; set; }
+    public int SuccessCount { get; init; }
     /// <summary>获取或设置失败次数。</summary>
-    public int FailCount { get; set; }
+    public int FailCount { get; init; }
     /// <summary>获取或设置连续失败次数。</summary>
-    public int ConsecutiveFailures { get; set; }
+    public int ConsecutiveFailures { get; init; }
     /// <summary>获取或设置是否启用。</summary>
-    public bool IsEnabled { get; set; } = true;
+    public bool IsEnabled { get; init; } = true;
     /// <summary>获取或设置最后调整时间。</summary>
-    public DateTime LastAdjusted { get; set; } = DateTime.UtcNow;
+    public DateTime LastAdjusted { get; init; } = DateTime.UtcNow;
     /// <summary>获取或设置最后错误消息。</summary>
-    public string? LastErrorMessage { get; set; }
+    public string? LastErrorMessage { get; init; }
 
     /// <summary>获取成功率。</summary>
     public double SuccessRate => SuccessCount + FailCount > 0
@@ -86,17 +86,17 @@ public static class ToolHealthMonitorExtensions {
 /// </summary>
 public sealed class ToolScoreConfig {
     /// <summary>获取或设置成功增量。</summary>
-    public int SuccessDelta { get; set; } = 1;
+    public int SuccessDelta { get; init; } = 1;
     /// <summary>获取或设置失败增量。</summary>
-    public int FailDelta { get; set; } = -5;
+    public int FailDelta { get; init; } = -5;
     /// <summary>连续失败达到此阈值时注入提示词提醒LLM换策略（不禁用工具）</summary>
-    public int WarningThreshold { get; set; } = 3;
+    public int WarningThreshold { get; init; } = 3;
     /// <summary>获取或设置评分下限。</summary>
-    public int ScoreMin { get; set; } = -100;
+    public int ScoreMin { get; init; } = -100;
     /// <summary>获取或设置评分上限。</summary>
-    public int ScoreMax { get; set; } = 100;
+    public int ScoreMax { get; init; } = 100;
     /// <summary>获取或设置每小时衰减率。</summary>
-    public double DecayRatePerHour { get; set; } = 0.1;
+    public double DecayRatePerHour { get; init; } = 0.1;
     /// <summary>获取或设置衰减恢复评分。</summary>
-    public int DecayRecoveryScore { get; set; } = 1;
+    public int DecayRecoveryScore { get; init; } = 1;
 }

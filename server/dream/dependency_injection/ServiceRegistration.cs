@@ -9,9 +9,9 @@ public static partial class ServiceRegistration {
     /// </summary>
     public static IServiceCollection AddDreamServices(
         this IServiceCollection services,
-        Action<AutoDreamConfig>? configureOptions = null) {
+        Func<AutoDreamConfig, AutoDreamConfig>? configureOptions = null) {
         var config = new AutoDreamConfig();
-        configureOptions?.Invoke(config);
+        config = configureOptions?.Invoke(config) ?? config;
         services.AddSingleton(config);
 
         return services;
@@ -22,9 +22,9 @@ public static partial class ServiceRegistration {
     /// </summary>
     public static IServiceCollection AddDreamServicesWithPersistence(
         this IServiceCollection services,
-        Action<AutoDreamConfig>? configureOptions = null) {
+        Func<AutoDreamConfig, AutoDreamConfig>? configureOptions = null) {
         var config = new AutoDreamConfig();
-        configureOptions?.Invoke(config);
+        config = configureOptions?.Invoke(config) ?? config;
         services.AddSingleton(config);
 
         return services;

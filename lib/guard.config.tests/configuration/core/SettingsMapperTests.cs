@@ -66,11 +66,10 @@ public class SettingsMapperTests {
 
     [Fact]
     public async Task Given_环境变量JCC_VENDOR_When_ApplyEnvOverrides_Then_Provider被覆盖() {
-        var config = new WorkflowConfig();
-        config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
+        var config = new WorkflowConfig { Provider = new ProviderConfig { Vendor = VendorKind.DeepSeek.ToValue() } };
         Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), "anthropic");
         try {
-            await _mapper.ApplyEnvOverridesAsync(config);
+            config = await _mapper.ApplyEnvOverridesAsync(config);
             config.Provider.Vendor.Should().Be("anthropic");
         } finally {
             Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), null);
@@ -79,12 +78,15 @@ public class SettingsMapperTests {
 
     [Fact]
     public async Task Given_环境变量JCC_VENDOR为anthropic_When_ApplyEnvOverrides_Then_Protocol同步为anthropic() {
-        var config = new WorkflowConfig();
-        config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
-        config.Provider.Protocol = ProtocolKind.OpenAiCompatible.ToValue();
+        var config = new WorkflowConfig {
+            Provider = new ProviderConfig {
+                Vendor = VendorKind.DeepSeek.ToValue(),
+                Protocol = ProtocolKind.OpenAiCompatible.ToValue(),
+            },
+        };
         Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), "anthropic");
         try {
-            await _mapper.ApplyEnvOverridesAsync(config);
+            config = await _mapper.ApplyEnvOverridesAsync(config);
             config.Provider.Vendor.Should().Be("anthropic");
             config.Provider.Protocol.Should().Be(ProtocolKind.Anthropic.ToValue());
         } finally {
@@ -94,11 +96,10 @@ public class SettingsMapperTests {
 
     [Fact]
     public async Task Given_环境变量JCC_PROTOCOL_When_ApplyEnvOverrides_Then_Protocol被覆盖() {
-        var config = new WorkflowConfig();
-        config.Provider.Protocol = ProtocolKind.OpenAiCompatible.ToValue();
+        var config = new WorkflowConfig { Provider = new ProviderConfig { Protocol = ProtocolKind.OpenAiCompatible.ToValue() } };
         Environment.SetEnvironmentVariable(JccEnvVar.Protocol.ToValue(), "anthropic");
         try {
-            await _mapper.ApplyEnvOverridesAsync(config);
+            config = await _mapper.ApplyEnvOverridesAsync(config);
             config.Provider.Protocol.Should().Be("anthropic");
         } finally {
             Environment.SetEnvironmentVariable(JccEnvVar.Protocol.ToValue(), null);
@@ -177,15 +178,18 @@ public class SettingsMapperTests {
 
     [Fact]
     public async Task Given_无环境变量_When_ApplyEnvOverrides_Then_配置不变() {
-        var config = new WorkflowConfig();
-        config.Provider.Vendor = VendorKind.DeepSeek.ToValue();
         var testModelId = "deepseek-v4-flash";
-        config.Provider.ModelId = testModelId;
+        var config = new WorkflowConfig {
+            Provider = new ProviderConfig {
+                Vendor = VendorKind.DeepSeek.ToValue(),
+                ModelId = testModelId,
+            },
+        };
         Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.Endpoint.ToValue(), null);
 
-        await _mapper.ApplyEnvOverridesAsync(config);
+        config = await _mapper.ApplyEnvOverridesAsync(config);
         config.Provider.Vendor.Should().Be(VendorKind.DeepSeek.ToValue());
         config.Provider.ModelId.Should().Be(testModelId);
     }

@@ -1,39 +1,39 @@
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
-public class ElicitRequestParams {
+public sealed record ElicitRequestParams {
     /// <summary>获取或设置展示给用户的消息。</summary>
     [JsonPropertyName("message")]
-    public string Message { get; set; } = string.Empty;
+    public string Message { get; init; } = string.Empty;
 
     /// <summary>获取或设置 elicitation 模式（form/url）。</summary>
     [JsonPropertyName("mode")]
-    public string Mode { get; set; } = ElicitMode.Form.ToValue();
+    public string Mode { get; init; } = ElicitMode.Form.ToValue();
 
     /// <summary>获取或设置请求的表单 schema。</summary>
     [JsonPropertyName("requestedSchema")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ElicitSchema? RequestedSchema { get; set; }
+    public ElicitSchema? RequestedSchema { get; init; }
 
     /// <summary>获取或设置 URL 模式下的地址。</summary>
     [JsonPropertyName("url")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Url { get; set; }
+    public string? Url { get; init; }
 
     /// <summary>获取或设置 elicitation 标识。</summary>
     [JsonPropertyName("elicitationId")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ElicitationId { get; set; }
+    public string? ElicitationId { get; init; }
 }
 
-public class ElicitSchema {
+public sealed record ElicitSchema {
     /// <summary>获取或设置属性字典。</summary>
     [JsonPropertyName("properties")]
-    public Dictionary<string, ElicitSchemaProperty> Properties { get; set; } = new();
+    public Dictionary<string, ElicitSchemaProperty> Properties { get; init; } = new();
 
     /// <summary>获取或设置必填字段名列表。</summary>
     [JsonPropertyName("required")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string> Required { get; set; } = [];
+    public List<string> Required { get; init; } = [];
 }
 
 public class ElicitSchemaProperty : SchemaProperty {
@@ -83,21 +83,21 @@ public class ElicitSchemaProperty : SchemaProperty {
     public ElicitSchemaProperty? Items { get; set; }
 }
 
-public class ElicitResult {
+public sealed record ElicitResult {
     /// <summary>获取或设置用户动作（accept/decline/cancel）。</summary>
     [JsonPropertyName("action")]
-    public string Action { get; set; } = ElicitAction.Cancel.ToValue();
+    public string Action { get; init; } = ElicitAction.Cancel.ToValue();
 
     /// <summary>获取或设置表单内容字典。</summary>
     [JsonPropertyName("content")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, JsonElement?> Content { get; set; } = [];
+    public Dictionary<string, JsonElement?> Content { get; init; } = [];
 }
 
-public class ElicitationCompleteNotificationParams {
+public sealed record ElicitationCompleteNotificationParams {
     /// <summary>获取或设置 elicitation 标识。</summary>
     [JsonPropertyName("elicitationId")]
-    public string ElicitationId { get; set; } = string.Empty;
+    public string ElicitationId { get; init; } = string.Empty;
 }
 
 public enum ElicitAction {

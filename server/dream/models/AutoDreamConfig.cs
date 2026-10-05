@@ -3,41 +3,41 @@ namespace JoinCode.Dream;
 /// <summary>
 /// 自动做梦配置
 /// </summary>
-public sealed class AutoDreamConfig {
+public sealed record AutoDreamConfig {
     /// <summary>
     /// 最小间隔小时数（默认24小时）
     /// </summary>
-    public int MinHours { get; set; } = 24;
+    public int MinHours { get; init; } = 24;
 
     /// <summary>
     /// 最小会话数量（默认5个）
     /// </summary>
-    public int MinSessions { get; set; } = 5;
+    public int MinSessions { get; init; } = 5;
 
     /// <summary>
     /// 会话扫描间隔（毫秒，默认10分钟）
     /// </summary>
-    public int SessionScanIntervalMs { get; set; } = 10 * 60 * 1000;
+    public int SessionScanIntervalMs { get; init; } = 10 * 60 * 1000;
 
     /// <summary>
     /// 是否启用自动做梦
     /// </summary>
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get; init; } = true;
 
     /// <summary>
     /// 是否启用自动记忆
     /// </summary>
-    public bool AutoMemoryEnabled { get; set; } = true;
+    public bool AutoMemoryEnabled { get; init; } = true;
 
     /// <summary>
     /// 自动记忆目录路径
     /// </summary>
-    public string? AutoMemoryPath { get; set; }
+    public string? AutoMemoryPath { get; init; }
 
     /// <summary>
     /// 项目目录（用于扫描会话）
     /// </summary>
-    public string? ProjectDir { get; set; }
+    public string? ProjectDir { get; init; }
 }
 
 /// <summary>

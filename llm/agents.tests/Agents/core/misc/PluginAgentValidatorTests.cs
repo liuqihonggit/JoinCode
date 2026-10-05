@@ -18,8 +18,7 @@ public sealed class PluginAgentValidatorTests {
 
     [Fact]
     public void Validate_WithPermissionMode_Throws() {
-        var def = CreateValidDefinition();
-        def.PermissionMode = "auto";
+        var def = CreateValidDefinition() with { PermissionMode = "auto" };
         var act = () => PluginAgentValidator.Validate(def);
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*permissionMode*");
@@ -27,9 +26,10 @@ public sealed class PluginAgentValidatorTests {
 
     [Fact]
     public void Validate_WithHooks_Throws() {
-        var def = CreateValidDefinition();
-        def.Hooks = new Dictionary<string, List<AgentHookMatcher>> {
-            ["on_start"] = [],
+        var def = CreateValidDefinition() with {
+            Hooks = new Dictionary<string, List<AgentHookMatcher>> {
+                ["on_start"] = [],
+            }
         };
         var act = () => PluginAgentValidator.Validate(def);
         act.Should().Throw<InvalidOperationException>()
@@ -38,8 +38,7 @@ public sealed class PluginAgentValidatorTests {
 
     [Fact]
     public void Validate_WithMcpServers_Throws() {
-        var def = CreateValidDefinition();
-        def.McpServers = [AgentMcpServerSpec.FromReference("evil")];
+        var def = CreateValidDefinition() with { McpServers = [AgentMcpServerSpec.FromReference("evil")] };
         var act = () => PluginAgentValidator.Validate(def);
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*mcpServers*");
@@ -54,10 +53,8 @@ public sealed class PluginAgentValidatorTests {
 
     [Fact]
     public void ValidateAll_MixedViolations_ReturnsAllMessages() {
-        var def1 = CreateValidDefinition();
-        def1.PermissionMode = "auto";
-        var def2 = CreateValidDefinition();
-        def2.Hooks = new Dictionary<string, List<AgentHookMatcher>> { ["x"] = [] };
+        var def1 = CreateValidDefinition() with { PermissionMode = "auto" };
+        var def2 = CreateValidDefinition() with { Hooks = new Dictionary<string, List<AgentHookMatcher>> { ["x"] = [] } };
         var defs = new[] { def1, def2 };
 
         var violations = PluginAgentValidator.ValidateAll(defs);

@@ -56,7 +56,8 @@ internal sealed class StartupWorkflow {
             var state = onboardingService.CurrentState;
 
             if (state.CurrentStep == OnboardingStep.ApiKey) {
-                var (success, errorMessage) = await PromptAndSaveProviderConfigAsync(config, fs, registry).ConfigureAwait(false);
+                var (success, errorMessage, newConfig) = await PromptAndSaveProviderConfigAsync(config, fs, registry).ConfigureAwait(false);
+                config = newConfig;
                 if (!success && !string.IsNullOrEmpty(errorMessage)) {
                     Cli.TerminalHelper.WriteLine();
                     Cli.TerminalHelper.WriteLine(errorMessage);
@@ -101,11 +102,11 @@ internal sealed class StartupWorkflow {
     /// <summary>
     /// 统一的 Provider 配置提示和保存逻辑
     /// </summary>
-    internal static async Task<(bool Success, string? ErrorMessage)> PromptAndSaveProviderConfigAsync(WorkflowConfig? config, IFileSystem fs, IProviderDefinitionRegistry registry) {
+    internal static async Task<(bool Success, string? ErrorMessage, WorkflowConfig? NewConfig)> PromptAndSaveProviderConfigAsync(WorkflowConfig? config, IFileSystem fs, IProviderDefinitionRegistry registry) {
         var hint = $"首次使用需要配置 API Key，输入后将保存到 ~/{AppDataConstants.AppDataFolder}/{AppDataConstants.AuthFileName}";
         var provider = ProviderPicker.Show(VendorKind.OpenAi.ToValue(), "未检测到 API Key。", hint, registry); // P1-⑤ 委托枚举
         if (string.IsNullOrEmpty(provider)) {
-            return (false, null);
+            return (false, null, config);
         }
 
         var definition = registry.TryGet(provider);
@@ -118,12 +119,12 @@ internal sealed class StartupWorkflow {
         Cli.TerminalHelper.WriteLine($"请粘贴 {displayName} 的 API Key{envVarHint}（直接回车退出）: ");
 
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
-            return (false, null);
+            return (false, null, config);
         }
 
         var apiKey = Cli.TerminalHelper.ReadLine();
         if (string.IsNullOrWhiteSpace(apiKey)) {
-            return (false, null);
+            return (false, null, config);
         }
 
         apiKey = apiKey.Trim();
@@ -138,11 +139,11 @@ internal sealed class StartupWorkflow {
             endpoint = Cli.TerminalHelper.ReadLine();
 
             if (string.IsNullOrWhiteSpace(endpoint)) {
-                return (false, definition.EndpointRequiredMessage ?? "Endpoint 必填，配置已取消。");
+                return (false, definition.EndpointRequiredMessage ?? "Endpoint 必填，配置已取消。", config);
             }
 
             if (!Uri.TryCreate(endpoint, UriKind.Absolute, out _)) {
-                return (false, $"Endpoint '{endpoint}' 不是有效的 URI 格式，请输入有效的 URI 地址。");
+                return (false, $"Endpoint '{endpoint}' 不是有效的 URI 格式，请输入有效的 URI 地址。", config);
             }
 
             endpoint = endpoint.Trim();
@@ -152,28 +153,31 @@ internal sealed class StartupWorkflow {
         // Azure 覆写为 JSON 对象（含 endpoint + apiKey）；其余 Provider 默认直接返回 apiKey
         var credentials = definition?.SerializeAuthCredentials(apiKey, endpoint) ?? apiKey;
 
-        // 保存配置到内存
+        // 保存配置到内存 — 一次性构造新 WorkflowConfig，无锁替换引用
+        var newConfig = config;
         if (config is not null) {
-            config.Provider.Vendor = provider;
-
+            var p = config.Provider;
+            var newApiKey = credentials;
             // 多态：通过 IProviderDefinition.IsCompoundAuthFormat + ExtractApiKeyFromCompound 解析复合格式
             if (definition is not null && definition.IsCompoundAuthFormat(credentials)) {
                 var extractedKey = definition.ExtractApiKeyFromCompound(credentials);
-                config.Provider.ApiKey = extractedKey ?? credentials;
-            } else {
-                config.Provider.ApiKey = credentials;
+                newApiKey = extractedKey ?? credentials;
             }
 
-            if (endpoint is not null) {
-                config.Provider.Endpoint = endpoint;
-            }
+            var newEndpoint = endpoint ?? p.Endpoint;
+            if (definition is not null && newEndpoint is null)
+                newEndpoint = definition.DefaultEndpoint;
 
-            if (definition is not null) {
-                config.Provider.Definition = definition;
-                config.Provider.Protocol = definition.Protocol.ToValue();
-                config.Provider.ModelId = definition.DefaultModelId;
-                config.Provider.Endpoint ??= definition.DefaultEndpoint;
-            }
+            newConfig = config with {
+                Provider = p with {
+                    Vendor = provider,
+                    ApiKey = newApiKey,
+                    Endpoint = newEndpoint,
+                    Definition = definition ?? p.Definition,
+                    Protocol = definition is not null ? definition.Protocol.ToValue() : p.Protocol,
+                    ModelId = definition?.DefaultModelId ?? p.ModelId,
+                },
+            };
         }
 
         // 多态：通过 IProviderDefinition.IsCompoundAuthFormat + ExtractApiKeyFromCompound 保存到文件
@@ -189,7 +193,7 @@ internal sealed class StartupWorkflow {
 
         await ConfigLoader.SaveSettingToSettingsJsonAsync("provider", provider, fs).ConfigureAwait(false);
 
-        return (true, null);
+        return (true, null, newConfig);
     }
 
     internal static async Task<bool> CheckWorkspaceTrustAsync(CommandLineOptions options, IFileSystem fs) {

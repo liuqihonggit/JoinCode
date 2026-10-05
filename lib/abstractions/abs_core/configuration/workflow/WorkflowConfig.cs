@@ -1,10 +1,10 @@
 namespace JoinCode.Abstractions.Configuration;
 
-public class WorkflowConfig {
+public sealed record WorkflowConfig {
     /// <summary>
     /// Provider 配置（推荐）
     /// </summary>
-    public ProviderConfig Provider { get; set; } = new ProviderConfig();
+    public ProviderConfig Provider { get; init; } = new ProviderConfig();
 
     /// <summary>
     /// 获取当前模型ID（从Provider配置）
@@ -12,114 +12,114 @@ public class WorkflowConfig {
     public string CurrentModelId => Provider.ModelId;
 
     /// <summary>获取或设置状态文件路径。</summary>
-    public string StateFilePath { get; set; } = WorkflowConstants.Paths.DefaultStateFilePath;
+    public string StateFilePath { get; init; } = WorkflowConstants.Paths.DefaultStateFilePath;
 
     /// <summary>获取或设置记忆目录路径。</summary>
-    public string? MemdirPath { get; set; }
+    public string? MemdirPath { get; init; }
 
     /// <summary>获取或设置技能目录。</summary>
-    public string SkillsDirectory { get; set; } = string.Empty;
+    public string SkillsDirectory { get; init; } = string.Empty;
 
     /// <summary>获取或设置代码执行配置。</summary>
-    public CodeExecutionConfig CodeExecution { get; set; } = new CodeExecutionConfig();
+    public CodeExecutionConfig CodeExecution { get; init; } = new CodeExecutionConfig();
 
     /// <summary>获取或设置桥接配置。</summary>
-    public BridgeConfig Bridge { get; set; } = new BridgeConfig();
+    public BridgeConfig Bridge { get; init; } = new BridgeConfig();
 
     /// <summary>
     /// 是否启用跨进程文件锁
     /// </summary>
-    public bool EnableCrossProcessLock { get; set; } = true;
+    public bool EnableCrossProcessLock { get; init; } = true;
 
     /// <summary>
     /// 是否启用 Worktree 智能体隔离
     /// </summary>
-    public bool EnableWorktreeIsolation { get; set; } = true;
+    public bool EnableWorktreeIsolation { get; init; } = true;
 
     /// <summary>
     /// Worktree 配置
     /// </summary>
-    public WorktreeConfig Worktree { get; set; } = new WorktreeConfig();
+    public WorktreeConfig Worktree { get; init; } = new WorktreeConfig();
 
     /// <summary>
     /// 文件操作配置
     /// </summary>
-    public FileOperationConfig FileOperation { get; set; } = new FileOperationConfig();
+    public FileOperationConfig FileOperation { get; init; } = new FileOperationConfig();
 
     /// <summary>
     /// Shell 执行配置
     /// </summary>
-    public ShellExecutionConfig ShellExecution { get; set; } = new ShellExecutionConfig();
+    public ShellExecutionConfig ShellExecution { get; init; } = new ShellExecutionConfig();
 
     /// <summary>
     /// 项目规则内容（从 .jcc/rules/project_rules.md 加载）
     /// </summary>
-    public string? ProjectRules { get; set; }
+    public string? ProjectRules { get; init; }
 
     /// <summary>
     /// 外部规则文件列表（从 .trae/rules/ + .claude/rules/ + .codex/rules/ 加载，含匹配策略）
     /// </summary>
-    public List<RuleFile> ExternalRules { get; set; } = [];
+    public List<RuleFile> ExternalRules { get; init; } = [];
 
     /// <summary>
     /// 管道端点配置（用于命名管道通信模式）
     /// </summary>
-    public PipeTransportConfig? PipeEndpoint { get; set; }
+    public PipeTransportConfig? PipeEndpoint { get; init; }
 
     /// <summary>
     /// 插件配置
     /// </summary>
-    public PluginConfig Plugins { get; set; } = new PluginConfig();
+    public PluginConfig Plugins { get; init; } = new PluginConfig();
 
     /// <summary>
     /// 空闲工具检测配置
     /// </summary>
-    public IdleDetectionConfig IdleDetection { get; set; } = new IdleDetectionConfig();
+    public IdleDetectionConfig IdleDetection { get; init; } = new IdleDetectionConfig();
 
     /// <summary>
     /// 快速模式（使用更小/更快的模型）
     /// </summary>
-    public bool FastMode { get; set; } = false;
+    public bool FastMode { get; init; } = false;
 
     /// <summary>
     /// LLM 执行参数配置（Temperature, MaxTokens, TopP 等）
     /// </summary>
-    public LlmExecutionSettings LlmExecution { get; set; } = new();
+    public LlmExecutionSettings LlmExecution { get; init; } = new();
 
     /// <summary>
     /// 缓存配置
     /// </summary>
-    public CacheSettings Cache { get; set; } = new();
+    public CacheSettings Cache { get; init; } = new();
 
     /// <summary>
     /// 工具执行配置
     /// </summary>
-    public ToolExecutionSettings ToolExecution { get; set; } = new();
+    public ToolExecutionSettings ToolExecution { get; init; } = new();
 
     /// <summary>
     /// 子智能体输出防护配置 — L0-L3 炸窗防护
     /// </summary>
-    public SubAgentConfig SubAgent { get; set; } = new();
+    public SubAgentConfig SubAgent { get; init; } = new();
 
     /// <summary>
     /// 子代理并发控制配置 — spawn/execute/fork 三阶段上限（ADR 0048）
     /// </summary>
-    public SubAgentConcurrencyOptions SubAgentConcurrency { get; set; } = new();
+    public SubAgentConcurrencyOptions SubAgentConcurrency { get; init; } = new();
 
     /// <summary>
     /// 子代理卡死防护配置 — 纵深防御四层参数（ADR 0106）
     /// 从 settings.json 的 current.subAgentLiveness 节点加载,缺失时用默认值
     /// </summary>
-    public SubAgentLivenessOptions SubAgentLiveness { get; set; } = new();
+    public SubAgentLivenessOptions SubAgentLiveness { get; init; } = new();
 
     /// <summary>
     /// Actor 模型统一配置 — 编译队列模式 + 背压预设(ADR 0074)
     /// 从 settings.json 的 current.actor 节点加载,缺失时用默认值
     /// </summary>
-    public ActorSettings Actor { get; set; } = new();
+    public ActorSettings Actor { get; init; } = new();
 
     /// <summary>
     /// 当前激活的配置档案名 — 对应 settings.json 中 profiles 字典的键
     /// </summary>
-    public string? CurrentProfile { get; set; }
+    public string? CurrentProfile { get; init; }
 }

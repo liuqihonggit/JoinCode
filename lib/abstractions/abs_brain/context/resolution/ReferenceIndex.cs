@@ -29,12 +29,13 @@ public sealed class ReferenceIndex {
             if (Interlocked.CompareExchange(ref _references, updated, current) == current) break;
         }
 
-        foreach (var keyword in reference.Keywords) {
-            while (true) {
-                var current = _keywordIndex;
-                var updated = current.SetItem(keyword, current.GetValueOrDefault(keyword, ImmutableList<string>.Empty).Add(reference.Path));
-                if (Interlocked.CompareExchange(ref _keywordIndex, updated, current) == current) break;
-            }
+        if (reference.Keywords.Count == 0) return;
+        while (true) {
+            var current = _keywordIndex;
+            var updated = current;
+            foreach (var keyword in reference.Keywords)
+                updated = updated.SetItem(keyword, updated.GetValueOrDefault(keyword, ImmutableList<string>.Empty).Add(reference.Path));
+            if (Interlocked.CompareExchange(ref _keywordIndex, updated, current) == current) break;
         }
     }
 

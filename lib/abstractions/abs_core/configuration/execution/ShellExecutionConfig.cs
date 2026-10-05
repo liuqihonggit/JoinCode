@@ -7,25 +7,25 @@ namespace JoinCode.Abstractions.Configuration.Execution;
 /// <remarks>
 /// 手动注册（有自定义验证逻辑），不使用 [RegisterOptions]
 /// </remarks>
-public sealed class ShellExecutionConfig {
+public sealed record ShellExecutionConfig {
     /// <summary>
     /// 最大输出字节数（默认 30KB）— 对齐 TS BASH_MAX_OUTPUT_DEFAULT (30000)
     /// </summary>
     [Range(1024, 1024 * 1024, ErrorMessage = "MaxOutputBytes 必须在 1KB 到 1MB 之间")]
-    public int MaxOutputBytes { get; set; } = 30_000;
+    public int MaxOutputBytes { get; init; } = 30_000;
 
     /// <summary>
     /// 默认超时时间（秒，默认 120）
     /// </summary>
     [Range(1, 3600, ErrorMessage = "DefaultTimeoutSeconds 必须在 1 秒到 1 小时之间")]
-    public int DefaultTimeoutSeconds { get; set; } = 120;
+    public int DefaultTimeoutSeconds { get; init; } = 120;
 
     /// <summary>
     /// 搜索类命令默认超时时间（秒，默认 30）
     /// 适用于 rg/grep/find/ag 等搜索命令，防止搜索范围过大时长时间卡顿
     /// </summary>
     [Range(5, 300, ErrorMessage = "SearchCommandTimeoutSeconds 必须在 5 秒到 5 分钟之间")]
-    public int SearchCommandTimeoutSeconds { get; set; } = 30;
+    public int SearchCommandTimeoutSeconds { get; init; } = 30;
 
     /// <summary>
     /// 绝对超时上限（秒，默认 120）— OneShotCommandGroup 工具的硬性超时上限
@@ -33,14 +33,14 @@ public sealed class ShellExecutionConfig {
     /// 可通过环境变量 JCC_ABSOLUTE_TIMEOUT_SECONDS 覆盖
     /// </summary>
     [Range(0, 3600, ErrorMessage = "AbsoluteTimeoutSeconds 必须在 0 秒到 1 小时之间")]
-    public int AbsoluteTimeoutSeconds { get; set; } = 120;
+    public int AbsoluteTimeoutSeconds { get; init; } = 120;
 
     /// <summary>
     /// 续期默认超时（秒，默认 600=10分钟）— resume_timed_out_task 的默认超时
     /// 可通过环境变量 JCC_RESUME_TIMEOUT_SECONDS 覆盖
     /// </summary>
     [Range(60, 3600, ErrorMessage = "ResumeTimeoutSeconds 必须在 1 分钟到 1 小时之间")]
-    public int ResumeTimeoutSeconds { get; set; } = 600;
+    public int ResumeTimeoutSeconds { get; init; } = 600;
 
     /// <summary>
     /// 超时关键字检测的缓冲时间（秒，默认 30）
@@ -48,7 +48,7 @@ public sealed class ShellExecutionConfig {
     /// 缓冲用于覆盖命令启动、其他非等待操作的耗时
     /// </summary>
     [Range(5, 300, ErrorMessage = "TimeoutKeywordBufferSeconds 必须在 5 秒到 5 分钟之间")]
-    public int TimeoutKeywordBufferSeconds { get; set; } = 30;
+    public int TimeoutKeywordBufferSeconds { get; init; } = 30;
 
     /// <summary>
     /// 防丢字符二次确认 — MTP 加速推理时防止丢字符/乱入字符导致命令变形 — ADR 0012
@@ -56,10 +56,10 @@ public sealed class ShellExecutionConfig {
     /// 从 settings.json 的 isAntiCharLossConfirm 映射，true 时启用 argv hash 二次确认防御链。
     /// </para>
     /// </summary>
-    public bool IsAntiCharLossConfirm { get; set; } = false;
+    public bool IsAntiCharLossConfirm { get; init; } = false;
 
     /// <summary>
     /// 是否启用命令执行日志
     /// </summary>
-    public bool EnableExecutionLogging { get; set; } = true;
+    public bool EnableExecutionLogging { get; init; } = true;
 }

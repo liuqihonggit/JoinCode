@@ -32,7 +32,7 @@ public static class VendorModelMapper {
 
             if (string.IsNullOrEmpty(providerConfig.DefaultFastModelId) && providerConfig.Models.Count > 0) {
                 var fastModel = providerConfig.Models.FirstOrDefault(m => m.Capabilities.FastMode);
-                providerConfig.DefaultFastModelId = fastModel?.Id ?? providerConfig.Models[0].Id;
+                providerConfig = providerConfig with { DefaultFastModelId = fastModel?.Id ?? providerConfig.Models[0].Id };
             }
 
             providers[profileName] = providerConfig;

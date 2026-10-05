@@ -50,9 +50,8 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
             .Select(kvp => kvp.Key)
             .ToList();
 
-        foreach (var skillName in removedSkills) {
-            ImmutableInterlocked.Update(ref _mcpSkills, d => d.Remove(skillName));
-        }
+        if (removedSkills.Count > 0)
+            ImmutableInterlocked.Update(ref _mcpSkills, d => d.RemoveRange(removedSkills));
 
         ImmutableInterlocked.Update(ref _adapters, d => d.Remove(serverName));
         var removed = false;
@@ -156,13 +155,15 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
                     continue;
                 }
 
+                var newSkills = new List<SkillDefinition>();
                 foreach (var tool in toolsResult.GetData()) {
                     var skill = await adapter.AdaptToolAsync(tool, cancellationToken).ConfigureAwait(false);
                     if (skill != null) {
-                        var namespacedSkill = skill with { Namespace = $"mcp.{serverName}" };
-                        ImmutableInterlocked.Update(ref _mcpSkills, d => d.SetItem(namespacedSkill.Name, namespacedSkill));
+                        newSkills.Add(skill with { Namespace = $"mcp.{serverName}" });
                     }
                 }
+                if (newSkills.Count > 0)
+                    ImmutableInterlocked.Update(ref _mcpSkills, d => d.SetItems(newSkills.Select(s => new KeyValuePair<string, SkillDefinition>(s.Name, s))));
 
                 _logger?.LogInformation("[McpSkillProvider] 从 MCP 服务器 {Server} 加载 {Count} 个技能",
                     serverName, toolsResult.GetData().Count);

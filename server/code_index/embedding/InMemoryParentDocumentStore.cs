@@ -42,8 +42,24 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
     public void AddRange(IReadOnlyList<ParentDocument> documents) {
         ArgumentNullException.ThrowIfNull(documents);
         if (documents.Count == 0) return;
-        foreach (var doc in documents) {
-            AddCore(doc.ChunkId, doc, doc.FilePath);
+        var spin = new SpinWait();
+        while (true) {
+            var current = _documents;
+            var updated = current;
+            foreach (var doc in documents)
+                updated = updated.SetItem(doc.ChunkId, doc);
+            if (Interlocked.CompareExchange(ref _documents, updated, current) == current) break;
+            spin.SpinOnce();
+        }
+        while (true) {
+            var current = _fileToDocs;
+            var updated = current;
+            foreach (var doc in documents) {
+                var existing = updated.TryGetValue(doc.FilePath, out var set) ? set : ImmutableHashSet<string>.Empty;
+                updated = updated.SetItem(doc.FilePath, existing.Add(doc.ChunkId));
+            }
+            if (Interlocked.CompareExchange(ref _fileToDocs, updated, current) == current) break;
+            spin.SpinOnce();
         }
     }
 

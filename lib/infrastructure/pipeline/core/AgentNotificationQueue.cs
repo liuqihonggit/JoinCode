@@ -48,4 +48,12 @@ public sealed partial class AgentNotificationQueue : ServiceEntity, JoinCode.Abs
 
     /// <inheritdoc/>
     public bool HasPendingNotifications => !_queue.IsEmpty;
+
+    /// <summary>
+    /// 释放资源，清空通知队列
+    /// </summary>
+    public override void Dispose() {
+        while (_queue.TryDequeue(out _)) { }
+        base.Dispose();
+    }
 }

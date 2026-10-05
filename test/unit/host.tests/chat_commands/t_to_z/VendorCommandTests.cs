@@ -8,9 +8,9 @@ namespace Host.Tests.ChatCommands;
 /// </summary>
 public sealed class VendorCommandTests {
     private static (VendorCommand Cmd, WorkflowConfig Config, ChatCommandContext Ctx) Create(string arguments) {
-        var config = new WorkflowConfig();
-        config.Provider.Vendor = "openai";
-        config.Provider.ModelId = "gpt-4o";
+        var config = new WorkflowConfig {
+            Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" },
+        };
 
         var catalog = new Mock<IModelCatalog>();
         catalog.Setup(c => c.GetDefaultModelForProvider("anthropic")).Returns("claude-sonnet-4");
@@ -76,8 +76,9 @@ public sealed class VendorCommandTests {
         var result = await cmd.ExecuteAsync(ctx);
 
         result.ShouldContinue.Should().BeTrue();
-        config.Provider.Vendor.Should().Be("anthropic");
-        config.CurrentModelId.Should().Be("claude-sonnet-4", "切换供应商后默认模型应跟随");
+        var updatedConfig = ctx.GetCommandServices().WorkflowConfig;
+        updatedConfig!.Provider.Vendor.Should().Be("anthropic");
+        updatedConfig.CurrentModelId.Should().Be("claude-sonnet-4", "切换供应商后默认模型应跟随");
     }
 
     [Theory]

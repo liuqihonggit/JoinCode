@@ -71,14 +71,14 @@ internal sealed class AnthropicMessagesRequest {
     public AnthropicContextManagement? ContextManagement { get; set; }
 }
 
-internal sealed class AnthropicThinkingConfig {
+internal sealed record AnthropicThinkingConfig {
     /// <summary>获取或设置思考配置类型。</summary>
     [JsonPropertyName("type")]
-    public string Type { get; set; } = "enabled";
+    public string Type { get; init; } = "enabled";
 
     /// <summary>获取或设置思考预算 token 数。</summary>
     [JsonPropertyName("budget_tokens")]
-    public int BudgetTokens { get; set; }
+    public int BudgetTokens { get; init; }
 }
 
 internal sealed class AnthropicSystemContentBlock {

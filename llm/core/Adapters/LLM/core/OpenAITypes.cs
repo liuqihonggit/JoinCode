@@ -89,10 +89,10 @@ internal sealed class OpenAIChatRequest {
 /// OpenAI 流式响应选项 — 控制 stream 模式下的额外数据返回。
 /// 真实 API: stream_options.include_usage=true 时, 最后一个 chunk 包含 usage 字段。
 /// </summary>
-internal sealed class OpenAIStreamOptions {
+internal sealed record OpenAIStreamOptions {
     /// <summary>获取或设置是否在最后一个 chunk 包含 usage 字段。</summary>
     [JsonPropertyName("include_usage")]
-    public bool IncludeUsage { get; set; }
+    public bool IncludeUsage { get; init; }
 }
 
 /// <summary>
@@ -373,10 +373,10 @@ internal sealed class OpenAIToolCallFunction {
 /// <summary>
 /// DeepSeek V4 思考模式选项 — thinking:{"type":"enabled"} 开启思考模式
 /// </summary>
-internal sealed class OpenAIThinkingOptions {
+internal sealed record OpenAIThinkingOptions {
     /// <summary>获取或设置思考类型。</summary>
     [JsonPropertyName("type")]
-    public string Type { get; set; } = string.Empty;
+    public string Type { get; init; } = string.Empty;
 }
 
 /// <summary>

@@ -108,13 +108,15 @@ public abstract class LoopPatternDetectorConfig {
 /// <summary>
 /// 输出循环检测器配置 — 尾部子串重复检测参数
 /// </summary>
-public sealed class OutputLoopConfig : LoopPatternDetectorConfig {
-    /// <summary>初始化输出循环检测器配置，设置特定默认值</summary>
-    public OutputLoopConfig() {
-        WindowSize = 2000;
-        MinPatternLength = 10;
-        RequiredRepeats = 10;
-    }
+public sealed record OutputLoopConfig {
+    /// <summary>检测窗口大小</summary>
+    public int WindowSize { get; init; } = 2000;
+
+    /// <summary>最小重复模式长度</summary>
+    public int MinPatternLength { get; init; } = 10;
+
+    /// <summary>触发所需的最少重复次数</summary>
+    public int RequiredRepeats { get; init; } = 10;
 
     /// <summary>最大重复模式长度</summary>
     public int MaxPatternLength { get; init; } = 500;
@@ -146,13 +148,15 @@ public sealed record LogicFingerprintConfig {
 /// <summary>
 /// 工具调用序列检测器配置 — 工具名+参数指纹重复检测参数
 /// </summary>
-public sealed class ToolCallSequenceConfig : LoopPatternDetectorConfig {
-    /// <summary>初始化工具调用序列检测器配置，设置特定默认值</summary>
-    public ToolCallSequenceConfig() {
-        WindowSize = 6;
-        MinPatternLength = 3;
-        RequiredRepeats = 4;
-    }
+public sealed record ToolCallSequenceConfig {
+    /// <summary>检测窗口大小</summary>
+    public int WindowSize { get; init; } = 6;
+
+    /// <summary>最小重复模式长度</summary>
+    public int MinPatternLength { get; init; } = 3;
+
+    /// <summary>触发所需的最少重复次数</summary>
+    public int RequiredRepeats { get; init; } = 4;
 }
 
 /// <summary>

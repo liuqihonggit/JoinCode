@@ -445,7 +445,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
         if (_disposed) return;
         _disposed = true;
         _initLock.Dispose();
-        _highWaterMarkManager.Dispose();
+        _highWaterMarkManager.DisposeAsync().AsTask().GetAwaiter().GetResult();
         base.Dispose();
     }
 }

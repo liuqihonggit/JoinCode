@@ -4,16 +4,49 @@ namespace Core.Scheduling;
 /// <summary>
 /// 高水位标记管理器 — IKvStore 增量持久化实现。
 /// 单值 KV 存储,PutAsync 天然增量更新,无需全量重写。
-/// SemaphoreSlim 保证进程内 IncrementAndGetAsync 读-改-写原子性。
+/// Actor 模式 — 内部组合 HwmActor(继承 ActorBase)串行化 IncrementAndGetAsync 读-改-写原子性,获得监督/背压/生命周期/错误恢复。
 /// </summary>
-public sealed class HighWaterMarkManager : IDisposable {
+public sealed class HighWaterMarkManager : IAsyncDisposable {
     private readonly IKvStore _kvStore;
     private readonly byte[] _key;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly HwmActor _actor;
     private readonly ILogger<HighWaterMarkManager>? _logger;
+    private volatile bool _disposed;
 
     /// <summary>
-    /// 初始化高水位标记管理器
+    /// 内部 Actor — 继承 ActorBase,Consumer 线程独占 IncrementAndGetAsync 串行化
+    /// </summary>
+    private sealed class HwmActor(HighWaterMarkManager owner, ILogger? logger)
+        : ActorBase<HwmActor.Command, Unit>(logger: logger) {
+
+        /// <summary>命令 — 携带异步操作委托和回复通道</summary>
+        public sealed class Command(
+            Func<HighWaterMarkManager, CancellationToken, Task<int>> execute,
+            TaskCompletionSource<int> tcs,
+            CancellationToken ct) {
+            public readonly Func<HighWaterMarkManager, CancellationToken, Task<int>> Execute = execute;
+            public readonly TaskCompletionSource<int> Tcs = tcs;
+            public readonly CancellationToken Ct = ct;
+        }
+
+        protected override void Handle(Command command, CancellationToken ct) {
+            RegisterInFlight(ExecuteAndSetResultAsync(command));
+        }
+
+        private async Task ExecuteAndSetResultAsync(Command command) {
+            try {
+                var result = await command.Execute(owner, command.Ct).ConfigureAwait(false);
+                command.Tcs.TrySetResult(result);
+            } catch (OperationCanceledException) {
+                command.Tcs.TrySetCanceled();
+            } catch (Exception ex) {
+                command.Tcs.TrySetException(ex);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 初始化高水位标记管理器 — 启动内部 Actor
     /// </summary>
     /// <param name="kvStore">KV 存储抽象</param>
     /// <param name="key">高水位标记存储键(UTF-8 编码)</param>
@@ -22,6 +55,7 @@ public sealed class HighWaterMarkManager : IDisposable {
         _kvStore = kvStore ?? throw new ArgumentNullException(nameof(kvStore));
         _key = Encoding.UTF8.GetBytes(key);
         _logger = logger;
+        _actor = new HwmActor(this, logger);
     }
 
     /// <summary>
@@ -50,18 +84,26 @@ public sealed class HighWaterMarkManager : IDisposable {
     }
 
     /// <summary>
-    /// 原子递增高水位标记并返回新值 — SemaphoreSlim 保护进程内读-改-写原子性
+    /// 原子递增高水位标记并返回新值 — Actor 串行化读-改-写原子性
     /// </summary>
     public async Task<int> IncrementAndGetAsync(CancellationToken cancellationToken = default) {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try {
-            var current = await ReadAsync(cancellationToken).ConfigureAwait(false);
-            var newValue = current + 1;
-            await UpdateAsync(newValue, cancellationToken).ConfigureAwait(false);
-            return newValue;
-        } finally {
-            _lock.Release();
-        }
+        if (_disposed) throw new ObjectDisposedException(nameof(HighWaterMarkManager));
+        cancellationToken.ThrowIfCancellationRequested();
+        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var reg = cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
+        if (!_actor.TrySend(new HwmActor.Command(
+            (self, ct) => self.IncrementAndGetCoreAsync(ct),
+            tcs, cancellationToken)))
+            throw new ObjectDisposedException(nameof(HighWaterMarkManager));
+        return await tcs.Task.ConfigureAwait(false);
+    }
+
+    /// <summary>IncrementAndGetAsync 核心 — 在 Actor Consumer 线程执行</summary>
+    private async Task<int> IncrementAndGetCoreAsync(CancellationToken ct) {
+        var current = await ReadAsync(ct).ConfigureAwait(false);
+        var newValue = current + 1;
+        await UpdateAsync(newValue, ct).ConfigureAwait(false);
+        return newValue;
     }
 
     /// <summary>
@@ -82,7 +124,10 @@ public sealed class HighWaterMarkManager : IDisposable {
     }
 
     /// <summary>
-    /// 释放 SemaphoreSlim 资源 — IKvStore 由 DI 容器管理生命周期
+    /// 异步释放 Actor;幂等 — IKvStore 由 DI 容器管理生命周期
     /// </summary>
-    public void Dispose() => _lock.Dispose();
+    public async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, true)) return;
+        await _actor.DisposeAsync().ConfigureAwait(false);
+    }
 }

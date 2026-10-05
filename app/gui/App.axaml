@@ -16,6 +16,11 @@
           <HorizontalAlignment x:Key="DockDocumentTabStripHorizontalCreateButtonAlignment">Left</HorizontalAlignment>
         </ResourceDictionary>
         <ResourceDictionary>
+          <ItemsPanelTemplate x:Key="DockDocumentTabStripHorizontalItemsPanel">
+            <WrapPanel Orientation="Horizontal" ClipToBounds="False" />
+          </ItemsPanelTemplate>
+        </ResourceDictionary>
+        <ResourceDictionary>
           <ResourceDictionary.ThemeDictionaries>
             <ResourceDictionary x:Key='Default'>
               <Color x:Key="RegionColor">#FFFAFAFA</Color>
@@ -89,6 +94,10 @@
     <Style Selector="ProportionalStackPanelSplitter">
       <Setter Property="Background" Value="{DynamicResource GuiDivider}" />
       <Setter Property="Thickness" Value="6" />
+    </Style>
+    <Style Selector="DocumentTabStrip[Orientation=Horizontal] /template/ ScrollViewer#PART_ScrollViewer">
+      <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+      <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
     </Style>
   </Application.Styles>
 </Application>

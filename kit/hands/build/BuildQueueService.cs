@@ -1,8 +1,22 @@
 namespace Services.Build;
 
+/// <summary>构建队列命令标记接口 — Actor 串行化命令处理。</summary>
+public interface IBuildQueueCommand;
+
+/// <summary>提交构建命令 — 入队或立即执行。</summary>
+internal sealed record SubmitCmd(BuildQueueEntry Entry) : IBuildQueueCommand;
+
+/// <summary>取消构建命令 — 取消正在执行或排队的构建，Tcs 回复是否成功。</summary>
+internal sealed record CancelCmd(string BuildId, TaskCompletionSource<bool> Tcs) : IBuildQueueCommand;
+
+/// <summary>构建完成命令 — fire-and-forget 构建完成后回投 Actor，串行化结果处理 + 启动下一个。</summary>
+internal sealed record BuildCompletedCmd(BuildQueueEntry Entry, BuildQueueResult? Result, Exception? Error) : IBuildQueueCommand;
+
 /// <summary>
 /// 编译队列服务 — 串行处理编译请求，集成跨进程编译锁、结果缓冲（源指纹校验）、
-/// 防睡眠、取消与状态查询能力。通过 Channel 实现单消费者串行执行。
+/// 防睡眠、取消与状态查询能力。
+/// <para>Actor 模型：内部组合 BuildQueueActor（ActorBase），命令串行化，构建执行 fire-and-forget + 回投。</para>
+/// <para>竞态消除：CancelAsync 通过 Tell 投递，不再直接修改 entry.Status。GetStatus 用 Volatile.Read 快照。</para>
 /// </summary>
 [Register(typeof(IBuildQueueService), ServiceLifetime.Singleton)]
 public sealed partial class BuildQueueService : BuildQueueBase {
@@ -11,18 +25,15 @@ public sealed partial class BuildQueueService : BuildQueueBase {
     private readonly IPreventSleepService? _preventSleepService;
     private readonly ILogger<BuildQueueService>? _logger;
 
-    private readonly Channel<BuildQueueEntry> _queue = Channel.CreateBounded<BuildQueueEntry>(new BoundedChannelOptions(64) { FullMode = BoundedChannelFullMode.Wait });
-    private readonly CancellationTokenSource _shutdownCts = new();
-    private readonly Task _processingTask;
-
     private readonly CrossProcessBuildLock _crossProcessLock;
     private readonly BuildResultBuffer _resultBuffer;
+    private readonly BuildQueueActor _actor;
 
     private BuildQueueEntry? _currentBuild;
     private CancellationTokenSource? _currentBuildCts;
 
     /// <summary>
-    /// 构造编译队列服务，启动后台串行处理任务。
+    /// 构造编译队列服务，启动 Actor 消费循环。
     /// </summary>
     /// <param name="actuatorRegistry">系统执行器注册表（获取 Bash 执行编译）。</param>
     /// <param name="fs">文件系统抽象。</param>
@@ -43,17 +54,15 @@ public sealed partial class BuildQueueService : BuildQueueBase {
         var fingerprintCache = new SourceFingerprintCache(logger);
         _resultBuffer = new BuildResultBuffer(fingerprintCache, logger);
         _crossProcessLock = new CrossProcessBuildLock(fs, logger, crossProcessLockPath);
-
-        _processingTask = ProcessQueueAsync(_shutdownCts.Token);
+        _actor = new BuildQueueActor(this, logger);
     }
 
     /// <summary>
     /// 提交编译请求到队列。若结果缓冲命中（源指纹未变）则直接返回已完成的构建 ID。
     /// </summary>
-    /// <param name="request">编译请求。</param>
-    /// <param name="ct">取消令牌。</param>
-    /// <returns>构建 ID。</returns>
     public override Task<string> SubmitAsync(BuildRequest request, CancellationToken ct) {
+        ThrowIfDisposed(nameof(BuildQueueService));
+
         var bufferKey = BuildResultBuffer.BuildBufferKey(request.Command, request.WorkingDirectory);
 
         if (_resultBuffer.TryGet(bufferKey, out var bufferedResult)) {
@@ -63,7 +72,7 @@ public sealed partial class BuildQueueService : BuildQueueBase {
         }
 
         var (newEntry, _) = CreateQueuedEntry(request);
-        _queue.Writer.TryWrite(newEntry);
+        _actor.Tell(new SubmitCmd(newEntry));
 
         _logger?.LogInformation("Build submitted: {BuildId}, command: {Command}", newEntry.BuildId, request.Command);
 
@@ -72,38 +81,23 @@ public sealed partial class BuildQueueService : BuildQueueBase {
 
     /// <inheritdoc />
     public override Task<bool> CancelAsync(string buildId, CancellationToken ct) {
-        if (!_store.TryGetEntry(buildId, out var entry))
-            return Task.FromResult(false);
-
-        switch (entry.Status) {
-            case BuildQueueEntryStatus.Queued:
-            entry.Status = BuildQueueEntryStatus.Cancelled;
-            entry.CompletedAt = DateTimeOffset.UtcNow;
-            CompleteWithCancellation(buildId, entry);
-            _logger?.LogInformation("Build cancelled (was queued): {BuildId}", buildId);
-            return Task.FromResult(true);
-
-            case BuildQueueEntryStatus.Building:
-            entry.Status = BuildQueueEntryStatus.Cancelling;
-            _currentBuildCts?.Cancel();
-            _logger?.LogInformation("Build cancelling (was building): {BuildId}", buildId);
-            return Task.FromResult(true);
-
-            default:
-            return Task.FromResult(false);
-        }
+        ThrowIfDisposed(nameof(BuildQueueService));
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _actor.Tell(new CancelCmd(buildId, tcs));
+        return tcs.Task;
     }
 
     /// <inheritdoc />
     public override BuildQueueStatus GetStatus() {
+        var currentBuild = Volatile.Read(ref _currentBuild);
         var pendingCount = _store.GetAllEntries().Count(e => e.Status == BuildQueueEntryStatus.Queued);
-        var isBuilding = _currentBuild is not null && _currentBuild.Status == BuildQueueEntryStatus.Building;
+        var isBuilding = currentBuild is not null && currentBuild.Status == BuildQueueEntryStatus.Building;
 
         return new BuildQueueStatus {
             PendingCount = pendingCount,
             IsBuilding = isBuilding,
-            CurrentBuildId = _currentBuild?.BuildId,
-            CurrentBuildAgentId = _currentBuild?.Request.AgentId,
+            CurrentBuildId = currentBuild?.BuildId,
+            CurrentBuildAgentId = currentBuild?.Request.AgentId,
             RecentBuilds = _store.GetAllEntries()
                 .OrderByDescending(e => e.Request.SubmittedAt)
                 .Take(10)
@@ -132,73 +126,6 @@ public sealed partial class BuildQueueService : BuildQueueBase {
         return buildId;
     }
 
-    private async Task ProcessQueueAsync(CancellationToken ct) {
-        await foreach (var entry in _queue.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
-            if (entry.Status == BuildQueueEntryStatus.Cancelled) continue;
-
-            _currentBuild = entry;
-            entry.Status = BuildQueueEntryStatus.Building;
-            entry.StartedAt = DateTimeOffset.UtcNow;
-
-            _logger?.LogInformation("Build {BuildId} started (checkpoint): queuePos={QueuePos}, pending={Pending}",
-                entry.BuildId, entry.QueuePosition, _store.GetAllEntries().Count(e => e.Status == BuildQueueEntryStatus.Queued));
-
-            var waitStart = DateTimeOffset.UtcNow;
-
-            try {
-                var result = await ExecuteBuildAsync(entry, ct).ConfigureAwait(false);
-                entry.Result = result;
-                entry.CompletedAt = DateTimeOffset.UtcNow;
-
-                entry.Status = result.Cancelled
-                    ? BuildQueueEntryStatus.Cancelled
-                    : result.ExitCode == 0
-                        ? BuildQueueEntryStatus.Completed
-                        : BuildQueueEntryStatus.Failed;
-
-                var bufferKey = BuildResultBuffer.BuildBufferKey(entry.Request.Command, entry.Request.WorkingDirectory);
-                _resultBuffer.Add(bufferKey, result, entry.Request.WorkingDirectory);
-
-                _store.TryGetTcs(entry.BuildId, out var tcs);
-                tcs?.TrySetResult(result);
-
-                _logger?.LogInformation("Build {BuildId} completed: {Status}, exit={ExitCode}",
-                    entry.BuildId, entry.Status, result.ExitCode);
-            } catch (OperationCanceledException) when (entry.Status == BuildQueueEntryStatus.Cancelling) {
-                entry.Status = BuildQueueEntryStatus.Cancelled;
-                entry.CompletedAt = DateTimeOffset.UtcNow;
-                CompleteWithCancellation(entry.BuildId, entry);
-                _logger?.LogInformation("Build {BuildId} cancelled", entry.BuildId);
-            } catch (Exception ex) {
-                entry.Status = BuildQueueEntryStatus.Failed;
-                entry.CompletedAt = DateTimeOffset.UtcNow;
-
-                var failResult = new BuildQueueResult {
-                    BuildId = entry.BuildId,
-                    ExitCode = -1,
-                    Output = string.Empty,
-                    ErrorOutput = ex.Message,
-                    WaitDuration = DateTimeOffset.UtcNow - waitStart,
-                    BuildDuration = TimeSpan.Zero,
-                    QueuePosition = entry.QueuePosition
-                };
-                entry.Result = failResult;
-
-                _store.TryGetTcs(entry.BuildId, out var tcs);
-                tcs?.TrySetResult(failResult);
-
-                _logger?.LogError(ex, "Build {BuildId} failed with exception", entry.BuildId);
-            } finally {
-                _currentBuild = null;
-                _currentBuildCts?.Dispose();
-                _currentBuildCts = null;
-
-                _logger?.LogDebug("Build {BuildId} checkpoint: status={Status}, remaining={Remaining}",
-                    entry.BuildId, entry.Status, _store.GetAllEntries().Count(e => e.Status == BuildQueueEntryStatus.Queued));
-            }
-        }
-    }
-
     private async Task<BuildQueueResult> ExecuteBuildAsync(BuildQueueEntry entry, CancellationToken ct) {
         await using var scope = new BuildExecutionScope(this, ct);
         var buildCt = scope.Token;
@@ -221,23 +148,15 @@ public sealed partial class BuildQueueService : BuildQueueBase {
     }
 
     /// <summary>
-    /// 异步释放编译队列服务资源：取消后台处理、完成队列、释放等待句柄、
-    /// 释放跨进程锁。幂等，多次调用安全。
+    /// 异步释放编译队列服务资源：释放 Actor（等 Consumer 退出 + in-flight 完成）、
+    /// 取消所有等待句柄、释放跨进程锁。幂等。
     /// </summary>
-    /// <returns>表示异步释放操作的任务。</returns>
     public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
-        _shutdownCts.Cancel();
-        _queue.Writer.TryComplete();
-
-        try {
-            _ = _processingTask;
-        } catch (OperationCanceledException) { }
+        await _actor.DisposeAsync().ConfigureAwait(false);
 
         _store.CancelAll();
-
-        _shutdownCts.Dispose();
         _currentBuildCts?.Dispose();
         await _crossProcessLock.DisposeAsync().ConfigureAwait(false);
     }
@@ -249,19 +168,16 @@ public sealed partial class BuildQueueService : BuildQueueBase {
         private int _disposed;
 
         /// <summary>构造构建执行作用域。</summary>
-        /// <param name="owner">所属构建队列服务。</param>
-        /// <param name="externalCt">外部取消令牌。</param>
         public BuildExecutionScope(BuildQueueService owner, CancellationToken externalCt) {
             _owner = owner;
             _cts = CancellationTokenSource.CreateLinkedTokenSource(externalCt);
-            _owner._currentBuildCts = _cts;
+            Volatile.Write(ref _owner._currentBuildCts, _cts);
         }
 
         /// <summary>获取关联的取消令牌。</summary>
         public CancellationToken Token => _cts.Token;
 
         /// <summary>异步获取跨进程构建锁。</summary>
-        /// <param name="ct">取消令牌。</param>
         public async Task AcquireLockAsync(CancellationToken ct) {
             await _owner._crossProcessLock.AcquireAsync(ct).ConfigureAwait(false);
             _lockAcquired = true;
@@ -275,12 +191,147 @@ public sealed partial class BuildQueueService : BuildQueueBase {
                 _owner._crossProcessLock.Release();
             }
 
-            if (_owner._currentBuildCts == _cts) {
-                _owner._currentBuildCts = null;
+            if (Volatile.Read(ref _owner._currentBuildCts) == _cts) {
+                Volatile.Write(ref _owner._currentBuildCts, null);
             }
 
             _cts.Dispose();
             return default;
+        }
+    }
+
+    /// <summary>
+    /// 构建队列 Actor — 串行化命令处理，构建执行 fire-and-forget + Tell 回投。
+    /// <para>SubmitCmd: 入队或立即执行。CancelCmd: 取消。BuildCompletedCmd: 处理结果 + 启动下一个。</para>
+    /// </summary>
+    private sealed class BuildQueueActor : ActorBase<IBuildQueueCommand, Unit> {
+        private readonly BuildQueueService _owner;
+        private readonly Queue<BuildQueueEntry> _pending = new();
+
+        internal BuildQueueActor(BuildQueueService owner, ILogger? logger)
+            : base(logger: logger) {
+            _owner = owner;
+        }
+
+        protected override void Handle(IBuildQueueCommand cmd, CancellationToken ct) {
+            switch (cmd) {
+                case SubmitCmd submit:
+                    HandleSubmit(submit.Entry);
+                    break;
+                case CancelCmd cancel:
+                    HandleCancel(cancel);
+                    break;
+                case BuildCompletedCmd completed:
+                    HandleBuildCompleted(completed);
+                    break;
+            }
+        }
+
+        private void HandleSubmit(BuildQueueEntry entry) {
+            if (Volatile.Read(ref _owner._currentBuild) is not null) {
+                _pending.Enqueue(entry);
+                return;
+            }
+            StartBuild(entry);
+        }
+
+        private void StartBuild(BuildQueueEntry entry) {
+            Volatile.Write(ref _owner._currentBuild, entry);
+            entry.Status = BuildQueueEntryStatus.Building;
+            entry.StartedAt = DateTimeOffset.UtcNow;
+
+            _owner._logger?.LogInformation("Build {BuildId} started (checkpoint): queuePos={QueuePos}, pending={Pending}",
+                entry.BuildId, entry.QueuePosition, _owner._store.GetAllEntries().Count(e => e.Status == BuildQueueEntryStatus.Queued));
+
+            var task = Task.Run(async () => {
+                BuildQueueResult? result = null;
+                Exception? error = null;
+                try {
+                    result = await _owner.ExecuteBuildAsync(entry, CancellationToken.None).ConfigureAwait(false);
+                } catch (Exception ex) {
+                    error = ex;
+                }
+                Tell(new BuildCompletedCmd(entry, result, error));
+            });
+            RegisterInFlight(task);
+        }
+
+        private void HandleCancel(CancelCmd cancel) {
+            if (!_owner._store.TryGetEntry(cancel.BuildId, out var entry)) {
+                cancel.Tcs.TrySetResult(false);
+                return;
+            }
+
+            switch (entry.Status) {
+                case BuildQueueEntryStatus.Queued:
+                    entry.Status = BuildQueueEntryStatus.Cancelled;
+                    entry.CompletedAt = DateTimeOffset.UtcNow;
+                    _owner.CompleteWithCancellation(cancel.BuildId, entry);
+                    _owner._logger?.LogInformation("Build cancelled (was queued): {BuildId}", cancel.BuildId);
+                    cancel.Tcs.TrySetResult(true);
+                    break;
+
+                case BuildQueueEntryStatus.Building:
+                    entry.Status = BuildQueueEntryStatus.Cancelling;
+                    Volatile.Read(ref _owner._currentBuildCts)?.Cancel();
+                    _owner._logger?.LogInformation("Build cancelling (was building): {BuildId}", cancel.BuildId);
+                    cancel.Tcs.TrySetResult(true);
+                    break;
+
+                default:
+                    cancel.Tcs.TrySetResult(false);
+                    break;
+            }
+        }
+
+        private void HandleBuildCompleted(BuildCompletedCmd completed) {
+            var entry = completed.Entry;
+
+            if (completed.Error is OperationCanceledException && entry.Status == BuildQueueEntryStatus.Cancelling) {
+                entry.Status = BuildQueueEntryStatus.Cancelled;
+                entry.CompletedAt = DateTimeOffset.UtcNow;
+                _owner.CompleteWithCancellation(entry.BuildId, entry);
+                _owner._logger?.LogInformation("Build {BuildId} cancelled", entry.BuildId);
+            } else if (completed.Error is not null) {
+                entry.Status = BuildQueueEntryStatus.Failed;
+                entry.CompletedAt = DateTimeOffset.UtcNow;
+
+                var failResult = BuildQueueBase.CreateFailedResult(entry, completed.Error);
+                entry.Result = failResult;
+
+                if (_owner._store.TryGetTcs(entry.BuildId, out var failTcs)) {
+                    failTcs.TrySetResult(failResult);
+                }
+                _owner._logger?.LogError(completed.Error, "Build {BuildId} failed with exception", entry.BuildId);
+            } else if (completed.Result is not null) {
+                var result = completed.Result;
+                entry.Result = result;
+                entry.CompletedAt = DateTimeOffset.UtcNow;
+
+                entry.Status = result.Cancelled
+                    ? BuildQueueEntryStatus.Cancelled
+                    : result.ExitCode == 0
+                        ? BuildQueueEntryStatus.Completed
+                        : BuildQueueEntryStatus.Failed;
+
+                var bufferKey = BuildResultBuffer.BuildBufferKey(entry.Request.Command, entry.Request.WorkingDirectory);
+                _owner._resultBuffer.Add(bufferKey, result, entry.Request.WorkingDirectory);
+
+                if (_owner._store.TryGetTcs(entry.BuildId, out var tcs)) {
+                    tcs.TrySetResult(result);
+                }
+                _owner._logger?.LogInformation("Build {BuildId} completed: {Status}, exit={ExitCode}",
+                    entry.BuildId, entry.Status, result.ExitCode);
+            }
+
+            Volatile.Write(ref _owner._currentBuild, null);
+
+            _owner._logger?.LogDebug("Build {BuildId} checkpoint: status={Status}, remaining={Remaining}",
+                entry.BuildId, entry.Status, _owner._store.GetAllEntries().Count(e => e.Status == BuildQueueEntryStatus.Queued));
+
+            if (_pending.Count > 0) {
+                StartBuild(_pending.Dequeue());
+            }
         }
     }
 }

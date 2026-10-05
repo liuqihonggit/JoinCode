@@ -17,12 +17,20 @@ public sealed partial class MainViewModel {
 
     /// <summary>启动时从同一 sessions 目录恢复历史会话到侧边栏（CLI 与 GUI 共享会话文件）</summary>
     private async Task LoadPersistedSessionsAsync() {
-        foreach (var summary in await _sessionStore.ListSessionsAsync()) {
-            Sessions.Add(new SessionItem {
-                Id = summary.Id,
-                Title = summary.Title
-            });
-        }
+        var summaries = await _sessionStore.ListSessionsAsync();
+        ViewModelDiagnosticsLogger.WriteDebug($"LoadPersistedSessions: 读取到 {summaries.Count} 个会话: [{string.Join(", ", summaries.Select(s => $"{s.Id}({s.Title})"))}]");
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+            foreach (var summary in summaries) {
+                var item = new SessionItem {
+                    Id = summary.Id,
+                    Title = summary.Title
+                };
+                LoadSubSessionsInto(item);
+                Sessions.Add(item);
+            }
+            ViewModelDiagnosticsLogger.WriteDebug($"LoadPersistedSessions: Sessions 现有 {Sessions.Count} 个, 调用 RefreshDocuments");
+            _dockFactory?.RefreshDocuments();
+        });
     }
 
     /// <summary>新建一个会话（加入侧边栏并选中）</summary>
@@ -40,6 +48,19 @@ public sealed partial class MainViewModel {
         _session.SwitchSession(item.Id);
         _dockFactory?.ActivateSession(item.Id);
         OnPropertyChanged(nameof(Sessions));
+    }
+
+    /// <summary>从磁盘枚举子会话填充 session.Children</summary>
+    private void LoadSubSessionsInto(SessionItem session) {
+        session.Children.Clear();
+        foreach (var (id, title) in _sessionStore.ListSubSessions(session.Id)) {
+            session.Children.Add(new SessionItem {
+                Id = id,
+                Title = title,
+                ParentId = session.Id
+            });
+        }
+        ViewModelDiagnosticsLogger.WriteDebug($"LoadSubSessionsInto: 会话 {session.Id} 有 {session.Children.Count} 个子会话");
     }
 
     /// <summary>将当前会话消息持久化到 ~/.jcc/sessions/{Id}.json（含自动命名标题）</summary>
@@ -68,20 +89,16 @@ public sealed partial class MainViewModel {
         }
     }
 
-    /// <summary>清空全部会话（会话列表与消息一并重置，持久化文件同步删除）</summary>
+    /// <summary>重置界面布局到初始状态 — 恢复 Dock 面板位置、底部面板、编辑器视图</summary>
     [RelayCommand]
-    private async Task ClearAllSessionsAsync() {
-        foreach (var s in Sessions.ToList()) {
-            try {
-                await _sessionStore.DeleteAsync(s.Id);
-            } catch (Exception ex) {
-                System.Diagnostics.Debug.WriteLine($"[MainViewModel] 会话删除失败: {ex.Message}");
-            }
-        }
-        Sessions.Clear();
-        Messages.Clear();
-        _sessionCounter = 0;
-        NewConversation();
+    private void ClearAllSessions() {
+        InitDockLayout();
+        IsPanelOpen = true;
+        ActivePanelTab = PanelTabKind.Log;
+        PanelPosition = PanelPosition.Bottom;
+        PanelHeight = PanelDefaultHeight;
+        PanelWidth = PanelDefaultWidth;
+        ActiveMainArea = MainAreaKind.Messages;
     }
 
     /// <summary>从会话列表删除指定会话（同步删除持久化文件）</summary>
@@ -112,6 +129,8 @@ public sealed partial class MainViewModel {
         _activeSession = session;
         _session.SwitchSession(session.Id);
         _dockFactory?.ActivateSession(session.Id);
+        LoadSubSessionsInto(session);
+        OnPropertyChanged(nameof(SelectedSession));
 
         // 需求11：子会话点击展示内容（SubSessionMessages 缓存或引擎加载）
         if (session.IsSubSession) {

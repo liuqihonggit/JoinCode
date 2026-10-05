@@ -109,14 +109,14 @@
     <Setter Property="Padding" Value="14,6" />
   </Style>
 
-  <!-- ===== TextBox：圆角 + 聚焦 accent 边框 ===== -->
+  <!-- ===== TextBox：圆角（焦点时不显示蓝色边框） ===== -->
   <Style Selector="TextBox">
     <Setter Property="CornerRadius" Value="6" />
     <Setter Property="MinHeight" Value="30" />
     <Setter Property="Padding" Value="8,5" />
   </Style>
   <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
-    <Setter Property="BorderBrush" Value="{DynamicResource GuiAccentText}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
   </Style>
 
   <!-- ===== ComboBox：圆角对齐 ===== -->
@@ -130,5 +130,10 @@
     <Setter Property="CornerRadius" Value="6" />
     <Setter Property="Padding" Value="11,5" />
     <Setter Property="MinHeight" Value="30" />
+  </Style>
+
+  <!-- ===== 全局去除焦点装饰器（FocusAdorner）— 去除点击控件时出现的蓝色虚线框 ===== -->
+  <Style Selector="Control">
+    <Setter Property="FocusAdorner" Value="{x:Null}" />
   </Style>
 </Styles>

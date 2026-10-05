@@ -113,10 +113,11 @@ public sealed partial class MainViewModel {
         IsPanelOpen = true;
     }
 
-    /// <summary>折叠/展开面板</summary>
+    /// <summary>折叠/展开底部面板</summary>
     [RelayCommand]
     private void TogglePanel() {
         IsPanelOpen = !IsPanelOpen;
+        _dockFactory?.ToggleBottomPanel();
     }
 
     /// <summary>切换面板位置 — 在底部/右侧/左侧/顶部之间循环</summary>

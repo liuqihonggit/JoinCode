@@ -6,9 +6,9 @@
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              x:Class="JoinCode.Gui.Views.InterceptorPopupContent"
              x:DataType="vm:MainViewModel">
-  <Border Padding="12,10"
-          Background="{DynamicResource GuiSidebarBackground}">
-    <StackPanel Spacing="8">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                Background="{DynamicResource GuiSidebarBackground}">
+    <StackPanel Spacing="8" Margin="12,10">
       <TextBlock Text="🛡 AI 工具拦截器" FontSize="13" FontWeight="SemiBold"
                  Foreground="{DynamicResource GuiPrimaryText}" />
       <TextBlock Text="开启后 AI 调用对应工具会被拒绝" FontSize="10.5"
@@ -44,5 +44,5 @@
         </ItemsControl>
       </StackPanel>
     </StackPanel>
-  </Border>
+  </ScrollViewer>
 </UserControl>

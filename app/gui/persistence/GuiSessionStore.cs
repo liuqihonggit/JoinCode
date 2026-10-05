@@ -30,37 +30,38 @@ public sealed class GuiSessionStore {
     }
 
     /// <summary>
-    /// 列出全部会话摘要（按最后修改时间降序，损坏文件跳过）— 供侧边栏快速加载。
+    /// 列出全部会话摘要（按最后修改时间降序）— 直接枚举会话目录，用 TranscriptService 获取标题。
+    /// 不读 gui.json，直接读底层 CLI 会话存储。
     /// </summary>
     public async Task<IReadOnlyList<GuiSessionSummary>> ListSessionsAsync() {
-        if (_transcriptService is not null)
-            return await ListSessionsViaTranscriptServiceAsync();
-
         if (!_fs.DirectoryExists(_sessionsDir))
             return [];
 
-        var summaries = new List<GuiSessionSummary>();
-        foreach (var file in _fs.GetFiles(_sessionsDir, "gui.json", SearchOption.AllDirectories)) {
-            try {
-                var json = await _fs.ReadAllText(file);
-                var data = RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
-                if (data is null || string.IsNullOrWhiteSpace(data.Id))
-                    continue;
-
-                summaries.Add(new GuiSessionSummary {
-                    Id = data.Id,
-                    Title = string.IsNullOrWhiteSpace(data.CustomTitle) ? data.Id : data.CustomTitle,
-                    CreatedAt = data.CreatedAt,
-                    LastModified = _fs.GetLastWriteTime(file),
-                    MessageCount = data.Messages?.Count ?? 0
-                });
-            } catch (Exception) {
-                // 损坏会话文件跳过，不阻塞列表
-                System.Diagnostics.Debug.WriteLine($"[GuiSessionStore] 跳过损坏会话文件: {file}");
+        var result = new List<GuiSessionSummary>();
+        foreach (var dir in _fs.EnumerateDirectories(_sessionsDir, "*", SearchOption.TopDirectoryOnly)) {
+            var sessionId = System.IO.Path.GetFileName(dir);
+            if (string.IsNullOrEmpty(sessionId))
+                continue;
+            var title = sessionId;
+            if (_transcriptService is not null) {
+                try {
+                    var custom = await _transcriptService.GetCustomTitleAsync(sessionId);
+                    if (!string.IsNullOrWhiteSpace(custom))
+                        title = custom;
+                } catch (Exception ex) {
+                    System.Diagnostics.Debug.WriteLine($"[GuiSessionStore] GetCustomTitle 失败 sid={sessionId}: {ex.Message}");
+                }
             }
+            result.Add(new GuiSessionSummary {
+                Id = sessionId,
+                Title = title,
+                CreatedAt = _fs.GetCreationTime(dir),
+                LastModified = _fs.GetLastWriteTime(dir),
+                MessageCount = 0
+            });
         }
-
-        return summaries.OrderByDescending(s => s.LastModified).ToList();
+        ViewModelDiagnosticsLogger.WriteDebug($"ListSessions: 枚举到 {result.Count} 个会话目录: [{string.Join(", ", result.Select(s => s.Id))}]");
+        return result.OrderByDescending(s => s.LastModified).ToList();
     }
 
     /// <summary>通过 ITranscriptService 列出会话(统一入口,.json + 子目录)</summary>
@@ -207,4 +208,19 @@ public sealed class GuiSessionStore {
     }
 
     private string GetSessionPath(string sessionId) => _fs.CombinePath(_sessionsDir, sessionId, "gui.json");
+
+    /// <summary>枚举主会话的子会话(subagents/agent-xxx/) — 用目录名作子会话Id</summary>
+    public IReadOnlyList<(string Id, string Title)> ListSubSessions(string parentSessionId) {
+        var subAgentsDir = _fs.CombinePath(_sessionsDir, parentSessionId, "subagents");
+        if (!_fs.DirectoryExists(subAgentsDir))
+            return [];
+        var result = new List<(string, string)>();
+        foreach (var dir in _fs.EnumerateDirectories(subAgentsDir, "*", SearchOption.TopDirectoryOnly)) {
+            var agentId = System.IO.Path.GetFileName(dir);
+            if (string.IsNullOrEmpty(agentId))
+                continue;
+            result.Add((agentId, agentId));
+        }
+        return result;
+    }
 }

@@ -20,4 +20,11 @@ public sealed partial class MainViewModel {
         _dockFactory.InitLayout(layout);
         DockLayout = layout;
     }
+
+    /// <summary>切换 Dock 面板可见性 — 视图菜单"面板"子菜单调用</summary>
+    [RelayCommand]
+    private void ToggleDockPanel(SidePanelKind? kind) {
+        if (kind is not null)
+            _dockFactory?.TogglePanel(kind.Value);
+    }
 }

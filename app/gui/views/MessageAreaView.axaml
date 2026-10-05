@@ -30,7 +30,7 @@
             </StackPanel>
           </Border>
           <!-- 消息列表区：单条消息卡片化（G3 接线 Markdown 渲染 + 复制/删除/思考折叠命令） -->
-          <Panel Grid.Row="1" ClipToBounds="True">
+          <Grid Grid.Row="1" ClipToBounds="True">
             <StackPanel x:Name="EmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560" Margin="12" Spacing="10"
                         IsVisible="{Binding !HasMessages}">
               <Border Width="72" Height="72" CornerRadius="24" HorizontalAlignment="Center"
@@ -281,7 +281,7 @@
                 </StackPanel>
               </Grid>
             </Border>
-          </Panel>
+          </Grid>
           <Button Grid.Row="2" x:Name="BackToBottomButton" Classes="pill" Content="↓ 跳到最新"
                   HorizontalAlignment="Center" FontSize="11" Padding="14,6"
                   IsVisible="{Binding IsBackToBottomVisible}"

@@ -1,6 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:core="using:Dock.Model.Core"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
              x:Class="JoinCode.Gui.App">
   <Application.Resources>
     <ResourceDictionary>
@@ -8,6 +9,10 @@
         <ResourceInclude Source="avares://Dock.Avalonia.Themes.Fluent/Presets/Ide/Default.axaml" />
         <ResourceDictionary>
           <ControlRecycling x:Key="ControlRecyclingKey" />
+        </ResourceDictionary>
+        <ResourceDictionary>
+          <Dock x:Key="DockDocumentTabStripHorizontalCreateButtonDock">Left</Dock>
+          <HorizontalAlignment x:Key="DockDocumentTabStripHorizontalCreateButtonAlignment">Left</HorizontalAlignment>
         </ResourceDictionary>
         <ResourceDictionary>
           <ResourceDictionary.ThemeDictionaries>
@@ -42,7 +47,34 @@
     <Style Selector="DocumentControl">
       <Setter Property="HeaderTemplate">
         <DataTemplate DataType="core:IDockable">
-          <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Padding="2" />
+          <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <TextBlock Text="🌿" FontSize="12" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Padding="2" />
+            <ToggleButton x:Name="BadgeBtn" Padding="4,1" MinHeight="0" FontSize="10"
+                          Background="{DynamicResource GuiAccentText}" Foreground="White"
+                          CornerRadius="8" VerticalAlignment="Center" Margin="0"
+                          Content="{ReflectionBinding Session.SubSessionCount}"
+                          IsVisible="{ReflectionBinding Session.HasChildren}" />
+            <Popup IsOpen="{Binding #BadgeBtn.IsChecked, Mode=TwoWay}"
+                   PlacementTarget="{Binding #BadgeBtn}"
+                   Placement="BottomEdgeAlignedLeft"
+                   HorizontalOffset="0" VerticalOffset="2">
+              <Border Background="{DynamicResource GuiCardBackground}"
+                      BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
+                      CornerRadius="4" Padding="2" MinWidth="160" MaxWidth="280">
+                <ItemsControl ItemsSource="{ReflectionBinding Session.Children}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:SessionItem">
+                      <Button Content="{Binding Title}" FontSize="11" Padding="8,4" MinHeight="0"
+                              HorizontalAlignment="Stretch"
+                              Command="{ReflectionBinding $parent[ItemsControl].DataContext.SelectSubSessionCommand}"
+                              CommandParameter="{Binding}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Border>
+            </Popup>
+          </StackPanel>
         </DataTemplate>
       </Setter>
     </Style>
@@ -55,6 +87,10 @@
     </Style>
     <Style Selector="ToolChromeControl">
       <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ProportionalStackPanelSplitter">
+      <Setter Property="Background" Value="{DynamicResource GuiDivider}" />
+      <Setter Property="Thickness" Value="6" />
     </Style>
   </Application.Styles>
 </Application>

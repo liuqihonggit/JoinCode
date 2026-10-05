@@ -206,8 +206,13 @@ public sealed partial class MainViewModel {
                 RunStatus.ReportActivity(
                     hasActiveTool: evt.Type == ChatStreamEventType.ToolCallStart,
                     label: evt.Type == ChatStreamEventType.ToolCallStart ? evt.ToolName : null);
-                if (evt.Type == ChatStreamEventType.Complete && evt.Usage is not null)
-                    RunStatus.AddTokens(evt.Usage.TotalTokens);
+                if (evt.Type == ChatStreamEventType.Complete) {
+                    if (evt.Usage is not null)
+                        RunStatus.AddTokens(evt.Usage.TotalTokens);
+                    await RefreshGoalProgressAsync();
+                }
+                if (evt.Type == ChatStreamEventType.ToolCallEnd && !string.IsNullOrEmpty(evt.ToolResultText))
+                    AppendPanelOutput($"[{evt.ToolName}] {evt.ToolResultText}");
                 processor.Process(evt, StreamingEnabled);
             }
 

@@ -70,4 +70,21 @@ public sealed partial class PanelView : UserControl {
         _isDragging = false;
         _dragDistance = 0;
     }
+
+    /// <summary>终端输入框键盘事件 — Enter 执行命令，↑/↓ 历史导航</summary>
+    private void OnTerminalKeyDown(object? sender, KeyEventArgs e) {
+        if (DataContext is not ViewModels.MainViewModel vm)
+            return;
+        if (e.Key == Key.Enter) {
+            e.Handled = true;
+            if (vm.ExecuteTerminalCommand.CanExecute(null))
+                vm.ExecuteTerminalCommand.Execute(null);
+        } else if (e.Key == Key.Up) {
+            e.Handled = true;
+            vm.NavigateTerminalHistoryCommand.Execute(-1);
+        } else if (e.Key == Key.Down) {
+            e.Handled = true;
+            vm.NavigateTerminalHistoryCommand.Execute(1);
+        }
+    }
 }

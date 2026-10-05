@@ -13,8 +13,12 @@
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Grid.Column="0" Text="💬 聊天室" FontSize="13" FontWeight="SemiBold"
                      Foreground="{DynamicResource GuiPrimaryText}" />
-          <TextBlock Grid.Column="1" Text="{Binding ChatRoomMemberCount, StringFormat='{}{0} 在线'}"
-                     FontSize="11" Foreground="{DynamicResource GuiMutedText}" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <Button Classes="ghost" Content="↻" Command="{Binding RefreshChatRoomCommand}"
+                    FontSize="12" Padding="4,2" MinHeight="0" ToolTip.Tip="刷新聊天室" />
+            <TextBlock Text="{Binding ChatRoomMemberCount, StringFormat='{}{0} 在线'}"
+                       FontSize="11" Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" />
+          </StackPanel>
         </Grid>
         <!-- 成员列表（横向头像排列） -->
         <ItemsControl ItemsSource="{Binding ChatRoomMembers}">

@@ -85,12 +85,17 @@ public sealed partial class MainViewModel {
     /// <summary>系统日志条目(最近的状态变化/错误/切换记录,最多保留 50 条)</summary>
     public System.Collections.ObjectModel.ObservableCollection<string> StatusLogEntries { get; } = new();
 
+    /// <summary>系统日志合并文本（多行，供 TextBox 跨行选择）</summary>
+    [ObservableProperty]
+    private string _statusLogText = "";
+
     /// <summary>追加系统日志条目(倒序:旧的在上新的在下,最多保留 50 条)</summary>
     public void AddStatusLog(string entry) {
         var stamped = $"[{DateTime.Now:HH:mm:ss}] {entry}";
         StatusLogEntries.Add(stamped);
         while (StatusLogEntries.Count > 50)
             StatusLogEntries.RemoveAt(0);
+        StatusLogText = string.Join("\n", StatusLogEntries);
     }
 
     /// <summary>切换系统日志展开/收起</summary>

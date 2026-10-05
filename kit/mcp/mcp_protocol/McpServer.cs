@@ -137,54 +137,54 @@ public class McpServer {
             var method = McpMethodExtensions.FromValue(request.Method);
             switch (method) {
                 case McpMethod.Initialize:
-                response.Result = JsonSerializer.SerializeToElement(HandleInitialize(), McpJsonContext.Default.InitializeResult);
+                response = response with { Result = JsonSerializer.SerializeToElement(HandleInitialize(), McpJsonContext.Default.InitializeResult) };
                 break;
 
                 case McpMethod.Ping:
-                response.Result = JsonSerializer.SerializeToElement(HandlePing(), McpJsonContext.Default.PingResult);
+                response = response with { Result = JsonSerializer.SerializeToElement(HandlePing(), McpJsonContext.Default.PingResult) };
                 break;
 
                 case McpMethod.ToolsList: {
                     var result = await HandleListToolsAsync().ConfigureAwait(false);
-                    response.Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.ListToolsResult);
+                    response = response with { Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.ListToolsResult) };
                 }
                 break;
 
                 case McpMethod.ToolsCall: {
                     var result = await HandleCallToolAsync(request.Params, cancellationToken).ConfigureAwait(false);
-                    response.Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.CallToolResult);
+                    response = response with { Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.CallToolResult) };
                 }
                 break;
 
                 case McpMethod.ResourcesList:
-                response.Result = JsonSerializer.SerializeToElement(HandleListResources(), McpJsonContext.Default.McpResourcesListResponse);
+                response = response with { Result = JsonSerializer.SerializeToElement(HandleListResources(), McpJsonContext.Default.McpResourcesListResponse) };
                 break;
 
                 case McpMethod.ResourcesRead: {
                     var result = await HandleReadResourceAsync(request.Params, cancellationToken).ConfigureAwait(false);
-                    response.Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.McpResourceReadResponse);
+                    response = response with { Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.McpResourceReadResponse) };
                 }
                 break;
 
                 case McpMethod.PromptsList:
-                response.Result = JsonSerializer.SerializeToElement(HandleListPrompts(), McpJsonContext.Default.McpPromptsListResponse);
+                response = response with { Result = JsonSerializer.SerializeToElement(HandleListPrompts(), McpJsonContext.Default.McpPromptsListResponse) };
                 break;
 
                 case McpMethod.PromptsGet: {
                     var result = await HandleGetPromptAsync(request.Params, cancellationToken).ConfigureAwait(false);
-                    response.Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.McpPromptGetResponse);
+                    response = response with { Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.McpPromptGetResponse) };
                 }
                 break;
 
                 case McpMethod.LoggingSetLevel:
-                response.Result = JsonSerializer.SerializeToElement(HandleSetLogLevel(request.Params), McpJsonContext.Default.PingResult);
+                response = response with { Result = JsonSerializer.SerializeToElement(HandleSetLogLevel(request.Params), McpJsonContext.Default.PingResult) };
                 break;
 
                 default:
-                response.Error = new JsonRpcError {
+                response = response with { Error = new JsonRpcError {
                     Code = McpProtocol.Contracts.ErrorCodes.MethodNotFound,
                     Message = $"Method not found: {request.Method}"
-                };
+                } };
                 break;
             }
 

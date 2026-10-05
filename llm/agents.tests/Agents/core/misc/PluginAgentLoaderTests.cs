@@ -42,8 +42,7 @@ public sealed class PluginAgentLoaderTests {
     [Fact]
     public void LoadFromPlugin_UnsafeAgent_Throws() {
         var loader = new PluginAgentLoader();
-        var def = CreateDef();
-        def.PermissionMode = "auto";
+        var def = CreateDef() with { PermissionMode = "auto" };
         var provider = new SimpleProvider([def]);
 
         var act = () => loader.LoadFromPlugin("pluginA", provider);
@@ -79,10 +78,8 @@ public sealed class PluginAgentLoaderTests {
     [Fact]
     public async Task LoadFromPlugin_TwoPluginsSameAgentName_LastWins() {
         await using var loader = new PluginAgentLoader();
-        var def1 = CreateDef();
-        def1.SystemPrompt = "from plugin A";
-        var def2 = CreateDef();
-        def2.SystemPrompt = "from plugin B";
+        var def1 = CreateDef() with { SystemPrompt = "from plugin A" };
+        var def2 = CreateDef() with { SystemPrompt = "from plugin B" };
 
         loader.LoadFromPlugin("pluginA", new SimpleProvider([def1]));
         loader.LoadFromPlugin("pluginB", new SimpleProvider([def2]));
@@ -94,10 +91,8 @@ public sealed class PluginAgentLoaderTests {
     [Fact]
     public async Task LoadFromPlugin_UndoOnlyRemovesOwnPlugin() {
         await using var loader = new PluginAgentLoader();
-        var def1 = CreateDef();
-        def1.SystemPrompt = "A";
-        var def2 = CreateDef();
-        def2.SystemPrompt = "B";
+        var def1 = CreateDef() with { SystemPrompt = "A" };
+        var def2 = CreateDef() with { SystemPrompt = "B" };
 
         var undoA = loader.LoadFromPlugin("pluginA", new SimpleProvider([def1]));
         loader.LoadFromPlugin("pluginB", new SimpleProvider([def2]));
@@ -112,8 +107,7 @@ public sealed class PluginAgentLoaderTests {
         await using var loader = new PluginAgentLoader();
 
         var providerDef = CreateDef("executor:code");
-        var consumerDef = CreateDef("executor:doctor");
-        consumerDef.Skills = ["executor:code"];
+        var consumerDef = CreateDef("executor:doctor") with { Skills = ["executor:code"] };
 
         var undoProvider = loader.LoadFromPlugin("pluginA", new SimpleProvider([providerDef]));
         loader.LoadFromPlugin("pluginB", new SimpleProvider([consumerDef]));
@@ -151,8 +145,7 @@ public sealed class PluginAgentLoaderTests {
         await using var loader = new PluginAgentLoader();
 
         var providerDef = CreateDef("executor:code");
-        var consumerDef = CreateDef("executor:doctor");
-        consumerDef.Tools = ["executor:code"];
+        var consumerDef = CreateDef("executor:doctor") with { Tools = ["executor:code"] };
 
         var undoProvider = loader.LoadFromPlugin("pluginA", new SimpleProvider([providerDef]));
         loader.LoadFromPlugin("pluginB", new SimpleProvider([consumerDef]));
@@ -169,10 +162,8 @@ public sealed class PluginAgentLoaderTests {
         await using var loader = new PluginAgentLoader();
 
         var defA = CreateDef("executor:code");
-        var defB = CreateDef("executor:doctor");
-        defB.Skills = ["executor:code"];
-        var defC = CreateDef("coordinator");
-        defC.Skills = ["executor:doctor"];
+        var defB = CreateDef("executor:doctor") with { Skills = ["executor:code"] };
+        var defC = CreateDef("coordinator") with { Skills = ["executor:doctor"] };
 
         var undoA = loader.LoadFromPlugin("pluginA", new SimpleProvider([defA]));
         loader.LoadFromPlugin("pluginB", new SimpleProvider([defB]));
@@ -195,8 +186,7 @@ public sealed class PluginAgentLoaderTests {
         loader.Changed += (_, _) => eventCount++;
 
         var providerDef = CreateDef("executor:code");
-        var consumerDef = CreateDef("executor:doctor");
-        consumerDef.Skills = ["executor:code"];
+        var consumerDef = CreateDef("executor:doctor") with { Skills = ["executor:code"] };
 
         var undoProvider = loader.LoadFromPlugin("pluginA", new SimpleProvider([providerDef]));
         loader.LoadFromPlugin("pluginB", new SimpleProvider([consumerDef]));

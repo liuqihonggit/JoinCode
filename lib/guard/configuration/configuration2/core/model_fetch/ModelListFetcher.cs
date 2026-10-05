@@ -160,15 +160,15 @@ public sealed class ModelListFetcher : IModelListFetcher {
                 if (string.IsNullOrEmpty(id))
                     continue;
 
-                string description = string.Empty;
+                var description = string.Empty;
                 if (item.TryGetProperty("description", out var descProp) && descProp.ValueKind == JsonValueKind.String)
                     description = descProp.GetString() ?? string.Empty;
 
-                int contextLength = 0;
+                var contextLength = 0;
                 if (item.TryGetProperty("context_length", out var ctxProp) && ctxProp.ValueKind == JsonValueKind.Number)
                     contextLength = ctxProp.GetInt32();
 
-                int maxOutputLength = 0;
+                var maxOutputLength = 0;
                 if (item.TryGetProperty("max_output_length", out var maxOutProp) && maxOutProp.ValueKind == JsonValueKind.Number)
                     maxOutputLength = maxOutProp.GetInt32();
 

@@ -270,11 +270,12 @@ public sealed class ResumeCommand : ChatCommandBase {
 
             // 读取 customTitle 和 ProjectPath
             try {
-                lite.CustomTitle = await transcriptService.GetCustomTitleAsync(summary.SessionId).ConfigureAwait(false) ?? string.Empty;
+                var customTitle = await transcriptService.GetCustomTitleAsync(summary.SessionId).ConfigureAwait(false) ?? string.Empty;
                 var info = await transcriptService.GetSessionInfoAsync(summary.SessionId).ConfigureAwait(false);
                 if (info is not null) {
-                    lite.ProjectPath = info.ProjectPath;
-                    lite.CreatedAt = info.CreatedAt;
+                    lite = lite with { CustomTitle = customTitle, ProjectPath = info.ProjectPath, CreatedAt = info.CreatedAt };
+                } else {
+                    lite = lite with { CustomTitle = customTitle };
                 }
             } catch (Exception ex) {
                 // 无法解析 → 仅保留 stat 信息

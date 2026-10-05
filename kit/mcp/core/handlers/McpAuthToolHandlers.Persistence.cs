@@ -150,25 +150,31 @@ public sealed partial class McpAuthToolHandlers {
     /// OAuth2 因属性私有，需在各方法中直接构建 entry 保存。
     /// </summary>
     private static McpAuthEntry? BuildAuthEntryFromProvider(string name, IMcpAuthProvider provider) {
-        var entry = new McpAuthEntry {
-            AuthName = name,
-            AuthType = provider.AuthType.ToString(),
-        };
+        var authType = provider.AuthType.ToString();
 
         switch (provider) {
             case ApiKeyAuthProvider keyProvider:
-            entry.ApiKey = keyProvider.ApiKey;
-            entry.HeaderName = keyProvider.HeaderName;
-            return entry;
+            return new McpAuthEntry {
+                AuthName = name,
+                AuthType = authType,
+                ApiKey = keyProvider.ApiKey,
+                HeaderName = keyProvider.HeaderName
+            };
 
             case BearerAuthProvider bearerProvider:
-            entry.Token = bearerProvider.Token;
-            return entry;
+            return new McpAuthEntry {
+                AuthName = name,
+                AuthType = authType,
+                Token = bearerProvider.Token
+            };
 
             case BasicAuthProvider basicProvider:
-            entry.Username = basicProvider.Username;
-            entry.Password = basicProvider.Password;
-            return entry;
+            return new McpAuthEntry {
+                AuthName = name,
+                AuthType = authType,
+                Username = basicProvider.Username,
+                Password = basicProvider.Password
+            };
 
             default:
             return null;

@@ -31,7 +31,7 @@ public sealed class WorkspacePreviewTests {
             while (root.Parent is not null && !File.Exists(Path.Combine(root.FullName, "AGENTS.md"))) root = root.Parent;
             var path = Path.Combine(root.FullName, "dumps", "gui_experience");
             Directory.CreateDirectory(path);
-            frame.Save(Path.Combine(path, $"{theme}-{accent}-{width}.png"));
+            frame.Save(Path.Combine(path, $"{theme}-{accent}-{width}.png"), PngBitmapEncoderOptions.Default);
         } finally { window.Close(); }
     }
 }

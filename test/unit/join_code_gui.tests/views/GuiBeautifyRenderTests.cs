@@ -76,7 +76,7 @@ public sealed class GuiBeautifyRenderTests {
         return false;
     }
 
-    private static void SavePng(WriteableBitmap frame, string path) => frame.Save(path);
+    private static void SavePng(WriteableBitmap frame, string path) => frame.Save(path, PngBitmapEncoderOptions.Default);
 
     /// <summary>打开窗口、注入样例消息并捕获渲染帧</summary>
     private static WriteableBitmap CaptureWithMessages(bool dark) {
@@ -137,7 +137,7 @@ public sealed class GuiBeautifyRenderTests {
 
     /// <summary>把控件边界换算到窗口坐标</summary>
     private static Avalonia.Rect BoundsInWindow(Avalonia.Visual v) {
-        var root = (Avalonia.Visual)(v.GetVisualRoot() ?? throw new InvalidOperationException("控件不在视觉树中"));
+        var root = (Avalonia.Visual)(v.FindAncestorOfType<Window>() ?? throw new InvalidOperationException("控件不在视觉树中"));
         var topLeft = (v.TransformToVisual(root) ?? throw new InvalidOperationException("坐标换算失败"))
             .Transform(default);
         return new Avalonia.Rect(topLeft, v.Bounds.Size);

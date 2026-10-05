@@ -30,11 +30,15 @@ public sealed partial class InputBarView : UserControl {
     /// <summary>数据上下文变更时处理</summary>
     protected override void OnDataContextChanged(EventArgs e) {
         base.OnDataContextChanged(e);
-        if (_vm is not null)
+        if (_vm is not null) {
             _vm.PropertyChanged -= OnVmPropertyChanged;
+            _vm.FocusInputRequested -= FocusInput;
+        }
         _vm = DataContext as MainViewModel;
-        if (_vm is not null)
+        if (_vm is not null) {
             _vm.PropertyChanged += OnVmPropertyChanged;
+            _vm.FocusInputRequested += FocusInput;
+        }
     }
 
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {

@@ -6,6 +6,8 @@ namespace JoinCode.Gui.ViewModels;
 public enum PanelTabKind {
     /// <summary>输出日志</summary>
     Output,
+    /// <summary>系统日志</summary>
+    Log,
     /// <summary>集成终端</summary>
     Terminal,
     /// <summary>问题/错误列表</summary>
@@ -39,16 +41,18 @@ public sealed partial class MainViewModel {
     /// <summary>面板是否展开</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsPanelTabOutput))]
+    [NotifyPropertyChangedFor(nameof(IsPanelTabLog))]
     [NotifyPropertyChangedFor(nameof(IsPanelTabTerminal))]
     [NotifyPropertyChangedFor(nameof(IsPanelTabProblems))]
-    private bool _isPanelOpen;
+    private bool _isPanelOpen = true;
 
     /// <summary>当前激活的面板标签</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsPanelTabOutput))]
+    [NotifyPropertyChangedFor(nameof(IsPanelTabLog))]
     [NotifyPropertyChangedFor(nameof(IsPanelTabTerminal))]
     [NotifyPropertyChangedFor(nameof(IsPanelTabProblems))]
-    private PanelTabKind _activePanelTab = PanelTabKind.Output;
+    private PanelTabKind _activePanelTab = PanelTabKind.Log;
 
     /// <summary>面板位置 — 底部/右侧/左侧/顶部</summary>
     [ObservableProperty]
@@ -81,6 +85,9 @@ public sealed partial class MainViewModel {
     /// <summary>输出标签是否激活</summary>
     public bool IsPanelTabOutput => IsPanelOpen && ActivePanelTab == PanelTabKind.Output;
 
+    /// <summary>系统日志标签是否激活</summary>
+    public bool IsPanelTabLog => IsPanelOpen && ActivePanelTab == PanelTabKind.Log;
+
     /// <summary>终端标签是否激活</summary>
     public bool IsPanelTabTerminal => IsPanelOpen && ActivePanelTab == PanelTabKind.Terminal;
 
@@ -98,6 +105,7 @@ public sealed partial class MainViewModel {
             return;
         ActivePanelTab = tab switch {
             "Output" => PanelTabKind.Output,
+            "Log" => PanelTabKind.Log,
             "Terminal" => PanelTabKind.Terminal,
             "Problems" => PanelTabKind.Problems,
             _ => ActivePanelTab

@@ -47,7 +47,7 @@ public sealed partial class PanelView : UserControl {
         if (vm is null)
             return;
 
-        var window = this.GetVisualRoot() as Window;
+        var window = this.FindAncestorOfType<Window>();
         if (window is null)
             return;
 

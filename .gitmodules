@@ -10,3 +10,6 @@
 	url = git@gitee.com:JJbox/Editor.git
 [remote "submodule.libs/Terminal.Gui"]
 	url = git@gitee.com:JJbox/Terminal.Gui.git
+[submodule "libs/Dock"]
+	path = libs/Dock
+	url = https://github.com/wieslawsoltes/Dock.git

@@ -41,7 +41,7 @@ public sealed class WorkspaceExperienceTests {
         var window = new MainWindow { DataContext = vm, Width = 1200, Height = 800 };
         try {
             window.Show();
-            window.GetVisualDescendants().OfType<TextBox>().Select(t => t.Watermark)
+            window.GetVisualDescendants().OfType<TextBox>().Select(t => t.PlaceholderText)
                 .Should().Contain("筛选会话…");
         } finally { window.Close(); }
     }

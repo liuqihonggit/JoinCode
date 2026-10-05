@@ -29,12 +29,14 @@ public sealed class WorkbenchTests {
         WorkbenchCatalog.Group("other").Should().Be("其他");
     }
 
+#if false // UnifiedDiffColorizer 已移除(AvaloniaEdit 不兼容 Avalonia 12.x)
     [Theory]
     [InlineData("+new", '+')] [InlineData("-old", '-')]
     [InlineData("+++ b/app.cs", ' ')] [InlineData("--- a/app.cs", ' ')]
     [InlineData("@@ -1 +1 @@", '@')]
     public void DiffColors_DistinguishChangesFromFileHeaders(string text, char expected)
         => JoinCode.Gui.Markdown.UnifiedDiffColorizer.Kind(text).Should().Be(expected);
+#endif
 
     [Fact]
     public void InvalidArguments_AreRejectedInsteadOfExecutingEmptyArguments() {
@@ -173,16 +175,18 @@ public sealed class WorkbenchTests {
         try {
             window.Show(); vm.TabIndex = tab;
             Dispatcher.UIThread.RunJobs();
+#if false // AvaloniaEdit 已移除(不兼容 Avalonia 12.x)
             if (tab == 0) {
                 var editor = window.GetVisualDescendants().OfType<AvaloniaEdit.TextEditor>().Single(e => e.Name == "CodePreview");
                 editor.Text.Should().Contain("Workspace");
                 editor.GetVisualDescendants().OfType<ScrollViewer>().Should().NotBeEmpty("code preview must have a rendered editor template");
             }
+#endif
             using var frame = window.CaptureRenderedFrame() ?? throw new InvalidOperationException("No Skia frame.");
 #pragma warning disable JCC9001 // Diagnostic screenshots follow the repository dumps convention.
             var folder = System.IO.Path.Combine(FindRoot(), "dumps", "gui_workbench");
             System.IO.Directory.CreateDirectory(folder);
-            frame.Save(System.IO.Path.Combine(folder, $"tab-{tab}.png"));
+            frame.Save(System.IO.Path.Combine(folder, $"tab-{tab}.png"), PngBitmapEncoderOptions.Default);
 #pragma warning restore JCC9001
         } finally { window.Close(); }
     }

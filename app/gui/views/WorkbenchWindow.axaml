@@ -1,5 +1,5 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:JoinCode.Gui.ViewModels" xmlns:edit="using:AvaloniaEdit"
+        xmlns:vm="using:JoinCode.Gui.ViewModels"
         xmlns:theme="using:JoinCode.Gui.Theming" xmlns:host="using:JoinCode.Gui.Hosting"
         x:Class="JoinCode.Gui.Views.WorkbenchWindow" x:DataType="vm:WorkbenchViewModel"
         Title="JoinCode · 工作台" Width="1100" Height="780" MinWidth="760" MinHeight="560"
@@ -19,14 +19,14 @@
       <TabItem Header="文件">
         <Grid RowDefinitions="Auto,*" RowSpacing="12" Margin="0,14,0,0">
           <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
-            <TextBox Text="{Binding Directory}" Watermark="工作区目录" />
+            <TextBox Text="{Binding Directory}" PlaceholderText="工作区目录" />
             <Button Grid.Column="1" Content="上一级" Command="{Binding ParentDirectoryCommand}" />
             <Button Grid.Column="2" Content="刷新目录" Command="{Binding RefreshFilesCommand}" />
             <Button Grid.Column="3" Content="选择目录…" Click="OnChooseFolder" />
           </Grid>
           <Grid Grid.Row="1" ColumnDefinitions="250,5,*" ColumnSpacing="8">
             <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
-              <TextBox Text="{Binding FileSearch}" Watermark="筛选文件…" />
+              <TextBox Text="{Binding FileSearch}" PlaceholderText="筛选文件…" />
               <ListBox Grid.Row="1" ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}" DoubleTapped="OnEntryDoubleTapped">
                 <ListBox.ItemTemplate><DataTemplate x:DataType="vm:WorkspaceFile"><TextBlock Text="{Binding Display}" /></DataTemplate></ListBox.ItemTemplate>
               </ListBox>
@@ -37,9 +37,9 @@
             </Grid>
             <GridSplitter Grid.Column="1" ResizeDirection="Columns" HorizontalAlignment="Stretch" />
             <Border Grid.Column="2" CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource GuiDivider}" ClipToBounds="True">
-              <edit:TextEditor Name="CodePreview" IsReadOnly="True" ShowLineNumbers="True"
-                               FontFamily="Consolas" FontSize="13" Background="{DynamicResource GuiSearchBarBackground}"
-                               Foreground="{DynamicResource GuiPrimaryText}" />
+              <TextBox Name="CodePreview" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                       FontFamily="Consolas" FontSize="13" Background="{DynamicResource GuiSearchBarBackground}"
+                       Foreground="{DynamicResource GuiPrimaryText}" />
             </Border>
           </Grid>
         </Grid>
@@ -47,14 +47,14 @@
       <TabItem Header="Git 变更">
         <Grid RowDefinitions="Auto,*" RowSpacing="12" Margin="0,14,0,0">
           <WrapPanel>
-            <TextBox Text="{Binding Directory}" Width="390" Watermark="Git 仓库目录" Margin="0,0,8,8" />
+            <TextBox Text="{Binding Directory}" Width="390" PlaceholderText="Git 仓库目录" Margin="0,0,8,8" />
             <Button Content="状态" Command="{Binding GitStatusCommand}" Margin="0,0,8,8" />
             <Button Content="工作区差异" Command="{Binding GitDiffCommand}" Margin="0,0,8,8" />
             <Button Content="已暂存差异" Command="{Binding GitStagedCommand}" Margin="0,0,8,8" />
           </WrapPanel>
-          <edit:TextEditor Grid.Row="1" Name="GitPreview" IsReadOnly="True" ShowLineNumbers="True"
-                           FontFamily="Consolas" FontSize="13" Background="{DynamicResource GuiSearchBarBackground}"
-                           Foreground="{DynamicResource GuiPrimaryText}" />
+          <TextBox Grid.Row="1" Name="GitPreview" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                   FontFamily="Consolas" FontSize="13" Background="{DynamicResource GuiSearchBarBackground}"
+                   Foreground="{DynamicResource GuiPrimaryText}" />
         </Grid>
       </TabItem>
       <TabItem Header="模型 / 外观">
@@ -82,7 +82,7 @@
         <Grid RowDefinitions="Auto,*" Margin="0,14,0,0" RowSpacing="10">
           <Grid ColumnDefinitions="200,*,Auto" ColumnSpacing="8">
             <ComboBox ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}" PlaceholderText="工具分组" HorizontalAlignment="Stretch" />
-            <TextBox Grid.Column="1" Text="{Binding ToolSearch}" Watermark="搜索名称或描述…" />
+            <TextBox Grid.Column="1" Text="{Binding ToolSearch}" PlaceholderText="搜索名称或描述…" />
             <Button Grid.Column="2" Content="刷新引擎目录" Command="{Binding RefreshCatalogCommand}" />
           </Grid>
           <Grid Grid.Row="1" ColumnDefinitions="260,*" ColumnSpacing="12">
@@ -98,7 +98,7 @@
                 <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:WorkbenchParameter"><StackPanel Spacing="3" Margin="0,0,0,12">
                   <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
                   <TextBlock Text="{Binding Hint}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource GuiMutedText}" />
-                  <TextBox Text="{Binding Value}" Watermark="填写参数值" />
+                  <TextBox Text="{Binding Value}" PlaceholderText="填写参数值" />
                 </StackPanel></DataTemplate></ItemsControl.ItemTemplate>
               </ItemsControl></ScrollViewer>
               <Button Grid.Row="2" Content="执行所选工具" Classes="primary" Command="{Binding RunToolCommand}" IsEnabled="{Binding !IsWorking}" HorizontalAlignment="Left" />
@@ -112,7 +112,7 @@
           <TextBlock Text="插件管理" FontSize="19" FontWeight="SemiBold" />
           <TextBlock Grid.Row="1" Text="{Binding PluginUsage}" TextWrapping="Wrap" />
           <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-            <TextBox Text="{Binding PluginTarget}" Watermark="插件名称，安装时填写 EXE 完整路径" />
+            <TextBox Text="{Binding PluginTarget}" PlaceholderText="插件名称，安装时填写 EXE 完整路径" />
             <Button Grid.Column="1" Content="查看插件" Command="{Binding PluginActionCommand}" CommandParameter="list" IsEnabled="{Binding !IsWorking}" />
             <Button Grid.Column="2" Content="刷新目录" Command="{Binding RefreshCatalogCommand}" />
           </Grid>

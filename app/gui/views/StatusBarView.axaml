@@ -48,7 +48,7 @@
               <StackPanel Orientation="Horizontal" Spacing="8" Margin="2,0,2,6">
                 <TextBlock Text="{Binding BackgroundPanel.CountText, FallbackValue='后台代理'}" FontSize="11.5"
                            FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
-                <TextBox Text="{Binding BackgroundPanel.SearchText}" Watermark="搜索..." FontSize="10" Padding="6,2" MinWidth="80" />
+                <TextBox Text="{Binding BackgroundPanel.SearchText}" PlaceholderText="搜索..." FontSize="10" Padding="6,2" MinWidth="80" />
                 <Button Classes="ghost" Content="暂停所有" FontSize="10" Padding="7,2" MinHeight="0"
                         Command="{Binding BackgroundPanel.PauseAllCommand}" ToolTip.Tip="暂停所有运行中子代理" />
                 <Button Classes="ghost" Content="恢复所有" FontSize="10" Padding="7,2" MinHeight="0"

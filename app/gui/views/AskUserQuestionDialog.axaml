@@ -21,7 +21,7 @@
                TextWrapping="Wrap" />
     <StackPanel x:Name="OptionsPanel" Spacing="6" />
     <TextBox x:Name="FreeInputBox"
-             Watermark="自由输入..."
+             PlaceholderText="自由输入..."
              IsVisible="False"
              FontSize="13"
              Foreground="{DynamicResource GuiPrimaryText}"

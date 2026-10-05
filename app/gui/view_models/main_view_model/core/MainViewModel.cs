@@ -296,6 +296,12 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     /// <summary>请求滚动到底部（由 View 订阅执行实际 ScrollToLine UI 操作）</summary>
     public event Action? ScrollToBottomRequested;
 
+    /// <summary>请求聚焦输入栏（斜杠补全完成后由 MessageAreaView 触发，InputBarView 订阅执行）</summary>
+    public event Action? FocusInputRequested;
+
+    /// <summary>触发 FocusInputRequested 事件 — 斜杠补全完成后请求聚焦输入栏</summary>
+    public void RequestFocusInput() => FocusInputRequested?.Invoke();
+
     /// <summary>
     /// T9：退出请求 — /exit 确认通过后触发，MainWindow 订阅并 Close()。
     /// </summary>

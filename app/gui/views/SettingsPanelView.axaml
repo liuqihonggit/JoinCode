@@ -27,9 +27,8 @@
     </Style>
   </UserControl.Styles>
 
-  <!-- 右侧抽屉：固定宽 280，左边框分隔（Padding 12 对齐全局栏节奏） -->
-  <Border Width="312" Background="{DynamicResource GuiSettingsBackground}"
-          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1,0,0,0"
+  <!-- 设置面板：弹性填充 Dock 区域，Padding 12 对齐全局栏节奏 -->
+  <Border Background="{DynamicResource GuiSettingsBackground}"
           Padding="12,12" ClipToBounds="True">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel Spacing="12">
@@ -237,7 +236,7 @@
                         SelectedItem="{Binding NetworkMode}" MinWidth="90" />
             </Grid>
             <TextBox Text="{Binding ProxyUrl}" FontSize="11"
-                     Watermark="代理地址（Proxy 模式时使用，如 http://127.0.0.1:7890）" />
+                     PlaceholderText="代理地址（Proxy 模式时使用，如 http://127.0.0.1:7890）" />
             <Button Classes="accentSubtle" Content="应用网络模式" FontSize="11" Padding="8,4" MinHeight="0"
                     HorizontalAlignment="Left"
                     Command="{Binding ApplyNetworkModeCommand}" />

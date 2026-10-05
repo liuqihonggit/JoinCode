@@ -5,6 +5,7 @@
              mc:Ignorable="d"
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              x:Class="JoinCode.Gui.Views.PanelView"
+             x:Name="PanelViewRoot"
              x:DataType="vm:MainViewModel">
   <UserControl.Styles>
     <Style Selector="ToggleButton.panelTab">
@@ -37,6 +38,9 @@
           <ToggleButton Classes="panelTab" Content="输出"
                         Command="{Binding SwitchPanelTabCommand}" CommandParameter="Output"
                         IsChecked="{Binding IsPanelTabOutput, Mode=OneWay}" />
+          <ToggleButton Classes="panelTab" Content="日志"
+                        Command="{Binding SwitchPanelTabCommand}" CommandParameter="Log"
+                        IsChecked="{Binding IsPanelTabLog, Mode=OneWay}" />
           <ToggleButton Classes="panelTab" Content="终端"
                         Command="{Binding SwitchPanelTabCommand}" CommandParameter="Terminal"
                         IsChecked="{Binding IsPanelTabTerminal, Mode=OneWay}" />
@@ -69,6 +73,19 @@
                                 FontFamily="{DynamicResource GuiMonoFont}"
                                 Foreground="{DynamicResource GuiSecondaryText}"
                                 TextWrapping="NoWrap" Margin="8,4" />
+        </ScrollViewer>
+        <ScrollViewer IsVisible="{Binding IsPanelTabLog}"
+                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding StatusLogEntries}" Margin="8,4">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <SelectableTextBlock Text="{Binding}" FontSize="{Binding DataContext.StatusLogFontSize, ElementName=PanelViewRoot}"
+                                     FontFamily="{DynamicResource GuiMonoFont}"
+                                     Foreground="{DynamicResource GuiMutedText}"
+                                     Margin="0,1" TextWrapping="Wrap" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </ScrollViewer>
         <StackPanel IsVisible="{Binding IsPanelTabTerminal}"
                     VerticalAlignment="Center" HorizontalAlignment="Center">

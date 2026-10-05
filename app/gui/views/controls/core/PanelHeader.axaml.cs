@@ -12,8 +12,8 @@ public partial class PanelHeader : UserControl {
     private void OnDragHandlePressed(object? sender, PointerPressedEventArgs e) {
         if (DataContext is not PanelHeaderVm vm)
             return;
-        var data = new DataObject();
-        data.Set("PanelDrag", vm.Title);
-        _ = DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        var data = new DataTransfer();
+        data.Add(DataTransferItem.Create(DataFormat.CreateInProcessFormat<string>("PanelDrag"), vm.Title));
+        _ = DragDrop.DoDragDropAsync(e, data, DragDropEffects.Move);
     }
 }

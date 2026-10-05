@@ -452,6 +452,9 @@ public sealed record BackoffStrategy(
 | S25: Props（Props&lt;TActor&gt; + Props.Create 工厂） | Actor 创建配置封装 | ✅ | ✅ 1 测试通过 |
 | S26: Receptionist（Register/Find/Unregister） | 服务发现 | ✅ | ✅ 1 测试通过 |
 | S27: ActorSystem.ActorOf（Props 创建+注册） | 解耦创建与注册 | ✅ | ✅ 1 测试通过 |
+| U1: ActorTimers 统一定时器（5 处生产代码） | ShellProcessWatchdog/CronScheduler/GoalHeartbeat/ToolHealthMonitor/AwaySummaryService | ✅ | ✅ 1925 测试通过 |
+| U2: Become 统一状态切换（3 处生产代码） | CronScheduler(2态)/BridgeClient(2态)/VoiceService(4态→2行为) | ✅ | ✅ 908 测试通过 |
+| U3: RouterActor Watch/Unwatch + DeathPact | BuildQueueRouterActor→BuildWorker 故障传播 | ✅ | ✅ 2 测试通过 |
 
 ---
 
@@ -496,3 +499,9 @@ public sealed record BackoffStrategy(
 <!-- 原因: 用户要求继续对齐 Akka API；PoisonPill 用 fire-and-forget DisposeAsync 避免 Consumer 线程死锁；Identify 用 ReplyChannel 包装 TCS 实现类型安全回复；Inbox 用 Channel 缓冲消息；ActorContext 轻量封装 ActorBase 已有能力；ActorSelection 泛型 Tell 类型安全；ActorFsm 继承 ActorBase 用状态处理函数表 -->
 <!-- 替代方案: Context API 可不实现（语法糖），但用户要求全部对齐；ActorSelection 可用反射（不类型安全，放弃） -->
 <!-- 验证: 582 测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-05 -->
+<!-- 决策: 统一 Actor 模式改造 — ActorTimers(5处)+Become(3处)+Watch/Unwatch(1处) -->
+<!-- 原因: 用户要求全部 Actor 模型统一，一套模式贯穿，所有代码从 Actor 模型生长出来 -->
+<!-- 替代方案: 保留 bool+if 状态检查（用户拒绝，要求统一）；TeamMemorySyncService/RemoteCacheRefreshServiceBase 跳过（改造范围过大） -->
+<!-- 验证: 596 测试全通过 ✅ -->

@@ -56,6 +56,7 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         private static FrozenDictionary<string, ModelItemConfig> BuildModelById(ModelConfigRoot config) {
             var idDict = new Dictionary<string, ModelItemConfig>(StringComparer.OrdinalIgnoreCase);
             foreach (var provider in config.Providers) {
+                if (provider.Value?.Models is null) continue;
                 foreach (var model in provider.Value.Models) {
                     idDict[model.Id] = model;
                 }
@@ -66,7 +67,11 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         private static FrozenDictionary<string, ModelEntry[]> BuildModelsByProvider(ModelConfigRoot config) {
             var dict = new Dictionary<string, ModelEntry[]>(StringComparer.OrdinalIgnoreCase);
             foreach (var provider in config.Providers) {
-                var models = provider.Value.Models;
+                var models = provider.Value?.Models;
+                if (models is null) {
+                    dict[provider.Key] = [];
+                    continue;
+                }
                 var entries = new ModelEntry[models.Count];
                 for (var i = 0; i < models.Count; i++) {
                     var m = models[i];
@@ -82,8 +87,10 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
             var outer = new Dictionary<string, FrozenDictionary<string, ModelItemConfig>>(StringComparer.OrdinalIgnoreCase);
             foreach (var provider in config.Providers) {
                 var inner = new Dictionary<string, ModelItemConfig>(StringComparer.OrdinalIgnoreCase);
-                foreach (var model in provider.Value.Models) {
-                    inner[model.Id] = model;
+                if (provider.Value?.Models is not null) {
+                    foreach (var model in provider.Value.Models) {
+                        inner[model.Id] = model;
+                    }
                 }
                 outer[provider.Key] = inner.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
             }
@@ -95,9 +102,12 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
             var outer = new Dictionary<string, FrozenDictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
             foreach (var provider in config.Providers) {
                 var inner = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var model in provider.Value.Models) {
-                    foreach (var alias in model.Aliases) {
-                        inner[alias] = model.Id;
+                if (provider.Value?.Models is not null) {
+                    foreach (var model in provider.Value.Models) {
+                        if (model.Aliases is null) continue;
+                        foreach (var alias in model.Aliases) {
+                            inner[alias] = model.Id;
+                        }
                     }
                 }
                 outer[provider.Key] = inner.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
@@ -109,6 +119,7 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         private static FrozenDictionary<string, string> BuildProviderByModelId(ModelConfigRoot config) {
             var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var provider in config.Providers) {
+                if (provider.Value?.Models is null) continue;
                 foreach (var model in provider.Value.Models) {
                     dict[model.Id] = provider.Key;
                 }

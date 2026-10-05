@@ -72,6 +72,8 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
     private readonly IRouterStrategy<TMessage> _strategy;
     private readonly Action<ChildActorHandle, Exception>? _onWorkerFailure;
     private readonly ConcurrentDictionary<string, ChildActorHandle> _children = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, byte> _deathPactChildren = new(StringComparer.Ordinal);
+    private volatile bool _deathPactPending;
 
     /// <summary>
     /// 构造 Router Actor — 使用 Router 背压配置(容量 1000 + 10s 超时)。
@@ -154,6 +156,41 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
 
     /// <summary>获取所有子 Actor 句柄</summary>
     protected IReadOnlyList<ChildActorHandle> GetChildren() => _children.Values.ToArray();
+
+    /// <summary>
+    /// 监视子 Actor — 子终止时触发 DeathPact 检查(Akka watch 对齐)。
+    /// <para>deathPact=true 时子终止后本 Actor 处理下一条命令时抛 <see cref="DeathPactException"/>。</para>
+    /// </summary>
+    /// <param name="child">被监视的子 Actor</param>
+    /// <param name="deathPact">true=子终止后本 Actor 自动失败;false=仅通知不失败</param>
+    protected void Watch(ChildActorHandle child, bool deathPact = false) {
+        ArgumentNullException.ThrowIfNull(child);
+        child.Terminated += OnChildTerminated;
+        if (deathPact) {
+            _deathPactChildren.TryAdd(child.Id, 0);
+        }
+    }
+
+    /// <summary>取消监视子 Actor — 不再接收其 Terminated 事件</summary>
+    protected void Unwatch(ChildActorHandle child) {
+        ArgumentNullException.ThrowIfNull(child);
+        child.Terminated -= OnChildTerminated;
+        _deathPactChildren.TryRemove(child.Id, out _);
+    }
+
+    private void OnChildTerminated(ChildActorHandle child, TerminationReason reason) {
+        if (_deathPactChildren.ContainsKey(child.Id)) {
+            _deathPactPending = true;
+        }
+    }
+
+    /// <summary>DeathPact 检查 — watch(deathPact:true) 的子终止后抛 DeathPactException</summary>
+    protected override void OnBeforeProcessCommand() {
+        if (_deathPactPending) {
+            _deathPactPending = false;
+            throw new DeathPactException("watch 的子 Actor 终止,本 Actor 未处理 Terminated,触发 DeathPact");
+        }
+    }
 
     /// <summary>Dispose 时级联停止所有子 Actor</summary>
     public override async ValueTask DisposeAsync() {

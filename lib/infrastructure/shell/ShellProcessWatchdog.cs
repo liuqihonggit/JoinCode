@@ -26,7 +26,7 @@ public sealed record ShellSystemResumedCmd : IShellWatchdogCommand;
 /// </summary>
 [Register(typeof(IShellProcessWatchdog), ServiceLifetime.Singleton)]
 public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit>, IShellProcessWatchdog {
-    private readonly Timer _timer;
+    private readonly ActorTimers<IShellWatchdogCommand> _timers;
     private readonly ILogger? _logger;
     private int _disposed;
 
@@ -39,7 +39,8 @@ public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit
     public ShellProcessWatchdog(ILogger? logger = null)
         : base() {
         _logger = logger;
-        _timer = new Timer(_ => TrySend(new ShellCheckAllTickCmd()), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        _timers = new ActorTimers<IShellWatchdogCommand>(this);
+        _timers.StartPeriodicTimer("check", new ShellCheckAllTickCmd(), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
 
     /// <summary>
@@ -127,8 +128,7 @@ public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit
     /// </summary>
     public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _timer.Change(Timeout.Infinite, Timeout.Infinite);
-        _timer.Dispose();
+        await _timers.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

@@ -3,10 +3,11 @@ namespace Core.Scheduling;
 /// <summary>
 /// 任务状态机 — 基于预定义的状态转移表管理任务生命周期状态转换
 /// </summary>
-public sealed class TaskStateMachine {
+public sealed class TaskStateMachine : IDisposable {
     private static readonly FrozenDictionary<TaskState, FrozenSet<TaskState>> Transitions = CreateTransitionTable();
 
     private readonly StateMachine<TaskState> _stateMachine;
+    private int _disposed;
 
     /// <summary>
     /// 初始化任务状态机实例
@@ -74,6 +75,14 @@ public sealed class TaskStateMachine {
 
     private void OnStateChanged(object? sender, StateChangedEventArgs<TaskState> e) {
         StateChanged?.Invoke(this, e);
+    }
+
+    /// <summary>
+    /// 释放资源 — 取消内部状态机的事件订阅,防止内存泄漏
+    /// </summary>
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _stateMachine.StateChanged -= OnStateChanged;
     }
 
     private static FrozenDictionary<TaskState, FrozenSet<TaskState>> CreateTransitionTable() {

@@ -113,4 +113,13 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
         }
         return false;
     }
+
+    /// <summary>释放 — 完成 Channel（幂等）</summary>
+    public override void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _outputChannel.Writer.TryComplete();
+        base.Dispose();
+    }
+
+    private int _disposed;
 }

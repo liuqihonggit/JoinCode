@@ -261,6 +261,7 @@ public sealed class SshSession : ISshSession {
         }
 
         StopKeepAlive();
+        _stateMachine.StateChanged -= OnStateChanged;
         var portTask = _portForwardManager.DisposeAsync();
 
         if (_sshProcess != null && !_sshProcess.HasExited) {

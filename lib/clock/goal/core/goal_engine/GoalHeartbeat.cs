@@ -42,7 +42,7 @@ public sealed record HeartbeatTickCmd : IGoalHeartbeatCommand;
 /// </summary>
 public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Unit>, IGoalHeartbeat {
     private int _disposed;
-    private readonly Timer _heartbeatTimer;
+    private readonly ActorTimers<IGoalHeartbeatCommand> _timers;
     private readonly TimeSpan _heartbeatInterval;
     private readonly ILogger<GoalHeartbeat>? _logger;
     private readonly IClockService _clock;
@@ -73,7 +73,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
         _heartbeatInterval = heartbeatInterval ?? TimeSpan.FromSeconds(30);
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _heartbeatTimer = new Timer(_ => TrySend(new HeartbeatTickCmd()), null, Timeout.Infinite, Timeout.Infinite);
+        _timers = new ActorTimers<IGoalHeartbeatCommand>(this);
     }
 
 
@@ -126,7 +126,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
 
             if (_refcount == 1 && !_timerActive) {
                 _timerActive = true;
-                _heartbeatTimer.Change(_heartbeatInterval, _heartbeatInterval);
+                _timers.StartPeriodicTimer("heartbeat", new HeartbeatTickCmd(), _heartbeatInterval, _heartbeatInterval);
             }
 
             _logger?.LogDebug(L.T(StringKey.GoalHeartbeatActivityStarted), start.Reason, _refcount);
@@ -142,7 +142,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
 
             if (_refcount == 0 && _timerActive) {
                 _timerActive = false;
-                _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                _timers.Cancel("heartbeat");
                 Volatile.Write(ref _lastActivityTicks, _clock.GetUtcNow().Ticks);
             }
 
@@ -152,7 +152,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
 
             case ResetHeartbeatCmd reset:
             _timerActive = false;
-            _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            _timers.Cancel("heartbeat");
             _refcount = 0;
             _activeReasons.Clear();
             Volatile.Write(ref _lastActivityTicks, 0);
@@ -192,8 +192,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
             return;
         }
 
-        _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
-        _heartbeatTimer.Dispose();
+        await _timers.DisposeAsync().ConfigureAwait(false);
 
         await base.DisposeAsync().ConfigureAwait(false);
     }

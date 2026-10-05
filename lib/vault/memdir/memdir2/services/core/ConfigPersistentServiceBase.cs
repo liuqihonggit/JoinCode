@@ -47,32 +47,34 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable {
     protected abstract string FormatConfigValue(TValue value);
 
     /// <summary>
-    /// 当前配置值（首次访问时延迟初始化）
+    /// 当前配置值（首次访问时延迟初始化）— 读取走 MemoryBarrier acquire 无锁，初始化完成后热路径零同步
     /// </summary>
     protected async Task<TValue> GetValueAsync() {
         await EnsureInitializedAsync().ConfigureAwait(false);
+        Interlocked.MemoryBarrier();
         return _value;
     }
 
     /// <summary>
-    /// 设置配置值并异步持久化
+    /// 设置配置值并异步持久化 — MemoryBarrier release 发布新值，读取方立即可见
     /// </summary>
     /// <param name="value">新值</param>
     protected void SetValue(TValue value) {
         _value = value;
+        Interlocked.MemoryBarrier();
         if (Volatile.Read(ref _disposed) == 0)
             _ = PersistAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
     }
 
     private async Task EnsureInitializedAsync() {
-        if (_initialized) return;
+        if (Volatile.Read(ref _initialized)) return;
         if (Volatile.Read(ref _disposed) == 1) return;
         var guard = await _initLock.TryLockAsync().ConfigureAwait(false);
         if (guard is null) return;
         using (guard) {
-            if (_initialized) return;
+            if (Volatile.Read(ref _initialized)) return;
             try { await InitializeAsync().ConfigureAwait(false); } catch (Exception ex) { _logger?.LogWarning(ex, "{TypeName}: 初始化失败", GetType().Name); }
-            _initialized = true;
+            Volatile.Write(ref _initialized, true);
         }
     }
 
@@ -80,8 +82,10 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable {
         if (_configService == null) return;
         try {
             var saved = await _configService.GetAsync(ConfigKey).ConfigureAwait(false);
-            if (TryParseConfigValue(saved, out var parsed))
+            if (TryParseConfigValue(saved, out var parsed)) {
                 _value = parsed;
+                Interlocked.MemoryBarrier();
+            }
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "{TypeName}: 从配置加载 {ConfigKey} 失败", GetType().Name, ConfigKey);
         }

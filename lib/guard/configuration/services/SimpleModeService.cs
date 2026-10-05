@@ -5,16 +5,14 @@ namespace Core.Configuration;
 /// </summary>
 [Register(typeof(ISimpleModeService), ServiceLifetime.Singleton)]
 public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeService {
-    private readonly AsyncLock _lock = new("SimpleModeService");
-    private bool _isSimpleMode;
-    private SimpleModeConfig _config;
+    private volatile SimpleModeState _state = new(false, SimpleModeConfig.Default);
     private readonly IBriefModeService? _briefModeService;
     private readonly ILogger<SimpleModeService>? _logger;
 
+    private sealed record SimpleModeState(bool IsSimpleMode, SimpleModeConfig Config);
+
     /// <summary>是否已启用精简模式</summary>
-    public bool IsSimpleMode {
-        get { using (_lock.LockOrCrash()) return _isSimpleMode; }
-    }
+    public bool IsSimpleMode => _state.IsSimpleMode;
 
     /// <summary>精简模式状态变更事件 — 启用/禁用/配置更新时触发</summary>
     public event EventHandler<SimpleModeChangedEventArgs>? SimpleModeChanged;
@@ -27,55 +25,46 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
         ILogger<SimpleModeService>? logger = null) {
         _briefModeService = briefModeService;
         _logger = logger;
-        _config = SimpleModeConfig.Default;
     }
 
     /// <inheritdoc />
     public void Enable() {
-        using (_lock.LockOrCrash()) {
-            if (_isSimpleMode) return;
+        var old = _state;
+        if (old.IsSimpleMode) return;
+        _state = new SimpleModeState(true, old.Config);
 
-            _isSimpleMode = true;
-            _logger?.LogInformation("Simple Mode enabled");
-        }
-
-        // 启用精简模式时同步启用简要模式
+        _logger?.LogInformation("Simple Mode enabled");
         _briefModeService?.Enable();
 
         SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs {
             IsSimpleMode = true,
-            Config = _config
+            Config = old.Config
         });
     }
 
     /// <inheritdoc />
     public void Disable() {
-        using (_lock.LockOrCrash()) {
-            if (!_isSimpleMode) return;
+        var old = _state;
+        if (!old.IsSimpleMode) return;
+        _state = new SimpleModeState(false, old.Config);
 
-            _isSimpleMode = false;
-            _logger?.LogInformation("Simple Mode disabled");
-        }
-
-        // 禁用精简模式时同步禁用简要模式
+        _logger?.LogInformation("Simple Mode disabled");
         _briefModeService?.Disable();
 
         SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs {
             IsSimpleMode = false,
-            Config = _config
+            Config = old.Config
         });
     }
 
     /// <inheritdoc />
     public bool Toggle() {
-        bool newState;
-        using (_lock.LockOrCrash()) {
-            newState = !_isSimpleMode;
-            _isSimpleMode = newState;
-            _logger?.LogInformation(newState ? "Simple Mode enabled" : "Simple Mode disabled");
-        }
+        var old = _state;
+        var newState = !old.IsSimpleMode;
+        _state = new SimpleModeState(newState, old.Config);
 
-        // 锁外处理副作用（避免锁内调用 Enable/Disable 导致重入死锁）
+        _logger?.LogInformation(newState ? "Simple Mode enabled" : "Simple Mode disabled");
+
         if (newState)
             _briefModeService?.Enable();
         else
@@ -83,36 +72,32 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
 
         SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs {
             IsSimpleMode = newState,
-            Config = _config
+            Config = old.Config
         });
 
         return newState;
     }
 
     /// <inheritdoc />
-    public SimpleModeConfig GetCurrentConfig() {
-        using (_lock.LockOrCrash()) return _config;
-    }
+    public SimpleModeConfig GetCurrentConfig() => _state.Config;
 
     /// <inheritdoc />
     public void UpdateConfig(SimpleModeConfig config) {
         ArgumentNullException.ThrowIfNull(config);
 
-        using (_lock.LockOrCrash()) {
-            _config = config;
-            _logger?.LogDebug("Simple Mode config updated");
-        }
+        var old = _state;
+        _state = new SimpleModeState(old.IsSimpleMode, config);
 
-        // 配置变更时通知订阅者
+        _logger?.LogDebug("Simple Mode config updated");
+
         SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs {
-            IsSimpleMode = _isSimpleMode,
+            IsSimpleMode = old.IsSimpleMode,
             Config = config
         });
     }
 
     /// <inheritdoc />
     public override void Dispose() {
-        _lock.Dispose();
         base.Dispose();
     }
 }

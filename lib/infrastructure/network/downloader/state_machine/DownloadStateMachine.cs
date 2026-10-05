@@ -19,13 +19,14 @@ namespace Infrastructure.Network.Downloader.StateMachine;
 [Transition(DownloadState.Downloading, DownloadOperation.Fail, DownloadState.Failed)]
 [Transition(DownloadState.Paused, DownloadOperation.Fail, DownloadState.Failed)]
 [Transition(DownloadState.Merging, DownloadOperation.Fail, DownloadState.Failed)]
-internal sealed partial class DownloadStateMachine {
+internal sealed partial class DownloadStateMachine : IDisposable {
     private readonly Fsm<DownloadState, DownloadOperation> _fsm;
+    private int _disposed;
 
     /// <summary>构造下载状态机,初始状态为 Idle,绑定状态变更事件分发</summary>
     public DownloadStateMachine() {
         _fsm = new Fsm<DownloadState, DownloadOperation>(_fsmSortedKeys, _fsmRules, DownloadState.Idle);
-        _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
+        _fsm.StateChanged += OnFsmStateChanged;
     }
 
     /// <summary>当前状态(线程安全读取)</summary>
@@ -78,4 +79,14 @@ internal sealed partial class DownloadStateMachine {
         var error = $"[DOWN001] 非法操作 {op} 从 {result.FromState} 状态";
         return new DownloadStateTransition(false, result.FromState, result.FromState, error);
     }
+
+    /// <summary>
+    /// 释放资源 — 取消状态机事件订阅,防止内存泄漏
+    /// </summary>
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _fsm.StateChanged -= OnFsmStateChanged;
+    }
+
+    private void OnFsmStateChanged(object? sender, TransitionResult<DownloadState, DownloadOperation> e) => FsmDispatchEvent(e);
 }

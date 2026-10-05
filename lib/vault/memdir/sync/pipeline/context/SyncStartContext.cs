@@ -38,8 +38,8 @@ public sealed class SyncStartContext : PipelineContextBase, INullCheckContext, I
 
     // === Step 6: AutoSyncMiddleware 填充 ===
 
-    /// <summary>同步定时器（由 AutoSyncMiddleware 配置）</summary>
-    public System.Threading.Timer? SyncTimer { get; set; }
+    /// <summary>启动自动同步回调（由 AutoSyncMiddleware 调用，内部用 ActorTimers 绑定 Actor 生命周期）</summary>
+    public Action? StartAutoSync { get; set; }
 
     // === Step 5: FileWatcherMiddleware 填充 ===
 

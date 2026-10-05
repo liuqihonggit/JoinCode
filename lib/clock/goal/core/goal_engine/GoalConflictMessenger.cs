@@ -61,4 +61,16 @@ public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflict
         ImmutableInterlocked.Update(ref _channels, d => d.ContainsKey(nodeId) ? d : d.Add(nodeId, newChannel));
         return Volatile.Read(ref _channels)[nodeId];
     }
+
+    /// <summary>释放 — 完成所有 Channel 并清空映射（幂等）</summary>
+    public override void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        foreach (var kv in _channels) {
+            kv.Value.Writer.TryComplete();
+        }
+        _channels = ImmutableHamT<string, Channel<ConflictMessage>>.Empty.WithComparers(StringComparer.Ordinal);
+        base.Dispose();
+    }
+
+    private int _disposed;
 }

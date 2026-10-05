@@ -73,7 +73,7 @@ public sealed class PathValidationMiddlewareTests {
 /// <summary>AutoSyncMiddleware — 启用自动同步时配置 SyncTimer,否则直接放行。</summary>
 [Trait("Category", "Deterministic")]
 public sealed class AutoSyncMiddlewareTests {
-    private static SyncStartContext Ctx(TeamMemorySyncOptions? options = null, System.Threading.Timer? timer = null) {
+    private static SyncStartContext Ctx(TeamMemorySyncOptions? options = null, Action? startAutoSync = null) {
         options ??= new TeamMemorySyncOptions { WatchPath = "/watch/", EnableAutoSync = true, SyncInterval = TimeSpan.FromSeconds(30) };
         return new SyncStartContext {
             FileSystem = new IO.FileSystem.InMemoryFileSystem(),
@@ -83,38 +83,40 @@ public sealed class AutoSyncMiddlewareTests {
             LocalEntries = new ConcurrentDictionary<string, SyncFileEntry>(),
             RemoteEntries = new ConcurrentDictionary<string, SyncFileEntry>(),
             SyncHistory = new ConcurrentQueue<MemorySyncEvent>(),
-            SyncTimer = timer
+            StartAutoSync = startAutoSync
         };
     }
 
     [Fact]
-    public async Task InvokeAsync_EnableAutoSyncTrueWithTimer_CallsNext() {
-        await using var timer = new System.Threading.Timer(_ => { });
+    public async Task InvokeAsync_EnableAutoSyncTrueWithCallback_CallsNext() {
         await using var mw = new AutoSyncMiddleware();
-        var ctx = Ctx(timer: timer);
+        var callbackCalled = false;
+        var ctx = Ctx(startAutoSync: () => callbackCalled = true);
         var nextCalled = false;
         Task Next(SyncStartContext c, CancellationToken ct) { nextCalled = true; return Task.CompletedTask; }
 
         await mw.InvokeAsync(ctx, Next, CancellationToken.None).ConfigureAwait(true);
         nextCalled.Should().BeTrue();
+        callbackCalled.Should().BeTrue();
     }
 
     [Fact]
-    public async Task InvokeAsync_EnableAutoSyncFalse_DoesNotTouchTimerAndCallsNext() {
-        await using var timer = new System.Threading.Timer(_ => { });
+    public async Task InvokeAsync_EnableAutoSyncFalse_DoesNotCallCallbackAndCallsNext() {
         await using var mw = new AutoSyncMiddleware();
-        var ctx = Ctx(options: new TeamMemorySyncOptions { WatchPath = "/watch/", EnableAutoSync = false }, timer: timer);
+        var callbackCalled = false;
+        var ctx = Ctx(options: new TeamMemorySyncOptions { WatchPath = "/watch/", EnableAutoSync = false }, startAutoSync: () => callbackCalled = true);
         var nextCalled = false;
         Task Next(SyncStartContext c, CancellationToken ct) { nextCalled = true; return Task.CompletedTask; }
 
         await mw.InvokeAsync(ctx, Next, CancellationToken.None).ConfigureAwait(true);
         nextCalled.Should().BeTrue();
+        callbackCalled.Should().BeFalse();
     }
 
     [Fact]
-    public async Task InvokeAsync_NullSyncTimer_CallsNextWithoutThrowing() {
+    public async Task InvokeAsync_NullStartAutoSync_CallsNextWithoutThrowing() {
         await using var mw = new AutoSyncMiddleware();
-        var ctx = Ctx(timer: null);
+        var ctx = Ctx(startAutoSync: null);
         var nextCalled = false;
         Task Next(SyncStartContext c, CancellationToken ct) { nextCalled = true; return Task.CompletedTask; }
 

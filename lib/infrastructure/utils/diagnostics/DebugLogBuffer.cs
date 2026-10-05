@@ -4,7 +4,7 @@ namespace Infrastructure.Utils.Diagnostics;
 /// 调试日志缓冲区 — 订阅 Diag.DiagnosticLineWritten 事件，捕获诊断输出到环形缓冲区
 /// </summary>
 [Register(typeof(IDebugLogBuffer), ServiceLifetime.Singleton)]
-public sealed partial class DebugLogBuffer : IDebugLogBuffer {
+public sealed partial class DebugLogBuffer : IDebugLogBuffer, IDisposable {
     private readonly ConcurrentQueue<DebugLogEntry> _entries = new();
     private readonly int _maxCapacity;
 
@@ -113,4 +113,12 @@ public sealed partial class DebugLogBuffer : IDebugLogBuffer {
 
         return (DebugLogLevel.Info, "GENERAL");
     }
+
+    /// <summary>释放 — 取消静态事件订阅（幂等）</summary>
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        Diag.DiagnosticLineWritten -= OnDiagnosticLineWritten;
+    }
+
+    private int _disposed;
 }

@@ -76,22 +76,30 @@ public sealed class AnalyticsSinkKillswitch {
     }
 }
 
+/// <summary>分析事件命令标记接口 — Actor 串行化事件缓冲与 flush。</summary>
+public interface IAnalyticsCommand;
+
+/// <summary>记录事件命令 — 追加到 Actor 内部缓冲。</summary>
+internal sealed record LogEventCmd(AnalyticsEvent Event) : IAnalyticsCommand;
+
+/// <summary>flush 命令 — 快照缓冲 + fire-and-forget 写文件。Tcs 为 null 表示定时触发，非 null 表示手动 flush 等完成。</summary>
+internal sealed record FlushCmd(TaskCompletionSource? Tcs) : IAnalyticsCommand;
+
 /// <summary>
 /// 分析事件文件汇 — 批量写入事件到 .jcc/analytics/events.jsonl 文件
-/// 使用 Channel&lt;T&gt; 异步队列，定时 flush，不阻塞调用方
+/// <para>Actor 模型：事件通过 Tell 投递，Actor 内部缓冲，ActorTimers 定时 flush。</para>
+/// <para>写文件 fire-and-forget（每次新文件，并发安全），不阻塞 Actor Consumer。</para>
 /// </summary>
 [Register(typeof(IAnalyticsFileSink), ServiceLifetime.Singleton)]
-public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDisposable {
+public sealed partial class AnalyticsFileSink : ActorBase<IAnalyticsCommand, Unit>, IAnalyticsFileSink {
     private readonly IFileSystem? _fileSystem;
     private readonly ILogger<AnalyticsFileSink>? _logger;
     private readonly AnalyticsSinkKillswitch _killswitch;
-    private readonly Channel<AnalyticsEvent> _channel;
     private readonly TimeSpan _flushInterval;
     private readonly int _batchSize;
     private readonly string _outputDirectory;
-    private readonly CancellationTokenSource _cts;
-    private readonly Task? _flushTask;
-    private int _isDisposed;
+    private readonly List<AnalyticsEvent> _buffer = new();
+    private int _disposed;
     private static int s_fileCounter;
 
     /// <summary>
@@ -109,22 +117,17 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
         ILogger<AnalyticsFileSink>? logger = null,
         TimeSpan? flushInterval = null,
         int batchSize = 100,
-        string? outputDirectory = null) {
+        string? outputDirectory = null)
+        : base(logger: logger) {
         _fileSystem = fileSystem;
         _killswitch = killswitch ?? new AnalyticsSinkKillswitch();
         _logger = logger;
         _flushInterval = flushInterval ?? TimeSpan.FromSeconds(5);
         _batchSize = batchSize;
         _outputDirectory = outputDirectory ?? JoinCode.Abstractions.Configuration.AppData.AppDataConstants.AnalyticsDirectory;
-        _channel = Channel.CreateBounded<AnalyticsEvent>(new BoundedChannelOptions(1000) {
-            FullMode = BoundedChannelFullMode.DropOldest,
-            SingleReader = true,
-            SingleWriter = false
-        });
-        _cts = new CancellationTokenSource();
 
         if (_fileSystem is not null) {
-            _flushTask = Task.Run(() => FlushLoopAsync(_cts.Token));
+            Timers.StartPeriodicTimer("flush", new FlushCmd(null), _flushInterval, _flushInterval);
         }
     }
 
@@ -136,10 +139,7 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
         if (_fileSystem is null || !_killswitch.ShouldWrite()) {
             return;
         }
-
-        if (!_channel.Writer.TryWrite(@event)) {
-            _logger?.LogDebug("分析事件队列已满，丢弃事件: {EventName}", @event.Name);
-        }
+        Tell(new LogEventCmd(@event));
     }
 
     /// <inheritdoc />
@@ -159,36 +159,40 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
             return;
         }
 
-        var events = new List<AnalyticsEvent>(_batchSize);
-        while (_channel.Reader.TryRead(out var evt)) {
-            events.Add(evt);
-            if (events.Count >= _batchSize) {
-                await WriteBatchAsync(events, cancellationToken).ConfigureAwait(false);
-                events.Clear();
-            }
-        }
-
-        if (events.Count > 0) {
-            await WriteBatchAsync(events, cancellationToken).ConfigureAwait(false);
-        }
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Tell(new FlushCmd(tcs));
+        await tcs.Task.ConfigureAwait(false);
     }
 
-    private async Task FlushLoopAsync(CancellationToken ct) {
-        while (!ct.IsCancellationRequested) {
-            try {
-                await Task.Delay(_flushInterval, ct).ConfigureAwait(false);
-                await FlushAsync(ct).ConfigureAwait(false);
-            } catch (OperationCanceledException) {
+    /// <summary>
+    /// Actor 命令处理 — Consumer 线程独占，无需锁。
+    /// <para>LogEventCmd: 追加到内部缓冲。</para>
+    /// <para>FlushCmd: 快照缓冲 + 清空 + fire-and-forget 写文件（每次新文件并发安全）。</para>
+    /// </summary>
+    protected override void Handle(IAnalyticsCommand cmd, CancellationToken ct) {
+        switch (cmd) {
+            case LogEventCmd log:
+                _buffer.Add(log.Event);
                 break;
-            } catch (Exception ex) {
-                _logger?.LogWarning(ex, "分析事件 flush 循环异常");
-            }
-        }
-
-        try {
-            await FlushAsync(CancellationToken.None).ConfigureAwait(false);
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, "分析事件最终 flush 异常");
+            case FlushCmd flush:
+                if (_buffer.Count == 0) {
+                    flush.Tcs?.TrySetResult();
+                    return;
+                }
+                var snapshot = _buffer.ToList();
+                _buffer.Clear();
+                var tcs = flush.Tcs;
+                var task = Task.Run(async () => {
+                    try {
+                        await WriteBatchAsync(snapshot, CancellationToken.None).ConfigureAwait(false);
+                    } catch (Exception ex) {
+                        _logger?.LogWarning(ex, "分析事件写入异常");
+                    } finally {
+                        tcs?.TrySetResult();
+                    }
+                });
+                RegisterInFlight(task);
+                break;
         }
     }
 
@@ -220,17 +224,25 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
         }
     }
 
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync() {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
-            return;
+    /// <summary>
+    /// 释放 — 先发 FlushCmd 等最终 flush 完成，再调 base.DisposeAsync（base 最后调，JCC9304）。
+    /// </summary>
+    public override async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+
+        if (_fileSystem is not null) {
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (!TrySend(new FlushCmd(tcs))) {
+                tcs.TrySetResult();
+            }
+            try {
+                await tcs.Task.ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "分析事件最终 flush 异常");
+            }
         }
 
-        _cts.Cancel();
-        if (_flushTask is not null) {
-            await _flushTask.ConfigureAwait(false);
-        }
-        _cts.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }
 

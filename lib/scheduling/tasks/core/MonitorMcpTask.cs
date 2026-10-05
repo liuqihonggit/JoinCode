@@ -383,7 +383,7 @@ internal sealed partial class MonitorSession : IAsyncDisposable {
         MonitorId = monitorId;
         Config = config;
         _fsm = new Fsm<MonitorState, MonitorSessionEvent>(_fsmSortedKeys, _fsmRules, MonitorState.Starting);
-        _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
+        _fsm.StateChanged += OnFsmStateChanged;
     }
 
     /// <summary>触发事件 — 查转换表合法则转,非法静默忽略(保持原直接赋值语义)</summary>
@@ -404,8 +404,11 @@ internal sealed partial class MonitorSession : IAsyncDisposable {
     /// <summary>释放资源</summary>
     public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        _fsm.StateChanged -= OnFsmStateChanged;
         Cts.Cancel();
         Cts.Dispose();
         return ValueTask.CompletedTask;
     }
+
+    private void OnFsmStateChanged(object? sender, TransitionResult<MonitorState, MonitorSessionEvent> e) => FsmDispatchEvent(e);
 }

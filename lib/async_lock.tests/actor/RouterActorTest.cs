@@ -111,6 +111,41 @@ public class RouterActorTest {
         h1.State.Should().Be(ChildActorState.Stopped);
         h2.State.Should().Be(ChildActorState.Stopped);
     }
+
+    /// <summary>验证 Watch(deathPact:true) 子 Actor 终止后命令不被处理(DeathPact)</summary>
+    [Fact]
+    public async Task Watch_DeathPact_ChildTerminated_PreventsCommandProcessing() {
+        await using var router = new TestRouterActor();
+        var handle = await router.AddTestWorkerAsync("w1");
+        router.WatchTest(handle, deathPact: true);
+
+        await handle.StopAsync();
+        await Task.Delay(100);
+
+        var delivered = false;
+        router.Route("msg", (_, _) => { delivered = true; });
+        await Task.Delay(200);
+
+        delivered.Should().BeFalse();
+    }
+
+    /// <summary>验证 Unwatch 后子 Actor 终止不触发 DeathPact</summary>
+    [Fact]
+    public async Task Unwatch_ChildTerminated_NoDeathPact() {
+        await using var router = new TestRouterActor();
+        var handle = await router.AddTestWorkerAsync("w1");
+        router.WatchTest(handle, deathPact: true);
+        router.UnwatchTest(handle);
+
+        await handle.StopAsync();
+
+        var delivered = false;
+        var tcs = new TaskCompletionSource();
+        router.Route("msg", (_, _) => { delivered = true; tcs.TrySetResult(); });
+        await Task.Delay(200);
+
+        delivered.Should().BeFalse();
+    }
 }
 
 /// <summary>测试用 RouterActor — 暴露构造函数</summary>
@@ -121,6 +156,12 @@ internal sealed class TestRouterActor : RouterActor<string> {
     public async ValueTask<ChildActorHandle> AddTestWorkerAsync(string id) {
         return await AddWorkerAsync(id, _ => new ValueTask<IAsyncDisposable>(new TestWorker(id)));
     }
+
+    /// <summary>暴露 Watch 供测试调用</summary>
+    public void WatchTest(ChildActorHandle child, bool deathPact = false) => Watch(child, deathPact);
+
+    /// <summary>暴露 Unwatch 供测试调用</summary>
+    public void UnwatchTest(ChildActorHandle child) => Unwatch(child);
 }
 
 /// <summary>测试用 Worker</summary>

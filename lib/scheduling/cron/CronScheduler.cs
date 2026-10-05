@@ -107,12 +107,11 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
     private readonly ICronTaskStore _taskStore;
     private readonly IClockService _clock;
     private readonly ILogger<CronScheduler>? _logger;
-    private readonly Timer _timer;
+    private readonly ActorTimers<ICronSchedulerCommand> _timers;
     private int _disposed;
 
     private readonly Dictionary<string, long> _nextFireAt = new();
     private readonly HashSet<string> _inFlight = new();
-    private bool _started;
 
     /// <summary>
     /// 初始化 Cron 调度器实例 — 使用指定选项、任务存储与时钟
@@ -127,7 +126,7 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
         _taskStore = taskStore ?? throw new ArgumentNullException(nameof(taskStore));
         _clock = clock ?? SystemClockService.Instance;
         _logger = logger;
-        _timer = new Timer(_ => TrySend(new CronCheckTickCmd()), null, Timeout.Infinite, Timeout.Infinite);
+        _timers = new ActorTimers<ICronSchedulerCommand>(this);
     }
 
     /// <summary>
@@ -168,32 +167,40 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
         return await tcs.Task.WaitAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>处理调度器命令，根据命令类型执行启动、停止、检查、通知变更等操作。</summary>
+    /// <summary>处理调度器命令 — 初始行为(Stopped 状态),CronStartCmd 时 Become(StartedReceive)。</summary>
     /// <param name="command">要处理的调度器命令。</param>
     /// <param name="ct">取消令牌。</param>
     protected override void Handle(ICronSchedulerCommand command, CancellationToken ct) {
-        RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
+        if (command is CronStartCmd) {
+            _timers.StartPeriodicTimer("check", new CronCheckTickCmd(), TimeSpan.Zero, TimeSpan.FromMilliseconds(_options.CheckIntervalMs));
+            _logger?.LogInformation("[CronScheduler] 已启动，检查间隔: {IntervalMs}ms", _options.CheckIntervalMs);
+            Become(StartedReceive);
+            return;
+        }
+        if (command is CronStopCmd) return;
+        RegisterInFlight(HandleCommonAsync(command, ct).AsTask());
     }
 
-    private async ValueTask HandleAsyncImpl(ICronSchedulerCommand command, CancellationToken ct) {
-        switch (command) {
-            case CronStartCmd:
-            if (_started) return;
-            _started = true;
-            _timer.Change(0, _options.CheckIntervalMs);
-            _logger?.LogInformation("[CronScheduler] 已启动，检查间隔: {IntervalMs}ms", _options.CheckIntervalMs);
-            break;
+    private void StartedReceive(ICronSchedulerCommand command, CancellationToken ct) {
+        if (command is CronStartCmd) return;
+        if (command is CronStopCmd) {
+            _timers.Cancel("check");
+            Become(Handle);
+            return;
+        }
+        RegisterInFlight(HandleStartedAsync(command, ct).AsTask());
+    }
 
-            case CronStopCmd:
-            if (!_started) return;
-            _started = false;
-            _timer.Change(Timeout.Infinite, Timeout.Infinite);
-            break;
-
-            case CronCheckTickCmd:
+    private async ValueTask HandleStartedAsync(ICronSchedulerCommand command, CancellationToken ct) {
+        if (command is CronCheckTickCmd) {
             await CheckAsync(ct).ConfigureAwait(false);
-            break;
+            return;
+        }
+        await HandleCommonAsync(command, ct).ConfigureAwait(false);
+    }
 
+    private async ValueTask HandleCommonAsync(ICronSchedulerCommand command, CancellationToken ct) {
+        switch (command) {
             case CronNotifyChangedCmd:
             _nextFireAt.Clear();
             break;
@@ -219,7 +226,7 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
     }
 
     private async Task CheckAsync(CancellationToken ct) {
-        if (!_started || Volatile.Read(ref _disposed) != 0) return;
+        if (Volatile.Read(ref _disposed) != 0) return;
 
         var now = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds();
         var tasks = await _taskStore.GetAllTasksAsync().ConfigureAwait(false);
@@ -310,11 +317,10 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
     }
 
     /// <inheritdoc/>
-    public override ValueTask DisposeAsync() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+    public override async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
-        _timer.Change(Timeout.Infinite, Timeout.Infinite);
-        _timer.Dispose();
-        return base.DisposeAsync();
+        await _timers.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

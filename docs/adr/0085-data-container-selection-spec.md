@@ -64,6 +64,36 @@ private FrozenSet<string>? _filterSet;
 public FrozenSet<string>? FilterSet => _filterSet ??= Filters?.ToFrozenSet();
 ```
 
+**并发更新模式选型**（无锁化方向，见 [ADR 0120](0120-immutable-dag-hamt-cas-lockfree.md)）：
+
+| 场景 | 模式 | 原因 |
+|------|------|------|
+| 读极多、写极少、整份替换（配置） | `volatile` + 全量复制 + 原子换引用 | 不需要 CAS，引用换掉即新版本；不需要树，全量构建成本可接受；读取走 SwissTable O(1) |
+| 读多写少、局部更新 | 只读类型 + HAMT + CAS + 版本号 | 复用旧节点少量创建新节点，CAS 替换树；注意 ABA 问题 |
+| 读写都频繁 | `ConcurrentDictionary` 等 | 原地 CAS，无 GC 压力 |
+| 高性能单生产者单消费者 | 手写 SPSC Ring Buffer | 无锁无竞争 |
+
+**无锁配置更新模式**（全量复制 + 原子换引用，无需 CAS）：
+```csharp
+// 配置场景：读极多、写极少、整份替换 — 用 volatile SwissTable + 原子换引用
+private volatile SwissTable<string, string> _config = new();
+
+// 暴露只读视图，没收容器的 Add/Remove，消费方无法误写
+public IReadOnlyDictionary<string, string> Config => _config;
+
+public void UpdateConfig() {
+    // 构建一份全新 SwissTable，线程不安全也可（全量写时复制，不触碰旧引用）
+    var newConfig = BuildNewConfig();
+    // 原子换引用，无需 CAS — 引用写入是原子的，volatile 保证可见性
+    _config = newConfig;
+}
+```
+
+- **✅ 配置场景用全量复制 + `volatile` 换引用** — 写极少，全量构建成本可接受，避免树形结构检索 O(log) 代价，无 CAS 冲突
+- **⛔ 禁止配置场景用 CAS + 不可变树** — 树检索 O(log₃₂ N) 慢于 SwissTable O(1)，且 CAS 冲突重试开销
+- **⚠️ 局部更新场景才用 CAS + HAMT** — 复用旧节点省内存，但需处理 ABA 版本号
+- **⚠️ `volatile` 换引用仅适用整份替换** — 单字段更新仍需 CAS 或锁
+
 ## 替代方案
 
 无。FrozenSet 在 AOT 场景下性能最优，是 .NET 8+ 推荐方案。

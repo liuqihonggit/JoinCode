@@ -68,20 +68,16 @@ public sealed partial class MainViewModel {
         }
     }
 
-    /// <summary>清空全部会话（会话列表与消息一并重置，持久化文件同步删除）</summary>
+    /// <summary>重置界面布局到初始状态 — 恢复 Dock 面板位置、底部面板、编辑器视图</summary>
     [RelayCommand]
-    private async Task ClearAllSessionsAsync() {
-        foreach (var s in Sessions.ToList()) {
-            try {
-                await _sessionStore.DeleteAsync(s.Id);
-            } catch (Exception ex) {
-                System.Diagnostics.Debug.WriteLine($"[MainViewModel] 会话删除失败: {ex.Message}");
-            }
-        }
-        Sessions.Clear();
-        Messages.Clear();
-        _sessionCounter = 0;
-        NewConversation();
+    private void ClearAllSessions() {
+        InitDockLayout();
+        IsPanelOpen = true;
+        ActivePanelTab = PanelTabKind.Log;
+        PanelPosition = PanelPosition.Bottom;
+        PanelHeight = PanelDefaultHeight;
+        PanelWidth = PanelDefaultWidth;
+        ActiveMainArea = MainAreaKind.Messages;
     }
 
     /// <summary>从会话列表删除指定会话（同步删除持久化文件）</summary>

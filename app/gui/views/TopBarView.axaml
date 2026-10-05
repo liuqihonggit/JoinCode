@@ -34,7 +34,7 @@
         <MenuItem Header="编辑">
           <MenuItem Header="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}" IsEnabled="{Binding CanRegenerate}" />
           <MenuItem Header="清空当前会话" Command="{Binding ClearHistoryCommand}" IsEnabled="{Binding HasMessages}" />
-          <MenuItem Header="全部重置" Command="{Binding ClearAllSessionsCommand}" />
+          <MenuItem Header="重置布局" Command="{Binding ClearAllSessionsCommand}" />
         </MenuItem>
         <MenuItem Header="视图">
           <MenuItem Header="切换主题" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}" />
@@ -50,10 +50,6 @@
           </MenuItem>
           <Separator />
           <MenuItem Header="关闭当前面板" Command="{Binding CloseActivePanelCommand}" />
-          <MenuItem Header="Minimap" Command="{Binding ToggleMinimapCommand}" />
-          <Separator />
-          <MenuItem Header="Mock 引擎" Command="{Binding ToggleMockCommand}" IsChecked="{Binding IsMockConnection, Mode=OneWay}" />
-          <MenuItem Header="无人值守" IsChecked="{Binding IsUnattendedMode, Mode=TwoWay}" ToolTip.Tip="{Binding UnattendedToggleToolTip}" />
         </MenuItem>
         <MenuItem Header="帮助">
           <MenuItem Header="快捷键" Click="OnShowShortcuts" />

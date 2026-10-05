@@ -77,7 +77,19 @@ DSG033 已完成 Actor 基建对齐 Akka + 统一 Actor 模式。本次继续：
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| 内存泄露修复（13 处中严重） | 见上表 | ❌ | ❌ |
+| 内存泄露 #1 UsageTracker | kit/hands/api/ | ✅ Dispose Clear | ✅ 287 Scheduling 测试 |
+| 内存泄露 #2 ParallelTaskScheduler | lib/scheduling/execution/ | ✅ 新增 IDisposable | ✅ 287 Scheduling 测试 |
+| 内存泄露 #3 ParallelExecutionEngine | lib/scheduling/execution/ | ✅ DisposeAsync Clear | ✅ 287 Scheduling 测试 |
+| 内存泄露 #4 TaskService | lib/scheduling/services/ | ✅ Dispose Clear | ✅ 287 Scheduling 测试 |
+| 内存泄露 #5 SshSession | lib/infrastructure/ssh/ | ✅ DisposeAsync -= | ✅ 327 Infra.IO 测试 |
+| 内存泄露 #6 ConnectionManager | lib/transport.impl/ | ✅ 有名方法 | ✅ 207 Transport 测试 |
+| 内存泄露 #7 DebugLogBuffer | lib/infrastructure/utils/ | ✅ IDisposable | ✅ 327 Infra.IO 测试 |
+| 内存泄露 #8 AppEventBus | lib/clock/hosting/ | ✅ IDisposable | ✅ 519 Clock 测试 |
+| 内存泄露 #9 NamedMutexMailboxLock | lib/infrastructure/async_file_lock/ | ⚠️ 降级低 | 路径数量有限 |
+| 内存泄露 #10 GraphExecutionContext | lib/clock/goal/ | ✅ IAsyncDisposable | ✅ 519 Clock 测试 |
+| 内存泄露 #11 CommandQueue | app/cli/queue/ | ✅ IDisposable | ✅ 编译通过 |
+| 内存泄露 #12 GoalConflictMessenger | lib/clock/goal/ | ✅ override Dispose | ✅ 519 Clock 测试 |
+| 内存泄露 #13 AgentOutputChannelManager | llm/agents/ | ✅ override Dispose | ✅ 628 Agents 测试 |
 | Actor 改造 P1: ConcurrentDag | lib/structura/dag/ | ❌ | ❌ |
 | Actor 改造 P2: ContextHierarchy | kit/brain/context/ | ❌ | ❌ |
 | Actor 改造 P3: HighWaterMarkManager | lib/scheduling/storage/ | ❌ | ❌ |

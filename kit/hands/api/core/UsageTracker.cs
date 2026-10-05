@@ -391,11 +391,12 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     }
 
     /// <summary>
-    /// 释放资源（ConcurrentBag 无需显式释放，仅满足接口契约）
+    /// 释放资源 — 清空记录集合防止内存泄露
     /// </summary>
     public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _sessionIndex = ImmutableHamT<string, ImmutableList<TokenUsageRecord>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
         GC.SuppressFinalize(this);
         base.Dispose();
     }

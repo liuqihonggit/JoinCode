@@ -17,7 +17,7 @@
         </ResourceDictionary>
         <ResourceDictionary>
           <ItemsPanelTemplate x:Key="DockDocumentTabStripHorizontalItemsPanel">
-            <WrapPanel Orientation="Horizontal" ClipToBounds="False" />
+            <UniformGrid Rows="1" ClipToBounds="False" />
           </ItemsPanelTemplate>
         </ResourceDictionary>
         <ResourceDictionary>
@@ -52,7 +52,8 @@
       <Setter Property="HeaderTemplate">
         <DataTemplate DataType="docking:MessageAreaDocument">
           <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Padding="2" />
+            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Padding="2"
+                       TextTrimming="CharacterEllipsis" MaxWidth="180" />
             <ToggleButton x:Name="BadgeBtn" Padding="4,1" MinHeight="0" FontSize="10"
                           Background="{DynamicResource GuiAccentText}" Foreground="White"
                           CornerRadius="8" VerticalAlignment="Center" Margin="0"
@@ -96,8 +97,16 @@
       <Setter Property="Thickness" Value="6" />
     </Style>
     <Style Selector="DocumentTabStrip[Orientation=Horizontal] /template/ ScrollViewer#PART_ScrollViewer">
-      <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
-      <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+      <Setter Property="VerticalScrollBarVisibility" Value="Disabled" />
+      <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+    </Style>
+    <Style Selector="DocumentTabStripItem">
+      <Setter Property="BorderBrush" Value="{DynamicResource GuiDivider}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="3" />
+      <Setter Property="MinWidth" Value="100" />
+      <Setter Property="MaxWidth" Value="240" />
+      <Setter Property="Margin" Value="2,1" />
     </Style>
   </Application.Styles>
 </Application>

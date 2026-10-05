@@ -16,21 +16,10 @@
         <Panel Grid.Row="0" ClipToBounds="True">
       <Grid IsVisible="{Binding IsMessagesViewActive}" ColumnDefinitions="*,Auto" ClipToBounds="True">
 
-        <!-- Column 0：消息内容（搜索栏 + 消息列表） -->
-        <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
-          <!-- 搜索栏：紧凑布局（搜索框固定宽 + 统计右对齐） -->
-          <Border Grid.Row="0" Padding="12,6" Background="{DynamicResource GuiSearchBarBackground}"
-                  BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
-            <StackPanel Spacing="6">
-              <TextBox Text="{Binding SearchText}" PlaceholderText="搜索消息…" FontSize="12"
-                       HorizontalAlignment="Stretch" VerticalAlignment="Center" MinHeight="30" Padding="8,4"
-                       AutomationProperties.Name="搜索消息正文" />
-              <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center"
-                         Foreground="{DynamicResource GuiAccentText}" IsVisible="{Binding IsSearching}" />
-            </StackPanel>
-          </Border>
+        <!-- Column 0：消息内容（消息列表） -->
+        <Grid Grid.Column="0" RowDefinitions="*,Auto">
           <!-- 消息列表区：单条消息卡片化（G3 接线 Markdown 渲染 + 复制/删除/思考折叠命令） -->
-          <Grid Grid.Row="1" ClipToBounds="True">
+          <Grid Grid.Row="0" ClipToBounds="True">
             <StackPanel x:Name="EmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560" Margin="12" Spacing="10"
                         IsVisible="{Binding !HasMessages}">
               <Border Width="72" Height="72" CornerRadius="24" HorizontalAlignment="Center"
@@ -282,7 +271,7 @@
               </Grid>
             </Border>
           </Grid>
-          <Button Grid.Row="2" x:Name="BackToBottomButton" Classes="pill" Content="↓ 跳到最新"
+          <Button Grid.Row="1" x:Name="BackToBottomButton" Classes="pill" Content="↓ 跳到最新"
                   HorizontalAlignment="Center" FontSize="11" Padding="14,6"
                   IsVisible="{Binding IsBackToBottomVisible}"
                   Background="{DynamicResource GuiPopupBackground}"

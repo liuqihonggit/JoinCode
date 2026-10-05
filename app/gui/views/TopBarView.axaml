@@ -38,7 +38,6 @@
         </MenuItem>
         <MenuItem Header="视图">
           <MenuItem Header="切换主题" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="{Binding ThemeToggleToolTip}" />
-          <MenuItem Header="设置面板" Command="{Binding ToggleSidePanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Settings}" />
           <MenuItem Header="底部面板" Command="{Binding TogglePanelCommand}" IsChecked="{Binding IsPanelOpen, Mode=OneWay}" />
           <MenuItem Header="编辑器" Command="{Binding ToggleEditorViewCommand}" />
           <MenuItem Header="面板">
@@ -50,15 +49,8 @@
             <MenuItem Header="⚙ 设置" Command="{Binding ToggleDockPanelCommand}" CommandParameter="{x:Static vm:SidePanelKind.Settings}" />
           </MenuItem>
           <Separator />
-          <MenuItem Header="切换语言" Command="{Binding ToggleLanguageCommand}" />
-          <MenuItem Header="面板固定" Command="{Binding TogglePanelPinCommand}" />
-          <MenuItem Header="面板位置循环" Command="{Binding CyclePanelPositionCommand}" />
           <MenuItem Header="关闭当前面板" Command="{Binding CloseActivePanelCommand}" />
-          <MenuItem Header="日志全屏" Command="{Binding ToggleLogFullscreenCommand}" />
-          <MenuItem Header="次侧边栏" Command="{Binding ToggleSecondarySideBarCommand}" />
-          <MenuItem Header="居中布局" Command="{Binding ToggleCenteredLayoutCommand}" />
           <MenuItem Header="Minimap" Command="{Binding ToggleMinimapCommand}" />
-          <MenuItem Header="侧边栏位置" Command="{Binding ToggleSideBarPositionCommand}" />
           <Separator />
           <MenuItem Header="Mock 引擎" Command="{Binding ToggleMockCommand}" IsChecked="{Binding IsMockConnection, Mode=OneWay}" />
           <MenuItem Header="无人值守" IsChecked="{Binding IsUnattendedMode, Mode=TwoWay}" ToolTip.Tip="{Binding UnattendedToggleToolTip}" />

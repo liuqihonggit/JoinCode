@@ -136,11 +136,10 @@ public sealed partial class MainViewModel {
     [RelayCommand]
     private void TogglePanelPin() => IsPanelPinned = !IsPanelPinned;
 
-    /// <summary>关闭当前激活的面板</summary>
+    /// <summary>关闭当前激活的 Dock 面板</summary>
     [RelayCommand]
     private void CloseActivePanel() {
-        ActiveSidePanel = SidePanelKind.None;
-        SidePanelWidth = 0;
+        _dockFactory?.CloseActiveDockPanel();
     }
 
     /// <summary>切换 Secondary Side Bar — 开关右侧边栏</summary>

@@ -8,6 +8,7 @@ namespace JoinCode.Gui.ViewModels.Docking;
 public sealed class DockFactory : Factory {
     private IRootDock? _root;
     private IToolDock? _leftToolDock;
+    private IToolDock? _bottomLeftDock;
     private IDocumentDock? _documentDock;
     private readonly object _context;
 
@@ -135,6 +136,7 @@ public sealed class DockFactory : Factory {
 
         _root = root;
         _leftToolDock = leftToolDock;
+        _bottomLeftDock = bottomLeftDock;
         _documentDock = documentDock;
         return root;
     }
@@ -235,5 +237,26 @@ public sealed class DockFactory : Factory {
     public bool IsPanelVisible(SidePanelKind kind) {
         if (!_allPanels.TryGetValue(kind, out var panel)) return false;
         return _leftToolDock?.VisibleDockables?.Contains(panel) ?? false;
+    }
+
+    /// <summary>切换底部面板可见性 — 显隐终端/日志面板</summary>
+    public void ToggleBottomPanel() {
+        if (_bottomLeftDock is null) return;
+        var list = _bottomLeftDock.VisibleDockables;
+        if (list is null || list.Count == 0) return;
+        var dockable = list[0];
+        if (_bottomLeftDock.ActiveDockable is not null) {
+            CloseDockable(dockable);
+        } else {
+            AddDockable(_bottomLeftDock, dockable);
+            _bottomLeftDock.ActiveDockable = dockable;
+        }
+    }
+
+    /// <summary>关闭当前激活的左侧 Dock 面板</summary>
+    public void CloseActiveDockPanel() {
+        if (_leftToolDock?.ActiveDockable is { } active) {
+            CloseDockable(active);
+        }
     }
 }

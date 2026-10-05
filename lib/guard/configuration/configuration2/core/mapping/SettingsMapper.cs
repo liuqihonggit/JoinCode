@@ -25,32 +25,15 @@ public sealed partial class SettingsMapper : ServiceEntity {
     public WorkflowConfig ToWorkflowConfig(SettingsJson? settings) {
         var config = new WorkflowConfig();
 
-        // Provider 配置 — 从 vendor[current.profile] + current 偏好映射
-        ApplyProviderSettings(config, settings);
-
-        // 代码执行配置
-        ApplyCodeExecutionSettings(config, settings);
-
-        // Worktree 配置
-        ApplyWorktreeSettings(config, settings);
-
-        // 快速模式
-        config.FastMode = settings?.Current?.FastMode ?? false;
-
-        // Shell 执行配置 — 防丢字符二次确认（MTP 扰动纵深防御）
-        config.ShellExecution.IsAntiCharLossConfirm = settings?.Current?.IsAntiCharLossConfirm ?? false;
-
-        // 工具评分配置
-        ApplyToolScoreSettings(config, settings);
-
-        // 子代理并发控制配置（ADR 0048）
-        ApplySubAgentConcurrencySettings(config, settings);
-
-        // 子代理卡死防护配置（ADR 0106）
-        ApplySubAgentLivenessSettings(config, settings);
-
-        // Actor 模型配置（ADR 0074）
-        ApplyActorSettings(config, settings);
+        config = ApplyProviderSettings(config, settings);
+        config = ApplyCodeExecutionSettings(config, settings);
+        config = ApplyWorktreeSettings(config, settings);
+        config = config with { FastMode = settings?.Current?.FastMode ?? false };
+        config = config with { ShellExecution = config.ShellExecution with { IsAntiCharLossConfirm = settings?.Current?.IsAntiCharLossConfirm ?? false } };
+        config = ApplyToolScoreSettings(config, settings);
+        config = ApplySubAgentConcurrencySettings(config, settings);
+        config = ApplySubAgentLivenessSettings(config, settings);
+        config = ApplyActorSettings(config, settings);
 
         return config;
     }
@@ -60,16 +43,13 @@ public sealed partial class SettingsMapper : ServiceEntity {
     /// 环境变量优先级最高，覆盖所有文件配置
     /// 注意: API Key 不在此处理，由 ConfigLoader.ResolveApiKeyAsync 统一解析
     /// </summary>
-    public async Task ApplyEnvOverridesAsync(WorkflowConfig config, SettingsJson? settings = null) {
-        // Provider 环境变量覆盖
+    public async Task<WorkflowConfig> ApplyEnvOverridesAsync(WorkflowConfig config, SettingsJson? settings = null) {
         var envProvider = Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue());
         if (!string.IsNullOrEmpty(envProvider) && config.Provider.Vendor != envProvider) {
-            config.Provider.Vendor = envProvider;
+            config = config with { Provider = config.Provider with { Vendor = envProvider } };
 
-            // --vendor 自动匹配 vendor 字典中的同名预设
-            await ApplyProfileFromVendorAsync(envProvider, config, settings).ConfigureAwait(false);
+            config = await ApplyProfileFromVendorAsync(envProvider, config, settings).ConfigureAwait(false);
 
-            // Provider 变更时，重新应用 Provider 定义的默认值
             var newDefinition = _registry.TryGet(envProvider);
             if (newDefinition is null && !SkipProviderValidation) {
                 throw new ConfigurationException(
@@ -77,69 +57,63 @@ public sealed partial class SettingsMapper : ServiceEntity {
             }
 
             if (newDefinition is not null) {
-                await ApplyProviderDefinitionDefaultsAsync(config, newDefinition, envProvider, settings).ConfigureAwait(false);
+                config = await ApplyProviderDefinitionDefaultsAsync(config, newDefinition, envProvider, settings).ConfigureAwait(false);
             } else {
                 Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。元命令模式降级运行。");
             }
         }
 
-        // JCC_PROTOCOL 环境变量覆盖
         var envProtocol = Environment.GetEnvironmentVariable(JccEnvVar.Protocol.ToValue());
         if (!string.IsNullOrEmpty(envProtocol))
-            config.Provider.Protocol = envProtocol;
-
-        // JCC_MODEL_ID / JCC_ENDPOINT / JCC_PROFILE 已由 EnvOverrideApplier 在 SettingsJson 层覆盖，
-        // ToWorkflowConfig 映射时已生效，此处不再重复处理
+            config = config with { Provider = config.Provider with { Protocol = envProtocol } };
 
         var envOrgId = Environment.GetEnvironmentVariable(JccEnvVar.OrganizationId.ToValue());
         if (!string.IsNullOrEmpty(envOrgId))
-            config.Provider.OrganizationId = envOrgId;
+            config = config with { Provider = config.Provider with { OrganizationId = envOrgId } };
 
         var envApiVersion = Environment.GetEnvironmentVariable(JccEnvVar.ApiVersion.ToValue());
         if (!string.IsNullOrEmpty(envApiVersion))
-            config.Provider.ApiVersion = envApiVersion;
+            config = config with { Provider = config.Provider with { ApiVersion = envApiVersion } };
 
         var envOAuth = Environment.GetEnvironmentVariable(JccEnvVar.EnableOAuth.ToValue());
         if (bool.TryParse(envOAuth, out var enableOAuth))
-            config.Provider.EnableOAuthTokenSupport = enableOAuth;
+            config = config with { Provider = config.Provider with { EnableOAuthTokenSupport = enableOAuth } };
 
-        // 代码执行环境变量覆盖
         var envTimeout = Environment.GetEnvironmentVariable(JccEnvVar.CodeExecutionTimeout.ToValue());
         if (int.TryParse(envTimeout, out var timeout))
-            config.CodeExecution.ExecutionTimeoutSeconds = timeout;
+            config = config with { CodeExecution = config.CodeExecution with { ExecutionTimeoutSeconds = timeout } };
 
         var envMaxMemory = Environment.GetEnvironmentVariable(JccEnvVar.CodeExecutionMaxMemory.ToValue());
         if (int.TryParse(envMaxMemory, out var maxMemory))
-            config.CodeExecution.MaxMemoryMB = maxMemory;
+            config = config with { CodeExecution = config.CodeExecution with { MaxMemoryMB = maxMemory } };
 
-        // Provider 定义的端点环境变量覆盖
-        ApplyProviderDefinitionEndpointEnvOverrides(config);
+        config = ApplyProviderDefinitionEndpointEnvOverrides(config);
 
         var envStateFilePath = Environment.GetEnvironmentVariable(JccEnvVar.StateFilePath.ToValue());
         if (!string.IsNullOrEmpty(envStateFilePath))
-            config.StateFilePath = envStateFilePath;
+            config = config with { StateFilePath = envStateFilePath };
+
+        return config;
     }
 
     /// <summary>
     /// 应用新 Provider 定义的默认值到 WorkflowConfig — Endpoint/Definition/Protocol/ModelId 回退
     /// </summary>
-    private async Task ApplyProviderDefinitionDefaultsAsync(WorkflowConfig config, IProviderDefinition newDefinition, string envProvider, SettingsJson? settings) {
-        config.Provider.Endpoint ??= newDefinition.DefaultEndpoint;
-        config.Provider.Definition = newDefinition;
-        // Protocol — ApplyProfileFromVendorAsync 已从 settings.json profile 设置(配置大于代码)
-        // 仅当 profile 未配 protocol 时回退到 definition 的默认协议
+    private async Task<WorkflowConfig> ApplyProviderDefinitionDefaultsAsync(WorkflowConfig config, IProviderDefinition newDefinition, string envProvider, SettingsJson? settings) {
+        var provider = config.Provider;
+        provider = provider with { Endpoint = provider.Endpoint ?? newDefinition.DefaultEndpoint, Definition = newDefinition };
         var profileProtocol = await GetProfileProtocolAsync(envProvider, settings).ConfigureAwait(false);
         if (string.IsNullOrEmpty(profileProtocol))
-            config.Provider.Protocol = newDefinition.Protocol.ToValue();
+            provider = provider with { Protocol = newDefinition.Protocol.ToValue() };
 
-        // 仅当 ModelId 未被显式设置时，使用新 Provider 的默认模型
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue()))) {
-            config.Provider.ModelId ??= newDefinition.DefaultModelId;
-            if (config.Provider.ModelId is null && !SkipProviderValidation) {
+            provider = provider with { ModelId = provider.ModelId ?? newDefinition.DefaultModelId };
+            if (provider.ModelId is null && !SkipProviderValidation) {
                 throw new ConfigurationException(
                     $"Provider '{newDefinition.ProviderName}' 没有定义默认模型，请通过 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
             }
         }
+        return config with { Provider = provider };
     }
 
     /// <summary>
@@ -163,102 +137,101 @@ public sealed partial class SettingsMapper : ServiceEntity {
 
     #region 内部方法
 
-    private void ApplyProviderSettings(WorkflowConfig config, SettingsJson? settings) {
+    private WorkflowConfig ApplyProviderSettings(WorkflowConfig config, SettingsJson? settings) {
         var current = settings?.Current;
         var profile = settings?.GetActiveProfile();
+        var provider = config.Provider;
 
-        // Provider — 优先从 profile 读取，回退到 profile 名本身
         if (profile is not null) {
             if (!string.IsNullOrEmpty(profile.Provider))
-                config.Provider.Vendor = profile.Provider;
+                provider = provider with { Vendor = profile.Provider };
             else if (!string.IsNullOrEmpty(current?.Profile))
-                config.Provider.Vendor = current.Profile;
+                provider = provider with { Vendor = current.Profile };
         } else if (!string.IsNullOrEmpty(current?.Profile)) {
-            config.Provider.Vendor = current.Profile;
+            provider = provider with { Vendor = current.Profile };
         }
 
-        // Endpoint — 从 profile 读取
-        if (!string.IsNullOrEmpty(profile?.Endpoint)) {
-            config.Provider.Endpoint = profile.Endpoint;
-        }
+        if (!string.IsNullOrEmpty(profile?.Endpoint))
+            provider = provider with { Endpoint = profile.Endpoint };
 
-        // Provider 定义自动配置默认值
-        var definition = _registry.TryGet(config.Provider.Vendor);
+        var definition = _registry.TryGet(provider.Vendor);
         if (definition is not null) {
-            config.Provider.Endpoint ??= definition.DefaultEndpoint;
-            config.Provider.Definition = definition;
-            // Protocol — 优先从 profile 读取(配置大于代码),回退到 Provider 定义
+            provider = provider with { Endpoint = provider.Endpoint ?? definition.DefaultEndpoint, Definition = definition };
             if (!string.IsNullOrEmpty(profile?.Protocol))
-                config.Provider.Protocol = profile.Protocol;
+                provider = provider with { Protocol = profile.Protocol };
             else
-                config.Provider.Protocol = definition.Protocol.ToValue();
+                provider = provider with { Protocol = definition.Protocol.ToValue() };
         }
 
-        // Model ID — 优先从 profile 读取，回退到 Provider 定义默认模型
         if (!string.IsNullOrEmpty(profile?.Model)) {
-            config.Provider.ModelId = profile.Model;
+            provider = provider with { ModelId = profile.Model };
         } else if (definition is not null) {
-            config.Provider.ModelId = definition.DefaultModelId;
-            if (config.Provider.ModelId is null && !SkipProviderValidation) {
+            provider = provider with { ModelId = definition.DefaultModelId };
+            if (provider.ModelId is null && !SkipProviderValidation) {
                 throw new ConfigurationException(
                     $"Provider '{definition.ProviderName}' 没有定义默认模型，请通过 vendor[current.profile].model 或 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
             }
         } else if (SkipProviderValidation) {
-            Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。元命令模式降级运行。");
+            Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。元命令模式降级运行。");
         } else {
             throw new ConfigurationException(
-                $"未知的 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。" +
+                $"未知的 Provider '{provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。" +
                 $"请通过 {JccEnvVar.Vendor.ToValue()} 环境变量指定正确的 Provider。");
         }
 
-        // CurrentProfile — 从 current.profile 读取
+        config = config with { Provider = provider };
+
         if (!string.IsNullOrEmpty(current?.Profile))
-            config.CurrentProfile = current.Profile;
+            config = config with { CurrentProfile = current.Profile };
 
-        // API Version
-        config.Provider.ApiVersion ??= definition?.DefaultApiVersion ?? "2024-02-01";
+        config = config with { Provider = config.Provider with { ApiVersion = config.Provider.ApiVersion ?? definition?.DefaultApiVersion ?? "2024-02-01" } };
+
+        return config;
     }
 
-    private static void ApplyCodeExecutionSettings(WorkflowConfig config, SettingsJson? settings) {
+    private static WorkflowConfig ApplyCodeExecutionSettings(WorkflowConfig config, SettingsJson? settings) {
         var sandbox = settings?.Current?.Sandbox;
-        if (sandbox is null) return;
+        if (sandbox is null) return config;
 
+        var ce = config.CodeExecution;
         if (sandbox.Enabled.HasValue)
-            config.CodeExecution.ReadOnlyFilesystem = sandbox.Enabled.Value;
-
+            ce = ce with { ReadOnlyFilesystem = sandbox.Enabled.Value };
         if (sandbox.RestrictNetwork.HasValue)
-            config.CodeExecution.AllowNetworkAccess = !sandbox.RestrictNetwork.Value;
-
+            ce = ce with { AllowNetworkAccess = !sandbox.RestrictNetwork.Value };
         if (sandbox.MemoryLimitMb.HasValue && sandbox.MemoryLimitMb.Value > 0)
-            config.CodeExecution.MaxMemoryMB = sandbox.MemoryLimitMb.Value;
-
+            ce = ce with { MaxMemoryMB = sandbox.MemoryLimitMb.Value };
         if (sandbox.AllowedPaths is not null && sandbox.AllowedPaths.Count > 0)
-            config.CodeExecution.AllowedDirectories = string.Join(";", sandbox.AllowedPaths);
+            ce = ce with { AllowedDirectories = string.Join(";", sandbox.AllowedPaths) };
+
+        return config with { CodeExecution = ce };
     }
 
-    private static void ApplyWorktreeSettings(WorkflowConfig config, SettingsJson? settings) {
+    private static WorkflowConfig ApplyWorktreeSettings(WorkflowConfig config, SettingsJson? settings) {
         var worktree = settings?.Current?.Worktree;
-        if (worktree is null) return;
+        if (worktree is null) return config;
 
+        var wt = config.Worktree;
         if (worktree.SparsePaths is not null)
-            config.Worktree.SparsePaths = worktree.SparsePaths;
-
+            wt = wt with { SparsePaths = worktree.SparsePaths };
         if (worktree.SymlinkDirectories is not null)
-            config.Worktree.SymlinkDirectories = worktree.SymlinkDirectories;
+            wt = wt with { SymlinkDirectories = worktree.SymlinkDirectories };
+
+        return config with { Worktree = wt };
     }
 
-    private static void ApplyProviderDefinitionEndpointEnvOverrides(WorkflowConfig config) {
-        if (config.Provider.Definition is not { } definition) return;
+    private static WorkflowConfig ApplyProviderDefinitionEndpointEnvOverrides(WorkflowConfig config) {
+        if (config.Provider.Definition is not { } definition) return config;
 
         var envEndpoint = definition.ResolveEndpointFromEnv();
         if (!string.IsNullOrEmpty(envEndpoint))
-            config.Provider.Endpoint = envEndpoint;
+            return config with { Provider = config.Provider with { Endpoint = envEndpoint } };
+        return config;
     }
 
     /// <summary>
     /// --vendor 自动匹配 vendor 字典中的同名预设
     /// </summary>
-    private static async Task ApplyProfileFromVendorAsync(string vendor, WorkflowConfig config, SettingsJson? settings) {
+    private static async Task<WorkflowConfig> ApplyProfileFromVendorAsync(string vendor, WorkflowConfig config, SettingsJson? settings) {
         if (settings is null) {
             var settingsPath = Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
             if (BclFileIO.Instance.FileExists(settingsPath)) {
@@ -270,18 +243,17 @@ public sealed partial class SettingsMapper : ServiceEntity {
         }
 
         if (settings?.Vendor is null || !settings.Vendor.TryGetValue(vendor, out var profile))
-            return;
+            return config;
 
+        var provider = config.Provider;
         if (!string.IsNullOrEmpty(profile.Model) && string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())))
-            config.Provider.ModelId = profile.Model;
-
+            provider = provider with { ModelId = profile.Model };
         if (!string.IsNullOrEmpty(profile.Endpoint))
-            config.Provider.Endpoint = profile.Endpoint;
-
+            provider = provider with { Endpoint = profile.Endpoint };
         if (!string.IsNullOrEmpty(profile.Protocol))
-            config.Provider.Protocol = profile.Protocol;
+            provider = provider with { Protocol = profile.Protocol };
 
-        config.CurrentProfile = vendor;
+        return config with { Provider = provider, CurrentProfile = vendor };
     }
 
     /// <summary>从 settings.json 的 vendor 节点读取指定供应商的 protocol 配置</summary>
@@ -301,15 +273,15 @@ public sealed partial class SettingsMapper : ServiceEntity {
         return profile.Protocol;
     }
 
-    private static void ApplyToolScoreSettings(WorkflowConfig config, SettingsJson? settings) {
+    private static WorkflowConfig ApplyToolScoreSettings(WorkflowConfig config, SettingsJson? settings) {
         var current = settings?.Current;
-        if (current is null) return;
+        if (current is null) return config;
 
         var te = config.ToolExecution;
         var ts = current.ToolScore;
         var oldScore = te.ToolScore;
 
-        config.ToolExecution = te with {
+        var newTe = te with {
             ToolScore = oldScore with {
                 SuccessDelta = ts?.SuccessDelta ?? oldScore.SuccessDelta,
                 FailDelta = ts?.FailDelta ?? oldScore.FailDelta,
@@ -324,64 +296,82 @@ public sealed partial class SettingsMapper : ServiceEntity {
                 ? new Dictionary<string, int>(current.ToolPenalties, StringComparer.OrdinalIgnoreCase)
                 : te.ToolPenalties,
         };
+        return config with { ToolExecution = newTe };
     }
 
     /// <summary>
     /// 映射子代理并发控制配置 — spawn/execute/fork 三阶段上限（ADR 0048）
     /// </summary>
-    private static void ApplySubAgentConcurrencySettings(WorkflowConfig config, SettingsJson? settings) {
+    private static WorkflowConfig ApplySubAgentConcurrencySettings(WorkflowConfig config, SettingsJson? settings) {
         var sub = settings?.Current?.SubAgentConcurrency;
-        if (sub is null) return;
+        if (sub is null) return config;
 
-        config.SubAgentConcurrency.MaxConcurrentSpawns = sub.MaxConcurrentSpawns;
-        config.SubAgentConcurrency.MaxConcurrentExecutions = sub.MaxConcurrentExecutions;
-        config.SubAgentConcurrency.MaxConcurrentForks = sub.MaxConcurrentForks;
+        return config with {
+            SubAgentConcurrency = config.SubAgentConcurrency with {
+                MaxConcurrentSpawns = sub.MaxConcurrentSpawns,
+                MaxConcurrentExecutions = sub.MaxConcurrentExecutions,
+                MaxConcurrentForks = sub.MaxConcurrentForks
+            }
+        };
     }
 
     /// <summary>
     /// 映射子代理卡死防护配置 — 纵深防御四层参数（ADR 0106）
     /// </summary>
-    private static void ApplySubAgentLivenessSettings(WorkflowConfig config, SettingsJson? settings) {
+    private static WorkflowConfig ApplySubAgentLivenessSettings(WorkflowConfig config, SettingsJson? settings) {
         var sub = settings?.Current?.SubAgentLiveness;
-        if (sub is null) return;
+        if (sub is null) return config;
 
-        config.SubAgentLiveness.AgentTimeoutSeconds = sub.AgentTimeoutSeconds;
-        config.SubAgentLiveness.IdleThresholdSeconds = sub.IdleThresholdSeconds;
-        config.SubAgentLiveness.CompletionCheckThreshold = sub.CompletionCheckThreshold;
-        config.SubAgentLiveness.ConfirmationWindowSeconds = sub.ConfirmationWindowSeconds;
-        config.SubAgentLiveness.ScanIntervalSeconds = sub.ScanIntervalSeconds;
-        config.SubAgentLiveness.ChainStallThreshold = sub.ChainStallThreshold;
-        config.SubAgentLiveness.PoolMaxSize = sub.PoolMaxSize;
-        config.SubAgentLiveness.PoolIdleTimeoutSeconds = sub.PoolIdleTimeoutSeconds;
-        config.SubAgentLiveness.PreemptMinWindowRatio = sub.PreemptMinWindowRatio;
-        config.SubAgentLiveness.ActivationRecoverySeconds = sub.ActivationRecoverySeconds;
+        return config with {
+            SubAgentLiveness = config.SubAgentLiveness with {
+                AgentTimeoutSeconds = sub.AgentTimeoutSeconds,
+                IdleThresholdSeconds = sub.IdleThresholdSeconds,
+                CompletionCheckThreshold = sub.CompletionCheckThreshold,
+                ConfirmationWindowSeconds = sub.ConfirmationWindowSeconds,
+                ScanIntervalSeconds = sub.ScanIntervalSeconds,
+                ChainStallThreshold = sub.ChainStallThreshold,
+                PoolMaxSize = sub.PoolMaxSize,
+                PoolIdleTimeoutSeconds = sub.PoolIdleTimeoutSeconds,
+                PreemptMinWindowRatio = sub.PreemptMinWindowRatio,
+                ActivationRecoverySeconds = sub.ActivationRecoverySeconds
+            }
+        };
     }
 
     /// <summary>
     /// 映射 Actor 模型配置 — 编译队列模式 + 背压预设(ADR 0074)
     /// 缺失时用默认值(串行模式 + 四档预设),不抛异常。
     /// </summary>
-    private static void ApplyActorSettings(WorkflowConfig config, SettingsJson? settings) {
+    private static WorkflowConfig ApplyActorSettings(WorkflowConfig config, SettingsJson? settings) {
         var actor = settings?.Current?.Actor;
-        if (actor is null) return;
+        if (actor is null) return config;
 
-        config.Actor.BuildQueue.Mode = actor.BuildQueue.Mode;
-        config.Actor.BuildQueue.WorkerCount = actor.BuildQueue.WorkerCount;
-        config.Actor.BuildQueue.CrossProcessLockPath = actor.BuildQueue.CrossProcessLockPath;
+        var buildQueue = config.Actor.BuildQueue with {
+            Mode = actor.BuildQueue.Mode,
+            WorkerCount = actor.BuildQueue.WorkerCount,
+            CrossProcessLockPath = actor.BuildQueue.CrossProcessLockPath
+        };
 
-        CopyPreset(config.Actor.Backpressure.CodingAgentTask, actor.Backpressure.CodingAgentTask);
-        CopyPreset(config.Actor.Backpressure.LlmGateway, actor.Backpressure.LlmGateway);
-        CopyPreset(config.Actor.Backpressure.Router, actor.Backpressure.Router);
-        CopyPreset(config.Actor.Backpressure.Build, actor.Backpressure.Build);
+        var bp = config.Actor.Backpressure;
+        var newBp = bp with {
+            CodingAgentTask = CopyPreset(bp.CodingAgentTask, actor.Backpressure.CodingAgentTask),
+            LlmGateway = CopyPreset(bp.LlmGateway, actor.Backpressure.LlmGateway),
+            Router = CopyPreset(bp.Router, actor.Backpressure.Router),
+            Build = CopyPreset(bp.Build, actor.Backpressure.Build)
+        };
 
-        config.Actor.Validate();
+        var newActor = config.Actor with { BuildQueue = buildQueue, Backpressure = newBp };
+        newActor.Validate();
+        return config with { Actor = newActor };
     }
 
-    private static void CopyPreset(BackpressurePreset target, BackpressurePreset source) {
-        target.Capacity = source.Capacity;
-        target.HighWatermark = source.HighWatermark;
-        target.CriticalWatermark = source.CriticalWatermark;
-        target.SendTimeoutSeconds = source.SendTimeoutSeconds;
+    private static BackpressurePreset CopyPreset(BackpressurePreset target, BackpressurePreset source) {
+        return target with {
+            Capacity = source.Capacity,
+            HighWatermark = source.HighWatermark,
+            CriticalWatermark = source.CriticalWatermark,
+            SendTimeoutSeconds = source.SendTimeoutSeconds
+        };
     }
 
     #endregion

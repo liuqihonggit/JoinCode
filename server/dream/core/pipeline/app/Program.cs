@@ -31,10 +31,10 @@ internal static class DreamEntryPoint {
             var envModelId = Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue());
             var envEndpoint = Environment.GetEnvironmentVariable(JccEnvVar.Endpoint.ToValue());
 
-            if (!string.IsNullOrEmpty(envProvider)) config.Vendor = envProvider;
-            if (!string.IsNullOrEmpty(envApiKey)) config.ApiKey = envApiKey;
-            if (!string.IsNullOrEmpty(envModelId)) config.ModelId = envModelId;
-            if (!string.IsNullOrEmpty(envEndpoint)) config.Endpoint = envEndpoint;
+            if (!string.IsNullOrEmpty(envProvider)) config = config with { Vendor = envProvider };
+            if (!string.IsNullOrEmpty(envApiKey)) config = config with { ApiKey = envApiKey };
+            if (!string.IsNullOrEmpty(envModelId)) config = config with { ModelId = envModelId };
+            if (!string.IsNullOrEmpty(envEndpoint)) config = config with { Endpoint = envEndpoint };
 
             services.AddLlmServices(config);
             services.AddSingleton<IFileOperationService>(sp => {

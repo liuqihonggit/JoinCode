@@ -48,13 +48,17 @@ public sealed class VendorCommand : ChatCommandBase {
         }
 
         // 切换 — 对齐 GUI SetVendorAsync 语义：内存 Vendor + 默认模型跟随 + profile 持久化
-        config.Provider!.Vendor = targetValue;
-
+        // WorkflowConfig 是 immutable record，一次性构造新对象后无锁替换引用（避免中间对象）
         var catalog = ResolveCatalog(context);
         var defaultModelId = catalog.GetDefaultModelForProvider(targetValue);
-        if (!string.IsNullOrEmpty(defaultModelId)) {
-            config.Provider.ModelId = defaultModelId;
+        var newProvider = config.Provider! with {
+            Vendor = targetValue,
+            ModelId = string.IsNullOrEmpty(defaultModelId) ? config.Provider!.ModelId : defaultModelId,
+        };
+        config = config with { Provider = newProvider };
+        context.GetCommandServices().WorkflowConfig = config;
 
+        if (!string.IsNullOrEmpty(defaultModelId)) {
             var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
             fastModeService?.SetPrimaryModel(defaultModelId);
         }

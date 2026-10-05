@@ -8,9 +8,9 @@ namespace Host.Tests.ChatCommands;
 /// </summary>
 public sealed class VendorCommandTests {
     private static (VendorCommand Cmd, WorkflowConfig Config, ChatCommandContext Ctx) Create(string arguments) {
-        var config = new WorkflowConfig();
-        config.Provider.Vendor = "openai";
-        config.Provider.ModelId = "gpt-4o";
+        var config = new WorkflowConfig {
+            Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" },
+        };
 
         var catalog = new Mock<IModelCatalog>();
         catalog.Setup(c => c.GetDefaultModelForProvider("anthropic")).Returns("claude-sonnet-4");

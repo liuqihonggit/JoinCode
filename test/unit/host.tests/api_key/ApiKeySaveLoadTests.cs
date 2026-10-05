@@ -46,14 +46,15 @@ public class ApiKeySaveLoadTests {
                 config = new WorkflowConfig();
             }
 
-            config.Provider.Vendor = provider;
-            config.Provider.ApiKey = apiKey;
-
             var definition = GetDefinitionFor(provider);
-            if (definition is not null) {
-                config.Provider.Definition = definition;
-                config.Provider.ModelId = definition.DefaultModelId;
-            }
+            config = config with {
+                Provider = config.Provider with {
+                    Vendor = provider,
+                    ApiKey = apiKey,
+                    Definition = definition ?? config.Provider.Definition,
+                    ModelId = definition?.DefaultModelId ?? config.Provider.ModelId,
+                },
+            };
 
             config.Provider.Vendor.Should().Be(provider);
             config.Provider.ApiKey.Should().Be(apiKey);
@@ -153,14 +154,15 @@ public class ApiKeySaveLoadTests {
                 config = new WorkflowConfig();
             }
 
-            config.Provider.Vendor = provider;
-            config.Provider.ApiKey = apiKey;
-
             var definition = GetDefinitionFor(provider);
-            if (definition is not null) {
-                config.Provider.Definition = definition;
-                config.Provider.ModelId = definition.DefaultModelId;
-            }
+            config = config with {
+                Provider = config.Provider with {
+                    Vendor = provider,
+                    ApiKey = apiKey,
+                    Definition = definition ?? config.Provider.Definition,
+                    ModelId = definition?.DefaultModelId ?? config.Provider.ModelId,
+                },
+            };
 
             config.Provider.Vendor.Should().Be(provider);
             config.Provider.ApiKey.Should().Be(apiKey);

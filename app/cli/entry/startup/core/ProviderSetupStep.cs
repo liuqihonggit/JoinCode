@@ -31,14 +31,15 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
             return;
         }
 
-        var configured = await ShowProviderMenuAsync(context.Config, context.FileSystem, ct).ConfigureAwait(false);
+        var (configured, newConfig) = await ShowProviderMenuAsync(context.Config, context.FileSystem, ct).ConfigureAwait(false);
+        context.Config = newConfig;
         if (!configured) return;  // 短路
 
         context.HasApiKey = true;
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private async Task<bool> ShowProviderMenuAsync(WorkflowConfig config, IFileSystem fs, CancellationToken ct) {
+    private async Task<(bool Success, WorkflowConfig Config)> ShowProviderMenuAsync(WorkflowConfig config, IFileSystem fs, CancellationToken ct) {
         while (true) {
             Cli.TerminalHelper.NewLine();
             Cli.TerminalHelper.WriteLine("═══════════════════════════════════════");
@@ -64,25 +65,25 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
 
             if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 Cli.TerminalHelper.WriteLine("非交互环境，跳过配置。");
-                return false;
+                return (false, config);
             }
 
             var choice = Cli.TerminalHelper.ReadLine()?.Trim();
 
             if (int.TryParse(choice, out var idx) && idx >= 1 && idx <= providers.Count) {
-                await ConfigureProviderAsync(config, fs, providers[idx - 1].ProviderName).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(config.Provider.ApiKey)) return true;
+                config = await ConfigureProviderAsync(config, fs, providers[idx - 1].ProviderName).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(config.Provider.ApiKey)) return (true, config);
                 continue;
             }
 
-            if (int.TryParse(choice, out var num) && num == exitIdx) return false;
-            if (string.IsNullOrEmpty(choice)) return false;
+            if (int.TryParse(choice, out var num) && num == exitIdx) return (false, config);
+            if (string.IsNullOrEmpty(choice)) return (false, config);
 
             Cli.TerminalHelper.WriteLine($"  无效选择，请输入 1-{exitIdx}。");
         }
     }
 
-    private async Task ConfigureProviderAsync(WorkflowConfig config, IFileSystem fs, string provider) {
+    private async Task<WorkflowConfig> ConfigureProviderAsync(WorkflowConfig config, IFileSystem fs, string provider) {
         var definition = _registry.TryGet(provider);
         var displayName = definition?.DisplayName ?? provider;
         var envVarHint = definition?.ApiKeyEnvironmentVariable is not null
@@ -93,18 +94,19 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
         // 使用 WriteRaw（不换行）以便 ReadPassword 的掩码 * 显示在同一行
         Cli.TerminalHelper.WriteRaw($"请粘贴 {displayName} 的 API Key{envVarHint}（直接回车退出）: ");
 
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) return;
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) return config;
 
         // 使用掩码输入隐藏 API Key 明文 — 复用 IConsoleOutput.ReadPassword 基础设施
         // 决策: 注入 IConsoleOutput 而非直接 Console.ReadKey，保持可测试性（NoOp/Mock 模式可替换）
         // 替代方案已否决: 直接调用 System.Console.ReadKey（不可测试，与 PhysicalConsoleOutput 重复实现）
         var apiKey = _console.ReadPassword(string.Empty);
-        if (string.IsNullOrWhiteSpace(apiKey)) return;
+        if (string.IsNullOrWhiteSpace(apiKey)) return config;
 
         apiKey = apiKey.Trim();
 
         // 多态：通过 IProviderDefinition.RequiresInteractiveEndpoint 消除 `if (provider == "azure")` 硬编码
         // Azure 覆写为 true + EndpointPromptText + EndpointRequiredMessage；其余 Provider 默认 false（空实现）
+        var newEndpoint = config.Provider.Endpoint;
         if (definition?.RequiresInteractiveEndpoint == true) {
             Cli.TerminalHelper.WriteLine();
             Cli.TerminalHelper.WriteLine(definition.EndpointPromptText ?? "请输入 Endpoint:");
@@ -112,30 +114,36 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
 
             if (string.IsNullOrWhiteSpace(endpoint)) {
                 Cli.TerminalHelper.WriteLine($"  {definition.EndpointRequiredMessage ?? "Endpoint 必填，配置已取消。"}");
-                return;
+                return config;
             }
 
             if (!Uri.TryCreate(endpoint, UriKind.Absolute, out _)) {
                 Cli.TerminalHelper.WriteLine($"  Endpoint '{endpoint}' 不是有效的 URI 格式，配置已取消。");
-                return;
+                return config;
             }
 
             await ConfigLoader.SaveSettingToSettingsJsonAsync("endpoint", endpoint.Trim(), fs).ConfigureAwait(false);
-            config.Provider.Endpoint = endpoint.Trim();
+            newEndpoint = endpoint.Trim();
         }
 
-        config.Provider.Vendor = provider;
-        config.Provider.ApiKey = apiKey;
-        if (definition is not null) {
-            config.Provider.Definition = definition;
-            config.Provider.Protocol = definition.Protocol.ToValue();
-            config.Provider.ModelId = definition.DefaultModelId;
-            config.Provider.Endpoint ??= definition.DefaultEndpoint;
-        }
+        // definition 非空时 Endpoint 回退默认值
+        if (definition is not null && newEndpoint is null)
+            newEndpoint = definition.DefaultEndpoint;
+
+        // 一次性构造新 ProviderConfig + WorkflowConfig，无锁替换引用
+        var newProvider = config.Provider with {
+            Vendor = provider,
+            ApiKey = apiKey,
+            Endpoint = newEndpoint,
+            Definition = definition ?? config.Provider.Definition,
+            Protocol = definition is not null ? definition.Protocol.ToValue() : config.Provider.Protocol,
+            ModelId = definition?.DefaultModelId ?? config.Provider.ModelId,
+        };
 
         await ConfigLoader.SaveApiKeyToJccAsync(provider, apiKey, fs).ConfigureAwait(false);
         await ConfigLoader.SaveSettingToSettingsJsonAsync("provider", provider, fs).ConfigureAwait(false);
 
         Cli.TerminalHelper.WriteLine("API Key 已保存。");
+        return config with { Provider = newProvider };
     }
 }

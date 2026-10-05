@@ -349,17 +349,17 @@ public sealed class ApplicationBuilder {
         var registry = await Core.Configuration.Providers.ProviderDefinitionRegistry.CreateAsync(modelConfigLoader ?? new ModelConfigLoader(), logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>()).ConfigureAwait(false);
 
         if (dotEnv is not null) {
-            dotEnv.ApplyToMemory(config, registry);
+            config = dotEnv.ApplyToMemory(config, registry);
         }
 
         // 环境变量优先级最高 — 无论 dotEnv 是否存在，都必须应用环境变量覆盖
         // 修复: 之前 ApplyEnvOverrides 只在 dotEnv != null 时调用，
         // 导致无 .env/api.json 时 JCC_ENDPOINT/JCC_MODEL_ID 等环境变量不生效
-        await new Core.Configuration.SettingsMapper(registry).ApplyEnvOverridesAsync(config).ConfigureAwait(false);
+        config = await new Core.Configuration.SettingsMapper(registry).ApplyEnvOverridesAsync(config).ConfigureAwait(false);
 
         // --model 已在 ParseArgs 阶段转为 JCC_MODEL_ID 环境变量，由 EnvOverrideApplier + ApplyEnvOverrides 统一处理
         if (options.IsPipeMode)
-            config.PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName ?? throw new InvalidOperationException("PipeName required in pipe mode") };
+            config = config with { PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName ?? throw new InvalidOperationException("PipeName required in pipe mode") } };
 
         return config;
     }

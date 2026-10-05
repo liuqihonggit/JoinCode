@@ -43,7 +43,7 @@ public sealed class FastCommand : ToggleCommandBase {
         if (fastModeService is not null) {
             fastModeService.Activate();
         } else if (config is not null) {
-            config.FastMode = true;
+            context.GetCommandServices().WorkflowConfig = config with { FastMode = true };
         }
 
         var fastModel = fastModeService?.FastModelId ?? "fast model";
@@ -64,7 +64,7 @@ public sealed class FastCommand : ToggleCommandBase {
         if (fastModeService is not null) {
             fastModeService.Deactivate();
         } else if (config is not null) {
-            config.FastMode = false;
+            context.GetCommandServices().WorkflowConfig = config with { FastMode = false };
         }
 
         var primaryModel = fastModeService?.PrimaryModelId ?? "primary model";

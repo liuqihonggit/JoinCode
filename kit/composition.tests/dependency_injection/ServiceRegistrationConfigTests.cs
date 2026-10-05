@@ -125,7 +125,7 @@ public sealed class ServiceRegistrationConfigTests {
         var config = new ShellExecutionConfig();
         var originalAbsolute = config.AbsoluteTimeoutSeconds;
         var originalResume = config.ResumeTimeoutSeconds;
-        ServiceRegistrationConfigValidator.ApplyEnvOverrides(config, null, null);
+        config = ServiceRegistrationConfigValidator.ApplyEnvOverrides(config, null, null);
         config.AbsoluteTimeoutSeconds.Should().Be(originalAbsolute);
         config.ResumeTimeoutSeconds.Should().Be(originalResume);
     }
@@ -136,7 +136,7 @@ public sealed class ServiceRegistrationConfigTests {
     [InlineData("3600", 3600)]
     public void ApplyEnvOverrides_ValidAbsolute_OverwritesAbsoluteTimeout(string envValue, int expected) {
         var config = new ShellExecutionConfig();
-        ServiceRegistrationConfigValidator.ApplyEnvOverrides(config, envValue, null);
+        config = ServiceRegistrationConfigValidator.ApplyEnvOverrides(config, envValue, null);
         config.AbsoluteTimeoutSeconds.Should().Be(expected);
     }
 
@@ -148,7 +148,7 @@ public sealed class ServiceRegistrationConfigTests {
     public void ApplyEnvOverrides_InvalidAbsolute_KeepsOriginal(string envValue) {
         var config = new ShellExecutionConfig();
         var original = config.AbsoluteTimeoutSeconds;
-        ServiceRegistrationConfigValidator.ApplyEnvOverrides(config, envValue, null);
+        config = ServiceRegistrationConfigValidator.ApplyEnvOverrides(config, envValue, null);
         config.AbsoluteTimeoutSeconds.Should().Be(original);
     }
 
@@ -158,7 +158,7 @@ public sealed class ServiceRegistrationConfigTests {
     [InlineData("3600", 3600)]
     public void ApplyEnvOverrides_ValidResume_OverwritesResumeTimeout(string envValue, int expected) {
         var config = new ShellExecutionConfig();
-        ServiceRegistrationConfigValidator.ApplyEnvOverrides(config, null, envValue);
+        config = ServiceRegistrationConfigValidator.ApplyEnvOverrides(config, null, envValue);
         config.ResumeTimeoutSeconds.Should().Be(expected);
     }
 
@@ -171,14 +171,14 @@ public sealed class ServiceRegistrationConfigTests {
     public void ApplyEnvOverrides_InvalidResume_KeepsOriginal(string envValue) {
         var config = new ShellExecutionConfig();
         var original = config.ResumeTimeoutSeconds;
-        ServiceRegistrationConfigValidator.ApplyEnvOverrides(config, null, envValue);
+        config = ServiceRegistrationConfigValidator.ApplyEnvOverrides(config, null, envValue);
         config.ResumeTimeoutSeconds.Should().Be(original);
     }
 
     [Fact]
     public void ApplyEnvOverrides_BothValid_OverwritesBoth() {
         var config = new ShellExecutionConfig();
-        ServiceRegistrationConfigValidator.ApplyEnvOverrides(config, "200", "300");
+        config = ServiceRegistrationConfigValidator.ApplyEnvOverrides(config, "200", "300");
         config.AbsoluteTimeoutSeconds.Should().Be(200);
         config.ResumeTimeoutSeconds.Should().Be(300);
     }

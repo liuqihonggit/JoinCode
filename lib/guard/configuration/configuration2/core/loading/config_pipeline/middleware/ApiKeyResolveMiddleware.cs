@@ -21,10 +21,12 @@ public sealed partial class ApiKeyResolveMiddleware : ServiceEntity, IConfigLoad
     /// <inheritdoc />
     public async Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct) {
         var config = context.Config;
-        config.Provider.ApiKey = await _loader.ResolveApiKeyAsync(
+        var apiKey = await _loader.ResolveApiKeyAsync(
             config.Provider.Vendor, config.Provider.Definition, _fs, ct).ConfigureAwait(false);
+        config = config with { Provider = config.Provider with { ApiKey = apiKey } };
+        context.Config = config;
 
-        context.ResolvedApiKey = config.Provider.ApiKey;
+        context.ResolvedApiKey = apiKey;
 
         await next(context, ct).ConfigureAwait(false);
     }

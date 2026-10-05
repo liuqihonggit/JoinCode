@@ -140,8 +140,8 @@ internal sealed record DotEnvConfig {
     /// <summary>
     /// 将配置应用到内存中的 WorkflowConfig
     /// </summary>
-    public void ApplyToMemory(WorkflowConfig config) {
-        ApplyToMemory(config, Core.Configuration.Providers.ProviderDefinitionRegistry.Create(new ModelConfigLoader()));
+    public WorkflowConfig ApplyToMemory(WorkflowConfig config) {
+        return ApplyToMemory(config, Core.Configuration.Providers.ProviderDefinitionRegistry.Create(new ModelConfigLoader()));
     }
 
     /// <summary>
@@ -149,27 +149,34 @@ internal sealed record DotEnvConfig {
     /// </summary>
     /// <param name="config">目标 WorkflowConfig 实例</param>
     /// <param name="registry">供应商定义注册表</param>
-    public void ApplyToMemory(WorkflowConfig config, IProviderDefinitionRegistry registry) {
-        if (ApiKey is not null)
-            config.Provider.ApiKey = ApiKey;
-
-        if (Vendor is not null)
-            config.Provider.Vendor = Vendor;
-
-        if (Endpoint is not null)
-            config.Provider.Endpoint = Endpoint;
-
-        if (ModelId is not null)
-            config.Provider.ModelId = ModelId;
+    public WorkflowConfig ApplyToMemory(WorkflowConfig config, IProviderDefinitionRegistry registry) {
+        var p = config.Provider;
+        var newApiKey = ApiKey ?? p.ApiKey;
+        var newVendor = Vendor ?? p.Vendor;
+        var newEndpoint = Endpoint ?? p.Endpoint;
+        var newModelId = ModelId ?? p.ModelId;
+        var newDefinition = p.Definition;
+        var newProtocol = p.Protocol;
 
         if (Vendor is not null) {
             var definition = registry.TryGet(Vendor);
             if (definition is not null) {
-                config.Provider.Definition = definition;
-                config.Provider.Protocol = definition.Protocol.ToValue();
-                config.Provider.ModelId ??= definition.DefaultModelId;
-                config.Provider.Endpoint ??= definition.DefaultEndpoint;
+                newDefinition = definition;
+                newProtocol = definition.Protocol.ToValue();
+                newModelId ??= definition.DefaultModelId;
+                newEndpoint ??= definition.DefaultEndpoint;
             }
         }
+
+        return config with {
+            Provider = p with {
+                ApiKey = newApiKey,
+                Vendor = newVendor,
+                Endpoint = newEndpoint,
+                ModelId = newModelId,
+                Definition = newDefinition,
+                Protocol = newProtocol,
+            },
+        };
     }
 }

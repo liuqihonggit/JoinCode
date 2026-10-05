@@ -1,6 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:core="using:Dock.Model.Core"
+             xmlns:dmc="using:Dock.Model.Controls"
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              xmlns:docking="using:JoinCode.Gui.ViewModels.Docking"
              x:Class="JoinCode.Gui.App">
@@ -32,6 +33,58 @@
             </ResourceDictionary>
           </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
+        <ResourceDictionary>
+          <ControlTemplate x:Key="GuiDocumentControlTemplate" TargetType="DocumentControl" x:DataType="dmc:IDocumentDock">
+            <Grid x:Name="PART_DockPanel" RowDefinitions="Auto,6,*"
+                  DockProperties.IsDropArea="True"
+                  DockProperties.IsDockTarget="True"
+                  Background="Transparent" ZIndex="1">
+              <DocumentTabStrip Grid.Row="0" x:Name="PART_TabStrip"
+                                ItemsSource="{Binding VisibleDockables}"
+                                SelectedItem="{Binding ActiveDockable, Mode=TwoWay}"
+                                CanCreateItem="{Binding CanCreateDocument}"
+                                IconTemplate="{TemplateBinding IconTemplate}"
+                                HeaderTemplate="{TemplateBinding HeaderTemplate}"
+                                ModifiedTemplate="{TemplateBinding ModifiedTemplate}"
+                                CloseTemplate="{TemplateBinding CloseTemplate}"
+                                CloseButtonTheme="{TemplateBinding CloseButtonTheme}"
+                                IsActive="{TemplateBinding IsActive}"
+                                Orientation="{Binding TabsLayout, Converter={x:Static DocumentTabOrientationConverter.Instance}}"
+                                DockProperties.IsDropArea="True"
+                                DockProperties.DockAdornerHost="{Binding #PART_DockPanel}">
+                <DocumentTabStrip.Styles>
+                  <Style Selector="DocumentTabStripItem">
+                    <Setter Property="IsActive" Value="{Binding $parent[DocumentTabStrip].IsActive}" />
+                  </Style>
+                </DocumentTabStrip.Styles>
+              </DocumentTabStrip>
+              <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" ResizeDirection="Rows"
+                            Background="{DynamicResource GuiDivider}" MinHeight="6" ShowsPreview="True" />
+              <Border Grid.Row="2" x:Name="PART_Border">
+                <Grid>
+                  <DockableControl DataContext="{Binding ActiveDockable}"
+                                   TrackingMode="Visible"
+                                   IsVisible="{Binding $parent[DocumentControl].HasVisibleDockables}">
+                    <DeferredContentControl x:Name="PART_ContentPresenter"
+                                            Content="{Binding}"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch">
+                      <DeferredContentControl.ContentTemplate>
+                        <ControlRecyclingDataTemplate Parent="{Binding #PART_ContentPresenter}" />
+                      </DeferredContentControl.ContentTemplate>
+                    </DeferredContentControl>
+                  </DockableControl>
+                  <ContentControl x:Name="PART_EmptyContentHost"
+                                  Content="{Binding EmptyContent}"
+                                  ContentTemplate="{Binding $parent[DocumentControl].EmptyContentTemplate}"
+                                  HorizontalContentAlignment="Center"
+                                  VerticalContentAlignment="Center"
+                                  IsVisible="{Binding !$parent[DocumentControl].HasVisibleDockables}" />
+                </Grid>
+              </Border>
+            </Grid>
+          </ControlTemplate>
+        </ResourceDictionary>
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Application.Resources>
@@ -42,6 +95,7 @@
       <Setter Property="(ControlRecyclingDataTemplate.ControlRecycling)" Value="{StaticResource ControlRecyclingKey}" />
     </Style>
     <Style Selector="DocumentControl">
+      <Setter Property="Template" Value="{StaticResource GuiDocumentControlTemplate}" />
       <Setter Property="IconTemplate">
         <DataTemplate DataType="core:IDockable">
           <TextBlock Text="🌿" FontSize="12" VerticalAlignment="Center" Margin="0,0,2,0" />

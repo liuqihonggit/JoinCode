@@ -76,16 +76,12 @@
         </ScrollViewer>
         <ScrollViewer IsVisible="{Binding IsPanelTabLog}"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-          <ItemsControl ItemsSource="{Binding StatusLogEntries}" Margin="8,4">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <SelectableTextBlock Text="{Binding}" FontSize="{Binding DataContext.StatusLogFontSize, ElementName=PanelViewRoot}"
-                                     FontFamily="{DynamicResource GuiMonoFont}"
-                                     Foreground="{DynamicResource GuiMutedText}"
-                                     Margin="0,1" TextWrapping="Wrap" />
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+          <TextBox Text="{Binding StatusLogText, Mode=OneWay}" IsReadOnly="True"
+                   AcceptsReturn="True" TextWrapping="Wrap"
+                   FontSize="{Binding StatusLogFontSize}"
+                   FontFamily="{DynamicResource GuiMonoFont}"
+                   Foreground="{DynamicResource GuiMutedText}"
+                   Margin="4" BorderThickness="0" Background="Transparent" />
         </ScrollViewer>
         <Grid IsVisible="{Binding IsPanelTabTerminal}" RowDefinitions="*,Auto">
           <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
@@ -93,8 +89,7 @@
                      AcceptsReturn="True" TextWrapping="NoWrap"
                      FontFamily="{DynamicResource GuiMonoFont}" FontSize="12"
                      Foreground="{DynamicResource GuiSecondaryText}"
-                     Margin="4" BorderThickness="0" Background="Transparent"
-                     CaretBrush="Transparent" SelectionBrush="Transparent" />
+                     Margin="4" BorderThickness="0" Background="Transparent" />
           </ScrollViewer>
           <Border Grid.Row="1" Background="{DynamicResource GuiTopBarBackground}"
                   BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0" Padding="4,3">

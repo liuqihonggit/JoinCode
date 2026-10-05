@@ -44,7 +44,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     private readonly IFileSystem _fs;
     private readonly ToolScoreConfig _config;
     internal ToolScoreConfig Config => _config;
-    private readonly ConcurrentDictionary<string, ToolHealthRecord> _records = new(StringComparer.OrdinalIgnoreCase);
+    private volatile ImmutableHamT<string, ToolHealthRecord> _records = ImmutableHamT.Create<string, ToolHealthRecord>(StringComparer.OrdinalIgnoreCase);
     private readonly string _configPath;
     private readonly ActorTimers<IToolHealthCommand> _timers;
     private readonly Task _loadTask;
@@ -247,7 +247,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
                     LastAdjusted = DateTime.UtcNow,
                     LastErrorMessage = null,
                 };
-                _records[success.ToolName] = updated;
+                _records = _records.SetItem(success.ToolName, updated);
                 RegisterInFlight(SaveToDiskAsync());
                 success.Tcs.TrySetResult(updated);
             }
@@ -262,7 +262,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
                     LastAdjusted = DateTime.UtcNow,
                     LastErrorMessage = failure.ErrorMessage,
                 };
-                _records[failure.ToolName] = updated;
+                _records = _records.SetItem(failure.ToolName, updated);
 
                 if (updated.ConsecutiveFailures >= _config.WarningThreshold) {
                     _logger?.LogWarning("工具 {ToolName} 连续失败 {Count} 次，评分 {Score}，将在下次调用时注入提示词",
@@ -276,12 +276,12 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
 
             case ResetToolCmd reset: {
                 if (_records.TryGetValue(reset.ToolName, out var record)) {
-                    _records[reset.ToolName] = record with {
+                    _records = _records.SetItem(reset.ToolName, record with {
                         Score = 0,
                         ConsecutiveFailures = 0,
                         IsEnabled = true,
                         LastAdjusted = DateTime.UtcNow,
-                    };
+                    });
                     RegisterInFlight(SaveToDiskAsync());
                 }
                 reset.Tcs.TrySetResult();
@@ -303,16 +303,21 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     }
 
     private ToolHealthRecord GetOrCreate(string toolName) {
-        return _records.GetOrAdd(toolName, _ => new ToolHealthRecord { ToolName = toolName });
+        var records = _records;
+        if (records.TryGetValue(toolName, out var existing)) return existing;
+        var newRecord = new ToolHealthRecord { ToolName = toolName };
+        _records = records.SetItem(toolName, newRecord);
+        return newRecord;
     }
 
     internal void SetRecordForTest(string toolName, ToolHealthRecord record) {
-        _records[toolName] = record;
+        _records = _records.SetItem(toolName, record);
     }
 
     internal void ApplyTimeDecay() {
         var now = DateTime.UtcNow;
-        foreach (var (toolName, record) in _records.ToArray()) {
+        var records = _records;
+        foreach (var (toolName, record) in records) {
             if (!record.IsEnabled) continue;
 
             var idleHours = (now - record.LastAdjusted).TotalHours;
@@ -320,9 +325,10 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
 
             var decay = (int)Math.Floor(idleHours * _config.DecayRatePerHour * _config.DecayRecoveryScore);
             if (record.Score < 0 && decay > 0) {
-                _records[toolName] = record with { Score = Math.Min(0, record.Score + decay) };
+                records = records.SetItem(toolName, record with { Score = Math.Min(0, record.Score + decay) });
             }
         }
+        _records = records;
 
         RegisterInFlight(SaveToDiskAsync());
     }
@@ -334,8 +340,11 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
             var data = RelaxedJsonSerializer.Deserialize(json, ToolHealthJsonContext.Default.DictionaryStringToolHealthRecord);
             if (data is null) return;
 
-            foreach (var kvp in data)
-                _records[kvp.Key] = kvp.Value;
+            while (true) {
+                var current = _records;
+                var updated = current.SetItems(data);
+                if (Interlocked.CompareExchange(ref _records, updated, current) == current) break;
+            }
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "加载工具健康记录失败，使用空记录");
         }

@@ -91,4 +91,16 @@ public sealed partial class AgentInputForwardQueue : ServiceEntity, JoinCode.Abs
     public bool HasPending(string agentId) {
         return _queues.TryGetValue(agentId, out var channel) && channel.Reader.Count > 0;
     }
+
+    /// <summary>
+    /// 释放资源，Complete 所有 Channel 并清空映射
+    /// </summary>
+    public override void Dispose() {
+        var snapshot = _queues;
+        foreach (var kvp in snapshot) {
+            kvp.Value.Writer.TryComplete();
+        }
+        _queues = ImmutableHamT<string, Channel<string>>.Empty;
+        base.Dispose();
+    }
 }

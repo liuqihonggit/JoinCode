@@ -244,9 +244,9 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         var startTime = _clock.GetUtcNow();
         var runState = new WorkflowRunState(definition);
         await RestoreFromSnapshotAsync(runState, ct).ConfigureAwait(false);
-        _activeWorkflows[definition.WorkflowId] = runState;
 
         try {
+            _activeWorkflows[definition.WorkflowId] = runState;
             var result = definition.ExecutionMode switch {
                 WorkflowExecutionMode.Sequential => await ExecuteSequentialAsync(runState, ct).ConfigureAwait(false),
                 WorkflowExecutionMode.Parallel => await ExecuteParallelAsync(runState, ct).ConfigureAwait(false),
@@ -600,8 +600,12 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         };
     }
 
-    /// <summary>释放资源时回调，释放状态锁。</summary>
+    /// <summary>释放资源时回调，取消所有活跃工作流，释放状态锁。</summary>
     public override void Dispose() {
+        foreach (var kvp in _activeWorkflows) {
+            kvp.Value.Cts.CancelAndDisposeSafe(_logger);
+        }
+        _activeWorkflows.Clear();
         _stateLock.Dispose();
         base.Dispose();
     }

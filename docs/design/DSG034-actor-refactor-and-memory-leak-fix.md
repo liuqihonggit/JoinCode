@@ -65,13 +65,13 @@ DSG033 已完成 Actor 基建对齐 Akka + 统一 Actor 模式。本次继续：
 | 15 | `lib/infrastructure/utils/resilience/UnifiedCircuitBreaker.cs:158` | 同上 | ✅ IDisposable 取消订阅+释放锁 |
 | 16 | `lib/infrastructure/network/downloader/state_machine/DownloadStateMachine.cs:28` | 同上 | ✅ IDisposable 取消订阅 |
 | 17 | `lib/scheduling/core/TaskStateMachine.cs:17` | 事件订阅未取消 | ✅ IDisposable 取消订阅 |
-| 18 | `lib/infrastructure/hot_spot/ContractChangeNotificationRouter.cs:10` | 队列映射依赖外部清理 | ⏸️ 低优先级 |
-| 19 | `lib/infrastructure/pipeline/core/AgentNotificationQueue.cs:8` | 队列不主动消费 | ⏸️ 低优先级 |
-| 20 | `lib/infrastructure/hot_spot/MergeQueueService.cs:9` | 队列不主动消费 | ⏸️ 低优先级 |
-| 21 | `llm/agents/Coordinator/Core/Messaging/AgentInputForwardQueue.cs:9` | Channel 映射依赖外部清理 | ⏸️ 低优先级 |
-| 22 | `lib/scheduling/tasks/core/WorkflowTask.cs:207` | 异常退出时字典未清理 | ⏸️ 低优先级 |
-| 23 | `lib/abstractions/abs_core/core_utils/core/misc/CooldownService.cs:9` | 静态字典 | ⏸️ 低优先级 |
-| 24 | `lib/infrastructure/utils/io/DebounceTracker.cs:8` | 内部写入标记未消费时累积 | ⏸️ 低优先级 |
+| 18 | `lib/infrastructure/hot_spot/ContractChangeNotificationRouter.cs:10` | 队列映射依赖外部清理 | ✅ IDisposable + ClearAllQueues |
+| 19 | `lib/infrastructure/pipeline/core/AgentNotificationQueue.cs:8` | 队列不主动消费 | ✅ override Dispose Clear |
+| 20 | `lib/infrastructure/hot_spot/MergeQueueService.cs:9` | 队列不主动消费 | ✅ IDisposable Clear |
+| 21 | `llm/agents/Coordinator/Core/Messaging/AgentInputForwardQueue.cs:9` | Channel 映射依赖外部清理 | ✅ override Dispose Complete 所有 Channel |
+| 22 | `lib/scheduling/tasks/core/WorkflowTask.cs:207` | 异常退出时字典未清理 | ✅ 赋值移入 try + Dispose 取消所有工作流 |
+| 23 | `lib/abstractions/abs_core/core_utils/core/misc/CooldownService.cs:9` | 静态字典 | ✅ Cleanup 方法惰性清理过期 key |
+| 24 | `lib/infrastructure/utils/io/DebounceTracker.cs:8` | 内部写入标记未消费时累积 | ✅ MarkInternalWrite 时惰性清理过期 timestamp |
 
 ## 四、验收表
 
@@ -94,6 +94,13 @@ DSG033 已完成 Actor 基建对齐 Akka + 统一 Actor 模式。本次继续：
 | 内存泄露 #15 UnifiedCircuitBreaker | lib/infrastructure/utils/ | ✅ IDisposable | ✅ Infrastructure 编译通过 |
 | 内存泄露 #16 DownloadStateMachine | lib/infrastructure/network/ | ✅ IDisposable | ✅ Infrastructure 编译通过 |
 | 内存泄露 #17 TaskStateMachine | lib/scheduling/core/ | ✅ IDisposable | ✅ 287 Scheduling 测试 |
+| 内存泄露 #18 ContractChangeNotificationRouter | lib/infrastructure/hot_spot/ | ✅ IDisposable+ClearAllQueues | ✅ 495 Infra.Services 测试 |
+| 内存泄露 #19 AgentNotificationQueue | lib/infrastructure/pipeline/ | ✅ override Dispose Clear | ✅ 495 Infra.Services 测试 |
+| 内存泄露 #20 MergeQueueService | lib/infrastructure/hot_spot/ | ✅ IDisposable Clear | ✅ 495 Infra.Services 测试 |
+| 内存泄露 #21 AgentInputForwardQueue | llm/agents/Coordinator/ | ✅ override Dispose Complete | ✅ 628 Agents 测试 |
+| 内存泄露 #22 WorkflowTask | lib/scheduling/tasks/ | ✅ try+Dispose 取消 | ✅ 287 Scheduling 测试 |
+| 内存泄露 #23 CooldownService | lib/abstractions/ | ✅ Cleanup 惰性清理 | ✅ 631 Abs 测试 |
+| 内存泄露 #24 DebounceTracker | lib/infrastructure/utils/io/ | ✅ 惰性清理过期 timestamp | ✅ 589 Infra.Utils 测试 |
 | Actor 改造 P1: ConcurrentDag | lib/structura/dag/ | ⏸️ 不改造(数据结构) | ADR 0130 |
 | Actor 改造 P2: ContextHierarchy | kit/brain/context/ | ✅ ActorBase | ✅ 36 测试 |
 | Actor 改造 P3: HighWaterMarkManager | lib/scheduling/storage/ | ✅ ActorBase | ✅ 1 测试 |

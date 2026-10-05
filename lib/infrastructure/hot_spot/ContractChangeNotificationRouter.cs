@@ -55,6 +55,20 @@ public sealed class ContractChangeNotificationRouter : IContractChangeNotificati
         ImmutableInterlocked.Update(ref _queues, d => d.Remove(agentId));
     }
 
+    /// <summary>
+    /// 清空所有队列映射 — 供批量清理和 Dispose 时调用
+    /// </summary>
+    public void ClearAllQueues() {
+        ImmutableInterlocked.Update(ref _queues, _ => ImmutableHamT<string, ConcurrentQueue<string>>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// 释放资源，清空所有队列映射
+    /// </summary>
+    public void Dispose() {
+        ClearAllQueues();
+    }
+
     private ConcurrentQueue<string> GetOrAddQueue(string agentId) {
         var snapshot = Volatile.Read(ref _queues);
         if (snapshot.TryGetValue(agentId, out var existing))

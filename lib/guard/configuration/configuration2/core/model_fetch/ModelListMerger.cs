@@ -39,11 +39,13 @@ public static class ModelListMerger {
     /// <para>其余字段（Capabilities/DisplayName/Aliases 等）保留用户手动值，不被覆盖</para>
     /// </summary>
     private static ModelItemConfig SupplementLocal(ModelItemConfig local, RemoteModelInfo remote) {
-        if (local.ContextWindow == 0 && remote.ContextLength > 0)
-            local.ContextWindow = remote.ContextLength;
-        if (string.IsNullOrEmpty(local.Description) && !string.IsNullOrEmpty(remote.Description))
-            local.Description = remote.Description;
-        return local;
+        var contextWindow = local.ContextWindow == 0 && remote.ContextLength > 0
+            ? remote.ContextLength
+            : local.ContextWindow;
+        var description = string.IsNullOrEmpty(local.Description) && !string.IsNullOrEmpty(remote.Description)
+            ? remote.Description
+            : local.Description;
+        return local with { ContextWindow = contextWindow, Description = description };
     }
 
     /// <summary>

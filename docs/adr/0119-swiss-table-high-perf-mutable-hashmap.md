@@ -140,6 +140,6 @@ Google Abseil `flat_hash_map` 启发的开放寻址哈希表：
 - **构建阶段 SwissTable 全胜** — 可变字典逐个 Add 是强项，str 快 3.8-5.1× 且内存省 3.9-5.4×；FrozenDictionary 需先建中间 Dictionary 再冻结，构建成本高
 - **查找命中 int key FrozenDictionary 大胜（3.8-3.9×）** — FrozenDictionary 对 int key 做了特化布局（`Int32FrozenDictionary`，直接用值作下标），O(1) 无哈希计算
 - **查找未命中 FrozenDictionary 大胜（str 10-18×，int 3×）** — FrozenDictionary 的"快速排除"优化极强，未命中路径几乎零成本
-- **查找命中 str key 两者持平** — string 哈希计算成本主导，SIMD 探测优势被哈希开销淹没
+- **查找命中 str key 两者持平** — 根因：string 查找成本 = 哈希计算 O(len) + 桶探测 + 字符串比较 O(len)，哈希与比较成本主导，桶探测优化（SwissTable SIMD / FrozenDictionary 完美哈希）占比小被淹没。对比 int key 哈希+比较 O(1)，桶探测成本占比大，Frozen 特化布局（`Int32FrozenDictionary` 直接下标）才大显身手（3.9×）。未命中 Frozen 大胜 10-18× 同理：快速排除可跳过完整哈希计算，Swiss 必须算完整哈希才能探测
 - **枚举 SwissTable 胜（1.3-1.9×）** — SwissTable 扁平连续内存布局，枚举 cache-friendly；FrozenDictionary 内部布局为查找优化，枚举反而不连续
 - **选型建议**：高频增删/构建/枚举 → SwissTable；构建一次后海量只读查找（尤其 int key/未命中多）→ FrozenDictionary

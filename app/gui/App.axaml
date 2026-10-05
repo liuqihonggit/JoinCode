@@ -56,7 +56,7 @@
                    PlacementTarget="{Binding #BadgeBtn}"
                    Placement="BottomEdgeAlignedLeft"
                    HorizontalOffset="0" VerticalOffset="2">
-              <Border Background="{DynamicResource GuiCardBackground}"
+              <Border Background="{DynamicResource GuiPopupBackground}"
                       BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
                       CornerRadius="4" Padding="2" MinWidth="160" MaxWidth="280">
                 <ItemsControl ItemsSource="{ReflectionBinding Session.Children}">

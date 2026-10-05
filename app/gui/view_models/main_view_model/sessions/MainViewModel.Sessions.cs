@@ -28,8 +28,9 @@ public sealed partial class MainViewModel {
                 LoadSubSessionsInto(item);
                 Sessions.Add(item);
             }
-            ViewModelDiagnosticsLogger.WriteDebug($"LoadPersistedSessions: Sessions 现有 {Sessions.Count} 个, 调用 RefreshDocuments");
-            _dockFactory?.RefreshDocuments();
+            ViewModelDiagnosticsLogger.WriteDebug($"LoadPersistedSessions: Sessions 现有 {Sessions.Count} 个, 激活第一个 tab");
+            if (Sessions.Count > 0)
+                _dockFactory?.ActivateSession(Sessions[0].Id);
         });
     }
 
@@ -153,6 +154,25 @@ public sealed partial class MainViewModel {
                     Timestamp = msg.Timestamp
                 });
                 historyForEngine.Add((role, msg.Content));
+            }
+        } else {
+            // 回退：transcript.json 不存在时从引擎内存获取当前会话消息
+            try {
+                var records = await _session.GetMessagesAsync(CancellationToken.None);
+                foreach (var r in records) {
+                    if (string.IsNullOrWhiteSpace(r.Content))
+                        continue;
+                    var role = MessageRoleExtensions.FromValue(r.Role) ?? MessageRole.User;
+                    Messages.Add(new ChatUiMessage {
+                        Role = role,
+                        Content = r.Content,
+                        Timestamp = r.Timestamp
+                    });
+                    historyForEngine.Add((role, r.Content));
+                }
+                ViewModelDiagnosticsLogger.WriteDebug($"SelectSession: transcript.json 不存在, 从引擎获取 {Messages.Count} 条消息");
+            } catch (Exception ex) {
+                ViewModelDiagnosticsLogger.WriteError(ex);
             }
         }
 

@@ -317,9 +317,6 @@ internal sealed class JccChatSession : IJccChatSession {
                 case MessageRole.Assistant:
                 await ctxMgr.AddAssistantMessageAsync(content, cancellationToken);
                 break;
-                case MessageRole.System:
-                await ctxMgr.AddSystemMessageAsync(content, cancellationToken);
-                break;
                 case MessageRole.Tool:
                 await ctxMgr.AddToolResultMessageAsync(content, new Dictionary<string, JsonElement>(), cancellationToken);
                 break;

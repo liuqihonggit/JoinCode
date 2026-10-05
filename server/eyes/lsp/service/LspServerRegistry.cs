@@ -27,13 +27,14 @@ internal sealed class LspServerRegistry {
             var updated = current.SetItem(name, instance);
             if (Interlocked.CompareExchange(ref _servers, updated, current) == current) break;
         }
-        foreach (var kvp in extensionToLanguage) {
-            while (true) {
-                var current = _extensionMap;
-                var list = current.TryGetValue(kvp.Key, out var existing) ? existing : ImmutableList<string>.Empty;
-                var updated = current.SetItem(kvp.Key, list.Add(name));
-                if (Interlocked.CompareExchange(ref _extensionMap, updated, current) == current) break;
+        while (true) {
+            var current = _extensionMap;
+            var updated = current;
+            foreach (var kvp in extensionToLanguage) {
+                var list = updated.TryGetValue(kvp.Key, out var existing) ? existing : ImmutableList<string>.Empty;
+                updated = updated.SetItem(kvp.Key, list.Add(name));
             }
+            if (Interlocked.CompareExchange(ref _extensionMap, updated, current) == current) break;
         }
     }
 

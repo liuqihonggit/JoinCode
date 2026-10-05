@@ -42,8 +42,11 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// 注册内置角色 Profile — 由 AgentRolesPlugin 在 InitializeAsync 中调用(ADR 0098 万物皆插件)
     /// </summary>
     public void RegisterBuiltInProfiles() {
-        foreach (var profile in BuildBuiltInProfiles()) {
-            Register(profile);
+        var profiles = BuildBuiltInProfiles();
+        while (true) {
+            var current = _snapshot;
+            var updated = RoleRegistrySnapshot.Build(current.Profiles.AddRange(profiles));
+            if (Interlocked.CompareExchange(ref _snapshot, updated, current) == current) return;
         }
     }
 

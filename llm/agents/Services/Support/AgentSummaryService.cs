@@ -220,10 +220,7 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
                 .Select(e => e.Key)
                 .ToList();
 
-            foreach (var key in keysToRemove) {
-                TryRemoveExecution(key, out _);
-            }
-
+            RemoveExecutionKeys(keysToRemove);
             _logger?.LogInformation("已清除 {Count} 条历史记录（早于 {Days} 天）", keysToRemove.Count, olderThanDays.Value);
         } else {
             var keysToRemove = _executions
@@ -231,11 +228,17 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
                 .Select(e => e.Key)
                 .ToList();
 
-            foreach (var key in keysToRemove) {
-                TryRemoveExecution(key, out _);
-            }
-
+            RemoveExecutionKeys(keysToRemove);
             _logger?.LogInformation("已清除 {Count} 条历史记录", keysToRemove.Count);
+        }
+    }
+
+    private void RemoveExecutionKeys(List<string> keys) {
+        if (keys.Count == 0) return;
+        while (true) {
+            var current = _executions;
+            var updated = current.RemoveRange(keys);
+            if (Interlocked.CompareExchange(ref _executions, updated, current) == current) break;
         }
     }
 

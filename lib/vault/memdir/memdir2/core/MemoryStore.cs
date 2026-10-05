@@ -326,9 +326,11 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
             var memories = RelaxedJsonSerializer.Deserialize(result.Content, MemdirJsonContext.Default.ListMemoryEntry);
 
             if (memories != null) {
-                foreach (var memory in memories) {
-                    ImmutableInterlocked.Update(ref _memories, d => d.SetItem(memory.Id, memory));
-                }
+                ImmutableInterlocked.Update(ref _memories, d => {
+                    foreach (var memory in memories)
+                        d = d.SetItem(memory.Id, memory);
+                    return d;
+                });
 
                 _logger?.LogInformation(L.T(StringKey.VaultLogStoreLoadedMemories), memories.Count);
             }

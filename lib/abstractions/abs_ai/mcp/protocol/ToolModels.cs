@@ -1,27 +1,27 @@
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
-public class ListToolsResult {
+public sealed record ListToolsResult {
     /// <summary>获取或设置工具定义列表。</summary>
     [JsonPropertyName("tools")]
-    public List<ToolDefinition> Tools { get; set; } = [];
+    public List<ToolDefinition> Tools { get; init; } = [];
 }
 
-public class ToolDefinition {
+public sealed record ToolDefinition {
     /// <summary>获取或设置工具名称。</summary>
     [JsonPropertyName("name")]
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
 
     /// <summary>获取或设置工具描述。</summary>
     [JsonPropertyName("description")]
-    public string? Description { get; set; }
+    public string? Description { get; init; }
 
     /// <summary>获取或设置输入参数模式。</summary>
     [JsonPropertyName("inputSchema")]
-    public JsonElement InputSchema { get; set; }
+    public JsonElement InputSchema { get; init; }
 
     /// <summary>获取或设置工具分类。</summary>
     [JsonPropertyName("category")]
-    public string Category { get; set; } = "general";
+    public string Category { get; init; } = "general";
 }
 
 public class InputSchema : InputSchemaBase {

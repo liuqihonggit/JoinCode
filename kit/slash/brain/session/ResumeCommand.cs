@@ -490,17 +490,17 @@ internal sealed record CrossProjectResumeResult {
 /// <summary>
 /// 完整会话数据，包含会话元信息与全部消息记录。
 /// </summary>
-public sealed class SessionData {
+public sealed record SessionData {
     /// <summary>会话唯一标识。</summary>
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; init; } = string.Empty;
     /// <summary>会话所属项目路径。</summary>
-    public string ProjectPath { get; set; } = string.Empty;
+    public string ProjectPath { get; init; } = string.Empty;
     /// <summary>用户自定义会话标题。</summary>
-    public string CustomTitle { get; set; } = string.Empty;
+    public string CustomTitle { get; init; } = string.Empty;
     /// <summary>会话创建时间。</summary>
-    public DateTime CreatedAt { get; set; }
+    public DateTime CreatedAt { get; init; }
     /// <summary>会话全部消息列表。</summary>
-    public List<SessionMessage> Messages { get; set; } = new();
+    public List<SessionMessage> Messages { get; init; } = new();
 }
 
 /// <summary>
@@ -508,19 +508,19 @@ public sealed class SessionData {
 /// 对齐 TS: isLiteLog — messages 为空但 sessionId 存在
 /// 用于快速加载会话列表，选择后按需加载完整数据
 /// </summary>
-public sealed class SessionLiteData {
+public sealed record SessionLiteData {
     /// <summary>会话唯一标识。</summary>
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; init; } = string.Empty;
     /// <summary>会话所属项目路径。</summary>
-    public string ProjectPath { get; set; } = string.Empty;
+    public string ProjectPath { get; init; } = string.Empty;
     /// <summary>用户自定义会话标题。</summary>
-    public string CustomTitle { get; set; } = string.Empty;
+    public string CustomTitle { get; init; } = string.Empty;
     /// <summary>会话创建时间。</summary>
-    public DateTime CreatedAt { get; set; }
+    public DateTime CreatedAt { get; init; }
     /// <summary>会话最后修改时间。</summary>
-    public DateTime LastModified { get; set; }
+    public DateTime LastModified { get; init; }
     /// <summary>会话文件存储路径。</summary>
-    public string FilePath { get; set; } = string.Empty;
+    public string FilePath { get; init; } = string.Empty;
 }
 
 /// <summary>

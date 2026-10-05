@@ -4,50 +4,50 @@ namespace JoinCode.Dream;
 /// <summary>
 /// 做梦任务DTO - 用于JSON序列化
 /// </summary>
-public sealed class DreamTaskDto {
+public sealed record DreamTaskDto {
     /// <summary>任务 ID</summary>
     [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; init; } = string.Empty;
 
     /// <summary>任务状态</summary>
     [JsonPropertyName("status")]
-    public string Status { get; set; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
 
     /// <summary>任务描述</summary>
     [JsonPropertyName("description")]
-    public string Description { get; set; } = string.Empty;
+    public string Description { get; init; } = string.Empty;
 
     /// <summary>开始时间</summary>
     [JsonPropertyName("startTime")]
-    public DateTime StartTime { get; set; }
+    public DateTime StartTime { get; init; }
 
     /// <summary>结束时间（可空）</summary>
     [JsonPropertyName("endTime")]
-    public DateTime? EndTime { get; set; }
+    public DateTime? EndTime { get; init; }
 
     /// <summary>是否已通知</summary>
     [JsonPropertyName("notified")]
-    public bool Notified { get; set; }
+    public bool Notified { get; init; }
 
     /// <summary>当前阶段</summary>
     [JsonPropertyName("phase")]
-    public string Phase { get; set; } = string.Empty;
+    public string Phase { get; init; } = string.Empty;
 
     /// <summary>正在审查的会话数</summary>
     [JsonPropertyName("sessionsReviewing")]
-    public int SessionsReviewing { get; set; }
+    public int SessionsReviewing { get; init; }
 
     /// <summary>触及的文件列表</summary>
     [JsonPropertyName("filesTouched")]
-    public List<string> FilesTouched { get; set; } = new();
+    public List<string> FilesTouched { get; init; } = new();
 
     /// <summary>回合列表</summary>
     [JsonPropertyName("turns")]
-    public List<DreamTurnDto> Turns { get; set; } = new();
+    public List<DreamTurnDto> Turns { get; init; } = new();
 
     /// <summary>先前修改时间</summary>
     [JsonPropertyName("priorMtime")]
-    public long PriorMtime { get; set; }
+    public long PriorMtime { get; init; }
 
     /// <summary>
     /// 从状态创建DTO
@@ -114,12 +114,12 @@ public sealed class DreamTaskDto {
 /// <summary>
 /// 做梦回合DTO
 /// </summary>
-public sealed class DreamTurnDto {
+public sealed record DreamTurnDto {
     /// <summary>回合文本</summary>
     [JsonPropertyName("text")]
-    public string Text { get; set; } = string.Empty;
+    public string Text { get; init; } = string.Empty;
 
     /// <summary>工具使用次数</summary>
     [JsonPropertyName("toolUseCount")]
-    public int ToolUseCount { get; set; }
+    public int ToolUseCount { get; init; }
 }

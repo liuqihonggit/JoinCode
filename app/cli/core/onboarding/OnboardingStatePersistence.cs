@@ -71,16 +71,16 @@ public sealed partial class OnboardingStatePersistence : ServiceEntity {
 /// <summary>
 /// Onboarding 完成状态数据
 /// </summary>
-public sealed class OnboardingCompletionData {
+public sealed record OnboardingCompletionData {
     /// <summary>
     /// 是否已完成
     /// </summary>
-    public bool IsComplete { get; set; }
+    public bool IsComplete { get; init; }
 
     /// <summary>
     /// 完成时间
     /// </summary>
-    public DateTimeOffset CompletedAt { get; set; }
+    public DateTimeOffset CompletedAt { get; init; }
 }
 
 /// <summary>

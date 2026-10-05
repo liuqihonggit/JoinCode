@@ -1,13 +1,13 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public class TokenUsage {
+public sealed record TokenUsage {
     /// <summary>获取或设置提示令牌数。</summary>
     [JsonPropertyName("prompt_tokens")]
-    public int PromptTokens { get; set; }
+    public int PromptTokens { get; init; }
 
     /// <summary>获取或设置补全令牌数。</summary>
     [JsonPropertyName("completion_tokens")]
-    public int CompletionTokens { get; set; }
+    public int CompletionTokens { get; init; }
 
     /// <summary>获取总令牌数。</summary>
     [JsonPropertyName("total_tokens")]
@@ -15,15 +15,15 @@ public class TokenUsage {
 
     /// <summary>获取或设置缓存创建输入令牌数。</summary>
     [JsonPropertyName("cache_creation_input_tokens")]
-    public int CacheCreationInputTokens { get; set; }
+    public int CacheCreationInputTokens { get; init; }
 
     /// <summary>获取或设置缓存读取输入令牌数。</summary>
     [JsonPropertyName("cache_read_input_tokens")]
-    public int CacheReadInputTokens { get; set; }
+    public int CacheReadInputTokens { get; init; }
 
     /// <summary>获取或设置推理令牌数。</summary>
     [JsonPropertyName("reasoning_tokens")]
-    public int ReasoningTokens { get; set; }
+    public int ReasoningTokens { get; init; }
 
     /// <summary>构造 TokenUsage 实例。</summary>
     public TokenUsage() { }

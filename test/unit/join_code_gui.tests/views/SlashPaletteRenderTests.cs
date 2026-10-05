@@ -64,11 +64,11 @@ public sealed class SlashPaletteRenderTests {
     }
 
     private static void SavePng(WriteableBitmap frame, string path)
-        => frame.Save(path); // Avalonia 11.3：按扩展名选择编码器，.png → PNG
+        => frame.Save(path, PngBitmapEncoderOptions.Default); // Avalonia 12.x：显式指定 PNG 编码器选项
 
     /// <summary>把控件边界换算到窗口坐标（含 RenderTransform 影响）</summary>
     private static Rect BoundsInWindow(Visual v) {
-        var root = (Visual)(v.GetVisualRoot() ?? throw new InvalidOperationException("控件不在视觉树中"));
+        var root = (Visual)(v.FindAncestorOfType<Window>() ?? throw new InvalidOperationException("控件不在视觉树中"));
         var topLeft = (v.TransformToVisual(root) ?? throw new InvalidOperationException("坐标换算失败"))
             .Transform(new Point(0, 0));
         return new Rect(topLeft, v.Bounds.Size);

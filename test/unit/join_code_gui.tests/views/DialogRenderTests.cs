@@ -42,7 +42,7 @@ public sealed class DialogRenderTests {
         return (px[i], px[i + 1], px[i + 2]);
     }
 
-    private static void SavePng(WriteableBitmap frame, string path) => frame.Save(path);
+    private static void SavePng(WriteableBitmap frame, string path) => frame.Save(path, PngBitmapEncoderOptions.Default);
 
     [AvaloniaFact]
     public void ThemeToggle_IconSwitchesWithTheme() {

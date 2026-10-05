@@ -4,7 +4,7 @@
         <ProjectType>test</ProjectType>
   <RootNamespace>JoinCode.Gui.Tests</RootNamespace>
     <AssemblyName>JoinCode.Gui.Tests</AssemblyName>
-    <NoWarn>$(NoWarn);NU1903</NoWarn>
+    <NoWarn>$(NoWarn);NU1903;xUnit1051</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +12,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Remove="xunit" />
+    <PackageReference Remove="Xunit.SkippableFact" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
     <PackageReference Include="Avalonia.Headless.XUnit" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Skia" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />

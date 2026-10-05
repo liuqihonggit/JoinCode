@@ -46,7 +46,6 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     private readonly IFileSystem _fs;
     private readonly ConcurrentDictionary<string, SyncFileEntry> _localEntries = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, SyncFileEntry> _remoteEntries = new(StringComparer.OrdinalIgnoreCase);
-    private readonly System.Threading.Timer _syncTimer;
     private readonly MiddlewarePipeline<SyncStartContext>? _startPipeline;
     private readonly SyncEventLog _eventLog;
     private readonly SyncFileScanner _scanner;
@@ -81,8 +80,6 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         _scanner = new SyncFileScanner(_fs, fileOperationService, _options, logger, _localEntries, _remoteEntries);
         _transfer = new SyncFileTransfer(_fs, fileOperationService, _options, _clock, logger, _localEntries, _remoteEntries, _eventLog);
         _conflictResolver = new SyncConflictResolver(_transfer, _clock, logger, _localEntries, _remoteEntries, _eventLog);
-
-        _syncTimer = new System.Threading.Timer(OnSyncTimerTick, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
         if (startMiddlewares is not null && loggerFactory is not null) {
             _startPipeline = new PipelineBuilder<SyncStartContext>()
@@ -130,12 +127,6 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
-    private void OnSyncTimerTick(object? state) {
-        if (_isRunning && Volatile.Read(ref _disposed) == 0) {
-            TrySend(new SyncCmd(null, null!));
-        }
-    }
-
     private void OnFileChanged(object? sender, FileChangedEventArgs e) => TrySend(new FileChangedCmd(e.FullPath));
     private void OnFileDeleted(object? sender, FileChangedEventArgs e) => TrySend(new FileDeletedCmd(e.FullPath));
     private void OnFileRenamed(object? sender, FileRenamedEventArgs e) => TrySend(new FileRenamedCmd(e.OldFullPath, e.FullPath));
@@ -169,7 +160,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
             await _scanner.ScanRemoteAsync(ct).ConfigureAwait(false);
 
         if (_options.EnableFileWatching) InitializeWatcher();
-        if (_options.EnableAutoSync) _syncTimer.Change(TimeSpan.Zero, _options.SyncInterval);
+        if (_options.EnableAutoSync) Timers.StartPeriodicTimer("sync", new SyncCmd(null, null!), TimeSpan.Zero, _options.SyncInterval);
 
         _isRunning = true;
         _logger?.LogInformation(L.T(StringKey.VaultLogSyncStarted), _options.WatchPath);
@@ -190,7 +181,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
             LocalEntries = _localEntries,
             RemoteEntries = _remoteEntries,
             SyncHistory = _eventLog.History,
-            SyncTimer = _syncTimer,
+            StartAutoSync = () => Timers.StartPeriodicTimer("sync", new SyncCmd(null, null!), TimeSpan.Zero, _options.SyncInterval),
         };
 
         await pipeline.ExecuteAsync(ctx, ct).ConfigureAwait(false);
@@ -216,7 +207,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         if (!_isRunning) return;
 
-        _syncTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        Timers.Cancel("sync");
         _ = _watcher?.DisposeAsync();
         _watcher = null;
         _isRunning = false;
@@ -389,7 +380,6 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     public override async ValueTask DisposeAsync() {
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
         _disposeCts.Cancel();
-        _syncTimer.Dispose();
         if (_watcher is not null) await _watcher.DisposeAsync().ConfigureAwait(false);
         await _transfer.DisposeAsync().ConfigureAwait(false);
         await DisposeBaseAsync().ConfigureAwait(false);

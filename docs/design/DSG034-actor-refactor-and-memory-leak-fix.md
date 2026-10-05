@@ -95,7 +95,7 @@ DSG033 已完成 Actor 基建对齐 Akka + 统一 Actor 模式。本次继续：
 | Actor 改造 P3: HighWaterMarkManager | lib/scheduling/storage/ | ✅ ActorBase | ✅ 1 测试 |
 | Actor 改造 P4: S3FifoBlockCache | lib/pithos#osdb/Core/ | ⏸️ 不改造(数据结构) | ADR 0130 |
 | Actor 改造 P5: LruBlockCache | lib/pithosdb/Core/ | ⏸️ 不改造(数据结构) | ADR 0130 |
-| Actor 改造 P6: SubAgentPool | llm/agents/Coordinator/ | ❌ | ❌ |
+| Actor 改造 P6: SubAgentPool | llm/agents/Coordinator/ | ✅ ActorBase | ✅ 12 测试 |
 
 ## 五、执行顺序
 

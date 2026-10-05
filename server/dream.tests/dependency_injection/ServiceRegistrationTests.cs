@@ -8,7 +8,7 @@ public sealed class ServiceRegistrationTests {
     public void AddDreamServices_WithConfigure_RegistersOptions() {
         var services = new ServiceCollection();
 
-        services.AddDreamServices(cfg => cfg.MinHours = 12);
+        services.AddDreamServices(cfg => cfg with { MinHours = 12 });
 
         var provider = services.BuildServiceProvider();
         var config = provider.GetRequiredService<AutoDreamConfig>();
@@ -32,7 +32,7 @@ public sealed class ServiceRegistrationTests {
     public void AddDreamServicesWithPersistence_WithConfigure_RegistersOptions() {
         var services = new ServiceCollection();
 
-        services.AddDreamServicesWithPersistence(cfg => cfg.MinSessions = 3);
+        services.AddDreamServicesWithPersistence(cfg => cfg with { MinSessions = 3 });
 
         var provider = services.BuildServiceProvider();
         var config = provider.GetRequiredService<AutoDreamConfig>();

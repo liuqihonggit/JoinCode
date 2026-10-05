@@ -240,40 +240,48 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         switch (command) {
             case RecordSuccessCmd success: {
                 var record = GetOrCreate(success.ToolName);
-                record.Score = Math.Clamp(record.Score + _config.SuccessDelta, _config.ScoreMin, _config.ScoreMax);
-                record.SuccessCount++;
-                record.ConsecutiveFailures = 0;
-                record.LastAdjusted = DateTime.UtcNow;
-                record.LastErrorMessage = null;
+                var updated = record with {
+                    Score = Math.Clamp(record.Score + _config.SuccessDelta, _config.ScoreMin, _config.ScoreMax),
+                    SuccessCount = record.SuccessCount + 1,
+                    ConsecutiveFailures = 0,
+                    LastAdjusted = DateTime.UtcNow,
+                    LastErrorMessage = null,
+                };
+                _records[success.ToolName] = updated;
                 RegisterInFlight(SaveToDiskAsync());
-                success.Tcs.TrySetResult(record);
+                success.Tcs.TrySetResult(updated);
             }
             break;
 
             case RecordFailureCmd failure: {
                 var record = GetOrCreate(failure.ToolName);
-                record.Score = Math.Clamp(record.Score + _config.FailDelta, _config.ScoreMin, _config.ScoreMax);
-                record.FailCount++;
-                record.ConsecutiveFailures++;
-                record.LastAdjusted = DateTime.UtcNow;
-                record.LastErrorMessage = failure.ErrorMessage;
+                var updated = record with {
+                    Score = Math.Clamp(record.Score + _config.FailDelta, _config.ScoreMin, _config.ScoreMax),
+                    FailCount = record.FailCount + 1,
+                    ConsecutiveFailures = record.ConsecutiveFailures + 1,
+                    LastAdjusted = DateTime.UtcNow,
+                    LastErrorMessage = failure.ErrorMessage,
+                };
+                _records[failure.ToolName] = updated;
 
-                if (record.ConsecutiveFailures >= _config.WarningThreshold) {
+                if (updated.ConsecutiveFailures >= _config.WarningThreshold) {
                     _logger?.LogWarning("工具 {ToolName} 连续失败 {Count} 次，评分 {Score}，将在下次调用时注入提示词",
-                        failure.ToolName, record.ConsecutiveFailures, record.Score);
+                        failure.ToolName, updated.ConsecutiveFailures, updated.Score);
                 }
 
                 RegisterInFlight(SaveToDiskAsync());
-                failure.Tcs.TrySetResult(record);
+                failure.Tcs.TrySetResult(updated);
             }
             break;
 
             case ResetToolCmd reset: {
                 if (_records.TryGetValue(reset.ToolName, out var record)) {
-                    record.Score = 0;
-                    record.ConsecutiveFailures = 0;
-                    record.IsEnabled = true;
-                    record.LastAdjusted = DateTime.UtcNow;
+                    _records[reset.ToolName] = record with {
+                        Score = 0,
+                        ConsecutiveFailures = 0,
+                        IsEnabled = true,
+                        LastAdjusted = DateTime.UtcNow,
+                    };
                     RegisterInFlight(SaveToDiskAsync());
                 }
                 reset.Tcs.TrySetResult();
@@ -298,9 +306,13 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         return _records.GetOrAdd(toolName, _ => new ToolHealthRecord { ToolName = toolName });
     }
 
+    internal void SetRecordForTest(string toolName, ToolHealthRecord record) {
+        _records[toolName] = record;
+    }
+
     internal void ApplyTimeDecay() {
         var now = DateTime.UtcNow;
-        foreach (var record in _records.Values) {
+        foreach (var (toolName, record) in _records.ToArray()) {
             if (!record.IsEnabled) continue;
 
             var idleHours = (now - record.LastAdjusted).TotalHours;
@@ -308,7 +320,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
 
             var decay = (int)Math.Floor(idleHours * _config.DecayRatePerHour * _config.DecayRecoveryScore);
             if (record.Score < 0 && decay > 0) {
-                record.Score = Math.Min(0, record.Score + decay);
+                _records[toolName] = record with { Score = Math.Min(0, record.Score + decay) };
             }
         }
 

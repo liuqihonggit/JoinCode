@@ -3,21 +3,21 @@ namespace JoinCode;
 /// <summary>
 /// 命令行选项 — 解析并承载 jcc CLI 全部启动参数（帮助/版本/管道/模型/权限/医生等）
 /// </summary>
-public class CommandLineOptions {
+public record CommandLineOptions {
     /// <summary>
     /// 显示帮助信息（--help / -h）
     /// </summary>
-    public bool ShowHelp { get; set; }
+    public bool ShowHelp { get; init; }
 
     /// <summary>
     /// 显示版本信息（--version / -v）
     /// </summary>
-    public bool ShowVersion { get; set; }
+    public bool ShowVersion { get; init; }
 
     /// <summary>
     /// 管道名称，用于命名管道通信模式
     /// </summary>
-    public string? PipeName { get; set; }
+    public string? PipeName { get; init; }
 
     /// <summary>
     /// 是否使用管道模式
@@ -27,68 +27,68 @@ public class CommandLineOptions {
     /// <summary>
     /// 非交互模式标志（--non-interactive 参数）
     /// </summary>
-    public bool NonInteractive { get; set; }
+    public bool NonInteractive { get; init; }
 
     /// <summary>
     /// 跳过所有确认提示（--no-confirm 参数）— AI 驱动用，走交互模式但不弹确认框
     /// </summary>
-    public bool NoConfirm { get; set; }
+    public bool NoConfirm { get; init; }
 
     /// <summary>
     /// 自动信任工作目录（--trust 参数），跳过信任目录确认弹窗。
     /// 用于 E2E 测试和 CI/CD 环境。
     /// </summary>
-    public bool TrustWorkspace { get; set; }
+    public bool TrustWorkspace { get; init; }
 
     /// <summary>
     /// 直接传入的提示词（-p 或位置参数）
     /// </summary>
-    public string? Prompt { get; set; }
+    public string? Prompt { get; init; }
 
     /// <summary>
     /// 指定模型 ID（--model 参数，优先级高于环境变量和 settings.json）
     /// </summary>
-    public string? Model { get; set; }
+    public string? Model { get; init; }
 
     /// <summary>
     /// 切换供应商（--vendor 参数，自动匹配 profiles 中的同名预设）
     /// </summary>
-    public string? Vendor { get; set; }
+    public string? Vendor { get; init; }
 
     /// <summary>
     /// 检测到的无头模式原因（由 ParseArgs 设置）
     /// </summary>
-    public HeadlessMode DetectedHeadlessMode { get; set; } = HeadlessMode.Interactive;
+    public HeadlessMode DetectedHeadlessMode { get; init; } = HeadlessMode.Interactive;
 
     /// <summary>
     /// 强制交互模式（--force-interactive 参数）— 即使 stdin 重定向也启用 REPL，用于 E2E 测试
     /// </summary>
-    public bool ForceInteractive { get; set; }
+    public bool ForceInteractive { get; init; }
 
     /// <summary>
     /// 超时自动关闭秒数（--await N 参数）— 超时后进程强制退出并返回 ExitCode.AwaitTimeout (=1234)
     /// 用于测试诊断卡死问题，正常完成不受影响
     /// </summary>
-    public int? AwaitTimeoutSeconds { get; set; }
+    public int? AwaitTimeoutSeconds { get; init; }
 
     /// <summary>
     /// 启用调试日志输出（--debuglog 参数）— 等效于 JCC_DEBUGLOG=1 环境变量
     /// 激活 [WIRE] [STEP] [READY] [MAIN] 等诊断日志输出到 stderr
     /// </summary>
-    public bool DebugLog { get; set; }
+    public bool DebugLog { get; init; }
 
     /// <summary>
     /// 继续最近的会话（--continue / -c 参数）— 自动选择最近一次会话恢复
     /// 对齐 TS: claude --continue（自动选择 last conversation）
     /// </summary>
-    public bool ContinueSession { get; set; }
+    public bool ContinueSession { get; init; }
 
     /// <summary>
     /// 恢复指定会话（--resume &lt;session-id&gt; / -r &lt;session-id&gt; 参数）
     /// 支持完整 sessionId 或自定义标题关键字模糊匹配
     /// 对齐 TS: claude --resume &lt;session-id&gt;
     /// </summary>
-    public string? ResumeSessionId { get; set; }
+    public string? ResumeSessionId { get; init; }
 
     /// <summary>
     /// 权限模式字符串（--permission-mode &lt;mode&gt; 参数）
@@ -96,14 +96,14 @@ public class CommandLineOptions {
     /// 在 ParseArgs 中映射到 JCC_PERMISSION_MODE 环境变量（供 PermissionChecker 读取）
     /// 对齐 TS: claude --permission-mode &lt;mode&gt;
     /// </summary>
-    public string? PermissionMode { get; set; }
+    public string? PermissionMode { get; init; }
 
     /// <summary>
     /// 跳过所有权限检查（--bypass 参数）
     /// 等价于 --permission-mode bypass 的快捷方式
     /// 在 ParseArgs 中映射到 JCC_PERMISSION_MODE=bypass 环境变量
     /// </summary>
-    public bool DangerouslySkipPermissions { get; set; }
+    public bool DangerouslySkipPermissions { get; init; }
 
     /// <summary>
     /// 工具白名单（--allowed-tools 参数，逗号分隔）
@@ -111,7 +111,7 @@ public class CommandLineOptions {
     /// 对齐 TS: claude --allowed-tools "Bash(git:*) Edit"
     /// 在 BuildHost 中合并到 PermissionConfig.AutoApprovedTools
     /// </summary>
-    public List<string> AllowedTools { get; set; } = new();
+    public List<string> AllowedTools { get; init; } = new();
 
     /// <summary>
     /// 工具黑名单（--disallowed-tools 参数，逗号分隔）
@@ -119,7 +119,7 @@ public class CommandLineOptions {
     /// 对齐 TS: claude --disallowed-tools "WebFetch Write"
     /// 在 BuildHost 中合并到 PermissionConfig.AutoRejectedTools
     /// </summary>
-    public List<string> DisallowedTools { get; set; } = new();
+    public List<string> DisallowedTools { get; init; } = new();
 
     /// <summary>
     /// 替换系统提示词（--system-prompt &lt;文本&gt; 参数）
@@ -127,7 +127,7 @@ public class CommandLineOptions {
     /// 对齐 TS: claude --system-prompt "..."
     /// 在 SystemPromptApplyStep 中通过 IChatService.SetSystemPromptAsync 应用
     /// </summary>
-    public string? SystemPrompt { get; set; }
+    public string? SystemPrompt { get; init; }
 
     /// <summary>
     /// 追加系统提示词（--append-system-prompt &lt;文本&gt; 参数）
@@ -135,7 +135,7 @@ public class CommandLineOptions {
     /// 对齐 TS: claude --append-system-prompt "..."
     /// 在 SystemPromptApplyStep 中通过 IChatContextManager.AddDynamicSystemMessageAsync 应用
     /// </summary>
-    public string? AppendSystemPrompt { get; set; }
+    public string? AppendSystemPrompt { get; init; }
 
     /// <summary>
     /// 是否为非交互模式（用户请求 / 无头环境 / CI 环境 / -p 参数）
@@ -151,14 +151,14 @@ public class CommandLineOptions {
     /// 子命令和非交互模式下生效：stdout 输出 {ok,data,meta} 结构化 JSON
     /// 交互模式保持彩色输出不变
     /// </summary>
-    public bool JsonOutput { get; set; }
+    public bool JsonOutput { get; init; }
 
     /// <summary>
     /// 输出格式（--format 参数）— text/json/ndjson
     /// --json 等价于 --format json
     /// 默认 text（人类可读彩色输出）
     /// </summary>
-    public string? OutputFormat { get; set; }
+    public string? OutputFormat { get; init; }
 
     /// <summary>
     /// 是否启用 JSON 输出模式（综合 JsonOutput 和 OutputFormat 判断）
@@ -169,34 +169,34 @@ public class CommandLineOptions {
     /// 试跑模式（--dry-run 参数）— 只显示将要执行的操作，不实际执行
     /// 对齐架构指南安全设计：Agent 安全网，先试跑确认无误后再执行
     /// </summary>
-    public bool DryRun { get; set; }
+    public bool DryRun { get; init; }
 
     /// <summary>
     /// 跳过确认提示（--yes / -y 参数）— 等价于 --no-confirm
     /// 对齐架构指南 AX 模式：--yes 跳过确认
     /// </summary>
-    public bool Yes { get; set; }
+    public bool Yes { get; init; }
 
     /// <summary>
     /// 强制执行（--force 参数）— 跳过权限检查和确认
     /// 等价于 --bypass 的轻量版
     /// 对齐架构指南安全设计：dangerous 级操作需复核，--force 跳过复核
     /// </summary>
-    public bool Force { get; set; }
+    public bool Force { get; init; }
 
     /// <summary>
     /// 静默模式（--quiet / -q 参数）— 只输出错误信息，抑制正常输出
     /// 对齐架构指南 AX 模式：最小化输出
     /// </summary>
-    public bool Quiet { get; set; }
+    public bool Quiet { get; init; }
 
     /// <summary>
     /// 跳过模型列表后台拉取（子命令模式如 mcp_call/mcp_search 不需要 LLM 服务，避免不必要的网络请求和警告）
     /// </summary>
-    public bool SkipModelFetch { get; set; }
+    public bool SkipModelFetch { get; init; }
 
     /// <summary>
     /// 跳过 Provider API Key 验证（元命令模式如 mcp_list/slash_call/slash_list 不需要 LLM 服务，CI 环境无 API Key 时也能运行）
     /// </summary>
-    public bool SkipProviderValidation { get; set; }
+    public bool SkipProviderValidation { get; init; }
 }

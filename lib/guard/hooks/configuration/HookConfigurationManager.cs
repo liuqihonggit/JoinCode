@@ -54,7 +54,7 @@ public interface IHookConfigurationManager {
 /// <summary>
 /// 钩子配置管理器实现
 /// </summary>
-public sealed partial class HookConfigurationManager : IHookConfigurationManager, IAsyncDisposable {
+public sealed partial record HookConfigurationManager : IHookConfigurationManager, IAsyncDisposable {
     private readonly AsyncLock _lock = new();
     private readonly IFileSystem _fs;
     private readonly ILogger<HookConfigurationManager>? _logger;
@@ -424,5 +424,5 @@ public partial class HookSettingsFile {
     /// <summary>
     /// 钩子配置表 — 键为事件名称,值为该事件下的匹配器列表
     /// </summary>
-    public Dictionary<string, List<HookMatcher>> Hooks { get; set; } = new();
+    public Dictionary<string, List<HookMatcher>> Hooks { get; init; } = new();
 }

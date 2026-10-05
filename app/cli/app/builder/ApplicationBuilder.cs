@@ -274,7 +274,7 @@ public sealed class ApplicationBuilder {
 
         // --await N: 超时自动关闭秒数
         if (!string.IsNullOrWhiteSpace(result.Await) && int.TryParse(result.Await, out var awaitSeconds) && awaitSeconds > 0) {
-            options.AwaitTimeoutSeconds = awaitSeconds;
+            options = options with { AwaitTimeoutSeconds = awaitSeconds };
         }
 
         // 环境变量映射 — 由 CliOptionGenerator 从 [CliOption(EnvVar=...)] 声明自动生成
@@ -283,12 +283,12 @@ public sealed class ApplicationBuilder {
         CliArgParser.ApplyEnvVars(result);
 
         if (Cli.TerminalHelper.IsHeadless) {
-            options.NonInteractive = true;
+            options = options with { NonInteractive = true };
         }
 
         if (options.ForceInteractive) {
             Cli.TerminalHelper.ForceInteractive = true;
-            options.NonInteractive = false;
+            options = options with { NonInteractive = false };
         }
 
         // --no-confirm / --yes（别名已展开）→ ForceNonInteractive
@@ -296,10 +296,10 @@ public sealed class ApplicationBuilder {
             Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         }
 
-        options.DetectedHeadlessMode = Cli.TerminalHelper.IsHeadless ? HeadlessMode.NoTty : HeadlessMode.Interactive;
+        options = options with { DetectedHeadlessMode = Cli.TerminalHelper.IsHeadless ? HeadlessMode.NoTty : HeadlessMode.Interactive };
 
         if (options.NonInteractive && options.DetectedHeadlessMode == HeadlessMode.Interactive) {
-            options.DetectedHeadlessMode = HeadlessMode.UserRequested;
+            options = options with { DetectedHeadlessMode = HeadlessMode.UserRequested };
         }
 
         return options;

@@ -76,8 +76,9 @@ public sealed class VendorCommandTests {
         var result = await cmd.ExecuteAsync(ctx);
 
         result.ShouldContinue.Should().BeTrue();
-        config.Provider.Vendor.Should().Be("anthropic");
-        config.CurrentModelId.Should().Be("claude-sonnet-4", "切换供应商后默认模型应跟随");
+        var updatedConfig = ctx.GetCommandServices().WorkflowConfig;
+        updatedConfig!.Provider.Vendor.Should().Be("anthropic");
+        updatedConfig.CurrentModelId.Should().Be("claude-sonnet-4", "切换供应商后默认模型应跟随");
     }
 
     [Theory]

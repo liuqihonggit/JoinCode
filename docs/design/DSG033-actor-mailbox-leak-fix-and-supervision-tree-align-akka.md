@@ -505,3 +505,10 @@ public sealed record BackoffStrategy(
 <!-- 原因: 用户要求全部 Actor 模型统一，一套模式贯穿，所有代码从 Actor 模型生长出来 -->
 <!-- 替代方案: 保留 bool+if 状态检查（用户拒绝，要求统一）；TeamMemorySyncService/RemoteCacheRefreshServiceBase 跳过（改造范围过大） -->
 <!-- 验证: 596 测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-05 -->
+<!-- 决策: 隐性 Actor 审计 + 改造 — 3 个用 Channel+消费循环但未继承 ActorBase 的类 -->
+<!-- 原因: 用户要求检查是否有 Actor 没有继承 ActorBase，发现 3 个隐性 Actor -->
+<!-- 改造: HostElectionService→ActorBase<ElectCmd/UpdateSnapshotCmd/FailoverCmd,Unit>；AnalyticsFileSink→ActorBase<LogEventCmd/FlushCmd,Unit>；BuildQueueService→组合 BuildQueueActor(ActorBase<SubmitCmd/CancelCmd/BuildCompletedCmd,Unit>) -->
+<!-- 替代方案: BuildQueueService 不能直接继承 ActorBase（C# 无多重继承，已继承 BuildQueueBase），用组合模式 -->
+<!-- 验证: 596 async_lock + 17 BuildQueueService + 12 AnalyticsFileSink + 6 GlobalBuildQueue 测试全通过 ✅ -->

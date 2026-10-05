@@ -1,7 +1,9 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:core="using:Dock.Model.Core"
+             xmlns:dmc="using:Dock.Model.Controls"
              xmlns:vm="using:JoinCode.Gui.ViewModels"
+             xmlns:docking="using:JoinCode.Gui.ViewModels.Docking"
              x:Class="JoinCode.Gui.App">
   <Application.Resources>
     <ResourceDictionary>
@@ -15,6 +17,11 @@
           <HorizontalAlignment x:Key="DockDocumentTabStripHorizontalCreateButtonAlignment">Left</HorizontalAlignment>
         </ResourceDictionary>
         <ResourceDictionary>
+          <ItemsPanelTemplate x:Key="DockDocumentTabStripHorizontalItemsPanel">
+            <UniformGrid Rows="1" ClipToBounds="False" />
+          </ItemsPanelTemplate>
+        </ResourceDictionary>
+        <ResourceDictionary>
           <ResourceDictionary.ThemeDictionaries>
             <ResourceDictionary x:Key='Default'>
               <Color x:Key="RegionColor">#FFFAFAFA</Color>
@@ -26,6 +33,58 @@
             </ResourceDictionary>
           </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
+        <ResourceDictionary>
+          <ControlTemplate x:Key="GuiDocumentControlTemplate" TargetType="DocumentControl" x:DataType="dmc:IDocumentDock">
+            <Grid x:Name="PART_DockPanel" RowDefinitions="Auto,6,*"
+                  DockProperties.IsDropArea="True"
+                  DockProperties.IsDockTarget="True"
+                  Background="Transparent" ZIndex="1">
+              <DocumentTabStrip Grid.Row="0" x:Name="PART_TabStrip"
+                                ItemsSource="{Binding VisibleDockables}"
+                                SelectedItem="{Binding ActiveDockable, Mode=TwoWay}"
+                                CanCreateItem="{Binding CanCreateDocument}"
+                                IconTemplate="{TemplateBinding IconTemplate}"
+                                HeaderTemplate="{TemplateBinding HeaderTemplate}"
+                                ModifiedTemplate="{TemplateBinding ModifiedTemplate}"
+                                CloseTemplate="{TemplateBinding CloseTemplate}"
+                                CloseButtonTheme="{TemplateBinding CloseButtonTheme}"
+                                IsActive="{TemplateBinding IsActive}"
+                                Orientation="{Binding TabsLayout, Converter={x:Static DocumentTabOrientationConverter.Instance}}"
+                                DockProperties.IsDropArea="True"
+                                DockProperties.DockAdornerHost="{Binding #PART_DockPanel}">
+                <DocumentTabStrip.Styles>
+                  <Style Selector="DocumentTabStripItem">
+                    <Setter Property="IsActive" Value="{Binding $parent[DocumentTabStrip].IsActive}" />
+                  </Style>
+                </DocumentTabStrip.Styles>
+              </DocumentTabStrip>
+              <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" ResizeDirection="Rows"
+                            Background="{DynamicResource GuiDivider}" MinHeight="6" ShowsPreview="True" />
+              <Border Grid.Row="2" x:Name="PART_Border">
+                <Grid>
+                  <DockableControl DataContext="{Binding ActiveDockable}"
+                                   TrackingMode="Visible"
+                                   IsVisible="{Binding $parent[DocumentControl].HasVisibleDockables}">
+                    <DeferredContentControl x:Name="PART_ContentPresenter"
+                                            Content="{Binding}"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch">
+                      <DeferredContentControl.ContentTemplate>
+                        <ControlRecyclingDataTemplate Parent="{Binding #PART_ContentPresenter}" />
+                      </DeferredContentControl.ContentTemplate>
+                    </DeferredContentControl>
+                  </DockableControl>
+                  <ContentControl x:Name="PART_EmptyContentHost"
+                                  Content="{Binding EmptyContent}"
+                                  ContentTemplate="{Binding $parent[DocumentControl].EmptyContentTemplate}"
+                                  HorizontalContentAlignment="Center"
+                                  VerticalContentAlignment="Center"
+                                  IsVisible="{Binding !$parent[DocumentControl].HasVisibleDockables}" />
+                </Grid>
+              </Border>
+            </Grid>
+          </ControlTemplate>
+        </ResourceDictionary>
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Application.Resources>
@@ -36,6 +95,7 @@
       <Setter Property="(ControlRecyclingDataTemplate.ControlRecycling)" Value="{StaticResource ControlRecyclingKey}" />
     </Style>
     <Style Selector="DocumentControl">
+      <Setter Property="Template" Value="{StaticResource GuiDocumentControlTemplate}" />
       <Setter Property="IconTemplate">
         <DataTemplate DataType="core:IDockable">
           <TextBlock Text="🌿" FontSize="12" VerticalAlignment="Center" Margin="0,0,2,0" />
@@ -44,14 +104,15 @@
     </Style>
     <Style Selector="DocumentControl">
       <Setter Property="HeaderTemplate">
-        <DataTemplate DataType="core:IDockable">
+        <DataTemplate DataType="docking:MessageAreaDocument">
           <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Padding="2" />
+            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Padding="2"
+                       TextTrimming="CharacterEllipsis" MaxWidth="180" />
             <ToggleButton x:Name="BadgeBtn" Padding="4,1" MinHeight="0" FontSize="10"
                           Background="{DynamicResource GuiAccentText}" Foreground="White"
                           CornerRadius="8" VerticalAlignment="Center" Margin="0"
-                          Content="{ReflectionBinding Session.SubSessionCount}"
-                          IsVisible="{ReflectionBinding Session.HasChildren}" />
+                          Content="{Binding Session.SubSessionCount}"
+                          IsVisible="{Binding Session.HasChildren}" />
             <Popup IsOpen="{Binding #BadgeBtn.IsChecked, Mode=TwoWay}"
                    PlacementTarget="{Binding #BadgeBtn}"
                    Placement="BottomEdgeAlignedLeft"
@@ -59,12 +120,12 @@
               <Border Background="{DynamicResource GuiPopupBackground}"
                       BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1"
                       CornerRadius="4" Padding="2" MinWidth="160" MaxWidth="280">
-                <ItemsControl ItemsSource="{ReflectionBinding Session.Children}">
+                <ItemsControl ItemsSource="{Binding Session.Children}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="vm:SessionItem">
                       <Button Content="{Binding Title}" FontSize="11" Padding="8,4" MinHeight="0"
                               HorizontalAlignment="Stretch"
-                              Command="{ReflectionBinding $parent[ItemsControl].DataContext.SelectSubSessionCommand}"
+                              Command="{Binding $parent[ItemsControl].((docking:MessageAreaDocument)DataContext).SelectSubSessionCommand}"
                               CommandParameter="{Binding}" />
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
@@ -88,6 +149,18 @@
     <Style Selector="ProportionalStackPanelSplitter">
       <Setter Property="Background" Value="{DynamicResource GuiDivider}" />
       <Setter Property="Thickness" Value="6" />
+    </Style>
+    <Style Selector="DocumentTabStrip[Orientation=Horizontal] /template/ ScrollViewer#PART_ScrollViewer">
+      <Setter Property="VerticalScrollBarVisibility" Value="Disabled" />
+      <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+    </Style>
+    <Style Selector="DocumentTabStripItem">
+      <Setter Property="BorderBrush" Value="{DynamicResource GuiDivider}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="3" />
+      <Setter Property="MinWidth" Value="100" />
+      <Setter Property="MaxWidth" Value="240" />
+      <Setter Property="Margin" Value="2,1" />
     </Style>
   </Application.Styles>
 </Application>

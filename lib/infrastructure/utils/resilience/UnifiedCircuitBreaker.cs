@@ -80,11 +80,12 @@ internal sealed class CircuitBreakerContext : FsmContext {
 [Transition(CircuitBreakerPhase.Closed, CircuitBreakerEvent.Reset, CircuitBreakerPhase.Closed)]
 [Transition(CircuitBreakerPhase.Open, CircuitBreakerEvent.Reset, CircuitBreakerPhase.Closed)]
 [Transition(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.Reset, CircuitBreakerPhase.Closed)]
-public sealed partial class UnifiedCircuitBreaker {
+public sealed partial class UnifiedCircuitBreaker : IDisposable {
     private readonly TimeSpan _openDuration;
     private readonly AsyncLock _lock = new("UnifiedCircuitBreaker");
     private readonly Fsm<CircuitBreakerPhase, CircuitBreakerEvent> _fsm;
     private readonly CircuitBreakerContext _ctx;
+    private int _disposed;
 
     /// <summary>熔断器名称</summary>
     public string Name { get; }
@@ -155,7 +156,7 @@ public sealed partial class UnifiedCircuitBreaker {
             LastFailureTime = DateTimeOffset.MinValue,
         };
         _fsm = new Fsm<CircuitBreakerPhase, CircuitBreakerEvent>(_fsmSortedKeys, _fsmRules, CircuitBreakerPhase.Closed);
-        _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
+        _fsm.StateChanged += OnFsmStateChanged;
     }
 
     /// <summary>
@@ -268,4 +269,15 @@ public sealed partial class UnifiedCircuitBreaker {
 
     [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.TryProbe)]
     private static void FsmActTryProbe(FsmContext? ctx) => ((CircuitBreakerContext)ctx!).HalfOpenProbeCount++;
+
+    /// <summary>
+    /// 释放资源 — 取消状态机事件订阅并释放锁,防止内存泄漏
+    /// </summary>
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _fsm.StateChanged -= OnFsmStateChanged;
+        _lock.Dispose();
+    }
+
+    private void OnFsmStateChanged(object? sender, TransitionResult<CircuitBreakerPhase, CircuitBreakerEvent> e) => FsmDispatchEvent(e);
 }

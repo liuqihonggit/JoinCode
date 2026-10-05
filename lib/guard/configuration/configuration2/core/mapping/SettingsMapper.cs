@@ -305,24 +305,25 @@ public sealed partial class SettingsMapper : ServiceEntity {
         var current = settings?.Current;
         if (current is null) return;
 
-        if (current.ToolScore is not null) {
-            var ts = current.ToolScore;
-            var target = config.ToolExecution.ToolScore;
+        var te = config.ToolExecution;
+        var ts = current.ToolScore;
+        var oldScore = te.ToolScore;
 
-            if (ts.SuccessDelta.HasValue) target.SuccessDelta = ts.SuccessDelta.Value;
-            if (ts.FailDelta.HasValue) target.FailDelta = ts.FailDelta.Value;
-            if (ts.WarningThreshold.HasValue) target.WarningThreshold = ts.WarningThreshold.Value;
-            if (ts.ScoreMin.HasValue) target.ScoreMin = ts.ScoreMin.Value;
-            if (ts.ScoreMax.HasValue) target.ScoreMax = ts.ScoreMax.Value;
-            if (ts.DecayRatePerHour.HasValue) target.DecayRatePerHour = ts.DecayRatePerHour.Value;
-            if (ts.DecayRecoveryScore.HasValue) target.DecayRecoveryScore = ts.DecayRecoveryScore.Value;
-        }
-
-        if (current.BlacklistedTools is not null)
-            config.ToolExecution.BlacklistedTools = current.BlacklistedTools;
-
-        if (current.ToolPenalties is not null)
-            config.ToolExecution.ToolPenalties = new Dictionary<string, int>(current.ToolPenalties, StringComparer.OrdinalIgnoreCase);
+        config.ToolExecution = te with {
+            ToolScore = oldScore with {
+                SuccessDelta = ts?.SuccessDelta ?? oldScore.SuccessDelta,
+                FailDelta = ts?.FailDelta ?? oldScore.FailDelta,
+                WarningThreshold = ts?.WarningThreshold ?? oldScore.WarningThreshold,
+                ScoreMin = ts?.ScoreMin ?? oldScore.ScoreMin,
+                ScoreMax = ts?.ScoreMax ?? oldScore.ScoreMax,
+                DecayRatePerHour = ts?.DecayRatePerHour ?? oldScore.DecayRatePerHour,
+                DecayRecoveryScore = ts?.DecayRecoveryScore ?? oldScore.DecayRecoveryScore,
+            },
+            BlacklistedTools = current.BlacklistedTools ?? te.BlacklistedTools,
+            ToolPenalties = current.ToolPenalties is not null
+                ? new Dictionary<string, int>(current.ToolPenalties, StringComparer.OrdinalIgnoreCase)
+                : te.ToolPenalties,
+        };
     }
 
     /// <summary>

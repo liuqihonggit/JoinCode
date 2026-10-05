@@ -40,7 +40,7 @@ public class ToolCacheManagerTests {
 
     private static WorkflowConfig CreateTestConfig() {
         var config = new WorkflowConfig();
-        config.ToolExecution.ToolCacheExpirationMinutes = 30;
+        config.ToolExecution = config.ToolExecution with { ToolCacheExpirationMinutes = 30 };
         return config;
     }
 

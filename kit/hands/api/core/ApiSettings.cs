@@ -3,76 +3,76 @@ namespace Services.Api;
 /// <summary>
 /// API 客户端配置设置
 /// </summary>
-public sealed class ApiSettings {
+public sealed record ApiSettings {
     /// <summary>
     /// 基础 URL
     /// </summary>
-    public string BaseUrl { get; set; } = string.Empty;
+    public string BaseUrl { get; init; } = string.Empty;
 
     /// <summary>
     /// 默认超时时间（秒）
     /// </summary>
-    public int TimeoutSeconds { get; set; } = 30;
+    public int TimeoutSeconds { get; init; } = 30;
 
     /// <summary>
     /// 最大重试次数
     /// </summary>
-    public int MaxRetryCount { get; set; } = 3;
+    public int MaxRetryCount { get; init; } = 3;
 
     /// <summary>
     /// 初始退避延迟（毫秒）
     /// </summary>
-    public int InitialDelayMs { get; set; } = 1000;
+    public int InitialDelayMs { get; init; } = 1000;
 
     /// <summary>
     /// 最大退避延迟（毫秒）
     /// </summary>
-    public int MaxDelayMs { get; set; } = 30000;
+    public int MaxDelayMs { get; init; } = 30000;
 
     /// <summary>
     /// 退避乘数
     /// </summary>
-    public double BackoffMultiplier { get; set; } = 2.0;
+    public double BackoffMultiplier { get; init; } = 2.0;
 
     /// <summary>
     /// 是否启用抖动
     /// </summary>
-    public bool EnableJitter { get; set; } = true;
+    public bool EnableJitter { get; init; } = true;
 
     /// <summary>
     /// 抖动因子 (0-1)
     /// </summary>
-    public double JitterFactor { get; set; } = 0.1;
+    public double JitterFactor { get; init; } = 0.1;
 
     /// <summary>
     /// 用户代理字符串
     /// </summary>
-    public string UserAgent { get; set; } = "JoinCode/1.0";
+    public string UserAgent { get; init; } = "JoinCode/1.0";
 
     /// <summary>
     /// 是否启用请求/响应日志
     /// </summary>
-    public bool EnableLogging { get; set; } = true;
+    public bool EnableLogging { get; init; } = true;
 
     /// <summary>
     /// 日志详细程度
     /// </summary>
-    public ApiLoggingLevel LoggingLevel { get; set; } = ApiLoggingLevel.Basic;
+    public ApiLoggingLevel LoggingLevel { get; init; } = ApiLoggingLevel.Basic;
 
     /// <summary>
     /// 认证令牌（可选，通常通过 OAuth 动态设置）
     /// </summary>
-    public string? AuthToken { get; set; }
+    public string? AuthToken { get; init; }
 
     /// <summary>
     /// 认证方案
     /// </summary>
-    public string AuthScheme { get; set; } = "Bearer";
+    public string AuthScheme { get; init; } = "Bearer";
 
     /// <summary>
     /// 默认请求头
     /// </summary>
-    public Dictionary<string, string> DefaultHeaders { get; set; } = new();
+    public Dictionary<string, string> DefaultHeaders { get; init; } = new();
 
     /// <summary>
     /// 转换为重试策略选项

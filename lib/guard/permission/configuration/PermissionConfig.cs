@@ -143,7 +143,7 @@ public class ToolPermissionRule : DescribedRule {
     /// 对齐 TS 版 ruleContent — web_fetch 工具使用 "domain:example.com" 格式
     /// 为空时仅匹配 ToolName
     /// </summary>
-    public string? RuleContent { get; set; }
+    public string? RuleContent { get; init; }
 }
 
 /// <summary>
@@ -158,7 +158,7 @@ public class OperationPattern : DescribedRule {
     /// <summary>
     /// 匹配类型
     /// </summary>
-    public PatternType PatternType { get; set; } = PatternType.Contains;
+    public PatternType PatternType { get; init; } = PatternType.Contains;
 }
 
 /// <summary>
@@ -173,7 +173,7 @@ public class SensitivePathPattern : DescribedRule {
     /// <summary>
     /// 路径匹配类型
     /// </summary>
-    public PathType PathType { get; set; } = PathType.Contains;
+    public PathType PathType { get; init; } = PathType.Contains;
 }
 
 /// <summary>

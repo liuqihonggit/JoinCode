@@ -194,7 +194,7 @@ public class QueryEngineTests {
         var config = new QueryEngineConfig { EnableThinkingMode = true };
         config.EnableThinkingMode.Should().BeTrue();
 
-        config.EnableThinkingMode = false;
+        config = config with { EnableThinkingMode = false };
         config.EnableThinkingMode.Should().BeFalse();
     }
 

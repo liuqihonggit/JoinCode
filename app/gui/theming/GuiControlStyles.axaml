@@ -115,6 +115,9 @@
     <Setter Property="MinHeight" Value="30" />
     <Setter Property="Padding" Value="8,5" />
   </Style>
+  <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
 
   <!-- ===== ComboBox：圆角对齐 ===== -->
   <Style Selector="ComboBox">

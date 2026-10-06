@@ -13,12 +13,59 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选,默认当前目录)", Required = false)] string? working_dir = null,
         [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
+        [McpToolParameter("comments=true 附带评论列表", Required = false)] bool? comments = null,
+        [McpToolParameter("web=true 只返回 PR 浏览器 URL", Required = false)] bool? web = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
+            var apiPath = $"repos/{owner}/{repoName}/pulls/{number}";
+            if (web == true) {
+                var prResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
+                if (!prResult.Success) return Fail(prResult.Error);
+                var url = ExtractHtmlUrl(prResult.Body);
+                return string.IsNullOrEmpty(url) ? Fail("无法从 PR 响应中解析 html_url") : Ok(url);
+            }
+            if (comments == true) {
+                var prResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
+                if (!prResult.Success) return Fail(prResult.Error);
+                var summary = verbose == true ? prResult.Body : SummarizePr(prResult.Body);
+                var commentsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues/{number}/comments", ct: cancellationToken).ConfigureAwait(false);
+                if (!commentsResult.Success) return Fail(commentsResult.Error);
+                return Ok($"{summary}\n\n## 评论\n{SummarizeComments(commentsResult.Body)}");
+            }
             var cacheKey = BuildGhCacheKey("gh_pr_view", $"{owner}/{repoName}/{number}");
-            return await GetOrFetchWithCacheAsync(client, cacheKey, $"repos/{owner}/{repoName}/pulls/{number}", verbose, SummarizePr, cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, cacheKey, apiPath, verbose, SummarizePr, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 从 PR JSON 响应提取 html_url 字段 — 用于 web=true 模式
+    /// </summary>
+    private static string? ExtractHtmlUrl(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("html_url", out var el) ? el.GetString() : null;
+        } catch {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 精简评论列表 JSON — 提取每条评论的作者和正文，格式: - @login: body
+    /// </summary>
+    private static string SummarizeComments(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            var sb = new StringBuilder(256);
+            foreach (var item in doc.RootElement.EnumerateArray()) {
+                var body = item.TryGetProperty("body", out var b) ? b.GetString() ?? "" : "";
+                var login = item.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var l) ? l.GetString() ?? "" : "";
+                sb.AppendLine($"- @{login}: {body}");
+            }
+            return sb.ToString();
+        } catch {
+            return json;
+        }
+    }
 
     /// <summary>
     /// 列出 PR — 支持状态/数量/作者/标签/指派人/分支/draft/搜索过滤，表格格式输出

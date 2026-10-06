@@ -446,6 +446,29 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task PrView_WithComments_IncludesComments() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":42,"title":"feat","state":"open","url":"https://github.com/o/r/pull/42"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"body":"评论1","user":{"login":"alice"}}]""" });
+
+        var result = await _handler.GhPrViewAsync("42", comments: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("评论1");
+    }
+
+    [Fact]
+    public async Task PrView_WithWeb_ReturnsUrl() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":42,"title":"feat","state":"open","html_url":"https://github.com/o/r/pull/42"}""" };
+
+        var result = await _handler.GhPrViewAsync("42", web: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("https://github.com/o/r/pull/42");
+    }
+
+    [Fact]
     public async Task PrCreate_Failure_ReturnsError() {
         _api.NextResponse = new GitHubApiResponse {
             Success = false,

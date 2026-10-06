@@ -8,12 +8,12 @@
 
 | 子命令组 | 子命令对齐 | 参数对齐 | 新增子命令 | 测试数 | 状态 |
 |---------|:---------:|:--------:|:---------:|:------:|:----:|
-| pr | 9/9 | ✅ 全部高频参数 | 0 | — | ✅ 完成 |
-| issue | 4/5 | ✅ list/view/create/close | 0 | — | ✅ 高频完成 |
-| run | 3/3 | ✅ list/view/rerun | 0 | — | ✅ 完成 |
+| pr | 12/12 | ✅ 全部高频参数 | 3 (comment/edit/review) | — | ✅ 完成 |
+| issue | 8/8 | ✅ list/view/create/close | 3 (reopen/edit/delete) | — | ✅ 高频完成 |
+| run | 4/4 | ✅ list/view/rerun | 1 (download) | — | ✅ 完成 |
 | release | 6/6+2新增 | ✅ 全部 + delete-asset/edit | 2 | — | ✅ 完成 |
-| repo | 4/5+4新增 | ✅ view/list/create/fork + edit/delete/archive/unarchive | 4 | — | ✅ 高频完成 |
-| **合计** | — | — | **6 新增** | **102 通过** | ✅ |
+| repo | 4/5+7新增 | ✅ view/list/create/fork + edit/delete/archive/unarchive/rename/sync/set-default | 7 | — | ✅ 高频完成 |
+| **合计** | — | — | **16 新增** | **112 通过** | ✅ |
 
 > 通用参数：`--web` ✅ 各 view 已实现 | `--json` ⚠️ `verbose` 近似 | `--jq` ❌ 需引入库 | `--template` ❌ Go template 暂缓
 
@@ -66,8 +66,8 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 
 | 系统 gh pr 子命令 | jcc 是否支持 |
 |------------------|:-----------:|
-| list / view / create / checks / merge / close / diff / checkout / reopen | ✅ |
-| status / edit / lock / ready / revert / review / unlock / update-branch / comment | ❌ |
+| list / view / create / checks / merge / close / diff / checkout / reopen / **comment** / **edit** / **review** | ✅ |
+| status / lock / ready / revert / unlock / update-branch | ❌ |
 
 ### 3.2 pr list 参数
 
@@ -159,8 +159,8 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 
 | 系统 gh issue 子命令 | jcc 是否支持 |
 |---------------------|:-----------:|
-| list / view / create / close / comment | ✅ |
-| status / delete / develop / edit / lock / pin / reopen / transfer / unlock / unpin | ❌ |
+| list / view / create / close / comment / **reopen** / **edit** / **delete** | ✅ |
+| status / develop / lock / pin / transfer / unlock / unpin | ❌ |
 
 ### 4.2 参数差异
 
@@ -178,8 +178,8 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 
 | 系统 gh run 子命令 | jcc 是否支持 |
 |-------------------|:-----------:|
-| list / view / cancel / rerun | ✅ |
-| delete / download / watch | ❌ |
+| list / view / cancel / rerun / **download** | ✅ |
+| delete / watch | ❌ |
 
 ### 5.2 参数差异
 
@@ -207,8 +207,8 @@ jcc 缺：**verify / verify-asset**
 | edit | ✅ 新增 `--tag` `--title` `--notes` `--draft` `--prerelease` `--target` | `--notes-file` `--generate-notes` `--discussion-category` `--latest` |
 
 ### repo
-jcc 有：list / view / create / fork / clone / **edit** / **delete** / **archive** / **unarchive**
-jcc 缺：**autolink / deploy-key / gitignore / license / read-dir / read-file / rename / set-default / sync**
+jcc 有：list / view / create / fork / clone / **edit** / **delete** / **archive** / **unarchive** / **rename** / **sync** / **set-default**
+jcc 缺：**autolink / deploy-key / gitignore / license / read-dir / read-file**
 
 | 子命令 | 已对齐参数 | 仍缺失 |
 |--------|-----------|--------|

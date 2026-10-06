@@ -265,4 +265,148 @@ public partial class GitHubToolHandlers {
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/issues/{number}/lock", ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已解锁 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 查看 Issue 状态 — 显示当前仓库 open 状态的 issue 列表(按作者分组)
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhIssueStatus, "查看 Issue 状态(当前仓库 open issue)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhIssueStatusAsync(
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var query = new Dictionary<string, string> { ["state"] = "open", ["per_page"] = "30" };
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(result.Error);
+            return Ok(SummarizeIssueStatus(result.Body));
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 精简 Issue 状态 JSON — 按 author 分组显示 open issue(过滤 PR)
+    /// </summary>
+    private static string SummarizeIssueStatus(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var byAuthor = new Dictionary<string, List<(int number, string title)>>();
+            foreach (var issue in doc.RootElement.EnumerateArray()) {
+                if (issue.TryGetProperty("pull_request", out _)) continue;
+                var number = issue.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
+                var title = issue.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                var author = issue.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
+                if (!byAuthor.TryGetValue(author, out var list)) { list = new(); byAuthor[author] = list; }
+                list.Add((number, title));
+            }
+            var sb = new StringBuilder(512);
+            foreach (var (author, issues) in byAuthor) {
+                sb.AppendLine($"## {author}");
+                foreach (var (number, title) in issues) sb.AppendLine($"  #{number}: {title}");
+            }
+            return sb.ToString();
+        } catch {
+            return json;
+        }
+    }
+
+    /// <summary>
+    /// 创建 Issue 开发分支 — 用 git checkout -b 创建分支(命名 issue-{number}-{name})
+    /// <para>--list 列出链接分支(需 GraphQL，暂未实现)；--checkout 创建后切换</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhIssueDevelop, "创建 Issue 开发分支(git checkout -b)", "github")]
+    public async Task<ToolResult> GhIssueDevelopAsync(
+        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter("分支名(可选,默认 issue-{number})", Required = false)] string? name = null,
+        [McpToolParameter("基分支(可选,默认当前分支)", Required = false)] string? @base = null,
+        [McpToolParameter("list=true 列出链接分支(需 GraphQL,暂未实现)", Required = false)] bool? list = null,
+        [McpToolParameter("checkout=true 创建后切换(默认 true)", Required = false)] bool? checkout = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (list == true) return Fail("issue develop --list 需要 GraphQL listIssueLinkedBranches，暂未实现");
+            if (_git is null) return Fail("git 命令执行器未配置(IGitCommandRunner 未注入)，issue develop 需要本地 git");
+            var number = ParseNumberFromRef(issue_number);
+            var branchName = string.IsNullOrWhiteSpace(name) ? $"issue-{number}" : name;
+            var checkoutArg = (checkout ?? true) ? "-b" : "-B";
+            var baseArg = string.IsNullOrWhiteSpace(@base) ? "" : $" {@base}";
+            var result = await _git.ExecuteAsync($"checkout {checkoutArg} {branchName}{baseArg}", working_dir, cancellationToken).ConfigureAwait(false);
+            return result.Success ? Ok($"已创建分支 {branchName}", $"Issue #{number} 开发分支") : Fail($"创建分支失败: {result.Output}");
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 固定 Issue — 调 GraphQL mutation pinIssue(REST API 不支持 pin)
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhIssuePin, "固定 Issue(GraphQL pinIssue)", "github")]
+    public async Task<ToolResult> GhIssuePinAsync(
+        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var number = ParseNumberFromRef(issue_number);
+            var nodeId = await GetIssueNodeIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
+            if (nodeId is null) return Fail($"无法获取 Issue {number} 的 node_id");
+            var graphqlBody = "{\"query\":\"mutation{pinIssue(input:{issueId:\\\"" + nodeId + "\\\"}){issue{number}}}\"}";
+            var result = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已固定 Issue {number}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 取消固定 Issue — 调 GraphQL mutation unpinIssue
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhIssueUnpin, "取消固定 Issue(GraphQL unpinIssue)", "github")]
+    public async Task<ToolResult> GhIssueUnpinAsync(
+        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var number = ParseNumberFromRef(issue_number);
+            var nodeId = await GetIssueNodeIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
+            if (nodeId is null) return Fail($"无法获取 Issue {number} 的 node_id");
+            var graphqlBody = "{\"query\":\"mutation{unpinIssue(input:{issueId:\\\"" + nodeId + "\\\"}){issue{number}}}\"}";
+            var result = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已取消固定 Issue {number}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 转移 Issue 到另一个仓库 — 调 GraphQL mutation transferIssue(需目标 repo node_id)
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhIssueTransfer, "转移 Issue 到另一个仓库(GraphQL transferIssue)", "github")]
+    public async Task<ToolResult> GhIssueTransferAsync(
+        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter("目标仓库(owner/repo)", Required = true)] string destination_repo,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var number = ParseNumberFromRef(issue_number);
+            var nodeId = await GetIssueNodeIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
+            if (nodeId is null) return Fail($"无法获取 Issue {number} 的 node_id");
+            var destParts = destination_repo.Split('/', StringSplitOptions.TrimEntries);
+            if (destParts.Length != 2) return Fail($"目标仓库格式错误: {destination_repo}(应为 owner/repo)");
+            var destResult = await client.SendAsync(HttpMethod.Get, $"repos/{destParts[0]}/{destParts[1]}", ct: cancellationToken).ConfigureAwait(false);
+            if (!destResult.Success) return Fail($"无法获取目标仓库: {destResult.Error}");
+            string? destNodeId;
+            try {
+                using var doc = JsonDocument.Parse(destResult.Body);
+                destNodeId = doc.RootElement.TryGetProperty("node_id", out var n) ? n.GetString() : null;
+            } catch { destNodeId = null; }
+            if (string.IsNullOrEmpty(destNodeId)) return Fail("无法从目标仓库响应中解析 node_id");
+            var graphqlBody = "{\"query\":\"mutation{transferIssue(input:{issueId:\\\"" + nodeId + "\\\",repositoryId:\\\"" + destNodeId + "\\\"}){issue{number}}}\"}";
+            var result = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已转移 Issue {number} 到 {destination_repo}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 获取 Issue node_id — 调 REST API GET issues/{n} 提取 node_id（GraphQL mutation 需要）
+    /// </summary>
+    private async Task<string?> GetIssueNodeIdAsync(IGitHubApiClient client, string owner, string repo, string number, CancellationToken ct) {
+        var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/issues/{number}", ct: ct).ConfigureAwait(false);
+        if (!result.Success) return null;
+        try {
+            using var doc = JsonDocument.Parse(result.Body);
+            return doc.RootElement.TryGetProperty("node_id", out var n) ? n.GetString() : null;
+        } catch { return null; }
+    }
 }

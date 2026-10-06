@@ -153,6 +153,38 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task PrReopen_WithComment_PostsCommentBeforeReopen() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 201,
+            Body = """{"id":1}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"number":42,"state":"open"}""",
+        });
+
+        var result = await _handler.GhPrReopenAsync("42", comment: "重开此 PR", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42");
+    }
+
+    [Fact]
+    public async Task PrReopen_WithoutComment_OnlyReopens() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"number":42,"state":"open"}""",
+        };
+
+        var result = await _handler.GhPrReopenAsync("42", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42");
+    }
+
+    [Fact]
     public async Task PrCreate_Failure_ReturnsError() {
         _api.NextResponse = new GitHubApiResponse {
             Success = false,

@@ -373,22 +373,33 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 检出 PR 分支到本地 — 走 git fetch + checkout，分支名格式 pr-{number}
+    /// 检出 PR 分支到本地 — 走 git fetch + checkout，支持自定义分支名/强制/detached HEAD
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrCheckout, "检出 PR 分支到本地", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrCheckout, "检出 PR 分支到本地(支持自定义分支名/强制/detached HEAD)", "github")]
     public async Task<ToolResult> GhPrCheckoutAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter("本地分支名(可选,默认 pr-{number})", Required = false)] string? branch = null,
+        [McpToolParameter("强制重置已有分支(可选)", Required = false)] bool? force = null,
+        [McpToolParameter("detached HEAD 检出(可选)", Required = false)] bool? detach = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_git is null) return Fail("git 命令执行器未配置（IGitCommandRunner 未注入）");
         var number = ParseNumberFromRef(pr_number);
-        var branchName = $"pr-{number}";
 
-        var fetchResult = await _git.ExecuteAsync($"fetch origin pull/{number}/head:{branchName}", working_dir, cancellationToken).ConfigureAwait(false);
-        if (!fetchResult.Success) return Fail(fetchResult.Error);
+        if (detach == true) {
+            var fetchResult = await _git.ExecuteAsync($"fetch origin pull/{number}/head", working_dir, cancellationToken).ConfigureAwait(false);
+            if (!fetchResult.Success) return Fail(fetchResult.Error);
+            var checkoutResult = await _git.ExecuteAsync("checkout --detach FETCH_HEAD", working_dir, cancellationToken).ConfigureAwait(false);
+            return checkoutResult.Success ? Ok(checkoutResult.Output, $"已检出 PR {number}(detached HEAD)") : Fail(checkoutResult.Error);
+        }
 
-        var checkoutResult = await _git.ExecuteAsync($"checkout {branchName}", working_dir, cancellationToken).ConfigureAwait(false);
-        return checkoutResult.Success ? Ok(checkoutResult.Output, $"已检出 PR {number}") : Fail(checkoutResult.Error);
+        var branchName = string.IsNullOrWhiteSpace(branch) ? $"pr-{number}" : branch;
+        var forceArg = force == true ? " --force" : "";
+        var fetchResult2 = await _git.ExecuteAsync($"fetch origin pull/{number}/head:{branchName}{forceArg}", working_dir, cancellationToken).ConfigureAwait(false);
+        if (!fetchResult2.Success) return Fail(fetchResult2.Error);
+
+        var checkoutResult2 = await _git.ExecuteAsync($"checkout {branchName}", working_dir, cancellationToken).ConfigureAwait(false);
+        return checkoutResult2.Success ? Ok(checkoutResult2.Output, $"已检出 PR {number}") : Fail(checkoutResult2.Error);
     }
 
     /// <summary>

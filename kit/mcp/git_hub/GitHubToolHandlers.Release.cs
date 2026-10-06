@@ -133,7 +133,7 @@ public partial class GitHubToolHandlers {
                 .StringIf("target_commitish", target)
                 .Build();
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body, $"已创建 Release {tag}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已创建 Release {tag}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -290,7 +290,7 @@ public partial class GitHubToolHandlers {
                 releaseId = doc.RootElement.GetProperty("id").GetInt64();
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body, $"已删除 Release {tag}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已删除 Release {tag}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>

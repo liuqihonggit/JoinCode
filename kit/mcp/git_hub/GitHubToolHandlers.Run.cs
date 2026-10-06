@@ -250,7 +250,7 @@ public partial class GitHubToolHandlers {
                 ? $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-failed-jobs"
                 : $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun";
             var result = await client.SendAsync(HttpMethod.Post, path, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body, $"已重跑 Run {run_id}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已重跑 Run {run_id}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -264,7 +264,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/runs/{run_id}/cancel", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body, $"已取消 Run {run_id}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已取消 Run {run_id}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>

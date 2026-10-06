@@ -243,7 +243,7 @@ public partial class GitHubToolHandlers {
         if (deleteBranch == true) {
             await TryDeleteBranchAsync(client, owner, repoName, number, ct).ConfigureAwait(false);
         }
-        return Ok(result.Body, "PR 合并成功");
+        return OkBrief(result.Body, "PR 合并成功");
     }
 
     /// <summary>
@@ -296,7 +296,7 @@ public partial class GitHubToolHandlers {
             }
             var body = """{"state":"closed"}""";
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body, $"已关闭 PR {number}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已关闭 PR {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -312,7 +312,7 @@ public partial class GitHubToolHandlers {
             var number = ParseNumberFromRef(pr_number);
             var body = """{"state":"open"}""";
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body, $"已重开 PR {number}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已重开 PR {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -331,7 +331,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var jsonBody = BuildPrCreateJson(title, head, @base, body, draft);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body, "PR 创建成功") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, "PR 创建成功") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>

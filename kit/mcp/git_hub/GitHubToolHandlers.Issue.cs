@@ -61,7 +61,7 @@ public partial class GitHubToolHandlers {
                 .StringArrayFromCsvIf("assignees", assignee)
                 .Build();
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body, "Issue 创建成功") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, "Issue 创建成功") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -82,7 +82,7 @@ public partial class GitHubToolHandlers {
             }
             var body = """{"state":"closed"}""";
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", body, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body, $"已关闭 Issue {number}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已关闭 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -99,6 +99,6 @@ public partial class GitHubToolHandlers {
             var number = ParseNumberFromRef(issue_number);
             var reqBody = $$"""{"body":{{JsonEscapeString(body)}}}""";
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", reqBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body, $"已评论 Issue {number}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已评论 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
 }

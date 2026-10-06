@@ -110,6 +110,27 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 构建精简成功 ToolResult — 从 JSON body 提取 html_url，只返回确认消息 + URL（不返回整个 JSON body）
+    /// <para>用于 Create/Update/Delete 操作，成功时无需返回完整响应体，只给确认 + 可点击链接</para>
+    /// </summary>
+    internal static ToolResult OkBrief(string jsonBody, string message) {
+        var url = TryExtractJsonField(jsonBody, "html_url") ?? TryExtractJsonField(jsonBody, "url");
+        return url is not null ? Ok(url, message) : Ok(message);
+    }
+
+    /// <summary>
+    /// 从 JSON 字符串中提取指定字符串字段值（轻量 Span 解析，不构建 JsonDocument）
+    /// </summary>
+    private static string? TryExtractJsonField(string json, string fieldName) {
+        var pattern = $"\"{fieldName}\":\"";
+        var idx = json.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0) return null;
+        idx += pattern.Length;
+        var end = json.IndexOf('"', idx);
+        return end > idx ? json[idx..end] : null;
+    }
+
+    /// <summary>
     /// GitHub REST API 客户端未配置错误
     /// </summary>
     internal static ToolResult ApiClientNotConfigured() =>

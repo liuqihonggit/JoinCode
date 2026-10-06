@@ -67,7 +67,7 @@ public partial class GitHubToolHandlers {
         var jsonBody = builder.Build();
 
         var result = await _apiClient.SendAsync(HttpMethod.Post, "user/repos", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body, $"已创建仓库 {name}") : Fail(result.Error);
+        return result.Success ? OkBrief(result.Body, $"已创建仓库 {name}") : Fail(result.Error);
     }
 
     /// <summary>
@@ -88,12 +88,12 @@ public partial class GitHubToolHandlers {
         if (!result.Success) return Fail(result.Error);
 
         if (clone == true) {
-            if (_git is null) return Ok(result.Body, $"已 Fork {repo}（但未克隆：git 未配置）");
+            if (_git is null) return OkBrief(result.Body, $"已 Fork {repo}（但未克隆：git 未配置）");
             var cloneResult = await _git.ExecuteAsync($"clone https://github.com/{repo}.git", working_dir, cancellationToken).ConfigureAwait(false);
-            if (!cloneResult.Success) return Ok(result.Body, $"已 Fork {repo}（但克隆失败: {cloneResult.Error}）");
+            if (!cloneResult.Success) return OkBrief(result.Body, $"已 Fork {repo}（但克隆失败: {cloneResult.Error}）");
         }
 
-        return Ok(result.Body, $"已 Fork {repo}");
+        return OkBrief(result.Body, $"已 Fork {repo}");
     }
 
     /// <summary>

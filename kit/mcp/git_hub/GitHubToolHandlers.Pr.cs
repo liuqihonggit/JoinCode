@@ -759,4 +759,141 @@ public partial class GitHubToolHandlers {
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/issues/{number}/lock", ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已解锁 PR {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 查看 PR 状态 — 显示当前仓库 open 状态的 PR 列表(按创建/分配分组)，调 REST API pulls?state=open
+    /// <para>系统 gh pr status 显示 3 组(当前分支/你创建的/分配给你的)，需当前用户名；简化为列出 open PR 并按 author 分组</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhPrStatus, "查看 PR 状态(当前仓库 open PR)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhPrStatusAsync(
+        [McpToolParameter("显示合并冲突状态(可选)", Required = false)] bool? conflict_status = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var query = new Dictionary<string, string> { ["state"] = "open", ["per_page"] = "30" };
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls", query: query, ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(result.Error);
+            return Ok(SummarizePrStatus(result.Body, conflict_status == true));
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 精简 PR 状态 JSON — 按 author 分组显示 open PR
+    /// </summary>
+    private static string SummarizePrStatus(string json, bool showConflict) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var byAuthor = new Dictionary<string, List<(int number, string title, string headRef, bool draft, bool mergeable)>>();
+            foreach (var pr in doc.RootElement.EnumerateArray()) {
+                var number = pr.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
+                var title = pr.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                var author = pr.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
+                var headRef = pr.TryGetProperty("head", out var h) && h.TryGetProperty("ref", out var hr) ? hr.GetString() ?? "" : "";
+                var draft = pr.TryGetProperty("draft", out var d) && d.GetBoolean();
+                var mergeable = pr.TryGetProperty("mergeable", out var m) ? (m.ValueKind == JsonValueKind.True) : false;
+                if (!byAuthor.TryGetValue(author, out var list)) { list = new(); byAuthor[author] = list; }
+                list.Add((number, title, headRef, draft, mergeable));
+            }
+            var sb = new StringBuilder(512);
+            foreach (var (author, prs) in byAuthor) {
+                sb.AppendLine($"## {author}");
+                foreach (var (number, title, headRef, draft, mergeable) in prs) {
+                    var draftMark = draft ? " [draft]" : "";
+                    var conflictMark = showConflict && !mergeable ? " [conflict]" : "";
+                    sb.AppendLine($"  #{number}: {title}{draftMark}{conflictMark} ({headRef})");
+                }
+            }
+            return sb.ToString();
+        } catch {
+            return json;
+        }
+    }
+
+    /// <summary>
+    /// 标记 PR 为 ready for review — 调 REST API PATCH pulls/{n} {"draft":false}，--undo 反向设 draft=true
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhPrReady, "标记 PR 为 ready for review(--undo 转为 draft)", "github")]
+    public async Task<ToolResult> GhPrReadyAsync(
+        [McpToolParameter("PR 编号或 URL(可选,默认当前分支 PR)", Required = false)] string? pr_number = null,
+        [McpToolParameter("undo=true 转为 draft(默认 false 标记 ready)", Required = false)] bool? undo = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (string.IsNullOrWhiteSpace(pr_number)) return Fail("pr ready 需要显式传 pr_number(当前分支自动检测未实现)");
+            var number = ParseNumberFromRef(pr_number);
+            var draftVal = undo == true ? "true" : "false";
+            var body = $$"""{"draft":{{draftVal}}}""";
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
+            var msg = undo == true ? $"已将 PR {number} 转为 draft" : $"已将 PR {number} 标记为 ready for review";
+            return result.Success ? OkBrief(result.Body, msg) : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 回退 PR — 获取 PR merge_commit_sha 后用 git revert 创建回退提交，再创建回退 PR
+    /// <para>GitHub REST API 无 revert 端点，需本地 git revert + push + create PR</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhPrRevert, "回退 PR(git revert + 创建回退 PR)", "github")]
+    public async Task<ToolResult> GhPrRevertAsync(
+        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter("回退 PR 标题(可选)", Required = false)] string? title = null,
+        [McpToolParameter("回退 PR body(可选)", Required = false)] string? body = null,
+        [McpToolParameter("标记为 draft(可选)", Required = false)] bool? draft = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (_git is null) return Fail("git 命令执行器未配置(IGitCommandRunner 未注入)，pr revert 需要本地 git");
+            var number = ParseNumberFromRef(pr_number);
+            var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
+            if (!prResult.Success) return Fail(prResult.Error);
+            string? mergeCommitSha;
+            string? headRef;
+            string? baseRef;
+            try {
+                using var doc = JsonDocument.Parse(prResult.Body);
+                mergeCommitSha = doc.RootElement.TryGetProperty("merge_commit_sha", out var mcs) ? mcs.GetString() : null;
+                headRef = doc.RootElement.TryGetProperty("head", out var h) && h.TryGetProperty("ref", out var hr) ? hr.GetString() : null;
+                baseRef = doc.RootElement.TryGetProperty("base", out var b) && b.TryGetProperty("ref", out var br) ? br.GetString() : null;
+            } catch { mergeCommitSha = null; headRef = null; baseRef = null; }
+            if (string.IsNullOrEmpty(mergeCommitSha)) return Fail($"PR {number} 尚未合并，无法 revert");
+            var revertBranch = $"revert-{number}-{mergeCommitSha[..7]}";
+            var checkoutResult = await _git.ExecuteAsync($"checkout -b {revertBranch} {baseRef}", working_dir, cancellationToken).ConfigureAwait(false);
+            if (!checkoutResult.Success) return Fail($"创建回退分支失败: {checkoutResult.Output}");
+            var revertResult = await _git.ExecuteAsync($"revert {mergeCommitSha} --no-edit", working_dir, cancellationToken).ConfigureAwait(false);
+            if (!revertResult.Success) return Fail($"git revert 失败: {revertResult.Output}");
+            var pushResult = await _git.ExecuteAsync($"push origin {revertBranch}", working_dir, cancellationToken).ConfigureAwait(false);
+            if (!pushResult.Success) return Fail($"push 失败: {pushResult.Output}");
+            var prTitle = string.IsNullOrWhiteSpace(title) ? $"Revert \"{headRef}\"" : title;
+            var jsonBody = new GitHubJsonObjectBuilder()
+                .String("title", prTitle)
+                .String("head", revertBranch)
+                .String("base", baseRef ?? "main")
+                .StringIf("body", body)
+                .BoolIfTrue("draft", draft)
+                .Build();
+            var createResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return createResult.Success ? OkBrief(createResult.Body, $"已创建回退 PR(基于 {mergeCommitSha[..7]})") : Fail(createResult.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 更新 PR 分支 — 用 base 分支最新变更更新 PR 分支，调 REST API PUT pulls/{n}/update-branch
+    /// <para>update_method: merge(默认) 或 rebase</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhPrUpdateBranch, "更新 PR 分支(merge/rebase)", "github")]
+    public async Task<ToolResult> GhPrUpdateBranchAsync(
+        [McpToolParameter("PR 编号或 URL(可选,默认当前分支 PR)", Required = false)] string? pr_number = null,
+        [McpToolParameter("rebase=true 用 rebase 更新(默认 merge)", Required = false)] bool? rebase = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (string.IsNullOrWhiteSpace(pr_number)) return Fail("pr update-branch 需要显式传 pr_number(当前分支自动检测未实现)");
+            var number = ParseNumberFromRef(pr_number);
+            var method = rebase == true ? "rebase" : "merge";
+            var body = $$"""{"update_method":"{{method}}"}""";
+            var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/pulls/{number}/update-branch", body, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已更新 PR {number} 分支({method})") : Fail(result.Error);
+        }).ConfigureAwait(false);
 }

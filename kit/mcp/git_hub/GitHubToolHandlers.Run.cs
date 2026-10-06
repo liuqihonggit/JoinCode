@@ -492,4 +492,42 @@ public partial class GitHubToolHandlers {
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已删除 Run {run_id}") : Fail(result.Error);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 观察 Run 直到完成 — 轮询 GET /actions/runs/{id} 直到 status=completed，显示进度
+    /// <para>--compact 只显示相关/失败步骤；--exit-status 失败时返回错误；--interval 刷新间隔(默认 3 秒)</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRunWatch, "观察 Run 直到完成(轮询进度)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhRunWatchAsync(
+        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter("刷新间隔秒数(默认 3)", Required = false)] int? interval = null,
+        [McpToolParameter("compact=true 只显示相关/失败步骤", Required = false)] bool? compact = null,
+        [McpToolParameter("exit_status=true 失败时返回错误", Required = false)] bool? exit_status = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var intervalSec = interval is > 0 ? interval.Value : 3;
+            var sb = new StringBuilder(512);
+            string? finalStatus = null;
+            string? finalConclusion = null;
+            while (true) {
+                var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
+                if (!result.Success) return Fail(result.Error);
+                try {
+                    using var doc = JsonDocument.Parse(result.Body);
+                    var status = doc.RootElement.TryGetProperty("status", out var s) ? s.GetString() ?? "" : "";
+                    var conclusion = doc.RootElement.TryGetProperty("conclusion", out var c) ? (c.ValueKind == JsonValueKind.Null ? "" : c.GetString() ?? "") : "";
+                    var displayTitle = doc.RootElement.TryGetProperty("display_title", out var dt) ? dt.GetString() ?? "" : "";
+                    sb.AppendLine($"[{DateTime.Now:HH:mm:ss}] {status}{(string.IsNullOrEmpty(conclusion) ? "" : $" / {conclusion}")} — {displayTitle}");
+                    if (status == "completed") { finalStatus = status; finalConclusion = conclusion; break; }
+                } catch {
+                    return Fail($"解析 Run 响应失败: {result.Body[..Math.Min(200, result.Body.Length)]}");
+                }
+                try { await Task.Delay(intervalSec * 1000, cancellationToken).ConfigureAwait(false); } catch (TaskCanceledException) { return Ok(sb.ToString(), "Run watch 已取消"); }
+            }
+            var failed = finalConclusion == "failure";
+            if (failed && exit_status == true) return Fail(sb.ToString());
+            return Ok(sb.ToString(), $"Run {run_id} 已完成: {finalConclusion}");
+        }).ConfigureAwait(false);
 }

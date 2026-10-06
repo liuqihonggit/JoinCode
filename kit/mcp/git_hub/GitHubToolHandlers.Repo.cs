@@ -282,4 +282,255 @@ public partial class GitHubToolHandlers {
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已设置 {owner}/{repoName} 默认分支为 {branch}") : Fail(result.Error);
         }).ConfigureAwait(false);
+
+    // === Autolink 管理 ===
+
+    /// <summary>
+    /// 列出仓库 Autolink 引用 — 调 REST API GET /keys/autolinks
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoAutolinkList, "列出仓库 Autolink 引用", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhRepoAutolinkListAsync(
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/keys/autolinks", ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(result.Error);
+            return Ok(SummarizeAutolinkList(result.Body));
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 查看 Autolink 详情 — 调 REST API GET /keys/autolinks/{id}
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoAutolinkView, "查看 Autolink 详情", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhRepoAutolinkViewAsync(
+        [McpToolParameter("Autolink ID", Required = true)] int autolink_id,
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/keys/autolinks/{autolink_id}", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? Ok(result.Body) : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 创建 Autolink 引用 — 调 REST API POST /keys/autolinks
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoAutolinkCreate, "创建 Autolink 引用", "github")]
+    public async Task<ToolResult> GhRepoAutolinkCreateAsync(
+        [McpToolParameter("键前缀(如 TICKET-)", Required = true)] string key_prefix,
+        [McpToolParameter("URL 模板(含 <num> 占位符,如 https://example.com/TICKET-<num>)", Required = true)] string url_template,
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var jsonBody = new GitHubJsonObjectBuilder()
+                .String("key_prefix", key_prefix)
+                .String("url_template", url_template)
+                .Build();
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/keys/autolinks", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, "Autolink 创建成功") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 删除 Autolink 引用 — 调 REST API DELETE /keys/autolinks/{id}
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoAutolinkDelete, "删除 Autolink 引用", "github")]
+    public async Task<ToolResult> GhRepoAutolinkDeleteAsync(
+        [McpToolParameter("Autolink ID", Required = true)] int autolink_id,
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/keys/autolinks/{autolink_id}", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已删除 Autolink {autolink_id}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 精简 Autolink 列表 — 表格格式(id, key_prefix, url_template)
+    /// </summary>
+    private static string SummarizeAutolinkList(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var sb = new StringBuilder(256);
+            sb.AppendLine("ID\t键前缀\tURL 模板");
+            foreach (var al in doc.RootElement.EnumerateArray()) {
+                var id = al.TryGetProperty("id", out var i) ? i.GetInt32() : 0;
+                var prefix = al.TryGetProperty("key_prefix", out var kp) ? kp.GetString() ?? "" : "";
+                var template = al.TryGetProperty("url_template", out var ut) ? ut.GetString() ?? "" : "";
+                sb.AppendLine($"{id}\t{prefix}\t{template}");
+            }
+            return sb.ToString();
+        } catch { return json; }
+    }
+
+    // === Deploy Key 管理 ===
+
+    /// <summary>
+    /// 列出仓库 Deploy Key — 调 REST API GET /keys
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoDeployKeyList, "列出仓库 Deploy Key", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhRepoDeployKeyListAsync(
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/keys", ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(result.Error);
+            return Ok(SummarizeDeployKeyList(result.Body));
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 添加 Deploy Key — 调 REST API POST /keys
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoDeployKeyAdd, "添加 Deploy Key", "github")]
+    public async Task<ToolResult> GhRepoDeployKeyAddAsync(
+        [McpToolParameter("Key 标题", Required = true)] string title,
+        [McpToolParameter("SSH public key 内容", Required = true)] string key,
+        [McpToolParameter("只读(可选,默认 false)", Required = false)] bool? read_only = null,
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var jsonBody = new GitHubJsonObjectBuilder()
+                .String("title", title)
+                .String("key", key)
+                .BoolIfTrue("read_only", read_only)
+                .Build();
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/keys", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, "Deploy Key 添加成功") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 删除 Deploy Key — 调 REST API DELETE /keys/{id}
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoDeployKeyDelete, "删除 Deploy Key", "github")]
+    public async Task<ToolResult> GhRepoDeployKeyDeleteAsync(
+        [McpToolParameter("Key ID", Required = true)] int key_id,
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/keys/{key_id}", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已删除 Deploy Key {key_id}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 精简 Deploy Key 列表 — 表格格式(id, title, read_only)
+    /// </summary>
+    private static string SummarizeDeployKeyList(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var sb = new StringBuilder(256);
+            sb.AppendLine("ID\t标题\t只读\t创建时间");
+            foreach (var k in doc.RootElement.EnumerateArray()) {
+                var id = k.TryGetProperty("id", out var i) ? i.GetInt32() : 0;
+                var title = k.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                var ro = k.TryGetProperty("read_only", out var r) && r.GetBoolean();
+                var created = k.TryGetProperty("created_at", out var c) ? c.GetString() ?? "" : "";
+                sb.AppendLine($"{id}\t{title}\t{ro}\t{created}");
+            }
+            return sb.ToString();
+        } catch { return json; }
+    }
+
+    // === Gitignore 模板 ===
+
+    /// <summary>
+    /// 列出可用 gitignore 模板 — 调 REST API GET /gitignore/templates
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoGitignoreList, "列出可用 gitignore 模板", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhRepoGitignoreListAsync(
+        CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var result = await _apiClient.SendAsync(HttpMethod.Get, "gitignore/templates", ct: cancellationToken).ConfigureAwait(false);
+        if (!result.Success) return Fail(result.Error);
+        return Ok(SummarizeGitignoreList(result.Body));
+    }
+
+    /// <summary>
+    /// 精简 gitignore 模板列表 — 提取 names 数组
+    /// </summary>
+    private static string SummarizeGitignoreList(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("names", out var names) && names.ValueKind == JsonValueKind.Array) {
+                var sb = new StringBuilder(256);
+                foreach (var n in names.EnumerateArray()) sb.AppendLine(n.GetString());
+                return sb.ToString();
+            }
+            return json;
+        } catch { return json; }
+    }
+
+    /// <summary>
+    /// 查看 gitignore 模板内容 — 调 REST API GET /gitignore/templates/{name}
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoGitignoreView, "查看 gitignore 模板内容", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhRepoGitignoreViewAsync(
+        [McpToolParameter("模板名(如 Java,Python,Node)", Required = true)] string name,
+        CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var result = await _apiClient.SendAsync(HttpMethod.Get, $"gitignore/templates/{name}", ct: cancellationToken).ConfigureAwait(false);
+        if (!result.Success) return Fail(result.Error);
+        return Ok(SummarizeGitignoreTemplate(result.Body));
+    }
+
+    /// <summary>
+    /// 精简 gitignore 模板内容 — 提取 source 字段
+    /// </summary>
+    private static string SummarizeGitignoreTemplate(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("source", out var src)) return src.GetString() ?? "";
+            return json;
+        } catch { return json; }
+    }
+
+    // === License 模板 ===
+
+    /// <summary>
+    /// 列出常用 license — 调 REST API GET /licenses
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoLicenseList, "列出常用 license", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhRepoLicenseListAsync(
+        CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var result = await _apiClient.SendAsync(HttpMethod.Get, "licenses", ct: cancellationToken).ConfigureAwait(false);
+        if (!result.Success) return Fail(result.Error);
+        return Ok(SummarizeLicenseList(result.Body));
+    }
+
+    /// <summary>
+    /// 精简 license 列表 — 表格格式(key, name, spdx_id)
+    /// </summary>
+    private static string SummarizeLicenseList(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var sb = new StringBuilder(256);
+            sb.AppendLine("KEY\t名称\tSPDX ID");
+            foreach (var lic in doc.RootElement.EnumerateArray()) {
+                var key = lic.TryGetProperty("key", out var k) ? k.GetString() ?? "" : "";
+                var name = lic.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                var spdx = lic.TryGetProperty("spdx_id", out var s) ? s.GetString() ?? "" : "";
+                sb.AppendLine($"{key}\t{name}\t{spdx}");
+            }
+            return sb.ToString();
+        } catch { return json; }
+    }
+
+    /// <summary>
+    /// 查看 license 详情 — 调 REST API GET /licenses/{key}
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoLicenseView, "查看 license 详情", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhRepoLicenseViewAsync(
+        [McpToolParameter("license key(如 mit,apache-2.0,gpl-3.0)", Required = true)] string key,
+        CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var result = await _apiClient.SendAsync(HttpMethod.Get, $"licenses/{key}", ct: cancellationToken).ConfigureAwait(false);
+        return result.Success ? Ok(result.Body) : Fail(result.Error);
+    }
 }

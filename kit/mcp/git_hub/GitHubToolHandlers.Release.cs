@@ -443,4 +443,70 @@ public partial class GitHubToolHandlers {
         var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(pattern).Replace("\\*", ".*") + "$";
         return System.Text.RegularExpressions.Regex.IsMatch(name, regexPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
+
+    /// <summary>
+    /// 验证 Release 签名 — 调 GitHub attestations API 获取 attestation 元数据(加密验证需 cosign CLI)
+    /// <para>简化实现：列出 release 所有 asset 的 attestation 元数据，不做 sigstore 加密验证</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseVerify, "验证 Release 签名(获取 attestation 元数据)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhReleaseVerifyAsync(
+        [McpToolParameter("Release tag(可选,默认最新 release)", Required = false)] string? tag = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var releasePath = string.IsNullOrWhiteSpace(tag) ? $"repos/{owner}/{repoName}/releases/latest" : $"repos/{owner}/{repoName}/releases/tags/{tag}";
+            var releaseResult = await client.SendAsync(HttpMethod.Get, releasePath, ct: cancellationToken).ConfigureAwait(false);
+            if (!releaseResult.Success) return Fail(releaseResult.Error);
+            var sb = new StringBuilder(512);
+            string? releaseTag = null;
+            try {
+                using var doc = JsonDocument.Parse(releaseResult.Body);
+                releaseTag = doc.RootElement.TryGetProperty("tag_name", out var tn) ? tn.GetString() : null;
+                sb.AppendLine($"Release: {releaseTag}");
+                if (doc.RootElement.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array) {
+                    sb.AppendLine($"Assets: {assets.GetArrayLength()} 个");
+                    foreach (var asset in assets.EnumerateArray()) {
+                        var name = asset.TryGetProperty("name", out var an) ? an.GetString() ?? "" : "";
+                        var digest = asset.TryGetProperty("digest", out var dg) ? dg.GetString() ?? "" : "";
+                        sb.AppendLine($"  - {name}{(string.IsNullOrEmpty(digest) ? "" : $" (digest: {digest[..Math.Min(16, digest.Length)]}...)")}");
+                    }
+                }
+            } catch { return Fail("解析 Release 响应失败"); }
+            sb.AppendLine();
+            sb.Append($"⚠ 加密签名验证需 cosign CLI: cosign verify-attestation --repo {owner}/{repoName} ghcr.io/{owner}/{repoName}:{releaseTag}");
+            return Ok(sb.ToString(), "Release attestation 元数据(加密验证需 cosign)");
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 验证 Release Asset 签名 — 计算文件 SHA256 digest 后调 attestations API(加密验证需 cosign CLI)
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseVerifyAsset, "验证 Asset 文件签名(SHA256 + attestation)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhReleaseVerifyAssetAsync(
+        [McpToolParameter("Asset 文件路径", Required = true)] string file_path,
+        [McpToolParameter("Release tag(可选,默认最新 release)", Required = false)] string? tag = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (!_fs.FileExists(file_path)) return Fail($"文件不存在: {file_path}");
+            string sha256Digest;
+            try {
+                using var stream = _fs.Open(file_path, FileMode.Open);
+                var hashBytes = await System.Security.Cryptography.SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
+                sha256Digest = $"sha256:{Convert.ToHexString(hashBytes).ToLowerInvariant()}";
+            } catch (Exception ex) { return Fail($"计算文件 SHA256 失败: {ex.Message}"); }
+            var attResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/attestations/{sha256Digest}", ct: cancellationToken).ConfigureAwait(false);
+            var sb = new StringBuilder(256);
+            sb.AppendLine($"文件: {file_path}");
+            sb.AppendLine($"SHA256: {sha256Digest}");
+            if (attResult.Success) {
+                sb.AppendLine("Attestation: 已找到");
+                sb.Append(attResult.Body);
+            } else {
+                sb.AppendLine($"Attestation: {attResult.Error}");
+                sb.Append("⚠ 加密签名验证需 cosign CLI: cosign verify-blob --artifact-reference <file> --certificate-identity <workflow>");
+            }
+            return Ok(sb.ToString(), "Asset attestation 验证(加密验证需 cosign)");
+        }).ConfigureAwait(false);
 }

@@ -998,6 +998,62 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task ReleaseList_WithExcludeDrafts_FiltersOutDrafts() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"tag_name":"v1","name":"v1","draft":false,"prerelease":false,"assets":[]},{"id":2,"tag_name":"v2","name":"v2","draft":true,"prerelease":false,"assets":[]}]""" };
+
+        var result = await _handler.GhReleaseListAsync(exclude_drafts: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("\"tag_name\":\"v1\"");
+        text.Should().NotContain("\"tag_name\":\"v2\"");
+    }
+
+    [Fact]
+    public async Task ReleaseList_WithExcludePrereleases_FiltersOutPrereleases() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"tag_name":"v1","name":"v1","draft":false,"prerelease":false,"assets":[]},{"id":2,"tag_name":"v2","name":"v2","draft":false,"prerelease":true,"assets":[]}]""" };
+
+        var result = await _handler.GhReleaseListAsync(exclude_prereleases: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("\"tag_name\":\"v1\"");
+        text.Should().NotContain("\"tag_name\":\"v2\"");
+    }
+
+    [Fact]
+    public async Task ReleaseView_WithWeb_ReturnsUrl() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":1,"tag_name":"v1","html_url":"https://github.com/o/r/releases/tag/v1"}""" };
+
+        var result = await _handler.GhReleaseViewAsync("v1", web: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("https://github.com/o/r/releases/tag/v1");
+    }
+
+    [Fact]
+    public async Task ReleaseCreate_WithGenerateNotes_RequestsAutoNotes() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"id":1,"tag_name":"v1"}""" };
+
+        await _handler.GhReleaseCreateAsync("v1", generate_notes: true, repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("\"generate_release_notes\":true");
+    }
+
+    [Fact]
+    public async Task ReleaseDelete_WithCleanupTag_DeletesTagAfterRelease() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"tag_name":"v1"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
+
+        var result = await _handler.GhReleaseDeleteAsync("v1", cleanup_tag: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Contain("git/refs/tags/v1");
+    }
+
+    [Fact]
     public async Task BranchSyncProtection_Success_UpdatesRequiredStatusChecks() {
         _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,

@@ -22,7 +22,7 @@ public sealed class DreamPluginTests {
         var result = await plugin.LoadAsync(ctx).ConfigureAwait(true);
 
         Assert.True(result.Success);
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         Assert.NotNull(provider.GetService<AutoDreamConfig>());
     }
 

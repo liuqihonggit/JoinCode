@@ -45,7 +45,7 @@ public sealed class PluginUnloadContractTests {
         services.AddLogging(builder => builder.AddConsole());
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
         services.AddSingleton<IPluginManager, PluginManager>();
-        using var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
         await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -62,7 +62,7 @@ public sealed class PluginUnloadContractTests {
         services.AddLogging(builder => builder.AddConsole());
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
         services.AddSingleton<IPluginManager, PluginManager>();
-        using var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
         await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var host = await pm.LoadWorkflowPluginAsync<ContractValidPlugin>().ConfigureAwait(true);

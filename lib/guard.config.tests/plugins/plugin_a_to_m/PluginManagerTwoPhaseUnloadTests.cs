@@ -12,7 +12,7 @@ public sealed class PluginManagerTwoPhaseUnloadTests {
 
     [Fact]
     public async Task UnloadPluginAsync_WithReferenceGraph_PreparePhaseWorks() {
-        using var sp = CreateServiceProvider();
+        await using var sp = CreateServiceProvider();
         await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var result = await pm.UnloadPluginAsync("non-existent").ConfigureAwait(true);
@@ -22,7 +22,7 @@ public sealed class PluginManagerTwoPhaseUnloadTests {
 
     [Fact]
     public async Task UnloadAllPluginsAsync_WithReferenceGraph_Works() {
-        using var sp = CreateServiceProvider();
+        await using var sp = CreateServiceProvider();
         await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var results = await pm.UnloadAllPluginsAsync().ConfigureAwait(true);
@@ -40,7 +40,7 @@ public sealed class PluginManagerTwoPhaseUnloadTests {
 
     [Fact]
     public async Task UnloadPluginAsync_ResourceGraphRegistered_PrepareRemovesReferences() {
-        using var sp = CreateServiceProvider();
+        await using var sp = CreateServiceProvider();
         await using var pm = sp.GetRequiredService<IPluginManager>();
         var graph = sp.GetRequiredService<IResourceReferenceGraph>();
 

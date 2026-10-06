@@ -39,7 +39,7 @@ public sealed class PermissionCheckingInterceptorTest {
     [Fact]
     public async Task OnBeforeToolInvokeAsync_无filter_直接检查权限() {
         var managerMock = CreateManagerMock(PermissionResult.Granted());
-        using var interceptor = CreateInterceptor(managerMock, filter: null);
+        await using var interceptor = CreateInterceptor(managerMock, filter: null);
 
         var result = await interceptor.OnBeforeToolInvokeAsync(CreateContext());
 
@@ -84,7 +84,7 @@ public sealed class PermissionCheckingInterceptorTest {
     [Fact]
     public async Task OnBeforeToolInvokeAsync_权限批准_返回Allowed() {
         var managerMock = CreateManagerMock(PermissionResult.Granted());
-        using var interceptor = CreateInterceptor(managerMock);
+        await using var interceptor = CreateInterceptor(managerMock);
 
         var result = await interceptor.OnBeforeToolInvokeAsync(CreateContext());
 
@@ -96,7 +96,7 @@ public sealed class PermissionCheckingInterceptorTest {
     [Fact]
     public async Task OnBeforeToolInvokeAsync_权限需确认_返回ConfirmationRequired() {
         var managerMock = CreateManagerMock(PermissionResult.PendingConfirmation("请确认执行"));
-        using var interceptor = CreateInterceptor(managerMock);
+        await using var interceptor = CreateInterceptor(managerMock);
 
         var result = await interceptor.OnBeforeToolInvokeAsync(CreateContext());
 
@@ -107,7 +107,7 @@ public sealed class PermissionCheckingInterceptorTest {
     [Fact]
     public async Task OnBeforeToolInvokeAsync_权限拒绝_返回Denied() {
         var managerMock = CreateManagerMock(PermissionResult.Denied("危险操作"));
-        using var interceptor = CreateInterceptor(managerMock);
+        await using var interceptor = CreateInterceptor(managerMock);
 
         var result = await interceptor.OnBeforeToolInvokeAsync(CreateContext());
 
@@ -118,7 +118,7 @@ public sealed class PermissionCheckingInterceptorTest {
     [Fact]
     public async Task OnBeforeToolInvokeAsync_权限拒绝带默认原因_返回拒绝原因() {
         var managerMock = CreateManagerMock(PermissionResult.Denied("权限被拒绝"));
-        using var interceptor = CreateInterceptor(managerMock);
+        await using var interceptor = CreateInterceptor(managerMock);
 
         var result = await interceptor.OnBeforeToolInvokeAsync(CreateContext());
 
@@ -129,7 +129,7 @@ public sealed class PermissionCheckingInterceptorTest {
     [Fact]
     public async Task OnBeforeToolInvokeAsync_临时授权未过期_返回Allowed() {
         var managerMock = CreateManagerMock(PermissionResult.TemporaryGrant(TimeSpan.FromHours(1)));
-        using var interceptor = CreateInterceptor(managerMock);
+        await using var interceptor = CreateInterceptor(managerMock);
 
         var result = await interceptor.OnBeforeToolInvokeAsync(CreateContext());
 
@@ -142,7 +142,7 @@ public sealed class PermissionCheckingInterceptorTest {
         managerMock.Setup(m => m.CheckPermissionAsync(It.IsAny<PermissionRequest>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("manager boom"));
 
-        using var interceptor = CreateInterceptor(managerMock);
+        await using var interceptor = CreateInterceptor(managerMock);
 
         var result = await interceptor.OnBeforeToolInvokeAsync(CreateContext());
 
@@ -156,7 +156,7 @@ public sealed class PermissionCheckingInterceptorTest {
         managerMock.Setup(m => m.CheckPermissionAsync(It.IsAny<PermissionRequest>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
 
-        using var interceptor = CreateInterceptor(managerMock);
+        await using var interceptor = CreateInterceptor(managerMock);
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -180,7 +180,7 @@ public sealed class PermissionCheckingInterceptorTest {
 
     [Fact]
     public async Task OnAfterToolInvokeAsync_成功_返回CompletedTask() {
-        using var interceptor = CreateInterceptor();
+        await using var interceptor = CreateInterceptor();
         var context = CreateContext();
 
         var act = () => interceptor.OnAfterToolInvokeAsync(context, OkResult());
@@ -190,7 +190,7 @@ public sealed class PermissionCheckingInterceptorTest {
 
     [Fact]
     public async Task OnAfterToolInvokeAsync_失败_返回CompletedTask() {
-        using var interceptor = CreateInterceptor();
+        await using var interceptor = CreateInterceptor();
         var context = CreateContext();
 
         var act = () => interceptor.OnAfterToolInvokeAsync(context, FailResult("error message"));
@@ -215,7 +215,7 @@ public sealed class PermissionCheckingInterceptorTest {
     [Fact]
     public async Task CheckPermissionAsync_批准_返回Allowed() {
         var managerMock = CreateManagerMock(PermissionResult.Granted());
-        using var interceptor = CreateInterceptor(managerMock);
+        await using var interceptor = CreateInterceptor(managerMock);
 
         var outcome = await interceptor.CheckPermissionAsync(CreateContext());
 
@@ -225,7 +225,7 @@ public sealed class PermissionCheckingInterceptorTest {
     [Fact]
     public async Task CheckPermissionAsync_需确认_返回Pending() {
         var managerMock = CreateManagerMock(PermissionResult.PendingConfirmation("confirm?"));
-        using var interceptor = CreateInterceptor(managerMock);
+        await using var interceptor = CreateInterceptor(managerMock);
 
         var outcome = await interceptor.CheckPermissionAsync(CreateContext());
 
@@ -236,7 +236,7 @@ public sealed class PermissionCheckingInterceptorTest {
     [Fact]
     public async Task CheckPermissionAsync_拒绝_返回Denied() {
         var managerMock = CreateManagerMock(PermissionResult.Denied("no"));
-        using var interceptor = CreateInterceptor(managerMock);
+        await using var interceptor = CreateInterceptor(managerMock);
 
         var outcome = await interceptor.CheckPermissionAsync(CreateContext());
 
@@ -250,7 +250,7 @@ public sealed class PermissionCheckingInterceptorTest {
 
     [Fact]
     public void Priority_应为200() {
-        using var interceptor = CreateInterceptor();
+        await using var interceptor = CreateInterceptor();
         interceptor.Priority.Should().Be(200);
     }
 

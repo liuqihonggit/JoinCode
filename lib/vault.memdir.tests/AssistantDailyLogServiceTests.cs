@@ -32,7 +32,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable {
     [Fact]
     public async Task AppendEntryAsync_ShouldAddEntry_ToDailyLog() {
         // Arrange
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var content = "执行了代码重构操作";
 
         // Act
@@ -51,7 +51,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable {
     [Fact]
     public async Task GetDailyLogAsync_ShouldReturnTodayLog() {
         // Arrange
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.AppendEntryAsync("观察到的信息", DailyLogCategory.Observation).ConfigureAwait(true);
         await sut.AppendEntryAsync("做出的决策", DailyLogCategory.Decision).ConfigureAwait(true);
 
@@ -68,7 +68,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable {
     [Fact]
     public async Task GetDailyLogForDateAsync_ShouldReturnEmptyLog_WhenNoLogForDate() {
         // Arrange
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var pastDate = DateTime.UtcNow.AddDays(-30);
 
         // Act
@@ -83,7 +83,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable {
     [Fact]
     public async Task BuildDailyLogPromptAsync_ShouldReturnNonEmptyString_WhenEntriesExist() {
         // Arrange
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.AppendEntryAsync("执行了操作A", DailyLogCategory.Action).ConfigureAwait(true);
         await sut.AppendEntryAsync("观察到结果B", DailyLogCategory.Observation).ConfigureAwait(true);
 
@@ -100,7 +100,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable {
     [Fact]
     public async Task BuildDailyLogPromptAsync_ShouldReturnEmptyString_WhenNoEntries() {
         // Arrange
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
 
         // Act
         var prompt = await sut.BuildDailyLogPromptAsync().ConfigureAwait(true);

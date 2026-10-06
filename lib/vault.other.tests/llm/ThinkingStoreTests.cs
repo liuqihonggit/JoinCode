@@ -12,7 +12,7 @@ public sealed class ThinkingStoreTests {
 
     [Fact]
     public async Task StoreAsync_ShouldAddEntry() {
-        using var store = CreateStore();
+        await using var store = CreateStore();
         await store.StoreAsync("session1", "thinking content", "model-a", CancellationToken.None).ConfigureAwait(true);
 
         var entries = await store.GetRecentAsync("session1", 10, CancellationToken.None).ConfigureAwait(true);
@@ -25,7 +25,7 @@ public sealed class ThinkingStoreTests {
 
     [Fact]
     public async Task StoreAsync_EmptyContent_ShouldNotAddEntry() {
-        using var store = CreateStore();
+        await using var store = CreateStore();
         await store.StoreAsync("session1", "", "model-a", CancellationToken.None).ConfigureAwait(true);
 
         var entries = await store.GetRecentAsync("session1", 10, CancellationToken.None).ConfigureAwait(true);
@@ -35,7 +35,7 @@ public sealed class ThinkingStoreTests {
 
     [Fact]
     public async Task StoreAsync_MultipleEntries_ShouldStoreAll() {
-        using var store = CreateStore();
+        await using var store = CreateStore();
         await store.StoreAsync("session1", "thinking 1", "model-a", CancellationToken.None).ConfigureAwait(true);
         await store.StoreAsync("session1", "thinking 2", "model-b", CancellationToken.None).ConfigureAwait(true);
         await store.StoreAsync("session1", "thinking 3", "model-a", CancellationToken.None).ConfigureAwait(true);
@@ -49,7 +49,7 @@ public sealed class ThinkingStoreTests {
 
     [Fact]
     public async Task GetRecentAsync_ShouldReturnLastNEntries() {
-        using var store = CreateStore();
+        await using var store = CreateStore();
         await store.StoreAsync("session1", "thinking 1", null, CancellationToken.None).ConfigureAwait(true);
         await store.StoreAsync("session1", "thinking 2", null, CancellationToken.None).ConfigureAwait(true);
         await store.StoreAsync("session1", "thinking 3", null, CancellationToken.None).ConfigureAwait(true);
@@ -63,7 +63,7 @@ public sealed class ThinkingStoreTests {
 
     [Fact]
     public async Task GetRecentAsync_UnknownSession_ShouldReturnEmpty() {
-        using var store = CreateStore();
+        await using var store = CreateStore();
 
         var entries = await store.GetRecentAsync("unknown", 10, CancellationToken.None).ConfigureAwait(true);
 
@@ -72,7 +72,7 @@ public sealed class ThinkingStoreTests {
 
     [Fact]
     public async Task GetLatestAsync_ShouldReturnLastEntry() {
-        using var store = CreateStore();
+        await using var store = CreateStore();
         await store.StoreAsync("session1", "thinking 1", null, CancellationToken.None).ConfigureAwait(true);
         await store.StoreAsync("session1", "thinking 2", "model-b", CancellationToken.None).ConfigureAwait(true);
 
@@ -85,7 +85,7 @@ public sealed class ThinkingStoreTests {
 
     [Fact]
     public async Task GetLatestAsync_EmptySession_ShouldReturnNull() {
-        using var store = CreateStore();
+        await using var store = CreateStore();
 
         var latest = await store.GetLatestAsync("empty", CancellationToken.None).ConfigureAwait(true);
 
@@ -94,7 +94,7 @@ public sealed class ThinkingStoreTests {
 
     [Fact]
     public async Task ClearAsync_ShouldRemoveEntries() {
-        using var store = CreateStore();
+        await using var store = CreateStore();
         await store.StoreAsync("session1", "thinking content", null, CancellationToken.None).ConfigureAwait(true);
 
         await store.ClearAsync("session1", CancellationToken.None).ConfigureAwait(true);
@@ -105,7 +105,7 @@ public sealed class ThinkingStoreTests {
 
     [Fact]
     public async Task StoreAsync_DifferentSessions_ShouldIsolate() {
-        using var store = CreateStore();
+        await using var store = CreateStore();
         await store.StoreAsync("session1", "thinking for s1", null, CancellationToken.None).ConfigureAwait(true);
         await store.StoreAsync("session2", "thinking for s2", null, CancellationToken.None).ConfigureAwait(true);
 
@@ -120,7 +120,7 @@ public sealed class ThinkingStoreTests {
 
     [Fact]
     public async Task StoreAsync_NullSessionId_ShouldThrow() {
-        using var store = CreateStore();
+        await using var store = CreateStore();
 
         var act = () => store.StoreAsync(null!, "content", null, CancellationToken.None);
 

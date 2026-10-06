@@ -54,7 +54,7 @@ public class SkillServiceTests : IDisposable {
 
     [Fact]
     public async Task Constructor_ShouldLoadBuiltInSkills() {
-        using var service = CreateService();
+        await using var service = CreateService();
         var skills = await service.GetAvailableSkillsAsync().ConfigureAwait(true);
 
         skills.Should().NotBeEmpty();
@@ -65,7 +65,7 @@ public class SkillServiceTests : IDisposable {
 
     [Fact]
     public async Task GetSkill_ExistingSkill_ShouldReturnSkill() {
-        using var service = CreateService();
+        await using var service = CreateService();
         var skill = await service.GetSkillAsync("batch").ConfigureAwait(true);
 
         skill.Should().NotBeNull();
@@ -74,7 +74,7 @@ public class SkillServiceTests : IDisposable {
 
     [Fact]
     public async Task GetSkill_NonExistingSkill_ShouldReturnNull() {
-        using var service = CreateService();
+        await using var service = CreateService();
         var skill = await service.GetSkillAsync("nonexistent").ConfigureAwait(true);
 
         skill.Should().BeNull();
@@ -82,21 +82,21 @@ public class SkillServiceTests : IDisposable {
 
     [Fact]
     public void SkillExists_ExistingSkill_ShouldReturnTrue() {
-        using var service = CreateService();
+        await using var service = CreateService();
 
         service.SkillExists("batch").Should().BeTrue();
     }
 
     [Fact]
     public void SkillExists_NonExistingSkill_ShouldReturnFalse() {
-        using var service = CreateService();
+        await using var service = CreateService();
 
         service.SkillExists("nonexistent").Should().BeFalse();
     }
 
     [Fact]
     public async Task RegisterSkill_ShouldAddSkill() {
-        using var service = CreateService();
+        await using var service = CreateService();
         var skill = new SkillDefinition {
             Name = "test_skill",
             Description = "Test skill",
@@ -114,7 +114,7 @@ public class SkillServiceTests : IDisposable {
 
     [Fact]
     public void UnregisterSkill_ExistingSkill_ShouldRemoveSkill() {
-        using var service = CreateService();
+        await using var service = CreateService();
 
         service.UnregisterSkill("batch");
 
@@ -123,7 +123,7 @@ public class SkillServiceTests : IDisposable {
 
     [Fact]
     public void UnregisterSkill_NonExistingSkill_ShouldReturnFalse() {
-        using var service = CreateService();
+        await using var service = CreateService();
 
         var result = service.UnregisterSkill("nonexistent");
 
@@ -132,7 +132,7 @@ public class SkillServiceTests : IDisposable {
 
     [Fact]
     public async Task ExecuteAsync_NonExistingSkill_ShouldReturnFailure() {
-        using var service = CreateService();
+        await using var service = CreateService();
         var ctx = new ExecutionContext();
 
         var result = await service.ExecuteAsync("nonexistent", null, ctx).ConfigureAwait(true);
@@ -143,7 +143,7 @@ public class SkillServiceTests : IDisposable {
 
     [Fact]
     public async Task ExecuteAsync_WithNullSkillName_ShouldThrow() {
-        using var service = CreateService();
+        await using var service = CreateService();
         var ctx = new ExecutionContext();
 
         await Assert.ThrowsAsync<ArgumentNullException>(() => service.ExecuteAsync(null!, null, ctx)).ConfigureAwait(true);
@@ -151,7 +151,7 @@ public class SkillServiceTests : IDisposable {
 
     [Fact]
     public async Task GetAvailableSkills_ShouldReturnAllSkills() {
-        using var service = CreateService();
+        await using var service = CreateService();
 
         var skills = await service.GetAvailableSkillsAsync().ConfigureAwait(true);
 
@@ -160,7 +160,7 @@ public class SkillServiceTests : IDisposable {
 
     [Fact]
     public async Task ReloadAsync_WithNullSkillName_ShouldReloadAll() {
-        using var service = CreateService();
+        await using var service = CreateService();
         var ctx = new ExecutionContext();
 
         var result = await service.ReloadAsync(null, ctx).ConfigureAwait(true);
@@ -170,7 +170,7 @@ public class SkillServiceTests : IDisposable {
 
     [Fact]
     public async Task ReloadAsync_WithNonExistingSkill_ShouldReturnFalse() {
-        using var service = CreateService();
+        await using var service = CreateService();
         var ctx = new ExecutionContext();
 
         var result = await service.ReloadAsync("nonexistent", ctx).ConfigureAwait(true);

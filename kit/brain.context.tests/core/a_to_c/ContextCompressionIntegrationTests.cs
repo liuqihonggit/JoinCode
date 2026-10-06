@@ -134,7 +134,7 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task ContextHierarchy_WithMultipleLayers_ShouldManageLayersCorrectly() {
         // Arrange
-        using var hierarchy = ContextHierarchy.Create(
+        await using var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions {
                 TokenThreshold = 4000,
                 AutoCompressionEnabled = false
@@ -176,7 +176,7 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task ContextHierarchy_PromoteLayer_ShouldCompressContent() {
         // Arrange
-        using var hierarchy = ContextHierarchy.Create(
+        await using var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions { AutoCompressionEnabled = false },
             _logger);
 
@@ -204,7 +204,7 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task ContextHierarchy_DemoteLayer_ShouldRestoreContent() {
         // Arrange
-        using var hierarchy = ContextHierarchy.Create(
+        await using var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions { AutoCompressionEnabled = false },
             _logger);
 
@@ -226,7 +226,7 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task ContextHierarchy_GetEffectiveContext_ShouldMergeLayers() {
         // Arrange
-        using var hierarchy = ContextHierarchy.Create(
+        await using var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions { AutoCompressionEnabled = false },
             _logger);
 
@@ -262,7 +262,7 @@ public partial class ContextCompressionIntegrationTests {
         // Arrange
         await using var factory = new CompressionStrategyFactory();
         await using var compressor = new ContextCompressor(factory);
-        using var hierarchy = ContextHierarchy.Create(
+        await using var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions {
                 TokenThreshold = 2000,
                 AutoCompressionEnabled = false

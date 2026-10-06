@@ -78,7 +78,7 @@ public sealed class BridgeServerHandleTests {
                 Stderr = "",
                 ExitCode = 0
             });
-        using var server = CreateServer(actuatorRegistry: CreateRegistryMock(shellMock).Object);
+        await using var server = CreateServer(actuatorRegistry: CreateRegistryMock(shellMock).Object);
         var message = CreateExecuteCommandMessage("echo hello");
 
         // Act
@@ -102,7 +102,7 @@ public sealed class BridgeServerHandleTests {
     [Fact]
     public async Task BuildExecuteCommandResponseAsync_WithoutShellService_ShouldReturnNotSupported() {
         // Arrange
-        using var server = CreateServer(actuatorRegistry: null);
+        await using var server = CreateServer(actuatorRegistry: null);
         var message = CreateExecuteCommandMessage("echo hello");
 
         // Act
@@ -119,7 +119,7 @@ public sealed class BridgeServerHandleTests {
     public async Task BuildExecuteCommandResponseAsync_EmptyCommand_ShouldReturnFailureWithErrorMessage() {
         // Arrange
         var shellMock = new Mock<ISystemActuator>();
-        using var server = CreateServer(actuatorRegistry: CreateRegistryMock(shellMock).Object);
+        await using var server = CreateServer(actuatorRegistry: CreateRegistryMock(shellMock).Object);
         var message = CreateExecuteCommandMessage("");
 
         // Act
@@ -148,7 +148,7 @@ public sealed class BridgeServerHandleTests {
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("模拟执行失败"));
-        using var server = CreateServer(actuatorRegistry: CreateRegistryMock(shellMock).Object);
+        await using var server = CreateServer(actuatorRegistry: CreateRegistryMock(shellMock).Object);
         var message = CreateExecuteCommandMessage("bad-command");
 
         // Act
@@ -176,7 +176,7 @@ public sealed class BridgeServerHandleTests {
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        using var server = CreateServer(ideService: ideMock.Object);
+        await using var server = CreateServer(ideService: ideMock.Object);
         var message = CreateSetSelectionMessage("test.cs", startLine: 5, startCol: 1, endLine: 5, endCol: 10);
 
         // Act
@@ -198,7 +198,7 @@ public sealed class BridgeServerHandleTests {
     [Fact]
     public async Task BuildSetSelectionResponseAsync_WithoutIdeService_ShouldReturnFailure() {
         // Arrange
-        using var server = CreateServer(ideService: null);
+        await using var server = CreateServer(ideService: null);
         var message = CreateSetSelectionMessage("test.cs", startLine: 5, startCol: 1, endLine: 5, endCol: 10);
 
         // Act
@@ -223,7 +223,7 @@ public sealed class BridgeServerHandleTests {
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
-        using var server = CreateServer(ideService: ideMock.Object);
+        await using var server = CreateServer(ideService: ideMock.Object);
         var message = CreateSetSelectionMessage("test.cs", startLine: 5, startCol: 1, endLine: 5, endCol: 10);
 
         // Act

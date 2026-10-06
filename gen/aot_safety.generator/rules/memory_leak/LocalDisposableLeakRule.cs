@@ -182,9 +182,10 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
 
     /// <summary>
     /// 已知 BCL"借用"调用 — 返回 IDisposable 但调用方不拥有(BCL 管理生命周期)。
-    /// 仅识别 BCL 类型(Volatile/IHttpClientFactory),不识别项目自有类型(按方案 D 改返回类型)。
+    /// 仅识别 BCL 类型(Volatile/IHttpClientFactory/IServiceProvider),不识别项目自有类型(按方案 D 改返回类型)。
     /// - Volatile.Read(ref field) / Volatile.Write(ref field, value) — 字段读写,借用字段值
     /// - IHttpClientFactory.CreateClient(name) — BCL 管理客户端,GCAPI,调用方不 Dispose
+    /// - IServiceProvider.GetService<T>() / GetRequiredService<T>() — DI 容器管理,调用方不 Dispose
     /// </summary>
     private static bool IsKnownBorrowFactoryCall(
         InvocationExpressionSyntax invocation,
@@ -200,6 +201,11 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
             if (methodName.Equals("CreateClient", StringComparison.Ordinal)) {
                 var receiverType = semanticModel.GetTypeInfo(ma.Expression, ct).Type;
                 if (receiverType is not null && receiverType.Name.Equals("IHttpClientFactory", StringComparison.Ordinal))
+                    return true;
+            }
+            if (methodName.Equals("GetService", StringComparison.Ordinal) || methodName.Equals("GetRequiredService", StringComparison.Ordinal)) {
+                var receiverType = semanticModel.GetTypeInfo(ma.Expression, ct).Type;
+                if (receiverType is not null && (receiverType.Name.Equals("IServiceProvider", StringComparison.Ordinal) || receiverType.Name.Equals("ServiceProvider", StringComparison.Ordinal)))
                     return true;
             }
         }

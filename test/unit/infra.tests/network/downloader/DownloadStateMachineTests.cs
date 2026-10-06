@@ -194,7 +194,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TerminalState_Completed_NoTransition() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         sm.TryEnterMerging();
         sm.TryComplete();
@@ -203,14 +203,14 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TerminalState_Cancelled_NoTransition() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryCancel();
         AssertAllOpsFail(sm, DownloadState.Cancelled);
     }
 
     [Fact]
     public void TerminalState_Failed_NoTransition() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         sm.TryFail();
         AssertAllOpsFail(sm, DownloadState.Failed);

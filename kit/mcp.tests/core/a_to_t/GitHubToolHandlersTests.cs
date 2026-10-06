@@ -1054,6 +1054,55 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task ReleaseDownload_WithSkipExisting_SkipsExistingFiles() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"assets":[{"name":"a.zip","browser_download_url":"https://x/a.zip"},{"name":"b.zip","browser_download_url":"https://x/b.zip"}]}""" };
+        var fs = new InMemoryFileSystem();
+        fs.CreateDirectory("/tmp");
+        await fs.WriteAllText("/tmp/a.zip", "existing");
+        var fakeDownloader = new FakeDownloader();
+        var handler = new GitHubToolHandlers(fakeDownloader, fs, new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp", skip_existing: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("[SKIP] a.zip");
+        text.Should().Contain("1 跳过");
+        fakeDownloader.StartCallCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ReleaseDownload_WithoutClobber_FailsOnExistingFile() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"assets":[{"name":"a.zip","browser_download_url":"https://x/a.zip"}]}""" };
+        var fs = new InMemoryFileSystem();
+        fs.CreateDirectory("/tmp");
+        await fs.WriteAllText("/tmp/a.zip", "existing");
+        var fakeDownloader = new FakeDownloader();
+        var handler = new GitHubToolHandlers(fakeDownloader, fs, new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp", repo: "owner/repo");
+
+        var text = result.GetFirstText();
+        text.Should().Contain("[FAIL] a.zip");
+        text.Should().Contain("文件已存在");
+        fakeDownloader.StartCallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ReleaseUpload_WithClobber_DeletesExistingAssetFirst() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"assets":[{"name":"file.zip","id":456}]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" });
+        var fs = new InMemoryFileSystem();
+        await fs.WriteAllText("/data/file.zip", "content");
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhReleaseUploadAsync("v1", "/data/file.zip", clobber: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task BranchSyncProtection_Success_UpdatesRequiredStatusChecks() {
         _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,

@@ -8,12 +8,12 @@
 
 | 子命令组 | 子命令对齐 | 参数对齐 | 新增子命令 | 测试数 | 状态 |
 |---------|:---------:|:--------:|:---------:|:------:|:----:|
-| pr | 12/12 | ✅ 全部高频参数 | 3 (comment/edit/review) | — | ✅ 完成 |
-| issue | 8/8 | ✅ list/view/create/close | 3 (reopen/edit/delete) | — | ✅ 高频完成 |
-| run | 4/4 | ✅ list/view/rerun | 1 (download) | — | ✅ 完成 |
+| pr | 14/14 | ✅ 全部高频参数 | 5 (comment/edit/review/lock/unlock) | — | ✅ 完成 |
+| issue | 10/10 | ✅ list/view/create/close | 5 (reopen/edit/delete/lock/unlock) | — | ✅ 高频完成 |
+| run | 5/5 | ✅ list/view/rerun | 2 (download/delete) | — | ✅ 完成 |
 | release | 6/6+2新增 | ✅ 全部 + delete-asset/edit | 2 | — | ✅ 完成 |
 | repo | 4/5+7新增 | ✅ view/list/create/fork + edit/delete/archive/unarchive/rename/sync/set-default | 7 | — | ✅ 高频完成 |
-| **合计** | — | — | **16 新增** | **112 通过** | ✅ |
+| **合计** | — | — | **21 新增** | **117 通过** | ✅ |
 
 > 通用参数：`--web` ✅ 各 view 已实现 | `--json` ⚠️ `verbose` 近似 | `--jq` ❌ 需引入库 | `--template` ❌ Go template 暂缓
 
@@ -66,8 +66,8 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 
 | 系统 gh pr 子命令 | jcc 是否支持 |
 |------------------|:-----------:|
-| list / view / create / checks / merge / close / diff / checkout / reopen / **comment** / **edit** / **review** | ✅ |
-| status / lock / ready / revert / unlock / update-branch | ❌ |
+| list / view / create / checks / merge / close / diff / checkout / reopen / **comment** / **edit** / **review** / **lock** / **unlock** | ✅ |
+| status / ready / revert / unlock / update-branch | ❌ |
 
 ### 3.2 pr list 参数
 
@@ -159,8 +159,8 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 
 | 系统 gh issue 子命令 | jcc 是否支持 |
 |---------------------|:-----------:|
-| list / view / create / close / comment / **reopen** / **edit** / **delete** | ✅ |
-| status / develop / lock / pin / transfer / unlock / unpin | ❌ |
+| list / view / create / close / comment / **reopen** / **edit** / **delete** / **lock** / **unlock** | ✅ |
+| status / develop / pin / transfer / unpin | ❌ |
 
 ### 4.2 参数差异
 
@@ -178,8 +178,8 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 
 | 系统 gh run 子命令 | jcc 是否支持 |
 |-------------------|:-----------:|
-| list / view / cancel / rerun / **download** | ✅ |
-| delete / watch | ❌ |
+| list / view / cancel / rerun / **download** / **delete** | ✅ |
+| watch | ❌ |
 
 ### 5.2 参数差异
 

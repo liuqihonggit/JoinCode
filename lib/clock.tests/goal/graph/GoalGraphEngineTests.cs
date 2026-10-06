@@ -621,7 +621,7 @@ public sealed partial class GoalGraphEngineTests {
     public async Task FunctionNode_Should_ReceiveServiceProvider_FromContext() {
         var services = new ServiceCollection();
         services.AddSingleton("test-value-from-di");
-        var sp = services.BuildServiceProvider();
+        using var sp = services.BuildServiceProvider();
 
         await using var engine = CreateEngine(serviceProvider: sp);
         string? receivedValue = null;

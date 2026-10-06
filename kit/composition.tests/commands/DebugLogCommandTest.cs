@@ -254,7 +254,7 @@ public sealed class DebugLogCommandTest {
 
     [Fact]
     public async Task NoDebugLogBuffer_DoesNotThrow() {
-        var emptyServices = new ServiceCollection().BuildServiceProvider();
+        using var emptyServices = new ServiceCollection().BuildServiceProvider();
         var context = CreateContextWithProvider(string.Empty, emptyServices);
 
         var result = await _command.ExecuteAsync(context);
@@ -265,7 +265,7 @@ public sealed class DebugLogCommandTest {
     public async Task NoCrashSnapshotStore_DoesNotThrow() {
         var services = new ServiceCollection();
         services.AddSingleton(_debugLogBuffer.Object);
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var context = CreateContextWithProvider(string.Empty, provider);
 
         var result = await _command.ExecuteAsync(context);
@@ -277,7 +277,7 @@ public sealed class DebugLogCommandTest {
         var services = new ServiceCollection();
         services.AddSingleton(_debugLogBuffer.Object);
         services.AddSingleton(_crashSnapshotStore.Object);
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var context = CreateContextWithProvider(string.Empty, provider);
 
         var result = await _command.ExecuteAsync(context);
@@ -286,7 +286,7 @@ public sealed class DebugLogCommandTest {
 
     [Fact]
     public async Task ClearFlag_NoDebugLogBuffer_DoesNotThrow() {
-        var emptyServices = new ServiceCollection().BuildServiceProvider();
+        using var emptyServices = new ServiceCollection().BuildServiceProvider();
         var context = CreateContextWithProvider("-c", emptyServices);
 
         var result = await _command.ExecuteAsync(context);

@@ -82,7 +82,7 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
 
         while (remainingRetries >= 0) {
             try {
-                var request = BuildExecuteRequest(definition);
+                using var request = BuildExecuteRequest(definition);
                 using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
 

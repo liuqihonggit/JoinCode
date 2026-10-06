@@ -61,7 +61,7 @@ public class McpHttpServerE2ETests {
             sessionId.Should().NotBeNullOrEmpty();
             httpServer.ActiveSessionCount.Should().Be(1);
 
-            var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, $"http://localhost:{port}/mcp/");
+            using var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, $"http://localhost:{port}/mcp/");
             deleteRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
             using var deleteResponse = await client.SendAsync(deleteRequest);
             deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -83,7 +83,7 @@ public class McpHttpServerE2ETests {
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
-            var request = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{port}/mcp/") {
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{port}/mcp/") {
                 Content = new StringContent("""{"jsonrpc":"2.0","id":1,"method":"ping"}""", Encoding.UTF8, "application/json")
             };
             request.Headers.TryAddWithoutValidation("Mcp-Session-Id", "invalid-session-id");
@@ -133,7 +133,7 @@ public class McpHttpServerE2ETests {
             initResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var sessionId = initResponse.Headers.GetValues("Mcp-Session-Id").First();
 
-            var getRequest = new HttpRequestMessage(HttpMethod.Get, $"http://localhost:{port}/mcp/");
+            using var getRequest = new HttpRequestMessage(HttpMethod.Get, $"http://localhost:{port}/mcp/");
             getRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
             getRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
             using var getResponse = await client.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead);
@@ -141,7 +141,7 @@ public class McpHttpServerE2ETests {
             getResponse.Content.Headers.ContentType!.MediaType.Should().Be("text/event-stream");
 
             var notificationBody = """{"jsonrpc":"2.0","method":"notifications/initialized"}""";
-            var notificationRequest = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{port}/mcp/") {
+            using var notificationRequest = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{port}/mcp/") {
                 Content = new StringContent(notificationBody, Encoding.UTF8, "application/json")
             };
             notificationRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
@@ -182,13 +182,13 @@ public class McpHttpServerE2ETests {
                 new StringContent(InitializeBody, Encoding.UTF8, "application/json"));
             var sessionId = initResponse.Headers.GetValues("Mcp-Session-Id").First();
 
-            var getRequest = new HttpRequestMessage(HttpMethod.Get, $"http://localhost:{port}/mcp/");
+            using var getRequest = new HttpRequestMessage(HttpMethod.Get, $"http://localhost:{port}/mcp/");
             getRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
             getRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
             using var getResponse = await client.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead);
 
             var notificationBody = """{"jsonrpc":"2.0","method":"notifications/initialized"}""";
-            var notificationRequest = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{port}/mcp/") {
+            using var notificationRequest = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{port}/mcp/") {
                 Content = new StringContent(notificationBody, Encoding.UTF8, "application/json")
             };
             notificationRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);

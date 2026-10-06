@@ -212,7 +212,7 @@ public sealed class RealApiCacheTests {
     }
 
     private static async Task<AnthropicRealResponse> SendAnthropicRequestAsync(HttpClient client, string json) {
-        var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
         var response = await client.PostAsync("/v1/messages", content).ConfigureAwait(true);
         var body = await response.Content.ReadAsStringAsync().ConfigureAwait(true);
 
@@ -231,7 +231,7 @@ public sealed class RealApiCacheTests {
     }
 
     private static async Task<OpenAIRealResponse> SendOpenAIRequestAsync(HttpClient client, string json) {
-        var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
         var response = await client.PostAsync("/v1/chat/completions", content).ConfigureAwait(true);
         var body = await response.Content.ReadAsStringAsync().ConfigureAwait(true);
 

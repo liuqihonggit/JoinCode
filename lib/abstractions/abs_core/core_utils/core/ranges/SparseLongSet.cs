@@ -78,7 +78,7 @@ public readonly struct SparseLongSet : IEquatable<SparseLongSet> {
     public byte[] EncodeDeltas() {
         if (_values.Length == 0) return [];
 
-        var ms = new MemoryStream(8 + _values.Length * 2);
+        using var ms = new MemoryStream(8 + _values.Length * 2);
         var first = _values[0];
         ms.Write(BitConverter.GetBytes(first));
 

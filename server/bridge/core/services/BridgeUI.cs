@@ -116,7 +116,7 @@ public sealed partial class BridgeUIService : ServiceEntity {
 
         // 使用 QRCoder 生成 QR 矩阵
         using var qrGenerator = new QRCodeGenerator();
-        var qrCodeData = qrGenerator.CreateQrCode(qrContent, QRCodeGenerator.ECCLevel.L);
+        using var qrCodeData = qrGenerator.CreateQrCode(qrContent, QRCodeGenerator.ECCLevel.L);
 
         // 渲染为 UTF-8 块字符终端显示（对齐 TS 端 qrcode 库的 type: 'utf8', small: true）
         var qrLines = RenderUtf8BlockQR(qrCodeData);

@@ -485,4 +485,184 @@ public class LocalDisposableLeakRuleTests {
         };
         await test.RunAsync().ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task PassAsArgument_ToBorrowMethod_NotDisposed_ReportsJCC9305() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                class TestClass {
+                    void Method() {
+                        var {|#0:x|} = new Disposable();
+                        UseOnly(x);
+                    }
+                    void UseOnly(Disposable d) { var s = d.ToString(); }
+                }
+                class Disposable : IDisposable {
+                    public void Dispose() { }
+                }
+                """,
+            ExpectedDiagnostics = {
+                new DiagnosticResult("JCC9305", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("x"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task PassAsArgument_ToTransferMethod_StoreInField_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                class TestClass {
+                    Disposable? _field;
+                    void Method() {
+                        var x = new Disposable();
+                        StoreInField(x);
+                    }
+                    void StoreInField(Disposable d) { _field = d; }
+                }
+                class Disposable : IDisposable {
+                    public void Dispose() { }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task PassAsArgument_ToTransferMethod_StoreInCollection_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Collections.Generic;
+                class TestClass {
+                    List<Disposable> _items = new();
+                    void Method() {
+                        var x = new Disposable();
+                        AddItem(x);
+                    }
+                    void AddItem(Disposable d) { _items.Add(d); }
+                }
+                class Disposable : IDisposable {
+                    public void Dispose() { }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task PassAsArgument_ToTransferMethod_ReturnParam_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                class TestClass {
+                    void Method() {
+                        var x = new Disposable();
+                        var y = PassThrough(x);
+                        y.Dispose();
+                    }
+                    Disposable PassThrough(Disposable d) => d;
+                }
+                class Disposable : IDisposable {
+                    public void Dispose() { }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task PassAsArgument_ToBclBorrowMethod_NotDisposed_ReportsJCC9305() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.IO;
+                class TestClass {
+                    void Method() {
+                        var {|#0:ms|} = new MemoryStream();
+                        ms.WriteByte(42);
+                        var data = ms.ToArray();
+                    }
+                }
+                """,
+            ExpectedDiagnostics = {
+                new DiagnosticResult("JCC9305", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("ms"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task PassAsArgument_ToBclBorrowMethod_WithUsing_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.IO;
+                class TestClass {
+                    void Method() {
+                        using var ms = new MemoryStream();
+                        ms.WriteByte(42);
+                        var data = ms.ToArray();
+                    }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task PassAsArgument_ToTransferMethod_CollectionAdd_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Collections.Generic;
+                class TestClass {
+                    List<Disposable> _items = new();
+                    void Method() {
+                        var x = new Disposable();
+                        Register(x);
+                    }
+                    void Register(Disposable d) { _items.Add(d); }
+                }
+                class Disposable : IDisposable {
+                    public void Dispose() { }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task PassAsArgument_ToBorrowMethod_OnlyReadsMember_ReportsJCC9305() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                class TestClass {
+                    void Method() {
+                        var {|#0:x|} = new Disposable();
+                        var name = GetName(x);
+                    }
+                    string GetName(Disposable d) => d.Name;
+                }
+                class Disposable : IDisposable {
+                    public string Name => "x";
+                    public void Dispose() { }
+                }
+                """,
+            ExpectedDiagnostics = {
+                new DiagnosticResult("JCC9305", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("x"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
 }

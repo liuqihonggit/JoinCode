@@ -175,12 +175,17 @@ JCC9305 的"方法内 + 调用返回即拥有"启发式**同时产生漏报(容�
   - 不完备 → 报 JCC9306(集合)/JCC9307(Task)。
 - **验收**:构造反例(容器 Dispose 漏元素 / Task 数组缺 WhenAll)→ 报;正例(完备)→ 不报。在真实代码上找容器持有点验证。
 
-### 阶段 3:跨方法契约 + 精化(JCC9308)
+### 阶段 3:跨方法契约 + 精化(JCC9308 — 已完成)
 **目标**:方法参数/返回值所有权契约,消除跨方法转移的漏报。
 
-- L5 CrossMethodContractRule:`[Owned]`/`[Borrow]` 注解或签名启发(`Create*` 返回拥有 / `Get*` 返回借用)。
-- 调用图追踪:被转移的实例在新所有者处继续状态机。
-- **验收**:跨方法转移的实例被追到最终归宿。
+方案 D 落地(无注解,分析方法体判定):
+- `CrossMethodContractAnalyzer` 辅助类:JCC9305 传参时调用,区分转移(不报)与借用(仍需释放)。
+- **转移契约判定**(项目内方法):分析方法体,参数赋值字段/集合/return/调 Dispose = 转移;只读取 = 借用。跨语法树用 `compilation.GetSemanticModel(syntaxTree)`。
+- **BCL 方法分类**:集合 Add/Insert/Push/Enqueue = 转移;Task.FromResult/Interlocked.Exchange/Options.Create = 转移(包装返回/存字段);其他 BCL 方法 = 借用(只读取)。
+- **未知外部方法**(无源码):保守转移(避免误报)。
+- **JCC9305 增强**:`IsFieldReceiverBorrowCall` 加 Try 前缀(字段接收者 TryAcquire/TryGet = 借用);`ContainerElementAccessMethods` 加 GetService/GetRequiredService(DI 获取 = 借用)。
+- **JCC9104 修复**:双实现 IDisposable+IAsyncDisposable 类型(MemoryStream 等)用 `using var` 合法,规则只对"仅 IAsyncDisposable"报。
+- **验收**:9 单元测试全绿(借用方法报/转移方法不报/BCL 借用报/集合 Add 不报);全量编译 0 命中;20+ 处真实漏报修复(using var/await using var)。
 
 ### 阶段 4(可选):全程序调用图 + 容器嵌套
 - 容器嵌套(容器持有容器):递归追踪完备性。
@@ -238,6 +243,7 @@ JCC9305 的"方法内 + 调用返回即拥有"启发式**同时产生漏报(容�
 | `var x = new D(); return x ?? throw;` coalesce 转移 | ✅ 不报(P0 已修) | ✅ 不报(Move) |
 | 容器 Dispose 漏元素 | ❌ 漏报 | ✅ 报 JCC9306 |
 | `Task[]` 容器 DisposeAsync 缺 WhenAll | ❌ 漏报 | ✅ 报 JCC9307 |
+| `var x = new D(); borrowMethod(x);` 传参给借用方法 | ❌ 漏报(传参当转移) | ✅ 报 JCC9305(跨方法契约判定) |
 
 ## 9. 验收表(AGENTS.md 四列强制)
 
@@ -249,7 +255,7 @@ JCC9305 的"方法内 + 调用返回即拥有"启发式**同时产生漏报(容�
 | `BorrowInferenceRule` L4 | L1 查借用判定 | ❌ 阶段1 | ❌ |
 | `ContainerHeldRule` L2 (JCC9306a) | L1 escape 事件→标记 ContainerHeld | ❌ 阶段1 | ❌ |
 | `ContainerReleaseCompletenessRule` L3 (JCC9306/9307) | 容器 Dispose 完备性验证 | ❌ 阶段2 | ❌ |
-| `CrossMethodContractRule` L5 (JCC9308) | 跨方法转移追踪 | ❌ 阶段3 | ❌ |
+| `CrossMethodContractAnalyzer` L5 (JCC9308) (`gen/aot_safety.generator/rules/memory_leak/CrossMethodContractAnalyzer.cs`) | JCC9305 传参时调用,区分转移/借用 | ✅ | ✅ 9 单测全绿;20+ 处真实漏报修复(using var/await using var) |
 
 ## 10. 风险与缓解
 

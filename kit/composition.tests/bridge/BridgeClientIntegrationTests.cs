@@ -57,7 +57,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
     [Fact]
     public async Task BridgeClient_ToolsList_ShouldReturnTools() {
         // Arrange
-        var toolRegistry = CreateToolRegistry();
+        await using var toolRegistry = CreateToolRegistry();
         await toolRegistry.RegisterToolAsync("test_tool", "A test tool", new ToolSchema(), async (name, args, ct, onProgress) => {
             return new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Test result" } }
@@ -85,7 +85,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
     public async Task BridgeClient_ToolsCall_ShouldExecuteTool() {
         // Arrange
         var toolExecuted = false;
-        var toolRegistry = CreateToolRegistry();
+        await using var toolRegistry = CreateToolRegistry();
         await toolRegistry.RegisterToolAsync("echo_tool", "Echo tool", new ToolSchema(), async (name, args, ct, onProgress) => {
             toolExecuted = true;
             var message = args.TryGetValue("message", out var msg) ? msg.ToString() : "empty";
@@ -122,7 +122,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
     [Fact]
     public async Task BridgeClient_SkillExecute_NonExistentSkill_ShouldReturnError() {
         // Arrange
-        var skillService = CreateTestSkillService();
+        await using var skillService = CreateTestSkillService();
         await using var handler = CreateMessageHandler(skillService: skillService);
 
         var skillRequest = new SkillExecuteRequest {
@@ -165,7 +165,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
     [Fact]
     public async Task BridgeClient_SkillExecute_ExistingSkill_ShouldReturnResult() {
         // Arrange
-        var skillService = CreateTestSkillService();
+        await using var skillService = CreateTestSkillService();
         var skill = new SkillDefinition {
             Name = "test_skill",
             Description = "A test skill",
@@ -249,10 +249,10 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
     [Fact]
     public async Task BridgeClient_ControlRequest_GetStatus_ShouldReturnStatus() {
         // Arrange
-        var toolRegistry = CreateToolRegistry();
+        await using var toolRegistry = CreateToolRegistry();
         await toolRegistry.RegisterToolAsync("tool1", "Tool 1", new ToolSchema(), (n, a, c, onProgress) => Task.FromResult(new ToolResult())).ConfigureAwait(true);
 
-        var skillService = CreateTestSkillService();
+        await using var skillService = CreateTestSkillService();
         var skill = new SkillDefinition {
             Name = "skill1",
             Description = "Skill 1",

@@ -71,7 +71,7 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook> {
         var client = _httpClientFactory.CreateClient("HookHttpClient");
 
         // 构建请求
-        var request = new HttpRequestMessage(HttpMethod.Post, hook.Url);
+        using var request = new HttpRequestMessage(HttpMethod.Post, hook.Url);
 
         // 添加请求头
         request.Headers.Add("X-Hook-Event", input.Event.ToEventName());

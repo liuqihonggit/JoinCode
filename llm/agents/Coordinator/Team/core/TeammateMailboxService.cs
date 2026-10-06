@@ -216,7 +216,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         }
     }
 
-    private MailboxActor GetOrCreateActor(string sessionId, string agentId) {
+    private MailboxActorRef GetOrCreateActor(string sessionId, string agentId) {
         var key = GetCursorKey(agentId, sessionId);
         return GetOrAddActor(key, _ => {
             var filePath = GetMailboxFilePath(sessionId, agentId);
@@ -275,15 +275,15 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         }
     }
 
-    private MailboxActor GetOrAddActor(string key, Func<string, MailboxActor> factory) {
+    private MailboxActorRef GetOrAddActor(string key, Func<string, MailboxActor> factory) {
         var current = _actors;
-        if (current.TryGetValue(key, out var existing)) return existing;
+        if (current.TryGetValue(key, out var existing)) return new MailboxActorRef(existing);
         var value = factory(key);
         while (true) {
-            if (current.TryGetValue(key, out existing)) return existing;
+            if (current.TryGetValue(key, out existing)) return new MailboxActorRef(existing);
             var updated = current.Add(key, value);
             var prev = Interlocked.CompareExchange(ref _actors, updated, current);
-            if (prev == current) return value;
+            if (prev == current) return new MailboxActorRef(value);
             current = prev;
         }
     }

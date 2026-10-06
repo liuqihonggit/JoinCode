@@ -15,27 +15,35 @@ public static class SessionRouter {
 
     /// <summary>
     /// 创建或获取会话作用域 — 幂等，相同 sessionId 返回同一实例
+    /// 返回借用句柄 SessionScopeRef（不实现 IDisposable），消除 JCC9305 误报；
+    /// 真实 SessionScope 的 DisposeAsync 由 RemoveScopeAsync/ClearAsync 内部调用
     /// </summary>
-    public static SessionScope GetOrCreateScope(ObjectId sessionId) {
+    public static SessionScopeRef GetOrCreateScope(ObjectId sessionId) {
         if (sessionId.IsEmpty)
             throw new ArgumentException("SessionId 不能为空", nameof(sessionId));
 
         var current = Volatile.Read(ref _scopes);
         if (current.TryGetValue(sessionId, out var existing))
-            return existing;
+            return new SessionScopeRef(existing);
 
         var newScope = new SessionScope(sessionId);
         ImmutableInterlocked.Update(ref _scopes, d => d.ContainsKey(sessionId) ? d : d.Add(sessionId, newScope));
-        return Volatile.Read(ref _scopes)[sessionId];
+        return new SessionScopeRef(Volatile.Read(ref _scopes)[sessionId]);
     }
 
-    /// <summary>获取会话作用域 — 不存在返回 null</summary>
-    public static SessionScope? GetScope(ObjectId sessionId)
-        => Volatile.Read(ref _scopes).TryGetValue(sessionId, out var scope) ? scope : null;
+    /// <summary>获取会话作用域借用句柄 — 不存在返回 null</summary>
+    public static SessionScopeRef? GetScope(ObjectId sessionId)
+        => Volatile.Read(ref _scopes).TryGetValue(sessionId, out var scope) ? new SessionScopeRef(scope) : null;
 
-    /// <summary>尝试获取会话作用域</summary>
-    public static bool TryGetScope(ObjectId sessionId, [NotNullWhen(true)] out SessionScope? scope)
-        => Volatile.Read(ref _scopes).TryGetValue(sessionId, out scope);
+    /// <summary>尝试获取会话作用域借用句柄</summary>
+    public static bool TryGetScope(ObjectId sessionId, [NotNullWhen(true)] out SessionScopeRef? scope) {
+        if (Volatile.Read(ref _scopes).TryGetValue(sessionId, out var s)) {
+            scope = new SessionScopeRef(s);
+            return true;
+        }
+        scope = null;
+        return false;
+    }
 
     /// <summary>
     /// 跳转获取 — 插件通过 (sessionId, entityId) 获取强类型 Entity
@@ -53,8 +61,9 @@ public static class SessionRouter {
         return Volatile.Read(ref _scopes).TryGetValue(sessionId, out var scope) && scope.TryGet(entityId, out entity);
     }
 
-    /// <summary>获取所有会话作用域的快照拷贝</summary>
-    public static SessionScope[] GetAllScopes() => Volatile.Read(ref _scopes).Values.ToArray();
+    /// <summary>获取所有会话作用域借用句柄的快照拷贝</summary>
+    public static SessionScopeRef[] GetAllScopes()
+        => Volatile.Read(ref _scopes).Values.Select(s => new SessionScopeRef(s)).ToArray();
 
     /// <summary>
     /// 移除会话作用域 — DisposeAsync 其所有 Entity，返回是否移除成功

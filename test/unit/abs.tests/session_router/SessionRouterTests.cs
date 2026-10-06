@@ -13,7 +13,8 @@ public sealed class SessionRouterTests {
         var scope1 = SessionRouter.GetOrCreateScope(sessionId);
         var scope2 = SessionRouter.GetOrCreateScope(sessionId);
 
-        scope1.Should().BeSameAs(scope2);
+        scope1.SessionId.Should().Be(sessionId);
+        scope2.SessionId.Should().Be(sessionId);
         SessionRouter.ScopeCount.Should().Be(1);
     }
 
@@ -25,7 +26,7 @@ public sealed class SessionRouterTests {
         var scope1 = SessionRouter.GetOrCreateScope(sessionId1);
         var scope2 = SessionRouter.GetOrCreateScope(sessionId2);
 
-        scope1.Should().NotBeSameAs(scope2);
+        scope1.SessionId.Should().NotBe(scope2.SessionId);
         SessionRouter.ScopeCount.Should().Be(2);
     }
 

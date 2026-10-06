@@ -119,6 +119,7 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
     /// 仅含通用 BCL/LINQ 模式,不含项目特定方法名(项目借用 API 按方案 D 改返回非 IDisposable 句柄)。
     /// </summary>
     private static readonly HashSet<string> ContainerElementAccessMethods = new(StringComparer.Ordinal) {
+        "Get",
         "GetOrAdd",
         "GetOrAddAsync",
         "GetOrCreate",

@@ -607,9 +607,9 @@ public class AgentBase : Entity, IAgent {
     public static string GenerateId() => $"agent-{Guid.NewGuid():N}"[..20];
 
     /// <summary>
-    /// 获取当前会话作用域 — 通过 SessionContext.AsyncLocal 隐式定位
+    /// 获取当前会话作用域借用句柄 — 通过 SessionContext.AsyncLocal 隐式定位
     /// </summary>
-    private static SessionScope? GetCurrentScope() {
+    private static SessionScopeRef? GetCurrentScope() {
         var sessionId = SessionContext.Current;
         if (sessionId is null) return null;
         return SessionRouter.GetScope(sessionId.Value);
@@ -619,8 +619,7 @@ public class AgentBase : Entity, IAgent {
     /// 获取当前会话的所有主 Agent (Role=Coordinator) — 替代 AgentRegistry.GetMainAgents
     /// </summary>
     public static IReadOnlyList<AgentBase> GetMainAgents() {
-        var scope = GetCurrentScope();
-        if (scope is null) return [];
+        if (GetCurrentScope() is not { } scope) return [];
         return scope.GetAll<AgentBase>().Where(a => a.Role == AgentRole.Coordinator).ToList();
     }
 
@@ -628,16 +627,14 @@ public class AgentBase : Entity, IAgent {
     /// 按 ObjectId 获取 Agent — 仅在当前会话作用域内查找, 替代 AgentRegistry.Get
     /// </summary>
     public static AgentBase? GetById(ObjectId id) {
-        var scope = GetCurrentScope();
-        return scope?.Resolve<AgentBase>(id);
+        return GetCurrentScope()?.Resolve<AgentBase>(id);
     }
 
     /// <summary>
     /// 获取指定主 Agent 的所有子 Agent — 通过 ParentObjectId 过滤, 替代 AgentRegistry.GetSubAgents
     /// </summary>
     public static IReadOnlyList<AgentBase> GetSubAgents(ObjectId mainAgentId) {
-        var scope = GetCurrentScope();
-        if (scope is null) return [];
+        if (GetCurrentScope() is not { } scope) return [];
         return scope.GetAll<AgentBase>().Where(a => a.ParentObjectId == mainAgentId).ToList();
     }
 
@@ -645,8 +642,7 @@ public class AgentBase : Entity, IAgent {
     /// 按 GoalId 获取 Agent — 替代 AgentRegistry.GetByGoalId
     /// </summary>
     public static IReadOnlyList<AgentBase> GetByGoalId(string goalId) {
-        var scope = GetCurrentScope();
-        if (scope is null) return [];
+        if (GetCurrentScope() is not { } scope) return [];
         return scope.GetAll<AgentBase>().Where(a => a.GoalId == goalId).ToList();
     }
 
@@ -654,8 +650,7 @@ public class AgentBase : Entity, IAgent {
     /// 按状态获取 Agent — 替代 AgentRegistry.GetByStatus
     /// </summary>
     public static IReadOnlyList<AgentBase> GetByStatus(TaskExecutionStatus status) {
-        var scope = GetCurrentScope();
-        if (scope is null) return [];
+        if (GetCurrentScope() is not { } scope) return [];
         return scope.GetAll<AgentBase>().Where(a => a.Status == status).ToList();
     }
 

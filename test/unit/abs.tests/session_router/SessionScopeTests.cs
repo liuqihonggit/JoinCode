@@ -98,7 +98,7 @@ public sealed class SessionScopeTests {
     [Fact]
     public async Task Dispose_清理所有Entity() {
         var sessionId = new ObjectId(ObjectType.Session);
-        var scope = SessionRouter.GetOrCreateScope(sessionId);
+        var scope = new SessionScope(sessionId);
         await using var goal1 = new Goal("目标1");
         await using var goal2 = new Goal("目标2");
 
@@ -118,7 +118,7 @@ public sealed class SessionScopeTests {
     [Fact]
     public async Task Register_已释放_抛ObjectDisposedException() {
         var sessionId = new ObjectId(ObjectType.Session);
-        var scope = SessionRouter.GetOrCreateScope(sessionId);
+        var scope = new SessionScope(sessionId);
         await scope.DisposeAsync();
 
         var act = () => scope.Register(new Goal("测试"));

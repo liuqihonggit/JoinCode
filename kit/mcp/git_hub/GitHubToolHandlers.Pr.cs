@@ -279,12 +279,13 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 关闭 PR — 可选附评论，调 REST API PATCH state=closed
+    /// 关闭 PR — 可选附评论和删除分支，调 REST API PATCH state=closed
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrClose, "关闭 PR(可附评论)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrClose, "关闭 PR(可附评论,可选删除分支)", "github")]
     public async Task<ToolResult> GhPrCloseAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("关闭评论(可选)", Required = false)] string? comment = null,
+        [McpToolParameter("关闭后是否删除分支", Required = false)] bool? delete_branch = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -296,7 +297,11 @@ public partial class GitHubToolHandlers {
             }
             var body = """{"state":"closed"}""";
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已关闭 PR {number}") : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            if (delete_branch == true) {
+                await TryDeleteBranchAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
+            }
+            return OkBrief(result.Body, $"已关闭 PR {number}");
         }).ConfigureAwait(false);
 
     /// <summary>

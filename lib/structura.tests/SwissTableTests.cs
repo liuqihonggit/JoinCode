@@ -166,7 +166,7 @@ public class SwissTableTests {
         dict.Add("a", 1);
         dict.Add("b", 2);
 
-        var enumerator = dict.GetEnumerator();
+        using var enumerator = dict.GetEnumerator();
         enumerator.MoveNext().Should().BeTrue();
 
         dict.Clear();
@@ -232,7 +232,7 @@ public class SwissTableTests {
         var dict = new SwissTable<int, int>();
         for (var i = 0; i < 10; i++) dict.Add(i, i);
 
-        var enumerator = dict.GetEnumerator();
+        using var enumerator = dict.GetEnumerator();
         enumerator.MoveNext().Should().BeTrue();
 
         dict.Add(100, 100);

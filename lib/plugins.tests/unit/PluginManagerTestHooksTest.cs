@@ -9,7 +9,7 @@ public sealed class PluginManagerTestHooksTest {
 
     [Fact]
     public void AddToBlacklistForTest_ThenIsBlacklistedForTest_ReturnsTrue() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
 
         manager.AddToBlacklistForTest("bad-plugin");
 
@@ -18,14 +18,14 @@ public sealed class PluginManagerTestHooksTest {
 
     [Fact]
     public void IsBlacklistedForTest_NotInBlacklist_ReturnsFalse() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
 
         manager.IsBlacklistedForTest("nonexistent").Should().BeFalse();
     }
 
     [Fact]
     public void AddToBlacklistForTest_DoesNotAffectOtherPlugins() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
         manager.AddToBlacklistForTest("pluginA");
 
         manager.IsBlacklistedForTest("pluginB").Should().BeFalse();
@@ -33,7 +33,7 @@ public sealed class PluginManagerTestHooksTest {
 
     [Fact]
     public void RecordPluginResourceIds_SingleType_AggregatesIntoLongRangeSet() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
         var id1 = new ObjectId(ObjectType.Resource);
         var id2 = new ObjectId(ObjectType.Resource);
         var id3 = new ObjectId(ObjectType.Resource);
@@ -49,7 +49,7 @@ public sealed class PluginManagerTestHooksTest {
 
     [Fact]
     public void RecordPluginResourceIds_MultipleTypes_GroupsByObjectType() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
         var resourceId = new ObjectId(ObjectType.Resource);
         var pluginId = new ObjectId(ObjectType.Plugin);
 
@@ -61,7 +61,7 @@ public sealed class PluginManagerTestHooksTest {
 
     [Fact]
     public void RecordPluginResourceIds_OverwritesPreviousRecord() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
         var id1 = new ObjectId(ObjectType.Resource);
         manager.RecordPluginResourceIds("p", [id1]);
 
@@ -75,7 +75,7 @@ public sealed class PluginManagerTestHooksTest {
 
     [Fact]
     public void GetPluginResourceIdsForTest_NotRecorded_ReturnsEmpty() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
 
         var ranges = manager.GetPluginResourceIdsForTest("nonexistent", ObjectType.Resource);
         ranges.IsEmpty.Should().BeTrue();
@@ -83,7 +83,7 @@ public sealed class PluginManagerTestHooksTest {
 
     [Fact]
     public void RecordPluginResourceIds_ContinuousIds_CompressesIntoSingleRange() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
         // 连续的 SequenceId 应压缩为单区间
         var ids = new List<ObjectId>();
         for (var i = 0; i < 10; i++)
@@ -101,7 +101,7 @@ public sealed class PluginManagerTestHooksTest {
 
     [Fact]
     public void RecordPluginResourceIds_NullPluginName_ThrowsArgumentNullException() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
 
         Action act = () => manager.RecordPluginResourceIds(null!, []);
 
@@ -111,7 +111,7 @@ public sealed class PluginManagerTestHooksTest {
 
     [Fact]
     public void RecordPluginResourceIds_EmptyPluginName_ThrowsArgumentException() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
 
         Action act = () => manager.RecordPluginResourceIds("", []);
 
@@ -120,7 +120,7 @@ public sealed class PluginManagerTestHooksTest {
 
     [Fact]
     public void RecordPluginResourceIds_WhiteSpacePluginName_ThrowsArgumentException() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
 
         Action act = () => manager.RecordPluginResourceIds("   ", []);
 
@@ -129,7 +129,7 @@ public sealed class PluginManagerTestHooksTest {
 
     [Fact]
     public void RecordPluginResourceIds_NullResourceIds_ThrowsArgumentNullException() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
 
         Action act = () => manager.RecordPluginResourceIds("p", null!);
 

@@ -53,7 +53,7 @@ public class HostElectionServiceTest {
         var uniquePipe = $"test-pipe-{Guid.NewGuid():N}";
         await using var service = new HostElectionService(pipeName: uniquePipe);
 
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var results = new List<HostElectionResult>();
         var consumeTask = Task.Run(async () => {
             await foreach (var r in service.ElectionChangesAsync(cts.Token))

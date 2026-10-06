@@ -45,7 +45,7 @@ public class AsyncLockDiagnosisTests : IDisposable {
         using var lk = new AsyncLock("trylock-test", TimeSpan.FromMilliseconds(500));
         using var guard = await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
         // 在另一线程获取 — 同线程重入会超时返回 null
-        var guard2 = await Task.Run(async () => await lk.TryLockAsync());
+        using var guard2 = await Task.Run(async () => await lk.TryLockAsync());
         guard2.Should().BeNull("另一线程持锁等待500ms超时后 TryLock 应返回 null");
     }
 
@@ -55,7 +55,7 @@ public class AsyncLockDiagnosisTests : IDisposable {
         using var lk = new AsyncLock("trylock-timeout", TimeSpan.FromMilliseconds(500));
         using var holder = await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
         // 在另一线程获取 — 同线程重入会超时返回 null
-        var result = await Task.Run(async () => await lk.TryLockAsync());
+        using var result = await Task.Run(async () => await lk.TryLockAsync());
         result.Should().BeNull("锁已被持有时 TryLock 应500ms超时返回 null");
     }
 
@@ -134,7 +134,7 @@ public class AsyncLockDiagnosisTests : IDisposable {
         using var lk = new AsyncLock("sync-mutex", TimeSpan.FromMilliseconds(500));
         using var g1 = await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
         // 在另一线程获取 — 同线程重入会超时返回 null
-        var g2 = await Task.Run(async () => await lk.TryLockAsync());
+        using var g2 = await Task.Run(async () => await lk.TryLockAsync());
         g2.Should().BeNull("同步 Lock 持有后另一线程 TryLock 应500ms超时返回 null");
     }
 
@@ -149,9 +149,9 @@ public class AsyncLockDiagnosisTests : IDisposable {
         using var lockA = new AsyncLock("deadlock-A", TimeSpan.FromSeconds(3));
         using var lockB = new AsyncLock("deadlock-B", TimeSpan.FromSeconds(3));
 
-        var barrier = new Barrier(2);
-        var t1Done = new ManualResetEventSlim();
-        var t2Done = new ManualResetEventSlim();
+        using var barrier = new Barrier(2);
+        using var t1Done = new ManualResetEventSlim();
+        using var t2Done = new ManualResetEventSlim();
 
         var t1 = new Thread(() => {
             using (lockA.TryLock() ?? throw new System.TimeoutException($"锁 '{lockA.Name}' 等待超时")) {
@@ -202,9 +202,9 @@ public class AsyncLockDiagnosisTests : IDisposable {
         using var lockB = new AsyncLock("imm-deadlock-B", TimeSpan.FromSeconds(5));
         LockRegistry.StopBackgroundScan(); // 模拟 CI 高负载:后台扫描不执行
 
-        var barrier = new Barrier(2);
-        var t1Done = new ManualResetEventSlim();
-        var t2Done = new ManualResetEventSlim();
+        using var barrier = new Barrier(2);
+        using var t1Done = new ManualResetEventSlim();
+        using var t2Done = new ManualResetEventSlim();
 
         var t1 = new Thread(() => {
             using (lockA.TryLock() ?? throw new System.TimeoutException($"锁 '{lockA.Name}' 等待超时")) {
@@ -292,7 +292,7 @@ public class AsyncLockDiagnosisTests : IDisposable {
 
         using (await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
             // 同线程重入: TryLock 等500ms超时返回 null (不抛异常,因为 ThreadId 在 async 下不可靠)
-            var result = await Task.Run(async () => await lk.TryLockAsync());
+            using var result = await Task.Run(async () => await lk.TryLockAsync());
             result.Should().BeNull("另一线程持锁等待500ms超时后 TryLock 应返回 null");
         }
     }
@@ -303,7 +303,7 @@ public class AsyncLockDiagnosisTests : IDisposable {
         using var lk = new AsyncLock("reentrant-async", TimeSpan.FromMilliseconds(500));
 
         using (await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            var result = await Task.Run(async () => await lk.TryLockAsync());
+            using var result = await Task.Run(async () => await lk.TryLockAsync());
             result.Should().BeNull("另一线程持锁等待500ms超时后 TryLock 应返回 null");
         }
     }
@@ -331,7 +331,7 @@ public class AsyncLockDiagnosisTests : IDisposable {
 
         using (await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
             // 同线程重入: TryLock 等500ms超时返回 null
-            var result = await Task.Run(async () => await lk.TryLockAsync());
+            using var result = await Task.Run(async () => await lk.TryLockAsync());
             result.Should().BeNull("另一线程持锁等待500ms超时后 TryLock 应返回 null");
         }
     }

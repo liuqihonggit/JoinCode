@@ -10,7 +10,7 @@ public sealed class PluginManagerUnloadAllTest {
 
     [Fact]
     public async Task Empty_ReturnsEmpty() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
         await using var _ = manager;
 
         var results = await manager.UnloadAllPluginsCoreAsync(CancellationToken.None);
@@ -20,7 +20,7 @@ public sealed class PluginManagerUnloadAllTest {
 
     [Fact]
     public async Task SingleWorkflow_UnloadsSuccessfully() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("single");
         await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
@@ -35,7 +35,7 @@ public sealed class PluginManagerUnloadAllTest {
 
     [Fact]
     public async Task MultipleWorkflows_UnloadsInReverseLoadOrder() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
         await using var _ = manager;
         var plugin1 = new StubWorkflowPlugin("w1");
         var plugin2 = new StubWorkflowPlugin("w2");
@@ -56,7 +56,7 @@ public sealed class PluginManagerUnloadAllTest {
 
     [Fact]
     public async Task MultipleWorkflows_AllFibersTransitionToUnloaded() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
         await using var _ = manager;
         var plugin1 = new StubWorkflowPlugin("f1");
         var plugin2 = new StubWorkflowPlugin("f2");
@@ -71,7 +71,7 @@ public sealed class PluginManagerUnloadAllTest {
 
     [Fact]
     public async Task PartialFailure_ContinuesUnloadingOthers() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
         await using var _ = manager;
         var good1 = new StubWorkflowPlugin("good-1");
         var bad = new StubWorkflowPluginThrowOnUnload("bad") { ThrowOnUnload = true };
@@ -92,14 +92,14 @@ public sealed class PluginManagerUnloadAllTest {
 
     [Fact]
     public async Task AfterUnloadAll_CanReloadSamePlugins() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
         await using var _ = manager;
         var plugin1 = new StubWorkflowPlugin("reload-1");
         await manager.LoadWorkflowPluginCoreAsync(plugin1, CancellationToken.None);
         await manager.UnloadAllPluginsCoreAsync(CancellationToken.None);
 
         var plugin2 = new StubWorkflowPlugin("reload-1");
-        var host = await manager.LoadWorkflowPluginCoreAsync(plugin2, CancellationToken.None);
+        using var host = await manager.LoadWorkflowPluginCoreAsync(plugin2, CancellationToken.None);
 
         host.Should().NotBeNull();
         manager.IsPluginLoaded("reload-1").Should().BeTrue();
@@ -107,7 +107,7 @@ public sealed class PluginManagerUnloadAllTest {
 
     [Fact]
     public async Task UnloadAll_WithAsyncUndoChain_ExecutesInReverse() {
-        var manager = CreateManager();
+        using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("undo-all") { RegisterAsyncSideEffects = true };
         await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);

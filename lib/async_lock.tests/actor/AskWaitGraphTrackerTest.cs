@@ -11,7 +11,7 @@ public class AskWaitGraphTrackerTest {
         var al = new AsyncLocal<ImmutableDag<string>?>();
         var tracker = new AskWaitGraphTracker(al);
 
-        var scope = tracker.EnterScope(null, "B");
+        using var scope = tracker.EnterScope(null, "B");
 
         scope.Should().BeNull("callerId 为 null 表示无调用方上下文,无需加边");
     }
@@ -22,7 +22,7 @@ public class AskWaitGraphTrackerTest {
         var al = new AsyncLocal<ImmutableDag<string>?>();
         var tracker = new AskWaitGraphTracker(al);
 
-        var scope = tracker.EnterScope("A", "A");
+        using var scope = tracker.EnterScope("A", "A");
 
         scope.Should().BeNull("callerId 等于自身,自环不加边");
     }
@@ -34,7 +34,7 @@ public class AskWaitGraphTrackerTest {
         var tracker = new AskWaitGraphTracker(al);
         al.Value.Should().BeNull("初始无图");
 
-        var scope = tracker.EnterScope("A", "B");
+        using var scope = tracker.EnterScope("A", "B");
 
         scope.Should().NotBeNull("A→B 加边成功,返回作用域");
         al.Value.Should().NotBeNull("EnterScope 设置新图副本");
@@ -52,7 +52,7 @@ public class AskWaitGraphTrackerTest {
         var al = new AsyncLocal<ImmutableDag<string>?>();
         var tracker = new AskWaitGraphTracker(al);
 
-        var scope1 = tracker.EnterScope("A", "B");
+        using var scope1 = tracker.EnterScope("A", "B");
         scope1.Should().NotBeNull();
 
         Action act = () => tracker.EnterScope("B", "A");
@@ -67,7 +67,7 @@ public class AskWaitGraphTrackerTest {
     public void CycleDetected_ExceptionContainsTargetId() {
         var al = new AsyncLocal<ImmutableDag<string>?>();
         var tracker = new AskWaitGraphTracker(al);
-        var scope1 = tracker.EnterScope("X", "Y");
+        using var scope1 = tracker.EnterScope("X", "Y");
 
         var ex = Assert.Throws<ActorCyclicAskException>(() => tracker.EnterScope("Y", "X"));
         ex.TargetActorId.Should().Be("X");
@@ -81,8 +81,8 @@ public class AskWaitGraphTrackerTest {
         var al = new AsyncLocal<ImmutableDag<string>?>();
         var tracker = new AskWaitGraphTracker(al);
 
-        var scope1 = tracker.EnterScope("A", "B");
-        var scope2 = tracker.EnterScope("C", "D");
+        using var scope1 = tracker.EnterScope("A", "B");
+        using var scope2 = tracker.EnterScope("C", "D");
 
         scope2.Should().NotBeNull("C→D 与 A→B 无环,加边成功");
         al.Value!.Edges.Values.Should().HaveCount(2, "图含 A→B 和 C→D 两条边");
@@ -96,11 +96,11 @@ public class AskWaitGraphTrackerTest {
         var al = new AsyncLocal<ImmutableDag<string>?>();
         var tracker = new AskWaitGraphTracker(al);
 
-        var scope1 = tracker.EnterScope("A", "B");
+        using var scope1 = tracker.EnterScope("A", "B");
         var graphAfterScope1 = al.Value;
         graphAfterScope1.Should().NotBeNull();
 
-        var scope2 = tracker.EnterScope("C", "D");
+        using var scope2 = tracker.EnterScope("C", "D");
         al.Value.Should().NotBeSameAs(graphAfterScope1, "内层创建新副本,与外层图不同实例");
         al.Value!.Edges.Values.Should().HaveCount(2);
 
@@ -119,10 +119,10 @@ public class AskWaitGraphTrackerTest {
         var tracker1 = new AskWaitGraphTracker(al1);
         var tracker2 = new AskWaitGraphTracker(al2);
 
-        var scope1 = tracker1.EnterScope("A", "B");
+        using var scope1 = tracker1.EnterScope("A", "B");
         al2.Value.Should().BeNull("tracker1 操作 al1,不影响 al2");
 
-        var scope2 = tracker2.EnterScope("C", "D");
+        using var scope2 = tracker2.EnterScope("C", "D");
         al1.Value!.Edges.Values.Should().ContainSingle(e => e.FromId == "A");
         al2.Value!.Edges.Values.Should().ContainSingle(e => e.FromId == "C");
 
@@ -136,8 +136,8 @@ public class AskWaitGraphTrackerTest {
         var al = new AsyncLocal<ImmutableDag<string>?>();
         var tracker = new AskWaitGraphTracker(al);
 
-        var s1 = tracker.EnterScope("A", "B");
-        var s2 = tracker.EnterScope("B", "C");
+        using var s1 = tracker.EnterScope("A", "B");
+        using var s2 = tracker.EnterScope("B", "C");
 
         s1.Should().NotBeNull();
         s2.Should().NotBeNull("A→B→C 是链非环,加边成功");
@@ -152,8 +152,8 @@ public class AskWaitGraphTrackerTest {
         var al = new AsyncLocal<ImmutableDag<string>?>();
         var tracker = new AskWaitGraphTracker(al);
 
-        var s1 = tracker.EnterScope("A", "B");
-        var s2 = tracker.EnterScope("B", "C");
+        using var s1 = tracker.EnterScope("A", "B");
+        using var s2 = tracker.EnterScope("B", "C");
 
         Action act = () => tracker.EnterScope("C", "A");
         act.Should().Throw<ActorCyclicAskException>("A→B→C→A 形成间接环");

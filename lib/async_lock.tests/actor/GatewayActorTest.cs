@@ -23,7 +23,7 @@ public class GatewayActorTest {
     /// <summary>验证调用成功时返回响应</summary>
     [Fact]
     public async Task CallAsync_Success_ReturnsResponse() {
-        var gateway = new GatewayActor<string, string>(
+        using var gateway = new GatewayActor<string, string>(
             (req, ct) => Task.FromResult($"echo:{req}"),
             new GatewayOptions(MaxConcurrency: 1, MaxRetries: 0, CircuitBreakerThreshold: 0));
         await using var _ = gateway;
@@ -36,7 +36,7 @@ public class GatewayActorTest {
     [Fact]
     public async Task CallAsync_RetriesOnFailure_ThenSucceeds() {
         var callCount = 0;
-        var gateway = new GatewayActor<string, string>(
+        using var gateway = new GatewayActor<string, string>(
             (req, ct) => {
                 callCount++;
                 if (callCount < 3) throw new InvalidOperationException("fail");
@@ -53,7 +53,7 @@ public class GatewayActorTest {
     /// <summary>验证全部重试失败时抛出异常</summary>
     [Fact]
     public async Task CallAsync_AllRetriesFail_ThrowsException() {
-        var gateway = new GatewayActor<string, string>(
+        using var gateway = new GatewayActor<string, string>(
             (req, ct) => throw new InvalidOperationException("always fail"),
             new GatewayOptions(MaxConcurrency: 1, MaxRetries: 2, RetryBaseDelay: TimeSpan.FromMilliseconds(10), CircuitBreakerThreshold: 0));
         await using var _ = gateway;
@@ -65,7 +65,7 @@ public class GatewayActorTest {
     /// <summary>验证达到阈值失败数后熔断器开启</summary>
     [Fact]
     public async Task CircuitBreaker_OpensAfterThresholdFailures() {
-        var gateway = new GatewayActor<string, string>(
+        using var gateway = new GatewayActor<string, string>(
             (req, ct) => throw new InvalidOperationException("fail"),
             new GatewayOptions(MaxConcurrency: 1, MaxRetries: 0, CircuitBreakerThreshold: 3, CircuitBreakerRecoveryDelay: TimeSpan.FromSeconds(60)));
         await using var _ = gateway;
@@ -80,7 +80,7 @@ public class GatewayActorTest {
     /// <summary>验证熔断开启时拒绝调用</summary>
     [Fact]
     public async Task CircuitBreaker_RejectsCallWhenOpen() {
-        var gateway = new GatewayActor<string, string>(
+        using var gateway = new GatewayActor<string, string>(
             (req, ct) => throw new InvalidOperationException("fail"),
             new GatewayOptions(MaxConcurrency: 1, MaxRetries: 0, CircuitBreakerThreshold: 1, CircuitBreakerRecoveryDelay: TimeSpan.FromSeconds(60)));
         await using var _ = gateway;
@@ -95,7 +95,7 @@ public class GatewayActorTest {
     [Fact]
     public async Task CircuitBreaker_ResetsOnSuccess() {
         var callCount = 0;
-        var gateway = new GatewayActor<string, string>(
+        using var gateway = new GatewayActor<string, string>(
             (req, ct) => {
                 callCount++;
                 if (callCount <= 2) throw new InvalidOperationException("fail");

@@ -96,7 +96,7 @@ public class AsyncLockTryLockTimeSpanClampTests {
         // 原实现 (int)负数 = 负数,SemaphoreSlim.Wait 抛 ArgumentOutOfRangeException
         // 修复后钳制为 0(非阻塞尝试),锁可用时返回 releaser
         using var lk = new AsyncLock("negative-test");
-        var releaser = lk.TryLock(TimeSpan.FromMilliseconds(-100));
+        using var releaser = lk.TryLock(TimeSpan.FromMilliseconds(-100));
         releaser.Should().NotBeNull();
         releaser!.Dispose();
     }

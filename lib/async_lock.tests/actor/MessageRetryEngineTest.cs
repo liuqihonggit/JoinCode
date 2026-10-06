@@ -169,7 +169,7 @@ public class MessageRetryEngineTest {
             SingleReader = true,
             SingleWriter = false
         });
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var sendFailed = new List<(string Cmd, int Retry)>();
         var enqueuedCount = 0;
         var engine = new MessageRetryEngine<string>(

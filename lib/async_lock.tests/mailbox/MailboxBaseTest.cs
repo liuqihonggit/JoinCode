@@ -85,7 +85,7 @@ public class MailboxBaseTest {
         mailbox.RegisterAgent("agent-1");
 
         var watermarkEvents = new List<MailboxEvt<string>>();
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var consumeTask = Task.Run(async () => {
             await foreach (var evt in mailbox.OutputAsync(cts.Token)) {
                 if (evt is WatermarkReachedEvt<string> w)

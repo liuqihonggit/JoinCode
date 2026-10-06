@@ -236,4 +236,50 @@ public partial class GitHubToolHandlers {
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", """{"archived":false}""", ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已取消归档仓库 {owner}/{repoName}") : Fail(result.Error);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 重命名仓库 — 调 REST API POST /repos/{owner}/{repo}/rename
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoRename, "重命名仓库", "github")]
+    public async Task<ToolResult> GhRepoRenameAsync(
+        [McpToolParameter("新仓库名", Required = true)] string new_name,
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var jsonBody = new GitHubJsonObjectBuilder().String("new_name", new_name).Build();
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/rename", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已重命名仓库 {owner}/{repoName} → {owner}/{new_name}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 同步 Fork 仓库 — 调 REST API POST /repos/{owner}/{repo}/merge-upstream
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoSync, "同步 Fork 仓库(从上游拉取更新)", "github")]
+    public async Task<ToolResult> GhRepoSyncAsync(
+        [McpToolParameter("要同步的分支(可选,默认默认分支)", Required = false)] string? branch = null,
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var defaultBranch = branch ?? "main";
+            var jsonBody = new GitHubJsonObjectBuilder().String("branch", defaultBranch).Build();
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/merge-upstream", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已同步仓库 {owner}/{repoName} 分支 {defaultBranch}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 设置默认分支 — 调 REST API PATCH default_branch
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoSetDefault, "设置默认分支", "github")]
+    public async Task<ToolResult> GhRepoSetDefaultAsync(
+        [McpToolParameter("默认分支名", Required = true)] string branch,
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var jsonBody = new GitHubJsonObjectBuilder().String("default_branch", branch).Build();
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已设置 {owner}/{repoName} 默认分支为 {branch}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 }

@@ -159,4 +159,78 @@ public partial class GitHubToolHandlers {
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", reqBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已评论 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 重新打开 Issue — 可选附评论，调 REST API PATCH state=open
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhIssueReopen, "重新打开 Issue(可附评论)", "github")]
+    public async Task<ToolResult> GhIssueReopenAsync(
+        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter("重开评论(可选)", Required = false)] string? comment = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var number = ParseNumberFromRef(issue_number);
+            if (!string.IsNullOrWhiteSpace(comment)) {
+                var commentBody = $$"""{"body":{{JsonEscapeString(comment)}}}""";
+                await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
+            }
+            var body = """{"state":"open"}""";
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", body, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已重开 Issue {number}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 编辑 Issue — 修改标题/body/标签/指派人/里程碑，调 REST API PATCH
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhIssueEdit, "编辑 Issue(title/body/label/assignee/milestone)", "github")]
+    public async Task<ToolResult> GhIssueEditAsync(
+        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
+        [McpToolParameter("新 body(可选)", Required = false)] string? body = null,
+        [McpToolParameter("标签(可选,多个用逗号)", Required = false)] string? label = null,
+        [McpToolParameter("指派人(可选)", Required = false)] string? assignee = null,
+        [McpToolParameter("里程碑 ID(可选)", Required = false)] int? milestone = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var number = ParseNumberFromRef(issue_number);
+            var jsonBody = new GitHubJsonObjectBuilder()
+                .StringIf("title", title)
+                .StringIf("body", body)
+                .StringArrayFromCsvIf("labels", label)
+                .StringArrayFromCsvIf("assignees", assignee)
+                .NumberIf("milestone", milestone)
+                .Build();
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已编辑 Issue {number}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 删除 Issue — 调 GraphQL mutation deleteIssue（REST API 不支持删除 issue）
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhIssueDelete, "删除 Issue(需 yes 确认,用 GraphQL)", "github")]
+    public async Task<ToolResult> GhIssueDeleteAsync(
+        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter("是否跳过确认(默认 false)", Required = false)] bool? yes = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (yes != true) return Fail("删除 Issue 需要 yes=true 确认（此操作不可逆）");
+            var number = ParseNumberFromRef(issue_number);
+            var issueResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues/{number}", ct: cancellationToken).ConfigureAwait(false);
+            if (!issueResult.Success) return Fail(issueResult.Error);
+            string? nodeId;
+            try {
+                using var doc = JsonDocument.Parse(issueResult.Body);
+                nodeId = doc.RootElement.TryGetProperty("node_id", out var n) ? n.GetString() : null;
+            } catch { nodeId = null; }
+            if (string.IsNullOrEmpty(nodeId)) return Fail("无法从 Issue 响应中解析 node_id");
+            var graphqlBody = "{\"query\":\"mutation{deleteIssue(input:{issueId:\\\"" + nodeId + "\\\"}){clientMutationId}}\"}";
+            var result = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已删除 Issue {number}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 }

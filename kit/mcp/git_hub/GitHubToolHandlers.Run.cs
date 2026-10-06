@@ -410,4 +410,72 @@ public partial class GitHubToolHandlers {
         }
         return sb.ToString();
     }
+
+    /// <summary>
+    /// 下载 Run artifact — 列出 artifacts 后下载匹配的 zip 文件，支持名称过滤
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRunDownload, "下载 Run artifact(zip 文件,支持名称过滤)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhRunDownloadAsync(
+        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter("保存目录", Required = true)] string dir,
+        [McpToolParameter("artifact 名称过滤(可选,支持 * 通配,默认下载全部)", Required = false)] string? name = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var artifactsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}/artifacts", ct: cancellationToken).ConfigureAwait(false);
+            if (!artifactsResult.Success) return Fail(artifactsResult.Error);
+
+            List<(string artifactName, long artifactId)> artifacts;
+            try {
+                using var doc = JsonDocument.Parse(artifactsResult.Body);
+                artifacts = [];
+                if (doc.RootElement.TryGetProperty("artifacts", out var artsEl) && artsEl.ValueKind == JsonValueKind.Array) {
+                    foreach (var art in artsEl.EnumerateArray()) {
+                        var artName = art.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                        var artId = art.TryGetProperty("id", out var idEl) ? idEl.GetInt64() : 0;
+                        if (string.IsNullOrEmpty(artName) || artId == 0) continue;
+                        if (!string.IsNullOrWhiteSpace(name) && !SimpleMatchArtifact(name, artName)) continue;
+                        artifacts.Add((artName, artId));
+                    }
+                }
+            } catch (Exception ex) { return Fail($"解析 artifact 列表失败: {ex.Message}"); }
+
+            if (artifacts.Count == 0) return Fail($"Run {run_id} 没有匹配的 artifact{(string.IsNullOrWhiteSpace(name) ? "" : $" (name={name})")}");
+
+            _fs.CreateDirectory(dir);
+            var sb = new StringBuilder();
+            var successCount = 0;
+            var failCount = 0;
+            foreach (var (artName, artId) in artifacts) {
+                var filePath = _fs.CombinePath(dir, $"{artName}.zip");
+                try {
+                    var dlResult = await client.DownloadArtifactAsync(owner, repoName, artId, filePath, cancellationToken).ConfigureAwait(false);
+                    if (dlResult.Success) {
+                        successCount++;
+                        sb.AppendLine($"[OK] {artName}.zip");
+                    } else {
+                        failCount++;
+                        sb.AppendLine($"[FAIL] {artName}: {dlResult.Error}");
+                    }
+                } catch (Exception ex) {
+                    failCount++;
+                    sb.AppendLine($"[FAIL] {artName}: {ex.Message}");
+                }
+            }
+            sb.AppendLine();
+            sb.Append($"汇总: {successCount} 成功, {failCount} 失败, 共 {artifacts.Count} 个 artifact");
+            return failCount == 0 ? Ok(sb.ToString(), $"Run {run_id} artifact 下载完成:") : Fail(sb.ToString());
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 简单通配符匹配 — 支持 * 通配（用于 artifact 名称过滤）
+    /// </summary>
+    private static bool SimpleMatchArtifact(string pattern, string name) {
+        if (string.IsNullOrEmpty(pattern)) return true;
+        if (pattern == "*") return true;
+        if (!pattern.Contains('*')) return name == pattern;
+        var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(pattern).Replace("\\*", ".*") + "$";
+        return System.Text.RegularExpressions.Regex.IsMatch(name, regexPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    }
 }

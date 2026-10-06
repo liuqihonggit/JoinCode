@@ -46,6 +46,18 @@ public enum GitHubToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhPrCreate,
 
+    [EnumValue("gh_pr_comment")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhPrComment,
+
+    [EnumValue("gh_pr_edit")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhPrEdit,
+
+    [EnumValue("gh_pr_review")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhPrReview,
+
     // === Run 全套 ===
     [EnumValue("gh_run_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
@@ -66,6 +78,10 @@ public enum GitHubToolName {
     [EnumValue("gh_run_cancel")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhRunCancel,
+
+    [EnumValue("gh_run_download")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhRunDownload,
 
     // === Release 全套 ===
     [EnumValue("gh_release_list")]
@@ -121,6 +137,18 @@ public enum GitHubToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhIssueComment,
 
+    [EnumValue("gh_issue_reopen")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhIssueReopen,
+
+    [EnumValue("gh_issue_edit")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhIssueEdit,
+
+    [EnumValue("gh_issue_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhIssueDelete,
+
     // === Repo 全套 ===
     [EnumValue("gh_repo_view")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
@@ -157,6 +185,18 @@ public enum GitHubToolName {
     [EnumValue("gh_repo_unarchive")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhRepoUnarchive,
+
+    [EnumValue("gh_repo_rename")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhRepoRename,
+
+    [EnumValue("gh_repo_sync")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhRepoSync,
+
+    [EnumValue("gh_repo_set_default")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhRepoSetDefault,
 
     // === 分支保护 ===
     [EnumValue("gh_branch_sync_protection")]

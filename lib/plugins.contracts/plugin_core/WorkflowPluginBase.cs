@@ -91,16 +91,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try {
             MarkDead();
-
-            List<PluginResourceBase> snapshot;
-            using (_resourceLock.LockOrCrash()) {
-                snapshot = _resources.Values.ToList();
-                _resources.Clear();
-            }
-            foreach (var resource in snapshot) {
-                await resource.DisposeAsync().ConfigureAwait(false);
-            }
-
+            await ReleaseResourcesAsync().ConfigureAwait(false);
             UnmanagedResources.ReleaseAll();
 
             OnUnload();
@@ -141,11 +132,31 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
             throw new PluginDeadException(DisplayName, Name);
     }
 
-    /// <summary>Entity.Dispose 实现 — 确保资源释放</summary>
+    /// <summary>Entity.Dispose 实现 — 同步释放同步资源(异步资源由 DisposeAsync 完备释放)</summary>
     public override void Dispose() {
         MarkDead();
         UnmanagedResources.ReleaseAll();
         _resourceLock.Dispose();
         base.Dispose();
+    }
+
+    /// <summary>异步释放 — 完备释放所有资源(含异步资源)</summary>
+    public override async ValueTask DisposeAsync() {
+        MarkDead();
+        await ReleaseResourcesAsync().ConfigureAwait(false);
+        UnmanagedResources.ReleaseAll();
+        _resourceLock.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    private async ValueTask ReleaseResourcesAsync() {
+        List<PluginResourceBase> snapshot;
+        using (_resourceLock.LockOrCrash()) {
+            snapshot = _resources.Values.ToList();
+            _resources.Clear();
+        }
+        foreach (var resource in snapshot) {
+            try { await resource.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { Console.WriteLine($"[WorkflowPluginBase:{Name}] 资源释放异常忽略: {ex.Message}"); }
+        }
     }
 }

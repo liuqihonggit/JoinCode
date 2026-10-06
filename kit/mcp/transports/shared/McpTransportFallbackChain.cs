@@ -294,6 +294,10 @@ public sealed class McpTransportFallbackChain : IMcpTransport {
         await StopAsync(CancellationToken.None).ConfigureAwait(false);
         _switchLock.Dispose();
 
+        foreach (var cb in _circuitBreakers) {
+            cb.Dispose();
+        }
+
         foreach (var transport in _transports) {
             await transport.DisposeAsync().ConfigureAwait(false);
         }

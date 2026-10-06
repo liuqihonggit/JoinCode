@@ -63,6 +63,7 @@ public partial class GitHubToolHandlers {
 
     /// <summary>
     /// 查看 Release 详情 — 调 REST API 获取 Release 信息（含 asset 列表）
+    /// <para>先按 tag 查(releases/tags/{tag}),404 时 fallback 列出全部 release 按 tag_name 匹配(支持 draft release)</para>
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhReleaseView, "查看 Release 详情(含 asset 列表)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhReleaseViewAsync(
@@ -72,8 +73,41 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body) : Fail(result.Error);
+            if (result.Success) return Ok(result.Body);
+            // 404 时 fallback: draft release 没有关联 tag,需列出所有 release 按 tag_name 匹配
+            if (IsNotFound(result)) return await FindReleaseByTagNameAsync(client, owner, repoName, tag, cancellationToken).ConfigureAwait(false);
+            return Fail(result.Error);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 判断 API 响应是否为 404 Not Found
+    /// </summary>
+    private static bool IsNotFound(GitHubApiResponse response)
+        => response.StatusCode == 404;
+
+    /// <summary>
+    /// 列出所有 release(含 draft)按 tag_name 匹配 — fallback 查 draft release
+    /// </summary>
+    private async Task<ToolResult> FindReleaseByTagNameAsync(IGitHubApiClient client, string owner, string repo, string tag, CancellationToken ct) {
+        var listResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/releases", query: new Dictionary<string, string> { ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
+        if (!listResult.Success) return Fail(listResult.Error);
+        try {
+            using var doc = JsonDocument.Parse(listResult.Body);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return Fail("Release 列表格式异常");
+            foreach (var release in doc.RootElement.EnumerateArray()) {
+                if (release.TryGetProperty("tag_name", out var tagEl) && tagEl.GetString() == tag) {
+                    var id = release.TryGetProperty("id", out var idEl) ? idEl.GetInt64() : 0;
+                    var isDraft = release.TryGetProperty("draft", out var draftEl) && draftEl.GetBoolean();
+                    var detailResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/releases/{id}", ct: ct).ConfigureAwait(false);
+                    if (detailResult.Success) return Ok(detailResult.Body);
+                    return Fail(detailResult.Error);
+                }
+            }
+            return Fail($"未找到 Release: {tag}（已列出 {doc.RootElement.GetArrayLength()} 个 release，均不匹配 tag_name={tag}）");
+        } catch (Exception ex) {
+            return Fail($"查找 Release 失败: {ex.Message}");
+        }
+    }
 
     /// <summary>
     /// 创建 Release — 支持 draft/prerelease、目标 commit/branch，调 REST API POST

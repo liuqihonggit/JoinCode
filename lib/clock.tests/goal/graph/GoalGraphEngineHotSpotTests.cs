@@ -39,7 +39,7 @@ public sealed partial class GoalGraphEngineTests {
         var services = new ServiceCollection();
         services.AddSingleton(agentServiceMock.Object);
         services.AddSingleton(guardMock.Object);
-        var engine = CreateEngine(serviceProvider: services.BuildServiceProvider());
+        await using var engine = CreateEngine(serviceProvider: services.BuildServiceProvider());
 
         var dag = new Dag<GoalNodePayload>();
         dag.AddNode(MakeAgentNode("agent", "test-agent", ["src/HotFile.cs"]));
@@ -67,7 +67,7 @@ public sealed partial class GoalGraphEngineTests {
         var services = new ServiceCollection();
         services.AddSingleton(agentServiceMock.Object);
         services.AddSingleton(guardMock.Object);
-        var engine = CreateEngine(serviceProvider: services.BuildServiceProvider());
+        await using var engine = CreateEngine(serviceProvider: services.BuildServiceProvider());
 
         var dag = new Dag<GoalNodePayload>();
         dag.AddNode(MakeAgentNode("agent", "test-agent", ["src/NormalFile.cs"]));
@@ -90,7 +90,7 @@ public sealed partial class GoalGraphEngineTests {
         var services = new ServiceCollection();
         services.AddSingleton(agentServiceMock.Object);
         services.AddSingleton(guardMock.Object);
-        var engine = CreateEngine(serviceProvider: services.BuildServiceProvider());
+        await using var engine = CreateEngine(serviceProvider: services.BuildServiceProvider());
 
         var dag = new Dag<GoalNodePayload>();
         dag.AddNode(MakeAgentNode("agent", "test-agent", ownedFiles: null));

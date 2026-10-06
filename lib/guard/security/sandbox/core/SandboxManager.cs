@@ -207,14 +207,13 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             EnvironmentOverrides = options.EnvironmentOverrides
         };
         var info = await provider.CreateSandboxAsync(effectiveOptions, ct).ConfigureAwait(false);
-        SetSandboxToProvider(info.SandboxId, provider);
+        SetSandboxToProvider(info.SandboxId, provider.Provider);
         return info;
     }
 
     /// <inheritdoc/>
     public async Task DestroySandboxAsync(string sandboxId, CancellationToken ct = default) {
-        var provider = ResolveProviderBySandboxId(sandboxId);
-        if (provider is not null) {
+        if (ResolveProviderBySandboxId(sandboxId) is { } provider) {
             await provider.DestroySandboxAsync(sandboxId, ct).ConfigureAwait(false);
             TryRemoveSandboxToProvider(sandboxId);
             return;
@@ -231,8 +230,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
 
     /// <inheritdoc/>
     public string ResolvePath(string path, string sandboxId) {
-        var provider = ResolveProviderBySandboxId(sandboxId);
-        if (provider is not null) {
+        if (ResolveProviderBySandboxId(sandboxId) is { } provider) {
             return provider.ResolvePath(path, sandboxId);
         }
 
@@ -242,22 +240,23 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
 
     /// <summary>
     /// O(1)查找sandboxId对应的provider — 先查冗余索引,miss时fallback线性遍历并补建索引。
+    /// 返回借用句柄(SandboxProviderRef),调用方仅借用不释放,消除 JCC9305 误报。
     /// </summary>
-    private ISandboxProvider? ResolveProviderBySandboxId(string sandboxId) {
+    private SandboxProviderRef? ResolveProviderBySandboxId(string sandboxId) {
         if (_sandboxToProvider.TryGetValue(sandboxId, out var provider)) {
-            return provider;
+            return new SandboxProviderRef(provider);
         }
 
         foreach (var p in _providers.Values) {
             if (p.GetSandboxInfo(sandboxId) is not null) {
                 SetSandboxToProvider(sandboxId, p);
-                return p;
+                return new SandboxProviderRef(p);
             }
         }
 
         return null;
     }
-    private (ISandboxProvider Provider, bool FallbackUsed) ResolveProviderWithFallback(SandboxType type) {
+    private (SandboxProviderRef Provider, bool FallbackUsed) ResolveProviderWithFallback(SandboxType type) {
         if (type == SandboxType.None) {
             var envType = Environment.GetEnvironmentVariable(JccEnvVar.SandboxMode.ToValue());
             if (!string.IsNullOrEmpty(envType)
@@ -272,17 +271,17 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         }
 
         if (_providers.TryGetValue(type, out var provider)) {
-            return (provider, false);
+            return (new SandboxProviderRef(provider), false);
         }
 
         _logger?.LogWarning("[SandboxManager] 请求的沙箱类型 '{Type}' 不可用，降级到 Soft", type.ToValue());
 
         if (_providers.TryGetValue(SandboxType.Soft, out var softProvider)) {
-            return (softProvider, true);
+            return (new SandboxProviderRef(softProvider), true);
         }
 
         if (_providers.TryGetValue(SandboxType.Process, out var processProvider)) {
-            return (processProvider, true);
+            return (new SandboxProviderRef(processProvider), true);
         }
 
         throw new InvalidOperationException($"[GRD009] 沙箱类型 '{type.ToValue()}' 不可用且无降级选项。可用类型: {string.Join(", ", _providers.Keys.Select(k => k.ToValue()))}");

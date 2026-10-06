@@ -18,7 +18,7 @@ public class ChatServiceTests : IAsyncLifetime {
         _pipeName = $"JoinCode_Test_{Guid.NewGuid():N}";
 
         var options = new MockServerOptions(_pipeName);
-        var loggerFactory = LoggerFactory.Create(builder => {
+        using var loggerFactory = LoggerFactory.Create(builder => {
             builder.AddConsole();
             builder.SetMinimumLevel(LogLevel.Debug);
         });

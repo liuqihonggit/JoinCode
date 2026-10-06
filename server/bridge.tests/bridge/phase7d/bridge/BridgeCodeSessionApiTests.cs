@@ -23,7 +23,7 @@ public sealed class BridgeCodeSessionApiTests {
     [Fact]
     public void BridgeRemoteCredentials_EpochFromJsonElement_Number() {
         var json = """{"epoch":42}""";
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         var epoch = BridgeRemoteCredentials.ParseWorkerEpoch(doc.RootElement.GetProperty("epoch"));
         Assert.Equal(42L, epoch);
     }
@@ -31,7 +31,7 @@ public sealed class BridgeCodeSessionApiTests {
     [Fact]
     public void BridgeRemoteCredentials_EpochFromJsonElement_String() {
         var json = """{"epoch":"12345678901234"}""";
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         var epoch = BridgeRemoteCredentials.ParseWorkerEpoch(doc.RootElement.GetProperty("epoch"));
         Assert.Equal(12345678901234L, epoch);
     }

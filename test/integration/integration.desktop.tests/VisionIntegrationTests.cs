@@ -20,7 +20,7 @@ public sealed class VisionIntegrationTests {
         await using var windows = new Win32WindowManagementService();
         await using var capture = new GdiScreenCaptureService();
 
-        var notepad = System.Diagnostics.Process.Start("notepad.exe");
+        using var notepad = System.Diagnostics.Process.Start("notepad.exe");
         try {
             await Task.Delay(2500);
             notepad.Refresh();

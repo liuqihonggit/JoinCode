@@ -9,7 +9,7 @@ public class GitSecretScannerTest {
 
     [Fact]
     public async Task ScanFileNamesAsync_NullStagedFiles_ThrowsArgumentNullException() {
-        var scanner = new GitSecretScanner(NullLogger<GitSecretScanner>.Instance);
+        await using var scanner = new GitSecretScanner(NullLogger<GitSecretScanner>.Instance);
         var act = async () => await scanner.ScanFileNamesAsync(null!);
         var thrown = await act.Should().ThrowAsync<ArgumentNullException>();
         thrown.Which.ParamName.Should().Be("stagedFiles");

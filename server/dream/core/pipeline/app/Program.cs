@@ -17,7 +17,7 @@ internal static class DreamEntryPoint {
             return 0;
         }
 
-        var fs = new IO.FileSystem.PhysicalFileSystem();
+        await using var fs = new IO.FileSystem.PhysicalFileSystem();
         var command = args[0];
         var projectDir = parseResult.Project ?? fs.GetCurrentDirectory();
         var force = parseResult.Force;

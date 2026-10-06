@@ -192,7 +192,7 @@ public sealed class LoggingScopeMiddlewareTests {
     public void LogScope_BeginTrace_WithNoActivity_ReturnsNull() {
         var logger = NullLogger.Instance;
 
-        var scope = LogScope.BeginTrace(logger);
+        using var scope = LogScope.BeginTrace(logger);
 
         scope.Should().BeNull();
     }

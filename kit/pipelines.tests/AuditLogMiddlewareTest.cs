@@ -13,7 +13,7 @@ public sealed class AuditLogMiddlewareTest {
 
     [Fact]
     public async Task InvokeAsync_PassesThroughAllEventsInOrder() {
-        var mw = NewMiddleware();
+        await using var mw = NewMiddleware();
         var ctx = TestHelpers.NewContext();
         var events = new[] {
             ChatStreamEvent.Text("hello"),
@@ -31,7 +31,7 @@ public sealed class AuditLogMiddlewareTest {
     [Fact]
     public async Task InvokeAsync_CompleteEvent_LogsDoneWithModelAndUsage() {
         var logger = new CapturingLogger<AuditLogMiddleware>();
-        var mw = NewMiddleware(logger);
+        await using var mw = NewMiddleware(logger);
         var ctx = TestHelpers.NewContext();
         var usage = new TokenUsage(100, 50);
         var events = new[] { ChatStreamEvent.Done(usage, "gpt-4o") };
@@ -45,7 +45,7 @@ public sealed class AuditLogMiddlewareTest {
     [Fact]
     public async Task InvokeAsync_ToolCallStart_LogsToolName() {
         var logger = new CapturingLogger<AuditLogMiddleware>();
-        var mw = NewMiddleware(logger);
+        await using var mw = NewMiddleware(logger);
         var ctx = TestHelpers.NewContext();
         var events = new[] { ChatStreamEvent.ToolStart("Read"), ChatStreamEvent.Done() };
 
@@ -59,7 +59,7 @@ public sealed class AuditLogMiddlewareTest {
     [Fact]
     public async Task InvokeAsync_Always_LogsUserAndAssistantSummary() {
         var logger = new CapturingLogger<AuditLogMiddleware>();
-        var mw = NewMiddleware(logger);
+        await using var mw = NewMiddleware(logger);
         var ctx = TestHelpers.NewContext(message: "user question", turn: 3);
 
         await TestHelpers.CollectAsync(

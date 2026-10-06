@@ -130,7 +130,7 @@ public sealed class GoalRehydrateTests {
             };
             await store.SaveAsync(originalState, CancellationToken.None);
 
-            var engine = CreateEngine(store);
+            await using var engine = CreateEngine(store);
             engine.CurrentState.Should().BeNull();
 
             await engine.RehydrateAsync(CancellationToken.None);
@@ -149,7 +149,7 @@ public sealed class GoalRehydrateTests {
     public async Task GoalEngine_Rehydrate_EmptyStore_NoOp() {
         var store = CreateStore();
         try {
-            var engine = CreateEngine(store);
+            await using var engine = CreateEngine(store);
 
             await engine.RehydrateAsync(CancellationToken.None);
 
@@ -161,7 +161,7 @@ public sealed class GoalRehydrateTests {
 
     [Fact]
     public async Task GoalEngine_Rehydrate_NoStore_NoOp() {
-        var engine = CreateEngine(stateStore: null);
+        await using var engine = CreateEngine(stateStore: null);
 
         var act = async () => await engine.RehydrateAsync(CancellationToken.None);
 

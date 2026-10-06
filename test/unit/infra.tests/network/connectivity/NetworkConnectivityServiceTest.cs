@@ -17,23 +17,23 @@ public sealed class NetworkConnectivityServiceTest {
         new() { Name = name, Kind = kind, IsUp = up };
 
     [Fact]
-    public void Constructor_NoInterfaces_OfflineState() {
-        var sut = CreateSut([]);
+    public async Task Constructor_NoInterfaces_OfflineState() {
+        await using var sut = CreateSut([]);
         sut.CurrentState.Should().Be(NetworkConnectivityState.Offline);
         sut.IsNetworkAvailable().Should().BeFalse();
     }
 
     [Fact]
-    public void Constructor_WithEthernetInterface_OnlineState() {
-        var sut = CreateSut([Iface("eth0", NetworkInterfaceKind.Ethernet)]);
+    public async Task Constructor_WithEthernetInterface_OnlineState() {
+        await using var sut = CreateSut([Iface("eth0", NetworkInterfaceKind.Ethernet)]);
         sut.CurrentState.Should().Be(NetworkConnectivityState.Online);
         sut.IsNetworkAvailable().Should().BeTrue();
         sut.IsVpnActive().Should().BeFalse();
     }
 
     [Fact]
-    public void Constructor_WithVpnTunnelInterface_OnlineWithVpnState() {
-        var sut = CreateSut([
+    public async Task Constructor_WithVpnTunnelInterface_OnlineWithVpnState() {
+        await using var sut = CreateSut([
             Iface("eth0", NetworkInterfaceKind.Ethernet),
             Iface("tun0", NetworkInterfaceKind.VpnTunnel),
         ]);
@@ -42,8 +42,8 @@ public sealed class NetworkConnectivityServiceTest {
     }
 
     [Fact]
-    public void Constructor_WithVpnProcess_OnlineWithVpnState() {
-        var sut = CreateSut(
+    public async Task Constructor_WithVpnProcess_OnlineWithVpnState() {
+        await using var sut = CreateSut(
             [Iface("eth0", NetworkInterfaceKind.Ethernet)],
             vpnProcess: true);
         sut.CurrentState.Should().Be(NetworkConnectivityState.OnlineWithVpn);
@@ -51,16 +51,16 @@ public sealed class NetworkConnectivityServiceTest {
     }
 
     [Fact]
-    public void Constructor_WithProxyEnv_OnlineWithProxyState() {
-        var sut = CreateSut(
+    public async Task Constructor_WithProxyEnv_OnlineWithProxyState() {
+        await using var sut = CreateSut(
             [Iface("eth0", NetworkInterfaceKind.Ethernet)],
             proxyEnv: true);
         sut.CurrentState.Should().Be(NetworkConnectivityState.OnlineWithProxy);
     }
 
     [Fact]
-    public void Constructor_VpnTakesPrecedenceOverProxy() {
-        var sut = CreateSut(
+    public async Task Constructor_VpnTakesPrecedenceOverProxy() {
+        await using var sut = CreateSut(
             [Iface("tun0", NetworkInterfaceKind.VpnTunnel)],
             vpnProcess: true,
             proxyEnv: true);
@@ -68,42 +68,42 @@ public sealed class NetworkConnectivityServiceTest {
     }
 
     [Fact]
-    public void GetActiveInterfaces_ReturnsProvidedInterfaces() {
+    public async Task GetActiveInterfaces_ReturnsProvidedInterfaces() {
         var interfaces = new List<NetworkInterfaceInfo>
         {
             Iface("eth0", NetworkInterfaceKind.Ethernet),
             Iface("wlan0", NetworkInterfaceKind.Wireless),
             Iface("tun0", NetworkInterfaceKind.VpnTunnel),
         };
-        var sut = CreateSut(interfaces);
+        await using var sut = CreateSut(interfaces);
         sut.GetActiveInterfaces().Should().HaveCount(3);
     }
 
     [Fact]
-    public void GetCurrentRoute_WhenVpnActive_ReturnsVpnRoute() {
-        var sut = CreateSut(
+    public async Task GetCurrentRoute_WhenVpnActive_ReturnsVpnRoute() {
+        await using var sut = CreateSut(
             [Iface("tun0", NetworkInterfaceKind.VpnTunnel)],
             vpnProcess: true);
         sut.GetCurrentRoute().Type.Should().Be(NetworkRouteType.Vpn);
     }
 
     [Fact]
-    public void GetCurrentRoute_WhenProxyConfigured_ReturnsProxyRoute() {
-        var sut = CreateSut(
+    public async Task GetCurrentRoute_WhenProxyConfigured_ReturnsProxyRoute() {
+        await using var sut = CreateSut(
             [Iface("eth0", NetworkInterfaceKind.Ethernet)],
             proxyEnv: true);
         sut.GetCurrentRoute().Type.Should().Be(NetworkRouteType.Proxy);
     }
 
     [Fact]
-    public void GetCurrentRoute_WhenDirect_ReturnsDirectRoute() {
-        var sut = CreateSut([Iface("eth0", NetworkInterfaceKind.Ethernet)]);
+    public async Task GetCurrentRoute_WhenDirect_ReturnsDirectRoute() {
+        await using var sut = CreateSut([Iface("eth0", NetworkInterfaceKind.Ethernet)]);
         sut.GetCurrentRoute().Type.Should().Be(NetworkRouteType.Direct);
     }
 
     [Fact]
-    public void GetCurrentRoute_WhenOffline_ReturnsDirectRoute() {
-        var sut = CreateSut([]);
+    public async Task GetCurrentRoute_WhenOffline_ReturnsDirectRoute() {
+        await using var sut = CreateSut([]);
         sut.GetCurrentRoute().Type.Should().Be(NetworkRouteType.Direct);
     }
 
@@ -127,8 +127,8 @@ public sealed class NetworkConnectivityServiceTest {
     }
 
     [Fact]
-    public void RefreshState_WhenStateUnchanged_DoesNotRaiseEvent() {
-        var sut = CreateSut([Iface("eth0", NetworkInterfaceKind.Ethernet)]);
+    public async Task RefreshState_WhenStateUnchanged_DoesNotRaiseEvent() {
+        await using var sut = CreateSut([Iface("eth0", NetworkInterfaceKind.Ethernet)]);
         var raised = false;
         sut.StateChanged += (_, _) => raised = true;
 
@@ -138,15 +138,15 @@ public sealed class NetworkConnectivityServiceTest {
     }
 
     [Fact]
-    public void Constructor_OnlyLoopback_OfflineState() {
-        var sut = CreateSut([Iface("lo", NetworkInterfaceKind.Loopback)]);
+    public async Task Constructor_OnlyLoopback_OfflineState() {
+        await using var sut = CreateSut([Iface("lo", NetworkInterfaceKind.Loopback)]);
         sut.CurrentState.Should().Be(NetworkConnectivityState.Offline);
         sut.IsNetworkAvailable().Should().BeFalse();
     }
 
     [Fact]
-    public void GetCurrentRoute_WhenVpnViaInterface_ReturnsViaInterfaceName() {
-        var sut = CreateSut([Iface("tun0", NetworkInterfaceKind.VpnTunnel)], vpnProcess: true);
+    public async Task GetCurrentRoute_WhenVpnViaInterface_ReturnsViaInterfaceName() {
+        await using var sut = CreateSut([Iface("tun0", NetworkInterfaceKind.VpnTunnel)], vpnProcess: true);
         var route = sut.GetCurrentRoute();
         route.Type.Should().Be(NetworkRouteType.Vpn);
         route.ViaInterface.Should().Be("tun0");

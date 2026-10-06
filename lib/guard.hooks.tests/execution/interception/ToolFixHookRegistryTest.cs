@@ -43,8 +43,8 @@ public sealed class ToolFixHookRegistryTest {
     }
 
     [Fact]
-    public void Register_NullHook_ThrowsArgumentNullException() {
-        var registry = new ToolFixHookRegistry(_healthMonitor.Object);
+    public async Task Register_NullHook_ThrowsArgumentNullException() {
+        await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         var act = () => registry.Register(null!);
 
@@ -222,7 +222,7 @@ public sealed class ToolFixHookRegistryTest {
 
     [Fact]
     public async Task TryFixAsync_EmptyToolName_ThrowsArgumentException() {
-        var registry = new ToolFixHookRegistry(_healthMonitor.Object);
+        await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         var act = async () => await registry.TryFixAsync("", new Exception("err"));
 
@@ -231,7 +231,7 @@ public sealed class ToolFixHookRegistryTest {
 
     [Fact]
     public async Task TryFixAsync_WhitespaceToolName_ThrowsArgumentException() {
-        var registry = new ToolFixHookRegistry(_healthMonitor.Object);
+        await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         var act = async () => await registry.TryFixAsync("  ", new Exception("err"));
 
@@ -240,7 +240,7 @@ public sealed class ToolFixHookRegistryTest {
 
     [Fact]
     public async Task TryFixAsync_NullError_ThrowsArgumentNullException() {
-        var registry = new ToolFixHookRegistry(_healthMonitor.Object);
+        await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         var act = async () => await registry.TryFixAsync("tool1", null!);
 

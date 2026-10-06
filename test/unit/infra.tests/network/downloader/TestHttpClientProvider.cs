@@ -6,6 +6,6 @@ namespace Infra.Services.Tests.Network.Downloader;
 internal sealed class TestHttpClientProvider : IHttpClientProvider {
     private readonly HttpClient _client;
     internal TestHttpClientProvider(HttpClient client) => _client = client;
-    public HttpClient GetClient() => _client;
-    public HttpClient GetClient(string name) => _client;
+    public HttpClientRef GetClient() => new(_client);
+    public HttpClientRef GetClient(string name) => new(_client);
 }

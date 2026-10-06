@@ -18,7 +18,7 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime {
         _pipeName = $"JoinCode_Test_{Guid.NewGuid():N}";
 
         var options = new MockServerOptions(_pipeName);
-        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         _mockServer = new PipeOpenAIMockServer(options, loggerFactory.CreateLogger<PipeOpenAIMockServer>());
         await _mockServer.StartAsync().ConfigureAwait(true);
     }
@@ -64,7 +64,7 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime {
 
     [Fact]
     public async Task SendMessageAsync_PersistsTranscriptDelta() {
-        var sp = await CreateServiceProvider();
+        await using var sp = await CreateServiceProvider();
         await using (sp.ConfigureAwait(true)) {
             var chatService = sp.GetRequiredService<IChatService>();
             var ctxMgr = sp.GetRequiredService<IChatContextManager>();
@@ -87,7 +87,7 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime {
 
     [Fact]
     public async Task SecondTurn_AppendsWithoutDuplication() {
-        var sp = await CreateServiceProvider();
+        await using var sp = await CreateServiceProvider();
         await using (sp.ConfigureAwait(true)) {
             var chatService = sp.GetRequiredService<IChatService>();
 

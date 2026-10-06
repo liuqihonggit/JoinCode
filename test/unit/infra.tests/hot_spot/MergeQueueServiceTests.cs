@@ -18,7 +18,7 @@ public sealed class MergeQueueServiceTests
     [Fact]
     public async Task Enqueue_ShouldIncreasePendingCount()
     {
-        var sut = CreateSut(out _, out _);
+        using var sut = CreateSut(out _, out _);
         await sut.EnqueueAsync(MakeItem());
         sut.PendingCount.Should().Be(1);
     }
@@ -26,7 +26,7 @@ public sealed class MergeQueueServiceTests
     [Fact]
     public async Task ProcessNext_EmptyQueue_ShouldReturnEmpty()
     {
-        var sut = CreateSut(out _, out _);
+        using var sut = CreateSut(out _, out _);
         var result = await sut.ProcessNextAsync();
         result.Should().BeEquivalentTo(MergeResult.Empty());
     }
@@ -34,7 +34,7 @@ public sealed class MergeQueueServiceTests
     [Fact]
     public async Task ProcessNext_CompileAndMergeOk_ShouldReturnSuccess()
     {
-        var sut = new MergeQueueService(
+        using var sut = new MergeQueueService(
             (_, _) => Task.FromResult(true),
             (_, _) => Task.FromResult(true));
         await sut.EnqueueAsync(MakeItem("w1", "branch-1"));
@@ -49,7 +49,7 @@ public sealed class MergeQueueServiceTests
     [Fact]
     public async Task ProcessNext_CompileFailed_ShouldReturnCompileFailed()
     {
-        var sut = new MergeQueueService(
+        using var sut = new MergeQueueService(
             (_, _) => Task.FromResult(false),
             (_, _) => Task.FromResult(true));
         await sut.EnqueueAsync(MakeItem("w1", "bad-branch"));
@@ -64,7 +64,7 @@ public sealed class MergeQueueServiceTests
     [Fact]
     public async Task ProcessNext_MergeFailed_ShouldReturnMergeFailed()
     {
-        var sut = new MergeQueueService(
+        using var sut = new MergeQueueService(
             (_, _) => Task.FromResult(true),
             (_, _) => Task.FromResult(false));
         await sut.EnqueueAsync(MakeItem("w1", "conflict-branch"));
@@ -79,7 +79,7 @@ public sealed class MergeQueueServiceTests
     [Fact]
     public async Task ProcessNext_Sequential_ShouldProcessInOrder()
     {
-        var sut = new MergeQueueService(
+        using var sut = new MergeQueueService(
             (_, _) => Task.FromResult(true),
             (_, _) => Task.FromResult(true));
         await sut.EnqueueAsync(MakeItem("w1", "b1"));
@@ -100,7 +100,7 @@ public sealed class MergeQueueServiceTests
     [Fact]
     public async Task GetPending_ShouldReturnAllQueuedItems()
     {
-        var sut = CreateSut(out _, out _);
+        using var sut = CreateSut(out _, out _);
         await sut.EnqueueAsync(MakeItem("w1", "b1"));
         await sut.EnqueueAsync(MakeItem("w2", "b2"));
 

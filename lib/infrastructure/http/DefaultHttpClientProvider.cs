@@ -32,26 +32,26 @@ public sealed partial class DefaultHttpClientProvider : ServiceEntity, IHttpClie
     }
 
     /// <summary>
-    /// 获取 HttpClient — 优先通过 IHttpClientFactory.CreateClient() 创建（Handler 池化），无 factory 时返回共享实例
+    /// 获取 HttpClient 借用句柄 — 优先通过 IHttpClientFactory.CreateClient() 创建（Handler 池化），无 factory 时返回共享实例
     /// </summary>
-    public HttpClient GetClient() {
+    public HttpClientRef GetClient() {
         if (_factory is not null) {
-            return _factory.CreateClient(string.Empty);
+            return new HttpClientRef(_factory.CreateClient(string.Empty));
         }
-        return _sharedClient ?? throw new InvalidOperationException("Shared client not initialized.");
+        return new HttpClientRef(_sharedClient ?? throw new InvalidOperationException("Shared client not initialized."));
     }
 
     /// <summary>
-    /// 按命名获取 HttpClient — 优先通过 IHttpClientFactory.CreateClient(name) 创建，无 factory 时返回共享实例
+    /// 按命名获取 HttpClient 借用句柄 — 优先通过 IHttpClientFactory.CreateClient(name) 创建，无 factory 时返回共享实例
     /// </summary>
     /// <param name="name">客户端逻辑名称</param>
-    /// <returns>HttpClient 实例</returns>
-    public HttpClient GetClient(string name) {
+    /// <returns>HttpClient 借用句柄</returns>
+    public HttpClientRef GetClient(string name) {
         ArgumentException.ThrowIfNullOrEmpty(name);
 
         if (_factory is not null) {
-            return _factory.CreateClient(name);
+            return new HttpClientRef(_factory.CreateClient(name));
         }
-        return _sharedClient ?? throw new InvalidOperationException("Shared client not initialized.");
+        return new HttpClientRef(_sharedClient ?? throw new InvalidOperationException("Shared client not initialized."));
     }
 }

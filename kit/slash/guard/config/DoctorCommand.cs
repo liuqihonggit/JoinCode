@@ -233,7 +233,7 @@ public sealed class DoctorCommand : ChatCommandBase {
     }
 
     private static async Task AppendMcpServicesAsync(StringBuilder sb, ChatCommandContext context) {
-        var registry = ChatCommandBase.GetService<IMcpToolRegistry>(context, typeof(IMcpToolRegistry));
+        await using var registry = ChatCommandBase.GetService<IMcpToolRegistry>(context, typeof(IMcpToolRegistry));
         if (registry is null) {
             sb.AppendLine("  MCP 工具注册表不可用");
             return;

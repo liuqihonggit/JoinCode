@@ -143,7 +143,7 @@ public sealed class PluginManagerTest {
 
         [Fact]
         public async Task CheckNotDuplicateLoad_EmptyRegistry_DoesNotThrow() {
-            var manager = CreateManager();
+            await using var manager = CreateManager();
             await using var _ = manager;
 
             Action act = () => manager.CheckNotDuplicateLoad("any-plugin");
@@ -153,7 +153,7 @@ public sealed class PluginManagerTest {
 
         [Fact]
         public async Task CheckNotBlacklisted_NotInBlacklist_DoesNotThrow() {
-            var manager = CreateManager();
+            await using var manager = CreateManager();
             await using var _ = manager;
 
             Action act = () => manager.CheckNotBlacklisted("any-plugin");
@@ -163,7 +163,7 @@ public sealed class PluginManagerTest {
 
         [Fact]
         public async Task CheckNotBlacklisted_InBlacklist_ThrowsInvalidOperationExceptionWithPluginName() {
-            var manager = CreateManager();
+            await using var manager = CreateManager();
             await using var _ = manager;
             manager.AddToBlacklistForTest("bad-plugin");
 
@@ -175,7 +175,7 @@ public sealed class PluginManagerTest {
 
         [Fact]
         public async Task CheckNotBlacklisted_OtherPluginInBlacklist_DoesNotThrow() {
-            var manager = CreateManager();
+            await using var manager = CreateManager();
             await using var _ = manager;
             manager.AddToBlacklistForTest("bad-plugin");
 
@@ -187,7 +187,7 @@ public sealed class PluginManagerTest {
         [Fact]
         public async Task CheckNotBlacklisted_AfterAddThenCheck_IsBlacklistedForTestConsistent() {
             // CheckNotBlacklisted 与 IsBlacklistedForTest 应对同一状态一致
-            var manager = CreateManager();
+            await using var manager = CreateManager();
             await using var _ = manager;
             manager.AddToBlacklistForTest("p");
 
@@ -200,7 +200,7 @@ public sealed class PluginManagerTest {
 
         [Fact]
         public async Task CheckNotDuplicateLoad_Null_ThrowsArgumentNullException() {
-            var manager = CreateManager();
+            await using var manager = CreateManager();
             await using var _ = manager;
 
             Action act = () => manager.CheckNotDuplicateLoad(null!);
@@ -211,7 +211,7 @@ public sealed class PluginManagerTest {
 
         [Fact]
         public async Task CheckNotDuplicateLoad_Empty_ThrowsArgumentException() {
-            var manager = CreateManager();
+            await using var manager = CreateManager();
             await using var _ = manager;
 
             Action act = () => manager.CheckNotDuplicateLoad("");
@@ -221,7 +221,7 @@ public sealed class PluginManagerTest {
 
         [Fact]
         public async Task CheckNotDuplicateLoad_WhiteSpace_ThrowsArgumentException() {
-            var manager = CreateManager();
+            await using var manager = CreateManager();
             await using var _ = manager;
 
             Action act = () => manager.CheckNotDuplicateLoad("   ");
@@ -231,7 +231,7 @@ public sealed class PluginManagerTest {
 
         [Fact]
         public async Task CheckNotBlacklisted_Null_ThrowsArgumentNullException() {
-            var manager = CreateManager();
+            await using var manager = CreateManager();
             await using var _ = manager;
 
             Action act = () => manager.CheckNotBlacklisted(null!);
@@ -242,7 +242,7 @@ public sealed class PluginManagerTest {
 
         [Fact]
         public async Task CheckNotBlacklisted_Empty_ThrowsArgumentException() {
-            var manager = CreateManager();
+            await using var manager = CreateManager();
             await using var _ = manager;
 
             Action act = () => manager.CheckNotBlacklisted("");
@@ -252,7 +252,7 @@ public sealed class PluginManagerTest {
 
         [Fact]
         public async Task CheckNotBlacklisted_WhiteSpace_ThrowsArgumentException() {
-            var manager = CreateManager();
+            await using var manager = CreateManager();
             await using var _ = manager;
 
             Action act = () => manager.CheckNotBlacklisted("   ");

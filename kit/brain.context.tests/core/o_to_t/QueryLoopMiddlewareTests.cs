@@ -10,7 +10,7 @@ public sealed class QueryLoopMiddlewareTests {
             new() { Id = "call_003", Name = "Read", Arguments = "{\"file_path\":\"c.txt\"}" },
         };
 
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var (contextManager, toolResultsAdded) = CreateContextManager();
 
         var toolOrchestrator = new Mock<IChatToolOrchestrator>();
@@ -20,7 +20,7 @@ public sealed class QueryLoopMiddlewareTests {
             .Callback<string, string?, Dictionary<string, JsonElement>?, CancellationToken>((_, _, _, _) => cts.Cancel())
             .ThrowsAsync(new OperationCanceledException(cts.Token));
 
-        var middleware = CreateMiddleware(contextManager, toolOrchestrator, toolCalls);
+        await using var middleware = CreateMiddleware(contextManager, toolOrchestrator, toolCalls);
 
         await Assert.ThrowsAsync<OperationCanceledException>(async () => {
             await foreach (var _ in middleware.InvokeAsync(
@@ -40,7 +40,7 @@ public sealed class QueryLoopMiddlewareTests {
             new() { Id = "call_002", Name = "Read", Arguments = "{\"file_path\":\"b.txt\"}" },
         };
 
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MessageList());
@@ -73,7 +73,7 @@ public sealed class QueryLoopMiddlewareTests {
         toolOrchestrator.Setup(t => t.ExecuteToolCallAsync("Read", "call_002", It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "content of b.txt", IsError = false });
 
-        var middleware = CreateMiddleware(contextManager, toolOrchestrator, toolCalls);
+        await using var middleware = CreateMiddleware(contextManager, toolOrchestrator, toolCalls);
 
         await Assert.ThrowsAsync<OperationCanceledException>(async () => {
             await foreach (var _ in middleware.InvokeAsync(
@@ -97,7 +97,7 @@ public sealed class QueryLoopMiddlewareTests {
         toolOrchestrator.Setup(t => t.ExecuteToolCallAsync("Read", "call_001", It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "content of a.txt", IsError = false });
 
-        var middleware = CreateMiddleware(contextManager, toolOrchestrator, toolCalls);
+        await using var middleware = CreateMiddleware(contextManager, toolOrchestrator, toolCalls);
 
         var events = new List<ChatStreamEvent>();
         await foreach (var evt in middleware.InvokeAsync(
@@ -131,7 +131,7 @@ public sealed class QueryLoopMiddlewareTests {
                 return new ToolCallResult { ResultText = "agent done", IsError = false };
             });
 
-        var middleware = CreateMiddleware(contextManager, toolOrchestrator, toolCalls);
+        await using var middleware = CreateMiddleware(contextManager, toolOrchestrator, toolCalls);
 
         var events = new List<ChatStreamEvent>();
         await foreach (var evt in middleware.InvokeAsync(
@@ -183,7 +183,7 @@ public sealed class QueryLoopMiddlewareTests {
                 return Task.FromResult(new ToolCallResult { ResultText = "done", IsError = false });
             });
 
-        var middleware = CreateMiddleware(contextManager, toolOrchestrator, toolCalls);
+        await using var middleware = CreateMiddleware(contextManager, toolOrchestrator, toolCalls);
 
         var events = new List<ChatStreamEvent>();
         await foreach (var evt in middleware.InvokeAsync(

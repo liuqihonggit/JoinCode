@@ -141,7 +141,7 @@ public sealed partial class EntityReaper : IEntityReaper, IScanStrategy {
     /// <summary>
     /// IScanStrategy.Scan — 按会话隔离扫描, 只扫描该会话的 Entity
     /// </summary>
-    public async ValueTask Scan(SessionScope scope) {
+    public async ValueTask Scan(SessionScopeRef scope) {
         var now = _clock.GetUtcNow();
         foreach (var entity in scope.GetAll()) {
             if (entity.LifecycleState == EntityLifecycle.Disposed)

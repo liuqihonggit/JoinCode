@@ -34,4 +34,16 @@
     <Project Path="../../lib/infrastructure/Infrastructure.csproj" />
     <Project Path="../../lib/transport.impl/Transport.Impl.csproj" />
   </Folder>
+  <Folder Name="/tool/">
+    <Project Path="../../tool/ctor_scanner/CtorScanner.csproj" />
+    <Project Path="../../tool/onnx_embedding/OnnxEmbeddingExe.csproj" />
+    <Project Path="../../tool/onnx_embedding_verify/OnnxEmbeddingVerify.csproj" />
+    <Project Path="../../tool/simd_vector_verify/SimdVectorVerify.csproj" />
+  </Folder>
+  <Folder Name="/test/aot/">
+    <Project Path="../../test/aot/aot_pithosdb_probe/aot-pithosdb-probe.csproj" />
+  </Folder>
+  <Folder Name="/test/benchmarks/">
+    <Project Path="../../test/benchmarks/persistence.benchmarks/Persistence.Benchmarks.csproj" />
+  </Folder>
 </Solution>

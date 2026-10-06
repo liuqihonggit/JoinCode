@@ -41,7 +41,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable {
 
     [Fact]
     public async Task Constructor_ShouldLoadAllBuiltInSkills() {
-        var service = CreateService();
+        await using var service = CreateService();
         var skills = await service.GetAvailableSkillsAsync();
 
         skills.Should().HaveCount(11);
@@ -51,7 +51,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable {
 
     [Fact]
     public async Task SkillExists_AllBuiltInSkills_ShouldReturnTrue() {
-        var service = CreateService();
+        await using var service = CreateService();
 
         foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" }) {
             service.SkillExists(name).Should().BeTrue($"built-in skill '{name}' should exist");
@@ -60,7 +60,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable {
 
     [Fact]
     public async Task GetSkill_EachBuiltInSkill_ShouldHaveNonEmptyDescription() {
-        var service = CreateService();
+        await using var service = CreateService();
 
         foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" }) {
             var skill = await service.GetSkillAsync(name);
@@ -71,7 +71,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable {
 
     [Fact]
     public async Task GetSkill_EachBuiltInSkill_ShouldHaveStepsOrTemplate() {
-        var service = CreateService();
+        await using var service = CreateService();
 
         foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" }) {
             var skill = await service.GetSkillAsync(name);
@@ -84,7 +84,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable {
 
     [Fact]
     public async Task SearchSkills_ByKeyword_ShouldReturnMatching() {
-        var service = CreateService();
+        await using var service = CreateService();
         var skills = await service.GetAvailableSkillsAsync();
 
         var matching = skills.Where(s => s.Name.Contains("debug") || s.Description.Contains("debug", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -93,7 +93,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable {
 
     [Fact]
     public async Task SearchSkills_ByTag_ShouldReturnMatching() {
-        var service = CreateService();
+        await using var service = CreateService();
         var skills = await service.GetAvailableSkillsAsync();
 
         var withTags = skills.Where(s => s.Tags.Count > 0).ToList();
@@ -106,7 +106,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable {
 
     [Fact]
     public async Task RegisterCustomSkill_ShouldBeAvailable() {
-        var service = CreateService();
+        await using var service = CreateService();
         var customSkill = new SkillDefinition {
             Name = "custom_test",
             Description = "Custom test skill",
@@ -126,7 +126,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable {
 
     [Fact]
     public async Task UnregisterSkill_BuiltIn_ShouldRemove() {
-        var service = CreateService();
+        await using var service = CreateService();
 
         service.SkillExists("debug").Should().BeTrue();
         service.UnregisterSkill("debug");
@@ -135,7 +135,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable {
 
     [Fact]
     public async Task ExecuteAsync_NonExistingSkill_ShouldReturnFailure() {
-        var service = CreateService();
+        await using var service = CreateService();
         var ctx = new ExecutionContext();
 
         var result = await service.ExecuteAsync("nonexistent_skill", null, ctx);
@@ -146,7 +146,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable {
 
     [Fact]
     public async Task GetAvailableSkills_AfterRegisterAndUnregister_ShouldReflectChanges() {
-        var service = CreateService();
+        await using var service = CreateService();
         var initialCount = (await service.GetAvailableSkillsAsync()).Count;
 
         service.RegisterSkill(new SkillDefinition {

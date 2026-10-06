@@ -15,7 +15,7 @@ public static class SlnxParser {
 
         // 简单 XML 解析：提取所有 <Project Path="..." /> 节点
         // 不用 System.Xml 以减少依赖和 AOT 问题
-        var reader = new StringReader(content);
+        using var reader = new StringReader(content);
         string? line;
         while ((line = reader.ReadLine()) is not null) {
             var trimmed = line.Trim();

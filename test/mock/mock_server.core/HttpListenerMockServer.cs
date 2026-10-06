@@ -114,7 +114,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer {
                     Index = Interlocked.Increment(ref _requestIndex) - 1
                 };
 
-                var requestJson = JsonDocument.Parse(body);
+                using var requestJson = JsonDocument.Parse(body);
                 var cacheStats = _cacheSimulator.ComputeCacheStats(requestJson.RootElement);
 
                 await _lock.WaitAsync(ct).ConfigureAwait(true);

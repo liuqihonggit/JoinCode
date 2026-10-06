@@ -7,7 +7,7 @@ public sealed class TempFileScopeTest {
     public void Create_ReturnsPathWithPrefixAndExtension() {
         var fs = new InMemoryFileSystem();
 
-        var scope = TempFileScope.Create(fs, "jcc_repl_", ".cs");
+        using var scope = TempFileScope.Create(fs, "jcc_repl_", ".cs");
 
         scope.Path.Should().Contain("jcc_repl_");
         scope.Path.Should().EndWith(".cs");

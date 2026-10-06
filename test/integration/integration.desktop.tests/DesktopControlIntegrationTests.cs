@@ -20,7 +20,7 @@ public sealed class DesktopControlIntegrationTests {
         await using var windows = new Win32WindowManagementService();
         await using var capture = new GdiScreenCaptureService();
 
-        var notepad = System.Diagnostics.Process.Start("notepad.exe");
+        using var notepad = System.Diagnostics.Process.Start("notepad.exe");
         try {
             notepad.Should().NotBeNull();
 

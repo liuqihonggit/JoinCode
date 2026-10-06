@@ -132,6 +132,6 @@ public sealed class McpAuthFallbackTests {
     private static HttpClient? GetPrivateHttpClientField(object obj) {
         var field = obj.GetType().GetField("_httpClient", BindingFlags.NonPublic | BindingFlags.Instance);
         field.Should().NotBeNull($"类型 {obj.GetType().Name} 应包含 private _httpClient 字段");
-        return field!.GetValue(obj) as HttpClient;
+        return field!.GetValue(obj) is HttpClientRef r ? r.Client : null;
     }
 }

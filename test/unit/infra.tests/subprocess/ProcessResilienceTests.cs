@@ -77,7 +77,7 @@ public sealed class ProcessRestartManagerTests {
         var oldProcess = CreateMockProcess(1);
         var newProcess = CreateMockProcess(2);
 
-        var result = await manager.RestartAsync(
+        await using var result = await manager.RestartAsync(
             oldProcess,
             _ => Task.FromResult(newProcess),
             CancellationToken.None);

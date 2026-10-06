@@ -107,9 +107,9 @@ public sealed class PluginLifecycleTrackerTest {
     [Fact]
     public async Task ExecuteAsyncUndoChainAsync_ReverseOrder_ExecutesLastFirst() {
         var tracker = new PluginLifecycleTracker(null, null);
-        var stub1 = new AsyncDisposableStub();
-        var stub2 = new AsyncDisposableStub();
-        var stub3 = new AsyncDisposableStub();
+        await using var stub1 = new AsyncDisposableStub();
+        await using var stub2 = new AsyncDisposableStub();
+        await using var stub3 = new AsyncDisposableStub();
         tracker.RegisterUndoChain("p", [], [stub1, stub2, stub3]);
 
         await tracker.ExecuteAsyncUndoChainAsync("p", CancellationToken.None);
@@ -122,9 +122,9 @@ public sealed class PluginLifecycleTrackerTest {
     [Fact]
     public async Task ExecuteAsyncUndoChainAsync_ExceptionIsolation_ContinuesAfterFailure() {
         var tracker = new PluginLifecycleTracker(null, null);
-        var good = new AsyncDisposableStub();
-        var bad = new AsyncDisposableStub { ThrowOnDispose = new InvalidOperationException("boom") };
-        var good2 = new AsyncDisposableStub();
+        await using var good = new AsyncDisposableStub();
+        await using var bad = new AsyncDisposableStub { ThrowOnDispose = new InvalidOperationException("boom") };
+        await using var good2 = new AsyncDisposableStub();
         tracker.RegisterUndoChain("p", [], [good, bad, good2]);
 
         await tracker.ExecuteAsyncUndoChainAsync("p", CancellationToken.None);

@@ -59,7 +59,7 @@ public class TokenBudgetManagerTests {
     [Fact]
     public async Task SetBudgetAlertThreshold_WithInvalidValue_ShouldThrow() {
         // Arrange
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => manager.SetBudgetAlertThresholdAsync(-0.1)).ConfigureAwait(true);
@@ -123,7 +123,7 @@ public class TokenBudgetManagerTests {
 
     [Fact]
     public async Task SetBudgetAlertThresholdAsync_ZeroThreshold_DoesNotThrow() {
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
 
         var act = () => manager.SetBudgetAlertThresholdAsync(0.0);
 

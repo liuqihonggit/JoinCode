@@ -65,7 +65,7 @@ public sealed class ToolExecutionEntityCloneTests {
         await using var cloned = (ToolExecutionEntity)source.Clone(context);
 
         SessionRouter.TryGetScope(targetSession, out var scope).Should().BeTrue();
-        scope!.Resolve<ToolExecutionEntity>(cloned.ObjectId).Should().BeSameAs(cloned);
+        scope!.Value.Resolve<ToolExecutionEntity>(cloned.ObjectId).Should().BeSameAs(cloned);
 
     }
 

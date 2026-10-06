@@ -229,7 +229,7 @@ public class Test
             MinCompressionThreshold = 10
         });
         var code = "public class Test { }";
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         cts.Cancel();
 
         // 当前实现返回错误结果而不是抛出异常

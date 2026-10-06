@@ -15,7 +15,7 @@ public sealed class UnifiedCircuitBreakerTests {
 
     [Fact]
     public void InitialState_IsClosed() {
-        var cb = new UnifiedCircuitBreaker("test");
+        using var cb = new UnifiedCircuitBreaker("test");
         cb.Phase.Should().Be(CircuitBreakerPhase.Closed);
         cb.ConsecutiveFailures.Should().Be(0);
         cb.IsOpen.Should().BeFalse();
@@ -23,7 +23,7 @@ public sealed class UnifiedCircuitBreakerTests {
 
     [Fact]
     public void RecordSuccess_ResetsConsecutiveFailures() {
-        var cb = new UnifiedCircuitBreaker("test", failureThreshold: 3);
+        using var cb = new UnifiedCircuitBreaker("test", failureThreshold: 3);
         cb.RecordFailure();
         cb.RecordFailure();
         cb.ConsecutiveFailures.Should().Be(2);
@@ -35,7 +35,7 @@ public sealed class UnifiedCircuitBreakerTests {
 
     [Fact]
     public void RecordFailure_ReachesThreshold_OpensCircuit() {
-        var cb = new UnifiedCircuitBreaker("test", failureThreshold: 3);
+        using var cb = new UnifiedCircuitBreaker("test", failureThreshold: 3);
 
         cb.RecordFailure();
         cb.Phase.Should().Be(CircuitBreakerPhase.Closed);
@@ -48,13 +48,13 @@ public sealed class UnifiedCircuitBreakerTests {
 
     [Fact]
     public void TryProbe_WhenClosed_ReturnsTrue() {
-        var cb = new UnifiedCircuitBreaker("test");
+        using var cb = new UnifiedCircuitBreaker("test");
         cb.TryProbe().Should().BeTrue();
     }
 
     [Fact]
     public void TryProbe_WhenOpen_ReturnsFalse() {
-        var cb = new UnifiedCircuitBreaker("test", failureThreshold: 1);
+        using var cb = new UnifiedCircuitBreaker("test", failureThreshold: 1);
         cb.RecordFailure();
         cb.Phase.Should().Be(CircuitBreakerPhase.Open);
 
@@ -63,7 +63,7 @@ public sealed class UnifiedCircuitBreakerTests {
 
     [Fact]
     public async Task TryProbe_WhenHalfOpen_AllowsOneProbe() {
-        var cb = new UnifiedCircuitBreaker("test", failureThreshold: 1, openDuration: TimeSpan.FromMilliseconds(50));
+        using var cb = new UnifiedCircuitBreaker("test", failureThreshold: 1, openDuration: TimeSpan.FromMilliseconds(50));
         cb.RecordFailure();
         cb.Phase.Should().Be(CircuitBreakerPhase.Open);
 
@@ -76,7 +76,7 @@ public sealed class UnifiedCircuitBreakerTests {
 
     [Fact]
     public async Task HalfOpen_RecordFailure_ReturnsToOpen() {
-        var cb = new UnifiedCircuitBreaker("test", failureThreshold: 1, openDuration: TimeSpan.FromMilliseconds(50));
+        using var cb = new UnifiedCircuitBreaker("test", failureThreshold: 1, openDuration: TimeSpan.FromMilliseconds(50));
         cb.RecordFailure();
 
         await Task.Delay(100);
@@ -88,7 +88,7 @@ public sealed class UnifiedCircuitBreakerTests {
 
     [Fact]
     public async Task HalfOpen_RecordSuccess_ReturnsToClosed() {
-        var cb = new UnifiedCircuitBreaker("test", failureThreshold: 1, openDuration: TimeSpan.FromMilliseconds(50));
+        using var cb = new UnifiedCircuitBreaker("test", failureThreshold: 1, openDuration: TimeSpan.FromMilliseconds(50));
         cb.RecordFailure();
 
         await Task.Delay(100);
@@ -101,7 +101,7 @@ public sealed class UnifiedCircuitBreakerTests {
 
     [Fact]
     public void Reset_ReturnsToClosed() {
-        var cb = new UnifiedCircuitBreaker("test", failureThreshold: 1);
+        using var cb = new UnifiedCircuitBreaker("test", failureThreshold: 1);
         cb.RecordFailure();
         cb.Phase.Should().Be(CircuitBreakerPhase.Open);
 
@@ -112,7 +112,7 @@ public sealed class UnifiedCircuitBreakerTests {
 
     [Fact]
     public void TotalFailures_AccumulatesAcrossResets() {
-        var cb = new UnifiedCircuitBreaker("test", failureThreshold: 2);
+        using var cb = new UnifiedCircuitBreaker("test", failureThreshold: 2);
 
         cb.RecordFailure();
         cb.RecordFailure();
@@ -125,7 +125,7 @@ public sealed class UnifiedCircuitBreakerTests {
 
     [Fact]
     public void OpenedAt_SetWhenOpens() {
-        var cb = new UnifiedCircuitBreaker("test", failureThreshold: 1);
+        using var cb = new UnifiedCircuitBreaker("test", failureThreshold: 1);
         cb.OpenedAt.Should().BeNull();
 
         cb.RecordFailure();
@@ -135,7 +135,7 @@ public sealed class UnifiedCircuitBreakerTests {
     [Fact]
     public void FromCircuitBreakerConfig() {
         var config = new CircuitBreakerConfig { FailureThreshold = 7, OpenDuration = TimeSpan.FromSeconds(60) };
-        var cb = new UnifiedCircuitBreaker("test", config);
+        using var cb = new UnifiedCircuitBreaker("test", config);
         cb.Name.Should().Be("test");
 
         for (var i = 0; i < 6; i++) cb.RecordFailure();

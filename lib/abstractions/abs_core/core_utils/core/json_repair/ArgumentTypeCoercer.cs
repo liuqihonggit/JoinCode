@@ -128,7 +128,7 @@ internal static class ArgumentTypeCoercer {
         var str = value.GetString()!;
         if (str.StartsWith('[')) {
             try {
-                var arr = JsonDocument.Parse(str);
+                using var arr = JsonDocument.Parse(str);
                 if (arr.RootElement.ValueKind == JsonValueKind.Array)
                     return (arr.RootElement.Clone(), true);
             } catch (JsonException) {
@@ -136,7 +136,7 @@ internal static class ArgumentTypeCoercer {
             }
         } else if (str.StartsWith('{')) {
             try {
-                var obj = JsonDocument.Parse(str);
+                using var obj = JsonDocument.Parse(str);
                 if (obj.RootElement.ValueKind == JsonValueKind.Object)
                     return (JsonDocument.Parse($"[{str}]").RootElement.Clone(), true);
             } catch (JsonException) {

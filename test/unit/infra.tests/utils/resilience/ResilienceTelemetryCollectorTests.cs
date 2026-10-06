@@ -13,7 +13,7 @@ public sealed class ResilienceTelemetryCollectorTests {
     [Fact]
     public void Collect_WithResilientProvider_ReturnsCircuitBreakerStatus() {
         var mockInner = new Mock<IHttpClientProvider>();
-        mockInner.Setup(x => x.GetClient()).Returns(new HttpClient());
+        mockInner.Setup(x => x.GetClient()).Returns(new HttpClientRef(new HttpClient()));
 
         var provider = new ResilientHttpClientProvider(mockInner.Object, policy: new ResiliencePolicy {
             Name = "test-endpoint",
@@ -67,7 +67,7 @@ public sealed class ResilienceTelemetryCollectorTests {
     [Fact]
     public void Collect_AfterFailures_RecordsFailureCount() {
         var mockInner = new Mock<IHttpClientProvider>();
-        mockInner.Setup(x => x.GetClient()).Returns(new HttpClient());
+        mockInner.Setup(x => x.GetClient()).Returns(new HttpClientRef(new HttpClient()));
 
         var provider = new ResilientHttpClientProvider(mockInner.Object, policy: new ResiliencePolicy {
             Name = "failing-endpoint",

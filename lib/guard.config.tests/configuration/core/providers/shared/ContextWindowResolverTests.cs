@@ -21,44 +21,44 @@ public sealed class ContextWindowResolverTests {
     }
 
     [Fact]
-    public void Resolve_EnvNegative_Should_Fallback_To_Default() {
+    public async Task Resolve_EnvNegative_Should_Fallback_To_Default() {
         using var env = EnvVarScope.Set(JccEnvVarEnumConstants.MaxContextTokens, "-100");
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         resolver.ResolveCurrentContextWindow().Should().Be(DefaultContextWindow);
     }
 
     [Fact]
-    public void Resolve_EnvZero_Should_Fallback_To_Default() {
+    public async Task Resolve_EnvZero_Should_Fallback_To_Default() {
         using var env = EnvVarScope.Set(JccEnvVarEnumConstants.MaxContextTokens, "0");
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         resolver.ResolveCurrentContextWindow().Should().Be(DefaultContextWindow);
     }
 
     [Fact]
-    public void Resolve_EnvNonNumeric_Should_Fallback_To_Default() {
+    public async Task Resolve_EnvNonNumeric_Should_Fallback_To_Default() {
         using var env = EnvVarScope.Set(JccEnvVarEnumConstants.MaxContextTokens, "abc");
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         resolver.ResolveCurrentContextWindow().Should().Be(DefaultContextWindow);
     }
 
     [Fact]
-    public void Resolve_EnvEmpty_Should_Fallback_To_Default() {
+    public async Task Resolve_EnvEmpty_Should_Fallback_To_Default() {
         using var env = EnvVarScope.Set(JccEnvVarEnumConstants.MaxContextTokens, string.Empty);
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         resolver.ResolveCurrentContextWindow().Should().Be(DefaultContextWindow);
     }
 
     [Fact]
-    public void Resolve_EnvUnset_Should_Fallback_To_Default() {
+    public async Task Resolve_EnvUnset_Should_Fallback_To_Default() {
         using var env = EnvVarScope.Set(JccEnvVarEnumConstants.MaxContextTokens, null);
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         resolver.ResolveCurrentContextWindow().Should().Be(DefaultContextWindow);
     }
 
     [Fact]
-    public void Resolve_EnvPositive_Should_Use_EnvValue() {
+    public async Task Resolve_EnvPositive_Should_Use_EnvValue() {
         using var env = EnvVarScope.Set(JccEnvVarEnumConstants.MaxContextTokens, "100000");
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         resolver.ResolveCurrentContextWindow().Should().Be(100_000);
     }
 }

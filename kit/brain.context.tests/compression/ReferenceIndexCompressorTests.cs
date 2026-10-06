@@ -163,7 +163,7 @@ method TestMethod";
     [Fact]
     public async Task CompressAsync_CancellationRequested_ShouldThrowOperationCanceledException() {
         var content = "文件: Test.cs\nclass Test";
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         cts.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>

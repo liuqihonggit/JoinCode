@@ -85,7 +85,7 @@ public sealed class DownloadSessionStateTransitionTests {
         var data = Enumerable.Range(0, 256 * 1024).Select(i => (byte)(i % 256)).ToArray();
         var (downloader, fs) = CreateDownloaderWithData(data);
 
-        var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 8 });
+        await using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 8 });
         var result = await session.WaitForCompletionAsync();
 
         result.Success.Should().BeTrue();

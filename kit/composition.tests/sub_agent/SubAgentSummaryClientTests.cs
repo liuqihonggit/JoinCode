@@ -61,7 +61,7 @@ public sealed class SubAgentSummaryClientTests {
 
     [Fact]
     public async Task SummarizeAsync_NullText_ReturnsNullWithoutCallingLlm() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.SummarizeAsync(null!, "agent1", 100).ConfigureAwait(true);
 
         result.Should().BeNull();
@@ -72,7 +72,7 @@ public sealed class SubAgentSummaryClientTests {
 
     [Fact]
     public async Task SummarizeAsync_EmptyText_ReturnsNullWithoutCallingLlm() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.SummarizeAsync(string.Empty, "agent1", 100).ConfigureAwait(true);
 
         result.Should().BeNull();
@@ -87,7 +87,7 @@ public sealed class SubAgentSummaryClientTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new ApiMessage(MessageRole.Assistant, "这是摘要")]);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.SummarizeAsync("需要摘要的文本", "agent1", 100).ConfigureAwait(true);
 
         result.Should().Be("这是摘要");
@@ -99,7 +99,7 @@ public sealed class SubAgentSummaryClientTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new ApiMessage(MessageRole.Assistant, "")]);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.SummarizeAsync("文本", "agent1", 100).ConfigureAwait(true);
 
         result.Should().BeNull();
@@ -111,7 +111,7 @@ public sealed class SubAgentSummaryClientTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new ApiMessage(MessageRole.Assistant, null)]);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.SummarizeAsync("文本", "agent1", 100).ConfigureAwait(true);
 
         result.Should().BeNull();
@@ -123,7 +123,7 @@ public sealed class SubAgentSummaryClientTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.SummarizeAsync("文本", "agent1", 100).ConfigureAwait(true);
 
         result.Should().BeNull();
@@ -138,7 +138,7 @@ public sealed class SubAgentSummaryClientTests {
                 new ApiMessage(MessageRole.Assistant, "第二条摘要"),
             ]);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.SummarizeAsync("文本", "agent1", 100).ConfigureAwait(true);
 
         result.Should().Be("第一条摘要");
@@ -150,7 +150,7 @@ public sealed class SubAgentSummaryClientTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("LLM 故障"));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.SummarizeAsync("文本", "agent1", 100).ConfigureAwait(true);
 
         result.Should().BeNull();
@@ -162,7 +162,7 @@ public sealed class SubAgentSummaryClientTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var act = async () => await sut.SummarizeAsync("文本", "agent1", 100).ConfigureAwait(true);
         await act.Should().ThrowAsync<OperationCanceledException>().ConfigureAwait(true);
     }
@@ -175,7 +175,7 @@ public sealed class SubAgentSummaryClientTests {
             .Callback<MessageList, ChatOptions?, IChatClient?, CancellationToken>((history, _, _, _) => capturedHistory = history)
             .ReturnsAsync([new ApiMessage(MessageRole.Assistant, "摘要")]);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.SummarizeAsync("用户输入文本", "agent1", 256).ConfigureAwait(true);
 
         capturedHistory.Should().NotBeNull();

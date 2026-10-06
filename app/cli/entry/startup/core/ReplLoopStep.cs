@@ -53,7 +53,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
 
         var isProcessing = 0;
 
-        var commandQueue = new CommandQueue();
+        using var commandQueue = new CommandQueue();
         var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         var readTask = Task.Run(async () => {

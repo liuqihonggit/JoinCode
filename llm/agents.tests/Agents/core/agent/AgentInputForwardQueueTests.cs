@@ -91,7 +91,7 @@ public class AgentInputForwardQueueTests {
 
     [Fact]
     public async Task EnqueueAsync_NullOrWhitespaceInput_Throws() {
-        var queue = new AgentInputForwardQueue();
+        await using var queue = new AgentInputForwardQueue();
         queue.Register("agent-1");
 
         await Assert.ThrowsAsync<ArgumentException>(() => queue.EnqueueAsync("agent-1", ""));
@@ -99,8 +99,8 @@ public class AgentInputForwardQueueTests {
     }
 
     [Fact]
-    public void Register_NullOrWhitespaceAgentId_Throws() {
-        var queue = new AgentInputForwardQueue();
+    public async Task Register_NullOrWhitespaceAgentId_Throws() {
+        await using var queue = new AgentInputForwardQueue();
         Assert.Throws<ArgumentException>(() => queue.Register(""));
         Assert.Throws<ArgumentException>(() => queue.Register("   "));
     }

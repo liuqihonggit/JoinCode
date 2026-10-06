@@ -159,7 +159,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [Fact]
     public async Task ResolveCodeReferenceAsync_WithExactFilePath_ShouldReturnExactMatch() {
         // Arrange
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         var filePath = Path.Combine("src", "tools", "tool1.ts").Replace('\\', '/');
 
         // Act
@@ -182,7 +182,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [Fact]
     public async Task ResolveCodeReferenceAsync_WithGlobPattern_ShouldReturnPatternMatch() {
         // Arrange
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         var pattern = Path.Combine("src", "tools", "*.ts").Replace('\\', '/');
 
         // Act
@@ -204,7 +204,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [Fact]
     public async Task ResolveCodeReferenceAsync_WithDirectoryPath_ShouldReturnDirectoryContents() {
         // Arrange
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         var dirPath = "src/tools";
 
         // Act
@@ -228,7 +228,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [Fact]
     public async Task ResolveCodeReferenceAsync_WithFuzzyMatch_ShouldReturnFuzzyResults() {
         // Arrange
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         var fuzzyPath = "src/tols"; // 故意拼写错误
 
         // Act
@@ -252,7 +252,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [Fact]
     public async Task ResolveCodeReferenceAsync_WithNonExistentPath_ShouldReturnUnresolved() {
         // Arrange
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         var nonExistentPath = "xyz123/nonexistent/file.cs";
 
         // Act
@@ -271,7 +271,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [Fact]
     public async Task FindMatchingFilesAsync_WithDescription_ShouldReturnMatches() {
         // Arrange
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         var description = "*.ts";
 
         // Act
@@ -289,7 +289,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [Fact]
     public async Task FindMatchingFilesAsync_WithChineseAlias_ShouldResolveAlias() {
         // Arrange
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         var description = "工具"; // 中文别名
 
         // Act
@@ -310,7 +310,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [Fact]
     public async Task BuildReferenceIndexAsync_ShouldCreateCompleteIndex() {
         // Arrange
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
 
         // Act
         var index = await resolver.BuildReferenceIndexAsync(_fixture.TestDir).ConfigureAwait(true);
@@ -462,7 +462,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [Fact]
     public async Task FullResolutionWorkflow_ResolveThenIndex_ShouldWorkTogether() {
         // Arrange
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
 
         // Act
         var reference = await resolver.ResolveCodeReferenceAsync(
@@ -492,7 +492,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [Fact]
     public async Task ResolveCodeReferenceAsync_WithDeepNestedPath_ShouldResolveCorrectly() {
         // Arrange
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         var deepPath = Path.Combine("src", "services", "deep", "nested", "file.cs")
             .Replace('\\', '/');
 
@@ -511,7 +511,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [Fact]
     public async Task ResolveCodeReferenceAsync_WithMultipleExtensions_ShouldMatchAll() {
         // Arrange
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
         var pattern = Path.Combine("src", "tools", "*").Replace('\\', '/');
 
         // Act
@@ -537,7 +537,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [InlineData("commands")]
     public async Task FindMatchingFilesAsync_WithDirectoryAliases_ShouldAttemptResolve(string alias) {
         // Arrange
-        var resolver = CreateResolver();
+        await using var resolver = CreateResolver();
 
         // Act
         var results = await resolver.FindMatchingFilesAsync(

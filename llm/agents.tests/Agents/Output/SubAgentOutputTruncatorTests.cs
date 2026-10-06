@@ -17,7 +17,7 @@ public sealed class SubAgentOutputTruncatorTests {
     [Fact]
     public async Task TruncateAsync_WithinBudget_ReturnsOriginal_NoArchive() {
         var fsMock = new Mock<IFileSystem>();
-        var sut = CreateSut(fsMock);
+        await using var sut = CreateSut(fsMock);
 
         var result = await sut.TruncateAsync("agent-1", "small output", 100);
 
@@ -36,7 +36,7 @@ public sealed class SubAgentOutputTruncatorTests {
         fsMock.Setup(x => x.WriteAllTextAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
               .Callback<string, string, CancellationToken>((p, c, _) => { capturedPath = p; capturedContent = c; })
               .Returns(Task.CompletedTask);
-        var sut = CreateSut(fsMock);
+        await using var sut = CreateSut(fsMock);
 
         var bigOutput = new string('x', 1000);
         var result = await sut.TruncateAsync("agent-2", bigOutput, 10);
@@ -56,7 +56,7 @@ public sealed class SubAgentOutputTruncatorTests {
         fsMock.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(true);
         fsMock.Setup(x => x.WriteAllTextAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
               .Returns(Task.CompletedTask);
-        var sut = CreateSut(fsMock);
+        await using var sut = CreateSut(fsMock);
 
         var result = await sut.TruncateAsync("agent-3", new string('y', 800), 10, "修复了登录bug");
 
@@ -66,7 +66,7 @@ public sealed class SubAgentOutputTruncatorTests {
     [Fact]
     public async Task TruncateAsync_EmptyOutput_ReturnsAsIs() {
         var fsMock = new Mock<IFileSystem>();
-        var sut = CreateSut(fsMock);
+        await using var sut = CreateSut(fsMock);
 
         var result = await sut.TruncateAsync("agent-4", "", 10);
 
@@ -77,7 +77,7 @@ public sealed class SubAgentOutputTruncatorTests {
     [Fact]
     public async Task TruncateAsync_ExactBudgetBoundary_ReturnsOriginal() {
         var fsMock = new Mock<IFileSystem>();
-        var sut = CreateSut(fsMock);
+        await using var sut = CreateSut(fsMock);
 
         var output = new string('z', 400);
         var result = await sut.TruncateAsync("agent-5", output, 100);

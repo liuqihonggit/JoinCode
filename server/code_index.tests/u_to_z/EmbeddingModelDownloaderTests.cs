@@ -41,8 +41,8 @@ public sealed class EmbeddingModelDownloaderTests {
     private sealed class FakeHttpProvider : IHttpClientProvider {
         private readonly HttpClient _client;
         public FakeHttpProvider(HttpMessageHandler handler) => _client = new HttpClient(handler);
-        public HttpClient GetClient() => _client;
-        public HttpClient GetClient(string name) => _client;
+        public HttpClientRef GetClient() => new(_client);
+        public HttpClientRef GetClient(string name) => new(_client);
     }
 
     [Fact]

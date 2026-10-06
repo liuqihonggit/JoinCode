@@ -4,7 +4,7 @@ namespace Core.Agents;
 public sealed class AgentPromptBuilderTests {
     [Fact]
     public async Task BuildSystemPromptAsync_WithMcpServers_InjectsServerNames() {
-        var builder = CreateBuilder();
+        await using var builder = CreateBuilder();
         var promptContext = new AgentPromptContext {
             McpServers = ["filesystem", "git"],
         };
@@ -19,7 +19,7 @@ public sealed class AgentPromptBuilderTests {
 
     [Fact]
     public async Task BuildSystemPromptAsync_WithAvailableSkills_InjectsSkillNames() {
-        var builder = CreateBuilder();
+        await using var builder = CreateBuilder();
         var promptContext = new AgentPromptContext {
             AvailableSkills = ["commit", "verify"],
         };
@@ -34,7 +34,7 @@ public sealed class AgentPromptBuilderTests {
 
     [Fact]
     public async Task BuildSystemPromptAsync_WithSettingsSummary_InjectsSummary() {
-        var builder = CreateBuilder();
+        await using var builder = CreateBuilder();
         var promptContext = new AgentPromptContext {
             SettingsSummary = "权限模式: auto, 模型: gpt-4o",
         };
@@ -48,7 +48,7 @@ public sealed class AgentPromptBuilderTests {
 
     [Fact]
     public async Task BuildSystemPromptAsync_WithNullPromptContext_BehavesAsBaseOverload() {
-        var builder = CreateBuilder();
+        await using var builder = CreateBuilder();
 
         var resultWithContext = await builder.BuildSystemPromptAsync(
             ExecutorVariant.Code.ToValue(), "test task", null, null);
@@ -68,7 +68,7 @@ public sealed class AgentPromptBuilderTests {
             SystemPrompt = "You are a code agent.",
             CriticalSystemReminder = "<critical>STAY FOCUSED</critical>",
         };
-        var builder = CreateBuilder(definition);
+        await using var builder = CreateBuilder(definition);
 
         var result = await builder.BuildSystemPromptAsync(
             ExecutorVariant.Code.ToValue(), "test task", null);
@@ -84,7 +84,7 @@ public sealed class AgentPromptBuilderTests {
             WhenToUse = "code agent",
             SystemPrompt = "You are a code agent.",
         };
-        var builder = CreateBuilder(definition);
+        await using var builder = CreateBuilder(definition);
 
         var result = await builder.BuildSystemPromptAsync(
             ExecutorVariant.Code.ToValue(), "test task", null);

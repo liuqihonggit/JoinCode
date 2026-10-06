@@ -349,7 +349,7 @@ public class OpenAIQueryService : QueryServiceBase {
         OpenAIChatRequest originalRequest, string descRequestContent, IChatClient kernel) {
         HashSet<string> toolNames;
         try {
-            var doc = JsonDocument.Parse(descRequestContent);
+            using var doc = JsonDocument.Parse(descRequestContent);
             toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
                 .Select(t => t.GetString() ?? "")
                 .Where(s => !string.IsNullOrEmpty(s))

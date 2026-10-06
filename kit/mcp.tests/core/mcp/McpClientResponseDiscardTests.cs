@@ -37,7 +37,7 @@ public sealed class McpClientResponseDiscardTests {
 
     [Fact]
     public async Task ProcessResponseAsync_AfterActorDisposed_ThrowsObjectDisposedException() {
-        var client = new TestClient();
+        await using var client = new TestClient();
         await client.DisposeRegistryForTestAsync().ConfigureAwait(true);
 
         var act = async () => await client.ProcessResponseForTest(CreateResponse(1)).ConfigureAwait(true);
@@ -46,7 +46,7 @@ public sealed class McpClientResponseDiscardTests {
 
     [Fact]
     public async Task FireAndForgetProcessResponseAsync_AfterActorDisposed_DoesNotThrow() {
-        var client = new TestClient();
+        await using var client = new TestClient();
         await client.DisposeRegistryForTestAsync().ConfigureAwait(true);
 
         var act = async () => await client.FireAndForgetProcessResponseForTest(CreateResponse(1)).ConfigureAwait(true);
@@ -55,7 +55,7 @@ public sealed class McpClientResponseDiscardTests {
 
     [Fact]
     public async Task FireAndForgetProcessResponseAsync_ValidPending_CompletesNormally() {
-        var client = new TestClient();
+        await using var client = new TestClient();
         var act = async () => await client.FireAndForgetProcessResponseForTest(CreateResponse(99)).ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }

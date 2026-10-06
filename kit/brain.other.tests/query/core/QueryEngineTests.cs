@@ -300,49 +300,49 @@ public class QueryEngineTests {
     }
 
     [Fact]
-    public void CalculateRetryDelay_NoBackoff_ShouldReturnConstantDelay() {
+    public async Task CalculateRetryDelay_NoBackoff_ShouldReturnConstantDelay() {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 500, EnableExponentialBackoff = false }
         };
-        var engine = CreateQueryEngine(config);
+        await using var engine = CreateQueryEngine(config);
         engine.CalculateRetryDelay(1).Should().Be(500);
         engine.CalculateRetryDelay(2).Should().Be(500);
         engine.CalculateRetryDelay(5).Should().Be(500);
     }
 
     [Fact]
-    public void CalculateRetryDelay_ExponentialBackoff_Retry1_ShouldReturnBaseDelay() {
+    public async Task CalculateRetryDelay_ExponentialBackoff_Retry1_ShouldReturnBaseDelay() {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
         };
-        var engine = CreateQueryEngine(config);
+        await using var engine = CreateQueryEngine(config);
         engine.CalculateRetryDelay(1).Should().Be(1000);
     }
 
     [Fact]
-    public void CalculateRetryDelay_ExponentialBackoff_Retry2_ShouldReturnDoubleDelay() {
+    public async Task CalculateRetryDelay_ExponentialBackoff_Retry2_ShouldReturnDoubleDelay() {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
         };
-        var engine = CreateQueryEngine(config);
+        await using var engine = CreateQueryEngine(config);
         engine.CalculateRetryDelay(2).Should().Be(2000);
     }
 
     [Fact]
-    public void CalculateRetryDelay_ExponentialBackoff_Retry3_ShouldReturnQuadrupleDelay() {
+    public async Task CalculateRetryDelay_ExponentialBackoff_Retry3_ShouldReturnQuadrupleDelay() {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
         };
-        var engine = CreateQueryEngine(config);
+        await using var engine = CreateQueryEngine(config);
         engine.CalculateRetryDelay(3).Should().Be(4000);
     }
 
     [Fact]
-    public void CalculateRetryDelay_ShouldClampToMaxDelay() {
+    public async Task CalculateRetryDelay_ShouldClampToMaxDelay() {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
         };
-        var engine = CreateQueryEngine(config);
+        await using var engine = CreateQueryEngine(config);
         // retryCount=20: 1000 * 2^19 = 524288000 > MaxDelayMs(30000) → 钳制到 30000
         engine.CalculateRetryDelay(20).Should().Be(WorkflowConstants.Retry.MaxDelayMs);
     }

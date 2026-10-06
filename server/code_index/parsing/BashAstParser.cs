@@ -8,6 +8,7 @@ namespace JoinCode.CodeIndex.Ast;
 public sealed partial class BashAstParser : IDisposable {
     private readonly Language _language;
     private readonly Parser _parser;
+    private readonly List<Tree> _trees = new();
     private int _disposed;
 
     /// <summary>
@@ -31,7 +32,9 @@ public sealed partial class BashAstParser : IDisposable {
 
         try {
             var tree = _parser.Parse(command);
-            return tree?.RootNode;
+            if (tree is null) return null;
+            _trees.Add(tree);
+            return tree.RootNode;
         } catch {
             return null;
         }
@@ -243,6 +246,7 @@ public sealed partial class BashAstParser : IDisposable {
     /// </summary>
     public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        foreach (var t in _trees) t.Dispose();
         _parser.Dispose();
         _language.Dispose();
     }

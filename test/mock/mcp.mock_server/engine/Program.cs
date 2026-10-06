@@ -29,7 +29,7 @@ public sealed class Program {
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls($"http://localhost:{port}/");
-        var app = builder.Build();
+        await using var app = builder.Build();
 
         // GET / — 健康检查
         app.MapGet("/", async (HttpContext ctx) => {

@@ -4,7 +4,7 @@ namespace Core.Tests.Context;
 public class ContextHierarchyTests {
     [Fact]
     public async Task Constructor_DefaultValues_ShouldBeCorrect() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
 
         hierarchy.TokenThreshold.Should().Be(4000);
         (await hierarchy.GetLayersAsync().ConfigureAwait(true)).Should().BeEmpty();
@@ -12,7 +12,7 @@ public class ContextHierarchyTests {
     }
 
     [Fact]
-    public void Constructor_WithOptions_ShouldUseOptions() {
+    public async Task Constructor_WithOptions_ShouldUseOptions() {
         var options = new ContextHierarchyOptions {
             TokenThreshold = 2000,
             AutoCompressionEnabled = false,
@@ -20,14 +20,14 @@ public class ContextHierarchyTests {
             DefaultCompressionRatio = 0.3
         };
 
-        var hierarchy = ContextHierarchy.Create(options);
+        await using var hierarchy = ContextHierarchy.Create(options);
 
         hierarchy.TokenThreshold.Should().Be(2000);
     }
 
     [Fact]
     public async Task AddLayerAsync_SingleLayer_ShouldAddSuccessfully() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
         var layer = ContextLayer.CreateDetailed("Test content", "TestLayer");
 
         await hierarchy.AddLayerAsync(layer).ConfigureAwait(true);
@@ -39,7 +39,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task AddLayerAsync_MultipleLayers_ShouldMaintainOrder() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
 
         await hierarchy.AddLayerAsync(ContextLayer.CreateSummary("Summary content", "SummaryLayer")).ConfigureAwait(true);
         await hierarchy.AddLayerAsync(ContextLayer.CreateDetailed("Detailed content", "DetailedLayer")).ConfigureAwait(true);
@@ -54,7 +54,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task AddLayerAsync_DuplicateType_ShouldReplaceExisting() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
 
         await hierarchy.AddLayerAsync(ContextLayer.CreateDetailed("Original content", "OriginalLayer")).ConfigureAwait(true);
         await hierarchy.AddLayerAsync(ContextLayer.CreateDetailed("Replaced content", "ReplacedLayer")).ConfigureAwait(true);
@@ -66,7 +66,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task RemoveLayerAsync_ExistingLayer_ShouldRemoveSuccessfully() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
         await hierarchy.AddLayerAsync(ContextLayer.CreateDetailed("Test content", "TestLayer")).ConfigureAwait(true);
 
         var result = await hierarchy.RemoveLayerAsync(ContextLayerType.Detailed).ConfigureAwait(true);
@@ -77,7 +77,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task RemoveLayerAsync_NonExistingLayer_ShouldReturnFalse() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
 
         var result = await hierarchy.RemoveLayerAsync(ContextLayerType.Detailed).ConfigureAwait(true);
 
@@ -86,7 +86,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task GetLayerAsync_ExistingLayer_ShouldReturnLayer() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
         var layer = ContextLayer.CreateDetailed("Test content", "TestLayer");
         await hierarchy.AddLayerAsync(layer).ConfigureAwait(true);
 
@@ -98,7 +98,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task GetLayerAsync_NonExistingLayer_ShouldReturnNull() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
 
         var result = await hierarchy.GetLayerAsync(ContextLayerType.Detailed).ConfigureAwait(true);
 
@@ -107,7 +107,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task GetTotalTokenCountAsync_EmptyHierarchy_ShouldReturnZero() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
 
         var result = await hierarchy.GetTotalTokenCountAsync().ConfigureAwait(true);
 
@@ -116,7 +116,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task GetTotalTokenCountAsync_WithLayers_ShouldSumCorrectly() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
         await hierarchy.AddLayerAsync(ContextLayer.CreateDetailed("Content 1 with more text to have tokens", "Layer1")).ConfigureAwait(true);
         await hierarchy.AddLayerAsync(ContextLayer.CreateSummary("Content 2", "Layer2")).ConfigureAwait(true);
 
@@ -127,7 +127,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task GetEffectiveContextAsync_EmptyHierarchy_ShouldReturnEmptyString() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
 
         var result = await hierarchy.GetEffectiveContextAsync().ConfigureAwait(true);
 
@@ -136,7 +136,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task GetEffectiveContextAsync_WithLayers_ShouldMergeCorrectly() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
         await hierarchy.AddLayerAsync(ContextLayer.CreateDetailed("Detailed line 1\nDetailed line 2", "DetailedLayer")).ConfigureAwait(true);
         await hierarchy.AddLayerAsync(ContextLayer.CreateSummary("Summary content", "SummaryLayer")).ConfigureAwait(true);
 
@@ -150,7 +150,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task PromoteToLayerAsync_WithValidLayer_ShouldPromoteSuccessfully() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
         await hierarchy.AddLayerAsync(ContextLayer.CreateDetailed("Line 1\nLine 2\nLine 3\nLine 4", "TestLayer")).ConfigureAwait(true);
 
         var promoted = await hierarchy.PromoteToLayerAsync(
@@ -165,7 +165,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task PromoteToLayerAsync_WithoutCurrentLayer_ShouldThrowException() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
 
         Func<Task> act = async () => await hierarchy.PromoteToLayerAsync(
             ContextLayerType.Summary,
@@ -176,7 +176,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task PromoteToLayerAsync_ToSameOrLowerLayer_ShouldThrowException() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
         await hierarchy.AddLayerAsync(ContextLayer.CreateSummary("Summary content", "TestLayer")).ConfigureAwait(true);
 
         Func<Task> act = async () => await hierarchy.PromoteToLayerAsync(
@@ -188,7 +188,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task DemoteToLayerAsync_WithCompressedLayer_ShouldRestoreSuccessfully() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
         var layer = ContextLayer.CreateDetailed("Original detailed content that is long enough to be compressed when needed", "TestLayer");
         layer.Compress();
         await hierarchy.AddLayerAsync(layer).ConfigureAwait(true);
@@ -200,7 +200,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task DemoteToLayerAsync_WithoutCompression_ShouldReturnFalse() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
         await hierarchy.AddLayerAsync(ContextLayer.CreateSummary("Not compressed content", "TestLayer")).ConfigureAwait(true);
 
         var result = await hierarchy.DemoteToLayerAsync(ContextLayerType.Summary).ConfigureAwait(true);
@@ -210,7 +210,7 @@ public class ContextHierarchyTests {
 
     [Fact]
     public async Task DemoteToLayerAsync_NonExistingLayer_ShouldReturnFalse() {
-        var hierarchy = ContextHierarchy.Create();
+        await using var hierarchy = ContextHierarchy.Create();
 
         var result = await hierarchy.DemoteToLayerAsync(ContextLayerType.Summary).ConfigureAwait(true);
 

@@ -209,7 +209,7 @@ public sealed partial class CodeSessionApiHandler : ServiceEntity {
         var workDirectory = string.Empty;
 
         if (!string.IsNullOrEmpty(body)) {
-            var doc = JsonDocument.Parse(body);
+            using var doc = JsonDocument.Parse(body);
             if (doc.RootElement.TryGetProperty("projectName", out var pn)) {
                 projectName = pn.GetString() ?? string.Empty;
             }

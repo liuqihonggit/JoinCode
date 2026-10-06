@@ -14,10 +14,10 @@ public sealed class MockHttpClientProvider : IHttpClientProvider {
     }
 
     /// <inheritdoc/>
-    public HttpClient GetClient() => _client;
+    public HttpClientRef GetClient() => new(_client);
 
     /// <inheritdoc/>
-    public HttpClient GetClient(string name) => _client;
+    public HttpClientRef GetClient(string name) => new(_client);
 
     /// <summary>
     /// 设置指定 URL 的模拟响应

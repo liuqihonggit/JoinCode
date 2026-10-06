@@ -112,7 +112,7 @@ public static class BridgeCodeSessionApi {
             }
 
             var responseBody = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
-            var parsed = JsonDocument.Parse(responseBody);
+            using var parsed = JsonDocument.Parse(responseBody);
             var root = parsed.RootElement;
 
             // 对齐 TS 端：响应路径为 data.session.id，且必须以 cse_ 开头
@@ -169,7 +169,7 @@ public static class BridgeCodeSessionApi {
             }
 
             var responseBody = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
-            var parsed = JsonDocument.Parse(responseBody);
+            using var parsed = JsonDocument.Parse(responseBody);
             var root = parsed.RootElement;
 
             // 对齐 TS 端：逐字段严格校验类型

@@ -13,7 +13,7 @@ public sealed class ChatErrorHandlingMiddlewareTest {
 
     [Fact]
     public async Task InvokeAsync_NextReturnsEvents_PassesThroughAllInOrder() {
-        var mw = NewMiddleware();
+        await using var mw = NewMiddleware();
         var ctx = TestHelpers.NewContext();
         var events = new[] { ChatStreamEvent.Text("a"), ChatStreamEvent.Text("b"), ChatStreamEvent.Done() };
 
@@ -28,7 +28,7 @@ public sealed class ChatErrorHandlingMiddlewareTest {
 
     [Fact]
     public async Task InvokeAsync_EmptyNext_ReturnsEmpty() {
-        var mw = NewMiddleware();
+        await using var mw = NewMiddleware();
         var ctx = TestHelpers.NewContext();
 
         var result = await TestHelpers.CollectAsync(
@@ -41,7 +41,7 @@ public sealed class ChatErrorHandlingMiddlewareTest {
 
     [Fact]
     public async Task InvokeAsync_NextThrowsOperationCanceled_RethrowsDirectlyWithoutClassification() {
-        var mw = NewMiddleware();
+        await using var mw = NewMiddleware();
         var ctx = TestHelpers.NewContext();
 
         var exception = await Record.ExceptionAsync(async () =>
@@ -59,7 +59,7 @@ public sealed class ChatErrorHandlingMiddlewareTest {
     [InlineData(503, "API007", "OpenAI")]
     public async Task InvokeAsync_NextThrowsHttpRequestStatusCode_ThrowsClassifiedApiException(
         int statusCode, string expectedErrorCode, string endpointHint) {
-        var mw = NewMiddleware();
+        await using var mw = NewMiddleware();
         var ctx = TestHelpers.NewContext();
         var httpEx = new System.Net.Http.HttpRequestException(
             "api.openai.com request failed", null, (System.Net.HttpStatusCode)statusCode);
@@ -76,7 +76,7 @@ public sealed class ChatErrorHandlingMiddlewareTest {
 
     [Fact]
     public async Task InvokeAsync_NextThrowsTimeout_ThrowsApiTimeout() {
-        var mw = NewMiddleware();
+        await using var mw = NewMiddleware();
         var ctx = TestHelpers.NewContext();
         var timeoutEx = new TimeoutException("api.openai.com timed out");
 
@@ -91,7 +91,7 @@ public sealed class ChatErrorHandlingMiddlewareTest {
 
     [Fact]
     public async Task InvokeAsync_NextThrowsTaskCanceled_RethrowsDirectlyAsOperationCanceled() {
-        var mw = NewMiddleware();
+        await using var mw = NewMiddleware();
         var ctx = TestHelpers.NewContext();
         var canceledEx = new TaskCanceledException("api.anthropic.com canceled");
 
@@ -105,7 +105,7 @@ public sealed class ChatErrorHandlingMiddlewareTest {
 
     [Fact]
     public async Task InvokeAsync_NextThrowsGenericException_ThrowsApiWorkflowExecution() {
-        var mw = NewMiddleware();
+        await using var mw = NewMiddleware();
         var ctx = TestHelpers.NewContext();
         var genericEx = new InvalidOperationException("boom");
 
@@ -119,7 +119,7 @@ public sealed class ChatErrorHandlingMiddlewareTest {
 
     [Fact]
     public async Task InvokeAsync_NextThrowsWorkflowException_PreservesOriginalInstance() {
-        var mw = NewMiddleware();
+        await using var mw = NewMiddleware();
         var ctx = TestHelpers.NewContext();
         var wfEx = new WorkflowException("custom workflow error", errorCode: "CUSTOM_CODE");
 
@@ -132,7 +132,7 @@ public sealed class ChatErrorHandlingMiddlewareTest {
 
     [Fact]
     public async Task InvokeAsync_EventsThenThrow_PassesEventsThenThrowsClassified() {
-        var mw = NewMiddleware();
+        await using var mw = NewMiddleware();
         var ctx = TestHelpers.NewContext();
         var events = new[] { ChatStreamEvent.Text("partial") };
         var httpEx = new System.Net.Http.HttpRequestException(

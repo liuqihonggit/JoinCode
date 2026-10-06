@@ -32,7 +32,7 @@ public sealed class WorkflowStateStoreTests : IDisposable {
 
     [Fact]
     public async Task SaveAndLoad_RoundTrip_ShouldPreserveData() {
-        var store = CreateStore();
+        await using var store = CreateStore();
         var snapshot = CreateSampleSnapshot();
 
         await store.SaveSnapshotAsync("wf-1", snapshot);
@@ -49,7 +49,7 @@ public sealed class WorkflowStateStoreTests : IDisposable {
 
     [Fact]
     public async Task LoadSnapshot_NonExistent_ShouldReturnNull() {
-        var store = CreateStore();
+        await using var store = CreateStore();
 
         var loaded = await store.LoadSnapshotAsync("non-existent");
 
@@ -58,7 +58,7 @@ public sealed class WorkflowStateStoreTests : IDisposable {
 
     [Fact]
     public async Task LoadSnapshot_CorruptFile_ShouldReturnNullAndQuarantine() {
-        var store = CreateStore();
+        await using var store = CreateStore();
         _fileOperationService.FileSystem.CreateDirectory(PersistDir);
         var filePath = $"{PersistDir}/workflow_wf-corrupt.state.json";
         _fileOperationService.FileSystem.WriteAllText(filePath, "{not valid json");
@@ -73,7 +73,7 @@ public sealed class WorkflowStateStoreTests : IDisposable {
 
     [Fact]
     public async Task SaveSnapshot_ShouldUseAtomicWrite_WithTempFileMove() {
-        var store = CreateStore();
+        await using var store = CreateStore();
         _fileOperationService.FileSystem.CreateDirectory(PersistDir);
 
         var tmpPath = $"{PersistDir}/workflow_wf-atomic.state.json.tmp";
@@ -86,7 +86,7 @@ public sealed class WorkflowStateStoreTests : IDisposable {
 
     [Fact]
     public async Task SaveSnapshot_DifferentWorkflows_ShouldNotConflict() {
-        var store = CreateStore();
+        await using var store = CreateStore();
 
         await store.SaveSnapshotAsync("wf-a", CreateSampleSnapshot("wf-a"));
         await store.SaveSnapshotAsync("wf-b", CreateSampleSnapshot("wf-b"));
@@ -100,7 +100,7 @@ public sealed class WorkflowStateStoreTests : IDisposable {
 
     [Fact]
     public async Task SaveSnapshot_OverwriteExisting_ShouldReplace() {
-        var store = CreateStore();
+        await using var store = CreateStore();
 
         var first = new WorkflowSnapshot {
             WorkflowId = "wf-overwrite",

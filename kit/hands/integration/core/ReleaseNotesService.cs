@@ -58,7 +58,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
-            var doc = System.Text.Json.JsonDocument.Parse(json);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
 
             var releases = new List<ReleaseInfo>();
             foreach (var element in doc.RootElement.EnumerateArray()) {

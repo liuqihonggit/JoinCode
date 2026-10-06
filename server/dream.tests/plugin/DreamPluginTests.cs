@@ -22,7 +22,7 @@ public sealed class DreamPluginTests {
         var result = await plugin.LoadAsync(ctx).ConfigureAwait(true);
 
         Assert.True(result.Success);
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         Assert.NotNull(provider.GetService<AutoDreamConfig>());
     }
 
@@ -85,8 +85,8 @@ public sealed class DreamPluginTests {
     }
 
     [Fact]
-    public void UnregisterCommands_WithoutRegister_DoesNotThrow() {
-        var plugin = new DreamPlugin();
+    public async Task UnregisterCommands_WithoutRegister_DoesNotThrow() {
+        await using var plugin = new DreamPlugin();
         var registry = new Mock<ICommandRegistry>();
 
         var exception = Record.Exception(() => plugin.UnregisterCommands(registry.Object));

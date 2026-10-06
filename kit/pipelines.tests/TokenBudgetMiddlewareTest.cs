@@ -21,7 +21,7 @@ public sealed class TokenBudgetMiddlewareTest {
     [Fact]
     public async Task InvokeAsync_IsDryRunTrue_PassesThroughWithoutCheckingBudget() {
         var budgetMock = new Mock<ITokenBudgetManager>();
-        var mw = NewMiddleware(budgetMock);
+        await using var mw = NewMiddleware(budgetMock);
         var ctx = TestHelpers.NewContext(dryRun: true);
         var events = new[] { ChatStreamEvent.Text("preview"), ChatStreamEvent.Done() };
 
@@ -36,7 +36,7 @@ public sealed class TokenBudgetMiddlewareTest {
     [Fact]
     public async Task InvokeAsync_IsDryRunFalse_RemainingPositive_PassesThroughNext() {
         var budgetMock = BudgetMockReturning(1000L);
-        var mw = NewMiddleware(budgetMock);
+        await using var mw = NewMiddleware(budgetMock);
         var ctx = TestHelpers.NewContext(dryRun: false);
         var events = new[] { ChatStreamEvent.Text("response"), ChatStreamEvent.Done() };
 
@@ -51,7 +51,7 @@ public sealed class TokenBudgetMiddlewareTest {
     [Fact]
     public async Task InvokeAsync_IsDryRunFalse_RemainingZero_ShortCircuitsWithBudgetExhausted() {
         var budgetMock = BudgetMockReturning(0L);
-        var mw = NewMiddleware(budgetMock);
+        await using var mw = NewMiddleware(budgetMock);
         var ctx = TestHelpers.NewContext(dryRun: false);
         var nextEvents = new[] { ChatStreamEvent.Text("should-not-appear") };
 
@@ -66,7 +66,7 @@ public sealed class TokenBudgetMiddlewareTest {
     [Fact]
     public async Task InvokeAsync_IsDryRunFalse_RemainingNegative_ShortCircuitsWithBudgetExhausted() {
         var budgetMock = BudgetMockReturning(-50L);
-        var mw = NewMiddleware(budgetMock);
+        await using var mw = NewMiddleware(budgetMock);
         var ctx = TestHelpers.NewContext(dryRun: false);
 
         var result = await TestHelpers.CollectAsync(

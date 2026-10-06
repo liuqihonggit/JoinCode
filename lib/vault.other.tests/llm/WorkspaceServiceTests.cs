@@ -25,8 +25,8 @@ public sealed class WorkspaceServiceTests {
     }
 
     [Fact]
-    public void AddDirectory_NullPath_ShouldThrow() {
-        var service = new WorkspaceService();
+    public async Task AddDirectory_NullPath_ShouldThrow() {
+        await using var service = new WorkspaceService();
 
         var act = () => service.AddDirectory(null!);
 

@@ -12,7 +12,7 @@ public sealed class PollConfigManagerTests {
     [Fact]
     public async Task GetCurrentConfigAsync_ShouldReturnDefaultConfig() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
 
         // Act
         var config = await sut.GetCurrentConfigAsync().ConfigureAwait(true);
@@ -29,7 +29,7 @@ public sealed class PollConfigManagerTests {
     [Fact]
     public async Task UpdateConfigAsync_ShouldUpdateConfig() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var newConfig = new PollConfig {
             IntervalMs = 200,
             MaxIntervalMs = 60000,
@@ -53,7 +53,7 @@ public sealed class PollConfigManagerTests {
     [Fact]
     public async Task CalculateNextIntervalAsync_ShouldReturnBaseInterval_WhenNoErrors() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var config = await sut.GetCurrentConfigAsync().ConfigureAwait(true);
 
         // Act - hasError=false 表示无错误
@@ -70,7 +70,7 @@ public sealed class PollConfigManagerTests {
     [Fact]
     public async Task CalculateNextIntervalAsync_ShouldIncreaseInterval_WhenErrorsOccur() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var config = await sut.GetCurrentConfigAsync().ConfigureAwait(true);
 
         // Act - 连续多次错误
@@ -89,7 +89,7 @@ public sealed class PollConfigManagerTests {
     [Fact]
     public async Task CalculateNextIntervalAsync_ShouldNotExceedMaxInterval() {
         // Arrange - 使用小 MaxIntervalMs 便于测试
-        var sut = CreateSut(new PollConfig {
+        await using var sut = CreateSut(new PollConfig {
             IntervalMs = 100,
             MaxIntervalMs = 500,
             BackoffMultiplier = 10.0,
@@ -110,7 +110,7 @@ public sealed class PollConfigManagerTests {
     [Fact]
     public async Task ResetToDefaultAsync_ShouldRestoreDefaultConfig() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var customConfig = new PollConfig {
             IntervalMs = 999,
             MaxIntervalMs = 99999,

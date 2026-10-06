@@ -8,8 +8,8 @@ public sealed class PluginManagerTestHooksTest {
     private static PluginManager CreateManager() => new(new InMemoryFileSystem());
 
     [Fact]
-    public void AddToBlacklistForTest_ThenIsBlacklistedForTest_ReturnsTrue() {
-        var manager = CreateManager();
+    public async Task AddToBlacklistForTest_ThenIsBlacklistedForTest_ReturnsTrue() {
+        await using var manager = CreateManager();
 
         manager.AddToBlacklistForTest("bad-plugin");
 
@@ -17,23 +17,23 @@ public sealed class PluginManagerTestHooksTest {
     }
 
     [Fact]
-    public void IsBlacklistedForTest_NotInBlacklist_ReturnsFalse() {
-        var manager = CreateManager();
+    public async Task IsBlacklistedForTest_NotInBlacklist_ReturnsFalse() {
+        await using var manager = CreateManager();
 
         manager.IsBlacklistedForTest("nonexistent").Should().BeFalse();
     }
 
     [Fact]
-    public void AddToBlacklistForTest_DoesNotAffectOtherPlugins() {
-        var manager = CreateManager();
+    public async Task AddToBlacklistForTest_DoesNotAffectOtherPlugins() {
+        await using var manager = CreateManager();
         manager.AddToBlacklistForTest("pluginA");
 
         manager.IsBlacklistedForTest("pluginB").Should().BeFalse();
     }
 
     [Fact]
-    public void RecordPluginResourceIds_SingleType_AggregatesIntoLongRangeSet() {
-        var manager = CreateManager();
+    public async Task RecordPluginResourceIds_SingleType_AggregatesIntoLongRangeSet() {
+        await using var manager = CreateManager();
         var id1 = new ObjectId(ObjectType.Resource);
         var id2 = new ObjectId(ObjectType.Resource);
         var id3 = new ObjectId(ObjectType.Resource);
@@ -48,8 +48,8 @@ public sealed class PluginManagerTestHooksTest {
     }
 
     [Fact]
-    public void RecordPluginResourceIds_MultipleTypes_GroupsByObjectType() {
-        var manager = CreateManager();
+    public async Task RecordPluginResourceIds_MultipleTypes_GroupsByObjectType() {
+        await using var manager = CreateManager();
         var resourceId = new ObjectId(ObjectType.Resource);
         var pluginId = new ObjectId(ObjectType.Plugin);
 
@@ -60,8 +60,8 @@ public sealed class PluginManagerTestHooksTest {
     }
 
     [Fact]
-    public void RecordPluginResourceIds_OverwritesPreviousRecord() {
-        var manager = CreateManager();
+    public async Task RecordPluginResourceIds_OverwritesPreviousRecord() {
+        await using var manager = CreateManager();
         var id1 = new ObjectId(ObjectType.Resource);
         manager.RecordPluginResourceIds("p", [id1]);
 
@@ -74,16 +74,16 @@ public sealed class PluginManagerTestHooksTest {
     }
 
     [Fact]
-    public void GetPluginResourceIdsForTest_NotRecorded_ReturnsEmpty() {
-        var manager = CreateManager();
+    public async Task GetPluginResourceIdsForTest_NotRecorded_ReturnsEmpty() {
+        await using var manager = CreateManager();
 
         var ranges = manager.GetPluginResourceIdsForTest("nonexistent", ObjectType.Resource);
         ranges.IsEmpty.Should().BeTrue();
     }
 
     [Fact]
-    public void RecordPluginResourceIds_ContinuousIds_CompressesIntoSingleRange() {
-        var manager = CreateManager();
+    public async Task RecordPluginResourceIds_ContinuousIds_CompressesIntoSingleRange() {
+        await using var manager = CreateManager();
         // 连续的 SequenceId 应压缩为单区间
         var ids = new List<ObjectId>();
         for (var i = 0; i < 10; i++)
@@ -100,8 +100,8 @@ public sealed class PluginManagerTestHooksTest {
     // ===== null 参数守卫 =====
 
     [Fact]
-    public void RecordPluginResourceIds_NullPluginName_ThrowsArgumentNullException() {
-        var manager = CreateManager();
+    public async Task RecordPluginResourceIds_NullPluginName_ThrowsArgumentNullException() {
+        await using var manager = CreateManager();
 
         Action act = () => manager.RecordPluginResourceIds(null!, []);
 
@@ -110,8 +110,8 @@ public sealed class PluginManagerTestHooksTest {
     }
 
     [Fact]
-    public void RecordPluginResourceIds_EmptyPluginName_ThrowsArgumentException() {
-        var manager = CreateManager();
+    public async Task RecordPluginResourceIds_EmptyPluginName_ThrowsArgumentException() {
+        await using var manager = CreateManager();
 
         Action act = () => manager.RecordPluginResourceIds("", []);
 
@@ -119,8 +119,8 @@ public sealed class PluginManagerTestHooksTest {
     }
 
     [Fact]
-    public void RecordPluginResourceIds_WhiteSpacePluginName_ThrowsArgumentException() {
-        var manager = CreateManager();
+    public async Task RecordPluginResourceIds_WhiteSpacePluginName_ThrowsArgumentException() {
+        await using var manager = CreateManager();
 
         Action act = () => manager.RecordPluginResourceIds("   ", []);
 
@@ -128,8 +128,8 @@ public sealed class PluginManagerTestHooksTest {
     }
 
     [Fact]
-    public void RecordPluginResourceIds_NullResourceIds_ThrowsArgumentNullException() {
-        var manager = CreateManager();
+    public async Task RecordPluginResourceIds_NullResourceIds_ThrowsArgumentNullException() {
+        await using var manager = CreateManager();
 
         Action act = () => manager.RecordPluginResourceIds("p", null!);
 

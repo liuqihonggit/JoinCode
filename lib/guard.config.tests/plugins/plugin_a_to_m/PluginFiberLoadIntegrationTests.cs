@@ -16,7 +16,7 @@ public sealed class PluginFiberLoadIntegrationTests {
     [Fact]
     public async Task LoadWorkflowPluginAsync_Success_FiberTransitionsToActive() {
         await using var sp = CreateServiceProvider();
-        var pm = sp.GetRequiredService<IPluginManager>();
+        await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var host = await pm.LoadWorkflowPluginAsync<FiberActiveTestPlugin>().ConfigureAwait(true);
 
@@ -29,7 +29,7 @@ public sealed class PluginFiberLoadIntegrationTests {
     [Fact]
     public async Task LoadWorkflowPluginAsync_LoadFails_ThrowsInf032() {
         await using var sp = CreateServiceProvider();
-        var pm = sp.GetRequiredService<IPluginManager>();
+        await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var act = async () => await pm.LoadWorkflowPluginAsync<FiberLoadFailTestPlugin>().ConfigureAwait(true);
 
@@ -40,7 +40,7 @@ public sealed class PluginFiberLoadIntegrationTests {
     [Fact]
     public async Task LoadWorkflowPluginAsync_InitializeFails_ThrowsInf033() {
         await using var sp = CreateServiceProvider();
-        var pm = sp.GetRequiredService<IPluginManager>();
+        await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var act = async () => await pm.LoadWorkflowPluginAsync<FiberInitFailTestPlugin>().ConfigureAwait(true);
 
@@ -51,7 +51,7 @@ public sealed class PluginFiberLoadIntegrationTests {
     [Fact]
     public async Task LoadWorkflowPluginAsync_ContractViolation_ThrowsContractError() {
         await using var sp = CreateServiceProvider();
-        var pm = sp.GetRequiredService<IPluginManager>();
+        await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var act = async () => await pm.LoadWorkflowPluginAsync<FiberContractFailTestPlugin>().ConfigureAwait(true);
 
@@ -62,7 +62,7 @@ public sealed class PluginFiberLoadIntegrationTests {
     [Fact]
     public async Task UnloadPluginAsync_AfterSuccessfulLoad_FiberTransitionsToUnloaded() {
         await using var sp = CreateServiceProvider();
-        var pm = sp.GetRequiredService<IPluginManager>();
+        await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var host = await pm.LoadWorkflowPluginAsync<FiberActiveTestPlugin2>().ConfigureAwait(true);
         var plugin = (FiberActiveTestPlugin2)host.Plugin;

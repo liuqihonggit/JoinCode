@@ -59,7 +59,7 @@ public sealed class HostContextSyncService : IAsyncDisposable {
     /// </summary>
     private async Task SyncLoopAsync(CancellationToken ct) {
         try {
-            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, ct);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, ct);
             var token = linkedCts.Token;
 
             while (!token.IsCancellationRequested) {

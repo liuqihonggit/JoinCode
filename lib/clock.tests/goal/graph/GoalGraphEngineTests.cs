@@ -76,7 +76,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task SerialExecution_Should_ExecuteInOrder_AndPassOutput() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var executionOrder = new List<string>();
 
         var dag = new Dag<GoalNodePayload>();
@@ -141,7 +141,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task ConditionalRouting_Should_OnlyFollowMatchedEdge() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var executedNodes = new List<string>();
 
         var dag = new Dag<GoalNodePayload>();
@@ -195,7 +195,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task ConditionalRoutingFallback_Should_TakeEmptyLabelEdge_WhenNoMatch() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var executedNodes = new List<string>();
 
         var dag = new Dag<GoalNodePayload>();
@@ -247,7 +247,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task RetryReactivation_Should_ResetAndReexecuteTargetNode() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var implementCallCount = 0;
         var testCallCount = 0;
 
@@ -309,7 +309,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task RetryExceedsMax_Should_MarkNodeAsFailed() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var implementCallCount = 0;
 
         var dag = new Dag<GoalNodePayload>();
@@ -362,7 +362,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task JoinNode_Should_WaitForAllUpstreams_AndMergeOutput() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "source-a");
@@ -412,7 +412,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task GoalStateUpdate_Should_AccumulateTokensAndTurns() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "step-a");
@@ -454,7 +454,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task UnregisteredFunction_Should_MarkNodeAsFailed() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "missing-fn");
@@ -485,7 +485,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task JoinNode_WhenPreconditionNotMet_Should_MarkNodeAsFailed() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "source");
@@ -521,7 +521,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task RouteMatchModeAll_Should_FollowBothConditionalAndUnconditional() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var executedNodes = new List<string>();
 
         var dag = new Dag<GoalNodePayload>();
@@ -578,7 +578,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task MultipleEndNodes_Should_AchieveOnlyWhenAllEndsComplete() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "source");
@@ -623,7 +623,7 @@ public sealed partial class GoalGraphEngineTests {
         services.AddSingleton("test-value-from-di");
         var sp = services.BuildServiceProvider();
 
-        var engine = CreateEngine(serviceProvider: sp);
+        await using var engine = CreateEngine(serviceProvider: sp);
         string? receivedValue = null;
 
         var dag = new Dag<GoalNodePayload>();
@@ -657,7 +657,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task FunctionNodeFailed_AsEndNode_Should_SetGoalUnmet() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "failing-fn");
@@ -688,7 +688,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task JoinNode_PartialFailure_Should_SucceedWhenMinSuccessfulMet() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "source-a");
@@ -736,7 +736,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task JoinNode_AllUpstreamsFailed_Should_Fail() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "source-a-failing");
@@ -794,7 +794,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task FanOutParallel_Should_ExecuteAllBranches_AndJoinCorrectly() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var executedNodes = new List<string>();
 
         var dag = new Dag<GoalNodePayload>();
@@ -851,7 +851,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task SingleNodeGraph_Should_ExecuteAndAchieve() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "solo");
@@ -883,7 +883,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task UpstreamOutput_Should_BeSetAsDownstreamInput() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "producer");
@@ -921,7 +921,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task RefactorPipeline_Should_RetryOnFailAndSucceedOnSecondAttempt() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var implementCount = 0;
         var testCount = 0;
 
@@ -983,7 +983,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task FreshContext_Should_NotInheritChatHistory() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var inheritedMessageCount = -1;
 
         var dag = new Dag<GoalNodePayload>();
@@ -1034,7 +1034,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task AgentReviewerGraph_Should_ExecuteAndReview() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeAgent = MakeFunctionNode("agent", "executor");
@@ -1072,7 +1072,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task NegativeReviewLoop_LowNegCount_Should_Stop() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var executedNodes = new List<string>();
 
         var dag = new Dag<GoalNodePayload>();
@@ -1138,7 +1138,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task NegativeReviewLoop_HighNegCount_Should_LoopThenStop() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var negReviewCount = 0;
 
         var dag = new Dag<GoalNodePayload>();
@@ -1198,7 +1198,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task NegativeReviewLoop_HardMaxIterations_Should_ForceTerminate() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var negReviewCount = 0;
 
         var dag = new Dag<GoalNodePayload>();
@@ -1255,7 +1255,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task NegativeReviewLoop_TokenBudgetExhausted_Should_Terminate() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var negReviewCount = 0;
 
         var dag = new Dag<GoalNodePayload>();
@@ -1318,7 +1318,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task NegativeReviewLoop_Should_ExtractNegReviewCount_FromOutput() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeExecute = MakeFunctionNode("execute", "executor");
@@ -1360,7 +1360,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task NegativeReviewLoop_Should_ExtractTaskId_FromOutput() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeExecute = MakeFunctionNode("execute", "executor");
@@ -1403,7 +1403,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task NegativeReviewLoop_TurnBudgetExhausted_Should_Terminate() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var negReviewCount = 0;
 
         var dag = new Dag<GoalNodePayload>();
@@ -1472,7 +1472,7 @@ public sealed partial class GoalGraphEngineTests {
                 It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(GoalUserDecision.Stop("user chose to stop"));
 
-        var engine = CreateEngine(userInteraction: userInteraction.Object);
+        await using var engine = CreateEngine(userInteraction: userInteraction.Object);
 
         var dag = new Dag<GoalNodePayload>();
         var nodeExecute = MakeFunctionNode("execute", "executor");
@@ -1523,7 +1523,7 @@ public sealed partial class GoalGraphEngineTests {
                 It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(GoalUserDecision.Continue());
 
-        var engine = CreateEngine(userInteraction: userInteraction.Object);
+        await using var engine = CreateEngine(userInteraction: userInteraction.Object);
 
         var dag = new Dag<GoalNodePayload>();
         var nodeExecute = MakeFunctionNode("execute", "executor");
@@ -1572,7 +1572,7 @@ public sealed partial class GoalGraphEngineTests {
         nodeInspector.Setup(o => o.ObserveLoopAsync(It.IsAny<LoopObservationContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var engine = CreateEngine(nodeInspector: nodeInspector.Object);
+        await using var engine = CreateEngine(nodeInspector: nodeInspector.Object);
 
         var dag = new Dag<GoalNodePayload>();
         var nodeExecute = MakeFunctionNode("execute", "executor");

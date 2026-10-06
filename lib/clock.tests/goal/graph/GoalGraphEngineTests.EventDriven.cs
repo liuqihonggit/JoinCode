@@ -35,7 +35,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task EventDriven_SerialExecution_Should_ExecuteInOrder_AndPassOutput() {
-        var engine = CreateEventDrivenEngine();
+        await using var engine = CreateEventDrivenEngine();
         var executionOrder = new List<string>();
 
         var dag = new Dag<GoalNodePayload>();
@@ -91,7 +91,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task EventDriven_FailedEndNode_Should_SetGoalUnmet() {
-        var engine = CreateEventDrivenEngine();
+        await using var engine = CreateEventDrivenEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "fail-end");

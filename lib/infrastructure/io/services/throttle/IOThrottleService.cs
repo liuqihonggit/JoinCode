@@ -160,12 +160,12 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable 
             operationType);
     }
 
-    private AsyncLock GetLock(IOOperationType operationType) => operationType switch {
+    private LockRef GetLock(IOOperationType operationType) => new LockRef(operationType switch {
         IOOperationType.Read => _readSemaphore,
         IOOperationType.Write => _writeSemaphore,
         IOOperationType.Delete => _deleteSemaphore,
         _ => throw new ArgumentOutOfRangeException(nameof(operationType))
-    };
+    });
 
     private void RecordAcquireMetrics(IOOperationType operationType, long elapsedMs, bool isSuccess) {
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "io.throttle.acquire.count", operationType.ToString(), isSuccess, "IO throttle acquire count");

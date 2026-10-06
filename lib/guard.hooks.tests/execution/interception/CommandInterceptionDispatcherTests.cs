@@ -187,7 +187,7 @@ public sealed class CommandInterceptionDispatcherTests {
 
     [Fact]
     public async Task DispatchAsync_NullOrWhiteSpaceCommand_Throws() {
-        var dispatcher = new CommandInterceptionDispatcher([], []);
+        await using var dispatcher = new CommandInterceptionDispatcher([], []);
 
         var act = async () => await dispatcher.DispatchAsync("", EmptyContext, default);
         await act.Should().ThrowAsync<ArgumentException>();

@@ -31,7 +31,7 @@ public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutio
         var maxConcurrency = clusterOptions?.MaxConcurrency ?? options.MaxDegreeOfParallelism;
 
         var agentList = agents.ToList();
-        var semaphore = new SemaphoreSlim(Math.Max(1, maxConcurrency), Math.Max(1, maxConcurrency));
+        using var semaphore = new SemaphoreSlim(Math.Max(1, maxConcurrency), Math.Max(1, maxConcurrency));
 
         var tasks = agentList
             .Select(async agent => {

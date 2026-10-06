@@ -219,7 +219,7 @@ public sealed class RealApiCacheTests {
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException($"[GEN047] Anthropic API 错误: {response.StatusCode} - {body}");
 
-        var doc = JsonDocument.Parse(body);
+        using var doc = JsonDocument.Parse(body);
         var usage = doc.RootElement.GetProperty("usage");
 
         return new AnthropicRealResponse {
@@ -238,7 +238,7 @@ public sealed class RealApiCacheTests {
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException($"[GEN048] OpenAI API 错误: {response.StatusCode} - {body}");
 
-        var doc = JsonDocument.Parse(body);
+        using var doc = JsonDocument.Parse(body);
         var usage = doc.RootElement.GetProperty("usage");
 
         var cachedTokens = 0;

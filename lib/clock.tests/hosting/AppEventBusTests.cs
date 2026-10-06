@@ -4,7 +4,7 @@ public sealed class AppEventBusTests {
     [Fact]
     public async Task PublishAsync_SubscriberReceivesEvent() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
 
         await eventBus.SubscribeAsync(ServiceMessageType.TurnStarted, e => received = e).ConfigureAwait(true);
@@ -20,7 +20,7 @@ public sealed class AppEventBusTests {
     [Fact]
     public async Task PublishAsync_MultipleSubscribers_AllReceive() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         var count = 0;
 
         await eventBus.SubscribeAsync(ServiceMessageType.CompactionStarted, _ => Interlocked.Increment(ref count)).ConfigureAwait(true);
@@ -34,7 +34,7 @@ public sealed class AppEventBusTests {
     [Fact]
     public async Task PublishAsync_UnsubscribedKind_NotReceived() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
 
         await eventBus.SubscribeAsync(ServiceMessageType.TurnStarted, e => received = e).ConfigureAwait(true);
@@ -46,7 +46,7 @@ public sealed class AppEventBusTests {
     [Fact]
     public async Task SubscribeAsync_Unsubscribe_StopsReceiving() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         var count = 0;
 
         var subscription = await eventBus.SubscribeAsync(ServiceMessageType.GoalAchieved, _ => Interlocked.Increment(ref count)).ConfigureAwait(true);
@@ -61,7 +61,7 @@ public sealed class AppEventBusTests {
     [Fact]
     public async Task SubscribeAllAsync_ReceivesAllKinds() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         var received = new List<AppEvent>();
 
         await eventBus.SubscribeAllAsync(e => received.Add(e)).ConfigureAwait(true);
@@ -76,7 +76,7 @@ public sealed class AppEventBusTests {
     [Fact]
     public async Task PublishAsync_WithSessionId_PreservedInEvent() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
 
         await eventBus.SubscribeAsync(ServiceMessageType.SessionStarted, e => received = e).ConfigureAwait(true);
@@ -89,7 +89,7 @@ public sealed class AppEventBusTests {
     [Fact]
     public async Task PublishAsync_WithDataPayload_PreservedInEvent() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
 
         await eventBus.SubscribeAsync(ServiceMessageType.ServiceStatusChanged, e => received = e).ConfigureAwait(true);

@@ -21,7 +21,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public void AddNode_Sync_Works() {
-        var dag = new ConcurrentDag<string>();
+        using var dag = new ConcurrentDag<string>();
         var result = dag.AddNode(Node("a"));
         result.Success.Should().BeTrue();
         dag.Nodes.Count.Should().Be(1);
@@ -29,7 +29,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public void AddNode_Sync_Duplicate_ReturnsFail() {
-        var dag = new ConcurrentDag<string>();
+        using var dag = new ConcurrentDag<string>();
         dag.AddNode(Node("a"));
         var result = dag.AddNode(Node("a"));
         result.Success.Should().BeFalse();
@@ -37,20 +37,20 @@ public class ConcurrentDagTests {
 
     [Fact]
     public void AddEdge_Sync_Works() {
-        var dag = Build(("a", "b"));
+        using var dag = Build(("a", "b"));
         dag.Edges.Count.Should().Be(1);
     }
 
     [Fact]
     public void AddEdge_Sync_Cycle_ReturnsFail() {
-        var dag = Build(("a", "b"));
+        using var dag = Build(("a", "b"));
         var result = dag.AddEdge(Edge("b", "a"));
         result.Success.Should().BeFalse();
     }
 
     [Fact]
     public void TryAddEdge_Sync_AllowsCycle() {
-        var dag = new ConcurrentDag<string>();
+        using var dag = new ConcurrentDag<string>();
         dag.AddNode(Node("a"));
         dag.AddNode(Node("b"));
         dag.AddEdge(Edge("a", "b"));
@@ -61,7 +61,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public void RemoveNode_Sync_Works() {
-        var dag = Build(("a", "b"), ("b", "c"));
+        using var dag = Build(("a", "b"), ("b", "c"));
         var result = dag.RemoveNode("b");
         result.Success.Should().BeTrue();
         dag.Nodes.Count.Should().Be(2);
@@ -70,7 +70,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public void RemoveEdge_Sync_Works() {
-        var dag = Build(("a", "b"));
+        using var dag = Build(("a", "b"));
         var edgeId = dag.Edges.Values.First().Id;
         var result = dag.RemoveEdge(edgeId);
         result.Success.Should().BeTrue();
@@ -79,7 +79,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public void TopologicalSort_Sync_MatchesDag() {
-        var cdag = Build(("a", "b"), ("a", "c"), ("b", "d"), ("c", "d"));
+        using var cdag = Build(("a", "b"), ("a", "c"), ("b", "d"), ("c", "d"));
         var levels = cdag.TopologicalSortByLevels();
         levels.Should().HaveCount(3);
         levels[0].Select(n => n.Id).Should().BeEquivalentTo(new[] { "a" });
@@ -89,7 +89,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public void HasCycle_Sync_True() {
-        var dag = new ConcurrentDag<string>();
+        using var dag = new ConcurrentDag<string>();
         foreach (var id in new[] { "a", "b", "c" }) dag.AddNode(Node(id));
         dag.TryAddEdge(Edge("a", "b"));
         dag.TryAddEdge(Edge("b", "c"));
@@ -99,13 +99,13 @@ public class ConcurrentDagTests {
 
     [Fact]
     public void HasCycle_Sync_False() {
-        var dag = Build(("a", "b"), ("b", "c"));
+        using var dag = Build(("a", "b"), ("b", "c"));
         dag.HasCycle().Should().BeFalse();
     }
 
     [Fact]
     public void FindAllCycles_Sync_ReturnsCycles() {
-        var dag = new ConcurrentDag<string>();
+        using var dag = new ConcurrentDag<string>();
         foreach (var id in new[] { "a", "b" }) dag.AddNode(Node(id));
         dag.TryAddEdge(Edge("a", "b"));
         dag.TryAddEdge(Edge("b", "a"));
@@ -116,32 +116,32 @@ public class ConcurrentDagTests {
 
     [Fact]
     public void GetAncestors_Sync_Works() {
-        var dag = Build(("a", "b"), ("b", "c"));
+        using var dag = Build(("a", "b"), ("b", "c"));
         dag.GetAncestors("c").Select(n => n.Id).Should().BeEquivalentTo(new[] { "a", "b" });
     }
 
     [Fact]
     public void GetDescendants_Sync_Works() {
-        var dag = Build(("a", "b"), ("b", "c"));
+        using var dag = Build(("a", "b"), ("b", "c"));
         dag.GetDescendants("a").Select(n => n.Id).Should().BeEquivalentTo(new[] { "b", "c" });
     }
 
     [Fact]
     public void GetAffectedSubgraph_Sync_Works() {
-        var dag = Build(("a", "b"), ("b", "c"));
+        using var dag = Build(("a", "b"), ("b", "c"));
         dag.GetAffectedSubgraph("a").Select(n => n.Id).Should().ContainInOrder("a", "b", "c");
     }
 
     [Fact]
     public void WouldCreateCycle_Sync_Works() {
-        var dag = Build(("a", "b"));
+        using var dag = Build(("a", "b"));
         dag.WouldCreateCycle("b", "a").Should().BeTrue();
         dag.WouldCreateCycle("a", "b").Should().BeFalse();
     }
 
     [Fact]
     public void TryGetEdge_Works() {
-        var dag = Build(("a", "b"));
+        using var dag = Build(("a", "b"));
         dag.TryGetEdge("a", "b", out var edge).Should().BeTrue();
         edge!.FromId.Should().Be("a");
         dag.TryGetEdge("b", "a", out _).Should().BeFalse();
@@ -149,7 +149,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public void Clear_RemovesAll() {
-        var dag = Build(("a", "b"));
+        using var dag = Build(("a", "b"));
         dag.Clear();
         dag.Nodes.Count.Should().Be(0);
         dag.Edges.Count.Should().Be(0);
@@ -157,7 +157,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public void Version_Increments() {
-        var dag = new ConcurrentDag<string>();
+        using var dag = new ConcurrentDag<string>();
         var v0 = dag.Version;
         dag.AddNode(Node("a"));
         dag.Version.Should().BeGreaterThan(v0);
@@ -167,7 +167,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public async Task AddNodeAsync_MatchesSync() {
-        var dag = new ConcurrentDag<string>();
+        using var dag = new ConcurrentDag<string>();
         var result = await dag.AddNodeAsync(Node("a"), CancellationToken.None);
         result.Success.Should().BeTrue();
         dag.Nodes.Count.Should().Be(1);
@@ -175,7 +175,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public async Task AddEdgeAsync_MatchesSync() {
-        var dag = new ConcurrentDag<string>();
+        using var dag = new ConcurrentDag<string>();
         dag.AddNode(Node("a"));
         dag.AddNode(Node("b"));
         var result = await dag.AddEdgeAsync(Edge("a", "b"), CancellationToken.None);
@@ -185,7 +185,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public async Task AddEdgeAsync_Cycle_ReturnsFail() {
-        var dag = new ConcurrentDag<string>();
+        using var dag = new ConcurrentDag<string>();
         dag.AddNode(Node("a"));
         dag.AddNode(Node("b"));
         await dag.AddEdgeAsync(Edge("a", "b"), CancellationToken.None);
@@ -195,7 +195,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public async Task TryAddEdgeAsync_MatchesSync() {
-        var dag = new ConcurrentDag<string>();
+        using var dag = new ConcurrentDag<string>();
         dag.AddNode(Node("a"));
         dag.AddNode(Node("b"));
         var result = await dag.TryAddEdgeAsync(Edge("a", "b"), CancellationToken.None);
@@ -205,7 +205,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public async Task RemoveNodeAsync_MatchesSync() {
-        var dag = Build(("a", "b"), ("b", "c"));
+        using var dag = Build(("a", "b"), ("b", "c"));
         var result = await dag.RemoveNodeAsync("b", CancellationToken.None);
         result.Success.Should().BeTrue();
         dag.Nodes.Count.Should().Be(2);
@@ -213,7 +213,7 @@ public class ConcurrentDagTests {
 
     [Fact]
     public async Task RemoveEdgeAsync_MatchesSync() {
-        var dag = Build(("a", "b"));
+        using var dag = Build(("a", "b"));
         var edgeId = dag.Edges.Values.First().Id;
         var result = await dag.RemoveEdgeAsync(edgeId, CancellationToken.None);
         result.Success.Should().BeTrue();
@@ -222,15 +222,15 @@ public class ConcurrentDagTests {
 
     [Fact]
     public async Task WouldCreateCycleAsync_MatchesSync() {
-        var dag = Build(("a", "b"));
+        using var dag = Build(("a", "b"));
         (await dag.WouldCreateCycleAsync("b", "a", CancellationToken.None)).Should().BeTrue();
         (await dag.WouldCreateCycleAsync("a", "b", CancellationToken.None)).Should().BeFalse();
     }
 
     [Fact]
     public async Task AddNodeAsync_Cancellation_Throws() {
-        var dag = new ConcurrentDag<string>();
-        var cts = new CancellationTokenSource();
+        using var dag = new ConcurrentDag<string>();
+        using var cts = new CancellationTokenSource();
         cts.Cancel();
         var act = async () => await dag.AddNodeAsync(Node("a"), cts.Token);
         await act.Should().ThrowAsync<OperationCanceledException>();

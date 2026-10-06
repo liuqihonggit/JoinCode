@@ -48,18 +48,19 @@ public interface IOAuthClient {
 /// </summary>
 [Register(typeof(IOAuthClient), ServiceLifetime.Singleton)]
 public sealed partial class OAuthClient : ServiceEntity, IOAuthClient {
-    private readonly HttpClient _httpClient;
+    private readonly HttpClientRef _httpClient;
     private readonly ILogger<OAuthClient>? _logger;
     private readonly IClockService _clock;
 
     /// <summary>
     /// 构造 OAuth 客户端
     /// </summary>
-    /// <param name="httpClient">HTTP 客户端</param>
+    /// <param name="httpClientProvider">HTTP 客户端提供者（DI 注入，用于获取借用句柄）</param>
     /// <param name="logger">日志器，可为空</param>
     /// <param name="clock">时钟服务，可为空则使用系统时钟</param>
-    public OAuthClient(HttpClient httpClient, ILogger<OAuthClient>? logger = null, IClockService? clock = null) {
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+    public OAuthClient(IHttpClientProvider httpClientProvider, ILogger<OAuthClient>? logger = null, IClockService? clock = null) {
+        ArgumentNullException.ThrowIfNull(httpClientProvider);
+        _httpClient = httpClientProvider.GetClient();
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
     }

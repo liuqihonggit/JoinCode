@@ -25,7 +25,7 @@ public sealed class TrustedDeviceStoreTests {
     [Fact]
     public async Task AddAsync_ShouldStoreDevice() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var entry = CreateEntry();
 
         // Act
@@ -40,7 +40,7 @@ public sealed class TrustedDeviceStoreTests {
     [Fact]
     public async Task GetAsync_ShouldReturnDevice_WhenExists() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var entry = CreateEntry();
         await sut.AddAsync(entry).ConfigureAwait(true);
 
@@ -56,7 +56,7 @@ public sealed class TrustedDeviceStoreTests {
     [Fact]
     public async Task GetAsync_ShouldReturnNull_WhenNotExists() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
 
         // Act
         var result = await sut.GetAsync("nonexistent").ConfigureAwait(true);
@@ -68,7 +68,7 @@ public sealed class TrustedDeviceStoreTests {
     [Fact]
     public async Task IsTrustedAsync_ShouldReturnTrue_WhenDeviceIsTrusted() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var entry = CreateEntry(trustLevel: DeviceTrustLevel.Full);
         await sut.AddAsync(entry).ConfigureAwait(true);
 
@@ -82,7 +82,7 @@ public sealed class TrustedDeviceStoreTests {
     [Fact]
     public async Task IsTrustedAsync_ShouldReturnFalse_WhenDeviceIsRevoked() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var entry = CreateEntry(trustLevel: DeviceTrustLevel.Full);
         await sut.AddAsync(entry).ConfigureAwait(true);
         await sut.RevokeAsync("device-001").ConfigureAwait(true);
@@ -97,7 +97,7 @@ public sealed class TrustedDeviceStoreTests {
     [Fact]
     public async Task IsTrustedAsync_ShouldReturnFalse_WhenDeviceNotExists() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
 
         // Act
         var result = await sut.IsTrustedAsync("nonexistent").ConfigureAwait(true);
@@ -109,7 +109,7 @@ public sealed class TrustedDeviceStoreTests {
     [Fact]
     public async Task RevokeAsync_ShouldMarkDeviceAsRevoked() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var entry = CreateEntry();
         await sut.AddAsync(entry).ConfigureAwait(true);
 
@@ -125,7 +125,7 @@ public sealed class TrustedDeviceStoreTests {
     [Fact]
     public async Task RemoveAsync_ShouldRemoveDevice() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var entry = CreateEntry();
         await sut.AddAsync(entry).ConfigureAwait(true);
 
@@ -141,7 +141,7 @@ public sealed class TrustedDeviceStoreTests {
     [Fact]
     public async Task GetAllAsync_ShouldReturnAllDevices() {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.AddAsync(CreateEntry(deviceId: "device-001")).ConfigureAwait(true);
         await sut.AddAsync(CreateEntry(deviceId: "device-002", deviceName: "Device 2")).ConfigureAwait(true);
         await sut.AddAsync(CreateEntry(deviceId: "device-003", deviceName: "Device 3")).ConfigureAwait(true);

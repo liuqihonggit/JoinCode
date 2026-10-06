@@ -75,7 +75,7 @@ public abstract class Entity : IAsyncDisposable, ICloneableEntity {
         LifecycleState = EntityLifecycle.Disposed;
         ObjectIdManager.Unregister(ObjectId);
         if (SessionRouter.TryGetScope(SessionId, out var scope))
-            scope.Unregister(ObjectId);
+            scope!.Value.Unregister(ObjectId);
         GC.SuppressFinalize(this);
     }
 

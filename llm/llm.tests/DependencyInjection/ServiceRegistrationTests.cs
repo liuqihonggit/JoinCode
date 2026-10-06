@@ -7,25 +7,25 @@ public class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddLlmServices_RegistersQueryService() {
+    public async Task AddLlmServices_RegistersQueryService() {
         var services = new ServiceCollection();
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
 
         services.AddLlmServices(config);
 
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var service = provider.GetService<IQueryService>();
         service.Should().NotBeNull();
     }
 
     [Fact]
-    public void AddLlmServicesWithCustomQuery_RegistersCustomService() {
+    public async Task AddLlmServicesWithCustomQuery_RegistersCustomService() {
         var services = new ServiceCollection();
         var custom = new Mock<IQueryService>().Object;
 
         services.AddLlmServicesWithCustomQuery(custom);
 
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         provider.GetService<IQueryService>().Should().BeSameAs(custom);
     }
 
@@ -38,38 +38,38 @@ public class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddPipeQueryService_RegistersPipeQueryService() {
+    public async Task AddPipeQueryService_RegistersPipeQueryService() {
         var services = new ServiceCollection();
         var pipeConfig = new PipeTransportConfig { PipeName = "test-pipe" };
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test" };
 
         services.AddPipeQueryService(pipeConfig, config.ApiKey);
 
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var service = provider.GetService<IQueryService>();
         service.Should().NotBeNull();
     }
 
     [Fact]
-    public void AddKernelWithPlugins_WithPipeEndpoint_RegistersPipeQueryService() {
+    public async Task AddKernelWithPlugins_WithPipeEndpoint_RegistersPipeQueryService() {
         var services = new ServiceCollection();
         var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
         var pipeConfig = new PipeTransportConfig { PipeName = "pipe" };
 
         services.AddKernelWithPlugins(providerConfig, pipeConfig);
 
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         provider.GetService<IQueryService>().Should().NotBeNull();
     }
 
     [Fact]
-    public void AddKernelWithPlugins_WithoutPipeEndpoint_RegistersStandardQueryService() {
+    public async Task AddKernelWithPlugins_WithoutPipeEndpoint_RegistersStandardQueryService() {
         var services = new ServiceCollection();
         var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
 
         services.AddKernelWithPlugins(providerConfig);
 
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         provider.GetService<IQueryService>().Should().NotBeNull();
     }
 

@@ -101,7 +101,7 @@ public static class BridgeMessaging {
         Action<JsonElement>? onControlRequest = null) {
         try {
             // JSON 解析
-            var parsed = JsonDocument.Parse(data);
+            using var parsed = JsonDocument.Parse(data);
             var root = parsed.RootElement;
 
             // 归一化键: camelCase requestId → snake_case request_id

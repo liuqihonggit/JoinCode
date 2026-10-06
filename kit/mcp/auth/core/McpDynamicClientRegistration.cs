@@ -6,15 +6,15 @@ namespace McpClient;
 /// 在未预配置客户端信息时，向授权服务器的 registration_endpoint 注册新客户端
 /// </summary>
 public sealed partial class McpDynamicClientRegistration {
-    private readonly HttpClient _httpClient;
+    private readonly HttpClientRef _httpClient;
     private readonly ILogger<McpDynamicClientRegistration>? _logger;
 
     /// <summary>
     /// 创建 McpDynamicClientRegistration 实例
     /// </summary>
-    /// <param name="httpClient">HTTP 客户端（为 null 时走 HttpClientProviderFactory fallback）</param>
+    /// <param name="httpClient">HTTP 客户端借用句柄（为 null 时走 HttpClientProviderFactory fallback）</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public McpDynamicClientRegistration(HttpClient? httpClient = null, ILogger<McpDynamicClientRegistration>? logger = null) {
+    public McpDynamicClientRegistration(HttpClientRef? httpClient = null, ILogger<McpDynamicClientRegistration>? logger = null) {
         // P1-6: fallback 走 HttpClientProviderFactory（支持 JCC_HTTP_MODE=Mock 切换，对齐主程序 IHttpClientProvider 抽象）
         _httpClient = httpClient ?? HttpClientProviderFactory.Create().GetClient();
         _logger = logger;

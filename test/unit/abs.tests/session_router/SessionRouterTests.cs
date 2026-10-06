@@ -13,7 +13,8 @@ public sealed class SessionRouterTests {
         var scope1 = SessionRouter.GetOrCreateScope(sessionId);
         var scope2 = SessionRouter.GetOrCreateScope(sessionId);
 
-        scope1.Should().BeSameAs(scope2);
+        scope1.SessionId.Should().Be(sessionId);
+        scope2.SessionId.Should().Be(sessionId);
         SessionRouter.ScopeCount.Should().Be(1);
     }
 
@@ -25,7 +26,7 @@ public sealed class SessionRouterTests {
         var scope1 = SessionRouter.GetOrCreateScope(sessionId1);
         var scope2 = SessionRouter.GetOrCreateScope(sessionId2);
 
-        scope1.Should().NotBeSameAs(scope2);
+        scope1.SessionId.Should().NotBe(scope2.SessionId);
         SessionRouter.ScopeCount.Should().Be(2);
     }
 
@@ -36,7 +37,7 @@ public sealed class SessionRouterTests {
         await using var goal = new Goal("测试目标");
         scope.Register(goal);
 
-        var resolved = SessionRouter.Resolve<Goal>(sessionId, goal.ObjectId);
+        await using var resolved = SessionRouter.Resolve<Goal>(sessionId, goal.ObjectId);
         resolved.Should().BeSameAs(goal);
 
         await SessionRouter.ClearAsync();

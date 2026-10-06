@@ -35,22 +35,21 @@ public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecur
         if (trimmed.Length == 0)
             return new BashAstSecurityResult.Simple([]);
 
-        Node? root;
         try {
-            var tree = _parser.Parse(command);
-            root = tree?.RootNode;
+            using var tree = _parser.Parse(command);
+            var root = tree?.RootNode;
+
+            if (root is null)
+                return new BashAstSecurityResult.TooComplex("TreeSitter解析失败", "PARSE_ERROR");
+
+            if (HasErrorNode(root))
+                return new BashAstSecurityResult.TooComplex("AST包含错误节点", "PARSE_ERROR");
+
+            return WalkProgram(root);
         } catch (Exception ex) {
             return new BashAstSecurityResult.TooComplex(
                 $"Bash解析异常: {ex.Message}", "PARSE_EXCEPTION");
         }
-
-        if (root is null)
-            return new BashAstSecurityResult.TooComplex("TreeSitter解析失败", "PARSE_ERROR");
-
-        if (HasErrorNode(root))
-            return new BashAstSecurityResult.TooComplex("AST包含错误节点", "PARSE_ERROR");
-
-        return WalkProgram(root);
     }
 
     private static BashAstSecurityResult WalkProgram(Node root) {

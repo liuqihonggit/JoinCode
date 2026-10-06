@@ -10,7 +10,7 @@ public sealed class PluginManagerUnloadTest {
 
     [Fact]
     public async Task NotLoaded_ReturnsAlreadyUnloaded() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
 
         var result = await manager.UnloadPluginCoreAsync("not-loaded", CancellationToken.None);
@@ -21,7 +21,7 @@ public sealed class PluginManagerUnloadTest {
 
     [Fact]
     public async Task WorkflowPlugin_RemovesFromRegistry_AndReturnsSuccess() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("unload-success");
         await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
@@ -36,7 +36,7 @@ public sealed class PluginManagerUnloadTest {
 
     [Fact]
     public async Task WorkflowPlugin_FiberTransitionsToUnloaded() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("fiber-unload");
         await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
@@ -49,7 +49,7 @@ public sealed class PluginManagerUnloadTest {
 
     [Fact]
     public async Task WorkflowPlugin_AsyncUndoChainExecutedInReverseOrder() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("undo-chain") { RegisterAsyncSideEffects = true };
         await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
@@ -62,7 +62,7 @@ public sealed class PluginManagerUnloadTest {
 
     [Fact]
     public async Task WorkflowPlugin_PluginUnloadingEventFires() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("event-unload");
         await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
@@ -76,7 +76,7 @@ public sealed class PluginManagerUnloadTest {
 
     [Fact]
     public async Task WorkflowPlugin_DoubleUnload_SecondReturnsAlreadyUnloaded() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("double-unload");
         await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
@@ -90,7 +90,7 @@ public sealed class PluginManagerUnloadTest {
 
     [Fact]
     public async Task CascadeUnload_DependentUnloadedBeforeDepended() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var basePlugin = new StubWorkflowPlugin("base-plugin");
         var depPlugin = new StubWorkflowPluginWithDependencies("dep-plugin", "base-plugin");
@@ -109,7 +109,7 @@ public sealed class PluginManagerUnloadTest {
 
     [Fact]
     public async Task UnloadWorkflowPlugin_AfterLoad_GetWorkflowPluginReturnsNull() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("get-null");
         await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
@@ -122,7 +122,7 @@ public sealed class PluginManagerUnloadTest {
 
     [Fact]
     public async Task UnloadPlugin_LoadedWorkflow_ResourcesReleased() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("resource-release");
         await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);

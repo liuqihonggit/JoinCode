@@ -11,7 +11,7 @@ public sealed class McpAuthPersistenceServiceTests {
 
     [Fact]
     public async Task SaveAsync_WithoutConfigService_DoesNothing() {
-        var service = new McpAuthPersistenceService();
+        await using var service = new McpAuthPersistenceService();
 
         var act = async () => await service.SaveAsync("name", "type", "data").ConfigureAwait(true);
 
@@ -111,7 +111,7 @@ public sealed class McpAuthPersistenceServiceTests {
 
     [Fact]
     public async Task RemoveAsync_WithoutConfigService_DoesNothing() {
-        var service = new McpAuthPersistenceService();
+        await using var service = new McpAuthPersistenceService();
 
         var act = async () => await service.RemoveAsync("auth1").ConfigureAwait(true);
 

@@ -28,7 +28,7 @@ public sealed class FeishuBotAdapter : PlatformBotAdapterBase<FeishuBotConfig> {
         using var response = await HttpClient.PostAsync(url, new StringContent(body, Encoding.UTF8, "application/json"), ct).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         return doc.RootElement.GetProperty("tenant_access_token").GetString()!;
     }
 
@@ -42,7 +42,7 @@ public sealed class FeishuBotAdapter : PlatformBotAdapterBase<FeishuBotConfig> {
 
     /// <inheritdoc/>
     protected override string? ExtractMessageId(string json) {
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         if (doc.RootElement.TryGetProperty("data", out var data)
             && data.TryGetProperty("message_id", out var id)) {
             return id.GetString();

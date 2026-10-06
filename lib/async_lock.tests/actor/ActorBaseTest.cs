@@ -265,7 +265,7 @@ public class ActorBaseTest {
         actor.Tell("test");
         await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
 
-        var consumer = actor.OutputAsync().GetAsyncEnumerator();
+        await using var consumer = actor.OutputAsync().GetAsyncEnumerator();
         (await consumer.MoveNextAsync()).Should().BeTrue();
         consumer.Current.Should().Be("processed-test");
     }

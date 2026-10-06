@@ -12,7 +12,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TryStart_FromIdle_ToDownloading() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         var t = sm.TryStart();
         t.Success.Should().BeTrue();
         t.PreviousState.Should().Be(DownloadState.Idle);
@@ -22,7 +22,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TryPause_FromDownloading_ToPaused() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         var t = sm.TryPause();
         t.Success.Should().BeTrue();
@@ -32,7 +32,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TryResume_FromPaused_ToDownloading() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         sm.TryPause();
         var t = sm.TryResume();
@@ -42,7 +42,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TryEnterMerging_FromDownloading_ToMerging() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         var t = sm.TryEnterMerging();
         t.Success.Should().BeTrue();
@@ -51,7 +51,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TryComplete_FromMerging_ToCompleted() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         sm.TryEnterMerging();
         var t = sm.TryComplete();
@@ -61,7 +61,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TryCancel_FromIdle_ToCancelled() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         var t = sm.TryCancel();
         t.Success.Should().BeTrue();
         t.NewState.Should().Be(DownloadState.Cancelled);
@@ -69,7 +69,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TryCancel_FromDownloading_ToCancelled() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         var t = sm.TryCancel();
         t.Success.Should().BeTrue();
@@ -78,7 +78,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TryCancel_FromPaused_ToCancelled() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         sm.TryPause();
         var t = sm.TryCancel();
@@ -88,7 +88,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TryCancel_FromMerging_ToCancelled() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         sm.TryEnterMerging();
         var t = sm.TryCancel();
@@ -98,7 +98,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TryFail_FromDownloading_ToFailed() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         var t = sm.TryFail();
         t.Success.Should().BeTrue();
@@ -107,7 +107,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TryFail_FromPaused_ToFailed() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         sm.TryPause();
         var t = sm.TryFail();
@@ -117,7 +117,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public void TryFail_FromMerging_ToFailed() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         sm.TryEnterMerging();
         var t = sm.TryFail();
@@ -134,7 +134,7 @@ public sealed class DownloadStateMachineTests {
     [InlineData(DownloadOperation.Complete)]
     [InlineData(DownloadOperation.Fail)]
     public void IllegalTransitions_FromIdle_Fail(DownloadOperation op) {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         var t = sm.TryTransition(op);
         t.Success.Should().BeFalse();
         t.Error.Should().Contain("[DOWN001]");
@@ -148,7 +148,7 @@ public sealed class DownloadStateMachineTests {
     [InlineData(DownloadOperation.Resume)]
     [InlineData(DownloadOperation.Complete)]
     public void IllegalTransitions_FromDownloading_Fail(DownloadOperation op) {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         var t = sm.TryTransition(op);
         t.Success.Should().BeFalse();
@@ -164,7 +164,7 @@ public sealed class DownloadStateMachineTests {
     [InlineData(DownloadOperation.EnterMerging)]
     [InlineData(DownloadOperation.Complete)]
     public void IllegalTransitions_FromPaused_Fail(DownloadOperation op) {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         sm.TryPause();
         var t = sm.TryTransition(op);
@@ -181,7 +181,7 @@ public sealed class DownloadStateMachineTests {
     [InlineData(DownloadOperation.Resume)]
     [InlineData(DownloadOperation.EnterMerging)]
     public void IllegalTransitions_FromMerging_Fail(DownloadOperation op) {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
         sm.TryEnterMerging();
         var t = sm.TryTransition(op);
@@ -220,7 +220,7 @@ public sealed class DownloadStateMachineTests {
 
     [Fact]
     public async Task ConcurrentPauseAndCancel_EndsInCancelled() {
-        var sm = new DownloadStateMachine();
+        using var sm = new DownloadStateMachine();
         sm.TryStart();
 
         var pauseTask = Task.Run(() => sm.TryPause());

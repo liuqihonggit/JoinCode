@@ -155,6 +155,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable {
             var proxyHandler = _httpProxyService.CreateProxyHandler();
             if (handler is HttpClientHandler mtlsHandler) {
                 ConfigureProxyOnMtlsHandler(mtlsHandler, _httpProxyService);
+                proxyHandler.Dispose();
             } else {
                 handler = proxyHandler;
             }

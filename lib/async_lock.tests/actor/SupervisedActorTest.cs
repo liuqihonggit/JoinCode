@@ -57,7 +57,7 @@ public class SupervisedActorTest {
         await parent.SpawnTestChild("child-x");
         await parent.SpawnTestChild("child-y");
 
-        var child = parent.GetTestChild("child-x");
+        await using var child = parent.GetTestChild("child-x");
         child.Should().NotBeNull();
         child!.Id.Should().Be("child-x");
     }

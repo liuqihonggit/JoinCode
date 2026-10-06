@@ -11,8 +11,8 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void AddTag_ShouldAddTag() {
-        var service = CreateService();
+    public async Task AddTag_ShouldAddTag() {
+        await using var service = CreateService();
 
         var added = service.AddTag("session1", "important");
 
@@ -21,8 +21,8 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void AddTag_SameTagTwice_ShouldReturnFalse() {
-        var service = CreateService();
+    public async Task AddTag_SameTagTwice_ShouldReturnFalse() {
+        await using var service = CreateService();
 
         service.AddTag("session1", "important");
         var added = service.AddTag("session1", "important");
@@ -32,8 +32,8 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void AddTag_NullSessionId_ShouldThrow() {
-        var service = CreateService();
+    public async Task AddTag_NullSessionId_ShouldThrow() {
+        await using var service = CreateService();
 
         var act = () => service.AddTag(null!, "tag");
 
@@ -41,8 +41,8 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void AddTag_NullTag_ShouldThrow() {
-        var service = CreateService();
+    public async Task AddTag_NullTag_ShouldThrow() {
+        await using var service = CreateService();
 
         var act = () => service.AddTag("session1", null!);
 
@@ -50,8 +50,8 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void RemoveTag_ShouldRemoveTag() {
-        var service = CreateService();
+    public async Task RemoveTag_ShouldRemoveTag() {
+        await using var service = CreateService();
         service.AddTag("session1", "important");
 
         var removed = service.RemoveTag("session1", "important");
@@ -61,8 +61,8 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void RemoveTag_NonExistentTag_ShouldReturnFalse() {
-        var service = CreateService();
+    public async Task RemoveTag_NonExistentTag_ShouldReturnFalse() {
+        await using var service = CreateService();
 
         var removed = service.RemoveTag("session1", "nonexistent");
 
@@ -70,15 +70,15 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void GetTags_UnknownSession_ShouldReturnEmpty() {
-        var service = CreateService();
+    public async Task GetTags_UnknownSession_ShouldReturnEmpty() {
+        await using var service = CreateService();
 
         service.GetTags("unknown").Should().BeEmpty();
     }
 
     [Fact]
-    public void GetTags_ShouldBeSorted() {
-        var service = CreateService();
+    public async Task GetTags_ShouldBeSorted() {
+        await using var service = CreateService();
 
         service.AddTag("session1", "zebra");
         service.AddTag("session1", "alpha");
@@ -89,8 +89,8 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void GetAllTags_ShouldReturnAllSessions() {
-        var service = CreateService();
+    public async Task GetAllTags_ShouldReturnAllSessions() {
+        await using var service = CreateService();
 
         service.AddTag("session1", "tag1");
         service.AddTag("session2", "tag2");
@@ -101,8 +101,8 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void AddTag_CaseInsensitive_ShouldNotDuplicate() {
-        var service = CreateService();
+    public async Task AddTag_CaseInsensitive_ShouldNotDuplicate() {
+        await using var service = CreateService();
 
         service.AddTag("session1", "Important");
         var added = service.AddTag("session1", "important");
@@ -112,8 +112,8 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void RemoveTag_WhenLastTagRemoved_ShouldRemoveSession() {
-        var service = CreateService();
+    public async Task RemoveTag_WhenLastTagRemoved_ShouldRemoveSession() {
+        await using var service = CreateService();
         service.AddTag("session1", "only-tag");
 
         service.RemoveTag("session1", "only-tag");

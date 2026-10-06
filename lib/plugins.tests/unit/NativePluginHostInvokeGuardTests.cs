@@ -11,24 +11,24 @@ public sealed class NativePluginHostInvokeGuardTests {
     }
 
     [Fact]
-    public void Invoke_NullRequestJson_ThrowsArgumentNullException() {
-        var host = CreateHost();
+    public async Task Invoke_NullRequestJson_ThrowsArgumentNullException() {
+        await using var host = CreateHost();
         var act = () => host.Invoke(null!);
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("requestJson");
     }
 
     [Fact]
-    public void Invoke_EmptyRequestJson_ThrowsArgumentException() {
-        var host = CreateHost();
+    public async Task Invoke_EmptyRequestJson_ThrowsArgumentException() {
+        await using var host = CreateHost();
         var act = () => host.Invoke(string.Empty);
         act.Should().Throw<ArgumentException>()
             .WithParameterName("requestJson");
     }
 
     [Fact]
-    public void Invoke_WhitespaceRequestJson_ThrowsArgumentException() {
-        var host = CreateHost();
+    public async Task Invoke_WhitespaceRequestJson_ThrowsArgumentException() {
+        await using var host = CreateHost();
         var act = () => host.Invoke("   ");
         act.Should().Throw<ArgumentException>()
             .WithParameterName("requestJson");

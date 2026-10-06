@@ -7,6 +7,7 @@
     <Project Path="../../lib/plugins.contracts/Plugins.Contracts.csproj" />
     <Project Path="../../lib/plugins.infrastructure/Plugins.Infrastructure.csproj" />
     <Project Path="../../lib/plugins.tests/Plugins.Tests.csproj" />
+    <Project Path="../../lib/pithosdb/PithosDB.Core.csproj" />
   </Folder>
   <Folder Name="/lib/async_lock/test/" />
   <Folder Name="/lib/async_lock/test/unit/">

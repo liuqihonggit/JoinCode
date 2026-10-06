@@ -10,11 +10,11 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task Success_AddsToRegistry_AndFiberActive() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("test-plugin");
 
-        var host = await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
+        await using var host = await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
 
         host.Should().NotBeNull();
         host.PluginName.Should().Be("test-plugin");
@@ -28,11 +28,11 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task Success_ReturnsHostWithPluginInstance() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("instance-plugin");
 
-        var host = await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
+        await using var host = await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
 
         host.Plugin.Should().BeSameAs(plugin);
         host.Version.Should().Be("1.0.0");
@@ -40,7 +40,7 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task DuplicateLoad_ThrowsInvalidOperationException_AndKeepsFirstLoad() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin1 = new StubWorkflowPlugin("dup-plugin");
         await manager.LoadWorkflowPluginCoreAsync(plugin1, CancellationToken.None);
@@ -57,7 +57,7 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task Blacklisted_ThrowsInvalidOperationException_AndDoesNotLoad() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         manager.AddToBlacklistForTest("bad-plugin");
         var plugin = new StubWorkflowPlugin("bad-plugin");
@@ -72,7 +72,7 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task LoadAsyncReturnsFail_FiberBecomesFailed_AndNotRegistered() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("load-fail") {
             LoadResult = OperationResult.Fail("load error")
@@ -88,7 +88,7 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task InitializeAsyncReturnsFail_FiberBecomesUnloaded_AndNotRegistered() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("init-fail") {
             InitResult = OperationResult.Fail("init error")
@@ -107,7 +107,7 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task LoadAsyncThrows_FiberBecomesFailed_AndNotRegistered() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("throw-plugin") {
             LoadException = new NotSupportedException("boom")
@@ -124,7 +124,7 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task ContractViolation_FiberBecomesUnloaded_AndNotRegistered() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPluginWithBadContract("contract-violation");
 
@@ -139,7 +139,7 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task CancellationToken_Cancelled_PluginRespectsIt_LoadFails() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("cancel-plugin") { RespectCancellation = true };
         using var cts = new CancellationTokenSource();
@@ -156,7 +156,7 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task CancellationToken_PassedToPluginLoadAsync() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("ct-pass");
         using var cts = new CancellationTokenSource();
@@ -168,7 +168,7 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task PluginLoadedEvent_FiresWithPluginName() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPlugin("event-plugin");
         string? firedName = null;
@@ -181,11 +181,11 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task DependenciesDeclared_LoadSucceeds() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin = new StubWorkflowPluginWithDependencies("dep-plugin", "dep-a", "dep-b");
 
-        var host = await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
+        await using var host = await manager.LoadWorkflowPluginCoreAsync(plugin, CancellationToken.None);
 
         host.Should().NotBeNull();
         manager.IsPluginLoaded("dep-plugin").Should().BeTrue();
@@ -194,7 +194,7 @@ public sealed class PluginManagerLoadWorkflowTest {
 
     [Fact]
     public async Task MultipleDistinctPlugins_AllLoadSuccessfully() {
-        var manager = CreateManager();
+        await using var manager = CreateManager();
         await using var _ = manager;
         var plugin1 = new StubWorkflowPlugin("multi-1");
         var plugin2 = new StubWorkflowPlugin("multi-2");

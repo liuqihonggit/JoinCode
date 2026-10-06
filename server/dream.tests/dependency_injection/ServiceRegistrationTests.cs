@@ -5,23 +5,23 @@ namespace Dream.Tests.DependencyInjection;
 /// </summary>
 public sealed class ServiceRegistrationTests {
     [Fact]
-    public void AddDreamServices_WithConfigure_RegistersOptions() {
+    public async Task AddDreamServices_WithConfigure_RegistersOptions() {
         var services = new ServiceCollection();
 
         services.AddDreamServices(cfg => cfg with { MinHours = 12 });
 
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var config = provider.GetRequiredService<AutoDreamConfig>();
         Assert.Equal(12, config.MinHours);
     }
 
     [Fact]
-    public void AddDreamServices_WithoutConfigure_RegistersSingleton() {
+    public async Task AddDreamServices_WithoutConfigure_RegistersSingleton() {
         var services = new ServiceCollection();
 
         services.AddDreamServices();
 
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var config1 = provider.GetRequiredService<AutoDreamConfig>();
         var config2 = provider.GetRequiredService<AutoDreamConfig>();
         Assert.Same(config1, config2);
@@ -29,23 +29,23 @@ public sealed class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddDreamServicesWithPersistence_WithConfigure_RegistersOptions() {
+    public async Task AddDreamServicesWithPersistence_WithConfigure_RegistersOptions() {
         var services = new ServiceCollection();
 
         services.AddDreamServicesWithPersistence(cfg => cfg with { MinSessions = 3 });
 
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var config = provider.GetRequiredService<AutoDreamConfig>();
         Assert.Equal(3, config.MinSessions);
     }
 
     [Fact]
-    public void AddDreamServicesWithPersistence_WithoutConfigure_RegistersSingleton() {
+    public async Task AddDreamServicesWithPersistence_WithoutConfigure_RegistersSingleton() {
         var services = new ServiceCollection();
 
         services.AddDreamServicesWithPersistence();
 
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         Assert.NotNull(provider.GetService<AutoDreamConfig>());
     }
 
@@ -86,12 +86,12 @@ public sealed class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddDreamPluginServices_RegistersAutoDreamConfig() {
+    public async Task AddDreamPluginServices_RegistersAutoDreamConfig() {
         var services = new ServiceCollection();
 
         services.AddDreamPluginServices();
 
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var config = provider.GetRequiredService<AutoDreamConfig>();
         Assert.Equal(2, config.MinSessions);
     }

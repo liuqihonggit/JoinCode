@@ -9,7 +9,7 @@ public sealed class ResilientHttpExecutorTests {
         };
 
         var executor = new ResilientHttpExecutor(policy);
-        var result = await executor.ExecuteAsync(
+        using var result = await executor.ExecuteAsync(
             _ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)),
             "test-op");
 
@@ -27,7 +27,7 @@ public sealed class ResilientHttpExecutorTests {
         var executor = new ResilientHttpExecutor(policy);
         var attempt = 0;
 
-        var result = await executor.ExecuteAsync(
+        using var result = await executor.ExecuteAsync(
             _ => {
                 attempt++;
                 if (attempt < 3) throw new HttpRequestException("fail");
@@ -92,7 +92,7 @@ public sealed class ResilientHttpExecutorTests {
 
         await Task.Delay(60);
 
-        var result = await executor.ExecuteAsync(
+        using var result = await executor.ExecuteAsync(
             _ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)),
             "op2");
 
@@ -222,7 +222,7 @@ public sealed class ResilientHttpExecutorTests {
         var executor = new ResilientHttpExecutor(policy);
         var attempt = 0;
 
-        var result = await executor.ExecuteAsync(
+        using var result = await executor.ExecuteAsync(
             _ => {
                 attempt++;
                 if (attempt < 5) throw new HttpRequestException("fail");

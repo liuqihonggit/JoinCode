@@ -118,7 +118,7 @@ public sealed partial class Win32WindowManagementService : ServiceEntity, IWindo
     private static string? TryGetProcessName(IntPtr hWnd) {
         try {
             User32NativeMethods.GetWindowThreadProcessId(hWnd, out var pid);
-            var process = System.Diagnostics.Process.GetProcessById((int)pid);
+            using var process = System.Diagnostics.Process.GetProcessById((int)pid);
             return process.ProcessName;
         } catch {
             return null;

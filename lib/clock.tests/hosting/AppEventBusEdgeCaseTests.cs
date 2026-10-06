@@ -5,7 +5,7 @@ public sealed class AppEventBusEdgeCaseTests {
     [Fact]
     public async Task PublishAsync_NullEvent_Throws() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
 
         await Assert.ThrowsAsync<ArgumentNullException>(() => eventBus.PublishAsync(null!)).ConfigureAwait(true);
     }
@@ -13,7 +13,7 @@ public sealed class AppEventBusEdgeCaseTests {
     [Fact]
     public async Task SubscribeAsync_NullHandler_Throws() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
 
         await Assert.ThrowsAsync<ArgumentNullException>(() => eventBus.SubscribeAsync(ServiceMessageType.TurnStarted, null!)).ConfigureAwait(true);
     }
@@ -21,7 +21,7 @@ public sealed class AppEventBusEdgeCaseTests {
     [Fact]
     public async Task PublishAsync_NonAppEventPayload_IsIgnored() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
 
         await eventBus.SubscribeAllAsync(e => received = e).ConfigureAwait(true);
@@ -33,7 +33,7 @@ public sealed class AppEventBusEdgeCaseTests {
     [Fact]
     public async Task PublishAsync_SubscriberThrows_DoesNotBreakOtherSubscribers() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         var receivedCount = 0;
 
         await eventBus.SubscribeAsync(ServiceMessageType.TurnStarted, _ => throw new InvalidOperationException("fail")).ConfigureAwait(true);
@@ -47,7 +47,7 @@ public sealed class AppEventBusEdgeCaseTests {
     [Fact]
     public async Task SubscribeAllAsync_ReceivesDifferentKinds() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         var received = new List<AppEvent>();
 
         await eventBus.SubscribeAllAsync(e => received.Add(e)).ConfigureAwait(true);
@@ -61,7 +61,7 @@ public sealed class AppEventBusEdgeCaseTests {
     [Fact]
     public async Task SubscribeAllAsync_AndSpecificSubscriber_BothReceive() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         var allCount = 0;
         var specificCount = 0;
 
@@ -77,7 +77,7 @@ public sealed class AppEventBusEdgeCaseTests {
     [Fact]
     public async Task PublishAsync_DefaultSender_IsAppEventBus() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
 
         await eventBus.SubscribeAsync(ServiceMessageType.TurnStarted, e => received = e).ConfigureAwait(true);
@@ -89,7 +89,7 @@ public sealed class AppEventBusEdgeCaseTests {
     [Fact]
     public async Task PublishAsync_CustomSender_IsPreserved() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
 
         await eventBus.SubscribeAsync(ServiceMessageType.TurnStarted, e => received = e).ConfigureAwait(true);
@@ -101,7 +101,7 @@ public sealed class AppEventBusEdgeCaseTests {
     [Fact]
     public async Task PublishAsync_Timestamp_IsPreserved() {
         var messageBus = new ServiceMessageBus();
-        var eventBus = new AppEventBus(messageBus);
+        using var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
         var timestamp = DateTime.UtcNow.AddDays(-1);
 

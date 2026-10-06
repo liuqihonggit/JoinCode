@@ -118,7 +118,7 @@ public class GlobalBuildQueueTest {
             }));
 
         var events = new List<GlobalBuildEvent>();
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var consumeTask = Task.Run(async () => {
             await foreach (var evt in queue.OutputAsync(cts.Token))
                 events.Add(evt);

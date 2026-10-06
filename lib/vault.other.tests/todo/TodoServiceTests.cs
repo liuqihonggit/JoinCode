@@ -15,7 +15,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task WriteTodosAsync_NullInput_ThrowsArgumentNullException() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
 
 #pragma warning disable CS8625 // 显式传入 null 以验证参数校验
         var act = async () => await sut.WriteTodosAsync(null!).ConfigureAwait(true);
@@ -26,7 +26,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task WriteTodosAsync_CreateNewTodo_WithoutTaskRuntime_ReturnsCreated() {
-        var sut = CreateSut(withTaskRuntime: false);
+        await using var sut = CreateSut(withTaskRuntime: false);
         var todos = new List<TodoItemInput>
         {
             new(Content: "Implement feature", Status: TodoStatusEnumConstants.InProgress, ActiveForm: "Implementing feature")
@@ -44,7 +44,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task WriteTodosAsync_CreateNewTodo_WithTaskRuntime_CreatesTask() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
             new(Content: "Fix bug", Status: TodoStatusEnumConstants.Pending, Priority: TodoPriorityEnumConstants.High, ActiveForm: "Fixing bug")
@@ -63,7 +63,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task WriteTodosAsync_UpdateExistingTodo_UpdatesCountsAndTask() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var id = "todo_001";
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
@@ -84,7 +84,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task WriteTodosAsync_DeleteExisting_RemovesAndCancelsTask() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var id = "todo_del";
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
@@ -104,7 +104,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task WriteTodosAsync_DeleteNonExisting_DoesNotIncrementOrCallRuntime() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
 
         var result = await sut.WriteTodosAsync(new List<TodoItemInput>
         {
@@ -118,7 +118,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task WriteTodosAsync_StatusIsCaseInsensitive() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
 
         var result = await sut.WriteTodosAsync(new List<TodoItemInput>
         {
@@ -130,7 +130,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task WriteTodosAsync_PriorityDefaultMedium_WhenOmitted() {
-        var sut = CreateSut(withTaskRuntime: false);
+        await using var sut = CreateSut(withTaskRuntime: false);
 
         var result = await sut.WriteTodosAsync(new List<TodoItemInput>
         {
@@ -142,7 +142,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task WriteTodosAsync_GeneratesId_WhenOmitted() {
-        var sut = CreateSut(withTaskRuntime: false);
+        await using var sut = CreateSut(withTaskRuntime: false);
 
         var result = await sut.WriteTodosAsync(new List<TodoItemInput>
         {
@@ -155,7 +155,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task WriteTodosAsync_RecordsTelemetry() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
             new(Content: "T1", Status: TodoStatusEnumConstants.Pending, ActiveForm: "T1ing"),
@@ -168,7 +168,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task ListTodosAsync_NoFilter_ReturnsAllOrderedByCreatedAt() {
-        var sut = CreateSut(withTaskRuntime: false);
+        await using var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
             new(Content: "First", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Firsting")
@@ -189,7 +189,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task ListTodosAsync_StatusFilter_IsCaseInsensitive() {
-        var sut = CreateSut(withTaskRuntime: false);
+        await using var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
             new(Content: "A", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Aing"),
@@ -203,7 +203,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task ListTodosAsync_PriorityFilter_IsCaseInsensitive() {
-        var sut = CreateSut(withTaskRuntime: false);
+        await using var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
             new(Content: "High", Status: TodoStatusEnumConstants.Pending, Priority: TodoPriorityEnumConstants.High, ActiveForm: "Highing"),
@@ -217,7 +217,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task ListTodosAsync_ExcludeCompleted_ByDefault() {
-        var sut = CreateSut(withTaskRuntime: false);
+        await using var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
             new(Content: "Done", Status: TodoStatusEnumConstants.Completed, ActiveForm: "Doing"),
@@ -231,7 +231,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task ListTodosAsync_IncludeCompleted_ReturnsCompleted() {
-        var sut = CreateSut(withTaskRuntime: false);
+        await using var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
             new(Content: "Done", Status: TodoStatusEnumConstants.Completed, ActiveForm: "Doing")
@@ -244,7 +244,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task UpdateTodoAsync_Existing_UpdatesFields() {
-        var sut = CreateSut(withTaskRuntime: false);
+        await using var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
             new(Id: "u1", Content: "Old", Status: TodoStatusEnumConstants.Pending, Priority: TodoPriorityEnumConstants.Low, ActiveForm: "Olding")
@@ -264,7 +264,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task UpdateTodoAsync_NonExisting_ReturnsFail() {
-        var sut = CreateSut(withTaskRuntime: false);
+        await using var sut = CreateSut(withTaskRuntime: false);
 
         var result = await sut.UpdateTodoAsync("missing", content: "X").ConfigureAwait(true);
 
@@ -274,7 +274,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task UpdateTodoAsync_Existing_WithTaskRuntime_SendsUpdate() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
             new(Id: "u2", Content: "Old", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Olding")
@@ -291,7 +291,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task UpdateTodoAsync_NullOrWhitespaceId_ThrowsArgumentException() {
-        var sut = CreateSut(withTaskRuntime: false);
+        await using var sut = CreateSut(withTaskRuntime: false);
 
         var act = async () => await sut.UpdateTodoAsync("  ").ConfigureAwait(true);
 
@@ -300,7 +300,7 @@ public sealed class TodoServiceTests {
 
     [Fact]
     public async Task ClearTodosAsync_RemovesAllAndRecordsTelemetry() {
-        var sut = CreateSut(withTaskRuntime: false);
+        await using var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
             new(Content: "A", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Aing")

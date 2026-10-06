@@ -14,7 +14,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Timing")]
     public async Task NodeTimeout_Should_MarkAsFailed_WhenExceedsTimeout() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = new DagNode<GoalNodePayload> {
@@ -62,7 +62,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Timing")]
     public async Task CancellationMidExecution_Should_ThrowOperationCanceledException() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "slow-node");
@@ -99,7 +99,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Timing")]
     public async Task ParallelExecution_Should_RunIndependentNodesConcurrently() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
         var concurrentCount = 0;
         var maxConcurrent = 0;
 
@@ -161,7 +161,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Timing")]
     public async Task ParallelExecution_WithMaxConcurrency1_Should_DegradeToSerial() {
-        var engine = CreateEngine(concurrencyOptions: new SubAgentConcurrencyOptions { MaxConcurrentExecutions = 1 });
+        await using var engine = CreateEngine(concurrencyOptions: new SubAgentConcurrencyOptions { MaxConcurrentExecutions = 1 });
         var concurrentCount = 0;
         var maxConcurrent = 0;
 
@@ -222,7 +222,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Timing")]
     public async Task HighFailureRate_Should_TerminateAsUnmet() {
-        var engine = CreateEngine();
+        await using var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "source");
@@ -281,7 +281,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Timing")]
     public async Task EventDriven_ParallelDiamond_Should_ExecuteBAndC_InParallel() {
-        var engine = CreateEventDrivenEngine();
+        await using var engine = CreateEventDrivenEngine();
         var executedNodes = new ConcurrentBag<string>();
         var concurrencyOptions = new SubAgentConcurrencyOptions { MaxConcurrentExecutions = 2 };
         engine.UpdateConcurrencyOptions(concurrencyOptions);
@@ -344,7 +344,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Timing")]
     public async Task EventDriven_Concurrent10Runs_Should_NoDeadlock() {
-        var engine = CreateEventDrivenEngine();
+        await using var engine = CreateEventDrivenEngine();
         engine.RegisterFunction("A", _ => Task.FromResult(NodeResult.Succeeded("A-out", tokensUsed: 1)));
         engine.RegisterFunction("B", _ => Task.FromResult(NodeResult.Succeeded("B-out", tokensUsed: 1)));
 
@@ -375,7 +375,7 @@ public sealed partial class GoalGraphEngineTests {
     [Fact]
     [Trait("Category", "Timing")]
     public async Task EventDriven_Cancellation_Should_PropagateAndStop() {
-        var engine = CreateEventDrivenEngine();
+        await using var engine = CreateEventDrivenEngine();
         var executedNodes = new List<string>();
 
         var dag = new Dag<GoalNodePayload>();

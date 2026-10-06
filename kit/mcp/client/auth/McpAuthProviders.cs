@@ -163,8 +163,8 @@ public sealed record OAuth2ProviderOptions {
     /// <summary>OAuth2 scope 列表,可为 null。</summary>
     public IEnumerable<string>? Scopes { get; init; }
 
-    /// <summary>自定义 HttpClient,为 null 时使用默认工厂创建。</summary>
-    public HttpClient? HttpClient { get; init; }
+    /// <summary>自定义 HttpClient 借用句柄,为 null 时使用默认工厂创建。</summary>
+    public HttpClientRef? HttpClient { get; init; }
 
     /// <summary>日志记录器。</summary>
     public ILogger? Logger { get; init; }
@@ -175,7 +175,7 @@ public sealed record OAuth2ProviderOptions {
 /// </summary>
 public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable {
     private readonly OAuth2ProviderOptions _options;
-    private readonly HttpClient _httpClient;
+    private readonly HttpClientRef _httpClient;
     private readonly ILogger? _logger;
     private readonly IClockService _clock;
     private readonly List<string> _scopes;
@@ -332,11 +332,9 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable {
     }
 
     /// <summary>
-    /// 同步释放资源 — 释放 HttpClient 与刷新锁。
+    /// 释放同步资源 — 释放刷新锁(HttpClient 为借用句柄,不释放)。
     /// </summary>
     public void Dispose() {
-        _httpClient.Dispose();
-
         try {
             _refreshLock.Dispose();
         } catch (Exception ex) {
@@ -345,12 +343,11 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable {
     }
 
     /// <summary>
-    /// 异步释放资源 — 释放 HttpClient 与刷新锁,幂等保护防止重复释放。
+    /// 释放异步资源 — 释放刷新锁,幂等保护防止重复释放(HttpClient 为借用句柄,不释放)。
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _httpClient.Dispose();
         _refreshLock.Dispose();
     }
 }

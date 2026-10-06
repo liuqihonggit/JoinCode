@@ -25,16 +25,16 @@ public sealed class LoopInterventionOptionsTests {
     }
 
     [Fact]
-    public void Builder_Create_ReturnsNewInstance() {
-        var options = LoopInterventionOptionsBuilder.Create().Build();
+    public async Task Builder_Create_ReturnsNewInstance() {
+        await using var options = LoopInterventionOptionsBuilder.Create().Build();
 
         options.Should().NotBeNull();
         options.HardTruncateThreshold.Should().Be(3);
     }
 
     [Fact]
-    public void Builder_WithHardTruncateThreshold_SetsValue() {
-        var options = LoopInterventionOptionsBuilder.Create()
+    public async Task Builder_WithHardTruncateThreshold_SetsValue() {
+        await using var options = LoopInterventionOptionsBuilder.Create()
             .WithHardTruncateThreshold(10)
             .Build();
 
@@ -42,8 +42,8 @@ public sealed class LoopInterventionOptionsTests {
     }
 
     [Fact]
-    public void Builder_WithCompactThreshold_SetsValue() {
-        var options = LoopInterventionOptionsBuilder.Create()
+    public async Task Builder_WithCompactThreshold_SetsValue() {
+        await using var options = LoopInterventionOptionsBuilder.Create()
             .WithCompactThreshold(8)
             .Build();
 
@@ -51,8 +51,8 @@ public sealed class LoopInterventionOptionsTests {
     }
 
     [Fact]
-    public void Builder_WithMaxRetryAttempts_SetsValue() {
-        var options = LoopInterventionOptionsBuilder.Create()
+    public async Task Builder_WithMaxRetryAttempts_SetsValue() {
+        await using var options = LoopInterventionOptionsBuilder.Create()
             .WithMaxRetryAttempts(5)
             .Build();
 
@@ -60,8 +60,8 @@ public sealed class LoopInterventionOptionsTests {
     }
 
     [Fact]
-    public void Builder_WithRetryTemperature_SetsValue() {
-        var options = LoopInterventionOptionsBuilder.Create()
+    public async Task Builder_WithRetryTemperature_SetsValue() {
+        await using var options = LoopInterventionOptionsBuilder.Create()
             .WithRetryTemperature(0.9f)
             .Build();
 
@@ -69,8 +69,8 @@ public sealed class LoopInterventionOptionsTests {
     }
 
     [Fact]
-    public void Builder_WithSoftIntervenePrompt_SetsValue() {
-        var options = LoopInterventionOptionsBuilder.Create()
+    public async Task Builder_WithSoftIntervenePrompt_SetsValue() {
+        await using var options = LoopInterventionOptionsBuilder.Create()
             .WithSoftIntervenePrompt("custom prompt")
             .Build();
 
@@ -78,8 +78,8 @@ public sealed class LoopInterventionOptionsTests {
     }
 
     [Fact]
-    public void Builder_WithCompactFoldDecision_SetsValue() {
-        var options = LoopInterventionOptionsBuilder.Create()
+    public async Task Builder_WithCompactFoldDecision_SetsValue() {
+        await using var options = LoopInterventionOptionsBuilder.Create()
             .WithCompactFoldDecision(ContextFoldDecision.FoldNormal)
             .Build();
 
@@ -87,8 +87,8 @@ public sealed class LoopInterventionOptionsTests {
     }
 
     [Fact]
-    public void Builder_WithProgressDiscount_SetsValue() {
-        var options = LoopInterventionOptionsBuilder.Create()
+    public async Task Builder_WithProgressDiscount_SetsValue() {
+        await using var options = LoopInterventionOptionsBuilder.Create()
             .WithProgressDiscount(2)
             .Build();
 
@@ -96,8 +96,8 @@ public sealed class LoopInterventionOptionsTests {
     }
 
     [Fact]
-    public void Builder_WithSecondChanceTemperature_SetsValue() {
-        var options = LoopInterventionOptionsBuilder.Create()
+    public async Task Builder_WithSecondChanceTemperature_SetsValue() {
+        await using var options = LoopInterventionOptionsBuilder.Create()
             .WithSecondChanceTemperature(0.1f)
             .Build();
 
@@ -105,8 +105,8 @@ public sealed class LoopInterventionOptionsTests {
     }
 
     [Fact]
-    public void Builder_WithInsertRewindAuditMark_SetsValue() {
-        var options = LoopInterventionOptionsBuilder.Create()
+    public async Task Builder_WithInsertRewindAuditMark_SetsValue() {
+        await using var options = LoopInterventionOptionsBuilder.Create()
             .WithInsertRewindAuditMark(false)
             .Build();
 
@@ -114,8 +114,8 @@ public sealed class LoopInterventionOptionsTests {
     }
 
     [Fact]
-    public void Builder_WithPreserveLastUserMessageOnReset_SetsValue() {
-        var options = LoopInterventionOptionsBuilder.Create()
+    public async Task Builder_WithPreserveLastUserMessageOnReset_SetsValue() {
+        await using var options = LoopInterventionOptionsBuilder.Create()
             .WithPreserveLastUserMessageOnReset(false)
             .Build();
 

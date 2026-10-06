@@ -24,7 +24,7 @@ internal sealed record DotEnvConfig {
 
         try {
             var content = SyncFileReader.RunValueTask(SafeFileIO.ReadAllText(filePath));
-            var json = System.Text.Json.JsonDocument.Parse(content);
+            using var json = System.Text.Json.JsonDocument.Parse(content);
 
             if (!json.RootElement.TryGetProperty("env", out var envObj))
                 return null;

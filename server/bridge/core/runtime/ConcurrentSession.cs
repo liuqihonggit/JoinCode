@@ -251,7 +251,7 @@ public sealed class ConcurrentSessionService {
 
                 // 检查进程是否仍在运行
                 try {
-                    var proc = System.Diagnostics.Process.GetProcessById(pid);
+                    using var proc = System.Diagnostics.Process.GetProcessById(pid);
                     if (!proc.HasExited) {
                         count++;
                     } else {

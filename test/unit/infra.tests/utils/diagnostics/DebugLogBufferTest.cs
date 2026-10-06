@@ -211,7 +211,7 @@ public sealed class DebugLogBufferTest {
     [Fact]
     public void Overflow_DiscardsOldestEntries() {
         // 使用小容量缓冲区测试溢出
-        var smallBuffer = new DebugLogBuffer(maxCapacity: 5);
+        using var smallBuffer = new DebugLogBuffer(maxCapacity: 5);
         smallBuffer.Clear();
 
         for (var i = 0; i < 10; i++)
@@ -227,7 +227,7 @@ public sealed class DebugLogBufferTest {
 
     [Fact]
     public void Overflow_WithCapacity1_KeepsOnlyLatest() {
-        var tinyBuffer = new DebugLogBuffer(maxCapacity: 1);
+        using var tinyBuffer = new DebugLogBuffer(maxCapacity: 1);
         tinyBuffer.Clear();
 
         Diag.WriteLine("[STEP] first");
@@ -368,7 +368,7 @@ public sealed class DebugLogBufferTest {
     [Fact]
     public void EventIsolation_MultipleBuffers_BothReceiveEvents() {
         _buffer.Clear();
-        var buffer2 = new DebugLogBuffer(maxCapacity: 50);
+        using var buffer2 = new DebugLogBuffer(maxCapacity: 50);
         buffer2.Clear();
 
         Diag.WriteLine("[STEP] shared event");

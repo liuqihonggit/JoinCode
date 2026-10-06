@@ -14,7 +14,7 @@ public static class DisposableDirectionFixer {
     /// 执行方向转换，返回传播范围统计
     /// </summary>
     public static async Task<DirectionFixReport> FixAsync(string solutionPath, string targetTypeName, FixDirection direction, bool dryRun, CancellationToken ct) {
-        var workspace = MSBuildWorkspace.Create();
+        using var workspace = MSBuildWorkspace.Create();
         var solution = await workspace.OpenSolutionAsync(solutionPath, cancellationToken: ct).ConfigureAwait(false);
 
         var report = new DirectionFixReport { Direction = direction, TargetTypeName = targetTypeName };

@@ -14,24 +14,24 @@ public sealed class ResilientHttpClientProviderTests {
     public void GetClient_DelegatesToInner() {
         var expectedClient = new HttpClient();
         var mockInner = new Mock<IHttpClientProvider>();
-        mockInner.Setup(x => x.GetClient()).Returns(expectedClient);
+        mockInner.Setup(x => x.GetClient()).Returns(new HttpClientRef(expectedClient));
 
         var provider = new ResilientHttpClientProvider(mockInner.Object);
         var client = provider.GetClient();
 
-        client.Should().BeSameAs(expectedClient);
+        client.Client.Should().BeSameAs(expectedClient);
     }
 
     [Fact]
     public void GetClient_WithName_DelegatesToInner() {
         var expectedClient = new HttpClient();
         var mockInner = new Mock<IHttpClientProvider>();
-        mockInner.Setup(x => x.GetClient("test")).Returns(expectedClient);
+        mockInner.Setup(x => x.GetClient("test")).Returns(new HttpClientRef(expectedClient));
 
         var provider = new ResilientHttpClientProvider(mockInner.Object);
         var client = provider.GetClient("test");
 
-        client.Should().BeSameAs(expectedClient);
+        client.Client.Should().BeSameAs(expectedClient);
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public sealed class ResilientHttpClientProviderTests {
         var handler = new MockHttpMessageHandler(HttpStatusCode.OK, "ok");
         var client = new HttpClient(handler);
         var mockInner = new Mock<IHttpClientProvider>();
-        mockInner.Setup(x => x.GetClient()).Returns(client);
+        mockInner.Setup(x => x.GetClient()).Returns(new HttpClientRef(client));
 
         var provider = new ResilientHttpClientProvider(mockInner.Object, policy: new ResiliencePolicy {
             Name = "test",
@@ -48,7 +48,7 @@ public sealed class ResilientHttpClientProviderTests {
         });
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/test");
-        var response = await provider.SendResilientAsync(request, "test-op");
+        using var response = await provider.SendResilientAsync(request, "test-op");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -58,7 +58,7 @@ public sealed class ResilientHttpClientProviderTests {
         var handler = new MockHttpMessageHandler(new HttpRequestException("connection refused"));
         var client = new HttpClient(handler);
         var mockInner = new Mock<IHttpClientProvider>();
-        mockInner.Setup(x => x.GetClient()).Returns(client);
+        mockInner.Setup(x => x.GetClient()).Returns(new HttpClientRef(client));
 
         var policy = new ResiliencePolicy {
             Name = "test-cb",
@@ -91,7 +91,7 @@ public sealed class ResilientHttpClientProviderTests {
         var handler = new MockHttpMessageHandler(new HttpRequestException("fail"));
         var client = new HttpClient(handler);
         var mockInner = new Mock<IHttpClientProvider>();
-        mockInner.Setup(x => x.GetClient()).Returns(client);
+        mockInner.Setup(x => x.GetClient()).Returns(new HttpClientRef(client));
 
         var policy = new ResiliencePolicy {
             Name = "test-no-retry",

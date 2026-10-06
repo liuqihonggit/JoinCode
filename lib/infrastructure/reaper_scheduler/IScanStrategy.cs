@@ -10,6 +10,7 @@ public interface IScanStrategy {
 
     /// <summary>
     /// 扫描指定会话作用域 — 只扫描该会话的 Entity, 不扫全局
+    /// 接受借用句柄 SessionScopeRef，策略只读取不释放
     /// </summary>
-    ValueTask Scan(SessionScope scope);
+    ValueTask Scan(SessionScopeRef scope);
 }

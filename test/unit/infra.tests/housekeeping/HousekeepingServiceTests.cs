@@ -19,13 +19,13 @@ public sealed class HousekeepingServiceTests {
         => new(_fs, _clock, _planModeManager.Object, _worktreeService.Object, null, NullLogger<HousekeepingService>.Instance);
 
     [Fact]
-    public void CleanupOldSessionFiles_WithNoSessionsDir_ShouldReturnZero() {
-        var sut = CreateSut();
+    public async Task CleanupOldSessionFiles_WithNoSessionsDir_ShouldReturnZero() {
+        await using var sut = CreateSut();
         sut.CleanupOldSessionFiles().Should().Be(0);
     }
 
     [Fact]
-    public void CleanupOldSessionFiles_ShouldDeleteOldJsonlFiles() {
+    public async Task CleanupOldSessionFiles_ShouldDeleteOldJsonlFiles() {
         _fs.CreateDirectory(SessionsDir);
         var oldFile = Path.Combine(SessionsDir, "old-session.json");
         var newFile = Path.Combine(SessionsDir, "new-session.json");
@@ -36,7 +36,7 @@ public sealed class HousekeepingServiceTests {
         _fs.SetLastWriteTimeUtc(oldFile, _clock.GetUtcNow().AddDays(-31));
         _fs.SetLastWriteTimeUtc(newFile, _clock.GetUtcNow().AddDays(-1));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = sut.CleanupOldSessionFiles(maxAgeDays: 30);
 
         result.Should().Be(1);
@@ -45,13 +45,13 @@ public sealed class HousekeepingServiceTests {
     }
 
     [Fact]
-    public void CleanupOldSessionFiles_ShouldDeleteOldCastFiles() {
+    public async Task CleanupOldSessionFiles_ShouldDeleteOldCastFiles() {
         _fs.CreateDirectory(SessionsDir);
         var castFile = Path.Combine(SessionsDir, "old-session.cast");
         _fs.WriteAllText(castFile, "cast-content");
         _fs.SetLastWriteTimeUtc(castFile, _clock.GetUtcNow().AddDays(-31));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = sut.CleanupOldSessionFiles(maxAgeDays: 30);
 
         result.Should().Be(1);
@@ -59,19 +59,19 @@ public sealed class HousekeepingServiceTests {
     }
 
     [Fact]
-    public void CleanupOldSessionFiles_WithAllRecentFiles_ShouldDeleteNothing() {
+    public async Task CleanupOldSessionFiles_WithAllRecentFiles_ShouldDeleteNothing() {
         _fs.CreateDirectory(SessionsDir);
         var recentFile = Path.Combine(SessionsDir, "recent.json");
         _fs.WriteAllText(recentFile, "recent");
         _fs.SetLastWriteTimeUtc(recentFile, _clock.GetUtcNow().AddDays(-5));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         sut.CleanupOldSessionFiles(maxAgeDays: 30).Should().Be(0);
         _fs.FileExists(recentFile).Should().BeTrue();
     }
 
     [Fact]
-    public void CleanupOldFileHistoryBackups_ShouldDeleteOldDirectories() {
+    public async Task CleanupOldFileHistoryBackups_ShouldDeleteOldDirectories() {
         _fs.CreateDirectory(FileHistoryDir);
         var oldDir = Path.Combine(FileHistoryDir, "old-backup");
         var newDir = Path.Combine(FileHistoryDir, "new-backup");
@@ -81,7 +81,7 @@ public sealed class HousekeepingServiceTests {
         _fs.SetDirectoryLastWriteTimeUtc(oldDir, _clock.GetUtcNow().AddDays(-31));
         _fs.SetDirectoryLastWriteTimeUtc(newDir, _clock.GetUtcNow().AddDays(-1));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = sut.CleanupOldFileHistoryBackups(maxAgeDays: 30);
 
         result.Should().Be(1);
@@ -90,13 +90,13 @@ public sealed class HousekeepingServiceTests {
     }
 
     [Fact]
-    public void CleanupOldSessionEnvDirs_ShouldDeleteOldDirectories() {
+    public async Task CleanupOldSessionEnvDirs_ShouldDeleteOldDirectories() {
         _fs.CreateDirectory(SessionEnvDir);
         var oldDir = Path.Combine(SessionEnvDir, "old-env");
         _fs.CreateDirectory(oldDir);
         _fs.SetDirectoryLastWriteTimeUtc(oldDir, _clock.GetUtcNow().AddDays(-31));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = sut.CleanupOldSessionEnvDirs(maxAgeDays: 30);
 
         result.Should().Be(1);
@@ -104,7 +104,7 @@ public sealed class HousekeepingServiceTests {
     }
 
     [Fact]
-    public void CleanupOldDebugLogs_ShouldDeleteOldTxtFiles() {
+    public async Task CleanupOldDebugLogs_ShouldDeleteOldTxtFiles() {
         _fs.CreateDirectory(DebugDir);
         var oldLog = Path.Combine(DebugDir, "old-log.txt");
         var newLog = Path.Combine(DebugDir, "new-log.txt");
@@ -114,7 +114,7 @@ public sealed class HousekeepingServiceTests {
         _fs.SetLastWriteTimeUtc(oldLog, _clock.GetUtcNow().AddDays(-31));
         _fs.SetLastWriteTimeUtc(newLog, _clock.GetUtcNow().AddDays(-1));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = sut.CleanupOldDebugLogs(maxAgeDays: 30);
 
         result.Should().Be(1);
@@ -123,13 +123,13 @@ public sealed class HousekeepingServiceTests {
     }
 
     [Fact]
-    public void CleanupOldMessageFiles_ShouldDeleteOldErrorFiles() {
+    public async Task CleanupOldMessageFiles_ShouldDeleteOldErrorFiles() {
         _fs.CreateDirectory(ErrorsDir);
         var oldError = Path.Combine(ErrorsDir, "old-error.log");
         _fs.WriteAllText(oldError, "error");
         _fs.SetLastWriteTimeUtc(oldError, _clock.GetUtcNow().AddDays(-31));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = sut.CleanupOldMessageFiles(maxAgeDays: 30);
 
         result.Should().Be(1);
@@ -148,7 +148,7 @@ public sealed class HousekeepingServiceTests {
         _fs.CreateDirectory(oldDir);
         _fs.SetDirectoryLastWriteTimeUtc(oldDir, _clock.GetUtcNow().AddDays(-31));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.RunAllCleanupAsync();
 
         result.Should().BeGreaterThanOrEqualTo(2);
@@ -180,7 +180,7 @@ public sealed class HousekeepingServiceTests {
     }
 
     [Fact]
-    public void CleanupOldImageCaches_ShouldDeleteNonCurrentSessionDirs() {
+    public async Task CleanupOldImageCaches_ShouldDeleteNonCurrentSessionDirs() {
         var imageCacheDir = Path.Combine(JccDir, "image-cache");
         _fs.CreateDirectory(imageCacheDir);
         var oldSessionDir = Path.Combine(imageCacheDir, "old-session");
@@ -190,7 +190,7 @@ public sealed class HousekeepingServiceTests {
         _fs.WriteAllText(Path.Combine(oldSessionDir, "image.png"), "img");
         _fs.WriteAllText(Path.Combine(currentSessionDir, "image.png"), "img");
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = sut.CleanupOldImageCaches("current-session");
 
         result.Should().Be(1);
@@ -199,7 +199,7 @@ public sealed class HousekeepingServiceTests {
     }
 
     [Fact]
-    public void CleanupOldImageCaches_WithEmptySessionId_ShouldDeleteAllDirs() {
+    public async Task CleanupOldImageCaches_WithEmptySessionId_ShouldDeleteAllDirs() {
         var imageCacheDir = Path.Combine(JccDir, "image-cache");
         _fs.CreateDirectory(imageCacheDir);
         var dir1 = Path.Combine(imageCacheDir, "session-1");
@@ -207,7 +207,7 @@ public sealed class HousekeepingServiceTests {
         _fs.CreateDirectory(dir1);
         _fs.CreateDirectory(dir2);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = sut.CleanupOldImageCaches("");
 
         result.Should().Be(2);
@@ -216,13 +216,13 @@ public sealed class HousekeepingServiceTests {
     }
 
     [Fact]
-    public void CleanupOldImageCaches_ShouldRemoveEmptyBaseDir() {
+    public async Task CleanupOldImageCaches_ShouldRemoveEmptyBaseDir() {
         var imageCacheDir = Path.Combine(JccDir, "image-cache");
         _fs.CreateDirectory(imageCacheDir);
         var oldDir = Path.Combine(imageCacheDir, "old-session");
         _fs.CreateDirectory(oldDir);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         sut.CleanupOldImageCaches("");
 
         _fs.DirectoryExists(imageCacheDir).Should().BeFalse();
@@ -234,7 +234,7 @@ public sealed class HousekeepingServiceTests {
     }
 
     [Fact]
-    public void CleanupOldPastes_ShouldDeleteOldTxtFiles() {
+    public async Task CleanupOldPastes_ShouldDeleteOldTxtFiles() {
         var pasteCacheDir = Path.Combine(JccDir, "paste-cache");
         _fs.CreateDirectory(pasteCacheDir);
         var oldPaste = Path.Combine(pasteCacheDir, "abc123.txt");
@@ -245,7 +245,7 @@ public sealed class HousekeepingServiceTests {
         _fs.SetLastWriteTimeUtc(oldPaste, _clock.GetUtcNow().AddDays(-31));
         _fs.SetLastWriteTimeUtc(newPaste, _clock.GetUtcNow().AddDays(-1));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = sut.CleanupOldPastes(maxAgeDays: 30);
 
         result.Should().Be(1);
@@ -254,14 +254,14 @@ public sealed class HousekeepingServiceTests {
     }
 
     [Fact]
-    public void CleanupOldPastes_ShouldIgnoreNonTxtFiles() {
+    public async Task CleanupOldPastes_ShouldIgnoreNonTxtFiles() {
         var pasteCacheDir = Path.Combine(JccDir, "paste-cache");
         _fs.CreateDirectory(pasteCacheDir);
         var jsonFile = Path.Combine(pasteCacheDir, "meta.json");
         _fs.WriteAllText(jsonFile, "{}");
         _fs.SetLastWriteTimeUtc(jsonFile, _clock.GetUtcNow().AddDays(-100));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = sut.CleanupOldPastes(maxAgeDays: 30);
 
         result.Should().Be(0);
@@ -269,10 +269,10 @@ public sealed class HousekeepingServiceTests {
     }
 
     [Fact]
-    public void CleanupOldPlanFiles_ShouldDelegateToPlanModeManager() {
+    public async Task CleanupOldPlanFiles_ShouldDelegateToPlanModeManager() {
         _planModeManager.Setup(p => p.CleanupOldPlanFiles(30)).Returns(3);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = sut.CleanupOldPlanFiles(maxAgeDays: 30);
 
         result.Should().Be(3);
@@ -280,11 +280,11 @@ public sealed class HousekeepingServiceTests {
     }
 
     [Fact]
-    public void CleanupOldPlanFiles_WhenException_ShouldReturnZero() {
+    public async Task CleanupOldPlanFiles_WhenException_ShouldReturnZero() {
         _planModeManager.Setup(p => p.CleanupOldPlanFiles(It.IsAny<int>()))
             .Throws(new InvalidOperationException("test"));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = sut.CleanupOldPlanFiles();
 
         result.Should().Be(0);
@@ -295,7 +295,7 @@ public sealed class HousekeepingServiceTests {
         _worktreeService.Setup(w => w.CleanupStaleWorktreesAsync(It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(2);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.CleanupStaleWorktreesAsync();
 
         result.Should().Be(2);
@@ -307,7 +307,7 @@ public sealed class HousekeepingServiceTests {
         _worktreeService.Setup(w => w.CleanupStaleWorktreesAsync(It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("test"));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.CleanupStaleWorktreesAsync();
 
         result.Should().Be(0);

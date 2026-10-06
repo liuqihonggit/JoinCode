@@ -58,7 +58,7 @@ public sealed class GitHubApiClientTest : IDisposable {
     public async Task SendAsync_TokenMissing_ThrowsConfigurationException() {
         using var env = EnvVarScope.Set("JCC_GITHUB_TOKEN", null).Add("GITHUB_TOKEN", null);
 
-        var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, new InMemoryFileSystem(), ghTokenResolver: () => null);
+        await using var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, new InMemoryFileSystem(), ghTokenResolver: () => null);
         var act = async () => await client.SendAsync(HttpMethod.Get, "repos/foo/bar");
 
         await act.Should().ThrowAsync<ConfigurationException>();

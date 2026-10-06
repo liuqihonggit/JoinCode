@@ -110,7 +110,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
             Console.WriteLine($"[{_serverName}]   Client: {ctx.Connection.RemoteIpAddress}:{ctx.Connection.RemotePort}");
             Console.WriteLine($"[{_serverName}]   Body Length: {body.Length} chars");
 
-            var requestJson = JsonDocument.Parse(body);
+            using var requestJson = JsonDocument.Parse(body);
             var cacheStats = _cacheSimulator.ComputeCacheStats(requestJson.RootElement);
 
             Console.WriteLine($"[{_serverName}]   Cache: {(cacheStats.CacheReadTokens > 0 ? "HIT" : "MISS")} (creation={cacheStats.CacheCreationTokens}, read={cacheStats.CacheReadTokens}, input={cacheStats.InputTokens})");
@@ -359,7 +359,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
             sb.AppendLine($"OutputTokens: {cacheStats.OutputTokens}");
             sb.AppendLine();
 
-            var requestJson = JsonDocument.Parse(body);
+            using var requestJson = JsonDocument.Parse(body);
             sb.AppendLine($"## Conversation Prefix (full) — turn {requestIndex}");
             var prefix = TokenEstimator.ExtractConversationPrefix(requestJson.RootElement);
             var prefixReadable = prefix.Replace('\x00', '\n').Replace('\x01', ':');

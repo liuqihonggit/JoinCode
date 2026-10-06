@@ -3,7 +3,7 @@ namespace JoinCode.CodeIndex.Tests;
 public sealed class IncrementalParsingTests {
     [Fact]
     public void ExtractAll_Incremental_ProducesSameSymbolsAsFullParse() {
-        var extractor = new CSharpSymbolExtractor();
+        using var extractor = new CSharpSymbolExtractor();
 
         var source1 = """
             namespace MyApp;
@@ -35,7 +35,7 @@ public sealed class IncrementalParsingTests {
 
     [Fact]
     public void ExtractAll_MultipleFiles_MaintainsSeparateCaches() {
-        var extractor = new CSharpSymbolExtractor();
+        using var extractor = new CSharpSymbolExtractor();
 
         var sourceA = "public class ClassA { }";
         var sourceB = "public class ClassB { }";
@@ -51,7 +51,7 @@ public sealed class IncrementalParsingTests {
 
     [Fact]
     public void ExtractAll_SecondParseOfSameFile_UsesIncrementalParsing() {
-        var extractor = new CSharpSymbolExtractor();
+        using var extractor = new CSharpSymbolExtractor();
 
         var source1 = "public class Service { public void M1() { } }";
         var result1 = extractor.ExtractAll(source1, "service.cs");
@@ -65,7 +65,7 @@ public sealed class IncrementalParsingTests {
 
     [Fact]
     public void ExtractAll_DeleteFromMiddle_UpdatesCorrectly() {
-        var extractor = new CSharpSymbolExtractor();
+        using var extractor = new CSharpSymbolExtractor();
 
         var source1 = """
             public class Service
@@ -95,7 +95,7 @@ public sealed class IncrementalParsingTests {
 
     [Fact]
     public void ExtractAll_ComplexEdit_MaintainsCorrectCallGraph() {
-        var extractor = new CSharpSymbolExtractor();
+        using var extractor = new CSharpSymbolExtractor();
 
         var source1 = """
             public class ServiceA
@@ -132,7 +132,7 @@ public sealed class IncrementalParsingTests {
 
     [Fact]
     public void ExtractAll_DependencyChanges_TrackedCorrectly() {
-        var extractor = new CSharpSymbolExtractor();
+        using var extractor = new CSharpSymbolExtractor();
 
         var source1 = """
             public interface IService { void Execute(); }

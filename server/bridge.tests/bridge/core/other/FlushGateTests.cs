@@ -50,7 +50,7 @@ public sealed class FlushGateTests : IAsyncDisposable {
     public async Task AddAsync_ShouldAutoFlush_WhenBatchIsFull() {
         // Arrange - MaxBatchSize=2，添加第2个条目时触发自动刷新
         var options = new FlushGateOptions { MaxBatchSize = 2, FlushIntervalMs = 60000, MaxWaitMs = 60000 };
-        var sut = CreateSut(options);
+        await using var sut = CreateSut(options);
 
         IReadOnlyList<string>? flushedItems = null;
         sut.BatchFlushed += (_, args) => flushedItems = args.Items;

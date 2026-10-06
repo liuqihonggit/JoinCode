@@ -94,7 +94,7 @@ public sealed class DecomposabilityAnalyzerTests {
     [Fact]
     public async Task AnalyzeAsync_NullObjective_Should_Throw() {
         var kernel = new Mock<IChatClient>();
-        var analyzer = new DecomposabilityAnalyzer(kernel.Object);
+        await using var analyzer = new DecomposabilityAnalyzer(kernel.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             analyzer.AnalyzeAsync(null!, [])).ConfigureAwait(true);
@@ -103,7 +103,7 @@ public sealed class DecomposabilityAnalyzerTests {
     [Fact]
     public async Task AnalyzeAsync_EmptyObjective_Should_Throw() {
         var kernel = new Mock<IChatClient>();
-        var analyzer = new DecomposabilityAnalyzer(kernel.Object);
+        await using var analyzer = new DecomposabilityAnalyzer(kernel.Object);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             analyzer.AnalyzeAsync("", [])).ConfigureAwait(true);

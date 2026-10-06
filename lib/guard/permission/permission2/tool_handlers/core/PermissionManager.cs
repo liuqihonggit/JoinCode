@@ -291,7 +291,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         var scope = SessionRouter.GetScope(sessionId.Value);
         if (scope is null) return false;
 
-        var cached = scope.Cache.Get<CachedPermissionResult>(cacheKey);
+        var cached = scope.Value.Cache.Get<CachedPermissionResult>(cacheKey);
         if (cached is null) return false;
 
         result = cached.Result;

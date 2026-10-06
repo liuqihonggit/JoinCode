@@ -27,7 +27,7 @@ public sealed class GraphPersistenceTests : IDisposable {
     public async Task IndexFileAsync_WithCallEdges_PersistsCallGraph() {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
-        var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
+        using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
         var kv = new InMemoryKvStore();
         await using var persistence = new GraphPersistence(store, kv);
 
@@ -55,7 +55,7 @@ public sealed class GraphPersistenceTests : IDisposable {
     public async Task IndexFileAsync_WithDependencies_PersistsDependencyGraph() {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
-        var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
+        using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
         var kv = new InMemoryKvStore();
         await using var persistence = new GraphPersistence(store, kv);
 
@@ -82,7 +82,7 @@ public sealed class GraphPersistenceTests : IDisposable {
     public async Task RemoveFileAsync_RemovesCallAndDependencyEdges() {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
-        var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
+        using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
         var kv = new InMemoryKvStore();
         await using var persistence = new GraphPersistence(store, kv);
 
@@ -119,7 +119,7 @@ public sealed class GraphPersistenceTests : IDisposable {
     public async Task IndexFileAsync_CrossFileInterface_CorrectsInheritsToImplements() {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
-        var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
+        using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
         var kv = new InMemoryKvStore();
         await using var persistence = new GraphPersistence(store, kv);
 

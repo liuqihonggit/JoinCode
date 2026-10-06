@@ -77,11 +77,11 @@ public sealed partial class RangeDownloader : ServiceEntity, IDownloader {
     }
 
     /// <summary>
-    /// 获取 HttpClient — 有代理时创建带代理的 HttpClient(按 proxyUrl 缓存),无代理时用 IHttpClientProvider
+    /// 获取 HttpClient — 有代理时创建带代理的 HttpClient(按 proxyUrl 缓存),无代理时借用 IHttpClientProvider 的共享实例
     /// </summary>
     internal HttpClient GetHttpClient(string? proxyUrl) {
         if (string.IsNullOrWhiteSpace(proxyUrl))
-            return _httpClientProvider.GetClient();
+            return _httpClientProvider.GetClient().Client;
 
         return GetOrAddProxiedClient(proxyUrl!);
     }

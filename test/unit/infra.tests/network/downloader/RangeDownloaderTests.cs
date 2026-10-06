@@ -15,7 +15,7 @@ public sealed class RangeDownloaderTests {
         var data = Enumerable.Range(0, 1024).Select(i => (byte)i).ToArray();
         var (downloader, fs) = CreateDownloader(data);
 
-        var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
+        await using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
         var result = await session.WaitForCompletionAsync();
 
         result.Success.Should().BeTrue();
@@ -32,7 +32,7 @@ public sealed class RangeDownloaderTests {
         var data = Enumerable.Range(0, 4096).Select(i => (byte)(i % 256)).ToArray();
         var (downloader, fs) = CreateDownloader(data);
 
-        var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 4 });
+        await using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 4 });
         var result = await session.WaitForCompletionAsync();
 
         result.Success.Should().BeTrue();
@@ -60,7 +60,7 @@ public sealed class RangeDownloaderTests {
         await using var fs = new InMemoryFileSystem();
         await using var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
-        var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
+        await using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
         await Task.Delay(50);
         await session.CancelAsync();
 
@@ -74,7 +74,7 @@ public sealed class RangeDownloaderTests {
         var data = new byte[512];
         var (downloader, _) = CreateDownloader(data);
 
-        var session = downloader.StartDownload(Url, FilePath);
+        await using var session = downloader.StartDownload(Url, FilePath);
         var result = await session.WaitForCompletionAsync();
 
         result.Should().NotBeNull();
@@ -88,7 +88,7 @@ public sealed class RangeDownloaderTests {
         var data = new byte[2048];
         var (downloader, fs) = CreateDownloader(data);
 
-        var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 2 });
+        await using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 2 });
         await session.WaitForCompletionAsync();
 
         fs.FileExists($"{FilePath}.part0").Should().BeFalse();

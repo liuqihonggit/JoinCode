@@ -21,13 +21,13 @@ public class McpHttpServerE2ETests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: true);
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
 
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
-            var response = await client.PostAsync(
+            using var response = await client.PostAsync(
                 $"http://localhost:{port}/mcp/",
                 new StringContent(InitializeBody, Encoding.UTF8, "application/json"));
 
@@ -44,14 +44,14 @@ public class McpHttpServerE2ETests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: false);
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
 
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
 
-            var response = await client.PostAsync(
+            using var response = await client.PostAsync(
                 $"http://localhost:{port}/mcp/",
                 new StringContent(InitializeBody, Encoding.UTF8, "application/json"));
 
@@ -63,7 +63,7 @@ public class McpHttpServerE2ETests {
 
             var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, $"http://localhost:{port}/mcp/");
             deleteRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
-            var deleteResponse = await client.SendAsync(deleteRequest);
+            using var deleteResponse = await client.SendAsync(deleteRequest);
             deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
             httpServer.ActiveSessionCount.Should().Be(0);
         } finally {
@@ -77,7 +77,7 @@ public class McpHttpServerE2ETests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: false);
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
 
         try {
@@ -88,7 +88,7 @@ public class McpHttpServerE2ETests {
             };
             request.Headers.TryAddWithoutValidation("Mcp-Session-Id", "invalid-session-id");
 
-            var response = await client.SendAsync(request);
+            using var response = await client.SendAsync(request);
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         } finally {
             cts.Cancel();
@@ -101,13 +101,13 @@ public class McpHttpServerE2ETests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: true);
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
 
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
-            var response = await client.GetAsync($"http://localhost:{port}/mcp/");
+            using var response = await client.GetAsync($"http://localhost:{port}/mcp/");
             response.StatusCode.Should().Be(HttpStatusCode.MethodNotAllowed);
         } finally {
             cts.Cancel();
@@ -120,14 +120,14 @@ public class McpHttpServerE2ETests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: false);
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
 
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
 
-            var initResponse = await client.PostAsync(
+            using var initResponse = await client.PostAsync(
                 $"http://localhost:{port}/mcp/",
                 new StringContent(InitializeBody, Encoding.UTF8, "application/json"));
             initResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -136,7 +136,7 @@ public class McpHttpServerE2ETests {
             var getRequest = new HttpRequestMessage(HttpMethod.Get, $"http://localhost:{port}/mcp/");
             getRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
             getRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
-            var getResponse = await client.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead);
+            using var getResponse = await client.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead);
             getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             getResponse.Content.Headers.ContentType!.MediaType.Should().Be("text/event-stream");
 
@@ -145,11 +145,11 @@ public class McpHttpServerE2ETests {
                 Content = new StringContent(notificationBody, Encoding.UTF8, "application/json")
             };
             notificationRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
-            var notificationResponse = await client.SendAsync(notificationRequest);
+            using var notificationResponse = await client.SendAsync(notificationRequest);
             notificationResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
             await using var stream = await getResponse.Content.ReadAsStreamAsync();
             using var reader = stream.AsUtf8Reader();
-            var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var receivedData = string.Empty;
             while (!timeoutCts.Token.IsCancellationRequested) {
                 var line = await reader.ReadLineAsync(timeoutCts.Token);
@@ -170,14 +170,14 @@ public class McpHttpServerE2ETests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: false);
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
 
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
 
-            var initResponse = await client.PostAsync(
+            using var initResponse = await client.PostAsync(
                 $"http://localhost:{port}/mcp/",
                 new StringContent(InitializeBody, Encoding.UTF8, "application/json"));
             var sessionId = initResponse.Headers.GetValues("Mcp-Session-Id").First();
@@ -185,7 +185,7 @@ public class McpHttpServerE2ETests {
             var getRequest = new HttpRequestMessage(HttpMethod.Get, $"http://localhost:{port}/mcp/");
             getRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
             getRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
-            var getResponse = await client.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead);
+            using var getResponse = await client.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead);
 
             var notificationBody = """{"jsonrpc":"2.0","method":"notifications/initialized"}""";
             var notificationRequest = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{port}/mcp/") {
@@ -195,7 +195,7 @@ public class McpHttpServerE2ETests {
             await client.SendAsync(notificationRequest);
             await using var stream = await getResponse.Content.ReadAsStreamAsync();
             using var reader = stream.AsUtf8Reader();
-            var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var receivedId = string.Empty;
             while (!timeoutCts.Token.IsCancellationRequested) {
                 var line = await reader.ReadLineAsync(timeoutCts.Token);

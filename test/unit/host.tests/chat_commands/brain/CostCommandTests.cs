@@ -16,6 +16,7 @@ public class CostCommandTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _costTracker.DisposeAsync().GetAwaiter().GetResult();
     }
 
     private ChatCommandContext CreateContext(string arguments, string sessionId = "test-session") {

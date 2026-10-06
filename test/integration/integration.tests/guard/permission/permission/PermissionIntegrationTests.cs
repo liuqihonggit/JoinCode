@@ -61,6 +61,7 @@ public class PermissionIntegrationTests : IAsyncDisposable {
         await _permissionManager.DisposeAsync();
         await _registryWithPermission.DisposeAsync();
         await _registryWithoutPermission.DisposeAsync();
+        await _permissionExecutor.DisposeAsync();
     }
 
     #region McpToolRegistry Integration Tests

@@ -66,6 +66,14 @@ public sealed partial class BridgeHeartbeatService : ServiceEntity {
         _cts?.Cancel();
     }
 
+    /// <inheritdoc />
+    public override void Dispose() {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
+        base.Dispose();
+    }
+
     /// <summary>接收 pong 响应 — 更新最后接收时间，若此前处于超时状态则触发恢复事件</summary>
     public void ReceivePong() {
         _lastPongReceived = _clock.GetUtcNow();

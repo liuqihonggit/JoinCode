@@ -354,6 +354,35 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task PrMerge_WithSubjectAndBody_PassesCommitTitleAndMessage() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = "{}",
+        };
+
+        await _handler.GhPrMergeAsync("42", merge_method: "squash", subject: "自定义标题", body: "自定义正文", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastBody.Should().Contain("\"commit_title\":\"自定义标题\"");
+        _api.LastBody.Should().Contain("\"commit_message\":\"自定义正文\"");
+    }
+
+    [Fact]
+    public async Task PrMerge_WithDisableAuto_CallsGraphQLDisableAutoMerge() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"number":42,"node_id":"PR_123"}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"data":{"disablePullRequestAutoMerge":{"pullRequest":{"number":42}}}}""",
+        });
+
+        var result = await _handler.GhPrMergeAsync("42", disable_auto: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("graphql");
+        _api.LastBody.Should().Contain("disablePullRequestAutoMerge");
+    }
+
+    [Fact]
     public async Task PrCreate_Failure_ReturnsError() {
         _api.NextResponse = new GitHubApiResponse {
             Success = false,

@@ -110,6 +110,17 @@ public partial class GitHubToolHandlers {
         ToolResultBuilder.Error().WithText("无法解析仓库 owner/repo（请传 repo 参数或确保当前目录是 GitHub 仓库）").Build();
 
     /// <summary>
+    /// 从 PR/Issue 编号或 URL 提取数字编号 — 如 "123" → "123", "https://github.com/o/r/pull/123" → "123"
+    /// <para>合并原 ParsePrNumber/ParseIssueNumber(逐字符相同的重复实现)</para>
+    /// </summary>
+    private static string ParseNumberFromRef(string numberOrUrl) {
+        if (string.IsNullOrEmpty(numberOrUrl)) return numberOrUrl;
+        var lastSlash = numberOrUrl.LastIndexOf('/');
+        if (lastSlash < 0) return numberOrUrl;
+        return numberOrUrl[(lastSlash + 1)..];
+    }
+
+    /// <summary>
     /// 守卫编排模板 — client 检查 + owner/repo 解析,失败短路返回错误,成功执行 apiCall(owner, repo)
     /// <para>消除 21 处重复的 client 检查 + ResolveOwnerRepoAsync 样板,主方法只写 API 调用核心逻辑</para>
     /// </summary>

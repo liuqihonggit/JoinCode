@@ -36,7 +36,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
-            var number = ParseIssueNumber(issue_number);
+            var number = ParseNumberFromRef(issue_number);
             var cacheKey = BuildGhCacheKey("gh_issue_view", $"{owner}/{repoName}/{number}");
             return await GetOrFetchWithCacheAsync(cacheKey, $"repos/{owner}/{repoName}/issues/{number}", verbose, SummarizeIssue, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
@@ -79,7 +79,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
-            var number = ParseIssueNumber(issue_number);
+            var number = ParseNumberFromRef(issue_number);
             if (!string.IsNullOrWhiteSpace(comment)) {
                 var commentBody = $$"""{"body":{{JsonEscapeString(comment)}}}""";
                 await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
@@ -100,19 +100,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
-            var number = ParseIssueNumber(issue_number);
+            var number = ParseNumberFromRef(issue_number);
             var reqBody = $$"""{"body":{{JsonEscapeString(body)}}}""";
             var result = await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", reqBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok(result.Body, $"已评论 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
-
-    /// <summary>
-    /// 从 Issue 编号或 URL 提取数字编号
-    /// </summary>
-    private static string ParseIssueNumber(string issueNumber) {
-        if (string.IsNullOrEmpty(issueNumber)) return issueNumber;
-        var lastSlash = issueNumber.LastIndexOf('/');
-        if (lastSlash < 0) return issueNumber;
-        return issueNumber[(lastSlash + 1)..];
-    }
 }

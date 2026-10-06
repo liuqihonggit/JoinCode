@@ -15,7 +15,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
-            var number = ParsePrNumber(pr_number);
+            var number = ParseNumberFromRef(pr_number);
             var cacheKey = BuildGhCacheKey("gh_pr_view", $"{owner}/{repoName}/{number}");
             return await GetOrFetchWithCacheAsync(cacheKey, $"repos/{owner}/{repoName}/pulls/{number}", verbose, SummarizePr, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
@@ -49,7 +49,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
-            var number = ParsePrNumber(pr_number);
+            var number = ParseNumberFromRef(pr_number);
             var prResult = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
             if (!prResult.Success) return Fail(prResult.Error);
             string? diffUrl;
@@ -78,7 +78,7 @@ public partial class GitHubToolHandlers {
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
         var (owner, repoName) = resolved.Value;
-        var number = ParsePrNumber(pr_number);
+        var number = ParseNumberFromRef(pr_number);
 
         var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
         if (!prResult.Success) return Fail(prResult.Error);
@@ -136,7 +136,7 @@ public partial class GitHubToolHandlers {
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
         var (owner, repoName) = resolved.Value;
-        var number = ParsePrNumber(pr_number);
+        var number = ParseNumberFromRef(pr_number);
 
         var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
         if (!prResult.Success) return Fail(prResult.Error);
@@ -226,7 +226,7 @@ public partial class GitHubToolHandlers {
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
         var (owner, repoName) = resolved.Value;
-        var number = ParsePrNumber(pr_number);
+        var number = ParseNumberFromRef(pr_number);
         var method = string.IsNullOrWhiteSpace(merge_method) ? "squash" : merge_method;
 
         if (auto_merge == true) {
@@ -279,7 +279,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_git is null) return Fail("git 命令执行器未配置（IGitCommandRunner 未注入）");
-        var number = ParsePrNumber(pr_number);
+        var number = ParseNumberFromRef(pr_number);
         var branchName = $"pr-{number}";
 
         var fetchResult = await _git.ExecuteAsync($"fetch origin pull/{number}/head:{branchName}", working_dir, cancellationToken).ConfigureAwait(false);
@@ -300,7 +300,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
-            var number = ParsePrNumber(pr_number);
+            var number = ParseNumberFromRef(pr_number);
             if (!string.IsNullOrWhiteSpace(comment)) {
                 var commentBody = $$"""{"body":{{JsonEscapeString(comment)}}}""";
                 await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
@@ -320,7 +320,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
-            var number = ParsePrNumber(pr_number);
+            var number = ParseNumberFromRef(pr_number);
             var body = """{"state":"open"}""";
             var result = await _apiClient!.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok(result.Body, $"已重开 PR {number}") : Fail(result.Error);
@@ -361,14 +361,4 @@ public partial class GitHubToolHandlers {
     /// JSON 字符串转义 — 委托 GitHubJsonObjectBuilder.EscapeString(保留供单字段 JSON 如 {"body":...} 使用)
     /// </summary>
     private static string JsonEscapeString(string value) => GitHubJsonObjectBuilder.EscapeString(value);
-
-    /// <summary>
-    /// 从 PR 编号或 URL 提取数字编号
-    /// </summary>
-    private static string ParsePrNumber(string prNumber) {
-        if (string.IsNullOrEmpty(prNumber)) return prNumber;
-        var lastSlash = prNumber.LastIndexOf('/');
-        if (lastSlash < 0) return prNumber;
-        return prNumber[(lastSlash + 1)..];
-    }
 }

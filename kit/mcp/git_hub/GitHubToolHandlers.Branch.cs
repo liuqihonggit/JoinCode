@@ -17,7 +17,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
-            var number = ParsePrNumber(pr_number);
+            var number = ParseNumberFromRef(pr_number);
             var branchName = string.IsNullOrWhiteSpace(branch) ? "main" : branch;
             var headSha = await GetPrHeadShaAsync(owner, repoName, number, cancellationToken).ConfigureAwait(false);
             if (headSha is null) return Fail("无法从 PR 响应中解析 head.sha");

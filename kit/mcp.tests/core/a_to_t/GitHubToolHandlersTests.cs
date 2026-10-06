@@ -221,6 +221,65 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task PrList_WithBase_PassesBaseQuery() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = "[]",
+        };
+        await _handler.GhPrListAsync(@base: "develop", repo: "owner/repo");
+        _api.LastPath.Should().Be("repos/owner/repo/pulls");
+        _api.LastQuery.Should().ContainKey("base").WhoseValue.Should().Be("develop");
+    }
+
+    [Fact]
+    public async Task PrList_WithHead_PassesHeadQuery() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = "[]",
+        };
+        await _handler.GhPrListAsync(head: "feature", repo: "owner/repo");
+        _api.LastQuery.Should().ContainKey("head").WhoseValue.Should().Be("feature");
+    }
+
+    [Fact]
+    public async Task PrList_WithLabel_UsesSearchApi() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""",
+        };
+        await _handler.GhPrListAsync(label: "bug", repo: "owner/repo");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("is:pr").And.Contain("label:bug");
+    }
+
+    [Fact]
+    public async Task PrList_WithDraft_UsesSearchApi() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""",
+        };
+        await _handler.GhPrListAsync(draft: true, repo: "owner/repo");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("draft:true");
+    }
+
+    [Fact]
+    public async Task PrList_WithAssignee_UsesSearchApi() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""",
+        };
+        await _handler.GhPrListAsync(assignee: "alice", repo: "owner/repo");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("assignee:alice");
+    }
+
+    [Fact]
+    public async Task PrList_WithSearch_UsesSearchApi() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""",
+        };
+        await _handler.GhPrListAsync(search: "review:required", repo: "owner/repo");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("review:required");
+    }
+
+    [Fact]
     public async Task PrCreate_Failure_ReturnsError() {
         _api.NextResponse = new GitHubApiResponse {
             Success = false,
@@ -688,6 +747,7 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
     public string? LastPath { get; private set; }
     public HttpMethod? LastMethod { get; private set; }
     public string? LastBody { get; private set; }
+    public IReadOnlyDictionary<string, string> LastQuery { get; private set; } = new Dictionary<string, string>();
     public void EnqueueResponse(GitHubApiResponse response) => _responses.Enqueue(response);
     public IEnumerable<string> NextLogLines { get; set; } = Array.Empty<string>();
 
@@ -695,6 +755,7 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
         LastMethod = method;
         LastPath = path;
         LastBody = body;
+        LastQuery = query ?? new Dictionary<string, string>();
         var response = _responses.Count > 0 ? _responses.Dequeue() : _default;
         return Task.FromResult(response);
     }

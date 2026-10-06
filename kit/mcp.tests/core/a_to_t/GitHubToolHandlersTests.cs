@@ -505,6 +505,90 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task RunList_WithEvent_PassesEventQuery() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
+
+        await _handler.GhRunListAsync(event_type: "push", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("event").WhoseValue.Should().Be("push");
+    }
+
+    [Fact]
+    public async Task RunList_WithWorkflow_PassesWorkflowToApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
+
+        await _handler.GhRunListAsync(workflow: "ci.yml", repo: "owner/repo");
+
+        _api.LastPath.Should().Contain("actions/workflows/ci.yml/runs");
+    }
+
+    [Fact]
+    public async Task RunList_WithUser_PassesActorQuery() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
+
+        await _handler.GhRunListAsync(user: "alice", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("actor").WhoseValue.Should().Be("alice");
+    }
+
+    [Fact]
+    public async Task RunList_WithCommit_PassesHeadShaQuery() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
+
+        await _handler.GhRunListAsync(commit: "abc123", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("head_sha").WhoseValue.Should().Be("abc123");
+    }
+
+    [Fact]
+    public async Task RunList_WithCreated_PassesCreatedQuery() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
+
+        await _handler.GhRunListAsync(created: ">2026-01-01", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("created").WhoseValue.Should().Be(">2026-01-01");
+    }
+
+    [Fact]
+    public async Task RunView_WithWeb_ReturnsUrl() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"html_url":"https://github.com/o/r/actions/runs/42"}""" };
+
+        var result = await _handler.GhRunViewAsync("42", web: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("https://github.com/o/r/actions/runs/42");
+    }
+
+    [Fact]
+    public async Task RunView_WithAttempt_UsesAttemptApiPath() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"conclusion":"failure"}""" };
+
+        await _handler.GhRunViewAsync("42", attempt: 2, repo: "owner/repo");
+
+        _api.LastPath.Should().Contain("/attempts/2");
+    }
+
+    [Fact]
+    public async Task RunRerun_WithJob_UsesRerunJobsEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" };
+
+        await _handler.GhRunRerunAsync("42", job: "123,456", repo: "owner/repo");
+
+        _api.LastPath.Should().Contain("/rerun-jobs");
+        _api.LastBody.Should().Contain("123");
+        _api.LastBody.Should().Contain("456");
+    }
+
+    [Fact]
+    public async Task RunRerun_WithDebug_EnablesDebugLogging() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" };
+
+        await _handler.GhRunRerunAsync("42", debug: true, repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("enable_debug_logging");
+    }
+
+    [Fact]
     public async Task RunView_Log_TruncatesToMaxLines() {
         var lines = Enumerable.Range(0, 300).Select(i => $"line {i}").ToArray();
         _api.NextLogLines = lines;

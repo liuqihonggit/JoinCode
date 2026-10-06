@@ -56,7 +56,7 @@ internal static class GhCommandResolver {
 
         // api 组是单级命令: jcc gh api <path> → gh_api
         if (string.Equals(group, "api", StringComparison.OrdinalIgnoreCase))
-            return new GhResolvedCommand("gh_api", "api", null, CollectTail(args, 2, json), json);
+            return new GhResolvedCommand("gh_api", "api", null, CollectTail(args, 2), json);
 
         var action = NextPositional(args, 2);
         if (action is null) {
@@ -65,7 +65,7 @@ internal static class GhCommandResolver {
         }
 
         var toolName = $"gh_{group}_{action}";
-        return new GhResolvedCommand(toolName, group, action, CollectTail(args, 3, json), json);
+        return new GhResolvedCommand(toolName, group, action, CollectTail(args, 3), json);
     }
 
     /// <summary>
@@ -86,14 +86,24 @@ internal static class GhCommandResolver {
     }
 
     /// <summary>
-    /// 收集待绑定的剩余参数（跳过分组、动作与 <c>--json</c>）。
+    /// 收集待绑定的剩余参数（跳过分组、动作与所有全局选项）。
+    /// <para>全局选项（--json/--format/--help 等）对 gh 工具无意义，剥离后不传给 GhArgsBinder，
+    /// 避免被报为未知选项。布尔标志剥单 token，带值选项剥 token+值（--key=value 形式只剥单 token）。</para>
     /// </summary>
-    private static string[] CollectTail(string[] args, int startIndex, bool jsonStripped) {
+    private static string[] CollectTail(string[] args, int startIndex) {
         var tail = new List<string>(args.Length - startIndex);
         for (var i = startIndex; i < args.Length; i++) {
-            if (jsonStripped && args[i] == CliArgCliOptionConstants.JsonLongName)
+            var token = args[i];
+            if (token.StartsWith("--") && CliArgCliOptionConstants.AllOptionNames.Contains(token)) {
+                if (token.Contains('='))
+                    continue;
+                if (CliArgCliOptionConstants.BooleanFlags.Contains(token))
+                    continue;
+                if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+                    i++;
                 continue;
-            tail.Add(args[i]);
+            }
+            tail.Add(token);
         }
         return tail.ToArray();
     }

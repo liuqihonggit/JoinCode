@@ -383,6 +383,33 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task PrChecks_WithRequired_FiltersByRequiredChecks() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"head":{"sha":"abc123","ref":"main"}}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"check_runs":[{"name":"build","conclusion":"success"},{"name":"lint","conclusion":"success"},{"name":"optional-check","conclusion":"success"}]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"contexts":["build","lint"]}""" });
+
+        var result = await _handler.GhPrChecksAsync("42", required: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("build");
+        text.Should().Contain("lint");
+        text.Should().NotContain("optional-check");
+    }
+
+    [Fact]
+    public async Task PrChecks_WithFailFast_MarksFailure() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"head":{"sha":"abc123"}}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"check_runs":[{"name":"build","conclusion":"success"},{"name":"test","conclusion":"failure"}]}""" });
+
+        var result = await _handler.GhPrChecksAsync("42", fail_fast: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("fail-fast");
+    }
+
+    [Fact]
     public async Task PrCreate_Failure_ReturnsError() {
         _api.NextResponse = new GitHubApiResponse {
             Success = false,

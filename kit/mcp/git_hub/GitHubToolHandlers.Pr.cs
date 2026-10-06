@@ -179,38 +179,66 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 查看 PR 的 CI 检查状态 — 调 REST API 获取 check-runs，正确处理 skipping 语义（非失败）
+    /// 查看 PR 的 CI 检查状态 — 调 REST API 获取 check-runs，正确处理 skipping 语义（非失败），支持 required 过滤/watch 轮询/fail-fast
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrChecks, "查看 PR 的 CI 检查状态(pass/fail/pending/skipping,skipping 非失败)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhPrChecks, "查看 PR 的 CI 检查状态(支持 required 过滤/watch 轮询/fail-fast)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrChecksAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter("只显示 required checks(可选)", Required = false)] bool? required = null,
+        [McpToolParameter("watch 模式轮询直到完成(可选)", Required = false)] bool? watch = null,
+        [McpToolParameter("轮询间隔秒数(可选,默认 10)", Required = false)] int? interval = null,
+        [McpToolParameter("有失败立即标记(可选)", Required = false)] bool? fail_fast = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
-            => GhPrChecksCoreAsync(client, owner, repoName, pr_number, cancellationToken)).ConfigureAwait(false);
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (watch == true) return await GhPrChecksWatchAsync(client, owner, repoName, pr_number, interval, fail_fast, required, cancellationToken).ConfigureAwait(false);
+            return await GhPrChecksCoreAsync(client, owner, repoName, pr_number, fail_fast, required, cancellationToken).ConfigureAwait(false);
+        }).ConfigureAwait(false);
 
     /// <summary>
-    /// GhPrChecks 核心逻辑 — 调 REST API 获取 check-runs,正确处理 skipping 语义(非失败)
+    /// GhPrChecks watch 模式 — 轮询 check-runs 直到全部 completed，用 interval 间隔
     /// </summary>
-    private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, CancellationToken ct) {
+    private async Task<ToolResult> GhPrChecksWatchAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, int? intervalSec, bool? failFast, bool? required, CancellationToken ct) {
+        var delay = TimeSpan.FromSeconds(Math.Clamp(intervalSec ?? 10, 1, 300));
+        for (var i = 0; i < 120; i++) {
+            var checkResult = await GhPrChecksCoreAsync(client, owner, repoName, prNumber, failFast, required, ct).ConfigureAwait(false);
+            if (checkResult.IsError) return checkResult;
+            var text = checkResult.GetFirstText() ?? "";
+            if (!text.Contains("进行中")) return checkResult;
+            if (failFast == true && text.Contains("失败")) return checkResult;
+            await Task.Delay(delay, ct).ConfigureAwait(false);
+        }
+        return Ok("轮询超时，仍有 checks 进行中");
+    }
+
+    /// <summary>
+    /// GhPrChecks 核心逻辑 — 调 REST API 获取 check-runs,正确处理 skipping 语义(非失败),支持 required 过滤和 fail-fast 标记
+    /// </summary>
+    private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, bool? failFast, bool? required, CancellationToken ct) {
         var number = ParseNumberFromRef(prNumber);
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return Fail(prResult.Error);
-        string? headSha;
+        string? headSha; string? headRef;
         try {
             using var doc = JsonDocument.Parse(prResult.Body);
-            headSha = doc.RootElement.GetProperty("head").GetProperty("sha").GetString();
+            var head = doc.RootElement.GetProperty("head");
+            headSha = head.GetProperty("sha").GetString();
+            headRef = head.TryGetProperty("ref", out var refEl) ? refEl.GetString() : null;
         } catch (Exception ex) { return Fail($"解析 PR head sha 失败: {ex.Message}"); }
         if (string.IsNullOrEmpty(headSha)) return Fail("无法从 PR 响应中解析 head.sha");
         var checksResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/commits/{headSha}/check-runs", ct: ct).ConfigureAwait(false);
         if (!checksResult.Success) return Fail(checksResult.Error);
+        var requiredContexts = required == true && !string.IsNullOrEmpty(headRef)
+            ? await GetRequiredStatusChecksAsync(client, owner, repoName, headRef!, ct).ConfigureAwait(false)
+            : null;
         var sb = new StringBuilder();
         var passCount = 0; var failCount = 0; var pendingCount = 0; var skipCount = 0;
         try {
             using var doc = JsonDocument.Parse(checksResult.Body);
             foreach (var run in doc.RootElement.GetProperty("check_runs").EnumerateArray()) {
                 var name = run.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "" : "";
+                if (requiredContexts is not null && !requiredContexts.Contains(name)) continue;
                 var status = run.TryGetProperty("conclusion", out var conclEl) ? conclEl.GetString() ?? "pending" : "pending";
                 var displayStatus = status switch {
                     "success" => "pass",
@@ -224,7 +252,25 @@ public partial class GitHubToolHandlers {
         } catch (Exception ex) { return Fail($"解析 check-runs 失败: {ex.Message}"); }
         sb.AppendLine();
         sb.Append($"汇总: {passCount} 通过, {failCount} 失败, {pendingCount} 进行中, {skipCount} 跳过(依赖链跳过,非失败)");
+        if (failFast == true && failCount > 0) sb.Append("\n⚠ fail-fast: 检测到失败");
         return Ok(sb.ToString());
+    }
+
+    /// <summary>
+    /// 获取分支保护规则的 required_status_checks — required 过滤用，保护规则不存在(404)时返回 null(降级显示全部)
+    /// </summary>
+    private async Task<HashSet<string>?> GetRequiredStatusChecksAsync(IGitHubApiClient client, string owner, string repo, string branch, CancellationToken ct) {
+        var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks", ct: ct).ConfigureAwait(false);
+        if (!result.Success) return null;
+        try {
+            using var doc = JsonDocument.Parse(result.Body);
+            if (doc.RootElement.TryGetProperty("contexts", out var contextsEl) && contextsEl.ValueKind == JsonValueKind.Array) {
+                var set = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var c in contextsEl.EnumerateArray()) if (c.ValueKind == JsonValueKind.String) set.Add(c.GetString()!);
+                return set;
+            }
+        } catch (Exception ex) { _logger?.LogDebug(ex, "解析 required_status_checks 失败"); }
+        return null;
     }
 
     /// <summary>

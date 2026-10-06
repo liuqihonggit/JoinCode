@@ -520,23 +520,82 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 创建 PR — 支持 title/head/base/body/draft，调 REST API POST
+    /// 创建 PR — 支持 title/head/base/body/draft/assignee/label/reviewer/milestone/body_file/fill，调 REST API POST
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrCreate, "创建 PR(支持 title/head/base/body/draft)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrCreate, "创建 PR(支持 assignee/label/reviewer/milestone/body_file/fill)", "github")]
     public async Task<ToolResult> GhPrCreateAsync(
         [McpToolParameter("PR 标题", Required = true)] string title,
         [McpToolParameter("源分支(head)", Required = true)] string head,
         [McpToolParameter("目标分支(base,默认 main)", Required = false)] string? @base = null,
         [McpToolParameter("PR 正文(可选,支持 markdown)", Required = false)] string? body = null,
+        [McpToolParameter("从文件读 body(可选,替代 body)", Required = false)] string? body_file = null,
         [McpToolParameter("是否 draft PR(可选,默认 false)", Required = false)] bool? draft = null,
+        [McpToolParameter("指派人(可选,多个用逗号)", Required = false)] string? assignee = null,
+        [McpToolParameter("标签(可选,多个用逗号)", Required = false)] string? label = null,
+        [McpToolParameter("审阅人(可选,多个用逗号)", Required = false)] string? reviewer = null,
+        [McpToolParameter("里程碑 ID(可选)", Required = false)] int? milestone = null,
+        [McpToolParameter("从 git commit 自动填充 title/body(可选)", Required = false)] bool? fill = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var jsonBody = BuildPrCreateJson(title, head, @base, body, draft);
+            var actualBody = body;
+            if (!string.IsNullOrWhiteSpace(body_file)) actualBody = await _fs.ReadAllTextAsync(body_file, cancellationToken).ConfigureAwait(false);
+            var actualTitle = title;
+            if (fill == true && _git is not null) {
+                var (fillTitle, fillBody) = await GetGitFillAsync(_git, working_dir, cancellationToken).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(actualTitle)) actualTitle = fillTitle;
+                if (string.IsNullOrWhiteSpace(actualBody)) actualBody = fillBody;
+            }
+            var jsonBody = BuildPrCreateJson(actualTitle ?? "", head, @base, actualBody, draft);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, "PR 创建成功") : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            var prNumber = ExtractNumberFromResponse(result.Body);
+            if (prNumber > 0) await AddPrPostCreateAttributesAsync(client, owner, repoName, prNumber, assignee, label, reviewer, milestone, cancellationToken).ConfigureAwait(false);
+            return OkBrief(result.Body, "PR 创建成功");
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 创建 PR 后添加 assignee/label/reviewer/milestone — 各属性独立调 API，失败不阻断 PR 创建
+    /// </summary>
+    private static async Task AddPrPostCreateAttributesAsync(IGitHubApiClient client, string owner, string repo, int number, string? assignee, string? label, string? reviewer, int? milestone, CancellationToken ct) {
+        if (!string.IsNullOrWhiteSpace(assignee)) {
+            var assignees = string.Join(",", assignee.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(a => $"\"{a}\""));
+            await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repo}/issues/{number}/assignees", $$"""{"assignees":[{{assignees}}]}""", ct: ct).ConfigureAwait(false);
+        }
+        if (!string.IsNullOrWhiteSpace(label)) {
+            var labels = string.Join(",", label.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(l => $"\"{l}\""));
+            await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repo}/issues/{number}/labels", $$"""[{{labels}}]""", ct: ct).ConfigureAwait(false);
+        }
+        if (!string.IsNullOrWhiteSpace(reviewer)) {
+            var reviewers = string.Join(",", reviewer.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(r => $"\"{r}\""));
+            await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repo}/pulls/{number}/requested_reviewers", $$"""{"reviewers":[{{reviewers}}]}""", ct: ct).ConfigureAwait(false);
+        }
+        if (milestone is not null) {
+            await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repo}/issues/{number}", $$"""{"milestone":{{milestone}}}""", ct: ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// 从 PR 创建响应提取 number — 用于后续添加 assignee/label/reviewer
+    /// </summary>
+    private int ExtractNumberFromResponse(string body) {
+        try {
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
+        } catch (Exception ex) { _logger?.LogDebug(ex, "解析 PR number 失败"); return 0; }
+    }
+
+    /// <summary>
+    /// 从 git log 获取最新 commit 的 title 和 body — fill 模式用
+    /// </summary>
+    private async Task<(string Title, string Body)> GetGitFillAsync(IGitCommandRunner git, string? workingDir, CancellationToken ct) {
+        var logResult = await git.ExecuteAsync("log -1 --format=%s%n%n%b", workingDir, ct).ConfigureAwait(false);
+        if (!logResult.Success) return ("", "");
+        var output = logResult.Output;
+        var idx = output.IndexOf("\n\n", StringComparison.Ordinal);
+        return idx >= 0 ? (output[..idx].Trim(), output[(idx + 2)..]) : (output.Trim(), "");
+    }
 
     /// <summary>
     /// 构建 PR 创建 JSON 请求体 — 流式构建器(AOT 友好,无手拼 StringBuilder)

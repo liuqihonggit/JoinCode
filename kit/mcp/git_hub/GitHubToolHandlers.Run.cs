@@ -186,7 +186,7 @@ public partial class GitHubToolHandlers {
     /// <para>ADR 0067 两级缓存 + 文件级持久化: 摘要(轻量)+内容(大量行)按 section 独立缓存</para>
     /// </summary>
     private Task<RunLogSummary?> GetOrFetchSummaryAsync(string owner, string repo, string runId, string? jobId, string? workingDir, bool refresh, CancellationToken ct)
-        => _logCacheService!.GetOrFetchSummaryAsync(owner, repo, runId, jobId, workingDir, refresh, ct);
+        => LogCacheService.GetOrFetchSummaryAsync(owner, repo, runId, jobId, workingDir, refresh, ct);
 
     /// <summary>
     /// 从 Level2 内容缓存获取指定 section 的日志行 — MemoryCache → 触发 Level1 填充 → 文件 raw 补填 → 再读
@@ -196,14 +196,14 @@ public partial class GitHubToolHandlers {
     private Task<List<string>?> GetOrFetchSectionAsync(
         string owner, string repo, string runId, string? jobId, string stepName, string sectionType,
         string? workingDir, bool refresh, CancellationToken ct)
-        => _logCacheService!.GetOrFetchSectionAsync(owner, repo, runId, jobId, stepName, sectionType, workingDir, refresh, ct);
+        => LogCacheService.GetOrFetchSectionAsync(owner, repo, runId, jobId, stepName, sectionType, workingDir, refresh, ct);
 
     /// <summary>
     /// 从 GitHub REST API 获取 Run 的 updated_at — 用于检测 rerun 后日志是否更新
     /// <para>轻量 API 调用(不下载日志),&lt; 1s</para>
     /// </summary>
     private Task<string?> FetchUpdatedAtAsync(string owner, string repo, string runId, CancellationToken ct)
-        => _logCacheService!.FetchUpdatedAtAsync(owner, repo, runId, ct);
+        => LogCacheService.FetchUpdatedAtAsync(owner, repo, runId, ct);
 
 
 
@@ -214,7 +214,7 @@ public partial class GitHubToolHandlers {
     private IAsyncEnumerable<string> GetFailedJobLogsAsync(
         string owner, string repo, string runId,
         CancellationToken ct)
-        => _logFilterRunner!.GetFailedJobLogsAsync(owner, repo, runId, ct);
+        => LogFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, ct);
     /// <summary>
     /// 智能过滤测试失败行 — 状态机提取 Failed + Error Message + Stack Trace,Rust 风格输出
     /// <para>状态机: Normal → InFailedTest(遇到 Failed/[FAIL]) → InErrorMessage(Error Message:) → InStackTrace(Stack Trace:) → Normal</para>
@@ -223,7 +223,7 @@ public partial class GitHubToolHandlers {
     private Task<ToolResult> FilterFailedTestsAsync(
         string owner, string repo, string runId, string? jobId,
         int maxLines, int skipLines, CancellationToken ct)
-        => _logFilterRunner!.FilterFailedTestsAsync(owner, repo, runId, jobId, maxLines, skipLines, ct);
+        => LogFilterRunner.FilterFailedTestsAsync(owner, repo, runId, jobId, maxLines, skipLines, ct);
 
     /// <summary>
     /// 流式拉取 + 过滤 + 分页跳过(不缓存,用于 --log-failed 或一次性过滤)
@@ -233,7 +233,7 @@ public partial class GitHubToolHandlers {
         string owner, string repo, string runId, string? jobId, bool failedOnly,
         string scope, FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
         int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0)
-        => _logFilterRunner!.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines);
+        => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines);
 
     /// <summary>
     /// 重跑 Actions Run — 默认只重跑失败的 job，调 REST API POST rerun-failed-jobs 或 rerun

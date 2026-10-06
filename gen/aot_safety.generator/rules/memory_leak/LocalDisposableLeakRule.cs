@@ -100,6 +100,7 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
         if (expr is InvocationExpressionSyntax invocation) {
             if (IsContainerElementBorrowCall(invocation)) return false;
             if (IsKnownBorrowFactoryCall(invocation, semanticModel, ct)) return false;
+            if (IsFieldReceiverBorrowCall(invocation)) return false;
             var returnType = semanticModel.GetTypeInfo(invocation, ct).Type;
             return returnType is not null && IsDisposableType(returnType, idisposable, iasyncDisposable);
         }
@@ -157,7 +158,24 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
         foreach (var prefix in BorrowMethodPrefixes) {
             if (methodName.StartsWith(prefix, StringComparison.Ordinal)) return true;
         }
+        // 同类隐式 this 调用的 Get* 方法 → 借用(从字段容器获取已有元素,方案 D 命名约定)。
+        // MemberAccess 静态类型调用(Process.GetProcessById)不在此分支,不会误判新建。
+        if (invocation.Expression is IdentifierNameSyntax && methodName.StartsWith("Get", StringComparison.Ordinal))
+            return true;
         return false;
+    }
+
+    /// <summary>
+    /// 字段接收者的 Get* 方法调用 → 借用(从字段容器获取已有元素,容器持有所有权)。
+    /// 方案 D「写法即语义」: receiver 是字段(_field / _field.Chain / this.field)且方法名以 Get 开头 → 借用。
+    /// 不硬编码项目方法名,仅识别通用 Get 前缀 + 字段接收者模式。
+    /// 静态类型调用(Process.GetProcessById)receiver 是类型名,IsFieldOrPropertyLeft 返回 false,不误判。
+    /// </summary>
+    private static bool IsFieldReceiverBorrowCall(InvocationExpressionSyntax invocation) {
+        if (invocation.Expression is not MemberAccessExpressionSyntax ma) return false;
+        var methodName = ma.Name.Identifier.ValueText;
+        if (!methodName.StartsWith("Get", StringComparison.Ordinal)) return false;
+        return IsFieldOrPropertyLeft(ma.Expression);
     }
 
     /// <summary>
@@ -294,6 +312,8 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
     /// 赋值左值是否字段/属性访问(this.field / _field / Property)。
     /// </summary>
     private static bool IsFieldOrPropertyLeft(ExpressionSyntax left) {
+        if (left is ElementAccessExpressionSyntax ea)
+            return IsFieldOrPropertyLeft(ea.Expression);
         if (left is MemberAccessExpressionSyntax) return true;
         if (left is IdentifierNameSyntax id) {
             var name = id.Identifier.ValueText.AsSpan();

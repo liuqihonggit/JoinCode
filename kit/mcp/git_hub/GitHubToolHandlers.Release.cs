@@ -169,17 +169,15 @@ public partial class GitHubToolHandlers {
         foreach (var (name, url) in assets) {
             var filePath = _fs.CombinePath(dir, name);
             try {
-                var session = _downloader.StartDownload(url, filePath, options, null, cancellationToken);
-                await using (session.ConfigureAwait(false)) {
-                    var dlResult = await session.WaitForCompletionAsync(cancellationToken).ConfigureAwait(false);
-                    if (dlResult.Success) {
-                        successCount++;
-                        var sizeStr = ContentReplacementConstants.FormatFileSize(dlResult.TotalBytes);
-                        sb.AppendLine($"[OK] {name} ({sizeStr}, {dlResult.Elapsed.TotalSeconds:F1}s)");
-                    } else {
-                        failCount++;
-                        sb.AppendLine($"[FAIL] {name}: {dlResult.ErrorMessage ?? "下载失败"}");
-                    }
+                await using var session = _downloader.StartDownload(url, filePath, options, null, cancellationToken);
+                var dlResult = await session.WaitForCompletionAsync(cancellationToken).ConfigureAwait(false);
+                if (dlResult.Success) {
+                    successCount++;
+                    var sizeStr = ContentReplacementConstants.FormatFileSize(dlResult.TotalBytes);
+                    sb.AppendLine($"[OK] {name} ({sizeStr}, {dlResult.Elapsed.TotalSeconds:F1}s)");
+                } else {
+                    failCount++;
+                    sb.AppendLine($"[FAIL] {name}: {dlResult.ErrorMessage ?? "下载失败"}");
                 }
             } catch (OperationCanceledException) {
                 return ToolResultBuilder.Error().WithText("下载已取消").Build();

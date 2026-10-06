@@ -86,7 +86,7 @@ public class ProcessToolHandlers {
         if (!string.IsNullOrEmpty(workingDir))
             psi.WorkingDirectory = workingDir;
 
-        var process = System.Diagnostics.Process.Start(psi);
+        using var process = System.Diagnostics.Process.Start(psi);
         if (process is null)
             return ToolResultBuilder.Error().WithText($"启动失败: {fileName}").Build();
 

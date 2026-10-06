@@ -106,7 +106,7 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            var doc = System.Text.Json.JsonDocument.Parse(json);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
             var tagName = doc.RootElement.GetProperty("tag_name").GetString();
 
             if (tagName != null && tagName.StartsWith('v'))

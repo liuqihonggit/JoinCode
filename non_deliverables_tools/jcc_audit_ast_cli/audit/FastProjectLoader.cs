@@ -19,7 +19,7 @@ public static class FastProjectLoader {
         var loadSw = System.Diagnostics.Stopwatch.StartNew();
 
         // 阶段1：并行加载 MSBuild 项目（每个 Task 用独立 ProjectCollection，线程安全）
-        var msbuildProjects = new ConcurrentBag<(string Path, Microsoft.Build.Evaluation.Project Project)>();
+        var msbuildProjects = new ConcurrentBag<(string Path, Microsoft.Build.Evaluation.Project Project, Microsoft.Build.Evaluation.ProjectCollection Collection)>();
         var loadedCount = 0;
         var semaphore = new SemaphoreSlim(MaxConcurrency);
 
@@ -28,7 +28,7 @@ public static class FastProjectLoader {
             try {
                 var pc = new Microsoft.Build.Evaluation.ProjectCollection();
                 var project = pc.LoadProject(projectPath);
-                msbuildProjects.Add((projectPath, project));
+                msbuildProjects.Add((projectPath, project, pc));
                 var count = Interlocked.Increment(ref loadedCount);
                 if (count % 10 == 0)
                     Console.WriteLine($"  [加载 {count}/{projectPaths.Count}]...");
@@ -74,6 +74,7 @@ public static class FastProjectLoader {
         compileSw.Stop();
         Console.WriteLine($"  [统计] Compilation 创建完成 ({compilations.Count}/{msbuildProjects.Count})，耗时: {compileSw.Elapsed.TotalSeconds:F1}s");
 
+        foreach (var item in msbuildProjects) item.Collection.Dispose();
         return compilations.ToList();
     }
 
@@ -87,7 +88,7 @@ public static class FastProjectLoader {
         var loadSw = System.Diagnostics.Stopwatch.StartNew();
 
         // 阶段1：并行加载 MSBuild 项目
-        var msbuildProjects = new ConcurrentBag<(string Path, Microsoft.Build.Evaluation.Project Project)>();
+        var msbuildProjects = new ConcurrentBag<(string Path, Microsoft.Build.Evaluation.Project Project, Microsoft.Build.Evaluation.ProjectCollection Collection)>();
         var loadedCount = 0;
         var loadSemaphore = new SemaphoreSlim(MaxConcurrency);
 
@@ -96,7 +97,7 @@ public static class FastProjectLoader {
             try {
                 var pc = new Microsoft.Build.Evaluation.ProjectCollection();
                 var project = pc.LoadProject(projectPath);
-                msbuildProjects.Add((projectPath, project));
+                msbuildProjects.Add((projectPath, project, pc));
                 var count = Interlocked.Increment(ref loadedCount);
                 if (count % 10 == 0)
                     Console.WriteLine($"  [加载 {count}/{projectPaths.Count}]...");
@@ -138,6 +139,7 @@ public static class FastProjectLoader {
 
         await Task.WhenAll(compileTasks).ConfigureAwait(false);
         compileSemaphore.Dispose();
+        foreach (var item in msbuildProjects) item.Collection.Dispose();
         writer.TryComplete();
         compileSw.Stop();
         Console.WriteLine($"  [统计] Compilation 创建完成，耗时: {compileSw.Elapsed.TotalSeconds:F1}s");

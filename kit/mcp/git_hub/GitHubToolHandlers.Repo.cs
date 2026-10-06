@@ -168,4 +168,72 @@ public partial class GitHubToolHandlers {
             return json;
         }
     }
+
+    /// <summary>
+    /// 编辑仓库 — 修改描述/主页/可见性/默认分支/has_issues/has_wiki，调 REST API PATCH
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoEdit, "编辑仓库(description/homepage/visibility/default_branch/issues/wiki)", "github")]
+    public async Task<ToolResult> GhRepoEditAsync(
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("描述(可选)", Required = false)] string? description = null,
+        [McpToolParameter("主页 URL(可选)", Required = false)] string? homepage = null,
+        [McpToolParameter("可见性(public/private/internal,可选)", Required = false)] string? visibility = null,
+        [McpToolParameter("默认分支(可选)", Required = false)] string? default_branch = null,
+        [McpToolParameter("是否启用 Issues(可选)", Required = false)] bool? has_issues = null,
+        [McpToolParameter("是否启用 Wiki(可选)", Required = false)] bool? has_wiki = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var builder = new GitHubJsonObjectBuilder()
+                .StringIf("description", description)
+                .StringIf("homepage", homepage)
+                .StringIf("visibility", visibility)
+                .StringIf("default_branch", default_branch);
+            if (has_issues is not null) builder.Bool("has_issues", has_issues.Value);
+            if (has_wiki is not null) builder.Bool("has_wiki", has_wiki.Value);
+            var jsonBody = builder.Build();
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已编辑仓库 {owner}/{repoName}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 删除仓库 — 调 REST API DELETE，需 yes=true 确认
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoDelete, "删除仓库(需 yes 确认)", "github")]
+    public async Task<ToolResult> GhRepoDeleteAsync(
+        [McpToolParameter("仓库名(owner/repo)", Required = true)] string repo,
+        [McpToolParameter("是否跳过确认(默认 false)", Required = false)] bool? yes = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (yes != true) return Fail("删除仓库需要 yes=true 确认（此操作不可逆）");
+            var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已删除仓库 {owner}/{repoName}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 归档仓库 — 调 REST API PATCH archived=true
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoArchive, "归档仓库", "github")]
+    public async Task<ToolResult> GhRepoArchiveAsync(
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", """{"archived":true}""", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已归档仓库 {owner}/{repoName}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 取消归档仓库 — 调 REST API PATCH archived=false
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoUnarchive, "取消归档仓库", "github")]
+    public async Task<ToolResult> GhRepoUnarchiveAsync(
+        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", """{"archived":false}""", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已取消归档仓库 {owner}/{repoName}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 }

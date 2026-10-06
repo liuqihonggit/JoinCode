@@ -1302,6 +1302,79 @@ public sealed class GitHubToolHandlersTests {
 
         _api.LastBody.Should().Contain("\"organization\":\"myorg\"");
     }
+
+    [Fact]
+    public async Task RepoEdit_WithDescription_PatchesRepo() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"full_name":"o/r"}""" };
+
+        await _handler.GhRepoEditAsync(repo: "owner/repo", description: "new desc");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo");
+        _api.LastBody.Should().Contain("\"description\":\"new desc\"");
+    }
+
+    [Fact]
+    public async Task RepoDelete_WithYes_DeletesRepo() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        var result = await _handler.GhRepoDeleteAsync("owner/repo", yes: true);
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo");
+    }
+
+    [Fact]
+    public async Task RepoDelete_WithoutYes_ReturnsError() {
+        var result = await _handler.GhRepoDeleteAsync("owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("yes=true");
+    }
+
+    [Fact]
+    public async Task RepoArchive_SendsArchivedTrue() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhRepoArchiveAsync(repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastBody.Should().Contain("\"archived\":true");
+    }
+
+    [Fact]
+    public async Task RepoUnarchive_SendsArchivedFalse() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhRepoUnarchiveAsync(repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastBody.Should().Contain("\"archived\":false");
+    }
+
+    [Fact]
+    public async Task ReleaseDeleteAsset_Success_DeletesAsset() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"assets":[{"name":"file.zip","id":456}]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
+
+        var result = await _handler.GhReleaseDeleteAssetAsync("v1", "file.zip", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Contain("releases/123/assets/456");
+    }
+
+    [Fact]
+    public async Task ReleaseEdit_WithNewTag_PatchesRelease() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"tag_name":"v1"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"tag_name":"v2"}""" });
+
+        await _handler.GhReleaseEditAsync("v1", new_tag: "v2", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastBody.Should().Contain("\"tag_name\":\"v2\"");
+    }
 }
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient {

@@ -79,9 +79,10 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 |-------------|---------|:----:|
 | `[number]` | `pr_number` | ✅ |
 | `--repo` | `repo` | ✅ |
-| `--comments` / `-c` | — | ❌ |
+| `--comments` / `-c` | `comments` | ✅ |
 | `--json` | `verbose` | ⚠️ 语义近似但不等价 |
-| `--jq` / `--template` / `--web` | — | ❌ |
+| `--web` | `web` | ✅ |
+| `--jq` / `--template` | — | ❌ |
 
 ### 3.4 pr create 参数
 

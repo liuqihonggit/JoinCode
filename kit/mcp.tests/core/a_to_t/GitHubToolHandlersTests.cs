@@ -15,6 +15,9 @@ public sealed class GitHubToolHandlersTests {
             NullLogger<GitHubToolHandlers>.Instance);
     }
 
+    private static GitHubToolHandlers CreateHandlerWithGit(IGitCommandRunner git)
+        => new(new FakeDownloader(), new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
+
     [Fact]
     public async Task PrView_Success_ReturnsOutput() {
         _api.NextResponse = new GitHubApiResponse {
@@ -317,6 +320,37 @@ public sealed class GitHubToolHandlersTests {
         var text = result.GetFirstText();
         text.Should().NotContain("file1.txt");
         text.Should().Contain("file2.cs");
+    }
+
+    [Fact]
+    public async Task PrCheckout_WithCustomBranch_UsesCustomBranchName() {
+        var git = new FakeGitCommandRunner();
+        var handler = CreateHandlerWithGit(git);
+
+        await handler.GhPrCheckoutAsync("42", branch: "custom-branch");
+
+        git.ExecutedCommands.Should().Contain(c => c.Contains("pull/42/head:custom-branch"));
+        git.ExecutedCommands.Should().Contain("checkout custom-branch");
+    }
+
+    [Fact]
+    public async Task PrCheckout_WithForce_AddsForceToFetch() {
+        var git = new FakeGitCommandRunner();
+        var handler = CreateHandlerWithGit(git);
+
+        await handler.GhPrCheckoutAsync("42", force: true);
+
+        git.ExecutedCommands[0].Should().Contain("--force");
+    }
+
+    [Fact]
+    public async Task PrCheckout_WithDetach_UsesDetachedHead() {
+        var git = new FakeGitCommandRunner();
+        var handler = CreateHandlerWithGit(git);
+
+        await handler.GhPrCheckoutAsync("42", detach: true);
+
+        git.ExecutedCommands.Should().Contain(c => c.Contains("--detach"));
     }
 
     [Fact]
@@ -828,6 +862,20 @@ internal sealed class FakeDownloader : IDownloader {
         StartCallCount++;
         return new FakeDownloadSession { Result = NextResult with { FilePath = filePath } };
     }
+}
+
+internal sealed class FakeGitCommandRunner : IGitCommandRunner {
+    public List<string> ExecutedCommands { get; } = new();
+    public bool NextSuccess { get; set; } = true;
+    public string NextOutput { get; set; } = "";
+    public Task<GitCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, CancellationToken ct = default) {
+        ExecutedCommands.Add(arguments);
+        return Task.FromResult(new GitCommandResult { Success = NextSuccess, Output = NextOutput, ExitCode = NextSuccess ? 0 : 1 });
+    }
+    public Task<MergeConflictResult> DetectMergeConflictAsync(string branch1, string branch2, string? workingDirectory = null, CancellationToken ct = default)
+        => Task.FromResult(new MergeConflictResult { HasConflict = false });
+    public Task<StaleConflictMarkerResult> DetectStaleConflictMarkersAsync(string? workingDirectory = null, CancellationToken ct = default)
+        => Task.FromResult(new StaleConflictMarkerResult { HasStaleMarkers = false });
 }
 
 internal sealed class FakeDownloadSession : IDownloadSession {

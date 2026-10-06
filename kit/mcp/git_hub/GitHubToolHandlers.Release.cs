@@ -7,24 +7,26 @@ namespace McpToolDispatch;
 /// </summary>
 public partial class GitHubToolHandlers {
     /// <summary>
-    /// 列出 Release — 调 REST API 获取 Release 列表，精简输出（含 asset 摘要）
+    /// 列出 Release — 调 REST API 获取 Release 列表，支持排除 draft/prerelease，精简输出（含 asset 摘要）
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhReleaseList, "列出 Release", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseList, "列出 Release(支持排除 draft/prerelease)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhReleaseListAsync(
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
+        [McpToolParameter("排除 draft release(可选)", Required = false)] bool? exclude_drafts = null,
+        [McpToolParameter("排除 prerelease(可选)", Required = false)] bool? exclude_prereleases = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases", query: query, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(SummarizeReleaseList(result.Body)) : Fail(result.Error);
+            return result.Success ? Ok(SummarizeReleaseList(result.Body, exclude_drafts, exclude_prereleases)) : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 精简 Release 列表 JSON — 只保留关键字段，去掉冗余 URL 和 author 对象，便于人类浏览和 AI 解析
+    /// 精简 Release 列表 JSON — 只保留关键字段，去掉冗余 URL 和 author 对象，便于人类浏览和 AI 解析；支持排除 draft/prerelease
     /// </summary>
-    private static string SummarizeReleaseList(string json) {
+    private static string SummarizeReleaseList(string json, bool? excludeDrafts = null, bool? excludePrereleases = null) {
         try {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
@@ -32,6 +34,8 @@ public partial class GitHubToolHandlers {
             using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })) {
                 writer.WriteStartArray();
                 foreach (var release in doc.RootElement.EnumerateArray()) {
+                    if (excludeDrafts == true && release.TryGetProperty("draft", out var d) && d.GetBoolean()) continue;
+                    if (excludePrereleases == true && release.TryGetProperty("prerelease", out var p) && p.GetBoolean()) continue;
                     writer.WriteStartObject();
                     CopyProperty(release, writer, "id");
                     CopyProperty(release, writer, "tag_name");
@@ -68,10 +72,17 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhReleaseView, "查看 Release 详情(含 asset 列表)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhReleaseViewAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
+        [McpToolParameter("web=true 只返回 Release 浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter("工作目录(可选,默认当前目录)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (web == true) {
+                var viewResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
+                if (!viewResult.Success) return Fail(viewResult.Error);
+                var url = ExtractHtmlUrl(viewResult.Body);
+                return string.IsNullOrEmpty(url) ? Fail("无法从 Release 响应中解析 html_url") : Ok(url);
+            }
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
             if (result.Success) return Ok(result.Body);
             // 404 时 fallback: draft release 没有关联 tag,需列出所有 release 按 tag_name 匹配
@@ -110,9 +121,9 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 创建 Release — 支持 draft/prerelease、目标 commit/branch，调 REST API POST
+    /// 创建 Release — 支持 draft/prerelease、目标 commit/branch、自动生成 notes，调 REST API POST
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhReleaseCreate, "创建 Release(支持 draft/prerelease)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseCreate, "创建 Release(支持 draft/prerelease/自动生成 notes)", "github")]
     public async Task<ToolResult> GhReleaseCreateAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("Release 标题", Required = false)] string? title = null,
@@ -120,6 +131,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否草稿", Required = false)] bool? draft = null,
         [McpToolParameter("是否预发布", Required = false)] bool? prerelease = null,
         [McpToolParameter("目标 commit/branch(可选)", Required = false)] string? target = null,
+        [McpToolParameter("自动生成 release notes(可选)", Required = false)] bool? generate_notes = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -131,6 +143,7 @@ public partial class GitHubToolHandlers {
                 .BoolIfTrue("draft", draft)
                 .BoolIfTrue("prerelease", prerelease)
                 .StringIf("target_commitish", target)
+                .BoolIfTrue("generate_release_notes", generate_notes)
                 .Build();
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已创建 Release {tag}") : Fail(result.Error);
@@ -272,12 +285,13 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 删除 Release — 调 REST API DELETE
+    /// 删除 Release — 可选同时删除 git tag，调 REST API DELETE
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhReleaseDelete, "删除 Release", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseDelete, "删除 Release(可选同时删除 git tag)", "github")]
     public async Task<ToolResult> GhReleaseDeleteAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("是否跳过确认(默认 true)", Required = false)] bool? yes = null,
+        [McpToolParameter("同时删除 git tag(可选)", Required = false)] bool? cleanup_tag = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -290,7 +304,12 @@ public partial class GitHubToolHandlers {
                 releaseId = doc.RootElement.GetProperty("id").GetInt64();
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已删除 Release {tag}") : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            if (cleanup_tag == true) {
+                var tagResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/git/refs/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
+                if (!tagResult.Success) return OkBrief(result.Body, $"已删除 Release {tag}(git tag 删除失败: {tagResult.Error})");
+            }
+            return OkBrief(result.Body, $"已删除 Release {tag}{(cleanup_tag == true ? " 及 git tag" : "")}");
         }).ConfigureAwait(false);
 
     /// <summary>

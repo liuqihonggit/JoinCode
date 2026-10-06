@@ -21,23 +21,62 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 列出 PR — 支持状态/数量/作者过滤，表格格式输出
+    /// 列出 PR — 支持状态/数量/作者/标签/指派人/分支/draft/搜索过滤，表格格式输出
+    /// <para>简单过滤(state/base/head)走 pulls API；复杂过滤(label/assignee/draft/search/author)走 search API</para>
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrList, "列出 PR(支持状态/数量/作者过滤)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhPrList, "列出 PR(支持状态/数量/作者/标签/指派人/分支/draft/搜索过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrListAsync(
         [McpToolParameter("状态(open/closed/merged/all,默认 open)", Required = false)] string? state = null,
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
         [McpToolParameter("作者过滤(可选)", Required = false)] string? author = null,
+        [McpToolParameter("标签过滤(可选,多个用逗号)", Required = false)] string? label = null,
+        [McpToolParameter("指派人过滤(可选)", Required = false)] string? assignee = null,
+        [McpToolParameter("目标分支过滤(可选)", Required = false)] string? @base = null,
+        [McpToolParameter("源分支过滤(可选)", Required = false)] string? head = null,
+        [McpToolParameter("是否 draft PR(可选)", Required = false)] bool? draft = null,
+        [McpToolParameter("搜索查询(可选,GitHub search 语法)", Required = false)] string? search = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var query = new Dictionary<string, string> { ["state"] = string.IsNullOrWhiteSpace(state) ? "open" : state, ["per_page"] = (limit ?? 30).ToString() };
-            if (!string.IsNullOrWhiteSpace(author)) query["creator"] = author;
-            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls", query: query, ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
-            return Ok(SummarizePrList(result.Body));
+            var pageCount = (limit ?? 30).ToString();
+            var stateVal = string.IsNullOrWhiteSpace(state) ? "open" : state;
+            var needSearch = NeedSearchApi(label, assignee, draft, search, author);
+            if (needSearch) {
+                var q = BuildPrSearchQuery(owner, repoName, stateVal, author, label, assignee, @base, head, draft, search);
+                var query = new Dictionary<string, string> { ["q"] = q, ["per_page"] = pageCount };
+                var result = await client.SendAsync(HttpMethod.Get, "search/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
+                if (!result.Success) return Fail(result.Error);
+                return Ok(SummarizePrList(result.Body));
+            }
+            var pullsQuery = new Dictionary<string, string> { ["state"] = stateVal, ["per_page"] = pageCount };
+            if (!string.IsNullOrWhiteSpace(@base)) pullsQuery["base"] = @base;
+            if (!string.IsNullOrWhiteSpace(head)) pullsQuery["head"] = head;
+            var pullsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls", query: pullsQuery, ct: cancellationToken).ConfigureAwait(false);
+            if (!pullsResult.Success) return Fail(pullsResult.Error);
+            return Ok(SummarizePrList(pullsResult.Body));
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 判断是否需要走 search API — 有 label/assignee/draft/search/author 任一参数即走 search
+    /// </summary>
+    private static bool NeedSearchApi(string? label, string? assignee, bool? draft, string? search, string? author)
+        => !string.IsNullOrWhiteSpace(label) || !string.IsNullOrWhiteSpace(assignee) || draft == true || !string.IsNullOrWhiteSpace(search) || !string.IsNullOrWhiteSpace(author);
+
+    /// <summary>
+    /// 构建 PR search API 查询字符串 — is:pr repo:{owner}/{repo} + 各过滤条件
+    /// </summary>
+    private static string BuildPrSearchQuery(string owner, string repo, string state, string? author, string? label, string? assignee, string? @base, string? head, bool? draft, string? search) {
+        var parts = new List<string> { "is:pr", $"repo:{owner}/{repo}", $"state:{state}" };
+        if (!string.IsNullOrWhiteSpace(author)) parts.Add($"author:{author}");
+        if (!string.IsNullOrWhiteSpace(assignee)) parts.Add($"assignee:{assignee}");
+        if (!string.IsNullOrWhiteSpace(label)) foreach (var l in label.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) parts.Add($"label:{l}");
+        if (draft == true) parts.Add("draft:true");
+        if (!string.IsNullOrWhiteSpace(@base)) parts.Add($"base:{@base}");
+        if (!string.IsNullOrWhiteSpace(head)) parts.Add($"head:{head}");
+        if (!string.IsNullOrWhiteSpace(search)) parts.Add(search);
+        return string.Join(" ", parts);
+    }
 
     /// <summary>
     /// 查看 PR diff — 调 REST API 获取 PR 的 diff_url 后下载 patch 文本

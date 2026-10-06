@@ -277,15 +277,17 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 精简 PR 列表 JSON — 表格格式(number, state, title, author)
+    /// 精简 PR 列表 JSON — 表格格式(number, state, title, author)，兼容 pulls API 数组和 search API {items} 格式
     /// </summary>
     private static string SummarizePrList(string json) {
         try {
             using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var root = doc.RootElement;
+            var arrayEl = root.ValueKind == JsonValueKind.Array ? root : root.TryGetProperty("items", out var itemsEl) ? itemsEl : default;
+            if (arrayEl.ValueKind != JsonValueKind.Array) return json;
             var sb = new StringBuilder(512);
             sb.AppendLine("PR#\t状态\t标题\t作者");
-            foreach (var pr in doc.RootElement.EnumerateArray()) {
+            foreach (var pr in arrayEl.EnumerateArray()) {
                 var number = pr.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
                 var state = pr.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
                 var title = pr.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";

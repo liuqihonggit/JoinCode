@@ -16,7 +16,7 @@ public sealed class ClusterExpandIntegrationTests {
         services.AddSingleton(analyzer.Object);
         services.AddSingleton<IClusterPlanValidator, ClusterPlanValidator>();
         services.AddSingleton<IClusterPlanApprovalHookManager, NoOpClusterPlanApprovalHook>();
-        using var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         await using var engine = CreateEngine(serviceProvider: sp);
         var graph = GoalGraphTemplates.ClusterTemplate.BuildGraph(engine, "并行给3个模块写文档");
@@ -40,7 +40,7 @@ public sealed class ClusterExpandIntegrationTests {
         services.AddSingleton(analyzer.Object);
         services.AddSingleton<IClusterPlanValidator, ClusterPlanValidator>();
         services.AddSingleton<IClusterPlanApprovalHookManager, NoOpClusterPlanApprovalHook>();
-        using var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         await using var engine = CreateEngine(serviceProvider: sp);
         var graph = GoalGraphTemplates.ClusterTemplate.BuildGraph(engine, "修改一个文件");
@@ -64,7 +64,7 @@ public sealed class ClusterExpandIntegrationTests {
         services.AddSingleton(analyzer.Object);
         services.AddSingleton<IClusterPlanValidator, ClusterPlanValidator>();
         services.AddSingleton<IClusterPlanApprovalHookManager, NoOpClusterPlanApprovalHook>();
-        using var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         await using var engine = CreateEngine(serviceProvider: sp);
         var graph = GoalGraphTemplates.ClusterTemplate.BuildGraph(engine, "并行做10件事");
@@ -86,7 +86,7 @@ public sealed class ClusterExpandIntegrationTests {
         services.AddSingleton(analyzer.Object);
         services.AddSingleton<IClusterPlanValidator, ClusterPlanValidator>();
         services.AddSingleton<IClusterPlanApprovalHookManager, BlockingClusterPlanApprovalHook>();
-        using var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         await using var engine = CreateEngine(serviceProvider: sp);
         var graph = GoalGraphTemplates.ClusterTemplate.BuildGraph(engine, "并行做2件事");
@@ -110,7 +110,7 @@ public sealed class ClusterExpandIntegrationTests {
         services.AddSingleton(analyzer.Object);
         services.AddSingleton<IClusterPlanValidator, ClusterPlanValidator>();
         services.AddSingleton<IClusterPlanApprovalHookManager, NoOpClusterPlanApprovalHook>();
-        using var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         await using var engine = CreateEngine(serviceProvider: sp);
         var graph = GoalGraphTemplates.ClusterTemplate.BuildGraph(engine, "集群执行钻石依赖任务");

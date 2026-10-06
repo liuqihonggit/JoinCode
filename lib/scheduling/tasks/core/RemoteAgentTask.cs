@@ -143,7 +143,7 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
         };
 
         var json = JsonSerializer.Serialize(payload, SchedulingTasksJsonContext.Default.RemoteAgentExecuteRequest);
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{definition.Endpoint.TrimEnd('/')}/api/agent/execute") {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{definition.Endpoint.TrimEnd('/')}/api/agent/execute") {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
 

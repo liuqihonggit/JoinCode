@@ -12,7 +12,7 @@ public sealed class CapacityWakeServiceTests {
     [Fact]
     public void Constructor_ShouldSetDefaultCapacity() {
         // Arrange & Act
-        var sut = CreateSut();
+        using var sut = CreateSut();
 
         // Assert
         sut.GetCurrentCapacity().Should().Be(CapacityWakeOptions.DefaultMinInstances,
@@ -22,7 +22,7 @@ public sealed class CapacityWakeServiceTests {
     [Fact]
     public async Task ScaleUpAsync_ShouldIncreaseCapacity() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
 
         // Act
         await sut.ScaleUpAsync().ConfigureAwait(true);
@@ -36,7 +36,7 @@ public sealed class CapacityWakeServiceTests {
     public async Task ScaleDownAsync_ShouldDecreaseCapacity() {
         // Arrange
         var options = new CapacityWakeOptions { MinInstances = 1, MaxInstances = 5 };
-        var sut = CreateSut(options);
+        using var sut = CreateSut(options);
         await sut.ScaleUpAsync().ConfigureAwait(true); // 1 -> 2
 
         // Act
@@ -50,7 +50,7 @@ public sealed class CapacityWakeServiceTests {
     public async Task ScaleUpAsync_ShouldNotExceedMaxCapacity() {
         // Arrange
         var options = new CapacityWakeOptions { MinInstances = 1, MaxInstances = 2 };
-        var sut = CreateSut(options);
+        using var sut = CreateSut(options);
         await sut.ScaleUpAsync().ConfigureAwait(true); // 1 -> 2
 
         // Act
@@ -64,7 +64,7 @@ public sealed class CapacityWakeServiceTests {
     public async Task ScaleDownAsync_ShouldNotGoBelowMinCapacity() {
         // Arrange
         var options = new CapacityWakeOptions { MinInstances = 1, MaxInstances = 5 };
-        var sut = CreateSut(options);
+        using var sut = CreateSut(options);
 
         // Act
         await sut.ScaleDownAsync().ConfigureAwait(true); // 已达下限，不应再缩
@@ -76,7 +76,7 @@ public sealed class CapacityWakeServiceTests {
     [Fact]
     public void UpdateLoadMetrics_ShouldUpdateMetrics() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         var metrics = new LoadMetrics {
             ActiveConnections = 50,
             PendingRequests = 10,
@@ -99,7 +99,7 @@ public sealed class CapacityWakeServiceTests {
     [Fact]
     public async Task CapacityChanged_ShouldFire_WhenScaling() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         CapacityChangedEventArgs? eventArgs = null;
         sut.CapacityChanged += (_, e) => eventArgs = e;
 

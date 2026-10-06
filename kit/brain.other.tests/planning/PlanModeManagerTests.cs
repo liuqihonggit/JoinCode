@@ -638,7 +638,7 @@ public class PlanModeManagerTests {
     [Fact]
     public async Task RegisterAllowedPromptsAsync_NullPrompts_ShouldDoNothing() {
         var mockPerm = new Mock<IToolPermissionManager>();
-        var manager = CreateManagerWithPermission(mockPerm.Object);
+        using var manager = CreateManagerWithPermission(mockPerm.Object);
         await manager.RegisterAllowedPromptsAsync(null, CancellationToken.None).ConfigureAwait(true);
         mockPerm.Verify(p => p.AddAllowedPromptAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -646,7 +646,7 @@ public class PlanModeManagerTests {
     [Fact]
     public async Task RegisterAllowedPromptsAsync_EmptyPrompts_ShouldDoNothing() {
         var mockPerm = new Mock<IToolPermissionManager>();
-        var manager = CreateManagerWithPermission(mockPerm.Object);
+        using var manager = CreateManagerWithPermission(mockPerm.Object);
         await manager.RegisterAllowedPromptsAsync([], CancellationToken.None).ConfigureAwait(true);
         mockPerm.Verify(p => p.AddAllowedPromptAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -656,7 +656,7 @@ public class PlanModeManagerTests {
         var mockPerm = new Mock<IToolPermissionManager>();
         mockPerm.Setup(p => p.AddAllowedPromptAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        var manager = CreateManagerWithPermission(mockPerm.Object);
+        using var manager = CreateManagerWithPermission(mockPerm.Object);
         var prompts = new[] {
             new AllowedPrompt { Prompt = "run tests" },
             new AllowedPrompt { Prompt = "install deps" }
@@ -669,7 +669,7 @@ public class PlanModeManagerTests {
     [Fact]
     public async Task RestorePermissionModeAsync_NoPrePlanMode_ShouldDoNothing() {
         var mockPerm = new Mock<IToolPermissionManager>();
-        var manager = CreateManagerWithPermission(mockPerm.Object);
+        using var manager = CreateManagerWithPermission(mockPerm.Object);
         // 无 PrePlanMode 时应直接返回，不调用 SetPermissionModeAsync
         await manager.RestorePermissionModeAsync(CancellationToken.None).ConfigureAwait(true);
         mockPerm.Verify(p => p.SetPermissionModeAsync(It.IsAny<PermissionMode>(), It.IsAny<CancellationToken>()), Times.Never);

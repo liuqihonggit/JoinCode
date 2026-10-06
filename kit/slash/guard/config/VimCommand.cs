@@ -43,7 +43,7 @@ public sealed class VimCommand : ToggleCommandBase {
     /// <returns>表示异步操作完成的任务</returns>
     protected override Task OnEnabledAsync(ChatCommandContext context) {
         var vimEngine = GetService<IVimEngine>(context);
-        var editorModeService = GetService<IEditorModeService>(context);
+        using var editorModeService = GetService<IEditorModeService>(context);
 
         vimEngine?.Enable();
         editorModeService?.SetMode(EditorMode.Vim);
@@ -60,7 +60,7 @@ public sealed class VimCommand : ToggleCommandBase {
     /// <returns>表示异步操作完成的任务</returns>
     protected override Task OnDisabledAsync(ChatCommandContext context) {
         var vimEngine = GetService<IVimEngine>(context);
-        var editorModeService = GetService<IEditorModeService>(context);
+        using var editorModeService = GetService<IEditorModeService>(context);
 
         vimEngine?.Disable();
         editorModeService?.SetMode(EditorMode.Normal);
@@ -76,7 +76,7 @@ public sealed class VimCommand : ToggleCommandBase {
     /// <returns>表示异步操作完成的任务</returns>
     protected override async Task OnToggleAsync(ChatCommandContext context) {
         var vimEngine = GetService<IVimEngine>(context);
-        var editorModeService = GetService<IEditorModeService>(context);
+        using var editorModeService = GetService<IEditorModeService>(context);
 
         var currentMode = editorModeService is not null ? await editorModeService.GetCurrentModeAsync().ConfigureAwait(false) : EditorMode.Normal;
         var newMode = currentMode == EditorMode.Vim ? EditorMode.Normal : EditorMode.Vim;

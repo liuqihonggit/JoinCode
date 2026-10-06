@@ -17,7 +17,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task UpdateSystemPromptAsync_ShouldStoreAsStaticPrefix() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
 
         await sut.UpdateSystemPromptAsync("You are a helpful assistant.").ConfigureAwait(true);
 
@@ -30,7 +30,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task AddDynamicSystemMessageAsync_ShouldHaveCacheBreakMetadata() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("static").ConfigureAwait(true);
 
         await sut.AddDynamicSystemMessageAsync("dynamic context").ConfigureAwait(true);
@@ -50,7 +50,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task AssembleMessages_Order_ShouldBe_Static_Dynamic_Conversation() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("static system").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic info").ConfigureAwait(true);
         await sut.AddUserMessageAsync("hello").ConfigureAwait(true);
@@ -81,7 +81,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task ClearDynamicSystemMessagesAsync_ShouldOnlyClearDynamic() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("static").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic1").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic2").ConfigureAwait(true);
@@ -99,7 +99,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task ClearMessagesAsync_ShouldPreserveStaticSystemPrompt() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("static").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.AddUserMessageAsync("hello").ConfigureAwait(true);
@@ -115,7 +115,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task ClearMessagesAsync_ShouldAlsoClearDynamicMessages() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("static").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.AddUserMessageAsync("hello").ConfigureAwait(true);
@@ -134,7 +134,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task MultiTurn_DynamicMessagesShouldNotAccumulate() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("static").ConfigureAwait(true);
 
         await sut.AddDynamicSystemMessageAsync("turn1 dynamic").ConfigureAwait(true);
@@ -161,7 +161,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task StaticPrefix_StableAcrossMultipleTurns() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("immutable system prompt").ConfigureAwait(true);
 
         for (var i = 0; i < 5; i++) {
@@ -189,7 +189,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task UpdateSystemPromptAsync_ShouldReplaceExistingStatic() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("old system").ConfigureAwait(true);
         await sut.AddUserMessageAsync("hello").ConfigureAwait(true);
 
@@ -202,7 +202,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task SaveContextAsync_ShouldPersistStaticAndConversationOnly() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("static").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.AddUserMessageAsync("hello").ConfigureAwait(true);
@@ -227,7 +227,7 @@ public partial class ChatContextManagerThreePartTests {
             .Setup(s => s.LoadStateAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(("restored static", savedHistory));
 
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.LoadContextAsync().ConfigureAwait(true);
 
         await sut.AddDynamicSystemMessageAsync("new dynamic").ConfigureAwait(true);
@@ -251,7 +251,7 @@ public partial class ChatContextManagerThreePartTests {
             .Setup(s => s.LoadStateAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync((string.Empty, savedHistory));
 
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.LoadContextAsync().ConfigureAwait(true);
 
         var history = await sut.GetMessageListAsync().ConfigureAwait(true);
@@ -262,7 +262,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task MultipleDynamicMessages_AllShouldHaveCacheBreak() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("static").ConfigureAwait(true);
 
         await sut.AddDynamicSystemMessageAsync("memory section").ConfigureAwait(true);
@@ -279,7 +279,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task NoStaticPrompt_DynamicMessagesShouldStillWork() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
 
         await sut.AddDynamicSystemMessageAsync("dynamic only").ConfigureAwait(true);
         await sut.AddUserMessageAsync("hello").ConfigureAwait(true);
@@ -292,7 +292,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task SameDynamicContent_SecondRequest_NoCacheBreak() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("static").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic context").ConfigureAwait(true);
 
@@ -305,7 +305,7 @@ public partial class ChatContextManagerThreePartTests {
 
     [Fact]
     public async Task DynamicContentChanged_AfterStable_SecondRequestHasCacheBreak() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("static").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic v1").ConfigureAwait(true);
 

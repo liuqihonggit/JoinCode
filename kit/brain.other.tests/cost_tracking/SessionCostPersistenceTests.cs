@@ -22,7 +22,7 @@ public class SessionCostPersistenceTests {
     public async Task RestoreCostStateForSessionAsync_NoFile_ShouldReturnNull() {
         var tracker = CreateCostTracker();
         await using (tracker) {
-            var persistence = CreatePersistence(tracker);
+            using var persistence = CreatePersistence(tracker);
             _fileOpMock.Setup(f => f.FileExists(It.IsAny<string>())).Returns(false);
 
             var result = await persistence.RestoreCostStateForSessionAsync("nonexistent-session").ConfigureAwait(true);
@@ -37,7 +37,7 @@ public class SessionCostPersistenceTests {
         await using (tracker) {
             tracker.RecordUsage("gpt-4o", 100, 50, "test-session");
 
-            var persistence = CreatePersistence(tracker);
+            using var persistence = CreatePersistence(tracker);
             _fileOpMock.Setup(f => f.DirectoryExists(It.IsAny<string>())).Returns(true);
             _fileOpMock.Setup(f => f.WriteFileAsync(It.Is<string>(p => p.Contains("costs")), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(FileWriteResult.SuccessResult("path", "content", FileToolName.FileWrite.ToValue()));
@@ -56,7 +56,7 @@ public class SessionCostPersistenceTests {
         await using (tracker) {
             tracker.RecordUsage("gpt-4o", 100, 50, "session-rt");
 
-            var persistence = CreatePersistence(tracker);
+            using var persistence = CreatePersistence(tracker);
 
             var savedJson = string.Empty;
             _fileOpMock.Setup(f => f.DirectoryExists(It.IsAny<string>())).Returns(true);
@@ -85,7 +85,7 @@ public class SessionCostPersistenceTests {
     public async Task SaveCurrentSessionCostsAsync_EmptySessionId_ShouldThrowArgumentException() {
         var tracker = CreateCostTracker();
         await using (tracker) {
-            var persistence = CreatePersistence(tracker);
+            using var persistence = CreatePersistence(tracker);
             var act = async () => await persistence.SaveCurrentSessionCostsAsync("").ConfigureAwait(true);
 
             await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
@@ -96,7 +96,7 @@ public class SessionCostPersistenceTests {
     public async Task RestoreCostStateForSessionAsync_EmptySessionId_ShouldThrowArgumentException() {
         var tracker = CreateCostTracker();
         await using (tracker) {
-            var persistence = CreatePersistence(tracker);
+            using var persistence = CreatePersistence(tracker);
             var act = async () => await persistence.RestoreCostStateForSessionAsync("  ").ConfigureAwait(true);
 
             await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
@@ -107,7 +107,7 @@ public class SessionCostPersistenceTests {
     public async Task RestoreCostStateForSessionAsync_ReadFailure_ShouldReturnNull() {
         var tracker = CreateCostTracker();
         await using (tracker) {
-            var persistence = CreatePersistence(tracker);
+            using var persistence = CreatePersistence(tracker);
             _fileOpMock.Setup(f => f.FileExists(It.IsAny<string>())).Returns(true);
             _fileOpMock.Setup(f => f.ReadFileAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(FileReadResult.FailureResult("path", "read error"));
@@ -124,7 +124,7 @@ public class SessionCostPersistenceTests {
         await using (tracker) {
             tracker.RecordUsage("gpt-4o", 100, 50, "session-wf");
 
-            var persistence = CreatePersistence(tracker);
+            using var persistence = CreatePersistence(tracker);
             _fileOpMock.Setup(f => f.DirectoryExists(It.IsAny<string>())).Returns(true);
             _fileOpMock.Setup(f => f.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(FileWriteResult.FailureResult("path", "write error"));

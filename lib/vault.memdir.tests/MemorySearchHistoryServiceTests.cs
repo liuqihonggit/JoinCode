@@ -25,7 +25,7 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable {
     [Fact]
     public async Task RecordSearchAsync_ShouldAddSearchToHistory() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         var query = "如何优化性能";
         var topIds = ImmutableList.Create("mem1", "mem2");
 
@@ -43,7 +43,7 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable {
     [Fact]
     public async Task GetRecentSearches_ShouldReturnRecordedSearches() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.RecordSearchAsync("查询1", resultCount: 3).ConfigureAwait(true);
         await sut.RecordSearchAsync("查询2", resultCount: 5).ConfigureAwait(true);
 
@@ -60,7 +60,7 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable {
     [Fact]
     public async Task GetRecentSearches_ShouldRespectLimit() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         for (var i = 0; i < 15; i++) {
             await sut.RecordSearchAsync($"查询{i}", resultCount: i).ConfigureAwait(true);
         }
@@ -75,7 +75,7 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable {
     [Fact]
     public async Task BuildSearchingPastContextSectionAsync_ShouldReturnSection_WithPromptText() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
 
         // 在 MemoryStore 中添加一些过往对话记忆（内容包含查询关键词）
         _memoryStore.AddMemory("performance optimization feedback for database queries", MemoryType.Feedback, title: "performance feedback");
@@ -95,7 +95,7 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable {
     [Fact]
     public async Task SearchPastConversationsAsync_ShouldSearchMemoryStore() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
 
         // 添加不同类型的记忆（内容包含查询关键词）
         _memoryStore.AddMemory("database query optimization solution", MemoryType.Feedback, title: "optimization solution");
@@ -188,7 +188,7 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable {
     [Fact]
     [Trait("Category", "Deterministic")]
     public void GetRecentSearches_NegativeLimit_ThrowsArgumentOutOfRangeException() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
         var act = () => sut.GetRecentSearches(limit: -1);
         act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("limit");
     }

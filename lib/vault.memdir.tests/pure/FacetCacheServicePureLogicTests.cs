@@ -107,35 +107,35 @@ public sealed class FacetCacheServicePureLogicTests {
 
     [Fact]
     public void GetFacetFilePath_PlainSessionId_CombinesDirSessionIdFileName() {
-        var sut = CreateSut("/test/facets");
+        using var sut = CreateSut("/test/facets");
         var path = sut.GetFacetFilePath("session-001");
         path.Should().Be(Path.Combine("/test/facets", "session-001", "usage-facet.json"));
     }
 
     [Fact]
     public void GetFacetFilePath_SessionIdWithForwardSlash_ReplacedWithUnderscore() {
-        var sut = CreateSut("/test/facets");
+        using var sut = CreateSut("/test/facets");
         var path = sut.GetFacetFilePath("dir/sub/session");
         path.Should().Be(Path.Combine("/test/facets", "dir_sub_session", "usage-facet.json"));
     }
 
     [Fact]
     public void GetFacetFilePath_SessionIdWithBackslash_ReplacedWithUnderscore() {
-        var sut = CreateSut("/test/facets");
+        using var sut = CreateSut("/test/facets");
         var path = sut.GetFacetFilePath(@"dir\sub\session");
         path.Should().Be(Path.Combine("/test/facets", "dir_sub_session", "usage-facet.json"));
     }
 
     [Fact]
     public void GetFacetFilePath_SessionIdWithMixedSeparators_AllReplacedWithUnderscore() {
-        var sut = CreateSut("/test/facets");
+        using var sut = CreateSut("/test/facets");
         var path = sut.GetFacetFilePath(@"dir/sub\mix");
         path.Should().Be(Path.Combine("/test/facets", "dir_sub_mix", "usage-facet.json"));
     }
 
     [Fact]
     public void GetFacetFilePath_AlwaysEndsWithUsageFacetJson() {
-        var sut = CreateSut("/test/facets");
+        using var sut = CreateSut("/test/facets");
         var path = sut.GetFacetFilePath("any-session-id");
         path.Should().EndWith("usage-facet.json");
     }
@@ -144,7 +144,7 @@ public sealed class FacetCacheServicePureLogicTests {
 
     [Fact]
     public void GetFacetFilePath_Deterministic_SameInputSameOutput() {
-        var sut = CreateSut("/test/facets");
+        using var sut = CreateSut("/test/facets");
         var p1 = sut.GetFacetFilePath("session-1");
         var p2 = sut.GetFacetFilePath("session-1");
         p1.Should().Be(p2);

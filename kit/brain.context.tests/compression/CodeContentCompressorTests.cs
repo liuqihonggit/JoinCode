@@ -254,7 +254,7 @@ public interface ITest
     [Fact]
     public async Task CompressAsync_CancellationRequested_ShouldThrowOperationCanceledException() {
         var code = "public class Test { public void Method() { } }";
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         cts.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>

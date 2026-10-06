@@ -119,7 +119,7 @@ public sealed class BriefCommand : ToggleCommandBase {
     }
 
     private static async Task InjectBriefStateReminderAsync(ChatCommandContext context, bool isEnabled) {
-        var reminderManager = GetService<Core.Prompts.SystemReminderManager>(context, typeof(Core.Prompts.SystemReminderManager));
+        using var reminderManager = GetService<Core.Prompts.SystemReminderManager>(context, typeof(Core.Prompts.SystemReminderManager));
         if (reminderManager is null) return;
 
         var toolName = SystemToolNameEnumConstants.SendUserMessage;

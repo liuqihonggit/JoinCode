@@ -42,7 +42,7 @@ public sealed class ProjectRulesLoaderTests {
     [Fact]
     public async Task LoadRulesAsync_WithAgentsMd_Should_Load_Content() {
         SetupFile("AGENTS.md", "# Agents Rules");
-        var loader = CreateLoader();
+        using var loader = CreateLoader();
 
         var result = await loader.LoadRulesAsync(BaseDir).ConfigureAwait(true);
 
@@ -52,7 +52,7 @@ public sealed class ProjectRulesLoaderTests {
     [Fact]
     public async Task LoadRulesAsync_WithClaudeMd_Should_Load_Content() {
         SetupFile("CLAUDE.md", "# Claude Rules");
-        var loader = CreateLoader();
+        using var loader = CreateLoader();
 
         var result = await loader.LoadRulesAsync(BaseDir).ConfigureAwait(true);
 
@@ -62,7 +62,7 @@ public sealed class ProjectRulesLoaderTests {
     [Fact]
     public async Task LoadRulesAsync_WithClaudeLocalMd_Should_Load_Content() {
         SetupFile("CLAUDE.local.md", "# Local Rules");
-        var loader = CreateLoader();
+        using var loader = CreateLoader();
 
         var result = await loader.LoadRulesAsync(BaseDir).ConfigureAwait(true);
 
@@ -73,7 +73,7 @@ public sealed class ProjectRulesLoaderTests {
     public async Task LoadRulesAsync_MultipleFiles_Should_Combine_With_Headers() {
         SetupFile("AGENTS.md", "agents content");
         SetupFile("CLAUDE.md", "claude content");
-        var loader = CreateLoader();
+        using var loader = CreateLoader();
 
         var result = await loader.LoadRulesAsync(BaseDir).ConfigureAwait(true);
 
@@ -87,7 +87,7 @@ public sealed class ProjectRulesLoaderTests {
     [Fact]
     public async Task LoadRulesAsync_CaseInsensitive_Should_Load() {
         SetupFile("agents.md", "lowercase agents");
-        var loader = CreateLoader();
+        using var loader = CreateLoader();
 
         var result = await loader.LoadRulesAsync(BaseDir).ConfigureAwait(true);
 
@@ -101,7 +101,7 @@ public sealed class ProjectRulesLoaderTests {
             AppDataConstants.RulesFolderName,
             AppDataConstants.ProjectRulesFileName);
         SetupFile(relativePath, "jcc rules content");
-        var loader = CreateLoader();
+        using var loader = CreateLoader();
 
         var result = await loader.LoadRulesAsync(BaseDir).ConfigureAwait(true);
 
@@ -111,7 +111,7 @@ public sealed class ProjectRulesLoaderTests {
     [Fact]
     public void HasRulesFile_WhenFileExists_Should_Return_True() {
         SetupFile("AGENTS.md", "content");
-        var loader = CreateLoader();
+        using var loader = CreateLoader();
 
         Assert.True(loader.HasRulesFile(BaseDir));
     }
@@ -129,7 +129,7 @@ public sealed class ProjectRulesLoaderTests {
     [Fact]
     public void GetRulesFilePath_WhenFileExists_Should_Return_Path() {
         SetupFile("AGENTS.md", "content");
-        var loader = CreateLoader();
+        using var loader = CreateLoader();
 
         var path = loader.GetRulesFilePath(BaseDir);
 
@@ -184,7 +184,7 @@ public sealed class ProjectRulesLoaderTests {
     [Fact]
     public async Task LoadRulesAsync_CodexMd_Should_Load_Content() {
         SetupFile("codex.md", "# Codex Rules");
-        var loader = CreateLoader();
+        using var loader = CreateLoader();
 
         var result = await loader.LoadRulesAsync(BaseDir).ConfigureAwait(true);
 
@@ -194,7 +194,7 @@ public sealed class ProjectRulesLoaderTests {
     [Fact]
     public async Task LoadRulesAsync_CodexAgentsMd_Should_Load_Content() {
         SetupFile(Path.Combine(".codex", "AGENTS.md"), "# Codex Agents");
-        var loader = CreateLoader();
+        using var loader = CreateLoader();
 
         var result = await loader.LoadRulesAsync(BaseDir).ConfigureAwait(true);
 

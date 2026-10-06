@@ -166,7 +166,7 @@ public sealed class SimpleModeServiceTests {
 
     [Fact]
     public void Without_BriefModeService_Enable_Should_Not_Throw() {
-        var service = new SimpleModeService(briefModeService: null);
+        using var service = new SimpleModeService(briefModeService: null);
 
         var exception = Record.Exception(() => service.Enable());
 

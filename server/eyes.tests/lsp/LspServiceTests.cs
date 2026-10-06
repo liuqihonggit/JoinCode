@@ -436,7 +436,7 @@ public sealed class LspServiceTests {
 
     [Fact]
     public async Task CloseClientAsync_DoesNotThrow() {
-        var service = new LspService(CreateEngineContext(), CreateDeps());
+        using var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var act = async () => await service.CloseClientAsync("/src/readme.md").ConfigureAwait(true);
 

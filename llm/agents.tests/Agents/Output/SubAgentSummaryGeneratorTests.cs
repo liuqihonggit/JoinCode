@@ -122,7 +122,7 @@ public sealed class SubAgentSummaryGeneratorTests {
             .Setup(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), cts.Token))
             .ThrowsAsync(new OperationCanceledException(cts.Token));
 
-        var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true, MaxRetries = 1 });
+        using var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true, MaxRetries = 1 });
 
         var act = async () => await sut.TrySummarizeAsync("agent-1", GenerateText(100), 50, cts.Token);
 

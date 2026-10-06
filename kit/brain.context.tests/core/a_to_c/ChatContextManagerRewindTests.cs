@@ -52,7 +52,7 @@ public sealed class ChatContextManagerRewindTests {
 
     [Fact]
     public async Task RewindLastTurn_EmptyHistory_ReturnsZeroRemoved() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
 
         var result = await sut.RewindLastTurnAsync().ConfigureAwait(true);
 
@@ -142,7 +142,7 @@ public sealed class ChatContextManagerRewindTests {
 
     [Fact]
     public async Task RewindToStart_EmptyHistory_ReturnsZeroRemoved() {
-        var sut = CreateSut();
+        using var sut = CreateSut();
 
         var result = await sut.RewindToStartAsync().ConfigureAwait(true);
 

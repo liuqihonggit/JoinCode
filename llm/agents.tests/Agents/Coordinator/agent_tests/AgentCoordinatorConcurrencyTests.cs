@@ -68,7 +68,7 @@ public class AgentCoordinatorConcurrencyTests {
         var spawned = await _coordinator.SpawnSubAgentAsync("concurrent-test").ConfigureAwait(true);
         var agentId = spawned.ObjectId.UniqueId;
 
-        var barrier = new Barrier(threadCount);
+        using var barrier = new Barrier(threadCount);
         var tasks = new Task[threadCount];
         for (var t = 0; t < threadCount; t++) {
             tasks[t] = Task.Run(() => {
@@ -101,7 +101,7 @@ public class AgentCoordinatorConcurrencyTests {
 
         const int retryThreads = 8;
         const int retryPerThread = 500;
-        var barrier = new Barrier(retryThreads + 1);
+        using var barrier = new Barrier(retryThreads + 1);
 
         var retryTasks = new Task[retryThreads];
         for (var t = 0; t < retryThreads; t++) {

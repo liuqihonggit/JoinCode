@@ -10,7 +10,7 @@ public sealed class ServiceRegistrationTests {
 
         services.AddDreamServices(cfg => cfg with { MinHours = 12 });
 
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var config = provider.GetRequiredService<AutoDreamConfig>();
         Assert.Equal(12, config.MinHours);
     }
@@ -21,7 +21,7 @@ public sealed class ServiceRegistrationTests {
 
         services.AddDreamServices();
 
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var config1 = provider.GetRequiredService<AutoDreamConfig>();
         var config2 = provider.GetRequiredService<AutoDreamConfig>();
         Assert.Same(config1, config2);
@@ -34,7 +34,7 @@ public sealed class ServiceRegistrationTests {
 
         services.AddDreamServicesWithPersistence(cfg => cfg with { MinSessions = 3 });
 
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var config = provider.GetRequiredService<AutoDreamConfig>();
         Assert.Equal(3, config.MinSessions);
     }
@@ -45,7 +45,7 @@ public sealed class ServiceRegistrationTests {
 
         services.AddDreamServicesWithPersistence();
 
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         Assert.NotNull(provider.GetService<AutoDreamConfig>());
     }
 
@@ -91,7 +91,7 @@ public sealed class ServiceRegistrationTests {
 
         services.AddDreamPluginServices();
 
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var config = provider.GetRequiredService<AutoDreamConfig>();
         Assert.Equal(2, config.MinSessions);
     }

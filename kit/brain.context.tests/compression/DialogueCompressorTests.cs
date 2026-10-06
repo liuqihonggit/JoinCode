@@ -202,7 +202,7 @@ User: Question 3
 Assistant: Answer 3
 User: Question 4
 Assistant: Answer 4";
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         cts.Cancel();
 
         var options = new CompressionOptions {

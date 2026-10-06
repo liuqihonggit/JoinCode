@@ -28,7 +28,7 @@ public sealed class ExtractMemoriesCallbackTests {
     public async Task OnPostSamplingAsync_NonReplSource_DoesNothing() {
         var fs = CreateFileSystem();
         var forkMock = new Mock<IForkSubAgentManager>();
-        var callback = CreateCallback(fs, forkMock.Object);
+        using var callback = CreateCallback(fs, forkMock.Object);
 
         var context = CreateContext(querySource: "sdk");
         await callback.OnPostSamplingAsync(context).ConfigureAwait(true);
@@ -39,7 +39,7 @@ public sealed class ExtractMemoriesCallbackTests {
     [Fact]
     public async Task OnPostSamplingAsync_WithoutForkManager_DoesNotThrow() {
         var fs = CreateFileSystem();
-        var callback = CreateCallback(fs, forkManager: null);
+        using var callback = CreateCallback(fs, forkManager: null);
 
         var context = CreateContext();
         var act = async () => await callback.OnPostSamplingAsync(context).ConfigureAwait(true);
@@ -63,7 +63,7 @@ public sealed class ExtractMemoriesCallbackTests {
         forkMock.Setup(f => f.ForkAsync(It.IsAny<ForkOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ForkResult { ForkId = "fork-1", State = ForkState.Completed });
 
-        var callback = CreateCallback(fs, forkMock.Object);
+        using var callback = CreateCallback(fs, forkMock.Object);
         var context = CreateContext();
 
         try {
@@ -84,7 +84,7 @@ public sealed class ExtractMemoriesCallbackTests {
         forkMock.Setup(f => f.ForkAsync(It.IsAny<ForkOptions>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Fork failed"));
 
-        var callback = CreateCallback(fs, forkMock.Object);
+        using var callback = CreateCallback(fs, forkMock.Object);
         var context = CreateContext();
         var act = async () => await callback.OnPostSamplingAsync(context).ConfigureAwait(true);
         await act.Should().NotThrowAsync();
@@ -99,7 +99,7 @@ public sealed class ExtractMemoriesCallbackTests {
         forkMock.Setup(f => f.ForkAsync(It.IsAny<ForkOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ForkResult { ForkId = "fork-1", State = ForkState.Completed });
 
-        var callback = CreateCallback(fs, forkMock.Object);
+        using var callback = CreateCallback(fs, forkMock.Object);
         var context = CreateContext();
         await callback.OnPostSamplingAsync(context).ConfigureAwait(true);
 

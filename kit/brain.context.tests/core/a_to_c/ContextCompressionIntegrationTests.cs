@@ -134,7 +134,7 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task ContextHierarchy_WithMultipleLayers_ShouldManageLayersCorrectly() {
         // Arrange
-        var hierarchy = ContextHierarchy.Create(
+        using var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions {
                 TokenThreshold = 4000,
                 AutoCompressionEnabled = false
@@ -176,7 +176,7 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task ContextHierarchy_PromoteLayer_ShouldCompressContent() {
         // Arrange
-        var hierarchy = ContextHierarchy.Create(
+        using var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions { AutoCompressionEnabled = false },
             _logger);
 
@@ -204,7 +204,7 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task ContextHierarchy_DemoteLayer_ShouldRestoreContent() {
         // Arrange
-        var hierarchy = ContextHierarchy.Create(
+        using var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions { AutoCompressionEnabled = false },
             _logger);
 
@@ -226,7 +226,7 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task ContextHierarchy_GetEffectiveContext_ShouldMergeLayers() {
         // Arrange
-        var hierarchy = ContextHierarchy.Create(
+        using var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions { AutoCompressionEnabled = false },
             _logger);
 
@@ -262,7 +262,7 @@ public partial class ContextCompressionIntegrationTests {
         // Arrange
         await using var factory = new CompressionStrategyFactory();
         await using var compressor = new ContextCompressor(factory);
-        var hierarchy = ContextHierarchy.Create(
+        using var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions {
                 TokenThreshold = 2000,
                 AutoCompressionEnabled = false

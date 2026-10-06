@@ -13,7 +13,7 @@ public class ServiceRegistrationTests {
 
         services.AddLlmServices(config);
 
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var service = provider.GetService<IQueryService>();
         service.Should().NotBeNull();
     }
@@ -25,7 +25,7 @@ public class ServiceRegistrationTests {
 
         services.AddLlmServicesWithCustomQuery(custom);
 
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         provider.GetService<IQueryService>().Should().BeSameAs(custom);
     }
 
@@ -45,7 +45,7 @@ public class ServiceRegistrationTests {
 
         services.AddPipeQueryService(pipeConfig, config.ApiKey);
 
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var service = provider.GetService<IQueryService>();
         service.Should().NotBeNull();
     }
@@ -58,7 +58,7 @@ public class ServiceRegistrationTests {
 
         services.AddKernelWithPlugins(providerConfig, pipeConfig);
 
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         provider.GetService<IQueryService>().Should().NotBeNull();
     }
 
@@ -69,7 +69,7 @@ public class ServiceRegistrationTests {
 
         services.AddKernelWithPlugins(providerConfig);
 
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         provider.GetService<IQueryService>().Should().NotBeNull();
     }
 

@@ -21,7 +21,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
     [Fact]
     public async Task CreateAsync_ShouldCreateSecret() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
 
         // Act
         var result = await sut.CreateAsync("api-key", "my-secret-value").ConfigureAwait(true);
@@ -38,7 +38,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
     [Fact]
     public async Task CreateAsync_ShouldStoreEncryptedValue() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         var plainValue = "my-secret-value";
 
         // Act
@@ -53,7 +53,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
     [Fact]
     public async Task GetAsync_ShouldReturnSecret_WhenExists() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         var created = await sut.CreateAsync("api-key", "my-secret-value").ConfigureAwait(true);
 
         // Act
@@ -68,7 +68,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
     [Fact]
     public async Task GetAsync_ShouldReturnNull_WhenNotExists() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
 
         // Act
         var result = await sut.GetAsync("nonexistent-id").ConfigureAwait(true);
@@ -80,7 +80,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
     [Fact]
     public async Task ValidateAsync_ShouldReturnTrue_WhenValueMatches() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         var plainValue = "correct-secret-value";
         var created = await sut.CreateAsync("api-key", plainValue).ConfigureAwait(true);
 
@@ -94,7 +94,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
     [Fact]
     public async Task ValidateAsync_ShouldReturnFalse_WhenValueDoesNotMatch() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         var created = await sut.CreateAsync("api-key", "correct-value").ConfigureAwait(true);
 
         // Act
@@ -107,7 +107,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
     [Fact]
     public async Task ValidateAsync_ShouldReturnFalse_WhenSecretIsRevoked() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         var plainValue = "secret-value";
         var created = await sut.CreateAsync("api-key", plainValue).ConfigureAwait(true);
         await sut.RevokeAsync(created.SecretId).ConfigureAwait(true);
@@ -122,7 +122,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
     [Fact]
     public async Task RotateAsync_ShouldCreateNewSecret_AndMarkOldAsRotated() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         var oldEntry = await sut.CreateAsync("api-key", "old-secret-value").ConfigureAwait(true);
 
         // Act
@@ -149,7 +149,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
     [Fact]
     public async Task RevokeAsync_ShouldMarkSecretAsRevoked() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         var created = await sut.CreateAsync("api-key", "secret-value").ConfigureAwait(true);
 
         // Act
@@ -164,7 +164,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
     [Fact]
     public async Task Lifecycle_ShouldReflectState_Correctly() {
         // Arrange
-        var sut = CreateSut();
+        using var sut = CreateSut();
         var created = await sut.CreateAsync("api-key", "secret-value").ConfigureAwait(true);
 
         // 初始 → Active

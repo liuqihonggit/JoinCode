@@ -12,25 +12,25 @@ public class WorktreeMiddlewareOrderAgnosticTests {
 
     [Fact]
     public void Order_WorktreeValidationMiddleware_Is100() {
-        var middleware = CreateValidationMiddleware();
+        using var middleware = CreateValidationMiddleware();
         middleware.Order.Should().Be(100);
     }
 
     [Fact]
     public void Order_WorktreeGitRootMiddleware_Is200() {
-        var middleware = CreateGitRootMiddleware();
+        using var middleware = CreateGitRootMiddleware();
         middleware.Order.Should().Be(200);
     }
 
     [Fact]
     public void Order_WorktreeRecoveryMiddleware_Is300() {
-        var middleware = CreateRecoveryMiddleware();
+        using var middleware = CreateRecoveryMiddleware();
         middleware.Order.Should().Be(300);
     }
 
     [Fact]
     public void Order_WorktreeGitInfoMiddleware_Is400() {
-        var middleware = CreateGitInfoMiddleware();
+        using var middleware = CreateGitInfoMiddleware();
         middleware.Order.Should().Be(400);
     }
 
@@ -42,13 +42,13 @@ public class WorktreeMiddlewareOrderAgnosticTests {
 
     [Fact]
     public void Order_WorktreeConfigMiddleware_Is600() {
-        var middleware = CreateConfigMiddleware();
+        using var middleware = CreateConfigMiddleware();
         middleware.Order.Should().Be(600);
     }
 
     [Fact]
     public void Order_WorktreeSessionSaveMiddleware_Is700() {
-        var middleware = CreateSessionSaveMiddleware();
+        using var middleware = CreateSessionSaveMiddleware();
         middleware.Order.Should().Be(700);
     }
 

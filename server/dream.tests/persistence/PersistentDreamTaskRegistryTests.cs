@@ -69,7 +69,7 @@ public sealed class PersistentDreamTaskRegistryTests {
     [Fact]
     public async Task KillDreamTaskAsync_NonExistent_DoesNotThrow() {
         var persistence = new Mock<IDreamTaskPersistence>();
-        var registry = new PersistentDreamTaskRegistry(persistence.Object);
+        using var registry = new PersistentDreamTaskRegistry(persistence.Object);
 
         var exception = await Record.ExceptionAsync(() => registry.KillDreamTaskAsync("missing")).ConfigureAwait(true);
 
@@ -79,7 +79,7 @@ public sealed class PersistentDreamTaskRegistryTests {
     [Fact]
     public async Task KillDreamTaskAsync_AlreadyTerminal_DoesNotThrow() {
         var persistence = new Mock<IDreamTaskPersistence>();
-        var registry = new PersistentDreamTaskRegistry(persistence.Object);
+        using var registry = new PersistentDreamTaskRegistry(persistence.Object);
         var taskId = await registry.RegisterDreamTaskAsync(CreateRequest()).ConfigureAwait(true);
         await registry.CompleteDreamTaskAsync(taskId).ConfigureAwait(true);
 

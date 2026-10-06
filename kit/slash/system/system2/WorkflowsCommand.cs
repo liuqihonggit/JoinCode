@@ -79,7 +79,7 @@ public sealed class WorkflowsCommand : ChatCommandBase {
             return ChatCommandResult.Continue();
         }
 
-        var pluginHost = pluginManager.GetWorkflowPlugin(name);
+        using var pluginHost = pluginManager.GetWorkflowPlugin(name);
         if (pluginHost is null) {
             TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsPluginNotFound, name));
             TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsListHint));

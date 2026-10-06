@@ -61,7 +61,7 @@ public sealed class ChatContextManagerColdResumeTests {
                 UpdatedAtUtcTicks = _now.AddHours(-25).Ticks
             });
 
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.LoadContextAsync().ConfigureAwait(true);
 
         var history = await sut.GetMessageListAsync().ConfigureAwait(true);
@@ -80,7 +80,7 @@ public sealed class ChatContextManagerColdResumeTests {
                 UpdatedAtUtcTicks = _now.AddHours(-1).Ticks
             });
 
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.LoadContextAsync().ConfigureAwait(true);
 
         var history = await sut.GetMessageListAsync().ConfigureAwait(true);
@@ -97,7 +97,7 @@ public sealed class ChatContextManagerColdResumeTests {
         _metaStore.Setup(m => m.LoadAsync("s1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SessionMeta { UpdatedAtUtcTicks = 0 });
 
-        var sut = CreateSut();
+        using var sut = CreateSut();
         await sut.LoadContextAsync().ConfigureAwait(true);
 
         var history = await sut.GetMessageListAsync().ConfigureAwait(true);

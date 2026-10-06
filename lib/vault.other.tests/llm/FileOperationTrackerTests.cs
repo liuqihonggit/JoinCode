@@ -47,7 +47,7 @@ public sealed class FileOperationTrackerTests {
 
     [Fact]
     public void Track_NullFilePath_ShouldThrow() {
-        var tracker = new FileOperationTracker();
+        using var tracker = new FileOperationTracker();
 
         var act = () => tracker.Track(null!, FileOperationType.Read);
 

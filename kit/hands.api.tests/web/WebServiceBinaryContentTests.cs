@@ -51,7 +51,7 @@ public class WebServiceBinaryContentTests {
     [Fact]
     public async Task FetchAsync_BinaryContent_PersistsFile() {
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E }; // %PDF-1.
-        var service = await CreateService(CreateMockApiClient(pdfBytes, "application/pdf"));
+        using var service = await CreateService(CreateMockApiClient(pdfBytes, "application/pdf"));
         var result = await service.FetchAsync("https://example.com/doc.pdf", CancellationToken.None).ConfigureAwait(true);
 
         if (!result.Success) Assert.Fail($"FetchAsync failed: {result.ErrorMessage}");
@@ -65,7 +65,7 @@ public class WebServiceBinaryContentTests {
     [Fact]
     public async Task FetchAsync_TextContent_DoesNotPersist() {
         var htmlBytes = "<html><body>Hello</body></html>"u8.ToArray();
-        var service = await CreateService(CreateMockApiClient(htmlBytes, "text/html"));
+        using var service = await CreateService(CreateMockApiClient(htmlBytes, "text/html"));
         var result = await service.FetchAsync("https://example.com/page.html", CancellationToken.None).ConfigureAwait(true);
 
         if (!result.Success) Assert.Fail($"FetchAsync failed: {result.ErrorMessage}");
@@ -76,7 +76,7 @@ public class WebServiceBinaryContentTests {
     [Fact]
     public async Task FetchAsync_JsonContent_DoesNotPersist() {
         var jsonBytes = "{\"key\":\"value\"}"u8.ToArray();
-        var service = await CreateService(CreateMockApiClient(jsonBytes, "application/json"));
+        using var service = await CreateService(CreateMockApiClient(jsonBytes, "application/json"));
         var result = await service.FetchAsync("https://example.com/data.json", CancellationToken.None).ConfigureAwait(true);
 
         if (!result.Success) Assert.Fail($"FetchAsync failed: {result.ErrorMessage}");
@@ -87,7 +87,7 @@ public class WebServiceBinaryContentTests {
     [Fact]
     public async Task FetchAsync_ImageContent_PersistsWithCorrectExtension() {
         var pngBytes = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A }; // PNG header
-        var service = await CreateService(CreateMockApiClient(pngBytes, "image/png"));
+        using var service = await CreateService(CreateMockApiClient(pngBytes, "image/png"));
         var result = await service.FetchAsync("https://example.com/image.png", CancellationToken.None).ConfigureAwait(true);
 
         if (!result.Success) Assert.Fail($"FetchAsync failed: {result.ErrorMessage}");
@@ -98,7 +98,7 @@ public class WebServiceBinaryContentTests {
     [Fact]
     public async Task FetchAsync_BinaryContent_StillReturnsTextContent() {
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 }; // %PDF
-        var service = await CreateService(CreateMockApiClient(pdfBytes, "application/pdf"));
+        using var service = await CreateService(CreateMockApiClient(pdfBytes, "application/pdf"));
         var result = await service.FetchAsync("https://example.com/doc.pdf", CancellationToken.None).ConfigureAwait(true);
 
         if (!result.Success) Assert.Fail($"FetchAsync failed: {result.ErrorMessage}");
@@ -111,7 +111,7 @@ public class WebServiceBinaryContentTests {
     public async Task FetchAsync_BinaryContent_CacheContainsPersistedPath() {
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 };
         var apiClient = CreateMockApiClient(pdfBytes, "application/pdf");
-        var service = await CreateService(apiClient);
+        using var service = await CreateService(apiClient);
 
         var result1 = await service.FetchAsync("https://example.com/doc.pdf", CancellationToken.None).ConfigureAwait(true);
         if (!result1.Success) Assert.Fail($"First fetch failed: {result1.ErrorMessage}");

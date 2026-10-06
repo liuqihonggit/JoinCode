@@ -53,7 +53,7 @@ public sealed class ConcurrencySafetyTests : IDisposable {
     public void CSharpSymbolExtractor_Concurrent_ExtractSymbols_4_NotThrows() {
         const int callCount = 4;
         var source = "public class Service { public void DoWork() { } }";
-        var extractor = new CSharpSymbolExtractor();
+        using var extractor = new CSharpSymbolExtractor();
         var exceptions = new System.Collections.Concurrent.ConcurrentBag<Exception>();
         using var startGate = new ManualResetEventSlim(false);
 
@@ -91,7 +91,7 @@ public sealed class ConcurrencySafetyTests : IDisposable {
                 public int Compute(int x) => x * 2;
             }
             """;
-        var extractor = new CSharpSymbolExtractor();
+        using var extractor = new CSharpSymbolExtractor();
 
         // 顺序串行调用 4 次,验证 _parseLock 5s 超时不触发。
         // (因为 _parseLock 串行化,并发场景下也只会 1 个 active,3 个等 5s 超时)

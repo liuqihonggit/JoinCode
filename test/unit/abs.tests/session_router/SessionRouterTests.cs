@@ -37,7 +37,7 @@ public sealed class SessionRouterTests {
         await using var goal = new Goal("测试目标");
         scope.Register(goal);
 
-        var resolved = SessionRouter.Resolve<Goal>(sessionId, goal.ObjectId);
+        using var resolved = SessionRouter.Resolve<Goal>(sessionId, goal.ObjectId);
         resolved.Should().BeSameAs(goal);
 
         await SessionRouter.ClearAsync();

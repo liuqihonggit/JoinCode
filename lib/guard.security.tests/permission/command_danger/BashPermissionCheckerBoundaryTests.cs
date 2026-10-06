@@ -53,7 +53,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
 
     [Fact]
     public void CheckPermission_恰好50个子命令_不触发过多子命令拦截() {
-        var checker = CreateChecker();
+        using var checker = CreateChecker();
         var command = BuildCommand(50);
 
         var result = checker.CheckPermission(command, @"D:\test");
@@ -64,7 +64,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
 
     [Fact]
     public void CheckPermission_51个子命令_触发Ask() {
-        var checker = CreateChecker();
+        using var checker = CreateChecker();
         var command = BuildCommand(51);
 
         var result = checker.CheckPermission(command, @"D:\test");
@@ -77,7 +77,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
 
     [Fact]
     public void CheckPermission_远超50个子命令_触发Ask() {
-        var checker = CreateChecker();
+        using var checker = CreateChecker();
         var command = BuildCommand(100);
 
         var result = checker.CheckPermission(command, @"D:\test");
@@ -88,7 +88,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
 
     [Fact]
     public void CheckPermission_少于50个子命令_不触发过多子命令拦截() {
-        var checker = CreateChecker();
+        using var checker = CreateChecker();
         var command = BuildCommand(10);
 
         var result = checker.CheckPermission(command, @"D:\test");
@@ -99,7 +99,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
 
     [Fact]
     public void CheckPermission_单个子命令_不触发过多子命令拦截() {
-        var checker = CreateChecker();
+        using var checker = CreateChecker();
 
         var result = checker.CheckPermission("echo hello", @"D:\test");
 
@@ -115,7 +115,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
     [InlineData("")]
     [InlineData("   ")]
     public void CheckPermission_空命令_返回Passthrough(string? command) {
-        var checker = CreateChecker();
+        using var checker = CreateChecker();
 
         var result = checker.CheckPermission(command!, @"D:\test");
 
@@ -131,7 +131,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
         var securityMock = new Mock<IBashSecurityValidator>();
         securityMock.Setup(v => v.Validate(It.IsAny<string>()))
             .Returns(new BashSecurityResult(IsSafe: false, CheckId: null, Message: "danger"));
-        var checker = CreateChecker(securityMock: securityMock);
+        using var checker = CreateChecker(securityMock: securityMock);
         var command = BuildCommand(100);
 
         var result = checker.CheckPermission(command, @"D:\test");
@@ -181,7 +181,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
 
     [Fact]
     public void CheckPermission_NullWorkingDirectory_ThrowsArgumentNullException() {
-        var checker = CreateChecker();
+        using var checker = CreateChecker();
         var act = () => checker.CheckPermission("echo hello", null!);
         act.Should().Throw<ArgumentNullException>()
             .Which.ParamName.Should().Be("workingDirectory");
@@ -189,7 +189,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
 
     [Fact]
     public void CheckPermission_EmptyWorkingDirectory_ThrowsArgumentException() {
-        var checker = CreateChecker();
+        using var checker = CreateChecker();
         var act = () => checker.CheckPermission("echo hello", "");
         act.Should().Throw<ArgumentException>();
     }

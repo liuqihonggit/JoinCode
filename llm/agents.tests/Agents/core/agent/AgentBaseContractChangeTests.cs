@@ -68,7 +68,7 @@ public sealed class AgentBaseContractChangeTests {
     public async Task ExecuteAsync_WithNullContractChangeQueue_ShouldNotThrow() {
         var queryEngine = CreateQueryEngineMock();
         var options = new SubAgentOptions { MaxIterations = 1 };
-        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+        using var agent = new AgentBase("test task", options, queryEngine.Object, null);
 
         var act = () => agent.ExecuteAsync();
         await act.Should().NotThrowAsync();
@@ -127,7 +127,7 @@ public sealed class AgentBaseContractChangeTests {
     public async Task ExecuteAsync_WithNullDeferredMailService_ShouldNotThrow() {
         var queryEngine = CreateQueryEngineMock();
         var options = new SubAgentOptions { MaxIterations = 1 };
-        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+        using var agent = new AgentBase("test task", options, queryEngine.Object, null);
 
         var act = () => agent.ExecuteAsync();
         await act.Should().NotThrowAsync();

@@ -12,7 +12,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public async Task ApplyToolResultBudget_SingleToolExceedsBudget_PersistsResult() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
         var state = new ContentReplacementState();
 
         // 创建一条 user 消息 + 一条超大 tool 消息
@@ -46,7 +46,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public async Task ApplyToolResultBudget_MultipleToolsExceedBudget_PersistsLargest() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
         var state = new ContentReplacementState();
 
         // 3 个工具结果，每个 80K，总计 240K > 200K 预算
@@ -80,7 +80,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public async Task ApplyToolResultBudget_WithinBudget_NoPersistence() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
         var state = new ContentReplacementState();
 
         // 2 个工具结果，每个 50K，总计 100K < 200K 预算
@@ -113,7 +113,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public async Task ApplyToolResultBudget_AlreadyReplaced_ReappliesSameReplacement() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
         var state = new ContentReplacementState();
 
         var largeContent = new string('x', 250_000);
@@ -147,7 +147,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public async Task ApplyToolResultBudget_NeverPersistTools_SkipsSpecifiedTools() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
         var state = new ContentReplacementState();
 
         var largeContent = new string('x', 250_000);
@@ -179,7 +179,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public async Task ApplyToolResultBudget_DifferentUserMessages_IndependentBudgets() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
         var state = new ContentReplacementState();
 
         var content120K = new string('a', 120_000);
@@ -212,7 +212,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public void ProvisionContentReplacementState_ColdStart_ReturnsNewState() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
 
         var state = service.ProvisionContentReplacementState();
 
@@ -228,7 +228,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public async Task ProvisionContentReplacementState_WithMessages_ReconstructsState() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
 
         var largeContent = new string('x', 250_000);
         var messages = new List<ApiMessage>
@@ -258,7 +258,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public void ReconstructForSubagentResume_NullParent_ReturnsNull() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
 
         var messages = new List<ApiMessage> { new(MessageRole.User, "test") };
 
@@ -274,7 +274,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public void ReconstructForSubagentResume_WithParent_InheritsReplacements() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
 
         // 构建父级状态
         var parentState = new ContentReplacementState();
@@ -303,7 +303,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public void ReconstructState_WithMessagesAndRecords_RebuildsCorrectly() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
 
         var messages = new List<ApiMessage>
         {
@@ -348,7 +348,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public void ReconstructState_RecordsOnly_FiltersByKind() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
 
         var records = new List<ContentReplacementRecord>
         {
@@ -373,7 +373,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public async Task MaybePersistLargeToolResult_EmptyContent_ReturnsNoOutputTemplate() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
 
         var result = await service.MaybePersistLargeToolResult("TestTool", "id1", "", "session1");
 
@@ -388,7 +388,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public async Task MaybePersistLargeToolResult_BelowThreshold_ReturnsNull() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
 
         var smallContent = new string('a', 1000);
         var result = await service.MaybePersistLargeToolResult("TestTool", "id1", smallContent, "session1");
@@ -403,7 +403,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public async Task MaybePersistLargeToolResult_ExceedsThreshold_ReturnsReplacement() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
 
         var largeContent = new string('x', 250_000);
         var result = await service.MaybePersistLargeToolResult("TestTool", "id1", largeContent, "session1");
@@ -420,7 +420,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public void ProvisionContentReplacementState_FeatureDisabled_ReturnsNull() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService(enabled: false);
+        using var service = CreateService(enabled: false);
 
         var state = service.ProvisionContentReplacementState();
 
@@ -434,7 +434,7 @@ public sealed class ContentReplacementServiceTests {
     [Fact]
     public async Task MaybePersistLargeToolResult_NeverPersistTool_ReturnsNull() {
         var fileService = new MockToolResultFileService();
-        var service = CreateService();
+        using var service = CreateService();
 
         // read 工具的阈值为 -1 (Infinity)，永不持久化
         var largeContent = new string('x', 250_000);

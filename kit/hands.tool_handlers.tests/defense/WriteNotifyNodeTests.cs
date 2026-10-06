@@ -5,7 +5,7 @@ public class WriteNotifyNodeTests {
 
     [Fact]
     public void NotifyWriteComplete_AllNullDeps_DoesNotThrow() {
-        var node = new WriteNotifyNode(_fs);
+        using var node = new WriteNotifyNode(_fs);
 
         node.NotifyWriteComplete("/test.txt", "content", "write", FileOperationType.Write);
     }
@@ -15,7 +15,7 @@ public class WriteNotifyNodeTests {
         var lspDiag = new Mock<ILspDiagnosticProvider>();
         lspDiag.Setup(d => d.ClearDeliveredForFile(It.IsAny<string>()))
                .Verifiable();
-        var node = new WriteNotifyNode(_fs, lspDiagnosticProvider: lspDiag.Object);
+        using var node = new WriteNotifyNode(_fs, lspDiagnosticProvider: lspDiag.Object);
 
         node.NotifyWriteComplete("/test.txt", "content", "write", FileOperationType.Write);
 
@@ -28,7 +28,7 @@ public class WriteNotifyNodeTests {
         var counter = new Mock<ITelemetryCounter>();
         telemetry.Setup(t => t.GetCounter(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>()))
                  .Returns(counter.Object);
-        var node = new WriteNotifyNode(_fs, telemetryService: telemetry.Object);
+        using var node = new WriteNotifyNode(_fs, telemetryService: telemetry.Object);
 
         node.NotifyWriteComplete("/test.txt", "content", "write", FileOperationType.Write);
 
@@ -41,7 +41,7 @@ public class WriteNotifyNodeTests {
         var listener = new Mock<IFileWriteListenerRegistry>();
         listener.Setup(l => l.Notify(It.IsAny<FileWriteEventArgs>()))
                 .Verifiable();
-        var node = new WriteNotifyNode(_fs, fileWriteListenerRegistry: listener.Object);
+        using var node = new WriteNotifyNode(_fs, fileWriteListenerRegistry: listener.Object);
 
         node.NotifyWriteComplete("/test.txt", "content", "write", FileOperationType.Write);
 

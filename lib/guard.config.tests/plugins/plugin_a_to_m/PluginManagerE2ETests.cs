@@ -36,7 +36,7 @@ public sealed class PluginManagerE2ETests {
     [Fact]
     public async Task LoadAndUnload_LifecycleWorks() {
         await using var pm = CreatePluginManager();
-        var host = await pm.LoadWorkflowPluginAsync<TestPlugin>();
+        using var host = await pm.LoadWorkflowPluginAsync<TestPlugin>();
         Assert.Equal("TestPlugin", host.PluginName);
         Assert.True(pm.IsWorkflowPluginLoaded("TestPlugin"));
 

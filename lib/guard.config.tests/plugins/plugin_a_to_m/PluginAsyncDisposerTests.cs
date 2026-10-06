@@ -7,8 +7,8 @@ public sealed class PluginAsyncDisposerTests {
         services.AddLogging(builder => builder.AddConsole());
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
         services.AddSingleton<IPluginManager, PluginManager>();
-        var sp = services.BuildServiceProvider();
-        var pm = sp.GetRequiredService<IPluginManager>();
+        using var sp = services.BuildServiceProvider();
+        using var pm = sp.GetRequiredService<IPluginManager>();
 
         var host = await pm.LoadWorkflowPluginAsync<AsyncEffectPlugin>().ConfigureAwait(true);
         var plugin = (AsyncEffectPlugin)host.Plugin;

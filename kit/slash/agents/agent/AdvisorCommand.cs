@@ -15,7 +15,7 @@ public sealed class AdvisorCommand(IModelConfigLoader? modelConfigLoader = null)
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
-        var advisorService = ChatCommandBase.GetService<IAdvisorService>(context);
+        using var advisorService = ChatCommandBase.GetService<IAdvisorService>(context);
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         if (advisorService is null)

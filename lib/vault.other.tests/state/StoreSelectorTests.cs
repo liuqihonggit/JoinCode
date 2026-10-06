@@ -37,7 +37,7 @@ public sealed class StoreSelectorTests : IDisposable {
 
     [Fact]
     public void Subscribe_ImmediatelyEmitsCurrentValue() {
-        var selector = new StoreSelector<int, int>(_store, x => x + 10);
+        using var selector = new StoreSelector<int, int>(_store, x => x + 10);
         var received = new List<int>();
 
         using var subscription = selector.Subscribe(received.Add);
@@ -47,7 +47,7 @@ public sealed class StoreSelectorTests : IDisposable {
 
     [Fact]
     public void Subscribe_StateChange_EmitsNewValue() {
-        var selector = new StoreSelector<int, int>(_store, x => x + 10);
+        using var selector = new StoreSelector<int, int>(_store, x => x + 10);
         var received = new List<int>();
 
         using var subscription = selector.Subscribe(received.Add);
@@ -59,7 +59,7 @@ public sealed class StoreSelectorTests : IDisposable {
 
     [Fact]
     public void Subscribe_DuplicateValue_DoesNotEmit() {
-        var selector = new StoreSelector<int, int>(_store, x => x % 2);
+        using var selector = new StoreSelector<int, int>(_store, x => x % 2);
         var received = new List<int>();
 
         using var subscription = selector.Subscribe(received.Add);
@@ -70,7 +70,7 @@ public sealed class StoreSelectorTests : IDisposable {
 
     [Fact]
     public void Subscribe_MultipleSubscribers_AllReceiveUpdates() {
-        var selector = new StoreSelector<int, int>(_store, x => x * 2);
+        using var selector = new StoreSelector<int, int>(_store, x => x * 2);
         var received1 = new List<int>();
         var received2 = new List<int>();
 
@@ -100,7 +100,7 @@ public sealed class StoreSelectorTests : IDisposable {
         var selector = new StoreSelector<int, int>(_store, x => x * 2);
         var received = new List<int>();
 
-        var subscription = selector.Subscribe(received.Add);
+        using var subscription = selector.Subscribe(received.Add);
         selector.Dispose();
 
         _store.SetState(x => x + 1);
@@ -137,7 +137,7 @@ public sealed class StoreSelectorTests : IDisposable {
 
     [Fact]
     public void Subscribe_HandlerThrows_DoesNotBreakOtherSubscribers() {
-        var selector = new StoreSelector<int, int>(_store, x => x * 2);
+        using var selector = new StoreSelector<int, int>(_store, x => x * 2);
         var received = new List<int>();
 
         using var sub1 = selector.Subscribe(received.Add);
@@ -171,7 +171,7 @@ public sealed class StoreSelectorTests : IDisposable {
 
     [Fact]
     public void Subscribe_DifferentReferenceButEqualByComparer_DoesNotEmit() {
-        var selector = new StoreSelector<int, string>(_store, x => (x % 2).ToString(), StringComparer.OrdinalIgnoreCase);
+        using var selector = new StoreSelector<int, string>(_store, x => (x % 2).ToString(), StringComparer.OrdinalIgnoreCase);
         var received = new List<string>();
 
         using var subscription = selector.Subscribe(received.Add);

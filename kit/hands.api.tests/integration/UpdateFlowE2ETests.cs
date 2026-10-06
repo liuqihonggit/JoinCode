@@ -91,7 +91,7 @@ public sealed class UpdateFlowE2ETests {
             await server.StartAsync();
             await Task.Delay(500);
 
-            var response = await new HttpClient().GetAsync($"{server.Url}/health");
+            using var response = await new HttpClient().GetAsync($"{server.Url}/health");
             response.IsSuccessStatusCode.Should().BeTrue();
             var content = await response.Content.ReadAsStringAsync();
             content.Should().Contain("ok");
@@ -114,7 +114,7 @@ public sealed class UpdateFlowE2ETests {
             await server.StartAsync();
             await Task.Delay(500);
 
-            var response = await new HttpClient().GetAsync($"{server.Url}/manifest.json");
+            using var response = await new HttpClient().GetAsync($"{server.Url}/manifest.json");
             response.IsSuccessStatusCode.Should().BeTrue();
             response.Content.Headers.ContentType!.MediaType.Should().Be("application/json");
 

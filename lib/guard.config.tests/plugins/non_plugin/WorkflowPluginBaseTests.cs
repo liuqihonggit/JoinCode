@@ -42,8 +42,8 @@ public sealed class WorkflowPluginBaseTests {
     [Fact]
     public async Task Unload_ReleasesAllResources() {
         await using var plugin = new TestPlugin();
-        var r1 = plugin.RegisterResource(new TestResource("test-plugin", "cmd1"));
-        var r2 = plugin.RegisterResource(new TestResource("test-plugin", "cmd2"));
+        using var r1 = plugin.RegisterResource(new TestResource("test-plugin", "cmd1"));
+        using var r2 = plugin.RegisterResource(new TestResource("test-plugin", "cmd2"));
         var r1Id = r1.ObjectId;
         var r2Id = r2.ObjectId;
 

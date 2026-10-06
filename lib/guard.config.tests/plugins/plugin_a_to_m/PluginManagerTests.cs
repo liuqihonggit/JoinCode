@@ -12,8 +12,8 @@ public class PluginManagerTests {
 
     [Fact]
     public void Constructor_ShouldInitializeEmptyPluginManager() {
-        var serviceProvider = CreateServiceProvider();
-        var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
+        using var serviceProvider = CreateServiceProvider();
+        using var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
         Assert.Empty(pluginManager.LoadedPluginNames);
         Assert.False(pluginManager.IsPluginLoaded("any-plugin"));
@@ -21,8 +21,8 @@ public class PluginManagerTests {
 
     [Fact]
     public async Task UnloadPluginAsync_WhenPluginNotLoaded_ShouldReturnAlreadyUnloaded() {
-        var serviceProvider = CreateServiceProvider();
-        var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
+        using var serviceProvider = CreateServiceProvider();
+        using var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
         var result = await pluginManager.UnloadPluginAsync("non-existent").ConfigureAwait(true);
 
@@ -32,8 +32,8 @@ public class PluginManagerTests {
 
     [Fact]
     public async Task UnloadAllPluginsAsync_WhenNoPluginsLoaded_ShouldReturnEmptyList() {
-        var serviceProvider = CreateServiceProvider();
-        var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
+        using var serviceProvider = CreateServiceProvider();
+        using var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
         var results = await pluginManager.UnloadAllPluginsAsync().ConfigureAwait(true);
 
@@ -42,7 +42,7 @@ public class PluginManagerTests {
 
     [Fact]
     public async Task Dispose_ShouldNotThrow_WhenNoPluginsLoaded() {
-        var serviceProvider = CreateServiceProvider();
+        using var serviceProvider = CreateServiceProvider();
         var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
         var exception = await Record.ExceptionAsync(async () => await pluginManager.DisposeAsync());
@@ -118,32 +118,32 @@ public class PluginManagerTests {
 
     [Fact]
     public void IsWorkflowPluginLoaded_WhenNotLoaded_ShouldReturnFalse() {
-        var serviceProvider = CreateServiceProvider();
-        var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
+        using var serviceProvider = CreateServiceProvider();
+        using var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
         Assert.False(pluginManager.IsWorkflowPluginLoaded("non-existent"));
     }
 
     [Fact]
     public void IsExternalPluginLoaded_WhenNotLoaded_ShouldReturnFalse() {
-        var serviceProvider = CreateServiceProvider();
-        var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
+        using var serviceProvider = CreateServiceProvider();
+        using var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
         Assert.False(pluginManager.IsExternalPluginLoaded("non-existent"));
     }
 
     [Fact]
     public void GetWorkflowPlugin_WhenNotLoaded_ShouldReturnNull() {
-        var serviceProvider = CreateServiceProvider();
-        var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
+        using var serviceProvider = CreateServiceProvider();
+        using var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
         Assert.Null(pluginManager.GetWorkflowPlugin("non-existent"));
     }
 
     [Fact]
     public void GetExternalPlugin_WhenNotLoaded_ShouldReturnNull() {
-        var serviceProvider = CreateServiceProvider();
-        var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
+        using var serviceProvider = CreateServiceProvider();
+        using var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
         Assert.Null(pluginManager.GetExternalPlugin("non-existent"));
     }

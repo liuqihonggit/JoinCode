@@ -60,7 +60,7 @@ public class HttpRequestSerializerTest {
     public void Deserialize_FullResponse_ParsesStatusHeadersBody() {
         var text = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nX-Trace: abc\r\n\r\n{\"ok\":true}";
 
-        var resp = HttpRequestSerializer.Deserialize(text);
+        using var resp = HttpRequestSerializer.Deserialize(text);
 
         resp.StatusCode.Should().Be(HttpStatusCode.OK);
         resp.ReasonPhrase.Should().Be("OK");
@@ -78,7 +78,7 @@ public class HttpRequestSerializerTest {
     public void Deserialize_StatusLineWithoutReason_ParsesStatusCodeOnly() {
         var text = "HTTP/1.1 204\r\n\r\n";
 
-        var resp = HttpRequestSerializer.Deserialize(text);
+        using var resp = HttpRequestSerializer.Deserialize(text);
 
         resp.StatusCode.Should().Be(HttpStatusCode.NoContent);
         // StatusCode setter 自动填充 204 的默认原因短语

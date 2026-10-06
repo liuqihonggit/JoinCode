@@ -40,7 +40,7 @@ public sealed class CrossPluginLinkTests {
     public async Task AddReference_CrossPlugin_RefCountIncremented() {
         await using var pluginA = new PluginA();
         await using var pluginB = new PluginB();
-        var cmdA = pluginA.CreateCommandResource();
+        using var cmdA = pluginA.CreateCommandResource();
 
         var handle = cmdA.AddReference(pluginB.Name);
         cmdA.ReferenceCount.Should().Be(1);
@@ -54,7 +54,7 @@ public sealed class CrossPluginLinkTests {
     public async Task EnsureAlive_CrossPlugin_DetectsProviderDeath() {
         await using var pluginA = new PluginA();
         await using var pluginB = new PluginB();
-        var cmdA = pluginA.CreateCommandResource();
+        using var cmdA = pluginA.CreateCommandResource();
         var handle = cmdA.AddReference(pluginB.Name);
 
         var act1 = () => cmdA.EnsureAlive();
@@ -74,7 +74,7 @@ public sealed class CrossPluginLinkTests {
         var graph = new ResourceReferenceGraph();
         await using var pluginA = new PluginA();
         await using var pluginB = new PluginB();
-        var cmdA = pluginA.CreateCommandResource();
+        using var cmdA = pluginA.CreateCommandResource();
         await using var cmdB = new CommandResourceA(pluginB.Name, "cmdB");
         pluginB.RegisterResource(cmdB);
 
@@ -102,7 +102,7 @@ public sealed class CrossPluginLinkTests {
     [Fact]
     public async Task TwoPhaseUnload_ResourceIdsCollectedAndScanned() {
         await using var pluginA = new PluginA();
-        var cmdA = pluginA.CreateCommandResource();
+        using var cmdA = pluginA.CreateCommandResource();
         var resourceIds = pluginA.Resources.Select(r => r.ObjectId).ToList();
         resourceIds.Should().HaveCount(1);
 
@@ -119,7 +119,7 @@ public sealed class CrossPluginLinkTests {
     public async Task PluginDeath_CascadesToDependents() {
         await using var pluginA = new PluginA();
         await using var pluginB = new PluginB();
-        var cmdA = pluginA.CreateCommandResource();
+        using var cmdA = pluginA.CreateCommandResource();
         var handle = cmdA.AddReference(pluginB.Name);
 
         var bDeathCount = 0;
@@ -142,7 +142,7 @@ public sealed class CrossPluginLinkTests {
     public async Task ResourceReferenceHandle_UsingPattern_AutoRelease() {
         await using var pluginA = new PluginA();
         await using var pluginB = new PluginB();
-        var cmdA = pluginA.CreateCommandResource();
+        using var cmdA = pluginA.CreateCommandResource();
 
         using (cmdA.AddReference(pluginB.Name)) {
             cmdA.ReferenceCount.Should().Be(1);

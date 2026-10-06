@@ -186,20 +186,20 @@ public sealed partial class BridgeMainTests {
 
     [Fact]
     public async Task GetSessionTitleAsync_InvalidSessionId_ReturnsNull() {
-        var apiClient = BridgeTestHelperMethods.CreateMockApiClient();
+        using var apiClient = BridgeTestHelperMethods.CreateMockApiClient();
         var title = await apiClient.GetSessionTitleAsync("../../etc/passwd").ConfigureAwait(true);
         Assert.Null(title);
     }
 
     [Fact]
     public async Task UpdateSessionTitleAsync_InvalidSessionId_DoesNotThrow() {
-        var apiClient = BridgeTestHelperMethods.CreateMockApiClient();
+        using var apiClient = BridgeTestHelperMethods.CreateMockApiClient();
         await apiClient.UpdateSessionTitleAsync("../../etc/passwd", "title").ConfigureAwait(true);
     }
 
     [Fact]
     public async Task UpdateSessionTitleAsync_EmptyTitle_DoesNotThrow() {
-        var apiClient = BridgeTestHelperMethods.CreateMockApiClient();
+        using var apiClient = BridgeTestHelperMethods.CreateMockApiClient();
         await apiClient.UpdateSessionTitleAsync("session-123", "").ConfigureAwait(true);
     }
 

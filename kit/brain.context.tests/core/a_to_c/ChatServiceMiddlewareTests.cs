@@ -43,14 +43,14 @@ public sealed class ChatServiceMiddlewareTests {
     [Fact]
     public async Task SendMessageAsync_NoMiddlewares_ReturnsFallbackText() {
         // 空中间件列表 → 只有 TerminalHandler → 无事件 → 返回回退文本
-        var service = CreateService([]);
+        using var service = CreateService([]);
         var result = await service.SendMessageAsync("hello").ConfigureAwait(true);
         result.Should().Be("抱歉，我无法生成回复。");
     }
 
     [Fact]
     public async Task SendMessageAsync_WithMockQueryLoop_ReturnsResponse() {
-        var service = CreateService([
+        using var service = CreateService([
             new MockPreChatMiddleware(),
             new MockQueryLoopMiddleware("Hello from mock")
         ]);
@@ -66,7 +66,7 @@ public sealed class ChatServiceMiddlewareTests {
         // 用自定义中间件记录执行顺序
         var executionLog = new List<string>();
 
-        var service = CreateService([
+        using var service = CreateService([
             new OrderTrackingMiddleware("A", executionLog),
             new OrderTrackingMiddleware("B", executionLog),
             new OrderTrackingMiddleware("C", executionLog),
@@ -81,7 +81,7 @@ public sealed class ChatServiceMiddlewareTests {
 
     [Fact]
     public async Task StreamWithEventsAsync_WithMockMiddlewares_ReturnsAllEvents() {
-        var service = CreateService([
+        using var service = CreateService([
             new MockPreChatMiddleware(),
             new MockQueryLoopMiddleware("stream text")
         ]);
@@ -100,7 +100,7 @@ public sealed class ChatServiceMiddlewareTests {
 
     [Fact]
     public async Task SendMessageStreamAsync_WithMockMiddlewares_ReturnsTextChunks() {
-        var service = CreateService([
+        using var service = CreateService([
             new MockPreChatMiddleware(),
             new MockQueryLoopMiddleware("chunk1")
         ]);
@@ -119,7 +119,7 @@ public sealed class ChatServiceMiddlewareTests {
     public async Task Pipeline_ShortCircuit_MiddlewareSkipsNext() {
         var executionLog = new List<string>();
 
-        var service = CreateService([
+        using var service = CreateService([
             new ShortCircuitMiddleware("blocked", executionLog),
             new OrderTrackingMiddleware("should-not-run", executionLog),
         ]);
@@ -134,7 +134,7 @@ public sealed class ChatServiceMiddlewareTests {
 
     [Fact]
     public async Task SendMessageAsync_IncrementsConversationTurn() {
-        var service = CreateService([
+        using var service = CreateService([
             new MockPreChatMiddleware(),
             new MockQueryLoopMiddleware()
         ]);
@@ -145,7 +145,7 @@ public sealed class ChatServiceMiddlewareTests {
         // 第二次调用 — ConversationTurn=1
         // 用 TurnRecordingMiddleware 验证
         var turnRecorder = new TurnRecordingMiddleware();
-        var service2 = CreateService([
+        using var service2 = CreateService([
             turnRecorder,
             new MockQueryLoopMiddleware()
         ]);
@@ -163,7 +163,7 @@ public sealed class ChatServiceMiddlewareTests {
     public async Task Pipeline_ToolUseContext_SharedAcrossMiddlewares() {
         var contextCapture = new ToolUseContextCaptureMiddleware();
 
-        var service = CreateService([
+        using var service = CreateService([
             contextCapture,
             new MockQueryLoopMiddleware()
         ]);
@@ -191,7 +191,7 @@ public sealed class ChatServiceMiddlewareTests {
         await using var saveContext = new SaveContextMiddleware(
             contextManagerMock.Object, NullLogger<SaveContextMiddleware>.Instance);
 
-        var service = CreateService([
+        using var service = CreateService([
             new MockPreChatMiddleware(),
             new MockQueryLoopMiddleware(),
             processUsage,
@@ -225,7 +225,7 @@ public sealed class ChatServiceMiddlewareTests {
         await using var saveContext = new SaveContextMiddleware(
             contextManagerMock.Object, NullLogger<SaveContextMiddleware>.Instance);
 
-        var service = CreateService([
+        using var service = CreateService([
             new MockPreChatMiddleware(),
             new MockQueryLoopMiddleware(),
             processUsage,

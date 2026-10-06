@@ -106,35 +106,35 @@ public sealed class FacetCacheServicePureLogicTests {
     // === GetFacetFilePath: 路径拼接 ===
 
     [Fact]
-    public void GetFacetFilePath_PlainSessionId_CombinesDirSessionIdFileName() {
+    public async Task GetFacetFilePath_PlainSessionId_CombinesDirSessionIdFileName() {
         await using var sut = CreateSut("/test/facets");
         var path = sut.GetFacetFilePath("session-001");
         path.Should().Be(Path.Combine("/test/facets", "session-001", "usage-facet.json"));
     }
 
     [Fact]
-    public void GetFacetFilePath_SessionIdWithForwardSlash_ReplacedWithUnderscore() {
+    public async Task GetFacetFilePath_SessionIdWithForwardSlash_ReplacedWithUnderscore() {
         await using var sut = CreateSut("/test/facets");
         var path = sut.GetFacetFilePath("dir/sub/session");
         path.Should().Be(Path.Combine("/test/facets", "dir_sub_session", "usage-facet.json"));
     }
 
     [Fact]
-    public void GetFacetFilePath_SessionIdWithBackslash_ReplacedWithUnderscore() {
+    public async Task GetFacetFilePath_SessionIdWithBackslash_ReplacedWithUnderscore() {
         await using var sut = CreateSut("/test/facets");
         var path = sut.GetFacetFilePath(@"dir\sub\session");
         path.Should().Be(Path.Combine("/test/facets", "dir_sub_session", "usage-facet.json"));
     }
 
     [Fact]
-    public void GetFacetFilePath_SessionIdWithMixedSeparators_AllReplacedWithUnderscore() {
+    public async Task GetFacetFilePath_SessionIdWithMixedSeparators_AllReplacedWithUnderscore() {
         await using var sut = CreateSut("/test/facets");
         var path = sut.GetFacetFilePath(@"dir/sub\mix");
         path.Should().Be(Path.Combine("/test/facets", "dir_sub_mix", "usage-facet.json"));
     }
 
     [Fact]
-    public void GetFacetFilePath_AlwaysEndsWithUsageFacetJson() {
+    public async Task GetFacetFilePath_AlwaysEndsWithUsageFacetJson() {
         await using var sut = CreateSut("/test/facets");
         var path = sut.GetFacetFilePath("any-session-id");
         path.Should().EndWith("usage-facet.json");
@@ -143,7 +143,7 @@ public sealed class FacetCacheServicePureLogicTests {
     // === GetFacetFilePath: 确定性 ===
 
     [Fact]
-    public void GetFacetFilePath_Deterministic_SameInputSameOutput() {
+    public async Task GetFacetFilePath_Deterministic_SameInputSameOutput() {
         await using var sut = CreateSut("/test/facets");
         var p1 = sut.GetFacetFilePath("session-1");
         var p2 = sut.GetFacetFilePath("session-1");

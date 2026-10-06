@@ -134,7 +134,7 @@ public sealed partial class ClearCommand : ChatCommandBase {
         loopDetector?.Reset();
 
         // 9. 工具信息缓存 — 对齐 TS: clearToolSearchDescriptionCache()
-        await using var toolCacheManager = GetService<ToolCacheManager>(context);
+        var toolCacheManager = GetService<ToolCacheManager>(context);
         toolCacheManager?.InvalidateAllCache();
 
         // 10. 方法名缓存（静态）

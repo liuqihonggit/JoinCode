@@ -2,7 +2,7 @@
 
 public sealed class PluginManagerDiagnosticTests {
     [Fact]
-    public void PluginManager_HasOnDiagnosticEvent() {
+    public async Task PluginManager_HasOnDiagnosticEvent() {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();

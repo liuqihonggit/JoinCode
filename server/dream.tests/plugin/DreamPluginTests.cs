@@ -85,7 +85,7 @@ public sealed class DreamPluginTests {
     }
 
     [Fact]
-    public void UnregisterCommands_WithoutRegister_DoesNotThrow() {
+    public async Task UnregisterCommands_WithoutRegister_DoesNotThrow() {
         await using var plugin = new DreamPlugin();
         var registry = new Mock<ICommandRegistry>();
 

@@ -12,7 +12,7 @@ public sealed class BridgeJwtServiceTests {
         new(new BridgeConfig { JwtSecretKey = secretKey ?? TestSecretKey }, NullLogger.Instance, timeProvider);
 
     [Fact]
-    public void GenerateToken_ShouldReturnValidToken_WhenValidClientId() {
+    public async Task GenerateToken_ShouldReturnValidToken_WhenValidClientId() {
         // Arrange
         await using var sut = CreateSut();
 
@@ -26,7 +26,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void GenerateToken_ShouldThrow_WhenClientIdIsEmpty() {
+    public async Task GenerateToken_ShouldThrow_WhenClientIdIsEmpty() {
         // Arrange
         await using var sut = CreateSut();
 
@@ -38,7 +38,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void ValidateToken_ShouldReturnValid_WhenTokenIsValid() {
+    public async Task ValidateToken_ShouldReturnValid_WhenTokenIsValid() {
         // Arrange
         await using var sut = CreateSut();
         var token = sut.GenerateToken("client-002");
@@ -55,7 +55,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void ValidateToken_ShouldReturnInvalid_WhenTokenIsTampered() {
+    public async Task ValidateToken_ShouldReturnInvalid_WhenTokenIsTampered() {
         // Arrange
         await using var sut = CreateSut();
         var token = sut.GenerateToken("client-003");
@@ -72,7 +72,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void ValidateToken_ShouldReturnInvalid_WhenTokenIsExpired() {
+    public async Task ValidateToken_ShouldReturnInvalid_WhenTokenIsExpired() {
         // Arrange
         var fakeTime = new FakeTimeProvider();
         await using var sut = CreateSut(timeProvider: fakeTime);
@@ -92,7 +92,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void ValidateToken_ShouldReturnInvalid_WhenTokenFormatIsWrong() {
+    public async Task ValidateToken_ShouldReturnInvalid_WhenTokenFormatIsWrong() {
         // Arrange
         await using var sut = CreateSut();
         var malformedToken = "not.a.valid.jwt.token.format";
@@ -106,7 +106,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void RefreshToken_ShouldReturnNewToken_WhenTokenIsInRefreshWindow() {
+    public async Task RefreshToken_ShouldReturnNewToken_WhenTokenIsInRefreshWindow() {
         // Arrange
         await using var sut = CreateSut();
         // 生成一个有效期 299 秒的 token，使其立即进入刷新窗口（剩余 <= 300 秒）
@@ -127,7 +127,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void RefreshToken_ShouldReturnSameToken_WhenTokenIsNotInRefreshWindow() {
+    public async Task RefreshToken_ShouldReturnSameToken_WhenTokenIsNotInRefreshWindow() {
         // Arrange
         await using var sut = CreateSut();
         // 默认 3600 秒有效期，远超 300 秒刷新窗口
@@ -143,7 +143,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void IsTokenExpired_ShouldReturnTrue_WhenTokenIsExpired() {
+    public async Task IsTokenExpired_ShouldReturnTrue_WhenTokenIsExpired() {
         // Arrange
         var fakeTime = new FakeTimeProvider();
         await using var sut = CreateSut(timeProvider: fakeTime);
@@ -160,7 +160,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void IsTokenExpired_ShouldReturnFalse_WhenTokenIsNotExpired() {
+    public async Task IsTokenExpired_ShouldReturnFalse_WhenTokenIsNotExpired() {
         // Arrange
         await using var sut = CreateSut();
         var token = sut.GenerateToken("client-008");
@@ -173,7 +173,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void GetClaims_ShouldReturnPayload_WhenTokenIsValid() {
+    public async Task GetClaims_ShouldReturnPayload_WhenTokenIsValid() {
         // Arrange
         await using var sut = CreateSut();
         var token = sut.GenerateToken("client-009");
@@ -190,7 +190,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void GetClaims_ShouldReturnNull_WhenTokenIsInvalid() {
+    public async Task GetClaims_ShouldReturnNull_WhenTokenIsInvalid() {
         // Arrange
         await using var sut = CreateSut();
         var invalidToken = "invalid.token.value";
@@ -203,7 +203,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void RevokeToken_ShouldInvalidateToken() {
+    public async Task RevokeToken_ShouldInvalidateToken() {
         // Arrange
         await using var sut = CreateSut();
         var token = sut.GenerateToken("client-revoke-001");
@@ -221,7 +221,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void IsTokenRevoked_ShouldReturnTrue_WhenTokenIsRevoked() {
+    public async Task IsTokenRevoked_ShouldReturnTrue_WhenTokenIsRevoked() {
         // Arrange
         await using var sut = CreateSut();
         var token = sut.GenerateToken("client-revoke-002");
@@ -234,7 +234,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void IsTokenRevoked_ShouldReturnFalse_WhenTokenIsNotRevoked() {
+    public async Task IsTokenRevoked_ShouldReturnFalse_WhenTokenIsNotRevoked() {
         // Arrange
         await using var sut = CreateSut();
         var token = sut.GenerateToken("client-revoke-003");
@@ -244,7 +244,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void RevokeToken_ShouldNotAffectOtherTokens() {
+    public async Task RevokeToken_ShouldNotAffectOtherTokens() {
         // Arrange
         await using var sut = CreateSut();
         var token1 = sut.GenerateToken("client-revoke-004a");
@@ -259,7 +259,7 @@ public sealed class BridgeJwtServiceTests {
     }
 
     [Fact]
-    public void CleanupExpiredRevocations_ShouldRemoveExpiredRevokedTokens() {
+    public async Task CleanupExpiredRevocations_ShouldRemoveExpiredRevokedTokens() {
         // Arrange
         var fakeTime = new FakeTimeProvider();
         await using var sut = CreateSut(timeProvider: fakeTime);

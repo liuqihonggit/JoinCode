@@ -10,7 +10,7 @@ public sealed class CapacityWakeServiceTests {
         new(options, logger: null);
 
     [Fact]
-    public void Constructor_ShouldSetDefaultCapacity() {
+    public async Task Constructor_ShouldSetDefaultCapacity() {
         // Arrange & Act
         await using var sut = CreateSut();
 
@@ -74,7 +74,7 @@ public sealed class CapacityWakeServiceTests {
     }
 
     [Fact]
-    public void UpdateLoadMetrics_ShouldUpdateMetrics() {
+    public async Task UpdateLoadMetrics_ShouldUpdateMetrics() {
         // Arrange
         await using var sut = CreateSut();
         var metrics = new LoadMetrics {

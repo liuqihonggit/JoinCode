@@ -6,7 +6,7 @@ public sealed class TempDirScopeTest {
     // === Create ===
 
     [Fact]
-    public void Create_WithFileSystem_CreatesDirectory() {
+    public async Task Create_WithFileSystem_CreatesDirectory() {
         var fs = new InMemoryFileSystem();
 
         await using var scope = TempDirScope.Create(fs, "test_");
@@ -16,7 +16,7 @@ public sealed class TempDirScopeTest {
     }
 
     [Fact]
-    public void Create_NullPrefix_UsesDefaultPrefix() {
+    public async Task Create_NullPrefix_UsesDefaultPrefix() {
         var fs = new InMemoryFileSystem();
 
         await using var scope = TempDirScope.Create(fs);

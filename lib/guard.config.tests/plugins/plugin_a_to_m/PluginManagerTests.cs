@@ -11,7 +11,7 @@ public class PluginManagerTests {
     }
 
     [Fact]
-    public void Constructor_ShouldInitializeEmptyPluginManager() {
+    public async Task Constructor_ShouldInitializeEmptyPluginManager() {
         using var serviceProvider = CreateServiceProvider();
         await using var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
@@ -117,7 +117,7 @@ public class PluginManagerTests {
     }
 
     [Fact]
-    public void IsWorkflowPluginLoaded_WhenNotLoaded_ShouldReturnFalse() {
+    public async Task IsWorkflowPluginLoaded_WhenNotLoaded_ShouldReturnFalse() {
         using var serviceProvider = CreateServiceProvider();
         await using var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
@@ -125,7 +125,7 @@ public class PluginManagerTests {
     }
 
     [Fact]
-    public void IsExternalPluginLoaded_WhenNotLoaded_ShouldReturnFalse() {
+    public async Task IsExternalPluginLoaded_WhenNotLoaded_ShouldReturnFalse() {
         using var serviceProvider = CreateServiceProvider();
         await using var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
@@ -133,7 +133,7 @@ public class PluginManagerTests {
     }
 
     [Fact]
-    public void GetWorkflowPlugin_WhenNotLoaded_ShouldReturnNull() {
+    public async Task GetWorkflowPlugin_WhenNotLoaded_ShouldReturnNull() {
         using var serviceProvider = CreateServiceProvider();
         await using var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
@@ -141,7 +141,7 @@ public class PluginManagerTests {
     }
 
     [Fact]
-    public void GetExternalPlugin_WhenNotLoaded_ShouldReturnNull() {
+    public async Task GetExternalPlugin_WhenNotLoaded_ShouldReturnNull() {
         using var serviceProvider = CreateServiceProvider();
         await using var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 

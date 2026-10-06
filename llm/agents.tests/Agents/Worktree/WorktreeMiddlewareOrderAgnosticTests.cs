@@ -11,25 +11,25 @@ public class WorktreeMiddlewareOrderAgnosticTests {
     // === 第一层防线:Order 属性值验证 ===
 
     [Fact]
-    public void Order_WorktreeValidationMiddleware_Is100() {
+    public async Task Order_WorktreeValidationMiddleware_Is100() {
         await using var middleware = CreateValidationMiddleware();
         middleware.Order.Should().Be(100);
     }
 
     [Fact]
-    public void Order_WorktreeGitRootMiddleware_Is200() {
+    public async Task Order_WorktreeGitRootMiddleware_Is200() {
         await using var middleware = CreateGitRootMiddleware();
         middleware.Order.Should().Be(200);
     }
 
     [Fact]
-    public void Order_WorktreeRecoveryMiddleware_Is300() {
+    public async Task Order_WorktreeRecoveryMiddleware_Is300() {
         await using var middleware = CreateRecoveryMiddleware();
         middleware.Order.Should().Be(300);
     }
 
     [Fact]
-    public void Order_WorktreeGitInfoMiddleware_Is400() {
+    public async Task Order_WorktreeGitInfoMiddleware_Is400() {
         await using var middleware = CreateGitInfoMiddleware();
         middleware.Order.Should().Be(400);
     }
@@ -41,13 +41,13 @@ public class WorktreeMiddlewareOrderAgnosticTests {
     }
 
     [Fact]
-    public void Order_WorktreeConfigMiddleware_Is600() {
+    public async Task Order_WorktreeConfigMiddleware_Is600() {
         await using var middleware = CreateConfigMiddleware();
         middleware.Order.Should().Be(600);
     }
 
     [Fact]
-    public void Order_WorktreeSessionSaveMiddleware_Is700() {
+    public async Task Order_WorktreeSessionSaveMiddleware_Is700() {
         await using var middleware = CreateSessionSaveMiddleware();
         middleware.Order.Should().Be(700);
     }

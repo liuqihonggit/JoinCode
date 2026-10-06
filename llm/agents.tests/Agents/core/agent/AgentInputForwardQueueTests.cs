@@ -99,7 +99,7 @@ public class AgentInputForwardQueueTests {
     }
 
     [Fact]
-    public void Register_NullOrWhitespaceAgentId_Throws() {
+    public async Task Register_NullOrWhitespaceAgentId_Throws() {
         await using var queue = new AgentInputForwardQueue();
         Assert.Throws<ArgumentException>(() => queue.Register(""));
         Assert.Throws<ArgumentException>(() => queue.Register("   "));

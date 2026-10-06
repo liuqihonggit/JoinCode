@@ -82,7 +82,7 @@ public sealed class MemoryScannerTests {
     }
 
     [Fact]
-    public void BuildIndex_GroupsByTypeTagAndSource() {
+    public async Task BuildIndex_GroupsByTypeTagAndSource() {
         await using var sut = CreateSut();
         var memories = new List<MemoryEntry>
         {
@@ -100,7 +100,7 @@ public sealed class MemoryScannerTests {
     }
 
     [Fact]
-    public void BuildIndex_FindByType_ReturnsReadOnlyList() {
+    public async Task BuildIndex_FindByType_ReturnsReadOnlyList() {
         await using var sut = CreateSut();
         var memories = new List<MemoryEntry>
         {
@@ -114,7 +114,7 @@ public sealed class MemoryScannerTests {
     }
 
     [Fact]
-    public void BuildIndex_FindByTag_ReturnsReadOnlyList() {
+    public async Task BuildIndex_FindByTag_ReturnsReadOnlyList() {
         await using var sut = CreateSut();
         var memories = new List<MemoryEntry>
         {
@@ -128,7 +128,7 @@ public sealed class MemoryScannerTests {
     }
 
     [Fact]
-    public void BuildIndex_FindBySource_ReturnsReadOnlyList() {
+    public async Task BuildIndex_FindBySource_ReturnsReadOnlyList() {
         await using var sut = CreateSut();
         var memories = new List<MemoryEntry>
         {

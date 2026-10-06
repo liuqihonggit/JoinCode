@@ -210,7 +210,7 @@ public sealed class ContentReplacementServiceTests {
     /// 对齐 TS: REPL.tsx useState(() => provisionContentReplacementState())
     /// </summary>
     [Fact]
-    public void ProvisionContentReplacementState_ColdStart_ReturnsNewState() {
+    public async Task ProvisionContentReplacementState_ColdStart_ReturnsNewState() {
         var fileService = new MockToolResultFileService();
         await using var service = CreateService();
 
@@ -256,7 +256,7 @@ public sealed class ContentReplacementServiceTests {
     /// 对齐 TS: parentState 为 undefined 时直接返回 undefined
     /// </summary>
     [Fact]
-    public void ReconstructForSubagentResume_NullParent_ReturnsNull() {
+    public async Task ReconstructForSubagentResume_NullParent_ReturnsNull() {
         var fileService = new MockToolResultFileService();
         await using var service = CreateService();
 
@@ -272,7 +272,7 @@ public sealed class ContentReplacementServiceTests {
     /// 对齐 TS: resumeAgent.ts — parentState.replacements 作为 inheritedReplacements
     /// </summary>
     [Fact]
-    public void ReconstructForSubagentResume_WithParent_InheritsReplacements() {
+    public async Task ReconstructForSubagentResume_WithParent_InheritsReplacements() {
         var fileService = new MockToolResultFileService();
         await using var service = CreateService();
 
@@ -301,7 +301,7 @@ public sealed class ContentReplacementServiceTests {
     /// 对齐 TS: reconstructContentReplacementState — 4步重建
     /// </summary>
     [Fact]
-    public void ReconstructState_WithMessagesAndRecords_RebuildsCorrectly() {
+    public async Task ReconstructState_WithMessagesAndRecords_RebuildsCorrectly() {
         var fileService = new MockToolResultFileService();
         await using var service = CreateService();
 
@@ -346,7 +346,7 @@ public sealed class ContentReplacementServiceTests {
     /// 对齐 TS: r.kind === 'tool-result' 过滤
     /// </summary>
     [Fact]
-    public void ReconstructState_RecordsOnly_FiltersByKind() {
+    public async Task ReconstructState_RecordsOnly_FiltersByKind() {
         var fileService = new MockToolResultFileService();
         await using var service = CreateService();
 
@@ -418,7 +418,7 @@ public sealed class ContentReplacementServiceTests {
     /// 对齐 TS: getFeatureValue_CACHED_MAY_BE_STALE('tengu_hawthorn_steeple', false) → undefined
     /// </summary>
     [Fact]
-    public void ProvisionContentReplacementState_FeatureDisabled_ReturnsNull() {
+    public async Task ProvisionContentReplacementState_FeatureDisabled_ReturnsNull() {
         var fileService = new MockToolResultFileService();
         await using var service = CreateService(enabled: false);
 

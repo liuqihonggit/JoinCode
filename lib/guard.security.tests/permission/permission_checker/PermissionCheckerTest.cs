@@ -108,7 +108,7 @@ public sealed class PermissionCheckerTest {
     #region AddToAutoApproved / AddToAutoRejected
 
     [Fact]
-    public void AddToAutoApproved_添加工具到集合() {
+    public async Task AddToAutoApproved_添加工具到集合() {
         await using var checker = CreateChecker();
 
         checker.AddToAutoApproved("CustomTool");
@@ -118,7 +118,7 @@ public sealed class PermissionCheckerTest {
     }
 
     [Fact]
-    public void AddToAutoApproved_带ruleContent_不添加工具名到HashSet() {
+    public async Task AddToAutoApproved_带ruleContent_不添加工具名到HashSet() {
         var config = PermissionConfig.CreateDefault();
         await using var checker = CreateChecker(config: config);
 
@@ -131,7 +131,7 @@ public sealed class PermissionCheckerTest {
     }
 
     [Fact]
-    public void AddToAutoApproved_空ruleContent_等价于无ruleContent() {
+    public async Task AddToAutoApproved_空ruleContent_等价于无ruleContent() {
         var config = PermissionConfig.CreateDefault();
         await using var checker = CreateChecker(config: config);
 
@@ -141,7 +141,7 @@ public sealed class PermissionCheckerTest {
     }
 
     [Fact]
-    public void RemoveFromAutoApproved_从集合移除() {
+    public async Task RemoveFromAutoApproved_从集合移除() {
         var config = CreateConfigWithBashApproved();
         await using var checker = CreateChecker(config: config);
 
@@ -151,7 +151,7 @@ public sealed class PermissionCheckerTest {
     }
 
     [Fact]
-    public void AddToAutoRejected_添加工具到集合() {
+    public async Task AddToAutoRejected_添加工具到集合() {
         var config = PermissionConfig.CreateDefault();
         await using var checker = CreateChecker(config: config);
 
@@ -161,7 +161,7 @@ public sealed class PermissionCheckerTest {
     }
 
     [Fact]
-    public void RemoveFromAutoRejected_从集合移除() {
+    public async Task RemoveFromAutoRejected_从集合移除() {
         var config = PermissionConfig.CreateDefault();
         config.AutoRejectedTools = config.AutoRejectedTools.SetItem(
             "DangerousTool",
@@ -178,7 +178,7 @@ public sealed class PermissionCheckerTest {
     #region ApproveLevelTemporarily / IsLevelApproved
 
     [Fact]
-    public void ApproveLevelTemporarily_Unknown_添加到批准集合() {
+    public async Task ApproveLevelTemporarily_Unknown_添加到批准集合() {
         await using var checker = CreateChecker();
 
         checker.ApproveLevelTemporarily(CommandDangerLevel.Unknown);
@@ -187,7 +187,7 @@ public sealed class PermissionCheckerTest {
     }
 
     [Fact]
-    public void ApproveLevelTemporarily_LightValidation_添加到批准集合() {
+    public async Task ApproveLevelTemporarily_LightValidation_添加到批准集合() {
         await using var checker = CreateChecker();
 
         checker.ApproveLevelTemporarily(CommandDangerLevel.LightValidation);
@@ -196,7 +196,7 @@ public sealed class PermissionCheckerTest {
     }
 
     [Fact]
-    public void ApproveLevelTemporarily_Execution_添加到批准集合() {
+    public async Task ApproveLevelTemporarily_Execution_添加到批准集合() {
         await using var checker = CreateChecker();
 
         checker.ApproveLevelTemporarily(CommandDangerLevel.Execution);
@@ -205,7 +205,7 @@ public sealed class PermissionCheckerTest {
     }
 
     [Fact]
-    public void ApproveLevelTemporarily_Safe_不添加() {
+    public async Task ApproveLevelTemporarily_Safe_不添加() {
         await using var checker = CreateChecker();
 
         checker.ApproveLevelTemporarily(CommandDangerLevel.Safe);
@@ -214,7 +214,7 @@ public sealed class PermissionCheckerTest {
     }
 
     [Fact]
-    public void ApproveLevelTemporarily_Dangerous_不添加() {
+    public async Task ApproveLevelTemporarily_Dangerous_不添加() {
         await using var checker = CreateChecker();
 
         checker.ApproveLevelTemporarily(CommandDangerLevel.Dangerous);
@@ -223,7 +223,7 @@ public sealed class PermissionCheckerTest {
     }
 
     [Fact]
-    public void IsLevelApproved_未批准_返回False() {
+    public async Task IsLevelApproved_未批准_返回False() {
         await using var checker = CreateChecker();
         checker.IsLevelApproved(CommandDangerLevel.Execution).Should().BeFalse();
     }
@@ -233,7 +233,7 @@ public sealed class PermissionCheckerTest {
     #region CurrentMode
 
     [Fact]
-    public void CurrentMode_默认为Auto() {
+    public async Task CurrentMode_默认为Auto() {
         // 清除可能的环境变量以确保确定性
         var envVar = JccEnvVar.PermissionMode.ToValue();
         var original = Environment.GetEnvironmentVariable(envVar);
@@ -247,7 +247,7 @@ public sealed class PermissionCheckerTest {
     }
 
     [Fact]
-    public void CurrentMode_设置后返回新值() {
+    public async Task CurrentMode_设置后返回新值() {
         await using var checker = CreateChecker();
         checker.CurrentMode = PermissionMode.Plan;
         checker.CurrentMode.Should().Be(PermissionMode.Plan);

@@ -109,7 +109,7 @@ public sealed class ProjectRulesLoaderTests {
     }
 
     [Fact]
-    public void HasRulesFile_WhenFileExists_Should_Return_True() {
+    public async Task HasRulesFile_WhenFileExists_Should_Return_True() {
         SetupFile("AGENTS.md", "content");
         await using var loader = CreateLoader();
 
@@ -127,7 +127,7 @@ public sealed class ProjectRulesLoaderTests {
     }
 
     [Fact]
-    public void GetRulesFilePath_WhenFileExists_Should_Return_Path() {
+    public async Task GetRulesFilePath_WhenFileExists_Should_Return_Path() {
         SetupFile("AGENTS.md", "content");
         await using var loader = CreateLoader();
 

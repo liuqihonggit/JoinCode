@@ -43,7 +43,7 @@ public sealed class ToolFixHookRegistryTest {
     }
 
     [Fact]
-    public void Register_NullHook_ThrowsArgumentNullException() {
+    public async Task Register_NullHook_ThrowsArgumentNullException() {
         await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         var act = () => registry.Register(null!);

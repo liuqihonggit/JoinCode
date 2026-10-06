@@ -46,7 +46,7 @@ public sealed class FileOperationTrackerTests {
     }
 
     [Fact]
-    public void Track_NullFilePath_ShouldThrow() {
+    public async Task Track_NullFilePath_ShouldThrow() {
         await using var tracker = new FileOperationTracker();
 
         var act = () => tracker.Track(null!, FileOperationType.Read);

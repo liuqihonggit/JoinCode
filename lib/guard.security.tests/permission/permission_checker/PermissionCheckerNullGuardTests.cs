@@ -42,7 +42,7 @@ public sealed class PermissionCheckerNullGuardTests {
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void AddToAutoApproved_空toolName_抛ArgumentException(string? toolName) {
+    public async Task AddToAutoApproved_空toolName_抛ArgumentException(string? toolName) {
         await using var checker = CreateChecker();
 
         var act = () => checker.AddToAutoApproved(toolName!);
@@ -54,7 +54,7 @@ public sealed class PermissionCheckerNullGuardTests {
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void AddToAutoApproved带规则_空toolName_抛ArgumentException(string? toolName) {
+    public async Task AddToAutoApproved带规则_空toolName_抛ArgumentException(string? toolName) {
         await using var checker = CreateChecker();
 
         var act = () => checker.AddToAutoApproved(toolName!, "domain:example.com");
@@ -63,7 +63,7 @@ public sealed class PermissionCheckerNullGuardTests {
     }
 
     [Fact]
-    public void AddToAutoApproved带规则_null规则Content_不抛() {
+    public async Task AddToAutoApproved带规则_null规则Content_不抛() {
         await using var checker = CreateChecker();
 
         var act = () => checker.AddToAutoApproved("WebFetch", null);
@@ -72,7 +72,7 @@ public sealed class PermissionCheckerNullGuardTests {
     }
 
     [Fact]
-    public void AddToAutoApproved带规则_空规则Content_不抛() {
+    public async Task AddToAutoApproved带规则_空规则Content_不抛() {
         await using var checker = CreateChecker();
 
         var act = () => checker.AddToAutoApproved("WebFetch", string.Empty);
@@ -105,7 +105,7 @@ public sealed class PermissionCheckerNullGuardTests {
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void AddToAutoRejected_空toolName_抛ArgumentException(string? toolName) {
+    public async Task AddToAutoRejected_空toolName_抛ArgumentException(string? toolName) {
         await using var checker = CreateChecker();
 
         var act = () => checker.AddToAutoRejected(toolName!);
@@ -121,7 +121,7 @@ public sealed class PermissionCheckerNullGuardTests {
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void RemoveFromAutoApproved_空toolName_抛ArgumentException(string? toolName) {
+    public async Task RemoveFromAutoApproved_空toolName_抛ArgumentException(string? toolName) {
         await using var checker = CreateChecker();
 
         var act = () => checker.RemoveFromAutoApproved(toolName!);
@@ -137,7 +137,7 @@ public sealed class PermissionCheckerNullGuardTests {
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void RemoveFromAutoRejected_空toolName_抛ArgumentException(string? toolName) {
+    public async Task RemoveFromAutoRejected_空toolName_抛ArgumentException(string? toolName) {
         await using var checker = CreateChecker();
 
         var act = () => checker.RemoveFromAutoRejected(toolName!);

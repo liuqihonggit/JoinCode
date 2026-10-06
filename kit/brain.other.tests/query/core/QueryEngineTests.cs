@@ -300,7 +300,7 @@ public class QueryEngineTests {
     }
 
     [Fact]
-    public void CalculateRetryDelay_NoBackoff_ShouldReturnConstantDelay() {
+    public async Task CalculateRetryDelay_NoBackoff_ShouldReturnConstantDelay() {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 500, EnableExponentialBackoff = false }
         };
@@ -311,7 +311,7 @@ public class QueryEngineTests {
     }
 
     [Fact]
-    public void CalculateRetryDelay_ExponentialBackoff_Retry1_ShouldReturnBaseDelay() {
+    public async Task CalculateRetryDelay_ExponentialBackoff_Retry1_ShouldReturnBaseDelay() {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
         };
@@ -320,7 +320,7 @@ public class QueryEngineTests {
     }
 
     [Fact]
-    public void CalculateRetryDelay_ExponentialBackoff_Retry2_ShouldReturnDoubleDelay() {
+    public async Task CalculateRetryDelay_ExponentialBackoff_Retry2_ShouldReturnDoubleDelay() {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
         };
@@ -329,7 +329,7 @@ public class QueryEngineTests {
     }
 
     [Fact]
-    public void CalculateRetryDelay_ExponentialBackoff_Retry3_ShouldReturnQuadrupleDelay() {
+    public async Task CalculateRetryDelay_ExponentialBackoff_Retry3_ShouldReturnQuadrupleDelay() {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
         };
@@ -338,7 +338,7 @@ public class QueryEngineTests {
     }
 
     [Fact]
-    public void CalculateRetryDelay_ShouldClampToMaxDelay() {
+    public async Task CalculateRetryDelay_ShouldClampToMaxDelay() {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
         };

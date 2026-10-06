@@ -2,7 +2,7 @@ namespace Core.Context.Compact;
 
 public sealed class AutoCompactSoftThresholdTests {
     [Fact]
-    public void ShouldAutoCompact_BelowSoftThreshold_ReturnsFalse() {
+    public async Task ShouldAutoCompact_BelowSoftThreshold_ReturnsFalse() {
         await using var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 80_000;
@@ -11,7 +11,7 @@ public sealed class AutoCompactSoftThresholdTests {
     }
 
     [Fact]
-    public void ShouldAutoCompact_AtSoftThreshold_ReturnsFalse() {
+    public async Task ShouldAutoCompact_AtSoftThreshold_ReturnsFalse() {
         await using var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 100_000;
@@ -21,7 +21,7 @@ public sealed class AutoCompactSoftThresholdTests {
     }
 
     [Fact]
-    public void ShouldAutoCompact_BetweenSoftAndHard_ReturnsFalse() {
+    public async Task ShouldAutoCompact_BetweenSoftAndHard_ReturnsFalse() {
         await using var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 140_000;
@@ -31,7 +31,7 @@ public sealed class AutoCompactSoftThresholdTests {
     }
 
     [Fact]
-    public void ShouldAutoCompact_AtHardThreshold_ReturnsTrue() {
+    public async Task ShouldAutoCompact_AtHardThreshold_ReturnsTrue() {
         await using var sut = CreateSut();
         var contextWindow = 200_000;
         var hardThreshold = contextWindow - 20_000 - 13_000;
@@ -41,7 +41,7 @@ public sealed class AutoCompactSoftThresholdTests {
     }
 
     [Fact]
-    public void ShouldSoftCompactNotice_BelowSoftThreshold_ReturnsFalse() {
+    public async Task ShouldSoftCompactNotice_BelowSoftThreshold_ReturnsFalse() {
         await using var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 80_000;
@@ -50,7 +50,7 @@ public sealed class AutoCompactSoftThresholdTests {
     }
 
     [Fact]
-    public void ShouldSoftCompactNotice_AtSoftThreshold_ReturnsTrue() {
+    public async Task ShouldSoftCompactNotice_AtSoftThreshold_ReturnsTrue() {
         await using var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 100_000;
@@ -60,7 +60,7 @@ public sealed class AutoCompactSoftThresholdTests {
     }
 
     [Fact]
-    public void ShouldSoftCompactNotice_BetweenSoftAndHard_ReturnsTrue() {
+    public async Task ShouldSoftCompactNotice_BetweenSoftAndHard_ReturnsTrue() {
         await using var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 140_000;
@@ -70,7 +70,7 @@ public sealed class AutoCompactSoftThresholdTests {
     }
 
     [Fact]
-    public void ShouldSoftCompactNotice_AtHardThreshold_ReturnsFalse() {
+    public async Task ShouldSoftCompactNotice_AtHardThreshold_ReturnsFalse() {
         await using var sut = CreateSut();
         var contextWindow = 200_000;
         var hardThreshold = contextWindow - 20_000 - 13_000;
@@ -80,7 +80,7 @@ public sealed class AutoCompactSoftThresholdTests {
     }
 
     [Fact]
-    public void CalculateWarningState_SoftThreshold_SetsFlag() {
+    public async Task CalculateWarningState_SoftThreshold_SetsFlag() {
         await using var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 100_000;
@@ -92,7 +92,7 @@ public sealed class AutoCompactSoftThresholdTests {
     }
 
     [Fact]
-    public void CalculateWarningState_BelowSoftThreshold_NoFlag() {
+    public async Task CalculateWarningState_BelowSoftThreshold_NoFlag() {
         await using var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 80_000;
@@ -103,7 +103,7 @@ public sealed class AutoCompactSoftThresholdTests {
     }
 
     [Fact]
-    public void ShouldSoftCompactNotice_OnlyNoticesOnce() {
+    public async Task ShouldSoftCompactNotice_OnlyNoticesOnce() {
         await using var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 100_000;
@@ -113,7 +113,7 @@ public sealed class AutoCompactSoftThresholdTests {
     }
 
     [Fact]
-    public void ShouldSoftCompactNotice_ResetsWhenBelowSoftThreshold() {
+    public async Task ShouldSoftCompactNotice_ResetsWhenBelowSoftThreshold() {
         await using var sut = CreateSut();
         var contextWindow = 200_000;
 

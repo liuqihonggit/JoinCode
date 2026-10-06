@@ -151,6 +151,7 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
         var methodName = invocation.Expression switch {
             MemberAccessExpressionSyntax ma when ma.Expression is not null => ma.Name.Identifier.ValueText,
             IdentifierNameSyntax id => id.Identifier.ValueText,
+            GenericNameSyntax g => g.Identifier.ValueText,
             _ => null,
         };
         if (methodName is null) return false;
@@ -160,7 +161,8 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
         }
         // 同类隐式 this 调用的 Get* 方法 → 借用(从字段容器获取已有元素,方案 D 命名约定)。
         // MemberAccess 静态类型调用(Process.GetProcessById)不在此分支,不会误判新建。
-        if (invocation.Expression is IdentifierNameSyntax && methodName.StartsWith("Get", StringComparison.Ordinal))
+        // 支持 IdentifierName(GetX()) 和 GenericName(GetService<T>())。
+        if (invocation.Expression is (IdentifierNameSyntax or GenericNameSyntax) && methodName.StartsWith("Get", StringComparison.Ordinal))
             return true;
         return false;
     }

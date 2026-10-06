@@ -2,7 +2,7 @@ namespace Llm.Tests.Registration;
 
 public class ToolGroupFactoryTests {
     [Fact]
-    public void CreateFromObject_ThrowsNotSupportedException() {
+    public async Task CreateFromObject_ThrowsNotSupportedException() {
         await using var factory = new ToolGroupFactory();
 
         var act = () => factory.CreateFromObject(new object(), "plugin");

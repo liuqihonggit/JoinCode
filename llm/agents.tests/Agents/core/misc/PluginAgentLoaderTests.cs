@@ -40,7 +40,7 @@ public sealed class PluginAgentLoaderTests {
     }
 
     [Fact]
-    public void LoadFromPlugin_UnsafeAgent_Throws() {
+    public async Task LoadFromPlugin_UnsafeAgent_Throws() {
         await using var loader = new PluginAgentLoader();
         var def = CreateDef() with { PermissionMode = "auto" };
         var provider = new SimpleProvider([def]);

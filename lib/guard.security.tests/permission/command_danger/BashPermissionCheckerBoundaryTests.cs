@@ -52,7 +52,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
     #region MaxSubcommandsForSecurityCheck 边界
 
     [Fact]
-    public void CheckPermission_恰好50个子命令_不触发过多子命令拦截() {
+    public async Task CheckPermission_恰好50个子命令_不触发过多子命令拦截() {
         await using var checker = CreateChecker();
         var command = BuildCommand(50);
 
@@ -63,7 +63,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
     }
 
     [Fact]
-    public void CheckPermission_51个子命令_触发Ask() {
+    public async Task CheckPermission_51个子命令_触发Ask() {
         await using var checker = CreateChecker();
         var command = BuildCommand(51);
 
@@ -76,7 +76,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
     }
 
     [Fact]
-    public void CheckPermission_远超50个子命令_触发Ask() {
+    public async Task CheckPermission_远超50个子命令_触发Ask() {
         await using var checker = CreateChecker();
         var command = BuildCommand(100);
 
@@ -87,7 +87,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
     }
 
     [Fact]
-    public void CheckPermission_少于50个子命令_不触发过多子命令拦截() {
+    public async Task CheckPermission_少于50个子命令_不触发过多子命令拦截() {
         await using var checker = CreateChecker();
         var command = BuildCommand(10);
 
@@ -98,7 +98,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
     }
 
     [Fact]
-    public void CheckPermission_单个子命令_不触发过多子命令拦截() {
+    public async Task CheckPermission_单个子命令_不触发过多子命令拦截() {
         await using var checker = CreateChecker();
 
         var result = checker.CheckPermission("echo hello", @"D:\test");
@@ -114,7 +114,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void CheckPermission_空命令_返回Passthrough(string? command) {
+    public async Task CheckPermission_空命令_返回Passthrough(string? command) {
         await using var checker = CreateChecker();
 
         var result = checker.CheckPermission(command!, @"D:\test");
@@ -127,7 +127,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
     #region 安全检查失败 — 优先于子命令计数
 
     [Fact]
-    public void CheckPermission_安全检查失败_优先返回Ask_不检查子命令数() {
+    public async Task CheckPermission_安全检查失败_优先返回Ask_不检查子命令数() {
         var securityMock = new Mock<IBashSecurityValidator>();
         securityMock.Setup(v => v.Validate(It.IsAny<string>()))
             .Returns(new BashSecurityResult(IsSafe: false, CheckId: null, Message: "danger"));
@@ -180,7 +180,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
     #region CheckPermission workingDirectory null/空 守卫
 
     [Fact]
-    public void CheckPermission_NullWorkingDirectory_ThrowsArgumentNullException() {
+    public async Task CheckPermission_NullWorkingDirectory_ThrowsArgumentNullException() {
         await using var checker = CreateChecker();
         var act = () => checker.CheckPermission("echo hello", null!);
         act.Should().Throw<ArgumentNullException>()
@@ -188,7 +188,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
     }
 
     [Fact]
-    public void CheckPermission_EmptyWorkingDirectory_ThrowsArgumentException() {
+    public async Task CheckPermission_EmptyWorkingDirectory_ThrowsArgumentException() {
         await using var checker = CreateChecker();
         var act = () => checker.CheckPermission("echo hello", "");
         act.Should().Throw<ArgumentException>();

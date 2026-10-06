@@ -14,10 +14,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选,默认当前目录)", Required = false)] string? working_dir = null,
         [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
             var cacheKey = BuildGhCacheKey("gh_pr_view", $"{owner}/{repoName}/{number}");
-            return await GetOrFetchWithCacheAsync(cacheKey, $"repos/{owner}/{repoName}/pulls/{number}", verbose, SummarizePr, cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, cacheKey, $"repos/{owner}/{repoName}/pulls/{number}", verbose, SummarizePr, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -31,10 +31,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["state"] = string.IsNullOrWhiteSpace(state) ? "open" : state, ["per_page"] = (limit ?? 30).ToString() };
             if (!string.IsNullOrWhiteSpace(author)) query["creator"] = author;
-            var result = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls", query: query, ct: cancellationToken).ConfigureAwait(false);
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
             return Ok(SummarizePrList(result.Body));
         }).ConfigureAwait(false);
@@ -48,9 +48,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
-            var prResult = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
+            var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
             if (!prResult.Success) return Fail(prResult.Error);
             string? diffUrl;
             try {
@@ -61,7 +61,7 @@ public partial class GitHubToolHandlers {
                 diffUrl = null;
             }
             if (string.IsNullOrEmpty(diffUrl)) return Fail("无法从 PR 响应中解析 diff_url");
-            var diffResult = await _apiClient!.SendAsync(HttpMethod.Get, diffUrl, ct: cancellationToken).ConfigureAwait(false);
+            var diffResult = await client.SendAsync(HttpMethod.Get, diffUrl, ct: cancellationToken).ConfigureAwait(false);
             return diffResult.Success ? Ok(diffResult.Body) : Fail(diffResult.Error);
         }).ConfigureAwait(false);
 
@@ -73,27 +73,25 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-        var number = ParseNumberFromRef(pr_number);
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
+            => GhPrChecksCoreAsync(client, owner, repoName, pr_number, cancellationToken)).ConfigureAwait(false);
 
-        var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
+    /// <summary>
+    /// GhPrChecks 核心逻辑 — 调 REST API 获取 check-runs,正确处理 skipping 语义(非失败)
+    /// </summary>
+    private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, CancellationToken ct) {
+        var number = ParseNumberFromRef(prNumber);
+        var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return Fail(prResult.Error);
-
         string? headSha;
         try {
             using var doc = JsonDocument.Parse(prResult.Body);
             headSha = doc.RootElement.GetProperty("head").GetProperty("sha").GetString();
         } catch (Exception ex) { return Fail($"解析 PR head sha 失败: {ex.Message}"); }
-
         if (string.IsNullOrEmpty(headSha)) return Fail("无法从 PR 响应中解析 head.sha");
-
-        var checksResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/commits/{headSha}/check-runs", ct: cancellationToken).ConfigureAwait(false);
+        var checksResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/commits/{headSha}/check-runs", ct: ct).ConfigureAwait(false);
         if (!checksResult.Success) return Fail(checksResult.Error);
-
         var sb = new StringBuilder();
         var passCount = 0; var failCount = 0; var pendingCount = 0; var skipCount = 0;
         try {
@@ -111,7 +109,6 @@ public partial class GitHubToolHandlers {
                 switch (displayStatus) { case "pass": passCount++; break; case "fail": failCount++; break; case "pending": pendingCount++; break; case "skipping": skipCount++; break; }
             }
         } catch (Exception ex) { return Fail($"解析 check-runs 失败: {ex.Message}"); }
-
         sb.AppendLine();
         sb.Append($"汇总: {passCount} 通过, {failCount} 失败, {pendingCount} 进行中, {skipCount} 跳过(依赖链跳过,非失败)");
         return Ok(sb.ToString());
@@ -131,44 +128,38 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default,
-        ToolProgressCallback? onProgress = null) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-        var number = ParseNumberFromRef(pr_number);
+        ToolProgressCallback? onProgress = null)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
+            => GhPrWaitCoreAsync(client, owner, repoName, pr_number, timeout_seconds, poll_interval_seconds, working_dir, cancellationToken, onProgress)).ConfigureAwait(false);
 
-        var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
+    /// <summary>
+    /// GhPrWait 核心逻辑 — 指数退避轮询 check-runs 直到全部 completed,失败时下载日志到磁盘
+    /// </summary>
+    private async Task<ToolResult> GhPrWaitCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, int? timeoutSeconds, int? pollIntervalSeconds, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
+        var number = ParseNumberFromRef(prNumber);
+        var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return Fail(prResult.Error);
-
         string? headSha;
         try {
             using var doc = JsonDocument.Parse(prResult.Body);
             headSha = doc.RootElement.GetProperty("head").GetProperty("sha").GetString();
         } catch (Exception ex) { return Fail($"解析 PR head sha 失败: {ex.Message}"); }
         if (string.IsNullOrEmpty(headSha)) return Fail("无法从 PR 响应中解析 head.sha");
-
-        var timeout = TimeSpan.FromSeconds(Math.Clamp(timeout_seconds ?? 1800, 1, 7200));
-        var initialInterval = TimeSpan.FromSeconds(Math.Clamp(poll_interval_seconds ?? 5, 1, 60));
-
+        var timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds ?? 1800, 1, 7200));
+        var initialInterval = TimeSpan.FromSeconds(Math.Clamp(pollIntervalSeconds ?? 5, 1, 60));
         var waitResult = await GitHubRunPoller.WaitForPrChecksCompletionAsync(
-            _apiClient, owner, repoName, headSha, number, timeout, initialInterval,
-            onProgress, "gh_pr_wait", cancellationToken).ConfigureAwait(false);
-
+            client, owner, repoName, headSha, number, timeout, initialInterval,
+            onProgress, "gh_pr_wait", ct).ConfigureAwait(false);
         if (waitResult.Outcome == RunWaitOutcome.Error)
             return Fail(waitResult.Error ?? "轮询失败");
-
         if (waitResult.Outcome == RunWaitOutcome.Timeout)
             return Ok(
                 $"汇总: {waitResult.Summary}\n轮询次数: {waitResult.PollCount}, 耗时: {waitResult.ElapsedMs / 1000}s",
                 $"⚠ PR #{number} 等待超时({timeout.TotalSeconds:F0}s),仍有 checks 进行中。用 gh_pr_checks {number} 手动查看,或增大 timeout_seconds");
-
         var summaryText = $"汇总: {waitResult.Summary}\n轮询次数: {waitResult.PollCount}, 耗时: {waitResult.ElapsedMs / 1000}s";
-
         if (waitResult.FailCount == 0)
             return Ok(summaryText, $"PR #{number} 所有 CI checks 已完成 ✅");
-
-        var logPaths = await DownloadFailedPrRunsLogsToDiskAsync(owner, repoName, headSha, working_dir, cancellationToken).ConfigureAwait(false);
+        var logPaths = await DownloadFailedPrRunsLogsToDiskAsync(client, owner, repoName, headSha, workingDir, ct).ConfigureAwait(false);
         return logPaths.Count > 0
             ? Ok(summaryText + "\n\n📄 失败 job 日志已下载到:\n" + string.Join("\n", logPaths) + "\n\n💡 用 read 工具读取这些文件查看错误详情", $"PR #{number} CI checks 已完成(有 {waitResult.FailCount} 个失败) ❌")
             : Ok(summaryText + $"\n\n⚠ 未找到可下载的 Actions run 日志(可能是第三方 CI),用 gh pr checks {number} 查看失败 check 名称", $"PR #{number} CI checks 已完成(有 {waitResult.FailCount} 个失败) ❌");
@@ -179,8 +170,8 @@ public partial class GitHubToolHandlers {
     /// <para>每个失败 run 生成独立日志文件 .jcc/gh_logs/run_{runId}_{timestamp}.log</para>
     /// </summary>
     private async Task<List<string>> DownloadFailedPrRunsLogsToDiskAsync(
-        string owner, string repo, string headSha, string? workingDir, CancellationToken ct) {
-        var runsResult = await _apiClient!.SendAsync(
+        IGitHubApiClient client, string owner, string repo, string headSha, string? workingDir, CancellationToken ct) {
+        var runsResult = await client.SendAsync(
             HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs",
             query: new Dictionary<string, string> { ["head_sha"] = headSha },
             ct: ct).ConfigureAwait(false);
@@ -221,16 +212,18 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("合并后是否删除分支", Required = false)] bool? delete_branch = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-        var number = ParseNumberFromRef(pr_number);
-        var method = string.IsNullOrWhiteSpace(merge_method) ? "squash" : merge_method;
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
+            => GhPrMergeCoreAsync(client, owner, repoName, pr_number, merge_method, auto_merge, delete_branch, cancellationToken)).ConfigureAwait(false);
 
-        if (auto_merge == true) {
-            var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
+    /// <summary>
+    /// GhPrMerge 核心逻辑 — 支持 squash/merge/rebase + auto-merge,可选删除分支
+    /// </summary>
+    private async Task<ToolResult> GhPrMergeCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, string? mergeMethod, bool? autoMerge, bool? deleteBranch, CancellationToken ct) {
+        var number = ParseNumberFromRef(prNumber);
+        var method = string.IsNullOrWhiteSpace(mergeMethod) ? "squash" : mergeMethod;
+        if (autoMerge == true) {
+            var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
             if (!prResult.Success) return Fail(prResult.Error);
             string? nodeId;
             try {
@@ -238,20 +231,17 @@ public partial class GitHubToolHandlers {
                 nodeId = doc.RootElement.GetProperty("node_id").GetString();
             } catch (Exception ex) { return Fail($"解析 PR node_id 失败: {ex.Message}"); }
             if (string.IsNullOrEmpty(nodeId)) return Fail("无法从 PR 响应中解析 node_id");
-
             var graphqlMethod = method.ToUpperInvariant() switch { "SQUASH" => "SQUASH", "REBASE" => "REBASE", _ => "MERGE" };
             var graphqlBody = $$"""{"query":"mutation { enablePullRequestAutoMerge(input: {pullRequestId: \"{{nodeId}}\", mergeMethod: {{graphqlMethod}}}) { pullRequest { number } } }"}""";
-            var graphqlResult = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
+            var graphqlResult = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: ct).ConfigureAwait(false);
             if (!graphqlResult.Success) return Fail(graphqlResult.Error);
             return Ok($"已为 PR {number} 启用 auto-merge（{method}）");
         }
-
         var body = $$"""{"merge_method":"{{method}}"}""";
-        var result = await _apiClient.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/pulls/{number}/merge", body, ct: cancellationToken).ConfigureAwait(false);
+        var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/pulls/{number}/merge", body, ct: ct).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-
-        if (delete_branch == true) {
-            await TryDeleteBranchAsync(owner, repoName, number, cancellationToken).ConfigureAwait(false);
+        if (deleteBranch == true) {
+            await TryDeleteBranchAsync(client, owner, repoName, number, ct).ConfigureAwait(false);
         }
         return Ok(result.Body, "PR 合并成功");
     }
@@ -259,14 +249,13 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 尝试删除 PR 分支 — 合并成功后清理远程分支(非致命,失败仅记日志)
     /// </summary>
-    private async Task TryDeleteBranchAsync(string owner, string repo, string number, CancellationToken ct) {
-        if (_apiClient is null) return;
-        var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/pulls/{number}", ct: ct).ConfigureAwait(false);
+    private async Task TryDeleteBranchAsync(IGitHubApiClient client, string owner, string repo, string number, CancellationToken ct) {
+        var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/pulls/{number}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return;
         try {
             using var doc = JsonDocument.Parse(prResult.Body);
             var branchName = doc.RootElement.GetProperty("head").GetProperty("ref").GetString();
-            if (!string.IsNullOrEmpty(branchName)) await _apiClient.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repo}/git/refs/heads/{branchName}", ct: ct).ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(branchName)) await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repo}/git/refs/heads/{branchName}", ct: ct).ConfigureAwait(false);
         } catch (Exception ex) { _logger?.LogDebug(ex, "删除 PR 分支失败(非致命)"); }
     }
 
@@ -299,14 +288,14 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
             if (!string.IsNullOrWhiteSpace(comment)) {
                 var commentBody = $$"""{"body":{{JsonEscapeString(comment)}}}""";
-                await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
+                await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
             }
             var body = """{"state":"closed"}""";
-            var result = await _apiClient!.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok(result.Body, $"已关闭 PR {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
@@ -319,10 +308,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
             var body = """{"state":"open"}""";
-            var result = await _apiClient!.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok(result.Body, $"已重开 PR {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
@@ -339,9 +328,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var jsonBody = BuildPrCreateJson(title, head, @base, body, draft);
-            var result = await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok(result.Body, "PR 创建成功") : Fail(result.Error);
         }).ConfigureAwait(false);
 

@@ -14,9 +14,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var cacheKey = BuildGhCacheKey("gh_repo_view", $"{owner}/{repoName}");
-            return await GetOrFetchWithCacheAsync(cacheKey, $"repos/{owner}/{repoName}", verbose, SummarizeRepo, cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, cacheKey, $"repos/{owner}/{repoName}", verbose, SummarizeRepo, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>

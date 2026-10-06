@@ -16,7 +16,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
             var branchName = string.IsNullOrWhiteSpace(branch) ? "main" : branch;
             var headSha = await GetPrHeadShaAsync(owner, repoName, number, cancellationToken).ConfigureAwait(false);
@@ -27,7 +27,7 @@ public partial class GitHubToolHandlers {
             var (strict, oldContexts) = await GetCurrentRequiredStatusChecksAsync(owner, repoName, branchName, cancellationToken).ConfigureAwait(false);
             if (oldContexts is null) return Fail($"分支 '{branchName}' 没有分支保护规则或 required_status_checks 未配置, 请先创建分支保护规则");
             var putBody = BuildRequiredStatusChecksBody(strict, checkNames);
-            var putResult = await _apiClient!.SendAsync(
+            var putResult = await client.SendAsync(
                 HttpMethod.Put,
                 $"repos/{owner}/{repoName}/branches/{branchName}/protection/required_status_checks",
                 body: putBody,

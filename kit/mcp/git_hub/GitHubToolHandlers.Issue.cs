@@ -16,11 +16,11 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["state"] = string.IsNullOrWhiteSpace(state) ? "open" : state, ["per_page"] = (limit ?? 30).ToString() };
             if (!string.IsNullOrWhiteSpace(label)) query["labels"] = label;
             if (!string.IsNullOrWhiteSpace(assignee)) query["assignee"] = assignee;
-            var result = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
             return Ok(SummarizeIssueList(result.Body));
         }).ConfigureAwait(false);
@@ -35,10 +35,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
             var cacheKey = BuildGhCacheKey("gh_issue_view", $"{owner}/{repoName}/{number}");
-            return await GetOrFetchWithCacheAsync(cacheKey, $"repos/{owner}/{repoName}/issues/{number}", verbose, SummarizeIssue, cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, cacheKey, $"repos/{owner}/{repoName}/issues/{number}", verbose, SummarizeIssue, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -53,7 +53,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var builder = new GitHubJsonObjectBuilder()
                 .String("title", title)
                 .StringIf("body", body);
@@ -64,7 +64,7 @@ public partial class GitHubToolHandlers {
             if (!string.IsNullOrWhiteSpace(assignee))
                 builder.Raw("assignees", "[" + GitHubJsonObjectBuilder.EscapeString(assignee) + "]");
             var jsonBody = builder.Build();
-            var result = await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok(result.Body, "Issue 创建成功") : Fail(result.Error);
         }).ConfigureAwait(false);
 
@@ -78,14 +78,14 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
             if (!string.IsNullOrWhiteSpace(comment)) {
                 var commentBody = $$"""{"body":{{JsonEscapeString(comment)}}}""";
-                await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
+                await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
             }
             var body = """{"state":"closed"}""";
-            var result = await _apiClient!.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", body, ct: cancellationToken).ConfigureAwait(false);
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok(result.Body, $"已关闭 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
@@ -99,10 +99,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
             var reqBody = $$"""{"body":{{JsonEscapeString(body)}}}""";
-            var result = await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", reqBody, ct: cancellationToken).ConfigureAwait(false);
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", reqBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok(result.Body, $"已评论 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
 }

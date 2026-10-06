@@ -48,7 +48,7 @@ public partial class GitHubToolHandlers {
         _apiClient = apiClient;
         _git = git;
         _logger = logger;
-        _logFetcher = new GitHubRunLogFetcher(this);
+        _logFetcher = new GitHubRunLogFetcher();
         _logFilterRunner = apiClient is not null ? new GitHubRunLogFilterRunner(apiClient) : null;
         _logCacheService = apiClient is not null ? new GitHubRunLogCache(apiClient, fs, pipeline, logger) : null;
     }
@@ -121,17 +121,18 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 守卫编排模板 — client 检查 + owner/repo 解析,失败短路返回错误,成功执行 apiCall(owner, repo)
+    /// 守卫编排模板 — client 检查 + owner/repo 解析,失败短路返回错误,成功执行 apiCall(client, owner, repo)
     /// <para>消除 21 处重复的 client 检查 + ResolveOwnerRepoAsync 样板,主方法只写 API 调用核心逻辑</para>
+    /// <para>client 作为参数传入 apiCall,调用方直接用 client 而非 _apiClient!,消除空抑制</para>
     /// </summary>
     private async Task<ToolResult> ExecuteGhAsync(
         string? repo, string? workingDir, CancellationToken ct,
-        Func<string, string, Task<ToolResult>> apiCall) {
+        Func<IGitHubApiClient, string, string, Task<ToolResult>> apiCall) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, workingDir, ct).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
         var (owner, repoName) = resolved.Value;
-        return await apiCall(owner, repoName).ConfigureAwait(false);
+        return await apiCall(_apiClient, owner, repoName).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -139,13 +140,13 @@ public partial class GitHubToolHandlers {
     /// <para>消除 GhPrView/GhIssueView/GhRepoView 三处相同的缓存读写样板</para>
     /// </summary>
     private async Task<ToolResult> GetOrFetchWithCacheAsync(
-        string cacheKey, string apiPath, bool? verbose,
+        IGitHubApiClient client, string cacheKey, string apiPath, bool? verbose,
         Func<string, string> summarize, CancellationToken ct) {
         if (verbose == true) {
             var cached = TryGetGhCache(cacheKey);
             if (cached is not null) return Ok(cached);
         }
-        var result = await _apiClient!.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
+        var result = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
         SaveGhCache(cacheKey, result.Body);
         return Ok(verbose == true ? result.Body : summarize(result.Body));

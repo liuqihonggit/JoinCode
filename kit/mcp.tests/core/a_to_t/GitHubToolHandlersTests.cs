@@ -1375,6 +1375,117 @@ public sealed class GitHubToolHandlersTests {
         _api.LastMethod.Should().Be(HttpMethod.Patch);
         _api.LastBody.Should().Contain("\"tag_name\":\"v2\"");
     }
+
+    [Fact]
+    public async Task PrComment_PostsToIssuesCommentsEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" };
+
+        await _handler.GhPrCommentAsync("42", "good PR", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/comments");
+        _api.LastBody.Should().Contain("good PR");
+    }
+
+    [Fact]
+    public async Task PrEdit_WithTitle_PatchesPr() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhPrEditAsync("42", title: "new title", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42");
+        _api.LastBody.Should().Contain("\"title\":\"new title\"");
+    }
+
+    [Fact]
+    public async Task PrReview_Approve_PostsReviewEvent() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhPrReviewAsync("42", action: "approve", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42/reviews");
+        _api.LastBody.Should().Contain("\"event\":\"APPROVE\"");
+    }
+
+    [Fact]
+    public async Task IssueReopen_PatchesStateOpen() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhIssueReopenAsync("42", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastBody.Should().Contain("\"state\":\"open\"");
+    }
+
+    [Fact]
+    public async Task IssueEdit_WithTitle_PatchesIssue() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhIssueEditAsync("42", title: "updated", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42");
+        _api.LastBody.Should().Contain("\"title\":\"updated\"");
+    }
+
+    [Fact]
+    public async Task IssueDelete_WithYes_UsesGraphQL() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":42,"node_id":"I_kw123"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+
+        var result = await _handler.GhIssueDeleteAsync("42", yes: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("graphql");
+        _api.LastBody.Should().Contain("deleteIssue");
+    }
+
+    [Fact]
+    public async Task RunDownload_Success_DownloadsArtifacts() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"artifacts":[{"name":"artifact1","id":123}]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "" });
+
+        var result = await _handler.GhRunDownloadAsync("42", "/tmp", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("1 成功");
+    }
+
+    [Fact]
+    public async Task RepoRename_PostsToRenameEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhRepoRenameAsync("new-name", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/rename");
+        _api.LastBody.Should().Contain("\"new_name\":\"new-name\"");
+    }
+
+    [Fact]
+    public async Task RepoSync_PostsToMergeUpstream() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhRepoSyncAsync(branch: "main", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/merge-upstream");
+        _api.LastBody.Should().Contain("\"branch\":\"main\"");
+    }
+
+    [Fact]
+    public async Task RepoSetDefault_PatchesDefaultBranch() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhRepoSetDefaultAsync("develop", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo");
+        _api.LastBody.Should().Contain("\"default_branch\":\"develop\"");
+    }
 }
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient {
@@ -1417,6 +1528,12 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
     public Task<GitHubApiResponse> UploadAssetAsync(string owner, string repo, long releaseId, string fileName, Stream fileStream, CancellationToken ct = default) {
         LastMethod = HttpMethod.Post;
         LastPath = $"repos/{owner}/{repo}/releases/{releaseId}/assets";
+        return Task.FromResult(NextResponse);
+    }
+
+    public Task<GitHubApiResponse> DownloadArtifactAsync(string owner, string repo, long artifactId, string filePath, CancellationToken ct = default) {
+        LastMethod = HttpMethod.Get;
+        LastPath = $"repos/{owner}/{repo}/actions/artifacts/{artifactId}/zip";
         return Task.FromResult(NextResponse);
     }
 }

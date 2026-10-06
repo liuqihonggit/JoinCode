@@ -660,4 +660,71 @@ public partial class GitHubToolHandlers {
     /// JSON 字符串转义 — 委托 GitHubJsonObjectBuilder.EscapeString(保留供单字段 JSON 如 {"body":...} 使用)
     /// </summary>
     private static string JsonEscapeString(string value) => GitHubJsonObjectBuilder.EscapeString(value);
+
+    /// <summary>
+    /// 评论 PR — 调 REST API POST issues/{number}/comments 端点（PR 复用 issues 评论）
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhPrComment, "评论 PR", "github")]
+    public async Task<ToolResult> GhPrCommentAsync(
+        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter("评论内容", Required = true)] string body,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var number = ParseNumberFromRef(pr_number);
+            var reqBody = $$"""{"body":{{JsonEscapeString(body)}}}""";
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", reqBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已评论 PR {number}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 编辑 PR — 修改标题/body/base 分支，调 REST API PATCH
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/base)", "github")]
+    public async Task<ToolResult> GhPrEditAsync(
+        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
+        [McpToolParameter("新 body(可选)", Required = false)] string? body = null,
+        [McpToolParameter("新 base 分支(可选)", Required = false)] string? @base = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var number = ParseNumberFromRef(pr_number);
+            var jsonBody = new GitHubJsonObjectBuilder()
+                .StringIf("title", title)
+                .StringIf("body", body)
+                .StringIf("base", @base)
+                .Build();
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已编辑 PR {number}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 审查 PR — approve/request_changes/comment，调 REST API POST reviews 端点
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhPrReview, "审查 PR(approve/request_changes/comment)", "github")]
+    public async Task<ToolResult> GhPrReviewAsync(
+        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter("审查动作(approve/request_changes/comment)", Required = true)] string action,
+        [McpToolParameter("审查评论(可选)", Required = false)] string? body = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var number = ParseNumberFromRef(pr_number);
+            var eventVal = action.ToLowerInvariant() switch {
+                "approve" or "approved" => "APPROVE",
+                "request" or "request_changes" or "request_changes" => "REQUEST_CHANGES",
+                "comment" => "COMMENT",
+                _ => action.ToUpperInvariant(),
+            };
+            var jsonBody = new GitHubJsonObjectBuilder()
+                .String("event", eventVal)
+                .StringIf("body", body)
+                .Build();
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls/{number}/reviews", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已审查 PR {number}: {eventVal}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 }

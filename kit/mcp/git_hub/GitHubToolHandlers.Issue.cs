@@ -61,23 +61,17 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
-            var bodySb = new StringBuilder();
-            bodySb.Append('{');
-            bodySb.Append("\"title\":" + JsonEscapeString(title));
-            if (!string.IsNullOrWhiteSpace(body)) bodySb.Append(",\"body\":" + JsonEscapeString(body));
+            var builder = new GitHubJsonObjectBuilder()
+                .String("title", title)
+                .StringIf("body", body);
             if (!string.IsNullOrWhiteSpace(label)) {
                 var labels = label.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                var labelArr = new StringBuilder("[");
-                for (var i = 0; i < labels.Length; i++) {
-                    if (i > 0) labelArr.Append(',');
-                    labelArr.Append(JsonEscapeString(labels[i]));
-                }
-                labelArr.Append(']');
-                bodySb.Append(",\"labels\":" + labelArr);
+                builder.Raw("labels", "[" + string.Join(",", labels.Select(GitHubJsonObjectBuilder.EscapeString)) + "]");
             }
-            if (!string.IsNullOrWhiteSpace(assignee)) bodySb.Append(",\"assignees\":[" + JsonEscapeString(assignee) + "]");
-            bodySb.Append('}');
-            var result = await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues", bodySb.ToString(), ct: cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(assignee))
+                builder.Raw("assignees", "[" + GitHubJsonObjectBuilder.EscapeString(assignee) + "]");
+            var jsonBody = builder.Build();
+            var result = await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok(result.Body, "Issue 创建成功") : Fail(result.Error);
         }).ConfigureAwait(false);
 

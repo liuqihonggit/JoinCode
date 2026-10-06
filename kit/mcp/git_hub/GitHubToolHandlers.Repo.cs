@@ -66,16 +66,14 @@ public partial class GitHubToolHandlers {
         var isPrivate = vis.Equals("private", StringComparison.OrdinalIgnoreCase);
         var isInternal = vis.Equals("internal", StringComparison.OrdinalIgnoreCase);
 
-        var bodySb = new StringBuilder();
-        bodySb.Append('{');
-        bodySb.Append("\"name\":" + JsonEscapeString(name));
-        bodySb.Append(",\"private\":" + (isPrivate || isInternal ? "true" : "false"));
-        if (isInternal) bodySb.Append(",\"visibility\":\"internal\"");
-        if (!string.IsNullOrWhiteSpace(description)) bodySb.Append(",\"description\":" + JsonEscapeString(description));
-        if (add_readme == true) bodySb.Append(",\"auto_init\":true");
-        bodySb.Append('}');
+        var builder = new GitHubJsonObjectBuilder()
+            .String("name", name)
+            .Bool("private", isPrivate || isInternal);
+        if (isInternal) builder.Raw("visibility", "\"internal\"");
+        builder.StringIf("description", description).BoolIfTrue("auto_init", add_readme);
+        var jsonBody = builder.Build();
 
-        var result = await _apiClient.SendAsync(HttpMethod.Post, "user/repos", bodySb.ToString(), ct: cancellationToken).ConfigureAwait(false);
+        var result = await _apiClient.SendAsync(HttpMethod.Post, "user/repos", jsonBody, ct: cancellationToken).ConfigureAwait(false);
         return result.Success ? Ok(result.Body, $"已创建仓库 {name}") : Fail(result.Error);
     }
 

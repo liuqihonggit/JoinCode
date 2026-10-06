@@ -353,27 +353,21 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 构建 PR 创建 JSON 请求体 — 手动拼接避免 JsonSerializer 序列化开销(AOT 友好)
+    /// 构建 PR 创建 JSON 请求体 — 流式构建器(AOT 友好,无手拼 StringBuilder)
     /// </summary>
-    private static string BuildPrCreateJson(string title, string head, string? @base, string? body, bool? draft) {
-        var sb = new StringBuilder(256);
-        sb.Append("""{"title":""");
-        sb.Append(JsonEscapeString(title));
-        sb.Append(""","head":""");
-        sb.Append(JsonEscapeString(head));
-        if (!string.IsNullOrWhiteSpace(@base)) {
-            sb.Append(""","base":""");
-            sb.Append(JsonEscapeString(@base));
-        }
-        if (!string.IsNullOrWhiteSpace(body)) {
-            sb.Append(""","body":""");
-            sb.Append(JsonEscapeString(body));
-        }
-        if (draft == true)
-            sb.Append(""","draft":true""");
-        sb.Append('}');
-        return sb.ToString();
-    }
+    private static string BuildPrCreateJson(string title, string head, string? @base, string? body, bool? draft)
+        => new GitHubJsonObjectBuilder()
+            .String("title", title)
+            .String("head", head)
+            .StringIf("base", @base)
+            .StringIf("body", body)
+            .BoolIfTrue("draft", draft)
+            .Build();
+
+    /// <summary>
+    /// JSON 字符串转义 — 委托 GitHubJsonObjectBuilder.EscapeString(保留供单字段 JSON 如 {"body":...} 使用)
+    /// </summary>
+    private static string JsonEscapeString(string value) => GitHubJsonObjectBuilder.EscapeString(value);
 
     /// <summary>
     /// 从 PR 编号或 URL 提取数字编号
@@ -383,30 +377,5 @@ public partial class GitHubToolHandlers {
         var lastSlash = prNumber.LastIndexOf('/');
         if (lastSlash < 0) return prNumber;
         return prNumber[(lastSlash + 1)..];
-    }
-
-    /// <summary>
-    /// JSON 字符串转义（AOT 友好，替代 JsonSerializer.Serialize）
-    /// </summary>
-    private static string JsonEscapeString(string value) {
-        var sb = new StringBuilder(value.Length + 2);
-        sb.Append('"');
-        foreach (var c in value) {
-            switch (c) {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                case '\b': sb.Append("\\b"); break;
-                case '\f': sb.Append("\\f"); break;
-                default:
-                if (c < 0x20) sb.Append($"\\u{(int)c:X4}");
-                else sb.Append(c);
-                break;
-            }
-        }
-        sb.Append('"');
-        return sb.ToString();
     }
 }

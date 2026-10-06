@@ -90,16 +90,15 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
-            var bodySb = new StringBuilder();
-            bodySb.Append('{');
-            bodySb.Append("\"tag_name\":" + JsonEscapeString(tag));
-            if (!string.IsNullOrWhiteSpace(title)) bodySb.Append(",\"name\":" + JsonEscapeString(title));
-            if (!string.IsNullOrWhiteSpace(notes)) bodySb.Append(",\"body\":" + JsonEscapeString(notes));
-            if (draft == true) bodySb.Append(",\"draft\":true");
-            if (prerelease == true) bodySb.Append(",\"prerelease\":true");
-            if (!string.IsNullOrWhiteSpace(target)) bodySb.Append(",\"target_commitish\":" + JsonEscapeString(target));
-            bodySb.Append('}');
-            var result = await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases", bodySb.ToString(), ct: cancellationToken).ConfigureAwait(false);
+            var jsonBody = new GitHubJsonObjectBuilder()
+                .String("tag_name", tag)
+                .StringIf("name", title)
+                .StringIf("body", notes)
+                .BoolIfTrue("draft", draft)
+                .BoolIfTrue("prerelease", prerelease)
+                .StringIf("target_commitish", target)
+                .Build();
+            var result = await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok(result.Body, $"已创建 Release {tag}") : Fail(result.Error);
         }).ConfigureAwait(false);
 

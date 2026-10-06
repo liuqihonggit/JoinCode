@@ -271,6 +271,7 @@ public sealed class SshSession : ISshSession {
 
             _sshProcess.Dispose();
         }
+        _sshProcess = null;
 
         _stateLock.Dispose();
         return portTask;

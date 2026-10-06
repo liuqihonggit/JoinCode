@@ -110,6 +110,11 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
         }
     }
 
+    /// <summary>Actor 停止后释放限流器</summary>
+    protected override void PostStop() {
+        _rateLimiter.Dispose();
+    }
+
     private async Task ExecuteCallAsync(TRequest req, TaskCompletionSource<TResponse> tcs, CancellationToken ct) {
         try {
             var result = await CallWithRetryAndBreakerAsync(req, ct).ConfigureAwait(false);

@@ -31,6 +31,12 @@ public sealed partial class DefaultHttpClientProvider : ServiceEntity, IHttpClie
         _sharedClient = null;
     }
 
+    /// <inheritdoc />
+    public override void Dispose() {
+        _sharedClient?.Dispose();
+        base.Dispose();
+    }
+
     /// <summary>
     /// 获取 HttpClient 借用句柄 — 优先通过 IHttpClientFactory.CreateClient() 创建（Handler 池化），无 factory 时返回共享实例
     /// </summary>

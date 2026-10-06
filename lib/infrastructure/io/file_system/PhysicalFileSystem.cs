@@ -24,6 +24,12 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     public PhysicalFileSystem() => _editActor = new EditFileActor(this);
 
     /// <inheritdoc />
+    public override async ValueTask DisposeAsync() {
+        await _editActor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async Task WriteAllTextAsync(string path, string contents, CancellationToken cancellationToken = default) {
         await WriteAllTextWithShareAsync(path, contents, s_utf8NoBom, cancellationToken).ConfigureAwait(false);
     }

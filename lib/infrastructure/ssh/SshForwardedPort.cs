@@ -141,6 +141,7 @@ public sealed class SshForwardedPort : ISshForwardedPort {
         }
 
         _forwardProcess?.Dispose();
+        _forwardProcess = null;
         return new ValueTask(StopAsync());
     }
 }

@@ -191,5 +191,6 @@ public sealed class WorkflowPluginHost : PluginResourceBase, IPluginHost {
         if (_pluginServiceProvider is IDisposable spDisposable) {
             spDisposable.Dispose();
         }
+        _pluginServiceProvider = null;
     }
 }

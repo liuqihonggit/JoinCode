@@ -177,6 +177,7 @@ public sealed partial class TelemetryService : ITelemetryService {
         }
 
         _consoleExporter?.Dispose();
+        _consoleExporter = null;
         _listener.Dispose();
         _activitySource.Dispose();
         _meter.Dispose();

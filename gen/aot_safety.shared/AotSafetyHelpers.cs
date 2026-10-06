@@ -54,6 +54,9 @@ public static class AotSafetyHelpers {
         if (nameSpan.SequenceEqual("Shutdown".AsSpan())) return true;
         if (nameSpan.SequenceEqual("ShutdownAsync".AsSpan())) return true;
         if (nameSpan.SequenceEqual("StopAsync".AsSpan())) return true;
+        if (nameSpan.SequenceEqual("PostStop".AsSpan())) return true;
+        if (nameSpan.SequenceEqual("PostStopAsync".AsSpan())) return true;
+        if (nameSpan.SequenceEqual("OnResourceDispose".AsSpan())) return true;
         return false;
     }
 

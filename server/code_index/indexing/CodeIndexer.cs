@@ -844,6 +844,10 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         _updater.Dispose();
         _symbolIndex.Dispose();
+        _embeddingIndex?.Dispose();
+        _embeddingIndex = null;
+        _analytics.Dispose();
+        _visualization.Dispose();
         base.Dispose();
     }
 

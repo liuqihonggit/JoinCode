@@ -121,5 +121,7 @@ internal sealed class LspProcessChannel : IAsyncDisposable {
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await DisconnectAsync().ConfigureAwait(false);
+        _readCts?.Dispose();
+        _readCts = null;
     }
 }

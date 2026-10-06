@@ -355,6 +355,9 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _timeoutTimer?.Dispose();
         _assistantTimer?.Dispose();
         _sizeWatchdogTimer?.Dispose();
+        _timeoutTimer = null;
+        _assistantTimer = null;
+        _sizeWatchdogTimer = null;
         _processCts.Cancel();
         _processCts.Dispose();
 

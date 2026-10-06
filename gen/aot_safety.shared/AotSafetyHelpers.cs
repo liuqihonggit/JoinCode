@@ -159,14 +159,25 @@ public static class AotSafetyHelpers {
             .OfType<AssignmentExpressionSyntax>()
             .Where(a => a.IsKind(SyntaxKind.SimpleAssignmentExpression))
             .Any(a =>
-                a.Left is IdentifierNameSyntax leftId &&
-                leftId.Identifier.ValueText == fieldName &&
+                IsFieldReference(a.Left, fieldName) &&
                 IsNullLiteral(a.Right)))
             return true;
 
         return method.Body.DescendantNodes()
             .OfType<InvocationExpressionSyntax>()
             .Any(inv => IsAtomicNullWriteToField(inv, fieldName));
+    }
+
+    /// <summary>
+    /// 检查表达式是否引用了指定字段名 — 支持 _field 和 self._field 模式
+    /// </summary>
+    private static bool IsFieldReference(ExpressionSyntax expr, string fieldName) {
+        return expr switch {
+            IdentifierNameSyntax id => id.Identifier.ValueText == fieldName,
+            MemberAccessExpressionSyntax ma when ma.Name is IdentifierNameSyntax nameId =>
+                nameId.Identifier.ValueText == fieldName,
+            _ => false,
+        };
     }
 
     private static bool IsAtomicNullWriteToField(InvocationExpressionSyntax invocation, string fieldName) {

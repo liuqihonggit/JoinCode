@@ -144,6 +144,7 @@ public sealed class SerialBatchEventUploader : IDisposable {
         Close();
         _drainLock.Dispose();
         _sleepCts?.Dispose();
+        _sleepCts = null;
     }
 
     /// <summary>

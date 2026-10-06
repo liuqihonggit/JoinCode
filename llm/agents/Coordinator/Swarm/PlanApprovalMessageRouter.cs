@@ -75,6 +75,12 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
         _logger?.LogInformation("Plan 审批消息路由已停止");
     }
 
+    /// <inheritdoc />
+    public override async ValueTask DisposeAsync() {
+        await StopRoutingAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Leader 侧消息路由：监听 plan_approval_request 并自动批准
     /// 对齐 TS: Leader 收到 teammate 的 plan_approval_request 后自动批准

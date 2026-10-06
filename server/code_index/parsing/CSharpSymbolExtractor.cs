@@ -308,6 +308,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
         _treeCache.Dispose();
         _dedicatedParser?.Dispose();
+        _parseLock.Dispose();
     }
 
     /// <summary>

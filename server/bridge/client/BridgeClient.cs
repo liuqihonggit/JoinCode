@@ -578,6 +578,8 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
         }
 
         _pollingCts?.Dispose();
+        _pollingCts = null;
+        await _processedMessageIds.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

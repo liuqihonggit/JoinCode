@@ -282,6 +282,7 @@ public sealed class McpTcpServer : ServiceEntity {
     public override void Dispose() {
         Stop();
         _cts?.Dispose();
+        _cts = null;
         base.Dispose();
     }
 }

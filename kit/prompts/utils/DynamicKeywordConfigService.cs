@@ -122,6 +122,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
             return;
 
         if (_watcher is not null) await _watcher.DisposeAsync().ConfigureAwait(false);
+        _watcher = null;
         await _loadTask.ConfigureAwait(false);
         await _actor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);

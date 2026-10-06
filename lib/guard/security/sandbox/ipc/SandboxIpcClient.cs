@@ -257,6 +257,8 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
                 self._startLock.Dispose();
                 self._readCts?.Dispose();
                 self._writeCts?.Dispose();
+                self._readCts = null;
+                self._writeCts = null;
             },
             this,
             TaskContinuationOptions.ExecuteSynchronously));

@@ -323,6 +323,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         if (_watcher is not null) await _watcher.DisposeAsync().ConfigureAwait(false);
+        _watcher = null;
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

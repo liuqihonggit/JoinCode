@@ -191,6 +191,8 @@ public sealed class McpStdioClient : McpClientBase {
 
         _readCts?.Dispose();
         _writeCts?.Dispose();
+        _readCts = null;
+        _writeCts = null;
 
         await CancelPendingRequestsAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -352,6 +354,6 @@ public sealed class McpStdioClient : McpClientBase {
             await _connectionSpan.DisposeAsync().ConfigureAwait(false);
             _connectionSpan = null;
         }
-        await _requestRegistry.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

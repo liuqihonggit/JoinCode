@@ -618,7 +618,9 @@ public abstract class McpClientBase : IMcpClient {
         }
     }
 
-    /// <summary>异步释放客户端资源 — 由派生类实现具体释放逻辑。</summary>
+    /// <summary>异步释放客户端资源 — 释放请求注册表,派生类 override 时应调 base.DisposeAsync()。</summary>
     /// <returns>表示异步释放操作的任务。</returns>
-    public abstract ValueTask DisposeAsync();
+    public virtual async ValueTask DisposeAsync() {
+        await _requestRegistry.DisposeAsync().ConfigureAwait(false);
+    }
 }

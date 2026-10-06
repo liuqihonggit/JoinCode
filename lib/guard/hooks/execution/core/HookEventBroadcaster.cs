@@ -321,6 +321,7 @@ public sealed partial class HookProgressReporter : IHookProgressReporter, IDispo
 
         _disposed = true;
         _timer?.Dispose();
+        _timer = null;
     }
 }
 

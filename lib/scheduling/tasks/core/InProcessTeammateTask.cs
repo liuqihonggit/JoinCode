@@ -701,6 +701,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
             _pendingChannel?.Writer.TryComplete();
             _lifecycleCts?.Dispose();
+            _lifecycleCts = null;
             if (_brokerRegistered) {
                 _owner._cleanupHelper.StopMailboxPollingIfNeeded(_teammateId);
                 _owner._messageBroker.UnregisterAgent(_teammateId);

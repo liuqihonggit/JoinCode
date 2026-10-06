@@ -11,7 +11,7 @@ public sealed class BridgeUIServiceTests {
     [Fact]
     public async Task GenerateQRDataAsync_ShouldReturnQRData_WithValidFields() {
         // Arrange
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var sessionId = "test-session-001";
         var endpoint = "ws://localhost:3456";
 
@@ -29,7 +29,7 @@ public sealed class BridgeUIServiceTests {
     [Fact]
     public async Task GenerateQRDataAsync_ShouldSetExpiration_BasedOnTtl() {
         // Arrange
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var sessionId = "test-session-002";
         var endpoint = "ws://localhost:3456";
         var ttlMs = 60000;
@@ -47,7 +47,7 @@ public sealed class BridgeUIServiceTests {
     [Fact]
     public async Task FormatAsTerminalQR_ShouldReturnNonEmptyString() {
         // Arrange
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var qrData = await sut.GenerateQRDataAsync("session-003", "ws://localhost:3456").ConfigureAwait(true);
 
         // Act
@@ -62,7 +62,7 @@ public sealed class BridgeUIServiceTests {
     [Fact]
     public async Task RegisterSession_ShouldAppearInActiveSessionList() {
         // Arrange
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var session = new BridgeSessionDisplay {
             SessionId = "active-session-001",
             ClientName = "TestClient",
@@ -83,7 +83,7 @@ public sealed class BridgeUIServiceTests {
     [Fact]
     public async Task UnregisterSession_ShouldRemoveFromActiveSessionList() {
         // Arrange
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var session = new BridgeSessionDisplay {
             SessionId = "remove-session-001",
             ClientName = "ToRemove",
@@ -103,7 +103,7 @@ public sealed class BridgeUIServiceTests {
     [Fact]
     public async Task GetActiveSessionList_ShouldReturnEmpty_WhenNoSessions() {
         // Arrange
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
 
         // Act
         var activeSessions = await sut.GetActiveSessionList().ConfigureAwait(true);

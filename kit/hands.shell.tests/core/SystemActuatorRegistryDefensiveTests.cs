@@ -11,7 +11,7 @@ public sealed class SystemActuatorRegistryDefensiveTests {
 
     [Fact]
     public async Task CancelTasksForAgentAsync_EmptyAgent_ReturnsZeroWithoutBlocking() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var completed = false;
         var task = Task.Run(async () => {
             var result = await sut.CancelTasksForAgentAsync("agent-1");
@@ -25,14 +25,14 @@ public sealed class SystemActuatorRegistryDefensiveTests {
 
     [Fact]
     public async Task CancelTasksForAgentAsync_UnknownAgent_ReturnsZero() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.CancelTasksForAgentAsync("unknown-agent");
         result.Should().Be(0);
     }
 
     [Fact]
     public async Task CancelTasksForAgentAsync_CancellationRequested_ThrowsOperationCanceledException() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 

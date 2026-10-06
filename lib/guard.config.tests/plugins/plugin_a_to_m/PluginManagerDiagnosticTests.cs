@@ -8,7 +8,7 @@ public sealed class PluginManagerDiagnosticTests {
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
         services.AddSingleton<IPluginManager, PluginManager>();
         using var sp = services.BuildServiceProvider();
-        using var pm = sp.GetRequiredService<IPluginManager>();
+        await using var pm = sp.GetRequiredService<IPluginManager>();
 
         Assert.NotNull(pm.GetType().GetEvent("OnDiagnostic"));
     }
@@ -20,7 +20,7 @@ public sealed class PluginManagerDiagnosticTests {
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
         services.AddSingleton<IPluginManager, PluginManager>();
         using var sp = services.BuildServiceProvider();
-        using var pm = sp.GetRequiredService<IPluginManager>();
+        await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var result = await pm.UnloadPluginAsync("non-existent");
         Assert.False(result.IsSuccess);

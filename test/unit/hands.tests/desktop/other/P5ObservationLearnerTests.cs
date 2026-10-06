@@ -234,7 +234,7 @@ public sealed class P5ObservationLearnerTests {
     [Fact]
     public async Task AbstractAsync_NullSession_Throws() {
         var mock = CreateQueryMock("");
-        using var learner = new ObservationLearner(mock.Object);
+        await using var learner = new ObservationLearner(mock.Object);
 
         var act = async () => await learner.AbstractAsync(null!);
         await act.Should().ThrowAsync<ArgumentNullException>();
@@ -279,7 +279,7 @@ public sealed class P5ObservationLearnerTests {
     [Fact]
     public async Task OptimizeAsync_NullLogic_Throws() {
         var mock = CreateQueryMock("");
-        using var learner = new ObservationLearner(mock.Object);
+        await using var learner = new ObservationLearner(mock.Object);
 
         var act = async () => await learner.OptimizeAsync(null!);
         await act.Should().ThrowAsync<ArgumentNullException>();
@@ -320,7 +320,7 @@ public sealed class P5ObservationLearnerTests {
     [Fact]
     public async Task ReproduceAsync_NullLogic_Throws() {
         var mock = CreateQueryMock("");
-        using var learner = new ObservationLearner(mock.Object);
+        await using var learner = new ObservationLearner(mock.Object);
 
         var act = async () => await learner.ReproduceAsync(null!, "context");
         await act.Should().ThrowAsync<ArgumentNullException>();

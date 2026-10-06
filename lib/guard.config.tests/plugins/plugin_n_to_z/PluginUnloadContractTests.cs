@@ -46,7 +46,7 @@ public sealed class PluginUnloadContractTests {
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
         services.AddSingleton<IPluginManager, PluginManager>();
         using var sp = services.BuildServiceProvider();
-        using var pm = sp.GetRequiredService<IPluginManager>();
+        await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             async () => await pm.LoadWorkflowPluginAsync<ContractViolatingPlugin>().ConfigureAwait(true)).ConfigureAwait(true);
@@ -63,7 +63,7 @@ public sealed class PluginUnloadContractTests {
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
         services.AddSingleton<IPluginManager, PluginManager>();
         using var sp = services.BuildServiceProvider();
-        using var pm = sp.GetRequiredService<IPluginManager>();
+        await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var host = await pm.LoadWorkflowPluginAsync<ContractValidPlugin>().ConfigureAwait(true);
 

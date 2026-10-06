@@ -86,7 +86,7 @@ public sealed class DreamPluginTests {
 
     [Fact]
     public void UnregisterCommands_WithoutRegister_DoesNotThrow() {
-        using var plugin = new DreamPlugin();
+        await using var plugin = new DreamPlugin();
         var registry = new Mock<ICommandRegistry>();
 
         var exception = Record.Exception(() => plugin.UnregisterCommands(registry.Object));

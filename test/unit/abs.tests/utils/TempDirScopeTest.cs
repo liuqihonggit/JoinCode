@@ -9,7 +9,7 @@ public sealed class TempDirScopeTest {
     public void Create_WithFileSystem_CreatesDirectory() {
         var fs = new InMemoryFileSystem();
 
-        using var scope = TempDirScope.Create(fs, "test_");
+        await using var scope = TempDirScope.Create(fs, "test_");
 
         fs.DirectoryExists(scope.Path).Should().BeTrue();
         scope.Path.Should().Contain("test_");
@@ -19,7 +19,7 @@ public sealed class TempDirScopeTest {
     public void Create_NullPrefix_UsesDefaultPrefix() {
         var fs = new InMemoryFileSystem();
 
-        using var scope = TempDirScope.Create(fs);
+        await using var scope = TempDirScope.Create(fs);
 
         fs.DirectoryExists(scope.Path).Should().BeTrue();
         scope.Path.Should().Contain("jcctmp_");

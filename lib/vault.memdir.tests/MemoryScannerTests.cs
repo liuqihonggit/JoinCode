@@ -13,7 +13,7 @@ public sealed class MemoryScannerTests {
 
     [Fact]
     public async Task ScanDirectoryAsync_NonExistentDirectory_ReturnsEmpty() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
 
         var result = await sut.ScanDirectoryAsync("/does/not/exist").ConfigureAwait(true);
 
@@ -22,7 +22,7 @@ public sealed class MemoryScannerTests {
 
     [Fact]
     public async Task ScanDirectoryAsync_ValidJsonFiles_ReturnsMemories() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var entry = MemoryEntry.Create(MemoryType.User, "hello world", now: DateTime.UtcNow) with { Id = "abc" };
         await _fs.WriteAllText("/mem/user/abc.json", MemoryJson(entry));
 
@@ -33,7 +33,7 @@ public sealed class MemoryScannerTests {
 
     [Fact]
     public async Task ScanDirectoryAsync_InvalidJson_IsIgnoredAndReturnsEmpty() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await _fs.WriteAllText("/mem/user/bad.json", "not json");
 
         var result = await sut.ScanDirectoryAsync("/mem/user").ConfigureAwait(true);
@@ -43,7 +43,7 @@ public sealed class MemoryScannerTests {
 
     [Fact]
     public async Task ScanDirectoryAsync_IdMismatch_ReturnsMemory() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var entry = MemoryEntry.Create(MemoryType.User, "content", now: DateTime.UtcNow) with { Id = "realid" };
         await _fs.WriteAllText("/mem/user/wrongname.json", MemoryJson(entry));
 
@@ -54,7 +54,7 @@ public sealed class MemoryScannerTests {
 
     [Fact]
     public async Task ScanByTypeAsync_UsesMemoryPathsDirectory() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _pathsMock.Setup(p => p.GetMemoryDirectoryByType(MemoryType.Project, null)).Returns("/mem/project");
         var entry = MemoryEntry.Create(MemoryType.Project, "project memory", now: DateTime.UtcNow) with { Id = "p1" };
         await _fs.WriteAllText("/mem/project/p1.json", MemoryJson(entry));
@@ -66,7 +66,7 @@ public sealed class MemoryScannerTests {
 
     [Fact]
     public async Task ScanAllAsync_ScansAllTypes() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _pathsMock.Setup(p => p.GetMemoryDirectoryByType(It.IsAny<MemoryType>(), null))
             .Returns<MemoryType, string?>((type, _) => $"/mem/{type.ToString().ToLowerInvariant()}");
         var userEntry = MemoryEntry.Create(MemoryType.User, "user memory", now: DateTime.UtcNow) with { Id = "u1" };
@@ -83,7 +83,7 @@ public sealed class MemoryScannerTests {
 
     [Fact]
     public void BuildIndex_GroupsByTypeTagAndSource() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var memories = new List<MemoryEntry>
         {
             MemoryEntry.Create(MemoryType.User, "A", title: "A", tags: new[] { "tag1", "tag2" }, source: "src1"),
@@ -101,7 +101,7 @@ public sealed class MemoryScannerTests {
 
     [Fact]
     public void BuildIndex_FindByType_ReturnsReadOnlyList() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var memories = new List<MemoryEntry>
         {
             MemoryEntry.Create(MemoryType.Feedback, "feedback memory")
@@ -115,7 +115,7 @@ public sealed class MemoryScannerTests {
 
     [Fact]
     public void BuildIndex_FindByTag_ReturnsReadOnlyList() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var memories = new List<MemoryEntry>
         {
             MemoryEntry.Create(MemoryType.User, "tagged", tags: new[] { "important" })
@@ -129,7 +129,7 @@ public sealed class MemoryScannerTests {
 
     [Fact]
     public void BuildIndex_FindBySource_ReturnsReadOnlyList() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var memories = new List<MemoryEntry>
         {
             MemoryEntry.Create(MemoryType.User, "sourced", source: "srcA")

@@ -22,7 +22,7 @@ public sealed class SyncFileTransferTests {
 
     [Fact]
     public async Task PushToRemoteAsync_EmptyRemoteStoragePath_NoOp() {
-        using var transfer = CreateTransfer(Options(remotePath: ""));
+        await using var transfer = CreateTransfer(Options(remotePath: ""));
         var act = async () => await transfer.PushToRemoteAsync("/watch/a.md", CancellationToken.None).ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
         _remoteEntries.Should().BeEmpty();
@@ -38,7 +38,7 @@ public sealed class SyncFileTransferTests {
         _fosMock.Setup(x => x.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(FileWriteResult.SuccessResult("/remote/index.json", "{}", "write"));
 
-        using var transfer = CreateTransfer();
+        await using var transfer = CreateTransfer();
         await transfer.PushToRemoteAsync(file, CancellationToken.None).ConfigureAwait(true);
 
         // 1. remote entries 更新
@@ -58,7 +58,7 @@ public sealed class SyncFileTransferTests {
 
     [Fact]
     public async Task PushToRemoteAsync_FileNotExists_SilentlySkipsNoThrow() {
-        using var transfer = CreateTransfer();
+        await using var transfer = CreateTransfer();
         var act = async () => await transfer.PushToRemoteAsync("/watch/missing.md", CancellationToken.None).ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
         _remoteEntries.Should().BeEmpty();
@@ -66,7 +66,7 @@ public sealed class SyncFileTransferTests {
 
     [Fact]
     public async Task PullFromRemoteAsync_EmptyRemoteStoragePath_NoOp() {
-        using var transfer = CreateTransfer(Options(remotePath: ""));
+        await using var transfer = CreateTransfer(Options(remotePath: ""));
         var act = async () => await transfer.PullFromRemoteAsync("/watch/a.md", CancellationToken.None).ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
         _localEntries.Should().BeEmpty();
@@ -74,7 +74,7 @@ public sealed class SyncFileTransferTests {
 
     [Fact]
     public async Task PullFromRemoteAsync_NoRemoteEntry_NoOp() {
-        using var transfer = CreateTransfer();
+        await using var transfer = CreateTransfer();
         await transfer.PullFromRemoteAsync("/watch/unknown.md", CancellationToken.None).ConfigureAwait(true);
         _localEntries.Should().BeEmpty();
         _fosMock.Verify(x => x.ReadFileAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -89,7 +89,7 @@ public sealed class SyncFileTransferTests {
         _fosMock.Setup(x => x.ReadFileAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(FileReadResult.FailureResult("/remote/a.md", "not found"));
 
-        using var transfer = CreateTransfer();
+        await using var transfer = CreateTransfer();
         await transfer.PullFromRemoteAsync(file, CancellationToken.None).ConfigureAwait(true);
 
         _localEntries.Should().BeEmpty();
@@ -105,7 +105,7 @@ public sealed class SyncFileTransferTests {
         _fosMock.Setup(x => x.ReadFileAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(FileReadResult.SuccessResult("/remote/a.md", "remote content", 1, 0, 1));
 
-        using var transfer = CreateTransfer();
+        await using var transfer = CreateTransfer();
         await transfer.PullFromRemoteAsync(file, CancellationToken.None).ConfigureAwait(true);
 
         // 本地文件写入
@@ -124,7 +124,7 @@ public sealed class SyncFileTransferTests {
 
     [Fact]
     public async Task PersistRemoteIndexAsync_EmptyRemoteStoragePath_NoOp() {
-        using var transfer = CreateTransfer(Options(remotePath: ""));
+        await using var transfer = CreateTransfer(Options(remotePath: ""));
         await transfer.PersistRemoteIndexAsync(CancellationToken.None).ConfigureAwait(true);
         _fosMock.Verify(x => x.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -139,7 +139,7 @@ public sealed class SyncFileTransferTests {
                 .Callback((string p, string c, CancellationToken _) => capturedJson = c)
                 .ReturnsAsync(FileWriteResult.SuccessResult("/remote/index.json", "{}", "write"));
 
-        using var transfer = CreateTransfer();
+        await using var transfer = CreateTransfer();
         await transfer.PersistRemoteIndexAsync(CancellationToken.None).ConfigureAwait(true);
 
         _fosMock.Verify(x => x.WriteFileAsync("/remote/index.json", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -157,7 +157,7 @@ public sealed class SyncFileTransferTests {
                 .Callback((string p, string c, CancellationToken _) => capturedJson = c)
                 .ReturnsAsync(FileWriteResult.SuccessResult("/remote/index.json", "[]", "write"));
 
-        using var transfer = CreateTransfer();
+        await using var transfer = CreateTransfer();
         await transfer.PersistRemoteIndexAsync(CancellationToken.None).ConfigureAwait(true);
 
         capturedJson.Should().NotBeNull();
@@ -175,7 +175,7 @@ public sealed class SyncFileTransferTests {
         _fosMock.Setup(x => x.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(FileWriteResult.SuccessResult("/remote/index.json", "[]", "write"));
 
-        using var transfer = CreateTransfer();
+        await using var transfer = CreateTransfer();
         await transfer.PushToRemoteAsync(file, CancellationToken.None).ConfigureAwait(true);
 
         var evt = _eventLog.GetRecent(1).Single();

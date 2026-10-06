@@ -22,7 +22,7 @@ public sealed class MagicDocsManagerTests {
     [Fact]
     public async Task OnFileRead_WithMagicDocHeader_TracksDoc() {
         var fs = CreateFileSystem();
-        using var manager = CreateManager(fs);
+        await using var manager = CreateManager(fs);
 
         manager.OnFileRead(new FileReadEventArgs {
             FilePath = "/test/project/docs/arch.md",
@@ -35,7 +35,7 @@ public sealed class MagicDocsManagerTests {
     [Fact]
     public async Task OnFileRead_WithoutMagicDocHeader_DoesNotTrack() {
         var fs = CreateFileSystem();
-        using var manager = CreateManager(fs);
+        await using var manager = CreateManager(fs);
 
         manager.OnFileRead(new FileReadEventArgs {
             FilePath = "/test/project/docs/normal.md",
@@ -48,7 +48,7 @@ public sealed class MagicDocsManagerTests {
     [Fact]
     public async Task OnFileRead_SameFileUpdated_UpdatesEntry() {
         var fs = CreateFileSystem();
-        using var manager = CreateManager(fs);
+        await using var manager = CreateManager(fs);
 
         manager.OnFileRead(new FileReadEventArgs {
             FilePath = "/test/project/guide.md",
@@ -66,7 +66,7 @@ public sealed class MagicDocsManagerTests {
     [Fact]
     public async Task OnFileRead_MultipleDifferentFiles_TracksAll() {
         var fs = CreateFileSystem();
-        using var manager = CreateManager(fs);
+        await using var manager = CreateManager(fs);
 
         manager.OnFileRead(new FileReadEventArgs {
             FilePath = "/test/project/a.md",
@@ -84,7 +84,7 @@ public sealed class MagicDocsManagerTests {
     [Fact]
     public async Task OnPostSamplingAsync_NonReplSource_DoesNothing() {
         var fs = CreateFileSystem();
-        using var manager = CreateManager(fs);
+        await using var manager = CreateManager(fs);
 
         manager.OnFileRead(new FileReadEventArgs {
             FilePath = "/test/project/guide.md",
@@ -105,7 +105,7 @@ public sealed class MagicDocsManagerTests {
     [Fact]
     public async Task OnPostSamplingAsync_NoTrackedDocs_DoesNothing() {
         var fs = CreateFileSystem();
-        using var manager = CreateManager(fs);
+        await using var manager = CreateManager(fs);
 
         var context = new PostSamplingContext {
             QuerySource = "repl_main_thread",
@@ -122,7 +122,7 @@ public sealed class MagicDocsManagerTests {
     public async Task OnPostSamplingAsync_FileDeleted_RemovesTrackedDoc() {
         var fs = CreateFileSystem();
         fs.WriteAllText("/test/project/guide.md", "# MAGIC DOC: Guide\nContent");
-        using var manager = CreateManager(fs);
+        await using var manager = CreateManager(fs);
 
         manager.OnFileRead(new FileReadEventArgs {
             FilePath = "/test/project/guide.md",
@@ -148,7 +148,7 @@ public sealed class MagicDocsManagerTests {
     public async Task OnPostSamplingAsync_FileNoLongerMagicDoc_RemovesTrackedDoc() {
         var fs = CreateFileSystem();
         fs.WriteAllText("/test/project/guide.md", "# MAGIC DOC: Guide\nContent");
-        using var manager = CreateManager(fs);
+        await using var manager = CreateManager(fs);
 
         manager.OnFileRead(new FileReadEventArgs {
             FilePath = "/test/project/guide.md",
@@ -176,7 +176,7 @@ public sealed class MagicDocsManagerTests {
         forkMock.Setup(f => f.ForkAsync(It.IsAny<ForkOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ForkResult { ForkId = "fork-1", State = ForkState.Completed });
 
-        using var manager = CreateManager(fs, forkMock.Object);
+        await using var manager = CreateManager(fs, forkMock.Object);
 
         manager.OnFileRead(new FileReadEventArgs {
             FilePath = "/test/project/guide.md",
@@ -203,7 +203,7 @@ public sealed class MagicDocsManagerTests {
     public async Task OnPostSamplingAsync_WithoutForkManager_DoesNotThrow() {
         var fs = CreateFileSystem();
         fs.WriteAllText("/test/project/guide.md", "# MAGIC DOC: Guide\nContent");
-        using var manager = CreateManager(fs, forkManager: null);
+        await using var manager = CreateManager(fs, forkManager: null);
 
         manager.OnFileRead(new FileReadEventArgs {
             FilePath = "/test/project/guide.md",
@@ -224,7 +224,7 @@ public sealed class MagicDocsManagerTests {
     [Fact]
     public async Task Clear_RemovesAllTrackedDocs() {
         var fs = CreateFileSystem();
-        using var manager = CreateManager(fs);
+        await using var manager = CreateManager(fs);
 
         manager.OnFileRead(new FileReadEventArgs {
             FilePath = "/test/project/a.md",
@@ -249,7 +249,7 @@ public sealed class MagicDocsManagerTests {
         forkMock.Setup(f => f.ForkAsync(It.IsAny<ForkOptions>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Fork failed"));
 
-        using var manager = CreateManager(fs, forkMock.Object);
+        await using var manager = CreateManager(fs, forkMock.Object);
 
         manager.OnFileRead(new FileReadEventArgs {
             FilePath = "/test/project/guide.md",

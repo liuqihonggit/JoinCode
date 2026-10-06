@@ -53,7 +53,7 @@ public sealed class McpCommand : ChatCommandBase {
 
     private static async Task ListServersAsync(ChatCommandContext context) {
         var allServers = await ResolveConfigStore(context).GetAllServersAsync(context.CancellationToken).ConfigureAwait(false);
-        using var mcpRegistry = ResolveMcpRegistry(context);
+        await using var mcpRegistry = ResolveMcpRegistry(context);
 
         // 预收集已配置服务器内容
         var configuredContent = new StringBuilder();
@@ -148,7 +148,7 @@ public sealed class McpCommand : ChatCommandBase {
             TerminalHelper.WriteLine("工具注册表不可用。");
         }
 
-        using var mcpRegistry = ResolveMcpRegistry(context);
+        await using var mcpRegistry = ResolveMcpRegistry(context);
         if (mcpRegistry is not null) {
             var localCount = await mcpRegistry.GetLocalToolCountAsync(context.CancellationToken).ConfigureAwait(false);
             var remoteCount = await mcpRegistry.GetRemoteClientCountAsync(context.CancellationToken).ConfigureAwait(false);
@@ -260,7 +260,7 @@ public sealed class McpCommand : ChatCommandBase {
         }
 
         var serverName = args[1];
-        using var mcpRegistry = ResolveMcpRegistry(context);
+        await using var mcpRegistry = ResolveMcpRegistry(context);
         if (mcpRegistry is null) {
             TerminalHelper.WriteLine("MCP 工具注册表不可用");
             return;
@@ -292,7 +292,7 @@ public sealed class McpCommand : ChatCommandBase {
         }
 
         var target = args[1];
-        using var mcpRegistry = ResolveMcpRegistry(context);
+        await using var mcpRegistry = ResolveMcpRegistry(context);
         if (mcpRegistry is null) {
             TerminalHelper.WriteLine("MCP 工具注册表不可用");
             return;

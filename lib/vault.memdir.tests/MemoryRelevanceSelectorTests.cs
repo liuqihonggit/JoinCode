@@ -13,7 +13,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public async Task SelectRelevantMemoriesAsync_EmptyMemories_ReturnsEmpty() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
 
@@ -24,7 +24,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public async Task SelectRelevantMemoriesAsync_Archived_IsExcluded() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
         var memory = Make("query match").WithArchived(_clock.GetUtcNow());
@@ -36,7 +36,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public async Task SelectRelevantMemoriesAsync_Expired_IsExcluded() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
         var now = _clock.GetUtcNow();
@@ -49,7 +49,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public async Task SelectRelevantMemoriesAsync_ContentMatch_ReturnsScoredMemory() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
         var memory = Make("the quick brown fox");
@@ -63,7 +63,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public async Task SelectRelevantMemoriesAsync_NoMatch_ReturnsEmpty() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.0);
         var memory = Make("unrelated content");
@@ -75,7 +75,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public async Task SelectRelevantMemoriesAsync_TagMatch_BoostsScore() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
         var withoutTag = Make("some content");
@@ -90,7 +90,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public async Task SelectRelevantMemoriesAsync_TitleMatch_BoostsScore() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
         var withoutTitle = Make("content");
@@ -104,7 +104,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public async Task SelectRelevantMemoriesAsync_TypeWeight_AffectsOrdering() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
         var reference = Make("important query", MemoryType.Reference);
@@ -118,7 +118,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public async Task SelectRelevantMemoriesAsync_AccessCount_BoostsScore() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
         var lowAccess = Make("query match", accessCount: 0);
@@ -132,7 +132,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public async Task SelectRelevantMemoriesAsync_MaxResults_IsRespected() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
         var memories = Enumerable.Range(0, 10).Select(i => Make($"query {i}")).ToList();
@@ -144,7 +144,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public async Task SelectRelevantMemoriesAsync_Score_IsCappedAtOne() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(1.0);
         var memory = Make("query match", MemoryType.User, title: "query match", tags: new[] { "query" }, accessCount: 1000);
@@ -165,7 +165,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public void ScoreMemory_KeywordMatch_ContributesZeroPointFourWeight() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
         var memory = Make("database optimization");
         var (words, ac) = BuildQueryArgs("database optimization");
@@ -182,7 +182,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public void ScoreMemory_PartialKeywordMatch_ContributesRatio() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
         var memory = Make("database content");
         var (words, ac) = BuildQueryArgs("database network");
@@ -197,7 +197,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public void ScoreMemory_TagMatch_ContributesZeroPointOneFivePerTag() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
         var memory = Make("unrelated", tags: new[] { "database" });
         var (words, ac) = BuildQueryArgs("database");
@@ -211,7 +211,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public void ScoreMemory_MultipleTagMatches_ContributesZeroPointOneFiveEach() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
         var memory = Make("unrelated", tags: new[] { "database", "optimization" });
         var (words, ac) = BuildQueryArgs("database optimization");
@@ -225,7 +225,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public void ScoreMemory_TitleMatch_ContributesZeroPointTwoWeight() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
         var memory = Make("unrelated", title: "database");
         var (words, ac) = BuildQueryArgs("database");
@@ -240,7 +240,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public void ScoreMemory_TypeWeight_AppliesToRawScore() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
         var userMem = Make("database optimization", MemoryType.User);
         var refMem = Make("database optimization", MemoryType.Reference);
@@ -258,7 +258,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public void ScoreMemory_AgedScore_BlendedFiftyFifty() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.4);
         var memory = Make("database optimization");
         var (words, ac) = BuildQueryArgs("database optimization");
@@ -274,7 +274,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public void ScoreMemory_AccessCount_BoostsWithLogScale() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
         var lowAccess = Make("database optimization", accessCount: 0);
         var highAccess = Make("database optimization", accessCount: 9);
@@ -292,7 +292,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public void ScoreMemory_ScoreCappedAtOne() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(1.0);
         var memory = Make("database optimization", MemoryType.User, title: "database optimization", tags: new[] { "database", "optimization" }, accessCount: 1000);
         var (words, ac) = BuildQueryArgs("database optimization");
@@ -305,7 +305,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public void ScoreMemory_NoMatch_ReturnsZeroScore() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
         var memory = Make("unrelated content");
         var (words, ac) = BuildQueryArgs("xyz123");
@@ -319,7 +319,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public void ScoreMemory_PreservesMemoryReference() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.0);
         var memory = Make("database optimization");
         var (words, ac) = BuildQueryArgs("database optimization");
@@ -332,7 +332,7 @@ public sealed class MemoryRelevanceSelectorTests {
 
     [Fact]
     public void ScoreMemory_Deterministic_SameInputSameOutput() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime>())).Returns(0.3);
         var memory = Make("database optimization", accessCount: 5);
         var (words, ac) = BuildQueryArgs("database optimization");

@@ -28,7 +28,7 @@ public sealed class PluginExternalBlacklistTests {
     [Fact]
     public async Task LoadExternalPluginAsync_NonExistentFile_ThrowsInf036() {
         await using var sp = CreateServiceProvider();
-        using var pm = sp.GetRequiredService<IPluginManager>();
+        await using var pm = sp.GetRequiredService<IPluginManager>();
 
         var act = async () => await pm.LoadExternalPluginAsync("dummy.exe", "nonexistent-plugin").ConfigureAwait(true);
 

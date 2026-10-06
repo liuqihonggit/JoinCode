@@ -42,7 +42,7 @@ public sealed class PermissionCheckerTest {
 
     [Fact]
     public async Task CheckPermissionAsync_空管道_返回PendingConfirmation() {
-        using var checker = CreateChecker();
+        await using var checker = CreateChecker();
 
         var result = await checker.CheckPermissionAsync("Bash");
 
@@ -55,7 +55,7 @@ public sealed class PermissionCheckerTest {
     public async Task CheckPermissionAsync_管道批准_返回Approved() {
         var pipeline = new MiddlewarePipeline<PermissionCheckContext>(
             [new StubResultMiddleware(ToolPermissionCheckResult.Approved())]);
-        using var checker = CreateChecker(pipeline);
+        await using var checker = CreateChecker(pipeline);
 
         var result = await checker.CheckPermissionAsync("Bash");
 
@@ -66,7 +66,7 @@ public sealed class PermissionCheckerTest {
     public async Task CheckPermissionAsync_管道拒绝_返回Rejected() {
         var pipeline = new MiddlewarePipeline<PermissionCheckContext>(
             [new StubResultMiddleware(ToolPermissionCheckResult.Rejected("危险操作"))]);
-        using var checker = CreateChecker(pipeline);
+        await using var checker = CreateChecker(pipeline);
 
         var result = await checker.CheckPermissionAsync("Bash");
 
@@ -79,7 +79,7 @@ public sealed class PermissionCheckerTest {
     public async Task CheckPermissionAsync_管道待确认_返回PendingConfirmation() {
         var pipeline = new MiddlewarePipeline<PermissionCheckContext>(
             [new StubResultMiddleware(ToolPermissionCheckResult.PendingConfirmation("请确认"))]);
-        using var checker = CreateChecker(pipeline);
+        await using var checker = CreateChecker(pipeline);
 
         var result = await checker.CheckPermissionAsync("Bash");
 
@@ -93,7 +93,7 @@ public sealed class PermissionCheckerTest {
         var pipeline = new MiddlewarePipeline<PermissionCheckContext>([
             new StubResultMiddleware(ToolPermissionCheckResult.Approved())
         ]);
-        using var checker = CreateChecker(pipeline);
+        await using var checker = CreateChecker(pipeline);
 
         var args = new Dictionary<string, JsonElement> {
             ["command"] = JsonSerializer.SerializeToElement("ls -la")
@@ -109,7 +109,7 @@ public sealed class PermissionCheckerTest {
 
     [Fact]
     public void AddToAutoApproved_添加工具到集合() {
-        using var checker = CreateChecker();
+        await using var checker = CreateChecker();
 
         checker.AddToAutoApproved("CustomTool");
 
@@ -120,7 +120,7 @@ public sealed class PermissionCheckerTest {
     [Fact]
     public void AddToAutoApproved_带ruleContent_不添加工具名到HashSet() {
         var config = PermissionConfig.CreateDefault();
-        using var checker = CreateChecker(config: config);
+        await using var checker = CreateChecker(config: config);
 
         checker.AddToAutoApproved("WebFetch", "domain:example.com");
 
@@ -133,7 +133,7 @@ public sealed class PermissionCheckerTest {
     [Fact]
     public void AddToAutoApproved_空ruleContent_等价于无ruleContent() {
         var config = PermissionConfig.CreateDefault();
-        using var checker = CreateChecker(config: config);
+        await using var checker = CreateChecker(config: config);
 
         checker.AddToAutoApproved("CustomTool", null);
 
@@ -143,7 +143,7 @@ public sealed class PermissionCheckerTest {
     [Fact]
     public void RemoveFromAutoApproved_从集合移除() {
         var config = CreateConfigWithBashApproved();
-        using var checker = CreateChecker(config: config);
+        await using var checker = CreateChecker(config: config);
 
         checker.RemoveFromAutoApproved(ShellToolNameEnumConstants.Bash);
 
@@ -153,7 +153,7 @@ public sealed class PermissionCheckerTest {
     [Fact]
     public void AddToAutoRejected_添加工具到集合() {
         var config = PermissionConfig.CreateDefault();
-        using var checker = CreateChecker(config: config);
+        await using var checker = CreateChecker(config: config);
 
         checker.AddToAutoRejected("DangerousTool");
 
@@ -166,7 +166,7 @@ public sealed class PermissionCheckerTest {
         config.AutoRejectedTools = config.AutoRejectedTools.SetItem(
             "DangerousTool",
             new ToolPermissionRule { ToolName = "DangerousTool" });
-        using var checker = CreateChecker(config: config);
+        await using var checker = CreateChecker(config: config);
 
         checker.RemoveFromAutoRejected("DangerousTool");
 
@@ -179,7 +179,7 @@ public sealed class PermissionCheckerTest {
 
     [Fact]
     public void ApproveLevelTemporarily_Unknown_添加到批准集合() {
-        using var checker = CreateChecker();
+        await using var checker = CreateChecker();
 
         checker.ApproveLevelTemporarily(CommandDangerLevel.Unknown);
 
@@ -188,7 +188,7 @@ public sealed class PermissionCheckerTest {
 
     [Fact]
     public void ApproveLevelTemporarily_LightValidation_添加到批准集合() {
-        using var checker = CreateChecker();
+        await using var checker = CreateChecker();
 
         checker.ApproveLevelTemporarily(CommandDangerLevel.LightValidation);
 
@@ -197,7 +197,7 @@ public sealed class PermissionCheckerTest {
 
     [Fact]
     public void ApproveLevelTemporarily_Execution_添加到批准集合() {
-        using var checker = CreateChecker();
+        await using var checker = CreateChecker();
 
         checker.ApproveLevelTemporarily(CommandDangerLevel.Execution);
 
@@ -206,7 +206,7 @@ public sealed class PermissionCheckerTest {
 
     [Fact]
     public void ApproveLevelTemporarily_Safe_不添加() {
-        using var checker = CreateChecker();
+        await using var checker = CreateChecker();
 
         checker.ApproveLevelTemporarily(CommandDangerLevel.Safe);
 
@@ -215,7 +215,7 @@ public sealed class PermissionCheckerTest {
 
     [Fact]
     public void ApproveLevelTemporarily_Dangerous_不添加() {
-        using var checker = CreateChecker();
+        await using var checker = CreateChecker();
 
         checker.ApproveLevelTemporarily(CommandDangerLevel.Dangerous);
 
@@ -224,7 +224,7 @@ public sealed class PermissionCheckerTest {
 
     [Fact]
     public void IsLevelApproved_未批准_返回False() {
-        using var checker = CreateChecker();
+        await using var checker = CreateChecker();
         checker.IsLevelApproved(CommandDangerLevel.Execution).Should().BeFalse();
     }
 
@@ -239,7 +239,7 @@ public sealed class PermissionCheckerTest {
         var original = Environment.GetEnvironmentVariable(envVar);
         Environment.SetEnvironmentVariable(envVar, null);
         try {
-            using var checker = CreateChecker();
+            await using var checker = CreateChecker();
             checker.CurrentMode.Should().Be(PermissionMode.Auto);
         } finally {
             Environment.SetEnvironmentVariable(envVar, original);
@@ -248,7 +248,7 @@ public sealed class PermissionCheckerTest {
 
     [Fact]
     public void CurrentMode_设置后返回新值() {
-        using var checker = CreateChecker();
+        await using var checker = CreateChecker();
         checker.CurrentMode = PermissionMode.Plan;
         checker.CurrentMode.Should().Be(PermissionMode.Plan);
     }
@@ -260,7 +260,7 @@ public sealed class PermissionCheckerTest {
     [Fact]
     public async Task AddToAutoApprovedAndPersistAsync_无ruleContent_持久化工具名() {
         await using var fs = new InMemoryFileSystem();
-        using var checker = CreateChecker(fs: fs);
+        await using var checker = CreateChecker(fs: fs);
 
         // 不应抛异常(即使 settings.json 不存在,持久化失败只记日志)
         var act = () => checker.AddToAutoApprovedAndPersistAsync("CustomTool", null);
@@ -270,7 +270,7 @@ public sealed class PermissionCheckerTest {
     [Fact]
     public async Task AddToAutoApprovedAndPersistAsync_带ruleContent_持久化规则() {
         await using var fs = new InMemoryFileSystem();
-        using var checker = CreateChecker(fs: fs);
+        await using var checker = CreateChecker(fs: fs);
 
         var act = () => checker.AddToAutoApprovedAndPersistAsync("WebFetch", "domain:example.com");
         await act.Should().NotThrowAsync();
@@ -279,7 +279,7 @@ public sealed class PermissionCheckerTest {
     [Fact]
     public async Task AddToAutoApprovedAndPersistAsync_重复规则_不重复添加() {
         await using var fs = new InMemoryFileSystem();
-        using var checker = CreateChecker(fs: fs);
+        await using var checker = CreateChecker(fs: fs);
 
         await checker.AddToAutoApprovedAndPersistAsync("CustomTool", null);
         await checker.AddToAutoApprovedAndPersistAsync("CustomTool", null);

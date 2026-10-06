@@ -17,7 +17,7 @@ public class CostSummaryHookTests {
         await using (tracker) {
             tracker.RecordUsage("model-a", 100, 50);
 
-            using var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
+            await using var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
 
             var act = async () => await hook.PrintSummaryOnExitAsync().ConfigureAwait(true);
 

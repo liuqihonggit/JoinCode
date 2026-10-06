@@ -304,7 +304,7 @@ public class QueryEngineTests {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 500, EnableExponentialBackoff = false }
         };
-        using var engine = CreateQueryEngine(config);
+        await using var engine = CreateQueryEngine(config);
         engine.CalculateRetryDelay(1).Should().Be(500);
         engine.CalculateRetryDelay(2).Should().Be(500);
         engine.CalculateRetryDelay(5).Should().Be(500);
@@ -315,7 +315,7 @@ public class QueryEngineTests {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
         };
-        using var engine = CreateQueryEngine(config);
+        await using var engine = CreateQueryEngine(config);
         engine.CalculateRetryDelay(1).Should().Be(1000);
     }
 
@@ -324,7 +324,7 @@ public class QueryEngineTests {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
         };
-        using var engine = CreateQueryEngine(config);
+        await using var engine = CreateQueryEngine(config);
         engine.CalculateRetryDelay(2).Should().Be(2000);
     }
 
@@ -333,7 +333,7 @@ public class QueryEngineTests {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
         };
-        using var engine = CreateQueryEngine(config);
+        await using var engine = CreateQueryEngine(config);
         engine.CalculateRetryDelay(3).Should().Be(4000);
     }
 
@@ -342,7 +342,7 @@ public class QueryEngineTests {
         var config = new QueryEngineConfig {
             Retry = new RetryConfig { RetryDelayMs = 1000, EnableExponentialBackoff = true }
         };
-        using var engine = CreateQueryEngine(config);
+        await using var engine = CreateQueryEngine(config);
         // retryCount=20: 1000 * 2^19 = 524288000 > MaxDelayMs(30000) → 钳制到 30000
         engine.CalculateRetryDelay(20).Should().Be(WorkflowConstants.Retry.MaxDelayMs);
     }

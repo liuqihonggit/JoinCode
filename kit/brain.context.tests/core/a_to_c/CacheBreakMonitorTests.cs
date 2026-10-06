@@ -22,7 +22,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task RecordPromptStateAsync_CapturesCurrentState() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic context").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -38,7 +38,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task CheckCacheBreakAsync_SameState_NoBreak() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -54,7 +54,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task CheckCacheBreakAsync_SystemPromptChanged_SystemBreak() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system v1").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -72,7 +72,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task CheckCacheBreakAsync_DynamicContentChanged_DynamicBreak() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic v1").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -91,7 +91,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task CheckCacheBreakAsync_ToolSpecsChanged_ToolBreak() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -109,7 +109,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task CheckCacheBreakAsync_ToolAppendNotBreak_IfCacheStillHit() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -131,7 +131,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task CheckCacheBreakAsync_CacheEviction_Detected() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -150,7 +150,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task CheckCacheBreakAsync_CacheEviction_PartialDrop_Detected() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -169,7 +169,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task CheckCacheBreakAsync_CacheEviction_SmallRelativeDrop_NotReported() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -187,7 +187,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task CheckCacheBreakAsync_CacheEviction_DropBelowAbsoluteThreshold_NotReported() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -306,7 +306,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task CheckCacheBreakAsync_MultiAgent_BaselinesIsolated() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -328,7 +328,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task RecordPromptStateAsync_NoToolSpecs_StillWorks() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
 
@@ -341,7 +341,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task UpdateToolSpecsAsync_ReplacesExistingSpecs() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
 
@@ -361,7 +361,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task CheckCacheBreakAsync_Priority_SystemOverToolOverDynamic() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system v1").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic v1").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -382,7 +382,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task FullPipeline_RecordCheck_RecordAgain_NoBreak() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("stable system").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -400,7 +400,7 @@ public partial class CacheBreakMonitorTests {
 
     [Fact]
     public async Task DecideAfterUsage_AfterNoProgressFolds_PausesFolding() {
-        using var sut = CreateSut();
+        await using var sut = CreateSut();
         var usage = new TokenUsage(600, 0);
 
         sut.DecideAfterUsage(usage).Should().Be(ContextFoldDecision.FoldNormal);

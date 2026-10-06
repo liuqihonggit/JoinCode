@@ -6,7 +6,7 @@ public sealed class ConfigChangeStartMiddlewareTest {
         var notifierMock = new Mock<IConfigChangeNotifier>();
         var fsMock = new Mock<IFileSystem>();
         fsMock.Setup(f => f.GetCurrentDirectory()).Returns("test-working-dir");
-        using var middleware = CreateMiddleware(fsMock.Object, configChangeNotifier: notifierMock.Object);
+        await using var middleware = CreateMiddleware(fsMock.Object, configChangeNotifier: notifierMock.Object);
 
         await middleware.InvokeAsync(CreateContext(), (_, _) => Task.CompletedTask, CancellationToken.None).ConfigureAwait(true);
 
@@ -16,7 +16,7 @@ public sealed class ConfigChangeStartMiddlewareTest {
     [Fact]
     public async Task InvokeAsync_WithNullNotifier_CallsNextWithoutThrowing() {
         var fsMock = new Mock<IFileSystem>();
-        using var middleware = CreateMiddleware(fsMock.Object, configChangeNotifier: null);
+        await using var middleware = CreateMiddleware(fsMock.Object, configChangeNotifier: null);
         var nextCalled = false;
 
         await middleware.InvokeAsync(
@@ -43,7 +43,7 @@ public sealed class ConfigChangeStartMiddlewareTest {
         var applierMock = new Mock<ISettingsChangeApplier>();
         applierMock.Setup(a => a.ApplySettingsChangeAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        using var middleware = CreateMiddleware(
+        await using var middleware = CreateMiddleware(
             configChangeNotifier: notifierMock.Object,
             settingsChangeApplier: applierMock.Object);
 
@@ -60,7 +60,7 @@ public sealed class ConfigChangeStartMiddlewareTest {
         var applierMock = new Mock<ISettingsChangeApplier>();
         applierMock.Setup(a => a.ApplySettingsChangeAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        using var middleware = CreateMiddleware(
+        await using var middleware = CreateMiddleware(
             configChangeNotifier: notifierMock.Object,
             settingsChangeApplier: applierMock.Object);
 
@@ -74,7 +74,7 @@ public sealed class ConfigChangeStartMiddlewareTest {
     [Fact]
     public async Task OnConfigChanged_WithNullApplier_DoesNotThrow() {
         var notifierMock = new Mock<IConfigChangeNotifier>();
-        using var middleware = CreateMiddleware(
+        await using var middleware = CreateMiddleware(
             configChangeNotifier: notifierMock.Object,
             settingsChangeApplier: null);
 

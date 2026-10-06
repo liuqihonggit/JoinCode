@@ -287,7 +287,7 @@ public sealed class MultimodalUiElementDetectorTests {
     [Fact]
     public async Task DetectAsync_NullOrWhiteSpaceBase64_ThrowsArgumentException() {
         var mockQueryService = new Mock<IQueryService>();
-        using var detector = new MultimodalUiElementDetector(mockQueryService.Object);
+        await using var detector = new MultimodalUiElementDetector(mockQueryService.Object);
 
         var act = async () => await detector.DetectAsync("");
         await act.Should().ThrowAsync<ArgumentException>();
@@ -361,7 +361,7 @@ public sealed class MultimodalUiElementDetectorTests {
     [Fact]
     public async Task FindByDescriptionAsync_NullOrWhiteSpaceArguments_ThrowsArgumentException() {
         var mockQueryService = new Mock<IQueryService>();
-        using var detector = new MultimodalUiElementDetector(mockQueryService.Object);
+        await using var detector = new MultimodalUiElementDetector(mockQueryService.Object);
 
         var act1 = async () => await detector.FindByDescriptionAsync("", "desc");
         await act1.Should().ThrowAsync<ArgumentException>();

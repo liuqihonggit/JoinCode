@@ -101,7 +101,7 @@ public static class DebugLogRenderer {
             sb.AppendLine($"  日志缓冲区: {TerminalColors.Muted}{debugBuffer.Count} 条{AnsiStyleEnumConstants.Reset}");
         }
 
-        using var toolRegistry = services.GetService<IToolRegistry>();
+        await using var toolRegistry = services.GetService<IToolRegistry>();
         if (toolRegistry is not null) {
             var toolCount = await toolRegistry.GetCountAsync(cancellationToken).ConfigureAwait(false);
             sb.AppendLine($"  MCP 工具: {TerminalColors.Muted}{toolCount} 个已注册{AnsiStyleEnumConstants.Reset}");

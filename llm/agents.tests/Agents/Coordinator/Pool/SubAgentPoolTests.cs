@@ -56,7 +56,7 @@ public sealed class SubAgentPoolTests {
     public async Task TryAcquire_EmptyPool_ReturnsNull() {
         await using var pool = new SubAgentPool(DefaultOptions());
 
-        using var agent = pool.TryAcquire("any task");
+        await using var agent = pool.TryAcquire("any task");
 
         agent.Should().BeNull();
     }
@@ -68,7 +68,7 @@ public sealed class SubAgentPoolTests {
         agent.Status = TaskExecutionStatus.Completed;
         await pool.Return(agent);
 
-        using var acquired = pool.TryAcquire("fix bug in parser");
+        await using var acquired = pool.TryAcquire("fix bug in parser");
 
         acquired.Should().NotBeNull();
         acquired!.ObjectId.UniqueId.Should().Be(agent.ObjectId.UniqueId);
@@ -82,7 +82,7 @@ public sealed class SubAgentPoolTests {
         agent.Status = TaskExecutionStatus.Running;
         await pool.Return(agent);
 
-        using var acquired = pool.TryAcquire("task A");
+        await using var acquired = pool.TryAcquire("task A");
 
         acquired.Should().BeNull();
     }
@@ -97,7 +97,7 @@ public sealed class SubAgentPoolTests {
         await pool.Return(agent1);
         await pool.Return(agent2);
 
-        using var acquired = pool.TryAcquire("fix bug in parser");
+        await using var acquired = pool.TryAcquire("fix bug in parser");
 
         acquired.Should().NotBeNull();
         acquired!.ObjectId.UniqueId.Should().Be(agent1.ObjectId.UniqueId);

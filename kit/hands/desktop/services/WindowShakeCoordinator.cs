@@ -101,4 +101,14 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
             _configService.SettingChanged -= OnSettingChanged;
         base.Dispose();
     }
+
+    /// <summary>异步释放 — 等待加载任务完成后取消事件订阅。</summary>
+    public override async ValueTask DisposeAsync() {
+        if (_loadTask is not null) {
+            try { await _loadTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+        }
+        if (_configService is not null)
+            _configService.SettingChanged -= OnSettingChanged;
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
 }

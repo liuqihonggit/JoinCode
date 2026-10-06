@@ -257,19 +257,21 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
     }
 
     /// <summary>
-    /// 释放扫描器资源 — 设 _stopping 标志 + Dispose timer，PeriodicTimer.Dispose 让 WaitForNextTickAsync 返回 false，循环安全退出
+    /// 释放扫描器资源 — 设 _stopping 标志 + Dispose timer + 等待循环退出
     /// </summary>
-    public ValueTask DisposeAsync() {
-        if (_disposed) return ValueTask.CompletedTask;
+    public async ValueTask DisposeAsync() {
+        if (_disposed) return;
         _disposed = true;
         _logger?.LogInformation("[SubAgentLivenessScanner] 停止，清理 {Count} 个检测器", _detectors.Count);
         _stateMachine.StateChanged -= OnStateChanged;
         _stopping = true;
         _scanTimer?.Dispose();
+        if (_scanLoop is not null) {
+            try { await _scanLoop.ConfigureAwait(false); } catch (OperationCanceledException) { }
+        }
         while (true) {
             var current = _detectors;
             if (Interlocked.CompareExchange(ref _detectors, ImmutableHamT<string, SubAgentIdleDetector>.Empty, current) == current) break;
         }
-        return ValueTask.CompletedTask;
     }
 }

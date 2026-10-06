@@ -74,6 +74,17 @@ public sealed partial class BridgeHeartbeatService : ServiceEntity {
         base.Dispose();
     }
 
+    /// <summary>异步释放 — 等待心跳循环完成后释放取消令牌。</summary>
+    public override async ValueTask DisposeAsync() {
+        _cts?.Cancel();
+        if (_loopTask is not null) {
+            try { await _loopTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+        }
+        _cts?.Dispose();
+        _cts = null;
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
     /// <summary>接收 pong 响应 — 更新最后接收时间，若此前处于超时状态则触发恢复事件</summary>
     public void ReceivePong() {
         _lastPongReceived = _clock.GetUtcNow();

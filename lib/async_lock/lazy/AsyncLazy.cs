@@ -54,12 +54,13 @@ public sealed class AsyncLazy<T> : IAsyncLazy<T> {
     public bool IsValueCreated => Volatile.Read(ref _task) is not null;
 
     /// <summary>异步释放资源。</summary>
-    public ValueTask DisposeAsync() {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
-            return ValueTask.CompletedTask;
+            return;
         }
 
+        var task = Volatile.Read(ref _task);
+        if (task is not null) await task.ConfigureAwait(false);
         _gate.Dispose();
-        return ValueTask.CompletedTask;
     }
 }

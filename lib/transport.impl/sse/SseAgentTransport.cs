@@ -181,15 +181,17 @@ public sealed partial class SseAgentTransport : IAgentTransport {
         _outputChannel.ClearAsync(TimeSpan.FromSeconds(5));
 
     /// <inheritdoc/>
-    public ValueTask DisposeAsync() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+    public async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _disposeCts.Cancel();
+        if (_sseListenTask is not null) {
+            try { await _sseListenTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+        }
         _httpClient.Dispose();
         _outputChannel.Dispose();
         _errorChannel.Dispose();
         _disposeCts.Dispose();
         State = TransportState.Disconnected;
-        return ValueTask.CompletedTask;
     }
 
     private Task StartSseListenerAsync(CancellationToken ct) {

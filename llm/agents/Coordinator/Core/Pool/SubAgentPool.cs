@@ -179,14 +179,17 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
     }
 
     /// <summary>
-    /// 释放代理池资源 — 设 _stopping 标志 + Dispose timer，PeriodicTimer.Dispose 让 WaitForNextTickAsync 返回 false，循环安全退出
+    /// 释放代理池资源 — 设 _stopping 标志 + Dispose timer + 等待循环退出 + Dispose 池中代理
     /// </summary>
-    public ValueTask DisposeAsync() {
-        if (_disposed) return ValueTask.CompletedTask;
+    public async ValueTask DisposeAsync() {
+        if (_disposed) return;
         _disposed = true;
         _logger?.LogInformation("[SubAgentPool] 释放，Dispose 池中 {Count} 个代理", _pool.Count);
         _stopping = true;
         _cleanupTimer?.Dispose();
+        if (_cleanupLoop is not null) {
+            try { await _cleanupLoop.ConfigureAwait(false); } catch (OperationCanceledException) { }
+        }
 
         foreach (var (_, entry) in _pool)
             entry.Agent.Dispose();
@@ -194,8 +197,6 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
             var current = _pool;
             if (Interlocked.CompareExchange(ref _pool, ImmutableHamT<string, PooledAgent>.Empty, current) == current) break;
         }
-
-        return ValueTask.CompletedTask;
     }
 
     private bool TryAddPool(string key, PooledAgent value) {

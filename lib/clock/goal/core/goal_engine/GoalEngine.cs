@@ -900,7 +900,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
         if (_engineLoop != null) {
             try {
-                _ = _engineLoop;
+                await _engineLoop.ConfigureAwait(false);
             } catch (OperationCanceledException) {
             }
         }

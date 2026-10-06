@@ -577,7 +577,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
 
         _restoreCts?.Cancel();
         if (_restoreTask is not null) {
-            try { _ = _restoreTask; } catch (Exception ex) when (ex is not OperationCanceledException) { _logger?.LogWarning(ex, "等待 MCP 连接恢复任务结束时异常"); }
+            try { await _restoreTask.ConfigureAwait(false); } catch (Exception ex) when (ex is not OperationCanceledException) { _logger?.LogWarning(ex, "等待 MCP 连接恢复任务结束时异常"); }
         }
 
         var tasks = _clients.Values.Select(client => client.DisposeAsync().AsTask());

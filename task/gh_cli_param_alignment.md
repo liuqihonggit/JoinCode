@@ -8,12 +8,17 @@
 
 | 子命令组 | 子命令对齐 | 参数对齐 | 新增子命令 | 测试数 | 状态 |
 |---------|:---------:|:--------:|:---------:|:------:|:----:|
-| pr | 14/14 | ✅ 全部高频参数 | 5 (comment/edit/review/lock/unlock) | — | ✅ 完成 |
-| issue | 10/10 | ✅ list/view/create/close | 5 (reopen/edit/delete/lock/unlock) | — | ✅ 高频完成 |
-| run | 5/5 | ✅ list/view/rerun | 2 (download/delete) | — | ✅ 完成 |
-| release | 6/6+2新增 | ✅ 全部 + delete-asset/edit | 2 | — | ✅ 完成 |
-| repo | 4/5+7新增 | ✅ view/list/create/fork + edit/delete/archive/unarchive/rename/sync/set-default | 7 | — | ✅ 高频完成 |
-| **合计** | — | — | **21 新增** | **117 通过** | ✅ |
+| pr | 18/18 | ✅ 全部高频参数 | 9 (comment/edit/review/lock/unlock/status/ready/revert/update-branch) | — | ✅ 完成 |
+| issue | 15/15 | ✅ 全部高频参数 | 10 (reopen/edit/delete/lock/unlock/status/develop/pin/unpin/transfer) | — | ✅ 完成 |
+| run | 6/6 | ✅ 全部 | 3 (download/delete/watch) | — | ✅ 完成 |
+| release | 8/8 | ✅ 全部 | 4 (delete-asset/edit/verify/verify-asset) | — | ✅ 完成 |
+| repo | 16/18 | ✅ view/list/create/fork + edit/delete/archive/unarchive/rename/sync/set-default/autolink/deploy-key/gitignore/license | 15 | — | ✅ 高频完成 |
+| label | 3/3 | ✅ list/create/delete | 3 | — | ✅ 完成 |
+| search | 3/3 | ✅ repos/issues/prs | 3 | — | ✅ 完成 |
+| workflow | 5/5 | ✅ list/view/run/enable/disable | 5 | — | ✅ 完成 |
+| auth | 1/4 | ✅ status | 1 (login/refresh/token 需 OAuth) | — | ⚠️ 简化 |
+| config | 2/2 | ✅ get/set(提示用系统 gh) | 2 | — | ⚠️ 简化 |
+| **合计** | — | — | **55 新增** | **150 通过** | ✅ |
 
 > 通用参数：`--web` ✅ 各 view 已实现 | `--json` ⚠️ `verbose` 近似 | `--jq` ❌ 需引入库 | `--template` ❌ Go template 暂缓
 

@@ -90,11 +90,11 @@ internal static class GitHubRunPoller {
             if (!result.Success)
                 return PrWaitResult.FromError(result.Error, pollCount);
 
-            var (allCompleted, summary) = ParseCheckRunsStatus(result.Body);
+            var (allCompleted, summary, failCount) = ParseCheckRunsStatus(result.Body);
             var elapsedMs = Environment.TickCount64 - startTime;
 
             if (allCompleted)
-                return PrWaitResult.Completed(summary, result.Body, pollCount, elapsedMs);
+                return PrWaitResult.Completed(summary, failCount, result.Body, pollCount, elapsedMs);
 
             if (DateTimeOffset.UtcNow >= deadline)
                 return PrWaitResult.FromTimeout(summary, result.Body, pollCount, elapsedMs);
@@ -121,9 +121,9 @@ internal static class GitHubRunPoller {
     }
 
     /// <summary>
-    /// 从 check-runs JSON 解析是否全部完成,并构建汇总文本
+    /// 从 check-runs JSON 解析是否全部完成,并构建汇总文本和失败数
     /// </summary>
-    private static (bool allCompleted, string summary) ParseCheckRunsStatus(string json) {
+    private static (bool allCompleted, string summary, int failCount) ParseCheckRunsStatus(string json) {
         var passCount = 0; var failCount = 0; var pendingCount = 0; var skipCount = 0;
         var allCompleted = true;
         try {
@@ -151,10 +151,10 @@ internal static class GitHubRunPoller {
                 }
             }
         } catch {
-            return (false, "解析 check-runs 失败");
+            return (false, "解析 check-runs 失败", 0);
         }
         var summary = $"{passCount} 通过, {failCount} 失败, {pendingCount} 进行中, {skipCount} 跳过";
-        return (allCompleted, summary);
+        return (allCompleted, summary, failCount);
     }
 
     private static void ReportProgress(
@@ -217,6 +217,8 @@ internal sealed record PrWaitResult {
     public required RunWaitOutcome Outcome { get; init; }
     /// <summary>checks 汇总文本(N 通过, M 失败, ...)</summary>
     public string? Summary { get; init; }
+    /// <summary>失败的 check 数量(Completed 时填充)</summary>
+    public int FailCount { get; init; }
     /// <summary>check-runs JSON 原文</summary>
     public string? Body { get; init; }
     /// <summary>错误信息(Error 时填充)</summary>
@@ -226,8 +228,8 @@ internal sealed record PrWaitResult {
     /// <summary>已耗时(毫秒)</summary>
     public long ElapsedMs { get; init; }
 
-    internal static PrWaitResult Completed(string summary, string body, int pollCount, long elapsedMs)
-        => new() { Outcome = RunWaitOutcome.Completed, Summary = summary, Body = body, PollCount = pollCount, ElapsedMs = elapsedMs };
+    internal static PrWaitResult Completed(string summary, int failCount, string body, int pollCount, long elapsedMs)
+        => new() { Outcome = RunWaitOutcome.Completed, Summary = summary, FailCount = failCount, Body = body, PollCount = pollCount, ElapsedMs = elapsedMs };
 
     internal static PrWaitResult FromTimeout(string summary, string body, int pollCount, long elapsedMs)
         => new() { Outcome = RunWaitOutcome.Timeout, Summary = summary, Body = body, PollCount = pollCount, ElapsedMs = elapsedMs };

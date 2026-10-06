@@ -306,15 +306,58 @@ public partial class GitHubToolHandlers {
             _apiClient, owner, repoName, run_id, timeout, initialInterval,
             onProgress, "gh_run_wait", cancellationToken).ConfigureAwait(false);
 
-        return waitResult.Outcome switch {
-            RunWaitOutcome.Completed => Ok(
+        if (waitResult.Outcome == RunWaitOutcome.Error)
+            return Fail(waitResult.Error ?? "轮询失败");
+
+        if (waitResult.Outcome == RunWaitOutcome.Timeout)
+            return Ok(
                 BuildRunWaitSummary(waitResult.Body!, run_id, waitResult.PollCount, waitResult.ElapsedMs),
-                $"Run {run_id} 已完成: {waitResult.Conclusion}"),
-            RunWaitOutcome.Timeout => Ok(
-                BuildRunWaitSummary(waitResult.Body!, run_id, waitResult.PollCount, waitResult.ElapsedMs),
-                $"⚠ Run {run_id} 等待超时({timeout.TotalSeconds:F0}s),当前状态: {waitResult.Conclusion}。用 gh_run_view {run_id} 手动查看,或增大 timeout_seconds"),
-            _ => Fail(waitResult.Error ?? "轮询失败")
-        };
+                $"⚠ Run {run_id} 等待超时({timeout.TotalSeconds:F0}s),当前状态: {waitResult.Conclusion}。用 gh_run_view {run_id} 手动查看,或增大 timeout_seconds");
+
+        var conclusion = waitResult.Conclusion ?? "unknown";
+        var summary = BuildRunWaitSummary(waitResult.Body!, run_id, waitResult.PollCount, waitResult.ElapsedMs);
+
+        if (!IsFailedConclusion(conclusion))
+            return Ok(summary, $"Run {run_id} 已完成: {conclusion}");
+
+        var logPath = await DownloadFailedLogsToDiskAsync(owner, repoName, run_id, working_dir, cancellationToken).ConfigureAwait(false);
+        return logPath is not null
+            ? Ok(summary + $"\n\n📄 失败 job 日志已下载到:\n{logPath}\n\n💡 用 read 工具读取此文件查看错误详情", $"Run {run_id} 已完成: ❌ {conclusion}")
+            : Ok(summary + $"\n\n⚠ 失败 job 日志下载失败,用 gh run view {run_id} --log --filter failed 手动查看", $"Run {run_id} 已完成: ❌ {conclusion}");
+    }
+
+    /// <summary>
+    /// 判断 conclusion 是否为失败(failure/cancelled/timed_out)
+    /// </summary>
+    private static bool IsFailedConclusion(string conclusion)
+        => conclusion is "failure" or "cancelled" or "timed_out";
+
+    /// <summary>
+    /// 下载失败 job 日志到磁盘 — 流式拉取所有 conclusion=failure 的 job 日志,写到 .jcc/gh_logs/run_{id}_{timestamp}.log
+    /// <para>复用 GetFailedJobLogsAsync 并行下载多个失败 job(Actor 邮箱模型合并)</para>
+    /// <para>只返回磁盘路径,不把日志内容塞进 ToolResult,节约 LLM 上下文</para>
+    /// </summary>
+    private async Task<string?> DownloadFailedLogsToDiskAsync(
+        string owner, string repo, string runId, string? workingDir, CancellationToken ct) {
+        if (_logFilterRunner is null) return null;
+
+        var baseDir = string.IsNullOrWhiteSpace(workingDir) ? _fs.GetCurrentDirectory() : workingDir;
+        var logDir = _fs.CombinePath(baseDir, ".jcc", "gh_logs");
+        if (!_fs.DirectoryExists(logDir)) _fs.CreateDirectory(logDir);
+
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+        var logPath = _fs.CombinePath(logDir, $"run_{runId}_{timestamp}.log");
+
+        var sb = new StringBuilder();
+        var lineCount = 0;
+        await foreach (var line in _logFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, ct).ConfigureAwait(false)) {
+            sb.AppendLine(line);
+            lineCount++;
+        }
+
+        if (lineCount == 0) return null;
+        await _fs.WriteAllTextAsync(logPath, sb.ToString(), ct).ConfigureAwait(false);
+        return logPath;
     }
 
     /// <summary>

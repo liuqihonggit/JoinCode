@@ -182,15 +182,59 @@ public partial class GitHubToolHandlers {
             _apiClient, owner, repoName, headSha, number, timeout, initialInterval,
             onProgress, "gh_pr_wait", cancellationToken).ConfigureAwait(false);
 
-        return waitResult.Outcome switch {
-            RunWaitOutcome.Completed => Ok(
+        if (waitResult.Outcome == RunWaitOutcome.Error)
+            return Fail(waitResult.Error ?? "轮询失败");
+
+        if (waitResult.Outcome == RunWaitOutcome.Timeout)
+            return Ok(
                 $"汇总: {waitResult.Summary}\n轮询次数: {waitResult.PollCount}, 耗时: {waitResult.ElapsedMs / 1000}s",
-                $"PR #{number} 所有 CI checks 已完成"),
-            RunWaitOutcome.Timeout => Ok(
-                $"汇总: {waitResult.Summary}\n轮询次数: {waitResult.PollCount}, 耗时: {waitResult.ElapsedMs / 1000}s",
-                $"⚠ PR #{number} 等待超时({timeout.TotalSeconds:F0}s),仍有 checks 进行中。用 gh_pr_checks {number} 手动查看,或增大 timeout_seconds"),
-            _ => Fail(waitResult.Error ?? "轮询失败")
-        };
+                $"⚠ PR #{number} 等待超时({timeout.TotalSeconds:F0}s),仍有 checks 进行中。用 gh_pr_checks {number} 手动查看,或增大 timeout_seconds");
+
+        var summaryText = $"汇总: {waitResult.Summary}\n轮询次数: {waitResult.PollCount}, 耗时: {waitResult.ElapsedMs / 1000}s";
+
+        if (waitResult.FailCount == 0)
+            return Ok(summaryText, $"PR #{number} 所有 CI checks 已完成 ✅");
+
+        var logPaths = await DownloadFailedPrRunsLogsToDiskAsync(owner, repoName, headSha, working_dir, cancellationToken).ConfigureAwait(false);
+        return logPaths.Count > 0
+            ? Ok(summaryText + "\n\n📄 失败 job 日志已下载到:\n" + string.Join("\n", logPaths) + "\n\n💡 用 read 工具读取这些文件查看错误详情", $"PR #{number} CI checks 已完成(有 {waitResult.FailCount} 个失败) ❌")
+            : Ok(summaryText + $"\n\n⚠ 未找到可下载的 Actions run 日志(可能是第三方 CI),用 gh pr checks {number} 查看失败 check 名称", $"PR #{number} CI checks 已完成(有 {waitResult.FailCount} 个失败) ❌");
+    }
+
+    /// <summary>
+    /// 下载 PR 对应失败 Actions run 的日志到磁盘 — 用 head_sha 查 actions/runs,对每个失败 run 下载失败 job 日志
+    /// <para>每个失败 run 生成独立日志文件 .jcc/gh_logs/run_{runId}_{timestamp}.log</para>
+    /// </summary>
+    private async Task<List<string>> DownloadFailedPrRunsLogsToDiskAsync(
+        string owner, string repo, string headSha, string? workingDir, CancellationToken ct) {
+        var runsResult = await _apiClient!.SendAsync(
+            HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs",
+            query: new Dictionary<string, string> { ["head_sha"] = headSha },
+            ct: ct).ConfigureAwait(false);
+        if (!runsResult.Success) return [];
+
+        List<string> failedRunIds;
+        try {
+            using var doc = JsonDocument.Parse(runsResult.Body);
+            failedRunIds = doc.RootElement.TryGetProperty("workflow_runs", out var runsEl)
+                ? runsEl.EnumerateArray()
+                    .Where(r => r.TryGetProperty("conclusion", out var c)
+                        && c.ValueKind == JsonValueKind.String
+                        && c.GetString() == "failure")
+                    .Select(r => r.TryGetProperty("id", out var idEl) ? idEl.GetRawText() : "")
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .ToList()
+                : [];
+        } catch {
+            return [];
+        }
+
+        var paths = new List<string>(failedRunIds.Count);
+        foreach (var runId in failedRunIds) {
+            var path = await DownloadFailedLogsToDiskAsync(owner, repo, runId, workingDir, ct).ConfigureAwait(false);
+            if (path is not null) paths.Add(path);
+        }
+        return paths;
     }
 
     /// <summary>

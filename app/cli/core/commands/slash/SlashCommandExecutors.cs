@@ -198,8 +198,7 @@ internal static class SlashSchemaExecutor {
         if (entry.Schema is not null) {
             if (json) {
                 var schemaJson = RelaxedJsonSerializer.Serialize(entry.Schema, ContractsJsonContext.Default);
-                var data = System.Text.Json.Nodes.JsonNode.Parse(schemaJson);
-                System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
+                System.Console.WriteLine($"{{\"ok\":true,\"data\":{schemaJson},\"meta\":{{\"totalCount\":1}},\"schemaVersion\":\"1\"}}");
             } else {
                 TerminalHelper.WriteLine($"命令: /{entry.CommandName}");
                 TerminalHelper.WriteLine("参数 Schema:");
@@ -207,12 +206,10 @@ internal static class SlashSchemaExecutor {
             }
         } else {
             if (json) {
-                var data = new System.Text.Json.Nodes.JsonObject {
-                    ["command"] = cmdName,
-                    ["schema"] = null,
-                    ["argumentHint"] = entry.ArgumentHint
-                };
-                System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
+                var hintJson = entry.ArgumentHint is null
+                    ? "null"
+                    : System.Text.Json.JsonSerializer.Serialize(entry.ArgumentHint, Cli.Output.CliOutputJsonContext.Default.String);
+                System.Console.WriteLine($"{{\"ok\":true,\"data\":{{\"command\":{System.Text.Json.JsonSerializer.Serialize(cmdName, Cli.Output.CliOutputJsonContext.Default.String)},\"schema\":null,\"argumentHint\":{hintJson}}},\"schemaVersion\":\"1\"}}");
             } else {
                 TerminalHelper.WriteLine($"命令: /{entry.CommandName}");
                 var hint = !string.IsNullOrEmpty(entry.ArgumentHint)

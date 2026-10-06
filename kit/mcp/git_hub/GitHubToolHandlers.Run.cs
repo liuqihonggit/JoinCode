@@ -6,13 +6,18 @@ namespace McpToolDispatch;
 /// </summary>
 public partial class GitHubToolHandlers {
     /// <summary>
-    /// 列出 Actions Run — 支持状态/分支过滤，发现失败 run 时附排障步骤提示
+    /// 列出 Actions Run — 支持状态/分支/事件/工作流/用户/commit/创建时间过滤，发现失败 run 时附排障步骤提示
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRunList, "列出 Actions Run(支持状态/分支过滤)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhRunList, "列出 Actions Run(支持状态/分支/事件/工作流/用户/commit/创建时间过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunListAsync(
         [McpToolParameter("数量限制(默认 20)", Required = false)] int? limit = null,
         [McpToolParameter("状态过滤(queued/in_progress/completed,可选)", Required = false)] string? status = null,
         [McpToolParameter("分支过滤(可选)", Required = false)] string? branch = null,
+        [McpToolParameter("事件过滤(可选,如 push/pull_request/schedule)", Required = false)] string? event_type = null,
+        [McpToolParameter("工作流名或 ID(可选,如 ci.yml)", Required = false)] string? workflow = null,
+        [McpToolParameter("触发者过滤(可选)", Required = false)] string? user = null,
+        [McpToolParameter("commit SHA 过滤(可选)", Required = false)] string? commit = null,
+        [McpToolParameter("创建时间过滤(可选,如 >2026-01-01)", Required = false)] string? created = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -20,7 +25,14 @@ public partial class GitHubToolHandlers {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 20).ToString() };
             if (!string.IsNullOrWhiteSpace(status)) query["status"] = status;
             if (!string.IsNullOrWhiteSpace(branch)) query["branch"] = branch;
-            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs", query: query, ct: cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(event_type)) query["event"] = event_type;
+            if (!string.IsNullOrWhiteSpace(user)) query["actor"] = user;
+            if (!string.IsNullOrWhiteSpace(commit)) query["head_sha"] = commit;
+            if (!string.IsNullOrWhiteSpace(created)) query["created"] = created;
+            var basePath = string.IsNullOrWhiteSpace(workflow)
+                ? $"repos/{owner}/{repoName}/actions/runs"
+                : $"repos/{owner}/{repoName}/actions/workflows/{workflow}/runs";
+            var result = await client.SendAsync(HttpMethod.Get, basePath, query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
             var summarized = GitHubRunListSummarizer.SummarizeRunList(result.Body);
             var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
@@ -29,9 +41,9 @@ public partial class GitHubToolHandlers {
 
 
     /// <summary>
-    /// 查看 Run 详情/日志 — 支持 expand 按步骤展开（两级缓存跨进程）、filter 按标记过滤、skip_lines 分页续读、refresh 强制刷新
+    /// 查看 Run 详情/日志 — 支持 expand 按步骤展开（两级缓存跨进程）、filter 按标记过滤、skip_lines 分页续读、refresh 强制刷新、web 返回 URL、attempt 指定重试次数
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,skip_lines 分页续读,refresh 强制刷新)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,skip_lines 分页续读,refresh 强制刷新,web 返回 URL,attempt 指定重试次数)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunViewAsync(
         [McpToolParameter("Run ID", Required = true)] string run_id,
         [McpToolParameter("Job ID(可选,支持逗号分隔多个并行下载,如 123 或 123,456)", Required = false)] string? job_id = null,
@@ -41,16 +53,25 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("按步骤展开: jobs=列出job列表, steps=按job_id下载日志后列出步骤, failed=只拉失败步骤, step:Name=只拉指定步骤", Required = false)] string? expand = null,
         [McpToolParameter("日志过滤级别(error/warning/info/all/failed,默认 all=不过滤;failed=智能提取测试失败+Rust风格输出)", Required = false)] string? filter = null,
         [McpToolParameter("强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)", Required = false)] bool? refresh = null,
+        [McpToolParameter("web=true 只返回 Run 浏览器 URL", Required = false)] bool? web = null,
+        [McpToolParameter("重试次数(可选,查看指定 attempt 的详情)", Required = false)] int? attempt = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
-            => GhRunViewCoreAsync(client, owner, repoName, run_id, job_id, log, max_lines, skip_lines, expand, filter, refresh, working_dir, cancellationToken)).ConfigureAwait(false);
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (web == true) {
+                var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
+                if (!runResult.Success) return Fail(runResult.Error);
+                var url = ExtractHtmlUrl(runResult.Body);
+                return string.IsNullOrEmpty(url) ? Fail("无法从 Run 响应中解析 html_url") : Ok(url);
+            }
+            return await GhRunViewCoreAsync(client, owner, repoName, run_id, job_id, log, max_lines, skip_lines, expand, filter, refresh, attempt, working_dir, cancellationToken).ConfigureAwait(false);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// GhRunView 核心逻辑 — expand/filter/log 多分支调度,两级缓存(ADR 0067)
     /// </summary>
-    private async Task<ToolResult> GhRunViewCoreAsync(IGitHubApiClient client, string owner, string repoName, string run_id, string? job_id, bool? log, int? max_lines, int? skip_lines, string? expand, string? filter, bool? refresh, string? working_dir, CancellationToken cancellationToken) {
+    private async Task<ToolResult> GhRunViewCoreAsync(IGitHubApiClient client, string owner, string repoName, string run_id, string? job_id, bool? log, int? max_lines, int? skip_lines, string? expand, string? filter, bool? refresh, int? attempt, string? working_dir, CancellationToken cancellationToken) {
         var maxLines = max_lines ?? 200;
         var skip = skip_lines ?? 0;
         var wantRefresh = refresh == true;
@@ -130,7 +151,10 @@ public partial class GitHubToolHandlers {
         }
 
         // log=false: 获取 run 详情 JSON
-        var detailResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
+        var detailPath = attempt is not null
+            ? $"repos/{owner}/{repoName}/actions/runs/{run_id}/attempts/{attempt}"
+            : $"repos/{owner}/{repoName}/actions/runs/{run_id}";
+        var detailResult = await client.SendAsync(HttpMethod.Get, detailPath, ct: cancellationToken).ConfigureAwait(false);
         return detailResult.Success ? Ok(detailResult.Body) : Fail(detailResult.Error);
     }
 
@@ -236,20 +260,36 @@ public partial class GitHubToolHandlers {
         => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines);
 
     /// <summary>
-    /// 重跑 Actions Run — 默认只重跑失败的 job，调 REST API POST rerun-failed-jobs 或 rerun
+    /// 重跑 Actions Run — 默认只重跑失败的 job，支持 debug 日志和指定 job 重跑，调 REST API POST rerun-failed-jobs/rerun-jobs/rerun
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRunRerun, "重跑 Actions Run(默认只重跑失败的 job)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRunRerun, "重跑 Actions Run(默认只重跑失败的 job,支持 debug 日志和指定 job)", "github")]
     public async Task<ToolResult> GhRunRerunAsync(
         [McpToolParameter("Run ID", Required = true)] string run_id,
         [McpToolParameter("是否只重跑失败的 job(默认 true)", Required = false)] bool? failed_only = null,
+        [McpToolParameter("启用 debug 日志(可选)", Required = false)] bool? debug = null,
+        [McpToolParameter("指定重跑的 job ID(可选,逗号分隔多个,设置后只重跑这些 job)", Required = false)] string? job = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var path = failed_only != false
-                ? $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-failed-jobs"
-                : $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun";
-            var result = await client.SendAsync(HttpMethod.Post, path, ct: cancellationToken).ConfigureAwait(false);
+            var path = "";
+            var body = "{}";
+            if (!string.IsNullOrWhiteSpace(job)) {
+                path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-jobs";
+                var jobIds = job.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(s => int.TryParse(s, out var id) ? id : 0)
+                    .Where(id => id > 0)
+                    .ToArray();
+                body = $$"""{"job_ids":[{{string.Join(",", jobIds)}}]""";
+                if (debug == true) body = $$"""{"job_ids":[{{string.Join(",", jobIds)}}],"enable_debug_logging":true}""";
+            } else if (failed_only != false) {
+                path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-failed-jobs";
+                if (debug == true) body = """{"enable_debug_logging":true}""";
+            } else {
+                path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun";
+                if (debug == true) body = """{"enable_debug_logging":true}""";
+            }
+            var result = await client.SendAsync(HttpMethod.Post, path, body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已重跑 Run {run_id}") : Fail(result.Error);
         }).ConfigureAwait(false);
 

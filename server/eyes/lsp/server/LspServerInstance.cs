@@ -190,13 +190,15 @@ public sealed partial class LspServerInstance : ILspServerInstance {
         _client = new LspClient(fs, processService, logger);
         _stateMachine = new Fsm<LspServerState, LspServerEvent>(_fsmSortedKeys, _fsmRules, LspServerState.Stopped);
         _stateMachine.StateChanged += OnStateChanged;
-        _stateMachine.StateChanged += (_, e) => FsmDispatchEvent(e);
+        _stateMachine.StateChanged += OnStateChangedFsmDispatch;
     }
 
     private void OnStateChanged(object? sender, TransitionResult<LspServerState, LspServerEvent> e) {
         _logger.LogInformation("LSP server '{Name}' state: {OldState} → {NewState}", Name, e.FromState, e.ToState);
         StateChanged?.Invoke(this, new LspServerStateChangedEventArgs { OldState = e.FromState, NewState = e.ToState });
     }
+
+    private void OnStateChangedFsmDispatch(object? sender, TransitionResult<LspServerState, LspServerEvent> e) => FsmDispatchEvent(e);
 
     /// <summary>
     /// 启动 LSP 服务器
@@ -394,6 +396,8 @@ public sealed partial class LspServerInstance : ILspServerInstance {
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
 
+        _stateMachine.StateChanged -= OnStateChanged;
+        _stateMachine.StateChanged -= OnStateChangedFsmDispatch;
         await StopAsync().ConfigureAwait(false);
         await _client.DisposeAsync().ConfigureAwait(false);
     }

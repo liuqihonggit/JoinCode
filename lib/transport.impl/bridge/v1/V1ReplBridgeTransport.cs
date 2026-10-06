@@ -248,6 +248,8 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport {
     }
 
     private async Task StopWsAndCloseHttpClientAsync() {
+        _wsTransport.MessageReceived -= OnWsMessageReceived;
+        _wsTransport.ErrorOccurred -= OnWsError;
         try {
             await _wsTransport.StopAsync(_disposeCts.Token).ConfigureAwait(false);
         } catch (Exception ex) {

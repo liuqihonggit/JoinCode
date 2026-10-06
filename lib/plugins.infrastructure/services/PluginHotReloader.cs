@@ -272,6 +272,9 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
 
     private async ValueTask StopWatcherCoreAsync() {
         if (_watcher is not null) {
+            _watcher.DebouncedChanged -= OnFileChanged;
+            _watcher.DebouncedCreated -= OnFileCreated;
+            _watcher.DebouncedDeleted -= OnFileDeleted;
             _watcher.EnableRaisingEvents = false;
             await _watcher.DisposeAsync().ConfigureAwait(false);
             _watcher = null;

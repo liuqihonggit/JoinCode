@@ -221,7 +221,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
                 else if (e.Response is ToolsCallResponse toolsResponse && toolsResponse.ToolCallId == requestId)
                     _tcs.TrySetResult(e.Response);
             };
-            client.MessageProcessed += _onMessageReceived;
+            _client.MessageProcessed += _onMessageReceived;
         }
 
         /// <summary>
@@ -566,10 +566,16 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <summary>
     /// 异步释放资源 — 停止客户端、释放轮询令牌并调用基类释放
     /// </summary>
-    public override async ValueTask DisposeAsync() {
+        public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
             return;
         }
+
+        _transportManager.MessageReceived -= OnTransportMessageReceived;
+        _transportManager.ConnectionStateChanged -= OnConnectionStateChanged;
+        _transportManager.ErrorOccurred -= OnTransportError;
+        _transportManager.Reconnecting -= OnReconnecting;
+        _transportManager.Reconnected -= OnReconnected;
 
         try {
             await StopAsync(CancellationToken.None).ConfigureAwait(false);

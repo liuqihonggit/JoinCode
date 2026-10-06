@@ -348,8 +348,10 @@ public sealed partial class LspClient : ILspClient {
         _logger = logger;
         _channel = new LspProcessChannel(fs, processService, logger);
         _router = new LspMessageRouter();
-        _router.NotificationReceived += (_, e) => NotificationReceived?.Invoke(this, e);
+        _router.NotificationReceived += OnRouterNotificationReceived;
     }
+
+    private void OnRouterNotificationReceived(object? sender, (string Method, JsonNode? Params) e) => NotificationReceived?.Invoke(this, e);
 
     /// <summary>注册通知处理程序</summary>
     public void OnNotification(string method, Func<JsonNode?, CancellationToken, ValueTask> handler) {
@@ -408,6 +410,7 @@ public sealed partial class LspClient : ILspClient {
             sendShutdownNotification: () => SendNotificationAsync(LspMethod.Shutdown.ToValue(), null, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10)),
             cancellationToken).ConfigureAwait(false);
 
+        _router.NotificationReceived -= OnRouterNotificationReceived;
         _router.Clear();
     }
 

@@ -149,6 +149,9 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable {
         }
 
         _logger?.LogInformation("[BridgeServer] 服务器已停止");
+
+        if (_outgoingFlushGate is not null) _outgoingFlushGate.BatchFlushed -= OnOutgoingBatchFlushed;
+        if (_peerSessionManager is not null) _peerSessionManager.PeerMessageSent -= OnPeerMessageSent;
     }
 
     /// <summary>

@@ -380,7 +380,13 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     public override async ValueTask DisposeAsync() {
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
         _disposeCts.Cancel();
-        if (_watcher is not null) await _watcher.DisposeAsync().ConfigureAwait(false);
+        if (_watcher is not null) {
+            _watcher.DebouncedChanged -= OnFileChanged;
+            _watcher.DebouncedCreated -= OnFileChanged;
+            _watcher.DebouncedDeleted -= OnFileDeleted;
+            _watcher.DebouncedRenamed -= OnFileRenamed;
+            await _watcher.DisposeAsync().ConfigureAwait(false);
+        }
         _watcher = null;
         await _transfer.DisposeAsync().ConfigureAwait(false);
         await DisposeBaseAsync().ConfigureAwait(false);

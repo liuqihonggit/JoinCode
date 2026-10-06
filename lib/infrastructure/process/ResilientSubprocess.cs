@@ -105,7 +105,10 @@ public sealed class ResilientSubprocess : IAsyncDisposable {
         }
 
         var oldMonitor = _healthMonitor;
-        if (oldMonitor is not null) await oldMonitor.DisposeAsync().ConfigureAwait(false);
+        if (oldMonitor is not null) {
+            oldMonitor.Unhealthy -= OnProcessUnhealthy;
+            await oldMonitor.DisposeAsync().ConfigureAwait(false);
+        }
 
         var newProcess = await _restartManager.RestartAsync(_process, _spawnFunc, ct).ConfigureAwait(false);
 
@@ -152,8 +155,12 @@ public sealed class ResilientSubprocess : IAsyncDisposable {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _disposeCts.Cancel();
-        if (_healthMonitor is not null) await _healthMonitor.DisposeAsync().ConfigureAwait(false);
+        if (_healthMonitor is not null) {
+            _healthMonitor.Unhealthy -= OnProcessUnhealthy;
+            await _healthMonitor.DisposeAsync().ConfigureAwait(false);
+        }
         _healthMonitor = null;
+        _restartManager?.AfterRestart -= OnProcessRestarted;
         _inputChannel.Dispose();
         _outputChannel.Dispose();
         _circuitBreaker?.Dispose();

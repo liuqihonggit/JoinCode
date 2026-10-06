@@ -15,7 +15,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         _pluginAgentLoader = pluginAgentLoader;
         _actor = new DefinitionLoaderActor(this, logger);
         if (pluginAgentLoader is not null) {
-            pluginAgentLoader.Changed += (_, _) => ClearCache();
+            pluginAgentLoader.Changed += OnPluginAgentLoaderChanged;
         }
     }
     private readonly IFileSystem _fs;
@@ -665,8 +665,11 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         return (AgentRole.Executor, null);
     }
 
+    private void OnPluginAgentLoaderChanged(object? sender, EventArgs e) => ClearCache();
+
     /// <summary>异步释放资源 — await Actor 完全退出</summary>
     public override async ValueTask DisposeAsync() {
+        if (_pluginAgentLoader is not null) _pluginAgentLoader.Changed -= OnPluginAgentLoaderChanged;
         await _actor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }

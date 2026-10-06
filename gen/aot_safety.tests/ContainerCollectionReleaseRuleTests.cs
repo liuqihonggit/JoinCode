@@ -197,9 +197,11 @@ public class ContainerCollectionReleaseRuleTests {
                 using System;
                 using System.Collections.Generic;
                 using System.Threading.Tasks;
-                class TestClass : IDisposable {
+                class TestClass : IAsyncDisposable {
                     private readonly List<Task> _tasks = new();
-                    public void Dispose() { }
+                    public async ValueTask DisposeAsync() {
+                        await Task.WhenAll(_tasks).ConfigureAwait(false);
+                    }
                 }
                 """,
         };

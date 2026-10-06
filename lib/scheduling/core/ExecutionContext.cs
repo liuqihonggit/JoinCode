@@ -87,6 +87,12 @@ internal sealed class ExecutionContext : IAsyncDisposable {
             return;
         }
 
+        List<Task> snapshot;
+        using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时")) {
+            snapshot = _runningTasks.ToList();
+        }
+        await Task.WhenAll(snapshot).ConfigureAwait(false);
+
         ConcurrencyLock.Dispose();
         _runningTasksLock.Dispose();
     }

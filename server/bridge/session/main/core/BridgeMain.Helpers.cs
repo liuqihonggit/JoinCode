@@ -330,6 +330,11 @@ public sealed partial class BridgeMain {
         }
 
         await ShutdownAsync().ConfigureAwait(false);
+        List<Task> cleanupSnapshot;
+        using (_cleanupLock.LockOrCrash()) {
+            cleanupSnapshot = _pendingCleanups.ToList();
+        }
+        await Task.WhenAll(cleanupSnapshot).ConfigureAwait(false);
         Dispose();
     }
 

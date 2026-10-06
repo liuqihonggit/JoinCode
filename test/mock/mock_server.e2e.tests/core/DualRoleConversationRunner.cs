@@ -1245,7 +1245,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-            var listProc = Process.Start(listPsi);
+            using var listProc = Process.Start(listPsi);
             if (listProc is not null) {
                 var wtOutput = listProc.StandardOutput.ReadToEnd();
                 listProc.WaitForExit(5000);
@@ -1260,7 +1260,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
                             CreateNoWindow = true,
                             RedirectStandardError = true
                         };
-                        var removeProc = Process.Start(removePsi);
+                        using var removeProc = Process.Start(removePsi);
                         removeProc?.WaitForExit(5000);
                     }
                 }

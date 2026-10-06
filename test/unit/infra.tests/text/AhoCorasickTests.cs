@@ -329,7 +329,7 @@ public class DualBufferAhoCorasickTests {
     public async Task ConcurrentReadDuringSwap_NoException() {
         var db = DualBufferAhoCorasick.Create(new[] { "initial" });
 
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var readers = new Task[4];
         for (var i = 0; i < 4; i++) {
             readers[i] = Task.Run(() => {

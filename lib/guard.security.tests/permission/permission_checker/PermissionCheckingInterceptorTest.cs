@@ -249,7 +249,7 @@ public sealed class PermissionCheckingInterceptorTest {
     #region Priority
 
     [Fact]
-    public void Priority_应为200() {
+    public async Task Priority_应为200() {
         await using var interceptor = CreateInterceptor();
         interceptor.Priority.Should().Be(200);
     }

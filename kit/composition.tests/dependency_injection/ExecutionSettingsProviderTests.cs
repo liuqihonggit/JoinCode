@@ -26,15 +26,15 @@ public sealed class ExecutionSettingsProviderTests {
     [InlineData(EffortLevel.High)]
     [InlineData(EffortLevel.Max)]
     [InlineData(EffortLevel.Auto)]
-    public void EffortLevel_SetThenGet_ReturnsSetValue(EffortLevel level) {
-        var sut = CreateSut();
+    public async Task EffortLevel_SetThenGet_ReturnsSetValue(EffortLevel level) {
+        await using var sut = CreateSut();
         sut.EffortLevel = level;
         sut.EffortLevel.Should().Be(level);
     }
 
     [Fact]
-    public void EffortLevel_SetMultipleTimes_LastValueWins() {
-        var sut = CreateSut();
+    public async Task EffortLevel_SetMultipleTimes_LastValueWins() {
+        await using var sut = CreateSut();
         sut.EffortLevel = EffortLevel.Low;
         sut.EffortLevel = EffortLevel.High;
         sut.EffortLevel = EffortLevel.Medium;
@@ -42,12 +42,12 @@ public sealed class ExecutionSettingsProviderTests {
     }
 
     [Fact]
-    public void EffortLevel_SetDifferentValue_RecordsTelemetry() {
+    public async Task EffortLevel_SetDifferentValue_RecordsTelemetry() {
         var mockCounter = new Mock<ITelemetryCounter>();
         var mockTelemetry = new Mock<ITelemetryService>();
         mockTelemetry.Setup(t => t.GetCounter(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .Returns(mockCounter.Object);
-        var sut = CreateSut(mockTelemetry);
+        await using var sut = CreateSut(mockTelemetry);
 
         sut.EffortLevel = EffortLevel.High;
 
@@ -55,12 +55,12 @@ public sealed class ExecutionSettingsProviderTests {
     }
 
     [Fact]
-    public void EffortLevel_SetSameValue_DoesNotRecordTelemetry() {
+    public async Task EffortLevel_SetSameValue_DoesNotRecordTelemetry() {
         var mockCounter = new Mock<ITelemetryCounter>();
         var mockTelemetry = new Mock<ITelemetryService>();
         mockTelemetry.Setup(t => t.GetCounter(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .Returns(mockCounter.Object);
-        var sut = CreateSut(mockTelemetry);
+        await using var sut = CreateSut(mockTelemetry);
 
         sut.EffortLevel = EffortLevel.Auto;
         sut.EffortLevel = EffortLevel.Auto;
@@ -69,12 +69,12 @@ public sealed class ExecutionSettingsProviderTests {
     }
 
     [Fact]
-    public void EffortLevel_SetDifferentValues_RecordsTelemetryForEachChange() {
+    public async Task EffortLevel_SetDifferentValues_RecordsTelemetryForEachChange() {
         var mockCounter = new Mock<ITelemetryCounter>();
         var mockTelemetry = new Mock<ITelemetryService>();
         mockTelemetry.Setup(t => t.GetCounter(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .Returns(mockCounter.Object);
-        var sut = CreateSut(mockTelemetry);
+        await using var sut = CreateSut(mockTelemetry);
 
         sut.EffortLevel = EffortLevel.Low;
         sut.EffortLevel = EffortLevel.Medium;
@@ -84,8 +84,8 @@ public sealed class ExecutionSettingsProviderTests {
     }
 
     [Fact]
-    public void EffortLevel_SetWithNullTelemetry_DoesNotThrow() {
-        var sut = CreateSut(telemetry: null);
+    public async Task EffortLevel_SetWithNullTelemetry_DoesNotThrow() {
+        await using var sut = CreateSut(telemetry: null);
         var act = () => sut.EffortLevel = EffortLevel.High;
         act.Should().NotThrow();
     }
@@ -95,15 +95,15 @@ public sealed class ExecutionSettingsProviderTests {
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void ThinkingEnabled_SetThenGet_ReturnsSetValue(bool value) {
-        var sut = CreateSut();
+    public async Task ThinkingEnabled_SetThenGet_ReturnsSetValue(bool value) {
+        await using var sut = CreateSut();
         sut.ThinkingEnabled = value;
         sut.ThinkingEnabled.Should().Be(value);
     }
 
     [Fact]
-    public void ThinkingEnabled_SetMultipleTimes_LastValueWins() {
-        var sut = CreateSut();
+    public async Task ThinkingEnabled_SetMultipleTimes_LastValueWins() {
+        await using var sut = CreateSut();
         sut.ThinkingEnabled = true;
         sut.ThinkingEnabled = false;
         sut.ThinkingEnabled = true;
@@ -111,12 +111,12 @@ public sealed class ExecutionSettingsProviderTests {
     }
 
     [Fact]
-    public void ThinkingEnabled_SetDoesNotRecordTelemetry() {
+    public async Task ThinkingEnabled_SetDoesNotRecordTelemetry() {
         var mockCounter = new Mock<ITelemetryCounter>();
         var mockTelemetry = new Mock<ITelemetryService>();
         mockTelemetry.Setup(t => t.GetCounter(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .Returns(mockCounter.Object);
-        var sut = CreateSut(mockTelemetry);
+        await using var sut = CreateSut(mockTelemetry);
 
         sut.ThinkingEnabled = true;
 
@@ -126,15 +126,15 @@ public sealed class ExecutionSettingsProviderTests {
     // ===== FastMode / FastModelId / Temperature / MaxTokens =====
 
     [Fact]
-    public void FastMode_ReflectsConfigFastMode() {
+    public async Task FastMode_ReflectsConfigFastMode() {
         _config = _config with { FastMode = true };
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         sut.FastMode.Should().BeTrue();
     }
 
     [Fact]
-    public void FastMode_DefaultFalse() {
-        var sut = CreateSut();
+    public async Task FastMode_DefaultFalse() {
+        await using var sut = CreateSut();
         sut.FastMode.Should().BeFalse();
     }
 
@@ -142,8 +142,8 @@ public sealed class ExecutionSettingsProviderTests {
     [InlineData(0.5f)]
     [InlineData(1.0f)]
     [InlineData(null)]
-    public void Temperature_SetThenGet_ReturnsSetValue(float? value) {
-        var sut = CreateSut();
+    public async Task Temperature_SetThenGet_ReturnsSetValue(float? value) {
+        await using var sut = CreateSut();
         sut.Temperature = value;
         sut.Temperature.Should().Be(value);
     }
@@ -152,8 +152,8 @@ public sealed class ExecutionSettingsProviderTests {
     [InlineData(1024)]
     [InlineData(4096)]
     [InlineData(null)]
-    public void MaxTokens_SetThenGet_ReturnsSetValue(int? value) {
-        var sut = CreateSut();
+    public async Task MaxTokens_SetThenGet_ReturnsSetValue(int? value) {
+        await using var sut = CreateSut();
         sut.MaxTokens = value;
         sut.MaxTokens.Should().Be(value);
     }

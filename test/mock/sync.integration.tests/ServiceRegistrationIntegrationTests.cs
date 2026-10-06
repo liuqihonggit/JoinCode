@@ -8,7 +8,7 @@ public class ServiceRegistrationIntegrationTests {
     [Fact]
     public async Task AddWorkflowServices_ShouldRegisterITranscriptService() {
         var services = await BuildServiceCollection();
-        var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         var transcriptService = sp.GetService<ITranscriptService>();
         Assert.NotNull(transcriptService);
@@ -17,7 +17,7 @@ public class ServiceRegistrationIntegrationTests {
     [Fact]
     public async Task AddWorkflowServices_ShouldRegisterIFastModeService() {
         var services = await BuildServiceCollection();
-        var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         var fastModeService = sp.GetService<IFastModeService>();
         Assert.NotNull(fastModeService);
@@ -26,7 +26,7 @@ public class ServiceRegistrationIntegrationTests {
     [Fact]
     public async Task AddWorkflowServices_ShouldRegisterISimpleModeService() {
         var services = await BuildServiceCollection();
-        var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         var simpleModeService = sp.GetService<ISimpleModeService>();
         Assert.NotNull(simpleModeService);
@@ -35,7 +35,7 @@ public class ServiceRegistrationIntegrationTests {
     [Fact]
     public async Task FastModeService_ShouldUsePrimaryModelIdFromConfig() {
         var services = await BuildServiceCollection();
-        var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         var fastModeService = sp.GetRequiredService<IFastModeService>();
         Assert.Equal(DefaultModelId, fastModeService.PrimaryModelId);
@@ -44,7 +44,7 @@ public class ServiceRegistrationIntegrationTests {
     [Fact]
     public async Task AddWorkflowServices_ShouldRegisterIWebService() {
         var services = await BuildServiceCollection();
-        var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         var webService = sp.GetService<IWebService>();
         Assert.NotNull(webService);
@@ -53,7 +53,7 @@ public class ServiceRegistrationIntegrationTests {
     [Fact]
     public async Task AddWorkflowServices_ShouldRegisterITaskService() {
         var services = await BuildServiceCollection();
-        var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         var taskService = sp.GetService<ITaskService>();
         Assert.NotNull(taskService);
@@ -62,7 +62,7 @@ public class ServiceRegistrationIntegrationTests {
     [Fact]
     public async Task AddWorkflowServices_ShouldRegisterIAgentWorktreeService() {
         var services = await BuildServiceCollection();
-        var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         var worktreeService = sp.GetService<IAgentWorktreeService>();
         Assert.NotNull(worktreeService);
@@ -75,7 +75,7 @@ public class ServiceRegistrationIntegrationTests {
     [Fact]
     public async Task AddAiWorkflowServices_ShouldRegisterIChatService() {
         var services = await BuildAiServiceCollection();
-        var sp = services.BuildServiceProvider();
+        await using var sp = services.BuildServiceProvider();
 
         var chatService = sp.GetService<IChatService>();
         Assert.NotNull(chatService);

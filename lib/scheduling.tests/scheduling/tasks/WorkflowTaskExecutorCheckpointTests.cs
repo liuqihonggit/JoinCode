@@ -50,7 +50,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
     [Fact]
     public async Task ExecuteDagAsync_WithStateStore_ShouldSaveSnapshot() {
         SetupToolSuccess();
-        var executor = CreateExecutor();
+        await using var executor = CreateExecutor();
 
         var result = await executor.ExecuteWorkflowAsync(CreateDagWorkflow()).ConfigureAwait(true);
 
@@ -62,7 +62,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
     [Fact]
     public async Task ExecuteDagAsync_Snapshot_ShouldContainAllCompletedSteps() {
         SetupToolSuccess();
-        var executor = CreateExecutor();
+        await using var executor = CreateExecutor();
 
         await executor.ExecuteWorkflowAsync(CreateDagWorkflow("wf-steps")).ConfigureAwait(true);
 
@@ -95,7 +95,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
             .Setup(x => x.ExecuteAsync("tool_fail", It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
             .ThrowsAsync(new JoinCode.Abstractions.Exceptions.WorkflowException("tool failed", "TOOL_ERROR"));
 
-        var executor = CreateExecutor();
+        await using var executor = CreateExecutor();
 
         var definition = new WorkflowDefinition {
             WorkflowId = "wf-fail",
@@ -117,7 +117,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
     [Fact]
     public async Task ExecuteDagAsync_WithExistingSnapshot_ShouldSkipCompletedSteps() {
         SetupToolSuccess();
-        var executor = CreateExecutor();
+        await using var executor = CreateExecutor();
 
         var snapshot = new WorkflowSnapshot {
             WorkflowId = "wf-resume",
@@ -145,7 +145,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
     [Fact]
     public async Task ExecuteDagAsync_WithExistingSnapshot_ShouldProduceCompletedResult() {
         SetupToolSuccess();
-        var executor = CreateExecutor();
+        await using var executor = CreateExecutor();
 
         var snapshot = new WorkflowSnapshot {
             WorkflowId = "wf-resume-result",
@@ -173,7 +173,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
     public async Task ExecuteDagAsync_RestartWithSameStore_ShouldSkipAllCompletedSteps() {
         SetupToolSuccess();
 
-        var executor1 = CreateExecutor();
+        await using var executor1 = CreateExecutor();
         await executor1.ExecuteWorkflowAsync(CreateDagWorkflow("wf-restart")).ConfigureAwait(true);
 
         var snapshotAfterFirstRun = await _stateStore.LoadSnapshotAsync("wf-restart").ConfigureAwait(true);
@@ -182,7 +182,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
         _toolGatewayMock.Reset();
         SetupToolSuccess();
 
-        var executor2 = CreateExecutor();
+        await using var executor2 = CreateExecutor();
         var result = await executor2.ExecuteWorkflowAsync(CreateDagWorkflow("wf-restart")).ConfigureAwait(true);
 
         _toolGatewayMock.Verify(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Never, "重启后所有步骤应从快照恢复,不重复执行");
@@ -192,7 +192,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
     [Fact]
     public async Task ExecuteDagAsync_SnapshotInconsistent_ShouldDiscardAndExecuteFromScratch() {
         SetupToolSuccess();
-        var executor = CreateExecutor();
+        await using var executor = CreateExecutor();
 
         var snapshot = new WorkflowSnapshot {
             WorkflowId = "wf-inconsistent",
@@ -230,13 +230,13 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
             }
         };
 
-        var executor1 = CreateExecutor();
+        await using var executor1 = CreateExecutor();
         await executor1.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
 
         _toolGatewayMock.Reset();
         SetupToolSuccess();
 
-        var executor2 = CreateExecutor();
+        await using var executor2 = CreateExecutor();
         var result = await executor2.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
 
         _toolGatewayMock.Verify(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Never, "Sequential 重启后所有步骤应从快照恢复");
@@ -257,13 +257,13 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
             }
         };
 
-        var executor1 = CreateExecutor();
+        await using var executor1 = CreateExecutor();
         await executor1.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
 
         _toolGatewayMock.Reset();
         SetupToolSuccess();
 
-        var executor2 = CreateExecutor();
+        await using var executor2 = CreateExecutor();
         var result = await executor2.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
 
         _toolGatewayMock.Verify(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Never, "Parallel 重启后所有步骤应从快照恢复");

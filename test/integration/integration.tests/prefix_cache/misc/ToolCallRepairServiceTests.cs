@@ -6,7 +6,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"filePath": "/src/Program.cs",}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("filePath").GetString().Should().Be("/src/Program.cs");
         result.RepairHint.Should().Contain("trailing comma");
     }
@@ -16,7 +16,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"paths": ["/a", "/b",]}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("paths").GetArrayLength().Should().Be(2);
         result.RepairHint.Should().Contain("trailing comma");
     }
@@ -26,7 +26,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{filePath: "/src/Program.cs"}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("filePath").GetString().Should().Be("/src/Program.cs");
         result.RepairHint.Should().Contain("unquoted key");
     }
@@ -36,7 +36,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{'filePath': '/src/Program.cs'}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("filePath").GetString().Should().Be("/src/Program.cs");
         result.RepairHint.Should().Contain("single-quoted");
     }
@@ -56,7 +56,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"pr_number":206}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("pr_number").GetInt32().Should().Be(206);
     }
 
@@ -65,7 +65,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"pr_number":"206"}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("pr_number").GetString().Should().Be("206");
     }
 
@@ -74,7 +74,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"value":0x10}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("value").GetInt32().Should().Be(16);
     }
 
@@ -83,7 +83,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"value":0123}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("value").GetInt32().Should().Be(123);
     }
 
@@ -92,7 +92,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("{pr_number:206}");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("pr_number").GetInt32().Should().Be(206);
     }
 
@@ -490,7 +490,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"filePath": "/src/Program.cs""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("filePath").GetString().Should().Be("/src/Program.cs");
         result.RepairHint.Should().Contain("truncated");
     }
@@ -500,7 +500,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"outer": {"inner": "value""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("outer").GetProperty("inner").GetString().Should().Be("value");
     }
 
@@ -509,7 +509,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"paths": ["/a", "/b""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("paths").GetArrayLength().Should().Be(2);
     }
 
@@ -518,7 +518,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"filePath": "/src/Prog""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("filePath").GetString().Should().Be("/src/Prog");
         result.RepairHint.Should().Contain("truncated string");
     }
@@ -528,7 +528,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"items": [{"name": "test""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("items")[0].GetProperty("name").GetString().Should().Be("test");
     }
 
@@ -537,7 +537,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"a": 1, "b": 2,}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("a").GetInt32().Should().Be(1);
         parsed.RootElement.GetProperty("b").GetInt32().Should().Be(2);
     }
@@ -548,7 +548,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson(input);
 
         result.Success.Should().BeTrue($"Input: '{input}', RepairedJson: '{result.RepairedJson}', Hint: {result.RepairHint}");
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("a").GetInt32().Should().Be(1);
         parsed.RootElement.GetProperty("b").GetInt32().Should().Be(2);
     }
@@ -560,7 +560,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"text": "it\'s a test"}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("text").GetString().Should().Be("it's a test");
         result.RepairHint.Should().Contain("escape");
     }
@@ -571,7 +571,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson(json);
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("text").GetString().Should().Be("line1\nline2");
     }
 
@@ -581,7 +581,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson(json);
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("text").GetString().Should().Be("col1\tcol2");
     }
 
@@ -590,7 +590,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"text": "line1\nline2\ttab"}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("text").GetString().Should().Be("line1\nline2\ttab");
         result.RepairHint.Should().BeNull();
     }
@@ -604,7 +604,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"key": "value"};""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("key").GetString().Should().Be("value");
     }
 
@@ -613,7 +613,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"key": "value"} ;  """);
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("key").GetString().Should().Be("value");
     }
 
@@ -622,7 +622,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"cmd": "echo hello; ls"}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("cmd").GetString().Should().Be("echo hello; ls");
         result.RepairHint.Should().BeNull();
     }
@@ -636,7 +636,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"value": Infinity}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("value").ValueKind.Should().Be(JsonValueKind.String);
         parsed.RootElement.GetProperty("value").GetString().Should().Be("Infinity");
     }
@@ -646,7 +646,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"value": -Infinity}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("value").ValueKind.Should().Be(JsonValueKind.String);
         parsed.RootElement.GetProperty("value").GetString().Should().Be("-Infinity");
     }
@@ -656,7 +656,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"value": NaN}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("value").ValueKind.Should().Be(JsonValueKind.String);
         parsed.RootElement.GetProperty("value").GetString().Should().Be("NaN");
     }
@@ -678,7 +678,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"key": 'value'}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("key").GetString().Should().Be("value");
         result.RepairHint.Should().Contain("single-quoted");
     }
@@ -688,7 +688,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{'key': 'value'}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("key").GetString().Should().Be("value");
     }
 
@@ -741,7 +741,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"filePath": "/src/Program.cs", "mode": read}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("mode").GetString().Should().Be("read");
         result.RepairHint.Should().Contain("unquoted value");
     }
@@ -751,7 +751,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{filePath: /src/Program.cs}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("filePath").GetString().Should().Be("/src/Program.cs");
     }
 
@@ -760,7 +760,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"count": 42, "name": test}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("count").GetInt32().Should().Be(42);
         parsed.RootElement.GetProperty("name").GetString().Should().Be("test");
     }
@@ -770,7 +770,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"a": true, "b": false, "c": null, "d": hello}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("a").GetBoolean().Should().BeTrue();
         parsed.RootElement.GetProperty("b").GetBoolean().Should().BeFalse();
         parsed.RootElement.GetProperty("c").ValueKind.Should().Be(JsonValueKind.Null);
@@ -786,7 +786,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{prompt:echo hello}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("prompt").GetString().Should().Be("echo hello");
         result.RepairHint.Should().Contain("unquoted value");
     }
@@ -800,7 +800,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{prompt:echo hello,enableWorktreeIsolation:true}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("prompt").GetString().Should().Be("echo hello");
         parsed.RootElement.GetProperty("enableWorktreeIsolation").GetBoolean().Should().BeTrue();
     }
@@ -813,7 +813,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{prompt:echo hello world,name:test agent}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("prompt").GetString().Should().Be("echo hello world");
         parsed.RootElement.GetProperty("name").GetString().Should().Be("test agent");
     }
@@ -826,7 +826,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{prompt:echo hello,options:{verbose:true}}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("prompt").GetString().Should().Be("echo hello");
         parsed.RootElement.GetProperty("options").GetProperty("verbose").GetBoolean().Should().BeTrue();
     }
@@ -840,7 +840,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("\"{\"key\":\"value\"}\"");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("key").GetString().Should().Be("value");
     }
 
@@ -849,7 +849,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("'{\"key\":\"value\"}'");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("key").GetString().Should().Be("value");
     }
 
@@ -863,7 +863,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson(json);
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("key").GetString().Should().Be("value1");
         parsed.RootElement.GetProperty("key2").GetString().Should().Be("value2");
     }
@@ -874,7 +874,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson(json);
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("key").GetString().Should().Be("val\tue");
     }
 
@@ -887,7 +887,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"path": "D:\data\config.txt"}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("path").GetString().Should().Be("D:\\data\\config.txt");
     }
 
@@ -896,7 +896,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{"text": "line1\nline2"}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("text").GetString().Should().Be("line1\nline2");
     }
 
@@ -909,7 +909,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{file_path: D:\project\README.md}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("file_path").GetString().Should().Be("D:\\project\\README.md");
     }
 
@@ -918,7 +918,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{file_path: D:\project\README.md, start_line: 1, end_line: 5}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("file_path").GetString().Should().Be("D:\\project\\README.md");
         parsed.RootElement.GetProperty("start_line").GetInt32().Should().Be(1);
         parsed.RootElement.GetProperty("end_line").GetInt32().Should().Be(5);
@@ -929,7 +929,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{path: D:\test, options: {verbose: true, count: 3}}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("path").GetString().Should().Be("D:\\test");
         parsed.RootElement.GetProperty("options").GetProperty("verbose").GetBoolean().Should().BeTrue();
         parsed.RootElement.GetProperty("options").GetProperty("count").GetInt32().Should().Be(3);
@@ -940,7 +940,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{code:public class Foo { public void Bar() { int x = 1; } }}""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("code").GetString().Should().Be("public class Foo { public void Bar() { int x = 1; } }");
     }
 
@@ -949,7 +949,7 @@ public sealed class ToolCallRepairServiceTests {
         var result = ToolCallRepairService.RepairJson("""{code:int x = 1; if (x == 1) { x = 2; } }""");
 
         result.Success.Should().BeTrue();
-        var parsed = JsonDocument.Parse(result.RepairedJson);
+        using var parsed = JsonDocument.Parse(result.RepairedJson);
         parsed.RootElement.GetProperty("code").GetString().Should().Be("int x = 1; if (x == 1) { x = 2; }");
     }
 

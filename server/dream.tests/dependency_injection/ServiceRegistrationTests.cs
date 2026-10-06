@@ -5,7 +5,7 @@ namespace Dream.Tests.DependencyInjection;
 /// </summary>
 public sealed class ServiceRegistrationTests {
     [Fact]
-    public void AddDreamServices_WithConfigure_RegistersOptions() {
+    public async Task AddDreamServices_WithConfigure_RegistersOptions() {
         var services = new ServiceCollection();
 
         services.AddDreamServices(cfg => cfg with { MinHours = 12 });
@@ -16,7 +16,7 @@ public sealed class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddDreamServices_WithoutConfigure_RegistersSingleton() {
+    public async Task AddDreamServices_WithoutConfigure_RegistersSingleton() {
         var services = new ServiceCollection();
 
         services.AddDreamServices();
@@ -29,7 +29,7 @@ public sealed class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddDreamServicesWithPersistence_WithConfigure_RegistersOptions() {
+    public async Task AddDreamServicesWithPersistence_WithConfigure_RegistersOptions() {
         var services = new ServiceCollection();
 
         services.AddDreamServicesWithPersistence(cfg => cfg with { MinSessions = 3 });
@@ -40,7 +40,7 @@ public sealed class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddDreamServicesWithPersistence_WithoutConfigure_RegistersSingleton() {
+    public async Task AddDreamServicesWithPersistence_WithoutConfigure_RegistersSingleton() {
         var services = new ServiceCollection();
 
         services.AddDreamServicesWithPersistence();
@@ -86,7 +86,7 @@ public sealed class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddDreamPluginServices_RegistersAutoDreamConfig() {
+    public async Task AddDreamPluginServices_RegistersAutoDreamConfig() {
         var services = new ServiceCollection();
 
         services.AddDreamPluginServices();

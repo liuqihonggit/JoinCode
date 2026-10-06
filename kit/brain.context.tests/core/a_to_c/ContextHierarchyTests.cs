@@ -12,7 +12,7 @@ public class ContextHierarchyTests {
     }
 
     [Fact]
-    public void Constructor_WithOptions_ShouldUseOptions() {
+    public async Task Constructor_WithOptions_ShouldUseOptions() {
         var options = new ContextHierarchyOptions {
             TokenThreshold = 2000,
             AutoCompressionEnabled = false,

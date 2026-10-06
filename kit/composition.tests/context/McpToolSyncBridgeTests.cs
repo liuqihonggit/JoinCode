@@ -28,7 +28,7 @@ public sealed partial class McpToolSyncBridgeTests {
         _contextManager.Setup(m => m.UpdateToolSpecsAsync(It.IsAny<IReadOnlyList<ToolSpec>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.OnToolsListChangedAsync().ConfigureAwait(true);
 
         _contextManager.Verify(m => m.UpdateToolSpecsAsync(
@@ -46,7 +46,7 @@ public sealed partial class McpToolSyncBridgeTests {
         _contextManager.Setup(m => m.UpdateToolSpecsAsync(It.IsAny<IReadOnlyList<ToolSpec>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.OnToolsListChangedAsync().ConfigureAwait(true);
 
         _contextManager.Verify(m => m.UpdateToolSpecsAsync(
@@ -59,7 +59,7 @@ public sealed partial class McpToolSyncBridgeTests {
         _toolRegistry.Setup(r => r.GetAllToolInfosAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("registry error"));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var act = async () => await sut.OnToolsListChangedAsync().ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
@@ -72,7 +72,7 @@ public sealed partial class McpToolSyncBridgeTests {
         _contextManager.Setup(m => m.UpdateToolSpecsAsync(It.IsAny<IReadOnlyList<ToolSpec>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("context error"));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var act = async () => await sut.OnToolsListChangedAsync().ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
@@ -92,7 +92,7 @@ public sealed partial class McpToolSyncBridgeTests {
             .Callback<IReadOnlyList<ToolSpec>, CancellationToken>((specs, _) => capturedSpecs = specs)
             .Returns(Task.CompletedTask);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.OnToolsListChangedAsync().ConfigureAwait(true);
 
         capturedSpecs.Should().NotBeNull();
@@ -108,7 +108,7 @@ public sealed partial class McpToolSyncBridgeTests {
         _contextManager.Setup(m => m.AddDynamicSystemMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.OnResourcesListChangedAsync("server1", syncResult).ConfigureAwait(true);
 
         _contextManager.Verify(m => m.AddDynamicSystemMessageAsync(
@@ -120,7 +120,7 @@ public sealed partial class McpToolSyncBridgeTests {
     public async Task OnResourcesListChangedAsync_FailedResult_DoesNotAddMessage() {
         var syncResult = OperationResult<IReadOnlyList<string>>.Fail("sync failed");
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.OnResourcesListChangedAsync("server1", syncResult).ConfigureAwait(true);
 
         _contextManager.Verify(m => m.AddDynamicSystemMessageAsync(
@@ -132,7 +132,7 @@ public sealed partial class McpToolSyncBridgeTests {
         var syncResult = OperationResult<IReadOnlyList<string>>.Ok(
             new List<string>().AsReadOnly());
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.OnResourcesListChangedAsync("server1", syncResult).ConfigureAwait(true);
 
         _contextManager.Verify(m => m.AddDynamicSystemMessageAsync(
@@ -147,7 +147,7 @@ public sealed partial class McpToolSyncBridgeTests {
         _contextManager.Setup(m => m.AddDynamicSystemMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("error"));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var act = async () => await sut.OnResourcesListChangedAsync("server1", syncResult).ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
@@ -160,7 +160,7 @@ public sealed partial class McpToolSyncBridgeTests {
         _contextManager.Setup(m => m.AddDynamicSystemMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.OnPromptsListChangedAsync("server1", syncResult).ConfigureAwait(true);
 
         _contextManager.Verify(m => m.AddDynamicSystemMessageAsync(
@@ -171,7 +171,7 @@ public sealed partial class McpToolSyncBridgeTests {
     public async Task OnPromptsListChangedAsync_FailedResult_DoesNotAddMessage() {
         var syncResult = OperationResult<IReadOnlyList<string>>.Fail("sync failed");
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.OnPromptsListChangedAsync("server1", syncResult).ConfigureAwait(true);
 
         _contextManager.Verify(m => m.AddDynamicSystemMessageAsync(
@@ -183,7 +183,7 @@ public sealed partial class McpToolSyncBridgeTests {
         var syncResult = OperationResult<IReadOnlyList<string>>.Ok(
             new List<string>().AsReadOnly());
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.OnPromptsListChangedAsync("server1", syncResult).ConfigureAwait(true);
 
         _contextManager.Verify(m => m.AddDynamicSystemMessageAsync(
@@ -198,7 +198,7 @@ public sealed partial class McpToolSyncBridgeTests {
         _contextManager.Setup(m => m.AddDynamicSystemMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("error"));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var act = async () => await sut.OnPromptsListChangedAsync("server1", syncResult).ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
@@ -225,7 +225,7 @@ public sealed partial class McpToolSyncBridgeTests {
             .Callback<IReadOnlyList<ToolSpec>, CancellationToken>((specs, _) => capturedSpecs = specs)
             .Returns(Task.CompletedTask);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.OnToolsListChangedAsync().ConfigureAwait(true);
 
         capturedSpecs.Should().NotBeNull();
@@ -246,7 +246,7 @@ public sealed partial class McpToolSyncBridgeTests {
             .Callback<IReadOnlyList<ToolSpec>, CancellationToken>((specs, _) => capturedSpecs = specs)
             .Returns(Task.CompletedTask);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.OnToolsListChangedAsync().ConfigureAwait(true);
 
         capturedSpecs.Should().NotBeNull();

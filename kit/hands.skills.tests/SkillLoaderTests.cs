@@ -81,14 +81,14 @@ public class SkillServiceTests : IDisposable {
     }
 
     [Fact]
-    public void SkillExists_ExistingSkill_ShouldReturnTrue() {
+    public async Task SkillExists_ExistingSkill_ShouldReturnTrue() {
         await using var service = CreateService();
 
         service.SkillExists("batch").Should().BeTrue();
     }
 
     [Fact]
-    public void SkillExists_NonExistingSkill_ShouldReturnFalse() {
+    public async Task SkillExists_NonExistingSkill_ShouldReturnFalse() {
         await using var service = CreateService();
 
         service.SkillExists("nonexistent").Should().BeFalse();
@@ -113,7 +113,7 @@ public class SkillServiceTests : IDisposable {
     }
 
     [Fact]
-    public void UnregisterSkill_ExistingSkill_ShouldRemoveSkill() {
+    public async Task UnregisterSkill_ExistingSkill_ShouldRemoveSkill() {
         await using var service = CreateService();
 
         service.UnregisterSkill("batch");
@@ -122,7 +122,7 @@ public class SkillServiceTests : IDisposable {
     }
 
     [Fact]
-    public void UnregisterSkill_NonExistingSkill_ShouldReturnFalse() {
+    public async Task UnregisterSkill_NonExistingSkill_ShouldReturnFalse() {
         await using var service = CreateService();
 
         var result = service.UnregisterSkill("nonexistent");

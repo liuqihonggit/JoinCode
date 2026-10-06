@@ -22,15 +22,15 @@ public sealed class ServiceHostTests {
     }
 
     [Fact]
-    public void RegisterService_Null_Throws() {
-        var host = new ServiceHost();
+    public async Task RegisterService_Null_Throws() {
+        await using var host = new ServiceHost();
 
         Assert.Throws<ArgumentNullException>(() => host.RegisterService(null!));
     }
 
     [Fact]
-    public void RegisterService_Duplicate_Throws() {
-        var host = new ServiceHost();
+    public async Task RegisterService_Duplicate_Throws() {
+        await using var host = new ServiceHost();
         var service = CreateService("svc");
 
         host.RegisterService(service);

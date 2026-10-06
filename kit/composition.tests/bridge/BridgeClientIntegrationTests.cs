@@ -35,7 +35,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
     [Fact]
     public async Task BridgeClient_Initialize_ShouldSucceed() {
         // Arrange
-        var handler = CreateMessageHandler();
+        await using var handler = CreateMessageHandler();
 
         var initRequest = new InitializeRequest {
             Id = Guid.NewGuid().ToString("N"),
@@ -64,7 +64,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
             };
         }).ConfigureAwait(true);
 
-        var handler = CreateMessageHandler(toolRegistry: toolRegistry);
+        await using var handler = CreateMessageHandler(toolRegistry: toolRegistry);
 
         var toolsListRequest = new ToolsListRequest {
             Id = Guid.NewGuid().ToString("N")
@@ -94,7 +94,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
             };
         }).ConfigureAwait(true);
 
-        var handler = CreateMessageHandler(toolRegistry: toolRegistry);
+        await using var handler = CreateMessageHandler(toolRegistry: toolRegistry);
 
         var toolCallRequest = new ToolsCallRequest {
             Id = Guid.NewGuid().ToString("N"),
@@ -123,7 +123,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
     public async Task BridgeClient_SkillExecute_NonExistentSkill_ShouldReturnError() {
         // Arrange
         var skillService = CreateTestSkillService();
-        var handler = CreateMessageHandler(skillService: skillService);
+        await using var handler = CreateMessageHandler(skillService: skillService);
 
         var skillRequest = new SkillExecuteRequest {
             Id = Guid.NewGuid().ToString("N"),
@@ -185,7 +185,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
         };
         skillService.RegisterSkill(skill);
 
-        var handler = CreateMessageHandler(skillService: skillService);
+        await using var handler = CreateMessageHandler(skillService: skillService);
 
         var skillRequest = new SkillExecuteRequest {
             Id = Guid.NewGuid().ToString("N"),
@@ -213,7 +213,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
     [Fact]
     public async Task BridgeClient_Ping_ShouldReturnPong() {
         // Arrange
-        var handler = CreateMessageHandler();
+        await using var handler = CreateMessageHandler();
 
         var ping = new PingMessage { Id = Guid.NewGuid().ToString("N") };
 
@@ -228,7 +228,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
     [Fact]
     public async Task BridgeClient_ControlRequest_Ping_ShouldReturnPong() {
         // Arrange
-        var handler = CreateMessageHandler();
+        await using var handler = CreateMessageHandler();
 
         var controlRequest = new ControlRequest {
             Id = Guid.NewGuid().ToString("N"),
@@ -260,7 +260,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
         };
         skillService.RegisterSkill(skill);
 
-        var handler = CreateMessageHandler(toolRegistry: toolRegistry, skillService: skillService);
+        await using var handler = CreateMessageHandler(toolRegistry: toolRegistry, skillService: skillService);
 
         var controlRequest = new ControlRequest {
             Id = Guid.NewGuid().ToString("N"),
@@ -281,7 +281,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
     [Fact]
     public async Task BridgeClient_ControlRequest_UnknownCommand_ShouldReturnError() {
         // Arrange
-        var handler = CreateMessageHandler();
+        await using var handler = CreateMessageHandler();
 
         var controlRequest = new ControlRequest {
             Id = Guid.NewGuid().ToString("N"),

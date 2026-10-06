@@ -7,7 +7,7 @@ public class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddLlmServices_RegistersQueryService() {
+    public async Task AddLlmServices_RegistersQueryService() {
         var services = new ServiceCollection();
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
 
@@ -19,7 +19,7 @@ public class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddLlmServicesWithCustomQuery_RegistersCustomService() {
+    public async Task AddLlmServicesWithCustomQuery_RegistersCustomService() {
         var services = new ServiceCollection();
         var custom = new Mock<IQueryService>().Object;
 
@@ -38,7 +38,7 @@ public class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddPipeQueryService_RegistersPipeQueryService() {
+    public async Task AddPipeQueryService_RegistersPipeQueryService() {
         var services = new ServiceCollection();
         var pipeConfig = new PipeTransportConfig { PipeName = "test-pipe" };
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test" };
@@ -51,7 +51,7 @@ public class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddKernelWithPlugins_WithPipeEndpoint_RegistersPipeQueryService() {
+    public async Task AddKernelWithPlugins_WithPipeEndpoint_RegistersPipeQueryService() {
         var services = new ServiceCollection();
         var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
         var pipeConfig = new PipeTransportConfig { PipeName = "pipe" };
@@ -63,7 +63,7 @@ public class ServiceRegistrationTests {
     }
 
     [Fact]
-    public void AddKernelWithPlugins_WithoutPipeEndpoint_RegistersStandardQueryService() {
+    public async Task AddKernelWithPlugins_WithoutPipeEndpoint_RegistersStandardQueryService() {
         var services = new ServiceCollection();
         var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
 

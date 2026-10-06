@@ -11,7 +11,7 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void AddTag_ShouldAddTag() {
+    public async Task AddTag_ShouldAddTag() {
         await using var service = CreateService();
 
         var added = service.AddTag("session1", "important");
@@ -21,7 +21,7 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void AddTag_SameTagTwice_ShouldReturnFalse() {
+    public async Task AddTag_SameTagTwice_ShouldReturnFalse() {
         await using var service = CreateService();
 
         service.AddTag("session1", "important");
@@ -32,7 +32,7 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void AddTag_NullSessionId_ShouldThrow() {
+    public async Task AddTag_NullSessionId_ShouldThrow() {
         await using var service = CreateService();
 
         var act = () => service.AddTag(null!, "tag");
@@ -41,7 +41,7 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void AddTag_NullTag_ShouldThrow() {
+    public async Task AddTag_NullTag_ShouldThrow() {
         await using var service = CreateService();
 
         var act = () => service.AddTag("session1", null!);
@@ -50,7 +50,7 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void RemoveTag_ShouldRemoveTag() {
+    public async Task RemoveTag_ShouldRemoveTag() {
         await using var service = CreateService();
         service.AddTag("session1", "important");
 
@@ -61,7 +61,7 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void RemoveTag_NonExistentTag_ShouldReturnFalse() {
+    public async Task RemoveTag_NonExistentTag_ShouldReturnFalse() {
         await using var service = CreateService();
 
         var removed = service.RemoveTag("session1", "nonexistent");
@@ -70,14 +70,14 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void GetTags_UnknownSession_ShouldReturnEmpty() {
+    public async Task GetTags_UnknownSession_ShouldReturnEmpty() {
         await using var service = CreateService();
 
         service.GetTags("unknown").Should().BeEmpty();
     }
 
     [Fact]
-    public void GetTags_ShouldBeSorted() {
+    public async Task GetTags_ShouldBeSorted() {
         await using var service = CreateService();
 
         service.AddTag("session1", "zebra");
@@ -89,7 +89,7 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void GetAllTags_ShouldReturnAllSessions() {
+    public async Task GetAllTags_ShouldReturnAllSessions() {
         await using var service = CreateService();
 
         service.AddTag("session1", "tag1");
@@ -101,7 +101,7 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void AddTag_CaseInsensitive_ShouldNotDuplicate() {
+    public async Task AddTag_CaseInsensitive_ShouldNotDuplicate() {
         await using var service = CreateService();
 
         service.AddTag("session1", "Important");
@@ -112,7 +112,7 @@ public sealed class SessionTagServiceTests {
     }
 
     [Fact]
-    public void RemoveTag_WhenLastTagRemoved_ShouldRemoveSession() {
+    public async Task RemoveTag_WhenLastTagRemoved_ShouldRemoveSession() {
         await using var service = CreateService();
         service.AddTag("session1", "only-tag");
 

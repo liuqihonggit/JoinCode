@@ -15,7 +15,7 @@ public sealed class FoldSummarizerTests {
 
     [Fact]
     public async Task EmptyMessages_ReturnsEmpty() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.SummarizeForFoldAsync([]);
         result.Should().BeEmpty();
     }
@@ -32,7 +32,7 @@ public sealed class FoldSummarizerTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new ApiMessage(MessageRole.Assistant, "摘要内容")]);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.SummarizeForFoldAsync(messages);
 
         result.Should().Be("摘要内容");
@@ -49,7 +49,7 @@ public sealed class FoldSummarizerTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var act = async () => await sut.SummarizeForFoldAsync(messages);
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
@@ -65,7 +65,7 @@ public sealed class FoldSummarizerTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("LLM 挂了"));
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var act = async () => await sut.SummarizeForFoldAsync(messages);
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("LLM 挂了");
     }
@@ -84,7 +84,7 @@ public sealed class FoldSummarizerTests {
                 new ApiMessage(MessageRole.Assistant, "第二条"),
             ]);
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.SummarizeForFoldAsync(messages);
 
         result.Should().Be("第一条");
@@ -101,7 +101,7 @@ public sealed class FoldSummarizerTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
 
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var act = async () => await sut.SummarizeForFoldAsync(messages);
         await act.Should().ThrowAsync<OperationCanceledException>();
     }

@@ -187,7 +187,7 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable {
 
     [Fact]
     [Trait("Category", "Deterministic")]
-    public void GetRecentSearches_NegativeLimit_ThrowsArgumentOutOfRangeException() {
+    public async Task GetRecentSearches_NegativeLimit_ThrowsArgumentOutOfRangeException() {
         await using var sut = CreateSut();
         var act = () => sut.GetRecentSearches(limit: -1);
         act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("limit");

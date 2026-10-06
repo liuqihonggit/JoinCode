@@ -48,7 +48,7 @@ public sealed class ResilientHttpClientProviderTests {
         });
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/test");
-        var response = await provider.SendResilientAsync(request, "test-op");
+        using var response = await provider.SendResilientAsync(request, "test-op");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }

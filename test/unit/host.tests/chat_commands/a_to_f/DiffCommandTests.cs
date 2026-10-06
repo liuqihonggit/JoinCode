@@ -59,7 +59,7 @@ public sealed class DiffCommandTests {
     [Fact]
     public async Task Execute_Default_Should_Return_Continue() {
         var cmd = new DiffCommand();
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         cts.Cancel();
         var context = new ChatCommandContext {
             Arguments = "",
@@ -138,7 +138,7 @@ public sealed class DiffCommandTests {
     [Fact]
     public async Task Execute_WithUnknownSubCommand_Should_Fall_Through_To_Default() {
         var cmd = new DiffCommand();
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         cts.Cancel();
         var context = new ChatCommandContext {
             Arguments = "unknown-mode",

@@ -10,8 +10,8 @@ public sealed class PasteStoreTests {
         => new(_fs, NullLogger<PasteStore>.Instance);
 
     [Fact]
-    public void HashPastedText_ShouldReturn16CharHex() {
-        var sut = CreateSut();
+    public async Task HashPastedText_ShouldReturn16CharHex() {
+        await using var sut = CreateSut();
         var hash = sut.HashPastedText("hello world");
 
         hash.Length.Should().Be(16);
@@ -19,8 +19,8 @@ public sealed class PasteStoreTests {
     }
 
     [Fact]
-    public void HashPastedText_SameContent_ShouldReturnSameHash() {
-        var sut = CreateSut();
+    public async Task HashPastedText_SameContent_ShouldReturnSameHash() {
+        await using var sut = CreateSut();
         var hash1 = sut.HashPastedText("test content");
         var hash2 = sut.HashPastedText("test content");
 
@@ -28,8 +28,8 @@ public sealed class PasteStoreTests {
     }
 
     [Fact]
-    public void HashPastedText_DifferentContent_ShouldReturnDifferentHash() {
-        var sut = CreateSut();
+    public async Task HashPastedText_DifferentContent_ShouldReturnDifferentHash() {
+        await using var sut = CreateSut();
         var hash1 = sut.HashPastedText("content A");
         var hash2 = sut.HashPastedText("content B");
 
@@ -38,7 +38,7 @@ public sealed class PasteStoreTests {
 
     [Fact]
     public async Task StorePastedText_ShouldWriteFileToDisk() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var hash = sut.HashPastedText("stored content");
         await sut.StorePastedText(hash, "stored content");
 
@@ -49,7 +49,7 @@ public sealed class PasteStoreTests {
 
     [Fact]
     public async Task RetrievePastedText_ShouldReturnContent() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var hash = sut.HashPastedText("retrieved content");
         await sut.StorePastedText(hash, "retrieved content");
 
@@ -59,14 +59,14 @@ public sealed class PasteStoreTests {
 
     [Fact]
     public async Task RetrievePastedText_WithNonExistentHash_ShouldReturnNull() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var result = await sut.RetrievePastedText("nonexistent0000");
         result.Should().BeNull();
     }
 
     [Fact]
     public async Task StorePastedText_SameHash_ShouldOverwriteSafely() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var hash = sut.HashPastedText("original");
         await sut.StorePastedText(hash, "original");
         await sut.StorePastedText(hash, "updated");

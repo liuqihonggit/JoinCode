@@ -111,7 +111,7 @@ public sealed class GoalEvaluatorTests {
     [Fact]
     public async Task EvaluateAsync_NullObjective_Should_Throw() {
         var kernel = new Mock<IChatClient>();
-        var evaluator = new GoalEvaluator(kernel.Object);
+        await using var evaluator = new GoalEvaluator(kernel.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             evaluator.EvaluateAsync(null!, [], "conversation")).ConfigureAwait(true);
@@ -120,7 +120,7 @@ public sealed class GoalEvaluatorTests {
     [Fact]
     public async Task EvaluateAsync_EmptyObjective_Should_Throw() {
         var kernel = new Mock<IChatClient>();
-        var evaluator = new GoalEvaluator(kernel.Object);
+        await using var evaluator = new GoalEvaluator(kernel.Object);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             evaluator.EvaluateAsync("", [], "conversation")).ConfigureAwait(true);

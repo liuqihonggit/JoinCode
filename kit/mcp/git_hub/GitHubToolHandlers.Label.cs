@@ -58,19 +58,12 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var jsonBody = new GitHubJsonObjectBuilder()
-                .String("name", name)
-                .StringIf("color", color)
-                .StringIf("description", description)
-                .Build();
+            var request = new LabelCreateRequest { Name = name, Color = color, Description = description };
+            var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Default.LabelCreateRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/labels", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             if (result.Success) return OkBrief(result.Body, $"已创建标签 {name}");
             if (force == true && result.StatusCode == 422) {
-                var patchBody = new GitHubJsonObjectBuilder()
-                    .StringIf("color", color)
-                    .StringIf("description", description)
-                    .Build();
-                var patchResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/labels/{Uri.EscapeDataString(name)}", patchBody, ct: cancellationToken).ConfigureAwait(false);
+                var patchResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/labels/{Uri.EscapeDataString(name)}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
                 return patchResult.Success ? OkBrief(patchResult.Body, $"已更新标签 {name}") : Fail(patchResult.Error);
             }
             return Fail(result.Error);

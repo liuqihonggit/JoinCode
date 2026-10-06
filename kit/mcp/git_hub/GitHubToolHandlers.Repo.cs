@@ -324,10 +324,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var jsonBody = new GitHubJsonObjectBuilder()
-                .String("key_prefix", key_prefix)
-                .String("url_template", url_template)
-                .Build();
+            var jsonBody = JsonSerializer.Serialize(new AutolinkCreateRequest { KeyPrefix = key_prefix, UrlTemplate = url_template }, GitHubApiJsonContext.Default.AutolinkCreateRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/keys/autolinks", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, "Autolink 创建成功") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -393,11 +390,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var jsonBody = new GitHubJsonObjectBuilder()
-                .String("title", title)
-                .String("key", key)
-                .BoolIfTrue("read_only", read_only)
-                .Build();
+            var jsonBody = JsonSerializer.Serialize(new DeployKeyAddRequest { Title = title, Key = key, ReadOnly = read_only }, GitHubApiJsonContext.Default.DeployKeyAddRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/keys", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, "Deploy Key 添加成功") : Fail(result.Error);
         }).ConfigureAwait(false);

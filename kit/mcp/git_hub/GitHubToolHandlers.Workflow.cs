@@ -95,8 +95,15 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var refVal = string.IsNullOrWhiteSpace(@ref) ? "main" : @ref;
-            var inputsPart = string.IsNullOrWhiteSpace(inputs) ? "" : $",\"inputs\":{inputs}";
-            var body = $$"""{"ref":"{{refVal}}"{{inputsPart}}}""";
+            var inputsDict = new Dictionary<string, string>();
+            if (!string.IsNullOrWhiteSpace(inputs)) {
+                try {
+                    using var doc = JsonDocument.Parse(inputs);
+                    foreach (var prop in doc.RootElement.EnumerateObject()) inputsDict[prop.Name] = prop.Value.GetString() ?? "";
+                } catch { return Fail($"inputs JSON 解析失败: {inputs}"); }
+            }
+            var request = new WorkflowDispatchRequest { Ref = refVal, Inputs = inputsDict };
+            var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Default.WorkflowDispatchRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/workflows/{Uri.EscapeDataString(workflow_id)}/dispatches", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok($"已触发 workflow {workflow_id} 运行(ref={refVal})") : Fail(result.Error);
         }).ConfigureAwait(false);

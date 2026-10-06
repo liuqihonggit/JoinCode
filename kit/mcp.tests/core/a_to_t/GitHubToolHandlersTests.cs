@@ -1,6 +1,6 @@
 namespace Mcp.Tests;
 
-public sealed class GitHubToolHandlersTests {
+public sealed partial class GitHubToolHandlersTests {
     private readonly FakeGitHubApiClient _api = new();
     private readonly GitHubToolHandlers _handler;
 

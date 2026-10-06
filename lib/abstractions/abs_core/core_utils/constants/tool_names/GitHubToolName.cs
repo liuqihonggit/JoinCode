@@ -370,6 +370,84 @@ public enum GitHubToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhConfigSet,
 
+    // === Gist ===
+    [EnumValue("gh_gist_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhGistList,
+
+    [EnumValue("gh_gist_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhGistView,
+
+    [EnumValue("gh_gist_create")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhGistCreate,
+
+    [EnumValue("gh_gist_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhGistDelete,
+
+    // === Org ===
+    [EnumValue("gh_org_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhOrgList,
+
+    // === SSH Key ===
+    [EnumValue("gh_ssh_key_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhSshKeyList,
+
+    [EnumValue("gh_ssh_key_add")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhSshKeyAdd,
+
+    [EnumValue("gh_ssh_key_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhSshKeyDelete,
+
+    // === GPG Key ===
+    [EnumValue("gh_gpg_key_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhGpgKeyList,
+
+    [EnumValue("gh_gpg_key_add")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhGpgKeyAdd,
+
+    [EnumValue("gh_gpg_key_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhGpgKeyDelete,
+
+    // === Secret ===
+    [EnumValue("gh_secret_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhSecretList,
+
+    [EnumValue("gh_secret_set")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhSecretSet,
+
+    [EnumValue("gh_secret_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhSecretDelete,
+
+    // === Variable ===
+    [EnumValue("gh_variable_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhVariableList,
+
+    [EnumValue("gh_variable_get")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhVariableGet,
+
+    [EnumValue("gh_variable_set")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhVariableSet,
+
+    [EnumValue("gh_variable_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhVariableDelete,
+
     // === 分支保护 ===
     [EnumValue("gh_branch_sync_protection")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]

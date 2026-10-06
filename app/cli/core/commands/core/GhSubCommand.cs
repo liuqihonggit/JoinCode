@@ -14,8 +14,13 @@ internal static class GhSubCommand {
     /// <param name="ct">取消令牌。</param>
     /// <returns>进程退出码：0 成功，1 参数/执行失败。</returns>
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
-        if (Array.IndexOf(args, CliArgCliOptionConstants.HelpLongName) >= 0
-            || Array.IndexOf(args, CliArgCliOptionConstants.HelpShortName) >= 0) {
+        var hasHelp = Array.IndexOf(args, CliArgCliOptionConstants.HelpLongName) >= 0
+                    || Array.IndexOf(args, CliArgCliOptionConstants.HelpShortName) >= 0;
+        if (hasHelp) {
+            var group = FlatSubCommandRouter.GetPositional(args, 0);
+            var action = group is not null ? FlatSubCommandRouter.GetPositional(args, 1) : null;
+            if (group is not null && action is not null)
+                return await RenderToolHelpAsync(group, action, ct).ConfigureAwait(false);
             TerminalHelper.WriteLine(GhCommandResolver.Usage);
             return 0;
         }
@@ -73,5 +78,81 @@ internal static class GhSubCommand {
             ? string.Join(", ", candidates)
             : string.Join(", ", candidates);
         return $"{head}\n可用: {list}";
+    }
+
+    /// <summary>
+    /// 渲染具体工具的动态帮助 — 从 MCP ToolSchema 生成参数说明。
+    /// </summary>
+    private static async Task<int?> RenderToolHelpAsync(string group, string action, CancellationToken ct) {
+        return await McpCliCommand.WithHostAsync(async services => {
+            var registry = services.GetRequiredService<IMcpToolRegistry>();
+            var toolName = string.Equals(group, "api", StringComparison.OrdinalIgnoreCase)
+                ? "gh_api"
+                : $"gh_{group}_{action}";
+            var info = await registry.GetToolInfoAsync(toolName, ct).ConfigureAwait(false);
+            if (info is null) {
+                TerminalHelper.WriteLine(GhCommandResolver.Usage);
+                return 0;
+            }
+            GhToolHelpRenderer.Render(info, group, action);
+            return 0;
+        }, ct: ct).ConfigureAwait(false);
+    }
+}
+
+/// <summary>
+/// gh 工具帮助渲染器 — 从 ToolInfo + ToolSchema 动态生成人类可读的参数说明。
+/// <para>替代硬编码 Usage：jcc gh &lt;group&gt; &lt;action&gt; --help 时从 MCP schema 实时生成。</para>
+/// </summary>
+internal static class GhToolHelpRenderer {
+    /// <summary>
+    /// 渲染工具帮助到 stdout。
+    /// </summary>
+    /// <param name="info">MCP 工具信息（含 Name/Description/InputSchema）。</param>
+    /// <param name="group">gh 分组名（如 pr/issue/repo）。</param>
+    /// <param name="action">gh 动作名（如 view/list）。</param>
+    internal static void Render(Abstractions.Tools.ToolInfo info, string group, string action) {
+        TerminalHelper.WriteLine($"工具: {info.Name}");
+        if (!string.IsNullOrEmpty(info.Description))
+            TerminalHelper.WriteLine($"描述: {info.Description}");
+        if (!string.IsNullOrEmpty(info.Category))
+            TerminalHelper.WriteLine($"分类: {info.Category}");
+        TerminalHelper.NewLine();
+
+        var schema = info.InputSchema;
+        var required = schema.Required;
+        var optionalProps = schema.Properties
+            .Where(p => !required.Contains(p.Key))
+            .ToList();
+
+        var usageParts = new List<string> { "jcc", "gh", group, action };
+        foreach (var r in required)
+            usageParts.Add($"<{r}>");
+        foreach (var (name, _) in optionalProps)
+            usageParts.Add($"[--{name}]");
+        usageParts.Add("[--json]");
+        TerminalHelper.WriteLine($"用法: {string.Join(' ', usageParts)}");
+
+        if (required.Count > 0) {
+            TerminalHelper.NewLine();
+            TerminalHelper.WriteLine("必填参数:");
+            foreach (var r in required)
+                if (schema.Properties.TryGetValue(r, out var prop))
+                    TerminalHelper.WriteLine($"  <{r}>    {prop.Description ?? ""}");
+        }
+
+        if (optionalProps.Count > 0) {
+            TerminalHelper.NewLine();
+            TerminalHelper.WriteLine("可选参数:");
+            foreach (var (name, prop) in optionalProps) {
+                var valueHint = string.Equals(prop.Type, "boolean", StringComparison.OrdinalIgnoreCase)
+                    ? ""
+                    : " <值>";
+                TerminalHelper.WriteLine($"  --{name}{valueHint}    {prop.Description ?? ""}");
+            }
+        }
+
+        TerminalHelper.NewLine();
+        TerminalHelper.WriteLine($"完整 schema: jcc mcp_schema {info.Name}");
     }
 }

@@ -17,7 +17,7 @@ public sealed class DownloadSessionStateTransitionTests {
         await using var fs = new InMemoryFileSystem();
         await using var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
-        using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
+        await using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
         await WaitDownloadingAndPauseAsync(session, getStarted);
 
         session.State.Should().Be(DownloadState.Paused);
@@ -33,7 +33,7 @@ public sealed class DownloadSessionStateTransitionTests {
         await using var fs = new InMemoryFileSystem();
         await using var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
-        using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
+        await using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
         await WaitDownloadingAndPauseAsync(session, getStarted);
         session.State.Should().Be(DownloadState.Paused);
 
@@ -65,7 +65,7 @@ public sealed class DownloadSessionStateTransitionTests {
         await using var fs = new InMemoryFileSystem();
         await using var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
-        using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
+        await using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
         await WaitDownloadingAndPauseAsync(session, getStarted);
 
         etag = "\"etag2\"";
@@ -102,7 +102,7 @@ public sealed class DownloadSessionStateTransitionTests {
         await using var fs = new InMemoryFileSystem();
         await using var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
-        using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
+        await using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
         await WaitDownloadingAndPauseAsync(session, getStarted);
 
         var metaPath = MetadataStore.GetMetadataPath(FilePath);

@@ -16,9 +16,9 @@ public sealed class ClusterExpandIntegrationTests {
         services.AddSingleton(analyzer.Object);
         services.AddSingleton<IClusterPlanValidator, ClusterPlanValidator>();
         services.AddSingleton<IClusterPlanApprovalHookManager, NoOpClusterPlanApprovalHook>();
-        var sp = services.BuildServiceProvider();
+        using var sp = services.BuildServiceProvider();
 
-        var engine = CreateEngine(serviceProvider: sp);
+        await using var engine = CreateEngine(serviceProvider: sp);
         var graph = GoalGraphTemplates.ClusterTemplate.BuildGraph(engine, "并行给3个模块写文档");
 
         Assert.Equal("cluster_analyze", graph.StartNodeId);
@@ -40,9 +40,9 @@ public sealed class ClusterExpandIntegrationTests {
         services.AddSingleton(analyzer.Object);
         services.AddSingleton<IClusterPlanValidator, ClusterPlanValidator>();
         services.AddSingleton<IClusterPlanApprovalHookManager, NoOpClusterPlanApprovalHook>();
-        var sp = services.BuildServiceProvider();
+        using var sp = services.BuildServiceProvider();
 
-        var engine = CreateEngine(serviceProvider: sp);
+        await using var engine = CreateEngine(serviceProvider: sp);
         var graph = GoalGraphTemplates.ClusterTemplate.BuildGraph(engine, "修改一个文件");
 
         var goalState = new GoalState { GoalId = "cluster-fallback-test", Objective = "修改一个文件" };
@@ -64,9 +64,9 @@ public sealed class ClusterExpandIntegrationTests {
         services.AddSingleton(analyzer.Object);
         services.AddSingleton<IClusterPlanValidator, ClusterPlanValidator>();
         services.AddSingleton<IClusterPlanApprovalHookManager, NoOpClusterPlanApprovalHook>();
-        var sp = services.BuildServiceProvider();
+        using var sp = services.BuildServiceProvider();
 
-        var engine = CreateEngine(serviceProvider: sp);
+        await using var engine = CreateEngine(serviceProvider: sp);
         var graph = GoalGraphTemplates.ClusterTemplate.BuildGraph(engine, "并行做10件事");
 
         var goalState = new GoalState { GoalId = "cluster-validation-test", Objective = "并行做10件事" };
@@ -86,9 +86,9 @@ public sealed class ClusterExpandIntegrationTests {
         services.AddSingleton(analyzer.Object);
         services.AddSingleton<IClusterPlanValidator, ClusterPlanValidator>();
         services.AddSingleton<IClusterPlanApprovalHookManager, BlockingClusterPlanApprovalHook>();
-        var sp = services.BuildServiceProvider();
+        using var sp = services.BuildServiceProvider();
 
-        var engine = CreateEngine(serviceProvider: sp);
+        await using var engine = CreateEngine(serviceProvider: sp);
         var graph = GoalGraphTemplates.ClusterTemplate.BuildGraph(engine, "并行做2件事");
 
         var goalState = new GoalState { GoalId = "cluster-blocked-test", Objective = "并行做2件事" };
@@ -110,9 +110,9 @@ public sealed class ClusterExpandIntegrationTests {
         services.AddSingleton(analyzer.Object);
         services.AddSingleton<IClusterPlanValidator, ClusterPlanValidator>();
         services.AddSingleton<IClusterPlanApprovalHookManager, NoOpClusterPlanApprovalHook>();
-        var sp = services.BuildServiceProvider();
+        using var sp = services.BuildServiceProvider();
 
-        var engine = CreateEngine(serviceProvider: sp);
+        await using var engine = CreateEngine(serviceProvider: sp);
         var graph = GoalGraphTemplates.ClusterTemplate.BuildGraph(engine, "集群执行钻石依赖任务");
 
         var goalState = new GoalState { GoalId = "cluster-diamond-test", Objective = "集群执行钻石依赖任务" };

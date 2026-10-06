@@ -249,7 +249,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable {
 
         await WaitForNetworkAsync(cancellationToken).ConfigureAwait(false);
 
-        var httpRequest = BuildHttpRequestMessage(request);
+        using var httpRequest = BuildHttpRequestMessage(request);
         var operation = async (CancellationToken ct) => {
             var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             return response;
@@ -277,7 +277,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable {
                 var originalBase = client.BaseAddress;
                 client.BaseAddress = new Uri(fallback);
                 try {
-                    var fallbackRequest = BuildHttpRequestMessage(request);
+                    using var fallbackRequest = BuildHttpRequestMessage(request);
                     var response = await client.SendAsync(fallbackRequest, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                     _logger?.LogInformation("[ApiClient] 备用端点成功: {Endpoint}", fallback);
                     return response;

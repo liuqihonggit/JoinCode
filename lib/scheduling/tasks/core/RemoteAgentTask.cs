@@ -82,7 +82,7 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
 
         while (remainingRetries >= 0) {
             try {
-                var request = BuildExecuteRequest(definition);
+                using var request = BuildExecuteRequest(definition);
                 using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
 
@@ -143,7 +143,7 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
         };
 
         var json = JsonSerializer.Serialize(payload, SchedulingTasksJsonContext.Default.RemoteAgentExecuteRequest);
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{definition.Endpoint.TrimEnd('/')}/api/agent/execute") {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{definition.Endpoint.TrimEnd('/')}/api/agent/execute") {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
 

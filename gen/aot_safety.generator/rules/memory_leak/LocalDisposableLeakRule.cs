@@ -125,6 +125,8 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
         "GetOrAddAsync",
         "GetOrCreate",
         "GetOrCreateAsync",
+        "GetService",
+        "GetRequiredService",
         "First",
         "Single",
         "FirstOrDefault",

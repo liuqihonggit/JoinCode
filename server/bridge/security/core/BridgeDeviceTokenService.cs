@@ -120,7 +120,7 @@ public sealed class BridgeDeviceTokenService {
         try {
             using var guard = await _semaphore.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
 
-            var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/trusted_devices");
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/trusted_devices");
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
             // 对齐 TS 端: { display_name: "JoinCode on ${hostname()} · ${process.platform}" }
             var displayName = $"JoinCode on {Environment.MachineName} · {Environment.OSVersion.Platform}";

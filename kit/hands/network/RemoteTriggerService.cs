@@ -30,7 +30,7 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
         }
 
         var (method, url) = BuildRequest(action, baseUrl, triggerId);
-        var request = new HttpRequestMessage(method, url);
+        using var request = new HttpRequestMessage(method, url);
 
         var token = await GetAuthTokenAsync(ct).ConfigureAwait(false);
         if (!string.IsNullOrEmpty(token)) {

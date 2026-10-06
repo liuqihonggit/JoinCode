@@ -3,7 +3,7 @@
 public sealed class LoopInterventionMiddlewareTests {
     [Fact]
     public async Task NoLoop_TransparentPassthrough() {
-        var middleware = CreateMiddleware();
+        await using var middleware = CreateMiddleware();
         var nextEvents = new[]
         {
             ChatStreamEvent.Text("正常输出"),
@@ -21,7 +21,7 @@ public sealed class LoopInterventionMiddlewareTests {
 
     [Fact]
     public async Task Level1_FirstTrigger_InjectsSoftInterventionPrompt() {
-        var middleware = CreateMiddleware();
+        await using var middleware = CreateMiddleware();
         var nextEvents = new[]
         {
             ChatStreamEvent.Text("一些文本"),
@@ -39,7 +39,7 @@ public sealed class LoopInterventionMiddlewareTests {
 
     [Fact]
     public async Task Level1_SecondTrigger_InjectsSoftInterventionPrompt() {
-        var middleware = CreateMiddleware();
+        await using var middleware = CreateMiddleware();
         var nextEvents = new[]
         {
             ChatStreamEvent.Text("一些文本"),
@@ -96,7 +96,7 @@ public sealed class LoopInterventionMiddlewareTests {
 
     [Fact]
     public async Task LoopDetectedEvent_NotForwardedToUser() {
-        var middleware = CreateMiddleware();
+        await using var middleware = CreateMiddleware();
         var nextEvents = new[]
         {
             ChatStreamEvent.Text("文本"),
@@ -112,7 +112,7 @@ public sealed class LoopInterventionMiddlewareTests {
 
     [Fact]
     public async Task Level1_StreamContinuesAfterSoftIntervention() {
-        var middleware = CreateMiddleware();
+        await using var middleware = CreateMiddleware();
         var nextEvents = new[]
         {
             ChatStreamEvent.Text("第一段"),
@@ -174,7 +174,7 @@ public sealed class LoopInterventionMiddlewareTests {
     public async Task TaskProgressed_Level2DowngradedToLevel1() {
         var progressTracker = new StubTaskProgressTracker(hasProgressed: true, completedCount: 5);
 
-        var middleware = CreateMiddleware(progressTracker: progressTracker);
+        await using var middleware = CreateMiddleware(progressTracker: progressTracker);
         var nextEvents = new[]
         {
             ChatStreamEvent.Text("循环文本"),
@@ -237,7 +237,7 @@ public sealed class LoopInterventionMiddlewareTests {
 
     [Fact]
     public async Task NoProgressTracker_BehavesAsBefore() {
-        var middleware = CreateMiddleware();
+        await using var middleware = CreateMiddleware();
         var nextEvents = new[]
         {
             ChatStreamEvent.Text("一些文本"),

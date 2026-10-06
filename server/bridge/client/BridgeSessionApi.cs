@@ -63,7 +63,7 @@ public static class BridgeSessionApi {
 
         var jsonBody = sb.ToString();
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl.TrimEnd('/')}/v1/code/sessions") {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl.TrimEnd('/')}/v1/code/sessions") {
             Content = new StringContent(jsonBody, Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
@@ -166,7 +166,7 @@ public static class BridgeSessionApi {
         var compatId = SessionIdCompat.ToCompatSessionId(sessionId);
         var url = $"{baseUrl.TrimEnd('/')}/v1/sessions/{compatId}";
 
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Add("anthropic-beta", BetaHeader);
         request.Headers.Add("x-organization-uuid", orgUUID);
@@ -213,7 +213,7 @@ public static class BridgeSessionApi {
         var url = $"{baseUrl.TrimEnd('/')}/v1/sessions/{compatId}";
 
         var body = "{\"title\":" + EscapeJsonString(title) + '}';
-        var request = new HttpRequestMessage(new HttpMethod("PATCH"), url) {
+        using var request = new HttpRequestMessage(new HttpMethod("PATCH"), url) {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
@@ -254,7 +254,7 @@ public static class BridgeSessionApi {
         var compatId = SessionIdCompat.ToCompatSessionId(sessionId);
         var url = $"{baseUrl.TrimEnd('/')}/v1/sessions/{compatId}/archive";
 
-        var request = new HttpRequestMessage(HttpMethod.Post, url) {
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) {
             Content = new StringContent("{}", Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
@@ -308,7 +308,7 @@ public static class BridgeSessionApi {
         var url = $"{baseUrl.TrimEnd('/')}/v1/environments/{environmentId}/bridge/reconnect";
 
         var body = "{\"session_id\":" + EscapeJsonString(sessionId) + '}';
-        var request = new HttpRequestMessage(HttpMethod.Post, url) {
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
@@ -351,7 +351,7 @@ public static class BridgeSessionApi {
             .Append(EscapeJsonString(sessionId))
             .Append("\"}");
 
-        var request = new HttpRequestMessage(HttpMethod.Post, url) {
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) {
             Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json"),
         };
 

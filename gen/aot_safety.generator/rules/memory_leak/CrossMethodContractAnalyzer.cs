@@ -57,11 +57,17 @@ internal static class CrossMethodContractAnalyzer {
     /// <summary>
     /// BCL 集合 Add/Insert/Push/Enqueue → 转移(参数存入集合)。
     /// Task.FromResult → 转移(参数包装返回)。
+    /// Interlocked.Exchange → 转移(参数存入 ref 字段)。
+    /// Options.Create → 转移(参数包装返回 IOptions)。
     /// 其他 BCL 方法 → 借用(只读取参数)。
     /// </summary>
     private static bool IsBclCollectionAddMethod(IMethodSymbol method) {
-        return CollectionAddMethodNames.Contains(method.Name)
-            || BclTransferMethodNames.Contains(method.Name);
+        if (CollectionAddMethodNames.Contains(method.Name)) return true;
+        if (BclTransferMethodNames.Contains(method.Name)) return true;
+        if (method.Name.Equals("Create", StringComparison.Ordinal)
+            && method.ContainingType is not null
+            && method.ContainingType.Name.Equals("Options", StringComparison.Ordinal)) return true;
+        return false;
     }
 
     /// <summary>

@@ -185,6 +185,42 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task PrClose_WithDeleteBranch_DeletesBranchAfterClose() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"number":42,"state":"closed"}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"head":{"ref":"feature-branch"}}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 204,
+            Body = "{}",
+        });
+
+        var result = await _handler.GhPrCloseAsync("42", delete_branch: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/git/refs/heads/feature-branch");
+    }
+
+    [Fact]
+    public async Task PrClose_WithoutDeleteBranch_OnlyCloses() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"number":42,"state":"closed"}""",
+        };
+
+        var result = await _handler.GhPrCloseAsync("42", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42");
+    }
+
+    [Fact]
     public async Task PrCreate_Failure_ReturnsError() {
         _api.NextResponse = new GitHubApiResponse {
             Success = false,

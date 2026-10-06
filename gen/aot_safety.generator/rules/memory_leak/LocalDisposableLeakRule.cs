@@ -116,10 +116,9 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
 
     /// <summary>
     /// 已知容器"取元素"方法名 — 调用返回的是容器内已有元素(借用,容器持有所有权)。
-    /// 有限枚举,非启发式。不含 Get(太通用,可能是工厂)。
+    /// 仅含通用 BCL/LINQ 模式,不含项目特定方法名(项目借用 API 按方案 D 改返回非 IDisposable 句柄)。
     /// </summary>
     private static readonly HashSet<string> ContainerElementAccessMethods = new(StringComparer.Ordinal) {
-        "Get",
         "GetOrAdd",
         "GetOrAddAsync",
         "GetOrCreate",
@@ -137,22 +136,34 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
     };
 
     /// <summary>
+    /// 借用方法名前缀 — 以这些前缀开头的方法名视为借用(容器幂等获取模式)。
+    /// GetOrCreate/GetOrAdd 是通用容器模式,变体名自动匹配,非项目特定知识。
+    /// </summary>
+    private static readonly string[] BorrowMethodPrefixes = ["GetOrCreate", "GetOrAdd"];
+
+    /// <summary>
     /// 调用是否是已知容器取元素 API → 借用。支持 receiver.Method 和同类直接 Method 两种形式。
+    /// 精确匹配 ContainerElementAccessMethods + 前缀匹配 BorrowMethodPrefixes。
     /// </summary>
     private static bool IsContainerElementBorrowCall(InvocationExpressionSyntax invocation) {
-        return invocation.Expression switch {
-            MemberAccessExpressionSyntax ma when ma.Expression is not null
-                => ContainerElementAccessMethods.Contains(ma.Name.Identifier.ValueText),
-            IdentifierNameSyntax id
-                => ContainerElementAccessMethods.Contains(id.Identifier.ValueText),
-            _ => false,
+        var methodName = invocation.Expression switch {
+            MemberAccessExpressionSyntax ma when ma.Expression is not null => ma.Name.Identifier.ValueText,
+            IdentifierNameSyntax id => id.Identifier.ValueText,
+            _ => null,
         };
+        if (methodName is null) return false;
+        if (ContainerElementAccessMethods.Contains(methodName)) return true;
+        foreach (var prefix in BorrowMethodPrefixes) {
+            if (methodName.StartsWith(prefix, StringComparison.Ordinal)) return true;
+        }
+        return false;
     }
 
     /// <summary>
-    /// 已知 BCL/工厂"借用"调用 — 返回 IDisposable 但调用方不拥有(工厂/容器管理生命周期)。
+    /// 已知 BCL"借用"调用 — 返回 IDisposable 但调用方不拥有(BCL 管理生命周期)。
+    /// 仅识别 BCL 类型(Volatile/IHttpClientFactory),不识别项目自有类型(按方案 D 改返回类型)。
     /// - Volatile.Read(ref field) / Volatile.Write(ref field, value) — 字段读写,借用字段值
-    /// - IHttpClientFactory.CreateClient(name) — BCL 管理客户端,调用方不 Dispose
+    /// - IHttpClientFactory.CreateClient(name) — BCL 管理客户端,GCAPI,调用方不 Dispose
     /// </summary>
     private static bool IsKnownBorrowFactoryCall(
         InvocationExpressionSyntax invocation,

@@ -1165,6 +1165,94 @@ public sealed class GitHubToolHandlersTests {
         var contexts = doc.RootElement.GetProperty("contexts").EnumerateArray().Select(c => c.GetString()).ToList();
         contexts.Should().Contain(new[] { "build", "test", "lint" });
     }
+
+    [Fact]
+    public async Task RepoView_WithWeb_ReturnsUrl() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"full_name":"o/r","html_url":"https://github.com/o/r"}""" };
+
+        var result = await _handler.GhRepoViewAsync(repo: "owner/repo", web: true);
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("https://github.com/o/r");
+    }
+
+    [Fact]
+    public async Task RepoList_WithLanguage_PassesLanguageQuery() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+
+        await _handler.GhRepoListAsync(language: "C#", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("language").WhoseValue.Should().Be("C#");
+    }
+
+    [Fact]
+    public async Task RepoList_WithVisibility_PassesVisibilityQuery() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+
+        await _handler.GhRepoListAsync(visibility: "private", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("visibility").WhoseValue.Should().Be("private");
+    }
+
+    [Fact]
+    public async Task RepoList_WithSource_FiltersNonForks() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","fork":false},{"name":"r2","fork":true}]""" };
+
+        var result = await _handler.GhRepoListAsync(source: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("\"name\":\"r1\"");
+        text.Should().NotContain("\"name\":\"r2\"");
+    }
+
+    [Fact]
+    public async Task RepoList_WithFork_OnlyForks() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","fork":false},{"name":"r2","fork":true}]""" };
+
+        var result = await _handler.GhRepoListAsync(fork: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().NotContain("\"name\":\"r1\"");
+        text.Should().Contain("\"name\":\"r2\"");
+    }
+
+    [Fact]
+    public async Task RepoCreate_WithHomepage_IncludesHomepageField() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"full_name":"o/r"}""" };
+
+        await _handler.GhRepoCreateAsync("myrepo", homepage: "https://example.com");
+
+        _api.LastBody.Should().Contain("\"homepage\":\"https://example.com\"");
+    }
+
+    [Fact]
+    public async Task RepoCreate_WithGitignore_IncludesGitignoreTemplate() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"full_name":"o/r"}""" };
+
+        await _handler.GhRepoCreateAsync("myrepo", gitignore: "VisualStudio");
+
+        _api.LastBody.Should().Contain("\"gitignore_template\":\"VisualStudio\"");
+    }
+
+    [Fact]
+    public async Task RepoCreate_WithLicense_IncludesLicenseTemplate() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"full_name":"o/r"}""" };
+
+        await _handler.GhRepoCreateAsync("myrepo", license: "mit");
+
+        _api.LastBody.Should().Contain("\"license_template\":\"mit\"");
+    }
+
+    [Fact]
+    public async Task RepoFork_WithOrg_ForksToSpecifiedOrg() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 202, Body = """{"full_name":"org/repo"}""" };
+
+        await _handler.GhRepoForkAsync("owner/repo", org: "myorg");
+
+        _api.LastBody.Should().Contain("\"organization\":\"myorg\"");
+    }
 }
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient {

@@ -6,15 +6,22 @@ namespace McpToolDispatch;
 /// </summary>
 public partial class GitHubToolHandlers {
     /// <summary>
-    /// 查看仓库详情 — 调 REST API 获取仓库信息，verbose=true 返回完整 JSON（从缓存读），默认精简输出
+    /// 查看仓库详情 — 调 REST API 获取仓库信息，verbose=true 返回完整 JSON（从缓存读），默认精简输出，web=true 返回 URL
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoView, "查看仓库详情", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoViewAsync(
         [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
+        [McpToolParameter("web=true 只返回仓库浏览器 URL", Required = false)] bool? web = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (web == true) {
+                var repoResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
+                if (!repoResult.Success) return Fail(repoResult.Error);
+                var url = ExtractHtmlUrl(repoResult.Body);
+                return string.IsNullOrEmpty(url) ? Fail("无法从仓库响应中解析 html_url") : Ok(url);
+            }
             var cacheKey = BuildGhCacheKey("gh_repo_view", $"{owner}/{repoName}");
             return await GetOrFetchWithCacheAsync(client, cacheKey, $"repos/{owner}/{repoName}", verbose, SummarizeRepo, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
@@ -44,14 +51,17 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 创建仓库 — 支持 public/private/internal 可见性、描述、README 初始化
+    /// 创建仓库 — 支持 public/private/internal 可见性、描述、README 初始化、homepage、gitignore 模板、license 模板
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRepoCreate, "创建仓库(public/private/internal)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoCreate, "创建仓库(public/private/internal,支持 homepage/gitignore/license 模板)", "github")]
     public async Task<ToolResult> GhRepoCreateAsync(
         [McpToolParameter("仓库名", Required = true)] string name,
         [McpToolParameter("可见性(public/private/internal,默认 private)", Required = false)] string? visibility = null,
         [McpToolParameter("描述(可选)", Required = false)] string? description = null,
         [McpToolParameter("是否添加 README(可选)", Required = false)] bool? add_readme = null,
+        [McpToolParameter("主页 URL(可选)", Required = false)] string? homepage = null,
+        [McpToolParameter("gitignore 模板(可选,如 VisualStudio)", Required = false)] string? gitignore = null,
+        [McpToolParameter("license 模板(可选,如 mit)", Required = false)] string? license = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
@@ -63,7 +73,11 @@ public partial class GitHubToolHandlers {
             .String("name", name)
             .Bool("private", isPrivate || isInternal);
         if (isInternal) builder.String("visibility", "internal");
-        builder.StringIf("description", description).BoolIfTrue("auto_init", add_readme);
+        builder.StringIf("description", description)
+            .BoolIfTrue("auto_init", add_readme)
+            .StringIf("homepage", homepage)
+            .StringIf("gitignore_template", gitignore)
+            .StringIf("license_template", license);
         var jsonBody = builder.Build();
 
         var result = await _apiClient.SendAsync(HttpMethod.Post, "user/repos", jsonBody, ct: cancellationToken).ConfigureAwait(false);
@@ -71,12 +85,13 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// Fork 仓库 — 调 REST API 创建 Fork，可选克隆到本地
+    /// Fork 仓库 — 调 REST API 创建 Fork，可选克隆到本地、指定组织
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRepoFork, "Fork 仓库", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoFork, "Fork 仓库(可选指定组织)", "github")]
     public async Task<ToolResult> GhRepoForkAsync(
         [McpToolParameter("仓库名(owner/repo)", Required = true)] string repo,
         [McpToolParameter("是否克隆到本地(默认 false)", Required = false)] bool? clone = null,
+        [McpToolParameter("Fork 到指定组织(可选)", Required = false)] string? org = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
@@ -84,7 +99,8 @@ public partial class GitHubToolHandlers {
         if (parsed is null) return Fail("仓库名格式错误，应为 owner/repo");
         var (owner, repoName) = parsed.Value;
 
-        var result = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/forks", ct: cancellationToken).ConfigureAwait(false);
+        var forkBody = string.IsNullOrWhiteSpace(org) ? "{}" : $$"""{"organization":"{{org}}"}""";
+        var result = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/forks", forkBody, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
 
         if (clone == true) {
@@ -97,25 +113,32 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 列出自己可访问的仓库 — 调 REST API 获取仓库列表，精简输出
+    /// 列出自己可访问的仓库 — 支持语言/可见性/source/fork 过滤，调 REST API 获取仓库列表，精简输出
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRepoList, "列出自己可访问的仓库", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoList, "列出自己可访问的仓库(支持语言/可见性/source/fork 过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoListAsync(
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
+        [McpToolParameter("语言过滤(可选)", Required = false)] string? language = null,
+        [McpToolParameter("可见性过滤(public/private/internal,可选)", Required = false)] string? visibility = null,
+        [McpToolParameter("只显示非 fork 仓库(可选)", Required = false)] bool? source = null,
+        [McpToolParameter("只显示 fork 仓库(可选)", Required = false)] bool? fork = null,
+        [McpToolParameter("仓库名(可选,被忽略,gh repo list 列自己的仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
 
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
+        if (!string.IsNullOrWhiteSpace(language)) query["language"] = language;
+        if (!string.IsNullOrWhiteSpace(visibility)) query["visibility"] = visibility;
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/repos", query: query, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(SummarizeRepoList(result.Body));
+        return Ok(SummarizeRepoList(result.Body, source, fork));
     }
 
     /// <summary>
-    /// 精简仓库列表 JSON — 只保留关键字段，去掉冗余 URL，便于人类浏览和 AI 解析
+    /// 精简仓库列表 JSON — 只保留关键字段，去掉冗余 URL，便于人类浏览和 AI 解析；支持 source/fork 客户端过滤
     /// </summary>
-    private static string SummarizeRepoList(string json) {
+    private static string SummarizeRepoList(string json, bool? source = null, bool? fork = null) {
         try {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
@@ -123,6 +146,9 @@ public partial class GitHubToolHandlers {
             using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })) {
                 writer.WriteStartArray();
                 foreach (var repo in doc.RootElement.EnumerateArray()) {
+                    var isFork = repo.TryGetProperty("fork", out var f) && f.GetBoolean();
+                    if (source == true && isFork) continue;
+                    if (fork == true && !isFork) continue;
                     writer.WriteStartObject();
                     CopyProperty(repo, writer, "name");
                     CopyProperty(repo, writer, "full_name");

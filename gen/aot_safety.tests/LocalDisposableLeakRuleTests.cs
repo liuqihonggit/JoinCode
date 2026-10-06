@@ -401,4 +401,88 @@ public class LocalDisposableLeakRuleTests {
         };
         await test.RunAsync().ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task ConditionalAccessDispose_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                class TestClass {
+                    void Method() {
+                        var x = new Disposable();
+                        x?.Dispose();
+                    }
+                }
+                class Disposable : IDisposable {
+                    public void DoWork() { }
+                    public void Dispose() { }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task VolatileReadField_Borrow_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading;
+                class TestClass {
+                    CancellationTokenSource? _cts;
+                    void Method() {
+                        var cts = Volatile.Read(ref _cts);
+                        if (cts is not null) {
+                            cts.Token.WaitHandle.WaitOne(100);
+                        }
+                    }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task WithExpressionTransfer_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading;
+                record State(CancellationTokenSource? Cts = null);
+                class TestClass {
+                    State _state = new();
+                    void Method() {
+                        var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
+                        _state = _state with { Cts = cts };
+                    }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task ObjectInitializerTransfer_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading;
+                class Monitor {
+                    public Timer? Timer { get; set; }
+                }
+                class TestClass {
+                    Monitor? _monitor;
+                    void Method() {
+                        var timer = new Timer(_ => { }, null, 100, 100);
+                        _monitor = new Monitor { Timer = timer };
+                    }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
 }

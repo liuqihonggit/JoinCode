@@ -377,7 +377,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
     private async Task ReportDeliveryFromEventAsync(string data) {
         try {
             // 尝试从 JSON 中提取 event_id
-            var jsonDoc = JsonDocument.Parse(data);
+            using var jsonDoc = JsonDocument.Parse(data);
             if (jsonDoc.RootElement.TryGetProperty("event_id", out var eventIdProp)) {
                 var eventId = eventIdProp.GetString();
                 if (eventId is not null) {

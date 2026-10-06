@@ -99,6 +99,7 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
 
         if (expr is InvocationExpressionSyntax invocation) {
             if (IsContainerElementBorrowCall(invocation)) return false;
+            if (IsKnownBorrowFactoryCall(invocation, semanticModel, ct)) return false;
             var returnType = semanticModel.GetTypeInfo(invocation, ct).Type;
             return returnType is not null && IsDisposableType(returnType, idisposable, iasyncDisposable);
         }
@@ -149,6 +150,31 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
     }
 
     /// <summary>
+    /// 已知 BCL/工厂"借用"调用 — 返回 IDisposable 但调用方不拥有(工厂/容器管理生命周期)。
+    /// - Volatile.Read(ref field) / Volatile.Write(ref field, value) — 字段读写,借用字段值
+    /// - IHttpClientFactory.CreateClient(name) — BCL 管理客户端,调用方不 Dispose
+    /// </summary>
+    private static bool IsKnownBorrowFactoryCall(
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        CancellationToken ct) {
+        if (invocation.Expression is MemberAccessExpressionSyntax ma) {
+            var methodName = ma.Name.Identifier.ValueText;
+            if (methodName.Equals("Read", StringComparison.Ordinal) || methodName.Equals("Write", StringComparison.Ordinal)) {
+                var receiverType = semanticModel.GetTypeInfo(ma.Expression, ct).Type;
+                if (receiverType is not null && receiverType.Name.Equals("Volatile", StringComparison.Ordinal))
+                    return true;
+            }
+            if (methodName.Equals("CreateClient", StringComparison.Ordinal)) {
+                var receiverType = semanticModel.GetTypeInfo(ma.Expression, ct).Type;
+                if (receiverType is not null && receiverType.Name.Equals("IHttpClientFactory", StringComparison.Ordinal))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
     /// 在方法体内分类对该局部变量的所有引用:是否释放、是否转移所有权。
     /// </summary>
     private static (bool Released, bool Transferred) ClassifyUsages(
@@ -191,7 +217,7 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
                     break;
 
                 case AssignmentExpressionSyntax assign when ReferenceEquals(assign.Right, identifier):
-                    if (IsFieldOrPropertyLeft(assign.Left)) transferred = true;
+                    if (IsFieldOrPropertyLeft(assign.Left) || IsWithInitializerProperty(assign)) transferred = true;
                     break;
 
                 case ArgumentSyntax:
@@ -242,11 +268,14 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
 
     /// <summary>
     /// x?.ReleaseMethod() 形式 — ConditionalAccess 的 WhenNotNull 是释放调用。
+    /// 注意: x?.Method() 中 WhenNotNull 的调用表达式是 MemberBindingExpressionSyntax(.Method),
+    /// 不是 MemberAccessExpressionSyntax(x.Method)。
     /// </summary>
     private static bool IsReleaseConditionalAccess(ConditionalAccessExpressionSyntax ca) {
         if (ca.WhenNotNull is not InvocationExpressionSyntax invocation) return false;
-        if (invocation.Expression is not MemberAccessExpressionSyntax ma) return false;
-        return ReleaseMethodNames.Contains(ma.Name.Identifier.ValueText);
+        if (invocation.Expression is MemberBindingExpressionSyntax mb)
+            return ReleaseMethodNames.Contains(mb.Name.Identifier.ValueText);
+        return false;
     }
 
     /// <summary>
@@ -260,6 +289,16 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
             return false;
         }
         return false;
+    }
+
+    /// <summary>
+    /// 赋值是否在 record with 表达式或对象初始化器的 member initializer 中 → 属性赋值=转移所有权。
+    /// 如: s with { BackgroundCts = backgroundCts } — backgroundCts 转移给新 record 的属性。
+    /// 如: new TokenMonitor { Timer = timer } — timer 转移给新对象的属性。
+    /// </summary>
+    private static bool IsWithInitializerProperty(AssignmentExpressionSyntax assign) {
+        if (assign.Parent is not InitializerExpressionSyntax init) return false;
+        return init.Parent is WithExpressionSyntax or ObjectCreationExpressionSyntax;
     }
 
     /// <summary>

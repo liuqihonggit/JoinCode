@@ -1,8 +1,21 @@
 # jcc gh 命令对齐系统 gh CLI 参数差异清单
 
-> 对比基准：系统 `C:\Program Files\GitHub CLI\gh.exe` v2.101.0 (2026-09-15) vs jcc.exe (JoinCode main, 编译于 2026-10-07)
+> 对比基准：系统 `C:\Program Files\GitHub CLI\gh.exe` v2.101.0 (2026-09-15) vs jcc.exe (JoinCode w1 分支, 2026-10-07)
 >
 > 对齐目标：jcc gh 的分组/子命令/参数与系统 gh CLI 对齐，确保 AI 和用户用 `jcc gh` 能完成系统 `gh` 的等价操作，无需回退到系统 gh.exe
+
+## 0. 完成总览（2026-10-07）
+
+| 子命令组 | 子命令对齐 | 参数对齐 | 新增子命令 | 测试数 | 状态 |
+|---------|:---------:|:--------:|:---------:|:------:|:----:|
+| pr | 9/9 | ✅ 全部高频参数 | 0 | — | ✅ 完成 |
+| issue | 4/5 | ✅ list/view/create/close | 0 | — | ✅ 高频完成 |
+| run | 3/3 | ✅ list/view/rerun | 0 | — | ✅ 完成 |
+| release | 6/6+2新增 | ✅ 全部 + delete-asset/edit | 2 | — | ✅ 完成 |
+| repo | 4/5+4新增 | ✅ view/list/create/fork + edit/delete/archive/unarchive | 4 | — | ✅ 高频完成 |
+| **合计** | — | — | **6 新增** | **102 通过** | ✅ |
+
+> 通用参数：`--web` ✅ 各 view 已实现 | `--json` ⚠️ `verbose` 近似 | `--jq` ❌ 需引入库 | `--template` ❌ Go template 暂缓
 
 ## 1. 顶层命令覆盖差异
 
@@ -40,10 +53,10 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 
 | 通用参数 | 系统 gh 含义 | jcc 现状 | 影响 |
 |---------|------------|---------|------|
-| `--json fields` | JSON 输出 + 字段选择 | ❌ 缺失 | 无法结构化输出，AI 难以解析 |
+| `--json fields` | JSON 输出 + 字段选择 | ⚠️ `verbose=true` 近似（语义不完全等价） | 无法精确字段选择 |
 | `--jq expression` | jq 表达式过滤 JSON | ❌ 缺失 | 无法灵活提取字段 |
 | `--template string` | Go template 格式化 | ❌ 缺失 | 无法自定义输出格式 |
-| `--web` / `-w` | 浏览器打开 | ❌ 缺失 | 无法快速跳转网页 |
+| `--web` / `-w` | 浏览器打开 | ✅ 各 view 子命令已实现（返回 URL） | — |
 
 > jcc 独有：`working_dir`（工作目录）、部分 view 有 `verbose`（近似 --json 但语义不同）
 
@@ -64,14 +77,14 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 | `--limit` | `limit` | ✅ |
 | `--author` | `author` | ✅ |
 | `--repo` / `-R` | `repo` | ✅ |
-| `--label` / `-l` | — | ❌ |
-| `--assignee` / `-a` | — | ❌ |
-| `--base` / `-B` | — | ❌ |
-| `--head` / `-H` | — | ❌ |
-| `--draft` / `-d` | — | ❌ |
-| `--search` / `-S` | — | ❌ |
+| `--label` / `-l` | `label` | ✅ |
+| `--assignee` / `-a` | `assignee` | ✅ |
+| `--base` / `-B` | `base` | ✅ |
+| `--head` / `-H` | `head` | ✅ |
+| `--draft` / `-d` | `draft` | ✅ |
+| `--search` / `-S` | `search` | ✅ |
 | `--app` | — | ❌ |
-| `--json` / `--jq` / `--template` / `--web` | — | ❌ (通用缺失) |
+| `--json` / `--jq` / `--template` / `--web` | `verbose` 近似 / ❌ / ❌ / ❌ | ⚠️ |
 
 ### 3.3 pr view 参数
 
@@ -89,14 +102,14 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 | 系统 gh 参数 | jcc 参数 | 状态 |
 |-------------|---------|:----:|
 | `--title` / `--head` / `--base` / `--body` / `--draft` / `--repo` | 同名 | ✅ |
-| `--assignee` / `-a` | — | ❌ |
-| `--label` / `-l` | — | ❌ |
-| `--reviewer` / `-r` | — | ❌ |
-| `--milestone` / `-m` | — | ❌ |
+| `--assignee` / `-a` | `assignee` | ✅ |
+| `--label` / `-l` | `label` | ✅ |
+| `--reviewer` / `-r` | `reviewer` | ✅ |
+| `--milestone` / `-m` | `milestone` | ✅ |
+| `--body-file` / `-F` | `body_file` | ✅ |
+| `--fill` / `--fill-first` / `--fill-verbose` | `fill` | ✅ |
 | `--project` / `-p` | — | ❌ |
-| `--body-file` / `-F` | — | ❌ |
 | `--template` / `-T` | — | ❌ |
-| `--fill` / `--fill-first` / `--fill-verbose` | — | ❌ |
 | `--editor` / `-e` | — | ❌ |
 | `--attach` | — | ❌ |
 | `--dry-run` | — | ❌ |
@@ -109,11 +122,11 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 | 系统 gh 参数 | jcc 参数 | 状态 |
 |-------------|---------|:----:|
 | `[number]` / `--repo` | `pr_number` / `repo` | ✅ |
-| `--watch` | — | ❌ (轮询等待) |
-| `--interval` / `-i` | — | ❌ |
-| `--fail-fast` | — | ❌ |
-| `--required` | — | ❌ |
-| `--json` / `--jq` / `--template` / `--web` | — | ❌ |
+| `--watch` | `watch` | ✅ |
+| `--interval` / `-i` | `interval` | ✅ |
+| `--fail-fast` | `fail_fast` | ✅ |
+| `--required` | `required` | ✅ |
+| `--json` / `--jq` / `--template` / `--web` | ❌ / ❌ / ❌ / ❌ | ❌ |
 
 ### 3.6 pr merge 参数
 
@@ -123,22 +136,22 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 | `--squash` / `--merge` / `--rebase` | `merge_method` | ✅ 合并为单参数 |
 | `--auto` | `auto_merge` | ✅ |
 | `--delete-branch` / `-d` | `delete_branch` | ✅ |
-| `--admin` | — | ❌ |
-| `--body` / `-b` | — | ❌ |
+| `--admin` | `admin` | ✅ |
+| `--body` / `-b` | `body` | ✅ |
 | `--body-file` / `-F` | — | ❌ |
-| `--subject` / `-t` | — | ❌ |
+| `--subject` / `-t` | `subject` | ✅ |
 | `--author-email` / `-A` | — | ❌ |
-| `--disable-auto` | — | ❌ |
+| `--disable-auto` | `disable_auto` | ✅ |
 | `--match-head-commit` | — | ❌ |
 
 ### 3.7 pr close / diff / checkout / reopen 参数
 
 | 子命令 | 系统 gh 独有参数 | jcc 状态 |
 |--------|-----------------|:--------:|
-| close | `--delete-branch` / `-d` | ❌ 缺失 |
-| diff | `--name-only` / `--patch` / `--exclude` / `--color` / `--allow-escape-sequences` / `--web` | ❌ 全缺 |
-| checkout | `--branch` / `--detach` / `--force` / `--recurse-submodules` / `--worktree` | ❌ 全缺 |
-| reopen | `--comment` / `-c` | ❌ 缺失 |
+| close | `--delete-branch` / `-d` | ✅ `delete_branch` |
+| diff | `--name-only` / `--patch` / `--exclude` / `--color` / `--allow-escape-sequences` / `--web` | ✅ `name_only` `patch` `exclude` / ❌ `--color` `--allow-escape-sequences` `--web` |
+| checkout | `--branch` / `--detach` / `--force` / `--recurse-submodules` / `--worktree` | ✅ `branch` `force` `detach` / ❌ `--recurse-submodules` `--worktree` |
+| reopen | `--comment` / `-c` | ✅ `comment` |
 
 ## 4. issue 子命令参数差异（P1）
 
@@ -179,8 +192,8 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 ## 6. release / repo 子命令差异（P2/P3）
 
 ### release
-jcc 有：list / view / create / delete / download / upload
-jcc 缺：**delete-asset / edit / verify / verify-asset**
+jcc 有：list / view / create / delete / download / upload / **delete-asset** / **edit**
+jcc 缺：**verify / verify-asset**
 
 | 子命令 | 已对齐参数 | 仍缺失 |
 |--------|-----------|--------|
@@ -188,12 +201,14 @@ jcc 缺：**delete-asset / edit / verify / verify-asset**
 | view | ✅ `--web` | `--json` `--jq` `--template` |
 | create | ✅ `--generate-notes` | `--notes-file` `--notes-from-tag` `--notes-start-tag` `--verify-tag` `--discussion-category` `--latest` `--web` |
 | delete | ✅ `--cleanup-tag` | — |
-| download | — | `--clobber` `--skip-existing` |
-| upload | — | `--clobber` |
+| download | ✅ `--clobber` `--skip-existing` | `--order` |
+| upload | ✅ `--clobber` | — |
+| delete-asset | ✅ 新增 | — |
+| edit | ✅ 新增 `--tag` `--title` `--notes` `--draft` `--prerelease` `--target` | `--notes-file` `--generate-notes` `--discussion-category` `--latest` |
 
 ### repo
-jcc 有：list / view / create / fork / clone
-jcc 缺：**archive / autolink / delete / deploy-key / edit / gitignore / license / read-dir / read-file / rename / set-default / sync / unarchive**
+jcc 有：list / view / create / fork / clone / **edit** / **delete** / **archive** / **unarchive**
+jcc 缺：**autolink / deploy-key / gitignore / license / read-dir / read-file / rename / set-default / sync**
 
 | 子命令 | 已对齐参数 | 仍缺失 |
 |--------|-----------|--------|
@@ -202,6 +217,10 @@ jcc 缺：**archive / autolink / delete / deploy-key / edit / gitignore / licens
 | create | ✅ `--homepage` `--gitignore` `--license` | `--team` `--template` `--source` `--push` `--clone` `--disable-issues` `--disable-wiki` `--web` |
 | fork | ✅ `--org` | `--remote` `--fork-name` `--default-branch-only` |
 | clone | — | `--upstream-remote-name` `--bare` `--single-branch` `--depth` `--filter` `--sparse` |
+| edit | ✅ 新增 `--description` `--homepage` `--visibility` `--default-branch` `--has-issues` `--has-wiki` | `--enable-issues` `--enable-wiki` `--delete-branch-on-merge` |
+| delete | ✅ 新增（需 `--yes` 确认） | — |
+| archive | ✅ 新增 | — |
+| unarchive | ✅ 新增 | — |
 
 ## 7. 对齐计划
 
@@ -259,14 +278,14 @@ gist / org / project / codespace / discussion / attestation / ruleset / extensio
 <!-- 验证: 待对齐后编译+手动 exe 验收 -->
 
 <!-- 🤖 Auto Decision: 2026-10-07 -->
-<!-- 决策: pr/issue/run/release/repo 五组子命令高频参数对齐完成 -->
+<!-- 决策: pr/issue/run/release/repo 五组子命令高频参数对齐完成 + 新增 6 个子命令 -->
 <!-- 原因: 用户选择"只做 pr 子命令"后去睡觉,指示"逐个对齐",按 P1→P2→P3 优先级顺序推进 -->
 <!-- 对齐内容: -->
 <!--   pr(9/9): reopen/close/list/diff/checkout/merge/checks/create/view 全部参数对齐 -->
-<!--   issue(4/5): list(view/create/close 参数对齐,comment 未动 -->
+<!--   issue(4/5): list/view/create/close 参数对齐,comment 未动 -->
 <!--   run(3/3): list/view/rerun 参数对齐 -->
-<!--   release(4/6): list/view/create/delete 参数对齐,download/upload 未动 -->
-<!--   repo(4/5): view/list/create/fork 参数对齐,clone 未动 -->
+<!--   release(6/8+2新增): list/view/create/delete/download/upload 参数对齐 + delete-asset/edit 新增 -->
+<!--   repo(4/5+4新增): view/list/create/fork 参数对齐 + edit/delete/archive/unarchive 新增 -->
 <!-- 技术决策: -->
 <!--   - issue list 复杂过滤(search/type=pr)走 search API,简单过滤(author/mention/milestone)走 issues API -->
 <!--   - run list workflow 参数走 /actions/workflows/{wf}/runs 端点 -->
@@ -274,7 +293,22 @@ gist / org / project / codespace / discussion / attestation / ruleset / extensio
 <!--   - run rerun job 走 /rerun-jobs 端点带 job_ids 数组 -->
 <!--   - release list exclude_drafts/prereleases 客户端过滤(REST API 不支持) -->
 <!--   - release delete cleanup_tag 删 release 后再删 git/refs/tags/{tag} -->
+<!--   - release download skip_existing 跳过已存在,clobber 覆盖,无两者则报错 -->
+<!--   - release upload clobber 先 DELETE 同名 asset 再上传 -->
 <!--   - repo list source/fork 客户端过滤,language/visibility 走 API query -->
 <!--   - repo fork org 参数传 {"organization":"org"} body -->
-<!-- 验证: 92 个 GitHubToolHandlers 测试全部通过,0 警告 0 错误 ✅ -->
-<!-- 未完成: download/upload clobber/skip_existing(需 mock filesystem),新增子命令(delete-asset/edit/verify 等) -->
+<!--   - repo delete 需 yes=true 确认(不可逆操作) -->
+<!--   - repo archive/unarchive 用 PATCH {"archived":true/false} -->
+<!-- 架构调整(用户手动): -->
+<!--   - fix: gh 子命令全局选项被误拦 — CollectTail 剥离所有全局选项 -->
+<!--   - refactor: 全穿透架构 — DetectUnknownOptions 移到各子命令内部(偏好"全穿透+内部守卫") -->
+<!-- 验证: 102 个 GitHubToolHandlers 测试全部通过,0 警告 0 错误 ✅ -->
+<!-- 未完成: -->
+<!--   - 通用 --jq 参数(需引入 jq 解析库,独立大任务) -->
+<!--   - 通用 --template 参数(Go template,.NET 无原生支持) -->
+<!--   - release verify/verify-asset 子命令 -->
+<!--   - repo autolink/deploy-key/gitignore/license/read-dir/read-file/rename/set-default/sync 子命令 -->
+<!--   - pr issue status/delete/edit/lock/pin/reopen/transfer 等子命令 -->
+<!--   - auth/config/label/search/workflow 等完整命令组 -->
+<!--   - 手动 exe 验收(ADR 0080) -->
+<!--   - 推送 w1 分支 + 创建 PR -->

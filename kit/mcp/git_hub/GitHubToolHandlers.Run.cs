@@ -278,4 +278,69 @@ public partial class GitHubToolHandlers {
         var result = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/runs/{run_id}/cancel", ct: cancellationToken).ConfigureAwait(false);
         return result.Success ? Ok(result.Body, $"已取消 Run {run_id}") : Fail(result.Error);
     }
+
+    /// <summary>
+    /// 等待 Actions Run 完成 — 指数退避轮询直到 status==completed,通过 onProgress 报告进度,完成才返回唤醒 LLM
+    /// <para>替代 LLM 的 sleep+gh_run_view 轮询模式:工具内部阻塞,一次往返拿到最终结果</para>
+    /// <para>信号模型:轮询发现 completed 触发返回(唤醒 LLM),非 sleep 固定等待</para>
+    /// <para>指数退避:初始 5s ×1.5 每次,上限 60s,默认超时 30 分钟</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRunWait, "等待 Actions Run 完成(指数退避轮询+进度回调,完成才返回)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhRunWaitAsync(
+        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter("超时秒数(默认 1800=30分钟)", Required = false)] int? timeout_seconds = null,
+        [McpToolParameter("初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)", Required = false)] int? poll_interval_seconds = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default,
+        ToolProgressCallback? onProgress = null) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
+        if (resolved is null) return RepoNotResolved();
+        var (owner, repoName) = resolved.Value;
+
+        var timeout = TimeSpan.FromSeconds(Math.Clamp(timeout_seconds ?? 1800, 1, 7200));
+        var initialInterval = TimeSpan.FromSeconds(Math.Clamp(poll_interval_seconds ?? 5, 1, 60));
+
+        var waitResult = await GitHubRunPoller.WaitForRunCompletionAsync(
+            _apiClient, owner, repoName, run_id, timeout, initialInterval,
+            onProgress, "gh_run_wait", cancellationToken).ConfigureAwait(false);
+
+        return waitResult.Outcome switch {
+            RunWaitOutcome.Completed => Ok(
+                BuildRunWaitSummary(waitResult.Body!, run_id, waitResult.PollCount, waitResult.ElapsedMs),
+                $"Run {run_id} 已完成: {waitResult.Conclusion}"),
+            RunWaitOutcome.Timeout => Ok(
+                BuildRunWaitSummary(waitResult.Body!, run_id, waitResult.PollCount, waitResult.ElapsedMs),
+                $"⚠ Run {run_id} 等待超时({timeout.TotalSeconds:F0}s),当前状态: {waitResult.Conclusion}。用 gh_run_view {run_id} 手动查看,或增大 timeout_seconds"),
+            _ => Fail(waitResult.Error ?? "轮询失败")
+        };
+    }
+
+    /// <summary>
+    /// 构建 Run 等待结果摘要 — 包含 conclusion、耗时、轮询次数、run 详情关键字段
+    /// </summary>
+    private static string BuildRunWaitSummary(string runJson, string runId, int pollCount, long elapsedMs) {
+        var sb = new StringBuilder(256);
+        sb.AppendLine($"轮询次数: {pollCount}, 耗时: {elapsedMs / 1000}s");
+        try {
+            using var doc = JsonDocument.Parse(runJson);
+            var root = doc.RootElement;
+            var conclusion = root.TryGetProperty("conclusion", out var c) ? c.GetString() ?? "unknown" : "unknown";
+            var htmlUrl = root.TryGetProperty("html_url", out var u) ? u.GetString() ?? "" : "";
+            var displayConclusion = conclusion switch {
+                "success" => "✅ success",
+                "failure" => "❌ failure",
+                "cancelled" => "🚫 cancelled",
+                "timed_out" => "⏱ timed_out",
+                "neutral" => "➖ neutral",
+                _ => conclusion
+            };
+            sb.AppendLine($"结论: {displayConclusion}");
+            if (!string.IsNullOrEmpty(htmlUrl)) sb.Append($"URL: {htmlUrl}");
+        } catch {
+            sb.Append(runJson);
+        }
+        return sb.ToString();
+    }
 }

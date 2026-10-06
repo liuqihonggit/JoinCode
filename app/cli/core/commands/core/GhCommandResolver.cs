@@ -123,6 +123,7 @@ internal static class GhCommandResolver {
           jcc gh pr checks 123                   查看 PR 的 CI 检查状态
           jcc gh pr list --limit 3               列出 PR
           jcc gh run view 123 --log --filter error   查看 CI 日志（只留 error）
+          jcc gh run wait 123                    等待 Run 完成(指数退避轮询,完成才返回)
           jcc gh run rerun 123                   重跑失败的 job
           jcc gh issue comment 12 "正文"          评论 Issue
           jcc gh release download v1.0 ./out     下载 Release asset

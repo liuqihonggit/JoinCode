@@ -145,6 +145,55 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 等待 PR 所有 CI checks 完成 — 指数退避轮询 check-runs 直到全部 completed,通过 onProgress 报告进度
+    /// <para>替代 LLM 的 sleep+gh_pr_checks 轮询模式:工具内部阻塞,一次往返拿到最终结果</para>
+    /// <para>信号模型:轮询发现全部 completed 触发返回(唤醒 LLM)</para>
+    /// <para>指数退避:初始 5s ×1.5 每次,上限 60s,默认超时 30 分钟</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhPrWait, "等待 PR 所有 CI checks 完成(指数退避轮询+进度回调,完成才返回)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhPrWaitAsync(
+        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter("超时秒数(默认 1800=30分钟)", Required = false)] int? timeout_seconds = null,
+        [McpToolParameter("初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)", Required = false)] int? poll_interval_seconds = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default,
+        ToolProgressCallback? onProgress = null) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
+        if (resolved is null) return RepoNotResolved();
+        var (owner, repoName) = resolved.Value;
+        var number = ParsePrNumber(pr_number);
+
+        var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
+        if (!prResult.Success) return Fail(prResult.Error);
+
+        string? headSha;
+        try {
+            using var doc = JsonDocument.Parse(prResult.Body);
+            headSha = doc.RootElement.GetProperty("head").GetProperty("sha").GetString();
+        } catch (Exception ex) { return Fail($"解析 PR head sha 失败: {ex.Message}"); }
+        if (string.IsNullOrEmpty(headSha)) return Fail("无法从 PR 响应中解析 head.sha");
+
+        var timeout = TimeSpan.FromSeconds(Math.Clamp(timeout_seconds ?? 1800, 1, 7200));
+        var initialInterval = TimeSpan.FromSeconds(Math.Clamp(poll_interval_seconds ?? 5, 1, 60));
+
+        var waitResult = await GitHubRunPoller.WaitForPrChecksCompletionAsync(
+            _apiClient, owner, repoName, headSha, number, timeout, initialInterval,
+            onProgress, "gh_pr_wait", cancellationToken).ConfigureAwait(false);
+
+        return waitResult.Outcome switch {
+            RunWaitOutcome.Completed => Ok(
+                $"汇总: {waitResult.Summary}\n轮询次数: {waitResult.PollCount}, 耗时: {waitResult.ElapsedMs / 1000}s",
+                $"PR #{number} 所有 CI checks 已完成"),
+            RunWaitOutcome.Timeout => Ok(
+                $"汇总: {waitResult.Summary}\n轮询次数: {waitResult.PollCount}, 耗时: {waitResult.ElapsedMs / 1000}s",
+                $"⚠ PR #{number} 等待超时({timeout.TotalSeconds:F0}s),仍有 checks 进行中。用 gh_pr_checks {number} 手动查看,或增大 timeout_seconds"),
+            _ => Fail(waitResult.Error ?? "轮询失败")
+        };
+    }
+
+    /// <summary>
     /// 合并 PR — 支持 squash/merge/rebase 方式和 auto-merge（CI 通过后自动合并），可选删除分支
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrMerge, "合并 PR(支持 squash/merge/rebase + auto-merge)", "github")]

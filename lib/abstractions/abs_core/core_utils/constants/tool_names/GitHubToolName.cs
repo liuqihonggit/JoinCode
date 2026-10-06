@@ -22,6 +22,10 @@ public enum GitHubToolName {
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhPrChecks,
 
+    [EnumValue("gh_pr_wait")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhPrWait,
+
     [EnumValue("gh_pr_merge")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhPrMerge,
@@ -50,6 +54,10 @@ public enum GitHubToolName {
     [EnumValue("gh_run_view")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhRunView,
+
+    [EnumValue("gh_run_wait")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhRunWait,
 
     [EnumValue("gh_run_rerun")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]

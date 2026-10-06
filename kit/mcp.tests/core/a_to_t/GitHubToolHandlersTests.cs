@@ -1486,6 +1486,57 @@ public sealed class GitHubToolHandlersTests {
         _api.LastPath.Should().Be("repos/owner/repo");
         _api.LastBody.Should().Contain("\"default_branch\":\"develop\"");
     }
+
+    [Fact]
+    public async Task PrLock_PutsToLockEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhPrLockAsync("42", reason: "spam", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/lock");
+        _api.LastBody.Should().Contain("\"lock_reason\":\"spam\"");
+    }
+
+    [Fact]
+    public async Task PrUnlock_DeletesLockEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhPrUnlockAsync("42", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/lock");
+    }
+
+    [Fact]
+    public async Task IssueLock_PutsToLockEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhIssueLockAsync("42", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/lock");
+    }
+
+    [Fact]
+    public async Task IssueUnlock_DeletesLockEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhIssueUnlockAsync("42", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/lock");
+    }
+
+    [Fact]
+    public async Task RunDelete_DeletesRun() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhRunDeleteAsync("42", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/actions/runs/42");
+    }
 }
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient {

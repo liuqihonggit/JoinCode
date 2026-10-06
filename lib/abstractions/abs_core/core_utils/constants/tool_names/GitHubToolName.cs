@@ -58,6 +58,14 @@ public enum GitHubToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhPrReview,
 
+    [EnumValue("gh_pr_lock")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhPrLock,
+
+    [EnumValue("gh_pr_unlock")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhPrUnlock,
+
     // === Run 全套 ===
     [EnumValue("gh_run_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
@@ -82,6 +90,10 @@ public enum GitHubToolName {
     [EnumValue("gh_run_download")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhRunDownload,
+
+    [EnumValue("gh_run_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhRunDelete,
 
     // === Release 全套 ===
     [EnumValue("gh_release_list")]
@@ -148,6 +160,14 @@ public enum GitHubToolName {
     [EnumValue("gh_issue_delete")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhIssueDelete,
+
+    [EnumValue("gh_issue_lock")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhIssueLock,
+
+    [EnumValue("gh_issue_unlock")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhIssueUnlock,
 
     // === Repo 全套 ===
     [EnumValue("gh_repo_view")]

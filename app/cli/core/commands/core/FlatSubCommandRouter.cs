@@ -7,14 +7,10 @@ namespace JoinCode.CliCommands;
 internal static class FlatSubCommandRouter {
     /// <summary>
     /// 尝试执行扁平元命令；非元命令返回 null 交还调用方处理。
+    /// <para>全穿透架构 — 不在全局层拦截子命令参数，各子命令内部用
+    /// <see cref="DetectUnknownOptions"/> 自行验证（传入自己的合法选项集合）。</para>
     /// </summary>
     public static async Task<int?> TryExecuteAsync(CliSubCommand subCommand, string[] args, CancellationToken ct) {
-        var unknownError = DetectUnknownOptions(args, subCommand);
-        if (unknownError is not null) {
-            TerminalHelper.WriteError(unknownError);
-            return (int)ExitCode.ArgumentParseError;
-        }
-
         switch (subCommand) {
             case CliSubCommand.McpCall:
             return await McpCallCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
@@ -102,37 +98,27 @@ internal static class FlatSubCommandRouter {
     }
 
     /// <summary>
-    /// 检测未知 --flag — Rust 风格报错，不静默吞掉
-    /// AllOptionNames 由源码生成器从 [CliOption] 特性自动提取，零双向维护
-    /// <para>Gh/Rg 有自己的 schema/选项验证（GhArgsBinder 用工具 schema、RgSubCommand.ParseArgs 硬编码），
-    /// 跳过全局白名单检查，避免 --limit/--state/--type 等子命令合法参数被误拦。</para>
-    /// <para>McpList/McpServe/McpCall/SlashCall 有 [CliOption] 子命令选项，合并子命令白名单检查。</para>
+    /// 检测未知 --flag — 供各子命令内部调用，传入自己的合法选项集合（全局 + 子命令特有）。
+    /// <para>全穿透架构：args[0] 为子命令名，从 args[1] 开始扫描。
+    /// 未命中任何 allowedSets 的 --flag 返回 Rust 风格报错，不静默吞掉。</para>
     /// </summary>
-    internal static string? DetectUnknownOptions(string[] args, CliSubCommand subCommand) {
-        if (subCommand is CliSubCommand.Gh or CliSubCommand.Rg)
-            return null;
-        var subCommandOptions = GetSubCommandOptionNames(subCommand);
+    internal static string? DetectUnknownOptions(string[] args, params FrozenSet<string>[] allowedSets) {
         for (var i = 1; i < args.Length; i++) {
             if (!args[i].StartsWith("--"))
                 continue;
-            if (CliArgCliOptionConstants.AllOptionNames.Contains(args[i]))
-                continue;
-            if (subCommandOptions is not null && subCommandOptions.Contains(args[i]))
+            var matched = false;
+            foreach (var set in allowedSets) {
+                if (set.Contains(args[i])) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (matched)
                 continue;
             return CliErrorCatalog.ArgUnknownOption(args[i]).ToRustStyleString(args, i);
         }
         return null;
     }
-
-    /// <summary>
-    /// 获取子命令特有的合法选项名集合 — 由 [CliOption] 源码生成器自动生成，零双向维护。
-    /// </summary>
-    private static FrozenSet<string>? GetSubCommandOptionNames(CliSubCommand subCommand) => subCommand switch {
-        CliSubCommand.McpList => McpListArgCliOptionConstants.AllOptionNames,
-        CliSubCommand.McpServe => McpServeArgCliOptionConstants.AllOptionNames,
-        CliSubCommand.McpCall or CliSubCommand.SlashCall => ToolCallArgCliOptionConstants.AllOptionNames,
-        _ => null,
-    };
 
     internal static string? GetOptionValue(string[] args, string optionName) {
         for (var i = 1; i < args.Length - 1; i++) {

@@ -160,9 +160,10 @@ internal static class RgSubCommand {
                     case "--after-context": after = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--context": context = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     default:
-                    if (inlineValue is null)
-                        ReadNextValue(args, ref i);
-                    break;
+                    if (CliArgCliOptionConstants.AllOptionNames.Contains(name))
+                        break;
+                    TerminalHelper.WriteError($"未知选项: {name}（用 jcc rg --help 查看可用选项）");
+                    return null;
                 }
             } else {
                 if (!ParseShortOptionCluster(arg, args, ref i,

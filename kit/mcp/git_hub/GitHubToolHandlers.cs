@@ -306,10 +306,12 @@ public partial class GitHubToolHandlers {
     private static string SummarizeIssueList(string json) {
         try {
             using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var root = doc.RootElement;
+            var arrayEl = root.ValueKind == JsonValueKind.Array ? root : root.TryGetProperty("items", out var itemsEl) ? itemsEl : default;
+            if (arrayEl.ValueKind != JsonValueKind.Array) return json;
             var sb = new StringBuilder(512);
             sb.AppendLine("Issue#\t状态\t标题\t作者");
-            foreach (var issue in doc.RootElement.EnumerateArray()) {
+            foreach (var issue in arrayEl.EnumerateArray()) {
                 var number = issue.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
                 var state = issue.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
                 var title = issue.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";

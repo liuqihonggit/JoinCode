@@ -300,16 +300,21 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 重新打开 PR — 调 REST API PATCH state=open
+    /// 重新打开 PR — 可选附评论，调 REST API PATCH state=open
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrReopen, "重新打开 PR", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrReopen, "重新打开 PR(可附评论)", "github")]
     public async Task<ToolResult> GhPrReopenAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter("重开评论(可选)", Required = false)] string? comment = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
+            if (!string.IsNullOrWhiteSpace(comment)) {
+                var commentBody = $$"""{"body":{{JsonEscapeString(comment)}}}""";
+                await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
+            }
             var body = """{"state":"open"}""";
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已重开 PR {number}") : Fail(result.Error);

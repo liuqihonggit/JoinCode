@@ -181,7 +181,7 @@ public class ModelListFetcherTests {
     private static IHttpClientProvider CreateProvider(HttpMessageHandler handler) {
         var client = new HttpClient(handler);
         var mock = new Mock<IHttpClientProvider>();
-        mock.Setup(x => x.GetClient()).Returns(client);
+        mock.Setup(x => x.GetClient()).Returns(new HttpClientRef(client));
         return mock.Object;
     }
 

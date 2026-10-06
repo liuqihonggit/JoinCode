@@ -7,7 +7,7 @@ namespace McpClient;
 /// </summary>
 public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDisposable {
     private readonly McpOAuthOptions _options;
-    private readonly HttpClient _httpClient;
+    private readonly HttpClientRef _httpClient;
     private readonly ILogger<McpPkceAuthProvider>? _logger;
     private readonly IFileSystem _fs;
     private readonly AsyncLock _refreshLock = new();
@@ -85,12 +85,12 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     /// </summary>
     /// <param name="options">OAuth 选项</param>
     /// <param name="fs">文件系统抽象（用于令牌持久化）</param>
-    /// <param name="httpClient">HTTP 客户端（为 null 时走 HttpClientProviderFactory fallback）</param>
+    /// <param name="httpClient">HTTP 客户端借用句柄（为 null 时走 HttpClientProviderFactory fallback）</param>
     /// <param name="logger">日志记录器（可选）</param>
     public McpPkceAuthProvider(
         McpOAuthOptions options,
         IFileSystem fs,
-        HttpClient? httpClient = null,
+        HttpClientRef? httpClient = null,
         ILogger<McpPkceAuthProvider>? logger = null) {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(fs);
@@ -424,19 +424,17 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     }
 
     /// <summary>
-    /// 释放同步资源 — HttpClient 和刷新锁
+    /// 释放同步资源 — 释放刷新锁(HttpClient 为借用句柄,不释放)
     /// </summary>
     public void Dispose() {
-        _httpClient.Dispose();
         _refreshLock.Dispose();
     }
 
     /// <summary>
-    /// 释放异步资源 — 幂等，多次调用安全
+    /// 释放异步资源 — 幂等，多次调用安全(HttpClient 为借用句柄,不释放)
     /// </summary>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _httpClient.Dispose();
         _refreshLock.Dispose();
     }
 }

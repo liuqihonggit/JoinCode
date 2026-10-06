@@ -6,7 +6,7 @@ namespace McpClient;
 /// RFC 8414: OAuth 2.0 Authorization Server Metadata
 /// </summary>
 public sealed partial class McpOAuthMetadataDiscovery {
-    private readonly HttpClient _httpClient;
+    private readonly HttpClientRef _httpClient;
     private readonly ILogger<McpOAuthMetadataDiscovery>? _logger;
 
     // RFC 9728: Protected Resource Metadata well-known 路径
@@ -18,9 +18,9 @@ public sealed partial class McpOAuthMetadataDiscovery {
     /// <summary>
     /// 创建 McpOAuthMetadataDiscovery 实例
     /// </summary>
-    /// <param name="httpClient">HTTP 客户端（为 null 时走 HttpClientProviderFactory fallback）</param>
+    /// <param name="httpClient">HTTP 客户端借用句柄（为 null 时走 HttpClientProviderFactory fallback）</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public McpOAuthMetadataDiscovery(HttpClient? httpClient = null, ILogger<McpOAuthMetadataDiscovery>? logger = null) {
+    public McpOAuthMetadataDiscovery(HttpClientRef? httpClient = null, ILogger<McpOAuthMetadataDiscovery>? logger = null) {
         // P1-6: fallback 走 HttpClientProviderFactory（支持 JCC_HTTP_MODE=Mock 切换，对齐主程序 IHttpClientProvider 抽象）
         _httpClient = httpClient ?? HttpClientProviderFactory.Create().GetClient();
         _logger = logger;

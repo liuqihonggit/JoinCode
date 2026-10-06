@@ -27,7 +27,7 @@ public sealed class DefaultHttpClientProviderTests {
         // Assert
         spyFactory.CreateClientCallCount.Should().Be(1,
             "GetClient() 应通过 IHttpClientFactory.CreateClient() 获取 HttpClient，而非直接 new HttpClient()");
-        client.Should().NotBeNull("GetClient() 必须返回有效 HttpClient 实例");
+        client.Client.Should().NotBeNull("GetClient() 必须返回有效 HttpClient 实例");
     }
 
     /// <summary>
@@ -65,8 +65,8 @@ public sealed class DefaultHttpClientProviderTests {
         // Assert
         spyFactory.CreateClientCallCount.Should().BeGreaterThanOrEqualTo(2,
             "每次 GetClient() 应通过 factory 创建 HttpClient，而非缓存共享实例");
-        client1.Should().NotBeNull();
-        client2.Should().NotBeNull();
+        client1.Client.Should().NotBeNull();
+        client2.Client.Should().NotBeNull();
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ public sealed class DefaultHttpClientProviderTests {
         var client2 = provider.GetClient();
 
         // Assert — fallback 路径: 多次调用返回同一共享实例
-        client1.Should().BeSameAs(client2,
+        client1.Client.Should().BeSameAs(client2.Client,
             "无 IHttpClientFactory 时应 fallback 到共享 HttpClient 实例（向后兼容 HttpClientProviderFactory.Create()）");
     }
 
@@ -100,7 +100,7 @@ public sealed class DefaultHttpClientProviderTests {
         // Assert
         provider.Should().NotBeNull("无参构造函数必须能正常工作 — HttpClientProviderFactory.Create() 依赖此路径");
         var client = provider.GetClient();
-        client.Should().NotBeNull("无参构造后 GetClient() 必须返回有效 HttpClient 实例");
+        client.Client.Should().NotBeNull("无参构造后 GetClient() 必须返回有效 HttpClient 实例");
     }
 
     /// <summary>

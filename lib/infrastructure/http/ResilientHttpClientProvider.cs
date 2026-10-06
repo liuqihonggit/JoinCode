@@ -31,12 +31,12 @@ public sealed class ResilientHttpClientProvider : IResilientHttpClientProvider {
     public ResilientHttpExecutor Executor => _executor;
 
     /// <inheritdoc/>
-    public HttpClient GetClient() {
+    public HttpClientRef GetClient() {
         return _inner.GetClient();
     }
 
     /// <inheritdoc/>
-    public HttpClient GetClient(string name) {
+    public HttpClientRef GetClient(string name) {
         ArgumentException.ThrowIfNullOrEmpty(name);
         return _inner.GetClient(name);
     }

@@ -3,13 +3,12 @@ namespace JoinCode.Abstractions.Services;
 public static class OAuth2TokenExchange {
     /// <summary>交换 OAuth2 令牌。</summary>
     public static async Task<OAuth2TokenResponse> ExchangeTokenAsync(
-        HttpClient httpClient,
+        HttpClientRef httpClient,
         string tokenEndpoint,
         Dictionary<string, string> parameters,
         JsonTypeInfo<OAuth2TokenResponse> jsonTypeInfo,
         ILogger? logger = null,
         CancellationToken cancellationToken = default) {
-        ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentException.ThrowIfNullOrEmpty(tokenEndpoint);
         ArgumentNullException.ThrowIfNull(parameters);
         ArgumentNullException.ThrowIfNull(jsonTypeInfo);

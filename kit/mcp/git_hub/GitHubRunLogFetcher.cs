@@ -1,24 +1,15 @@
 namespace McpToolDispatch;
 
 /// <summary>
-/// GitHub Run 日志获取器 — 通过主类引用访问 _apiClient,负责 job 列表/日志下载/缓存
+/// GitHub Run 日志获取器 — 接收 IGitHubApiClient 参数,负责 job 列表/日志下载/缓存
 /// </summary>
 internal sealed class GitHubRunLogFetcher {
-    private readonly GitHubToolHandlers _owner;
-
-    /// <summary>
-    /// 构造日志获取器,接受主类引用以访问 _apiClient 等内部成员
-    /// </summary>
-    public GitHubRunLogFetcher(GitHubToolHandlers owner) {
-        _owner = owner;
-    }
-
     /// <summary>
     /// 列出 Run 的 job 列表(轻量,不下载日志)
     /// <para>返回 job ID/名称/状态/结论,AI 选择目标 job 后用 expand=steps job_id=xxx 按需下载</para>
     /// </summary>
-    public async Task<ToolResult> ListJobsAsync(string owner, string repo, string runId, CancellationToken ct) {
-        var jobsResult = await _owner._apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
+    public async Task<ToolResult> ListJobsAsync(IGitHubApiClient client, string owner, string repo, string runId, CancellationToken ct) {
+        var jobsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
         if (!jobsResult.Success) return GitHubToolHandlers.Fail(jobsResult.Error);
 
         var sb = new StringBuilder();

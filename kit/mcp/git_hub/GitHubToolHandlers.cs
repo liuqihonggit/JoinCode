@@ -21,6 +21,18 @@ public partial class GitHubToolHandlers {
     private readonly GitHubRunLogCache? _logCacheService;
 
     /// <summary>
+    /// 日志过滤运行器 — 仅在 _apiClient 配置后可用(ExecuteGhAsync 已守卫)
+    /// </summary>
+    private GitHubRunLogFilterRunner LogFilterRunner =>
+        _logFilterRunner ?? throw new InvalidOperationException("日志过滤运行器未初始化(API 客户端未配置)");
+
+    /// <summary>
+    /// 日志缓存服务 — 仅在 _apiClient 配置后可用(ExecuteGhAsync 已守卫)
+    /// </summary>
+    private GitHubRunLogCache LogCacheService =>
+        _logCacheService ?? throw new InvalidOperationException("日志缓存服务未初始化(API 客户端未配置)");
+
+    /// <summary>
     /// 统一持久化管道 — 异步串行写缓存文件到 .jcc/gh_cache/,不阻塞调用方
     /// <para>复用 ADR 0068 统一管道(IPersistencePipeline),替代专用 GitHubCacheWriteActor</para>
     /// </summary>
@@ -48,7 +60,7 @@ public partial class GitHubToolHandlers {
         _apiClient = apiClient;
         _git = git;
         _logger = logger;
-        _logFetcher = new GitHubRunLogFetcher(this);
+        _logFetcher = new GitHubRunLogFetcher();
         _logFilterRunner = apiClient is not null ? new GitHubRunLogFilterRunner(apiClient) : null;
         _logCacheService = apiClient is not null ? new GitHubRunLogCache(apiClient, fs, pipeline, logger) : null;
     }
@@ -95,6 +107,82 @@ public partial class GitHubToolHandlers {
     internal static ToolResult Ok(string output, string? prefix = null) {
         var text = string.IsNullOrEmpty(prefix) ? output : $"{prefix}\n{output}";
         return ToolResultBuilder.Success().WithText(text).Build();
+    }
+
+    /// <summary>
+    /// 构建精简成功 ToolResult — 从 JSON body 提取 html_url，只返回确认消息 + URL（不返回整个 JSON body）
+    /// <para>用于 Create/Update/Delete 操作，成功时无需返回完整响应体，只给确认 + 可点击链接</para>
+    /// </summary>
+    internal static ToolResult OkBrief(string jsonBody, string message) {
+        var url = TryExtractJsonField(jsonBody, "html_url") ?? TryExtractJsonField(jsonBody, "url");
+        return url is not null ? Ok(url, message) : Ok(message);
+    }
+
+    /// <summary>
+    /// 从 JSON 字符串中提取指定字符串字段值（轻量 Span 解析，不构建 JsonDocument）
+    /// </summary>
+    private static string? TryExtractJsonField(string json, string fieldName) {
+        var pattern = $"\"{fieldName}\":\"";
+        var idx = json.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0) return null;
+        idx += pattern.Length;
+        var end = json.IndexOf('"', idx);
+        return end > idx ? json[idx..end] : null;
+    }
+
+    /// <summary>
+    /// GitHub REST API 客户端未配置错误
+    /// </summary>
+    internal static ToolResult ApiClientNotConfigured() =>
+        ToolResultBuilder.Error().WithText("GitHub REST API 客户端未配置（IGitHubApiClient 未注入）").Build();
+
+    /// <summary>
+    /// 仓库 owner/repo 解析失败错误
+    /// </summary>
+    internal static ToolResult RepoNotResolved() =>
+        ToolResultBuilder.Error().WithText("无法解析仓库 owner/repo（请传 repo 参数或确保当前目录是 GitHub 仓库）").Build();
+
+    /// <summary>
+    /// 从 PR/Issue 编号或 URL 提取数字编号 — 如 "123" → "123", "https://github.com/o/r/pull/123" → "123"
+    /// <para>合并原 ParsePrNumber/ParseIssueNumber(逐字符相同的重复实现)</para>
+    /// </summary>
+    private static string ParseNumberFromRef(string numberOrUrl) {
+        if (string.IsNullOrEmpty(numberOrUrl)) return numberOrUrl;
+        var lastSlash = numberOrUrl.LastIndexOf('/');
+        if (lastSlash < 0) return numberOrUrl;
+        return numberOrUrl[(lastSlash + 1)..];
+    }
+
+    /// <summary>
+    /// 守卫编排模板 — client 检查 + owner/repo 解析,失败短路返回错误,成功执行 apiCall(client, owner, repo)
+    /// <para>消除 21 处重复的 client 检查 + ResolveOwnerRepoAsync 样板,主方法只写 API 调用核心逻辑</para>
+    /// <para>client 作为参数传入 apiCall,调用方直接用 client 而非 _apiClient!,消除空抑制</para>
+    /// </summary>
+    private async Task<ToolResult> ExecuteGhAsync(
+        string? repo, string? workingDir, CancellationToken ct,
+        Func<IGitHubApiClient, string, string, Task<ToolResult>> apiCall) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var resolved = await ResolveOwnerRepoAsync(repo, workingDir, ct).ConfigureAwait(false);
+        if (resolved is null) return RepoNotResolved();
+        var (owner, repoName) = resolved.Value;
+        return await apiCall(_apiClient, owner, repoName).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// verbose 缓存模板 — verbose=true 优先读缓存,未命中或 verbose=false 调 API,成功后写缓存,按 verbose 决定精简/完整输出
+    /// <para>消除 GhPrView/GhIssueView/GhRepoView 三处相同的缓存读写样板</para>
+    /// </summary>
+    private async Task<ToolResult> GetOrFetchWithCacheAsync(
+        IGitHubApiClient client, string cacheKey, string apiPath, bool? verbose,
+        Func<string, string> summarize, CancellationToken ct) {
+        if (verbose == true) {
+            var cached = TryGetGhCache(cacheKey);
+            if (cached is not null) return Ok(cached);
+        }
+        var result = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
+        if (!result.Success) return Fail(result.Error);
+        SaveGhCache(cacheKey, result.Body);
+        return Ok(verbose == true ? result.Body : summarize(result.Body));
     }
 
     /// <summary>

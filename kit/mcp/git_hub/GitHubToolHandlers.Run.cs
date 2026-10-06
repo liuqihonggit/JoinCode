@@ -15,23 +15,17 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("分支过滤(可选)", Required = false)] string? branch = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 20).ToString() };
-        if (!string.IsNullOrWhiteSpace(status)) query["status"] = status;
-        if (!string.IsNullOrWhiteSpace(branch)) query["branch"] = branch;
-
-        var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs", query: query, ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
-
-        var summarized = GitHubRunListSummarizer.SummarizeRunList(result.Body);
-        var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
-        return hasFailure ? Ok(summarized + GitHubRunLogHints.RunListFailureHint) : Ok(summarized);
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 20).ToString() };
+            if (!string.IsNullOrWhiteSpace(status)) query["status"] = status;
+            if (!string.IsNullOrWhiteSpace(branch)) query["branch"] = branch;
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs", query: query, ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(result.Error);
+            var summarized = GitHubRunListSummarizer.SummarizeRunList(result.Body);
+            var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
+            return hasFailure ? Ok(summarized + GitHubRunLogHints.RunListFailureHint) : Ok(summarized);
+        }).ConfigureAwait(false);
 
 
     /// <summary>
@@ -49,12 +43,14 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)", Required = false)] bool? refresh = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
+            => GhRunViewCoreAsync(client, owner, repoName, run_id, job_id, log, max_lines, skip_lines, expand, filter, refresh, working_dir, cancellationToken)).ConfigureAwait(false);
 
+    /// <summary>
+    /// GhRunView 核心逻辑 — expand/filter/log 多分支调度,两级缓存(ADR 0067)
+    /// </summary>
+    private async Task<ToolResult> GhRunViewCoreAsync(IGitHubApiClient client, string owner, string repoName, string run_id, string? job_id, bool? log, int? max_lines, int? skip_lines, string? expand, string? filter, bool? refresh, string? working_dir, CancellationToken cancellationToken) {
         var maxLines = max_lines ?? 200;
         var skip = skip_lines ?? 0;
         var wantRefresh = refresh == true;
@@ -65,7 +61,7 @@ public partial class GitHubToolHandlers {
 
         // === expand=jobs: 列出 job 列表(不下载日志,轻量 API 调用) ===
         if (string.Equals(expand, "jobs", StringComparison.OrdinalIgnoreCase)) {
-            return await ListJobsAsync(owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            return await ListJobsAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
         }
 
         // === filter=failed: 智能过滤测试失败(状态机提取 Failed+Error+StackTrace,Rust 风格输出) ===
@@ -134,7 +130,7 @@ public partial class GitHubToolHandlers {
         }
 
         // log=false: 获取 run 详情 JSON
-        var detailResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
+        var detailResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
         return detailResult.Success ? Ok(detailResult.Body) : Fail(detailResult.Error);
     }
 
@@ -180,8 +176,8 @@ public partial class GitHubToolHandlers {
     /// 列出 Run 下的所有 job(不下载日志,轻量 API 调用) — 诱导式 drill-down 第一步
     /// <para>返回 job ID/名称/状态/结论,AI 选择目标 job 后用 expand=steps job_id=xxx 按需下载</para>
     /// </summary>
-    private Task<ToolResult> ListJobsAsync(string owner, string repo, string runId, CancellationToken ct)
-        => _logFetcher.ListJobsAsync(owner, repo, runId, ct);
+    private Task<ToolResult> ListJobsAsync(IGitHubApiClient client, string owner, string repo, string runId, CancellationToken ct)
+        => _logFetcher.ListJobsAsync(client, owner, repo, runId, ct);
 
 
     /// <summary>
@@ -190,7 +186,7 @@ public partial class GitHubToolHandlers {
     /// <para>ADR 0067 两级缓存 + 文件级持久化: 摘要(轻量)+内容(大量行)按 section 独立缓存</para>
     /// </summary>
     private Task<RunLogSummary?> GetOrFetchSummaryAsync(string owner, string repo, string runId, string? jobId, string? workingDir, bool refresh, CancellationToken ct)
-        => _logCacheService!.GetOrFetchSummaryAsync(owner, repo, runId, jobId, workingDir, refresh, ct);
+        => LogCacheService.GetOrFetchSummaryAsync(owner, repo, runId, jobId, workingDir, refresh, ct);
 
     /// <summary>
     /// 从 Level2 内容缓存获取指定 section 的日志行 — MemoryCache → 触发 Level1 填充 → 文件 raw 补填 → 再读
@@ -200,14 +196,14 @@ public partial class GitHubToolHandlers {
     private Task<List<string>?> GetOrFetchSectionAsync(
         string owner, string repo, string runId, string? jobId, string stepName, string sectionType,
         string? workingDir, bool refresh, CancellationToken ct)
-        => _logCacheService!.GetOrFetchSectionAsync(owner, repo, runId, jobId, stepName, sectionType, workingDir, refresh, ct);
+        => LogCacheService.GetOrFetchSectionAsync(owner, repo, runId, jobId, stepName, sectionType, workingDir, refresh, ct);
 
     /// <summary>
     /// 从 GitHub REST API 获取 Run 的 updated_at — 用于检测 rerun 后日志是否更新
     /// <para>轻量 API 调用(不下载日志),&lt; 1s</para>
     /// </summary>
     private Task<string?> FetchUpdatedAtAsync(string owner, string repo, string runId, CancellationToken ct)
-        => _logCacheService!.FetchUpdatedAtAsync(owner, repo, runId, ct);
+        => LogCacheService.FetchUpdatedAtAsync(owner, repo, runId, ct);
 
 
 
@@ -218,7 +214,7 @@ public partial class GitHubToolHandlers {
     private IAsyncEnumerable<string> GetFailedJobLogsAsync(
         string owner, string repo, string runId,
         CancellationToken ct)
-        => _logFilterRunner!.GetFailedJobLogsAsync(owner, repo, runId, ct);
+        => LogFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, ct);
     /// <summary>
     /// 智能过滤测试失败行 — 状态机提取 Failed + Error Message + Stack Trace,Rust 风格输出
     /// <para>状态机: Normal → InFailedTest(遇到 Failed/[FAIL]) → InErrorMessage(Error Message:) → InStackTrace(Stack Trace:) → Normal</para>
@@ -227,7 +223,7 @@ public partial class GitHubToolHandlers {
     private Task<ToolResult> FilterFailedTestsAsync(
         string owner, string repo, string runId, string? jobId,
         int maxLines, int skipLines, CancellationToken ct)
-        => _logFilterRunner!.FilterFailedTestsAsync(owner, repo, runId, jobId, maxLines, skipLines, ct);
+        => LogFilterRunner.FilterFailedTestsAsync(owner, repo, runId, jobId, maxLines, skipLines, ct);
 
     /// <summary>
     /// 流式拉取 + 过滤 + 分页跳过(不缓存,用于 --log-failed 或一次性过滤)
@@ -237,7 +233,7 @@ public partial class GitHubToolHandlers {
         string owner, string repo, string runId, string? jobId, bool failedOnly,
         string scope, FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
         int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0)
-        => _logFilterRunner!.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines);
+        => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines);
 
     /// <summary>
     /// 重跑 Actions Run — 默认只重跑失败的 job，调 REST API POST rerun-failed-jobs 或 rerun
@@ -248,18 +244,14 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否只重跑失败的 job(默认 true)", Required = false)] bool? failed_only = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var path = failed_only != false
-            ? $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-failed-jobs"
-            : $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun";
-        var result = await _apiClient.SendAsync(HttpMethod.Post, path, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body, $"已重跑 Run {run_id}") : Fail(result.Error);
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var path = failed_only != false
+                ? $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-failed-jobs"
+                : $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun";
+            var result = await client.SendAsync(HttpMethod.Post, path, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已重跑 Run {run_id}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 取消 Actions Run — 调 REST API POST cancel
@@ -269,13 +261,113 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("Run ID", Required = true)] string run_id,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/runs/{run_id}/cancel", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已取消 Run {run_id}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 
-        var result = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/runs/{run_id}/cancel", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body, $"已取消 Run {run_id}") : Fail(result.Error);
+    /// <summary>
+    /// 等待 Actions Run 完成 — 指数退避轮询直到 status==completed,通过 onProgress 报告进度,完成才返回唤醒 LLM
+    /// <para>替代 LLM 的 sleep+gh_run_view 轮询模式:工具内部阻塞,一次往返拿到最终结果</para>
+    /// <para>信号模型:轮询发现 completed 触发返回(唤醒 LLM),非 sleep 固定等待</para>
+    /// <para>指数退避:初始 5s ×1.5 每次,上限 60s,默认超时 30 分钟</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRunWait, "等待 Actions Run 完成(指数退避轮询+进度回调,完成才返回)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhRunWaitAsync(
+        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter("超时秒数(默认 1800=30分钟)", Required = false)] int? timeout_seconds = null,
+        [McpToolParameter("初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)", Required = false)] int? poll_interval_seconds = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default,
+        ToolProgressCallback? onProgress = null)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
+            => GhRunWaitCoreAsync(client, owner, repoName, run_id, timeout_seconds, poll_interval_seconds, working_dir, cancellationToken, onProgress)).ConfigureAwait(false);
+
+    /// <summary>
+    /// GhRunWait 核心逻辑 — 指数退避轮询直到 completed,失败时下载日志到磁盘
+    /// </summary>
+    private async Task<ToolResult> GhRunWaitCoreAsync(IGitHubApiClient client, string owner, string repoName, string runId, int? timeoutSeconds, int? pollIntervalSeconds, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
+        var timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds ?? 1800, 1, 7200));
+        var initialInterval = TimeSpan.FromSeconds(Math.Clamp(pollIntervalSeconds ?? 5, 1, 60));
+        var waitResult = await GitHubRunPoller.WaitForRunCompletionAsync(
+            client, owner, repoName, runId, timeout, initialInterval,
+            onProgress, "gh_run_wait", ct).ConfigureAwait(false);
+        if (waitResult.Outcome == RunWaitOutcome.Error)
+            return Fail(waitResult.Error ?? "轮询失败");
+        if (waitResult.Outcome == RunWaitOutcome.Timeout)
+            return Ok(
+                BuildRunWaitSummary(waitResult.Body!, runId, waitResult.PollCount, waitResult.ElapsedMs),
+                $"⚠ Run {runId} 等待超时({timeout.TotalSeconds:F0}s),当前状态: {waitResult.Conclusion}。用 gh_run_view {runId} 手动查看,或增大 timeout_seconds");
+        var conclusion = waitResult.Conclusion ?? "unknown";
+        var summary = BuildRunWaitSummary(waitResult.Body!, runId, waitResult.PollCount, waitResult.ElapsedMs);
+        if (!IsFailedConclusion(conclusion))
+            return Ok(summary, $"Run {runId} 已完成: {conclusion}");
+        var logPath = await DownloadFailedLogsToDiskAsync(owner, repoName, runId, workingDir, ct).ConfigureAwait(false);
+        return logPath is not null
+            ? Ok(summary + $"\n\n📄 失败 job 日志已下载到:\n{logPath}\n\n💡 用 read 工具读取此文件查看错误详情", $"Run {runId} 已完成: ❌ {conclusion}")
+            : Ok(summary + $"\n\n⚠ 失败 job 日志下载失败,用 gh run view {runId} --log --filter failed 手动查看", $"Run {runId} 已完成: ❌ {conclusion}");
+    }
+
+    /// <summary>
+    /// 判断 conclusion 是否为失败(failure/cancelled/timed_out)
+    /// </summary>
+    private static bool IsFailedConclusion(string conclusion)
+        => conclusion is "failure" or "cancelled" or "timed_out";
+
+    /// <summary>
+    /// 下载失败 job 日志到磁盘 — 流式拉取所有 conclusion=failure 的 job 日志,写到 .jcc/gh_logs/run_{id}_{timestamp}.log
+    /// <para>复用 GetFailedJobLogsAsync 并行下载多个失败 job(Actor 邮箱模型合并)</para>
+    /// <para>只返回磁盘路径,不把日志内容塞进 ToolResult,节约 LLM 上下文</para>
+    /// </summary>
+    private async Task<string?> DownloadFailedLogsToDiskAsync(
+        string owner, string repo, string runId, string? workingDir, CancellationToken ct) {
+        if (_logFilterRunner is null) return null;
+
+        var baseDir = string.IsNullOrWhiteSpace(workingDir) ? _fs.GetCurrentDirectory() : workingDir;
+        var logDir = _fs.CombinePath(baseDir, ".jcc", "gh_logs");
+        if (!_fs.DirectoryExists(logDir)) _fs.CreateDirectory(logDir);
+
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+        var logPath = _fs.CombinePath(logDir, $"run_{runId}_{timestamp}.log");
+
+        var sb = new StringBuilder();
+        var lineCount = 0;
+        await foreach (var line in _logFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, ct).ConfigureAwait(false)) {
+            sb.AppendLine(line);
+            lineCount++;
+        }
+
+        if (lineCount == 0) return null;
+        await _fs.WriteAllTextAsync(logPath, sb.ToString(), ct).ConfigureAwait(false);
+        return logPath;
+    }
+
+    /// <summary>
+    /// 构建 Run 等待结果摘要 — 包含 conclusion、耗时、轮询次数、run 详情关键字段
+    /// </summary>
+    private static string BuildRunWaitSummary(string runJson, string runId, int pollCount, long elapsedMs) {
+        var sb = new StringBuilder(256);
+        sb.AppendLine($"轮询次数: {pollCount}, 耗时: {elapsedMs / 1000}s");
+        try {
+            using var doc = JsonDocument.Parse(runJson);
+            var root = doc.RootElement;
+            var conclusion = root.TryGetProperty("conclusion", out var c) ? c.GetString() ?? "unknown" : "unknown";
+            var htmlUrl = root.TryGetProperty("html_url", out var u) ? u.GetString() ?? "" : "";
+            var displayConclusion = conclusion switch {
+                "success" => "✅ success",
+                "failure" => "❌ failure",
+                "cancelled" => "🚫 cancelled",
+                "timed_out" => "⏱ timed_out",
+                "neutral" => "➖ neutral",
+                _ => conclusion
+            };
+            sb.AppendLine($"结论: {displayConclusion}");
+            if (!string.IsNullOrEmpty(htmlUrl)) sb.Append($"URL: {htmlUrl}");
+        } catch {
+            sb.Append(runJson);
+        }
+        return sb.ToString();
     }
 }

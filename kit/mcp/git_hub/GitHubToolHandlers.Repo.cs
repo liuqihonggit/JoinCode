@@ -13,26 +13,11 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var cacheKey = BuildGhCacheKey("gh_repo_view", $"{owner}/{repoName}");
-
-        if (verbose == true) {
-            var cached = TryGetGhCache(cacheKey);
-            if (cached is not null)
-                return Ok(cached);
-        }
-
-        var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
-
-        SaveGhCache(cacheKey, result.Body);
-        return Ok(verbose == true ? result.Body : SummarizeRepo(result.Body));
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var cacheKey = BuildGhCacheKey("gh_repo_view", $"{owner}/{repoName}");
+            return await GetOrFetchWithCacheAsync(client, cacheKey, $"repos/{owner}/{repoName}", verbose, SummarizeRepo, cancellationToken).ConfigureAwait(false);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 克隆仓库 — 支持浅克隆（--depth=1），走本地 git 命令（非 API）
@@ -74,17 +59,15 @@ public partial class GitHubToolHandlers {
         var isPrivate = vis.Equals("private", StringComparison.OrdinalIgnoreCase);
         var isInternal = vis.Equals("internal", StringComparison.OrdinalIgnoreCase);
 
-        var bodySb = new StringBuilder();
-        bodySb.Append('{');
-        bodySb.Append("\"name\":" + JsonEscapeString(name));
-        bodySb.Append(",\"private\":" + (isPrivate || isInternal ? "true" : "false"));
-        if (isInternal) bodySb.Append(",\"visibility\":\"internal\"");
-        if (!string.IsNullOrWhiteSpace(description)) bodySb.Append(",\"description\":" + JsonEscapeString(description));
-        if (add_readme == true) bodySb.Append(",\"auto_init\":true");
-        bodySb.Append('}');
+        var builder = new GitHubJsonObjectBuilder()
+            .String("name", name)
+            .Bool("private", isPrivate || isInternal);
+        if (isInternal) builder.String("visibility", "internal");
+        builder.StringIf("description", description).BoolIfTrue("auto_init", add_readme);
+        var jsonBody = builder.Build();
 
-        var result = await _apiClient.SendAsync(HttpMethod.Post, "user/repos", bodySb.ToString(), ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body, $"已创建仓库 {name}") : Fail(result.Error);
+        var result = await _apiClient.SendAsync(HttpMethod.Post, "user/repos", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+        return result.Success ? OkBrief(result.Body, $"已创建仓库 {name}") : Fail(result.Error);
     }
 
     /// <summary>
@@ -105,12 +88,12 @@ public partial class GitHubToolHandlers {
         if (!result.Success) return Fail(result.Error);
 
         if (clone == true) {
-            if (_git is null) return Ok(result.Body, $"已 Fork {repo}（但未克隆：git 未配置）");
+            if (_git is null) return OkBrief(result.Body, $"已 Fork {repo}（但未克隆：git 未配置）");
             var cloneResult = await _git.ExecuteAsync($"clone https://github.com/{repo}.git", working_dir, cancellationToken).ConfigureAwait(false);
-            if (!cloneResult.Success) return Ok(result.Body, $"已 Fork {repo}（但克隆失败: {cloneResult.Error}）");
+            if (!cloneResult.Success) return OkBrief(result.Body, $"已 Fork {repo}（但克隆失败: {cloneResult.Error}）");
         }
 
-        return Ok(result.Body, $"已 Fork {repo}");
+        return OkBrief(result.Body, $"已 Fork {repo}");
     }
 
     /// <summary>
@@ -137,7 +120,7 @@ public partial class GitHubToolHandlers {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
             var buffer = new ArrayBufferWriter<byte>();
-            using (var writer = new Utf8JsonWriter(buffer)) {
+            using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })) {
                 writer.WriteStartArray();
                 foreach (var repo in doc.RootElement.EnumerateArray()) {
                     writer.WriteStartObject();

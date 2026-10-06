@@ -14,16 +14,12 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
-        var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases", query: query, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(SummarizeReleaseList(result.Body)) : Fail(result.Error);
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases", query: query, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? Ok(SummarizeReleaseList(result.Body)) : Fail(result.Error);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 精简 Release 列表 JSON — 只保留关键字段，去掉冗余 URL 和 author 对象，便于人类浏览和 AI 解析
@@ -33,7 +29,7 @@ public partial class GitHubToolHandlers {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
             var buffer = new ArrayBufferWriter<byte>();
-            using (var writer = new Utf8JsonWriter(buffer)) {
+            using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })) {
                 writer.WriteStartArray();
                 foreach (var release in doc.RootElement.EnumerateArray()) {
                     writer.WriteStartObject();
@@ -67,20 +63,50 @@ public partial class GitHubToolHandlers {
 
     /// <summary>
     /// 查看 Release 详情 — 调 REST API 获取 Release 信息（含 asset 列表）
+    /// <para>先按 tag 查(releases/tags/{tag}),404 时 fallback 列出全部 release 按 tag_name 匹配(支持 draft release)</para>
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhReleaseView, "查看 Release 详情(含 asset 列表)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhReleaseViewAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
+            if (result.Success) return Ok(result.Body);
+            // 404 时 fallback: draft release 没有关联 tag,需列出所有 release 按 tag_name 匹配
+            if (IsNotFound(result)) return await FindReleaseByTagNameAsync(client, owner, repoName, tag, cancellationToken).ConfigureAwait(false);
+            return Fail(result.Error);
+        }).ConfigureAwait(false);
 
-        var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body) : Fail(result.Error);
+    /// <summary>
+    /// 判断 API 响应是否为 404 Not Found
+    /// </summary>
+    private static bool IsNotFound(GitHubApiResponse response)
+        => response.StatusCode == 404;
+
+    /// <summary>
+    /// 列出所有 release(含 draft)按 tag_name 匹配 — fallback 查 draft release
+    /// </summary>
+    private async Task<ToolResult> FindReleaseByTagNameAsync(IGitHubApiClient client, string owner, string repo, string tag, CancellationToken ct) {
+        var listResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/releases", query: new Dictionary<string, string> { ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
+        if (!listResult.Success) return Fail(listResult.Error);
+        try {
+            using var doc = JsonDocument.Parse(listResult.Body);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return Fail("Release 列表格式异常");
+            foreach (var release in doc.RootElement.EnumerateArray()) {
+                if (release.TryGetProperty("tag_name", out var tagEl) && tagEl.GetString() == tag) {
+                    var id = release.TryGetProperty("id", out var idEl) ? idEl.GetInt64() : 0;
+                    var isDraft = release.TryGetProperty("draft", out var draftEl) && draftEl.GetBoolean();
+                    var detailResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/releases/{id}", ct: ct).ConfigureAwait(false);
+                    if (detailResult.Success) return Ok(detailResult.Body);
+                    return Fail(detailResult.Error);
+                }
+            }
+            return Fail($"未找到 Release: {tag}（已列出 {doc.RootElement.GetArrayLength()} 个 release，均不匹配 tag_name={tag}）");
+        } catch (Exception ex) {
+            return Fail($"查找 Release 失败: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -96,25 +122,19 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("目标 commit/branch(可选)", Required = false)] string? target = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var bodySb = new StringBuilder();
-        bodySb.Append('{');
-        bodySb.Append("\"tag_name\":" + JsonEscapeString(tag));
-        if (!string.IsNullOrWhiteSpace(title)) bodySb.Append(",\"name\":" + JsonEscapeString(title));
-        if (!string.IsNullOrWhiteSpace(notes)) bodySb.Append(",\"body\":" + JsonEscapeString(notes));
-        if (draft == true) bodySb.Append(",\"draft\":true");
-        if (prerelease == true) bodySb.Append(",\"prerelease\":true");
-        if (!string.IsNullOrWhiteSpace(target)) bodySb.Append(",\"target_commitish\":" + JsonEscapeString(target));
-        bodySb.Append('}');
-
-        var result = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases", bodySb.ToString(), ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body, $"已创建 Release {tag}") : Fail(result.Error);
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var jsonBody = new GitHubJsonObjectBuilder()
+                .String("tag_name", tag)
+                .StringIf("name", title)
+                .StringIf("body", notes)
+                .BoolIfTrue("draft", draft)
+                .BoolIfTrue("prerelease", prerelease)
+                .StringIf("target_commitish", target)
+                .Build();
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已创建 Release {tag}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 下载 Release asset — 复用 IDownloader 多线程分片 + 断点续传，支持 asset 名称过滤和并发数控制
@@ -128,13 +148,15 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否启用断点续传(默认 true)", Required = false)] bool? resume = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
+            => GhReleaseDownloadCoreAsync(client, owner, repoName, tag, dir, pattern, max_threads, resume, cancellationToken)).ConfigureAwait(false);
 
-        var viewResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
+    /// <summary>
+    /// GhReleaseDownload 核心逻辑 — 解析 asset 列表 + 多线程分片下载
+    /// </summary>
+    private async Task<ToolResult> GhReleaseDownloadCoreAsync(IGitHubApiClient client, string owner, string repoName, string tag, string dir, string? pattern, int? max_threads, bool? resume, CancellationToken cancellationToken) {
+        var viewResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
         if (!viewResult.Success) return Fail(viewResult.Error);
 
         List<(string name, string url)> assets;
@@ -203,13 +225,15 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("要上传的文件路径(多个用逗号分隔)", Required = true)] string files,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
+            => GhReleaseUploadCoreAsync(client, owner, repoName, tag, files, cancellationToken)).ConfigureAwait(false);
 
-        var viewResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
+    /// <summary>
+    /// GhReleaseUpload 核心逻辑 — 走 uploads.github.com 二进制上传
+    /// </summary>
+    private async Task<ToolResult> GhReleaseUploadCoreAsync(IGitHubApiClient client, string owner, string repoName, string tag, string files, CancellationToken cancellationToken) {
+        var viewResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
         if (!viewResult.Success) return Fail(viewResult.Error);
 
         long releaseId;
@@ -226,7 +250,7 @@ public partial class GitHubToolHandlers {
             var fileName = Path.GetFileName(filePath);
             try {
                 await using var fileStream = _fs.OpenRead(filePath);
-                var uploadResult = await _apiClient.UploadAssetAsync(owner, repoName, releaseId, fileName, fileStream, cancellationToken).ConfigureAwait(false);
+                var uploadResult = await client.UploadAssetAsync(owner, repoName, releaseId, fileName, fileStream, cancellationToken).ConfigureAwait(false);
                 if (uploadResult.Success) {
                     successCount++;
                     sb.AppendLine($"[OK] {fileName}");
@@ -256,24 +280,18 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否跳过确认(默认 true)", Required = false)] bool? yes = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var viewResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
-        if (!viewResult.Success) return Fail(viewResult.Error);
-
-        long releaseId;
-        try {
-            using var doc = JsonDocument.Parse(viewResult.Body);
-            releaseId = doc.RootElement.GetProperty("id").GetInt64();
-        } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
-
-        var result = await _apiClient.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body, $"已删除 Release {tag}") : Fail(result.Error);
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var viewResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
+            if (!viewResult.Success) return Fail(viewResult.Error);
+            long releaseId;
+            try {
+                using var doc = JsonDocument.Parse(viewResult.Body);
+                releaseId = doc.RootElement.GetProperty("id").GetInt64();
+            } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
+            var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已删除 Release {tag}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 简单通配符匹配 — 支持 * 通配

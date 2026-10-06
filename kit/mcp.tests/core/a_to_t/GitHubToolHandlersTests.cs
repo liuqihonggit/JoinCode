@@ -280,6 +280,46 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task PrDiff_WithNameOnly_ReturnsOnlyFileNames() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"diff_url":"https://example.com/diff"}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = "diff --git a/file1.txt b/file1.txt\nindex 123..456\n--- a/file1.txt\n+++ b/file1.txt\n@@ -1 +1 @@\n-old\n+new\ndiff --git a/file2.cs b/file2.cs\nindex 123..456\n--- a/file2.cs\n+++ b/file2.cs\n@@ -1 +1 @@\n-old\n+new\n",
+        });
+
+        var result = await _handler.GhPrDiffAsync("42", name_only: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("file1.txt");
+        text.Should().Contain("file2.cs");
+        text.Should().NotContain("diff --git");
+        text.Should().NotContain("--- a/");
+    }
+
+    [Fact]
+    public async Task PrDiff_WithExclude_FiltersMatchingFiles() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"diff_url":"https://example.com/diff"}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = "diff --git a/file1.txt b/file1.txt\nindex 123..456\n--- a/file1.txt\n+++ b/file1.txt\n@@ -1 +1 @@\n-old\n+new\ndiff --git a/file2.cs b/file2.cs\nindex 123..456\n--- a/file2.cs\n+++ b/file2.cs\n@@ -1 +1 @@\n-old\n+new\n",
+        });
+
+        var result = await _handler.GhPrDiffAsync("42", exclude: "*.txt", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().NotContain("file1.txt");
+        text.Should().Contain("file2.cs");
+    }
+
+    [Fact]
     public async Task PrCreate_Failure_ReturnsError() {
         _api.NextResponse = new GitHubApiResponse {
             Success = false,

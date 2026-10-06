@@ -79,11 +79,14 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 查看 PR diff — 调 REST API 获取 PR 的 diff_url 后下载 patch 文本
+    /// 查看 PR diff — 调 REST API 获取 PR 的 diff_url 后下载 patch 文本，支持 name-only/exclude 过滤
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrDiff, "查看 PR diff(patch 文本)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhPrDiff, "查看 PR diff(patch 文本,支持 name-only/exclude 过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrDiffAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter("只显示文件名(可选)", Required = false)] bool? name_only = null,
+        [McpToolParameter("排除文件(可选,glob 模式,多个用逗号)", Required = false)] string? exclude = null,
+        [McpToolParameter("patch 格式(可选,默认即 patch)", Required = false)] bool? patch = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -101,8 +104,79 @@ public partial class GitHubToolHandlers {
             }
             if (string.IsNullOrEmpty(diffUrl)) return Fail("无法从 PR 响应中解析 diff_url");
             var diffResult = await client.SendAsync(HttpMethod.Get, diffUrl, ct: cancellationToken).ConfigureAwait(false);
-            return diffResult.Success ? Ok(diffResult.Body) : Fail(diffResult.Error);
+            if (!diffResult.Success) return Fail(diffResult.Error);
+            var diffText = diffResult.Body;
+            if (!string.IsNullOrWhiteSpace(exclude)) diffText = FilterDiffByExclude(diffText, exclude!);
+            if (name_only == true) diffText = ExtractDiffFileNames(diffText);
+            return Ok(diffText);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 从 diff 文本提取文件名列表 — 解析每段 diff --git a/path b/path 头
+    /// </summary>
+    private static string ExtractDiffFileNames(string diffText) {
+        var sb = new StringBuilder(256);
+        foreach (var line in diffText.Split('\n')) {
+            if (line.StartsWith("diff --git ", StringComparison.Ordinal)) {
+                var filePath = ExtractFilePathFromDiffHeader(line);
+                if (filePath is not null) sb.AppendLine(filePath);
+            }
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 从 diff --git a/path b/path 头提取文件路径
+    /// </summary>
+    private static string? ExtractFilePathFromDiffHeader(string line) {
+        var rest = line.AsSpan("diff --git ".Length);
+        var spaceIdx = rest.IndexOf(' ');
+        if (spaceIdx > 0) {
+            var path = rest.Slice(spaceIdx + 1);
+            if (path.StartsWith("b/")) path = path.Slice(2);
+            return path.ToString();
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 按 glob 模式过滤 diff 段 — 排除文件名匹配任一模式的段
+    /// </summary>
+    private static string FilterDiffByExclude(string diffText, string excludePatterns) {
+        var patterns = excludePatterns.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var segments = new List<(string FileName, string Content)>();
+        var currentSb = new StringBuilder();
+        string? currentFile = null;
+        foreach (var line in diffText.Split('\n')) {
+            if (line.StartsWith("diff --git ", StringComparison.Ordinal)) {
+                if (currentSb.Length > 0 && currentFile is not null) segments.Add((currentFile, currentSb.ToString()));
+                currentSb = new StringBuilder();
+                currentFile = ExtractFilePathFromDiffHeader(line);
+            }
+            currentSb.AppendLine(line);
+        }
+        if (currentSb.Length > 0 && currentFile is not null) segments.Add((currentFile, currentSb.ToString()));
+        var result = new StringBuilder();
+        foreach (var (fileName, content) in segments) {
+            if (!patterns.Any(p => MatchesGlob(fileName, p))) result.Append(content);
+        }
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// 简单 glob 匹配 — * 匹配任意字符序列, ? 匹配单字符(O(n) 无 GC)
+    /// </summary>
+    private static bool MatchesGlob(string path, string pattern) {
+        int p = 0, g = 0, starP = -1, starG = -1;
+        while (p < path.Length) {
+            if (g < pattern.Length && (pattern[g] == path[p] || pattern[g] == '?')) { p++; g++; }
+            else if (g < pattern.Length && pattern[g] == '*') { starG = g; starP = p; g++; }
+            else if (starG != -1) { g = starG + 1; p = starP + 1; starP++; }
+            else return false;
+        }
+        while (g < pattern.Length && pattern[g] == '*') g++;
+        return g == pattern.Length;
+    }
 
     /// <summary>
     /// 查看 PR 的 CI 检查状态 — 调 REST API 获取 check-runs，正确处理 skipping 语义（非失败）

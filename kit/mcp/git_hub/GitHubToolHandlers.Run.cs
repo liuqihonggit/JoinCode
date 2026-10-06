@@ -478,4 +478,18 @@ public partial class GitHubToolHandlers {
         var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(pattern).Replace("\\*", ".*") + "$";
         return System.Text.RegularExpressions.Regex.IsMatch(name, regexPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
+
+    /// <summary>
+    /// 删除 Actions Run — 调 REST API DELETE
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRunDelete, "删除 Actions Run", "github")]
+    public async Task<ToolResult> GhRunDeleteAsync(
+        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已删除 Run {run_id}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 }

@@ -233,4 +233,36 @@ public partial class GitHubToolHandlers {
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已删除 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 锁定 Issue — 调 REST API PUT issues/{number}/lock，可选锁定原因
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhIssueLock, "锁定 Issue(可选原因)", "github")]
+    public async Task<ToolResult> GhIssueLockAsync(
+        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter("锁定原因(off-topic/resolved/spam/too heated,可选)", Required = false)] string? reason = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var number = ParseNumberFromRef(issue_number);
+            var body = string.IsNullOrWhiteSpace(reason) ? null : $$"""{"lock_reason":"{{reason}}"}""";
+            var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/issues/{number}/lock", body, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已锁定 Issue {number}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 解锁 Issue — 调 REST API DELETE issues/{number}/lock
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhIssueUnlock, "解锁 Issue", "github")]
+    public async Task<ToolResult> GhIssueUnlockAsync(
+        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var number = ParseNumberFromRef(issue_number);
+            var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/issues/{number}/lock", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已解锁 Issue {number}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 }

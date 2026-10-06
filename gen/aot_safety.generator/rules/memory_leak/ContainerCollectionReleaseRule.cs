@@ -159,7 +159,7 @@ public sealed class ContainerCollectionReleaseRule : AnalyzerRuleBase<ContainerC
             if (methodSymbol is null) continue;
             if (methodSymbol.Name == "WhenAll" && methodSymbol.ContainingType?.Name == "Task") {
                 if (invocation.ArgumentList.Arguments.Count > 0
-                    && ReferencesField(invocation.ArgumentList.Arguments[0].Expression, field, semanticModel, ct))
+                    && ReferencesFieldOrLocal(invocation.ArgumentList.Arguments[0].Expression, field, fieldBackedLocals, semanticModel, ct))
                     return true;
             }
             if (!visited.Add(methodSymbol)) continue;
@@ -184,11 +184,11 @@ public sealed class ContainerCollectionReleaseRule : AnalyzerRuleBase<ContainerC
     }
 
     private static bool ReferencesFieldOrLocal(ExpressionSyntax expr, IFieldSymbol field, HashSet<ISymbol> fieldBackedLocals, SemanticModel semanticModel, CancellationToken ct) {
-        if (expr is MemberAccessExpressionSyntax ma && ma.Name.Identifier.ValueText == "Values")
-            return ReferencesFieldOrLocal(ma.Expression, field, fieldBackedLocals, semanticModel, ct);
-        var symbol = semanticModel.GetSymbolInfo(expr, ct).Symbol;
-        if (SymbolEqualityComparer.Default.Equals(symbol, field)) return true;
-        if (symbol is not null && fieldBackedLocals.Contains(symbol)) return true;
+        foreach (var node in expr.DescendantNodesAndSelf().OfType<ExpressionSyntax>()) {
+            var symbol = semanticModel.GetSymbolInfo(node, ct).Symbol;
+            if (SymbolEqualityComparer.Default.Equals(symbol, field)) return true;
+            if (symbol is not null && fieldBackedLocals.Contains(symbol)) return true;
+        }
         return false;
     }
 }

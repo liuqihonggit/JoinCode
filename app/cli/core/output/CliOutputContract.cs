@@ -19,14 +19,14 @@ public sealed class CliOutputContract {
     }
 
     /// <summary>
-    /// 写入成功数据到 stdout
+    /// 写入成功数据到 stdout — 泛型版本，编译期保证 T 已注册 JsonSerializable
     /// JSON 模式: 输出 {ok:true, data:..., meta:...}
     /// 文本模式: 直接输出 data 的 ToString()
     /// </summary>
-    public void WriteData(object? data, CliOutputMeta? meta = null) {
+    public void WriteData<T>(T data, CliOutputMeta? meta = null) {
         if (_jsonMode) {
-            var envelope = CliOutputEnvelope.Success(data, meta);
-            var json = RelaxedJsonSerializer.Serialize(envelope, _jsonContext);
+            var envelope = CliOutputEnvelope<T>.Success(data, meta);
+            var json = envelope.ToJsonString();
             Console.WriteLine(json);
         } else {
             if (data is not null)

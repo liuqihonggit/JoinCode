@@ -14,16 +14,12 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
-        var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases", query: query, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(SummarizeReleaseList(result.Body)) : Fail(result.Error);
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+            var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
+            var result = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases", query: query, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? Ok(SummarizeReleaseList(result.Body)) : Fail(result.Error);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 精简 Release 列表 JSON — 只保留关键字段，去掉冗余 URL 和 author 对象，便于人类浏览和 AI 解析
@@ -73,15 +69,11 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body) : Fail(result.Error);
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+            var result = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? Ok(result.Body) : Fail(result.Error);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 创建 Release — 支持 draft/prerelease、目标 commit/branch，调 REST API POST
@@ -96,25 +88,20 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("目标 commit/branch(可选)", Required = false)] string? target = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var bodySb = new StringBuilder();
-        bodySb.Append('{');
-        bodySb.Append("\"tag_name\":" + JsonEscapeString(tag));
-        if (!string.IsNullOrWhiteSpace(title)) bodySb.Append(",\"name\":" + JsonEscapeString(title));
-        if (!string.IsNullOrWhiteSpace(notes)) bodySb.Append(",\"body\":" + JsonEscapeString(notes));
-        if (draft == true) bodySb.Append(",\"draft\":true");
-        if (prerelease == true) bodySb.Append(",\"prerelease\":true");
-        if (!string.IsNullOrWhiteSpace(target)) bodySb.Append(",\"target_commitish\":" + JsonEscapeString(target));
-        bodySb.Append('}');
-
-        var result = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases", bodySb.ToString(), ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body, $"已创建 Release {tag}") : Fail(result.Error);
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+            var bodySb = new StringBuilder();
+            bodySb.Append('{');
+            bodySb.Append("\"tag_name\":" + JsonEscapeString(tag));
+            if (!string.IsNullOrWhiteSpace(title)) bodySb.Append(",\"name\":" + JsonEscapeString(title));
+            if (!string.IsNullOrWhiteSpace(notes)) bodySb.Append(",\"body\":" + JsonEscapeString(notes));
+            if (draft == true) bodySb.Append(",\"draft\":true");
+            if (prerelease == true) bodySb.Append(",\"prerelease\":true");
+            if (!string.IsNullOrWhiteSpace(target)) bodySb.Append(",\"target_commitish\":" + JsonEscapeString(target));
+            bodySb.Append('}');
+            var result = await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases", bodySb.ToString(), ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? Ok(result.Body, $"已创建 Release {tag}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 下载 Release asset — 复用 IDownloader 多线程分片 + 断点续传，支持 asset 名称过滤和并发数控制
@@ -256,24 +243,18 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否跳过确认(默认 true)", Required = false)] bool? yes = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var viewResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
-        if (!viewResult.Success) return Fail(viewResult.Error);
-
-        long releaseId;
-        try {
-            using var doc = JsonDocument.Parse(viewResult.Body);
-            releaseId = doc.RootElement.GetProperty("id").GetInt64();
-        } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
-
-        var result = await _apiClient.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body, $"已删除 Release {tag}") : Fail(result.Error);
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+            var viewResult = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
+            if (!viewResult.Success) return Fail(viewResult.Error);
+            long releaseId;
+            try {
+                using var doc = JsonDocument.Parse(viewResult.Body);
+                releaseId = doc.RootElement.GetProperty("id").GetInt64();
+            } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
+            var result = await _apiClient!.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? Ok(result.Body, $"已删除 Release {tag}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 简单通配符匹配 — 支持 * 通配

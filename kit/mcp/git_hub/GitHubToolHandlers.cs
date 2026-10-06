@@ -98,6 +98,32 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// GitHub REST API 客户端未配置错误
+    /// </summary>
+    internal static ToolResult ApiClientNotConfigured() =>
+        ToolResultBuilder.Error().WithText("GitHub REST API 客户端未配置（IGitHubApiClient 未注入）").Build();
+
+    /// <summary>
+    /// 仓库 owner/repo 解析失败错误
+    /// </summary>
+    internal static ToolResult RepoNotResolved() =>
+        ToolResultBuilder.Error().WithText("无法解析仓库 owner/repo（请传 repo 参数或确保当前目录是 GitHub 仓库）").Build();
+
+    /// <summary>
+    /// 守卫编排模板 — client 检查 + owner/repo 解析,失败短路返回错误,成功执行 apiCall(owner, repo)
+    /// <para>消除 21 处重复的 client 检查 + ResolveOwnerRepoAsync 样板,主方法只写 API 调用核心逻辑</para>
+    /// </summary>
+    private async Task<ToolResult> ExecuteGhAsync(
+        string? repo, string? workingDir, CancellationToken ct,
+        Func<string, string, Task<ToolResult>> apiCall) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var resolved = await ResolveOwnerRepoAsync(repo, workingDir, ct).ConfigureAwait(false);
+        if (resolved is null) return RepoNotResolved();
+        var (owner, repoName) = resolved.Value;
+        return await apiCall(owner, repoName).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// 精简 PR JSON 输出 — 提取关键字段构建人类可读文本
     /// </summary>
     private static string SummarizePr(string json) {

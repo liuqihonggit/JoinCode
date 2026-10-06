@@ -13,26 +13,18 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var cacheKey = BuildGhCacheKey("gh_repo_view", $"{owner}/{repoName}");
-
-        if (verbose == true) {
-            var cached = TryGetGhCache(cacheKey);
-            if (cached is not null)
-                return Ok(cached);
-        }
-
-        var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
-
-        SaveGhCache(cacheKey, result.Body);
-        return Ok(verbose == true ? result.Body : SummarizeRepo(result.Body));
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+            var cacheKey = BuildGhCacheKey("gh_repo_view", $"{owner}/{repoName}");
+            if (verbose == true) {
+                var cached = TryGetGhCache(cacheKey);
+                if (cached is not null) return Ok(cached);
+            }
+            var result = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(result.Error);
+            SaveGhCache(cacheKey, result.Body);
+            return Ok(verbose == true ? result.Body : SummarizeRepo(result.Body));
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 克隆仓库 — 支持浅克隆（--depth=1），走本地 git 命令（非 API）

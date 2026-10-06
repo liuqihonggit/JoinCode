@@ -15,34 +15,26 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("分支名(默认 main)", Required = false)] string? branch = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-        var number = ParsePrNumber(pr_number);
-        var branchName = string.IsNullOrWhiteSpace(branch) ? "main" : branch;
-
-        var headSha = await GetPrHeadShaAsync(owner, repoName, number, cancellationToken).ConfigureAwait(false);
-        if (headSha is null) return Fail("无法从 PR 响应中解析 head.sha");
-
-        var checkNames = await GetCheckNamesAsync(owner, repoName, headSha, cancellationToken).ConfigureAwait(false);
-        if (checkNames is null) return Fail("解析 check-runs 失败");
-        if (checkNames.Count == 0) return Fail("PR 的 CI 没有任何 check-runs, 无法同步分支保护规则");
-
-        var (strict, oldContexts) = await GetCurrentRequiredStatusChecksAsync(owner, repoName, branchName, cancellationToken).ConfigureAwait(false);
-        if (oldContexts is null) return Fail($"分支 '{branchName}' 没有分支保护规则或 required_status_checks 未配置, 请先创建分支保护规则");
-
-        var putBody = BuildRequiredStatusChecksBody(strict, checkNames);
-        var putResult = await _apiClient.SendAsync(
-            HttpMethod.Put,
-            $"repos/{owner}/{repoName}/branches/{branchName}/protection/required_status_checks",
-            body: putBody,
-            ct: cancellationToken).ConfigureAwait(false);
-        if (!putResult.Success) return Fail(putResult.Error);
-
-        return Ok(BuildSyncSummary(owner, repoName, branchName, oldContexts, checkNames));
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+            var number = ParsePrNumber(pr_number);
+            var branchName = string.IsNullOrWhiteSpace(branch) ? "main" : branch;
+            var headSha = await GetPrHeadShaAsync(owner, repoName, number, cancellationToken).ConfigureAwait(false);
+            if (headSha is null) return Fail("无法从 PR 响应中解析 head.sha");
+            var checkNames = await GetCheckNamesAsync(owner, repoName, headSha, cancellationToken).ConfigureAwait(false);
+            if (checkNames is null) return Fail("解析 check-runs 失败");
+            if (checkNames.Count == 0) return Fail("PR 的 CI 没有任何 check-runs, 无法同步分支保护规则");
+            var (strict, oldContexts) = await GetCurrentRequiredStatusChecksAsync(owner, repoName, branchName, cancellationToken).ConfigureAwait(false);
+            if (oldContexts is null) return Fail($"分支 '{branchName}' 没有分支保护规则或 required_status_checks 未配置, 请先创建分支保护规则");
+            var putBody = BuildRequiredStatusChecksBody(strict, checkNames);
+            var putResult = await _apiClient!.SendAsync(
+                HttpMethod.Put,
+                $"repos/{owner}/{repoName}/branches/{branchName}/protection/required_status_checks",
+                body: putBody,
+                ct: cancellationToken).ConfigureAwait(false);
+            if (!putResult.Success) return Fail(putResult.Error);
+            return Ok(BuildSyncSummary(owner, repoName, branchName, oldContexts, checkNames));
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 获取 PR 的 head SHA

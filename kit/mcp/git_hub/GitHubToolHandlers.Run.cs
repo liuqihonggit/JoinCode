@@ -15,23 +15,17 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("分支过滤(可选)", Required = false)] string? branch = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 20).ToString() };
-        if (!string.IsNullOrWhiteSpace(status)) query["status"] = status;
-        if (!string.IsNullOrWhiteSpace(branch)) query["branch"] = branch;
-
-        var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs", query: query, ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
-
-        var summarized = GitHubRunListSummarizer.SummarizeRunList(result.Body);
-        var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
-        return hasFailure ? Ok(summarized + GitHubRunLogHints.RunListFailureHint) : Ok(summarized);
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+            var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 20).ToString() };
+            if (!string.IsNullOrWhiteSpace(status)) query["status"] = status;
+            if (!string.IsNullOrWhiteSpace(branch)) query["branch"] = branch;
+            var result = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs", query: query, ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(result.Error);
+            var summarized = GitHubRunListSummarizer.SummarizeRunList(result.Body);
+            var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
+            return hasFailure ? Ok(summarized + GitHubRunLogHints.RunListFailureHint) : Ok(summarized);
+        }).ConfigureAwait(false);
 
 
     /// <summary>
@@ -248,18 +242,14 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否只重跑失败的 job(默认 true)", Required = false)] bool? failed_only = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var path = failed_only != false
-            ? $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-failed-jobs"
-            : $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun";
-        var result = await _apiClient.SendAsync(HttpMethod.Post, path, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body, $"已重跑 Run {run_id}") : Fail(result.Error);
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+            var path = failed_only != false
+                ? $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-failed-jobs"
+                : $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun";
+            var result = await _apiClient!.SendAsync(HttpMethod.Post, path, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? Ok(result.Body, $"已重跑 Run {run_id}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 取消 Actions Run — 调 REST API POST cancel
@@ -269,15 +259,11 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("Run ID", Required = true)] string run_id,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default) {
-        if (_apiClient is null) return ApiClientNotConfigured();
-        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
-        if (resolved is null) return RepoNotResolved();
-        var (owner, repoName) = resolved.Value;
-
-        var result = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/runs/{run_id}/cancel", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body, $"已取消 Run {run_id}") : Fail(result.Error);
-    }
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
+            var result = await _apiClient!.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/runs/{run_id}/cancel", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? Ok(result.Body, $"已取消 Run {run_id}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 等待 Actions Run 完成 — 指数退避轮询直到 status==completed,通过 onProgress 报告进度,完成才返回唤醒 LLM

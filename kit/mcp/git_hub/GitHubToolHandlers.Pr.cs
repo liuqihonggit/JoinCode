@@ -315,48 +315,72 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 合并 PR — 支持 squash/merge/rebase 方式和 auto-merge（CI 通过后自动合并），可选删除分支
+    /// 合并 PR — 支持 squash/merge/rebase 方式、auto-merge、自定义提交标题/正文、禁用 auto-merge、可选删除分支
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrMerge, "合并 PR(支持 squash/merge/rebase + auto-merge)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrMerge, "合并 PR(支持 squash/merge/rebase + auto-merge + 自定义提交信息)", "github")]
     public async Task<ToolResult> GhPrMergeAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("合并方式(squash/merge/rebase,默认 squash)", Required = false)] string? merge_method = null,
         [McpToolParameter("是否启用 auto-merge(CI 通过后自动合并)", Required = false)] bool? auto_merge = null,
+        [McpToolParameter("禁用 auto-merge(可选)", Required = false)] bool? disable_auto = null,
+        [McpToolParameter("合并提交标题(可选)", Required = false)] string? subject = null,
+        [McpToolParameter("合并提交正文(可选)", Required = false)] string? body = null,
+        [McpToolParameter("管理员强制合并(可选,绕过 required checks)", Required = false)] bool? admin = null,
         [McpToolParameter("合并后是否删除分支", Required = false)] bool? delete_branch = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
-            => GhPrMergeCoreAsync(client, owner, repoName, pr_number, merge_method, auto_merge, delete_branch, cancellationToken)).ConfigureAwait(false);
+            => GhPrMergeCoreAsync(client, owner, repoName, pr_number, merge_method, auto_merge, disable_auto, subject, body, delete_branch, cancellationToken)).ConfigureAwait(false);
 
     /// <summary>
-    /// GhPrMerge 核心逻辑 — 支持 squash/merge/rebase + auto-merge,可选删除分支
+    /// GhPrMerge 核心逻辑 — 支持 squash/merge/rebase + auto-merge/disable-auto + 自定义提交信息 + 可选删除分支
     /// </summary>
-    private async Task<ToolResult> GhPrMergeCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, string? mergeMethod, bool? autoMerge, bool? deleteBranch, CancellationToken ct) {
+    private async Task<ToolResult> GhPrMergeCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, string? mergeMethod, bool? autoMerge, bool? disableAuto, string? subject, string? body, bool? deleteBranch, CancellationToken ct) {
         var number = ParseNumberFromRef(prNumber);
         var method = string.IsNullOrWhiteSpace(mergeMethod) ? "squash" : mergeMethod;
+        if (disableAuto == true) {
+            var (nodeId, nodeErr) = await GetPrNodeIdAsync(client, owner, repoName, number, ct).ConfigureAwait(false);
+            if (nodeErr is not null) return Fail(nodeErr);
+            var graphqlBody = $$"""{"query":"mutation { disablePullRequestAutoMerge(input: {pullRequestId: \"{{nodeId}}\"}) { pullRequest { number } } }"}""";
+            var graphqlResult = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: ct).ConfigureAwait(false);
+            if (!graphqlResult.Success) return Fail(graphqlResult.Error);
+            return Ok($"已为 PR {number} 禁用 auto-merge");
+        }
         if (autoMerge == true) {
-            var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
-            if (!prResult.Success) return Fail(prResult.Error);
-            string? nodeId;
-            try {
-                using var doc = JsonDocument.Parse(prResult.Body);
-                nodeId = doc.RootElement.GetProperty("node_id").GetString();
-            } catch (Exception ex) { return Fail($"解析 PR node_id 失败: {ex.Message}"); }
-            if (string.IsNullOrEmpty(nodeId)) return Fail("无法从 PR 响应中解析 node_id");
+            var (nodeId, nodeErr) = await GetPrNodeIdAsync(client, owner, repoName, number, ct).ConfigureAwait(false);
+            if (nodeErr is not null) return Fail(nodeErr);
             var graphqlMethod = method.ToUpperInvariant() switch { "SQUASH" => "SQUASH", "REBASE" => "REBASE", _ => "MERGE" };
             var graphqlBody = $$"""{"query":"mutation { enablePullRequestAutoMerge(input: {pullRequestId: \"{{nodeId}}\", mergeMethod: {{graphqlMethod}}}) { pullRequest { number } } }"}""";
             var graphqlResult = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: ct).ConfigureAwait(false);
             if (!graphqlResult.Success) return Fail(graphqlResult.Error);
             return Ok($"已为 PR {number} 启用 auto-merge（{method}）");
         }
-        var body = $$"""{"merge_method":"{{method}}"}""";
-        var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/pulls/{number}/merge", body, ct: ct).ConfigureAwait(false);
+        var mergeBody = new GitHubJsonObjectBuilder()
+            .String("merge_method", method)
+            .StringIf("commit_title", subject)
+            .StringIf("commit_message", body)
+            .Build();
+        var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/pulls/{number}/merge", mergeBody, ct: ct).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
         if (deleteBranch == true) {
             await TryDeleteBranchAsync(client, owner, repoName, number, ct).ConfigureAwait(false);
         }
         return OkBrief(result.Body, "PR 合并成功");
+    }
+
+    /// <summary>
+    /// 获取 PR 的 node_id — 用于 GraphQL mutation（auto-merge enable/disable）
+    /// </summary>
+    private async Task<(string NodeId, string? Error)> GetPrNodeIdAsync(IGitHubApiClient client, string owner, string repoName, string number, CancellationToken ct) {
+        var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
+        if (!prResult.Success) return ("", prResult.Error);
+        try {
+            using var doc = JsonDocument.Parse(prResult.Body);
+            var nodeId = doc.RootElement.GetProperty("node_id").GetString();
+            if (string.IsNullOrEmpty(nodeId)) return ("", "无法从 PR 响应中解析 node_id");
+            return (nodeId, null);
+        } catch (Exception ex) { return ("", $"解析 PR node_id 失败: {ex.Message}"); }
     }
 
     /// <summary>

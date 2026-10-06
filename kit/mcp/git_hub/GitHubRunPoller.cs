@@ -1,109 +1,159 @@
 namespace McpToolDispatch;
 
 /// <summary>
-/// GitHub Actions 轮询器 — 指数退避轮询直到 CI 完成,通过 onProgress 报告进度,完成才返回唤醒 LLM
+/// GitHub Actions 轮询器 — 状态机驱动指数退避轮询,完成才返回唤醒 LLM
 /// <para>替代 LLM 的 sleep+轮询模式:工具内部阻塞等待,一次 LLM 往返拿到最终结果</para>
-/// <para>信号模型:轮询发现 status==completed 触发返回(唤醒 LLM),非 sleep 固定等待</para>
-/// <para>指数退避:初始间隔 ×1.5 每次,上限 60s,平衡 API 速率限制与响应速度</para>
+/// <para>状态机: Polling → Completed/Timeout/Error(终态),Transition 为纯函数</para>
+/// <para>指数退避: 初始间隔 ×1.5 每次,上限 60s</para>
+/// <para>公共引擎 PollUntilAsync 消除两个 wait 方法的重复,各方法只传 poll + progressMessage</para>
 /// </summary>
 internal static class GitHubRunPoller {
     private static readonly TimeSpan MaxPollInterval = TimeSpan.FromSeconds(60);
 
+    // === 公共轮询引擎(状态机驱动) ===
+
     /// <summary>
-    /// 轮询 Actions Run 直到 status==completed、超时或取消
+    /// 状态机轮询引擎 — 单一循环编排,状态转换/退避/进度报告均为纯函数
+    /// <para>循环体: poll → transition → (终态返回 / 进度报告 → 退避延迟)</para>
     /// </summary>
-    /// <param name="apiClient">GitHub API 客户端</param>
-    /// <param name="owner">仓库 owner</param>
-    /// <param name="repo">仓库名</param>
-    /// <param name="runId">Run ID</param>
+    /// <typeparam name="T">轮询值类型(RunPollData/PrPollData)</typeparam>
+    /// <param name="pollOnce">单次轮询 IO 操作,返回 (Kind, Value, Error)</param>
+    /// <param name="progressMessage">从轮询值提取进度核心消息(不含轮询次数,引擎附加)</param>
     /// <param name="timeout">总超时</param>
     /// <param name="initialInterval">初始轮询间隔</param>
     /// <param name="onProgress">进度回调(可为空)</param>
     /// <param name="progressType">进度类型标识</param>
     /// <param name="ct">取消令牌</param>
-    /// <returns>轮询结果(Completed/Timeout/Error)</returns>
+    /// <returns>(State, Value, Error, PollCount, ElapsedMs)</returns>
+    private static async Task<(PollState State, T Value, string? Error, int PollCount, long ElapsedMs)> PollUntilAsync<T>(
+        Func<CancellationToken, Task<(PollOutcomeKind Kind, T Value, string? Error)>> pollOnce,
+        Func<T, string> progressMessage,
+        TimeSpan timeout, TimeSpan initialInterval,
+        ToolProgressCallback? onProgress, string progressType,
+        CancellationToken ct) {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        var interval = initialInterval;
+        var pollCount = 0;
+        var startTime = Environment.TickCount64;
+
+        while (true) {
+            ct.ThrowIfCancellationRequested();
+            pollCount++;
+
+            var (kind, value, error) = await pollOnce(ct).ConfigureAwait(false);
+            var elapsedMs = Environment.TickCount64 - startTime;
+            var state = Transition(kind, deadline);
+
+            if (state is not PollState.Polling)
+                return (state, value, error, pollCount, elapsedMs);
+
+            ReportProgress(onProgress, progressType, progressMessage(value), pollCount, elapsedMs);
+            await Task.Delay(interval, ct).ConfigureAwait(false);
+            interval = ExponentialBackoff(interval);
+        }
+    }
+
+    /// <summary>状态转换 — 纯函数,无 IO</summary>
+    private static PollState Transition(PollOutcomeKind kind, DateTimeOffset deadline) => kind switch {
+        PollOutcomeKind.Error => PollState.Error,
+        PollOutcomeKind.Completed => PollState.Completed,
+        _ => DateTimeOffset.UtcNow >= deadline ? PollState.Timeout : PollState.Polling
+    };
+
+    /// <summary>指数退避 — 纯函数</summary>
+    private static TimeSpan ExponentialBackoff(TimeSpan interval)
+        => TimeSpan.FromTicks(Math.Min(interval.Ticks * 3 / 2, MaxPollInterval.Ticks));
+
+    private static void ReportProgress(
+        ToolProgressCallback? onProgress, string progressType,
+        string coreMessage, int pollCount, long elapsedMs) {
+        if (onProgress is null) return;
+        onProgress(new ToolProgressData {
+            ProgressType = progressType,
+            ToolUseId = $"{progressType}-{pollCount}",
+            Message = $"{coreMessage} (第 {pollCount} 次轮询, 已等待 {elapsedMs / 1000}s)",
+            ElapsedTimeMs = elapsedMs,
+        });
+    }
+
+    // === Run 等待 ===
+
+    /// <summary>
+    /// 轮询 Actions Run 直到 status==completed、超时或取消
+    /// </summary>
     internal static async Task<RunWaitResult> WaitForRunCompletionAsync(
         IGitHubApiClient apiClient, string owner, string repo, string runId,
         TimeSpan timeout, TimeSpan initialInterval,
         ToolProgressCallback? onProgress, string progressType,
         CancellationToken ct) {
-        var deadline = DateTimeOffset.UtcNow + timeout;
-        var interval = initialInterval;
-        var pollCount = 0;
-        var startTime = Environment.TickCount64;
+        var (state, value, error, pollCount, elapsedMs) = await PollUntilAsync(
+            ct => PollRunOnceAsync(apiClient, owner, repo, runId, ct),
+            v => $"Run {runId}: {v.Status}",
+            timeout, initialInterval, onProgress, progressType, ct).ConfigureAwait(false);
 
-        while (true) {
-            ct.ThrowIfCancellationRequested();
-            pollCount++;
-
-            var result = await apiClient.SendAsync(
-                HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}", ct: ct).ConfigureAwait(false);
-            if (!result.Success)
-                return RunWaitResult.FromError(result.Error, pollCount);
-
-            var (status, conclusion) = ParseRunStatus(result.Body);
-            var elapsedMs = Environment.TickCount64 - startTime;
-
-            if (status == "completed")
-                return RunWaitResult.Completed(conclusion ?? "unknown", result.Body, pollCount, elapsedMs);
-
-            if (DateTimeOffset.UtcNow >= deadline)
-                return RunWaitResult.FromTimeout(status ?? "unknown", result.Body, pollCount, elapsedMs);
-
-            ReportProgress(onProgress, progressType, runId, status ?? "unknown", pollCount, elapsedMs);
-            await Task.Delay(interval, ct).ConfigureAwait(false);
-            interval = TimeSpan.FromTicks(Math.Min(interval.Ticks * 3 / 2, MaxPollInterval.Ticks));
-        }
+        return state switch {
+            PollState.Completed => RunWaitResult.Completed(value.Conclusion ?? "unknown", value.Body, pollCount, elapsedMs),
+            PollState.Timeout => RunWaitResult.FromTimeout(value.Status, value.Body, pollCount, elapsedMs),
+            _ => RunWaitResult.FromError(error ?? "轮询失败", pollCount)
+        };
     }
+
+    /// <summary>
+    /// 单次 Run 轮询 — IO 操作,返回 (Kind, Value, Error)
+    /// </summary>
+    private static async Task<(PollOutcomeKind, RunPollData, string?)> PollRunOnceAsync(
+        IGitHubApiClient apiClient, string owner, string repo, string runId, CancellationToken ct) {
+        var result = await apiClient.SendAsync(
+            HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}", ct: ct).ConfigureAwait(false);
+        if (!result.Success)
+            return (PollOutcomeKind.Error, default!, result.Error);
+
+        var (status, conclusion) = ParseRunStatus(result.Body);
+        var data = new RunPollData { Status = status ?? "unknown", Conclusion = conclusion, Body = result.Body };
+        var kind = status == "completed" ? PollOutcomeKind.Completed : PollOutcomeKind.Continue;
+        return (kind, data, null);
+    }
+
+    // === PR checks 等待 ===
 
     /// <summary>
     /// 轮询 PR 所有 check-runs 直到全部 status==completed、超时或取消
     /// </summary>
-    /// <param name="apiClient">GitHub API 客户端</param>
-    /// <param name="owner">仓库 owner</param>
-    /// <param name="repo">仓库名</param>
-    /// <param name="headSha">PR head commit SHA</param>
-    /// <param name="prNumber">PR 编号(用于进度报告)</param>
-    /// <param name="timeout">总超时</param>
-    /// <param name="initialInterval">初始轮询间隔</param>
-    /// <param name="onProgress">进度回调(可为空)</param>
-    /// <param name="progressType">进度类型标识</param>
-    /// <param name="ct">取消令牌</param>
-    /// <returns>轮询结果(Completed/Timeout/Error + 各 check 汇总)</returns>
     internal static async Task<PrWaitResult> WaitForPrChecksCompletionAsync(
         IGitHubApiClient apiClient, string owner, string repo, string headSha, string prNumber,
         TimeSpan timeout, TimeSpan initialInterval,
         ToolProgressCallback? onProgress, string progressType,
         CancellationToken ct) {
-        var deadline = DateTimeOffset.UtcNow + timeout;
-        var interval = initialInterval;
-        var pollCount = 0;
-        var startTime = Environment.TickCount64;
+        var (state, value, error, pollCount, elapsedMs) = await PollUntilAsync(
+            ct => PollPrChecksOnceAsync(apiClient, owner, repo, headSha, ct),
+            v => $"PR #{prNumber}: {v.Summary}",
+            timeout, initialInterval, onProgress, progressType, ct).ConfigureAwait(false);
 
-        while (true) {
-            ct.ThrowIfCancellationRequested();
-            pollCount++;
-
-            var result = await apiClient.SendAsync(
-                HttpMethod.Get, $"repos/{owner}/{repo}/commits/{headSha}/check-runs",
-                query: new Dictionary<string, string> { ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
-            if (!result.Success)
-                return PrWaitResult.FromError(result.Error, pollCount);
-
-            var (allCompleted, summary, failCount) = ParseCheckRunsStatus(result.Body);
-            var elapsedMs = Environment.TickCount64 - startTime;
-
-            if (allCompleted)
-                return PrWaitResult.Completed(summary, failCount, result.Body, pollCount, elapsedMs);
-
-            if (DateTimeOffset.UtcNow >= deadline)
-                return PrWaitResult.FromTimeout(summary, result.Body, pollCount, elapsedMs);
-
-            ReportPrProgress(onProgress, progressType, prNumber, summary, pollCount, elapsedMs);
-            await Task.Delay(interval, ct).ConfigureAwait(false);
-            interval = TimeSpan.FromTicks(Math.Min(interval.Ticks * 3 / 2, MaxPollInterval.Ticks));
-        }
+        return state switch {
+            PollState.Completed => PrWaitResult.Completed(value.Summary, value.FailCount, value.Body, pollCount, elapsedMs),
+            PollState.Timeout => PrWaitResult.FromTimeout(value.Summary, value.Body, pollCount, elapsedMs),
+            _ => PrWaitResult.FromError(error ?? "轮询失败", pollCount)
+        };
     }
+
+    /// <summary>
+    /// 单次 PR checks 轮询 — IO 操作,返回 (Kind, Value, Error)
+    /// </summary>
+    private static async Task<(PollOutcomeKind, PrPollData, string?)> PollPrChecksOnceAsync(
+        IGitHubApiClient apiClient, string owner, string repo, string headSha, CancellationToken ct) {
+        var result = await apiClient.SendAsync(
+            HttpMethod.Get, $"repos/{owner}/{repo}/commits/{headSha}/check-runs",
+            query: new Dictionary<string, string> { ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
+        if (!result.Success)
+            return (PollOutcomeKind.Error, default!, result.Error);
+
+        var (allCompleted, summary, failCount) = ParseCheckRunsStatus(result.Body);
+        var data = new PrPollData { Summary = summary, FailCount = failCount, Body = result.Body };
+        var kind = allCompleted ? PollOutcomeKind.Completed : PollOutcomeKind.Continue;
+        return (kind, data, null);
+    }
+
+    // === JSON 解析(纯函数) ===
 
     /// <summary>
     /// 从 run JSON 解析 status 和 conclusion
@@ -156,31 +206,55 @@ internal static class GitHubRunPoller {
         var summary = $"{passCount} 通过, {failCount} 失败, {pendingCount} 进行中, {skipCount} 跳过";
         return (allCompleted, summary, failCount);
     }
-
-    private static void ReportProgress(
-        ToolProgressCallback? onProgress, string progressType, string runId,
-        string status, int pollCount, long elapsedMs) {
-        if (onProgress is null) return;
-        onProgress(new ToolProgressData {
-            ProgressType = progressType,
-            ToolUseId = $"{progressType}-{pollCount}",
-            Message = $"Run {runId}: {status} (第 {pollCount} 次轮询, 已等待 {elapsedMs / 1000}s)",
-            ElapsedTimeMs = elapsedMs,
-        });
-    }
-
-    private static void ReportPrProgress(
-        ToolProgressCallback? onProgress, string progressType, string prNumber,
-        string summary, int pollCount, long elapsedMs) {
-        if (onProgress is null) return;
-        onProgress(new ToolProgressData {
-            ProgressType = progressType,
-            ToolUseId = $"{progressType}-{pollCount}",
-            Message = $"PR #{prNumber}: {summary} (第 {pollCount} 次轮询, 已等待 {elapsedMs / 1000}s)",
-            ElapsedTimeMs = elapsedMs,
-        });
-    }
 }
+
+// === 状态机类型 ===
+
+/// <summary>轮询结果类型(单次轮询 outcome)</summary>
+internal enum PollOutcomeKind {
+    /// <summary>已完成,触发返回</summary>
+    Completed,
+    /// <summary>未完成,继续轮询</summary>
+    Continue,
+    /// <summary>API 错误</summary>
+    Error
+}
+
+/// <summary>状态机状态</summary>
+internal enum PollState {
+    /// <summary>轮询中</summary>
+    Polling,
+    /// <summary>已完成(终态)</summary>
+    Completed,
+    /// <summary>等待超时(终态)</summary>
+    Timeout,
+    /// <summary>API 错误(终态)</summary>
+    Error
+}
+
+// === 轮询值类型 ===
+
+/// <summary>Run 单次轮询值</summary>
+internal sealed record RunPollData {
+    /// <summary>Run status(queued/in_progress/completed)</summary>
+    public required string Status { get; init; }
+    /// <summary>Run conclusion(success/failure 等,completed 时有值)</summary>
+    public string? Conclusion { get; init; }
+    /// <summary>Run 详情 JSON 原文</summary>
+    public required string Body { get; init; }
+}
+
+/// <summary>PR checks 单次轮询值</summary>
+internal sealed record PrPollData {
+    /// <summary>checks 汇总文本(N 通过, M 失败, ...)</summary>
+    public required string Summary { get; init; }
+    /// <summary>失败的 check 数量</summary>
+    public int FailCount { get; init; }
+    /// <summary>check-runs JSON 原文</summary>
+    public required string Body { get; init; }
+}
+
+// === 等待结果 ===
 
 /// <summary>
 /// Run 等待结果

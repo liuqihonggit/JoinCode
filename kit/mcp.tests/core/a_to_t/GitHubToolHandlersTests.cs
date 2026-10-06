@@ -410,6 +410,42 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task PrCreate_WithAssignee_AddsAssigneeAfterCreate() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"number":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+
+        var result = await _handler.GhPrCreateAsync("title", "head", assignee: "alice", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/assignees");
+        _api.LastBody.Should().Contain("alice");
+    }
+
+    [Fact]
+    public async Task PrCreate_WithLabel_AddsLabelAfterCreate() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"number":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+
+        var result = await _handler.GhPrCreateAsync("title", "head", label: "bug", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/labels");
+        _api.LastBody.Should().Contain("bug");
+    }
+
+    [Fact]
+    public async Task PrCreate_WithReviewer_AddsReviewerAfterCreate() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"number":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+
+        var result = await _handler.GhPrCreateAsync("title", "head", reviewer: "bob", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42/requested_reviewers");
+        _api.LastBody.Should().Contain("bob");
+    }
+
+    [Fact]
     public async Task PrCreate_Failure_ReturnsError() {
         _api.NextResponse = new GitHubApiResponse {
             Success = false,

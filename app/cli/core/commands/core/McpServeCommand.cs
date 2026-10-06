@@ -9,6 +9,11 @@ internal static class McpServeCommand {
     /// 执行 mcp_serve — [--transport stdio|http] [--port N] [--host H] [--await N]。
     /// </summary>
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
+        var unknownError = FlatSubCommandRouter.DetectUnknownOptions(args, CliArgCliOptionConstants.AllOptionNames, McpServeArgCliOptionConstants.AllOptionNames);
+        if (unknownError is not null) {
+            TerminalHelper.WriteError(unknownError);
+            return 1;
+        }
         var transport = FlatSubCommandRouter.GetOptionValue(args, McpServeArgCliOptionConstants.TransportLongName) ?? "stdio";
         var port = int.TryParse(FlatSubCommandRouter.GetOptionValue(args, McpServeArgCliOptionConstants.PortLongName), out var p) ? p : 9903;
         var host = FlatSubCommandRouter.GetOptionValue(args, McpServeArgCliOptionConstants.HostLongName) ?? "localhost";

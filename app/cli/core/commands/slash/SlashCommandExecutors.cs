@@ -7,6 +7,11 @@ namespace JoinCode.CliCommands;
 internal static class SlashCallExecutor {
     /// <summary>执行斜杠命令直调：解析命令名与参数 JSON，通过注册表路由到对应命令并执行。</summary>
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
+        var unknownError = FlatSubCommandRouter.DetectUnknownOptions(args, CliArgCliOptionConstants.AllOptionNames, ToolCallArgCliOptionConstants.AllOptionNames);
+        if (unknownError is not null) {
+            TerminalHelper.WriteError(unknownError);
+            return 1;
+        }
         var cmdName = FlatSubCommandRouter.GetPositional(args, 0);
         if (string.IsNullOrEmpty(cmdName)) {
             TerminalHelper.WriteError("用法: jcc slash_call <cmd> [key=value ... | <argsJson> | --args-file <path> | --args-stdin]");
@@ -116,6 +121,11 @@ internal static class SlashCallExecutor {
 internal static class SlashListExecutor {
     /// <summary>列出所有斜杠命令：按分类分组输出，支持 --category 过滤和 --json 结构化输出。</summary>
     public static Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
+        var unknownError = FlatSubCommandRouter.DetectUnknownOptions(args, CliArgCliOptionConstants.AllOptionNames, McpListArgCliOptionConstants.AllOptionNames);
+        if (unknownError is not null) {
+            TerminalHelper.WriteError(unknownError);
+            return Task.FromResult<int?>(1);
+        }
         var category = FlatSubCommandRouter.GetOptionValue(args, JccCliArgEnumConstants.Category);
         var json = FlatSubCommandRouter.ShouldOutputJson(args);
 
@@ -163,6 +173,11 @@ internal static class SlashListExecutor {
 internal static class SlashSchemaExecutor {
     /// <summary>查询指定斜杠命令的参数 schema：输出结构化参数声明或降级参数提示。</summary>
     public static Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
+        var unknownError = FlatSubCommandRouter.DetectUnknownOptions(args, CliArgCliOptionConstants.AllOptionNames);
+        if (unknownError is not null) {
+            TerminalHelper.WriteError(unknownError);
+            return Task.FromResult<int?>(1);
+        }
         var cmdName = FlatSubCommandRouter.GetPositional(args, 0);
         if (string.IsNullOrEmpty(cmdName)) {
             TerminalHelper.WriteError("用法: jcc slash_schema <cmd> [--json]");

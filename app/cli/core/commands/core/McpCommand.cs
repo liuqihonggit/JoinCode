@@ -105,8 +105,7 @@ public sealed class McpCliCommand {
             }
 
             if (json) {
-                var schemaJson = RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default);
-                System.Console.WriteLine($"{{\"ok\":true,\"data\":{schemaJson},\"meta\":{{\"totalCount\":1}},\"schemaVersion\":\"1\"}}");
+                System.Console.WriteLine(Cli.Output.CliOutputEnvelope<Abstractions.Tools.ToolSchema>.Success(info.InputSchema, new Cli.Output.CliOutputMeta { TotalCount = 1 }).ToJsonString());
             } else {
                 TerminalHelper.WriteLine($"工具: {info.Name}");
                 TerminalHelper.WriteLine($"描述: {info.Description}");

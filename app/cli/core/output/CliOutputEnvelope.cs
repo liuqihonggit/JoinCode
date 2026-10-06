@@ -104,3 +104,6 @@ public sealed record CliSchemaPropertyDto(
 
 /// <summary>CLI schema 自省结果 DTO — 用泛型 CliOutputEnvelope&lt;T&gt; 序列化，AOT 兼容</summary>
 public sealed record CliSchemaResult(CliSchemaPropertyDto[] Properties);
+
+/// <summary>slash_schema 降级输出 DTO — 命令未声明结构化参数 schema 时，输出 argumentHint 提示</summary>
+public sealed record CliSlashSchemaHintResult(string Command, JoinCode.Abstractions.Tools.ToolSchema? Schema, string? ArgumentHint);

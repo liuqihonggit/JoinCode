@@ -74,7 +74,7 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
         var methodBody = FindMethodBody(localDecl);
         if (methodBody is null) return;
 
-        var (released, transferred) = ClassifyUsages(varSymbol, methodBody, ctx.SemanticModel, ctx.CancellationToken);
+        var (released, transferred) = ClassifyUsages(varSymbol, methodBody, ctx.SemanticModel, ctx.Compilation, ctx.CancellationToken);
         if (released || transferred) return;
 
         ctx.ReportDiagnostic(Diagnostic.Create(Descriptor, variable.Identifier.GetLocation(), variable.Identifier.ValueText));
@@ -176,8 +176,9 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
     private static bool IsFieldReceiverBorrowCall(InvocationExpressionSyntax invocation) {
         if (invocation.Expression is not MemberAccessExpressionSyntax ma) return false;
         var methodName = ma.Name.Identifier.ValueText;
-        if (!methodName.StartsWith("Get", StringComparison.Ordinal)) return false;
-        return IsFieldOrPropertyLeft(ma.Expression);
+        if (methodName.StartsWith("Get", StringComparison.Ordinal)) return IsFieldOrPropertyLeft(ma.Expression);
+        if (methodName.StartsWith("Try", StringComparison.Ordinal)) return IsFieldOrPropertyLeft(ma.Expression);
+        return false;
     }
 
     /// <summary>
@@ -219,6 +220,7 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
         ILocalSymbol varSymbol,
         SyntaxNode methodBody,
         SemanticModel semanticModel,
+        Compilation compilation,
         CancellationToken ct) {
         var released = false;
         var transferred = false;
@@ -258,8 +260,8 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
                     if (IsFieldOrPropertyLeft(assign.Left) || IsWithInitializerProperty(assign)) transferred = true;
                     break;
 
-                case ArgumentSyntax:
-                    transferred = true;
+                case ArgumentSyntax arg:
+                    if (IsArgumentOwnershipTransfer(arg, semanticModel, compilation, ct)) transferred = true;
                     break;
             }
 
@@ -267,6 +269,25 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
         }
 
         return (released, transferred);
+    }
+
+    /// <summary>
+    /// 判定局部变量作为参数传递是否转移所有权。
+    /// 调用 CrossMethodContractAnalyzer:转移方法(存字段/集合/return)→ 转移;借用方法(只读取)→ 不转移。
+    /// 无法判定时保守转移(避免误报)。
+    /// </summary>
+    private static bool IsArgumentOwnershipTransfer(
+        ArgumentSyntax arg,
+        SemanticModel semanticModel,
+        Compilation compilation,
+        CancellationToken ct) {
+        if (arg.Parent is not ArgumentListSyntax argList) return true;
+        if (argList.Parent is not InvocationExpressionSyntax invocation) return true;
+
+        var argIndex = argList.Arguments.IndexOf(arg);
+        if (argIndex < 0) return true;
+
+        return CrossMethodContractAnalyzer.IsTransferOwnership(invocation, argIndex, semanticModel, compilation, ct);
     }
 
     /// <summary>

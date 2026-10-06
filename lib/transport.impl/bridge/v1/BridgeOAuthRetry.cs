@@ -42,7 +42,7 @@ public static class BridgeOAuthRetry {
             return null;
         }
 
-        var request = createRequest(accessToken!);
+        using var request = createRequest(accessToken!);
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
@@ -70,7 +70,7 @@ public static class BridgeOAuthRetry {
         // 5. 刷新成功 — 用新 token 重试一次
         var newToken = getAccessToken();
         if (ShouldRetryAfterRefresh(refreshed, newToken)) {
-            var retryRequest = createRequest(newToken!);
+            using var retryRequest = createRequest(newToken!);
             using var retryCts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
             try {

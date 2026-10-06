@@ -69,7 +69,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         var isFirstPage = true;
 
         while (true) {
-            var request = BuildRequest(method, isFirstPage ? effectivePath : nextUrl!, body, query, token, isFirstPage);
+            using var request = BuildRequest(method, isFirstPage ? effectivePath : nextUrl!, body, query, token, isFirstPage);
             HttpResponseMessage response;
             try {
                 response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
@@ -127,7 +127,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         [EnumeratorCancellation] CancellationToken ct = default) {
         var token = ResolveToken();
         var path = $"repos/{owner}/{repo}/actions/runs/{runId}/logs";
-        var request = BuildRequest(HttpMethod.Get, path, null, null, token, true);
+        using var request = BuildRequest(HttpMethod.Get, path, null, null, token, true);
 
         HttpResponseMessage? response = null;
         string? fetchError = null;
@@ -172,7 +172,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         [EnumeratorCancellation] CancellationToken ct = default) {
         var token = ResolveToken();
         var path = $"repos/{owner}/{repo}/actions/jobs/{jobId}/logs";
-        var request = BuildRequest(HttpMethod.Get, path, null, null, token, true);
+        using var request = BuildRequest(HttpMethod.Get, path, null, null, token, true);
 
         HttpResponseMessage? response = null;
         string? fetchError = null;

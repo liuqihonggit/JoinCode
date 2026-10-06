@@ -75,8 +75,8 @@ public sealed class SseBridgeTransport : IBridgeTransport {
             throw new InvalidOperationException(Core.Utils.ErrorMessages.SseTransportNotReady);
         }
 
-        var content = new StringContent(message, Encoding.UTF8, "application/json");
-        var response = await _httpClient.PostAsync(_messageEndpoint, content, cancellationToken).ConfigureAwait(false);
+        using var content = new StringContent(message, Encoding.UTF8, "application/json");
+        using var response = await _httpClient.PostAsync(_messageEndpoint, content, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
     }
 

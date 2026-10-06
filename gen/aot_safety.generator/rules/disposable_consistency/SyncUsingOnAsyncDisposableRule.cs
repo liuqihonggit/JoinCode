@@ -40,8 +40,10 @@ public sealed class SyncUsingOnAsyncDisposableRule : AnalyzerRuleBase<SyncUsingO
             if (idisposableType is null) return;
 
             var implementsIAsyncDisposable = type.AllInterfaces.Contains(iasyncDisposableType, SymbolEqualityComparer.Default);
+            var implementsIDisposable = type.AllInterfaces.Contains(idisposableType, SymbolEqualityComparer.Default)
+                || SymbolEqualityComparer.Default.Equals(type, idisposableType);
 
-            if (implementsIAsyncDisposable && !IsBclWhitelisted(type)) {
+            if (implementsIAsyncDisposable && !implementsIDisposable && !IsBclWhitelisted(type)) {
                 var typeName = type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
                 ctx.ReportDiagnostic(Diagnostic.Create(
                     Descriptor,

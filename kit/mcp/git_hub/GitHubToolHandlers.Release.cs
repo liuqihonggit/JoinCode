@@ -346,6 +346,94 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
+    /// 删除 Release asset — 按 asset 名称查找并删除，调 REST API DELETE
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseDeleteAsset, "删除 Release asset", "github")]
+    public async Task<ToolResult> GhReleaseDeleteAssetAsync(
+        [McpToolParameter("Release tag 名称", Required = true)] string tag,
+        [McpToolParameter("asset 名称(多个用逗号分隔)", Required = true)] string asset_name,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var viewResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
+            if (!viewResult.Success) return Fail(viewResult.Error);
+            long releaseId;
+            Dictionary<string, long> assetMap;
+            try {
+                using var doc = JsonDocument.Parse(viewResult.Body);
+                releaseId = doc.RootElement.GetProperty("id").GetInt64();
+                assetMap = new Dictionary<string, long>();
+                if (doc.RootElement.TryGetProperty("assets", out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array) {
+                    foreach (var asset in assetsEl.EnumerateArray()) {
+                        var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                        var id = asset.TryGetProperty("id", out var idEl) ? idEl.GetInt64() : 0;
+                        if (!string.IsNullOrEmpty(name) && id > 0) assetMap[name] = id;
+                    }
+                }
+            } catch (Exception ex) { return Fail($"解析 Release 失败: {ex.Message}"); }
+
+            var assetNames = asset_name.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var sb = new StringBuilder();
+            var successCount = 0;
+            var failCount = 0;
+            foreach (var name in assetNames) {
+                if (!assetMap.TryGetValue(name, out var assetId)) {
+                    failCount++;
+                    sb.AppendLine($"[FAIL] {name}: asset 不存在");
+                    continue;
+                }
+                var delResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}/assets/{assetId}", ct: cancellationToken).ConfigureAwait(false);
+                if (delResult.Success) {
+                    successCount++;
+                    sb.AppendLine($"[OK] {name}");
+                } else {
+                    failCount++;
+                    sb.AppendLine($"[FAIL] {name}: {delResult.Error}");
+                }
+            }
+            sb.AppendLine();
+            sb.Append($"汇总: {successCount} 成功, {failCount} 失败, 共 {assetNames.Length} 个 asset");
+            return failCount == 0 ? Ok(sb.ToString(), $"已删除 asset") : Fail(sb.ToString());
+        }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 编辑 Release — 修改 tag/name/notes/draft/prerelease/target，调 REST API PATCH
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseEdit, "编辑 Release(tag/name/notes/draft/prerelease/target)", "github")]
+    public async Task<ToolResult> GhReleaseEditAsync(
+        [McpToolParameter("Release tag 名称", Required = true)] string tag,
+        [McpToolParameter("新 tag 名称(可选)", Required = false)] string? new_tag = null,
+        [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
+        [McpToolParameter("新说明(notes,可选)", Required = false)] string? notes = null,
+        [McpToolParameter("是否草稿(可选)", Required = false)] bool? draft = null,
+        [McpToolParameter("是否预发布(可选)", Required = false)] bool? prerelease = null,
+        [McpToolParameter("目标 commit/branch(可选)", Required = false)] string? target = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var viewResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
+            if (!viewResult.Success) return Fail(viewResult.Error);
+            long releaseId;
+            try {
+                using var doc = JsonDocument.Parse(viewResult.Body);
+                releaseId = doc.RootElement.GetProperty("id").GetInt64();
+            } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
+
+            var jsonBody = new GitHubJsonObjectBuilder()
+                .StringIf("tag_name", new_tag)
+                .StringIf("name", title)
+                .StringIf("body", notes)
+                .BoolIfTrue("draft", draft)
+                .BoolIfTrue("prerelease", prerelease)
+                .StringIf("target_commitish", target)
+                .Build();
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/releases/{releaseId}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已编辑 Release {tag}") : Fail(result.Error);
+        }).ConfigureAwait(false);
+
+    /// <summary>
     /// 简单通配符匹配 — 支持 * 通配
     /// </summary>
     private static bool SimpleMatch(string pattern, string name) {

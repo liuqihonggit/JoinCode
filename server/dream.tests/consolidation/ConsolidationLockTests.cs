@@ -28,6 +28,8 @@ public sealed class ConsolidationLockTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _sessionScanner?.Dispose();
+        _taskRegistry?.DisposeAsync().GetAwaiter().GetResult();
     }
 
     [Fact]

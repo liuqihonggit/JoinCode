@@ -101,6 +101,7 @@ public sealed class AgentDiscoveryServiceTests : IAsyncDisposable {
     public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
+        await _fs.DisposeAsync();
         await _service.DisposeSafeAsync();
     }
 }

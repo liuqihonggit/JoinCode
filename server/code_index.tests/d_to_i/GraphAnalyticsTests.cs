@@ -14,6 +14,7 @@ public sealed class GraphAnalyticsTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _analytics?.Dispose();
         _store.Dispose();
     }
 

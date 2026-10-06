@@ -912,6 +912,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         await _heartbeat.DisposeAsync().ConfigureAwait(false);
         _stateLock.Dispose();
         _engineCts?.Dispose();
+        _engineCts = null;
+        if (_graphEngine is not null) await _graphEngine.DisposeAsync().ConfigureAwait(false);
+        _graphEngine = null;
         _completionTcs?.TrySetCanceled();
     }
 

@@ -22,6 +22,7 @@ public sealed class VoiceServiceTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _options?.Dispose();
 
         _service.DisposeSafe();
     }

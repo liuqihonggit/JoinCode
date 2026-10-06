@@ -18,6 +18,8 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _store?.Dispose();
+        _sut?.Dispose();
     }
 
     [Fact]

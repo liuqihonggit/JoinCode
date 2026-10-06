@@ -20,6 +20,7 @@ public sealed class DreamTaskPersistenceTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _persistence?.DisposeAsync().GetAwaiter().GetResult();
         _fileOperationService.DisposeSafe();
     }
 

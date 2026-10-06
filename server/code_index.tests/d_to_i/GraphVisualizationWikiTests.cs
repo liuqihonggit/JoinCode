@@ -14,6 +14,7 @@ public sealed class GraphVisualizationWikiTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _viz?.Dispose();
         _store.Dispose();
     }
 

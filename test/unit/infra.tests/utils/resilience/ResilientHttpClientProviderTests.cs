@@ -122,5 +122,12 @@ public sealed class ResilientHttpClientProviderTests {
             if (_exception is not null) return Task.FromException<HttpResponseMessage>(_exception);
             return Task.FromResult(_response!);
         }
+
+        protected override void Dispose(bool disposing) {
+            if (disposing) {
+                _response?.Dispose();
+            }
+            base.Dispose(disposing);
+        }
     }
 }

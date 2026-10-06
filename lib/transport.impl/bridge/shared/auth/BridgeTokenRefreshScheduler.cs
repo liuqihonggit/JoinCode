@@ -229,6 +229,13 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
         CancelAll();
         return base.DisposeAsync();
     }
+
+    /// <summary>Consumer 退出后释放所有定时器(DSG033 S2)</summary>
+    protected override async ValueTask PostStopAsync() {
+        foreach (var t in _timers.Values)
+            await t.DisposeAsync().ConfigureAwait(false);
+        _timers.Clear();
+    }
 }
 
 /// <summary>

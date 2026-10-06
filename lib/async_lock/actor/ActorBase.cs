@@ -443,6 +443,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <summary>Actor 停止后调用(DisposeAsync 中 Consumer 退出后)— 释放资源(DSG033 S2)</summary>
     protected virtual void PostStop() { }
 
+    /// <summary>Actor 停止后异步释放(DisposeAsync 中 Consumer 退出后,PostStop 之后)— 异步资源释放(DSG033 S2)</summary>
+    protected virtual ValueTask PostStopAsync() => ValueTask.CompletedTask;
+
     /// <summary>
     /// Consumer 处理单条命令异常的回调 — 默认忽略,子类可重写以记录日志或计数。
     /// <para>此方法在 Consumer 线程内调用,不应抛异常(抛出会被吞掉)。</para>
@@ -817,6 +820,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         }
         _inFlightTasks.Clear();
         PostStop();
+        await PostStopAsync().ConfigureAwait(false);
         _cts.Dispose();
     }
 }

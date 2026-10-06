@@ -60,6 +60,14 @@ public abstract class StreamMailboxBase<TMessage, TFrame> : MailboxBase<TMessage
     }
 
     /// <summary>
+    /// 释放接收循环资源 — 停止循环并调基类释放
+    /// </summary>
+    public override async ValueTask DisposeAsync() {
+        await StopReceiveLoopAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// 接收循环骨架 — 从子类读取帧序列，逐帧处理，外层异常统一捕获。
     /// <para>取消异常静默吞掉，其他异常交给 <see cref="LogReceiveLoopError"/> 日志。</para>
     /// </summary>

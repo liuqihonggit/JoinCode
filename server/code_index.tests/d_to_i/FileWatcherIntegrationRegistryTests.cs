@@ -19,6 +19,9 @@ public sealed class FileWatcherIntegrationRegistryTests : IAsyncDisposable {
     public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
+        await _defaultStore.DisposeAsync();
+        await _defaultIndexer.DisposeAsync();
+        await _fs.DisposeAsync();
         await _watcherRegistry.DisposeSafeAsync();
         _registry.DisposeSafe();
     }

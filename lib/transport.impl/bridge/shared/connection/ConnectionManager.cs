@@ -319,6 +319,7 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     public override void Dispose() {
         if (_asyncDisposed == 1) return;
         _reconnectCts?.Dispose();
+        _reconnectCts = null;
         _stateLock.Dispose();
         base.Dispose();
     }

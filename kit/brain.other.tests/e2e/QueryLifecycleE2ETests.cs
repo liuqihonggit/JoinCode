@@ -26,6 +26,10 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable {
     public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
+        await _transitions.DisposeAsync();
+        await _stopHooks.DisposeAsync();
+        await _diminishingReturns.DisposeAsync();
+        await _snipService.DisposeAsync();
         await _budgetManager.DisposeSafeAsync();
     }
 

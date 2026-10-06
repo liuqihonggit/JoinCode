@@ -19,6 +19,8 @@ public sealed class GraphPersistenceTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _persistence?.Dispose();
+        _kvStore?.DisposeAsync().GetAwaiter().GetResult();
         _index.DisposeSafe();
         _store.Dispose();
     }

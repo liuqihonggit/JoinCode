@@ -310,9 +310,12 @@ public partial class ChatService : IChatService {
     }
 
     /// <summary>
-    /// 释放资源 — ChatInitializer 由 DI 容器自动释放，此处不再手动调用
+    /// 释放资源 — 释放文件读取订阅,ChatInitializer 由 DI 容器自动释放
     /// </summary>
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    public ValueTask DisposeAsync() {
+        _fileReadListenerSubscription?.Dispose();
+        return ValueTask.CompletedTask;
+    }
 }
 
 /// <summary>

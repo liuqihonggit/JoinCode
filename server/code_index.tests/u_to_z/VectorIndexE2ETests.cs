@@ -38,6 +38,7 @@ public sealed class VectorIndexE2ETests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _realFs?.Dispose();
         _indexer?.DisposeSafe();
         _store?.Dispose();
         _embeddingIndex?.Dispose();

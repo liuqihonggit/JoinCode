@@ -119,6 +119,7 @@ public sealed partial class CronSchedulerService : IWorkflowService, IAsyncDispo
         }
 
         _cts?.Dispose();
+        _cts = null;
     }
 }
 

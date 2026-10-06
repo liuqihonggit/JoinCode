@@ -153,8 +153,11 @@ public sealed class ResilientSubprocess : IAsyncDisposable {
 
         _disposeCts.Cancel();
         if (_healthMonitor is not null) await _healthMonitor.DisposeAsync().ConfigureAwait(false);
+        _healthMonitor = null;
         _inputChannel.Dispose();
         _outputChannel.Dispose();
+        _circuitBreaker?.Dispose();
+        _disposeCts.Dispose();
 
         await _process.DisposeAsync().ConfigureAwait(false);
         GC.SuppressFinalize(this);

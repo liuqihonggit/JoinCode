@@ -13,6 +13,7 @@ public sealed class NotebookServiceTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _service?.Dispose();
 
         _fileOperationService.DisposeSafe();
     }

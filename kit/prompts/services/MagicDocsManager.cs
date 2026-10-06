@@ -153,6 +153,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     /// 异步释放资源 — await Actor 完全退出
     /// </summary>
     public override async ValueTask DisposeAsync() {
+        _fileReadSubscription?.Dispose();
         await _actor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }

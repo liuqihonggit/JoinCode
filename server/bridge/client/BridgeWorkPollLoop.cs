@@ -581,6 +581,7 @@ public sealed class BridgeWorkPollLoop : ServiceEntity {
 
         await StopAsync(CancellationToken.None).ConfigureAwait(false);
         _loopCts?.Dispose();
+        _loopCts = null;
         await _recentPostedUUIDs.DisposeAsync().ConfigureAwait(false);
         await _recentInboundUUIDs.DisposeAsync().ConfigureAwait(false);
         Dispose();

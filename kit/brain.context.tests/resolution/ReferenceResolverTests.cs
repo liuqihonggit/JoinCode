@@ -20,6 +20,7 @@ public class ReferenceResolverTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _resolver?.Dispose();
         _fileOpService.DisposeSafe();
     }
 

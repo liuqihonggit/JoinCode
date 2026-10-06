@@ -15,6 +15,7 @@ public sealed class ProjectIndexTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _fs?.DisposeAsync().GetAwaiter().GetResult();
         _store.Dispose();
     }
 

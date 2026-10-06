@@ -301,6 +301,8 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
         _recordingCts?.Cancel();
         _recordingCts?.Dispose();
         _recordingStream?.Dispose();
+        _recordingCts = null;
+        _recordingStream = null;
     }
 
     /// <summary>
@@ -313,6 +315,8 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
         _recordingCts?.Cancel();
         _recordingCts?.Dispose();
         _recordingStream?.Dispose();
+        _recordingCts = null;
+        _recordingStream = null;
         await base.DisposeAsync().ConfigureAwait(false);
     }
 

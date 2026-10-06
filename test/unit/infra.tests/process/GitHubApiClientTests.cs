@@ -17,6 +17,7 @@ public sealed class GitHubApiClientTest : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _client?.Dispose();
         _envScope.DisposeSafe();
         _handler.Dispose();
         Environment.SetEnvironmentVariable("GITHUB_TOKEN", null);

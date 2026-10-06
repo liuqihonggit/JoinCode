@@ -20,6 +20,8 @@ public sealed class AppStateSelectorsTests : IDisposable {
         if (_disposed) return;
         _disposed = true;
 
+        _selectors?.Dispose();
+        _telemetry?.DisposeAsync().GetAwaiter().GetResult();
         _store.DisposeSafe();
     }
 

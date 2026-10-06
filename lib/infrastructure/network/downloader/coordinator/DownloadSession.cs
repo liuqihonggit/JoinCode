@@ -117,6 +117,7 @@ internal sealed class DownloadSession : IDownloadSession {
     public ValueTask DisposeAsync() {
         _cts?.Cancel();
         _cts?.Dispose();
+        _cts = null;
         _stateMachine.Dispose();
         return ValueTask.CompletedTask;
     }

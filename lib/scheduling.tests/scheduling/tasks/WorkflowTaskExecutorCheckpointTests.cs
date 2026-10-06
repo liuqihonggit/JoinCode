@@ -19,6 +19,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _stateStore?.Dispose();
         _fileOperationService.DisposeSafe();
     }
 

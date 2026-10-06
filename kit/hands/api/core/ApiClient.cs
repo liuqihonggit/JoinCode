@@ -540,6 +540,9 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable {
             _networkService.StateChanged -= OnNetworkStateChanged;
         }
         _httpClient.Dispose();
+        _vcrHandler?.Dispose();
+        _vcrHandler = null;
+        _retryPolicy.Dispose();
         base.Dispose();
     }
 }

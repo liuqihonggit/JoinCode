@@ -250,6 +250,8 @@ public sealed class StdioProcessManager : IAsyncDisposable {
 
         _process?.Dispose();
         _readCts?.Dispose();
+        _process = null;
+        _readCts = null;
         _outputChannel.Dispose();
         _errorChannel.Dispose();
 

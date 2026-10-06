@@ -64,6 +64,12 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity {
         _logger?.LogInformation("Swarm 权限消息路由已停止");
     }
 
+    /// <inheritdoc />
+    public override async ValueTask DisposeAsync() {
+        await StopRoutingAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
     /// <summary>
     /// 启动 Worker 侧响应路由，监听权限响应消息
     /// </summary>

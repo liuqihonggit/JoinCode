@@ -112,6 +112,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        _memoryStore?.Dispose();
         _fileOpService.DisposeSafe();
     }
 }

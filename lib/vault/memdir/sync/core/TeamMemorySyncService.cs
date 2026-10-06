@@ -381,6 +381,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
         _disposeCts.Cancel();
         if (_watcher is not null) await _watcher.DisposeAsync().ConfigureAwait(false);
+        _watcher = null;
         await _transfer.DisposeAsync().ConfigureAwait(false);
         await DisposeBaseAsync().ConfigureAwait(false);
         _disposeCts.Dispose();

@@ -721,6 +721,107 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task IssueList_WithAuthor_GoesThroughIssuesApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+
+        await _handler.GhIssueListAsync(author: "alice", repo: "owner/repo");
+
+        _api.LastPath.Should().Be("repos/owner/repo/issues");
+        _api.LastQuery.Should().ContainKey("creator").WhoseValue.Should().Be("alice");
+    }
+
+    [Fact]
+    public async Task IssueList_WithMention_GoesThroughIssuesApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+
+        await _handler.GhIssueListAsync(mention: "bob", repo: "owner/repo");
+
+        _api.LastPath.Should().Be("repos/owner/repo/issues");
+        _api.LastQuery.Should().ContainKey("mentioned").WhoseValue.Should().Be("bob");
+    }
+
+    [Fact]
+    public async Task IssueList_WithMilestone_GoesThroughIssuesApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+
+        await _handler.GhIssueListAsync(milestone: "5", repo: "owner/repo");
+
+        _api.LastPath.Should().Be("repos/owner/repo/issues");
+        _api.LastQuery.Should().ContainKey("milestone").WhoseValue.Should().Be("5");
+    }
+
+    [Fact]
+    public async Task IssueList_WithSearch_GoesThroughSearchApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"items":[]}""" };
+
+        await _handler.GhIssueListAsync(search: "bug", repo: "owner/repo");
+
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("bug");
+    }
+
+    [Fact]
+    public async Task IssueList_WithTypePr_GoesThroughSearchApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"items":[]}""" };
+
+        await _handler.GhIssueListAsync(type: "pr", repo: "owner/repo");
+
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("is:pr");
+    }
+
+    [Fact]
+    public async Task IssueView_WithComments_IncludesComments() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":42,"title":"bug","state":"open"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"body":"好建议","user":{"login":"carol"}}]""" });
+
+        var result = await _handler.GhIssueViewAsync("42", comments: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("好建议");
+    }
+
+    [Fact]
+    public async Task IssueView_WithWeb_ReturnsUrl() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":42,"html_url":"https://github.com/o/r/issues/42"}""" };
+
+        var result = await _handler.GhIssueViewAsync("42", web: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("https://github.com/o/r/issues/42");
+    }
+
+    [Fact]
+    public async Task IssueCreate_WithMilestone_IncludesMilestoneField() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"number":1,"html_url":"u"}""" };
+
+        await _handler.GhIssueCreateAsync("title", milestone: 5, repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("\"milestone\":5");
+    }
+
+    [Fact]
+    public async Task IssueClose_WithReason_IncludesStateReason() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":1,"state":"closed"}""" };
+
+        await _handler.GhIssueCloseAsync("1", reason: "not_planned", repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("\"state_reason\":\"not_planned\"");
+    }
+
+    [Fact]
+    public async Task IssueClose_WithDuplicateOf_CommentsAndCloses() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":1,"state":"closed"}""" });
+
+        await _handler.GhIssueCloseAsync("1", duplicate_of: 42, repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("\"state_reason\":\"not_planned\"");
+    }
+
+    [Fact]
     public async Task PrMerge_DefaultSquash_AppendsAutoWhenRequested() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":5,"node_id":"PR_test123"}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"number":5}}}}""" });

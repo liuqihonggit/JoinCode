@@ -54,16 +54,12 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var builder = new GitHubJsonObjectBuilder()
+            var jsonBody = new GitHubJsonObjectBuilder()
                 .String("title", title)
-                .StringIf("body", body);
-            if (!string.IsNullOrWhiteSpace(label)) {
-                var labels = label.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                builder.Raw("labels", "[" + string.Join(",", labels.Select(GitHubJsonObjectBuilder.EscapeString)) + "]");
-            }
-            if (!string.IsNullOrWhiteSpace(assignee))
-                builder.Raw("assignees", "[" + GitHubJsonObjectBuilder.EscapeString(assignee) + "]");
-            var jsonBody = builder.Build();
+                .StringIf("body", body)
+                .StringArrayFromCsvIf("labels", label)
+                .StringArrayFromCsvIf("assignees", assignee)
+                .Build();
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok(result.Body, "Issue 创建成功") : Fail(result.Error);
         }).ConfigureAwait(false);

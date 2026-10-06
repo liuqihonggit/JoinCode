@@ -48,6 +48,70 @@ internal sealed class GitHubJsonObjectBuilder {
     }
 
     /// <summary>
+    /// 添加整数字段(无条件)
+    /// </summary>
+    public GitHubJsonObjectBuilder Number(string name, long value) {
+        AppendComma();
+        _sb.Append('"').Append(name).Append("\":").Append(value);
+        return this;
+    }
+
+    /// <summary>
+    /// 添加整数字段(仅当 value 非空时)
+    /// </summary>
+    public GitHubJsonObjectBuilder NumberIf(string name, long? value) {
+        if (value.HasValue) Number(name, value.Value);
+        return this;
+    }
+
+    /// <summary>
+    /// 添加字符串数组字段(无条件) — 如 labels:["bug","feat"]
+    /// </summary>
+    public GitHubJsonObjectBuilder StringArray(string name, IEnumerable<string> values) {
+        AppendComma();
+        _sb.Append('"').Append(name).Append("\":[");
+        var firstItem = true;
+        foreach (var v in values) {
+            if (firstItem) firstItem = false;
+            else _sb.Append(',');
+            _sb.Append(EscapeString(v));
+        }
+        _sb.Append(']');
+        return this;
+    }
+
+    /// <summary>
+    /// 添加字符串数组字段(仅当 values 非空时)
+    /// </summary>
+    public GitHubJsonObjectBuilder StringArrayIf(string name, IEnumerable<string>? values) {
+        if (values is not null) {
+            var list = values as IList<string> ?? values.ToList();
+            if (list.Count > 0) StringArray(name, list);
+        }
+        return this;
+    }
+
+    /// <summary>
+    /// 添加逗号分隔字符串为数组字段(仅当 csv 非空白时) — 如 label="bug,feat" → labels:["bug","feat"]
+    /// </summary>
+    public GitHubJsonObjectBuilder StringArrayFromCsvIf(string name, string? csv) {
+        if (!string.IsNullOrWhiteSpace(csv)) {
+            var items = csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (items.Length > 0) StringArray(name, items);
+        }
+        return this;
+    }
+
+    /// <summary>
+    /// 添加 null 字段(无条件) — 如 {"key":null}
+    /// </summary>
+    public GitHubJsonObjectBuilder Null(string name) {
+        AppendComma();
+        _sb.Append('"').Append(name).Append("\":null");
+        return this;
+    }
+
+    /// <summary>
     /// 添加原始 JSON 片段(无条件) — 用于嵌套数组/对象,如 Raw("labels", "[\"bug\",\"feat\"]")
     /// </summary>
     public GitHubJsonObjectBuilder Raw(string name, string rawJson) {

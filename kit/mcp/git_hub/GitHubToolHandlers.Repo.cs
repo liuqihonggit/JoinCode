@@ -62,7 +62,7 @@ public partial class GitHubToolHandlers {
         var builder = new GitHubJsonObjectBuilder()
             .String("name", name)
             .Bool("private", isPrivate || isInternal);
-        if (isInternal) builder.Raw("visibility", "\"internal\"");
+        if (isInternal) builder.String("visibility", "internal");
         builder.StringIf("description", description).BoolIfTrue("auto_init", add_readme);
         var jsonBody = builder.Build();
 

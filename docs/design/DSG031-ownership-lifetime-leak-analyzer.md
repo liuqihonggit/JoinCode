@@ -187,9 +187,13 @@ JCC9305 的"方法内 + 调用返回即拥有"启发式**同时产生漏报(容�
 - **JCC9104 修复**:双实现 IDisposable+IAsyncDisposable 类型(MemoryStream 等)用 `using var` 合法,规则只对"仅 IAsyncDisposable"报。
 - **验收**:9 单元测试全绿(借用方法报/转移方法不报/BCL 借用报/集合 Add 不报);全量编译 0 命中;20+ 处真实漏报修复(using var/await using var)。
 
-### 阶段 4(可选):全程序调用图 + 容器嵌套
-- 容器嵌套(容器持有容器):递归追踪完备性。
-- 跨类型注入的容器(构造函数注入的 IDisposable):按契约判定。
+### 阶段 4(可选):全程序调用图 + 容器嵌套 — ✅ 已完成
+- **JCC9301 状态机重写**:用 `Ownership` 状态机(Unknown→Owned/Borrowed/Skip→Released/Leaked)驱动字段所有权分析,替代旧版启发式。`ClassifyExpression` 判定 `new`/`ImplicitNew`/工厂返回 IDisposable=Owned,构造函数参数=Borrowed,null=Skip。
+- **DI 容器获取识别为借用**:`GetService`/`GetRequiredService`/`GetKeyedService`/`GetRequiredKeyedService` 返回对象由 DI 容器管理生命周期,判定为 Borrowed 而非 Owned。
+- **释放方法名扩展**:`PostStop`/`PostStopAsync`(ActorBase 钩子)+ `OnResourceDispose`(PluginResourceBase 钩子)加入 `IsDisposeMethodName`,让 `CheckInDisposeCallChain` BFS 追到这些释放路径。
+- **`IsFieldReference` 支持 `self.field` 模式**:`MethodBodyNullsField` 原只检查 `_field = null`(IdentifierName),现也检查 `self._field = null`(MemberAccess),覆盖 lambda/ContinueWith 内的置 null。
+- **源码修复**:全量编译暴露 50+ 处真实泄露(Owned 字段未释放/JCC9302 释放后未置 null),覆盖生产代码(Infrastructure/Guard/Scheduling/Bridge/CodeIndex/Hands/Clock/Agents)+ 测试代码,全部修复。
+- **验收**:199 分析器测试全绿;全量编译 0 命中(0 JCC9301 + 0 JCC9302)。
 
 ## 7. 关键决策点(需用户确认)
 

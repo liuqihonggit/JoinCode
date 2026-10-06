@@ -124,7 +124,7 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string BuildRequiredStatusChecksBody(bool strict, IReadOnlyList<string> contexts) {
         var bufferWriter = new ArrayBufferWriter<byte>();
-        using (var writer = new Utf8JsonWriter(bufferWriter)) {
+        using (var writer = new Utf8JsonWriter(bufferWriter, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })) {
             writer.WriteStartObject();
             writer.WriteBoolean("strict", strict);
             writer.WritePropertyName("contexts");

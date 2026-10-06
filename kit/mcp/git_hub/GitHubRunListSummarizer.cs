@@ -14,7 +14,7 @@ internal static class GitHubRunListSummarizer {
             var root = doc.RootElement;
             if (!root.TryGetProperty("workflow_runs", out var runs) || runs.ValueKind != JsonValueKind.Array) return json;
             var buffer = new ArrayBufferWriter<byte>();
-            using (var writer = new Utf8JsonWriter(buffer)) {
+            using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })) {
                 writer.WriteStartObject();
                 CopyProperty(root, writer, "total_count");
                 writer.WritePropertyName("workflow_runs");

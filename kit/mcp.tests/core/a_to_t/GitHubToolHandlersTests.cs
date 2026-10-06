@@ -1765,6 +1765,131 @@ public sealed class GitHubToolHandlersTests {
         result.IsError.Should().BeFalse();
         _api.LastPath.Should().Be("licenses/mit");
     }
+
+    [Fact]
+    public async Task LabelList_ListsLabels() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"bug","color":"d73a4a","description":"Bug fix"}]""" };
+
+        var result = await _handler.GhLabelListAsync(repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/labels");
+        result.GetFirstText().Should().Contain("bug");
+    }
+
+    [Fact]
+    public async Task LabelCreate_PostsToLabelsEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" };
+
+        await _handler.GhLabelCreateAsync("enhancement", color: "a2eeef", description: "New feature", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/labels");
+        _api.LastBody.Should().Contain("\"name\":\"enhancement\"");
+        _api.LastBody.Should().Contain("\"color\":\"a2eeef\"");
+    }
+
+    [Fact]
+    public async Task LabelDelete_DeletesLabel() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhLabelDeleteAsync("bug", yes: true, repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/labels/bug");
+    }
+
+    [Fact]
+    public async Task SearchRepos_SearchesRepositories() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"items":[{"full_name":"owner/repo","stargazers_count":100,"description":"test"}]}""" };
+
+        var result = await _handler.GhSearchReposAsync("stars:>50");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("search/repositories");
+        _api.LastQuery["q"].Should().Be("stars:>50");
+        result.GetFirstText().Should().Contain("owner/repo");
+    }
+
+    [Fact]
+    public async Task SearchIssues_AddsIsIssueQualifier() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""" };
+
+        await _handler.GhSearchIssuesAsync("repo:owner/repo");
+
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery["q"].Should().Contain("is:issue");
+        _api.LastQuery["q"].Should().Contain("repo:owner/repo");
+    }
+
+    [Fact]
+    public async Task SearchPrs_AddsIsPrQualifier() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""" };
+
+        await _handler.GhSearchPrsAsync("repo:owner/repo");
+
+        _api.LastQuery["q"].Should().Contain("is:pr");
+    }
+
+    [Fact]
+    public async Task WorkflowList_ListsWorkflows() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflows":[{"id":123,"name":"CI","state":"active","path":".github/workflows/ci.yml"}]}""" };
+
+        var result = await _handler.GhWorkflowListAsync(repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/actions/workflows");
+        result.GetFirstText().Should().Contain("CI");
+    }
+
+    [Fact]
+    public async Task WorkflowRun_PostsDispatches() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhWorkflowRunAsync("ci.yml", @ref: "develop", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/actions/workflows/ci.yml/dispatches");
+        _api.LastBody.Should().Contain("\"ref\":\"develop\"");
+    }
+
+    [Fact]
+    public async Task WorkflowEnable_PutsEnable() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhWorkflowEnableAsync("123", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/actions/workflows/123/enable");
+    }
+
+    [Fact]
+    public async Task WorkflowDisable_PutsDisable() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhWorkflowDisableAsync("123", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/actions/workflows/123/disable");
+    }
+
+    [Fact]
+    public async Task AuthStatus_WithValidToken_ReturnsLogin() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"login":"testuser","name":"Test User"}""" };
+
+        var result = await _handler.GhAuthStatusAsync();
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("testuser");
+    }
+
+    [Fact]
+    public async Task ConfigGet_ReturnsPromptToUseSystemGh() {
+        var result = await _handler.GhConfigGetAsync("git_protocol");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("gh config get git_protocol");
+    }
 }
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient {

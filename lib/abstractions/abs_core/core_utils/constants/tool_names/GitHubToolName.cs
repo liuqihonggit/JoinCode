@@ -310,6 +310,66 @@ public enum GitHubToolName {
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhRepoLicenseView,
 
+    // === Label 管理 ===
+    [EnumValue("gh_label_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhLabelList,
+
+    [EnumValue("gh_label_create")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhLabelCreate,
+
+    [EnumValue("gh_label_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhLabelDelete,
+
+    // === Search ===
+    [EnumValue("gh_search_repos")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhSearchRepos,
+
+    [EnumValue("gh_search_issues")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhSearchIssues,
+
+    [EnumValue("gh_search_prs")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhSearchPrs,
+
+    // === Workflow 管理 ===
+    [EnumValue("gh_workflow_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhWorkflowList,
+
+    [EnumValue("gh_workflow_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhWorkflowView,
+
+    [EnumValue("gh_workflow_run")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhWorkflowRun,
+
+    [EnumValue("gh_workflow_enable")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhWorkflowEnable,
+
+    [EnumValue("gh_workflow_disable")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhWorkflowDisable,
+
+    // === Auth/Config ===
+    [EnumValue("gh_auth_status")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhAuthStatus,
+
+    [EnumValue("gh_config_get")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhConfigGet,
+
+    [EnumValue("gh_config_set")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhConfigSet,
+
     // === 分支保护 ===
     [EnumValue("gh_branch_sync_protection")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]

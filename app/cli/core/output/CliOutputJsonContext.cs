@@ -20,6 +20,8 @@ namespace JoinCode.Cli.Output;
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<CliSchemaResult>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<JoinCode.CliCommands.RgJsonResult>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<JoinCode.CliCommands.McpServeExitReport>))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolSchema>))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<CliSlashSchemaHintResult>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliStructuredError))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputMeta))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(System.Collections.Generic.List<CliOutputEnvelope>))]
@@ -40,4 +42,8 @@ namespace JoinCode.Cli.Output;
 [System.Text.Json.Serialization.JsonSerializable(typeof(System.Collections.Generic.List<JoinCode.CliCommands.RgJsonMatch>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(System.Collections.Generic.List<string>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(JoinCode.CliCommands.McpServeExitReport))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(JoinCode.Abstractions.Tools.ToolSchema))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(JoinCode.Abstractions.Tools.ToolSchemaProperty))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(System.Collections.Generic.Dictionary<string, JoinCode.Abstractions.Tools.ToolSchemaProperty>))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(CliSlashSchemaHintResult))]
 public partial class CliOutputJsonContext : System.Text.Json.Serialization.JsonSerializerContext;

@@ -102,14 +102,14 @@ public sealed class IntentCollector : IIntentCollector {
         return Task.CompletedTask;
     }
 
-    private AsyncLock GetLock(string filePath) {
+    private LockRef GetLock(string filePath) {
         var snapshot = Volatile.Read(ref _locks);
         if (snapshot.TryGetValue(filePath, out var existing))
-            return existing;
+            return new LockRef(existing);
 
         var newLock = new AsyncLock(nameof(IntentCollector));
         ImmutableInterlocked.Update(ref _locks, d => d.ContainsKey(filePath) ? d : d.Add(filePath, newLock));
-        return Volatile.Read(ref _locks)[filePath];
+        return new LockRef(Volatile.Read(ref _locks)[filePath]);
     }
 
     private static string NormalizePath(string filePath) => filePath.Replace('\\', '/');

@@ -347,4 +347,58 @@ public class LocalDisposableLeakRuleTests {
         };
         await test.RunAsync().ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task ConfigureAwaitTransferToAwaitUsing_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass {
+                    async Task Method() {
+                        var fs = new AsyncDisposable();
+                        await using var cfg = fs.ConfigureAwait(false);
+                    }
+                }
+                class AsyncDisposable : IAsyncDisposable {
+                    public ConfiguredAwaitable ConfigureAwait(bool continueOnCapturedContext) => default;
+                    public ValueTask DisposeAsync() => default;
+                }
+                struct ConfiguredAwaitable : IAsyncDisposable {
+                    public ValueTask DisposeAsync() => default;
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task ConfigureAwaitNotToAwaitUsing_ReportsJCC9305() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass {
+                    async Task Method() {
+                        var {|#0:fs|} = new AsyncDisposable();
+                        var cfg = fs.ConfigureAwait(false);
+                        cfg.DoWork();
+                    }
+                }
+                class AsyncDisposable : IAsyncDisposable {
+                    public ConfiguredAwaitable ConfigureAwait(bool continueOnCapturedContext) => default;
+                    public ValueTask DisposeAsync() => default;
+                }
+                struct ConfiguredAwaitable {
+                    public void DoWork() { }
+                }
+                """,
+            ExpectedDiagnostics = {
+                new DiagnosticResult("JCC9305", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("fs"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
 }

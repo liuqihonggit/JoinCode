@@ -65,6 +65,7 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
         var varType = varSymbol.Type;
         if (varType is null || varType.SpecialType == SpecialType.System_Object) return;
         if (!IsDisposableType(varType, idisposable, iasyncDisposable)) return;
+        if (IsExcludedResourceType(varType)) return;
 
         var init = variable.Initializer.Value;
         if (AotSafetyHelpers.IsNullLiteral(init)) return;
@@ -117,6 +118,7 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
     /// 有限枚举,非启发式。不含 Get(太通用,可能是工厂)。
     /// </summary>
     private static readonly HashSet<string> ContainerElementAccessMethods = new(StringComparer.Ordinal) {
+        "Get",
         "GetOrAdd",
         "GetOrAddAsync",
         "GetOrCreate",
@@ -134,12 +136,16 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
     };
 
     /// <summary>
-    /// 调用是否是已知容器取元素 API(receiver.Method 形式,方法名在已知集合)→ 借用。
+    /// 调用是否是已知容器取元素 API → 借用。支持 receiver.Method 和同类直接 Method 两种形式。
     /// </summary>
     private static bool IsContainerElementBorrowCall(InvocationExpressionSyntax invocation) {
-        if (invocation.Expression is not MemberAccessExpressionSyntax ma) return false;
-        if (ma.Expression is null) return false;
-        return ContainerElementAccessMethods.Contains(ma.Name.Identifier.ValueText);
+        return invocation.Expression switch {
+            MemberAccessExpressionSyntax ma when ma.Expression is not null
+                => ContainerElementAccessMethods.Contains(ma.Name.Identifier.ValueText),
+            IdentifierNameSyntax id
+                => ContainerElementAccessMethods.Contains(id.Identifier.ValueText),
+            _ => false,
+        };
     }
 
     /// <summary>
@@ -172,10 +178,16 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
             switch (identifier.Parent) {
                 case MemberAccessExpressionSyntax ma when ReferenceEquals(ma.Expression, identifier):
                     if (IsReleaseCall(ma)) released = true;
+                    else if (IsReleaseMethodRefTransferred(ma)) transferred = true;
+                    else if (IsTransferToAwaitUsingViaConfigureAwait(ma)) transferred = true;
                     break;
 
                 case ConditionalAccessExpressionSyntax ca when ReferenceEquals(ca.Expression, identifier):
                     if (IsReleaseConditionalAccess(ca)) released = true;
+                    break;
+
+                case UsingStatementSyntax usingStmt when ReferenceEquals(usingStmt.Expression, identifier):
+                    released = true;
                     break;
 
                 case AssignmentExpressionSyntax assign when ReferenceEquals(assign.Right, identifier):
@@ -200,6 +212,32 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
         if (ma.Parent is not InvocationExpressionSyntax invocation) return false;
         if (!ReferenceEquals(invocation.Expression, ma)) return false;
         return ReleaseMethodNames.Contains(ma.Name.Identifier.ValueText);
+    }
+
+    /// <summary>
+    /// x.Dispose 方法引用作为参数传递(创建委托转给容器)→ 释放责任转移给容器。
+    /// 如 _undoChain.Add(new NonEmptyUndo(disposable.Dispose)) — 容器持有委托,卸载时执行。
+    /// </summary>
+    private static bool IsReleaseMethodRefTransferred(MemberAccessExpressionSyntax ma) {
+        if (!ReleaseMethodNames.Contains(ma.Name.Identifier.ValueText)) return false;
+        return ma.Parent is ArgumentSyntax;
+    }
+
+    /// <summary>
+    /// x.ConfigureAwait(false) 作为 await using var y 的初始化器 → 所有权转移给 y。
+    /// ConfiguredAsyncDisposable 结构体在 await using 释放时会回调原 IAsyncDisposable.DisposeAsync,
+    /// 故原变量 x 的释放责任转移给 y,不再视为泄露。
+    /// 典型: var fs = _fs.CreateStream(...); await using var cfg = fs.ConfigureAwait(false);
+    /// </summary>
+    private static bool IsTransferToAwaitUsingViaConfigureAwait(MemberAccessExpressionSyntax ma) {
+        if (!ma.Name.Identifier.ValueText.Equals("ConfigureAwait", StringComparison.Ordinal)) return false;
+        if (ma.Parent is not InvocationExpressionSyntax invocation) return false;
+        if (invocation.Parent is not EqualsValueClauseSyntax equals) return false;
+        if (equals.Parent is not VariableDeclaratorSyntax declarator) return false;
+        if (declarator.Parent is not VariableDeclarationSyntax declaration) return false;
+        if (declaration.Parent is not LocalDeclarationStatementSyntax localDecl) return false;
+        return localDecl.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword)
+            && localDecl.UsingKeyword.IsKind(SyntaxKind.UsingKeyword);
     }
 
     /// <summary>
@@ -267,6 +305,17 @@ public sealed class LocalDisposableLeakRule : AnalyzerRuleBase<LocalDisposableLe
             current = current.Parent;
         }
         return null;
+    }
+
+    /// <summary>
+    /// 排除"非资源"的 IDisposable/IAsyncDisposable 类型 — Task/ValueTask 是异步操作句柄,
+    /// await 即完成,非内存资源,不当泄露。即使 BCL 未来给 Task 加 IAsyncDisposable 也排除。
+    /// </summary>
+    private static bool IsExcludedResourceType(ITypeSymbol type) {
+        var nameSpan = type.Name.AsSpan();
+        if (nameSpan.StartsWith("Task".AsSpan(), StringComparison.Ordinal)) return true;
+        if (nameSpan.StartsWith("ValueTask".AsSpan(), StringComparison.Ordinal)) return true;
+        return false;
     }
 
     /// <summary>

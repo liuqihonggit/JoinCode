@@ -114,7 +114,7 @@ public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit
 
     private static bool IsProcessAlive(int pid) {
         try {
-            var process = Process.GetProcessById(pid);
+            using var process = Process.GetProcessById(pid);
             return !process.HasExited;
         } catch (ArgumentException) {
             return false;

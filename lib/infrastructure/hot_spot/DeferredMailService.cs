@@ -99,14 +99,14 @@ public sealed class DeferredMailService : IDeferredMailService {
         }
     }
 
-    private AsyncLock GetLock(string agentId) {
+    private LockRef GetLock(string agentId) {
         var snapshot = Volatile.Read(ref _locks);
         if (snapshot.TryGetValue(agentId, out var existing))
-            return existing;
+            return new LockRef(existing);
 
         var newLock = new AsyncLock(nameof(DeferredMailService));
         ImmutableInterlocked.Update(ref _locks, d => d.ContainsKey(agentId) ? d : d.Add(agentId, newLock));
-        return Volatile.Read(ref _locks)[agentId];
+        return new LockRef(Volatile.Read(ref _locks)[agentId]);
     }
 
     private sealed class DeferredMailEntry {

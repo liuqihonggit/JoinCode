@@ -150,25 +150,27 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 下载 Release asset — 复用 IDownloader 多线程分片 + 断点续传，支持 asset 名称过滤和并发数控制
+    /// 下载 Release asset — 复用 IDownloader 多线程分片 + 断点续传，支持 asset 名称过滤、并发数控制、clobber 覆盖、skip_existing 跳过
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhReleaseDownload, "下载 Release asset(复用多线程分片+断点续传,解决下载失败)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseDownload, "下载 Release asset(复用多线程分片+断点续传,支持 clobber/skip_existing)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhReleaseDownloadAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("保存目录", Required = true)] string dir,
         [McpToolParameter("asset 名称过滤模式(可选,支持 * 通配,默认下载全部)", Required = false)] string? pattern = null,
         [McpToolParameter("最大并发线程数(1-32,默认 4)", Required = false)] int? max_threads = null,
         [McpToolParameter("是否启用断点续传(默认 true)", Required = false)] bool? resume = null,
+        [McpToolParameter("覆盖已存在文件(可选,默认 false,文件存在时报错)", Required = false)] bool? clobber = null,
+        [McpToolParameter("跳过已存在文件(可选)", Required = false)] bool? skip_existing = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
-            => GhReleaseDownloadCoreAsync(client, owner, repoName, tag, dir, pattern, max_threads, resume, cancellationToken)).ConfigureAwait(false);
+            => GhReleaseDownloadCoreAsync(client, owner, repoName, tag, dir, pattern, max_threads, resume, clobber, skip_existing, cancellationToken)).ConfigureAwait(false);
 
     /// <summary>
-    /// GhReleaseDownload 核心逻辑 — 解析 asset 列表 + 多线程分片下载
+    /// GhReleaseDownload 核心逻辑 — 解析 asset 列表 + 多线程分片下载 + clobber/skip_existing 处理
     /// </summary>
-    private async Task<ToolResult> GhReleaseDownloadCoreAsync(IGitHubApiClient client, string owner, string repoName, string tag, string dir, string? pattern, int? max_threads, bool? resume, CancellationToken cancellationToken) {
+    private async Task<ToolResult> GhReleaseDownloadCoreAsync(IGitHubApiClient client, string owner, string repoName, string tag, string dir, string? pattern, int? max_threads, bool? resume, bool? clobber, bool? skip_existing, CancellationToken cancellationToken) {
         var viewResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
         if (!viewResult.Success) return Fail(viewResult.Error);
 
@@ -201,8 +203,21 @@ public partial class GitHubToolHandlers {
         var sb = new StringBuilder();
         var successCount = 0;
         var failCount = 0;
+        var skipCount = 0;
         foreach (var (name, url) in assets) {
             var filePath = _fs.CombinePath(dir, name);
+            if (_fs.FileExists(filePath)) {
+                if (skip_existing == true) {
+                    skipCount++;
+                    sb.AppendLine($"[SKIP] {name} (已存在)");
+                    continue;
+                }
+                if (clobber != true) {
+                    failCount++;
+                    sb.AppendLine($"[FAIL] {name}: 文件已存在(用 clobber=true 覆盖或 skip_existing=true 跳过)");
+                    continue;
+                }
+            }
             try {
                 await using var session = _downloader.StartDownload(url, filePath, options, null, cancellationToken);
                 var dlResult = await session.WaitForCompletionAsync(cancellationToken).ConfigureAwait(false);
@@ -223,36 +238,46 @@ public partial class GitHubToolHandlers {
         }
 
         sb.AppendLine();
-        sb.Append($"汇总: {successCount} 成功, {failCount} 失败, 共 {assets.Count} 个 asset");
+        sb.Append($"汇总: {successCount} 成功, {failCount} 失败, {skipCount} 跳过, 共 {assets.Count} 个 asset");
         return failCount == 0
             ? Ok(sb.ToString(), $"Release {tag} 下载完成:")
             : ToolResultBuilder.Error().WithText(sb.ToString()).Build();
     }
 
     /// <summary>
-    /// 上传 asset 到 Release — 走 uploads.github.com 二进制上传，支持多文件逗号分隔
+    /// 上传 asset 到 Release — 走 uploads.github.com 二进制上传，支持多文件逗号分隔、clobber 覆盖已有 asset
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhReleaseUpload, "上传 asset 到 Release", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseUpload, "上传 asset 到 Release(支持 clobber 覆盖)", "github")]
     public async Task<ToolResult> GhReleaseUploadAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("要上传的文件路径(多个用逗号分隔)", Required = true)] string files,
+        [McpToolParameter("覆盖同名 asset(可选,默认 false)", Required = false)] bool? clobber = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
-            => GhReleaseUploadCoreAsync(client, owner, repoName, tag, files, cancellationToken)).ConfigureAwait(false);
+            => GhReleaseUploadCoreAsync(client, owner, repoName, tag, files, clobber, cancellationToken)).ConfigureAwait(false);
 
     /// <summary>
-    /// GhReleaseUpload 核心逻辑 — 走 uploads.github.com 二进制上传
+    /// GhReleaseUpload 核心逻辑 — 走 uploads.github.com 二进制上传,clobber=true 时先删除同名 asset
     /// </summary>
-    private async Task<ToolResult> GhReleaseUploadCoreAsync(IGitHubApiClient client, string owner, string repoName, string tag, string files, CancellationToken cancellationToken) {
+    private async Task<ToolResult> GhReleaseUploadCoreAsync(IGitHubApiClient client, string owner, string repoName, string tag, string files, bool? clobber, CancellationToken cancellationToken) {
         var viewResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
         if (!viewResult.Success) return Fail(viewResult.Error);
 
         long releaseId;
+        Dictionary<string, long> existingAssets;
         try {
             using var doc = JsonDocument.Parse(viewResult.Body);
             releaseId = doc.RootElement.GetProperty("id").GetInt64();
+            existingAssets = new Dictionary<string, long>();
+            if (doc.RootElement.TryGetProperty("assets", out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array) {
+                foreach (var asset in assetsEl.EnumerateArray()) {
+                    var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                    var id = asset.TryGetProperty("id", out var idEl) ? idEl.GetInt64() : 0;
+                    if (!string.IsNullOrEmpty(name) && id > 0) existingAssets[name] = id;
+                }
+            }
         } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
 
         var filePaths = files.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -261,6 +286,14 @@ public partial class GitHubToolHandlers {
         var failCount = 0;
         foreach (var filePath in filePaths) {
             var fileName = Path.GetFileName(filePath);
+            if (clobber == true && existingAssets.TryGetValue(fileName, out var existingId)) {
+                var delResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}/assets/{existingId}", ct: cancellationToken).ConfigureAwait(false);
+                if (!delResult.Success) {
+                    failCount++;
+                    sb.AppendLine($"[FAIL] {fileName}: 删除已有 asset 失败({delResult.Error})");
+                    continue;
+                }
+            }
             try {
                 await using var fileStream = _fs.OpenRead(filePath);
                 var uploadResult = await client.UploadAssetAsync(owner, repoName, releaseId, fileName, fileStream, cancellationToken).ConfigureAwait(false);

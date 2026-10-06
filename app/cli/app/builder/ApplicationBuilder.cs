@@ -145,10 +145,11 @@ public sealed class ApplicationBuilder {
         }
 
         // schema 子命令 — 输出 CLI 参数定义 JSON（对齐架构指南可发现性：Schema 自省）
-        // 使用生成器生成的 ToJson() 方法（Utf8JsonWriter，AOT 兼容，无需 JsonContext）
         if (subCommand == CliSubCommand.Schema) {
-            var data = System.Text.Json.Nodes.JsonNode.Parse(CliArgSchema.ToJson());
-            System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
+            var props = CliArgSchema.Properties.Select(p => new Cli.Output.CliSchemaPropertyDto(
+                p.Name, p.ShortName, p.Description, p.Type, p.AcceptsValue, p.RiskLevel, p.Category, p.Example)).ToArray();
+            var result = new Cli.Output.CliSchemaResult(props);
+            System.Console.WriteLine(Cli.Output.CliOutputEnvelope<Cli.Output.CliSchemaResult>.Success(result).ToJsonString());
             return 0;
         }
 

@@ -147,8 +147,8 @@ internal static class SlashListExecutor {
 
         if (json) {
             var items = visibleCommands.Select(c => new Cli.Output.CliSlashCommandListItem(c.Name, c.Description, c.Usage, c.Category, c.Aliases)).ToList();
-            var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
-            System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, Cli.Output.CliOutputJsonContext.Default));
+            var envelope = Cli.Output.CliOutputEnvelope<System.Collections.Generic.List<Cli.Output.CliSlashCommandListItem>>.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
+            System.Console.WriteLine(envelope.ToJsonString());
         } else {
             foreach (var g in selectedGroups) {
                 var visible = g.Value.Where(c => !c.IsHidden).OrderBy(c => c.Name).ToList();

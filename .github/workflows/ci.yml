@@ -10,11 +10,11 @@ concurrency:
 
 jobs:
   detect:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       non-docs: ${{ steps.detect.outputs.non-docs }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - id: detect

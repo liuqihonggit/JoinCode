@@ -146,4 +146,76 @@ public sealed class CliOutputEnvelopeTests {
         json.Should().Contain("\"name\":\"/compact\"");
         json.Should().Contain("\"aliases\":[\"comp\"]");
     }
+
+    [Fact]
+    public void Success_Generic_ShouldSerializeToolSchema() {
+        var schema = new JoinCode.Abstractions.Tools.ToolSchema {
+            Properties = {
+                ["pr_number"] = new JoinCode.Abstractions.Tools.ToolSchemaProperty { Type = "string", Description = "PR 编号" }
+            },
+            Required = ["pr_number"]
+        };
+        var json = CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolSchema>.Success(schema, new CliOutputMeta { TotalCount = 1 }).ToJsonString();
+
+        json.Should().Contain("\"ok\":true");
+        json.Should().Contain("\"type\":\"object\"");
+        json.Should().Contain("\"pr_number\"");
+        json.Should().Contain("\"required\":[\"pr_number\"]");
+        json.Should().Contain("\"totalCount\":1");
+    }
+
+    [Fact]
+    public void Success_Generic_ShouldDeserializeToolSchema() {
+        var schema = new JoinCode.Abstractions.Tools.ToolSchema {
+            Properties = {
+                ["pr_number"] = new JoinCode.Abstractions.Tools.ToolSchemaProperty { Type = "string", Description = "PR 编号" }
+            },
+            Required = ["pr_number"]
+        };
+        var json = CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolSchema>.Success(schema).ToJsonString();
+        var envelope = System.Text.Json.JsonSerializer.Deserialize<CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolSchema>>(json, CliOutputJsonContext.Default.Options);
+
+        envelope.Should().NotBeNull();
+        envelope!.Ok.Should().BeTrue();
+        envelope.Data!.Type.Should().Be("object");
+        envelope.Data.Properties.Should().ContainKey("pr_number");
+        envelope.Data.Required.Should().Contain("pr_number");
+    }
+
+    [Fact]
+    public void Success_Generic_ShouldSerializeCliSlashSchemaHintResult() {
+        var data = new CliSlashSchemaHintResult("compact", null, "<指令>");
+        var json = CliOutputEnvelope<CliSlashSchemaHintResult>.Success(data).ToJsonString();
+
+        json.Should().Contain("\"ok\":true");
+        json.Should().Contain("\"command\":\"compact\"");
+        json.Should().Contain("\"argumentHint\":\"<指令>\"");
+        json.Should().NotContain("\"schema\"");
+    }
+
+    [Fact]
+    public void Success_Generic_ShouldDeserializeCliSlashSchemaHintResult() {
+        var data = new CliSlashSchemaHintResult("help", null, null);
+        var json = CliOutputEnvelope<CliSlashSchemaHintResult>.Success(data).ToJsonString();
+        var envelope = System.Text.Json.JsonSerializer.Deserialize<CliOutputEnvelope<CliSlashSchemaHintResult>>(json, CliOutputJsonContext.Default.Options);
+
+        envelope.Should().NotBeNull();
+        envelope!.Ok.Should().BeTrue();
+        envelope.Data!.Command.Should().Be("help");
+        envelope.Data.Schema.Should().BeNull();
+        envelope.Data.ArgumentHint.Should().BeNull();
+    }
+
+    [Fact]
+    public void Success_Generic_ShouldSerializeCliSlashSchemaHintResult_WithSchema() {
+        var schema = new JoinCode.Abstractions.Tools.ToolSchema {
+            Properties = { ["arg"] = new JoinCode.Abstractions.Tools.ToolSchemaProperty { Type = "string" } }
+        };
+        var data = new CliSlashSchemaHintResult("cmd", schema, null);
+        var json = CliOutputEnvelope<CliSlashSchemaHintResult>.Success(data).ToJsonString();
+
+        json.Should().Contain("\"command\":\"cmd\"");
+        json.Should().Contain("\"schema\":{");
+        json.Should().NotContain("\"argumentHint\"");
+    }
 }

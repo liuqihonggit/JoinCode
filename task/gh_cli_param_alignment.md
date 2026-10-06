@@ -151,13 +151,13 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 
 ### 4.2 参数差异
 
-| 子命令 | jcc 缺失参数 |
-|--------|------------|
-| list | `--author` `--app` `--mention` `--milestone` `--search` `--type` + 通用4参数 |
-| view | `--comments` `--jq` `--template` `--web`（`--json` 用 verbose 近似） |
-| create | `--attach` `--body-file` `--editor` `--milestone` `--project` `--recover` `--template` `--type` `--parent` `--blocked-by` `--blocking` `--web` |
-| close | `--reason` / `-r` `--duplicate-of` |
-| comment | 需确认 `--edit-last` `--create-if-none` 等 |
+| 子命令 | 已对齐参数 | 仍缺失 |
+|--------|-----------|--------|
+| list | ✅ `--author` `--mention` `--milestone` `--search` `--type` | `--app` + 通用4参数 |
+| view | ✅ `--comments` `--web` | `--jq` `--template`（`--json` 用 verbose 近似） |
+| create | ✅ `--milestone` | `--attach` `--body-file` `--editor` `--project` `--recover` `--template` `--type` `--parent` `--blocked-by` `--blocking` `--web` |
+| close | ✅ `--reason` `--duplicate-of` | — |
+| comment | — | `--edit-last` `--create-if-none` 等 |
 
 ## 5. run 子命令参数差异（P2）
 
@@ -170,11 +170,11 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 
 ### 5.2 参数差异
 
-| 子命令 | jcc 缺失参数 | jcc 独有增强 |
-|--------|------------|------------|
-| list | `--all` `--commit` `--created` `--event` `--user` `--workflow` + 通用4参数 | — |
-| view | `--attempt` `--exit-status` `--log-failed` `--verbose` `--web` + 通用3参数 | `max_lines` `skip_lines` `expand` `filter` `refresh`（日志增强） |
-| rerun | `--debug` `--job` | — |
+| 子命令 | 已对齐参数 | 仍缺失 | jcc 独有增强 |
+|--------|-----------|--------|------------|
+| list | ✅ `--event` `--workflow` `--user` `--commit` `--created` | `--all` + 通用4参数 | — |
+| view | ✅ `--attempt` `--web` | `--exit-status` `--log-failed` `--verbose` + 通用3参数 | `max_lines` `skip_lines` `expand` `filter` `refresh`（日志增强） |
+| rerun | ✅ `--debug` `--job` | — | — |
 
 ## 6. release / repo 子命令差异（P2/P3）
 
@@ -182,9 +182,26 @@ jcc gh 分组：`pr | issue | repo | release | run | branch | api`（7 组，32 
 jcc 有：list / view / create / delete / download / upload
 jcc 缺：**delete-asset / edit / verify / verify-asset**
 
+| 子命令 | 已对齐参数 | 仍缺失 |
+|--------|-----------|--------|
+| list | ✅ `--exclude-drafts` `--exclude-prereleases` | `--order` + 通用4参数 |
+| view | ✅ `--web` | `--json` `--jq` `--template` |
+| create | ✅ `--generate-notes` | `--notes-file` `--notes-from-tag` `--notes-start-tag` `--verify-tag` `--discussion-category` `--latest` `--web` |
+| delete | ✅ `--cleanup-tag` | — |
+| download | — | `--clobber` `--skip-existing` |
+| upload | — | `--clobber` |
+
 ### repo
 jcc 有：list / view / create / fork / clone
 jcc 缺：**archive / autolink / delete / deploy-key / edit / gitignore / license / read-dir / read-file / rename / set-default / sync / unarchive**
+
+| 子命令 | 已对齐参数 | 仍缺失 |
+|--------|-----------|--------|
+| view | ✅ `--web` | `--branch` `--json` `--jq` `--template` |
+| list | ✅ `--language` `--visibility` `--source` `--fork` | `--archived` `--topic` `--match` + 通用4参数 |
+| create | ✅ `--homepage` `--gitignore` `--license` | `--team` `--template` `--source` `--push` `--clone` `--disable-issues` `--disable-wiki` `--web` |
+| fork | ✅ `--org` | `--remote` `--fork-name` `--default-branch-only` |
+| clone | — | `--upstream-remote-name` `--bare` `--single-branch` `--depth` `--filter` `--sparse` |
 
 ## 7. 对齐计划
 
@@ -240,3 +257,24 @@ gist / org / project / codespace / discussion / attestation / ruleset / extensio
 <!-- 原因: --json 是 AI 解析最常用的；--web 实现简单；--jq 需 jq 解析库；--template 是 Go template，.NET 项目无原生支持 -->
 <!-- 替代方案: 全量对齐4参数（--template 需引入 Go template 移植，成本高）-->
 <!-- 验证: 待对齐后编译+手动 exe 验收 -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: pr/issue/run/release/repo 五组子命令高频参数对齐完成 -->
+<!-- 原因: 用户选择"只做 pr 子命令"后去睡觉,指示"逐个对齐",按 P1→P2→P3 优先级顺序推进 -->
+<!-- 对齐内容: -->
+<!--   pr(9/9): reopen/close/list/diff/checkout/merge/checks/create/view 全部参数对齐 -->
+<!--   issue(4/5): list(view/create/close 参数对齐,comment 未动 -->
+<!--   run(3/3): list/view/rerun 参数对齐 -->
+<!--   release(4/6): list/view/create/delete 参数对齐,download/upload 未动 -->
+<!--   repo(4/5): view/list/create/fork 参数对齐,clone 未动 -->
+<!-- 技术决策: -->
+<!--   - issue list 复杂过滤(search/type=pr)走 search API,简单过滤(author/mention/milestone)走 issues API -->
+<!--   - run list workflow 参数走 /actions/workflows/{wf}/runs 端点 -->
+<!--   - run view attempt 走 /attempts/{n} 端点 -->
+<!--   - run rerun job 走 /rerun-jobs 端点带 job_ids 数组 -->
+<!--   - release list exclude_drafts/prereleases 客户端过滤(REST API 不支持) -->
+<!--   - release delete cleanup_tag 删 release 后再删 git/refs/tags/{tag} -->
+<!--   - repo list source/fork 客户端过滤,language/visibility 走 API query -->
+<!--   - repo fork org 参数传 {"organization":"org"} body -->
+<!-- 验证: 92 个 GitHubToolHandlers 测试全部通过,0 警告 0 错误 ✅ -->
+<!-- 未完成: download/upload clobber/skip_existing(需 mock filesystem),新增子命令(delete-asset/edit/verify 等) -->

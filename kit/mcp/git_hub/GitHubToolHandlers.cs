@@ -124,6 +124,23 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// verbose 缓存模板 — verbose=true 优先读缓存,未命中或 verbose=false 调 API,成功后写缓存,按 verbose 决定精简/完整输出
+    /// <para>消除 GhPrView/GhIssueView/GhRepoView 三处相同的缓存读写样板</para>
+    /// </summary>
+    private async Task<ToolResult> GetOrFetchWithCacheAsync(
+        string cacheKey, string apiPath, bool? verbose,
+        Func<string, string> summarize, CancellationToken ct) {
+        if (verbose == true) {
+            var cached = TryGetGhCache(cacheKey);
+            if (cached is not null) return Ok(cached);
+        }
+        var result = await _apiClient!.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
+        if (!result.Success) return Fail(result.Error);
+        SaveGhCache(cacheKey, result.Body);
+        return Ok(verbose == true ? result.Body : summarize(result.Body));
+    }
+
+    /// <summary>
     /// 精简 PR JSON 输出 — 提取关键字段构建人类可读文本
     /// </summary>
     private static string SummarizePr(string json) {

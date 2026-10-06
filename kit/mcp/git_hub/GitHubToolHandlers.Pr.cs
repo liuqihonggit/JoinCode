@@ -17,14 +17,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (owner, repoName) => {
             var number = ParsePrNumber(pr_number);
             var cacheKey = BuildGhCacheKey("gh_pr_view", $"{owner}/{repoName}/{number}");
-            if (verbose == true) {
-                var cached = TryGetGhCache(cacheKey);
-                if (cached is not null) return Ok(cached);
-            }
-            var result = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
-            SaveGhCache(cacheKey, result.Body);
-            return Ok(verbose == true ? result.Body : SummarizePr(result.Body));
+            return await GetOrFetchWithCacheAsync(cacheKey, $"repos/{owner}/{repoName}/pulls/{number}", verbose, SummarizePr, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>

@@ -57,7 +57,7 @@ C:\Users\54076\bin\
 
 | 问题 | 状态 | 说明 |
 |------|------|------|
-| jcc 启动 ~6 秒 | ⚠️ 待优化 | `BuildHostAsync` 每次创建完整 DI 容器，需架构改动（Host 缓存或轻量级 Host） |
+| jcc 启动 ~4.4 秒 | ⚠️ 待优化 | 瓶颈：`McpInitModule.ConfigureAsync` 中 515 个 MCP 工具通过 AsyncLock 近似串行注册 + 8 个插件通过 Actor mailbox 串行加载 + `WirePluginSkillBridge` 首次解析深依赖链。4.4s 接近 `McpInitPlugin` 的 5s 超时上限。优化方向：批量工具注册(单次锁)、并行插件加载、延迟 schema 构造 |
 | optional 参数不能用位置参数 | ⚠️ 设计限制 | `gh repo clone owner/repo target-dir` 报错，需用 `--dir target-dir` |
 | `gh api -f` POST 请求 | ⚠️ 设计差异 | `-f` 映射到查询参数 fields，POST 请求需用 `--body` 传请求体 |
 

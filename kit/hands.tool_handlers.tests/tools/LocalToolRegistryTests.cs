@@ -233,4 +233,84 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable {
             (await _registry.ContainsToolAsync(name)).Should().BeTrue($"tool '{name}' should be registered");
         }
     }
+
+    [Fact]
+    public async Task RegisterToolsBatch_ShouldRegisterAllInOneLock() {
+        var handlers = new List<IToolHandler> {
+            CreateHandler("batch_1", "desc1"),
+            CreateHandler("batch_2", "desc2"),
+            CreateHandler("batch_3", "desc3"),
+        };
+
+        await _registry.RegisterToolsBatchAsync(handlers);
+
+        var count = await _registry.GetCountAsync();
+        count.Should().Be(3);
+        (await _registry.ContainsToolAsync("batch_1")).Should().BeTrue();
+        (await _registry.ContainsToolAsync("batch_2")).Should().BeTrue();
+        (await _registry.ContainsToolAsync("batch_3")).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RegisterToolsBatch_EmptyList_ShouldBeNoOp() {
+        await _registry.RegisterToolsBatchAsync([]);
+        (await _registry.GetCountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RegisterToolsBatch_WithDuplicateNames_ShouldOverwrite() {
+        var firstBatch = new List<IToolHandler> {
+            CreateHandler("dup", "v1"),
+            CreateHandler("other", "keep"),
+        };
+        await _registry.RegisterToolsBatchAsync(firstBatch);
+
+        var secondBatch = new List<IToolHandler> {
+            CreateHandler("dup", "v2"),
+        };
+        await _registry.RegisterToolsBatchAsync(secondBatch);
+
+        (await _registry.GetCountAsync()).Should().Be(2);
+        var dup = await _registry.GetToolAsync("dup");
+        dup!.Description.Should().Be("v2");
+    }
+
+    [Fact]
+    public async Task RegisterToolsBatch_ShouldFireToolRegisteredEventForEach() {
+        var registeredNames = new List<string>();
+        _onToolRegistered = (_, e) => registeredNames.Add(e.ToolName);
+        _registry.ToolRegistered += _onToolRegistered;
+
+        var handlers = new List<IToolHandler> {
+            CreateHandler("evt_1", "d1"),
+            CreateHandler("evt_2", "d2"),
+        };
+        await _registry.RegisterToolsBatchAsync(handlers);
+
+        registeredNames.Should().Contain("evt_1", "evt_2");
+        registeredNames.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task RegisterToolsBatch_LargeBatch_ShouldBeFasterThanIndividualRegistration() {
+        const int n = 500;
+        var handlers = Enumerable.Range(0, n).Select(i => CreateHandler($"perf_{i}", $"desc_{i}")).ToList();
+
+        var batchSw = System.Diagnostics.Stopwatch.StartNew();
+        var batchRegistry = new LocalToolRegistry();
+        await batchRegistry.RegisterToolsBatchAsync(handlers);
+        batchSw.Stop();
+        await batchRegistry.DisposeAsync();
+
+        var individualSw = System.Diagnostics.Stopwatch.StartNew();
+        var individualRegistry = new LocalToolRegistry();
+        foreach (var h in handlers) {
+            await individualRegistry.RegisterToolAsync(h);
+        }
+        individualSw.Stop();
+        await individualRegistry.DisposeAsync();
+
+        batchSw.ElapsedMilliseconds.Should().BeLessThanOrEqualTo(individualSw.ElapsedMilliseconds + 5,
+            "批量注册应不慢于逐个注册（允许 5ms 容差）");
+    }
 }

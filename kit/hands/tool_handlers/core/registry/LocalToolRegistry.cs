@@ -92,6 +92,35 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     }
 
     /// <summary>
+    /// 异步批量注册工具处理器 — 单次锁获取注册多个工具，消除逐个注册的锁开销与 async 状态机开销。
+    /// </summary>
+    /// <param name="handlers">要注册的工具处理器列表。</param>
+    /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
+    public async Task RegisterToolsBatchAsync(IReadOnlyList<IToolHandler> handlers, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(handlers);
+        if (handlers.Count == 0) return;
+
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+
+        for (var i = 0; i < handlers.Count; i++) {
+            var handler = handlers[i];
+            ArgumentNullException.ThrowIfNull(handler);
+
+            var isOverwrite = _tools.ContainsKey(handler.Name);
+            if (isOverwrite) {
+                var old = _tools[handler.Name];
+                RemoveFromIndex(old);
+            }
+
+            _tools[handler.Name] = handler;
+            AddToIndex(handler);
+            OnToolRegistered(handler.Name, handler.Description);
+        }
+
+        _logger?.LogDebug("Tools batch registered: {Count} tools", handlers.Count);
+    }
+
+    /// <summary>
     /// 异步注销指定名称的工具。
     /// </summary>
     /// <param name="toolName">要注销的工具名称。</param>

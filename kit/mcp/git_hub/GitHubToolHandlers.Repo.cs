@@ -71,9 +71,9 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 创建仓库 — 支持 public/private/internal 可见性、描述、README 初始化、homepage、gitignore/license 模板、template/clone/disable-issues/disable-wiki
+    /// 创建仓库 — 支持 public/private/internal 可见性、描述、README 初始化、homepage、gitignore/license 模板、template/clone/source/push/disable-issues/disable-wiki
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRepoCreate, "创建仓库(public/private/internal,支持 template/clone/disable-issues/disable-wiki)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoCreate, "创建仓库(public/private/internal,支持 template/clone/source/push/disable-issues/disable-wiki)", "github")]
     public async Task<ToolResult> GhRepoCreateAsync(
         [McpToolParameter("仓库名", Required = true)] string name,
         [McpToolParameter("可见性(public/private/internal,默认 private)", Required = false)] string? visibility = null,
@@ -86,6 +86,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("组织名(可选,在组织下创建)", Required = false)] string? org = null,
         [McpToolParameter("团队名(可选,组织仓库添加到团队)", Required = false)] string? team = null,
         [McpToolParameter("创建后克隆到本地(默认 false)", Required = false)] bool? clone = null,
+        [McpToolParameter("本地源目录(可选,将该目录初始化为 git 并添加 remote;空字符串则用 working_dir)", Required = false)] string? source = null,
+        [McpToolParameter("推送本地提交到远程(source 非空时生效)", Required = false)] bool? push = null,
         [McpToolParameter("禁用 Issues(可选)", Required = false)] bool? disable_issues = null,
         [McpToolParameter("禁用 Wiki(可选)", Required = false)] bool? disable_wiki = null,
         [McpToolParameter("web=true 只返回仓库浏览器 URL", Required = false)] bool? web = null,
@@ -144,7 +146,37 @@ public partial class GitHubToolHandlers {
             if (!cloneResult.Success) return OkBrief(result.Body, $"已创建仓库 {repoFullName}（但克隆失败: {cloneResult.Error}）");
         }
 
+        if (source is not null) {
+            var sourceDir = source.Length == 0 ? (working_dir ?? ".") : source;
+            var sourceMsg = await InitSourceRepoAsync(sourceDir, repoFullName, push == true, cancellationToken).ConfigureAwait(false);
+            return OkBrief(result.Body, $"已创建仓库 {repoFullName}{sourceMsg}");
+        }
+
         return OkBrief(result.Body, $"已创建仓库 {repoFullName}");
+    }
+
+    /// <summary>
+    /// 将本地目录初始化为 git 仓库并添加 remote，可选推送 — 用于 gh repo create --source [--push]
+    /// </summary>
+    /// <param name="sourceDir">本地源目录路径</param>
+    /// <param name="repoFullName">远程仓库全名(owner/repo)</param>
+    /// <param name="push">是否推送本地提交到远程</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>操作结果描述（含失败原因），用于拼接在"已创建仓库"消息后</returns>
+    private async Task<string> InitSourceRepoAsync(string sourceDir, string repoFullName, bool push, CancellationToken cancellationToken) {
+        if (_git is null) return "（但 source 初始化失败：git 未配置）";
+        var remoteUrl = $"https://github.com/{repoFullName}.git";
+        var hasGit = _fs.DirectoryExists(Path.Combine(sourceDir, ".git"));
+        if (!hasGit) {
+            var initResult = await _git.ExecuteAsync("init", sourceDir, cancellationToken).ConfigureAwait(false);
+            if (!initResult.Success) return $"（但 source 初始化失败: {initResult.Error}）";
+        }
+        var remoteResult = await _git.ExecuteAsync($"remote add origin {remoteUrl}", sourceDir, cancellationToken).ConfigureAwait(false);
+        if (!remoteResult.Success && !remoteResult.Error.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+            return $"（但添加 remote 失败: {remoteResult.Error}）";
+        if (!push) return "（已初始化本地 git 并添加 remote）";
+        var pushResult = await _git.ExecuteAsync("push -u origin HEAD", sourceDir, cancellationToken).ConfigureAwait(false);
+        return pushResult.Success ? "（已推送本地提交）" : $"（但推送失败: {pushResult.Error}）";
     }
 
     /// <summary>

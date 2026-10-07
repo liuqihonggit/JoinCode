@@ -4,8 +4,7 @@ namespace JoinCode.Gui.Persistence;
 /// GUI 会话持久化 JSON 上下文 — AOT 兼容（源码生成），
 /// camelCase 命名 + WriteIndented + 真实中文输出（通过 RelaxedJsonSerializer）。
 /// </summary>
-[JsonSourceGenerationOptions(
-    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     WriteIndented = true,
     AllowTrailingCommas = true,
     ReadCommentHandling = JsonCommentHandling.Skip,

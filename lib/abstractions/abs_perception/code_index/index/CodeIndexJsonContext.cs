@@ -29,7 +29,7 @@ namespace JoinCode.Abstractions.CodeIndex;
 [JsonSerializable(typeof(HubNodeInfo))]
 [JsonSerializable(typeof(List<HubNodeInfo>))]
 [JsonSerializable(typeof(DeadCodeEntry))]
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
 [JsonSerializable(typeof(List<DeadCodeEntry>))]
 [JsonSerializable(typeof(SubgraphResult))]
 [JsonSerializable(typeof(ChangeImpactResult))]

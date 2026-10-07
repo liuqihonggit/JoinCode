@@ -292,5 +292,5 @@ public sealed class MicrocompactServiceTests {
 }
 
 [JsonSerializable(typeof(List<Dictionary<string, JsonElement>>))]
-[JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Default)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, GenerationMode = JsonSourceGenerationMode.Default)]
 internal sealed partial class TestJsonContext : JsonSerializerContext;

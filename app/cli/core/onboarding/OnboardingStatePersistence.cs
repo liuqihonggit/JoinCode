@@ -86,6 +86,6 @@ public sealed record OnboardingCompletionData {
 /// <summary>
 /// Onboarding 持久化的 JSON 序列化上下文，为 NativeAOT 提供源码生成支持
 /// </summary>
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
 [JsonSerializable(typeof(OnboardingCompletionData))]
 public sealed partial class OnboardingPersistenceContext : JsonSerializerContext;

@@ -84,5 +84,5 @@ public sealed class TokenUsageDetail {
 [JsonSerializable(typeof(ApiErrorResponse))]
 [JsonSerializable(typeof(ApiErrorDetail))]
 [JsonSerializable(typeof(TokenUsageResponse))]
-[JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 internal sealed partial class ApiJsonContext : JsonSerializerContext;

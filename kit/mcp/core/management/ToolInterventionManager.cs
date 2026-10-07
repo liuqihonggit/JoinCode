@@ -167,5 +167,5 @@ public sealed class ToolInterventionManager : ServiceEntity {
 }
 
 [JsonSerializable(typeof(Dictionary<string, InterventionRule>))]
-[JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 internal sealed partial class ToolInterventionJsonContext : JsonSerializerContext;

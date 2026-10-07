@@ -5,5 +5,5 @@ namespace JoinCode.Transport.Bridge;
 /// 仅注册 Transport 层需要的类型
 /// </summary>
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
-[JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 internal sealed partial class TransportBridgeJsonContext : JsonSerializerContext;

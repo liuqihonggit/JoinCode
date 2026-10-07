@@ -1,6 +1,6 @@
 namespace JoinCode.Abstractions.Models;
 
-[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNameCaseInsensitive = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip)]
 [JsonSerializable(typeof(StepEvidence.StepEvidenceInput))]
 [JsonSerializable(typeof(List<StepEvidence.StepEvidenceInput>))]
 [JsonSerializable(typeof(Todo.TodoItemInput))]

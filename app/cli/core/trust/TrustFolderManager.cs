@@ -107,6 +107,6 @@ public sealed class TrustFolderEntries {
 /// <summary>
 /// 信任目录 JSON 序列化上下文
 /// </summary>
-[System.Text.Json.Serialization.JsonSourceGenerationOptions(PropertyNamingPolicy = System.Text.Json.Serialization.JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+[System.Text.Json.Serialization.JsonSourceGenerationOptions(DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = System.Text.Json.Serialization.JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
 [System.Text.Json.Serialization.JsonSerializable(typeof(TrustFolderEntries))]
 public sealed partial class TrustFoldersContext : System.Text.Json.Serialization.JsonSerializerContext;

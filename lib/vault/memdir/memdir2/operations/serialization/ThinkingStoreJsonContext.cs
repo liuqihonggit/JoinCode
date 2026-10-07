@@ -1,6 +1,6 @@
 namespace Core.Memdir;
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(ThinkingStoreData))]
 [JsonSerializable(typeof(ThinkingEntry))]
 [JsonSerializable(typeof(List<ThinkingEntry>))]

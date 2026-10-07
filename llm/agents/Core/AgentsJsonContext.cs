@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// <summary>
 /// Agents 子系统统一 JSON 序列化上下文 — AOT 源码生成，覆盖权限、计划审批、判断等类型
 /// </summary>
-[JsonSourceGenerationOptions(WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(int))]

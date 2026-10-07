@@ -35,5 +35,5 @@ public sealed class GraphDefineEdge {
 
 [JsonSerializable(typeof(GraphDefineNode[]))]
 [JsonSerializable(typeof(GraphDefineEdge[]))]
-[JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 internal sealed partial class GraphDefineJsonContext : JsonSerializerContext;

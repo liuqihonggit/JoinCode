@@ -3,7 +3,7 @@ namespace JoinCode.Hands.Desktop;
 /// <summary>
 /// 宏录制 JSON 序列化上下文 — AOT 兼容的源码生成器
 /// </summary>
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
 [JsonSerializable(typeof(Macro))]
 [JsonSerializable(typeof(List<DesktopOperation>))]
 internal sealed partial class MacroJsonContext : JsonSerializerContext;

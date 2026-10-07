@@ -29,7 +29,7 @@ public sealed record McpConfigFile {
 /// <summary>
 /// MCP 配置 JSON 序列化上下文 — 为 AOT 编译预生成 JSON 序列化代码
 /// </summary>
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(McpConfigFile))]
 [JsonSerializable(typeof(McpServerConfigEntry))]
 [JsonSerializable(typeof(Dictionary<string, McpServerConfigEntry>))]

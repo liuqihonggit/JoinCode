@@ -566,7 +566,8 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task RunView_WithWeb_ReturnsUrl() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"html_url":"https://github.com/o/r/actions/runs/42"}""" };
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"html_url":"https://github.com/o/r/actions/runs/42"}""" });
 
         var result = await _handler.GhRunViewAsync("42", web: true, repo: "owner/repo");
 
@@ -619,11 +620,12 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task RunView_NoLog_ReturnsFullDetail() {
-        _api.NextResponse = new GitHubApiResponse {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"id":42,"run_number":752,"status":"completed","conclusion":"success","display_title":"CI build","event":"push","head_branch":"main","head_sha":"abc123def456","html_url":"https://github.com/o/r/actions/runs/42","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:01:00Z"}""",
-        };
+        });
 
         var result = await _handler.GhRunViewAsync("42", repo: "owner/repo");
 
@@ -676,6 +678,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task RunView_LogFailed_PullsFailedJobLogs() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[{"id":1,"conclusion":"failure","name":"test"},{"id":2,"conclusion":"success","name":"build"}]}""" });
         _api.NextLogLines = "##[error]Test failed: assert\nnormal line\n##[error]Another error".Split('\n');
 

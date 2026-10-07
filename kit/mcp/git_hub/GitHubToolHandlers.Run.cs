@@ -69,14 +69,18 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            // 宽容: AI 可能传 run number(如 752)而非 run id(如 37663049294),自动解析
+            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (resolvedRunId is null)
+                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
             if (web == true) {
-                var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
+                var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
                 if (!runResult.Success) return Fail(runResult.Error);
                 var url = ExtractHtmlUrl(runResult.Body);
                 return string.IsNullOrEmpty(url) ? Fail("无法从 Run 响应中解析 html_url") : Ok(url);
             }
             if (!string.IsNullOrEmpty(json_fields)) {
-                var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
+                var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
                 if (!runResult.Success) return Fail(runResult.Error);
                 return Ok(FilterJsonFields(runResult.Body, json_fields));
             }
@@ -84,8 +88,48 @@ public partial class GitHubToolHandlers {
                 expand = "failed";
                 log = true;
             }
-            return await GhRunViewCoreAsync(client, owner, repoName, run_id, job_id, log, max_lines, skip_lines, expand, filter, refresh, attempt, working_dir, verbosity, cancellationToken).ConfigureAwait(false);
+            return await GhRunViewCoreAsync(client, owner, repoName, resolvedRunId, job_id, log, max_lines, skip_lines, expand, filter, refresh, attempt, working_dir, verbosity, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 解析 run_id — 宽容接受 run number(短数字)自动查找对应 run id（缺陷3）
+    /// <para>AI 可能用 run list 的 NUM 列(如 752)而非 ID 列(如 37663049294),先尝试直接查询,
+    /// 404 且为短数字时按 run_number 搜索。</para>
+    /// </summary>
+    private async Task<string?> ResolveRunIdAsync(IGitHubApiClient client, string owner, string repoName, string runId, CancellationToken ct) {
+        // 先尝试直接用 run_id 查询
+        var direct = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{runId}", ct: ct).ConfigureAwait(false);
+        if (direct.Success) return runId;
+
+        // 404 且 run_id 是短数字(看起来像 run number)时,按 run_number 搜索
+        if (direct.StatusCode != 404 || !IsLikelyRunNumber(runId)) return null;
+
+        var listResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs",
+            query: new Dictionary<string, string> { ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
+        if (!listResult.Success) return null;
+
+        return FindRunIdByNumber(listResult.Body, runId, _logger);
+    }
+
+    /// <summary>run_id 通常是 10-11 位数字,run number 是短数字(少于 10 位)</summary>
+    private static bool IsLikelyRunNumber(string runId)
+        => runId.Length > 0 && runId.Length < 10 && runId.All(char.IsDigit);
+
+    /// <summary>从 run list JSON 中查找指定 run_number 对应的 run id</summary>
+    private static string? FindRunIdByNumber(string json, string number, ILogger? logger) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("workflow_runs", out var runs)) return null;
+            foreach (var run in runs.EnumerateArray()) {
+                if (run.TryGetProperty("run_number", out var rn) && rn.GetRawText().Trim('"') == number
+                    && run.TryGetProperty("id", out var id))
+                    return id.GetRawText().Trim('"');
+            }
+        } catch (JsonException ex) {
+            logger?.LogWarning(ex, "解析 run list JSON 失败,无法按 run_number 查找");
+        }
+        return null;
+    }
 
     /// <summary>
     /// GhRunView 核心逻辑 — expand/filter/log 多分支调度,两级缓存(ADR 0067)

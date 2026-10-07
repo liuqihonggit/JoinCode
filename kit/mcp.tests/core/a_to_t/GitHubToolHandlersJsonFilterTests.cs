@@ -224,7 +224,8 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task RunView_WithJson_ReturnsFilteredFields() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"status":"completed","conclusion":"success","head_sha":"abc"}""" };
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"status":"completed","conclusion":"success","head_sha":"abc"}""" });
 
         var result = await _handler.GhRunViewAsync("123", json_fields: "id,status", repo: "owner/repo");
 

@@ -15,6 +15,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("排除 draft release(可选)", Required = false)] bool? exclude_drafts = null,
         [McpToolParameter("排除 prerelease(可选)", Required = false)] bool? exclude_prereleases = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,tag_name,name)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -22,7 +23,7 @@ public partial class GitHubToolHandlers {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(!string.IsNullOrEmpty(json_fields) ? FilterJsonFields(result.Body, json_fields) : SummarizeReleaseList(result.Body, exclude_drafts, exclude_prereleases));
+            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, body => SummarizeReleaseList(body, exclude_drafts, exclude_prereleases), "id,tag_name,name,draft,prerelease,published_at"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -76,6 +77,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("web=true 只返回 Release 浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,tag_name,name)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选,默认当前目录)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -87,11 +89,51 @@ public partial class GitHubToolHandlers {
                 return string.IsNullOrEmpty(url) ? Fail("无法从 Release 响应中解析 html_url") : Ok(url);
             }
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
-            if (result.Success) return Ok(!string.IsNullOrEmpty(json_fields) ? FilterJsonFields(result.Body, json_fields) : result.Body);
+            if (result.Success) return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeReleaseView, "id,tag_name,name,draft,prerelease,published_at,html_url"));
             // 404 时 fallback: draft release 没有关联 tag,需列出所有 release 按 tag_name 匹配
             if (IsNotFound(result)) return await FindReleaseByTagNameAsync(client, owner, repoName, tag, cancellationToken).ConfigureAwait(false);
             return Fail(result.Error);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 精简 Release 详情 — 人类可读文本(tag/name/draft/prerelease/assets)
+    /// </summary>
+    private static string SummarizeReleaseView(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var sb = new StringBuilder(256);
+            var tagName = root.TryGetProperty("tag_name", out var t) ? t.GetString() ?? "" : "";
+            var name = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+            var draft = root.TryGetProperty("draft", out var d) && d.GetBoolean();
+            var prerelease = root.TryGetProperty("prerelease", out var p) && p.GetBoolean();
+            var url = root.TryGetProperty("html_url", out var u) ? u.GetString() ?? "" : "";
+
+            sb.AppendLine($"Release: {name} ({tagName})");
+            if (draft) sb.AppendLine("Draft: yes");
+            if (prerelease) sb.AppendLine("Prerelease: yes");
+            if (!string.IsNullOrEmpty(url)) sb.AppendLine($"URL: {url}");
+
+            if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array) {
+                sb.AppendLine($"Assets ({assets.GetArrayLength()}):");
+                foreach (var asset in assets.EnumerateArray()) {
+                    var assetName = asset.TryGetProperty("name", out var an) ? an.GetString() ?? "" : "";
+                    var size = asset.TryGetProperty("size", out var sz) ? sz.GetInt64() : 0;
+                    sb.AppendLine($"  {assetName}  ({FormatSize(size)})");
+                }
+            }
+            return sb.ToString().TrimEnd();
+        } catch {
+            return json;
+        }
+    }
+
+    private static string FormatSize(long bytes) {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        if (bytes < 1024L * 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MB";
+        return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
+    }
 
     /// <summary>
     /// 判断 API 响应是否为 404 Not Found

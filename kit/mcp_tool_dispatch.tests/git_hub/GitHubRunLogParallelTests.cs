@@ -114,5 +114,10 @@ public sealed class GitHubRunLogParallelTest {
             string owner, string repo, long releaseId,
             string fileName, Stream fileStream, CancellationToken ct = default)
             => throw new NotImplementedException();
+
+        public Task<GitHubApiResponse> DownloadArtifactAsync(
+            string owner, string repo, long artifactId,
+            string filePath, CancellationToken ct = default)
+            => throw new NotImplementedException();
     }
 }

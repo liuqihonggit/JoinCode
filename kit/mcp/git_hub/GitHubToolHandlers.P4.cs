@@ -9,11 +9,33 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 构建 GraphQL 请求 JSON — 用 DTO 序列化，自动转义双引号，消除内插原始字符串的 } 转义问题
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string BuildGraphQL(string query)
         => JsonSerializer.Serialize(new GraphQLRequest { Query = query }, GitHubApiJsonContext.Safe.GraphQLRequest);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsHexString(string s) {
-        foreach (var c in s) {
+        var span = s.AsSpan();
+        var i = 0;
+        var len = span.Length;
+
+        if (Vector128<ushort>.IsSupported) {
+            var v0 = Vector128.Create((ushort)'0');
+            var v9 = Vector128.Create((ushort)'9');
+            var va = Vector128.Create((ushort)'a');
+            var vf = Vector128.Create((ushort)'f');
+            var allOnes = Vector128<ushort>.AllBitsSet;
+
+            for (; i + 8 <= len; i += 8) {
+                var vec = Vector128.Create(span[i], span[i + 1], span[i + 2], span[i + 3], span[i + 4], span[i + 5], span[i + 6], span[i + 7]);
+                var isDigit = Vector128.GreaterThanOrEqual(vec, v0) & Vector128.LessThanOrEqual(vec, v9);
+                var isLower = Vector128.GreaterThanOrEqual(vec, va) & Vector128.LessThanOrEqual(vec, vf);
+                if (!Vector128.EqualsAll(isDigit | isLower, allOnes)) return false;
+            }
+        }
+
+        for (; i < len; i++) {
+            var c = span[i];
             if ((uint)(c - '0') >= 10u && (uint)(c - 'a') >= 6u) return false;
         }
         return true;

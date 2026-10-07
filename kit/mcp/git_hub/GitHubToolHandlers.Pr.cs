@@ -183,6 +183,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 从 diff --git a/path b/path 头提取文件路径
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string? ExtractFilePathFromDiffHeader(ReadOnlySpan<char> line) {
         var rest = line.Slice("diff --git ".Length);
         var spaceIdx = rest.IndexOf(' ');

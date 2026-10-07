@@ -47,6 +47,7 @@ internal static class SimpleJqEvaluator {
         return stages;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static JsonNode? ApplyStage(JsonNode? input, string stage)
         => stage switch {
             var s when s.StartsWith("select(", StringComparison.Ordinal) => ApplySelect(input, s),
@@ -81,6 +82,7 @@ internal static class SimpleJqEvaluator {
     }
 
     /// <summary>从对象取字段，或对数组逐元素取字段（jq map 语义）</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static JsonNode? GetFieldOrMapArray(JsonNode? current, string fieldName) {
         if (current is JsonArray mapArr)
             return MapArrayField(mapArr, fieldName);
@@ -122,6 +124,7 @@ internal static class SimpleJqEvaluator {
     }
 
     /// <summary>.field=="value" or .field2=="value2" — 支持 or 逻辑</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool EvaluateCondition(JsonNode? node, string condition) {
         var span = condition.AsSpan();
         while (!span.IsEmpty) {
@@ -135,6 +138,7 @@ internal static class SimpleJqEvaluator {
     }
 
     /// <summary>.field=="value" 或 .field!="value"</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool EvaluateComparison(JsonNode? node, string comparison) {
         var span = comparison.AsSpan();
         var neqIdx = span.IndexOf("!=");

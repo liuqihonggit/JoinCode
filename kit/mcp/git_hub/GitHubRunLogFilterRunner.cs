@@ -13,6 +13,7 @@ internal sealed class GitHubRunLogFilterRunner {
         _apiClient = apiClient;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool LineMatchesAnyMarker(ReadOnlySpan<char> lineSpan, FrozenSet<string> markers) {
         foreach (var marker in markers) {
             if (lineSpan.Contains(marker, StringComparison.OrdinalIgnoreCase))

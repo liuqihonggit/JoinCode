@@ -19,6 +19,7 @@ internal static class GitHubRunLogFilter {
     /// <summary>
     /// 获取过滤级别对应的标记集
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FrozenSet<string> GetFilterMarkers(GitHubLogFilter filter) => filter switch {
         GitHubLogFilter.Error => ErrorMarkers,
         GitHubLogFilter.Warning => WarningMarkers,
@@ -54,6 +55,7 @@ internal static class GitHubRunLogFilter {
     /// <summary>
     /// Section 类型的排序优先级 — error 优先(排障首要),normal 最后
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int SectionOrder(string type) => type switch {
         RunLogCache.SectionError => 0,
         RunLogCache.SectionWarning => 1,
@@ -66,6 +68,7 @@ internal static class GitHubRunLogFilter {
     /// <summary>
     /// 获取 section 的预览文本 — 第一行截断到 60 字符
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string GetSectionPreview(List<string> lines) {
         if (lines.Count == 0) return string.Empty;
         var first = lines[0];
@@ -100,6 +103,8 @@ internal static class GitHubRunLogFilter {
     /// </summary>
     public static List<string> ApplyFilter(List<string> lines, FrozenSet<string>? markers) {
         if (markers is null) return lines;
+        if (lines.Count >= 1000)
+            return lines.AsParallel().AsOrdered().Where(line => LineMatchesAnyMarkerInline(line, markers)).ToList();
         var result = new List<string>(lines.Count);
         foreach (var line in lines) {
             var lineSpan = line.AsSpan();
@@ -111,6 +116,16 @@ internal static class GitHubRunLogFilter {
             }
         }
         return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool LineMatchesAnyMarkerInline(string line, FrozenSet<string> markers) {
+        var lineSpan = line.AsSpan();
+        foreach (var marker in markers) {
+            if (lineSpan.Contains(marker, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     /// <summary>

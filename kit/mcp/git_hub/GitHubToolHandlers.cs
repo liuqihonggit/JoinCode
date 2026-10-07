@@ -70,6 +70,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 转义并引用命令行参数 — 值用双引号包裹，内部双引号转义
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string Quote(string value) {
         if (string.IsNullOrEmpty(value)) return "\"\"";
         if (!value.Contains('"')) return string.Concat("\"", value, "\"");
@@ -134,6 +135,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 从 JSON 字符串中提取指定字符串字段值（轻量 Span 解析，不构建 JsonDocument）
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string? TryExtractJsonField(string json, string fieldName) {
         var patternLen = fieldName.Length + 4;
         var pattern = patternLen <= 128 ? stackalloc char[patternLen] : new char[patternLen].AsSpan();
@@ -180,6 +182,7 @@ public partial class GitHubToolHandlers {
     /// 逗号分隔字符串转 List — 如 "bug,feat" → ["bug","feat"]，空/空白返回空 List
     /// <para>DTO 序列化用：Labels/Assignees 等字段从 CSV 参数构建</para>
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static List<string> ParseCsvToList(string? csv) {
         if (string.IsNullOrWhiteSpace(csv)) return new();
         return new(csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
@@ -300,6 +303,7 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static readonly string[] ArrayPropertyCandidates = ["items", "workflows", "workflow_runs", "secrets", "variables", "releases", "labels", "runs", "issues", "pulls"];
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string? FindArrayProperty(JsonElement element) {
         foreach (var name in ArrayPropertyCandidates) {
             if (element.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Array) return name;

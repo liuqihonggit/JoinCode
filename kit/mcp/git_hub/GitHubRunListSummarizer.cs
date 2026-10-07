@@ -84,6 +84,7 @@ internal static class GitHubRunListSummarizer {
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void AppendFixedWidth(StringBuilder sb, string value, int width) {
         if (value.Length <= width) {
             sb.Append(value);
@@ -93,6 +94,7 @@ internal static class GitHubRunListSummarizer {
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void CopyProperty(JsonElement source, Utf8JsonWriter writer, string name) {
         if (source.TryGetProperty(name, out var prop)) {
             writer.WritePropertyName(name);

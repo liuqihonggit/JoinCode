@@ -555,14 +555,19 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("owner/gh-ext");
     }
 
-    // === Licenses (纯提示) ===
+    // === Licenses (API 调用，测试在下方) ===
 
     [Fact]
-    public async Task Licenses_ReturnsPromptToUseGhCli() {
+    public async Task Licenses_ReturnsList_WhenApiSucceeds() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"key":"mit","name":"MIT License","spdx_id":"MIT"},{"key":"apache-2.0","name":"Apache License 2.0","spdx_id":"Apache-2.0"}]""" };
+
         var result = await _handler.GhLicensesAsync();
 
         result.IsError.Should().BeFalse();
-        result.GetFirstText().Should().Contain("gh licenses");
+        var text = result.GetFirstText();
+        text.Should().Contain("mit");
+        text.Should().Contain("MIT License");
+        text.Should().Contain("apache-2.0");
     }
 
     // === Browse 边缘场景 ===

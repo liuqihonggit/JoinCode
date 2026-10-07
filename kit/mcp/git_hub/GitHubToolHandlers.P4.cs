@@ -778,9 +778,31 @@ public partial class GitHubToolHandlers {
     // === Licenses（第三方许可证）===
 
     /// <summary>
-    /// 查看第三方许可证 — 提示用系统 gh CLI（内置信息，非 API）
+    /// 查看可用许可证列表 — 调 REST API GET /licenses 获取 SPDX 许可证列表
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhLicenses, "查看第三方许可证信息(提示用系统 gh)", "github", ConcurrencySafe = true)]
-    public Task<ToolResult> GhLicensesAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok("请在终端运行: gh licenses\n（第三方许可证信息为 gh CLI 内置，非 API 调用）"));
+    [McpTool(GitHubToolNameEnumConstants.GhLicenses, "查看可用开源许可证列表(API)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhLicensesAsync(CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return Fail("GitHub REST API 客户端未配置(IGitHubApiClient 未注入)");
+        var result = await _apiClient.SendAsync(HttpMethod.Get, "licenses", ct: cancellationToken).ConfigureAwait(false);
+        if (!result.Success) return Fail(result.Error);
+        return Ok(SummarizeLicenses(result.Body));
+    }
+
+    /// <summary>
+    /// 精简许可证列表 JSON — 只保留 key/name/spdx_id，便于浏览
+    /// </summary>
+    private static string SummarizeLicenses(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var sb = new StringBuilder(256);
+            foreach (var license in doc.RootElement.EnumerateArray()) {
+                var key = license.TryGetProperty("key", out var k) ? k.GetString() ?? "" : "";
+                var name = license.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                var spdx = license.TryGetProperty("spdx_id", out var s) ? s.GetString() ?? "" : "";
+                sb.AppendLine($"{key} | {spdx} | {name}");
+            }
+            return sb.ToString().TrimEnd();
+        } catch { return json; }
+    }
 }

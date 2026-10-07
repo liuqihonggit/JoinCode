@@ -207,31 +207,46 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 编辑 Issue — 修改标题/body/标签/指派人/里程碑，调 REST API PATCH
+    /// 编辑 Issue — 修改标题/body/标签/指派人/里程碑，调 REST API PATCH + POST/DELETE assignees
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhIssueEdit, "编辑 Issue(title/body/label/assignee/milestone)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhIssueEdit, "编辑 Issue(title/body/label/assignee/milestone/add_assignee/remove_assignee)", "github")]
     public async Task<ToolResult> GhIssueEditAsync(
         [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
         [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
         [McpToolParameter("新 body(可选)", Required = false)] string? body = null,
         [McpToolParameter("标签(可选,多个用逗号)", Required = false)] string? label = null,
-        [McpToolParameter("指派人(可选)", Required = false)] string? assignee = null,
+        [McpToolParameter("指派人(可选,多个用逗号,替换全部)", Required = false)] string? assignee = null,
         [McpToolParameter("里程碑 ID(可选)", Required = false)] int? milestone = null,
+        [McpToolParameter("添加指派人(可选,多个用逗号)", Required = false)] string? add_assignee = null,
+        [McpToolParameter("移除指派人(可选,多个用逗号)", Required = false)] string? remove_assignee = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
-            var request = new IssueEditRequest {
-                Title = title,
-                Body = body,
-                Labels = ParseCsvToList(label),
-                Assignees = ParseCsvToList(assignee),
-                Milestone = milestone,
-            };
-            var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.IssueEditRequest);
-            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已编辑 Issue {number}") : Fail(result.Error);
+            if (title is not null || body is not null || label is not null || assignee is not null || milestone is not null) {
+                var request = new IssueEditRequest {
+                    Title = title,
+                    Body = body,
+                    Labels = ParseCsvToList(label),
+                    Assignees = ParseCsvToList(assignee),
+                    Milestone = milestone,
+                };
+                var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.IssueEditRequest);
+                var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!result.Success) return Fail(result.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(add_assignee)) {
+                var assigneesBody = JsonSerializer.Serialize(new AssigneesRequest { Assignees = ParseCsvToList(add_assignee) }, GitHubApiJsonContext.Safe.AssigneesRequest);
+                var addResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/assignees", assigneesBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!addResult.Success) return Fail(addResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(remove_assignee)) {
+                var assigneesBody = JsonSerializer.Serialize(new AssigneesRequest { Assignees = ParseCsvToList(remove_assignee) }, GitHubApiJsonContext.Safe.AssigneesRequest);
+                var removeResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/issues/{number}/assignees", assigneesBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!removeResult.Success) return Fail(removeResult.Error);
+            }
+            return OkBrief("", $"已编辑 Issue {number}");
         }).ConfigureAwait(false);
 
     /// <summary>

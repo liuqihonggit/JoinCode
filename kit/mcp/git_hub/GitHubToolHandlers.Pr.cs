@@ -757,9 +757,9 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 编辑 PR — 修改标题/body/base 分支/标签/指派人，调 REST API PATCH /pulls + PATCH /issues
+    /// 编辑 PR — 修改标题/body/base 分支/标签/指派人/审查者，调 REST API PATCH /pulls + PATCH /issues + POST/DELETE reviewers/assignees
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/base/label/assignee)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/base/label/assignee/add_reviewer/remove_reviewer/add_assignee/remove_assignee)", "github")]
     public async Task<ToolResult> GhPrEditAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
@@ -767,6 +767,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("新 base 分支(可选)", Required = false)] string? @base = null,
         [McpToolParameter("标签(可选,多个用逗号,替换全部标签)", Required = false)] string? label = null,
         [McpToolParameter("指派人(可选,多个用逗号,替换全部指派人)", Required = false)] string? assignee = null,
+        [McpToolParameter("添加审查者(可选,多个用逗号)", Required = false)] string? add_reviewer = null,
+        [McpToolParameter("移除审查者(可选,多个用逗号)", Required = false)] string? remove_reviewer = null,
+        [McpToolParameter("添加指派人(可选,多个用逗号)", Required = false)] string? add_assignee = null,
+        [McpToolParameter("移除指派人(可选,多个用逗号)", Required = false)] string? remove_assignee = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -781,6 +785,26 @@ public partial class GitHubToolHandlers {
                 var issueBody = JsonSerializer.Serialize(new IssueEditRequest { Labels = ParseCsvToList(label), Assignees = ParseCsvToList(assignee) }, GitHubApiJsonContext.Safe.IssueEditRequest);
                 var issueResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", issueBody, ct: cancellationToken).ConfigureAwait(false);
                 if (!issueResult.Success) return Fail(issueResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(add_reviewer)) {
+                var reviewersBody = JsonSerializer.Serialize(new ReviewersRequest { Reviewers = ParseCsvToList(add_reviewer) }, GitHubApiJsonContext.Safe.ReviewersRequest);
+                var addResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls/{number}/requested_reviewers", reviewersBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!addResult.Success) return Fail(addResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(remove_reviewer)) {
+                var reviewersBody = JsonSerializer.Serialize(new ReviewersRequest { Reviewers = ParseCsvToList(remove_reviewer) }, GitHubApiJsonContext.Safe.ReviewersRequest);
+                var removeResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/pulls/{number}/requested_reviewers", reviewersBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!removeResult.Success) return Fail(removeResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(add_assignee)) {
+                var assigneesBody = JsonSerializer.Serialize(new AssigneesRequest { Assignees = ParseCsvToList(add_assignee) }, GitHubApiJsonContext.Safe.AssigneesRequest);
+                var addResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/assignees", assigneesBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!addResult.Success) return Fail(addResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(remove_assignee)) {
+                var assigneesBody = JsonSerializer.Serialize(new AssigneesRequest { Assignees = ParseCsvToList(remove_assignee) }, GitHubApiJsonContext.Safe.AssigneesRequest);
+                var removeResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/issues/{number}/assignees", assigneesBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!removeResult.Success) return Fail(removeResult.Error);
             }
             return OkBrief("", $"已编辑 PR {number}");
         }).ConfigureAwait(false);

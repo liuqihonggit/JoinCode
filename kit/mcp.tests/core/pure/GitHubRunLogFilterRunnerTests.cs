@@ -350,4 +350,29 @@ public sealed class GitHubRunLogFilterRunnerTests {
         text.Should().Contain("build failed");
         text.Should().NotContain("##[error] build failed");
     }
+
+    // ===== BuildZeroMatchHint: 0 行匹配精准提示（缺陷5）=====
+
+    [Fact]
+    public void BuildZeroMatchHint_FailedOnly_SuggestsAllPassedAndExpandJobs() {
+        var hint = GitHubRunLogFilterRunner.BuildZeroMatchHint(failedOnly: true, scope: "失败步骤", filterLevel: null, markers: null);
+        hint.Should().Contain("未匹配到任何失败步骤行");
+        hint.Should().Contain("可能原因");
+        hint.Should().Contain("通过");
+        hint.Should().Contain("expand=jobs");
+    }
+
+    [Fact]
+    public void BuildZeroMatchHint_WithMarkers_SuggestsFilterAll() {
+        var hint = GitHubRunLogFilterRunner.BuildZeroMatchHint(failedOnly: false, scope: "日志", filterLevel: GitHubLogFilter.Error, markers: FrozenSet<string>.Empty);
+        hint.Should().Contain("未匹配到任何日志行");
+        hint.Should().Contain("filter=all");
+        hint.Should().Contain("可能原因");
+    }
+
+    [Fact]
+    public void BuildZeroMatchHint_NoMarkers_SuggestsExpandSteps() {
+        var hint = GitHubRunLogFilterRunner.BuildZeroMatchHint(failedOnly: false, scope: "日志", filterLevel: null, markers: null);
+        hint.Should().Contain("expand=steps");
+    }
 }

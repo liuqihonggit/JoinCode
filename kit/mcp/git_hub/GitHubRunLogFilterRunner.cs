@@ -174,8 +174,12 @@ internal sealed class GitHubRunLogFilterRunner {
             if (matched.Count >= maxLines) break;
         }
         var prefix = GitHubRunLogFilter.BuildPrefix(runId, scope, filterLevel, matched.Count);
-        if (matched.Count == 0)
-            return GitHubToolHandlers.Ok(skipLines > 0 ? $"未匹配到更多日志行(已跳过 {skipLines} 行)" : "未匹配到任何日志行", prefix);
+        if (matched.Count == 0) {
+            var msg = skipLines > 0
+                ? $"未匹配到更多日志行(已跳过 {skipLines} 行)"
+                : BuildZeroMatchHint(failedOnly, scope, filterLevel, markers);
+            return GitHubToolHandlers.Ok(msg, prefix);
+        }
         var text = string.Join('\n', matched);
         // 达到 maxLines 说明可能还有更多行,追加续读提示
         if (matched.Count >= maxLines)
@@ -184,6 +188,24 @@ internal sealed class GitHubRunLogFilterRunner {
         if (GitHubRunLogFilter.HasNoStackTrace(text))
             text += GitHubRunLogHints.NoStackTraceHint;
         return GitHubToolHandlers.Ok(text, prefix);
+    }
+
+    /// <summary>
+    /// 构建 0 行匹配的精准提示 — 区分"无失败"vs"filter 不匹配"vs"日志空",引导 AI 下一步
+    /// <para>原则(AGENTS.md): 错误提示必须有诱导方式,禁止纯拒绝无引导</para>
+    /// </summary>
+    internal static string BuildZeroMatchHint(bool failedOnly, string scope, GitHubLogFilter? filterLevel, FrozenSet<string>? markers) {
+        var sb = new StringBuilder($"未匹配到任何{scope}行。");
+        sb.Append("\n可能原因:");
+        if (failedOnly) {
+            sb.Append("\n  ① 所有步骤都通过(无失败步骤) — 用 expand=jobs 查看 job 状态确认");
+        } else if (markers is not null) {
+            sb.Append($"\n  ① filter={filterLevel} 不匹配任何行 — 试 filter=all 看全部,或 filter=error/warning 放宽");
+        } else {
+            sb.Append("\n  ① 日志为空或无匹配内容");
+        }
+        sb.Append("\n  ② 建议用 expand=jobs 查看 job 列表,或 expand=steps job_id=N 查看具体步骤");
+        return sb.ToString();
     }
 
     /// <summary>

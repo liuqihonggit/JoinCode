@@ -34,12 +34,13 @@
 | licenses | 1/1 | ✅ 查看许可证(提示用系统 gh) | 1 | — | ⚠️ 简化 |
 | auth | 1/4 | ✅ status | 1 (login/refresh/token 需 OAuth) | — | ⚠️ 简化 |
 | config | 2/2 | ✅ get/set(提示用系统 gh) | 2 | — | ⚠️ 简化 |
-| **合计** | — | — | **103 新增** | **322 通过** | ✅ |
+| **合计** | — | — | **103 新增** | **339 通过** | ✅ |
 
 > DTO+JsonContext 双向转换：Issue/Pr/Repo/Release/Run 全部完成，GitHubJsonObjectBuilder 已归档到 .xxx/
 > GraphQL DTO 序列化：P4 所有 GraphQL 查询用 GraphQLRequest DTO + BuildGraphQL 辅助方法，JsonSerializer 自动转义双引号，消除内插原始字符串 `}` 转义歧义
 > 中文转义修复：GitHubApiJsonContext.Safe 用 Lazy 避免静态初始化循环，UnsafeRelaxedJsonEscaping 不转义中文
 > 全量编译：JoinCode.slnx 0 警告 0 错误（含 FakeGitHubApiClient DownloadArtifactAsync 补充修复）
+> 测试覆盖：322 主路径 + 17 边缘场景 = 339 总测试，覆盖全部 103 命令的主路径和关键错误分支
 > 通用参数：`--web` ✅ 各 view 已实现 | `--json` ⚠️ `verbose` 近似 | `--jq` ❌ 需引入库 | `--template` ❌ Go template 暂缓
 
 ## 1. 顶层命令覆盖差异

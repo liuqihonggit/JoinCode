@@ -35,8 +35,13 @@ public partial class GitHubToolHandlers {
                 ? $"repos/{owner}/{repoName}/actions/runs"
                 : $"repos/{owner}/{repoName}/actions/workflows/{workflow}/runs";
             var result = await client.SendAsync(HttpMethod.Get, basePath, query: query, ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
-            if (!string.IsNullOrEmpty(json_fields)) return Ok(FilterJsonFields(result.Body, json_fields));
+            if (!result.Success) return Fail(BuildRunListErrorHint(result, workflow));
+            if (!string.IsNullOrEmpty(json_fields)) {
+                var filtered = FilterJsonFields(result.Body, json_fields);
+                if (filtered is "[]" or "{}")
+                    return Ok(filtered + "\n\n⚠️ 返回空: 可能原因: ① 字段名不匹配(用 verbosity=2 查看完整字段) ② 该 run 无此字段");
+                return Ok(filtered);
+            }
             var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
             var failureHint = hasFailure ? GitHubRunLogHints.RunListFailureHint : "";
             return verbosity switch {
@@ -46,6 +51,18 @@ public partial class GitHubToolHandlers {
             };
         }).ConfigureAwait(false);
 
+
+    /// <summary>
+    /// 构建 run list 错误提示 — 404/Not Found 时给出可能原因和引导（缺陷5）
+    /// </summary>
+    private static string BuildRunListErrorHint(GitHubApiResponse result, string? workflow) {
+        var baseHint = result.StatusCode == 404
+            ? "404 Not Found — 可能原因:"
+              + (string.IsNullOrWhiteSpace(workflow) ? "" : $" ① 工作流名称 '{workflow}' 不匹配(用 gh workflow list 查看可用工作流)")
+              + " ② 当前目录不是 git 仓库根目录 ③ 仓库不存在或无权限"
+            : result.Error;
+        return baseHint;
+    }
 
     /// <summary>
     /// 查看 Run 详情/日志 — 支持 expand 按步骤展开（两级缓存跨进程）、filter 按标记过滤、skip_lines 分页续读、refresh 强制刷新、web 返回 URL、attempt 指定重试次数

@@ -665,6 +665,9 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable {
         _disposed = true;
 
         _cts?.Cancel();
+        if (_processingTask != null) {
+            try { await _processingTask; } catch (OperationCanceledException) { }
+        }
         _cts?.Dispose();
         _cts = null;
         _processingTask = null;

@@ -170,4 +170,77 @@ public class ContainerTaskReleaseRuleTests {
         };
         await test.RunAsync().ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task SingleTaskField_DisposeEmpty_ReportsJCC9307() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass : IDisposable {
+                    private readonly Task {|#0:_bgLoop|} = Task.CompletedTask;
+                    public void Dispose() { }
+                }
+                """,
+            ExpectedDiagnostics = {
+                new DiagnosticResult("JCC9307", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("_bgLoop"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task SingleTaskField_DisposeAsyncAwaitsField_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass : IAsyncDisposable {
+                    private readonly Task _bgLoop = Task.CompletedTask;
+                    public async ValueTask DisposeAsync() {
+                        await _bgLoop.ConfigureAwait(false);
+                    }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task SingleTaskField_NoDisposeMethod_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass {
+                    private readonly Task _bgLoop = Task.CompletedTask;
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task SingleTaskField_DisposeAsyncAwaitsViaHelper_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass : IAsyncDisposable {
+                    private readonly Task _bgLoop = Task.CompletedTask;
+                    public async ValueTask DisposeAsync() {
+                        await WaitForBgLoopAsync().ConfigureAwait(false);
+                    }
+                    private ValueTask WaitForBgLoopAsync() {
+                        return new ValueTask(_bgLoop);
+                    }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
 }

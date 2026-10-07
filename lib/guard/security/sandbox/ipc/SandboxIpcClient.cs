@@ -152,6 +152,12 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
 
         _readCts?.Cancel();
 
+        if (_readLoopTask != null) {
+            try { await _readLoopTask.ConfigureAwait(false); } catch (Exception ex) {
+                _logger?.LogDebug(ex, "[SandboxIpcClient] 等待读循环完成时出错");
+            }
+        }
+
         if (_process is not null && !_process.HasExited) {
             _process.Kill();
         }

@@ -330,6 +330,9 @@ public sealed partial class BridgeMain {
         }
 
         await ShutdownAsync().ConfigureAwait(false);
+        if (_loopTask is not null) {
+            try { await _loopTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+        }
         List<Task> cleanupSnapshot;
         using (_cleanupLock.LockOrCrash()) {
             cleanupSnapshot = _pendingCleanups.ToList();

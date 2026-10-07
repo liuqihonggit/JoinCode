@@ -57,11 +57,13 @@ public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisp
     /// 释放资源,取消并释放取消令牌
     /// </summary>
     /// <returns>表示释放完成的任务</returns>
-    public ValueTask DisposeAsync() {
+    public async ValueTask DisposeAsync() {
         _cts?.Cancel();
+        if (_loopTask is not null) {
+            try { await _loopTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+        }
         _cts?.Dispose();
         _cts = null;
-        return ValueTask.CompletedTask;
     }
 
     private async Task RunLoopAsync(CancellationToken cancellationToken) {

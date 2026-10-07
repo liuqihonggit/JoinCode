@@ -274,6 +274,17 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         _disposeCts.CancelAndDisposeSafe(_logger);
         base.Dispose();
     }
+
+    /// <summary>异步释放 — 等待加载任务完成后释放取消令牌。</summary>
+    public override async ValueTask DisposeAsync() {
+        if (_disposed) return;
+        _disposed = true;
+        if (_loadTask is not null) {
+            try { await _loadTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+        }
+        _disposeCts.CancelAndDisposeSafe(_logger);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
 }
 
 [JsonSerializable(typeof(ToolTemplate))]

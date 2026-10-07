@@ -577,6 +577,10 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
             _logger?.LogWarning(ex, "[BridgeClient] Dispose 时停止异常");
         }
 
+        if (_pollingTask is not null) {
+            try { await _pollingTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+        }
+
         _pollingCts?.Dispose();
         _pollingCts = null;
         await _processedMessageIds.DisposeAsync().ConfigureAwait(false);

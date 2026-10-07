@@ -156,6 +156,14 @@ public sealed class ToolInterventionManager : ServiceEntity {
 
     /// <summary>释放资源。</summary>
     public override void Dispose() => base.Dispose();
+
+    /// <summary>异步释放资源 — 等待加载任务完成后再释放。</summary>
+    public override async ValueTask DisposeAsync() {
+        if (_loadTask is not null) {
+            try { await _loadTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+        }
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
 }
 
 [JsonSerializable(typeof(Dictionary<string, InterventionRule>))]

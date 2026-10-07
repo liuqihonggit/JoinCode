@@ -94,21 +94,21 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
     }
 
     /// <summary>
-    /// 释放 — 取消配置变更事件订阅。
+    /// 释放 — 取消配置变更事件订阅（幂等，多次调用安全）。
     /// </summary>
     public override void Dispose() {
+        if (LifecycleState == EntityLifecycle.Disposed) return;
         if (_configService is not null)
             _configService.SettingChanged -= OnSettingChanged;
         base.Dispose();
     }
 
-    /// <summary>异步释放 — 等待加载任务完成后取消事件订阅。</summary>
+    /// <summary>异步释放 — 等待加载任务完成后委托基类释放（取消订阅由 Dispose 完成，幂等）。</summary>
     public override async ValueTask DisposeAsync() {
+        if (LifecycleState == EntityLifecycle.Disposed) return;
         if (_loadTask is not null) {
             try { await _loadTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
         }
-        if (_configService is not null)
-            _configService.SettingChanged -= OnSettingChanged;
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

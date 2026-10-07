@@ -16,10 +16,18 @@
 | label | 3/3 | ✅ list/create/delete | 3 | — | ✅ 完成 |
 | search | 3/3 | ✅ repos/issues/prs | 3 | — | ✅ 完成 |
 | workflow | 5/5 | ✅ list/view/run/enable/disable | 5 | — | ✅ 完成 |
+| gist | 4/4 | ✅ list/view/create/delete | 4 | — | ✅ 完成 |
+| org | 1/1 | ✅ list | 1 | — | ✅ 完成 |
+| ssh-key | 3/3 | ✅ list/add/delete | 3 | — | ✅ 完成 |
+| gpg-key | 3/3 | ✅ list/add/delete | 3 | — | ✅ 完成 |
+| secret | 3/3 | ✅ list/delete(set 简化) | 3 | — | ✅ 完成 |
+| variable | 4/4 | ✅ list/get/set/delete | 4 | — | ✅ 完成 |
 | auth | 1/4 | ✅ status | 1 (login/refresh/token 需 OAuth) | — | ⚠️ 简化 |
 | config | 2/2 | ✅ get/set(提示用系统 gh) | 2 | — | ⚠️ 简化 |
-| **合计** | — | — | **55 新增** | **150 通过** | ✅ |
+| **合计** | — | — | **75 新增** | **273 通过** | ✅ |
 
+> DTO+JsonContext 双向转换：Issue/Pr/Repo/Release/Run 全部完成，GitHubJsonObjectBuilder 已无实际调用
+> 中文转义修复：GitHubApiJsonContext.Safe 用 Lazy 避免静态初始化循环，UnsafeRelaxedJsonEscaping 不转义中文
 > 通用参数：`--web` ✅ 各 view 已实现 | `--json` ⚠️ `verbose` 近似 | `--jq` ❌ 需引入库 | `--template` ❌ Go template 暂缓
 
 ## 1. 顶层命令覆盖差异

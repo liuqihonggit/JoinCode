@@ -195,6 +195,80 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// JSON 字段过滤 — 从 JSON 中只提取指定字段(逗号分隔),支持数组和 search API 包装格式
+    /// <para>用于 --json 参数: gh pr list --json number,title,url → [{"number":1,"title":"x","url":"y"}]</para>
+    /// <para>数组: 过滤每个元素; 对象有 items 数组: 过滤 items; 对象无 items: 过滤自身</para>
+    /// </summary>
+    /// <param name="json">原始 JSON 字符串</param>
+    /// <param name="fields">逗号分隔的字段名列表</param>
+    /// <returns>只包含指定字段的 JSON 字符串;解析失败回退原始 json</returns>
+    private static string FilterJsonFields(string json, string fields) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            var fieldList = fields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream)) {
+                WriteFilteredElement(writer, doc.RootElement, fieldList);
+                writer.Flush();
+            }
+            return Encoding.UTF8.GetString(stream.ToArray());
+        } catch {
+            return json;
+        }
+    }
+
+    /// <summary>
+    /// 递归写入过滤后的 JSON 元素
+    /// </summary>
+    private static void WriteFilteredElement(Utf8JsonWriter writer, JsonElement element, string[] fields) {
+        if (element.ValueKind == JsonValueKind.Array) {
+            writer.WriteStartArray();
+            foreach (var item in element.EnumerateArray()) {
+                WriteFilteredElement(writer, item, fields);
+            }
+            writer.WriteEndArray();
+        } else if (element.ValueKind == JsonValueKind.Object) {
+            var arrayProp = FindArrayProperty(element);
+            if (arrayProp is not null) {
+                writer.WriteStartArray();
+                foreach (var item in element.GetProperty(arrayProp).EnumerateArray()) {
+                    WriteFilteredObject(writer, item, fields);
+                }
+                writer.WriteEndArray();
+            } else {
+                WriteFilteredObject(writer, element, fields);
+            }
+        } else {
+            element.WriteTo(writer);
+        }
+    }
+
+    /// <summary>
+    /// 查找对象中的列表数组属性 — 优先 items,其次 workflows/workflow_runs/secrets/variables/releases/labels/runs 等已知包装属性
+    /// </summary>
+    private static string? FindArrayProperty(JsonElement element) {
+        var candidates = new[] { "items", "workflows", "workflow_runs", "secrets", "variables", "releases", "labels", "runs", "issues", "pulls" };
+        foreach (var name in candidates) {
+            if (element.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Array) return name;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 写入过滤后的 JSON 对象 — 只包含指定字段
+    /// </summary>
+    private static void WriteFilteredObject(Utf8JsonWriter writer, JsonElement element, string[] fields) {
+        writer.WriteStartObject();
+        foreach (var field in fields) {
+            if (element.TryGetProperty(field, out var value)) {
+                writer.WritePropertyName(field);
+                value.WriteTo(writer);
+            }
+        }
+        writer.WriteEndObject();
+    }
+
+    /// <summary>
     /// 精简 PR JSON 输出 — 提取关键字段构建人类可读文本
     /// </summary>
     private static string SummarizePr(string json) {

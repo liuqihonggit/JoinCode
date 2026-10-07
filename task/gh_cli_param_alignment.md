@@ -357,3 +357,18 @@ gist / org / project / codespace / discussion / attestation / ruleset / extensio
 <!-- 实现: .NET ECDiffieHellman(Curve25519) + 自实现 blake2b(RFC 7693) + NaCl.Core XSalsa20/Poly1305 -->
 <!-- 替代方案: 引入完整 libsodium 库(但 NaCl.Core 不提供 X25519/blake2b,需多包组合) -->
 <!-- 验证: 编译通过,5 个新测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: 补齐 gh pr create 6 个缩写参数(dry_run/fill_first/fill_verbose/no_maintainer_edit/recover/attach) -->
+<!-- 实现: dry_run 跳过 POST 返回预览; fill_first 用 git rev-list --reverse 取最早 commit; fill_verbose 输出 fill 信息; no_maintainer_edit 设 maintainer_can_modify=false; recover/attach 提示暂未支持 -->
+<!-- 验证: 编译通过,6 个新测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: 补齐 gh release create 5 个缩写参数(discussion_category/fail_on_no_commits/notes_from_tag/notes_start_tag/verify_tag) -->
+<!-- 实现: discussion_category/notes_start_tag 传 API 字段; notes_from_tag 用 git tag -n 取 annotation; verify_tag 用 git tag -v 验证签名; fail_on_no_commits 检查 git log -->
+<!-- 验证: 编译通过,6 个新测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: 补齐 gh issue create 5 个缩写参数(attach/blocked_by/blocking/parent/type) -->
+<!-- 实现: 全部提示暂未支持 — attach 需文件上传 API; blocked_by/blocking/parent 需 GraphQL sub-issue API; type 需 GraphQL issue types API(Enterprise) -->
+<!-- 验证: 编译通过,5 个新测试全通过 ✅ -->

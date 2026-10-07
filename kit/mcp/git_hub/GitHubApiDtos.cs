@@ -444,6 +444,9 @@ internal sealed class RepoTemplateGenerateRequest {
     [JsonPropertyName("visibility")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Visibility { get; init; }
+    /// <summary>是否包含所有分支(默认 false,只复制默认分支)</summary>
+    [JsonPropertyName("include_all_branches")]
+    public bool? IncludeAllBranches { get; init; }
 }
 
 /// <summary>Repo edit 请求 — PATCH /repos/{o}/{r}</summary>

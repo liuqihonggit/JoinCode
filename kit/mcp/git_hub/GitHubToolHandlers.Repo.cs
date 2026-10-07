@@ -83,6 +83,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("gitignore 模板(可选,如 VisualStudio)", Required = false)] string? gitignore = null,
         [McpToolParameter("license 模板(可选,如 mit)", Required = false)] string? license = null,
         [McpToolParameter("模板仓库(owner/repo,可选,用模板创建)", Required = false)] string? template = null,
+        [McpToolParameter("模板创建时包含所有分支(可选,默认只复制默认分支)", Required = false)] bool? include_all_branches = null,
         [McpToolParameter("组织名(可选,在组织下创建)", Required = false)] string? org = null,
         [McpToolParameter("团队名(可选,组织仓库添加到团队)", Required = false)] string? team = null,
         [McpToolParameter("创建后克隆到本地(默认 false)", Required = false)] bool? clone = null,
@@ -108,7 +109,8 @@ public partial class GitHubToolHandlers {
                 Name = name,
                 Description = description,
                 Private = isPrivate || isInternal,
-                Visibility = isInternal ? "internal" : (isPrivate ? "private" : "public")
+                Visibility = isInternal ? "internal" : (isPrivate ? "private" : "public"),
+                IncludeAllBranches = include_all_branches
             }, GitHubApiJsonContext.Safe.RepoTemplateGenerateRequest);
         } else {
             createPath = !string.IsNullOrWhiteSpace(org) ? $"orgs/{org}/repos" : "user/repos";
@@ -378,10 +380,12 @@ public partial class GitHubToolHandlers {
 
     /// <summary>
     /// 同步 Fork 仓库 — 调 REST API POST /repos/{owner}/{repo}/merge-upstream
+    /// <para>source 参数仅用于兼容系统 gh CLI --source，jcc 始终同步 fork 的 parent 上游（GitHub API 限制）</para>
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoSync, "同步 Fork 仓库(从上游拉取更新)", "github")]
     public async Task<ToolResult> GhRepoSyncAsync(
         [McpToolParameter("要同步的分支(可选,默认默认分支)", Required = false)] string? branch = null,
+        [McpToolParameter("上游仓库(可选,仅兼容 gh CLI --source,始终同步 fork parent)", Required = false)] string? source = null,
         [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)

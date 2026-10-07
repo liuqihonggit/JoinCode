@@ -443,11 +443,8 @@ public partial class GitHubToolHandlers {
         if (autoMerge == true) {
             var (nodeId, nodeErr) = await GetPrNodeIdAsync(client, owner, repoName, number, ct).ConfigureAwait(false);
             if (nodeErr is not null) return Fail(nodeErr);
-            var graphqlMethod = method.ToUpperInvariant() switch { "SQUASH" => "SQUASH", "REBASE" => "REBASE", _ => "MERGE" };
-            var graphqlBody = $$"""{"query":"mutation { enablePullRequestAutoMerge(input: {pullRequestId: \"{{nodeId}}\", mergeMethod: {{graphqlMethod}}}) { pullRequest { number } } }"}""";
-            var graphqlResult = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: ct).ConfigureAwait(false);
-            if (!graphqlResult.Success) return Fail(graphqlResult.Error);
-            return Ok($"已为 PR {number} 启用 auto-merge（{method}）");
+            var (success, usedMethod, err) = await EnableAutoMergeAsync(client, nodeId, method, ct).ConfigureAwait(false);
+            return success ? Ok($"已为 PR {number} 启用 auto-merge（{usedMethod}）") : Fail(err!);
         }
         var mergeRequest = new PrMergeRequest { MergeMethod = method, CommitTitle = subject, CommitMessage = body };
         var mergeBody = JsonSerializer.Serialize(mergeRequest, GitHubApiJsonContext.Safe.PrMergeRequest);
@@ -564,9 +561,9 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 创建 PR — 支持 title/head/base/body/draft/assignee/label/reviewer/milestone/body_file/fill，调 REST API POST
+    /// 创建 PR — 支持 title/head/base/body/draft/assignee/label/reviewer/milestone/body_file/fill + auto-merge 一步到位
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrCreate, "创建 PR(支持 assignee/label/reviewer/milestone/body_file/fill)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrCreate, "创建 PR(支持 assignee/label/reviewer/milestone/body_file/fill + auto-merge 一步到位)", "github")]
     public async Task<ToolResult> GhPrCreateAsync(
         [McpToolParameter("PR 标题", Required = true)] string title,
         [McpToolParameter("源分支(head)", Required = true)] string head,
@@ -579,6 +576,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("审阅人(可选,多个用逗号)", Required = false)] string? reviewer = null,
         [McpToolParameter("里程碑 ID(可选)", Required = false)] int? milestone = null,
         [McpToolParameter("从 git commit 自动填充 title/body(可选)", Required = false)] bool? fill = null,
+        [McpToolParameter("是否启用 auto-merge(CI 通过后自动合并,可选)", Required = false)] bool? auto_merge = null,
+        [McpToolParameter("auto-merge 合并方式(squash/merge/rebase,默认 squash,可选)", Required = false)] string? merge_method = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -594,8 +593,14 @@ public partial class GitHubToolHandlers {
             var jsonBody = BuildPrCreateJson(actualTitle ?? "", head, @base, actualBody, draft);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            var prNumber = ExtractNumberFromResponse(result.Body);
+            var (prNumber, nodeId) = ExtractPrInfoFromResponse(result.Body);
             if (prNumber > 0) await AddPrPostCreateAttributesAsync(client, owner, repoName, prNumber, assignee, label, reviewer, milestone, cancellationToken).ConfigureAwait(false);
+            if (auto_merge == true && prNumber > 0 && !string.IsNullOrEmpty(nodeId)) {
+                var autoMergeResult = await EnableAutoMergeAsync(client, nodeId, merge_method, cancellationToken).ConfigureAwait(false);
+                return autoMergeResult.Success
+                    ? Ok($"PR {prNumber} 创建成功，已启用 auto-merge（{autoMergeResult.Method}）")
+                    : Ok($"PR {prNumber} 创建成功（auto-merge 启用失败: {autoMergeResult.Error}）");
+            }
             return OkBrief(result.Body, "PR 创建成功");
         }).ConfigureAwait(false);
 
@@ -622,13 +627,26 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 从 PR 创建响应提取 number — 用于后续添加 assignee/label/reviewer
+    /// 从 PR 创建响应提取 number 和 node_id — 用于后续添加 assignee/label/reviewer 和启用 auto-merge
     /// </summary>
-    private int ExtractNumberFromResponse(string body) {
+    private (int Number, string? NodeId) ExtractPrInfoFromResponse(string body) {
         try {
             using var doc = JsonDocument.Parse(body);
-            return doc.RootElement.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
-        } catch (Exception ex) { _logger?.LogDebug(ex, "解析 PR number 失败"); return 0; }
+            var number = doc.RootElement.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
+            var nodeId = doc.RootElement.TryGetProperty("node_id", out var id) ? id.GetString() : null;
+            return (number, nodeId);
+        } catch (Exception ex) { _logger?.LogDebug(ex, "解析 PR 信息失败"); return (0, null); }
+    }
+
+    /// <summary>
+    /// 启用 auto-merge — 调 GraphQL enablePullRequestAutoMerge mutation，复用于 GhPrCreate 和 GhPrMerge
+    /// </summary>
+    private async Task<(bool Success, string Method, string? Error)> EnableAutoMergeAsync(IGitHubApiClient client, string nodeId, string? mergeMethod, CancellationToken ct) {
+        var method = string.IsNullOrWhiteSpace(mergeMethod) ? "squash" : mergeMethod;
+        var graphqlMethod = method.ToUpperInvariant() switch { "SQUASH" => "SQUASH", "REBASE" => "REBASE", _ => "MERGE" };
+        var graphqlBody = $$"""{"query":"mutation { enablePullRequestAutoMerge(input: {pullRequestId: \"{{nodeId}}\", mergeMethod: {{graphqlMethod}}}) { pullRequest { number } } }"}""";
+        var graphqlResult = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: ct).ConfigureAwait(false);
+        return graphqlResult.Success ? (true, method, null) : (false, method, graphqlResult.Error);
     }
 
     /// <summary>

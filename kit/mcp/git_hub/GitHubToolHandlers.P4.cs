@@ -692,31 +692,52 @@ public partial class GitHubToolHandlers {
     // === Alias（本地配置，提示用系统 gh）===
 
     /// <summary>
-    /// 列出别名 — 提示用系统 gh CLI（本地配置管理）
+    /// 列出别名 — 读写 gh config.yml 中 aliases 部分
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhAliasList, "列出别名(提示用系统 gh)", "github", ConcurrencySafe = true)]
-    public Task<ToolResult> GhAliasListAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok("请在终端运行: gh alias list\n（别名管理为本地配置，需 gh CLI 直接执行）"));
+    [McpTool(GitHubToolNameEnumConstants.GhAliasList, "列出别名(读写 config.yml)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhAliasListAsync(CancellationToken cancellationToken = default) {
+        var configPath = GetGhConfigPath(false);
+        if (!_fs.FileExists(configPath)) return Ok("（无别名：配置文件不存在）");
+        var content = await _fs.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+        var aliases = ParseYamlSection(content, "aliases");
+        if (aliases.Count == 0) return Ok("（无别名）");
+        var sb = new StringBuilder(64);
+        foreach (var (key, value) in aliases) sb.AppendLine($"{key}: {value}");
+        return Ok(sb.ToString().TrimEnd());
+    }
 
     /// <summary>
-    /// 设置别名 — 提示用系统 gh CLI
+    /// 设置别名 — 读写 gh config.yml 中 aliases 部分
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhAliasSet, "设置别名(提示用系统 gh)", "github")]
-    public Task<ToolResult> GhAliasSetAsync(
+    [McpTool(GitHubToolNameEnumConstants.GhAliasSet, "设置别名(读写 config.yml)", "github")]
+    public async Task<ToolResult> GhAliasSetAsync(
         [McpToolParameter("别名名", Required = true)] string alias,
         [McpToolParameter("命令内容", Required = true)] string command,
         [McpToolParameter("是否保存到 shell(可选)", Required = false)] bool? shell = null,
-        CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok($"请在终端运行: gh alias set {alias} \"{command}\"{(shell == true ? " --shell" : "")}\n（别名管理为本地配置，需 gh CLI 直接执行）"));
+        CancellationToken cancellationToken = default) {
+        var configPath = GetGhConfigPath(false);
+        if (!_fs.FileExists(configPath)) return Fail($"gh 配置文件不存在: {configPath} — 请用系统 gh CLI 登录: gh auth login");
+        var content = await _fs.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+        var updated = SetYamlSectionValue(content, "aliases", alias, shell == true ? $"!shell {command}" : command);
+        await _fs.WriteAllTextAsync(configPath, updated, cancellationToken).ConfigureAwait(false);
+        return Ok($"已设置别名 {alias} = {command}");
+    }
 
     /// <summary>
-    /// 删除别名 — 提示用系统 gh CLI
+    /// 删除别名 — 读写 gh config.yml 中 aliases 部分
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhAliasDelete, "删除别名(提示用系统 gh)", "github")]
-    public Task<ToolResult> GhAliasDeleteAsync(
+    [McpTool(GitHubToolNameEnumConstants.GhAliasDelete, "删除别名(读写 config.yml)", "github")]
+    public async Task<ToolResult> GhAliasDeleteAsync(
         [McpToolParameter("别名名", Required = true)] string alias,
-        CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok($"请在终端运行: gh alias delete {alias}\n（别名管理为本地配置，需 gh CLI 直接执行）"));
+        CancellationToken cancellationToken = default) {
+        var configPath = GetGhConfigPath(false);
+        if (!_fs.FileExists(configPath)) return Fail($"gh 配置文件不存在: {configPath} — 请用系统 gh CLI 登录: gh auth login");
+        var content = await _fs.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+        var updated = DeleteYamlSectionValue(content, "aliases", alias);
+        if (updated == content) return Fail($"别名不存在: {alias}");
+        await _fs.WriteAllTextAsync(configPath, updated, cancellationToken).ConfigureAwait(false);
+        return Ok($"已删除别名 {alias}");
+    }
 
     // === Extension（本地管理，提示用系统 gh）===
 

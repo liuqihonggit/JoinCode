@@ -505,44 +505,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.LastBody.Should().Contain("PROJ_3");
     }
 
-    // === Alias (纯提示) ===
-
-    [Fact]
-    public async Task AliasList_ReturnsPromptToUseGhCli() {
-        var result = await _handler.GhAliasListAsync();
-
-        result.IsError.Should().BeFalse();
-        result.GetFirstText().Should().Contain("gh alias list");
-    }
-
-    [Fact]
-    public async Task AliasSet_ReturnsPromptWithAliasAndCommand() {
-        var result = await _handler.GhAliasSetAsync("co", "pr checkout");
-
-        result.IsError.Should().BeFalse();
-        var text = result.GetFirstText();
-        text.Should().Contain("gh alias set");
-        text.Should().Contain("co");
-        text.Should().Contain("pr checkout");
-    }
-
-    [Fact]
-    public async Task AliasSet_WithShell_IncludesShellFlag() {
-        var result = await _handler.GhAliasSetAsync("br", "branch", shell: true);
-
-        result.IsError.Should().BeFalse();
-        result.GetFirstText().Should().Contain("--shell");
-    }
-
-    [Fact]
-    public async Task AliasDelete_ReturnsPromptWithAliasName() {
-        var result = await _handler.GhAliasDeleteAsync("co");
-
-        result.IsError.Should().BeFalse();
-        var text = result.GetFirstText();
-        text.Should().Contain("gh alias delete");
-        text.Should().Contain("co");
-    }
+    // === Alias (真实读写 config.yml，测试在 GitHubToolHandlersConfigTests.cs) ===
 
     // === Extension (纯提示) ===
 

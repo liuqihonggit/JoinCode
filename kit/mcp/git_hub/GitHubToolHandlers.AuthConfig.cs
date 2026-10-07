@@ -148,4 +148,93 @@ public partial class GitHubToolHandlers {
         lines.Add($"{key}: {value}");
         return string.Join("\n", lines);
     }
+
+    /// <summary>
+    /// 解析 YAML 中某个 section 下的所有 key-value（如 aliases: 下的条目）
+    /// </summary>
+    internal static List<(string Key, string Value)> ParseYamlSection(string content, string section) {
+        var result = new List<(string, string)>();
+        var lines = content.Split('\n');
+        var sectionIndent = -1;
+        for (var i = 0; i < lines.Length; i++) {
+            var trimmed = lines[i].TrimStart();
+            if (trimmed.StartsWith($"{section}:", StringComparison.OrdinalIgnoreCase)) {
+                sectionIndent = lines[i].Length - trimmed.Length;
+                for (var j = i + 1; j < lines.Length; j++) {
+                    var innerTrimmed = lines[j].TrimStart();
+                    var innerIndent = lines[j].Length - innerTrimmed.Length;
+                    if (innerTrimmed.Length == 0) continue;
+                    if (innerIndent <= sectionIndent) break;
+                    var colonIdx = innerTrimmed.IndexOf(':');
+                    if (colonIdx <= 0) continue;
+                    var key = innerTrimmed[..colonIdx].Trim();
+                    var value = innerTrimmed[(colonIdx + 1)..].Trim();
+                    result.Add((key, value));
+                }
+                break;
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// 设置 YAML section 下的 key-value（不存在则追加）
+    /// </summary>
+    internal static string SetYamlSectionValue(string content, string section, string key, string value) {
+        var lines = new List<string>(content.Split('\n'));
+        var sectionLineIndex = -1;
+        var sectionIndent = 0;
+        for (var i = 0; i < lines.Count; i++) {
+            var trimmed = lines[i].TrimStart();
+            if (trimmed.StartsWith($"{section}:", StringComparison.OrdinalIgnoreCase)) {
+                sectionLineIndex = i;
+                sectionIndent = lines[i].Length - trimmed.Length;
+                break;
+            }
+        }
+        if (sectionLineIndex < 0) {
+            lines.Add($"{section}:");
+            lines.Add($"    {key}: {value}");
+            return string.Join("\n", lines);
+        }
+        var entryIndent = sectionIndent + 4;
+        for (var i = sectionLineIndex + 1; i < lines.Count; i++) {
+            var trimmed = lines[i].TrimStart();
+            var indent = lines[i].Length - trimmed.Length;
+            if (trimmed.Length == 0) continue;
+            if (indent <= sectionIndent) break;
+            if (trimmed.StartsWith($"{key}:", StringComparison.OrdinalIgnoreCase)) {
+                lines[i] = new string(' ', indent) + $"{key}: {value}";
+                return string.Join("\n", lines);
+            }
+        }
+        lines.Insert(sectionLineIndex + 1, new string(' ', entryIndent) + $"{key}: {value}");
+        return string.Join("\n", lines);
+    }
+
+    /// <summary>
+    /// 删除 YAML section 下的 key（不存在返回原内容）
+    /// </summary>
+    internal static string DeleteYamlSectionValue(string content, string section, string key) {
+        var lines = new List<string>(content.Split('\n'));
+        var sectionIndent = -1;
+        var deleteIndex = -1;
+        for (var i = 0; i < lines.Count; i++) {
+            var trimmed = lines[i].TrimStart();
+            if (trimmed.StartsWith($"{section}:", StringComparison.OrdinalIgnoreCase)) {
+                sectionIndent = lines[i].Length - trimmed.Length;
+                for (var j = i + 1; j < lines.Count; j++) {
+                    var innerTrimmed = lines[j].TrimStart();
+                    var innerIndent = lines[j].Length - innerTrimmed.Length;
+                    if (innerTrimmed.Length == 0) continue;
+                    if (innerIndent <= sectionIndent) break;
+                    if (innerTrimmed.StartsWith($"{key}:", StringComparison.OrdinalIgnoreCase)) { deleteIndex = j; break; }
+                }
+                break;
+            }
+        }
+        if (deleteIndex < 0) return content;
+        lines.RemoveAt(deleteIndex);
+        return string.Join("\n", lines);
+    }
 }

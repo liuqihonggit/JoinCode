@@ -77,4 +77,84 @@ public sealed partial class GitHubToolHandlersTests {
         var content = await fs.ReadAllTextAsync(configPath);
         content.Should().Contain("editor: vim");
     }
+
+    [Fact]
+    public async Task AliasList_ReturnsAliases_WhenSectionExists() {
+        var configPath = GetTestConfigPath();
+        var fs = new InMemoryFileSystem();
+        await fs.WriteAllTextAsync(configPath, "git_protocol: https\naliases:\n    co: pr checkout\n    il: issue list\n");
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhAliasListAsync();
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("co: pr checkout");
+        text.Should().Contain("il: issue list");
+    }
+
+    [Fact]
+    public async Task AliasList_ReturnsEmpty_WhenNoAliases() {
+        var configPath = GetTestConfigPath();
+        var fs = new InMemoryFileSystem();
+        await fs.WriteAllTextAsync(configPath, "git_protocol: https\n");
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhAliasListAsync();
+
+        result.IsError.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AliasSet_AddsAlias_ToSection() {
+        var configPath = GetTestConfigPath();
+        var fs = new InMemoryFileSystem();
+        await fs.WriteAllTextAsync(configPath, "git_protocol: https\naliases:\n    co: pr checkout\n");
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        await handler.GhAliasSetAsync("il", "issue list");
+
+        var content = await fs.ReadAllTextAsync(configPath);
+        content.Should().Contain("il: issue list");
+    }
+
+    [Fact]
+    public async Task AliasSet_UpdatesExistingAlias() {
+        var configPath = GetTestConfigPath();
+        var fs = new InMemoryFileSystem();
+        await fs.WriteAllTextAsync(configPath, "git_protocol: https\naliases:\n    co: pr checkout\n");
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        await handler.GhAliasSetAsync("co", "pr checkout --draft");
+
+        var content = await fs.ReadAllTextAsync(configPath);
+        content.Should().Contain("co: pr checkout --draft");
+        content.Should().NotContain("co: pr checkout\n");
+    }
+
+    [Fact]
+    public async Task AliasDelete_RemovesAlias_FromSection() {
+        var configPath = GetTestConfigPath();
+        var fs = new InMemoryFileSystem();
+        await fs.WriteAllTextAsync(configPath, "git_protocol: https\naliases:\n    co: pr checkout\n    il: issue list\n");
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        await handler.GhAliasDeleteAsync("co");
+
+        var content = await fs.ReadAllTextAsync(configPath);
+        content.Should().NotContain("co: pr checkout");
+        content.Should().Contain("il: issue list");
+    }
+
+    [Fact]
+    public async Task AliasDelete_ReturnsFail_WhenAliasNotExists() {
+        var configPath = GetTestConfigPath();
+        var fs = new InMemoryFileSystem();
+        await fs.WriteAllTextAsync(configPath, "git_protocol: https\naliases:\n    co: pr checkout\n");
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhAliasDeleteAsync("nonexistent");
+
+        result.IsError.Should().BeTrue();
+    }
 }

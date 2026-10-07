@@ -254,10 +254,11 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 精简仓库列表 JSON — 只保留关键字段，去掉冗余 URL，便于人类浏览和 AI 解析；支持 source/fork/topic 客户端过滤
     /// </summary>
+    private static readonly string[] DefaultRepoFields = ["name", "full_name", "private", "fork", "description", "language", "stargazers_count", "updated_at", "default_branch"];
+
     private static string SummarizeRepoList(string json, bool? source = null, bool? fork = null, string? topic = null, string? jsonFields = null) {
         var topicSet = topic?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var defaultFields = new[] { "name", "full_name", "private", "fork", "description", "language", "stargazers_count", "updated_at", "default_branch" };
-        var fields = string.IsNullOrWhiteSpace(jsonFields) ? defaultFields : jsonFields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var fields = string.IsNullOrWhiteSpace(jsonFields) ? DefaultRepoFields : jsonFields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         try {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;

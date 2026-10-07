@@ -94,19 +94,20 @@ public partial class GitHubToolHandlers {
         }
 
         var prefix = $"{jobId} / ";
-        var otherWorkflowChecks = allContexts
-            .Where(c => !c.StartsWith(prefix, StringComparison.Ordinal))
-            .ToList();
-
-        var targetChecks = allContexts
-            .Where(c => c.StartsWith(prefix, StringComparison.Ordinal))
-            .ToList();
+        var otherWorkflowChecks = new List<string>(allContexts.Count);
+        var targetChecks = new List<string>(allContexts.Count);
+        foreach (var c in allContexts) {
+            if (c.StartsWith(prefix, StringComparison.Ordinal))
+                targetChecks.Add(c);
+            else
+                otherWorkflowChecks.Add(c);
+        }
 
         var checkPrefix = InferCheckPrefix(targetChecks, prefix, audit.CiJobNames);
 
-        var newTargetChecks = audit.CiJobNames
-            .Select(name => $"{checkPrefix}{name}")
-            .ToList();
+        var newTargetChecks = new List<string>(audit.CiJobNames.Count);
+        foreach (var name in audit.CiJobNames)
+            newTargetChecks.Add(string.Concat(checkPrefix, name));
 
         return [.. otherWorkflowChecks, .. newTargetChecks];
     }

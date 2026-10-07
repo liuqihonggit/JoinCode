@@ -17,6 +17,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ISwarmPermissionBridge? _permissionBridge;
     private readonly TeammateReconnectDispatcher _reconnectDispatcher;
+    private readonly AgentStateMachine _stateMachine;
 
     private volatile ImmutableHamT<string, AgentExecutionContext> _executionContexts = ImmutableHamT<string, AgentExecutionContext>.Empty;
     private readonly Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
@@ -75,20 +76,24 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         var spawnLimit = Math.Max(1, (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentSpawns);
         _spawnSemaphore = new AsyncLock(nameof(AgentCoordinator) + ".Spawn", spawnLimit, spawnLimit);
 
-        core.StateMachine.StateChanged += (_, e) => {
-            TaskStatusChanged?.Invoke(this, new AgentTaskStatusChangedEventArgs(e.AgentId, e.OldState, e.NewState));
-            TeammateChanged?.Invoke(this, new TeammateChangedEventArgs {
-                AgentId = e.AgentId,
-                OldState = e.OldState.ToAgentStatus(),
-                NewState = e.NewState.ToAgentStatus(),
-            });
-        };
+        _stateMachine = core.StateMachine;
+        _stateMachine.StateChanged += OnStateChanged;
+    }
+
+    private void OnStateChanged(object? sender, AgentStateChangedEventArgs e) {
+        TaskStatusChanged?.Invoke(this, new AgentTaskStatusChangedEventArgs(e.AgentId, e.OldState, e.NewState));
+        TeammateChanged?.Invoke(this, new TeammateChangedEventArgs {
+            AgentId = e.AgentId,
+            OldState = e.OldState.ToAgentStatus(),
+            NewState = e.NewState.ToAgentStatus(),
+        });
     }
 
     /// <summary>
     /// 释放 spawn 信号量等内核资源
     /// </summary>
     public override void Dispose() {
+        _stateMachine.StateChanged -= OnStateChanged;
         _spawnSemaphore.Dispose();
         base.Dispose();
     }

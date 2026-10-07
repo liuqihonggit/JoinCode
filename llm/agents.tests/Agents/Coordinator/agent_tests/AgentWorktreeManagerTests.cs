@@ -4,6 +4,8 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
     private readonly Mock<IAgentWorktreeService> _worktreeServiceMock;
     private readonly Mock<IHookOrchestrator> _hookOrchestratorMock;
     private readonly AgentWorktreeManager _manager;
+    private EventHandler<WorktreeEventArgs>? _onWorktreeCreated;
+    private EventHandler<WorktreeEventArgs>? _onWorktreeCleaned;
 
     public AgentWorktreeManagerTests() {
         _worktreeServiceMock = new Mock<IAgentWorktreeService>();
@@ -47,7 +49,8 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
         WorktreeEventArgs? firedArgs = null;
-        _manager.WorktreeCreated += (_, args) => firedArgs = args;
+        _onWorktreeCreated = (_, args) => firedArgs = args;
+        _manager.WorktreeCreated += _onWorktreeCreated;
 
         _worktreeServiceMock.Setup(x => x.CreateAgentWorktreeAsync(agentId, null, null, default))
             .ReturnsAsync(WorktreeCreateResult.SuccessResult(session));
@@ -191,7 +194,8 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
         WorktreeEventArgs? cleanedArgs = null;
-        _manager.WorktreeCleaned += (_, args) => cleanedArgs = args;
+        _onWorktreeCleaned = (_, args) => cleanedArgs = args;
+        _manager.WorktreeCleaned += _onWorktreeCleaned;
 
         _worktreeServiceMock.Setup(x => x.CreateAgentWorktreeAsync(agentId, null, null, default))
             .ReturnsAsync(WorktreeCreateResult.SuccessResult(session));
@@ -362,6 +366,8 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync() {
+        if (_onWorktreeCreated is not null) _manager.WorktreeCreated -= _onWorktreeCreated;
+        if (_onWorktreeCleaned is not null) _manager.WorktreeCleaned -= _onWorktreeCleaned;
         await _manager.DisposeSafeAsync();
     }
 

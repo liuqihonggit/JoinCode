@@ -17,6 +17,10 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
     private Process? _mcpMockServerProcess;
     private int _mcpMockServerPort;
     private bool _disposed;
+    private DataReceivedEventHandler? _onMockOutput;
+    private DataReceivedEventHandler? _onMockError;
+    private DataReceivedEventHandler? _onMcpMockOutput;
+    private DataReceivedEventHandler? _onMcpMockError;
 
     public DualRoleConversationRunner(ILogger<DualRoleConversationRunner> logger, IFileSystem? fs = null) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -844,7 +848,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         };
         var readyMarker = $"[{serverName}]   URL:";
 
-        _mockServerProcess.OutputDataReceived += (_, e) => {
+        _onMockOutput = (_, e) => {
             if (string.IsNullOrEmpty(e.Data)) return;
             _logger.LogTrace("[MockServer] {Line}", e.Data);
 
@@ -858,12 +862,14 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
                 }
             }
         };
+        _mockServerProcess.OutputDataReceived += _onMockOutput;
 
-        _mockServerProcess.ErrorDataReceived += (_, e) => {
+        _onMockError = (_, e) => {
             if (!string.IsNullOrEmpty(e.Data)) {
                 _logger.LogTrace("[MockServer:ERR] {Line}", e.Data);
             }
         };
+        _mockServerProcess.ErrorDataReceived += _onMockError;
 
         if (!_mockServerProcess.Start()) {
             throw new InvalidOperationException("[GEN026] [E2E007] 无法启动 MockServer 进程");
@@ -915,7 +921,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         var readyTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var readyMarker = "[Mcp.MockServer] Listening on";
 
-        _mcpMockServerProcess.OutputDataReceived += (_, e) => {
+        _onMcpMockOutput = (_, e) => {
             if (string.IsNullOrEmpty(e.Data)) return;
             _logger.LogTrace("[Mcp.MockServer] {Line}", e.Data);
 
@@ -923,12 +929,14 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
                 readyTcs.TrySetResult(true);
             }
         };
+        _mcpMockServerProcess.OutputDataReceived += _onMcpMockOutput;
 
-        _mcpMockServerProcess.ErrorDataReceived += (_, e) => {
+        _onMcpMockError = (_, e) => {
             if (!string.IsNullOrEmpty(e.Data)) {
                 _logger.LogTrace("[Mcp.MockServer:ERR] {Line}", e.Data);
             }
         };
+        _mcpMockServerProcess.ErrorDataReceived += _onMcpMockError;
 
         if (!_mcpMockServerProcess.Start()) {
             throw new InvalidOperationException("[GEN029] [E2E008] 无法启动 Mcp.MockServer 进程");
@@ -1158,6 +1166,15 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
     public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
+
+        if (_mockServerProcess is not null) {
+            if (_onMockOutput is not null) _mockServerProcess.OutputDataReceived -= _onMockOutput;
+            if (_onMockError is not null) _mockServerProcess.ErrorDataReceived -= _onMockError;
+        }
+        if (_mcpMockServerProcess is not null) {
+            if (_onMcpMockOutput is not null) _mcpMockServerProcess.OutputDataReceived -= _onMcpMockOutput;
+            if (_onMcpMockError is not null) _mcpMockServerProcess.ErrorDataReceived -= _onMcpMockError;
+        }
 
         if (_processManager is not null) {
             await _processManager.DisposeSafeAsync(_logger);

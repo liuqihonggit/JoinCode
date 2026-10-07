@@ -278,6 +278,7 @@ public sealed class AgentStateContext : IAsyncDisposable {
     /// </summary>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _stateMachine.StateChanged -= OnStateChanged;
         Lock.Dispose();
     }
 }

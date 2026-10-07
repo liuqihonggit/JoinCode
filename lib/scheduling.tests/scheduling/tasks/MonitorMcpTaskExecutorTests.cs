@@ -5,6 +5,7 @@ namespace Sync.Tests.Scheduling.Tasks;
 public class MonitorMcpTaskExecutorTests : IAsyncDisposable {
     private readonly Mock<IMcpToolRegistry> _mcpToolRegistryMock;
     private readonly MonitorMcpTaskExecutor _executor;
+    private EventHandler<McpMonitorEventArgs>? _onMonitorEvent;
     private bool _disposed;
 
     public MonitorMcpTaskExecutorTests() {
@@ -17,6 +18,7 @@ public class MonitorMcpTaskExecutorTests : IAsyncDisposable {
     public ValueTask DisposeAsync() {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
+        if (_onMonitorEvent is not null) _executor.MonitorEvent -= _onMonitorEvent;
         _ = _executor.DisposeSafeAsync().ConfigureAwait(true);
         return ValueTask.CompletedTask;
     }
@@ -158,10 +160,11 @@ public class MonitorMcpTaskExecutorTests : IAsyncDisposable {
 
         McpMonitorEventArgs? capturedArgs = null;
         using var eventSignal = new SemaphoreSlim(0, 1);
-        _executor.MonitorEvent += (_, args) => {
+        _onMonitorEvent = (_, args) => {
             capturedArgs = args;
             eventSignal.Release();
         };
+        _executor.MonitorEvent += _onMonitorEvent;
 
         var config = new McpMonitorConfig {
             ServerName = "test-server",

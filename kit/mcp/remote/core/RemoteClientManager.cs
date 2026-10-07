@@ -17,7 +17,33 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
     private readonly McpReconnectAcceptLevel _acceptLevel;
     private readonly MiddlewarePipeline<RemoteSyncContext>? _syncPipeline;
     private readonly INetworkConnectivityService? _networkService;
+    private readonly ConcurrentDictionary<string, ClientEventSubscription> _clientHandlers = new();
     private int _disposed;
+
+    /// <summary>单个远程客户端的事件订阅封装 — 字段持有 client 与 handler,Dispose 中取消订阅</summary>
+    private sealed class ClientEventSubscription {
+        private readonly IMcpClient _client;
+        private readonly EventHandler<McpNotificationReceivedEventArgs> _notificationHandler;
+        private readonly EventHandler<McpConnectionLostEventArgs> _connectionHandler;
+
+        /// <summary>构造订阅封装 — 订阅 client 的通知与连接丢失事件</summary>
+        public ClientEventSubscription(
+            IMcpClient client,
+            string clientId,
+            RemoteClientManager owner) {
+            _client = client;
+            _notificationHandler = (_, args) => owner.OnClientNotificationReceived(clientId, args);
+            _connectionHandler = (_, args) => owner.OnClientConnectionLost(clientId, args);
+            _client.NotificationReceived += _notificationHandler;
+            _client.ConnectionLost += _connectionHandler;
+        }
+
+        /// <summary>取消订阅 client 的事件</summary>
+        public void Dispose() {
+            _client.NotificationReceived -= _notificationHandler;
+            _client.ConnectionLost -= _connectionHandler;
+        }
+    }
 
     /// <summary>工具列表变更通知事件</summary>
     public event EventHandler<ToolsListChangedEventArgs>? ToolsListChanged;
@@ -230,8 +256,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
             throw new InvalidOperationException($"[MCP025] 远程客户端 '{clientId}' 已注册");
         }
 
-        client.NotificationReceived += (sender, args) => OnClientNotificationReceived(clientId, args);
-        client.ConnectionLost += (sender, args) => OnClientConnectionLost(clientId, args);
+        _clientHandlers[clientId] = new ClientEventSubscription(client, clientId, this);
 
         _logger.LogInformation("已注册远程 MCP 客户端: {ClientId}", clientId);
         return Task.CompletedTask;
@@ -246,6 +271,10 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
         if (await _clients.TryRemoveAsync(clientId).ConfigureAwait(false)) {
             _toolSpecCache.Remove(clientId);
             _reconnectCts.CancelAndRemove(clientId);
+
+            if (_clientHandlers.TryRemove(clientId, out var subscription)) {
+                subscription.Dispose();
+            }
 
             _logger.LogInformation("已移除远程 MCP 客户端: {ClientId}", clientId);
             return true;
@@ -562,6 +591,12 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
 
         _reconnectCts.CancelAll();
         _reconnectCts.Clear();
+
+        var allSubscriptions = _clientHandlers.ToArray();
+        foreach (var (_, subscription) in allSubscriptions) {
+            subscription.Dispose();
+        }
+        _clientHandlers.Clear();
 
         await _clients.ClearAllAsync().ConfigureAwait(false);
         _toolSpecCache.Clear();

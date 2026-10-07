@@ -143,6 +143,7 @@ public sealed partial class TransportManager : ITransportManager {
     /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _messageRouter.MessageReceived -= OnStringMessageReceived;
         await _connectionManager.DisposeAsync().ConfigureAwait(false);
         await _messageRouter.DisposeAsync().ConfigureAwait(false);
     }

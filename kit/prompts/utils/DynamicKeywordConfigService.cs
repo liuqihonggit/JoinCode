@@ -88,12 +88,14 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
             _watcher = _fs.Watch(dir, ConfigFileName);
             _watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size;
             _watcher.DebounceInterval = TimeSpan.FromMilliseconds(200);
-            _watcher.DebouncedChanged += async (_, _) => await ReloadOnFileChangeAsync().ConfigureAwait(false);
+            _watcher.DebouncedChanged += OnWatcherDebouncedChanged;
             _watcher.EnableRaisingEvents = true;
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "启动动态关键词配置文件监控失败");
         }
     }
+
+    private void OnWatcherDebouncedChanged(object? sender, FileChangedEventArgs e) => _ = ReloadOnFileChangeAsync();
 
     private async Task ReloadOnFileChangeAsync() {
         var key = new IdempotencyKey("reload-config", Guid.NewGuid().ToString());
@@ -121,7 +123,10 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
 
-        if (_watcher is not null) await _watcher.DisposeAsync().ConfigureAwait(false);
+        if (_watcher is not null) {
+            _watcher.DebouncedChanged -= OnWatcherDebouncedChanged;
+            await _watcher.DisposeAsync().ConfigureAwait(false);
+        }
         _watcher = null;
         await _loadTask.ConfigureAwait(false);
         await _actor.DisposeAsync().ConfigureAwait(false);

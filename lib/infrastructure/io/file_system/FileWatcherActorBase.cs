@@ -140,7 +140,13 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
     /// </summary>
     public override async ValueTask DisposeAsync() {
         TrySend(new FileWatcherStopCmd());
-        if (_watcher is not null) await _watcher.DisposeAsync().ConfigureAwait(false);
+        if (_watcher is not null) {
+            _watcher.DebouncedChanged -= OnWatcherChanged;
+            _watcher.DebouncedCreated -= OnWatcherChanged;
+            _watcher.DebouncedDeleted -= OnWatcherChanged;
+            _watcher.DebouncedRenamed -= OnWatcherRenamed;
+            await _watcher.DisposeAsync().ConfigureAwait(false);
+        }
         _watcher = null;
         await base.DisposeAsync().ConfigureAwait(false);
     }

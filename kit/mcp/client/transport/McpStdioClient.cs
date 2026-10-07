@@ -182,6 +182,7 @@ public sealed class McpStdioClient : McpClientBase {
         }
 
         if (_interactiveProcess != null) {
+            _interactiveProcess.ErrorDataReceived -= OnInteractiveErrorDataReceived;
             await _interactiveProcess.DisposeAsync().ConfigureAwait(false);
             _interactiveProcess = null;
         }

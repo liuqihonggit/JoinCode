@@ -67,12 +67,8 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _outputCollector = new ProcessOutputCollector(fs, logger, TaskId);
         _cwdTracker = new CwdTracker(fs, logger, cwdFilePath, workingDirectory);
 
-        process.OutputDataReceived += (_, e) => {
-            if (e.Data != null) _outputCollector.OnOutputDataReceived(e.Data);
-        };
-        process.ErrorDataReceived += (_, e) => {
-            if (e.Data != null) _outputCollector.OnErrorDataReceived(e.Data);
-        };
+        process.OutputDataReceived += OnProcessOutputDataReceived;
+        process.ErrorDataReceived += OnProcessErrorDataReceived;
 
         if (timeoutMs.HasValue && timeoutMs.Value > 0) {
             _timeoutTimer = new Timer(
@@ -345,12 +341,23 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _resultTcs.TrySetResult(result);
     }
 
+    private void OnProcessOutputDataReceived(object sender, DataReceivedEventArgs e) {
+        if (e.Data != null) _outputCollector.OnOutputDataReceived(e.Data);
+    }
+
+    private void OnProcessErrorDataReceived(object sender, DataReceivedEventArgs e) {
+        if (e.Data != null) _outputCollector.OnErrorDataReceived(e.Data);
+    }
+
     /// <summary>
     /// 异步释放资源 — 释放定时器、取消令牌、杀死未退出进程、释放输出收集器与 CWD 追踪器
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
+
+        _process.OutputDataReceived -= OnProcessOutputDataReceived;
+        _process.ErrorDataReceived -= OnProcessErrorDataReceived;
 
         _timeoutTimer?.Dispose();
         _assistantTimer?.Dispose();

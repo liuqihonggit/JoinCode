@@ -202,9 +202,11 @@ public sealed class PhysicalProcessService : IProcessService {
             _logger = logger;
             StandardInput = new StreamWriter(_process.StandardInput.BaseStream) { AutoFlush = true };
             StandardOutput = new StreamReader(_process.StandardOutput.BaseStream);
-            _process.ErrorDataReceived += (_, e) => {
-                if (e.Data != null) ErrorDataReceived?.Invoke(this, e.Data);
-            };
+            _process.ErrorDataReceived += OnProcessErrorData;
+        }
+
+        private void OnProcessErrorData(object? sender, System.Diagnostics.DataReceivedEventArgs e) {
+            if (e.Data != null) ErrorDataReceived?.Invoke(this, e.Data);
         }
 
         /// <inheritdoc/>
@@ -247,6 +249,7 @@ public sealed class PhysicalProcessService : IProcessService {
 
             StandardInput.Dispose();
             StandardOutput.Dispose();
+            _process.ErrorDataReceived -= OnProcessErrorData;
             _process.Dispose();
 
             return ValueTask.CompletedTask;

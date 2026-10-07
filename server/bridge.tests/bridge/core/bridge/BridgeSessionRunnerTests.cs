@@ -9,6 +9,8 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
     private readonly FakeTimeProvider _fakeTime;
     private readonly BridgeSessionFactory _sessionFactory;
     private BridgeSessionRunner _sut;
+    private EventHandler<BridgeSessionStateChangedEventArgs>? _onSessionStateChanged;
+    private bool _disposed;
 
     public BridgeSessionRunnerTests() {
         _fakeTime = new FakeTimeProvider();
@@ -19,7 +21,12 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
     private BridgeSessionRunner CreateSut(BridgeSessionConfiguration? config = null) =>
         new(_sessionFactory, config, NullLogger.Instance, _fakeTime);
 
-    public ValueTask DisposeAsync() => _sut.DisposeAsync();
+    public ValueTask DisposeAsync() {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
+        if (_onSessionStateChanged is not null) _sut.SessionStateChanged -= _onSessionStateChanged;
+        return _sut.DisposeAsync();
+    }
 
     [Fact]
     public async Task StartSessionAsync_ShouldCreateActiveSession() {
@@ -271,7 +278,8 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
         // Arrange
         var session = await _sut.StartSessionAsync("client-events-001").ConfigureAwait(true);
         var stateChanges = new List<BridgeSessionStateChangedEventArgs>();
-        _sut.SessionStateChanged += (_, args) => stateChanges.Add(args);
+        _onSessionStateChanged = (_, args) => stateChanges.Add(args);
+        _sut.SessionStateChanged += _onSessionStateChanged;
 
         // Act
         await _sut.SuspendSessionAsync(session.SessionId).ConfigureAwait(true);

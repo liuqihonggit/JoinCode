@@ -146,6 +146,7 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable {
         if (_ioDisposed) return;
         _ioDisposed = true;
 
+        _process.ErrorDataReceived -= OnErrorDataReceived;
         _readCts.CancelAndDisposeSafe(_logger);
 
         if (_stdoutReadTask is not null) {

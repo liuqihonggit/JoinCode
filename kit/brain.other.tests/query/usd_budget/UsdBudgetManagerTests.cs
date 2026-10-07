@@ -4,6 +4,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable {
     private readonly Mock<JoinCode.Abstractions.Interfaces.ICostTracker> _costTrackerMock = new();
     private readonly QueryEngineConfig _config = new() { MaxUsdBudget = 10.0m, UsdAlertThreshold = 0.8 };
     private readonly UsdBudgetManager _manager;
+    private EventHandler<UsdBudgetAlertEventArgs>? _onBudgetAlert;
     private bool _disposed;
 
     public UsdBudgetManagerTests() {
@@ -43,7 +44,8 @@ public class UsdBudgetManagerTests : IAsyncDisposable {
     [Fact]
     public async Task BudgetAlert_AtThreshold_ShouldFireEvent() {
         UsdBudgetAlertEventArgs? alertArgs = null;
-        _manager.BudgetAlert += (_, args) => alertArgs = args;
+        _onBudgetAlert = (_, args) => alertArgs = args;
+        _manager.BudgetAlert += _onBudgetAlert;
 
         await _manager.RecordCostAsync(8.5m, "expensive call").ConfigureAwait(true);
 
@@ -56,7 +58,8 @@ public class UsdBudgetManagerTests : IAsyncDisposable {
     [Fact]
     public async Task BudgetAlert_BelowThreshold_ShouldNotFireEvent() {
         var eventFired = false;
-        _manager.BudgetAlert += (_, _) => eventFired = true;
+        _onBudgetAlert = (_, _) => eventFired = true;
+        _manager.BudgetAlert += _onBudgetAlert;
 
         await _manager.RecordCostAsync(1.0m, "cheap call").ConfigureAwait(true);
 
@@ -110,7 +113,8 @@ public class UsdBudgetManagerTests : IAsyncDisposable {
     [Fact]
     public async Task BudgetAlert_ShouldFireOnlyOnce() {
         var alertCount = 0;
-        _manager.BudgetAlert += (_, _) => alertCount++;
+        _onBudgetAlert = (_, _) => alertCount++;
+        _manager.BudgetAlert += _onBudgetAlert;
 
         await _manager.RecordCostAsync(9.0m, "first expensive call").ConfigureAwait(true);
         await _manager.RecordCostAsync(1.0m, "second call").ConfigureAwait(true);
@@ -168,6 +172,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable {
     public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
+        if (_onBudgetAlert is not null) _manager.BudgetAlert -= _onBudgetAlert;
         await _manager.DisposeSafeAsync();
     }
 }

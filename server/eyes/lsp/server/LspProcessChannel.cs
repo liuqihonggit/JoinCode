@@ -43,9 +43,11 @@ internal sealed class LspProcessChannel : IAsyncDisposable {
         _process = await _processService.StartInteractiveAsync(options, cancellationToken).ConfigureAwait(false);
         _readCts = new CancellationTokenSource();
 
-        _process.ErrorDataReceived += (_, line) => {
-            if (line != null) _logger?.LogDebug("LSP stderr: {Line}", line);
-        };
+        _process.ErrorDataReceived += OnProcessErrorData;
+    }
+
+    private void OnProcessErrorData(object? sender, string line) {
+        if (line != null) _logger?.LogDebug("LSP stderr: {Line}", line);
     }
 
     /// <summary>
@@ -113,7 +115,10 @@ internal sealed class LspProcessChannel : IAsyncDisposable {
             } catch (Exception ex) { _logger?.LogWarning(ex, "LSP 客户端关闭通知发送失败"); }
         }
 
-        if (_process is not null) await _process.DisposeAsync().ConfigureAwait(false);
+        if (_process is not null) {
+            _process.ErrorDataReceived -= OnProcessErrorData;
+            await _process.DisposeAsync().ConfigureAwait(false);
+        }
         _process = null;
     }
 

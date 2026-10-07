@@ -3,6 +3,7 @@ namespace Core.Tests.Services.Voice;
 public sealed class VoiceServiceTests : IDisposable {
     private readonly VoiceService _service;
     private readonly VoiceOptions _options;
+    private EventHandler<VoiceRecordingState>? _onStateChanged;
     private bool _disposed;
 
     public VoiceServiceTests() {
@@ -22,6 +23,7 @@ public sealed class VoiceServiceTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        if (_onStateChanged is not null) _service.StateChanged -= _onStateChanged;
         _options?.Dispose();
 
         _service.DisposeSafe();
@@ -95,7 +97,8 @@ public sealed class VoiceServiceTests : IDisposable {
         var ct = cts.Token;
 
         var stateChanges = new List<VoiceRecordingState>();
-        _service.StateChanged += (_, state) => stateChanges.Add(state);
+        _onStateChanged = (_, state) => stateChanges.Add(state);
+        _service.StateChanged += _onStateChanged;
 
         try {
             await _service.StartRecordingAsync(ct).ConfigureAwait(true);

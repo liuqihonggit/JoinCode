@@ -6,6 +6,7 @@ global using Core.Bridge.Init;
 global using Core.Bridge.Models;
 global using Core.Utils;
 global using Infrastructure.IO.Services.FileOps;
+global using Infrastructure.Network.Downloader;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Subprocess;
 global using Infrastructure.Utils.Resilience;

@@ -100,9 +100,9 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 创建 Issue — 支持标签/指派人/里程碑，调 REST API POST
+    /// 创建 Issue — 支持标签/指派人/里程碑/attach/blocked_by/blocking/parent/type(后四项为较新功能提示)，调 REST API POST
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhIssueCreate, "创建 Issue(支持标签/指派人/里程碑)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhIssueCreate, "创建 Issue(支持标签/指派人/里程碑/attach/blocked_by/blocking/parent/type)", "github")]
     public async Task<ToolResult> GhIssueCreateAsync(
         [McpToolParameter("Issue 标题", Required = true)] string title,
         [McpToolParameter("Issue 内容(body)", Required = false)] string? body = null,
@@ -110,10 +110,20 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("标签(可选,多个用逗号)", Required = false)] string? label = null,
         [McpToolParameter("指派人(可选)", Required = false)] string? assignee = null,
         [McpToolParameter("里程碑 ID(可选)", Required = false)] int? milestone = null,
+        [McpToolParameter("附加文件(可选,多个用逗号,暂未支持,需文件上传 API)", Required = false)] string? attach = null,
+        [McpToolParameter("被哪些 issue 阻塞(可选,多个用逗号,暂未支持,需 GraphQL sub-issue API)", Required = false)] string? blocked_by = null,
+        [McpToolParameter("阻塞哪些 issue(可选,多个用逗号,暂未支持,需 GraphQL sub-issue API)", Required = false)] string? blocking = null,
+        [McpToolParameter("父 issue 编号(epic,可选,暂未支持,需 GraphQL sub-issue API)", Required = false)] int? parent = null,
+        [McpToolParameter("issue 类型(可选,如 Bug/Task,暂未支持,需 GraphQL issue types API)", Required = false)] string? type = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (!string.IsNullOrWhiteSpace(attach)) return Fail("--attach 暂未支持: 需要文件上传 API,请先创建 issue 再手动上传附件");
+            if (!string.IsNullOrWhiteSpace(blocked_by)) return Fail("--blocked_by 暂未支持: 需要 GraphQL sub-issue API,请创建 issue 后手动设置 sub-issue 关系");
+            if (!string.IsNullOrWhiteSpace(blocking)) return Fail("--blocking 暂未支持: 需要 GraphQL sub-issue API,请创建 issue 后手动设置 sub-issue 关系");
+            if (parent is not null) return Fail("--parent 暂未支持: 需要 GraphQL sub-issue API,请创建 issue 后手动设置 epic 关系");
+            if (!string.IsNullOrWhiteSpace(type)) return Fail("--type 暂未支持: 需要 GraphQL issue types API(Enterprise 功能),请创建 issue 后手动设置类型");
             var effectiveBody = body;
             if (body_file is not null) {
                 if (!_fs.FileExists(body_file)) return Fail($"body_file 不存在: {body_file}");

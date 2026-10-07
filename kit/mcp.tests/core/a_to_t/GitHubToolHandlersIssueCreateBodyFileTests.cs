@@ -24,4 +24,44 @@ public sealed partial class GitHubToolHandlersTests {
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("body_file 不存在");
     }
+
+    [Fact]
+    public async Task IssueCreate_WithAttach_ReturnsNotSupportedError() {
+        var result = await _handler.GhIssueCreateAsync("Test", attach: "file.txt", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("--attach 暂未支持");
+    }
+
+    [Fact]
+    public async Task IssueCreate_WithBlockedBy_ReturnsNotSupportedError() {
+        var result = await _handler.GhIssueCreateAsync("Test", blocked_by: "1,2", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("--blocked_by 暂未支持");
+    }
+
+    [Fact]
+    public async Task IssueCreate_WithBlocking_ReturnsNotSupportedError() {
+        var result = await _handler.GhIssueCreateAsync("Test", blocking: "3,4", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("--blocking 暂未支持");
+    }
+
+    [Fact]
+    public async Task IssueCreate_WithParent_ReturnsNotSupportedError() {
+        var result = await _handler.GhIssueCreateAsync("Test", parent: 10, repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("--parent 暂未支持");
+    }
+
+    [Fact]
+    public async Task IssueCreate_WithType_ReturnsNotSupportedError() {
+        var result = await _handler.GhIssueCreateAsync("Test", type: "Bug", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("--type 暂未支持");
+    }
 }

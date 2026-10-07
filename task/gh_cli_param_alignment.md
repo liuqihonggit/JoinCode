@@ -30,11 +30,11 @@
 | discussion | 5/5 | ✅ list/view/create/edit/comment(GraphQL) | 5 | — | ✅ 完成 |
 | project | 6/6 | ✅ list/view/create/delete/edit/close(GraphQL v2) | 6 | — | ✅ 完成 |
 | alias | 3/3 | ✅ list/set/delete(真实读写 config.yml) | 3 | — | ✅ 完成 |
-| extension | 4/4 | ✅ list(扫描本地目录) install/upgrade/remove(提示) | 4 | — | ⚠️ list 已做 |
+| extension | 4/4 | ✅ list/install/upgrade/remove(真实实现) | 4 | — | ✅ 完成 |
 | licenses | 1/1 | ✅ 查看许可证(API GET /licenses) | 1 | — | ✅ 完成 |
 | auth | 3/4 | ✅ status/login/token(PAT 方式) | 4 | — | ⚠️ refresh 提示 |
 | config | 2/2 | ✅ get/set(真实读写 config.yml) | 2 | — | ✅ 完成 |
-| **合计** | — | — | **106 新增** | **364 通过** | ✅ |
+| **合计** | — | — | **106 新增** | **366 通过** | ✅ |
 
 > DTO+JsonContext 双向转换：Issue/Pr/Repo/Release/Run 全部完成，GitHubJsonObjectBuilder 已归档到 .xxx/
 > GraphQL DTO 序列化：P4 所有 GraphQL 查询用 GraphQLRequest DTO + BuildGraphQL 辅助方法，JsonSerializer 自动转义双引号，消除内插原始字符串 `}` 转义歧义

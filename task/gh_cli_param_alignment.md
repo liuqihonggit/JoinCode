@@ -330,11 +330,17 @@ gist / org / project / codespace / discussion / attestation / ruleset / extensio
 <!--   - refactor: 全穿透架构 — DetectUnknownOptions 移到各子命令内部(偏好"全穿透+内部守卫") -->
 <!-- 验证: 102 个 GitHubToolHandlers 测试全部通过,0 警告 0 错误 ✅ -->
 <!-- 未完成: -->
+<!--   - secret set 已完成(libsodium sealed box 加密 + SecretSetRequest DTO + 5 测试) ✅ -->
+<!--   - auth refresh 保留提示(PAT 无 refresh_token,需 OAuth 流程) -->
 <!--   - 通用 --jq 参数(需引入 jq 解析库,独立大任务) -->
 <!--   - 通用 --template 参数(Go template,.NET 无原生支持) -->
-<!--   - release verify/verify-asset 子命令 -->
-<!--   - repo autolink/deploy-key/gitignore/license/read-dir/read-file/rename/set-default/sync 子命令 -->
-<!--   - pr issue status/delete/edit/lock/pin/reopen/transfer 等子命令 -->
-<!--   - auth/config/label/search/workflow 等完整命令组 -->
+<!--   - 通用 --json 精确字段选择(当前 verbose 近似) -->
 <!--   - 手动 exe 验收(ADR 0080) -->
-<!--   - 推送 w1 分支 + 创建 PR -->
+<!--   - 推送 w1 分支 + 创建 PR(用户指示不要 push) -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: secret set 用 libsodium crypto_box_seal 真实加密(X25519 + blake2b + XSalsa20-Poly1305) -->
+<!-- 原因: GitHub secret API 要求客户端加密,需获取仓库公钥后用 sealed box 加密再 PUT -->
+<!-- 实现: .NET ECDiffieHellman(Curve25519) + 自实现 blake2b(RFC 7693) + NaCl.Core XSalsa20/Poly1305 -->
+<!-- 替代方案: 引入完整 libsodium 库(但 NaCl.Core 不提供 X25519/blake2b,需多包组合) -->
+<!-- 验证: 编译通过,5 个新测试全通过 ✅ -->

@@ -13,6 +13,7 @@ namespace JoinCode.Cli.Output;
     PropertyNameCaseInsensitive = true)]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolResult>))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<string>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<System.Collections.Generic.List<CliToolListItem>>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<System.Collections.Generic.List<CliToolSearchItem>>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<System.Collections.Generic.List<CliSlashCommandListItem>>))]

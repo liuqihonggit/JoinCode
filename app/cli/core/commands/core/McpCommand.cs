@@ -376,11 +376,18 @@ public sealed class McpCliCommand {
         return JsonDocument.Parse(ms).RootElement.Clone();
     }
 
-    /// <summary>输出工具执行结果 — 供 gh 等子命令复用，避免第二套输出逻辑</summary>
+    /// <summary>输出工具执行结果 — 供 gh 等子命令复用，避免第二套输出逻辑
+    /// <para>扁平化: 单 text content + 非 error → data 直接是 string,消除 content[0].text 嵌套(降低 AI token 消耗)</para>
+    /// </summary>
     internal static int OutputResult(ToolResult result, bool json) {
         if (json) {
-            var envelope = Cli.Output.CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolResult>.Success(result);
-            System.Console.WriteLine(envelope.ToJsonString());
+            if (!result.IsError && result.Content.Count == 1 && !string.IsNullOrEmpty(result.Content[0].Text)) {
+                var envelope = Cli.Output.CliOutputEnvelope<string>.Success(result.Content[0].Text);
+                System.Console.WriteLine(envelope.ToJsonString());
+            } else {
+                var envelope = Cli.Output.CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolResult>.Success(result);
+                System.Console.WriteLine(envelope.ToJsonString());
+            }
         } else {
             // 非 json 模式: 遍历所有 Content,输出文本 + 图片摘要
             var hasOutput = false;

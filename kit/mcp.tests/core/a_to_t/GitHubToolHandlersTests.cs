@@ -610,13 +610,16 @@ public sealed partial class GitHubToolHandlersTests {
         _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
-            Body = """{"databaseId":42,"status":"completed","conclusion":"success"}""",
+            Body = """{"id":42,"run_number":752,"status":"completed","conclusion":"success","display_title":"CI build","event":"push","head_branch":"main","head_sha":"abc123def456","html_url":"https://github.com/o/r/actions/runs/42","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:01:00Z"}""",
         };
 
         var result = await _handler.GhRunViewAsync("42", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
-        result.GetFirstText().Should().Contain("42");
+        var text = result.GetFirstText();
+        text.Should().Contain("42");
+        text.Should().Contain("Status: completed");
+        text.Should().Contain("Conclusion: success");
     }
 
     [Fact]

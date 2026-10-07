@@ -29,6 +29,14 @@ public sealed class DownloadOptions {
     /// </summary>
     public string? ProxyUrl { get; init; }
 
+    /// <summary>
+    /// 自定义请求头 — 注入到每个分片 HTTP 请求(含探测 HEAD/GET)
+    /// <para>用途:GitHub Bearer token、User-Agent 等鉴权/标识头</para>
+    /// <para>注:重定向时 HttpClient 会自动 strip Authorization 头(GitHub artifact 302 场景安全)</para>
+    /// <para>空字典=不附加自定义头</para>
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers { get; init; } = new Dictionary<string, string>();
+
     /// <summary>校验 MaxThreads 合法性(>=1)</summary>
     public void Validate() {
         if (MaxThreads < 1)

@@ -7,5 +7,5 @@ namespace JoinCode.Abstractions.Utils;
 [JsonSerializable(typeof(Tools.ValidationError))]
 [JsonSerializable(typeof(List<Tools.ValidationError>))]
 [JsonSerializable(typeof(Tools.ToolSchema))]
-[JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 public sealed partial class ContractsJsonContext : JsonSerializerContext;

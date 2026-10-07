@@ -64,6 +64,17 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry {
     }
 
     /// <summary>
+    /// 异步批量注册工具处理器 — 委托给底层注册表的单次锁批量注册
+    /// </summary>
+    /// <param name="handlers">要注册的工具处理器列表。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    public async Task RegisterToolsBatchAsync(IReadOnlyList<IToolHandler> handlers, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(handlers);
+        await _toolRegistry.RegisterToolsBatchAsync(handlers, cancellationToken).ConfigureAwait(false);
+        _logger?.LogDebug("MCP tools batch registered via adapter: {Count} tools", handlers.Count);
+    }
+
+    /// <summary>
     /// 异步注销指定工具
     /// </summary>
     /// <param name="toolName">工具名称</param>

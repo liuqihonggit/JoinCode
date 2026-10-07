@@ -129,9 +129,13 @@ internal sealed class DownloadSession : IDownloadSession {
     private async Task<DownloadResult> RunDownloadAsync() {
         var ct = _cts?.Token ?? CancellationToken.None;
         try {
-            var probeResult = await _probe.ProbeAsync(_url, ct).ConfigureAwait(false);
+            var effectiveHeaders = _options.Headers.Count > 0 ? _options.Headers : null;
+            var probeResult = await _probe.ProbeAsync(_url, effectiveHeaders, ct).ConfigureAwait(false);
             _probeResult = probeResult;
             _totalLength = probeResult.ContentLength ?? 0;
+
+            if (!probeResult.SupportsRange || probeResult.ContentLength is null or 0)
+                return await DownloadWithoutRangeAsync(effectiveHeaders, ct).ConfigureAwait(false);
 
             if (!await LoadOrPlanChunks(probeResult).ConfigureAwait(false))
                 return FailureResult("[DOWN009] 无法确定文件长度或分片规划失败");
@@ -140,7 +144,7 @@ internal sealed class DownloadSession : IDownloadSession {
             if (pendingChunks.Count == 0)
                 return await MergeAndCompleteAsync(ct).ConfigureAwait(false);
 
-            var results = await DownloadChunksParallelAsync(pendingChunks, ct).ConfigureAwait(false);
+            var results = await DownloadChunksParallelAsync(pendingChunks, effectiveHeaders, ct).ConfigureAwait(false);
 
             var failed = results.FirstOrDefault(r => !r.Success);
             if (failed is not null) {
@@ -161,18 +165,66 @@ internal sealed class DownloadSession : IDownloadSession {
     }
 
     /// <summary>
+    /// 单线程整体下载回退 — 服务器不支持 Range 或未知 ContentLength 时使用
+    /// <para>仍复用 IDownloader 会话管理(状态机/进度/取消),统一 API</para>
+    /// <para>流式写入 64KB 缓冲,避免大内存占用</para>
+    /// </summary>
+    private async Task<DownloadResult> DownloadWithoutRangeAsync(
+        IReadOnlyDictionary<string, string>? headers, CancellationToken ct) {
+        using var request = new HttpRequestMessage(HttpMethod.Get, _url);
+        if (headers is not null) {
+            foreach (var (key, value) in headers)
+                request.Headers.TryAddWithoutValidation(key, value);
+        }
+
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode) {
+            _stateMachine.TryFail();
+            return FailureResult($"[DOWN010] HTTP {response.StatusCode}");
+        }
+
+        if (response.Content.Headers.ContentLength is { } len)
+            _totalLength = len;
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        await using var fileStream = _fs.CreateStream(_filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+
+        var buffer = new byte[64 * 1024];
+        long totalRead = 0;
+        int read;
+        while ((read = await responseStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0) {
+            await fileStream.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+            totalRead += read;
+            if (_progress is not null) {
+                _progress.Report(new DownloadProgress(_totalLength, totalRead, 0, 0, DownloadState.Downloading, false));
+            }
+        }
+
+        var mergeResult = _stateMachine.TryEnterMerging();
+        if (!mergeResult.Success)
+            return FailureResult(mergeResult.Error);
+
+        var completeResult = _stateMachine.TryComplete();
+        if (!completeResult.Success)
+            return FailureResult(completeResult.Error);
+
+        var elapsed = _clock.GetUtcNow() - _startTime;
+        return new DownloadResult(true, _filePath, _totalLength, totalRead, elapsed, DownloadState.Completed, null);
+    }
+
+    /// <summary>
     /// AIO 并发下载分片 — Task.WhenAll + SemaphoreSlim 限流,0 线程阻塞
     /// <para>替代 PLINQ + .GetAwaiter().GetResult()(BIO),用真异步并发避免线程池浪费</para>
     /// <para>SemaphoreSlim.WaitAsync 限制并发度=MaxThreads,不阻塞线程</para>
     /// </summary>
     private async Task<ChunkDownloadResult[]> DownloadChunksParallelAsync(
-        List<DownloadChunk> chunks, CancellationToken ct) {
+        List<DownloadChunk> chunks, IReadOnlyDictionary<string, string>? headers, CancellationToken ct) {
         using var semaphore = new SemaphoreSlim(_options.MaxThreads, _options.MaxThreads);
         var tasks = chunks.Select(async chunk => {
             await semaphore.WaitAsync(ct).ConfigureAwait(false);
             try {
                 return await _chunkDownloader
-                    .DownloadAsync(_url, chunk, GetPartPath(chunk.Index), ct)
+                    .DownloadAsync(_url, chunk, GetPartPath(chunk.Index), headers, ct)
                     .ConfigureAwait(false);
             } finally {
                 semaphore.Release();

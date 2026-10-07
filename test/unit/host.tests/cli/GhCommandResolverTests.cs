@@ -227,6 +227,87 @@ public sealed class GhCommandResolverTests {
         bound!["failed_only"].Should().Be("true");
     }
 
+    /// <summary>系统 gh CLI 的 --job 应映射到 job_id（gh run view --job）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_Job_ShouldMapToJobId() {
+        var parameters = new List<GhParam> {
+            new("run_id", IsRequired: true, IsBoolean: false),
+            new("job_id", IsRequired: false, IsBoolean: false),
+            new("log", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "123", "--job", "456", "--log" }, parameters, "gh_run_view", out var error);
+
+        error.Should().BeNull();
+        bound!["job_id"].Should().Be("456");
+        bound["log"].Should().Be("true");
+    }
+
+    /// <summary>系统 gh CLI 的 --private/--public/--internal 应映射到 visibility（gh repo create）</summary>
+    [Theory]
+    [InlineData("private", "private")]
+    [InlineData("public", "public")]
+    [InlineData("internal", "internal")]
+    public void Bind_GhCliAlias_VisibilityFlags_ShouldMapToVisibility(string flag, string expected) {
+        var parameters = new List<GhParam> {
+            new("name", IsRequired: true, IsBoolean: false),
+            new("visibility", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "myrepo", $"--{flag}" }, parameters, "gh_repo_create", out var error);
+
+        error.Should().BeNull();
+        bound!["visibility"].Should().Be(expected);
+    }
+
+    /// <summary>系统 gh CLI 的 --duplicate 应映射到 duplicate_of（gh issue close --duplicate 42）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_Duplicate_ShouldMapToDuplicateOf() {
+        var parameters = new List<GhParam> {
+            new("issue_number", IsRequired: true, IsBoolean: false),
+            new("duplicate_of", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "12", "--duplicate", "42" }, parameters, "gh_issue_close", out var error);
+
+        error.Should().BeNull();
+        bound!["duplicate_of"].Should().Be("42");
+    }
+
+    /// <summary>系统 gh CLI 的 --completed/--not-planned 应映射到 reason（gh issue close）</summary>
+    [Theory]
+    [InlineData("completed", "completed")]
+    [InlineData("not-planned", "not_planned")]
+    public void Bind_GhCliAlias_ReasonFlags_ShouldMapToReason(string flag, string expected) {
+        var parameters = new List<GhParam> {
+            new("issue_number", IsRequired: true, IsBoolean: false),
+            new("reason", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "12", $"--{flag}" }, parameters, "gh_issue_close", out var error);
+
+        error.Should().BeNull();
+        bound!["reason"].Should().Be(expected);
+    }
+
+    /// <summary>系统 gh CLI 的 --approve/--request-changes/--comment 应映射到 action（gh pr review）</summary>
+    [Theory]
+    [InlineData("approve", "approve")]
+    [InlineData("request-changes", "request_changes")]
+    [InlineData("comment", "comment")]
+    public void Bind_GhCliAlias_ReviewFlags_ShouldMapToAction(string flag, string expected) {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("action", IsRequired: false, IsBoolean: false),
+            new("body", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "42", $"--{flag}" }, parameters, "gh_pr_review", out var error);
+
+        error.Should().BeNull();
+        bound!["action"].Should().Be(expected);
+    }
+
     /// <summary>系统 gh CLI 缩写 --merge/--rebase 也应映射到 merge_method</summary>
     [Theory]
     [InlineData("merge", "merge")]
@@ -281,6 +362,134 @@ public sealed class GhCommandResolverTests {
         error.Should().Contain("--auto_merge");
     }
 
+    /// <summary>--add-label 应建议 --label（key 包含参数名子串匹配）</summary>
+    [Fact]
+    public void Bind_UnknownOption_AddLabel_ShouldSuggestLabel() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("label", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "42", "--add-label", "bug" }, parameters, "gh_pr_edit", out var error);
+
+        bound.Should().BeNull();
+        error.Should().Contain("你是不是想用");
+        error.Should().Contain("--label");
+    }
+
+    /// <summary>系统 gh CLI 的 --enable-issues 应映射到 has_issues=true（gh repo edit --enable-issues）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_EnableIssues_ShouldMapToHasIssuesTrue() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: false, IsBoolean: false),
+            new("has_issues", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--enable-issues" }, parameters, "gh_repo_edit", out var error);
+
+        error.Should().BeNull();
+        bound!["has_issues"].Should().Be("true");
+    }
+
+    /// <summary>系统 gh CLI 的 --enable-issues=false 应映射到 has_issues=false（带值形式）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_EnableIssuesFalse_ShouldMapToHasIssuesFalse() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: false, IsBoolean: false),
+            new("has_issues", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--enable-issues=false" }, parameters, "gh_repo_edit", out var error);
+
+        error.Should().BeNull();
+        bound!["has_issues"].Should().Be("false");
+    }
+
+    /// <summary>系统 gh CLI 的 --enable-wiki 应映射到 has_wiki=true（gh repo edit --enable-wiki）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_EnableWiki_ShouldMapToHasWikiTrue() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: false, IsBoolean: false),
+            new("has_wiki", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--enable-wiki" }, parameters, "gh_repo_edit", out var error);
+
+        error.Should().BeNull();
+        bound!["has_wiki"].Should().Be("true");
+    }
+
+    /// <summary>系统 gh CLI 的 --enable-projects 应映射到 has_projects=true</summary>
+    [Fact]
+    public void Bind_GhCliAlias_EnableProjects_ShouldMapToHasProjectsTrue() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: false, IsBoolean: false),
+            new("has_projects", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--enable-projects" }, parameters, "gh_repo_edit", out var error);
+
+        error.Should().BeNull();
+        bound!["has_projects"].Should().Be("true");
+    }
+
+    /// <summary>系统 gh CLI 的 --latest 应映射到 make_latest=true（gh release create --latest）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_Latest_ShouldMapToMakeLatestTrue() {
+        var parameters = new List<GhParam> {
+            new("tag", IsRequired: true, IsBoolean: false),
+            new("make_latest", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "v1.0", "--latest" }, parameters, "gh_release_create", out var error);
+
+        error.Should().BeNull();
+        bound!["make_latest"].Should().Be("true");
+    }
+
+    /// <summary>系统 gh CLI 的 --latest=false 应映射到 make_latest=false</summary>
+    [Fact]
+    public void Bind_GhCliAlias_LatestFalse_ShouldMapToMakeLatestFalse() {
+        var parameters = new List<GhParam> {
+            new("tag", IsRequired: true, IsBoolean: false),
+            new("make_latest", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "v1.0", "--latest=false" }, parameters, "gh_release_create", out var error);
+
+        error.Should().BeNull();
+        bound!["make_latest"].Should().Be("false");
+    }
+
+    /// <summary>系统 gh CLI 的 --event 应映射到 event_type（gh run list --event push）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_Event_ShouldMapToEventType() {
+        var parameters = new List<GhParam> {
+            new("limit", IsRequired: false, IsBoolean: false),
+            new("event_type", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--event", "push", "--limit", "5" }, parameters, "gh_run_list", out var error);
+
+        error.Should().BeNull();
+        bound!["event_type"].Should().Be("push");
+        bound["limit"].Should().Be("5");
+    }
+
+    /// <summary>gh release edit --latest 无值应映射到 make_latest=true（RenameOnly 别名）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_ReleaseEditLatest_ShouldMapToLatestTrue() {
+        var parameters = new List<GhParam> {
+            new("tag", IsRequired: true, IsBoolean: false),
+            new("make_latest", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "v1.0", "--latest" }, parameters, "gh_release_edit", out var error);
+
+        error.Should().BeNull();
+        bound!["make_latest"].Should().Be("true");
+    }
+
     /// <summary>必填参数保持 required 声明顺序，布尔类型从 schema type 推断</summary>
     [Fact]
     public void ParseSchema_ShouldKeepRequiredOrderAndBooleanType() {
@@ -299,5 +508,235 @@ public sealed class GhCommandResolverTests {
         parameters[0].IsRequired.Should().BeTrue();
         parameters.Should().Contain(p => p.Name == "delete_branch" && p.IsBoolean);
         parameters.Should().Contain(p => p.Name == "repo" && !p.IsRequired && !p.IsBoolean);
+    }
+
+    /// <summary>gh ssh-key list → gh_ssh_key_list，连字符分组名转下划线</summary>
+    [Fact]
+    public void Resolve_SshKeyGroup_ShouldConvertHyphenToUnderscore() {
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "ssh-key", "list" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.ToolName.Should().Be("gh_ssh_key_list");
+        resolved.Group.Should().Be("ssh-key");
+    }
+
+    /// <summary>gh gpg-key list → gh_gpg_key_list，连字符分组名转下划线</summary>
+    [Fact]
+    public void Resolve_GpgKeyGroup_ShouldConvertHyphenToUnderscore() {
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "gpg-key", "list" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.ToolName.Should().Be("gh_gpg_key_list");
+    }
+
+    /// <summary>gh browse → gh_browse，单级命令无需 action</summary>
+    [Fact]
+    public void Resolve_Browse_ShouldMapToSingleLevelCommand() {
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "browse" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.ToolName.Should().Be("gh_browse");
+        resolved.Action.Should().BeNull();
+    }
+
+    /// <summary>gh status → gh_status，单级命令无需 action</summary>
+    [Fact]
+    public void Resolve_Status_ShouldMapToSingleLevelCommand() {
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "status" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.ToolName.Should().Be("gh_status");
+        resolved.Action.Should().BeNull();
+    }
+
+    /// <summary>gh licenses → gh_licenses，单级命令无需 action</summary>
+    [Fact]
+    public void Resolve_Licenses_ShouldMapToSingleLevelCommand() {
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "licenses" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.ToolName.Should().Be("gh_licenses");
+        resolved.Action.Should().BeNull();
+    }
+
+    /// <summary>用法提示应包含所有已知分组（workflow/label/search/gist/secret/ssh-key 等）</summary>
+    [Fact]
+    public void Usage_ShouldListAllKnownGroups() {
+        GhCommandResolver.Usage.Should().Contain("workflow");
+        GhCommandResolver.Usage.Should().Contain("label");
+        GhCommandResolver.Usage.Should().Contain("search");
+        GhCommandResolver.Usage.Should().Contain("gist");
+        GhCommandResolver.Usage.Should().Contain("secret");
+        GhCommandResolver.Usage.Should().Contain("ssh-key");
+    }
+
+    /// <summary>-L 短选项映射到 limit（gh pr list -L 5）</summary>
+    [Fact]
+    public void Bind_ShortOption_L_ShouldMapToLimit() {
+        var parameters = new List<GhParam> {
+            new("state", IsRequired: false, IsBoolean: false),
+            new("limit", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "-L", "5" }, parameters, "gh_pr_list", out var error);
+
+        error.Should().BeNull();
+        bound!["limit"].Should().Be("5");
+    }
+
+    /// <summary>-s 短选项在 pr list 映射到 state</summary>
+    [Fact]
+    public void Bind_ShortOption_s_PrList_ShouldMapToState() {
+        var parameters = new List<GhParam> {
+            new("state", IsRequired: false, IsBoolean: false),
+            new("limit", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "-s", "closed" }, parameters, "gh_pr_list", out var error);
+
+        error.Should().BeNull();
+        bound!["state"].Should().Be("closed");
+    }
+
+    /// <summary>-s 短选项在 run list 映射到 status（per-command 覆盖）</summary>
+    [Fact]
+    public void Bind_ShortOption_s_RunList_ShouldMapToStatus() {
+        var parameters = new List<GhParam> {
+            new("status", IsRequired: false, IsBoolean: false),
+            new("limit", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "-s", "success" }, parameters, "gh_run_list", out var error);
+
+        error.Should().BeNull();
+        bound!["status"].Should().Be("success");
+    }
+
+    /// <summary>-d 短选项映射到 draft bool flag（gh pr create -d）</summary>
+    [Fact]
+    public void Bind_ShortOption_d_ShouldMapToDraftTrue() {
+        var parameters = new List<GhParam> {
+            new("title", IsRequired: true, IsBoolean: false),
+            new("draft", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "feat: test", "-d" }, parameters, "gh_pr_create", out var error);
+
+        error.Should().BeNull();
+        bound!["draft"].Should().Be("true");
+    }
+
+    /// <summary>-L5 内联值形式（gh pr list -L5）</summary>
+    [Fact]
+    public void Bind_ShortOption_InlineValue_ShouldMapCorrectly() {
+        var parameters = new List<GhParam> {
+            new("limit", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "-L5" }, parameters, "gh_pr_list", out var error);
+
+        error.Should().BeNull();
+        bound!["limit"].Should().Be("5");
+    }
+
+    /// <summary>-F 短选项在 release create 映射到 notes_file（per-command 覆盖）</summary>
+    [Fact]
+    public void Bind_ShortOption_F_ReleaseCreate_ShouldMapToNotesFile() {
+        var parameters = new List<GhParam> {
+            new("tag", IsRequired: true, IsBoolean: false),
+            new("notes_file", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "v1.0", "-F", "notes.md" }, parameters, "gh_release_create", out var error);
+
+        error.Should().BeNull();
+        bound!["notes_file"].Should().Be("notes.md");
+    }
+
+    /// <summary>gh repo clone 的 dir 是可选位置参数, 应接受位置传递（gh repo clone owner/repo target-dir）</summary>
+    [Fact]
+    public void Bind_OptionalPositional_RepoClone_ShouldAcceptTargetDir() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: true, IsBoolean: false),
+            new("dir", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "owner/repo", "target-dir" }, parameters, "gh_repo_clone", out var error);
+
+        error.Should().BeNull();
+        bound!["repo"].Should().Be("owner/repo");
+        bound!["dir"].Should().Be("target-dir");
+    }
+
+    /// <summary>gh repo clone 不传 dir 时, 只传 required 位置参数应成功</summary>
+    [Fact]
+    public void Bind_OptionalPositional_RepoClone_WithoutTargetDir_ShouldSucceed() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: true, IsBoolean: false),
+            new("dir", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "owner/repo" }, parameters, "gh_repo_clone", out var error);
+
+        error.Should().BeNull();
+        bound!["repo"].Should().Be("owner/repo");
+        bound!.ContainsKey("dir").Should().BeFalse();
+    }
+
+    /// <summary>gh pr checkout 的 branch 是可选位置参数, 应接受位置传递</summary>
+    [Fact]
+    public void Bind_OptionalPositional_PrCheckout_ShouldAcceptBranch() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("branch", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "42", "my-branch" }, parameters, "gh_pr_checkout", out var error);
+
+        error.Should().BeNull();
+        bound!["pr_number"].Should().Be("42");
+        bound!["branch"].Should().Be("my-branch");
+    }
+
+    /// <summary>非白名单工具的 optional 参数不能用位置参数, 应报错（gh pr view 1 2 → 报错）</summary>
+    [Fact]
+    public void Bind_OptionalPositional_NonWhitelisted_ShouldReject() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("repo", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "1", "2" }, parameters, "gh_pr_view", out var error);
+
+        bound.Should().BeNull();
+        error.Should().Contain("多余的位置参数");
+    }
+
+    /// <summary>-f 短选项在 gh api 映射到 fields（gh api repos/.../labels -f name=test）</summary>
+    [Fact]
+    public void Bind_ShortOption_f_Api_ShouldMapToFields() {
+        var parameters = new List<GhParam> {
+            new("path", IsRequired: true, IsBoolean: false),
+            new("fields", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "repos/o/r/labels", "-f", "name=test" }, parameters, "gh_api", out var error);
+
+        error.Should().BeNull();
+        bound!["fields"].Should().Be("name=test");
+    }
+
+    /// <summary>重复 -f 短选项追加(逗号分隔): -f name=test -f color=ff0000 → fields="name=test,color=ff0000"</summary>
+    [Fact]
+    public void Bind_ShortOption_f_Repeated_ShouldAppend() {
+        var parameters = new List<GhParam> {
+            new("path", IsRequired: true, IsBoolean: false),
+            new("fields", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "repos/o/r/labels", "-f", "name=test", "-f", "color=ff0000" }, parameters, "gh_api", out var error);
+
+        error.Should().BeNull();
+        bound!["fields"].Should().Be("name=test,color=ff0000");
     }
 }

@@ -61,7 +61,7 @@ public sealed class EmbeddingModelDownloaderTests {
         var downloader = new EmbeddingModelDownloader(
             modelSha256: Sha256(modelBytes),
             vocabSha256: Sha256(vocabBytes));
-        await downloader.EnsureAsync(Dir, fs, http);
+        await downloader.EnsureAsync(Dir, fs, http, new RangeDownloader(http, fs));
 
         Assert.Equal(0, handler.HeadCount);
         Assert.Equal(0, handler.GetCount);
@@ -83,7 +83,7 @@ public sealed class EmbeddingModelDownloaderTests {
         var downloader = new EmbeddingModelDownloader(
             modelSha256: Sha256(modelBytes),
             vocabSha256: Sha256(vocabBytes));
-        await downloader.EnsureAsync(Dir, fs, http);
+        await downloader.EnsureAsync(Dir, fs, http, new RangeDownloader(http, fs));
 
         Assert.True(fs.FileExists(Path.Combine(Dir, EmbeddingModelDownloader.ModelFileName)));
         Assert.True(fs.FileExists(Path.Combine(Dir, EmbeddingModelDownloader.VocabFileName)));
@@ -105,7 +105,7 @@ public sealed class EmbeddingModelDownloaderTests {
         var downloader = new EmbeddingModelDownloader(
             modelSha256: Sha256(modelBytes),
             vocabSha256: Sha256(vocabBytes));
-        await downloader.EnsureAsync(Dir, fs, http);
+        await downloader.EnsureAsync(Dir, fs, http, new RangeDownloader(http, fs));
 
         Assert.True(fs.FileExists(Path.Combine(Dir, EmbeddingModelDownloader.ModelFileName)));
     }
@@ -127,7 +127,7 @@ public sealed class EmbeddingModelDownloaderTests {
             modelSha256: "0000000000000000000000000000000000000000000000000000000000000000",
             vocabSha256: Sha256(vocabBytes));
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => downloader.EnsureAsync(Dir, fs, http));
+            () => downloader.EnsureAsync(Dir, fs, http, new RangeDownloader(http, fs)));
     }
 
     [Fact]
@@ -138,6 +138,6 @@ public sealed class EmbeddingModelDownloaderTests {
 
         var downloader = new EmbeddingModelDownloader();
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => downloader.EnsureAsync(Dir, fs, http));
+            () => downloader.EnsureAsync(Dir, fs, http, new RangeDownloader(http, fs)));
     }
 }

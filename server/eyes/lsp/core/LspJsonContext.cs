@@ -3,7 +3,7 @@ namespace Services.Lsp;
 /// <summary>
 /// LSP JSON 序列化上下文 — 为 LSP 协议相关类型提供 AOT 兼容的源码生成序列化器
 /// </summary>
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(List<LspServerConfigEntry>))]
 [JsonSerializable(typeof(LspServerConfigEntry))]
 [JsonSerializable(typeof(List<LspLocation>))]

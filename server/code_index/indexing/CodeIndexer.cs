@@ -108,7 +108,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         if (_httpClient is null) return;
         try {
             var downloader = new EmbeddingModelDownloader(_logger as ILogger<EmbeddingModelDownloader>);
-            await downloader.EnsureAsync(EmbeddingModelDownloader.DefaultTargetDir, _fs, _httpClient, ct).ConfigureAwait(false);
+            await using var rangeDownloader = new RangeDownloader(_httpClient!, _fs);
+            await downloader.EnsureAsync(EmbeddingModelDownloader.DefaultTargetDir, _fs, _httpClient, rangeDownloader, ct).ConfigureAwait(false);
             TryInitEmbeddingIndex(_fs, _kvStore, _logger);
             BuildIndexStoreList();
         } catch (Exception ex) {

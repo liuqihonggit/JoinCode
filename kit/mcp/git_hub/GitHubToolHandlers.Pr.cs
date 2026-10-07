@@ -12,9 +12,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选,默认当前目录)", Required = false)] string? working_dir = null,
-        [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
+        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON[从缓存读])", Required = false)] int? verbosity = null,
         [McpToolParameter("comments=true 附带评论列表", Required = false)] bool? comments = null,
         [McpToolParameter("web=true 只返回 PR 浏览器 URL", Required = false)] bool? web = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json_fields = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
@@ -28,13 +29,13 @@ public partial class GitHubToolHandlers {
             if (comments == true) {
                 var prResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
                 if (!prResult.Success) return Fail(prResult.Error);
-                var summary = verbose == true ? prResult.Body : SummarizePr(prResult.Body);
+                var summary = FormatGhOutput(prResult.Body, verbosity, json_fields, SummarizePr, "number,title,state,head_branch,user,html_url");
                 var commentsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues/{number}/comments", ct: cancellationToken).ConfigureAwait(false);
                 if (!commentsResult.Success) return Fail(commentsResult.Error);
                 return Ok($"{summary}\n\n## 评论\n{SummarizeComments(commentsResult.Body)}");
             }
             var cacheKey = BuildGhCacheKey("gh_pr_view", $"{owner}/{repoName}/{number}");
-            return await GetOrFetchWithCacheAsync(client, cacheKey, apiPath, verbose, SummarizePr, cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, cacheKey, apiPath, verbosity, json_fields, SummarizePr, "number,title,state,head_branch,user,html_url", cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -82,6 +83,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("源分支过滤(可选)", Required = false)] string? head = null,
         [McpToolParameter("是否 draft PR(可选)", Required = false)] bool? draft = null,
         [McpToolParameter("搜索查询(可选,GitHub search 语法)", Required = false)] string? search = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,url)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -89,19 +92,20 @@ public partial class GitHubToolHandlers {
             var pageCount = (limit ?? 30).ToString();
             var stateVal = string.IsNullOrWhiteSpace(state) ? "open" : state;
             var needSearch = NeedSearchApi(label, assignee, draft, search, author);
+            var compactFields = "number,title,state,head_branch,updated_at,html_url";
             if (needSearch) {
                 var q = BuildPrSearchQuery(owner, repoName, stateVal, author, label, assignee, @base, head, draft, search);
                 var query = new Dictionary<string, string> { ["q"] = q, ["per_page"] = pageCount };
                 var result = await client.SendAsync(HttpMethod.Get, "search/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
                 if (!result.Success) return Fail(result.Error);
-                return Ok(SummarizePrList(result.Body));
+                return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizePrList, compactFields));
             }
             var pullsQuery = new Dictionary<string, string> { ["state"] = stateVal, ["per_page"] = pageCount };
             if (!string.IsNullOrWhiteSpace(@base)) pullsQuery["base"] = @base;
             if (!string.IsNullOrWhiteSpace(head)) pullsQuery["head"] = head;
             var pullsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls", query: pullsQuery, ct: cancellationToken).ConfigureAwait(false);
             if (!pullsResult.Success) return Fail(pullsResult.Error);
-            return Ok(SummarizePrList(pullsResult.Body));
+            return Ok(FormatGhOutput(pullsResult.Body, verbosity, json_fields, SummarizePrList, compactFields));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -561,9 +565,9 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 创建 PR — 支持 title/head/base/body/draft/assignee/label/reviewer/milestone/body_file/fill + auto-merge 一步到位
+    /// 创建 PR — 支持 title/head/base/body/draft/assignee/label/reviewer/milestone/body_file/fill/fill_first/fill_verbose/dry_run/no_maintainer_edit + auto-merge 一步到位
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrCreate, "创建 PR(支持 assignee/label/reviewer/milestone/body_file/fill + auto-merge 一步到位)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrCreate, "创建 PR(支持 assignee/label/reviewer/milestone/body_file/fill/fill_first/dry_run/no_maintainer_edit + auto-merge)", "github")]
     public async Task<ToolResult> GhPrCreateAsync(
         [McpToolParameter("PR 标题", Required = true)] string title,
         [McpToolParameter("源分支(head)", Required = true)] string head,
@@ -575,34 +579,90 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("标签(可选,多个用逗号)", Required = false)] string? label = null,
         [McpToolParameter("审阅人(可选,多个用逗号)", Required = false)] string? reviewer = null,
         [McpToolParameter("里程碑 ID(可选)", Required = false)] int? milestone = null,
-        [McpToolParameter("从 git commit 自动填充 title/body(可选)", Required = false)] bool? fill = null,
+        [McpToolParameter("添加到 Project 编号(可选,GraphQL addProjectV2ItemById)", Required = false)] int? project = null,
+        [McpToolParameter("从 git commit 自动填充 title/body(可选,取 HEAD 最新 commit)", Required = false)] bool? fill = null,
+        [McpToolParameter("从分支第一条 commit 自动填充 title/body(可选,取 base..head 最早 commit)", Required = false)] bool? fill_first = null,
+        [McpToolParameter("fill 模式下显示 commit 详细信息(可选)", Required = false)] bool? fill_verbose = null,
         [McpToolParameter("是否启用 auto-merge(CI 通过后自动合并,可选)", Required = false)] bool? auto_merge = null,
         [McpToolParameter("auto-merge 合并方式(squash/merge/rebase,默认 squash,可选)", Required = false)] string? merge_method = null,
+        [McpToolParameter("dry-run 模式(可选,不实际创建 PR,只返回预览信息)", Required = false)] bool? dry_run = null,
+        [McpToolParameter("禁止维护者编辑 PR(可选,等价 maintainer_can_modify=false)", Required = false)] bool? no_maintainer_edit = null,
+        [McpToolParameter("从上次失败的创建恢复(可选,暂未支持,需状态文件持久化)", Required = false)] bool? recover = null,
+        [McpToolParameter("附加文件到 PR(可选,多个用逗号,暂未支持,需文件上传 API)", Required = false)] string? attach = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (recover == true) return Fail("--recover 暂未支持: 需要状态文件持久化草稿功能,请手动重新输入 title/body");
+            if (!string.IsNullOrWhiteSpace(attach)) return Fail("--attach 暂未支持: 需要文件上传 API,请先创建 PR 再手动上传 asset");
             var actualBody = body;
             if (!string.IsNullOrWhiteSpace(body_file)) actualBody = await _fs.ReadAllTextAsync(body_file, cancellationToken).ConfigureAwait(false);
             var actualTitle = title;
+            var fillInfo = "";
             if (fill == true && _git is not null) {
                 var (fillTitle, fillBody) = await GetGitFillAsync(_git, working_dir, cancellationToken).ConfigureAwait(false);
                 if (string.IsNullOrWhiteSpace(actualTitle)) actualTitle = fillTitle;
                 if (string.IsNullOrWhiteSpace(actualBody)) actualBody = fillBody;
+                if (fill_verbose == true) fillInfo = $"\n[fill] 使用 HEAD commit: title={fillTitle}, body 长度={fillBody?.Length ?? 0}";
             }
-            var jsonBody = BuildPrCreateJson(actualTitle ?? "", head, @base, actualBody, draft);
-            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            if (fill_first == true && _git is not null) {
+                var baseBranch = string.IsNullOrWhiteSpace(@base) ? "main" : @base;
+                var (fillTitle, fillBody) = await GetGitFillFirstAsync(_git, baseBranch, head, working_dir, cancellationToken).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(actualTitle)) actualTitle = fillTitle;
+                if (string.IsNullOrWhiteSpace(actualBody)) actualBody = fillBody;
+                if (fill_verbose == true) fillInfo = $"\n[fill-first] 使用 base..head 第一条 commit: title={fillTitle}, body 长度={fillBody?.Length ?? 0}";
+            }
+            var maintainerCanModify = no_maintainer_edit == true ? false : (bool?)null;
+            var jsonBody = BuildPrCreateJson(actualTitle ?? "", head, @base, actualBody, draft, maintainerCanModify);
+            var baseBranchForAudit = string.IsNullOrWhiteSpace(@base) ? "main" : @base;
+            if (dry_run == true) {
+                var preview = $"[dry-run] 预览 PR 创建请求:\n仓库: {owner}/{repoName}\n标题: {actualTitle}\nhead: {head}\nbase: {baseBranchForAudit}\ndraft: {draft ?? false}\nmaintainer_can_modify: {(maintainerCanModify ?? true)}\nbody 长度: {actualBody?.Length ?? 0}{fillInfo}";
+                return Ok(preview);
+            }
+            // 两条独立异步路线并行发起: PR 创建(POST /pulls) || 分支审计(GET /protection + 读 yml)
+            var prTask = client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken);
+            var auditTask = TryAuditBranchProtectionAsync(client, owner, repoName, baseBranchForAudit, working_dir, cancellationToken);
+            // 数组等待两条路线都完成
+            await Task.WhenAll(prTask, auditTask).ConfigureAwait(false);
+            var result = await prTask.ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
             var (prNumber, nodeId) = ExtractPrInfoFromResponse(result.Body);
             if (prNumber > 0) await AddPrPostCreateAttributesAsync(client, owner, repoName, prNumber, assignee, label, reviewer, milestone, cancellationToken).ConfigureAwait(false);
+            if (project is not null && prNumber > 0 && !string.IsNullOrEmpty(nodeId)) {
+                var projectResult = await AddToProjectAsync(client, owner, nodeId, project.Value, cancellationToken).ConfigureAwait(false);
+                if (!projectResult.Success) _logger?.LogWarning("添加 PR 到 Project #{Project} 失败: {Error}", project, projectResult.Error);
+            }
+            var auditWarning = await auditTask.ConfigureAwait(false);
             if (auto_merge == true && prNumber > 0 && !string.IsNullOrEmpty(nodeId)) {
                 var autoMergeResult = await EnableAutoMergeAsync(client, nodeId, merge_method, cancellationToken).ConfigureAwait(false);
-                return autoMergeResult.Success
-                    ? Ok($"PR {prNumber} 创建成功，已启用 auto-merge（{autoMergeResult.Method}）")
-                    : Ok($"PR {prNumber} 创建成功（auto-merge 启用失败: {autoMergeResult.Error}）");
+                var msg = autoMergeResult.Success
+                    ? $"PR {prNumber} 创建成功，已启用 auto-merge（{autoMergeResult.Method}）"
+                    : $"PR {prNumber} 创建成功（auto-merge 启用失败: {autoMergeResult.Error}）";
+                return Ok(msg + auditWarning + fillInfo);
             }
-            return OkBrief(result.Body, "PR 创建成功");
+            var prUrl = TryExtractJsonField(result.Body, "html_url") ?? TryExtractJsonField(result.Body, "url");
+            return Ok(prUrl is not null ? $"{prUrl}\nPR 创建成功{auditWarning}{fillInfo}" : $"PR 创建成功{auditWarning}{fillInfo}");
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 尝试审计分支保护一致性 — 非阻断, 失败时返回空字符串, 有差异时返回警告段落
+    /// <para>场景: gh pr create 后自动检查 CI matrix 与 required_status_checks 是否对齐, 提示 AI 同步</para>
+    /// </summary>
+    private async Task<string> TryAuditBranchProtectionAsync(
+        IGitHubApiClient client, string owner, string repo, string branch, string? workingDir, CancellationToken ct) {
+        try {
+            var dir = string.IsNullOrWhiteSpace(workingDir) ? Environment.CurrentDirectory : workingDir;
+            var ymlPath = Path.Combine(dir, ".github/workflows/ci-unit-tests.yml");
+            if (!_fs.FileExists(ymlPath)) return "";
+            var auditor = new BranchProtectionAuditor(client, _fs);
+            var auditResult = await auditor.AuditAsync(owner, repo, branch, ymlPath, ct).ConfigureAwait(false);
+            if (auditResult.IsConsistent) return "";
+            return "\n\n⚠️ 分支保护审计发现差异:\n" + auditResult.BuildReport();
+        } catch (Exception ex) {
+            _logger?.LogDebug(ex, "分支保护审计失败(非阻断)");
+            return "";
+        }
+    }
 
     /// <summary>
     /// 创建 PR 后添加 assignee/label/reviewer/milestone — 各属性独立调 API，失败不阻断 PR 创建
@@ -639,6 +699,41 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 将 Issue/PR 添加到 GitHub Project v2 — 查询 project node_id 后调 GraphQL addProjectV2ItemById mutation
+    /// </summary>
+    /// <param name="client">GitHub API 客户端</param>
+    /// <param name="owner">仓库 owner（用于查 organization project）</param>
+    /// <param name="contentNodeId">Issue/PR 的 node_id</param>
+    /// <param name="projectNumber">Project 编号</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>(成功?, 错误信息)</returns>
+    private async Task<(bool Success, string? Error)> AddToProjectAsync(IGitHubApiClient client, string owner, string contentNodeId, int projectNumber, CancellationToken ct) {
+        var projectQuery = BuildGraphQL($"query{{organization(login:\"{owner}\"){{projectV2(number:{projectNumber}){{id}}}}}}");
+        var projectResult = await client.SendAsync(HttpMethod.Post, "graphql", projectQuery, ct: ct).ConfigureAwait(false);
+        string? projectId = null;
+        if (projectResult.Success) {
+            try {
+                using var doc = JsonDocument.Parse(projectResult.Body);
+                projectId = doc.RootElement.GetProperty("data").GetProperty("organization").GetProperty("projectV2").GetProperty("id").GetString();
+            } catch (Exception ex) { _logger?.LogDebug(ex, "解析 organization projectV2 id 失败"); }
+        }
+        if (string.IsNullOrEmpty(projectId)) {
+            var viewerQuery = BuildGraphQL($"query{{viewer{{projectV2(number:{projectNumber}){{id}}}}}}");
+            var viewerResult = await client.SendAsync(HttpMethod.Post, "graphql", viewerQuery, ct: ct).ConfigureAwait(false);
+            if (viewerResult.Success) {
+                try {
+                    using var doc = JsonDocument.Parse(viewerResult.Body);
+                    projectId = doc.RootElement.GetProperty("data").GetProperty("viewer").GetProperty("projectV2").GetProperty("id").GetString();
+                } catch (Exception ex) { _logger?.LogDebug(ex, "解析 viewer projectV2 id 失败"); }
+            }
+        }
+        if (string.IsNullOrEmpty(projectId)) return (false, $"无法找到 Project #{projectNumber}（尝试 organization 和 viewer 均失败）");
+        var mutation = BuildGraphQL($"mutation{{addProjectV2ItemById(input:{{projectId:\"{projectId}\",contentId:\"{contentNodeId}\"}}){{item{{id}}}}}}");
+        var mutationResult = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
+        return mutationResult.Success ? (true, null) : (false, mutationResult.Error);
+    }
+
+    /// <summary>
     /// 启用 auto-merge — 调 GraphQL enablePullRequestAutoMerge mutation，复用于 GhPrCreate 和 GhPrMerge
     /// </summary>
     private async Task<(bool Success, string Method, string? Error)> EnableAutoMergeAsync(IGitHubApiClient client, string nodeId, string? mergeMethod, CancellationToken ct) {
@@ -661,10 +756,25 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 从 git log 获取 base..head 最早 commit 的 title 和 body — fill-first 模式用
+    /// </summary>
+    /// <para>用 git rev-list --reverse 取最早 commit hash, 再 git log -1 取 message</para>
+    private async Task<(string Title, string Body)> GetGitFillFirstAsync(IGitCommandRunner git, string baseBranch, string headBranch, string? workingDir, CancellationToken ct) {
+        var revResult = await git.ExecuteAsync($"rev-list --reverse {baseBranch}..{headBranch}", workingDir, ct).ConfigureAwait(false);
+        if (!revResult.Success || string.IsNullOrWhiteSpace(revResult.Output)) return ("", "");
+        var firstHash = revResult.Output.AsSpan().Trim().ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries)[0];
+        var logResult = await git.ExecuteAsync($"log -1 --format=%s%n%n%b {firstHash}", workingDir, ct).ConfigureAwait(false);
+        if (!logResult.Success) return ("", "");
+        var output = logResult.Output;
+        var idx = output.IndexOf("\n\n", StringComparison.Ordinal);
+        return idx >= 0 ? (output[..idx].Trim(), output[(idx + 2)..]) : (output.Trim(), "");
+    }
+
+    /// <summary>
     /// 构建 PR 创建 JSON 请求体 — DTO 序列化(编译期类型安全)
     /// </summary>
-    private static string BuildPrCreateJson(string title, string head, string? @base, string? body, bool? draft)
-        => JsonSerializer.Serialize(new PrCreateRequest { Title = title, Head = head, Base = @base, Body = body, Draft = draft }, GitHubApiJsonContext.Safe.PrCreateRequest);
+    private static string BuildPrCreateJson(string title, string head, string? @base, string? body, bool? draft, bool? maintainerCanModify = null)
+        => JsonSerializer.Serialize(new PrCreateRequest { Title = title, Head = head, Base = @base, Body = body, Draft = draft, MaintainerCanModify = maintainerCanModify }, GitHubApiJsonContext.Safe.PrCreateRequest);
 
     /// <summary>
     /// 评论 PR — 调 REST API POST issues/{number}/comments 端点（PR 复用 issues 评论）
@@ -684,22 +794,117 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 编辑 PR — 修改标题/body/base 分支，调 REST API PATCH
+    /// 编辑 PR — 修改标题/body/base 分支/标签/指派人/审查者/里程碑，调 REST API PATCH /pulls + PATCH /issues + POST/DELETE labels/reviewers/assignees
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/base)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/body_file/base/label/add_label/remove_label/assignee/add_reviewer/remove_reviewer/add_assignee/remove_assignee/milestone/remove_milestone)", "github")]
     public async Task<ToolResult> GhPrEditAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
         [McpToolParameter("新 body(可选)", Required = false)] string? body = null,
+        [McpToolParameter("从文件读 body(可选,替代 body)", Required = false)] string? body_file = null,
         [McpToolParameter("新 base 分支(可选)", Required = false)] string? @base = null,
+        [McpToolParameter("标签(可选,多个用逗号,替换全部标签)", Required = false)] string? label = null,
+        [McpToolParameter("添加标签(可选,多个用逗号)", Required = false)] string? add_label = null,
+        [McpToolParameter("移除标签(可选,多个用逗号)", Required = false)] string? remove_label = null,
+        [McpToolParameter("指派人(可选,多个用逗号,替换全部指派人)", Required = false)] string? assignee = null,
+        [McpToolParameter("添加审查者(可选,多个用逗号)", Required = false)] string? add_reviewer = null,
+        [McpToolParameter("移除审查者(可选,多个用逗号)", Required = false)] string? remove_reviewer = null,
+        [McpToolParameter("添加指派人(可选,多个用逗号)", Required = false)] string? add_assignee = null,
+        [McpToolParameter("移除指派人(可选,多个用逗号)", Required = false)] string? remove_assignee = null,
+        [McpToolParameter("里程碑名称(可选,按名称设置)", Required = false)] string? milestone = null,
+        [McpToolParameter("移除里程碑(可选)", Required = false)] bool? remove_milestone = null,
+        [McpToolParameter("添加到项目(可选,按项目标题)", Required = false)] string? add_project = null,
+        [McpToolParameter("从项目移除(可选,按项目标题)", Required = false)] string? remove_project = null,
+        [McpToolParameter("附加文件(可选,上传到 GitHub 附件)", Required = false)] string? attach = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
-            var jsonBody = JsonSerializer.Serialize(new PrEditRequest { Title = title, Body = body, Base = @base }, GitHubApiJsonContext.Safe.PrEditRequest);
-            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已编辑 PR {number}") : Fail(result.Error);
+            var effectiveBody = body;
+            if (!string.IsNullOrWhiteSpace(body_file)) {
+                if (!_fs.FileExists(body_file)) return Fail($"body_file 不存在: {body_file}");
+                effectiveBody = await _fs.ReadAllTextAsync(body_file, cancellationToken).ConfigureAwait(false);
+            }
+            if (title is not null || effectiveBody is not null || @base is not null) {
+                var prBody = JsonSerializer.Serialize(new PrEditRequest { Title = title, Body = effectiveBody, Base = @base }, GitHubApiJsonContext.Safe.PrEditRequest);
+                var prResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", prBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!prResult.Success) return Fail(prResult.Error);
+            }
+            if (label is not null || assignee is not null) {
+                var issueBody = JsonSerializer.Serialize(new IssueEditRequest { Labels = ParseCsvToList(label), Assignees = ParseCsvToList(assignee) }, GitHubApiJsonContext.Safe.IssueEditRequest);
+                var issueResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", issueBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!issueResult.Success) return Fail(issueResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(add_label)) {
+                var labelsBody = JsonSerializer.Serialize(new LabelsAddRequest { Labels = ParseCsvToList(add_label) }, GitHubApiJsonContext.Safe.LabelsAddRequest);
+                var addLabelResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/labels", labelsBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!addLabelResult.Success) return Fail(addLabelResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(remove_label)) {
+                foreach (var lbl in ParseCsvToList(remove_label)) {
+                    var removeLabelResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/issues/{number}/labels/{Uri.EscapeDataString(lbl)}", ct: cancellationToken).ConfigureAwait(false);
+                    if (!removeLabelResult.Success) return Fail(removeLabelResult.Error);
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(milestone)) {
+                var milestoneId = await ResolveMilestoneIdAsync(client, owner, repoName, milestone, cancellationToken).ConfigureAwait(false);
+                if (milestoneId is null) return Fail($"未找到里程碑 \"{milestone}\"。可能原因: ① 里程碑不存在 ② 里程碑已关闭。请在仓库 Issues → Milestones 中确认里程碑名称");
+                var milestoneBody = JsonSerializer.Serialize(new MilestoneRequest { Milestone = milestoneId }, GitHubApiJsonContext.Safe.MilestoneRequest);
+                var milestoneResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", milestoneBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!milestoneResult.Success) return Fail(milestoneResult.Error);
+            }
+            if (remove_milestone == true) {
+                var milestoneResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", """{"milestone":null}""", ct: cancellationToken).ConfigureAwait(false);
+                if (!milestoneResult.Success) return Fail(milestoneResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(add_reviewer)) {
+                var reviewersBody = JsonSerializer.Serialize(new ReviewersRequest { Reviewers = ParseCsvToList(add_reviewer) }, GitHubApiJsonContext.Safe.ReviewersRequest);
+                var addResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls/{number}/requested_reviewers", reviewersBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!addResult.Success) return Fail(addResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(remove_reviewer)) {
+                var reviewersBody = JsonSerializer.Serialize(new ReviewersRequest { Reviewers = ParseCsvToList(remove_reviewer) }, GitHubApiJsonContext.Safe.ReviewersRequest);
+                var removeResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/pulls/{number}/requested_reviewers", reviewersBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!removeResult.Success) return Fail(removeResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(add_assignee)) {
+                var assigneesBody = JsonSerializer.Serialize(new AssigneesRequest { Assignees = ParseCsvToList(add_assignee) }, GitHubApiJsonContext.Safe.AssigneesRequest);
+                var addResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/assignees", assigneesBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!addResult.Success) return Fail(addResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(remove_assignee)) {
+                var assigneesBody = JsonSerializer.Serialize(new AssigneesRequest { Assignees = ParseCsvToList(remove_assignee) }, GitHubApiJsonContext.Safe.AssigneesRequest);
+                var removeResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/issues/{number}/assignees", assigneesBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!removeResult.Success) return Fail(removeResult.Error);
+            }
+            if (add_project is not null || remove_project is not null || attach is not null) {
+                var nodeId = await GetIssueNodeIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
+                if (string.IsNullOrEmpty(nodeId)) return Fail($"无法获取 PR {number} 的 node_id。可能原因: ① PR 不存在 ② Token 缺少 repo scope ③ 网络错误");
+                if (!string.IsNullOrWhiteSpace(add_project)) {
+                    foreach (var pTitle in ParseCsvToList(add_project)) {
+                        var (ok, err) = await AddToProjectByTitleAsync(client, owner, nodeId, pTitle, cancellationToken).ConfigureAwait(false);
+                        if (!ok) return Fail(err!);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(remove_project)) {
+                    foreach (var pTitle in ParseCsvToList(remove_project)) {
+                        var (ok, err) = await RemoveFromProjectByTitleAsync(client, owner, nodeId, pTitle, cancellationToken).ConfigureAwait(false);
+                        if (!ok) return Fail(err!);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(attach)) {
+                    foreach (var filePath in ParseCsvToList(attach)) {
+                        var (assetUrl, err) = await AttachFileAsync(client, owner, repoName, filePath, cancellationToken).ConfigureAwait(false);
+                        if (assetUrl is null) return Fail(err!);
+                        effectiveBody = (effectiveBody ?? "") + $"\n\n![{Path.GetFileNameWithoutExtension(filePath)}]({assetUrl})";
+                    }
+                    var prBody = JsonSerializer.Serialize(new PrEditRequest { Body = effectiveBody }, GitHubApiJsonContext.Safe.PrEditRequest);
+                    var attachResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", prBody, ct: cancellationToken).ConfigureAwait(false);
+                    if (!attachResult.Success) return Fail(attachResult.Error);
+                }
+            }
+            return OkBrief("", $"已编辑 PR {number}");
         }).ConfigureAwait(false);
 
     /// <summary>

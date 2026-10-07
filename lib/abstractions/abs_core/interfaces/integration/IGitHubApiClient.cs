@@ -98,6 +98,17 @@ public interface IGitHubApiClient {
         CancellationToken ct = default);
 
     /// <summary>
+    /// 上传 Issue/PR 附件 — 二进制上传到 github.com/user-attachments/assets
+    /// <para>POST https://github.com/user-attachments/assets?name={fileName}&amp;content_type={contentType}&amp;repository_id={repoId}</para>
+    /// <para>返回 {"url":"https://github.com/user-attachments/assets/..."} 可在 body 中 markdown 引用</para>
+    /// </summary>
+    Task<GitHubApiResponse> UploadAttachmentAsync(
+        long repositoryId,
+        string fileName,
+        Stream fileStream,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// 下载 Actions Run artifact — 二进制 zip 文件写到指定路径
     /// <para>GET /repos/{owner}/{repo}/actions/artifacts/{artifactId}/zip 返回 zip 流</para>
     /// </summary>

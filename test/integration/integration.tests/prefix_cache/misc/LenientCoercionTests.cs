@@ -392,8 +392,7 @@ public enum LenientLevel {
 /// 类型强制转换测试专用 Json 上下文
 /// </summary>
 [JsonSerializable(typeof(LenientDto))]
-[JsonSourceGenerationOptions(
-    AllowTrailingCommas = true,
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true,
     ReadCommentHandling = JsonCommentHandling.Skip,
     PropertyNameCaseInsensitive = true)]
 public partial class CoercionTestJsonContext : JsonSerializerContext;

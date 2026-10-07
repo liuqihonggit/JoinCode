@@ -10,11 +10,16 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhGistList, "列出当前用户的 Gist", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhGistListAsync(
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,description,public)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
         var result = await _apiClient.SendAsync(HttpMethod.Get, "gists", query: query, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
+        if (!string.IsNullOrEmpty(json_fields)) return Ok(FilterJsonFields(result.Body, json_fields));
+        if (verbosity == 2) return Ok(result.Body);
+        if (verbosity == 1) return Ok(FilterJsonFields(result.Body, "id,description,public"));
         var gists = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.ListGistListItem);
         return gists is null ? Fail("解析 Gist 列表失败") : Ok(SummarizeGistList(gists));
     }
@@ -35,10 +40,15 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhGistView, "查看 Gist 详情", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhGistViewAsync(
         [McpToolParameter("Gist ID", Required = true)] string gist_id,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,description)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"gists/{gist_id}", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
+        if (!string.IsNullOrEmpty(json_fields)) return Ok(FilterJsonFields(result.Body, json_fields));
+        if (verbosity == 2) return Ok(result.Body);
+        if (verbosity == 1) return Ok(FilterJsonFields(result.Body, "id,description,html_url"));
         var gist = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.GistResponse);
         return gist is null ? Fail("解析 Gist 详情失败") : Ok(SummarizeGistView(gist));
     }

@@ -34,7 +34,31 @@ internal static class GhCommandResolver {
         GhGroupEnumConstants.Run,
         GhGroupEnumConstants.Branch,
         GhGroupEnumConstants.Api,
+        GhGroupEnumConstants.Label,
+        GhGroupEnumConstants.Search,
+        GhGroupEnumConstants.Workflow,
+        GhGroupEnumConstants.Auth,
+        GhGroupEnumConstants.Config,
+        GhGroupEnumConstants.Gist,
+        GhGroupEnumConstants.Org,
+        GhGroupEnumConstants.SshKey,
+        GhGroupEnumConstants.GpgKey,
+        GhGroupEnumConstants.Secret,
+        GhGroupEnumConstants.Variable,
+        GhGroupEnumConstants.Cache,
+        GhGroupEnumConstants.Ruleset,
+        GhGroupEnumConstants.Codespace,
+        GhGroupEnumConstants.Discussion,
+        GhGroupEnumConstants.Project,
+        GhGroupEnumConstants.Alias,
+        GhGroupEnumConstants.Extension,
+        GhGroupEnumConstants.Browse,
+        GhGroupEnumConstants.Status,
+        GhGroupEnumConstants.Licenses,
     ];
+
+    /// <summary>单级命令 — 工具名就是 <c>gh_{group}</c>，不需要 action（如 gh_api/gh_browse/gh_status/gh_licenses）。</summary>
+    private static readonly string[] SingleLevelGroups = ["api", "browse", "status", "licenses"];
 
     /// <summary>
     /// 解析 <c>jcc gh ...</c> 命令行（<paramref name="args"/>[0] 为子命令名 <c>gh</c>）。
@@ -54,9 +78,12 @@ internal static class GhCommandResolver {
         // --json 或 --format json 可能出现在任意位置，先全局扫描，不参与位置参数计数
         var json = FlatSubCommandRouter.ShouldOutputJson(args);
 
-        // api 组是单级命令: jcc gh api <path> → gh_api
-        if (string.Equals(group, "api", StringComparison.OrdinalIgnoreCase))
-            return new GhResolvedCommand("gh_api", "api", null, CollectTail(args, 2), json);
+        // 连字符分组名转下划线拼接工具名: ssh-key → gh_ssh_key_*
+        var toolGroup = group.Replace('-', '_');
+
+        // 单级命令: jcc gh api <path> / gh browse / gh status / gh licenses → gh_{group}
+        if (SingleLevelGroups.Contains(group, StringComparer.OrdinalIgnoreCase))
+            return new GhResolvedCommand($"gh_{toolGroup}", group, null, CollectTail(args, 2), json);
 
         var action = NextPositional(args, 2);
         if (action is null) {
@@ -64,7 +91,7 @@ internal static class GhCommandResolver {
             return null;
         }
 
-        var toolName = $"gh_{group}_{action}";
+        var toolName = $"gh_{toolGroup}_{action.Replace('-', '_')}";
         return new GhResolvedCommand(toolName, group, action, CollectTail(args, 3), json);
     }
 
@@ -194,11 +221,16 @@ internal static class GhArgsBinder {
             byName[p.Name] = p;
 
         var slots = parameters.Where(p => p.IsRequired).ToList();
+        slots.AddRange(GetOptionalPositionalSlots(toolName, parameters));
         var slotIndex = 0;
 
         for (var i = 0; i < tail.Length; i++) {
             var token = tail[i];
             if (!token.StartsWith("--")) {
+                // 短选项: -X 或 -Xvalue (单 dash + 字母), 如 -L 5 / -L5 / -d
+                if (token.Length >= 2 && token[0] == '-' && char.IsLetter(token[1])
+                    && TryBindShortOption(token, toolName, tail, ref i, result, byName, out error))
+                    continue;
                 if (slotIndex >= slots.Count) {
                     error = TooManyPositionalError(toolName, token, parameters);
                     return null;
@@ -222,11 +254,9 @@ internal static class GhArgsBinder {
 
             // 宽容策略: 真实 gh CLI 用连字符（--max-lines），工具 schema 用下划线（max_lines）
             if (!byName.TryGetValue(key, out var param) && !byName.TryGetValue(key.Replace('-', '_'), out param)) {
-                // 宽容策略: 系统 gh CLI 缩写别名（--auto→auto_merge, --squash→merge_method=squash 等）
-                if (ResolveGhCliAlias(key, toolName) is { } alias) {
-                    result[alias.Key] = alias.Value;
+                // 宽容策略: 系统 gh CLI 缩写别名（--auto→auto_merge, --squash→merge_method=squash, --job→job_id 等）
+                if (TryBindAlias(key, toolName, tail, ref i, result, token, inlineValue, out error))
                     continue;
-                }
                 error = UnknownOptionError(key, parameters);
                 return null;
             }
@@ -251,7 +281,7 @@ internal static class GhArgsBinder {
             i++;
         }
 
-        var missing = slots.FirstOrDefault(s => !result.ContainsKey(s.Name));
+        var missing = slots.FirstOrDefault(s => s.IsRequired && !result.ContainsKey(s.Name));
         if (missing is not null) {
             error = MissingPositionalError(toolName, missing.Name, slots);
             return null;
@@ -261,25 +291,183 @@ internal static class GhArgsBinder {
     }
 
     /// <summary>
-    /// 系统 gh CLI 缩写别名宽容 — AI 习惯用真实 gh CLI 的 --auto/--squash/--failed 等，
+    /// 系统 gh CLI 缩写别名 — 三种映射模式：
+    /// <list type="bullet">
+    /// <item><see cref="AliasKind.FixedValue"/>: 固定值（--auto → auto_merge=true）</item>
+    /// <item><see cref="AliasKind.TakeNextToken"/>: 取下一 token 作值（--job 456 → job_id=456）</item>
+    /// <item><see cref="AliasKind.RenameOnly"/>: 仅重命名，值按 inlineValue 或 bool flag 逻辑（--enable-issues → has_issues=true）</item>
+    /// </list>
+    /// </summary>
+    private enum AliasKind { FixedValue, TakeNextToken, RenameOnly }
+
+    /// <summary>系统 gh CLI 缩写别名描述。</summary>
+    /// <param name="TargetKey">jcc 工具参数名。</param>
+    /// <param name="FixedValue">固定值（仅 <see cref="AliasKind.FixedValue"/> 模式非 null）。</param>
+    /// <param name="Kind">映射模式。</param>
+    private sealed record GhCliAlias(string TargetKey, string? FixedValue, AliasKind Kind);
+
+    /// <summary>
+    /// 解析系统 gh CLI 缩写别名 — AI 习惯用真实 gh CLI 的 --auto/--squash/--failed/--job 等，
     /// 映射到 jcc 工具参数。返回 null 表示无别名。
     /// </summary>
-    private static (string Key, string Value)? ResolveGhCliAlias(string key, string toolName)
+    private static GhCliAlias? ResolveGhCliAlias(string key, string toolName)
         => (toolName, key) switch {
-            ("gh_pr_merge", "auto")    => ("auto_merge", "true"),
-            ("gh_pr_merge", "squash")  => ("merge_method", "squash"),
-            ("gh_pr_merge", "merge")   => ("merge_method", "merge"),
-            ("gh_pr_merge", "rebase")  => ("merge_method", "rebase"),
-            ("gh_run_rerun", "failed") => ("failed_only", "true"),
-            _                          => null
+            ("gh_pr_merge", "auto")    => new GhCliAlias("auto_merge", "true", AliasKind.FixedValue),
+            ("gh_pr_merge", "squash")  => new GhCliAlias("merge_method", "squash", AliasKind.FixedValue),
+            ("gh_pr_merge", "merge")   => new GhCliAlias("merge_method", "merge", AliasKind.FixedValue),
+            ("gh_pr_merge", "rebase")  => new GhCliAlias("merge_method", "rebase", AliasKind.FixedValue),
+            ("gh_run_rerun", "failed") => new GhCliAlias("failed_only", "true", AliasKind.FixedValue),
+            ("gh_run_view", "job")     => new GhCliAlias("job_id", null, AliasKind.TakeNextToken),
+            ("gh_repo_create", "private")   => new GhCliAlias("visibility", "private", AliasKind.FixedValue),
+            ("gh_repo_create", "public")    => new GhCliAlias("visibility", "public", AliasKind.FixedValue),
+            ("gh_repo_create", "internal")  => new GhCliAlias("visibility", "internal", AliasKind.FixedValue),
+            ("gh_issue_close", "duplicate") => new GhCliAlias("duplicate_of", null, AliasKind.TakeNextToken),
+            ("gh_issue_close", "completed") => new GhCliAlias("reason", "completed", AliasKind.FixedValue),
+            ("gh_issue_close", "not-planned") => new GhCliAlias("reason", "not_planned", AliasKind.FixedValue),
+            ("gh_pr_review", "approve")         => new GhCliAlias("action", "approve", AliasKind.FixedValue),
+            ("gh_pr_review", "request-changes") => new GhCliAlias("action", "request_changes", AliasKind.FixedValue),
+            ("gh_pr_review", "comment")         => new GhCliAlias("action", "comment", AliasKind.FixedValue),
+            ("gh_repo_edit", "enable-issues")   => new GhCliAlias("has_issues", null, AliasKind.RenameOnly),
+            ("gh_repo_edit", "enable-wiki")     => new GhCliAlias("has_wiki", null, AliasKind.RenameOnly),
+            ("gh_repo_edit", "enable-projects") => new GhCliAlias("has_projects", null, AliasKind.RenameOnly),
+            ("gh_release_create", "latest")    => new GhCliAlias("make_latest", null, AliasKind.RenameOnly),
+            ("gh_release_edit", "latest")      => new GhCliAlias("make_latest", null, AliasKind.RenameOnly),
+            ("gh_run_list", "event")           => new GhCliAlias("event_type", null, AliasKind.TakeNextToken),
+            _                                  => null
         };
 
-    /// <summary>找最接近的参数名: 优先前缀匹配(如 auto→auto_merge),其次包含匹配(如 merge→merge_method)。</summary>
+    /// <summary>
+    /// 获取工具的可选位置参数 — 某些 gh CLI 命令的 optional 参数可作位置参数传递（如 gh repo clone owner/repo target-dir）。
+    /// 返回按声明顺序排列的 GhParam 列表，追加到 required 位置参数槽位之后。
+    /// </summary>
+    private static List<GhParam> GetOptionalPositionalSlots(string toolName, IReadOnlyList<GhParam> parameters)
+        => toolName switch {
+            "gh_repo_clone"   => parameters.Where(p => p.Name == "dir").ToList(),
+            "gh_pr_checkout"  => parameters.Where(p => p.Name == "branch").ToList(),
+            _ => []
+        };
+
+    /// <summary>尝试绑定系统 gh CLI 别名 — 成功返回 true 并更新 result/i，失败设 error 返回 false</summary>
+    /// <param name="inlineValue">--key=value 形式的内联值（已由调用方剥离），null 表示无内联值。</param>
+    private static bool TryBindAlias(string key, string toolName, string[] tail, ref int i,
+        Dictionary<string, string> result, string token, string? inlineValue, out string? error) {
+        error = null;
+        if (ResolveGhCliAlias(key, toolName) is not { } alias)
+            return false;
+        switch (alias.Kind) {
+            case AliasKind.FixedValue:
+                result[alias.TargetKey] = alias.FixedValue!;
+                return true;
+            case AliasKind.RenameOnly:
+                result[alias.TargetKey] = inlineValue ?? "true";
+                return true;
+            default: // TakeNextToken
+                if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) {
+                    error = $"{CliErrorCatalog.ArgMissingRequired($"--{key} 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值>";
+                    return false;
+                }
+                result[alias.TargetKey] = tail[i + 1];
+                i++;
+                return true;
+        }
+    }
+
+    /// <summary>系统 gh CLI 短选项映射 — -L→limit, -s→state/status, -d→draft, -F→body_file/notes_file 等</summary>
+    private static string? ResolveGhShortOption(char shortKey, string toolName) {
+        // 通用: -L → limit (所有 _list 命令)
+        if (shortKey == 'L' && toolName.EndsWith("_list"))
+            return "limit";
+        // 通用: -w → web (所有 _view 命令)
+        if (shortKey == 'w' && toolName.EndsWith("_view"))
+            return "web";
+        return (toolName, shortKey) switch {
+            ("gh_pr_list", 's') => "state",
+            ("gh_pr_list", 'S') => "search",
+            ("gh_pr_list", 'a') => "author",
+            ("gh_pr_list", 'A') => "assignee",
+            ("gh_pr_list", 'l') => "label",
+            ("gh_pr_list", 'B') => "base",
+            ("gh_pr_list", 'H') => "head",
+            ("gh_pr_list", 'd') => "draft",
+            ("gh_pr_view", 'c') => "comments",
+            ("gh_pr_create", 't') => "title",
+            ("gh_pr_create", 'b') => "body",
+            ("gh_pr_create", 'F') => "body_file",
+            ("gh_pr_create", 'B') => "base",
+            ("gh_pr_create", 'H') => "head",
+            ("gh_pr_create", 'd') => "draft",
+            ("gh_pr_create", 'l') => "label",
+            ("gh_pr_create", 'A') => "assignee",
+            ("gh_pr_create", 'r') => "reviewer",
+            ("gh_pr_create", 'p') => "project",
+            ("gh_pr_create", 'm') => "milestone",
+            ("gh_issue_list", 's') => "state",
+            ("gh_issue_list", 'S') => "search",
+            ("gh_issue_list", 'a') => "author",
+            ("gh_issue_list", 'A') => "assignee",
+            ("gh_issue_list", 'l') => "label",
+            ("gh_issue_view", 'c') => "comments",
+            ("gh_issue_create", 't') => "title",
+            ("gh_issue_create", 'b') => "body",
+            ("gh_issue_create", 'F') => "body_file",
+            ("gh_issue_create", 'l') => "label",
+            ("gh_issue_create", 'A') => "assignee",
+            ("gh_issue_create", 'p') => "project",
+            ("gh_issue_create", 'm') => "milestone",
+            ("gh_repo_list", 'l') => "language",
+            ("gh_repo_create", 'n') => "name",
+            ("gh_run_list", 'w') => "workflow",
+            ("gh_run_list", 'e') => "event",
+            ("gh_run_list", 's') => "status",
+            ("gh_run_list", 'B') => "branch",
+            ("gh_run_list", 'u') => "user",
+            ("gh_run_view", 'l') => "log",
+            ("gh_run_view", 'j') => "job",
+            ("gh_release_create", 't') => "title",
+            ("gh_release_create", 'n') => "notes",
+            ("gh_release_create", 'F') => "notes_file",
+            ("gh_release_create", 'd') => "draft",
+            ("gh_release_create", 'p') => "prerelease",
+            ("gh_api", 'f') => "fields",
+            _ => null
+        };
+    }
+
+    /// <summary>尝试绑定系统 gh CLI 短选项 — 成功返回 true 并更新 result/i，失败返回 false（不设 error，fall through 到位置参数）</summary>
+    private static bool TryBindShortOption(string token, string toolName, string[] tail, ref int i,
+        Dictionary<string, string> result, Dictionary<string, GhParam> byName, out string? error) {
+        error = null;
+        var shortKey = token[1];
+        var shortInline = token.Length > 2 ? token[2..] : null;
+        if (ResolveGhShortOption(shortKey, toolName) is not { } longName)
+            return false;
+        // 重复短选项追加(逗号分隔): -f name=test -f color=ff0000 → fields="name=test,color=ff0000"
+        if (shortInline is not null) {
+            result[longName] = result.TryGetValue(longName, out var prev1) ? $"{prev1},{shortInline}" : shortInline;
+            return true;
+        }
+        if (byName.TryGetValue(longName, out var param) && param.IsBoolean) {
+            result[longName] = "true";
+            return true;
+        }
+        if (i + 1 < tail.Length && !tail[i + 1].StartsWith("-")) {
+            var val = tail[i + 1];
+            result[longName] = result.TryGetValue(longName, out var prev2) ? $"{prev2},{val}" : val;
+            i++;
+            return true;
+        }
+        result[longName] = "true";
+        return true;
+    }
+
+    /// <summary>找最接近的参数名: 优先前缀匹配(如 auto→auto_merge),其次包含匹配(如 merge→merge_method),最后 key 包含参数名(如 add-label→label)。</summary>
     private static string? SuggestOption(string key, IReadOnlyList<GhParam> parameters) {
         var prefix = parameters.FirstOrDefault(p => p.Name.StartsWith(key, StringComparison.OrdinalIgnoreCase));
         if (prefix is not null) return prefix.Name;
         var contains = parameters.FirstOrDefault(p => p.Name.Contains(key, StringComparison.OrdinalIgnoreCase));
-        return contains?.Name;
+        if (contains is not null) return contains.Name;
+        var keyContains = parameters.FirstOrDefault(p => key.Contains(p.Name, StringComparison.OrdinalIgnoreCase));
+        return keyContains?.Name;
     }
 
     private static string TooManyPositionalError(string toolName, string token, IReadOnlyList<GhParam> parameters) {

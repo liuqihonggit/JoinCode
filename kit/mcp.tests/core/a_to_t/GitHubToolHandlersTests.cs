@@ -18,6 +18,9 @@ public sealed partial class GitHubToolHandlersTests {
     private static GitHubToolHandlers CreateHandlerWithGit(IGitCommandRunner git)
         => new(new FakeDownloader(), new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
 
+    private static GitHubToolHandlers CreateHandlerWithGitAndApi(IGitCommandRunner git, FakeGitHubApiClient api)
+        => new(new FakeDownloader(), new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), api, git, NullLogger<GitHubToolHandlers>.Instance);
+
     [Fact]
     public async Task PrView_Success_ReturnsOutput() {
         _api.NextResponse = new GitHubApiResponse {
@@ -607,13 +610,16 @@ public sealed partial class GitHubToolHandlersTests {
         _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
-            Body = """{"databaseId":42,"status":"completed","conclusion":"success"}""",
+            Body = """{"id":42,"run_number":752,"status":"completed","conclusion":"success","display_title":"CI build","event":"push","head_branch":"main","head_sha":"abc123def456","html_url":"https://github.com/o/r/actions/runs/42","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:01:00Z"}""",
         };
 
         var result = await _handler.GhRunViewAsync("42", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
-        result.GetFirstText().Should().Contain("42");
+        var text = result.GetFirstText();
+        text.Should().Contain("42");
+        text.Should().Contain("Status: completed");
+        text.Should().Contain("Conclusion: success");
     }
 
     [Fact]
@@ -654,6 +660,18 @@ public sealed partial class GitHubToolHandlersTests {
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("未匹配到任何日志行");
+    }
+
+    [Fact]
+    public async Task RunView_LogFailed_PullsFailedJobLogs() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[{"id":1,"conclusion":"failure","name":"test"},{"id":2,"conclusion":"success","name":"build"}]}""" });
+        _api.NextLogLines = "##[error]Test failed: assert\nnormal line\n##[error]Another error".Split('\n');
+
+        var result = await _handler.GhRunViewAsync("42", log_failed: true, max_lines: 10, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("失败步骤");
     }
 
     [Fact]
@@ -1103,116 +1121,47 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
-    public async Task BranchSyncProtection_Success_UpdatesRequiredStatusChecks() {
+    public async Task BranchSyncProtection_YmlNotFound_ReturnsError() {
+        var fs = new InMemoryFileSystem();
+        var handler = new GitHubToolHandlers(
+            new FakeDownloader(), fs, new PersistencePipeline(fs),
+            _api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhBranchSyncProtectionAsync(
+            branch: "main", yml_path: "nonexistent.yml", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("不存在");
+    }
+
+    [Fact]
+    public async Task BranchSyncProtection_Consistent_ReturnsNoSyncNeeded() {
+        var fs = new InMemoryFileSystem();
+        var ymlPath = Path.Combine(Environment.CurrentDirectory, ".github/workflows/ci-unit-tests.yml");
+        await fs.WriteAllTextAsync(ymlPath, """
+            jobs:
+              unit-tests:
+                name: Unit - ${{ matrix.name }}
+                strategy:
+                  matrix:
+                    include:
+                      - name: Abs
+                        csproj: lib/abs.tests/Abs.Tests.csproj
+            """);
+        var handler = new GitHubToolHandlers(
+            new FakeDownloader(), fs, new PersistencePipeline(fs),
+            _api, null, NullLogger<GitHubToolHandlers>.Instance);
+
         _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"head":{"sha":"abc123"}}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"check_runs":[{"name":"build / Build"},{"name":"unit-tests / test"},{"name":"e2e / smoke"}]}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"strict":true,"contexts":["Build","unit-tests"]}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"strict":true,"contexts":["build / Build","unit-tests / test","e2e / smoke"]}""",
+            Success = true, StatusCode = 200,
+            Body = """{"strict":false,"contexts":["unit-tests / Unit - Abs"]}""",
         });
 
-        var result = await _handler.GhBranchSyncProtectionAsync("42", repo: "owner/repo");
+        var result = await handler.GhBranchSyncProtectionAsync(
+            branch: "main", yml_path: ".github/workflows/ci-unit-tests.yml", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
-        var text = result.GetFirstText();
-        text.Should().Contain("分支保护规则已同步");
-        text.Should().Contain("build / Build");
-        text.Should().Contain("e2e / smoke");
-        text.Should().Contain("+3 新增");
-        text.Should().Contain("-2 移除");
-        _api.LastMethod.Should().Be(HttpMethod.Put);
-        _api.LastPath.Should().Be("repos/owner/repo/branches/main/protection/required_status_checks");
-    }
-
-    [Fact]
-    public async Task BranchSyncProtection_NoProtection_ReturnsError() {
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"head":{"sha":"abc123"}}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"check_runs":[{"name":"build"}]}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = false,
-            StatusCode = 404,
-            Error = "Branch not protected",
-        });
-
-        var result = await _handler.GhBranchSyncProtectionAsync("42", repo: "owner/repo");
-
-        result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("没有分支保护规则");
-    }
-
-    [Fact]
-    public async Task BranchSyncProtection_NoChecks_ReturnsError() {
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"head":{"sha":"abc123"}}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"check_runs":[]}""",
-        });
-
-        var result = await _handler.GhBranchSyncProtectionAsync("42", repo: "owner/repo");
-
-        result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("没有任何 check-runs");
-    }
-
-    [Fact]
-    public async Task BranchSyncProtection_PutBodyContainsAllCheckNames() {
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"head":{"sha":"abc123"}}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"check_runs":[{"name":"build"},{"name":"test"},{"name":"lint"}]}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"strict":false,"contexts":["old-check"]}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"strict":false,"contexts":["build","test","lint"]}""",
-        });
-
-        await _handler.GhBranchSyncProtectionAsync("1", branch: "develop", repo: "owner/repo");
-
-        _api.LastMethod.Should().Be(HttpMethod.Put);
-        _api.LastPath.Should().Be("repos/owner/repo/branches/develop/protection/required_status_checks");
-        _api.LastBody.Should().NotBeNullOrEmpty();
-        using var doc = System.Text.Json.JsonDocument.Parse(_api.LastBody!);
-        doc.RootElement.GetProperty("strict").GetBoolean().Should().BeFalse();
-        var contexts = doc.RootElement.GetProperty("contexts").EnumerateArray().Select(c => c.GetString()).ToList();
-        contexts.Should().Contain(new[] { "build", "test", "lint" });
+        result.GetFirstText().Should().Contain("完全一致");
     }
 
     [Fact]
@@ -1882,14 +1831,6 @@ public sealed partial class GitHubToolHandlersTests {
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("testuser");
     }
-
-    [Fact]
-    public async Task ConfigGet_ReturnsPromptToUseSystemGh() {
-        var result = await _handler.GhConfigGetAsync("git_protocol");
-
-        result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("gh config get git_protocol");
-    }
 }
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient {
@@ -1933,6 +1874,13 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
         LastMethod = HttpMethod.Post;
         LastPath = $"repos/{owner}/{repo}/releases/{releaseId}/assets";
         return Task.FromResult(NextResponse);
+    }
+
+    public Task<GitHubApiResponse> UploadAttachmentAsync(long repositoryId, string fileName, Stream fileStream, CancellationToken ct = default) {
+        LastMethod = HttpMethod.Post;
+        LastPath = "user-attachments/assets";
+        var response = _responses.Count > 0 ? _responses.Dequeue() : _default;
+        return Task.FromResult(response);
     }
 
     public Task<GitHubApiResponse> DownloadArtifactAsync(string owner, string repo, long artifactId, string filePath, CancellationToken ct = default) {

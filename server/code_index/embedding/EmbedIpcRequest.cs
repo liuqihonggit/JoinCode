@@ -13,6 +13,6 @@ internal sealed class EmbedIpcRequest {
 /// <summary>
 /// 嵌入 IPC JSON 上下文 — AOT 源生成器。
 /// </summary>
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(EmbedIpcRequest))]
 internal sealed partial class EmbedIpcJsonContext : JsonSerializerContext;

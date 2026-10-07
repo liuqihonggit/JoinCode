@@ -25,17 +25,23 @@ internal sealed class ChunkDownloader {
     /// <param name="url">下载 URL</param>
     /// <param name="chunk">分片描述(Downloaded 字段在续传时表示已下载偏移,方法内实时更新)</param>
     /// <param name="partFilePath">.part 临时文件路径</param>
+    /// <param name="headers">自定义请求头(可选,注入到 Range GET 请求)</param>
     /// <param name="cancellationToken">取消令牌</param>
     internal async Task<ChunkDownloadResult> DownloadAsync(
         string url,
         DownloadChunk chunk,
         string partFilePath,
+        IReadOnlyDictionary<string, string>? headers = null,
         CancellationToken cancellationToken = default) {
         var rangeStart = chunk.Start + chunk.Downloaded;
         var rangeEnd = chunk.End;
 
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Range = new RangeHeaderValue(rangeStart, rangeEnd);
+        if (headers is not null) {
+            foreach (var (key, value) in headers)
+                request.Headers.TryAddWithoutValidation(key, value);
+        }
 
         using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 

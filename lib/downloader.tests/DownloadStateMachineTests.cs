@@ -1,4 +1,4 @@
-namespace Infra.Services.Tests.Network.Downloader;
+namespace Downloader.Tests;
 
 /// <summary>
 /// DownloadStateMachine 单元测试 — 验证所有合法转换、非法转换抛 [DOWN001]、终态不可转换、线程安全

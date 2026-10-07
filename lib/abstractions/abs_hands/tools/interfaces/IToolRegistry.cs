@@ -8,6 +8,13 @@ public interface IToolRegistry : IAsyncDisposable, IRegistry {
     /// <summary>异步注册工具处理器。</summary>
     Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 异步批量注册工具处理器 — 单次锁获取注册多个工具，消除逐个注册的锁开销与 async 状态机开销。
+    /// </summary>
+    /// <param name="handlers">要注册的工具处理器列表。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    Task RegisterToolsBatchAsync(IReadOnlyList<IToolHandler> handlers, CancellationToken cancellationToken = default);
+
     /// <summary>异步注册工具（按名称、描述、输入模式和处理委托）。</summary>
     Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null);
 

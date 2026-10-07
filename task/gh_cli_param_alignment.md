@@ -1,5 +1,7 @@
 # jcc gh 命令对齐系统 gh CLI 参数差异清单
 
+> **⚠️ 必读 [ADR 0132](../docs/adr/0132-jcc-build-deploy-and-gh-troubleshooting.md)** — jcc gh 与系统 gh CLI 是**耦合的测试关系**：jcc 是独立实现（HttpClient 直调 REST API），不是系统 gh 的包装/转发。参数对齐工作通过双向对比测试确保行为等价：① 从系统 gh CLI 文档/`--help` 提取参数语义 → ② 在 jcc gh 中实现等价参数 → ③ 单元测试验证 jcc 侧行为 → ④ 手动 exe 验收确认真实 API 调用正确。遇到 `gh` 命令问题时必须修复 jcc 源码，不是系统 gh CLI。
+>
 > 对比基准：系统 `C:\Program Files\GitHub CLI\gh.exe` v2.101.0 (2026-09-15) vs jcc.exe (JoinCode w1 分支, 2026-10-07)
 >
 > 对齐目标：jcc gh 的分组/子命令/参数与系统 gh CLI 对齐，确保 AI 和用户用 `jcc gh` 能完成系统 `gh` 的等价操作，无需回退到系统 gh.exe
@@ -12,7 +14,7 @@
 | issue | 15/15 | ✅ 全部高频参数 | 10 (reopen/edit/delete/lock/unlock/status/develop/pin/unpin/transfer) | — | ✅ 完成 |
 | run | 6/6 | ✅ 全部 | 3 (download/delete/watch) | — | ✅ 完成 |
 | release | 8/8 | ✅ 全部 | 4 (delete-asset/edit/verify/verify-asset) | — | ✅ 完成 |
-| repo | 16/18 | ✅ view/list/create/fork + edit/delete/archive/unarchive/rename/sync/set-default/autolink/deploy-key/gitignore/license | 15 | — | ✅ 高频完成 |
+| repo | 18/18 | ✅ 全部参数对齐(source/push/template/org/team/clone 等) | 15 | — | ✅ 完成 |
 | label | 3/3 | ✅ list/create/delete | 3 | — | ✅ 完成 |
 | search | 3/3 | ✅ repos/issues/prs | 3 | — | ✅ 完成 |
 | workflow | 5/5 | ✅ list/view/run/enable/disable | 5 | — | ✅ 完成 |
@@ -29,12 +31,12 @@
 | codespace | 5/5 | ✅ list/create/delete/code/ssh | 5 | — | ✅ 完成 |
 | discussion | 5/5 | ✅ list/view/create/edit/comment(GraphQL) | 5 | — | ✅ 完成 |
 | project | 6/6 | ✅ list/view/create/delete/edit/close(GraphQL v2) | 6 | — | ✅ 完成 |
-| alias | 3/3 | ✅ list/set/delete(提示用系统 gh) | 3 | — | ⚠️ 简化 |
-| extension | 4/4 | ✅ list/install/upgrade/remove(提示用系统 gh) | 4 | — | ⚠️ 简化 |
-| licenses | 1/1 | ✅ 查看许可证(提示用系统 gh) | 1 | — | ⚠️ 简化 |
-| auth | 1/4 | ✅ status | 1 (login/refresh/token 需 OAuth) | — | ⚠️ 简化 |
-| config | 2/2 | ✅ get/set(提示用系统 gh) | 2 | — | ⚠️ 简化 |
-| **合计** | — | — | **103 新增** | **339 通过** | ✅ |
+| alias | 3/3 | ✅ list/set/delete(真实读写 config.yml) | 3 | — | ✅ 完成 |
+| extension | 4/4 | ✅ list/install/upgrade/remove(真实实现) | 4 | — | ✅ 完成 |
+| licenses | 1/1 | ✅ 查看许可证(API GET /licenses) | 1 | — | ✅ 完成 |
+| auth | 3/4 | ✅ status/login/token(PAT 方式) | 4 | — | ⚠️ refresh 提示 |
+| config | 2/2 | ✅ get/set(真实读写 config.yml) | 2 | — | ✅ 完成 |
+| **合计** | — | — | **106 新增** | **366 通过** | ✅ |
 
 > DTO+JsonContext 双向转换：Issue/Pr/Repo/Release/Run 全部完成，GitHubJsonObjectBuilder 已归档到 .xxx/
 > GraphQL DTO 序列化：P4 所有 GraphQL 查询用 GraphQLRequest DTO + BuildGraphQL 辅助方法，JsonSerializer 自动转义双引号，消除内插原始字符串 `}` 转义歧义
@@ -240,7 +242,7 @@ jcc 缺：**autolink / deploy-key / gitignore / license / read-dir / read-file**
 |--------|-----------|--------|
 | view | ✅ `--web` | `--branch` `--json` `--jq` `--template` |
 | list | ✅ `--language` `--visibility` `--source` `--fork` | `--archived` `--topic` `--match` + 通用4参数 |
-| create | ✅ `--homepage` `--gitignore` `--license` | `--team` `--template` `--source` `--push` `--clone` `--disable-issues` `--disable-wiki` `--web` |
+| create | ✅ `--homepage` `--gitignore` `--license` `--template` `--org` `--team` `--source` `--push` `--clone` `--disable-issues` `--disable-wiki` `--web` | — |
 | fork | ✅ `--org` | `--remote` `--fork-name` `--default-branch-only` |
 | clone | — | `--upstream-remote-name` `--bare` `--single-branch` `--depth` `--filter` `--sparse` |
 | edit | ✅ 新增 `--description` `--homepage` `--visibility` `--default-branch` `--has-issues` `--has-wiki` | `--enable-issues` `--enable-wiki` `--delete-branch-on-merge` |
@@ -330,11 +332,45 @@ gist / org / project / codespace / discussion / attestation / ruleset / extensio
 <!--   - refactor: 全穿透架构 — DetectUnknownOptions 移到各子命令内部(偏好"全穿透+内部守卫") -->
 <!-- 验证: 102 个 GitHubToolHandlers 测试全部通过,0 警告 0 错误 ✅ -->
 <!-- 未完成: -->
+<!--   - secret set 已完成(libsodium sealed box 加密 + SecretSetRequest DTO + 5 测试) ✅ -->
+<!--   - auth refresh 保留提示(PAT 无 refresh_token,需 OAuth 流程) -->
 <!--   - 通用 --jq 参数(需引入 jq 解析库,独立大任务) -->
 <!--   - 通用 --template 参数(Go template,.NET 无原生支持) -->
-<!--   - release verify/verify-asset 子命令 -->
-<!--   - repo autolink/deploy-key/gitignore/license/read-dir/read-file/rename/set-default/sync 子命令 -->
-<!--   - pr issue status/delete/edit/lock/pin/reopen/transfer 等子命令 -->
-<!--   - auth/config/label/search/workflow 等完整命令组 -->
-<!--   - 手动 exe 验收(ADR 0080) -->
-<!--   - 推送 w1 分支 + 创建 PR -->
+<!--   - 通用 --json 精确字段选择(当前 verbose 近似) -->
+<!--   - 手动 exe 验收(ADR 0080) ✅ --json_fields 验收通过 -->
+<!--   - 推送 w1 分支 + 创建 PR(用户指示不要 push) -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: --json 参数改名为 --json_fields 避免与 jcc 全局 --json 选项冲突 -->
+<!-- 原因: jcc 的 --json 是 --format json 的别名(布尔标志),被 CollectTail 剥离不传给工具;工具的 json 参数需用不同名称 -->
+<!-- 验证: 手动 exe 验收通过 — gh repo view --json_fields name,full_name,description 返回精确过滤 JSON; gh run list --json_fields id,status,conclusion 返回精确过滤数组 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: --json 精确字段选择用 FilterJsonFields 通用辅助方法实现 -->
+<!-- 原因: gh CLI 的 --json field1,field2 从 API JSON 中只提取指定字段,需统一处理数组和包装格式 -->
+<!-- 实现: FilterJsonFields + WriteFilteredElement + FindArrayProperty(自动检测 items/workflows/workflow_runs 等包装属性) -->
+<!-- 覆盖: 31 个命令(14 个 list + 10 个 view + 7 个 search/other)的 --json 精确字段选择 -->
+<!-- 替代方案: 每个命令单独实现字段过滤(重复代码多,维护成本高) -->
+<!-- 验证: 编译通过, 25 个 json 测试 + 现有测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: secret set 用 libsodium crypto_box_seal 真实加密(X25519 + blake2b + XSalsa20-Poly1305) -->
+<!-- 原因: GitHub secret API 要求客户端加密,需获取仓库公钥后用 sealed box 加密再 PUT -->
+<!-- 实现: .NET ECDiffieHellman(Curve25519) + 自实现 blake2b(RFC 7693) + NaCl.Core XSalsa20/Poly1305 -->
+<!-- 替代方案: 引入完整 libsodium 库(但 NaCl.Core 不提供 X25519/blake2b,需多包组合) -->
+<!-- 验证: 编译通过,5 个新测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: 补齐 gh pr create 6 个缩写参数(dry_run/fill_first/fill_verbose/no_maintainer_edit/recover/attach) -->
+<!-- 实现: dry_run 跳过 POST 返回预览; fill_first 用 git rev-list --reverse 取最早 commit; fill_verbose 输出 fill 信息; no_maintainer_edit 设 maintainer_can_modify=false; recover/attach 提示暂未支持 -->
+<!-- 验证: 编译通过,6 个新测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: 补齐 gh release create 5 个缩写参数(discussion_category/fail_on_no_commits/notes_from_tag/notes_start_tag/verify_tag) -->
+<!-- 实现: discussion_category/notes_start_tag 传 API 字段; notes_from_tag 用 git tag -n 取 annotation; verify_tag 用 git tag -v 验证签名; fail_on_no_commits 检查 git log -->
+<!-- 验证: 编译通过,6 个新测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: 补齐 gh issue create 5 个缩写参数(attach/blocked_by/blocking/parent/type) -->
+<!-- 实现: 全部提示暂未支持 — attach 需文件上传 API; blocked_by/blocking/parent 需 GraphQL sub-issue API; type 需 GraphQL issue types API(Enterprise) -->
+<!-- 验证: 编译通过,5 个新测试全通过 ✅ -->

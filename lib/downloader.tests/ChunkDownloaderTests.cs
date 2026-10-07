@@ -1,4 +1,4 @@
-namespace Infra.Services.Tests.Network.Downloader;
+namespace Downloader.Tests;
 
 /// <summary>
 /// ChunkDownloader 单元测试 — 验证单分片下载:Range头/续传偏移/写入.part/更新Downloaded/HTTP错误/完成标记
@@ -112,7 +112,7 @@ public sealed class ChunkDownloaderTests {
         cts.Cancel();
 
         var chunk = new DownloadChunk { Index = 0, Start = 0, End = 1023 };
-        var act = () => downloader.DownloadAsync(Url, chunk, PartPath, cts.Token);
+        var act = () => downloader.DownloadAsync(Url, chunk, PartPath, null, cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
     }

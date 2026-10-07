@@ -230,6 +230,12 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime {
             return Task.CompletedTask;
         }
 
+        public Task RegisterToolsBatchAsync(IReadOnlyList<IToolHandler> handlers, CancellationToken cancellationToken = default) {
+            if (ShouldFailRegistration) throw new InvalidOperationException("Mock registration failure");
+            foreach (var h in handlers) RegisteredHandlers[h.Name] = h;
+            return Task.CompletedTask;
+        }
+
         public Task<bool> UnregisterToolAsync(string toolName, CancellationToken cancellationToken = default) =>
             Task.FromResult(RegisteredHandlers.Remove(toolName));
 

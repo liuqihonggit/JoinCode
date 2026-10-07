@@ -37,5 +37,6 @@ global using System.Net.WebSockets;
 global using System.Reflection;
 global using System.Runtime.Caching;
 global using System.Runtime.CompilerServices;
+global using System.Security.Cryptography;
 global using System.Text;
 global using System.Text.Json;

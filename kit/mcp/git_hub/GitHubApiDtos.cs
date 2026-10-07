@@ -162,6 +162,17 @@ internal sealed class VariableSetRequest {
     public string Value { get; init; } = "";
 }
 
+/// <summary>Secret set 请求 body — PUT /actions/secrets/{name}</summary>
+internal sealed class SecretSetRequest {
+    /// <summary>加密后的 secret 值（base64 编码的 sealed box）</summary>
+    [JsonPropertyName("encrypted_value")]
+    public string EncryptedValue { get; init; } = "";
+
+    /// <summary>公钥 ID（从 GET /actions/secrets/public-key 获取）</summary>
+    [JsonPropertyName("key_id")]
+    public string KeyId { get; init; } = "";
+}
+
 // === Issue DTO ===
 
 /// <summary>Issue create 请求 — POST /issues</summary>
@@ -210,6 +221,13 @@ internal sealed class IssueEditRequest {
     /// <summary>状态原因</summary>
     [JsonPropertyName("state_reason")]
     public string? StateReason { get; init; }
+}
+
+/// <summary>Issue/PR 添加标签请求 — POST /issues/{n}/labels</summary>
+internal sealed class LabelsAddRequest {
+    /// <summary>标签名列表</summary>
+    [JsonPropertyName("labels")]
+    public List<string> Labels { get; init; } = new();
 }
 
 /// <summary>Issue/PR 评论 — POST /issues/{n}/comments</summary>
@@ -337,6 +355,18 @@ internal sealed class ReleaseCreateRequest {
     /// <summary>是否自动生成 notes</summary>
     [JsonPropertyName("generate_release_notes")]
     public bool? GenerateReleaseNotes { get; init; }
+    /// <summary>标记为 latest(true/false/legacy)</summary>
+    [JsonPropertyName("make_latest")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MakeLatest { get; init; }
+    /// <summary>discussion 分类名(创建 discussion)</summary>
+    [JsonPropertyName("discussion_category_name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DiscussionCategoryName { get; init; }
+    /// <summary>上一个 tag 名(自动生成 notes 的起始 tag)</summary>
+    [JsonPropertyName("previous_tag_name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PreviousTagName { get; init; }
 }
 
 /// <summary>Release edit 请求 — PATCH /releases/{id}</summary>
@@ -358,6 +388,21 @@ internal sealed class ReleaseEditRequest {
     public bool? Prerelease { get; init; }
     /// <summary>目标 commitish</summary>
     [JsonPropertyName("target_commitish")]
+    public string? TargetCommitish { get; init; }
+    /// <summary>标记为 latest(true/false/legacy)</summary>
+    [JsonPropertyName("make_latest")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MakeLatest { get; init; }
+}
+
+/// <summary>Release generate-notes 请求 — POST /releases/generate-notes</summary>
+internal sealed class ReleaseGenerateNotesRequest {
+    /// <summary>tag 名</summary>
+    [JsonPropertyName("tag_name")]
+    public string? TagName { get; init; }
+    /// <summary>目标 commitish</summary>
+    [JsonPropertyName("target_commitish")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? TargetCommitish { get; init; }
 }
 
@@ -398,6 +443,27 @@ internal sealed class RepoCreateRequest {
     public string? LicenseTemplate { get; init; }
 }
 
+/// <summary>Repo template generate 请求 — POST /repos/{o}/{r}/generate</summary>
+internal sealed class RepoTemplateGenerateRequest {
+    /// <summary>仓库名</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    /// <summary>描述</summary>
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
+    /// <summary>是否私有</summary>
+    [JsonPropertyName("private")]
+    public bool? Private { get; init; }
+    /// <summary>可见性</summary>
+    [JsonPropertyName("visibility")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Visibility { get; init; }
+    /// <summary>是否包含所有分支(默认 false,只复制默认分支)</summary>
+    [JsonPropertyName("include_all_branches")]
+    public bool? IncludeAllBranches { get; init; }
+}
+
 /// <summary>Repo edit 请求 — PATCH /repos/{o}/{r}</summary>
 internal sealed class RepoEditRequest {
     /// <summary>描述</summary>
@@ -418,6 +484,74 @@ internal sealed class RepoEditRequest {
     /// <summary>默认分支</summary>
     [JsonPropertyName("default_branch")]
     public string? DefaultBranch { get; init; }
+    /// <summary>合并后是否删除分支</summary>
+    [JsonPropertyName("delete_branch_on_merge")]
+    public bool? DeleteBranchOnMerge { get; init; }
+    /// <summary>是否启用 Projects</summary>
+    [JsonPropertyName("has_projects")]
+    public bool? HasProjects { get; init; }
+    /// <summary>是否启用 Discussions</summary>
+    [JsonPropertyName("has_discussions")]
+    public bool? HasDiscussions { get; init; }
+    /// <summary>是否允许 squash merge</summary>
+    [JsonPropertyName("allow_squash_merge")]
+    public bool? AllowSquashMerge { get; init; }
+    /// <summary>是否允许 merge commit</summary>
+    [JsonPropertyName("allow_merge_commit")]
+    public bool? AllowMergeCommit { get; init; }
+    /// <summary>是否允许 rebase merge</summary>
+    [JsonPropertyName("allow_rebase_merge")]
+    public bool? AllowRebaseMerge { get; init; }
+    /// <summary>是否允许 auto-merge</summary>
+    [JsonPropertyName("allow_auto_merge")]
+    public bool? AllowAutoMerge { get; init; }
+    /// <summary>是否允许 update branch</summary>
+    [JsonPropertyName("allow_update_branch")]
+    public bool? AllowUpdateBranch { get; init; }
+    /// <summary>是否允许 fork</summary>
+    [JsonPropertyName("allow_forking")]
+    public bool? AllowForking { get; init; }
+    /// <summary>是否为模板仓库</summary>
+    [JsonPropertyName("is_template")]
+    public bool? IsTemplate { get; init; }
+    /// <summary>squash merge commit 消息模板</summary>
+    [JsonPropertyName("squash_pr_commit_message")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SquashPrCommitMessage { get; init; }
+    /// <summary>安全与分析设置</summary>
+    [JsonPropertyName("security_and_analysis")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SecurityAndAnalysis? SecurityAndAnalysis { get; init; }
+}
+
+/// <summary>安全与分析嵌套 DTO — 用于 RepoEditRequest</summary>
+internal sealed class SecurityAndAnalysis {
+    /// <summary>高级安全</summary>
+    [JsonPropertyName("advanced_security")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SecurityFeature? AdvancedSecurity { get; init; }
+    /// <summary>密钥扫描</summary>
+    [JsonPropertyName("secret_scanning")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SecurityFeature? SecretScanning { get; init; }
+    /// <summary>密钥扫描推送保护</summary>
+    [JsonPropertyName("secret_scanning_push_protection")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SecurityFeature? SecretScanningPushProtection { get; init; }
+}
+
+/// <summary>安全功能开关 — status=enabled/disabled</summary>
+internal sealed class SecurityFeature {
+    /// <summary>状态(enabled/disabled)</summary>
+    [JsonPropertyName("status")]
+    public string Status { get; init; } = "";
+}
+
+/// <summary>Topics 请求 — PUT /repos/{o}/{r}/topics</summary>
+internal sealed class TopicsRequest {
+    /// <summary>topic 名称列表</summary>
+    [JsonPropertyName("names")]
+    public List<string> Names { get; init; } = new();
 }
 
 /// <summary>Repo rename 请求 — POST /repos/{o}/{r}/rename</summary>
@@ -453,6 +587,14 @@ internal sealed class RepoForkRequest {
     /// <summary>目标组织</summary>
     [JsonPropertyName("organization")]
     public string? Organization { get; init; }
+    /// <summary>Fork 仓库名(默认同原名)</summary>
+    [JsonPropertyName("name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Name { get; init; }
+    /// <summary>只 fork 默认分支</summary>
+    [JsonPropertyName("default_branch_only")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool? DefaultBranchOnly { get; init; }
 }
 
 // === Codespace DTO ===
@@ -540,8 +682,10 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(SshKeyAddRequest))]
 [JsonSerializable(typeof(GpgKeyAddRequest))]
 [JsonSerializable(typeof(VariableSetRequest))]
+[JsonSerializable(typeof(SecretSetRequest))]
 [JsonSerializable(typeof(IssueCreateRequest))]
 [JsonSerializable(typeof(IssueEditRequest))]
+[JsonSerializable(typeof(LabelsAddRequest))]
 [JsonSerializable(typeof(CommentRequest))]
 [JsonSerializable(typeof(PrCreateRequest))]
 [JsonSerializable(typeof(PrEditRequest))]
@@ -552,8 +696,13 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(LockRequest))]
 [JsonSerializable(typeof(ReleaseCreateRequest))]
 [JsonSerializable(typeof(ReleaseEditRequest))]
+[JsonSerializable(typeof(ReleaseGenerateNotesRequest))]
 [JsonSerializable(typeof(RepoCreateRequest))]
+[JsonSerializable(typeof(RepoTemplateGenerateRequest))]
 [JsonSerializable(typeof(RepoEditRequest))]
+[JsonSerializable(typeof(SecurityAndAnalysis))]
+[JsonSerializable(typeof(SecurityFeature))]
+[JsonSerializable(typeof(TopicsRequest))]
 [JsonSerializable(typeof(RepoRenameRequest))]
 [JsonSerializable(typeof(RepoSyncRequest))]
 [JsonSerializable(typeof(RepoSetDefaultRequest))]

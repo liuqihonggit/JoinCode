@@ -99,6 +99,12 @@ public abstract class GitHostMirrorUpdateSourceBase : IUpdateSource {
         return await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
     }
 
+    /// <inheritdoc/>
+    public virtual Task<string?> GetDownloadUrlAsync(UpdateManifestEntry entry, CancellationToken ct = default) {
+        ArgumentNullException.ThrowIfNull(entry);
+        return Task.FromResult<string?>(entry.DownloadUrl);
+    }
+
     /// <summary>
     /// 从 tag_name 提取版本号 — 去除前缀 v/V
     /// </summary>

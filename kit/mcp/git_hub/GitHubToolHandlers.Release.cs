@@ -14,13 +14,16 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
         [McpToolParameter("排除 draft release(可选)", Required = false)] bool? exclude_drafts = null,
         [McpToolParameter("排除 prerelease(可选)", Required = false)] bool? exclude_prereleases = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,tag_name,name)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases", query: query, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(SummarizeReleaseList(result.Body, exclude_drafts, exclude_prereleases)) : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, body => SummarizeReleaseList(body, exclude_drafts, exclude_prereleases), "id,tag_name,name,draft,prerelease,published_at"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -73,6 +76,8 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhReleaseViewAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("web=true 只返回 Release 浏览器 URL", Required = false)] bool? web = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,tag_name,name)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选,默认当前目录)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -84,11 +89,51 @@ public partial class GitHubToolHandlers {
                 return string.IsNullOrEmpty(url) ? Fail("无法从 Release 响应中解析 html_url") : Ok(url);
             }
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
-            if (result.Success) return Ok(result.Body);
+            if (result.Success) return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeReleaseView, "id,tag_name,name,draft,prerelease,published_at,html_url"));
             // 404 时 fallback: draft release 没有关联 tag,需列出所有 release 按 tag_name 匹配
             if (IsNotFound(result)) return await FindReleaseByTagNameAsync(client, owner, repoName, tag, cancellationToken).ConfigureAwait(false);
             return Fail(result.Error);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 精简 Release 详情 — 人类可读文本(tag/name/draft/prerelease/assets)
+    /// </summary>
+    private static string SummarizeReleaseView(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var sb = new StringBuilder(256);
+            var tagName = root.TryGetProperty("tag_name", out var t) ? t.GetString() ?? "" : "";
+            var name = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+            var draft = root.TryGetProperty("draft", out var d) && d.GetBoolean();
+            var prerelease = root.TryGetProperty("prerelease", out var p) && p.GetBoolean();
+            var url = root.TryGetProperty("html_url", out var u) ? u.GetString() ?? "" : "";
+
+            sb.AppendLine($"Release: {name} ({tagName})");
+            if (draft) sb.AppendLine("Draft: yes");
+            if (prerelease) sb.AppendLine("Prerelease: yes");
+            if (!string.IsNullOrEmpty(url)) sb.AppendLine($"URL: {url}");
+
+            if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array) {
+                sb.AppendLine($"Assets ({assets.GetArrayLength()}):");
+                foreach (var asset in assets.EnumerateArray()) {
+                    var assetName = asset.TryGetProperty("name", out var an) ? an.GetString() ?? "" : "";
+                    var size = asset.TryGetProperty("size", out var sz) ? sz.GetInt64() : 0;
+                    sb.AppendLine($"  {assetName}  ({FormatSize(size)})");
+                }
+            }
+            return sb.ToString().TrimEnd();
+        } catch {
+            return json;
+        }
+    }
+
+    private static string FormatSize(long bytes) {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        if (bytes < 1024L * 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MB";
+        return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
+    }
 
     /// <summary>
     /// 判断 API 响应是否为 404 Not Found
@@ -121,29 +166,70 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 创建 Release — 支持 draft/prerelease、目标 commit/branch、自动生成 notes，调 REST API POST
+    /// 创建 Release — 支持 draft/prerelease、目标 commit/branch、自动生成 notes、discussion_category/notes_from_tag/verify_tag，调 REST API POST
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhReleaseCreate, "创建 Release(支持 draft/prerelease/自动生成 notes)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseCreate, "创建 Release(支持 draft/prerelease/自动生成 notes/discussion_category/notes_from_tag/verify_tag)", "github")]
     public async Task<ToolResult> GhReleaseCreateAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("Release 标题", Required = false)] string? title = null,
         [McpToolParameter("Release 说明(notes)", Required = false)] string? notes = null,
+        [McpToolParameter("从文件读取 release notes(可选,覆盖 notes 参数)", Required = false)] string? notes_file = null,
         [McpToolParameter("是否草稿", Required = false)] bool? draft = null,
         [McpToolParameter("是否预发布", Required = false)] bool? prerelease = null,
         [McpToolParameter("目标 commit/branch(可选)", Required = false)] string? target = null,
         [McpToolParameter("自动生成 release notes(可选)", Required = false)] bool? generate_notes = null,
+        [McpToolParameter("标记为 latest release(可选,值 true/false)", Required = false)] string? make_latest = null,
+        [McpToolParameter("discussion 分类名(可选,为 release 创建 discussion)", Required = false)] string? discussion_category = null,
+        [McpToolParameter("没有新 commit 时失败(可选,检查 git log lastTag..target)", Required = false)] bool? fail_on_no_commits = null,
+        [McpToolParameter("使用 tag annotation 作为 notes(可选,git tag -n)", Required = false)] bool? notes_from_tag = null,
+        [McpToolParameter("自动生成 notes 的起始 tag(可选,等价 previous_tag_name)", Required = false)] string? notes_start_tag = null,
+        [McpToolParameter("验证 tag 的 GPG 签名(可选,git tag -v)", Required = false)] bool? verify_tag = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var effectiveNotes = notes;
+            if (notes_file is not null) {
+                if (!_fs.FileExists(notes_file))
+                    return Fail($"notes_file 不存在: {notes_file}");
+                effectiveNotes = await _fs.ReadAllTextAsync(notes_file, cancellationToken).ConfigureAwait(false);
+            }
+            if (notes_from_tag == true && _git is not null) {
+                var tagResult = await _git.ExecuteAsync($"tag -n -l {tag}", working_dir, cancellationToken).ConfigureAwait(false);
+                if (tagResult.Success && !string.IsNullOrWhiteSpace(tagResult.Output)) {
+                    var tagLine = tagResult.Output.AsSpan().Trim();
+                    var spaceIdx = tagLine.IndexOf(' ');
+                    if (spaceIdx >= 0 && spaceIdx + 1 < tagLine.Length) effectiveNotes = tagLine[(spaceIdx + 1)..].Trim().ToString();
+                }
+            }
+            if (verify_tag == true && _git is not null) {
+                var verifyResult = await _git.ExecuteAsync($"tag -v {tag}", working_dir, cancellationToken).ConfigureAwait(false);
+                if (!verifyResult.Success) return Fail($"tag {tag} 的 GPG 签名验证失败: {verifyResult.Output}");
+            }
+            if (fail_on_no_commits == true && _git is not null) {
+                var startTag = notes_start_tag;
+                if (string.IsNullOrWhiteSpace(startTag)) {
+                    var lastReleaseResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/latest", ct: cancellationToken).ConfigureAwait(false);
+                    if (lastReleaseResult.Success) startTag = TryExtractJsonField(lastReleaseResult.Body, "tag_name");
+                }
+                if (!string.IsNullOrWhiteSpace(startTag)) {
+                    var targetRef = string.IsNullOrWhiteSpace(target) ? "HEAD" : target;
+                    var logResult = await _git.ExecuteAsync($"log {startTag}..{targetRef} --oneline", working_dir, cancellationToken).ConfigureAwait(false);
+                    if (logResult.Success && string.IsNullOrWhiteSpace(logResult.Output.Trim()))
+                        return Fail($"tag {startTag} 到 {targetRef} 之间没有新 commit,--fail_on_no_commits 失败");
+                }
+            }
             var jsonBody = JsonSerializer.Serialize(new ReleaseCreateRequest {
                 TagName = tag,
                 Name = title,
-                Body = notes,
+                Body = effectiveNotes,
                 Draft = draft,
                 Prerelease = prerelease,
                 TargetCommitish = target,
-                GenerateReleaseNotes = generate_notes
+                GenerateReleaseNotes = generate_notes,
+                MakeLatest = make_latest,
+                DiscussionCategoryName = discussion_category,
+                PreviousTagName = notes_start_tag,
             }, GitHubApiJsonContext.Safe.ReleaseCreateRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已创建 Release {tag}") : Fail(result.Error);
@@ -398,17 +484,21 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 编辑 Release — 修改 tag/name/notes/draft/prerelease/target，调 REST API PATCH
+    /// 编辑 Release — 修改 tag/name/notes/draft/prerelease/target/latest，调 REST API PATCH
+    /// <para>notes_file 从文件读取 notes;generate_notes 调 generate-notes API 自动生成</para>
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhReleaseEdit, "编辑 Release(tag/name/notes/draft/prerelease/target)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseEdit, "编辑 Release(tag/name/notes/draft/prerelease/target/latest)", "github")]
     public async Task<ToolResult> GhReleaseEditAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("新 tag 名称(可选)", Required = false)] string? new_tag = null,
         [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
         [McpToolParameter("新说明(notes,可选)", Required = false)] string? notes = null,
+        [McpToolParameter("从文件读取 notes(可选,与 notes 互斥)", Required = false)] string? notes_file = null,
+        [McpToolParameter("自动生成 release notes(默认 false)", Required = false)] bool? generate_notes = null,
         [McpToolParameter("是否草稿(可选)", Required = false)] bool? draft = null,
         [McpToolParameter("是否预发布(可选)", Required = false)] bool? prerelease = null,
         [McpToolParameter("目标 commit/branch(可选)", Required = false)] string? target = null,
+        [McpToolParameter("标记为 latest(可选,true/false/legacy)", Required = false)] string? make_latest = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -416,18 +506,42 @@ public partial class GitHubToolHandlers {
             var viewResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
             if (!viewResult.Success) return Fail(viewResult.Error);
             long releaseId;
+            string? existingTag = null;
+            string? existingTarget = null;
             try {
                 using var doc = JsonDocument.Parse(viewResult.Body);
                 releaseId = doc.RootElement.GetProperty("id").GetInt64();
+                existingTag = doc.RootElement.TryGetProperty("tag_name", out var tnEl) ? tnEl.GetString() : null;
+                existingTarget = doc.RootElement.TryGetProperty("target_commitish", out var tcEl) ? tcEl.GetString() : null;
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
+
+            var effectiveNotes = notes;
+            if (!string.IsNullOrWhiteSpace(notes_file)) {
+                if (!_fs.FileExists(notes_file)) return Fail($"notes 文件不存在: {notes_file}");
+                try { effectiveNotes = await _fs.ReadAllTextAsync(notes_file, cancellationToken).ConfigureAwait(false); }
+                catch (Exception ex) { return Fail($"读取 notes 文件失败: {ex.Message}"); }
+            }
+            if (generate_notes == true) {
+                var genBody = JsonSerializer.Serialize(new ReleaseGenerateNotesRequest {
+                    TagName = new_tag ?? existingTag ?? tag,
+                    TargetCommitish = target ?? existingTarget
+                }, GitHubApiJsonContext.Safe.ReleaseGenerateNotesRequest);
+                var genResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases/generate-notes", genBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!genResult.Success) return Fail($"生成 notes 失败: {genResult.Error}");
+                try {
+                    using var genDoc = JsonDocument.Parse(genResult.Body);
+                    effectiveNotes = genDoc.RootElement.TryGetProperty("body", out var bEl) ? bEl.GetString() : effectiveNotes;
+                } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 generate-notes 响应失败,使用原 notes"); }
+            }
 
             var jsonBody = JsonSerializer.Serialize(new ReleaseEditRequest {
                 TagName = new_tag,
                 Name = title,
-                Body = notes,
+                Body = effectiveNotes,
                 Draft = draft,
                 Prerelease = prerelease,
-                TargetCommitish = target
+                TargetCommitish = target,
+                MakeLatest = make_latest
             }, GitHubApiJsonContext.Safe.ReleaseEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/releases/{releaseId}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已编辑 Release {tag}") : Fail(result.Error);

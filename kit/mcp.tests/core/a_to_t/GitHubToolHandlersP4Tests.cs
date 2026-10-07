@@ -100,4 +100,31 @@ public sealed partial class GitHubToolHandlersTests {
         _api.LastBody.Should().Contain("\"name\":\"NAME\"");
         _api.LastBody.Should().Contain("\"value\":\"value\"");
     }
+
+    [Fact]
+    public async Task SecretSet_EmptyBody_ReturnsFail() {
+        var result = await _handler.GhSecretSetAsync("MY_SECRET", body: null, repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SecretSet_PublicKeyFetchFails_ReturnsFail() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = false, StatusCode = 404, Body = "not found" });
+
+        var result = await _handler.GhSecretSetAsync("MY_SECRET", "val", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SecretDelete_DeletesSecret() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        var result = await _handler.GhSecretDeleteAsync("MY_SECRET", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/actions/secrets/MY_SECRET");
+    }
 }

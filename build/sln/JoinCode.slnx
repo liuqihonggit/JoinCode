@@ -17,6 +17,7 @@
   </Folder>
   <Folder Name="/lib/">
     <Project Path="../../lib/abstractions/Abstractions.csproj" />
+    <Project Path="../../lib/downloader/Downloader.csproj" />
     <Project Path="../../lib/structura/Structura.csproj" />
     <Project Path="../../lib/structura.tests/Structura.Tests.csproj" />
     <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />
@@ -107,6 +108,7 @@
     <Project Path="../../test/unit/infra.tests/io/Infra.IO.Tests.csproj" />
     <Project Path="../../test/unit/infra.tests/utils/Infra.Utils.Tests.csproj" />
     <Project Path="../../test/unit/infra.tests/services/Infra.Services.Tests.csproj" />
+    <Project Path="../../lib/downloader.tests/Downloader.Tests.csproj" />
     <Project Path="../../test/unit/testing.common/Testing.Common.csproj" />
     <Project Path="../../test/unit/hands.tests/Hands.Tests.csproj" />
     <Project Path="../../test/unit/abs.tests/Abs.Tests.csproj" />

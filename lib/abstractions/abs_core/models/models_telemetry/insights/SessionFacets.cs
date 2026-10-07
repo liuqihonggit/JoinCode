@@ -66,7 +66,7 @@ public sealed class MultiClaudingResult {
     public int UserMessagesDuring { get; init; }
 }
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(SessionFacets))]
 [JsonSerializable(typeof(Dictionary<string, int>))]
 [JsonSerializable(typeof(List<string>))]

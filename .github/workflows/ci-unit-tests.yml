@@ -36,6 +36,8 @@ jobs:
             csproj: test/unit/infra.tests/services/Infra.Services.Tests.csproj
           - name: InfraUtils
             csproj: test/unit/infra.tests/utils/Infra.Utils.Tests.csproj
+          - name: Downloader
+            csproj: lib/downloader.tests/Downloader.Tests.csproj
           # Core - AI
           - name: Llm
             csproj: llm/llm.tests/Llm.Tests.csproj

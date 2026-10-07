@@ -362,6 +362,18 @@ public enum GitHubToolName {
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhAuthStatus,
 
+    [EnumValue("gh_auth_login")]
+    [SecurityClass("safe-write", AutoAllowed = false, PlanAllowed = false, AskAllowed = true)]
+    GhAuthLogin,
+
+    [EnumValue("gh_auth_refresh")]
+    [SecurityClass("safe-write", AutoAllowed = false, PlanAllowed = false, AskAllowed = true)]
+    GhAuthRefresh,
+
+    [EnumValue("gh_auth_token")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhAuthToken,
+
     [EnumValue("gh_config_get")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhConfigGet,
@@ -452,6 +464,10 @@ public enum GitHubToolName {
     [EnumValue("gh_branch_sync_protection")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhBranchSyncProtection,
+
+    [EnumValue("gh_branch_audit_protection")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhBranchAuditProtection,
 
     // === 通用 API 调用 ===
     [EnumValue("gh_api")]

@@ -23,7 +23,7 @@ public sealed class ContentReplacementRecord {
     public required string Replacement { get; init; }
 }
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(ContentReplacementRecord))]
 [JsonSerializable(typeof(List<ContentReplacementRecord>))]
 public sealed partial class ContentReplacementRecordListJsonContext : JsonSerializerContext;

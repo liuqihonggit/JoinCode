@@ -110,6 +110,19 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 统一三档输出格式化 — json_fields 优先 > verbosity=2 完整JSON > verbosity=1 精简JSON > 默认 Summarizer
+    /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON</para>
+    /// </summary>
+    internal static string FormatGhOutput(string body, int? verbosity, string? json_fields, Func<string, string> summarize, string? compactFields = null) {
+        if (!string.IsNullOrEmpty(json_fields)) return FilterJsonFields(body, json_fields);
+        return verbosity switch {
+            2 => body,
+            1 => FilterJsonFields(body, compactFields ?? "id,number,title,state,name"),
+            _ => summarize(body)
+        };
+    }
+
+    /// <summary>
     /// 构建精简成功 ToolResult — 从 JSON body 提取 html_url，只返回确认消息 + URL（不返回整个 JSON body）
     /// <para>用于 Create/Update/Delete 操作，成功时无需返回完整响应体，只给确认 + 可点击链接</para>
     /// </summary>
@@ -163,6 +176,24 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 解析 milestone 名称到 ID — GET /repos/{owner}/{repo}/milestones 查找 title 匹配项
+    /// <para>系统 gh --milestone 接受 name 而非 ID,需先查 milestones 列表解析</para>
+    /// </summary>
+    private async Task<int?> ResolveMilestoneIdAsync(IGitHubApiClient client, string owner, string repoName, string milestoneName, CancellationToken ct) {
+        var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/milestones", query: new Dictionary<string, string> { ["state"] = "all", ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
+        if (!result.Success) return null;
+        try {
+            using var doc = JsonDocument.Parse(result.Body);
+            foreach (var m in doc.RootElement.EnumerateArray()) {
+                if (m.TryGetProperty("title", out var t) && t.GetString() == milestoneName) {
+                    return m.TryGetProperty("number", out var n) ? n.GetInt32() : null;
+                }
+            }
+        } catch (Exception ex) { _logger?.LogWarning(ex, "解析 milestones 响应失败"); }
+        return null;
+    }
+
+    /// <summary>
     /// 守卫编排模板 — client 检查 + owner/repo 解析,失败短路返回错误,成功执行 apiCall(client, owner, repo)
     /// <para>消除 21 处重复的 client 检查 + ResolveOwnerRepoAsync 样板,主方法只写 API 调用核心逻辑</para>
     /// <para>client 作为参数传入 apiCall,调用方直接用 client 而非 _apiClient!,消除空抑制</para>
@@ -178,20 +209,105 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// verbose 缓存模板 — verbose=true 优先读缓存,未命中或 verbose=false 调 API,成功后写缓存,按 verbose 决定精简/完整输出
+    /// verbosity 三档缓存模板 — verbosity=2 优先读缓存,未命中或 verbosity=0/1 调 API,成功后写缓存,按 verbosity 决定输出格式
     /// <para>消除 GhPrView/GhIssueView/GhRepoView 三处相同的缓存读写样板</para>
+    /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON(从缓存读)</para>
     /// </summary>
     private async Task<ToolResult> GetOrFetchWithCacheAsync(
-        IGitHubApiClient client, string cacheKey, string apiPath, bool? verbose,
-        Func<string, string> summarize, CancellationToken ct) {
-        if (verbose == true) {
+        IGitHubApiClient client, string cacheKey, string apiPath, int? verbosity,
+        string? json_fields, Func<string, string> summarize, string? compactFields,
+        CancellationToken ct) {
+        if (!string.IsNullOrEmpty(json_fields)) {
+            var result0 = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
+            if (!result0.Success) return Fail(result0.Error);
+            return Ok(FilterJsonFields(result0.Body, json_fields));
+        }
+        if (verbosity == 2) {
             var cached = TryGetGhCache(cacheKey);
             if (cached is not null) return Ok(cached);
         }
         var result = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
         SaveGhCache(cacheKey, result.Body);
-        return Ok(verbose == true ? result.Body : summarize(result.Body));
+        return Ok(verbosity switch {
+            2 => result.Body,
+            1 => FilterJsonFields(result.Body, compactFields ?? "id,number,title,state,name"),
+            _ => summarize(result.Body)
+        });
+    }
+
+    /// <summary>
+    /// JSON 字段过滤 — 从 JSON 中只提取指定字段(逗号分隔),支持数组和 search API 包装格式
+    /// <para>用于 --json 参数: gh pr list --json number,title,url → [{"number":1,"title":"x","url":"y"}]</para>
+    /// <para>数组: 过滤每个元素; 对象有 items 数组: 过滤 items; 对象无 items: 过滤自身</para>
+    /// </summary>
+    /// <param name="json">原始 JSON 字符串</param>
+    /// <param name="fields">逗号分隔的字段名列表</param>
+    /// <returns>只包含指定字段的 JSON 字符串;解析失败回退原始 json</returns>
+    private static string FilterJsonFields(string json, string fields) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            var fieldList = fields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream)) {
+                WriteFilteredElement(writer, doc.RootElement, fieldList);
+                writer.Flush();
+            }
+            return Encoding.UTF8.GetString(stream.ToArray());
+        } catch {
+            return json;
+        }
+    }
+
+    /// <summary>
+    /// 递归写入过滤后的 JSON 元素
+    /// </summary>
+    private static void WriteFilteredElement(Utf8JsonWriter writer, JsonElement element, string[] fields) {
+        if (element.ValueKind == JsonValueKind.Array) {
+            writer.WriteStartArray();
+            foreach (var item in element.EnumerateArray()) {
+                WriteFilteredElement(writer, item, fields);
+            }
+            writer.WriteEndArray();
+        } else if (element.ValueKind == JsonValueKind.Object) {
+            var arrayProp = FindArrayProperty(element);
+            if (arrayProp is not null) {
+                writer.WriteStartArray();
+                foreach (var item in element.GetProperty(arrayProp).EnumerateArray()) {
+                    WriteFilteredObject(writer, item, fields);
+                }
+                writer.WriteEndArray();
+            } else {
+                WriteFilteredObject(writer, element, fields);
+            }
+        } else {
+            element.WriteTo(writer);
+        }
+    }
+
+    /// <summary>
+    /// 查找对象中的列表数组属性 — 优先 items,其次 workflows/workflow_runs/secrets/variables/releases/labels/runs 等已知包装属性
+    /// </summary>
+    private static string? FindArrayProperty(JsonElement element) {
+        var candidates = new[] { "items", "workflows", "workflow_runs", "secrets", "variables", "releases", "labels", "runs", "issues", "pulls" };
+        foreach (var name in candidates) {
+            if (element.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Array) return name;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 写入过滤后的 JSON 对象 — 只包含指定字段
+    /// </summary>
+    private static void WriteFilteredObject(Utf8JsonWriter writer, JsonElement element, string[] fields) {
+        writer.WriteStartObject();
+        foreach (var field in fields) {
+            if (element.TryGetProperty(field, out var value)) {
+                writer.WritePropertyName(field);
+                value.WriteTo(writer);
+            }
+        }
+        writer.WriteEndObject();
     }
 
     /// <summary>

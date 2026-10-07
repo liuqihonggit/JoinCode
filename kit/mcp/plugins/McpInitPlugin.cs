@@ -22,17 +22,17 @@ public sealed partial class McpInitPlugin : WorkflowPluginBase {
     public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default)
         => Task.FromResult(OperationResult.Ok());
 
-    /// <summary>初始化插件 — 调用 IMcpService.InitializeAsync,5s 超时</summary>
+    /// <summary>初始化插件 — 调用 IMcpService.InitializeAsync,15s 超时</summary>
     public override async Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default) {
         var logger = serviceProvider.GetService<ILogger<McpInitPlugin>>();
         try {
-            using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(5));
+            using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(15));
             var mcpService = serviceProvider.GetRequiredService<IMcpService>();
             await mcpService.InitializeAsync(serviceProvider, cts.Token).ConfigureAwait(false);
             return OperationResult.Ok();
         } catch (OperationCanceledException) {
-            logger?.LogWarning("[MCP] InitializeAsync timed out after 5s");
-            return OperationResult.Fail("MCP 初始化超时(5s)");
+            logger?.LogWarning("[MCP] InitializeAsync timed out after 15s");
+            return OperationResult.Fail("MCP 初始化超时(15s)");
         } catch (Exception ex) {
             logger?.LogError(ex, "[MCP] InitializeAsync failed");
             return OperationResult.Fail(ex.Message);

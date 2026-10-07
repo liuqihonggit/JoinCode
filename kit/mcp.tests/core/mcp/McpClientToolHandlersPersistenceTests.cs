@@ -137,6 +137,7 @@ public sealed class McpClientToolHandlersPersistenceTests {
 
         public Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null) => Task.CompletedTask;
+        public Task RegisterToolsBatchAsync(IReadOnlyList<IToolHandler> handlers, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<bool> UnregisterToolAsync(string toolName, CancellationToken cancellationToken = default) => Task.FromResult(true);
         public Task<IToolHandler?> GetToolAsync(string toolName, CancellationToken cancellationToken = default) => Task.FromResult<IToolHandler?>(null);
         public Task<IReadOnlyDictionary<string, IToolHandler>> GetAllToolsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyDictionary<string, IToolHandler>>(new Dictionary<string, IToolHandler>());

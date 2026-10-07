@@ -1,4 +1,4 @@
-namespace Infra.Services.Tests.Network.Downloader;
+namespace Downloader.Tests;
 
 /// <summary>
 /// ChunkPlanner 单元测试 — 验证分片规划:单分片/多分片/不能整除/钳制/连续性/边界

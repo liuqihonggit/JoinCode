@@ -135,7 +135,7 @@ public sealed class DryRunAgentMessage {
     public DateTime Timestamp { get; set; }
 }
 
-[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = true)]
 [JsonSerializable(typeof(DryRunAgentState))]
 [JsonSerializable(typeof(List<DryRunAgentMessage>))]
 internal sealed partial class DryRunAgentStateJsonContext : JsonSerializerContext;

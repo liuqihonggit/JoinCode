@@ -51,4 +51,77 @@ public sealed partial class GitHubToolHandlersTests {
 
         _api.LastBody.Should().NotContain("maintainer_can_modify");
     }
+
+    [Fact]
+    public async Task PrCreate_DryRun_DoesNotCallApi_ReturnsPreview() {
+        var result = await _handler.GhPrCreateAsync("feat: preview", "feature-branch", @base: "main", body: "preview body", dry_run: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("[dry-run]");
+        result.GetFirstText().Should().Contain("feat: preview");
+        result.GetFirstText().Should().Contain("feature-branch");
+        _api.LastPath.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task PrCreate_NoMaintainerEdit_IncludesMaintainerCanModifyFalse() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":45,"title":"t","state":"open"}""",
+        };
+
+        await _handler.GhPrCreateAsync("t", "feat", @base: "main", no_maintainer_edit: true, repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("\"maintainer_can_modify\":false");
+    }
+
+    [Fact]
+    public async Task PrCreate_Recover_ReturnsNotSupportedError() {
+        var result = await _handler.GhPrCreateAsync("t", "feat", recover: true, repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("--recover 暂未支持");
+    }
+
+    [Fact]
+    public async Task PrCreate_Attach_ReturnsNotSupportedError() {
+        var result = await _handler.GhPrCreateAsync("t", "feat", attach: "file.txt", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("--attach 暂未支持");
+    }
+
+    [Fact]
+    public async Task PrCreate_FillFirst_CallsGitRevListAndLog() {
+        var git = new FakeGitCommandRunner { NextSuccess = true, NextOutput = "abc123\n" };
+        var handler = CreateHandlerWithGitAndApi(git, _api);
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":46,"title":"abc123","state":"open","html_url":"https://github.com/o/r/pull/46"}""",
+        };
+
+        var result = await handler.GhPrCreateAsync("", "feature-branch", @base: "main", fill_first: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        git.ExecutedCommands.Should().ContainMatch("*rev-list --reverse main..feature-branch*");
+        git.ExecutedCommands.Should().ContainMatch("*log -1 --format=*");
+    }
+
+    [Fact]
+    public async Task PrCreate_FillVerbose_AppendsFillInfo() {
+        var git = new FakeGitCommandRunner { NextSuccess = true, NextOutput = "feat: from commit\n\ndetails" };
+        var handler = CreateHandlerWithGitAndApi(git, _api);
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":47,"title":"feat: from commit","state":"open","html_url":"https://github.com/o/r/pull/47"}""",
+        };
+
+        var result = await handler.GhPrCreateAsync("", "feat", @base: "main", fill: true, fill_verbose: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("[fill]");
+    }
 }

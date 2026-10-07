@@ -33,7 +33,7 @@ public sealed record GoalSpec {
 /// GoalSpec JSON 序列化上下文 — NativeAOT 兼容，复用 LlmJsonHelper 宽容反序列化。
 /// </summary>
 [JsonSerializable(typeof(GoalSpec))]
-[JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 public partial class GoalSpecJsonContext : JsonSerializerContext;
 
 /// <summary>

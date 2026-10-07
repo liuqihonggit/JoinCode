@@ -51,13 +51,14 @@ public static class BridgeInboundAttachments {
 
     /// <summary>
     /// 并行下载附件到本地，返回 @"path" 引用前缀字符串 — 对齐 TS 端 resolveInboundAttachments
-    /// 下载到 ~/.jcc/uploads/{sessionId}/
+    /// 下载到 ~/.jcc/uploads/{sessionId}/,复用 IBatchDownloader 多线程分片并行
     /// </summary>
     public static async Task<string> ResolveInboundAttachmentsAsync(
         List<BridgeInboundAttachment> attachments,
         string sessionId,
         HttpClient httpClient,
         IFileSystem fs,
+        IBatchDownloader batchDownloader,
         CancellationToken ct) {
         if (attachments.Count == 0) return string.Empty;
 
@@ -67,34 +68,22 @@ public static class BridgeInboundAttachments {
 
         fs.CreateDirectory(uploadDir);
 
+        var headers = new Dictionary<string, string>();
+        foreach (var header in httpClient.DefaultRequestHeaders) {
+            headers[header.Key] = string.Join(",", header.Value);
+        }
+
+        var baseUrl = httpClient.BaseAddress!;
+        var items = attachments.ConvertAll(a => new BatchDownloadItem(
+            new Uri(baseUrl, $"/api/oauth/files/{a.FileUuid}/content").ToString(),
+            Path.Combine(uploadDir, SanitizeFileName(a.FileName)),
+            new DownloadOptions { MaxThreads = 4, Resume = false, Headers = headers }));
+
+        var results = await batchDownloader.DownloadAllAsync(items, 4, ct).ConfigureAwait(false);
+
         var pathRefs = new List<string>();
-
-        // 并行下载所有附件
-        var tasks = attachments.Select(async attachment => {
-            try {
-                var filePath = Path.Combine(uploadDir, SanitizeFileName(attachment.FileName));
-
-                // 通过 OAuth 认证的 API 下载文件
-                var url = $"/api/oauth/files/{attachment.FileUuid}/content";
-                var response = await httpClient.GetAsync(url, ct).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-
-                await using var fs2 = fs.CreateStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
-                await response.Content.CopyToAsync(fs2, ct).ConfigureAwait(false);
-
-                return $@"@""{filePath}""";
-            } catch {
-                // best-effort: 跳过下载失败的附件
-                return null;
-            }
-        });
-
-        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-
-        foreach (var pathRef in results) {
-            if (pathRef is not null) {
-                pathRefs.Add(pathRef);
-            }
+        foreach (var r in results) {
+            if (r.Success) pathRefs.Add($@"@""{r.FilePath}""");
         }
 
         return pathRefs.Count > 0 ? string.Join("\n", pathRefs) + "\n" : string.Empty;
@@ -120,11 +109,12 @@ public static class BridgeInboundAttachments {
         string sessionId,
         HttpClient httpClient,
         IFileSystem fs,
+        IBatchDownloader batchDownloader,
         CancellationToken ct) {
         var attachments = ExtractInboundAttachments(msg);
         if (attachments.Count == 0) return content;
 
-        var prefix = await ResolveInboundAttachmentsAsync(attachments, sessionId, httpClient, fs, ct).ConfigureAwait(false);
+        var prefix = await ResolveInboundAttachmentsAsync(attachments, sessionId, httpClient, fs, batchDownloader, ct).ConfigureAwait(false);
         return PrependPathRefs(content, prefix);
     }
 

@@ -63,6 +63,12 @@ public sealed class StaticFileUpdateSource : IUpdateSource {
         return await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
     }
 
+    /// <inheritdoc/>
+    public Task<string?> GetDownloadUrlAsync(UpdateManifestEntry entry, CancellationToken ct = default) {
+        ArgumentNullException.ThrowIfNull(entry);
+        return Task.FromResult<string?>(ResolveDownloadUrl(entry.DownloadUrl));
+    }
+
     /// <summary>
     /// 解析下载 URL — 相对 URL 解析为相对于清单地址的绝对 URL
     /// </summary>

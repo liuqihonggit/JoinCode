@@ -290,5 +290,5 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
 [JsonSerializable(typeof(ToolTemplate))]
 [JsonSerializable(typeof(ToolTemplateParameter))]
 [JsonSerializable(typeof(ToolTemplateExecution))]
-[JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 internal sealed partial class ToolTemplateJsonContext : JsonSerializerContext;

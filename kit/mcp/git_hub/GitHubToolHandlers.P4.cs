@@ -59,6 +59,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("分支过滤(可选)", Required = false)] string? branch = null,
         [McpToolParameter("ref 过滤(可选)", Required = false)] string? @ref = null,
         [McpToolParameter("key 过滤(可选,模糊匹配)", Required = false)] string? key = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,key,ref)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -69,7 +71,7 @@ public partial class GitHubToolHandlers {
             if (!string.IsNullOrWhiteSpace(key)) query["key"] = key;
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/caches", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(SummarizeCacheList(result.Body));
+            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeCacheList, "id,key,ref,size_in_megabytes,last_used_at"));
         }).ConfigureAwait(false);
 
     /// <summary>精简缓存列表 — 表格格式(id, key, ref, size, last_used)</summary>
@@ -134,6 +136,8 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhRulesetListAsync(
         [McpToolParameter("组织名(可选,列出组织级规则集)", Required = false)] string? org = null,
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,target)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -142,7 +146,7 @@ public partial class GitHubToolHandlers {
             var path = !string.IsNullOrWhiteSpace(org) ? $"orgs/{org}/rulesets" : $"repos/{owner}/{repoName}/rulesets";
             var result = await client.SendAsync(HttpMethod.Get, path, query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(SummarizeRulesetList(result.Body));
+            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeRulesetList, "id,name,target,enforcement"));
         }).ConfigureAwait(false);
 
     /// <summary>精简规则集列表 — 表格格式(id, name, target, enforcement)</summary>
@@ -170,14 +174,33 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhRulesetViewAsync(
         [McpToolParameter("规则集 ID", Required = true)] long ruleset_id,
         [McpToolParameter("组织名(可选,查看组织级规则集)", Required = false)] string? org = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,target)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var path = !string.IsNullOrWhiteSpace(org) ? $"orgs/{org}/rulesets/{ruleset_id}" : $"repos/{owner}/{repoName}/rulesets/{ruleset_id}";
             var result = await client.SendAsync(HttpMethod.Get, path, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body) : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeRulesetView, "id,name,target,enforcement,html_url"));
         }).ConfigureAwait(false);
+
+    /// <summary>精简规则集详情 — 人类可读文本</summary>
+    private static string SummarizeRulesetView(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var sb = new StringBuilder(256);
+            var id = root.TryGetProperty("id", out var i) ? i.GetInt64() : 0;
+            var name = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+            var target = root.TryGetProperty("target", out var t) ? t.GetString() ?? "" : "";
+            var enforcement = root.TryGetProperty("enforcement", out var e) ? e.GetString() ?? "" : "";
+            sb.AppendLine($"Ruleset: {name} (ID: {id})");
+            sb.AppendLine($"Target: {target}  Enforcement: {enforcement}");
+            return sb.ToString().TrimEnd();
+        } catch { return json; }
+    }
 
     /// <summary>
     /// 检查分支适用的规则 — 调 GET /rulesets-rs/{branch}
@@ -252,6 +275,8 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhCodespaceListAsync(
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
         [McpToolParameter("仓库(可选,过滤指定仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 name,display_name,state)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
@@ -262,7 +287,7 @@ public partial class GitHubToolHandlers {
         }
         var result = await _apiClient.SendAsync(HttpMethod.Get, path, query: query, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(SummarizeCodespaceList(result.Body));
+        return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeCodespaceList, "name,display_name,state,repository"));
     }
 
     /// <summary>精简 Codespace 列表 — 表格格式(name, display_name, repo, state, branch)</summary>
@@ -361,6 +386,8 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhDiscussionList, "列出 Discussion(GraphQL)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhDiscussionListAsync(
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -369,7 +396,7 @@ public partial class GitHubToolHandlers {
             var graphql = BuildGraphQL($"query{{repository(owner:\"{owner}\",name:\"{repoName}\"){{discussions(first:{first}){{nodes{{number title author{{login}} category{{name}} createdAt}}}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(SummarizeDiscussionList(result.Body));
+            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeDiscussionList, "number,title,author,category,createdAt"));
         }).ConfigureAwait(false);
 
     /// <summary>精简 Discussion 列表 — 表格格式(number, title, author, category)</summary>
@@ -397,14 +424,34 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhDiscussionView, "查看 Discussion 详情(GraphQL)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhDiscussionViewAsync(
         [McpToolParameter("Discussion 编号", Required = true)] int number,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var graphql = BuildGraphQL($"query{{repository(owner:\"{owner}\",name=\"{repoName}\"){{discussion(number:{number}){{number title body author{{login}} category{{name}} createdAt url}}}}}}");
+            var graphql = BuildGraphQL($"query{{repository(owner:\"{owner}\",name:\"{repoName}\"){{discussion(number:{number}){{number title body author{{login}} category{{name}} createdAt url}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body) : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeDiscussionView, "number,title,body,author,category,createdAt,url"));
         }).ConfigureAwait(false);
+
+    /// <summary>精简 Discussion 详情 — 人类可读文本</summary>
+    private static string SummarizeDiscussionView(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            var node = doc.RootElement.GetProperty("data").GetProperty("repository").GetProperty("discussion");
+            var sb = new StringBuilder(256);
+            var number = node.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
+            var title = node.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+            var author = node.TryGetProperty("author", out var a) && a.TryGetProperty("login", out var l) ? l.GetString() ?? "" : "";
+            var body = node.TryGetProperty("body", out var b) ? b.GetString() ?? "" : "";
+            sb.AppendLine($"#{number} {title}");
+            sb.AppendLine($"By: @{author}");
+            if (!string.IsNullOrEmpty(body)) sb.AppendLine(body);
+            return sb.ToString().TrimEnd();
+        } catch { return json; }
+    }
 
     /// <summary>
     /// 创建 Discussion — 调 GraphQL mutation createDiscussion，需 discussion category ID
@@ -515,6 +562,8 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhProjectListAsync(
         [McpToolParameter("组织名(可选,列出组织 Project,默认当前用户)", Required = false)] string? org = null,
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var first = Math.Min(limit ?? 30, 100);
@@ -525,7 +574,7 @@ public partial class GitHubToolHandlers {
             graphql = BuildGraphQL($"query{{viewer{{projectsV2(first:{first}){{nodes{{number title url closed state}}}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(SummarizeProjectList(result.Body));
+        return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeProjectList, "number,title,state,url"));
     }
 
     /// <summary>精简 Project 列表 — 表格格式(number, title, state, url)</summary>
@@ -555,15 +604,45 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhProjectViewAsync(
         [McpToolParameter("Project 编号", Required = true)] int number,
         [McpToolParameter("组织名(可选,默认当前用户)", Required = false)] string? org = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 title,url,state)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         string graphql;
         if (!string.IsNullOrWhiteSpace(org))
-            graphql = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectV2(number:{number}){{title url closed state items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}}}");
+            graphql = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectV2(number:{number}){{title url closed state items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
         else
-            graphql = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{title url closed state items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}}}");
+            graphql = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{title url closed state items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body) : Fail(result.Error);
+        if (!result.Success) return Fail(result.Error);
+        return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeProjectView, "title,url,state,items"));
+    }
+
+    /// <summary>精简 Project 详情 — 人类可读文本</summary>
+    private static string SummarizeProjectView(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            var data = doc.RootElement.GetProperty("data");
+            var root = data.TryGetProperty("organization", out var orgEl) ? orgEl : data.GetProperty("viewer");
+            var proj = root.GetProperty("projectV2");
+            var sb = new StringBuilder(256);
+            var title = proj.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+            var state = proj.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
+            var url = proj.TryGetProperty("url", out var u) ? u.GetString() ?? "" : "";
+            sb.AppendLine($"Project: {title}");
+            sb.AppendLine($"State: {state}  URL: {url}");
+            if (proj.TryGetProperty("items", out var items) && items.TryGetProperty("nodes", out var nodes)) {
+                sb.AppendLine("Items:");
+                foreach (var item in nodes.EnumerateArray()) {
+                    if (item.TryGetProperty("content", out var content)) {
+                        var num = content.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
+                        var itemTitle = content.TryGetProperty("title", out var it) ? it.GetString() ?? "" : "";
+                        sb.AppendLine($"  #{num} {itemTitle}");
+                    }
+                }
+            }
+            return sb.ToString().TrimEnd();
+        } catch { return json; }
     }
 
     /// <summary>
@@ -692,74 +771,168 @@ public partial class GitHubToolHandlers {
     // === Alias（本地配置，提示用系统 gh）===
 
     /// <summary>
-    /// 列出别名 — 提示用系统 gh CLI（本地配置管理）
+    /// 列出别名 — 读写 gh config.yml 中 aliases 部分
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhAliasList, "列出别名(提示用系统 gh)", "github", ConcurrencySafe = true)]
-    public Task<ToolResult> GhAliasListAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok("请在终端运行: gh alias list\n（别名管理为本地配置，需 gh CLI 直接执行）"));
+    [McpTool(GitHubToolNameEnumConstants.GhAliasList, "列出别名(读写 config.yml)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhAliasListAsync(CancellationToken cancellationToken = default) {
+        var configPath = GetGhConfigPath(false);
+        if (!_fs.FileExists(configPath)) return Ok("（无别名：配置文件不存在）");
+        var content = await _fs.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+        var aliases = ParseYamlSection(content, "aliases");
+        if (aliases.Count == 0) return Ok("（无别名）");
+        var sb = new StringBuilder(64);
+        foreach (var (key, value) in aliases) sb.AppendLine($"{key}: {value}");
+        return Ok(sb.ToString().TrimEnd());
+    }
 
     /// <summary>
-    /// 设置别名 — 提示用系统 gh CLI
+    /// 设置别名 — 读写 gh config.yml 中 aliases 部分
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhAliasSet, "设置别名(提示用系统 gh)", "github")]
-    public Task<ToolResult> GhAliasSetAsync(
+    [McpTool(GitHubToolNameEnumConstants.GhAliasSet, "设置别名(读写 config.yml)", "github")]
+    public async Task<ToolResult> GhAliasSetAsync(
         [McpToolParameter("别名名", Required = true)] string alias,
         [McpToolParameter("命令内容", Required = true)] string command,
         [McpToolParameter("是否保存到 shell(可选)", Required = false)] bool? shell = null,
-        CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok($"请在终端运行: gh alias set {alias} \"{command}\"{(shell == true ? " --shell" : "")}\n（别名管理为本地配置，需 gh CLI 直接执行）"));
+        CancellationToken cancellationToken = default) {
+        var configPath = GetGhConfigPath(false);
+        if (!_fs.FileExists(configPath)) return Fail($"gh 配置文件不存在: {configPath} — 请用系统 gh CLI 登录: gh auth login");
+        var content = await _fs.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+        var updated = SetYamlSectionValue(content, "aliases", alias, shell == true ? $"!shell {command}" : command);
+        await _fs.WriteAllTextAsync(configPath, updated, cancellationToken).ConfigureAwait(false);
+        return Ok($"已设置别名 {alias} = {command}");
+    }
 
     /// <summary>
-    /// 删除别名 — 提示用系统 gh CLI
+    /// 删除别名 — 读写 gh config.yml 中 aliases 部分
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhAliasDelete, "删除别名(提示用系统 gh)", "github")]
-    public Task<ToolResult> GhAliasDeleteAsync(
+    [McpTool(GitHubToolNameEnumConstants.GhAliasDelete, "删除别名(读写 config.yml)", "github")]
+    public async Task<ToolResult> GhAliasDeleteAsync(
         [McpToolParameter("别名名", Required = true)] string alias,
-        CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok($"请在终端运行: gh alias delete {alias}\n（别名管理为本地配置，需 gh CLI 直接执行）"));
+        CancellationToken cancellationToken = default) {
+        var configPath = GetGhConfigPath(false);
+        if (!_fs.FileExists(configPath)) return Fail($"gh 配置文件不存在: {configPath} — 请用系统 gh CLI 登录: gh auth login");
+        var content = await _fs.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+        var updated = DeleteYamlSectionValue(content, "aliases", alias);
+        if (updated == content) return Fail($"别名不存在: {alias}");
+        await _fs.WriteAllTextAsync(configPath, updated, cancellationToken).ConfigureAwait(false);
+        return Ok($"已删除别名 {alias}");
+    }
 
-    // === Extension（本地管理，提示用系统 gh）===
+    // === Extension（list 扫描本地目录，install/upgrade/remove 提示用系统 gh）===
 
     /// <summary>
-    /// 列出已安装扩展 — 提示用系统 gh CLI
+    /// 列出已安装扩展 — 扫描本地 gh extensions 目录
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhExtensionList, "列出已安装扩展(提示用系统 gh)", "github", ConcurrencySafe = true)]
-    public Task<ToolResult> GhExtensionListAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok("请在终端运行: gh extension list\n（扩展管理为本地操作，需 gh CLI 直接执行）"));
+    [McpTool(GitHubToolNameEnumConstants.GhExtensionList, "列出已安装扩展(扫描本地目录)", "github", ConcurrencySafe = true)]
+    public Task<ToolResult> GhExtensionListAsync(CancellationToken cancellationToken = default) {
+        var extDir = GetGhExtensionsPath();
+        if (!_fs.DirectoryExists(extDir)) return Task.FromResult(Ok("（无已安装扩展）"));
+        var extensions = _fs.EnumerateDirectories(extDir, "gh-*", SearchOption.TopDirectoryOnly).ToList();
+        if (extensions.Count == 0) return Task.FromResult(Ok("（无已安装扩展）"));
+        var sb = new StringBuilder(64);
+        foreach (var dir in extensions) sb.AppendLine(_fs.GetDirectoryName(dir));
+        return Task.FromResult(Ok(sb.ToString().TrimEnd()));
+    }
 
     /// <summary>
-    /// 安装扩展 — 提示用系统 gh CLI
+    /// 获取 gh extensions 目录路径
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhExtensionInstall, "安装扩展(提示用系统 gh)", "github")]
-    public Task<ToolResult> GhExtensionInstallAsync(
+    internal static string GetGhExtensionsPath() {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!string.IsNullOrEmpty(localAppData) && OperatingSystem.IsWindows()) return Path.Combine(localAppData, "gh", "extensions");
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return Path.Combine(home, ".local", "share", "gh", "extensions");
+    }
+
+    /// <summary>
+    /// 安装扩展 — git clone 扩展仓库到本地 extensions 目录
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhExtensionInstall, "安装扩展(git clone 到本地)", "github")]
+    public async Task<ToolResult> GhExtensionInstallAsync(
         [McpToolParameter("扩展名(如 owner/gh-ext)", Required = true)] string extension,
-        CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok($"请在终端运行: gh extension install {extension}\n（扩展安装为本地操作，需 gh CLI 直接执行）"));
+        CancellationToken cancellationToken = default) {
+        if (_git is null) return Fail("git 命令执行器未配置（IGitCommandRunner 未注入）");
+        var extDir = GetGhExtensionsPath();
+        if (!_fs.DirectoryExists(extDir)) _fs.CreateDirectory(extDir);
+        var extName = extension.Contains('/') ? extension.Split('/')[1] : extension;
+        var targetDir = Path.Combine(extDir, extName);
+        if (_fs.DirectoryExists(targetDir)) return Fail($"扩展已存在: {extName}（目录: {targetDir}）— 如需升级请用 extension upgrade");
+        var cloneResult = await _git.ExecuteAsync($"clone https://github.com/{extension}.git {extName}", extDir, cancellationToken).ConfigureAwait(false);
+        return cloneResult.Success ? Ok($"已安装扩展 {extName}") : Fail($"安装扩展失败: {cloneResult.Error}");
+    }
 
     /// <summary>
-    /// 升级扩展 — 提示用系统 gh CLI
+    /// 升级扩展 — git pull 更新扩展（extension 为空时升级所有）
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhExtensionUpgrade, "升级扩展(提示用系统 gh)", "github")]
-    public Task<ToolResult> GhExtensionUpgradeAsync(
+    [McpTool(GitHubToolNameEnumConstants.GhExtensionUpgrade, "升级扩展(git pull)", "github")]
+    public async Task<ToolResult> GhExtensionUpgradeAsync(
         [McpToolParameter("扩展名(可选,默认全部)", Required = false)] string? extension = null,
-        CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok($"请在终端运行: gh extension upgrade{(string.IsNullOrWhiteSpace(extension) ? " --all" : $" {extension}")}\n（扩展升级为本地操作，需 gh CLI 直接执行）"));
+        CancellationToken cancellationToken = default) {
+        if (_git is null) return Fail("git 命令执行器未配置（IGitCommandRunner 未注入）");
+        var extDir = GetGhExtensionsPath();
+        if (!_fs.DirectoryExists(extDir)) return Ok("（无已安装扩展）");
+        if (!string.IsNullOrWhiteSpace(extension)) {
+            var targetDir = Path.Combine(extDir, extension);
+            if (!_fs.DirectoryExists(targetDir)) return Fail($"扩展不存在: {extension}");
+            var pullResult = await _git.ExecuteAsync("pull", targetDir, cancellationToken).ConfigureAwait(false);
+            return pullResult.Success ? Ok($"已升级扩展 {extension}") : Fail($"升级扩展失败: {pullResult.Error}");
+        }
+        var extensions = _fs.EnumerateDirectories(extDir, "gh-*", SearchOption.TopDirectoryOnly).ToList();
+        if (extensions.Count == 0) return Ok("（无已安装扩展）");
+        var sb = new StringBuilder(64);
+        foreach (var dir in extensions) {
+            var name = _fs.GetDirectoryName(dir);
+            var pullResult = await _git.ExecuteAsync("pull", dir, cancellationToken).ConfigureAwait(false);
+            sb.AppendLine(pullResult.Success ? $"已升级 {name}" : $"升级失败 {name}: {pullResult.Error}");
+        }
+        return Ok(sb.ToString().TrimEnd());
+    }
 
     /// <summary>
-    /// 移除扩展 — 提示用系统 gh CLI
+    /// 移除扩展 — 移动到 .xxx 归档（AGENTS.md 禁止删除文件）
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhExtensionRemove, "移除扩展(提示用系统 gh)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhExtensionRemove, "移除扩展(移动到 .xxx 归档)", "github")]
     public Task<ToolResult> GhExtensionRemoveAsync(
         [McpToolParameter("扩展名", Required = true)] string extension,
-        CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok($"请在终端运行: gh extension remove {extension}\n（扩展移除为本地操作，需 gh CLI 直接执行）"));
+        CancellationToken cancellationToken = default) {
+        var extDir = GetGhExtensionsPath();
+        var targetDir = Path.Combine(extDir, extension);
+        if (!_fs.DirectoryExists(targetDir)) return Task.FromResult(Fail($"扩展不存在: {extension}"));
+        var archiveBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".xxx");
+        if (!_fs.DirectoryExists(archiveBase)) _fs.CreateDirectory(archiveBase);
+        var archivePath = Path.Combine(archiveBase, $"{extension}.{DateTime.Now:yyyyMMddHHmmss}.del");
+        _fs.MoveDirectory(targetDir, archivePath);
+        return Task.FromResult(Ok($"已移除扩展 {extension}（归档到 {archivePath}）"));
+    }
 
     // === Licenses（第三方许可证）===
 
     /// <summary>
-    /// 查看第三方许可证 — 提示用系统 gh CLI（内置信息，非 API）
+    /// 查看可用许可证列表 — 调 REST API GET /licenses 获取 SPDX 许可证列表
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhLicenses, "查看第三方许可证信息(提示用系统 gh)", "github", ConcurrencySafe = true)]
-    public Task<ToolResult> GhLicensesAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok("请在终端运行: gh licenses\n（第三方许可证信息为 gh CLI 内置，非 API 调用）"));
+    [McpTool(GitHubToolNameEnumConstants.GhLicenses, "查看可用开源许可证列表(API)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhLicensesAsync(CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return Fail("GitHub REST API 客户端未配置(IGitHubApiClient 未注入)");
+        var result = await _apiClient.SendAsync(HttpMethod.Get, "licenses", ct: cancellationToken).ConfigureAwait(false);
+        if (!result.Success) return Fail(result.Error);
+        return Ok(SummarizeLicenses(result.Body));
+    }
+
+    /// <summary>
+    /// 精简许可证列表 JSON — 只保留 key/name/spdx_id，便于浏览
+    /// </summary>
+    private static string SummarizeLicenses(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var sb = new StringBuilder(256);
+            foreach (var license in doc.RootElement.EnumerateArray()) {
+                var key = license.TryGetProperty("key", out var k) ? k.GetString() ?? "" : "";
+                var name = license.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                var spdx = license.TryGetProperty("spdx_id", out var s) ? s.GetString() ?? "" : "";
+                sb.AppendLine($"{key} | {spdx} | {name}");
+            }
+            return sb.ToString().TrimEnd();
+        } catch { return json; }
+    }
 }

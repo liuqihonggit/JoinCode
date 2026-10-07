@@ -6,11 +6,11 @@ namespace Abs.Tests.Utils;
 public sealed partial class RelaxedJsonSerializerTests {
     private sealed record TestDto(string DisplayName, string Description);
 
-    [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, PropertyNameCaseInsensitive = true)]
+    [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, PropertyNameCaseInsensitive = true)]
     [JsonSerializable(typeof(TestDto))]
     private sealed partial class TestCamelCaseContext : JsonSerializerContext;
 
-    [JsonSourceGenerationOptions(WriteIndented = false)]
+    [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = false)]
     [JsonSerializable(typeof(TestDto))]
     private sealed partial class TestDefaultContext : JsonSerializerContext;
 

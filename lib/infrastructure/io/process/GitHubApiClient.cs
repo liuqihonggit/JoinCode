@@ -13,6 +13,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
     private readonly HttpClient _httpClient;
     private readonly IFileSystem _fs;
     private readonly Func<string?>? _ghTokenResolver;
+    private readonly IDownloader? _downloader;
     private readonly ILogger<GitHubApiClient>? _logger;
 
     private const string DefaultBaseUrl = JccEndpoints.GitHubApiBase + "/";
@@ -27,14 +28,17 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="ghTokenResolver">可选自定义 token 解析器</param>
+    /// <param name="downloader">多线程分片下载器(artifact 下载用,可选,未注入时回退单线程流式)</param>
     public GitHubApiClient(
         HttpClient httpClient,
         IFileSystem fs,
         ILogger<GitHubApiClient>? logger = null,
-        Func<string?>? ghTokenResolver = null) {
+        Func<string?>? ghTokenResolver = null,
+        IDownloader? downloader = null) {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _ghTokenResolver = ghTokenResolver;
+        _downloader = downloader;
         _logger = logger;
 
         if (_httpClient.BaseAddress is null) {
@@ -425,7 +429,42 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
     // === 私有辅助方法 ===
 
     /// <summary>
-    /// 下载 Actions Run artifact — 二进制 zip 文件写到指定路径
+    /// 上传 Issue/PR 附件 — 二进制上传到 github.com/user-attachments/assets
+    /// </summary>
+    public async Task<GitHubApiResponse> UploadAttachmentAsync(
+        long repositoryId,
+        string fileName,
+        Stream fileStream,
+        CancellationToken ct = default) {
+        var token = ResolveToken();
+        var host = Environment.GetEnvironmentVariable("JCC_GITHUB_HOST") ?? "https://github.com";
+        var uploadUrl = $"{host}/user-attachments/assets?name={Uri.EscapeDataString(fileName)}&content_type=application/octet-stream&repository_id={repositoryId}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
+        request.Headers.Add("Authorization", $"Bearer {token}");
+        request.Headers.Add("Accept", "application/vnd.github+json");
+        request.Headers.Add("User-Agent", UserAgent);
+        request.Content = new StreamContent(fileStream);
+        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+
+        try {
+            using var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
+            var body = await ReadBodyAsync(response, ct).ConfigureAwait(false);
+            if (response.IsSuccessStatusCode)
+                return new GitHubApiResponse { Success = true, StatusCode = (int)response.StatusCode, Body = body };
+            return new GitHubApiResponse { Success = false, StatusCode = (int)response.StatusCode, Error = ExtractErrorMessage(body) ?? $"HTTP {(int)response.StatusCode}" };
+        } catch (Exception ex) {
+            _logger?.LogError(ex, "上传附件失败: {FileName}", fileName);
+            return new GitHubApiResponse { Success = false, StatusCode = 0, Error = ex.Message };
+        }
+    }
+
+    // === 私有辅助方法 ===
+
+    /// <summary>
+    /// 下载 Actions Run artifact — 复用 IDownloader 多线程分片+断点续传
+    /// <para>注入 IDownloader 时走多线程分片;未注入时回退单线程流式(测试场景)</para>
+    /// <para>GitHub artifact 端点 302 重定向到临时签名 URL,HttpClient 自动跟随,Authorization 头自动 strip</para>
     /// </summary>
     public async Task<GitHubApiResponse> DownloadArtifactAsync(
         string owner,
@@ -436,9 +475,31 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         var token = ResolveToken();
         var downloadPath = $"repos/{owner}/{repo}/actions/artifacts/{artifactId}/zip";
 
+        if (_downloader is not null) {
+            var fullUrl = new Uri(_httpClient.BaseAddress!, downloadPath).ToString();
+            var headers = new Dictionary<string, string> {
+                ["Authorization"] = $"Bearer {token}",
+                ["Accept"] = AcceptHeader,
+                ["User-Agent"] = UserAgent,
+            };
+            try {
+                var options = new DownloadOptions { MaxThreads = 4, Resume = true, Headers = headers };
+                await using var session = _downloader.StartDownload(fullUrl, filePath, options, null, ct);
+                var result = await session.WaitForCompletionAsync(ct).ConfigureAwait(false);
+                return new GitHubApiResponse {
+                    Success = result.Success,
+                    StatusCode = result.Success ? 200 : 0,
+                    Error = result.ErrorMessage ?? string.Empty,
+                };
+            } catch (Exception ex) {
+                _logger?.LogError(ex, "下载 artifact 失败: {ArtifactId}", artifactId);
+                return new GitHubApiResponse { Success = false, StatusCode = 0, Error = ex.Message };
+            }
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Get, downloadPath);
         request.Headers.Add("Authorization", $"Bearer {token}");
-        request.Headers.Add("Accept", "application/vnd.github+json");
+        request.Headers.Add("Accept", AcceptHeader);
         request.Headers.Add("User-Agent", UserAgent);
 
         try {

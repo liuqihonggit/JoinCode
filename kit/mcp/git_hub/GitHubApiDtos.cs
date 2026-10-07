@@ -162,6 +162,17 @@ internal sealed class VariableSetRequest {
     public string Value { get; init; } = "";
 }
 
+/// <summary>Secret set 请求 body — PUT /actions/secrets/{name}</summary>
+internal sealed class SecretSetRequest {
+    /// <summary>加密后的 secret 值（base64 编码的 sealed box）</summary>
+    [JsonPropertyName("encrypted_value")]
+    public string EncryptedValue { get; init; } = "";
+
+    /// <summary>公钥 ID（从 GET /actions/secrets/public-key 获取）</summary>
+    [JsonPropertyName("key_id")]
+    public string KeyId { get; init; } = "";
+}
+
 // === Issue DTO ===
 
 /// <summary>Issue create 请求 — POST /issues</summary>
@@ -591,6 +602,7 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(SshKeyAddRequest))]
 [JsonSerializable(typeof(GpgKeyAddRequest))]
 [JsonSerializable(typeof(VariableSetRequest))]
+[JsonSerializable(typeof(SecretSetRequest))]
 [JsonSerializable(typeof(IssueCreateRequest))]
 [JsonSerializable(typeof(IssueEditRequest))]
 [JsonSerializable(typeof(CommentRequest))]

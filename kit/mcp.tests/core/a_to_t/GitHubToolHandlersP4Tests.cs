@@ -100,4 +100,63 @@ public sealed partial class GitHubToolHandlersTests {
         _api.LastBody.Should().Contain("\"name\":\"NAME\"");
         _api.LastBody.Should().Contain("\"value\":\"value\"");
     }
+
+    [Fact]
+    public async Task SecretSet_PutsEncryptedSecretDto() {
+        using var ecdh = ECDiffieHellman.Create(ECCurve.CreateFromFriendlyName("curve25519"));
+        var pubKey = ecdh.ExportParameters(false).Q.X!;
+        var keyB64 = Convert.ToBase64String(pubKey);
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = $$"""{"key_id":"123","key":"{{keyB64}}"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
+
+        var result = await _handler.GhSecretSetAsync("MY_SECRET", "secret_value", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/actions/secrets/MY_SECRET");
+        _api.LastBody.Should().Contain("\"encrypted_value\"");
+        _api.LastBody.Should().Contain("\"key_id\":\"123\"");
+        result.GetFirstText().Should().Contain("MY_SECRET");
+    }
+
+    [Fact]
+    public async Task SecretSet_EnvSecret_UsesEnvEndpoint() {
+        using var ecdh = ECDiffieHellman.Create(ECCurve.CreateFromFriendlyName("curve25519"));
+        var pubKey = ecdh.ExportParameters(false).Q.X!;
+        var keyB64 = Convert.ToBase64String(pubKey);
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = $$"""{"key_id":"456","key":"{{keyB64}}"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
+
+        var result = await _handler.GhSecretSetAsync("ENV_SECRET", "val", repo: "owner/repo", env: "production");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/environments/production/secrets/ENV_SECRET");
+    }
+
+    [Fact]
+    public async Task SecretSet_EmptyBody_ReturnsFail() {
+        var result = await _handler.GhSecretSetAsync("MY_SECRET", body: null, repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SecretSet_PublicKeyFetchFails_ReturnsFail() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = false, StatusCode = 404, Body = "not found" });
+
+        var result = await _handler.GhSecretSetAsync("MY_SECRET", "val", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SecretDelete_DeletesSecret() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        var result = await _handler.GhSecretDeleteAsync("MY_SECRET", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/actions/secrets/MY_SECRET");
+    }
 }

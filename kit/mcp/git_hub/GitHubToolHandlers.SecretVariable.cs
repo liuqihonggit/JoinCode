@@ -41,16 +41,44 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 设置 Secret — 涉及加密(获取公钥+加密值)，简化提示用系统 gh CLI
+    /// 设置 Secret — 获取仓库公钥 + libsodium sealed box 加密 + PUT API
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhSecretSet, "设置 Secret(提示用系统 gh)", "github")]
-    public Task<ToolResult> GhSecretSetAsync(
+    [McpTool(GitHubToolNameEnumConstants.GhSecretSet, "设置 Secret(加密后 PUT API)", "github")]
+    public async Task<ToolResult> GhSecretSetAsync(
         [McpToolParameter("Secret 名称", Required = true)] string name,
         [McpToolParameter("Secret 值", Required = false)] string? body = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("环境名(可选,设置环境 Secret)", Required = false)] string? env = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => Task.FromResult(Fail($"secret set 涉及加密(需获取仓库公钥+加密 secret 值)，jcc 未实现。请用系统 gh CLI: gh secret set {name}{(string.IsNullOrWhiteSpace(repo) ? "" : $" -R {repo}")}"));
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (string.IsNullOrEmpty(body)) return Fail("Secret 值不能为空");
+            var publicKeyPath = string.IsNullOrEmpty(env)
+                ? $"repos/{owner}/{repoName}/actions/secrets/public-key"
+                : $"repos/{owner}/{repoName}/environments/{env}/secrets/public-key";
+            var keyResponse = await client.SendAsync(HttpMethod.Get, publicKeyPath, ct: cancellationToken).ConfigureAwait(false);
+            if (!keyResponse.Success) return Fail($"获取公钥失败: {keyResponse.Error}");
+            string keyId;
+            byte[] publicKeyBytes;
+            try {
+                using var doc = JsonDocument.Parse(keyResponse.Body);
+                keyId = doc.RootElement.TryGetProperty("key_id", out var k) ? k.GetString() ?? "" : "";
+                var keyB64 = doc.RootElement.TryGetProperty("key", out var kk) ? kk.GetString() ?? "" : "";
+                publicKeyBytes = Convert.FromBase64String(keyB64);
+            } catch { return Fail($"公钥响应解析失败: {keyResponse.Body}"); }
+            var plaintext = Encoding.UTF8.GetBytes(body);
+            var sealedBox = GitHubSecretEncryptor.Seal(publicKeyBytes, plaintext);
+            var encryptedValue = Convert.ToBase64String(sealedBox);
+            var secretPath = string.IsNullOrEmpty(env)
+                ? $"repos/{owner}/{repoName}/actions/secrets/{name}"
+                : $"repos/{owner}/{repoName}/environments/{env}/secrets/{name}";
+            var secretBody = JsonSerializer.Serialize(new SecretSetRequest {
+                EncryptedValue = encryptedValue,
+                KeyId = keyId
+            }, GitHubApiJsonContext.Safe.SecretSetRequest);
+            var result = await client.SendAsync(HttpMethod.Put, secretPath, secretBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? Ok($"已设置 Secret {name}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// 删除 Secret — 调 DELETE /actions/secrets/{name}

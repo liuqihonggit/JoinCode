@@ -22,12 +22,24 @@
 | gpg-key | 3/3 | ✅ list/add/delete | 3 | — | ✅ 完成 |
 | secret | 3/3 | ✅ list/delete(set 简化) | 3 | — | ✅ 完成 |
 | variable | 4/4 | ✅ list/get/set/delete | 4 | — | ✅ 完成 |
+| browse | 1/1 | ✅ 仓库/Issue/PR/commit/分支/actions/releases/projects/settings/blame | 1 | — | ✅ 完成 |
+| cache | 2/2 | ✅ list/delete(all 批量) | 2 | — | ✅ 完成 |
+| ruleset | 3/3 | ✅ list/view/check(仓库+组织) | 3 | — | ✅ 完成 |
+| status | 1/1 | ✅ 跨仓库聚合(assigned/review/mentions) | 1 | — | ✅ 完成 |
+| codespace | 5/5 | ✅ list/create/delete/code/ssh | 5 | — | ✅ 完成 |
+| discussion | 5/5 | ✅ list/view/create/edit/comment(GraphQL) | 5 | — | ✅ 完成 |
+| project | 6/6 | ✅ list/view/create/delete/edit/close(GraphQL v2) | 6 | — | ✅ 完成 |
+| alias | 3/3 | ✅ list/set/delete(提示用系统 gh) | 3 | — | ⚠️ 简化 |
+| extension | 4/4 | ✅ list/install/upgrade/remove(提示用系统 gh) | 4 | — | ⚠️ 简化 |
+| licenses | 1/1 | ✅ 查看许可证(提示用系统 gh) | 1 | — | ⚠️ 简化 |
 | auth | 1/4 | ✅ status | 1 (login/refresh/token 需 OAuth) | — | ⚠️ 简化 |
 | config | 2/2 | ✅ get/set(提示用系统 gh) | 2 | — | ⚠️ 简化 |
-| **合计** | — | — | **75 新增** | **273 通过** | ✅ |
+| **合计** | — | — | **103 新增** | **322 通过** | ✅ |
 
-> DTO+JsonContext 双向转换：Issue/Pr/Repo/Release/Run 全部完成，GitHubJsonObjectBuilder 已无实际调用
+> DTO+JsonContext 双向转换：Issue/Pr/Repo/Release/Run 全部完成，GitHubJsonObjectBuilder 已归档到 .xxx/
+> GraphQL DTO 序列化：P4 所有 GraphQL 查询用 GraphQLRequest DTO + BuildGraphQL 辅助方法，JsonSerializer 自动转义双引号，消除内插原始字符串 `}` 转义歧义
 > 中文转义修复：GitHubApiJsonContext.Safe 用 Lazy 避免静态初始化循环，UnsafeRelaxedJsonEscaping 不转义中文
+> 全量编译：JoinCode.slnx 0 警告 0 错误（含 FakeGitHubApiClient DownloadArtifactAsync 补充修复）
 > 通用参数：`--web` ✅ 各 view 已实现 | `--json` ⚠️ `verbose` 近似 | `--jq` ❌ 需引入库 | `--template` ❌ Go template 暂缓
 
 ## 1. 顶层命令覆盖差异

@@ -27,6 +27,85 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 登录 GitHub — 接受 PAT token，调 GET /user 验证后保存到 hosts.yml
+    /// <para>OAuth 设备流程需调 github.com（非 api.github.com），MCP 工具无 HttpClient，故用 PAT 方式</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhAuthLogin, "登录 GitHub(PAT token 验证后保存到 hosts.yml)", "github")]
+    public async Task<ToolResult> GhAuthLoginAsync(
+        [McpToolParameter("GitHub PAT token(ghp_xxx)", Required = true)] string token,
+        [McpToolParameter("host(可选,默认 github.com)", Required = false)] string? host = null,
+        CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return Fail("GitHub REST API 客户端未配置(IGitHubApiClient 未注入) — 无法验证 token");
+        var result = await _apiClient.SendAsync(HttpMethod.Get, "user", ct: cancellationToken).ConfigureAwait(false);
+        if (!result.Success) return Fail($"Token 验证失败: {result.Error} — 请检查 token 是否有效");
+        string login;
+        try {
+            using var doc = JsonDocument.Parse(result.Body);
+            login = doc.RootElement.TryGetProperty("login", out var l) ? l.GetString() ?? "" : "";
+        } catch { return Fail("Token 验证响应解析失败"); }
+        var hostname = string.IsNullOrWhiteSpace(host) ? "github.com" : host;
+        var hostsPath = GetGhConfigPath(true);
+        var content = _fs.FileExists(hostsPath) ? await _fs.ReadAllTextAsync(hostsPath, cancellationToken).ConfigureAwait(false) : "";
+        var updated = SetYamlHostToken(content, hostname, login, token);
+        await _fs.WriteAllTextAsync(hostsPath, updated, cancellationToken).ConfigureAwait(false);
+        return Ok($"已登录: {login} (host: {hostname})\nToken 已保存到 {hostsPath}");
+    }
+
+    /// <summary>
+    /// 获取 Auth token — 从 hosts.yml 读取 oauth_token
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhAuthToken, "获取 GitHub Auth token(从 hosts.yml 读取)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhAuthTokenAsync(
+        [McpToolParameter("host(可选,默认 github.com)", Required = false)] string? host = null,
+        CancellationToken cancellationToken = default) {
+        var hostname = string.IsNullOrWhiteSpace(host) ? "github.com" : host;
+        var hostsPath = GetGhConfigPath(true);
+        if (!_fs.FileExists(hostsPath)) return Fail($"hosts.yml 不存在: {hostsPath} — 请先登录: gh auth login");
+        var content = await _fs.ReadAllTextAsync(hostsPath, cancellationToken).ConfigureAwait(false);
+        var token = TryGetYamlValue(content, "oauth_token", hostname);
+        return token is not null ? Ok(token) : Fail($"未找到 {hostname} 的 oauth_token — 请先登录: gh auth login");
+    }
+
+    /// <summary>
+    /// 刷新 Auth token — 需用系统 gh CLI（OAuth refresh_token 流程）
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhAuthRefresh, "刷新 GitHub Auth token(提示用系统 gh)", "github")]
+    public Task<ToolResult> GhAuthRefreshAsync(
+        [McpToolParameter("host(可选,默认 github.com)", Required = false)] string? host = null,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(Fail("auth refresh 需 OAuth refresh_token 流程，jcc 未实现。请用系统 gh CLI: gh auth refresh" + (string.IsNullOrWhiteSpace(host) ? "" : $" --host {host}")));
+
+    /// <summary>
+    /// 设置 hosts.yml 中 host 下的 user 和 oauth_token（不存在则追加 host section）
+    /// </summary>
+    private static string SetYamlHostToken(string content, string hostname, string user, string token) {
+        var lines = new List<string>(content.Split('\n'));
+        var hostLineIndex = lines.FindIndex(l => l.TrimStart().StartsWith($"{hostname}:", StringComparison.OrdinalIgnoreCase));
+        if (hostLineIndex < 0) {
+            lines.Add($"{hostname}:");
+            lines.Add($"    user: {user}");
+            lines.Add($"    oauth_token: {token}");
+            lines.Add("    git_protocol: https");
+            return string.Join("\n", lines);
+        }
+        var hostIndent = lines[hostLineIndex].Length - lines[hostLineIndex].TrimStart().Length;
+        var entryIndent = hostIndent + 4;
+        var userSet = false;
+        var tokenSet = false;
+        for (var i = hostLineIndex + 1; i < lines.Count; i++) {
+            var trimmed = lines[i].TrimStart();
+            var indent = lines[i].Length - trimmed.Length;
+            if (trimmed.Length == 0) continue;
+            if (indent <= hostIndent) break;
+            if (trimmed.StartsWith("user:", StringComparison.OrdinalIgnoreCase)) { lines[i] = new string(' ', indent) + $"user: {user}"; userSet = true; }
+            else if (trimmed.StartsWith("oauth_token:", StringComparison.OrdinalIgnoreCase)) { lines[i] = new string(' ', indent) + $"oauth_token: {token}"; tokenSet = true; }
+        }
+        if (!userSet) lines.Insert(hostLineIndex + 1, new string(' ', entryIndent) + $"user: {user}");
+        if (!tokenSet) lines.Insert(hostLineIndex + 2, new string(' ', entryIndent) + $"oauth_token: {token}");
+        return string.Join("\n", lines);
+    }
+
+    /// <summary>
     /// 读取配置 — 读写 gh config.yml 顶层 key-value（host 参数读写 hosts.yml per-host 设置）
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhConfigGet, "读取 gh 配置(读写 config.yml)", "github", ConcurrencySafe = true)]

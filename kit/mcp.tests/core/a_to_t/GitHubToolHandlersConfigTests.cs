@@ -184,4 +184,55 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("gh-jump");
         text.Should().Contain("gh-learn");
     }
+
+    [Fact]
+    public async Task AuthLogin_SavesToken_ToHostsYml() {
+        var api = new FakeGitHubApiClient { NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"login":"testuser"}""" } };
+        var fs = new InMemoryFileSystem();
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhAuthLoginAsync("ghp_testtoken");
+
+        result.IsError.Should().BeFalse();
+        var hostsPath = GitHubToolHandlers.GetGhConfigPath(true);
+        var content = await fs.ReadAllTextAsync(hostsPath);
+        content.Should().Contain("oauth_token: ghp_testtoken");
+        content.Should().Contain("user: testuser");
+    }
+
+    [Fact]
+    public async Task AuthLogin_ReturnsFail_WhenTokenInvalid() {
+        var api = new FakeGitHubApiClient { NextResponse = new GitHubApiResponse { Success = false, StatusCode = 401, Body = "" } };
+        var fs = new InMemoryFileSystem();
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhAuthLoginAsync("invalid_token");
+
+        result.IsError.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AuthToken_ReadsToken_FromHostsYml() {
+        var hostsPath = GitHubToolHandlers.GetGhConfigPath(true);
+        var fs = new InMemoryFileSystem();
+        await fs.WriteAllTextAsync(hostsPath, "github.com:\n    user: testuser\n    oauth_token: ghp_mytoken\n    git_protocol: https\n");
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhAuthTokenAsync();
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Be("ghp_mytoken");
+    }
+
+    [Fact]
+    public async Task AuthToken_ReturnsFail_WhenNoToken() {
+        var hostsPath = GitHubToolHandlers.GetGhConfigPath(true);
+        var fs = new InMemoryFileSystem();
+        await fs.WriteAllTextAsync(hostsPath, "github.com:\n    user: testuser\n");
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhAuthTokenAsync();
+
+        result.IsError.Should().BeTrue();
+    }
 }

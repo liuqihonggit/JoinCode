@@ -113,3 +113,38 @@ AI 习惯写 `--log true`（显式传值），但 jcc boolean 参数设计是无
 | 6 | pr checks 超时 | `GitHubToolHandlers.Pr.cs:269` | 中 | ✅ 已修复 | — |
 
 **修缺陷 1 一处可同时解决 expand=jobs 截断 + expand=failed 0 行 + pr checks check-runs 丢数据三个症状，ROI 最高。**
+
+---
+
+## 输出优化（AI 调用体验提升）
+
+> 场景：AI 调用 jcc gh 排查 CI 失败时，首屏 token 预算有限，需要首个工具调用就定位到错误
+> 关乎：ADR 0132（jcc gh 与系统 gh CLI 耦合测试关系）
+
+| 优化 | 描述 | 状态 | commit |
+|------|------|------|--------|
+| A1 | pr checks 汇总前置+异常置顶（失败 check 排在 pass 前，pass 截断5个） | ✅ 已完成 | `a64713508` |
+| A2 | expand=jobs 汇总前置+全量失败+success 折叠到5（非 success 全量显示不截断） | ✅ 已完成 | `09cce1b8b` |
+| B | expand=failed 智能定位错误行（滑动窗口扫描首个错误行，5行上下文+后续行，不从 runner setup 从头输出） | ✅ 已完成 | `c389b2fb1` |
+| C | JCC_OUTPUT_FORMAT 环境变量控制全局默认输出格式 | ✅ 已完成 | `ab0741f8d` |
+
+### 优化A1: pr checks 汇总前置+异常置顶
+
+**改动文件**: `kit/mcp/git_hub/GitHubToolHandlers.Pr.cs`
+**测试**: `PrChecks_SummaryFirst_FailuresBeforePass`（GitHubToolHandlersTests.cs:522）
+
+输出格式从"checks 列表→汇总在末尾"改为"汇总在首行→失败 check→pass 截断5个"。AI 首屏即可看到失败计数和失败 check 名称。
+
+### 优化A2: expand=jobs 汇总前置+全量失败+success 折叠
+
+**改动文件**: `kit/mcp/git_hub/GitHubRunLogFetcher.cs`
+**测试**: `RunView_ExpandJobs_SummaryFirst_AllFailuresShown_SuccessFolded`（GitHubToolHandlersTests.OptimizeA2.cs）
+
+输出格式从"截断前30个 job"改为"汇总首行→全量非 success job→success 仅显示前5个折叠其余"。AI 首屏即可看到所有失败 job，不被 success job 淹没。
+
+### 优化B: expand=failed 智能定位错误行
+
+**改动文件**: `kit/mcp/git_hub/GitHubRunLogFilterRunner.cs`
+**测试**: `RunView_ExpandFailed_SkipsSetupLines_StartsFromError`（GitHubToolHandlersTests.OptimizeA2.cs）
+
+`expand=failed` 无 filter 时，滑动窗口扫描首个错误行（`##[error]`/`[FAIL]`/`Failed`/`Exception`/`error`），输出5行上下文+后续行。未找到错误时回退到最后20行。避免从 runner setup 从头输出，AI 首屏即可看到错误降 token。

@@ -476,6 +476,20 @@ public sealed class GhCommandResolverTests {
         bound["limit"].Should().Be("5");
     }
 
+    /// <summary>gh release edit --latest 无值应映射到 make_latest=true（RenameOnly 别名）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_ReleaseEditLatest_ShouldMapToLatestTrue() {
+        var parameters = new List<GhParam> {
+            new("tag", IsRequired: true, IsBoolean: false),
+            new("make_latest", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "v1.0", "--latest" }, parameters, "gh_release_edit", out var error);
+
+        error.Should().BeNull();
+        bound!["make_latest"].Should().Be("true");
+    }
+
     /// <summary>必填参数保持 required 声明顺序，布尔类型从 schema type 推断</summary>
     [Fact]
     public void ParseSchema_ShouldKeepRequiredOrderAndBooleanType() {

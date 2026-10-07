@@ -421,7 +421,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否草稿(可选)", Required = false)] bool? draft = null,
         [McpToolParameter("是否预发布(可选)", Required = false)] bool? prerelease = null,
         [McpToolParameter("目标 commit/branch(可选)", Required = false)] string? target = null,
-        [McpToolParameter("标记为 latest(可选,true/false/legacy)", Required = false)] string? latest = null,
+        [McpToolParameter("标记为 latest(可选,true/false/legacy)", Required = false)] string? make_latest = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -464,7 +464,7 @@ public partial class GitHubToolHandlers {
                 Draft = draft,
                 Prerelease = prerelease,
                 TargetCommitish = target,
-                MakeLatest = latest
+                MakeLatest = make_latest
             }, GitHubApiJsonContext.Safe.ReleaseEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/releases/{releaseId}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已编辑 Release {tag}") : Fail(result.Error);

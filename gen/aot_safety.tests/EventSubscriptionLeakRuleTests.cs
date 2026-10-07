@@ -210,7 +210,6 @@ public class EventSubscriptionLeakRuleTests {
     public async Task FieldEvent_ConditionalAccessCancel_InDisposeAsync_NoDiagnostic() {
         var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
-            TestState = { ParseOptions = new Microsoft.CodeAnalysis.CSharp.CSharpParseOptions(Microsoft.CodeAnalysis.CSharp.LanguageVersion.Preview) },
             TestCode = """
                 #nullable disable
                 using System;
@@ -220,7 +219,7 @@ public class EventSubscriptionLeakRuleTests {
                     private Source _source;
                     public TestClass() { _source = new Source(); _source.AfterRestart += OnRestarted; }
                     private void OnRestarted(object? sender, EventArgs e) { }
-                    public async ValueTask DisposeAsync() { _source?.AfterRestart -= OnRestarted; }
+                    public async ValueTask DisposeAsync() { if (_source is not null) _source.AfterRestart -= OnRestarted; }
                 }
                 """,
         };
@@ -245,6 +244,31 @@ public class EventSubscriptionLeakRuleTests {
                         }
                         public void Dispose() { _client.MessageProcessed -= _handler; }
                     }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task NestedClass_EventSubscription_OuterClassDispose_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<MemoryLeakRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                class Outer { public event EventHandler? MessageProcessed; }
+                class OuterClass : IDisposable {
+                    private sealed class InnerScope : IDisposable {
+                        private readonly Outer _client;
+                        private readonly EventHandler _handler;
+                        public InnerScope(Outer client) {
+                            _client = client;
+                            _handler = (s, e) => { };
+                            _client.MessageProcessed += _handler;
+                        }
+                        public void Dispose() { _client.MessageProcessed -= _handler; }
+                    }
+                    public void Dispose() { }
                 }
                 """,
         };

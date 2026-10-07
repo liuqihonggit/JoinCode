@@ -192,6 +192,7 @@ public sealed class EventSubscriptionLeakRule : AnalyzerRuleBase<EventSubscripti
         foreach (var assign in typeDecl.DescendantNodes().OfType<AssignmentExpressionSyntax>()) {
             if (ct.IsCancellationRequested) return result;
             if (!assign.IsKind(SyntaxKind.AddAssignmentExpression)) continue;
+            if (IsInNestedType(assign, typeDecl)) continue;
             if (IsInDisposeBody(assign, disposeBodySet)) continue;
             if (IsInEventAccessor(assign)) continue;
             if (IsCancelledInSameMethod(assign, semanticModel, ct)) continue;
@@ -312,6 +313,15 @@ public sealed class EventSubscriptionLeakRule : AnalyzerRuleBase<EventSubscripti
                 && (accessor.IsKind(SyntaxKind.AddAccessorDeclaration)
                     || accessor.IsKind(SyntaxKind.RemoveAccessorDeclaration)))
                 return true;
+        }
+        return false;
+    }
+
+    /// <summary>检查节点是否位于嵌套类型内 — 嵌套类型会被单独分析,外层类不应重复报告其订阅</summary>
+    private static bool IsInNestedType(SyntaxNode node, TypeDeclarationSyntax currentType) {
+        foreach (var ancestor in node.Ancestors()) {
+            if (ancestor == currentType) return false;
+            if (ancestor is TypeDeclarationSyntax) return true;
         }
         return false;
     }

@@ -160,7 +160,7 @@ public sealed class ResilientSubprocess : IAsyncDisposable {
             await _healthMonitor.DisposeAsync().ConfigureAwait(false);
         }
         _healthMonitor = null;
-        _restartManager?.AfterRestart -= OnProcessRestarted;
+        if (_restartManager is not null) _restartManager.AfterRestart -= OnProcessRestarted;
         _inputChannel.Dispose();
         _outputChannel.Dispose();
         _circuitBreaker?.Dispose();

@@ -47,4 +47,8 @@ namespace JoinCode.Cli.Output;
 [System.Text.Json.Serialization.JsonSerializable(typeof(JoinCode.Abstractions.Tools.ToolSchemaProperty))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(System.Collections.Generic.Dictionary<string, JoinCode.Abstractions.Tools.ToolSchemaProperty>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliSlashSchemaHintResult))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(CrashDumpSnapshotDto))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(CrashDumpFrameDto))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(CrashDumpContextDto))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(CrashDumpFrameDto[]))]
 public partial class CliOutputJsonContext : System.Text.Json.Serialization.JsonSerializerContext;

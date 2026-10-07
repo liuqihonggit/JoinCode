@@ -299,6 +299,7 @@ internal static class GhArgsBinder {
             ("gh_repo_edit", "enable-wiki")     => new GhCliAlias("has_wiki", null, AliasKind.RenameOnly),
             ("gh_repo_edit", "enable-projects") => new GhCliAlias("has_projects", null, AliasKind.RenameOnly),
             ("gh_release_create", "latest")    => new GhCliAlias("make_latest", null, AliasKind.RenameOnly),
+            ("gh_run_list", "event")           => new GhCliAlias("event_type", null, AliasKind.TakeNextToken),
             _                                  => null
         };
 

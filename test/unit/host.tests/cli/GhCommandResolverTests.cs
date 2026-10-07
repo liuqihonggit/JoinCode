@@ -446,6 +446,21 @@ public sealed class GhCommandResolverTests {
         bound!["make_latest"].Should().Be("false");
     }
 
+    /// <summary>系统 gh CLI 的 --event 应映射到 event_type（gh run list --event push）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_Event_ShouldMapToEventType() {
+        var parameters = new List<GhParam> {
+            new("limit", IsRequired: false, IsBoolean: false),
+            new("event_type", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--event", "push", "--limit", "5" }, parameters, "gh_run_list", out var error);
+
+        error.Should().BeNull();
+        bound!["event_type"].Should().Be("push");
+        bound["limit"].Should().Be("5");
+    }
+
     /// <summary>必填参数保持 required 声明顺序，布尔类型从 schema type 推断</summary>
     [Fact]
     public void ParseSchema_ShouldKeepRequiredOrderAndBooleanType() {

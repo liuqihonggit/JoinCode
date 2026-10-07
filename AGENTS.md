@@ -570,6 +570,7 @@ jcc mcp_call gh_run_view  '{"run_id":"123"}'        # run_id 必填
 | `--approve`/`--request-changes`/`--comment` | `--action approve/request_changes/comment` | ✅ 已自动映射（gh pr review） |
 | `--enable-issues`/`--enable-wiki`/`--enable-projects` | `--has_issues`/`--has_wiki`/`--has_projects` | ✅ 已自动映射（gh repo edit，仅重命名+bool flag） |
 | `--latest` | `--make_latest` | ✅ 已自动映射（gh release create，仅重命名+bool flag） |
+| `--event` | `--event_type` | ✅ 已自动映射（gh run list，取下一 token） |
 | `--delete-branch` | `--delete_branch` | ✅ 连字符自动归一化 |
 | `--json number,title,url` | 不需要（jcc 默认 JSON 输出） | ❌ `--json` 被剥离后字段列表变位置参数报错；如需 text 用 `--format text` |
 | `-f key=value` | `--fields key=value` | ❌ 需改写（gh_api 查询参数） |

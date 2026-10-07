@@ -110,6 +110,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("标签(可选,多个用逗号)", Required = false)] string? label = null,
         [McpToolParameter("指派人(可选)", Required = false)] string? assignee = null,
         [McpToolParameter("里程碑 ID(可选)", Required = false)] int? milestone = null,
+        [McpToolParameter("添加到 Project 编号(可选,GraphQL addProjectV2ItemById)", Required = false)] int? project = null,
         [McpToolParameter("附加文件(可选,多个用逗号,暂未支持,需文件上传 API)", Required = false)] string? attach = null,
         [McpToolParameter("被哪些 issue 阻塞(可选,多个用逗号,暂未支持,需 GraphQL sub-issue API)", Required = false)] string? blocked_by = null,
         [McpToolParameter("阻塞哪些 issue(可选,多个用逗号,暂未支持,需 GraphQL sub-issue API)", Required = false)] string? blocking = null,
@@ -138,7 +139,19 @@ public partial class GitHubToolHandlers {
             };
             var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.IssueCreateRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, "Issue 创建成功") : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            if (project is not null) {
+                string? nodeId = null;
+                try {
+                    using var doc = JsonDocument.Parse(result.Body);
+                    nodeId = doc.RootElement.TryGetProperty("node_id", out var n) ? n.GetString() : null;
+                } catch (Exception ex) { _logger?.LogDebug(ex, "解析 Issue node_id 失败"); }
+                if (!string.IsNullOrEmpty(nodeId)) {
+                    var projectResult = await AddToProjectAsync(client, owner, nodeId!, project.Value, cancellationToken).ConfigureAwait(false);
+                    if (!projectResult.Success) _logger?.LogWarning("添加 Issue 到 Project #{Project} 失败: {Error}", project, projectResult.Error);
+                }
+            }
+            return OkBrief(result.Body, "Issue 创建成功");
         }).ConfigureAwait(false);
 
     /// <summary>

@@ -582,6 +582,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("标签(可选,多个用逗号)", Required = false)] string? label = null,
         [McpToolParameter("审阅人(可选,多个用逗号)", Required = false)] string? reviewer = null,
         [McpToolParameter("里程碑 ID(可选)", Required = false)] int? milestone = null,
+        [McpToolParameter("添加到 Project 编号(可选,GraphQL addProjectV2ItemById)", Required = false)] int? project = null,
         [McpToolParameter("从 git commit 自动填充 title/body(可选,取 HEAD 最新 commit)", Required = false)] bool? fill = null,
         [McpToolParameter("从分支第一条 commit 自动填充 title/body(可选,取 base..head 最早 commit)", Required = false)] bool? fill_first = null,
         [McpToolParameter("fill 模式下显示 commit 详细信息(可选)", Required = false)] bool? fill_verbose = null,
@@ -630,6 +631,10 @@ public partial class GitHubToolHandlers {
             if (!result.Success) return Fail(result.Error);
             var (prNumber, nodeId) = ExtractPrInfoFromResponse(result.Body);
             if (prNumber > 0) await AddPrPostCreateAttributesAsync(client, owner, repoName, prNumber, assignee, label, reviewer, milestone, cancellationToken).ConfigureAwait(false);
+            if (project is not null && prNumber > 0 && !string.IsNullOrEmpty(nodeId)) {
+                var projectResult = await AddToProjectAsync(client, owner, nodeId, project.Value, cancellationToken).ConfigureAwait(false);
+                if (!projectResult.Success) _logger?.LogWarning("添加 PR 到 Project #{Project} 失败: {Error}", project, projectResult.Error);
+            }
             var auditWarning = await auditTask.ConfigureAwait(false);
             if (auto_merge == true && prNumber > 0 && !string.IsNullOrEmpty(nodeId)) {
                 var autoMergeResult = await EnableAutoMergeAsync(client, nodeId, merge_method, cancellationToken).ConfigureAwait(false);
@@ -694,6 +699,41 @@ public partial class GitHubToolHandlers {
             var nodeId = doc.RootElement.TryGetProperty("node_id", out var id) ? id.GetString() : null;
             return (number, nodeId);
         } catch (Exception ex) { _logger?.LogDebug(ex, "解析 PR 信息失败"); return (0, null); }
+    }
+
+    /// <summary>
+    /// 将 Issue/PR 添加到 GitHub Project v2 — 查询 project node_id 后调 GraphQL addProjectV2ItemById mutation
+    /// </summary>
+    /// <param name="client">GitHub API 客户端</param>
+    /// <param name="owner">仓库 owner（用于查 organization project）</param>
+    /// <param name="contentNodeId">Issue/PR 的 node_id</param>
+    /// <param name="projectNumber">Project 编号</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>(成功?, 错误信息)</returns>
+    private async Task<(bool Success, string? Error)> AddToProjectAsync(IGitHubApiClient client, string owner, string contentNodeId, int projectNumber, CancellationToken ct) {
+        var projectQuery = BuildGraphQL($"query{{organization(login:\"{owner}\"){{projectV2(number:{projectNumber}){{id}}}}}}");
+        var projectResult = await client.SendAsync(HttpMethod.Post, "graphql", projectQuery, ct: ct).ConfigureAwait(false);
+        string? projectId = null;
+        if (projectResult.Success) {
+            try {
+                using var doc = JsonDocument.Parse(projectResult.Body);
+                projectId = doc.RootElement.GetProperty("data").GetProperty("organization").GetProperty("projectV2").GetProperty("id").GetString();
+            } catch (Exception ex) { _logger?.LogDebug(ex, "解析 organization projectV2 id 失败"); }
+        }
+        if (string.IsNullOrEmpty(projectId)) {
+            var viewerQuery = BuildGraphQL($"query{{viewer{{projectV2(number:{projectNumber}){{id}}}}}}");
+            var viewerResult = await client.SendAsync(HttpMethod.Post, "graphql", viewerQuery, ct: ct).ConfigureAwait(false);
+            if (viewerResult.Success) {
+                try {
+                    using var doc = JsonDocument.Parse(viewerResult.Body);
+                    projectId = doc.RootElement.GetProperty("data").GetProperty("viewer").GetProperty("projectV2").GetProperty("id").GetString();
+                } catch (Exception ex) { _logger?.LogDebug(ex, "解析 viewer projectV2 id 失败"); }
+            }
+        }
+        if (string.IsNullOrEmpty(projectId)) return (false, $"无法找到 Project #{projectNumber}（尝试 organization 和 viewer 均失败）");
+        var mutation = BuildGraphQL($"mutation{{addProjectV2ItemById(input:{{projectId:\"{projectId}\",contentId:\"{contentNodeId}\"}}){{item{{id}}}}}}");
+        var mutationResult = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
+        return mutationResult.Success ? (true, null) : (false, mutationResult.Error);
     }
 
     /// <summary>

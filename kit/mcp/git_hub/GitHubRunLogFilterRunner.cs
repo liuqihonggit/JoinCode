@@ -167,15 +167,20 @@ internal sealed class GitHubRunLogFilterRunner {
             return GitHubToolHandlers.Fail($"无效的 Run ID: {runId}");
         }
 
-        await foreach (var line in logLines.ConfigureAwait(false)) {
-            lineNumber++;
-            if (markers is not null && !LineMatchesAnyMarker(line.AsSpan(), markers))
-                continue;
-            // 先跳过 skipLines 行(分页续读)
-            if (skipped < skipLines) { skipped++; continue; }
-            // 加行号前缀,方便定位(去时间戳减少噪音)
-            matched.Add($"  L{lineNumber,5}  {GitHubRunLogText.StripLogTimestamp(line)}");
-            if (matched.Count >= maxLines) break;
+        // 优化B: expand=failed 无 filter 时智能定位错误行,不从 runner setup 从头开始
+        if (failedOnly && markers is null) {
+            matched = await CollectWithSmartStartAsync(logLines, maxLines, skipLines, ct).ConfigureAwait(false);
+        } else {
+            await foreach (var line in logLines.ConfigureAwait(false)) {
+                lineNumber++;
+                if (markers is not null && !LineMatchesAnyMarker(line.AsSpan(), markers))
+                    continue;
+                // 先跳过 skipLines 行(分页续读)
+                if (skipped < skipLines) { skipped++; continue; }
+                // 加行号前缀,方便定位(去时间戳减少噪音)
+                matched.Add($"  L{lineNumber,5}  {GitHubRunLogText.StripLogTimestamp(line)}");
+                if (matched.Count >= maxLines) break;
+            }
         }
         var prefix = GitHubRunLogFilter.BuildPrefix(runId, scope, filterLevel, matched.Count);
         if (matched.Count == 0) {
@@ -193,6 +198,67 @@ internal sealed class GitHubRunLogFilterRunner {
             text += GitHubRunLogHints.NoStackTraceHint;
         return GitHubToolHandlers.Ok(text, prefix);
     }
+
+    /// <summary>
+    /// 优化B: expand=failed 智能定位错误行 — 滑动窗口扫描,找到首个错误行后输出上下文+后续行
+    /// <para>避免从 runner setup 从头输出,AI 首屏即可看到错误降 token</para>
+    /// <para>滑动窗口: contextBefore=5 行上下文,未找到错误时回退到最后 tailFallback=20 行</para>
+    /// </summary>
+    private async Task<List<string>> CollectWithSmartStartAsync(
+        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, CancellationToken ct) {
+        const int contextBefore = 5;
+        const int tailFallback = 20;
+        var matched = new List<string>(maxLines);
+        var contextWindow = new Queue<string>(contextBefore);
+        var tailWindow = new Queue<string>(tailFallback);
+        var skipped = 0;
+        var lineNumber = 0;
+        var foundError = false;
+
+        await foreach (var line in logLines.ConfigureAwait(false)) {
+            lineNumber++;
+            var formatted = $"  L{lineNumber,5}  {GitHubRunLogText.StripLogTimestamp(line)}";
+            if (foundError) {
+                if (skipped < skipLines) { skipped++; continue; }
+                matched.Add(formatted);
+                if (matched.Count >= maxLines) break;
+            } else if (IsErrorIndicatorLine(line.AsSpan())) {
+                foundError = true;
+                foreach (var ctxLine in contextWindow) {
+                    if (skipped < skipLines) { skipped++; continue; }
+                    matched.Add(ctxLine);
+                    if (matched.Count >= maxLines) break;
+                }
+                if (matched.Count >= maxLines) break;
+                if (skipped < skipLines) { skipped++; continue; }
+                matched.Add(formatted);
+                if (matched.Count >= maxLines) break;
+            } else {
+                contextWindow.Enqueue(formatted);
+                if (contextWindow.Count > contextBefore) contextWindow.Dequeue();
+                tailWindow.Enqueue(formatted);
+                if (tailWindow.Count > tailFallback) tailWindow.Dequeue();
+            }
+        }
+
+        if (!foundError && matched.Count == 0) {
+            foreach (var tailLine in tailWindow) {
+                if (skipped < skipLines) { skipped++; continue; }
+                matched.Add(tailLine);
+                if (matched.Count >= maxLines) break;
+            }
+        }
+        return matched;
+    }
+
+    /// <summary>错误指示行检测 — ##[error] / [FAIL] / Failed / Exception / error / : error:</summary>
+    private static bool IsErrorIndicatorLine(ReadOnlySpan<char> line)
+        => line.Contains("##[error]", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("Failed ", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("Exception", StringComparison.OrdinalIgnoreCase)
+        || line.Contains(" error ", StringComparison.OrdinalIgnoreCase)
+        || line.Contains(": error:", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// 构建 0 行匹配的精准提示 — 区分"无失败"vs"filter 不匹配"vs"日志空",引导 AI 下一步

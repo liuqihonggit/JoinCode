@@ -34,4 +34,27 @@ public sealed partial class GitHubToolHandlersTests {
         sixthSuccessIdx.Should().Be(-1, "第 6 个 success 应被折叠");
         text.Should().Contain("另有 15 个 success", "应提示折叠了 15 个 success");
     }
+
+    /// <summary>优化B: expand=failed 智能定位错误行,不从 runner setup 从头开始(AI 首屏看到错误降 token)</summary>
+    [Fact]
+    public async Task RunView_ExpandFailed_SkipsSetupLines_StartsFromError() {
+        var lines = new List<string>();
+        for (var i = 1; i <= 30; i++)
+            lines.Add($"setup line {i}");
+        lines.Add("##[error]Build failed: CS0103 The name 'foo' does not exist");
+        for (var i = 1; i <= 10; i++)
+            lines.Add($"stack trace line {i}");
+
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[{"id":1,"conclusion":"failure","name":"build"}]}""" });
+        _api.NextLogLines = lines;
+
+        var result = await _handler.GhRunViewAsync("42", expand: "failed", max_lines: 200, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("##[error]Build failed", "错误行应显示");
+        text.Should().NotContain("setup line 1", "不应从第 1 行 setup 开始");
+        text.Should().NotContain("setup line 10", "不应包含早期 setup 行");
+    }
 }

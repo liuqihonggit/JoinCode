@@ -260,6 +260,74 @@ public sealed class GitHubApiClientTest : IDisposable {
         error.Should().Contain("前4字节="); // hex 为空字符串
     }
 
+    // ===== MergeJsonArrays 对象结构分页（缺陷1: 丢页修复）=====
+
+    /// <summary>
+    /// GitHub Actions /actions/runs/{id}/jobs 返回 {"jobs":[...],"total_count":N} 对象,
+    /// 旧逻辑遇对象直接返回 bodies[0] 丢弃第 2 页,导致 expand=jobs 截断 + expand=failed 0 行
+    /// </summary>
+    [Fact]
+    public void MergeJsonArrays_ObjectWithJobsArray_MergesAllPages() {
+        var page1 = """{"jobs":[{"id":1,"name":"job-1"}],"total_count":2}""";
+        var page2 = """{"jobs":[{"id":2,"name":"job-2"}],"total_count":2}""";
+
+        var merged = _client.MergeJsonArrays([page1, page2]);
+
+        using var doc = JsonDocument.Parse(merged);
+        doc.RootElement.GetProperty("jobs").GetArrayLength().Should().Be(2);
+        doc.RootElement.GetProperty("jobs")[0].GetProperty("id").GetInt32().Should().Be(1);
+        doc.RootElement.GetProperty("jobs")[1].GetProperty("id").GetInt32().Should().Be(2);
+    }
+
+    /// <summary>check-runs 端点同对象结构,影响 gh pr checks</summary>
+    [Fact]
+    public void MergeJsonArrays_ObjectWithCheckRunsArray_MergesAllPages() {
+        var page1 = """{"check_runs":[{"id":10,"name":"check-a"}],"total_count":2}""";
+        var page2 = """{"check_runs":[{"id":11,"name":"check-b"}],"total_count":2}""";
+
+        var merged = _client.MergeJsonArrays([page1, page2]);
+
+        using var doc = JsonDocument.Parse(merged);
+        doc.RootElement.GetProperty("check_runs").GetArrayLength().Should().Be(2);
+    }
+
+    /// <summary>合并后保留非数组元数据(如 incomplete_results),仅替换数组属性</summary>
+    [Fact]
+    public void MergeJsonArrays_Object_PreservesNonArrayMetadata() {
+        var page1 = """{"jobs":[{"id":1}],"total_count":3,"incomplete_results":false}""";
+        var page2 = """{"jobs":[{"id":2},{"id":3}],"total_count":3,"incomplete_results":false}""";
+
+        var merged = _client.MergeJsonArrays([page1, page2]);
+
+        using var doc = JsonDocument.Parse(merged);
+        doc.RootElement.GetProperty("jobs").GetArrayLength().Should().Be(3);
+        doc.RootElement.GetProperty("incomplete_results").GetBoolean().Should().BeFalse();
+    }
+
+    /// <summary>顶层数组合并(回归保护,确保对象分页修复不破坏原顶层数组路径)</summary>
+    [Fact]
+    public void MergeJsonArrays_TopLevelArray_StillMerges() {
+        var page1 = """[{"id":1}]""";
+        var page2 = """[{"id":2}]""";
+
+        var merged = _client.MergeJsonArrays([page1, page2]);
+
+        using var doc = JsonDocument.Parse(merged);
+        doc.RootElement.GetArrayLength().Should().Be(2);
+    }
+
+    /// <summary>单页对象不丢数据(回归)</summary>
+    [Fact]
+    public void MergeJsonArrays_SingleObjectPage_PreservesStructure() {
+        var page = """{"jobs":[{"id":1,"name":"only"}],"total_count":1}""";
+
+        var merged = _client.MergeJsonArrays([page]);
+
+        using var doc = JsonDocument.Parse(merged);
+        doc.RootElement.GetProperty("jobs").GetArrayLength().Should().Be(1);
+        doc.RootElement.GetProperty("total_count").GetInt32().Should().Be(1);
+    }
+
     private sealed class FakeHandler : HttpMessageHandler {
         public HttpRequestMessage? LastRequest;
         public HttpResponseMessage Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };

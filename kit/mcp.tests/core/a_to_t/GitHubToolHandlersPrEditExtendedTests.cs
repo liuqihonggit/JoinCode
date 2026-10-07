@@ -79,29 +79,46 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
-    public async Task PrEdit_AddProject_ReturnsNotSupportedError() {
-        var result = await _handler.GhPrEditAsync("42", add_project: "Roadmap", repo: "owner/repo");
+    public async Task PrEdit_AddProject_CallsGraphQLAddProjectV2ItemById() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"node_id":"PR_kw123"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"organization":{"projectsV2":{"nodes":[{"id":"PVT_1","title":"Roadmap"}]}}}}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"addProjectV2ItemById":{"item":{"id":"PVTI_1"}}}}""" });
 
-        result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("add_project");
-        result.GetFirstText().Should().Contain("暂未支持");
+        await _handler.GhPrEditAsync("42", add_project: "Roadmap", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("graphql");
+        _api.LastBody.Should().Contain("addProjectV2ItemById");
     }
 
     [Fact]
-    public async Task PrEdit_RemoveProject_ReturnsNotSupportedError() {
-        var result = await _handler.GhPrEditAsync("42", remove_project: "Roadmap", repo: "owner/repo");
+    public async Task PrEdit_RemoveProject_CallsGraphQLDeleteProjectV2Item() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"node_id":"PR_kw123"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"organization":{"projectsV2":{"nodes":[{"id":"PVT_1","title":"Roadmap"}]}}}}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"node":{"items":{"nodes":[{"id":"PVTI_1","content":{"id":"PR_kw123"}}]}}}}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"deleteProjectV2Item":{"clientMutationId":null}}}""" });
 
-        result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("remove_project");
-        result.GetFirstText().Should().Contain("暂未支持");
+        await _handler.GhPrEditAsync("42", remove_project: "Roadmap", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("graphql");
+        _api.LastBody.Should().Contain("deleteProjectV2Item");
     }
 
     [Fact]
-    public async Task PrEdit_Attach_ReturnsNotSupportedError() {
-        var result = await _handler.GhPrEditAsync("42", attach: "screenshot.png", repo: "owner/repo");
+    public async Task PrEdit_Attach_UploadsFileAndUpdatesBody() {
+        var fs = new InMemoryFileSystem();
+        await fs.WriteAllTextAsync("/tmp/screenshot.png", "fake image content");
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"node_id":"PR_kw123"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":12345}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"url":"https://github.com/user-attachments/assets/abc123"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
 
-        result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("attach");
-        result.GetFirstText().Should().Contain("暂未支持");
+        var result = await handler.GhPrEditAsync("42", attach: "/tmp/screenshot.png", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastBody.Should().Contain("https://github.com/user-attachments/assets/abc123");
     }
 }

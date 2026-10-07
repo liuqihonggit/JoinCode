@@ -816,15 +816,13 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("移除指派人(可选,多个用逗号)", Required = false)] string? remove_assignee = null,
         [McpToolParameter("里程碑名称(可选,按名称设置)", Required = false)] string? milestone = null,
         [McpToolParameter("移除里程碑(可选)", Required = false)] bool? remove_milestone = null,
-        [McpToolParameter("添加到项目(可选,GraphQL,暂未支持)", Required = false)] string? add_project = null,
-        [McpToolParameter("从项目移除(可选,GraphQL,暂未支持)", Required = false)] string? remove_project = null,
-        [McpToolParameter("附加文件(可选,暂未支持)", Required = false)] string? attach = null,
+        [McpToolParameter("添加到项目(可选,按项目标题)", Required = false)] string? add_project = null,
+        [McpToolParameter("从项目移除(可选,按项目标题)", Required = false)] string? remove_project = null,
+        [McpToolParameter("附加文件(可选,上传到 GitHub 附件)", Required = false)] string? attach = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            if (add_project is not null || remove_project is not null) return Fail("add_project/remove_project 需要 GraphQL Projects API,暂未支持。请用 gh pr edit --add-project 手动操作");
-            if (attach is not null) return Fail("attach 需要文件上传 API,暂未支持。请用 gh pr edit --attach 手动操作");
             var number = ParseNumberFromRef(pr_number);
             var effectiveBody = body;
             if (!string.IsNullOrWhiteSpace(body_file)) {
@@ -882,6 +880,32 @@ public partial class GitHubToolHandlers {
                 var assigneesBody = JsonSerializer.Serialize(new AssigneesRequest { Assignees = ParseCsvToList(remove_assignee) }, GitHubApiJsonContext.Safe.AssigneesRequest);
                 var removeResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/issues/{number}/assignees", assigneesBody, ct: cancellationToken).ConfigureAwait(false);
                 if (!removeResult.Success) return Fail(removeResult.Error);
+            }
+            if (add_project is not null || remove_project is not null || attach is not null) {
+                var nodeId = await GetIssueNodeIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
+                if (string.IsNullOrEmpty(nodeId)) return Fail($"无法获取 PR {number} 的 node_id");
+                if (!string.IsNullOrWhiteSpace(add_project)) {
+                    foreach (var pTitle in ParseCsvToList(add_project)) {
+                        var (ok, err) = await AddToProjectByTitleAsync(client, owner, nodeId, pTitle, cancellationToken).ConfigureAwait(false);
+                        if (!ok) return Fail(err!);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(remove_project)) {
+                    foreach (var pTitle in ParseCsvToList(remove_project)) {
+                        var (ok, err) = await RemoveFromProjectByTitleAsync(client, owner, nodeId, pTitle, cancellationToken).ConfigureAwait(false);
+                        if (!ok) return Fail(err!);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(attach)) {
+                    foreach (var filePath in ParseCsvToList(attach)) {
+                        var (assetUrl, err) = await AttachFileAsync(client, owner, repoName, filePath, cancellationToken).ConfigureAwait(false);
+                        if (assetUrl is null) return Fail(err!);
+                        effectiveBody = (effectiveBody ?? "") + $"\n\n![{Path.GetFileNameWithoutExtension(filePath)}]({assetUrl})";
+                    }
+                    var prBody = JsonSerializer.Serialize(new PrEditRequest { Body = effectiveBody }, GitHubApiJsonContext.Safe.PrEditRequest);
+                    var attachResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", prBody, ct: cancellationToken).ConfigureAwait(false);
+                    if (!attachResult.Success) return Fail(attachResult.Error);
+                }
             }
             return OkBrief("", $"已编辑 PR {number}");
         }).ConfigureAwait(false);

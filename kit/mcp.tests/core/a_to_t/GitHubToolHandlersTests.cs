@@ -1873,6 +1873,13 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
         return Task.FromResult(NextResponse);
     }
 
+    public Task<GitHubApiResponse> UploadAttachmentAsync(long repositoryId, string fileName, Stream fileStream, CancellationToken ct = default) {
+        LastMethod = HttpMethod.Post;
+        LastPath = "user-attachments/assets";
+        var response = _responses.Count > 0 ? _responses.Dequeue() : _default;
+        return Task.FromResult(response);
+    }
+
     public Task<GitHubApiResponse> DownloadArtifactAsync(string owner, string repo, long artifactId, string filePath, CancellationToken ct = default) {
         LastMethod = HttpMethod.Get;
         LastPath = $"repos/{owner}/{repo}/actions/artifacts/{artifactId}/zip";

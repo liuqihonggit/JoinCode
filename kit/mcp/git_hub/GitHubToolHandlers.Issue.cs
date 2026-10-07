@@ -220,34 +220,77 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 编辑 Issue — 修改标题/body/标签/指派人/里程碑，调 REST API PATCH + POST/DELETE assignees
+    /// 编辑 Issue — 修改标题/body/标签/指派人/里程碑，调 REST API PATCH + POST/DELETE labels/assignees
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhIssueEdit, "编辑 Issue(title/body/label/assignee/milestone/add_assignee/remove_assignee)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhIssueEdit, "编辑 Issue(title/body/body_file/label/add_label/remove_label/assignee/add_assignee/remove_assignee/milestone/remove_milestone/add_project/remove_project/attach/add_sub_issue/remove_sub_issue/parent/remove_parent/add_blocked_by/remove_blocked_by/add_blocking/remove_blocking/type/remove_type)", "github")]
     public async Task<ToolResult> GhIssueEditAsync(
         [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
         [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
         [McpToolParameter("新 body(可选)", Required = false)] string? body = null,
-        [McpToolParameter("标签(可选,多个用逗号)", Required = false)] string? label = null,
+        [McpToolParameter("从文件读 body(可选,替代 body)", Required = false)] string? body_file = null,
+        [McpToolParameter("标签(可选,多个用逗号,替换全部)", Required = false)] string? label = null,
+        [McpToolParameter("添加标签(可选,多个用逗号)", Required = false)] string? add_label = null,
+        [McpToolParameter("移除标签(可选,多个用逗号)", Required = false)] string? remove_label = null,
         [McpToolParameter("指派人(可选,多个用逗号,替换全部)", Required = false)] string? assignee = null,
-        [McpToolParameter("里程碑 ID(可选)", Required = false)] int? milestone = null,
         [McpToolParameter("添加指派人(可选,多个用逗号)", Required = false)] string? add_assignee = null,
         [McpToolParameter("移除指派人(可选,多个用逗号)", Required = false)] string? remove_assignee = null,
+        [McpToolParameter("里程碑名称(可选,按名称设置)", Required = false)] string? milestone = null,
+        [McpToolParameter("移除里程碑(可选)", Required = false)] bool? remove_milestone = null,
+        [McpToolParameter("添加到项目(可选,按项目标题)", Required = false)] string? add_project = null,
+        [McpToolParameter("从项目移除(可选,按项目标题)", Required = false)] string? remove_project = null,
+        [McpToolParameter("附加文件(可选,上传到 GitHub 附件)", Required = false)] string? attach = null,
+        [McpToolParameter("添加子 issue(可选,多个用逗号)", Required = false)] string? add_sub_issue = null,
+        [McpToolParameter("移除子 issue(可选,多个用逗号)", Required = false)] string? remove_sub_issue = null,
+        [McpToolParameter("设置父 issue(可选,issue 编号)", Required = false)] string? parent = null,
+        [McpToolParameter("移除父 issue(可选)", Required = false)] bool? remove_parent = null,
+        [McpToolParameter("添加 blocked-by 关系(可选,多个用逗号)", Required = false)] string? add_blocked_by = null,
+        [McpToolParameter("移除 blocked-by 关系(可选,多个用逗号)", Required = false)] string? remove_blocked_by = null,
+        [McpToolParameter("添加 blocking 关系(可选,多个用逗号)", Required = false)] string? add_blocking = null,
+        [McpToolParameter("移除 blocking 关系(可选,多个用逗号)", Required = false)] string? remove_blocking = null,
+        [McpToolParameter("设置 issue 类型(可选,按类型名)", Required = false)] string? type = null,
+        [McpToolParameter("移除 issue 类型(可选)", Required = false)] bool? remove_type = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
-            if (title is not null || body is not null || label is not null || assignee is not null || milestone is not null) {
+            var effectiveBody = body;
+            if (!string.IsNullOrWhiteSpace(body_file)) {
+                if (!_fs.FileExists(body_file)) return Fail($"body_file 不存在: {body_file}");
+                effectiveBody = await _fs.ReadAllTextAsync(body_file, cancellationToken).ConfigureAwait(false);
+            }
+            if (title is not null || effectiveBody is not null || label is not null || assignee is not null) {
                 var request = new IssueEditRequest {
                     Title = title,
-                    Body = body,
+                    Body = effectiveBody,
                     Labels = ParseCsvToList(label),
                     Assignees = ParseCsvToList(assignee),
-                    Milestone = milestone,
                 };
                 var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.IssueEditRequest);
                 var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
                 if (!result.Success) return Fail(result.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(add_label)) {
+                var labelsBody = JsonSerializer.Serialize(new LabelsAddRequest { Labels = ParseCsvToList(add_label) }, GitHubApiJsonContext.Safe.LabelsAddRequest);
+                var addLabelResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/labels", labelsBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!addLabelResult.Success) return Fail(addLabelResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(remove_label)) {
+                foreach (var lbl in ParseCsvToList(remove_label)) {
+                    var removeLabelResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/issues/{number}/labels/{Uri.EscapeDataString(lbl)}", ct: cancellationToken).ConfigureAwait(false);
+                    if (!removeLabelResult.Success) return Fail(removeLabelResult.Error);
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(milestone)) {
+                var milestoneId = await ResolveMilestoneIdAsync(client, owner, repoName, milestone, cancellationToken).ConfigureAwait(false);
+                if (milestoneId is null) return Fail($"未找到里程碑: {milestone}");
+                var milestoneBody = JsonSerializer.Serialize(new MilestoneRequest { Milestone = milestoneId }, GitHubApiJsonContext.Safe.MilestoneRequest);
+                var milestoneResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", milestoneBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!milestoneResult.Success) return Fail(milestoneResult.Error);
+            }
+            if (remove_milestone == true) {
+                var milestoneResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", """{"milestone":null}""", ct: cancellationToken).ConfigureAwait(false);
+                if (!milestoneResult.Success) return Fail(milestoneResult.Error);
             }
             if (!string.IsNullOrWhiteSpace(add_assignee)) {
                 var assigneesBody = JsonSerializer.Serialize(new AssigneesRequest { Assignees = ParseCsvToList(add_assignee) }, GitHubApiJsonContext.Safe.AssigneesRequest);
@@ -258,6 +301,106 @@ public partial class GitHubToolHandlers {
                 var assigneesBody = JsonSerializer.Serialize(new AssigneesRequest { Assignees = ParseCsvToList(remove_assignee) }, GitHubApiJsonContext.Safe.AssigneesRequest);
                 var removeResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/issues/{number}/assignees", assigneesBody, ct: cancellationToken).ConfigureAwait(false);
                 if (!removeResult.Success) return Fail(removeResult.Error);
+            }
+            var needsNodeId = add_project is not null || remove_project is not null || attach is not null ||
+                add_sub_issue is not null || remove_sub_issue is not null || parent is not null || remove_parent == true ||
+                add_blocked_by is not null || remove_blocked_by is not null || add_blocking is not null || remove_blocking is not null ||
+                type is not null || remove_type == true;
+            if (needsNodeId) {
+                var nodeId = await GetIssueNodeIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
+                if (string.IsNullOrEmpty(nodeId)) return Fail($"无法获取 Issue {number} 的 node_id");
+                if (!string.IsNullOrWhiteSpace(add_project)) {
+                    foreach (var pTitle in ParseCsvToList(add_project)) {
+                        var (ok, err) = await AddToProjectByTitleAsync(client, owner, nodeId, pTitle, cancellationToken).ConfigureAwait(false);
+                        if (!ok) return Fail(err!);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(remove_project)) {
+                    foreach (var pTitle in ParseCsvToList(remove_project)) {
+                        var (ok, err) = await RemoveFromProjectByTitleAsync(client, owner, nodeId, pTitle, cancellationToken).ConfigureAwait(false);
+                        if (!ok) return Fail(err!);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(attach)) {
+                    foreach (var filePath in ParseCsvToList(attach)) {
+                        var (assetUrl, err) = await AttachFileAsync(client, owner, repoName, filePath, cancellationToken).ConfigureAwait(false);
+                        if (assetUrl is null) return Fail(err!);
+                        effectiveBody = (effectiveBody ?? "") + $"\n\n![{Path.GetFileNameWithoutExtension(filePath)}]({assetUrl})";
+                    }
+                    var issueBody = JsonSerializer.Serialize(new IssueEditRequest { Body = effectiveBody }, GitHubApiJsonContext.Safe.IssueEditRequest);
+                    var attachResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", issueBody, ct: cancellationToken).ConfigureAwait(false);
+                    if (!attachResult.Success) return Fail(attachResult.Error);
+                }
+                if (!string.IsNullOrWhiteSpace(add_sub_issue)) {
+                    foreach (var childNum in ParseCsvToList(add_sub_issue)) {
+                        var childNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(childNum), cancellationToken).ConfigureAwait(false);
+                        if (string.IsNullOrEmpty(childNodeId)) return Fail($"无法获取子 Issue {childNum} 的 node_id");
+                        var (ok, err) = await AddSubIssueGraphQLAsync(client, nodeId, childNodeId, cancellationToken).ConfigureAwait(false);
+                        if (!ok) return Fail(err!);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(remove_sub_issue)) {
+                    foreach (var childNum in ParseCsvToList(remove_sub_issue)) {
+                        var childNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(childNum), cancellationToken).ConfigureAwait(false);
+                        if (string.IsNullOrEmpty(childNodeId)) return Fail($"无法获取子 Issue {childNum} 的 node_id");
+                        var (ok, err) = await RemoveSubIssueGraphQLAsync(client, nodeId, childNodeId, cancellationToken).ConfigureAwait(false);
+                        if (!ok) return Fail(err!);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(parent)) {
+                    var parentNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(parent), cancellationToken).ConfigureAwait(false);
+                    if (string.IsNullOrEmpty(parentNodeId)) return Fail($"无法获取父 Issue {parent} 的 node_id");
+                    var (ok, err) = await AddSubIssueGraphQLAsync(client, parentNodeId, nodeId, cancellationToken).ConfigureAwait(false);
+                    if (!ok) return Fail(err!);
+                }
+                if (remove_parent == true) {
+                    var parentId = await GetIssueParentIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
+                    if (string.IsNullOrEmpty(parentId)) return Fail($"Issue {number} 没有父 issue");
+                    var (ok, err) = await RemoveSubIssueGraphQLAsync(client, parentId, nodeId, cancellationToken).ConfigureAwait(false);
+                    if (!ok) return Fail(err!);
+                }
+                if (!string.IsNullOrWhiteSpace(add_blocked_by)) {
+                    foreach (var blockingNum in ParseCsvToList(add_blocked_by)) {
+                        var blockingNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(blockingNum), cancellationToken).ConfigureAwait(false);
+                        if (string.IsNullOrEmpty(blockingNodeId)) return Fail($"无法获取 Issue {blockingNum} 的 node_id");
+                        var (ok, err) = await AddBlockedByGraphQLAsync(client, nodeId, blockingNodeId, cancellationToken).ConfigureAwait(false);
+                        if (!ok) return Fail(err!);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(remove_blocked_by)) {
+                    foreach (var blockingNum in ParseCsvToList(remove_blocked_by)) {
+                        var blockingNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(blockingNum), cancellationToken).ConfigureAwait(false);
+                        if (string.IsNullOrEmpty(blockingNodeId)) return Fail($"无法获取 Issue {blockingNum} 的 node_id");
+                        var (ok, err) = await RemoveBlockedByGraphQLAsync(client, nodeId, blockingNodeId, cancellationToken).ConfigureAwait(false);
+                        if (!ok) return Fail(err!);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(add_blocking)) {
+                    foreach (var blockedNum in ParseCsvToList(add_blocking)) {
+                        var blockedNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(blockedNum), cancellationToken).ConfigureAwait(false);
+                        if (string.IsNullOrEmpty(blockedNodeId)) return Fail($"无法获取 Issue {blockedNum} 的 node_id");
+                        var (ok, err) = await AddBlockedByGraphQLAsync(client, blockedNodeId, nodeId, cancellationToken).ConfigureAwait(false);
+                        if (!ok) return Fail(err!);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(remove_blocking)) {
+                    foreach (var blockedNum in ParseCsvToList(remove_blocking)) {
+                        var blockedNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(blockedNum), cancellationToken).ConfigureAwait(false);
+                        if (string.IsNullOrEmpty(blockedNodeId)) return Fail($"无法获取 Issue {blockedNum} 的 node_id");
+                        var (ok, err) = await RemoveBlockedByGraphQLAsync(client, blockedNodeId, nodeId, cancellationToken).ConfigureAwait(false);
+                        if (!ok) return Fail(err!);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(type)) {
+                    var typeId = await FindIssueTypeIdAsync(client, owner, repoName, type, cancellationToken).ConfigureAwait(false);
+                    if (string.IsNullOrEmpty(typeId)) return Fail($"未找到 issue 类型: {type}");
+                    var (ok, err) = await SetIssueTypeAsync(client, nodeId, typeId, cancellationToken).ConfigureAwait(false);
+                    if (!ok) return Fail(err!);
+                }
+                if (remove_type == true) {
+                    var (ok, err) = await RemoveIssueTypeAsync(client, nodeId, cancellationToken).ConfigureAwait(false);
+                    if (!ok) return Fail(err!);
+                }
             }
             return OkBrief("", $"已编辑 Issue {number}");
         }).ConfigureAwait(false);

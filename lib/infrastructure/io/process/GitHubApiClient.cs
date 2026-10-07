@@ -429,6 +429,39 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
     // === 私有辅助方法 ===
 
     /// <summary>
+    /// 上传 Issue/PR 附件 — 二进制上传到 github.com/user-attachments/assets
+    /// </summary>
+    public async Task<GitHubApiResponse> UploadAttachmentAsync(
+        long repositoryId,
+        string fileName,
+        Stream fileStream,
+        CancellationToken ct = default) {
+        var token = ResolveToken();
+        var host = Environment.GetEnvironmentVariable("JCC_GITHUB_HOST") ?? "https://github.com";
+        var uploadUrl = $"{host}/user-attachments/assets?name={Uri.EscapeDataString(fileName)}&content_type=application/octet-stream&repository_id={repositoryId}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
+        request.Headers.Add("Authorization", $"Bearer {token}");
+        request.Headers.Add("Accept", "application/vnd.github+json");
+        request.Headers.Add("User-Agent", UserAgent);
+        request.Content = new StreamContent(fileStream);
+        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+
+        try {
+            using var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
+            var body = await ReadBodyAsync(response, ct).ConfigureAwait(false);
+            if (response.IsSuccessStatusCode)
+                return new GitHubApiResponse { Success = true, StatusCode = (int)response.StatusCode, Body = body };
+            return new GitHubApiResponse { Success = false, StatusCode = (int)response.StatusCode, Error = ExtractErrorMessage(body) ?? $"HTTP {(int)response.StatusCode}" };
+        } catch (Exception ex) {
+            _logger?.LogError(ex, "上传附件失败: {FileName}", fileName);
+            return new GitHubApiResponse { Success = false, StatusCode = 0, Error = ex.Message };
+        }
+    }
+
+    // === 私有辅助方法 ===
+
+    /// <summary>
     /// 下载 Actions Run artifact — 复用 IDownloader 多线程分片+断点续传
     /// <para>注入 IDownloader 时走多线程分片;未注入时回退单线程流式(测试场景)</para>
     /// <para>GitHub artifact 端点 302 重定向到临时签名 URL,HttpClient 自动跟随,Authorization 头自动 strip</para>

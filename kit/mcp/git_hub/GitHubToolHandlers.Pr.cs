@@ -649,11 +649,6 @@ public partial class GitHubToolHandlers {
         => JsonSerializer.Serialize(new PrCreateRequest { Title = title, Head = head, Base = @base, Body = body, Draft = draft }, GitHubApiJsonContext.Safe.PrCreateRequest);
 
     /// <summary>
-    /// JSON 字符串转义 — 委托 GitHubJsonObjectBuilder.EscapeString(保留供单字段 JSON 如 {"body":...} 使用)
-    /// </summary>
-    private static string JsonEscapeString(string value) => GitHubJsonObjectBuilder.EscapeString(value);
-
-    /// <summary>
     /// 评论 PR — 调 REST API POST issues/{number}/comments 端点（PR 复用 issues 评论）
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrComment, "评论 PR", "github")]

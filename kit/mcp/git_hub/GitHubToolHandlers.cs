@@ -154,6 +154,15 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 逗号分隔字符串转 List — 如 "bug,feat" → ["bug","feat"]，空/空白返回空 List
+    /// <para>DTO 序列化用：Labels/Assignees 等字段从 CSV 参数构建</para>
+    /// </summary>
+    private static List<string> ParseCsvToList(string? csv) {
+        if (string.IsNullOrWhiteSpace(csv)) return new();
+        return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+    }
+
+    /// <summary>
     /// 守卫编排模板 — client 检查 + owner/repo 解析,失败短路返回错误,成功执行 apiCall(client, owner, repo)
     /// <para>消除 21 处重复的 client 检查 + ResolveOwnerRepoAsync 样板,主方法只写 API 调用核心逻辑</para>
     /// <para>client 作为参数传入 apiCall,调用方直接用 client 而非 _apiClient!,消除空抑制</para>

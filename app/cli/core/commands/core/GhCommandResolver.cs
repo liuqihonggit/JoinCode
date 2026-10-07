@@ -91,7 +91,7 @@ internal static class GhCommandResolver {
             return null;
         }
 
-        var toolName = $"gh_{toolGroup}_{action}";
+        var toolName = $"gh_{toolGroup}_{action.Replace('-', '_')}";
         return new GhResolvedCommand(toolName, group, action, CollectTail(args, 3), json);
     }
 

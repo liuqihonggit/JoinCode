@@ -34,7 +34,31 @@ internal static class GhCommandResolver {
         GhGroupEnumConstants.Run,
         GhGroupEnumConstants.Branch,
         GhGroupEnumConstants.Api,
+        GhGroupEnumConstants.Label,
+        GhGroupEnumConstants.Search,
+        GhGroupEnumConstants.Workflow,
+        GhGroupEnumConstants.Auth,
+        GhGroupEnumConstants.Config,
+        GhGroupEnumConstants.Gist,
+        GhGroupEnumConstants.Org,
+        GhGroupEnumConstants.SshKey,
+        GhGroupEnumConstants.GpgKey,
+        GhGroupEnumConstants.Secret,
+        GhGroupEnumConstants.Variable,
+        GhGroupEnumConstants.Cache,
+        GhGroupEnumConstants.Ruleset,
+        GhGroupEnumConstants.Codespace,
+        GhGroupEnumConstants.Discussion,
+        GhGroupEnumConstants.Project,
+        GhGroupEnumConstants.Alias,
+        GhGroupEnumConstants.Extension,
+        GhGroupEnumConstants.Browse,
+        GhGroupEnumConstants.Status,
+        GhGroupEnumConstants.Licenses,
     ];
+
+    /// <summary>单级命令 — 工具名就是 <c>gh_{group}</c>，不需要 action（如 gh_api/gh_browse/gh_status/gh_licenses）。</summary>
+    private static readonly string[] SingleLevelGroups = ["api", "browse", "status", "licenses"];
 
     /// <summary>
     /// 解析 <c>jcc gh ...</c> 命令行（<paramref name="args"/>[0] 为子命令名 <c>gh</c>）。
@@ -54,9 +78,12 @@ internal static class GhCommandResolver {
         // --json 或 --format json 可能出现在任意位置，先全局扫描，不参与位置参数计数
         var json = FlatSubCommandRouter.ShouldOutputJson(args);
 
-        // api 组是单级命令: jcc gh api <path> → gh_api
-        if (string.Equals(group, "api", StringComparison.OrdinalIgnoreCase))
-            return new GhResolvedCommand("gh_api", "api", null, CollectTail(args, 2), json);
+        // 连字符分组名转下划线拼接工具名: ssh-key → gh_ssh_key_*
+        var toolGroup = group.Replace('-', '_');
+
+        // 单级命令: jcc gh api <path> / gh browse / gh status / gh licenses → gh_{group}
+        if (SingleLevelGroups.Contains(group, StringComparer.OrdinalIgnoreCase))
+            return new GhResolvedCommand($"gh_{toolGroup}", group, null, CollectTail(args, 2), json);
 
         var action = NextPositional(args, 2);
         if (action is null) {
@@ -64,7 +91,7 @@ internal static class GhCommandResolver {
             return null;
         }
 
-        var toolName = $"gh_{group}_{action}";
+        var toolName = $"gh_{toolGroup}_{action}";
         return new GhResolvedCommand(toolName, group, action, CollectTail(args, 3), json);
     }
 

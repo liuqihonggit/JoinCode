@@ -509,4 +509,64 @@ public sealed class GhCommandResolverTests {
         parameters.Should().Contain(p => p.Name == "delete_branch" && p.IsBoolean);
         parameters.Should().Contain(p => p.Name == "repo" && !p.IsRequired && !p.IsBoolean);
     }
+
+    /// <summary>gh ssh-key list → gh_ssh_key_list，连字符分组名转下划线</summary>
+    [Fact]
+    public void Resolve_SshKeyGroup_ShouldConvertHyphenToUnderscore() {
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "ssh-key", "list" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.ToolName.Should().Be("gh_ssh_key_list");
+        resolved.Group.Should().Be("ssh-key");
+    }
+
+    /// <summary>gh gpg-key list → gh_gpg_key_list，连字符分组名转下划线</summary>
+    [Fact]
+    public void Resolve_GpgKeyGroup_ShouldConvertHyphenToUnderscore() {
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "gpg-key", "list" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.ToolName.Should().Be("gh_gpg_key_list");
+    }
+
+    /// <summary>gh browse → gh_browse，单级命令无需 action</summary>
+    [Fact]
+    public void Resolve_Browse_ShouldMapToSingleLevelCommand() {
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "browse" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.ToolName.Should().Be("gh_browse");
+        resolved.Action.Should().BeNull();
+    }
+
+    /// <summary>gh status → gh_status，单级命令无需 action</summary>
+    [Fact]
+    public void Resolve_Status_ShouldMapToSingleLevelCommand() {
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "status" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.ToolName.Should().Be("gh_status");
+        resolved.Action.Should().BeNull();
+    }
+
+    /// <summary>gh licenses → gh_licenses，单级命令无需 action</summary>
+    [Fact]
+    public void Resolve_Licenses_ShouldMapToSingleLevelCommand() {
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "licenses" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.ToolName.Should().Be("gh_licenses");
+        resolved.Action.Should().BeNull();
+    }
+
+    /// <summary>用法提示应包含所有已知分组（workflow/label/search/gist/secret/ssh-key 等）</summary>
+    [Fact]
+    public void Usage_ShouldListAllKnownGroups() {
+        GhCommandResolver.Usage.Should().Contain("workflow");
+        GhCommandResolver.Usage.Should().Contain("label");
+        GhCommandResolver.Usage.Should().Contain("search");
+        GhCommandResolver.Usage.Should().Contain("gist");
+        GhCommandResolver.Usage.Should().Contain("secret");
+        GhCommandResolver.Usage.Should().Contain("ssh-key");
+    }
 }

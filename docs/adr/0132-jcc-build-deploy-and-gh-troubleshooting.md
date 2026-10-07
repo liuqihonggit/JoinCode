@@ -26,7 +26,7 @@ dotnet build app/cli/JoinCode.csproj -c Debug
 dotnet build app/cli/JoinCode.csproj --no-incremental -c Debug
 
 # 3. 拷贝编译产物到部署目录（用 PowerShell robocopy /MIR 镜像）
-powershell -Command "robocopy 'D:\project\w2\artifacts\bin\JoinCode\Debug\net10.0' 'C:\Users\54076\bin\jcc.d\dev' /MIR /NJH /NJS"
+powershell -Command "robocopy 'D:\project\w3\artifacts\bin\JoinCode\Debug\net10.0' 'C:\Users\54076\bin\jcc.d\dev' /MIR /NJH /NJS"
 # EXIT=0 表示无变化，EXIT=1 表示有文件被拷贝
 ```
 
@@ -60,6 +60,9 @@ C:\Users\54076\bin\
 | jcc 启动 ~4.4 秒 | ⚠️ 待优化 | 瓶颈：`McpInitModule.ConfigureAsync` 中 515 个 MCP 工具通过 AsyncLock 近似串行注册 + 8 个插件通过 Actor mailbox 串行加载 + `WirePluginSkillBridge` 首次解析深依赖链。4.4s 接近 `McpInitPlugin` 的 5s 超时上限。优化方向：批量工具注册(单次锁)、并行插件加载、延迟 schema 构造 |
 | optional 参数不能用位置参数 | ⚠️ 设计限制 | `gh repo clone owner/repo target-dir` 报错，需用 `--dir target-dir` |
 | `gh api -f` POST 请求 | ⚠️ 设计差异 | `-f` 映射到查询参数 fields，POST 请求需用 `--body` 传请求体 |
+| `required_status_checks` 子端点 PUT 返回 404 | ✅ 已查明 | GitHub API 的 `branches/{branch}/protection/required_status_checks` 子端点不支持单独 PUT（返回 404）。必须用完整 `branches/{branch}/protection` 端点 PUT，body 包含完整保护规则（`required_status_checks` + `enforce_admins` + 其他字段）。`gh api --method PUT --body_file <file> repos/{owner}/{repo}/branches/{branch}/protection` 可用 |
+| `gh api --method PUT --body_file` | ✅ 可用 | jcc 的 `gh api` handler 已支持 `--method`/`--body`/`--body_file` 参数，通过 `GhArgsBinder.Bind` 正确绑定到 `GhApiAsync` handler。`--body_file` 从文件读取 body，彻底绕开命令行转义问题（推荐） |
+| `gh branch audit-protection` | ✅ 可用 | 对比 CI yml matrix 与 GitHub required_status_checks，报告匹配/缺失/多余三类差异。`CiMatrixParser` 解析 yml，`BranchProtectionAuditor` 封装审计逻辑 |
 
 ## 原因
 

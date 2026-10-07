@@ -1,5 +1,7 @@
 # jcc gh 命令对齐系统 gh CLI 参数差异清单
 
+> **⚠️ 必读 [ADR 0132](../docs/adr/0132-jcc-build-deploy-and-gh-troubleshooting.md)** — jcc gh 与系统 gh CLI 是**耦合的测试关系**：jcc 是独立实现（HttpClient 直调 REST API），不是系统 gh 的包装/转发。参数对齐工作通过双向对比测试确保行为等价：① 从系统 gh CLI 文档/`--help` 提取参数语义 → ② 在 jcc gh 中实现等价参数 → ③ 单元测试验证 jcc 侧行为 → ④ 手动 exe 验收确认真实 API 调用正确。遇到 `gh` 命令问题时必须修复 jcc 源码，不是系统 gh CLI。
+>
 > 对比基准：系统 `C:\Program Files\GitHub CLI\gh.exe` v2.101.0 (2026-09-15) vs jcc.exe (JoinCode w1 分支, 2026-10-07)
 >
 > 对齐目标：jcc gh 的分组/子命令/参数与系统 gh CLI 对齐，确保 AI 和用户用 `jcc gh` 能完成系统 `gh` 的等价操作，无需回退到系统 gh.exe

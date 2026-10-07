@@ -320,7 +320,9 @@ public partial class GitHubToolHandlers {
             }
         } catch (Exception ex) { return Fail($"解析 check-runs 失败: {ex.Message}"); }
 
-        // 缺陷6: 失败项置顶,成功项截断,降低 AI token 消耗
+        // 优化A1: 汇总前置+异常置顶+pass 截断,降低 AI token 消耗(AI 首屏定位问题)
+        sb.Append($"汇总: {passCount} 通过, {failCount} 失败, {pendingCount} 进行中, {skipCount} 跳过(依赖链跳过,非失败)");
+        if (failFast == true && failCount > 0) sb.Append("\n⚠ fail-fast: 检测到失败");
         const int maxPassDisplay = 5;
         var ordered = checks
             .OrderBy(c => CheckSortKey(c.displayStatus))
@@ -329,15 +331,12 @@ public partial class GitHubToolHandlers {
         var displayedPass = 0;
         foreach (var (name, displayStatus) in ordered) {
             if (displayStatus == "pass" && displayedPass >= maxPassDisplay) continue;
-            sb.AppendLine($"{name}\t{displayStatus}");
+            sb.Append($"\n{name}\t{displayStatus}");
             if (displayStatus == "pass") displayedPass++;
         }
         var omittedPass = passCount - displayedPass;
         if (omittedPass > 0)
-            sb.AppendLine($"… 另有 {omittedPass} 个 pass 未列出");
-        sb.AppendLine();
-        sb.Append($"汇总: {passCount} 通过, {failCount} 失败, {pendingCount} 进行中, {skipCount} 跳过(依赖链跳过,非失败)");
-        if (failFast == true && failCount > 0) sb.Append("\n⚠ fail-fast: 检测到失败");
+            sb.Append($"\n… 另有 {omittedPass} 个 pass 未列出");
         return Ok(sb.ToString());
     }
 

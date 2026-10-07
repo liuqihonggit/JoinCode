@@ -519,6 +519,21 @@ public sealed partial class GitHubToolHandlersTests {
         _api.LastQuery["per_page"].Should().Be("100");
     }
 
+    /// <summary>pr checks 汇总前置+失败 check 在 pass 前(优化A1: AI 首屏定位问题)</summary>
+    [Fact]
+    public async Task PrChecks_SummaryFirst_FailuresBeforePass() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"head":{"sha":"abc"}}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"check_runs":[{"name":"pass1","conclusion":"success"},{"name":"fail1","conclusion":"failure"},{"name":"pass2","conclusion":"success"}]}""" });
+
+        var result = await _handler.GhPrChecksAsync("42", repo: "owner/repo");
+        var text = result.GetFirstText()!;
+        var summaryIdx = text.IndexOf("汇总", StringComparison.Ordinal);
+        var failIdx = text.IndexOf("fail1", StringComparison.Ordinal);
+        var passIdx = text.IndexOf("pass1", StringComparison.Ordinal);
+        summaryIdx.Should().BeLessThan(failIdx, "汇总应在失败 check 前");
+        failIdx.Should().BeLessThan(passIdx, "失败 check 应在 pass 前");
+    }
+
     [Fact]
     public async Task RunList_WithEvent_PassesEventQuery() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };

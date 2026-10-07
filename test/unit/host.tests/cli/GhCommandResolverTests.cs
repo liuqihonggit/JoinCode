@@ -404,6 +404,48 @@ public sealed class GhCommandResolverTests {
         bound!["has_wiki"].Should().Be("true");
     }
 
+    /// <summary>系统 gh CLI 的 --enable-projects 应映射到 has_projects=true</summary>
+    [Fact]
+    public void Bind_GhCliAlias_EnableProjects_ShouldMapToHasProjectsTrue() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: false, IsBoolean: false),
+            new("has_projects", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--enable-projects" }, parameters, "gh_repo_edit", out var error);
+
+        error.Should().BeNull();
+        bound!["has_projects"].Should().Be("true");
+    }
+
+    /// <summary>系统 gh CLI 的 --latest 应映射到 make_latest=true（gh release create --latest）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_Latest_ShouldMapToMakeLatestTrue() {
+        var parameters = new List<GhParam> {
+            new("tag", IsRequired: true, IsBoolean: false),
+            new("make_latest", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "v1.0", "--latest" }, parameters, "gh_release_create", out var error);
+
+        error.Should().BeNull();
+        bound!["make_latest"].Should().Be("true");
+    }
+
+    /// <summary>系统 gh CLI 的 --latest=false 应映射到 make_latest=false</summary>
+    [Fact]
+    public void Bind_GhCliAlias_LatestFalse_ShouldMapToMakeLatestFalse() {
+        var parameters = new List<GhParam> {
+            new("tag", IsRequired: true, IsBoolean: false),
+            new("make_latest", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "v1.0", "--latest=false" }, parameters, "gh_release_create", out var error);
+
+        error.Should().BeNull();
+        bound!["make_latest"].Should().Be("false");
+    }
+
     /// <summary>必填参数保持 required 声明顺序，布尔类型从 schema type 推断</summary>
     [Fact]
     public void ParseSchema_ShouldKeepRequiredOrderAndBooleanType() {

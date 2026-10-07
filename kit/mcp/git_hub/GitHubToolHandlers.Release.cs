@@ -132,6 +132,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否预发布", Required = false)] bool? prerelease = null,
         [McpToolParameter("目标 commit/branch(可选)", Required = false)] string? target = null,
         [McpToolParameter("自动生成 release notes(可选)", Required = false)] bool? generate_notes = null,
+        [McpToolParameter("标记为 latest release(可选,值 true/false)", Required = false)] string? make_latest = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -143,7 +144,8 @@ public partial class GitHubToolHandlers {
                 Draft = draft,
                 Prerelease = prerelease,
                 TargetCommitish = target,
-                GenerateReleaseNotes = generate_notes
+                GenerateReleaseNotes = generate_notes,
+                MakeLatest = make_latest
             }, GitHubApiJsonContext.Safe.ReleaseCreateRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已创建 Release {tag}") : Fail(result.Error);

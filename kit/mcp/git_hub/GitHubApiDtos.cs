@@ -337,6 +337,10 @@ internal sealed class ReleaseCreateRequest {
     /// <summary>是否自动生成 notes</summary>
     [JsonPropertyName("generate_release_notes")]
     public bool? GenerateReleaseNotes { get; init; }
+    /// <summary>标记为 latest(true/false/legacy)</summary>
+    [JsonPropertyName("make_latest")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MakeLatest { get; init; }
 }
 
 /// <summary>Release edit 请求 — PATCH /releases/{id}</summary>

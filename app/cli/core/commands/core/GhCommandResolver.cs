@@ -297,6 +297,8 @@ internal static class GhArgsBinder {
             ("gh_pr_review", "comment")         => new GhCliAlias("action", "comment", AliasKind.FixedValue),
             ("gh_repo_edit", "enable-issues")   => new GhCliAlias("has_issues", null, AliasKind.RenameOnly),
             ("gh_repo_edit", "enable-wiki")     => new GhCliAlias("has_wiki", null, AliasKind.RenameOnly),
+            ("gh_repo_edit", "enable-projects") => new GhCliAlias("has_projects", null, AliasKind.RenameOnly),
+            ("gh_release_create", "latest")    => new GhCliAlias("make_latest", null, AliasKind.RenameOnly),
             _                                  => null
         };
 

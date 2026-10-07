@@ -35,7 +35,7 @@ public partial class GitHubToolHandlers {
         var httpMethod = string.IsNullOrWhiteSpace(method) ? HttpMethod.Get : new HttpMethod(method.ToUpperInvariant());
         var query = ParseFieldsToQuery(fields);
         var result = await _apiClient.SendAsync(httpMethod, path, resolvedBody, query, paginate == true, cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
+        if (!result.Success) return Fail(BuildApiErrorHint(path, result.StatusCode, result.Error));
 
         var maxLines = max_lines ?? 500;
         var truncated = TruncateLines(result.Body, maxLines);
@@ -81,5 +81,28 @@ public partial class GitHubToolHandlers {
             }
         }
         return dict.Count == 0 ? null : dict;
+    }
+
+    /// <summary>
+    /// 构建 API 错误诱导提示 — 根据端点模式 + 状态码给出"为什么失败 + 接下来怎么做"
+    /// <para>原则(AGENTS.md 错误提示必须有诱导方式): 禁止纯拒绝无引导,否则 AI 不知道错误含义会换命令尝试</para>
+    /// </summary>
+    private static string BuildApiErrorHint(string path, int statusCode, string originalError) {
+        var hint = (statusCode, path) switch {
+            (404, var p) when p.Contains("auto-merge", StringComparison.OrdinalIgnoreCase)
+                => "404 Not Found — 可能原因: ① 仓库 Settings → General → Pull Requests 未勾选 Allow auto-merge ② PR 不存在 ③ 端点路径错误。建议: 改用 gh_pr_merge --auto_merge 启用(走 GraphQL enablePullRequestAutoMerge)",
+            (404, var p) when p.StartsWith("repos/", StringComparison.OrdinalIgnoreCase) && p.Count(c => c == '/') >= 2
+                => $"404 Not Found — 可能原因: ① 仓库不存在或无权限 ② 端点路径错误。路径: {p}",
+            (403, var p) when p.Contains("/merge", StringComparison.OrdinalIgnoreCase)
+                => "403 Forbidden — 可能原因: ① 分支保护规则未满足(required checks 未通过/未匹配) ② Token 缺少 repo scope ③ 需 admin 强制合并。建议: gh pr checks 查 CI 状态, 或 gh_branch_sync_protection 同步 check 名",
+            (403, _)
+                => "403 Forbidden — 可能原因: ① Token 缺少所需 scope ② Rate limit 触发 ③ 资源无权限",
+            (422, _)
+                => "422 Unprocessable Entity — 请求体格式错误或字段值非法, 请检查 body JSON 结构",
+            (401, _)
+                => "401 Unauthorized — Token 无效或已过期, 请检查 JCC_GITHUB_TOKEN / GITHUB_TOKEN 环境变量",
+            _ => $"{statusCode} — {originalError}"
+        };
+        return hint;
     }
 }

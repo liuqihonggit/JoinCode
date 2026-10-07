@@ -568,9 +568,9 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 创建 PR — 支持 title/head/base/body/draft/assignee/label/reviewer/milestone/body_file/fill + auto-merge 一步到位
+    /// 创建 PR — 支持 title/head/base/body/draft/assignee/label/reviewer/milestone/body_file/fill/fill_first/fill_verbose/dry_run/no_maintainer_edit + auto-merge 一步到位
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrCreate, "创建 PR(支持 assignee/label/reviewer/milestone/body_file/fill + auto-merge 一步到位)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrCreate, "创建 PR(支持 assignee/label/reviewer/milestone/body_file/fill/fill_first/dry_run/no_maintainer_edit + auto-merge)", "github")]
     public async Task<ToolResult> GhPrCreateAsync(
         [McpToolParameter("PR 标题", Required = true)] string title,
         [McpToolParameter("源分支(head)", Required = true)] string head,
@@ -582,26 +582,48 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("标签(可选,多个用逗号)", Required = false)] string? label = null,
         [McpToolParameter("审阅人(可选,多个用逗号)", Required = false)] string? reviewer = null,
         [McpToolParameter("里程碑 ID(可选)", Required = false)] int? milestone = null,
-        [McpToolParameter("从 git commit 自动填充 title/body(可选)", Required = false)] bool? fill = null,
+        [McpToolParameter("从 git commit 自动填充 title/body(可选,取 HEAD 最新 commit)", Required = false)] bool? fill = null,
+        [McpToolParameter("从分支第一条 commit 自动填充 title/body(可选,取 base..head 最早 commit)", Required = false)] bool? fill_first = null,
+        [McpToolParameter("fill 模式下显示 commit 详细信息(可选)", Required = false)] bool? fill_verbose = null,
         [McpToolParameter("是否启用 auto-merge(CI 通过后自动合并,可选)", Required = false)] bool? auto_merge = null,
         [McpToolParameter("auto-merge 合并方式(squash/merge/rebase,默认 squash,可选)", Required = false)] string? merge_method = null,
+        [McpToolParameter("dry-run 模式(可选,不实际创建 PR,只返回预览信息)", Required = false)] bool? dry_run = null,
+        [McpToolParameter("禁止维护者编辑 PR(可选,等价 maintainer_can_modify=false)", Required = false)] bool? no_maintainer_edit = null,
+        [McpToolParameter("从上次失败的创建恢复(可选,暂未支持,需状态文件持久化)", Required = false)] bool? recover = null,
+        [McpToolParameter("附加文件到 PR(可选,多个用逗号,暂未支持,需文件上传 API)", Required = false)] string? attach = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (recover == true) return Fail("--recover 暂未支持: 需要状态文件持久化草稿功能,请手动重新输入 title/body");
+            if (!string.IsNullOrWhiteSpace(attach)) return Fail("--attach 暂未支持: 需要文件上传 API,请先创建 PR 再手动上传 asset");
             var actualBody = body;
             if (!string.IsNullOrWhiteSpace(body_file)) actualBody = await _fs.ReadAllTextAsync(body_file, cancellationToken).ConfigureAwait(false);
             var actualTitle = title;
+            var fillInfo = "";
             if (fill == true && _git is not null) {
                 var (fillTitle, fillBody) = await GetGitFillAsync(_git, working_dir, cancellationToken).ConfigureAwait(false);
                 if (string.IsNullOrWhiteSpace(actualTitle)) actualTitle = fillTitle;
                 if (string.IsNullOrWhiteSpace(actualBody)) actualBody = fillBody;
+                if (fill_verbose == true) fillInfo = $"\n[fill] 使用 HEAD commit: title={fillTitle}, body 长度={fillBody?.Length ?? 0}";
             }
-            var jsonBody = BuildPrCreateJson(actualTitle ?? "", head, @base, actualBody, draft);
-            var baseBranch = string.IsNullOrWhiteSpace(@base) ? "main" : @base;
+            if (fill_first == true && _git is not null) {
+                var baseBranch = string.IsNullOrWhiteSpace(@base) ? "main" : @base;
+                var (fillTitle, fillBody) = await GetGitFillFirstAsync(_git, baseBranch, head, working_dir, cancellationToken).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(actualTitle)) actualTitle = fillTitle;
+                if (string.IsNullOrWhiteSpace(actualBody)) actualBody = fillBody;
+                if (fill_verbose == true) fillInfo = $"\n[fill-first] 使用 base..head 第一条 commit: title={fillTitle}, body 长度={fillBody?.Length ?? 0}";
+            }
+            var maintainerCanModify = no_maintainer_edit == true ? false : (bool?)null;
+            var jsonBody = BuildPrCreateJson(actualTitle ?? "", head, @base, actualBody, draft, maintainerCanModify);
+            var baseBranchForAudit = string.IsNullOrWhiteSpace(@base) ? "main" : @base;
+            if (dry_run == true) {
+                var preview = $"[dry-run] 预览 PR 创建请求:\n仓库: {owner}/{repoName}\n标题: {actualTitle}\nhead: {head}\nbase: {baseBranchForAudit}\ndraft: {draft ?? false}\nmaintainer_can_modify: {(maintainerCanModify ?? true)}\nbody 长度: {actualBody?.Length ?? 0}{fillInfo}";
+                return Ok(preview);
+            }
             // 两条独立异步路线并行发起: PR 创建(POST /pulls) || 分支审计(GET /protection + 读 yml)
             var prTask = client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken);
-            var auditTask = TryAuditBranchProtectionAsync(client, owner, repoName, baseBranch, working_dir, cancellationToken);
+            var auditTask = TryAuditBranchProtectionAsync(client, owner, repoName, baseBranchForAudit, working_dir, cancellationToken);
             // 数组等待两条路线都完成
             await Task.WhenAll(prTask, auditTask).ConfigureAwait(false);
             var result = await prTask.ConfigureAwait(false);
@@ -614,10 +636,10 @@ public partial class GitHubToolHandlers {
                 var msg = autoMergeResult.Success
                     ? $"PR {prNumber} 创建成功，已启用 auto-merge（{autoMergeResult.Method}）"
                     : $"PR {prNumber} 创建成功（auto-merge 启用失败: {autoMergeResult.Error}）";
-                return Ok(msg + auditWarning);
+                return Ok(msg + auditWarning + fillInfo);
             }
             var prUrl = TryExtractJsonField(result.Body, "html_url") ?? TryExtractJsonField(result.Body, "url");
-            return Ok(prUrl is not null ? $"{prUrl}\nPR 创建成功{auditWarning}" : $"PR 创建成功{auditWarning}");
+            return Ok(prUrl is not null ? $"{prUrl}\nPR 创建成功{auditWarning}{fillInfo}" : $"PR 创建成功{auditWarning}{fillInfo}");
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -697,10 +719,25 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 从 git log 获取 base..head 最早 commit 的 title 和 body — fill-first 模式用
+    /// </summary>
+    /// <para>用 git rev-list --reverse 取最早 commit hash, 再 git log -1 取 message</para>
+    private async Task<(string Title, string Body)> GetGitFillFirstAsync(IGitCommandRunner git, string baseBranch, string headBranch, string? workingDir, CancellationToken ct) {
+        var revResult = await git.ExecuteAsync($"rev-list --reverse {baseBranch}..{headBranch}", workingDir, ct).ConfigureAwait(false);
+        if (!revResult.Success || string.IsNullOrWhiteSpace(revResult.Output)) return ("", "");
+        var firstHash = revResult.Output.AsSpan().Trim().ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries)[0];
+        var logResult = await git.ExecuteAsync($"log -1 --format=%s%n%n%b {firstHash}", workingDir, ct).ConfigureAwait(false);
+        if (!logResult.Success) return ("", "");
+        var output = logResult.Output;
+        var idx = output.IndexOf("\n\n", StringComparison.Ordinal);
+        return idx >= 0 ? (output[..idx].Trim(), output[(idx + 2)..]) : (output.Trim(), "");
+    }
+
+    /// <summary>
     /// 构建 PR 创建 JSON 请求体 — DTO 序列化(编译期类型安全)
     /// </summary>
-    private static string BuildPrCreateJson(string title, string head, string? @base, string? body, bool? draft)
-        => JsonSerializer.Serialize(new PrCreateRequest { Title = title, Head = head, Base = @base, Body = body, Draft = draft }, GitHubApiJsonContext.Safe.PrCreateRequest);
+    private static string BuildPrCreateJson(string title, string head, string? @base, string? body, bool? draft, bool? maintainerCanModify = null)
+        => JsonSerializer.Serialize(new PrCreateRequest { Title = title, Head = head, Base = @base, Body = body, Draft = draft, MaintainerCanModify = maintainerCanModify }, GitHubApiJsonContext.Safe.PrCreateRequest);
 
     /// <summary>
     /// 评论 PR — 调 REST API POST issues/{number}/comments 端点（PR 复用 issues 评论）

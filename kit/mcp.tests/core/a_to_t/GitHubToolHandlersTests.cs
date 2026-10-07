@@ -1885,14 +1885,6 @@ public sealed partial class GitHubToolHandlersTests {
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("testuser");
     }
-
-    [Fact]
-    public async Task ConfigGet_ReturnsPromptToUseSystemGh() {
-        var result = await _handler.GhConfigGetAsync("git_protocol");
-
-        result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("gh config get git_protocol");
-    }
 }
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient {

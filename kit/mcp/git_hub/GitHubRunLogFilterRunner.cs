@@ -13,6 +13,14 @@ internal sealed class GitHubRunLogFilterRunner {
         _apiClient = apiClient;
     }
 
+    private static bool LineMatchesAnyMarker(ReadOnlySpan<char> lineSpan, FrozenSet<string> markers) {
+        foreach (var marker in markers) {
+            if (lineSpan.Contains(marker, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
     /// <summary>
     /// 获取指定 Run 中所有失败 job 的日志 — 逐行 yield(合并多个 job 日志)
     /// <para>用于 expand=failed 模式,只拉 conclusion=failure 的 job 日志</para>
@@ -147,13 +155,8 @@ internal sealed class GitHubRunLogFilterRunner {
             logLines = GetFailedJobLogsAsync(owner, repo, runId, ct);
         } else if (!string.IsNullOrWhiteSpace(jobId)) {
             // 支持逗号分隔多个 job_id 并行下载,如 "123,456"(统一走 DownloadJobsParallelAsync)
-            var jobIds = jobId.Split(',')
-                .Select(s => s.Trim())
-                .Select(s => (Ok: long.TryParse(s, out var id), Id: id))
-                .Where(x => x.Ok)
-                .Select(x => x.Id)
-                .ToArray();
-            if (jobIds.Length == 0) {
+            var jobIds = GitHubRunLogFilter.ParseJobIds(jobId);
+            if (jobIds.Count == 0) {
                 return GitHubToolHandlers.Fail($"无效的 Job ID: {jobId}");
             }
             logLines = DownloadJobsParallelAsync(owner, repo, jobIds, ct);
@@ -165,7 +168,7 @@ internal sealed class GitHubRunLogFilterRunner {
 
         await foreach (var line in logLines.ConfigureAwait(false)) {
             lineNumber++;
-            if (markers is not null && !markers.Any(m => line.Contains(m, StringComparison.OrdinalIgnoreCase)))
+            if (markers is not null && !LineMatchesAnyMarker(line.AsSpan(), markers))
                 continue;
             // 先跳过 skipLines 行(分页续读)
             if (skipped < skipLines) { skipped++; continue; }

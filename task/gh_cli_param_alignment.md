@@ -335,8 +335,13 @@ gist / org / project / codespace / discussion / attestation / ruleset / extensio
 <!--   - 通用 --jq 参数(需引入 jq 解析库,独立大任务) -->
 <!--   - 通用 --template 参数(Go template,.NET 无原生支持) -->
 <!--   - 通用 --json 精确字段选择(当前 verbose 近似) -->
-<!--   - 手动 exe 验收(ADR 0080) -->
+<!--   - 手动 exe 验收(ADR 0080) ✅ --json_fields 验收通过 -->
 <!--   - 推送 w1 分支 + 创建 PR(用户指示不要 push) -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: --json 参数改名为 --json_fields 避免与 jcc 全局 --json 选项冲突 -->
+<!-- 原因: jcc 的 --json 是 --format json 的别名(布尔标志),被 CollectTail 剥离不传给工具;工具的 json 参数需用不同名称 -->
+<!-- 验证: 手动 exe 验收通过 — gh repo view --json_fields name,full_name,description 返回精确过滤 JSON; gh run list --json_fields id,status,conclusion 返回精确过滤数组 ✅ -->
 
 <!-- 🤖 Auto Decision: 2026-10-07 -->
 <!-- 决策: --json 精确字段选择用 FilterJsonFields 通用辅助方法实现 -->

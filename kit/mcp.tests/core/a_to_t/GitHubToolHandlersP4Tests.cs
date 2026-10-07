@@ -101,7 +101,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.LastBody.Should().Contain("\"value\":\"value\"");
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task SecretSet_PutsEncryptedSecretDto() {
         Skip.IfNot(OperatingSystem.IsWindows(), "X25519/curve25519 ECDiffieHellmanCng 仅 Windows CNG 支持, Linux 需 libsodium 加密库");
         using var ecdh = ECDiffieHellman.Create(ECCurve.CreateFromFriendlyName("curve25519"));
@@ -120,7 +120,7 @@ public sealed partial class GitHubToolHandlersTests {
         result.GetFirstText().Should().Contain("MY_SECRET");
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task SecretSet_EnvSecret_UsesEnvEndpoint() {
         Skip.IfNot(OperatingSystem.IsWindows(), "X25519/curve25519 ECDiffieHellmanCng 仅 Windows CNG 支持, Linux 需 libsodium 加密库");
         using var ecdh = ECDiffieHellman.Create(ECCurve.CreateFromFriendlyName("curve25519"));

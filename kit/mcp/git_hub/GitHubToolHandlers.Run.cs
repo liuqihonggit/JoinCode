@@ -361,10 +361,8 @@ public partial class GitHubToolHandlers {
             var body = "{}";
             if (!string.IsNullOrWhiteSpace(job)) {
                 path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-jobs";
-                var jobIds = job.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Select(s => long.TryParse(s, out var id) ? id : 0)
-                    .Where(id => id > 0)
-                    .ToList();
+                var jobIds = GitHubRunLogFilter.ParseJobIds(job);
+                jobIds.RemoveAll(id => id <= 0);
                 body = JsonSerializer.Serialize(new RunRerunJobsRequest { JobIds = jobIds, EnableDebugLogging = debug == true ? true : null }, GitHubApiJsonContext.Safe.RunRerunJobsRequest);
             } else if (failed_only != false) {
                 path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-failed-jobs";

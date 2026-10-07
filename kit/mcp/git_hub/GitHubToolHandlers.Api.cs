@@ -75,12 +75,16 @@ public partial class GitHubToolHandlers {
     private static IReadOnlyDictionary<string, string>? ParseFieldsToQuery(string? fields) {
         if (string.IsNullOrWhiteSpace(fields)) return null;
         var dict = new Dictionary<string, string>(StringComparer.Ordinal);
-        var pairs = fields.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var pair in pairs) {
+        var span = fields.AsSpan();
+        while (!span.IsEmpty) {
+            var commaIdx = span.IndexOf(',');
+            var pair = commaIdx < 0 ? span : span[..commaIdx];
+            span = commaIdx < 0 ? default : span[(commaIdx + 1)..];
+            if (pair.IsEmpty) continue;
             var eqIdx = pair.IndexOf('=');
             if (eqIdx > 0 && eqIdx < pair.Length - 1) {
-                var key = pair[..eqIdx].Trim();
-                var value = pair[(eqIdx + 1)..].Trim();
+                var key = pair[..eqIdx].Trim().ToString();
+                var value = pair[(eqIdx + 1)..].Trim().ToString();
                 dict[key] = value;
             }
         }

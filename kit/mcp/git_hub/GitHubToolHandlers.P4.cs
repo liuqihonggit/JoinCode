@@ -12,6 +12,23 @@ public partial class GitHubToolHandlers {
     private static string BuildGraphQL(string query)
         => JsonSerializer.Serialize(new GraphQLRequest { Query = query }, GitHubApiJsonContext.Safe.GraphQLRequest);
 
+    private static bool IsHexString(string s) {
+        foreach (var c in s) {
+            if ((uint)(c - '0') >= 10u && (uint)(c - 'a') >= 6u) return false;
+        }
+        return true;
+    }
+
+    private static string EscapeGraphQLString(string s) {
+        var sb = new StringBuilder(s.Length + 4);
+        foreach (var c in s) {
+            if (c == '\\') sb.Append("\\\\");
+            else if (c == '"') sb.Append("\\\"");
+            else sb.Append(c);
+        }
+        return sb.ToString();
+    }
+
     // === Browse ===
 
     /// <summary>
@@ -41,7 +58,7 @@ public partial class GitHubToolHandlers {
             else if (!string.IsNullOrWhiteSpace(commit)) url += $"/commit/{commit}";
             else if (!string.IsNullOrWhiteSpace(target)) {
                 if (int.TryParse(target, out var num)) url += $"/issues/{num}";
-                else if (target.Length == 40 && target.All(c => "0123456789abcdef".Contains(c))) url += $"/commit/{target}";
+                else if (target.Length == 40 && IsHexString(target)) url += $"/commit/{target}";
                 else url += $"/tree/HEAD/{target}";
             }
             if (blame == true && !string.IsNullOrWhiteSpace(target)) url = $"https://github.com/{owner}/{repoName}/blame/HEAD/{target}";
@@ -489,8 +506,8 @@ public partial class GitHubToolHandlers {
                 repoId = ridDoc.RootElement.GetProperty("data").GetProperty("repository").GetProperty("id").GetString();
             } catch (Exception ex) { return Fail($"解析仓库 ID 失败: {ex.Message}"); }
             if (repoId is null) return Fail("无法获取仓库 node_id");
-            var escapedTitle = title.Replace("\\", "\\\\").Replace("\"", "\\\"");
-            var escapedBody = body.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            var escapedTitle = EscapeGraphQLString(title);
+            var escapedBody = EscapeGraphQLString(body);
             var mutation = BuildGraphQL($"mutation{{createDiscussion(input:{{repositoryId:\"{repoId}\",categoryId:\"{categoryId}\",title:\"{escapedTitle}\",body:\"{escapedBody}\"}}){{discussion{{number url}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已创建 Discussion: {title}") : Fail(result.Error);
@@ -518,8 +535,8 @@ public partial class GitHubToolHandlers {
             } catch (Exception ex) { return Fail($"解析 Discussion ID 失败: {ex.Message}"); }
             if (discussionId is null) return Fail("无法获取 Discussion node_id");
             var parts = new List<string>();
-            if (!string.IsNullOrWhiteSpace(title)) parts.Add($"title:\"{title.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"");
-            if (!string.IsNullOrWhiteSpace(body)) parts.Add($"body:\"{body.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"");
+            if (!string.IsNullOrWhiteSpace(title)) parts.Add($"title:\"{EscapeGraphQLString(title)}\"");
+            if (!string.IsNullOrWhiteSpace(body)) parts.Add($"body:\"{EscapeGraphQLString(body)}\"");
             if (parts.Count == 0) return Fail("需要 title 或 body 至少一个");
             var inputFields = string.Join(",", parts);
             var mutation = BuildGraphQL($"mutation{{updateDiscussion(input:{{discussionId:\"{discussionId}\",{inputFields}}}){{discussion{{number url}}}}}}");
@@ -547,7 +564,7 @@ public partial class GitHubToolHandlers {
                 discussionId = idDoc.RootElement.GetProperty("data").GetProperty("repository").GetProperty("discussion").GetProperty("id").GetString();
             } catch (Exception ex) { return Fail($"解析 Discussion ID 失败: {ex.Message}"); }
             if (discussionId is null) return Fail("无法获取 Discussion node_id");
-            var escapedBody = body.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            var escapedBody = EscapeGraphQLString(body);
             var mutation = BuildGraphQL($"mutation{{addDiscussionComment(input:{{discussionId:\"{discussionId}\",body:\"{escapedBody}\"}}){{comment{{id}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已评论 Discussion #{number}") : Fail(result.Error);
@@ -654,7 +671,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("组织名(可选,在组织下创建,默认当前用户)", Required = false)] string? org = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
-        var escapedTitle = title.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        var escapedTitle = EscapeGraphQLString(title);
         string graphql;
         if (!string.IsNullOrWhiteSpace(org))
             graphql = BuildGraphQL($"mutation{{createProjectV2(input:{{ownerId:\"{org}\",title:\"{escapedTitle}\"}}){{projectV2{{number url}}}}}}");
@@ -730,8 +747,8 @@ public partial class GitHubToolHandlers {
         } catch (Exception ex) { return Fail($"解析 Project ID 失败: {ex.Message}"); }
         if (projectId is null) return Fail("无法获取 Project node_id");
         var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(title)) parts.Add($"title:\"{title.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"");
-        if (!string.IsNullOrWhiteSpace(description)) parts.Add($"shortDescription:\"{description.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"");
+        if (!string.IsNullOrWhiteSpace(title)) parts.Add($"title:\"{EscapeGraphQLString(title)}\"");
+        if (!string.IsNullOrWhiteSpace(description)) parts.Add($"shortDescription:\"{EscapeGraphQLString(description)}\"");
         if (parts.Count == 0) return Fail("需要 title 或 description 至少一个");
         var inputFields = string.Join(",", parts);
         var mutation = BuildGraphQL($"mutation{{updateProjectV2(input:{{projectId:\"{projectId}\",{inputFields}}}){{projectV2{{number url}}}}}}");

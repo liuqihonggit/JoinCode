@@ -213,6 +213,20 @@ public sealed class GhCommandResolverTests {
         bound["merge_method"].Should().Be("squash");
     }
 
+    /// <summary>系统 gh CLI 缩写 --failed 应映射到 failed_only=true（gh run rerun --failed）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_Failed_ShouldMapToFailedOnly() {
+        var parameters = new List<GhParam> {
+            new("run_id", IsRequired: true, IsBoolean: false),
+            new("failed_only", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "37560629113", "--failed" }, parameters, "gh_run_rerun", out var error);
+
+        error.Should().BeNull();
+        bound!["failed_only"].Should().Be("true");
+    }
+
     /// <summary>系统 gh CLI 缩写 --merge/--rebase 也应映射到 merge_method</summary>
     [Theory]
     [InlineData("merge", "merge")]

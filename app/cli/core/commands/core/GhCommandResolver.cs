@@ -261,20 +261,18 @@ internal static class GhArgsBinder {
     }
 
     /// <summary>
-    /// 系统 gh CLI 缩写别名宽容 — AI 习惯用真实 gh CLI 的 --auto/--squash 等，
-    /// 映射到 jcc 工具参数 auto_merge/merge_method=squash。返回 null 表示无别名。
+    /// 系统 gh CLI 缩写别名宽容 — AI 习惯用真实 gh CLI 的 --auto/--squash/--failed 等，
+    /// 映射到 jcc 工具参数。返回 null 表示无别名。
     /// </summary>
-    private static (string Key, string Value)? ResolveGhCliAlias(string key, string toolName) {
-        if (toolName != "gh_pr_merge")
-            return null;
-        return key switch {
-            "auto"   => ("auto_merge", "true"),
-            "squash" => ("merge_method", "squash"),
-            "merge"  => ("merge_method", "merge"),
-            "rebase" => ("merge_method", "rebase"),
-            _        => null
+    private static (string Key, string Value)? ResolveGhCliAlias(string key, string toolName)
+        => (toolName, key) switch {
+            ("gh_pr_merge", "auto")    => ("auto_merge", "true"),
+            ("gh_pr_merge", "squash")  => ("merge_method", "squash"),
+            ("gh_pr_merge", "merge")   => ("merge_method", "merge"),
+            ("gh_pr_merge", "rebase")  => ("merge_method", "rebase"),
+            ("gh_run_rerun", "failed") => ("failed_only", "true"),
+            _                          => null
         };
-    }
 
     /// <summary>找最接近的参数名: 优先前缀匹配(如 auto→auto_merge),其次包含匹配(如 merge→merge_method)。</summary>
     private static string? SuggestOption(string key, IReadOnlyList<GhParam> parameters) {

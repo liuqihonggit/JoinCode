@@ -116,23 +116,40 @@ internal static class GhCommandResolver {
     /// 收集待绑定的剩余参数（跳过分组、动作与所有全局选项）。
     /// <para>全局选项（--json/--format/--help 等）对 gh 工具无意义，剥离后不传给 GhArgsBinder，
     /// 避免被报为未知选项。布尔标志剥单 token，带值选项剥 token+值（--key=value 形式只剥单 token）。</para>
+    /// <para>宽容: 系统 gh CLI 的 --json field1,field2 转为 --json_fields=field1,field2（缺陷1a）。</para>
     /// </summary>
     private static string[] CollectTail(string[] args, int startIndex) {
         var tail = new List<string>(args.Length - startIndex);
         for (var i = startIndex; i < args.Length; i++) {
             var token = args[i];
-            if (token.StartsWith("--") && CliArgCliOptionConstants.AllOptionNames.Contains(token)) {
-                if (token.Contains('='))
-                    continue;
-                if (CliArgCliOptionConstants.BooleanFlags.Contains(token))
-                    continue;
-                if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
-                    i++;
+            if (!token.StartsWith("--") || !CliArgCliOptionConstants.AllOptionNames.Contains(token)) {
+                tail.Add(token);
                 continue;
             }
-            tail.Add(token);
+            if (token.Contains('='))
+                continue;
+            if (CliArgCliOptionConstants.BooleanFlags.Contains(token)) {
+                TryConvertJsonFieldsToTail(token, args, ref i, tail);
+                continue;
+            }
+            if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+                i++;
         }
         return tail.ToArray();
+    }
+
+    /// <summary>
+    /// 系统 gh CLI 用 <c>--json field1,field2</c> 表示 JSON 输出+字段选择，
+    /// jcc 的 <c>--json</c> 只是 JSON 输出标志，字段用 <c>--json_fields</c>。
+    /// 当 --json 后跟非选项值时，将其转为 <c>--json_fields=值</c> 加入 tail。
+    /// </summary>
+    private static void TryConvertJsonFieldsToTail(string token, string[] args, ref int i, List<string> tail) {
+        if (!string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
+            return;
+        if (i + 1 >= args.Length || args[i + 1].StartsWith("--"))
+            return;
+        tail.Add($"--json_fields={args[i + 1]}");
+        i++;
     }
 
     /// <summary>缺少分组时的 Rust 风格报错 + 用法。</summary>

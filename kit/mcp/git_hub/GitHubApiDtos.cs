@@ -528,7 +528,7 @@ internal sealed class MilestoneRequest {
 /// <summary>
 /// GitHub API DTO 的 JSON 序列化上下文 — AOT 模式需要源码生成器注册类型
 /// </summary>
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, WriteIndented = false)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(GistCreateRequest))]
 [JsonSerializable(typeof(GistResponse))]
 [JsonSerializable(typeof(GistListItem))]

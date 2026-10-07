@@ -35,7 +35,8 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner 
                 FileName = "git",
                 Arguments = arguments,
                 WorkingDirectory = workingDirectory,
-                EnvironmentVariables = CreateGitEnvironment()
+                EnvironmentVariables = CreateGitEnvironment(),
+                TimeoutMs = arguments.StartsWith("clone", StringComparison.OrdinalIgnoreCase) ? 600_000 : 300_000
             };
 
             var result = await _processService.ExecuteAsync(options, ct).ConfigureAwait(false);

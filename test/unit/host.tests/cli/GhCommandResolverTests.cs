@@ -652,4 +652,47 @@ public sealed class GhCommandResolverTests {
         error.Should().BeNull();
         bound!["notes_file"].Should().Be("notes.md");
     }
+
+    /// <summary>optional 参数不能用位置参数, 应报错并提示用 --flag 形式（gh repo clone owner/repo target-dir → 报错）</summary>
+    [Fact]
+    public void Bind_OptionalPositional_ShouldRejectAndSuggestFlag() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: true, IsBoolean: false),
+            new("dir", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "owner/repo", "target-dir" }, parameters, "gh_repo_clone", out var error);
+
+        bound.Should().BeNull();
+        error.Should().Contain("多余的位置参数");
+        error.Should().Contain("--参数名");
+    }
+
+    /// <summary>-f 短选项在 gh api 映射到 fields（gh api repos/.../labels -f name=test）</summary>
+    [Fact]
+    public void Bind_ShortOption_f_Api_ShouldMapToFields() {
+        var parameters = new List<GhParam> {
+            new("path", IsRequired: true, IsBoolean: false),
+            new("fields", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "repos/o/r/labels", "-f", "name=test" }, parameters, "gh_api", out var error);
+
+        error.Should().BeNull();
+        bound!["fields"].Should().Be("name=test");
+    }
+
+    /// <summary>重复 -f 短选项追加(逗号分隔): -f name=test -f color=ff0000 → fields="name=test,color=ff0000"</summary>
+    [Fact]
+    public void Bind_ShortOption_f_Repeated_ShouldAppend() {
+        var parameters = new List<GhParam> {
+            new("path", IsRequired: true, IsBoolean: false),
+            new("fields", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "repos/o/r/labels", "-f", "name=test", "-f", "color=ff0000" }, parameters, "gh_api", out var error);
+
+        error.Should().BeNull();
+        bound!["fields"].Should().Be("name=test,color=ff0000");
+    }
 }

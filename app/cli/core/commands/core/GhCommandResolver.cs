@@ -416,6 +416,7 @@ internal static class GhArgsBinder {
             ("gh_release_create", 'F') => "notes_file",
             ("gh_release_create", 'd') => "draft",
             ("gh_release_create", 'p') => "prerelease",
+            ("gh_api", 'f') => "fields",
             _ => null
         };
     }
@@ -428,8 +429,9 @@ internal static class GhArgsBinder {
         var shortInline = token.Length > 2 ? token[2..] : null;
         if (ResolveGhShortOption(shortKey, toolName) is not { } longName)
             return false;
+        // 重复短选项追加(逗号分隔): -f name=test -f color=ff0000 → fields="name=test,color=ff0000"
         if (shortInline is not null) {
-            result[longName] = shortInline;
+            result[longName] = result.TryGetValue(longName, out var prev1) ? $"{prev1},{shortInline}" : shortInline;
             return true;
         }
         if (byName.TryGetValue(longName, out var param) && param.IsBoolean) {
@@ -437,7 +439,8 @@ internal static class GhArgsBinder {
             return true;
         }
         if (i + 1 < tail.Length && !tail[i + 1].StartsWith("-")) {
-            result[longName] = tail[i + 1];
+            var val = tail[i + 1];
+            result[longName] = result.TryGetValue(longName, out var prev2) ? $"{prev2},{val}" : val;
             i++;
             return true;
         }

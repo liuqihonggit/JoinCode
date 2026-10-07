@@ -38,4 +38,17 @@ public sealed partial class GitHubToolHandlersTests {
         result.IsError.Should().BeFalse();
         _api.LastPath.Should().Be("repos/owner/repo/pulls");
     }
+
+    [Fact]
+    public async Task PrCreate_RequestBody_OmitsNullMaintainerCanModify() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":44,"title":"t","state":"open"}""",
+        };
+
+        await _handler.GhPrCreateAsync("t", "feat", @base: "main", repo: "owner/repo");
+
+        _api.LastBody.Should().NotContain("maintainer_can_modify");
+    }
 }

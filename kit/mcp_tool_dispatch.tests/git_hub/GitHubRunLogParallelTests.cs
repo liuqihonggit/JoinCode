@@ -110,6 +110,10 @@ public sealed class GitHubRunLogParallelTest {
             }
         }
 
+        public Task<GitHubApiResponse> UploadAttachmentAsync(
+            long repositoryId, string fileName, Stream fileStream, CancellationToken ct = default)
+            => throw new NotImplementedException();
+
         public Task<GitHubApiResponse> UploadAssetAsync(
             string owner, string repo, long releaseId,
             string fileName, Stream fileStream, CancellationToken ct = default)

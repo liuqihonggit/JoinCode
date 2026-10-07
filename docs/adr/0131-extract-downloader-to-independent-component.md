@@ -2,7 +2,7 @@
 
 ## 状态
 
-proposed
+accepted
 
 ## 背景
 
@@ -52,9 +52,9 @@ Infrastructure (GitHubApiClient 用 IDownloader)
 
 ## 验收标准
 
-- [ ] lib/downloader/Downloader.csproj 创建完成
-- [ ] downloader 代码移动到 lib/downloader/
-- [ ] Infrastructure.csproj 引用 Downloader.csproj
-- [ ] JoinCode.slnx 包含 Downloader.csproj
-- [ ] 全量编译 0 警告 0 错误
-- [ ] 全量单元测试通过
+- [x] lib/downloader/Downloader.csproj 创建完成
+- [x] downloader 代码移动到 lib/downloader/
+- [x] Infrastructure.csproj 引用 Downloader.csproj
+- [x] JoinCode.slnx 包含 Downloader.csproj
+- [x] 全量编译 0 警告 0 错误
+- [x] 全量单元测试通过(495+784+357)

@@ -172,25 +172,25 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
     /// <summary>判断指定模型是否支持快速模式。</summary>
     public bool SupportsFastMode(string providerName, string modelId) {
         var model = FindModel(providerName, modelId);
-        return model?.Capabilities.FastMode ?? true;
+        return model?.Capabilities?.FastMode ?? true;
     }
 
     /// <summary>判断指定模型是否支持努力级别。</summary>
     public bool SupportsEffort(string providerName, string modelId) {
         var model = FindModel(providerName, modelId);
-        return model?.Capabilities.Effort ?? false;
+        return model?.Capabilities?.Effort ?? false;
     }
 
     /// <summary>判断指定模型是否支持最大努力级别。</summary>
     public bool SupportsMaxEffort(string providerName, string modelId) {
         var model = FindModel(providerName, modelId);
-        return model?.Capabilities.MaxEffort ?? false;
+        return model?.Capabilities?.MaxEffort ?? false;
     }
 
     /// <summary>判断指定模型是否支持思考模式。</summary>
     public bool SupportsThinkingMode(string providerName, string modelId) {
         var model = FindModel(providerName, modelId);
-        return model?.Capabilities.ThinkingMode ?? false;
+        return model?.Capabilities?.ThinkingMode ?? false;
     }
 
     /// <summary>判断指定模型是否支持给定模态。</summary>
@@ -202,7 +202,7 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
     /// <summary>获取指定模型的模态能力标志。</summary>
     public ModelModalityKind GetModalities(string providerName, string modelId) {
         var model = FindModel(providerName, modelId);
-        return model?.Capabilities.Modalities ?? ModelModalityKind.Text;
+        return model?.Capabilities?.Modalities ?? ModelModalityKind.Text;
     }
 
     /// <summary>根据完整模型名获取规范名称。</summary>

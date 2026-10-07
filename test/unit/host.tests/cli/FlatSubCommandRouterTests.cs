@@ -297,4 +297,33 @@ public sealed class FlatSubCommandRouterTests {
 
         error.Should().BeNull();
     }
+
+    // ===== ShouldOutputJson: 全局默认输出格式（JCC_OUTPUT_FORMAT 环境变量）=====
+
+    /// <summary>JCC_OUTPUT_FORMAT=text 时默认纯文本输出(降 AI token,优化C)</summary>
+    [Fact]
+    public void ShouldOutputJson_EnvTextDefault_ReturnsFalse() {
+        using var env = EnvVarScope.Set("JCC_OUTPUT_FORMAT", "text");
+        FlatSubCommandRouter.ShouldOutputJson(new[] { "gh", "pr", "checks", "390" }).Should().BeFalse();
+    }
+
+    /// <summary>显式 --format json 覆盖环境变量 text</summary>
+    [Fact]
+    public void ShouldOutputJson_ExplicitJson_OverridesEnvText() {
+        using var env = EnvVarScope.Set("JCC_OUTPUT_FORMAT", "text");
+        FlatSubCommandRouter.ShouldOutputJson(new[] { "gh", "pr", "checks", "390", "--format", "json" }).Should().BeTrue();
+    }
+
+    /// <summary>显式 --format text 覆盖默认 JSON(回归)</summary>
+    [Fact]
+    public void ShouldOutputJson_ExplicitText_OverridesDefault() {
+        FlatSubCommandRouter.ShouldOutputJson(new[] { "gh", "pr", "checks", "390", "--format", "text" }).Should().BeFalse();
+    }
+
+    /// <summary>无环境变量无 --format → 默认 JSON(回归,ADR 0069)</summary>
+    [Fact]
+    public void ShouldOutputJson_NoEnvNoFormat_DefaultsJson() {
+        using var env = EnvVarScope.Set("JCC_OUTPUT_FORMAT", null);
+        FlatSubCommandRouter.ShouldOutputJson(new[] { "gh", "pr", "checks", "390" }).Should().BeTrue();
+    }
 }

@@ -569,4 +569,87 @@ public sealed class GhCommandResolverTests {
         GhCommandResolver.Usage.Should().Contain("secret");
         GhCommandResolver.Usage.Should().Contain("ssh-key");
     }
+
+    /// <summary>-L 短选项映射到 limit（gh pr list -L 5）</summary>
+    [Fact]
+    public void Bind_ShortOption_L_ShouldMapToLimit() {
+        var parameters = new List<GhParam> {
+            new("state", IsRequired: false, IsBoolean: false),
+            new("limit", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "-L", "5" }, parameters, "gh_pr_list", out var error);
+
+        error.Should().BeNull();
+        bound!["limit"].Should().Be("5");
+    }
+
+    /// <summary>-s 短选项在 pr list 映射到 state</summary>
+    [Fact]
+    public void Bind_ShortOption_s_PrList_ShouldMapToState() {
+        var parameters = new List<GhParam> {
+            new("state", IsRequired: false, IsBoolean: false),
+            new("limit", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "-s", "closed" }, parameters, "gh_pr_list", out var error);
+
+        error.Should().BeNull();
+        bound!["state"].Should().Be("closed");
+    }
+
+    /// <summary>-s 短选项在 run list 映射到 status（per-command 覆盖）</summary>
+    [Fact]
+    public void Bind_ShortOption_s_RunList_ShouldMapToStatus() {
+        var parameters = new List<GhParam> {
+            new("status", IsRequired: false, IsBoolean: false),
+            new("limit", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "-s", "success" }, parameters, "gh_run_list", out var error);
+
+        error.Should().BeNull();
+        bound!["status"].Should().Be("success");
+    }
+
+    /// <summary>-d 短选项映射到 draft bool flag（gh pr create -d）</summary>
+    [Fact]
+    public void Bind_ShortOption_d_ShouldMapToDraftTrue() {
+        var parameters = new List<GhParam> {
+            new("title", IsRequired: true, IsBoolean: false),
+            new("draft", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "feat: test", "-d" }, parameters, "gh_pr_create", out var error);
+
+        error.Should().BeNull();
+        bound!["draft"].Should().Be("true");
+    }
+
+    /// <summary>-L5 内联值形式（gh pr list -L5）</summary>
+    [Fact]
+    public void Bind_ShortOption_InlineValue_ShouldMapCorrectly() {
+        var parameters = new List<GhParam> {
+            new("limit", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "-L5" }, parameters, "gh_pr_list", out var error);
+
+        error.Should().BeNull();
+        bound!["limit"].Should().Be("5");
+    }
+
+    /// <summary>-F 短选项在 release create 映射到 notes_file（per-command 覆盖）</summary>
+    [Fact]
+    public void Bind_ShortOption_F_ReleaseCreate_ShouldMapToNotesFile() {
+        var parameters = new List<GhParam> {
+            new("tag", IsRequired: true, IsBoolean: false),
+            new("notes_file", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "v1.0", "-F", "notes.md" }, parameters, "gh_release_create", out var error);
+
+        error.Should().BeNull();
+        bound!["notes_file"].Should().Be("notes.md");
+    }
 }

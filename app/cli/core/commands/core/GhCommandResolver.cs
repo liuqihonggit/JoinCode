@@ -226,6 +226,10 @@ internal static class GhArgsBinder {
         for (var i = 0; i < tail.Length; i++) {
             var token = tail[i];
             if (!token.StartsWith("--")) {
+                // 短选项: -X 或 -Xvalue (单 dash + 字母), 如 -L 5 / -L5 / -d
+                if (token.Length >= 2 && token[0] == '-' && char.IsLetter(token[1])
+                    && TryBindShortOption(token, toolName, tail, ref i, result, byName, out error))
+                    continue;
                 if (slotIndex >= slots.Count) {
                     error = TooManyPositionalError(toolName, token, parameters);
                     return null;
@@ -354,6 +358,91 @@ internal static class GhArgsBinder {
                 i++;
                 return true;
         }
+    }
+
+    /// <summary>系统 gh CLI 短选项映射 — -L→limit, -s→state/status, -d→draft, -F→body_file/notes_file 等</summary>
+    private static string? ResolveGhShortOption(char shortKey, string toolName) {
+        // 通用: -L → limit (所有 _list 命令)
+        if (shortKey == 'L' && toolName.EndsWith("_list"))
+            return "limit";
+        // 通用: -w → web (所有 _view 命令)
+        if (shortKey == 'w' && toolName.EndsWith("_view"))
+            return "web";
+        return (toolName, shortKey) switch {
+            ("gh_pr_list", 's') => "state",
+            ("gh_pr_list", 'S') => "search",
+            ("gh_pr_list", 'a') => "author",
+            ("gh_pr_list", 'A') => "assignee",
+            ("gh_pr_list", 'l') => "label",
+            ("gh_pr_list", 'B') => "base",
+            ("gh_pr_list", 'H') => "head",
+            ("gh_pr_list", 'd') => "draft",
+            ("gh_pr_view", 'c') => "comments",
+            ("gh_pr_create", 't') => "title",
+            ("gh_pr_create", 'b') => "body",
+            ("gh_pr_create", 'F') => "body_file",
+            ("gh_pr_create", 'B') => "base",
+            ("gh_pr_create", 'H') => "head",
+            ("gh_pr_create", 'd') => "draft",
+            ("gh_pr_create", 'l') => "label",
+            ("gh_pr_create", 'A') => "assignee",
+            ("gh_pr_create", 'r') => "reviewer",
+            ("gh_pr_create", 'p') => "project",
+            ("gh_pr_create", 'm') => "milestone",
+            ("gh_issue_list", 's') => "state",
+            ("gh_issue_list", 'S') => "search",
+            ("gh_issue_list", 'a') => "author",
+            ("gh_issue_list", 'A') => "assignee",
+            ("gh_issue_list", 'l') => "label",
+            ("gh_issue_view", 'c') => "comments",
+            ("gh_issue_create", 't') => "title",
+            ("gh_issue_create", 'b') => "body",
+            ("gh_issue_create", 'F') => "body_file",
+            ("gh_issue_create", 'l') => "label",
+            ("gh_issue_create", 'A') => "assignee",
+            ("gh_issue_create", 'p') => "project",
+            ("gh_issue_create", 'm') => "milestone",
+            ("gh_repo_list", 'l') => "language",
+            ("gh_repo_create", 'n') => "name",
+            ("gh_run_list", 'w') => "workflow",
+            ("gh_run_list", 'e') => "event",
+            ("gh_run_list", 's') => "status",
+            ("gh_run_list", 'B') => "branch",
+            ("gh_run_list", 'u') => "user",
+            ("gh_run_view", 'l') => "log",
+            ("gh_run_view", 'j') => "job",
+            ("gh_release_create", 't') => "title",
+            ("gh_release_create", 'n') => "notes",
+            ("gh_release_create", 'F') => "notes_file",
+            ("gh_release_create", 'd') => "draft",
+            ("gh_release_create", 'p') => "prerelease",
+            _ => null
+        };
+    }
+
+    /// <summary>尝试绑定系统 gh CLI 短选项 — 成功返回 true 并更新 result/i，失败返回 false（不设 error，fall through 到位置参数）</summary>
+    private static bool TryBindShortOption(string token, string toolName, string[] tail, ref int i,
+        Dictionary<string, string> result, Dictionary<string, GhParam> byName, out string? error) {
+        error = null;
+        var shortKey = token[1];
+        var shortInline = token.Length > 2 ? token[2..] : null;
+        if (ResolveGhShortOption(shortKey, toolName) is not { } longName)
+            return false;
+        if (shortInline is not null) {
+            result[longName] = shortInline;
+            return true;
+        }
+        if (byName.TryGetValue(longName, out var param) && param.IsBoolean) {
+            result[longName] = "true";
+            return true;
+        }
+        if (i + 1 < tail.Length && !tail[i + 1].StartsWith("-")) {
+            result[longName] = tail[i + 1];
+            i++;
+            return true;
+        }
+        result[longName] = "true";
+        return true;
     }
 
     /// <summary>找最接近的参数名: 优先前缀匹配(如 auto→auto_merge),其次包含匹配(如 merge→merge_method),最后 key 包含参数名(如 add-label→label)。</summary>

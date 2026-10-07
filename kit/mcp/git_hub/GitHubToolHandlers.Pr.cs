@@ -428,15 +428,15 @@ public partial class GitHubToolHandlers {
         List<string> failedRunIds;
         try {
             using var doc = JsonDocument.Parse(runsResult.Body);
-            failedRunIds = doc.RootElement.TryGetProperty("workflow_runs", out var runsEl)
-                ? runsEl.EnumerateArray()
-                    .Where(r => r.TryGetProperty("conclusion", out var c)
-                        && c.ValueKind == JsonValueKind.String
-                        && c.GetString() == "failure")
-                    .Select(r => r.TryGetProperty("id", out var idEl) ? idEl.GetRawText() : "")
-                    .Where(s => !string.IsNullOrEmpty(s))
-                    .ToList()
-                : [];
+            failedRunIds = [];
+            if (doc.RootElement.TryGetProperty("workflow_runs", out var runsEl)) {
+                foreach (var r in runsEl.EnumerateArray()) {
+                    if (!r.TryGetProperty("conclusion", out var c) || c.ValueKind != JsonValueKind.String || c.GetString() != "failure") continue;
+                    if (!r.TryGetProperty("id", out var idEl)) continue;
+                    var id = idEl.GetRawText();
+                    if (id.Length > 0) failedRunIds.Add(id);
+                }
+            }
         } catch {
             return [];
         }

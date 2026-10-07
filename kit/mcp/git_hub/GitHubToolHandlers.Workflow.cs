@@ -11,7 +11,7 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhWorkflowListAsync(
         [McpToolParameter("all=true 包含已禁用 workflow(默认 false)", Required = false)] bool? all = null,
         [McpToolParameter("数量限制(默认 50)", Required = false)] int? limit = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,state)", Required = false)] string? json = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,state)", Required = false)] string? json_fields = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -19,7 +19,7 @@ public partial class GitHubToolHandlers {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 50).ToString() };
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/workflows", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(result.Body, json) : SummarizeWorkflowList(result.Body, all == true));
+            return Ok(!string.IsNullOrEmpty(json_fields) ? FilterJsonFields(result.Body, json_fields) : SummarizeWorkflowList(result.Body, all == true));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -53,7 +53,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("ref=true 返回指定分支版本(可选)", Required = false)] string? @ref = null,
         [McpToolParameter("yaml=true 返回 workflow yaml 内容", Required = false)] bool? yaml = null,
         [McpToolParameter("web=true 只返回浏览器 URL", Required = false)] bool? web = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,state)", Required = false)] string? json = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,state)", Required = false)] string? json_fields = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -71,7 +71,7 @@ public partial class GitHubToolHandlers {
                 var yamlContent = TryExtractWorkflowYaml(result.Body);
                 if (yamlContent is not null) return Ok(yamlContent);
             }
-            return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(result.Body, json) : result.Body);
+            return Ok(!string.IsNullOrEmpty(json_fields) ? FilterJsonFields(result.Body, json_fields) : result.Body);
         }).ConfigureAwait(false);
 
     /// <summary>

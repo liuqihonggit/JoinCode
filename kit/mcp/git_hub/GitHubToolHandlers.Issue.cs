@@ -19,7 +19,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("里程碑过滤(可选,数字 ID 或 * 或 none)", Required = false)] string? milestone = null,
         [McpToolParameter("搜索查询(可选,GitHub search 语法)", Required = false)] string? search = null,
         [McpToolParameter("类型(issue/pr,默认 issue)", Required = false)] string? type = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,url)", Required = false)] string? json = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,url)", Required = false)] string? json_fields = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -32,7 +32,7 @@ public partial class GitHubToolHandlers {
                 var query = new Dictionary<string, string> { ["q"] = q, ["per_page"] = pageCount };
                 var result = await client.SendAsync(HttpMethod.Get, "search/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
                 if (!result.Success) return Fail(result.Error);
-                return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(result.Body, json) : SummarizeIssueList(result.Body));
+                return Ok(!string.IsNullOrEmpty(json_fields) ? FilterJsonFields(result.Body, json_fields) : SummarizeIssueList(result.Body));
             }
             var issuesQuery = new Dictionary<string, string> { ["state"] = stateVal, ["per_page"] = pageCount };
             if (!string.IsNullOrWhiteSpace(label)) issuesQuery["labels"] = label;
@@ -42,7 +42,7 @@ public partial class GitHubToolHandlers {
             if (!string.IsNullOrWhiteSpace(milestone)) issuesQuery["milestone"] = milestone;
             var issuesResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues", query: issuesQuery, ct: cancellationToken).ConfigureAwait(false);
             if (!issuesResult.Success) return Fail(issuesResult.Error);
-            return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(issuesResult.Body, json) : SummarizeIssueList(issuesResult.Body));
+            return Ok(!string.IsNullOrEmpty(json_fields) ? FilterJsonFields(issuesResult.Body, json_fields) : SummarizeIssueList(issuesResult.Body));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -71,7 +71,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
         [McpToolParameter("comments=true 附带评论列表", Required = false)] bool? comments = null,
         [McpToolParameter("web=true 只返回 Issue 浏览器 URL", Required = false)] bool? web = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json_fields = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
@@ -85,15 +85,15 @@ public partial class GitHubToolHandlers {
             if (comments == true) {
                 var issueResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
                 if (!issueResult.Success) return Fail(issueResult.Error);
-                var summary = !string.IsNullOrEmpty(json) ? FilterJsonFields(issueResult.Body, json) : (verbose == true ? issueResult.Body : SummarizeIssue(issueResult.Body));
+                var summary = !string.IsNullOrEmpty(json_fields) ? FilterJsonFields(issueResult.Body, json_fields) : (verbose == true ? issueResult.Body : SummarizeIssue(issueResult.Body));
                 var commentsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues/{number}/comments", ct: cancellationToken).ConfigureAwait(false);
                 if (!commentsResult.Success) return Fail(commentsResult.Error);
                 return Ok($"{summary}\n\n## 评论\n{SummarizeComments(commentsResult.Body)}");
             }
-            if (!string.IsNullOrEmpty(json)) {
+            if (!string.IsNullOrEmpty(json_fields)) {
                 var issueResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
                 if (!issueResult.Success) return Fail(issueResult.Error);
-                return Ok(FilterJsonFields(issueResult.Body, json));
+                return Ok(FilterJsonFields(issueResult.Body, json_fields));
             }
             var cacheKey = BuildGhCacheKey("gh_issue_view", $"{owner}/{repoName}/{number}");
             return await GetOrFetchWithCacheAsync(client, cacheKey, apiPath, verbose, SummarizeIssue, cancellationToken).ConfigureAwait(false);

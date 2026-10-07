@@ -13,7 +13,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
         [McpToolParameter("排序(stars/forks/updated,可选)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 full_name,stargazers_count)", Required = false)] string? json = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 full_name,stargazers_count)", Required = false)] string? json_fields = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
@@ -23,7 +23,7 @@ public partial class GitHubToolHandlers {
         queryDict["order"] = string.IsNullOrWhiteSpace(order) ? "desc" : order;
         var result = await _apiClient.SendAsync(HttpMethod.Get, "search/repositories", query: queryDict, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(result.Body, json) : SummarizeSearchRepos(result.Body));
+        return Ok(!string.IsNullOrEmpty(json_fields) ? FilterJsonFields(result.Body, json_fields) : SummarizeSearchRepos(result.Body));
     }
 
     /// <summary>
@@ -57,7 +57,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
         [McpToolParameter("排序(created/updated/comments,可选)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json_fields = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
@@ -67,7 +67,7 @@ public partial class GitHubToolHandlers {
         queryDict["order"] = string.IsNullOrWhiteSpace(order) ? "desc" : order;
         var result = await _apiClient.SendAsync(HttpMethod.Get, "search/issues", query: queryDict, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(result.Body, json) : SummarizeSearchIssues(result.Body));
+        return Ok(!string.IsNullOrEmpty(json_fields) ? FilterJsonFields(result.Body, json_fields) : SummarizeSearchIssues(result.Body));
     }
 
     /// <summary>
@@ -79,7 +79,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
         [McpToolParameter("排序(created/updated/comments,可选)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json_fields = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
@@ -89,7 +89,7 @@ public partial class GitHubToolHandlers {
         queryDict["order"] = string.IsNullOrWhiteSpace(order) ? "desc" : order;
         var result = await _apiClient.SendAsync(HttpMethod.Get, "search/issues", query: queryDict, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(result.Body, json) : SummarizeSearchIssues(result.Body));
+        return Ok(!string.IsNullOrEmpty(json_fields) ? FilterJsonFields(result.Body, json_fields) : SummarizeSearchIssues(result.Body));
     }
 
     /// <summary>

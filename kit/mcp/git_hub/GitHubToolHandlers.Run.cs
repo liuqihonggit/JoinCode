@@ -18,7 +18,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("触发者过滤(可选)", Required = false)] string? user = null,
         [McpToolParameter("commit SHA 过滤(可选)", Required = false)] string? commit = null,
         [McpToolParameter("创建时间过滤(可选,如 >2026-01-01)", Required = false)] string? created = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,status,conclusion)", Required = false)] string? json = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,status,conclusion)", Required = false)] string? json_fields = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -35,7 +35,7 @@ public partial class GitHubToolHandlers {
                 : $"repos/{owner}/{repoName}/actions/workflows/{workflow}/runs";
             var result = await client.SendAsync(HttpMethod.Get, basePath, query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            if (!string.IsNullOrEmpty(json)) return Ok(FilterJsonFields(result.Body, json));
+            if (!string.IsNullOrEmpty(json_fields)) return Ok(FilterJsonFields(result.Body, json_fields));
             var summarized = GitHubRunListSummarizer.SummarizeRunList(result.Body);
             var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
             return hasFailure ? Ok(summarized + GitHubRunLogHints.RunListFailureHint) : Ok(summarized);
@@ -57,7 +57,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)", Required = false)] bool? refresh = null,
         [McpToolParameter("web=true 只返回 Run 浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("重试次数(可选,查看指定 attempt 的详情)", Required = false)] int? attempt = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,status,conclusion)", Required = false)] string? json = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,status,conclusion)", Required = false)] string? json_fields = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -68,10 +68,10 @@ public partial class GitHubToolHandlers {
                 var url = ExtractHtmlUrl(runResult.Body);
                 return string.IsNullOrEmpty(url) ? Fail("无法从 Run 响应中解析 html_url") : Ok(url);
             }
-            if (!string.IsNullOrEmpty(json)) {
+            if (!string.IsNullOrEmpty(json_fields)) {
                 var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
                 if (!runResult.Success) return Fail(runResult.Error);
-                return Ok(FilterJsonFields(runResult.Body, json));
+                return Ok(FilterJsonFields(runResult.Body, json_fields));
             }
             return await GhRunViewCoreAsync(client, owner, repoName, run_id, job_id, log, max_lines, skip_lines, expand, filter, refresh, attempt, working_dir, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);

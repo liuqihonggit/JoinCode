@@ -413,6 +413,24 @@ internal sealed class RepoCreateRequest {
     public string? LicenseTemplate { get; init; }
 }
 
+/// <summary>Repo template generate 请求 — POST /repos/{o}/{r}/generate</summary>
+internal sealed class RepoTemplateGenerateRequest {
+    /// <summary>仓库名</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    /// <summary>描述</summary>
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
+    /// <summary>是否私有</summary>
+    [JsonPropertyName("private")]
+    public bool? Private { get; init; }
+    /// <summary>可见性</summary>
+    [JsonPropertyName("visibility")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Visibility { get; init; }
+}
+
 /// <summary>Repo edit 请求 — PATCH /repos/{o}/{r}</summary>
 internal sealed class RepoEditRequest {
     /// <summary>描述</summary>
@@ -583,6 +601,7 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(ReleaseEditRequest))]
 [JsonSerializable(typeof(ReleaseGenerateNotesRequest))]
 [JsonSerializable(typeof(RepoCreateRequest))]
+[JsonSerializable(typeof(RepoTemplateGenerateRequest))]
 [JsonSerializable(typeof(RepoEditRequest))]
 [JsonSerializable(typeof(RepoRenameRequest))]
 [JsonSerializable(typeof(RepoSyncRequest))]

@@ -71,9 +71,9 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 创建仓库 — 支持 public/private/internal 可见性、描述、README 初始化、homepage、gitignore 模板、license 模板
+    /// 创建仓库 — 支持 public/private/internal 可见性、描述、README 初始化、homepage、gitignore/license 模板、template/clone/disable-issues/disable-wiki
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRepoCreate, "创建仓库(public/private/internal,支持 homepage/gitignore/license 模板)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoCreate, "创建仓库(public/private/internal,支持 template/clone/disable-issues/disable-wiki)", "github")]
     public async Task<ToolResult> GhRepoCreateAsync(
         [McpToolParameter("仓库名", Required = true)] string name,
         [McpToolParameter("可见性(public/private/internal,默认 private)", Required = false)] string? visibility = null,
@@ -82,6 +82,13 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("主页 URL(可选)", Required = false)] string? homepage = null,
         [McpToolParameter("gitignore 模板(可选,如 VisualStudio)", Required = false)] string? gitignore = null,
         [McpToolParameter("license 模板(可选,如 mit)", Required = false)] string? license = null,
+        [McpToolParameter("模板仓库(owner/repo,可选,用模板创建)", Required = false)] string? template = null,
+        [McpToolParameter("组织名(可选,在组织下创建)", Required = false)] string? org = null,
+        [McpToolParameter("团队名(可选,组织仓库添加到团队)", Required = false)] string? team = null,
+        [McpToolParameter("创建后克隆到本地(默认 false)", Required = false)] bool? clone = null,
+        [McpToolParameter("禁用 Issues(可选)", Required = false)] bool? disable_issues = null,
+        [McpToolParameter("禁用 Wiki(可选)", Required = false)] bool? disable_wiki = null,
+        [McpToolParameter("web=true 只返回仓库浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
@@ -89,19 +96,55 @@ public partial class GitHubToolHandlers {
         var isPrivate = vis.Equals("private", StringComparison.OrdinalIgnoreCase);
         var isInternal = vis.Equals("internal", StringComparison.OrdinalIgnoreCase);
 
-        var jsonBody = JsonSerializer.Serialize(new RepoCreateRequest {
-            Name = name,
-            Private = isPrivate || isInternal,
-            Visibility = isInternal ? "internal" : null,
-            Description = description,
-            AutoInit = add_readme,
-            Homepage = homepage,
-            GitignoreTemplate = gitignore,
-            LicenseTemplate = license
-        }, GitHubApiJsonContext.Safe.RepoCreateRequest);
+        string jsonBody;
+        string createPath;
+        if (!string.IsNullOrWhiteSpace(template)) {
+            var parsed = ParseGitHubRepoRef(template);
+            if (parsed is null) return Fail("模板仓库格式错误，应为 owner/repo");
+            createPath = $"repos/{parsed.Value.owner}/{parsed.Value.repo}/generate";
+            jsonBody = JsonSerializer.Serialize(new RepoTemplateGenerateRequest {
+                Name = name,
+                Description = description,
+                Private = isPrivate || isInternal,
+                Visibility = isInternal ? "internal" : (isPrivate ? "private" : "public")
+            }, GitHubApiJsonContext.Safe.RepoTemplateGenerateRequest);
+        } else {
+            createPath = !string.IsNullOrWhiteSpace(org) ? $"orgs/{org}/repos" : "user/repos";
+            jsonBody = JsonSerializer.Serialize(new RepoCreateRequest {
+                Name = name,
+                Private = isPrivate || isInternal,
+                Visibility = isInternal ? "internal" : null,
+                Description = description,
+                AutoInit = add_readme,
+                Homepage = homepage,
+                GitignoreTemplate = gitignore,
+                LicenseTemplate = license,
+                HasIssues = disable_issues == true ? false : null,
+                HasWiki = disable_wiki == true ? false : null
+            }, GitHubApiJsonContext.Safe.RepoCreateRequest);
+        }
 
-        var result = await _apiClient.SendAsync(HttpMethod.Post, "user/repos", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? OkBrief(result.Body, $"已创建仓库 {name}") : Fail(result.Error);
+        var result = await _apiClient.SendAsync(HttpMethod.Post, createPath, jsonBody, ct: cancellationToken).ConfigureAwait(false);
+        if (!result.Success) return Fail(result.Error);
+
+        var repoFullName = !string.IsNullOrWhiteSpace(org) ? $"{org}/{name}" : name;
+        if (!string.IsNullOrWhiteSpace(org) && !string.IsNullOrWhiteSpace(team)) {
+            var teamResult = await _apiClient.SendAsync(HttpMethod.Put, $"orgs/{org}/teams/{team}/repos/{org}/{name}", ct: cancellationToken).ConfigureAwait(false);
+            if (!teamResult.Success) return OkBrief(result.Body, $"已创建仓库 {repoFullName}（但添加到团队失败: {teamResult.Error}）");
+        }
+
+        if (web == true) {
+            var url = ExtractHtmlUrl(result.Body);
+            return string.IsNullOrEmpty(url) ? OkBrief(result.Body, $"已创建仓库 {repoFullName}") : Ok(url);
+        }
+
+        if (clone == true) {
+            if (_git is null) return OkBrief(result.Body, $"已创建仓库 {repoFullName}（但未克隆：git 未配置）");
+            var cloneResult = await _git.ExecuteAsync($"clone https://github.com/{repoFullName}.git", working_dir, cancellationToken).ConfigureAwait(false);
+            if (!cloneResult.Success) return OkBrief(result.Body, $"已创建仓库 {repoFullName}（但克隆失败: {cloneResult.Error}）");
+        }
+
+        return OkBrief(result.Body, $"已创建仓库 {repoFullName}");
     }
 
     /// <summary>

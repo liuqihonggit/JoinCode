@@ -154,6 +154,15 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 逗号分隔字符串转 List — 如 "bug,feat" → ["bug","feat"]，空/空白返回空 List
+    /// <para>DTO 序列化用：Labels/Assignees 等字段从 CSV 参数构建</para>
+    /// </summary>
+    private static List<string> ParseCsvToList(string? csv) {
+        if (string.IsNullOrWhiteSpace(csv)) return new();
+        return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+    }
+
+    /// <summary>
     /// 守卫编排模板 — client 检查 + owner/repo 解析,失败短路返回错误,成功执行 apiCall(client, owner, repo)
     /// <para>消除 21 处重复的 client 检查 + ResolveOwnerRepoAsync 样板,主方法只写 API 调用核心逻辑</para>
     /// <para>client 作为参数传入 apiCall,调用方直接用 client 而非 _apiClient!,消除空抑制</para>
@@ -277,15 +286,17 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 精简 PR 列表 JSON — 表格格式(number, state, title, author)
+    /// 精简 PR 列表 JSON — 表格格式(number, state, title, author)，兼容 pulls API 数组和 search API {items} 格式
     /// </summary>
     private static string SummarizePrList(string json) {
         try {
             using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var root = doc.RootElement;
+            var arrayEl = root.ValueKind == JsonValueKind.Array ? root : root.TryGetProperty("items", out var itemsEl) ? itemsEl : default;
+            if (arrayEl.ValueKind != JsonValueKind.Array) return json;
             var sb = new StringBuilder(512);
             sb.AppendLine("PR#\t状态\t标题\t作者");
-            foreach (var pr in doc.RootElement.EnumerateArray()) {
+            foreach (var pr in arrayEl.EnumerateArray()) {
                 var number = pr.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
                 var state = pr.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
                 var title = pr.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
@@ -304,10 +315,12 @@ public partial class GitHubToolHandlers {
     private static string SummarizeIssueList(string json) {
         try {
             using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var root = doc.RootElement;
+            var arrayEl = root.ValueKind == JsonValueKind.Array ? root : root.TryGetProperty("items", out var itemsEl) ? itemsEl : default;
+            if (arrayEl.ValueKind != JsonValueKind.Array) return json;
             var sb = new StringBuilder(512);
             sb.AppendLine("Issue#\t状态\t标题\t作者");
-            foreach (var issue in doc.RootElement.EnumerateArray()) {
+            foreach (var issue in arrayEl.EnumerateArray()) {
                 var number = issue.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
                 var state = issue.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
                 var title = issue.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";

@@ -554,6 +554,22 @@ jcc mcp_call gh_run_view  '{"run_id":"123"}'        # run_id 必填
 
 两种入口等价：`jcc gh <group> <action>` 按约定拼成 `gh_{group}_{action}`，位置参数按工具 schema 的 `required` 顺序绑定（`pr_number` / `run_id` / `tag` / `issue_number`…），选项支持 `--key value`、`--key=value`，连字符自动归一化为下划线（`--max-lines` → `max_lines`）。
 
+**⚠️ 系统 gh CLI → jcc gh 参数对照表**（AI 训练数据中系统 gh CLI 用法占主导，jcc gh 参数名不同，必看）：
+
+| 系统 gh CLI 写法 | jcc gh 正确写法 | 状态 |
+|-----------------|----------------|------|
+| `--auto` | `--auto_merge` | ✅ 已自动映射（P1 别名宽容） |
+| `--squash` | `--merge_method squash` | ✅ 已自动映射 |
+| `--merge` | `--merge_method merge` | ✅ 已自动映射 |
+| `--rebase` | `--merge_method rebase` | ✅ 已自动映射 |
+| `--failed` | `--failed_only` | ✅ 已自动映射（gh run rerun --failed） |
+| `--delete-branch` | `--delete_branch` | ✅ 连字符自动归一化 |
+| `--json number,title,url` | 不需要（jcc 默认 JSON 输出） | ❌ `--json` 被剥离后字段列表变位置参数报错；如需 text 用 `--format text` |
+| `-f key=value` | `--fields key=value` | ❌ 需改写（gh_api 查询参数） |
+| `--version` | `jcc gh --help` | ❌ 需改写（jcc 子命令不支持 --version） |
+
+**根因**：jcc gh 不是系统 gh CLI 的包装/转发，是独立实现（HttpClient 直调 REST API），参数名用 snake_case（`auto_merge`/`merge_method`），系统 gh CLI 用 kebab-case + 缩写（`--auto`/`--squash`）。遇到未知选项时 jcc 会建议最接近的参数（"你是不是想用 --auto_merge?"）。
+
 **2. Agent 内置 `grep` 工具 → 处理日常搜索**（`Grep` tool，基于 ripgrep 引擎）：
 
 ```

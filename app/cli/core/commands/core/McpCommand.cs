@@ -42,8 +42,8 @@ public sealed class McpCliCommand {
                 var items = filtered
                     .Select(t => new Cli.Output.CliToolListItem(t.Name, "", t.Category, null, ""))
                     .ToList();
-                var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = count });
-                System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, JsonCtx));
+                var envelope = Cli.Output.CliOutputEnvelope<System.Collections.Generic.List<Cli.Output.CliToolListItem>>.Success(items, new Cli.Output.CliOutputMeta { TotalCount = count });
+                System.Console.WriteLine(envelope.ToJsonString());
             } else {
                 var grouped = tools.Values
                     .Where(t => string.IsNullOrEmpty(category) || string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase))
@@ -76,8 +76,8 @@ public sealed class McpCliCommand {
                     name,
                     allTools.TryGetValue(name, out var t) ? t.Description : null,
                     allTools.TryGetValue(name, out var t2) ? t2.Category : null)).ToList();
-                var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = count });
-                System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, JsonCtx));
+                var envelope = Cli.Output.CliOutputEnvelope<System.Collections.Generic.List<Cli.Output.CliToolSearchItem>>.Success(items, new Cli.Output.CliOutputMeta { TotalCount = count });
+                System.Console.WriteLine(envelope.ToJsonString());
             } else {
                 TerminalHelper.WriteLine($"搜索 '{query}' 结果 ({result.MatchedToolNames.Count}/{allTools.Count}):");
                 foreach (var name in result.MatchedToolNames) {
@@ -105,8 +105,7 @@ public sealed class McpCliCommand {
             }
 
             if (json) {
-                var schemaJson = RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default);
-                System.Console.WriteLine($"{{\"ok\":true,\"data\":{schemaJson},\"meta\":{{\"totalCount\":1}},\"schemaVersion\":\"1\"}}");
+                System.Console.WriteLine(Cli.Output.CliOutputEnvelope<Abstractions.Tools.ToolSchema>.Success(info.InputSchema, new Cli.Output.CliOutputMeta { TotalCount = 1 }).ToJsonString());
             } else {
                 TerminalHelper.WriteLine($"工具: {info.Name}");
                 TerminalHelper.WriteLine($"描述: {info.Description}");
@@ -208,14 +207,8 @@ public sealed class McpCliCommand {
 
     /// <summary>mcp_serve 退出时输出结构化 JSON 报告</summary>
     private static void WriteServeExitReport(string transport, int toolCount, int totalRequests, int totalErrors, TimeSpan uptime) {
-        var data = new System.Text.Json.Nodes.JsonObject {
-            ["transport"] = transport,
-            ["toolCount"] = toolCount,
-            ["totalRequests"] = totalRequests,
-            ["totalErrors"] = totalErrors,
-            ["uptimeSeconds"] = Math.Round(uptime.TotalSeconds, 2)
-        };
-        var report = CliOutputEnvelope.Success(data).ToString();
+        var data = new McpServeExitReport(transport, toolCount, totalRequests, totalErrors, Math.Round(uptime.TotalSeconds, 2));
+        var report = Cli.Output.CliOutputEnvelope<McpServeExitReport>.Success(data).ToJsonString();
         TerminalHelper.WriteLine($"{TerminalColors.Info}mcp_serve 退出报告{AnsiStyleEnumConstants.Reset}: {report}");
     }
 
@@ -383,11 +376,18 @@ public sealed class McpCliCommand {
         return JsonDocument.Parse(ms).RootElement.Clone();
     }
 
-    /// <summary>输出工具执行结果 — 供 gh 等子命令复用，避免第二套输出逻辑</summary>
+    /// <summary>输出工具执行结果 — 供 gh 等子命令复用，避免第二套输出逻辑
+    /// <para>扁平化: 单 text content + 非 error → data 直接是 string,消除 content[0].text 嵌套(降低 AI token 消耗)</para>
+    /// </summary>
     internal static int OutputResult(ToolResult result, bool json) {
         if (json) {
-            var envelope = CliOutputEnvelope.Success(result);
-            System.Console.WriteLine(envelope.ToString());
+            if (!result.IsError && result.Content.Count == 1 && !string.IsNullOrEmpty(result.Content[0].Text)) {
+                var envelope = Cli.Output.CliOutputEnvelope<string>.Success(result.Content[0].Text);
+                System.Console.WriteLine(envelope.ToJsonString());
+            } else {
+                var envelope = Cli.Output.CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolResult>.Success(result);
+                System.Console.WriteLine(envelope.ToJsonString());
+            }
         } else {
             // 非 json 模式: 遍历所有 Content,输出文本 + 图片摘要
             var hasOutput = false;
@@ -450,3 +450,6 @@ public sealed class McpCliCommand {
             TerminalHelper.WriteLine(text);
     }
 }
+
+/// <summary>mcp_serve 退出报告 DTO — 用泛型 CliOutputEnvelope&lt;T&gt; 序列化，AOT 兼容</summary>
+public sealed record McpServeExitReport(string Transport, int ToolCount, int TotalRequests, int TotalErrors, double UptimeSeconds);

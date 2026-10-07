@@ -9,6 +9,11 @@ internal static class McpCallCommand {
     /// 执行 mcp_call — 位置参数 &lt;tool&gt; [key=value ... | &lt;argsJson&gt; | --args-file | --args-stdin] [--json]。
     /// </summary>
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
+        var unknownError = FlatSubCommandRouter.DetectUnknownOptions(args, CliArgCliOptionConstants.AllOptionNames, ToolCallArgCliOptionConstants.AllOptionNames);
+        if (unknownError is not null) {
+            TerminalHelper.WriteError(unknownError);
+            return 1;
+        }
         var toolName = FlatSubCommandRouter.GetPositional(args, 0);
         if (string.IsNullOrEmpty(toolName)) {
             TerminalHelper.WriteError("用法: jcc mcp_call <tool> [key=value ... | <argsJson> | --args-file <path> | --args-stdin] [--json]");

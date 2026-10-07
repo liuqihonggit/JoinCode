@@ -167,6 +167,120 @@ public sealed class GhCommandResolverTests {
         error.Should().Contain("--limit <值>");
     }
 
+    /// <summary>系统 gh CLI 缩写 --auto 应映射到 auto_merge=true（AI 习惯用真实 gh CLI 语法）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_Auto_ShouldMapToAutoMerge() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "382", "--auto" }, parameters, "gh_pr_merge", out var error);
+
+        error.Should().BeNull();
+        bound!["auto_merge"].Should().Be("true");
+    }
+
+    /// <summary>系统 gh CLI 缩写 --squash 应映射到 merge_method=squash</summary>
+    [Fact]
+    public void Bind_GhCliAlias_Squash_ShouldMapToMergeMethod() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "382", "--squash" }, parameters, "gh_pr_merge", out var error);
+
+        error.Should().BeNull();
+        bound!["merge_method"].Should().Be("squash");
+    }
+
+    /// <summary>--auto --squash 组合应同时映射（对应文件中 #4 的 jcc gh pr merge 382 --auto --squash）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_AutoAndSquash_ShouldMapBoth() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "382", "--auto", "--squash" }, parameters, "gh_pr_merge", out var error);
+
+        error.Should().BeNull();
+        bound!["auto_merge"].Should().Be("true");
+        bound["merge_method"].Should().Be("squash");
+    }
+
+    /// <summary>系统 gh CLI 缩写 --failed 应映射到 failed_only=true（gh run rerun --failed）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_Failed_ShouldMapToFailedOnly() {
+        var parameters = new List<GhParam> {
+            new("run_id", IsRequired: true, IsBoolean: false),
+            new("failed_only", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "37560629113", "--failed" }, parameters, "gh_run_rerun", out var error);
+
+        error.Should().BeNull();
+        bound!["failed_only"].Should().Be("true");
+    }
+
+    /// <summary>系统 gh CLI 缩写 --merge/--rebase 也应映射到 merge_method</summary>
+    [Theory]
+    [InlineData("merge", "merge")]
+    [InlineData("rebase", "rebase")]
+    public void Bind_GhCliAlias_MergeRebase_ShouldMapToMergeMethod(string alias, string expected) {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "382", $"--{alias}" }, parameters, "gh_pr_merge", out var error);
+
+        error.Should().BeNull();
+        bound!["merge_method"].Should().Be(expected);
+    }
+
+    /// <summary>别名仅在 gh_pr_merge 生效，其他工具遇到 --auto 应报未知选项</summary>
+    [Fact]
+    public void Bind_GhCliAlias_NonMergeTool_ShouldNotApplyAlias() {
+        var parameters = new List<GhParam> { new("limit", IsRequired: false, IsBoolean: false) };
+
+        var bound = GhArgsBinder.Bind(new[] { "--auto" }, parameters, "gh_pr_list", out var error);
+
+        bound.Should().BeNull();
+        error.Should().Contain("--auto");
+    }
+
+    /// <summary>--json 被剥离后字段列表(含逗号)变位置参数,应提示 jcc 默认 JSON 输出</summary>
+    [Fact]
+    public void Bind_TooManyPositional_WithComma_ShouldHintJsonNotNeeded() {
+        var parameters = new List<GhParam> { new("state", IsRequired: false, IsBoolean: false) };
+
+        var bound = GhArgsBinder.Bind(new[] { "number,title,url" }, parameters, "gh_pr_list", out var error);
+
+        bound.Should().BeNull();
+        error.Should().Contain("默认 JSON");
+        error.Should().Contain("--json");
+    }
+
+    /// <summary>未知选项应建议最接近的参数(前缀匹配: auto → auto_merge)</summary>
+    [Fact]
+    public void Bind_UnknownOption_ShouldSuggestClosestByPrefix() {
+        var parameters = new List<GhParam> {
+            new("limit", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--auto" }, parameters, "gh_pr_list", out var error);
+
+        bound.Should().BeNull();
+        error.Should().Contain("你是不是想用");
+        error.Should().Contain("--auto_merge");
+    }
+
     /// <summary>必填参数保持 required 声明顺序，布尔类型从 schema type 推断</summary>
     [Fact]
     public void ParseSchema_ShouldKeepRequiredOrderAndBooleanType() {

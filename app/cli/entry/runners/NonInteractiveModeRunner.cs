@@ -52,10 +52,7 @@ internal static class NonInteractiveModeRunner {
 
         // JSON 模式: 输出最终结果信封
         if (options.IsJsonMode && context.OutputContract is not null) {
-            var result = new {
-                exitCode = context.ExitCode,
-                response = context.FullResponse ?? string.Empty,
-            };
+            var result = new Cli.Output.CliNonInteractiveResult(context.ExitCode, context.FullResponse ?? string.Empty);
             context.OutputContract.WriteData(result, new Cli.Output.CliOutputMeta {
                 DurationMs = context.ElapsedMs,
             });

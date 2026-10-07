@@ -56,7 +56,7 @@ internal static class GhCommandResolver {
 
         // api 组是单级命令: jcc gh api <path> → gh_api
         if (string.Equals(group, "api", StringComparison.OrdinalIgnoreCase))
-            return new GhResolvedCommand("gh_api", "api", null, CollectTail(args, 2, json), json);
+            return new GhResolvedCommand("gh_api", "api", null, CollectTail(args, 2), json);
 
         var action = NextPositional(args, 2);
         if (action is null) {
@@ -65,7 +65,7 @@ internal static class GhCommandResolver {
         }
 
         var toolName = $"gh_{group}_{action}";
-        return new GhResolvedCommand(toolName, group, action, CollectTail(args, 3, json), json);
+        return new GhResolvedCommand(toolName, group, action, CollectTail(args, 3), json);
     }
 
     /// <summary>
@@ -86,14 +86,24 @@ internal static class GhCommandResolver {
     }
 
     /// <summary>
-    /// 收集待绑定的剩余参数（跳过分组、动作与 <c>--json</c>）。
+    /// 收集待绑定的剩余参数（跳过分组、动作与所有全局选项）。
+    /// <para>全局选项（--json/--format/--help 等）对 gh 工具无意义，剥离后不传给 GhArgsBinder，
+    /// 避免被报为未知选项。布尔标志剥单 token，带值选项剥 token+值（--key=value 形式只剥单 token）。</para>
     /// </summary>
-    private static string[] CollectTail(string[] args, int startIndex, bool jsonStripped) {
+    private static string[] CollectTail(string[] args, int startIndex) {
         var tail = new List<string>(args.Length - startIndex);
         for (var i = startIndex; i < args.Length; i++) {
-            if (jsonStripped && args[i] == CliArgCliOptionConstants.JsonLongName)
+            var token = args[i];
+            if (token.StartsWith("--") && CliArgCliOptionConstants.AllOptionNames.Contains(token)) {
+                if (token.Contains('='))
+                    continue;
+                if (CliArgCliOptionConstants.BooleanFlags.Contains(token))
+                    continue;
+                if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+                    i++;
                 continue;
-            tail.Add(args[i]);
+            }
+            tail.Add(token);
         }
         return tail.ToArray();
     }
@@ -212,6 +222,11 @@ internal static class GhArgsBinder {
 
             // 宽容策略: 真实 gh CLI 用连字符（--max-lines），工具 schema 用下划线（max_lines）
             if (!byName.TryGetValue(key, out var param) && !byName.TryGetValue(key.Replace('-', '_'), out param)) {
+                // 宽容策略: 系统 gh CLI 缩写别名（--auto→auto_merge, --squash→merge_method=squash 等）
+                if (ResolveGhCliAlias(key, toolName) is { } alias) {
+                    result[alias.Key] = alias.Value;
+                    continue;
+                }
                 error = UnknownOptionError(key, parameters);
                 return null;
             }
@@ -245,10 +260,36 @@ internal static class GhArgsBinder {
         return result;
     }
 
+    /// <summary>
+    /// 系统 gh CLI 缩写别名宽容 — AI 习惯用真实 gh CLI 的 --auto/--squash/--failed 等，
+    /// 映射到 jcc 工具参数。返回 null 表示无别名。
+    /// </summary>
+    private static (string Key, string Value)? ResolveGhCliAlias(string key, string toolName)
+        => (toolName, key) switch {
+            ("gh_pr_merge", "auto")    => ("auto_merge", "true"),
+            ("gh_pr_merge", "squash")  => ("merge_method", "squash"),
+            ("gh_pr_merge", "merge")   => ("merge_method", "merge"),
+            ("gh_pr_merge", "rebase")  => ("merge_method", "rebase"),
+            ("gh_run_rerun", "failed") => ("failed_only", "true"),
+            _                          => null
+        };
+
+    /// <summary>找最接近的参数名: 优先前缀匹配(如 auto→auto_merge),其次包含匹配(如 merge→merge_method)。</summary>
+    private static string? SuggestOption(string key, IReadOnlyList<GhParam> parameters) {
+        var prefix = parameters.FirstOrDefault(p => p.Name.StartsWith(key, StringComparison.OrdinalIgnoreCase));
+        if (prefix is not null) return prefix.Name;
+        var contains = parameters.FirstOrDefault(p => p.Name.Contains(key, StringComparison.OrdinalIgnoreCase));
+        return contains?.Name;
+    }
+
     private static string TooManyPositionalError(string toolName, string token, IReadOnlyList<GhParam> parameters) {
         var names = string.Join(", ", parameters.Select(p => p.Name));
+        var hint = "非位置参数请用 --参数名 值 的形式";
+        // --json 诱导: jcc 默认 JSON 输出,--json 被剥离后字段列表(含逗号)变位置参数
+        if (token.Contains(','))
+            hint += "\n提示: jcc 默认 JSON 输出,不需要 --json;如需 text 格式用 --format text";
         return $"{CliErrorCatalog.ArgParseError($"多余的位置参数: {token}").ToRustStyleString(token)}\n"
-             + $"{toolName} 接受的参数: {names}\n提示: 非位置参数请用 --参数名 值 的形式";
+             + $"{toolName} 接受的参数: {names}\n提示: {hint}";
     }
 
     private static string DuplicateParamError(string name)
@@ -256,7 +297,10 @@ internal static class GhArgsBinder {
 
     private static string UnknownOptionError(string key, IReadOnlyList<GhParam> parameters) {
         var names = string.Join(", ", parameters.Select(p => $"--{p.Name}"));
-        return $"{CliErrorCatalog.ArgUnknownOption($"--{key}").ToRustStyleString($"--{key}")}\n可用选项: {names}";
+        var hint = $"可用选项: {names}";
+        if (SuggestOption(key, parameters) is { } suggestion)
+            hint += $"\n你是不是想用 --{suggestion}?";
+        return $"{CliErrorCatalog.ArgUnknownOption($"--{key}").ToRustStyleString($"--{key}")}\n{hint}";
     }
 
     private static string MissingPositionalError(string toolName, string missingName, IReadOnlyList<GhParam> slots) {

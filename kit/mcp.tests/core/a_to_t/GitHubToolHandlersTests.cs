@@ -1,6 +1,6 @@
 namespace Mcp.Tests;
 
-public sealed class GitHubToolHandlersTests {
+public sealed partial class GitHubToolHandlersTests {
     private readonly FakeGitHubApiClient _api = new();
     private readonly GitHubToolHandlers _handler;
 
@@ -14,6 +14,9 @@ public sealed class GitHubToolHandlersTests {
             null,
             NullLogger<GitHubToolHandlers>.Instance);
     }
+
+    private static GitHubToolHandlers CreateHandlerWithGit(IGitCommandRunner git)
+        => new(new FakeDownloader(), new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
 
     [Fact]
     public async Task PrView_Success_ReturnsOutput() {
@@ -153,6 +156,319 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task PrReopen_WithComment_PostsCommentBeforeReopen() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 201,
+            Body = """{"id":1}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"number":42,"state":"open"}""",
+        });
+
+        var result = await _handler.GhPrReopenAsync("42", comment: "重开此 PR", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42");
+    }
+
+    [Fact]
+    public async Task PrReopen_WithoutComment_OnlyReopens() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"number":42,"state":"open"}""",
+        };
+
+        var result = await _handler.GhPrReopenAsync("42", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42");
+    }
+
+    [Fact]
+    public async Task PrClose_WithDeleteBranch_DeletesBranchAfterClose() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"number":42,"state":"closed"}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"head":{"ref":"feature-branch"}}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 204,
+            Body = "{}",
+        });
+
+        var result = await _handler.GhPrCloseAsync("42", delete_branch: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/git/refs/heads/feature-branch");
+    }
+
+    [Fact]
+    public async Task PrClose_WithoutDeleteBranch_OnlyCloses() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"number":42,"state":"closed"}""",
+        };
+
+        var result = await _handler.GhPrCloseAsync("42", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42");
+    }
+
+    [Fact]
+    public async Task PrList_WithBase_PassesBaseQuery() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = "[]",
+        };
+        await _handler.GhPrListAsync(@base: "develop", repo: "owner/repo");
+        _api.LastPath.Should().Be("repos/owner/repo/pulls");
+        _api.LastQuery.Should().ContainKey("base").WhoseValue.Should().Be("develop");
+    }
+
+    [Fact]
+    public async Task PrList_WithHead_PassesHeadQuery() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = "[]",
+        };
+        await _handler.GhPrListAsync(head: "feature", repo: "owner/repo");
+        _api.LastQuery.Should().ContainKey("head").WhoseValue.Should().Be("feature");
+    }
+
+    [Fact]
+    public async Task PrList_WithLabel_UsesSearchApi() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""",
+        };
+        await _handler.GhPrListAsync(label: "bug", repo: "owner/repo");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("is:pr").And.Contain("label:bug");
+    }
+
+    [Fact]
+    public async Task PrList_WithDraft_UsesSearchApi() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""",
+        };
+        await _handler.GhPrListAsync(draft: true, repo: "owner/repo");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("draft:true");
+    }
+
+    [Fact]
+    public async Task PrList_WithAssignee_UsesSearchApi() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""",
+        };
+        await _handler.GhPrListAsync(assignee: "alice", repo: "owner/repo");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("assignee:alice");
+    }
+
+    [Fact]
+    public async Task PrList_WithSearch_UsesSearchApi() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""",
+        };
+        await _handler.GhPrListAsync(search: "review:required", repo: "owner/repo");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("review:required");
+    }
+
+    [Fact]
+    public async Task PrDiff_WithNameOnly_ReturnsOnlyFileNames() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"diff_url":"https://example.com/diff"}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = "diff --git a/file1.txt b/file1.txt\nindex 123..456\n--- a/file1.txt\n+++ b/file1.txt\n@@ -1 +1 @@\n-old\n+new\ndiff --git a/file2.cs b/file2.cs\nindex 123..456\n--- a/file2.cs\n+++ b/file2.cs\n@@ -1 +1 @@\n-old\n+new\n",
+        });
+
+        var result = await _handler.GhPrDiffAsync("42", name_only: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("file1.txt");
+        text.Should().Contain("file2.cs");
+        text.Should().NotContain("diff --git");
+        text.Should().NotContain("--- a/");
+    }
+
+    [Fact]
+    public async Task PrDiff_WithExclude_FiltersMatchingFiles() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"diff_url":"https://example.com/diff"}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = "diff --git a/file1.txt b/file1.txt\nindex 123..456\n--- a/file1.txt\n+++ b/file1.txt\n@@ -1 +1 @@\n-old\n+new\ndiff --git a/file2.cs b/file2.cs\nindex 123..456\n--- a/file2.cs\n+++ b/file2.cs\n@@ -1 +1 @@\n-old\n+new\n",
+        });
+
+        var result = await _handler.GhPrDiffAsync("42", exclude: "*.txt", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().NotContain("file1.txt");
+        text.Should().Contain("file2.cs");
+    }
+
+    [Fact]
+    public async Task PrCheckout_WithCustomBranch_UsesCustomBranchName() {
+        var git = new FakeGitCommandRunner();
+        var handler = CreateHandlerWithGit(git);
+
+        await handler.GhPrCheckoutAsync("42", branch: "custom-branch");
+
+        git.ExecutedCommands.Should().Contain(c => c.Contains("pull/42/head:custom-branch"));
+        git.ExecutedCommands.Should().Contain("checkout custom-branch");
+    }
+
+    [Fact]
+    public async Task PrCheckout_WithForce_AddsForceToFetch() {
+        var git = new FakeGitCommandRunner();
+        var handler = CreateHandlerWithGit(git);
+
+        await handler.GhPrCheckoutAsync("42", force: true);
+
+        git.ExecutedCommands[0].Should().Contain("--force");
+    }
+
+    [Fact]
+    public async Task PrCheckout_WithDetach_UsesDetachedHead() {
+        var git = new FakeGitCommandRunner();
+        var handler = CreateHandlerWithGit(git);
+
+        await handler.GhPrCheckoutAsync("42", detach: true);
+
+        git.ExecutedCommands.Should().Contain(c => c.Contains("--detach"));
+    }
+
+    [Fact]
+    public async Task PrMerge_WithSubjectAndBody_PassesCommitTitleAndMessage() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = "{}",
+        };
+
+        await _handler.GhPrMergeAsync("42", merge_method: "squash", subject: "自定义标题", body: "自定义正文", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastBody.Should().Contain("\"commit_title\":\"自定义标题\"");
+        _api.LastBody.Should().Contain("\"commit_message\":\"自定义正文\"");
+    }
+
+    [Fact]
+    public async Task PrMerge_WithDisableAuto_CallsGraphQLDisableAutoMerge() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"number":42,"node_id":"PR_123"}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"data":{"disablePullRequestAutoMerge":{"pullRequest":{"number":42}}}}""",
+        });
+
+        var result = await _handler.GhPrMergeAsync("42", disable_auto: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("graphql");
+        _api.LastBody.Should().Contain("disablePullRequestAutoMerge");
+    }
+
+    [Fact]
+    public async Task PrChecks_WithRequired_FiltersByRequiredChecks() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"head":{"sha":"abc123","ref":"main"}}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"check_runs":[{"name":"build","conclusion":"success"},{"name":"lint","conclusion":"success"},{"name":"optional-check","conclusion":"success"}]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"contexts":["build","lint"]}""" });
+
+        var result = await _handler.GhPrChecksAsync("42", required: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("build");
+        text.Should().Contain("lint");
+        text.Should().NotContain("optional-check");
+    }
+
+    [Fact]
+    public async Task PrChecks_WithFailFast_MarksFailure() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"head":{"sha":"abc123"}}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"check_runs":[{"name":"build","conclusion":"success"},{"name":"test","conclusion":"failure"}]}""" });
+
+        var result = await _handler.GhPrChecksAsync("42", fail_fast: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("fail-fast");
+    }
+
+    [Fact]
+    public async Task PrCreate_WithAssignee_AddsAssigneeAfterCreate() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"number":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+
+        var result = await _handler.GhPrCreateAsync("title", "head", assignee: "alice", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/assignees");
+        _api.LastBody.Should().Contain("alice");
+    }
+
+    [Fact]
+    public async Task PrCreate_WithLabel_AddsLabelAfterCreate() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"number":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+
+        var result = await _handler.GhPrCreateAsync("title", "head", label: "bug", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/labels");
+        _api.LastBody.Should().Contain("bug");
+    }
+
+    [Fact]
+    public async Task PrCreate_WithReviewer_AddsReviewerAfterCreate() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"number":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+
+        var result = await _handler.GhPrCreateAsync("title", "head", reviewer: "bob", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42/requested_reviewers");
+        _api.LastBody.Should().Contain("bob");
+    }
+
+    [Fact]
+    public async Task PrView_WithComments_IncludesComments() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":42,"title":"feat","state":"open","url":"https://github.com/o/r/pull/42"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"body":"评论1","user":{"login":"alice"}}]""" });
+
+        var result = await _handler.GhPrViewAsync("42", comments: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("评论1");
+    }
+
+    [Fact]
+    public async Task PrView_WithWeb_ReturnsUrl() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":42,"title":"feat","state":"open","html_url":"https://github.com/o/r/pull/42"}""" };
+
+        var result = await _handler.GhPrViewAsync("42", web: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("https://github.com/o/r/pull/42");
+    }
+
+    [Fact]
     public async Task PrCreate_Failure_ReturnsError() {
         _api.NextResponse = new GitHubApiResponse {
             Success = false,
@@ -186,6 +502,90 @@ public sealed class GitHubToolHandlersTests {
         text.Should().Contain("1 通过");
         text.Should().Contain("1 失败");
         text.Should().Contain("1 跳过(依赖链跳过,非失败)");
+    }
+
+    [Fact]
+    public async Task RunList_WithEvent_PassesEventQuery() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
+
+        await _handler.GhRunListAsync(event_type: "push", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("event").WhoseValue.Should().Be("push");
+    }
+
+    [Fact]
+    public async Task RunList_WithWorkflow_PassesWorkflowToApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
+
+        await _handler.GhRunListAsync(workflow: "ci.yml", repo: "owner/repo");
+
+        _api.LastPath.Should().Contain("actions/workflows/ci.yml/runs");
+    }
+
+    [Fact]
+    public async Task RunList_WithUser_PassesActorQuery() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
+
+        await _handler.GhRunListAsync(user: "alice", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("actor").WhoseValue.Should().Be("alice");
+    }
+
+    [Fact]
+    public async Task RunList_WithCommit_PassesHeadShaQuery() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
+
+        await _handler.GhRunListAsync(commit: "abc123", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("head_sha").WhoseValue.Should().Be("abc123");
+    }
+
+    [Fact]
+    public async Task RunList_WithCreated_PassesCreatedQuery() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
+
+        await _handler.GhRunListAsync(created: ">2026-01-01", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("created").WhoseValue.Should().Be(">2026-01-01");
+    }
+
+    [Fact]
+    public async Task RunView_WithWeb_ReturnsUrl() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"html_url":"https://github.com/o/r/actions/runs/42"}""" };
+
+        var result = await _handler.GhRunViewAsync("42", web: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("https://github.com/o/r/actions/runs/42");
+    }
+
+    [Fact]
+    public async Task RunView_WithAttempt_UsesAttemptApiPath() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"conclusion":"failure"}""" };
+
+        await _handler.GhRunViewAsync("42", attempt: 2, repo: "owner/repo");
+
+        _api.LastPath.Should().Contain("/attempts/2");
+    }
+
+    [Fact]
+    public async Task RunRerun_WithJob_UsesRerunJobsEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" };
+
+        await _handler.GhRunRerunAsync("42", job: "123,456", repo: "owner/repo");
+
+        _api.LastPath.Should().Contain("/rerun-jobs");
+        _api.LastBody.Should().Contain("123");
+        _api.LastBody.Should().Contain("456");
+    }
+
+    [Fact]
+    public async Task RunRerun_WithDebug_EnablesDebugLogging() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" };
+
+        await _handler.GhRunRerunAsync("42", debug: true, repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("enable_debug_logging");
     }
 
     [Fact]
@@ -405,6 +805,107 @@ public sealed class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task IssueList_WithAuthor_GoesThroughIssuesApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+
+        await _handler.GhIssueListAsync(author: "alice", repo: "owner/repo");
+
+        _api.LastPath.Should().Be("repos/owner/repo/issues");
+        _api.LastQuery.Should().ContainKey("creator").WhoseValue.Should().Be("alice");
+    }
+
+    [Fact]
+    public async Task IssueList_WithMention_GoesThroughIssuesApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+
+        await _handler.GhIssueListAsync(mention: "bob", repo: "owner/repo");
+
+        _api.LastPath.Should().Be("repos/owner/repo/issues");
+        _api.LastQuery.Should().ContainKey("mentioned").WhoseValue.Should().Be("bob");
+    }
+
+    [Fact]
+    public async Task IssueList_WithMilestone_GoesThroughIssuesApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+
+        await _handler.GhIssueListAsync(milestone: "5", repo: "owner/repo");
+
+        _api.LastPath.Should().Be("repos/owner/repo/issues");
+        _api.LastQuery.Should().ContainKey("milestone").WhoseValue.Should().Be("5");
+    }
+
+    [Fact]
+    public async Task IssueList_WithSearch_GoesThroughSearchApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"items":[]}""" };
+
+        await _handler.GhIssueListAsync(search: "bug", repo: "owner/repo");
+
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("bug");
+    }
+
+    [Fact]
+    public async Task IssueList_WithTypePr_GoesThroughSearchApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"items":[]}""" };
+
+        await _handler.GhIssueListAsync(type: "pr", repo: "owner/repo");
+
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("is:pr");
+    }
+
+    [Fact]
+    public async Task IssueView_WithComments_IncludesComments() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":42,"title":"bug","state":"open"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"body":"好建议","user":{"login":"carol"}}]""" });
+
+        var result = await _handler.GhIssueViewAsync("42", comments: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("好建议");
+    }
+
+    [Fact]
+    public async Task IssueView_WithWeb_ReturnsUrl() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":42,"html_url":"https://github.com/o/r/issues/42"}""" };
+
+        var result = await _handler.GhIssueViewAsync("42", web: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("https://github.com/o/r/issues/42");
+    }
+
+    [Fact]
+    public async Task IssueCreate_WithMilestone_IncludesMilestoneField() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"number":1,"html_url":"u"}""" };
+
+        await _handler.GhIssueCreateAsync("title", milestone: 5, repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("\"milestone\":5");
+    }
+
+    [Fact]
+    public async Task IssueClose_WithReason_IncludesStateReason() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":1,"state":"closed"}""" };
+
+        await _handler.GhIssueCloseAsync("1", reason: "not_planned", repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("\"state_reason\":\"not_planned\"");
+    }
+
+    [Fact]
+    public async Task IssueClose_WithDuplicateOf_CommentsAndCloses() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":1,"state":"closed"}""" });
+
+        await _handler.GhIssueCloseAsync("1", duplicate_of: 42, repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("\"state_reason\":\"not_planned\"");
+    }
+
+    [Fact]
     public async Task PrMerge_DefaultSquash_AppendsAutoWhenRequested() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":5,"node_id":"PR_test123"}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"number":5}}}}""" });
@@ -494,6 +995,111 @@ public sealed class GitHubToolHandlersTests {
         text.Should().NotContain("upload_url");
         text.Should().NotContain("avatar_url");
         text.Should().NotContain("browser_download_url");
+    }
+
+    [Fact]
+    public async Task ReleaseList_WithExcludeDrafts_FiltersOutDrafts() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"tag_name":"v1","name":"v1","draft":false,"prerelease":false,"assets":[]},{"id":2,"tag_name":"v2","name":"v2","draft":true,"prerelease":false,"assets":[]}]""" };
+
+        var result = await _handler.GhReleaseListAsync(exclude_drafts: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("\"tag_name\":\"v1\"");
+        text.Should().NotContain("\"tag_name\":\"v2\"");
+    }
+
+    [Fact]
+    public async Task ReleaseList_WithExcludePrereleases_FiltersOutPrereleases() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"tag_name":"v1","name":"v1","draft":false,"prerelease":false,"assets":[]},{"id":2,"tag_name":"v2","name":"v2","draft":false,"prerelease":true,"assets":[]}]""" };
+
+        var result = await _handler.GhReleaseListAsync(exclude_prereleases: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("\"tag_name\":\"v1\"");
+        text.Should().NotContain("\"tag_name\":\"v2\"");
+    }
+
+    [Fact]
+    public async Task ReleaseView_WithWeb_ReturnsUrl() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":1,"tag_name":"v1","html_url":"https://github.com/o/r/releases/tag/v1"}""" };
+
+        var result = await _handler.GhReleaseViewAsync("v1", web: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("https://github.com/o/r/releases/tag/v1");
+    }
+
+    [Fact]
+    public async Task ReleaseCreate_WithGenerateNotes_RequestsAutoNotes() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"id":1,"tag_name":"v1"}""" };
+
+        await _handler.GhReleaseCreateAsync("v1", generate_notes: true, repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("\"generate_release_notes\":true");
+    }
+
+    [Fact]
+    public async Task ReleaseDelete_WithCleanupTag_DeletesTagAfterRelease() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"tag_name":"v1"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
+
+        var result = await _handler.GhReleaseDeleteAsync("v1", cleanup_tag: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Contain("git/refs/tags/v1");
+    }
+
+    [Fact]
+    public async Task ReleaseDownload_WithSkipExisting_SkipsExistingFiles() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"assets":[{"name":"a.zip","browser_download_url":"https://x/a.zip"},{"name":"b.zip","browser_download_url":"https://x/b.zip"}]}""" };
+        var fs = new InMemoryFileSystem();
+        fs.CreateDirectory("/tmp");
+        await fs.WriteAllText("/tmp/a.zip", "existing");
+        var fakeDownloader = new FakeDownloader();
+        var handler = new GitHubToolHandlers(fakeDownloader, fs, new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp", skip_existing: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("[SKIP] a.zip");
+        text.Should().Contain("1 跳过");
+        fakeDownloader.StartCallCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ReleaseDownload_WithoutClobber_FailsOnExistingFile() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"assets":[{"name":"a.zip","browser_download_url":"https://x/a.zip"}]}""" };
+        var fs = new InMemoryFileSystem();
+        fs.CreateDirectory("/tmp");
+        await fs.WriteAllText("/tmp/a.zip", "existing");
+        var fakeDownloader = new FakeDownloader();
+        var handler = new GitHubToolHandlers(fakeDownloader, fs, new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp", repo: "owner/repo");
+
+        var text = result.GetFirstText();
+        text.Should().Contain("[FAIL] a.zip");
+        text.Should().Contain("文件已存在");
+        fakeDownloader.StartCallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ReleaseUpload_WithClobber_DeletesExistingAssetFirst() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"assets":[{"name":"file.zip","id":456}]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" });
+        var fs = new InMemoryFileSystem();
+        await fs.WriteAllText("/data/file.zip", "content");
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhReleaseUploadAsync("v1", "/data/file.zip", clobber: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
     }
 
     [Fact]
@@ -608,6 +1214,682 @@ public sealed class GitHubToolHandlersTests {
         var contexts = doc.RootElement.GetProperty("contexts").EnumerateArray().Select(c => c.GetString()).ToList();
         contexts.Should().Contain(new[] { "build", "test", "lint" });
     }
+
+    [Fact]
+    public async Task RepoView_WithWeb_ReturnsUrl() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"full_name":"o/r","html_url":"https://github.com/o/r"}""" };
+
+        var result = await _handler.GhRepoViewAsync(repo: "owner/repo", web: true);
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("https://github.com/o/r");
+    }
+
+    [Fact]
+    public async Task RepoList_WithLanguage_PassesLanguageQuery() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+
+        await _handler.GhRepoListAsync(language: "C#", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("language").WhoseValue.Should().Be("C#");
+    }
+
+    [Fact]
+    public async Task RepoList_WithVisibility_PassesVisibilityQuery() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+
+        await _handler.GhRepoListAsync(visibility: "private", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("visibility").WhoseValue.Should().Be("private");
+    }
+
+    [Fact]
+    public async Task RepoList_WithSource_FiltersNonForks() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","fork":false},{"name":"r2","fork":true}]""" };
+
+        var result = await _handler.GhRepoListAsync(source: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("\"name\":\"r1\"");
+        text.Should().NotContain("\"name\":\"r2\"");
+    }
+
+    [Fact]
+    public async Task RepoList_WithFork_OnlyForks() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","fork":false},{"name":"r2","fork":true}]""" };
+
+        var result = await _handler.GhRepoListAsync(fork: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().NotContain("\"name\":\"r1\"");
+        text.Should().Contain("\"name\":\"r2\"");
+    }
+
+    [Fact]
+    public async Task RepoCreate_WithHomepage_IncludesHomepageField() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"full_name":"o/r"}""" };
+
+        await _handler.GhRepoCreateAsync("myrepo", homepage: "https://example.com");
+
+        _api.LastBody.Should().Contain("\"homepage\":\"https://example.com\"");
+    }
+
+    [Fact]
+    public async Task RepoCreate_WithGitignore_IncludesGitignoreTemplate() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"full_name":"o/r"}""" };
+
+        await _handler.GhRepoCreateAsync("myrepo", gitignore: "VisualStudio");
+
+        _api.LastBody.Should().Contain("\"gitignore_template\":\"VisualStudio\"");
+    }
+
+    [Fact]
+    public async Task RepoCreate_WithLicense_IncludesLicenseTemplate() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"full_name":"o/r"}""" };
+
+        await _handler.GhRepoCreateAsync("myrepo", license: "mit");
+
+        _api.LastBody.Should().Contain("\"license_template\":\"mit\"");
+    }
+
+    [Fact]
+    public async Task RepoFork_WithOrg_ForksToSpecifiedOrg() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 202, Body = """{"full_name":"org/repo"}""" };
+
+        await _handler.GhRepoForkAsync("owner/repo", org: "myorg");
+
+        _api.LastBody.Should().Contain("\"organization\":\"myorg\"");
+    }
+
+    [Fact]
+    public async Task RepoEdit_WithDescription_PatchesRepo() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"full_name":"o/r"}""" };
+
+        await _handler.GhRepoEditAsync(repo: "owner/repo", description: "new desc");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo");
+        _api.LastBody.Should().Contain("\"description\":\"new desc\"");
+    }
+
+    [Fact]
+    public async Task RepoDelete_WithYes_DeletesRepo() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        var result = await _handler.GhRepoDeleteAsync("owner/repo", yes: true);
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo");
+    }
+
+    [Fact]
+    public async Task RepoDelete_WithoutYes_ReturnsError() {
+        var result = await _handler.GhRepoDeleteAsync("owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("yes=true");
+    }
+
+    [Fact]
+    public async Task RepoArchive_SendsArchivedTrue() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhRepoArchiveAsync(repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastBody.Should().Contain("\"archived\":true");
+    }
+
+    [Fact]
+    public async Task RepoUnarchive_SendsArchivedFalse() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhRepoUnarchiveAsync(repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastBody.Should().Contain("\"archived\":false");
+    }
+
+    [Fact]
+    public async Task ReleaseDeleteAsset_Success_DeletesAsset() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"assets":[{"name":"file.zip","id":456}]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
+
+        var result = await _handler.GhReleaseDeleteAssetAsync("v1", "file.zip", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Contain("releases/123/assets/456");
+    }
+
+    [Fact]
+    public async Task ReleaseEdit_WithNewTag_PatchesRelease() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"tag_name":"v1"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"tag_name":"v2"}""" });
+
+        await _handler.GhReleaseEditAsync("v1", new_tag: "v2", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastBody.Should().Contain("\"tag_name\":\"v2\"");
+    }
+
+    [Fact]
+    public async Task PrComment_PostsToIssuesCommentsEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" };
+
+        await _handler.GhPrCommentAsync("42", "good PR", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/comments");
+        _api.LastBody.Should().Contain("good PR");
+    }
+
+    [Fact]
+    public async Task PrEdit_WithTitle_PatchesPr() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhPrEditAsync("42", title: "new title", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42");
+        _api.LastBody.Should().Contain("\"title\":\"new title\"");
+    }
+
+    [Fact]
+    public async Task PrReview_Approve_PostsReviewEvent() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhPrReviewAsync("42", action: "approve", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42/reviews");
+        _api.LastBody.Should().Contain("\"event\":\"APPROVE\"");
+    }
+
+    [Fact]
+    public async Task IssueReopen_PatchesStateOpen() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhIssueReopenAsync("42", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastBody.Should().Contain("\"state\":\"open\"");
+    }
+
+    [Fact]
+    public async Task IssueEdit_WithTitle_PatchesIssue() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhIssueEditAsync("42", title: "updated", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42");
+        _api.LastBody.Should().Contain("\"title\":\"updated\"");
+    }
+
+    [Fact]
+    public async Task IssueDelete_WithYes_UsesGraphQL() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":42,"node_id":"I_kw123"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+
+        var result = await _handler.GhIssueDeleteAsync("42", yes: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("graphql");
+        _api.LastBody.Should().Contain("deleteIssue");
+    }
+
+    [Fact]
+    public async Task RunDownload_Success_DownloadsArtifacts() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"artifacts":[{"name":"artifact1","id":123}]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "" });
+
+        var result = await _handler.GhRunDownloadAsync("42", "/tmp", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("1 成功");
+    }
+
+    [Fact]
+    public async Task RepoRename_PostsToRenameEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhRepoRenameAsync("new-name", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/rename");
+        _api.LastBody.Should().Contain("\"new_name\":\"new-name\"");
+    }
+
+    [Fact]
+    public async Task RepoSync_PostsToMergeUpstream() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhRepoSyncAsync(branch: "main", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/merge-upstream");
+        _api.LastBody.Should().Contain("\"branch\":\"main\"");
+    }
+
+    [Fact]
+    public async Task RepoSetDefault_PatchesDefaultBranch() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhRepoSetDefaultAsync("develop", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo");
+        _api.LastBody.Should().Contain("\"default_branch\":\"develop\"");
+    }
+
+    [Fact]
+    public async Task PrLock_PutsToLockEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhPrLockAsync("42", reason: "spam", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/lock");
+        _api.LastBody.Should().Contain("\"lock_reason\":\"spam\"");
+    }
+
+    [Fact]
+    public async Task PrUnlock_DeletesLockEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhPrUnlockAsync("42", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/lock");
+    }
+
+    [Fact]
+    public async Task IssueLock_PutsToLockEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhIssueLockAsync("42", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/lock");
+    }
+
+    [Fact]
+    public async Task IssueUnlock_DeletesLockEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhIssueUnlockAsync("42", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/issues/42/lock");
+    }
+
+    [Fact]
+    public async Task RunDelete_DeletesRun() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhRunDeleteAsync("42", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/actions/runs/42");
+    }
+
+    [Fact]
+    public async Task PrStatus_ListsOpenPrs() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"number":1,"title":"feat","state":"open","user":{"login":"alice"},"head":{"ref":"dev"},"draft":false,"mergeable":true}]""" };
+
+        var result = await _handler.GhPrStatusAsync(repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/pulls");
+        result.GetFirstText().Should().Contain("alice");
+    }
+
+    [Fact]
+    public async Task PrReady_PatchesDraftFalse() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhPrReadyAsync("42", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Patch);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42");
+        _api.LastBody.Should().Contain("\"draft\":false");
+    }
+
+    [Fact]
+    public async Task PrReady_Undo_PatchesDraftTrue() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhPrReadyAsync("42", undo: true, repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("\"draft\":true");
+    }
+
+    [Fact]
+    public async Task PrUpdateBranch_PutsUpdateBranch() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 202, Body = "{}" };
+
+        await _handler.GhPrUpdateBranchAsync("42", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42/update-branch");
+        _api.LastBody.Should().Contain("\"update_method\":\"merge\"");
+    }
+
+    [Fact]
+    public async Task PrUpdateBranch_Rebase_UsesRebaseMethod() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 202, Body = "{}" };
+
+        await _handler.GhPrUpdateBranchAsync("42", rebase: true, repo: "owner/repo");
+
+        _api.LastBody.Should().Contain("\"update_method\":\"rebase\"");
+    }
+
+    [Fact]
+    public async Task IssueStatus_ListsOpenIssues() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"number":1,"title":"bug","state":"open","user":{"login":"bob"}}]""" };
+
+        var result = await _handler.GhIssueStatusAsync(repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/issues");
+        result.GetFirstText().Should().Contain("bob");
+    }
+
+    [Fact]
+    public async Task IssuePin_UsesGraphQL() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"node_id":"I_kw123"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+
+        var result = await _handler.GhIssuePinAsync("42", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("graphql");
+        _api.LastBody.Should().Contain("pinIssue");
+    }
+
+    [Fact]
+    public async Task IssueUnpin_UsesGraphQL() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"node_id":"I_kw123"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+
+        var result = await _handler.GhIssueUnpinAsync("42", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastBody.Should().Contain("unpinIssue");
+    }
+
+    [Fact]
+    public async Task IssueTransfer_UsesGraphQLWithDestNodeId() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"node_id":"I_kw123"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"node_id":"R_kw456"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+
+        var result = await _handler.GhIssueTransferAsync("42", "dest/repo", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastBody.Should().Contain("transferIssue");
+        _api.LastBody.Should().Contain("R_kw456");
+    }
+
+    [Fact]
+    public async Task RunWatch_PollsUntilCompleted() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"status":"in_progress","display_title":"build"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"status":"completed","conclusion":"success","display_title":"build"}""" });
+
+        var result = await _handler.GhRunWatchAsync("42", interval: 1, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("success");
+    }
+
+    [Fact]
+    public async Task ReleaseVerify_ReturnsAssetMetadata() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"tag_name":"v1.0","assets":[{"name":"bin","digest":"sha256:abc"}]}""" };
+
+        var result = await _handler.GhReleaseVerifyAsync("v1.0", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("v1.0");
+        result.GetFirstText().Should().Contain("cosign");
+    }
+
+    [Fact]
+    public async Task RepoAutolinkList_ListsAutolinks() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"key_prefix":"TICKET-","url_template":"https://example.com/<num>"}]""" };
+
+        var result = await _handler.GhRepoAutolinkListAsync(repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/keys/autolinks");
+        result.GetFirstText().Should().Contain("TICKET-");
+    }
+
+    [Fact]
+    public async Task RepoAutolinkCreate_PostsToAutolinksEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" };
+
+        await _handler.GhRepoAutolinkCreateAsync("TICKET-", "https://example.com/<num>", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/keys/autolinks");
+        _api.LastBody.Should().Contain("\"key_prefix\":\"TICKET-\"");
+    }
+
+    [Fact]
+    public async Task RepoAutolinkDelete_DeletesAutolink() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhRepoAutolinkDeleteAsync(1, repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/keys/autolinks/1");
+    }
+
+    [Fact]
+    public async Task RepoDeployKeyList_ListsKeys() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"title":"ci","read_only":true,"created_at":"2026-01-01"}]""" };
+
+        var result = await _handler.GhRepoDeployKeyListAsync(repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/keys");
+        result.GetFirstText().Should().Contain("ci");
+    }
+
+    [Fact]
+    public async Task RepoDeployKeyAdd_PostsToKeysEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" };
+
+        await _handler.GhRepoDeployKeyAddAsync("ci", "ssh-rsa AAA...", read_only: true, repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/keys");
+        _api.LastBody.Should().Contain("\"title\":\"ci\"");
+        _api.LastBody.Should().Contain("\"read_only\":true");
+    }
+
+    [Fact]
+    public async Task RepoDeployKeyDelete_DeletesKey() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhRepoDeployKeyDeleteAsync(1, repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/keys/1");
+    }
+
+    [Fact]
+    public async Task RepoGitignoreList_ListsTemplates() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"names":["Java","Python","Node"]}""" };
+
+        var result = await _handler.GhRepoGitignoreListAsync();
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("gitignore/templates");
+        result.GetFirstText().Should().Contain("Java");
+    }
+
+    [Fact]
+    public async Task RepoGitignoreView_ReturnsTemplateSource() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"source":"*.class"}""" };
+
+        var result = await _handler.GhRepoGitignoreViewAsync("Java");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("gitignore/templates/Java");
+        result.GetFirstText().Should().Contain("*.class");
+    }
+
+    [Fact]
+    public async Task RepoLicenseList_ListsLicenses() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"key":"mit","name":"MIT License","spdx_id":"MIT"}]""" };
+
+        var result = await _handler.GhRepoLicenseListAsync();
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("licenses");
+        result.GetFirstText().Should().Contain("mit");
+    }
+
+    [Fact]
+    public async Task RepoLicenseView_ReturnsLicenseDetails() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"key":"mit","body":"MIT License text"}""" };
+
+        var result = await _handler.GhRepoLicenseViewAsync("mit");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("licenses/mit");
+    }
+
+    [Fact]
+    public async Task LabelList_ListsLabels() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"bug","color":"d73a4a","description":"Bug fix"}]""" };
+
+        var result = await _handler.GhLabelListAsync(repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/labels");
+        result.GetFirstText().Should().Contain("bug");
+    }
+
+    [Fact]
+    public async Task LabelCreate_PostsToLabelsEndpoint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" };
+
+        await _handler.GhLabelCreateAsync("enhancement", color: "a2eeef", description: "New feature", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/labels");
+        _api.LastBody.Should().Contain("\"name\":\"enhancement\"");
+        _api.LastBody.Should().Contain("\"color\":\"a2eeef\"");
+    }
+
+    [Fact]
+    public async Task LabelDelete_DeletesLabel() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhLabelDeleteAsync("bug", yes: true, repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Delete);
+        _api.LastPath.Should().Be("repos/owner/repo/labels/bug");
+    }
+
+    [Fact]
+    public async Task SearchRepos_SearchesRepositories() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"items":[{"full_name":"owner/repo","stargazers_count":100,"description":"test"}]}""" };
+
+        var result = await _handler.GhSearchReposAsync("stars:>50");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("search/repositories");
+        _api.LastQuery["q"].Should().Be("stars:>50");
+        result.GetFirstText().Should().Contain("owner/repo");
+    }
+
+    [Fact]
+    public async Task SearchIssues_AddsIsIssueQualifier() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""" };
+
+        await _handler.GhSearchIssuesAsync("repo:owner/repo");
+
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery["q"].Should().Contain("is:issue");
+        _api.LastQuery["q"].Should().Contain("repo:owner/repo");
+    }
+
+    [Fact]
+    public async Task SearchPrs_AddsIsPrQualifier() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""" };
+
+        await _handler.GhSearchPrsAsync("repo:owner/repo");
+
+        _api.LastQuery["q"].Should().Contain("is:pr");
+    }
+
+    [Fact]
+    public async Task WorkflowList_ListsWorkflows() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflows":[{"id":123,"name":"CI","state":"active","path":".github/workflows/ci.yml"}]}""" };
+
+        var result = await _handler.GhWorkflowListAsync(repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastPath.Should().Be("repos/owner/repo/actions/workflows");
+        result.GetFirstText().Should().Contain("CI");
+    }
+
+    [Fact]
+    public async Task WorkflowRun_PostsDispatches() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhWorkflowRunAsync("ci.yml", @ref: "develop", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/actions/workflows/ci.yml/dispatches");
+        _api.LastBody.Should().Contain("\"ref\":\"develop\"");
+    }
+
+    [Fact]
+    public async Task WorkflowEnable_PutsEnable() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhWorkflowEnableAsync("123", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/actions/workflows/123/enable");
+    }
+
+    [Fact]
+    public async Task WorkflowDisable_PutsDisable() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
+
+        await _handler.GhWorkflowDisableAsync("123", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/actions/workflows/123/disable");
+    }
+
+    [Fact]
+    public async Task AuthStatus_WithValidToken_ReturnsLogin() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"login":"testuser","name":"Test User"}""" };
+
+        var result = await _handler.GhAuthStatusAsync();
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("testuser");
+    }
+
+    [Fact]
+    public async Task ConfigGet_ReturnsPromptToUseSystemGh() {
+        var result = await _handler.GhConfigGetAsync("git_protocol");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("gh config get git_protocol");
+    }
 }
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient {
@@ -620,6 +1902,7 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
     public string? LastPath { get; private set; }
     public HttpMethod? LastMethod { get; private set; }
     public string? LastBody { get; private set; }
+    public IReadOnlyDictionary<string, string> LastQuery { get; private set; } = new Dictionary<string, string>();
     public void EnqueueResponse(GitHubApiResponse response) => _responses.Enqueue(response);
     public IEnumerable<string> NextLogLines { get; set; } = Array.Empty<string>();
 
@@ -627,6 +1910,7 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
         LastMethod = method;
         LastPath = path;
         LastBody = body;
+        LastQuery = query ?? new Dictionary<string, string>();
         var response = _responses.Count > 0 ? _responses.Dequeue() : _default;
         return Task.FromResult(response);
     }
@@ -650,6 +1934,12 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
         LastPath = $"repos/{owner}/{repo}/releases/{releaseId}/assets";
         return Task.FromResult(NextResponse);
     }
+
+    public Task<GitHubApiResponse> DownloadArtifactAsync(string owner, string repo, long artifactId, string filePath, CancellationToken ct = default) {
+        LastMethod = HttpMethod.Get;
+        LastPath = $"repos/{owner}/{repo}/actions/artifacts/{artifactId}/zip";
+        return Task.FromResult(NextResponse);
+    }
 }
 
 internal sealed class FakeDownloader : IDownloader {
@@ -659,6 +1949,20 @@ internal sealed class FakeDownloader : IDownloader {
         StartCallCount++;
         return new FakeDownloadSession { Result = NextResult with { FilePath = filePath } };
     }
+}
+
+internal sealed class FakeGitCommandRunner : IGitCommandRunner {
+    public List<string> ExecutedCommands { get; } = new();
+    public bool NextSuccess { get; set; } = true;
+    public string NextOutput { get; set; } = "";
+    public Task<GitCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, CancellationToken ct = default) {
+        ExecutedCommands.Add(arguments);
+        return Task.FromResult(new GitCommandResult { Success = NextSuccess, Output = NextOutput, ExitCode = NextSuccess ? 0 : 1 });
+    }
+    public Task<MergeConflictResult> DetectMergeConflictAsync(string branch1, string branch2, string? workingDirectory = null, CancellationToken ct = default)
+        => Task.FromResult(new MergeConflictResult { HasConflict = false });
+    public Task<StaleConflictMarkerResult> DetectStaleConflictMarkersAsync(string? workingDirectory = null, CancellationToken ct = default)
+        => Task.FromResult(new StaleConflictMarkerResult { HasStaleMarkers = false });
 }
 
 internal sealed class FakeDownloadSession : IDownloadSession {

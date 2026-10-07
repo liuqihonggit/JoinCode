@@ -82,7 +82,8 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
                                 var isAlias = namedArgs.TryGetValue("IsAlias", out var iaArg) && iaArg.Value is true;
                                 var aliasOf = namedArgs.TryGetValue("AliasOf", out var aoArg) ? aoArg.Value as string : null;
                                 var isDeprecated = namedArgs.TryGetValue("IsDeprecated", out var idArg) && idArg.Value is true;
-                                subCmdInfo = new SubCommandInfo(desc, cat, example, isAlias, aliasOf, isDeprecated);
+                                var selfHelp = namedArgs.TryGetValue("SelfHelp", out var shArg) && shArg.Value is true;
+                                subCmdInfo = new SubCommandInfo(desc, cat, example, isAlias, aliasOf, isDeprecated, selfHelp);
                             }
                         }
 
@@ -225,6 +226,12 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
         sb.AppendLine("    private static readonly FrozenDictionary<string, SubCommandEntry> __byCommand = __allEntries.ToFrozenDictionary(e => e.Command, StringComparer.OrdinalIgnoreCase);");
         sb.AppendLine();
 
+        // 生成 SelfHelpCommands set — 标记了 SelfHelp = true 的子命令名集合
+        var selfHelpValues = subCmdMembers.Where(m => m.SubCommandInfo!.SelfHelp).Select(m => $"\"{EscapeString(m.Value)}\"").ToList();
+        sb.AppendLine("    /// <summary>自行处理 --help 的子命令名集合 — 标记了 [SubCommandInfo(SelfHelp = true)] 的子命令, --help 时由子命令自身渲染帮助</summary>");
+        sb.AppendLine($"    public static readonly FrozenSet<string> SelfHelpCommands = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, new string[] {{ {string.Join(", ", selfHelpValues)} }});");
+        sb.AppendLine();
+
         // GetCategories 方法 — 列出所有分类及数量
         sb.AppendLine("    /// <summary>列出所有分类及命令数量 — jcc -h 的第一级展开</summary>");
         sb.AppendLine("    public static string GetCategories()");
@@ -353,14 +360,16 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
         public bool IsAlias { get; }
         public string? AliasOf { get; }
         public bool IsDeprecated { get; }
+        public bool SelfHelp { get; }
 
-        public SubCommandInfo(string description, string category, string? example, bool isAlias, string? aliasOf, bool isDeprecated) {
+        public SubCommandInfo(string description, string category, string? example, bool isAlias, string? aliasOf, bool isDeprecated, bool selfHelp) {
             Description = description;
             Category = category;
             Example = example;
             IsAlias = isAlias;
             AliasOf = aliasOf;
             IsDeprecated = isDeprecated;
+            SelfHelp = selfHelp;
         }
     }
 }

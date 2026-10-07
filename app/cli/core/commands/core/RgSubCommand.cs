@@ -160,9 +160,10 @@ internal static class RgSubCommand {
                     case "--after-context": after = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--context": context = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     default:
-                    if (inlineValue is null)
-                        ReadNextValue(args, ref i);
-                    break;
+                    if (CliArgCliOptionConstants.AllOptionNames.Contains(name))
+                        break;
+                    TerminalHelper.WriteError($"未知选项: {name}（用 jcc rg --help 查看可用选项）");
+                    return null;
                 }
             } else {
                 if (!ParseShortOptionCluster(arg, args, ref i,
@@ -338,8 +339,8 @@ internal static class RgSubCommand {
 
         if (outcome.Results.Count == 0) {
             if (opts.Json) {
-                var data = new System.Text.Json.Nodes.JsonObject { ["matches"] = new System.Text.Json.Nodes.JsonArray() };
-                System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
+                var result = new RgJsonResult([], 0, 0);
+                System.Console.WriteLine(Cli.Output.CliOutputEnvelope<RgJsonResult>.Success(result).ToJsonString());
             }
             return 1;
         }
@@ -382,28 +383,15 @@ internal static class RgSubCommand {
     }
 
     private static void OutputJson(RgOutcome outcome) {
-        var matches = new System.Text.Json.Nodes.JsonArray();
+        var matches = new List<RgJsonMatch>(outcome.Results.Count);
         foreach (var r in outcome.Results) {
-            var item = new System.Text.Json.Nodes.JsonObject {
-                ["file"] = r.FilePath,
-                ["count"] = r.MatchCount
-            };
-            if (r.ContentLines is not null && r.ContentLines.Count > 0) {
-                var lines = new System.Text.Json.Nodes.JsonArray();
-                foreach (var line in r.ContentLines) {
-                    System.Text.Json.Nodes.JsonNode? lineNode = System.Text.Json.Nodes.JsonValue.Create(line);
-                    lines.Add(lineNode);
-                }
-                item["lines"] = lines;
-            }
-            matches.Add((System.Text.Json.Nodes.JsonNode)item);
+            var lines = r.ContentLines is not null && r.ContentLines.Count > 0
+                ? new List<string>(r.ContentLines)
+                : null;
+            matches.Add(new RgJsonMatch(r.FilePath, r.MatchCount, lines));
         }
-        var data = new System.Text.Json.Nodes.JsonObject {
-            ["matches"] = matches,
-            ["totalMatches"] = outcome.TotalMatches,
-            ["fileCount"] = outcome.Results.Count
-        };
-        System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
+        var result = new RgJsonResult(matches, outcome.TotalMatches, outcome.Results.Count);
+        System.Console.WriteLine(Cli.Output.CliOutputEnvelope<RgJsonResult>.Success(result).ToJsonString());
     }
 
     private static void AppendEscaped(StringBuilder sb, string text) {
@@ -507,3 +495,9 @@ internal static class RgSubCommand {
         SearchOutputMode OutputMode,
         string? Sort);
 }
+
+/// <summary>rg --json 单条匹配结果 DTO</summary>
+public sealed record RgJsonMatch(string File, int Count, List<string>? Lines);
+
+/// <summary>rg --json 完整结果 DTO — 用泛型 CliOutputEnvelope&lt;T&gt; 序列化，AOT 兼容</summary>
+public sealed record RgJsonResult(List<RgJsonMatch> Matches, int TotalMatches, int FileCount);

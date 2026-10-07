@@ -424,6 +424,36 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
 
     // === 私有辅助方法 ===
 
+    /// <summary>
+    /// 下载 Actions Run artifact — 二进制 zip 文件写到指定路径
+    /// </summary>
+    public async Task<GitHubApiResponse> DownloadArtifactAsync(
+        string owner,
+        string repo,
+        long artifactId,
+        string filePath,
+        CancellationToken ct = default) {
+        var token = ResolveToken();
+        var downloadPath = $"repos/{owner}/{repo}/actions/artifacts/{artifactId}/zip";
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, downloadPath);
+        request.Headers.Add("Authorization", $"Bearer {token}");
+        request.Headers.Add("Accept", "application/vnd.github+json");
+        request.Headers.Add("User-Agent", UserAgent);
+
+        try {
+            using var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                return new GitHubApiResponse { Success = false, StatusCode = (int)response.StatusCode, Error = $"HTTP {(int)response.StatusCode}" };
+            using var fileStream = _fs.Open(filePath, FileMode.Create);
+            await response.Content.CopyToAsync(fileStream, ct).ConfigureAwait(false);
+            return new GitHubApiResponse { Success = true, StatusCode = (int)response.StatusCode };
+        } catch (Exception ex) {
+            _logger?.LogError(ex, "下载 artifact 失败: {ArtifactId}", artifactId);
+            return new GitHubApiResponse { Success = false, StatusCode = 0, Error = ex.Message };
+        }
+    }
+
     private string ResolveToken() {
         var token = Environment.GetEnvironmentVariable(JccEnvVar.GithubToken.ToValue())
             ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN");

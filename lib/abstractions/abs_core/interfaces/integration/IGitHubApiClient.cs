@@ -96,4 +96,15 @@ public interface IGitHubApiClient {
         string fileName,
         Stream fileStream,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// 下载 Actions Run artifact — 二进制 zip 文件写到指定路径
+    /// <para>GET /repos/{owner}/{repo}/actions/artifacts/{artifactId}/zip 返回 zip 流</para>
+    /// </summary>
+    Task<GitHubApiResponse> DownloadArtifactAsync(
+        string owner,
+        string repo,
+        long artifactId,
+        string filePath,
+        CancellationToken ct = default);
 }

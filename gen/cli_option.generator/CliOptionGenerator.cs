@@ -619,14 +619,13 @@ public sealed class CliOptionGenerator : IIncrementalGenerator {
         }
 
         GenerateBooleanFlagsSet(sb, enumInfo);
+        GenerateAllOptionNamesSet(sb, enumInfo);
 
         sb.AppendLine("}");
     }
 
     /// <summary>
-    /// 生成 BooleanFlags + AllOptionNames FrozenSet
-    /// BooleanFlags: AcceptsValue=false 选项的长名+短名，用于参数解析时避免布尔标志误吞下一个 token
-    /// AllOptionNames: 所有选项的长名+短名，用于未知标志检测
+    /// 生成 BooleanFlags FrozenSet — AcceptsValue=false 选项的长名+短名，用于参数解析时避免布尔标志误吞下一个 token
     /// </summary>
     private static void GenerateBooleanFlagsSet(StringBuilder sb, CliEnumInfo enumInfo) {
         var booleanFlags = enumInfo.Options.Where(o => !o.AcceptsValue).ToList();
@@ -645,7 +644,13 @@ public sealed class CliOptionGenerator : IIncrementalGenerator {
                 sb.AppendLine($"        \"{EscapeString(opt.ShortName)}\",");
         }
         sb.AppendLine("    });");
+    }
 
+    /// <summary>
+    /// 生成 AllOptionNames FrozenSet — 所有选项的长名+短名，用于未知标志检测。
+    /// 总是生成（即使无布尔标志），供 DetectUnknownOptions 合并子命令白名单。
+    /// </summary>
+    private static void GenerateAllOptionNamesSet(StringBuilder sb, CliEnumInfo enumInfo) {
         sb.AppendLine();
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// 全选项名集合 — 所有选项的长名+短名，用于未知标志检测");

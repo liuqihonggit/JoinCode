@@ -184,7 +184,7 @@ public sealed class FlatSubCommandRouterTests {
     public void DetectUnknownOptions_UnknownFlag_ShouldReturnError() {
         var args = new[] { "mcp_call", "gh_pr_checks", "--unknown-flag", "pr_number=201" };
 
-        var error = FlatSubCommandRouter.DetectUnknownOptions(args);
+        var error = FlatSubCommandRouter.DetectUnknownOptions(args, CliArgCliOptionConstants.AllOptionNames, ToolCallArgCliOptionConstants.AllOptionNames);
 
         error.Should().NotBeNull();
         error!.Should().Contain("error:");
@@ -199,7 +199,7 @@ public sealed class FlatSubCommandRouterTests {
     public void DetectUnknownOptions_KnownFlag_ShouldReturnNull() {
         var args = new[] { "mcp_call", "gh_pr_checks", "--trust", "pr_number=201", "--json" };
 
-        var error = FlatSubCommandRouter.DetectUnknownOptions(args);
+        var error = FlatSubCommandRouter.DetectUnknownOptions(args, CliArgCliOptionConstants.AllOptionNames, ToolCallArgCliOptionConstants.AllOptionNames);
 
         error.Should().BeNull();
     }
@@ -211,7 +211,7 @@ public sealed class FlatSubCommandRouterTests {
     public void DetectUnknownOptions_ErrorFormat_ShouldHaveRustStyleIndicator() {
         var args = new[] { "mcp_call", "tool", "--bad-flag" };
 
-        var error = FlatSubCommandRouter.DetectUnknownOptions(args);
+        var error = FlatSubCommandRouter.DetectUnknownOptions(args, CliArgCliOptionConstants.AllOptionNames);
 
         error.Should().NotBeNull();
         error!.Should().Contain("  |");
@@ -260,5 +260,41 @@ public sealed class FlatSubCommandRouterTests {
         CliArgCliOptionConstants.AllOptionNames.Contains("--vendor").Should().BeTrue();
         CliArgCliOptionConstants.AllOptionNames.Contains("-m").Should().BeTrue();
         CliArgCliOptionConstants.AllOptionNames.Contains("-d").Should().BeTrue();
+    }
+
+    /// <summary>
+    /// McpList 子命令的 --category 是 [CliOption] 合法选项，传入 McpListArg 白名单不应报错
+    /// </summary>
+    [Fact]
+    public void DetectUnknownOptions_McpListCategory_ShouldNotFlagAsUnknown() {
+        var args = new[] { "mcp_list", "--category", "github" };
+
+        var error = FlatSubCommandRouter.DetectUnknownOptions(args, CliArgCliOptionConstants.AllOptionNames, McpListArgCliOptionConstants.AllOptionNames);
+
+        error.Should().BeNull();
+    }
+
+    /// <summary>
+    /// McpCall 子命令的 --args-file/--args-stdin 是 [CliOption] 合法选项，传入 ToolCallArg 白名单不应报错
+    /// </summary>
+    [Fact]
+    public void DetectUnknownOptions_McpCallToolCallOptions_ShouldNotFlagAsUnknown() {
+        var args = new[] { "mcp_call", "read_file", "--args-file", "args.json" };
+
+        var error = FlatSubCommandRouter.DetectUnknownOptions(args, CliArgCliOptionConstants.AllOptionNames, ToolCallArgCliOptionConstants.AllOptionNames);
+
+        error.Should().BeNull();
+    }
+
+    /// <summary>
+    /// McpServe 子命令的 --port/--host/--transport 合法，传入 McpServeArg 白名单不应报错
+    /// </summary>
+    [Fact]
+    public void DetectUnknownOptions_McpServeOptions_ShouldNotFlagAsUnknown() {
+        var args = new[] { "mcp_serve", "--port", "9903", "--host", "localhost", "--transport", "http" };
+
+        var error = FlatSubCommandRouter.DetectUnknownOptions(args, CliArgCliOptionConstants.AllOptionNames, McpServeArgCliOptionConstants.AllOptionNames);
+
+        error.Should().BeNull();
     }
 }

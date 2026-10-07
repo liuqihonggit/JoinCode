@@ -601,4 +601,200 @@ public sealed partial class GitHubToolHandlersTests {
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("gh licenses");
     }
+
+    // === Browse 边缘场景 ===
+
+    [Fact]
+    public async Task Browse_WithBlameAndTarget_ReturnsBlameUrl() {
+        var result = await _handler.GhBrowseAsync(target: "src/file.cs", blame: true, repo: "owner/repo", no_browser: true);
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("/blame/HEAD/src/file.cs");
+    }
+
+    [Fact]
+    public async Task Browse_WithCommitSha_ReturnsCommitUrl() {
+        var sha = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
+        var result = await _handler.GhBrowseAsync(target: sha, repo: "owner/repo", no_browser: true);
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain($"/commit/{sha}");
+    }
+
+    [Fact]
+    public async Task Browse_WithProjects_ReturnsProjectsUrl() {
+        var result = await _handler.GhBrowseAsync(projects: true, repo: "owner/repo", no_browser: true);
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("/projects");
+    }
+
+    // === Cache 边缘场景 ===
+
+    [Fact]
+    public async Task CacheDelete_AllWithEmptyList_ReturnsNoCacheMessage() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"total_count":0}""",
+        };
+
+        var result = await _handler.GhCacheDeleteAsync(all: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("无缓存可删除");
+    }
+
+    [Fact]
+    public async Task CacheDelete_WithZeroId_ReturnsError() {
+        var result = await _handler.GhCacheDeleteAsync(cache_id: 0, repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("cache_id");
+    }
+
+    // === Discussion 边缘场景 ===
+
+    [Fact]
+    public async Task DiscussionCreate_CategoryNotFound_ReturnsError() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"data":{"repository":{"discussionCategories":{"nodes":[{"id":"CAT_1","name":"General"}]}}}}""",
+        };
+
+        var result = await _handler.GhDiscussionCreateAsync("标题", "正文", "NonExistent", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("未找到分类");
+        result.GetFirstText().Should().Contain("NonExistent");
+    }
+
+    [Fact]
+    public async Task DiscussionCreate_RepoIdQueryFails_ReturnsError() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"data":{"repository":{"discussionCategories":{"nodes":[{"id":"CAT_1","name":"General"}]}}}}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = false, StatusCode = 404, Error = "仓库不存在" });
+
+        var result = await _handler.GhDiscussionCreateAsync("标题", "正文", "General", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("仓库不存在");
+    }
+
+    [Fact]
+    public async Task DiscussionEdit_NoTitleAndNoBody_ReturnsError() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"data":{"repository":{"discussion":{"id":"DISC_1"}}}}""",
+        };
+
+        var result = await _handler.GhDiscussionEditAsync(5, repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("需要 title 或 body");
+    }
+
+    [Fact]
+    public async Task DiscussionEdit_IdQueryFails_ReturnsError() {
+        _api.NextResponse = new GitHubApiResponse { Success = false, StatusCode = 404, Error = "Discussion 不存在" };
+
+        var result = await _handler.GhDiscussionEditAsync(5, title: "新标题", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("Discussion 不存在");
+    }
+
+    [Fact]
+    public async Task DiscussionComment_IdQueryFails_ReturnsError() {
+        _api.NextResponse = new GitHubApiResponse { Success = false, StatusCode = 404, Error = "Discussion 不存在" };
+
+        var result = await _handler.GhDiscussionCommentAsync(7, "评论内容", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("Discussion 不存在");
+    }
+
+    // === Project 边缘场景 ===
+
+    [Fact]
+    public async Task ProjectEdit_NoTitleAndNoDescription_ReturnsError() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"data":{"viewer":{"projectV2":{"id":"PROJ_1"}}}}""",
+        };
+
+        var result = await _handler.GhProjectEditAsync(5);
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("需要 title 或 description");
+    }
+
+    [Fact]
+    public async Task ProjectEdit_IdQueryFails_ReturnsError() {
+        _api.NextResponse = new GitHubApiResponse { Success = false, StatusCode = 404, Error = "Project 不存在" };
+
+        var result = await _handler.GhProjectEditAsync(5, title: "新标题");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("Project 不存在");
+    }
+
+    [Fact]
+    public async Task ProjectCreate_ViewerIdQueryFails_ReturnsError() {
+        _api.NextResponse = new GitHubApiResponse { Success = false, StatusCode = 404, Error = "Viewer 查询失败" };
+
+        var result = await _handler.GhProjectCreateAsync("用户项目");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("Viewer 查询失败");
+    }
+
+    // === Codespace 边缘场景 ===
+
+    [Fact]
+    public async Task CodespaceCreate_InvalidRepoFormat_ReturnsError() {
+        var result = await _handler.GhCodespaceCreateAsync("invalid-repo-no-slash");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("仓库名格式错误");
+    }
+
+    [Fact]
+    public async Task CodespaceCreate_RepoNotFound_ReturnsError() {
+        _api.NextResponse = new GitHubApiResponse { Success = false, StatusCode = 404, Error = "仓库不存在" };
+
+        var result = await _handler.GhCodespaceCreateAsync("owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("仓库不存在");
+    }
+
+    // === Ruleset 边缘场景 ===
+
+    [Fact]
+    public async Task RulesetList_NoOrgNoRepo_ReturnsRepoNotResolvedError() {
+        var result = await _handler.GhRulesetListAsync();
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("无法解析仓库");
+    }
+
+    // === Status 边缘场景 ===
+
+    [Fact]
+    public async Task Status_ApiClientNull_ReturnsApiClientNotConfigured() {
+        var handlerWithoutApi = new GitHubToolHandlers(
+            new FakeDownloader(),
+            new InMemoryFileSystem(),
+            new PersistencePipeline(new InMemoryFileSystem()),
+            null,
+            null,
+            NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handlerWithoutApi.GhStatusAsync();
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("GitHub REST API 客户端未配置");
+    }
 }

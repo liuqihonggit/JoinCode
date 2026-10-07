@@ -362,6 +362,48 @@ public sealed class GhCommandResolverTests {
         error.Should().Contain("--auto_merge");
     }
 
+    /// <summary>系统 gh CLI 的 --enable-issues 应映射到 has_issues=true（gh repo edit --enable-issues）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_EnableIssues_ShouldMapToHasIssuesTrue() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: false, IsBoolean: false),
+            new("has_issues", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--enable-issues" }, parameters, "gh_repo_edit", out var error);
+
+        error.Should().BeNull();
+        bound!["has_issues"].Should().Be("true");
+    }
+
+    /// <summary>系统 gh CLI 的 --enable-issues=false 应映射到 has_issues=false（带值形式）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_EnableIssuesFalse_ShouldMapToHasIssuesFalse() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: false, IsBoolean: false),
+            new("has_issues", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--enable-issues=false" }, parameters, "gh_repo_edit", out var error);
+
+        error.Should().BeNull();
+        bound!["has_issues"].Should().Be("false");
+    }
+
+    /// <summary>系统 gh CLI 的 --enable-wiki 应映射到 has_wiki=true（gh repo edit --enable-wiki）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_EnableWiki_ShouldMapToHasWikiTrue() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: false, IsBoolean: false),
+            new("has_wiki", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--enable-wiki" }, parameters, "gh_repo_edit", out var error);
+
+        error.Should().BeNull();
+        bound!["has_wiki"].Should().Be("true");
+    }
+
     /// <summary>必填参数保持 required 声明顺序，布尔类型从 schema type 推断</summary>
     [Fact]
     public void ParseSchema_ShouldKeepRequiredOrderAndBooleanType() {

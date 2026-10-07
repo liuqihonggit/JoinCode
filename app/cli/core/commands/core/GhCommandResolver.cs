@@ -223,7 +223,7 @@ internal static class GhArgsBinder {
             // 宽容策略: 真实 gh CLI 用连字符（--max-lines），工具 schema 用下划线（max_lines）
             if (!byName.TryGetValue(key, out var param) && !byName.TryGetValue(key.Replace('-', '_'), out param)) {
                 // 宽容策略: 系统 gh CLI 缩写别名（--auto→auto_merge, --squash→merge_method=squash, --job→job_id 等）
-                if (TryBindAlias(key, toolName, tail, ref i, result, token, out error))
+                if (TryBindAlias(key, toolName, tail, ref i, result, token, inlineValue, out error))
                     continue;
                 error = UnknownOptionError(key, parameters);
                 return null;
@@ -259,46 +259,70 @@ internal static class GhArgsBinder {
     }
 
     /// <summary>
-    /// 系统 gh CLI 缩写别名宽容 — AI 习惯用真实 gh CLI 的 --auto/--squash/--failed/--job 等，
-    /// 映射到 jcc 工具参数。Value 为 null 表示该参数需从下一个 token 取值。返回 null 表示无别名。
+    /// 系统 gh CLI 缩写别名 — 三种映射模式：
+    /// <list type="bullet">
+    /// <item><see cref="AliasKind.FixedValue"/>: 固定值（--auto → auto_merge=true）</item>
+    /// <item><see cref="AliasKind.TakeNextToken"/>: 取下一 token 作值（--job 456 → job_id=456）</item>
+    /// <item><see cref="AliasKind.RenameOnly"/>: 仅重命名，值按 inlineValue 或 bool flag 逻辑（--enable-issues → has_issues=true）</item>
+    /// </list>
     /// </summary>
-    private static (string Key, string? Value)? ResolveGhCliAlias(string key, string toolName)
+    private enum AliasKind { FixedValue, TakeNextToken, RenameOnly }
+
+    /// <summary>系统 gh CLI 缩写别名描述。</summary>
+    /// <param name="TargetKey">jcc 工具参数名。</param>
+    /// <param name="FixedValue">固定值（仅 <see cref="AliasKind.FixedValue"/> 模式非 null）。</param>
+    /// <param name="Kind">映射模式。</param>
+    private sealed record GhCliAlias(string TargetKey, string? FixedValue, AliasKind Kind);
+
+    /// <summary>
+    /// 解析系统 gh CLI 缩写别名 — AI 习惯用真实 gh CLI 的 --auto/--squash/--failed/--job 等，
+    /// 映射到 jcc 工具参数。返回 null 表示无别名。
+    /// </summary>
+    private static GhCliAlias? ResolveGhCliAlias(string key, string toolName)
         => (toolName, key) switch {
-            ("gh_pr_merge", "auto")    => ("auto_merge", "true"),
-            ("gh_pr_merge", "squash")  => ("merge_method", "squash"),
-            ("gh_pr_merge", "merge")   => ("merge_method", "merge"),
-            ("gh_pr_merge", "rebase")  => ("merge_method", "rebase"),
-            ("gh_run_rerun", "failed") => ("failed_only", "true"),
-            ("gh_run_view", "job")     => ("job_id", null),
-            ("gh_repo_create", "private")   => ("visibility", "private"),
-            ("gh_repo_create", "public")    => ("visibility", "public"),
-            ("gh_repo_create", "internal")  => ("visibility", "internal"),
-            ("gh_issue_close", "duplicate") => ("duplicate_of", null),
-            ("gh_issue_close", "completed") => ("reason", "completed"),
-            ("gh_issue_close", "not-planned") => ("reason", "not_planned"),
-            ("gh_pr_review", "approve")         => ("action", "approve"),
-            ("gh_pr_review", "request-changes") => ("action", "request_changes"),
-            ("gh_pr_review", "comment")         => ("action", "comment"),
-            _                          => null
+            ("gh_pr_merge", "auto")    => new GhCliAlias("auto_merge", "true", AliasKind.FixedValue),
+            ("gh_pr_merge", "squash")  => new GhCliAlias("merge_method", "squash", AliasKind.FixedValue),
+            ("gh_pr_merge", "merge")   => new GhCliAlias("merge_method", "merge", AliasKind.FixedValue),
+            ("gh_pr_merge", "rebase")  => new GhCliAlias("merge_method", "rebase", AliasKind.FixedValue),
+            ("gh_run_rerun", "failed") => new GhCliAlias("failed_only", "true", AliasKind.FixedValue),
+            ("gh_run_view", "job")     => new GhCliAlias("job_id", null, AliasKind.TakeNextToken),
+            ("gh_repo_create", "private")   => new GhCliAlias("visibility", "private", AliasKind.FixedValue),
+            ("gh_repo_create", "public")    => new GhCliAlias("visibility", "public", AliasKind.FixedValue),
+            ("gh_repo_create", "internal")  => new GhCliAlias("visibility", "internal", AliasKind.FixedValue),
+            ("gh_issue_close", "duplicate") => new GhCliAlias("duplicate_of", null, AliasKind.TakeNextToken),
+            ("gh_issue_close", "completed") => new GhCliAlias("reason", "completed", AliasKind.FixedValue),
+            ("gh_issue_close", "not-planned") => new GhCliAlias("reason", "not_planned", AliasKind.FixedValue),
+            ("gh_pr_review", "approve")         => new GhCliAlias("action", "approve", AliasKind.FixedValue),
+            ("gh_pr_review", "request-changes") => new GhCliAlias("action", "request_changes", AliasKind.FixedValue),
+            ("gh_pr_review", "comment")         => new GhCliAlias("action", "comment", AliasKind.FixedValue),
+            ("gh_repo_edit", "enable-issues")   => new GhCliAlias("has_issues", null, AliasKind.RenameOnly),
+            ("gh_repo_edit", "enable-wiki")     => new GhCliAlias("has_wiki", null, AliasKind.RenameOnly),
+            _                                  => null
         };
 
     /// <summary>尝试绑定系统 gh CLI 别名 — 成功返回 true 并更新 result/i，失败设 error 返回 false</summary>
+    /// <param name="inlineValue">--key=value 形式的内联值（已由调用方剥离），null 表示无内联值。</param>
     private static bool TryBindAlias(string key, string toolName, string[] tail, ref int i,
-        Dictionary<string, string> result, string token, out string? error) {
+        Dictionary<string, string> result, string token, string? inlineValue, out string? error) {
         error = null;
         if (ResolveGhCliAlias(key, toolName) is not { } alias)
             return false;
-        if (alias.Value is not null) {
-            result[alias.Key] = alias.Value;
-            return true;
+        switch (alias.Kind) {
+            case AliasKind.FixedValue:
+                result[alias.TargetKey] = alias.FixedValue!;
+                return true;
+            case AliasKind.RenameOnly:
+                result[alias.TargetKey] = inlineValue ?? "true";
+                return true;
+            default: // TakeNextToken
+                if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) {
+                    error = $"{CliErrorCatalog.ArgMissingRequired($"--{key} 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值>";
+                    return false;
+                }
+                result[alias.TargetKey] = tail[i + 1];
+                i++;
+                return true;
         }
-        if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) {
-            error = $"{CliErrorCatalog.ArgMissingRequired($"--{key} 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值>";
-            return false;
-        }
-        result[alias.Key] = tail[i + 1];
-        i++;
-        return true;
     }
 
     /// <summary>找最接近的参数名: 优先前缀匹配(如 auto→auto_merge),其次包含匹配(如 merge→merge_method)。</summary>

@@ -63,6 +63,9 @@ C:\Users\54076\bin\
 | `required_status_checks` 子端点 PUT 返回 404 | ✅ 已查明 | GitHub API 的 `branches/{branch}/protection/required_status_checks` 子端点不支持单独 PUT（返回 404）。必须用完整 `branches/{branch}/protection` 端点 PUT，body 包含完整保护规则（`required_status_checks` + `enforce_admins` + 其他字段）。`gh api --method PUT --body_file <file> repos/{owner}/{repo}/branches/{branch}/protection` 可用 |
 | `gh api --method PUT --body_file` | ✅ 可用 | jcc 的 `gh api` handler 已支持 `--method`/`--body`/`--body_file` 参数，通过 `GhArgsBinder.Bind` 正确绑定到 `GhApiAsync` handler。`--body_file` 从文件读取 body，彻底绕开命令行转义问题（推荐） |
 | `gh branch audit-protection` | ✅ 可用 | 对比 CI yml matrix 与 GitHub required_status_checks，报告匹配/缺失/多余三类差异。`CiMatrixParser` 解析 yml，`BranchProtectionAuditor` 封装审计逻辑 |
+| `gh run view --expand jobs` 截断 | ✅ 已修复(2026-10-08) | `MergeJsonArrays` 支持对象结构分页合并（识别 jobs/check_runs/items 包裹键），双向对比验证 62 jobs 一致 |
+| `gh api --jq` 字段提取 | ✅ 已修复(2026-10-08) | `SimpleJqEvaluator` 支持 .field/[]/select(.f=="v")/{k:.f}/\| 管道，AI 无需 Python 二次解析 |
+| `gh pr checks` 大量 check 截断 | ✅ 已修复(2026-10-08) | check-runs 端点加 per_page=100 + paginate=true，配合对象分页合并获取全部 |
 
 ## 原因
 

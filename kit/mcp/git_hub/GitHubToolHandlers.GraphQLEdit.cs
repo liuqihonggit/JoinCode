@@ -13,7 +13,7 @@ public partial class GitHubToolHandlers {
         if (!result.Success) return null;
         try {
             using var doc = JsonDocument.Parse(result.Body);
-            return doc.RootElement.TryGetProperty("id", out var n) ? n.GetInt64() : null;
+            return doc.RootElement.TryGetProperty(GitHubJsonFields.Id, out var n) ? n.GetInt64() : null;
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 repo id 失败"); return null; }
     }
 
@@ -26,10 +26,10 @@ public partial class GitHubToolHandlers {
         if (orgResult.Success) {
             try {
                 using var doc = JsonDocument.Parse(orgResult.Body);
-                var nodes = doc.RootElement.GetProperty("data").GetProperty("organization").GetProperty("projectsV2").GetProperty("nodes");
+                var nodes = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Organization).GetProperty("projectsV2").GetProperty(GitHubJsonFields.Nodes);
                 foreach (var node in nodes.EnumerateArray()) {
-                    if (node.TryGetProperty("title", out var t) && t.GetString() == projectTitle) {
-                        return node.GetProperty("id").GetString();
+                    if (node.TryGetProperty(GitHubJsonFields.Title, out var t) && t.GetString() == projectTitle) {
+                        return node.GetProperty(GitHubJsonFields.Id).GetString();
                     }
                 }
             } catch (Exception ex) { _logger?.LogDebug(ex, "解析 organization projectsV2 失败"); }
@@ -39,10 +39,10 @@ public partial class GitHubToolHandlers {
         if (viewerResult.Success) {
             try {
                 using var doc = JsonDocument.Parse(viewerResult.Body);
-                var nodes = doc.RootElement.GetProperty("data").GetProperty("viewer").GetProperty("projectsV2").GetProperty("nodes");
+                var nodes = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty("viewer").GetProperty("projectsV2").GetProperty(GitHubJsonFields.Nodes);
                 foreach (var node in nodes.EnumerateArray()) {
-                    if (node.TryGetProperty("title", out var t) && t.GetString() == projectTitle) {
-                        return node.GetProperty("id").GetString();
+                    if (node.TryGetProperty(GitHubJsonFields.Title, out var t) && t.GetString() == projectTitle) {
+                        return node.GetProperty(GitHubJsonFields.Id).GetString();
                     }
                 }
             } catch (Exception ex) { _logger?.LogDebug(ex, "解析 viewer projectsV2 失败"); }
@@ -59,10 +59,10 @@ public partial class GitHubToolHandlers {
         if (!result.Success) return null;
         try {
             using var doc = JsonDocument.Parse(result.Body);
-            var nodes = doc.RootElement.GetProperty("data").GetProperty("node").GetProperty("items").GetProperty("nodes");
+            var nodes = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty("node").GetProperty(GitHubJsonFields.Items).GetProperty(GitHubJsonFields.Nodes);
             foreach (var node in nodes.EnumerateArray()) {
-                if (node.TryGetProperty("content", out var content) && content.TryGetProperty("id", out var id) && id.GetString() == contentNodeId) {
-                    return node.GetProperty("id").GetString();
+                if (node.TryGetProperty(GitHubJsonFields.Content, out var content) && content.TryGetProperty(GitHubJsonFields.Id, out var id) && id.GetString() == contentNodeId) {
+                    return node.GetProperty(GitHubJsonFields.Id).GetString();
                 }
             }
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 project items 失败"); }
@@ -138,10 +138,10 @@ public partial class GitHubToolHandlers {
         if (!result.Success) return null;
         try {
             using var doc = JsonDocument.Parse(result.Body);
-            var nodes = doc.RootElement.GetProperty("data").GetProperty("repository").GetProperty("issueTypes").GetProperty("nodes");
+            var nodes = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Repository).GetProperty("issueTypes").GetProperty(GitHubJsonFields.Nodes);
             foreach (var node in nodes.EnumerateArray()) {
-                if (node.TryGetProperty("name", out var n) && n.GetString() == typeName) {
-                    return node.GetProperty("id").GetString();
+                if (node.TryGetProperty(GitHubJsonFields.Name, out var n) && n.GetString() == typeName) {
+                    return node.GetProperty(GitHubJsonFields.Id).GetString();
                 }
             }
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 issueTypes 失败"); }
@@ -175,9 +175,9 @@ public partial class GitHubToolHandlers {
         if (!result.Success) return null;
         try {
             using var doc = JsonDocument.Parse(result.Body);
-            var issue = doc.RootElement.GetProperty("data").GetProperty("repository").GetProperty("issue");
+            var issue = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Repository).GetProperty("issue");
             if (issue.TryGetProperty("parent", out var parent) && parent.ValueKind == JsonValueKind.Object) {
-                return parent.GetProperty("id").GetString();
+                return parent.GetProperty(GitHubJsonFields.Id).GetString();
             }
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 issue parent 失败"); }
         return null;
@@ -198,7 +198,7 @@ public partial class GitHubToolHandlers {
         if (!result.Success) return (null, result.Error);
         try {
             using var doc = JsonDocument.Parse(result.Body);
-            var url = doc.RootElement.TryGetProperty("url", out var u) ? u.GetString() : null;
+            var url = doc.RootElement.TryGetProperty(GitHubJsonFields.Url, out var u) ? u.GetString() : null;
             return (url, null);
         } catch (Exception ex) { return (null, $"解析附件响应失败: {ex.Message}"); }
     }

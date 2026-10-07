@@ -35,8 +35,13 @@ public partial class GitHubToolHandlers {
                 ? $"repos/{owner}/{repoName}/actions/runs"
                 : $"repos/{owner}/{repoName}/actions/workflows/{workflow}/runs";
             var result = await client.SendAsync(HttpMethod.Get, basePath, query: query, ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
-            if (!string.IsNullOrEmpty(json_fields)) return Ok(FilterJsonFields(result.Body, json_fields));
+            if (!result.Success) return Fail(BuildRunListErrorHint(result, workflow));
+            if (!string.IsNullOrEmpty(json_fields)) {
+                var filtered = FilterJsonFields(result.Body, json_fields);
+                if (filtered is "[]" or "{}")
+                    return Ok(filtered + "\n\n⚠️ 返回空: 可能原因: ① 字段名不匹配(用 verbosity=2 查看完整字段) ② 该 run 无此字段");
+                return Ok(filtered);
+            }
             var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
             var failureHint = hasFailure ? GitHubRunLogHints.RunListFailureHint : "";
             return verbosity switch {
@@ -46,6 +51,18 @@ public partial class GitHubToolHandlers {
             };
         }).ConfigureAwait(false);
 
+
+    /// <summary>
+    /// 构建 run list 错误提示 — 404/Not Found 时给出可能原因和引导（缺陷5）
+    /// </summary>
+    private static string BuildRunListErrorHint(GitHubApiResponse result, string? workflow) {
+        var baseHint = result.StatusCode == 404
+            ? "404 Not Found — 可能原因:"
+              + (string.IsNullOrWhiteSpace(workflow) ? "" : $" ① 工作流名称 '{workflow}' 不匹配(用 gh workflow list 查看可用工作流)")
+              + " ② 当前目录不是 git 仓库根目录 ③ 仓库不存在或无权限"
+            : result.Error;
+        return baseHint;
+    }
 
     /// <summary>
     /// 查看 Run 详情/日志 — 支持 expand 按步骤展开（两级缓存跨进程）、filter 按标记过滤、skip_lines 分页续读、refresh 强制刷新、web 返回 URL、attempt 指定重试次数
@@ -69,14 +86,18 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            // 宽容: AI 可能传 run number(如 752)而非 run id(如 37663049294),自动解析
+            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (resolvedRunId is null)
+                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
             if (web == true) {
-                var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
+                var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
                 if (!runResult.Success) return Fail(runResult.Error);
                 var url = ExtractHtmlUrl(runResult.Body);
                 return string.IsNullOrEmpty(url) ? Fail("无法从 Run 响应中解析 html_url") : Ok(url);
             }
             if (!string.IsNullOrEmpty(json_fields)) {
-                var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
+                var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
                 if (!runResult.Success) return Fail(runResult.Error);
                 return Ok(FilterJsonFields(runResult.Body, json_fields));
             }
@@ -84,8 +105,48 @@ public partial class GitHubToolHandlers {
                 expand = "failed";
                 log = true;
             }
-            return await GhRunViewCoreAsync(client, owner, repoName, run_id, job_id, log, max_lines, skip_lines, expand, filter, refresh, attempt, working_dir, verbosity, cancellationToken).ConfigureAwait(false);
+            return await GhRunViewCoreAsync(client, owner, repoName, resolvedRunId, job_id, log, max_lines, skip_lines, expand, filter, refresh, attempt, working_dir, verbosity, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 解析 run_id — 宽容接受 run number(短数字)自动查找对应 run id（缺陷3）
+    /// <para>AI 可能用 run list 的 NUM 列(如 752)而非 ID 列(如 37663049294),先尝试直接查询,
+    /// 404 且为短数字时按 run_number 搜索。</para>
+    /// </summary>
+    private async Task<string?> ResolveRunIdAsync(IGitHubApiClient client, string owner, string repoName, string runId, CancellationToken ct) {
+        // 先尝试直接用 run_id 查询
+        var direct = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{runId}", ct: ct).ConfigureAwait(false);
+        if (direct.Success) return runId;
+
+        // 404 且 run_id 是短数字(看起来像 run number)时,按 run_number 搜索
+        if (direct.StatusCode != 404 || !IsLikelyRunNumber(runId)) return null;
+
+        var listResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs",
+            query: new Dictionary<string, string> { ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
+        if (!listResult.Success) return null;
+
+        return FindRunIdByNumber(listResult.Body, runId, _logger);
+    }
+
+    /// <summary>run_id 通常是 10-11 位数字,run number 是短数字(少于 10 位)</summary>
+    private static bool IsLikelyRunNumber(string runId)
+        => runId.Length > 0 && runId.Length < 10 && runId.All(char.IsDigit);
+
+    /// <summary>从 run list JSON 中查找指定 run_number 对应的 run id</summary>
+    private static string? FindRunIdByNumber(string json, string number, ILogger? logger) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("workflow_runs", out var runs)) return null;
+            foreach (var run in runs.EnumerateArray()) {
+                if (run.TryGetProperty(GitHubJsonFields.RunNumber, out var rn) && rn.GetRawText().Trim('"') == number
+                    && run.TryGetProperty(GitHubJsonFields.Id, out var id))
+                    return id.GetRawText().Trim('"');
+            }
+        } catch (JsonException ex) {
+            logger?.LogWarning(ex, "解析 run list JSON 失败,无法按 run_number 查找");
+        }
+        return null;
+    }
 
     /// <summary>
     /// GhRunView 核心逻辑 — expand/filter/log 多分支调度,两级缓存(ADR 0067)
@@ -300,10 +361,8 @@ public partial class GitHubToolHandlers {
             var body = "{}";
             if (!string.IsNullOrWhiteSpace(job)) {
                 path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-jobs";
-                var jobIds = job.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Select(s => long.TryParse(s, out var id) ? id : 0)
-                    .Where(id => id > 0)
-                    .ToList();
+                var jobIds = GitHubRunLogFilter.ParseJobIds(job);
+                jobIds.RemoveAll(id => id <= 0);
                 body = JsonSerializer.Serialize(new RunRerunJobsRequest { JobIds = jobIds, EnableDebugLogging = debug == true ? true : null }, GitHubApiJsonContext.Safe.RunRerunJobsRequest);
             } else if (failed_only != false) {
                 path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-failed-jobs";
@@ -416,8 +475,8 @@ public partial class GitHubToolHandlers {
         try {
             using var doc = JsonDocument.Parse(runJson);
             var root = doc.RootElement;
-            var conclusion = root.TryGetProperty("conclusion", out var c) ? c.GetString() ?? "unknown" : "unknown";
-            var htmlUrl = root.TryGetProperty("html_url", out var u) ? u.GetString() ?? "" : "";
+            var conclusion = root.TryGetProperty(GitHubJsonFields.Conclusion, out var c) ? c.GetString() ?? "unknown" : "unknown";
+            var htmlUrl = root.TryGetProperty(GitHubJsonFields.HtmlUrl, out var u) ? u.GetString() ?? "" : "";
             var displayConclusion = conclusion switch {
                 "success" => "✅ success",
                 "failure" => "❌ failure",
@@ -455,8 +514,8 @@ public partial class GitHubToolHandlers {
                 artifacts = [];
                 if (doc.RootElement.TryGetProperty("artifacts", out var artsEl) && artsEl.ValueKind == JsonValueKind.Array) {
                     foreach (var art in artsEl.EnumerateArray()) {
-                        var artName = art.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                        var artId = art.TryGetProperty("id", out var idEl) ? idEl.GetInt64() : 0;
+                        var artName = art.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
+                        var artId = art.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
                         if (string.IsNullOrEmpty(artName) || artId == 0) continue;
                         if (!string.IsNullOrWhiteSpace(name) && !SimpleMatchArtifact(name, artName)) continue;
                         artifacts.Add((artName, artId));
@@ -551,9 +610,9 @@ public partial class GitHubToolHandlers {
                 if (!result.Success) return Fail(result.Error);
                 try {
                     using var doc = JsonDocument.Parse(result.Body);
-                    var status = doc.RootElement.TryGetProperty("status", out var s) ? s.GetString() ?? "" : "";
-                    var conclusion = doc.RootElement.TryGetProperty("conclusion", out var c) ? (c.ValueKind == JsonValueKind.Null ? "" : c.GetString() ?? "") : "";
-                    var displayTitle = doc.RootElement.TryGetProperty("display_title", out var dt) ? dt.GetString() ?? "" : "";
+                    var status = doc.RootElement.TryGetProperty(GitHubJsonFields.Status, out var s) ? s.GetString() ?? "" : "";
+                    var conclusion = doc.RootElement.TryGetProperty(GitHubJsonFields.Conclusion, out var c) ? (c.ValueKind == JsonValueKind.Null ? "" : c.GetString() ?? "") : "";
+                    var displayTitle = doc.RootElement.TryGetProperty(GitHubJsonFields.DisplayTitle, out var dt) ? dt.GetString() ?? "" : "";
                     sb.AppendLine($"[{DateTime.Now:HH:mm:ss}] {status}{(string.IsNullOrEmpty(conclusion) ? "" : $" / {conclusion}")} — {displayTitle}");
                     if (status == "completed") { finalStatus = status; finalConclusion = conclusion; break; }
                 } catch {

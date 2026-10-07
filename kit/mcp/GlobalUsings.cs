@@ -109,6 +109,7 @@ global using McpToolContent = JoinCode.Abstractions.Mcp.Protocol.McpToolContent;
 global using McpToolProgress = JoinCode.Abstractions.Mcp.Client.McpToolProgress;
 global using NaCl.Core;
 global using System.Numerics;
+global using System.Runtime.Intrinsics;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using ToolContent = JoinCode.Abstractions.Tools.ToolContent;
 global using ValidationResult = Structura.Primitives.ValidationResult;

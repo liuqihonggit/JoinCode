@@ -30,8 +30,8 @@ public partial class GitHubToolHandlers {
             var sb = new StringBuilder(128);
             sb.AppendLine("组织\t描述");
             foreach (var org in doc.RootElement.EnumerateArray()) {
-                var login = org.TryGetProperty("login", out var l) ? l.GetString() ?? "" : "";
-                var desc = org.TryGetProperty("description", out var d) ? (d.ValueKind == JsonValueKind.Null ? "" : d.GetString() ?? "") : "";
+                var login = org.TryGetProperty(GitHubJsonFields.Login, out var l) ? l.GetString() ?? "" : "";
+                var desc = org.TryGetProperty(GitHubJsonFields.Description, out var d) ? (d.ValueKind == JsonValueKind.Null ? "" : d.GetString() ?? "") : "";
                 sb.AppendLine($"{login}\t{desc}");
             }
             return sb.ToString();
@@ -90,8 +90,8 @@ public partial class GitHubToolHandlers {
             var sb = new StringBuilder(128);
             sb.AppendLine("ID\t标题");
             foreach (var key in doc.RootElement.EnumerateArray()) {
-                var id = key.TryGetProperty("id", out var i) ? i.GetInt32() : 0;
-                var title = key.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                var id = key.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt32() : 0;
+                var title = key.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
                 sb.AppendLine($"{id}\t{title}");
             }
             return sb.ToString();
@@ -149,7 +149,7 @@ public partial class GitHubToolHandlers {
             var sb = new StringBuilder(128);
             sb.AppendLine("ID\tKey ID\t可签名");
             foreach (var key in doc.RootElement.EnumerateArray()) {
-                var id = key.TryGetProperty("id", out var i) ? i.GetInt32() : 0;
+                var id = key.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt32() : 0;
                 var keyId = key.TryGetProperty("key_id", out var k) ? k.GetString() ?? "" : "";
                 var canSign = key.TryGetProperty("can_sign", out var cs) && cs.GetBoolean();
                 sb.AppendLine($"{id}\t{keyId}\t{canSign}");

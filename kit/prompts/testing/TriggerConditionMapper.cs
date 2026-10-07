@@ -43,57 +43,58 @@ public sealed class TriggerConditionMapper {
         return ParameterMappings.GetValueOrDefault(parameterName);
     }
 
+    /// <summary>总是触发条件（复用同一实例）。</summary>
+    private static readonly TriggerCondition AlwaysTrigger = new("总是触发", _ => true);
+
+    /// <summary>Section 名称 → 触发条件映射（忽略大小写）。</summary>
+    private static readonly FrozenDictionary<string, TriggerCondition> SectionConditionMap = new Dictionary<string, TriggerCondition>(StringComparer.OrdinalIgnoreCase) {
+        // 条件触发
+        ["brief"]              = new("简洁模式", ctx => ctx.Config.IsBriefEnabled),
+        ["agent_default"]      = new("Agent模式", ctx => ctx.Config.IsAgentMode),
+        ["agent_notes"]        = new("Agent模式", ctx => ctx.Config.IsAgentMode),
+        ["repl_mode"]          = new("REPL模式", ctx => ctx.Config.IsReplMode),
+        ["todo_task"]          = new("有Todo工具", ctx => ctx.Config.HasTodoTool),
+        ["git_worktree"]       = new("Git工作区", ctx => ctx.Config.IsGitWorktree),
+        ["mcp_servers"]        = new("MCP服务器", ctx => ctx.Config.McpServers?.Any() == true),
+        ["scratchpad"]         = new("草稿板路径", ctx => !string.IsNullOrEmpty(ctx.Config.ScratchpadPath)),
+        ["language"]           = new("语言偏好", ctx => !string.IsNullOrEmpty(ctx.Config.LanguagePreference)),
+        ["model_info"]         = new("模型ID", ctx => !string.IsNullOrEmpty(ctx.Config.ModelId)),
+        ["version_info"]       = new("版本", ctx => !string.IsNullOrEmpty(ctx.Config.Version)),
+        ["additional_workdirs"] = new("额外工作目录", ctx => ctx.Config.AdditionalWorkdirs?.Any() == true),
+        ["numeric_length"]     = new("启用数字长度", ctx => ctx.Config.EnableNumericLength),
+        ["project_rules"]      = new("项目规则", ctx => !string.IsNullOrEmpty(ctx.Config.ProjectRules)),
+        ["external_rules"]     = new("外部规则", ctx => ctx.Config.ExternalRules?.Any() == true),
+        // 特殊处理
+        ["feedback"]           = AlwaysTrigger,
+        ["tool_result_clearing"] = new("工具结果清理", ctx => ctx.Config.ToolResultClearingEnabled),
+        ["token_budget"]       = AlwaysTrigger,
+        ["environment"]        = AlwaysTrigger,
+        // 总是触发
+        ["intro"] = AlwaysTrigger, ["cyber_risk"] = AlwaysTrigger, ["system"] = AlwaysTrigger,
+        ["system_reminders"] = AlwaysTrigger, ["hooks"] = AlwaysTrigger,
+        ["context_compression"] = AlwaysTrigger, ["doing_tasks"] = AlwaysTrigger,
+        ["actions"] = AlwaysTrigger, ["tools"] = AlwaysTrigger, ["agent_tool"] = AlwaysTrigger,
+        ["skill"] = AlwaysTrigger, ["discover_skills"] = AlwaysTrigger, ["tone"] = AlwaysTrigger,
+        ["output_efficiency"] = AlwaysTrigger, ["communicating"] = AlwaysTrigger,
+        ["summarize_tool_results"] = AlwaysTrigger, ["verification"] = AlwaysTrigger,
+        ["proactive"] = AlwaysTrigger, ["session_guidance"] = AlwaysTrigger,
+        ["memory"] = AlwaysTrigger, ["shell_info"] = AlwaysTrigger,
+        ["coordinator"] = AlwaysTrigger, ["agent_generation"] = AlwaysTrigger,
+        ["agent_summary"] = AlwaysTrigger, ["advisor_tool"] = AlwaysTrigger,
+        ["chrome_automation"] = AlwaysTrigger, ["compact"] = AlwaysTrigger,
+        ["compact_prompt"] = AlwaysTrigger, ["companion"] = AlwaysTrigger,
+        ["dream_consolidation"] = AlwaysTrigger, ["extract_memories"] = AlwaysTrigger,
+        ["magic_docs"] = AlwaysTrigger, ["magic_docs_prompt"] = AlwaysTrigger,
+        ["output_style"] = AlwaysTrigger, ["prompt_suggestion"] = AlwaysTrigger,
+        ["session_memory"] = AlwaysTrigger, ["session_memory_prompt"] = AlwaysTrigger,
+        ["teammate_prompt"] = AlwaysTrigger,
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// 从Section名称推导触发条件
     /// </summary>
-    public TriggerCondition? DeriveFromSectionName(string sectionName) {
-        return sectionName.ToLowerInvariant() switch {
-            // 条件触发的Section
-            "brief" => GetCondition("isBriefEnabled"),
-            "agent_default" or "agent_notes" => GetCondition("isAgentMode"),
-            "repl_mode" => GetCondition("isReplMode"),
-            "todo_task" => GetCondition("hasTodoTool"),
-            "git_worktree" => GetCondition("isGitWorktree"),
-            "mcp_servers" => GetCondition("mcpServers"),
-            "scratchpad" => GetCondition("scratchpadPath"),
-            "language" => GetCondition("languagePreference"),
-            "model_info" => GetCondition("modelId"),
-            "version_info" => GetCondition("version"),
-            "additional_workdirs" => GetCondition("additionalWorkdirs"),
-            "simple_mode" => GetCondition("isSimpleMode"),
-            "numeric_length" => GetCondition("enableNumericLength"),
-            "project_rules" => GetCondition("projectRules"),
-            "external_rules" => GetCondition("externalRules"),
-
-            // feedback特殊处理：总是触发（有默认内容）
-            "feedback" => new TriggerCondition("总是触发", _ => true),
-
-            // tool_result_clearing特殊处理：默认启用
-            "tool_result_clearing" => new TriggerCondition("工具结果清理", ctx => ctx.Config.ToolResultClearingEnabled),
-
-            // token_budget特殊处理：总是触发（注释说明即使没有预算也保留）
-            "token_budget" => new TriggerCondition("总是触发", _ => true),
-
-            // environment特殊处理：总是触发（动态获取环境信息）
-            "environment" => new TriggerCondition("总是触发", _ => true),
-
-            // 总是触发的Section
-            "intro" or "cyber_risk" or "system" or "system_reminders" or "hooks"
-                or "context_compression" or "doing_tasks" or "actions" or "tools"
-                or "agent_tool" or "skill" or "discover_skills" or "tone"
-                or "output_efficiency" or "communicating"
-                or "summarize_tool_results" or "verification" or "proactive"
-                or "session_guidance" or "memory" or "shell_info"
-                or "coordinator" or "agent_generation" or "agent_summary"
-                or "advisor_tool" or "chrome_automation" or "compact" or "compact_prompt"
-                or "companion" or "dream_consolidation" or "extract_memories"
-                or "magic_docs" or "magic_docs_prompt"
-                or "output_style" or "prompt_suggestion" or "session_memory"
-                or "session_memory_prompt" or "teammate_prompt"
-                => new TriggerCondition("总是触发", _ => true),
-            _ => null
-        };
-    }
+    public TriggerCondition? DeriveFromSectionName(string sectionName)
+        => SectionConditionMap.TryGetValue(sectionName, out var cond) ? cond : null;
 }
 
 /// <summary>

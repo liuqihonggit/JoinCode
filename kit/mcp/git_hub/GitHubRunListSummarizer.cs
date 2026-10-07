@@ -70,11 +70,11 @@ internal static class GitHubRunListSummarizer {
                 var elapsed = GitHubRunFormatHelper.FormatElapsed(GitHubRunFormatHelper.GetString(run, "created_at"), GitHubRunFormatHelper.GetString(run, "updated_at")) ?? "";
 
                 sb.Append(symbol).Append("  ");
-                sb.Append(id.PadRight(11)).Append("  ");
-                sb.Append(number.PadRight(4)).Append("  ");
-                sb.Append(Truncate(name, 22).PadRight(22)).Append("  ");
-                sb.Append(Truncate(branch, 8).PadRight(8)).Append("   ");
-                sb.Append(Truncate(evt, 9).PadRight(9)).Append("   ");
+                AppendFixedWidth(sb, id, 11); sb.Append("  ");
+                AppendFixedWidth(sb, number, 4); sb.Append("  ");
+                AppendFixedWidth(sb, name, 22); sb.Append("  ");
+                AppendFixedWidth(sb, branch, 8); sb.Append("   ");
+                AppendFixedWidth(sb, evt, 9); sb.Append("   ");
                 sb.AppendLine(elapsed);
             }
 
@@ -84,9 +84,17 @@ internal static class GitHubRunListSummarizer {
         }
     }
 
-    private static string Truncate(string s, int maxLen)
-        => s.Length <= maxLen ? s : s[..(maxLen - 1)] + "…";
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void AppendFixedWidth(StringBuilder sb, string value, int width) {
+        if (value.Length <= width) {
+            sb.Append(value);
+            for (var i = value.Length; i < width; i++) sb.Append(' ');
+        } else {
+            sb.Append(value, 0, width - 1).Append('…');
+        }
+    }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void CopyProperty(JsonElement source, Utf8JsonWriter writer, string name) {
         if (source.TryGetProperty(name, out var prop)) {
             writer.WritePropertyName(name);

@@ -26,31 +26,20 @@ public static class LocalLanguageDetector {
         return "en";
     }
 
+    /// <summary>ISO 语言码 → 母语名称映射。</summary>
+    private static readonly FrozenDictionary<string, string> NativeLanguageNames = new Dictionary<string, string> {
+        ["zh"] = "中文", ["en"] = "English", ["ja"] = "日本語", ["ko"] = "한국어",
+        ["fr"] = "Français", ["de"] = "Deutsch", ["es"] = "Español", ["ru"] = "Русский",
+        ["it"] = "Italiano", ["pt"] = "Português", ["nl"] = "Nederlands", ["sv"] = "Svenska",
+        ["tr"] = "Türkçe", ["pl"] = "Polski", ["ar"] = "العربية", ["th"] = "ไทย",
+        ["vi"] = "Tiếng Việt", ["id"] = "Bahasa Indonesia", ["hi"] = "हिन्दी",
+    }.ToFrozenDictionary();
+
     /// <summary>
     /// 获取当前本地语言的母语名称（如 "中文", "English", "日本語"）— 供 LLM 提示词使用
     /// </summary>
-    public static string GetNativeLanguageName(string isoCode) => isoCode switch {
-        "zh" => "中文",
-        "en" => "English",
-        "ja" => "日本語",
-        "ko" => "한국어",
-        "fr" => "Français",
-        "de" => "Deutsch",
-        "es" => "Español",
-        "ru" => "Русский",
-        "it" => "Italiano",
-        "pt" => "Português",
-        "nl" => "Nederlands",
-        "sv" => "Svenska",
-        "tr" => "Türkçe",
-        "pl" => "Polski",
-        "ar" => "العربية",
-        "th" => "ไทย",
-        "vi" => "Tiếng Việt",
-        "id" => "Bahasa Indonesia",
-        "hi" => "हिन्दी",
-        _ => "English"
-    };
+    public static string GetNativeLanguageName(string isoCode)
+        => NativeLanguageNames.TryGetValue(isoCode, out var name) ? name : "English";
 
     /// <summary>
     /// 获取当前本地语言的母语名称（便捷方法，自动检测语言）

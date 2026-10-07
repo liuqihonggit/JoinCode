@@ -34,14 +34,14 @@ public partial class GitHubToolHandlers {
         try {
             using var doc = JsonDocument.Parse(json);
             var sb = new StringBuilder(512);
-            var totalCount = doc.RootElement.TryGetProperty("total_count", out var tc) ? tc.GetInt32() : 0;
+            var totalCount = doc.RootElement.TryGetProperty(GitHubJsonFields.TotalCount, out var tc) ? tc.GetInt32() : 0;
             sb.AppendLine($"共 {totalCount} 个仓库");
-            if (doc.RootElement.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array) {
+            if (doc.RootElement.TryGetProperty(GitHubJsonFields.Items, out var items) && items.ValueKind == JsonValueKind.Array) {
                 sb.AppendLine("仓库\tStars\t描述");
                 foreach (var repo in items.EnumerateArray()) {
                     var fullName = repo.TryGetProperty("full_name", out var fn) ? fn.GetString() ?? "" : "";
-                    var stars = repo.TryGetProperty("stargazers_count", out var s) ? s.GetInt32() : 0;
-                    var desc = repo.TryGetProperty("description", out var d) ? (d.ValueKind == JsonValueKind.Null ? "" : d.GetString() ?? "") : "";
+                    var stars = repo.TryGetProperty(GitHubJsonFields.StargazersCount, out var s) ? s.GetInt32() : 0;
+                    var desc = repo.TryGetProperty(GitHubJsonFields.Description, out var d) ? (d.ValueKind == JsonValueKind.Null ? "" : d.GetString() ?? "") : "";
                     sb.AppendLine($"{fullName}\t{stars}\t{desc}");
                 }
             }
@@ -102,14 +102,14 @@ public partial class GitHubToolHandlers {
         try {
             using var doc = JsonDocument.Parse(json);
             var sb = new StringBuilder(512);
-            var totalCount = doc.RootElement.TryGetProperty("total_count", out var tc) ? tc.GetInt32() : 0;
+            var totalCount = doc.RootElement.TryGetProperty(GitHubJsonFields.TotalCount, out var tc) ? tc.GetInt32() : 0;
             sb.AppendLine($"共 {totalCount} 条结果");
-            if (doc.RootElement.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array) {
+            if (doc.RootElement.TryGetProperty(GitHubJsonFields.Items, out var items) && items.ValueKind == JsonValueKind.Array) {
                 sb.AppendLine("编号\t状态\t标题\t仓库");
                 foreach (var item in items.EnumerateArray()) {
-                    var number = item.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
-                    var state = item.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
-                    var title = item.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                    var number = item.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
+                    var state = item.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
+                    var title = item.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
                     var repoUrl = item.TryGetProperty("repository_url", out var ru) ? ru.GetString() ?? "" : "";
                     var repoName = repoUrl.Contains('/') ? repoUrl[(repoUrl.LastIndexOf('/') + 1)..] : "";
                     sb.AppendLine($"{number}\t{state}\t{title}\t{repoName}");

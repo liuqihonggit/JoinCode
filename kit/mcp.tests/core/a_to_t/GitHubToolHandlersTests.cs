@@ -507,6 +507,33 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("1 跳过(依赖链跳过,非失败)");
     }
 
+    /// <summary>check-runs 请求应带 per_page=100 并启用分页,避免大量 check 时默认 30 条截断(缺陷6)</summary>
+    [Fact]
+    public async Task PrChecks_CheckRunsRequest_IncludesPerPage100_AndPaginate() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"head":{"sha":"abc123"}}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"check_runs":[]}""" });
+
+        await _handler.GhPrChecksAsync("42", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("per_page", "check-runs 应带 per_page=100 避免默认 30 条截断");
+        _api.LastQuery["per_page"].Should().Be("100");
+    }
+
+    /// <summary>pr checks 汇总前置+失败 check 在 pass 前(优化A1: AI 首屏定位问题)</summary>
+    [Fact]
+    public async Task PrChecks_SummaryFirst_FailuresBeforePass() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"head":{"sha":"abc"}}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"check_runs":[{"name":"pass1","conclusion":"success"},{"name":"fail1","conclusion":"failure"},{"name":"pass2","conclusion":"success"}]}""" });
+
+        var result = await _handler.GhPrChecksAsync("42", repo: "owner/repo");
+        var text = result.GetFirstText()!;
+        var summaryIdx = text.IndexOf("汇总", StringComparison.Ordinal);
+        var failIdx = text.IndexOf("fail1", StringComparison.Ordinal);
+        var passIdx = text.IndexOf("pass1", StringComparison.Ordinal);
+        summaryIdx.Should().BeLessThan(failIdx, "汇总应在失败 check 前");
+        failIdx.Should().BeLessThan(passIdx, "失败 check 应在 pass 前");
+    }
+
     [Fact]
     public async Task RunList_WithEvent_PassesEventQuery() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
@@ -552,9 +579,23 @@ public sealed partial class GitHubToolHandlersTests {
         _api.LastQuery.Should().ContainKey("created").WhoseValue.Should().Be(">2026-01-01");
     }
 
+    /// <summary>run number(小数字)在 detail 404 时自动按 run_number 查询转换为 run id(缺陷3: AI 常误用 run number)</summary>
+    [Fact]
+    public async Task RunView_RunNumber_AutoConvertsToRunId_On404() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = false, StatusCode = 404, Error = "Not Found" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[{"id":37663049294,"run_number":752}]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":37663049294,"run_number":752,"status":"completed","conclusion":"success","display_title":"CI"}""" });
+
+        var result = await _handler.GhRunViewAsync("752", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("37663049294");
+    }
+
     [Fact]
     public async Task RunView_WithWeb_ReturnsUrl() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"html_url":"https://github.com/o/r/actions/runs/42"}""" };
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"html_url":"https://github.com/o/r/actions/runs/42"}""" });
 
         var result = await _handler.GhRunViewAsync("42", web: true, repo: "owner/repo");
 
@@ -607,11 +648,12 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task RunView_NoLog_ReturnsFullDetail() {
-        _api.NextResponse = new GitHubApiResponse {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"id":42,"run_number":752,"status":"completed","conclusion":"success","display_title":"CI build","event":"push","head_branch":"main","head_sha":"abc123def456","html_url":"https://github.com/o/r/actions/runs/42","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:01:00Z"}""",
-        };
+        });
 
         var result = await _handler.GhRunViewAsync("42", repo: "owner/repo");
 
@@ -664,6 +706,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task RunView_LogFailed_PullsFailedJobLogs() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[{"id":1,"conclusion":"failure","name":"test"},{"id":2,"conclusion":"success","name":"build"}]}""" });
         _api.NextLogLines = "##[error]Test failed: assert\nnormal line\n##[error]Another error".Split('\n');
 
@@ -718,6 +761,37 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("步骤列表");
         text.Should().Contain("Checkout");
         text.Should().Contain("Build");
+    }
+
+    [Fact]
+    public async Task RunView_ExpandJobs_FailureJobsFirstAndTruncateSuccess() {
+        // 缺陷4: 35 个 job(5 failure + 30 success),失败必须置顶,success 截断
+        var jobs = new List<string>();
+        for (var i = 1; i <= 30; i++)
+            jobs.Add("{\"id\":" + i + ",\"name\":\"success-" + i + "\",\"status\":\"completed\",\"conclusion\":\"success\"}");
+        for (var i = 31; i <= 35; i++)
+            jobs.Add("{\"id\":" + i + ",\"name\":\"failure-" + i + "\",\"status\":\"completed\",\"conclusion\":\"failure\"}");
+        var jobsJson = "{\"jobs\":[" + string.Join(",", jobs) + "]}";
+
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = jobsJson });
+
+        var result = await _handler.GhRunViewAsync("42", expand: "jobs", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        // 失败 job 必须在成功 job 之前
+        var firstFailureIdx = text.IndexOf("failure-31");
+        var firstSuccessIdx = text.IndexOf("success-1");
+        firstFailureIdx.Should().BeGreaterThan(0, "failure job 应该出现");
+        firstSuccessIdx.Should().BeGreaterThan(0, "success job 应该出现");
+        firstFailureIdx.Should().BeLessThan(firstSuccessIdx, "failure job 必须置顶");
+        // 截断提示
+        text.Should().Contain("另有");
+        text.Should().Contain("未列出");
+        // 计数正确
+        text.Should().Contain("35 个");
+        text.Should().Contain("5 个失败");
     }
 
     [Fact]

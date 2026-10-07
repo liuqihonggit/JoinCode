@@ -254,10 +254,11 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 精简仓库列表 JSON — 只保留关键字段，去掉冗余 URL，便于人类浏览和 AI 解析；支持 source/fork/topic 客户端过滤
     /// </summary>
+    private static readonly string[] DefaultRepoFields = ["name", "full_name", "private", "fork", "description", "language", "stargazers_count", "updated_at", "default_branch"];
+
     private static string SummarizeRepoList(string json, bool? source = null, bool? fork = null, string? topic = null, string? jsonFields = null) {
         var topicSet = topic?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var defaultFields = new[] { "name", "full_name", "private", "fork", "description", "language", "stargazers_count", "updated_at", "default_branch" };
-        var fields = string.IsNullOrWhiteSpace(jsonFields) ? defaultFields : jsonFields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var fields = string.IsNullOrWhiteSpace(jsonFields) ? DefaultRepoFields : jsonFields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         try {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
@@ -265,7 +266,7 @@ public partial class GitHubToolHandlers {
             using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })) {
                 writer.WriteStartArray();
                 foreach (var repo in doc.RootElement.EnumerateArray()) {
-                    var isFork = repo.TryGetProperty("fork", out var f) && f.GetBoolean();
+                    var isFork = repo.TryGetProperty(GitHubJsonFields.Fork, out var f) && f.GetBoolean();
                     if (source == true && isFork) continue;
                     if (fork == true && !isFork) continue;
                     if (topicSet is { Count: > 0 } && repo.TryGetProperty("topics", out var topicsEl) && topicsEl.ValueKind == JsonValueKind.Array) {
@@ -367,7 +368,11 @@ public partial class GitHubToolHandlers {
         List<string> currentTopics;
         try {
             using var doc = JsonDocument.Parse(getResult.Body);
-            currentTopics = doc.RootElement.TryGetProperty("names", out var names) ? names.EnumerateArray().Select(n => n.GetString() ?? "").ToList() : new List<string>();
+            currentTopics = [];
+            if (doc.RootElement.TryGetProperty("names", out var names)) {
+                foreach (var n in names.EnumerateArray())
+                    currentTopics.Add(n.GetString() ?? "");
+            }
         } catch (Exception ex) { _logger?.LogDebug(ex, "解析 topics 失败"); return "(topic 更新失败: 解析错误)"; }
         var toAdd = ParseCsvToList(addTopic);
         var toRemove = ParseCsvToList(removeTopic);
@@ -538,7 +543,7 @@ public partial class GitHubToolHandlers {
             var sb = new StringBuilder(256);
             sb.AppendLine("ID\t键前缀\tURL 模板");
             foreach (var al in doc.RootElement.EnumerateArray()) {
-                var id = al.TryGetProperty("id", out var i) ? i.GetInt32() : 0;
+                var id = al.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt32() : 0;
                 var prefix = al.TryGetProperty("key_prefix", out var kp) ? kp.GetString() ?? "" : "";
                 var template = al.TryGetProperty("url_template", out var ut) ? ut.GetString() ?? "" : "";
                 sb.AppendLine($"{id}\t{prefix}\t{template}");
@@ -604,10 +609,10 @@ public partial class GitHubToolHandlers {
             var sb = new StringBuilder(256);
             sb.AppendLine("ID\t标题\t只读\t创建时间");
             foreach (var k in doc.RootElement.EnumerateArray()) {
-                var id = k.TryGetProperty("id", out var i) ? i.GetInt32() : 0;
-                var title = k.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                var id = k.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt32() : 0;
+                var title = k.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
                 var ro = k.TryGetProperty("read_only", out var r) && r.GetBoolean();
-                var created = k.TryGetProperty("created_at", out var c) ? c.GetString() ?? "" : "";
+                var created = k.TryGetProperty(GitHubJsonFields.CreatedAt, out var c) ? c.GetString() ?? "" : "";
                 sb.AppendLine($"{id}\t{title}\t{ro}\t{created}");
             }
             return sb.ToString();
@@ -692,7 +697,7 @@ public partial class GitHubToolHandlers {
             sb.AppendLine("KEY\t名称\tSPDX ID");
             foreach (var lic in doc.RootElement.EnumerateArray()) {
                 var key = lic.TryGetProperty("key", out var k) ? k.GetString() ?? "" : "";
-                var name = lic.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                var name = lic.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
                 var spdx = lic.TryGetProperty("spdx_id", out var s) ? s.GetString() ?? "" : "";
                 sb.AppendLine($"{key}\t{name}\t{spdx}");
             }

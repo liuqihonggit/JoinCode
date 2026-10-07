@@ -136,13 +136,23 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
             if (_fs.FileExists(filePath) && _fs.GetFileLength(filePath) > MaxMissLogSize)
                 return;
 
-            var entry = $"{{\"timestamp\":\"{DateTime.UtcNow:O}\",\"input\":\"{JsonEncode(input)}\"}}\n";
+            var dto = new KeywordMissLogDto { Timestamp = DateTime.UtcNow, Input = input };
+            var entry = JsonSerializer.Serialize(dto, ChatServiceJsonContext.Default.KeywordMissLogDto) + "\n";
             await _fs.AppendAllText(filePath, entry).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogDebug(ex, "记录关键词 miss 失败");
         }
     }
+}
 
-    private static string JsonEncode(string s) =>
-        s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+/// <summary>
+/// 关键词未命中日志 DTO — 用于 JSONL 序列化的紧凑结构，字段名与原手写拼接保持一致
+/// </summary>
+public sealed record KeywordMissLogDto {
+    /// <summary>时间戳（ISO 8601 round-trip 格式）</summary>
+    [JsonPropertyName("timestamp")]
+    public required DateTime Timestamp { get; init; }
+    /// <summary>用户输入文本</summary>
+    [JsonPropertyName("input")]
+    public required string Input { get; init; }
 }

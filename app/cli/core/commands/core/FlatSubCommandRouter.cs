@@ -135,10 +135,14 @@ internal static class FlatSubCommandRouter {
     /// 统一判断是否输出 JSON — 默认 JSON 输出,--format text 显式请求彩色文本。
     /// <para>ADR 0069 决策6 + 统一返回结构: 所有子命令默认输出 JSON(结构化),
     /// --format text 显式请求彩色文本,--json 保持作为别名(默认即 JSON)。</para>
+    /// <para>全局默认: 环境变量 JCC_OUTPUT_FORMAT=text 时默认纯文本(降 AI token),显式 --format 优先</para>
     /// </summary>
     internal static bool ShouldOutputJson(string[] args) {
         var formatValue = GetOptionValue(args, CliArgCliOptionConstants.FormatLongName);
-        if (string.Equals(formatValue, "text", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(formatValue))
+            return !string.Equals(formatValue, "text", StringComparison.OrdinalIgnoreCase);
+        var envFormat = Environment.GetEnvironmentVariable("JCC_OUTPUT_FORMAT");
+        if (string.Equals(envFormat, "text", StringComparison.OrdinalIgnoreCase))
             return false;
         return true;
     }

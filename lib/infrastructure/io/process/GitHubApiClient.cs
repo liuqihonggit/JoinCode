@@ -693,25 +693,87 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         return body.Length > 500 ? body[..500] : body;
     }
 
-    private static string MergeJsonArrays(IReadOnlyList<string> bodies) {
+    internal string MergeJsonArrays(IReadOnlyList<string> bodies) {
+        // 探测第一页结构: 顶层数组(arrayKey=null) 或 对象包裹键(如 jobs/check_runs/items/workflow_runs)
+        string? arrayKey = null;
+        try {
+            using var probe = JsonDocument.Parse(bodies[0]);
+            if (probe.RootElement.ValueKind == JsonValueKind.Array) {
+                arrayKey = null;
+            } else if (probe.RootElement.ValueKind == JsonValueKind.Object) {
+                foreach (var prop in probe.RootElement.EnumerateObject()) {
+                    if (prop.Value.ValueKind == JsonValueKind.Array) { arrayKey = prop.Name; break; }
+                }
+            }
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "MergeJsonArrays 探测第一页结构失败,退化为返回第一页");
+            return bodies[0];
+        }
+
+        // 合并所有页的目标数组,同时计数(用于更新 total_count)
         var sb = new StringBuilder("[");
         var first = true;
-        foreach (var body in bodies) {
+        var totalCount = 0;
+        var skippedPages = 0;
+        for (var i = 0; i < bodies.Count; i++) {
+            var body = bodies[i];
             if (string.IsNullOrEmpty(body)) continue;
             try {
                 using var doc = JsonDocument.Parse(body);
-                if (doc.RootElement.ValueKind == JsonValueKind.Array) {
-                    foreach (var item in doc.RootElement.EnumerateArray()) {
-                        if (!first) sb.Append(',');
-                        sb.Append(item.GetRawText());
-                        first = false;
-                    }
+                JsonElement.ArrayEnumerator enumerator;
+                if (arrayKey is null && doc.RootElement.ValueKind == JsonValueKind.Array) {
+                    enumerator = doc.RootElement.EnumerateArray();
+                } else if (arrayKey is not null
+                           && doc.RootElement.ValueKind == JsonValueKind.Object
+                           && doc.RootElement.TryGetProperty(arrayKey, out var arr)
+                           && arr.ValueKind == JsonValueKind.Array) {
+                    enumerator = arr.EnumerateArray();
                 } else {
-                    return bodies[0];
+                    continue;
                 }
-            } catch (Exception) { return bodies[0]; }
+                foreach (var item in enumerator) {
+                    if (!first) sb.Append(',');
+                    sb.Append(item.GetRawText());
+                    first = false;
+                    totalCount++;
+                }
+            } catch (Exception ex) {
+                skippedPages++;
+                _logger?.LogWarning(ex, "MergeJsonArrays 第 {Index} 页 JSON 解析失败,跳过该页继续合并(已跳过 {Skipped} 页)", i, skippedPages);
+            }
         }
         sb.Append(']');
+        var mergedArray = sb.ToString();
+
+        // 顶层数组直接返回合并结果
+        if (arrayKey is null) return mergedArray;
+
+        // 对象结构: 重建为 {第一页非数组属性..., arrayKey:合并数组}, total_count 更新为实际总数
+        return RebuildPaginatedObject(bodies[0], arrayKey, mergedArray, totalCount);
+    }
+
+    /// <summary>
+    /// 重建分页对象: 保留第一页所有属性,替换数组属性为合并后数组,更新 total_count 为实际元素总数
+    /// </summary>
+    private static string RebuildPaginatedObject(string firstBody, string arrayKey, string mergedArray, int totalCount) {
+        var sb = new StringBuilder("{");
+        var firstProp = true;
+        try {
+            using var doc = JsonDocument.Parse(firstBody);
+            foreach (var prop in doc.RootElement.EnumerateObject()) {
+                if (!firstProp) sb.Append(',');
+                firstProp = false;
+                sb.Append('"').Append(prop.Name).Append("\":");
+                if (prop.Name == arrayKey) {
+                    sb.Append(mergedArray);
+                } else if (prop.Name == "total_count" && prop.Value.ValueKind == JsonValueKind.Number) {
+                    sb.Append(totalCount);
+                } else {
+                    sb.Append(prop.Value.GetRawText());
+                }
+            }
+        } catch (Exception) { return mergedArray; }
+        sb.Append('}');
         return sb.ToString();
     }
 }

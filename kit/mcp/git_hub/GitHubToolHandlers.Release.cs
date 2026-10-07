@@ -37,7 +37,7 @@ public partial class GitHubToolHandlers {
             using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })) {
                 writer.WriteStartArray();
                 foreach (var release in doc.RootElement.EnumerateArray()) {
-                    if (excludeDrafts == true && release.TryGetProperty("draft", out var d) && d.GetBoolean()) continue;
+                    if (excludeDrafts == true && release.TryGetProperty(GitHubJsonFields.Draft, out var d) && d.GetBoolean()) continue;
                     if (excludePrereleases == true && release.TryGetProperty("prerelease", out var p) && p.GetBoolean()) continue;
                     writer.WriteStartObject();
                     CopyProperty(release, writer, "id");
@@ -47,7 +47,7 @@ public partial class GitHubToolHandlers {
                     CopyProperty(release, writer, "prerelease");
                     CopyProperty(release, writer, "created_at");
                     CopyProperty(release, writer, "published_at");
-                    if (release.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array) {
+                    if (release.TryGetProperty(GitHubJsonFields.Assets, out var assets) && assets.ValueKind == JsonValueKind.Array) {
                         writer.WritePropertyName("assets");
                         writer.WriteStartArray();
                         foreach (var asset in assets.EnumerateArray()) {
@@ -103,22 +103,22 @@ public partial class GitHubToolHandlers {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             var sb = new StringBuilder(256);
-            var tagName = root.TryGetProperty("tag_name", out var t) ? t.GetString() ?? "" : "";
-            var name = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-            var draft = root.TryGetProperty("draft", out var d) && d.GetBoolean();
+            var tagName = root.TryGetProperty(GitHubJsonFields.TagName, out var t) ? t.GetString() ?? "" : "";
+            var name = root.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
+            var draft = root.TryGetProperty(GitHubJsonFields.Draft, out var d) && d.GetBoolean();
             var prerelease = root.TryGetProperty("prerelease", out var p) && p.GetBoolean();
-            var url = root.TryGetProperty("html_url", out var u) ? u.GetString() ?? "" : "";
+            var url = root.TryGetProperty(GitHubJsonFields.HtmlUrl, out var u) ? u.GetString() ?? "" : "";
 
             sb.AppendLine($"Release: {name} ({tagName})");
             if (draft) sb.AppendLine("Draft: yes");
             if (prerelease) sb.AppendLine("Prerelease: yes");
             if (!string.IsNullOrEmpty(url)) sb.AppendLine($"URL: {url}");
 
-            if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array) {
+            if (root.TryGetProperty(GitHubJsonFields.Assets, out var assets) && assets.ValueKind == JsonValueKind.Array) {
                 sb.AppendLine($"Assets ({assets.GetArrayLength()}):");
                 foreach (var asset in assets.EnumerateArray()) {
-                    var assetName = asset.TryGetProperty("name", out var an) ? an.GetString() ?? "" : "";
-                    var size = asset.TryGetProperty("size", out var sz) ? sz.GetInt64() : 0;
+                    var assetName = asset.TryGetProperty(GitHubJsonFields.Name, out var an) ? an.GetString() ?? "" : "";
+                    var size = asset.TryGetProperty(GitHubJsonFields.Size, out var sz) ? sz.GetInt64() : 0;
                     sb.AppendLine($"  {assetName}  ({FormatSize(size)})");
                 }
             }
@@ -151,9 +151,9 @@ public partial class GitHubToolHandlers {
             using var doc = JsonDocument.Parse(listResult.Body);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return Fail("Release 列表格式异常");
             foreach (var release in doc.RootElement.EnumerateArray()) {
-                if (release.TryGetProperty("tag_name", out var tagEl) && tagEl.GetString() == tag) {
-                    var id = release.TryGetProperty("id", out var idEl) ? idEl.GetInt64() : 0;
-                    var isDraft = release.TryGetProperty("draft", out var draftEl) && draftEl.GetBoolean();
+                if (release.TryGetProperty(GitHubJsonFields.TagName, out var tagEl) && tagEl.GetString() == tag) {
+                    var id = release.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
+                    var isDraft = release.TryGetProperty(GitHubJsonFields.Draft, out var draftEl) && draftEl.GetBoolean();
                     var detailResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/releases/{id}", ct: ct).ConfigureAwait(false);
                     if (detailResult.Success) return Ok(detailResult.Body);
                     return Fail(detailResult.Error);
@@ -264,8 +264,8 @@ public partial class GitHubToolHandlers {
         try {
             using var doc = JsonDocument.Parse(viewResult.Body);
             assets = [];
-            foreach (var asset in doc.RootElement.GetProperty("assets").EnumerateArray()) {
-                var name = asset.GetProperty("name").GetString() ?? string.Empty;
+            foreach (var asset in doc.RootElement.GetProperty(GitHubJsonFields.Assets).EnumerateArray()) {
+                var name = asset.GetProperty(GitHubJsonFields.Name).GetString() ?? string.Empty;
                 var url = asset.GetProperty("browser_download_url").GetString() ?? string.Empty;
                 if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(url)) continue;
                 if (!string.IsNullOrWhiteSpace(pattern) && !SimpleMatch(pattern, name)) continue;
@@ -355,12 +355,12 @@ public partial class GitHubToolHandlers {
         Dictionary<string, long> existingAssets;
         try {
             using var doc = JsonDocument.Parse(viewResult.Body);
-            releaseId = doc.RootElement.GetProperty("id").GetInt64();
+            releaseId = doc.RootElement.GetProperty(GitHubJsonFields.Id).GetInt64();
             existingAssets = new Dictionary<string, long>();
-            if (doc.RootElement.TryGetProperty("assets", out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array) {
+            if (doc.RootElement.TryGetProperty(GitHubJsonFields.Assets, out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array) {
                 foreach (var asset in assetsEl.EnumerateArray()) {
-                    var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                    var id = asset.TryGetProperty("id", out var idEl) ? idEl.GetInt64() : 0;
+                    var name = asset.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
+                    var id = asset.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
                     if (!string.IsNullOrEmpty(name) && id > 0) existingAssets[name] = id;
                 }
             }
@@ -420,7 +420,7 @@ public partial class GitHubToolHandlers {
             long releaseId;
             try {
                 using var doc = JsonDocument.Parse(viewResult.Body);
-                releaseId = doc.RootElement.GetProperty("id").GetInt64();
+                releaseId = doc.RootElement.GetProperty(GitHubJsonFields.Id).GetInt64();
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}", ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
@@ -448,12 +448,12 @@ public partial class GitHubToolHandlers {
             Dictionary<string, long> assetMap;
             try {
                 using var doc = JsonDocument.Parse(viewResult.Body);
-                releaseId = doc.RootElement.GetProperty("id").GetInt64();
+                releaseId = doc.RootElement.GetProperty(GitHubJsonFields.Id).GetInt64();
                 assetMap = new Dictionary<string, long>();
-                if (doc.RootElement.TryGetProperty("assets", out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array) {
+                if (doc.RootElement.TryGetProperty(GitHubJsonFields.Assets, out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array) {
                     foreach (var asset in assetsEl.EnumerateArray()) {
-                        var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                        var id = asset.TryGetProperty("id", out var idEl) ? idEl.GetInt64() : 0;
+                        var name = asset.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
+                        var id = asset.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
                         if (!string.IsNullOrEmpty(name) && id > 0) assetMap[name] = id;
                     }
                 }
@@ -510,9 +510,9 @@ public partial class GitHubToolHandlers {
             string? existingTarget = null;
             try {
                 using var doc = JsonDocument.Parse(viewResult.Body);
-                releaseId = doc.RootElement.GetProperty("id").GetInt64();
-                existingTag = doc.RootElement.TryGetProperty("tag_name", out var tnEl) ? tnEl.GetString() : null;
-                existingTarget = doc.RootElement.TryGetProperty("target_commitish", out var tcEl) ? tcEl.GetString() : null;
+                releaseId = doc.RootElement.GetProperty(GitHubJsonFields.Id).GetInt64();
+                existingTag = doc.RootElement.TryGetProperty(GitHubJsonFields.TagName, out var tnEl) ? tnEl.GetString() : null;
+                existingTarget = doc.RootElement.TryGetProperty(GitHubJsonFields.TargetCommitish, out var tcEl) ? tcEl.GetString() : null;
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
 
             var effectiveNotes = notes;
@@ -530,7 +530,7 @@ public partial class GitHubToolHandlers {
                 if (!genResult.Success) return Fail($"生成 notes 失败: {genResult.Error}");
                 try {
                     using var genDoc = JsonDocument.Parse(genResult.Body);
-                    effectiveNotes = genDoc.RootElement.TryGetProperty("body", out var bEl) ? bEl.GetString() : effectiveNotes;
+                    effectiveNotes = genDoc.RootElement.TryGetProperty(GitHubJsonFields.Body, out var bEl) ? bEl.GetString() : effectiveNotes;
                 } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 generate-notes 响应失败,使用原 notes"); }
             }
 
@@ -576,12 +576,12 @@ public partial class GitHubToolHandlers {
             string? releaseTag = null;
             try {
                 using var doc = JsonDocument.Parse(releaseResult.Body);
-                releaseTag = doc.RootElement.TryGetProperty("tag_name", out var tn) ? tn.GetString() : null;
+                releaseTag = doc.RootElement.TryGetProperty(GitHubJsonFields.TagName, out var tn) ? tn.GetString() : null;
                 sb.AppendLine($"Release: {releaseTag}");
-                if (doc.RootElement.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array) {
+                if (doc.RootElement.TryGetProperty(GitHubJsonFields.Assets, out var assets) && assets.ValueKind == JsonValueKind.Array) {
                     sb.AppendLine($"Assets: {assets.GetArrayLength()} 个");
                     foreach (var asset in assets.EnumerateArray()) {
-                        var name = asset.TryGetProperty("name", out var an) ? an.GetString() ?? "" : "";
+                        var name = asset.TryGetProperty(GitHubJsonFields.Name, out var an) ? an.GetString() ?? "" : "";
                         var digest = asset.TryGetProperty("digest", out var dg) ? dg.GetString() ?? "" : "";
                         sb.AppendLine($"  - {name}{(string.IsNullOrEmpty(digest) ? "" : $" (digest: {digest[..Math.Min(16, digest.Length)]}...)")}");
                     }

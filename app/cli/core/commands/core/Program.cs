@@ -339,43 +339,29 @@ class Program {
                 OperationName = source
             }.With("processId", Environment.ProcessId.ToString()));
 
-        // 1. 结构化 JSON 快照（AOT 安全 — 手动拼接 JSON 字符串）
+        // 1. 结构化 JSON 快照（DTO + JsonSerializer，AOT 安全）
         try {
             var jsonPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{snapshot.Id:N8}.json");
-            var sb = new StringBuilder();
-            sb.AppendLine("{");
-            sb.AppendLine($"  \"id\": \"{snapshot.Id}\",");
-            sb.AppendLine($"  \"capturedAt\": \"{snapshot.CapturedAt:O}\",");
-            sb.AppendLine($"  \"fenceName\": \"{EscapeJson(snapshot.FenceName)}\",");
-            sb.AppendLine($"  \"severity\": \"{snapshot.Severity.ToValue()}\",");
-            sb.AppendLine($"  \"exceptionType\": \"{EscapeJson(snapshot.ExceptionType)}\",");
-            sb.AppendLine($"  \"exceptionMessage\": \"{EscapeJson(snapshot.ExceptionMessage)}\",");
-            sb.AppendLine($"  \"errorCode\": \"{EscapeJson(snapshot.ErrorCode)}\",");
-            sb.AppendLine($"  \"stackTrace\": \"{EscapeJson(snapshot.StackTrace)}\",");
-            sb.AppendLine($"  \"source\": \"{EscapeJson(source)}\",");
-            sb.AppendLine("  \"exceptionChain\": [");
-            for (var i = 0; i < snapshot.ExceptionChain.Frames.Length; i++) {
-                var f = snapshot.ExceptionChain.Frames[i];
-                sb.AppendLine("    {");
-                sb.AppendLine($"      \"depth\": {f.Depth},");
-                sb.AppendLine($"      \"type\": \"{EscapeJson(f.ExceptionType)}\",");
-                sb.AppendLine($"      \"message\": \"{EscapeJson(f.Message)}\",");
-                sb.AppendLine($"      \"errorCode\": \"{EscapeJson(f.ErrorCode)}\"");
-                sb.Append("    }");
-                if (i < snapshot.ExceptionChain.Frames.Length - 1) sb.AppendLine(",");
-                else sb.AppendLine();
-            }
-            sb.AppendLine("  ],");
-            sb.AppendLine("  \"executionContext\": {");
-            sb.AppendLine($"    \"operationName\": \"{EscapeJson(snapshot.ExecutionContext.OperationName)}\",");
-            sb.AppendLine($"    \"toolName\": \"{EscapeJson(snapshot.ExecutionContext.ToolName)}\",");
-            sb.AppendLine($"    \"turnIndex\": \"{snapshot.ExecutionContext.TurnIndex}\",");
-            sb.AppendLine($"    \"requestId\": \"{EscapeJson(snapshot.ExecutionContext.RequestId)}\",");
-            sb.AppendLine($"    \"processId\": \"{Environment.ProcessId}\"");
-            sb.AppendLine("  }");
-            sb.AppendLine("}");
-
-            SafeFileIO.WriteAllText(jsonPath, sb.ToString()).GetAwaiter().GetResult();
+            var dto = new CrashDumpSnapshotDto(
+                snapshot.Id,
+                snapshot.CapturedAt,
+                snapshot.FenceName,
+                snapshot.Severity.ToValue(),
+                snapshot.ExceptionType,
+                snapshot.ExceptionMessage,
+                snapshot.ErrorCode,
+                snapshot.StackTrace,
+                source,
+                [..snapshot.ExceptionChain.Frames.Select(f => new CrashDumpFrameDto(f.Depth, f.ExceptionType, f.Message, f.ErrorCode))],
+                new CrashDumpContextDto(
+                    snapshot.ExecutionContext.OperationName,
+                    snapshot.ExecutionContext.ToolName,
+                    snapshot.ExecutionContext.TurnIndex,
+                    snapshot.ExecutionContext.RequestId,
+                    Environment.ProcessId
+                )
+            );
+            SafeFileIO.WriteAllText(jsonPath, JsonSerializer.Serialize(dto, Cli.Output.CliOutputJsonContext.Default.CrashDumpSnapshotDto)).GetAwaiter().GetResult();
         } catch (Exception jsonEx) { Diag.WriteError("[CrashDump] 写入 JSON 快照失败", jsonEx); }
 
         // 2. 人类可读文本快照
@@ -413,11 +399,6 @@ class Program {
                 Console.Error.WriteLine($"[CRASH] 快照已保存到 {dumpDir}");
             } catch (Exception stderrEx) { Diag.WriteError("[CrashDump] stderr 输出失败", stderrEx); }
         }
-    }
-
-    private static string EscapeJson(string? value) {
-        if (value is null) return "";
-        return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
     }
 
     /// <summary>
@@ -459,3 +440,24 @@ class Program {
         return null;
     }
 }
+
+/// <summary>崩溃快照 JSON DTO — 供 JsonSerializer 序列化。</summary>
+public sealed record CrashDumpSnapshotDto(
+    Guid Id,
+    DateTimeOffset CapturedAt,
+    string FenceName,
+    string Severity,
+    string ExceptionType,
+    string ExceptionMessage,
+    string? ErrorCode,
+    string? StackTrace,
+    string Source,
+    CrashDumpFrameDto[] ExceptionChain,
+    CrashDumpContextDto ExecutionContext
+);
+
+/// <summary>异常链帧 DTO。</summary>
+public sealed record CrashDumpFrameDto(int Depth, string ExceptionType, string Message, string? ErrorCode);
+
+/// <summary>执行上下文 DTO。</summary>
+public sealed record CrashDumpContextDto(string? OperationName, string? ToolName, int? TurnIndex, string? RequestId, int ProcessId);

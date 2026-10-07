@@ -4,6 +4,17 @@
 > 场景：用 jcc gh 排查 PR #390 CI 失败时遇到的工具缺陷
 > 关乎：ADR 0132（jcc gh 与系统 gh CLI 耦合测试关系）
 
+> ✅ **全部 6 个缺陷已修复（2026-10-08）**
+>
+> | # | 缺陷 | 状态 | 修复方式 |
+> |---|------|------|---------|
+> | 1 | MergeJsonArrays 丢页 | ✅ 已修复 | 识别 jobs/check_runs 等对象包裹键,合并内部数组+保留元数据,坏页 _logger 记录 |
+> | 2 | --log true 报错 | ✅ 已修复 | TryParseBoolValue 宽容 true/false/1/0/yes/no + NormalizeBoolValue |
+> | 3 | run number/id 不兼容 | ✅ 已修复 | ResolveRunIdAsync 404 时按 run_number 搜索转换+诱导提示 |
+> | 4 | gh api 无 --jq | ✅ 已修复 | SimpleJqEvaluator 支持 .field/[]/select/{k:.f}/\| 管道 |
+> | 5 | 0 行匹配提示差 | ✅ 已修复 | BuildZeroMatchHint 区分无失败/filter不匹配/日志空+引导下一步 |
+> | 6 | pr checks 超时 | ✅ 已修复 | check-runs 加 per_page=100 + paginate=true 配合对象分页合并 |
+
 ## 缺陷 1：MergeJsonArrays 丢弃对象结构分页（最严重）
 
 **症状**：`gh run view --expand jobs` 在 40+ matrix job 时只显示 30 个，且"X 个失败"计数不准（显示 0 个失败但实际有 1 个在第 2 页）。`--expand failed` 匹配 0 行（失败 job 在第 2 页时 `failedJobIds` 为空）。
@@ -92,13 +103,48 @@ AI 习惯写 `--log true`（显式传值），但 jcc boolean 参数设计是无
 
 ## 缺陷汇总
 
-| # | 缺陷 | 根因文件:行号 | 严重度 | 一个修复解决多个症状 |
-|---|------|-------------|--------|-------------------|
-| 1 | MergeJsonArrays 丢页 | `GitHubApiClient.cs:696-710` | **高** | ✅ expand=jobs + expand=failed + pr checks |
-| 2 | --log true 报错 | `GhCommandResolver.cs:270-273` | 中 | — |
-| 3 | run number/id 不兼容 | `gh run view` handler | 中 | — |
-| 4 | gh api 无 --jq | `GitHubToolHandlers.Api.cs:6` | 中 | — |
-| 5 | 0 行匹配提示差 | `GitHubRunLogFilterRunner.cs:177` | 低 | — |
-| 6 | pr checks 超时 | `GitHubToolHandlers.Pr.cs:269` | 中 | — |
+| # | 缺陷 | 根因文件:行号 | 严重度 | 状态 | 一个修复解决多个症状 |
+|---|------|-------------|--------|------|-------------------|
+| 1 | MergeJsonArrays 丢页 | `GitHubApiClient.cs:696-710` | **高** | ✅ 已修复 | expand=jobs + expand=failed + pr checks |
+| 2 | --log true 报错 | `GhCommandResolver.cs:270-273` | 中 | ✅ 已修复 | — |
+| 3 | run number/id 不兼容 | `gh run view` handler | 中 | ✅ 已修复 | — |
+| 4 | gh api 无 --jq | `GitHubToolHandlers.Api.cs:6` | 中 | ✅ 已修复 | — |
+| 5 | 0 行匹配提示差 | `GitHubRunLogFilterRunner.cs:177` | 低 | ✅ 已修复 | — |
+| 6 | pr checks 超时 | `GitHubToolHandlers.Pr.cs:269` | 中 | ✅ 已修复 | — |
 
 **修缺陷 1 一处可同时解决 expand=jobs 截断 + expand=failed 0 行 + pr checks check-runs 丢数据三个症状，ROI 最高。**
+
+---
+
+## 输出优化（AI 调用体验提升）
+
+> 场景：AI 调用 jcc gh 排查 CI 失败时，首屏 token 预算有限，需要首个工具调用就定位到错误
+> 关乎：ADR 0132（jcc gh 与系统 gh CLI 耦合测试关系）
+
+| 优化 | 描述 | 状态 | commit |
+|------|------|------|--------|
+| A1 | pr checks 汇总前置+异常置顶（失败 check 排在 pass 前，pass 截断5个） | ✅ 已完成 | `a64713508` |
+| A2 | expand=jobs 汇总前置+全量失败+success 折叠到5（非 success 全量显示不截断） | ✅ 已完成 | `09cce1b8b` |
+| B | expand=failed 智能定位错误行（滑动窗口扫描首个错误行，5行上下文+后续行，不从 runner setup 从头输出） | ✅ 已完成 | `c389b2fb1` |
+| C | JCC_OUTPUT_FORMAT 环境变量控制全局默认输出格式 | ✅ 已完成 | `ab0741f8d` |
+
+### 优化A1: pr checks 汇总前置+异常置顶
+
+**改动文件**: `kit/mcp/git_hub/GitHubToolHandlers.Pr.cs`
+**测试**: `PrChecks_SummaryFirst_FailuresBeforePass`（GitHubToolHandlersTests.cs:522）
+
+输出格式从"checks 列表→汇总在末尾"改为"汇总在首行→失败 check→pass 截断5个"。AI 首屏即可看到失败计数和失败 check 名称。
+
+### 优化A2: expand=jobs 汇总前置+全量失败+success 折叠
+
+**改动文件**: `kit/mcp/git_hub/GitHubRunLogFetcher.cs`
+**测试**: `RunView_ExpandJobs_SummaryFirst_AllFailuresShown_SuccessFolded`（GitHubToolHandlersTests.OptimizeA2.cs）
+
+输出格式从"截断前30个 job"改为"汇总首行→全量非 success job→success 仅显示前5个折叠其余"。AI 首屏即可看到所有失败 job，不被 success job 淹没。
+
+### 优化B: expand=failed 智能定位错误行
+
+**改动文件**: `kit/mcp/git_hub/GitHubRunLogFilterRunner.cs`
+**测试**: `RunView_ExpandFailed_SkipsSetupLines_StartsFromError`（GitHubToolHandlersTests.OptimizeA2.cs）
+
+`expand=failed` 无 filter 时，滑动窗口扫描首个错误行（`##[error]`/`[FAIL]`/`Failed`/`Exception`/`error`），输出5行上下文+后续行。未找到错误时回退到最后20行。避免从 runner setup 从头输出，AI 首屏即可看到错误降 token。

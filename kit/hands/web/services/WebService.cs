@@ -178,35 +178,14 @@ public sealed partial class WebService : ServiceEntity, IWebService {
 
     /// <summary>
     /// 构建 web_search 工具 schema（对齐 TS 版 BetaWebSearchTool20250305）
-    /// 手动构建 JSON 以兼容 NativeAOT
+    /// 通过 DTO + JsonSourceGeneration 序列化，兼容 NativeAOT
     /// </summary>
     private static JsonElement BuildWebSearchToolSchema(string[]? allowedDomains, string[]? blockedDomains) {
-        using var doc = JsonDocument.Parse(BuildWebSearchSchemaJson(allowedDomains, blockedDomains));
-        return doc.RootElement.Clone();
-    }
-
-    private static string BuildWebSearchSchemaJson(string[]? allowedDomains, string[]? blockedDomains) {
-        var sb = new StringBuilder();
-        sb.Append("{\"type\":\"web_search_20250305\",\"name\":\"web_search\",\"max_uses\":8");
-
-        if (allowedDomains is { Length: > 0 }) {
-            sb.Append(",\"allowed_domains\":[");
-            sb.Append(string.Join(",", allowedDomains.Select(d => $"\"{JsonEncode(d)}\"")));
-            sb.Append(']');
-        }
-
-        if (blockedDomains is { Length: > 0 }) {
-            sb.Append(",\"blocked_domains\":[");
-            sb.Append(string.Join(",", blockedDomains.Select(d => $"\"{JsonEncode(d)}\"")));
-            sb.Append(']');
-        }
-
-        sb.Append('}');
-        return sb.ToString();
-    }
-
-    private static string JsonEncode(string value) {
-        return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        var dto = new WebSearchToolSchemaDto {
+            AllowedDomains = allowedDomains is { Length: > 0 } ? allowedDomains : null,
+            BlockedDomains = blockedDomains is { Length: > 0 } ? blockedDomains : null
+        };
+        return JsonSerializer.SerializeToElement(dto, WebSearchSchemaJsonContext.Default.WebSearchToolSchemaDto);
     }
 
     /// <summary>
@@ -258,3 +237,36 @@ public sealed partial class WebService : ServiceEntity, IWebService {
     private void RecordWebMetrics(string operation, bool isSuccess, int size = 0)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "web.operation.count", operation, isSuccess, "Web operation count");
 }
+
+/// <summary>
+/// web_search 工具 schema DTO — 对齐 TS 版 BetaWebSearchTool20250305
+/// 字段使用 snake_case 显式映射，null 域名列表不输出
+/// </summary>
+public sealed record WebSearchToolSchemaDto {
+    /// <summary>工具类型标识，固定为 web_search_20250305。</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "web_search_20250305";
+
+    /// <summary>工具名称，固定为 web_search。</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "web_search";
+
+    /// <summary>工具最大调用次数，默认 8。</summary>
+    [JsonPropertyName("max_uses")]
+    public int MaxUses { get; init; } = 8;
+
+    /// <summary>允许的域名白名单，为 null 时不输出该字段。</summary>
+    [JsonPropertyName("allowed_domains")]
+    public string[]? AllowedDomains { get; init; }
+
+    /// <summary>屏蔽的域名黑名单，为 null 时不输出该字段。</summary>
+    [JsonPropertyName("blocked_domains")]
+    public string[]? BlockedDomains { get; init; }
+}
+
+/// <summary>
+/// Web 搜索 schema 序列化上下文 — NativeAOT 兼容
+/// </summary>
+[JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSerializable(typeof(WebSearchToolSchemaDto))]
+internal sealed partial class WebSearchSchemaJsonContext : JsonSerializerContext;

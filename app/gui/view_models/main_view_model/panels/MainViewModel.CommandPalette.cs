@@ -100,6 +100,33 @@ public sealed partial class MainViewModel {
     /// <summary>打开文件回调 — MainWindow 设置,ViewModel 调用以在内嵌编辑器中打开文件</summary>
     public Action<string>? OpenFileCallback { get; set; }
 
+    /// <summary>命令面板 ID → 执行动作映射（lazy 首次使用时构建）。</summary>
+    private FrozenDictionary<string, Action>? _commandActions;
+    private FrozenDictionary<string, Action> CommandActions => _commandActions ??= new Dictionary<string, Action> {
+        ["file.newSession"]              = () => NewConversationCommand.Execute(null),
+        ["edit.regenerate"]              = () => { if (CanRegenerate) RegenerateLastReplyCommand.Execute(null); },
+        ["edit.clearHistory"]            = () => ClearHistoryCommand.Execute(null),
+        ["edit.clearAll"]                = () => ClearAllSessionsCommand.Execute(null),
+        ["edit.toggleSplit"]             = () => ToggleSplitEditorCommand.Execute(null),
+        ["view.toggleTheme"]             = () => ToggleThemeCommand.Execute(null),
+        ["view.settings"]                = () => ToggleSidePanelCommand.Execute(SidePanelKind.Settings),
+        ["view.panel"]                   = () => TogglePanelCommand.Execute(null),
+        ["view.panelBottom"]             = () => SetPanelPositionCommand.Execute(PanelPosition.Bottom),
+        ["view.panelRight"]              = () => SetPanelPositionCommand.Execute(PanelPosition.Right),
+        ["view.panelLeft"]               = () => SetPanelPositionCommand.Execute(PanelPosition.Left),
+        ["view.panelTop"]                = () => SetPanelPositionCommand.Execute(PanelPosition.Top),
+        ["view.editor"]                  = () => ShowEditorViewCommand.Execute(null),
+        ["view.messages"]                = () => ShowMessagesViewCommand.Execute(null),
+        ["view.mock"]                    = () => ToggleMockCommand.Execute(null),
+        ["sidebar.sessions"]             = () => ToggleSidePanelCommand.Execute(SidePanelKind.Sessions),
+        ["sidebar.filetree"]             = () => ToggleSidePanelCommand.Execute(SidePanelKind.FileTree),
+        ["view.secondarySidebar"]        = () => ToggleSecondarySideBarCommand.Execute(null),
+        ["view.zenMode"]                 = () => ToggleZenModeCommand.Execute(null),
+        ["view.centeredLayout"]          = () => ToggleCenteredLayoutCommand.Execute(null),
+        ["view.toggleMinimap"]           = () => ToggleMinimapCommand.Execute(null),
+        ["view.toggleSideBarPosition"]   = () => ToggleSideBarPositionCommand.Execute(null),
+    }.ToFrozenDictionary();
+
     /// <summary>执行命令 — 根据命令标识分发到对应命令</summary>
     [RelayCommand]
     private void ExecuteCommand(CommandEntryVm? entry) {
@@ -111,75 +138,8 @@ public sealed partial class MainViewModel {
             OpenFileCallback?.Invoke(path);
             return;
         }
-        switch (entry.CommandId) {
-            case "file.newSession":
-                NewConversationCommand.Execute(null);
-                break;
-            case "edit.regenerate":
-                if (CanRegenerate)
-                    RegenerateLastReplyCommand.Execute(null);
-                break;
-            case "edit.clearHistory":
-                ClearHistoryCommand.Execute(null);
-                break;
-            case "edit.clearAll":
-                ClearAllSessionsCommand.Execute(null);
-                break;
-            case "edit.toggleSplit":
-                ToggleSplitEditorCommand.Execute(null);
-                break;
-            case "view.toggleTheme":
-                ToggleThemeCommand.Execute(null);
-                break;
-            case "view.settings":
-                ToggleSidePanelCommand.Execute(SidePanelKind.Settings);
-                break;
-            case "view.panel":
-                TogglePanelCommand.Execute(null);
-                break;
-            case "view.panelBottom":
-                SetPanelPositionCommand.Execute(PanelPosition.Bottom);
-                break;
-            case "view.panelRight":
-                SetPanelPositionCommand.Execute(PanelPosition.Right);
-                break;
-            case "view.panelLeft":
-                SetPanelPositionCommand.Execute(PanelPosition.Left);
-                break;
-            case "view.panelTop":
-                SetPanelPositionCommand.Execute(PanelPosition.Top);
-                break;
-            case "view.editor":
-                ShowEditorViewCommand.Execute(null);
-                break;
-            case "view.messages":
-                ShowMessagesViewCommand.Execute(null);
-                break;
-            case "view.mock":
-                ToggleMockCommand.Execute(null);
-                break;
-            case "sidebar.sessions":
-                ToggleSidePanelCommand.Execute(SidePanelKind.Sessions);
-                break;
-            case "sidebar.filetree":
-                ToggleSidePanelCommand.Execute(SidePanelKind.FileTree);
-                break;
-            case "view.secondarySidebar":
-                ToggleSecondarySideBarCommand.Execute(null);
-                break;
-            case "view.zenMode":
-                ToggleZenModeCommand.Execute(null);
-                break;
-            case "view.centeredLayout":
-                ToggleCenteredLayoutCommand.Execute(null);
-                break;
-            case "view.toggleMinimap":
-                ToggleMinimapCommand.Execute(null);
-                break;
-            case "view.toggleSideBarPosition":
-                ToggleSideBarPositionCommand.Execute(null);
-                break;
-        }
+        if (CommandActions.TryGetValue(entry.CommandId, out var action))
+            action();
     }
 
     /// <summary>查询变更时刷新过滤列表</summary>

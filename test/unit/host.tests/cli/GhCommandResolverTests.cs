@@ -40,6 +40,38 @@ public sealed class GhCommandResolverTests {
         resolved.Tail.Should().BeEquivalentTo(new[] { "--limit", "3" });
     }
 
+    /// <summary>系统 gh CLI 的 --json field1,field2 应转为 --json_fields=field1,field2</summary>
+    /// <para>缺陷1a: AI习惯写 --json statusCheckRollup（系统gh语法），jcc要求 --json_fields</para>
+    [Fact]
+    public void Resolve_JsonFollowedByFields_ShouldConvertToJsonFields() {
+        var resolved = GhCommandResolver.Resolve(
+            new[] { "gh", "pr", "view", "387", "--json", "statusCheckRollup" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.Json.Should().BeTrue();
+        resolved.Tail.Should().BeEquivalentTo(new[] { "387", "--json_fields=statusCheckRollup" });
+    }
+
+    /// <summary>--json 多字段逗号分隔也应正确转换</summary>
+    [Fact]
+    public void Resolve_JsonFollowedByMultipleFields_ShouldConvertToJsonFields() {
+        var resolved = GhCommandResolver.Resolve(
+            new[] { "gh", "pr", "view", "387", "--json", "title,body,state" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.Tail.Should().BeEquivalentTo(new[] { "387", "--json_fields=title,body,state" });
+    }
+
+    /// <summary>--json 后跟 --option 时不消费选项（保持原有行为）</summary>
+    [Fact]
+    public void Resolve_JsonFollowedByOption_ShouldNotConsumeOption() {
+        var resolved = GhCommandResolver.Resolve(
+            new[] { "gh", "pr", "list", "--json", "--limit", "3" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.Tail.Should().BeEquivalentTo(new[] { "--limit", "3" });
+    }
+
     /// <summary>只有 jcc gh 时缺少分组，应报错并给出用法</summary>
     [Fact]
     public void Resolve_MissingGroup_ShouldReturnUsageError() {
@@ -101,6 +133,53 @@ public sealed class GhCommandResolverTests {
         error.Should().BeNull();
         bound!["run_id"].Should().Be("123");
         bound["log"].Should().Be("true");
+    }
+
+    /// <summary>布尔参数宽容接受显式 true/false 值（--log true / --log false / --log=1 / --log=0）</summary>
+    /// <para>缺陷2: AI 习惯写 --log true，不应报"多余的位置参数: true"</para>
+    [Theory]
+    [InlineData("--log", "true", "true")]
+    [InlineData("--log", "false", "false")]
+    [InlineData("--log", "1", "true")]
+    [InlineData("--log", "0", "false")]
+    [InlineData("--log", "yes", "true")]
+    [InlineData("--log", "no", "false")]
+    [InlineData("--log=true", null, "true")]
+    [InlineData("--log=false", null, "false")]
+    [InlineData("--log=1", null, "true")]
+    [InlineData("--log=0", null, "false")]
+    public void Bind_BooleanFlag_WithExplicitValue_ShouldAcceptAndConsume(string first, string? second, string expected) {
+        var parameters = new List<GhParam>
+        {
+            new("run_id", IsRequired: true, IsBoolean: false),
+            new("log", IsRequired: false, IsBoolean: true),
+            new("max_lines", IsRequired: false, IsBoolean: false),
+        };
+
+        var tail = second is null ? new[] { "123", first } : new[] { "123", first, second };
+
+        var bound = GhArgsBinder.Bind(tail, parameters, "gh_run_view", out var error);
+
+        error.Should().BeNull();
+        bound!["run_id"].Should().Be("123");
+        bound["log"].Should().Be(expected);
+    }
+
+    /// <summary>布尔参数 --log true 后不应把 true 当位置参数，后续选项应正常绑定</summary>
+    [Fact]
+    public void Bind_BooleanFlag_WithTrueThenMoreOptions_ShouldNotBreakSubsequent() {
+        var parameters = new List<GhParam>
+        {
+            new("run_id", IsRequired: true, IsBoolean: false),
+            new("log", IsRequired: false, IsBoolean: true),
+            new("filter", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "123", "--log", "true", "--filter", "error" }, parameters, "gh_run_view", out var error);
+
+        error.Should().BeNull();
+        bound!["log"].Should().Be("true");
+        bound["filter"].Should().Be("error");
     }
 
     /// <summary>--key value 与 --key=value 两种形式都应支持</summary>

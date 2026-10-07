@@ -162,6 +162,30 @@ public sealed record DiagnosticLogEntry {
 }
 
 /// <summary>
+/// 诊断日志条目 DTO — 用于 JSONL 序列化的紧凑结构，字段名与原手写拼接保持一致
+/// </summary>
+public sealed record DiagnosticLogEntryDto {
+    /// <summary>时间戳（ISO 8601 round-trip 格式）</summary>
+    [JsonPropertyName("ts")]
+    public required DateTimeOffset Ts { get; init; }
+    /// <summary>事件类型标识（如 turn_start、tool_start、tool_end、loop_detected 等）</summary>
+    [JsonPropertyName("event")]
+    public required string Event { get; init; }
+    /// <summary>会话标识</summary>
+    [JsonPropertyName("session")]
+    public required string Session { get; init; }
+    /// <summary>追踪ID — 每条日志唯一标识，用于构建追踪链</summary>
+    [JsonPropertyName("trace")]
+    public required string Trace { get; init; }
+    /// <summary>是否为异常事件（仅 true 时输出，null 时由 WhenWritingNull 忽略）</summary>
+    [JsonPropertyName("anomaly")]
+    public bool? Anomaly { get; init; }
+    /// <summary>附加事件数据键值对</summary>
+    [JsonPropertyName("data")]
+    public required Dictionary<string, string> Data { get; init; }
+}
+
+/// <summary>
 /// 诊断条目写入器 — 负责将 DiagnosticLogEntry 序列化并追加到 JSONL 文件
 /// </summary>
 internal sealed class DiagnosticEntryWriter : IAsyncDisposable {
@@ -185,9 +209,15 @@ internal sealed class DiagnosticEntryWriter : IAsyncDisposable {
     /// <param name="entry">诊断日志条目</param>
     /// <param name="ct">取消令牌</param>
     public async Task WriteEntryAsync(DiagnosticLogEntry entry, CancellationToken ct) {
-        var anomalyFlag = entry.IsAnomaly ? ",\"anomaly\":true" : "";
-        var dataProps = string.Join(",", entry.Data.Select(kv => $"\"{kv.Key}\":\"{EscapeJsonString(kv.Value)}\""));
-        var line = $"{{\"ts\":\"{entry.Timestamp:O}\",\"event\":\"{entry.EventType}\",\"session\":\"{entry.SessionId}\",\"trace\":\"{entry.TraceId}\"{anomalyFlag},\"data\":{{{dataProps}}}}}";
+        var dto = new DiagnosticLogEntryDto {
+            Ts = entry.Timestamp,
+            Event = entry.EventType,
+            Session = entry.SessionId,
+            Trace = entry.TraceId,
+            Anomaly = entry.IsAnomaly ? true : null,
+            Data = entry.Data,
+        };
+        var line = JsonSerializer.Serialize(dto, ChatServiceJsonContext.Default.DiagnosticLogEntryDto);
 
         var reply = new TaskCompletionSource();
         _actor.Tell(new WriteEntryCmd(line, reply));
@@ -197,15 +227,6 @@ internal sealed class DiagnosticEntryWriter : IAsyncDisposable {
     /// <summary>异步释放资源。</summary>
     public async ValueTask DisposeAsync()
         => await _actor.DisposeAsync().ConfigureAwait(false);
-
-    private static string EscapeJsonString(string value) {
-        return value
-            .Replace("\\", "\\\\")
-            .Replace("\"", "\\\"")
-            .Replace("\n", "\\n")
-            .Replace("\r", "\\r")
-            .Replace("\t", "\\t");
-    }
 
     private sealed record WriteEntryCmd(string Line, TaskCompletionSource Reply);
 

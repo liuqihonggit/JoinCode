@@ -235,4 +235,75 @@ public sealed partial class GitHubToolHandlersTests {
 
         result.IsError.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task ExtensionInstall_ClonesRepo_ToExtensionsDir() {
+        var git = new FakeGitCommandRunner();
+        var fs = new InMemoryFileSystem();
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhExtensionInstallAsync("owner/gh-ext");
+
+        result.IsError.Should().BeFalse();
+        git.ExecutedCommands.Should().Contain(c => c.Contains("clone") && c.Contains("owner/gh-ext"));
+    }
+
+    [Fact]
+    public async Task ExtensionInstall_ReturnsFail_WhenGitNotConfigured() {
+        var fs = new InMemoryFileSystem();
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhExtensionInstallAsync("owner/gh-ext");
+
+        result.IsError.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExtensionUpgrade_PullsRepo_ForSingleExtension() {
+        var extDir = GitHubToolHandlers.GetGhExtensionsPath();
+        var git = new FakeGitCommandRunner();
+        var fs = new InMemoryFileSystem();
+        fs.CreateDirectory(Path.Combine(extDir, "gh-ext"));
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhExtensionUpgradeAsync("gh-ext");
+
+        result.IsError.Should().BeFalse();
+        git.ExecutedCommands.Should().Contain("pull");
+    }
+
+    [Fact]
+    public async Task ExtensionUpgrade_ReturnsFail_WhenExtensionNotExists() {
+        var git = new FakeGitCommandRunner();
+        var fs = new InMemoryFileSystem();
+        fs.CreateDirectory(GitHubToolHandlers.GetGhExtensionsPath());
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhExtensionUpgradeAsync("gh-nonexistent");
+
+        result.IsError.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExtensionRemove_MovesToArchive() {
+        var extDir = GitHubToolHandlers.GetGhExtensionsPath();
+        var fs = new InMemoryFileSystem();
+        fs.CreateDirectory(Path.Combine(extDir, "gh-ext"));
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhExtensionRemoveAsync("gh-ext");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("已移除扩展 gh-ext");
+    }
+
+    [Fact]
+    public async Task ExtensionRemove_ReturnsFail_WhenExtensionNotExists() {
+        var fs = new InMemoryFileSystem();
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhExtensionRemoveAsync("gh-nonexistent");
+
+        result.IsError.Should().BeTrue();
+    }
 }

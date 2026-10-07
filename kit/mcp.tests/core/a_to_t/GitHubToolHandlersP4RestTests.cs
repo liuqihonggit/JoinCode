@@ -507,45 +507,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     // === Alias (真实读写 config.yml，测试在 GitHubToolHandlersConfigTests.cs) ===
 
-    // === Extension (list 扫描本地目录，测试在 GitHubToolHandlersConfigTests.cs) ===
-
-    [Fact]
-    public async Task ExtensionInstall_ReturnsPromptWithExtensionName() {
-        var result = await _handler.GhExtensionInstallAsync("owner/gh-ext");
-
-        result.IsError.Should().BeFalse();
-        var text = result.GetFirstText();
-        text.Should().Contain("gh extension install");
-        text.Should().Contain("owner/gh-ext");
-    }
-
-    [Fact]
-    public async Task ExtensionUpgrade_WithoutName_IncludesAllFlag() {
-        var result = await _handler.GhExtensionUpgradeAsync();
-
-        result.IsError.Should().BeFalse();
-        var text = result.GetFirstText();
-        text.Should().Contain("gh extension upgrade");
-        text.Should().Contain("--all");
-    }
-
-    [Fact]
-    public async Task ExtensionUpgrade_WithName_IncludesExtensionName() {
-        var result = await _handler.GhExtensionUpgradeAsync("owner/gh-ext");
-
-        result.IsError.Should().BeFalse();
-        result.GetFirstText().Should().Contain("owner/gh-ext");
-    }
-
-    [Fact]
-    public async Task ExtensionRemove_ReturnsPromptWithExtensionName() {
-        var result = await _handler.GhExtensionRemoveAsync("owner/gh-ext");
-
-        result.IsError.Should().BeFalse();
-        var text = result.GetFirstText();
-        text.Should().Contain("gh extension remove");
-        text.Should().Contain("owner/gh-ext");
-    }
+    // === Extension (list/install/upgrade/remove 真实实现，测试在 GitHubToolHandlersConfigTests.cs) ===
 
     // === Licenses (API 调用，测试在下方) ===
 

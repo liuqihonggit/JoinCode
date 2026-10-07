@@ -766,31 +766,65 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 安装扩展 — 提示用系统 gh CLI
+    /// 安装扩展 — git clone 扩展仓库到本地 extensions 目录
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhExtensionInstall, "安装扩展(提示用系统 gh)", "github")]
-    public Task<ToolResult> GhExtensionInstallAsync(
+    [McpTool(GitHubToolNameEnumConstants.GhExtensionInstall, "安装扩展(git clone 到本地)", "github")]
+    public async Task<ToolResult> GhExtensionInstallAsync(
         [McpToolParameter("扩展名(如 owner/gh-ext)", Required = true)] string extension,
-        CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok($"请在终端运行: gh extension install {extension}\n（扩展安装为本地操作，需 gh CLI 直接执行）"));
+        CancellationToken cancellationToken = default) {
+        if (_git is null) return Fail("git 命令执行器未配置（IGitCommandRunner 未注入）");
+        var extDir = GetGhExtensionsPath();
+        if (!_fs.DirectoryExists(extDir)) _fs.CreateDirectory(extDir);
+        var extName = extension.Contains('/') ? extension.Split('/')[1] : extension;
+        var targetDir = Path.Combine(extDir, extName);
+        if (_fs.DirectoryExists(targetDir)) return Fail($"扩展已存在: {extName}（目录: {targetDir}）— 如需升级请用 extension upgrade");
+        var cloneResult = await _git.ExecuteAsync($"clone https://github.com/{extension}.git {extName}", extDir, cancellationToken).ConfigureAwait(false);
+        return cloneResult.Success ? Ok($"已安装扩展 {extName}") : Fail($"安装扩展失败: {cloneResult.Error}");
+    }
 
     /// <summary>
-    /// 升级扩展 — 提示用系统 gh CLI
+    /// 升级扩展 — git pull 更新扩展（extension 为空时升级所有）
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhExtensionUpgrade, "升级扩展(提示用系统 gh)", "github")]
-    public Task<ToolResult> GhExtensionUpgradeAsync(
+    [McpTool(GitHubToolNameEnumConstants.GhExtensionUpgrade, "升级扩展(git pull)", "github")]
+    public async Task<ToolResult> GhExtensionUpgradeAsync(
         [McpToolParameter("扩展名(可选,默认全部)", Required = false)] string? extension = null,
-        CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok($"请在终端运行: gh extension upgrade{(string.IsNullOrWhiteSpace(extension) ? " --all" : $" {extension}")}\n（扩展升级为本地操作，需 gh CLI 直接执行）"));
+        CancellationToken cancellationToken = default) {
+        if (_git is null) return Fail("git 命令执行器未配置（IGitCommandRunner 未注入）");
+        var extDir = GetGhExtensionsPath();
+        if (!_fs.DirectoryExists(extDir)) return Ok("（无已安装扩展）");
+        if (!string.IsNullOrWhiteSpace(extension)) {
+            var targetDir = Path.Combine(extDir, extension);
+            if (!_fs.DirectoryExists(targetDir)) return Fail($"扩展不存在: {extension}");
+            var pullResult = await _git.ExecuteAsync("pull", targetDir, cancellationToken).ConfigureAwait(false);
+            return pullResult.Success ? Ok($"已升级扩展 {extension}") : Fail($"升级扩展失败: {pullResult.Error}");
+        }
+        var extensions = _fs.EnumerateDirectories(extDir, "gh-*", SearchOption.TopDirectoryOnly).ToList();
+        if (extensions.Count == 0) return Ok("（无已安装扩展）");
+        var sb = new StringBuilder(64);
+        foreach (var dir in extensions) {
+            var name = _fs.GetDirectoryName(dir);
+            var pullResult = await _git.ExecuteAsync("pull", dir, cancellationToken).ConfigureAwait(false);
+            sb.AppendLine(pullResult.Success ? $"已升级 {name}" : $"升级失败 {name}: {pullResult.Error}");
+        }
+        return Ok(sb.ToString().TrimEnd());
+    }
 
     /// <summary>
-    /// 移除扩展 — 提示用系统 gh CLI
+    /// 移除扩展 — 移动到 .xxx 归档（AGENTS.md 禁止删除文件）
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhExtensionRemove, "移除扩展(提示用系统 gh)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhExtensionRemove, "移除扩展(移动到 .xxx 归档)", "github")]
     public Task<ToolResult> GhExtensionRemoveAsync(
         [McpToolParameter("扩展名", Required = true)] string extension,
-        CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok($"请在终端运行: gh extension remove {extension}\n（扩展移除为本地操作，需 gh CLI 直接执行）"));
+        CancellationToken cancellationToken = default) {
+        var extDir = GetGhExtensionsPath();
+        var targetDir = Path.Combine(extDir, extension);
+        if (!_fs.DirectoryExists(targetDir)) return Task.FromResult(Fail($"扩展不存在: {extension}"));
+        var archiveBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".xxx");
+        if (!_fs.DirectoryExists(archiveBase)) _fs.CreateDirectory(archiveBase);
+        var archivePath = Path.Combine(archiveBase, $"{extension}.{DateTime.Now:yyyyMMddHHmmss}.del");
+        _fs.MoveDirectory(targetDir, archivePath);
+        return Task.FromResult(Ok($"已移除扩展 {extension}（归档到 {archivePath}）"));
+    }
 
     // === Licenses（第三方许可证）===
 

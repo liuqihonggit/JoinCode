@@ -455,6 +455,40 @@ internal sealed class RepoForkRequest {
     public string? Organization { get; init; }
 }
 
+// === Codespace DTO ===
+
+/// <summary>Codespace create 请求 — POST /user/codespaces</summary>
+internal sealed class CodespaceCreateRequest {
+    /// <summary>仓库 ID</summary>
+    [JsonPropertyName("repository_id")]
+    public long RepositoryId { get; init; }
+    /// <summary>分支名</summary>
+    [JsonPropertyName("ref")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Ref { get; init; }
+    /// <summary>machine 类型</summary>
+    [JsonPropertyName("machine")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Machine { get; init; }
+    /// <summary>devcontainer 路径</summary>
+    [JsonPropertyName("devcontainer_path")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DevcontainerPath { get; init; }
+    /// <summary>显示名</summary>
+    [JsonPropertyName("display_name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DisplayName { get; init; }
+}
+
+// === GraphQL DTO ===
+
+/// <summary>GraphQL 请求信封 — POST /graphql，body 为 {"query":"..."}</summary>
+internal sealed class GraphQLRequest {
+    /// <summary>GraphQL 查询或 mutation 字符串</summary>
+    [JsonPropertyName("query")]
+    public string Query { get; init; } = "";
+}
+
 // === Run DTO ===
 
 /// <summary>Run rerun-jobs 请求 — POST /actions/runs/{id}/rerun-jobs</summary>
@@ -525,10 +559,12 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(RepoSetDefaultRequest))]
 [JsonSerializable(typeof(RepoArchiveRequest))]
 [JsonSerializable(typeof(RepoForkRequest))]
+[JsonSerializable(typeof(CodespaceCreateRequest))]
 [JsonSerializable(typeof(RunRerunJobsRequest))]
 [JsonSerializable(typeof(AssigneesRequest))]
 [JsonSerializable(typeof(ReviewersRequest))]
 [JsonSerializable(typeof(MilestoneRequest))]
+[JsonSerializable(typeof(GraphQLRequest))]
 [JsonSerializable(typeof(List<string>))]
 internal sealed partial class GitHubApiJsonContext : JsonSerializerContext
 {

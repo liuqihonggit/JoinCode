@@ -110,6 +110,19 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 统一三档输出格式化 — json_fields 优先 > verbosity=2 完整JSON > verbosity=1 精简JSON > 默认 Summarizer
+    /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON</para>
+    /// </summary>
+    internal static string FormatGhOutput(string body, int? verbosity, string? json_fields, Func<string, string> summarize, string? compactFields = null) {
+        if (!string.IsNullOrEmpty(json_fields)) return FilterJsonFields(body, json_fields);
+        return verbosity switch {
+            2 => body,
+            1 => FilterJsonFields(body, compactFields ?? "id,number,title,state,name"),
+            _ => summarize(body)
+        };
+    }
+
+    /// <summary>
     /// 构建精简成功 ToolResult — 从 JSON body 提取 html_url，只返回确认消息 + URL（不返回整个 JSON body）
     /// <para>用于 Create/Update/Delete 操作，成功时无需返回完整响应体，只给确认 + 可点击链接</para>
     /// </summary>
@@ -196,20 +209,31 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// verbose 缓存模板 — verbose=true 优先读缓存,未命中或 verbose=false 调 API,成功后写缓存,按 verbose 决定精简/完整输出
+    /// verbosity 三档缓存模板 — verbosity=2 优先读缓存,未命中或 verbosity=0/1 调 API,成功后写缓存,按 verbosity 决定输出格式
     /// <para>消除 GhPrView/GhIssueView/GhRepoView 三处相同的缓存读写样板</para>
+    /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON(从缓存读)</para>
     /// </summary>
     private async Task<ToolResult> GetOrFetchWithCacheAsync(
-        IGitHubApiClient client, string cacheKey, string apiPath, bool? verbose,
-        Func<string, string> summarize, CancellationToken ct) {
-        if (verbose == true) {
+        IGitHubApiClient client, string cacheKey, string apiPath, int? verbosity,
+        string? json_fields, Func<string, string> summarize, string? compactFields,
+        CancellationToken ct) {
+        if (!string.IsNullOrEmpty(json_fields)) {
+            var result0 = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
+            if (!result0.Success) return Fail(result0.Error);
+            return Ok(FilterJsonFields(result0.Body, json_fields));
+        }
+        if (verbosity == 2) {
             var cached = TryGetGhCache(cacheKey);
             if (cached is not null) return Ok(cached);
         }
         var result = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
         SaveGhCache(cacheKey, result.Body);
-        return Ok(verbose == true ? result.Body : summarize(result.Body));
+        return Ok(verbosity switch {
+            2 => result.Body,
+            1 => FilterJsonFields(result.Body, compactFields ?? "id,number,title,state,name"),
+            _ => summarize(result.Body)
+        });
     }
 
     /// <summary>

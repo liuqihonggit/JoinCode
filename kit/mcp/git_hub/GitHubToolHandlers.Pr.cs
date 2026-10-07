@@ -12,7 +12,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选,默认当前目录)", Required = false)] string? working_dir = null,
-        [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
+        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON[从缓存读])", Required = false)] int? verbosity = null,
         [McpToolParameter("comments=true 附带评论列表", Required = false)] bool? comments = null,
         [McpToolParameter("web=true 只返回 PR 浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json_fields = null,
@@ -29,18 +29,13 @@ public partial class GitHubToolHandlers {
             if (comments == true) {
                 var prResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
                 if (!prResult.Success) return Fail(prResult.Error);
-                var summary = !string.IsNullOrEmpty(json_fields) ? FilterJsonFields(prResult.Body, json_fields) : (verbose == true ? prResult.Body : SummarizePr(prResult.Body));
+                var summary = FormatGhOutput(prResult.Body, verbosity, json_fields, SummarizePr, "number,title,state,head_branch,user,html_url");
                 var commentsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues/{number}/comments", ct: cancellationToken).ConfigureAwait(false);
                 if (!commentsResult.Success) return Fail(commentsResult.Error);
                 return Ok($"{summary}\n\n## 评论\n{SummarizeComments(commentsResult.Body)}");
             }
-            if (!string.IsNullOrEmpty(json_fields)) {
-                var prResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
-                if (!prResult.Success) return Fail(prResult.Error);
-                return Ok(FilterJsonFields(prResult.Body, json_fields));
-            }
             var cacheKey = BuildGhCacheKey("gh_pr_view", $"{owner}/{repoName}/{number}");
-            return await GetOrFetchWithCacheAsync(client, cacheKey, apiPath, verbose, SummarizePr, cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, cacheKey, apiPath, verbosity, json_fields, SummarizePr, "number,title,state,head_branch,user,html_url", cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -89,6 +84,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否 draft PR(可选)", Required = false)] bool? draft = null,
         [McpToolParameter("搜索查询(可选,GitHub search 语法)", Required = false)] string? search = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,url)", Required = false)] string? json_fields = null,
+        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -96,19 +92,20 @@ public partial class GitHubToolHandlers {
             var pageCount = (limit ?? 30).ToString();
             var stateVal = string.IsNullOrWhiteSpace(state) ? "open" : state;
             var needSearch = NeedSearchApi(label, assignee, draft, search, author);
+            var compactFields = "number,title,state,head_branch,updated_at,html_url";
             if (needSearch) {
                 var q = BuildPrSearchQuery(owner, repoName, stateVal, author, label, assignee, @base, head, draft, search);
                 var query = new Dictionary<string, string> { ["q"] = q, ["per_page"] = pageCount };
                 var result = await client.SendAsync(HttpMethod.Get, "search/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
                 if (!result.Success) return Fail(result.Error);
-                return Ok(!string.IsNullOrEmpty(json_fields) ? FilterJsonFields(result.Body, json_fields) : SummarizePrList(result.Body));
+                return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizePrList, compactFields));
             }
             var pullsQuery = new Dictionary<string, string> { ["state"] = stateVal, ["per_page"] = pageCount };
             if (!string.IsNullOrWhiteSpace(@base)) pullsQuery["base"] = @base;
             if (!string.IsNullOrWhiteSpace(head)) pullsQuery["head"] = head;
             var pullsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls", query: pullsQuery, ct: cancellationToken).ConfigureAwait(false);
             if (!pullsResult.Success) return Fail(pullsResult.Error);
-            return Ok(!string.IsNullOrEmpty(json_fields) ? FilterJsonFields(pullsResult.Body, json_fields) : SummarizePrList(pullsResult.Body));
+            return Ok(FormatGhOutput(pullsResult.Body, verbosity, json_fields, SummarizePrList, compactFields));
         }).ConfigureAwait(false);
 
     /// <summary>

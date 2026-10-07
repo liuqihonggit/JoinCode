@@ -10,12 +10,13 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhOrgList, "列出当前用户的组织", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhOrgListAsync(
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 login,description)", Required = false)] string? json = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/orgs", query: query, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(SummarizeOrgList(result.Body));
+        return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(result.Body, json) : SummarizeOrgList(result.Body));
     }
 
     /// <summary>
@@ -43,11 +44,12 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhSshKeyList, "列出 SSH Key", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhSshKeyListAsync(
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,title)", Required = false)] string? json = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/keys", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(SummarizeSshKeyList(result.Body));
+        return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(result.Body, json) : SummarizeSshKeyList(result.Body));
     }
 
     /// <summary>
@@ -101,11 +103,12 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhGpgKeyList, "列出 GPG Key", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhGpgKeyListAsync(
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,key_id)", Required = false)] string? json = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/gpg_keys", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(SummarizeGpgKeyList(result.Body));
+        return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(result.Body, json) : SummarizeGpgKeyList(result.Body));
     }
 
     /// <summary>

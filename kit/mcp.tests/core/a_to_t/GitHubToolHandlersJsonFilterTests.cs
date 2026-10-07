@@ -147,4 +147,78 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("\"language\":\"C#\"");
         text.Should().NotContain("\"full_name\"");
     }
+
+    [Fact]
+    public async Task SecretList_WithJson_ReturnsFilteredFields() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"secrets":[{"name":"K","created_at":"2026-01-01"}]}""" };
+
+        var result = await _handler.GhSecretListAsync(json: "name", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"name\":\"K\"");
+        text.Should().NotContain("\"created_at\"");
+    }
+
+    [Fact]
+    public async Task VariableList_WithJson_ReturnsFilteredFields() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"variables":[{"name":"V","value":"x","updated_at":"2026-01-01"}]}""" };
+
+        var result = await _handler.GhVariableListAsync(json: "name,value", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"name\":\"V\"");
+        text.Should().Contain("\"value\":\"x\"");
+        text.Should().NotContain("\"updated_at\"");
+    }
+
+    [Fact]
+    public async Task OrgList_WithJson_ReturnsFilteredFields() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"login":"org","description":"d"}]""" };
+
+        var result = await _handler.GhOrgListAsync(json: "login");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"login\":\"org\"");
+        text.Should().NotContain("\"description\"");
+    }
+
+    [Fact]
+    public async Task SshKeyList_WithJson_ReturnsFilteredFields() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"title":"k","key":"ssh-..."}]""" };
+
+        var result = await _handler.GhSshKeyListAsync(json: "id,title");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"id\":1");
+        text.Should().Contain("\"title\":\"k\"");
+        text.Should().NotContain("\"key\"");
+    }
+
+    [Fact]
+    public async Task SearchRepos_WithJson_ReturnsFilteredFields() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"items":[{"full_name":"o/r","stargazers_count":5,"description":"d"}]}""" };
+
+        var result = await _handler.GhSearchReposAsync(query: "stars:>1", json: "full_name");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"full_name\":\"o/r\"");
+        text.Should().NotContain("\"stargazers_count\"");
+    }
+
+    [Fact]
+    public async Task GistList_WithJson_ReturnsFilteredFields() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":"abc","description":"d","public":false}]""" };
+
+        var result = await _handler.GhGistListAsync(json: "id");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"id\":\"abc\"");
+        text.Should().NotContain("\"description\"");
+    }
 }

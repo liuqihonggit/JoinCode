@@ -24,7 +24,7 @@ internal static class SimpleJqEvaluator {
     }
 
     /// <summary>按 | 分割管道阶段（忽略引号/括号内的 |）</summary>
-    private static string[] SplitPipeline(string expr) {
+    private static List<string> SplitPipeline(string expr) {
         var stages = new List<string>();
         var parenDepth = 0;
         var braceDepth = 0;
@@ -44,7 +44,7 @@ internal static class SimpleJqEvaluator {
             }
         }
         stages.Add(expr[start..].Trim());
-        return stages.ToArray();
+        return stages;
     }
 
     private static JsonNode? ApplyStage(JsonNode? input, string stage)
@@ -62,12 +62,16 @@ internal static class SimpleJqEvaluator {
         if (remaining.IsEmpty) return input;
 
         var current = input;
-        var parts = remaining.ToString().Split('.', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in parts) {
-            var isArrayExpand = part.EndsWith("[]");
+        while (!remaining.IsEmpty) {
+            var dotIdx = remaining.IndexOf('.');
+            var part = dotIdx < 0 ? remaining : remaining[..dotIdx];
+            remaining = dotIdx < 0 ? default : remaining[(dotIdx + 1)..];
+            if (part.IsEmpty) continue;
+
+            var isArrayExpand = part.Length >= 2 && part[^2] == '[' && part[^1] == ']';
             var fieldName = isArrayExpand ? part[..^2] : part;
-            if (!string.IsNullOrEmpty(fieldName))
-                current = GetFieldOrMapArray(current, fieldName);
+            if (!fieldName.IsEmpty)
+                current = GetFieldOrMapArray(current, fieldName.ToString());
             if (current is null)
                 return null;
             if (isArrayExpand && current is not JsonArray)
@@ -119,23 +123,28 @@ internal static class SimpleJqEvaluator {
 
     /// <summary>.field=="value" or .field2=="value2" — 支持 or 逻辑</summary>
     private static bool EvaluateCondition(JsonNode? node, string condition) {
-        var orParts = condition.Split(" or ", StringSplitOptions.RemoveEmptyEntries);
-        foreach (var orPart in orParts) {
-            if (EvaluateComparison(node, orPart.Trim())) return true;
+        var span = condition.AsSpan();
+        while (!span.IsEmpty) {
+            var orIdx = span.IndexOf(" or ");
+            var part = orIdx < 0 ? span : span[..orIdx];
+            span = orIdx < 0 ? default : span[(orIdx + 4)..];
+            if (part.IsEmpty) continue;
+            if (EvaluateComparison(node, part.Trim().ToString())) return true;
         }
         return false;
     }
 
     /// <summary>.field=="value" 或 .field!="value"</summary>
     private static bool EvaluateComparison(JsonNode? node, string comparison) {
-        var neqIdx = comparison.IndexOf("!=");
-        var eqIdx = comparison.IndexOf("==");
+        var span = comparison.AsSpan();
+        var neqIdx = span.IndexOf("!=");
+        var eqIdx = span.IndexOf("==");
         var isNotEqual = neqIdx >= 0 && (eqIdx < 0 || neqIdx < eqIdx);
         var opIdx = isNotEqual ? neqIdx : eqIdx;
         if (opIdx < 0) return false;
 
-        var left = comparison[..opIdx].Trim();
-        var right = comparison[(opIdx + 2)..].Trim().Trim('"');
+        var left = span[..opIdx].Trim().ToString();
+        var right = span[(opIdx + 2)..].Trim().Trim('"').ToString();
 
         var value = GetFieldValue(node, left);
         var strValue = value?.GetValue<string>() ?? value?.ToString();
@@ -161,12 +170,16 @@ internal static class SimpleJqEvaluator {
 
     private static JsonObject ConstructObject(JsonNode? input, string template) {
         var obj = new JsonObject();
-        var pairs = template.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var pair in pairs) {
+        var span = template.AsSpan();
+        while (!span.IsEmpty) {
+            var commaIdx = span.IndexOf(',');
+            var pair = commaIdx < 0 ? span : span[..commaIdx];
+            span = commaIdx < 0 ? default : span[(commaIdx + 1)..];
+            if (pair.IsEmpty) continue;
             var colonIdx = pair.IndexOf(':');
             if (colonIdx < 0) continue;
-            var key = pair[..colonIdx].Trim().Trim('"');
-            var valuePath = pair[(colonIdx + 1)..].Trim();
+            var key = pair[..colonIdx].Trim().Trim('"').ToString();
+            var valuePath = pair[(colonIdx + 1)..].Trim().ToString();
             obj[key] = GetFieldValue(input, valuePath)?.DeepClone();
         }
         return obj;
@@ -181,10 +194,13 @@ internal static class SimpleJqEvaluator {
         if (remaining.IsEmpty) return node;
 
         var current = node;
-        var parts = remaining.ToString().Split('.', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in parts) {
+        while (!remaining.IsEmpty) {
+            var dotIdx = remaining.IndexOf('.');
+            var part = dotIdx < 0 ? remaining : remaining[..dotIdx];
+            remaining = dotIdx < 0 ? default : remaining[(dotIdx + 1)..];
+            if (part.IsEmpty) continue;
             if (current is not JsonObject obj) return null;
-            if (!obj.TryGetPropertyValue(part, out current)) return null;
+            if (!obj.TryGetPropertyValue(part.ToString(), out current)) return null;
         }
         return current;
     }

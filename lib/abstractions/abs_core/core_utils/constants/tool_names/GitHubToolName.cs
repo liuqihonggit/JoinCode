@@ -457,4 +457,138 @@ public enum GitHubToolName {
     [EnumValue("gh_api")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhApi,
+
+    // === Browse（浏览器打开）===
+    [EnumValue("gh_browse")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhBrowse,
+
+    // === Cache（Actions 缓存）===
+    [EnumValue("gh_cache_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhCacheList,
+
+    [EnumValue("gh_cache_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhCacheDelete,
+
+    // === Ruleset（仓库规则集）===
+    [EnumValue("gh_ruleset_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhRulesetList,
+
+    [EnumValue("gh_ruleset_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhRulesetView,
+
+    [EnumValue("gh_ruleset_check")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhRulesetCheck,
+
+    // === Status（跨仓库状态）===
+    [EnumValue("gh_status")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhStatus,
+
+    // === Codespace ===
+    [EnumValue("gh_codespace_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhCodespaceList,
+
+    [EnumValue("gh_codespace_create")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhCodespaceCreate,
+
+    [EnumValue("gh_codespace_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhCodespaceDelete,
+
+    [EnumValue("gh_codespace_code")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhCodespaceCode,
+
+    [EnumValue("gh_codespace_ssh")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhCodespaceSsh,
+
+    // === Discussion ===
+    [EnumValue("gh_discussion_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhDiscussionList,
+
+    [EnumValue("gh_discussion_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhDiscussionView,
+
+    [EnumValue("gh_discussion_create")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhDiscussionCreate,
+
+    [EnumValue("gh_discussion_edit")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhDiscussionEdit,
+
+    [EnumValue("gh_discussion_comment")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhDiscussionComment,
+
+    // === Project ===
+    [EnumValue("gh_project_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhProjectList,
+
+    [EnumValue("gh_project_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhProjectView,
+
+    [EnumValue("gh_project_create")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhProjectCreate,
+
+    [EnumValue("gh_project_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhProjectDelete,
+
+    [EnumValue("gh_project_edit")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhProjectEdit,
+
+    [EnumValue("gh_project_close")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhProjectClose,
+
+    // === Alias ===
+    [EnumValue("gh_alias_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhAliasList,
+
+    [EnumValue("gh_alias_set")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhAliasSet,
+
+    [EnumValue("gh_alias_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhAliasDelete,
+
+    // === Extension ===
+    [EnumValue("gh_extension_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhExtensionList,
+
+    [EnumValue("gh_extension_install")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhExtensionInstall,
+
+    [EnumValue("gh_extension_upgrade")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhExtensionUpgrade,
+
+    [EnumValue("gh_extension_remove")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhExtensionRemove,
+
+    // === Licenses ===
+    [EnumValue("gh_licenses")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhLicenses,
 }

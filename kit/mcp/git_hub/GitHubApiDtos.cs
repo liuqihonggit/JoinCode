@@ -483,6 +483,68 @@ internal sealed class RepoEditRequest {
     /// <summary>是否启用 Projects</summary>
     [JsonPropertyName("has_projects")]
     public bool? HasProjects { get; init; }
+    /// <summary>是否启用 Discussions</summary>
+    [JsonPropertyName("has_discussions")]
+    public bool? HasDiscussions { get; init; }
+    /// <summary>是否允许 squash merge</summary>
+    [JsonPropertyName("allow_squash_merge")]
+    public bool? AllowSquashMerge { get; init; }
+    /// <summary>是否允许 merge commit</summary>
+    [JsonPropertyName("allow_merge_commit")]
+    public bool? AllowMergeCommit { get; init; }
+    /// <summary>是否允许 rebase merge</summary>
+    [JsonPropertyName("allow_rebase_merge")]
+    public bool? AllowRebaseMerge { get; init; }
+    /// <summary>是否允许 auto-merge</summary>
+    [JsonPropertyName("allow_auto_merge")]
+    public bool? AllowAutoMerge { get; init; }
+    /// <summary>是否允许 update branch</summary>
+    [JsonPropertyName("allow_update_branch")]
+    public bool? AllowUpdateBranch { get; init; }
+    /// <summary>是否允许 fork</summary>
+    [JsonPropertyName("allow_forking")]
+    public bool? AllowForking { get; init; }
+    /// <summary>是否为模板仓库</summary>
+    [JsonPropertyName("is_template")]
+    public bool? IsTemplate { get; init; }
+    /// <summary>squash merge commit 消息模板</summary>
+    [JsonPropertyName("squash_pr_commit_message")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SquashPrCommitMessage { get; init; }
+    /// <summary>安全与分析设置</summary>
+    [JsonPropertyName("security_and_analysis")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SecurityAndAnalysis? SecurityAndAnalysis { get; init; }
+}
+
+/// <summary>安全与分析嵌套 DTO — 用于 RepoEditRequest</summary>
+internal sealed class SecurityAndAnalysis {
+    /// <summary>高级安全</summary>
+    [JsonPropertyName("advanced_security")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SecurityFeature? AdvancedSecurity { get; init; }
+    /// <summary>密钥扫描</summary>
+    [JsonPropertyName("secret_scanning")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SecurityFeature? SecretScanning { get; init; }
+    /// <summary>密钥扫描推送保护</summary>
+    [JsonPropertyName("secret_scanning_push_protection")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SecurityFeature? SecretScanningPushProtection { get; init; }
+}
+
+/// <summary>安全功能开关 — status=enabled/disabled</summary>
+internal sealed class SecurityFeature {
+    /// <summary>状态(enabled/disabled)</summary>
+    [JsonPropertyName("status")]
+    public string Status { get; init; } = "";
+}
+
+/// <summary>Topics 请求 — PUT /repos/{o}/{r}/topics</summary>
+internal sealed class TopicsRequest {
+    /// <summary>topic 名称列表</summary>
+    [JsonPropertyName("names")]
+    public List<string> Names { get; init; } = new();
 }
 
 /// <summary>Repo rename 请求 — POST /repos/{o}/{r}/rename</summary>
@@ -630,6 +692,9 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(RepoCreateRequest))]
 [JsonSerializable(typeof(RepoTemplateGenerateRequest))]
 [JsonSerializable(typeof(RepoEditRequest))]
+[JsonSerializable(typeof(SecurityAndAnalysis))]
+[JsonSerializable(typeof(SecurityFeature))]
+[JsonSerializable(typeof(TopicsRequest))]
 [JsonSerializable(typeof(RepoRenameRequest))]
 [JsonSerializable(typeof(RepoSyncRequest))]
 [JsonSerializable(typeof(RepoSetDefaultRequest))]

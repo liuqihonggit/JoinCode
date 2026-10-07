@@ -293,9 +293,9 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 编辑仓库 — 修改描述/主页/可见性/默认分支/issues/wiki/projects/delete-branch-on-merge，调 REST API PATCH
+    /// 编辑仓库 — 修改描述/主页/可见性/默认分支/issues/wiki/projects/discussions/merge-methods/security/topics/template 等，调 REST API PATCH
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRepoEdit, "编辑仓库(description/homepage/visibility/default_branch/issues/wiki/projects/delete_branch_on_merge)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoEdit, "编辑仓库(description/homepage/visibility/default_branch/issues/wiki/projects/discussions/merge_methods/security/topics/template)", "github")]
     public async Task<ToolResult> GhRepoEditAsync(
         [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("描述(可选)", Required = false)] string? description = null,
@@ -306,9 +306,34 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否启用 Wiki(可选)", Required = false)] bool? has_wiki = null,
         [McpToolParameter("是否启用 Projects(可选)", Required = false)] bool? has_projects = null,
         [McpToolParameter("合并后是否删除分支(可选)", Required = false)] bool? delete_branch_on_merge = null,
+        [McpToolParameter("是否启用 Discussions(可选)", Required = false)] bool? enable_discussions = null,
+        [McpToolParameter("是否允许 squash merge(可选)", Required = false)] bool? enable_squash_merge = null,
+        [McpToolParameter("是否允许 merge commit(可选)", Required = false)] bool? enable_merge_commit = null,
+        [McpToolParameter("是否允许 rebase merge(可选)", Required = false)] bool? enable_rebase_merge = null,
+        [McpToolParameter("是否允许 auto-merge(可选)", Required = false)] bool? enable_auto_merge = null,
+        [McpToolParameter("是否允许 update branch(可选)", Required = false)] bool? allow_update_branch = null,
+        [McpToolParameter("是否允许 fork(可选)", Required = false)] bool? allow_forking = null,
+        [McpToolParameter("是否为模板仓库(可选)", Required = false)] bool? template = null,
+        [McpToolParameter("squash merge commit 消息/PR 标题模板(default/pr-title/pr-title-commits/pr-title-description,可选)", Required = false)] string? squash_merge_commit_message = null,
+        [McpToolParameter("启用高级安全(可选)", Required = false)] bool? enable_advanced_security = null,
+        [McpToolParameter("启用密钥扫描(可选)", Required = false)] bool? enable_secret_scanning = null,
+        [McpToolParameter("启用密钥扫描推送保护(可选)", Required = false)] bool? enable_secret_scanning_push_protection = null,
+        [McpToolParameter("添加 topic(可选,多个用逗号)", Required = false)] string? add_topic = null,
+        [McpToolParameter("移除 topic(可选,多个用逗号)", Required = false)] string? remove_topic = null,
+        [McpToolParameter("接受可见性变更后果(可选,确认标志)", Required = false)] bool? accept_visibility_change_consequences = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (!string.IsNullOrWhiteSpace(visibility) && accept_visibility_change_consequences != true)
+                _logger?.LogDebug("visibility 变更未带 --accept_visibility_change_consequences,继续执行");
+            SecurityAndAnalysis? security = null;
+            if (enable_advanced_security is not null || enable_secret_scanning is not null || enable_secret_scanning_push_protection is not null) {
+                security = new SecurityAndAnalysis {
+                    AdvancedSecurity = enable_advanced_security is not null ? new SecurityFeature { Status = enable_advanced_security == true ? "enabled" : "disabled" } : null,
+                    SecretScanning = enable_secret_scanning is not null ? new SecurityFeature { Status = enable_secret_scanning == true ? "enabled" : "disabled" } : null,
+                    SecretScanningPushProtection = enable_secret_scanning_push_protection is not null ? new SecurityFeature { Status = enable_secret_scanning_push_protection == true ? "enabled" : "disabled" } : null,
+                };
+            }
             var jsonBody = JsonSerializer.Serialize(new RepoEditRequest {
                 Description = description,
                 Homepage = homepage,
@@ -317,11 +342,43 @@ public partial class GitHubToolHandlers {
                 HasIssues = has_issues,
                 HasWiki = has_wiki,
                 HasProjects = has_projects,
-                DeleteBranchOnMerge = delete_branch_on_merge
+                DeleteBranchOnMerge = delete_branch_on_merge,
+                HasDiscussions = enable_discussions,
+                AllowSquashMerge = enable_squash_merge,
+                AllowMergeCommit = enable_merge_commit,
+                AllowRebaseMerge = enable_rebase_merge,
+                AllowAutoMerge = enable_auto_merge,
+                AllowUpdateBranch = allow_update_branch,
+                AllowForking = allow_forking,
+                IsTemplate = template,
+                SquashPrCommitMessage = squash_merge_commit_message,
+                SecurityAndAnalysis = security,
             }, GitHubApiJsonContext.Safe.RepoEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已编辑仓库 {owner}/{repoName}") : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            var topicMsg = await TryUpdateTopicsAsync(client, owner, repoName, add_topic, remove_topic, cancellationToken).ConfigureAwait(false);
+            return OkBrief(result.Body, $"已编辑仓库 {owner}/{repoName}{topicMsg}");
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 添加/移除仓库 topic — GET 当前 topics → 增删 → PUT 更新
+    /// </summary>
+    private async Task<string> TryUpdateTopicsAsync(IGitHubApiClient client, string owner, string repo, string? addTopic, string? removeTopic, CancellationToken ct) {
+        if (string.IsNullOrWhiteSpace(addTopic) && string.IsNullOrWhiteSpace(removeTopic)) return "";
+        var getResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/topics", ct: ct).ConfigureAwait(false);
+        if (!getResult.Success) return "(topic 更新失败: 无法获取当前 topics)";
+        List<string> currentTopics;
+        try {
+            using var doc = JsonDocument.Parse(getResult.Body);
+            currentTopics = doc.RootElement.TryGetProperty("names", out var names) ? names.EnumerateArray().Select(n => n.GetString() ?? "").ToList() : new List<string>();
+        } catch (Exception ex) { _logger?.LogDebug(ex, "解析 topics 失败"); return "(topic 更新失败: 解析错误)"; }
+        var toAdd = ParseCsvToList(addTopic);
+        var toRemove = ParseCsvToList(removeTopic);
+        var updatedTopics = currentTopics.Except(toRemove, StringComparer.OrdinalIgnoreCase).Union(toAdd, StringComparer.OrdinalIgnoreCase).ToList();
+        var topicsBody = JsonSerializer.Serialize(new TopicsRequest { Names = updatedTopics }, GitHubApiJsonContext.Safe.TopicsRequest);
+        var putResult = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repo}/topics", topicsBody, ct: ct).ConfigureAwait(false);
+        return putResult.Success ? $"\ntopics 已更新: {string.Join(", ", updatedTopics)}" : "(topic 更新失败)";
+    }
 
     /// <summary>
     /// 删除仓库 — 调 REST API DELETE，需 yes=true 确认

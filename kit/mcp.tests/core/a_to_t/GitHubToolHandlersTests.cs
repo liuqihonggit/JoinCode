@@ -660,6 +660,18 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task RunView_LogFailed_PullsFailedJobLogs() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[{"id":1,"conclusion":"failure","name":"test"},{"id":2,"conclusion":"success","name":"build"}]}""" });
+        _api.NextLogLines = "##[error]Test failed: assert\nnormal line\n##[error]Another error".Split('\n');
+
+        var result = await _handler.GhRunViewAsync("42", log_failed: true, max_lines: 10, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("失败步骤");
+    }
+
+    [Fact]
     public async Task RunView_ExpandSteps_ReturnsStepListFromCache() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "Job\tSet up job\t2026-01-01T00:00:00Z line1\nJob\tCheckout\t2026-01-01T00:00:01Z line2\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[error]failed".Split('\n');

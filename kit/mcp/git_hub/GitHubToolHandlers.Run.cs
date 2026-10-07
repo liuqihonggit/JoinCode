@@ -57,6 +57,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)", Required = false)] bool? refresh = null,
         [McpToolParameter("web=true 只返回 Run 浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("重试次数(可选,查看指定 attempt 的详情)", Required = false)] int? attempt = null,
+        [McpToolParameter("log_failed=true 只拉失败步骤日志(等价于 --expand failed --log,系统 gh CLI --log-failed 缩写)", Required = false)] bool? log_failed = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,status,conclusion)", Required = false)] string? json_fields = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
@@ -72,6 +73,10 @@ public partial class GitHubToolHandlers {
                 var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
                 if (!runResult.Success) return Fail(runResult.Error);
                 return Ok(FilterJsonFields(runResult.Body, json_fields));
+            }
+            if (log_failed == true) {
+                expand = "failed";
+                log = true;
             }
             return await GhRunViewCoreAsync(client, owner, repoName, run_id, job_id, log, max_lines, skip_lines, expand, filter, refresh, attempt, working_dir, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);

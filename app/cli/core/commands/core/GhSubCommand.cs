@@ -94,7 +94,7 @@ internal static class GhSubCommand {
                 TerminalHelper.WriteLine(GhCommandResolver.Usage);
                 return 0;
             }
-            GhToolHelpRenderer.Render(info, group, action);
+            GhToolHelpRenderer.WriteToTerminal(info, group, action);
             return 0;
         }, ct: ct).ConfigureAwait(false);
     }
@@ -106,18 +106,20 @@ internal static class GhSubCommand {
 /// </summary>
 internal static class GhToolHelpRenderer {
     /// <summary>
-    /// 渲染工具帮助到 stdout。
+    /// 生成工具帮助文本 — 纯函数，不直接写 stdout，便于单元测试。
     /// </summary>
     /// <param name="info">MCP 工具信息（含 Name/Description/InputSchema）。</param>
     /// <param name="group">gh 分组名（如 pr/issue/repo）。</param>
     /// <param name="action">gh 动作名（如 view/list）。</param>
-    internal static void Render(Abstractions.Tools.ToolInfo info, string group, string action) {
-        TerminalHelper.WriteLine($"工具: {info.Name}");
+    /// <returns>多行帮助文本</returns>
+    internal static string Render(Abstractions.Tools.ToolInfo info, string group, string action) {
+        var sb = new System.Text.StringBuilder(512);
+        sb.AppendLine($"工具: {info.Name}");
         if (!string.IsNullOrEmpty(info.Description))
-            TerminalHelper.WriteLine($"描述: {info.Description}");
+            sb.AppendLine($"描述: {info.Description}");
         if (!string.IsNullOrEmpty(info.Category))
-            TerminalHelper.WriteLine($"分类: {info.Category}");
-        TerminalHelper.NewLine();
+            sb.AppendLine($"分类: {info.Category}");
+        sb.AppendLine();
 
         var schema = info.InputSchema;
         var required = schema.Required;
@@ -131,28 +133,35 @@ internal static class GhToolHelpRenderer {
         foreach (var (name, _) in optionalProps)
             usageParts.Add($"[--{name}]");
         usageParts.Add("[--json]");
-        TerminalHelper.WriteLine($"用法: {string.Join(' ', usageParts)}");
+        sb.AppendLine($"用法: {string.Join(' ', usageParts)}");
 
         if (required.Count > 0) {
-            TerminalHelper.NewLine();
-            TerminalHelper.WriteLine("必填参数:");
+            sb.AppendLine();
+            sb.AppendLine("必填参数:");
             foreach (var r in required)
                 if (schema.Properties.TryGetValue(r, out var prop))
-                    TerminalHelper.WriteLine($"  <{r}>    {prop.Description ?? ""}");
+                    sb.AppendLine($"  <{r}>    {prop.Description ?? ""}");
         }
 
         if (optionalProps.Count > 0) {
-            TerminalHelper.NewLine();
-            TerminalHelper.WriteLine("可选参数:");
+            sb.AppendLine();
+            sb.AppendLine("可选参数:");
             foreach (var (name, prop) in optionalProps) {
                 var valueHint = string.Equals(prop.Type, "boolean", StringComparison.OrdinalIgnoreCase)
                     ? ""
                     : " <值>";
-                TerminalHelper.WriteLine($"  --{name}{valueHint}    {prop.Description ?? ""}");
+                sb.AppendLine($"  --{name}{valueHint}    {prop.Description ?? ""}");
             }
         }
 
-        TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"完整 schema: jcc mcp_schema {info.Name}");
+        sb.AppendLine();
+        sb.Append($"完整 schema: jcc mcp_schema {info.Name}");
+        return sb.ToString();
     }
+
+    /// <summary>
+    /// 渲染工具帮助到 stdout — 调用纯函数 Render 后逐行输出。
+    /// </summary>
+    internal static void WriteToTerminal(Abstractions.Tools.ToolInfo info, string group, string action)
+        => TerminalHelper.WriteLine(Render(info, group, action));
 }

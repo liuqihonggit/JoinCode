@@ -103,6 +103,53 @@ public sealed class GhCommandResolverTests {
         bound["log"].Should().Be("true");
     }
 
+    /// <summary>布尔参数宽容接受显式 true/false 值（--log true / --log false / --log=1 / --log=0）</summary>
+    /// <para>缺陷2: AI 习惯写 --log true，不应报"多余的位置参数: true"</para>
+    [Theory]
+    [InlineData("--log", "true", "true")]
+    [InlineData("--log", "false", "false")]
+    [InlineData("--log", "1", "true")]
+    [InlineData("--log", "0", "false")]
+    [InlineData("--log", "yes", "true")]
+    [InlineData("--log", "no", "false")]
+    [InlineData("--log=true", null, "true")]
+    [InlineData("--log=false", null, "false")]
+    [InlineData("--log=1", null, "true")]
+    [InlineData("--log=0", null, "false")]
+    public void Bind_BooleanFlag_WithExplicitValue_ShouldAcceptAndConsume(string first, string? second, string expected) {
+        var parameters = new List<GhParam>
+        {
+            new("run_id", IsRequired: true, IsBoolean: false),
+            new("log", IsRequired: false, IsBoolean: true),
+            new("max_lines", IsRequired: false, IsBoolean: false),
+        };
+
+        var tail = second is null ? new[] { "123", first } : new[] { "123", first, second };
+
+        var bound = GhArgsBinder.Bind(tail, parameters, "gh_run_view", out var error);
+
+        error.Should().BeNull();
+        bound!["run_id"].Should().Be("123");
+        bound["log"].Should().Be(expected);
+    }
+
+    /// <summary>布尔参数 --log true 后不应把 true 当位置参数，后续选项应正常绑定</summary>
+    [Fact]
+    public void Bind_BooleanFlag_WithTrueThenMoreOptions_ShouldNotBreakSubsequent() {
+        var parameters = new List<GhParam>
+        {
+            new("run_id", IsRequired: true, IsBoolean: false),
+            new("log", IsRequired: false, IsBoolean: true),
+            new("filter", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "123", "--log", "true", "--filter", "error" }, parameters, "gh_run_view", out var error);
+
+        error.Should().BeNull();
+        bound!["log"].Should().Be("true");
+        bound["filter"].Should().Be("error");
+    }
+
     /// <summary>--key value 与 --key=value 两种形式都应支持</summary>
     [Theory]
     [InlineData("--limit", "3")]

@@ -263,12 +263,18 @@ internal static class GhArgsBinder {
             key = param.Name;
 
             if (inlineValue is not null) {
-                result[key] = inlineValue;
+                result[key] = param.IsBoolean ? NormalizeBoolValue(inlineValue) : inlineValue;
                 continue;
             }
 
             if (param.IsBoolean) {
-                result[key] = "true";
+                // 宽容: --log true / --log false / --log 1 / --log 0 / --log yes / --log no
+                if (i + 1 < tail.Length && TryParseBoolValue(tail[i + 1], out var boolVal)) {
+                    result[key] = boolVal;
+                    i++;
+                } else {
+                    result[key] = "true";
+                }
                 continue;
             }
 
@@ -671,4 +677,26 @@ internal static class GhArgsBinder {
         var positionalHint = string.Join(' ', slots.Select(s => $"<{s.Name}>"));
         return $"{CliErrorCatalog.ArgMissingRequired(missingName).ToRustStyleString(toolName)}\n用法: {positionalHint}（示例见 jcc gh --help）";
     }
+
+    /// <summary>
+    /// 尝试解析布尔值 — 宽容接受 true/false/1/0/yes/no（不区分大小写）。
+    /// 返回 false 表示 token 不是布尔值，调用方应将其视为位置参数或选项值。
+    /// </summary>
+    private static bool TryParseBoolValue(string token, out string result) {
+        switch (token.ToLowerInvariant()) {
+            case "true" or "1" or "yes" or "on":
+                result = "true";
+                return true;
+            case "false" or "0" or "no" or "off":
+                result = "false";
+                return true;
+            default:
+                result = "true";
+                return false;
+        }
+    }
+
+    /// <summary>归一化布尔值 — 用于 --key=value 内联形式（--log=1 → true, --log=0 → false）。</summary>
+    private static string NormalizeBoolValue(string value)
+        => TryParseBoolValue(value, out var result) ? result : value;
 }

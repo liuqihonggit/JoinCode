@@ -564,6 +564,19 @@ public sealed partial class GitHubToolHandlersTests {
         _api.LastQuery.Should().ContainKey("created").WhoseValue.Should().Be(">2026-01-01");
     }
 
+    /// <summary>run number(小数字)在 detail 404 时自动按 run_number 查询转换为 run id(缺陷3: AI 常误用 run number)</summary>
+    [Fact]
+    public async Task RunView_RunNumber_AutoConvertsToRunId_On404() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = false, StatusCode = 404, Error = "Not Found" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[{"id":37663049294,"run_number":752}]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":37663049294,"run_number":752,"status":"completed","conclusion":"success","display_title":"CI"}""" });
+
+        var result = await _handler.GhRunViewAsync("752", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("37663049294");
+    }
+
     [Fact]
     public async Task RunView_WithWeb_ReturnsUrl() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });

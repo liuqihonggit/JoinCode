@@ -115,20 +115,19 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
         var nodes = new HashSet<string>(StringComparer.Ordinal);
         foreach (var e in edges) { nodes.Add(e.CallerSymbol); nodes.Add(e.CalleeSymbol); }
 
-        var sb = new System.Text.StringBuilder();
+        var data = new D3GraphDataDto(
+            [.. nodes.Select(n => new D3NodeDto(n, 1))],
+            [.. edges.Select(e => new D3LinkDto(e.CallerSymbol, e.CalleeSymbol))]
+        );
+        var json = JsonSerializer.Serialize(data, GraphVizJsonContext.Default.D3GraphDataDto);
+
+        var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html>");
         sb.AppendLine("<html><head><meta charset=\"utf-8\"><title>Call Graph</title>");
         sb.AppendLine("<style>body{margin:0;font-family:Consolas,monospace;} svg{width:100%;height:100vh;}</style>");
         sb.AppendLine("<script src=\"https://d3js.org/d3.v7.min.js\"></script>");
         sb.AppendLine("</head><body><script>");
-        sb.AppendLine("const data={nodes:[");
-        var nodeList = nodes.ToList();
-        for (var i = 0; i < nodeList.Count; i++)
-            sb.AppendLine($"{{id:\"{EscapeJs(nodeList[i])}\",group:1}},");
-        sb.AppendLine("],links:[");
-        foreach (var e in edges)
-            sb.AppendLine($"{{source:\"{EscapeJs(e.CallerSymbol)}\",target:\"{EscapeJs(e.CalleeSymbol)}\"}},");
-        sb.AppendLine("]};");
+        sb.AppendLine($"const data={json};");
         sb.AppendLine("const w=window.innerWidth,h=window.innerHeight;");
         sb.AppendLine("const svg=d3.select('body').append('svg').attr('width',w).attr('height',h);");
         sb.AppendLine("const sim=d3.forceSimulation(data.nodes).force('link',d3.forceLink(data.links).id(d=>d.id)).force('charge',d3.forceManyBody().strength(-200)).force('center',d3.forceCenter(w/2,h/2));");
@@ -139,8 +138,10 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 转义 DOT(Graphviz) 标签中的双引号 — 用于 BuildDot 的 label 属性（非 JSON，DOT 格式专用）。
+    /// </summary>
     private static string EscapeDot(string s) => s.Replace("\"", "\\\"");
-    private static string EscapeJs(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("'", "\\'");
 
     private static string BuildWiki(IndexSnapshot snap) {
         var sb = new System.Text.StringBuilder();
@@ -269,3 +270,25 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
         return deps;
     }
 }
+
+/// <summary>
+/// D3.js 力导向图节点 DTO — {id, group}。
+/// </summary>
+public sealed record D3NodeDto(string Id, int Group);
+
+/// <summary>
+/// D3.js 力导向图边 DTO — {source, target}。
+/// </summary>
+public sealed record D3LinkDto(string Source, string Target);
+
+/// <summary>
+/// D3.js 力导向图数据容器 DTO — {nodes, links}。
+/// </summary>
+public sealed record D3GraphDataDto(List<D3NodeDto> Nodes, List<D3LinkDto> Links);
+
+/// <summary>
+/// 图可视化 JSON 上下文 — AOT 源生成器（camelCase 命名，对齐 D3.js 字段 id/group/source/target/nodes/links）。
+/// </summary>
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(D3GraphDataDto))]
+internal sealed partial class GraphVizJsonContext : JsonSerializerContext;

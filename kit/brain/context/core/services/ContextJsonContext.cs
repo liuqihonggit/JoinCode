@@ -27,4 +27,6 @@ public partial class ContextDefaultJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(TokenUsage))]
 [JsonSerializable(typeof(List<Dictionary<string, JsonElement>>))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
+[JsonSerializable(typeof(DiagnosticLogEntryDto))]
+[JsonSerializable(typeof(KeywordMissLogDto))]
 public partial class ChatServiceJsonContext : JsonSerializerContext;

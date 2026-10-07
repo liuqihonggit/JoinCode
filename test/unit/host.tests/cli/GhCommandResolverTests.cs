@@ -653,34 +653,34 @@ public sealed class GhCommandResolverTests {
         bound!["notes_file"].Should().Be("notes.md");
     }
 
-    /// <summary>gh repo clone 的 target_dir 是可选位置参数, 应接受位置传递（gh repo clone owner/repo target-dir）</summary>
+    /// <summary>gh repo clone 的 dir 是可选位置参数, 应接受位置传递（gh repo clone owner/repo target-dir）</summary>
     [Fact]
     public void Bind_OptionalPositional_RepoClone_ShouldAcceptTargetDir() {
         var parameters = new List<GhParam> {
             new("repo", IsRequired: true, IsBoolean: false),
-            new("target_dir", IsRequired: false, IsBoolean: false),
+            new("dir", IsRequired: false, IsBoolean: false),
         };
 
         var bound = GhArgsBinder.Bind(new[] { "owner/repo", "target-dir" }, parameters, "gh_repo_clone", out var error);
 
         error.Should().BeNull();
         bound!["repo"].Should().Be("owner/repo");
-        bound!["target_dir"].Should().Be("target-dir");
+        bound!["dir"].Should().Be("target-dir");
     }
 
-    /// <summary>gh repo clone 不传 target_dir 时, 只传 required 位置参数应成功</summary>
+    /// <summary>gh repo clone 不传 dir 时, 只传 required 位置参数应成功</summary>
     [Fact]
     public void Bind_OptionalPositional_RepoClone_WithoutTargetDir_ShouldSucceed() {
         var parameters = new List<GhParam> {
             new("repo", IsRequired: true, IsBoolean: false),
-            new("target_dir", IsRequired: false, IsBoolean: false),
+            new("dir", IsRequired: false, IsBoolean: false),
         };
 
         var bound = GhArgsBinder.Bind(new[] { "owner/repo" }, parameters, "gh_repo_clone", out var error);
 
         error.Should().BeNull();
         bound!["repo"].Should().Be("owner/repo");
-        bound!.ContainsKey("target_dir").Should().BeFalse();
+        bound!.ContainsKey("dir").Should().BeFalse();
     }
 
     /// <summary>gh pr checkout 的 branch 是可选位置参数, 应接受位置传递</summary>

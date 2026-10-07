@@ -339,6 +339,14 @@ gist / org / project / codespace / discussion / attestation / ruleset / extensio
 <!--   - 推送 w1 分支 + 创建 PR(用户指示不要 push) -->
 
 <!-- 🤖 Auto Decision: 2026-10-07 -->
+<!-- 决策: --json 精确字段选择用 FilterJsonFields 通用辅助方法实现 -->
+<!-- 原因: gh CLI 的 --json field1,field2 从 API JSON 中只提取指定字段,需统一处理数组和包装格式 -->
+<!-- 实现: FilterJsonFields + WriteFilteredElement + FindArrayProperty(自动检测 items/workflows/workflow_runs 等包装属性) -->
+<!-- 覆盖: 10 个命令(pr/issue/repo/run/release/label/workflow 的 list + view) -->
+<!-- 替代方案: 每个命令单独实现字段过滤(重复代码多,维护成本高) -->
+<!-- 验证: 编译通过, 11 个新测试 + 50 个现有测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-07 -->
 <!-- 决策: secret set 用 libsodium crypto_box_seal 真实加密(X25519 + blake2b + XSalsa20-Poly1305) -->
 <!-- 原因: GitHub secret API 要求客户端加密,需获取仓库公钥后用 sealed box 加密再 PUT -->
 <!-- 实现: .NET ECDiffieHellman(Curve25519) + 自实现 blake2b(RFC 7693) + NaCl.Core XSalsa20/Poly1305 -->

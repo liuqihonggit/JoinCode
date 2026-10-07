@@ -368,7 +368,11 @@ public partial class GitHubToolHandlers {
         List<string> currentTopics;
         try {
             using var doc = JsonDocument.Parse(getResult.Body);
-            currentTopics = doc.RootElement.TryGetProperty("names", out var names) ? names.EnumerateArray().Select(n => n.GetString() ?? "").ToList() : new List<string>();
+            currentTopics = [];
+            if (doc.RootElement.TryGetProperty("names", out var names)) {
+                foreach (var n in names.EnumerateArray())
+                    currentTopics.Add(n.GetString() ?? "");
+            }
         } catch (Exception ex) { _logger?.LogDebug(ex, "解析 topics 失败"); return "(topic 更新失败: 解析错误)"; }
         var toAdd = ParseCsvToList(addTopic);
         var toRemove = ParseCsvToList(removeTopic);

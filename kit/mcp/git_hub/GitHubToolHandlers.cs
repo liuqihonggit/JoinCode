@@ -369,9 +369,16 @@ public partial class GitHubToolHandlers {
             var author = root.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
             var url = root.TryGetProperty("html_url", out var hu) ? hu.GetString() ?? "" : "";
             var createdAt = root.TryGetProperty("created_at", out var ca) ? ca.GetString() ?? "" : "";
-            var labels = root.TryGetProperty("labels", out var labelsEl) && labelsEl.ValueKind == JsonValueKind.Array
-                ? string.Join(", ", labelsEl.EnumerateArray().Select(l => l.TryGetProperty("name", out var ln) ? ln.GetString() ?? "" : ""))
-                : "";
+            var labels = "";
+            if (root.TryGetProperty("labels", out var labelsEl) && labelsEl.ValueKind == JsonValueKind.Array) {
+                var labelSb = new StringBuilder();
+                foreach (var l in labelsEl.EnumerateArray()) {
+                    if (!l.TryGetProperty("name", out var ln)) continue;
+                    if (labelSb.Length > 0) labelSb.Append(", ");
+                    labelSb.Append(ln.GetString() ?? "");
+                }
+                labels = labelSb.ToString();
+            }
 
             sb.AppendLine($"Issue #{number}: {title}");
             sb.AppendLine($"状态: {state}");

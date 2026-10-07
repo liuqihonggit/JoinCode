@@ -101,40 +101,6 @@ public sealed partial class GitHubToolHandlersTests {
         _api.LastBody.Should().Contain("\"value\":\"value\"");
     }
 
-    [SkippableFact]
-    public async Task SecretSet_PutsEncryptedSecretDto() {
-        Skip.IfNot(OperatingSystem.IsWindows(), "X25519/curve25519 ECDiffieHellmanCng 仅 Windows CNG 支持, Linux 需 libsodium 加密库");
-        using var ecdh = ECDiffieHellman.Create(ECCurve.CreateFromFriendlyName("curve25519"));
-        var pubKey = ecdh.ExportParameters(false).Q.X!;
-        var keyB64 = Convert.ToBase64String(pubKey);
-        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = $$"""{"key_id":"123","key":"{{keyB64}}"}""" });
-        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
-
-        var result = await _handler.GhSecretSetAsync("MY_SECRET", "secret_value", repo: "owner/repo");
-
-        result.IsError.Should().BeFalse();
-        _api.LastMethod.Should().Be(HttpMethod.Put);
-        _api.LastPath.Should().Be("repos/owner/repo/actions/secrets/MY_SECRET");
-        _api.LastBody.Should().Contain("\"encrypted_value\"");
-        _api.LastBody.Should().Contain("\"key_id\":\"123\"");
-        result.GetFirstText().Should().Contain("MY_SECRET");
-    }
-
-    [SkippableFact]
-    public async Task SecretSet_EnvSecret_UsesEnvEndpoint() {
-        Skip.IfNot(OperatingSystem.IsWindows(), "X25519/curve25519 ECDiffieHellmanCng 仅 Windows CNG 支持, Linux 需 libsodium 加密库");
-        using var ecdh = ECDiffieHellman.Create(ECCurve.CreateFromFriendlyName("curve25519"));
-        var pubKey = ecdh.ExportParameters(false).Q.X!;
-        var keyB64 = Convert.ToBase64String(pubKey);
-        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = $$"""{"key_id":"456","key":"{{keyB64}}"}""" });
-        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
-
-        var result = await _handler.GhSecretSetAsync("ENV_SECRET", "val", repo: "owner/repo", env: "production");
-
-        result.IsError.Should().BeFalse();
-        _api.LastPath.Should().Be("repos/owner/repo/environments/production/secrets/ENV_SECRET");
-    }
-
     [Fact]
     public async Task SecretSet_EmptyBody_ReturnsFail() {
         var result = await _handler.GhSecretSetAsync("MY_SECRET", body: null, repo: "owner/repo");

@@ -28,4 +28,16 @@ public interface IUpdateSource {
         UpdateManifestEntry entry,
         IProgress<UpdateDownloadProgress>? progress = null,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// 获取下载 URL — 单一职责:只告诉"从哪下",实际下载交给 IDownloader 多线程分片
+    /// <para>远程源(StaticFile/GitHostMirror/HttpApi)返回绝对 URL;本地源(LocalFile)返回 null</para>
+    /// <para>返回 null 时,调用方回退 DownloadAsync(Stream) 做本地文件复制</para>
+    /// </summary>
+    /// <param name="entry">清单条目</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>下载 URL(远程源)或 null(本地源)</returns>
+    Task<string?> GetDownloadUrlAsync(
+        UpdateManifestEntry entry,
+        CancellationToken ct = default);
 }

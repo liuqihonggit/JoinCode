@@ -75,4 +75,10 @@ public sealed class HttpApiUpdateSource : IUpdateSource {
 
         return await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
     }
+
+    /// <inheritdoc/>
+    public Task<string?> GetDownloadUrlAsync(UpdateManifestEntry entry, CancellationToken ct = default) {
+        ArgumentNullException.ThrowIfNull(entry);
+        return Task.FromResult<string?>($"{_apiBaseUrl}/api/download/{Uri.EscapeDataString(entry.Version)}");
+    }
 }

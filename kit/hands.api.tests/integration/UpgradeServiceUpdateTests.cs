@@ -237,5 +237,8 @@ public sealed class UpgradeServiceUpdateTests {
                 throw new InvalidOperationException("MockUpdateSource: 未设置下载内容");
             return Task.FromResult<Stream>(new MemoryStream(_downloadContent));
         }
+
+        public Task<string?> GetDownloadUrlAsync(UpdateManifestEntry entry, CancellationToken ct = default)
+            => Task.FromResult<string?>(null);
     }
 }

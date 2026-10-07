@@ -16,17 +16,30 @@ internal sealed class RangeSupportProbe {
     /// <summary>
     /// 探测 URL 是否支持 Range 请求
     /// </summary>
-    internal async Task<RangeSupportResult> ProbeAsync(string url, CancellationToken ct = default) {
+    /// <param name="url">探测 URL</param>
+    /// <param name="headers">自定义请求头(可选,注入到 HEAD/GET 请求)</param>
+    /// <param name="ct">取消令牌</param>
+    internal async Task<RangeSupportResult> ProbeAsync(
+        string url,
+        IReadOnlyDictionary<string, string>? headers = null,
+        CancellationToken ct = default) {
         using var headReq = new HttpRequestMessage(HttpMethod.Head, url);
+        ApplyHeaders(headReq, headers);
         using var headResp = await _httpClient.SendAsync(headReq, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
 
         if (headResp.IsSuccessStatusCode)
             return ParseFromHeaders(headResp);
 
         if (headResp.StatusCode is HttpStatusCode.MethodNotAllowed or HttpStatusCode.Forbidden)
-            return await ProbeWithGetRangeAsync(url, ct).ConfigureAwait(false);
+            return await ProbeWithGetRangeAsync(url, headers, ct).ConfigureAwait(false);
 
         return new RangeSupportResult(false, null, null, null);
+    }
+
+    private static void ApplyHeaders(HttpRequestMessage req, IReadOnlyDictionary<string, string>? headers) {
+        if (headers is null) return;
+        foreach (var (key, value) in headers)
+            req.Headers.TryAddWithoutValidation(key, value);
     }
 
     private static RangeSupportResult ParseFromHeaders(HttpResponseMessage resp) {
@@ -37,9 +50,11 @@ internal sealed class RangeSupportProbe {
         return new RangeSupportResult(supportsRange, contentLength, etag, lastModified);
     }
 
-    private async Task<RangeSupportResult> ProbeWithGetRangeAsync(string url, CancellationToken ct) {
+    private async Task<RangeSupportResult> ProbeWithGetRangeAsync(
+        string url, IReadOnlyDictionary<string, string>? headers, CancellationToken ct) {
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.Range = new RangeHeaderValue(0, 0);
+        ApplyHeaders(req, headers);
         using var resp = await _httpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
 
         if (resp.StatusCode == HttpStatusCode.PartialContent) {

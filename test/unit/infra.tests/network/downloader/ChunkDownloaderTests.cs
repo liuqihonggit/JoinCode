@@ -112,7 +112,7 @@ public sealed class ChunkDownloaderTests {
         cts.Cancel();
 
         var chunk = new DownloadChunk { Index = 0, Start = 0, End = 1023 };
-        var act = () => downloader.DownloadAsync(Url, chunk, PartPath, cts.Token);
+        var act = () => downloader.DownloadAsync(Url, chunk, PartPath, null, cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
     }

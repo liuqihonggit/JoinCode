@@ -10,12 +10,15 @@ public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddl
     /// 初始化 MCPB 参数验证中间件
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
+    /// <param name="downloader">多线程分片下载器(URL 源下载用)</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public McpbValidationMiddleware(IFileSystem fs, ILogger<McpbValidationMiddleware>? logger = null) {
+    public McpbValidationMiddleware(IFileSystem fs, IDownloader downloader, ILogger<McpbValidationMiddleware>? logger = null) {
         _fs = fs;
+        _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _logger = logger;
     }
     private readonly IFileSystem _fs;
+    private readonly IDownloader _downloader;
     private readonly ILogger<McpbValidationMiddleware>? _logger;
 
 
@@ -38,22 +41,17 @@ public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddl
         }
 
         if (context.IsUrlSource) {
-            if (context.HttpClient == null) {
-                context.Fail("URL 源需要 HttpClient");
-                return;
-            }
-
             _logger?.LogInformation("下载 MCPB: {Url}", context.Source);
 
             var tempPath = Path.Combine(Path.GetTempPath(), $"mcpb-{Guid.NewGuid():N}.mcpb");
             context.TempFilePath = tempPath;
 
             try {
-                using var response = await context.HttpClient.GetAsync(context.Source, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-                await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                await using var fileStream = _fs.CreateStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                await stream.CopyToAsync(fileStream, ct).ConfigureAwait(false);
+                var options = new DownloadOptions { MaxThreads = 4, Resume = true };
+                await using var session = _downloader.StartDownload(context.Source, tempPath, options, null, ct);
+                var result = await session.WaitForCompletionAsync(ct).ConfigureAwait(false);
+                if (!result.Success)
+                    throw new InvalidOperationException($"MCPB 下载失败: {result.ErrorMessage}");
 
                 context.LocalFilePath = tempPath;
             } catch {

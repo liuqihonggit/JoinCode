@@ -12,6 +12,7 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
     private readonly string _repoName;
     private readonly IUpdateSource? _updateSource;
     private readonly IFileSystem _fs;
+    private readonly IDownloader? _downloader;
     private readonly ILogger<UpgradeService>? _logger;
     private Version? _cachedLatest;
 
@@ -24,6 +25,7 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
     /// <param name="repoName">GitHub 仓库名称，缺省回退到默认仓库</param>
     /// <param name="updateSource">更新源，缺省时从配置或环境变量创建</param>
     /// <param name="updateSourceConfig">更新源配置，缺省时从环境变量读取</param>
+    /// <param name="downloader">多线程分片下载器(可选,DI 注入;未注入时回退单线程流式)</param>
     /// <param name="logger">日志记录器</param>
     public UpgradeService(
         HttpClient httpClient,
@@ -32,12 +34,14 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
         string? repoName = null,
         IUpdateSource? updateSource = null,
         UpdateSourceConfig? updateSourceConfig = null,
+        IDownloader? downloader = null,
         ILogger<UpgradeService>? logger = null) {
         _httpClient = httpClient;
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _repoOwner = repoOwner ?? JccEndpointsResolver.RepoOwner;
         _repoName = repoName ?? JccEndpointsResolver.RepoName;
         _updateSource = updateSource ?? CreateUpdateSourceFromConfig(updateSourceConfig, httpClient, fs, logger);
+        _downloader = downloader;
         _logger = logger;
     }
 
@@ -172,30 +176,15 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
         try {
             var tempDir = GetUpdateTempDirectory();
             _fs.CreateDirectory(tempDir);
-
             var downloadedPath = _fs.CombinePath(tempDir, $"{BrandConstants.CliCommandName}.exe.new");
 
-            long totalRead = 0;
-            {
-                await using var sourceStream = await _updateSource.DownloadAsync(entry, progress, ct).ConfigureAwait(false);
-                await using var fileStream = _fs.Open(downloadedPath, FileMode.Create);
+            var downloadUrl = await _updateSource.GetDownloadUrlAsync(entry, ct).ConfigureAwait(false);
+            long totalRead;
 
-                var buffer = new byte[81920];
-                int read;
-
-                while ((read = await sourceStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0) {
-                    await fileStream.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
-                    totalRead += read;
-
-                    if (progress is not null && entry.SizeBytes > 0) {
-                        progress.Report(new UpdateDownloadProgress {
-                            BytesDownloaded = totalRead,
-                            TotalBytes = entry.SizeBytes,
-                            BytesPerSecond = 0
-                        });
-                    }
-                }
-            }
+            if (_downloader is not null && !string.IsNullOrEmpty(downloadUrl))
+                totalRead = await DownloadWithDownloaderAsync(downloadUrl!, downloadedPath, entry, progress, ct).ConfigureAwait(false);
+            else
+                totalRead = await DownloadFromStreamAsync(entry, downloadedPath, progress, ct).ConfigureAwait(false);
 
             var actualHash = await ComputeSha256Async(downloadedPath, ct).ConfigureAwait(false);
             if (!string.Equals(actualHash, entry.Sha256, StringComparison.OrdinalIgnoreCase)) {
@@ -209,6 +198,56 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
             _logger?.LogError(ex, "UpgradeService: 下载更新失败");
             return UpdateResult.Failed(ex.Message);
         }
+    }
+
+    /// <summary>
+    /// 多线程分片下载(IDownloader) — 远程源走此路径,复用基建
+    /// </summary>
+    private async Task<long> DownloadWithDownloaderAsync(
+        string url, string downloadedPath, UpdateManifestEntry entry,
+        IProgress<UpdateDownloadProgress>? progress, CancellationToken ct) {
+        var dlProgress = AdaptProgress(progress, entry.SizeBytes);
+        var options = new DownloadOptions { MaxThreads = 4, Resume = true };
+        await using var session = _downloader!.StartDownload(url, downloadedPath, options, dlProgress, ct);
+        var result = await session.WaitForCompletionAsync(ct).ConfigureAwait(false);
+        if (!result.Success)
+            throw new InvalidOperationException($"下载失败: {result.ErrorMessage}");
+        return result.DownloadedBytes;
+    }
+
+    /// <summary>
+    /// 单线程流式回退 — 本地文件源(LocalFile)或未注入 IDownloader 时走此路径
+    /// </summary>
+    private async Task<long> DownloadFromStreamAsync(
+        UpdateManifestEntry entry, string downloadedPath,
+        IProgress<UpdateDownloadProgress>? progress, CancellationToken ct) {
+        long totalRead = 0;
+        await using var sourceStream = await _updateSource!.DownloadAsync(entry, progress, ct).ConfigureAwait(false);
+        await using var fileStream = _fs.Open(downloadedPath, FileMode.Create);
+
+        var buffer = new byte[81920];
+        int read;
+        while ((read = await sourceStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0) {
+            await fileStream.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+            totalRead += read;
+            if (progress is not null && entry.SizeBytes > 0) {
+                progress.Report(new UpdateDownloadProgress {
+                    BytesDownloaded = totalRead,
+                    TotalBytes = entry.SizeBytes,
+                    BytesPerSecond = 0
+                });
+            }
+        }
+        return totalRead;
+    }
+
+    private static IProgress<DownloadProgress>? AdaptProgress(IProgress<UpdateDownloadProgress>? progress, long totalBytes) {
+        if (progress is null) return null;
+        return new Progress<DownloadProgress>(p => progress.Report(new UpdateDownloadProgress {
+            BytesDownloaded = p.DownloadedBytes,
+            TotalBytes = p.TotalBytes > 0 ? p.TotalBytes : totalBytes,
+            BytesPerSecond = (long)p.SpeedBps,
+        }));
     }
 
     /// <inheritdoc/>

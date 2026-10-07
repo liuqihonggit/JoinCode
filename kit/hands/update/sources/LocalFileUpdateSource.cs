@@ -69,6 +69,10 @@ public sealed class LocalFileUpdateSource : IUpdateSource {
         return Task.FromResult(_fs.OpenRead(downloadPath));
     }
 
+    /// <inheritdoc/>
+    public Task<string?> GetDownloadUrlAsync(UpdateManifestEntry entry, CancellationToken ct = default)
+        => Task.FromResult<string?>(null);
+
     /// <summary>
     /// 解析下载路径 — 相对路径解析为相对于清单目录的绝对路径
     /// </summary>

@@ -443,23 +443,35 @@ public partial class GitHubToolHandlers {
             if (artifacts.Count == 0) return Fail($"Run {run_id} 没有匹配的 artifact{(string.IsNullOrWhiteSpace(name) ? "" : $" (name={name})")}");
 
             _fs.CreateDirectory(dir);
+
+            using var semaphore = new SemaphoreSlim(4, 4);
+            var downloadTasks = artifacts.Select(async art => {
+                await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try {
+                    var filePath = _fs.CombinePath(dir, $"{art.artifactName}.zip");
+                    try {
+                        var dlResult = await client.DownloadArtifactAsync(owner, repoName, art.artifactId, filePath, cancellationToken).ConfigureAwait(false);
+                        return (art.artifactName, Success: dlResult.Success, Error: dlResult.Error);
+                    } catch (Exception ex) {
+                        return (art.artifactName, Success: false, Error: ex.Message);
+                    }
+                } finally {
+                    semaphore.Release();
+                }
+            }).ToArray();
+
+            var dlResults = await Task.WhenAll(downloadTasks).ConfigureAwait(false);
+
             var sb = new StringBuilder();
             var successCount = 0;
             var failCount = 0;
-            foreach (var (artName, artId) in artifacts) {
-                var filePath = _fs.CombinePath(dir, $"{artName}.zip");
-                try {
-                    var dlResult = await client.DownloadArtifactAsync(owner, repoName, artId, filePath, cancellationToken).ConfigureAwait(false);
-                    if (dlResult.Success) {
-                        successCount++;
-                        sb.AppendLine($"[OK] {artName}.zip");
-                    } else {
-                        failCount++;
-                        sb.AppendLine($"[FAIL] {artName}: {dlResult.Error}");
-                    }
-                } catch (Exception ex) {
+            foreach (var (artName, success, error) in dlResults) {
+                if (success) {
+                    successCount++;
+                    sb.AppendLine($"[OK] {artName}.zip");
+                } else {
                     failCount++;
-                    sb.AppendLine($"[FAIL] {artName}: {ex.Message}");
+                    sb.AppendLine($"[FAIL] {artName}: {error}");
                 }
             }
             sb.AppendLine();

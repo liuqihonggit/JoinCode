@@ -52,16 +52,19 @@ public sealed class EmbeddingModelDownloader {
     /// </summary>
     /// <param name="targetDir">目标目录（如 %AppData%/jcc/embedding/）。</param>
     /// <param name="fs">文件系统抽象。</param>
-    /// <param name="http">HTTP 客户端提供者。</param>
+    /// <param name="http">HTTP 客户端提供者（双源 HEAD 探测用）。</param>
+    /// <param name="downloader">多线程分片下载器（模型文件下载用）。</param>
     /// <param name="ct">取消令牌。</param>
     public async Task EnsureAsync(
         string targetDir,
         IFileSystem fs,
         IHttpClientProvider http,
+        IDownloader downloader,
         CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(targetDir);
         ArgumentNullException.ThrowIfNull(fs);
         ArgumentNullException.ThrowIfNull(http);
+        ArgumentNullException.ThrowIfNull(downloader);
         ct.ThrowIfCancellationRequested();
 
         var modelPath = Path.Combine(targetDir, ModelFileName);
@@ -78,11 +81,11 @@ public sealed class EmbeddingModelDownloader {
 
         if (!await IsFileValidAsync(modelPath, _modelSha256, fs, ct).ConfigureAwait(false)) {
             Console.Error.WriteLine($"[code-index] 正在下载向量模型 {ModelFileName} ...");
-            await DownloadAndVerifyAsync(baseUrl + "onnx/" + ModelFileName, modelPath, _modelSha256, fs, http, ct).ConfigureAwait(false);
+            await DownloadAndVerifyAsync(baseUrl + "onnx/" + ModelFileName, modelPath, _modelSha256, fs, downloader, ct).ConfigureAwait(false);
         }
         if (!await IsFileValidAsync(vocabPath, _vocabSha256, fs, ct).ConfigureAwait(false)) {
             Console.Error.WriteLine($"[code-index] 正在下载词表 {VocabFileName} ...");
-            await DownloadAndVerifyAsync(baseUrl + VocabFileName, vocabPath, _vocabSha256, fs, http, ct).ConfigureAwait(false);
+            await DownloadAndVerifyAsync(baseUrl + VocabFileName, vocabPath, _vocabSha256, fs, downloader, ct).ConfigureAwait(false);
         }
     }
 
@@ -118,15 +121,21 @@ public sealed class EmbeddingModelDownloader {
 
     private static async Task DownloadAndVerifyAsync(
         string url, string targetPath, string expectedSha,
-        IFileSystem fs, IHttpClientProvider http, CancellationToken ct) {
-        var bytes = await http.GetClient().GetByteArrayAsync(url, ct).ConfigureAwait(false);
-        using var sha = SHA256.Create();
-        var actualHash = sha.ComputeHash(bytes);
-        var actualSha = Convert.ToHexString(actualHash);
-        if (!string.Equals(actualSha, expectedSha, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"下载文件 SHA256 校验失败: {url} 期望 {expectedSha} 实际 {actualSha}");
+        IFileSystem fs, IDownloader downloader, CancellationToken ct) {
         var dir = Path.GetDirectoryName(targetPath);
         if (!string.IsNullOrEmpty(dir)) fs.CreateDirectory(dir);
-        await fs.WriteAllBytesAsync(targetPath, bytes, ct).ConfigureAwait(false);
+
+        var options = new DownloadOptions { MaxThreads = 4, Resume = true };
+        await using var session = downloader.StartDownload(url, targetPath, options, null, ct);
+        var result = await session.WaitForCompletionAsync(ct).ConfigureAwait(false);
+        if (!result.Success)
+            throw new InvalidOperationException($"下载失败: {url} {result.ErrorMessage}");
+
+        await using var verifyStream = fs.OpenRead(targetPath);
+        using var sha = SHA256.Create();
+        var hash = await sha.ComputeHashAsync(verifyStream, ct).ConfigureAwait(false);
+        var actualSha = Convert.ToHexString(hash);
+        if (!string.Equals(actualSha, expectedSha, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"下载文件 SHA256 校验失败: {url} 期望 {expectedSha} 实际 {actualSha}");
     }
 }

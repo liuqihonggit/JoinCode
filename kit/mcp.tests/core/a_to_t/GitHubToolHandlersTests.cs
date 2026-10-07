@@ -1118,116 +1118,47 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
-    public async Task BranchSyncProtection_Success_UpdatesRequiredStatusChecks() {
+    public async Task BranchSyncProtection_YmlNotFound_ReturnsError() {
+        var fs = new InMemoryFileSystem();
+        var handler = new GitHubToolHandlers(
+            new FakeDownloader(), fs, new PersistencePipeline(fs),
+            _api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhBranchSyncProtectionAsync(
+            branch: "main", yml_path: "nonexistent.yml", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("不存在");
+    }
+
+    [Fact]
+    public async Task BranchSyncProtection_Consistent_ReturnsNoSyncNeeded() {
+        var fs = new InMemoryFileSystem();
+        var ymlPath = Path.Combine(Environment.CurrentDirectory, ".github/workflows/ci-unit-tests.yml");
+        await fs.WriteAllTextAsync(ymlPath, """
+            jobs:
+              unit-tests:
+                name: Unit - ${{ matrix.name }}
+                strategy:
+                  matrix:
+                    include:
+                      - name: Abs
+                        csproj: lib/abs.tests/Abs.Tests.csproj
+            """);
+        var handler = new GitHubToolHandlers(
+            new FakeDownloader(), fs, new PersistencePipeline(fs),
+            _api, null, NullLogger<GitHubToolHandlers>.Instance);
+
         _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"head":{"sha":"abc123"}}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"check_runs":[{"name":"build / Build"},{"name":"unit-tests / test"},{"name":"e2e / smoke"}]}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"strict":true,"contexts":["Build","unit-tests"]}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"strict":true,"contexts":["build / Build","unit-tests / test","e2e / smoke"]}""",
+            Success = true, StatusCode = 200,
+            Body = """{"strict":false,"contexts":["unit-tests / Unit - Abs"]}""",
         });
 
-        var result = await _handler.GhBranchSyncProtectionAsync("42", repo: "owner/repo");
+        var result = await handler.GhBranchSyncProtectionAsync(
+            branch: "main", yml_path: ".github/workflows/ci-unit-tests.yml", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
-        var text = result.GetFirstText();
-        text.Should().Contain("分支保护规则已同步");
-        text.Should().Contain("build / Build");
-        text.Should().Contain("e2e / smoke");
-        text.Should().Contain("+3 新增");
-        text.Should().Contain("-2 移除");
-        _api.LastMethod.Should().Be(HttpMethod.Put);
-        _api.LastPath.Should().Be("repos/owner/repo/branches/main/protection/required_status_checks");
-    }
-
-    [Fact]
-    public async Task BranchSyncProtection_NoProtection_ReturnsError() {
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"head":{"sha":"abc123"}}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"check_runs":[{"name":"build"}]}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = false,
-            StatusCode = 404,
-            Error = "Branch not protected",
-        });
-
-        var result = await _handler.GhBranchSyncProtectionAsync("42", repo: "owner/repo");
-
-        result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("没有分支保护规则");
-    }
-
-    [Fact]
-    public async Task BranchSyncProtection_NoChecks_ReturnsError() {
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"head":{"sha":"abc123"}}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"check_runs":[]}""",
-        });
-
-        var result = await _handler.GhBranchSyncProtectionAsync("42", repo: "owner/repo");
-
-        result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("没有任何 check-runs");
-    }
-
-    [Fact]
-    public async Task BranchSyncProtection_PutBodyContainsAllCheckNames() {
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"head":{"sha":"abc123"}}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"check_runs":[{"name":"build"},{"name":"test"},{"name":"lint"}]}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"strict":false,"contexts":["old-check"]}""",
-        });
-        _api.EnqueueResponse(new GitHubApiResponse {
-            Success = true,
-            StatusCode = 200,
-            Body = """{"strict":false,"contexts":["build","test","lint"]}""",
-        });
-
-        await _handler.GhBranchSyncProtectionAsync("1", branch: "develop", repo: "owner/repo");
-
-        _api.LastMethod.Should().Be(HttpMethod.Put);
-        _api.LastPath.Should().Be("repos/owner/repo/branches/develop/protection/required_status_checks");
-        _api.LastBody.Should().NotBeNullOrEmpty();
-        using var doc = System.Text.Json.JsonDocument.Parse(_api.LastBody!);
-        doc.RootElement.GetProperty("strict").GetBoolean().Should().BeFalse();
-        var contexts = doc.RootElement.GetProperty("contexts").EnumerateArray().Select(c => c.GetString()).ToList();
-        contexts.Should().Contain(new[] { "build", "test", "lint" });
+        result.GetFirstText().Should().Contain("完全一致");
     }
 
     [Fact]

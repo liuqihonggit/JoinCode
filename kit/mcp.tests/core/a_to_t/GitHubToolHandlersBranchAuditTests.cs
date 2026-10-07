@@ -84,4 +84,52 @@ public sealed partial class GitHubToolHandlersTests {
         var report = result.BuildReport();
         report.Should().Contain("分支无保护规则");
     }
+
+    [Fact]
+    public void BuildSyncedContexts_PreservesOtherWorkflowChecks() {
+        var protectionJson = """
+            {"required_status_checks":{"contexts":["build / Build","e2e / E2E - Smoke","unit-tests / Unit - Abs","unit-tests / Unit - Old"]},"enforce_admins":{"enabled":true},"required_linear_history":{"enabled":false},"allow_force_pushes":{"enabled":false},"allow_deletions":{"enabled":false},"block_creations":{"enabled":false},"required_conversation_resolution":{"enabled":false},"lock_branch":{"enabled":false},"allow_fork_syncing":{"enabled":false}}
+            """;
+        var audit = new BranchProtectionAuditResult(
+            "main", ["Abs", "Downloader"], ["Abs", "Old"],
+            ["Abs"], ["Downloader"], ["Old"]);
+
+        var result = GitHubToolHandlers.BuildSyncedContexts(protectionJson, "unit-tests", audit);
+
+        result.Should().Contain("build / Build");
+        result.Should().Contain("e2e / E2E - Smoke");
+        result.Should().Contain("unit-tests / Unit - Abs");
+        result.Should().Contain("unit-tests / Unit - Downloader");
+        result.Should().NotContain("unit-tests / Unit - Old");
+    }
+
+    [Fact]
+    public void InferCheckPrefix_FromExistingCheck_ExtractsPrefix() {
+        var prefix = GitHubToolHandlers.InferCheckPrefix(
+            ["unit-tests / Unit - Abs"], "unit-tests / ", ["Abs", "Downloader"]);
+        prefix.Should().Be("unit-tests / Unit - ");
+    }
+
+    [Fact]
+    public void InferCheckPrefix_NoExistingCheck_UsesDefault() {
+        var prefix = GitHubToolHandlers.InferCheckPrefix(
+            [], "unit-tests / ", ["Downloader"]);
+        prefix.Should().Be("unit-tests / Unit - ");
+    }
+
+    [Fact]
+    public void BuildFullProtectionPutBody_PreservesEnforceAdmins() {
+        var protectionJson = """
+            {"required_status_checks":{"strict":false,"contexts":["build / Build","unit-tests / Unit - Abs"]},"enforce_admins":{"enabled":true},"required_linear_history":{"enabled":false},"allow_force_pushes":{"enabled":false},"allow_deletions":{"enabled":false},"block_creations":{"enabled":false},"required_conversation_resolution":{"enabled":false},"lock_branch":{"enabled":false},"allow_fork_syncing":{"enabled":false}}
+            """;
+        var newContexts = new List<string> { "build / Build", "unit-tests / Unit - Abs", "unit-tests / Unit - Downloader" };
+
+        var body = GitHubToolHandlers.BuildFullProtectionPutBody(protectionJson, newContexts);
+
+        body.Should().Contain("\"enforce_admins\":true");
+        body.Should().Contain("\"strict\":false");
+        body.Should().Contain("unit-tests / Unit - Downloader");
+        body.Should().Contain("\"required_pull_request_reviews\":null");
+        body.Should().Contain("\"restrictions\":null");
+    }
 }

@@ -72,8 +72,8 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string Quote(string value) {
         if (string.IsNullOrEmpty(value)) return "\"\"";
-        var escaped = value.Replace("\"", "\\\"");
-        return $"\"{escaped}\"";
+        if (!value.Contains('"')) return string.Concat("\"", value, "\"");
+        return string.Concat("\"", value.Replace("\"", "\\\""), "\"");
     }
 
     /// <summary>
@@ -135,12 +135,22 @@ public partial class GitHubToolHandlers {
     /// 从 JSON 字符串中提取指定字符串字段值（轻量 Span 解析，不构建 JsonDocument）
     /// </summary>
     private static string? TryExtractJsonField(string json, string fieldName) {
-        var pattern = $"\"{fieldName}\":\"";
-        var idx = json.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
+        var patternLen = fieldName.Length + 4;
+        var pattern = patternLen <= 128 ? stackalloc char[patternLen] : new char[patternLen].AsSpan();
+        pattern[0] = '"';
+        fieldName.AsSpan().CopyTo(pattern[1..]);
+        pattern[1 + fieldName.Length] = '"';
+        pattern[2 + fieldName.Length] = ':';
+        pattern[3 + fieldName.Length] = '"';
+        var span = json.AsSpan();
+        var idx = span.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
         if (idx < 0) return null;
-        idx += pattern.Length;
-        var end = json.IndexOf('"', idx);
-        return end > idx ? json[idx..end] : null;
+        idx += patternLen;
+        var end = span[idx..].IndexOf('"');
+        if (end < 0) return null;
+        var valueStart = idx;
+        var valueEnd = idx + end;
+        return valueEnd > valueStart ? json[valueStart..valueEnd] : null;
     }
 
     /// <summary>
@@ -172,7 +182,7 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static List<string> ParseCsvToList(string? csv) {
         if (string.IsNullOrWhiteSpace(csv)) return new();
-        return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        return new(csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
     }
 
     /// <summary>
@@ -248,12 +258,12 @@ public partial class GitHubToolHandlers {
         try {
             using var doc = JsonDocument.Parse(json);
             var fieldList = fields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            using var stream = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(stream)) {
+            var buffer = new ArrayBufferWriter<byte>();
+            using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })) {
                 WriteFilteredElement(writer, doc.RootElement, fieldList);
                 writer.Flush();
             }
-            return Encoding.UTF8.GetString(stream.ToArray());
+            return Encoding.UTF8.GetString(buffer.WrittenSpan);
         } catch {
             return json;
         }
@@ -288,9 +298,10 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 查找对象中的列表数组属性 — 优先 items,其次 workflows/workflow_runs/secrets/variables/releases/labels/runs 等已知包装属性
     /// </summary>
+    private static readonly string[] ArrayPropertyCandidates = ["items", "workflows", "workflow_runs", "secrets", "variables", "releases", "labels", "runs", "issues", "pulls"];
+
     private static string? FindArrayProperty(JsonElement element) {
-        var candidates = new[] { "items", "workflows", "workflow_runs", "secrets", "variables", "releases", "labels", "runs", "issues", "pulls" };
-        foreach (var name in candidates) {
+        foreach (var name in ArrayPropertyCandidates) {
             if (element.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Array) return name;
         }
         return null;

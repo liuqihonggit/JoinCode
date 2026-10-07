@@ -140,8 +140,8 @@ per-command 映射（按工具名 + 短字母）：
 | jcc 启动 ~6 秒 | ⚠️ 待优化 | `BuildHostAsync` 每次创建完整 DI 容器，需架构改动（Host 缓存或轻量级 Host） |
 | optional 参数不能用位置参数 | ⚠️ 设计限制 | `gh repo clone owner/repo target-dir` 报错，需用 `--dir target-dir` |
 | `gh api -f` POST 请求 | ⚠️ 设计差异 | `-f` 映射到查询参数 fields，POST 请求需用 `--body` 传请求体 |
-| `gh pr create --project` | ❌ 待实现 | 需要 GraphQL `addProjectV2ItemById` |
-| `gh pr edit --add-reviewer`/`--remove-reviewer` | ❌ 待实现 | 需要 POST/DELETE /pulls/{n}/requested_reviewers |
+| `gh pr edit` 全参数 | ✅ 已实现 | add_label/remove_label/milestone/remove_milestone/body_file/add_project/remove_project/attach 全部真正实现 |
+| `gh issue edit` 全参数 | ✅ 已实现 | 全 18 个 GraphQL 参数真正实现: addSubIssue/removeSubIssue/addBlockedBy/removeBlockedBy/updateIssueIssueType/deleteProjectV2Item + 附件上传 |
 
 ## 根因
 

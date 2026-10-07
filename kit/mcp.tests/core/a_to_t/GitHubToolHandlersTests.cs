@@ -736,6 +736,37 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task RunView_ExpandJobs_FailureJobsFirstAndTruncateSuccess() {
+        // 缺陷4: 35 个 job(5 failure + 30 success),失败必须置顶,success 截断
+        var jobs = new List<string>();
+        for (var i = 1; i <= 30; i++)
+            jobs.Add("{\"id\":" + i + ",\"name\":\"success-" + i + "\",\"status\":\"completed\",\"conclusion\":\"success\"}");
+        for (var i = 31; i <= 35; i++)
+            jobs.Add("{\"id\":" + i + ",\"name\":\"failure-" + i + "\",\"status\":\"completed\",\"conclusion\":\"failure\"}");
+        var jobsJson = "{\"jobs\":[" + string.Join(",", jobs) + "]}";
+
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = jobsJson });
+
+        var result = await _handler.GhRunViewAsync("42", expand: "jobs", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        // 失败 job 必须在成功 job 之前
+        var firstFailureIdx = text.IndexOf("failure-31");
+        var firstSuccessIdx = text.IndexOf("success-1");
+        firstFailureIdx.Should().BeGreaterThan(0, "failure job 应该出现");
+        firstSuccessIdx.Should().BeGreaterThan(0, "success job 应该出现");
+        firstFailureIdx.Should().BeLessThan(firstSuccessIdx, "failure job 必须置顶");
+        // 截断提示
+        text.Should().Contain("另有");
+        text.Should().Contain("未列出");
+        // 计数正确
+        text.Should().Contain("35 个");
+        text.Should().Contain("5 个失败");
+    }
+
+    [Fact]
     public async Task RunView_ExpandStepName_ReturnsSectionSummaryForThatStepOnly() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });

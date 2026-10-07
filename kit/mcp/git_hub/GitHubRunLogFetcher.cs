@@ -12,9 +12,7 @@ internal sealed class GitHubRunLogFetcher {
         var jobsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
         if (!jobsResult.Success) return GitHubToolHandlers.Fail(jobsResult.Error);
 
-        var sb = new StringBuilder();
-        var failedCount = 0;
-        var totalCount = 0;
+        var jobs = new List<(long id, string name, string status, string conclusion)>();
         try {
             using var doc = JsonDocument.Parse(jobsResult.Body);
             if (!doc.RootElement.TryGetProperty("jobs", out var jobsEl))
@@ -25,25 +23,39 @@ internal sealed class GitHubRunLogFetcher {
                 var name = job.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "unknown" : "unknown";
                 var status = job.TryGetProperty("status", out var statusEl) ? statusEl.GetString() ?? "?" : "?";
                 var conclusion = job.TryGetProperty("conclusion", out var conEl) ? conEl.GetString() ?? "" : "";
-                totalCount++;
-
-                var marker = conclusion switch {
-                    "failure" => "❌",
-                    "success" => "✅",
-                    "cancelled" => "⊘",
-                    _ when status == "in_progress" => "⏳",
-                    _ => "  "
-                };
-                if (conclusion == "failure") failedCount++;
-
-                sb.Append($"  {marker} {id,15}  {name}");
-                if (!string.IsNullOrEmpty(conclusion))
-                    sb.Append($"  [{conclusion}]");
-                sb.Append('\n');
+                jobs.Add((id, name, status, conclusion));
             }
         } catch (Exception ex) {
             return GitHubToolHandlers.Fail($"解析 job 列表失败: {ex.Message}");
         }
+
+        // 缺陷4: 失败/cancelled job 强制置顶,成功 job 截断,避免 AI 误判"0 个失败"
+        var ordered = jobs
+            .OrderBy(j => JobSortKey(j.conclusion, j.status))
+            .ThenBy(j => j.name)
+            .ToList();
+        var failedCount = jobs.Count(j => j.conclusion == "failure");
+        var totalCount = jobs.Count;
+        const int maxDisplay = 30;
+        var displayed = ordered.Take(maxDisplay).ToList();
+        var omitted = totalCount - displayed.Count;
+
+        var sb = new StringBuilder();
+        foreach (var (id, name, status, conclusion) in displayed) {
+            var marker = conclusion switch {
+                "failure" => "❌",
+                "success" => "✅",
+                "cancelled" => "⊘",
+                _ when status == "in_progress" => "⏳",
+                _ => "  "
+            };
+            sb.Append($"  {marker} {id,15}  {name}");
+            if (!string.IsNullOrEmpty(conclusion))
+                sb.Append($"  [{conclusion}]");
+            sb.Append('\n');
+        }
+        if (omitted > 0)
+            sb.AppendLine($"\n  … 另有 {omitted} 个 success job 未列出(共 {totalCount} 个)");
 
         var hint = failedCount > 0
             ? $"\n\n💡 下一步:\n- expand=failed → 直接拉失败步骤日志(量少)\n- expand=steps job_id=<失败job的ID> → 下载指定 job 日志并查看步骤列表\n- 支持逗号分隔多个 job_id 并行下载,如 job_id=123,456"
@@ -51,4 +63,14 @@ internal sealed class GitHubRunLogFetcher {
 
         return GitHubToolHandlers.Ok(sb.ToString() + hint, $"Run {runId} job 列表({totalCount} 个,{failedCount} 个失败):");
     }
+
+    /// <summary>job 排序键: failure=0, cancelled=1, in_progress=2, success=3, 其他=4</summary>
+    private static int JobSortKey(string conclusion, string status)
+        => (conclusion, status) switch {
+            ("failure", _) => 0,
+            ("cancelled", _) => 1,
+            (_, "in_progress") => 2,
+            ("success", _) => 3,
+            _ => 4,
+        };
 }

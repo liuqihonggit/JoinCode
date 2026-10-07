@@ -290,6 +290,24 @@ public sealed class GhCommandResolverTests {
         bound!["reason"].Should().Be(expected);
     }
 
+    /// <summary>系统 gh CLI 的 --approve/--request-changes/--comment 应映射到 action（gh pr review）</summary>
+    [Theory]
+    [InlineData("approve", "approve")]
+    [InlineData("request-changes", "request_changes")]
+    [InlineData("comment", "comment")]
+    public void Bind_GhCliAlias_ReviewFlags_ShouldMapToAction(string flag, string expected) {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("action", IsRequired: false, IsBoolean: false),
+            new("body", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "42", $"--{flag}" }, parameters, "gh_pr_review", out var error);
+
+        error.Should().BeNull();
+        bound!["action"].Should().Be(expected);
+    }
+
     /// <summary>系统 gh CLI 缩写 --merge/--rebase 也应映射到 merge_method</summary>
     [Theory]
     [InlineData("merge", "merge")]

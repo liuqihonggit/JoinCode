@@ -276,6 +276,9 @@ internal static class GhArgsBinder {
             ("gh_issue_close", "duplicate") => ("duplicate_of", null),
             ("gh_issue_close", "completed") => ("reason", "completed"),
             ("gh_issue_close", "not-planned") => ("reason", "not_planned"),
+            ("gh_pr_review", "approve")         => ("action", "approve"),
+            ("gh_pr_review", "request-changes") => ("action", "request_changes"),
+            ("gh_pr_review", "comment")         => ("action", "comment"),
             _                          => null
         };
 

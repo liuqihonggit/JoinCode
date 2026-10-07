@@ -69,7 +69,7 @@ internal static class GitHubRunLogFilter {
     public static string GetSectionPreview(List<string> lines) {
         if (lines.Count == 0) return string.Empty;
         var first = lines[0];
-        return first.Length <= 60 ? first : first[..60] + "...";
+        return first.Length <= 60 ? first : string.Concat(first.AsSpan(0, 60), "...");
     }
 
     /// <summary>
@@ -89,8 +89,8 @@ internal static class GitHubRunLogFilter {
         }
         var hasMore = skipLines + take < lines.Count;
         if (hasMore) {
-            sb.Append($"... [共 {lines.Count} 行，显示第 {skipLines + 1}-{skipLines + take} 行。");
-            sb.Append($"用 skip_lines={skipLines + take} 续读后续行]");
+            sb.Append("... [共 ").Append(lines.Count).Append(" 行，显示第 ").Append(skipLines + 1).Append('-').Append(skipLines + take).Append(" 行。");
+            sb.Append("用 skip_lines=").Append(skipLines + take).Append(" 续读后续行]");
         }
         return (sb.ToString(), hasMore);
     }
@@ -98,9 +98,19 @@ internal static class GitHubRunLogFilter {
     /// <summary>
     /// 对日志行列表应用标记过滤
     /// </summary>
-    public static IEnumerable<string> ApplyFilter(List<string> lines, FrozenSet<string>? markers) {
+    public static List<string> ApplyFilter(List<string> lines, FrozenSet<string>? markers) {
         if (markers is null) return lines;
-        return lines.Where(l => markers.Any(m => l.Contains(m, StringComparison.OrdinalIgnoreCase)));
+        var result = new List<string>(lines.Count);
+        foreach (var line in lines) {
+            var lineSpan = line.AsSpan();
+            foreach (var marker in markers) {
+                if (lineSpan.Contains(marker, StringComparison.OrdinalIgnoreCase)) {
+                    result.Add(line);
+                    break;
+                }
+            }
+        }
+        return result;
     }
 
     /// <summary>
@@ -118,7 +128,11 @@ internal static class GitHubRunLogFilter {
     public static List<long> ParseJobIds(string? jobId) {
         if (string.IsNullOrWhiteSpace(jobId)) return [];
         var result = new List<long>();
-        foreach (var part in jobId.Split(',')) {
+        var span = jobId.AsSpan();
+        while (!span.IsEmpty) {
+            var commaIdx = span.IndexOf(',');
+            var part = commaIdx < 0 ? span : span[..commaIdx];
+            span = commaIdx < 0 ? default : span[(commaIdx + 1)..];
             if (long.TryParse(part.Trim(), out var id))
                 result.Add(id);
         }

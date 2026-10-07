@@ -465,6 +465,10 @@ public enum GitHubToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhBranchSyncProtection,
 
+    [EnumValue("gh_branch_audit_protection")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhBranchAuditProtection,
+
     // === 通用 API 调用 ===
     [EnumValue("gh_api")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]

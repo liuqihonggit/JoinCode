@@ -571,7 +571,9 @@ jcc mcp_call gh_run_view  '{"run_id":"123"}'        # run_id 必填
 | `--enable-issues`/`--enable-wiki`/`--enable-projects` | `--has_issues`/`--has_wiki`/`--has_projects` | ✅ 已自动映射（gh repo edit，仅重命名+bool flag） |
 | `--latest` | `--make_latest` | ✅ 已自动映射（gh release create，仅重命名+bool flag） |
 | `--event` | `--event_type` | ✅ 已自动映射（gh run list，取下一 token） |
-| `--notes-file` | `--notes_file` | ✅ 连字符自动归一化（gh release create，handler 读文件内容作为 notes） |
+| `--notes-file` | `--notes_file` | ✅ 连字符自动归一化（gh release create/edit，handler 读文件内容作为 notes） |
+| `--body-file` | `--body_file` | ✅ 连字符自动归一化（gh issue create，handler 读文件内容作为 body） |
+| `--add-label`/`--remove-label` | `--label` | ⚠️ jcc 用 `--label` 替换全部标签（非追加/移除），错误提示会建议 `--label` |
 | `--delete-branch` | `--delete_branch` | ✅ 连字符自动归一化 |
 | `--json number,title,url` | 不需要（jcc 默认 JSON 输出） | ❌ `--json` 被剥离后字段列表变位置参数报错；如需 text 用 `--format text` |
 | `-f key=value` | `--fields key=value` | ❌ 需改写（gh_api 查询参数） |

@@ -99,6 +99,7 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhIssueCreateAsync(
         [McpToolParameter("Issue 标题", Required = true)] string title,
         [McpToolParameter("Issue 内容(body)", Required = false)] string? body = null,
+        [McpToolParameter("从文件读取 body(可选,覆盖 body 参数)", Required = false)] string? body_file = null,
         [McpToolParameter("标签(可选,多个用逗号)", Required = false)] string? label = null,
         [McpToolParameter("指派人(可选)", Required = false)] string? assignee = null,
         [McpToolParameter("里程碑 ID(可选)", Required = false)] int? milestone = null,
@@ -106,9 +107,14 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var effectiveBody = body;
+            if (body_file is not null) {
+                if (!_fs.FileExists(body_file)) return Fail($"body_file 不存在: {body_file}");
+                effectiveBody = await _fs.ReadAllTextAsync(body_file, cancellationToken).ConfigureAwait(false);
+            }
             var request = new IssueCreateRequest {
                 Title = title,
-                Body = body,
+                Body = effectiveBody,
                 Labels = ParseCsvToList(label),
                 Assignees = ParseCsvToList(assignee),
                 Milestone = milestone,

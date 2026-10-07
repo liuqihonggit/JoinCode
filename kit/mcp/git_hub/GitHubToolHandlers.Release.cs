@@ -128,6 +128,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("Release 标题", Required = false)] string? title = null,
         [McpToolParameter("Release 说明(notes)", Required = false)] string? notes = null,
+        [McpToolParameter("从文件读取 release notes(可选,覆盖 notes 参数)", Required = false)] string? notes_file = null,
         [McpToolParameter("是否草稿", Required = false)] bool? draft = null,
         [McpToolParameter("是否预发布", Required = false)] bool? prerelease = null,
         [McpToolParameter("目标 commit/branch(可选)", Required = false)] string? target = null,
@@ -137,10 +138,16 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var effectiveNotes = notes;
+            if (notes_file is not null) {
+                if (!_fs.FileExists(notes_file))
+                    return Fail($"notes_file 不存在: {notes_file}");
+                effectiveNotes = await _fs.ReadAllTextAsync(notes_file, cancellationToken).ConfigureAwait(false);
+            }
             var jsonBody = JsonSerializer.Serialize(new ReleaseCreateRequest {
                 TagName = tag,
                 Name = title,
-                Body = notes,
+                Body = effectiveNotes,
                 Draft = draft,
                 Prerelease = prerelease,
                 TargetCommitish = target,

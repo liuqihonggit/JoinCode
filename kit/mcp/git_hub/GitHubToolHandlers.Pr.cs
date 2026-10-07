@@ -290,6 +290,7 @@ public partial class GitHubToolHandlers {
             : null;
         var sb = new StringBuilder();
         var passCount = 0; var failCount = 0; var pendingCount = 0; var skipCount = 0;
+        var checks = new List<(string name, string displayStatus)>();
         try {
             using var doc = JsonDocument.Parse(checksResult.Body);
             foreach (var run in doc.RootElement.GetProperty("check_runs").EnumerateArray()) {
@@ -302,15 +303,35 @@ public partial class GitHubToolHandlers {
                     "skipped" or "neutral" => "skipping",
                     _ => "pending"
                 };
-                sb.AppendLine($"{name}\t{displayStatus}");
+                checks.Add((name, displayStatus));
                 switch (displayStatus) { case "pass": passCount++; break; case "fail": failCount++; break; case "pending": pendingCount++; break; case "skipping": skipCount++; break; }
             }
         } catch (Exception ex) { return Fail($"解析 check-runs 失败: {ex.Message}"); }
+
+        // 缺陷6: 失败项置顶,成功项截断,降低 AI token 消耗
+        const int maxPassDisplay = 5;
+        var ordered = checks
+            .OrderBy(c => CheckSortKey(c.displayStatus))
+            .ThenBy(c => c.name)
+            .ToList();
+        var displayedPass = 0;
+        foreach (var (name, displayStatus) in ordered) {
+            if (displayStatus == "pass" && displayedPass >= maxPassDisplay) continue;
+            sb.AppendLine($"{name}\t{displayStatus}");
+            if (displayStatus == "pass") displayedPass++;
+        }
+        var omittedPass = passCount - displayedPass;
+        if (omittedPass > 0)
+            sb.AppendLine($"… 另有 {omittedPass} 个 pass 未列出");
         sb.AppendLine();
         sb.Append($"汇总: {passCount} 通过, {failCount} 失败, {pendingCount} 进行中, {skipCount} 跳过(依赖链跳过,非失败)");
         if (failFast == true && failCount > 0) sb.Append("\n⚠ fail-fast: 检测到失败");
         return Ok(sb.ToString());
     }
+
+    /// <summary>check 排序键: fail=0, pending=1, skipping=2, pass=3</summary>
+    private static int CheckSortKey(string displayStatus)
+        => displayStatus switch { "fail" => 0, "pending" => 1, "skipping" => 2, "pass" => 3, _ => 4 };
 
     /// <summary>
     /// 获取分支保护规则的 required_status_checks — required 过滤用，保护规则不存在(404)时返回 null(降级显示全部)

@@ -598,18 +598,47 @@ public partial class GitHubToolHandlers {
                 if (string.IsNullOrWhiteSpace(actualBody)) actualBody = fillBody;
             }
             var jsonBody = BuildPrCreateJson(actualTitle ?? "", head, @base, actualBody, draft);
-            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            var baseBranch = string.IsNullOrWhiteSpace(@base) ? "main" : @base;
+            // 两条独立异步路线并行发起: PR 创建(POST /pulls) || 分支审计(GET /protection + 读 yml)
+            var prTask = client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken);
+            var auditTask = TryAuditBranchProtectionAsync(client, owner, repoName, baseBranch, working_dir, cancellationToken);
+            // 数组等待两条路线都完成
+            await Task.WhenAll(prTask, auditTask).ConfigureAwait(false);
+            var result = await prTask.ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
             var (prNumber, nodeId) = ExtractPrInfoFromResponse(result.Body);
             if (prNumber > 0) await AddPrPostCreateAttributesAsync(client, owner, repoName, prNumber, assignee, label, reviewer, milestone, cancellationToken).ConfigureAwait(false);
+            var auditWarning = await auditTask.ConfigureAwait(false);
             if (auto_merge == true && prNumber > 0 && !string.IsNullOrEmpty(nodeId)) {
                 var autoMergeResult = await EnableAutoMergeAsync(client, nodeId, merge_method, cancellationToken).ConfigureAwait(false);
-                return autoMergeResult.Success
-                    ? Ok($"PR {prNumber} 创建成功，已启用 auto-merge（{autoMergeResult.Method}）")
-                    : Ok($"PR {prNumber} 创建成功（auto-merge 启用失败: {autoMergeResult.Error}）");
+                var msg = autoMergeResult.Success
+                    ? $"PR {prNumber} 创建成功，已启用 auto-merge（{autoMergeResult.Method}）"
+                    : $"PR {prNumber} 创建成功（auto-merge 启用失败: {autoMergeResult.Error}）";
+                return Ok(msg + auditWarning);
             }
-            return OkBrief(result.Body, "PR 创建成功");
+            var prUrl = TryExtractJsonField(result.Body, "html_url") ?? TryExtractJsonField(result.Body, "url");
+            return Ok(prUrl is not null ? $"{prUrl}\nPR 创建成功{auditWarning}" : $"PR 创建成功{auditWarning}");
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 尝试审计分支保护一致性 — 非阻断, 失败时返回空字符串, 有差异时返回警告段落
+    /// <para>场景: gh pr create 后自动检查 CI matrix 与 required_status_checks 是否对齐, 提示 AI 同步</para>
+    /// </summary>
+    private async Task<string> TryAuditBranchProtectionAsync(
+        IGitHubApiClient client, string owner, string repo, string branch, string? workingDir, CancellationToken ct) {
+        try {
+            var dir = string.IsNullOrWhiteSpace(workingDir) ? Environment.CurrentDirectory : workingDir;
+            var ymlPath = Path.Combine(dir, ".github/workflows/ci-unit-tests.yml");
+            if (!_fs.FileExists(ymlPath)) return "";
+            var auditor = new BranchProtectionAuditor(client, _fs);
+            var auditResult = await auditor.AuditAsync(owner, repo, branch, ymlPath, ct).ConfigureAwait(false);
+            if (auditResult.IsConsistent) return "";
+            return "\n\n⚠️ 分支保护审计发现差异:\n" + auditResult.BuildReport();
+        } catch (Exception ex) {
+            _logger?.LogDebug(ex, "分支保护审计失败(非阻断)");
+            return "";
+        }
+    }
 
     /// <summary>
     /// 创建 PR 后添加 assignee/label/reviewer/milestone — 各属性独立调 API，失败不阻断 PR 创建

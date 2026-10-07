@@ -53,74 +53,10 @@ public partial class GitHubToolHandlers {
             var ymlPath = string.IsNullOrWhiteSpace(yml_path) ? ".github/workflows/ci-unit-tests.yml" : yml_path;
             var workingDir = string.IsNullOrWhiteSpace(working_dir) ? Environment.CurrentDirectory : working_dir;
             var fullPath = Path.Combine(workingDir, ymlPath);
-            if (!_fs.FileExists(fullPath)) return Fail($"CI yml 文件不存在: {fullPath}");
-            var ymlContent = await _fs.ReadAllTextAsync(fullPath, cancellationToken).ConfigureAwait(false);
-            var ciJobNames = ExtractMatrixJobNames(ymlContent);
-            if (ciJobNames.Count == 0) return Fail($"未能从 {ymlPath} 中解析出 matrix job 名, 请检查 yml 格式");
-            var (_, requiredChecks) = await GetCurrentRequiredStatusChecksAsync(owner, repoName, branchName, cancellationToken).ConfigureAwait(false);
-            if (requiredChecks is null) return Ok(BuildAuditSummary(branchName, ciJobNames, [], "分支无保护规则或 required_status_checks 未配置, 建议先创建分支保护规则"));
-            return Ok(BuildAuditSummary(branchName, ciJobNames, requiredChecks));
+            var auditor = new BranchProtectionAuditor(client, _fs);
+            var result = await auditor.AuditAsync(owner, repoName, branchName, fullPath, cancellationToken).ConfigureAwait(false);
+            return Ok(result.BuildReport());
         }).ConfigureAwait(false);
-
-    /// <summary>
-    /// 从 CI yml matrix.include 列表提取 name 字段值 — 简单行扫描, 不依赖 YamlDotNet
-    /// </summary>
-    internal static List<string> ExtractMatrixJobNames(string ymlContent) {
-        var names = new List<string>();
-        var inMatrix = false;
-        foreach (var line in ymlContent.Split('\n')) {
-            var trimmed = line.AsSpan().Trim();
-            if (trimmed.StartsWith("matrix:")) { inMatrix = true; continue; }
-            if (inMatrix && trimmed.StartsWith("- name:")) {
-                var value = trimmed[7..].Trim().ToString();
-                if (!string.IsNullOrEmpty(value)) names.Add(value);
-            }
-            if (inMatrix && trimmed.Length > 0 && !trimmed.StartsWith("-") && !trimmed.StartsWith("name:") && !trimmed.StartsWith("#") && !char.IsWhiteSpace(line[0]))
-                inMatrix = false;
-        }
-        return names;
-    }
-
-    /// <summary>
-    /// 构建审计结果摘要 — map 对比三类: ✅匹配 / ⚠️CI有但保护缺 / ❌保护有但CI无
-    /// </summary>
-    internal static string BuildAuditSummary(
-        string branch,
-        IReadOnlyList<string> ciJobNames,
-        IReadOnlyList<string> requiredChecks,
-        string? note = null) {
-        var ciSet = new HashSet<string>(ciJobNames, StringComparer.Ordinal);
-        var reqSet = new HashSet<string>(requiredChecks, StringComparer.Ordinal);
-        var matched = ciSet.Intersect(reqSet).OrderBy(x => x, StringComparer.Ordinal).ToList();
-        var missingFromProtection = ciSet.Except(reqSet).OrderBy(x => x, StringComparer.Ordinal).ToList();
-        var staleInProtection = reqSet.Except(ciSet).OrderBy(x => x, StringComparer.Ordinal).ToList();
-
-        var sb = new StringBuilder(512);
-        sb.AppendLine($"分支保护审计: 分支 '{branch}'");
-        sb.AppendLine();
-        if (note is not null) { sb.AppendLine(note); sb.AppendLine(); }
-        sb.AppendLine($"CI matrix 测试 job ({ciJobNames.Count} 个):");
-        foreach (var name in ciJobNames) sb.AppendLine($"  - {name}");
-        sb.AppendLine();
-        sb.AppendLine($"required_status_checks ({requiredChecks.Count} 个):");
-        foreach (var ctx in requiredChecks) sb.AppendLine($"  - {ctx}");
-        sb.AppendLine();
-        sb.AppendLine($"✅ 匹配 ({matched.Count} 个): {string.Join(", ", matched)}");
-        sb.AppendLine($"⚠️ CI 有但保护缺 ({missingFromProtection.Count} 个): {string.Join(", ", missingFromProtection)}");
-        sb.AppendLine($"❌ 保护有但 CI 无 ({staleInProtection.Count} 个): {string.Join(", ", staleInProtection)}");
-        sb.AppendLine();
-        if (missingFromProtection.Count > 0) {
-            sb.AppendLine("建议: 以下测试项目已加入 CI 但未锁定到分支保护, 运行 gh branch sync-protection 添加:");
-            foreach (var name in missingFromProtection) sb.AppendLine($"  + {name}");
-        }
-        if (staleInProtection.Count > 0) {
-            sb.AppendLine("警告: 以下 required_status_checks 在 CI 中已不存在, 可能测试项目已删除, 运行 gh branch sync-protection 清理:");
-            foreach (var name in staleInProtection) sb.AppendLine($"  - {name}");
-        }
-        if (missingFromProtection.Count == 0 && staleInProtection.Count == 0)
-            sb.AppendLine("✅ CI matrix 与分支保护完全一致, 无需操作");
-        return sb.ToString();
-    }
 
     /// <summary>
     /// 获取 PR 的 head SHA

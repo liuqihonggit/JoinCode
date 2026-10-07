@@ -41,6 +41,52 @@ internal static class GitHubRunListSummarizer {
         }
     }
 
+    /// <summary>
+    /// 把 run 列表 JSON 转人类可读表格 — gh 风格简洁输出(默认)
+    /// </summary>
+    public static string SummarizeRunListBrief(string json) {
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return json;
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("workflow_runs", out var runs) || runs.ValueKind != JsonValueKind.Array) return json;
+
+            var totalCount = root.TryGetProperty("total_count", out var tc) && tc.TryGetInt32(out var t) ? t : runs.GetArrayLength();
+            var sb = new StringBuilder(512);
+            sb.AppendLine($"共 {totalCount} 个 run");
+            sb.AppendLine();
+            sb.AppendLine("S  ID           NUM   NAME                    BRANCH     EVENT       ELAPSED");
+            sb.AppendLine("-  -----------  ----  ----------------------  --------   ---------   -------");
+
+            foreach (var run in runs.EnumerateArray()) {
+                var status = GitHubRunFormatHelper.GetString(run, "status");
+                var conclusion = GitHubRunFormatHelper.GetString(run, "conclusion");
+                var symbol = GitHubRunFormatHelper.GetStatusSymbol(status, conclusion);
+                var id = GitHubRunFormatHelper.GetId(run) ?? "";
+                var number = run.TryGetProperty("run_number", out var n) && n.TryGetInt32(out var num) ? num.ToString() : "";
+                var name = GitHubRunFormatHelper.GetString(run, "name") ?? "";
+                var branch = GitHubRunFormatHelper.GetString(run, "head_branch") ?? "";
+                var evt = GitHubRunFormatHelper.GetString(run, "event") ?? "";
+                var elapsed = GitHubRunFormatHelper.FormatElapsed(GitHubRunFormatHelper.GetString(run, "created_at"), GitHubRunFormatHelper.GetString(run, "updated_at")) ?? "";
+
+                sb.Append(symbol).Append("  ");
+                sb.Append(id.PadRight(11)).Append("  ");
+                sb.Append(number.PadRight(4)).Append("  ");
+                sb.Append(Truncate(name, 22).PadRight(22)).Append("  ");
+                sb.Append(Truncate(branch, 8).PadRight(8)).Append("   ");
+                sb.Append(Truncate(evt, 9).PadRight(9)).Append("   ");
+                sb.AppendLine(elapsed);
+            }
+
+            return sb.ToString().TrimEnd();
+        } catch {
+            return json;
+        }
+    }
+
+    private static string Truncate(string s, int maxLen)
+        => s.Length <= maxLen ? s : s[..(maxLen - 1)] + "…";
+
     private static void CopyProperty(JsonElement source, Utf8JsonWriter writer, string name) {
         if (source.TryGetProperty(name, out var prop)) {
             writer.WritePropertyName(name);

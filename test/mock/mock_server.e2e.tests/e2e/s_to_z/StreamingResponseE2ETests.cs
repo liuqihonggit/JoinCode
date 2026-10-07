@@ -13,12 +13,26 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
     private Process? _mockServerProcess;
     private int _mockServerPort;
     private Process? _jccProcess;
+    private DataReceivedEventHandler? _onJccOutput;
+    private DataReceivedEventHandler? _onJccError;
+    private EventHandler? _onJccExited;
+    private DataReceivedEventHandler? _onMockOutput;
+    private DataReceivedEventHandler? _onMockError;
 
     public StreamingResponseE2ETests(ITestOutputHelper output) => _output = output;
 
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync() {
+        if (_jccProcess is not null) {
+            if (_onJccOutput is not null) _jccProcess.OutputDataReceived -= _onJccOutput;
+            if (_onJccError is not null) _jccProcess.ErrorDataReceived -= _onJccError;
+            if (_onJccExited is not null) _jccProcess.Exited -= _onJccExited;
+        }
+        if (_mockServerProcess is not null) {
+            if (_onMockOutput is not null) _mockServerProcess.OutputDataReceived -= _onMockOutput;
+            if (_onMockError is not null) _mockServerProcess.ErrorDataReceived -= _onMockError;
+        }
         await KillProcessAsync(_jccProcess);
         await KillProcessAsync(_mockServerProcess);
     }
@@ -104,15 +118,17 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
 
         var exitTcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        _jccProcess.OutputDataReceived += (_, e) => {
+        _onJccOutput = (_, e) => {
             if (string.IsNullOrEmpty(e.Data)) return;
             _output.WriteLine($"[jcc:out] {e.Data}");
         };
+        _jccProcess.OutputDataReceived += _onJccOutput;
 
-        _jccProcess.ErrorDataReceived += (_, e) => {
+        _onJccError = (_, e) => {
             if (string.IsNullOrEmpty(e.Data)) return;
             _output.WriteLine($"[jcc:err] {e.Data}");
         };
+        _jccProcess.ErrorDataReceived += _onJccError;
 
         if (!_jccProcess.Start())
             throw new InvalidOperationException("无法启动 jcc.exe");
@@ -121,7 +137,8 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
         _jccProcess.BeginErrorReadLine();
 
         _jccProcess.EnableRaisingEvents = true;
-        _jccProcess.Exited += (_, _) => exitTcs.TrySetResult(_jccProcess.ExitCode);
+        _onJccExited = (_, _) => exitTcs.TrySetResult(_jccProcess.ExitCode);
+        _jccProcess.Exited += _onJccExited;
 
         var sw = Stopwatch.StartNew();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
@@ -157,7 +174,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
         var readyTcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         var readyMarker = "[OpenAI]   URL:";
 
-        _mockServerProcess.OutputDataReceived += (_, e) => {
+        _onMockOutput = (_, e) => {
             if (string.IsNullOrEmpty(e.Data)) return;
             _output.WriteLine($"[MockServer:out] {e.Data}");
             var idx = e.Data.IndexOf(readyMarker, StringComparison.OrdinalIgnoreCase);
@@ -168,11 +185,13 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
                     readyTcs.TrySetResult(port);
             }
         };
+        _mockServerProcess.OutputDataReceived += _onMockOutput;
 
-        _mockServerProcess.ErrorDataReceived += (_, e) => {
+        _onMockError = (_, e) => {
             if (!string.IsNullOrEmpty(e.Data))
                 _output.WriteLine($"[MockServer:ERR] {e.Data}");
         };
+        _mockServerProcess.ErrorDataReceived += _onMockError;
 
         if (!_mockServerProcess.Start())
             throw new InvalidOperationException("无法启动 MockServer");

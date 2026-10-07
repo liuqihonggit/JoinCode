@@ -5,6 +5,9 @@ namespace Hands.Tests.Registry;
 /// </summary>
 public sealed class LocalToolRegistryTest : IAsyncLifetime {
     private LocalToolRegistry _registry = null!;
+    private EventHandler<ToolRegisteredEventArgs>? _onToolRegistered;
+    private EventHandler<ToolUnregisteredEventArgs>? _onToolUnregistered;
+    private EventHandler? _onToolsCleared;
 
     public Task InitializeAsync() {
         _registry = new LocalToolRegistry();
@@ -12,6 +15,9 @@ public sealed class LocalToolRegistryTest : IAsyncLifetime {
     }
 
     public async Task DisposeAsync() {
+        if (_onToolRegistered is not null) _registry.ToolRegistered -= _onToolRegistered;
+        if (_onToolUnregistered is not null) _registry.ToolUnregistered -= _onToolUnregistered;
+        if (_onToolsCleared is not null) _registry.ToolsCleared -= _onToolsCleared;
         await _registry.DisposeSafeAsync();
     }
 
@@ -250,7 +256,8 @@ public sealed class LocalToolRegistryTest : IAsyncLifetime {
     [Fact]
     public async Task ToolRegistered_Event_RaisedOnRegister() {
         ToolRegisteredEventArgs? eventArgs = null;
-        _registry.ToolRegistered += (_, e) => eventArgs = e;
+        _onToolRegistered = (_, e) => eventArgs = e;
+        _registry.ToolRegistered += _onToolRegistered;
 
         await _registry.RegisterToolAsync(CreateHandler("my_tool", "my description"));
 
@@ -262,7 +269,8 @@ public sealed class LocalToolRegistryTest : IAsyncLifetime {
     [Fact]
     public async Task ToolUnregistered_Event_RaisedOnUnregister() {
         ToolUnregisteredEventArgs? eventArgs = null;
-        _registry.ToolUnregistered += (_, e) => eventArgs = e;
+        _onToolUnregistered = (_, e) => eventArgs = e;
+        _registry.ToolUnregistered += _onToolUnregistered;
 
         await _registry.RegisterToolAsync(CreateHandler("my_tool"));
         await _registry.UnregisterToolAsync("my_tool");
@@ -274,7 +282,8 @@ public sealed class LocalToolRegistryTest : IAsyncLifetime {
     [Fact]
     public async Task ToolsCleared_Event_RaisedOnClear() {
         var raised = false;
-        _registry.ToolsCleared += (_, _) => raised = true;
+        _onToolsCleared = (_, _) => raised = true;
+        _registry.ToolsCleared += _onToolsCleared;
 
         await _registry.RegisterToolAsync(CreateHandler("a"));
         await _registry.ClearAsync();

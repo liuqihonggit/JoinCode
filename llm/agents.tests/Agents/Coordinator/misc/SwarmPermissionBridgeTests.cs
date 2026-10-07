@@ -5,6 +5,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime {
     private readonly Mock<IMailbox> _messageBrokerMock;
     private readonly Mock<IAgentPermissionManager> _permissionManagerMock;
     private readonly SwarmPermissionBridge _bridge;
+    private EventHandler<PermissionSyncEventArgs>? _onPermissionChanged;
 
     public SwarmPermissionBridgeTests() {
         _messageBrokerMock = new Mock<IMailbox>();
@@ -25,7 +26,8 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime {
             .ReturnsAsync(true);
 
         PermissionSyncEventArgs? capturedArgs = null;
-        _bridge.PermissionChanged += (_, args) => capturedArgs = args;
+        _onPermissionChanged = (_, args) => capturedArgs = args;
+        _bridge.PermissionChanged += _onPermissionChanged;
 
         var request = new PermissionSyncRequest {
             AgentId = "agent-1",
@@ -112,7 +114,8 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime {
             .ReturnsAsync(true);
 
         PermissionSyncEventArgs? capturedArgs = null;
-        _bridge.PermissionChanged += (_, args) => capturedArgs = args;
+        _onPermissionChanged = (_, args) => capturedArgs = args;
+        _bridge.PermissionChanged += _onPermissionChanged;
 
         await _bridge.RevokePermissionsAsync("agent-4").ConfigureAwait(true);
 
@@ -172,6 +175,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime {
     public Task InitializeAsync() => Task.CompletedTask;
 
     public Task DisposeAsync() {
+        if (_onPermissionChanged is not null) _bridge.PermissionChanged -= _onPermissionChanged;
         _bridge.DisposeSafe();
         return Task.CompletedTask;
     }

@@ -6,6 +6,7 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable {
     private readonly DiminishingReturnsDetector _diminishingReturns;
     private readonly UsdBudgetManager _budgetManager;
     private readonly HistorySnipService _snipService;
+    private EventHandler<UsdBudgetAlertEventArgs>? _onBudgetAlert;
     private bool _disposed;
 
     public QueryLifecycleE2ETests() {
@@ -26,6 +27,7 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable {
     public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
+        if (_onBudgetAlert is not null) _budgetManager.BudgetAlert -= _onBudgetAlert;
         await _transitions.DisposeAsync();
         await _stopHooks.DisposeAsync();
         await _diminishingReturns.DisposeAsync();
@@ -161,10 +163,11 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable {
     [Fact]
     public async Task QueryLifecycle_BudgetAlert_ShouldFireAtThreshold() {
         var alertFired = false;
-        _budgetManager.BudgetAlert += (_, args) => {
+        _onBudgetAlert = (_, args) => {
             alertFired = true;
             args.UsagePercentage.Should().BeGreaterThanOrEqualTo(0.8);
         };
+        _budgetManager.BudgetAlert += _onBudgetAlert;
 
         await _budgetManager.RecordCostAsync(8.5m, "expensive call").ConfigureAwait(true);
 

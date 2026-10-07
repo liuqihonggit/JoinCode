@@ -3,6 +3,10 @@ namespace Hands.Tests.Tools;
 
 public sealed class LocalToolRegistryTests : IAsyncDisposable {
     private readonly LocalToolRegistry _registry = new();
+    private EventHandler<ToolRegisteredEventArgs>? _onToolRegistered;
+    private EventHandler<ToolUnregisteredEventArgs>? _onToolUnregistered;
+    private EventHandler? _onToolsCleared;
+    private bool _disposed;
 
     private static IToolHandler CreateHandler(
         string name, string description, Func<Dictionary<string, JsonElement>, Task<ToolResult>>? execute = null) {
@@ -13,7 +17,14 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable {
         return new DelegateToolHandler(name, description, new ToolSchema(), (toolName, args, ct, progress) => execute(args));
     }
 
-    public ValueTask DisposeAsync() => _registry.DisposeAsync();
+    public ValueTask DisposeAsync() {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
+        if (_onToolRegistered is not null) _registry.ToolRegistered -= _onToolRegistered;
+        if (_onToolUnregistered is not null) _registry.ToolUnregistered -= _onToolUnregistered;
+        if (_onToolsCleared is not null) _registry.ToolsCleared -= _onToolsCleared;
+        return _registry.DisposeAsync();
+    }
 
     [Fact]
     public async Task Registry_Creation_ShouldBeEmpty() {
@@ -41,7 +52,8 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable {
     [Fact]
     public async Task RegisterTool_ShouldFireToolRegisteredEvent() {
         string? registeredName = null;
-        _registry.ToolRegistered += (_, e) => registeredName = e.ToolName;
+        _onToolRegistered = (_, e) => registeredName = e.ToolName;
+        _registry.ToolRegistered += _onToolRegistered;
 
         await _registry.RegisterToolAsync(CreateHandler("file_read", "Read file contents"));
 
@@ -79,7 +91,8 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable {
     [Fact]
     public async Task UnregisterTool_ShouldFireToolUnregisteredEvent() {
         string? unregisteredName = null;
-        _registry.ToolUnregistered += (_, e) => unregisteredName = e.ToolName;
+        _onToolUnregistered = (_, e) => unregisteredName = e.ToolName;
+        _registry.ToolUnregistered += _onToolUnregistered;
 
         await _registry.RegisterToolAsync(CreateHandler("tool1", "desc"));
         await _registry.UnregisterToolAsync("tool1");
@@ -181,7 +194,8 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable {
     [Fact]
     public async Task Clear_ShouldFireToolsClearedEvent() {
         var fired = false;
-        _registry.ToolsCleared += (_, _) => fired = true;
+        _onToolsCleared = (_, _) => fired = true;
+        _registry.ToolsCleared += _onToolsCleared;
 
         await _registry.RegisterToolAsync(CreateHandler("tool1", "d1"));
         await _registry.ClearAsync();

@@ -7,6 +7,7 @@ public sealed class FastModeServiceTests : IDisposable {
     private static readonly string DefaultFastModelId = Loader.GetDefaultFastModelId("openai");
 
     private readonly FastModeService _service;
+    private EventHandler<FastModeChangedEventArgs>? _onFastModeChanged;
     private bool _disposed;
 
     public FastModeServiceTests() {
@@ -44,7 +45,8 @@ public sealed class FastModeServiceTests : IDisposable {
     [Fact]
     public void Activate_Should_Raise_Event() {
         FastModeChangedEventArgs? eventArgs = null;
-        _service.FastModeChanged += (_, e) => eventArgs = e;
+        _onFastModeChanged = (_, e) => eventArgs = e;
+        _service.FastModeChanged += _onFastModeChanged;
 
         _service.Activate();
         Drain();
@@ -67,7 +69,8 @@ public sealed class FastModeServiceTests : IDisposable {
     public void Deactivate_Should_Raise_Event() {
         _service.Activate();
         FastModeChangedEventArgs? eventArgs = null;
-        _service.FastModeChanged += (_, e) => eventArgs = e;
+        _onFastModeChanged = (_, e) => eventArgs = e;
+        _service.FastModeChanged += _onFastModeChanged;
 
         _service.Deactivate();
         Drain();
@@ -128,9 +131,10 @@ public sealed class FastModeServiceTests : IDisposable {
     [Fact]
     public async Task Cooldown_Should_Auto_Deactivate() {
         using var deactivatedSignal = new SemaphoreSlim(0, 1);
-        _service.FastModeChanged += (_, e) => {
+        _onFastModeChanged = (_, e) => {
             if (!e.IsFastModeActive) deactivatedSignal.Release();
         };
+        _service.FastModeChanged += _onFastModeChanged;
 
         _service.Activate();
         Assert.True(_service.IsFastModeActive);
@@ -144,7 +148,8 @@ public sealed class FastModeServiceTests : IDisposable {
     [Fact]
     public void Activate_Idempotent_Should_Not_Raise_Duplicate_Events() {
         var eventCount = 0;
-        _service.FastModeChanged += (_, _) => eventCount++;
+        _onFastModeChanged = (_, _) => eventCount++;
+        _service.FastModeChanged += _onFastModeChanged;
 
         _service.Activate();
         _service.Activate();
@@ -156,7 +161,8 @@ public sealed class FastModeServiceTests : IDisposable {
     [Fact]
     public void Deactivate_When_Not_Active_Should_Not_Raise_Event() {
         var eventCount = 0;
-        _service.FastModeChanged += (_, _) => eventCount++;
+        _onFastModeChanged = (_, _) => eventCount++;
+        _service.FastModeChanged += _onFastModeChanged;
 
         _service.Deactivate();
         Drain();
@@ -167,6 +173,7 @@ public sealed class FastModeServiceTests : IDisposable {
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;
+        if (_onFastModeChanged is not null) _service.FastModeChanged -= _onFastModeChanged;
         _service.DisposeAsync().AsTask().Wait();
     }
 }

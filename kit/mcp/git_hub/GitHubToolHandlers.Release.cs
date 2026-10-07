@@ -398,17 +398,21 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 编辑 Release — 修改 tag/name/notes/draft/prerelease/target，调 REST API PATCH
+    /// 编辑 Release — 修改 tag/name/notes/draft/prerelease/target/latest，调 REST API PATCH
+    /// <para>notes_file 从文件读取 notes;generate_notes 调 generate-notes API 自动生成</para>
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhReleaseEdit, "编辑 Release(tag/name/notes/draft/prerelease/target)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseEdit, "编辑 Release(tag/name/notes/draft/prerelease/target/latest)", "github")]
     public async Task<ToolResult> GhReleaseEditAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("新 tag 名称(可选)", Required = false)] string? new_tag = null,
         [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
         [McpToolParameter("新说明(notes,可选)", Required = false)] string? notes = null,
+        [McpToolParameter("从文件读取 notes(可选,与 notes 互斥)", Required = false)] string? notes_file = null,
+        [McpToolParameter("自动生成 release notes(默认 false)", Required = false)] bool? generate_notes = null,
         [McpToolParameter("是否草稿(可选)", Required = false)] bool? draft = null,
         [McpToolParameter("是否预发布(可选)", Required = false)] bool? prerelease = null,
         [McpToolParameter("目标 commit/branch(可选)", Required = false)] string? target = null,
+        [McpToolParameter("标记为 latest(可选,true/false/legacy)", Required = false)] string? latest = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -416,18 +420,42 @@ public partial class GitHubToolHandlers {
             var viewResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
             if (!viewResult.Success) return Fail(viewResult.Error);
             long releaseId;
+            string? existingTag = null;
+            string? existingTarget = null;
             try {
                 using var doc = JsonDocument.Parse(viewResult.Body);
                 releaseId = doc.RootElement.GetProperty("id").GetInt64();
+                existingTag = doc.RootElement.TryGetProperty("tag_name", out var tnEl) ? tnEl.GetString() : null;
+                existingTarget = doc.RootElement.TryGetProperty("target_commitish", out var tcEl) ? tcEl.GetString() : null;
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
+
+            var effectiveNotes = notes;
+            if (!string.IsNullOrWhiteSpace(notes_file)) {
+                if (!_fs.FileExists(notes_file)) return Fail($"notes 文件不存在: {notes_file}");
+                try { effectiveNotes = await _fs.ReadAllTextAsync(notes_file, cancellationToken).ConfigureAwait(false); }
+                catch (Exception ex) { return Fail($"读取 notes 文件失败: {ex.Message}"); }
+            }
+            if (generate_notes == true) {
+                var genBody = JsonSerializer.Serialize(new ReleaseGenerateNotesRequest {
+                    TagName = new_tag ?? existingTag ?? tag,
+                    TargetCommitish = target ?? existingTarget
+                }, GitHubApiJsonContext.Safe.ReleaseGenerateNotesRequest);
+                var genResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases/generate-notes", genBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!genResult.Success) return Fail($"生成 notes 失败: {genResult.Error}");
+                try {
+                    using var genDoc = JsonDocument.Parse(genResult.Body);
+                    effectiveNotes = genDoc.RootElement.TryGetProperty("body", out var bEl) ? bEl.GetString() : effectiveNotes;
+                } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 generate-notes 响应失败,使用原 notes"); }
+            }
 
             var jsonBody = JsonSerializer.Serialize(new ReleaseEditRequest {
                 TagName = new_tag,
                 Name = title,
-                Body = notes,
+                Body = effectiveNotes,
                 Draft = draft,
                 Prerelease = prerelease,
-                TargetCommitish = target
+                TargetCommitish = target,
+                MakeLatest = latest
             }, GitHubApiJsonContext.Safe.ReleaseEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/releases/{releaseId}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已编辑 Release {tag}") : Fail(result.Error);

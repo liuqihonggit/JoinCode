@@ -359,6 +359,21 @@ internal sealed class ReleaseEditRequest {
     /// <summary>目标 commitish</summary>
     [JsonPropertyName("target_commitish")]
     public string? TargetCommitish { get; init; }
+    /// <summary>标记为 latest(true/false/legacy)</summary>
+    [JsonPropertyName("make_latest")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MakeLatest { get; init; }
+}
+
+/// <summary>Release generate-notes 请求 — POST /releases/generate-notes</summary>
+internal sealed class ReleaseGenerateNotesRequest {
+    /// <summary>tag 名</summary>
+    [JsonPropertyName("tag_name")]
+    public string? TagName { get; init; }
+    /// <summary>目标 commitish</summary>
+    [JsonPropertyName("target_commitish")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TargetCommitish { get; init; }
 }
 
 // === Repo DTO ===
@@ -552,6 +567,7 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(LockRequest))]
 [JsonSerializable(typeof(ReleaseCreateRequest))]
 [JsonSerializable(typeof(ReleaseEditRequest))]
+[JsonSerializable(typeof(ReleaseGenerateNotesRequest))]
 [JsonSerializable(typeof(RepoCreateRequest))]
 [JsonSerializable(typeof(RepoEditRequest))]
 [JsonSerializable(typeof(RepoRenameRequest))]

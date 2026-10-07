@@ -377,6 +377,10 @@ internal sealed class RepoCreateRequest {
     /// <summary>是否私有</summary>
     [JsonPropertyName("private")]
     public bool? Private { get; init; }
+    /// <summary>可见性(仅 internal 时设置)</summary>
+    [JsonPropertyName("visibility")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Visibility { get; init; }
     /// <summary>是否有 issues</summary>
     [JsonPropertyName("has_issues")]
     public bool? HasIssues { get; init; }
@@ -459,6 +463,10 @@ internal sealed class RunRerunJobsRequest {
     [JsonPropertyName("job_ids")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public List<long> JobIds { get; init; } = new();
+    /// <summary>是否启用 debug 日志</summary>
+    [JsonPropertyName("enable_debug_logging")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool? EnableDebugLogging { get; init; }
 }
 
 /// <summary>PR assignees 请求 — POST /issues/{n}/assignees</summary>
@@ -481,6 +489,7 @@ internal sealed class MilestoneRequest {
     [JsonPropertyName("milestone")]
     public int? Milestone { get; init; }
 }
+
 
 /// <summary>
 /// GitHub API DTO 的 JSON 序列化上下文 — AOT 模式需要源码生成器注册类型

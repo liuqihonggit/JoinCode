@@ -136,15 +136,15 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var jsonBody = new GitHubJsonObjectBuilder()
-                .String("tag_name", tag)
-                .StringIf("name", title)
-                .StringIf("body", notes)
-                .BoolIfTrue("draft", draft)
-                .BoolIfTrue("prerelease", prerelease)
-                .StringIf("target_commitish", target)
-                .BoolIfTrue("generate_release_notes", generate_notes)
-                .Build();
+            var jsonBody = JsonSerializer.Serialize(new ReleaseCreateRequest {
+                TagName = tag,
+                Name = title,
+                Body = notes,
+                Draft = draft,
+                Prerelease = prerelease,
+                TargetCommitish = target,
+                GenerateReleaseNotes = generate_notes
+            }, GitHubApiJsonContext.Safe.ReleaseCreateRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已创建 Release {tag}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -421,14 +421,14 @@ public partial class GitHubToolHandlers {
                 releaseId = doc.RootElement.GetProperty("id").GetInt64();
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
 
-            var jsonBody = new GitHubJsonObjectBuilder()
-                .StringIf("tag_name", new_tag)
-                .StringIf("name", title)
-                .StringIf("body", notes)
-                .BoolIfTrue("draft", draft)
-                .BoolIfTrue("prerelease", prerelease)
-                .StringIf("target_commitish", target)
-                .Build();
+            var jsonBody = JsonSerializer.Serialize(new ReleaseEditRequest {
+                TagName = new_tag,
+                Name = title,
+                Body = notes,
+                Draft = draft,
+                Prerelease = prerelease,
+                TargetCommitish = target
+            }, GitHubApiJsonContext.Safe.ReleaseEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/releases/{releaseId}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已编辑 Release {tag}") : Fail(result.Error);
         }).ConfigureAwait(false);

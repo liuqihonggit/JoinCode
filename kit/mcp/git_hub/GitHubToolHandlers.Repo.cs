@@ -69,16 +69,16 @@ public partial class GitHubToolHandlers {
         var isPrivate = vis.Equals("private", StringComparison.OrdinalIgnoreCase);
         var isInternal = vis.Equals("internal", StringComparison.OrdinalIgnoreCase);
 
-        var builder = new GitHubJsonObjectBuilder()
-            .String("name", name)
-            .Bool("private", isPrivate || isInternal);
-        if (isInternal) builder.String("visibility", "internal");
-        builder.StringIf("description", description)
-            .BoolIfTrue("auto_init", add_readme)
-            .StringIf("homepage", homepage)
-            .StringIf("gitignore_template", gitignore)
-            .StringIf("license_template", license);
-        var jsonBody = builder.Build();
+        var jsonBody = JsonSerializer.Serialize(new RepoCreateRequest {
+            Name = name,
+            Private = isPrivate || isInternal,
+            Visibility = isInternal ? "internal" : null,
+            Description = description,
+            AutoInit = add_readme,
+            Homepage = homepage,
+            GitignoreTemplate = gitignore,
+            LicenseTemplate = license
+        }, GitHubApiJsonContext.Safe.RepoCreateRequest);
 
         var result = await _apiClient.SendAsync(HttpMethod.Post, "user/repos", jsonBody, ct: cancellationToken).ConfigureAwait(false);
         return result.Success ? OkBrief(result.Body, $"已创建仓库 {name}") : Fail(result.Error);
@@ -99,7 +99,7 @@ public partial class GitHubToolHandlers {
         if (parsed is null) return Fail("仓库名格式错误，应为 owner/repo");
         var (owner, repoName) = parsed.Value;
 
-        var forkBody = string.IsNullOrWhiteSpace(org) ? "{}" : $$"""{"organization":"{{org}}"}""";
+        var forkBody = JsonSerializer.Serialize(new RepoForkRequest { Organization = org }, GitHubApiJsonContext.Safe.RepoForkRequest);
         var result = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/forks", forkBody, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
 
@@ -184,14 +184,14 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var builder = new GitHubJsonObjectBuilder()
-                .StringIf("description", description)
-                .StringIf("homepage", homepage)
-                .StringIf("visibility", visibility)
-                .StringIf("default_branch", default_branch);
-            if (has_issues is not null) builder.Bool("has_issues", has_issues.Value);
-            if (has_wiki is not null) builder.Bool("has_wiki", has_wiki.Value);
-            var jsonBody = builder.Build();
+            var jsonBody = JsonSerializer.Serialize(new RepoEditRequest {
+                Description = description,
+                Homepage = homepage,
+                Visibility = visibility,
+                DefaultBranch = default_branch,
+                HasIssues = has_issues,
+                HasWiki = has_wiki
+            }, GitHubApiJsonContext.Safe.RepoEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已编辑仓库 {owner}/{repoName}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -220,7 +220,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", """{"archived":true}""", ct: cancellationToken).ConfigureAwait(false);
+            var jsonBody = JsonSerializer.Serialize(new RepoArchiveRequest { Archived = true }, GitHubApiJsonContext.Safe.RepoArchiveRequest);
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已归档仓库 {owner}/{repoName}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
@@ -233,7 +234,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", """{"archived":false}""", ct: cancellationToken).ConfigureAwait(false);
+            var jsonBody = JsonSerializer.Serialize(new RepoArchiveRequest { Archived = false }, GitHubApiJsonContext.Safe.RepoArchiveRequest);
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已取消归档仓库 {owner}/{repoName}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
@@ -247,7 +249,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var jsonBody = new GitHubJsonObjectBuilder().String("new_name", new_name).Build();
+            var jsonBody = JsonSerializer.Serialize(new RepoRenameRequest { NewName = new_name }, GitHubApiJsonContext.Safe.RepoRenameRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/rename", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已重命名仓库 {owner}/{repoName} → {owner}/{new_name}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -263,7 +265,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var defaultBranch = branch ?? "main";
-            var jsonBody = new GitHubJsonObjectBuilder().String("branch", defaultBranch).Build();
+            var jsonBody = JsonSerializer.Serialize(new RepoSyncRequest { Branch = defaultBranch }, GitHubApiJsonContext.Safe.RepoSyncRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/merge-upstream", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已同步仓库 {owner}/{repoName} 分支 {defaultBranch}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -278,7 +280,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var jsonBody = new GitHubJsonObjectBuilder().String("default_branch", branch).Build();
+            var jsonBody = JsonSerializer.Serialize(new RepoSetDefaultRequest { DefaultBranch = branch }, GitHubApiJsonContext.Safe.RepoSetDefaultRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已设置 {owner}/{repoName} 默认分支为 {branch}") : Fail(result.Error);
         }).ConfigureAwait(false);

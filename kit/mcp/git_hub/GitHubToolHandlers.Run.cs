@@ -277,17 +277,16 @@ public partial class GitHubToolHandlers {
             if (!string.IsNullOrWhiteSpace(job)) {
                 path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-jobs";
                 var jobIds = job.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Select(s => int.TryParse(s, out var id) ? id : 0)
+                    .Select(s => long.TryParse(s, out var id) ? id : 0)
                     .Where(id => id > 0)
-                    .ToArray();
-                body = $$"""{"job_ids":[{{string.Join(",", jobIds)}}]""";
-                if (debug == true) body = $$"""{"job_ids":[{{string.Join(",", jobIds)}}],"enable_debug_logging":true}""";
+                    .ToList();
+                body = JsonSerializer.Serialize(new RunRerunJobsRequest { JobIds = jobIds, EnableDebugLogging = debug == true ? true : null }, GitHubApiJsonContext.Safe.RunRerunJobsRequest);
             } else if (failed_only != false) {
                 path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-failed-jobs";
-                if (debug == true) body = """{"enable_debug_logging":true}""";
+                body = debug == true ? """{"enable_debug_logging":true}""" : "{}";
             } else {
                 path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun";
-                if (debug == true) body = """{"enable_debug_logging":true}""";
+                body = debug == true ? """{"enable_debug_logging":true}""" : "{}";
             }
             var result = await client.SendAsync(HttpMethod.Post, path, body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已重跑 Run {run_id}") : Fail(result.Error);

@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/lib/">
     <Project Path="../../lib/abstractions/Abstractions.csproj" />
+    <Project Path="../../lib/downloader/Downloader.csproj" />
     <Project Path="../../lib/async_lock/AsyncLock.csproj" />
     <Project Path="../../lib/structura/Structura.csproj" />
     <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />

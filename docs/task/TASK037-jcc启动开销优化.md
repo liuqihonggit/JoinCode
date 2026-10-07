@@ -31,15 +31,25 @@ jcc 启动开销 ~4.4 秒，接近 `McpInitPlugin` 的 5s 超时上限。瓶颈�
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `IToolRegistry.RegisterToolsBatchAsync` | 生成器 `RegisterAllMcpToolDispatchAsync` | ❌ | ❌ |
-| `LocalToolRegistry.RegisterToolsBatchAsync`（单次锁） | 同上 | ❌ | ❌ |
-| 生成器批量注册代码 | `McpService.InitializeAsync` | ❌ | ❌ |
-| `McpInitPlugin` 15s 超时 | 启动流程 | ❌ | ❌ |
+| `IToolRegistry.RegisterToolsBatchAsync` | 生成器 `RegisterAllMcpToolDispatchAsync` | ✅ | ✅ 25 单元测试通过 |
+| `LocalToolRegistry.RegisterToolsBatchAsync`（单次锁） | 同上 | ✅ | ✅ 含性能对比测试 |
+| 生成器批量注册代码 | `McpService.InitializeAsync` | ✅ | ✅ 端到端编译 0 警告 |
+| `McpInitPlugin` 15s 超时 | 启动流程 | ✅ | ✅ |
 
 ## 进度
 
-- [ ] 优化1：批量注册方法 + 单元测试
-- [ ] 优化1b：生成器改造
-- [ ] 优化4：超时放宽
-- [ ] 编译 + 测试 + 提交
-- [ ] 实测验证
+- [x] 优化1：批量注册方法 + 单元测试（5 个新测试，25 总测试全绿）
+- [x] 优化1b：生成器改造（ConcurrentBag 并行收集 + 单次批量注册）
+- [x] 优化4：超时放宽 5s → 15s
+- [x] 编译 + 测试 + 提交（commit e5fdafcd9）
+- [x] 实测验证：冷启动 0.2s，热启动 0.03s（524 工具）
+
+## 实测结果
+
+| 指标 | 优化前 | 优化后 |
+|------|--------|--------|
+| 启动开销 | ~4.4s | 冷启动 ~0.2s / 热启动 ~0.03s |
+| 工具注册锁获取 | 515 次 | 1 次 |
+| async 状态机 | 515 个 | 16 个（并行收集）+ 1 个（批量注册） |
+| 工具总数 | 515 | 524 |
+| McpInitPlugin 超时 | 5s（接近上限） | 15s（充裕） |

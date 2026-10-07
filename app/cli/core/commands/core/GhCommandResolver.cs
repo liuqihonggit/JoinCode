@@ -270,6 +270,12 @@ internal static class GhArgsBinder {
             ("gh_pr_merge", "rebase")  => ("merge_method", "rebase"),
             ("gh_run_rerun", "failed") => ("failed_only", "true"),
             ("gh_run_view", "job")     => ("job_id", null),
+            ("gh_repo_create", "private")   => ("visibility", "private"),
+            ("gh_repo_create", "public")    => ("visibility", "public"),
+            ("gh_repo_create", "internal")  => ("visibility", "internal"),
+            ("gh_issue_close", "duplicate") => ("duplicate_of", null),
+            ("gh_issue_close", "completed") => ("reason", "completed"),
+            ("gh_issue_close", "not-planned") => ("reason", "not_planned"),
             _                          => null
         };
 

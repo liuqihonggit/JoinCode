@@ -243,6 +243,53 @@ public sealed class GhCommandResolverTests {
         bound["log"].Should().Be("true");
     }
 
+    /// <summary>系统 gh CLI 的 --private/--public/--internal 应映射到 visibility（gh repo create）</summary>
+    [Theory]
+    [InlineData("private", "private")]
+    [InlineData("public", "public")]
+    [InlineData("internal", "internal")]
+    public void Bind_GhCliAlias_VisibilityFlags_ShouldMapToVisibility(string flag, string expected) {
+        var parameters = new List<GhParam> {
+            new("name", IsRequired: true, IsBoolean: false),
+            new("visibility", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "myrepo", $"--{flag}" }, parameters, "gh_repo_create", out var error);
+
+        error.Should().BeNull();
+        bound!["visibility"].Should().Be(expected);
+    }
+
+    /// <summary>系统 gh CLI 的 --duplicate 应映射到 duplicate_of（gh issue close --duplicate 42）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_Duplicate_ShouldMapToDuplicateOf() {
+        var parameters = new List<GhParam> {
+            new("issue_number", IsRequired: true, IsBoolean: false),
+            new("duplicate_of", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "12", "--duplicate", "42" }, parameters, "gh_issue_close", out var error);
+
+        error.Should().BeNull();
+        bound!["duplicate_of"].Should().Be("42");
+    }
+
+    /// <summary>系统 gh CLI 的 --completed/--not-planned 应映射到 reason（gh issue close）</summary>
+    [Theory]
+    [InlineData("completed", "completed")]
+    [InlineData("not-planned", "not_planned")]
+    public void Bind_GhCliAlias_ReasonFlags_ShouldMapToReason(string flag, string expected) {
+        var parameters = new List<GhParam> {
+            new("issue_number", IsRequired: true, IsBoolean: false),
+            new("reason", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "12", $"--{flag}" }, parameters, "gh_issue_close", out var error);
+
+        error.Should().BeNull();
+        bound!["reason"].Should().Be(expected);
+    }
+
     /// <summary>系统 gh CLI 缩写 --merge/--rebase 也应映射到 merge_method</summary>
     [Theory]
     [InlineData("merge", "merge")]

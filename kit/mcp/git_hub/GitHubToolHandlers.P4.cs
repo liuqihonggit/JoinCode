@@ -739,14 +739,31 @@ public partial class GitHubToolHandlers {
         return Ok($"已删除别名 {alias}");
     }
 
-    // === Extension（本地管理，提示用系统 gh）===
+    // === Extension（list 扫描本地目录，install/upgrade/remove 提示用系统 gh）===
 
     /// <summary>
-    /// 列出已安装扩展 — 提示用系统 gh CLI
+    /// 列出已安装扩展 — 扫描本地 gh extensions 目录
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhExtensionList, "列出已安装扩展(提示用系统 gh)", "github", ConcurrencySafe = true)]
-    public Task<ToolResult> GhExtensionListAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(Ok("请在终端运行: gh extension list\n（扩展管理为本地操作，需 gh CLI 直接执行）"));
+    [McpTool(GitHubToolNameEnumConstants.GhExtensionList, "列出已安装扩展(扫描本地目录)", "github", ConcurrencySafe = true)]
+    public Task<ToolResult> GhExtensionListAsync(CancellationToken cancellationToken = default) {
+        var extDir = GetGhExtensionsPath();
+        if (!_fs.DirectoryExists(extDir)) return Task.FromResult(Ok("（无已安装扩展）"));
+        var extensions = _fs.EnumerateDirectories(extDir, "gh-*", SearchOption.TopDirectoryOnly).ToList();
+        if (extensions.Count == 0) return Task.FromResult(Ok("（无已安装扩展）"));
+        var sb = new StringBuilder(64);
+        foreach (var dir in extensions) sb.AppendLine(_fs.GetDirectoryName(dir));
+        return Task.FromResult(Ok(sb.ToString().TrimEnd()));
+    }
+
+    /// <summary>
+    /// 获取 gh extensions 目录路径
+    /// </summary>
+    internal static string GetGhExtensionsPath() {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!string.IsNullOrEmpty(localAppData) && OperatingSystem.IsWindows()) return Path.Combine(localAppData, "gh", "extensions");
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return Path.Combine(home, ".local", "share", "gh", "extensions");
+    }
 
     /// <summary>
     /// 安装扩展 — 提示用系统 gh CLI

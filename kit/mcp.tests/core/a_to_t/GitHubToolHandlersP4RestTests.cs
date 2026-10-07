@@ -507,15 +507,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     // === Alias (真实读写 config.yml，测试在 GitHubToolHandlersConfigTests.cs) ===
 
-    // === Extension (纯提示) ===
-
-    [Fact]
-    public async Task ExtensionList_ReturnsPromptToUseGhCli() {
-        var result = await _handler.GhExtensionListAsync();
-
-        result.IsError.Should().BeFalse();
-        result.GetFirstText().Should().Contain("gh extension list");
-    }
+    // === Extension (list 扫描本地目录，测试在 GitHubToolHandlersConfigTests.cs) ===
 
     [Fact]
     public async Task ExtensionInstall_ReturnsPromptWithExtensionName() {

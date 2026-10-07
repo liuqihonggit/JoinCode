@@ -157,4 +157,31 @@ public sealed partial class GitHubToolHandlersTests {
 
         result.IsError.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task ExtensionList_ReturnsEmpty_WhenDirNotExists() {
+        var fs = new InMemoryFileSystem();
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhExtensionListAsync();
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("无已安装扩展");
+    }
+
+    [Fact]
+    public async Task ExtensionList_ReturnsExtensions_WhenDirHasExtensions() {
+        var extDir = GitHubToolHandlers.GetGhExtensionsPath();
+        var fs = new InMemoryFileSystem();
+        fs.CreateDirectory(Path.Combine(extDir, "gh-jump"));
+        fs.CreateDirectory(Path.Combine(extDir, "gh-learn"));
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhExtensionListAsync();
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("gh-jump");
+        text.Should().Contain("gh-learn");
+    }
 }

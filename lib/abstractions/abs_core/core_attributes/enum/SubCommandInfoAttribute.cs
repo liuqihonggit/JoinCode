@@ -37,6 +37,11 @@ public sealed class SubCommandInfoAttribute : Attribute {
     public bool IsDeprecated { get; init; }
 
     /// <summary>
+    /// 是否自行处理 --help — 标记为 true 的子命令在 --help 时由子命令自身渲染帮助（如 gh pr view --help 动态生成工具参数），而非走全局帮助系统
+    /// </summary>
+    public bool SelfHelp { get; init; }
+
+    /// <summary>
     /// 构造子命令信息特性。
     /// </summary>
     /// <param name="description">中文描述。</param>

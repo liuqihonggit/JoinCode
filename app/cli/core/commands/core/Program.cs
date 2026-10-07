@@ -59,9 +59,9 @@ class Program {
             var hasHelp = Array.IndexOf(args, "-h") >= 0 || Array.IndexOf(args, "--help") >= 0;
 
             // 3. 子命令路由 — 扫描第一个子命令（允许全局选项在前，如 jcc --trust mcp_search read）
-            //    --help 时仅 gh 子命令自行处理（gh pr view --help 显示动态工具帮助），其余走全局帮助
+            //    --help 时标记了 [SubCommandInfo(SelfHelp = true)] 的子命令自行处理（如 gh pr view --help 显示动态工具帮助），其余走全局帮助
             var subCmdIndex = FindSubCommandIndex(args);
-            if (subCmdIndex is int idx && (!hasHelp || args[idx] == "gh"))
+            if (subCmdIndex is int idx && (!hasHelp || CliSubCommandHelpText.SelfHelpCommands.Contains(args[idx])))
                 return await App.Builder.ApplicationBuilder.RunSubCommandAsync(ReorderSubCommandToFront(args, idx)).ConfigureAwait(false);
 
             // 4. 参数解析 → CommandLineOptions（后续全部使用 options，不再传递原始 args）

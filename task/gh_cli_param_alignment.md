@@ -12,7 +12,7 @@
 | issue | 15/15 | ✅ 全部高频参数 | 10 (reopen/edit/delete/lock/unlock/status/develop/pin/unpin/transfer) | — | ✅ 完成 |
 | run | 6/6 | ✅ 全部 | 3 (download/delete/watch) | — | ✅ 完成 |
 | release | 8/8 | ✅ 全部 | 4 (delete-asset/edit/verify/verify-asset) | — | ✅ 完成 |
-| repo | 16/18 | ✅ view/list/create/fork + edit/delete/archive/unarchive/rename/sync/set-default/autolink/deploy-key/gitignore/license | 15 | — | ✅ 高频完成 |
+| repo | 18/18 | ✅ 全部参数对齐(source/push/template/org/team/clone 等) | 15 | — | ✅ 完成 |
 | label | 3/3 | ✅ list/create/delete | 3 | — | ✅ 完成 |
 | search | 3/3 | ✅ repos/issues/prs | 3 | — | ✅ 完成 |
 | workflow | 5/5 | ✅ list/view/run/enable/disable | 5 | — | ✅ 完成 |
@@ -29,12 +29,12 @@
 | codespace | 5/5 | ✅ list/create/delete/code/ssh | 5 | — | ✅ 完成 |
 | discussion | 5/5 | ✅ list/view/create/edit/comment(GraphQL) | 5 | — | ✅ 完成 |
 | project | 6/6 | ✅ list/view/create/delete/edit/close(GraphQL v2) | 6 | — | ✅ 完成 |
-| alias | 3/3 | ✅ list/set/delete(提示用系统 gh) | 3 | — | ⚠️ 简化 |
-| extension | 4/4 | ✅ list/install/upgrade/remove(提示用系统 gh) | 4 | — | ⚠️ 简化 |
-| licenses | 1/1 | ✅ 查看许可证(提示用系统 gh) | 1 | — | ⚠️ 简化 |
+| alias | 3/3 | ✅ list/set/delete(真实读写 config.yml) | 3 | — | ✅ 完成 |
+| extension | 4/4 | ✅ list(扫描本地目录) install/upgrade/remove(提示) | 4 | — | ⚠️ list 已做 |
+| licenses | 1/1 | ✅ 查看许可证(API GET /licenses) | 1 | — | ✅ 完成 |
 | auth | 1/4 | ✅ status | 1 (login/refresh/token 需 OAuth) | — | ⚠️ 简化 |
-| config | 2/2 | ✅ get/set(提示用系统 gh) | 2 | — | ⚠️ 简化 |
-| **合计** | — | — | **103 新增** | **339 通过** | ✅ |
+| config | 2/2 | ✅ get/set(真实读写 config.yml) | 2 | — | ✅ 完成 |
+| **合计** | — | — | **103 新增** | **357 通过** | ✅ |
 
 > DTO+JsonContext 双向转换：Issue/Pr/Repo/Release/Run 全部完成，GitHubJsonObjectBuilder 已归档到 .xxx/
 > GraphQL DTO 序列化：P4 所有 GraphQL 查询用 GraphQLRequest DTO + BuildGraphQL 辅助方法，JsonSerializer 自动转义双引号，消除内插原始字符串 `}` 转义歧义
@@ -240,7 +240,7 @@ jcc 缺：**autolink / deploy-key / gitignore / license / read-dir / read-file**
 |--------|-----------|--------|
 | view | ✅ `--web` | `--branch` `--json` `--jq` `--template` |
 | list | ✅ `--language` `--visibility` `--source` `--fork` | `--archived` `--topic` `--match` + 通用4参数 |
-| create | ✅ `--homepage` `--gitignore` `--license` | `--team` `--template` `--source` `--push` `--clone` `--disable-issues` `--disable-wiki` `--web` |
+| create | ✅ `--homepage` `--gitignore` `--license` `--template` `--org` `--team` `--source` `--push` `--clone` `--disable-issues` `--disable-wiki` `--web` | — |
 | fork | ✅ `--org` | `--remote` `--fork-name` `--default-branch-only` |
 | clone | — | `--upstream-remote-name` `--bare` `--single-branch` `--depth` `--filter` `--sparse` |
 | edit | ✅ 新增 `--description` `--homepage` `--visibility` `--default-branch` `--has-issues` `--has-wiki` | `--enable-issues` `--enable-wiki` `--delete-branch-on-merge` |

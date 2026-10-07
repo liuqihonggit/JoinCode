@@ -106,13 +106,14 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var jsonBody = new GitHubJsonObjectBuilder()
-                .String("title", title)
-                .StringIf("body", body)
-                .StringArrayFromCsvIf("labels", label)
-                .StringArrayFromCsvIf("assignees", assignee)
-                .NumberIf("milestone", milestone)
-                .Build();
+            var request = new IssueCreateRequest {
+                Title = title,
+                Body = body,
+                Labels = ParseCsvToList(label),
+                Assignees = ParseCsvToList(assignee),
+                Milestone = milestone,
+            };
+            var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.IssueCreateRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, "Issue 创建成功") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -134,11 +135,12 @@ public partial class GitHubToolHandlers {
             var commentText = comment;
             if (duplicate_of is not null) commentText = string.IsNullOrWhiteSpace(commentText) ? $"Duplicate of #{duplicate_of}" : $"{commentText}\n\nDuplicate of #{duplicate_of}";
             if (!string.IsNullOrWhiteSpace(commentText)) {
-                var commentBody = $$"""{"body":{{JsonEscapeString(commentText)}}}""";
+                var commentBody = JsonSerializer.Serialize(new CommentRequest { Body = commentText }, GitHubApiJsonContext.Safe.CommentRequest);
                 await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
             }
             var stateReason = duplicate_of is not null ? "not_planned" : reason;
-            var body = string.IsNullOrWhiteSpace(stateReason) ? """{"state":"closed"}""" : $$"""{"state":"closed","state_reason":"{{stateReason}}"}""";
+            var closeRequest = new IssueEditRequest { State = "closed", StateReason = stateReason };
+            var body = JsonSerializer.Serialize(closeRequest, GitHubApiJsonContext.Safe.IssueEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已关闭 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -155,7 +157,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
-            var reqBody = $$"""{"body":{{JsonEscapeString(body)}}}""";
+            var reqBody = JsonSerializer.Serialize(new CommentRequest { Body = body }, GitHubApiJsonContext.Safe.CommentRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", reqBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已评论 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -173,10 +175,10 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
             if (!string.IsNullOrWhiteSpace(comment)) {
-                var commentBody = $$"""{"body":{{JsonEscapeString(comment)}}}""";
+                var commentBody = JsonSerializer.Serialize(new CommentRequest { Body = comment }, GitHubApiJsonContext.Safe.CommentRequest);
                 await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
             }
-            var body = """{"state":"open"}""";
+            var body = JsonSerializer.Serialize(new IssueEditRequest { State = "open" }, GitHubApiJsonContext.Safe.IssueEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已重开 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -197,13 +199,14 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
-            var jsonBody = new GitHubJsonObjectBuilder()
-                .StringIf("title", title)
-                .StringIf("body", body)
-                .StringArrayFromCsvIf("labels", label)
-                .StringArrayFromCsvIf("assignees", assignee)
-                .NumberIf("milestone", milestone)
-                .Build();
+            var request = new IssueEditRequest {
+                Title = title,
+                Body = body,
+                Labels = ParseCsvToList(label),
+                Assignees = ParseCsvToList(assignee),
+                Milestone = milestone,
+            };
+            var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.IssueEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已编辑 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -246,7 +249,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
-            var body = string.IsNullOrWhiteSpace(reason) ? null : $$"""{"lock_reason":"{{reason}}"}""";
+            var body = string.IsNullOrWhiteSpace(reason) ? null : JsonSerializer.Serialize(new LockRequest { LockReason = reason }, GitHubApiJsonContext.Safe.LockRequest);
             var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/issues/{number}/lock", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已锁定 Issue {number}") : Fail(result.Error);
         }).ConfigureAwait(false);

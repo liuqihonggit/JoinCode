@@ -449,11 +449,8 @@ public partial class GitHubToolHandlers {
             if (!graphqlResult.Success) return Fail(graphqlResult.Error);
             return Ok($"已为 PR {number} 启用 auto-merge（{method}）");
         }
-        var mergeBody = new GitHubJsonObjectBuilder()
-            .String("merge_method", method)
-            .StringIf("commit_title", subject)
-            .StringIf("commit_message", body)
-            .Build();
+        var mergeRequest = new PrMergeRequest { MergeMethod = method, CommitTitle = subject, CommitMessage = body };
+        var mergeBody = JsonSerializer.Serialize(mergeRequest, GitHubApiJsonContext.Safe.PrMergeRequest);
         var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/pulls/{number}/merge", mergeBody, ct: ct).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
         if (deleteBranch == true) {
@@ -533,10 +530,10 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
             if (!string.IsNullOrWhiteSpace(comment)) {
-                var commentBody = $$"""{"body":{{JsonEscapeString(comment)}}}""";
+                var commentBody = JsonSerializer.Serialize(new CommentRequest { Body = comment }, GitHubApiJsonContext.Safe.CommentRequest);
                 await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
             }
-            var body = """{"state":"closed"}""";
+            var body = JsonSerializer.Serialize(new PrEditRequest { State = "closed" }, GitHubApiJsonContext.Safe.PrEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
             if (delete_branch == true) {
@@ -558,10 +555,10 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
             if (!string.IsNullOrWhiteSpace(comment)) {
-                var commentBody = $$"""{"body":{{JsonEscapeString(comment)}}}""";
+                var commentBody = JsonSerializer.Serialize(new CommentRequest { Body = comment }, GitHubApiJsonContext.Safe.CommentRequest);
                 await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
             }
-            var body = """{"state":"open"}""";
+            var body = JsonSerializer.Serialize(new PrEditRequest { State = "open" }, GitHubApiJsonContext.Safe.PrEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已重开 PR {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -607,19 +604,20 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static async Task AddPrPostCreateAttributesAsync(IGitHubApiClient client, string owner, string repo, int number, string? assignee, string? label, string? reviewer, int? milestone, CancellationToken ct) {
         if (!string.IsNullOrWhiteSpace(assignee)) {
-            var assignees = string.Join(",", assignee.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(a => $"\"{a}\""));
-            await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repo}/issues/{number}/assignees", $$"""{"assignees":[{{assignees}}]}""", ct: ct).ConfigureAwait(false);
+            var assigneesBody = JsonSerializer.Serialize(new AssigneesRequest { Assignees = ParseCsvToList(assignee) }, GitHubApiJsonContext.Safe.AssigneesRequest);
+            await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repo}/issues/{number}/assignees", assigneesBody, ct: ct).ConfigureAwait(false);
         }
         if (!string.IsNullOrWhiteSpace(label)) {
-            var labels = string.Join(",", label.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(l => $"\"{l}\""));
-            await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repo}/issues/{number}/labels", $$"""[{{labels}}]""", ct: ct).ConfigureAwait(false);
+            var labelsArray = JsonSerializer.Serialize(ParseCsvToList(label), GitHubApiJsonContext.Safe.ListString);
+            await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repo}/issues/{number}/labels", labelsArray, ct: ct).ConfigureAwait(false);
         }
         if (!string.IsNullOrWhiteSpace(reviewer)) {
-            var reviewers = string.Join(",", reviewer.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(r => $"\"{r}\""));
-            await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repo}/pulls/{number}/requested_reviewers", $$"""{"reviewers":[{{reviewers}}]}""", ct: ct).ConfigureAwait(false);
+            var reviewersBody = JsonSerializer.Serialize(new ReviewersRequest { Reviewers = ParseCsvToList(reviewer) }, GitHubApiJsonContext.Safe.ReviewersRequest);
+            await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repo}/pulls/{number}/requested_reviewers", reviewersBody, ct: ct).ConfigureAwait(false);
         }
         if (milestone is not null) {
-            await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repo}/issues/{number}", $$"""{"milestone":{{milestone}}}""", ct: ct).ConfigureAwait(false);
+            var milestoneBody = JsonSerializer.Serialize(new MilestoneRequest { Milestone = milestone }, GitHubApiJsonContext.Safe.MilestoneRequest);
+            await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repo}/issues/{number}", milestoneBody, ct: ct).ConfigureAwait(false);
         }
     }
 
@@ -645,16 +643,10 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 构建 PR 创建 JSON 请求体 — 流式构建器(AOT 友好,无手拼 StringBuilder)
+    /// 构建 PR 创建 JSON 请求体 — DTO 序列化(编译期类型安全)
     /// </summary>
     private static string BuildPrCreateJson(string title, string head, string? @base, string? body, bool? draft)
-        => new GitHubJsonObjectBuilder()
-            .String("title", title)
-            .String("head", head)
-            .StringIf("base", @base)
-            .StringIf("body", body)
-            .BoolIfTrue("draft", draft)
-            .Build();
+        => JsonSerializer.Serialize(new PrCreateRequest { Title = title, Head = head, Base = @base, Body = body, Draft = draft }, GitHubApiJsonContext.Safe.PrCreateRequest);
 
     /// <summary>
     /// JSON 字符串转义 — 委托 GitHubJsonObjectBuilder.EscapeString(保留供单字段 JSON 如 {"body":...} 使用)
@@ -673,7 +665,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
-            var reqBody = $$"""{"body":{{JsonEscapeString(body)}}}""";
+            var reqBody = JsonSerializer.Serialize(new CommentRequest { Body = body }, GitHubApiJsonContext.Safe.CommentRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", reqBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已评论 PR {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -692,11 +684,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
-            var jsonBody = new GitHubJsonObjectBuilder()
-                .StringIf("title", title)
-                .StringIf("body", body)
-                .StringIf("base", @base)
-                .Build();
+            var jsonBody = JsonSerializer.Serialize(new PrEditRequest { Title = title, Body = body, Base = @base }, GitHubApiJsonContext.Safe.PrEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已编辑 PR {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -720,10 +708,7 @@ public partial class GitHubToolHandlers {
                 "comment" => "COMMENT",
                 _ => action.ToUpperInvariant(),
             };
-            var jsonBody = new GitHubJsonObjectBuilder()
-                .String("event", eventVal)
-                .StringIf("body", body)
-                .Build();
+            var jsonBody = JsonSerializer.Serialize(new PrReviewRequest { Event = eventVal, Body = body }, GitHubApiJsonContext.Safe.PrReviewRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls/{number}/reviews", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已审查 PR {number}: {eventVal}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -740,7 +725,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
-            var body = string.IsNullOrWhiteSpace(reason) ? null : $$"""{"lock_reason":"{{reason}}"}""";
+            var body = string.IsNullOrWhiteSpace(reason) ? null : JsonSerializer.Serialize(new LockRequest { LockReason = reason }, GitHubApiJsonContext.Safe.LockRequest);
             var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/issues/{number}/lock", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已锁定 PR {number}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -824,7 +809,7 @@ public partial class GitHubToolHandlers {
             if (string.IsNullOrWhiteSpace(pr_number)) return Fail("pr ready 需要显式传 pr_number(当前分支自动检测未实现)");
             var number = ParseNumberFromRef(pr_number);
             var draftVal = undo == true ? "true" : "false";
-            var body = $$"""{"draft":{{draftVal}}}""";
+            var body = JsonSerializer.Serialize(new PrDraftRequest { Draft = undo == true }, GitHubApiJsonContext.Safe.PrDraftRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
             var msg = undo == true ? $"已将 PR {number} 转为 draft" : $"已将 PR {number} 标记为 ready for review";
             return result.Success ? OkBrief(result.Body, msg) : Fail(result.Error);
@@ -866,13 +851,8 @@ public partial class GitHubToolHandlers {
             var pushResult = await _git.ExecuteAsync($"push origin {revertBranch}", working_dir, cancellationToken).ConfigureAwait(false);
             if (!pushResult.Success) return Fail($"push 失败: {pushResult.Output}");
             var prTitle = string.IsNullOrWhiteSpace(title) ? $"Revert \"{headRef}\"" : title;
-            var jsonBody = new GitHubJsonObjectBuilder()
-                .String("title", prTitle)
-                .String("head", revertBranch)
-                .String("base", baseRef ?? "main")
-                .StringIf("body", body)
-                .BoolIfTrue("draft", draft)
-                .Build();
+            var revertRequest = new PrCreateRequest { Title = prTitle, Head = revertBranch, Base = baseRef ?? "main", Body = body, Draft = draft };
+            var jsonBody = JsonSerializer.Serialize(revertRequest, GitHubApiJsonContext.Safe.PrCreateRequest);
             var createResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return createResult.Success ? OkBrief(createResult.Body, $"已创建回退 PR(基于 {mergeCommitSha[..7]})") : Fail(createResult.Error);
         }).ConfigureAwait(false);
@@ -892,7 +872,7 @@ public partial class GitHubToolHandlers {
             if (string.IsNullOrWhiteSpace(pr_number)) return Fail("pr update-branch 需要显式传 pr_number(当前分支自动检测未实现)");
             var number = ParseNumberFromRef(pr_number);
             var method = rebase == true ? "rebase" : "merge";
-            var body = $$"""{"update_method":"{{method}}"}""";
+            var body = JsonSerializer.Serialize(new PrUpdateBranchRequest { UpdateMethod = method }, GitHubApiJsonContext.Safe.PrUpdateBranchRequest);
             var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/pulls/{number}/update-branch", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已更新 PR {number} 分支({method})") : Fail(result.Error);
         }).ConfigureAwait(false);

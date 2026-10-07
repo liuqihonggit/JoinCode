@@ -103,7 +103,7 @@ public partial class GitHubToolHandlers {
                 } catch { return Fail($"inputs JSON 解析失败: {inputs}"); }
             }
             var request = new WorkflowDispatchRequest { Ref = refVal, Inputs = inputsDict };
-            var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Default.WorkflowDispatchRequest);
+            var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.WorkflowDispatchRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/workflows/{Uri.EscapeDataString(workflow_id)}/dispatches", body, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok($"已触发 workflow {workflow_id} 运行(ref={refVal})") : Fail(result.Error);
         }).ConfigureAwait(false);

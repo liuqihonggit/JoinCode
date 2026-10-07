@@ -59,7 +59,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("SSH public key 内容", Required = true)] string key,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
-        var jsonBody = JsonSerializer.Serialize(new SshKeyAddRequest { Title = title, Key = key }, GitHubApiJsonContext.Default.SshKeyAddRequest);
+        var jsonBody = JsonSerializer.Serialize(new SshKeyAddRequest { Title = title, Key = key }, GitHubApiJsonContext.Safe.SshKeyAddRequest);
         var result = await _apiClient.SendAsync(HttpMethod.Post, "user/keys", jsonBody, ct: cancellationToken).ConfigureAwait(false);
         return result.Success ? OkBrief(result.Body, "SSH Key 添加成功") : Fail(result.Error);
     }
@@ -116,7 +116,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("ASCII armored GPG key 内容", Required = true)] string key,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
-        var jsonBody = JsonSerializer.Serialize(new GpgKeyAddRequest { ArmoredPublicKey = key }, GitHubApiJsonContext.Default.GpgKeyAddRequest);
+        var jsonBody = JsonSerializer.Serialize(new GpgKeyAddRequest { ArmoredPublicKey = key }, GitHubApiJsonContext.Safe.GpgKeyAddRequest);
         var result = await _apiClient.SendAsync(HttpMethod.Post, "user/gpg_keys", jsonBody, ct: cancellationToken).ConfigureAwait(false);
         return result.Success ? OkBrief(result.Body, "GPG Key 添加成功") : Fail(result.Error);
     }

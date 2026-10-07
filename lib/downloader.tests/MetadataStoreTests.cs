@@ -1,4 +1,4 @@
-namespace Infra.Services.Tests.Network.Downloader;
+namespace Downloader.Tests;
 
 /// <summary>
 /// MetadataStore 单元测试 — 验证元数据读写:保存/加载/删除/损坏JSON/URL/ETag/LastModified 校验

@@ -1,4 +1,4 @@
-namespace Infra.Services.Tests.Network.Downloader;
+namespace Downloader.Tests;
 
 /// <summary>
 /// DownloadSession 状态流转测试 — 验证 Pause/Resume/资源变更/大文件并发

@@ -1,4 +1,4 @@
-namespace Infra.Services.Tests.Network.Downloader;
+namespace Downloader.Tests;
 
 /// <summary>
 /// 测试用 IHttpClientProvider — 包装固定 HttpClient,供 RangeDownloader 测试注入

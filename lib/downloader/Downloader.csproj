@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="JoinCode.Infra.Services.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Downloader.Tests" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,4 +1,4 @@
-namespace Infra.Services.Tests.Network.Downloader;
+namespace Downloader.Tests;
 
 /// <summary>
 /// DownloadSession 单线程回退测试 — 验证服务器不支持 Range 或未知 ContentLength 时走单线程整体下载

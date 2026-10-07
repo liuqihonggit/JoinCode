@@ -1,4 +1,4 @@
-namespace Infra.Services.Tests.Network.Downloader;
+namespace Downloader.Tests;
 
 /// <summary>
 /// BatchDownloader 单元测试 — 验证批量并行下载、空列表、部分失败、默认选项

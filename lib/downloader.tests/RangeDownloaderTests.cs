@@ -1,4 +1,4 @@
-namespace Infra.Services.Tests.Network.Downloader;
+namespace Downloader.Tests;
 
 /// <summary>
 /// RangeDownloader + DownloadSession 集成单元测试 — 验证完整下载/多线程/Cancel/WaitForCompletion/状态流转

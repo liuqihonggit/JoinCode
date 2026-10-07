@@ -1,4 +1,4 @@
-namespace Infra.Services.Tests.Network.Downloader;
+namespace Downloader.Tests;
 
 /// <summary>
 /// RangeSupportProbe 单元测试 — 验证 Range 支持探测:HEAD/405回退GET/206判定/Accept-Ranges/ETag/LastModified

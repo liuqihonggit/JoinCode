@@ -167,7 +167,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string ExtractDiffFileNames(string diffText) {
         var sb = new StringBuilder(256);
-        foreach (var line in diffText.Split('\n')) {
+        var span = diffText.AsSpan();
+        while (!span.IsEmpty) {
+            var nlIdx = span.IndexOf('\n');
+            var line = nlIdx < 0 ? span : span[..nlIdx];
+            span = nlIdx < 0 ? default : span[(nlIdx + 1)..];
             if (line.StartsWith("diff --git ", StringComparison.Ordinal)) {
                 var filePath = ExtractFilePathFromDiffHeader(line);
                 if (filePath is not null) sb.AppendLine(filePath);
@@ -179,8 +183,8 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 从 diff --git a/path b/path 头提取文件路径
     /// </summary>
-    private static string? ExtractFilePathFromDiffHeader(string line) {
-        var rest = line.AsSpan("diff --git ".Length);
+    private static string? ExtractFilePathFromDiffHeader(ReadOnlySpan<char> line) {
+        var rest = line.Slice("diff --git ".Length);
         var spaceIdx = rest.IndexOf(' ');
         if (spaceIdx > 0) {
             var path = rest.Slice(spaceIdx + 1);
@@ -198,18 +202,26 @@ public partial class GitHubToolHandlers {
         var segments = new List<(string FileName, string Content)>();
         var currentSb = new StringBuilder();
         string? currentFile = null;
-        foreach (var line in diffText.Split('\n')) {
+        var span = diffText.AsSpan();
+        while (!span.IsEmpty) {
+            var nlIdx = span.IndexOf('\n');
+            var line = nlIdx < 0 ? span : span[..nlIdx];
+            span = nlIdx < 0 ? default : span[(nlIdx + 1)..];
             if (line.StartsWith("diff --git ", StringComparison.Ordinal)) {
                 if (currentSb.Length > 0 && currentFile is not null) segments.Add((currentFile, currentSb.ToString()));
                 currentSb = new StringBuilder();
                 currentFile = ExtractFilePathFromDiffHeader(line);
             }
-            currentSb.AppendLine(line);
+            currentSb.Append(line).AppendLine();
         }
         if (currentSb.Length > 0 && currentFile is not null) segments.Add((currentFile, currentSb.ToString()));
         var result = new StringBuilder();
         foreach (var (fileName, content) in segments) {
-            if (!patterns.Any(p => MatchesGlob(fileName, p))) result.Append(content);
+            var excluded = false;
+            foreach (var p in patterns) {
+                if (MatchesGlob(fileName, p)) { excluded = true; break; }
+            }
+            if (!excluded) result.Append(content);
         }
         return result.ToString();
     }
@@ -788,7 +800,9 @@ public partial class GitHubToolHandlers {
     private async Task<(string Title, string Body)> GetGitFillFirstAsync(IGitCommandRunner git, string baseBranch, string headBranch, string? workingDir, CancellationToken ct) {
         var revResult = await git.ExecuteAsync($"rev-list --reverse {baseBranch}..{headBranch}", workingDir, ct).ConfigureAwait(false);
         if (!revResult.Success || string.IsNullOrWhiteSpace(revResult.Output)) return ("", "");
-        var firstHash = revResult.Output.AsSpan().Trim().ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries)[0];
+        var trimmed = revResult.Output.AsSpan().Trim();
+        var nlIdx = trimmed.IndexOf('\n');
+        var firstHash = (nlIdx < 0 ? trimmed : trimmed[..nlIdx]).ToString();
         var logResult = await git.ExecuteAsync($"log -1 --format=%s%n%n%b {firstHash}", workingDir, ct).ConfigureAwait(false);
         if (!logResult.Success) return ("", "");
         var output = logResult.Output;

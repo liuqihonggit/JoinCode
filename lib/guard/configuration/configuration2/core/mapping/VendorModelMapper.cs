@@ -31,7 +31,7 @@ public static class VendorModelMapper {
             }
 
             if (string.IsNullOrEmpty(providerConfig.DefaultFastModelId) && providerConfig.Models.Count > 0) {
-                var fastModel = providerConfig.Models.FirstOrDefault(m => m.Capabilities.FastMode);
+                var fastModel = providerConfig.Models.FirstOrDefault(m => m.Capabilities?.FastMode == true);
                 providerConfig = providerConfig with { DefaultFastModelId = fastModel?.Id ?? providerConfig.Models[0].Id };
             }
 

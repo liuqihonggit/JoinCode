@@ -64,6 +64,6 @@ public sealed class ThinkingModeStamp {
         if (string.IsNullOrWhiteSpace(modelId)) return false;
 
         var model = _modelConfigLoader.FindModelByModelId(modelId);
-        return model?.Capabilities.ThinkingMode ?? false;
+        return model?.Capabilities?.ThinkingMode ?? false;
     }
 }

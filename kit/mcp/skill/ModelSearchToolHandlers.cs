@@ -84,7 +84,7 @@ public partial class ModelSearchToolHandlers {
                     provider.Key,
                     model.Id,
                     model.DisplayName,
-                    model.Capabilities.Modalities));
+                    model.Capabilities?.Modalities ?? ModelModalityKind.Text));
             }
         }
         return entries;

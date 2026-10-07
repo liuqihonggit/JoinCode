@@ -278,7 +278,12 @@ public partial class GitHubToolHandlers {
             headRef = head.TryGetProperty("ref", out var refEl) ? refEl.GetString() : null;
         } catch (Exception ex) { return Fail($"解析 PR head sha 失败: {ex.Message}"); }
         if (string.IsNullOrEmpty(headSha)) return Fail("无法从 PR 响应中解析 head.sha");
-        var checksResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/commits/{headSha}/check-runs", ct: ct).ConfigureAwait(false);
+        var checksResult = await client.SendAsync(
+            HttpMethod.Get,
+            $"repos/{owner}/{repoName}/commits/{headSha}/check-runs",
+            query: new Dictionary<string, string> { ["per_page"] = "100" },
+            paginate: true,
+            ct: ct).ConfigureAwait(false);
         if (!checksResult.Success) return Fail(checksResult.Error);
         var requiredContexts = required == true && !string.IsNullOrEmpty(headRef)
             ? await GetRequiredStatusChecksAsync(client, owner, repoName, headRef!, ct).ConfigureAwait(false)

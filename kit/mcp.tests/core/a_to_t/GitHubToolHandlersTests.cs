@@ -507,6 +507,18 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("1 跳过(依赖链跳过,非失败)");
     }
 
+    /// <summary>check-runs 请求应带 per_page=100 并启用分页,避免大量 check 时默认 30 条截断(缺陷6)</summary>
+    [Fact]
+    public async Task PrChecks_CheckRunsRequest_IncludesPerPage100_AndPaginate() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"head":{"sha":"abc123"}}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"check_runs":[]}""" });
+
+        await _handler.GhPrChecksAsync("42", repo: "owner/repo");
+
+        _api.LastQuery.Should().ContainKey("per_page", "check-runs 应带 per_page=100 避免默认 30 条截断");
+        _api.LastQuery["per_page"].Should().Be("100");
+    }
+
     [Fact]
     public async Task RunList_WithEvent_PassesEventQuery() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };

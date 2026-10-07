@@ -433,6 +433,12 @@ internal sealed class RepoEditRequest {
     /// <summary>默认分支</summary>
     [JsonPropertyName("default_branch")]
     public string? DefaultBranch { get; init; }
+    /// <summary>合并后是否删除分支</summary>
+    [JsonPropertyName("delete_branch_on_merge")]
+    public bool? DeleteBranchOnMerge { get; init; }
+    /// <summary>是否启用 Projects</summary>
+    [JsonPropertyName("has_projects")]
+    public bool? HasProjects { get; init; }
 }
 
 /// <summary>Repo rename 请求 — POST /repos/{o}/{r}/rename</summary>
@@ -468,6 +474,14 @@ internal sealed class RepoForkRequest {
     /// <summary>目标组织</summary>
     [JsonPropertyName("organization")]
     public string? Organization { get; init; }
+    /// <summary>Fork 仓库名(默认同原名)</summary>
+    [JsonPropertyName("name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Name { get; init; }
+    /// <summary>只 fork 默认分支</summary>
+    [JsonPropertyName("default_branch_only")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool? DefaultBranchOnly { get; init; }
 }
 
 // === Codespace DTO ===

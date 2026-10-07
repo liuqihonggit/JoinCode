@@ -11,6 +11,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRepoView, "查看仓库详情", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoViewAsync(
         [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("分支名(可选,web=true 时 URL 带分支)", Required = false)] string? branch = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
         [McpToolParameter("web=true 只返回仓库浏览器 URL", Required = false)] bool? web = null,
@@ -20,20 +21,27 @@ public partial class GitHubToolHandlers {
                 var repoResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
                 if (!repoResult.Success) return Fail(repoResult.Error);
                 var url = ExtractHtmlUrl(repoResult.Body);
-                return string.IsNullOrEmpty(url) ? Fail("无法从仓库响应中解析 html_url") : Ok(url);
+                if (string.IsNullOrEmpty(url)) return Fail("无法从仓库响应中解析 html_url");
+                if (!string.IsNullOrWhiteSpace(branch)) url += $"/tree/{branch}";
+                return Ok(url);
             }
             var cacheKey = BuildGhCacheKey("gh_repo_view", $"{owner}/{repoName}");
             return await GetOrFetchWithCacheAsync(client, cacheKey, $"repos/{owner}/{repoName}", verbose, SummarizeRepo, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 克隆仓库 — 支持浅克隆（--depth=1），走本地 git 命令（非 API）
+    /// 克隆仓库 — 走本地 git 命令，支持 depth/bare/single-branch/filter/sparse
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRepoClone, "克隆仓库(支持浅克隆 --depth=1)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoClone, "克隆仓库(支持 depth/bare/single-branch/filter/sparse)", "github")]
     public async Task<ToolResult> GhRepoCloneAsync(
         [McpToolParameter("仓库名(owner/repo 或 URL)", Required = true)] string repo,
         [McpToolParameter("克隆目标目录(可选)", Required = false)] string? dir = null,
-        [McpToolParameter("是否浅克隆(--depth=1,默认 false)", Required = false)] bool? shallow = null,
+        [McpToolParameter("浅克隆深度(可选,如 1)", Required = false)] int? depth = null,
+        [McpToolParameter("裸克隆(默认 false)", Required = false)] bool? bare = null,
+        [McpToolParameter("只克隆默认分支(默认 false)", Required = false)] bool? single_branch = null,
+        [McpToolParameter("部分克隆过滤器(可选,如 blob:none)", Required = false)] string? filter = null,
+        [McpToolParameter("稀疏检出(默认 false)", Required = false)] bool? sparse = null,
+        [McpToolParameter("上游 remote 名(可选,默认 origin)", Required = false)] string? upstream_remote_name = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_git is null) return Fail("git 命令执行器未配置（IGitCommandRunner 未注入）");
@@ -42,11 +50,23 @@ public partial class GitHubToolHandlers {
             ? repo
             : $"https://github.com/{repo}.git";
 
-        var sb = new StringBuilder($"clone {cloneUrl}");
+        var sb = new StringBuilder("clone");
+        if (bare == true) sb.Append(" --bare");
+        if (single_branch == true) sb.Append(" --single-branch");
+        if (depth is > 0) sb.Append($" --depth={depth}");
+        if (!string.IsNullOrWhiteSpace(filter)) sb.Append($" --filter={filter}");
+        if (sparse == true) sb.Append(" --sparse");
+        sb.Append($" {cloneUrl}");
         if (!string.IsNullOrWhiteSpace(dir)) sb.Append($" {dir}");
-        if (shallow == true) sb.Append(" --depth=1");
 
         var result = await _git.ExecuteAsync(sb.ToString(), working_dir, cancellationToken).ConfigureAwait(false);
+        if (!result.Success) return Fail(result.Error);
+
+        if (!string.IsNullOrWhiteSpace(upstream_remote_name) && upstream_remote_name != "origin" && bare != true) {
+            var remoteResult = await _git.ExecuteAsync($"remote rename origin {upstream_remote_name}", working_dir, cancellationToken).ConfigureAwait(false);
+            if (!remoteResult.Success) return Ok(result.Output, $"已克隆 {repo}（但重命名 remote 失败: {remoteResult.Error}）");
+        }
+
         return result.Success ? Ok(result.Output, $"已克隆 {repo}") : Fail(result.Error);
     }
 
@@ -85,13 +105,16 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// Fork 仓库 — 调 REST API 创建 Fork，可选克隆到本地、指定组织
+    /// Fork 仓库 — 调 REST API 创建 Fork，可选克隆到本地、指定组织、fork-name、default-branch-only
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRepoFork, "Fork 仓库(可选指定组织)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoFork, "Fork 仓库(可选指定组织/fork-name/default-branch-only)", "github")]
     public async Task<ToolResult> GhRepoForkAsync(
         [McpToolParameter("仓库名(owner/repo)", Required = true)] string repo,
         [McpToolParameter("是否克隆到本地(默认 false)", Required = false)] bool? clone = null,
         [McpToolParameter("Fork 到指定组织(可选)", Required = false)] string? org = null,
+        [McpToolParameter("Fork 仓库名(可选,默认同原名)", Required = false)] string? fork_name = null,
+        [McpToolParameter("只 fork 默认分支(可选)", Required = false)] bool? default_branch_only = null,
+        [McpToolParameter("本地 remote 名(可选,clone=true 时添加)", Required = false)] string? remote = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
@@ -99,29 +122,40 @@ public partial class GitHubToolHandlers {
         if (parsed is null) return Fail("仓库名格式错误，应为 owner/repo");
         var (owner, repoName) = parsed.Value;
 
-        var forkBody = JsonSerializer.Serialize(new RepoForkRequest { Organization = org }, GitHubApiJsonContext.Safe.RepoForkRequest);
+        var forkBody = JsonSerializer.Serialize(new RepoForkRequest {
+            Organization = org,
+            Name = fork_name,
+            DefaultBranchOnly = default_branch_only
+        }, GitHubApiJsonContext.Safe.RepoForkRequest);
         var result = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/forks", forkBody, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
 
-        if (clone == true) {
-            if (_git is null) return OkBrief(result.Body, $"已 Fork {repo}（但未克隆：git 未配置）");
-            var cloneResult = await _git.ExecuteAsync($"clone https://github.com/{repo}.git", working_dir, cancellationToken).ConfigureAwait(false);
-            if (!cloneResult.Success) return OkBrief(result.Body, $"已 Fork {repo}（但克隆失败: {cloneResult.Error}）");
-        }
-
-        return OkBrief(result.Body, $"已 Fork {repo}");
+        if (clone != true) return OkBrief(result.Body, $"已 Fork {repo}");
+        if (_git is null) return OkBrief(result.Body, $"已 Fork {repo}（但未克隆：git 未配置）");
+        var forkFullName = !string.IsNullOrWhiteSpace(org)
+            ? $"{org}/{fork_name ?? repoName}"
+            : fork_name is not null ? $"{owner}/{fork_name}" : repo;
+        var cloneResult = await _git.ExecuteAsync($"clone https://github.com/{forkFullName}.git", working_dir, cancellationToken).ConfigureAwait(false);
+        if (!cloneResult.Success) return OkBrief(result.Body, $"已 Fork {repo}（但克隆失败: {cloneResult.Error}）");
+        if (string.IsNullOrWhiteSpace(remote) || remote == "origin") return OkBrief(result.Body, $"已 Fork {repo}");
+        var remoteResult = await _git.ExecuteAsync($"remote add {remote} https://github.com/{repo}.git", working_dir, cancellationToken).ConfigureAwait(false);
+        return remoteResult.Success
+            ? OkBrief(result.Body, $"已 Fork+克隆 {repo}（remote: {remote}）")
+            : OkBrief(result.Body, $"已 Fork+克隆 {repo}（但添加 remote 失败: {remoteResult.Error}）");
     }
 
     /// <summary>
-    /// 列出自己可访问的仓库 — 支持语言/可见性/source/fork 过滤，调 REST API 获取仓库列表，精简输出
+    /// 列出自己可访问的仓库 — 支持语言/可见性/source/fork/archived/topic 过滤，调 REST API 获取仓库列表，精简输出
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRepoList, "列出自己可访问的仓库(支持语言/可见性/source/fork 过滤)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoList, "列出自己可访问的仓库(支持语言/可见性/source/fork/archived/topic 过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoListAsync(
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
         [McpToolParameter("语言过滤(可选)", Required = false)] string? language = null,
         [McpToolParameter("可见性过滤(public/private/internal,可选)", Required = false)] string? visibility = null,
         [McpToolParameter("只显示非 fork 仓库(可选)", Required = false)] bool? source = null,
         [McpToolParameter("只显示 fork 仓库(可选)", Required = false)] bool? fork = null,
+        [McpToolParameter("只显示已归档仓库(可选)", Required = false)] bool? archived = null,
+        [McpToolParameter("按 topic 过滤(可选,逗号分隔)", Required = false)] string? topic = null,
         [McpToolParameter("仓库名(可选,被忽略,gh repo list 列自己的仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
@@ -130,15 +164,17 @@ public partial class GitHubToolHandlers {
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
         if (!string.IsNullOrWhiteSpace(language)) query["language"] = language;
         if (!string.IsNullOrWhiteSpace(visibility)) query["visibility"] = visibility;
+        if (archived is not null) query["archived"] = archived.Value ? "true" : "false";
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/repos", query: query, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(SummarizeRepoList(result.Body, source, fork));
+        return Ok(SummarizeRepoList(result.Body, source, fork, topic));
     }
 
     /// <summary>
-    /// 精简仓库列表 JSON — 只保留关键字段，去掉冗余 URL，便于人类浏览和 AI 解析；支持 source/fork 客户端过滤
+    /// 精简仓库列表 JSON — 只保留关键字段，去掉冗余 URL，便于人类浏览和 AI 解析；支持 source/fork/topic 客户端过滤
     /// </summary>
-    private static string SummarizeRepoList(string json, bool? source = null, bool? fork = null) {
+    private static string SummarizeRepoList(string json, bool? source = null, bool? fork = null, string? topic = null) {
+        var topicSet = topic?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
         try {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
@@ -149,6 +185,13 @@ public partial class GitHubToolHandlers {
                     var isFork = repo.TryGetProperty("fork", out var f) && f.GetBoolean();
                     if (source == true && isFork) continue;
                     if (fork == true && !isFork) continue;
+                    if (topicSet is { Count: > 0 } && repo.TryGetProperty("topics", out var topicsEl) && topicsEl.ValueKind == JsonValueKind.Array) {
+                        var hasAnyTopic = false;
+                        foreach (var t in topicsEl.EnumerateArray()) {
+                            if (t.ValueKind == JsonValueKind.String && topicSet.Contains(t.GetString()!)) { hasAnyTopic = true; break; }
+                        }
+                        if (!hasAnyTopic) continue;
+                    }
                     writer.WriteStartObject();
                     CopyProperty(repo, writer, "name");
                     CopyProperty(repo, writer, "full_name");
@@ -170,9 +213,9 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 编辑仓库 — 修改描述/主页/可见性/默认分支/has_issues/has_wiki，调 REST API PATCH
+    /// 编辑仓库 — 修改描述/主页/可见性/默认分支/issues/wiki/projects/delete-branch-on-merge，调 REST API PATCH
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRepoEdit, "编辑仓库(description/homepage/visibility/default_branch/issues/wiki)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoEdit, "编辑仓库(description/homepage/visibility/default_branch/issues/wiki/projects/delete_branch_on_merge)", "github")]
     public async Task<ToolResult> GhRepoEditAsync(
         [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("描述(可选)", Required = false)] string? description = null,
@@ -181,6 +224,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("默认分支(可选)", Required = false)] string? default_branch = null,
         [McpToolParameter("是否启用 Issues(可选)", Required = false)] bool? has_issues = null,
         [McpToolParameter("是否启用 Wiki(可选)", Required = false)] bool? has_wiki = null,
+        [McpToolParameter("是否启用 Projects(可选)", Required = false)] bool? has_projects = null,
+        [McpToolParameter("合并后是否删除分支(可选)", Required = false)] bool? delete_branch_on_merge = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
@@ -190,7 +235,9 @@ public partial class GitHubToolHandlers {
                 Visibility = visibility,
                 DefaultBranch = default_branch,
                 HasIssues = has_issues,
-                HasWiki = has_wiki
+                HasWiki = has_wiki,
+                HasProjects = has_projects,
+                DeleteBranchOnMerge = delete_branch_on_merge
             }, GitHubApiJsonContext.Safe.RepoEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已编辑仓库 {owner}/{repoName}") : Fail(result.Error);

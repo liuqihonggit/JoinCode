@@ -92,11 +92,18 @@ internal sealed class BranchProtectionAuditor {
         if (ciJobNames.Count == 0)
             return EmptyResult(branch, $"未能从 {ymlPath} 中解析出 matrix job 名");
 
+        var jobId = CiMatrixParser.ExtractJobId(ymlContent) ?? "unit-tests";
         var requiredChecks = await GetRequiredStatusChecksAsync(owner, repo, branch, cancellationToken).ConfigureAwait(false);
         if (requiredChecks is null)
             return BuildResult(branch, ciJobNames, [], "分支无保护规则或 required_status_checks 未配置, 建议先创建分支保护规则");
 
-        return BuildResult(branch, ciJobNames, requiredChecks);
+        // 从 required_status_checks 中提取对应 job_id 的 matrix name, 其他 workflow 的 check 不在审计范围
+        var requiredMatrixNames = requiredChecks
+            .Select(c => CiMatrixParser.ExtractMatrixNameFromCheck(c, jobId))
+            .Where(n => n is not null)
+            .Cast<string>()
+            .ToList();
+        return BuildResult(branch, ciJobNames, requiredMatrixNames);
     }
 
     private async Task<List<string>?> GetRequiredStatusChecksAsync(string owner, string repo, string branch, CancellationToken ct) {

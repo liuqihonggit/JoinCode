@@ -30,4 +30,34 @@ internal static class CiMatrixParser {
         }
         return names;
     }
+
+    /// <summary>
+    /// 从 CI yml 提取 jobs 下的第一个 job_id（如 unit-tests）— 用于筛选对应 workflow 的 check 名
+    /// </summary>
+    internal static string? ExtractJobId(string ymlContent) {
+        var inJobs = false;
+        foreach (var line in ymlContent.Split('\n')) {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var trimmed = line.AsSpan().Trim();
+            if (trimmed.StartsWith("jobs:")) { inJobs = true; continue; }
+            if (!inJobs) continue;
+            var indent = line.Length - line.TrimStart().Length;
+            if (indent == 2 && trimmed.EndsWith(':')) {
+                return trimmed[..^1].ToString();
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 从 check 名提取 matrix name — 格式 `{job_id} / {prefix} - {matrix.name}` → `matrix.name`
+    /// <para>非对应 job_id 的 check 返回 null(其他 workflow, 不在审计范围)</para>
+    /// </summary>
+    internal static string? ExtractMatrixNameFromCheck(string checkName, string jobId) {
+        var prefix = $"{jobId} / ";
+        if (!checkName.StartsWith(prefix, StringComparison.Ordinal)) return null;
+        var afterPrefix = checkName[prefix.Length..];
+        var dashIndex = afterPrefix.LastIndexOf(" - ", StringComparison.Ordinal);
+        return dashIndex >= 0 ? afterPrefix[(dashIndex + 3)..] : afterPrefix;
+    }
 }

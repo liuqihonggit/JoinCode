@@ -74,7 +74,7 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private async Task<(bool Success, string? Error)> AddToProjectByTitleAsync(IGitHubApiClient client, string owner, string contentNodeId, string projectTitle, CancellationToken ct) {
         var projectId = await FindProjectIdByTitleAsync(client, owner, projectTitle, ct).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(projectId)) return (false, $"未找到项目: {projectTitle}");
+        if (string.IsNullOrEmpty(projectId)) return (false, $"未找到项目 \"{projectTitle}\"。可能原因: ① Token 缺少 read:project scope（运行 gh auth refresh -s project 添加） ② 项目标题不存在 ③ 项目属于其他 organization");
         var mutation = BuildGraphQL($"mutation{{addProjectV2ItemById(input:{{projectId:\"{projectId}\",contentId:\"{contentNodeId}\"}}){{item{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
         return result.Success ? (true, null) : (false, result.Error);
@@ -85,9 +85,9 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private async Task<(bool Success, string? Error)> RemoveFromProjectByTitleAsync(IGitHubApiClient client, string owner, string contentNodeId, string projectTitle, CancellationToken ct) {
         var projectId = await FindProjectIdByTitleAsync(client, owner, projectTitle, ct).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(projectId)) return (false, $"未找到项目: {projectTitle}");
+        if (string.IsNullOrEmpty(projectId)) return (false, $"未找到项目 \"{projectTitle}\"。可能原因: ① Token 缺少 read:project scope（运行 gh auth refresh -s project 添加） ② 项目标题不存在 ③ 项目属于其他 organization");
         var itemId = await FindProjectItemIdAsync(client, projectId, contentNodeId, ct).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(itemId)) return (false, $"Issue/PR 不在项目 {projectTitle} 中");
+        if (string.IsNullOrEmpty(itemId)) return (false, $"Issue/PR 不在项目 \"{projectTitle}\" 中。可能原因: ① Issue/PR 未添加到该项目 ② 项目标题不匹配");
         var mutation = BuildGraphQL($"mutation{{deleteProjectV2Item(input:{{projectId:\"{projectId}\",itemId:\"{itemId}\"}}){{clientMutationId}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
         return result.Success ? (true, null) : (false, result.Error);

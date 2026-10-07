@@ -280,7 +280,7 @@ public partial class GitHubToolHandlers {
             }
             if (!string.IsNullOrWhiteSpace(milestone)) {
                 var milestoneId = await ResolveMilestoneIdAsync(client, owner, repoName, milestone, cancellationToken).ConfigureAwait(false);
-                if (milestoneId is null) return Fail($"未找到里程碑: {milestone}");
+                if (milestoneId is null) return Fail($"未找到里程碑 \"{milestone}\"。可能原因: ① 里程碑不存在 ② 里程碑已关闭。请在仓库 Issues → Milestones 中确认里程碑名称");
                 var milestoneBody = JsonSerializer.Serialize(new MilestoneRequest { Milestone = milestoneId }, GitHubApiJsonContext.Safe.MilestoneRequest);
                 var milestoneResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", milestoneBody, ct: cancellationToken).ConfigureAwait(false);
                 if (!milestoneResult.Success) return Fail(milestoneResult.Error);
@@ -305,7 +305,7 @@ public partial class GitHubToolHandlers {
                 type is not null || remove_type == true;
             if (needsNodeId) {
                 var nodeId = await GetIssueNodeIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
-                if (string.IsNullOrEmpty(nodeId)) return Fail($"无法获取 Issue {number} 的 node_id");
+                if (string.IsNullOrEmpty(nodeId)) return Fail($"无法获取 Issue {number} 的 node_id。可能原因: ① Issue 不存在 ② Token 缺少 repo scope ③ 网络错误");
                 if (!string.IsNullOrWhiteSpace(add_project)) {
                     foreach (var pTitle in ParseCsvToList(add_project)) {
                         var (ok, err) = await AddToProjectByTitleAsync(client, owner, nodeId, pTitle, cancellationToken).ConfigureAwait(false);
@@ -352,14 +352,14 @@ public partial class GitHubToolHandlers {
                 }
                 if (remove_parent == true) {
                     var parentId = await GetIssueParentIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
-                    if (string.IsNullOrEmpty(parentId)) return Fail($"Issue {number} 没有父 issue");
+                    if (string.IsNullOrEmpty(parentId)) return Fail($"Issue {number} 没有父 issue。如需设置父 issue，使用 --parent <number>");
                     var (ok, err) = await RemoveSubIssueGraphQLAsync(client, parentId, nodeId, cancellationToken).ConfigureAwait(false);
                     if (!ok) return Fail(err!);
                 }
                 if (!string.IsNullOrWhiteSpace(add_blocked_by)) {
                     foreach (var blockingNum in ParseCsvToList(add_blocked_by)) {
                         var blockingNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(blockingNum), cancellationToken).ConfigureAwait(false);
-                        if (string.IsNullOrEmpty(blockingNodeId)) return Fail($"无法获取 Issue {blockingNum} 的 node_id");
+                        if (string.IsNullOrEmpty(blockingNodeId)) return Fail($"无法获取 Issue {blockingNum} 的 node_id。可能原因: ① Issue 不存在 ② Token 缺少 repo scope");
                         var (ok, err) = await AddBlockedByGraphQLAsync(client, nodeId, blockingNodeId, cancellationToken).ConfigureAwait(false);
                         if (!ok) return Fail(err!);
                     }
@@ -367,7 +367,7 @@ public partial class GitHubToolHandlers {
                 if (!string.IsNullOrWhiteSpace(remove_blocked_by)) {
                     foreach (var blockingNum in ParseCsvToList(remove_blocked_by)) {
                         var blockingNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(blockingNum), cancellationToken).ConfigureAwait(false);
-                        if (string.IsNullOrEmpty(blockingNodeId)) return Fail($"无法获取 Issue {blockingNum} 的 node_id");
+                        if (string.IsNullOrEmpty(blockingNodeId)) return Fail($"无法获取 Issue {blockingNum} 的 node_id。可能原因: ① Issue 不存在 ② Token 缺少 repo scope");
                         var (ok, err) = await RemoveBlockedByGraphQLAsync(client, nodeId, blockingNodeId, cancellationToken).ConfigureAwait(false);
                         if (!ok) return Fail(err!);
                     }
@@ -375,7 +375,7 @@ public partial class GitHubToolHandlers {
                 if (!string.IsNullOrWhiteSpace(add_blocking)) {
                     foreach (var blockedNum in ParseCsvToList(add_blocking)) {
                         var blockedNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(blockedNum), cancellationToken).ConfigureAwait(false);
-                        if (string.IsNullOrEmpty(blockedNodeId)) return Fail($"无法获取 Issue {blockedNum} 的 node_id");
+                        if (string.IsNullOrEmpty(blockedNodeId)) return Fail($"无法获取 Issue {blockedNum} 的 node_id。可能原因: ① Issue 不存在 ② Token 缺少 repo scope");
                         var (ok, err) = await AddBlockedByGraphQLAsync(client, blockedNodeId, nodeId, cancellationToken).ConfigureAwait(false);
                         if (!ok) return Fail(err!);
                     }
@@ -383,14 +383,14 @@ public partial class GitHubToolHandlers {
                 if (!string.IsNullOrWhiteSpace(remove_blocking)) {
                     foreach (var blockedNum in ParseCsvToList(remove_blocking)) {
                         var blockedNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(blockedNum), cancellationToken).ConfigureAwait(false);
-                        if (string.IsNullOrEmpty(blockedNodeId)) return Fail($"无法获取 Issue {blockedNum} 的 node_id");
+                        if (string.IsNullOrEmpty(blockedNodeId)) return Fail($"无法获取 Issue {blockedNum} 的 node_id。可能原因: ① Issue 不存在 ② Token 缺少 repo scope");
                         var (ok, err) = await RemoveBlockedByGraphQLAsync(client, blockedNodeId, nodeId, cancellationToken).ConfigureAwait(false);
                         if (!ok) return Fail(err!);
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(type)) {
                     var typeId = await FindIssueTypeIdAsync(client, owner, repoName, type, cancellationToken).ConfigureAwait(false);
-                    if (string.IsNullOrEmpty(typeId)) return Fail($"未找到 issue 类型: {type}");
+                    if (string.IsNullOrEmpty(typeId)) return Fail($"未找到 issue 类型 \"{type}\"。可能原因: ① 仓库未配置 issue types（在仓库 Settings → Issues → Issue types 中添加） ② 类型名称不存在");
                     var (ok, err) = await SetIssueTypeAsync(client, nodeId, typeId, cancellationToken).ConfigureAwait(false);
                     if (!ok) return Fail(err!);
                 }

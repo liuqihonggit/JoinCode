@@ -849,7 +849,7 @@ public partial class GitHubToolHandlers {
             }
             if (!string.IsNullOrWhiteSpace(milestone)) {
                 var milestoneId = await ResolveMilestoneIdAsync(client, owner, repoName, milestone, cancellationToken).ConfigureAwait(false);
-                if (milestoneId is null) return Fail($"未找到里程碑: {milestone}");
+                if (milestoneId is null) return Fail($"未找到里程碑 \"{milestone}\"。可能原因: ① 里程碑不存在 ② 里程碑已关闭。请在仓库 Issues → Milestones 中确认里程碑名称");
                 var milestoneBody = JsonSerializer.Serialize(new MilestoneRequest { Milestone = milestoneId }, GitHubApiJsonContext.Safe.MilestoneRequest);
                 var milestoneResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", milestoneBody, ct: cancellationToken).ConfigureAwait(false);
                 if (!milestoneResult.Success) return Fail(milestoneResult.Error);
@@ -880,7 +880,7 @@ public partial class GitHubToolHandlers {
             }
             if (add_project is not null || remove_project is not null || attach is not null) {
                 var nodeId = await GetIssueNodeIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
-                if (string.IsNullOrEmpty(nodeId)) return Fail($"无法获取 PR {number} 的 node_id");
+                if (string.IsNullOrEmpty(nodeId)) return Fail($"无法获取 PR {number} 的 node_id。可能原因: ① PR 不存在 ② Token 缺少 repo scope ③ 网络错误");
                 if (!string.IsNullOrWhiteSpace(add_project)) {
                     foreach (var pTitle in ParseCsvToList(add_project)) {
                         var (ok, err) = await AddToProjectByTitleAsync(client, owner, nodeId, pTitle, cancellationToken).ConfigureAwait(false);

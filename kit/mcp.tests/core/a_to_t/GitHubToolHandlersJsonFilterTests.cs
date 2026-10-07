@@ -221,4 +221,55 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("\"id\":\"abc\"");
         text.Should().NotContain("\"description\"");
     }
+
+    [Fact]
+    public async Task RunView_WithJson_ReturnsFilteredFields() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"status":"completed","conclusion":"success","head_sha":"abc"}""" };
+
+        var result = await _handler.GhRunViewAsync("123", json: "id,status", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"id\":123");
+        text.Should().Contain("\"status\":\"completed\"");
+        text.Should().NotContain("\"conclusion\"");
+    }
+
+    [Fact]
+    public async Task ReleaseView_WithJson_ReturnsFilteredFields() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":1,"tag_name":"v1","name":"Release 1","draft":false}""" };
+
+        var result = await _handler.GhReleaseViewAsync("v1", json: "id,tag_name", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"id\":1");
+        text.Should().Contain("\"tag_name\":\"v1\"");
+        text.Should().NotContain("\"name\"");
+    }
+
+    [Fact]
+    public async Task WorkflowView_WithJson_ReturnsFilteredFields() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"name":"CI","state":"active","path":".github/workflows/ci.yml"}""" };
+
+        var result = await _handler.GhWorkflowViewAsync("ci.yml", json: "id,name", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"id\":42");
+        text.Should().Contain("\"name\":\"CI\"");
+        text.Should().NotContain("\"state\"");
+    }
+
+    [Fact]
+    public async Task GistView_WithJson_ReturnsFilteredFields() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":"abc","description":"d","public":false}""" };
+
+        var result = await _handler.GhGistViewAsync("abc", json: "id");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"id\":\"abc\"");
+        text.Should().NotContain("\"description\"");
+    }
 }

@@ -37,10 +37,12 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhGistView, "查看 Gist 详情", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhGistViewAsync(
         [McpToolParameter("Gist ID", Required = true)] string gist_id,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,description)", Required = false)] string? json = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"gists/{gist_id}", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
+        if (!string.IsNullOrEmpty(json)) return Ok(FilterJsonFields(result.Body, json));
         var gist = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.GistResponse);
         return gist is null ? Fail("解析 Gist 详情失败") : Ok(SummarizeGistView(gist));
     }

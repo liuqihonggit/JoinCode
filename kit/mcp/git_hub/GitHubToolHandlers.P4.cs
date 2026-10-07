@@ -172,13 +172,15 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhRulesetViewAsync(
         [McpToolParameter("规则集 ID", Required = true)] long ruleset_id,
         [McpToolParameter("组织名(可选,查看组织级规则集)", Required = false)] string? org = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,target)", Required = false)] string? json = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var path = !string.IsNullOrWhiteSpace(org) ? $"orgs/{org}/rulesets/{ruleset_id}" : $"repos/{owner}/{repoName}/rulesets/{ruleset_id}";
             var result = await client.SendAsync(HttpMethod.Get, path, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body) : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(result.Body, json) : result.Body);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -401,13 +403,15 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhDiscussionView, "查看 Discussion 详情(GraphQL)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhDiscussionViewAsync(
         [McpToolParameter("Discussion 编号", Required = true)] int number,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title)", Required = false)] string? json = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var graphql = BuildGraphQL($"query{{repository(owner:\"{owner}\",name=\"{repoName}\"){{discussion(number:{number}){{number title body author{{login}} category{{name}} createdAt url}}}}}}");
+            var graphql = BuildGraphQL($"query{{repository(owner:\"{owner}\",name:\"{repoName}\"){{discussion(number:{number}){{number title body author{{login}} category{{name}} createdAt url}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body) : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(result.Body, json) : result.Body);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -560,15 +564,17 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhProjectViewAsync(
         [McpToolParameter("Project 编号", Required = true)] int number,
         [McpToolParameter("组织名(可选,默认当前用户)", Required = false)] string? org = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 title,url,state)", Required = false)] string? json = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         string graphql;
         if (!string.IsNullOrWhiteSpace(org))
-            graphql = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectV2(number:{number}){{title url closed state items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}}}");
+            graphql = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectV2(number:{number}){{title url closed state items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
         else
-            graphql = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{title url closed state items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}}}");
+            graphql = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{title url closed state items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body) : Fail(result.Error);
+        if (!result.Success) return Fail(result.Error);
+        return Ok(!string.IsNullOrEmpty(json) ? FilterJsonFields(result.Body, json) : result.Body);
     }
 
     /// <summary>

@@ -15,7 +15,7 @@ public partial class GitHubToolHandlers {
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
         var result = await _apiClient.SendAsync(HttpMethod.Get, "gists", query: query, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        var gists = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Default.ListGistListItem);
+        var gists = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.ListGistListItem);
         return gists is null ? Fail("解析 Gist 列表失败") : Ok(SummarizeGistList(gists));
     }
 
@@ -39,7 +39,7 @@ public partial class GitHubToolHandlers {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"gists/{gist_id}", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        var gist = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Default.GistResponse);
+        var gist = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.GistResponse);
         return gist is null ? Fail("解析 Gist 详情失败") : Ok(SummarizeGistView(gist));
     }
 
@@ -72,7 +72,7 @@ public partial class GitHubToolHandlers {
             Description = description,
             Public = @public == true,
         };
-        var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Default.GistCreateRequest);
+        var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.GistCreateRequest);
         var result = await _apiClient.SendAsync(HttpMethod.Post, "gists", body, ct: cancellationToken).ConfigureAwait(false);
         return result.Success ? OkBrief(result.Body, "Gist 创建成功") : Fail(result.Error);
     }

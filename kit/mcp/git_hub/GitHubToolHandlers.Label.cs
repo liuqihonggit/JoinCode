@@ -59,7 +59,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var request = new LabelCreateRequest { Name = name, Color = color, Description = description };
-            var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Default.LabelCreateRequest);
+            var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.LabelCreateRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/labels", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             if (result.Success) return OkBrief(result.Body, $"已创建标签 {name}");
             if (force == true && result.StatusCode == 422) {

@@ -112,7 +112,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var jsonBody = JsonSerializer.Serialize(new VariableSetRequest { Name = name, Value = body }, GitHubApiJsonContext.Default.VariableSetRequest);
+            var jsonBody = JsonSerializer.Serialize(new VariableSetRequest { Name = name, Value = body }, GitHubApiJsonContext.Safe.VariableSetRequest);
             var putResult = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/actions/variables/{name}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             if (putResult.Success) return Ok($"已更新 Variable {name}");
             var postResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/variables", jsonBody, ct: cancellationToken).ConfigureAwait(false);

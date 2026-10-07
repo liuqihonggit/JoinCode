@@ -21,28 +21,36 @@ public sealed class TrustCommand : ChatCommandBase {
         var workspacePath = context.GetCommandServices().FileSystem.GetCurrentDirectory();
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(args) || args.Equals("status", StringComparison.OrdinalIgnoreCase)) {
-            ShowStatus(manager, workspacePath);
-        } else if (args.Equals("add", StringComparison.OrdinalIgnoreCase)) {
-            manager.Trust(workspacePath);
-            TerminalHelper.WriteLine($"{TerminalColors.Success}已信任当前工作区: {workspacePath}{AnsiStyleEnumConstants.Reset}");
-        } else if (args.Equals("remove", StringComparison.OrdinalIgnoreCase)) {
-            manager.Untrust(workspacePath);
-            TerminalHelper.WriteLine($"已移除工作区信任: {workspacePath}");
-        } else if (args.Equals("list", StringComparison.OrdinalIgnoreCase)) {
-            ListAll(manager, context.GetCommandServices().FileSystem);
-        } else if (args.Equals("clear", StringComparison.OrdinalIgnoreCase)) {
-            var count = manager.GetAllTrustedFolders().Count;
-            manager.ClearAll();
-            TerminalHelper.WriteLine($"已清除所有信任目录 ({count} 个)");
-        } else {
-            TerminalHelper.WriteLine($"用法: {Usage}");
-            TerminalHelper.NewLine();
-            TerminalHelper.WriteLine("  /trust        显示当前工作区信任状态");
-            TerminalHelper.WriteLine("  /trust add    信任当前工作区");
-            TerminalHelper.WriteLine("  /trust remove 移除当前工作区信任");
-            TerminalHelper.WriteLine("  /trust list   列出所有信任目录");
-            TerminalHelper.WriteLine("  /trust clear  清除所有信任目录");
+        var cmd = string.IsNullOrEmpty(args) ? "status" : args.ToLowerInvariant();
+        switch (cmd) {
+            case "status":
+                ShowStatus(manager, workspacePath);
+                break;
+            case "add":
+                manager.Trust(workspacePath);
+                TerminalHelper.WriteLine($"{TerminalColors.Success}已信任当前工作区: {workspacePath}{AnsiStyleEnumConstants.Reset}");
+                break;
+            case "remove":
+                manager.Untrust(workspacePath);
+                TerminalHelper.WriteLine($"已移除工作区信任: {workspacePath}");
+                break;
+            case "list":
+                ListAll(manager, context.GetCommandServices().FileSystem);
+                break;
+            case "clear":
+                var count = manager.GetAllTrustedFolders().Count;
+                manager.ClearAll();
+                TerminalHelper.WriteLine($"已清除所有信任目录 ({count} 个)");
+                break;
+            default:
+                TerminalHelper.WriteLine($"用法: {Usage}");
+                TerminalHelper.NewLine();
+                TerminalHelper.WriteLine("  /trust        显示当前工作区信任状态");
+                TerminalHelper.WriteLine("  /trust add    信任当前工作区");
+                TerminalHelper.WriteLine("  /trust remove 移除当前工作区信任");
+                TerminalHelper.WriteLine("  /trust list   列出所有信任目录");
+                TerminalHelper.WriteLine("  /trust clear  清除所有信任目录");
+                break;
         }
 
         return Task.FromResult(ChatCommandResult.Continue());

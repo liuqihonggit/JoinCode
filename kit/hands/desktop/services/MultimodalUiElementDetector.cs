@@ -151,28 +151,31 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
     internal static string ExtractJson(string responseText)
         => LlmJsonHelper.ExtractJsonBlock(responseText) ?? LlmJsonHelper.ExtractInlineJson(responseText) ?? responseText.Trim();
 
+    /// <summary>UI 元素类型字符串 → 枚举容错映射（忽略大小写）。</summary>
+    private static readonly FrozenDictionary<string, UiElementType> ElementTypeMap = new Dictionary<string, UiElementType>(StringComparer.OrdinalIgnoreCase) {
+        ["button"] = UiElementType.Button, ["btn"] = UiElementType.Button,
+        ["textbox"] = UiElementType.TextBox, ["text_box"] = UiElementType.TextBox, ["input"] = UiElementType.TextBox, ["textinput"] = UiElementType.TextBox,
+        ["menu"] = UiElementType.Menu,
+        ["menuitem"] = UiElementType.MenuItem, ["menu_item"] = UiElementType.MenuItem,
+        ["dialog"] = UiElementType.Dialog,
+        ["progressbar"] = UiElementType.ProgressBar, ["progress_bar"] = UiElementType.ProgressBar, ["progress"] = UiElementType.ProgressBar,
+        ["checkbox"] = UiElementType.CheckBox, ["check_box"] = UiElementType.CheckBox,
+        ["radiobutton"] = UiElementType.RadioButton, ["radio_button"] = UiElementType.RadioButton, ["radio"] = UiElementType.RadioButton,
+        ["icon"] = UiElementType.Icon,
+        ["text"] = UiElementType.Text, ["label"] = UiElementType.Text,
+        ["image"] = UiElementType.Image, ["img"] = UiElementType.Image,
+        ["link"] = UiElementType.Link, ["hyperlink"] = UiElementType.Link, ["a"] = UiElementType.Link,
+        ["combobox"] = UiElementType.ComboBox, ["combo_box"] = UiElementType.ComboBox, ["dropdown"] = UiElementType.ComboBox, ["select"] = UiElementType.ComboBox,
+        ["listitem"] = UiElementType.ListItem, ["list_item"] = UiElementType.ListItem, ["li"] = UiElementType.ListItem,
+        ["titlebar"] = UiElementType.TitleBar, ["title_bar"] = UiElementType.TitleBar,
+        ["scrollbar"] = UiElementType.ScrollBar, ["scroll_bar"] = UiElementType.ScrollBar, ["scroll"] = UiElementType.ScrollBar,
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// 字符串 → UiElementType 枚举（容错映射，未知返回 Unknown）
     /// </summary>
-    internal static UiElementType ParseElementType(string? type) => (type ?? string.Empty).ToLowerInvariant() switch {
-        "button" or "btn" => UiElementType.Button,
-        "textbox" or "text_box" or "input" or "textinput" => UiElementType.TextBox,
-        "menu" => UiElementType.Menu,
-        "menuitem" or "menu_item" => UiElementType.MenuItem,
-        "dialog" => UiElementType.Dialog,
-        "progressbar" or "progress_bar" or "progress" => UiElementType.ProgressBar,
-        "checkbox" or "check_box" => UiElementType.CheckBox,
-        "radiobutton" or "radio_button" or "radio" => UiElementType.RadioButton,
-        "icon" => UiElementType.Icon,
-        "text" or "label" => UiElementType.Text,
-        "image" or "img" => UiElementType.Image,
-        "link" or "hyperlink" or "a" => UiElementType.Link,
-        "combobox" or "combo_box" or "dropdown" or "select" => UiElementType.ComboBox,
-        "listitem" or "list_item" or "li" => UiElementType.ListItem,
-        "titlebar" or "title_bar" => UiElementType.TitleBar,
-        "scrollbar" or "scroll_bar" or "scroll" => UiElementType.ScrollBar,
-        _ => UiElementType.Unknown
-    };
+    internal static UiElementType ParseElementType(string? type)
+        => ElementTypeMap.TryGetValue(type ?? string.Empty, out var t) ? t : UiElementType.Unknown;
 
     /// <summary>
     /// 字符串 → ElementState 枚举（容错映射，未知返回 Normal）

@@ -74,26 +74,15 @@ public static class ToolExceptionDiagnosticHelper {
     }
 
     private static List<string> BuildExceptionSuggestions(Exception ex) {
-        var suggestions = new List<string>(2);
-
-        if (ex is OperationCanceledException) {
-            suggestions.Add("操作被取消，可能因超时或用户主动中断");
-        } else if (ex is ArgumentException or ArgumentNullException) {
-            suggestions.Add("检查参数是否正确传递且非空");
-        } else if (ex is IOException) {
-            suggestions.Add("检查文件路径、权限和磁盘空间");
-        } else if (ex is UnauthorizedAccessException) {
-            suggestions.Add("检查文件/目录访问权限");
-        } else if (ex is TimeoutException) {
-            suggestions.Add("操作超时，考虑增加超时时间或拆分任务");
-        } else if (ex is KeyNotFoundException or FileNotFoundException) {
-            suggestions.Add("确认目标资源存在且路径正确");
-        }
-
-        if (suggestions.Count == 0) {
-            suggestions.Add("查看日志获取详细堆栈信息");
-        }
-
-        return suggestions;
+        var suggestion = ex switch {
+            OperationCanceledException               => "操作被取消，可能因超时或用户主动中断",
+            ArgumentException or ArgumentNullException => "检查参数是否正确传递且非空",
+            IOException                              => "检查文件路径、权限和磁盘空间",
+            UnauthorizedAccessException               => "检查文件/目录访问权限",
+            TimeoutException                         => "操作超时，考虑增加超时时间或拆分任务",
+            KeyNotFoundException or FileNotFoundException => "确认目标资源存在且路径正确",
+            _                                        => "查看日志获取详细堆栈信息",
+        };
+        return [suggestion];
     }
 }

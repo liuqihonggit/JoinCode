@@ -138,8 +138,8 @@ public partial class GitHubToolHandlers {
             using var doc = JsonDocument.Parse(json);
             if (!doc.RootElement.TryGetProperty("workflow_runs", out var runs)) return null;
             foreach (var run in runs.EnumerateArray()) {
-                if (run.TryGetProperty("run_number", out var rn) && rn.GetRawText().Trim('"') == number
-                    && run.TryGetProperty("id", out var id))
+                if (run.TryGetProperty(GitHubJsonFields.RunNumber, out var rn) && rn.GetRawText().Trim('"') == number
+                    && run.TryGetProperty(GitHubJsonFields.Id, out var id))
                     return id.GetRawText().Trim('"');
             }
         } catch (JsonException ex) {
@@ -475,8 +475,8 @@ public partial class GitHubToolHandlers {
         try {
             using var doc = JsonDocument.Parse(runJson);
             var root = doc.RootElement;
-            var conclusion = root.TryGetProperty("conclusion", out var c) ? c.GetString() ?? "unknown" : "unknown";
-            var htmlUrl = root.TryGetProperty("html_url", out var u) ? u.GetString() ?? "" : "";
+            var conclusion = root.TryGetProperty(GitHubJsonFields.Conclusion, out var c) ? c.GetString() ?? "unknown" : "unknown";
+            var htmlUrl = root.TryGetProperty(GitHubJsonFields.HtmlUrl, out var u) ? u.GetString() ?? "" : "";
             var displayConclusion = conclusion switch {
                 "success" => "✅ success",
                 "failure" => "❌ failure",
@@ -514,8 +514,8 @@ public partial class GitHubToolHandlers {
                 artifacts = [];
                 if (doc.RootElement.TryGetProperty("artifacts", out var artsEl) && artsEl.ValueKind == JsonValueKind.Array) {
                     foreach (var art in artsEl.EnumerateArray()) {
-                        var artName = art.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                        var artId = art.TryGetProperty("id", out var idEl) ? idEl.GetInt64() : 0;
+                        var artName = art.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
+                        var artId = art.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
                         if (string.IsNullOrEmpty(artName) || artId == 0) continue;
                         if (!string.IsNullOrWhiteSpace(name) && !SimpleMatchArtifact(name, artName)) continue;
                         artifacts.Add((artName, artId));
@@ -610,9 +610,9 @@ public partial class GitHubToolHandlers {
                 if (!result.Success) return Fail(result.Error);
                 try {
                     using var doc = JsonDocument.Parse(result.Body);
-                    var status = doc.RootElement.TryGetProperty("status", out var s) ? s.GetString() ?? "" : "";
-                    var conclusion = doc.RootElement.TryGetProperty("conclusion", out var c) ? (c.ValueKind == JsonValueKind.Null ? "" : c.GetString() ?? "") : "";
-                    var displayTitle = doc.RootElement.TryGetProperty("display_title", out var dt) ? dt.GetString() ?? "" : "";
+                    var status = doc.RootElement.TryGetProperty(GitHubJsonFields.Status, out var s) ? s.GetString() ?? "" : "";
+                    var conclusion = doc.RootElement.TryGetProperty(GitHubJsonFields.Conclusion, out var c) ? (c.ValueKind == JsonValueKind.Null ? "" : c.GetString() ?? "") : "";
+                    var displayTitle = doc.RootElement.TryGetProperty(GitHubJsonFields.DisplayTitle, out var dt) ? dt.GetString() ?? "" : "";
                     sb.AppendLine($"[{DateTime.Now:HH:mm:ss}] {status}{(string.IsNullOrEmpty(conclusion) ? "" : $" / {conclusion}")} — {displayTitle}");
                     if (status == "completed") { finalStatus = status; finalConclusion = conclusion; break; }
                 } catch {

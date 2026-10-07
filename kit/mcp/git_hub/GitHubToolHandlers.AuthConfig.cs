@@ -16,8 +16,8 @@ public partial class GitHubToolHandlers {
         if (!result.Success) return Fail($"Auth 验证失败: {result.Error} — 请用系统 gh CLI 重新登录: gh auth login");
         try {
             using var doc = JsonDocument.Parse(result.Body);
-            var login = doc.RootElement.TryGetProperty("login", out var l) ? l.GetString() ?? "" : "";
-            var name = doc.RootElement.TryGetProperty("name", out var n) ? (n.ValueKind == JsonValueKind.Null ? "" : n.GetString() ?? "") : "";
+            var login = doc.RootElement.TryGetProperty(GitHubJsonFields.Login, out var l) ? l.GetString() ?? "" : "";
+            var name = doc.RootElement.TryGetProperty(GitHubJsonFields.Name, out var n) ? (n.ValueKind == JsonValueKind.Null ? "" : n.GetString() ?? "") : "";
             var sb = new StringBuilder(128);
             sb.AppendLine($"已登录: {login}");
             if (!string.IsNullOrEmpty(name)) sb.AppendLine($"名称: {name}");
@@ -41,7 +41,7 @@ public partial class GitHubToolHandlers {
         string login;
         try {
             using var doc = JsonDocument.Parse(result.Body);
-            login = doc.RootElement.TryGetProperty("login", out var l) ? l.GetString() ?? "" : "";
+            login = doc.RootElement.TryGetProperty(GitHubJsonFields.Login, out var l) ? l.GetString() ?? "" : "";
         } catch { return Fail("Token 验证响应解析失败"); }
         var hostname = string.IsNullOrWhiteSpace(host) ? "github.com" : host;
         var hostsPath = GetGhConfigPath(true);

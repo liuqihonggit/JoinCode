@@ -33,10 +33,10 @@ public partial class GitHubToolHandlers {
             sb.AppendLine("ID\t名称\t状态\t路径");
             if (doc.RootElement.TryGetProperty("workflows", out var workflows) && workflows.ValueKind == JsonValueKind.Array) {
                 foreach (var wf in workflows.EnumerateArray()) {
-                    var id = wf.TryGetProperty("id", out var i) ? i.GetInt64() : 0;
-                    var name = wf.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                    var state = wf.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
-                    var path = wf.TryGetProperty("path", out var p) ? p.GetString() ?? "" : "";
+                    var id = wf.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt64() : 0;
+                    var name = wf.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
+                    var state = wf.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
+                    var path = wf.TryGetProperty(GitHubJsonFields.Path, out var p) ? p.GetString() ?? "" : "";
                     if (!includeDisabled && state == "disabled_manually") continue;
                     sb.AppendLine($"{id}\t{name}\t{state}\t{path}");
                 }
@@ -84,10 +84,10 @@ public partial class GitHubToolHandlers {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             var sb = new StringBuilder(256);
-            var name = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-            var state = root.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
-            var path = root.TryGetProperty("path", out var p) ? p.GetString() ?? "" : "";
-            var id = root.TryGetProperty("id", out var i) ? i.GetInt64() : 0;
+            var name = root.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
+            var state = root.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
+            var path = root.TryGetProperty(GitHubJsonFields.Path, out var p) ? p.GetString() ?? "" : "";
+            var id = root.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt64() : 0;
             sb.AppendLine($"Workflow: {name}");
             sb.AppendLine($"ID: {id}  State: {state}  Path: {path}");
             return sb.ToString().TrimEnd();

@@ -198,8 +198,8 @@ public partial class GitHubToolHandlers {
         try {
             using var doc = JsonDocument.Parse(result.Body);
             foreach (var m in doc.RootElement.EnumerateArray()) {
-                if (m.TryGetProperty("title", out var t) && t.GetString() == milestoneName) {
-                    return m.TryGetProperty("number", out var n) ? n.GetInt32() : null;
+                if (m.TryGetProperty(GitHubJsonFields.Title, out var t) && t.GetString() == milestoneName) {
+                    return m.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : null;
                 }
             }
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 milestones 响应失败"); }
@@ -333,19 +333,19 @@ public partial class GitHubToolHandlers {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             var sb = new StringBuilder(512);
-            var number = root.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
-            var title = root.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
-            var state = root.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
-            var draft = root.TryGetProperty("draft", out var d) && d.GetBoolean();
+            var number = root.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
+            var title = root.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
+            var state = root.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
+            var draft = root.TryGetProperty(GitHubJsonFields.Draft, out var d) && d.GetBoolean();
             var mergeable = root.TryGetProperty("mergeable", out var m) ? (m.ValueKind == JsonValueKind.Null ? "null" : m.GetBoolean().ToString()) : "unknown";
             var mergeableState = root.TryGetProperty("mergeable_state", out var ms) ? (ms.ValueKind == JsonValueKind.Null ? "null" : ms.GetString() ?? "") : "";
-            var author = root.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
-            var headRef = root.TryGetProperty("head", out var h) && h.TryGetProperty("ref", out var hr) ? hr.GetString() ?? "" : "";
-            var baseRef = root.TryGetProperty("base", out var b) && b.TryGetProperty("ref", out var br) ? br.GetString() ?? "" : "";
+            var author = root.TryGetProperty(GitHubJsonFields.User, out var u) && u.TryGetProperty(GitHubJsonFields.Login, out var login) ? login.GetString() ?? "" : "";
+            var headRef = root.TryGetProperty(GitHubJsonFields.Head, out var h) && h.TryGetProperty(GitHubJsonFields.Ref, out var hr) ? hr.GetString() ?? "" : "";
+            var baseRef = root.TryGetProperty("base", out var b) && b.TryGetProperty(GitHubJsonFields.Ref, out var br) ? br.GetString() ?? "" : "";
             var additions = root.TryGetProperty("additions", out var add) ? add.GetInt32() : 0;
             var deletions = root.TryGetProperty("deletions", out var del) ? del.GetInt32() : 0;
             var changedFiles = root.TryGetProperty("changed_files", out var cf) ? cf.GetInt32() : 0;
-            var url = root.TryGetProperty("html_url", out var hu) ? hu.GetString() ?? "" : "";
+            var url = root.TryGetProperty(GitHubJsonFields.HtmlUrl, out var hu) ? hu.GetString() ?? "" : "";
 
             sb.AppendLine($"PR #{number}: {title}");
             sb.AppendLine($"状态: {state}{(draft ? " (draft)" : "")} (mergeable: {mergeable}, mergeable_state: {mergeableState})");
@@ -367,17 +367,17 @@ public partial class GitHubToolHandlers {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             var sb = new StringBuilder(512);
-            var number = root.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
-            var title = root.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
-            var state = root.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
-            var author = root.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
-            var url = root.TryGetProperty("html_url", out var hu) ? hu.GetString() ?? "" : "";
-            var createdAt = root.TryGetProperty("created_at", out var ca) ? ca.GetString() ?? "" : "";
+            var number = root.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
+            var title = root.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
+            var state = root.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
+            var author = root.TryGetProperty(GitHubJsonFields.User, out var u) && u.TryGetProperty(GitHubJsonFields.Login, out var login) ? login.GetString() ?? "" : "";
+            var url = root.TryGetProperty(GitHubJsonFields.HtmlUrl, out var hu) ? hu.GetString() ?? "" : "";
+            var createdAt = root.TryGetProperty(GitHubJsonFields.CreatedAt, out var ca) ? ca.GetString() ?? "" : "";
             var labels = "";
-            if (root.TryGetProperty("labels", out var labelsEl) && labelsEl.ValueKind == JsonValueKind.Array) {
+            if (root.TryGetProperty(GitHubJsonFields.Labels, out var labelsEl) && labelsEl.ValueKind == JsonValueKind.Array) {
                 var labelSb = new StringBuilder();
                 foreach (var l in labelsEl.EnumerateArray()) {
-                    if (!l.TryGetProperty("name", out var ln)) continue;
+                    if (!l.TryGetProperty(GitHubJsonFields.Name, out var ln)) continue;
                     if (labelSb.Length > 0) labelSb.Append(", ");
                     labelSb.Append(ln.GetString() ?? "");
                 }
@@ -404,13 +404,13 @@ public partial class GitHubToolHandlers {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             var sb = new StringBuilder(512);
-            var name = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+            var name = root.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
             var fullName = root.TryGetProperty("full_name", out var fn) ? fn.GetString() ?? "" : "";
-            var isPrivate = root.TryGetProperty("private", out var p) && p.GetBoolean();
-            var defaultBranch = root.TryGetProperty("default_branch", out var db) ? db.GetString() ?? "" : "";
-            var stars = root.TryGetProperty("stargazers_count", out var sg) ? sg.GetInt32() : 0;
-            var forks = root.TryGetProperty("forks_count", out var fk) ? fk.GetInt32() : 0;
-            var url = root.TryGetProperty("html_url", out var hu) ? hu.GetString() ?? "" : "";
+            var isPrivate = root.TryGetProperty(GitHubJsonFields.Private, out var p) && p.GetBoolean();
+            var defaultBranch = root.TryGetProperty(GitHubJsonFields.DefaultBranch, out var db) ? db.GetString() ?? "" : "";
+            var stars = root.TryGetProperty(GitHubJsonFields.StargazersCount, out var sg) ? sg.GetInt32() : 0;
+            var forks = root.TryGetProperty(GitHubJsonFields.ForksCount, out var fk) ? fk.GetInt32() : 0;
+            var url = root.TryGetProperty(GitHubJsonFields.HtmlUrl, out var hu) ? hu.GetString() ?? "" : "";
 
             sb.AppendLine($"仓库: {fullName}");
             sb.AppendLine($"可见性: {(isPrivate ? "private" : "public")}");
@@ -430,15 +430,15 @@ public partial class GitHubToolHandlers {
         try {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
-            var arrayEl = root.ValueKind == JsonValueKind.Array ? root : root.TryGetProperty("items", out var itemsEl) ? itemsEl : default;
+            var arrayEl = root.ValueKind == JsonValueKind.Array ? root : root.TryGetProperty(GitHubJsonFields.Items, out var itemsEl) ? itemsEl : default;
             if (arrayEl.ValueKind != JsonValueKind.Array) return json;
             var sb = new StringBuilder(512);
             sb.AppendLine("PR#\t状态\t标题\t作者");
             foreach (var pr in arrayEl.EnumerateArray()) {
-                var number = pr.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
-                var state = pr.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
-                var title = pr.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
-                var author = pr.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
+                var number = pr.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
+                var state = pr.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
+                var title = pr.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
+                var author = pr.TryGetProperty(GitHubJsonFields.User, out var u) && u.TryGetProperty(GitHubJsonFields.Login, out var login) ? login.GetString() ?? "" : "";
                 sb.AppendLine($"{number}\t{state}\t{title}\t{author}");
             }
             return sb.ToString();
@@ -454,15 +454,15 @@ public partial class GitHubToolHandlers {
         try {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
-            var arrayEl = root.ValueKind == JsonValueKind.Array ? root : root.TryGetProperty("items", out var itemsEl) ? itemsEl : default;
+            var arrayEl = root.ValueKind == JsonValueKind.Array ? root : root.TryGetProperty(GitHubJsonFields.Items, out var itemsEl) ? itemsEl : default;
             if (arrayEl.ValueKind != JsonValueKind.Array) return json;
             var sb = new StringBuilder(512);
             sb.AppendLine("Issue#\t状态\t标题\t作者");
             foreach (var issue in arrayEl.EnumerateArray()) {
-                var number = issue.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
-                var state = issue.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
-                var title = issue.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
-                var author = issue.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
+                var number = issue.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
+                var state = issue.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
+                var title = issue.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
+                var author = issue.TryGetProperty(GitHubJsonFields.User, out var u) && u.TryGetProperty(GitHubJsonFields.Login, out var login) ? login.GetString() ?? "" : "";
                 sb.AppendLine($"{number}\t{state}\t{title}\t{author}");
             }
             return sb.ToString();

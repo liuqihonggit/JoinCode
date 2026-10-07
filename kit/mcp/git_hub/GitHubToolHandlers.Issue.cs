@@ -141,7 +141,7 @@ public partial class GitHubToolHandlers {
                 string? nodeId = null;
                 try {
                     using var doc = JsonDocument.Parse(result.Body);
-                    nodeId = doc.RootElement.TryGetProperty("node_id", out var n) ? n.GetString() : null;
+                    nodeId = doc.RootElement.TryGetProperty(GitHubJsonFields.NodeId, out var n) ? n.GetString() : null;
                 } catch (Exception ex) { _logger?.LogDebug(ex, "解析 Issue node_id 失败"); }
                 if (!string.IsNullOrEmpty(nodeId)) {
                     var projectResult = await AddToProjectAsync(client, owner, nodeId!, project.Value, cancellationToken).ConfigureAwait(false);
@@ -420,7 +420,7 @@ public partial class GitHubToolHandlers {
             string? nodeId;
             try {
                 using var doc = JsonDocument.Parse(issueResult.Body);
-                nodeId = doc.RootElement.TryGetProperty("node_id", out var n) ? n.GetString() : null;
+                nodeId = doc.RootElement.TryGetProperty(GitHubJsonFields.NodeId, out var n) ? n.GetString() : null;
             } catch { nodeId = null; }
             if (string.IsNullOrEmpty(nodeId)) return Fail("无法从 Issue 响应中解析 node_id");
             var graphqlBody = "{\"query\":\"mutation{deleteIssue(input:{issueId:\\\"" + nodeId + "\\\"}){clientMutationId}}\"}";
@@ -485,9 +485,9 @@ public partial class GitHubToolHandlers {
             var byAuthor = new Dictionary<string, List<(int number, string title)>>();
             foreach (var issue in doc.RootElement.EnumerateArray()) {
                 if (issue.TryGetProperty("pull_request", out _)) continue;
-                var number = issue.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
-                var title = issue.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
-                var author = issue.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
+                var number = issue.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
+                var title = issue.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
+                var author = issue.TryGetProperty(GitHubJsonFields.User, out var u) && u.TryGetProperty(GitHubJsonFields.Login, out var login) ? login.GetString() ?? "" : "";
                 if (!byAuthor.TryGetValue(author, out var list)) { list = new(); byAuthor[author] = list; }
                 list.Add((number, title));
             }
@@ -584,7 +584,7 @@ public partial class GitHubToolHandlers {
             string? destNodeId;
             try {
                 using var doc = JsonDocument.Parse(destResult.Body);
-                destNodeId = doc.RootElement.TryGetProperty("node_id", out var n) ? n.GetString() : null;
+                destNodeId = doc.RootElement.TryGetProperty(GitHubJsonFields.NodeId, out var n) ? n.GetString() : null;
             } catch { destNodeId = null; }
             if (string.IsNullOrEmpty(destNodeId)) return Fail("无法从目标仓库响应中解析 node_id");
             var graphqlBody = "{\"query\":\"mutation{transferIssue(input:{issueId:\\\"" + nodeId + "\\\",repositoryId:\\\"" + destNodeId + "\\\"}){issue{number}}}\"}";
@@ -600,7 +600,7 @@ public partial class GitHubToolHandlers {
         if (!result.Success) return null;
         try {
             using var doc = JsonDocument.Parse(result.Body);
-            return doc.RootElement.TryGetProperty("node_id", out var n) ? n.GetString() : null;
+            return doc.RootElement.TryGetProperty(GitHubJsonFields.NodeId, out var n) ? n.GetString() : null;
         } catch { return null; }
     }
 }

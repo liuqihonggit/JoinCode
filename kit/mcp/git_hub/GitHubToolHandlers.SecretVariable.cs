@@ -28,13 +28,13 @@ public partial class GitHubToolHandlers {
         try {
             using var doc = JsonDocument.Parse(json);
             var sb = new StringBuilder(128);
-            var totalCount = doc.RootElement.TryGetProperty("total_count", out var tc) ? tc.GetInt32() : 0;
+            var totalCount = doc.RootElement.TryGetProperty(GitHubJsonFields.TotalCount, out var tc) ? tc.GetInt32() : 0;
             sb.AppendLine($"共 {totalCount} 个 secret");
             if (doc.RootElement.TryGetProperty("secrets", out var secrets) && secrets.ValueKind == JsonValueKind.Array) {
                 sb.AppendLine("名称\t创建时间");
                 foreach (var s in secrets.EnumerateArray()) {
-                    var name = s.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                    var created = s.TryGetProperty("created_at", out var c) ? c.GetString() ?? "" : "";
+                    var name = s.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
+                    var created = s.TryGetProperty(GitHubJsonFields.CreatedAt, out var c) ? c.GetString() ?? "" : "";
                     sb.AppendLine($"{name}\t{created}");
                 }
             }
@@ -172,14 +172,14 @@ public partial class GitHubToolHandlers {
         try {
             using var doc = JsonDocument.Parse(json);
             var sb = new StringBuilder(128);
-            var totalCount = doc.RootElement.TryGetProperty("total_count", out var tc) ? tc.GetInt32() : 0;
+            var totalCount = doc.RootElement.TryGetProperty(GitHubJsonFields.TotalCount, out var tc) ? tc.GetInt32() : 0;
             sb.AppendLine($"共 {totalCount} 个 variable");
             if (doc.RootElement.TryGetProperty("variables", out var variables) && variables.ValueKind == JsonValueKind.Array) {
                 sb.AppendLine("名称\t值\t更新时间");
                 foreach (var v in variables.EnumerateArray()) {
-                    var name = v.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                    var name = v.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
                     var value = v.TryGetProperty("value", out var val) ? val.GetString() ?? "" : "";
-                    var updated = v.TryGetProperty("updated_at", out var u) ? u.GetString() ?? "" : "";
+                    var updated = v.TryGetProperty(GitHubJsonFields.UpdatedAt, out var u) ? u.GetString() ?? "" : "";
                     sb.AppendLine($"{name}\t{value}\t{updated}");
                 }
             }

@@ -563,6 +563,7 @@ jcc mcp_call gh_run_view  '{"run_id":"123"}'        # run_id 必填
 | `--merge` | `--merge_method merge` | ✅ 已自动映射 |
 | `--rebase` | `--merge_method rebase` | ✅ 已自动映射 |
 | `--failed` | `--failed_only` | ✅ 已自动映射（gh run rerun --failed） |
+| `--job` | `--job_id` | ✅ 已自动映射（gh run view --job） |
 | `--delete-branch` | `--delete_branch` | ✅ 连字符自动归一化 |
 | `--json number,title,url` | 不需要（jcc 默认 JSON 输出） | ❌ `--json` 被剥离后字段列表变位置参数报错；如需 text 用 `--format text` |
 | `-f key=value` | `--fields key=value` | ❌ 需改写（gh_api 查询参数） |

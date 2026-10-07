@@ -222,11 +222,9 @@ internal static class GhArgsBinder {
 
             // 宽容策略: 真实 gh CLI 用连字符（--max-lines），工具 schema 用下划线（max_lines）
             if (!byName.TryGetValue(key, out var param) && !byName.TryGetValue(key.Replace('-', '_'), out param)) {
-                // 宽容策略: 系统 gh CLI 缩写别名（--auto→auto_merge, --squash→merge_method=squash 等）
-                if (ResolveGhCliAlias(key, toolName) is { } alias) {
-                    result[alias.Key] = alias.Value;
+                // 宽容策略: 系统 gh CLI 缩写别名（--auto→auto_merge, --squash→merge_method=squash, --job→job_id 等）
+                if (TryBindAlias(key, toolName, tail, ref i, result, token, out error))
                     continue;
-                }
                 error = UnknownOptionError(key, parameters);
                 return null;
             }
@@ -261,18 +259,38 @@ internal static class GhArgsBinder {
     }
 
     /// <summary>
-    /// 系统 gh CLI 缩写别名宽容 — AI 习惯用真实 gh CLI 的 --auto/--squash/--failed 等，
-    /// 映射到 jcc 工具参数。返回 null 表示无别名。
+    /// 系统 gh CLI 缩写别名宽容 — AI 习惯用真实 gh CLI 的 --auto/--squash/--failed/--job 等，
+    /// 映射到 jcc 工具参数。Value 为 null 表示该参数需从下一个 token 取值。返回 null 表示无别名。
     /// </summary>
-    private static (string Key, string Value)? ResolveGhCliAlias(string key, string toolName)
+    private static (string Key, string? Value)? ResolveGhCliAlias(string key, string toolName)
         => (toolName, key) switch {
             ("gh_pr_merge", "auto")    => ("auto_merge", "true"),
             ("gh_pr_merge", "squash")  => ("merge_method", "squash"),
             ("gh_pr_merge", "merge")   => ("merge_method", "merge"),
             ("gh_pr_merge", "rebase")  => ("merge_method", "rebase"),
             ("gh_run_rerun", "failed") => ("failed_only", "true"),
+            ("gh_run_view", "job")     => ("job_id", null),
             _                          => null
         };
+
+    /// <summary>尝试绑定系统 gh CLI 别名 — 成功返回 true 并更新 result/i，失败设 error 返回 false</summary>
+    private static bool TryBindAlias(string key, string toolName, string[] tail, ref int i,
+        Dictionary<string, string> result, string token, out string? error) {
+        error = null;
+        if (ResolveGhCliAlias(key, toolName) is not { } alias)
+            return false;
+        if (alias.Value is not null) {
+            result[alias.Key] = alias.Value;
+            return true;
+        }
+        if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) {
+            error = $"{CliErrorCatalog.ArgMissingRequired($"--{key} 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值>";
+            return false;
+        }
+        result[alias.Key] = tail[i + 1];
+        i++;
+        return true;
+    }
 
     /// <summary>找最接近的参数名: 优先前缀匹配(如 auto→auto_merge),其次包含匹配(如 merge→merge_method)。</summary>
     private static string? SuggestOption(string key, IReadOnlyList<GhParam> parameters) {

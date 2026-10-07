@@ -227,6 +227,22 @@ public sealed class GhCommandResolverTests {
         bound!["failed_only"].Should().Be("true");
     }
 
+    /// <summary>系统 gh CLI 的 --job 应映射到 job_id（gh run view --job）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_Job_ShouldMapToJobId() {
+        var parameters = new List<GhParam> {
+            new("run_id", IsRequired: true, IsBoolean: false),
+            new("job_id", IsRequired: false, IsBoolean: false),
+            new("log", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "123", "--job", "456", "--log" }, parameters, "gh_run_view", out var error);
+
+        error.Should().BeNull();
+        bound!["job_id"].Should().Be("456");
+        bound["log"].Should().Be("true");
+    }
+
     /// <summary>系统 gh CLI 缩写 --merge/--rebase 也应映射到 merge_method</summary>
     [Theory]
     [InlineData("merge", "merge")]

@@ -163,6 +163,24 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 解析 milestone 名称到 ID — GET /repos/{owner}/{repo}/milestones 查找 title 匹配项
+    /// <para>系统 gh --milestone 接受 name 而非 ID,需先查 milestones 列表解析</para>
+    /// </summary>
+    private async Task<int?> ResolveMilestoneIdAsync(IGitHubApiClient client, string owner, string repoName, string milestoneName, CancellationToken ct) {
+        var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/milestones", query: new Dictionary<string, string> { ["state"] = "all", ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
+        if (!result.Success) return null;
+        try {
+            using var doc = JsonDocument.Parse(result.Body);
+            foreach (var m in doc.RootElement.EnumerateArray()) {
+                if (m.TryGetProperty("title", out var t) && t.GetString() == milestoneName) {
+                    return m.TryGetProperty("number", out var n) ? n.GetInt32() : null;
+                }
+            }
+        } catch (Exception ex) { _logger?.LogWarning(ex, "解析 milestones 响应失败"); }
+        return null;
+    }
+
+    /// <summary>
     /// 守卫编排模板 — client 检查 + owner/repo 解析,失败短路返回错误,成功执行 apiCall(client, owner, repo)
     /// <para>消除 21 处重复的 client 检查 + ResolveOwnerRepoAsync 样板,主方法只写 API 调用核心逻辑</para>
     /// <para>client 作为参数传入 apiCall,调用方直接用 client 而非 _apiClient!,消除空抑制</para>

@@ -797,27 +797,42 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 编辑 PR — 修改标题/body/base 分支/标签/指派人/审查者，调 REST API PATCH /pulls + PATCH /issues + POST/DELETE reviewers/assignees
+    /// 编辑 PR — 修改标题/body/base 分支/标签/指派人/审查者/里程碑，调 REST API PATCH /pulls + PATCH /issues + POST/DELETE labels/reviewers/assignees
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/base/label/assignee/add_reviewer/remove_reviewer/add_assignee/remove_assignee)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/body_file/base/label/add_label/remove_label/assignee/add_reviewer/remove_reviewer/add_assignee/remove_assignee/milestone/remove_milestone)", "github")]
     public async Task<ToolResult> GhPrEditAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
         [McpToolParameter("新 body(可选)", Required = false)] string? body = null,
+        [McpToolParameter("从文件读 body(可选,替代 body)", Required = false)] string? body_file = null,
         [McpToolParameter("新 base 分支(可选)", Required = false)] string? @base = null,
         [McpToolParameter("标签(可选,多个用逗号,替换全部标签)", Required = false)] string? label = null,
+        [McpToolParameter("添加标签(可选,多个用逗号)", Required = false)] string? add_label = null,
+        [McpToolParameter("移除标签(可选,多个用逗号)", Required = false)] string? remove_label = null,
         [McpToolParameter("指派人(可选,多个用逗号,替换全部指派人)", Required = false)] string? assignee = null,
         [McpToolParameter("添加审查者(可选,多个用逗号)", Required = false)] string? add_reviewer = null,
         [McpToolParameter("移除审查者(可选,多个用逗号)", Required = false)] string? remove_reviewer = null,
         [McpToolParameter("添加指派人(可选,多个用逗号)", Required = false)] string? add_assignee = null,
         [McpToolParameter("移除指派人(可选,多个用逗号)", Required = false)] string? remove_assignee = null,
+        [McpToolParameter("里程碑名称(可选,按名称设置)", Required = false)] string? milestone = null,
+        [McpToolParameter("移除里程碑(可选)", Required = false)] bool? remove_milestone = null,
+        [McpToolParameter("添加到项目(可选,GraphQL,暂未支持)", Required = false)] string? add_project = null,
+        [McpToolParameter("从项目移除(可选,GraphQL,暂未支持)", Required = false)] string? remove_project = null,
+        [McpToolParameter("附加文件(可选,暂未支持)", Required = false)] string? attach = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            if (add_project is not null || remove_project is not null) return Fail("add_project/remove_project 需要 GraphQL Projects API,暂未支持。请用 gh pr edit --add-project 手动操作");
+            if (attach is not null) return Fail("attach 需要文件上传 API,暂未支持。请用 gh pr edit --attach 手动操作");
             var number = ParseNumberFromRef(pr_number);
-            if (title is not null || body is not null || @base is not null) {
-                var prBody = JsonSerializer.Serialize(new PrEditRequest { Title = title, Body = body, Base = @base }, GitHubApiJsonContext.Safe.PrEditRequest);
+            var effectiveBody = body;
+            if (!string.IsNullOrWhiteSpace(body_file)) {
+                if (!_fs.FileExists(body_file)) return Fail($"body_file 不存在: {body_file}");
+                effectiveBody = await _fs.ReadAllTextAsync(body_file, cancellationToken).ConfigureAwait(false);
+            }
+            if (title is not null || effectiveBody is not null || @base is not null) {
+                var prBody = JsonSerializer.Serialize(new PrEditRequest { Title = title, Body = effectiveBody, Base = @base }, GitHubApiJsonContext.Safe.PrEditRequest);
                 var prResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", prBody, ct: cancellationToken).ConfigureAwait(false);
                 if (!prResult.Success) return Fail(prResult.Error);
             }
@@ -825,6 +840,28 @@ public partial class GitHubToolHandlers {
                 var issueBody = JsonSerializer.Serialize(new IssueEditRequest { Labels = ParseCsvToList(label), Assignees = ParseCsvToList(assignee) }, GitHubApiJsonContext.Safe.IssueEditRequest);
                 var issueResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", issueBody, ct: cancellationToken).ConfigureAwait(false);
                 if (!issueResult.Success) return Fail(issueResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(add_label)) {
+                var labelsBody = JsonSerializer.Serialize(new LabelsAddRequest { Labels = ParseCsvToList(add_label) }, GitHubApiJsonContext.Safe.LabelsAddRequest);
+                var addLabelResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/labels", labelsBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!addLabelResult.Success) return Fail(addLabelResult.Error);
+            }
+            if (!string.IsNullOrWhiteSpace(remove_label)) {
+                foreach (var lbl in ParseCsvToList(remove_label)) {
+                    var removeLabelResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/issues/{number}/labels/{Uri.EscapeDataString(lbl)}", ct: cancellationToken).ConfigureAwait(false);
+                    if (!removeLabelResult.Success) return Fail(removeLabelResult.Error);
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(milestone)) {
+                var milestoneId = await ResolveMilestoneIdAsync(client, owner, repoName, milestone, cancellationToken).ConfigureAwait(false);
+                if (milestoneId is null) return Fail($"未找到里程碑: {milestone}");
+                var milestoneBody = JsonSerializer.Serialize(new MilestoneRequest { Milestone = milestoneId }, GitHubApiJsonContext.Safe.MilestoneRequest);
+                var milestoneResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", milestoneBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!milestoneResult.Success) return Fail(milestoneResult.Error);
+            }
+            if (remove_milestone == true) {
+                var milestoneResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", """{"milestone":null}""", ct: cancellationToken).ConfigureAwait(false);
+                if (!milestoneResult.Success) return Fail(milestoneResult.Error);
             }
             if (!string.IsNullOrWhiteSpace(add_reviewer)) {
                 var reviewersBody = JsonSerializer.Serialize(new ReviewersRequest { Reviewers = ParseCsvToList(add_reviewer) }, GitHubApiJsonContext.Safe.ReviewersRequest);

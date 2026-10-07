@@ -223,6 +223,13 @@ internal sealed class IssueEditRequest {
     public string? StateReason { get; init; }
 }
 
+/// <summary>Issue/PR 添加标签请求 — POST /issues/{n}/labels</summary>
+internal sealed class LabelsAddRequest {
+    /// <summary>标签名列表</summary>
+    [JsonPropertyName("labels")]
+    public List<string> Labels { get; init; } = new();
+}
+
 /// <summary>Issue/PR 评论 — POST /issues/{n}/comments</summary>
 internal sealed class CommentRequest {
     /// <summary>评论内容</summary>
@@ -678,6 +685,7 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(SecretSetRequest))]
 [JsonSerializable(typeof(IssueCreateRequest))]
 [JsonSerializable(typeof(IssueEditRequest))]
+[JsonSerializable(typeof(LabelsAddRequest))]
 [JsonSerializable(typeof(CommentRequest))]
 [JsonSerializable(typeof(PrCreateRequest))]
 [JsonSerializable(typeof(PrEditRequest))]

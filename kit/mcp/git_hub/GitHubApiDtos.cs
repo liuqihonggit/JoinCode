@@ -352,6 +352,14 @@ internal sealed class ReleaseCreateRequest {
     [JsonPropertyName("make_latest")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? MakeLatest { get; init; }
+    /// <summary>discussion 分类名(创建 discussion)</summary>
+    [JsonPropertyName("discussion_category_name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DiscussionCategoryName { get; init; }
+    /// <summary>上一个 tag 名(自动生成 notes 的起始 tag)</summary>
+    [JsonPropertyName("previous_tag_name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PreviousTagName { get; init; }
 }
 
 /// <summary>Release edit 请求 — PATCH /releases/{id}</summary>

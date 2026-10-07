@@ -124,9 +124,9 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 创建 Release — 支持 draft/prerelease、目标 commit/branch、自动生成 notes，调 REST API POST
+    /// 创建 Release — 支持 draft/prerelease、目标 commit/branch、自动生成 notes、discussion_category/notes_from_tag/verify_tag，调 REST API POST
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhReleaseCreate, "创建 Release(支持 draft/prerelease/自动生成 notes)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhReleaseCreate, "创建 Release(支持 draft/prerelease/自动生成 notes/discussion_category/notes_from_tag/verify_tag)", "github")]
     public async Task<ToolResult> GhReleaseCreateAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("Release 标题", Required = false)] string? title = null,
@@ -137,6 +137,11 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("目标 commit/branch(可选)", Required = false)] string? target = null,
         [McpToolParameter("自动生成 release notes(可选)", Required = false)] bool? generate_notes = null,
         [McpToolParameter("标记为 latest release(可选,值 true/false)", Required = false)] string? make_latest = null,
+        [McpToolParameter("discussion 分类名(可选,为 release 创建 discussion)", Required = false)] string? discussion_category = null,
+        [McpToolParameter("没有新 commit 时失败(可选,检查 git log lastTag..target)", Required = false)] bool? fail_on_no_commits = null,
+        [McpToolParameter("使用 tag annotation 作为 notes(可选,git tag -n)", Required = false)] bool? notes_from_tag = null,
+        [McpToolParameter("自动生成 notes 的起始 tag(可选,等价 previous_tag_name)", Required = false)] string? notes_start_tag = null,
+        [McpToolParameter("验证 tag 的 GPG 签名(可选,git tag -v)", Required = false)] bool? verify_tag = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -147,6 +152,31 @@ public partial class GitHubToolHandlers {
                     return Fail($"notes_file 不存在: {notes_file}");
                 effectiveNotes = await _fs.ReadAllTextAsync(notes_file, cancellationToken).ConfigureAwait(false);
             }
+            if (notes_from_tag == true && _git is not null) {
+                var tagResult = await _git.ExecuteAsync($"tag -n -l {tag}", working_dir, cancellationToken).ConfigureAwait(false);
+                if (tagResult.Success && !string.IsNullOrWhiteSpace(tagResult.Output)) {
+                    var tagLine = tagResult.Output.AsSpan().Trim();
+                    var spaceIdx = tagLine.IndexOf(' ');
+                    if (spaceIdx >= 0 && spaceIdx + 1 < tagLine.Length) effectiveNotes = tagLine[(spaceIdx + 1)..].Trim().ToString();
+                }
+            }
+            if (verify_tag == true && _git is not null) {
+                var verifyResult = await _git.ExecuteAsync($"tag -v {tag}", working_dir, cancellationToken).ConfigureAwait(false);
+                if (!verifyResult.Success) return Fail($"tag {tag} 的 GPG 签名验证失败: {verifyResult.Output}");
+            }
+            if (fail_on_no_commits == true && _git is not null) {
+                var startTag = notes_start_tag;
+                if (string.IsNullOrWhiteSpace(startTag)) {
+                    var lastReleaseResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/latest", ct: cancellationToken).ConfigureAwait(false);
+                    if (lastReleaseResult.Success) startTag = TryExtractJsonField(lastReleaseResult.Body, "tag_name");
+                }
+                if (!string.IsNullOrWhiteSpace(startTag)) {
+                    var targetRef = string.IsNullOrWhiteSpace(target) ? "HEAD" : target;
+                    var logResult = await _git.ExecuteAsync($"log {startTag}..{targetRef} --oneline", working_dir, cancellationToken).ConfigureAwait(false);
+                    if (logResult.Success && string.IsNullOrWhiteSpace(logResult.Output.Trim()))
+                        return Fail($"tag {startTag} 到 {targetRef} 之间没有新 commit,--fail_on_no_commits 失败");
+                }
+            }
             var jsonBody = JsonSerializer.Serialize(new ReleaseCreateRequest {
                 TagName = tag,
                 Name = title,
@@ -155,7 +185,9 @@ public partial class GitHubToolHandlers {
                 Prerelease = prerelease,
                 TargetCommitish = target,
                 GenerateReleaseNotes = generate_notes,
-                MakeLatest = make_latest
+                MakeLatest = make_latest,
+                DiscussionCategoryName = discussion_category,
+                PreviousTagName = notes_start_tag,
             }, GitHubApiJsonContext.Safe.ReleaseCreateRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已创建 Release {tag}") : Fail(result.Error);

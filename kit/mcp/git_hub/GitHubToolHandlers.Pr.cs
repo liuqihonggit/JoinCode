@@ -684,22 +684,32 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 编辑 PR — 修改标题/body/base 分支，调 REST API PATCH
+    /// 编辑 PR — 修改标题/body/base 分支/标签/指派人，调 REST API PATCH /pulls + PATCH /issues
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/base)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/base/label/assignee)", "github")]
     public async Task<ToolResult> GhPrEditAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
         [McpToolParameter("新 body(可选)", Required = false)] string? body = null,
         [McpToolParameter("新 base 分支(可选)", Required = false)] string? @base = null,
+        [McpToolParameter("标签(可选,多个用逗号,替换全部标签)", Required = false)] string? label = null,
+        [McpToolParameter("指派人(可选,多个用逗号,替换全部指派人)", Required = false)] string? assignee = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
-            var jsonBody = JsonSerializer.Serialize(new PrEditRequest { Title = title, Body = body, Base = @base }, GitHubApiJsonContext.Safe.PrEditRequest);
-            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已编辑 PR {number}") : Fail(result.Error);
+            if (title is not null || body is not null || @base is not null) {
+                var prBody = JsonSerializer.Serialize(new PrEditRequest { Title = title, Body = body, Base = @base }, GitHubApiJsonContext.Safe.PrEditRequest);
+                var prResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", prBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!prResult.Success) return Fail(prResult.Error);
+            }
+            if (label is not null || assignee is not null) {
+                var issueBody = JsonSerializer.Serialize(new IssueEditRequest { Labels = ParseCsvToList(label), Assignees = ParseCsvToList(assignee) }, GitHubApiJsonContext.Safe.IssueEditRequest);
+                var issueResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", issueBody, ct: cancellationToken).ConfigureAwait(false);
+                if (!issueResult.Success) return Fail(issueResult.Error);
+            }
+            return OkBrief("", $"已编辑 PR {number}");
         }).ConfigureAwait(false);
 
     /// <summary>

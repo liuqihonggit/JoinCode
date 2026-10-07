@@ -362,6 +362,21 @@ public sealed class GhCommandResolverTests {
         error.Should().Contain("--auto_merge");
     }
 
+    /// <summary>--add-label 应建议 --label（key 包含参数名子串匹配）</summary>
+    [Fact]
+    public void Bind_UnknownOption_AddLabel_ShouldSuggestLabel() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("label", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "42", "--add-label", "bug" }, parameters, "gh_pr_edit", out var error);
+
+        bound.Should().BeNull();
+        error.Should().Contain("你是不是想用");
+        error.Should().Contain("--label");
+    }
+
     /// <summary>系统 gh CLI 的 --enable-issues 应映射到 has_issues=true（gh repo edit --enable-issues）</summary>
     [Fact]
     public void Bind_GhCliAlias_EnableIssues_ShouldMapToHasIssuesTrue() {

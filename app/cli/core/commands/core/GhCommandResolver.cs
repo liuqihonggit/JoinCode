@@ -328,12 +328,14 @@ internal static class GhArgsBinder {
         }
     }
 
-    /// <summary>找最接近的参数名: 优先前缀匹配(如 auto→auto_merge),其次包含匹配(如 merge→merge_method)。</summary>
+    /// <summary>找最接近的参数名: 优先前缀匹配(如 auto→auto_merge),其次包含匹配(如 merge→merge_method),最后 key 包含参数名(如 add-label→label)。</summary>
     private static string? SuggestOption(string key, IReadOnlyList<GhParam> parameters) {
         var prefix = parameters.FirstOrDefault(p => p.Name.StartsWith(key, StringComparison.OrdinalIgnoreCase));
         if (prefix is not null) return prefix.Name;
         var contains = parameters.FirstOrDefault(p => p.Name.Contains(key, StringComparison.OrdinalIgnoreCase));
-        return contains?.Name;
+        if (contains is not null) return contains.Name;
+        var keyContains = parameters.FirstOrDefault(p => key.Contains(p.Name, StringComparison.OrdinalIgnoreCase));
+        return keyContains?.Name;
     }
 
     private static string TooManyPositionalError(string toolName, string token, IReadOnlyList<GhParam> parameters) {

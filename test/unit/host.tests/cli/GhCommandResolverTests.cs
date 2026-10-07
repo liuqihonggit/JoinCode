@@ -653,19 +653,63 @@ public sealed class GhCommandResolverTests {
         bound!["notes_file"].Should().Be("notes.md");
     }
 
-    /// <summary>optional 参数不能用位置参数, 应报错并提示用 --flag 形式（gh repo clone owner/repo target-dir → 报错）</summary>
+    /// <summary>gh repo clone 的 target_dir 是可选位置参数, 应接受位置传递（gh repo clone owner/repo target-dir）</summary>
     [Fact]
-    public void Bind_OptionalPositional_ShouldRejectAndSuggestFlag() {
+    public void Bind_OptionalPositional_RepoClone_ShouldAcceptTargetDir() {
         var parameters = new List<GhParam> {
             new("repo", IsRequired: true, IsBoolean: false),
-            new("dir", IsRequired: false, IsBoolean: false),
+            new("target_dir", IsRequired: false, IsBoolean: false),
         };
 
         var bound = GhArgsBinder.Bind(new[] { "owner/repo", "target-dir" }, parameters, "gh_repo_clone", out var error);
 
+        error.Should().BeNull();
+        bound!["repo"].Should().Be("owner/repo");
+        bound!["target_dir"].Should().Be("target-dir");
+    }
+
+    /// <summary>gh repo clone 不传 target_dir 时, 只传 required 位置参数应成功</summary>
+    [Fact]
+    public void Bind_OptionalPositional_RepoClone_WithoutTargetDir_ShouldSucceed() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: true, IsBoolean: false),
+            new("target_dir", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "owner/repo" }, parameters, "gh_repo_clone", out var error);
+
+        error.Should().BeNull();
+        bound!["repo"].Should().Be("owner/repo");
+        bound!.ContainsKey("target_dir").Should().BeFalse();
+    }
+
+    /// <summary>gh pr checkout 的 branch 是可选位置参数, 应接受位置传递</summary>
+    [Fact]
+    public void Bind_OptionalPositional_PrCheckout_ShouldAcceptBranch() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("branch", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "42", "my-branch" }, parameters, "gh_pr_checkout", out var error);
+
+        error.Should().BeNull();
+        bound!["pr_number"].Should().Be("42");
+        bound!["branch"].Should().Be("my-branch");
+    }
+
+    /// <summary>非白名单工具的 optional 参数不能用位置参数, 应报错（gh pr view 1 2 → 报错）</summary>
+    [Fact]
+    public void Bind_OptionalPositional_NonWhitelisted_ShouldReject() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("repo", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "1", "2" }, parameters, "gh_pr_view", out var error);
+
         bound.Should().BeNull();
         error.Should().Contain("多余的位置参数");
-        error.Should().Contain("--参数名");
     }
 
     /// <summary>-f 短选项在 gh api 映射到 fields（gh api repos/.../labels -f name=test）</summary>

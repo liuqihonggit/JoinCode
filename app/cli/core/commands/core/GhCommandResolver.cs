@@ -221,6 +221,7 @@ internal static class GhArgsBinder {
             byName[p.Name] = p;
 
         var slots = parameters.Where(p => p.IsRequired).ToList();
+        slots.AddRange(GetOptionalPositionalSlots(toolName, parameters));
         var slotIndex = 0;
 
         for (var i = 0; i < tail.Length; i++) {
@@ -280,7 +281,7 @@ internal static class GhArgsBinder {
             i++;
         }
 
-        var missing = slots.FirstOrDefault(s => !result.ContainsKey(s.Name));
+        var missing = slots.FirstOrDefault(s => s.IsRequired && !result.ContainsKey(s.Name));
         if (missing is not null) {
             error = MissingPositionalError(toolName, missing.Name, slots);
             return null;
@@ -333,6 +334,17 @@ internal static class GhArgsBinder {
             ("gh_release_edit", "latest")      => new GhCliAlias("make_latest", null, AliasKind.RenameOnly),
             ("gh_run_list", "event")           => new GhCliAlias("event_type", null, AliasKind.TakeNextToken),
             _                                  => null
+        };
+
+    /// <summary>
+    /// 获取工具的可选位置参数 — 某些 gh CLI 命令的 optional 参数可作位置参数传递（如 gh repo clone owner/repo target-dir）。
+    /// 返回按声明顺序排列的 GhParam 列表，追加到 required 位置参数槽位之后。
+    /// </summary>
+    private static List<GhParam> GetOptionalPositionalSlots(string toolName, IReadOnlyList<GhParam> parameters)
+        => toolName switch {
+            "gh_repo_clone"   => parameters.Where(p => p.Name == "target_dir").ToList(),
+            "gh_pr_checkout"  => parameters.Where(p => p.Name == "branch").ToList(),
+            _ => []
         };
 
     /// <summary>尝试绑定系统 gh CLI 别名 — 成功返回 true 并更新 result/i，失败设 error 返回 false</summary>

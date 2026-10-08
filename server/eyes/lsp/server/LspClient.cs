@@ -65,6 +65,53 @@ public sealed partial class LspJsonRpcNotification {
     public JsonNode? Params { get; init; }
 }
 
+/// <summary>
+/// LSP LocationLink DTO — 用于从 LocationLink 响应提取 targetUri/targetRange，替代 TryGetPropertyValue 链式提取
+/// </summary>
+public sealed class LspLocationLinkDto {
+    /// <summary>目标文档 URI</summary>
+    [JsonPropertyName("targetUri")]
+    public string? TargetUri { get; set; }
+
+    /// <summary>目标范围</summary>
+    [JsonPropertyName("targetRange")]
+    public LspRange? TargetRange { get; set; }
+}
+
+/// <summary>
+/// LSP CompletionList DTO — 用于从 CompletionList 响应提取 items，替代 TryGetPropertyValue 链式提取
+/// </summary>
+public sealed class LspCompletionListDto {
+    /// <summary>补全项列表</summary>
+    [JsonPropertyName("items")]
+    public List<LspCompletionItem> Items { get; set; } = [];
+}
+
+/// <summary>
+/// LSP JSON-RPC 消息 DTO — 路由时一次性反序列化 id/method/params/result/error，替代 TryGetPropertyValue 链式提取
+/// </summary>
+public sealed class LspJsonRpcMessageDto {
+    /// <summary>消息 ID（请求/响应），通知无此字段</summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
+    /// <summary>方法名（请求/通知），响应无此字段</summary>
+    [JsonPropertyName("method")]
+    public string? Method { get; set; }
+
+    /// <summary>参数（请求/通知）</summary>
+    [JsonPropertyName("params")]
+    public JsonNode? Params { get; set; }
+
+    /// <summary>结果（响应）</summary>
+    [JsonPropertyName("result")]
+    public JsonNode? Result { get; set; }
+
+    /// <summary>错误（响应）</summary>
+    [JsonPropertyName("error")]
+    public JsonNode? Error { get; set; }
+}
+
 #endregion
 
 #region LSP Request Params Types
@@ -484,20 +531,17 @@ public sealed partial class LspClient : ILspClient {
     /// LocationLink: { targetUri, targetRange, targetSelectionRange, originSelectionRange }
     /// </summary>
     private static LspLocation? DeserializeSingleLocation(JsonNode? node) {
-        if (node is not JsonObject obj) return null;
+        if (node is not JsonObject) return null;
+        var json = node!.ToJsonString();
 
-        if (obj.TryGetPropertyValue("uri", out var uriNode) && uriNode != null) {
-            return RelaxedJsonSerializer.Deserialize(node!.ToJsonString(), LspJsonContext.Default.LspLocation);
-        }
+        // Location: { uri, range }
+        var location = RelaxedJsonSerializer.Deserialize(json, LspJsonContext.Default.LspLocation);
+        if (!string.IsNullOrEmpty(location?.Uri)) return location;
 
-        if (obj.TryGetPropertyValue("targetUri", out var targetUriNode) && targetUriNode != null) {
-            var targetUri = targetUriNode.GetValue<string>();
-            var rangeNode = obj.TryGetPropertyValue("targetRange", out var tr) ? tr : null;
-            if (rangeNode != null) {
-                var range = RelaxedJsonSerializer.Deserialize(rangeNode.ToJsonString(), LspJsonContext.Default.LspRange);
-                return new LspLocation { Uri = targetUri, Range = range ?? new LspRange { Start = new LspPosition(), End = new LspPosition() } };
-            }
-            return new LspLocation { Uri = targetUri, Range = new LspRange { Start = new LspPosition(), End = new LspPosition() } };
+        // LocationLink: { targetUri, targetRange, targetSelectionRange, originSelectionRange }
+        var link = RelaxedJsonSerializer.Deserialize(json, LspJsonContext.Default.LspLocationLinkDto);
+        if (!string.IsNullOrEmpty(link?.TargetUri)) {
+            return new LspLocation { Uri = link.TargetUri, Range = link.TargetRange ?? new LspRange { Start = new LspPosition(), End = new LspPosition() } };
         }
 
         return null;
@@ -565,8 +609,9 @@ public sealed partial class LspClient : ILspClient {
             return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCompletionItem) ?? new List<LspCompletionItem>();
         }
 
-        if (result is JsonObject resultObj && resultObj.TryGetPropertyValue("items", out var itemsNode)) {
-            return RelaxedJsonSerializer.Deserialize(itemsNode?.ToJsonString() ?? "[]", LspJsonContext.Default.ListLspCompletionItem) ?? new List<LspCompletionItem>();
+        if (result is JsonObject) {
+            var completionList = RelaxedJsonSerializer.Deserialize(result!.ToJsonString(), LspJsonContext.Default.LspCompletionListDto);
+            return completionList?.Items ?? new List<LspCompletionItem>();
         }
 
         return new List<LspCompletionItem>();

@@ -81,18 +81,22 @@ public sealed partial class McpChannelNotificationHandler {
     public void HandleChannelNotification(string serverName, JsonElement? Params) {
         if (Params == null) return;
 
-        string? content = null;
-        Dictionary<string, string>? meta = null;
-
-        if (Params.Value.TryGetProperty("content", out var contentEl)) {
-            content = contentEl.GetString();
+        McpChannelNotificationParams? parsed;
+        try {
+            parsed = JsonSerializer.Deserialize(Params.Value.GetRawText(), McpChannelNotificationJsonContext.Default.McpChannelNotificationParams);
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "解析 Channel 通知参数失败: server={Server}", serverName);
+            return;
         }
+        if (parsed is null) return;
 
-        if (Params.Value.TryGetProperty("meta", out var metaEl) && metaEl.ValueKind == JsonValueKind.Object) {
-            meta = new Dictionary<string, string>();
-            foreach (var prop in metaEl.EnumerateObject()) {
-                if (prop.Value.ValueKind == JsonValueKind.String) {
-                    meta[prop.Name] = prop.Value.GetString() ?? string.Empty;
+        var content = parsed.Content;
+        Dictionary<string, string>? meta = null;
+        if (parsed.Meta is { Count: > 0 }) {
+            meta = [];
+            foreach (var kvp in parsed.Meta) {
+                if (kvp.Value.ValueKind == JsonValueKind.String) {
+                    meta[kvp.Key] = kvp.Value.GetString() ?? string.Empty;
                 }
             }
         }
@@ -119,16 +123,17 @@ public sealed partial class McpChannelNotificationHandler {
     public void HandleChannelPermissionNotification(string serverName, JsonElement? Params) {
         if (Params == null) return;
 
-        string? requestId = null;
-        string? behavior = null;
-
-        if (Params.Value.TryGetProperty("request_id", out var reqEl)) {
-            requestId = reqEl.GetString();
+        McpChannelPermissionNotificationParams? parsed;
+        try {
+            parsed = JsonSerializer.Deserialize(Params.Value.GetRawText(), McpChannelNotificationJsonContext.Default.McpChannelPermissionNotificationParams);
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "解析 Channel 权限通知参数失败: server={Server}", serverName);
+            return;
         }
+        if (parsed is null) return;
 
-        if (Params.Value.TryGetProperty("behavior", out var behEl)) {
-            behavior = behEl.GetString();
-        }
+        var requestId = parsed.RequestId;
+        var behavior = parsed.Behavior;
 
         if (string.IsNullOrEmpty(requestId) || string.IsNullOrEmpty(behavior)) return;
 

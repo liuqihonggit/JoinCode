@@ -364,10 +364,8 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
             var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{repoName}", ct: ct).ConfigureAwait(false);
             if (!result.Success) return false;
             try {
-                using var doc = System.Text.Json.JsonDocument.Parse(result.Body);
-                return doc.RootElement.TryGetProperty("permissions", out var perms)
-                    && perms.TryGetProperty("admin", out var adminEl)
-                    && adminEl.GetBoolean();
+                var repo = RelaxedJsonSerializer.Deserialize(result.Body, GitHubAppSetupJsonContext.Default.GitHubRepoDto);
+                return repo?.Permissions?.Admin ?? false;
             } catch { return false; }
         }
         var shellResult = await RunShellCommandAsync($"gh api repos/{repoName} --jq .permissions.admin", ct, _gitHubRunner).ConfigureAwait(false);
@@ -648,3 +646,22 @@ jobs:
         public static GitHubSetupResult Fail(string errorMessage, string fixHint) => new(false, errorMessage, fixHint);
     }
 }
+
+/// <summary>GitHub 仓库权限 DTO — 对应 repos/{owner}/{repo} 响应的 permissions 字段</summary>
+public sealed class GitHubRepoPermissionsDto {
+    /// <summary>admin 权限标志</summary>
+    [JsonPropertyName("admin")]
+    public bool Admin { get; init; }
+}
+
+/// <summary>GitHub 仓库 DTO — 仅提取 permissions 用于安装工作流的权限校验</summary>
+public sealed class GitHubRepoDto {
+    /// <summary>仓库权限信息</summary>
+    [JsonPropertyName("permissions")]
+    public GitHubRepoPermissionsDto? Permissions { get; init; }
+}
+
+/// <summary>install-github-app 命令 JSON 序列化上下文 — 为 GitHubRepoDto 生成 AOT 兼容的源码序列化器</summary>
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSerializable(typeof(GitHubRepoDto))]
+public partial class GitHubAppSetupJsonContext : JsonSerializerContext;

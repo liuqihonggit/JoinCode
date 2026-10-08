@@ -682,10 +682,8 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         if (string.IsNullOrEmpty(body)) return null;
         if (body[0] != '{') return body.Length > 500 ? body[..500] : body;
         try {
-            using var doc = JsonDocument.Parse(body);
-            if (doc.RootElement.TryGetProperty("message", out var msgEl)) {
-                return msgEl.GetString();
-            }
+            var dto = JsonSerializer.Deserialize(body, GitHubApiJsonContext.Default.GitHubErrorMessageDto);
+            if (dto?.Message is { } msg) return msg;
         }
 #pragma warning disable JCC3013
         catch (Exception) { }
@@ -725,6 +723,8 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
                     enumerator = doc.RootElement.EnumerateArray();
                 } else if (arrayKey is not null
                            && doc.RootElement.ValueKind == JsonValueKind.Object
+                           // arrayKey 为运行时探测的动态键名，无法用固定 [JsonPropertyName] DTO 表达，
+                           // 属动态字段过滤场景（AGENTS.md 规则3豁免），保留 TryGetProperty。
                            && doc.RootElement.TryGetProperty(arrayKey, out var arr)
                            && arr.ValueKind == JsonValueKind.Array) {
                     enumerator = arr.EnumerateArray();

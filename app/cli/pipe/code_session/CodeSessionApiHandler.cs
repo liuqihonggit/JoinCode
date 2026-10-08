@@ -32,6 +32,17 @@ public sealed class CodeSessionApiResponse {
     public string? Error { get; init; }
 }
 
+/// <summary>代码会话创建请求体 DTO — 对应 POST /code-sessions 的 JSON 载荷</summary>
+public sealed class CodeSessionCreateRequestDto {
+    /// <summary>项目名称</summary>
+    [JsonPropertyName("projectName")]
+    public string? ProjectName { get; init; }
+
+    /// <summary>工作目录路径</summary>
+    [JsonPropertyName("workDirectory")]
+    public string? WorkDirectory { get; init; }
+}
+
 /// <summary>代码会话 API 处理器 — 提供创建/查询/删除/列表等 HTTP 接口，可选 JWT 鉴权</summary>
 [Register(typeof(CodeSessionApiHandler), ServiceLifetime.Singleton)]
 public sealed partial class CodeSessionApiHandler : ServiceEntity {
@@ -209,13 +220,9 @@ public sealed partial class CodeSessionApiHandler : ServiceEntity {
         var workDirectory = string.Empty;
 
         if (!string.IsNullOrEmpty(body)) {
-            using var doc = JsonDocument.Parse(body);
-            if (doc.RootElement.TryGetProperty("projectName", out var pn)) {
-                projectName = pn.GetString() ?? string.Empty;
-            }
-            if (doc.RootElement.TryGetProperty("workDirectory", out var wd)) {
-                workDirectory = wd.GetString() ?? string.Empty;
-            }
+            var req = RelaxedJsonSerializer.Deserialize(body, PipeJsonContext.Default.CodeSessionCreateRequestDto);
+            projectName = req?.ProjectName ?? string.Empty;
+            workDirectory = req?.WorkDirectory ?? string.Empty;
         }
 
         var result = await HandleCreateAsync(projectName, workDirectory, ct).ConfigureAwait(false);

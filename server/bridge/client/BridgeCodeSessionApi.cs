@@ -16,11 +16,11 @@ public sealed class BridgeRemoteCredentials {
 
     /// <summary>过期时间（秒）</summary>
     [JsonPropertyName("expires_in")]
-    public int ExpiresIn { get; init; }
+    public required int ExpiresIn { get; init; }
 
     /// <summary>Worker epoch（protojson int64 可能为字符串）</summary>
     [JsonPropertyName("worker_epoch")]
-    public JsonElement WorkerEpochRaw { get; init; }
+    public required JsonElement WorkerEpochRaw { get; init; }
 
     /// <summary>解析后的 Worker epoch — 对齐 TS 端 protojson int64 字符串兼容</summary>
     public long WorkerEpoch => ParseWorkerEpoch(WorkerEpochRaw);
@@ -154,27 +154,13 @@ public static class BridgeCodeSessionApi {
             }
 
             var responseBody = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
-            using var parsed = JsonDocument.Parse(responseBody);
-            var root = parsed.RootElement;
 
-            // 对齐 TS 端：逐字段严格校验类型
-            if (root.ValueKind != JsonValueKind.Object) {
+            // 对齐 TS 端：逐字段严格校验（required 属性 + 类型匹配），失败返回 null
+            try {
+                return JsonSerializer.Deserialize(responseBody, BridgeJsonContext.Default.BridgeRemoteCredentials);
+            } catch (JsonException) {
                 return null;
             }
-
-            if (!root.TryGetProperty("worker_jwt", out var jwtProp) || jwtProp.ValueKind != JsonValueKind.String ||
-                !root.TryGetProperty("api_base_url", out var urlProp) || urlProp.ValueKind != JsonValueKind.String ||
-                !root.TryGetProperty("expires_in", out var expiresProp) || expiresProp.ValueKind != JsonValueKind.Number ||
-                !root.TryGetProperty("worker_epoch", out var epochProp)) {
-                return null;
-            }
-
-            return new BridgeRemoteCredentials {
-                WorkerJwt = jwtProp.GetString()!,
-                ApiBaseUrl = urlProp.GetString()!,
-                ExpiresIn = expiresProp.GetInt32(),
-                WorkerEpochRaw = epochProp.Clone(),
-            };
         } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             return null; // 超时
         }

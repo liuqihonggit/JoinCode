@@ -83,6 +83,8 @@ namespace Core.Bridge;
 [JsonSerializable(typeof(BridgeFault))]
 [JsonSerializable(typeof(BridgeInboundAttachment))]
 [JsonSerializable(typeof(List<BridgeInboundAttachment>))]
+[JsonSerializable(typeof(BridgeInboundAttachmentsMessage))]
+[JsonSerializable(typeof(List<JsonElement>))]
 [JsonSerializable(typeof(BridgeStatusInfo))]
 [JsonSerializable(typeof(BridgePollIntervalConfig))]
 [JsonSerializable(typeof(V2BridgeConfig))]
@@ -116,5 +118,12 @@ namespace Core.Bridge;
 [JsonSerializable(typeof(BridgePermissionCancelDto))]
 [JsonSerializable(typeof(BridgePermissionCancelBodyDto))]
 [JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(BridgeMessageUuidDto))]
+[JsonSerializable(typeof(BridgeTitleMessageDto))]
+[JsonSerializable(typeof(BridgeOriginDto))]
+[JsonSerializable(typeof(BridgeMessageContentWrapperDto))]
+[JsonSerializable(typeof(BridgeTextBlockDto))]
+[JsonSerializable(typeof(BridgeRequestIdDto))]
+[JsonSerializable(typeof(BridgeInboundMessageFieldsDto))]
 // BridgeNdjsonActivity, BridgeNdjsonActivityType 已迁移到 JoinCode.Transport.Bridge (NdjsonActivity, NdjsonActivityType)
 internal partial class BridgeJsonContext : JsonSerializerContext;

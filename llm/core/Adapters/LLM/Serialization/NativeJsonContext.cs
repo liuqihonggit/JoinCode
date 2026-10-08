@@ -43,6 +43,9 @@ namespace Api.LLM;
 [JsonSerializable(typeof(ResponsesEventEnvelope))]
 [JsonSerializable(typeof(ResponsesEventResponse))]
 [JsonSerializable(typeof(ToolCallMetadataDto))]
+[JsonSerializable(typeof(AnthropicWebSearchLinkDto))]
+[JsonSerializable(typeof(List<AnthropicWebSearchLinkDto>))]
+[JsonSerializable(typeof(AnthropicWebSearchErrorDto))]
 internal partial class NativeJsonContext : JsonSerializerContext {
 
     private static readonly Lazy<NativeJsonContext> s_safe = new(() => new NativeJsonContext(

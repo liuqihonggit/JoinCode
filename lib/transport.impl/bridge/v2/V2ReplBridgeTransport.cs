@@ -383,13 +383,10 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
     private async Task ReportDeliveryFromEventAsync(string data) {
         try {
             // 尝试从 JSON 中提取 event_id
-            using var jsonDoc = JsonDocument.Parse(data);
-            if (jsonDoc.RootElement.TryGetProperty("event_id", out var eventIdProp)) {
-                var eventId = eventIdProp.GetString();
-                if (eventId is not null) {
-                    await ReportDeliveryAsync(eventId, "received").ConfigureAwait(false);
-                    await ReportDeliveryAsync(eventId, "processed").ConfigureAwait(false);
-                }
+            var evt = JsonSerializer.Deserialize(data, TransportBridgeJsonContext.Default.SseEventDataDto);
+            if (evt?.EventId is { } eventId) {
+                await ReportDeliveryAsync(eventId, "received").ConfigureAwait(false);
+                await ReportDeliveryAsync(eventId, "processed").ConfigureAwait(false);
             }
         } catch (Exception ex) {
             // 非致命: 解析失败不影响主流程

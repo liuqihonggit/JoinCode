@@ -58,20 +58,13 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
         serverInstance.OnNotification("textDocument/publishDiagnostics",
             async (node, ct) => {
                 try {
-                    if (node is not JsonObject obj ||
-                        !obj.TryGetPropertyValue("uri", out var uriNode) ||
-                        !obj.TryGetPropertyValue("diagnostics", out var diagsNode)) {
-                        _logger?.LogDebug("Invalid publishDiagnostics params from {ServerName}", serverName);
+                    var diagsParams = RelaxedJsonSerializer.Deserialize(
+                        node?.ToJsonString() ?? string.Empty, LspJsonContext.Default.LspPublishDiagnosticsParams);
+                    if (diagsParams is null || diagsParams.Diagnostics.Count == 0) {
                         return;
                     }
 
-                    var uri = uriNode?.GetValue<string>() ?? "";
-                    var diagsArray = diagsNode as JsonArray;
-                    if (diagsArray == null || diagsArray.Count == 0) {
-                        return;
-                    }
-
-                    var diagnosticFiles = FormatDiagnosticsForAttachment(uri, diagsArray);
+                    var diagnosticFiles = FormatDiagnosticsForAttachment(diagsParams.Uri, diagsParams.Diagnostics);
                     if (diagnosticFiles.Diagnostics.Count == 0) return;
 
                     _diagnosticRegistry.RegisterPending(serverName, [diagnosticFiles]);
@@ -89,10 +82,10 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
                 _logger?.LogDebug("LSP: Received workspace/configuration request from {ServerName}", serverName);
 
                 var result = new JsonArray();
-                if (node is JsonObject pObj &&
-                    pObj.TryGetPropertyValue("items", out var itemsNode) &&
-                    itemsNode is JsonArray items) {
-                    for (var i = 0; i < items.Count; i++) {
+                var configParams = RelaxedJsonSerializer.Deserialize(
+                    node?.ToJsonString() ?? string.Empty, LspJsonContext.Default.LspConfigurationParams);
+                if (configParams is not null) {
+                    for (var i = 0; i < configParams.Items.Count; i++) {
                         result.Add(null);
                     }
                 }
@@ -101,31 +94,22 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
             });
     }
 
-    private static LspDiagnosticFile FormatDiagnosticsForAttachment(string uri, JsonArray diagsArray) {
-        var diagnostics = new List<LspDiagnosticItem>();
+    private static LspDiagnosticFile FormatDiagnosticsForAttachment(string uri, List<LspDiagnosticDto> diagnostics) {
+        var items = new List<LspDiagnosticItem>();
 
-        foreach (var diagNode in diagsArray) {
-            if (diagNode is not JsonObject diag) continue;
+        foreach (var diag in diagnostics) {
+            if (string.IsNullOrEmpty(diag.Message)) continue;
 
-            var message = diag.TryGetPropertyValue("message", out var msgNode) ? msgNode?.GetValue<string>() : null;
-            if (string.IsNullOrEmpty(message)) continue;
+            var severity = MapLspSeverity(diag.Severity);
+            var code = diag.Code.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+                ? null
+                : diag.Code.ToString();
 
-            var severity = MapLspSeverity(
-                diag.TryGetPropertyValue("severity", out var sevNode) ? sevNode?.GetValue<int>() : null);
-
-            LspRange? range = null;
-            if (diag.TryGetPropertyValue("range", out var rangeNode) && rangeNode is JsonObject rangeObj) {
-                range = ParseRange(rangeObj);
-            }
-
-            var source = diag.TryGetPropertyValue("source", out var srcNode) ? srcNode?.GetValue<string>() : null;
-            var code = diag.TryGetPropertyValue("code", out var codeNode) ? codeNode?.ToString() : null;
-
-            diagnostics.Add(new LspDiagnosticItem {
-                Message = message ?? string.Empty,
+            items.Add(new LspDiagnosticItem {
+                Message = diag.Message,
                 Severity = severity,
-                Range = range,
-                Source = source,
+                Range = diag.Range,
+                Source = diag.Source,
                 Code = code
             });
         }
@@ -136,7 +120,7 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
 
         return new LspDiagnosticFile {
             Uri = fileUri,
-            Diagnostics = diagnostics
+            Diagnostics = items
         };
     }
 
@@ -147,22 +131,51 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
         4 => "Hint",
         _ => "Error"
     };
+}
 
-    private static LspRange ParseRange(JsonObject rangeObj) {
-        var start = rangeObj.TryGetPropertyValue("start", out var startNode) && startNode is JsonObject sObj
-            ? ParsePosition(sObj)
-            : new LspPosition();
+/// <summary>
+/// textDocument/publishDiagnostics 通知参数 DTO
+/// </summary>
+public sealed class LspPublishDiagnosticsParams {
+    /// <summary>文档 URI</summary>
+    [JsonPropertyName("uri")]
+    public string Uri { get; set; } = string.Empty;
 
-        var end = rangeObj.TryGetPropertyValue("end", out var endNode) && endNode is JsonObject eObj
-            ? ParsePosition(eObj)
-            : new LspPosition();
+    /// <summary>诊断列表</summary>
+    [JsonPropertyName("diagnostics")]
+    public List<LspDiagnosticDto> Diagnostics { get; set; } = [];
+}
 
-        return new LspRange { Start = start, End = end };
-    }
+/// <summary>
+/// LSP Diagnostic DTO — 单条诊断的 JSON 反序列化模型
+/// </summary>
+public sealed class LspDiagnosticDto {
+    /// <summary>诊断消息</summary>
+    [JsonPropertyName("message")]
+    public string? Message { get; set; }
 
-    private static LspPosition ParsePosition(JsonObject posObj) {
-        var line = posObj.TryGetPropertyValue("line", out var lineNode) ? lineNode?.GetValue<int>() ?? 0 : 0;
-        var character = posObj.TryGetPropertyValue("character", out var charNode) ? charNode?.GetValue<int>() ?? 0 : 0;
-        return new LspPosition { Line = line, Character = character };
-    }
+    /// <summary>严重级别（1=Error, 2=Warning, 3=Info, 4=Hint）</summary>
+    [JsonPropertyName("severity")]
+    public int? Severity { get; set; }
+
+    /// <summary>诊断范围</summary>
+    [JsonPropertyName("range")]
+    public LspRange? Range { get; set; }
+
+    /// <summary>诊断来源</summary>
+    [JsonPropertyName("source")]
+    public string? Source { get; set; }
+
+    /// <summary>诊断代码（LSP 规范允许 integer 或 string，用 JsonElement 兼容两种类型）</summary>
+    [JsonPropertyName("code")]
+    public JsonElement Code { get; set; }
+}
+
+/// <summary>
+/// workspace/configuration 请求参数 DTO
+/// </summary>
+public sealed class LspConfigurationParams {
+    /// <summary>配置项请求列表</summary>
+    [JsonPropertyName("items")]
+    public List<JsonElement> Items { get; set; } = [];
 }

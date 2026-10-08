@@ -15,6 +15,16 @@ public sealed class BridgeInboundAttachment {
 }
 
 /// <summary>
+/// 入站附件消息包装 — 对齐 TS 端 inboundAttachments.ts extractInboundAttachments 的消息体
+/// 用 List&lt;JsonElement&gt; 承载以保持 best-effort 语义：单个附件反序列化失败只跳过该附件
+/// </summary>
+public sealed class BridgeInboundAttachmentsMessage {
+    /// <summary>文件附件列表（JsonElement 延迟解析，逐个反序列化以隔离失败）</summary>
+    [JsonPropertyName("file_attachments")]
+    public List<JsonElement> FileAttachments { get; init; } = [];
+}
+
+/// <summary>
 /// 入站附件解析服务 — 对齐 TS 端 inboundAttachments.ts
 /// 处理 Bridge 远程控制场景中 Web 编辑器上传的文件附件
 /// best-effort 设计：任何失败只跳过该附件不阻塞消息
@@ -26,19 +36,25 @@ public static class BridgeInboundAttachments {
     public static List<BridgeInboundAttachment> ExtractInboundAttachments(JsonElement msg, ILogger? logger = null) {
         if (msg.ValueKind != JsonValueKind.Object) return [];
 
-        if (!msg.TryGetProperty("file_attachments", out var attachments) || attachments.ValueKind != JsonValueKind.Array)
+        BridgeInboundAttachmentsMessage? wrapper;
+        try {
+            wrapper = msg.Deserialize(BridgeJsonContext.Default.BridgeInboundAttachmentsMessage);
+        } catch (JsonException ex) {
+            // best-effort: 消息体无法解析，跳过全部附件
+            logger?.LogWarning(ex, "[BridgeInboundAttachments] Skip unparseable attachments");
             return [];
+        }
+
+        if (wrapper?.FileAttachments is null) return [];
 
         var result = new List<BridgeInboundAttachment>();
-        foreach (var item in attachments.EnumerateArray()) {
+        foreach (var item in wrapper.FileAttachments) {
             try {
                 if (item.ValueKind != JsonValueKind.Object) continue;
 
-                var fileUuid = item.TryGetProperty("file_uuid", out var uuidProp) ? uuidProp.GetString() : null;
-                var fileName = item.TryGetProperty("file_name", out var nameProp) ? nameProp.GetString() : null;
-
-                if (fileUuid is not null && fileName is not null) {
-                    result.Add(new BridgeInboundAttachment { FileUuid = fileUuid, FileName = fileName });
+                var attachment = item.Deserialize(BridgeJsonContext.Default.BridgeInboundAttachment);
+                if (attachment is not null) {
+                    result.Add(attachment);
                 }
             } catch (Exception ex) {
                 // best-effort: 跳过无法解析的附件

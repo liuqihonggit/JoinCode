@@ -93,15 +93,13 @@ public static partial class BridgeDebugUtils {
     public static string? ExtractErrorDetail(JsonElement? data) {
         if (data is not JsonElement je || je.ValueKind != JsonValueKind.Object) return null;
 
-        // 尝试 data.message
-        if (je.TryGetProperty("message", out var msgProp) && msgProp.ValueKind == JsonValueKind.String) {
-            return msgProp.GetString();
-        }
-
-        // 尝试 data.error.message
-        if (je.TryGetProperty("error", out var errorProp) && errorProp.ValueKind == JsonValueKind.Object
-            && errorProp.TryGetProperty("message", out var errorMsgProp) && errorMsgProp.ValueKind == JsonValueKind.String) {
-            return errorMsgProp.GetString();
+        try {
+            var dto = je.Deserialize(TransportBridgeJsonContext.Default.BridgeErrorDetailDto);
+            if (dto?.Message is { } msg) return msg;
+            if (dto?.Error?.Message is { } errMsg) return errMsg;
+        } catch (JsonException) {
+            // JSON 结构与 DTO 不匹配，返回 null
+            return null;
         }
 
         return null;

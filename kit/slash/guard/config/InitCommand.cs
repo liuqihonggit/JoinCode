@@ -34,9 +34,8 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
     private static bool IsQuickModeFromJson(string args) {
         if (!args.StartsWith('{')) return false;
         try {
-            using var doc = System.Text.Json.JsonDocument.Parse(args);
-            return doc.RootElement.TryGetProperty("mode", out var mode)
-                && mode.GetString() is "quick" or "q";
+            var dto = RelaxedJsonSerializer.Deserialize(args, InitCommandJsonContext.Default.InitModeDto);
+            return dto?.Mode is "quick" or "q";
         } catch {
             return false;
         }
@@ -184,3 +183,15 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
         return prompt;
     }
 }
+
+/// <summary>/init 命令 JSON 参数 DTO — 支持 slash_call 传入 {"mode":"quick"} 格式</summary>
+public sealed class InitModeDto {
+    /// <summary>初始化模式: quick=快速模式</summary>
+    [JsonPropertyName("mode")]
+    public string? Mode { get; init; }
+}
+
+/// <summary>/init 命令 JSON 序列化上下文 — 为 InitModeDto 生成 AOT 兼容的源码序列化器</summary>
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSerializable(typeof(InitModeDto))]
+public partial class InitCommandJsonContext : JsonSerializerContext;

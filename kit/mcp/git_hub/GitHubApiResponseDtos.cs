@@ -924,6 +924,15 @@ internal sealed class CheckRunItemResponse {
     /// <summary>结论(success/failure/cancelled/skipped/neutral/timed_out)</summary>
     [JsonPropertyName("conclusion")]
     public string? Conclusion { get; init; }
+    /// <summary>开始时间(ISO 8601)</summary>
+    [JsonPropertyName("started_at")]
+    public string? StartedAt { get; init; }
+    /// <summary>完成时间(ISO 8601)</summary>
+    [JsonPropertyName("completed_at")]
+    public string? CompletedAt { get; init; }
+    /// <summary>详情 URL</summary>
+    [JsonPropertyName("details_url")]
+    public string? DetailsUrl { get; init; }
 }
 
 // === Required Status Checks 响应 ===

@@ -35,6 +35,8 @@ public partial class GitHubToolHandlers {
                 return Ok($"{summary}\n\n## 评论\n{SummarizeComments(commentsResult.Body)}");
             }
             var cacheKey = BuildGhCacheKey("gh_pr_view", $"{owner}/{repoName}/{number}");
+            if (!string.IsNullOrEmpty(json_fields) && json_fields.Contains("statusCheckRollup", StringComparison.OrdinalIgnoreCase))
+                return await GetPrViewWithRollupAsync(client, owner, repoName, number, json_fields, cancellationToken).ConfigureAwait(false);
             return await GetOrFetchWithCacheAsync(client, cacheKey, apiPath, verbosity, json_fields, SummarizePr, "number,title,state,head_branch,user,html_url", cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
@@ -271,6 +273,80 @@ public partial class GitHubToolHandlers {
             await Task.Delay(delay, ct).ConfigureAwait(false);
         }
         return Ok("轮询超时，仍有 checks 进行中");
+    }
+
+    /// <summary>
+    /// 获取 PR 详情 + statusCheckRollup — 当 --json 包含 statusCheckRollup 时,调 check-runs API 构造 rollup,合并 PR 字段
+    /// <para>statusCheckRollup 是 GraphQL 字段,REST API 不包含,用 check-runs API 模拟</para>
+    /// <para>state 映射对齐 GraphQL: PENDING/SUCCESS/FAILURE/NEUTRAL</para>
+    /// </summary>
+    private async Task<ToolResult> GetPrViewWithRollupAsync(
+        IGitHubApiClient client, string owner, string repo, string number, string json_fields, CancellationToken ct) {
+        var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/pulls/{number}", ct: ct).ConfigureAwait(false);
+        if (!prResult.Success) return Fail(prResult.Error);
+
+        string? headSha;
+        try {
+            var prDetail = JsonSerializer.Deserialize(prResult.Body, GitHubApiJsonContext.Safe.PrDetailResponse);
+            headSha = prDetail?.Head?.Sha;
+        } catch (Exception ex) { return Fail($"解析 PR head sha 失败: {ex.Message}"); }
+        if (string.IsNullOrEmpty(headSha)) return Fail("无法从 PR 响应中解析 head.sha");
+
+        var checksResult = await client.SendAsync(
+            HttpMethod.Get,
+            $"repos/{owner}/{repo}/commits/{headSha}/check-runs",
+            query: new Dictionary<string, string> { ["per_page"] = "100" },
+            paginate: true,
+            ct: ct).ConfigureAwait(false);
+        if (!checksResult.Success) return Fail(checksResult.Error);
+
+        List<CheckRunItemResponse> checkRuns;
+        try {
+            var checksResp = JsonSerializer.Deserialize(checksResult.Body, GitHubApiJsonContext.Safe.CheckRunListResponse);
+            checkRuns = checksResp?.CheckRuns ?? new();
+        } catch (Exception ex) { return Fail($"解析 check-runs 失败: {ex.Message}"); }
+
+        var fieldList = json_fields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        using var prDoc = JsonDocument.Parse(prResult.Body);
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })) {
+            writer.WriteStartObject();
+            foreach (var field in fieldList) {
+                if (string.Equals(field, "statusCheckRollup", StringComparison.OrdinalIgnoreCase)) continue;
+                if (prDoc.RootElement.TryGetProperty(field, out var value)) {
+                    writer.WritePropertyName(field);
+                    value.WriteTo(writer);
+                }
+            }
+            writer.WritePropertyName("statusCheckRollup");
+            writer.WriteStartArray();
+            foreach (var run in checkRuns) {
+                writer.WriteStartObject();
+                writer.WriteString("name", run.Name);
+                writer.WriteString("state", MapCheckRollupState(run.Status, run.Conclusion));
+                if (run.Status is not null) writer.WriteString("status", run.Status);
+                if (run.Conclusion is not null) writer.WriteString("conclusion", run.Conclusion);
+                if (run.StartedAt is not null) writer.WriteString("startedAt", run.StartedAt);
+                if (run.CompletedAt is not null) writer.WriteString("completedAt", run.CompletedAt);
+                if (run.DetailsUrl is not null) writer.WriteString("detailsUrl", run.DetailsUrl);
+                writer.WriteEndObject();
+            }
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+            writer.Flush();
+        }
+        return Ok(Encoding.UTF8.GetString(buffer.WrittenSpan));
+    }
+
+    /// <summary>映射 check-run status+conclusion 为 GraphQL state(PENDING/SUCCESS/FAILURE/NEUTRAL)</summary>
+    private static string MapCheckRollupState(string? status, string? conclusion) {
+        if (status != "completed") return "PENDING";
+        return conclusion switch {
+            "success" => "SUCCESS",
+            "failure" or "timed_out" or "cancelled" => "FAILURE",
+            "skipped" or "neutral" => "NEUTRAL",
+            _ => "PENDING"
+        };
     }
 
     /// <summary>

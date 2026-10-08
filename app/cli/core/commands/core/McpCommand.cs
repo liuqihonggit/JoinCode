@@ -378,14 +378,18 @@ public sealed class McpCliCommand {
 
     /// <summary>输出工具执行结果 — 供 gh 等子命令复用，避免第二套输出逻辑
     /// <para>扁平化: 单 text content + 非 error → data 直接是 string,消除 content[0].text 嵌套(降低 AI token 消耗)</para>
+    /// <para>计时: ToolResult.TimingInfo → CliOutputMeta.Timing (JSON) / 末行输出 (非JSON)</para>
     /// </summary>
     internal static int OutputResult(ToolResult result, bool json) {
+        var meta = result.TimingInfo is not null
+            ? new Cli.Output.CliOutputMeta { Timing = result.TimingInfo }
+            : null;
         if (json) {
             if (!result.IsError && result.Content.Count == 1 && !string.IsNullOrEmpty(result.Content[0].Text)) {
-                var envelope = Cli.Output.CliOutputEnvelope<string>.Success(result.Content[0].Text);
+                var envelope = Cli.Output.CliOutputEnvelope<string>.Success(result.Content[0].Text, meta);
                 System.Console.WriteLine(envelope.ToJsonString());
             } else {
-                var envelope = Cli.Output.CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolResult>.Success(result);
+                var envelope = Cli.Output.CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolResult>.Success(result, meta);
                 System.Console.WriteLine(envelope.ToJsonString());
             }
         } else {
@@ -405,6 +409,8 @@ public sealed class McpCliCommand {
             }
             if (!hasOutput)
                 WriteTextOrError("(无文本输出)", result.IsError);
+            if (result.TimingInfo is not null)
+                TerminalHelper.WriteLine(result.TimingInfo);
         }
         return result.IsError ? 1 : 0;
     }

@@ -105,15 +105,11 @@ public partial class GitHubToolHandlers {
                 expand = "failed";
                 log = true;
             }
-            var timer = new GhTimingTracker();
-            LogFilterRunner.CurrentTimer.Value = timer;
-            var result = await GhRunViewCoreAsync(
+            return await GhRunViewCoreAsync(
                 new GhRepoCtx { Client = client, Owner = owner, Repo = repoName, Ct = cancellationToken },
                 new GhRunTarget { RunId = resolvedRunId, JobId = job_id, Attempt = attempt },
                 new GhLogOpts { Log = log, MaxLines = max_lines, SkipLines = skip_lines, Expand = expand, Filter = filter, Refresh = refresh, Verbosity = verbosity }
             ).ConfigureAwait(false);
-            result.Content.Add(new ToolContent { Text = timer.Format() });
-            return result;
         }).ConfigureAwait(false);
 
     /// <summary>

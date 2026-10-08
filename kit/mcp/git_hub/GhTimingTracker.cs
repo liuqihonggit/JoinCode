@@ -7,6 +7,9 @@ namespace McpToolDispatch;
 /// <para>计时用 Stopwatch.GetTimestamp() 高精度计时器,Interlocked 累加 ticks,线程安全</para>
 /// </summary>
 internal sealed class GhTimingTracker {
+    /// <summary>AsyncLocal 传播 — ExecuteGhAsync 顶层设置后,装饰器/缓存/解析层读取打点</summary>
+    internal static readonly AsyncLocal<GhTimingTracker?> CurrentTimer = new();
+
     private long _networkTicks;
     private long _lsmReadTicks;
     private long _lsmWriteTicks;

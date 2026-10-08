@@ -8,9 +8,6 @@ internal sealed class GitHubRunLogFilterRunner {
     private readonly IGitHubApiClient _apiClient;
     private readonly IKvStore? _kvStore;
 
-    /// <summary>耗时追踪器 — AsyncLocal 在异步调用链中隐式传播,顶层方法设置后底层方法读取打点</summary>
-    internal readonly AsyncLocal<GhTimingTracker?> CurrentTimer = new();
-
     /// <summary>缓存 TTL — 7 天后自动过期,由 KvStoreTtlCleanupService 定期清理</summary>
     internal static readonly TimeSpan CacheTtl = TimeSpan.FromDays(7);
 
@@ -54,7 +51,7 @@ internal sealed class GitHubRunLogFilterRunner {
     /// </summary>
     private async Task<List<long>> GetOrFetchFailedJobIdsAsync(string owner, string repo, string runId, bool wantRefresh, CancellationToken ct) {
         var jobsCacheKey = Encoding.UTF8.GetBytes($"gh:jobs:{runId}");
-        var timer = CurrentTimer.Value;
+        var timer = GhTimingTracker.CurrentTimer.Value;
 
         if (!wantRefresh && _kvStore is not null) {
             var tRead = Stopwatch.GetTimestamp();
@@ -174,7 +171,7 @@ internal sealed class GitHubRunLogFilterRunner {
         string owner, string repo, string runId, long jobId, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
         var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{runId}:{jobId}");
-        var timer = CurrentTimer.Value;
+        var timer = GhTimingTracker.CurrentTimer.Value;
 
         // 1. 查 LSM 缓存(wantRefresh 时跳过)
         if (!wantRefresh && _kvStore is not null) {
@@ -223,7 +220,7 @@ internal sealed class GitHubRunLogFilterRunner {
         string owner, string repo, string runId, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
         var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{runId}:run");
-        var timer = CurrentTimer.Value;
+        var timer = GhTimingTracker.CurrentTimer.Value;
 
         // 1. 查 LSM 缓存(wantRefresh 时跳过)
         if (!wantRefresh && _kvStore is not null) {
@@ -305,7 +302,7 @@ internal sealed class GitHubRunLogFilterRunner {
         var summary = new RunLogSummary { RunId = runId, JobId = jobId };
         var sectionContents = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
         var parser = new GitHubLogParser();
-        var timer = CurrentTimer.Value;
+        var timer = GhTimingTracker.CurrentTimer.Value;
 
         var logLines = string.IsNullOrWhiteSpace(jobId)
             ? GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct)

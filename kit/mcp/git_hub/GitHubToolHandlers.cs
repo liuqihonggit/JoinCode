@@ -196,6 +196,7 @@ public partial class GitHubToolHandlers {
     /// 守卫编排模板 — client 检查 + owner/repo 解析,失败短路返回错误,成功执行 apiCall(client, owner, repo)
     /// <para>消除 21 处重复的 client 检查 + ResolveOwnerRepoAsync 样板,主方法只写 API 调用核心逻辑</para>
     /// <para>client 作为参数传入 apiCall,调用方直接用 client 而非 _apiClient!,消除空抑制</para>
+    /// <para>统一计时: 创建 GhTimingTracker + 用 TimingGitHubApiClient 包装 client + 附加耗时到输出</para>
     /// </summary>
     private async Task<ToolResult> ExecuteGhAsync(
         string? repo, string? workingDir, CancellationToken ct,
@@ -204,7 +205,18 @@ public partial class GitHubToolHandlers {
         var resolved = await ResolveOwnerRepoAsync(repo, workingDir, ct).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
         var (owner, repoName) = resolved.Value;
-        return await apiCall(_apiClient, owner, repoName).ConfigureAwait(false);
+
+        var tracker = new GhTimingTracker();
+        var prevTimer = GhTimingTracker.CurrentTimer.Value;
+        GhTimingTracker.CurrentTimer.Value = tracker;
+        try {
+            var timedClient = new TimingGitHubApiClient(_apiClient);
+            var result = await apiCall(timedClient, owner, repoName).ConfigureAwait(false);
+            result.TimingInfo = tracker.Format();
+            return result;
+        } finally {
+            GhTimingTracker.CurrentTimer.Value = prevTimer;
+        }
     }
 
     /// <summary>
@@ -436,10 +448,15 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private async Task<string?> TryGetGhCacheAsync(string cacheKey, CancellationToken ct) {
         if (_kvStore is null) return null;
+        var tracker = GhTimingTracker.CurrentTimer.Value;
         try {
             var key = Encoding.UTF8.GetBytes($"gh:api:{cacheKey}");
+            var start = Stopwatch.GetTimestamp();
             var cached = await _kvStore.GetWithTtlAndRenewAsync(key, TimeSpan.FromHours(1), ct).ConfigureAwait(false);
-            return cached is null ? null : Encoding.UTF8.GetString(cached);
+            tracker?.AddLsmRead(Stopwatch.GetTimestamp() - start);
+            if (cached is null) { tracker?.RecordMiss(); return null; }
+            tracker?.RecordHit();
+            return Encoding.UTF8.GetString(cached);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to read gh cache {Key}", cacheKey);
             return null;
@@ -451,10 +468,13 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private async Task SaveGhCacheAsync(string cacheKey, string json, CancellationToken ct) {
         if (_kvStore is null) return;
+        var tracker = GhTimingTracker.CurrentTimer.Value;
         try {
             var key = Encoding.UTF8.GetBytes($"gh:api:{cacheKey}");
             var bytes = Encoding.UTF8.GetBytes(json);
+            var start = Stopwatch.GetTimestamp();
             await _kvStore.PutWithTtlAsync(key, bytes, TimeSpan.FromHours(1), ct).ConfigureAwait(false);
+            tracker?.AddLsmWrite(Stopwatch.GetTimestamp() - start);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to save gh cache {Key}", cacheKey);
         }

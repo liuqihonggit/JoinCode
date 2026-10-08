@@ -31,4 +31,9 @@ namespace Api.LLM;
 [JsonSerializable(typeof(ResponsesTool))]
 [JsonSerializable(typeof(TokenUsage))]
 [JsonSerializable(typeof(List<OpenAIToolCall>))]
+[JsonSerializable(typeof(ResponsesInputItemDto))]
+[JsonSerializable(typeof(ResponsesInputContentDto))]
+[JsonSerializable(typeof(List<ResponsesInputItemDto>))]
+[JsonSerializable(typeof(JsonSchemaDto))]
+[JsonSerializable(typeof(JsonSchemaPropertyDto))]
 internal partial class NativeJsonContext : JsonSerializerContext;

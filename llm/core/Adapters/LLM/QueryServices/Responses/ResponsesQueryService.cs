@@ -292,9 +292,7 @@ public class ResponsesQueryService : QueryServiceBase {
             modelId = settings.FastModelId;
 
         string? instructions = null;
-        var inputSb = new StringBuilder();
-        inputSb.Append('[');
-        var firstInput = true;
+        var inputItems = new List<ResponsesInputItemDto>(chatHistory.Count);
 
         foreach (var msg in chatHistory) {
             if (msg.Role == MessageRole.System) {
@@ -303,21 +301,25 @@ public class ResponsesQueryService : QueryServiceBase {
             }
 
             if (msg.Role == MessageRole.Tool) {
-                AppendFunctionCallOutput(inputSb, msg, ref firstInput);
+                inputItems.Add(BuildFunctionCallOutput(msg));
                 continue;
             }
 
-            if (TryAppendAssistantMetadata(inputSb, ref firstInput, msg)) continue;
+            if (TryBuildAssistantMetadata(msg) is { } metadataItems) {
+                inputItems.AddRange(metadataItems);
+                continue;
+            }
 
-            if (!firstInput) inputSb.Append(',');
-            firstInput = false;
             var role = ConvertRoleToString(msg.Role);
             var contentType = msg.Role == MessageRole.Assistant ? "output_text" : "input_text";
-            inputSb.Append("{\"type\":\"message\",\"role\":\"").Append(role)
-                .Append("\",\"content\":[{\"type\":\"").Append(contentType)
-                .Append("\",\"text\":\"").Append(EscapeJsonString(msg.Content ?? string.Empty)).Append("\"}]}");
+            inputItems.Add(new ResponsesInputItemDto {
+                Type = "message",
+                Role = role,
+                Content = new List<ResponsesInputContentDto> {
+                    new() { Type = contentType, Text = msg.Content ?? string.Empty },
+                },
+            });
         }
-        inputSb.Append(']');
 
         var request = new ResponsesRequest {
             Model = modelId,
@@ -326,7 +328,7 @@ public class ResponsesQueryService : QueryServiceBase {
             TopP = settings?.TopP,
             MaxOutputTokens = settings?.MaxTokens,
             Instructions = instructions,
-            Input = JsonDocument.Parse(inputSb.ToString()).RootElement.Clone()
+            Input = JsonSerializer.SerializeToElement(inputItems, NativeJsonContext.Default.ListResponsesInputItemDto)
         };
 
         if (settings?.EffortLevel is not null) {
@@ -436,74 +438,51 @@ public class ResponsesQueryService : QueryServiceBase {
     internal static JsonElement? BuildParameters(IReadOnlyList<IToolParam> parameters) {
         if (parameters.Count == 0) return null;
 
-        var sb = new StringBuilder();
-        sb.Append("{\"type\":\"object\",\"properties\":{");
-        var first = true;
+        var properties = new Dictionary<string, JsonSchemaPropertyDto>(parameters.Count);
         foreach (var param in parameters) {
-            if (!first) sb.Append(',');
-            first = false;
-            sb.Append('"').Append(EscapeJsonString(param.Name)).Append("\":{\"type\":\"")
-                .Append(MapClrTypeToJsonSchemaType(param.ParameterType)).Append('"');
-            if (!string.IsNullOrEmpty(param.Description))
-                sb.Append(",\"description\":\"").Append(EscapeJsonString(param.Description)).Append('"');
-            sb.Append('}');
+            properties[param.Name] = new JsonSchemaPropertyDto {
+                Type = MapClrTypeToJsonSchemaType(param.ParameterType),
+                Description = string.IsNullOrEmpty(param.Description) ? null : param.Description,
+            };
         }
-        sb.Append('}');
 
         var required = parameters.Where(p => p.IsRequired).Select(p => p.Name).ToList();
-        if (required.Count > 0) {
-            sb.Append(",\"required\":[");
-            sb.Append(string.Join(",", required.Select(r => "\"" + EscapeJsonString(r) + "\"")));
-            sb.Append(']');
-        }
-        sb.Append('}');
+        var schema = new JsonSchemaDto {
+            Properties = properties,
+            Required = required.Count > 0 ? required : null,
+        };
 
-        return JsonDocument.Parse(sb.ToString()).RootElement.Clone();
+        return JsonSerializer.SerializeToElement(schema, NativeJsonContext.Default.JsonSchemaDto);
     }
 
-    internal static string EscapeJsonString(string s) {
-        if (string.IsNullOrEmpty(s)) return "";
-        var sb = new StringBuilder(s.Length);
-        foreach (var c in s) {
-            switch (c) {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
-            }
-        }
-        return sb.ToString();
-    }
-
-    /// <summary>输入数组前置分隔符 — 首个 item 前不加逗号</summary>
-    private static void AppendItem(StringBuilder sb, ref bool firstInput) {
-        if (!firstInput) sb.Append(',');
-        firstInput = false;
-    }
-
-    /// <summary>Tool 结果消息 → function_call_output item（Responses API 官方格式，非 role=tool message）</summary>
-    internal static void AppendFunctionCallOutput(StringBuilder sb, ApiMessage msg, ref bool firstInput) {
+    /// <summary>Tool 结果消息 → function_call_output item DTO</summary>
+    internal static ResponsesInputItemDto BuildFunctionCallOutput(ApiMessage msg) {
         var callId = msg.Metadata is not null
             && msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolCallId, out var idProp)
             && idProp.ValueKind == JsonValueKind.String
             ? idProp.GetString() ?? string.Empty
             : string.Empty;
-        AppendItem(sb, ref firstInput);
-        sb.Append("{\"type\":\"function_call_output\",\"call_id\":\"").Append(EscapeJsonString(callId))
-            .Append("\",\"output\":\"").Append(EscapeJsonString(msg.Content ?? string.Empty)).Append("\"}");
+        return new ResponsesInputItemDto {
+            Type = "function_call_output",
+            CallId = callId,
+            Output = msg.Content ?? string.Empty,
+        };
     }
 
-    /// <summary>Assistant 消息的 reasoning + tool_calls 元数据 → Responses input items。返回 true 表示已走 tool_calls 分支应 continue</summary>
-    internal static bool TryAppendAssistantMetadata(StringBuilder inputSb, ref bool firstInput, ApiMessage msg) {
-        if (msg.Role != MessageRole.Assistant || msg.Metadata is null) return false;
+    /// <summary>Assistant 消息的 reasoning + tool_calls 元数据 → Responses input item DTO 列表。返回 null 表示无元数据</summary>
+    internal static List<ResponsesInputItemDto>? TryBuildAssistantMetadata(ApiMessage msg) {
+        if (msg.Role != MessageRole.Assistant || msg.Metadata is null) return null;
+
+        var items = new List<ResponsesInputItemDto>();
 
         if (msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ReasoningText, out var reasoningProp)
             && reasoningProp.ValueKind == JsonValueKind.String) {
-            AppendItem(inputSb, ref firstInput);
-            inputSb.Append("{\"type\":\"reasoning\",\"content\":[{\"type\":\"reasoning_text\",\"text\":\"")
-                .Append(EscapeJsonString(reasoningProp.GetString() ?? string.Empty)).Append("\"}]}");
+            items.Add(new ResponsesInputItemDto {
+                Type = "reasoning",
+                Content = new List<ResponsesInputContentDto> {
+                    new() { Type = "reasoning_text", Text = reasoningProp.GetString() ?? string.Empty },
+                },
+            });
         }
 
         if (msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolCalls, out var toolCallsProp)
@@ -513,15 +492,18 @@ public class ResponsesQueryService : QueryServiceBase {
                     var id = tc.TryGetProperty("Id", out var idProp) ? idProp.GetString() ?? "" : "";
                     var name = tc.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() ?? "" : "";
                     var args = tc.TryGetProperty("Arguments", out var argsProp) ? argsProp.GetString() ?? "{}" : "{}";
-                    AppendItem(inputSb, ref firstInput);
-                    inputSb.Append("{\"type\":\"function_call\",\"call_id\":\"").Append(EscapeJsonString(id))
-                        .Append("\",\"name\":\"").Append(EscapeJsonString(name))
-                        .Append("\",\"arguments\":\"").Append(EscapeJsonString(args)).Append("\"}");
+                    items.Add(new ResponsesInputItemDto {
+                        Type = "function_call",
+                        CallId = id,
+                        Name = name,
+                        Arguments = args,
+                    });
                 }
-                return true;
+                return items;
             }
         }
-        return false;
+
+        return items.Count > 0 ? items : null;
     }
 
     #endregion

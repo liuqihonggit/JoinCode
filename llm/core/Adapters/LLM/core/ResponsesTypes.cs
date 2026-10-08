@@ -209,3 +209,76 @@ internal sealed class ResponsesTokenDetails {
     [JsonPropertyName("reasoning_tokens")]
     public int ReasoningTokens { get; set; }
 }
+
+// === Responses API input item DTO（替代手写 JSON 拼接） ===
+
+/// <summary>Responses API input item — message/function_call_output/function_call/reasoning 统一 DTO</summary>
+internal sealed class ResponsesInputItemDto {
+    /// <summary>类型(message/function_call_output/function_call/reasoning)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "";
+    /// <summary>角色(message 时用)</summary>
+    [JsonPropertyName("role")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Role { get; init; }
+    /// <summary>内容数组(message/reasoning 时用)</summary>
+    [JsonPropertyName("content")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+#pragma warning disable JCC11002
+    public List<ResponsesInputContentDto>? Content { get; init; }
+#pragma warning restore JCC11002
+    /// <summary>调用 ID(function_call_output/function_call 时用)</summary>
+    [JsonPropertyName("call_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CallId { get; init; }
+    /// <summary>输出(function_call_output 时用)</summary>
+    [JsonPropertyName("output")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Output { get; init; }
+    /// <summary>函数名(function_call 时用)</summary>
+    [JsonPropertyName("name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Name { get; init; }
+    /// <summary>参数(function_call 时用)</summary>
+    [JsonPropertyName("arguments")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Arguments { get; init; }
+}
+
+/// <summary>Responses API input content item</summary>
+internal sealed class ResponsesInputContentDto {
+    /// <summary>类型(input_text/output_text/reasoning_text)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "";
+    /// <summary>文本</summary>
+    [JsonPropertyName("text")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Text { get; init; }
+}
+
+/// <summary>JSON Schema DTO（BuildParameters 用）</summary>
+internal sealed class JsonSchemaDto {
+    /// <summary>类型(固定 object)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "object";
+    /// <summary>属性字典</summary>
+    [JsonPropertyName("properties")]
+    public Dictionary<string, JsonSchemaPropertyDto> Properties { get; init; } = new();
+    /// <summary>必填字段列表(可选)</summary>
+    [JsonPropertyName("required")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+#pragma warning disable JCC11002
+    public List<string>? Required { get; init; }
+#pragma warning restore JCC11002
+}
+
+/// <summary>JSON Schema 属性 DTO</summary>
+internal sealed class JsonSchemaPropertyDto {
+    /// <summary>类型(string/number/boolean/array/object)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "";
+    /// <summary>描述(可选)</summary>
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
+}

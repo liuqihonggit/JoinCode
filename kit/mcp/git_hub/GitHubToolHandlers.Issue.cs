@@ -480,21 +480,19 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeIssueStatus(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var issues = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListIssueStatusItemResponse);
+            if (issues is null) return json;
             var byAuthor = new Dictionary<string, List<(int number, string title)>>();
-            foreach (var issue in doc.RootElement.EnumerateArray()) {
-                if (issue.TryGetProperty("pull_request", out _)) continue;
-                var number = issue.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
-                var title = issue.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
-                var author = issue.TryGetProperty(GitHubJsonFields.User, out var u) && u.TryGetProperty(GitHubJsonFields.Login, out var login) ? login.GetString() ?? "" : "";
+            foreach (var issue in issues) {
+                if (issue.PullRequest is not null) continue;
+                var author = issue.User?.Login ?? "";
                 if (!byAuthor.TryGetValue(author, out var list)) { list = new(); byAuthor[author] = list; }
-                list.Add((number, title));
+                list.Add((issue.Number, issue.Title));
             }
             var sb = new StringBuilder(512);
-            foreach (var (author, issues) in byAuthor) {
+            foreach (var (author, authorIssues) in byAuthor) {
                 sb.AppendLine($"## {author}");
-                foreach (var (number, title) in issues) sb.AppendLine($"  #{number}: {title}");
+                foreach (var (number, title) in authorIssues) sb.AppendLine($"  #{number}: {title}");
             }
             return sb.ToString();
         } catch {

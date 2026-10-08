@@ -548,3 +548,22 @@ internal sealed class PrStatusItemResponse {
     [JsonPropertyName("mergeable")]
     public bool? Mergeable { get; init; }
 }
+
+/// <summary>PR 引用(存在性检测用)</summary>
+internal sealed class PullRequestRefResponse;
+
+/// <summary>Issue 状态项 — gh issue status 列表元素</summary>
+internal sealed class IssueStatusItemResponse {
+    /// <summary>Issue 编号</summary>
+    [JsonPropertyName("number")]
+    public int Number { get; init; }
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+    /// <summary>作者</summary>
+    [JsonPropertyName("user")]
+    public UserRefResponse? User { get; init; }
+    /// <summary>PR 引用(存在则跳过,该条目是 PR 不是 Issue)</summary>
+    [JsonPropertyName("pull_request")]
+    public PullRequestRefResponse? PullRequest { get; init; }
+}

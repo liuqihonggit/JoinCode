@@ -25,19 +25,20 @@ dotnet build app/cli/JoinCode.csproj -c Debug
 # 2. 新增/修改 [Register] 类后必须 --no-incremental 全量重建
 dotnet build app/cli/JoinCode.csproj --no-incremental -c Debug
 
-# 3. 部署编译产物到 dev 目录
+# 3. 部署编译产物到 dev 目录 — ⚠️ 必须全量复制,禁止只复制 jcc.exe
 # ⚠️ 禁止用 robocopy /MIR — 跨盘符(D:→C:)时时间戳比较不可靠,DLL 不更新(见下方"部署坑")
-# ✅ 用 cp -f 强制覆盖(bash 原生,跨盘符可靠)
-cp -f D:/project/w2/artifacts/bin/JoinCode/Debug/net10.0/*.dll \
+# ⚠️ 禁止只复制 jcc.exe — jcc.exe(162KB)依赖同目录 Mcp.dll 等多个 DLL,只复制 exe 会运行旧 DLL
+# ✅ 用 cp -f 全量复制 dll+exe+json(bash 原生,跨盘符可靠)
+cp -f D:/project/w3/artifacts/bin/JoinCode/Debug/net10.0/*.dll \
      C:/Users/54076/bin/jcc.d/dev/
-cp -f D:/project/w2/artifacts/bin/JoinCode/Debug/net10.0/*.exe \
+cp -f D:/project/w3/artifacts/bin/JoinCode/Debug/net10.0/*.exe \
      C:/Users/54076/bin/jcc.d/dev/
-cp -f D:/project/w2/artifacts/bin/JoinCode/Debug/net10.0/*.json \
+cp -f D:/project/w3/artifacts/bin/JoinCode/Debug/net10.0/*.json \
      C:/Users/54076/bin/jcc.d/dev/
 
 # 4. 部署后验证(强制) — 对比关键 DLL 时间戳,确认确实更新
 ls -la "C:/Users/54076/bin/jcc.d/dev/Mcp.dll" \
-       "D:/project/w2/artifacts/bin/JoinCode/Debug/net10.0/Mcp.dll"
+       "D:/project/w3/artifacts/bin/JoinCode/Debug/net10.0/Mcp.dll"
 # 两个时间戳应接近(差<2分钟),大小一致;不符则 cp -f 重复制
 ```
 
@@ -86,6 +87,7 @@ C:\Users\54076\bin\
 | `gh api --jq` 字段提取 | ✅ 已修复(2026-10-08) | `SimpleJqEvaluator` 支持 .field/[]/select(.f=="v")/{k:.f}/\| 管道，AI 无需 Python 二次解析 |
 | `gh pr checks` 大量 check 截断 | ✅ 已修复(2026-10-08) | check-runs 端点加 per_page=100 + paginate=true，配合对象分页合并获取全部 |
 | robocopy /MIR 部署 DLL 不更新 | ✅ 已查明 | 跨盘符(D:→C:)时间戳比较不可靠,robocopy 跳过复制。改用 `cp -f` 强制覆盖+部署后验证 DLL 时间戳 |
+| 只复制 jcc.exe 部署 | ✅ 已查明 | jcc.exe(162KB)依赖同目录 Mcp.dll 等多个 DLL,只复制 exe 会运行旧 DLL 导致修复不生效。必须全量复制 *.dll+*.exe+*.json |
 
 ## 原因
 

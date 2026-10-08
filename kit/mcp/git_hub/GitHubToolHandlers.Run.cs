@@ -436,7 +436,7 @@ public partial class GitHubToolHandlers {
     /// <para>超时保护: 5 秒正则超时,避免恶意正则导致卡死</para>
     /// </summary>
     private async Task<ToolResult> FilterByRegexAsync(GhRepoCtx repo, GhRunTarget target, string? jobId, string filter, int maxLines, int skip, bool wantRefresh) {
-        var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, jobId, false, "日志", null, GitHubLogFilter.None, int.MaxValue, repo.Ct, null, 0, wantRefresh).ConfigureAwait(false);
+        var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, jobId, false, "日志", null, GitHubLogFilter.None, 50000, repo.Ct, null, 0, wantRefresh).ConfigureAwait(false);
         if (logResult.IsError) return logResult;
         var logText = logResult.GetFirstText() ?? "";
         var pattern = filter.Replace("\\|", "|");

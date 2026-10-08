@@ -236,11 +236,97 @@ public partial class GitHubToolHandlers {
             : $"repos/{owner}/{repoName}/actions/runs/{run_id}";
         var detailResult = await client.SendAsync(HttpMethod.Get, detailPath, ct: cancellationToken).ConfigureAwait(false);
         if (!detailResult.Success) return Fail(detailResult.Error);
+
+        // 优化D1: 默认模式(verbosity=0/null)run 失败/进行中时,附加失败 job 列表+"尚未拉取"提示
+        // 渐进式披露: 首次 view 就置顶错误,AI 无需再调 expand=jobs→expand=failed 两步
+        if (verbosity is null or 0)
+            return Ok(await EnhanceDefaultViewWithJobsAsync(client, owner, repoName, run_id, detailResult.Body, cancellationToken).ConfigureAwait(false));
+
         return verbosity switch {
             2 => Ok(detailResult.Body),
             1 => Ok(FilterJsonFields(detailResult.Body, "id,name,head_branch,head_sha,status,conclusion,run_number,event,created_at,updated_at,html_url,display_title")),
             _ => Ok(GitHubRunViewSummarizer.SummarizeRunView(detailResult.Body))
         };
+    }
+
+    /// <summary>
+    /// 优化D1: 默认模式增强 — run 失败/进行中时,并行调 jobs API 附加失败 job 列表+"尚未拉取"提示
+    /// <para>渐进式披露: 首次 view 就置顶错误,AI 无需再调 expand=jobs→expand=failed 两步</para>
+    /// <para>run 成功时不附加,保持简洁;verbosity=2/1 不附加(保持原始 JSON/精简格式)</para>
+    /// </summary>
+    private async Task<string> EnhanceDefaultViewWithJobsAsync(
+        IGitHubApiClient client, string owner, string repo, string runId,
+        string runDetailJson, CancellationToken ct) {
+        var baseSummary = GitHubRunViewSummarizer.SummarizeRunView(runDetailJson);
+
+        string? status, conclusion;
+        try {
+            using var doc = JsonDocument.Parse(runDetailJson);
+            status = doc.RootElement.TryGetProperty("status", out var s) ? s.GetString() : null;
+            conclusion = doc.RootElement.TryGetProperty("conclusion", out var c) ? c.GetString() : null;
+        } catch {
+            return baseSummary;
+        }
+
+        // 成功的 run 不附加(保持简洁)
+        var isFailed = conclusion is "failure" or "cancelled" or "timed_out";
+        var isInProgress = string.Equals(status, "in_progress", StringComparison.OrdinalIgnoreCase);
+        if (!isFailed && !isInProgress) return baseSummary;
+
+        // 调 jobs API 获取 job 列表(轻量,不下载日志)
+        var jobsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
+        if (!jobsResult.Success) return baseSummary;
+
+        var jobs = new List<(long id, string name, string status, string conclusion)>();
+        try {
+            using var doc = JsonDocument.Parse(jobsResult.Body);
+            if (!doc.RootElement.TryGetProperty("jobs", out var jobsEl)) return baseSummary;
+            foreach (var job in jobsEl.EnumerateArray()) {
+                var id = job.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.Number ? idEl.GetInt64() : 0;
+                var name = job.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "unknown" : "unknown";
+                var s = job.TryGetProperty("status", out var sEl) ? sEl.GetString() ?? "?" : "?";
+                var c = job.TryGetProperty("conclusion", out var cEl) ? cEl.GetString() ?? "" : "";
+                jobs.Add((id, name, s, c));
+            }
+        } catch {
+            return baseSummary;
+        }
+
+        if (jobs.Count == 0) return baseSummary;
+
+        var failedJobs = jobs.Where(j => j.conclusion == "failure").ToList();
+        var cancelledJobs = jobs.Where(j => j.conclusion == "cancelled").ToList();
+        var inProgressJobs = jobs.Where(j => j.status == "in_progress").ToList();
+        // 无异常 job 时不需要附加(全部成功但 run 还在 in_progress 的情况已由 isInProgress 拦截)
+        if (failedJobs.Count == 0 && cancelledJobs.Count == 0 && inProgressJobs.Count == 0) return baseSummary;
+
+        var sb = new StringBuilder(baseSummary);
+        sb.Append('\n').Append('\n');
+
+        if (failedJobs.Count > 0) {
+            sb.Append($"❌ 失败 Job ({failedJobs.Count} 个):\n");
+            foreach (var (id, name, _, _) in failedJobs)
+                sb.Append($"  ❌ {id,15}  {name}\n");
+        }
+        if (cancelledJobs.Count > 0) {
+            sb.Append($"⊘ 取消 Job ({cancelledJobs.Count} 个):\n");
+            foreach (var (id, name, _, _) in cancelledJobs)
+                sb.Append($"  ⊘ {id,15}  {name}\n");
+        }
+        if (inProgressJobs.Count > 0) {
+            sb.Append($"⏳ 进行中 Job ({inProgressJobs.Count} 个):\n");
+            foreach (var (id, name, _, _) in inProgressJobs)
+                sb.Append($"  ⏳ {id,15}  {name}\n");
+        }
+
+        sb.Append("\n📋 日志尚未拉取(按需阅读):\n");
+        if (failedJobs.Count > 0)
+            sb.Append("  expand=failed     → 直接拉失败步骤日志(量少,推荐)\n");
+        sb.Append("  expand=jobs       → 查看全部 job 列表\n");
+        if (failedJobs.Count > 0)
+            sb.Append($"  expand=steps job_id={failedJobs[0].id}  → 查看指定 job 步骤\n");
+
+        return sb.ToString().TrimEnd();
     }
 
     /// <summary>

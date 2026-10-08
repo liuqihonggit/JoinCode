@@ -12,8 +12,8 @@ public partial class GitHubToolHandlers {
         var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: ct).ConfigureAwait(false);
         if (!result.Success) return null;
         try {
-            using var doc = JsonDocument.Parse(result.Body);
-            return doc.RootElement.TryGetProperty(GitHubJsonFields.Id, out var n) ? n.GetInt64() : null;
+            var repo = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.RepoDetailResponse);
+            return repo?.Id > 0 ? repo.Id : null;
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 repo id 失败"); return null; }
     }
 
@@ -25,26 +25,18 @@ public partial class GitHubToolHandlers {
         var orgResult = await client.SendAsync(HttpMethod.Post, "graphql", orgQuery, ct: ct).ConfigureAwait(false);
         if (orgResult.Success) {
             try {
-                using var doc = JsonDocument.Parse(orgResult.Body);
-                var nodes = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Organization).GetProperty("projectsV2").GetProperty(GitHubJsonFields.Nodes);
-                foreach (var node in nodes.EnumerateArray()) {
-                    if (node.TryGetProperty(GitHubJsonFields.Title, out var t) && t.GetString() == projectTitle) {
-                        return node.GetProperty(GitHubJsonFields.Id).GetString();
-                    }
-                }
+                var orgResp = JsonSerializer.Deserialize(orgResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLOrganizationResponseProjectIdTitleListWrapperResponse);
+                var match = orgResp?.Data?.Organization?.ProjectsV2.Nodes.FirstOrDefault(n => n.Title == projectTitle);
+                if (match is not null) return match.Id;
             } catch (Exception ex) { _logger?.LogDebug(ex, "解析 organization projectsV2 失败"); }
         }
         var viewerQuery = BuildGraphQL("query{viewer{projectsV2(first:50){nodes{id title}}}}");
         var viewerResult = await client.SendAsync(HttpMethod.Post, "graphql", viewerQuery, ct: ct).ConfigureAwait(false);
         if (viewerResult.Success) {
             try {
-                using var doc = JsonDocument.Parse(viewerResult.Body);
-                var nodes = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty("viewer").GetProperty("projectsV2").GetProperty(GitHubJsonFields.Nodes);
-                foreach (var node in nodes.EnumerateArray()) {
-                    if (node.TryGetProperty(GitHubJsonFields.Title, out var t) && t.GetString() == projectTitle) {
-                        return node.GetProperty(GitHubJsonFields.Id).GetString();
-                    }
-                }
+                var viewerResp = JsonSerializer.Deserialize(viewerResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLViewerResponseProjectIdTitleListWrapperResponse);
+                var match = viewerResp?.Data?.Viewer?.ProjectsV2.Nodes.FirstOrDefault(n => n.Title == projectTitle);
+                if (match is not null) return match.Id;
             } catch (Exception ex) { _logger?.LogDebug(ex, "解析 viewer projectsV2 失败"); }
         }
         return null;
@@ -58,11 +50,11 @@ public partial class GitHubToolHandlers {
         var result = await client.SendAsync(HttpMethod.Post, "graphql", query, ct: ct).ConfigureAwait(false);
         if (!result.Success) return null;
         try {
-            using var doc = JsonDocument.Parse(result.Body);
-            var nodes = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty("node").GetProperty(GitHubJsonFields.Items).GetProperty(GitHubJsonFields.Nodes);
-            foreach (var node in nodes.EnumerateArray()) {
-                if (node.TryGetProperty(GitHubJsonFields.Content, out var content) && content.TryGetProperty(GitHubJsonFields.Id, out var id) && id.GetString() == contentNodeId) {
-                    return node.GetProperty(GitHubJsonFields.Id).GetString();
+            var resp = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLNodeWrapperResponseProjectNodeItemsWrapperResponse);
+            var nodes = resp?.Data?.Node?.Items.Nodes;
+            if (nodes is not null) {
+                foreach (var node in nodes) {
+                    if (node.Content?.Id == contentNodeId) return node.Id;
                 }
             }
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 project items 失败"); }
@@ -137,11 +129,11 @@ public partial class GitHubToolHandlers {
         var result = await client.SendAsync(HttpMethod.Post, "graphql", query, ct: ct).ConfigureAwait(false);
         if (!result.Success) return null;
         try {
-            using var doc = JsonDocument.Parse(result.Body);
-            var nodes = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Repository).GetProperty("issueTypes").GetProperty(GitHubJsonFields.Nodes);
-            foreach (var node in nodes.EnumerateArray()) {
-                if (node.TryGetProperty(GitHubJsonFields.Name, out var n) && n.GetString() == typeName) {
-                    return node.GetProperty(GitHubJsonFields.Id).GetString();
+            var resp = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLRepositoryResponseIssueTypeListWrapperResponse);
+            var nodes = resp?.Data?.Repository?.IssueTypes.Nodes;
+            if (nodes is not null) {
+                foreach (var node in nodes) {
+                    if (node.Name == typeName) return node.Id;
                 }
             }
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 issueTypes 失败"); }
@@ -174,11 +166,9 @@ public partial class GitHubToolHandlers {
         var result = await client.SendAsync(HttpMethod.Post, "graphql", query, ct: ct).ConfigureAwait(false);
         if (!result.Success) return null;
         try {
-            using var doc = JsonDocument.Parse(result.Body);
-            var issue = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Repository).GetProperty("issue");
-            if (issue.TryGetProperty("parent", out var parent) && parent.ValueKind == JsonValueKind.Object) {
-                return parent.GetProperty(GitHubJsonFields.Id).GetString();
-            }
+            var resp = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLRepositoryResponseIssueParentWrapperResponse);
+            var parent = resp?.Data?.Repository?.Issue?.Parent;
+            if (parent is not null) return parent.Id;
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 issue parent 失败"); }
         return null;
     }
@@ -197,9 +187,8 @@ public partial class GitHubToolHandlers {
         var result = await client.UploadAttachmentAsync(repoId.Value, fileName, fileStream, ct).ConfigureAwait(false);
         if (!result.Success) return (null, result.Error);
         try {
-            using var doc = JsonDocument.Parse(result.Body);
-            var url = doc.RootElement.TryGetProperty(GitHubJsonFields.Url, out var u) ? u.GetString() : null;
-            return (url, null);
+            var resp = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.AttachmentUploadResponse);
+            return (resp?.Url, null);
         } catch (Exception ex) { return (null, $"解析附件响应失败: {ex.Message}"); }
     }
 }

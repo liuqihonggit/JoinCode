@@ -25,10 +25,30 @@ dotnet build app/cli/JoinCode.csproj -c Debug
 # 2. 新增/修改 [Register] 类后必须 --no-incremental 全量重建
 dotnet build app/cli/JoinCode.csproj --no-incremental -c Debug
 
-# 3. 拷贝编译产物到部署目录（用 PowerShell robocopy /MIR 镜像）
-powershell -Command "robocopy 'D:\project\w3\artifacts\bin\JoinCode\Debug\net10.0' 'C:\Users\54076\bin\jcc.d\dev' /MIR /NJH /NJS"
-# EXIT=0 表示无变化，EXIT=1 表示有文件被拷贝
+# 3. 部署编译产物到 dev 目录 — ⚠️ 必须全量复制,禁止只复制 jcc.exe
+# ⚠️ 禁止用 robocopy /MIR — 跨盘符(D:→C:)时时间戳比较不可靠,DLL 不更新(见下方"部署坑")
+# ⚠️ 禁止只复制 jcc.exe — jcc.exe(162KB)依赖同目录 Mcp.dll 等多个 DLL,只复制 exe 会运行旧 DLL
+# ✅ 用 cp -f 全量复制 dll+exe+json(bash 原生,跨盘符可靠)
+cp -f D:/project/w3/artifacts/bin/JoinCode/Debug/net10.0/*.dll \
+     C:/Users/54076/bin/jcc.d/dev/
+cp -f D:/project/w3/artifacts/bin/JoinCode/Debug/net10.0/*.exe \
+     C:/Users/54076/bin/jcc.d/dev/
+cp -f D:/project/w3/artifacts/bin/JoinCode/Debug/net10.0/*.json \
+     C:/Users/54076/bin/jcc.d/dev/
+
+# 4. 部署后验证(强制) — 对比关键 DLL 时间戳,确认确实更新
+ls -la "C:/Users/54076/bin/jcc.d/dev/Mcp.dll" \
+       "D:/project/w3/artifacts/bin/JoinCode/Debug/net10.0/Mcp.dll"
+# 两个时间戳应接近(差<2分钟),大小一致;不符则 cp -f 重复制
 ```
+
+#### 部署坑:robocopy /MIR 跨盘符不更新 DLL
+
+**症状**: `robocopy /MIR` 从 D: 复制到 C: 后,目标 `Mcp.dll` 时间戳/大小未变(旧 DLL),jcc 运行旧代码无新功能。
+
+**根因**: robocopy `/MIR` 默认按时间戳判断"新"文件。跨盘符(D:→C:)时 Windows 文件系统时间戳精度差异(NTFS 100ns vs FAT 2s)或夏令时偏移导致 robocopy 误判"源不比目标新",跳过复制。bash 调用 robocopy 还可能有路径转义问题。
+
+**修复**: 改用 `cp -f`(bash 原生,强制覆盖不依赖时间戳比较),部署后必须对比 DLL 时间戳验证。
 
 ### 2. 目录结构
 
@@ -66,6 +86,8 @@ C:\Users\54076\bin\
 | `gh run view --expand jobs` 截断 | ✅ 已修复(2026-10-08) | `MergeJsonArrays` 支持对象结构分页合并（识别 jobs/check_runs/items 包裹键），双向对比验证 62 jobs 一致 |
 | `gh api --jq` 字段提取 | ✅ 已修复(2026-10-08) | `SimpleJqEvaluator` 支持 .field/[]/select(.f=="v")/{k:.f}/\| 管道，AI 无需 Python 二次解析 |
 | `gh pr checks` 大量 check 截断 | ✅ 已修复(2026-10-08) | check-runs 端点加 per_page=100 + paginate=true，配合对象分页合并获取全部 |
+| robocopy /MIR 部署 DLL 不更新 | ✅ 已查明 | 跨盘符(D:→C:)时间戳比较不可靠,robocopy 跳过复制。改用 `cp -f` 强制覆盖+部署后验证 DLL 时间戳 |
+| 只复制 jcc.exe 部署 | ✅ 已查明 | jcc.exe(162KB)依赖同目录 Mcp.dll 等多个 DLL,只复制 exe 会运行旧 DLL 导致修复不生效。必须全量复制 *.dll+*.exe+*.json |
 
 ## 原因
 

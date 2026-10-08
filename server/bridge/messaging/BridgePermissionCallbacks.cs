@@ -39,36 +39,24 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
     /// <param name="blockedPath">被阻止的路径(可选)</param>
     public void SendRequest(string requestId, string toolName, Dictionary<string, JsonElement> input,
         string toolUseId, string description, List<PermissionCallbackUpdate>? suggestions = null, string? blockedPath = null) {
-        // 构建权限请求消息 — 手写 JSON 避免 AOT 不兼容
-        var sb = new StringBuilder(256);
-        sb.Append("{\"type\":\"control_request\",\"request_id\":\"")
-          .Append(requestId)
-          .Append("\",\"request\":{\"subtype\":\"permission_request\",\"tool_name\":\"")
-          .Append(toolName)
-          .Append("\",\"tool_use_id\":\"")
-          .Append(toolUseId)
-          .Append("\",\"description\":\"")
-          .Append(EscapeJson(description))
-          .Append("\"");
-
-        if (suggestions is not null && suggestions.Count > 0) {
-            sb.Append(",\"permission_suggestions\":[");
-            for (var i = 0; i < suggestions.Count; i++) {
-                if (i > 0) sb.Append(',');
-                sb.Append("{\"tool_name\":\"").Append(EscapeJson(suggestions[i].ToolName ?? string.Empty))
-                  .Append("\",\"permission_mode\":\"").Append(EscapeJson(suggestions[i].PermissionMode ?? string.Empty))
-                  .Append("\"}");
+        var dto = new BridgePermissionRequestDto {
+            RequestId = requestId,
+            Request = new BridgePermissionRequestBodyDto {
+                ToolName = toolName,
+                ToolUseId = toolUseId,
+                Description = description,
+                PermissionSuggestions = suggestions is not null && suggestions.Count > 0
+                    ? suggestions.Select(s => new BridgePermissionSuggestionDto {
+                        ToolName = s.ToolName ?? string.Empty,
+                        PermissionMode = s.PermissionMode ?? string.Empty
+                    }).ToList()
+                    : null,
+                BlockedPath = blockedPath
             }
-            sb.Append(']');
-        }
+        };
+        var json = JsonSerializer.Serialize(dto, BridgeJsonContext.Default.BridgePermissionRequestDto);
 
-        if (blockedPath is not null) {
-            sb.Append(",\"blocked_path\":\"").Append(EscapeJson(blockedPath)).Append("\"");
-        }
-
-        sb.Append("}}");
-
-        _ = _transport.WriteAsync(sb.ToString(), _disposeCts.Token);
+        _ = _transport.WriteAsync(json, _disposeCts.Token);
         _logger?.LogDebug("[PermissionCallbacks] 发送权限请求: {RequestId}, Tool={ToolName}", requestId, toolName);
     }
 
@@ -78,20 +66,16 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
     /// <param name="requestId">请求标识</param>
     /// <param name="response">权限回调响应</param>
     public void SendResponse(string requestId, PermissionCallbackResponse response) {
-        var sb = new StringBuilder(256);
-        sb.Append("{\"type\":\"control_response\",\"request_id\":\"")
-          .Append(requestId)
-          .Append("\",\"response\":{\"behavior\":\"")
-          .Append(response.Behavior)
-          .Append("\"");
+        var dto = new BridgePermissionResponseMessageDto {
+            RequestId = requestId,
+            Response = new BridgePermissionResponseBodyDto {
+                Behavior = response.Behavior,
+                Message = response.Message
+            }
+        };
+        var json = JsonSerializer.Serialize(dto, BridgeJsonContext.Default.BridgePermissionResponseMessageDto);
 
-        if (response.Message is not null) {
-            sb.Append(",\"message\":\"").Append(EscapeJson(response.Message)).Append("\"");
-        }
-
-        sb.Append("}}");
-
-        _ = _transport.WriteAsync(sb.ToString(), _disposeCts.Token);
+        _ = _transport.WriteAsync(json, _disposeCts.Token);
         _logger?.LogDebug("[PermissionCallbacks] 发送权限响应: {RequestId}, Behavior={Behavior}", requestId, response.Behavior);
     }
 
@@ -100,12 +84,11 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
     /// </summary>
     /// <param name="requestId">请求标识</param>
     public void CancelRequest(string requestId) {
-        var sb = new StringBuilder(128);
-        sb.Append("{\"type\":\"control_request\",\"request_id\":\"")
-          .Append(requestId)
-          .Append("\",\"request\":{\"subtype\":\"permission_cancel\"}}");
+        var json = JsonSerializer.Serialize(
+            new BridgePermissionCancelDto { RequestId = requestId, Request = new BridgePermissionCancelBodyDto() },
+            BridgeJsonContext.Default.BridgePermissionCancelDto);
 
-        _ = _transport.WriteAsync(sb.ToString(), _disposeCts.Token);
+        _ = _transport.WriteAsync(json, _disposeCts.Token);
         _logger?.LogDebug("[PermissionCallbacks] 取消权限请求: {RequestId}", requestId);
     }
 
@@ -159,7 +142,4 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
             && (behavior.ValueEquals(PermissionBehaviorEnumConstants.Allow) || behavior.ValueEquals(PermissionBehaviorEnumConstants.Deny));
     }
 
-    private static string EscapeJson(string value) {
-        return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
-    }
 }

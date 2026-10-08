@@ -88,10 +88,8 @@ public partial class GitHubToolHandlers {
     /// </summary>
     internal static List<string> BuildSyncedContexts(
         string protectionJson, string jobId, BranchProtectionAuditResult audit) {
-        List<string> allContexts;
-        using (var doc = JsonDocument.Parse(protectionJson)) {
-            allContexts = ExtractContexts(doc.RootElement);
-        }
+        var resp = JsonSerializer.Deserialize(protectionJson, GitHubApiJsonContext.Safe.BranchProtectionContextsResponse);
+        var allContexts = resp?.RequiredStatusChecks?.Contexts ?? new List<string>();
 
         var prefix = $"{jobId} / ";
         var otherWorkflowChecks = new List<string>(allContexts.Count);
@@ -125,21 +123,6 @@ public partial class GitHubToolHandlers {
                 return sample[..^matrixName.Length];
         }
         return $"{jobIdPrefix}Unit - ";
-    }
-
-    /// <summary>
-    /// 从 JsonElement 提取 required_status_checks.contexts 列表
-    /// </summary>
-    private static List<string> ExtractContexts(JsonElement root) {
-        var contexts = new List<string>();
-        if (root.TryGetProperty("required_status_checks", out var rsc) &&
-            rsc.TryGetProperty("contexts", out var contextsEl)) {
-            foreach (var ctx in contextsEl.EnumerateArray()) {
-                var name = ctx.GetString();
-                if (!string.IsNullOrEmpty(name)) contexts.Add(name);
-            }
-        }
-        return contexts;
     }
 
     /// <summary>

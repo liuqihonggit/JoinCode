@@ -51,6 +51,58 @@ public sealed class NdjsonPermissionRequest {
 }
 
 /// <summary>
+/// control_request.request 中 can_use_tool 的固定字段 — DTO 化提取
+/// 对齐 TS 端 request 的 tool_name/tool_use_id/input
+/// </summary>
+public sealed class NdjsonControlRequestDto {
+    /// <summary>工具名称 — 对齐 TS 端 request.tool_name</summary>
+    [JsonPropertyName("tool_name")]
+    public string? ToolName { get; set; }
+
+    /// <summary>工具使用 ID — 对齐 TS 端 request.tool_use_id</summary>
+    [JsonPropertyName("tool_use_id")]
+    public string? ToolUseId { get; set; }
+
+    /// <summary>工具输入 — 对齐 TS 端 request.input（JsonElement 避免 NativeAOT 不兼容）</summary>
+    [JsonPropertyName("input")]
+    public Dictionary<string, JsonElement> Input { get; set; } = [];
+}
+
+/// <summary>
+/// assistant message 对象 — DTO 化 content 数组遍历
+/// content 为 JsonElement 列表以保留 block.type discriminated union 判断
+/// </summary>
+public sealed class NdjsonAssistantMessageDto {
+    /// <summary>内容块数组 — 对齐 TS 端 message.content（JsonElement 保留 type 判断）</summary>
+    [JsonPropertyName("content")]
+    public List<JsonElement> Content { get; set; } = [];
+}
+
+/// <summary>
+/// tool_use block 的固定字段 — DTO 化提取
+/// 对齐 TS 端 tool_use block 的 name/input
+/// </summary>
+public sealed class NdjsonToolUseBlockDto {
+    /// <summary>工具名称 — 对齐 TS 端 block.name</summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    /// <summary>工具输入 — 对齐 TS 端 block.input（JsonElement 避免 NativeAOT 不兼容）</summary>
+    [JsonPropertyName("input")]
+    public Dictionary<string, JsonElement> Input { get; set; } = [];
+}
+
+/// <summary>
+/// text block 的固定字段 — DTO 化提取
+/// 对齐 TS 端 text block 的 text
+/// </summary>
+public sealed class NdjsonTextBlockDto {
+    /// <summary>文本内容 — 对齐 TS 端 block.text</summary>
+    [JsonPropertyName("text")]
+    public string? Text { get; set; }
+}
+
+/// <summary>
 /// NDJSON 结构化解析器 — 对齐 TS 端 sessionRunner.ts 的 extractActivities + control_request 检测
 /// 从子进程 stdout 的 NDJSON 行中提取活动信息和权限请求
 /// </summary>
@@ -118,25 +170,15 @@ public static class NdjsonParser {
         // 必须有 request 对象
         if (!json.TryGetValue("request", out var reqEl) || reqEl.ValueKind != JsonValueKind.Object) return null;
 
-        // request.subtype 必须是 can_use_tool
+        // request.subtype 必须是 can_use_tool — discriminated union 判断保留
         if (!reqEl.TryGetProperty("subtype", out var subtypeEl) || subtypeEl.ValueKind != JsonValueKind.String) return null;
         if (subtypeEl.GetString() != "can_use_tool") return null;
 
-        // 提取 tool_name
-        var toolName = reqEl.TryGetProperty("tool_name", out var toolNameEl) && toolNameEl.ValueKind == JsonValueKind.String
-            ? toolNameEl.GetString()! : "Unknown";
-
-        // 提取 tool_use_id
-        var toolUseId = reqEl.TryGetProperty("tool_use_id", out var toolUseIdEl) && toolUseIdEl.ValueKind == JsonValueKind.String
-            ? toolUseIdEl.GetString()! : "";
-
-        // 提取 input — 使用 JsonElement 避免 NativeAOT 不兼容
-        var input = new Dictionary<string, JsonElement>();
-        if (reqEl.TryGetProperty("input", out var inputEl) && inputEl.ValueKind == JsonValueKind.Object) {
-            foreach (var prop in inputEl.EnumerateObject()) {
-                input[prop.Name] = prop.Value;
-            }
-        }
+        // 固定字段 DTO 化提取 — tool_name/tool_use_id/input
+        var reqDto = DeserializeDto(reqEl, TransportBridgeJsonContext.Default.NdjsonControlRequestDto);
+        var toolName = reqDto?.ToolName ?? "Unknown";
+        var toolUseId = reqDto?.ToolUseId ?? "";
+        var input = reqDto?.Input ?? new Dictionary<string, JsonElement>();
 
         return new NdjsonPermissionRequest {
             Type = "control_request",
@@ -182,20 +224,25 @@ public static class NdjsonParser {
     private static void ExtractAssistantActivities(
         Dictionary<string, JsonElement> json, long now, List<NdjsonActivity> activities) {
         if (!json.TryGetValue("message", out var msgEl) || msgEl.ValueKind != JsonValueKind.Object) return;
-        if (!msgEl.TryGetProperty("content", out var contentEl) || contentEl.ValueKind != JsonValueKind.Array) return;
 
-        foreach (var block in contentEl.EnumerateArray()) {
+        // content 数组 DTO 化遍历 — JsonElement 列表保留 block.type discriminated union 判断
+        var msgDto = DeserializeDto(msgEl, TransportBridgeJsonContext.Default.NdjsonAssistantMessageDto);
+        if (msgDto is null) return;
+
+        foreach (var block in msgDto.Content) {
             if (block.ValueKind != JsonValueKind.Object) continue;
 
+            // discriminated union type 判断保留
             if (!block.TryGetProperty("type", out var blockTypeEl) || blockTypeEl.ValueKind != JsonValueKind.String) continue;
             var blockType = blockTypeEl.GetString();
 
             if (blockType == "tool_use") {
                 // 对齐 TS 端: tool_use → tool_start activity
-                var name = block.TryGetProperty("name", out var nameEl) && nameEl.ValueKind == JsonValueKind.String
-                    ? nameEl.GetString()! : "Tool";
+                // 固定字段 DTO 化提取 — name/input
+                var blockDto = DeserializeDto(block, TransportBridgeJsonContext.Default.NdjsonToolUseBlockDto);
+                var name = blockDto?.Name ?? "Tool";
+                var input = blockDto?.Input ?? new Dictionary<string, JsonElement>();
 
-                var input = ExtractToolInput(block);
                 var summary = ToolSummary(name, input);
                 activities.Add(new NdjsonActivity {
                     Type = NdjsonActivityType.ToolStart,
@@ -204,8 +251,9 @@ public static class NdjsonParser {
                 });
             } else if (blockType == "text") {
                 // 对齐 TS 端: text block → text activity
-                if (!block.TryGetProperty("text", out var textEl) || textEl.ValueKind != JsonValueKind.String) continue;
-                var text = textEl.GetString() ?? "";
+                // 固定字段 DTO 化提取 — text
+                var blockDto = DeserializeDto(block, TransportBridgeJsonContext.Default.NdjsonTextBlockDto);
+                var text = blockDto?.Text ?? "";
                 if (text.Length == 0) continue;
                 var summary = text.Length > MaxSummaryLen ? text[..MaxSummaryLen] : text;
                 activities.Add(new NdjsonActivity {
@@ -244,19 +292,6 @@ public static class NdjsonParser {
     }
 
     /// <summary>
-    /// 提取 tool_use block 的 input 字典（提取以扁平化嵌套）
-    /// </summary>
-    private static Dictionary<string, JsonElement> ExtractToolInput(JsonElement block) {
-        var input = new Dictionary<string, JsonElement>();
-        if (block.TryGetProperty("input", out var inputEl) && inputEl.ValueKind == JsonValueKind.Object) {
-            foreach (var prop in inputEl.EnumerateObject()) {
-                input[prop.Name] = prop.Value;
-            }
-        }
-        return input;
-    }
-
-    /// <summary>
     /// 提取错误摘要（提取以扁平化嵌套）
     /// </summary>
     private static string ExtractErrorSummary(Dictionary<string, JsonElement> json, string subtype) {
@@ -269,5 +304,16 @@ public static class NdjsonParser {
             }
         }
         return errorSummary == "Error" ? $"Error: {subtype}" : errorSummary;
+    }
+
+    /// <summary>
+    /// 安全反序列化 JsonElement 为 DTO — 宽容处理类型不匹配（对齐原 TryGetProperty + ValueKind 检查的宽容语义）
+    /// </summary>
+    private static T? DeserializeDto<T>(JsonElement el, JsonTypeInfo<T> typeInfo) {
+        try {
+            return el.Deserialize(typeInfo);
+        } catch {
+            return default;
+        }
     }
 }

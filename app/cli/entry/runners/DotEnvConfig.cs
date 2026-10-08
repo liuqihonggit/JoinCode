@@ -24,11 +24,11 @@ internal sealed record DotEnvConfig {
 
         try {
             var content = SyncFileReader.RunValueTask(SafeFileIO.ReadAllText(filePath));
-            using var json = System.Text.Json.JsonDocument.Parse(content);
-
-            if (!json.RootElement.TryGetProperty("env", out var envObj))
+            var dto = System.Text.Json.JsonSerializer.Deserialize(content, DotEnvJsonContext.Default.DotEnvFileDto);
+            if (dto?.Env is null || dto.Env.Count == 0)
                 return null;
 
+            var env = dto.Env;
             registry ??= Core.Configuration.Providers.ProviderDefinitionRegistry.Create(new ModelConfigLoader());
 
             string? vendor = null;
@@ -36,43 +36,41 @@ internal sealed record DotEnvConfig {
 
             // 多态：遍历 ProviderDefinitionRegistry 注册表匹配环境变量，替代 if-else 链硬编码
             // 新增供应商时无需修改此文件，只需在 ProviderDefinitionRegistry 注册即可
+            // 动态 key（def.ApiKeyEnvironmentVariable）保留字典查找，不做成 DTO 固定属性
             foreach (var providerName in registry.GetRegisteredProviders()) {
                 var def = registry.TryGet(providerName);
-                if (def?.ApiKeyEnvironmentVariable is not null && envObj.TryGetProperty(def.ApiKeyEnvironmentVariable, out var keyVal) && keyVal.ValueKind == System.Text.Json.JsonValueKind.String) {
+                if (def?.ApiKeyEnvironmentVariable is not null && env.TryGetValue(def.ApiKeyEnvironmentVariable, out var keyVal)) {
                     vendor = providerName;
-                    apiKey = keyVal.GetString();
+                    apiKey = keyVal;
                     break;
                 }
             }
 
             // ANTHROPIC_AUTH_TOKEN 兼容（Anthropic 旧版环境变量名，不在 ApiKeyEnvironmentVariable 中）— 委托 VendorKind 枚举 — P1-⑤
-            if (vendor is null && envObj.TryGetProperty("ANTHROPIC_AUTH_TOKEN", out var authTokenVal) && authTokenVal.ValueKind == System.Text.Json.JsonValueKind.String) {
+            if (vendor is null && env.TryGetValue("ANTHROPIC_AUTH_TOKEN", out var authTokenVal)) {
                 vendor = VendorKind.Anthropic.ToValue();
-                apiKey = authTokenVal.GetString();
+                apiKey = authTokenVal;
             }
 
             // JCC_VENDOR 显式指定 — 委托 JccEnvVar 枚举（唯一数据源）— P0-④
-            if (envObj.TryGetProperty(JccEnvVar.Vendor.ToValue(), out var providerVal) && providerVal.ValueKind == System.Text.Json.JsonValueKind.String)
-                vendor = providerVal.GetString();
+            if (env.TryGetValue(JccEnvVar.Vendor.ToValue(), out var providerVal))
+                vendor = providerVal;
 
             // 多态：遍历注册表匹配 Endpoint 环境变量，替代硬编码 ANTHROPIC_BASE_URL — 委托 JccEnvVar 枚举（唯一数据源）— P0-④
             var jccEndpointName = JccEnvVar.Endpoint.ToValue();
-            var rawEndpoint = envObj.EnumerateObject()
-                .FirstOrDefault(p => p.Name == jccEndpointName).Value.ValueKind == System.Text.Json.JsonValueKind.String
-                ? envObj.EnumerateObject().First(p => p.Name == jccEndpointName).Value.GetString()
-                : null;
+            var rawEndpoint = env.TryGetValue(jccEndpointName, out var ep0) ? ep0 : null;
 
-            // 各 Provider 的 Endpoint 环境变量匹配
+            // 各 Provider 的 Endpoint 环境变量匹配（动态 key 保留字典查找）
             if (rawEndpoint is null && vendor is not null) {
                 var def = registry.TryGet(vendor);
-                if (def?.EndpointEnvironmentVariable is not null && envObj.TryGetProperty(def.EndpointEnvironmentVariable, out var epVal) && epVal.ValueKind == System.Text.Json.JsonValueKind.String) {
-                    rawEndpoint = epVal.GetString();
+                if (def?.EndpointEnvironmentVariable is not null && env.TryGetValue(def.EndpointEnvironmentVariable, out var epVal)) {
+                    rawEndpoint = epVal;
                 }
             }
 
             // ANTHROPIC_BASE_URL 兼容（旧版环境变量名）
-            if (rawEndpoint is null && envObj.TryGetProperty("ANTHROPIC_BASE_URL", out var anthropicBaseVal) && anthropicBaseVal.ValueKind == System.Text.Json.JsonValueKind.String) {
-                rawEndpoint = anthropicBaseVal.GetString();
+            if (rawEndpoint is null && env.TryGetValue("ANTHROPIC_BASE_URL", out var anthropicBaseVal)) {
+                rawEndpoint = anthropicBaseVal;
             }
 
             string? endpoint = null;
@@ -86,18 +84,12 @@ internal sealed record DotEnvConfig {
 
             // Model: JCC_MODEL_ID（通用，委托 JccEnvVar 枚举），ANTHROPIC_DEFAULT_SONNET_MODEL（兼容旧版）— P0-④
             var jccModelIdName = JccEnvVar.ModelId.ToValue();
-            var modelId = envObj.EnumerateObject()
-                .FirstOrDefault(p => p.Name == jccModelIdName || p.Name == "ANTHROPIC_DEFAULT_SONNET_MODEL")
-                .Value.ValueKind == System.Text.Json.JsonValueKind.String
-                ? envObj.EnumerateObject()
-                    .First(p => p.Name == jccModelIdName || p.Name == "ANTHROPIC_DEFAULT_SONNET_MODEL")
-                    .Value.GetString()
+            var modelId = env.TryGetValue(jccModelIdName, out var mid1) ? mid1
+                : env.TryGetValue("ANTHROPIC_DEFAULT_SONNET_MODEL", out var mid2) ? mid2
                 : null;
 
             // Effort Level — 委托 JccEnvVar 枚举（唯一数据源）— P0-④
-            string? effortLevel = null;
-            if (envObj.TryGetProperty(JccEnvVar.EffortLevel.ToValue(), out var effortVal) && effortVal.ValueKind == System.Text.Json.JsonValueKind.String)
-                effortLevel = effortVal.GetString();
+            var effortLevel = env.TryGetValue(JccEnvVar.EffortLevel.ToValue(), out var effortVal) ? effortVal : null;
 
             return new DotEnvConfig {
                 ApiKey = apiKey,
@@ -180,3 +172,15 @@ internal sealed record DotEnvConfig {
         };
     }
 }
+
+/// <summary>.env/api.json 外层包装 DTO — env 为环境变量键值字典（key 动态，不做成固定属性）</summary>
+public sealed class DotEnvFileDto {
+    /// <summary>环境变量键值表（key 为环境变量名，动态；值统一为字符串）</summary>
+    [JsonPropertyName("env")]
+    public Dictionary<string, string> Env { get; set; } = [];
+}
+
+/// <summary>DotEnvConfig JSON 反序列化上下文 — AOT 兼容（源码生成），宽容注释/尾逗号</summary>
+[JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSerializable(typeof(DotEnvFileDto))]
+public partial class DotEnvJsonContext : JsonSerializerContext;

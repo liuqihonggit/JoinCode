@@ -372,33 +372,21 @@ public abstract class McpClientBase : IMcpClient {
             return;
         }
         try {
-            var progressParams = args.Params.Value;
-            double? progress = null;
-            double? total = null;
-            string? message = null;
+            var progressParams = JsonSerializer.Deserialize(args.Params.Value.GetRawText(), McpProgressNotificationJsonContext.Default.McpProgressNotificationParams);
+            if (progressParams is null) return;
 
-            if (progressParams.TryGetProperty("progressToken", out var tokenEl) && tokenEl.ValueKind == JsonValueKind.Number && tokenEl.GetInt32() != token) {
+            if (progressParams.ProgressToken.HasValue
+                && progressParams.ProgressToken.Value.ValueKind == JsonValueKind.Number
+                && progressParams.ProgressToken.Value.GetInt32() != token) {
                 return;
-            }
-
-            if (progressParams.TryGetProperty("progress", out var progressEl) && progressEl.ValueKind == JsonValueKind.Number) {
-                progress = progressEl.GetDouble();
-            }
-
-            if (progressParams.TryGetProperty("total", out var totalEl) && totalEl.ValueKind == JsonValueKind.Number) {
-                total = totalEl.GetDouble();
-            }
-
-            if (progressParams.TryGetProperty("message", out var msgEl) && msgEl.ValueKind == JsonValueKind.String) {
-                message = msgEl.GetString();
             }
 
             onProgress(new McpToolProgress {
                 Type = "mcp_progress",
                 Status = McpProgressStatusEnumConstants.Progress,
-                Progress = progress,
-                Total = total,
-                ProgressMessage = message
+                Progress = progressParams.Progress,
+                Total = progressParams.Total,
+                ProgressMessage = progressParams.Message
             });
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "解析进度通知失败");

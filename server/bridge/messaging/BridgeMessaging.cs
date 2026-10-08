@@ -42,43 +42,11 @@ public static class BridgeMessaging {
     /// 使用 StringBuilder 避免 JSON 注入，AOT 合规
     /// </summary>
     public static string MakeResultMessage(string sessionId) {
-        // 使用 StringBuilder 构造 JSON，避免字符串插值导致的 JSON 注入
-        return new System.Text.StringBuilder(256)
-            .Append("{\"type\":\"result\",\"subtype\":\"success\",\"duration_ms\":0,\"duration_api_ms\":0,\"is_error\":false,\"num_turns\":0,\"result\":\"\",\"stop_reason\":null,\"total_cost_usd\":0,\"usage\":{},\"modelUsage\":{},\"permission_denials\":[],\"session_id\":\"")
-            .Append(EscapeJsonString(sessionId))
-            .Append("\",\"uuid\":\"")
-            .Append(Guid.NewGuid().ToString("D"))
-            .Append("\"}")
-            .ToString();
-    }
-
-    /// <summary>
-    /// 转义 JSON 字符串中的特殊字符 — 防止 JSON 注入
-    /// </summary>
-    private static string EscapeJsonString(ReadOnlySpan<char> value) {
-        // 快速路径: 无需转义
-        var needsEscape = false;
-        foreach (var c in value) {
-            if (c is '"' or '\\' or '\n' or '\r' or '\t') {
-                needsEscape = true;
-                break;
-            }
-        }
-
-        if (!needsEscape) return value.ToString();
-
-        var sb = new System.Text.StringBuilder(value.Length + 16);
-        foreach (var c in value) {
-            switch (c) {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
-            }
-        }
-        return sb.ToString();
+        var msg = new BridgeResultMessageDto {
+            SessionId = sessionId,
+            Uuid = Guid.NewGuid().ToString("D"),
+        };
+        return JsonSerializer.Serialize(msg, BridgeJsonContext.Default.BridgeResultMessageDto);
     }
 
     /// <summary>
@@ -269,35 +237,15 @@ public static class BridgeMessaging {
         bool success,
         string? error = null,
         CancellationToken ct = default) {
-        var sb = new StringBuilder()
-            .Append("{\"type\":\"control_response\",\"request_id\":\"").Append(requestId)
-            .Append("\",\"session_id\":\"").Append(sessionId)
-            .Append("\",\"response\":{\"success\":").Append(success ? "true" : "false");
-
-        if (error is not null) {
-            sb.Append(",\"error\":").Append(JsonEncode(error));
-        }
-
-        sb.Append("}}");
-        await transport.WriteAsync(sb.ToString(), ct).ConfigureAwait(false);
-    }
-
-    /// <summary>JSON 字符串编码</summary>
-    private static string JsonEncode(string value) {
-        var sb = new StringBuilder(value.Length + 2);
-        sb.Append('"');
-        foreach (var c in value) {
-            switch (c) {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
-            }
-        }
-        sb.Append('"');
-        return sb.ToString();
+        var responseDto = new BridgeControlResponseDto {
+            RequestId = requestId,
+            SessionId = sessionId,
+            Response = new BridgeControlResponseBodyDto {
+                Success = success,
+                Error = error,
+            },
+        };
+        await transport.WriteAsync(JsonSerializer.Serialize(responseDto, BridgeJsonContext.Default.BridgeControlResponseDto), ct).ConfigureAwait(false);
     }
 
     #endregion
@@ -327,10 +275,11 @@ public static class BridgeMessaging {
 
     /// <summary>获取消息 UUID</summary>
     private static string? GetUuid(JsonElement root) {
-        if (root.TryGetProperty("uuid", out var uuidProp) && uuidProp.ValueKind == JsonValueKind.String) {
-            return uuidProp.GetString();
+        try {
+            return root.Deserialize(BridgeJsonContext.Default.BridgeMessageUuidDto)?.Uuid;
+        } catch {
+            return null;
         }
-        return null;
     }
 
     /// <summary>
@@ -355,50 +304,33 @@ public static class BridgeMessaging {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
-            // type !== 'user' → 跳过
+            // type !== 'user' → 跳过 (discriminated union, 保留 TryGetProperty)
             if (!root.TryGetProperty("type", out var typeProp) ||
                 typeProp.ValueKind != JsonValueKind.String ||
                 typeProp.GetString() != "user") {
                 return null;
             }
 
-            // isMeta → 跳过
-            if (root.TryGetProperty("isMeta", out var metaProp) &&
-                metaProp.ValueKind == JsonValueKind.True) {
-                return null;
-            }
+            // DTO 提取固定字段(isMeta/toolUseResult/isCompactSummary/origin/message)
+            var dto = root.Deserialize(BridgeJsonContext.Default.BridgeTitleMessageDto);
+            if (dto is null) return null;
 
-            // toolUseResult → 跳过
-            if (root.TryGetProperty("toolUseResult", out var toolResultProp) &&
-                toolResultProp.ValueKind != JsonValueKind.Null &&
-                toolResultProp.ValueKind != JsonValueKind.Undefined) {
-                return null;
-            }
+            // isMeta → 跳过
+            if (dto.IsMeta is true) return null;
+
+            // toolUseResult → 跳过(存在且非 null)
+            if (dto.ToolUseResult is not null) return null;
 
             // isCompactSummary → 跳过
-            if (root.TryGetProperty("isCompactSummary", out var compactProp) &&
-                compactProp.ValueKind == JsonValueKind.True) {
-                return null;
-            }
+            if (dto.IsCompactSummary is true) return null;
 
             // origin.kind !== 'human' → 跳过
-            if (root.TryGetProperty("origin", out var originProp) &&
-                originProp.ValueKind == JsonValueKind.Object &&
-                originProp.TryGetProperty("kind", out var kindProp) &&
-                kindProp.ValueKind == JsonValueKind.String &&
-                kindProp.GetString() != "human") {
-                return null;
-            }
+            if (dto.Origin is not null && dto.Origin.Kind is not null && dto.Origin.Kind != "human") return null;
 
             // 提取 message.content 文本
-            if (!root.TryGetProperty("message", out var msgProp) ||
-                msgProp.ValueKind != JsonValueKind.Object) {
-                return null;
-            }
-
-            if (!msgProp.TryGetProperty("content", out var contentProp)) {
-                return null;
-            }
+            var content = dto.Message?.Content;
+            if (content is null) return null;
+            var contentProp = content.Value;
 
             // content 是字符串
             if (contentProp.ValueKind == JsonValueKind.String) {
@@ -409,13 +341,14 @@ public static class BridgeMessaging {
             // content 是数组，找第一个 type=text 的 block
             if (contentProp.ValueKind == JsonValueKind.Array) {
                 foreach (var block in contentProp.EnumerateArray()) {
-                    if (block.TryGetProperty("type", out var blockType) &&
-                        blockType.ValueKind == JsonValueKind.String &&
-                        blockType.GetString() == "text" &&
-                        block.TryGetProperty("text", out var textProp) &&
-                        textProp.ValueKind == JsonValueKind.String) {
-                        var text = textProp.GetString();
-                        return string.IsNullOrEmpty(text) ? null : text.Trim();
+                    BridgeTextBlockDto? blockDto;
+                    try {
+                        blockDto = block.Deserialize(BridgeJsonContext.Default.BridgeTextBlockDto);
+                    } catch {
+                        continue;
+                    }
+                    if (blockDto?.Type == "text" && blockDto.Text is not null) {
+                        return string.IsNullOrEmpty(blockDto.Text) ? null : blockDto.Text.Trim();
                     }
                 }
             }
@@ -460,14 +393,11 @@ public static class BridgeMessaging {
 
     /// <summary>获取 request_id</summary>
     private static string GetRequestId(JsonElement root) {
-        if (root.TryGetProperty("request_id", out var prop) && prop.ValueKind == JsonValueKind.String) {
-            return prop.GetString() ?? string.Empty;
+        try {
+            return root.Deserialize(BridgeJsonContext.Default.BridgeRequestIdDto)?.RequestId ?? string.Empty;
+        } catch {
+            return string.Empty;
         }
-        // 兼容 camelCase
-        if (root.TryGetProperty("requestId", out var camelProp) && camelProp.ValueKind == JsonValueKind.String) {
-            return camelProp.GetString() ?? string.Empty;
-        }
-        return string.Empty;
     }
 
     /// <summary>获取 request.subtype</summary>
@@ -518,29 +448,35 @@ public static class BridgeMessaging {
     /// 从 SDKMessage 中提取 content 和 uuid
     /// </summary>
     public static InboundMessageFields? ExtractInboundMessageFields(JsonElement message) {
+        // type 判断 (discriminated union, 保留 TryGetProperty)
         if (!message.TryGetProperty("type", out var typeProp) || typeProp.ValueKind != JsonValueKind.String) {
             return null;
         }
 
-        var type = typeProp.GetString() ?? string.Empty;
-
-        // 提取 uuid
-        string? uuid = null;
-        if (message.TryGetProperty("uuid", out var uuidProp) && uuidProp.ValueKind == JsonValueKind.String) {
-            uuid = uuidProp.GetString();
+        // DTO 提取 uuid 和 content
+        BridgeInboundMessageFieldsDto? dto;
+        try {
+            dto = message.Deserialize(BridgeJsonContext.Default.BridgeInboundMessageFieldsDto);
+        } catch {
+            dto = null;
         }
+        var uuid = dto?.Uuid;
+        var content = dto?.Content;
 
         // 提取 content
-        if (message.TryGetProperty("content", out var contentProp)) {
-            if (contentProp.ValueKind == JsonValueKind.String) {
-                return new InboundMessageFields { Content = contentProp.GetString() ?? string.Empty, Uuid = uuid };
-            }
+        if (content is null) {
+            return new InboundMessageFields { Content = string.Empty, Uuid = uuid };
+        }
 
-            if (contentProp.ValueKind == JsonValueKind.Array) {
-                // 归一化图片块
-                var normalized = NormalizeImageBlocks(contentProp);
-                return new InboundMessageFields { ContentBlocks = normalized, Uuid = uuid };
-            }
+        var contentProp = content.Value;
+        if (contentProp.ValueKind == JsonValueKind.String) {
+            return new InboundMessageFields { Content = contentProp.GetString() ?? string.Empty, Uuid = uuid };
+        }
+
+        if (contentProp.ValueKind == JsonValueKind.Array) {
+            // 归一化图片块
+            var normalized = NormalizeImageBlocks(contentProp);
+            return new InboundMessageFields { ContentBlocks = normalized, Uuid = uuid };
         }
 
         return new InboundMessageFields { Content = string.Empty, Uuid = uuid };
@@ -610,3 +546,72 @@ public static class BridgeMessaging {
 }
 
 // InboundMessageFields 已迁移到 JoinCode.Transport.Bridge 命名空间 (Transport.Contracts)
+
+// === DTO: Bridge 消息字段提取（替代 TryGetProperty 链式访问）===
+
+/// <summary>Bridge 消息 UUID 提取 DTO — 用于 GetUuid</summary>
+public sealed class BridgeMessageUuidDto {
+    /// <summary>消息 UUID</summary>
+    [JsonPropertyName("uuid")]
+    public string? Uuid { get; init; }
+}
+
+/// <summary>Bridge 标题文本提取 DTO — 用于 ExtractTitleText 的固定字段提取</summary>
+public sealed class BridgeTitleMessageDto {
+    /// <summary>是否为元消息</summary>
+    [JsonPropertyName("isMeta")]
+    public bool? IsMeta { get; init; }
+    /// <summary>工具使用结果(存在即跳过标题提取)</summary>
+    [JsonPropertyName("toolUseResult")]
+    public JsonElement? ToolUseResult { get; init; }
+    /// <summary>是否为压缩摘要</summary>
+    [JsonPropertyName("isCompactSummary")]
+    public bool? IsCompactSummary { get; init; }
+    /// <summary>消息来源</summary>
+    [JsonPropertyName("origin")]
+    public BridgeOriginDto? Origin { get; init; }
+    /// <summary>消息体(content 包装层)</summary>
+    [JsonPropertyName("message")]
+    public BridgeMessageContentWrapperDto? Message { get; init; }
+}
+
+/// <summary>Bridge 消息来源 DTO — origin.kind 判断 human</summary>
+public sealed class BridgeOriginDto {
+    /// <summary>来源类型(human/api 等)</summary>
+    [JsonPropertyName("kind")]
+    public string? Kind { get; init; }
+}
+
+/// <summary>Bridge 消息内容包装 DTO — message.content(string 或 array)</summary>
+public sealed class BridgeMessageContentWrapperDto {
+    /// <summary>消息内容(string 或 block 数组)</summary>
+    [JsonPropertyName("content")]
+    public JsonElement? Content { get; init; }
+}
+
+/// <summary>Bridge 文本块 DTO — content 数组中的 block(type 判断 + text 提取)</summary>
+public sealed class BridgeTextBlockDto {
+    /// <summary>块类型(text/image 等, discriminated union)</summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; init; }
+    /// <summary>文本内容(type=text 时有效)</summary>
+    [JsonPropertyName("text")]
+    public string? Text { get; init; }
+}
+
+/// <summary>Bridge 请求 ID 提取 DTO — 用于 GetRequestId(PropertyNameCaseInsensitive 自动兼容 camelCase)</summary>
+public sealed class BridgeRequestIdDto {
+    /// <summary>请求 ID</summary>
+    [JsonPropertyName("request_id")]
+    public string? RequestId { get; init; }
+}
+
+/// <summary>Bridge 入站消息字段提取 DTO — 用于 ExtractInboundMessageFields</summary>
+public sealed class BridgeInboundMessageFieldsDto {
+    /// <summary>消息内容(string 或 block 数组)</summary>
+    [JsonPropertyName("content")]
+    public JsonElement? Content { get; init; }
+    /// <summary>消息 UUID</summary>
+    [JsonPropertyName("uuid")]
+    public string? Uuid { get; init; }
+}

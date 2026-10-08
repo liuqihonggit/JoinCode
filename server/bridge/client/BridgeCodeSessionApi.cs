@@ -16,11 +16,11 @@ public sealed class BridgeRemoteCredentials {
 
     /// <summary>过期时间（秒）</summary>
     [JsonPropertyName("expires_in")]
-    public int ExpiresIn { get; init; }
+    public required int ExpiresIn { get; init; }
 
     /// <summary>Worker epoch（protojson int64 可能为字符串）</summary>
     [JsonPropertyName("worker_epoch")]
-    public JsonElement WorkerEpochRaw { get; init; }
+    public required JsonElement WorkerEpochRaw { get; init; }
 
     /// <summary>解析后的 Worker epoch — 对齐 TS 端 protojson int64 字符串兼容</summary>
     public long WorkerEpoch => ParseWorkerEpoch(WorkerEpochRaw);
@@ -79,23 +79,14 @@ public static class BridgeCodeSessionApi {
 
         var url = $"{baseUrl.TrimEnd('/')}/v1/code/sessions";
 
-        // bridge: {} 是 oneof runner 的正信号 — 省略会导致 400 错误
-        // BridgeRunner 当前为空消息，是未来 bridge 专属选项的占位符
-        var body = new StringBuilder("{\"title\":");
-        body.Append(JsonEncode(title));
-        body.Append(",\"bridge\":{}");
-        if (tags is { Length: > 0 }) {
-            body.Append(",\"tags\":[");
-            for (var i = 0; i < tags.Length; i++) {
-                if (i > 0) body.Append(',');
-                body.Append(JsonEncode(tags[i]));
-            }
-            body.Append(']');
-        }
-        body.Append('}');
+        var sessionReq = new BridgeCreateCodeSessionRequest {
+            Title = title,
+            Tags = tags is { Length: > 0 } ? new List<string>(tags) : null,
+        };
+        var body = JsonSerializer.Serialize(sessionReq, BridgeJsonContext.Default.BridgeCreateCodeSessionRequest);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, url) {
-            Content = new StringContent(body.ToString(), System.Text.Encoding.UTF8, "application/json"),
+            Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Add("anthropic-version", "2023-06-01");
@@ -112,18 +103,12 @@ public static class BridgeCodeSessionApi {
             }
 
             var responseBody = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
-            using var parsed = JsonDocument.Parse(responseBody);
-            var root = parsed.RootElement;
+            var resp = JsonSerializer.Deserialize(responseBody, BridgeJsonContext.Default.BridgeCodeSessionResponse);
 
             // 对齐 TS 端：响应路径为 data.session.id，且必须以 cse_ 开头
-            if (root.TryGetProperty("session", out var sessionProp) &&
-                sessionProp.ValueKind == JsonValueKind.Object &&
-                sessionProp.TryGetProperty("id", out var idProp) &&
-                idProp.ValueKind == JsonValueKind.String) {
-                var sessionId = idProp.GetString();
-                if (sessionId is not null && sessionId.StartsWith("cse_", StringComparison.Ordinal)) {
-                    return sessionId;
-                }
+            var sessionId = resp?.Session?.Id;
+            if (sessionId is not null && sessionId.StartsWith("cse_", StringComparison.Ordinal)) {
+                return sessionId;
             }
 
             return null;
@@ -169,47 +154,15 @@ public static class BridgeCodeSessionApi {
             }
 
             var responseBody = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
-            using var parsed = JsonDocument.Parse(responseBody);
-            var root = parsed.RootElement;
 
-            // 对齐 TS 端：逐字段严格校验类型
-            if (root.ValueKind != JsonValueKind.Object) {
+            // 对齐 TS 端：逐字段严格校验（required 属性 + 类型匹配），失败返回 null
+            try {
+                return JsonSerializer.Deserialize(responseBody, BridgeJsonContext.Default.BridgeRemoteCredentials);
+            } catch (JsonException) {
                 return null;
             }
-
-            if (!root.TryGetProperty("worker_jwt", out var jwtProp) || jwtProp.ValueKind != JsonValueKind.String ||
-                !root.TryGetProperty("api_base_url", out var urlProp) || urlProp.ValueKind != JsonValueKind.String ||
-                !root.TryGetProperty("expires_in", out var expiresProp) || expiresProp.ValueKind != JsonValueKind.Number ||
-                !root.TryGetProperty("worker_epoch", out var epochProp)) {
-                return null;
-            }
-
-            return new BridgeRemoteCredentials {
-                WorkerJwt = jwtProp.GetString()!,
-                ApiBaseUrl = urlProp.GetString()!,
-                ExpiresIn = expiresProp.GetInt32(),
-                WorkerEpochRaw = epochProp.Clone(),
-            };
         } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             return null; // 超时
         }
-    }
-
-    /// <summary>JSON 字符串编码</summary>
-    private static string JsonEncode(string value) {
-        var sb = new StringBuilder(value.Length + 2);
-        sb.Append('"');
-        foreach (var c in value) {
-            switch (c) {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
-            }
-        }
-        sb.Append('"');
-        return sb.ToString();
     }
 }

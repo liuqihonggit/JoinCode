@@ -53,7 +53,9 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
             return new TriggerResult { Status = (int)response.StatusCode, Json = responseBody };
         } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger?.LogError(ex, "远程触发器 API 调用失败");
-            return new TriggerResult { Status = 500, Json = $"{{\"error\":\"{ex.Message}\"}}" };
+            return new TriggerResult { Status = 500, Json = JsonSerializer.Serialize(
+                new RemoteTriggerErrorResponse { Error = ex.Message },
+                RemoteTriggerJsonContext.Default.RemoteTriggerErrorResponse) };
         }
     }
 
@@ -92,3 +94,15 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
         return null;
     }
 }
+
+/// <summary>远程触发器错误响应 DTO</summary>
+public sealed class RemoteTriggerErrorResponse {
+    /// <summary>错误信息</summary>
+    [JsonPropertyName("error")]
+    public required string Error { get; init; }
+}
+
+/// <summary>远程触发器 JSON 序列化上下文</summary>
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false)]
+[JsonSerializable(typeof(RemoteTriggerErrorResponse))]
+internal sealed partial class RemoteTriggerJsonContext : JsonSerializerContext;

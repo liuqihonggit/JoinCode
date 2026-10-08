@@ -68,3 +68,21 @@ public sealed record ToolCallEntry {
         };
     }
 }
+
+/// <summary>
+/// 工具调用条目反序列化 DTO — 宽松解析 ToolCallEntry.ToToolCallsJson 生成的 JSON
+/// 所有字段 nullable 以容错缺失字段，对齐 TryGetProperty 的 null 兜底语义
+/// </summary>
+public sealed class ToolCallItemJson {
+    /// <summary>工具调用 ID</summary>
+    [JsonPropertyName("Id")]
+    public string? Id { get; set; }
+
+    /// <summary>工具名称</summary>
+    [JsonPropertyName("Name")]
+    public string? Name { get; set; }
+
+    /// <summary>工具调用参数 JSON</summary>
+    [JsonPropertyName("Arguments")]
+    public string? Arguments { get; set; }
+}

@@ -163,15 +163,9 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     /// 从 hook 返回的 JSON 中提取 worktree 路径（提取以扁平化嵌套）
     /// </summary>
     private static string? TryGetWorktreePath(System.Text.Json.JsonDocument doc) {
-        if (doc.RootElement.TryGetProperty("worktree_path", out var pathElem)) {
-            var path = pathElem.GetString();
-            if (!string.IsNullOrEmpty(path)) return path;
-        }
-        if (doc.RootElement.TryGetProperty("worktreePath", out var pathElem2)) {
-            var path = pathElem2.GetString();
-            if (!string.IsNullOrEmpty(path)) return path;
-        }
-        return null;
+        var path = doc.RootElement.Deserialize(AgentsJsonContext.Default.WorktreePathJson);
+        var result = path?.WorktreePath ?? path?.WorktreePathCamel;
+        return string.IsNullOrEmpty(result) ? null : result;
     }
 
     /// <summary>
@@ -487,4 +481,18 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         }
         return false;
     }
+}
+
+/// <summary>
+/// Worktree 路径反序列化 DTO — 从 hook 返回 JSON 中提取 worktree 路径
+/// 兼容 snake_case (worktree_path) 和 camelCase (worktreePath) 两种字段名
+/// </summary>
+public sealed class WorktreePathJson {
+    /// <summary>worktree 路径（snake_case 字段名）</summary>
+    [JsonPropertyName("worktree_path")]
+    public string? WorktreePath { get; set; }
+
+    /// <summary>worktree 路径（camelCase 字段名）</summary>
+    [JsonPropertyName("worktreePath")]
+    public string? WorktreePathCamel { get; set; }
 }

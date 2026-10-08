@@ -86,6 +86,9 @@ public sealed class CliOutputMeta {
 
     /// <summary>总数（列表类命令）</summary>
     public int? TotalCount { get; init; }
+
+    /// <summary>各阶段耗时统计(网络/缓存/解析) — gh 工具由 ExecuteGhAsync 统一设置</summary>
+    public string? Timing { get; init; }
 }
 
 /// <summary>非交互模式运行结果 — 替代匿名类型，AOT 兼容</summary>

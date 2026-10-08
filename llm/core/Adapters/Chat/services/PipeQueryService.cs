@@ -232,14 +232,14 @@ public sealed partial class PipeQueryService : IQueryService {
             content.Metadata.TryGetValue("ToolCalls", out var tcEl) && tcEl.ValueKind == JsonValueKind.Array) {
             var toolCalls = new List<OpenAIToolCall>();
             foreach (var tcItem in tcEl.EnumerateArray()) {
-                var tc = new OpenAIToolCall();
-                if (tcItem.TryGetProperty("Id", out var idEl) && idEl.ValueKind == JsonValueKind.String)
-                    tc.Id = idEl.GetString();
-                if (tcItem.TryGetProperty("Name", out var nameEl) && nameEl.ValueKind == JsonValueKind.String)
+                var item = tcItem.Deserialize(PipeJsonContext.Default.ToolCallItemJson);
+                var tc = new OpenAIToolCall {
+                    Id = item?.Id
+                };
+                if (item?.Name is not null)
                     tc.Function = new OpenAIToolCallFunction {
-                        Name = nameEl.GetString(),
-                        Arguments = tcItem.TryGetProperty("Arguments", out var argsEl) && argsEl.ValueKind == JsonValueKind.String
-                            ? argsEl.GetString() : "{}"
+                        Name = item.Name,
+                        Arguments = item.Arguments ?? "{}"
                     };
                 toolCalls.Add(tc);
             }

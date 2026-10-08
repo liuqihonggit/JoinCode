@@ -156,24 +156,20 @@ public class ToolCreationToolHandlers {
         if (string.IsNullOrWhiteSpace(json)) return [];
 
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            if (root.ValueKind != JsonValueKind.Array) return [];
+            var dtos = JsonSerializer.Deserialize(json, StructuredOutputJsonContext.Default.ListToolParameterDto);
+            if (dtos is null) return [];
 
             var result = new List<ToolTemplateParameter>();
-            foreach (var e in root.EnumerateArray()) {
-                var name = e.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                if (string.IsNullOrEmpty(name)) continue;
+            foreach (var dto in dtos) {
+                if (string.IsNullOrEmpty(dto.Name)) continue;
 
                 result.Add(new ToolTemplateParameter {
-                    Name = name,
-                    Description = e.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "",
-                    Type = e.TryGetProperty("type", out var t) ? t.GetString() ?? "string" : "string",
-                    Required = !e.TryGetProperty("required", out var r) || r.GetBoolean(),
-                    DefaultValue = e.TryGetProperty("default", out var dv) ? dv.GetRawText() : null,
-                    EnumValues = e.TryGetProperty("enum", out var ev)
-                        ? ev.EnumerateArray().Select(v => v.GetString() ?? "").Where(s => s.Length > 0).ToArray()
-                        : null
+                    Name = dto.Name,
+                    Description = dto.Description ?? "",
+                    Type = dto.Type ?? "string",
+                    Required = dto.Required ?? true,
+                    DefaultValue = dto.Default.ValueKind != JsonValueKind.Undefined ? dto.Default.GetRawText() : null,
+                    EnumValues = dto.EnumValues is null ? null : dto.EnumValues.Where(s => !string.IsNullOrEmpty(s)).ToArray()
                 });
             }
 
@@ -208,4 +204,33 @@ public class ToolCreationToolHandlers {
             formattedMessage: $"模板 '{templateId}' 不存在",
             details: [new DiagnosticDetail("template_id", templateId)],
             suggestions: ["使用 tool_list_templates 查看所有可用模板"]);
+}
+
+/// <summary>
+/// 工具参数定义 DTO — 对应 parametersJson 数组每一项的 JSON 结构，用于 DTO 化反序列化替代 TryGetProperty 链式提取
+/// </summary>
+public sealed class ToolParameterDto {
+    /// <summary>参数名称</summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    /// <summary>参数描述</summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// <summary>参数类型 — string/number/boolean/array/object</summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
+
+    /// <summary>是否必填 — null 表示未指定，映射时按 true 处理</summary>
+    [JsonPropertyName("required")]
+    public bool? Required { get; set; }
+
+    /// <summary>默认值（任意 JSON 类型，映射时取原始文本）</summary>
+    [JsonPropertyName("default")]
+    public JsonElement Default { get; set; }
+
+    /// <summary>枚举值列表</summary>
+    [JsonPropertyName("enum")]
+    public string[]? EnumValues { get; set; }
 }

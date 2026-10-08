@@ -195,9 +195,8 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
             var jsonBytes = Convert.FromBase64String(base64);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
 
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("exp", out var expElement)) {
-                var expSeconds = expElement.GetInt64();
+            var jwtPayload = JsonSerializer.Deserialize(json, TransportBridgeJsonContext.Default.JwtPayloadExpDto);
+            if (jwtPayload?.Exp is { } expSeconds) {
                 return ClampExpiryToMilliseconds(expSeconds);
             }
 

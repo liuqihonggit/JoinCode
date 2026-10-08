@@ -22,6 +22,9 @@ namespace Core.Configuration;
 [JsonSerializable(typeof(ModelModalityKind))]
 [JsonSerializable(typeof(ModelPricingConfig))]
 [JsonSerializable(typeof(UpdateSourceConfig))]
+[JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(bool))]
+[JsonSerializable(typeof(double))]
 public partial class ConfigJsonContext : JsonSerializerContext;
 
 /// <summary>

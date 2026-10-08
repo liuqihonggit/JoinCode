@@ -25,7 +25,9 @@ internal static class GhSubCommand {
             return 0;
         }
 
-        var resolved = GhCommandResolver.Resolve(args, out var resolveError);
+        var noCache = Array.IndexOf(args, "--no-cache") >= 0;
+        var cleanArgs = noCache ? args.Where(a => !string.Equals(a, "--no-cache", StringComparison.Ordinal)).ToArray() : args;
+        var resolved = GhCommandResolver.Resolve(cleanArgs, out var resolveError);
         if (resolved is null) {
             TerminalHelper.WriteError(resolveError!);
             return 1;
@@ -50,8 +52,16 @@ internal static class GhSubCommand {
             foreach (var (key, value) in bound)
                 argDict[key] = await McpCliCommand.ParseValueToJsonElementAsync(value, key).ConfigureAwait(false);
 
-            var result = await registry.ExecuteToolAsync(resolved.ToolName, argDict, ct).ConfigureAwait(false);
-            return McpCliCommand.OutputResult(result, resolved.Json);
+            var tracker = new GhTimingTracker { CacheDisabled = noCache };
+            var prevTimer = GhTimingTracker.CurrentTimer.Value;
+            GhTimingTracker.CurrentTimer.Value = tracker;
+            try {
+                var result = await registry.ExecuteToolAsync(resolved.ToolName, argDict, ct).ConfigureAwait(false);
+                result.TimingInfo = tracker.Format();
+                return McpCliCommand.OutputResult(result, resolved.Json);
+            } finally {
+                GhTimingTracker.CurrentTimer.Value = prevTimer;
+            }
         }, ct: ct).ConfigureAwait(false);
     }
 

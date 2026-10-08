@@ -213,9 +213,11 @@ public sealed class McpCliCommand {
     }
 
     internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, string? vendor = null, string? model = null, CancellationToken ct = default) {
-        // 注意:不使用 using var host,因为 host.Dispose() 内部会调用 Environment.Exit(210) 导致退出码被覆盖。
-        // CLI 子命令进程很快退出,host 资源由 OS 自动回收,无需显式释放。
-        var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
+        // await using 确保 DisposeAsync 级联释放所有服务(IKvStore → PithosKvStore → PithosDb flush MemTable),
+        // 使跨进程缓存命中(第一次 MISS → flush → 第二次 HIT)。
+        // 历史注释"host.Dispose() 调 Environment.Exit(210)"已过时:退出码 210 在代码中不存在,
+        // 且 ExecuteServeAsync 已用 await using var appHost 验证 DisposeAsync 安全。
+        await using var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
         return await action(host.Services).ConfigureAwait(false);
     }
 
@@ -360,8 +362,8 @@ public sealed class McpCliCommand {
 
         if (int.TryParse(value, out var intVal))
             return JsonDocument.Parse(intVal.ToString()).RootElement.Clone();
-        if (double.TryParse(value, out var doubleVal))
-            return JsonDocument.Parse(doubleVal.ToString()).RootElement.Clone();
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleVal))
+            return JsonDocument.Parse(doubleVal.ToString(CultureInfo.InvariantCulture)).RootElement.Clone();
         if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase))
             return JsonDocument.Parse("true").RootElement.Clone();
         if (string.Equals(value, "false", StringComparison.OrdinalIgnoreCase))
@@ -378,14 +380,18 @@ public sealed class McpCliCommand {
 
     /// <summary>输出工具执行结果 — 供 gh 等子命令复用，避免第二套输出逻辑
     /// <para>扁平化: 单 text content + 非 error → data 直接是 string,消除 content[0].text 嵌套(降低 AI token 消耗)</para>
+    /// <para>计时: ToolResult.TimingInfo → CliOutputMeta.Timing (JSON) / 末行输出 (非JSON)</para>
     /// </summary>
     internal static int OutputResult(ToolResult result, bool json) {
+        var meta = result.TimingInfo is not null
+            ? new Cli.Output.CliOutputMeta { Timing = result.TimingInfo }
+            : null;
         if (json) {
             if (!result.IsError && result.Content.Count == 1 && !string.IsNullOrEmpty(result.Content[0].Text)) {
-                var envelope = Cli.Output.CliOutputEnvelope<string>.Success(result.Content[0].Text);
+                var envelope = Cli.Output.CliOutputEnvelope<string>.Success(result.Content[0].Text, meta);
                 System.Console.WriteLine(envelope.ToJsonString());
             } else {
-                var envelope = Cli.Output.CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolResult>.Success(result);
+                var envelope = Cli.Output.CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolResult>.Success(result, meta);
                 System.Console.WriteLine(envelope.ToJsonString());
             }
         } else {
@@ -405,6 +411,8 @@ public sealed class McpCliCommand {
             }
             if (!hasOutput)
                 WriteTextOrError("(无文本输出)", result.IsError);
+            if (result.TimingInfo is not null)
+                TerminalHelper.WriteLine(result.TimingInfo);
         }
         return result.IsError ? 1 : 0;
     }

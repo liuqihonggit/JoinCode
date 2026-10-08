@@ -14,11 +14,14 @@ public sealed class QuadtreeToolHandlersTests {
         _handlers = new QuadtreeToolHandlers(annotator, renderer);
     }
 
-    private static async Task<string> CreateTestImageBase64(int width = TestWidth, int height = TestHeight) {
-        using var image = new Image<Rgb24>(width, height, new Rgb24(100, 150, 200));
-        await using var ms = new MemoryStream();
-        image.Save(ms, PngFormat.Instance);
-        return Convert.ToBase64String(ms.ToArray());
+    private static Task<string> CreateTestImageBase64(int width = TestWidth, int height = TestHeight) {
+        using var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Opaque);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(new SKColor(100, 150, 200));
+        canvas.Flush();
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return Task.FromResult(Convert.ToBase64String(data.ToArray()));
     }
 
     [Fact]

@@ -17,4 +17,5 @@ namespace JoinCode.Gui.Persistence;
 [JsonSerializable(typeof(GuiPreferences))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(JoinCode.Gui.Theming.AppearanceCatalog))]
+[JsonSerializable(typeof(SettingsVendorRootDto))]
 public partial class GuiJsonContext : JsonSerializerContext;

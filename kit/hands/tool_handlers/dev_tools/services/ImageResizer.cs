@@ -43,12 +43,15 @@ public static class ImageResizer {
             throw new InvalidOperationException("[HND001] 图像文件为空（0 字节）");
 
         try {
-            using var image = Image.Load(imageBuffer);
-            var format = image.Metadata.DecodedImageFormat;
+            using var bitmap = SKBitmap.Decode(imageBuffer);
+            if (bitmap is null)
+                throw new InvalidOperationException("无法解码图像");
+
+            var format = DetectImageFormat(imageBuffer);
             var mediaType = GetNormalizedMediaType(format, extension);
 
-            var originalWidth = image.Width;
-            var originalHeight = image.Height;
+            var originalWidth = bitmap.Width;
+            var originalHeight = bitmap.Height;
 
             // 检查原始文件是否已满足约束
             if (originalSize <= FileOperationConfig.ImageTargetRawSize &&
@@ -72,9 +75,9 @@ public static class ImageResizer {
             // 尺寸在限制内但文件过大，先尝试压缩
             var needsCompressOnly = !needsDimensionResize && originalSize > FileOperationConfig.ImageTargetRawSize;
 
-            // PNG 先尝试 PNG 调色板压缩（保留透明度）
+            // PNG 先尝试 PNG 压缩（保留透明度）
             if (needsCompressOnly && isPng) {
-                var pngCompressed = await EncodeToPngPaletteAsync(image).ConfigureAwait(false);
+                var pngCompressed = EncodeToPng(bitmap);
                 if (pngCompressed.Length <= FileOperationConfig.ImageTargetRawSize) {
                     return new ImageResizeResult {
                         Buffer = pngCompressed,
@@ -90,7 +93,7 @@ public static class ImageResizer {
             // 渐进 JPEG 压缩
             if (needsCompressOnly) {
                 foreach (var quality in new[] { 80, 60, 40, 20 }) {
-                    var compressed = await EncodeToJpegAsync(image, quality).ConfigureAwait(false);
+                    var compressed = EncodeToJpeg(bitmap, quality);
                     if (compressed.Length <= FileOperationConfig.ImageTargetRawSize) {
                         return new ImageResizeResult {
                             Buffer = compressed,
@@ -120,18 +123,12 @@ public static class ImageResizer {
             }
 
             // 缩放图像
-            using var resizedImage = image.Clone(ctx =>
-                ctx.Resize(new ResizeOptions {
-                    Size = new Size(width, height),
-                    Mode = ResizeMode.Max,
-                    Sampler = KnownResamplers.Lanczos3,
-                }));
-
-            var resizedBuffer = await EncodeToBufferAsync(resizedImage, format).ConfigureAwait(false);
+            using var resizedBitmap = ResizeBitmap(bitmap, width, height);
+            var resizedBuffer = EncodeByFormat(resizedBitmap, format);
 
             // 缩放后仍过大，尝试压缩
             if (resizedBuffer.Length > FileOperationConfig.ImageTargetRawSize && isPng) {
-                var pngCompressed = await EncodeToPngPaletteAsync(resizedImage).ConfigureAwait(false);
+                var pngCompressed = EncodeToPng(resizedBitmap);
                 if (pngCompressed.Length <= FileOperationConfig.ImageTargetRawSize) {
                     return new ImageResizeResult {
                         Buffer = pngCompressed,
@@ -147,7 +144,7 @@ public static class ImageResizer {
             // 渐进 JPEG 压缩
             if (resizedBuffer.Length > FileOperationConfig.ImageTargetRawSize) {
                 foreach (var quality in new[] { 80, 60, 40, 20 }) {
-                    var compressed = await EncodeToJpegAsync(resizedImage, quality).ConfigureAwait(false);
+                    var compressed = EncodeToJpeg(resizedBitmap, quality);
                     if (compressed.Length <= FileOperationConfig.ImageTargetRawSize) {
                         return new ImageResizeResult {
                             Buffer = compressed,
@@ -164,14 +161,8 @@ public static class ImageResizer {
                 var smallerWidth = Math.Min(width, 1000);
                 var smallerHeight = (int)Math.Round((double)height * smallerWidth / Math.Max(width, 1));
 
-                using var finalImage = image.Clone(ctx =>
-                    ctx.Resize(new ResizeOptions {
-                        Size = new Size(smallerWidth, smallerHeight),
-                        Mode = ResizeMode.Max,
-                        Sampler = KnownResamplers.Lanczos3,
-                    }));
-
-                var finalBuffer = await EncodeToJpegAsync(finalImage, 20).ConfigureAwait(false);
+                using var finalBitmap = ResizeBitmap(bitmap, smallerWidth, smallerHeight);
+                var finalBuffer = EncodeToJpeg(finalBitmap, 20);
                 return new ImageResizeResult {
                     Buffer = finalBuffer,
                     MediaType = "image/jpeg",
@@ -253,13 +244,30 @@ public static class ImageResizer {
         => (uint)(buffer[offset] << 24 | buffer[offset + 1] << 16 | buffer[offset + 2] << 8 | buffer[offset + 3]);
 
     /// <summary>
-    /// 规范化媒体类型（jpg → jpeg）
+    /// 检测图像编码格式 — 迁移自 ImageSharp IImageFormat 检测
     /// </summary>
-    private static string GetNormalizedMediaType(IImageFormat? format, string extension) {
-        if (format is not null) {
-            var mime = format.DefaultMimeType;
-            // ImageSharp 可能返回 "image/jpeg" 或 "image/png" 等
-            if (!string.IsNullOrEmpty(mime))
+    private static SKEncodedImageFormat? DetectImageFormat(byte[] buffer) {
+        using var stream = new MemoryStream(buffer);
+        using var codec = SKCodec.Create(stream);
+        return codec?.EncodedFormat;
+    }
+
+    /// <summary>
+    /// 规范化媒体类型（jpg → jpeg）— 迁移自 ImageSharp IImageFormat.DefaultMimeType
+    /// </summary>
+    private static string GetNormalizedMediaType(SKEncodedImageFormat? format, string extension) {
+        if (format is { } f) {
+            var mime = f switch {
+                SKEncodedImageFormat.Jpeg => "image/jpeg",
+                SKEncodedImageFormat.Png => "image/png",
+                SKEncodedImageFormat.Webp => "image/webp",
+                SKEncodedImageFormat.Gif => "image/gif",
+                SKEncodedImageFormat.Bmp => "image/bmp",
+                SKEncodedImageFormat.Ico => "image/x-icon",
+                SKEncodedImageFormat.Wbmp => "image/wbmp",
+                _ => null,
+            };
+            if (mime is not null)
                 return mime;
         }
 
@@ -270,41 +278,50 @@ public static class ImageResizer {
     }
 
     /// <summary>
-    /// 按原始格式编码到字节数组
+    /// 高质量缩放图像 — 迁移自 ImageSharp image.Clone(ctx => ctx.Resize(Lanczos3))
     /// </summary>
-    private static async Task<byte[]> EncodeToBufferAsync(Image image, IImageFormat? format) {
-        await using var ms = new MemoryStream();
-        if (format is JpegFormat)
-            await image.SaveAsJpegAsync(ms, new JpegEncoder { Quality = 80 }).ConfigureAwait(false);
-        else if (format is PngFormat)
-            await image.SaveAsPngAsync(ms).ConfigureAwait(false);
-        else if (format is WebpFormat)
-            await image.SaveAsWebpAsync(ms, new WebpEncoder { Quality = 80 }).ConfigureAwait(false);
-        else
-            await image.SaveAsJpegAsync(ms, new JpegEncoder { Quality = 80 }).ConfigureAwait(false);
-
-        return ms.ToArray();
+    private static SKBitmap ResizeBitmap(SKBitmap source, int width, int height) {
+        var resized = new SKBitmap(width, height, source.ColorType, source.AlphaType);
+        using var canvas = new SKCanvas(resized);
+        canvas.DrawBitmap(source, new SKRectI(0, 0, width, height),
+            new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+        canvas.Flush();
+        return resized;
     }
 
     /// <summary>
-    /// PNG 调色板压缩（对齐 TS: png({ compressionLevel: 9, palette: true })）
+    /// 按原始格式编码到字节数组 — 迁移自 ImageSharp EncodeToBufferAsync
     /// </summary>
-    private static async Task<byte[]> EncodeToPngPaletteAsync(Image image) {
-        await using var ms = new MemoryStream();
-        await image.SaveAsPngAsync(ms, new PngEncoder {
-            CompressionLevel = PngCompressionLevel.BestCompression,
-            ColorType = PngColorType.Palette,
-        }).ConfigureAwait(false);
-        return ms.ToArray();
+    private static byte[] EncodeByFormat(SKBitmap bitmap, SKEncodedImageFormat? format) {
+        var (fmt, quality) = format switch {
+            SKEncodedImageFormat.Jpeg => (SKEncodedImageFormat.Jpeg, 80),
+            SKEncodedImageFormat.Png => (SKEncodedImageFormat.Png, 100),
+            SKEncodedImageFormat.Webp => (SKEncodedImageFormat.Webp, 80),
+            _ => (SKEncodedImageFormat.Jpeg, 80),
+        };
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(fmt, quality);
+        return data.ToArray();
     }
 
     /// <summary>
-    /// JPEG 压缩（对齐 TS: jpeg({ quality })）
+    /// PNG 编码 — 迁移自 ImageSharp EncodeToPngPaletteAsync（SkiaSharp 无调色板模式，用标准 PNG）
+    /// 对齐 TS: png({ compressionLevel: 9, palette: true })
     /// </summary>
-    private static async Task<byte[]> EncodeToJpegAsync(Image image, int quality) {
-        await using var ms = new MemoryStream();
-        await image.SaveAsJpegAsync(ms, new JpegEncoder { Quality = quality }).ConfigureAwait(false);
-        return ms.ToArray();
+    private static byte[] EncodeToPng(SKBitmap bitmap) {
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
+    }
+
+    /// <summary>
+    /// JPEG 压缩 — 迁移自 ImageSharp EncodeToJpegAsync
+    /// 对齐 TS: jpeg({ quality })
+    /// </summary>
+    private static byte[] EncodeToJpeg(SKBitmap bitmap, int quality) {
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Jpeg, quality);
+        return data.ToArray();
     }
 
     /// <summary>
@@ -326,9 +343,12 @@ public static class ImageResizer {
         var maxBytes = (int)Math.Floor(maxBase64Chars * 0.75);
 
         try {
-            using var image = Image.Load(imageBuffer);
-            var originalWidth = image.Width;
-            var originalHeight = image.Height;
+            using var bitmap = SKBitmap.Decode(imageBuffer);
+            if (bitmap is null)
+                return null;
+
+            var originalWidth = bitmap.Width;
+            var originalHeight = bitmap.Height;
 
             // 渐进缩放链 — 对齐 TS tryProgressiveResizing
             var scaleFactors = new[] { 1.0, 0.75, 0.5, 0.25 };
@@ -337,15 +357,10 @@ public static class ImageResizer {
                 var targetHeight = (int)Math.Round(originalHeight * scale);
                 if (targetWidth < 50 || targetHeight < 50) break;
 
-                using var scaled = image.Clone(ctx =>
-                    ctx.Resize(new ResizeOptions {
-                        Size = new Size(targetWidth, targetHeight),
-                        Mode = ResizeMode.Max,
-                        Sampler = KnownResamplers.Lanczos3,
-                    }));
+                using var scaled = ResizeBitmap(bitmap, targetWidth, targetHeight);
 
-                // 尝试 PNG 调色板压缩
-                var pngBuffer = await EncodeToPngPaletteAsync(scaled).ConfigureAwait(false);
+                // 尝试 PNG 压缩
+                var pngBuffer = EncodeToPng(scaled);
                 if (pngBuffer.Length <= maxBytes) {
                     return new ImageResizeResult {
                         Buffer = pngBuffer,
@@ -358,7 +373,7 @@ public static class ImageResizer {
                 }
 
                 // 尝试 JPEG quality=80
-                var jpegBuffer = await EncodeToJpegAsync(scaled, 80).ConfigureAwait(false);
+                var jpegBuffer = EncodeToJpeg(scaled, 80);
                 if (jpegBuffer.Length <= maxBytes) {
                     return new ImageResizeResult {
                         Buffer = jpegBuffer,
@@ -371,24 +386,13 @@ public static class ImageResizer {
                 }
             }
 
-            // PNG 调色板极限压缩 — 对齐 TS tryPalettePNG (800px, 64色)
+            // PNG 极限压缩 — 对齐 TS tryPalettePNG (800px, 64色)
+            // SkiaSharp 无调色板量化，用标准 PNG 编码
             {
                 var paletteWidth = Math.Min(originalWidth, 800);
                 var paletteHeight = (int)Math.Round((double)originalHeight * paletteWidth / Math.Max(originalWidth, 1));
-                using var paletteImage = image.Clone(ctx =>
-                    ctx.Resize(new ResizeOptions {
-                        Size = new Size(paletteWidth, paletteHeight),
-                        Mode = ResizeMode.Max,
-                        Sampler = KnownResamplers.Lanczos3,
-                    }));
-
-                await using var ms = new MemoryStream();
-                await paletteImage.SaveAsPngAsync(ms, new PngEncoder {
-                    CompressionLevel = PngCompressionLevel.BestCompression,
-                    ColorType = PngColorType.Palette,
-                    Quantizer = new WuQuantizer(new QuantizerOptions { MaxColors = 64 }),
-                }).ConfigureAwait(false);
-                var paletteBuffer = ms.ToArray();
+                using var paletteBitmap = ResizeBitmap(bitmap, paletteWidth, paletteHeight);
+                var paletteBuffer = EncodeToPng(paletteBitmap);
 
                 if (paletteBuffer.Length <= maxBytes) {
                     return new ImageResizeResult {
@@ -406,14 +410,9 @@ public static class ImageResizer {
             {
                 var jpegWidth = Math.Min(originalWidth, 600);
                 var jpegHeight = (int)Math.Round((double)originalHeight * jpegWidth / Math.Max(originalWidth, 1));
-                using var jpegImage = image.Clone(ctx =>
-                    ctx.Resize(new ResizeOptions {
-                        Size = new Size(jpegWidth, jpegHeight),
-                        Mode = ResizeMode.Max,
-                        Sampler = KnownResamplers.Lanczos3,
-                    }));
+                using var jpegBitmap = ResizeBitmap(bitmap, jpegWidth, jpegHeight);
 
-                var jpegBuffer = await EncodeToJpegAsync(jpegImage, 50).ConfigureAwait(false);
+                var jpegBuffer = EncodeToJpeg(jpegBitmap, 50);
                 if (jpegBuffer.Length <= maxBytes) {
                     return new ImageResizeResult {
                         Buffer = jpegBuffer,
@@ -430,14 +429,9 @@ public static class ImageResizer {
             {
                 var ultraWidth = Math.Min(originalWidth, 400);
                 var ultraHeight = (int)Math.Round((double)originalHeight * ultraWidth / Math.Max(originalWidth, 1));
-                using var ultraImage = image.Clone(ctx =>
-                    ctx.Resize(new ResizeOptions {
-                        Size = new Size(ultraWidth, ultraHeight),
-                        Mode = ResizeMode.Max,
-                        Sampler = KnownResamplers.Lanczos3,
-                    }));
+                using var ultraBitmap = ResizeBitmap(bitmap, ultraWidth, ultraHeight);
 
-                var ultraBuffer = await EncodeToJpegAsync(ultraImage, 20).ConfigureAwait(false);
+                var ultraBuffer = EncodeToJpeg(ultraBitmap, 20);
                 if (ultraBuffer.Length <= maxBytes) {
                     return new ImageResizeResult {
                         Buffer = ultraBuffer,

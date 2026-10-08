@@ -23,7 +23,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
         };
         var runner = new GitHubRunLogFilterRunner(api);
 
-        var result = await runner.FilterFailedTestsAsync("owner", "repo", "123", "123", 10, 0, CancellationToken.None);
+        var result = await runner.FilterFailedTestsAsync("owner", "repo", "123", "123", 10, 0, false, CancellationToken.None);
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -39,7 +39,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
         };
         var runner = new GitHubRunLogFilterRunner(api);
 
-        var result = await runner.FilterFailedTestsAsync("owner", "repo", "123", "123", 10, 0, CancellationToken.None);
+        var result = await runner.FilterFailedTestsAsync("owner", "repo", "123", "123", 10, 0, false, CancellationToken.None);
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("未检测到测试失败行");
@@ -62,7 +62,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
         };
         var runner = new GitHubRunLogFilterRunner(api);
 
-        var result = await runner.FilterFailedTestsAsync("owner", "repo", "999", null, 10, 0, CancellationToken.None);
+        var result = await runner.FilterFailedTestsAsync("owner", "repo", "999", null, 10, 0, false, CancellationToken.None);
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -81,7 +81,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
         api.NextLogLines = Array.Empty<string>();
         var runner = new GitHubRunLogFilterRunner(api);
 
-        var result = await runner.FilterFailedTestsAsync("owner", "repo", "999", null, 10, 0, CancellationToken.None);
+        var result = await runner.FilterFailedTestsAsync("owner", "repo", "999", null, 10, 0, false, CancellationToken.None);
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("未检测到测试失败行");
@@ -107,7 +107,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
         };
         var runner = new GitHubRunLogFilterRunner(api);
 
-        var result = await runner.FilterFailedTestsAsync("owner", "repo", "123", "123", 10, 0, CancellationToken.None);
+        var result = await runner.FilterFailedTestsAsync("owner", "repo", "123", "123", 10, 0, false, CancellationToken.None);
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -129,7 +129,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
         };
         var runner = new GitHubRunLogFilterRunner(api);
 
-        var result = await runner.FilterFailedTestsAsync("owner", "repo", "123", "123", 2, 0, CancellationToken.None);
+        var result = await runner.FilterFailedTestsAsync("owner", "repo", "123", "123", 2, 0, false, CancellationToken.None);
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;

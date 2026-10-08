@@ -568,7 +568,9 @@ public sealed class ChatContextManager : IChatContextManager, IAsyncDisposable {
         var metadata = originKind is null
             ? null
             : new Dictionary<string, JsonElement> {
-                [MessageMetadataKeyEnumConstants.Origin] = JsonElementHelper.FromJson($"{{\"kind\":\"{originKind.Value.ToValue()}\"}}")
+                [MessageMetadataKeyEnumConstants.Origin] = JsonSerializer.SerializeToElement(
+                    new MessageOriginMetadataDto { Kind = originKind.Value.ToValue() },
+                    ChatServiceJsonContext.Default.MessageOriginMetadataDto)
             };
         _sessionStore.Append(new ApiMessage(MessageRole.User, content, metadata));
         _logger.LogDebug("已添加用户消息，当前对话数: {Count}", _sessionStore.Count);

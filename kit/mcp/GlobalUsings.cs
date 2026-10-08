@@ -53,6 +53,7 @@ global using Microsoft.Extensions.DependencyInjection;
 global using System.Buffers;
 global using System.Collections.Frozen;
 global using System.Collections.Immutable;
+global using System.Diagnostics;
 global using System.Globalization;
 global using System.IO;
 global using System.Net;

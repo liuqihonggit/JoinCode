@@ -127,6 +127,9 @@ AI 习惯写 `--log true`（显式传值），但 jcc boolean 参数设计是无
 | A2 | expand=jobs 汇总前置+全量失败+success 折叠到5（非 success 全量显示不截断） | ✅ 已完成 | `09cce1b8b` |
 | B | expand=failed 智能定位错误行（滑动窗口扫描首个错误行，5行上下文+后续行，不从 runner setup 从头输出） | ✅ 已完成 | `c389b2fb1` |
 | C | JCC_OUTPUT_FORMAT 环境变量控制全局默认输出格式 | ✅ 已完成 | `ab0741f8d` |
+| D1 | gh run view 默认模式置顶失败job+尚未拉取提示（run失败/进行中时并行调jobs API附加失败job列表,渐进式披露避免AI三层调用） | ✅ 已完成 | `0cf1805b5` |
+| D2 | BuildZeroMatchHint 改为可能性名单表格式（每行=编号+可能原因+→调查命令,替代①②列表） | ✅ 已完成 | `c72b157f5` |
+| D3 | 参数穿透到消费点处理器守卫 | ✅ 无需改 | 当前动态白名单(schema生成)已是较优设计,改穿透会引入N处重复校验 |
 
 ### 优化A1: pr checks 汇总前置+异常置顶
 
@@ -148,3 +151,123 @@ AI 习惯写 `--log true`（显式传值），但 jcc boolean 参数设计是无
 **测试**: `RunView_ExpandFailed_SkipsSetupLines_StartsFromError`（GitHubToolHandlersTests.OptimizeA2.cs）
 
 `expand=failed` 无 filter 时，滑动窗口扫描首个错误行（`##[error]`/`[FAIL]`/`Failed`/`Exception`/`error`），输出5行上下文+后续行。未找到错误时回退到最后20行。避免从 runner setup 从头输出，AI 首屏即可看到错误降 token。
+
+### 优化D1: gh run view 默认模式置顶失败job+尚未拉取提示
+
+**改动文件**: `kit/mcp/git_hub/GitHubToolHandlers.Run.cs`
+**测试**: `RunView_Default_FailureRun_ShowsFailedJobsAndNotFetchedHint`（GitHubToolHandlersTests.OptimizeD1.cs）
+
+`gh run view <id>` 默认模式(无 expand 无 log)在 run 失败/进行中时,并行调一次 jobs API 附加失败 job 列表+"日志尚未拉取(按需阅读)"提示。run 成功时不附加(保持简洁)。verbosity=1/2 不附加(保持原始格式)。
+
+输出示例:
+```
+✗ CI · 755
+Status: completed  Conclusion: failure
+ID: 37671103598
+
+❌ 失败 Job (1 个):
+  ❌    112965982126  unit-tests / Unit - Mcp
+
+📋 日志尚未拉取(按需阅读):
+  expand=failed     → 直接拉失败步骤日志(量少,推荐)
+  expand=jobs       → 查看全部 job 列表
+  expand=steps job_id=112965982126  → 查看指定 job 步骤
+```
+
+AI 首屏即可看到:run 失败了 + 哪个 job 失败 + 怎么拉日志,一次调用就够,把三层调用压成一层。
+
+### 优化D2: BuildZeroMatchHint 可能性名单表
+
+**改动文件**: `kit/mcp/git_hub/GitHubRunLogFilterRunner.cs`
+**测试**: `BuildZeroMatchHint_D2_*`（GitHubRunLogFilterRunnerTests.cs）
+
+0 行匹配时输出从 `①②` 列表改为结构化表格:每行=编号+可能原因+→调查命令(完整 gh 命令)。用户可继续维护此表使工具更健壮。
+
+输出示例:
+```
+未匹配到任何失败步骤行。
+
+可能原因与调查命令:
+  1) 所有步骤都通过(无失败步骤)
+     → gh run view <id> --expand jobs  (确认 job 状态)
+  2) 需要查看 job 列表或步骤详情
+     → gh run view <id> --expand jobs  (查看 job 列表)
+     → gh run view <id> --expand steps job_id=N  (查看具体步骤)
+```
+
+### 优化D3: 参数穿透到消费点处理器守卫 — 无需改
+
+当前 `GhArgsBinder.Bind` 用**动态白名单**(从每个工具的 MCP ToolSchema properties+required 实时构建),非硬编码中央清单。已是"唯一数据源(schema)+委托消费"的较优设计。改成穿透+各handler守卫会引入 N 处重复校验,违反 AGENTS.md 第9/10条。结论:保持现状。
+
+---
+
+## 旧系统清理 + LSM 统一缓存（2026-10-08）
+
+> 场景：旧 GitHubRunLogCache(MemoryCache+文件三级缓存)与新 LSM 缓存并存,两套独立系统,需统一到 LSM 并移走旧系统
+
+| 优化 | 描述 | 状态 | commit |
+|------|------|------|--------|
+| E1 | clear-log 垃圾文案修正("LSM 压实时物理释放空间"→删除) | ✅ 已完成 | `cc2268376` |
+| E2 | DownloadJobsParallelAsync 补并发限制8(SemaphoreSlim,对齐旧系统 TryDownloadJobsAsync) | ✅ 已完成 | `cc2268376` |
+| E3 | GitHubLogParser 提取为独立类(从 GitHubRunLogCache 内部类提取) | ✅ 已完成 | `c979795d8` |
+| E4 | expand=steps/step:Name 改走 LSM 缓存+实时解析(ParseLogsToSummaryAsync) | ✅ 已完成 | `c979795d8` |
+| E5 | 旧 GitHubRunLogCache 移到 .xxx/(MemoryCache+文件三级缓存废弃) | ✅ 已完成 | `c979795d8` |
+| E6 | IPersistencePipeline 依赖从 GitHubToolHandlers 移除(43处测试调用批量修复) | ✅ 已完成 | `f1973db8e` |
+| E7 | 补充6个 LSM 缓存命中测试(miss→hit/wantRefresh/section/noJobId) | ✅ 已完成 | `9a33609b2` |
+
+### 优化E3-E5: 旧系统清理 + LSM 统一
+
+**改动文件**:
+- `kit/mcp/git_hub/GitHubLogParser.cs` — 新建,从 GitHubRunLogCache 内部类提取为独立 internal class
+- `kit/mcp/git_hub/GitHubRunLogFilterRunner.cs` — 新增 `GetOrFetchSummaryAsync`/`GetOrFetchSectionAsync`/`ParseLogsToSummaryAsync`
+- `kit/mcp/git_hub/GitHubToolHandlers.Run.cs` — 三个包装方法改为调 LogFilterRunner
+- `kit/mcp/git_hub/GitHubToolHandlers.cs` — 移除 LogCacheService 字段+属性
+- `.xxx/GitHubRunLogCache.cs.20261008.del` — 旧系统归档
+
+**设计决策**:
+- 复用已有 LSM 日志缓存(`gh:log:{runId}:{jobId}`),从缓存读日志后用 `GitHubLogParser` 实时解析为 summary + section 内容
+- 不单独缓存 summary/section(日志已在 LSM 中,解析是纯 CPU O(n) 行数,开销可忽略)
+- `wantRefresh=true` 跳过缓存读仍写缓存(用于 rerun 后避免脏数据)
+- TTL 7天替代旧系统 updatedAt 验证(简化,不再调 API 检测 rerun)
+
+### 优化E6: IPersistencePipeline 依赖移除
+
+**改动文件**: `kit/mcp/git_hub/GitHubToolHandlers.cs` — 构造函数删 `pipeline` 参数 + 43处测试调用批量移除第3参数(Python 脚本 `remove_pipeline_param.py`)
+
+**设计决策**: `GitHubToolHandlers` 改用 LSM 持久化,文件缓存管道(`IPersistencePipeline`)不再需要。接口本身保留(其他消费者: `TodoService`/`TeamMemoryPathStore`/`StructuredOutputToolHandler` 等)
+
+### 优化E8: 缓存读取续期(GetWithTtlAndRenewAsync)
+
+**改动文件**: `lib/abstractions/abs_memory/file_io/KvStoreTtlExtensions.cs` — 新增 `GetWithTtlAndRenewAsync` 方法
+**测试**: `test/unit/infra.tests/services/pure/KvStoreTtlExtensionsTests.cs` — 11个测试(含3个续期测试)
+
+**设计决策**: 缓存被读取说明还有用,命中时用 `renewTtl` 重新写入延长生命周期,避免热点 key 被清理服务回收。续期下沉到 `KvStoreTtlExtensions` 底层扩展,消费方传 `renewTtl=null` 可跳过续期。`GitHubRunLogFilterRunner` 3处缓存读取改为续期版本。
+
+### 优化E9: API 响应缓存迁移到 LSM
+
+**改动文件**: `kit/mcp/git_hub/GitHubToolHandlers.cs` — `TryGetGhCache`/`SaveGhCache` 改为 LSM 版本(`gh:api:` 前缀,TTL 1h+续期),`GetCacheDir` 移除
+**移走**: `GitHubRunCachePaths.cs` + `GitHubRunCachePathsTests.cs` → `.xxx/`
+
+**设计决策**: `gh pr/issue/repo view --verbosity 2` 的 API 响应缓存从文件系统迁移到 LSM,统一所有缓存到 LSM。文件缓存路径工具 `GitHubRunCachePaths` 不再有消费者,移走归档。
+
+### 全链路验证(2026-10-08)
+
+| 链路 | miss | hit | 加速 |
+|------|------|-----|------|
+| `expand=steps` | 11.5s | 5.8s | 2x |
+| `expand=failed` | 11s | 6.7s | 1.6x |
+| clear→miss→hit | 19.5s | 5.4s | 3.6x |
+| `gh pr view --verbosity 2` | 5.1s | 3.5s | 1.4x |
+
+所有缓存统一走 LSM(`gh:log:`/`gh:jobs:`/`gh:api:`),续期功能生效,TTL 7天(日志)/1h(API 响应)。
+
+### 缓存 key 总览
+
+| key 格式 | 用途 | TTL | 续期 |
+|----------|------|-----|------|
+| `gh:log:{runId}:{jobId}` | 单 job 日志 | 7天 | ✅ |
+| `gh:log:{runId}:run` | 整个 run 日志 | 7天 | ✅ |
+| `gh:jobs:{runId}` | 失败 job ID 列表 | 7天 | ✅ |
+| `gh:api:{cacheKey}` | API 响应(pr/issue/repo view) | 1小时 | ✅ |
+
+清理服务 `KvStoreTtlCleanupService` 扫描所有 `gh:` 前缀,30s 首检/24h 周期。`gh cache clear-log` 立即清理全部 `gh:` 前缀。

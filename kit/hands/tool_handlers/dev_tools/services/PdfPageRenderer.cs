@@ -187,12 +187,18 @@ public static class PdfPageRenderer {
     /// <summary>
     /// 将 BGRA 原始像素数据编码为 JPEG。
     /// Docnet.Core 返回 BGRA 格式（4字节/像素：Blue, Green, Red, Alpha）
-    /// ImageSharp 的 Bgra32 格式正好匹配
+    /// SkiaSharp 的 Bgra8888 格式正好匹配
     /// </summary>
-    private static async Task<byte[]> BgraToJpegAsync(byte[] bgraData, int width, int height) {
-        using var image = Image.LoadPixelData<Bgra32>(bgraData, width, height);
-        await using var ms = new MemoryStream();
-        await image.SaveAsJpegAsync(ms, new JpegEncoder { Quality = JpegQuality }).ConfigureAwait(false);
-        return ms.ToArray();
+    private static Task<byte[]> BgraToJpegAsync(byte[] bgraData, int width, int height) {
+        using var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        var pixelsHandle = GCHandle.Alloc(bgraData, GCHandleType.Pinned);
+        try {
+            bitmap.SetPixels(pixelsHandle.AddrOfPinnedObject());
+        } finally {
+            pixelsHandle.Free();
+        }
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Jpeg, JpegQuality);
+        return Task.FromResult(data.ToArray());
     }
 }

@@ -155,20 +155,19 @@ public sealed class JudgeAgent : ReasoningAgent {
             var json = ExtractJsonObject(content, _logger);
             if (json is null) return verdicts;
 
-            using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("verdicts", out var vArray)) return verdicts;
+            var dto = JsonSerializer.Deserialize(json, ReasoningJsonContext.Default.JudgeVerdictsJson);
+            if (dto?.Verdicts is null) return verdicts;
 
-            foreach (var item in vArray.EnumerateArray()) {
-                var claimContent = item.TryGetProperty("claimContent", out var cc) ? cc.GetString() : null;
-                var claim = claimContent is not null
-                    ? pending.FirstOrDefault(p => p.Content.Contains(claimContent, StringComparison.Ordinal))
+            foreach (var item in dto.Verdicts) {
+                var claim = item.ClaimContent is not null
+                    ? pending.FirstOrDefault(p => p.Content.Contains(item.ClaimContent, StringComparison.Ordinal))
                     : null;
 
                 verdicts.Add(new Verdict {
                     ClaimId = claim?.Id ?? string.Empty,
-                    Decision = item.TryGetProperty("decision", out var d) ? ParseDecision(d.GetString()) : VerdictDecision.Pending,
-                    Reason = item.TryGetProperty("reason", out var r) ? r.GetString() ?? string.Empty : string.Empty,
-                    Confidence = item.TryGetProperty("confidence", out var c) ? c.GetInt32() : 50,
+                    Decision = ParseDecision(item.Decision),
+                    Reason = item.Reason ?? string.Empty,
+                    Confidence = item.Confidence ?? 50,
                 });
             }
         } catch (JsonException ex) {

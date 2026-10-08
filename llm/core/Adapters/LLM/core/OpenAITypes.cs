@@ -382,7 +382,7 @@ internal sealed record OpenAIThinkingOptions {
 /// <summary>
 /// 两阶段工具加载 — MCP 工具分组（只有组名+工具名，不含完整 schema）
 /// </summary>
-internal sealed class OpenAIToolGroup {
+public sealed class OpenAIToolGroup {
     /// <summary>获取或设置分组名称。</summary>
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;

@@ -112,40 +112,45 @@ public sealed class HostContextSyncService : IAsyncDisposable {
     }
 
     /// <summary>
-    /// 序列化上下文快照为 JSON — 手动拼接避免 AOT 反射。
+    /// 序列化上下文快照为 JSON — DTO + JsonSerializer.Serialize。
     /// </summary>
     internal static string SerializeSnapshot(HostContextSnapshot snapshot) {
-        var sb = new StringBuilder();
-        sb.Append('{');
-        sb.Append("\"timestamp\":\"").Append(snapshot.Timestamp.ToString("O")).Append("\",");
-        sb.Append("\"hostPid\":\"").Append(snapshot.HostProcessId).Append("\",");
-        sb.Append("\"routing\":{");
-        var first = true;
-        foreach (var kvp in snapshot.RoutingTable) {
-            if (!first) sb.Append(',');
-            first = false;
-            sb.Append('"').Append(kvp.Key).Append("\":\"").Append(kvp.Value).Append('"');
-        }
-        sb.Append("},");
-        sb.Append("\"buildQueue\":{");
-        sb.Append("\"pending\":").Append(snapshot.BuildQueue.PendingCount).Append(',');
-        sb.Append("\"running\":").Append(snapshot.BuildQueue.RunningCount);
-        sb.Append("}}");
-        return sb.ToString();
+        var dto = new HostContextSnapshotDto {
+            Timestamp = snapshot.Timestamp.ToString("O"),
+            HostPid = snapshot.HostProcessId,
+            Routing = snapshot.RoutingTable.ToDictionary(),
+            BuildQueue = new HostContextBuildQueueDto {
+                Pending = snapshot.BuildQueue.PendingCount,
+                Running = snapshot.BuildQueue.RunningCount
+            }
+        };
+        return JsonSerializer.Serialize(dto, HostContextSyncJsonContext.Default.HostContextSnapshotDto);
     }
 
     /// <summary>
-    /// 反序列化上下文快照 — 简单 JSON 解析（容错）。
+    /// 反序列化上下文快照 — DTO + JsonSerializer.Deserialize（AOT 友好，正确处理 JSON 转义）。
     /// </summary>
     internal static HostContextSnapshot? DeserializeSnapshot(string json) {
         if (string.IsNullOrWhiteSpace(json)) return null;
         try {
-            var timestamp = ExtractJsonField(json, "timestamp") ?? DateTimeOffset.UtcNow.ToString("O");
-            var hostPid = ExtractJsonField(json, "hostPid") ?? "unknown";
+            var dto = JsonSerializer.Deserialize(json, HostContextSyncJsonContext.Default.HostContextSnapshotDto);
+            if (dto is null) return null;
 
             return new HostContextSnapshot {
-                Timestamp = DateTimeOffset.TryParse(timestamp, out var ts) ? ts : DateTimeOffset.UtcNow,
-                HostProcessId = hostPid,
+                Timestamp = DateTimeOffset.TryParse(dto.Timestamp, out var ts) ? ts : DateTimeOffset.UtcNow,
+                HostProcessId = dto.HostPid,
+                RoutingTable = dto.Routing ?? new Dictionary<string, string>(),
+                PendingMessages = new Dictionary<string, IReadOnlyList<ReadOnlyMemory<byte>>>(),
+                BuildQueue = new BuildQueueState {
+                    PendingCount = dto.BuildQueue?.Pending ?? 0,
+                    RunningCount = dto.BuildQueue?.Running ?? 0,
+                    PendingTasks = Array.Empty<string>()
+                }
+            };
+        } catch {
+            return new HostContextSnapshot {
+                Timestamp = DateTimeOffset.UtcNow,
+                HostProcessId = "unknown",
                 RoutingTable = new Dictionary<string, string>(),
                 PendingMessages = new Dictionary<string, IReadOnlyList<ReadOnlyMemory<byte>>>(),
                 BuildQueue = new BuildQueueState {
@@ -154,11 +159,12 @@ public sealed class HostContextSyncService : IAsyncDisposable {
                     PendingTasks = Array.Empty<string>()
                 }
             };
-        } catch {
-            return null;
         }
     }
 
+    /// <summary>
+    /// 从 JSON 字符串中提取指定字段的字符串值 — 简单字符串搜索（不处理 JSON 转义，仅用于容错场景）。
+    /// </summary>
     internal static string? ExtractJsonField(string json, string fieldName) {
         var key = "\"" + fieldName + "\":\"";
         var start = json.IndexOf(key, StringComparison.Ordinal);
@@ -187,3 +193,35 @@ public sealed class HostContextSyncService : IAsyncDisposable {
         _cts.Dispose();
     }
 }
+
+/// <summary>主机上下文快照序列化 DTO</summary>
+internal sealed class HostContextSnapshotDto {
+    /// <summary>时间戳(ISO 8601)</summary>
+    [JsonPropertyName("timestamp")]
+    public required string Timestamp { get; init; }
+    /// <summary>主机进程 ID</summary>
+    [JsonPropertyName("hostPid")]
+    public required string HostPid { get; init; }
+    /// <summary>路由表</summary>
+    [JsonPropertyName("routing")]
+    public required Dictionary<string, string> Routing { get; init; }
+    /// <summary>编译队列状态</summary>
+    [JsonPropertyName("buildQueue")]
+    public required HostContextBuildQueueDto BuildQueue { get; init; }
+}
+
+/// <summary>编译队列状态 DTO</summary>
+internal sealed class HostContextBuildQueueDto {
+    /// <summary>排队中任务数</summary>
+    [JsonPropertyName("pending")]
+    public required int Pending { get; init; }
+    /// <summary>执行中任务数</summary>
+    [JsonPropertyName("running")]
+    public required int Running { get; init; }
+}
+
+/// <summary>主机上下文同步 JSON 序列化上下文</summary>
+[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSerializable(typeof(HostContextSnapshotDto))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
+internal sealed partial class HostContextSyncJsonContext : JsonSerializerContext;

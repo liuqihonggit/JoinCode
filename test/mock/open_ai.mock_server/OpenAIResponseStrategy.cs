@@ -127,19 +127,6 @@ public sealed class OpenAIResponseStrategy : ScriptedResponseStrategyBase {
     /// <summary>
     /// 转义 JSON 字符串中的特殊字符
     /// </summary>
-    private static string EscapeJsonString(string s) {
-        if (string.IsNullOrEmpty(s)) return "";
-        var sb = new StringBuilder(s.Length);
-        foreach (var c in s) {
-            switch (c) {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
-            }
-        }
-        return sb.ToString();
-    }
+    private static string EscapeJsonString(string s)
+        => string.IsNullOrEmpty(s) ? "" : JsonEncodedText.Encode(s, JavaScriptEncoder.UnsafeRelaxedJsonEscaping).ToString();
 }

@@ -28,7 +28,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync("/tmp/pr_body.md", "Updated PR body from file");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, _api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         await handler.GhPrEditAsync("42", body_file: "/tmp/pr_body.md", repo: "owner/repo");
 
@@ -109,7 +109,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task PrEdit_Attach_UploadsFileAndUpdatesBody() {
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync("/tmp/screenshot.png", "fake image content");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, _api, null, NullLogger<GitHubToolHandlers>.Instance);
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"node_id":"PR_kw123"}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":12345}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"url":"https://github.com/user-attachments/assets/abc123"}""" });

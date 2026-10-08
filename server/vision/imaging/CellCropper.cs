@@ -1,7 +1,7 @@
 namespace JoinCode.Vision.Imaging;
 
 /// <summary>
-/// 图像格子裁剪器 — 用 ImageSharp 裁剪指定矩形区域，返回 PNG 字节
+/// 图像格子裁剪器 — 用 SkiaSharp 裁剪指定矩形区域，返回 PNG 字节
 /// 用于 quadtree_zoom：聚焦格子 → 裁剪子图 → 重新编码
 /// </summary>
 public static class CellCropper {
@@ -24,12 +24,19 @@ public static class CellCropper {
         if (imageBytes.Length == 0) throw new ArgumentException("[VIS010] 图像字节为空", nameof(imageBytes));
         if (width <= 0 || height <= 0) throw new ArgumentException("[VIS011] 裁剪尺寸必须为正");
 
-        using var image = Image.Load(imageBytes);
-        image.Mutate(ctx => ctx.Crop(new Rectangle(x, y, width, height)));
+        using var original = SKBitmap.Decode(imageBytes);
+        if (original is null) throw new ArgumentException("[VIS012] 无法解码图像", nameof(imageBytes));
 
-        await using var ms = new MemoryStream();
-        await image.SaveAsync(ms, PngFormat.Instance, cancellationToken).ConfigureAwait(false);
-        return ms.ToArray();
+        var srcRect = new SKRectI(x, y, x + width, y + height);
+        using var cropped = new SKBitmap(width, height, original.ColorType, original.AlphaType);
+        using var canvas = new SKCanvas(cropped);
+        canvas.DrawBitmap(original, srcRect, new SKRectI(0, 0, width, height),
+            new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+        canvas.Flush();
+
+        using var image = SKImage.FromBitmap(cropped);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
     }
 
     /// <summary>裁剪并返回 base64 PNG</summary>

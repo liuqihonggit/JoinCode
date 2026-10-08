@@ -152,7 +152,11 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase {
     /// <returns>表示异步操作的任务</returns>
     public async Task UpdateAccessTokenAsync(string newToken, CancellationToken ct = default) {
         AccessToken = newToken;
-        var message = $"{{\"type\":\"update_environment_variables\",\"variables\":{{\"JCC_SESSION_ACCESS_TOKEN\":\"{newToken}\"}}}}\n";
+        var message = JsonSerializer.Serialize(
+            new BridgeUpdateEnvVarsMessageDto {
+                Variables = new Dictionary<string, string> { ["JCC_SESSION_ACCESS_TOKEN"] = newToken }
+            },
+            BridgeJsonContext.Default.BridgeUpdateEnvVarsMessageDto) + "\n";
         await WriteStdinAsync(message, ct).ConfigureAwait(false);
         _logger?.LogDebug("[SubprocessHandle] 令牌已刷新: {SessionId}", SessionId);
     }

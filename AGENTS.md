@@ -30,15 +30,16 @@
 
 1. **无后向兼容** — 项目不需要任何后向兼容，遇到相关字样直接删除，大修大改
 2. **JSON 宽容** — 已实现 JSON 宽容解析（RelaxedJsonSerializer），无需重复实现
-3. **Rust 风格报错** — 已实现 Rust 编译器风格报错（带行列指示+代码片段+箭头），面向参数错误必须用此风格
-4. **BitMask 位掩码工具类** — 已实现 `BitMask` 静态工具类（`lib/abstractions/abs_core/core_utils/core/BitMask.cs`），类似 BitArray/Bitmap，减少 hash 查找、降低内存使用、提高性能。枚举集合优先用 `BitMask.Of()` + `BitMask.Contains()`，替代 `FrozenSet<Enum>`
-5. **字符串处理优先级** — 首选用 `Span<char>`（0-GC）、SIMD、mmap、`AsParallel()` 链式编程风格
-6. **纵深防御按层按名称** — 安全拦截按层（前缀树→结构化解析→专项预处理→五色灯→确认→执行→审计）按名称（每个守卫有明确 `Name` 属性和 `Priority`）组织，统一整齐。新增拦截层必须声明层名和优先级，禁止散落 ad-hoc 检查
-7. **代码风格：链式+有名函数** — 主逻辑用 LINQ 链式语法控制流程，不同部分提取为有名函数，调用处直观可见一切。或用 Actor 模型 / 管道中间件模型组织。禁止内联长 lambda 淹没主流程。**死锁处理用 Actor 邮箱模型**（消息传递替代共享锁），管道用中间件洋葱模型
-8. **错误提示必须有诱导方式** — 安全拒绝/错误提示必须解释：① 为什么拒绝 ② 是什么参数/子命令触发的 ③ 到哪个守卫/层拦截住了 ④ 接下来应该怎么做（正确写法）。**把通过+错误都告诉 AI**，禁止纯拒绝无引导，否则 AI 不知道错误含义会换命令尝试（禁止处发散，比安全策略更危险）。AI 调用时疑惑会导致它换用其他命令绕过，比直接拒绝更危险
-9. **提取重复为 LINQ 链式** — 发现代码重复部分必须提取为公共组件，并用 LINQ 链式语法组织。禁止散落重复逻辑，禁止复制粘贴。**万物皆 node，万物皆插件** — 写代码前先查看当前有多少 node 和插件，复用现有组件，禁止重复造轮子
-10. **硬编码变委托** — 硬编码字典/映射表/集合优先改为委托给统一数据源（如 `DangerousCommandCatalog`、`RetainedDeviceNames`），消除多套不一致的定义。唯一数据源 + 委托消费，禁止双向维护
-11. **目录层次化** — 文件夹按层次化组织：底层可看见上层，上层无法看见下层，平级之间可互相看见。通过构造 `private/` 目录包裹自己私有对象，提取公共部分放在上层文件夹。禁止跨层引用、禁止私有对象暴露到上层。**目录命名必须全小写+下划线，禁止连字符(-)**。**禁止 `core/core/` 嵌套**（对 move 不友好，导致工具调用错误），遇到时用 py 脚本全局检测修复
+3. **JSON DTO 双向转换** — 所有 JSON 处理必须用 DTO + JsonContext 双向转换（`JsonSerializer.Serialize`/`Deserialize`），禁止手写 JSON 字符串拼接（`StringBuilder` 拼 JSON、`$"{{...}}"` 内插、`EscapeJsonString` 手写转义）。GraphQL 用 `BuildGraphQL` 分层（外层 DTO + 内层 `$"..."` 查询字符串）。保留 `JsonDocument.Parse` 仅限动态字段过滤（> ADR: [0133](docs/adr/0133-json-dto-typed-conversion-ban-concat.md)）
+4. **Rust 风格报错** — 已实现 Rust 编译器风格报错（带行列指示+代码片段+箭头），面向参数错误必须用此风格
+5. **BitMask 位掩码工具类** — 已实现 `BitMask` 静态工具类（`lib/abstractions/abs_core/core_utils/core/BitMask.cs`），类似 BitArray/Bitmap，减少 hash 查找、降低内存使用、提高性能。枚举集合优先用 `BitMask.Of()` + `BitMask.Contains()`，替代 `FrozenSet<Enum>`
+6. **字符串处理优先级** — 首选用 `Span<char>`（0-GC）、SIMD、mmap、`AsParallel()` 链式编程风格
+7. **纵深防御按层按名称** — 安全拦截按层（前缀树→结构化解析→专项预处理→五色灯→确认→执行→审计）按名称（每个守卫有明确 `Name` 属性和 `Priority`）组织，统一整齐。新增拦截层必须声明层名和优先级，禁止散落 ad-hoc 检查
+8. **代码风格：链式+有名函数** — 主逻辑用 LINQ 链式语法控制流程，不同部分提取为有名函数，调用处直观可见一切。或用 Actor 模型 / 管道中间件模型组织。禁止内联长 lambda 淹没主流程。**死锁处理用 Actor 邮箱模型**（消息传递替代共享锁），管道用中间件洋葱模型
+9. **错误提示必须有诱导方式** — 安全拒绝/错误提示必须解释：① 为什么拒绝 ② 是什么参数/子命令触发的 ③ 到哪个守卫/层拦截住了 ④ 接下来应该怎么做（正确写法）。**把通过+错误都告诉 AI**，禁止纯拒绝无引导，否则 AI 不知道错误含义会换命令尝试（禁止处发散，比安全策略更危险）。AI 调用时疑惑会导致它换用其他命令绕过，比直接拒绝更危险
+10. **提取重复为 LINQ 链式** — 发现代码重复部分必须提取为公共组件，并用 LINQ 链式语法组织。禁止散落重复逻辑，禁止复制粘贴。**万物皆 node，万物皆插件** — 写代码前先查看当前有多少 node 和插件，复用现有组件，禁止重复造轮子
+11. **硬编码变委托** — 硬编码字典/映射表/集合优先改为委托给统一数据源（如 `DangerousCommandCatalog`、`RetainedDeviceNames`），消除多套不一致的定义。唯一数据源 + 委托消费，禁止双向维护
+12. **目录层次化** — 文件夹按层次化组织：底层可看见上层，上层无法看见下层，平级之间可互相看见。通过构造 `private/` 目录包裹自己私有对象，提取公共部分放在上层文件夹。禁止跨层引用、禁止私有对象暴露到上层。**目录命名必须全小写+下划线，禁止连字符(-)**。**禁止 `core/core/` 嵌套**（对 move 不友好，导致工具调用错误），遇到时用 py 脚本全局检测修复
 
 ***
 
@@ -494,6 +495,7 @@ public void Dispose() {
 | 只读集合 | `FrozenSet<T>` / `FrozenDictionary<K,V>` | `HashSet` + `AsReadOnly()` |
 | 枚举集合 | `BitMask.Of()` + `BitMask.Contains()` | `FrozenSet<Enum>` |
 | 字符串切片 | `Span<char>` / `ReadOnlySpan<char>` | `Substring` 链式分配 |
+| JSON 请求/响应 | DTO + `JsonSerializer.Serialize/Deserialize` | `StringBuilder` 拼 JSON / `$"{{...}}"` 内插（> ADR: [0133](docs/adr/0133-json-dto-typed-conversion-ban-concat.md)） |
 | JSON 解析 | `using var doc = JsonDocument.Parse(...)` | 不 using 的 JsonDocument |
 | 路径拼接 | `Path.Combine` | 字符串 `+` 拼接路径 |
 | 空检查 | `ArgumentNullException.ThrowIfNull` | `if (x == null) throw new...` |
@@ -626,7 +628,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 |------|------|
 | **目标框架** | `net10.0` |
 | **NativeAOT** | 强制，Release 模式自动启用 `PublishAot` + `TrimMode=full` |
-| **AOT 兼容** | 禁止 `dynamic`、反射 emit、直接解析 JSON；必须用 `JsonContext` + 源码生成器；写文件 JSON 统一用 `RelaxedJsonSerializer`（> ADR: [0042](docs/adr/0042-json-relaxed-serializer-unification.md)） |
+| **AOT 兼容** | 禁止 `dynamic`、反射 emit、直接解析 JSON；必须用 `JsonContext` + 源码生成器；写文件 JSON 统一用 `RelaxedJsonSerializer`（> ADR: [0042](docs/adr/0042-json-relaxed-serializer-unification.md)）；网络/内存 JSON 用 DTO 双向转换禁止手写拼接（> ADR: [0133](docs/adr/0133-json-dto-typed-conversion-ban-concat.md)） |
 | **GlobalUsings** | `.cs` 文件内禁止写 `using`，统一放 `GlobalUsings.cs` |
 | **TreatWarningsAsErrors** | 已启用，零警告容忍 |
 | **InvariantGlobalization** | `true`，Release 模式 Exe 项目强制 |

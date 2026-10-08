@@ -47,7 +47,7 @@ public sealed class GitHubRunLogParallelTest {
         var runner = new GitHubRunLogFilterRunner(fake);
 
         var lines = new List<string>();
-        await foreach (var line in runner.GetFailedJobLogsAsync("foo", "bar", "999", default)) {
+        await foreach (var line in runner.GetFailedJobLogsAsync("foo", "bar", "999", false, default)) {
             lines.Add(line);
         }
 

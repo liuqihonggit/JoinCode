@@ -818,4 +818,36 @@ public sealed class GhCommandResolverTests {
         error.Should().BeNull();
         bound!["fields"].Should().Be("name=test,color=ff0000");
     }
+
+    /// <summary>AI 习惯写 key=value(不带 -- 前缀),应宽容解析为命名参数而非"多余的位置参数"</summary>
+    [Fact]
+    public void Bind_BareKeyEqualsValue_ShouldParseAsNamedParam() {
+        var parameters = new List<GhParam> {
+            new("run_id", IsRequired: true, IsBoolean: false),
+            new("expand", IsRequired: false, IsBoolean: false),
+            new("job_id", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "755", "--expand", "steps", "job_id=112965982126" }, parameters, "gh_run_view", out var error);
+
+        error.Should().BeNull();
+        bound!["run_id"].Should().Be("755");
+        bound["expand"].Should().Be("steps");
+        bound["job_id"].Should().Be("112965982126");
+    }
+
+    /// <summary>key=value 连字符参数名应宽容匹配下划线(如 expand-steps → expand_steps)</summary>
+    [Fact]
+    public void Bind_BareKeyEqualsValue_HyphenKey_ShouldMatchUnderscoreParam() {
+        var parameters = new List<GhParam> {
+            new("run_id", IsRequired: true, IsBoolean: false),
+            new("max_lines", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "123", "max-lines=50" }, parameters, "gh_run_view", out var error);
+
+        error.Should().BeNull();
+        bound!["run_id"].Should().Be("123");
+        bound["max_lines"].Should().Be("50");
+    }
 }

@@ -91,19 +91,15 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
         var result = await DirtyReadRetry.ReadWithRetryAsync(
             () => _fs.ReadAllText(path).AsTask(),
             json => {
-                using var doc = System.Text.Json.JsonDocument.Parse(json);
-                var isEnabled = doc.RootElement.TryGetProperty("isEnabled", out var enabledProp) && enabledProp.GetBoolean();
-                DateTime? enabledAt = null;
-                if (doc.RootElement.TryGetProperty("enabledAt", out var atProp) && atProp.ValueKind == System.Text.Json.JsonValueKind.String)
-                    enabledAt = atProp.GetDateTime();
-                return (isEnabled, enabledAt);
+                var dto = JsonSerializer.Deserialize(json, BriefModeJsonContext.Default.BriefModeStateDto);
+                return (IsEnabled: dto?.IsEnabled ?? false, EnabledAt: dto?.EnabledAt);
             },
             path,
             logger: _logger).ConfigureAwait(false);
 
         if (result is { } r) {
-            _isEnabled = r.isEnabled;
-            _enabledAt = r.enabledAt;
+            _isEnabled = r.IsEnabled;
+            _enabledAt = r.EnabledAt;
         }
     }
 
@@ -126,3 +122,24 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
         }
     }
 }
+
+/// <summary>
+/// 简要模式持久化状态 DTO — 对应 brief.json 文件格式
+/// <para>{"isEnabled":true,"enabledAt":"2026-09-09T03:00:00"}</para>
+/// </summary>
+public sealed class BriefModeStateDto {
+    /// <summary>是否已启用简要模式</summary>
+    [JsonPropertyName("isEnabled")]
+    public bool IsEnabled { get; set; }
+
+    /// <summary>启用时间(ISO 8601);未启用时为 null</summary>
+    [JsonPropertyName("enabledAt")]
+    public DateTime? EnabledAt { get; set; }
+}
+
+/// <summary>
+/// 简要模式状态 JSON 序列化上下文 — AOT 安全
+/// </summary>
+[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSerializable(typeof(BriefModeStateDto))]
+internal sealed partial class BriefModeJsonContext : JsonSerializerContext;

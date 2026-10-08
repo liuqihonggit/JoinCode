@@ -785,19 +785,20 @@ public sealed class AnthropicQueryService : QueryServiceBase {
     /// <summary>处理非流式 WebSearchToolResult 块: 提取搜索链接/错误信息写入 textParts,原始 JSON 写入 webSearchResults</summary>
     internal static void ProcessWebSearchToolResult(AnthropicResponseContentBlock block, StringBuilder textParts, List<string> webSearchResults) {
         if (block.Content is not JsonElement contentEl) return;
-        if (contentEl.ValueKind == JsonValueKind.Array) {
-            foreach (var item in contentEl.EnumerateArray()) {
-                var title = item.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null;
-                var url = item.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
-                if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(url)) {
-                    textParts.Append($"[{title}]({url})\n");
+        if (contentEl.ValueKind != JsonValueKind.Array) {
+            var error = contentEl.Deserialize(NativeJsonContext.Default.AnthropicWebSearchErrorDto);
+            textParts.Append($"Web search error: {error?.ErrorCode ?? "unknown"}\n");
+            return;
+        }
+        var linkDtos = contentEl.Deserialize(NativeJsonContext.Default.ListAnthropicWebSearchLinkDto);
+        if (linkDtos is not null) {
+            foreach (var link in linkDtos) {
+                if (!string.IsNullOrEmpty(link.Title) && !string.IsNullOrEmpty(link.Url)) {
+                    textParts.Append($"[{link.Title}]({link.Url})\n");
                 }
             }
-            webSearchResults.Add(contentEl.GetRawText());
-        } else {
-            var errorCode = contentEl.TryGetProperty("error_code", out var ec) ? ec.GetString() : "unknown";
-            textParts.Append($"Web search error: {errorCode}\n");
         }
+        webSearchResults.Add(contentEl.GetRawText());
     }
 
     /// <summary>构建流式 WebSearchToolResult 的 metadata: 包含搜索链接或错误信息</summary>
@@ -811,21 +812,22 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         };
 
         if (contentBlock.Content is not JsonElement contentEl) return searchMetadata;
-        if (contentEl.ValueKind == JsonValueKind.Array) {
-            var links = new StringBuilder();
-            foreach (var item in contentEl.EnumerateArray()) {
-                var title = item.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null;
-                var url = item.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
-                if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(url)) {
-                    links.Append($"[{title}]({url})\n");
-                }
+        if (contentEl.ValueKind == JsonValueKind.Object) {
+            var error = contentEl.Deserialize(NativeJsonContext.Default.AnthropicWebSearchErrorDto);
+            searchMetadata["search_error"] = JsonElementHelper.FromString(error?.ErrorCode ?? "unknown");
+            return searchMetadata;
+        }
+        if (contentEl.ValueKind != JsonValueKind.Array) return searchMetadata;
+        var linkDtos = contentEl.Deserialize(NativeJsonContext.Default.ListAnthropicWebSearchLinkDto);
+        if (linkDtos is null) return searchMetadata;
+        var links = new StringBuilder();
+        foreach (var link in linkDtos) {
+            if (!string.IsNullOrEmpty(link.Title) && !string.IsNullOrEmpty(link.Url)) {
+                links.Append($"[{link.Title}]({link.Url})\n");
             }
-            if (links.Length > 0) {
-                searchMetadata["search_links"] = JsonElementHelper.FromString(links.ToString());
-            }
-        } else if (contentEl.ValueKind == JsonValueKind.Object) {
-            var errorCode = contentEl.TryGetProperty("error_code", out var ec) ? ec.GetString() : "unknown";
-            searchMetadata["search_error"] = JsonElementHelper.FromString(errorCode);
+        }
+        if (links.Length > 0) {
+            searchMetadata["search_links"] = JsonElementHelper.FromString(links.ToString());
         }
         return searchMetadata;
     }
@@ -889,4 +891,22 @@ public sealed class AnthropicQueryService : QueryServiceBase {
     private static TokenUsage BuildTokenUsage(AnthropicUsage usage) {
         return CacheProtocol.MapUsage(usage);
     }
+}
+
+/// <summary>Anthropic WebSearch 搜索结果项 DTO — title/url</summary>
+public sealed class AnthropicWebSearchLinkDto {
+    /// <summary>获取或设置搜索结果标题。</summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    /// <summary>获取或设置搜索结果链接。</summary>
+    [JsonPropertyName("url")]
+    public string? Url { get; set; }
+}
+
+/// <summary>Anthropic WebSearch 错误响应 DTO — error_code</summary>
+public sealed class AnthropicWebSearchErrorDto {
+    /// <summary>获取或设置错误码。</summary>
+    [JsonPropertyName("error_code")]
+    public string? ErrorCode { get; set; }
 }

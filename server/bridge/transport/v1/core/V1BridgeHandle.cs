@@ -66,7 +66,9 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle {
             try {
                 var transport = _coreContext.PollLoop.CurrentTransport;
                 if (transport is not null && !_state.TornDown) {
-                    var keepAliveJson = $"{{\"type\":\"keep_alive\",\"session_id\":\"{SessionId}\"}}";
+                    var keepAliveJson = JsonSerializer.Serialize(
+                        new BridgeKeepAliveMessageDto { SessionId = SessionId },
+                        BridgeJsonContext.Default.BridgeKeepAliveMessageDto);
                     _ = transport.WriteAsync(keepAliveJson, _disposeCts.Token);
                 }
             } catch (Exception ex) { _logger?.LogWarning(ex, "[V1BridgeHandle] Keep-alive 失败"); }
@@ -209,7 +211,9 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle {
         if (transport is null || _state.TornDown) return;
         if (_state.AuthRecoveryInFlight) return;
 
-        var json = $"{{\"type\":\"cancel_control_request\",\"request_id\":\"{requestId}\"}}";
+        var json = JsonSerializer.Serialize(
+            new BridgeCancelControlRequestMessageDto { RequestId = requestId },
+            BridgeJsonContext.Default.BridgeCancelControlRequestMessageDto);
         _ = transport.WriteAsync(json, _disposeCts.Token);
     }
 
@@ -218,7 +222,9 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle {
         var transport = _coreContext.PollLoop.CurrentTransport;
         if (transport is null || _state.TornDown) return;
 
-        var json = $"{{\"type\":\"result\",\"session_id\":\"{SessionId}\"}}";
+        var json = JsonSerializer.Serialize(
+            new BridgeSimpleResultMessageDto { SessionId = SessionId },
+            BridgeJsonContext.Default.BridgeSimpleResultMessageDto);
         _ = transport.WriteAsync(json, _disposeCts.Token);
     }
 

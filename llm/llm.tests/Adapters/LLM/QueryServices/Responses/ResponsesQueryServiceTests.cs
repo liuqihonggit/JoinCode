@@ -775,171 +775,101 @@ public class ResponsesQueryServiceTests {
 
     #endregion
 
-    #region EscapeJsonString — 5种转义字符
-
-    [Theory]
-    [InlineData("", "")]
-    [InlineData("plain", "plain")]
-    [InlineData("\"", "\\\"")]
-    [InlineData("\\", "\\\\")]
-    [InlineData("\n", "\\n")]
-    [InlineData("\r", "\\r")]
-    [InlineData("\t", "\\t")]
-    public void EscapeJsonString_SpecialChars_EscapedCorrectly(string input, string expected) {
-        ResponsesQueryService.EscapeJsonString(input).Should().Be(expected);
-    }
+    #region BuildFunctionCallOutput — function_call_output 构建
 
     [Fact]
-    public void EscapeJsonString_MixedChars_AllEscaped() {
-        var input = "a\"b\\c\nd\re\tf";
-
-        var result = ResponsesQueryService.EscapeJsonString(input);
-
-        result.Should().Be("a\\\"b\\\\c\\nd\\re\\tf");
-    }
-
-    [Fact]
-    public void EscapeJsonString_Null_ReturnsEmpty() {
-        ResponsesQueryService.EscapeJsonString(null!).Should().Be("");
-    }
-
-    #endregion
-
-    #region AppendFunctionCallOutput — function_call_output 构建
-
-    [Fact]
-    public void AppendFunctionCallOutput_WithCallId_EmitsFunctionCallOutputItem() {
-        var sb = new StringBuilder();
-        var first = true;
+    public void BuildFunctionCallOutput_WithCallId_EmitsFunctionCallOutputItem() {
         var msg = new ApiMessage(MessageRole.Tool, "result body",
             new Dictionary<string, JsonElement> {
                 [MessageMetadataKeyEnumConstants.ToolCallId] = JsonElementHelper.FromString("call-1")
             });
 
-        ResponsesQueryService.AppendFunctionCallOutput(sb, msg, ref first);
+        var dto = ResponsesQueryService.BuildFunctionCallOutput(msg);
+        var json = JsonSerializer.Serialize(dto, NativeJsonContext.Default.ResponsesInputItemDto);
 
-        var json = sb.ToString();
         json.Should().Contain("\"type\":\"function_call_output\"");
         json.Should().Contain("\"call_id\":\"call-1\"");
         json.Should().Contain("\"output\":\"result body\"");
-        first.Should().BeFalse();
     }
 
     [Fact]
-    public void AppendFunctionCallOutput_NoMetadata_CallIdIsEmpty() {
-        var sb = new StringBuilder();
-        var first = true;
+    public void BuildFunctionCallOutput_NoMetadata_CallIdIsEmpty() {
         var msg = new ApiMessage(MessageRole.Tool, "x");
 
-        ResponsesQueryService.AppendFunctionCallOutput(sb, msg, ref first);
+        var dto = ResponsesQueryService.BuildFunctionCallOutput(msg);
+        var json = JsonSerializer.Serialize(dto, NativeJsonContext.Default.ResponsesInputItemDto);
 
-        sb.ToString().Should().Contain("\"call_id\":\"\"");
-    }
-
-    [Fact]
-    public void AppendFunctionCallOutput_SecondItem_PrependsComma() {
-        var sb = new StringBuilder("[");
-        var first = false;
-        var msg = new ApiMessage(MessageRole.Tool, "x",
-            new Dictionary<string, JsonElement> {
-                [MessageMetadataKeyEnumConstants.ToolCallId] = JsonElementHelper.FromString("c1")
-            });
-
-        ResponsesQueryService.AppendFunctionCallOutput(sb, msg, ref first);
-
-        sb.ToString().Should().Contain(",{\"type\":\"function_call_output\"");
+        json.Should().Contain("\"call_id\":\"\"");
     }
 
     #endregion
 
-    #region TryAppendAssistantMetadata — reasoning + tool_calls 分支
+    #region TryBuildAssistantMetadata — reasoning + tool_calls 分支
 
     [Fact]
-    public void TryAppendAssistantMetadata_NonAssistant_ReturnsFalse() {
-        var sb = new StringBuilder();
-        var first = true;
+    public void TryBuildAssistantMetadata_NonAssistant_ReturnsNull() {
         var msg = new ApiMessage(MessageRole.User, "hi");
-
-        var result = ResponsesQueryService.TryAppendAssistantMetadata(sb, ref first, msg);
-
-        result.Should().BeFalse();
-        sb.ToString().Should().BeEmpty();
+        ResponsesQueryService.TryBuildAssistantMetadata(msg).Should().BeNull();
     }
 
     [Fact]
-    public void TryAppendAssistantMetadata_AssistantWithoutMetadata_ReturnsFalse() {
-        var sb = new StringBuilder();
-        var first = true;
+    public void TryBuildAssistantMetadata_AssistantWithoutMetadata_ReturnsNull() {
         var msg = new ApiMessage(MessageRole.Assistant, "hi");
-
-        var result = ResponsesQueryService.TryAppendAssistantMetadata(sb, ref first, msg);
-
-        result.Should().BeFalse();
+        ResponsesQueryService.TryBuildAssistantMetadata(msg).Should().BeNull();
     }
 
     [Fact]
-    public void TryAppendAssistantMetadata_WithReasoning_EmitsReasoningItem() {
-        var sb = new StringBuilder();
-        var first = true;
+    public void TryBuildAssistantMetadata_WithReasoning_EmitsReasoningItem() {
         var msg = new ApiMessage(MessageRole.Assistant, null,
             new Dictionary<string, JsonElement> {
                 [MessageMetadataKeyEnumConstants.ReasoningText] = JsonElementHelper.FromString("think hard")
             });
 
-        ResponsesQueryService.TryAppendAssistantMetadata(sb, ref first, msg);
-
-        var json = sb.ToString();
+        var items = ResponsesQueryService.TryBuildAssistantMetadata(msg);
+        items.Should().NotBeNull();
+        var json = JsonSerializer.Serialize(items, NativeJsonContext.Default.ListResponsesInputItemDto);
         json.Should().Contain("\"type\":\"reasoning\"");
         json.Should().Contain("\"text\":\"think hard\"");
     }
 
     [Fact]
-    public void TryAppendAssistantMetadata_WithToolCallsArray_EmitsFunctionCallsAndReturnsTrue() {
-        var sb = new StringBuilder();
-        var first = true;
+    public void TryBuildAssistantMetadata_WithToolCallsArray_EmitsFunctionCalls() {
         var toolCallsJson = "[{\"Id\":\"call-1\",\"Name\":\"grep\",\"Arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}]";
         var msg = new ApiMessage(MessageRole.Assistant, null,
             new Dictionary<string, JsonElement> {
                 [MessageMetadataKeyEnumConstants.ToolCalls] = JsonElementHelper.FromJson(toolCallsJson)
             });
 
-        var result = ResponsesQueryService.TryAppendAssistantMetadata(sb, ref first, msg);
-
-        result.Should().BeTrue();
-        var json = sb.ToString();
+        var items = ResponsesQueryService.TryBuildAssistantMetadata(msg);
+        items.Should().NotBeNull();
+        var json = JsonSerializer.Serialize(items, NativeJsonContext.Default.ListResponsesInputItemDto);
         json.Should().Contain("\"type\":\"function_call\"");
         json.Should().Contain("\"call_id\":\"call-1\"");
         json.Should().Contain("\"name\":\"grep\"");
     }
 
     [Fact]
-    public void TryAppendAssistantMetadata_WithAllToolCallsArray_EmitsFunctionCalls() {
-        var sb = new StringBuilder();
-        var first = true;
+    public void TryBuildAssistantMetadata_WithAllToolCallsArray_EmitsFunctionCalls() {
         var toolCallsJson = "[{\"Id\":\"c2\",\"Name\":\"ls\",\"Arguments\":\"{}\"}]";
         var msg = new ApiMessage(MessageRole.Assistant, null,
             new Dictionary<string, JsonElement> {
                 ["AllToolCalls"] = JsonElementHelper.FromJson(toolCallsJson)
             });
 
-        var result = ResponsesQueryService.TryAppendAssistantMetadata(sb, ref first, msg);
-
-        result.Should().BeTrue();
-        sb.ToString().Should().Contain("\"name\":\"ls\"");
+        var items = ResponsesQueryService.TryBuildAssistantMetadata(msg);
+        items.Should().NotBeNull();
+        var json = JsonSerializer.Serialize(items, NativeJsonContext.Default.ListResponsesInputItemDto);
+        json.Should().Contain("\"name\":\"ls\"");
     }
 
     [Fact]
-    public void TryAppendAssistantMetadata_ToolCallsNotArray_ReturnsFalse() {
-        var sb = new StringBuilder();
-        var first = true;
+    public void TryBuildAssistantMetadata_ToolCallsNotArray_ReturnsNull() {
         var msg = new ApiMessage(MessageRole.Assistant, null,
             new Dictionary<string, JsonElement> {
                 [MessageMetadataKeyEnumConstants.ToolCalls] = JsonElementHelper.FromString("not-array")
             });
 
-        var result = ResponsesQueryService.TryAppendAssistantMetadata(sb, ref first, msg);
-
-        result.Should().BeFalse();
+        ResponsesQueryService.TryBuildAssistantMetadata(msg).Should().BeNull();
     }
 
     #endregion

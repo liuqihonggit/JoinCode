@@ -158,37 +158,10 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle {
         if (_state.AuthRecoveryInFlight) return;
         // 对齐 TS 端: 取消请求后 reportState('running')
         _ = _transport.ReportStateAsync(BridgeSessionActivity.Running, _disposeCts.Token);
-        // 使用 StringBuilder 避免 JSON 注入
-        var json = new System.Text.StringBuilder(128)
-            .Append("{\"type\":\"control_cancel_request\",\"request_id\":\"")
-            .Append(EscapeJsonString(requestId.AsSpan()))
-            .Append("\",\"session_id\":\"")
-            .Append(EscapeJsonString(SessionId.AsSpan()))
-            .Append("\"}")
-            .ToString();
+        var json = JsonSerializer.Serialize(
+            new BridgeV2ControlCancelRequestDto { RequestId = requestId, SessionId = SessionId },
+            BridgeJsonContext.Default.BridgeV2ControlCancelRequestDto);
         _ = _transport.WriteAsync(json, _disposeCts.Token);
-    }
-
-    /// <summary>转义 JSON 字符串 — 防止注入</summary>
-    private static string EscapeJsonString(ReadOnlySpan<char> value) {
-        var needsEscape = false;
-        foreach (var c in value) {
-            if (c is '"' or '\\' or '\n' or '\r' or '\t') { needsEscape = true; break; }
-        }
-        if (!needsEscape) return value.ToString();
-
-        var sb = new System.Text.StringBuilder(value.Length + 16);
-        foreach (var c in value) {
-            switch (c) {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
-            }
-        }
-        return sb.ToString();
     }
 
     /// <summary>发送结果消息 — 对齐 TS 端 sendResult</summary>

@@ -158,8 +158,12 @@ public sealed partial class WebService : ServiceEntity, IWebService {
                     continue;
 
                 foreach (var item in block.EnumerateArray()) {
-                    var title = item.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null;
-                    var url = item.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
+                    if (item.ValueKind != JsonValueKind.Object)
+                        continue;
+
+                    var dto = JsonSerializer.Deserialize(item, WebSearchSchemaJsonContext.Default.SearchResultItemDto);
+                    var title = dto?.Title;
+                    var url = dto?.Url;
 
                     if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(url))
                         continue;
@@ -265,8 +269,22 @@ public sealed record WebSearchToolSchemaDto {
 }
 
 /// <summary>
+/// 搜索结果项 DTO — 解析 web_search_results 中的单个结果 {title, url}
+/// </summary>
+public sealed record SearchResultItemDto {
+    /// <summary>结果标题。</summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+
+    /// <summary>结果 URL。</summary>
+    [JsonPropertyName("url")]
+    public string? Url { get; init; }
+}
+
+/// <summary>
 /// Web 搜索 schema 序列化上下文 — NativeAOT 兼容
 /// </summary>
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(WebSearchToolSchemaDto))]
+[JsonSerializable(typeof(SearchResultItemDto))]
 internal sealed partial class WebSearchSchemaJsonContext : JsonSerializerContext;

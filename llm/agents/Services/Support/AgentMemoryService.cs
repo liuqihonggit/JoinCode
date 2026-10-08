@@ -379,7 +379,9 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
             EnsureDirectoryExists(memoryDir + Path.DirectorySeparatorChar);
 
             var syncedPath = Path.Combine(memoryDir, SyncedJsonFile);
-            var json = $"{{\"syncedFrom\":\"{snapshotTimestamp}\"}}";
+            var json = RelaxedJsonSerializer.Serialize(
+                new AgentMemorySyncedMetaJson { SyncedFrom = snapshotTimestamp },
+                AgentsJsonContext.Default);
             await _fs.WriteAllTextAsync(syncedPath, json, ct).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger.LogDebug(ex, "保存同步标记失败: {AgentType}", agentType);

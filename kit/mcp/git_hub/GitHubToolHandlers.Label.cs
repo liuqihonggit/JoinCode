@@ -32,16 +32,13 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeLabelList(string json, string? search) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var labels = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListLabelResponse);
+            if (labels is null) return json;
             var sb = new StringBuilder(256);
             sb.AppendLine("名称\t颜色\t描述");
-            foreach (var label in doc.RootElement.EnumerateArray()) {
-                var name = label.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-                var color = label.TryGetProperty("color", out var c) ? c.GetString() ?? "" : "";
-                var desc = label.TryGetProperty(GitHubJsonFields.Description, out var d) ? d.GetString() ?? "" : "";
-                if (!string.IsNullOrWhiteSpace(search) && !name.Contains(search, StringComparison.OrdinalIgnoreCase) && !desc.Contains(search, StringComparison.OrdinalIgnoreCase)) continue;
-                sb.AppendLine($"{name}\t#{color}\t{desc}");
+            foreach (var label in labels) {
+                if (!string.IsNullOrWhiteSpace(search) && !label.Name.Contains(search, StringComparison.OrdinalIgnoreCase) && !(label.Description ?? "").Contains(search, StringComparison.OrdinalIgnoreCase)) continue;
+                sb.AppendLine($"{label.Name}\t#{label.Color}\t{label.Description}");
             }
             return sb.ToString();
         } catch { return json; }

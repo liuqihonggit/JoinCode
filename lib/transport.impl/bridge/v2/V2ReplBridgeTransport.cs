@@ -181,7 +181,9 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
         if (_isClosed != 0 || _isInitialized == 0) return;
 
         try {
-            var payload = $"{{\"state\":\"{state.ToValue()}\"}}";
+            var payload = JsonSerializer.Serialize(
+                new BridgeReportStatePayload { State = state.ToValue() },
+                TransportBridgeJsonContext.Default.BridgeReportStatePayload);
             using var content = new StringContent(payload, Encoding.UTF8, "application/json");
             var response = await _writeClient.PutAsync($"{_options.ApiBaseUrl}/worker", content, ct).ConfigureAwait(false);
 
@@ -223,7 +225,9 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
     public async Task ReportDeliveryAsync(string eventId, string status, CancellationToken ct = default) {
         if (_isClosed != 0 || _isInitialized == 0) return;
 
-        var payload = $"{{\"event_id\":\"{eventId}\",\"status\":\"{status}\"}}";
+        var payload = JsonSerializer.Serialize(
+            new BridgeReportDeliveryPayload { EventId = eventId, Status = status },
+            TransportBridgeJsonContext.Default.BridgeReportDeliveryPayload);
         await _deliveryUploader.EnqueueAsync(payload, ct).ConfigureAwait(false);
     }
 
@@ -269,7 +273,9 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
     /// POST /worker/register → 获取 epoch
     /// </summary>
     private async Task<int> RegisterWorkerAsync() {
-        var payload = $"{{\"session_id\":\"{_options.SessionId}\"}}";
+        var payload = JsonSerializer.Serialize(
+            new BridgeRegisterWorkerPayload { SessionId = _options.SessionId },
+            TransportBridgeJsonContext.Default.BridgeRegisterWorkerPayload);
         using var content = new StringContent(payload, Encoding.UTF8, "application/json");
         var response = await _writeClient.PostAsync($"{_options.ApiBaseUrl}/worker/register", content).ConfigureAwait(false);
 
@@ -377,13 +383,10 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
     private async Task ReportDeliveryFromEventAsync(string data) {
         try {
             // 尝试从 JSON 中提取 event_id
-            using var jsonDoc = JsonDocument.Parse(data);
-            if (jsonDoc.RootElement.TryGetProperty("event_id", out var eventIdProp)) {
-                var eventId = eventIdProp.GetString();
-                if (eventId is not null) {
-                    await ReportDeliveryAsync(eventId, "received").ConfigureAwait(false);
-                    await ReportDeliveryAsync(eventId, "processed").ConfigureAwait(false);
-                }
+            var evt = JsonSerializer.Deserialize(data, TransportBridgeJsonContext.Default.SseEventDataDto);
+            if (evt?.EventId is { } eventId) {
+                await ReportDeliveryAsync(eventId, "received").ConfigureAwait(false);
+                await ReportDeliveryAsync(eventId, "processed").ConfigureAwait(false);
             }
         } catch (Exception ex) {
             // 非致命: 解析失败不影响主流程

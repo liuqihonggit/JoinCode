@@ -168,9 +168,8 @@ public sealed class SubAgentEventStreamE2ETests {
         sb.Append("    }");
     }
 
-    private static string EscapeJsonString(string s) => s
-        .Replace("\\", "\\\\", StringComparison.Ordinal)
-        .Replace("\"", "\\\"", StringComparison.Ordinal);
+    private static string EscapeJsonString(string s)
+        => string.IsNullOrEmpty(s) ? "" : JsonEncodedText.Encode(s, JavaScriptEncoder.UnsafeRelaxedJsonEscaping).ToString();
 
     private Process StartMockServer(JoinCode.Abstractions.Interfaces.IFileSystem fs, string configPath,
         ITestOutputHelper output, out Task<int> readyTask) {

@@ -18,7 +18,7 @@ public partial class GitHubToolHandlers {
     private readonly ILogger<GitHubToolHandlers>? _logger;
     private readonly GitHubRunLogFetcher _logFetcher;
     private readonly GitHubRunLogFilterRunner? _logFilterRunner;
-    private readonly GitHubRunLogCache? _logCacheService;
+    private readonly IKvStore? _kvStore;
 
     /// <summary>
     /// 日志过滤运行器 — 仅在 _apiClient 配置后可用(ExecuteGhAsync 已守卫)
@@ -27,42 +27,42 @@ public partial class GitHubToolHandlers {
         _logFilterRunner ?? throw new InvalidOperationException("日志过滤运行器未初始化(API 客户端未配置)");
 
     /// <summary>
-    /// 日志缓存服务 — 仅在 _apiClient 配置后可用(ExecuteGhAsync 已守卫)
-    /// </summary>
-    private GitHubRunLogCache LogCacheService =>
-        _logCacheService ?? throw new InvalidOperationException("日志缓存服务未初始化(API 客户端未配置)");
-
-    /// <summary>
-    /// 统一持久化管道 — 异步串行写缓存文件到 .jcc/gh_cache/,不阻塞调用方
-    /// <para>复用 ADR 0068 统一管道(IPersistencePipeline),替代专用 GitHubCacheWriteActor</para>
-    /// </summary>
-    private readonly IPersistencePipeline _pipeline;
-
-    /// <summary>
     /// 创建 GitHubToolHandlers 实例
     /// </summary>
     /// <param name="downloader">文件下载器（Release asset 下载用）</param>
     /// <param name="fs">文件系统抽象</param>
-    /// <param name="pipeline">统一持久化管道（异步写缓存文件）</param>
     /// <param name="apiClient">GitHub REST API 客户端（可选，未注入时 API 工具返回未配置错误）</param>
     /// <param name="git">git 命令执行器（可选，未注入时 clone/checkout 等本地 git 工具返回错误）</param>
     /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="kvStore">KV 缓存存储（可选，LSM-Tree PithosKvStore，用于日志缓存避免重复下载）</param>
     public GitHubToolHandlers(
         IDownloader downloader,
         IFileSystem fs,
-        IPersistencePipeline pipeline,
         IGitHubApiClient? apiClient = null,
         IGitCommandRunner? git = null,
-        ILogger<GitHubToolHandlers>? logger = null) {
+        ILogger<GitHubToolHandlers>? logger = null,
+        IKvStore? kvStore = null) {
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
-        _apiClient = apiClient;
+        _apiClient = ComposeGhPipeline(apiClient, kvStore, logger);
         _git = git;
         _logger = logger;
         _logFetcher = new GitHubRunLogFetcher();
-        _logFilterRunner = apiClient is not null ? new GitHubRunLogFilterRunner(apiClient) : null;
-        _logCacheService = apiClient is not null ? new GitHubRunLogCache(apiClient, fs, pipeline, logger) : null;
+        _logFilterRunner = _apiClient is not null ? new GitHubRunLogFilterRunner(_apiClient, kvStore) : null;
+        _kvStore = kvStore;
+    }
+
+    /// <summary>
+    /// 组装 gh API 客户端装饰器管道 — GitHubApiClient → CacheGitHubApiClient → TimingGitHubApiClient
+    /// <para>可插拔: kvStore=null 剥离缓存层;apiClient=null 返回 null</para>
+    /// <para>所有 handler(无论是否通过 ExecuteGhAsync)统一通过此管道,自动获得缓存+计时</para>
+    /// </summary>
+    private static IGitHubApiClient? ComposeGhPipeline(IGitHubApiClient? inner, IKvStore? kvStore, ILogger? logger) {
+        if (inner is null) return null;
+        var pipeline = inner;
+        if (kvStore is not null) pipeline = new CacheGitHubApiClient(pipeline, kvStore, logger);
+        pipeline = new TimingGitHubApiClient(pipeline);
+        return pipeline;
     }
 
     // === 共用辅助方法 ===
@@ -196,11 +196,10 @@ public partial class GitHubToolHandlers {
         var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/milestones", query: new Dictionary<string, string> { ["state"] = "all", ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
         if (!result.Success) return null;
         try {
-            using var doc = JsonDocument.Parse(result.Body);
-            foreach (var m in doc.RootElement.EnumerateArray()) {
-                if (m.TryGetProperty(GitHubJsonFields.Title, out var t) && t.GetString() == milestoneName) {
-                    return m.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : null;
-                }
+            var milestones = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.ListMilestoneItemResponse);
+            if (milestones is null) return null;
+            foreach (var m in milestones) {
+                if (m.Title == milestoneName) return m.Number;
             }
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 milestones 响应失败"); }
         return null;
@@ -210,6 +209,7 @@ public partial class GitHubToolHandlers {
     /// 守卫编排模板 — client 检查 + owner/repo 解析,失败短路返回错误,成功执行 apiCall(client, owner, repo)
     /// <para>消除 21 处重复的 client 检查 + ResolveOwnerRepoAsync 样板,主方法只写 API 调用核心逻辑</para>
     /// <para>client 作为参数传入 apiCall,调用方直接用 client 而非 _apiClient!,消除空抑制</para>
+    /// <para>计时由 GhSubCommand 入口统一创建 tracker,此处只编排 client 检查 + owner/repo 解析 + apiCall</para>
     /// </summary>
     private async Task<ToolResult> ExecuteGhAsync(
         string? repo, string? workingDir, CancellationToken ct,
@@ -218,30 +218,23 @@ public partial class GitHubToolHandlers {
         var resolved = await ResolveOwnerRepoAsync(repo, workingDir, ct).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
         var (owner, repoName) = resolved.Value;
+
+        // tracker 由 GhSubCommand 入口统一创建,timing 由 GhSubCommand 统一输出
         return await apiCall(_apiClient, owner, repoName).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// verbosity 三档缓存模板 — verbosity=2 优先读缓存,未命中或 verbosity=0/1 调 API,成功后写缓存,按 verbosity 决定输出格式
-    /// <para>消除 GhPrView/GhIssueView/GhRepoView 三处相同的缓存读写样板</para>
-    /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON(从缓存读)</para>
+    /// verbosity 三档输出模板 — 调 API 取数据,按 verbosity 决定输出格式
+    /// <para>缓存由 CacheGitHubApiClient 装饰器统一处理,此处只管输出格式</para>
+    /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON</para>
     /// </summary>
     private async Task<ToolResult> GetOrFetchWithCacheAsync(
-        IGitHubApiClient client, string cacheKey, string apiPath, int? verbosity,
+        IGitHubApiClient client, string apiPath, int? verbosity,
         string? json_fields, Func<string, string> summarize, string? compactFields,
         CancellationToken ct) {
-        if (!string.IsNullOrEmpty(json_fields)) {
-            var result0 = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
-            if (!result0.Success) return Fail(result0.Error);
-            return Ok(FilterJsonFields(result0.Body, json_fields));
-        }
-        if (verbosity == 2) {
-            var cached = TryGetGhCache(cacheKey);
-            if (cached is not null) return Ok(cached);
-        }
         var result = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        SaveGhCache(cacheKey, result.Body);
+        if (!string.IsNullOrEmpty(json_fields)) return Ok(FilterJsonFields(result.Body, json_fields));
         return Ok(verbosity switch {
             2 => result.Body,
             1 => FilterJsonFields(result.Body, compactFields ?? "id,number,title,state,name"),
@@ -301,18 +294,25 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 查找对象中的列表数组属性 — 优先 items,其次 workflows/workflow_runs/secrets/variables/releases/labels/runs 等已知包装属性
     /// </summary>
-    private static readonly string[] ArrayPropertyCandidates = ["items", "workflows", "workflow_runs", "secrets", "variables", "releases", "labels", "runs", "issues", "pulls"];
+    private static readonly string[] ArrayPropertyCandidates = ["items", "workflows", "workflow_runs", "secrets", "variables", "releases", "labels", "runs", "issues", "pulls", "jobs", "check_runs"];
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string? FindArrayProperty(JsonElement element) {
         foreach (var name in ArrayPropertyCandidates) {
-            if (element.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Array) return name;
+            if (element.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Array) {
+                // list API 包装: {"total_count": N, "items": [...]} — 属性少(<=3)
+                // detail API: {"url":..., "id":..., "number":..., "labels":[...], ...} — 属性多(>3)
+                var propCount = 0;
+                foreach (var _ in element.EnumerateObject()) propCount++;
+                if (propCount <= 3) return name;
+            }
         }
         return null;
     }
 
     /// <summary>
     /// 写入过滤后的 JSON 对象 — 只包含指定字段
+    /// <para>支持 gh CLI 平铺字段别名（如 headRefName→head.ref），与系统 gh --json 行为对齐</para>
     /// </summary>
     private static void WriteFilteredObject(Utf8JsonWriter writer, JsonElement element, string[] fields) {
         writer.WriteStartObject();
@@ -320,9 +320,30 @@ public partial class GitHubToolHandlers {
             if (element.TryGetProperty(field, out var value)) {
                 writer.WritePropertyName(field);
                 value.WriteTo(writer);
+                continue;
+            }
+            if (TryResolveFlattenedAlias(element, field, out var flattened)) {
+                writer.WritePropertyName(field);
+                flattened.WriteTo(writer);
             }
         }
         writer.WriteEndObject();
+    }
+
+    /// <summary>
+    /// gh CLI 平铺字段别名解析 — 系统 gh CLI 用 --json headRefName 时从嵌套 head.ref 提取并平铺输出
+    /// <para>映射: headRefName→head.ref, headRefOid→head.sha, baseRefName→base.ref, baseRefOid→base.sha</para>
+    /// <para>宽容: 字段名忽略大小写，匹配 gh CLI 习惯</para>
+    /// </summary>
+    private static bool TryResolveFlattenedAlias(JsonElement element, string field, out JsonElement value) {
+        value = default;
+        string parent, child;
+        if (field.Equals("headRefName", StringComparison.OrdinalIgnoreCase)) { parent = "head"; child = "ref"; }
+        else if (field.Equals("headRefOid", StringComparison.OrdinalIgnoreCase)) { parent = "head"; child = "sha"; }
+        else if (field.Equals("baseRefName", StringComparison.OrdinalIgnoreCase)) { parent = "base"; child = "ref"; }
+        else if (field.Equals("baseRefOid", StringComparison.OrdinalIgnoreCase)) { parent = "base"; child = "sha"; }
+        else return false;
+        return element.TryGetProperty(parent, out var p) && p.TryGetProperty(child, out value);
     }
 
     /// <summary>
@@ -330,29 +351,16 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizePr(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
+            var pr = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.PrDetailResponse);
+            if (pr is null) return json;
             var sb = new StringBuilder(512);
-            var number = root.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
-            var title = root.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
-            var state = root.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
-            var draft = root.TryGetProperty(GitHubJsonFields.Draft, out var d) && d.GetBoolean();
-            var mergeable = root.TryGetProperty("mergeable", out var m) ? (m.ValueKind == JsonValueKind.Null ? "null" : m.GetBoolean().ToString()) : "unknown";
-            var mergeableState = root.TryGetProperty("mergeable_state", out var ms) ? (ms.ValueKind == JsonValueKind.Null ? "null" : ms.GetString() ?? "") : "";
-            var author = root.TryGetProperty(GitHubJsonFields.User, out var u) && u.TryGetProperty(GitHubJsonFields.Login, out var login) ? login.GetString() ?? "" : "";
-            var headRef = root.TryGetProperty(GitHubJsonFields.Head, out var h) && h.TryGetProperty(GitHubJsonFields.Ref, out var hr) ? hr.GetString() ?? "" : "";
-            var baseRef = root.TryGetProperty("base", out var b) && b.TryGetProperty(GitHubJsonFields.Ref, out var br) ? br.GetString() ?? "" : "";
-            var additions = root.TryGetProperty("additions", out var add) ? add.GetInt32() : 0;
-            var deletions = root.TryGetProperty("deletions", out var del) ? del.GetInt32() : 0;
-            var changedFiles = root.TryGetProperty("changed_files", out var cf) ? cf.GetInt32() : 0;
-            var url = root.TryGetProperty(GitHubJsonFields.HtmlUrl, out var hu) ? hu.GetString() ?? "" : "";
-
-            sb.AppendLine($"PR #{number}: {title}");
-            sb.AppendLine($"状态: {state}{(draft ? " (draft)" : "")} (mergeable: {mergeable}, mergeable_state: {mergeableState})");
-            sb.AppendLine($"作者: {author}");
-            sb.AppendLine($"分支: {headRef} → {baseRef}");
-            sb.AppendLine($"变更: +{additions} -{deletions} ({changedFiles} files)");
-            sb.Append($"URL: {url}");
+            var mergeable = pr.Mergeable?.ToString() ?? "unknown";
+            sb.AppendLine($"PR #{pr.Number}: {pr.Title}");
+            sb.AppendLine($"状态: {pr.State}{(pr.Draft ? " (draft)" : "")} (mergeable: {mergeable}, mergeable_state: {pr.MergeableState ?? ""})");
+            sb.AppendLine($"作者: {pr.User?.Login ?? ""}");
+            sb.AppendLine($"分支: {pr.Head?.Ref ?? ""} → {pr.Base?.Ref ?? ""}");
+            sb.AppendLine($"变更: +{pr.Additions} -{pr.Deletions} ({pr.ChangedFiles} files)");
+            sb.Append($"URL: {pr.HtmlUrl ?? ""}");
             return sb.ToString();
         } catch {
             return json;
@@ -364,32 +372,16 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeIssue(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
+            var issue = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.IssueDetailResponse);
+            if (issue is null) return json;
             var sb = new StringBuilder(512);
-            var number = root.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
-            var title = root.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
-            var state = root.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
-            var author = root.TryGetProperty(GitHubJsonFields.User, out var u) && u.TryGetProperty(GitHubJsonFields.Login, out var login) ? login.GetString() ?? "" : "";
-            var url = root.TryGetProperty(GitHubJsonFields.HtmlUrl, out var hu) ? hu.GetString() ?? "" : "";
-            var createdAt = root.TryGetProperty(GitHubJsonFields.CreatedAt, out var ca) ? ca.GetString() ?? "" : "";
-            var labels = "";
-            if (root.TryGetProperty(GitHubJsonFields.Labels, out var labelsEl) && labelsEl.ValueKind == JsonValueKind.Array) {
-                var labelSb = new StringBuilder();
-                foreach (var l in labelsEl.EnumerateArray()) {
-                    if (!l.TryGetProperty(GitHubJsonFields.Name, out var ln)) continue;
-                    if (labelSb.Length > 0) labelSb.Append(", ");
-                    labelSb.Append(ln.GetString() ?? "");
-                }
-                labels = labelSb.ToString();
-            }
-
-            sb.AppendLine($"Issue #{number}: {title}");
-            sb.AppendLine($"状态: {state}");
-            sb.AppendLine($"作者: {author}");
+            var labels = string.Join(", ", issue.Labels.Select(l => l.Name));
+            sb.AppendLine($"Issue #{issue.Number}: {issue.Title}");
+            sb.AppendLine($"状态: {issue.State}");
+            sb.AppendLine($"作者: {issue.User?.Login ?? ""}");
             if (!string.IsNullOrEmpty(labels)) sb.AppendLine($"标签: {labels}");
-            sb.AppendLine($"创建: {createdAt}");
-            sb.Append($"URL: {url}");
+            sb.AppendLine($"创建: {issue.CreatedAt ?? ""}");
+            sb.Append($"URL: {issue.HtmlUrl ?? ""}");
             return sb.ToString();
         } catch {
             return json;
@@ -401,22 +393,14 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeRepo(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
+            var repo = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.RepoDetailResponse);
+            if (repo is null) return json;
             var sb = new StringBuilder(512);
-            var name = root.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-            var fullName = root.TryGetProperty("full_name", out var fn) ? fn.GetString() ?? "" : "";
-            var isPrivate = root.TryGetProperty(GitHubJsonFields.Private, out var p) && p.GetBoolean();
-            var defaultBranch = root.TryGetProperty(GitHubJsonFields.DefaultBranch, out var db) ? db.GetString() ?? "" : "";
-            var stars = root.TryGetProperty(GitHubJsonFields.StargazersCount, out var sg) ? sg.GetInt32() : 0;
-            var forks = root.TryGetProperty(GitHubJsonFields.ForksCount, out var fk) ? fk.GetInt32() : 0;
-            var url = root.TryGetProperty(GitHubJsonFields.HtmlUrl, out var hu) ? hu.GetString() ?? "" : "";
-
-            sb.AppendLine($"仓库: {fullName}");
-            sb.AppendLine($"可见性: {(isPrivate ? "private" : "public")}");
-            sb.AppendLine($"默认分支: {defaultBranch}");
-            sb.AppendLine($"Stars: {stars}, Forks: {forks}");
-            sb.Append($"URL: {url}");
+            sb.AppendLine($"仓库: {repo.FullName}");
+            sb.AppendLine($"可见性: {(repo.Private ? "private" : "public")}");
+            sb.AppendLine($"默认分支: {repo.DefaultBranch ?? ""}");
+            sb.AppendLine($"Stars: {repo.StargazersCount}, Forks: {repo.ForksCount}");
+            sb.Append($"URL: {repo.HtmlUrl ?? ""}");
             return sb.ToString();
         } catch {
             return json;
@@ -428,19 +412,17 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizePrList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            var arrayEl = root.ValueKind == JsonValueKind.Array ? root : root.TryGetProperty(GitHubJsonFields.Items, out var itemsEl) ? itemsEl : default;
-            if (arrayEl.ValueKind != JsonValueKind.Array) return json;
+            List<PrListItemResponse>? prs;
+            try {
+                prs = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListPrListItemResponse);
+            } catch (JsonException) {
+                var wrapper = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.PrListItemsResponse);
+                prs = wrapper?.Items;
+            }
+            if (prs is null) return json;
             var sb = new StringBuilder(512);
             sb.AppendLine("PR#\t状态\t标题\t作者");
-            foreach (var pr in arrayEl.EnumerateArray()) {
-                var number = pr.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
-                var state = pr.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
-                var title = pr.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
-                var author = pr.TryGetProperty(GitHubJsonFields.User, out var u) && u.TryGetProperty(GitHubJsonFields.Login, out var login) ? login.GetString() ?? "" : "";
-                sb.AppendLine($"{number}\t{state}\t{title}\t{author}");
-            }
+            foreach (var pr in prs) sb.AppendLine($"{pr.Number}\t{pr.State}\t{pr.Title}\t{pr.User?.Login ?? ""}");
             return sb.ToString();
         } catch {
             return json;
@@ -452,73 +434,24 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeIssueList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            var arrayEl = root.ValueKind == JsonValueKind.Array ? root : root.TryGetProperty(GitHubJsonFields.Items, out var itemsEl) ? itemsEl : default;
-            if (arrayEl.ValueKind != JsonValueKind.Array) return json;
+            List<IssueListItemResponse>? issues;
+            try {
+                issues = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListIssueListItemResponse);
+            } catch (JsonException) {
+                var wrapper = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.IssueListItemsResponse);
+                issues = wrapper?.Items;
+            }
+            if (issues is null) return json;
             var sb = new StringBuilder(512);
             sb.AppendLine("Issue#\t状态\t标题\t作者");
-            foreach (var issue in arrayEl.EnumerateArray()) {
-                var number = issue.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
-                var state = issue.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
-                var title = issue.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
-                var author = issue.TryGetProperty(GitHubJsonFields.User, out var u) && u.TryGetProperty(GitHubJsonFields.Login, out var login) ? login.GetString() ?? "" : "";
-                sb.AppendLine($"{number}\t{state}\t{title}\t{author}");
-            }
+            foreach (var issue in issues) sb.AppendLine($"{issue.Number}\t{issue.State}\t{issue.Title}\t{issue.User?.Login ?? ""}");
             return sb.ToString();
         } catch {
             return json;
         }
     }
 
-    /// <summary>
-    /// 构建 GitHub 工具缓存 key — {toolName}_{SHA256(argsJson)[..8]}.json
-    /// </summary>
-    private static string BuildGhCacheKey(string toolName, string argsJson) {
-        var hashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(argsJson));
-        var hashHex = Convert.ToHexString(hashBytes)[..8].ToLowerInvariant();
-        return $"{toolName}_{hashHex}.json";
-    }
 
-    /// <summary>
-    /// 尝试读取 GitHub 工具缓存 — verbose=true 时优先用缓存节约 API
-    /// </summary>
-    private string? TryGetGhCache(string cacheKey) {
-        var cacheDir = GetCacheDir(null);
-#pragma warning disable JCC9001
-        var cachePath = Path.Combine(cacheDir, cacheKey);
-        if (!File.Exists(cachePath))
-            return null;
-        try {
-            return File.ReadAllText(cachePath);
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, "Failed to read gh cache {Key}", cacheKey);
-            return null;
-        }
-#pragma warning restore JCC9001
-    }
-
-    /// <summary>
-    /// 保存 GitHub 工具缓存 — 默认调用时更新缓存保证数据新鲜
-    /// </summary>
-    private void SaveGhCache(string cacheKey, string json) {
-        var cacheDir = GetCacheDir(null);
-#pragma warning disable JCC9001
-        Directory.CreateDirectory(cacheDir);
-        var cachePath = Path.Combine(cacheDir, cacheKey);
-        try {
-            File.WriteAllText(cachePath, json);
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, "Failed to save gh cache {Key}", cacheKey);
-        }
-#pragma warning restore JCC9001
-    }
-
-    /// <summary>
-    /// 获取缓存目录路径 — {workingDir}/.jcc/gh_cache/ 或 {cwd}/.jcc/gh_cache/
-    /// <para>项目级缓存,跨进程共享,24h 过期</para>
-    /// </summary>
-    private string GetCacheDir(string? workingDir) => GitHubRunCachePaths.GetCacheDir(_fs, workingDir);
 
     /// <summary>
     /// 将源 JsonElement 的指定属性原样复制到 Utf8JsonWriter — AOT 友好(无反射/emit)

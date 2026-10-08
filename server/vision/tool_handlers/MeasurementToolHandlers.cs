@@ -57,13 +57,15 @@ public class MeasurementToolHandlers {
         if (!VisionBase64.TryDecode(imageBase64, out var bytes, out var decodeError))
             return ToolResultBuilder.Error().WithText($"[VIS403] {decodeError}").Build();
 
-        Image<Rgb24> image;
+        SKBitmap? decoded;
         try {
-            image = Image.Load<Rgb24>(bytes);
+            decoded = SKBitmap.Decode(bytes);
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolResultBuilder.Error().WithText("[VIS403] 无法解码图片，请检查 base64 是否为有效图片").Build();
         }
-        using var img = image;
+        if (decoded is null)
+            return ToolResultBuilder.Error().WithText("[VIS403] 无法解码图片，请检查 base64 是否为有效图片").Build();
+        using var img = decoded;
 
         if (x < 0 || y < 0 || x + width > img.Width || y + height > img.Height)
             return ToolResultBuilder.Error().WithText($"[VIS402] 区域超出图片范围 ({img.Width}x{img.Height})").Build();
@@ -115,7 +117,7 @@ public class MeasurementToolHandlers {
 
     /// <summary>分析区域颜色统计 — 返回平均值/方差/梯度</summary>
     private static (double AvgR, double AvgG, double AvgB, double VarR, double VarG, double VarB, double Gradient) AnalyzeRegion(
-        Image<Rgb24> image, int x, int y, int width, int height) {
+        SKBitmap image, int x, int y, int width, int height) {
         var count = width * height;
         var sumR = 0.0; var sumG = 0.0; var sumB = 0.0;
         var sumR2 = 0.0; var sumG2 = 0.0; var sumB2 = 0.0;
@@ -124,13 +126,13 @@ public class MeasurementToolHandlers {
 
         for (var row = y; row < y + height; row++) {
             for (var col = x; col < x + width; col++) {
-                var p = image[col, row];
-                sumR += p.R; sumG += p.G; sumB += p.B;
-                sumR2 += (double)p.R * p.R; sumG2 += (double)p.G * p.G; sumB2 += (double)p.B * p.B;
+                var p = image.GetPixel(col, row);
+                sumR += p.Red; sumG += p.Green; sumB += p.Blue;
+                sumR2 += (double)p.Red * p.Red; sumG2 += (double)p.Green * p.Green; sumB2 += (double)p.Blue * p.Blue;
 
                 if (col > x) {
-                    var left = image[col - 1, row];
-                    gradientSum += Math.Abs(p.R - left.R) + Math.Abs(p.G - left.G) + Math.Abs(p.B - left.B);
+                    var left = image.GetPixel(col - 1, row);
+                    gradientSum += Math.Abs(p.Red - left.Red) + Math.Abs(p.Green - left.Green) + Math.Abs(p.Blue - left.Blue);
                     gradientCount++;
                 }
             }

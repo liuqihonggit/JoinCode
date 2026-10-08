@@ -706,13 +706,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task Status_ApiClientNull_ReturnsApiClientNotConfigured() {
-        var handlerWithoutApi = new GitHubToolHandlers(
-            new FakeDownloader(),
-            new InMemoryFileSystem(),
-            new PersistencePipeline(new InMemoryFileSystem()),
-            null,
-            null,
-            NullLogger<GitHubToolHandlers>.Instance);
+        var handlerWithoutApi = new GitHubToolHandlers(new FakeDownloader(), new InMemoryFileSystem(), null, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handlerWithoutApi.GhStatusAsync();
 

@@ -109,6 +109,21 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"state\"");
     }
 
+    /// <summary>gh CLI 平铺字段别名: headRefName→head.ref, headRefOid→head.sha, baseRefName→base.ref, baseRefOid→base.sha</summary>
+    [Fact]
+    public async Task PrView_WithJson_HeadRefName_FlattensNestedField() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":7,"title":"pr","state":"open","head":{"ref":"feature-branch","sha":"abc123"},"base":{"ref":"main","sha":"def456"}}""" };
+
+        var result = await _handler.GhPrViewAsync("7", json_fields: "headRefName,headRefOid,baseRefName,baseRefOid", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"headRefName\":\"feature-branch\"");
+        text.Should().Contain("\"headRefOid\":\"abc123\"");
+        text.Should().Contain("\"baseRefName\":\"main\"");
+        text.Should().Contain("\"baseRefOid\":\"def456\"");
+    }
+
     [Fact]
     public async Task IssueView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":3,"title":"issue","state":"open","body":"desc"}""" };
@@ -234,6 +249,21 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("\"id\":123");
         text.Should().Contain("\"status\":\"completed\"");
         text.Should().NotContain("\"conclusion\"");
+    }
+
+    /// <summary>expand=jobs + json_fields 应对 job 列表过滤字段,而非 run 本身</summary>
+    [Fact]
+    public async Task RunView_ExpandJobs_WithJson_FiltersJobFields() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":2,"jobs":[{"name":"build","conclusion":"success","id":1},{"name":"test","conclusion":"failure","id":2}]}""" });
+
+        var result = await _handler.GhRunViewAsync("123", expand: "jobs", json_fields: "name,conclusion", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"name\":\"build\"");
+        text.Should().Contain("\"name\":\"test\"");
+        text.Should().Contain("\"conclusion\":\"failure\"");
     }
 
     [Fact]

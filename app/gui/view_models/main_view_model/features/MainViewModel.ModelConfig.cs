@@ -251,17 +251,17 @@ public sealed partial class MainViewModel {
         try {
             var settingsPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".jcc", "settings.json");
             if (!System.IO.File.Exists(settingsPath)) return result;
-            using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(settingsPath));
-            if (!doc.RootElement.TryGetProperty("vendor", out var vendorEl)) return result;
-            foreach (var vendor in vendorEl.EnumerateObject()) {
-                if (!vendor.Value.TryGetProperty("models", out var modelsEl)) continue;
+            var dto = JsonSerializer.Deserialize<SettingsVendorRootDto>(System.IO.File.ReadAllText(settingsPath), Persistence.GuiJsonContext.Default.SettingsVendorRootDto);
+            if (dto?.Vendor is null) return result;
+            foreach (var (providerId, vendorEntry) in dto.Vendor) {
+                if (vendorEntry?.Models is null) continue;
                 var ids = new List<string>();
-                foreach (var m in modelsEl.EnumerateArray()) {
-                    if (m.TryGetProperty("id", out var idEl))
-                        ids.Add(idEl.GetString() ?? "");
+                foreach (var m in vendorEntry.Models) {
+                    if (!string.IsNullOrEmpty(m?.Id))
+                        ids.Add(m.Id);
                 }
                 if (ids.Count > 0)
-                    result[vendor.Name] = ids.ToArray();
+                    result[providerId] = ids.ToArray();
             }
         } catch (Exception ex) {
             ViewModelDiagnosticsLogger.WriteError(ex);
@@ -280,4 +280,25 @@ public sealed partial class MainViewModel {
         "agnes" => ("Agnes", "A", "#9B59B6"),
         var other => (other, other[..1].ToUpperInvariant(), "#6B7280")
     };
+}
+
+/// <summary>settings.json vendor 根 DTO — vendor 为供应商名→条目字典（key 动态，不做成固定属性）</summary>
+public sealed class SettingsVendorRootDto {
+    /// <summary>供应商名→供应商条目（key 为供应商 id，动态）</summary>
+    [JsonPropertyName("vendor")]
+    public Dictionary<string, SettingsVendorEntryDto?>? Vendor { get; set; }
+}
+
+/// <summary>供应商条目 DTO — 含模型列表</summary>
+public sealed class SettingsVendorEntryDto {
+    /// <summary>模型列表</summary>
+    [JsonPropertyName("models")]
+    public List<SettingsModelIdDto?>? Models { get; set; }
+}
+
+/// <summary>模型 id DTO — settings.json 中每个模型对象的 id 字段</summary>
+public sealed class SettingsModelIdDto {
+    /// <summary>模型 id</summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
 }

@@ -8,7 +8,7 @@ public sealed partial class GitHubToolHandlersTests {
         var configPath = GetTestConfigPath();
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(configPath, "git_protocol: https\neditor:\nprompt: enabled\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhConfigGetAsync("git_protocol");
 
@@ -21,7 +21,7 @@ public sealed partial class GitHubToolHandlersTests {
         var configPath = GetTestConfigPath();
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(configPath, "git_protocol: https\neditor:\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhConfigGetAsync("editor");
 
@@ -34,7 +34,7 @@ public sealed partial class GitHubToolHandlersTests {
         var configPath = GetTestConfigPath();
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(configPath, "git_protocol: https\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhConfigGetAsync("nonexistent");
 
@@ -44,7 +44,7 @@ public sealed partial class GitHubToolHandlersTests {
     [Fact]
     public async Task ConfigGet_ReturnsFail_WhenFileNotExists() {
         var fs = new InMemoryFileSystem();
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhConfigGetAsync("git_protocol");
 
@@ -56,7 +56,7 @@ public sealed partial class GitHubToolHandlersTests {
         var configPath = GetTestConfigPath();
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(configPath, "git_protocol: https\neditor:\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         await handler.GhConfigSetAsync("git_protocol", "ssh");
 
@@ -70,7 +70,7 @@ public sealed partial class GitHubToolHandlersTests {
         var configPath = GetTestConfigPath();
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(configPath, "git_protocol: https\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         await handler.GhConfigSetAsync("editor", "vim");
 
@@ -83,7 +83,7 @@ public sealed partial class GitHubToolHandlersTests {
         var configPath = GetTestConfigPath();
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(configPath, "git_protocol: https\naliases:\n    co: pr checkout\n    il: issue list\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhAliasListAsync();
 
@@ -98,7 +98,7 @@ public sealed partial class GitHubToolHandlersTests {
         var configPath = GetTestConfigPath();
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(configPath, "git_protocol: https\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhAliasListAsync();
 
@@ -110,7 +110,7 @@ public sealed partial class GitHubToolHandlersTests {
         var configPath = GetTestConfigPath();
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(configPath, "git_protocol: https\naliases:\n    co: pr checkout\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         await handler.GhAliasSetAsync("il", "issue list");
 
@@ -123,7 +123,7 @@ public sealed partial class GitHubToolHandlersTests {
         var configPath = GetTestConfigPath();
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(configPath, "git_protocol: https\naliases:\n    co: pr checkout\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         await handler.GhAliasSetAsync("co", "pr checkout --draft");
 
@@ -137,7 +137,7 @@ public sealed partial class GitHubToolHandlersTests {
         var configPath = GetTestConfigPath();
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(configPath, "git_protocol: https\naliases:\n    co: pr checkout\n    il: issue list\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         await handler.GhAliasDeleteAsync("co");
 
@@ -151,7 +151,7 @@ public sealed partial class GitHubToolHandlersTests {
         var configPath = GetTestConfigPath();
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(configPath, "git_protocol: https\naliases:\n    co: pr checkout\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhAliasDeleteAsync("nonexistent");
 
@@ -161,7 +161,7 @@ public sealed partial class GitHubToolHandlersTests {
     [Fact]
     public async Task ExtensionList_ReturnsEmpty_WhenDirNotExists() {
         var fs = new InMemoryFileSystem();
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhExtensionListAsync();
 
@@ -175,7 +175,7 @@ public sealed partial class GitHubToolHandlersTests {
         var fs = new InMemoryFileSystem();
         fs.CreateDirectory(Path.Combine(extDir, "gh-jump"));
         fs.CreateDirectory(Path.Combine(extDir, "gh-learn"));
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhExtensionListAsync();
 
@@ -189,7 +189,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task AuthLogin_SavesToken_ToHostsYml() {
         var api = new FakeGitHubApiClient { NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"login":"testuser"}""" } };
         var fs = new InMemoryFileSystem();
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhAuthLoginAsync("ghp_testtoken");
 
@@ -204,7 +204,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task AuthLogin_ReturnsFail_WhenTokenInvalid() {
         var api = new FakeGitHubApiClient { NextResponse = new GitHubApiResponse { Success = false, StatusCode = 401, Body = "" } };
         var fs = new InMemoryFileSystem();
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhAuthLoginAsync("invalid_token");
 
@@ -216,7 +216,7 @@ public sealed partial class GitHubToolHandlersTests {
         var hostsPath = GitHubToolHandlers.GetGhConfigPath(true);
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(hostsPath, "github.com:\n    user: testuser\n    oauth_token: ghp_mytoken\n    git_protocol: https\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhAuthTokenAsync();
 
@@ -229,7 +229,7 @@ public sealed partial class GitHubToolHandlersTests {
         var hostsPath = GitHubToolHandlers.GetGhConfigPath(true);
         var fs = new InMemoryFileSystem();
         await fs.WriteAllTextAsync(hostsPath, "github.com:\n    user: testuser\n");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhAuthTokenAsync();
 
@@ -240,7 +240,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task ExtensionInstall_ClonesRepo_ToExtensionsDir() {
         var git = new FakeGitCommandRunner();
         var fs = new InMemoryFileSystem();
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhExtensionInstallAsync("owner/gh-ext");
 
@@ -251,7 +251,7 @@ public sealed partial class GitHubToolHandlersTests {
     [Fact]
     public async Task ExtensionInstall_ReturnsFail_WhenGitNotConfigured() {
         var fs = new InMemoryFileSystem();
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhExtensionInstallAsync("owner/gh-ext");
 
@@ -264,7 +264,7 @@ public sealed partial class GitHubToolHandlersTests {
         var git = new FakeGitCommandRunner();
         var fs = new InMemoryFileSystem();
         fs.CreateDirectory(Path.Combine(extDir, "gh-ext"));
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhExtensionUpgradeAsync("gh-ext");
 
@@ -277,7 +277,7 @@ public sealed partial class GitHubToolHandlersTests {
         var git = new FakeGitCommandRunner();
         var fs = new InMemoryFileSystem();
         fs.CreateDirectory(GitHubToolHandlers.GetGhExtensionsPath());
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhExtensionUpgradeAsync("gh-nonexistent");
 
@@ -289,7 +289,7 @@ public sealed partial class GitHubToolHandlersTests {
         var extDir = GitHubToolHandlers.GetGhExtensionsPath();
         var fs = new InMemoryFileSystem();
         fs.CreateDirectory(Path.Combine(extDir, "gh-ext"));
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhExtensionRemoveAsync("gh-ext");
 
@@ -300,7 +300,7 @@ public sealed partial class GitHubToolHandlersTests {
     [Fact]
     public async Task ExtensionRemove_ReturnsFail_WhenExtensionNotExists() {
         var fs = new InMemoryFileSystem();
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new FakeGitHubApiClient(), null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhExtensionRemoveAsync("gh-nonexistent");
 

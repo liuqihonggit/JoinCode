@@ -419,20 +419,17 @@ public sealed partial class LspService : ServiceEntity, ILspService {
     /// LocationLink: { targetUri, targetRange, targetSelectionRange, originSelectionRange }
     /// </summary>
     private static LspLocation? DeserializeSingleLocation(JsonNode? node) {
-        if (node is not JsonObject obj) return null;
+        if (node is not JsonObject) return null;
+        var json = node!.ToJsonString();
 
-        if (obj.TryGetPropertyValue("uri", out var uriNode) && uriNode != null) {
-            return RelaxedJsonSerializer.Deserialize(node!.ToJsonString(), LspJsonContext.Default.LspLocation);
-        }
+        // Location: { uri, range }
+        var location = RelaxedJsonSerializer.Deserialize(json, LspJsonContext.Default.LspLocation);
+        if (!string.IsNullOrEmpty(location?.Uri)) return location;
 
-        if (obj.TryGetPropertyValue("targetUri", out var targetUriNode) && targetUriNode != null) {
-            var targetUri = targetUriNode.GetValue<string>();
-            var rangeNode = obj.TryGetPropertyValue("targetRange", out var tr) ? tr : null;
-            if (rangeNode != null) {
-                var range = RelaxedJsonSerializer.Deserialize(rangeNode.ToJsonString(), LspJsonContext.Default.LspRange);
-                return new LspLocation { Uri = targetUri, Range = range ?? new LspRange { Start = new LspPosition(), End = new LspPosition() } };
-            }
-            return new LspLocation { Uri = targetUri, Range = new LspRange { Start = new LspPosition(), End = new LspPosition() } };
+        // LocationLink: { targetUri, targetRange, targetSelectionRange, originSelectionRange }
+        var link = RelaxedJsonSerializer.Deserialize(json, LspJsonContext.Default.LspLocationLinkDto);
+        if (!string.IsNullOrEmpty(link?.TargetUri)) {
+            return new LspLocation { Uri = link.TargetUri, Range = link.TargetRange ?? new LspRange { Start = new LspPosition(), End = new LspPosition() } };
         }
 
         return null;
@@ -445,8 +442,9 @@ public sealed partial class LspService : ServiceEntity, ILspService {
             return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCompletionItem) ?? [];
         }
 
-        if (result is JsonObject resultObj && resultObj.TryGetPropertyValue("items", out var itemsNode)) {
-            return RelaxedJsonSerializer.Deserialize(itemsNode?.ToJsonString() ?? "[]", LspJsonContext.Default.ListLspCompletionItem) ?? [];
+        if (result is JsonObject) {
+            var completionList = RelaxedJsonSerializer.Deserialize(result!.ToJsonString(), LspJsonContext.Default.LspCompletionListDto);
+            return completionList?.Items ?? [];
         }
 
         return [];

@@ -248,6 +248,9 @@ internal static class GhArgsBinder {
                 if (token.Length >= 2 && token[0] == '-' && char.IsLetter(token[1])
                     && TryBindShortOption(token, toolName, tail, ref i, result, byName, out error))
                     continue;
+                // 宽容策略: AI 习惯写 key=value(不带 -- 前缀),优先解析为命名参数
+                if (TryBindBareKeyValue(token, byName, result))
+                    continue;
                 if (slotIndex >= slots.Count) {
                     error = TooManyPositionalError(toolName, token, parameters);
                     return null;
@@ -669,11 +672,32 @@ internal static class GhArgsBinder {
         return keyContains?.Name;
     }
 
+    /// <summary>
+    /// 尝试解析不带 -- 前缀的 key=value 格式 — AI 习惯写 job_id=123 而非 --job_id 123
+    /// <para>宽容策略: 精确匹配或连字符→下划线转换(如 max-lines=50 → max_lines=50)</para>
+    /// </summary>
+    private static bool TryBindBareKeyValue(string token, Dictionary<string, GhParam> byName, Dictionary<string, string> result) {
+        var eqIdx = token.IndexOf('=');
+        if (eqIdx <= 0) return false;
+        var bareKey = token[..eqIdx];
+        var bareValue = token[(eqIdx + 1)..];
+        if (!byName.TryGetValue(bareKey, out var param) && !byName.TryGetValue(bareKey.Replace('-', '_'), out param))
+            return false;
+        result[param.Name] = param.IsBoolean ? NormalizeBoolValue(bareValue) : bareValue;
+        return true;
+    }
+
     private static string TooManyPositionalError(string toolName, string token, IReadOnlyList<GhParam> parameters) {
         var names = string.Join(", ", parameters.Select(p => p.Name));
         var hint = "非位置参数请用 --参数名 值 的形式";
+        // key=value 诱导: AI 习惯写 key=value 不带 -- 前缀
+        if (token.Contains('=')) {
+            var eqIdx = token.IndexOf('=');
+            var key = token[..eqIdx];
+            hint = $"参数名需加 -- 前缀,正确写法: --{key} {token[(eqIdx + 1)..]} 或 --{token}";
+        }
         // --json 诱导: jcc 默认 JSON 输出,--json 被剥离后字段列表(含逗号)变位置参数
-        if (token.Contains(','))
+        else if (token.Contains(','))
             hint += "\n提示: jcc 默认 JSON 输出,不需要 --json;如需 text 格式用 --format text";
         return $"{CliErrorCatalog.ArgParseError($"多余的位置参数: {token}").ToRustStyleString(token)}\n"
              + $"{toolName} 接受的参数: {names}\n提示: {hint}";

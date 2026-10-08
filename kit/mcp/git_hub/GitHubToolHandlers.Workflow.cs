@@ -28,18 +28,13 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeWorkflowList(string json, bool includeDisabled) {
         try {
-            using var doc = JsonDocument.Parse(json);
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.WorkflowListResponse);
+            if (resp is null) return json;
             var sb = new StringBuilder(256);
             sb.AppendLine("ID\t名称\t状态\t路径");
-            if (doc.RootElement.TryGetProperty("workflows", out var workflows) && workflows.ValueKind == JsonValueKind.Array) {
-                foreach (var wf in workflows.EnumerateArray()) {
-                    var id = wf.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt64() : 0;
-                    var name = wf.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-                    var state = wf.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
-                    var path = wf.TryGetProperty(GitHubJsonFields.Path, out var p) ? p.GetString() ?? "" : "";
-                    if (!includeDisabled && state == "disabled_manually") continue;
-                    sb.AppendLine($"{id}\t{name}\t{state}\t{path}");
-                }
+            foreach (var wf in resp.Workflows) {
+                if (!includeDisabled && wf.State == "disabled_manually") continue;
+                sb.AppendLine($"{wf.Id}\t{wf.Name}\t{wf.State}\t{wf.Path}");
             }
             return sb.ToString();
         } catch { return json; }
@@ -81,15 +76,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeWorkflowView(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
+            var wf = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.WorkflowResponse);
+            if (wf is null) return json;
             var sb = new StringBuilder(256);
-            var name = root.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-            var state = root.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
-            var path = root.TryGetProperty(GitHubJsonFields.Path, out var p) ? p.GetString() ?? "" : "";
-            var id = root.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt64() : 0;
-            sb.AppendLine($"Workflow: {name}");
-            sb.AppendLine($"ID: {id}  State: {state}  Path: {path}");
+            sb.AppendLine($"Workflow: {wf.Name}");
+            sb.AppendLine($"ID: {wf.Id}  State: {wf.State}  Path: {wf.Path}");
             return sb.ToString().TrimEnd();
         } catch {
             return json;
@@ -101,8 +92,8 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string? TryExtractWorkflowYaml(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.TryGetProperty("definition", out var def) ? def.GetString() : null;
+            var wf = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.WorkflowResponse);
+            return wf?.Definition;
         } catch { return null; }
     }
 
@@ -122,8 +113,8 @@ public partial class GitHubToolHandlers {
             var inputsDict = new Dictionary<string, string>();
             if (!string.IsNullOrWhiteSpace(inputs)) {
                 try {
-                    using var doc = JsonDocument.Parse(inputs);
-                    foreach (var prop in doc.RootElement.EnumerateObject()) inputsDict[prop.Name] = prop.Value.GetString() ?? "";
+                    var parsed = JsonSerializer.Deserialize(inputs, GitHubApiJsonContext.Safe.DictionaryStringString);
+                    if (parsed is not null) inputsDict = parsed;
                 } catch { return Fail($"inputs JSON 解析失败: {inputs}"); }
             }
             var request = new WorkflowDispatchRequest { Ref = refVal, Inputs = inputsDict };

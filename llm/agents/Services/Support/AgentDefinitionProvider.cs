@@ -505,36 +505,17 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         if (element.ValueKind != System.Text.Json.JsonValueKind.Object)
             return null;
 
-        var type = element.TryGetProperty("type", out var typeProp) && typeProp.ValueKind == System.Text.Json.JsonValueKind.String
-            ? typeProp.GetString()
-            : null;
-
-        if (string.IsNullOrWhiteSpace(type))
+        var dto = System.Text.Json.JsonSerializer.Deserialize(
+            element, AgentHookConfigJsonContext.Default.AgentHookCommandDto);
+        if (dto is null || string.IsNullOrWhiteSpace(dto.Type))
             return null;
 
-        var command = element.TryGetProperty("command", out var cmdProp) && cmdProp.ValueKind == System.Text.Json.JsonValueKind.String
-            ? cmdProp.GetString()
-            : null;
-
-        var prompt = element.TryGetProperty("prompt", out var promptProp) && promptProp.ValueKind == System.Text.Json.JsonValueKind.String
-            ? promptProp.GetString()
-            : null;
-
-        var ifCondition = element.TryGetProperty("if", out var ifProp) && ifProp.ValueKind == System.Text.Json.JsonValueKind.String
-            ? ifProp.GetString()
-            : null;
-
-        var timeout = element.TryGetProperty("timeout", out var timeoutProp) && timeoutProp.ValueKind == System.Text.Json.JsonValueKind.Number
-            && timeoutProp.TryGetInt32(out var timeoutVal)
-            ? timeoutVal
-            : (int?)null;
-
         return new JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookCommand {
-            Type = type,
-            Command = command,
-            Prompt = prompt,
-            If = ifCondition,
-            Timeout = timeout
+            Type = dto.Type,
+            Command = dto.Command,
+            Prompt = dto.Prompt,
+            If = dto.If,
+            Timeout = dto.Timeout
         };
     }
 
@@ -576,50 +557,16 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     }
 
     private static JoinCode.Abstractions.Prompts.ToolPrompts.AgentMcpServerInlineConfig ParseInlineMcpConfig(System.Text.Json.JsonElement obj) {
-        string? command = null;
-        if (obj.TryGetProperty("command", out var cmdProp) && cmdProp.ValueKind == System.Text.Json.JsonValueKind.String)
-            command = cmdProp.GetString();
-
-        List<string>? args = null;
-        if (obj.TryGetProperty("args", out var argsProp) && argsProp.ValueKind == System.Text.Json.JsonValueKind.Array)
-            args = argsProp.EnumerateArray()
-                .Where(e => e.ValueKind == System.Text.Json.JsonValueKind.String)
-                .Select(e => e.GetString() ?? string.Empty)
-                .ToList();
-
-        Dictionary<string, string>? env = null;
-        if (obj.TryGetProperty("env", out var envProp) && envProp.ValueKind == System.Text.Json.JsonValueKind.Object) {
-            env = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var envItem in envProp.EnumerateObject()) {
-                if (envItem.Value.ValueKind == System.Text.Json.JsonValueKind.String)
-                    env[envItem.Name] = envItem.Value.GetString() ?? string.Empty;
-            }
-        }
-
-        string? url = null;
-        if (obj.TryGetProperty("url", out var urlProp) && urlProp.ValueKind == System.Text.Json.JsonValueKind.String)
-            url = urlProp.GetString();
-
-        string? transportType = null;
-        if (obj.TryGetProperty("type", out var typeProp) && typeProp.ValueKind == System.Text.Json.JsonValueKind.String)
-            transportType = typeProp.GetString();
-
-        Dictionary<string, string>? headers = null;
-        if (obj.TryGetProperty("headers", out var headersProp) && headersProp.ValueKind == System.Text.Json.JsonValueKind.Object) {
-            headers = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var hdr in headersProp.EnumerateObject()) {
-                if (hdr.Value.ValueKind == System.Text.Json.JsonValueKind.String)
-                    headers[hdr.Name] = hdr.Value.GetString() ?? string.Empty;
-            }
-        }
+        var dto = System.Text.Json.JsonSerializer.Deserialize(
+            obj, AgentHookConfigJsonContext.Default.AgentMcpServerInlineConfigDto) ?? new AgentMcpServerInlineConfigDto();
 
         return new JoinCode.Abstractions.Prompts.ToolPrompts.AgentMcpServerInlineConfig {
-            Command = command,
-            Args = args ?? [],
-            Env = env ?? [],
-            Url = url,
-            TransportType = transportType,
-            Headers = headers ?? []
+            Command = dto.Command,
+            Args = dto.Args ?? [],
+            Env = dto.Env ?? [],
+            Url = dto.Url,
+            TransportType = dto.TransportType,
+            Headers = dto.Headers ?? []
         };
     }
 
@@ -705,3 +652,67 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             => _logger?.LogWarning(ex, "DefinitionLoaderActor 命令处理异常");
     }
 }
+
+/// <summary>
+/// Agent Hook 命令 JSON DTO — 对应 frontmatter hooks[].hooks[] 元素，用于 JsonSerializer.Deserialize 双向转换
+/// </summary>
+public sealed class AgentHookCommandDto {
+    /// <summary>钩子类型（command/webhook 等）— discriminated union 判别字段</summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
+
+    /// <summary>要执行的命令</summary>
+    [JsonPropertyName("command")]
+    public string? Command { get; set; }
+
+    /// <summary>提示词</summary>
+    [JsonPropertyName("prompt")]
+    public string? Prompt { get; set; }
+
+    /// <summary>执行条件表达式</summary>
+    [JsonPropertyName("if")]
+    public string? If { get; set; }
+
+    /// <summary>超时时间（毫秒）</summary>
+    [JsonPropertyName("timeout")]
+    public int? Timeout { get; set; }
+}
+
+/// <summary>
+/// Agent MCP 服务器内联配置 JSON DTO — 对应 mcpServers 条目中的 command/args/env/url/type/headers，用于 JsonSerializer.Deserialize 双向转换
+/// </summary>
+public sealed class AgentMcpServerInlineConfigDto {
+    /// <summary>启动命令</summary>
+    [JsonPropertyName("command")]
+    public string? Command { get; set; }
+
+    /// <summary>命令参数列表</summary>
+    [JsonPropertyName("args")]
+    public List<string> Args { get; set; } = [];
+
+    /// <summary>环境变量字典</summary>
+    [JsonPropertyName("env")]
+    public Dictionary<string, string> Env { get; set; } = [];
+
+    /// <summary>服务器 URL</summary>
+    [JsonPropertyName("url")]
+    public string? Url { get; set; }
+
+    /// <summary>传输类型</summary>
+    [JsonPropertyName("type")]
+    public string? TransportType { get; set; }
+
+    /// <summary>请求头字典</summary>
+    [JsonPropertyName("headers")]
+    public Dictionary<string, string> Headers { get; set; } = [];
+}
+
+/// <summary>
+/// Agent Hook 配置 JSON 序列化上下文 — AOT 源码生成，覆盖 hook 命令与 MCP 内联配置 DTO
+/// </summary>
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSerializable(typeof(AgentHookCommandDto))]
+[JsonSerializable(typeof(AgentMcpServerInlineConfigDto))]
+[JsonSerializable(typeof(List<string>))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
+public sealed partial class AgentHookConfigJsonContext : JsonSerializerContext;

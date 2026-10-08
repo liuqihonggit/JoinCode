@@ -4,11 +4,14 @@ namespace Vision.Tests.ToolHandlers;
 /// TemporalMetaphorToolHandlers 单元测试 — 验证 M3 的 2 个 MCP 工具
 /// </summary>
 public sealed class TemporalMetaphorToolHandlersTests {
-    private static async Task<string> CreateTestImageBase64(int width = 4, int height = 4, byte r = 100, byte g = 150, byte b = 200) {
-        using var image = new Image<Rgb24>(width, height, new Rgb24(r, g, b));
-        await using var ms = new MemoryStream();
-        image.Save(ms, PngFormat.Instance);
-        return Convert.ToBase64String(ms.ToArray());
+    private static Task<string> CreateTestImageBase64(int width = 4, int height = 4, byte r = 100, byte g = 150, byte b = 200) {
+        using var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Opaque);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(new SKColor(r, g, b));
+        canvas.Flush();
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return Task.FromResult(Convert.ToBase64String(data.ToArray()));
     }
 
     private static string CreateFramesJson(params string[] frames)

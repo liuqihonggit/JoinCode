@@ -129,17 +129,15 @@ Output format (plain text labels, not markdown headers):
 
         if (assistantMessage.Metadata.TryGetValue("ToolCalls", out var toolCallsObj) && toolCallsObj.ValueKind == JsonValueKind.Array) {
             foreach (var item in toolCallsObj.EnumerateArray()) {
-                var id = item.TryGetProperty("Id", out var idProp) ? idProp.GetString() : null;
-                var name = item.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null;
-                if (id is not null && name is not null)
-                    toolCalls.Add((id, name));
+                var tc = item.Deserialize(AgentsJsonContext.Default.ToolCallItemJson);
+                if (tc?.Id is not null && tc.Name is not null)
+                    toolCalls.Add((tc.Id, tc.Name));
             }
         } else if (assistantMessage.Metadata.TryGetValue("AllToolCalls", out var allToolCallsObj) && allToolCallsObj.ValueKind == JsonValueKind.Array) {
             foreach (var item in allToolCallsObj.EnumerateArray()) {
-                var id = item.TryGetProperty("Id", out var idProp) ? idProp.GetString() : null;
-                var name = item.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null;
-                if (id is not null && name is not null)
-                    toolCalls.Add((id, name));
+                var tc = item.Deserialize(AgentsJsonContext.Default.ToolCallItemJson);
+                if (tc?.Id is not null && tc.Name is not null)
+                    toolCalls.Add((tc.Id, tc.Name));
             }
         }
 

@@ -46,28 +46,26 @@ internal static class GitHubRunListSummarizer {
     /// </summary>
     public static string SummarizeRunListBrief(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Object) return json;
-            var root = doc.RootElement;
-            if (!root.TryGetProperty("workflow_runs", out var runs) || runs.ValueKind != JsonValueKind.Array) return json;
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.WorkflowRunListBriefResponse);
+            if (resp?.WorkflowRuns is null) return json;
 
-            var totalCount = root.TryGetProperty("total_count", out var tc) && tc.TryGetInt32(out var t) ? t : runs.GetArrayLength();
+            var totalCount = resp.TotalCount > 0 ? resp.TotalCount : resp.WorkflowRuns.Count;
             var sb = new StringBuilder(512);
             sb.AppendLine($"共 {totalCount} 个 run");
             sb.AppendLine();
             sb.AppendLine("S  ID           NUM   NAME                    BRANCH     EVENT       ELAPSED");
             sb.AppendLine("-  -----------  ----  ----------------------  --------   ---------   -------");
 
-            foreach (var run in runs.EnumerateArray()) {
-                var status = GitHubRunFormatHelper.GetString(run, "status");
-                var conclusion = GitHubRunFormatHelper.GetString(run, "conclusion");
+            foreach (var run in resp.WorkflowRuns) {
+                var status = run.Status ?? "";
+                var conclusion = run.Conclusion;
                 var symbol = GitHubRunFormatHelper.GetStatusSymbol(status, conclusion);
-                var id = GitHubRunFormatHelper.GetId(run) ?? "";
-                var number = run.TryGetProperty("run_number", out var n) && n.TryGetInt32(out var num) ? num.ToString() : "";
-                var name = GitHubRunFormatHelper.GetString(run, "name") ?? "";
-                var branch = GitHubRunFormatHelper.GetString(run, "head_branch") ?? "";
-                var evt = GitHubRunFormatHelper.GetString(run, "event") ?? "";
-                var elapsed = GitHubRunFormatHelper.FormatElapsed(GitHubRunFormatHelper.GetString(run, "created_at"), GitHubRunFormatHelper.GetString(run, "updated_at")) ?? "";
+                var id = run.Id.ToString();
+                var number = run.RunNumber.ToString();
+                var name = run.Name ?? "";
+                var branch = run.HeadBranch ?? "";
+                var evt = run.Event ?? "";
+                var elapsed = GitHubRunFormatHelper.FormatElapsed(run.CreatedAt, run.UpdatedAt) ?? "";
 
                 sb.Append(symbol).Append("  ");
                 AppendFixedWidth(sb, id, 11); sb.Append("  ");

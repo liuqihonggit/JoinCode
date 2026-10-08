@@ -1,4 +1,5 @@
 ﻿// PipelineComposition 需要的命名空间
+global using System.Globalization;
 global using System.Threading;
 global using Core.Agents;
 global using Core.Agents.Coordinator;
@@ -117,6 +118,7 @@ global using JoinCode.Transport.Bridge;
 global using McpBridge;
 global using McpClient;
 global using McpProtocol;
+global using McpToolDispatch;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Hosting;
 global using Microsoft.Extensions.Logging;
@@ -126,6 +128,7 @@ global using Services.OAuth;
 global using Services.Shell;
 global using Services.Web;
 global using System.Collections.Concurrent;
+global using System.Collections.Generic;
 global using System.Collections.Frozen;
 global using System.Collections.Immutable;
 global using System.Collections.ObjectModel;

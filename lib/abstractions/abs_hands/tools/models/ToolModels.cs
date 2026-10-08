@@ -185,6 +185,12 @@ public sealed record ToolResult {
     [JsonIgnore]
     public Action<ToolUseContext>? ContextModifier { get; set; }
 
+    /// <summary>
+    /// 计时信息 — 各阶段耗时统计(网络/缓存/解析),由 ExecuteGhAsync 统一设置,OutputResult 读取放入 Meta
+    /// </summary>
+    [JsonIgnore]
+    public string? TimingInfo { get; set; }
+
     /// <summary>获取首个非空文本内容。</summary>
     public string? GetFirstText() => Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text;
 

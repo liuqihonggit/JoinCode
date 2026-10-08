@@ -5,37 +5,34 @@ namespace McpToolDispatch;
 /// </summary>
 internal static class GitHubRunLogFilter {
     /// <summary>
-    /// GitHub Actions 日志过滤标记集 — 按 <see cref="GitHubLogFilter"/> 级别匹配 ##[error] / ##[warning] / ##[command]
+    /// 获取过滤级别对应的标记集 — 按 [Flags] 位标志组合,每位对应一类结构化标记
     /// </summary>
-    public static readonly FrozenSet<string> ErrorMarkers = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase, "##[error]");
-
-    public static readonly FrozenSet<string> WarningMarkers = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase, "##[error]", "##[warning]");
-
-    public static readonly FrozenSet<string> InfoMarkers = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase, "##[error]", "##[warning]", "##[command]");
+    public static FrozenSet<string> GetFilterMarkers(GitHubLogFilter filter) {
+        if (filter == GitHubLogFilter.None) return FrozenSet<string>.Empty;
+        var markers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if ((filter & GitHubLogFilter.Error) != 0) markers.Add("##[error]");
+        if ((filter & GitHubLogFilter.Warning) != 0) markers.Add("##[warning]");
+        if ((filter & GitHubLogFilter.Command) != 0) markers.Add("##[command]");
+        if ((filter & GitHubLogFilter.Failed) != 0) { markers.Add("[FAIL]"); markers.Add("  Failed "); }
+        if ((filter & GitHubLogFilter.Exception) != 0) markers.Add("Exception:");
+        return markers.ToFrozenSet();
+    }
 
     /// <summary>
-    /// 获取过滤级别对应的标记集
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static FrozenSet<string> GetFilterMarkers(GitHubLogFilter filter) => filter switch {
-        GitHubLogFilter.Error => ErrorMarkers,
-        GitHubLogFilter.Warning => WarningMarkers,
-        GitHubLogFilter.Info => InfoMarkers,
-        _ => ErrorMarkers,
-    };
-
-    /// <summary>
-    /// 解析日志过滤级别字符串为枚举 — 无效值返回 false(走常规模式)
+    /// 解析日志过滤级别字符串为 [Flags] 枚举 — 支持逗号分隔组合(如 "error,failed" → Error|Failed)
+    /// <para>单值(如 "error"/"all")走 FromValue; 多值(如 "error,failed")拆分逐个 FromValue 再按位或</para>
     /// </summary>
     public static bool TryParseLogFilter(string? filter, out GitHubLogFilter result) {
-        result = GitHubLogFilter.All;
+        result = GitHubLogFilter.None;
         if (string.IsNullOrWhiteSpace(filter)) return false;
-        var parsed = GitHubLogFilterExtensions.FromValue(filter);
-        if (parsed is null) return false;
-        result = parsed.Value;
+        var parts = filter.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var combined = GitHubLogFilter.None;
+        foreach (var part in parts) {
+            var parsed = GitHubLogFilterExtensions.FromValue(part);
+            if (parsed is null) return false;
+            combined |= parsed.Value;
+        }
+        result = combined;
         return true;
     }
 

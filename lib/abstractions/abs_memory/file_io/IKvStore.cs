@@ -22,7 +22,7 @@ public interface IKvStore : IAsyncDisposable {
     ValueTask<byte[]?> GetAsync(byte[] key, CancellationToken ct = default);
 
     /// <summary>
-    /// 删除键值对 — 写入墓碑标记(tombstone), 压实时物理删除。
+    /// 删除键值对 — 写入墓碑标记(tombstone), 压实(compaction)时物理回收。
     /// </summary>
     ValueTask DeleteAsync(byte[] key, CancellationToken ct = default);
 

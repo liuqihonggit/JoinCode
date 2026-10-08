@@ -358,53 +358,34 @@ public static partial class PsAstParser {
 
     private static PsParsedCommand DeserializeParsedCommand(string json, string originalCommand) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-
-            var errors = new List<PsParseError>();
-            if (root.TryGetProperty("errors", out var errorsElem)) {
-                foreach (var e in errorsElem.EnumerateArray()) {
-                    errors.Add(new PsParseError {
-                        Message = e.TryGetProperty("message", out var m) ? m.GetString() ?? "" : "",
-                        ErrorId = e.TryGetProperty("errorId", out var id) ? id.GetString() ?? "" : "",
-                    });
-                }
+            var dto = JsonSerializer.Deserialize(json, PsAstJsonContext.Default.PsAstResultDto);
+            if (dto is null) {
+                return new PsParsedCommand {
+                    Valid = false,
+                    OriginalCommand = originalCommand,
+                    Errors = [new PsParseError { Message = "Failed to deserialize parse output", ErrorId = "DeserializationFailed" }],
+                };
             }
 
-            var typeLiterals = new List<string>();
-            if (root.TryGetProperty("typeLiterals", out var tlElem)) {
-                foreach (var tl in tlElem.EnumerateArray()) {
-                    var val = tl.GetString();
-                    if (val is not null) typeLiterals.Add(val);
-                }
-            }
+            var errors = dto.Errors.Select(e => new PsParseError {
+                Message = e.Message,
+                ErrorId = e.ErrorId,
+            }).ToArray();
 
-            var variables = new List<PsVariable>();
-            if (root.TryGetProperty("variables", out var varsElem)) {
-                foreach (var v in varsElem.EnumerateArray()) {
-                    variables.Add(new PsVariable(
-                        v.TryGetProperty("path", out var p) ? p.GetString() ?? "" : "",
-                        v.TryGetProperty("isSplatted", out var sp) && sp.GetBoolean()));
-                }
-            }
+            var variables = dto.Variables.Select(v => new PsVariable(v.Path, v.IsSplatted)).ToArray();
 
-            var statements = new List<PsStatement>();
-            if (root.TryGetProperty("statements", out var stmtsElem)) {
-                foreach (var s in stmtsElem.EnumerateArray()) {
-                    statements.Add(DeserializeStatement(s));
-                }
-            }
+            var statements = dto.Statements.Select(DeserializeStatement).ToArray();
 
             return new PsParsedCommand {
-                Valid = root.TryGetProperty("valid", out var vElem) && vElem.GetBoolean(),
+                Valid = dto.Valid,
                 OriginalCommand = originalCommand,
-                Errors = [.. errors],
-                HasStopParsing = root.TryGetProperty("hasStopParsing", out var hsp) && hsp.GetBoolean(),
-                TypeLiterals = [.. typeLiterals],
-                HasUsingStatements = root.TryGetProperty("hasUsingStatements", out var hu) && hu.GetBoolean(),
-                HasScriptRequirements = root.TryGetProperty("hasScriptRequirements", out var hr) && hr.GetBoolean(),
-                Statements = [.. statements],
-                Variables = [.. variables],
+                Errors = errors,
+                HasStopParsing = dto.HasStopParsing,
+                TypeLiterals = [.. dto.TypeLiterals],
+                HasUsingStatements = dto.HasUsingStatements,
+                HasScriptRequirements = dto.HasScriptRequirements,
+                Statements = statements,
+                Variables = variables,
             };
         } catch {
             return new PsParsedCommand {
@@ -415,70 +396,49 @@ public static partial class PsAstParser {
         }
     }
 
-    private static PsStatement DeserializeStatement(JsonElement s) {
-        var commands = new List<PsCommandElement>();
-        var nestedCommands = new List<PsCommandElement>();
-        var redirections = new List<PsRedirection>();
+    private static PsStatement DeserializeStatement(PsAstStatementDto s) {
+        var commands = s.Elements
+            .Select(DeserializeCommandFromElement)
+            .Where(c => c is not null)
+            .Cast<PsCommandElement>()
+            .ToArray();
 
-        var stmtType = s.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
+        var nestedCommands = s.NestedCommands
+            .Select(DeserializeCommandFromElement)
+            .Where(c => c is not null)
+            .Cast<PsCommandElement>()
+            .ToArray();
 
-        if (s.TryGetProperty("elements", out var elems)) {
-            foreach (var elem in elems.EnumerateArray()) {
-                var cmd = DeserializeCommandFromElement(elem);
-                if (cmd is not null) commands.Add(cmd);
-            }
-        }
-
-        if (s.TryGetProperty("nestedCommands", out var nested)) {
-            foreach (var nc in nested.EnumerateArray()) {
-                var cmd = DeserializeCommandFromElement(nc);
-                if (cmd is not null) nestedCommands.Add(cmd);
-            }
-        }
-
-        if (s.TryGetProperty("redirections", out var redirs)) {
-            foreach (var r in redirs.EnumerateArray()) {
-                redirections.Add(DeserializeRedirection(r));
-            }
-        }
+        var redirections = s.Redirections.Select(DeserializeRedirection).ToArray();
 
         PsSecurityPatterns? securityPatterns = null;
-        if (s.TryGetProperty("securityPatterns", out var sp)) {
+        if (s.SecurityPatterns is { } sp) {
             securityPatterns = new PsSecurityPatterns {
-                HasMemberInvocations = sp.TryGetProperty("hasMemberInvocations", out var mi) && mi.GetBoolean(),
-                HasSubExpressions = sp.TryGetProperty("hasSubExpressions", out var se) && se.GetBoolean(),
-                HasExpandableStrings = sp.TryGetProperty("hasExpandableStrings", out var es) && es.GetBoolean(),
-                HasScriptBlocks = sp.TryGetProperty("hasScriptBlocks", out var sb) && sb.GetBoolean(),
+                HasMemberInvocations = sp.HasMemberInvocations,
+                HasSubExpressions = sp.HasSubExpressions,
+                HasExpandableStrings = sp.HasExpandableStrings,
+                HasScriptBlocks = sp.HasScriptBlocks,
             };
         }
 
         return new PsStatement {
-            StatementType = stmtType,
-            Commands = [.. commands],
-            NestedCommands = [.. nestedCommands],
-            Redirections = [.. redirections],
-            Text = s.TryGetProperty("text", out var txt) ? txt.GetString() ?? "" : "",
+            StatementType = s.Type,
+            Commands = commands,
+            NestedCommands = nestedCommands,
+            Redirections = redirections,
+            Text = s.Text,
             SecurityPatterns = securityPatterns,
         };
     }
 
-    private static PsCommandElement? DeserializeCommandFromElement(JsonElement elem) {
-        var elemType = elem.TryGetProperty("type", out var et) ? et.GetString() ?? "" : "";
+    private static PsCommandElement? DeserializeCommandFromElement(PsAstElementDto elem) {
+        if (elem.Type != "CommandAst") return null;
 
-        if (elemType != "CommandAst") return null;
+        if (elem.CommandElements.Count == 0) return null;
 
-        var commandElements = new List<(string Text, string Type, string? Value)>();
-        if (elem.TryGetProperty("commandElements", out var ce)) {
-            foreach (var c in ce.EnumerateArray()) {
-                commandElements.Add((
-                    c.TryGetProperty("text", out var ct) ? ct.GetString() ?? "" : "",
-                    c.TryGetProperty("type", out var ctype) ? ctype.GetString() ?? "" : "",
-                    c.TryGetProperty("value", out var cv) ? cv.GetString() : null
-                ));
-            }
-        }
-
-        if (commandElements.Count == 0) return null;
+        var commandElements = elem.CommandElements
+            .Select(c => (c.Text, c.Type, c.Value))
+            .ToList();
 
         var rawName = commandElements[0].Value ?? commandElements[0].Text;
         rawName = StripQuotes(rawName);
@@ -497,20 +457,15 @@ public static partial class PsAstParser {
             elementTypes.Add(MapElementTypeFromRaw(commandElements[i].Type));
         }
 
-        var redirections = new List<PsRedirection>();
-        if (elem.TryGetProperty("redirections", out var redirs)) {
-            foreach (var r in redirs.EnumerateArray()) {
-                redirections.Add(DeserializeRedirection(r));
-            }
-        }
+        var redirections = elem.Redirections.Select(DeserializeRedirection).ToArray();
 
         return new PsCommandElement {
             Name = name,
             NameType = nameType,
             Args = [.. args],
             ElementTypes = [.. elementTypes],
-            Text = elem.TryGetProperty("text", out var txt) ? txt.GetString() ?? "" : "",
-            Redirections = [.. redirections],
+            Text = elem.Text,
+            Redirections = redirections,
         };
     }
 
@@ -527,19 +482,13 @@ public static partial class PsAstParser {
         };
     }
 
-    private static PsRedirection DeserializeRedirection(JsonElement r) {
-        var rType = r.TryGetProperty("type", out var rt) ? rt.GetString() ?? "" : "";
-
-        if (rType == "MergingRedirectionAst") {
+    private static PsRedirection DeserializeRedirection(PsAstRedirectionDto r) {
+        if (r.Type == "MergingRedirectionAst") {
             return new PsRedirection("2>&1", "", true);
         }
 
-        if (rType == "FileRedirectionAst") {
-            var append = r.TryGetProperty("append", out var a) && a.GetBoolean();
-            var fromStream = r.TryGetProperty("fromStream", out var fs) ? fs.GetString() ?? "" : "";
-            var target = r.TryGetProperty("locationText", out var lt) ? lt.GetString() ?? "" : "";
-
-            var op = (append, fromStream) switch {
+        if (r.Type == "FileRedirectionAst") {
+            var op = (r.Append, r.FromStream) switch {
                 (true, "Error") => "2>>",
                 (true, "All") => "*>>",
                 (true, _) => ">>",
@@ -548,7 +497,7 @@ public static partial class PsAstParser {
                 (false, _) => ">",
             };
 
-            return new PsRedirection(op, target, false);
+            return new PsRedirection(op, r.LocationText, false);
         }
 
         return new PsRedirection(">", "", false);
@@ -850,3 +799,189 @@ $output | ConvertTo-Json -Depth 10 -Compress
 """;
     }
 }
+
+/// <summary>
+/// PS AST 解析顶层结果 DTO — 对应 pwsh 脚本输出的 JSON 根对象
+/// </summary>
+public sealed class PsAstResultDto {
+    /// <summary>是否解析成功（无语法错误）</summary>
+    [JsonPropertyName("valid")]
+    public bool Valid { get; set; }
+
+    /// <summary>解析错误列表</summary>
+    [JsonPropertyName("errors")]
+    public List<PsAstErrorDto> Errors { get; set; } = [];
+
+    /// <summary>语句列表</summary>
+    [JsonPropertyName("statements")]
+    public List<PsAstStatementDto> Statements { get; set; } = [];
+
+    /// <summary>变量引用列表</summary>
+    [JsonPropertyName("variables")]
+    public List<PsAstVariableDto> Variables { get; set; } = [];
+
+    /// <summary>是否包含 stop-parsing token (--%)</summary>
+    [JsonPropertyName("hasStopParsing")]
+    public bool HasStopParsing { get; set; }
+
+    /// <summary>原始命令文本</summary>
+    [JsonPropertyName("originalCommand")]
+    public string OriginalCommand { get; set; } = string.Empty;
+
+    /// <summary>.NET 类型字面量列表</summary>
+    [JsonPropertyName("typeLiterals")]
+    public List<string> TypeLiterals { get; set; } = [];
+
+    /// <summary>是否包含 using 语句</summary>
+    [JsonPropertyName("hasUsingStatements")]
+    public bool HasUsingStatements { get; set; }
+
+    /// <summary>是否包含 #Requires 指令</summary>
+    [JsonPropertyName("hasScriptRequirements")]
+    public bool HasScriptRequirements { get; set; }
+}
+
+/// <summary>
+/// PS 解析错误 DTO — 对应 errors 数组项
+/// </summary>
+public sealed class PsAstErrorDto {
+    /// <summary>错误消息</summary>
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = string.Empty;
+
+    /// <summary>错误标识符</summary>
+    [JsonPropertyName("errorId")]
+    public string ErrorId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// PS 变量引用 DTO — 对应 variables 数组项
+/// </summary>
+public sealed class PsAstVariableDto {
+    /// <summary>变量路径</summary>
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = string.Empty;
+
+    /// <summary>是否 splatting 变量</summary>
+    [JsonPropertyName("isSplatted")]
+    public bool IsSplatted { get; set; }
+}
+
+/// <summary>
+/// PS 语句 DTO — discriminated union，Type 字段区分不同语句类型（PipelineAst/IfStatementAst 等）
+/// <para>公共字段统一 DTO 化，不同 type 的特有字段未出现（脚本仅输出公共字段）</para>
+/// </summary>
+public sealed class PsAstStatementDto {
+    /// <summary>语句类型（PipelineAst, IfStatementAst, AssignmentStatementAst 等）</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>完整文本</summary>
+    [JsonPropertyName("text")]
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>主命令元素列表（管道段）</summary>
+    [JsonPropertyName("elements")]
+    public List<PsAstElementDto> Elements { get; set; } = [];
+
+    /// <summary>嵌套命令列表</summary>
+    [JsonPropertyName("nestedCommands")]
+    public List<PsAstElementDto> NestedCommands { get; set; } = [];
+
+    /// <summary>语句级重定向</summary>
+    [JsonPropertyName("redirections")]
+    public List<PsAstRedirectionDto> Redirections { get; set; } = [];
+
+    /// <summary>安全模式（可选，存在时非 null）</summary>
+    [JsonPropertyName("securityPatterns")]
+    public PsAstSecurityPatternsDto? SecurityPatterns { get; set; }
+}
+
+/// <summary>
+/// PS 命令元素 DTO — 对应 elements/nestedCommands 数组项
+/// <para>discriminated union：Type="CommandAst" 才是命令，其他类型（CommandExpressionAst 等）跳过</para>
+/// </summary>
+public sealed class PsAstElementDto {
+    /// <summary>元素类型（CommandAst/CommandExpressionAst 等）</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>完整文本</summary>
+    [JsonPropertyName("text")]
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>命令元素列表（命令名 + 参数）</summary>
+    [JsonPropertyName("commandElements")]
+    public List<PsAstCommandElementItemDto> CommandElements { get; set; } = [];
+
+    /// <summary>重定向列表</summary>
+    [JsonPropertyName("redirections")]
+    public List<PsAstRedirectionDto> Redirections { get; set; } = [];
+}
+
+/// <summary>
+/// PS commandElements 数组项 DTO — 命令名/参数的文本、类型与值
+/// </summary>
+public sealed class PsAstCommandElementItemDto {
+    /// <summary>元素文本</summary>
+    [JsonPropertyName("text")]
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>元素 AST 类型</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>元素值（StringConstantExpressionAst 的 Value，可选）</summary>
+    [JsonPropertyName("value")]
+    public string? Value { get; set; }
+}
+
+/// <summary>
+/// PS 重定向 DTO — discriminated union，Type 区分 MergingRedirectionAst/FileRedirectionAst
+/// <para>Merging 类型仅用 Type 字段；File 类型额外使用 Append/FromStream/LocationText</para>
+/// </summary>
+public sealed class PsAstRedirectionDto {
+    /// <summary>重定向类型（MergingRedirectionAst/FileRedirectionAst）</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>是否追加模式（仅 FileRedirectionAst）</summary>
+    [JsonPropertyName("append")]
+    public bool Append { get; set; }
+
+    /// <summary>来源流（仅 FileRedirectionAst：Error/All/Output）</summary>
+    [JsonPropertyName("fromStream")]
+    public string FromStream { get; set; } = string.Empty;
+
+    /// <summary>目标位置文本（仅 FileRedirectionAst）</summary>
+    [JsonPropertyName("locationText")]
+    public string LocationText { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// PS 安全模式 DTO — 对应 securityPatterns 嵌套对象
+/// </summary>
+public sealed class PsAstSecurityPatternsDto {
+    /// <summary>是否包含成员调用（.NET 方法调用）</summary>
+    [JsonPropertyName("hasMemberInvocations")]
+    public bool HasMemberInvocations { get; set; }
+
+    /// <summary>是否包含子表达式 $(...) / @(...) / (...)</summary>
+    [JsonPropertyName("hasSubExpressions")]
+    public bool HasSubExpressions { get; set; }
+
+    /// <summary>是否包含可展开字符串 "..."</summary>
+    [JsonPropertyName("hasExpandableStrings")]
+    public bool HasExpandableStrings { get; set; }
+
+    /// <summary>是否包含脚本块 { ... }</summary>
+    [JsonPropertyName("hasScriptBlocks")]
+    public bool HasScriptBlocks { get; set; }
+}
+
+/// <summary>
+/// PS AST JSON 序列化上下文 — AOT 安全
+/// </summary>
+[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+[JsonSerializable(typeof(PsAstResultDto))]
+internal sealed partial class PsAstJsonContext : JsonSerializerContext;

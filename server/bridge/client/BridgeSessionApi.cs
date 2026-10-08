@@ -32,36 +32,19 @@ public static class BridgeSessionApi {
             return null;
         }
 
-        var gitSourceJson = BuildGitSource(gitRepoUrl, branch);
+        var gitSource = BuildGitSource(gitRepoUrl, branch);
         var eventsJson = BuildEventsJson(events);
 
-        // 构建请求体 JSON 字符串 — 手动构建以兼容 NativeAOT
-        var sb = new StringBuilder(256);
-        sb.Append("{\"environment_id\":\"").Append(EscapeJsonString(environmentId)).Append("\",");
-        sb.Append("\"source\":\"remote-control\",");
-
-        if (!string.IsNullOrEmpty(title)) {
-            sb.Append("\"title\":").Append(EscapeJsonString(title)).Append(',');
-        }
-
-        sb.Append("\"events\":").Append(eventsJson);
-
-        var hasSources = !string.IsNullOrEmpty(gitSourceJson);
-        sb.Append(",\"session_context\":{\"sources\":");
-        if (hasSources) {
-            sb.Append('[').Append(gitSourceJson).Append(']');
-        } else {
-            sb.Append("[]");
-        }
-
-        sb.Append(",\"outcomes\":[]");
-        sb.Append("}");
-
-        if (!string.IsNullOrEmpty(permissionMode)) {
-            sb.Append(",\"permission_mode\":").Append(EscapeJsonString(permissionMode));
-        }
-
-        var jsonBody = sb.ToString();
+        var sessionRequest = new BridgeCreateSessionRequestBody {
+            EnvironmentId = environmentId,
+            Title = string.IsNullOrEmpty(title) ? null : title,
+            Events = eventsJson,
+            SessionContext = new BridgeSessionContextRequestBody {
+                Sources = gitSource is null ? new() : new() { gitSource },
+            },
+            PermissionMode = string.IsNullOrEmpty(permissionMode) ? null : permissionMode,
+        };
+        var jsonBody = JsonSerializer.Serialize(sessionRequest, BridgeJsonContext.Default.BridgeCreateSessionRequestBody);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl.TrimEnd('/')}/v1/code/sessions") {
             Content = new StringContent(jsonBody, Encoding.UTF8, "application/json"),
@@ -87,8 +70,8 @@ public static class BridgeSessionApi {
         }
     }
 
-    /// <summary>构建 git source JSON 字符串 — 对齐 TS 端 parseGitRemote</summary>
-    private static string? BuildGitSource(string? gitRepoUrl, string branch) {
+    /// <summary>构建 git source DTO — 对齐 TS 端 parseGitRemote</summary>
+    private static BridgeGitSourceRequest? BuildGitSource(string? gitRepoUrl, string branch) {
         if (string.IsNullOrEmpty(gitRepoUrl)) {
             return null;
         }
@@ -119,13 +102,10 @@ public static class BridgeSessionApi {
             return null;
         }
 
-        var sb = new StringBuilder(128);
-        sb.Append("{\"type\":\"git_repository\",\"url\":\"https://").Append(EscapeJsonString($"{host}/{owner}/{name}"));
-        if (!string.IsNullOrEmpty(branch)) {
-            sb.Append("\",\"revision\":").Append(EscapeJsonString(branch));
-        }
-        sb.Append('}');
-        return sb.ToString();
+        return new BridgeGitSourceRequest {
+            Url = $"https://{host}/{owner}/{name}",
+            Revision = string.IsNullOrEmpty(branch) ? null : branch,
+        };
     }
 
     /// <summary>构建 events JSON 字符串 — 对齐 TS 端 SessionEvent[]</summary>
@@ -212,7 +192,7 @@ public static class BridgeSessionApi {
         var compatId = SessionIdCompat.ToCompatSessionId(sessionId);
         var url = $"{baseUrl.TrimEnd('/')}/v1/sessions/{compatId}";
 
-        var body = "{\"title\":" + EscapeJsonString(title) + '}';
+        var body = JsonSerializer.Serialize(new BridgeUpdateTitleRequest { Title = title }, BridgeJsonContext.Default.BridgeUpdateTitleRequest);
         using var request = new HttpRequestMessage(new HttpMethod("PATCH"), url) {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
@@ -307,7 +287,7 @@ public static class BridgeSessionApi {
 
         var url = $"{baseUrl.TrimEnd('/')}/v1/environments/{environmentId}/bridge/reconnect";
 
-        var body = "{\"session_id\":" + EscapeJsonString(sessionId) + '}';
+        var body = JsonSerializer.Serialize(new BridgeReconnectRequestBody { SessionId = sessionId }, BridgeJsonContext.Default.BridgeReconnectRequestBody);
         using var request = new HttpRequestMessage(HttpMethod.Post, url) {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
@@ -345,11 +325,7 @@ public static class BridgeSessionApi {
         ArgumentNullException.ThrowIfNull(httpClient);
 
         var url = $"/v1/environments/bridge/{environmentId}/sessions/{sessionId}/bridge/reconnect";
-        var body = new System.Text.StringBuilder("{\"environment_id\":\"")
-            .Append(EscapeJsonString(environmentId))
-            .Append("\",\"session_id\":\"")
-            .Append(EscapeJsonString(sessionId))
-            .Append("\"}");
+        var body = JsonSerializer.Serialize(new BridgeReconnectSessionRequestBody { EnvironmentId = environmentId, SessionId = sessionId }, BridgeJsonContext.Default.BridgeReconnectSessionRequestBody);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, url) {
             Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json"),
@@ -420,40 +396,6 @@ public static class BridgeSessionApi {
         while (idx < json.Length && json[idx] != '"') idx++;
 
         return json.Substring(start, idx - start);
-    }
-
-    /// <summary>转义 JSON 字符串值 — 防止注入</summary>
-    private static string EscapeJsonString(ReadOnlySpan<char> value) {
-        if (value.Length == 0) {
-            return "\"\"";
-        }
-
-        var needsEscape = false;
-        foreach (var c in value) {
-            if (c is '"' or '\\' or '\n' or '\r' or '\t') {
-                needsEscape = true;
-                break;
-            }
-        }
-
-        if (!needsEscape) {
-            return "\"" + value.ToString() + "\"";
-        }
-
-        var sb = new StringBuilder(value.Length + 16);
-        sb.Append('"');
-        foreach (var c in value) {
-            switch (c) {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
-            }
-        }
-        sb.Append('"');
-        return sb.ToString();
     }
 
     #endregion

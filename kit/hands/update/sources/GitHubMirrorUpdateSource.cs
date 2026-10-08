@@ -33,28 +33,28 @@ public sealed class GitHubMirrorUpdateSource : GitHostMirrorUpdateSourceBase {
     /// <param name="json">Release JSON 文本</param>
     /// <returns>更新清单</returns>
     protected override UpdateManifest ParseRelease(string json) {
-        using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
+        var release = JsonSerializer.Deserialize(json, UpdateSourceJsonContext.Default.GitHubReleaseDto)
+            ?? throw new InvalidOperationException("GitHub release JSON 解析失败");
 
-        var tagName = root.GetProperty("tag_name").GetString()
+        var tagName = release.TagName
             ?? throw new InvalidOperationException("GitHub release 缺少 tag_name");
 
         var version = ExtractVersion(tagName);
-        var publishedAt = root.TryGetProperty("published_at", out var pubEl) ? pubEl.GetDateTimeOffset() : DateTimeOffset.MinValue;
-        var body = root.TryGetProperty("body", out var bodyEl) ? bodyEl.GetString() : null;
+        var publishedAt = release.PublishedAt ?? DateTimeOffset.MinValue;
+        var body = release.Body;
 
         var entries = new List<UpdateManifestEntry>();
 
-        if (root.TryGetProperty("assets", out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array) {
-            foreach (var asset in assetsEl.EnumerateArray()) {
-                var name = asset.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
+        if (release.Assets is not null) {
+            foreach (var asset in release.Assets) {
+                var name = asset.Name;
                 if (name is null || !name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                var downloadUrl = asset.GetProperty("browser_download_url").GetString();
+                var downloadUrl = asset.BrowserDownloadUrl;
                 if (downloadUrl is null) continue;
 
-                var size = asset.TryGetProperty("size", out var sizeEl) ? sizeEl.GetInt64() : 0;
+                var size = asset.Size ?? 0;
 
                 entries.Add(new UpdateManifestEntry {
                     Version = version,

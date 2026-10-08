@@ -127,6 +127,7 @@ AI 习惯写 `--log true`（显式传值），但 jcc boolean 参数设计是无
 | A2 | expand=jobs 汇总前置+全量失败+success 折叠到5（非 success 全量显示不截断） | ✅ 已完成 | `09cce1b8b` |
 | B | expand=failed 智能定位错误行（滑动窗口扫描首个错误行，5行上下文+后续行，不从 runner setup 从头输出） | ✅ 已完成 | `c389b2fb1` |
 | C | JCC_OUTPUT_FORMAT 环境变量控制全局默认输出格式 | ✅ 已完成 | `ab0741f8d` |
+| D1 | gh run view 默认模式置顶失败job+尚未拉取提示（run失败/进行中时并行调jobs API附加失败job列表,渐进式披露避免AI三层调用） | ✅ 已完成 | `0cf1805b5` |
 
 ### 优化A1: pr checks 汇总前置+异常置顶
 
@@ -148,3 +149,27 @@ AI 习惯写 `--log true`（显式传值），但 jcc boolean 参数设计是无
 **测试**: `RunView_ExpandFailed_SkipsSetupLines_StartsFromError`（GitHubToolHandlersTests.OptimizeA2.cs）
 
 `expand=failed` 无 filter 时，滑动窗口扫描首个错误行（`##[error]`/`[FAIL]`/`Failed`/`Exception`/`error`），输出5行上下文+后续行。未找到错误时回退到最后20行。避免从 runner setup 从头输出，AI 首屏即可看到错误降 token。
+
+### 优化D1: gh run view 默认模式置顶失败job+尚未拉取提示
+
+**改动文件**: `kit/mcp/git_hub/GitHubToolHandlers.Run.cs`
+**测试**: `RunView_Default_FailureRun_ShowsFailedJobsAndNotFetchedHint`（GitHubToolHandlersTests.OptimizeD1.cs）
+
+`gh run view <id>` 默认模式(无 expand 无 log)在 run 失败/进行中时,并行调一次 jobs API 附加失败 job 列表+"日志尚未拉取(按需阅读)"提示。run 成功时不附加(保持简洁)。verbosity=1/2 不附加(保持原始格式)。
+
+输出示例:
+```
+✗ CI · 755
+Status: completed  Conclusion: failure
+ID: 37671103598
+
+❌ 失败 Job (1 个):
+  ❌    112965982126  unit-tests / Unit - Mcp
+
+📋 日志尚未拉取(按需阅读):
+  expand=failed     → 直接拉失败步骤日志(量少,推荐)
+  expand=jobs       → 查看全部 job 列表
+  expand=steps job_id=112965982126  → 查看指定 job 步骤
+```
+
+AI 首屏即可看到:run 失败了 + 哪个 job 失败 + 怎么拉日志,一次调用就够,把三层调用压成一层。

@@ -26,18 +26,12 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeSecretList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.SecretListResponse);
+            if (resp is null) return json;
             var sb = new StringBuilder(128);
-            var totalCount = doc.RootElement.TryGetProperty(GitHubJsonFields.TotalCount, out var tc) ? tc.GetInt32() : 0;
-            sb.AppendLine($"共 {totalCount} 个 secret");
-            if (doc.RootElement.TryGetProperty("secrets", out var secrets) && secrets.ValueKind == JsonValueKind.Array) {
-                sb.AppendLine("名称\t创建时间");
-                foreach (var s in secrets.EnumerateArray()) {
-                    var name = s.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-                    var created = s.TryGetProperty(GitHubJsonFields.CreatedAt, out var c) ? c.GetString() ?? "" : "";
-                    sb.AppendLine($"{name}\t{created}");
-                }
-            }
+            sb.AppendLine($"共 {resp.TotalCount} 个 secret");
+            sb.AppendLine("名称\t创建时间");
+            foreach (var s in resp.Secrets) sb.AppendLine($"{s.Name}\t{s.CreatedAt}");
             return sb.ToString();
         } catch { return json; }
     }
@@ -63,10 +57,10 @@ public partial class GitHubToolHandlers {
             string keyId;
             byte[] publicKeyBytes;
             try {
-                using var doc = JsonDocument.Parse(keyResponse.Body);
-                keyId = doc.RootElement.TryGetProperty("key_id", out var k) ? k.GetString() ?? "" : "";
-                var keyB64 = doc.RootElement.TryGetProperty("key", out var kk) ? kk.GetString() ?? "" : "";
-                publicKeyBytes = Convert.FromBase64String(keyB64);
+                var pubKey = JsonSerializer.Deserialize(keyResponse.Body, GitHubApiJsonContext.Safe.PublicKeyResponse);
+                if (pubKey is null) return Fail($"公钥响应解析失败: {keyResponse.Body}");
+                keyId = pubKey.KeyId;
+                publicKeyBytes = Convert.FromBase64String(pubKey.Key);
             } catch { return Fail($"公钥响应解析失败: {keyResponse.Body}"); }
             var plaintext = Encoding.UTF8.GetBytes(body);
             var sealedBox = GitHubSecretEncryptor.Seal(publicKeyBytes, plaintext);
@@ -127,9 +121,8 @@ public partial class GitHubToolHandlers {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/variables/{name}", ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
             try {
-                using var doc = JsonDocument.Parse(result.Body);
-                var value = doc.RootElement.TryGetProperty("value", out var v) ? v.GetString() ?? "" : "";
-                return Ok(value);
+                var variable = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.VariableItemResponse);
+                return Ok(variable?.Value ?? "");
             } catch { return Ok(result.Body); }
         }).ConfigureAwait(false);
 
@@ -170,19 +163,12 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeVariableList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.VariableListResponse);
+            if (resp is null) return json;
             var sb = new StringBuilder(128);
-            var totalCount = doc.RootElement.TryGetProperty(GitHubJsonFields.TotalCount, out var tc) ? tc.GetInt32() : 0;
-            sb.AppendLine($"共 {totalCount} 个 variable");
-            if (doc.RootElement.TryGetProperty("variables", out var variables) && variables.ValueKind == JsonValueKind.Array) {
-                sb.AppendLine("名称\t值\t更新时间");
-                foreach (var v in variables.EnumerateArray()) {
-                    var name = v.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-                    var value = v.TryGetProperty("value", out var val) ? val.GetString() ?? "" : "";
-                    var updated = v.TryGetProperty(GitHubJsonFields.UpdatedAt, out var u) ? u.GetString() ?? "" : "";
-                    sb.AppendLine($"{name}\t{value}\t{updated}");
-                }
-            }
+            sb.AppendLine($"共 {resp.TotalCount} 个 variable");
+            sb.AppendLine("名称\t值\t更新时间");
+            foreach (var v in resp.Variables) sb.AppendLine($"{v.Name}\t{v.Value}\t{v.UpdatedAt}");
             return sb.ToString();
         } catch { return json; }
     }

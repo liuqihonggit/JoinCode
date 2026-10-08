@@ -32,19 +32,12 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeSearchRepos(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.SearchRepoResponse);
+            if (resp is null) return json;
             var sb = new StringBuilder(512);
-            var totalCount = doc.RootElement.TryGetProperty(GitHubJsonFields.TotalCount, out var tc) ? tc.GetInt32() : 0;
-            sb.AppendLine($"共 {totalCount} 个仓库");
-            if (doc.RootElement.TryGetProperty(GitHubJsonFields.Items, out var items) && items.ValueKind == JsonValueKind.Array) {
-                sb.AppendLine("仓库\tStars\t描述");
-                foreach (var repo in items.EnumerateArray()) {
-                    var fullName = repo.TryGetProperty("full_name", out var fn) ? fn.GetString() ?? "" : "";
-                    var stars = repo.TryGetProperty(GitHubJsonFields.StargazersCount, out var s) ? s.GetInt32() : 0;
-                    var desc = repo.TryGetProperty(GitHubJsonFields.Description, out var d) ? (d.ValueKind == JsonValueKind.Null ? "" : d.GetString() ?? "") : "";
-                    sb.AppendLine($"{fullName}\t{stars}\t{desc}");
-                }
-            }
+            sb.AppendLine($"共 {resp.TotalCount} 个仓库");
+            sb.AppendLine("仓库\tStars\t描述");
+            foreach (var repo in resp.Items) sb.AppendLine($"{repo.FullName}\t{repo.StargazersCount}\t{repo.Description}");
             return sb.ToString();
         } catch { return json; }
     }
@@ -100,20 +93,15 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeSearchIssues(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.SearchIssueResponse);
+            if (resp is null) return json;
             var sb = new StringBuilder(512);
-            var totalCount = doc.RootElement.TryGetProperty(GitHubJsonFields.TotalCount, out var tc) ? tc.GetInt32() : 0;
-            sb.AppendLine($"共 {totalCount} 条结果");
-            if (doc.RootElement.TryGetProperty(GitHubJsonFields.Items, out var items) && items.ValueKind == JsonValueKind.Array) {
-                sb.AppendLine("编号\t状态\t标题\t仓库");
-                foreach (var item in items.EnumerateArray()) {
-                    var number = item.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
-                    var state = item.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
-                    var title = item.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
-                    var repoUrl = item.TryGetProperty("repository_url", out var ru) ? ru.GetString() ?? "" : "";
-                    var repoName = repoUrl.Contains('/') ? repoUrl[(repoUrl.LastIndexOf('/') + 1)..] : "";
-                    sb.AppendLine($"{number}\t{state}\t{title}\t{repoName}");
-                }
+            sb.AppendLine($"共 {resp.TotalCount} 条结果");
+            sb.AppendLine("编号\t状态\t标题\t仓库");
+            foreach (var item in resp.Items) {
+                var repoUrl = item.RepositoryUrl ?? "";
+                var repoName = repoUrl.Contains('/') ? repoUrl[(repoUrl.LastIndexOf('/') + 1)..] : "";
+                sb.AppendLine($"{item.Number}\t{item.State}\t{item.Title}\t{repoName}");
             }
             return sb.ToString();
         } catch { return json; }

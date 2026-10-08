@@ -715,6 +715,23 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(MilestoneRequest))]
 [JsonSerializable(typeof(GraphQLRequest))]
 [JsonSerializable(typeof(List<string>))]
+// === 响应 DTO ===
+[JsonSerializable(typeof(LabelResponse))]
+[JsonSerializable(typeof(List<LabelResponse>))]
+[JsonSerializable(typeof(OrgResponse))]
+[JsonSerializable(typeof(List<OrgResponse>))]
+[JsonSerializable(typeof(SshKeyResponse))]
+[JsonSerializable(typeof(List<SshKeyResponse>))]
+[JsonSerializable(typeof(GpgKeyResponse))]
+[JsonSerializable(typeof(List<GpgKeyResponse>))]
+[JsonSerializable(typeof(SecretListResponse))]
+[JsonSerializable(typeof(VariableListResponse))]
+[JsonSerializable(typeof(VariableItemResponse))]
+[JsonSerializable(typeof(PublicKeyResponse))]
+[JsonSerializable(typeof(SearchRepoResponse))]
+[JsonSerializable(typeof(SearchIssueResponse))]
+[JsonSerializable(typeof(WorkflowListResponse))]
+[JsonSerializable(typeof(WorkflowResponse))]
 internal sealed partial class GitHubApiJsonContext : JsonSerializerContext
 {
     private static readonly Lazy<GitHubApiJsonContext> s_safe = new(() => new GitHubApiJsonContext(

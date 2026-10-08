@@ -25,15 +25,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeOrgList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var orgs = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListOrgResponse);
+            if (orgs is null) return json;
             var sb = new StringBuilder(128);
             sb.AppendLine("组织\t描述");
-            foreach (var org in doc.RootElement.EnumerateArray()) {
-                var login = org.TryGetProperty(GitHubJsonFields.Login, out var l) ? l.GetString() ?? "" : "";
-                var desc = org.TryGetProperty(GitHubJsonFields.Description, out var d) ? (d.ValueKind == JsonValueKind.Null ? "" : d.GetString() ?? "") : "";
-                sb.AppendLine($"{login}\t{desc}");
-            }
+            foreach (var org in orgs) sb.AppendLine($"{org.Login}\t{org.Description}");
             return sb.ToString();
         } catch { return json; }
     }
@@ -85,15 +81,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeSshKeyList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var keys = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListSshKeyResponse);
+            if (keys is null) return json;
             var sb = new StringBuilder(128);
             sb.AppendLine("ID\t标题");
-            foreach (var key in doc.RootElement.EnumerateArray()) {
-                var id = key.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt32() : 0;
-                var title = key.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
-                sb.AppendLine($"{id}\t{title}");
-            }
+            foreach (var key in keys) sb.AppendLine($"{key.Id}\t{key.Title}");
             return sb.ToString();
         } catch { return json; }
     }
@@ -144,16 +136,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeGpgKeyList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var keys = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListGpgKeyResponse);
+            if (keys is null) return json;
             var sb = new StringBuilder(128);
             sb.AppendLine("ID\tKey ID\t可签名");
-            foreach (var key in doc.RootElement.EnumerateArray()) {
-                var id = key.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt32() : 0;
-                var keyId = key.TryGetProperty("key_id", out var k) ? k.GetString() ?? "" : "";
-                var canSign = key.TryGetProperty("can_sign", out var cs) && cs.GetBoolean();
-                sb.AppendLine($"{id}\t{keyId}\t{canSign}");
-            }
+            foreach (var key in keys) sb.AppendLine($"{key.Id}\t{key.KeyId}\t{key.CanSign}");
             return sb.ToString();
         } catch { return json; }
     }

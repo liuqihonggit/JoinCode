@@ -4,7 +4,7 @@ namespace JoinCode.Abstractions.Models.Update;
 /// 更新清单 — 从更新源获取的版本清单，描述所有可用版本
 /// > ADR: 0064
 /// </summary>
-public sealed class UpdateManifest {
+public sealed record UpdateManifest {
     /// <summary>
     /// 最新稳定版本号（如 "1.2.0"）
     /// </summary>

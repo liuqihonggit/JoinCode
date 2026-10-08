@@ -25,7 +25,7 @@ internal sealed record DotEnvConfig {
         try {
             var content = SyncFileReader.RunValueTask(SafeFileIO.ReadAllText(filePath));
             var dto = System.Text.Json.JsonSerializer.Deserialize(content, DotEnvJsonContext.Default.DotEnvFileDto);
-            if (dto?.Env is null)
+            if (dto?.Env is null || dto.Env.Count == 0)
                 return null;
 
             var env = dto.Env;

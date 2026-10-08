@@ -85,7 +85,10 @@ public sealed class StaticFileUpdateSource : IUpdateSource {
     /// 供 LocalFileUpdateSource 等其他源复用
     /// </summary>
     internal static UpdateManifest ParseManifest(string json) {
-        return JsonSerializer.Deserialize(json, UpdateSourceJsonContext.Default.UpdateManifest)
+        var manifest = JsonSerializer.Deserialize(json, UpdateSourceJsonContext.Default.UpdateManifest)
             ?? throw new InvalidOperationException("manifest.json 解析失败");
+        return string.IsNullOrEmpty(manifest.Channel)
+            ? manifest with { Channel = "stable" }
+            : manifest;
     }
 }

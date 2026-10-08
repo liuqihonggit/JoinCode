@@ -128,17 +128,29 @@ public sealed class HostContextSyncService : IAsyncDisposable {
     }
 
     /// <summary>
-    /// 反序列化上下文快照 — 简单 JSON 解析（容错）。
+    /// 反序列化上下文快照 — DTO + JsonSerializer.Deserialize（AOT 友好，正确处理 JSON 转义）。
     /// </summary>
     internal static HostContextSnapshot? DeserializeSnapshot(string json) {
         if (string.IsNullOrWhiteSpace(json)) return null;
         try {
-            var timestamp = ExtractJsonField(json, "timestamp") ?? DateTimeOffset.UtcNow.ToString("O");
-            var hostPid = ExtractJsonField(json, "hostPid") ?? "unknown";
+            var dto = JsonSerializer.Deserialize(json, HostContextSyncJsonContext.Default.HostContextSnapshotDto);
+            if (dto is null) return null;
 
             return new HostContextSnapshot {
-                Timestamp = DateTimeOffset.TryParse(timestamp, out var ts) ? ts : DateTimeOffset.UtcNow,
-                HostProcessId = hostPid,
+                Timestamp = DateTimeOffset.TryParse(dto.Timestamp, out var ts) ? ts : DateTimeOffset.UtcNow,
+                HostProcessId = dto.HostPid,
+                RoutingTable = dto.Routing ?? new Dictionary<string, string>(),
+                PendingMessages = new Dictionary<string, IReadOnlyList<ReadOnlyMemory<byte>>>(),
+                BuildQueue = new BuildQueueState {
+                    PendingCount = dto.BuildQueue?.Pending ?? 0,
+                    RunningCount = dto.BuildQueue?.Running ?? 0,
+                    PendingTasks = Array.Empty<string>()
+                }
+            };
+        } catch {
+            return new HostContextSnapshot {
+                Timestamp = DateTimeOffset.UtcNow,
+                HostProcessId = "unknown",
                 RoutingTable = new Dictionary<string, string>(),
                 PendingMessages = new Dictionary<string, IReadOnlyList<ReadOnlyMemory<byte>>>(),
                 BuildQueue = new BuildQueueState {
@@ -147,11 +159,12 @@ public sealed class HostContextSyncService : IAsyncDisposable {
                     PendingTasks = Array.Empty<string>()
                 }
             };
-        } catch {
-            return null;
         }
     }
 
+    /// <summary>
+    /// 从 JSON 字符串中提取指定字段的字符串值 — 简单字符串搜索（不处理 JSON 转义，仅用于容错场景）。
+    /// </summary>
     internal static string? ExtractJsonField(string json, string fieldName) {
         var key = "\"" + fieldName + "\":\"";
         var start = json.IndexOf(key, StringComparison.Ordinal);

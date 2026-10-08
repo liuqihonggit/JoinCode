@@ -1,7 +1,7 @@
 namespace JoinCode.Hands.Desktop;
 
 /// <summary>
-/// 屏幕截图服务 — GDI BitBlt + GetDIBits + ImageSharp PNG 编码，返回 base64
+/// 屏幕截图服务 — GDI BitBlt + GetDIBits + SkiaSharp PNG 编码，返回 base64
 /// </summary>
 [Register(typeof(IScreenCaptureService), ServiceLifetime.Singleton)]
 public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCaptureService {
@@ -75,10 +75,16 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
 
             for (var i = 3; i < bytes.Length; i += 4) bytes[i] = 255;
 
-            using var image = Image.LoadPixelData<Bgra32>(bytes, width, height);
-            await using var ms = new MemoryStream();
-            image.Save(ms, new PngEncoder());
-            return Convert.ToBase64String(ms.ToArray());
+            using var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+            var pixelsHandle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+            try {
+                bitmap.SetPixels(pixelsHandle.AddrOfPinnedObject());
+            } finally {
+                pixelsHandle.Free();
+            }
+            using var image = SKImage.FromBitmap(bitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            return Convert.ToBase64String(data.ToArray());
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "截图失败: ({X},{Y},{W},{H})", x, y, width, height);
             return string.Empty;

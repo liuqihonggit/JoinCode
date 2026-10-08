@@ -6,47 +6,48 @@ namespace JoinCode.Vision.Tests;
 public sealed class CellCropperTests {
     [Fact]
     public async Task CropAsync_ReturnsCroppedDimensions() {
-        var bytes = await CreateTestImage(100, 100, Color.Red);
+        var bytes = await CreateTestImage(100, 100, SKColors.Red);
 
         var cropped = await CellCropper.CropAsync(bytes, 0, 0, 50, 50);
 
-        using var img = Image.Load(cropped);
-        img.Width.Should().Be(50);
+        using var img = SKBitmap.Decode(cropped);
+        img!.Width.Should().Be(50);
         img.Height.Should().Be(50);
     }
 
     [Fact]
     public async Task CropAsync_PreservesPixelColor() {
-        var bytes = await CreateTestImage(100, 100, Color.Blue);
+        var bytes = await CreateTestImage(100, 100, SKColors.Blue);
 
         var cropped = await CellCropper.CropAsync(bytes, 25, 25, 50, 50);
 
-        using var img = Image.Load<Rgba32>(cropped);
-        img[0, 0].B.Should().Be(255);
-        img[0, 0].R.Should().Be(0);
+        using var img = SKBitmap.Decode(cropped);
+        var pixel = img!.GetPixel(0, 0);
+        pixel.Blue.Should().Be(255);
+        pixel.Red.Should().Be(0);
     }
 
     [Fact]
     public async Task CropAsync_CropsBottomRightQuadrant() {
-        var bytes = await CreateTestImage(100, 100, Color.Green);
+        var bytes = await CreateTestImage(100, 100, SKColors.Green);
 
         var cropped = await CellCropper.CropAsync(bytes, 50, 50, 50, 50);
 
-        using var img = Image.Load(cropped);
-        img.Width.Should().Be(50);
+        using var img = SKBitmap.Decode(cropped);
+        img!.Width.Should().Be(50);
         img.Height.Should().Be(50);
     }
 
     [Fact]
     public async Task CropToBase64Async_ReturnsValidBase64Png() {
-        var bytes = await CreateTestImage(100, 100, Color.Red);
+        var bytes = await CreateTestImage(100, 100, SKColors.Red);
 
         var base64 = await CellCropper.CropToBase64Async(bytes, 0, 0, 50, 50);
 
         base64.Should().NotBeNullOrEmpty();
         var decoded = Convert.FromBase64String(base64);
-        using var img = Image.Load(decoded);
-        img.Width.Should().Be(50);
+        using var img = SKBitmap.Decode(decoded);
+        img!.Width.Should().Be(50);
     }
 
     [Fact]
@@ -57,15 +58,18 @@ public sealed class CellCropperTests {
 
     [Fact]
     public async Task CropAsync_NegativeDimensions_Throws() {
-        var bytes = await CreateTestImage(100, 100, Color.Red);
+        var bytes = await CreateTestImage(100, 100, SKColors.Red);
         var act = async () => await CellCropper.CropAsync(bytes, 0, 0, -10, 10);
         await act.Should().ThrowAsync<ArgumentException>();
     }
 
-    private static async Task<byte[]> CreateTestImage(int width, int height, Color color) {
-        using var img = new Image<Rgba32>(width, height, color);
-        await using var ms = new MemoryStream();
-        img.Save(ms, PngFormat.Instance);
-        return ms.ToArray();
+    private static Task<byte[]> CreateTestImage(int width, int height, SKColor color) {
+        using var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Opaque);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(color);
+        canvas.Flush();
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return Task.FromResult(data.ToArray());
     }
 }

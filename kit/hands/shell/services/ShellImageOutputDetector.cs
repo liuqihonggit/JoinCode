@@ -77,26 +77,39 @@ public static class ShellImageOutputDetector {
             return (mediaType, base64Data);
 
         try {
-            using var image = SixLabors.ImageSharp.Image.Load(bytes);
+            using var original = SKBitmap.Decode(bytes);
+            if (original is null) return (mediaType, base64Data);
             var maxDimension = 2048;
-            if (image.Width > maxDimension || image.Height > maxDimension) {
-                image.Mutate(x => x.Resize(new SixLabors.ImageSharp.Processing.ResizeOptions {
-                    Size = new SixLabors.ImageSharp.Size(maxDimension, maxDimension),
-                    Mode = SixLabors.ImageSharp.Processing.ResizeMode.Max,
-                }));
+            var target = original;
+            var shouldDisposeTarget = false;
+
+            if (original.Width > maxDimension || original.Height > maxDimension) {
+                var scale = Math.Min((float)maxDimension / original.Width, (float)maxDimension / original.Height);
+                var newWidth = (int)(original.Width * scale);
+                var newHeight = (int)(original.Height * scale);
+                target = new SKBitmap(newWidth, newHeight, original.ColorType, original.AlphaType);
+                shouldDisposeTarget = true;
+                using var canvas = new SKCanvas(target);
+                canvas.DrawBitmap(original, new SKRectI(0, 0, newWidth, newHeight),
+                    new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+                canvas.Flush();
             }
 
-            await using var ms = new MemoryStream();
-            var encoder = mediaType switch {
-                "image/png" => (SixLabors.ImageSharp.Formats.IImageEncoder)new SixLabors.ImageSharp.Formats.Png.PngEncoder(),
-                "image/gif" => new SixLabors.ImageSharp.Formats.Gif.GifEncoder(),
-                _ => new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 85 },
-            };
-            image.Save(ms, encoder);
+            try {
+                var (format, quality) = mediaType switch {
+                    "image/png" => (SKEncodedImageFormat.Png, 100),
+                    "image/gif" => (SKEncodedImageFormat.Gif, 100),
+                    _ => (SKEncodedImageFormat.Jpeg, 85),
+                };
 
-            var compressedBase64 = Convert.ToBase64String(ms.ToArray());
-            var resultMediaType = encoder is SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder ? "image/jpeg" : mediaType;
-            return (resultMediaType, compressedBase64);
+                using var image = SKImage.FromBitmap(target);
+                using var data = image.Encode(format, quality);
+                var compressedBase64 = Convert.ToBase64String(data.ToArray());
+                var resultMediaType = format == SKEncodedImageFormat.Jpeg ? "image/jpeg" : mediaType;
+                return (resultMediaType, compressedBase64);
+            } finally {
+                if (shouldDisposeTarget) target.Dispose();
+            }
         } catch {
             return (mediaType, base64Data);
         }

@@ -4,11 +4,14 @@ namespace Vision.Tests.ToolHandlers;
 /// MeasurementToolHandlers 单元测试 — 验证 M4 的 3 个 MCP 工具
 /// </summary>
 public sealed class MeasurementToolHandlersTests {
-    private static async Task<string> CreateTestImageBase64(int width = 8, int height = 8) {
-        using var image = new Image<Rgb24>(width, height, new Rgb24(100, 150, 200));
-        await using var ms = new MemoryStream();
-        image.Save(ms, PngFormat.Instance);
-        return Convert.ToBase64String(ms.ToArray());
+    private static Task<string> CreateTestImageBase64(int width = 8, int height = 8) {
+        using var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Opaque);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(new SKColor(100, 150, 200));
+        canvas.Flush();
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return Task.FromResult(Convert.ToBase64String(data.ToArray()));
     }
 
     [Fact]

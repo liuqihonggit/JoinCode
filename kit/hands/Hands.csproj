@@ -28,7 +28,7 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="$(MicrosoftExtensionsVersion)" />
     <PackageReference Include="System.IO.Hashing" Version="$(SystemIOHashingVersion)" />
     <PackageReference Include="ReverseMarkdown.Aot" Version="4.8.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="$(ImageSharpVersion)" />
+    <PackageReference Include="SkiaSharp" Version="$(SkiaSharpVersion)" />
     <PackageReference Include="Docnet.Core" Version="$(DocnetCoreVersion)" />
   </ItemGroup>
 

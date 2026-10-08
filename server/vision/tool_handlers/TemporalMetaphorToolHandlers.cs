@@ -97,18 +97,20 @@ public class TemporalMetaphorToolHandlers {
 
     /// <summary>计算稳定区域掩码 — 帧差粗筛，稳定像素=白色，不稳定=黑色</summary>
     /// <exception cref="ArgumentException">帧尺寸不一致([VIS314])或帧base64无效([VIS315])时抛出</exception>
-    private static async Task<string> ComputeStableMaskAsync(List<string> frameBase64List, int threshold, CancellationToken ct) {
-        var frames = new List<Image<Rgb24>>(frameBase64List.Count);
+    private static Task<string> ComputeStableMaskAsync(List<string> frameBase64List, int threshold, CancellationToken ct) {
+        var frames = new List<SKBitmap>(frameBase64List.Count);
         try {
             foreach (var base64 in frameBase64List) {
                 if (!VisionBase64.TryDecode(base64, out var bytes, out var decodeError))
                     throw new ArgumentException($"[VIS315] 帧 base64 无效: {decodeError}");
-                Image<Rgb24> frame;
+                SKBitmap? frame;
                 try {
-                    frame = Image.Load<Rgb24>(bytes);
+                    frame = SKBitmap.Decode(bytes);
                 } catch (Exception ex) when (ex is not OperationCanceledException) {
                     throw new ArgumentException("[VIS315] 帧图片解码失败，请检查 base64 是否为有效图片");
                 }
+                if (frame is null)
+                    throw new ArgumentException("[VIS315] 帧图片解码失败，请检查 base64 是否为有效图片");
                 frames.Add(frame);
             }
 
@@ -119,27 +121,27 @@ public class TemporalMetaphorToolHandlers {
                     throw new ArgumentException($"[VIS314] 帧尺寸不一致: 帧0={width}x{height}, 帧{i}={frames[i].Width}x{frames[i].Height}，所有帧必须同尺寸");
             }
 
-            using var mask = new Image<L8>(width, height, new L8(0));
+            using var mask = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Opaque);
 
             for (var y = 0; y < height; y++) {
                 for (var x = 0; x < width; x++) {
-                    var p0 = frames[0][x, y];
+                    var p0 = frames[0].GetPixel(x, y);
                     var isStable = true;
                     for (var i = 1; i < frames.Count; i++) {
-                        var pi = frames[i][x, y];
-                        var diff = Math.Max(Math.Max(Math.Abs(p0.R - pi.R), Math.Abs(p0.G - pi.G)), Math.Abs(p0.B - pi.B));
+                        var pi = frames[i].GetPixel(x, y);
+                        var diff = Math.Max(Math.Max(Math.Abs(p0.Red - pi.Red), Math.Abs(p0.Green - pi.Green)), Math.Abs(p0.Blue - pi.Blue));
                         if (diff > threshold) {
                             isStable = false;
                             break;
                         }
                     }
-                    mask[x, y] = isStable ? new L8(255) : new L8(0);
+                    mask.SetPixel(x, y, isStable ? SKColors.White : SKColors.Black);
                 }
             }
 
-            await using var ms = new MemoryStream();
-            await mask.SaveAsync(ms, PngFormat.Instance, ct).ConfigureAwait(false);
-            return Convert.ToBase64String(ms.ToArray());
+            using var maskImage = SKImage.FromBitmap(mask);
+            using var maskData = maskImage.Encode(SKEncodedImageFormat.Png, 100);
+            return Task.FromResult(Convert.ToBase64String(maskData.ToArray()));
         } finally {
             foreach (var frame in frames)
                 frame.Dispose();

@@ -118,6 +118,7 @@ global using JoinCode.Transport.Bridge;
 global using McpBridge;
 global using McpClient;
 global using McpProtocol;
+global using McpToolDispatch;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Hosting;
 global using Microsoft.Extensions.Logging;

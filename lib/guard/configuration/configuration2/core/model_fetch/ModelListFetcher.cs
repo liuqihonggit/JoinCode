@@ -148,38 +148,21 @@ public sealed class ModelListFetcher : IModelListFetcher {
     /// </summary>
     private static IReadOnlyList<RemoteModelInfo> ParseModels(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
-                return Array.Empty<RemoteModelInfo>();
+            var dto = JsonSerializer.Deserialize(json, ModelFetchJsonContext.Default.ModelListResponseDto);
+            if (dto?.Data is null) return Array.Empty<RemoteModelInfo>();
 
             var list = new List<RemoteModelInfo>();
-            foreach (var item in data.EnumerateArray()) {
-                string? id = null;
-                if (item.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.String)
-                    id = idProp.GetString();
-                if (string.IsNullOrEmpty(id))
-                    continue;
-
-                var description = string.Empty;
-                if (item.TryGetProperty("description", out var descProp) && descProp.ValueKind == JsonValueKind.String)
-                    description = descProp.GetString() ?? string.Empty;
-
-                var contextLength = 0;
-                if (item.TryGetProperty("context_length", out var ctxProp) && ctxProp.ValueKind == JsonValueKind.Number)
-                    contextLength = ctxProp.GetInt32();
-
-                var maxOutputLength = 0;
-                if (item.TryGetProperty("max_output_length", out var maxOutProp) && maxOutProp.ValueKind == JsonValueKind.Number)
-                    maxOutputLength = maxOutProp.GetInt32();
+            foreach (var item in dto.Data) {
+                if (string.IsNullOrEmpty(item.Id)) continue;
 
                 list.Add(new RemoteModelInfo {
-                    Id = id!,
-                    Description = description,
-                    ContextLength = contextLength,
-                    MaxOutputLength = maxOutputLength,
-                    InputModalities = ParseStringArray(item, "input_modalities"),
-                    OutputModalities = ParseStringArray(item, "output_modalities"),
-                    SupportedFeatures = ParseStringArray(item, "supported_features")
+                    Id = item.Id,
+                    Description = item.Description ?? string.Empty,
+                    ContextLength = item.ContextLength ?? 0,
+                    MaxOutputLength = item.MaxOutputLength ?? 0,
+                    InputModalities = FilterNonEmpty(item.InputModalities),
+                    OutputModalities = FilterNonEmpty(item.OutputModalities),
+                    SupportedFeatures = FilterNonEmpty(item.SupportedFeatures)
                 });
             }
             return list;
@@ -205,4 +188,66 @@ public sealed class ModelListFetcher : IModelListFetcher {
         }
         return list;
     }
+
+    /// <summary>
+    /// 过滤字符串数组中的 null 和空字符串 — 返回只读列表，null 输入返回空
+    /// </summary>
+    private static IReadOnlyList<string> FilterNonEmpty(string[]? source) {
+        if (source is null) return [];
+        var list = new List<string>(source.Length);
+        foreach (var s in source) {
+            if (!string.IsNullOrEmpty(s))
+                list.Add(s);
+        }
+        return list;
+    }
 }
+
+/// <summary>
+/// 模型列表响应 DTO — 对应 OpenAI 兼容 /v1/models 响应的顶层结构，用于 DTO 化反序列化替代 TryGetProperty 链式提取
+/// </summary>
+public sealed class ModelListResponseDto {
+    /// <summary>模型数组</summary>
+    [JsonPropertyName("data")]
+    public ModelItemDto[]? Data { get; set; }
+}
+
+/// <summary>
+/// 模型项 DTO — 对应 /v1/models 响应 data[] 每一项的结构
+/// </summary>
+public sealed class ModelItemDto {
+    /// <summary>模型 ID — 唯一标识</summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
+    /// <summary>模型描述</summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// <summary>上下文窗口长度</summary>
+    [JsonPropertyName("context_length")]
+    public int? ContextLength { get; set; }
+
+    /// <summary>最大输出长度</summary>
+    [JsonPropertyName("max_output_length")]
+    public int? MaxOutputLength { get; set; }
+
+    /// <summary>输入模态列表 — 如 ["text","image"]</summary>
+    [JsonPropertyName("input_modalities")]
+    public string[]? InputModalities { get; set; }
+
+    /// <summary>输出模态列表 — 如 ["text"] 或 ["image"]</summary>
+    [JsonPropertyName("output_modalities")]
+    public string[]? OutputModalities { get; set; }
+
+    /// <summary>支持的特性列表 — 如 ["tools","json_mode","reasoning"]</summary>
+    [JsonPropertyName("supported_features")]
+    public string[]? SupportedFeatures { get; set; }
+}
+
+/// <summary>
+/// 模型拉取 JSON 序列化上下文 — 为模型列表响应 DTO 生成 AOT 兼容的 JSON 序列化代码
+/// </summary>
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSerializable(typeof(ModelListResponseDto))]
+public partial class ModelFetchJsonContext : JsonSerializerContext;

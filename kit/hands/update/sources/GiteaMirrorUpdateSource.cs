@@ -37,34 +37,37 @@ public sealed class GiteaMirrorUpdateSource : GitHostMirrorUpdateSourceBase {
         var root = doc.RootElement;
 
         // Gitea /releases 返回数组，取第一个（最新）
-        var latestRelease = root.ValueKind == JsonValueKind.Array
-            ? root.EnumerateArray().FirstOrDefault()
-            : root;
+        GiteaReleaseDto latestRelease;
+        if (root.ValueKind == JsonValueKind.Array) {
+            var first = root.EnumerateArray().FirstOrDefault();
+            if (first.ValueKind == JsonValueKind.Undefined)
+                throw new InvalidOperationException("Gitea releases 为空");
+            latestRelease = first.Deserialize(UpdateSourceJsonContext.Default.GiteaReleaseDto)
+                ?? throw new InvalidOperationException("Gitea release JSON 解析失败");
+        } else {
+            latestRelease = root.Deserialize(UpdateSourceJsonContext.Default.GiteaReleaseDto)
+                ?? throw new InvalidOperationException("Gitea release JSON 解析失败");
+        }
 
-        if (latestRelease.ValueKind == JsonValueKind.Undefined)
-            throw new InvalidOperationException("Gitea releases 为空");
-
-        var tagName = latestRelease.GetProperty("tag_name").GetString()
+        var tagName = latestRelease.TagName
             ?? throw new InvalidOperationException("Gitea release 缺少 tag_name");
 
         var version = ExtractVersion(tagName);
-        var publishedAt = latestRelease.TryGetProperty("created_at", out var createdEl) ? createdEl.GetDateTimeOffset() : DateTimeOffset.MinValue;
-        var body = latestRelease.TryGetProperty("body", out var bodyEl) ? bodyEl.GetString() : null;
+        var publishedAt = latestRelease.CreatedAt ?? DateTimeOffset.MinValue;
+        var body = latestRelease.Body;
 
         var entries = new List<UpdateManifestEntry>();
 
-        if (latestRelease.TryGetProperty("assets", out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array) {
-            foreach (var asset in assetsEl.EnumerateArray()) {
-                var name = asset.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
+        if (latestRelease.Assets is not null) {
+            foreach (var asset in latestRelease.Assets) {
+                var name = asset.Name;
                 if (name is null || !name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                var downloadUrl = asset.TryGetProperty("download_url", out var urlEl)
-                    ? urlEl.GetString()
-                    : asset.TryGetProperty("browser_download_url", out var fallbackUrlEl) ? fallbackUrlEl.GetString() : null;
+                var downloadUrl = asset.DownloadUrl ?? asset.BrowserDownloadUrl;
                 if (downloadUrl is null) continue;
 
-                var size = asset.TryGetProperty("size", out var sizeEl) ? sizeEl.GetInt64() : 0;
+                var size = asset.Size ?? 0;
 
                 entries.Add(new UpdateManifestEntry {
                     Version = version,

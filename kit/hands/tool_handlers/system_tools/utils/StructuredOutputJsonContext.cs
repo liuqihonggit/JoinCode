@@ -5,4 +5,5 @@ namespace Tools.Handlers;
 /// </summary>
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(List<StructuredOutputSchema>))]
+[JsonSerializable(typeof(List<ToolParameterDto>))]
 public partial class StructuredOutputJsonContext : JsonSerializerContext;

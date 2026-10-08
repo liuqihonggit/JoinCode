@@ -31,11 +31,18 @@ namespace Api.LLM;
 [JsonSerializable(typeof(ResponsesTool))]
 [JsonSerializable(typeof(TokenUsage))]
 [JsonSerializable(typeof(List<OpenAIToolCall>))]
+[JsonSerializable(typeof(ToolCallItemJson))]
 [JsonSerializable(typeof(ResponsesInputItemDto))]
 [JsonSerializable(typeof(ResponsesInputContentDto))]
 [JsonSerializable(typeof(List<ResponsesInputItemDto>))]
 [JsonSerializable(typeof(JsonSchemaDto))]
 [JsonSerializable(typeof(JsonSchemaPropertyDto))]
+[JsonSerializable(typeof(ResponsesDeltaEvent))]
+[JsonSerializable(typeof(ResponsesFunctionCallArgsDeltaEvent))]
+[JsonSerializable(typeof(ResponsesFunctionCallItem))]
+[JsonSerializable(typeof(ResponsesEventEnvelope))]
+[JsonSerializable(typeof(ResponsesEventResponse))]
+[JsonSerializable(typeof(ToolCallMetadataDto))]
 internal partial class NativeJsonContext : JsonSerializerContext {
 
     private static readonly Lazy<NativeJsonContext> s_safe = new(() => new NativeJsonContext(

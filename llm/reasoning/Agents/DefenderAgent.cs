@@ -93,24 +93,24 @@ public sealed class DefenderAgent : ReasoningAgent {
             var json = ExtractJsonObject(content, _logger);
             if (json is null) return (counterEvidence, doubts);
 
-            using var doc = JsonDocument.Parse(json);
+            var dto = JsonSerializer.Deserialize(json, ReasoningJsonContext.Default.DefenderCounterEvidenceJson);
+            if (dto is null) return (counterEvidence, doubts);
 
-            if (doc.RootElement.TryGetProperty("counterEvidence", out var ceArray)) {
-                foreach (var item in ceArray.EnumerateArray()) {
+            if (dto.CounterEvidence is not null) {
+                foreach (var item in dto.CounterEvidence) {
                     counterEvidence.Add(new EvidenceRecord {
-                        Content = item.TryGetProperty("content", out var c) ? c.GetString() ?? string.Empty : string.Empty,
-                        Source = item.TryGetProperty("source", out var s) ? s.GetString() : "LLM生成",
-                        TrustLevel = item.TryGetProperty("trustLevel", out var t) ? ParseTrustLevel(t.GetString()) : TrustLevel.Moderate,
-                        Weight = item.TryGetProperty("weight", out var w) ? w.GetDouble() : 1.0,
+                        Content = item.Content ?? string.Empty,
+                        Source = item.Source ?? "LLM生成",
+                        TrustLevel = ParseTrustLevel(item.TrustLevel),
+                        Weight = item.Weight ?? 1.0,
                         Category = EvidenceCategory.Documentary,
                         SubmittedBy = AgentRole.Defender,
                     });
                 }
             }
 
-            if (doc.RootElement.TryGetProperty("doubts", out var dArray)) {
-                foreach (var item in dArray.EnumerateArray()) {
-                    var doubt = item.GetString();
+            if (dto.Doubts is not null) {
+                foreach (var doubt in dto.Doubts) {
                     if (doubt is not null) doubts.Add(doubt);
                 }
             }

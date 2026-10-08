@@ -5,7 +5,7 @@ namespace Api.LLM;
 /// Responses API 请求 — OpenAI/DeepSeek Responses API 格式(POST /responses)
 /// 用 input + instructions 而非 messages,支持 reasoning effort
 /// </summary>
-internal sealed class ResponsesRequest {
+public sealed class ResponsesRequest {
     /// <summary>获取或设置模型标识。</summary>
     [JsonPropertyName("model")]
     public string Model { get; set; } = string.Empty;
@@ -70,13 +70,13 @@ internal sealed class ResponsesRequest {
     public ResponsesReasoning? Reasoning { get; set; }
 }
 
-internal sealed class ResponsesReasoning {
+public sealed class ResponsesReasoning {
     /// <summary>获取或设置推理强度。</summary>
     [JsonPropertyName("effort")]
     public string Effort { get; set; } = string.Empty;
 }
 
-internal sealed class ResponsesTool {
+public sealed class ResponsesTool {
     /// <summary>获取或设置工具类型。</summary>
     [JsonPropertyName("type")]
     public string Type { get; set; } = "function";
@@ -100,7 +100,7 @@ internal sealed class ResponsesTool {
 /// <summary>
 /// Responses API 响应 — output 数组(message/reasoning/function_call items)+ output_text 便捷字段
 /// </summary>
-internal sealed class ResponsesResponse {
+public sealed class ResponsesResponse {
     /// <summary>获取或设置响应标识。</summary>
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
@@ -138,7 +138,7 @@ internal sealed class ResponsesResponse {
 /// <summary>
 /// Responses API 输出 item — type 为 message/reasoning/function_call
 /// </summary>
-internal sealed class ResponsesOutputItem {
+public sealed class ResponsesOutputItem {
     /// <summary>获取或设置 item 类型。</summary>
     [JsonPropertyName("type")]
     public string Type { get; set; } = string.Empty;
@@ -169,7 +169,7 @@ internal sealed class ResponsesOutputItem {
     public string? CallId { get; set; }
 }
 
-internal sealed class ResponsesContent {
+public sealed class ResponsesContent {
     /// <summary>获取或设置内容类型。</summary>
     [JsonPropertyName("type")]
     public string Type { get; set; } = string.Empty;
@@ -180,7 +180,7 @@ internal sealed class ResponsesContent {
     public string? Text { get; set; }
 }
 
-internal sealed class ResponsesUsage {
+public sealed class ResponsesUsage {
     /// <summary>获取或设置输入 Token 数。</summary>
     [JsonPropertyName("input_tokens")]
     public int InputTokens { get; set; }
@@ -200,7 +200,7 @@ internal sealed class ResponsesUsage {
     public ResponsesTokenDetails? OutputTokensDetails { get; set; }
 }
 
-internal sealed class ResponsesTokenDetails {
+public sealed class ResponsesTokenDetails {
     /// <summary>获取或设置缓存命中 Token 数。</summary>
     [JsonPropertyName("cached_tokens")]
     public int CachedTokens { get; set; }
@@ -213,7 +213,7 @@ internal sealed class ResponsesTokenDetails {
 // === Responses API input item DTO（替代手写 JSON 拼接） ===
 
 /// <summary>Responses API input item — message/function_call_output/function_call/reasoning 统一 DTO</summary>
-internal sealed class ResponsesInputItemDto {
+public sealed class ResponsesInputItemDto {
     /// <summary>类型(message/function_call_output/function_call/reasoning)</summary>
     [JsonPropertyName("type")]
     public string Type { get; init; } = "";
@@ -246,7 +246,7 @@ internal sealed class ResponsesInputItemDto {
 }
 
 /// <summary>Responses API input content item</summary>
-internal sealed class ResponsesInputContentDto {
+public sealed class ResponsesInputContentDto {
     /// <summary>类型(input_text/output_text/reasoning_text)</summary>
     [JsonPropertyName("type")]
     public string Type { get; init; } = "";
@@ -281,4 +281,72 @@ internal sealed class JsonSchemaPropertyDto {
     [JsonPropertyName("description")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; init; }
+}
+
+// === Responses SSE 事件 DTO（替代 TryGetProperty 链式提取） ===
+
+/// <summary>Responses SSE delta 事件 — response.output_text.delta / response.reasoning_text.delta</summary>
+public sealed class ResponsesDeltaEvent {
+    /// <summary>获取或设置增量文本。</summary>
+    [JsonPropertyName("delta")]
+    public string? Delta { get; set; }
+}
+
+/// <summary>Responses SSE function_call_arguments.delta 事件</summary>
+public sealed class ResponsesFunctionCallArgsDeltaEvent {
+    /// <summary>获取或设置工具调用 item 标识。</summary>
+    [JsonPropertyName("item_id")]
+    public string? ItemId { get; set; }
+
+    /// <summary>获取或设置增量参数文本。</summary>
+    [JsonPropertyName("delta")]
+    public string? Delta { get; set; }
+}
+
+/// <summary>Responses function_call item — call_id/name/id 提取</summary>
+public sealed class ResponsesFunctionCallItem {
+    /// <summary>获取或设置工具调用标识。</summary>
+    [JsonPropertyName("call_id")]
+    public string? CallId { get; set; }
+
+    /// <summary>获取或设置工具名称。</summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    /// <summary>获取或设置 item 标识。</summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+}
+
+/// <summary>Responses SSE 事件信封 — response.completed/incomplete/failed 的 response 子对象</summary>
+public sealed class ResponsesEventEnvelope {
+    /// <summary>获取或设置 response 子对象。</summary>
+    [JsonPropertyName("response")]
+    public ResponsesEventResponse? Response { get; set; }
+}
+
+/// <summary>Responses SSE 事件 response 子对象 — usage + error</summary>
+public sealed class ResponsesEventResponse {
+    /// <summary>获取或设置用量统计。</summary>
+    [JsonPropertyName("usage")]
+    public ResponsesUsage? Usage { get; set; }
+
+    /// <summary>获取或设置错误对象(原始 JSON)。</summary>
+    [JsonPropertyName("error")]
+    public JsonElement Error { get; set; }
+}
+
+/// <summary>ToolCalls Metadata 数组元素 DTO — Id/Name/Arguments(PascalCase)</summary>
+public sealed class ToolCallMetadataDto {
+    /// <summary>获取或设置工具调用标识。</summary>
+    [JsonPropertyName("Id")]
+    public string? Id { get; set; }
+
+    /// <summary>获取或设置工具名称。</summary>
+    [JsonPropertyName("Name")]
+    public string? Name { get; set; }
+
+    /// <summary>获取或设置工具调用参数 JSON。</summary>
+    [JsonPropertyName("Arguments")]
+    public string? Arguments { get; set; }
 }

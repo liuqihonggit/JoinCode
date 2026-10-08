@@ -189,13 +189,16 @@ public abstract partial class QueryServiceBase : IQueryService {
     internal static List<OpenAIToolCall>? ConvertToOpenAIToolCalls(object? toolCallsObj) {
         return toolCallsObj switch {
             List<OpenAIToolCall> direct => direct,
-            JsonElement je when je.ValueKind == JsonValueKind.Array => je.EnumerateArray().Select(item => new OpenAIToolCall {
-                Id = item.TryGetProperty("Id", out var idProp) ? idProp.GetString() : null,
-                Type = "function",
-                Function = new OpenAIToolCallFunction {
-                    Name = item.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null,
-                    Arguments = item.TryGetProperty("Arguments", out var argsProp) ? argsProp.GetString() : null
-                }
+            JsonElement je when je.ValueKind == JsonValueKind.Array => je.EnumerateArray().Select(item => {
+                var tc = item.Deserialize(NativeJsonContext.Default.ToolCallItemJson);
+                return new OpenAIToolCall {
+                    Id = tc?.Id,
+                    Type = "function",
+                    Function = new OpenAIToolCallFunction {
+                        Name = tc?.Name,
+                        Arguments = tc?.Arguments
+                    }
+                };
             }).ToList(),
             _ => null
         };

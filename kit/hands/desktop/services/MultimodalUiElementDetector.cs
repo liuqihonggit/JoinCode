@@ -79,23 +79,12 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
             return new UiElementDetectionResult([], 0, 0);
 
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
+            var dto = JsonSerializer.Deserialize(json, UiDetectionJsonContext.Default.UiDetectionResultDto);
+            if (dto is null)
+                return new UiElementDetectionResult([], 0, 0);
 
-            var imageWidth = root.TryGetProperty("imageWidth", out var wProp) && wProp.TryGetInt32(out var w) ? w : 0;
-            var imageHeight = root.TryGetProperty("imageHeight", out var hProp) && hProp.TryGetInt32(out var h) ? h : 0;
-
-            if (!root.TryGetProperty("elements", out var elementsProp) || elementsProp.ValueKind != JsonValueKind.Array)
-                return new UiElementDetectionResult([], imageWidth, imageHeight);
-
-            var elements = new List<UiElement>();
-            foreach (var el in elementsProp.EnumerateArray()) {
-                var element = ParseUiElement(el);
-                if (element is not null)
-                    elements.Add(element);
-            }
-
-            return new UiElementDetectionResult(elements, imageWidth, imageHeight);
+            var elements = (dto.Elements ?? []).Select(ToUiElement).ToList();
+            return new UiElementDetectionResult(elements, dto.ImageWidth, dto.ImageHeight);
         } catch (JsonException) {
             return new UiElementDetectionResult([], 0, 0);
         }
@@ -110,39 +99,27 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
             return null;
 
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-
-            if (root.TryGetProperty("found", out var foundProp) && foundProp.ValueKind == JsonValueKind.False)
+            var dto = JsonSerializer.Deserialize(json, UiDetectionJsonContext.Default.UiFindResultDto);
+            if (dto is null)
                 return null;
 
-            if (root.TryGetProperty("element", out var elProp) && elProp.ValueKind == JsonValueKind.Object)
-                return ParseUiElement(elProp);
+            if (dto.Found is false)
+                return null;
 
-            return null;
+            return dto.Element is null ? null : ToUiElement(dto.Element);
         } catch (JsonException) {
             return null;
         }
     }
 
     /// <summary>
-    /// 解析单个 UI 元素 JSON 对象 → UiElement record
+    /// UiElementDto → UiElement record 转换（含枚举容错映射与 confidence 默认值补全）
     /// </summary>
-    internal static UiElement? ParseUiElement(JsonElement el) {
-        if (el.ValueKind != JsonValueKind.Object)
-            return null;
-
-        var type = ParseElementType(el.TryGetProperty("type", out var tProp) ? tProp.GetString() : null);
-        var text = el.TryGetProperty("text", out var textProp) ? textProp.GetString() : null;
-        var description = el.TryGetProperty("description", out var descProp) ? descProp.GetString() : null;
-        var x = el.TryGetProperty("x", out var xProp) && xProp.TryGetInt32(out var xv) ? xv : 0;
-        var y = el.TryGetProperty("y", out var yProp) && yProp.TryGetInt32(out var yv) ? yv : 0;
-        var width = el.TryGetProperty("width", out var wProp) && wProp.TryGetInt32(out var wv) ? wv : 0;
-        var height = el.TryGetProperty("height", out var hProp) && hProp.TryGetInt32(out var hv) ? hv : 0;
-        var state = ParseElementState(el.TryGetProperty("state", out var sProp) ? sProp.GetString() : null);
-        var confidence = el.TryGetProperty("confidence", out var cProp) && cProp.TryGetDouble(out var cv) ? cv : 0.5;
-
-        return new UiElement(type, text, description, x, y, width, height, state, confidence);
+    internal static UiElement ToUiElement(UiElementDto dto) {
+        var type = ParseElementType(dto.Type);
+        var state = ParseElementState(dto.State);
+        var confidence = dto.Confidence ?? 0.5;
+        return new UiElement(type, dto.Text, dto.Description, dto.X, dto.Y, dto.Width, dto.Height, state, confidence);
     }
 
     /// <summary>
@@ -239,3 +216,82 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
         坐标基于像素，左上角为原点(0,0)。
         """;
 }
+
+/// <summary>
+/// UI 元素检测响应 DTO — LLM 返回的 JSON 结构（检测模式，含 imageWidth/imageHeight/elements）
+/// </summary>
+public sealed class UiDetectionResultDto {
+    /// <summary>截图宽度（像素）。</summary>
+    [JsonPropertyName("imageWidth")]
+    public int ImageWidth { get; set; }
+
+    /// <summary>截图高度（像素）。</summary>
+    [JsonPropertyName("imageHeight")]
+    public int ImageHeight { get; set; }
+
+    /// <summary>识别到的 UI 元素列表。</summary>
+    [JsonPropertyName("elements")]
+    public List<UiElementDto> Elements { get; set; } = [];
+}
+
+/// <summary>
+/// UI 元素查找响应 DTO — LLM 返回的 JSON 结构（查找模式，含 found/element）
+/// </summary>
+public sealed class UiFindResultDto {
+    /// <summary>是否找到匹配元素（null 表示 JSON 中未提供该字段，不视为"未找到"）。</summary>
+    [JsonPropertyName("found")]
+    public bool? Found { get; set; }
+
+    /// <summary>匹配到的 UI 元素，未找到时为 null。</summary>
+    [JsonPropertyName("element")]
+    public UiElementDto? Element { get; set; }
+}
+
+/// <summary>
+/// 单个 UI 元素 DTO — LLM 返回的元素 JSON 结构（type/text/description/x/y/width/height/state/confidence）
+/// </summary>
+public sealed class UiElementDto {
+    /// <summary>元素类型字符串（button/textbox/menu 等，由 ParseElementType 映射为枚举）。</summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
+
+    /// <summary>元素上的文字，无则 null。</summary>
+    [JsonPropertyName("text")]
+    public string? Text { get; set; }
+
+    /// <summary>元素的语义描述。</summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// <summary>左上角 X 坐标（像素）。</summary>
+    [JsonPropertyName("x")]
+    public int X { get; set; }
+
+    /// <summary>左上角 Y 坐标（像素）。</summary>
+    [JsonPropertyName("y")]
+    public int Y { get; set; }
+
+    /// <summary>元素宽度（像素）。</summary>
+    [JsonPropertyName("width")]
+    public int Width { get; set; }
+
+    /// <summary>元素高度（像素）。</summary>
+    [JsonPropertyName("height")]
+    public int Height { get; set; }
+
+    /// <summary>元素状态字符串（normal/disabled/selected 等，由 ParseElementState 映射为枚举）。</summary>
+    [JsonPropertyName("state")]
+    public string? State { get; set; }
+
+    /// <summary>置信度（0.0~1.0），JSON 中缺失或 null 时默认 0.5。</summary>
+    [JsonPropertyName("confidence")]
+    public double? Confidence { get; set; }
+}
+
+/// <summary>
+/// 多模态 UI 元素检测 JSON 序列化上下文 — AOT 兼容的源码生成器
+/// </summary>
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNameCaseInsensitive = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip)]
+[JsonSerializable(typeof(UiDetectionResultDto))]
+[JsonSerializable(typeof(UiFindResultDto))]
+internal sealed partial class UiDetectionJsonContext : JsonSerializerContext;

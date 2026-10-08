@@ -81,48 +81,11 @@ public sealed class StaticFileUpdateSource : IUpdateSource {
     }
 
     /// <summary>
-    /// 手动解析 manifest.json（避免新增 JsonContext，AOT 友好）
+    /// 解析 manifest.json — 用 DTO + JsonSerializer.Deserialize（AOT 友好，经 UpdateSourceJsonContext 注册）
     /// 供 LocalFileUpdateSource 等其他源复用
     /// </summary>
     internal static UpdateManifest ParseManifest(string json) {
-        using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-
-        var latestVersion = root.GetProperty("latestVersion").GetString()
-            ?? throw new InvalidOperationException("manifest.json 缺少 latestVersion");
-
-        var channel = root.TryGetProperty("channel", out var channelEl) ? channelEl.GetString() ?? "stable" : "stable";
-
-        var releases = new List<UpdateManifestEntry>();
-        if (root.TryGetProperty("releases", out var releasesEl) && releasesEl.ValueKind == JsonValueKind.Array) {
-            foreach (var entry in releasesEl.EnumerateArray()) {
-                releases.Add(ParseEntry(entry));
-            }
-        }
-
-        return new UpdateManifest {
-            LatestVersion = latestVersion,
-            Channel = channel,
-            Releases = releases.AsReadOnly()
-        };
-    }
-
-    private static UpdateManifestEntry ParseEntry(JsonElement element) {
-        var version = element.GetProperty("version").GetString()
-            ?? throw new InvalidOperationException("release 条目缺少 version");
-        var downloadUrl = element.GetProperty("downloadUrl").GetString()
-            ?? throw new InvalidOperationException("release 条目缺少 downloadUrl");
-        var sha256 = element.GetProperty("sha256").GetString()
-            ?? throw new InvalidOperationException("release 条目缺少 sha256");
-
-        return new UpdateManifestEntry {
-            Version = version,
-            DownloadUrl = downloadUrl,
-            Sha256 = sha256,
-            SizeBytes = element.TryGetProperty("sizeBytes", out var sizeEl) ? sizeEl.GetInt64() : 0,
-            ReleaseNotes = element.TryGetProperty("releaseNotes", out var notesEl) ? notesEl.GetString() : null,
-            PublishedAt = element.TryGetProperty("publishedAt", out var pubEl) ? pubEl.GetDateTimeOffset() : DateTimeOffset.MinValue,
-            MinUpgradeFrom = element.TryGetProperty("minUpgradeFrom", out var minEl) ? minEl.GetString() : null,
-        };
+        return JsonSerializer.Deserialize(json, UpdateSourceJsonContext.Default.UpdateManifest)
+            ?? throw new InvalidOperationException("manifest.json 解析失败");
     }
 }

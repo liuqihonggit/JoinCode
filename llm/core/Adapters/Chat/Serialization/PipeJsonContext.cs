@@ -9,4 +9,5 @@ namespace Api.Chat;
 [JsonSerializable(typeof(OpenAIChoice))]
 [JsonSerializable(typeof(OpenAIToolCall))]
 [JsonSerializable(typeof(OpenAIToolCallFunction))]
+[JsonSerializable(typeof(ToolCallItemJson))]
 internal partial class PipeJsonContext : JsonSerializerContext;

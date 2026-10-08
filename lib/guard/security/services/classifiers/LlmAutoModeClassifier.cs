@@ -151,23 +151,21 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         }
 
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
+            var dto = JsonSerializer.Deserialize(json, LlmSecurityJsonContext.Default.LlmClassificationResponseDto);
+            if (dto is null) {
+                return fallback;
+            }
 
-            var classification = root.TryGetProperty("classification", out var classElem)
-                ? ParseClassification(classElem.GetString() ?? "mediumRisk")
+            var classification = dto.Classification is not null
+                ? ParseClassification(dto.Classification)
                 : fallback.Classification;
 
-            var confidence = root.TryGetProperty("confidence", out var confElem)
-                ? confElem.GetDouble()
-                : fallback.Confidence;
+            var confidence = dto.Confidence ?? fallback.Confidence;
 
-            var reason = root.TryGetProperty("reason", out var reasonElem)
-                ? reasonElem.GetString()
-                : "LLM 分类";
+            var reason = dto.Reason ?? "LLM 分类";
 
-            var action = root.TryGetProperty("action", out var actionElem)
-                ? ParseAction(actionElem.GetString() ?? "requireConfirmation")
+            var action = dto.Action is not null
+                ? ParseAction(dto.Action)
                 : GetDefaultAction(classification);
 
             return new ClassificationResult {
@@ -221,3 +219,33 @@ public interface ILlmAutoModeClassifier {
     /// <summary>分类命令安全性（两阶段：规则 + LLM）</summary>
     Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default);
 }
+
+/// <summary>
+/// LLM 分类响应 DTO — 对应 LLM 返回的 JSON 结构
+/// <para>{"classification":"...","confidence":0.0,"reason":"...","action":"..."}</para>
+/// 所有字段 nullable 以区分"字段缺失"与"字段存在"，保留原逐字段 fallback 语义
+/// </summary>
+public sealed class LlmClassificationResponseDto {
+    /// <summary>安全分类级别字符串(safe/lowRisk/mediumRisk/highRisk/dangerous)</summary>
+    [JsonPropertyName("classification")]
+    public string? Classification { get; set; }
+
+    /// <summary>置信度(0.0-1.0)</summary>
+    [JsonPropertyName("confidence")]
+    public double? Confidence { get; set; }
+
+    /// <summary>分类原因</summary>
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    /// <summary>建议动作(autoApprove/requireConfirmation/requireApproval/block)</summary>
+    [JsonPropertyName("action")]
+    public string? Action { get; set; }
+}
+
+/// <summary>
+/// LLM 安全分类 JSON 序列化上下文 — AOT 安全
+/// </summary>
+[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSerializable(typeof(LlmClassificationResponseDto))]
+internal sealed partial class LlmSecurityJsonContext : JsonSerializerContext;

@@ -44,12 +44,12 @@ public sealed class FeishuBotAdapter : PlatformBotAdapterBase<FeishuBotConfig> {
 
     /// <inheritdoc/>
     protected override string? ExtractMessageId(string json) {
-        using var doc = JsonDocument.Parse(json);
-        if (doc.RootElement.TryGetProperty("data", out var data)
-            && data.TryGetProperty("message_id", out var id)) {
-            return id.GetString();
+        try {
+            var dto = JsonSerializer.Deserialize(json, BotAdapterJsonContext.Default.FeishuMessageCallbackDto);
+            return dto?.Data?.MessageId;
+        } catch (JsonException) {
+            return null;
         }
-        return null;
     }
 }
 
@@ -65,4 +65,18 @@ public sealed record FeishuBotConfig {
 
     /// <summary>API 基地址（默认 https://open.feishu.cn）。</summary>
     public string ApiBaseUrl { get; init; } = "https://open.feishu.cn";
+}
+
+/// <summary>飞书消息回调 DTO — 解析事件回调 JSON {data: {message_id}}</summary>
+public sealed class FeishuMessageCallbackDto {
+    /// <summary>回调数据体。</summary>
+    [JsonPropertyName("data")]
+    public FeishuMessageCallbackDataDto? Data { get; init; }
+}
+
+/// <summary>飞书消息回调数据体 DTO。</summary>
+public sealed class FeishuMessageCallbackDataDto {
+    /// <summary>消息 ID。</summary>
+    [JsonPropertyName("message_id")]
+    public string? MessageId { get; init; }
 }

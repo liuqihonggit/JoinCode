@@ -37,33 +37,34 @@ public sealed class GitLabMirrorUpdateSource : GitHostMirrorUpdateSourceBase {
         var root = doc.RootElement;
 
         // GitLab /releases 返回数组，取第一个（最新）
-        var latestRelease = root.ValueKind == JsonValueKind.Array
-            ? root.EnumerateArray().FirstOrDefault()
-            : root;
+        GitLabReleaseDto latestRelease;
+        if (root.ValueKind == JsonValueKind.Array) {
+            var first = root.EnumerateArray().FirstOrDefault();
+            if (first.ValueKind == JsonValueKind.Undefined)
+                throw new InvalidOperationException("GitLab releases 为空");
+            latestRelease = first.Deserialize(UpdateSourceJsonContext.Default.GitLabReleaseDto)
+                ?? throw new InvalidOperationException("GitLab release JSON 解析失败");
+        } else {
+            latestRelease = root.Deserialize(UpdateSourceJsonContext.Default.GitLabReleaseDto)
+                ?? throw new InvalidOperationException("GitLab release JSON 解析失败");
+        }
 
-        if (latestRelease.ValueKind == JsonValueKind.Undefined)
-            throw new InvalidOperationException("GitLab releases 为空");
-
-        var tagName = latestRelease.GetProperty("tag_name").GetString()
+        var tagName = latestRelease.TagName
             ?? throw new InvalidOperationException("GitLab release 缺少 tag_name");
 
         var version = ExtractVersion(tagName);
-        var publishedAt = latestRelease.TryGetProperty("released_at", out var relEl) ? relEl.GetDateTimeOffset() : DateTimeOffset.MinValue;
-        var body = latestRelease.TryGetProperty("description", out var descEl) ? descEl.GetString() : null;
+        var publishedAt = latestRelease.ReleasedAt ?? DateTimeOffset.MinValue;
+        var body = latestRelease.Description;
 
         var entries = new List<UpdateManifestEntry>();
 
-        if (latestRelease.TryGetProperty("assets", out var assetsEl)
-            && assetsEl.TryGetProperty("links", out var linksEl)
-            && linksEl.ValueKind == JsonValueKind.Array) {
-            foreach (var link in linksEl.EnumerateArray()) {
-                var name = link.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
+        if (latestRelease.Assets?.Links is not null) {
+            foreach (var link in latestRelease.Assets.Links) {
+                var name = link.Name;
                 if (name is null || !name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                var downloadUrl = link.TryGetProperty("direct_asset_url", out var urlEl)
-                    ? urlEl.GetString()
-                    : link.TryGetProperty("url", out var fallbackUrlEl) ? fallbackUrlEl.GetString() : null;
+                var downloadUrl = link.DirectAssetUrl ?? link.Url;
                 if (downloadUrl is null) continue;
 
                 entries.Add(new UpdateManifestEntry {

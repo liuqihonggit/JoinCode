@@ -92,7 +92,7 @@ public class ResponsesQueryService : QueryServiceBase {
 
             switch (currentEvent) {
                 case "response.output_text.delta": {
-                    var delta = eventJson.TryGetProperty("delta", out var deltaProp) ? deltaProp.GetString() ?? string.Empty : string.Empty;
+                    var delta = eventJson.Deserialize(NativeJsonContext.Default.ResponsesDeltaEvent)?.Delta ?? string.Empty;
                     descRequestAccumulator.Append(delta);
                     var accumulated = descRequestAccumulator.ToString();
                     if (kernel != null && IsToolDescriptionRequestComplete(accumulated)) {
@@ -111,19 +111,18 @@ public class ResponsesQueryService : QueryServiceBase {
                     break;
                 }
                 case "response.reasoning_text.delta": {
-                    var delta = eventJson.TryGetProperty("delta", out var deltaProp) ? deltaProp.GetString() ?? string.Empty : string.Empty;
+                    var delta = eventJson.Deserialize(NativeJsonContext.Default.ResponsesDeltaEvent)?.Delta ?? string.Empty;
                     metadata["reasoning_content"] = JsonElementHelper.FromBoolean(true);
                     if (delta.Length > 0) reasoningAccumulator.Append(delta);
                     yield return new StreamEvent(MessageRole.Assistant, delta, modelId, metadata);
                     break;
                 }
                 case "response.function_call_arguments.delta": {
-                    if (eventJson.TryGetProperty("item_id", out var itemIdProp)) {
-                        var itemId = itemIdProp.GetString() ?? string.Empty;
-                        var idx = GetItemIdIndex(itemId);
-                        var delta = eventJson.TryGetProperty("delta", out var deltaProp) ? deltaProp.GetString() ?? string.Empty : string.Empty;
+                    var argsDelta = eventJson.Deserialize(NativeJsonContext.Default.ResponsesFunctionCallArgsDeltaEvent);
+                    if (argsDelta?.ItemId is not null) {
+                        var idx = GetItemIdIndex(argsDelta.ItemId);
                         if (toolCallAccumulator.TryGetValue(idx, out var existing))
-                            existing.Arguments.Append(delta);
+                            existing.Arguments.Append(argsDelta.Delta ?? string.Empty);
                     }
                     break;
                 }
@@ -189,22 +188,21 @@ public class ResponsesQueryService : QueryServiceBase {
             var sMeta = new Dictionary<string, JsonElement>();
             switch (secondCurrentEvent) {
                 case "response.output_text.delta": {
-                    var sDelta = sEventJson.TryGetProperty("delta", out var d) ? d.GetString() ?? "" : "";
+                    var sDelta = sEventJson.Deserialize(NativeJsonContext.Default.ResponsesDeltaEvent)?.Delta ?? "";
                     yield return new StreamEvent(MessageRole.Assistant, sDelta, modelId, sMeta);
                     break;
                 }
                 case "response.reasoning_text.delta": {
-                    var sDelta = sEventJson.TryGetProperty("delta", out var d) ? d.GetString() ?? "" : "";
+                    var sDelta = sEventJson.Deserialize(NativeJsonContext.Default.ResponsesDeltaEvent)?.Delta ?? "";
                     sMeta["reasoning_content"] = JsonElementHelper.FromBoolean(true);
                     yield return new StreamEvent(MessageRole.Assistant, sDelta, modelId, sMeta);
                     break;
                 }
                 case "response.function_call_arguments.delta": {
-                    if (sEventJson.TryGetProperty("item_id", out var itemIdProp)) {
-                        var itemId = itemIdProp.GetString() ?? "";
-                        var idx = GetItemIdIndex(itemId);
-                        var sDelta = sEventJson.TryGetProperty("delta", out var d) ? d.GetString() ?? "" : "";
-                        if (secondAccumulator.TryGetValue(idx, out var ex)) ex.Arguments.Append(sDelta);
+                    var argsDelta = sEventJson.Deserialize(NativeJsonContext.Default.ResponsesFunctionCallArgsDeltaEvent);
+                    if (argsDelta?.ItemId is not null) {
+                        var idx = GetItemIdIndex(argsDelta.ItemId);
+                        if (secondAccumulator.TryGetValue(idx, out var ex)) ex.Arguments.Append(argsDelta.Delta ?? "");
                     }
                     break;
                 }
@@ -241,9 +239,10 @@ public class ResponsesQueryService : QueryServiceBase {
 
     /// <summary>解析 response.output_item.added 中 function_call item 的 call_id/name/idx</summary>
     internal static (string CallId, string Name, int Idx) ParseFunctionCallItem(JsonElement itemProp) {
-        var callId = itemProp.TryGetProperty("call_id", out var callIdProp) ? callIdProp.GetString() ?? "" : "";
-        var name = itemProp.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "" : "";
-        var idx = GetItemIdIndex(itemProp.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "");
+        var item = itemProp.Deserialize(NativeJsonContext.Default.ResponsesFunctionCallItem);
+        var callId = item?.CallId ?? "";
+        var name = item?.Name ?? "";
+        var idx = GetItemIdIndex(item?.Id ?? "");
         return (callId, name, idx);
     }
 
@@ -261,8 +260,9 @@ public class ResponsesQueryService : QueryServiceBase {
         JsonElement eventJson,
         Dictionary<int, (string Id, string Name, StringBuilder Arguments)> toolCallAccumulator,
         StringBuilder? reasoningAccumulator) {
-        if (eventJson.TryGetProperty("response", out var respProp) && respProp.TryGetProperty("usage", out var usageProp)) {
-            var tokenUsage = BuildTokenUsage(usageProp);
+        var envelope = eventJson.Deserialize(NativeJsonContext.Default.ResponsesEventEnvelope);
+        if (envelope?.Response?.Usage is { } usage) {
+            var tokenUsage = BuildTokenUsage(usage);
             metadata["FinishReason"] = JsonElementHelper.FromString("stop");
             metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
         }
@@ -278,8 +278,10 @@ public class ResponsesQueryService : QueryServiceBase {
 
     /// <summary>提取 response.failed 事件的错误信息(纯提取,不抛异常)</summary>
     internal static string ExtractFailedErrorMessage(JsonElement eventJson) {
-        return eventJson.TryGetProperty("response", out var respProp) && respProp.TryGetProperty("error", out var errProp)
-            ? errProp.GetRawText() : "unknown error";
+        var envelope = eventJson.Deserialize(NativeJsonContext.Default.ResponsesEventEnvelope);
+        var error = envelope?.Response?.Error;
+        return error is { ValueKind: not JsonValueKind.Undefined } err
+            ? err.GetRawText() : "unknown error";
     }
 
     #endregion
@@ -489,14 +491,12 @@ public class ResponsesQueryService : QueryServiceBase {
             || msg.Metadata.TryGetValue("AllToolCalls", out toolCallsProp)) {
             if (toolCallsProp.ValueKind == JsonValueKind.Array) {
                 foreach (var tc in toolCallsProp.EnumerateArray()) {
-                    var id = tc.TryGetProperty("Id", out var idProp) ? idProp.GetString() ?? "" : "";
-                    var name = tc.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() ?? "" : "";
-                    var args = tc.TryGetProperty("Arguments", out var argsProp) ? argsProp.GetString() ?? "{}" : "{}";
+                    var tcDto = tc.Deserialize(NativeJsonContext.Default.ToolCallMetadataDto);
                     items.Add(new ResponsesInputItemDto {
                         Type = "function_call",
-                        CallId = id,
-                        Name = name,
-                        Arguments = args,
+                        CallId = tcDto?.Id ?? "",
+                        Name = tcDto?.Name ?? "",
+                        Arguments = tcDto?.Arguments ?? "{}",
                     });
                 }
                 return items;

@@ -19,6 +19,8 @@ namespace Core.Agents;
 [JsonSerializable(typeof(BootstrapJudgmentJson))]
 [JsonSerializable(typeof(AgentMemorySnapshotMetaJson))]
 [JsonSerializable(typeof(AgentMemorySyncedMetaJson))]
+[JsonSerializable(typeof(ToolCallItemJson))]
+[JsonSerializable(typeof(WorktreePathJson))]
 public partial class AgentsJsonContext : JsonSerializerContext;
 
 /// <summary>

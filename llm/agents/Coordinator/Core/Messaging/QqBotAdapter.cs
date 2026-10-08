@@ -42,8 +42,12 @@ public sealed class QqBotAdapter : PlatformBotAdapterBase<QqBotConfig> {
 
     /// <inheritdoc/>
     protected override string? ExtractMessageId(string json) {
-        using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.TryGetProperty("id", out var id) ? id.GetString() : null;
+        try {
+            var dto = JsonSerializer.Deserialize(json, BotAdapterJsonContext.Default.QqMessageResponseDto);
+            return dto?.Id;
+        } catch (JsonException) {
+            return null;
+        }
     }
 }
 
@@ -71,6 +75,13 @@ internal sealed class QqSendMessageDto {
     public required string Content { get; init; }
 }
 
+/// <summary>QQ 机器人消息响应 DTO — 解析响应 JSON {id}</summary>
+public sealed class QqMessageResponseDto {
+    /// <summary>消息 ID。</summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; init; }
+}
+
 /// <summary>飞书发送消息 DTO</summary>
 internal sealed class FeishuSendMessageDto {
     /// <summary>接收者 ID</summary>
@@ -96,4 +107,7 @@ internal sealed class FeishuMessageContentDto {
 [JsonSerializable(typeof(QqSendMessageDto))]
 [JsonSerializable(typeof(FeishuSendMessageDto))]
 [JsonSerializable(typeof(FeishuMessageContentDto))]
+[JsonSerializable(typeof(FeishuMessageCallbackDto))]
+[JsonSerializable(typeof(FeishuMessageCallbackDataDto))]
+[JsonSerializable(typeof(QqMessageResponseDto))]
 internal sealed partial class BotAdapterJsonContext : JsonSerializerContext;

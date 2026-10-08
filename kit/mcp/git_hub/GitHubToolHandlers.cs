@@ -47,13 +47,15 @@ public partial class GitHubToolHandlers {
     /// <param name="apiClient">GitHub REST API 客户端（可选，未注入时 API 工具返回未配置错误）</param>
     /// <param name="git">git 命令执行器（可选，未注入时 clone/checkout 等本地 git 工具返回错误）</param>
     /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="kvStore">KV 缓存存储（可选，LSM-Tree PithosKvStore，用于日志缓存避免重复下载）</param>
     public GitHubToolHandlers(
         IDownloader downloader,
         IFileSystem fs,
         IPersistencePipeline pipeline,
         IGitHubApiClient? apiClient = null,
         IGitCommandRunner? git = null,
-        ILogger<GitHubToolHandlers>? logger = null) {
+        ILogger<GitHubToolHandlers>? logger = null,
+        IKvStore? kvStore = null) {
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
@@ -61,7 +63,7 @@ public partial class GitHubToolHandlers {
         _git = git;
         _logger = logger;
         _logFetcher = new GitHubRunLogFetcher();
-        _logFilterRunner = apiClient is not null ? new GitHubRunLogFilterRunner(apiClient) : null;
+        _logFilterRunner = apiClient is not null ? new GitHubRunLogFilterRunner(apiClient, kvStore) : null;
         _logCacheService = apiClient is not null ? new GitHubRunLogCache(apiClient, fs, pipeline, logger) : null;
     }
 

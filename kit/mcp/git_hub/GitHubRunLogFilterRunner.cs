@@ -1,16 +1,19 @@
 namespace McpToolDispatch;
 
 /// <summary>
-/// GitHub Run 日志过滤运行器 — DI 注入 _apiClient,负责失败测试过滤+流式过滤+失败 job 日志获取
+/// GitHub Run 日志过滤运行器 — DI 注入 _apiClient/_kvStore,负责失败测试过滤+流式过滤+失败 job 日志获取
+/// <para>日志缓存: 复用 IKvStore(LSM-Tree PithosKvStore),首次下载→后续命中缓存,避免重复下载</para>
 /// </summary>
 internal sealed class GitHubRunLogFilterRunner {
     private readonly IGitHubApiClient _apiClient;
+    private readonly IKvStore? _kvStore;
 
     /// <summary>
-    /// 构造日志过滤运行器,注入 GitHub API 客户端(非 null,调用方负责空检查)
+    /// 构造日志过滤运行器,注入 GitHub API 客户端(非 null)+可选 KV 缓存(LSM-Tree)
     /// </summary>
-    public GitHubRunLogFilterRunner(IGitHubApiClient apiClient) {
+    public GitHubRunLogFilterRunner(IGitHubApiClient apiClient, IKvStore? kvStore = null) {
         _apiClient = apiClient;
+        _kvStore = kvStore;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -44,36 +47,37 @@ internal sealed class GitHubRunLogFilterRunner {
             }
         }
 
-        await foreach (var line in DownloadJobsParallelAsync(owner, repo, failedJobIds, ct).ConfigureAwait(false)) {
+        await foreach (var line in DownloadJobsParallelAsync(owner, repo, runId, failedJobIds, ct).ConfigureAwait(false)) {
             yield return line;
         }
     }
 
     /// <summary>
-    /// 统一多 job 日志下载 — 单 job 直接 yield,多 job Channel 并行合并(Actor 邮箱模型)
+    /// 统一多 job 日志下载 — 单 job 走缓存,多 job Channel 并行合并(Actor 邮箱模型)
     /// <para>并行时各 job 行交错合并到 Channel,总时间 ≈ max(各 job) 而非 sum</para>
     /// <para>AGENTS.md 死锁处理规范: Actor 邮箱模型(消息传递替代共享锁)</para>
+    /// <para>日志缓存: 复用 IKvStore(LSM-Tree),key=gh:log:{runId}:{jobId},首次下载→后续命中</para>
     /// </summary>
     private async IAsyncEnumerable<string> DownloadJobsParallelAsync(
-        string owner, string repo, IReadOnlyList<long> jobIds,
+        string owner, string repo, string runId, IReadOnlyList<long> jobIds,
         [EnumeratorCancellation] CancellationToken ct) {
         if (jobIds.Count == 0) yield break;
 
-        // 单 job: 直接 yield(避免 Channel 开销)
+        // 单 job: 走缓存(避免 Channel 开销)
         if (jobIds.Count == 1) {
-            await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, jobIds[0], ct).ConfigureAwait(false)) {
+            await foreach (var line in GetOrFetchJobLogsAsync(owner, repo, runId, jobIds[0], ct).ConfigureAwait(false)) {
                 yield return line;
             }
             yield break;
         }
 
-        // 多 job: Channel 并行合并(Actor 邮箱模型)
+        // 多 job: Channel 并行合并(Actor 邮箱模型),每个 job 走缓存
         var channel = Channel.CreateUnbounded<string>();
         var writer = channel.Writer;
 
         var tasks = jobIds.Select(async jobId => {
             try {
-                await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, jobId, ct).ConfigureAwait(false)) {
+                await foreach (var line in GetOrFetchJobLogsAsync(owner, repo, runId, jobId, ct).ConfigureAwait(false)) {
                     await writer.WriteAsync(line, ct).ConfigureAwait(false);
                 }
             } catch (OperationCanceledException) {
@@ -94,6 +98,52 @@ internal sealed class GitHubRunLogFilterRunner {
 
         await foreach (var line in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
             yield return line;
+        }
+    }
+
+    /// <summary>
+    /// 获取单个 job 日志 — 优先命中 IKvStore(LSM-Tree)缓存,未命中则下载并写入缓存
+    /// <para>key=gh:log:{runId}:{jobId},value=日志全文(UTF-8),首次下载→后续命中避免重复下载</para>
+    /// <para>缓存命中时按行分割逐行 yield;未命中时先下载到 List 再写缓存再 yield(保证缓存完整写入)</para>
+    /// </summary>
+    private async IAsyncEnumerable<string> GetOrFetchJobLogsAsync(
+        string owner, string repo, string runId, long jobId,
+        [EnumeratorCancellation] CancellationToken ct) {
+        var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{runId}:{jobId}");
+
+        // 1. 查 LSM 缓存
+        if (_kvStore is not null) {
+            var cached = await _kvStore.GetAsync(cacheKey, ct).ConfigureAwait(false);
+            if (cached is not null) {
+                foreach (var line in ParseCachedLines(cached)) yield return line;
+                yield break;
+            }
+        }
+
+        // 2. 缓存未命中: 下载所有行到 List
+        var lines = new List<string>();
+        await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, jobId, ct).ConfigureAwait(false)) {
+            lines.Add(line);
+        }
+
+        // 3. 写入 LSM 缓存(fire-and-forget 不阻塞 yield)
+        if (_kvStore is not null && lines.Count > 0) {
+            var text = string.Join('\n', lines);
+            var bytes = Encoding.UTF8.GetBytes(text);
+            await _kvStore.PutAsync(cacheKey, bytes, ct).ConfigureAwait(false);
+        }
+
+        // 4. 逐行 yield
+        foreach (var line in lines) {
+            yield return line;
+        }
+    }
+
+    /// <summary>解析缓存字节为逐行字符串(跳过空行)</summary>
+    private static IEnumerable<string> ParseCachedLines(byte[] cached) {
+        var text = Encoding.UTF8.GetString(cached);
+        foreach (var line in text.Split('\n')) {
+            if (line.Length > 0) yield return line;
         }
     }
 
@@ -160,7 +210,7 @@ internal sealed class GitHubRunLogFilterRunner {
             if (jobIds.Count == 0) {
                 return GitHubToolHandlers.Fail($"无效的 Job ID: {jobId}");
             }
-            logLines = DownloadJobsParallelAsync(owner, repo, jobIds, ct);
+            logLines = DownloadJobsParallelAsync(owner, repo, runId, jobIds, ct);
         } else if (long.TryParse(runId, out var runIdLong)) {
             logLines = _apiClient.GetRunLogsAsync(owner, repo, runIdLong, ct);
         } else {

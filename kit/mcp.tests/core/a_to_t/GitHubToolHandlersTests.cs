@@ -12,14 +12,15 @@ public sealed partial class GitHubToolHandlersTests {
             new PersistencePipeline(new InMemoryFileSystem()),
             _api,
             null,
-            NullLogger<GitHubToolHandlers>.Instance);
+            NullLogger<GitHubToolHandlers>.Instance,
+            new InMemoryKvStore());
     }
 
     private static GitHubToolHandlers CreateHandlerWithGit(IGitCommandRunner git)
-        => new(new FakeDownloader(), new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
+        => new(new FakeDownloader(), new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance, new InMemoryKvStore());
 
     private static GitHubToolHandlers CreateHandlerWithGitAndApi(IGitCommandRunner git, FakeGitHubApiClient api)
-        => new(new FakeDownloader(), new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), api, git, NullLogger<GitHubToolHandlers>.Instance);
+        => new(new FakeDownloader(), new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), api, git, NullLogger<GitHubToolHandlers>.Instance, new InMemoryKvStore());
 
     [Fact]
     public async Task PrView_Success_ReturnsOutput() {

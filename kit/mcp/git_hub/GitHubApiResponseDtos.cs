@@ -950,3 +950,98 @@ internal sealed class WorkflowRunItemResponse {
     [JsonPropertyName("conclusion")]
     public string? Conclusion { get; init; }
 }
+
+// === GraphQLEdit 辅助 DTO ===
+
+/// <summary>Project id+title 项(用于 FindProjectIdByTitle)</summary>
+internal sealed class ProjectIdTitleItemResponse {
+    /// <summary>node ID</summary>
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = "";
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+}
+
+/// <summary>Project id+title 列表包装</summary>
+internal sealed class ProjectIdTitleListWrapperResponse {
+    /// <summary>projectsV2 节点</summary>
+    [JsonPropertyName("projectsV2")]
+    public GraphQLNodesResponse<ProjectIdTitleItemResponse> ProjectsV2 { get; init; } = new();
+}
+
+/// <summary>Project item content(用于 FindProjectItemId,只有 id)</summary>
+internal sealed class ProjectItemIdContentResponse {
+    /// <summary>node ID</summary>
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = "";
+}
+
+/// <summary>Project item(用于 FindProjectItemId)</summary>
+internal sealed class ProjectItemIdItemResponse {
+    /// <summary>item node ID</summary>
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = "";
+    /// <summary>content</summary>
+    [JsonPropertyName("content")]
+    public ProjectItemIdContentResponse? Content { get; init; }
+}
+
+/// <summary>Project node items 包装</summary>
+internal sealed class ProjectNodeItemsWrapperResponse {
+    /// <summary>items 节点</summary>
+    [JsonPropertyName("items")]
+    public GraphQLNodesResponse<ProjectItemIdItemResponse> Items { get; init; } = new();
+}
+
+/// <summary>GraphQL node 包装(用于 FindProjectItemId)</summary>
+internal sealed class GraphQLNodeWrapperResponse<T> {
+    /// <summary>node 节点</summary>
+    [JsonPropertyName("node")]
+    public T? Node { get; init; }
+}
+
+/// <summary>Issue type 项</summary>
+internal sealed class IssueTypeItemResponse {
+    /// <summary>node ID</summary>
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = "";
+    /// <summary>类型名</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+}
+
+/// <summary>Issue type 列表包装</summary>
+internal sealed class IssueTypeListWrapperResponse {
+    /// <summary>issueTypes 节点</summary>
+    [JsonPropertyName("issueTypes")]
+    public GraphQLNodesResponse<IssueTypeItemResponse> IssueTypes { get; init; } = new();
+}
+
+/// <summary>Issue parent 引用(只有 id)</summary>
+internal sealed class IssueParentRefResponse {
+    /// <summary>parent node ID</summary>
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = "";
+}
+
+/// <summary>Issue parent 内容</summary>
+internal sealed class IssueParentContentResponse {
+    /// <summary>parent</summary>
+    [JsonPropertyName("parent")]
+    public IssueParentRefResponse? Parent { get; init; }
+}
+
+/// <summary>Issue parent 包装(含 issue 节点)</summary>
+internal sealed class IssueParentWrapperResponse {
+    /// <summary>issue 节点</summary>
+    [JsonPropertyName("issue")]
+    public IssueParentContentResponse? Issue { get; init; }
+}
+
+/// <summary>附件上传响应</summary>
+internal sealed class AttachmentUploadResponse {
+    /// <summary>附件 URL</summary>
+    [JsonPropertyName("url")]
+    public string? Url { get; init; }
+}

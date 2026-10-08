@@ -42,43 +42,11 @@ public static class BridgeMessaging {
     /// 使用 StringBuilder 避免 JSON 注入，AOT 合规
     /// </summary>
     public static string MakeResultMessage(string sessionId) {
-        // 使用 StringBuilder 构造 JSON，避免字符串插值导致的 JSON 注入
-        return new System.Text.StringBuilder(256)
-            .Append("{\"type\":\"result\",\"subtype\":\"success\",\"duration_ms\":0,\"duration_api_ms\":0,\"is_error\":false,\"num_turns\":0,\"result\":\"\",\"stop_reason\":null,\"total_cost_usd\":0,\"usage\":{},\"modelUsage\":{},\"permission_denials\":[],\"session_id\":\"")
-            .Append(EscapeJsonString(sessionId))
-            .Append("\",\"uuid\":\"")
-            .Append(Guid.NewGuid().ToString("D"))
-            .Append("\"}")
-            .ToString();
-    }
-
-    /// <summary>
-    /// 转义 JSON 字符串中的特殊字符 — 防止 JSON 注入
-    /// </summary>
-    private static string EscapeJsonString(ReadOnlySpan<char> value) {
-        // 快速路径: 无需转义
-        var needsEscape = false;
-        foreach (var c in value) {
-            if (c is '"' or '\\' or '\n' or '\r' or '\t') {
-                needsEscape = true;
-                break;
-            }
-        }
-
-        if (!needsEscape) return value.ToString();
-
-        var sb = new System.Text.StringBuilder(value.Length + 16);
-        foreach (var c in value) {
-            switch (c) {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
-            }
-        }
-        return sb.ToString();
+        var msg = new BridgeResultMessageDto {
+            SessionId = sessionId,
+            Uuid = Guid.NewGuid().ToString("D"),
+        };
+        return JsonSerializer.Serialize(msg, BridgeJsonContext.Default.BridgeResultMessageDto);
     }
 
     /// <summary>
@@ -269,35 +237,15 @@ public static class BridgeMessaging {
         bool success,
         string? error = null,
         CancellationToken ct = default) {
-        var sb = new StringBuilder()
-            .Append("{\"type\":\"control_response\",\"request_id\":\"").Append(requestId)
-            .Append("\",\"session_id\":\"").Append(sessionId)
-            .Append("\",\"response\":{\"success\":").Append(success ? "true" : "false");
-
-        if (error is not null) {
-            sb.Append(",\"error\":").Append(JsonEncode(error));
-        }
-
-        sb.Append("}}");
-        await transport.WriteAsync(sb.ToString(), ct).ConfigureAwait(false);
-    }
-
-    /// <summary>JSON 字符串编码</summary>
-    private static string JsonEncode(string value) {
-        var sb = new StringBuilder(value.Length + 2);
-        sb.Append('"');
-        foreach (var c in value) {
-            switch (c) {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
-            }
-        }
-        sb.Append('"');
-        return sb.ToString();
+        var responseDto = new BridgeControlResponseDto {
+            RequestId = requestId,
+            SessionId = sessionId,
+            Response = new BridgeControlResponseBodyDto {
+                Success = success,
+                Error = error,
+            },
+        };
+        await transport.WriteAsync(JsonSerializer.Serialize(responseDto, BridgeJsonContext.Default.BridgeControlResponseDto), ct).ConfigureAwait(false);
     }
 
     #endregion

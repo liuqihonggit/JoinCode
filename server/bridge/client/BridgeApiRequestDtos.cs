@@ -114,3 +114,75 @@ internal sealed class BridgeCodeSessionIdResponse {
     [JsonPropertyName("id")]
     public string? Id { get; init; }
 }
+
+/// <summary>Bridge 结果消息 — MakeResultMessage 的 JSON 结构</summary>
+internal sealed class BridgeResultMessageDto {
+    /// <summary>类型(固定 result)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "result";
+    /// <summary>子类型(固定 success)</summary>
+    [JsonPropertyName("subtype")]
+    public string Subtype { get; init; } = "success";
+    /// <summary>持续时间(毫秒)</summary>
+    [JsonPropertyName("duration_ms")]
+    public int DurationMs { get; init; }
+    /// <summary>API 持续时间(毫秒)</summary>
+    [JsonPropertyName("duration_api_ms")]
+    public int DurationApiMs { get; init; }
+    /// <summary>是否错误</summary>
+    [JsonPropertyName("is_error")]
+    public bool IsError { get; init; }
+    /// <summary>轮次数</summary>
+    [JsonPropertyName("num_turns")]
+    public int NumTurns { get; init; }
+    /// <summary>结果文本</summary>
+    [JsonPropertyName("result")]
+    public string Result { get; init; } = "";
+    /// <summary>停止原因(null)</summary>
+    [JsonPropertyName("stop_reason")]
+    public string? StopReason { get; init; }
+    /// <summary>总成本(USD)</summary>
+    [JsonPropertyName("total_cost_usd")]
+    public decimal TotalCostUsd { get; init; }
+    /// <summary>用量(空对象)</summary>
+    [JsonPropertyName("usage")]
+    public object Usage { get; init; } = new();
+    /// <summary>模型用量(空对象)</summary>
+    [JsonPropertyName("modelUsage")]
+    public object ModelUsage { get; init; } = new();
+    /// <summary>权限拒绝列表(空数组)</summary>
+    [JsonPropertyName("permission_denials")]
+    public List<object> PermissionDenials { get; init; } = new();
+    /// <summary>会话 ID</summary>
+    [JsonPropertyName("session_id")]
+    public string SessionId { get; init; } = "";
+    /// <summary>UUID</summary>
+    [JsonPropertyName("uuid")]
+    public string Uuid { get; init; } = "";
+}
+
+/// <summary>Bridge control_response 消息</summary>
+internal sealed class BridgeControlResponseDto {
+    /// <summary>类型(固定 control_response)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "control_response";
+    /// <summary>请求 ID</summary>
+    [JsonPropertyName("request_id")]
+    public string RequestId { get; init; } = "";
+    /// <summary>会话 ID</summary>
+    [JsonPropertyName("session_id")]
+    public string SessionId { get; init; } = "";
+    /// <summary>响应体</summary>
+    [JsonPropertyName("response")]
+    public BridgeControlResponseBodyDto Response { get; init; } = new();
+}
+
+/// <summary>Bridge control_response 响应体</summary>
+internal sealed class BridgeControlResponseBodyDto {
+    /// <summary>是否成功</summary>
+    [JsonPropertyName("success")]
+    public bool Success { get; init; }
+    /// <summary>错误信息(可选)</summary>
+    [JsonPropertyName("error")]
+    public string? Error { get; init; }
+}

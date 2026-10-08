@@ -99,5 +99,8 @@ namespace Core.Bridge;
 [JsonSerializable(typeof(BridgeCreateCodeSessionRequest))]
 [JsonSerializable(typeof(BridgeCodeSessionResponse))]
 [JsonSerializable(typeof(BridgeCodeSessionIdResponse))]
+[JsonSerializable(typeof(BridgeResultMessageDto))]
+[JsonSerializable(typeof(BridgeControlResponseDto))]
+[JsonSerializable(typeof(BridgeControlResponseBodyDto))]
 // BridgeNdjsonActivity, BridgeNdjsonActivityType 已迁移到 JoinCode.Transport.Bridge (NdjsonActivity, NdjsonActivityType)
 internal partial class BridgeJsonContext : JsonSerializerContext;

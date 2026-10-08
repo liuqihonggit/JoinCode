@@ -190,3 +190,24 @@ jcc gh 不是系统 gh CLI 的包装/转发，是独立实现（HttpClient 直�
 | GitHubToolHandlers.Release.cs | SummarizeReleaseList | Utf8JsonWriter + CopyProperty 动态字段过滤 |
 | GitHubToolHandlers.Repo.cs | SummarizeRepoList | Utf8JsonWriter + CopyProperty 动态字段过滤 |
 | GitHubToolHandlers.Branch.cs | BuildFullProtectionPutBody | Utf8JsonWriter JSON 重写（保留原字段+替换 required_status_checks.checks） |
+
+## Bridge 手写 JSON 拼接 → DTO + JsonSerializer.Serialize 重构
+
+> 将 Bridge API 请求体/消息构造从 StringBuilder + EscapeJsonString 手写拼接改为 DTO + JsonSerializer.Serialize，符合 NativeAOT + JsonContext 约束。
+
+### 已完成（11 处）
+
+| 文件 | 方法 | 处数 | DTO |
+|------|------|------|-----|
+| BridgeSessionApi.cs | CreateAsync + UpdateTitleAsync + ReconnectAsync + ReconnectSessionAsync | 4 | BridgeCreateSessionRequestBody/BridgeSessionContextRequestBody/BridgeGitSourceRequest/BridgeUpdateTitleRequest/BridgeReconnectRequestBody/BridgeReconnectSessionRequestBody |
+| BridgeDeviceTokenService.cs | EnrollTrustedDeviceAsync + ReadTokenFromStorageAsync | 3 | BridgeEnrollDeviceRequest/BridgeDeviceTokenResponse |
+| BridgeCodeSessionApi.cs | CreateCodeSessionAsync | 2 | BridgeCreateCodeSessionRequest/BridgeCodeSessionResponse/BridgeCodeSessionIdResponse |
+| BridgeMessaging.cs | MakeResultMessage + SendControlResponseAsync | 2 | BridgeResultMessageDto/BridgeControlResponseDto/BridgeControlResponseBodyDto |
+
+### 删除的辅助方法
+
+| 文件 | 方法 | 原因 |
+|------|------|------|
+| BridgeSessionApi.cs | EscapeJsonString | 已被 DTO + JsonSerializer 替代 |
+| BridgeCodeSessionApi.cs | JsonEncode | 同上 |
+| BridgeMessaging.cs | EscapeJsonString + JsonEncode | 同上 |

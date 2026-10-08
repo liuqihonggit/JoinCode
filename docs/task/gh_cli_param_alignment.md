@@ -211,3 +211,121 @@ jcc gh 不是系统 gh CLI 的包装/转发，是独立实现（HttpClient 直�
 | BridgeSessionApi.cs | EscapeJsonString | 已被 DTO + JsonSerializer 替代 |
 | BridgeCodeSessionApi.cs | JsonEncode | 同上 |
 | BridgeMessaging.cs | EscapeJsonString + JsonEncode | 同上 |
+
+## JSON DTO 双向转换重构总览（ADR 0133）
+
+> 所有手写 JSON 字符串拼接（`$"{{...}}"` 内插、`StringBuilder` 拼 JSON、`EscapeJsonString` 手写转义）改为 DTO + `JsonSerializer.Serialize`/`Deserialize` 双向转换。
+> `JsonDocument.Parse` + `TryGetProperty` 链式提取改为 DTO + `JsonSerializer.Deserialize` + 属性访问。
+
+### P0 生产代码手写 JSON 拼接（22处）
+
+| 文件 | 处数 | DTO |
+|------|------|-----|
+| Program.cs | 1 | CrashDumpSnapshotDto |
+| DiagnosticLogRecorder.cs | 1 | DiagnosticLogEntryDto |
+| KeywordInjectionMiddleware.cs | 1 | KeywordMissLogDto |
+| WebService.cs | 1 | WebSearchToolSchemaDto |
+| GraphVisualization.cs | 1 | D3GraphDataDto |
+| JwtUtils.cs | 1 | BridgeJwtHeader |
+| RemoteTriggerService.cs | 1 | RemoteTriggerErrorResponse |
+| AgentMemoryService.cs | 1 | AgentMemorySyncedMetaJson |
+| ChatContextManager.cs | 1 | MessageOriginMetadataDto |
+| V2ReplBridgeTransport.cs | 3 | BridgeReportStatePayload/BridgeReportDeliveryPayload/BridgeRegisterWorkerPayload |
+| V1BridgeHandle.cs | 3 | BridgeKeepAliveMessageDto/BridgeCancelControlRequestMessageDto/BridgeSimpleResultMessageDto |
+| V2BridgeHandle.cs | 1 | BridgeV2ControlCancelRequestDto |
+| BridgeSubprocessManager.cs | 1 | BridgeUpdateEnvVarsMessageDto |
+| BridgePermissionCallbacks.cs | 3 | BridgePermissionRequestDto/BridgePermissionResponseMessageDto/BridgePermissionCancelDto |
+| BridgeDeviceTokenService.cs | 1 | Dictionary<string, JsonElement> + JsonSerializer.Serialize |
+| HostContextSyncService.cs | 1 | HostContextSnapshotDto |
+| SlashCommandExecutors.cs | 1 | Dictionary<string, JsonElement> + SlashCommandJsonContext |
+| ConfigLoader.cs | 1 | JsonSerializer.SerializeToElement |
+| FrontmatterParser.cs | 1 | JsonSerializer.Serialize |
+| QqBotAdapter.cs | 1 | QqSendMessageDto |
+| FeishuBotAdapter.cs | 1 | FeishuSendMessageDto |
+
+### P1 Mock 代码 EscapeJsonString（6处）
+
+| 文件 | 改动 |
+|------|------|
+| ResponsesResponseStrategy.cs | switch-case → JsonEncodedText.Encode |
+| OpenAIResponseStrategy.cs | 同上 |
+| DeepSeekResponseStrategy.cs | 同上 |
+| AnthropicResponseStrategy.cs | 同上 |
+| DualRoleConversationRunner.cs | 同上 |
+| SubAgentEventStreamE2ETests.cs | .Replace → JsonEncodedText.Encode |
+
+### ResponsesQueryService 手写 JSON 拼接（6处）
+
+| 方法 | 改动 |
+|------|------|
+| BuildParameters | JsonSchemaDto + JsonSerializer.SerializeToElement |
+| CreateRequest input items | ResponsesInputItemDto + ResponsesInputContentDto |
+| BuildFunctionCallOutput | 返回 DTO |
+| TryBuildAssistantMetadata | 返回 List<ResponsesInputItemDto>? |
+
+### GitHub 重复 Parse 模式 → DTO（73处）
+
+14 个 GitHubToolHandlers 文件中 73 处 `JsonDocument.Parse` + `TryGetProperty` + `StringBuilder` 改为 `JsonSerializer.Deserialize` + DTO 属性访问。
+
+### GitHub 魔法字符串 → 常量（253处）
+
+`GitHubJsonFields.cs` 定义 82 个 JSON 字段名常量，14 个文件 253 处 `TryGetProperty("xxx")` 替换为常量引用。
+
+### TryGetProperty 链式提取 → DTO（242处）
+
+**第一批（128处）**：
+
+| 模块 | 处数 | 文件 |
+|------|------|------|
+| Reasoning agents | 16 | JudgeAgent/ProsecutorAgent/DefenderAgent |
+| Update sources | 24 | GitHubMirror/GiteaMirror/GitLabMirror/StaticFileUpdateSource |
+| UI detector | 14 | MultimodalUiElementDetector |
+| Tool creation + model list | 12 | ToolCreationToolHandlers/ModelListFetcher |
+| Classifier + brief mode | 6 | LlmAutoModeClassifier/BriefModeService |
+| DotEnv + model config | 10 | DotEnvConfig/MainViewModel.ModelConfig |
+| Web + bot adapters | 5 | WebService/FeishuBotAdapter/QqBotAdapter |
+| Query helpers | 12 | QueryServiceBase/PipeQueryService/ForkMessageBuilder/AgentWorktreeManager |
+| Agent definition | 11 | AgentDefinitionProvider |
+| Responses query | 18 | ResponsesQueryService |
+
+**第二批（114处）**：
+
+| 模块 | 处数 | 文件 |
+|------|------|------|
+| PsAstParser | 34 | PsAstParser |
+| Anthropic query | 6 | AnthropicQueryService |
+| MCP 通知 | 9 | McpClientBase/McpChannelNotificationHandler |
+| Bridge 响应/附件 | 7 | BridgeCodeSessionApi/BridgeInboundAttachments |
+| Bridge messaging | 14 | BridgeMessaging |
+| LSP 诊断 | 12 | LspPassiveFeedback |
+| 小组1 | 5 | InstallGitHubAppCommand/InitCommand/CodeSessionApiHandler |
+| NdjsonParser | 8 | NdjsonParser |
+| 小组2 | 5 | BridgeDebugUtils/BridgeTokenRefreshScheduler/V2ReplBridgeTransport/GitHubApiClient |
+| LSP 协议 | 14 | LspClient/LspService/LspMessageRouter |
+
+**保留 TryGetProperty（~19处）**：discriminated union type 判断 + 动态字段名 + 协议路由，属合理保留。
+
+### 丑表重构（6处）
+
+| 文件 | 原模式 | 新模式 |
+|------|--------|--------|
+| TriggerConditionMapper.cs | 50+ case switch | FrozenDictionary<string, TriggerCondition> |
+| MainViewModel.CommandPalette.cs | 22 case switch | FrozenDictionary<string, Action> |
+| MultimodalUiElementDetector.cs | 16 case switch | FrozenDictionary<string, UiElementType> |
+| LocalLanguageDetector.cs | 18 case switch | FrozenDictionary<string, string> |
+| TrustCommand.cs | 5 if-else | switch 表达式 |
+| ToolExceptionDiagnosticHelper.cs | 6 if-else | switch 表达式 |
+
+### 总计
+
+| 重构方向 | 处数 | 状态 |
+|----------|------|------|
+| P0 手写 JSON 拼接 → DTO | 22 | ✅ |
+| P1 Mock EscapeJsonString → JsonEncodedText | 6 | ✅ |
+| Bridge 手写 JSON → DTO | 26 | ✅ |
+| ResponsesQueryService → DTO | 6 | ✅ |
+| GitHub Parse → DTO | 73 | ✅ |
+| GitHub 魔法字符串 → 常量 | 253 | ✅ |
+| TryGetProperty → DTO | 242 | ✅ |
+| 丑表 → FrozenDictionary | 6 | ✅ |
+| **总计** | **634** | ✅ |

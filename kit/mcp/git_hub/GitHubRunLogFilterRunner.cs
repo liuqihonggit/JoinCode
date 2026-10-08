@@ -251,14 +251,10 @@ internal sealed class GitHubRunLogFilterRunner {
         return matched;
     }
 
-    /// <summary>错误指示行检测 — ##[error] / [FAIL] / Failed / Exception / error / : error:</summary>
+    /// <summary>错误指示行检测 — 仅 GitHub Actions 结构化标记 ##[error] 和 Process completed with exit code,避免测试名误匹配</summary>
     private static bool IsErrorIndicatorLine(ReadOnlySpan<char> line)
         => line.Contains("##[error]", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("Failed ", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("Exception", StringComparison.OrdinalIgnoreCase)
-        || line.Contains(" error ", StringComparison.OrdinalIgnoreCase)
-        || line.Contains(": error:", StringComparison.OrdinalIgnoreCase);
+        || line.Contains("Process completed with exit code", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// 构建 0 行匹配的精准提示 — 区分"无失败"vs"filter 不匹配"vs"日志空",引导 AI 下一步

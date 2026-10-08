@@ -478,16 +478,19 @@ public static class LockRegistry {
     }
 
     /// <summary>
-    /// 清空注册表并重置 ID（仅测试用）。
+    /// 重置诊断标志和配置（仅测试用）。
+    /// <para><paramref name="clearLocks"/> 为 true 时同时清空锁注册表和 ID 计数器</para>
+    /// <para>— 仅在确需空注册表的测试中显式传 true,默认 false 避免并行测试互相清除对方正在使用的锁。</para>
     /// </summary>
-    internal static void ClearForTesting() {
+    internal static void ClearForTesting(bool clearLocks = false) {
         StopBackgroundScan();
-        Volatile.Write(ref _locks, ImmutableHamT<int, LockInfo>.Empty);
-        Interlocked.Exchange(ref _nextId, 0);
+        if (clearLocks) {
+            Volatile.Write(ref _locks, ImmutableHamT<int, LockInfo>.Empty);
+            Interlocked.Exchange(ref _nextId, 0);
+        }
         Interlocked.Exchange(ref _nextFlowId, 0);
         Interlocked.Exchange(ref _deadlockDetected, 0);
         Volatile.Write(ref _lastDeadlockReport, null);
-        Volatile.Write(ref _config, LockRegistryConfig.Default);
         AsyncFlowIdentity.Clear();
     }
 

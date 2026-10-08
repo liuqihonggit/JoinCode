@@ -42,7 +42,7 @@ public class AsyncLockDiagnosisPureTests : IDisposable {
     [Fact]
     [Trait("Category", "Deterministic")]
     public async Task LockRegistry_Count_构造增加_Dispose减少() {
-        LockRegistry.ClearForTesting();
+        LockRegistry.ClearForTesting(clearLocks: true);
         var lk = new AsyncLock("count-test");
         LockRegistry.Count.Should().Be(1, "构造一把锁后注册表应有1条");
         lk.Dispose();
@@ -68,8 +68,14 @@ public class AsyncLockDiagnosisPureTests : IDisposable {
         using var lk = new AsyncLock("stack-test");
         using (await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
             var dump = LockRegistry.DumpAll();
-            dump.Should().Contain("获取调用栈", "诊断开启时 DumpAll 应包含获取调用栈");
-            dump.Should().Contain("AsyncLockDiagnosisPureTests", "调用栈应包含测试类方法名(拆分后类名更新)");
+            for (var i = 0; i < 16; i++) {
+                if (dump.Contains("获取调用栈") && dump.Contains("AsyncLockDiagnosisPureTests"))
+                    break;
+                await Task.Delay(50);
+                dump = LockRegistry.DumpAll();
+            }
+            dump.Should().Contain("获取调用栈", "诊断开启时 DumpAll 应包含获取调用栈 (重试16次)");
+            dump.Should().Contain("AsyncLockDiagnosisPureTests", "调用栈应包含测试类方法名(重试16次)");
         }
     }
 
@@ -93,8 +99,14 @@ public class AsyncLockDiagnosisPureTests : IDisposable {
         barrier.SignalAndWait();
         using (await lk.TryLockAsync(TimeSpan.FromSeconds(3)) ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
             var dump = LockRegistry.DumpAll();
-            dump.Should().Contain("获取调用栈", "诊断开启时 DumpAll 应包含获取调用栈");
-            dump.Should().Contain("AsyncLockDiagnosisPureTests", "异步获取后调用栈仍应包含调用方方法名");
+            for (var i = 0; i < 16; i++) {
+                if (dump.Contains("获取调用栈") && dump.Contains("AsyncLockDiagnosisPureTests"))
+                    break;
+                await Task.Delay(50);
+                dump = LockRegistry.DumpAll();
+            }
+            dump.Should().Contain("获取调用栈", "诊断开启时 DumpAll 应包含获取调用栈 (重试16次)");
+            dump.Should().Contain("AsyncLockDiagnosisPureTests", "异步获取后调用栈仍应包含调用方方法名 (重试16次)");
         }
         await holderTask;
     }

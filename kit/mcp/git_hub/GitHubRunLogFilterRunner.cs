@@ -28,30 +28,65 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <summary>
     /// 获取指定 Run 中所有失败 job 的日志 — 逐行 yield(合并多个 job 日志)
     /// <para>用于 expand=failed 模式,只拉 conclusion=failure 的 job 日志</para>
+    /// <para>jobs list 缓存: key=gh:jobs:{runId},缓存失败 job ID 列表(已完成 run 的 job 列表不可变)</para>
     /// </summary>
     public async IAsyncEnumerable<string> GetFailedJobLogsAsync(
         string owner, string repo, string runId,
         [EnumeratorCancellation] CancellationToken ct) {
+        var failedJobIds = await GetOrFetchFailedJobIdsAsync(owner, repo, runId, ct).ConfigureAwait(false);
+        if (failedJobIds.Count == 0) yield break;
+
+        await foreach (var line in DownloadJobsParallelAsync(owner, repo, runId, failedJobIds, ct).ConfigureAwait(false)) {
+            yield return line;
+        }
+    }
+
+    /// <summary>
+    /// 获取失败 job ID 列表 — 优先命中 LSM 缓存(key=gh:jobs:{runId}),未命中则调 API 并缓存
+    /// <para>已完成 run 的 job 列表不可变,可安全缓存;进行中 run 每次调 API(不缓存)</para>
+    /// </summary>
+    private async Task<List<long>> GetOrFetchFailedJobIdsAsync(string owner, string repo, string runId, CancellationToken ct) {
+        var jobsCacheKey = Encoding.UTF8.GetBytes($"gh:jobs:{runId}");
+
+        if (_kvStore is not null) {
+            var cached = await _kvStore.GetAsync(jobsCacheKey, ct).ConfigureAwait(false);
+            if (cached is not null) return ParseCachedJobIds(cached);
+        }
+
         var jobsResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
-        if (!jobsResult.Success) yield break;
+        if (!jobsResult.Success) return [];
 
         List<long> failedJobIds;
         try {
             var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
-            if (jobsResp?.Jobs is null) yield break;
-            failedJobIds = new List<long>();
+            if (jobsResp?.Jobs is null) return [];
+            failedJobIds = [];
             foreach (var job in jobsResp.Jobs) {
                 if (job.Id == 0) continue;
                 if (string.Equals(job.Conclusion, "failure", StringComparison.OrdinalIgnoreCase))
                     failedJobIds.Add(job.Id);
             }
         } catch {
-            yield break;
+            return [];
         }
 
-        await foreach (var line in DownloadJobsParallelAsync(owner, repo, runId, failedJobIds, ct).ConfigureAwait(false)) {
-            yield return line;
+        if (_kvStore is not null && failedJobIds.Count > 0) {
+            var text = string.Join(',', failedJobIds);
+            var bytes = Encoding.UTF8.GetBytes(text);
+            await _kvStore.PutAsync(jobsCacheKey, bytes, ct).ConfigureAwait(false);
         }
+
+        return failedJobIds;
+    }
+
+    /// <summary>解析缓存的 job ID 列表(逗号分隔)</summary>
+    private static List<long> ParseCachedJobIds(byte[] cached) {
+        var text = Encoding.UTF8.GetString(cached);
+        var result = new List<long>();
+        foreach (var part in text.Split(',')) {
+            if (long.TryParse(part, out var id)) result.Add(id);
+        }
+        return result;
     }
 
     /// <summary>

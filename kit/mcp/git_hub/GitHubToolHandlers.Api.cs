@@ -35,6 +35,12 @@ public partial class GitHubToolHandlers {
 
         var httpMethod = string.IsNullOrWhiteSpace(method) ? HttpMethod.Get : new HttpMethod(method.ToUpperInvariant());
         var query = ParseFieldsToQuery(fields);
+        if (httpMethod == HttpMethod.Get && (query is null || !query.ContainsKey("per_page"))) {
+            var q = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (query is not null) foreach (var kvp in query) q[kvp.Key] = kvp.Value;
+            q["per_page"] = "100";
+            query = q;
+        }
         var result = await _apiClient.SendAsync(httpMethod, path, resolvedBody, query, paginate == true, cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(BuildApiErrorHint(path, result.StatusCode, result.Error));
 

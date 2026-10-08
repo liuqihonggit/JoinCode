@@ -94,4 +94,14 @@ public sealed class SimpleJqEvaluatorTests {
         result.Should().Contain("\"id\":2");
         result.Should().NotContain("\"name\":\"build\"");
     }
+
+    /// <summary>不支持的阶段(如 + 拼接)应宽容跳过,保留前一阶段结果</summary>
+    [Fact]
+    public void Evaluate_UnsupportedStage_ShouldSkipAndKeepPreviousResult() {
+        var json = """[{"name":"a","conclusion":"failure"},{"name":"b","conclusion":"success"}]""";
+        var result = SimpleJqEvaluator.Evaluate(json, """select(.conclusion=="failure") | .name + " suffix" """);
+
+        result.Should().Contain("\"name\":\"a\"");
+        result.Should().NotContain("\"name\":\"b\"");
+    }
 }

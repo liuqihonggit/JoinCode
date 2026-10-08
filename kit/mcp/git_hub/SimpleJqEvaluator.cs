@@ -16,8 +16,9 @@ internal static class SimpleJqEvaluator {
 
         var stages = SplitPipeline(jqExpr);
         foreach (var stage in stages) {
-            node = ApplyStage(node, stage);
-            if (node is null) return null;
+            var next = ApplyStage(node, stage);
+            if (next is null) continue;
+            node = next;
         }
 
         return node.ToJsonString();
@@ -52,6 +53,7 @@ internal static class SimpleJqEvaluator {
         => stage switch {
             var s when s.StartsWith("select(", StringComparison.Ordinal) => ApplySelect(input, s),
             var s when s.StartsWith('{') => ApplyObjectConstruct(input, s),
+            var s when s.Contains(' ') => null,
             _ => ApplyPath(input, stage),
         };
 

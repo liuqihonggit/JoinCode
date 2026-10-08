@@ -299,7 +299,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 查找对象中的列表数组属性 — 优先 items,其次 workflows/workflow_runs/secrets/variables/releases/labels/runs 等已知包装属性
     /// </summary>
-    private static readonly string[] ArrayPropertyCandidates = ["items", "workflows", "workflow_runs", "secrets", "variables", "releases", "labels", "runs", "issues", "pulls"];
+    private static readonly string[] ArrayPropertyCandidates = ["items", "workflows", "workflow_runs", "secrets", "variables", "releases", "labels", "runs", "issues", "pulls", "jobs"];
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string? FindArrayProperty(JsonElement element) {

@@ -251,6 +251,21 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"conclusion\"");
     }
 
+    /// <summary>expand=jobs + json_fields 应对 job 列表过滤字段,而非 run 本身</summary>
+    [Fact]
+    public async Task RunView_ExpandJobs_WithJson_FiltersJobFields() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":2,"jobs":[{"name":"build","conclusion":"success","id":1},{"name":"test","conclusion":"failure","id":2}]}""" });
+
+        var result = await _handler.GhRunViewAsync("123", expand: "jobs", json_fields: "name,conclusion", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"name\":\"build\"");
+        text.Should().Contain("\"name\":\"test\"");
+        text.Should().Contain("\"conclusion\":\"failure\"");
+    }
+
     [Fact]
     public async Task ReleaseView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":1,"tag_name":"v1","name":"Release 1","draft":false}""" };

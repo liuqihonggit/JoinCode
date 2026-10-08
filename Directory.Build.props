@@ -90,7 +90,7 @@
     <MicrosoftCodeAnalysisVersion>5.6.0</MicrosoftCodeAnalysisVersion>
     <ModelContextProtocolVersion>1.4.0</ModelContextProtocolVersion>
     <BenchmarkDotNetVersion>0.15.8</BenchmarkDotNetVersion>
-    <ImageSharpVersion>3.1.12</ImageSharpVersion>
+    <ImageSharpVersion>4.1.2</ImageSharpVersion>
     <DocnetCoreVersion>2.6.0</DocnetCoreVersion>
     <QRCoderVersion>1.8.0</QRCoderVersion>
     <JccComponentPackageVersion>1.0.0</JccComponentPackageVersion>

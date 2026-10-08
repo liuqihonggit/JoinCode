@@ -209,6 +209,12 @@ public partial class GitHubToolHandlers {
         var hasFilter = GitHubRunLogFilter.TryParseLogFilter(opts.Filter, out var filterLevel) && filterLevel != GitHubLogFilter.None;
         var markers = hasFilter ? GitHubRunLogFilter.GetFilterMarkers(filterLevel) : null;
 
+        // === filter=正则表达式: 非预定义级别时宽容当作正则过滤日志行 ===
+        if (!string.IsNullOrWhiteSpace(opts.Filter) && !hasFilter
+            && !string.Equals(opts.Filter, "failed", StringComparison.OrdinalIgnoreCase)) {
+            return await FilterByRegexAsync(repo, target, job_id, opts.Filter, maxLines, skip, wantRefresh).ConfigureAwait(false);
+        }
+
         // === expand=jobs: 列出 job 列表(不下载日志,轻量 API 调用) ===
         if (string.Equals(opts.Expand, "jobs", StringComparison.OrdinalIgnoreCase)) {
             return await ListJobsAsync(repo.Client, repo.Owner, repo.Repo, target.RunId, repo.Ct).ConfigureAwait(false);
@@ -423,6 +429,26 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private Task<ToolResult> ListJobsAsync(IGitHubApiClient client, string owner, string repo, string runId, CancellationToken ct)
         => _logFetcher.ListJobsAsync(client, owner, repo, runId, ct);
+
+    /// <summary>
+    /// 正则表达式过滤日志行 — 当 filter 不是预定义级别(error/warning/info/all/failed)时宽容当作正则匹配
+    /// <para>宽容: bash 转义的 \| 自动转为 | (或操作符),支持 Failed\|Total tests\|... 语法</para>
+    /// <para>超时保护: 5 秒正则超时,避免恶意正则导致卡死</para>
+    /// </summary>
+    private async Task<ToolResult> FilterByRegexAsync(GhRepoCtx repo, GhRunTarget target, string? jobId, string filter, int maxLines, int skip, bool wantRefresh) {
+        var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, jobId, false, "日志", null, GitHubLogFilter.None, int.MaxValue, repo.Ct, null, 0, wantRefresh).ConfigureAwait(false);
+        if (logResult.IsError) return logResult;
+        var logText = logResult.GetFirstText() ?? "";
+        var pattern = filter.Replace("\\|", "|");
+        var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromSeconds(5));
+        var matchedLines = logText.Split('\n').Where(l => regex.IsMatch(l)).ToList();
+        var totalMatched = matchedLines.Count;
+        var displayed = matchedLines.Skip(skip).Take(maxLines).ToList();
+        var hasMore = skip + maxLines < totalMatched;
+        var sb = new StringBuilder(string.Join('\n', displayed));
+        if (hasMore) sb.Append($"\n… 另有 {totalMatched - skip - maxLines} 行匹配未显示(用 skip_lines={skip + maxLines} 续读)");
+        return Ok(sb.ToString(), $"正则过滤 '{filter}' 匹配 {totalMatched} 行(显示 {displayed.Count} 行):");
+    }
 
 
     /// <summary>

@@ -292,7 +292,13 @@ public partial class GitHubToolHandlers {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string? FindArrayProperty(JsonElement element) {
         foreach (var name in ArrayPropertyCandidates) {
-            if (element.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Array) return name;
+            if (element.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Array) {
+                // list API 包装: {"total_count": N, "items": [...]} — 属性少(<=3)
+                // detail API: {"url":..., "id":..., "number":..., "labels":[...], ...} — 属性多(>3)
+                var propCount = 0;
+                foreach (var _ in element.EnumerateObject()) propCount++;
+                if (propCount <= 3) return name;
+            }
         }
         return null;
     }

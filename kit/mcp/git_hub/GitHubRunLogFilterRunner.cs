@@ -257,20 +257,27 @@ internal sealed class GitHubRunLogFilterRunner {
         || line.Contains("Process completed with exit code", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// 构建 0 行匹配的精准提示 — 区分"无失败"vs"filter 不匹配"vs"日志空",引导 AI 下一步
+    /// 构建 0 行匹配的精准提示 — 可能性名单表(每行=可能原因+调查命令),引导 AI 下一步
     /// <para>原则(AGENTS.md): 错误提示必须有诱导方式,禁止纯拒绝无引导</para>
+    /// <para>D2: 结构化表格格式,每行编号+可能原因+→调查命令,用户可继续维护此表</para>
     /// </summary>
     internal static string BuildZeroMatchHint(bool failedOnly, string scope, GitHubLogFilter? filterLevel, FrozenSet<string>? markers) {
         var sb = new StringBuilder($"未匹配到任何{scope}行。");
-        sb.Append("\n可能原因:");
+        sb.Append("\n\n可能原因与调查命令:");
         if (failedOnly) {
-            sb.Append("\n  ① 所有步骤都通过(无失败步骤) — 用 expand=jobs 查看 job 状态确认");
+            sb.Append("\n  1) 所有步骤都通过(无失败步骤)");
+            sb.Append("\n     → gh run view <id> --expand jobs  (确认 job 状态)");
         } else if (markers is not null) {
-            sb.Append($"\n  ① filter={filterLevel} 不匹配任何行 — 试 filter=all 看全部,或 filter=error/warning 放宽");
+            sb.Append($"\n  1) filter={filterLevel} 不匹配任何行");
+            sb.Append("\n     → gh run view <id> --filter all  (放宽过滤)");
+            sb.Append("\n     → gh run view <id> --filter error,warning  (换过滤级别)");
         } else {
-            sb.Append("\n  ① 日志为空或无匹配内容");
+            sb.Append("\n  1) 日志为空或无匹配内容");
+            sb.Append("\n     → gh run view <id> --log  (查看完整日志)");
         }
-        sb.Append("\n  ② 建议用 expand=jobs 查看 job 列表,或 expand=steps job_id=N 查看具体步骤");
+        sb.Append("\n  2) 需要查看 job 列表或步骤详情");
+        sb.Append("\n     → gh run view <id> --expand jobs  (查看 job 列表)");
+        sb.Append("\n     → gh run view <id> --expand steps job_id=N  (查看具体步骤)");
         return sb.ToString();
     }
 

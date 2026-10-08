@@ -359,20 +359,39 @@ public sealed class GitHubRunLogFilterRunnerTests {
         hint.Should().Contain("未匹配到任何失败步骤行");
         hint.Should().Contain("可能原因");
         hint.Should().Contain("通过");
-        hint.Should().Contain("expand=jobs");
+        hint.Should().Contain("--expand jobs");
     }
 
     [Fact]
     public void BuildZeroMatchHint_WithMarkers_SuggestsFilterAll() {
         var hint = GitHubRunLogFilterRunner.BuildZeroMatchHint(failedOnly: false, scope: "日志", filterLevel: GitHubLogFilter.Error, markers: FrozenSet<string>.Empty);
         hint.Should().Contain("未匹配到任何日志行");
-        hint.Should().Contain("filter=all");
+        hint.Should().Contain("--filter all");
         hint.Should().Contain("可能原因");
     }
 
     [Fact]
     public void BuildZeroMatchHint_NoMarkers_SuggestsExpandSteps() {
         var hint = GitHubRunLogFilterRunner.BuildZeroMatchHint(failedOnly: false, scope: "日志", filterLevel: null, markers: null);
-        hint.Should().Contain("expand=steps");
+        hint.Should().Contain("--expand steps");
+    }
+
+    // ===== D2: 可能性名单表格式(每行=可能原因+调查命令) =====
+
+    [Fact]
+    public void BuildZeroMatchHint_D2_FailedOnly_HasStructuredTableWithArrowCommands() {
+        var hint = GitHubRunLogFilterRunner.BuildZeroMatchHint(failedOnly: true, scope: "失败步骤", filterLevel: null, markers: null);
+        hint.Should().Contain("→", "每行应有 → 管道符标注调查命令");
+        hint.Should().Contain("gh run view", "应包含完整 gh 命令");
+        hint.Should().Contain("1)", "应有编号");
+        hint.Should().Contain("2)", "应有多个编号");
+    }
+
+    [Fact]
+    public void BuildZeroMatchHint_D2_WithMarkers_HasFilterAllAndWarningSuggestions() {
+        var hint = GitHubRunLogFilterRunner.BuildZeroMatchHint(failedOnly: false, scope: "日志", filterLevel: GitHubLogFilter.Error, markers: FrozenSet<string>.Empty);
+        hint.Should().Contain("→");
+        hint.Should().Contain("filter all", "应提示放宽过滤");
+        hint.Should().Contain("gh run view");
     }
 }

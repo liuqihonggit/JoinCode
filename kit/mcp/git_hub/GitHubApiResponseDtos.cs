@@ -346,3 +346,171 @@ internal sealed class TopicsResponse {
     [JsonPropertyName("names")]
     public List<string> Names { get; init; } = new();
 }
+
+// === PR/Issue/Repo 嵌套引用 ===
+
+/// <summary>用户引用(嵌套对象,只需 login)</summary>
+internal sealed class UserRefResponse {
+    /// <summary>登录名</summary>
+    [JsonPropertyName("login")]
+    public string Login { get; init; } = "";
+}
+
+/// <summary>分支引用(嵌套对象,只需 ref)</summary>
+internal sealed class BranchRefResponse {
+    /// <summary>分支名</summary>
+    [JsonPropertyName("ref")]
+    public string Ref { get; init; } = "";
+}
+
+/// <summary>标签引用(嵌套对象,只需 name)</summary>
+internal sealed class LabelRefResponse {
+    /// <summary>标签名</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+}
+
+// === PR 详情/列表 ===
+
+/// <summary>PR 详情响应 — GET /pulls/{n}</summary>
+internal sealed class PrDetailResponse {
+    /// <summary>PR 编号</summary>
+    [JsonPropertyName("number")]
+    public int Number { get; init; }
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+    /// <summary>状态</summary>
+    [JsonPropertyName("state")]
+    public string State { get; init; } = "";
+    /// <summary>是否 draft</summary>
+    [JsonPropertyName("draft")]
+    public bool Draft { get; init; }
+    /// <summary>是否可合并</summary>
+    [JsonPropertyName("mergeable")]
+    public bool? Mergeable { get; init; }
+    /// <summary>可合并状态</summary>
+    [JsonPropertyName("mergeable_state")]
+    public string? MergeableState { get; init; }
+    /// <summary>作者</summary>
+    [JsonPropertyName("user")]
+    public UserRefResponse? User { get; init; }
+    /// <summary>head 分支</summary>
+    [JsonPropertyName("head")]
+    public BranchRefResponse? Head { get; init; }
+    /// <summary>base 分支</summary>
+    [JsonPropertyName("base")]
+    public BranchRefResponse? Base { get; init; }
+    /// <summary>新增行数</summary>
+    [JsonPropertyName("additions")]
+    public int Additions { get; init; }
+    /// <summary>删除行数</summary>
+    [JsonPropertyName("deletions")]
+    public int Deletions { get; init; }
+    /// <summary>变更文件数</summary>
+    [JsonPropertyName("changed_files")]
+    public int ChangedFiles { get; init; }
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+}
+
+/// <summary>PR 列表项 — pulls API 数组元素</summary>
+internal sealed class PrListItemResponse {
+    /// <summary>PR 编号</summary>
+    [JsonPropertyName("number")]
+    public int Number { get; init; }
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+    /// <summary>状态</summary>
+    [JsonPropertyName("state")]
+    public string State { get; init; } = "";
+    /// <summary>作者</summary>
+    [JsonPropertyName("user")]
+    public UserRefResponse? User { get; init; }
+}
+
+/// <summary>PR 列表 items 包装 — search API {items:[...]} 格式</summary>
+internal sealed class PrListItemsResponse {
+    /// <summary>PR 列表</summary>
+    [JsonPropertyName("items")]
+    public List<PrListItemResponse> Items { get; init; } = new();
+}
+
+// === Issue 详情/列表 ===
+
+/// <summary>Issue 详情响应 — GET /issues/{n}</summary>
+internal sealed class IssueDetailResponse {
+    /// <summary>Issue 编号</summary>
+    [JsonPropertyName("number")]
+    public int Number { get; init; }
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+    /// <summary>状态</summary>
+    [JsonPropertyName("state")]
+    public string State { get; init; } = "";
+    /// <summary>作者</summary>
+    [JsonPropertyName("user")]
+    public UserRefResponse? User { get; init; }
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+    /// <summary>创建时间</summary>
+    [JsonPropertyName("created_at")]
+    public string? CreatedAt { get; init; }
+    /// <summary>标签列表</summary>
+    [JsonPropertyName("labels")]
+    public List<LabelRefResponse> Labels { get; init; } = new();
+}
+
+/// <summary>Issue 列表项 — issues API 数组元素</summary>
+internal sealed class IssueListItemResponse {
+    /// <summary>Issue 编号</summary>
+    [JsonPropertyName("number")]
+    public int Number { get; init; }
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+    /// <summary>状态</summary>
+    [JsonPropertyName("state")]
+    public string State { get; init; } = "";
+    /// <summary>作者</summary>
+    [JsonPropertyName("user")]
+    public UserRefResponse? User { get; init; }
+}
+
+/// <summary>Issue 列表 items 包装 — search API {items:[...]} 格式</summary>
+internal sealed class IssueListItemsResponse {
+    /// <summary>Issue 列表</summary>
+    [JsonPropertyName("items")]
+    public List<IssueListItemResponse> Items { get; init; } = new();
+}
+
+// === Repo 详情 ===
+
+/// <summary>Repo 详情响应 — GET /repos/{o}/{r}</summary>
+internal sealed class RepoDetailResponse {
+    /// <summary>仓库名</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    /// <summary>全名(owner/repo)</summary>
+    [JsonPropertyName("full_name")]
+    public string FullName { get; init; } = "";
+    /// <summary>是否私有</summary>
+    [JsonPropertyName("private")]
+    public bool Private { get; init; }
+    /// <summary>默认分支</summary>
+    [JsonPropertyName("default_branch")]
+    public string? DefaultBranch { get; init; }
+    /// <summary>star 数</summary>
+    [JsonPropertyName("stargazers_count")]
+    public int StargazersCount { get; init; }
+    /// <summary>fork 数</summary>
+    [JsonPropertyName("forks_count")]
+    public int ForksCount { get; init; }
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+}

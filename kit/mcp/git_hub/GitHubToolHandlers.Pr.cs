@@ -55,13 +55,10 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeComments(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
+            var comments = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListCommentResponse);
+            if (comments is null) return json;
             var sb = new StringBuilder(256);
-            foreach (var item in doc.RootElement.EnumerateArray()) {
-                var body = item.TryGetProperty(GitHubJsonFields.Body, out var b) ? b.GetString() ?? "" : "";
-                var login = item.TryGetProperty(GitHubJsonFields.User, out var u) && u.TryGetProperty(GitHubJsonFields.Login, out var l) ? l.GetString() ?? "" : "";
-                sb.AppendLine($"- @{login}: {body}");
-            }
+            foreach (var item in comments) sb.AppendLine($"- @{item.User?.Login ?? ""}: {item.Body}");
             return sb.ToString();
         } catch {
             return json;
@@ -1025,23 +1022,20 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizePrStatus(string json, bool showConflict) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var prs = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListPrStatusItemResponse);
+            if (prs is null) return json;
             var byAuthor = new Dictionary<string, List<(int number, string title, string headRef, bool draft, bool mergeable)>>();
-            foreach (var pr in doc.RootElement.EnumerateArray()) {
-                var number = pr.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
-                var title = pr.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
-                var author = pr.TryGetProperty(GitHubJsonFields.User, out var u) && u.TryGetProperty(GitHubJsonFields.Login, out var login) ? login.GetString() ?? "" : "";
-                var headRef = pr.TryGetProperty(GitHubJsonFields.Head, out var h) && h.TryGetProperty(GitHubJsonFields.Ref, out var hr) ? hr.GetString() ?? "" : "";
-                var draft = pr.TryGetProperty(GitHubJsonFields.Draft, out var d) && d.GetBoolean();
-                var mergeable = pr.TryGetProperty("mergeable", out var m) ? (m.ValueKind == JsonValueKind.True) : false;
+            foreach (var pr in prs) {
+                var author = pr.User?.Login ?? "";
+                var headRef = pr.Head?.Ref ?? "";
+                var mergeable = pr.Mergeable ?? false;
                 if (!byAuthor.TryGetValue(author, out var list)) { list = new(); byAuthor[author] = list; }
-                list.Add((number, title, headRef, draft, mergeable));
+                list.Add((pr.Number, pr.Title, headRef, pr.Draft, mergeable));
             }
             var sb = new StringBuilder(512);
-            foreach (var (author, prs) in byAuthor) {
+            foreach (var (author, authorPrs) in byAuthor) {
                 sb.AppendLine($"## {author}");
-                foreach (var (number, title, headRef, draft, mergeable) in prs) {
+                foreach (var (number, title, headRef, draft, mergeable) in authorPrs) {
                     var draftMark = draft ? " [draft]" : "";
                     var conflictMark = showConflict && !mergeable ? " [conflict]" : "";
                     sb.AppendLine($"  #{number}: {title}{draftMark}{conflictMark} ({headRef})");

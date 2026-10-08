@@ -514,3 +514,37 @@ internal sealed class RepoDetailResponse {
     [JsonPropertyName("html_url")]
     public string? HtmlUrl { get; init; }
 }
+
+// === Comment / PrStatus ===
+
+/// <summary>评论响应 — GET /issues/{n}/comments</summary>
+internal sealed class CommentResponse {
+    /// <summary>正文</summary>
+    [JsonPropertyName("body")]
+    public string Body { get; init; } = "";
+    /// <summary>作者</summary>
+    [JsonPropertyName("user")]
+    public UserRefResponse? User { get; init; }
+}
+
+/// <summary>PR 状态项 — gh pr status 列表元素</summary>
+internal sealed class PrStatusItemResponse {
+    /// <summary>PR 编号</summary>
+    [JsonPropertyName("number")]
+    public int Number { get; init; }
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+    /// <summary>作者</summary>
+    [JsonPropertyName("user")]
+    public UserRefResponse? User { get; init; }
+    /// <summary>head 分支</summary>
+    [JsonPropertyName("head")]
+    public BranchRefResponse? Head { get; init; }
+    /// <summary>是否 draft</summary>
+    [JsonPropertyName("draft")]
+    public bool Draft { get; init; }
+    /// <summary>是否可合并</summary>
+    [JsonPropertyName("mergeable")]
+    public bool? Mergeable { get; init; }
+}

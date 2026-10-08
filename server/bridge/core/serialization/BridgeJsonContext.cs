@@ -88,5 +88,13 @@ namespace Core.Bridge;
 [JsonSerializable(typeof(V2BridgeConfig))]
 [JsonSerializable(typeof(BridgeRemoteCredentials))]
 [JsonSerializable(typeof(ConcurrentSessionRecord))]
+[JsonSerializable(typeof(BridgeUpdateTitleRequest))]
+[JsonSerializable(typeof(BridgeReconnectRequestBody))]
+[JsonSerializable(typeof(BridgeReconnectSessionRequestBody))]
+[JsonSerializable(typeof(BridgeCreateSessionRequestBody))]
+[JsonSerializable(typeof(BridgeSessionContextRequestBody))]
+[JsonSerializable(typeof(BridgeGitSourceRequest))]
+[JsonSerializable(typeof(BridgeEnrollDeviceRequest))]
+[JsonSerializable(typeof(BridgeDeviceTokenResponse))]
 // BridgeNdjsonActivity, BridgeNdjsonActivityType 已迁移到 JoinCode.Transport.Bridge (NdjsonActivity, NdjsonActivityType)
 internal partial class BridgeJsonContext : JsonSerializerContext;

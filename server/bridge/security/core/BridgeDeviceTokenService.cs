@@ -125,7 +125,7 @@ public sealed class BridgeDeviceTokenService {
             // 对齐 TS 端: { display_name: "JoinCode on ${hostname()} · ${process.platform}" }
             var displayName = $"JoinCode on {Environment.MachineName} · {Environment.OSVersion.Platform}";
             request.Content = new StringContent(
-                $"{{\"display_name\":\"{EscapeJsonString(displayName)}\"}}",
+                JsonSerializer.Serialize(new BridgeEnrollDeviceRequest { DisplayName = displayName }, BridgeJsonContext.Default.BridgeEnrollDeviceRequest),
                 System.Text.Encoding.UTF8,
                 "application/json");
 
@@ -133,15 +133,12 @@ public sealed class BridgeDeviceTokenService {
             response.EnsureSuccessStatusCode();
 
             var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            var je = JsonDocument.Parse(body).RootElement;
+            var tokenResp = JsonSerializer.Deserialize(body, BridgeJsonContext.Default.BridgeDeviceTokenResponse);
 
-            if (je.TryGetProperty("device_token", out var tokenProp)) {
-                var token = tokenProp.GetString();
-                if (token is not null) {
-                    _cachedToken = token;
-                    await SaveTokenToStorageAsync(token, ct).ConfigureAwait(false);
-                    _logger?.LogInformation("[BridgeDeviceToken] 设备注册成功");
-                }
+            if (tokenResp?.DeviceToken is { } token) {
+                _cachedToken = token;
+                await SaveTokenToStorageAsync(token, ct).ConfigureAwait(false);
+                _logger?.LogInformation("[BridgeDeviceToken] 设备注册成功");
             }
 
         } catch (Exception ex) {
@@ -150,17 +147,12 @@ public sealed class BridgeDeviceTokenService {
     }
 
     /// <summary>从安全存储读取令牌</summary>
-    private async Task<string?> ReadTokenFromStorageAsync(CancellationToken ct) {
+    private async Task<string?> ReadTokenFromStorageAsync(CancellationToken ct = default) {
         if (!_fs.FileExists(_authFilePath)) return null;
 
-        await using var fs = _fs.CreateStream(_authFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using var doc = await JsonDocument.ParseAsync(fs, cancellationToken: ct).ConfigureAwait(false);
-
-        if (doc.RootElement.TryGetProperty("device_token", out var tokenProp)) {
-            return tokenProp.GetString();
-        }
-
-        return null;
+        var json = await _fs.ReadAllTextAsync(_authFilePath, ct).ConfigureAwait(false);
+        var resp = JsonSerializer.Deserialize(json, BridgeJsonContext.Default.BridgeDeviceTokenResponse);
+        return resp?.DeviceToken;
     }
 
     /// <summary>保存令牌到安全存储</summary>

@@ -87,13 +87,11 @@ internal static class SlashCallExecutor {
     /// <summary>
     /// 将 key=value 键值对数组组装成 JSON 对象字符串。
     /// <para>复用 McpCliCommand.ParseValueToJsonElementAsync 做类型推断(int/double/bool/null/JSON/字符串),</para>
-    /// <para>用 JsonElement.GetRawText() 获取各值的 JSON 表示,手动拼接成 {"k1":v1,"k2":v2} 格式。</para>
+    /// <para>用 Dictionary&lt;string, JsonElement&gt; + JsonSerializer.Serialize 构建 JSON(自动转义 key)。</para>
     /// <para>返回 null 表示格式错误(已输出 Rust 风格报错)。</para>
     /// </summary>
     internal static async Task<string?> BuildArgsJsonFromKeyValueAsync(string[] kvArgs) {
-        var sb = new StringBuilder();
-        sb.Append('{');
-        var first = true;
+        var dict = new Dictionary<string, JsonElement>();
         foreach (var kv in kvArgs) {
             var eqIdx = kv.IndexOf('=');
             if (eqIdx <= 0 || eqIdx == kv.Length - 1) {
@@ -104,15 +102,16 @@ internal static class SlashCallExecutor {
             var key = kv[..eqIdx];
             var value = kv[(eqIdx + 1)..];
             var element = await McpCliCommand.ParseValueToJsonElementAsync(value, key).ConfigureAwait(false);
-            if (!first)
-                sb.Append(',');
-            first = false;
-            sb.Append('"').Append(key).Append("\":").Append(element.GetRawText());
+            dict[key] = element;
         }
-        sb.Append('}');
-        return sb.ToString();
+        return JsonSerializer.Serialize(dict, SlashCommandJsonContext.Default.DictionaryStringJsonElement);
     }
 }
+
+/// <summary>斜杠命令 JSON 序列化上下文</summary>
+[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSerializable(typeof(Dictionary<string, JsonElement>))]
+internal sealed partial class SlashCommandJsonContext : JsonSerializerContext;
 
 /// <summary>
 /// 斜杠命令列表执行器 — jcc slash_list [--category &lt;cat&gt;] [--json]

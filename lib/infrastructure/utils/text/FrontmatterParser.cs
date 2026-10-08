@@ -282,11 +282,11 @@ public static class FrontmatterParser {
             YamlScalarNode scalar => ScalarToJson(scalar.Value),
             YamlSequenceNode sequence => "[" + string.Join(",", sequence.Children.Select(YamlNodeToJson).Where(v => v != null)) + "]",
             YamlMappingNode mapping => "{" + string.Join(",", mapping.Children.Select(kvp => {
-                var key = JsonEncodeString(kvp.Key.ToString() ?? string.Empty);
+                var key = JsonSerializer.Serialize(kvp.Key.ToString() ?? string.Empty, FrontmatterJsonContext.Default.String);
                 var val = YamlNodeToJson(kvp.Value);
                 return val != null ? $"{key}:{val}" : null;
             }).Where(v => v != null)) + "}",
-            _ => JsonEncodeString(node.ToString())
+            _ => JsonSerializer.Serialize(node.ToString(), FrontmatterJsonContext.Default.String)
         };
     }
 
@@ -298,24 +298,7 @@ public static class FrontmatterParser {
         if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var intVal)) return intVal.ToString(CultureInfo.InvariantCulture);
         if (long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var longVal)) return longVal.ToString(CultureInfo.InvariantCulture);
         if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleVal)) return doubleVal.ToString(CultureInfo.InvariantCulture);
-        return JsonEncodeString(value);
-    }
-
-    private static string JsonEncodeString(string s) {
-        var sb = new StringBuilder(s.Length + 2);
-        sb.Append('"');
-        foreach (var c in s) {
-            switch (c) {
-                case '\\': sb.Append("\\\\"); break;
-                case '"': sb.Append("\\\""); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
-            }
-        }
-        sb.Append('"');
-        return sb.ToString();
+        return JsonSerializer.Serialize(value, FrontmatterJsonContext.Default.String);
     }
 
     private static YamlNode ConvertToYamlNode(JsonElement element) {
@@ -373,3 +356,8 @@ public static class FrontmatterParser {
 
     private static bool IsKnownKey(string key) => KnownKeys.Contains(key);
 }
+
+/// <summary>FrontmatterParser JSON 序列化上下文</summary>
+[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSerializable(typeof(string))]
+internal sealed partial class FrontmatterJsonContext : JsonSerializerContext;

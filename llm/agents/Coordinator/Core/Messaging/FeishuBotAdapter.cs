@@ -37,8 +37,10 @@ public sealed class FeishuBotAdapter : PlatformBotAdapterBase<FeishuBotConfig> {
         => $"{Config.ApiBaseUrl}/open-apis/im/v1/messages?receive_id_type=chat_id";
 
     /// <inheritdoc/>
-    protected override string BuildSendContent(string targetId, string text)
-        => $$"""{"receive_id":"{{targetId}}","msg_type":"text","content":"{\"text\":\"{{JsonEncodedText.Encode(text)}}\"}"}""";
+    protected override string BuildSendContent(string targetId, string text) {
+        var innerContent = JsonSerializer.Serialize(new FeishuMessageContentDto { Text = text }, BotAdapterJsonContext.Default.FeishuMessageContentDto);
+        return JsonSerializer.Serialize(new FeishuSendMessageDto { ReceiveId = targetId, MsgType = "text", Content = innerContent }, BotAdapterJsonContext.Default.FeishuSendMessageDto);
+    }
 
     /// <inheritdoc/>
     protected override string? ExtractMessageId(string json) {

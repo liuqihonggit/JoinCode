@@ -481,35 +481,17 @@ public class ConfigLoader {
     /// </summary>
     internal static JsonElement ParseJsonValueElement(string? value) {
         if (value is null) {
-            using var nullDoc = JsonDocument.Parse("null");
-            return nullDoc.RootElement.Clone();
+            return JsonSerializer.SerializeToElement((string?)null, ConfigJsonContext.Default.String);
         }
 
         var lower = value.ToLowerInvariant().Trim();
-        var jsonText = lower switch {
-            "true" => "true",
-            "false" => "false",
-            "null" => "null",
-            _ when double.TryParse(lower, out _) => lower,
-            _ => $"\"{JsonEncodeValue(value)}\"",
+        return lower switch {
+            "true" => JsonSerializer.SerializeToElement(true, ConfigJsonContext.Default.Boolean),
+            "false" => JsonSerializer.SerializeToElement(false, ConfigJsonContext.Default.Boolean),
+            "null" => JsonSerializer.SerializeToElement((string?)null, ConfigJsonContext.Default.String),
+            _ when double.TryParse(lower, out var d) => JsonSerializer.SerializeToElement(d, ConfigJsonContext.Default.Double),
+            _ => JsonSerializer.SerializeToElement(value, ConfigJsonContext.Default.String),
         };
-        using var doc = JsonDocument.Parse(jsonText);
-        return doc.RootElement.Clone();
-    }
-
-    private static string JsonEncodeValue(string value) {
-        var sb = new StringBuilder(value.Length);
-        foreach (var c in value) {
-            switch (c) {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default: sb.Append(c); break;
-            }
-        }
-        return sb.ToString();
     }
 
     /// <summary>

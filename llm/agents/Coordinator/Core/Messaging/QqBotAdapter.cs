@@ -38,7 +38,7 @@ public sealed class QqBotAdapter : PlatformBotAdapterBase<QqBotConfig> {
 
     /// <inheritdoc/>
     protected override string BuildSendContent(string targetId, string text)
-        => $$"""{"content":{{JsonEncodedText.Encode(text)}}}""";
+        => JsonSerializer.Serialize(new QqSendMessageDto { Content = text }, BotAdapterJsonContext.Default.QqSendMessageDto);
 
     /// <inheritdoc/>
     protected override string? ExtractMessageId(string json) {
@@ -63,3 +63,37 @@ public sealed record QqBotConfig {
     /// <summary>鉴权基地址（默认 https://bots.qq.com）。</summary>
     public string AuthBaseUrl { get; init; } = "https://bots.qq.com";
 }
+
+/// <summary>QQ Bot 发送消息 DTO</summary>
+internal sealed class QqSendMessageDto {
+    /// <summary>消息内容</summary>
+    [JsonPropertyName("content")]
+    public required string Content { get; init; }
+}
+
+/// <summary>飞书发送消息 DTO</summary>
+internal sealed class FeishuSendMessageDto {
+    /// <summary>接收者 ID</summary>
+    [JsonPropertyName("receive_id")]
+    public required string ReceiveId { get; init; }
+    /// <summary>消息类型</summary>
+    [JsonPropertyName("msg_type")]
+    public required string MsgType { get; init; }
+    /// <summary>消息内容(JSON 字符串)</summary>
+    [JsonPropertyName("content")]
+    public required string Content { get; init; }
+}
+
+/// <summary>飞书消息内容 DTO</summary>
+internal sealed class FeishuMessageContentDto {
+    /// <summary>文本内容</summary>
+    [JsonPropertyName("text")]
+    public required string Text { get; init; }
+}
+
+/// <summary>Bot 适配器 JSON 序列化上下文</summary>
+[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSerializable(typeof(QqSendMessageDto))]
+[JsonSerializable(typeof(FeishuSendMessageDto))]
+[JsonSerializable(typeof(FeishuMessageContentDto))]
+internal sealed partial class BotAdapterJsonContext : JsonSerializerContext;

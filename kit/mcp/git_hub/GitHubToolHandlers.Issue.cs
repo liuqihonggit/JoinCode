@@ -137,17 +137,11 @@ public partial class GitHubToolHandlers {
             var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.IssueCreateRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            if (project is not null) {
-                string? nodeId = null;
-                try {
-                    using var doc = JsonDocument.Parse(result.Body);
-                    nodeId = doc.RootElement.TryGetProperty(GitHubJsonFields.NodeId, out var n) ? n.GetString() : null;
-                } catch (Exception ex) { _logger?.LogDebug(ex, "解析 Issue node_id 失败"); }
-                if (!string.IsNullOrEmpty(nodeId)) {
-                    var projectResult = await AddToProjectAsync(client, owner, nodeId!, project.Value, cancellationToken).ConfigureAwait(false);
-                    if (!projectResult.Success) _logger?.LogWarning("添加 Issue 到 Project #{Project} 失败: {Error}", project, projectResult.Error);
-                }
-            }
+            if (project is null) return OkBrief(result.Body, "Issue 创建成功");
+            var nodeId = TryExtractNodeId(result.Body, "Issue create");
+            if (string.IsNullOrEmpty(nodeId)) return OkBrief(result.Body, "Issue 创建成功");
+            var projectResult = await AddToProjectAsync(client, owner, nodeId!, project.Value, cancellationToken).ConfigureAwait(false);
+            if (!projectResult.Success) _logger?.LogWarning("添加 Issue 到 Project #{Project} 失败: {Error}", project, projectResult.Error);
             return OkBrief(result.Body, "Issue 创建成功");
         }).ConfigureAwait(false);
 
@@ -417,11 +411,7 @@ public partial class GitHubToolHandlers {
             var number = ParseNumberFromRef(issue_number);
             var issueResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues/{number}", ct: cancellationToken).ConfigureAwait(false);
             if (!issueResult.Success) return Fail(issueResult.Error);
-            string? nodeId;
-            try {
-                using var doc = JsonDocument.Parse(issueResult.Body);
-                nodeId = doc.RootElement.TryGetProperty(GitHubJsonFields.NodeId, out var n) ? n.GetString() : null;
-            } catch { nodeId = null; }
+            var nodeId = TryExtractNodeId(issueResult.Body, "Issue");
             if (string.IsNullOrEmpty(nodeId)) return Fail("无法从 Issue 响应中解析 node_id");
             var graphqlBody = "{\"query\":\"mutation{deleteIssue(input:{issueId:\\\"" + nodeId + "\\\"}){clientMutationId}}\"}";
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
@@ -579,11 +569,7 @@ public partial class GitHubToolHandlers {
             if (destParts.Length != 2) return Fail($"目标仓库格式错误: {destination_repo}(应为 owner/repo)");
             var destResult = await client.SendAsync(HttpMethod.Get, $"repos/{destParts[0]}/{destParts[1]}", ct: cancellationToken).ConfigureAwait(false);
             if (!destResult.Success) return Fail($"无法获取目标仓库: {destResult.Error}");
-            string? destNodeId;
-            try {
-                using var doc = JsonDocument.Parse(destResult.Body);
-                destNodeId = doc.RootElement.TryGetProperty(GitHubJsonFields.NodeId, out var n) ? n.GetString() : null;
-            } catch { destNodeId = null; }
+            var destNodeId = TryExtractNodeId(destResult.Body, "目标仓库");
             if (string.IsNullOrEmpty(destNodeId)) return Fail("无法从目标仓库响应中解析 node_id");
             var graphqlBody = "{\"query\":\"mutation{transferIssue(input:{issueId:\\\"" + nodeId + "\\\",repositoryId:\\\"" + destNodeId + "\\\"}){issue{number}}}\"}";
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
@@ -591,14 +577,24 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
+    /// 从 JSON 响应中提取 node_id — 反序列化为 NodeIdResponse,失败返回 null 并记日志
+    /// <para>替代 JsonDocument.Parse 手动提取 node_id,符合 NativeAOT + JsonContext 约束</para>
+    /// </summary>
+    private string? TryExtractNodeId(string json, string context) {
+        try {
+            return JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.NodeIdResponse)?.NodeId;
+        } catch (Exception ex) {
+            _logger?.LogDebug(ex, "解析 {Context} node_id 失败", context);
+            return null;
+        }
+    }
+
+    /// <summary>
     /// 获取 Issue node_id — 调 REST API GET issues/{n} 提取 node_id（GraphQL mutation 需要）
     /// </summary>
     private async Task<string?> GetIssueNodeIdAsync(IGitHubApiClient client, string owner, string repo, string number, CancellationToken ct) {
         var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/issues/{number}", ct: ct).ConfigureAwait(false);
         if (!result.Success) return null;
-        try {
-            using var doc = JsonDocument.Parse(result.Body);
-            return doc.RootElement.TryGetProperty(GitHubJsonFields.NodeId, out var n) ? n.GetString() : null;
-        } catch { return null; }
+        return TryExtractNodeId(result.Body, "Issue");
     }
 }

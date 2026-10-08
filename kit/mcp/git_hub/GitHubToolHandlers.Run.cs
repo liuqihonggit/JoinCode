@@ -135,12 +135,11 @@ public partial class GitHubToolHandlers {
     /// <summary>从 run list JSON 中查找指定 run_number 对应的 run id</summary>
     private static string? FindRunIdByNumber(string json, string number, ILogger? logger) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("workflow_runs", out var runs)) return null;
-            foreach (var run in runs.EnumerateArray()) {
-                if (run.TryGetProperty(GitHubJsonFields.RunNumber, out var rn) && rn.GetRawText().Trim('"') == number
-                    && run.TryGetProperty(GitHubJsonFields.Id, out var id))
-                    return id.GetRawText().Trim('"');
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.RunNumberLookupListResponse);
+            if (resp is null) return null;
+            foreach (var run in resp.WorkflowRuns) {
+                if (run.RunNumber.ToString() == number)
+                    return run.Id.ToString();
             }
         } catch (JsonException ex) {
             logger?.LogWarning(ex, "解析 run list JSON 失败,无法按 run_number 查找");
@@ -261,10 +260,11 @@ public partial class GitHubToolHandlers {
 
         string? status, conclusion;
         try {
-            using var doc = JsonDocument.Parse(runDetailJson);
-            status = doc.RootElement.TryGetProperty("status", out var s) ? s.GetString() : null;
-            conclusion = doc.RootElement.TryGetProperty("conclusion", out var c) ? c.GetString() : null;
-        } catch {
+            var runDetail = JsonSerializer.Deserialize(runDetailJson, GitHubApiJsonContext.Safe.RunDetailResponse);
+            status = runDetail?.Status;
+            conclusion = runDetail?.Conclusion;
+        } catch (JsonException ex) {
+            _logger?.LogWarning(ex, "解析 run 详情 JSON 失败(status/conclusion),返回基础摘要");
             return baseSummary;
         }
 
@@ -279,16 +279,16 @@ public partial class GitHubToolHandlers {
 
         var jobs = new List<(long id, string name, string status, string conclusion)>();
         try {
-            using var doc = JsonDocument.Parse(jobsResult.Body);
-            if (!doc.RootElement.TryGetProperty("jobs", out var jobsEl)) return baseSummary;
-            foreach (var job in jobsEl.EnumerateArray()) {
-                var id = job.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.Number ? idEl.GetInt64() : 0;
-                var name = job.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "unknown" : "unknown";
-                var s = job.TryGetProperty("status", out var sEl) ? sEl.GetString() ?? "?" : "?";
-                var c = job.TryGetProperty("conclusion", out var cEl) ? cEl.GetString() ?? "" : "";
-                jobs.Add((id, name, s, c));
+            var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
+            if (jobsResp is null) return baseSummary;
+            foreach (var job in jobsResp.Jobs) {
+                var name = string.IsNullOrEmpty(job.Name) ? "unknown" : job.Name;
+                var s = string.IsNullOrEmpty(job.Status) ? "?" : job.Status;
+                var c = job.Conclusion ?? "";
+                jobs.Add((job.Id, name, s, c));
             }
-        } catch {
+        } catch (JsonException ex) {
+            _logger?.LogWarning(ex, "解析 jobs 列表 JSON 失败,返回基础摘要");
             return baseSummary;
         }
 
@@ -559,10 +559,9 @@ public partial class GitHubToolHandlers {
         var sb = new StringBuilder(256);
         sb.AppendLine($"轮询次数: {pollCount}, 耗时: {elapsedMs / 1000}s");
         try {
-            using var doc = JsonDocument.Parse(runJson);
-            var root = doc.RootElement;
-            var conclusion = root.TryGetProperty(GitHubJsonFields.Conclusion, out var c) ? c.GetString() ?? "unknown" : "unknown";
-            var htmlUrl = root.TryGetProperty(GitHubJsonFields.HtmlUrl, out var u) ? u.GetString() ?? "" : "";
+            var run = JsonSerializer.Deserialize(runJson, GitHubApiJsonContext.Safe.RunDetailResponse);
+            var conclusion = run?.Conclusion ?? "unknown";
+            var htmlUrl = run?.HtmlUrl ?? "";
             var displayConclusion = conclusion switch {
                 "success" => "✅ success",
                 "failure" => "❌ failure",
@@ -573,7 +572,7 @@ public partial class GitHubToolHandlers {
             };
             sb.AppendLine($"结论: {displayConclusion}");
             if (!string.IsNullOrEmpty(htmlUrl)) sb.Append($"URL: {htmlUrl}");
-        } catch {
+        } catch (JsonException) {
             sb.Append(runJson);
         }
         return sb.ToString();
@@ -596,15 +595,13 @@ public partial class GitHubToolHandlers {
 
             List<(string artifactName, long artifactId)> artifacts;
             try {
-                using var doc = JsonDocument.Parse(artifactsResult.Body);
+                var artsResp = JsonSerializer.Deserialize(artifactsResult.Body, GitHubApiJsonContext.Safe.RunArtifactListResponse);
                 artifacts = [];
-                if (doc.RootElement.TryGetProperty("artifacts", out var artsEl) && artsEl.ValueKind == JsonValueKind.Array) {
-                    foreach (var art in artsEl.EnumerateArray()) {
-                        var artName = art.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-                        var artId = art.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
-                        if (string.IsNullOrEmpty(artName) || artId == 0) continue;
-                        if (!string.IsNullOrWhiteSpace(name) && !SimpleMatchArtifact(name, artName)) continue;
-                        artifacts.Add((artName, artId));
+                if (artsResp is not null) {
+                    foreach (var art in artsResp.Artifacts) {
+                        if (string.IsNullOrEmpty(art.Name) || art.Id == 0) continue;
+                        if (!string.IsNullOrWhiteSpace(name) && !SimpleMatchArtifact(name, art.Name)) continue;
+                        artifacts.Add((art.Name, art.Id));
                     }
                 }
             } catch (Exception ex) { return Fail($"解析 artifact 列表失败: {ex.Message}"); }
@@ -695,13 +692,13 @@ public partial class GitHubToolHandlers {
                 var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
                 if (!result.Success) return Fail(result.Error);
                 try {
-                    using var doc = JsonDocument.Parse(result.Body);
-                    var status = doc.RootElement.TryGetProperty(GitHubJsonFields.Status, out var s) ? s.GetString() ?? "" : "";
-                    var conclusion = doc.RootElement.TryGetProperty(GitHubJsonFields.Conclusion, out var c) ? (c.ValueKind == JsonValueKind.Null ? "" : c.GetString() ?? "") : "";
-                    var displayTitle = doc.RootElement.TryGetProperty(GitHubJsonFields.DisplayTitle, out var dt) ? dt.GetString() ?? "" : "";
+                    var run = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.RunDetailResponse);
+                    var status = run?.Status ?? "";
+                    var conclusion = run?.Conclusion ?? "";
+                    var displayTitle = run?.DisplayTitle ?? "";
                     sb.AppendLine($"[{DateTime.Now:HH:mm:ss}] {status}{(string.IsNullOrEmpty(conclusion) ? "" : $" / {conclusion}")} — {displayTitle}");
                     if (status == "completed") { finalStatus = status; finalConclusion = conclusion; break; }
-                } catch {
+                } catch (JsonException) {
                     return Fail($"解析 Run 响应失败: {result.Body[..Math.Min(200, result.Body.Length)]}");
                 }
                 try { await Task.Delay(intervalSec * 1000, cancellationToken).ConfigureAwait(false); } catch (TaskCanceledException) { return Ok(sb.ToString(), "Run watch 已取消"); }

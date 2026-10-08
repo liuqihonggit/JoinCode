@@ -1045,3 +1045,111 @@ internal sealed class AttachmentUploadResponse {
     [JsonPropertyName("url")]
     public string? Url { get; init; }
 }
+
+// === Run 详情/列表/Job/Artifact 响应（Run.cs 专用） ===
+
+/// <summary>Run 详情响应 — GET /actions/runs/{id}（含 status/conclusion/html_url/display_title 等关键字段）</summary>
+internal sealed class RunDetailResponse {
+    /// <summary>Run ID</summary>
+    [JsonPropertyName("id")]
+    public long Id { get; init; }
+    /// <summary>Run 名称</summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; init; }
+    /// <summary>head commit SHA</summary>
+    [JsonPropertyName("head_sha")]
+    public string? HeadSha { get; init; }
+    /// <summary>head 分支名</summary>
+    [JsonPropertyName("head_branch")]
+    public string? HeadBranch { get; init; }
+    /// <summary>状态(queued/in_progress/completed)</summary>
+    [JsonPropertyName("status")]
+    public string? Status { get; init; }
+    /// <summary>结论(success/failure/cancelled/timed_out/neutral)</summary>
+    [JsonPropertyName("conclusion")]
+    public string? Conclusion { get; init; }
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+    /// <summary>显示标题</summary>
+    [JsonPropertyName("display_title")]
+    public string? DisplayTitle { get; init; }
+    /// <summary>run 编号</summary>
+    [JsonPropertyName("run_number")]
+    public int RunNumber { get; init; }
+    /// <summary>触发事件</summary>
+    [JsonPropertyName("event")]
+    public string? Event { get; init; }
+    /// <summary>创建时间</summary>
+    [JsonPropertyName("created_at")]
+    public string? CreatedAt { get; init; }
+    /// <summary>更新时间</summary>
+    [JsonPropertyName("updated_at")]
+    public string? UpdatedAt { get; init; }
+}
+
+/// <summary>Run 列表(run_number 查找用) — GET /actions/runs</summary>
+internal sealed class RunNumberLookupListResponse {
+    /// <summary>workflow_runs 列表</summary>
+    [JsonPropertyName("workflow_runs")]
+    public List<RunNumberLookupItemResponse> WorkflowRuns { get; init; } = new();
+}
+
+/// <summary>Run 列表项(run_number 查找用)</summary>
+internal sealed class RunNumberLookupItemResponse {
+    /// <summary>Run ID</summary>
+    [JsonPropertyName("id")]
+    public long Id { get; init; }
+    /// <summary>run 编号</summary>
+    [JsonPropertyName("run_number")]
+    public int RunNumber { get; init; }
+}
+
+/// <summary>Run job 列表响应 — GET /actions/runs/{id}/jobs</summary>
+internal sealed class RunJobListResponse {
+    /// <summary>job 列表</summary>
+    [JsonPropertyName("jobs")]
+    public List<RunJobItemResponse> Jobs { get; init; } = new();
+}
+
+/// <summary>Run job 项</summary>
+internal sealed class RunJobItemResponse {
+    /// <summary>Job ID</summary>
+    [JsonPropertyName("id")]
+    public long Id { get; init; }
+    /// <summary>Job 名称</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    /// <summary>状态</summary>
+    [JsonPropertyName("status")]
+    public string Status { get; init; } = "";
+    /// <summary>结论</summary>
+    [JsonPropertyName("conclusion")]
+    public string? Conclusion { get; init; }
+}
+
+/// <summary>Run artifact 列表响应 — GET /actions/runs/{id}/artifacts</summary>
+internal sealed class RunArtifactListResponse {
+    /// <summary>artifact 列表</summary>
+    [JsonPropertyName("artifacts")]
+    public List<RunArtifactItemResponse> Artifacts { get; init; } = new();
+}
+
+/// <summary>Run artifact 项</summary>
+internal sealed class RunArtifactItemResponse {
+    /// <summary>Artifact ID</summary>
+    [JsonPropertyName("id")]
+    public long Id { get; init; }
+    /// <summary>Artifact 名称</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+}
+
+// === node_id 提取(通用) ===
+
+/// <summary>node_id 提取响应(通用,只有 node_id 字段) — 用于从 REST API 响应提取 node_id 供 GraphQL mutation 使用</summary>
+internal sealed class NodeIdResponse {
+    /// <summary>node ID(GraphQL mutation 需要)</summary>
+    [JsonPropertyName("node_id")]
+    public string? NodeId { get; init; }
+}

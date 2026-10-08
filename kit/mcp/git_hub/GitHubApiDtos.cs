@@ -828,6 +828,14 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(GraphQLNodesResponse<ProjectIdTitleItemResponse>))]
 [JsonSerializable(typeof(GraphQLNodesResponse<ProjectItemIdItemResponse>))]
 [JsonSerializable(typeof(GraphQLNodesResponse<IssueTypeItemResponse>))]
+[JsonSerializable(typeof(RunDetailResponse))]
+[JsonSerializable(typeof(RunNumberLookupListResponse))]
+[JsonSerializable(typeof(RunNumberLookupItemResponse))]
+[JsonSerializable(typeof(RunJobListResponse))]
+[JsonSerializable(typeof(RunJobItemResponse))]
+[JsonSerializable(typeof(RunArtifactListResponse))]
+[JsonSerializable(typeof(RunArtifactItemResponse))]
+[JsonSerializable(typeof(NodeIdResponse))]
 internal sealed partial class GitHubApiJsonContext : JsonSerializerContext
 {
     private static readonly Lazy<GitHubApiJsonContext> s_safe = new(() => new GitHubApiJsonContext(

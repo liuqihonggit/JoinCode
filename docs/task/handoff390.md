@@ -198,3 +198,40 @@ AI 首屏即可看到:run 失败了 + 哪个 job 失败 + 怎么拉日志,一次
 ### 优化D3: 参数穿透到消费点处理器守卫 — 无需改
 
 当前 `GhArgsBinder.Bind` 用**动态白名单**(从每个工具的 MCP ToolSchema properties+required 实时构建),非硬编码中央清单。已是"唯一数据源(schema)+委托消费"的较优设计。改成穿透+各handler守卫会引入 N 处重复校验,违反 AGENTS.md 第9/10条。结论:保持现状。
+
+---
+
+## 旧系统清理 + LSM 统一缓存（2026-10-08）
+
+> 场景：旧 GitHubRunLogCache(MemoryCache+文件三级缓存)与新 LSM 缓存并存,两套独立系统,需统一到 LSM 并移走旧系统
+
+| 优化 | 描述 | 状态 | commit |
+|------|------|------|--------|
+| E1 | clear-log 垃圾文案修正("LSM 压实时物理释放空间"→删除) | ✅ 已完成 | `cc2268376` |
+| E2 | DownloadJobsParallelAsync 补并发限制8(SemaphoreSlim,对齐旧系统 TryDownloadJobsAsync) | ✅ 已完成 | `cc2268376` |
+| E3 | GitHubLogParser 提取为独立类(从 GitHubRunLogCache 内部类提取) | ✅ 已完成 | `c979795d8` |
+| E4 | expand=steps/step:Name 改走 LSM 缓存+实时解析(ParseLogsToSummaryAsync) | ✅ 已完成 | `c979795d8` |
+| E5 | 旧 GitHubRunLogCache 移到 .xxx/(MemoryCache+文件三级缓存废弃) | ✅ 已完成 | `c979795d8` |
+| E6 | IPersistencePipeline 依赖从 GitHubToolHandlers 移除(43处测试调用批量修复) | ✅ 已完成 | `f1973db8e` |
+| E7 | 补充6个 LSM 缓存命中测试(miss→hit/wantRefresh/section/noJobId) | ✅ 已完成 | `9a33609b2` |
+
+### 优化E3-E5: 旧系统清理 + LSM 统一
+
+**改动文件**:
+- `kit/mcp/git_hub/GitHubLogParser.cs` — 新建,从 GitHubRunLogCache 内部类提取为独立 internal class
+- `kit/mcp/git_hub/GitHubRunLogFilterRunner.cs` — 新增 `GetOrFetchSummaryAsync`/`GetOrFetchSectionAsync`/`ParseLogsToSummaryAsync`
+- `kit/mcp/git_hub/GitHubToolHandlers.Run.cs` — 三个包装方法改为调 LogFilterRunner
+- `kit/mcp/git_hub/GitHubToolHandlers.cs` — 移除 LogCacheService 字段+属性
+- `.xxx/GitHubRunLogCache.cs.20261008.del` — 旧系统归档
+
+**设计决策**:
+- 复用已有 LSM 日志缓存(`gh:log:{runId}:{jobId}`),从缓存读日志后用 `GitHubLogParser` 实时解析为 summary + section 内容
+- 不单独缓存 summary/section(日志已在 LSM 中,解析是纯 CPU O(n) 行数,开销可忽略)
+- `wantRefresh=true` 跳过缓存读仍写缓存(用于 rerun 后避免脏数据)
+- TTL 7天替代旧系统 updatedAt 验证(简化,不再调 API 检测 rerun)
+
+### 优化E6: IPersistencePipeline 依赖移除
+
+**改动文件**: `kit/mcp/git_hub/GitHubToolHandlers.cs` — 构造函数删 `pipeline` 参数 + 43处测试调用批量移除第3参数(Python 脚本 `remove_pipeline_param.py`)
+
+**设计决策**: `GitHubToolHandlers` 改用 LSM 持久化,文件缓存管道(`IPersistencePipeline`)不再需要。接口本身保留(其他消费者: `TodoService`/`TeamMemoryPathStore`/`StructuredOutputToolHandler` 等)

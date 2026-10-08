@@ -360,8 +360,8 @@ public sealed class McpCliCommand {
 
         if (int.TryParse(value, out var intVal))
             return JsonDocument.Parse(intVal.ToString()).RootElement.Clone();
-        if (double.TryParse(value, out var doubleVal))
-            return JsonDocument.Parse(doubleVal.ToString()).RootElement.Clone();
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleVal))
+            return JsonDocument.Parse(doubleVal.ToString(CultureInfo.InvariantCulture)).RootElement.Clone();
         if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase))
             return JsonDocument.Parse("true").RootElement.Clone();
         if (string.Equals(value, "false", StringComparison.OrdinalIgnoreCase))

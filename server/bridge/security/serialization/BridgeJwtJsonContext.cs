@@ -5,4 +5,5 @@ namespace Core.Bridge;
 /// </summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(BridgeJwtPayload))]
+[JsonSerializable(typeof(BridgeJwtHeader))]
 internal partial class BridgeJwtJsonContext : JsonSerializerContext;

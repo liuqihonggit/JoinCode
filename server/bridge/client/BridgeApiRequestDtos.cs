@@ -177,6 +177,149 @@ internal sealed class BridgeControlResponseDto {
     public BridgeControlResponseBodyDto Response { get; init; } = new();
 }
 
+/// <summary>Bridge keep_alive 消息</summary>
+internal sealed class BridgeKeepAliveMessageDto {
+    /// <summary>类型(固定 keep_alive)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "keep_alive";
+    /// <summary>会话 ID</summary>
+    [JsonPropertyName("session_id")]
+    public required string SessionId { get; init; }
+}
+
+/// <summary>Bridge cancel_control_request 消息</summary>
+internal sealed class BridgeCancelControlRequestMessageDto {
+    /// <summary>类型(固定 cancel_control_request)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "cancel_control_request";
+    /// <summary>请求 ID</summary>
+    [JsonPropertyName("request_id")]
+    public required string RequestId { get; init; }
+}
+
+/// <summary>Bridge 简化 result 消息(V1 协议)</summary>
+internal sealed class BridgeSimpleResultMessageDto {
+    /// <summary>类型(固定 result)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "result";
+    /// <summary>会话 ID</summary>
+    [JsonPropertyName("session_id")]
+    public required string SessionId { get; init; }
+}
+
+/// <summary>Bridge update_environment_variables 消息</summary>
+internal sealed class BridgeUpdateEnvVarsMessageDto {
+    /// <summary>类型(固定 update_environment_variables)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "update_environment_variables";
+    /// <summary>环境变量字典</summary>
+    [JsonPropertyName("variables")]
+    public required Dictionary<string, string> Variables { get; init; }
+}
+
+/// <summary>Bridge V2 control_cancel_request 消息</summary>
+internal sealed class BridgeV2ControlCancelRequestDto {
+    /// <summary>类型(固定 control_cancel_request)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "control_cancel_request";
+    /// <summary>请求 ID</summary>
+    [JsonPropertyName("request_id")]
+    public required string RequestId { get; init; }
+    /// <summary>会话 ID</summary>
+    [JsonPropertyName("session_id")]
+    public required string SessionId { get; init; }
+}
+
+/// <summary>Bridge 权限请求消息</summary>
+internal sealed class BridgePermissionRequestDto {
+    /// <summary>类型(固定 control_request)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "control_request";
+    /// <summary>请求 ID</summary>
+    [JsonPropertyName("request_id")]
+    public required string RequestId { get; init; }
+    /// <summary>请求体</summary>
+    [JsonPropertyName("request")]
+    public required BridgePermissionRequestBodyDto Request { get; init; }
+}
+
+/// <summary>Bridge 权限请求体</summary>
+internal sealed class BridgePermissionRequestBodyDto {
+    /// <summary>子类型(固定 permission_request)</summary>
+    [JsonPropertyName("subtype")]
+    public string Subtype { get; init; } = "permission_request";
+    /// <summary>工具名称</summary>
+    [JsonPropertyName("tool_name")]
+    public required string ToolName { get; init; }
+    /// <summary>工具使用标识</summary>
+    [JsonPropertyName("tool_use_id")]
+    public required string ToolUseId { get; init; }
+    /// <summary>权限请求描述</summary>
+    [JsonPropertyName("description")]
+    public required string Description { get; init; }
+    /// <summary>权限建议列表(可选)</summary>
+#pragma warning disable JCC11002
+    [JsonPropertyName("permission_suggestions")]
+    public List<BridgePermissionSuggestionDto>? PermissionSuggestions { get; init; }
+#pragma warning restore JCC11002
+    /// <summary>被阻止的路径(可选)</summary>
+    [JsonPropertyName("blocked_path")]
+    public string? BlockedPath { get; init; }
+}
+
+/// <summary>Bridge 权限建议</summary>
+internal sealed class BridgePermissionSuggestionDto {
+    /// <summary>工具名称</summary>
+    [JsonPropertyName("tool_name")]
+    public required string ToolName { get; init; }
+    /// <summary>权限模式</summary>
+    [JsonPropertyName("permission_mode")]
+    public required string PermissionMode { get; init; }
+}
+
+/// <summary>Bridge 权限响应消息</summary>
+internal sealed class BridgePermissionResponseMessageDto {
+    /// <summary>类型(固定 control_response)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "control_response";
+    /// <summary>请求 ID</summary>
+    [JsonPropertyName("request_id")]
+    public required string RequestId { get; init; }
+    /// <summary>响应体</summary>
+    [JsonPropertyName("response")]
+    public required BridgePermissionResponseBodyDto Response { get; init; }
+}
+
+/// <summary>Bridge 权限响应体</summary>
+internal sealed class BridgePermissionResponseBodyDto {
+    /// <summary>权限行为</summary>
+    [JsonPropertyName("behavior")]
+    public required string Behavior { get; init; }
+    /// <summary>消息(可选)</summary>
+    [JsonPropertyName("message")]
+    public string? Message { get; init; }
+}
+
+/// <summary>Bridge 权限取消请求</summary>
+internal sealed class BridgePermissionCancelDto {
+    /// <summary>类型(固定 control_request)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "control_request";
+    /// <summary>请求 ID</summary>
+    [JsonPropertyName("request_id")]
+    public required string RequestId { get; init; }
+    /// <summary>请求体</summary>
+    [JsonPropertyName("request")]
+    public required BridgePermissionCancelBodyDto Request { get; init; }
+}
+
+/// <summary>Bridge 权限取消请求体</summary>
+internal sealed class BridgePermissionCancelBodyDto {
+    /// <summary>子类型(固定 permission_cancel)</summary>
+    [JsonPropertyName("subtype")]
+    public string Subtype { get; init; } = "permission_cancel";
+}
+
 /// <summary>Bridge control_response 响应体</summary>
 internal sealed class BridgeControlResponseBodyDto {
     /// <summary>是否成功</summary>

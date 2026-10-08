@@ -160,34 +160,24 @@ public sealed class BridgeDeviceTokenService {
         var dir = Path.GetDirectoryName(_authFilePath)!;
         _fs.CreateDirectory(dir);
 
-        // 读取现有内容 — 存储 (key, rawJson) 对
-        var data = new Dictionary<string, string>();
+        // 读取现有内容 — 存储 (key, JsonElement) 对
+        var data = new Dictionary<string, JsonElement>();
         if (_fs.FileExists(_authFilePath)) {
             await using (var fs = _fs.CreateStream(_authFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
                 using var doc = await JsonDocument.ParseAsync(fs, cancellationToken: ct).ConfigureAwait(false);
                 foreach (var prop in doc.RootElement.EnumerateObject()) {
-                    data[prop.Name] = prop.Value.GetRawText();
+                    data[prop.Name] = prop.Value.Clone();
                 }
             } // fs 在此处关闭
         }
 
-        // 更新 device_token — 手写 JSON 值避免 AOT 不兼容
-        data["device_token"] = $"\"{EscapeJsonString(token)}\"";
+        // 更新 device_token
+        data["device_token"] = JsonSerializer.SerializeToElement(token, BridgeJsonContext.Default.String);
 
         // 写回
-        var sb = new StringBuilder(256);
-        sb.Append('{');
-        var first = true;
-        foreach (var (key, rawValue) in data) {
-            if (!first) sb.Append(',');
-            sb.Append('"').Append(EscapeJsonString(key)).Append("\":").Append(rawValue);
-            first = false;
-        }
-
-        sb.Append('}');
-
+        var json = JsonSerializer.Serialize(data, BridgeJsonContext.Default.DictionaryStringJsonElement);
         await using var writeFs = _fs.CreateStream(_authFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
-        await writeFs.WriteAsync(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), ct).ConfigureAwait(false);
+        await writeFs.WriteAsync(System.Text.Encoding.UTF8.GetBytes(json), ct).ConfigureAwait(false);
     }
 
     /// <summary>从安全存储删除令牌</summary>
@@ -195,34 +185,19 @@ public sealed class BridgeDeviceTokenService {
         if (!_fs.FileExists(_authFilePath)) return;
 
         // 先读取并解析，然后关闭文件句柄，再写回
-        Dictionary<string, string> data;
+        Dictionary<string, JsonElement> data;
         await using (var fs = _fs.CreateStream(_authFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
             using var doc = await JsonDocument.ParseAsync(fs, cancellationToken: ct).ConfigureAwait(false);
-            data = new Dictionary<string, string>();
+            data = new Dictionary<string, JsonElement>();
             foreach (var prop in doc.RootElement.EnumerateObject()) {
                 if (prop.NameEquals("device_token")) continue;
-                data[prop.Name] = prop.Value.GetRawText();
+                data[prop.Name] = prop.Value.Clone();
             }
         } // fs 在此处关闭
 
         // 写回（无 device_token）
-        var sb = new StringBuilder(256);
-        sb.Append('{');
-        var first = true;
-        foreach (var (key, rawValue) in data) {
-            if (!first) sb.Append(',');
-            sb.Append('"').Append(EscapeJsonString(key)).Append("\":").Append(rawValue);
-            first = false;
-        }
-
-        sb.Append('}');
-
+        var json = JsonSerializer.Serialize(data, BridgeJsonContext.Default.DictionaryStringJsonElement);
         await using var writeFs = _fs.CreateStream(_authFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
-        await writeFs.WriteAsync(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), ct).ConfigureAwait(false);
-    }
-
-    /// <summary>JSON 字符串转义</summary>
-    private static string EscapeJsonString(string value) {
-        return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+        await writeFs.WriteAsync(System.Text.Encoding.UTF8.GetBytes(json), ct).ConfigureAwait(false);
     }
 }

@@ -29,4 +29,14 @@ public partial class ContextDefaultJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSerializable(typeof(DiagnosticLogEntryDto))]
 [JsonSerializable(typeof(KeywordMissLogDto))]
+[JsonSerializable(typeof(MessageOriginMetadataDto))]
 public partial class ChatServiceJsonContext : JsonSerializerContext;
+
+/// <summary>
+/// 消息来源元数据 DTO — 用于 origin metadata JSON 序列化
+/// </summary>
+public sealed class MessageOriginMetadataDto {
+    /// <summary>来源类型</summary>
+    [JsonPropertyName("kind")]
+    public required string Kind { get; init; }
+}

@@ -16,7 +16,9 @@ public sealed partial class BridgeJwtService : ServiceEntity {
     private const int DefaultExpirationSeconds = 3600;
     private const int RefreshWindowSeconds = 300;
 
-    private static readonly string StaticHeaderJson = $"{{\"alg\":\"{Algorithm}\",\"typ\":\"{TokenType}\"}}";
+    private static readonly string StaticHeaderJson = JsonSerializer.Serialize(
+        new BridgeJwtHeader { Alg = Algorithm, Typ = TokenType },
+        BridgeJwtJsonContext.Default.BridgeJwtHeader);
     private static readonly byte[] StaticHeaderBytes = Encoding.UTF8.GetBytes(StaticHeaderJson);
 
     /// <summary>
@@ -290,6 +292,19 @@ public sealed partial class BridgeJwtService : ServiceEntity {
 
         return Convert.FromBase64String(padded);
     }
+}
+
+/// <summary>
+/// JWT Header 模型
+/// </summary>
+public sealed class BridgeJwtHeader {
+    /// <summary>签名算法</summary>
+    [JsonPropertyName("alg")]
+    public required string Alg { get; init; }
+
+    /// <summary>令牌类型</summary>
+    [JsonPropertyName("typ")]
+    public required string Typ { get; init; }
 }
 
 /// <summary>

@@ -133,7 +133,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 ## 统计
 
-- 总数：**124** | accepted：**118** | superseded：**5** | proposed：**1**
+- 总数：**128** | accepted：**122** | superseded：**5** | proposed：**1**
 
 ## 完整索引（按编号）
 
@@ -266,6 +266,10 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0127](0127-skiplist-incremental-index.md) | 跳表索引表用于增量索引 | accepted | 2026-10-01 |
 | [0128](0128-named-mutex-replace-file-mailbox-lock.md) | 命名 Mutex 替代文件邮箱锁（回归内核 Mutex） | accepted | 2026-10-02 |
 | [0129](0129-constructor-no-half-construction-static-factory.md) | 构造函数安全模式 — 禁止半构造化，强制 private ctor + static 工厂 | accepted | 2026-10-02 |
+| [0130](0130-data-structure-vs-business-container-actor-strategy.md) | 数据结构 vs 业务容器的 Actor 改造策略 | accepted | 2026-10-02 |
+| [0131](0131-extract-downloader-to-independent-component.md) | 提取下载器为独立组件 | accepted | 2026-10-07 |
+| [0132](0132-jcc-build-deploy-and-gh-troubleshooting.md) | jcc 编译产物部署与 gh 问题修复指南 | accepted | 2026-10-08 |
+| [0133](0133-json-dto-typed-conversion-ban-concat.md) | JSON DTO 双向转换 — 禁止手写 JSON 字符串拼接 | accepted | 2026-10-08 |
 
 ## 主题索引（按议题）
 
@@ -352,6 +356,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0040](0040-enterprise-fsm-framework.md) | 企业级状态机框架 — 转换表 + 守卫 + 共享上下文 | accepted | 2026-08-29 |
 | [0041](0041-fsm-source-generator.md) | Fsm 源码生成器 + 特性 + 事件订阅 | accepted | 2026-08-29 |
 | [0042](0042-json-relaxed-serializer-unification.md) | JSON 序列化统一收口 — RelaxedJsonSerializer 单一入口 | accepted | 2026-08-30 |
+| [0133](0133-json-dto-typed-conversion-ban-concat.md) | JSON DTO 双向转换 — 禁止手写 JSON 字符串拼接 | accepted | 2026-10-08 |
 | [0043](0043-unified-cleanup-functions.md) | 收口函数统一 — 命名/参数/异常/幂等性 | accepted | 2026-08-29 |
 | [0044](0044-error-code-convention.md) | 错误码统一规范 — [PREFIX+数字] 格式 | accepted | 2026-08-29 |
 | [0045](0045-configureawait-false.md) | ConfigureAwait(false) 强制规范 | accepted | 2026-08-29 |
@@ -511,3 +516,4 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0115](0115-typed-decision-abstraction-layer.md) | 类型化决策抽象层 | ITypedDecision 统一决策类型 |
 | [0116](0116-getawaiter-getresult-allowed-scenarios.md) | .GetAwaiter().GetResult() 允许场景 + Entity BCL 双向继承 | 构造函数/Lazy<T>/ThreadStart/同步委托中允许；Entity 保留 IDisposable+IAsyncDisposable 双接口学 BCL Stream 模式 |
 | [0117](0117-objectid-range-compression-longrangeset-sparselongset.md) | ObjectId 区间压缩 | LongRangeSet 连续区间 + SparseLongSet delta 编码 + SequenceId 按 ObjectType 独立计数 |
+| [0133](0133-json-dto-typed-conversion-ban-concat.md) | JSON DTO 双向转换 | 禁止手写 JSON 拼接，所有 JSON 用 DTO + JsonContext 双向转换 |

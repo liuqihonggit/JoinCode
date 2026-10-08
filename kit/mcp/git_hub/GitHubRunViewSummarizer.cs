@@ -10,24 +10,23 @@ internal static class GitHubRunViewSummarizer {
     /// </summary>
     public static string SummarizeRunView(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Object) return json;
-            var root = doc.RootElement;
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.RunDetailResponse);
+            if (resp is null) return json;
             var sb = new StringBuilder(512);
 
-            var status = GetString(root, "status");
-            var conclusion = GetString(root, "conclusion");
+            var status = resp.Status;
+            var conclusion = resp.Conclusion;
             var symbol = GitHubRunFormatHelper.GetStatusSymbol(status, conclusion);
-            var title = GetString(root, "display_title") ?? GetString(root, "name") ?? "(unknown)";
-            var runNumber = TryGetInt(root, "run_number");
+            var title = resp.DisplayTitle ?? resp.Name ?? "(unknown)";
+            var runNumber = resp.RunNumber;
             sb.Append(symbol).Append(' ').Append(title);
-            if (runNumber is int n) sb.Append(" · ").Append(n);
+            if (runNumber > 0) sb.Append(" · ").Append(runNumber);
             sb.AppendLine();
 
             var parts = new List<string>(4);
-            var evt = GetString(root, "event");
-            var branch = GetString(root, "head_branch");
-            var sha = GetString(root, "head_sha");
+            var evt = resp.Event;
+            var branch = resp.HeadBranch;
+            var sha = resp.HeadSha;
             if (!string.IsNullOrEmpty(evt)) parts.Add($"Event: {evt}");
             if (!string.IsNullOrEmpty(branch)) parts.Add($"Branch: {branch}");
             if (!string.IsNullOrEmpty(sha)) parts.Add($"SHA: {sha[..Math.Min(7, sha.Length)]}");
@@ -38,14 +37,14 @@ internal static class GitHubRunViewSummarizer {
             if (!string.IsNullOrEmpty(conclusion)) parts.Add($"Conclusion: {conclusion}");
             if (parts.Count > 0) sb.AppendLine(string.Join("  ", parts));
 
-            var id = GetId(root);
-            var elapsed = GitHubRunFormatHelper.FormatElapsed(GetString(root, "created_at"), GetString(root, "updated_at"));
+            var id = resp.Id.ToString();
+            var elapsed = GitHubRunFormatHelper.FormatElapsed(resp.CreatedAt, resp.UpdatedAt);
             parts.Clear();
             if (!string.IsNullOrEmpty(id)) parts.Add($"ID: {id}");
             if (!string.IsNullOrEmpty(elapsed)) parts.Add($"Elapsed: {elapsed}");
             if (parts.Count > 0) sb.AppendLine(string.Join("  ", parts));
 
-            var url = GetString(root, "html_url");
+            var url = resp.HtmlUrl;
             if (!string.IsNullOrEmpty(url)) sb.AppendLine($"URL: {url}");
 
             return sb.ToString().TrimEnd();
@@ -53,15 +52,6 @@ internal static class GitHubRunViewSummarizer {
             return json;
         }
     }
-
-    private static string? GetString(JsonElement obj, string name)
-        => obj.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.String ? prop.GetString() : null;
-
-    private static int? TryGetInt(JsonElement obj, string name)
-        => obj.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Number && prop.TryGetInt32(out var v) ? v : null;
-
-    private static string? GetId(JsonElement obj)
-        => obj.TryGetProperty("id", out var prop) ? prop.ValueKind == JsonValueKind.String ? prop.GetString() : prop.GetRawText() : null;
 }
 
 /// <summary>
@@ -95,16 +85,4 @@ internal static class GitHubRunFormatHelper {
         if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m{(int)span.Seconds}s";
         return $"{(int)span.TotalHours}h{(int)span.Minutes}m";
     }
-
-    /// <summary>
-    /// 获取 JSON 字符串属性值
-    /// </summary>
-    public static string? GetString(JsonElement obj, string name)
-        => obj.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.String ? prop.GetString() : null;
-
-    /// <summary>
-    /// 获取 id 属性值(兼容数字和字符串两种类型)
-    /// </summary>
-    public static string? GetId(JsonElement obj)
-        => obj.TryGetProperty("id", out var prop) ? prop.ValueKind == JsonValueKind.String ? prop.GetString() : prop.GetRawText() : null;
 }

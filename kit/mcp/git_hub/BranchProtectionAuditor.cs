@@ -117,15 +117,8 @@ internal sealed class BranchProtectionAuditor {
             return null;
         }
         try {
-            using var doc = JsonDocument.Parse(result.Body);
-            var contexts = new List<string>();
-            if (doc.RootElement.TryGetProperty("contexts", out var contextsEl)) {
-                foreach (var ctx in contextsEl.EnumerateArray()) {
-                    var ctxName = ctx.GetString();
-                    if (!string.IsNullOrEmpty(ctxName)) contexts.Add(ctxName);
-                }
-            }
-            return contexts;
+            var resp = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.RequiredStatusChecksResponse);
+            return resp?.Contexts is null ? new List<string>() : resp.Contexts.Where(c => !string.IsNullOrEmpty(c)).ToList();
         } catch (Exception ex) {
             _logger?.LogDebug(ex, "解析 required_status_checks 失败");
             return null;

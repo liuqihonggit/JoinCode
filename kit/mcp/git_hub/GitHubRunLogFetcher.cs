@@ -14,16 +14,12 @@ internal sealed class GitHubRunLogFetcher {
 
         var jobs = new List<(long id, string name, string status, string conclusion)>();
         try {
-            using var doc = JsonDocument.Parse(jobsResult.Body);
-            if (!doc.RootElement.TryGetProperty("jobs", out var jobsEl))
+            var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
+            if (jobsResp?.Jobs is null)
                 return GitHubToolHandlers.Fail("未找到 jobs 数据");
 
-            foreach (var job in jobsEl.EnumerateArray()) {
-                var id = job.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.Number ? idEl.GetInt64() : 0;
-                var name = job.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "unknown" : "unknown";
-                var status = job.TryGetProperty("status", out var statusEl) ? statusEl.GetString() ?? "?" : "?";
-                var conclusion = job.TryGetProperty("conclusion", out var conEl) ? conEl.GetString() ?? "" : "";
-                jobs.Add((id, name, status, conclusion));
+            foreach (var job in jobsResp.Jobs) {
+                jobs.Add((job.Id, job.Name, job.Status, job.Conclusion ?? ""));
             }
         } catch (Exception ex) {
             return GitHubToolHandlers.Fail($"解析 job 列表失败: {ex.Message}");

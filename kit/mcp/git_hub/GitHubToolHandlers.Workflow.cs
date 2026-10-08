@@ -113,8 +113,8 @@ public partial class GitHubToolHandlers {
             var inputsDict = new Dictionary<string, string>();
             if (!string.IsNullOrWhiteSpace(inputs)) {
                 try {
-                    using var doc = JsonDocument.Parse(inputs);
-                    foreach (var prop in doc.RootElement.EnumerateObject()) inputsDict[prop.Name] = prop.Value.GetString() ?? "";
+                    var parsed = JsonSerializer.Deserialize(inputs, GitHubApiJsonContext.Safe.DictionaryStringString);
+                    if (parsed is not null) inputsDict = parsed;
                 } catch { return Fail($"inputs JSON 解析失败: {inputs}"); }
             }
             var request = new WorkflowDispatchRequest { Ref = refVal, Inputs = inputsDict };

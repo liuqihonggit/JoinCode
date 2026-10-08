@@ -36,15 +36,17 @@ internal sealed class GitHubRunLogFilterRunner {
         if (!jobsResult.Success) yield break;
 
         List<long> failedJobIds;
-        using (var doc = JsonDocument.Parse(jobsResult.Body)) {
-            if (!doc.RootElement.TryGetProperty("jobs", out var jobsEl)) yield break;
+        try {
+            var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
+            if (jobsResp?.Jobs is null) yield break;
             failedJobIds = new List<long>();
-            foreach (var job in jobsEl.EnumerateArray()) {
-                if (!job.TryGetProperty("id", out var idEl) || idEl.ValueKind != JsonValueKind.Number) continue;
-                var conclusion = job.TryGetProperty("conclusion", out var conEl) ? conEl.GetString() : null;
-                if (string.Equals(conclusion, "failure", StringComparison.OrdinalIgnoreCase))
-                    failedJobIds.Add(idEl.GetInt64());
+            foreach (var job in jobsResp.Jobs) {
+                if (job.Id == 0) continue;
+                if (string.Equals(job.Conclusion, "failure", StringComparison.OrdinalIgnoreCase))
+                    failedJobIds.Add(job.Id);
             }
+        } catch {
+            yield break;
         }
 
         await foreach (var line in DownloadJobsParallelAsync(owner, repo, runId, failedJobIds, ct).ConfigureAwait(false)) {

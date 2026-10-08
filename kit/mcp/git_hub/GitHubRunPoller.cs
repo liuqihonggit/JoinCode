@@ -160,11 +160,8 @@ internal static class GitHubRunPoller {
     /// </summary>
     private static (string? status, string? conclusion) ParseRunStatus(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            var status = root.TryGetProperty("status", out var s) ? s.GetString() : null;
-            var conclusion = root.TryGetProperty("conclusion", out var c) ? c.GetString() : null;
-            return (status, conclusion);
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.RunDetailResponse);
+            return (resp?.Status, resp?.Conclusion);
         } catch {
             return (null, null);
         }
@@ -177,10 +174,11 @@ internal static class GitHubRunPoller {
         var passCount = 0; var failCount = 0; var pendingCount = 0; var skipCount = 0;
         var allCompleted = true;
         try {
-            using var doc = JsonDocument.Parse(json);
-            foreach (var run in doc.RootElement.GetProperty("check_runs").EnumerateArray()) {
-                var status = run.TryGetProperty("status", out var s) ? s.GetString() ?? "" : "";
-                var conclusion = run.TryGetProperty("conclusion", out var c) ? c.GetString() : null;
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.CheckRunListResponse);
+            if (resp?.CheckRuns is null) return (false, "解析 check-runs 失败", 0);
+            foreach (var run in resp.CheckRuns) {
+                var status = run.Status ?? "";
+                var conclusion = run.Conclusion;
 
                 if (status != "completed") {
                     allCompleted = false;

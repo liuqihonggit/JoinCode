@@ -806,6 +806,7 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(CheckRunListResponse))]
 [JsonSerializable(typeof(CheckRunItemResponse))]
 [JsonSerializable(typeof(RequiredStatusChecksResponse))]
+[JsonSerializable(typeof(BranchProtectionContextsResponse))]
 [JsonSerializable(typeof(WorkflowRunListResponse))]
 [JsonSerializable(typeof(WorkflowRunItemResponse))]
 [JsonSerializable(typeof(ProjectIdTitleItemResponse))]
@@ -836,6 +837,12 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(RunArtifactListResponse))]
 [JsonSerializable(typeof(RunArtifactItemResponse))]
 [JsonSerializable(typeof(NodeIdResponse))]
+[JsonSerializable(typeof(MilestoneItemResponse))]
+[JsonSerializable(typeof(List<MilestoneItemResponse>))]
+[JsonSerializable(typeof(AuthUserResponse))]
+[JsonSerializable(typeof(WorkflowRunListBriefResponse))]
+[JsonSerializable(typeof(WorkflowRunBriefItemResponse))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
 internal sealed partial class GitHubApiJsonContext : JsonSerializerContext
 {
     private static readonly Lazy<GitHubApiJsonContext> s_safe = new(() => new GitHubApiJsonContext(

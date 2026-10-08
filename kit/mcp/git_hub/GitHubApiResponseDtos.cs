@@ -918,6 +918,9 @@ internal sealed class CheckRunItemResponse {
     /// <summary>名称</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = "";
+    /// <summary>状态(queued/in_progress/completed)</summary>
+    [JsonPropertyName("status")]
+    public string? Status { get; init; }
     /// <summary>结论(success/failure/cancelled/skipped/neutral/timed_out)</summary>
     [JsonPropertyName("conclusion")]
     public string? Conclusion { get; init; }
@@ -930,6 +933,13 @@ internal sealed class RequiredStatusChecksResponse {
     /// <summary>contexts 列表</summary>
     [JsonPropertyName("contexts")]
     public List<string> Contexts { get; init; } = new();
+}
+
+/// <summary>完整 Branch protection 响应(仅提取 required_status_checks.contexts) — 用于 BuildSyncedContexts</summary>
+internal sealed class BranchProtectionContextsResponse {
+    /// <summary>required_status_checks 节点</summary>
+    [JsonPropertyName("required_status_checks")]
+    public RequiredStatusChecksResponse? RequiredStatusChecks { get; init; }
 }
 
 // === Workflow Run 响应 ===
@@ -1152,4 +1162,77 @@ internal sealed class NodeIdResponse {
     /// <summary>node ID(GraphQL mutation 需要)</summary>
     [JsonPropertyName("node_id")]
     public string? NodeId { get; init; }
+}
+
+// === Milestone 响应(ResolveMilestoneIdAsync 专用) ===
+
+/// <summary>Milestone 项 — GET /repos/{owner}/{repo}/milestones 返回顶层数组</summary>
+internal sealed class MilestoneItemResponse {
+    /// <summary>Milestone 编号</summary>
+    [JsonPropertyName("number")]
+    public int Number { get; init; }
+    /// <summary>Milestone 标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+}
+
+// === Auth User 响应(AuthConfig 专用) ===
+
+/// <summary>Auth 用户响应 — GET /user</summary>
+internal sealed class AuthUserResponse {
+    /// <summary>登录名</summary>
+    [JsonPropertyName("login")]
+    public string Login { get; init; } = "";
+    /// <summary>显示名称</summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; init; }
+}
+
+// === Workflow Run 列表(Brief 格式化专用) ===
+
+/// <summary>Workflow run 列表响应(Brief 格式化) — GET /actions/runs</summary>
+internal sealed class WorkflowRunListBriefResponse {
+    /// <summary>总数</summary>
+    [JsonPropertyName("total_count")]
+    public int TotalCount { get; init; }
+    /// <summary>workflow_runs 列表</summary>
+    [JsonPropertyName("workflow_runs")]
+    public List<WorkflowRunBriefItemResponse> WorkflowRuns { get; init; } = new();
+}
+
+/// <summary>Workflow run 列表项(Brief 格式化)</summary>
+internal sealed class WorkflowRunBriefItemResponse {
+    /// <summary>Run ID</summary>
+    [JsonPropertyName("id")]
+    public long Id { get; init; }
+    /// <summary>Run 名称</summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; init; }
+    /// <summary>head 分支名</summary>
+    [JsonPropertyName("head_branch")]
+    public string? HeadBranch { get; init; }
+    /// <summary>状态(queued/in_progress/completed)</summary>
+    [JsonPropertyName("status")]
+    public string? Status { get; init; }
+    /// <summary>结论</summary>
+    [JsonPropertyName("conclusion")]
+    public string? Conclusion { get; init; }
+    /// <summary>run 编号</summary>
+    [JsonPropertyName("run_number")]
+    public int RunNumber { get; init; }
+    /// <summary>创建时间</summary>
+    [JsonPropertyName("created_at")]
+    public string? CreatedAt { get; init; }
+    /// <summary>更新时间</summary>
+    [JsonPropertyName("updated_at")]
+    public string? UpdatedAt { get; init; }
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+    /// <summary>显示标题</summary>
+    [JsonPropertyName("display_title")]
+    public string? DisplayTitle { get; init; }
+    /// <summary>触发事件</summary>
+    [JsonPropertyName("event")]
+    public string? Event { get; init; }
 }

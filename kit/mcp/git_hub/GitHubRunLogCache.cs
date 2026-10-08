@@ -152,8 +152,8 @@ internal sealed class GitHubRunLogCache {
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}", ct: ct).ConfigureAwait(false);
         if (!result.Success) return null;
         try {
-            using var doc = JsonDocument.Parse(result.Body);
-            return doc.RootElement.TryGetProperty("updated_at", out var el) ? el.GetString() : null;
+            var resp = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.RunDetailResponse);
+            return resp?.UpdatedAt;
         } catch {
             return null;
         }

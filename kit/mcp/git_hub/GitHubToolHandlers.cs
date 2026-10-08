@@ -198,11 +198,10 @@ public partial class GitHubToolHandlers {
         var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/milestones", query: new Dictionary<string, string> { ["state"] = "all", ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
         if (!result.Success) return null;
         try {
-            using var doc = JsonDocument.Parse(result.Body);
-            foreach (var m in doc.RootElement.EnumerateArray()) {
-                if (m.TryGetProperty(GitHubJsonFields.Title, out var t) && t.GetString() == milestoneName) {
-                    return m.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : null;
-                }
+            var milestones = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.ListMilestoneItemResponse);
+            if (milestones is null) return null;
+            foreach (var m in milestones) {
+                if (m.Title == milestoneName) return m.Number;
             }
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 milestones 响应失败"); }
         return null;

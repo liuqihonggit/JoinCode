@@ -154,7 +154,39 @@ jcc gh 不是系统 gh CLI 的包装/转发，是独立实现（HttpClient 直�
 - `app/cli/core/commands/core/GhSubCommand.cs` — gh 子命令入口
 - `lib/abstractions/abs_core/core_utils/constants/tool_names/GitHubToolName.cs` — 工具名枚举
 - `kit/mcp/git_hub/GitHubToolHandlers.*.cs` — handler 实现
+- `kit/mcp/git_hub/GitHubApiResponseDtos.cs` — 所有响应 DTO 定义
+- `kit/mcp/git_hub/GitHubApiDtos.cs` — 请求 DTO + JsonContext 定义（GitHubApiJsonContext）
 - `lib/infrastructure/io/process/GitCommandRunner.cs` — git 命令执行器（含默认超时）
 - ADR 0089: 禁止系统 gh CLI
 - ADR 0090: jcc gh CLI 子命令
 - ADR 0132: jcc 编译产物部署与 gh 问题修复指南
+
+## JsonDocument.Parse → DTO + JsonSerializer.Deserialize 重构
+
+> 将 GitHub API 响应解析从 `JsonDocument.Parse` + `TryGetProperty` + `GetString` 手动提取改为 `JsonSerializer.Deserialize<T>` + DTO 属性访问，符合 NativeAOT + JsonContext 约束。
+
+### 已完成（73 处）
+
+| 批次 | 文件 | 处数 | DTO |
+|------|------|------|-----|
+| 1 | Label/OrgKey/Secret/Variable/Search/Workflow | 10 | LabelResponse/OrgResponse/SshKeyResponse/GpgKeyResponse/SecretListResponse/VariableListResponse/SearchRepoResponse/SearchIssueResponse/WorkflowListResponse/WorkflowResponse |
+| 2 | Release/Repo | 12 | ReleaseResponse/ReleaseAssetResponse/ReleaseGenerateNotesResponse/AutolinkResponse/DeployKeyResponse/GitignoreListResponse/GitignoreTemplateResponse/LicenseResponse/TopicsResponse |
+| 3 | Pr/Issue/Repo 详情+列表 | 5 | PrDetailResponse/IssueDetailResponse/RepoDetailResponse/PrListItemResponse/IssueListItemResponse |
+| 4 | Comments/PrStatus | 2 | CommentResponse/PrStatusItemResponse |
+| 5 | IssueStatus | 1 | IssueStatusItemResponse/PullRequestRefResponse |
+| 6 | P4.cs 全部 | 20 | CacheListResponse/RulesetResponse/CodespaceListResponse + GraphQL 通用泛型包装 |
+| 7 | Pr.cs 全部 | 13 | CheckRunListResponse/RequiredStatusChecksResponse/WorkflowRunListResponse |
+| 8 | GraphQLEdit.cs 全部 | 7 | ProjectIdTitleItemResponse/IssueTypeItemResponse/IssueParentWrapperResponse/AttachmentUploadResponse |
+| 9 | Run.cs 6处 + Issue.cs 4处 | 10 | RunDetailResponse/RunJobListResponse/RunArtifactListResponse/NodeIdResponse |
+| 10 | RunPoller/LogFilter/LogFetcher/LogCache | 5 | 复用 RunDetailResponse/CheckRunListResponse/RunJobListResponse |
+| 11 | BranchProtectionAuditor/Handlers/AuthConfig/Workflow/RunListBrief/RunView/Branch | 13 | MilestoneItemResponse/AuthUserResponse/WorkflowRunListBriefResponse/BranchProtectionContextsResponse |
+
+### 保留 JsonDocument.Parse（5 处 — Utf8JsonWriter 动态字段过滤/JSON 重写）
+
+| 文件 | 方法 | 原因 |
+|------|------|------|
+| GitHubToolHandlers.cs | FilterJsonFields | 通用 `--json` 参数动态字段过滤，字段列表运行时传入 |
+| GitHubRunListSummarizer.cs | SummarizeRunList | Utf8JsonWriter + CopyProperty 动态字段过滤 |
+| GitHubToolHandlers.Release.cs | SummarizeReleaseList | Utf8JsonWriter + CopyProperty 动态字段过滤 |
+| GitHubToolHandlers.Repo.cs | SummarizeRepoList | Utf8JsonWriter + CopyProperty 动态字段过滤 |
+| GitHubToolHandlers.Branch.cs | BuildFullProtectionPutBody | Utf8JsonWriter JSON 重写（保留原字段+替换 required_status_checks.checks） |

@@ -34,13 +34,7 @@ public partial class GitHubToolHandlers {
         var resolvedBody = await ResolveRequestBodyAsync(body, body_file).ConfigureAwait(false);
 
         var httpMethod = string.IsNullOrWhiteSpace(method) ? HttpMethod.Get : new HttpMethod(method.ToUpperInvariant());
-        var query = ParseFieldsToQuery(fields);
-        if (httpMethod == HttpMethod.Get && (query is null || !query.ContainsKey("per_page"))) {
-            var q = new Dictionary<string, string>(StringComparer.Ordinal);
-            if (query is not null) foreach (var kvp in query) q[kvp.Key] = kvp.Value;
-            q["per_page"] = "100";
-            query = q;
-        }
+        var query = EnsurePerPageForListEndpoint(ParseFieldsToQuery(fields), httpMethod, path);
         var result = await _apiClient.SendAsync(httpMethod, path, resolvedBody, query, paginate == true, cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(BuildApiErrorHint(path, result.StatusCode, result.Error));
 
@@ -95,6 +89,20 @@ public partial class GitHubToolHandlers {
             }
         }
         return dict.Count == 0 ? null : dict;
+    }
+
+    /// <summary>
+    /// GET 列表端点自动加 per_page=100 — 单个资源端点(以数字 ID 结尾)不加,避免 404
+    /// </summary>
+    private static IReadOnlyDictionary<string, string>? EnsurePerPageForListEndpoint(IReadOnlyDictionary<string, string>? query, HttpMethod method, string path) {
+        if (method != HttpMethod.Get || (query is not null && query.ContainsKey("per_page"))) return query;
+        var lastSlash = path.LastIndexOf('/');
+        var lastSegment = lastSlash >= 0 ? path.AsSpan(lastSlash + 1).TrimEnd('/') : path.AsSpan().TrimEnd('/');
+        if (lastSegment.IsEmpty || char.IsDigit(lastSegment[0])) return query;
+        var q = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (query is not null) foreach (var kvp in query) q[kvp.Key] = kvp.Value;
+        q["per_page"] = "100";
+        return q;
     }
 
     /// <summary>

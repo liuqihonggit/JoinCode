@@ -943,9 +943,9 @@ internal sealed class WorkflowRunListResponse {
 
 /// <summary>Workflow run 项</summary>
 internal sealed class WorkflowRunItemResponse {
-    /// <summary>run ID</summary>
+    /// <summary>run ID(GitHub API 返回数字)</summary>
     [JsonPropertyName("id")]
-    public string Id { get; init; } = "";
+    public long Id { get; init; }
     /// <summary>结论</summary>
     [JsonPropertyName("conclusion")]
     public string? Conclusion { get; init; }

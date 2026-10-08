@@ -424,10 +424,10 @@ public partial class GitHubToolHandlers {
         try {
             var runsResp = JsonSerializer.Deserialize(runsResult.Body, GitHubApiJsonContext.Safe.WorkflowRunListResponse);
             failedRunIds = [];
-            if (runsResp is not null) {
+            if (runsResp is not null && runsResp.WorkflowRuns is not null) {
                 foreach (var r in runsResp.WorkflowRuns) {
                     if (r.Conclusion != "failure") continue;
-                    if (r.Id.Length > 0) failedRunIds.Add(r.Id);
+                    if (r.Id > 0) failedRunIds.Add(r.Id.ToString());
                 }
             }
         } catch {

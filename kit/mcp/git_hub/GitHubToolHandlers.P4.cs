@@ -117,7 +117,7 @@ public partial class GitHubToolHandlers {
     private static string SummarizeCacheList(string json) {
         try {
             var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.CacheListResponse);
-            if (resp is null) return json;
+            if (resp is null || resp.ActionsCaches is null) return json;
             var sb = new StringBuilder(256);
             sb.AppendLine($"共 {resp.TotalCount} 个缓存");
             sb.AppendLine("ID\tKey\tRef\t大小(MB)\t最后使用");
@@ -144,9 +144,9 @@ public partial class GitHubToolHandlers {
                 var listResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/caches", ct: cancellationToken).ConfigureAwait(false);
                 if (!listResult.Success) return Fail(listResult.Error);
                 var cacheList = JsonSerializer.Deserialize(listResult.Body, GitHubApiJsonContext.Safe.CacheListResponse);
-                if (cacheList is null || cacheList.ActionsCaches.Count == 0) return Ok("无缓存可删除");
+                if (cacheList is null || (cacheList.ActionsCaches?.Count ?? 0) == 0) return Ok("无缓存可删除");
                 var count = 0;
-                foreach (var c in cacheList.ActionsCaches) {
+                foreach (var c in cacheList.ActionsCaches ?? []) {
                     if (c.Id > 0) {
                         var delResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/caches/{c.Id}", ct: cancellationToken).ConfigureAwait(false);
                         if (delResult.Success) count++;

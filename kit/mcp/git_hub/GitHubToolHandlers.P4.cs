@@ -116,20 +116,14 @@ public partial class GitHubToolHandlers {
     /// <summary>精简缓存列表 — 表格格式(id, key, ref, size, last_used)</summary>
     private static string SummarizeCacheList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.CacheListResponse);
+            if (resp is null) return json;
             var sb = new StringBuilder(256);
-            var totalCount = doc.RootElement.TryGetProperty(GitHubJsonFields.TotalCount, out var tc) ? tc.GetInt32() : 0;
-            sb.AppendLine($"共 {totalCount} 个缓存");
+            sb.AppendLine($"共 {resp.TotalCount} 个缓存");
             sb.AppendLine("ID\tKey\tRef\t大小(MB)\t最后使用");
-            if (doc.RootElement.TryGetProperty("actions_caches", out var caches)) {
-                foreach (var c in caches.EnumerateArray()) {
-                    var id = c.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
-                    var keyVal = c.TryGetProperty("key", out var kEl) ? kEl.GetString() ?? "" : "";
-                    var refVal = c.TryGetProperty(GitHubJsonFields.Ref, out var rEl) ? rEl.GetString() ?? "" : "";
-                    var size = c.TryGetProperty("size_in_bytes", out var sEl) ? sEl.GetInt64() / 1024.0 / 1024.0 : 0;
-                    var lastUsed = c.TryGetProperty("last_used_at", out var luEl) ? luEl.GetString() ?? "" : "";
-                    sb.AppendLine($"{id}\t{keyVal}\t{refVal}\t{size:F1}\t{lastUsed}");
-                }
+            foreach (var c in resp.ActionsCaches) {
+                var size = c.SizeInBytes / 1024.0 / 1024.0;
+                sb.AppendLine($"{c.Id}\t{c.Key}\t{c.Ref}\t{size:F1}\t{c.LastUsedAt ?? ""}");
             }
             return sb.ToString();
         } catch (Exception ex) { return $"解析缓存列表失败: {ex.Message}"; }
@@ -149,13 +143,12 @@ public partial class GitHubToolHandlers {
             if (all == true) {
                 var listResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/caches", ct: cancellationToken).ConfigureAwait(false);
                 if (!listResult.Success) return Fail(listResult.Error);
-                using var doc = JsonDocument.Parse(listResult.Body);
-                if (!doc.RootElement.TryGetProperty("actions_caches", out var caches)) return Ok("无缓存可删除");
+                var cacheList = JsonSerializer.Deserialize(listResult.Body, GitHubApiJsonContext.Safe.CacheListResponse);
+                if (cacheList is null || cacheList.ActionsCaches.Count == 0) return Ok("无缓存可删除");
                 var count = 0;
-                foreach (var c in caches.EnumerateArray()) {
-                    var id = c.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
-                    if (id > 0) {
-                        var delResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/caches/{id}", ct: cancellationToken).ConfigureAwait(false);
+                foreach (var c in cacheList.ActionsCaches) {
+                    if (c.Id > 0) {
+                        var delResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/caches/{c.Id}", ct: cancellationToken).ConfigureAwait(false);
                         if (delResult.Success) count++;
                     }
                 }
@@ -191,16 +184,12 @@ public partial class GitHubToolHandlers {
     /// <summary>精简规则集列表 — 表格格式(id, name, target, enforcement)</summary>
     private static string SummarizeRulesetList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var rulesets = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListRulesetResponse);
+            if (rulesets is null) return json;
             var sb = new StringBuilder(256);
             sb.AppendLine("ID\t名称\t目标\t执行级别");
-            foreach (var r in doc.RootElement.EnumerateArray()) {
-                var id = r.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
-                var name = r.TryGetProperty(GitHubJsonFields.Name, out var nEl) ? nEl.GetString() ?? "" : "";
-                var target = r.TryGetProperty("target", out var tEl) ? tEl.GetString() ?? "" : "";
-                var enforcement = r.TryGetProperty("enforcement", out var eEl) ? eEl.GetString() ?? "" : "";
-                sb.AppendLine($"{id}\t{name}\t{target}\t{enforcement}");
+            foreach (var r in rulesets) {
+                sb.AppendLine($"{r.Id}\t{r.Name}\t{r.Target ?? ""}\t{r.Enforcement ?? ""}");
             }
             return sb.ToString();
         } catch (Exception ex) { return $"解析规则集列表失败: {ex.Message}"; }
@@ -228,15 +217,11 @@ public partial class GitHubToolHandlers {
     /// <summary>精简规则集详情 — 人类可读文本</summary>
     private static string SummarizeRulesetView(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
+            var r = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.RulesetResponse);
+            if (r is null) return json;
             var sb = new StringBuilder(256);
-            var id = root.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt64() : 0;
-            var name = root.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-            var target = root.TryGetProperty("target", out var t) ? t.GetString() ?? "" : "";
-            var enforcement = root.TryGetProperty("enforcement", out var e) ? e.GetString() ?? "" : "";
-            sb.AppendLine($"Ruleset: {name} (ID: {id})");
-            sb.AppendLine($"Target: {target}  Enforcement: {enforcement}");
+            sb.AppendLine($"Ruleset: {r.Name} (ID: {r.Id})");
+            sb.AppendLine($"Target: {r.Target ?? ""}  Enforcement: {r.Enforcement ?? ""}");
             return sb.ToString().TrimEnd();
         } catch { return json; }
     }
@@ -289,17 +274,14 @@ public partial class GitHubToolHandlers {
     /// <summary>精简搜索结果 — 表格格式(repo, number, title)，支持 exclude 过滤</summary>
     private static string SummarizeSearchResults(string json, HashSet<string> excludeSet) {
         try {
-            using var doc = JsonDocument.Parse(json);
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.SearchIssueResponse);
+            if (resp is null) return "";
             var sb = new StringBuilder(256);
-            if (!doc.RootElement.TryGetProperty(GitHubJsonFields.Items, out var items)) return "";
-            foreach (var item in items.EnumerateArray()) {
-                var repoUrl = item.TryGetProperty("repository_url", out var ruEl) ? ruEl.GetString() ?? "" : "";
+            foreach (var item in resp.Items) {
+                var repoUrl = item.RepositoryUrl ?? "";
                 var repoName = repoUrl.EndsWith("/repos") ? "" : repoUrl[(repoUrl.LastIndexOf("/repos/") + 7)..];
                 if (excludeSet.Contains(repoName)) continue;
-                var number = item.TryGetProperty(GitHubJsonFields.Number, out var nEl) ? nEl.GetInt32() : 0;
-                var title = item.TryGetProperty(GitHubJsonFields.Title, out var tEl) ? tEl.GetString() ?? "" : "";
-                var state = item.TryGetProperty(GitHubJsonFields.State, out var sEl) ? sEl.GetString() ?? "" : "";
-                sb.AppendLine($"{repoName}#{number}\t{state}\t{title}");
+                sb.AppendLine($"{repoName}#{item.Number}\t{item.State}\t{item.Title}");
             }
             return sb.ToString();
         } catch { return ""; }
@@ -332,18 +314,14 @@ public partial class GitHubToolHandlers {
     /// <summary>精简 Codespace 列表 — 表格格式(name, display_name, repo, state, branch)</summary>
     private static string SummarizeCodespaceList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.CodespaceListResponse);
+            if (resp is null) return json;
             var sb = new StringBuilder(256);
-            if (doc.RootElement.TryGetProperty("codespaces", out var codespaces)) {
-                sb.AppendLine("名称\t显示名\t仓库\t状态\t分支");
-                foreach (var c in codespaces.EnumerateArray()) {
-                    var name = c.TryGetProperty(GitHubJsonFields.Name, out var nEl) ? nEl.GetString() ?? "" : "";
-                    var displayName = c.TryGetProperty("display_name", out var dnEl) ? dnEl.GetString() ?? "" : "";
-                    var repo = c.TryGetProperty(GitHubJsonFields.Repository, out var rEl) && rEl.TryGetProperty("full_name", out var fnEl) ? fnEl.GetString() ?? "" : "";
-                    var state = c.TryGetProperty(GitHubJsonFields.State, out var sEl) ? sEl.GetString() ?? "" : "";
-                    var branch = c.TryGetProperty("git_status", out var gsEl) && gsEl.TryGetProperty(GitHubJsonFields.Ref, out var refEl) ? refEl.GetString() ?? "" : "";
-                    sb.AppendLine($"{name}\t{displayName}\t{repo}\t{state}\t{branch}");
-                }
+            sb.AppendLine("名称\t显示名\t仓库\t状态\t分支");
+            foreach (var c in resp.Codespaces) {
+                var repo = c.Repository?.FullName ?? "";
+                var branch = c.GitStatus?.Ref ?? "";
+                sb.AppendLine($"{c.Name}\t{c.DisplayName ?? ""}\t{repo}\t{c.State ?? ""}\t{branch}");
             }
             return sb.ToString();
         } catch (Exception ex) { return $"解析 Codespace 列表失败: {ex.Message}"; }
@@ -373,16 +351,15 @@ public partial class GitHubToolHandlers {
         }, GitHubApiJsonContext.Safe.CodespaceCreateRequest);
         var repoResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
         if (!repoResult.Success) return Fail(repoResult.Error);
-        using (var doc = JsonDocument.Parse(repoResult.Body)) {
-            var repoId = doc.RootElement.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
-            body = JsonSerializer.Serialize(new CodespaceCreateRequest {
-                RepositoryId = repoId,
-                Ref = branch,
-                Machine = machine,
-                DevcontainerPath = devcontainer_path,
-                DisplayName = display_name
-            }, GitHubApiJsonContext.Safe.CodespaceCreateRequest);
-        }
+        var repoDetail = JsonSerializer.Deserialize(repoResult.Body, GitHubApiJsonContext.Safe.RepoDetailResponse);
+        if (repoDetail is null || repoDetail.Id == 0) return Fail("无法获取仓库 ID");
+        body = JsonSerializer.Serialize(new CodespaceCreateRequest {
+            RepositoryId = repoDetail.Id,
+            Ref = branch,
+            Machine = machine,
+            DevcontainerPath = devcontainer_path,
+            DisplayName = display_name
+        }, GitHubApiJsonContext.Safe.CodespaceCreateRequest);
         var result = await _apiClient.SendAsync(HttpMethod.Post, "user/codespaces", body, ct: cancellationToken).ConfigureAwait(false);
         return result.Success ? OkBrief(result.Body, $"已创建 Codespace for {repo}") : Fail(result.Error);
     }
@@ -441,17 +418,13 @@ public partial class GitHubToolHandlers {
     /// <summary>精简 Discussion 列表 — 表格格式(number, title, author, category)</summary>
     private static string SummarizeDiscussionList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLRepositoryResponseDiscussionListWrapperResponse);
+            var nodes = resp?.Data?.Repository?.Discussions.Nodes;
+            if (nodes is null) return json;
             var sb = new StringBuilder(256);
-            var nodes = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Repository).GetProperty("discussions").GetProperty(GitHubJsonFields.Nodes);
             sb.AppendLine("编号\t标题\t作者\t分类\t创建时间");
-            foreach (var d in nodes.EnumerateArray()) {
-                var number = d.TryGetProperty(GitHubJsonFields.Number, out var nEl) ? nEl.GetInt32() : 0;
-                var title = d.TryGetProperty(GitHubJsonFields.Title, out var tEl) ? tEl.GetString() ?? "" : "";
-                var author = d.TryGetProperty(GitHubJsonFields.Author, out var aEl) && aEl.TryGetProperty(GitHubJsonFields.Login, out var lEl) ? lEl.GetString() ?? "" : "";
-                var category = d.TryGetProperty("category", out var cEl) && cEl.TryGetProperty(GitHubJsonFields.Name, out var cnEl) ? cnEl.GetString() ?? "" : "";
-                var createdAt = d.TryGetProperty("createdAt", out var caEl) ? caEl.GetString() ?? "" : "";
-                sb.AppendLine($"{number}\t{title}\t{author}\t{category}\t{createdAt}");
+            foreach (var d in nodes) {
+                sb.AppendLine($"{d.Number}\t{d.Title}\t{d.Author?.Login ?? ""}\t{d.Category?.Name ?? ""}\t{d.CreatedAt ?? ""}");
             }
             return sb.ToString();
         } catch (Exception ex) { return $"解析 Discussion 列表失败: {ex.Message}"; }
@@ -478,16 +451,13 @@ public partial class GitHubToolHandlers {
     /// <summary>精简 Discussion 详情 — 人类可读文本</summary>
     private static string SummarizeDiscussionView(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            var node = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Repository).GetProperty("discussion");
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLRepositoryResponseDiscussionViewWrapperResponse);
+            var node = resp?.Data?.Repository?.Discussion;
+            if (node is null) return json;
             var sb = new StringBuilder(256);
-            var number = node.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
-            var title = node.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
-            var author = node.TryGetProperty(GitHubJsonFields.Author, out var a) && a.TryGetProperty(GitHubJsonFields.Login, out var l) ? l.GetString() ?? "" : "";
-            var body = node.TryGetProperty(GitHubJsonFields.Body, out var b) ? b.GetString() ?? "" : "";
-            sb.AppendLine($"#{number} {title}");
-            sb.AppendLine($"By: @{author}");
-            if (!string.IsNullOrEmpty(body)) sb.AppendLine(body);
+            sb.AppendLine($"#{node.Number} {node.Title}");
+            sb.AppendLine($"By: @{node.Author?.Login ?? ""}");
+            if (!string.IsNullOrEmpty(node.Body)) sb.AppendLine(node.Body);
             return sb.ToString().TrimEnd();
         } catch { return json; }
     }
@@ -509,12 +479,14 @@ public partial class GitHubToolHandlers {
             if (!catResult.Success) return Fail(catResult.Error);
             string? categoryId = null;
             try {
-                using var catDoc = JsonDocument.Parse(catResult.Body);
-                var cats = catDoc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Repository).GetProperty("discussionCategories").GetProperty(GitHubJsonFields.Nodes);
-                foreach (var c in cats.EnumerateArray()) {
-                    if (c.TryGetProperty(GitHubJsonFields.Name, out var nEl) && nEl.GetString() == category) {
-                        categoryId = c.GetProperty(GitHubJsonFields.Id).GetString();
-                        break;
+                var catResp = JsonSerializer.Deserialize(catResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLRepositoryResponseDiscussionCategoryListWrapperResponse);
+                var cats = catResp?.Data?.Repository?.DiscussionCategories.Nodes;
+                if (cats is not null) {
+                    foreach (var c in cats) {
+                        if (c.Name == category) {
+                            categoryId = c.Id;
+                            break;
+                        }
                     }
                 }
             } catch (Exception ex) { return Fail($"解析分类失败: {ex.Message}"); }
@@ -524,8 +496,8 @@ public partial class GitHubToolHandlers {
             if (!repoIdResult.Success) return Fail(repoIdResult.Error);
             string? repoId = null;
             try {
-                using var ridDoc = JsonDocument.Parse(repoIdResult.Body);
-                repoId = ridDoc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Repository).GetProperty(GitHubJsonFields.Id).GetString();
+                var ridResp = JsonSerializer.Deserialize(repoIdResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLRepositoryResponseGraphQLNodeIdResponse);
+                repoId = ridResp?.Data?.Repository?.Id;
             } catch (Exception ex) { return Fail($"解析仓库 ID 失败: {ex.Message}"); }
             if (repoId is null) return Fail("无法获取仓库 node_id");
             var escapedTitle = EscapeGraphQLString(title);
@@ -552,8 +524,8 @@ public partial class GitHubToolHandlers {
             if (!idResult.Success) return Fail(idResult.Error);
             string? discussionId = null;
             try {
-                using var idDoc = JsonDocument.Parse(idResult.Body);
-                discussionId = idDoc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Repository).GetProperty("discussion").GetProperty(GitHubJsonFields.Id).GetString();
+                var idResp = JsonSerializer.Deserialize(idResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLRepositoryResponseDiscussionSingleWrapperResponse);
+                discussionId = idResp?.Data?.Repository?.Discussion?.Id;
             } catch (Exception ex) { return Fail($"解析 Discussion ID 失败: {ex.Message}"); }
             if (discussionId is null) return Fail("无法获取 Discussion node_id");
             var parts = new List<string>();
@@ -582,8 +554,8 @@ public partial class GitHubToolHandlers {
             if (!idResult.Success) return Fail(idResult.Error);
             string? discussionId = null;
             try {
-                using var idDoc = JsonDocument.Parse(idResult.Body);
-                discussionId = idDoc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Repository).GetProperty("discussion").GetProperty(GitHubJsonFields.Id).GetString();
+                var idResp = JsonSerializer.Deserialize(idResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLRepositoryResponseDiscussionSingleWrapperResponse);
+                discussionId = idResp?.Data?.Repository?.Discussion?.Id;
             } catch (Exception ex) { return Fail($"解析 Discussion ID 失败: {ex.Message}"); }
             if (discussionId is null) return Fail("无法获取 Discussion node_id");
             var escapedBody = EscapeGraphQLString(body);
@@ -619,18 +591,19 @@ public partial class GitHubToolHandlers {
     /// <summary>精简 Project 列表 — 表格格式(number, title, state, url)</summary>
     private static string SummarizeProjectList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
             var sb = new StringBuilder(256);
-            var data = doc.RootElement.GetProperty(GitHubJsonFields.Data);
-            var root = data.TryGetProperty(GitHubJsonFields.Organization, out var orgEl) ? orgEl : data.GetProperty("viewer");
-            var nodes = root.GetProperty("projectsV2").GetProperty(GitHubJsonFields.Nodes);
             sb.AppendLine("编号\t标题\t状态\tURL");
-            foreach (var p in nodes.EnumerateArray()) {
-                var number = p.TryGetProperty(GitHubJsonFields.Number, out var nEl) ? nEl.GetInt32() : 0;
-                var title = p.TryGetProperty(GitHubJsonFields.Title, out var tEl) ? tEl.GetString() ?? "" : "";
-                var state = p.TryGetProperty(GitHubJsonFields.State, out var sEl) ? sEl.GetString() ?? "" : "";
-                var url = p.TryGetProperty(GitHubJsonFields.Url, out var uEl) ? uEl.GetString() ?? "" : "";
-                sb.AppendLine($"{number}\t{title}\t{state}\t{url}");
+            List<ProjectListItemResponse>? nodes = null;
+            var orgResp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLOrganizationResponseProjectListWrapperResponse);
+            if (orgResp?.Data?.Organization is not null)
+                nodes = orgResp.Data.Organization.ProjectsV2.Nodes;
+            else {
+                var viewerResp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLViewerResponseProjectListWrapperResponse);
+                nodes = viewerResp?.Data?.Viewer?.ProjectsV2.Nodes;
+            }
+            if (nodes is null) return json;
+            foreach (var p in nodes) {
+                sb.AppendLine($"{p.Number}\t{p.Title}\t{p.State ?? ""}\t{p.Url ?? ""}");
             }
             return sb.ToString();
         } catch (Exception ex) { return $"解析 Project 列表失败: {ex.Message}"; }
@@ -660,24 +633,23 @@ public partial class GitHubToolHandlers {
     /// <summary>精简 Project 详情 — 人类可读文本</summary>
     private static string SummarizeProjectView(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            var data = doc.RootElement.GetProperty(GitHubJsonFields.Data);
-            var root = data.TryGetProperty(GitHubJsonFields.Organization, out var orgEl) ? orgEl : data.GetProperty("viewer");
-            var proj = root.GetProperty("projectV2");
+            ProjectDetailResponse? proj = null;
+            var orgResp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLOrganizationResponseProjectV2DetailWrapperResponse);
+            if (orgResp?.Data?.Organization is not null)
+                proj = orgResp.Data.Organization.ProjectV2;
+            else {
+                var viewerResp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLViewerResponseProjectV2DetailWrapperResponse);
+                proj = viewerResp?.Data?.Viewer?.ProjectV2;
+            }
+            if (proj is null) return json;
             var sb = new StringBuilder(256);
-            var title = proj.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
-            var state = proj.TryGetProperty(GitHubJsonFields.State, out var s) ? s.GetString() ?? "" : "";
-            var url = proj.TryGetProperty(GitHubJsonFields.Url, out var u) ? u.GetString() ?? "" : "";
-            sb.AppendLine($"Project: {title}");
-            sb.AppendLine($"State: {state}  URL: {url}");
-            if (proj.TryGetProperty(GitHubJsonFields.Items, out var items) && items.TryGetProperty(GitHubJsonFields.Nodes, out var nodes)) {
+            sb.AppendLine($"Project: {proj.Title}");
+            sb.AppendLine($"State: {proj.State ?? ""}  URL: {proj.Url ?? ""}");
+            if (proj.Items.Nodes.Count > 0) {
                 sb.AppendLine("Items:");
-                foreach (var item in nodes.EnumerateArray()) {
-                    if (item.TryGetProperty(GitHubJsonFields.Content, out var content)) {
-                        var num = content.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
-                        var itemTitle = content.TryGetProperty(GitHubJsonFields.Title, out var it) ? it.GetString() ?? "" : "";
-                        sb.AppendLine($"  #{num} {itemTitle}");
-                    }
+                foreach (var item in proj.Items.Nodes) {
+                    if (item.Content is not null)
+                        sb.AppendLine($"  #{item.Content.Number} {item.Content.Title}");
                 }
             }
             return sb.ToString().TrimEnd();
@@ -703,8 +675,8 @@ public partial class GitHubToolHandlers {
             if (!viewerResult.Success) return Fail(viewerResult.Error);
             string? viewerId = null;
             try {
-                using var vDoc = JsonDocument.Parse(viewerResult.Body);
-                viewerId = vDoc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty("viewer").GetProperty(GitHubJsonFields.Id).GetString();
+                var vResp = JsonSerializer.Deserialize(viewerResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLViewerResponseGraphQLNodeIdResponse);
+                viewerId = vResp?.Data?.Viewer?.Id;
             } catch (Exception ex) { return Fail($"解析用户 ID 失败: {ex.Message}"); }
             if (viewerId is null) return Fail("无法获取用户 node_id");
             graphql = BuildGraphQL($"mutation{{createProjectV2(input:{{ownerId:\"{viewerId}\",title:\"{escapedTitle}\"}}){{projectV2{{number url}}}}}}");
@@ -731,10 +703,13 @@ public partial class GitHubToolHandlers {
         if (!idResult.Success) return Fail(idResult.Error);
         string? projectId = null;
         try {
-            using var idDoc = JsonDocument.Parse(idResult.Body);
-            var data = idDoc.RootElement.GetProperty(GitHubJsonFields.Data);
-            var root = data.TryGetProperty(GitHubJsonFields.Organization, out var orgEl) ? orgEl : data.GetProperty("viewer");
-            projectId = root.GetProperty("projectV2").GetProperty(GitHubJsonFields.Id).GetString();
+            var orgResp = JsonSerializer.Deserialize(idResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLOrganizationResponseProjectV2IdWrapperResponse);
+            if (orgResp?.Data?.Organization is not null)
+                projectId = orgResp.Data.Organization.ProjectV2?.Id;
+            else {
+                var viewerResp = JsonSerializer.Deserialize(idResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLViewerResponseProjectV2IdWrapperResponse);
+                projectId = viewerResp?.Data?.Viewer?.ProjectV2?.Id;
+            }
         } catch (Exception ex) { return Fail($"解析 Project ID 失败: {ex.Message}"); }
         if (projectId is null) return Fail("无法获取 Project node_id");
         var mutation = BuildGraphQL($"mutation{{deleteProjectV2(input:{{projectId:\"{projectId}\"}}){{projectV2{{number}}}}}}");
@@ -762,10 +737,13 @@ public partial class GitHubToolHandlers {
         if (!idResult.Success) return Fail(idResult.Error);
         string? projectId = null;
         try {
-            using var idDoc = JsonDocument.Parse(idResult.Body);
-            var data = idDoc.RootElement.GetProperty(GitHubJsonFields.Data);
-            var root = data.TryGetProperty(GitHubJsonFields.Organization, out var orgEl) ? orgEl : data.GetProperty("viewer");
-            projectId = root.GetProperty("projectV2").GetProperty(GitHubJsonFields.Id).GetString();
+            var orgResp = JsonSerializer.Deserialize(idResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLOrganizationResponseProjectV2IdWrapperResponse);
+            if (orgResp?.Data?.Organization is not null)
+                projectId = orgResp.Data.Organization.ProjectV2?.Id;
+            else {
+                var viewerResp = JsonSerializer.Deserialize(idResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLViewerResponseProjectV2IdWrapperResponse);
+                projectId = viewerResp?.Data?.Viewer?.ProjectV2?.Id;
+            }
         } catch (Exception ex) { return Fail($"解析 Project ID 失败: {ex.Message}"); }
         if (projectId is null) return Fail("无法获取 Project node_id");
         var parts = new List<string>();
@@ -796,10 +774,13 @@ public partial class GitHubToolHandlers {
         if (!idResult.Success) return Fail(idResult.Error);
         string? projectId = null;
         try {
-            using var idDoc = JsonDocument.Parse(idResult.Body);
-            var data = idDoc.RootElement.GetProperty(GitHubJsonFields.Data);
-            var root = data.TryGetProperty(GitHubJsonFields.Organization, out var orgEl) ? orgEl : data.GetProperty("viewer");
-            projectId = root.GetProperty("projectV2").GetProperty(GitHubJsonFields.Id).GetString();
+            var orgResp = JsonSerializer.Deserialize(idResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLOrganizationResponseProjectV2IdWrapperResponse);
+            if (orgResp?.Data?.Organization is not null)
+                projectId = orgResp.Data.Organization.ProjectV2?.Id;
+            else {
+                var viewerResp = JsonSerializer.Deserialize(idResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLViewerResponseProjectV2IdWrapperResponse);
+                projectId = viewerResp?.Data?.Viewer?.ProjectV2?.Id;
+            }
         } catch (Exception ex) { return Fail($"解析 Project ID 失败: {ex.Message}"); }
         if (projectId is null) return Fail("无法获取 Project node_id");
         var mutation = BuildGraphQL($"mutation{{updateProjectV2(input:{{projectId:\"{projectId}\",closed:true}}){{projectV2{{number url}}}}}}");
@@ -962,14 +943,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeLicenses(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var licenses = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListLicenseResponse);
+            if (licenses is null) return json;
             var sb = new StringBuilder(256);
-            foreach (var license in doc.RootElement.EnumerateArray()) {
-                var key = license.TryGetProperty("key", out var k) ? k.GetString() ?? "" : "";
-                var name = license.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-                var spdx = license.TryGetProperty("spdx_id", out var s) ? s.GetString() ?? "" : "";
-                sb.AppendLine($"{key} | {spdx} | {name}");
+            foreach (var license in licenses) {
+                sb.AppendLine($"{license.Key} | {license.SpdxId} | {license.Name}");
             }
             return sb.ToString().TrimEnd();
         } catch { return json; }

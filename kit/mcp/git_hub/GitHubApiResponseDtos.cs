@@ -492,6 +492,9 @@ internal sealed class IssueListItemsResponse {
 
 /// <summary>Repo 详情响应 — GET /repos/{o}/{r}</summary>
 internal sealed class RepoDetailResponse {
+    /// <summary>仓库 node_id(数字 ID)</summary>
+    [JsonPropertyName("id")]
+    public long Id { get; init; }
     /// <summary>仓库名</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = "";
@@ -566,4 +569,325 @@ internal sealed class IssueStatusItemResponse {
     /// <summary>PR 引用(存在则跳过,该条目是 PR 不是 Issue)</summary>
     [JsonPropertyName("pull_request")]
     public PullRequestRefResponse? PullRequest { get; init; }
+}
+
+// === Cache 响应 ===
+
+/// <summary>Actions 缓存列表响应 — GET /actions/caches</summary>
+internal sealed class CacheListResponse {
+    /// <summary>总数</summary>
+    [JsonPropertyName("total_count")]
+    public int TotalCount { get; init; }
+    /// <summary>缓存列表</summary>
+    [JsonPropertyName("actions_caches")]
+    public List<CacheItemResponse> ActionsCaches { get; init; } = new();
+}
+
+/// <summary>Actions 缓存项</summary>
+internal sealed class CacheItemResponse {
+    /// <summary>缓存 ID</summary>
+    [JsonPropertyName("id")]
+    public long Id { get; init; }
+    /// <summary>缓存 key</summary>
+    [JsonPropertyName("key")]
+    public string Key { get; init; } = "";
+    /// <summary>ref</summary>
+    [JsonPropertyName("ref")]
+    public string Ref { get; init; } = "";
+    /// <summary>大小(字节)</summary>
+    [JsonPropertyName("size_in_bytes")]
+    public long SizeInBytes { get; init; }
+    /// <summary>最后使用时间</summary>
+    [JsonPropertyName("last_used_at")]
+    public string? LastUsedAt { get; init; }
+}
+
+// === Ruleset 响应 ===
+
+/// <summary>规则集响应 — GET /rulesets 或 /rulesets/{id}</summary>
+internal sealed class RulesetResponse {
+    /// <summary>规则集 ID</summary>
+    [JsonPropertyName("id")]
+    public long Id { get; init; }
+    /// <summary>名称</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    /// <summary>目标</summary>
+    [JsonPropertyName("target")]
+    public string? Target { get; init; }
+    /// <summary>执行级别</summary>
+    [JsonPropertyName("enforcement")]
+    public string? Enforcement { get; init; }
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+}
+
+// === Codespace 响应 ===
+
+/// <summary>Codespace 仓库引用(嵌套)</summary>
+internal sealed class CodespaceRepositoryRefResponse {
+    /// <summary>仓库全名</summary>
+    [JsonPropertyName("full_name")]
+    public string FullName { get; init; } = "";
+}
+
+/// <summary>Codespace git_status(嵌套)</summary>
+internal sealed class CodespaceGitStatusResponse {
+    /// <summary>ref</summary>
+    [JsonPropertyName("ref")]
+    public string? Ref { get; init; }
+}
+
+/// <summary>Codespace 项</summary>
+internal sealed class CodespaceItemResponse {
+    /// <summary>名称</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    /// <summary>显示名</summary>
+    [JsonPropertyName("display_name")]
+    public string? DisplayName { get; init; }
+    /// <summary>仓库引用</summary>
+    [JsonPropertyName("repository")]
+    public CodespaceRepositoryRefResponse? Repository { get; init; }
+    /// <summary>状态</summary>
+    [JsonPropertyName("state")]
+    public string? State { get; init; }
+    /// <summary>git 状态</summary>
+    [JsonPropertyName("git_status")]
+    public CodespaceGitStatusResponse? GitStatus { get; init; }
+}
+
+/// <summary>Codespace 列表响应 — GET /user/codespaces</summary>
+internal sealed class CodespaceListResponse {
+    /// <summary>codespace 列表</summary>
+    [JsonPropertyName("codespaces")]
+    public List<CodespaceItemResponse> Codespaces { get; init; } = new();
+}
+
+// === GraphQL 通用嵌套 ===
+
+/// <summary>GraphQL data 包装</summary>
+internal sealed class GraphQLDataResponse<T> {
+    /// <summary>data 节点</summary>
+    [JsonPropertyName("data")]
+    public T? Data { get; init; }
+}
+
+/// <summary>GraphQL repository 包装</summary>
+internal sealed class GraphQLRepositoryResponse<T> {
+    /// <summary>repository 节点</summary>
+    [JsonPropertyName("repository")]
+    public T? Repository { get; init; }
+}
+
+/// <summary>GraphQL nodes 包装</summary>
+internal sealed class GraphQLNodesResponse<T> {
+    /// <summary>nodes 列表</summary>
+    [JsonPropertyName("nodes")]
+    public List<T> Nodes { get; init; } = new();
+}
+
+// === Discussion GraphQL 响应 ===
+
+/// <summary>Discussion 作者引用(嵌套)</summary>
+internal sealed class DiscussionAuthorRefResponse {
+    /// <summary>登录名</summary>
+    [JsonPropertyName("login")]
+    public string Login { get; init; } = "";
+}
+
+/// <summary>Discussion 分类引用(嵌套)</summary>
+internal sealed class DiscussionCategoryRefResponse {
+    /// <summary>分类名</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+}
+
+/// <summary>Discussion 列表项</summary>
+internal sealed class DiscussionListItemResponse {
+    /// <summary>编号</summary>
+    [JsonPropertyName("number")]
+    public int Number { get; init; }
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+    /// <summary>作者</summary>
+    [JsonPropertyName("author")]
+    public DiscussionAuthorRefResponse? Author { get; init; }
+    /// <summary>分类</summary>
+    [JsonPropertyName("category")]
+    public DiscussionCategoryRefResponse? Category { get; init; }
+    /// <summary>创建时间</summary>
+    [JsonPropertyName("createdAt")]
+    public string? CreatedAt { get; init; }
+}
+
+/// <summary>Discussion 详情</summary>
+internal sealed class DiscussionDetailResponse {
+    /// <summary>编号</summary>
+    [JsonPropertyName("number")]
+    public int Number { get; init; }
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+    /// <summary>正文</summary>
+    [JsonPropertyName("body")]
+    public string? Body { get; init; }
+    /// <summary>作者</summary>
+    [JsonPropertyName("author")]
+    public DiscussionAuthorRefResponse? Author { get; init; }
+    /// <summary>分类</summary>
+    [JsonPropertyName("category")]
+    public DiscussionCategoryRefResponse? Category { get; init; }
+    /// <summary>创建时间</summary>
+    [JsonPropertyName("createdAt")]
+    public string? CreatedAt { get; init; }
+    /// <summary>URL</summary>
+    [JsonPropertyName("url")]
+    public string? Url { get; init; }
+}
+
+/// <summary>Discussion discussions 包装(含 nodes)</summary>
+internal sealed class DiscussionListWrapperResponse {
+    /// <summary>discussions 节点</summary>
+    [JsonPropertyName("discussions")]
+    public GraphQLNodesResponse<DiscussionListItemResponse> Discussions { get; init; } = new();
+}
+
+/// <summary>Discussion 分类项(含 id)</summary>
+internal sealed class DiscussionCategoryItemResponse {
+    /// <summary>node ID</summary>
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = "";
+    /// <summary>分类名</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+}
+
+/// <summary>Discussion 分类列表包装</summary>
+internal sealed class DiscussionCategoryListWrapperResponse {
+    /// <summary>discussionCategories 节点</summary>
+    [JsonPropertyName("discussionCategories")]
+    public GraphQLNodesResponse<DiscussionCategoryItemResponse> DiscussionCategories { get; init; } = new();
+}
+
+/// <summary>GraphQL node id 响应(通用,只有 id 字段)</summary>
+internal sealed class GraphQLNodeIdResponse {
+    /// <summary>node ID</summary>
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = "";
+}
+
+/// <summary>Discussion 单个包装(含 discussion 节点,只有 id)</summary>
+internal sealed class DiscussionSingleWrapperResponse {
+    /// <summary>discussion 节点</summary>
+    [JsonPropertyName("discussion")]
+    public GraphQLNodeIdResponse? Discussion { get; init; }
+}
+
+/// <summary>Discussion 详情包装(含完整 discussion 节点)</summary>
+internal sealed class DiscussionViewWrapperResponse {
+    /// <summary>discussion 节点</summary>
+    [JsonPropertyName("discussion")]
+    public DiscussionDetailResponse? Discussion { get; init; }
+}
+
+// === Project GraphQL 响应 ===
+
+/// <summary>Project 列表项</summary>
+internal sealed class ProjectListItemResponse {
+    /// <summary>编号</summary>
+    [JsonPropertyName("number")]
+    public int Number { get; init; }
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+    /// <summary>URL</summary>
+    [JsonPropertyName("url")]
+    public string? Url { get; init; }
+    /// <summary>是否关闭</summary>
+    [JsonPropertyName("closed")]
+    public bool Closed { get; init; }
+    /// <summary>状态</summary>
+    [JsonPropertyName("state")]
+    public string? State { get; init; }
+}
+
+/// <summary>Project projectsV2 包装(含 nodes)</summary>
+internal sealed class ProjectListWrapperResponse {
+    /// <summary>projectsV2 节点</summary>
+    [JsonPropertyName("projectsV2")]
+    public GraphQLNodesResponse<ProjectListItemResponse> ProjectsV2 { get; init; } = new();
+}
+
+/// <summary>Project item content(嵌套)</summary>
+internal sealed class ProjectItemContentResponse {
+    /// <summary>编号</summary>
+    [JsonPropertyName("number")]
+    public int Number { get; init; }
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+}
+
+/// <summary>Project item</summary>
+internal sealed class ProjectItemResponse {
+    /// <summary>内容</summary>
+    [JsonPropertyName("content")]
+    public ProjectItemContentResponse? Content { get; init; }
+}
+
+/// <summary>Project items 包装(含 nodes)</summary>
+internal sealed class ProjectItemsWrapperResponse {
+    /// <summary>items 节点</summary>
+    [JsonPropertyName("items")]
+    public GraphQLNodesResponse<ProjectItemResponse> Items { get; init; } = new();
+}
+
+/// <summary>Project 详情</summary>
+internal sealed class ProjectDetailResponse {
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+    /// <summary>URL</summary>
+    [JsonPropertyName("url")]
+    public string? Url { get; init; }
+    /// <summary>是否关闭</summary>
+    [JsonPropertyName("closed")]
+    public bool Closed { get; init; }
+    /// <summary>状态</summary>
+    [JsonPropertyName("state")]
+    public string? State { get; init; }
+    /// <summary>items(含 nodes)</summary>
+    [JsonPropertyName("items")]
+    public GraphQLNodesResponse<ProjectItemResponse> Items { get; init; } = new();
+}
+
+/// <summary>Project projectV2 包装(含 id,用于 node_id 提取)</summary>
+internal sealed class ProjectV2IdWrapperResponse {
+    /// <summary>projectV2 节点</summary>
+    [JsonPropertyName("projectV2")]
+    public GraphQLNodeIdResponse? ProjectV2 { get; init; }
+}
+
+/// <summary>Project projectV2 详情包装(含完整 projectV2 节点)</summary>
+internal sealed class ProjectV2DetailWrapperResponse {
+    /// <summary>projectV2 节点</summary>
+    [JsonPropertyName("projectV2")]
+    public ProjectDetailResponse? ProjectV2 { get; init; }
+}
+
+/// <summary>GraphQL viewer 包装(通用)</summary>
+internal sealed class GraphQLViewerResponse<T> {
+    /// <summary>viewer 节点</summary>
+    [JsonPropertyName("viewer")]
+    public T? Viewer { get; init; }
+}
+
+/// <summary>GraphQL organization 包装(通用)</summary>
+internal sealed class GraphQLOrganizationResponse<T> {
+    /// <summary>organization 节点</summary>
+    [JsonPropertyName("organization")]
+    public T? Organization { get; init; }
 }

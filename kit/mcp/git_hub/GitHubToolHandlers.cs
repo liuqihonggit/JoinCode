@@ -27,17 +27,10 @@ public partial class GitHubToolHandlers {
         _logFilterRunner ?? throw new InvalidOperationException("日志过滤运行器未初始化(API 客户端未配置)");
 
     /// <summary>
-    /// 统一持久化管道 — 异步串行写缓存文件到 .jcc/gh_cache/,不阻塞调用方
-    /// <para>复用 ADR 0068 统一管道(IPersistencePipeline),替代专用 GitHubCacheWriteActor</para>
-    /// </summary>
-    private readonly IPersistencePipeline _pipeline;
-
-    /// <summary>
     /// 创建 GitHubToolHandlers 实例
     /// </summary>
     /// <param name="downloader">文件下载器（Release asset 下载用）</param>
     /// <param name="fs">文件系统抽象</param>
-    /// <param name="pipeline">统一持久化管道（异步写缓存文件）</param>
     /// <param name="apiClient">GitHub REST API 客户端（可选，未注入时 API 工具返回未配置错误）</param>
     /// <param name="git">git 命令执行器（可选，未注入时 clone/checkout 等本地 git 工具返回错误）</param>
     /// <param name="logger">日志记录器（可选）</param>
@@ -45,14 +38,12 @@ public partial class GitHubToolHandlers {
     public GitHubToolHandlers(
         IDownloader downloader,
         IFileSystem fs,
-        IPersistencePipeline pipeline,
         IGitHubApiClient? apiClient = null,
         IGitCommandRunner? git = null,
         ILogger<GitHubToolHandlers>? logger = null,
         IKvStore? kvStore = null) {
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _apiClient = apiClient;
         _git = git;
         _logger = logger;

@@ -6,21 +6,14 @@ public sealed partial class GitHubToolHandlersTests {
 
     public GitHubToolHandlersTests() {
         MemoryCache.Default.Trim(100);
-        _handler = new GitHubToolHandlers(
-            new FakeDownloader(),
-            new InMemoryFileSystem(),
-            new PersistencePipeline(new InMemoryFileSystem()),
-            _api,
-            null,
-            NullLogger<GitHubToolHandlers>.Instance,
-            new InMemoryKvStore());
+        _handler = new GitHubToolHandlers(new FakeDownloader(), new InMemoryFileSystem(), _api, null, NullLogger<GitHubToolHandlers>.Instance, new InMemoryKvStore());
     }
 
     private static GitHubToolHandlers CreateHandlerWithGit(IGitCommandRunner git)
-        => new(new FakeDownloader(), new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance, new InMemoryKvStore());
+        => new(new FakeDownloader(), new InMemoryFileSystem(), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance, new InMemoryKvStore());
 
     private static GitHubToolHandlers CreateHandlerWithGitAndApi(IGitCommandRunner git, FakeGitHubApiClient api)
-        => new(new FakeDownloader(), new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), api, git, NullLogger<GitHubToolHandlers>.Instance, new InMemoryKvStore());
+        => new(new FakeDownloader(), new InMemoryFileSystem(), api, git, NullLogger<GitHubToolHandlers>.Instance, new InMemoryKvStore());
 
     [Fact]
     public async Task PrView_Success_ReturnsOutput() {
@@ -1044,7 +1037,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"assets":[{"name":"a.zip","browser_download_url":"https://x/a.zip"},{"name":"b.tar.gz","browser_download_url":"https://x/b.tar.gz"}]}""",
         };
         var fakeDownloader = new FakeDownloader();
-        var handler = new GitHubToolHandlers(fakeDownloader, new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(fakeDownloader, new InMemoryFileSystem(), _api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp", repo: "owner/repo");
 
@@ -1153,7 +1146,7 @@ public sealed partial class GitHubToolHandlersTests {
         fs.CreateDirectory("/tmp");
         await fs.WriteAllText("/tmp/a.zip", "existing");
         var fakeDownloader = new FakeDownloader();
-        var handler = new GitHubToolHandlers(fakeDownloader, fs, new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(fakeDownloader, fs, _api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp", skip_existing: true, repo: "owner/repo");
 
@@ -1171,7 +1164,7 @@ public sealed partial class GitHubToolHandlersTests {
         fs.CreateDirectory("/tmp");
         await fs.WriteAllText("/tmp/a.zip", "existing");
         var fakeDownloader = new FakeDownloader();
-        var handler = new GitHubToolHandlers(fakeDownloader, fs, new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(fakeDownloader, fs, _api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp", repo: "owner/repo");
 
@@ -1188,7 +1181,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" });
         var fs = new InMemoryFileSystem();
         await fs.WriteAllText("/data/file.zip", "content");
-        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, _api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhReleaseUploadAsync("v1", "/data/file.zip", clobber: true, repo: "owner/repo");
 
@@ -1198,9 +1191,7 @@ public sealed partial class GitHubToolHandlersTests {
     [Fact]
     public async Task BranchSyncProtection_YmlNotFound_ReturnsError() {
         var fs = new InMemoryFileSystem();
-        var handler = new GitHubToolHandlers(
-            new FakeDownloader(), fs, new PersistencePipeline(fs),
-            _api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, _api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhBranchSyncProtectionAsync(
             branch: "main", yml_path: "nonexistent.yml", repo: "owner/repo");
@@ -1223,9 +1214,7 @@ public sealed partial class GitHubToolHandlersTests {
                       - name: Abs
                         csproj: lib/abs.tests/Abs.Tests.csproj
             """);
-        var handler = new GitHubToolHandlers(
-            new FakeDownloader(), fs, new PersistencePipeline(fs),
-            _api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, _api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         _api.EnqueueResponse(new GitHubApiResponse {
             Success = true, StatusCode = 200,

@@ -6,13 +6,7 @@ public sealed class GitHubRunWaitTests {
 
     public GitHubRunWaitTests() {
         MemoryCache.Default.Trim(100);
-        _handler = new GitHubToolHandlers(
-            new FakeDownloader(),
-            new InMemoryFileSystem(),
-            new PersistencePipeline(new InMemoryFileSystem()),
-            _api,
-            null,
-            NullLogger<GitHubToolHandlers>.Instance);
+        _handler = new GitHubToolHandlers(new FakeDownloader(), new InMemoryFileSystem(), _api, null, NullLogger<GitHubToolHandlers>.Instance);
     }
 
     [Fact]
@@ -172,9 +166,7 @@ public sealed class GitHubRunWaitTests {
         });
         api.NextLogLines = new[] { "##[error] test failed", "  Failed MyTest [FAIL]", "  Error Message: boom" };
 
-        var handler = new GitHubToolHandlers(
-            new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()),
-            api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhRunWaitAsync(
             run_id: "1", repo: "owner/repo", timeout_seconds: 10, poll_interval_seconds: 1);
@@ -222,9 +214,7 @@ public sealed class GitHubRunWaitTests {
         });
         api.NextLogLines = new[] { "##[error] build failed", "error CS0001: syntax error" };
 
-        var handler = new GitHubToolHandlers(
-            new FakeDownloader(), fs, new PersistencePipeline(new InMemoryFileSystem()),
-            api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhPrWaitAsync(
             pr_number: "42", repo: "owner/repo", timeout_seconds: 10, poll_interval_seconds: 1);

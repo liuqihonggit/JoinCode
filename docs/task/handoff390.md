@@ -128,6 +128,8 @@ AI 习惯写 `--log true`（显式传值），但 jcc boolean 参数设计是无
 | B | expand=failed 智能定位错误行（滑动窗口扫描首个错误行，5行上下文+后续行，不从 runner setup 从头输出） | ✅ 已完成 | `c389b2fb1` |
 | C | JCC_OUTPUT_FORMAT 环境变量控制全局默认输出格式 | ✅ 已完成 | `ab0741f8d` |
 | D1 | gh run view 默认模式置顶失败job+尚未拉取提示（run失败/进行中时并行调jobs API附加失败job列表,渐进式披露避免AI三层调用） | ✅ 已完成 | `0cf1805b5` |
+| D2 | BuildZeroMatchHint 改为可能性名单表格式（每行=编号+可能原因+→调查命令,替代①②列表） | ✅ 已完成 | `c72b157f5` |
+| D3 | 参数穿透到消费点处理器守卫 | ✅ 无需改 | 当前动态白名单(schema生成)已是较优设计,改穿透会引入N处重复校验 |
 
 ### 优化A1: pr checks 汇总前置+异常置顶
 
@@ -173,3 +175,26 @@ ID: 37671103598
 ```
 
 AI 首屏即可看到:run 失败了 + 哪个 job 失败 + 怎么拉日志,一次调用就够,把三层调用压成一层。
+
+### 优化D2: BuildZeroMatchHint 可能性名单表
+
+**改动文件**: `kit/mcp/git_hub/GitHubRunLogFilterRunner.cs`
+**测试**: `BuildZeroMatchHint_D2_*`（GitHubRunLogFilterRunnerTests.cs）
+
+0 行匹配时输出从 `①②` 列表改为结构化表格:每行=编号+可能原因+→调查命令(完整 gh 命令)。用户可继续维护此表使工具更健壮。
+
+输出示例:
+```
+未匹配到任何失败步骤行。
+
+可能原因与调查命令:
+  1) 所有步骤都通过(无失败步骤)
+     → gh run view <id> --expand jobs  (确认 job 状态)
+  2) 需要查看 job 列表或步骤详情
+     → gh run view <id> --expand jobs  (查看 job 列表)
+     → gh run view <id> --expand steps job_id=N  (查看具体步骤)
+```
+
+### 优化D3: 参数穿透到消费点处理器守卫 — 无需改
+
+当前 `GhArgsBinder.Bind` 用**动态白名单**(从每个工具的 MCP ToolSchema properties+required 实时构建),非硬编码中央清单。已是"唯一数据源(schema)+委托消费"的较优设计。改成穿透+各handler守卫会引入 N 处重复校验,违反 AGENTS.md 第9/10条。结论:保持现状。

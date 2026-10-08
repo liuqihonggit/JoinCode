@@ -8,6 +8,9 @@ internal sealed class GitHubRunLogFilterRunner {
     private readonly IGitHubApiClient _apiClient;
     private readonly IKvStore? _kvStore;
 
+    /// <summary>耗时追踪器 — AsyncLocal 在异步调用链中隐式传播,顶层方法设置后底层方法读取打点</summary>
+    internal readonly AsyncLocal<GhTimingTracker?> CurrentTimer = new();
+
     /// <summary>缓存 TTL — 7 天后自动过期,由 KvStoreTtlCleanupService 定期清理</summary>
     internal static readonly TimeSpan CacheTtl = TimeSpan.FromDays(7);
 
@@ -51,17 +54,27 @@ internal sealed class GitHubRunLogFilterRunner {
     /// </summary>
     private async Task<List<long>> GetOrFetchFailedJobIdsAsync(string owner, string repo, string runId, bool wantRefresh, CancellationToken ct) {
         var jobsCacheKey = Encoding.UTF8.GetBytes($"gh:jobs:{runId}");
+        var timer = CurrentTimer.Value;
 
         if (!wantRefresh && _kvStore is not null) {
+            var tRead = Stopwatch.GetTimestamp();
             var cached = await _kvStore.GetWithTtlAndRenewAsync(jobsCacheKey, CacheTtl, ct).ConfigureAwait(false);
-            if (cached is not null) return ParseCachedJobIds(cached);
+            timer?.AddLsmRead(Stopwatch.GetTimestamp() - tRead);
+            if (cached is not null) {
+                timer?.RecordHit();
+                return ParseCachedJobIds(cached);
+            }
         }
+        timer?.RecordMiss();
 
+        var tNet = Stopwatch.GetTimestamp();
         var jobsResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
+        timer?.AddNetwork(Stopwatch.GetTimestamp() - tNet);
         if (!jobsResult.Success) return [];
 
         List<long> failedJobIds;
         try {
+            var tParse = Stopwatch.GetTimestamp();
             var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
             if (jobsResp?.Jobs is null) return [];
             failedJobIds = [];
@@ -70,6 +83,7 @@ internal sealed class GitHubRunLogFilterRunner {
                 if (string.Equals(job.Conclusion, "failure", StringComparison.OrdinalIgnoreCase))
                     failedJobIds.Add(job.Id);
             }
+            timer?.AddParse(Stopwatch.GetTimestamp() - tParse);
         } catch {
             return [];
         }
@@ -77,7 +91,9 @@ internal sealed class GitHubRunLogFilterRunner {
         if (_kvStore is not null && failedJobIds.Count > 0) {
             var text = string.Join(',', failedJobIds);
             var bytes = Encoding.UTF8.GetBytes(text);
+            var tWrite = Stopwatch.GetTimestamp();
             await _kvStore.PutWithTtlAsync(jobsCacheKey, bytes, CacheTtl, ct).ConfigureAwait(false);
+            timer?.AddLsmWrite(Stopwatch.GetTimestamp() - tWrite);
         }
 
         return failedJobIds;
@@ -158,27 +174,38 @@ internal sealed class GitHubRunLogFilterRunner {
         string owner, string repo, string runId, long jobId, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
         var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{runId}:{jobId}");
+        var timer = CurrentTimer.Value;
 
         // 1. 查 LSM 缓存(wantRefresh 时跳过)
         if (!wantRefresh && _kvStore is not null) {
+            var t0 = Stopwatch.GetTimestamp();
             var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
+            timer?.AddLsmRead(Stopwatch.GetTimestamp() - t0);
             if (cached is not null) {
+                timer?.RecordHit();
+                var t1 = Stopwatch.GetTimestamp();
                 foreach (var line in ParseCachedLines(cached)) yield return line;
+                timer?.AddParse(Stopwatch.GetTimestamp() - t1);
                 yield break;
             }
         }
+        timer?.RecordMiss();
 
         // 2. 缓存未命中: 下载所有行到 List
         var lines = new List<string>();
+        var tNet = Stopwatch.GetTimestamp();
         await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, jobId, ct).ConfigureAwait(false)) {
             lines.Add(line);
         }
+        timer?.AddNetwork(Stopwatch.GetTimestamp() - tNet);
 
         // 3. 写入 LSM 缓存
         if (_kvStore is not null && lines.Count > 0) {
             var text = string.Join('\n', lines);
             var bytes = Encoding.UTF8.GetBytes(text);
+            var tWrite = Stopwatch.GetTimestamp();
             await _kvStore.PutWithTtlAsync(cacheKey, bytes, CacheTtl, ct).ConfigureAwait(false);
+            timer?.AddLsmWrite(Stopwatch.GetTimestamp() - tWrite);
         }
 
         // 4. 逐行 yield
@@ -196,27 +223,38 @@ internal sealed class GitHubRunLogFilterRunner {
         string owner, string repo, string runId, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
         var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{runId}:run");
+        var timer = CurrentTimer.Value;
 
         // 1. 查 LSM 缓存(wantRefresh 时跳过)
         if (!wantRefresh && _kvStore is not null) {
+            var t0 = Stopwatch.GetTimestamp();
             var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
+            timer?.AddLsmRead(Stopwatch.GetTimestamp() - t0);
             if (cached is not null) {
+                timer?.RecordHit();
+                var t1 = Stopwatch.GetTimestamp();
                 foreach (var line in ParseCachedLines(cached)) yield return line;
+                timer?.AddParse(Stopwatch.GetTimestamp() - t1);
                 yield break;
             }
         }
+        timer?.RecordMiss();
 
         // 2. 缓存未命中: 下载所有行到 List
         var lines = new List<string>();
+        var tNet = Stopwatch.GetTimestamp();
         await foreach (var line in _apiClient.GetRunLogsAsync(owner, repo, long.Parse(runId), ct).ConfigureAwait(false)) {
             lines.Add(line);
         }
+        timer?.AddNetwork(Stopwatch.GetTimestamp() - tNet);
 
         // 3. 写入 LSM 缓存
         if (_kvStore is not null && lines.Count > 0) {
             var text = string.Join('\n', lines);
             var bytes = Encoding.UTF8.GetBytes(text);
+            var tWrite = Stopwatch.GetTimestamp();
             await _kvStore.PutWithTtlAsync(cacheKey, bytes, CacheTtl, ct).ConfigureAwait(false);
+            timer?.AddLsmWrite(Stopwatch.GetTimestamp() - tWrite);
         }
 
         // 4. 逐行 yield
@@ -267,13 +305,16 @@ internal sealed class GitHubRunLogFilterRunner {
         var summary = new RunLogSummary { RunId = runId, JobId = jobId };
         var sectionContents = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
         var parser = new GitHubLogParser();
+        var timer = CurrentTimer.Value;
 
         var logLines = string.IsNullOrWhiteSpace(jobId)
             ? GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct)
             : DownloadJobsParallelAsync(owner, repo, runId, GitHubRunLogFilter.ParseJobIds(jobId), wantRefresh, ct);
 
         await foreach (var line in logLines.ConfigureAwait(false)) {
+            var tParse = Stopwatch.GetTimestamp();
             parser.ParseLine(line, summary, sectionContents);
+            timer?.AddParse(Stopwatch.GetTimestamp() - tParse);
         }
 
         return (summary, sectionContents);

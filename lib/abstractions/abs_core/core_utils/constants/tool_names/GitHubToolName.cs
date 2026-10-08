@@ -488,6 +488,10 @@ public enum GitHubToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhCacheDelete,
 
+    [EnumValue("gh_cache_clear_log")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhCacheClearLog,
+
     // === Ruleset（仓库规则集）===
     [EnumValue("gh_ruleset_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]

@@ -19,6 +19,7 @@ public partial class GitHubToolHandlers {
     private readonly GitHubRunLogFetcher _logFetcher;
     private readonly GitHubRunLogFilterRunner? _logFilterRunner;
     private readonly GitHubRunLogCache? _logCacheService;
+    private readonly IKvStore? _kvStore;
 
     /// <summary>
     /// 日志过滤运行器 — 仅在 _apiClient 配置后可用(ExecuteGhAsync 已守卫)
@@ -65,6 +66,7 @@ public partial class GitHubToolHandlers {
         _logFetcher = new GitHubRunLogFetcher();
         _logFilterRunner = apiClient is not null ? new GitHubRunLogFilterRunner(apiClient, kvStore) : null;
         _logCacheService = apiClient is not null ? new GitHubRunLogCache(apiClient, fs, pipeline, logger) : null;
+        _kvStore = kvStore;
     }
 
     // === 共用辅助方法 ===

@@ -159,6 +159,28 @@ public partial class GitHubToolHandlers {
             return result.Success ? OkBrief(result.Body, $"已删除缓存 {cache_id}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
+    /// <summary>
+    /// 清理本地 LSM 日志缓存 — 立即扫描所有 gh: 前缀 key 并删除(含过期+未过期),用于验证链路或释放空间
+    /// <para>与 KvStoreTtlCleanupService 不同: 本命令立即删除全部,定时服务只删过期</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhCacheClearLog, "立即清理本地日志缓存(LSM-Tree,gh:前缀全部删除)", "github")]
+    public async Task<ToolResult> GhCacheClearLogAsync(
+        [McpToolParameter("仅删过期(默认 false=删全部 gh: 前缀)", Required = false)] bool? expired_only = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(null, null, cancellationToken, async (_, _, _) => {
+            if (_kvStore is null) return Fail("KV 存储未配置,无法清理");
+            var fromBytes = Encoding.UTF8.GetBytes("gh:");
+            var toBytes = Encoding.UTF8.GetBytes("gh;");
+            var deleted = 0;
+            var expiredOnly = expired_only == true;
+            await foreach (var (key, value) in _kvStore.ScanAsync(from: fromBytes, to: toBytes, ct: cancellationToken).ConfigureAwait(false)) {
+                if (expiredOnly && !KvStoreTtlExtensions.IsExpired(value)) continue;
+                await _kvStore.DeleteAsync(key, cancellationToken).ConfigureAwait(false);
+                deleted++;
+            }
+            return Ok($"已清理 {deleted} 个本地日志缓存条目{(expiredOnly ? "(仅过期)" : "(全部)")}。LSM 压实时物理释放空间。");
+        }).ConfigureAwait(false);
+
     // === Ruleset（仓库规则集）===
 
     /// <summary>

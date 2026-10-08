@@ -235,3 +235,39 @@ AI 首屏即可看到:run 失败了 + 哪个 job 失败 + 怎么拉日志,一次
 **改动文件**: `kit/mcp/git_hub/GitHubToolHandlers.cs` — 构造函数删 `pipeline` 参数 + 43处测试调用批量移除第3参数(Python 脚本 `remove_pipeline_param.py`)
 
 **设计决策**: `GitHubToolHandlers` 改用 LSM 持久化,文件缓存管道(`IPersistencePipeline`)不再需要。接口本身保留(其他消费者: `TodoService`/`TeamMemoryPathStore`/`StructuredOutputToolHandler` 等)
+
+### 优化E8: 缓存读取续期(GetWithTtlAndRenewAsync)
+
+**改动文件**: `lib/abstractions/abs_memory/file_io/KvStoreTtlExtensions.cs` — 新增 `GetWithTtlAndRenewAsync` 方法
+**测试**: `test/unit/infra.tests/services/pure/KvStoreTtlExtensionsTests.cs` — 11个测试(含3个续期测试)
+
+**设计决策**: 缓存被读取说明还有用,命中时用 `renewTtl` 重新写入延长生命周期,避免热点 key 被清理服务回收。续期下沉到 `KvStoreTtlExtensions` 底层扩展,消费方传 `renewTtl=null` 可跳过续期。`GitHubRunLogFilterRunner` 3处缓存读取改为续期版本。
+
+### 优化E9: API 响应缓存迁移到 LSM
+
+**改动文件**: `kit/mcp/git_hub/GitHubToolHandlers.cs` — `TryGetGhCache`/`SaveGhCache` 改为 LSM 版本(`gh:api:` 前缀,TTL 1h+续期),`GetCacheDir` 移除
+**移走**: `GitHubRunCachePaths.cs` + `GitHubRunCachePathsTests.cs` → `.xxx/`
+
+**设计决策**: `gh pr/issue/repo view --verbosity 2` 的 API 响应缓存从文件系统迁移到 LSM,统一所有缓存到 LSM。文件缓存路径工具 `GitHubRunCachePaths` 不再有消费者,移走归档。
+
+### 全链路验证(2026-10-08)
+
+| 链路 | miss | hit | 加速 |
+|------|------|-----|------|
+| `expand=steps` | 11.5s | 5.8s | 2x |
+| `expand=failed` | 11s | 6.7s | 1.6x |
+| clear→miss→hit | 19.5s | 5.4s | 3.6x |
+| `gh pr view --verbosity 2` | 5.1s | 3.5s | 1.4x |
+
+所有缓存统一走 LSM(`gh:log:`/`gh:jobs:`/`gh:api:`),续期功能生效,TTL 7天(日志)/1h(API 响应)。
+
+### 缓存 key 总览
+
+| key 格式 | 用途 | TTL | 续期 |
+|----------|------|-----|------|
+| `gh:log:{runId}:{jobId}` | 单 job 日志 | 7天 | ✅ |
+| `gh:log:{runId}:run` | 整个 run 日志 | 7天 | ✅ |
+| `gh:jobs:{runId}` | 失败 job ID 列表 | 7天 | ✅ |
+| `gh:api:{cacheKey}` | API 响应(pr/issue/repo view) | 1小时 | ✅ |
+
+清理服务 `KvStoreTtlCleanupService` 扫描所有 `gh:` 前缀,30s 首检/24h 周期。`gh cache clear-log` 立即清理全部 `gh:` 前缀。

@@ -47,6 +47,28 @@ public static class KvStoreTtlExtensions {
     }
 
     /// <summary>
+    /// 读取带 TTL 的缓存值并续期 — 命中时用 renewTtl 重新写入,延长缓存生命周期
+    /// <para>缓存被读取说明还有用,续期避免热点 key 被清理服务回收</para>
+    /// <para>过期或不存在返回 null(不续期)</para>
+    /// </summary>
+    /// <param name="store">KV 存储</param>
+    /// <param name="key">键</param>
+    /// <param name="renewTtl">续期的存活时间(null=不续期,等价于 GetWithTtlAsync)</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>内容字节(未过期),null(不存在或已过期)</returns>
+    public static async ValueTask<byte[]?> GetWithTtlAndRenewAsync(
+        this IKvStore store, byte[] key, TimeSpan? renewTtl, CancellationToken ct = default) {
+        var wrapped = await store.GetAsync(key, ct).ConfigureAwait(false);
+        if (wrapped is null || wrapped.Length < TimestampSize) return null;
+        if (IsExpired(wrapped)) return null;
+        var content = wrapped[TimestampSize..];
+        if (renewTtl is not null) {
+            await store.PutWithTtlAsync(key, content, renewTtl, ct).ConfigureAwait(false);
+        }
+        return content;
+    }
+
+    /// <summary>
     /// 检查 wrapped value 是否已过期(前 8 字节时间戳 vs 当前时间)
     /// </summary>
     /// <param name="wrappedValue">带时间戳的值(从 ScanAsync 获取)</param>

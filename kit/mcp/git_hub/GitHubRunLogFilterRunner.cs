@@ -53,7 +53,7 @@ internal sealed class GitHubRunLogFilterRunner {
         var jobsCacheKey = Encoding.UTF8.GetBytes($"gh:jobs:{runId}");
 
         if (!wantRefresh && _kvStore is not null) {
-            var cached = await _kvStore.GetWithTtlAsync(jobsCacheKey, ct).ConfigureAwait(false);
+            var cached = await _kvStore.GetWithTtlAndRenewAsync(jobsCacheKey, CacheTtl, ct).ConfigureAwait(false);
             if (cached is not null) return ParseCachedJobIds(cached);
         }
 
@@ -161,7 +161,7 @@ internal sealed class GitHubRunLogFilterRunner {
 
         // 1. 查 LSM 缓存(wantRefresh 时跳过)
         if (!wantRefresh && _kvStore is not null) {
-            var cached = await _kvStore.GetWithTtlAsync(cacheKey, ct).ConfigureAwait(false);
+            var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
             if (cached is not null) {
                 foreach (var line in ParseCachedLines(cached)) yield return line;
                 yield break;
@@ -199,7 +199,7 @@ internal sealed class GitHubRunLogFilterRunner {
 
         // 1. 查 LSM 缓存(wantRefresh 时跳过)
         if (!wantRefresh && _kvStore is not null) {
-            var cached = await _kvStore.GetWithTtlAsync(cacheKey, ct).ConfigureAwait(false);
+            var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
             if (cached is not null) {
                 foreach (var line in ParseCachedLines(cached)) yield return line;
                 yield break;

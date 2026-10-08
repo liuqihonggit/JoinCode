@@ -222,12 +222,12 @@ public partial class GitHubToolHandlers {
             return Ok(FilterJsonFields(result0.Body, json_fields));
         }
         if (verbosity == 2) {
-            var cached = TryGetGhCache(cacheKey);
+            var cached = await TryGetGhCacheAsync(cacheKey, ct).ConfigureAwait(false);
             if (cached is not null) return Ok(cached);
         }
         var result = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        SaveGhCache(cacheKey, result.Body);
+        await SaveGhCacheAsync(cacheKey, result.Body, ct).ConfigureAwait(false);
         return Ok(verbosity switch {
             2 => result.Body,
             1 => FilterJsonFields(result.Body, compactFields ?? "id,number,title,state,name"),
@@ -426,44 +426,33 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 尝试读取 GitHub 工具缓存 — verbose=true 时优先用缓存节约 API
+    /// 尝试读取 GitHub 工具缓存 — verbose=true 时优先用缓存节约 API(LSM-Tree,gh:api: 前缀)
     /// </summary>
-    private string? TryGetGhCache(string cacheKey) {
-        var cacheDir = GetCacheDir(null);
-#pragma warning disable JCC9001
-        var cachePath = Path.Combine(cacheDir, cacheKey);
-        if (!File.Exists(cachePath))
-            return null;
+    private async Task<string?> TryGetGhCacheAsync(string cacheKey, CancellationToken ct) {
+        if (_kvStore is null) return null;
         try {
-            return File.ReadAllText(cachePath);
+            var key = Encoding.UTF8.GetBytes($"gh:api:{cacheKey}");
+            var cached = await _kvStore.GetWithTtlAndRenewAsync(key, TimeSpan.FromHours(1), ct).ConfigureAwait(false);
+            return cached is null ? null : Encoding.UTF8.GetString(cached);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to read gh cache {Key}", cacheKey);
             return null;
         }
-#pragma warning restore JCC9001
     }
 
     /// <summary>
-    /// 保存 GitHub 工具缓存 — 默认调用时更新缓存保证数据新鲜
+    /// 保存 GitHub 工具缓存 — 写入 LSM-Tree(gh:api: 前缀,TTL 1小时)
     /// </summary>
-    private void SaveGhCache(string cacheKey, string json) {
-        var cacheDir = GetCacheDir(null);
-#pragma warning disable JCC9001
-        Directory.CreateDirectory(cacheDir);
-        var cachePath = Path.Combine(cacheDir, cacheKey);
+    private async Task SaveGhCacheAsync(string cacheKey, string json, CancellationToken ct) {
+        if (_kvStore is null) return;
         try {
-            File.WriteAllText(cachePath, json);
+            var key = Encoding.UTF8.GetBytes($"gh:api:{cacheKey}");
+            var bytes = Encoding.UTF8.GetBytes(json);
+            await _kvStore.PutWithTtlAsync(key, bytes, TimeSpan.FromHours(1), ct).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to save gh cache {Key}", cacheKey);
         }
-#pragma warning restore JCC9001
     }
-
-    /// <summary>
-    /// 获取缓存目录路径 — {workingDir}/.jcc/gh_cache/ 或 {cwd}/.jcc/gh_cache/
-    /// <para>项目级缓存,跨进程共享,24h 过期</para>
-    /// </summary>
-    private string GetCacheDir(string? workingDir) => GitHubRunCachePaths.GetCacheDir(_fs, workingDir);
 
     /// <summary>
     /// 将源 JsonElement 的指定属性原样复制到 Utf8JsonWriter — AOT 友好(无反射/emit)

@@ -166,12 +166,12 @@ public partial class GitHubToolHandlers {
 
         // === filter=failed: 智能过滤测试失败(状态机提取 Failed+Error+StackTrace,Rust 风格输出) ===
         if (string.Equals(filter, "failed", StringComparison.OrdinalIgnoreCase)) {
-            return await FilterFailedTestsAsync(owner, repoName, run_id, job_id, maxLines, skip, cancellationToken).ConfigureAwait(false);
+            return await FilterFailedTestsAsync(owner, repoName, run_id, job_id, maxLines, skip, wantRefresh, cancellationToken).ConfigureAwait(false);
         }
 
-        // === expand=failed: 只拉失败步骤日志(量少,不缓存) ===
+        // === expand=failed: 只拉失败步骤日志(走 LSM 缓存,wantRefresh 可强制刷新) ===
         if (string.Equals(expand, "failed", StringComparison.OrdinalIgnoreCase)) {
-            return await StreamAndFilterAsync(owner, repoName, run_id, job_id, true, "失败步骤", markers, filterLevel, maxLines, cancellationToken, GitHubRunLogHints.FailedHint, skip).ConfigureAwait(false);
+            return await StreamAndFilterAsync(owner, repoName, run_id, job_id, true, "失败步骤", markers, filterLevel, maxLines, cancellationToken, GitHubRunLogHints.FailedHint, skip, wantRefresh).ConfigureAwait(false);
         }
 
         // === expand=steps 或 expand=step:Name: 两级缓存(ADR 0067) ===
@@ -226,7 +226,7 @@ public partial class GitHubToolHandlers {
 
         if (wantLog) {
             // log=true: 用 REST API 日志流 + 过滤/分页
-            return await StreamAndFilterAsync(owner, repoName, run_id, job_id, false, "日志", markers, filterLevel, maxLines, cancellationToken, GitHubRunLogHints.LogHint, skip).ConfigureAwait(false);
+            return await StreamAndFilterAsync(owner, repoName, run_id, job_id, false, "日志", markers, filterLevel, maxLines, cancellationToken, GitHubRunLogHints.LogHint, skip, wantRefresh).ConfigureAwait(false);
         }
 
         // log=false: 获取 run 详情,根据 verbosity 选择输出格式
@@ -407,9 +407,9 @@ public partial class GitHubToolHandlers {
     /// <para>用于 expand=failed 模式,只拉 conclusion=failure 的 job 日志</para>
     /// </summary>
     private IAsyncEnumerable<string> GetFailedJobLogsAsync(
-        string owner, string repo, string runId,
+        string owner, string repo, string runId, bool wantRefresh,
         CancellationToken ct)
-        => LogFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, ct);
+        => LogFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, wantRefresh, ct);
     /// <summary>
     /// 智能过滤测试失败行 — 状态机提取 Failed + Error Message + Stack Trace,Rust 风格输出
     /// <para>状态机: Normal → InFailedTest(遇到 Failed/[FAIL]) → InErrorMessage(Error Message:) → InStackTrace(Stack Trace:) → Normal</para>
@@ -417,18 +417,18 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private Task<ToolResult> FilterFailedTestsAsync(
         string owner, string repo, string runId, string? jobId,
-        int maxLines, int skipLines, CancellationToken ct)
-        => LogFilterRunner.FilterFailedTestsAsync(owner, repo, runId, jobId, maxLines, skipLines, ct);
+        int maxLines, int skipLines, bool wantRefresh, CancellationToken ct)
+        => LogFilterRunner.FilterFailedTestsAsync(owner, repo, runId, jobId, maxLines, skipLines, wantRefresh, ct);
 
     /// <summary>
-    /// 流式拉取 + 过滤 + 分页跳过(不缓存,用于 --log-failed 或一次性过滤)
+    /// 流式拉取 + 过滤 + 分页跳过 — 全部日志源走 LSM 缓存,wantRefresh=true 跳过缓存读
     /// <para>日志源: failedOnly=true → 失败 job 日志; jobId 有值 → 单 job 日志; 否则 → 整个 run 日志</para>
     /// </summary>
     private Task<ToolResult> StreamAndFilterAsync(
         string owner, string repo, string runId, string? jobId, bool failedOnly,
         string scope, FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
-        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0)
-        => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines);
+        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false)
+        => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines, wantRefresh);
 
     /// <summary>
     /// 重跑 Actions Run — 默认只重跑失败的 job，支持 debug 日志和指定 job 重跑，调 REST API POST rerun-failed-jobs/rerun-jobs/rerun
@@ -542,7 +542,7 @@ public partial class GitHubToolHandlers {
 
         var sb = new StringBuilder();
         var lineCount = 0;
-        await foreach (var line in _logFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, ct).ConfigureAwait(false)) {
+        await foreach (var line in _logFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, false, ct).ConfigureAwait(false)) {
             sb.AppendLine(line);
             lineCount++;
         }

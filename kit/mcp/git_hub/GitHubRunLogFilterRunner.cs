@@ -29,26 +29,27 @@ internal sealed class GitHubRunLogFilterRunner {
     /// 获取指定 Run 中所有失败 job 的日志 — 逐行 yield(合并多个 job 日志)
     /// <para>用于 expand=failed 模式,只拉 conclusion=failure 的 job 日志</para>
     /// <para>jobs list 缓存: key=gh:jobs:{runId},缓存失败 job ID 列表(已完成 run 的 job 列表不可变)</para>
+    /// <para>wantRefresh=true 时跳过缓存读(仍写缓存),用于 rerun 后避免脏数据</para>
     /// </summary>
     public async IAsyncEnumerable<string> GetFailedJobLogsAsync(
-        string owner, string repo, string runId,
+        string owner, string repo, string runId, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
-        var failedJobIds = await GetOrFetchFailedJobIdsAsync(owner, repo, runId, ct).ConfigureAwait(false);
+        var failedJobIds = await GetOrFetchFailedJobIdsAsync(owner, repo, runId, wantRefresh, ct).ConfigureAwait(false);
         if (failedJobIds.Count == 0) yield break;
 
-        await foreach (var line in DownloadJobsParallelAsync(owner, repo, runId, failedJobIds, ct).ConfigureAwait(false)) {
+        await foreach (var line in DownloadJobsParallelAsync(owner, repo, runId, failedJobIds, wantRefresh, ct).ConfigureAwait(false)) {
             yield return line;
         }
     }
 
     /// <summary>
     /// 获取失败 job ID 列表 — 优先命中 LSM 缓存(key=gh:jobs:{runId}),未命中则调 API 并缓存
-    /// <para>已完成 run 的 job 列表不可变,可安全缓存;进行中 run 每次调 API(不缓存)</para>
+    /// <para>已完成 run 的 job 列表不可变,可安全缓存;wantRefresh=true 跳过缓存读(仍写缓存)</para>
     /// </summary>
-    private async Task<List<long>> GetOrFetchFailedJobIdsAsync(string owner, string repo, string runId, CancellationToken ct) {
+    private async Task<List<long>> GetOrFetchFailedJobIdsAsync(string owner, string repo, string runId, bool wantRefresh, CancellationToken ct) {
         var jobsCacheKey = Encoding.UTF8.GetBytes($"gh:jobs:{runId}");
 
-        if (_kvStore is not null) {
+        if (!wantRefresh && _kvStore is not null) {
             var cached = await _kvStore.GetAsync(jobsCacheKey, ct).ConfigureAwait(false);
             if (cached is not null) return ParseCachedJobIds(cached);
         }
@@ -94,15 +95,16 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <para>并行时各 job 行交错合并到 Channel,总时间 ≈ max(各 job) 而非 sum</para>
     /// <para>AGENTS.md 死锁处理规范: Actor 邮箱模型(消息传递替代共享锁)</para>
     /// <para>日志缓存: 复用 IKvStore(LSM-Tree),key=gh:log:{runId}:{jobId},首次下载→后续命中</para>
+    /// <para>wantRefresh=true 时跳过缓存读(仍写缓存),用于 rerun 后避免脏数据</para>
     /// </summary>
     private async IAsyncEnumerable<string> DownloadJobsParallelAsync(
-        string owner, string repo, string runId, IReadOnlyList<long> jobIds,
+        string owner, string repo, string runId, IReadOnlyList<long> jobIds, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
         if (jobIds.Count == 0) yield break;
 
         // 单 job: 走缓存(避免 Channel 开销)
         if (jobIds.Count == 1) {
-            await foreach (var line in GetOrFetchJobLogsAsync(owner, repo, runId, jobIds[0], ct).ConfigureAwait(false)) {
+            await foreach (var line in GetOrFetchJobLogsAsync(owner, repo, runId, jobIds[0], wantRefresh, ct).ConfigureAwait(false)) {
                 yield return line;
             }
             yield break;
@@ -114,7 +116,7 @@ internal sealed class GitHubRunLogFilterRunner {
 
         var tasks = jobIds.Select(async jobId => {
             try {
-                await foreach (var line in GetOrFetchJobLogsAsync(owner, repo, runId, jobId, ct).ConfigureAwait(false)) {
+                await foreach (var line in GetOrFetchJobLogsAsync(owner, repo, runId, jobId, wantRefresh, ct).ConfigureAwait(false)) {
                     await writer.WriteAsync(line, ct).ConfigureAwait(false);
                 }
             } catch (OperationCanceledException) {
@@ -142,14 +144,15 @@ internal sealed class GitHubRunLogFilterRunner {
     /// 获取单个 job 日志 — 优先命中 IKvStore(LSM-Tree)缓存,未命中则下载并写入缓存
     /// <para>key=gh:log:{runId}:{jobId},value=日志全文(UTF-8),首次下载→后续命中避免重复下载</para>
     /// <para>缓存命中时按行分割逐行 yield;未命中时先下载到 List 再写缓存再 yield(保证缓存完整写入)</para>
+    /// <para>wantRefresh=true 时跳过缓存读(仍写缓存),用于 rerun 后避免脏数据</para>
     /// </summary>
     private async IAsyncEnumerable<string> GetOrFetchJobLogsAsync(
-        string owner, string repo, string runId, long jobId,
+        string owner, string repo, string runId, long jobId, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
         var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{runId}:{jobId}");
 
-        // 1. 查 LSM 缓存
-        if (_kvStore is not null) {
+        // 1. 查 LSM 缓存(wantRefresh 时跳过)
+        if (!wantRefresh && _kvStore is not null) {
             var cached = await _kvStore.GetAsync(cacheKey, ct).ConfigureAwait(false);
             if (cached is not null) {
                 foreach (var line in ParseCachedLines(cached)) yield return line;
@@ -163,7 +166,45 @@ internal sealed class GitHubRunLogFilterRunner {
             lines.Add(line);
         }
 
-        // 3. 写入 LSM 缓存(fire-and-forget 不阻塞 yield)
+        // 3. 写入 LSM 缓存
+        if (_kvStore is not null && lines.Count > 0) {
+            var text = string.Join('\n', lines);
+            var bytes = Encoding.UTF8.GetBytes(text);
+            await _kvStore.PutAsync(cacheKey, bytes, ct).ConfigureAwait(false);
+        }
+
+        // 4. 逐行 yield
+        foreach (var line in lines) {
+            yield return line;
+        }
+    }
+
+    /// <summary>
+    /// 获取整个 Run 日志 — 优先命中 IKvStore(LSM-Tree)缓存,未命中则下载并写入缓存
+    /// <para>key=gh:log:{runId}:run,value=日志全文(UTF-8),首次下载→后续命中避免重复下载</para>
+    /// <para>wantRefresh=true 时跳过缓存读(仍写缓存),用于 rerun 后避免脏数据</para>
+    /// </summary>
+    private async IAsyncEnumerable<string> GetOrFetchRunLogsAsync(
+        string owner, string repo, string runId, bool wantRefresh,
+        [EnumeratorCancellation] CancellationToken ct) {
+        var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{runId}:run");
+
+        // 1. 查 LSM 缓存(wantRefresh 时跳过)
+        if (!wantRefresh && _kvStore is not null) {
+            var cached = await _kvStore.GetAsync(cacheKey, ct).ConfigureAwait(false);
+            if (cached is not null) {
+                foreach (var line in ParseCachedLines(cached)) yield return line;
+                yield break;
+            }
+        }
+
+        // 2. 缓存未命中: 下载所有行到 List
+        var lines = new List<string>();
+        await foreach (var line in _apiClient.GetRunLogsAsync(owner, repo, long.Parse(runId), ct).ConfigureAwait(false)) {
+            lines.Add(line);
+        }
+
+        // 3. 写入 LSM 缓存
         if (_kvStore is not null && lines.Count > 0) {
             var text = string.Join('\n', lines);
             var bytes = Encoding.UTF8.GetBytes(text);
@@ -191,15 +232,15 @@ internal sealed class GitHubRunLogFilterRunner {
     /// </summary>
     public async Task<ToolResult> FilterFailedTestsAsync(
         string owner, string repo, string runId, string? jobId,
-        int maxLines, int skipLines, CancellationToken ct) {
-        // 获取日志行枚举源(优先失败 job,其次指定 job,最后整个 run)
+        int maxLines, int skipLines, bool wantRefresh, CancellationToken ct) {
+        // 获取日志行枚举源(优先失败 job,其次指定 job,最后整个 run)— 全部走缓存
         IAsyncEnumerable<string> logLines;
         if (string.IsNullOrWhiteSpace(jobId)) {
-            logLines = GetFailedJobLogsAsync(owner, repo, runId, ct);
+            logLines = GetFailedJobLogsAsync(owner, repo, runId, wantRefresh, ct);
         } else if (long.TryParse(jobId, out var jobIdLong)) {
-            logLines = _apiClient.GetJobLogsAsync(owner, repo, jobIdLong, ct);
+            logLines = GetOrFetchJobLogsAsync(owner, repo, runId, jobIdLong, wantRefresh, ct);
         } else {
-            logLines = _apiClient.GetRunLogsAsync(owner, repo, long.Parse(runId), ct);
+            logLines = GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct);
         }
 
         // 状态机解析
@@ -226,30 +267,30 @@ internal sealed class GitHubRunLogFilterRunner {
 
 
     /// <summary>
-    /// 流式拉取 + 过滤 + 分页跳过(不缓存,用于 --log-failed 或一次性过滤)
+    /// 流式拉取 + 过滤 + 分页跳过 — 全部日志源走 LSM 缓存,wantRefresh=true 跳过缓存读
     /// <para>日志源: failedOnly=true → 失败 job 日志; jobId 有值 → 单 job 日志; 否则 → 整个 run 日志</para>
     /// </summary>
     public async Task<ToolResult> StreamAndFilterAsync(
         string owner, string repo, string runId, string? jobId, bool failedOnly,
         string scope, FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
-        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0) {
+        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false) {
         var matched = new List<string>(maxLines);
         var skipped = 0;
         var lineNumber = 0;
 
-        // 获取日志行枚举源
+        // 获取日志行枚举源 — 全部走缓存
         IAsyncEnumerable<string> logLines;
         if (failedOnly) {
-            logLines = GetFailedJobLogsAsync(owner, repo, runId, ct);
+            logLines = GetFailedJobLogsAsync(owner, repo, runId, wantRefresh, ct);
         } else if (!string.IsNullOrWhiteSpace(jobId)) {
             // 支持逗号分隔多个 job_id 并行下载,如 "123,456"(统一走 DownloadJobsParallelAsync)
             var jobIds = GitHubRunLogFilter.ParseJobIds(jobId);
             if (jobIds.Count == 0) {
                 return GitHubToolHandlers.Fail($"无效的 Job ID: {jobId}");
             }
-            logLines = DownloadJobsParallelAsync(owner, repo, runId, jobIds, ct);
-        } else if (long.TryParse(runId, out var runIdLong)) {
-            logLines = _apiClient.GetRunLogsAsync(owner, repo, runIdLong, ct);
+            logLines = DownloadJobsParallelAsync(owner, repo, runId, jobIds, wantRefresh, ct);
+        } else if (long.TryParse(runId, out _)) {
+            logLines = GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct);
         } else {
             return GitHubToolHandlers.Fail($"无效的 Run ID: {runId}");
         }
@@ -265,7 +306,7 @@ internal sealed class GitHubRunLogFilterRunner {
                 // 先跳过 skipLines 行(分页续读)
                 if (skipped < skipLines) { skipped++; continue; }
                 // 加行号前缀,方便定位(去时间戳减少噪音)
-                matched.Add($"  L{lineNumber,5}  {GitHubRunLogText.StripLogTimestamp(line)}");
+                matched.Add($"{lineNumber}: {GitHubRunLogText.StripLogTimestamp(line)}");
                 if (matched.Count >= maxLines) break;
             }
         }
@@ -304,7 +345,7 @@ internal sealed class GitHubRunLogFilterRunner {
 
         await foreach (var line in logLines.ConfigureAwait(false)) {
             lineNumber++;
-            var formatted = $"  L{lineNumber,5}  {GitHubRunLogText.StripLogTimestamp(line)}";
+            var formatted = $"{lineNumber}: {GitHubRunLogText.StripLogTimestamp(line)}";
             if (foundError) {
                 if (skipped < skipLines) { skipped++; continue; }
                 matched.Add(formatted);

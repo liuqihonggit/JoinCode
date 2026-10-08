@@ -18,7 +18,6 @@ public partial class GitHubToolHandlers {
     private readonly ILogger<GitHubToolHandlers>? _logger;
     private readonly GitHubRunLogFetcher _logFetcher;
     private readonly GitHubRunLogFilterRunner? _logFilterRunner;
-    private readonly GitHubRunLogCache? _logCacheService;
     private readonly IKvStore? _kvStore;
 
     /// <summary>
@@ -26,12 +25,6 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private GitHubRunLogFilterRunner LogFilterRunner =>
         _logFilterRunner ?? throw new InvalidOperationException("日志过滤运行器未初始化(API 客户端未配置)");
-
-    /// <summary>
-    /// 日志缓存服务 — 仅在 _apiClient 配置后可用(ExecuteGhAsync 已守卫)
-    /// </summary>
-    private GitHubRunLogCache LogCacheService =>
-        _logCacheService ?? throw new InvalidOperationException("日志缓存服务未初始化(API 客户端未配置)");
 
     /// <summary>
     /// 统一持久化管道 — 异步串行写缓存文件到 .jcc/gh_cache/,不阻塞调用方
@@ -65,7 +58,6 @@ public partial class GitHubToolHandlers {
         _logger = logger;
         _logFetcher = new GitHubRunLogFetcher();
         _logFilterRunner = apiClient is not null ? new GitHubRunLogFilterRunner(apiClient, kvStore) : null;
-        _logCacheService = apiClient is not null ? new GitHubRunLogCache(apiClient, fs, pipeline, logger) : null;
         _kvStore = kvStore;
     }
 

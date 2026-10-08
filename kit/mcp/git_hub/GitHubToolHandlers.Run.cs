@@ -376,29 +376,19 @@ public partial class GitHubToolHandlers {
 
 
     /// <summary>
-    /// 从 Level1 摘要缓存获取或流式拉取 — 三级缓存: MemoryCache → 文件级缓存(.jcc/gh_cache/) → 下载
-    /// <para>文件级缓存跨进程共享,updatedAt 验证检测 rerun 脏数据,Actor 管道异步写入不阻塞</para>
-    /// <para>ADR 0067 两级缓存 + 文件级持久化: 摘要(轻量)+内容(大量行)按 section 独立缓存</para>
+    /// 从 LSM 缓存读取日志并解析为 RunLogSummary — 复用 LSM 日志缓存,实时解析
+    /// <para>替代旧 GitHubRunLogCache(MemoryCache+文件三级缓存),日志已在 LSM 中解析是纯 CPU</para>
     /// </summary>
     private Task<RunLogSummary?> GetOrFetchSummaryAsync(string owner, string repo, string runId, string? jobId, string? workingDir, bool refresh, CancellationToken ct)
-        => LogCacheService.GetOrFetchSummaryAsync(owner, repo, runId, jobId, workingDir, refresh, ct);
+        => LogFilterRunner.GetOrFetchSummaryAsync(owner, repo, runId, jobId, refresh, ct);
 
     /// <summary>
-    /// 从 Level2 内容缓存获取指定 section 的日志行 — MemoryCache → 触发 Level1 填充 → 文件 raw 补填 → 再读
-    /// <para>内存压力时 Level2 可被独立驱逐,下次访问时通过 Level1 触发从 .raw 文件重新解析填充</para>
-    /// <para>Bug 修复: Level1 MemoryCache 命中时不填充 Level2,需从文件缓存 raw 补填</para>
+    /// 从 LSM 缓存读取日志并解析指定 section 的行列表 — 复用 LSM 日志缓存,实时解析
     /// </summary>
     private Task<List<string>?> GetOrFetchSectionAsync(
         string owner, string repo, string runId, string? jobId, string stepName, string sectionType,
         string? workingDir, bool refresh, CancellationToken ct)
-        => LogCacheService.GetOrFetchSectionAsync(owner, repo, runId, jobId, stepName, sectionType, workingDir, refresh, ct);
-
-    /// <summary>
-    /// 从 GitHub REST API 获取 Run 的 updated_at — 用于检测 rerun 后日志是否更新
-    /// <para>轻量 API 调用(不下载日志),&lt; 1s</para>
-    /// </summary>
-    private Task<string?> FetchUpdatedAtAsync(string owner, string repo, string runId, CancellationToken ct)
-        => LogCacheService.FetchUpdatedAtAsync(owner, repo, runId, ct);
+        => LogFilterRunner.GetOrFetchSectionAsync(owner, repo, runId, jobId, stepName, sectionType, refresh, ct);
 
 
 

@@ -234,6 +234,52 @@ internal sealed class GitHubRunLogFilterRunner {
     }
 
     /// <summary>
+    /// 从 LSM 缓存读取日志并解析为 RunLogSummary — 复用 DownloadJobsParallelAsync/GetOrFetchRunLogsAsync(LSM 缓存)
+    /// <para>替代旧 GitHubRunLogCache.GetOrFetchSummaryAsync(MemoryCache+文件三级缓存)</para>
+    /// <para>日志已在 LSM 中(本地磁盘),GitHubLogParser 解析是纯 CPU(O(n) 行数),无需单独缓存 summary</para>
+    /// </summary>
+    public async Task<RunLogSummary?> GetOrFetchSummaryAsync(
+        string owner, string repo, string runId, string? jobId,
+        bool wantRefresh, CancellationToken ct) {
+        var (summary, _) = await ParseLogsToSummaryAsync(owner, repo, runId, jobId, wantRefresh, ct).ConfigureAwait(false);
+        return summary;
+    }
+
+    /// <summary>
+    /// 从 LSM 缓存读取日志并解析指定 section 的行列表 — 复用 LSM 缓存,实时解析
+    /// <para>替代旧 GitHubRunLogCache.GetOrFetchSectionAsync(MemoryCache→Level1 填充→文件 raw 补填)</para>
+    /// </summary>
+    public async Task<List<string>?> GetOrFetchSectionAsync(
+        string owner, string repo, string runId, string? jobId,
+        string stepName, string sectionType,
+        bool wantRefresh, CancellationToken ct) {
+        var (_, sections) = await ParseLogsToSummaryAsync(owner, repo, runId, jobId, wantRefresh, ct).ConfigureAwait(false);
+        return sections.TryGetValue(stepName, out var secs) && secs.TryGetValue(sectionType, out var secLines)
+            ? secLines : null;
+    }
+
+    /// <summary>
+    /// 统一日志下载+解析 — 从 LSM 缓存读日志行,GitHubLogParser 解析为 summary + sectionContents
+    /// <para>jobId 为空→整个 run 日志;jobId 有值→指定 job(s)(支持逗号分隔并行下载)</para>
+    /// </summary>
+    private async Task<(RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sections)> ParseLogsToSummaryAsync(
+        string owner, string repo, string runId, string? jobId, bool wantRefresh, CancellationToken ct) {
+        var summary = new RunLogSummary { RunId = runId, JobId = jobId };
+        var sectionContents = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
+        var parser = new GitHubLogParser();
+
+        var logLines = string.IsNullOrWhiteSpace(jobId)
+            ? GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct)
+            : DownloadJobsParallelAsync(owner, repo, runId, GitHubRunLogFilter.ParseJobIds(jobId), wantRefresh, ct);
+
+        await foreach (var line in logLines.ConfigureAwait(false)) {
+            parser.ParseLine(line, summary, sectionContents);
+        }
+
+        return (summary, sectionContents);
+    }
+
+    /// <summary>
     /// 智能过滤测试失败行 — 状态机提取 Failed + Error Message + Stack Trace,Rust 风格输出
     /// <para>状态机: Normal → InFailedTest(遇到 Failed/[FAIL]) → InErrorMessage(Error Message:) → InStackTrace(Stack Trace:) → Normal</para>
     /// <para>输出: 每个失败测试用 --> line N 指示, | 管道符标注日志行, = 总结行</para>

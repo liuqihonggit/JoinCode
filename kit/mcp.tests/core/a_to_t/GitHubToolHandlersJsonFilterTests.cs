@@ -109,6 +109,21 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"state\"");
     }
 
+    /// <summary>gh CLI 平铺字段别名: headRefName→head.ref, headRefOid→head.sha, baseRefName→base.ref, baseRefOid→base.sha</summary>
+    [Fact]
+    public async Task PrView_WithJson_HeadRefName_FlattensNestedField() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":7,"title":"pr","state":"open","head":{"ref":"feature-branch","sha":"abc123"},"base":{"ref":"main","sha":"def456"}}""" };
+
+        var result = await _handler.GhPrViewAsync("7", json_fields: "headRefName,headRefOid,baseRefName,baseRefOid", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText()!;
+        text.Should().Contain("\"headRefName\":\"feature-branch\"");
+        text.Should().Contain("\"headRefOid\":\"abc123\"");
+        text.Should().Contain("\"baseRefName\":\"main\"");
+        text.Should().Contain("\"baseRefOid\":\"def456\"");
+    }
+
     [Fact]
     public async Task IssueView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":3,"title":"issue","state":"open","body":"desc"}""" };

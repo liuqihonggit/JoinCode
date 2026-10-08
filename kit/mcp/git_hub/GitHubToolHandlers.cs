@@ -317,6 +317,7 @@ public partial class GitHubToolHandlers {
 
     /// <summary>
     /// 写入过滤后的 JSON 对象 — 只包含指定字段
+    /// <para>支持 gh CLI 平铺字段别名（如 headRefName→head.ref），与系统 gh --json 行为对齐</para>
     /// </summary>
     private static void WriteFilteredObject(Utf8JsonWriter writer, JsonElement element, string[] fields) {
         writer.WriteStartObject();
@@ -324,9 +325,30 @@ public partial class GitHubToolHandlers {
             if (element.TryGetProperty(field, out var value)) {
                 writer.WritePropertyName(field);
                 value.WriteTo(writer);
+                continue;
+            }
+            if (TryResolveFlattenedAlias(element, field, out var flattened)) {
+                writer.WritePropertyName(field);
+                flattened.WriteTo(writer);
             }
         }
         writer.WriteEndObject();
+    }
+
+    /// <summary>
+    /// gh CLI 平铺字段别名解析 — 系统 gh CLI 用 --json headRefName 时从嵌套 head.ref 提取并平铺输出
+    /// <para>映射: headRefName→head.ref, headRefOid→head.sha, baseRefName→base.ref, baseRefOid→base.sha</para>
+    /// <para>宽容: 字段名忽略大小写，匹配 gh CLI 习惯</para>
+    /// </summary>
+    private static bool TryResolveFlattenedAlias(JsonElement element, string field, out JsonElement value) {
+        value = default;
+        string parent, child;
+        if (field.Equals("headRefName", StringComparison.OrdinalIgnoreCase)) { parent = "head"; child = "ref"; }
+        else if (field.Equals("headRefOid", StringComparison.OrdinalIgnoreCase)) { parent = "head"; child = "sha"; }
+        else if (field.Equals("baseRefName", StringComparison.OrdinalIgnoreCase)) { parent = "base"; child = "ref"; }
+        else if (field.Equals("baseRefOid", StringComparison.OrdinalIgnoreCase)) { parent = "base"; child = "sha"; }
+        else return false;
+        return element.TryGetProperty(parent, out var p) && p.TryGetProperty(child, out value);
     }
 
     /// <summary>

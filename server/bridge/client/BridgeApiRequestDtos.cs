@@ -85,3 +85,32 @@ internal sealed class BridgeDeviceTokenResponse {
     [JsonPropertyName("device_token")]
     public string? DeviceToken { get; init; }
 }
+
+/// <summary>Bridge 创建代码会话请求体 — POST /v1/code/sessions</summary>
+internal sealed class BridgeCreateCodeSessionRequest {
+    /// <summary>标题</summary>
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = "";
+    /// <summary>bridge 占位对象(空对象)</summary>
+    [JsonPropertyName("bridge")]
+    public object? Bridge { get; init; } = new();
+    /// <summary>标签列表(可选,null 时 WhenWritingNull 忽略)</summary>
+#pragma warning disable JCC11002
+    [JsonPropertyName("tags")]
+    public List<string>? Tags { get; init; }
+#pragma warning restore JCC11002
+}
+
+/// <summary>Bridge 代码会话响应 — 提取 session.id</summary>
+internal sealed class BridgeCodeSessionResponse {
+    /// <summary>session 节点</summary>
+    [JsonPropertyName("session")]
+    public BridgeCodeSessionIdResponse? Session { get; init; }
+}
+
+/// <summary>Bridge 代码会话 ID 响应</summary>
+internal sealed class BridgeCodeSessionIdResponse {
+    /// <summary>会话 ID(cse_ 前缀)</summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; init; }
+}

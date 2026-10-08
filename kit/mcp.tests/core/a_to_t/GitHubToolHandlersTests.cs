@@ -684,7 +684,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RunView_LogWithWarningFilter_ReturnsErrorAndWarningLines() {
         _api.NextLogLines = "##[error]err\n##[warning]warn\n##[command]cmd\nnormal".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("42", log: true, filter: "warning", max_lines: 10, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error,warning", max_lines: 10, repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();

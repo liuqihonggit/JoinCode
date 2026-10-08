@@ -14,10 +14,10 @@ public sealed class GitHubRunLogFilterTests {
     }
 
     [Fact]
-    public void GetFilterMarkers_Warning_ContainsErrorAndWarning() {
+    public void GetFilterMarkers_Warning_ContainsOnlyWarning() {
         var markers = GitHubRunLogFilter.GetFilterMarkers(GitHubLogFilter.Warning);
-        markers.Should().Contain("##[error]");
         markers.Should().Contain("##[warning]");
+        markers.Should().NotContain("##[error]");
         markers.Should().NotContain("##[command]");
     }
 
@@ -30,11 +30,28 @@ public sealed class GitHubRunLogFilterTests {
     }
 
     [Fact]
-    public void GetFilterMarkers_All_FallsBackToError() {
-        // All 不在 switch 的前三分支,走默认 _ => ErrorMarkers
+    public void GetFilterMarkers_All_ContainsAllMarkers() {
         var markers = GitHubRunLogFilter.GetFilterMarkers(GitHubLogFilter.All);
         markers.Should().Contain("##[error]");
-        markers.Should().NotContain("##[warning]");
+        markers.Should().Contain("##[warning]");
+        markers.Should().Contain("##[command]");
+        markers.Should().Contain("[FAIL]");
+        markers.Should().Contain("Exception:");
+    }
+
+    [Fact]
+    public void GetFilterMarkers_Failed_ContainsFailMarkers() {
+        var markers = GitHubRunLogFilter.GetFilterMarkers(GitHubLogFilter.Failed);
+        markers.Should().Contain("[FAIL]");
+        markers.Should().Contain("  Failed ");
+        markers.Should().NotContain("##[error]");
+    }
+
+    [Fact]
+    public void GetFilterMarkers_Combined_ErrorAndFailed() {
+        var markers = GitHubRunLogFilter.GetFilterMarkers(GitHubLogFilter.Error | GitHubLogFilter.Failed);
+        markers.Should().Contain("##[error]");
+        markers.Should().Contain("[FAIL]");
     }
 
     [Theory]
@@ -42,7 +59,19 @@ public sealed class GitHubRunLogFilterTests {
     [InlineData("warning", GitHubLogFilter.Warning)]
     [InlineData("info", GitHubLogFilter.Info)]
     [InlineData("all", GitHubLogFilter.All)]
+    [InlineData("failed", GitHubLogFilter.Failed)]
+    [InlineData("exception", GitHubLogFilter.Exception)]
     public void TryParseLogFilter_ValidStrings_ReturnsTrue(string input, GitHubLogFilter expected) {
+        var ok = GitHubRunLogFilter.TryParseLogFilter(input, out var result);
+        ok.Should().BeTrue();
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("error,failed", GitHubLogFilter.Error | GitHubLogFilter.Failed)]
+    [InlineData("error,exception", GitHubLogFilter.Error | GitHubLogFilter.Exception)]
+    [InlineData("error,warning,failed", GitHubLogFilter.Error | GitHubLogFilter.Warning | GitHubLogFilter.Failed)]
+    public void TryParseLogFilter_Combinated_ReturnsBitwiseOr(string input, GitHubLogFilter expected) {
         var ok = GitHubRunLogFilter.TryParseLogFilter(input, out var result);
         ok.Should().BeTrue();
         result.Should().Be(expected);
@@ -56,7 +85,7 @@ public sealed class GitHubRunLogFilterTests {
     public void TryParseLogFilter_InvalidStrings_ReturnsFalse(string? input) {
         var ok = GitHubRunLogFilter.TryParseLogFilter(input, out var result);
         ok.Should().BeFalse();
-        result.Should().Be(GitHubLogFilter.All);
+        result.Should().Be(GitHubLogFilter.None);
     }
 
     [Fact]

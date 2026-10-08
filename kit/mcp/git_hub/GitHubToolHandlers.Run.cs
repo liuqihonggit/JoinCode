@@ -157,7 +157,7 @@ public partial class GitHubToolHandlers {
         var wantRefresh = refresh == true;
         // MCP 框架可能把缺失的 string? 参数传成空字符串,统一归一化为 null
         job_id = string.IsNullOrWhiteSpace(job_id) ? null : job_id;
-        var hasFilter = GitHubRunLogFilter.TryParseLogFilter(filter, out var filterLevel) && filterLevel != GitHubLogFilter.All;
+        var hasFilter = GitHubRunLogFilter.TryParseLogFilter(filter, out var filterLevel) && filterLevel != GitHubLogFilter.None;
         var markers = hasFilter ? GitHubRunLogFilter.GetFilterMarkers(filterLevel) : null;
 
         // === expand=jobs: 列出 job 列表(不下载日志,轻量 API 调用) ===

@@ -1,23 +1,40 @@
 namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
-/// GitHub Actions 日志过滤级别 — 用于 gh_run_view 的 filter 参数，流式过滤减少返回量
-/// <para>GitHub Actions 日志标记：##[error] / ##[warning] / ##[command] / ##[group]</para>
+/// GitHub Actions 日志过滤级别 — [Flags] 位标志,AI 可逗号分隔组合(如 --filter error,failed)
+/// <para>每个位代表一类结构化标记,组合时按位或: error,failed = Error|Failed</para>
+/// <para>None=不过滤返回全部; All=所有标记都匹配</para>
 /// </summary>
+[Flags]
 public enum GitHubLogFilter {
-    /// <summary>仅错误行(含 ##[error])</summary>
+    /// <summary>不过滤,返回全部日志</summary>
+    None = 0,
+
+    /// <summary>##[error] — GitHub Actions 错误标记</summary>
     [EnumValue("error")]
-    Error,
+    Error = 1,
 
-    /// <summary>错误+警告行(含 ##[error] / ##[warning])</summary>
+    /// <summary>##[warning] — GitHub Actions 警告标记</summary>
     [EnumValue("warning")]
-    Warning,
+    Warning = 2,
 
-    /// <summary>错误+警告+命令行(含 ##[error] / ##[warning] / ##[command])</summary>
+    /// <summary>##[command] — GitHub Actions 命令标记</summary>
+    [EnumValue("command")]
+    Command = 4,
+
+    /// <summary>[FAIL] / "  Failed " — 测试失败标记</summary>
+    [EnumValue("failed")]
+    Failed = 8,
+
+    /// <summary>Exception: — 异常抛出(带冒号,避免匹配测试名)</summary>
+    [EnumValue("exception")]
+    Exception = 16,
+
+    /// <summary>error+warning+command 组合(向后兼容)</summary>
     [EnumValue("info")]
-    Info,
+    Info = Error | Warning | Command,
 
-    /// <summary>不过滤，返回全部日志</summary>
+    /// <summary>所有标记都匹配</summary>
     [EnumValue("all")]
-    All,
+    All = Error | Warning | Command | Failed | Exception,
 }

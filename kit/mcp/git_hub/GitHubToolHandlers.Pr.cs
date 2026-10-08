@@ -251,12 +251,13 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("watch 模式轮询直到完成(可选)", Required = false)] bool? watch = null,
         [McpToolParameter("轮询间隔秒数(可选,默认 10)", Required = false)] int? interval = null,
         [McpToolParameter("有失败立即标记(可选)", Required = false)] bool? fail_fast = null,
+        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 name,status,conclusion,details_url)", Required = false)] string? json_fields = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             if (watch == true) return await GhPrChecksWatchAsync(client, owner, repoName, pr_number, interval, fail_fast, required, cancellationToken).ConfigureAwait(false);
-            return await GhPrChecksCoreAsync(client, owner, repoName, pr_number, fail_fast, required, cancellationToken).ConfigureAwait(false);
+            return await GhPrChecksCoreAsync(client, owner, repoName, pr_number, fail_fast, required, json_fields, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -265,7 +266,7 @@ public partial class GitHubToolHandlers {
     private async Task<ToolResult> GhPrChecksWatchAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, int? intervalSec, bool? failFast, bool? required, CancellationToken ct) {
         var delay = TimeSpan.FromSeconds(Math.Clamp(intervalSec ?? 10, 1, 300));
         for (var i = 0; i < 120; i++) {
-            var checkResult = await GhPrChecksCoreAsync(client, owner, repoName, prNumber, failFast, required, ct).ConfigureAwait(false);
+            var checkResult = await GhPrChecksCoreAsync(client, owner, repoName, prNumber, failFast, required, null, ct).ConfigureAwait(false);
             if (checkResult.IsError) return checkResult;
             var text = checkResult.GetFirstText() ?? "";
             if (!text.Contains("进行中")) return checkResult;
@@ -352,7 +353,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// GhPrChecks 核心逻辑 — 调 REST API 获取 check-runs,正确处理 skipping 语义(非失败),支持 required 过滤和 fail-fast 标记
     /// </summary>
-    private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, bool? failFast, bool? required, CancellationToken ct) {
+    private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, bool? failFast, bool? required, string? json_fields, CancellationToken ct) {
         var number = ParseNumberFromRef(prNumber);
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return Fail(prResult.Error);
@@ -370,6 +371,8 @@ public partial class GitHubToolHandlers {
             paginate: true,
             ct: ct).ConfigureAwait(false);
         if (!checksResult.Success) return Fail(checksResult.Error);
+        if (!string.IsNullOrEmpty(json_fields))
+            return Ok(FilterJsonFields(checksResult.Body, json_fields));
         var requiredContexts = required == true && !string.IsNullOrEmpty(headRef)
             ? await GetRequiredStatusChecksAsync(client, owner, repoName, headRef!, ct).ConfigureAwait(false)
             : null;

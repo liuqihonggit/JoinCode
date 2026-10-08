@@ -328,7 +328,7 @@ public class ResponsesQueryService : QueryServiceBase {
             TopP = settings?.TopP,
             MaxOutputTokens = settings?.MaxTokens,
             Instructions = instructions,
-            Input = JsonSerializer.SerializeToElement(inputItems, NativeJsonContext.Default.ListResponsesInputItemDto)
+            Input = JsonSerializer.SerializeToElement(inputItems, NativeJsonContext.Safe.ListResponsesInputItemDto)
         };
 
         if (settings?.EffortLevel is not null) {
@@ -452,7 +452,7 @@ public class ResponsesQueryService : QueryServiceBase {
             Required = required.Count > 0 ? required : null,
         };
 
-        return JsonSerializer.SerializeToElement(schema, NativeJsonContext.Default.JsonSchemaDto);
+        return JsonSerializer.SerializeToElement(schema, NativeJsonContext.Safe.JsonSchemaDto);
     }
 
     /// <summary>Tool 结果消息 → function_call_output item DTO</summary>

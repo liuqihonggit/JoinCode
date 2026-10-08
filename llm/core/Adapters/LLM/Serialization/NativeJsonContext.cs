@@ -36,4 +36,17 @@ namespace Api.LLM;
 [JsonSerializable(typeof(List<ResponsesInputItemDto>))]
 [JsonSerializable(typeof(JsonSchemaDto))]
 [JsonSerializable(typeof(JsonSchemaPropertyDto))]
-internal partial class NativeJsonContext : JsonSerializerContext;
+internal partial class NativeJsonContext : JsonSerializerContext {
+
+    private static readonly Lazy<NativeJsonContext> s_safe = new(() => new NativeJsonContext(
+        new JsonSerializerOptions(Default!.Options)
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            TypeInfoResolver = Default!
+        }));
+
+    /// <summary>
+    /// 带 UnsafeRelaxedJsonEscaping 的上下文 — 不转义中文等非 ASCII 字符
+    /// </summary>
+    public static NativeJsonContext Safe => s_safe.Value;
+}

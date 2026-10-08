@@ -38,9 +38,12 @@ internal sealed class CacheGitHubApiClient : IGitHubApiClient {
     /// <summary>带缓存的 GET 请求 — 先读 LSM(命中续期),未命中调内层+写缓存</summary>
     private async Task<GitHubApiResponse> SendWithCacheAsync(
         string path, IReadOnlyDictionary<string, string>? query, CancellationToken ct) {
+        var tracker = GhTimingTracker.CurrentTimer.Value;
+        if (tracker?.CacheDisabled == true)
+            return await _inner.SendAsync(HttpMethod.Get, path, null, query, false, ct).ConfigureAwait(false);
+
         var cacheKey = BuildCacheKey(path, query);
         var keyBytes = Encoding.UTF8.GetBytes(cacheKey);
-        var tracker = GhTimingTracker.CurrentTimer.Value;
 
         try {
             var readStart = Stopwatch.GetTimestamp();

@@ -209,7 +209,7 @@ public partial class GitHubToolHandlers {
     /// 守卫编排模板 — client 检查 + owner/repo 解析,失败短路返回错误,成功执行 apiCall(client, owner, repo)
     /// <para>消除 21 处重复的 client 检查 + ResolveOwnerRepoAsync 样板,主方法只写 API 调用核心逻辑</para>
     /// <para>client 作为参数传入 apiCall,调用方直接用 client 而非 _apiClient!,消除空抑制</para>
-    /// <para>统一计时: 创建 GhTimingTracker + 用 TimingGitHubApiClient 包装 client + 附加耗时到输出</para>
+    /// <para>计时由 GhSubCommand 入口统一创建 tracker,此处只编排 client 检查 + owner/repo 解析 + apiCall</para>
     /// </summary>
     private async Task<ToolResult> ExecuteGhAsync(
         string? repo, string? workingDir, CancellationToken ct,
@@ -219,16 +219,8 @@ public partial class GitHubToolHandlers {
         if (resolved is null) return RepoNotResolved();
         var (owner, repoName) = resolved.Value;
 
-        var tracker = new GhTimingTracker();
-        var prevTimer = GhTimingTracker.CurrentTimer.Value;
-        GhTimingTracker.CurrentTimer.Value = tracker;
-        try {
-            var result = await apiCall(_apiClient, owner, repoName).ConfigureAwait(false);
-            result.TimingInfo = tracker.Format();
-            return result;
-        } finally {
-            GhTimingTracker.CurrentTimer.Value = prevTimer;
-        }
+        // tracker 由 GhSubCommand 入口统一创建,timing 由 GhSubCommand 统一输出
+        return await apiCall(_apiClient, owner, repoName).ConfigureAwait(false);
     }
 
     /// <summary>

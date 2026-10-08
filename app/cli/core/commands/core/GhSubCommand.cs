@@ -50,8 +50,17 @@ internal static class GhSubCommand {
             foreach (var (key, value) in bound)
                 argDict[key] = await McpCliCommand.ParseValueToJsonElementAsync(value, key).ConfigureAwait(false);
 
-            var result = await registry.ExecuteToolAsync(resolved.ToolName, argDict, ct).ConfigureAwait(false);
-            return McpCliCommand.OutputResult(result, resolved.Json);
+            var noCache = Array.IndexOf(args, "--no-cache") >= 0;
+            var tracker = new GhTimingTracker { CacheDisabled = noCache };
+            var prevTimer = GhTimingTracker.CurrentTimer.Value;
+            GhTimingTracker.CurrentTimer.Value = tracker;
+            try {
+                var result = await registry.ExecuteToolAsync(resolved.ToolName, argDict, ct).ConfigureAwait(false);
+                result.TimingInfo = tracker.Format();
+                return McpCliCommand.OutputResult(result, resolved.Json);
+            } finally {
+                GhTimingTracker.CurrentTimer.Value = prevTimer;
+            }
         }, ct: ct).ConfigureAwait(false);
     }
 

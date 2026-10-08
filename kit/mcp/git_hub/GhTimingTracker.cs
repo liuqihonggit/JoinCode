@@ -6,9 +6,12 @@ namespace McpToolDispatch;
 /// <para>用法: 顶层方法创建 tracker → 设置 AsyncLocal → 底层方法读取 AsyncLocal 打点 → 顶层读取 Format()</para>
 /// <para>计时用 Stopwatch.GetTimestamp() 高精度计时器,Interlocked 累加 ticks,线程安全</para>
 /// </summary>
-internal sealed class GhTimingTracker {
-    /// <summary>AsyncLocal 传播 — ExecuteGhAsync 顶层设置后,装饰器/缓存/解析层读取打点</summary>
-    internal static readonly AsyncLocal<GhTimingTracker?> CurrentTimer = new();
+public sealed class GhTimingTracker {
+    /// <summary>AsyncLocal 传播 — GhSubCommand 入口设置后,装饰器/缓存/解析层读取打点</summary>
+    public static readonly AsyncLocal<GhTimingTracker?> CurrentTimer = new();
+
+    /// <summary>禁用缓存 — --no-cache 时设为 true,CacheGitHubApiClient 检查此标志跳过缓存</summary>
+    public bool CacheDisabled { get; set; }
 
     private long _networkTicks;
     private long _lsmReadTicks;

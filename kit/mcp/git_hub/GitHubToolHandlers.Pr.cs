@@ -43,8 +43,8 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string? ExtractHtmlUrl(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.TryGetProperty(GitHubJsonFields.HtmlUrl, out var el) ? el.GetString() : null;
+            var pr = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.PrDetailResponse);
+            return pr?.HtmlUrl;
         } catch {
             return null;
         }
@@ -144,8 +144,8 @@ public partial class GitHubToolHandlers {
             if (!prResult.Success) return Fail(prResult.Error);
             string? diffUrl;
             try {
-                using var doc = JsonDocument.Parse(prResult.Body);
-                diffUrl = doc.RootElement.TryGetProperty("diff_url", out var diffEl) ? diffEl.GetString() : null;
+                var prDetail = JsonSerializer.Deserialize(prResult.Body, GitHubApiJsonContext.Safe.PrDetailResponse);
+                diffUrl = prDetail?.DiffUrl;
             } catch (Exception ex) {
                 _logger?.LogDebug(ex, "解析 PR diff_url 失败");
                 diffUrl = null;
@@ -282,10 +282,9 @@ public partial class GitHubToolHandlers {
         if (!prResult.Success) return Fail(prResult.Error);
         string? headSha; string? headRef;
         try {
-            using var doc = JsonDocument.Parse(prResult.Body);
-            var head = doc.RootElement.GetProperty(GitHubJsonFields.Head);
-            headSha = head.GetProperty(GitHubJsonFields.Sha).GetString();
-            headRef = head.TryGetProperty(GitHubJsonFields.Ref, out var refEl) ? refEl.GetString() : null;
+            var prDetail = JsonSerializer.Deserialize(prResult.Body, GitHubApiJsonContext.Safe.PrDetailResponse);
+            headSha = prDetail?.Head?.Sha;
+            headRef = prDetail?.Head?.Ref;
         } catch (Exception ex) { return Fail($"解析 PR head sha 失败: {ex.Message}"); }
         if (string.IsNullOrEmpty(headSha)) return Fail("无法从 PR 响应中解析 head.sha");
         var checksResult = await client.SendAsync(
@@ -302,19 +301,21 @@ public partial class GitHubToolHandlers {
         var passCount = 0; var failCount = 0; var pendingCount = 0; var skipCount = 0;
         var checks = new List<(string name, string displayStatus)>();
         try {
-            using var doc = JsonDocument.Parse(checksResult.Body);
-            foreach (var run in doc.RootElement.GetProperty("check_runs").EnumerateArray()) {
-                var name = run.TryGetProperty(GitHubJsonFields.Name, out var nameEl) ? nameEl.GetString() ?? "" : "";
-                if (requiredContexts is not null && !requiredContexts.Contains(name)) continue;
-                var status = run.TryGetProperty(GitHubJsonFields.Conclusion, out var conclEl) ? conclEl.GetString() ?? "pending" : "pending";
-                var displayStatus = status switch {
-                    "success" => "pass",
-                    "failure" or "cancelled" or "timed_out" => "fail",
-                    "skipped" or "neutral" => "skipping",
-                    _ => "pending"
-                };
-                checks.Add((name, displayStatus));
-                switch (displayStatus) { case "pass": passCount++; break; case "fail": failCount++; break; case "pending": pendingCount++; break; case "skipping": skipCount++; break; }
+            var checksResp = JsonSerializer.Deserialize(checksResult.Body, GitHubApiJsonContext.Safe.CheckRunListResponse);
+            if (checksResp is not null) {
+                foreach (var run in checksResp.CheckRuns) {
+                    var name = run.Name;
+                    if (requiredContexts is not null && !requiredContexts.Contains(name)) continue;
+                    var status = run.Conclusion ?? "pending";
+                    var displayStatus = status switch {
+                        "success" => "pass",
+                        "failure" or "cancelled" or "timed_out" => "fail",
+                        "skipped" or "neutral" => "skipping",
+                        _ => "pending"
+                    };
+                    checks.Add((name, displayStatus));
+                    switch (displayStatus) { case "pass": passCount++; break; case "fail": failCount++; break; case "pending": pendingCount++; break; case "skipping": skipCount++; break; }
+                }
             }
         } catch (Exception ex) { return Fail($"解析 check-runs 失败: {ex.Message}"); }
 
@@ -349,12 +350,9 @@ public partial class GitHubToolHandlers {
         var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks", ct: ct).ConfigureAwait(false);
         if (!result.Success) return null;
         try {
-            using var doc = JsonDocument.Parse(result.Body);
-            if (doc.RootElement.TryGetProperty("contexts", out var contextsEl) && contextsEl.ValueKind == JsonValueKind.Array) {
-                var set = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var c in contextsEl.EnumerateArray()) if (c.ValueKind == JsonValueKind.String) set.Add(c.GetString()!);
-                return set;
-            }
+            var resp = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.RequiredStatusChecksResponse);
+            if (resp is not null && resp.Contexts.Count > 0)
+                return new HashSet<string>(resp.Contexts, StringComparer.Ordinal);
         } catch (Exception ex) { _logger?.LogDebug(ex, "解析 required_status_checks 失败"); }
         return null;
     }
@@ -386,8 +384,8 @@ public partial class GitHubToolHandlers {
         if (!prResult.Success) return Fail(prResult.Error);
         string? headSha;
         try {
-            using var doc = JsonDocument.Parse(prResult.Body);
-            headSha = doc.RootElement.GetProperty(GitHubJsonFields.Head).GetProperty(GitHubJsonFields.Sha).GetString();
+            var prDetail = JsonSerializer.Deserialize(prResult.Body, GitHubApiJsonContext.Safe.PrDetailResponse);
+            headSha = prDetail?.Head?.Sha;
         } catch (Exception ex) { return Fail($"解析 PR head sha 失败: {ex.Message}"); }
         if (string.IsNullOrEmpty(headSha)) return Fail("无法从 PR 响应中解析 head.sha");
         var timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds ?? 1800, 1, 7200));
@@ -424,14 +422,12 @@ public partial class GitHubToolHandlers {
 
         List<string> failedRunIds;
         try {
-            using var doc = JsonDocument.Parse(runsResult.Body);
+            var runsResp = JsonSerializer.Deserialize(runsResult.Body, GitHubApiJsonContext.Safe.WorkflowRunListResponse);
             failedRunIds = [];
-            if (doc.RootElement.TryGetProperty("workflow_runs", out var runsEl)) {
-                foreach (var r in runsEl.EnumerateArray()) {
-                    if (!r.TryGetProperty(GitHubJsonFields.Conclusion, out var c) || c.ValueKind != JsonValueKind.String || c.GetString() != "failure") continue;
-                    if (!r.TryGetProperty(GitHubJsonFields.Id, out var idEl)) continue;
-                    var id = idEl.GetRawText();
-                    if (id.Length > 0) failedRunIds.Add(id);
+            if (runsResp is not null) {
+                foreach (var r in runsResp.WorkflowRuns) {
+                    if (r.Conclusion != "failure") continue;
+                    if (r.Id.Length > 0) failedRunIds.Add(r.Id);
                 }
             }
         } catch {
@@ -502,8 +498,8 @@ public partial class GitHubToolHandlers {
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return ("", prResult.Error);
         try {
-            using var doc = JsonDocument.Parse(prResult.Body);
-            var nodeId = doc.RootElement.GetProperty(GitHubJsonFields.NodeId).GetString();
+            var prDetail = JsonSerializer.Deserialize(prResult.Body, GitHubApiJsonContext.Safe.PrDetailResponse);
+            var nodeId = prDetail?.NodeId;
             if (string.IsNullOrEmpty(nodeId)) return ("", "无法从 PR 响应中解析 node_id");
             return (nodeId, null);
         } catch (Exception ex) { return ("", $"解析 PR node_id 失败: {ex.Message}"); }
@@ -516,8 +512,8 @@ public partial class GitHubToolHandlers {
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/pulls/{number}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return;
         try {
-            using var doc = JsonDocument.Parse(prResult.Body);
-            var branchName = doc.RootElement.GetProperty(GitHubJsonFields.Head).GetProperty(GitHubJsonFields.Ref).GetString();
+            var prDetail = JsonSerializer.Deserialize(prResult.Body, GitHubApiJsonContext.Safe.PrDetailResponse);
+            var branchName = prDetail?.Head?.Ref;
             if (!string.IsNullOrEmpty(branchName)) await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repo}/git/refs/heads/{branchName}", ct: ct).ConfigureAwait(false);
         } catch (Exception ex) { _logger?.LogDebug(ex, "删除 PR 分支失败(非致命)"); }
     }
@@ -726,10 +722,8 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private (int Number, string? NodeId) ExtractPrInfoFromResponse(string body) {
         try {
-            using var doc = JsonDocument.Parse(body);
-            var number = doc.RootElement.TryGetProperty(GitHubJsonFields.Number, out var n) ? n.GetInt32() : 0;
-            var nodeId = doc.RootElement.TryGetProperty(GitHubJsonFields.NodeId, out var id) ? id.GetString() : null;
-            return (number, nodeId);
+            var pr = JsonSerializer.Deserialize(body, GitHubApiJsonContext.Safe.PrDetailResponse);
+            return (pr?.Number ?? 0, pr?.NodeId);
         } catch (Exception ex) { _logger?.LogDebug(ex, "解析 PR 信息失败"); return (0, null); }
     }
 
@@ -748,8 +742,8 @@ public partial class GitHubToolHandlers {
         string? projectId = null;
         if (projectResult.Success) {
             try {
-                using var doc = JsonDocument.Parse(projectResult.Body);
-                projectId = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty(GitHubJsonFields.Organization).GetProperty("projectV2").GetProperty(GitHubJsonFields.Id).GetString();
+                var orgResp = JsonSerializer.Deserialize(projectResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLOrganizationResponseProjectV2IdWrapperResponse);
+                projectId = orgResp?.Data?.Organization?.ProjectV2?.Id;
             } catch (Exception ex) { _logger?.LogDebug(ex, "解析 organization projectV2 id 失败"); }
         }
         if (string.IsNullOrEmpty(projectId)) {
@@ -757,8 +751,8 @@ public partial class GitHubToolHandlers {
             var viewerResult = await client.SendAsync(HttpMethod.Post, "graphql", viewerQuery, ct: ct).ConfigureAwait(false);
             if (viewerResult.Success) {
                 try {
-                    using var doc = JsonDocument.Parse(viewerResult.Body);
-                    projectId = doc.RootElement.GetProperty(GitHubJsonFields.Data).GetProperty("viewer").GetProperty("projectV2").GetProperty(GitHubJsonFields.Id).GetString();
+                    var viewerResp = JsonSerializer.Deserialize(viewerResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLViewerResponseProjectV2IdWrapperResponse);
+                    projectId = viewerResp?.Data?.Viewer?.ProjectV2?.Id;
                 } catch (Exception ex) { _logger?.LogDebug(ex, "解析 viewer projectV2 id 失败"); }
             }
         }
@@ -1089,10 +1083,10 @@ public partial class GitHubToolHandlers {
             string? headRef;
             string? baseRef;
             try {
-                using var doc = JsonDocument.Parse(prResult.Body);
-                mergeCommitSha = doc.RootElement.TryGetProperty("merge_commit_sha", out var mcs) ? mcs.GetString() : null;
-                headRef = doc.RootElement.TryGetProperty(GitHubJsonFields.Head, out var h) && h.TryGetProperty(GitHubJsonFields.Ref, out var hr) ? hr.GetString() : null;
-                baseRef = doc.RootElement.TryGetProperty("base", out var b) && b.TryGetProperty(GitHubJsonFields.Ref, out var br) ? br.GetString() : null;
+                var prDetail = JsonSerializer.Deserialize(prResult.Body, GitHubApiJsonContext.Safe.PrDetailResponse);
+                mergeCommitSha = prDetail?.MergeCommitSha;
+                headRef = prDetail?.Head?.Ref;
+                baseRef = prDetail?.Base?.Ref;
             } catch { mergeCommitSha = null; headRef = null; baseRef = null; }
             if (string.IsNullOrEmpty(mergeCommitSha)) return Fail($"PR {number} 尚未合并，无法 revert");
             var revertBranch = $"revert-{number}-{mergeCommitSha[..7]}";

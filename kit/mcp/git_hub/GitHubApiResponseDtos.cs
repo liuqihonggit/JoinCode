@@ -361,6 +361,9 @@ internal sealed class BranchRefResponse {
     /// <summary>分支名</summary>
     [JsonPropertyName("ref")]
     public string Ref { get; init; } = "";
+    /// <summary>commit SHA</summary>
+    [JsonPropertyName("sha")]
+    public string? Sha { get; init; }
 }
 
 /// <summary>标签引用(嵌套对象,只需 name)</summary>
@@ -377,6 +380,9 @@ internal sealed class PrDetailResponse {
     /// <summary>PR 编号</summary>
     [JsonPropertyName("number")]
     public int Number { get; init; }
+    /// <summary>node ID(GraphQL)</summary>
+    [JsonPropertyName("node_id")]
+    public string? NodeId { get; init; }
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -392,6 +398,12 @@ internal sealed class PrDetailResponse {
     /// <summary>可合并状态</summary>
     [JsonPropertyName("mergeable_state")]
     public string? MergeableState { get; init; }
+    /// <summary>合并提交 SHA</summary>
+    [JsonPropertyName("merge_commit_sha")]
+    public string? MergeCommitSha { get; init; }
+    /// <summary>diff URL</summary>
+    [JsonPropertyName("diff_url")]
+    public string? DiffUrl { get; init; }
     /// <summary>作者</summary>
     [JsonPropertyName("user")]
     public UserRefResponse? User { get; init; }
@@ -890,4 +902,51 @@ internal sealed class GraphQLOrganizationResponse<T> {
     /// <summary>organization 节点</summary>
     [JsonPropertyName("organization")]
     public T? Organization { get; init; }
+}
+
+// === CheckRun 响应 ===
+
+/// <summary>Check-run 列表响应 — GET /commits/{sha}/check-runs</summary>
+internal sealed class CheckRunListResponse {
+    /// <summary>check_runs 列表</summary>
+    [JsonPropertyName("check_runs")]
+    public List<CheckRunItemResponse> CheckRuns { get; init; } = new();
+}
+
+/// <summary>Check-run 项</summary>
+internal sealed class CheckRunItemResponse {
+    /// <summary>名称</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    /// <summary>结论(success/failure/cancelled/skipped/neutral/timed_out)</summary>
+    [JsonPropertyName("conclusion")]
+    public string? Conclusion { get; init; }
+}
+
+// === Required Status Checks 响应 ===
+
+/// <summary>Required status checks 响应 — GET /branches/{b}/protection/required_status_checks</summary>
+internal sealed class RequiredStatusChecksResponse {
+    /// <summary>contexts 列表</summary>
+    [JsonPropertyName("contexts")]
+    public List<string> Contexts { get; init; } = new();
+}
+
+// === Workflow Run 响应 ===
+
+/// <summary>Workflow run 列表响应 — GET /actions/runs</summary>
+internal sealed class WorkflowRunListResponse {
+    /// <summary>workflow_runs 列表</summary>
+    [JsonPropertyName("workflow_runs")]
+    public List<WorkflowRunItemResponse> WorkflowRuns { get; init; } = new();
+}
+
+/// <summary>Workflow run 项</summary>
+internal sealed class WorkflowRunItemResponse {
+    /// <summary>run ID</summary>
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = "";
+    /// <summary>结论</summary>
+    [JsonPropertyName("conclusion")]
+    public string? Conclusion { get; init; }
 }

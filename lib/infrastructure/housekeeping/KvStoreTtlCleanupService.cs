@@ -4,7 +4,7 @@ namespace Infrastructure.Housekeeping;
 /// KV 存储 TTL 定期清理服务 — 扫描指定前缀的 key,删除已过期的条目(带 8 字节时间戳前缀的 value)。
 /// <para>默认每 24 小时执行一次,首次延迟 10 分钟。扫描前缀由 KeyPrefixes 指定(如 ["gh:"])。</para>
 /// <para>过期判定: KvStoreTtlExtensions.IsExpired(value) — 前 8 字节 UTC Ticks vs 当前时间。</para>
-/// <para>清理方式: DeleteAsync(key) — 写入墓碑标记,LSM 压实时物理删除。</para>
+    /// <para>清理方式: DeleteAsync(key) — 写入墓碑标记,LSM 压实(compaction)时物理回收。</para>
 /// <para>注册: [Register(typeof(IHostedService), ServiceLifetime.Singleton)] — 由源码生成器自动扫描</para>
 /// </summary>
 [Register(typeof(IHostedService), ServiceLifetime.Singleton)]

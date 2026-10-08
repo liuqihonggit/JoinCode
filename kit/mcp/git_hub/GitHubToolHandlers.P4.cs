@@ -178,7 +178,7 @@ public partial class GitHubToolHandlers {
                 await _kvStore.DeleteAsync(key, cancellationToken).ConfigureAwait(false);
                 deleted++;
             }
-            return Ok($"已清理 {deleted} 个本地日志缓存条目{(expiredOnly ? "(仅过期)" : "(全部)")}。LSM 压实时物理释放空间。");
+            return Ok($"已清理 {deleted} 个本地日志缓存条目{(expiredOnly ? "(仅过期)" : "(全部)")}。");
         }).ConfigureAwait(false);
 
     // === Ruleset（仓库规则集）===

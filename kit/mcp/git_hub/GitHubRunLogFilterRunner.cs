@@ -114,10 +114,13 @@ internal sealed class GitHubRunLogFilterRunner {
         }
 
         // 多 job: Channel 并行合并(Actor 邮箱模型),每个 job 走缓存
+        // 并发限制 8,避免 GitHub API 二级限速(对齐旧系统 TryDownloadJobsAsync)
         var channel = Channel.CreateUnbounded<string>();
         var writer = channel.Writer;
+        using var semaphore = new SemaphoreSlim(8);
 
         var tasks = jobIds.Select(async jobId => {
+            await semaphore.WaitAsync(ct).ConfigureAwait(false);
             try {
                 await foreach (var line in GetOrFetchJobLogsAsync(owner, repo, runId, jobId, wantRefresh, ct).ConfigureAwait(false)) {
                     await writer.WriteAsync(line, ct).ConfigureAwait(false);
@@ -126,6 +129,8 @@ internal sealed class GitHubRunLogFilterRunner {
                 // 取消: 静默退出,channel 由外部完成
             } catch (Exception ex) {
                 await writer.WriteAsync($"[ERROR] job {jobId}: {ex.Message}", CancellationToken.None).ConfigureAwait(false);
+            } finally {
+                semaphore.Release();
             }
         }).ToArray();
 

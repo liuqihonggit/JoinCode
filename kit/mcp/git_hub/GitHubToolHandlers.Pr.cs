@@ -34,10 +34,9 @@ public partial class GitHubToolHandlers {
                 if (!commentsResult.Success) return Fail(commentsResult.Error);
                 return Ok($"{summary}\n\n## 评论\n{SummarizeComments(commentsResult.Body)}");
             }
-            var cacheKey = BuildGhCacheKey("gh_pr_view", $"{owner}/{repoName}/{number}");
             if (!string.IsNullOrEmpty(json_fields) && json_fields.Contains("statusCheckRollup", StringComparison.OrdinalIgnoreCase))
                 return await GetPrViewWithRollupAsync(client, owner, repoName, number, json_fields, cancellationToken).ConfigureAwait(false);
-            return await GetOrFetchWithCacheAsync(client, cacheKey, apiPath, verbosity, json_fields, SummarizePr, "number,title,state,head_branch,user,html_url", cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, apiPath, verbosity, json_fields, SummarizePr, "number,title,state,head_branch,user,html_url", cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>

@@ -44,12 +44,25 @@ public partial class GitHubToolHandlers {
         IKvStore? kvStore = null) {
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _apiClient = apiClient;
+        _apiClient = ComposeGhPipeline(apiClient, kvStore, logger);
         _git = git;
         _logger = logger;
         _logFetcher = new GitHubRunLogFetcher();
-        _logFilterRunner = apiClient is not null ? new GitHubRunLogFilterRunner(apiClient, kvStore) : null;
+        _logFilterRunner = _apiClient is not null ? new GitHubRunLogFilterRunner(_apiClient, kvStore) : null;
         _kvStore = kvStore;
+    }
+
+    /// <summary>
+    /// 组装 gh API 客户端装饰器管道 — GitHubApiClient → CacheGitHubApiClient → TimingGitHubApiClient
+    /// <para>可插拔: kvStore=null 剥离缓存层;apiClient=null 返回 null</para>
+    /// <para>所有 handler(无论是否通过 ExecuteGhAsync)统一通过此管道,自动获得缓存+计时</para>
+    /// </summary>
+    private static IGitHubApiClient? ComposeGhPipeline(IGitHubApiClient? inner, IKvStore? kvStore, ILogger? logger) {
+        if (inner is null) return null;
+        var pipeline = inner;
+        if (kvStore is not null) pipeline = new CacheGitHubApiClient(pipeline, kvStore, logger);
+        pipeline = new TimingGitHubApiClient(pipeline);
+        return pipeline;
     }
 
     // === 共用辅助方法 ===
@@ -210,8 +223,7 @@ public partial class GitHubToolHandlers {
         var prevTimer = GhTimingTracker.CurrentTimer.Value;
         GhTimingTracker.CurrentTimer.Value = tracker;
         try {
-            var timedClient = new TimingGitHubApiClient(_apiClient, _kvStore, _logger);
-            var result = await apiCall(timedClient, owner, repoName).ConfigureAwait(false);
+            var result = await apiCall(_apiClient, owner, repoName).ConfigureAwait(false);
             result.TimingInfo = tracker.Format();
             return result;
         } finally {
@@ -220,26 +232,17 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// verbosity 三档缓存模板 — verbosity=2 优先读缓存,未命中或 verbosity=0/1 调 API,成功后写缓存,按 verbosity 决定输出格式
-    /// <para>消除 GhPrView/GhIssueView/GhRepoView 三处相同的缓存读写样板</para>
-    /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON(从缓存读)</para>
+    /// verbosity 三档输出模板 — 调 API 取数据,按 verbosity 决定输出格式
+    /// <para>缓存由 CacheGitHubApiClient 装饰器统一处理,此处只管输出格式</para>
+    /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON</para>
     /// </summary>
     private async Task<ToolResult> GetOrFetchWithCacheAsync(
-        IGitHubApiClient client, string cacheKey, string apiPath, int? verbosity,
+        IGitHubApiClient client, string apiPath, int? verbosity,
         string? json_fields, Func<string, string> summarize, string? compactFields,
         CancellationToken ct) {
-        if (!string.IsNullOrEmpty(json_fields)) {
-            var result0 = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
-            if (!result0.Success) return Fail(result0.Error);
-            return Ok(FilterJsonFields(result0.Body, json_fields));
-        }
-        if (verbosity == 2) {
-            var cached = await TryGetGhCacheAsync(cacheKey, ct).ConfigureAwait(false);
-            if (cached is not null) return Ok(cached);
-        }
         var result = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        await SaveGhCacheAsync(cacheKey, result.Body, ct).ConfigureAwait(false);
+        if (!string.IsNullOrEmpty(json_fields)) return Ok(FilterJsonFields(result.Body, json_fields));
         return Ok(verbosity switch {
             2 => result.Body,
             1 => FilterJsonFields(result.Body, compactFields ?? "id,number,title,state,name"),
@@ -456,51 +459,7 @@ public partial class GitHubToolHandlers {
         }
     }
 
-    /// <summary>
-    /// 构建 GitHub 工具缓存 key — {toolName}_{SHA256(argsJson)[..8]}.json
-    /// </summary>
-    private static string BuildGhCacheKey(string toolName, string argsJson) {
-        var hashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(argsJson));
-        var hashHex = Convert.ToHexString(hashBytes)[..8].ToLowerInvariant();
-        return $"{toolName}_{hashHex}.json";
-    }
 
-    /// <summary>
-    /// 尝试读取 GitHub 工具缓存 — verbose=true 时优先用缓存节约 API(LSM-Tree,gh:api: 前缀)
-    /// </summary>
-    private async Task<string?> TryGetGhCacheAsync(string cacheKey, CancellationToken ct) {
-        if (_kvStore is null) return null;
-        var tracker = GhTimingTracker.CurrentTimer.Value;
-        try {
-            var key = Encoding.UTF8.GetBytes($"gh:api:{cacheKey}");
-            var start = Stopwatch.GetTimestamp();
-            var cached = await _kvStore.GetWithTtlAndRenewAsync(key, TimeSpan.FromHours(1), ct).ConfigureAwait(false);
-            tracker?.AddLsmRead(Stopwatch.GetTimestamp() - start);
-            if (cached is null) { tracker?.RecordMiss(); return null; }
-            tracker?.RecordHit();
-            return Encoding.UTF8.GetString(cached);
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, "Failed to read gh cache {Key}", cacheKey);
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// 保存 GitHub 工具缓存 — 写入 LSM-Tree(gh:api: 前缀,TTL 1小时)
-    /// </summary>
-    private async Task SaveGhCacheAsync(string cacheKey, string json, CancellationToken ct) {
-        if (_kvStore is null) return;
-        var tracker = GhTimingTracker.CurrentTimer.Value;
-        try {
-            var key = Encoding.UTF8.GetBytes($"gh:api:{cacheKey}");
-            var bytes = Encoding.UTF8.GetBytes(json);
-            var start = Stopwatch.GetTimestamp();
-            await _kvStore.PutWithTtlAsync(key, bytes, TimeSpan.FromHours(1), ct).ConfigureAwait(false);
-            tracker?.AddLsmWrite(Stopwatch.GetTimestamp() - start);
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, "Failed to save gh cache {Key}", cacheKey);
-        }
-    }
 
     /// <summary>
     /// 将源 JsonElement 的指定属性原样复制到 Utf8JsonWriter — AOT 友好(无反射/emit)

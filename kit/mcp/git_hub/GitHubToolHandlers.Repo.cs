@@ -26,8 +26,7 @@ public partial class GitHubToolHandlers {
                 if (!string.IsNullOrWhiteSpace(branch)) url += $"/tree/{branch}";
                 return Ok(url);
             }
-            var cacheKey = BuildGhCacheKey("gh_repo_view", $"{owner}/{repoName}");
-            return await GetOrFetchWithCacheAsync(client, cacheKey, $"repos/{owner}/{repoName}", verbosity, json_fields, SummarizeRepo, "name,full_name,description,language,default_branch,html_url", cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, $"repos/{owner}/{repoName}", verbosity, json_fields, SummarizeRepo, "name,full_name,description,language,default_branch,html_url", cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>

@@ -6,14 +6,14 @@ public sealed partial class GitHubToolHandlersTests {
 
     public GitHubToolHandlersTests() {
         MemoryCache.Default.Trim(100);
-        _handler = new GitHubToolHandlers(new FakeDownloader(), new InMemoryFileSystem(), _api, null, NullLogger<GitHubToolHandlers>.Instance, new InMemoryKvStore());
+        _handler = new GitHubToolHandlers(new FakeDownloader(), new InMemoryFileSystem(), _api, null, NullLogger<GitHubToolHandlers>.Instance);
     }
 
     private static GitHubToolHandlers CreateHandlerWithGit(IGitCommandRunner git)
-        => new(new FakeDownloader(), new InMemoryFileSystem(), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance, new InMemoryKvStore());
+        => new(new FakeDownloader(), new InMemoryFileSystem(), new FakeGitHubApiClient(), git, NullLogger<GitHubToolHandlers>.Instance);
 
     private static GitHubToolHandlers CreateHandlerWithGitAndApi(IGitCommandRunner git, FakeGitHubApiClient api)
-        => new(new FakeDownloader(), new InMemoryFileSystem(), api, git, NullLogger<GitHubToolHandlers>.Instance, new InMemoryKvStore());
+        => new(new FakeDownloader(), new InMemoryFileSystem(), api, git, NullLogger<GitHubToolHandlers>.Instance);
 
     [Fact]
     public async Task PrView_Success_ReturnsOutput() {

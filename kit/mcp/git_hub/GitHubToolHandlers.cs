@@ -210,7 +210,7 @@ public partial class GitHubToolHandlers {
         var prevTimer = GhTimingTracker.CurrentTimer.Value;
         GhTimingTracker.CurrentTimer.Value = tracker;
         try {
-            var timedClient = new TimingGitHubApiClient(_apiClient);
+            var timedClient = new TimingGitHubApiClient(_apiClient, _kvStore, _logger);
             var result = await apiCall(timedClient, owner, repoName).ConfigureAwait(false);
             result.TimingInfo = tracker.Format();
             return result;

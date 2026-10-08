@@ -100,27 +100,16 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeReleaseView(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
+            var release = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ReleaseResponse);
+            if (release is null) return json;
             var sb = new StringBuilder(256);
-            var tagName = root.TryGetProperty(GitHubJsonFields.TagName, out var t) ? t.GetString() ?? "" : "";
-            var name = root.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-            var draft = root.TryGetProperty(GitHubJsonFields.Draft, out var d) && d.GetBoolean();
-            var prerelease = root.TryGetProperty("prerelease", out var p) && p.GetBoolean();
-            var url = root.TryGetProperty(GitHubJsonFields.HtmlUrl, out var u) ? u.GetString() ?? "" : "";
-
-            sb.AppendLine($"Release: {name} ({tagName})");
-            if (draft) sb.AppendLine("Draft: yes");
-            if (prerelease) sb.AppendLine("Prerelease: yes");
-            if (!string.IsNullOrEmpty(url)) sb.AppendLine($"URL: {url}");
-
-            if (root.TryGetProperty(GitHubJsonFields.Assets, out var assets) && assets.ValueKind == JsonValueKind.Array) {
-                sb.AppendLine($"Assets ({assets.GetArrayLength()}):");
-                foreach (var asset in assets.EnumerateArray()) {
-                    var assetName = asset.TryGetProperty(GitHubJsonFields.Name, out var an) ? an.GetString() ?? "" : "";
-                    var size = asset.TryGetProperty(GitHubJsonFields.Size, out var sz) ? sz.GetInt64() : 0;
-                    sb.AppendLine($"  {assetName}  ({FormatSize(size)})");
-                }
+            sb.AppendLine($"Release: {release.Name} ({release.TagName})");
+            if (release.Draft) sb.AppendLine("Draft: yes");
+            if (release.Prerelease) sb.AppendLine("Prerelease: yes");
+            if (!string.IsNullOrEmpty(release.HtmlUrl)) sb.AppendLine($"URL: {release.HtmlUrl}");
+            if (release.Assets.Count > 0) {
+                sb.AppendLine($"Assets ({release.Assets.Count}):");
+                foreach (var asset in release.Assets) sb.AppendLine($"  {asset.Name}  ({FormatSize(asset.Size)})");
             }
             return sb.ToString().TrimEnd();
         } catch {
@@ -148,18 +137,16 @@ public partial class GitHubToolHandlers {
         var listResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/releases", query: new Dictionary<string, string> { ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
         if (!listResult.Success) return Fail(listResult.Error);
         try {
-            using var doc = JsonDocument.Parse(listResult.Body);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return Fail("Release 列表格式异常");
-            foreach (var release in doc.RootElement.EnumerateArray()) {
-                if (release.TryGetProperty(GitHubJsonFields.TagName, out var tagEl) && tagEl.GetString() == tag) {
-                    var id = release.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
-                    var isDraft = release.TryGetProperty(GitHubJsonFields.Draft, out var draftEl) && draftEl.GetBoolean();
-                    var detailResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/releases/{id}", ct: ct).ConfigureAwait(false);
+            var releases = JsonSerializer.Deserialize(listResult.Body, GitHubApiJsonContext.Safe.ListReleaseResponse);
+            if (releases is null) return Fail("Release 列表格式异常");
+            foreach (var release in releases) {
+                if (release.TagName == tag) {
+                    var detailResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/releases/{release.Id}", ct: ct).ConfigureAwait(false);
                     if (detailResult.Success) return Ok(detailResult.Body);
                     return Fail(detailResult.Error);
                 }
             }
-            return Fail($"未找到 Release: {tag}（已列出 {doc.RootElement.GetArrayLength()} 个 release，均不匹配 tag_name={tag}）");
+            return Fail($"未找到 Release: {tag}（已列出 {releases.Count} 个 release，均不匹配 tag_name={tag}）");
         } catch (Exception ex) {
             return Fail($"查找 Release 失败: {ex.Message}");
         }
@@ -262,14 +249,13 @@ public partial class GitHubToolHandlers {
 
         List<(string name, string url)> assets;
         try {
-            using var doc = JsonDocument.Parse(viewResult.Body);
+            var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
+            if (release is null) return ToolResultBuilder.Error().WithText("解析 Release 响应失败").Build();
             assets = [];
-            foreach (var asset in doc.RootElement.GetProperty(GitHubJsonFields.Assets).EnumerateArray()) {
-                var name = asset.GetProperty(GitHubJsonFields.Name).GetString() ?? string.Empty;
-                var url = asset.GetProperty("browser_download_url").GetString() ?? string.Empty;
-                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(url)) continue;
-                if (!string.IsNullOrWhiteSpace(pattern) && !SimpleMatch(pattern, name)) continue;
-                assets.Add((name, url));
+            foreach (var asset in release.Assets) {
+                if (string.IsNullOrEmpty(asset.Name) || string.IsNullOrEmpty(asset.BrowserDownloadUrl)) continue;
+                if (!string.IsNullOrWhiteSpace(pattern) && !SimpleMatch(pattern, asset.Name)) continue;
+                assets.Add((asset.Name, asset.BrowserDownloadUrl));
             }
         } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"解析 Release asset 列表失败: {ex.Message}").Build();
@@ -354,15 +340,12 @@ public partial class GitHubToolHandlers {
         long releaseId;
         Dictionary<string, long> existingAssets;
         try {
-            using var doc = JsonDocument.Parse(viewResult.Body);
-            releaseId = doc.RootElement.GetProperty(GitHubJsonFields.Id).GetInt64();
+            var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
+            if (release is null) return Fail("解析 Release 响应失败");
+            releaseId = release.Id;
             existingAssets = new Dictionary<string, long>();
-            if (doc.RootElement.TryGetProperty(GitHubJsonFields.Assets, out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array) {
-                foreach (var asset in assetsEl.EnumerateArray()) {
-                    var name = asset.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-                    var id = asset.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
-                    if (!string.IsNullOrEmpty(name) && id > 0) existingAssets[name] = id;
-                }
+            foreach (var asset in release.Assets) {
+                if (!string.IsNullOrEmpty(asset.Name) && asset.Id > 0) existingAssets[asset.Name] = asset.Id;
             }
         } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
 
@@ -419,8 +402,9 @@ public partial class GitHubToolHandlers {
             if (!viewResult.Success) return Fail(viewResult.Error);
             long releaseId;
             try {
-                using var doc = JsonDocument.Parse(viewResult.Body);
-                releaseId = doc.RootElement.GetProperty(GitHubJsonFields.Id).GetInt64();
+                var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
+                if (release is null) return Fail("解析 Release 响应失败");
+                releaseId = release.Id;
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}", ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
@@ -447,15 +431,12 @@ public partial class GitHubToolHandlers {
             long releaseId;
             Dictionary<string, long> assetMap;
             try {
-                using var doc = JsonDocument.Parse(viewResult.Body);
-                releaseId = doc.RootElement.GetProperty(GitHubJsonFields.Id).GetInt64();
+                var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
+                if (release is null) return Fail("解析 Release 响应失败");
+                releaseId = release.Id;
                 assetMap = new Dictionary<string, long>();
-                if (doc.RootElement.TryGetProperty(GitHubJsonFields.Assets, out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array) {
-                    foreach (var asset in assetsEl.EnumerateArray()) {
-                        var name = asset.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-                        var id = asset.TryGetProperty(GitHubJsonFields.Id, out var idEl) ? idEl.GetInt64() : 0;
-                        if (!string.IsNullOrEmpty(name) && id > 0) assetMap[name] = id;
-                    }
+                foreach (var asset in release.Assets) {
+                    if (!string.IsNullOrEmpty(asset.Name) && asset.Id > 0) assetMap[asset.Name] = asset.Id;
                 }
             } catch (Exception ex) { return Fail($"解析 Release 失败: {ex.Message}"); }
 
@@ -509,10 +490,11 @@ public partial class GitHubToolHandlers {
             string? existingTag = null;
             string? existingTarget = null;
             try {
-                using var doc = JsonDocument.Parse(viewResult.Body);
-                releaseId = doc.RootElement.GetProperty(GitHubJsonFields.Id).GetInt64();
-                existingTag = doc.RootElement.TryGetProperty(GitHubJsonFields.TagName, out var tnEl) ? tnEl.GetString() : null;
-                existingTarget = doc.RootElement.TryGetProperty(GitHubJsonFields.TargetCommitish, out var tcEl) ? tcEl.GetString() : null;
+                var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
+                if (release is null) return Fail("解析 Release 响应失败");
+                releaseId = release.Id;
+                existingTag = release.TagName;
+                existingTarget = release.TargetCommitish;
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
 
             var effectiveNotes = notes;
@@ -529,8 +511,8 @@ public partial class GitHubToolHandlers {
                 var genResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/releases/generate-notes", genBody, ct: cancellationToken).ConfigureAwait(false);
                 if (!genResult.Success) return Fail($"生成 notes 失败: {genResult.Error}");
                 try {
-                    using var genDoc = JsonDocument.Parse(genResult.Body);
-                    effectiveNotes = genDoc.RootElement.TryGetProperty(GitHubJsonFields.Body, out var bEl) ? bEl.GetString() : effectiveNotes;
+                    var genResp = JsonSerializer.Deserialize(genResult.Body, GitHubApiJsonContext.Safe.ReleaseGenerateNotesResponse);
+                    effectiveNotes = genResp?.Body ?? effectiveNotes;
                 } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 generate-notes 响应失败,使用原 notes"); }
             }
 
@@ -575,15 +557,15 @@ public partial class GitHubToolHandlers {
             var sb = new StringBuilder(512);
             string? releaseTag = null;
             try {
-                using var doc = JsonDocument.Parse(releaseResult.Body);
-                releaseTag = doc.RootElement.TryGetProperty(GitHubJsonFields.TagName, out var tn) ? tn.GetString() : null;
-                sb.AppendLine($"Release: {releaseTag}");
-                if (doc.RootElement.TryGetProperty(GitHubJsonFields.Assets, out var assets) && assets.ValueKind == JsonValueKind.Array) {
-                    sb.AppendLine($"Assets: {assets.GetArrayLength()} 个");
-                    foreach (var asset in assets.EnumerateArray()) {
-                        var name = asset.TryGetProperty(GitHubJsonFields.Name, out var an) ? an.GetString() ?? "" : "";
-                        var digest = asset.TryGetProperty("digest", out var dg) ? dg.GetString() ?? "" : "";
-                        sb.AppendLine($"  - {name}{(string.IsNullOrEmpty(digest) ? "" : $" (digest: {digest[..Math.Min(16, digest.Length)]}...)")}");
+                var release = JsonSerializer.Deserialize(releaseResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
+                if (release is null) return Fail("解析 Release 响应失败");
+                releaseTag = release.TagName;
+                sb.AppendLine($"Release: {release.TagName}");
+                if (release.Assets.Count > 0) {
+                    sb.AppendLine($"Assets: {release.Assets.Count} 个");
+                    foreach (var asset in release.Assets) {
+                        var digest = asset.Digest ?? "";
+                        sb.AppendLine($"  - {asset.Name}{(string.IsNullOrEmpty(digest) ? "" : $" (digest: {digest[..Math.Min(16, digest.Length)]}...)")}");
                     }
                 }
             } catch { return Fail("解析 Release 响应失败"); }

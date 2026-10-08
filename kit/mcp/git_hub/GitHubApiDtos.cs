@@ -732,6 +732,19 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(SearchIssueResponse))]
 [JsonSerializable(typeof(WorkflowListResponse))]
 [JsonSerializable(typeof(WorkflowResponse))]
+[JsonSerializable(typeof(ReleaseResponse))]
+[JsonSerializable(typeof(List<ReleaseResponse>))]
+[JsonSerializable(typeof(ReleaseAssetResponse))]
+[JsonSerializable(typeof(ReleaseGenerateNotesResponse))]
+[JsonSerializable(typeof(AutolinkResponse))]
+[JsonSerializable(typeof(List<AutolinkResponse>))]
+[JsonSerializable(typeof(DeployKeyResponse))]
+[JsonSerializable(typeof(List<DeployKeyResponse>))]
+[JsonSerializable(typeof(GitignoreListResponse))]
+[JsonSerializable(typeof(GitignoreTemplateResponse))]
+[JsonSerializable(typeof(LicenseResponse))]
+[JsonSerializable(typeof(List<LicenseResponse>))]
+[JsonSerializable(typeof(TopicsResponse))]
 internal sealed partial class GitHubApiJsonContext : JsonSerializerContext
 {
     private static readonly Lazy<GitHubApiJsonContext> s_safe = new(() => new GitHubApiJsonContext(

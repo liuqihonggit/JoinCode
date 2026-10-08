@@ -367,12 +367,8 @@ public partial class GitHubToolHandlers {
         if (!getResult.Success) return "(topic 更新失败: 无法获取当前 topics)";
         List<string> currentTopics;
         try {
-            using var doc = JsonDocument.Parse(getResult.Body);
-            currentTopics = [];
-            if (doc.RootElement.TryGetProperty("names", out var names)) {
-                foreach (var n in names.EnumerateArray())
-                    currentTopics.Add(n.GetString() ?? "");
-            }
+            var topicsResp = JsonSerializer.Deserialize(getResult.Body, GitHubApiJsonContext.Safe.TopicsResponse);
+            currentTopics = topicsResp?.Names ?? new List<string>();
         } catch (Exception ex) { _logger?.LogDebug(ex, "解析 topics 失败"); return "(topic 更新失败: 解析错误)"; }
         var toAdd = ParseCsvToList(addTopic);
         var toRemove = ParseCsvToList(removeTopic);
@@ -538,16 +534,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeAutolinkList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var autolinks = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListAutolinkResponse);
+            if (autolinks is null) return json;
             var sb = new StringBuilder(256);
             sb.AppendLine("ID\t键前缀\tURL 模板");
-            foreach (var al in doc.RootElement.EnumerateArray()) {
-                var id = al.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt32() : 0;
-                var prefix = al.TryGetProperty("key_prefix", out var kp) ? kp.GetString() ?? "" : "";
-                var template = al.TryGetProperty("url_template", out var ut) ? ut.GetString() ?? "" : "";
-                sb.AppendLine($"{id}\t{prefix}\t{template}");
-            }
+            foreach (var al in autolinks) sb.AppendLine($"{al.Id}\t{al.KeyPrefix}\t{al.UrlTemplate}");
             return sb.ToString();
         } catch { return json; }
     }
@@ -604,17 +595,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeDeployKeyList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var keys = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListDeployKeyResponse);
+            if (keys is null) return json;
             var sb = new StringBuilder(256);
             sb.AppendLine("ID\t标题\t只读\t创建时间");
-            foreach (var k in doc.RootElement.EnumerateArray()) {
-                var id = k.TryGetProperty(GitHubJsonFields.Id, out var i) ? i.GetInt32() : 0;
-                var title = k.TryGetProperty(GitHubJsonFields.Title, out var t) ? t.GetString() ?? "" : "";
-                var ro = k.TryGetProperty("read_only", out var r) && r.GetBoolean();
-                var created = k.TryGetProperty(GitHubJsonFields.CreatedAt, out var c) ? c.GetString() ?? "" : "";
-                sb.AppendLine($"{id}\t{title}\t{ro}\t{created}");
-            }
+            foreach (var k in keys) sb.AppendLine($"{k.Id}\t{k.Title}\t{k.ReadOnly}\t{k.CreatedAt}");
             return sb.ToString();
         } catch { return json; }
     }
@@ -638,13 +623,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeGitignoreList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("names", out var names) && names.ValueKind == JsonValueKind.Array) {
-                var sb = new StringBuilder(256);
-                foreach (var n in names.EnumerateArray()) sb.AppendLine(n.GetString());
-                return sb.ToString();
-            }
-            return json;
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.GitignoreListResponse);
+            if (resp is null) return json;
+            var sb = new StringBuilder(256);
+            foreach (var n in resp.Names) sb.AppendLine(n);
+            return sb.ToString();
         } catch { return json; }
     }
 
@@ -666,9 +649,8 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeGitignoreTemplate(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("source", out var src)) return src.GetString() ?? "";
-            return json;
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.GitignoreTemplateResponse);
+            return resp?.Source ?? json;
         } catch { return json; }
     }
 
@@ -691,16 +673,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string SummarizeLicenseList(string json) {
         try {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var licenses = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListLicenseResponse);
+            if (licenses is null) return json;
             var sb = new StringBuilder(256);
             sb.AppendLine("KEY\t名称\tSPDX ID");
-            foreach (var lic in doc.RootElement.EnumerateArray()) {
-                var key = lic.TryGetProperty("key", out var k) ? k.GetString() ?? "" : "";
-                var name = lic.TryGetProperty(GitHubJsonFields.Name, out var n) ? n.GetString() ?? "" : "";
-                var spdx = lic.TryGetProperty("spdx_id", out var s) ? s.GetString() ?? "" : "";
-                sb.AppendLine($"{key}\t{name}\t{spdx}");
-            }
+            foreach (var lic in licenses) sb.AppendLine($"{lic.Key}\t{lic.Name}\t{lic.SpdxId}");
             return sb.ToString();
         } catch { return json; }
     }

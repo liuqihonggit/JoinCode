@@ -391,7 +391,7 @@ internal static class GhArgsBinder {
             ("fill-verbose", new GhCliAlias("fill_verbose", "true", AliasKind.FixedValue))
         ),
         ["gh_run_rerun"] = new(("failed", new GhCliAlias("failed_only", "true", AliasKind.FixedValue))),
-        ["gh_run_view"]  = new(("job", new GhCliAlias("job_id", null, AliasKind.TakeNextToken))),
+        ["gh_run_view"]  = new(("job", new GhCliAlias("job_id", null, AliasKind.TakeNextToken)), ("pr", new GhCliAlias("pr", null, AliasKind.TakeNextToken))),
         ["gh_run_list"]  = new(("event", new GhCliAlias("event_type", null, AliasKind.TakeNextToken))),
         ["gh_repo_create"] = new(
             ("private",  new GhCliAlias("visibility", "private", AliasKind.FixedValue)),
@@ -429,6 +429,7 @@ internal static class GhArgsBinder {
         => toolName switch {
             "gh_repo_clone"   => parameters.Where(p => p.Name == "dir").ToList(),
             "gh_pr_checkout"  => parameters.Where(p => p.Name == "branch").ToList(),
+            "gh_run_view"     => parameters.Where(p => p.Name == "run_id").ToList(),
             _ => []
         };
 

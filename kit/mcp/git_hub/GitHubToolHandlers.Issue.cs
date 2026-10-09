@@ -13,7 +13,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhIssueList, "列出 Issue(支持状态/标签/指派人/作者/提及/里程碑/搜索/类型过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhIssueListAsync(
         [McpToolParameter("状态(open/closed/all,默认 open)", Required = false)] string? state = null,
-        [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("标签过滤(可选,多个用逗号)", Required = false)] string? label = null,
         [McpToolParameter("指派人过滤(可选)", Required = false)] string? assignee = null,
         [McpToolParameter("作者过滤(可选)", Required = false)] string? author = null,
@@ -21,12 +21,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("里程碑过滤(可选,数字 ID 或 * 或 none)", Required = false)] string? milestone = null,
         [McpToolParameter("搜索查询(可选,GitHub search 语法)", Required = false)] string? search = null,
         [McpToolParameter("类型(issue/pr,默认 issue)", Required = false)] string? type = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,url)", Required = false)] string? json_fields = null,
-        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var pageCount = (limit ?? 30).ToString();
             var stateVal = string.IsNullOrWhiteSpace(state) ? "open" : state;
             var needSearch = !string.IsNullOrWhiteSpace(search) || string.Equals(type, "pr", StringComparison.OrdinalIgnoreCase);
@@ -36,7 +33,7 @@ public partial class GitHubToolHandlers {
                 var query = new Dictionary<string, string> { ["q"] = q, ["per_page"] = pageCount };
                 var result = await client.SendAsync(HttpMethod.Get, "search/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
                 if (!result.Success) return Fail(result.Error);
-                return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeIssueList, compactFields));
+                return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeIssueList, compactFields));
             }
             var issuesQuery = new Dictionary<string, string> { ["state"] = stateVal, ["per_page"] = pageCount };
             if (!string.IsNullOrWhiteSpace(label)) issuesQuery["labels"] = label;
@@ -46,7 +43,7 @@ public partial class GitHubToolHandlers {
             if (!string.IsNullOrWhiteSpace(milestone)) issuesQuery["milestone"] = milestone;
             var issuesResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues", query: issuesQuery, ct: cancellationToken).ConfigureAwait(false);
             if (!issuesResult.Success) return Fail(issuesResult.Error);
-            return Ok(FormatGhOutput(issuesResult.Body, verbosity, json_fields, SummarizeIssueList, compactFields));
+            return Ok(FormatGhOutput(issuesResult.Body, common?.Verbosity, common?.JsonFields, SummarizeIssueList, compactFields));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -69,13 +66,13 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssueView, "查看 Issue 详情", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhIssueViewAsync(
-        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选,默认当前目录)", Required = false)] string? working_dir = null,
-        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON[从缓存读])", Required = false)] int? verbosity = null,
+        [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter("comments=true 附带评论列表", Required = false)] bool? comments = null,
         [McpToolParameter("web=true 只返回 Issue 浏览器 URL", Required = false)] bool? web = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
@@ -114,8 +111,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("阻塞哪些 issue(可选,多个用逗号,暂未支持,需 GraphQL sub-issue API)", Required = false)] string? blocking = null,
         [McpToolParameter("父 issue 编号(epic,可选,暂未支持,需 GraphQL sub-issue API)", Required = false)] int? parent = null,
         [McpToolParameter("issue 类型(可选,如 Bug/Task,暂未支持,需 GraphQL issue types API)", Required = false)] string? type = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             if (!string.IsNullOrWhiteSpace(attach)) return Fail("--attach 暂未支持: 需要文件上传 API,请先创建 issue 再手动上传附件");
@@ -151,12 +148,12 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssueClose, "关闭 Issue(可附评论/原因/重复标记)", "github")]
     public async Task<ToolResult> GhIssueCloseAsync(
-        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
         [McpToolParameter("关闭评论(可选)", Required = false)] string? comment = null,
         [McpToolParameter("关闭原因(completed/not_planned,可选)", Required = false)] string? reason = null,
         [McpToolParameter("重复的 Issue 编号(可选,设置后 reason 自动 not_planned)", Required = false)] int? duplicate_of = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
@@ -178,10 +175,10 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssueComment, "评论 Issue", "github")]
     public async Task<ToolResult> GhIssueCommentAsync(
-        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
         [McpToolParameter("评论内容", Required = true)] string body,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
@@ -195,10 +192,10 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssueReopen, "重新打开 Issue(可附评论)", "github")]
     public async Task<ToolResult> GhIssueReopenAsync(
-        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
         [McpToolParameter("重开评论(可选)", Required = false)] string? comment = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
@@ -216,7 +213,7 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssueEdit, "编辑 Issue(title/body/body_file/label/add_label/remove_label/assignee/add_assignee/remove_assignee/milestone/remove_milestone/add_project/remove_project/attach/add_sub_issue/remove_sub_issue/parent/remove_parent/add_blocked_by/remove_blocked_by/add_blocking/remove_blocking/type/remove_type)", "github")]
     public async Task<ToolResult> GhIssueEditAsync(
-        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
         [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
         [McpToolParameter("新 body(可选)", Required = false)] string? body = null,
         [McpToolParameter("从文件读 body(可选,替代 body)", Required = false)] string? body_file = null,
@@ -241,8 +238,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("移除 blocking 关系(可选,多个用逗号)", Required = false)] string? remove_blocking = null,
         [McpToolParameter("设置 issue 类型(可选,按类型名)", Required = false)] string? type = null,
         [McpToolParameter("移除 issue 类型(可选)", Required = false)] bool? remove_type = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
@@ -402,10 +399,10 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssueDelete, "删除 Issue(需 yes 确认,用 GraphQL)", "github")]
     public async Task<ToolResult> GhIssueDeleteAsync(
-        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
         [McpToolParameter("是否跳过确认(默认 false)", Required = false)] bool? yes = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             if (yes != true) return Fail("删除 Issue 需要 yes=true 确认（此操作不可逆）");
@@ -424,10 +421,10 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssueLock, "锁定 Issue(可选原因)", "github")]
     public async Task<ToolResult> GhIssueLockAsync(
-        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
         [McpToolParameter("锁定原因(off-topic/resolved/spam/too heated,可选)", Required = false)] string? reason = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
@@ -441,9 +438,9 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssueUnlock, "解锁 Issue", "github")]
     public async Task<ToolResult> GhIssueUnlockAsync(
-        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
@@ -456,8 +453,8 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssueStatus, "查看 Issue 状态(当前仓库 open issue)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhIssueStatusAsync(
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["state"] = "open", ["per_page"] = "30" };
@@ -497,13 +494,13 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssueDevelop, "创建 Issue 开发分支(git checkout -b)", "github")]
     public async Task<ToolResult> GhIssueDevelopAsync(
-        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
         [McpToolParameter("分支名(可选,默认 issue-{number})", Required = false)] string? name = null,
         [McpToolParameter("基分支(可选,默认当前分支)", Required = false)] string? @base = null,
         [McpToolParameter("list=true 列出链接分支(需 GraphQL,暂未实现)", Required = false)] bool? list = null,
         [McpToolParameter("checkout=true 创建后切换(默认 true)", Required = false)] bool? checkout = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             if (list == true) return Fail("issue develop --list 需要 GraphQL listIssueLinkedBranches，暂未实现");
@@ -521,9 +518,9 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssuePin, "固定 Issue(GraphQL pinIssue)", "github")]
     public async Task<ToolResult> GhIssuePinAsync(
-        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
@@ -539,9 +536,9 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssueUnpin, "取消固定 Issue(GraphQL unpinIssue)", "github")]
     public async Task<ToolResult> GhIssueUnpinAsync(
-        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);
@@ -557,10 +554,10 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhIssueTransfer, "转移 Issue 到另一个仓库(GraphQL transferIssue)", "github")]
     public async Task<ToolResult> GhIssueTransferAsync(
-        [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
+        [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
         [McpToolParameter("目标仓库(owner/repo)", Required = true)] string destination_repo,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(issue_number);

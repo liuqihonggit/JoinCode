@@ -16,7 +16,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = jobsJson });
 
-        var result = await _handler.GhRunViewAsync("42", expand: "jobs", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", expand: "jobs", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -51,7 +51,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[{"id":1,"conclusion":"failure","name":"build"}]}""" });
         _api.NextLogLines = lines;
 
-        var result = await _handler.GhRunViewAsync("42", expand: "failed", max_lines: 200, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", expand: "failed", max_lines: 200, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;

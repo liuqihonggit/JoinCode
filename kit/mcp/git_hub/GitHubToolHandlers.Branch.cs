@@ -12,32 +12,22 @@ public partial class GitHubToolHandlers {
     /// <para>流程: 读 yml → 解析 matrix → 审计差异 → GET 完整 protection → 构造新 checks → PUT 完整 protection 端点</para>
     /// <para>注意: required_status_checks 子端点不支持单独 PUT(返回 404), 必须用完整 protection 端点(ADR 0132)</para>
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhBranchSyncProtection, "同步分支保护: 从 CI yml matrix 读取 job 名, 对比 required_status_checks, PUT 完整 protection 端点同步差异", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhBranchSyncProtection, "同步分支保护: 从所有 CI yml 读取 job 名, 对比 required_status_checks, PUT 完整 protection 端点同步差异", "github")]
     public async Task<ToolResult> GhBranchSyncProtectionAsync(
         [McpToolParameter("分支名(默认 main)", Required = false)] string? branch = null,
-        [McpToolParameter("CI yml 路径(默认 .github/workflows/ci-unit-tests.yml)", Required = false)] string? yml_path = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter("CI yml 路径(可选,默认自动从 ci.yml 解析所有 workflow)", Required = false)] string? yml_path = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         [McpToolParameter("试跑模式(只显示差异不实际修改)", Required = false)] bool? dry_run = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var branchName = string.IsNullOrWhiteSpace(branch) ? "main" : branch;
-            var ymlPath = string.IsNullOrWhiteSpace(yml_path) ? ".github/workflows/ci-unit-tests.yml" : yml_path;
             var workingDir = string.IsNullOrWhiteSpace(working_dir) ? Environment.CurrentDirectory : working_dir;
-            var fullPath = Path.Combine(workingDir, ymlPath);
             var isDryRun = dry_run == true;
 
-            var auditor = new BranchProtectionAuditor(client, _fs);
-            var audit = await auditor.AuditAsync(owner, repoName, branchName, fullPath, cancellationToken).ConfigureAwait(false);
-            if (!string.IsNullOrEmpty(audit.Note) && audit.CiJobNames.Count == 0)
-                return Fail(audit.Note);
-            if (audit.IsConsistent)
-                return Ok($"✅ CI matrix 与分支保护完全一致, 无需同步\n\n{audit.BuildReport()}");
-
-            if (!_fs.FileExists(fullPath))
-                return Fail($"CI yml 文件不存在: {fullPath}");
-            var ymlContent = await _fs.ReadAllTextAsync(fullPath, cancellationToken).ConfigureAwait(false);
-            var jobId = CiMatrixParser.ExtractJobId(ymlContent) ?? "unit-tests";
+            var allCiCheckNames = await ExtractAllCiCheckNamesAsync(workingDir, yml_path, cancellationToken).ConfigureAwait(false);
+            if (allCiCheckNames.Count == 0)
+                return Fail("未能从 CI yml 文件中解析出任何 check 名");
 
             var protectionResult = await client.SendAsync(
                 HttpMethod.Get, $"repos/{owner}/{repoName}/branches/{branchName}/protection",
@@ -45,10 +35,14 @@ public partial class GitHubToolHandlers {
             if (!protectionResult.Success)
                 return Fail($"获取分支保护规则失败: {protectionResult.Error}");
 
-            var newContexts = BuildSyncedContexts(protectionResult.Body, jobId, audit);
+            var existingContexts = ExtractExistingContexts(protectionResult.Body);
+            var (added, removed, newContexts) = ComputeSyncDiff(existingContexts, allCiCheckNames);
+            if (added.Count == 0 && removed.Count == 0)
+                return Ok($"✅ CI check 名与分支保护完全一致, 无需同步\n\n当前 required_status_checks ({newContexts.Count} 个):\n{string.Join('\n', newContexts.Select(c => $"  - {c}"))}");
+
             var putBody = BuildFullProtectionPutBody(protectionResult.Body, newContexts);
             if (isDryRun)
-                return Ok(BuildDryRunSummary(owner, repoName, branchName, audit, newContexts));
+                return Ok(BuildDryRunSummary(owner, repoName, branchName, added, removed, newContexts));
 
             var putResult = await client.SendAsync(
                 HttpMethod.Put, $"repos/{owner}/{repoName}/branches/{branchName}/protection",
@@ -56,7 +50,7 @@ public partial class GitHubToolHandlers {
             if (!putResult.Success)
                 return Fail($"PUT 分支保护规则失败: {putResult.Error}");
 
-            return Ok(BuildSyncResultSummary(owner, repoName, branchName, audit, newContexts));
+            return Ok(BuildSyncResultSummary(owner, repoName, branchName, added, removed, newContexts));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -68,8 +62,8 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhBranchAuditProtectionAsync(
         [McpToolParameter("分支名(默认 main)", Required = false)] string? branch = null,
         [McpToolParameter("CI yml 路径(默认 .github/workflows/ci-unit-tests.yml)", Required = false)] string? yml_path = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var branchName = string.IsNullOrWhiteSpace(branch) ? "main" : branch;
@@ -82,47 +76,50 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 从完整 protection JSON 构造同步后的 contexts 列表 — 保留其他 workflow 的 check, 替换目标 workflow 的 check
-    /// <para>逻辑: 从 protection.required_status_checks.contexts 提取所有 check 名, 筛选出非目标 workflow 的(保留),
-    /// 加上 CI matrix 对应的新 check 名(从现有 check 名提取前缀模板 + matrix name 构造)</para>
+    /// 从所有 CI workflow yml 提取全部 check 名 — 读 ci.yml 获取 workflow 映射, 再读每个 workflow 提取 check 名
     /// </summary>
-    internal static List<string> BuildSyncedContexts(
-        string protectionJson, string jobId, BranchProtectionAuditResult audit) {
-        var resp = JsonSerializer.Deserialize(protectionJson, GitHubApiJsonContext.Safe.BranchProtectionContextsResponse);
-        var allContexts = resp?.RequiredStatusChecks?.Contexts ?? new List<string>();
-
-        var prefix = $"{jobId} / ";
-        var otherWorkflowChecks = new List<string>(allContexts.Count);
-        var targetChecks = new List<string>(allContexts.Count);
-        foreach (var c in allContexts) {
-            if (c.StartsWith(prefix, StringComparison.Ordinal))
-                targetChecks.Add(c);
-            else
-                otherWorkflowChecks.Add(c);
+    internal async Task<List<string>> ExtractAllCiCheckNamesAsync(
+        string workingDir, string? ymlPath, CancellationToken ct) {
+        var allCheckNames = new List<string>();
+        if (!string.IsNullOrWhiteSpace(ymlPath)) {
+            var directPath = Path.Combine(workingDir, ymlPath);
+            if (!_fs.FileExists(directPath)) return allCheckNames;
+            var ymlContent = await _fs.ReadAllTextAsync(directPath, ct).ConfigureAwait(false);
+            allCheckNames.AddRange(CiMatrixParser.ExtractAllCheckNames(ymlContent, "unit-tests"));
+            return allCheckNames;
         }
-
-        var checkPrefix = InferCheckPrefix(targetChecks, prefix, audit.CiJobNames);
-
-        var newTargetChecks = new List<string>(audit.CiJobNames.Count);
-        foreach (var name in audit.CiJobNames)
-            newTargetChecks.Add(string.Concat(checkPrefix, name));
-
-        return [.. otherWorkflowChecks, .. newTargetChecks];
+        var ciYmlPath = Path.Combine(workingDir, ".github/workflows/ci.yml");
+        if (!_fs.FileExists(ciYmlPath)) return allCheckNames;
+        var ciYmlContent = await _fs.ReadAllTextAsync(ciYmlPath, ct).ConfigureAwait(false);
+        var workflowUses = CiMatrixParser.ExtractWorkflowUses(ciYmlContent);
+        foreach (var (outerJobId, workflowPath) in workflowUses) {
+            var fullPath = Path.Combine(workingDir, workflowPath);
+            if (!_fs.FileExists(fullPath)) continue;
+            var ymlContent = await _fs.ReadAllTextAsync(fullPath, ct).ConfigureAwait(false);
+            allCheckNames.AddRange(CiMatrixParser.ExtractAllCheckNames(ymlContent, outerJobId));
+        }
+        return allCheckNames;
     }
 
     /// <summary>
-    /// 从现有 check 名推断前缀模板 — 如 "unit-tests / Unit - Abs" → "unit-tests / Unit - "
-    /// <para>若无现有 check, 用默认格式 "{jobId} / Unit - "(从 CI yml job name 模板推断)</para>
+    /// 从 protection JSON 提取现有 required_status_checks.contexts
     /// </summary>
-    internal static string InferCheckPrefix(
-        IReadOnlyList<string> existingChecks, string jobIdPrefix, IReadOnlyList<string> ciJobNames) {
-        if (existingChecks.Count > 0) {
-            var sample = existingChecks[0];
-            var matrixName = CiMatrixParser.ExtractMatrixNameFromCheck(sample, jobIdPrefix[..^2]);
-            if (matrixName is not null && sample.EndsWith(matrixName, StringComparison.Ordinal))
-                return sample[..^matrixName.Length];
-        }
-        return $"{jobIdPrefix}Unit - ";
+    internal static List<string> ExtractExistingContexts(string protectionJson) {
+        var resp = JsonSerializer.Deserialize(protectionJson, GitHubApiJsonContext.Safe.BranchProtectionContextsResponse);
+        return resp?.RequiredStatusChecks?.Contexts ?? new List<string>();
+    }
+
+    /// <summary>
+    /// 计算同步差异 — added(CI 有但保护缺), removed(保护有但 CI 无), newContexts(同步后的完整列表)
+    /// </summary>
+    internal static (List<string> Added, List<string> Removed, List<string> NewContexts) ComputeSyncDiff(
+        IReadOnlyList<string> existingContexts, IReadOnlyList<string> ciCheckNames) {
+        var ciSet = new HashSet<string>(ciCheckNames, StringComparer.Ordinal);
+        var existingSet = new HashSet<string>(existingContexts, StringComparer.Ordinal);
+        var added = ciSet.Except(existingSet).OrderBy(x => x, StringComparer.Ordinal).ToList();
+        var removed = existingSet.Except(ciSet).OrderBy(x => x, StringComparer.Ordinal).ToList();
+        var newContexts = ciCheckNames.OrderBy(x => x, StringComparer.Ordinal).ToList();
+        return (added, removed, newContexts);
     }
 
     /// <summary>
@@ -200,11 +197,18 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string BuildDryRunSummary(
         string owner, string repo, string branch,
-        BranchProtectionAuditResult audit, IReadOnlyList<string> newContexts) {
+        IReadOnlyList<string> added, IReadOnlyList<string> removed, IReadOnlyList<string> newContexts) {
         var sb = new StringBuilder(512);
         sb.AppendLine($"[试跑] 分支保护同步预览: {owner}/{repo} 分支 '{branch}'");
         sb.AppendLine();
-        sb.AppendLine(audit.BuildReport());
+        if (added.Count > 0) {
+            sb.AppendLine($"新增 {added.Count} 个 check:");
+            foreach (var name in added) sb.AppendLine($"  + {name}");
+        }
+        if (removed.Count > 0) {
+            sb.AppendLine($"移除 {removed.Count} 个 check:");
+            foreach (var name in removed) sb.AppendLine($"  - {name}");
+        }
         sb.AppendLine($"同步后 required_status_checks 将包含 {newContexts.Count} 个 check:");
         foreach (var ctx in newContexts) sb.AppendLine($"  - {ctx}");
         return sb.ToString();
@@ -215,17 +219,17 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static string BuildSyncResultSummary(
         string owner, string repo, string branch,
-        BranchProtectionAuditResult audit, IReadOnlyList<string> newContexts) {
+        IReadOnlyList<string> added, IReadOnlyList<string> removed, IReadOnlyList<string> newContexts) {
         var sb = new StringBuilder(512);
         sb.AppendLine($"✅ 分支保护已同步: {owner}/{repo} 分支 '{branch}'");
         sb.AppendLine();
-        if (audit.MissingFromProtection.Count > 0) {
-            sb.AppendLine($"新增 {audit.MissingFromProtection.Count} 个 check:");
-            foreach (var name in audit.MissingFromProtection) sb.AppendLine($"  + {name}");
+        if (added.Count > 0) {
+            sb.AppendLine($"新增 {added.Count} 个 check:");
+            foreach (var name in added) sb.AppendLine($"  + {name}");
         }
-        if (audit.StaleInProtection.Count > 0) {
-            sb.AppendLine($"移除 {audit.StaleInProtection.Count} 个 check:");
-            foreach (var name in audit.StaleInProtection) sb.AppendLine($"  - {name}");
+        if (removed.Count > 0) {
+            sb.AppendLine($"移除 {removed.Count} 个 check:");
+            foreach (var name in removed) sb.AppendLine($"  - {name}");
         }
         sb.AppendLine();
         sb.AppendLine($"同步后 required_status_checks ({newContexts.Count} 个):");

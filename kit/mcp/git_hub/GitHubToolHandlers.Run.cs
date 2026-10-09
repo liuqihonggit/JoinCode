@@ -13,7 +13,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRunList, "列出 Actions Run(支持状态/分支/事件/工作流/用户/commit/创建时间过滤)", "github", ConcurrencySafe = true)]
     [ToolAnchors("CI 列表", "run 列表", "workflow 运行", "Actions 历史")]
     public async Task<ToolResult> GhRunListAsync(
-        [McpToolParameter("数量限制(默认 20)", Required = false)] int? limit = null,
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("状态过滤(queued/in_progress/completed,可选)", Required = false)] string? status = null,
         [McpToolParameter("分支过滤(可选)", Required = false)] string? branch = null,
         [McpToolParameter("事件过滤(可选,如 push/pull_request/schedule)", Required = false)] string? event_type = null,
@@ -21,12 +21,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("触发者过滤(可选)", Required = false)] string? user = null,
         [McpToolParameter("commit SHA 过滤(可选)", Required = false)] string? commit = null,
         [McpToolParameter("创建时间过滤(可选,如 >2026-01-01)", Required = false)] string? created = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,status,conclusion)", Required = false)] string? json_fields = null,
-        [McpToolParameter("输出档位(0=gh风格表格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter("强制刷新缓存(兼容参数,run list 直接调 API 无缓存,传入即忽略)", Required = false)] bool? refresh = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 20).ToString() };
             if (!string.IsNullOrWhiteSpace(status)) query["status"] = status;
             if (!string.IsNullOrWhiteSpace(branch)) query["branch"] = branch;
@@ -39,15 +37,15 @@ public partial class GitHubToolHandlers {
                 : $"repos/{owner}/{repoName}/actions/workflows/{workflow}/runs";
             var result = await client.SendAsync(HttpMethod.Get, basePath, query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(BuildRunListErrorHint(result, workflow));
-            if (!string.IsNullOrEmpty(json_fields)) {
-                var filtered = FilterJsonFields(result.Body, json_fields);
+            if (!string.IsNullOrEmpty(common?.JsonFields)) {
+                var filtered = FilterJsonFields(result.Body, common.JsonFields);
                 if (filtered is "[]" or "{}")
                     return Ok(filtered + "\n\n⚠️ 返回空: 可能原因: ① 字段名不匹配(用 verbosity=2 查看完整字段) ② 该 run 无此字段");
                 return Ok(filtered);
             }
             var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
             var failureHint = hasFailure ? GitHubRunLogHints.RunListFailureHint : "";
-            return verbosity switch {
+            return common?.Verbosity switch {
                 2 => Ok(result.Body + failureHint),
                 1 => Ok(GitHubRunListSummarizer.SummarizeRunList(result.Body) + failureHint),
                 _ => Ok(GitHubRunListSummarizer.SummarizeRunListBrief(result.Body) + failureHint)
@@ -73,7 +71,8 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,skip_lines 分页续读,refresh 强制刷新,web 返回 URL,attempt 指定重试次数)", "github", ConcurrencySafe = true)]
     [ToolAnchors("CI 失败", "job 日志", "run 状态", "workflow 排错", "构建失败")]
     public async Task<ToolResult> GhRunViewAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter("Run ID(可选,与 pr 二选一;支持 run number 短数字自动解析)", Required = false)] string? run_id = null,
+        [McpToolParameter("PR 号(可选,与 run_id 二选一;自动解析 PR 最新 run)", Required = false)] int? pr = null,
         [McpToolParameter("Job ID(可选,支持逗号分隔多个并行下载,如 123 或 123,456)", Required = false)] string? job_id = null,
         [McpToolParameter("是否拉取日志(默认 false,仅看详情)", Required = false)] bool? log = null,
         [McpToolParameter("最大日志行数(默认 200)", Required = false)] int? max_lines = null,
@@ -85,32 +84,37 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("web=true 只返回 Run 浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("重试次数(可选,查看指定 attempt 的详情)", Required = false)] int? attempt = null,
         [McpToolParameter("log_failed=true 只拉失败步骤日志(等价于 --expand failed --log,系统 gh CLI --log-failed 缩写)", Required = false)] bool? log_failed = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,status,conclusion)", Required = false)] string? json_fields = null,
-        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
+            // 宽容: pr 和 run_id 二选一; pr 优先,自动解析 PR 最新 run
+            var effectiveRunId = run_id;
+            if (pr is not null && string.IsNullOrEmpty(run_id)) {
+                effectiveRunId = await ResolveRunIdFromPrAsync(client, owner, repoName, pr.Value, cancellationToken).ConfigureAwait(false);
+                if (effectiveRunId is null)
+                    return Fail($"PR #{pr} 未找到对应的 CI run。可能原因: ① PR 号错误 ② PR 无关联 run(未触发 CI) ③ 仓库不存在或无权限。提示: 用 gh run list --branch <分支名> 查看 run 列表");
+            }
+            if (string.IsNullOrEmpty(effectiveRunId))
+                return Fail("run_id 和 pr 至少提供一个一个。用法: gh run view <run_id> 或 gh run view --pr <PR号>");
             // 宽容: AI 可能传 run number(如 752)而非 run id(如 37663049294),自动解析
-            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
-            if (resolvedRunId is null)
-                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
+            var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, effectiveRunId, cancellationToken).ConfigureAwait(false);
+            if (runIdError is not null) return runIdError;
             if (web == true) {
                 var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
                 if (!runResult.Success) return Fail(runResult.Error);
                 var url = ExtractHtmlUrl(runResult.Body);
                 return string.IsNullOrEmpty(url) ? Fail("无法从 Run 响应中解析 html_url") : Ok(url);
             }
-            if (string.Equals(expand, "jobs", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(json_fields)) {
+            if (string.Equals(expand, "jobs", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(common?.JsonFields)) {
                 var jobsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}/jobs",
                     query: new Dictionary<string, string> { ["per_page"] = "100" }, paginate: true, ct: cancellationToken).ConfigureAwait(false);
                 if (!jobsResult.Success) return Fail(jobsResult.Error);
-                return Ok(FilterJsonFields(jobsResult.Body, json_fields));
+                return Ok(FilterJsonFields(jobsResult.Body, common.JsonFields));
             }
-            if (!string.IsNullOrEmpty(json_fields)) {
+            if (!string.IsNullOrEmpty(common?.JsonFields)) {
                 var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
                 if (!runResult.Success) return Fail(runResult.Error);
-                return Ok(FilterJsonFields(runResult.Body, json_fields));
+                return Ok(FilterJsonFields(runResult.Body, common.JsonFields));
             }
             if (log_failed == true) {
                 expand = "failed";
@@ -118,8 +122,8 @@ public partial class GitHubToolHandlers {
             }
             return await GhRunViewCoreAsync(
                 new GhRepoCtx { Client = client, Owner = owner, Repo = repoName, Ct = cancellationToken },
-                new GhRunTarget { RunId = resolvedRunId, JobId = job_id, Attempt = attempt },
-                new GhLogOpts { Log = log, MaxLines = max_lines, SkipLines = start_line.HasValue ? start_line.Value - 1 : skip_lines, Expand = expand, Filter = filter, Refresh = refresh, Verbosity = verbosity }
+                new GhRunTarget { RunId = resolvedRunId!, JobId = job_id, Attempt = attempt },
+                new GhLogOpts { Log = log, MaxLines = max_lines, SkipLines = start_line.HasValue ? start_line.Value - 1 : skip_lines, Expand = expand, Filter = filter, Refresh = refresh, Verbosity = common?.Verbosity }
             ).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
@@ -141,6 +145,45 @@ public partial class GitHubToolHandlers {
         if (!listResult.Success) return null;
 
         return FindRunIdByNumber(listResult.Body, runId, _logger);
+    }
+
+    /// <summary>
+    /// 解析 run_id 并在失败时返回统一错误 — 消除 7 处重复的 resolve+fail 模式
+    /// <para>成功返回 (resolvedId, null),失败返回 (null, errorResult)</para>
+    /// </summary>
+    private async Task<(string? RunId, ToolResult? Error)> ResolveRunIdOrFailAsync(
+        IGitHubApiClient client, string owner, string repoName, string runId, CancellationToken ct) {
+        var resolved = await ResolveRunIdAsync(client, owner, repoName, runId, ct).ConfigureAwait(false);
+        if (resolved is null)
+            return (null, Fail($"Run '{runId}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列"));
+        return (resolved, null);
+    }
+
+    /// <summary>
+    /// 从 PR 号解析最新 run ID — 获取 PR head_sha 后查 runs 取最新一条（缺陷1: --pr 支持）
+    /// </summary>
+    private async Task<string?> ResolveRunIdFromPrAsync(IGitHubApiClient client, string owner, string repoName, int prNumber, CancellationToken ct) {
+        var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{prNumber}", ct: ct).ConfigureAwait(false);
+        if (!prResult.Success) return null;
+        string? headSha = null;
+        try {
+            using var doc = JsonDocument.Parse(prResult.Body);
+            if (doc.RootElement.TryGetProperty("head", out var head) && head.TryGetProperty("sha", out var sha))
+                headSha = sha.GetString();
+        } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 PR head_sha 失败"); }
+        if (string.IsNullOrEmpty(headSha)) return null;
+        var runsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs",
+            query: new Dictionary<string, string> { ["head_sha"] = headSha!, ["per_page"] = "1" }, ct: ct).ConfigureAwait(false);
+        if (!runsResult.Success) return null;
+        try {
+            using var doc = JsonDocument.Parse(runsResult.Body);
+            if (doc.RootElement.TryGetProperty("workflow_runs", out var runs) && runs.GetArrayLength() > 0) {
+                var first = runs[0];
+                if (first.TryGetProperty("id", out var id))
+                    return id.GetRawText().Trim('"');
+            }
+        } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 PR runs 失败"); }
+        return null;
     }
 
     /// <summary>run_id 通常是 10-11 位数字,run number 是短数字(少于 10 位)</summary>
@@ -360,20 +403,50 @@ public partial class GitHubToolHandlers {
 
     /// <summary>
     /// 构建步骤列表结果 — 日志下载失败时回退到 API job 详情(ADR 0067)。
+    /// <para>缺陷6: 正常路径也用 API conclusion 标记失败步骤,不只依赖日志文本解析</para>
     /// </summary>
     private async Task<ToolResult> BuildStepsListResultAsync(GhRepoCtx repo, string runId, string? jobId, RunLogSummary summary) {
         // 日志下载失败(cancelled job 等)时回退到 API job 详情
         var fallback = await TryGetStepsFromApiFallbackAsync(repo, runId, jobId, summary).ConfigureAwait(false);
         if (fallback is not null) return fallback;
+        // 缺陷6: 尝试用 API 获取步骤 conclusion,补充日志解析可能漏标的失败步骤
+        var apiConclusions = await GetStepConclusionsFromApiAsync(repo.Client, repo.Owner, repo.Repo, jobId, repo.Ct).ConfigureAwait(false);
         var stepsText = summary.StepLineCounts
             .OrderByDescending(kvp => kvp.Value)
             .Select(kvp => {
                 var hasError = summary.SectionCounts.TryGetValue(kvp.Key, out var secs)
                     && secs.TryGetValue(RunLogCache.SectionError, out _);
+                // API conclusion 优先: failure/cancelled/timed_out 也标 ❌
+                if (apiConclusions is not null && apiConclusions.TryGetValue(kvp.Key, out var conclusion)) {
+                    hasError = hasError || conclusion is "failure" or "cancelled" or "timed_out";
+                }
                 var marker = hasError ? "❌ " : "   ";
                 return $"  {marker}{kvp.Value,6} 行  {kvp.Key}";
             });
         return Ok(string.Join('\n', stepsText) + GitHubRunLogHints.StepsHint, $"Run {runId} 步骤列表({summary.StepLineCounts.Count} 步骤,缓存于 {summary.CachedAt:HH:mm:ss}):");
+    }
+
+    /// <summary>从 API 获取步骤名→conclusion 映射(缺陷6: 补充日志解析漏标的失败步骤)</summary>
+    private static async Task<Dictionary<string, string>?> GetStepConclusionsFromApiAsync(IGitHubApiClient client, string owner, string repo, string? jobId, CancellationToken ct) {
+        if (string.IsNullOrWhiteSpace(jobId)) return null;
+        var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/jobs/{jobId}", ct: ct).ConfigureAwait(false);
+        if (!result.Success) return null;
+        try {
+            using var doc = JsonDocument.Parse(result.Body);
+            if (!doc.RootElement.TryGetProperty("steps", out var steps)) return null;
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var step in steps.EnumerateArray()) {
+                var name = step.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                var conclusion = step.TryGetProperty("conclusion", out var c) ? c.GetString() ?? "" : "";
+                if (!string.IsNullOrEmpty(name))
+                    map[name] = conclusion;
+            }
+            return map;
+        } catch (JsonException) {
+            return null;
+        } catch (InvalidOperationException) {
+            return null;
+        }
     }
 
     /// <summary>
@@ -504,22 +577,34 @@ public partial class GitHubToolHandlers {
 
     /// <summary>
     /// 正则表达式过滤日志行 — 当 filter 不是预定义级别(error/warning/info/all/failed)时宽容当作正则匹配
-    /// <para>宽容: bash 转义的 \| 自动转为 | (或操作符),支持 Failed\|Total tests\|... 语法</para>
+    /// <para>架构统一: 直接用日志流(先入库 LSM 缓存再流式正则),不通过 StreamAndFilterAsync 间接获取文本</para>
+    /// <para>宽容: bash 转义的 \| 自动转为 | (或操作符)</para>
     /// <para>超时保护: 5 秒正则超时,避免恶意正则导致卡死</para>
     /// </summary>
     private async Task<ToolResult> FilterByRegexAsync(GhRepoCtx repo, GhRunTarget target, string? jobId, string filter, int maxLines, int skip, bool wantRefresh) {
-        var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, jobId, false, "日志", null, GitHubLogFilter.None, 50000, repo.Ct, null, 0, wantRefresh).ConfigureAwait(false);
-        if (logResult.IsError) return logResult;
-        var logText = logResult.GetFirstText() ?? "";
         var pattern = filter.Replace("\\|", "|");
         var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromSeconds(5));
-        var matchedLines = logText.Split('\n').Where(l => regex.IsMatch(l)).ToList();
-        var totalMatched = matchedLines.Count;
-        var displayed = matchedLines.Skip(skip).Take(maxLines).ToList();
-        var hasMore = skip + maxLines < totalMatched;
-        var sb = new StringBuilder(string.Join('\n', displayed));
-        if (hasMore) sb.Append($"\n… 另有 {totalMatched - skip - maxLines} 行匹配未显示(用 skip_lines={skip + maxLines} 续读)");
-        return Ok(sb.ToString(), $"正则过滤 '{filter}' 匹配 {totalMatched} 行(显示 {displayed.Count} 行):");
+        var logLines = GetLogStreamAsync(repo.Owner, repo.Repo, target.RunId, jobId, false, wantRefresh, repo.Ct);
+        var matched = new List<string>(maxLines);
+        var skipped = 0;
+        var lineNumber = 0;
+        await foreach (var line in logLines.ConfigureAwait(false)) {
+            lineNumber++;
+            if (!regex.IsMatch(line)) continue;
+            if (skipped < skip) { skipped++; continue; }
+            matched.Add($"{lineNumber}: {GitHubRunLogText.StripLogTimestamp(line)}");
+            if (matched.Count >= maxLines) break;
+        }
+        if (matched.Count == 0) {
+            return Ok(skip > 0
+                ? $"未匹配到更多行(已跳过 {skip} 行)"
+                : $"正则 '{filter}' 未匹配到任何日志行。可能原因: ① 正则表达式错误 ② 日志中无匹配内容。提示: 用 --filter error 查看错误标记行,或 --expand failed 智能定位失败步骤",
+                $"正则过滤 '{filter}' 匹配 0 行:");
+        }
+        var sb = new StringBuilder(string.Join('\n', matched));
+        if (matched.Count >= maxLines)
+            sb.Append($"\n… 可能还有更多匹配行(用 skip_lines={skip + maxLines} 续读)");
+        return Ok(sb.ToString(), $"正则过滤 '{filter}' 匹配 {matched.Count} 行(显示 {matched.Count} 行):");
     }
 
 
@@ -569,21 +654,27 @@ public partial class GitHubToolHandlers {
         => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines, wantRefresh);
 
     /// <summary>
+    /// 统一日志流入口 — 委托给 LogFilterRunner.GetLogStreamAsync(架构统一: 先入库 LSM 缓存再 yield)
+    /// </summary>
+    private IAsyncEnumerable<string> GetLogStreamAsync(
+        string owner, string repo, string runId, string? jobId, bool failedOnly, bool wantRefresh, CancellationToken ct)
+        => LogFilterRunner.GetLogStreamAsync(owner, repo, runId, jobId, failedOnly, wantRefresh, ct);
+
+    /// <summary>
     /// 重跑 Actions Run — 默认只重跑失败的 job，支持 debug 日志和指定 job 重跑，调 REST API POST rerun-failed-jobs/rerun-jobs/rerun
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRunRerun, "重跑 Actions Run(默认只重跑失败的 job,支持 debug 日志和指定 job)", "github")]
     public async Task<ToolResult> GhRunRerunAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter(WellKnownParam.RunId)] string run_id,
         [McpToolParameter("是否只重跑失败的 job(默认 true)", Required = false)] bool? failed_only = null,
         [McpToolParameter("启用 debug 日志(可选)", Required = false)] bool? debug = null,
         [McpToolParameter("指定重跑的 job ID(可选,逗号分隔多个,设置后只重跑这些 job)", Required = false)] string? job = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
-            if (resolvedRunId is null)
-                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
+            var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (runIdError is not null) return runIdError;
             var path = "";
             var body = "{}";
             if (!string.IsNullOrWhiteSpace(job)) {
@@ -607,14 +698,13 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRunCancel, "取消 Actions Run", "github")]
     public async Task<ToolResult> GhRunCancelAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.RunId)] string run_id,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
-            if (resolvedRunId is null)
-                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
+            var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (runIdError is not null) return runIdError;
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}/cancel", ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已取消 Run {resolvedRunId}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -627,18 +717,17 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRunWait, "等待 Actions Run 完成(指数退避轮询+进度回调,完成才返回)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunWaitAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter(WellKnownParam.RunId)] string run_id,
         [McpToolParameter("超时秒数(默认 1800=30分钟)", Required = false)] int? timeout_seconds = null,
         [McpToolParameter("初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)", Required = false)] int? poll_interval_seconds = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
-            if (resolvedRunId is null)
-                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
-            return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId, timeout_seconds, poll_interval_seconds, working_dir, cancellationToken, onProgress).ConfigureAwait(false);
+            var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (runIdError is not null) return runIdError;
+            return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId!, timeout_seconds, poll_interval_seconds, working_dir, cancellationToken, onProgress).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -731,16 +820,15 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRunDownload, "下载 Run artifact(zip 文件,支持名称过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunDownloadAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter(WellKnownParam.RunId)] string run_id,
         [McpToolParameter("保存目录", Required = true)] string dir,
         [McpToolParameter("artifact 名称过滤(可选,支持 * 通配,默认下载全部)", Required = false)] string? name = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
-            if (resolvedRunId is null)
-                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
+            var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (runIdError is not null) return runIdError;
             var artifactsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}/artifacts", ct: cancellationToken).ConfigureAwait(false);
             if (!artifactsResult.Success) return Fail(artifactsResult.Error);
 
@@ -812,14 +900,13 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRunDelete, "删除 Actions Run", "github")]
     public async Task<ToolResult> GhRunDeleteAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.RunId)] string run_id,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
-            if (resolvedRunId is null)
-                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
+            var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (runIdError is not null) return runIdError;
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已删除 Run {resolvedRunId}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -830,17 +917,16 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRunWatch, "观察 Run 直到完成(轮询进度)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunWatchAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter(WellKnownParam.RunId)] string run_id,
         [McpToolParameter("刷新间隔秒数(默认 3)", Required = false)] int? interval = null,
         [McpToolParameter("compact=true 只显示相关/失败步骤", Required = false)] bool? compact = null,
         [McpToolParameter("exit_status=true 失败时返回错误", Required = false)] bool? exit_status = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
-            if (resolvedRunId is null)
-                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
+            var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (runIdError is not null) return runIdError;
             var intervalSec = interval is > 0 ? interval.Value : 3;
             var sb = new StringBuilder(512);
             string? finalStatus = null;

@@ -411,48 +411,14 @@ internal static class RgSubCommand {
     }
 
     private static void PrintUsage() {
+        TerminalHelper.WriteLine("jcc rg <pattern> <path> [path...] — ripgrep 兼容搜索（mmap +AOT + PLINQ 并行 + 零 GC）");
+        TerminalHelper.WriteLine();
+        TerminalHelper.WriteLine(RgArgParser.GetHelpText("categorized"));
         TerminalHelper.WriteLine("""
-            jcc rg <pattern> <path> [path...] — ripgrep 兼容搜索（mmap + PLINQ 并行 + 零 GC）
-
-            用法:
+            用法示例:
               jcc rg "finally\s*\{" core/ --type cs -g "!**/tests/**"
               jcc rg "TODO|FIXME" src/ -i -n -C 2
               jcc rg "class\s+\w+Service" app/JoinCode -A 2 -B 1 --content
-
-            位置参数:
-              <pattern>     正则表达式（PowerShell 双反斜杠会自动修复: \\s → \s）
-              <path>        搜索路径（必填！禁止无路径搜索，避免扫盘卡死）
-              [path...]     额外搜索路径（多路径合并去重）
-
-            过滤选项:
-              -t, --type <type>       文件类型（cs, js, ts, py, go, rust, java, ...）
-              -g, --glob <pattern>    glob 过滤（! 前缀排除，如 !**/tests/**）
-              --hidden                搜索隐藏文件
-              --no-ignore             禁用 .gitignore
-
-            输出选项:
-              -i, --ignore-case       忽略大小写
-              -S, --smart-case        智能大小写（模式含大写则区分，否则忽略）
-              -w, --word-regexp       词边界匹配
-              -o, --only-matching     只输出匹配部分
-              -r, --replace <text>    替换匹配文本
-              -n, --line-number       显示行号（content 模式默认开启）
-              -A <n>                  匹配行后 n 行
-              -B <n>                  匹配行前 n 行
-              -C <n>                  匹配行前后 n 行
-              -U, --multiline         多行模式（. 匹配换行）
-              -F, --fixed-strings     字面量搜索（非正则）
-              --content               输出匹配行
-              --count                 输出匹配计数
-              --files-with-matches    只输出文件名（默认）
-              --head-limit <n>        限制结果数（默认 250，0=无限）
-              --offset <n>            跳过前 n 条结果
-              --sort <key>            排序（path/modified/accessed/created/none）
-              --json                  JSON 输出
-
-            控制:
-              --timeout <seconds>     超时秒数（默认 30，最大 300，超时硬终止返回 2）
-              -h, --help              显示帮助
 
             宽容策略:
               1. PowerShell 把 \s 传成 \\s → 自动修复为 \s

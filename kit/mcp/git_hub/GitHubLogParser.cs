@@ -15,7 +15,7 @@ internal sealed class GitHubLogParser {
     /// <summary>
     /// 解析一行日志并累积 — 状态机跟踪步骤名,Span 检测标记
     /// </summary>
-    public void ParseLine(string line, RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sectionContents) {
+    public void ParseLine(string line, int lineNumber, RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sectionContents) {
         var content = StripTimestamp(line.AsSpan());
 
         // 优先级1: ##[start-action display=StepName;id=...]
@@ -53,14 +53,14 @@ internal sealed class GitHubLogParser {
         }
 
         if (_currentStepName is not null) {
-            GitHubRunStepExtractor.Accumulate(line, _currentStepName, summary, sectionContents);
+            GitHubRunStepExtractor.Accumulate(line, lineNumber, _currentStepName, summary, sectionContents);
             return;
         }
 
         // 回退: [entry.Name] 前缀 或 TSV 格式
         var stepName = TryExtractStepName(line.AsSpan());
         if (stepName is not null)
-            GitHubRunStepExtractor.Accumulate(line, stepName, summary, sectionContents);
+            GitHubRunStepExtractor.Accumulate(line, lineNumber, stepName, summary, sectionContents);
     }
 
     /// <summary>

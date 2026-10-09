@@ -10,7 +10,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task PrList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"number":1,"title":"bug","state":"open","body":"text","url":"https://x"}]""" };
 
-        var result = await _handler.GhPrListAsync(json_fields: "number,title", repo: "owner/repo");
+        var result = await _handler.GhPrListAsync(common: new GitHubCommonOptions { JsonFields = "number,title", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -24,7 +24,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task PrList_WithJson_SearchApi_FiltersItemsArray() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"items":[{"number":2,"title":"feat","state":"closed","body":"x"}]}""" };
 
-        var result = await _handler.GhPrListAsync(search: "review:required", json_fields: "number,title", repo: "owner/repo");
+        var result = await _handler.GhPrListAsync(search: "review:required", common: new GitHubCommonOptions { JsonFields = "number,title", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -37,7 +37,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task IssueList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"number":5,"title":"issue","state":"open","body":"desc"}]""" };
 
-        var result = await _handler.GhIssueListAsync(json_fields: "number,title", repo: "owner/repo");
+        var result = await _handler.GhIssueListAsync(common: new GitHubCommonOptions { JsonFields = "number,title", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -50,7 +50,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RunList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[{"id":123,"status":"completed","conclusion":"success","head_sha":"abc"}]}""" };
 
-        var result = await _handler.GhRunListAsync(json_fields: "id,status", repo: "owner/repo");
+        var result = await _handler.GhRunListAsync(common: new GitHubCommonOptions { JsonFields = "id,status", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -63,7 +63,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task ReleaseList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"tag_name":"v1","name":"Release 1","draft":false}]""" };
 
-        var result = await _handler.GhReleaseListAsync(json_fields: "id,tag_name", repo: "owner/repo");
+        var result = await _handler.GhReleaseListAsync(common: new GitHubCommonOptions { JsonFields = "id,tag_name", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -76,7 +76,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task LabelList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"name":"bug","color":"d73a4a","description":"Bug"}]""" };
 
-        var result = await _handler.GhLabelListAsync(json_fields: "id,name", repo: "owner/repo");
+        var result = await _handler.GhLabelListAsync(common: new GitHubCommonOptions { JsonFields = "id,name", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -89,7 +89,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task WorkflowList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflows":[{"id":42,"name":"CI","state":"active","path":".github/workflows/ci.yml"}]}""" };
 
-        var result = await _handler.GhWorkflowListAsync(json_fields: "id,name", repo: "owner/repo");
+        var result = await _handler.GhWorkflowListAsync(common: new GitHubCommonOptions { JsonFields = "id,name", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -102,7 +102,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task PrView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":7,"title":"pr","state":"open","body":"text","mergeable":true}""" };
 
-        var result = await _handler.GhPrViewAsync("7", json_fields: "number,title", repo: "owner/repo");
+        var result = await _handler.GhPrViewAsync("7", common: new GitHubCommonOptions { JsonFields = "number,title", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -116,7 +116,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task PrView_WithJson_HeadRefName_FlattensNestedField() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":7,"title":"pr","state":"open","head":{"ref":"feature-branch","sha":"abc123"},"base":{"ref":"main","sha":"def456"}}""" };
 
-        var result = await _handler.GhPrViewAsync("7", json_fields: "headRefName,headRefOid,baseRefName,baseRefOid", repo: "owner/repo");
+        var result = await _handler.GhPrViewAsync("7", common: new GitHubCommonOptions { JsonFields = "headRefName,headRefOid,baseRefName,baseRefOid", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -143,7 +143,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RepoView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"name":"repo","full_name":"owner/repo","description":"test","private":false}""" };
 
-        var result = await _handler.GhRepoViewAsync(json_fields: "name,full_name", repo: "owner/repo");
+        var result = await _handler.GhRepoViewAsync(common: new GitHubCommonOptions { JsonFields = "name,full_name", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -169,7 +169,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task SecretList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"secrets":[{"name":"K","created_at":"2026-01-01"}]}""" };
 
-        var result = await _handler.GhSecretListAsync(json_fields: "name", repo: "owner/repo");
+        var result = await _handler.GhSecretListAsync(common: new GitHubCommonOptions { JsonFields = "name", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -181,7 +181,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task VariableList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"variables":[{"name":"V","value":"x","updated_at":"2026-01-01"}]}""" };
 
-        var result = await _handler.GhVariableListAsync(json_fields: "name,value", repo: "owner/repo");
+        var result = await _handler.GhVariableListAsync(common: new GitHubCommonOptions { JsonFields = "name,value", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -244,7 +244,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123,"status":"completed","conclusion":"success","head_sha":"abc"}""" });
 
-        var result = await _handler.GhRunViewAsync("123", json_fields: "id,status", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("123", common: new GitHubCommonOptions { JsonFields = "id,status", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -259,7 +259,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":2,"jobs":[{"name":"build","conclusion":"success","id":1},{"name":"test","conclusion":"failure","id":2}]}""" });
 
-        var result = await _handler.GhRunViewAsync("123", expand: "jobs", json_fields: "name,conclusion", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("123", expand: "jobs", common: new GitHubCommonOptions { JsonFields = "name,conclusion", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -272,7 +272,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task ReleaseView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":1,"tag_name":"v1","name":"Release 1","draft":false}""" };
 
-        var result = await _handler.GhReleaseViewAsync("v1", json_fields: "id,tag_name", repo: "owner/repo");
+        var result = await _handler.GhReleaseViewAsync("v1", common: new GitHubCommonOptions { JsonFields = "id,tag_name", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -285,7 +285,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task WorkflowView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"name":"CI","state":"active","path":".github/workflows/ci.yml"}""" };
 
-        var result = await _handler.GhWorkflowViewAsync("ci.yml", json_fields: "id,name", repo: "owner/repo");
+        var result = await _handler.GhWorkflowViewAsync("ci.yml", common: new GitHubCommonOptions { JsonFields = "id,name", Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;

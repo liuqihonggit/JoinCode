@@ -60,4 +60,82 @@ internal static class CiMatrixParser {
         var dashIndex = afterPrefix.LastIndexOf(" - ", StringComparison.Ordinal);
         return dashIndex >= 0 ? afterPrefix[(dashIndex + 3)..] : afterPrefix;
     }
+
+    /// <summary>
+    /// 从 ci.yml 解析 reusable workflow 调用 — (job_id, workflow_path) 列表
+    /// <para>格式: jobs → job_id: → uses: ./.github/workflows/xxx.yml</para>
+    /// </summary>
+    internal static List<(string JobId, string WorkflowPath)> ExtractWorkflowUses(string ymlContent) {
+        var result = new List<(string, string)>();
+        var inJobs = false;
+        int? jobsIndent = null;
+        string? currentJobId = null;
+        int? jobIndent = null;
+        foreach (var line in ymlContent.Split('\n')) {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var trimmed = line.AsSpan().Trim();
+            var indent = line.Length - line.TrimStart().Length;
+            if (trimmed.StartsWith("jobs:")) { inJobs = true; jobsIndent = indent; continue; }
+            if (!inJobs || jobsIndent is null) continue;
+            if (indent == jobsIndent + 2 && trimmed.EndsWith(':')) {
+                currentJobId = trimmed[..^1].ToString();
+                jobIndent = indent;
+                continue;
+            }
+            if (currentJobId is not null && jobIndent is not null &&
+                indent == jobIndent + 2 && trimmed.StartsWith("uses:")) {
+                var path = trimmed[5..].Trim().ToString();
+                result.Add((currentJobId, path));
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// 从 workflow yml 解析所有 job 的 (job_id, job_name) — 包括 matrix 和独立 job
+    /// </summary>
+    internal static List<(string JobId, string JobName)> ExtractAllJobNames(string ymlContent) {
+        var result = new List<(string, string)>();
+        var inJobs = false;
+        int? jobsIndent = null;
+        string? currentJobId = null;
+        int? jobIndent = null;
+        foreach (var line in ymlContent.Split('\n')) {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var trimmed = line.AsSpan().Trim();
+            var indent = line.Length - line.TrimStart().Length;
+            if (trimmed.StartsWith("jobs:")) { inJobs = true; jobsIndent = indent; continue; }
+            if (!inJobs || jobsIndent is null) continue;
+            if (indent == jobsIndent + 2 && trimmed.EndsWith(':')) {
+                currentJobId = trimmed[..^1].ToString();
+                jobIndent = indent;
+                continue;
+            }
+            if (currentJobId is not null && jobIndent is not null &&
+                indent == jobIndent + 2 && trimmed.StartsWith("name:")) {
+                var name = trimmed[5..].Trim().ToString();
+                result.Add((currentJobId, name));
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// 从 workflow yml 解析所有 check 名 — `{outerJobId} / {job_name}` 或 `{outerJobId} / {prefix}{matrix.name}`
+    /// </summary>
+    internal static List<string> ExtractAllCheckNames(string ymlContent, string outerJobId) {
+        var checkNames = new List<string>();
+        var matrixNames = ExtractMatrixJobNames(ymlContent);
+        var allJobs = ExtractAllJobNames(ymlContent);
+        foreach (var (_, jobName) in allJobs) {
+            if (jobName.Contains("${{ matrix.name }}")) {
+                var prefix = jobName.Replace("${{ matrix.name }}", "");
+                foreach (var matrixName in matrixNames)
+                    checkNames.Add($"{outerJobId} / {prefix}{matrixName}");
+            } else {
+                checkNames.Add($"{outerJobId} / {jobName}");
+            }
+        }
+        return checkNames;
+    }
 }

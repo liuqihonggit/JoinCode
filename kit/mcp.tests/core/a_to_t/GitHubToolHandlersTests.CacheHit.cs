@@ -15,13 +15,13 @@ public sealed partial class GitHubToolHandlersTests {
         api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = jobsJson });
         api.NextLogLines = new[] { "##[error] something failed", "details", "end" };
 
-        var result1 = await handler.GhRunViewAsync("42", expand: "failed", repo: "owner/repo");
+        var result1 = await handler.GhRunViewAsync("42", expand: "failed", common: new GitHubCommonOptions { Repo = "owner/repo" });
         result1.IsError.Should().BeFalse();
         result1.GetFirstText()!.Should().Contain("##[error]", "首次调用应下载并返回日志");
 
         api.NextLogLines = Array.Empty<string>();
 
-        var result2 = await handler.GhRunViewAsync("42", expand: "failed", repo: "owner/repo");
+        var result2 = await handler.GhRunViewAsync("42", expand: "failed", common: new GitHubCommonOptions { Repo = "owner/repo" });
         result2.IsError.Should().BeFalse();
         result2.GetFirstText()!.Should().Contain("##[error]", "二次调用应命中 LSM 缓存仍返回日志(不重新下载)");
     }
@@ -38,12 +38,12 @@ public sealed partial class GitHubToolHandlersTests {
         api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = jobsJson });
         api.NextLogLines = new[] { "  Failed MyTest [FAIL]", "  Error Message: boom", "  Stack Trace: at line 1" };
 
-        var result1 = await handler.GhRunViewAsync("42", filter: "failed", repo: "owner/repo");
+        var result1 = await handler.GhRunViewAsync("42", filter: "failed", common: new GitHubCommonOptions { Repo = "owner/repo" });
         result1.IsError.Should().BeFalse();
 
         api.NextLogLines = Array.Empty<string>();
 
-        var result2 = await handler.GhRunViewAsync("42", filter: "failed", repo: "owner/repo");
+        var result2 = await handler.GhRunViewAsync("42", filter: "failed", common: new GitHubCommonOptions { Repo = "owner/repo" });
         result2.IsError.Should().BeFalse();
         result2.GetFirstText()!.Should().Contain("MyTest", "二次调用应命中 LSM 缓存仍返回测试失败信息");
     }

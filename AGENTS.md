@@ -397,6 +397,7 @@
 3. **枚举是唯一数据源** — 字符串值由 `[EnumValue]` 定义一次，所有消费方通过 `ToValue()`/`FromValue()`/`XxxEnumConstants` 获取，禁止在消费方重复硬编码相同字符串
 4. **Contains 匹配场景** — 对需要模糊匹配（如 `modelId.Contains("gpt-4o")`）的场景，用 `EnumType[]` 按优先级排列，遍历时 `model.ToValue()` 获取匹配串，无需额外字典
 5. 一个枚举可以多个特性注释，手动实现字典很蠢啊
+6. **MCP 工具参数描述用 WellKnownParam 枚举** — 公共参数（working_dir/repo/verbosity/limit 等）必须用 `[McpToolParameter(WellKnownParam.X)]` 替代手写字符串描述，由 `param_metadata.generator` 编译期自动填充。> ADR: [0135](docs/adr/0135-wellknown-param-generator-eliminate-description-duplication.md)
 
 ## 代码风格规范（资源管理与异常控制）
 

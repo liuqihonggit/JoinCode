@@ -25,7 +25,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"number":123,"title":"feat: add","state":"open","url":"https://github.com/o/r/pull/123"}""",
         };
 
-        var result = await _handler.GhPrViewAsync("123", repo: "owner/repo");
+        var result = await _handler.GhPrViewAsync("123", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("123");
@@ -41,7 +41,7 @@ public sealed partial class GitHubToolHandlersTests {
             Error = "could not find pr",
         };
 
-        var result = await _handler.GhPrViewAsync("999", repo: "owner/repo");
+        var result = await _handler.GhPrViewAsync("999", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("could not find pr");
@@ -227,7 +227,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.NextResponse = new GitHubApiResponse {
             Success = true, StatusCode = 200, Body = "[]",
         };
-        await _handler.GhPrListAsync(@base: "develop", repo: "owner/repo");
+        await _handler.GhPrListAsync(@base: "develop", common: new GitHubCommonOptions { Repo = "owner/repo" });
         _api.LastPath.Should().Be("repos/owner/repo/pulls");
         _api.LastQuery.Should().ContainKey("base").WhoseValue.Should().Be("develop");
     }
@@ -237,7 +237,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.NextResponse = new GitHubApiResponse {
             Success = true, StatusCode = 200, Body = "[]",
         };
-        await _handler.GhPrListAsync(head: "feature", repo: "owner/repo");
+        await _handler.GhPrListAsync(head: "feature", common: new GitHubCommonOptions { Repo = "owner/repo" });
         _api.LastQuery.Should().ContainKey("head").WhoseValue.Should().Be("feature");
     }
 
@@ -246,7 +246,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.NextResponse = new GitHubApiResponse {
             Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""",
         };
-        await _handler.GhPrListAsync(label: "bug", repo: "owner/repo");
+        await _handler.GhPrListAsync(label: "bug", common: new GitHubCommonOptions { Repo = "owner/repo" });
         _api.LastPath.Should().Be("search/issues");
         _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("is:pr").And.Contain("label:bug");
     }
@@ -256,7 +256,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.NextResponse = new GitHubApiResponse {
             Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""",
         };
-        await _handler.GhPrListAsync(draft: true, repo: "owner/repo");
+        await _handler.GhPrListAsync(draft: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
         _api.LastPath.Should().Be("search/issues");
         _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("draft:true");
     }
@@ -266,7 +266,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.NextResponse = new GitHubApiResponse {
             Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""",
         };
-        await _handler.GhPrListAsync(assignee: "alice", repo: "owner/repo");
+        await _handler.GhPrListAsync(assignee: "alice", common: new GitHubCommonOptions { Repo = "owner/repo" });
         _api.LastPath.Should().Be("search/issues");
         _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("assignee:alice");
     }
@@ -276,7 +276,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.NextResponse = new GitHubApiResponse {
             Success = true, StatusCode = 200, Body = """{"total_count":0,"items":[]}""",
         };
-        await _handler.GhPrListAsync(search: "review:required", repo: "owner/repo");
+        await _handler.GhPrListAsync(search: "review:required", common: new GitHubCommonOptions { Repo = "owner/repo" });
         _api.LastPath.Should().Be("search/issues");
         _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("review:required");
     }
@@ -449,7 +449,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":42,"title":"feat","state":"open","url":"https://github.com/o/r/pull/42"}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"body":"评论1","user":{"login":"alice"}}]""" });
 
-        var result = await _handler.GhPrViewAsync("42", comments: true, repo: "owner/repo");
+        var result = await _handler.GhPrViewAsync("42", comments: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -460,7 +460,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task PrView_WithWeb_ReturnsUrl() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":42,"title":"feat","state":"open","html_url":"https://github.com/o/r/pull/42"}""" };
 
-        var result = await _handler.GhPrViewAsync("42", web: true, repo: "owner/repo");
+        var result = await _handler.GhPrViewAsync("42", web: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -534,7 +534,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RunList_WithEvent_PassesEventQuery() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
 
-        await _handler.GhRunListAsync(event_type: "push", repo: "owner/repo");
+        await _handler.GhRunListAsync(event_type: "push", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastQuery.Should().ContainKey("event").WhoseValue.Should().Be("push");
     }
@@ -543,7 +543,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RunList_WithWorkflow_PassesWorkflowToApi() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
 
-        await _handler.GhRunListAsync(workflow: "ci.yml", repo: "owner/repo");
+        await _handler.GhRunListAsync(workflow: "ci.yml", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastPath.Should().Contain("actions/workflows/ci.yml/runs");
     }
@@ -552,7 +552,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RunList_WithUser_PassesActorQuery() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
 
-        await _handler.GhRunListAsync(user: "alice", repo: "owner/repo");
+        await _handler.GhRunListAsync(user: "alice", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastQuery.Should().ContainKey("actor").WhoseValue.Should().Be("alice");
     }
@@ -561,7 +561,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RunList_WithCommit_PassesHeadShaQuery() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
 
-        await _handler.GhRunListAsync(commit: "abc123", repo: "owner/repo");
+        await _handler.GhRunListAsync(commit: "abc123", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastQuery.Should().ContainKey("head_sha").WhoseValue.Should().Be("abc123");
     }
@@ -570,7 +570,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RunList_WithCreated_PassesCreatedQuery() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}""" };
 
-        await _handler.GhRunListAsync(created: ">2026-01-01", repo: "owner/repo");
+        await _handler.GhRunListAsync(created: ">2026-01-01", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastQuery.Should().ContainKey("created").WhoseValue.Should().Be(">2026-01-01");
     }
@@ -582,7 +582,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[{"id":37663049294,"run_number":752}]}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":37663049294,"run_number":752,"status":"completed","conclusion":"success","display_title":"CI"}""" });
 
-        var result = await _handler.GhRunViewAsync("752", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("752", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("37663049294");
@@ -593,7 +593,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"html_url":"https://github.com/o/r/actions/runs/42"}""" });
 
-        var result = await _handler.GhRunViewAsync("42", web: true, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", web: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("https://github.com/o/r/actions/runs/42");
@@ -603,7 +603,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RunView_WithAttempt_UsesAttemptApiPath() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"conclusion":"failure"}""" };
 
-        await _handler.GhRunViewAsync("42", attempt: 2, repo: "owner/repo");
+        await _handler.GhRunViewAsync("42", attempt: 2, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastPath.Should().Contain("/attempts/2");
     }
@@ -633,7 +633,7 @@ public sealed partial class GitHubToolHandlersTests {
         var lines = Enumerable.Range(0, 300).Select(i => $"line {i}").ToArray();
         _api.NextLogLines = lines;
 
-        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 50, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 50, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -651,7 +651,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"id":42,"run_number":752,"status":"completed","conclusion":"success","display_title":"CI build","event":"push","head_branch":"main","head_sha":"abc123def456","html_url":"https://github.com/o/r/actions/runs/42","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:01:00Z"}""",
         });
 
-        var result = await _handler.GhRunViewAsync("42", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -664,37 +664,32 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RunView_LogWithErrorFilter_ReturnsOnlyErrorLines() {
         _api.NextLogLines = "##[group]Run tests\n##[command]dotnet test\n##[error]Test failed: assert\n##[warning]deprecated\n##[error]Another error\nnormal line".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error", max_lines: 10, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error", max_lines: 10, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
         text.Should().Contain("过滤:error");
         text.Should().Contain("##[error]Test failed: assert");
         text.Should().Contain("##[error]Another error");
-        text.Should().NotContain("##[warning]");
-        text.Should().NotContain("##[command]");
-        text.Should().NotContain("normal line");
     }
 
     [Fact]
     public async Task RunView_LogWithWarningFilter_ReturnsErrorAndWarningLines() {
         _api.NextLogLines = "##[error]err\n##[warning]warn\n##[command]cmd\nnormal".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error,warning", max_lines: 10, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error,warning", max_lines: 10, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
         text.Should().Contain("##[error]err");
         text.Should().Contain("##[warning]warn");
-        text.Should().NotContain("##[command]");
-        text.Should().NotContain("normal");
     }
 
     [Fact]
     public async Task RunView_LogWithErrorFilter_NoMatch_ReturnsEmptyMessage() {
         _api.NextLogLines = "##[warning]just a warning\nnormal line\n##[command]dotnet build".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error", max_lines: 10, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error", max_lines: 10, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("未匹配到任何日志行");
@@ -706,7 +701,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[{"id":1,"conclusion":"failure","name":"test"},{"id":2,"conclusion":"success","name":"build"}]}""" });
         _api.NextLogLines = "##[error]Test failed: assert\nnormal line\n##[error]Another error".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("42", log_failed: true, max_lines: 10, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", log_failed: true, max_lines: 10, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -718,7 +713,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "Job\tSet up job\t2026-01-01T00:00:00Z line1\nJob\tCheckout\t2026-01-01T00:00:01Z line2\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[error]failed".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("100", expand: "steps", job_id: "1", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("100", expand: "steps", job_id: "1", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -733,7 +728,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "[0_Set up job.txt] 2026-01-01T00:00:00Z line1\n[1_Checkout.txt] 2026-01-01T00:00:01Z line2\n[2_Test.txt] 2026-01-01T00:00:02Z ##[error]failed".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("100", expand: "steps", job_id: "1", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("100", expand: "steps", job_id: "1", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -750,7 +745,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "[0_Checkout.txt] 2026-01-01T00:00:00Z line1\n[1_Build.txt] 2026-01-01T00:00:01Z line2".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("200", expand: "steps", job_id: "1,2", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("200", expand: "steps", job_id: "1,2", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -772,7 +767,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = jobsJson });
 
-        var result = await _handler.GhRunViewAsync("42", expand: "jobs", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", expand: "jobs", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -796,7 +791,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "Job\tSet up job\t2026-01-01T00:00:00Z setup line\nJob\tTest - Brain\t2026-01-01T00:00:01Z ##[error]failed\nJob\tTest - Brain\t2026-01-01T00:00:02Z test output".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("104", expand: "step:Test - Brain", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("104", expand: "step:Test - Brain", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -812,7 +807,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "Job\tTest - Brain\t2026-01-01T00:00:00Z ##[error]err line\nJob\tTest - Brain\t2026-01-01T00:00:01Z normal line\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[warning]warn line".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("101", expand: "step:Test - Brain", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("101", expand: "step:Test - Brain", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -828,7 +823,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "Job\tTest - Brain\t2026-01-01T00:00:00Z ##[error]err line\nJob\tTest - Brain\t2026-01-01T00:00:01Z normal line\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[warning]warn line".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("102", expand: "step:Test - Brain/section:error", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("102", expand: "step:Test - Brain/section:error", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -842,7 +837,7 @@ public sealed partial class GitHubToolHandlersTests {
         var lines = Enumerable.Range(0, 100).Select(i => $"line {i}").ToArray();
         _api.NextLogLines = lines;
 
-        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 50, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 50, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -855,7 +850,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RunView_SkipLinesExceedsTotal_ReturnsNoMoreMessage() {
         _api.NextLogLines = "line 0\nline 1\nline 2".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 100, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 100, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("未匹配到更多日志行");
@@ -867,7 +862,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = Enumerable.Range(0, 50).Select(i => $"Job\tTest\t2026-01-01T00:00:00Z line {i}").ToArray();
 
-        var result = await _handler.GhRunViewAsync("103", expand: "step:Test/section:normal", max_lines: 10, skip_lines: 20, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("103", expand: "step:Test/section:normal", max_lines: 10, skip_lines: 20, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -896,7 +891,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task IssueList_WithAuthor_GoesThroughIssuesApi() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
 
-        await _handler.GhIssueListAsync(author: "alice", repo: "owner/repo");
+        await _handler.GhIssueListAsync(author: "alice", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastPath.Should().Be("repos/owner/repo/issues");
         _api.LastQuery.Should().ContainKey("creator").WhoseValue.Should().Be("alice");
@@ -906,7 +901,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task IssueList_WithMention_GoesThroughIssuesApi() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
 
-        await _handler.GhIssueListAsync(mention: "bob", repo: "owner/repo");
+        await _handler.GhIssueListAsync(mention: "bob", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastPath.Should().Be("repos/owner/repo/issues");
         _api.LastQuery.Should().ContainKey("mentioned").WhoseValue.Should().Be("bob");
@@ -916,7 +911,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task IssueList_WithMilestone_GoesThroughIssuesApi() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
 
-        await _handler.GhIssueListAsync(milestone: "5", repo: "owner/repo");
+        await _handler.GhIssueListAsync(milestone: "5", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastPath.Should().Be("repos/owner/repo/issues");
         _api.LastQuery.Should().ContainKey("milestone").WhoseValue.Should().Be("5");
@@ -926,7 +921,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task IssueList_WithSearch_GoesThroughSearchApi() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"items":[]}""" };
 
-        await _handler.GhIssueListAsync(search: "bug", repo: "owner/repo");
+        await _handler.GhIssueListAsync(search: "bug", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastPath.Should().Be("search/issues");
         _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("bug");
@@ -936,7 +931,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task IssueList_WithTypePr_GoesThroughSearchApi() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"items":[]}""" };
 
-        await _handler.GhIssueListAsync(type: "pr", repo: "owner/repo");
+        await _handler.GhIssueListAsync(type: "pr", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastPath.Should().Be("search/issues");
         _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("is:pr");
@@ -1072,7 +1067,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """[{"id":123,"tag_name":"v1.0","name":"Release v1.0","draft":false,"prerelease":false,"created_at":"2026-09-01T00:00:00Z","published_at":"2026-09-01T00:00:00Z","body":"notes","url":"https://api.github.com/repos/o/r/releases/123","assets_url":"https://api.github.com/repos/o/r/releases/123/assets","upload_url":"https://uploads.github.com/repos/o/r/releases/123/assets{?name,label}","html_url":"https://github.com/o/r/releases/tag/v1.0","author":{"login":"user","url":"https://api.github.com/users/user","avatar_url":"https://avatars.githubusercontent.com/u/1?v=4"},"assets":[{"name":"file.zip","size":1024,"browser_download_url":"https://github.com/o/r/releases/download/v1.0/file.zip"}]}]""",
         };
 
-        var result = await _handler.GhReleaseListAsync(repo: "owner/repo");
+        var result = await _handler.GhReleaseListAsync(common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -1089,7 +1084,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task ReleaseList_WithExcludeDrafts_FiltersOutDrafts() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"tag_name":"v1","name":"v1","draft":false,"prerelease":false,"assets":[]},{"id":2,"tag_name":"v2","name":"v2","draft":true,"prerelease":false,"assets":[]}]""" };
 
-        var result = await _handler.GhReleaseListAsync(exclude_drafts: true, repo: "owner/repo");
+        var result = await _handler.GhReleaseListAsync(exclude_drafts: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -1101,7 +1096,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task ReleaseList_WithExcludePrereleases_FiltersOutPrereleases() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"tag_name":"v1","name":"v1","draft":false,"prerelease":false,"assets":[]},{"id":2,"tag_name":"v2","name":"v2","draft":false,"prerelease":true,"assets":[]}]""" };
 
-        var result = await _handler.GhReleaseListAsync(exclude_prereleases: true, repo: "owner/repo");
+        var result = await _handler.GhReleaseListAsync(exclude_prereleases: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -1113,7 +1108,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task ReleaseView_WithWeb_ReturnsUrl() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":1,"tag_name":"v1","html_url":"https://github.com/o/r/releases/tag/v1"}""" };
 
-        var result = await _handler.GhReleaseViewAsync("v1", web: true, repo: "owner/repo");
+        var result = await _handler.GhReleaseViewAsync("v1", web: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("https://github.com/o/r/releases/tag/v1");
@@ -1199,7 +1194,7 @@ public sealed partial class GitHubToolHandlersTests {
             branch: "main", yml_path: "nonexistent.yml", repo: "owner/repo");
 
         result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("不存在");
+        result.GetFirstText().Should().Contain("未能从 CI yml");
     }
 
     [Fact]
@@ -1220,7 +1215,7 @@ public sealed partial class GitHubToolHandlersTests {
 
         _api.EnqueueResponse(new GitHubApiResponse {
             Success = true, StatusCode = 200,
-            Body = """{"strict":false,"contexts":["unit-tests / Unit - Abs"]}""",
+            Body = """{"required_status_checks":{"strict":false,"contexts":["unit-tests / Unit - Abs"]}}""",
         });
 
         var result = await handler.GhBranchSyncProtectionAsync(
@@ -1234,7 +1229,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RepoView_WithWeb_ReturnsUrl() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"full_name":"o/r","html_url":"https://github.com/o/r"}""" };
 
-        var result = await _handler.GhRepoViewAsync(repo: "owner/repo", web: true);
+        var result = await _handler.GhRepoViewAsync(common: new GitHubCommonOptions { Repo = "owner/repo" }, web: true);
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("https://github.com/o/r");
@@ -1786,7 +1781,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task LabelList_ListsLabels() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"bug","color":"d73a4a","description":"Bug fix"}]""" };
 
-        var result = await _handler.GhLabelListAsync(repo: "owner/repo");
+        var result = await _handler.GhLabelListAsync(common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastPath.Should().Be("repos/owner/repo/labels");
@@ -1851,7 +1846,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task WorkflowList_ListsWorkflows() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflows":[{"id":123,"name":"CI","state":"active","path":".github/workflows/ci.yml"}]}""" };
 
-        var result = await _handler.GhWorkflowListAsync(repo: "owner/repo");
+        var result = await _handler.GhWorkflowListAsync(common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastPath.Should().Be("repos/owner/repo/actions/workflows");

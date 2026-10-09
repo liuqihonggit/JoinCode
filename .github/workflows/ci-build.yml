@@ -61,9 +61,41 @@ jobs:
           -o ${{ github.workspace }}/artifacts/nuget
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
 
+      - name: Build E2E Exes (cache hit — from NuGet packages)
+        if: steps.component-cache.outputs.cache-hit == 'true'
+        shell: pwsh
+        run: |
+          $feedPath = Join-Path $env:GITHUB_WORKSPACE "artifacts" "nuget"
+          $nugetConfig = Join-Path $env:GITHUB_WORKSPACE "nuget.config"
+          [xml]$config = Get-Content $nugetConfig
+          $sources = $config.configuration.packageSources
+          $existing = $sources.SelectSingleNode("add[@key='local-feed']")
+          if ($existing) { $sources.RemoveChild($existing) }
+          $add = $config.CreateElement("add")
+          $add.SetAttribute("key", "local-feed")
+          $add.SetAttribute("value", $feedPath)
+          $sources.AppendChild($add)
+          $config.Save($nugetConfig)
+          $props = "/p:UsePackedComponents=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none"
+          dotnet build test/mock/open_ai.mock_server/OpenAI.MockServer.csproj -c Debug --nologo $props
+          dotnet build test/mock/anthropic.mock_server/Anthropic.MockServer.csproj -c Debug --nologo $props
+          dotnet build test/mock/deep_seek.mock_server/DeepSeek.MockServer.csproj -c Debug --nologo $props
+          dotnet build test/mock/mcp.mock_server/Mcp.MockServer.csproj -c Debug --nologo $props
+
       - name: Upload NuGet Packages
         uses: actions/upload-artifact@v7
         with:
           name: nuget-packages
           path: artifacts/nuget/**/*.nupkg
+          retention-days: 1
+
+      - name: Upload E2E Exes
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-exes
+          path: |
+            artifacts/bin/OpenAI.MockServer/Debug/net10.0/
+            artifacts/bin/Anthropic.MockServer/Debug/net10.0/
+            artifacts/bin/DeepSeek.MockServer/Debug/net10.0/
+            artifacts/bin/Mcp.MockServer/Debug/net10.0/
           retention-days: 1

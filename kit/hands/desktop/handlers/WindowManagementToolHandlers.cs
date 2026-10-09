@@ -4,6 +4,10 @@ namespace Tools.Handlers;
 /// 窗口管理与截图工具处理器 — 暴露为 MCP 工具
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
+[Scenario("window", "窗口管理场景：枚举、聚焦、移动、关闭桌面窗口。",
+    Tools = new[] { "list_windows", "focus_window", "move_window", "close_window", "screenshot" },
+    SuggestedFlow = "list_windows → focus_window → screenshot → (move_window / close_window)",
+    Tips = "先 list_windows 看可用窗口，focus_window 切换目标后 screenshot 确认状态。")]
 public class WindowManagementToolHandlers {
     private readonly IWindowManagementService _windows;
     private readonly IScreenCaptureService _capture;

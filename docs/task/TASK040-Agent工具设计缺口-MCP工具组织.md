@@ -45,15 +45,18 @@
   - ✅ 单元测试 3 个通过（`ScenarioRegistryTests`）
 - **复杂度**：中
 
-### GAP-040-02 统一 ToolMenu 抽象层 ⭐ P3
+### GAP-040-02 统一 ToolMenu 抽象层 ⭐ P3 ✅ 已完成
 
-- **当前状态**：部分落地（菜单是各工具自带 JSON 字符串如 `DesktopSceneMenuToolHandlers`，或 CLI 命令自带分组打印如 `McpCommand.ExecuteListAsync`，无统一抽象）
-- **缺什么**：设计要求"菜单就是电视机菜单固定形式暴露"——目前是约定式实现，非框架级抽象
-- **建议方案**：
-  1. 定义 `IToolMenu` 接口（Name/Description/Tools/Flow/Hint）
-  2. `DesktopSceneMenuToolHandlers` 改为实现 `IToolMenu`
-  3. CLI 分组打印抽为 `ToolMenuRenderer` 公共组件
-- **验收标准**：所有菜单输出经统一渲染器，格式一致
+- **当前状态**：✅ 已落地（2026-10-09）— IToolMenu 接口 + ToolMenuRenderer 统一渲染器
+- **实现**：
+  1. ✅ `IToolMenu` 接口（`lib/abstractions/abs_core/core_attributes/scenario/IToolMenu.cs`）— 菜单提供者抽象
+  2. ✅ `ToolMenuRenderer` 统一渲染器（`kit/hands/scenarios/ToolMenuRenderer.cs`）— ToJson（AI 消费）+ ToText（人类可读）
+  3. ✅ `DesktopSceneMenuToolHandlers` 实现 `IToolMenu`，`SceneMenuAsync` 用 `ToolMenuRenderer.ToJson` 替代手写 JSON
+  4. ✅ `ShowScenarioDetail` 用 `ToolMenuRenderer.ToText` 替代手写终端输出
+  5. ✅ `ScenarioMenuJsonContext` 配置 `UnsafeRelaxedJsonEscaping` 不转义中文
+- **验收标准**：
+  - ✅ 所有菜单输出经统一渲染器，格式一致 — ToJson/ToText 统一
+  - ✅ 单元测试 5 个通过（`ToolMenuRendererTests` + `DesktopSceneMenuToolHandlersTests`）
 - **复杂度**：中
 
 ## 优先级汇总
@@ -61,7 +64,18 @@
 | 优先级 | 缺口 | 复杂度 | 状态 |
 |--------|------|--------|------|
 | P1 | GAP-040-01 通用 scenario registry + -h 置顶 | 中 | ✅ 已完成 |
-| P3 | GAP-040-02 统一 ToolMenu 抽象层 | 中 | 待实现 |
+| P3 | GAP-040-02 统一 ToolMenu 抽象层 | 中 | ✅ 已完成 |
+
+## 扩充情景模式（2026-10-09）
+
+除 desktop 外，新增 3 个情景模式（仅需加 `[Scenario]` 特性，生成器自动收集）：
+
+| 情景模式 | handler | 工具集 |
+|----------|---------|--------|
+| desktop | DesktopSceneMenuToolHandlers | look/zoom/detect/click/type/drag |
+| window | WindowManagementToolHandlers | list_windows/focus_window/move_window/close_window/screenshot |
+| process | ProcessToolHandlers | list_processes/start_process/wait_for_idle/kill_process |
+| macro | MacroToolHandlers | start_recording/stop_recording/play_macro/list_macros |
 
 ## 关联
 

@@ -4,6 +4,10 @@ namespace Tools.Handlers;
 /// 宏录制工具处理器 — 录制/回放/保存/加载操作序列（PRD S-02/S-03）
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
+[Scenario("macro", "宏录制场景：录制操作序列并回放，自动化重复任务。",
+    Tools = new[] { "start_recording", "stop_recording", "play_macro", "list_macros" },
+    SuggestedFlow = "start_recording → (执行操作) → stop_recording → play_macro",
+    Tips = "录制时正常操作，stop_recording 保存序列。play_macro 回放，list_macros 查看已存宏。")]
 public class MacroToolHandlers {
     private readonly IMacroRecorder _recorder;
     private readonly IFileSystem _fileSystem;

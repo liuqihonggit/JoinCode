@@ -47,23 +47,16 @@
 - **测试**：`test/unit/mcp_tool_dispatch.tests/execution/ToolTransitionTest.cs`（14 个测试全通过）
 - **验收标准**：调用 tool_score 能看到 NextToolFrequency ✅；频率足够时链路推荐来自学习数据 ✅；refine 角色在数据过大场景被触发 ✅
 
-### GAP-041-02 工具锚点入口 + 向量检索用于工具选择 ⭐ P1
+### GAP-041-02 工具锚点入口 + 向量检索用于工具选择 ✅
 
-- **当前状态**：部分落地（向量检索仅用于代码搜索 `EmbeddingIndex.cs`，不用于工具锚点定位；`IsEntryPoint` 是代码符号入口非工具入口）
-- **缺什么**：
-  1. 没有"每个工具的大类、分层都有接入的 3~5 个已固定的锚点入口"
-  2. 没有"锚点检索通过向量检索实现，直接注入上下文"用于工具选择
-  3. 首次使用 DAG 无历史时靠静态预设超边 + 工具描述 schema，不是向量检索锚点
-- **建议方案**：
-  1. 每个工具定义 3~5 个锚点关键词（如 `gh_run_view` 锚点：["CI 失败", "job 日志", "run 状态", "workflow 排错"]）
-  2. 用 `[ToolAnchors("CI 失败", "job 日志", ...)]` 特性标注，源码生成器扫描收集
-  3. 用户问题 Q 向量化（复用 `EmbeddingIndex` 基建），与锚点向量做余弦相似度
-  4. 命中锚点 → 注入对应工具 schema 到上下文（类似 deferred tool loading）
-- **验收标准**：
-  - 用户问"CI 为什么失败"时自动注入 gh_run_view 工具
-  - 锚点匹配用余弦相似度，阈值可配
-  - 锚点用特性标注，禁止手写表
-- **复杂度**：高
+- **当前状态**：已落地（`[ToolAnchors]` 特性 + `ToolAnchorIndex` 词袋向量 + 余弦相似度匹配 + gh_run_view/gh_run_list/gh_pr_checks 已标注锚点）
+- **实现位置**：
+  - `lib/abstractions/abs_core/core_attributes/mcp/ToolAnchorsAttribute.cs`（`[ToolAnchors]` 特性定义）
+  - `lib/abstractions/abs_hands/tools/models/ToolAnchorIndex.cs`（ToolAnchorEntry + ToolAnchorMatch + ToolAnchorIndex 词袋模型+余弦相似度）
+  - `kit/mcp/git_hub/GitHubToolHandlers.Run.cs`（gh_run_view/gh_run_list 标注 `[ToolAnchors]`）
+  - `kit/mcp/git_hub/GitHubToolHandlers.Pr.cs`（gh_pr_checks 标注 `[ToolAnchors]`）
+- **测试**：`test/unit/mcp_tool_dispatch.tests/execution/ToolAnchorIndexTest.cs`（14 个测试全通过）
+- **验收标准**：用户问"CI 为什么失败"时匹配 gh_run_view ✅；锚点匹配用余弦相似度阈值可配 ✅；锚点用特性标注禁止手写表 ✅
 
 ### GAP-041-03 频率驱动动态重构图 ⭐ P2
 

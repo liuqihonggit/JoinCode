@@ -247,6 +247,7 @@ public partial class GitHubToolHandlers {
     /// 查看 PR 的 CI 检查状态 — 调 REST API 获取 check-runs，正确处理 skipping 语义（非失败），支持 required 过滤/watch 轮询/fail-fast
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrChecks, "查看 PR 的 CI 检查状态(支持 required 过滤/watch 轮询/fail-fast)", "github", ConcurrencySafe = true)]
+    [ToolAnchors("PR 检查", "CI 状态", "check 结果", "PR 验证")]
     public async Task<ToolResult> GhPrChecksAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("只显示 required checks(可选)", Required = false)] bool? required = null,

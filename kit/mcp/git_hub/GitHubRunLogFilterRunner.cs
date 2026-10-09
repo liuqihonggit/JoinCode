@@ -320,13 +320,12 @@ internal sealed class GitHubRunLogFilterRunner {
         var parser = new GitHubLogParser();
         var timer = GhTimingTracker.CurrentTimer.Value;
 
-        var logLines = string.IsNullOrWhiteSpace(jobId)
-            ? GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct)
-            : DownloadJobsParallelAsync(owner, repo, runId, GitHubRunLogFilter.ParseJobIds(jobId), wantRefresh, ct);
+        var logLines = GetLogStreamAsync(owner, repo, runId, jobId, false, wantRefresh, ct);
 
+        var lineNumber = 0;
         await foreach (var line in logLines.ConfigureAwait(false)) {
             var tParse = Stopwatch.GetTimestamp();
-            parser.ParseLine(line, summary, sectionContents);
+            parser.ParseLine(line, ++lineNumber, summary, sectionContents);
             timer?.AddParse(Stopwatch.GetTimestamp() - tParse);
         }
 

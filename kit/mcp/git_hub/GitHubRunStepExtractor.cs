@@ -41,10 +41,16 @@ internal static class GitHubRunStepExtractor {
     /// <summary>
     /// 累积一行日志到 summary 和 sectionContents — 用指定 stepName
     /// </summary>
-    public static void Accumulate(string line, string stepName, RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sectionContents) {
+    public static void Accumulate(string line, int lineNumber, string stepName, RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sectionContents) {
         var sectionType = RunLogCache.ParseSectionType(line);
 
         summary.StepLineCounts[stepName] = summary.StepLineCounts.GetValueOrDefault(stepName) + 1;
+
+        // 记录步骤行号范围(结构化定位: 正则可按步骤范围缩小搜索)
+        if (summary.StepLineRanges.TryGetValue(stepName, out var range))
+            summary.StepLineRanges[stepName] = (range.Start, lineNumber);
+        else
+            summary.StepLineRanges[stepName] = (lineNumber, lineNumber);
 
         if (!summary.SectionCounts.TryGetValue(stepName, out var secCounts)) {
             secCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);

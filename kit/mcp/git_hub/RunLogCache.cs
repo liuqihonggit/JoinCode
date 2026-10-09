@@ -61,6 +61,9 @@ internal sealed class RunLogSummary {
     /// <summary>步骤名 → (section类型 → 行数) — section 摘要计数</summary>
     public Dictionary<string, Dictionary<string, int>> SectionCounts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>步骤名 → (起始行号, 结束行号) — 正则过滤可按步骤范围缩小搜索(结构化定位再匹配)</summary>
+    public Dictionary<string, (int Start, int End)> StepLineRanges { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Run 的 updatedAt(GitHub API) — 用于检测 rerun 后日志是否更新,避免脏数据</summary>
     public string? UpdatedAt { get; set; }
 

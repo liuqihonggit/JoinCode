@@ -198,6 +198,20 @@ public sealed partial class MainViewModel {
         }
     }
 
+    /// <summary>
+    /// 重置运行时计数器 — 双击 ESC 合并调用，重置工具配额/循环检测（不清空聊天历史）。
+    /// </summary>
+    [RelayCommand]
+    private async Task ResetCountersAsync() {
+        try {
+            await _session.ResetCountersAsync().ConfigureAwait(false);
+            AddStatusLog("已重置工具额度/循环检测/缓存");
+        } catch (Exception ex) {
+            ViewModelDiagnosticsLogger.WriteError(ex);
+            AddStatusLog($"重置计数失败: {ex.Message}");
+        }
+    }
+
     /// <summary>需求11：异步从引擎拉取子会话填充 Children — AttachRealSession 后调用（快照避免跨线程）</summary>
     public async Task PopulateSubSessionsAsync(SessionItem[] sessions) {
         try {

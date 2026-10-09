@@ -103,6 +103,8 @@ public sealed partial class MainWindow : Window {
             _lastEscapeAt = DateTime.MinValue; // 消费，防止三连击触发两次终止
             if (_vm.StopGeneratingCommand.CanExecute(null))
                 _vm.StopGeneratingCommand.Execute(null);
+            if (_vm.ResetCountersCommand.CanExecute(null))
+                _vm.ResetCountersCommand.Execute(null);
             e.Handled = true;
             return;
         }

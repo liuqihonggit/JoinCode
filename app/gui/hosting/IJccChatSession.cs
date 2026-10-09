@@ -296,6 +296,15 @@ public interface IJccChatSession : IAsyncDisposable {
     /// </summary>
     Task<GoalProgress?> GetGoalProgressAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<GoalProgress?>(null);
+
+    /// <summary>
+    /// 重置运行时计数器 — 双击 ESC 时调用，重置工具配额/循环检测等运行时状态（不清空聊天历史）。
+    /// 默认实现仅重置静态 ToolQuotaService；JccChatSession 覆盖以额外重置 IOutputLoopDetector。
+    /// </summary>
+    Task ResetCountersAsync(CancellationToken cancellationToken = default) {
+        ToolQuotaService.Reset();
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>子会话信息 — 供 GUI 树形展示（需求11）</summary>

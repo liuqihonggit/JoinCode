@@ -8,7 +8,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RunAnalyzers>false</RunAnalyzers>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
+    <AllowPack>true</AllowPack>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <Version>1.3.0</Version>
     <AssemblyVersion>1.3.0.0</AssemblyVersion>

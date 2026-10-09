@@ -53,6 +53,14 @@ public sealed record BoostToolCmd(string ToolName, int BoostScore, DateTime Expi
 public sealed record HeatColdToolsCmd(int ColdThreshold, int BoostScore, DateTime Expiry, TaskCompletionSource<int> Tcs) : IToolHealthCommand;
 
 /// <summary>
+/// 记录工具转移命令 — Actor 消息，更新 fromTool 的转移频率映射
+/// </summary>
+/// <param name="FromTool">源工具名称</param>
+/// <param name="ToTool">目标工具名称</param>
+/// <param name="Tcs">用于通知完成的任务完成源</param>
+public sealed record RecordTransitionCmd(string FromTool, string ToTool, TaskCompletionSource Tcs) : IToolHealthCommand;
+
+/// <summary>
 /// 工具健康监控服务 — Actor 化：复合操作（RecordSuccess/RecordFailure/Decay）由 Consumer 串行处理，消除 AsyncLock。
 /// <para>_records 保留 ConcurrentDictionary 供 GetEffectiveScore 等读多写少方法直接读取（最终一致性）。</para>
 /// <para>_blacklistSnapshot/_penalties 保留 volatile 双变量切换。</para>
@@ -221,6 +229,19 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     }
 
     /// <summary>
+    /// 记录工具转移 — 从 fromTool 转移到 toTool，更新转移频率映射
+    /// </summary>
+    /// <param name="fromTool">源工具名称</param>
+    /// <param name="toTool">目标工具名称</param>
+    /// <param name="ct">取消令牌</param>
+    public async Task RecordTransitionAsync(string fromTool, string toTool, CancellationToken ct = default) {
+        var tcs = TcsFactory.Create();
+        Tell(new RecordTransitionCmd(fromTool, toTool, tcs));
+        await AskAwait(tcs, ct).ConfigureAwait(false);
+    }
+
+
+    /// <summary>
     /// 异步获取单个工具的健康记录 — 直接读取并发字典，无 Actor 投递
     /// </summary>
     /// <param name="toolName">工具名称</param>
@@ -375,6 +396,23 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
                     RegisterInFlight(SaveToDiskAsync());
                 }
                 heat.Tcs.TrySetResult(heatedCount);
+            }
+            break;
+
+            case RecordTransitionCmd transition: {
+                if (string.Equals(transition.FromTool, transition.ToTool, StringComparison.OrdinalIgnoreCase)) {
+                    transition.Tcs.TrySetResult();
+                    break;
+                }
+                var record = GetOrCreate(transition.FromTool);
+                var freq = record.NextToolFrequency;
+                var newCount = freq.TryGetValue(transition.ToTool, out var existingCount) ? existingCount + 1 : 1;
+                var newFreq = freq.ToDictionary();
+                newFreq[transition.ToTool] = newCount;
+                var updated = record with { NextToolFrequency = newFreq.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase) };
+                _records = _records.SetItem(transition.FromTool, updated);
+                RegisterInFlight(SaveToDiskAsync());
+                transition.Tcs.TrySetResult();
             }
             break;
         }

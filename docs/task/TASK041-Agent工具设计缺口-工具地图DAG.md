@@ -34,25 +34,18 @@
 
 ## 缺口清单
 
-### GAP-041-01 工具级转移频率记录 + refine 角色 ⭐ P1
+### GAP-041-01 工具级转移频率记录 + refine 角色 ✅
 
-- **当前状态**：部分落地（`ToolHealthRecord` 只有 SuccessCount/FailCount/ConsecutiveFailures，无 NextToolFrequency；链路推荐基于静态 ChainOrder 非用户习惯；refine 角色全缺）
-- **缺什么**：
-  1. 没有"记录工具名 → AI 执行下一个工具频率 / 用户执行下一个工具频率"的转移频率记录
-  2. 没有"当前条件 / 转移条件 / 下一个工具推荐 / 下一个工具组别推荐"的转移条件分组
-  3. 没有 refine 角色（数据精炼，primary/fallback 拿到数据后精炼）
-  4. 链路推荐基于静态预设 `ChainOrder`，无运行时学习转移频率并更新链路的机制
-- **建议方案**：
-  1. `ToolHealthRecord` 增加 `NextToolFrequency: FrozenDictionary<string, int>`（工具名→转移次数）
-  2. `ToolHealthScoringMiddleware` 执行后记录 `lastTool → currentTool` 转移
-  3. 新增 `ToolTransitionModel`：按转移条件分组，每组三角色 primary/fallback/refine
-  4. `GetChainRecommendations` 改为优先用转移频率推荐（频率>阈值时），频率不足时回退静态 ChainOrder
-  5. refine 角色：数据太大/太杂时推荐精炼工具（如 gh run view 拿到大日志 → 推荐 filter=error）
-- **验收标准**：
-  - 调用 tool_score 能看到每个工具的 NextToolFrequency
-  - 频率足够时链路推荐来自学习数据非静态预设
-  - refine 角色在数据过大场景被触发
-- **复杂度**：高
+- **当前状态**：已落地（NextToolFrequency 字段 + RecordTransitionAsync + ToolTransitionModel 三角色 + ToolRefineRecommender + GetChainRecommendations 频率优先）
+- **实现位置**：
+  - `lib/abstractions/abs_hands/tools/models/ToolHealthModels.cs`（NextToolFrequency 字段 + RecordTransitionAsync 接口）
+  - `lib/abstractions/abs_hands/tools/models/ToolTransitionModel.cs`（ToolTransitionRole 枚举 + ToolTransitionCondition + ToolTransitionModel + ToolRefineRule + ToolRefineRecommender）
+  - `kit/mcp_tool_dispatch/core/execution/ToolHealthMonitor.cs`（RecordTransitionCmd Actor 消息 + RecordTransitionAsync 实现）
+  - `kit/mcp_tool_dispatch/core/middleware/ToolHealthScoringMiddleware.cs`（执行后记录 lastTool→currentTool 转移）
+  - `kit/mcp_tool_dispatch/core/execution/ToolHypergraphScorer.cs`（GetChainRecommendations 频率优先回退静态）
+  - `kit/mcp_tool_dispatch/core/handlers/ToolScoreDebugToolHandlers.cs`（tool_score 输出转移频率 + boost 状态）
+- **测试**：`test/unit/mcp_tool_dispatch.tests/execution/ToolTransitionTest.cs`（14 个测试全通过）
+- **验收标准**：调用 tool_score 能看到 NextToolFrequency ✅；频率足够时链路推荐来自学习数据 ✅；refine 角色在数据过大场景被触发 ✅
 
 ### GAP-041-02 工具锚点入口 + 向量检索用于工具选择 ⭐ P1
 

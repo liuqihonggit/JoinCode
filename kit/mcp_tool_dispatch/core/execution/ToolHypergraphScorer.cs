@@ -103,9 +103,22 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     }
 
     /// <summary>
-    /// 获取工具的链路后续推荐 — LLM使用工具A后，推荐链路中的后续工具
+    /// 获取工具的链路后续推荐 — 优先用运行时学习的转移频率推荐（频率>阈值时），频率不足时回退静态 ChainOrder
     /// </summary>
-    public string[]? GetChainRecommendations(string toolName) {
+    /// <param name="toolName">当前工具名称</param>
+    /// <param name="healthRecord">当前工具的健康记录（含转移频率），可为 null</param>
+    /// <param name="frequencyThreshold">转移频率阈值，低于此值回退静态推荐（默认 3）</param>
+    public string[]? GetChainRecommendations(string toolName, ToolHealthRecord? healthRecord = null, int frequencyThreshold = 3) {
+        if (healthRecord is not null && healthRecord.NextToolFrequency.Count > 0) {
+            var freqRecommendations = healthRecord.NextToolFrequency
+                .Where(kvp => kvp.Value >= frequencyThreshold)
+                .OrderByDescending(kvp => kvp.Value)
+                .Select(kvp => kvp.Key)
+                .ToArray();
+            if (freqRecommendations.Length > 0)
+                return freqRecommendations;
+        }
+
         if (!_graph.ToolToEdges.TryGetValue(toolName, out var edges))
             return null;
 

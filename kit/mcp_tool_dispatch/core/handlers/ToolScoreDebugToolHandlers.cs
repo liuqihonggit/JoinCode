@@ -45,7 +45,7 @@ public class ToolScoreDebugToolHandlers {
             var isBlacklisted = _monitor.IsBlacklisted(toolName);
             var hypergraphScore = record is not null ? _scorer.CalculateFinalScore(toolName, record.Score) : 0;
             var edges = _scorer.GetEdges(toolName);
-            var chain = _scorer.GetChainRecommendations(toolName);
+            var chain = _scorer.GetChainRecommendations(toolName, record);
 
             var sb = new StringBuilder(512);
             sb.AppendLine($"## 工具评分: {toolName}");
@@ -60,6 +60,13 @@ public class ToolScoreDebugToolHandlers {
             sb.AppendLine($"- 连续失败: {record?.ConsecutiveFailures ?? 0}");
             if (record?.LastErrorMessage is not null)
                 sb.AppendLine($"- 最后错误: {record.LastErrorMessage}");
+            if (record is { IsBoostActive: true })
+                sb.AppendLine($"- 加热中: +{record.BoostScore} (过期 {record.BoostExpiry:HH:mm:ss})");
+            if (record is not null && record.NextToolFrequency.Count > 0) {
+                sb.AppendLine("### 转移频率:");
+                foreach (var kvp in record.NextToolFrequency.OrderByDescending(k => k.Value))
+                    sb.AppendLine($"  → {kvp.Key}: {kvp.Value} 次");
+            }
 
             if (edges.Count > 0) {
                 sb.AppendLine("### 所属超边:");

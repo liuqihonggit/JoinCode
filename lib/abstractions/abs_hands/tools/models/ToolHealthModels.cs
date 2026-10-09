@@ -29,6 +29,8 @@ public interface IToolHealthMonitor {
     Task<ToolHealthRecord> BoostToolAsync(string toolName, int boostScore, TimeSpan ttl, CancellationToken ct = default);
     /// <summary>主动加热所有冷工具（评分低于阈值的工具） — 批量设置临时评分增量。</summary>
     Task<int> HeatColdToolsAsync(int coldThreshold = -20, int boostScore = 30, TimeSpan? ttl = null, CancellationToken ct = default);
+    /// <summary>记录工具转移 — 从 fromTool 转移到 toTool，更新转移频率映射。</summary>
+    Task RecordTransitionAsync(string fromTool, string toTool, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -55,6 +57,8 @@ public sealed record ToolHealthRecord {
     public int BoostScore { get; init; }
     /// <summary>获取或设置临时加热过期时间（UTC），过期后 BoostScore 归零。</summary>
     public DateTime? BoostExpiry { get; init; }
+    /// <summary>获取或设置转移频率映射（下一个工具名 → 转移次数），用于运行时学习工具链路。</summary>
+    public FrozenDictionary<string, int> NextToolFrequency { get; init; } = FrozenDictionary<string, int>.Empty;
 
     /// <summary>获取当前是否处于有效加热期（BoostScore > 0 且未过期）。</summary>
     public bool IsBoostActive => BoostScore > 0 && BoostExpiry is { } expiry && DateTime.UtcNow < expiry;

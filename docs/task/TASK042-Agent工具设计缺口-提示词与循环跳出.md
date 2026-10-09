@@ -127,6 +127,29 @@
 | GAP-042-05 | ✅ 完成 | AttentionFatigueDetector 三阈值（压缩次数+运行时长+错误率），提示写交接文档+/clear/新会话 |
 | GAP-042-06 | ✅ 完成 | LowFrequencyInductionService 按间隔低频诱导，避免高频噪声 |
 
+## FrequencyGate 统一重构
+
+三个信号服务本质上共享同一套频率门控逻辑，重构为统一基础设施：
+
+| 服务 | 方向 | FrequencyGate 角色 |
+|------|------|---------------------|
+| ToolQuotaService | 高频闹钟（窗口内次数 >= 阈值） | HighFrequency 方向 |
+| LowFrequencyInductionService | 低频冷却（距上次 >= 间隔） | LowFrequency 方向 |
+| AttentionFatigueDetector | 多维度累积（压缩+时长+错误率） | 用 FrequencyGate 做累积计数（10年窗口=永不过期） |
+
+- **文件**：`lib/abstractions/abs_core/core_utils/core/misc/FrequencyGate.cs`
+- **设计**：`GateDirection` 枚举（HighFrequency/LowFrequency）+ `GateConfig` 配置 + `FrequencyGate` 类
+- **对称性**：`ShouldSignal` 按方向分派 — High: `CountInWindow >= Threshold`，Low: `TimeSinceLast >= Window`
+- **测试**：12 个 FrequencyGateTest + 25 个原有服务测试全部通过
+
+## 运行时集成点
+
+| 集成点 | 消费位置 | 已实现 | 已验收 |
+|--------|----------|--------|--------|
+| 集成点1: 压缩时记录涣散 | `AutoCompactService.CompactAsync` 压缩成功时调 `AttentionFatigueDetector.RecordCompaction()` | ✅ | ✅ 编译+测试通过 |
+| 集成点2: 工具执行后高频警告 | `PermissionAwareToolExecutor.ExecuteAsync` 调 `ToolQuotaService.RecordCall` + `ShouldWarn` 时追加 `GetWarningPrompt` 到结果 | ✅ | ✅ 编译+190测试通过 |
+| 集成点3: 流开始注入涣散/诱导 | `LoopInterventionMiddleware.InvokeAsync` 开头调 `BuildContextAwarenessPrompts`（涣散+诱导） | ✅ | ✅ 编译+410测试通过 |
+
 ## 关联
 
 - 设计文档：《Agent 工具设计》"提示词"整节

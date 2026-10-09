@@ -26,6 +26,7 @@
     <Project Path="../../lib/plugins.infrastructure/Plugins.Infrastructure.csproj" />
     <Project Path="../../lib/plugins.tests/Plugins.Tests.csproj" />
     <Project Path="../../lib/pithosdb/PithosDB.Core.csproj" />
+    <Project Path="../../tool/onnx_embedding/OnnxEmbeddingExe.csproj" />
   </Folder>
   <Folder Name="/infrastructure/">
     <Project Path="../../lib/infrastructure/Infrastructure.csproj" />

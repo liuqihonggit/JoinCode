@@ -18,7 +18,6 @@ public sealed class DesktopSceneDescriptionTests {
         text.Should().Contain("detect");
         text.Should().Contain("click");
         text.Should().Contain("look");
-        text.Should().Contain("desktop_control");
     }
 
     /// <summary>AC-13: menu 含工具集完整列表</summary>

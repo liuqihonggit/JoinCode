@@ -889,4 +889,69 @@ public sealed class GhCommandResolverTests {
         error.Should().BeNull();
         bound!["title"].Should().Be("feat: test");
     }
+
+    /// <summary>GhParamSchemaParser 应从 schema type 提取 TypeHint（GAP-039-01）</summary>
+    [Fact]
+    public void ParseSchema_ShouldExtractTypeHintFromSchema() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
+                ["pr_number"] = new ToolSchemaProperty { Type = "integer" },
+                ["title"] = new ToolSchemaProperty { Type = "string" },
+                ["labels"] = new ToolSchemaProperty { Type = "array" },
+                ["draft"] = new ToolSchemaProperty { Type = "boolean" },
+            },
+            Required = ["pr_number"],
+        };
+
+        var parameters = GhParamSchemaParser.Parse(schema);
+
+        parameters.Should().Contain(p => p.Name == "pr_number" && p.TypeHint == "integer");
+        parameters.Should().Contain(p => p.Name == "title" && p.TypeHint == "string");
+        parameters.Should().Contain(p => p.Name == "labels" && p.TypeHint == "array");
+        parameters.Should().Contain(p => p.Name == "draft" && p.TypeHint == "boolean");
+    }
+
+    /// <summary>未知选项报错时应在可用选项列表中展示参数类型（GAP-039-01）</summary>
+    [Fact]
+    public void Bind_UnknownOption_ShouldShowParamTypeInHint() {
+        var parameters = new List<GhParam> {
+            new("limit", IsRequired: false, IsBoolean: false, TypeHint: "integer"),
+            new("state", IsRequired: false, IsBoolean: false, TypeHint: "string"),
+            new("json_fields", IsRequired: false, IsBoolean: false, TypeHint: "array"),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--bogus", "1" }, parameters, "gh_pr_list", out var error);
+
+        bound.Should().BeNull();
+        error.Should().Contain("--limit(integer)");
+        error.Should().Contain("--state(string)");
+        error.Should().Contain("--json_fields(array)");
+    }
+
+    /// <summary>缺少必填位置参数时应展示参数类型（GAP-039-01）</summary>
+    [Fact]
+    public void Bind_MissingRequiredPositional_ShouldShowParamType() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false, TypeHint: "integer"),
+        };
+
+        var bound = GhArgsBinder.Bind(Array.Empty<string>(), parameters, "gh_pr_view", out var error);
+
+        bound.Should().BeNull();
+        error.Should().Contain("pr_number");
+        error.Should().Contain("integer");
+    }
+
+    /// <summary>非布尔选项缺值时应展示参数类型（GAP-039-01）</summary>
+    [Fact]
+    public void Bind_OptionMissingValue_ShouldShowParamType() {
+        var parameters = new List<GhParam> {
+            new("limit", IsRequired: false, IsBoolean: false, TypeHint: "integer"),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "--limit" }, parameters, "gh_pr_list", out var error);
+
+        bound.Should().BeNull();
+        error.Should().Contain("integer");
+    }
 }

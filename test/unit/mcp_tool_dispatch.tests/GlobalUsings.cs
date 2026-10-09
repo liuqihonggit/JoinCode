@@ -1,5 +1,6 @@
 global using FluentAssertions;
 global using IO.FileSystem;
+global using JoinCode.Abstractions.Scenarios;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using McpToolDispatch;

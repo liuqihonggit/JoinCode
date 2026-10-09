@@ -25,6 +25,12 @@ public interface IToolHealthMonitor {
     void UpdateBlacklist(HashSet<string> newBlacklist);
     /// <summary>更新惩罚字典。</summary>
     void UpdatePenalties(Dictionary<string, int> newPenalties);
+    /// <summary>主动加热指定工具 — 设置临时评分增量，ttl 过期后自动回落。</summary>
+    Task<ToolHealthRecord> BoostToolAsync(string toolName, int boostScore, TimeSpan ttl, CancellationToken ct = default);
+    /// <summary>主动加热所有冷工具（评分低于阈值的工具） — 批量设置临时评分增量。</summary>
+    Task<int> HeatColdToolsAsync(int coldThreshold = -20, int boostScore = 30, TimeSpan? ttl = null, CancellationToken ct = default);
+    /// <summary>记录工具转移 — 从 fromTool 转移到 toTool，更新转移频率映射。</summary>
+    Task RecordTransitionAsync(string fromTool, string toTool, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -47,10 +53,69 @@ public sealed record ToolHealthRecord {
     public DateTime LastAdjusted { get; init; } = DateTime.UtcNow;
     /// <summary>获取或设置最后错误消息。</summary>
     public string? LastErrorMessage { get; init; }
+    /// <summary>获取或设置临时加热评分增量（主动加热冷工具时设置，BoostExpiry 过期后清零）。</summary>
+    public int BoostScore { get; init; }
+    /// <summary>获取或设置临时加热过期时间（UTC），过期后 BoostScore 归零。</summary>
+    public DateTime? BoostExpiry { get; init; }
+    /// <summary>获取或设置转移频率映射（下一个工具名 → 转移次数），用于运行时学习工具链路。</summary>
+    public Dictionary<string, int> NextToolFrequency { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>获取当前是否处于有效加热期（BoostScore > 0 且未过期）。</summary>
+    public bool IsBoostActive => BoostScore > 0 && BoostExpiry is { } expiry && DateTime.UtcNow < expiry;
 
     /// <summary>获取成功率。</summary>
     public double SuccessRate => SuccessCount + FailCount > 0
         ? (double)SuccessCount / (SuccessCount + FailCount) : 0.5;
+
+    /// <summary>
+    /// 生成"状态+条件+目的"自然语言状态描述 — 供 tool_score 输出，让 AI 直观理解工具当前状态
+    /// </summary>
+    /// <param name="chainRecommendations">链路推荐（来自超图评分器），可为 null</param>
+    /// <returns>自然语言状态描述字符串</returns>
+    public string GenerateStatusDescription(string[]? chainRecommendations = null) {
+        var totalCalls = SuccessCount + FailCount;
+        var idleHours = (DateTime.UtcNow - LastAdjusted).TotalHours;
+
+        var heatLabel = totalCalls switch {
+            >= 50 => "热",
+            >= 10 => "温",
+            >= 1 => "冷",
+            _ => "未使用"
+        };
+
+        var healthLabel = SuccessRate switch {
+            >= 0.9 => "健康",
+            >= 0.7 => "一般",
+            >= 0.5 => "不稳定",
+            _ => "异常"
+        };
+
+        var scoreLabel = Score switch {
+            >= 50 => "高评分",
+            >= 0 => "正常",
+            >= -30 => "低评分",
+            _ => "危险"
+        };
+
+        var sb = new StringBuilder(256);
+        sb.Append($"工具 {ToolName} 共调用 {totalCalls} 次（{heatLabel}），");
+        sb.Append($"成功率 {SuccessRate:P0}（{healthLabel}），");
+        sb.Append($"评分 {Score}（{scoreLabel}）");
+
+        if (ConsecutiveFailures > 0)
+            sb.Append($"，连续失败 {ConsecutiveFailures} 次");
+
+        if (idleHours >= 1)
+            sb.Append($"，空闲 {idleHours:F0} 小时");
+
+        if (!IsEnabled)
+            sb.Append("，已熔断");
+
+        if (chainRecommendations is { Length: > 0 })
+            sb.Append($"，推荐链路 → {string.Join(" → ", chainRecommendations)}");
+
+        return sb.ToString();
+    }
 }
 
 /// <summary>

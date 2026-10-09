@@ -11,6 +11,7 @@
     <Project Path="../../gen/prompt_section.generator/PromptSection.Generator.csproj" />
     <Project Path="../../gen/prompt_template.generator/PromptTemplate.Generator.csproj" />
     <Project Path="../../gen/tool_prompt.generator/ToolPrompt.Generator.csproj" />
+    <Project Path="../../gen/scenario.generator/Scenario.Generator.csproj" />
     <Project Path="../../gen/danger_command.generator/DangerCommand.Generator.csproj" />
     <Project Path="../../gen/fsm.generator/Fsm.Generator.csproj" />
     <Project Path="../../gen/fsm.generator.tests/Fsm.Generator.Tests.csproj" />

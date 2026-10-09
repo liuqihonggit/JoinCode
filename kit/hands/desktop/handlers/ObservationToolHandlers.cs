@@ -4,6 +4,10 @@ namespace Tools.Handlers;
 /// 观察学习工具处理器 — 演示录制/操作抽象/步骤优化（PRD L-01/L-02/L-04）
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
+[Scenario("observation", "观察学习场景：录制操作、抽象模式、优化步骤、从逻辑复现。",
+    Tools = new[] { "start_observation", "learn_from_observation", "optimize_steps", "reproduce_from_logic" },
+    SuggestedFlow = "start_observation → learn_from_observation → optimize_steps → reproduce_from_logic",
+    Tips = "先 start_observation 录制操作序列，learn_from_observation 提取模式，optimize_steps 优化后 reproduce_from_logic 复现。")]
 public class ObservationToolHandlers {
     private readonly IMacroRecorder _recorder;
     private readonly IObservationLearner _learner;

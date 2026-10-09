@@ -4,6 +4,10 @@ namespace Tools.Handlers;
 /// 环境感知与撤销工具处理器 — 暴露为 MCP 工具（PRD E-01/E-03/U-03）
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
+[Scenario("environment", "环境感知与撤销场景：获取环境状态、等待空闲、撤销操作、查历史。",
+    Tools = new[] { "get_environment_state", "wait_for_idle", "undo_last_action", "get_operation_history" },
+    SuggestedFlow = "get_environment_state → (操作) → undo_last_action / get_operation_history",
+    Tips = "操作前 get_environment_state 确认环境，出错用 undo_last_action 回退，get_operation_history 查过往。")]
 public class EnvironmentToolHandlers {
     private readonly IEnvironmentAwarenessService _env;
     private readonly IUndoStack _undo;

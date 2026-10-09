@@ -68,6 +68,10 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct) {
+        var awarenessPrompt = BuildContextAwarenessPrompts();
+        if (!string.IsNullOrEmpty(awarenessPrompt))
+            yield return ChatStreamEvent.Text(awarenessPrompt);
+
         var hasLoopDetected = false;
         var loopTriggerCount = 0;
         var hasProgressed = false;
@@ -104,6 +108,9 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
             yield break;
 
         if (effectiveTriggerCount >= _options.CompactThreshold) {
+            var warningPrompt = BuildHighFrequencyWarningPrompt();
+            if (!string.IsNullOrEmpty(warningPrompt))
+                yield return ChatStreamEvent.Text(warningPrompt);
             await foreach (var evt in CompactAsync(ct).ConfigureAwait(false))
                 yield return evt;
             yield break;
@@ -176,6 +183,10 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
         if (!retrySucceeded) {
             _logger?.LogWarning("[LoopInterventionMiddleware] 重连{Max}次后仍然循环，进入Level 3上下文压缩", _options.MaxRetryAttempts);
             yield return ChatStreamEvent.Text(_options.CompactPrompt);
+
+            var warningPrompt = BuildHighFrequencyWarningPrompt();
+            if (!string.IsNullOrEmpty(warningPrompt))
+                yield return ChatStreamEvent.Text(warningPrompt);
 
             await foreach (var evt in CompactAsync(ct).ConfigureAwait(false))
                 yield return evt;
@@ -270,6 +281,41 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
 
     private int AdjustTriggerCountForProgress(int loopTriggerCount) {
         return Math.Max(1, loopTriggerCount - _options.ProgressDiscount);
+    }
+
+    /// <summary>
+    /// 构建高频工具强烈重复性警告提示 — Level 3 上下文压缩时，检查 ToolQuotaService 高频工具并注入警告。
+    /// <para>不没收工具（那会卡住 AI），而是强烈重复提示让 AI 嫌烦主动换工具/换策略。</para>
+    /// </summary>
+    /// <returns>警告提示词；无高频工具时返回空字符串</returns>
+    private static string BuildHighFrequencyWarningPrompt() {
+        var highFreqTools = ToolQuotaService.GetHighFrequencyTools();
+        if (highFreqTools.Count == 0)
+            return string.Empty;
+        var tools = string.Join("、", highFreqTools);
+        return $"\n\n⚠️⚠️ 强烈提示：检测到高频工具 {tools}。这些工具调用过于频繁，请立即考虑改用替代工具、批量处理或调整策略。此提示将持续出现直到降低调用频率。";
+    }
+
+    /// <summary>
+    /// 构建上下文感知提示 — 检查注意力涣散 + 低频诱导，在流开始时注入。
+    /// <para>注意力涣散: 长时间运行+多次压缩+高错误率 → 建议写交接文档+/clear</para>
+    /// <para>低频诱导: 每10分钟检查一次循环干预健康度 → 建议检查策略</para>
+    /// </summary>
+    /// <returns>感知提示词；无提示时返回空字符串</returns>
+    private static string BuildContextAwarenessPrompts() {
+        var prompt = string.Empty;
+
+        if (AttentionFatigueDetector.IsFatigued())
+            prompt += AttentionFatigueDetector.GetFatiguePrompt();
+
+        const string inductionKey = "loop-intervention-health";
+        var inductionInterval = TimeSpan.FromMinutes(10);
+        if (LowFrequencyInductionService.ShouldInduce(inductionKey, inductionInterval)) {
+            prompt += LowFrequencyInductionService.GetInductionPrompt(inductionKey, "循环干预健康检查");
+            LowFrequencyInductionService.RecordInduction(inductionKey);
+        }
+
+        return prompt;
     }
 
     /// <summary>

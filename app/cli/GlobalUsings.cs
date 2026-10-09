@@ -45,6 +45,8 @@ global using JoinCode.Abstractions.Constants;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Execution;
+global using JoinCode.Abstractions.Scenarios;
+global using JoinCode.Hands.Scenarios;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Configuration.Settings;

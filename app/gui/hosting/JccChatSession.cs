@@ -723,4 +723,13 @@ internal sealed class JccChatSession : IJccChatSession {
         return Task.FromResult(goalEngine?.GetGoalProgress());
     }
 
+    /// <summary>
+    /// 重置运行时计数器 — 双击 ESC 时调用，重置工具配额 + 输出循环检测（不清空聊天历史）。
+    /// </summary>
+    public Task ResetCountersAsync(CancellationToken cancellationToken = default) {
+        ToolQuotaService.Reset();
+        _services.GetService<Core.Context.IOutputLoopDetector>()?.Reset();
+        return Task.CompletedTask;
+    }
+
 }

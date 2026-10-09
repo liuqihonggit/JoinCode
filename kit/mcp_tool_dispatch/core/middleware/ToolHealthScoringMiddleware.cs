@@ -10,6 +10,7 @@ public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolEx
     private readonly ToolHealthMonitor _monitor;
     private readonly ToolHypergraphScorer _scorer;
     private readonly ILogger<ToolHealthScoringMiddleware> _logger;
+    private volatile string? _lastToolName;
 
     /// <summary>
     /// 构造函数 — 注入健康监控器、超图评分器和日志记录器
@@ -66,6 +67,12 @@ public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolEx
         } else {
             await _monitor.RecordSuccessAsync(context.ToolName, ct).ConfigureAwait(false);
         }
+
+        var lastTool = _lastToolName;
+        if (lastTool is not null && !string.Equals(lastTool, context.ToolName, StringComparison.OrdinalIgnoreCase)) {
+            await _monitor.RecordTransitionAsync(lastTool, context.ToolName, ct).ConfigureAwait(false);
+        }
+        _lastToolName = context.ToolName;
 
         var allRecords = await _monitor.GetAllRecordsAsync(ct).ConfigureAwait(false);
         _scorer.UpdateSharedScores(allRecords);

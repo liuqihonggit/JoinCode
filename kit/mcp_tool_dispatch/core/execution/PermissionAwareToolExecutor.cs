@@ -94,6 +94,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             }
 
             if (context.Result is not null) {
+                ApplyQuotaWarning(toolName, context.Result);
                 CompleteExecutionEntity(context);
                 RaiseToolExecutionCompleted(toolName, context.Result, arguments);
                 return context.Result;
@@ -172,6 +173,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         await _pipeline.ExecuteAsync(retryContext, cancellationToken).ConfigureAwait(false);
 
         if (retryContext.Result is not null) {
+            ApplyQuotaWarning(toolName, retryContext.Result);
             CompleteExecutionEntity(retryContext);
             RaiseToolExecutionCompleted(toolName, retryContext.Result, arguments);
             return retryContext.Result;
@@ -247,6 +249,19 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
              ],
             IsError = true
         };
+    }
+
+    /// <summary>
+    /// 记录工具调用配额并在高频时注入强烈重复性警告提示 — 不拒绝调用，仅让 AI 嫌烦主动换工具
+    /// </summary>
+    private static void ApplyQuotaWarning(string toolName, ToolResult result) {
+        ToolQuotaService.RecordCall(toolName);
+        if (!ToolQuotaService.ShouldWarn(toolName)) return;
+        var warning = ToolQuotaService.GetWarningPrompt(toolName);
+        result.Content.Add(new ToolContent {
+            Type = ToolContentType.Text,
+            Text = warning
+        });
     }
 
     private void RaiseToolExecutionCompleted(

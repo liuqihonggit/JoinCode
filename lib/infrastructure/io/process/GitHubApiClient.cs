@@ -263,7 +263,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
                     using var reader = new StreamReader(entryStream);
                     string? line;
                     while ((line = await reader.ReadLineAsync(ct).ConfigureAwait(false)) is not null) {
-                        zipLines.Add(FormatZipEntryLine(entry.Name, line));
+                        zipLines.Add(AnsiStripper.Strip(FormatZipEntryLine(entry.Name, line)));
                     }
                 }
             } catch (Exception ex) {
@@ -289,7 +289,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         using var textReader = new StreamReader(concatStream);
         string? textLine;
         while ((textLine = await textReader.ReadLineAsync(ct).ConfigureAwait(false)) is not null) {
-            yield return textLine;
+            yield return AnsiStripper.Strip(textLine);
         }
     }
 

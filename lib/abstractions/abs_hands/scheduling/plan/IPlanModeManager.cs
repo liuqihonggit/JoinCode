@@ -64,6 +64,7 @@ public interface IPlanModeManager {
         string description,
         string? toolName = null,
         Dictionary<string, JsonElement>? parameters = null,
+        bool isCriticalNode = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -109,6 +110,25 @@ public interface IPlanModeManager {
     /// </summary>
     Task<PlanOperationResult> ReorderStepsAsync(
         List<int> newOrder,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 记录步骤执行失败 — 递增 ConsecutiveFailures 并持久化，供自动重排机制判定。
+    /// </summary>
+    /// <param name="stepIndex">步骤索引</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task<PlanOperationResult> RecordStepFailureAsync(
+        int stepIndex,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 任务重排自动机制 — 检测连续失败 N 次的非关键节点步骤，自动后置到队列尾部。
+    /// 鱼骨图重要节点（IsCriticalNode=true）不参与重排。
+    /// </summary>
+    /// <param name="failureThreshold">连续失败次数阈值，达到则后置，默认3次</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task<PlanAutoReorderResult> AutoReorderOnFailureAsync(
+        int failureThreshold = 3,
         CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -386,7 +386,23 @@ public sealed class ApplicationBuilder {
         }
 
         var t = topic.Trim();
-        switch (t.ToLowerInvariant()) {
+        var lower = t.ToLowerInvariant();
+
+        // scenario 支持两级主题: scenario / scenario <name>
+        if (lower is "scenario" or "scenarios" or "scene") {
+            ShowScenarios();
+            return;
+        }
+        if (lower.StartsWith("scenario ", StringComparison.Ordinal)
+            || lower.StartsWith("scenarios ", StringComparison.Ordinal)
+            || lower.StartsWith("scene ", StringComparison.Ordinal)) {
+            ShowScenarioDetail(t.Substring(t.IndexOf(' ') + 1).Trim());
+            return;
+        }
+
+        // 其他主题取第一个 word（兼容多参数输入如 "gh pr" → "gh"）
+        var firstWord = t.Contains(' ') ? t.AsSpan(0, t.IndexOf(' ')).ToString() : t;
+        switch (firstWord.ToLowerInvariant()) {
             case "options" or "opt":
             Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("categorized").Replace("cliarg", "jcc"));
             break;
@@ -405,7 +421,7 @@ public sealed class ApplicationBuilder {
             Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("examples"));
             break;
             default:
-            if (TryShowSubCommandHelp(t)) break;
+            if (TryShowSubCommandHelp(firstWord)) break;
             Cli.TerminalHelper.WriteLine($"未知主题: {t}");
             Cli.TerminalHelper.NewLine();
             ShowHelpOverview();
@@ -420,6 +436,7 @@ public sealed class ApplicationBuilder {
         Cli.TerminalHelper.WriteLine("用法: jcc [选项] [子命令] [参数]");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("帮助主题:");
+        Cli.TerminalHelper.WriteLine("  jcc -h scenario    情景模式(工具集+编排流程)");
         Cli.TerminalHelper.WriteLine("  jcc -h options     参数选项(按分类分组)");
         Cli.TerminalHelper.WriteLine("  jcc -h sub         子命令(按分类分组)");
         Cli.TerminalHelper.WriteLine("  jcc -h env         环境变量");
@@ -459,6 +476,38 @@ public sealed class ApplicationBuilder {
         Cli.TerminalHelper.NewLine();
         foreach (var line in JccExitCodeHelpText.GetHelp().Split('\n', StringSplitOptions.RemoveEmptyEntries))
             Cli.TerminalHelper.WriteLine(line);
+    }
+
+    /// <summary>
+    /// 显示所有情景模式 — jcc -h scenario
+    /// </summary>
+    private static void ShowScenarios() {
+        Cli.TerminalHelper.WriteLine("情景模式:");
+        Cli.TerminalHelper.NewLine();
+        if (ScenarioRegistry.Scenarios.Length == 0) {
+            Cli.TerminalHelper.WriteLine("  (暂无已注册的情景模式)");
+            return;
+        }
+        foreach (var s in ScenarioRegistry.Scenarios) {
+            Cli.TerminalHelper.WriteLine($"  {s.Name}");
+            Cli.TerminalHelper.WriteLine($"    {s.Description}");
+            Cli.TerminalHelper.NewLine();
+        }
+        Cli.TerminalHelper.WriteLine("查看详情: jcc -h scenario <名称>");
+    }
+
+    /// <summary>
+    /// 显示特定情景模式详情 — jcc -h scenario &lt;name&gt;，经 ToolMenuRenderer 统一渲染
+    /// </summary>
+    private static void ShowScenarioDetail(string name) {
+        var scenario = ScenarioRegistry.Find(name);
+        if (scenario is null) {
+            Cli.TerminalHelper.WriteLine($"未知情景模式: {name}");
+            Cli.TerminalHelper.NewLine();
+            ShowScenarios();
+            return;
+        }
+        Cli.TerminalHelper.WriteLine(ToolMenuRenderer.ToText(scenario).TrimEnd());
     }
 
     /// <summary>

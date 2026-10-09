@@ -435,6 +435,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         string description,
         string? toolName = null,
         Dictionary<string, JsonElement>? parameters = null,
+        bool isCriticalNode = false,
         CancellationToken cancellationToken = default) {
         // 跨进程持久化: 从文件恢复活跃 plan 状态
         await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
@@ -448,7 +449,8 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
             Description = description,
             ToolName = toolName,
             Parameters = parameters,
-            Status = PlanStepStatus.Pending
+            Status = PlanStepStatus.Pending,
+            IsCriticalNode = isCriticalNode
         };
 
         plan.Steps.Add(step);
@@ -718,6 +720,70 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
 
         return new PlanOperationResult(true, plan);
+    }
+
+    /// <summary>
+    /// 记录步骤执行失败 — 递增 ConsecutiveFailures 并持久化，供自动重排机制判定。
+    /// </summary>
+    public async Task<PlanOperationResult> RecordStepFailureAsync(
+        int stepIndex,
+        CancellationToken cancellationToken = default) {
+        await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
+
+        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
+            return new PlanOperationResult(false, null, "当前不在计划模式中");
+
+        if (stepIndex < 0 || stepIndex >= plan.Steps.Count)
+            return new PlanOperationResult(false, plan, "步骤索引超出范围");
+
+        plan.Steps[stepIndex] = plan.Steps[stepIndex] with { ConsecutiveFailures = plan.Steps[stepIndex].ConsecutiveFailures + 1 };
+        plan.LastUpdatedAt = _clock.GetUtcNow();
+
+        await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
+
+        return new PlanOperationResult(true, plan);
+    }
+
+    /// <summary>
+    /// 任务重排自动机制 — 检测连续失败 N 次的非关键节点步骤，自动后置到队列尾部。
+    /// 鱼骨图重要节点（IsCriticalNode=true）不参与重排。
+    /// </summary>
+    public async Task<PlanAutoReorderResult> AutoReorderOnFailureAsync(
+        int failureThreshold = 3,
+        CancellationToken cancellationToken = default) {
+        await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
+
+        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
+            return new PlanAutoReorderResult(false, message: "当前不在计划模式中");
+
+        var failedSteps = plan.Steps
+            .Where(s => s.ConsecutiveFailures >= failureThreshold
+                     && !s.IsCriticalNode
+                     && s.Status != PlanStepStatus.Completed)
+            .ToList();
+
+        if (failedSteps.Count == 0)
+            return new PlanAutoReorderResult(false, planState: plan);
+
+        var postponedIds = new HashSet<int>(failedSteps.Select(s => s.Index));
+        var keptSteps = plan.Steps.Where(s => !postponedIds.Contains(s.Index)).ToList();
+        var reorderedSteps = keptSteps.Concat(failedSteps)
+            .Select((s, newIndex) => s with { Index = newIndex })
+            .ToList();
+
+        plan.Steps.Clear();
+        plan.Steps.AddRange(reorderedSteps);
+        plan.LastUpdatedAt = _clock.GetUtcNow();
+
+        await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
+
+        var postponedDescs = failedSteps.Select(s => s.Description).ToList();
+        var nextStep = keptSteps.FirstOrDefault()?.Description;
+        var msg = nextStep is not null
+            ? $"任务 {string.Join("、", postponedDescs)} 因连续失败已后置，先推进任务 {nextStep}"
+            : $"任务 {string.Join("、", postponedDescs)} 因连续失败已后置";
+
+        return new PlanAutoReorderResult(true, postponedDescs, msg, plan);
     }
 
     /// <summary>

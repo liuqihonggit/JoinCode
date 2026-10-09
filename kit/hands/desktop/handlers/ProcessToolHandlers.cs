@@ -6,6 +6,10 @@ namespace Tools.Handlers;
 /// 进程干预工具处理器 — 枚举/结束/启动进程（PRD S-01）
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
+[Scenario("process", "进程管理场景：枚举、启动、等待、终止系统进程。",
+    Tools = new[] { "list_processes", "start_process", "wait_for_idle", "kill_process" },
+    SuggestedFlow = "list_processes → start_process → wait_for_idle → kill_process",
+    Tips = "start_process 后用 wait_for_idle 等就绪，kill_process 前先 list_processes 确认 PID。")]
 public class ProcessToolHandlers {
     private readonly ILogger<ProcessToolHandlers>? _logger;
 

@@ -35,6 +35,32 @@ public sealed record ResetToolCmd(string ToolName, TaskCompletionSource Tcs) : I
 public sealed record DecayTickCmd : IToolHealthCommand;
 
 /// <summary>
+/// 主动加热工具命令 — Actor 消息，设置临时评分增量
+/// </summary>
+/// <param name="ToolName">工具名称</param>
+/// <param name="BoostScore">临时评分增量</param>
+/// <param name="Expiry">加热过期时间（UTC）</param>
+/// <param name="Tcs">用于回传健康记录的任务完成源</param>
+public sealed record BoostToolCmd(string ToolName, int BoostScore, DateTime Expiry, TaskCompletionSource<ToolHealthRecord> Tcs) : IToolHealthCommand;
+
+/// <summary>
+/// 批量加热冷工具命令 — Actor 消息，扫描评分低于阈值的工具并加热
+/// </summary>
+/// <param name="ColdThreshold">冷工具评分阈值</param>
+/// <param name="BoostScore">临时评分增量</param>
+/// <param name="Expiry">加热过期时间（UTC）</param>
+/// <param name="Tcs">用于回传加热工具数量的任务完成源</param>
+public sealed record HeatColdToolsCmd(int ColdThreshold, int BoostScore, DateTime Expiry, TaskCompletionSource<int> Tcs) : IToolHealthCommand;
+
+/// <summary>
+/// 记录工具转移命令 — Actor 消息，更新 fromTool 的转移频率映射
+/// </summary>
+/// <param name="FromTool">源工具名称</param>
+/// <param name="ToTool">目标工具名称</param>
+/// <param name="Tcs">用于通知完成的任务完成源</param>
+public sealed record RecordTransitionCmd(string FromTool, string ToTool, TaskCompletionSource Tcs) : IToolHealthCommand;
+
+/// <summary>
 /// 工具健康监控服务 — Actor 化：复合操作（RecordSuccess/RecordFailure/Decay）由 Consumer 串行处理，消除 AsyncLock。
 /// <para>_records 保留 ConcurrentDictionary 供 GetEffectiveScore 等读多写少方法直接读取（最终一致性）。</para>
 /// <para>_blacklistSnapshot/_penalties 保留 volatile 双变量切换。</para>
@@ -173,7 +199,8 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         if (IsBlacklisted(toolName)) return _config.ScoreMin;
         _records.TryGetValue(toolName, out var record);
         var baseScore = record?.Score ?? 0;
-        return Math.Clamp(baseScore + GetPenalty(toolName), _config.ScoreMin, _config.ScoreMax);
+        var boost = record is { IsBoostActive: true } ? record.BoostScore : 0;
+        return Math.Clamp(baseScore + boost + GetPenalty(toolName), _config.ScoreMin, _config.ScoreMax);
     }
 
     /// <summary>
@@ -200,6 +227,19 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         Tell(new RecordFailureCmd(toolName, errorMessage, tcs));
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// 记录工具转移 — 从 fromTool 转移到 toTool，更新转移频率映射
+    /// </summary>
+    /// <param name="fromTool">源工具名称</param>
+    /// <param name="toTool">目标工具名称</param>
+    /// <param name="ct">取消令牌</param>
+    public async Task RecordTransitionAsync(string fromTool, string toTool, CancellationToken ct = default) {
+        var tcs = TcsFactory.Create();
+        Tell(new RecordTransitionCmd(fromTool, toTool, tcs));
+        await AskAwait(tcs, ct).ConfigureAwait(false);
+    }
+
 
     /// <summary>
     /// 异步获取单个工具的健康记录 — 直接读取并发字典，无 Actor 投递
@@ -231,6 +271,35 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         var tcs = TcsFactory.Create();
         Tell(new ResetToolCmd(toolName, tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 主动加热指定工具 — 设置临时评分增量，ttl 过期后自动回落
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="boostScore">临时评分增量（正数）</param>
+    /// <param name="ttl">加热有效期</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>更新后的工具健康记录</returns>
+    public async Task<ToolHealthRecord> BoostToolAsync(string toolName, int boostScore, TimeSpan ttl, CancellationToken ct = default) {
+        var tcs = TcsFactory.Create<ToolHealthRecord>();
+        Tell(new BoostToolCmd(toolName, boostScore, DateTime.UtcNow + ttl, tcs));
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 主动加热所有冷工具 — 扫描评分低于阈值的工具，批量设置临时评分增量
+    /// </summary>
+    /// <param name="coldThreshold">冷工具评分阈值（低于此值视为冷工具）</param>
+    /// <param name="boostScore">临时评分增量</param>
+    /// <param name="ttl">加热有效期（默认 1 小时）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>被加热的工具数量</returns>
+    public async Task<int> HeatColdToolsAsync(int coldThreshold = -20, int boostScore = 30, TimeSpan? ttl = null, CancellationToken ct = default) {
+        var actualTtl = ttl ?? TimeSpan.FromHours(1);
+        var tcs = TcsFactory.Create<int>();
+        Tell(new HeatColdToolsCmd(coldThreshold, boostScore, DateTime.UtcNow + actualTtl, tcs));
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -293,6 +362,59 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
             case DecayTickCmd:
             ApplyTimeDecay();
             break;
+
+            case BoostToolCmd boost: {
+                var record = GetOrCreate(boost.ToolName);
+                var updated = record with {
+                    BoostScore = boost.BoostScore,
+                    BoostExpiry = boost.Expiry,
+                };
+                _records = _records.SetItem(boost.ToolName, updated);
+                _logger?.LogInformation("工具 {ToolName} 已主动加热 +{Boost}，过期时间 {Expiry:O}",
+                    boost.ToolName, boost.BoostScore, boost.Expiry);
+                RegisterInFlight(SaveToDiskAsync());
+                boost.Tcs.TrySetResult(updated);
+            }
+            break;
+
+            case HeatColdToolsCmd heat: {
+                var records = _records;
+                var heatedCount = 0;
+                foreach (var (toolName, record) in records) {
+                    if (record.Score >= heat.ColdThreshold) continue;
+                    if (record.IsBoostActive) continue;
+                    records = records.SetItem(toolName, record with {
+                        BoostScore = heat.BoostScore,
+                        BoostExpiry = heat.Expiry,
+                    });
+                    heatedCount++;
+                }
+                _records = records;
+                if (heatedCount > 0) {
+                    _logger?.LogInformation("已主动加热 {Count} 个冷工具（评分 < {Threshold}），加热 +{Boost}，过期 {Expiry:O}",
+                        heatedCount, heat.ColdThreshold, heat.BoostScore, heat.Expiry);
+                    RegisterInFlight(SaveToDiskAsync());
+                }
+                heat.Tcs.TrySetResult(heatedCount);
+            }
+            break;
+
+            case RecordTransitionCmd transition: {
+                if (string.Equals(transition.FromTool, transition.ToTool, StringComparison.OrdinalIgnoreCase)) {
+                    transition.Tcs.TrySetResult();
+                    break;
+                }
+                var record = GetOrCreate(transition.FromTool);
+                var freq = record.NextToolFrequency;
+                var newCount = freq.TryGetValue(transition.ToTool, out var existingCount) ? existingCount + 1 : 1;
+                var newFreq = freq.ToDictionary();
+                newFreq[transition.ToTool] = newCount;
+                var updated = record with { NextToolFrequency = newFreq };
+                _records = _records.SetItem(transition.FromTool, updated);
+                RegisterInFlight(SaveToDiskAsync());
+                transition.Tcs.TrySetResult();
+            }
+            break;
         }
     }
 
@@ -330,6 +452,14 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
                 records = records.SetItem(toolName, record with { Score = Math.Min(0, record.Score + decay) });
             }
         }
+
+        var expiryNow = DateTime.UtcNow;
+        foreach (var (toolName, record) in records) {
+            if (record.BoostExpiry is { } expiry && expiryNow >= expiry) {
+                records = records.SetItem(toolName, record with { BoostScore = 0, BoostExpiry = null });
+            }
+        }
+
         _records = records;
 
         RegisterInFlight(SaveToDiskAsync());

@@ -200,8 +200,9 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     [Fact]
     public async Task RecordSuccessAsync_PersistsToDisk() {
         await _monitor.RecordSuccessAsync("tool_a");
-        _monitor.DisposeSafe();
-        await using var monitor2 = new ToolHealthMonitor(_fs, config: new ToolScoreConfig());
+        await _monitor.DisposeAsync();
+        var monitor2 = new ToolHealthMonitor(_fs, config: new ToolScoreConfig());
+        await monitor2.DisposeAsync();
         var record = await monitor2.GetRecordAsync("tool_a");
         record.Should().NotBeNull();
         record!.Score.Should().Be(1);

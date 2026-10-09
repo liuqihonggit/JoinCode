@@ -59,6 +59,8 @@ public sealed partial class AutoCompactService : ServiceEntity, ICompactService 
 
         if (context.Result is not null) {
             _consecutiveFailures = context.ConsecutiveFailures;
+            if (context.Result.Compacted)
+                AttentionFatigueDetector.RecordCompaction();
             return context.Result;
         }
 

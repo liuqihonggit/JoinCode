@@ -15,6 +15,13 @@ public sealed record ToolQuotaConfig {
 
     /// <summary>替代工具提示（可选），如 "专用工具 Y"；为空时提示不含替代建议</summary>
     public string? AlternativeToolHint { get; init; }
+
+    /// <summary>转换为频率门控配置（高频方向）</summary>
+    public GateConfig ToGateConfig() => new() {
+        Window = Window,
+        Threshold = Threshold,
+        Direction = GateDirection.HighFrequency,
+    };
 }
 
 /// <summary>
@@ -24,68 +31,46 @@ public sealed record ToolQuotaConfig {
 /// 让 AI 自己嫌烦而主动换工具/换策略。按工具名+时间窗口计次，超阈值持续警告。
 /// 全局静态状态，生命周期为整个进程。/clear 调用 Reset 重置全部配额。
 /// </para>
+/// <para>
+/// 内部委托给 FrequencyGate（高频闹钟方向），与 LowFrequencyInductionService（低频冷却方向）共享同一套频率门控基础设施。
+/// </para>
 /// </summary>
 public static class ToolQuotaService {
-    private static readonly ConcurrentDictionary<string, ConcurrentQueue<DateTime>> CallHistory = new();
+    private static readonly FrequencyGate Gate = new();
 
     /// <summary>
     /// 记数当前调用次数。
     /// </summary>
-    /// <param name="toolName">工具名称</param>
-    /// <param name="config">配额配置（可选，默认 Default）</param>
-    /// <returns>当前时间窗口内的调用次数</returns>
     public static int CountCalls(string toolName, ToolQuotaConfig? config = null) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
         var cfg = config ?? ToolQuotaConfig.Default;
-        if (!CallHistory.TryGetValue(toolName, out var queue))
-            return 0;
-        var cutoff = DateTime.UtcNow - cfg.Window;
-        while (queue.TryPeek(out var ts) && ts < cutoff)
-            queue.TryDequeue(out _);
-        return queue.Count;
+        return Gate.CountInWindow(toolName, cfg.Window);
     }
 
     /// <summary>
-    /// 记数当前调用次数。
+    /// 记录一次调用（入队 + 清过期）。
     /// </summary>
-    /// <param name="toolName">工具名称</param>
-    /// <param name="config">配额配置（可选，默认 Default）</param>
     public static void RecordCall(string toolName, ToolQuotaConfig? config = null) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
         var cfg = config ?? ToolQuotaConfig.Default;
-        var queue = CallHistory.GetOrAdd(toolName, _ => new ConcurrentQueue<DateTime>());
-        var now = DateTime.UtcNow;
-        queue.Enqueue(now);
-
-        var cutoff = now - cfg.Window;
-        while (queue.TryPeek(out var ts) && ts < cutoff)
-            queue.TryDequeue(out _);
+        Gate.Record(toolName, cfg.Window);
     }
 
     /// <summary>
     /// 是否应该警告 — 窗口内调用次数达到阈值时返回 true。
     /// <para>不拒绝调用，仅标记应该注入强烈重复性警告提示。</para>
     /// </summary>
-    /// <param name="toolName">工具名称</param>
-    /// <param name="config">配额配置（可选，默认 Default）</param>
-    /// <returns>true 表示高频应警告；false 表示正常</returns>
     public static bool ShouldWarn(string toolName, ToolQuotaConfig? config = null) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
         var cfg = config ?? ToolQuotaConfig.Default;
-        return CountCalls(toolName, cfg) >= cfg.Threshold;
+        return Gate.ShouldSignal(toolName, cfg.ToGateConfig());
     }
 
     /// <summary>
     /// 获取强烈重复性警告提示 — 含工具名、当前次数、阈值和替代工具建议（如有）。
     /// <para>每次高频调用都注入此提示，让 AI 嫌烦主动换工具/换策略，而非强制没收。</para>
     /// </summary>
-    /// <param name="toolName">工具名称</param>
-    /// <param name="config">配额配置（可选，默认 Default）</param>
-    /// <returns>强烈重复性警告提示词</returns>
     public static string GetWarningPrompt(string toolName, ToolQuotaConfig? config = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
         var cfg = config ?? ToolQuotaConfig.Default;
-        var currentCount = CountCalls(toolName, cfg);
+        var currentCount = Gate.CountInWindow(toolName, cfg.Window);
         var hint = string.IsNullOrEmpty(cfg.AlternativeToolHint)
             ? ""
             : $"，建议改用 {cfg.AlternativeToolHint}";
@@ -97,37 +82,18 @@ public static class ToolQuotaService {
     /// <summary>
     /// 获取当前所有高频工具名（窗口内调用次数达到阈值）— 供 LoopInterventionMiddleware 注入警告时读取。
     /// </summary>
-    /// <param name="config">配额配置（可选，默认 Default）</param>
-    /// <returns>高频工具名集合</returns>
     public static IReadOnlyCollection<string> GetHighFrequencyTools(ToolQuotaConfig? config = null) {
         var cfg = config ?? ToolQuotaConfig.Default;
-        var result = new List<string>();
-        foreach (var kvp in CallHistory) {
-            var cutoff = DateTime.UtcNow - cfg.Window;
-            while (kvp.Value.TryPeek(out var ts) && ts < cutoff)
-                kvp.Value.TryDequeue(out _);
-            if (kvp.Value.Count >= cfg.Threshold)
-                result.Add(kvp.Key);
-        }
-        return result;
+        return Gate.GetTriggeredKeys(cfg.ToGateConfig());
     }
 
     /// <summary>
     /// 重置全部配额 — 仅供 /clear 调用，清除所有工具的调用记录。
     /// </summary>
-    public static void Reset() {
-        CallHistory.Clear();
-    }
+    public static void Reset() => Gate.Reset();
 
     /// <summary>
     /// 清理过期记录 — 删除调用历史已清空的工具，防止字典无限增长。
-    /// 供外部定时调用（如每 5 分钟一次），maxAge 默认 1 小时。
     /// </summary>
-    /// <param name="maxAge">最大存活时长，超过此时长未再调用的工具记录将被移除，默认 1 小时</param>
-    public static void Cleanup(TimeSpan? maxAge = null) {
-        foreach (var kvp in CallHistory) {
-            if (kvp.Value.IsEmpty)
-                CallHistory.TryRemove(kvp.Key, out _);
-        }
-    }
+    public static void Cleanup() => Gate.Cleanup();
 }

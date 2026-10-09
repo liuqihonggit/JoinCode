@@ -25,30 +25,37 @@ public sealed record AttentionFatigueConfig {
 /// 注入"建议用 /clear 重置上下文或开启新会话"提示。
 /// 全局静态状态，生命周期为整个进程。/clear 调用 Reset 重置。
 /// </para>
+/// <para>
+/// 内部计数委托给 FrequencyGate（累积窗口=10年，等效于永不过期），
+/// 与 ToolQuotaService（高频闹钟）和 LowFrequencyInductionService（低频冷却）共享同一套频率门控基础设施。
+/// </para>
 /// </summary>
 public static class AttentionFatigueDetector {
-    private static int _compactionCount;
-    private static int _errorDecisionCount;
-    private static int _totalDecisionCount;
+    private static readonly FrequencyGate Gate = new();
+    private static readonly TimeSpan CumulativeWindow = TimeSpan.FromDays(365 * 10);
     private static DateTime _sessionStart = DateTime.UtcNow;
 
+    private const string CompactionKey = "compaction";
+    private const string ErrorKey = "error";
+    private const string TotalKey = "total";
+
     /// <summary>当前上下文压缩次数</summary>
-    public static int CompactionCount => Volatile.Read(ref _compactionCount);
+    public static int CompactionCount => Gate.CountInWindow(CompactionKey, CumulativeWindow);
 
     /// <summary>当前错误决策次数</summary>
-    public static int ErrorDecisionCount => Volatile.Read(ref _errorDecisionCount);
+    public static int ErrorDecisionCount => Gate.CountInWindow(ErrorKey, CumulativeWindow);
 
     /// <summary>记录一次上下文压缩 — 递增压缩计数</summary>
-    public static void RecordCompaction() => Interlocked.Increment(ref _compactionCount);
+    public static void RecordCompaction() => Gate.Record(CompactionKey, CumulativeWindow);
 
     /// <summary>记录一次错误决策 — 递增错误计数和总决策计数</summary>
     public static void RecordErrorDecision() {
-        Interlocked.Increment(ref _errorDecisionCount);
-        Interlocked.Increment(ref _totalDecisionCount);
+        Gate.Record(ErrorKey, CumulativeWindow);
+        Gate.Record(TotalKey, CumulativeWindow);
     }
 
     /// <summary>记录一次正常决策 — 递增总决策计数</summary>
-    public static void RecordDecision() => Interlocked.Increment(ref _totalDecisionCount);
+    public static void RecordDecision() => Gate.Record(TotalKey, CumulativeWindow);
 
     /// <summary>
     /// 是否处于注意力涣散状态 — 压缩次数超阈值 且 运行时长超阈值 且 错误率超阈值。
@@ -58,17 +65,17 @@ public static class AttentionFatigueDetector {
     public static bool IsFatigued(AttentionFatigueConfig? config = null) {
         var cfg = config ?? AttentionFatigueConfig.Default;
 
-        if (Volatile.Read(ref _compactionCount) <= cfg.CompactionThreshold)
+        if (Gate.CountInWindow(CompactionKey, CumulativeWindow) <= cfg.CompactionThreshold)
             return false;
 
         if (DateTime.UtcNow - _sessionStart < cfg.DurationThreshold)
             return false;
 
-        var total = Volatile.Read(ref _totalDecisionCount);
+        var total = Gate.CountInWindow(TotalKey, CumulativeWindow);
         if (total == 0)
             return false;
 
-        var errorRate = (double)Volatile.Read(ref _errorDecisionCount) / total;
+        var errorRate = (double)Gate.CountInWindow(ErrorKey, CumulativeWindow) / total;
         return errorRate >= cfg.ErrorRateThreshold;
     }
 
@@ -84,9 +91,7 @@ public static class AttentionFatigueDetector {
     /// 重置全部状态 — 仅供 /clear 调用，清除压缩计数、错误计数和会话起始时间。
     /// </summary>
     public static void Reset() {
-        Interlocked.Exchange(ref _compactionCount, 0);
-        Interlocked.Exchange(ref _errorDecisionCount, 0);
-        Interlocked.Exchange(ref _totalDecisionCount, 0);
+        Gate.Reset();
         _sessionStart = DateTime.UtcNow;
     }
 }

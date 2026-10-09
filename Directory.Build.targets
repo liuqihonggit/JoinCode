@@ -1,13 +1,13 @@
 <Project>
 
-  <!-- 非测试、非生成器项目：默认不可打包，除非项目设置了 <AllowPack>true</AllowPack> -->
-  <PropertyGroup Condition="!$(MSBuildProjectName.ToUpperInvariant().EndsWith('.TESTS')) AND !$(MSBuildProjectName.ToUpperInvariant().EndsWith('.TEST')) AND !$(MSBuildProjectName.ToUpperInvariant().Contains('.GENERATOR')) AND '$(AllowPack)' != 'true' AND '$(Configuration)' != 'Release'">
+  <!-- 非测试、非生成器项目：默认可打包，除非项目显式设置 <AllowPack>false</AllowPack> -->
+  <PropertyGroup Condition="!$(MSBuildProjectName.ToUpperInvariant().EndsWith('.TESTS')) AND !$(MSBuildProjectName.ToUpperInvariant().EndsWith('.TEST')) AND !$(MSBuildProjectName.ToUpperInvariant().Contains('.GENERATOR')) AND '$(AllowPack)' == 'false' AND '$(Configuration)' != 'Release'">
     <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
-  <PropertyGroup Condition="!$(MSBuildProjectName.ToUpperInvariant().EndsWith('.TESTS')) AND !$(MSBuildProjectName.ToUpperInvariant().EndsWith('.TEST')) AND !$(MSBuildProjectName.ToUpperInvariant().Contains('.GENERATOR')) AND '$(AllowPack)' != 'true' AND '$(Configuration)' == 'Release'">
+  <PropertyGroup Condition="!$(MSBuildProjectName.ToUpperInvariant().EndsWith('.TESTS')) AND !$(MSBuildProjectName.ToUpperInvariant().EndsWith('.TEST')) AND !$(MSBuildProjectName.ToUpperInvariant().Contains('.GENERATOR')) AND '$(AllowPack)' == 'false' AND '$(Configuration)' == 'Release'">
     <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <IsAotCompatible>true</IsAotCompatible>

@@ -45,7 +45,7 @@
 ## 实施顺序
 
 ```
-P0 技术验证 ✅ → P1 CI瘦身 ✅ → P2 分层CI ✅ → P3 增量检测 → P4 优化
+P0 技术验证 ✅ → P1 CI瘦身 ✅ → P2 分层CI ✅ → P3 增量检测 ✅ → P4 优化 ✅
 ```
 
 P0 必须先通过，否则整个方案不可行（生成器/打包/restore 链路不通就白做）。
@@ -65,3 +65,15 @@ P0 必须先通过，否则整个方案不可行（生成器/打包/restore 链�
 - setup-test-env: 下载 NuGet 包 + `dotnet nuget add source` 设本地 feed
 - ci-unit-tests/integration/e2e: `UsePackedComponents=true`，移除 `--no-build`
 - e2e smoke test: 显式构建 CLI + MockServer exe（`if: always()` 保证 smoke 可跑）
+
+### P3 — 增量检测 ✅
+
+- commit d47c785: component-cache 基于源码 hash 跳过未改动层重编
+- cache key: `component-pkgs-${{ runner.os }}-${{ hashFiles('lib/**/*.cs', ..., 'kit/**/*.csproj', ...) }}`
+- 仅 lib/gen/llm/server/kit 源码变动才重 build+pack，app/test 改动直接命中缓存
+
+### P4 — Debug 编译 + cache 精准化 ✅
+
+- CI 全部改 Debug 编译（2-3x 快于 Release）
+- daily CI（ci-tui-daily/ci-gui-daily）保持 Release 作为补偿
+- NuGet cache 两层：全局包缓存 + component-pkgs 增量缓存

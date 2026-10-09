@@ -22,6 +22,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -50,6 +52,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -78,6 +82,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -106,6 +112,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -134,6 +142,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -162,6 +172,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -190,6 +202,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -218,6 +232,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -246,6 +262,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -274,6 +292,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -302,6 +322,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -330,6 +352,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -358,6 +382,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -386,6 +412,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E - MCP Integration
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
@@ -674,6 +702,8 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
       - name: E2E - Cluster Integration
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj

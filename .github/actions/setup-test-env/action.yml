@@ -6,6 +6,10 @@ inputs:
     description: 'Name of the NuGet packages artifact to download'
     required: false
     default: 'nuget-packages'
+  build-e2e-exes:
+    description: 'Build MockServer exes needed by E2E tests'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -50,3 +54,13 @@ runs:
         chcp 65001
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+
+    - name: Build MockServer Exes (for E2E)
+      if: inputs.build-e2e-exes == 'true'
+      shell: pwsh
+      run: |
+        $props = "/p:UsePackedComponents=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none"
+        dotnet build test/mock/open_ai.mock_server/OpenAI.MockServer.csproj -c Debug --nologo $props
+        dotnet build test/mock/anthropic.mock_server/Anthropic.MockServer.csproj -c Debug --nologo $props
+        dotnet build test/mock/deep_seek.mock_server/DeepSeek.MockServer.csproj -c Debug --nologo $props
+        dotnet build test/mock/mcp.mock_server/Mcp.MockServer.csproj -c Debug --nologo $props

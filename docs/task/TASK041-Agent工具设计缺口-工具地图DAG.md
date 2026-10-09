@@ -65,16 +65,13 @@
 - **测试**：`test/unit/mcp_tool_dispatch.tests/execution/ToolHypergraphRebuildTest.cs`（8 个测试全通过）
 - **验收标准**：高频工具链路自动出现在 hypergraph ✅；低频超边被剔除 ✅
 
-### GAP-041-04 通用 DAG 蜘蛛网化解框架 ⭐ P2
+### GAP-041-04 通用 DAG 蜘蛛网化解框架 ✅
 
-- **当前状态**：部分落地（仅桌面专属情景模式，无通用框架）
-- **缺什么**：设计要求"DAG 都会劣化成蜘蛛网，只能通过情景模式化解"——现有情景模式是桌面操作专属，不适用于工具映射 DAG 的通用化解
-- **建议方案**：
-  1. 依赖 GAP-040-01 通用 scenario registry
-  2. 每个情景模式声明其工具子图（DAG 子集），AI 进入情景时只看子图不见全图
-  3. 蜘蛛网边（跨情景的高耦合边）在情景外不可见
-- **验收标准**：进入情景模式后工具推荐只来自子图
-- **复杂度**：高
+- **当前状态**：已落地（`ToolScenarioSubgraphResolver` 从全图+情景模式解析子图，过滤蜘蛛网边，GAP-040-01 ScenarioRegistry 已存在）
+- **实现位置**：`kit/mcp_tool_dispatch/core/execution/ToolScenarioSubgraphResolver.cs`（ToolScenarioSubgraph + ToolScenarioSubgraphResolver）
+- **依赖**：GAP-040-01 ScenarioRegistry 已落地（`lib/abstractions/abs_core/core_attributes/scenario/` + `gen/scenario.generator/`）
+- **测试**：`test/unit/mcp_tool_dispatch.tests/execution/ToolScenarioSubgraphResolverTest.cs`（10 个测试全通过）
+- **验收标准**：进入情景模式后工具推荐只来自子图 ✅；蜘蛛网边在情景外不可见 ✅
 
 ### GAP-041-05 主动加热冷工具 ✅
 

@@ -133,7 +133,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 ## 统计
 
-- 总数：**128** | accepted：**122** | superseded：**5** | proposed：**1**
+- 总数：**129** | accepted：**122** | superseded：**5** | proposed：**2**
 
 ## 完整索引（按编号）
 
@@ -270,6 +270,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0131](0131-extract-downloader-to-independent-component.md) | 提取下载器为独立组件 | accepted | 2026-10-07 |
 | [0132](0132-jcc-build-deploy-and-gh-troubleshooting.md) | jcc 编译产物部署与 gh 问题修复指南 | accepted | 2026-10-08 |
 | [0133](0133-json-dto-typed-conversion-ban-concat.md) | JSON DTO 双向转换 — 禁止手写 JSON 字符串拼接 | accepted | 2026-10-08 |
+| [0134](0134-layered-ci-nuget-decouple-incremental.md) | 分层 CI + NuGet 包解耦 + 增量检测 | proposed | 2026-10-10 |
 
 ## 主题索引（按议题）
 
@@ -334,6 +335,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0080](0080-manual-exe-testing-guide.md) | 手动测试 exe 与测试执行规则 | accepted | 2026-09-08 |
 | [0082](0082-gui-async-test-avalonia.md) | GUI 异步 UI 测试与启动 exe 测试 | accepted | 2026-09-08 |
 | [0083](0083-e2e-script-mode-spec.md) | E2E 测试脚本模式规范 | accepted | 2026-09-08 |
+| [0134](0134-layered-ci-nuget-decouple-incremental.md) | 分层 CI + NuGet 包解耦 + 增量检测 | proposed | 2026-10-10 |
 
 ### 平台与传输层
 

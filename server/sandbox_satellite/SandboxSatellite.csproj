@@ -11,10 +11,10 @@
 
   <ItemGroup>
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
-    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="Abstractions" Version="$(JccComponentPackageVersion)" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
 
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
-    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="Infrastructure" Version="$(JccComponentPackageVersion)" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Infrastructure" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

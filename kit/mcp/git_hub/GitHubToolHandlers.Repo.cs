@@ -17,7 +17,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter("web=true 只返回仓库浏览器 URL", Required = false)] bool? web = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 name,full_name,description)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             if (web == true) {
@@ -235,7 +235,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("只显示 fork 仓库(可选)", Required = false)] bool? fork = null,
         [McpToolParameter("只显示已归档仓库(可选)", Required = false)] bool? archived = null,
         [McpToolParameter("按 topic 过滤(可选,逗号分隔)", Required = false)] string? topic = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 name,full_name,language)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter("仓库名(可选,被忽略,gh repo list 列自己的仓库)", Required = false)] string? repo = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,

@@ -98,7 +98,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("分支过滤(可选)", Required = false)] string? branch = null,
         [McpToolParameter("ref 过滤(可选)", Required = false)] string? @ref = null,
         [McpToolParameter("key 过滤(可选,模糊匹配)", Required = false)] string? key = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,key,ref)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
@@ -190,7 +190,7 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhRulesetListAsync(
         [McpToolParameter("组织名(可选,列出组织级规则集)", Required = false)] string? org = null,
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,target)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
@@ -224,7 +224,7 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhRulesetViewAsync(
         [McpToolParameter("规则集 ID", Required = true)] long ruleset_id,
         [McpToolParameter("组织名(可选,查看组织级规则集)", Required = false)] string? org = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,target)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
@@ -318,7 +318,7 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhCodespaceListAsync(
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("仓库(可选,过滤指定仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 name,display_name,state)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
@@ -424,7 +424,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhDiscussionList, "列出 Discussion(GraphQL)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhDiscussionListAsync(
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
@@ -458,7 +458,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhDiscussionView, "查看 Discussion 详情(GraphQL)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhDiscussionViewAsync(
         [McpToolParameter("Discussion 编号", Required = true)] int number,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
@@ -595,7 +595,7 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhProjectListAsync(
         [McpToolParameter("组织名(可选,列出组织 Project,默认当前用户)", Required = false)] string? org = null,
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
@@ -638,7 +638,7 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhProjectViewAsync(
         [McpToolParameter("Project 编号", Required = true)] int number,
         [McpToolParameter("组织名(可选,默认当前用户)", Required = false)] string? org = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 title,url,state)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();

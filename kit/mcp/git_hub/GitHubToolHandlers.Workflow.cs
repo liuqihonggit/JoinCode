@@ -11,7 +11,7 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhWorkflowListAsync(
         [McpToolParameter("all=true 包含已禁用 workflow(默认 false)", Required = false)] bool? all = null,
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,state)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
@@ -49,7 +49,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("ref=true 返回指定分支版本(可选)", Required = false)] string? @ref = null,
         [McpToolParameter("yaml=true 返回 workflow yaml 内容", Required = false)] bool? yaml = null,
         [McpToolParameter("web=true 只返回浏览器 URL", Required = false)] bool? web = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,state)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,

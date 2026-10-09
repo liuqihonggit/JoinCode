@@ -13,7 +13,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("搜索标签名和描述(可选)", Required = false)] string? search = null,
         [McpToolParameter("排序(created/name,默认 created)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 asc)", Required = false)] string? order = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,color)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,

@@ -11,7 +11,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhSecretList, "列出仓库 Secret", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhSecretListAsync(
         [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 name,created_at)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -98,7 +98,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhVariableList, "列出仓库 Variable", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhVariableListAsync(
         [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 name,value)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)

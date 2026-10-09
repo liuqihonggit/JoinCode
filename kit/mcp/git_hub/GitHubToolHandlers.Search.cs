@@ -13,7 +13,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("排序(stars/forks/updated,可选)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 full_name,stargazers_count)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
@@ -51,7 +51,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("排序(created/updated/comments,可选)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
@@ -74,7 +74,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("排序(created/updated/comments,可选)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default) {

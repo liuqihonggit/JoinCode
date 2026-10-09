@@ -14,7 +14,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("排除 draft release(可选)", Required = false)] bool? exclude_drafts = null,
         [McpToolParameter("排除 prerelease(可选)", Required = false)] bool? exclude_prereleases = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,tag_name,name)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
@@ -76,7 +76,7 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhReleaseViewAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("web=true 只返回 Release 浏览器 URL", Required = false)] bool? web = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,tag_name,name)", Required = false)] string? json_fields = null,
+        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,

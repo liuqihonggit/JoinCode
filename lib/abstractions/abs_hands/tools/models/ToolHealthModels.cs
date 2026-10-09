@@ -25,6 +25,10 @@ public interface IToolHealthMonitor {
     void UpdateBlacklist(HashSet<string> newBlacklist);
     /// <summary>更新惩罚字典。</summary>
     void UpdatePenalties(Dictionary<string, int> newPenalties);
+    /// <summary>主动加热指定工具 — 设置临时评分增量，ttl 过期后自动回落。</summary>
+    Task<ToolHealthRecord> BoostToolAsync(string toolName, int boostScore, TimeSpan ttl, CancellationToken ct = default);
+    /// <summary>主动加热所有冷工具（评分低于阈值的工具） — 批量设置临时评分增量。</summary>
+    Task<int> HeatColdToolsAsync(int coldThreshold = -20, int boostScore = 30, TimeSpan? ttl = null, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -47,6 +51,13 @@ public sealed record ToolHealthRecord {
     public DateTime LastAdjusted { get; init; } = DateTime.UtcNow;
     /// <summary>获取或设置最后错误消息。</summary>
     public string? LastErrorMessage { get; init; }
+    /// <summary>获取或设置临时加热评分增量（主动加热冷工具时设置，BoostExpiry 过期后清零）。</summary>
+    public int BoostScore { get; init; }
+    /// <summary>获取或设置临时加热过期时间（UTC），过期后 BoostScore 归零。</summary>
+    public DateTime? BoostExpiry { get; init; }
+
+    /// <summary>获取当前是否处于有效加热期（BoostScore > 0 且未过期）。</summary>
+    public bool IsBoostActive => BoostScore > 0 && BoostExpiry is { } expiry && DateTime.UtcNow < expiry;
 
     /// <summary>获取成功率。</summary>
     public double SuccessRate => SuccessCount + FailCount > 0

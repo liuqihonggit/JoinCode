@@ -94,16 +94,12 @@
 - **验收标准**：进入情景模式后工具推荐只来自子图
 - **复杂度**：高
 
-### GAP-041-05 主动加热冷工具 ⭐ P2
+### GAP-041-05 主动加热冷工具 ✅
 
-- **当前状态**：未落地（只有被动时间衰减恢复 `DecayRecoveryScore`，无主动检测冷工具并加热）
-- **缺什么**：设计要求"让热工具变冷一点，冷工具变热一点"——当前只有热工具衰减，无冷工具主动加热
-- **建议方案**：
-  1. `ToolHealthMonitor` 定期扫描评分<阈值的冷工具
-  2. 命中情景模式锚点时，冷工具若属于该情景则临时加热（评分 boost）
-  3. 加热带 TTL（如 1 小时后回落）
-- **验收标准**：冷工具在匹配情景时被主动加热；TTL 后回落
-- **复杂度**：中
+- **当前状态**：已落地（`BoostToolAsync` + `HeatColdToolsAsync` + boost TTL + `GetEffectiveScore` 含 boost + `ApplyTimeDecay` 清理过期 boost）
+- **实现位置**：`lib/abstractions/abs_hands/tools/models/ToolHealthModels.cs`（BoostScore/BoostExpiry/IsBoostActive 字段）+ `kit/mcp_tool_dispatch/core/execution/ToolHealthMonitor.cs`（BoostToolAsync/HeatColdToolsAsync 方法 + BoostToolCmd/HeatColdToolsCmd Actor 消息）
+- **测试**：`test/unit/mcp_tool_dispatch.tests/execution/ToolHealthMonitorBoostTest.cs`（12 个测试全通过）
+- **验收标准**：冷工具在匹配情景时被主动加热 ✅；TTL 后回落 ✅
 
 ### GAP-041-06 "状态+条件+目的"自然语言状态描述 ✅
 - **当前状态**：已落地（`ToolHealthRecord.GenerateStatusDescription` + `tool_score` 输出集成）

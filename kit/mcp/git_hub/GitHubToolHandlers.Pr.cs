@@ -379,7 +379,7 @@ public partial class GitHubToolHandlers {
             ? await GetRequiredStatusChecksAsync(client, owner, repoName, headRef!, ct).ConfigureAwait(false)
             : null;
         var sb = new StringBuilder();
-        var passCount = 0; var failCount = 0; var pendingCount = 0; var skipCount = 0;
+        var passCount = 0; var failCount = 0; var pendingCount = 0; var skipCount = 0; var warnCount = 0;
         var checks = new List<(string name, string displayStatus)>();
         try {
             var checksResp = JsonSerializer.Deserialize(checksResult.Body, GitHubApiJsonContext.Safe.CheckRunListResponse);
@@ -391,17 +391,18 @@ public partial class GitHubToolHandlers {
                     var displayStatus = status switch {
                         "success" => "pass",
                         "failure" or "cancelled" or "timed_out" => "fail",
+                        "stale" or "action_required" => "warning",
                         "skipped" or "neutral" => "skipping",
                         _ => "pending"
                     };
                     checks.Add((name, displayStatus));
-                    switch (displayStatus) { case "pass": passCount++; break; case "fail": failCount++; break; case "pending": pendingCount++; break; case "skipping": skipCount++; break; }
+                    switch (displayStatus) { case "pass": passCount++; break; case "fail": failCount++; break; case "warning": warnCount++; break; case "pending": pendingCount++; break; case "skipping": skipCount++; break; }
                 }
             }
         } catch (Exception ex) { return Fail($"解析 check-runs 失败: {ex.Message}"); }
 
         // 优化A1: 汇总前置+异常置顶+pass 截断,降低 AI token 消耗(AI 首屏定位问题)
-        sb.Append($"汇总: {passCount} 通过, {failCount} 失败, {pendingCount} 进行中, {skipCount} 跳过(依赖链跳过,非失败)");
+        sb.Append($"汇总: {passCount} 通过, {failCount} 失败, {warnCount} 警告, {pendingCount} 进行中, {skipCount} 跳过(依赖链跳过,非失败)");
         if (failFast == true && failCount > 0) sb.Append("\n⚠ fail-fast: 检测到失败");
         const int maxPassDisplay = 5;
         var ordered = checks
@@ -420,9 +421,9 @@ public partial class GitHubToolHandlers {
         return Ok(sb.ToString());
     }
 
-    /// <summary>check 排序键: fail=0, pending=1, skipping=2, pass=3</summary>
+    /// <summary>check 排序键: fail=0, warning=1, pending=2, skipping=3, pass=4 — 异常优先级置顶</summary>
     private static int CheckSortKey(string displayStatus)
-        => displayStatus switch { "fail" => 0, "pending" => 1, "skipping" => 2, "pass" => 3, _ => 4 };
+        => displayStatus switch { "fail" => 0, "warning" => 1, "pending" => 2, "skipping" => 3, "pass" => 4, _ => 5 };
 
     /// <summary>
     /// 过滤 check-runs 响应字段 — 支持 state 映射(status+conclusion→state),对齐 GraphQL statusCheckRollup。

@@ -852,4 +852,41 @@ public sealed class GhCommandResolverTests {
         bound!["run_id"].Should().Be("123");
         bound["max_lines"].Should().Be("50");
     }
+
+    /// <summary>--dry-run（连字符）应映射到 dry_run（下划线）bool flag</summary>
+    [Fact]
+    public void Bind_HyphenOption_DryRun_ShouldMapToUnderscoreBoolParam() {
+        var parameters = new List<GhParam> {
+            new("title", IsRequired: true, IsBoolean: false),
+            new("dry_run", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "feat: test", "--dry-run" }, parameters, "gh_pr_create", out var error);
+
+        error.Should().BeNull();
+        bound!["dry_run"].Should().Be("true");
+    }
+
+    /// <summary>--dry-run 是全局选项但也是工具参数,CollectTail 不应剥离(洋葱穿透:中间层不消费参数)</summary>
+    [Fact]
+    public void Resolve_DryRunFlag_ShouldNotBeStrippedFromTail() {
+        var resolved = GhCommandResolver.Resolve(
+            new[] { "gh", "pr", "create", "--title", "test", "--dry-run" }, out var error);
+
+        error.Should().BeNull();
+        resolved!.Tail.Should().Contain("--dry-run");
+    }
+
+    /// <summary>全局选项(非工具参数)在 Bind 时应跳过不报错(工具参数优先级 > 全局选项)</summary>
+    [Fact]
+    public void Bind_GlobalOption_NotInToolSchema_ShouldSkipWithoutError() {
+        var parameters = new List<GhParam> {
+            new("title", IsRequired: true, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "feat: test", "--quiet" }, parameters, "gh_pr_create", out var error);
+
+        error.Should().BeNull();
+        bound!["title"].Should().Be("feat: test");
+    }
 }

@@ -9,8 +9,13 @@ public sealed class GitHubRunWaitTests {
         _handler = new GitHubToolHandlers(new FakeDownloader(), new InMemoryFileSystem(), _api, null, NullLogger<GitHubToolHandlers>.Instance);
     }
 
+    /// <summary>为 ResolveRunIdAsync 入队一个成功响应(它先发一次 GET 验证 run_id 存在,只看 Success 不解析 Body)</summary>
+    private void EnqueueResolveRunIdOk()
+        => _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+
     [Fact]
     public async Task RunWait_AlreadyCompleted_ReturnsSuccess() {
+        EnqueueResolveRunIdOk();
         _api.EnqueueResponse(new GitHubApiResponse {
             Success = true, StatusCode = 200,
             Body = """{"status":"completed","conclusion":"success","html_url":"https://github.com/o/r/actions/runs/1"}"""
@@ -26,6 +31,7 @@ public sealed class GitHubRunWaitTests {
 
     [Fact]
     public async Task RunWait_PollingThenCompleted_ReturnsFailure() {
+        EnqueueResolveRunIdOk();
         _api.EnqueueResponse(new GitHubApiResponse {
             Success = true, StatusCode = 200,
             Body = """{"status":"in_progress","conclusion":null}"""
@@ -49,6 +55,7 @@ public sealed class GitHubRunWaitTests {
 
     [Fact]
     public async Task RunWait_Timeout_ReturnsPendingStatus() {
+        EnqueueResolveRunIdOk();
         _api.EnqueueResponse(new GitHubApiResponse {
             Success = true, StatusCode = 200,
             Body = """{"status":"in_progress","conclusion":null}"""
@@ -75,12 +82,15 @@ public sealed class GitHubRunWaitTests {
         _api.EnqueueResponse(new GitHubApiResponse {
             Success = false, StatusCode = 404, Error = "Not Found"
         });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200, Body = """{"workflow_runs":[]}"""
+        });
 
         var result = await _handler.GhRunWaitAsync(
             run_id: "999", repo: "owner/repo", timeout_seconds: 10, poll_interval_seconds: 1);
 
         result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("Not Found");
+        result.GetFirstText().Should().Contain("不存在");
     }
 
     [Fact]
@@ -162,6 +172,10 @@ public sealed class GitHubRunWaitTests {
         });
         api.EnqueueResponse(new GitHubApiResponse {
             Success = true, StatusCode = 200,
+            Body = """{"status":"completed","conclusion":"failure","html_url":"https://github.com/o/r/actions/runs/1"}"""
+        });
+        api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
             Body = """{"jobs":[{"id":123,"conclusion":"failure"}]}"""
         });
         api.NextLogLines = new[] { "##[error] test failed", "  Failed MyTest [FAIL]", "  Error Message: boom" };
@@ -180,6 +194,7 @@ public sealed class GitHubRunWaitTests {
 
     [Fact]
     public async Task RunWait_Success_DoesNotDownloadLogs() {
+        EnqueueResolveRunIdOk();
         _api.EnqueueResponse(new GitHubApiResponse {
             Success = true, StatusCode = 200,
             Body = """{"status":"completed","conclusion":"success","html_url":"https://github.com/o/r/actions/runs/1"}"""

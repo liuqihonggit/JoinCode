@@ -374,7 +374,7 @@ public partial class GitHubToolHandlers {
             ct: ct).ConfigureAwait(false);
         if (!checksResult.Success) return Fail(checksResult.Error);
         if (!string.IsNullOrEmpty(json_fields))
-            return Ok(FilterJsonFields(checksResult.Body, json_fields));
+            return Ok(FilterCheckRunFields(checksResult.Body, json_fields));
         var requiredContexts = required == true && !string.IsNullOrEmpty(headRef)
             ? await GetRequiredStatusChecksAsync(client, owner, repoName, headRef!, ct).ConfigureAwait(false)
             : null;
@@ -423,6 +423,60 @@ public partial class GitHubToolHandlers {
     /// <summary>check 排序键: fail=0, pending=1, skipping=2, pass=3</summary>
     private static int CheckSortKey(string displayStatus)
         => displayStatus switch { "fail" => 0, "pending" => 1, "skipping" => 2, "pass" => 3, _ => 4 };
+
+    /// <summary>
+    /// 过滤 check-runs 响应字段 — 支持 state 映射(status+conclusion→state),对齐 GraphQL statusCheckRollup。
+    /// <para>check-runs API 返回 status/conclusion 而非 state,用户传 --json_fields name,state 时需映射。</para>
+    /// </summary>
+    private static string FilterCheckRunFields(string json, string fields) {
+        var fieldSet = new HashSet<string>(fields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries), StringComparer.OrdinalIgnoreCase);
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("check_runs", out var runs)) return "[]";
+            var sb = new StringBuilder(512);
+            sb.Append('[');
+            var first = true;
+            foreach (var run in runs.EnumerateArray()) {
+                if (!first) sb.Append(',');
+                first = false;
+                sb.Append('{');
+                var firstField = true;
+                foreach (var field in fieldSet) {
+                    if (!firstField) sb.Append(',');
+                    firstField = false;
+                    sb.Append('"').Append(field).Append("\":");
+                    if (string.Equals(field, "state", StringComparison.OrdinalIgnoreCase)) {
+                        var status = run.TryGetProperty("status", out var s) ? s.GetString() ?? "" : "";
+                        var conclusion = run.TryGetProperty("conclusion", out var c) ? c.GetString() ?? "" : "";
+                        sb.Append('"').Append(MapCheckState(status, conclusion)).Append('"');
+                    } else if (run.TryGetProperty(field, out var value)) {
+                        sb.Append(value.GetRawText());
+                    } else {
+                        sb.Append("null");
+                    }
+                }
+                sb.Append('}');
+            }
+            sb.Append(']');
+            return sb.ToString();
+        } catch (JsonException) {
+            return "[]";
+        }
+    }
+
+    /// <summary>映射 check status+conclusion → state(对齐 GraphQL: PENDING/SUCCESS/FAILURE/NEUTRAL)</summary>
+    private static string MapCheckState(string status, string conclusion)
+        => status switch {
+            "completed" => conclusion switch {
+                "success" => "SUCCESS",
+                "failure" => "FAILURE",
+                "cancelled" or "timed_out" => "FAILURE",
+                "skipped" or "neutral" => "NEUTRAL",
+                _ => "NEUTRAL"
+            },
+            "queued" or "in_progress" => "PENDING",
+            _ => "PENDING"
+        };
 
     /// <summary>
     /// 获取分支保护规则的 required_status_checks — required 过滤用，保护规则不存在(404)时返回 null(降级显示全部)
@@ -682,7 +736,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhPrCreate, "创建 PR(支持 assignee/label/reviewer/milestone/body_file/fill/fill_first/dry_run/no_maintainer_edit + auto-merge)", "github")]
     public async Task<ToolResult> GhPrCreateAsync(
         [McpToolParameter("PR 标题", Required = true)] string title,
-        [McpToolParameter("源分支(head)", Required = true)] string head,
+        [McpToolParameter("源分支(head,可选,缺省时自动推断当前 git 分支)", Required = false)] string? head = null,
         [McpToolParameter("目标分支(base,默认 main)", Required = false)] string? @base = null,
         [McpToolParameter("PR 正文(可选,支持 markdown)", Required = false)] string? body = null,
         [McpToolParameter("从文件读 body(可选,替代 body)", Required = false)] string? body_file = null,
@@ -704,7 +758,17 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+    {
+        var actualHead = head;
+        if (string.IsNullOrWhiteSpace(actualHead)) {
+            if (_git is null)
+                return Fail("--head 未指定且 IGitCommandRunner 未注入，无法自动推断当前分支。请显式传入 --head <分支名>");
+            var branchResult = await _git.ExecuteAsync("rev-parse --abbrev-ref HEAD", working_dir, cancellationToken).ConfigureAwait(false);
+            if (!branchResult.Success || string.IsNullOrWhiteSpace(branchResult.Output))
+                return Fail($"--head 未指定且自动推断当前分支失败: {branchResult.Error.Trim()}\n提示: 请显式传入 --head <分支名>，或确保当前目录是 git 仓库");
+            actualHead = branchResult.Output.Trim();
+        }
+        return await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             if (recover == true) return Fail("--recover 暂未支持: 需要状态文件持久化草稿功能,请手动重新输入 title/body");
             if (!string.IsNullOrWhiteSpace(attach)) return Fail("--attach 暂未支持: 需要文件上传 API,请先创建 PR 再手动上传 asset");
             var actualBody = body;
@@ -719,16 +783,16 @@ public partial class GitHubToolHandlers {
             }
             if (fill_first == true && _git is not null) {
                 var baseBranch = string.IsNullOrWhiteSpace(@base) ? "main" : @base;
-                var (fillTitle, fillBody) = await GetGitFillFirstAsync(_git, baseBranch, head, working_dir, cancellationToken).ConfigureAwait(false);
+                var (fillTitle, fillBody) = await GetGitFillFirstAsync(_git, baseBranch, actualHead, working_dir, cancellationToken).ConfigureAwait(false);
                 if (string.IsNullOrWhiteSpace(actualTitle)) actualTitle = fillTitle;
                 if (string.IsNullOrWhiteSpace(actualBody)) actualBody = fillBody;
                 if (fill_verbose == true) fillInfo = $"\n[fill-first] 使用 base..head 第一条 commit: title={fillTitle}, body 长度={fillBody?.Length ?? 0}";
             }
             var maintainerCanModify = no_maintainer_edit == true ? false : (bool?)null;
-            var jsonBody = BuildPrCreateJson(actualTitle ?? "", head, @base, actualBody, draft, maintainerCanModify);
+            var jsonBody = BuildPrCreateJson(actualTitle ?? "", actualHead, @base, actualBody, draft, maintainerCanModify);
             var baseBranchForAudit = string.IsNullOrWhiteSpace(@base) ? "main" : @base;
             if (dry_run == true) {
-                var preview = $"[dry-run] 预览 PR 创建请求:\n仓库: {owner}/{repoName}\n标题: {actualTitle}\nhead: {head}\nbase: {baseBranchForAudit}\ndraft: {draft ?? false}\nmaintainer_can_modify: {(maintainerCanModify ?? true)}\nbody 长度: {actualBody?.Length ?? 0}{fillInfo}";
+                var preview = $"[dry-run] 预览 PR 创建请求:\n仓库: {owner}/{repoName}\n标题: {actualTitle}\nhead: {actualHead}\nbase: {baseBranchForAudit}\ndraft: {draft ?? false}\nmaintainer_can_modify: {(maintainerCanModify ?? true)}\nbody 长度: {actualBody?.Length ?? 0}{fillInfo}";
                 return Ok(preview);
             }
             // 两条独立异步路线并行发起: PR 创建(POST /pulls) || 分支审计(GET /protection + 读 yml)
@@ -755,6 +819,7 @@ public partial class GitHubToolHandlers {
             var prUrl = TryExtractJsonField(result.Body, "html_url") ?? TryExtractJsonField(result.Body, "url");
             return Ok(prUrl is not null ? $"{prUrl}\nPR 创建成功{auditWarning}{fillInfo}" : $"PR 创建成功{auditWarning}{fillInfo}");
         }).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// 尝试审计分支保护一致性 — 非阻断, 失败时返回空字符串, 有差异时返回警告段落

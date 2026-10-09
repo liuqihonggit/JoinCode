@@ -131,7 +131,13 @@ internal static class GhCommandResolver {
             if (token.Contains('='))
                 continue;
             if (CliArgCliOptionConstants.BooleanFlags.Contains(token)) {
-                TryConvertJsonFieldsToTail(token, args, ref i, tail);
+                // --json 特殊处理: --json field1,field2 → --json_fields=field1,field2
+                if (string.Equals(token, CliArgCliOptionConstants.JsonLongName, StringComparison.OrdinalIgnoreCase)) {
+                    TryConvertJsonFieldsToTail(token, args, ref i, tail);
+                    continue;
+                }
+                // 洋葱穿透: 其他布尔全局标志不剥离,让 Bind 按工具参数优先级处理(工具参数 > 全局选项)
+                tail.Add(token);
                 continue;
             }
             if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
@@ -278,6 +284,9 @@ internal static class GhArgsBinder {
             if (!byName.TryGetValue(key, out var param) && !byName.TryGetValue(key.Replace('-', '_'), out param)) {
                 // 宽容策略: 系统 gh CLI 缩写别名（--auto→auto_merge, --squash→merge_method=squash, --job→job_id 等）
                 if (TryBindAlias(key, toolName, tail, ref i, result, token, inlineValue, out error))
+                    continue;
+                // 洋葱穿透: 全局选项(非工具参数)跳过,不报错(工具参数已在上面匹配)
+                if (CliArgCliOptionConstants.AllOptionNames.Contains(token))
                     continue;
                 error = UnknownOptionError(key, parameters);
                 return null;

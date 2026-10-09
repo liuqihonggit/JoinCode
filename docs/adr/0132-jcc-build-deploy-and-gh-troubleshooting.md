@@ -88,6 +88,10 @@ C:\Users\54076\bin\
 | `gh pr checks` 大量 check 截断 | ✅ 已修复(2026-10-08) | check-runs 端点加 per_page=100 + paginate=true，配合对象分页合并获取全部 |
 | robocopy /MIR 部署 DLL 不更新 | ✅ 已查明 | 跨盘符(D:→C:)时间戳比较不可靠,robocopy 跳过复制。改用 `cp -f` 强制覆盖+部署后验证 DLL 时间戳 |
 | 只复制 jcc.exe 部署 | ✅ 已查明 | jcc.exe(162KB)依赖同目录 Mcp.dll 等多个 DLL,只复制 exe 会运行旧 DLL 导致修复不生效。必须全量复制 *.dll+*.exe+*.json |
+| `gh run rerun/cancel/wait/download/delete/watch` 用 run number 报 Not Found | ✅ 已修复(2026-10-10) | 6 个 handler 添加 `ResolveRunIdAsync` 自动将短数字(run number)转换为完整 run ID(10+位)。`GhRunViewAsync` 已有此逻辑,其余 6 个遗漏 |
+| `gh run view --log` cancelled job 返回原始 404 XML | ✅ 已修复(2026-10-10) | `GetRunLogsAsync`/`GetJobLogsAsync` 检测 404 时返回中文提示"日志不存在(job 可能被取消或未产生日志)",非 404 错误仍返回原始信息 |
+| `gh run view --expand steps` cancelled job 只显示 `1 行 ERROR` | ✅ 已修复(2026-10-10) | 提取 `HandleExpandStepsAsync`/`BuildStepsListResultAsync` 扁平化嵌套(满足 JCC10009),日志下载失败时回退到 API job 详情(`GetJobStepsFromApiAsync`),显示步骤名/状态/结论 |
+| `gh pr checks --json_fields name,state` 缺 state | ✅ 已修复(2026-10-10) | check-runs API 返回 `status`+`conclusion` 而非 `state`。新增 `FilterCheckRunFields` 映射 `state`(对齐 GraphQL: PENDING/SUCCESS/FAILURE/NEUTRAL) |
 
 ## 原因
 

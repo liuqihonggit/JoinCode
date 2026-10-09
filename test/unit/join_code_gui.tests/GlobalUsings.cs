@@ -1,3 +1,4 @@
+global using Dock.Avalonia.Controls;
 global using Api.Chat;
 global using Core.Hooks.Execution.Interception;
 global using Core.Hooks.Execution.Interception.Guards;

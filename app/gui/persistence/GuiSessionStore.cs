@@ -52,12 +52,23 @@ public sealed class GuiSessionStore {
                     System.Diagnostics.Debug.WriteLine($"[GuiSessionStore] GetCustomTitle 失败 sid={sessionId}: {ex.Message}");
                 }
             }
+            var messageCount = 0;
+            var sessionPath = GetSessionPath(sessionId);
+            if (_fs.FileExists(sessionPath)) {
+                try {
+                    var json = await _fs.ReadAllText(sessionPath);
+                    var data = RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
+                    messageCount = data?.Messages?.Count ?? 0;
+                } catch (Exception ex) {
+                    System.Diagnostics.Debug.WriteLine($"[GuiSessionStore] 读取会话消息数失败 sid={sessionId}: {ex.Message}");
+                }
+            }
             result.Add(new GuiSessionSummary {
                 Id = sessionId,
                 Title = title,
                 CreatedAt = _fs.GetCreationTime(dir),
                 LastModified = _fs.GetLastWriteTime(dir),
-                MessageCount = 0
+                MessageCount = messageCount
             });
         }
         ViewModelDiagnosticsLogger.WriteDebug($"ListSessions: 枚举到 {result.Count} 个会话目录: [{string.Join(", ", result.Select(s => s.Id))}]");

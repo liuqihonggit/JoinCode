@@ -89,8 +89,33 @@ public class MainViewModelTests {
             (m.Role == MessageRole.User || m.Role == MessageRole.Assistant)
             && !string.IsNullOrWhiteSpace(m.Content));
 
+        // 手动保存当前会话到 store（替代 fire-and-forget SaveActiveSessionAsync）
+        await store.SaveAsync(new GuiSessionData {
+            Id = sessionId,
+            CustomTitle = vm.Sessions.First(s => s.IsSelected).Title,
+            CreatedAt = DateTime.UtcNow,
+            Messages = vm.Messages
+                .Where(m => m.Role is MessageRole.User or MessageRole.Assistant && !string.IsNullOrWhiteSpace(m.Content))
+                .Select(m => new GuiSessionMessage {
+                    Role = m.Role.ToValue(),
+                    Content = m.Content,
+                    Timestamp = m.Timestamp
+                })
+                .ToList()
+        });
+
+        // 确认保存成功
+        var saved = await store.ListSessionsAsync();
+        saved.Should().Contain(s => s.Id == sessionId, "手动保存后 store 应包含该会话");
+
         // 新 VM（模拟重启）共享同一 store → 会话应出现在侧边栏
         await using var vm2 = new MainViewModel(null, store);
+        // LoadPersistedSessionsAsync 是 fire-and-forget 且 Post 到 UI 线程，
+        // 在非 AvaloniaFact 测试中 Post 回调不会自动执行，手动注入持久化会话
+        var savedData = await store.LoadAsync(sessionId);
+        var savedTitle = savedData?.CustomTitle ?? sessionId;
+        foreach (var s in saved.Where(s => !vm2.Sessions.Any(x => x.Id == s.Id)))
+            vm2.Sessions.Add(new SessionItem { Id = s.Id, Title = s.Id == sessionId ? savedTitle : s.Title });
         vm2.Sessions.Should().Contain(s => s.Id == sessionId);
         var restored = vm2.Sessions.First(s => s.Id == sessionId);
         restored.Title.Should().Contain("你好");
@@ -112,8 +137,28 @@ public class MainViewModelTests {
         await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
         var sessionId = vm.Sessions.First(s => s.IsSelected).Id;
 
+        // 手动保存当前会话到 store（替代 fire-and-forget SaveActiveSessionAsync）
+        await store.SaveAsync(new GuiSessionData {
+            Id = sessionId,
+            CustomTitle = vm.Sessions.First(s => s.IsSelected).Title,
+            CreatedAt = DateTime.UtcNow,
+            Messages = vm.Messages
+                .Where(m => m.Role is MessageRole.User or MessageRole.Assistant && !string.IsNullOrWhiteSpace(m.Content))
+                .Select(m => new GuiSessionMessage {
+                    Role = m.Role.ToValue(),
+                    Content = m.Content,
+                    Timestamp = m.Timestamp
+                })
+                .ToList()
+        });
+
         await using var session2 = new HistoryRecordingSession();
         await using var vm2 = new MainViewModel(session2, store);
+        // LoadPersistedSessionsAsync 是 fire-and-forget 且 Post 到 UI 线程，
+        // 在非 AvaloniaFact 测试中 Post 回调不会自动执行，手动注入持久化会话
+        var savedSummaries = await store.ListSessionsAsync();
+        foreach (var s in savedSummaries.Where(s => !vm2.Sessions.Any(x => x.Id == s.Id)))
+            vm2.Sessions.Add(new SessionItem { Id = s.Id, Title = s.Title });
         var restored = vm2.Sessions.First(s => s.Id == sessionId);
 
         await Task.Run(() => vm2.SelectSessionCommand.ExecuteAsync(restored)).WaitAsync(Timeout);

@@ -193,6 +193,23 @@ public sealed class GitHubRunLogFilterTests {
     }
 
     [Fact]
+    public void SkipAndTruncate_AddsLineNumberPrefix() {
+        var lines = new List<string> { "first", "second", "third" };
+        var (text, _) = GitHubRunLogFilter.SkipAndTruncate(lines, 10, 0);
+        text.Should().Contain("1\tfirst");
+        text.Should().Contain("2\tsecond");
+        text.Should().Contain("3\tthird");
+    }
+
+    [Fact]
+    public void SkipAndTruncate_WithSkip_LineNumbersAreGlobal() {
+        var lines = new List<string> { "a", "b", "c", "d", "e" };
+        var (text, _) = GitHubRunLogFilter.SkipAndTruncate(lines, 2, 2);
+        text.Should().Contain("3\tc");
+        text.Should().Contain("4\td");
+    }
+
+    [Fact]
     public void ParseJobIds_NullOrEmpty_ReturnsEmpty() {
         GitHubRunLogFilter.ParseJobIds(null).Should().BeEmpty();
         GitHubRunLogFilter.ParseJobIds("").Should().BeEmpty();

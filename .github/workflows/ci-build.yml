@@ -35,11 +35,16 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      - name: Cache Component NuGet Packages (incremental build)
+      - name: Cache Component NuGet Packages + E2E Exes (incremental build)
         id: component-cache
         uses: actions/cache@v5
         with:
-          path: artifacts/nuget
+          path: |
+            artifacts/nuget
+            artifacts/bin/OpenAI.MockServer
+            artifacts/bin/Anthropic.MockServer
+            artifacts/bin/DeepSeek.MockServer
+            artifacts/bin/Mcp.MockServer
           key: component-pkgs-${{ runner.os }}-${{ hashFiles('lib/**/*.cs', 'lib/**/*.csproj', 'gen/**/*.cs', 'gen/**/*.csproj', 'llm/**/*.cs', 'llm/**/*.csproj', 'server/**/*.cs', 'server/**/*.csproj', 'kit/**/*.cs', 'kit/**/*.csproj', 'tool/**/*.cs', 'tool/**/*.csproj', 'Directory.Build.props', 'Directory.Build.targets', 'global.json', 'build/sln/JoinCode.slnx') }}
 
       - name: Restore
@@ -60,27 +65,6 @@ jobs:
           -c Debug --no-build --nologo
           -o ${{ github.workspace }}/artifacts/nuget
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-
-      - name: Build E2E Exes (cache hit — from NuGet packages)
-        if: steps.component-cache.outputs.cache-hit == 'true'
-        shell: pwsh
-        run: |
-          $feedPath = Join-Path $env:GITHUB_WORKSPACE "artifacts" "nuget"
-          $nugetConfig = Join-Path $env:GITHUB_WORKSPACE "nuget.config"
-          [xml]$config = Get-Content $nugetConfig
-          $sources = $config.configuration.packageSources
-          $existing = $sources.SelectSingleNode("add[@key='local-feed']")
-          if ($existing) { $sources.RemoveChild($existing) }
-          $add = $config.CreateElement("add")
-          $add.SetAttribute("key", "local-feed")
-          $add.SetAttribute("value", $feedPath)
-          $sources.AppendChild($add)
-          $config.Save($nugetConfig)
-          $props = "/p:UsePackedComponents=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none"
-          dotnet build test/mock/open_ai.mock_server/OpenAI.MockServer.csproj -c Debug --nologo $props
-          dotnet build test/mock/anthropic.mock_server/Anthropic.MockServer.csproj -c Debug --nologo $props
-          dotnet build test/mock/deep_seek.mock_server/DeepSeek.MockServer.csproj -c Debug --nologo $props
-          dotnet build test/mock/mcp.mock_server/Mcp.MockServer.csproj -c Debug --nologo $props
 
       - name: Upload NuGet Packages
         uses: actions/upload-artifact@v7

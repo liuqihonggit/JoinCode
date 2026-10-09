@@ -65,8 +65,14 @@ public partial class GitHubToolHandlers {
             return null;
         }
 
-        var repairResult = LlmJsonHelper.RepairJson(body, _logger);
-        return repairResult.Success ? repairResult.RepairedJson : body.Trim();
+        var trimmed = body.Trim();
+        try {
+            using var _ = JsonDocument.Parse(trimmed);
+            return trimmed;
+        } catch (JsonException) {
+            var repairResult = LlmJsonHelper.RepairJson(body, _logger);
+            return repairResult.Success ? repairResult.RepairedJson : trimmed;
+        }
     }
 
     /// <summary>

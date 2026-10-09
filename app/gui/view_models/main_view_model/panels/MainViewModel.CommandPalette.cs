@@ -100,9 +100,12 @@ public sealed partial class MainViewModel {
     /// <summary>打开文件回调 — MainWindow 设置,ViewModel 调用以在内嵌编辑器中打开文件</summary>
     public Action<string>? OpenFileCallback { get; set; }
 
-    /// <summary>命令面板 ID → 执行动作映射（lazy 首次使用时构建）。</summary>
-    private FrozenDictionary<string, Action>? _commandActions;
-    private FrozenDictionary<string, Action> CommandActions => _commandActions ??= new Dictionary<string, Action> {
+    /// <summary>命令面板 ID → 执行动作映射（lazy 首次使用时构建，空字典表示未初始化）。</summary>
+    private FrozenDictionary<string, Action> _commandActions = FrozenDictionary<string, Action>.Empty;
+    private FrozenDictionary<string, Action> CommandActions =>
+        _commandActions.Count > 0 ? _commandActions : _commandActions = BuildCommandActions();
+
+    private FrozenDictionary<string, Action> BuildCommandActions() => new Dictionary<string, Action> {
         ["file.newSession"]              = () => NewConversationCommand.Execute(null),
         ["edit.regenerate"]              = () => { if (CanRegenerate) RegenerateLastReplyCommand.Execute(null); },
         ["edit.clearHistory"]            = () => ClearHistoryCommand.Execute(null),

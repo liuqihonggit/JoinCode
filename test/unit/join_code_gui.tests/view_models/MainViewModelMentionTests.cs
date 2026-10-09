@@ -94,7 +94,7 @@ public class MainViewModelMentionTests {
             Finder = name => name == "explore" ? "agent-1" : null,
             Running = [new("agent-1", "explore", "调研", AgentStatus.Running, DateTime.Now, 0, 0, Array.Empty<AgentActivityEntry>(), null, null, null, null, null)]
         };
-        var vm = CreateVm(session);
+        await using var vm = CreateVm(session);
         vm.InputText = "@explore 帮我查README";
 
         await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
@@ -113,7 +113,7 @@ public class MainViewModelMentionTests {
             Finder = _ => null,
             Running = [new("a9", "planner", "规划", AgentStatus.Running, DateTime.Now, 0, 0, Array.Empty<AgentActivityEntry>(), null, null, null, null, null)]
         };
-        var vm = CreateVm(session);
+        await using var vm = CreateVm(session);
         vm.InputText = "@ghost 你好";
 
         await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
@@ -127,7 +127,7 @@ public class MainViewModelMentionTests {
         await using var session = new MentionSession {
             Running = [new("solo", "worker", "干活", AgentStatus.Running, DateTime.Now, 0, 0, Array.Empty<AgentActivityEntry>(), null, null, null, null, null)]
         };
-        var vm = CreateVm(session);
+        await using var vm = CreateVm(session);
 
         // 第一条：正常回合（门控保持忙态，事件驱动等待而非盲等）
         vm.InputText = "开始任务";

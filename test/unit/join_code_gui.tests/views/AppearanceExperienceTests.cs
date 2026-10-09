@@ -72,9 +72,9 @@ public sealed class AppearanceExperienceTests {
     public void AccentSelection_AlsoThemesNativeFluentControls() {
         var accent = AppearanceCatalog.Load().Accents.Single(a => a.Id == "violet");
         GuiAppResources.ApplyAccent(accent);
-        var fluent = Application.Current!.Styles.OfType<Avalonia.Themes.Fluent.FluentTheme>().Single();
+        var fluent = (Application.Current ?? throw new InvalidOperationException("Application.Current 未设置")).Styles.OfType<Avalonia.Themes.Fluent.FluentTheme>().Single();
         fluent.Palettes.TryGetValue(Avalonia.Styling.ThemeVariant.Dark, out var palette).Should().BeTrue();
-        palette!.Accent.Should().Be(Color.Parse(accent.Fill));
+        (palette ?? throw new InvalidOperationException("palette 未设置")).Accent.Should().Be(Color.Parse(accent.Fill));
         GuiAppResources.ApplyAccent(AppearanceCatalog.Load().Accents[0]);
     }
 }

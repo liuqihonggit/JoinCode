@@ -272,14 +272,18 @@ public sealed partial class MainWindow : Window {
         if (e.PropertyName is nameof(MainViewModel.AccentId) or nameof(MainViewModel.AnimationsEnabled)) {
             ApplyAppearance();
         } else if (e.PropertyName == nameof(MainViewModel.CurrentTheme)) {
-            GuiPalette.CurrentVariant = _vm!.CurrentTheme;
-            var isLight = _vm.CurrentTheme is GuiPalette.GuiThemeVariant.Light or GuiPalette.GuiThemeVariant.SolarizedLight;
+            if (_vm is not { } vm)
+                return;
+            GuiPalette.CurrentVariant = vm.CurrentTheme;
+            var isLight = vm.CurrentTheme is GuiPalette.GuiThemeVariant.Light or GuiPalette.GuiThemeVariant.SolarizedLight;
             RequestedThemeVariant = isLight
                 ? Avalonia.Styling.ThemeVariant.Light
                 : Avalonia.Styling.ThemeVariant.Dark;
-            GuiAppResources.ApplyTheme(_vm.CurrentTheme);
+            GuiAppResources.ApplyTheme(vm.CurrentTheme);
         } else if (e.PropertyName == nameof(MainViewModel.IsBusy)) {
-            if (_vm!.IsBusy)
+            if (_vm is not { } vm2)
+                return;
+            if (vm2.IsBusy)
                 _toolTimer.Start();
             else
                 _toolTimer.Stop();

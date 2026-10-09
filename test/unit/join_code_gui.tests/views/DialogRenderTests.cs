@@ -45,13 +45,13 @@ public sealed class DialogRenderTests {
     private static void SavePng(WriteableBitmap frame, string path) => frame.Save(path, PngBitmapEncoderOptions.Default);
 
     [AvaloniaFact]
-    public void ThemeToggle_IconSwitchesWithTheme() {
+    public async Task ThemeToggle_IconSwitchesWithTheme() {
         GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
         var win = new MainWindow { DataContext = CreateVm(), Width = 980, Height = 680 };
         win.Show();
         try {
             Dispatcher.UIThread.RunJobs();
-            var vm = (MainViewModel)win.DataContext!;
+            await using var vm = (MainViewModel)(win.DataContext ?? throw new InvalidOperationException("win.DataContext 未设置"));
             Assert.True(vm.IsDarkTheme, "初始应为暗色主题");
 
             // 暗色：月亮可见、太阳隐藏

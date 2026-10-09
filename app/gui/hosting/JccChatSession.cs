@@ -537,7 +537,8 @@ internal sealed class JccChatSession : IJccChatSession {
             }
 
             if (retries >= MaxPermissionRetries) {
-                yield return ChatStreamEvent.ToolEnd(pending!.ToolName,
+                if (pending is null) yield break;
+                yield return ChatStreamEvent.ToolEnd(pending.ToolName,
                     $"权限确认重试次数超限: {pending.ConfirmationPrompt}", isError: true);
                 yield break;
             }
@@ -656,7 +657,7 @@ internal sealed class JccChatSession : IJccChatSession {
         var list = new List<SubAgentSummary>(definitions.Count);
         foreach (var def in definitions) {
             var displayId = def.DisplayId;
-            var description = !string.IsNullOrWhiteSpace(def.Description) ? def.Description! : def.WhenToUse;
+            var description = def.Description is { } d && !string.IsNullOrWhiteSpace(d) ? d : def.WhenToUse;
             list.Add(new SubAgentSummary(displayId, description, displayId));
         }
         return list;

@@ -5,22 +5,23 @@ namespace Tui.Tests;
 /// </summary>
 public class CommandHistoryTests {
     [Fact]
-    public void Empty_NavigateUp_ReturnsNull() {
+    public void Empty_NavigateUp_ReturnsFalse() {
         var history = new CommandHistory();
-        Assert.Null(history.NavigateUp());
+        Assert.False(history.TryNavigateUp(out _));
     }
 
     [Fact]
-    public void Empty_NavigateDown_ReturnsNull() {
+    public void Empty_NavigateDown_ReturnsFalse() {
         var history = new CommandHistory();
-        Assert.Null(history.NavigateDown());
+        Assert.False(history.TryNavigateDown(out _));
     }
 
     [Fact]
     public void Add_ThenNavigateUp_ReturnsLastCommand() {
         var history = new CommandHistory();
         history.Add("/help");
-        Assert.Equal("/help", history.NavigateUp());
+        Assert.True(history.TryNavigateUp(out var cmd));
+        Assert.Equal("/help", cmd);
     }
 
     [Fact]
@@ -29,9 +30,12 @@ public class CommandHistoryTests {
         history.Add("/help");
         history.Add("/clear");
         history.Add("/build");
-        Assert.Equal("/build", history.NavigateUp());
-        Assert.Equal("/clear", history.NavigateUp());
-        Assert.Equal("/help", history.NavigateUp());
+        Assert.True(history.TryNavigateUp(out var cmd1));
+        Assert.Equal("/build", cmd1);
+        Assert.True(history.TryNavigateUp(out var cmd2));
+        Assert.Equal("/clear", cmd2);
+        Assert.True(history.TryNavigateUp(out var cmd3));
+        Assert.Equal("/help", cmd3);
     }
 
     [Fact]
@@ -39,10 +43,11 @@ public class CommandHistoryTests {
         var history = new CommandHistory();
         history.Add("/help");
         history.Add("/clear");
-        history.NavigateUp();
-        history.NavigateUp();
-        Assert.Equal("/clear", history.NavigateDown());
-        Assert.Null(history.NavigateDown());
+        history.TryNavigateUp(out _);
+        history.TryNavigateUp(out _);
+        Assert.True(history.TryNavigateDown(out var cmd));
+        Assert.Equal("/clear", cmd);
+        Assert.False(history.TryNavigateDown(out _));
     }
 
     [Fact]
@@ -50,9 +55,10 @@ public class CommandHistoryTests {
         var history = new CommandHistory();
         history.Add("/help");
         history.Add("/clear");
-        history.NavigateUp();
+        history.TryNavigateUp(out _);
         history.Add("/build");
-        Assert.Equal("/build", history.NavigateUp());
+        Assert.True(history.TryNavigateUp(out var cmd));
+        Assert.Equal("/build", cmd);
     }
 
     [Fact]

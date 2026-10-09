@@ -8,7 +8,7 @@ public class CompletionTriggerRegistryTests {
     public void TryGet_AtSign_ReturnsAgentProvider() {
         var provider = CompletionTriggerRegistry.TryGet('@');
         provider.Should().NotBeNull();
-        provider!.TriggerChar.Should().Be('@');
+        (provider ?? throw new InvalidOperationException("provider 未设置")).TriggerChar.Should().Be('@');
         provider.Mode.Should().Be(SlashCompletionMode.Agent);
         provider.Label.Should().Be("代理补全");
     }
@@ -17,7 +17,7 @@ public class CompletionTriggerRegistryTests {
     public void TryGet_HashSign_ReturnsFileProvider() {
         var provider = CompletionTriggerRegistry.TryGet('#');
         provider.Should().NotBeNull();
-        provider!.TriggerChar.Should().Be('#');
+        (provider ?? throw new InvalidOperationException("provider 未设置")).TriggerChar.Should().Be('#');
         provider.Mode.Should().Be(SlashCompletionMode.File);
         provider.Label.Should().Be("文件补全");
     }
@@ -26,7 +26,7 @@ public class CompletionTriggerRegistryTests {
     public void TryGet_Slash_ReturnsCommandProvider() {
         var provider = CompletionTriggerRegistry.TryGet('/');
         provider.Should().NotBeNull();
-        provider!.TriggerChar.Should().Be('/');
+        (provider ?? throw new InvalidOperationException("provider 未设置")).TriggerChar.Should().Be('/');
         provider.Mode.Should().Be(SlashCompletionMode.Command);
         provider.Label.Should().Be("斜杠命令");
     }
@@ -44,14 +44,14 @@ public class CompletionTriggerRegistryTests {
 
     [Fact]
     public void AgentProvider_GetCandidates_WithSubAgents_ReturnsFilteredItems() {
-        var provider = CompletionTriggerRegistry.TryGet('@')!;
+        var provider = CompletionTriggerRegistry.TryGet('@') ?? throw new InvalidOperationException("TryGet('@') 未设置");
         var agents = new List<SubAgentSummary>
         {
             new("executor:code", "代码代理", "executor:code"),
             new("coordinator", "协调代理", "coordinator")
         };
         var context = new CompletionContext {
-            Session = null!,
+            Session = null,
             AvailableSubAgentsCache = agents
         };
         var result = provider.GetCandidates("ex", context);
@@ -61,18 +61,18 @@ public class CompletionTriggerRegistryTests {
 
     [Fact]
     public void FileProvider_GetCandidates_ReturnsCurrentDirEntries() {
-        var provider = CompletionTriggerRegistry.TryGet('#')!;
-        var context = new CompletionContext { Session = null! };
+        var provider = CompletionTriggerRegistry.TryGet('#') ?? throw new InvalidOperationException("TryGet('#') 未设置");
+        var context = new CompletionContext { Session = null };
         var result = provider.GetCandidates("", context);
         result.Should().NotBeEmpty();
     }
 
     [Fact]
     public void CommandProvider_GetCandidates_WithCache_ReturnsFilteredRanked() {
-        var provider = CompletionTriggerRegistry.TryGet('/')!;
+        var provider = CompletionTriggerRegistry.TryGet('/') ?? throw new InvalidOperationException("TryGet('/') 未设置");
         var cache = SlashCommandItem.BuiltInCommands;
         var context = new CompletionContext {
-            Session = null!,
+            Session = null,
             SlashCommandCache = cache
         };
         var result = provider.GetCandidates("/c", context);

@@ -14,7 +14,7 @@ public sealed class WorkbenchTests {
             var topMenuItems = window.GetVisualDescendants().OfType<Avalonia.Controls.MenuItem>().ToArray();
             var fileMenu = topMenuItems.FirstOrDefault(m => m.Header is string h && h == "文件");
             fileMenu.Should().NotBeNull("应存在'文件'顶层菜单");
-            var childHeaders = fileMenu!.Items.OfType<Avalonia.Controls.MenuItem>().Select(m => m.Header).ToArray();
+            var childHeaders = (fileMenu ?? throw new InvalidOperationException("fileMenu 未设置")).Items.OfType<Avalonia.Controls.MenuItem>().Select(m => m.Header).ToArray();
             childHeaders.Should().Contain("文件 / 变更");
             childHeaders.Should().Contain("模型 / MCP / 插件");
         } finally { window.Close(); }

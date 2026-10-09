@@ -16,7 +16,9 @@ public class JccChatSessionSubAgentTests {
         var services = new ServiceCollection();
         services.AddSingleton<IAgentDefinitionProvider>(mockProvider);
         var sp = services.BuildServiceProvider();
-        await using var session = new JccChatSession(sp, null!, new WorkflowConfig {
+        #nullable disable
+        await using var session = new JccChatSession(sp, null, new WorkflowConfig {
+        #nullable enable
             Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
         });
 
@@ -31,7 +33,9 @@ public class JccChatSessionSubAgentTests {
     [Fact]
     public async Task GetAvailableSubAgentsAsync_NoProvider_ReturnsEmpty() {
         var sp = new ServiceCollection().BuildServiceProvider();
-        await using var session = new JccChatSession(sp, null!, new WorkflowConfig {
+        #nullable disable
+        await using var session = new JccChatSession(sp, null, new WorkflowConfig {
+        #nullable enable
             Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
         });
 
@@ -49,7 +53,9 @@ public class JccChatSessionSubAgentTests {
         var services = new ServiceCollection();
         services.AddSingleton<IAgentDefinitionProvider>(mockProvider);
         var sp = services.BuildServiceProvider();
-        await using var session = new JccChatSession(sp, null!, new WorkflowConfig {
+        #nullable disable
+        await using var session = new JccChatSession(sp, null, new WorkflowConfig {
+        #nullable enable
             Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
         });
 
@@ -76,7 +82,9 @@ public class JccChatSessionSubAgentTests {
         var services = new ServiceCollection();
         services.AddSingleton(agentMock.Object);
         var sp = services.BuildServiceProvider();
-        await using var session = new JccChatSession(sp, null!, new WorkflowConfig {
+        #nullable disable
+        await using var session = new JccChatSession(sp, null, new WorkflowConfig {
+        #nullable enable
             Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
         });
 
@@ -95,7 +103,9 @@ public class JccChatSessionSubAgentTests {
         var services = new ServiceCollection();
         services.AddSingleton(agentMock.Object);
         var sp = services.BuildServiceProvider();
-        await using var session = new JccChatSession(sp, null!, new WorkflowConfig {
+        #nullable disable
+        await using var session = new JccChatSession(sp, null, new WorkflowConfig {
+        #nullable enable
             Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
         });
 

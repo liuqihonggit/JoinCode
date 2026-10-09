@@ -193,7 +193,7 @@ public sealed class MarkdownView : StackPanel {
     /// <summary>表格 → Grid（列 Auto + 表头加粗，首行分隔线）</summary>
     private static Control BuildTable(MarkdownTable table, GuiPalette.Scheme scheme) {
         if (table.Header.Count == 0) {
-            return null!;
+            return new StackPanel();
         }
 
         var colCount = table.Header.Count;

@@ -17,7 +17,7 @@ public class PipeRegistryTests {
         registry.Register(new MessagePipe("agent1", "Agent One"));
         registry.Register(new MessagePipe("agent1", "Agent One Updated"));
         Assert.Equal(1, registry.Count);
-        Assert.Equal("Agent One Updated", registry.Get("agent1")!.AgentName);
+        Assert.Equal("Agent One Updated", (registry.Get("agent1") ?? throw new InvalidOperationException("Pipe not found")).AgentName);
     }
 
     [Fact]
@@ -50,8 +50,8 @@ public class PipeRegistryTests {
 
         var main = registry.MainPipe;
         Assert.NotNull(main);
-        Assert.Equal("main", main!.AgentId);
-        Assert.True(main.IsMain);
+        Assert.Equal("main", (main ?? throw new InvalidOperationException("Main pipe is null")).AgentId);
+        Assert.True((main ?? throw new InvalidOperationException("Main pipe is null")).IsMain);
     }
 
     [Fact]

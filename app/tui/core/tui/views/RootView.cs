@@ -129,4 +129,16 @@ public sealed class RootView : View {
         _contentArea.Remove(component.TerminalView);
         _painter.Unregister(component);
     }
+
+    /// <summary>释放 5 个子 View 区域，防止资源泄漏。</summary>
+    protected override void Dispose(bool disposing) {
+        if (disposing) {
+            _statusBarArea.Dispose();
+            _toolBarArea.Dispose();
+            _contentArea.Dispose();
+            _promptArea.Dispose();
+            _footerArea.Dispose();
+        }
+        base.Dispose(disposing);
+    }
 }

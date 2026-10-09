@@ -25,27 +25,36 @@ public sealed class CommandHistory {
     }
 
     /// <summary>
-    /// 向上导航（更早的命令）。返回 null 表示已到顶部或无历史。
+    /// 向上导航（更早的命令）。返回 false 表示已到顶部或无历史。
     /// </summary>
-    public string? NavigateUp() {
-        if (_commands.Count == 0) return null;
+    public bool TryNavigateUp(out string command) {
+        if (_commands.Count == 0) {
+            command = string.Empty;
+            return false;
+        }
         if (_cursor < 0)
             _cursor = _commands.Count - 1;
         else if (_cursor > 0)
             _cursor--;
-        return _commands[_cursor];
+        command = _commands[_cursor];
+        return true;
     }
 
     /// <summary>
-    /// 向下导航（更新的命令）。返回 null 表示已到底部。
+    /// 向下导航（更新的命令）。返回 false 表示已到底部。
     /// </summary>
-    public string? NavigateDown() {
-        if (_commands.Count == 0 || _cursor < 0) return null;
+    public bool TryNavigateDown(out string command) {
+        if (_commands.Count == 0 || _cursor < 0) {
+            command = string.Empty;
+            return false;
+        }
         if (_cursor < _commands.Count - 1) {
             _cursor++;
-            return _commands[_cursor];
+            command = _commands[_cursor];
+            return true;
         }
         _cursor = -1;
-        return null;
+        command = string.Empty;
+        return false;
     }
 }

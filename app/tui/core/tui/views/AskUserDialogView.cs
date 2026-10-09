@@ -118,11 +118,11 @@ public sealed class AskUserDialogView : ITuiComponent {
     }
 
     private void OnSubmit(object? sender, EventArgs e) {
-        if (_pendingResponse is null || _currentQuestion is null)
+        if (_pendingResponse is null || _currentQuestion is not { } question)
             return;
 
         // 无选项 → 自由输入模式：原样文本即答案，空白视为取消
-        if (_currentQuestion.Options.Count == 0) {
+        if (question.Options.Count == 0) {
             var freeText = _inputField.Text?.Trim() ?? string.Empty;
             Complete(string.IsNullOrWhiteSpace(freeText)
                 ? AskUserQuestionResult.CancelledResult()
@@ -130,7 +130,7 @@ public sealed class AskUserDialogView : ITuiComponent {
             return;
         }
 
-        var parse = AskUserSelectionParser.Parse(_inputField.Text ?? string.Empty, _currentQuestion.Options.Count, _currentQuestion.MultiSelect);
+        var parse = AskUserSelectionParser.Parse(_inputField.Text ?? string.Empty, question.Options.Count, question.MultiSelect);
         switch (parse.Status) {
             case AskUserSelectionStatus.Cancel:
             Complete(AskUserQuestionResult.CancelledResult());
@@ -138,10 +138,10 @@ public sealed class AskUserDialogView : ITuiComponent {
             case AskUserSelectionStatus.Invalid:
             // 无效输入不关窗 — 提示后重新输入（对齐 CLI 重试提示语义）
             _optionsLabel.Text = _optionsLabel.Text.Split('\n')[..^1].Aggregate((a, b) => a + "\n" + b)
-                + $"\n无效输入，请输入 1-{_currentQuestion.Options.Count}{(_currentQuestion.MultiSelect ? " (逗号分隔)" : "")} 或 0 取消:";
+                + $"\n无效输入，请输入 1-{question.Options.Count}{(question.MultiSelect ? " (逗号分隔)" : "")} 或 0 取消:";
             break;
             default:
-            Complete(BuildResult(parse.Indices));
+            Complete(BuildResult(question, parse.Indices));
             break;
         }
     }
@@ -152,8 +152,7 @@ public sealed class AskUserDialogView : ITuiComponent {
     }
 
     /// <summary>按选择序号构建结果 — 单选走 Answer，多选走 SelectedOptions</summary>
-    private AskUserQuestionResult BuildResult(IReadOnlyList<int> indices) {
-        var question = _currentQuestion!;
+    private AskUserQuestionResult BuildResult(QuestionItem question, IReadOnlyList<int> indices) {
         var labels = indices.Select(i => question.Options[i - 1].Label).ToList();
         return question.MultiSelect
             ? AskUserQuestionResult.MultiSelectResult(labels)

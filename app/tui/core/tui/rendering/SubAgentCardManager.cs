@@ -40,14 +40,21 @@ public sealed class SubAgentCardManager {
     }
 
     /// <summary>切换展开/折叠状态。</summary>
-    /// <returns>被自动折叠的子代理 ID（null 表示没有折叠或操作是折叠）。</returns>
-    public string? Toggle(string agentId) {
+    /// <returns>true 表示有子代理被自动折叠，evicted 为被折叠的 ID；false 表示无折叠或操作是折叠。</returns>
+    public bool TryToggle(string agentId, out string evicted) {
         using (_lock.LockOrCrash()) {
             if (_expandedSet.Contains(agentId)) {
                 CollapseUnchecked(agentId);
-                return null;
+                evicted = string.Empty;
+                return false;
             }
-            return ExpandUnchecked(agentId);
+            var evictedId = ExpandUnchecked(agentId);
+            if (evictedId is { } id) {
+                evicted = id;
+                return true;
+            }
+            evicted = string.Empty;
+            return false;
         }
     }
 
@@ -65,9 +72,11 @@ public sealed class SubAgentCardManager {
 
         string? evicted = null;
         if (_expandedOrder.Count >= MaxExpanded) {
-            evicted = _expandedOrder.First!.Value;
-            _expandedOrder.RemoveFirst();
-            _expandedSet.Remove(evicted);
+            if (_expandedOrder.First is { } firstNode) {
+                evicted = firstNode.Value;
+                _expandedOrder.RemoveFirst();
+                _expandedSet.Remove(evicted);
+            }
         }
 
         _expandedOrder.AddLast(agentId);

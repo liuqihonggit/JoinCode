@@ -13,7 +13,7 @@ public sealed class MainWindowRegressionTests {
         var field = typeof(MainWindow).GetField(
             "MessageScrollViewer",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-        Assert.NotNull(field!.GetValue(win));
+        Assert.NotNull((field ?? throw new InvalidOperationException("field 未设置")).GetValue(win));
     }
 
     [AvaloniaFact]
@@ -95,7 +95,7 @@ public sealed class MainWindowRegressionTests {
         vm.SendCommand.Execute(null);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        var toast = win.FindControl<Border>("ErrorToast")!;
+        var toast = win.FindControl<Border>("ErrorToast") ?? throw new InvalidOperationException("null");
         Assert.True(vm.HasErrorToast);
         Assert.True(toast.IsVisible);
     }
@@ -111,24 +111,24 @@ public sealed class MainWindowRegressionTests {
         vm.SendCommand.Execute(null);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        var toast = win.FindControl<Border>("ErrorToast")!;
+        var toast = win.FindControl<Border>("ErrorToast") ?? throw new InvalidOperationException("null");
         Assert.True(toast.IsVisible);
 
-        var timer = typeof(MainWindow).GetField(
+        var timer = (typeof(MainWindow).GetField(
             "_errorToastTimer",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(win)!;
-        var isEnabled = timer.GetType().GetProperty("IsEnabled")!;
-        Assert.True((bool)isEnabled.GetValue(timer)!);
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) ?? throw new InvalidOperationException("null")).GetValue(win) ?? throw new InvalidOperationException("null");
+        var isEnabled = timer.GetType().GetProperty("IsEnabled") ?? throw new InvalidOperationException("null");
+        Assert.True((bool)(isEnabled.GetValue(timer) ?? throw new InvalidOperationException("null")));
 
         // 模拟 50 个 100ms tick = 5s 到期 → 计时器停止并开始淡出
-        var tickMethod = typeof(MainWindow).GetMethod(
+        var tickMethod = (typeof(MainWindow).GetMethod(
             "OnErrorToastTimerTick",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) ?? throw new InvalidOperationException("null"));
         for (var i = 0; i < 50; i++) {
             tickMethod.Invoke(win, new object?[] { timer, EventArgs.Empty });
         }
 
-        Assert.False((bool)isEnabled.GetValue(timer)!);
+        Assert.False((bool)(isEnabled.GetValue(timer) ?? throw new InvalidOperationException("null")));
     }
 
     [AvaloniaFact]
@@ -142,25 +142,25 @@ public sealed class MainWindowRegressionTests {
         vm.SendCommand.Execute(null);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        var toast = win.FindControl<Border>("ErrorToast")!;
-        var enter = typeof(MainWindow).GetMethod(
+        var toast = win.FindControl<Border>("ErrorToast") ?? throw new InvalidOperationException("null");
+        var enter = (typeof(MainWindow).GetMethod(
             "OnErrorToastPointerEnter",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-        var leave = typeof(MainWindow).GetMethod(
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) ?? throw new InvalidOperationException("null"));
+        var leave = (typeof(MainWindow).GetMethod(
             "OnErrorToastPointerLeave",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-        var timer = typeof(MainWindow).GetField(
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) ?? throw new InvalidOperationException("null"));
+        var timer = (typeof(MainWindow).GetField(
             "_errorToastTimer",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(win)!;
-        var isEnabled = timer.GetType().GetProperty("IsEnabled")!;
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) ?? throw new InvalidOperationException("null")).GetValue(win) ?? throw new InvalidOperationException("null");
+        var isEnabled = timer.GetType().GetProperty("IsEnabled") ?? throw new InvalidOperationException("null");
 
         enter.Invoke(win, new object?[] { toast, null });
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-        Assert.False((bool)isEnabled.GetValue(timer)!);
+        Assert.False((bool)(isEnabled.GetValue(timer) ?? throw new InvalidOperationException("null")));
 
         leave.Invoke(win, new object?[] { toast, null });
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-        Assert.True((bool)isEnabled.GetValue(timer)!);
+        Assert.True((bool)(isEnabled.GetValue(timer) ?? throw new InvalidOperationException("null")));
     }
 
     /// <summary>
@@ -211,7 +211,7 @@ public sealed class MainWindowRegressionTests {
         var rewindButton = win.GetVisualDescendants()
             .OfType<Button>()
             .First(b => Avalonia.Controls.ToolTip.GetTip(b) is string tip && tip.Contains("撤回") && ReferenceEquals(b.CommandParameter, assistantMsg));
-        rewindButton.Command!.Execute(rewindButton.CommandParameter);
+        (rewindButton.Command ?? throw new InvalidOperationException("rewindButton.Command 未设置")).Execute(rewindButton.CommandParameter);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
         // 撤回整轮：User + Assistant 都移除
@@ -237,7 +237,7 @@ public sealed class MainWindowRegressionTests {
         var copyButton = win.GetVisualDescendants()
             .OfType<Button>()
             .First(b => Avalonia.Controls.ToolTip.GetTip(b) is string tip && tip.Contains("复制本条") && ReferenceEquals(b.CommandParameter, msg));
-        copyButton.Command!.Execute(copyButton.CommandParameter);
+        (copyButton.Command ?? throw new InvalidOperationException("copyButton.Command 未设置")).Execute(copyButton.CommandParameter);
 
         vm.HasCopied.Should().BeTrue();
     }
@@ -276,7 +276,7 @@ public sealed class MainWindowRegressionTests {
 
         var dot = win.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.Name == "StatusDot");
         Assert.NotNull(dot);
-        Assert.True(dot!.IsVisible, "状态圆点应始终可见（不只在 Busy 时）");
+        Assert.True((dot ?? throw new InvalidOperationException("dot 未设置")).IsVisible, "状态圆点应始终可见（不只在 Busy 时）");
         Assert.Equal("●", dot.Text);
     }
 

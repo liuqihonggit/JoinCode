@@ -130,9 +130,13 @@ public class GuiPaletteContrastTests {
             var role = new BoolToRoleBrushConverter();
             var status = new StatusToBrushConverter();
 
-            BrushColor(role.Convert(true, typeof(ISolidColorBrush), null, null!))
+            #nullable disable
+            BrushColor(role.Convert(true, typeof(ISolidColorBrush), null, null))
+            #nullable enable
                 .ToString().Should().Be(Color.Parse(light.RoleUser).ToString());
-            BrushColor(status.Convert(StatusKind.Error, typeof(ISolidColorBrush), null, null!))
+            #nullable disable
+            BrushColor(status.Convert(StatusKind.Error, typeof(ISolidColorBrush), null, null))
+            #nullable enable
                 .ToString().Should().Be(Color.Parse(light.ErrorText).ToString());
         } finally {
             GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;

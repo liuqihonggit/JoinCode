@@ -66,12 +66,14 @@ public sealed class GuiSessionStore {
 
     /// <summary>通过 ITranscriptService 列出会话(统一入口,.json + 子目录)</summary>
     private async Task<GuiSessionSummary[]> ListSessionsViaTranscriptServiceAsync() {
-        var summaries = await _transcriptService!.ListTranscriptsAsync(200);
+        if (_transcriptService is not { } ts)
+            return [];
+        var summaries = await ts.ListTranscriptsAsync(200);
         var result = new List<GuiSessionSummary>(summaries.Count);
         foreach (var s in summaries) {
             var title = s.SessionId;
             try {
-                var custom = await _transcriptService.GetCustomTitleAsync(s.SessionId);
+                var custom = await ts.GetCustomTitleAsync(s.SessionId);
                 if (!string.IsNullOrWhiteSpace(custom))
                     title = custom;
             } catch (Exception ex) {
@@ -108,8 +110,10 @@ public sealed class GuiSessionStore {
 
     /// <summary>通过 ITranscriptService 加载会话(统一入口,TranscriptEntry → GuiSessionMessage)</summary>
     private async Task<GuiSessionData?> LoadViaTranscriptServiceAsync(string sessionId) {
+        if (_transcriptService is not { } ts)
+            return null;
         try {
-            var entries = await _transcriptService!.LoadTranscriptAsync(sessionId);
+            var entries = await ts.LoadTranscriptAsync(sessionId);
             if (entries.Count == 0)
                 return null;
 
@@ -127,10 +131,10 @@ public sealed class GuiSessionStore {
                 });
             }
 
-            var info = await _transcriptService.GetSessionInfoAsync(sessionId);
+            var info = await ts.GetSessionInfoAsync(sessionId);
             var customTitle = string.Empty;
             try {
-                customTitle = await _transcriptService.GetCustomTitleAsync(sessionId) ?? string.Empty;
+                customTitle = await ts.GetCustomTitleAsync(sessionId) ?? string.Empty;
             } catch (Exception ex) {
                 System.Diagnostics.Debug.WriteLine($"[GuiSessionStore] Load 读取 CustomTitle 失败 sid={sessionId}: {ex.Message}");
             }
@@ -172,9 +176,11 @@ public sealed class GuiSessionStore {
     /// 此前本方法的 Delete+Append 全量覆盖与引擎增量并存会产生重复条目（双写根因）。
     /// </summary>
     private async Task<bool> SaveViaTranscriptServiceAsync(GuiSessionData session) {
+        if (_transcriptService is not { } ts)
+            return false;
         try {
             // 保存会话元数据
-            await _transcriptService!.SaveSessionInfoAsync(session.Id, new SessionInfo {
+            await ts.SaveSessionInfoAsync(session.Id, new SessionInfo {
                 Id = session.Id,
                 ProjectPath = session.ProjectPath,
                 ModelId = session.ModelId,
@@ -184,7 +190,7 @@ public sealed class GuiSessionStore {
 
             // 保存自定义标题(非空时)
             if (!string.IsNullOrWhiteSpace(session.CustomTitle))
-                await _transcriptService.SaveCustomTitleAsync(session.Id, session.CustomTitle);
+                await ts.SaveCustomTitleAsync(session.Id, session.CustomTitle);
 
             return true;
         } catch (Exception ex) {

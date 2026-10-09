@@ -96,16 +96,14 @@ public sealed class PromptView : ITuiComponent {
         }
         // Ctrl+Up 历史导航
         else if (key == TuiKey.CursorUp.WithCtrl) {
-            var prev = _history.NavigateUp();
-            if (prev is not null) {
+            if (_history.TryNavigateUp(out var prev)) {
                 _editor.Text = prev;
             }
             key.Handled = true;
         }
         // Ctrl+Down 历史导航
         else if (key == TuiKey.CursorDown.WithCtrl) {
-            var next = _history.NavigateDown();
-            _editor.Text = next ?? string.Empty;
+            _editor.Text = _history.TryNavigateDown(out var next) ? next : string.Empty;
             key.Handled = true;
         }
     }

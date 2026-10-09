@@ -188,7 +188,7 @@ public sealed class SlashPaletteRenderTests {
         var win = OpenWindow(dark: true);
         try {
             await TriggerSlashAsync(win);
-            var vm = (MainViewModel)win.DataContext!;
+            await using var vm = (MainViewModel)(win.DataContext ?? throw new InvalidOperationException("win.DataContext 未设置"));
             var list = win.GetVisualDescendants().OfType<ListBox>().First(x => x.Name == "PaletteList");
 
             // 真实键盘管线：连按 ↓ 走 InputBar KeyDown → vm.SlashNavigate → ScrollIntoView
@@ -212,7 +212,7 @@ public sealed class SlashPaletteRenderTests {
             var lastContainer = list.ContainerFromIndex(vm.SlashSuggestions.Count - 1);
             Assert.NotNull(lastContainer);
             var listRect = BoundsInWindow(list);
-            var itemRect = BoundsInWindow(lastContainer!);
+            var itemRect = BoundsInWindow((lastContainer ?? throw new InvalidOperationException("lastContainer 未设置")));
             Assert.True(itemRect.Top >= listRect.Top - 0.75 && itemRect.Bottom <= listRect.Bottom + 0.75,
                 $"最后一项 [{itemRect.Top:F1},{itemRect.Bottom:F1}] 超出列表视口 [{listRect.Top:F1},{listRect.Bottom:F1}]，选中项不可见");
         } finally {

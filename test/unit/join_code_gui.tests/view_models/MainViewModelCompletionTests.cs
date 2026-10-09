@@ -17,8 +17,8 @@ public class MainViewModelCompletionTests {
     }
 
     [Fact]
-    public void AtTrigger_OpensPopupWithAgentSuggestions() {
-        var vm = CreateVm();
+    public async Task AtTrigger_OpensPopupWithAgentSuggestions() {
+        await using var vm = CreateVm();
         SetInput(vm, "@");
         vm.IsSlashPopupOpen.Should().BeTrue();
         vm.SlashSuggestions.Should().NotBeEmpty();
@@ -26,8 +26,8 @@ public class MainViewModelCompletionTests {
     }
 
     [Fact]
-    public void AtTrigger_PrefixFiltersAgents() {
-        var vm = CreateVm();
+    public async Task AtTrigger_PrefixFiltersAgents() {
+        await using var vm = CreateVm();
         SetInput(vm, "@ex");
         vm.IsSlashPopupOpen.Should().BeTrue();
         vm.SlashSuggestions.Should().NotBeEmpty();
@@ -36,24 +36,24 @@ public class MainViewModelCompletionTests {
     }
 
     [Fact]
-    public void AtTrigger_NonMatchingPrefix_ClosesPopup() {
-        var vm = CreateVm();
+    public async Task AtTrigger_NonMatchingPrefix_ClosesPopup() {
+        await using var vm = CreateVm();
         SetInput(vm, "@zzz-no-such-agent");
         vm.IsSlashPopupOpen.Should().BeFalse();
         vm.SlashSuggestions.Should().BeEmpty();
     }
 
     [Fact]
-    public void HashTrigger_OpensPopupWithFileSuggestions() {
-        var vm = CreateVm();
+    public async Task HashTrigger_OpensPopupWithFileSuggestions() {
+        await using var vm = CreateVm();
         SetInput(vm, "#");
         vm.IsSlashPopupOpen.Should().BeTrue();
         vm.SlashModeLabel.Should().Be("文件补全");
     }
 
     [Fact]
-    public void CompleteAgentSuggestion_ReplacesPrefixWithAgentName() {
-        var vm = CreateVm();
+    public async Task CompleteAgentSuggestion_ReplacesPrefixWithAgentName() {
+        await using var vm = CreateVm();
         SetInput(vm, "@co");
         vm.SlashSuggestions.Should().NotBeEmpty();
         vm.CompleteSlashSuggestion();
@@ -62,8 +62,8 @@ public class MainViewModelCompletionTests {
     }
 
     [Fact]
-    public void CompleteFileSuggestion_ReplacesPrefixWithFileName() {
-        var vm = CreateVm();
+    public async Task CompleteFileSuggestion_ReplacesPrefixWithFileName() {
+        await using var vm = CreateVm();
         SetInput(vm, "#");
         vm.SlashSuggestions.Should().NotBeEmpty();
         var firstName = vm.SlashSuggestions[0].Name;
@@ -73,15 +73,15 @@ public class MainViewModelCompletionTests {
     }
 
     [Fact]
-    public void AtTrigger_SpaceTerminatesCompletion() {
-        var vm = CreateVm();
+    public async Task AtTrigger_SpaceTerminatesCompletion() {
+        await using var vm = CreateVm();
         SetInput(vm, "@agent message");
         vm.IsSlashPopupOpen.Should().BeFalse();
     }
 
     [Fact]
-    public void HashTrigger_SpaceTerminatesCompletion() {
-        var vm = CreateVm();
+    public async Task HashTrigger_SpaceTerminatesCompletion() {
+        await using var vm = CreateVm();
         SetInput(vm, "#file message");
         vm.IsSlashPopupOpen.Should().BeFalse();
     }

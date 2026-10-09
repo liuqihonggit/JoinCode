@@ -61,24 +61,26 @@ public sealed partial class MessageAreaView : UserControl {
 
     /// <summary>ViewModel 状态变化时联动 View（错误 toast、复制反馈、剪贴板）</summary>
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
-        if (e.PropertyName == nameof(MainViewModel.HasCopied) && _vm!.HasCopied) {
+        if (_vm is not { } vm)
+            return;
+        if (e.PropertyName == nameof(MainViewModel.HasCopied) && vm.HasCopied) {
             ScheduleCopyToastHide();
-        } else if (e.PropertyName == nameof(MainViewModel.CopiedMessageCopy) && !string.IsNullOrEmpty(_vm!.CopiedMessageCopy)) {
-            SetClipboardText(_vm.CopiedMessageCopy);
-            _vm.ClearCopiedMessageCopy();
+        } else if (e.PropertyName == nameof(MainViewModel.CopiedMessageCopy) && !string.IsNullOrEmpty(vm.CopiedMessageCopy)) {
+            SetClipboardText(vm.CopiedMessageCopy);
+            vm.ClearCopiedMessageCopy();
             ScheduleCopyToastHide();
-        } else if (e.PropertyName == nameof(MainViewModel.ExportedSessionCopy) && !string.IsNullOrEmpty(_vm!.ExportedSessionCopy)) {
-            SetClipboardText(_vm.ExportedSessionCopy);
-            _vm.ClearSessionExport();
+        } else if (e.PropertyName == nameof(MainViewModel.ExportedSessionCopy) && !string.IsNullOrEmpty(vm.ExportedSessionCopy)) {
+            SetClipboardText(vm.ExportedSessionCopy);
+            vm.ClearSessionExport();
             ScheduleCopyToastHide();
         } else if (e.PropertyName == nameof(MainViewModel.ErrorToastText)) {
-            if (_vm!.HasErrorToast)
+            if (vm.HasErrorToast)
                 ShowErrorToast();
             else
                 HideErrorToast();
-        } else if (e.PropertyName == nameof(MainViewModel.ErrorToastCopy) && !string.IsNullOrEmpty(_vm!.ErrorToastCopy)) {
-            SetClipboardText(_vm.ErrorToastCopy);
-            _vm.ClearErrorToastCopy();
+        } else if (e.PropertyName == nameof(MainViewModel.ErrorToastCopy) && !string.IsNullOrEmpty(vm.ErrorToastCopy)) {
+            SetClipboardText(vm.ErrorToastCopy);
+            vm.ClearErrorToastCopy();
             ScheduleCopyToastHide();
         }
     }

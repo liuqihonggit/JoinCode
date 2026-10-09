@@ -33,7 +33,16 @@ runs:
       shell: pwsh
       run: |
         $feedPath = Join-Path $env:GITHUB_WORKSPACE "artifacts" "nuget"
-        dotnet nuget add source "$feedPath" --name local-feed --verbosity quiet
+        $nugetConfig = Join-Path $env:GITHUB_WORKSPACE "nuget.config"
+        [xml]$config = Get-Content $nugetConfig
+        $sources = $config.configuration.packageSources
+        $existing = $sources.SelectSingleNode("add[@key='local-feed']")
+        if ($existing) { $sources.RemoveChild($existing) }
+        $add = $config.CreateElement("add")
+        $add.SetAttribute("key", "local-feed")
+        $add.SetAttribute("value", $feedPath)
+        $sources.AppendChild($add)
+        $config.Save($nugetConfig)
 
     - name: Set Console Encoding to UTF-8
       shell: pwsh

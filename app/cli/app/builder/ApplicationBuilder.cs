@@ -497,7 +497,7 @@ public sealed class ApplicationBuilder {
     }
 
     /// <summary>
-    /// 显示特定情景模式详情 — jcc -h scenario &lt;name&gt;
+    /// 显示特定情景模式详情 — jcc -h scenario &lt;name&gt;，经 ToolMenuRenderer 统一渲染
     /// </summary>
     private static void ShowScenarioDetail(string name) {
         var scenario = ScenarioRegistry.Find(name);
@@ -507,19 +507,7 @@ public sealed class ApplicationBuilder {
             ShowScenarios();
             return;
         }
-        Cli.TerminalHelper.WriteLine($"情景模式: {scenario.Name}");
-        Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine(scenario.Description);
-        Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine("工具集:");
-        foreach (var tool in scenario.Tools)
-            Cli.TerminalHelper.WriteLine($"  - {tool}");
-        Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine($"建议流程: {scenario.SuggestedFlow}");
-        if (!string.IsNullOrEmpty(scenario.Tips)) {
-            Cli.TerminalHelper.NewLine();
-            Cli.TerminalHelper.WriteLine($"提示: {scenario.Tips}");
-        }
+        Cli.TerminalHelper.WriteLine(ToolMenuRenderer.ToText(scenario).TrimEnd());
     }
 
     /// <summary>

@@ -476,9 +476,11 @@ public partial class GitHubToolHandlers {
         if (!run.TryGetProperty("details_url", out var urlProp)) return null;
         var url = urlProp.GetString();
         if (string.IsNullOrEmpty(url)) return null;
-        var jobsIdx = url.LastIndexOf("/jobs/", StringComparison.OrdinalIgnoreCase);
-        if (jobsIdx < 0) return null;
-        var start = jobsIdx + "/jobs/".Length;
+        // GitHub Actions URL 用 /job/ (单数) 或 /jobs/ (复数)
+        var jobIdx = url.LastIndexOf("/job/", StringComparison.OrdinalIgnoreCase);
+        if (jobIdx < 0) jobIdx = url.LastIndexOf("/jobs/", StringComparison.OrdinalIgnoreCase);
+        if (jobIdx < 0) return null;
+        var start = jobIdx + "/job/".Length;
         var sb = new StringBuilder(16);
         for (var i = start; i < url.Length && char.IsDigit(url[i]); i++)
             sb.Append(url[i]);

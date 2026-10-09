@@ -23,6 +23,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("创建时间过滤(可选,如 >2026-01-01)", Required = false)] string? created = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,status,conclusion)", Required = false)] string? json_fields = null,
         [McpToolParameter("输出档位(0=gh风格表格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
+        [McpToolParameter("强制刷新缓存(兼容参数,run list 直接调 API 无缓存,传入即忽略)", Required = false)] bool? refresh = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)

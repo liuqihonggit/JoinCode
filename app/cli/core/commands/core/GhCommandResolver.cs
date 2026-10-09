@@ -429,6 +429,7 @@ internal static class GhArgsBinder {
         => toolName switch {
             "gh_repo_clone"   => parameters.Where(p => p.Name == "dir").ToList(),
             "gh_pr_checkout"  => parameters.Where(p => p.Name == "branch").ToList(),
+            "gh_run_view"     => parameters.Where(p => p.Name == "run_id").ToList(),
             _ => []
         };
 

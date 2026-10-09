@@ -1,3 +1,4 @@
+#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 /// <summary>

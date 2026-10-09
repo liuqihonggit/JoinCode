@@ -374,7 +374,7 @@ public partial class GitHubToolHandlers {
             ct: ct).ConfigureAwait(false);
         if (!checksResult.Success) return Fail(checksResult.Error);
         if (!string.IsNullOrEmpty(json_fields))
-            return Ok(FilterJsonFields(checksResult.Body, json_fields));
+            return Ok(FilterCheckRunFields(checksResult.Body, json_fields));
         var requiredContexts = required == true && !string.IsNullOrEmpty(headRef)
             ? await GetRequiredStatusChecksAsync(client, owner, repoName, headRef!, ct).ConfigureAwait(false)
             : null;
@@ -423,6 +423,60 @@ public partial class GitHubToolHandlers {
     /// <summary>check 排序键: fail=0, pending=1, skipping=2, pass=3</summary>
     private static int CheckSortKey(string displayStatus)
         => displayStatus switch { "fail" => 0, "pending" => 1, "skipping" => 2, "pass" => 3, _ => 4 };
+
+    /// <summary>
+    /// 过滤 check-runs 响应字段 — 支持 state 映射(status+conclusion→state),对齐 GraphQL statusCheckRollup。
+    /// <para>check-runs API 返回 status/conclusion 而非 state,用户传 --json_fields name,state 时需映射。</para>
+    /// </summary>
+    private static string FilterCheckRunFields(string json, string fields) {
+        var fieldSet = new HashSet<string>(fields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries), StringComparer.OrdinalIgnoreCase);
+        try {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("check_runs", out var runs)) return "[]";
+            var sb = new StringBuilder(512);
+            sb.Append('[');
+            var first = true;
+            foreach (var run in runs.EnumerateArray()) {
+                if (!first) sb.Append(',');
+                first = false;
+                sb.Append('{');
+                var firstField = true;
+                foreach (var field in fieldSet) {
+                    if (!firstField) sb.Append(',');
+                    firstField = false;
+                    sb.Append('"').Append(field).Append("\":");
+                    if (string.Equals(field, "state", StringComparison.OrdinalIgnoreCase)) {
+                        var status = run.TryGetProperty("status", out var s) ? s.GetString() ?? "" : "";
+                        var conclusion = run.TryGetProperty("conclusion", out var c) ? c.GetString() ?? "" : "";
+                        sb.Append('"').Append(MapCheckState(status, conclusion)).Append('"');
+                    } else if (run.TryGetProperty(field, out var value)) {
+                        sb.Append(value.GetRawText());
+                    } else {
+                        sb.Append("null");
+                    }
+                }
+                sb.Append('}');
+            }
+            sb.Append(']');
+            return sb.ToString();
+        } catch (JsonException) {
+            return "[]";
+        }
+    }
+
+    /// <summary>映射 check status+conclusion → state(对齐 GraphQL: PENDING/SUCCESS/FAILURE/NEUTRAL)</summary>
+    private static string MapCheckState(string status, string conclusion)
+        => status switch {
+            "completed" => conclusion switch {
+                "success" => "SUCCESS",
+                "failure" => "FAILURE",
+                "cancelled" or "timed_out" => "FAILURE",
+                "skipped" or "neutral" => "NEUTRAL",
+                _ => "NEUTRAL"
+            },
+            "queued" or "in_progress" => "PENDING",
+            _ => "PENDING"
+        };
 
     /// <summary>
     /// 获取分支保护规则的 required_status_checks — required 过滤用，保护规则不存在(404)时返回 null(降级显示全部)

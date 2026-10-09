@@ -116,6 +116,17 @@
 | P2 | GAP-042-05 注意力涣散专门检测 | 中 |
 | P3 | GAP-042-06 低频驱动机制 | 中 |
 
+## 完成状态
+
+| 缺口 | 状态 | 说明 |
+|------|------|------|
+| GAP-042-01 | ✅ 完成 | 改为强烈重复性警告提示而非没收冷却期（用户决策），ToolQuotaService + LoopInterventionMiddleware 第三级警告 + /clear 重置 |
+| GAP-042-02 | ⏭ 跳过 | 用户决定跳过子代理结论倒装结构设计 |
+| GAP-042-03 | ✅ 完成 | 双击 ESC 合并终止生成+重置计数（用户决策合并方案），IJccChatSession.ResetCountersAsync + MainViewModel.ResetCountersCommand |
+| GAP-042-04 | ✅ 完成 | PlanStep 加 ConsecutiveFailures/IsCriticalNode，RecordStepFailureAsync + AutoReorderOnFailureAsync，鱼骨图关键节点不重排 |
+| GAP-042-05 | ✅ 完成 | AttentionFatigueDetector 三阈值（压缩次数+运行时长+错误率），提示写交接文档+/clear/新会话 |
+| GAP-042-06 | ✅ 完成 | LowFrequencyInductionService 按间隔低频诱导，避免高频噪声 |
+
 ## 关联
 
 - 设计文档：《Agent 工具设计》"提示词"整节

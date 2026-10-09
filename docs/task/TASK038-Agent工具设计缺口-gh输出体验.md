@@ -86,13 +86,9 @@ AI 使用 gh 工具查 CI 错误时翻查层级多、`gh view` 偶发卡死。�
 - **验收标准**：pr checks 输出顺序为 fail → warning → pending → skipping → pass
 - **复杂度**：低
 
-### GAP-038-07 run view job 列表"总结"档 ⭐ P3
+### GAP-038-07 run view job 列表"总结"档 ⭐ P3 ✅ 已落地(无需改动)
 
-- **当前状态**：部分落地（job 列表置顶只有"失败/取消/进行中"三档，无独立"总结"档；总结在 baseSummary 头部非 SectionOrder 项）
-- **缺什么**：设计要求"总结"作为最高优先级档独立展示
-- **建议方案**：`SectionOrder` 增加 `SectionSummary => -1`（比 SectionError=0 更高优先级），把 baseSummary 归入 SectionSummary
-- **验收标准**：run view 输出最顶部是总结行，其次是错误，最后是通过
-- **复杂度**：低
+- **实际状态**：已落地。`EnhanceDefaultViewWithJobsAsync`（`GitHubToolHandlers.Run.cs:312-386`）输出结构为 `baseSummary(含总结行) → 失败Job → 取消Job → 进行中Job → 日志提示`。总结行已在最顶部，job 列表按"失败→取消→进行中"排序，通过的不展示（ADR 0069 决策：成功时保持简洁）。无需额外 SectionSummary 档
 
 ## 优先级汇总
 
@@ -104,7 +100,7 @@ AI 使用 gh 工具查 CI 错误时翻查层级多、`gh view` 偶发卡死。�
 | P2 | GAP-038-04 行号定位跳转 | 中 |
 | P2 | GAP-038-05 格式识别失败截断分页 | 低 |
 | P3 | GAP-038-06 pr checks 警告档 ✅ | 低 |
-| P3 | GAP-038-07 run view 总结档 | 低 |
+| P3 | GAP-038-07 run view 总结档 ✅ | 低 |
 
 ## 关联
 

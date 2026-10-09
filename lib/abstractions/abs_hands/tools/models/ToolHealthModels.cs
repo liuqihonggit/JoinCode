@@ -58,7 +58,7 @@ public sealed record ToolHealthRecord {
     /// <summary>获取或设置临时加热过期时间（UTC），过期后 BoostScore 归零。</summary>
     public DateTime? BoostExpiry { get; init; }
     /// <summary>获取或设置转移频率映射（下一个工具名 → 转移次数），用于运行时学习工具链路。</summary>
-    public FrozenDictionary<string, int> NextToolFrequency { get; init; } = FrozenDictionary<string, int>.Empty;
+    public Dictionary<string, int> NextToolFrequency { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>获取当前是否处于有效加热期（BoostScore > 0 且未过期）。</summary>
     public bool IsBoostActive => BoostScore > 0 && BoostExpiry is { } expiry && DateTime.UtcNow < expiry;

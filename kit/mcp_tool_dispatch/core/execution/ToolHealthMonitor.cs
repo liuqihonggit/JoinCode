@@ -409,7 +409,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
                 var newCount = freq.TryGetValue(transition.ToTool, out var existingCount) ? existingCount + 1 : 1;
                 var newFreq = freq.ToDictionary();
                 newFreq[transition.ToTool] = newCount;
-                var updated = record with { NextToolFrequency = newFreq.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase) };
+                var updated = record with { NextToolFrequency = newFreq };
                 _records = _records.SetItem(transition.FromTool, updated);
                 RegisterInFlight(SaveToDiskAsync());
                 transition.Tcs.TrySetResult();

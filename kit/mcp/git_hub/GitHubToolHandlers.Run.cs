@@ -647,19 +647,11 @@ public partial class GitHubToolHandlers {
         => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines, wantRefresh);
 
     /// <summary>
-    /// 统一日志流入口 — 根据 jobId/failedOnly 自动选择日志源,先入库 LSM 缓存再 yield(架构统一: 正则先缓存再处理)
-    /// <para>日志源: failedOnly=true → 失败 job 日志; jobId 有值 → 单/多 job 日志; 否则 → 整个 run 日志</para>
+    /// 统一日志流入口 — 委托给 LogFilterRunner.GetLogStreamAsync(架构统一: 先入库 LSM 缓存再 yield)
     /// </summary>
     private IAsyncEnumerable<string> GetLogStreamAsync(
-        string owner, string repo, string runId, string? jobId, bool failedOnly, bool wantRefresh, CancellationToken ct) {
-        if (failedOnly)
-            return LogFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, wantRefresh, ct);
-        if (!string.IsNullOrWhiteSpace(jobId)) {
-            var jobIds = GitHubRunLogFilter.ParseJobIds(jobId);
-            return LogFilterRunner.DownloadJobsParallelAsync(owner, repo, runId, jobIds, wantRefresh, ct);
-        }
-        return LogFilterRunner.GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct);
-    }
+        string owner, string repo, string runId, string? jobId, bool failedOnly, bool wantRefresh, CancellationToken ct)
+        => LogFilterRunner.GetLogStreamAsync(owner, repo, runId, jobId, failedOnly, wantRefresh, ct);
 
     /// <summary>
     /// 重跑 Actions Run — 默认只重跑失败的 job，支持 debug 日志和指定 job 重跑，调 REST API POST rerun-failed-jobs/rerun-jobs/rerun

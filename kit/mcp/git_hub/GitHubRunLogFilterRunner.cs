@@ -29,6 +29,22 @@ internal sealed class GitHubRunLogFilterRunner {
     }
 
     /// <summary>
+    /// 统一日志流入口 — 根据 jobId/failedOnly 自动选择日志源,先入库 LSM 缓存再 yield
+    /// <para>日志源: failedOnly=true → 失败 job 日志; jobId 有值 → 单/多 job 日志; 否则 → 整个 run 日志</para>
+    /// <para>架构统一: 所有日志消费方(StreamAndFilter/FilterByRegex/FilterFailed)都通过此入口获取日志流</para>
+    /// </summary>
+    public IAsyncEnumerable<string> GetLogStreamAsync(
+        string owner, string repo, string runId, string? jobId, bool failedOnly, bool wantRefresh, CancellationToken ct) {
+        if (failedOnly)
+            return GetFailedJobLogsAsync(owner, repo, runId, wantRefresh, ct);
+        if (!string.IsNullOrWhiteSpace(jobId)) {
+            var jobIds = GitHubRunLogFilter.ParseJobIds(jobId);
+            return DownloadJobsParallelAsync(owner, repo, runId, jobIds, wantRefresh, ct);
+        }
+        return GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct);
+    }
+
+    /// <summary>
     /// 获取指定 Run 中所有失败 job 的日志 — 逐行 yield(合并多个 job 日志)
     /// <para>用于 expand=failed 模式,只拉 conclusion=failure 的 job 日志</para>
     /// <para>jobs list 缓存: key=gh:jobs:{runId},缓存失败 job ID 列表(已完成 run 的 job 列表不可变)</para>
@@ -370,19 +386,10 @@ internal sealed class GitHubRunLogFilterRunner {
         var skipped = 0;
         var lineNumber = 0;
 
-        // 获取日志行枚举源 — 全部走缓存
+        // 统一日志流入口 — 先入库 LSM 缓存再 yield(架构统一)
         IAsyncEnumerable<string> logLines;
-        if (failedOnly) {
-            logLines = GetFailedJobLogsAsync(owner, repo, runId, wantRefresh, ct);
-        } else if (!string.IsNullOrWhiteSpace(jobId)) {
-            // 支持逗号分隔多个 job_id 并行下载,如 "123,456"(统一走 DownloadJobsParallelAsync)
-            var jobIds = GitHubRunLogFilter.ParseJobIds(jobId);
-            if (jobIds.Count == 0) {
-                return GitHubToolHandlers.Fail($"无效的 Job ID: {jobId}");
-            }
-            logLines = DownloadJobsParallelAsync(owner, repo, runId, jobIds, wantRefresh, ct);
-        } else if (long.TryParse(runId, out _)) {
-            logLines = GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct);
+        if (failedOnly || !string.IsNullOrWhiteSpace(jobId) || long.TryParse(runId, out _)) {
+            logLines = GetLogStreamAsync(owner, repo, runId, jobId, failedOnly, wantRefresh, ct);
         } else {
             return GitHubToolHandlers.Fail($"无效的 Run ID: {runId}");
         }

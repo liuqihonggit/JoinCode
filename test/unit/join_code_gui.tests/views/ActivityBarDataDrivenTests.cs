@@ -87,7 +87,7 @@ public sealed class ActivityBarDataDrivenTests {
     }
 
     /// <summary>切换序列验证：A→B→C 每步都满足互斥</summary>
-    [AvaloniaFact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
     public async Task SwitchSequence_SessionsToFileTreeToEditor_EachStepMutex() {
         await using var vm = CreateVm();
         var win = new MainWindow { DataContext = vm };

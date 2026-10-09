@@ -12,7 +12,7 @@ public sealed class FileTreeContextMenuTests {
         new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
 
     /// <summary>FileTreePanelView 加载后目录树应有文件和文件夹节点</summary>
-    [AvaloniaFact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
     public async Task FileTreeLoaded_ContainsFoldersAndFiles() {
         await using var vm = CreateVm();
         vm.LoadFileTree(System.AppContext.BaseDirectory);

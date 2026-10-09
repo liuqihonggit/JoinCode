@@ -3,7 +3,7 @@
 /// <summary>工作台入口与实际可操作界面验收。</summary>
 [Collection("GuiUiSequential")]
 public sealed class WorkbenchTests {
-    [AvaloniaFact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
     public async Task Workspace_OffersAllThreeWorkbenches() {
         var fs = new InMemoryFileSystem();
         await using var vm = new MainViewModel(new PlaceholderChatSession(),

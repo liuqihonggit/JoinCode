@@ -119,7 +119,7 @@ public sealed class SlashPaletteRenderTests {
         }
     }
 
-    [AvaloniaFact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
     public async Task SlashPalette_RendersInWindowFrame_AnchoredAboveInputBar() {
         var dump = DumpDir();
         var (closedFrame, openFrame) = await CapturePairAsync(dark: true);
@@ -140,7 +140,7 @@ public sealed class SlashPaletteRenderTests {
             $"差异最低行 y={lowest} 未落在窗口下部（应 ≥ {h * 0.78:F0}）：面板未从输入栏上方弹出");
     }
 
-    [AvaloniaFact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
     public async Task SlashPalette_EdgesAlignWithInputBar_NoOverlap() {
         var win = OpenWindow(dark: true);
         try {
@@ -164,7 +164,7 @@ public sealed class SlashPaletteRenderTests {
         }
     }
 
-    [AvaloniaFact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
     public async Task Composer_SendButtonEmbeddedInCard() {
         var win = OpenWindow(dark: true);
         try {
@@ -183,7 +183,7 @@ public sealed class SlashPaletteRenderTests {
         }
     }
 
-    [AvaloniaFact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
     public async Task SlashPalette_KeyboardNavigationScrollsToLastItem() {
         var win = OpenWindow(dark: true);
         try {
@@ -220,7 +220,7 @@ public sealed class SlashPaletteRenderTests {
         }
     }
 
-    [AvaloniaFact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
     public async Task SlashPalette_LightTheme_SavesFrameForReview() {
         var dump = DumpDir();
         var (_, openFrame) = await CapturePairAsync(dark: false);

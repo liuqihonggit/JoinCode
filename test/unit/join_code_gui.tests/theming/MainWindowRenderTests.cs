@@ -111,7 +111,7 @@ public sealed class MainWindowRenderTests {
         Assert.True(side < 50, $"首帧侧栏平均亮度 {side:F1} 应为深色(<50),说明启动即 Dark 而非 Default/浅色残留");
     }
 
-    [AvaloniaFact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
     public void SessionSelectSwitchesHighlightColor() {
         GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
         var vm = CreateVm();

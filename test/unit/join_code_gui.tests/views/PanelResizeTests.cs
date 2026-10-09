@@ -68,7 +68,7 @@ public sealed class PanelResizeTests {
         vm.PanelWidth.Should().Be(startWidth - 60);
     }
 
-    [AvaloniaFact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
     public async Task PanelSash_VisibleWhenPanelOpen() {
         var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var vm = new MainViewModel(new PlaceholderChatSession(),

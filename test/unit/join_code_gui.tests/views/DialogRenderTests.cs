@@ -44,7 +44,7 @@ public sealed class DialogRenderTests {
 
     private static void SavePng(WriteableBitmap frame, string path) => frame.Save(path, PngBitmapEncoderOptions.Default);
 
-    [AvaloniaFact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
     public async Task ThemeToggle_IconSwitchesWithTheme() {
         GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
         var win = new MainWindow { DataContext = CreateVm(), Width = 980, Height = 680 };

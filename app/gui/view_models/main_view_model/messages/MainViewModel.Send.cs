@@ -241,7 +241,7 @@ public sealed partial class MainViewModel {
                 if (turnEntries.Count > 0)
                     _ = _turnLogPersistence.AppendTurnAsync(_activeSession.Id, currentTurn, turnEntries);
             }
-            _sendCts.Dispose();
+            _sendCts?.Dispose();
             _sendCts = null;
             _turnCounter++;
             RunStatus.EndTurn(stopReason);

@@ -84,17 +84,20 @@ public class MainViewModelTests {
 
         vm.InputText = "你好，帮我写个 hello world";
         await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
-        var sessionId = vm.Sessions.First(s => s.IsSelected).Id;
-        var savedCount = vm.Messages.Count(m =>
+        // 快照避免 LoadPersistedSessionsAsync 的 Post 回调并发修改 Sessions
+        var vmSessions = vm.Sessions.ToList();
+        var vmMessages = vm.Messages.ToList();
+        var sessionId = vmSessions.First(s => s.IsSelected).Id;
+        var savedCount = vmMessages.Count(m =>
             (m.Role == MessageRole.User || m.Role == MessageRole.Assistant)
             && !string.IsNullOrWhiteSpace(m.Content));
 
         // 手动保存当前会话到 store（替代 fire-and-forget SaveActiveSessionAsync）
         await store.SaveAsync(new GuiSessionData {
             Id = sessionId,
-            CustomTitle = vm.Sessions.First(s => s.IsSelected).Title,
+            CustomTitle = vmSessions.First(s => s.IsSelected).Title,
             CreatedAt = DateTime.UtcNow,
-            Messages = vm.Messages
+            Messages = vmMessages
                 .Where(m => m.Role is MessageRole.User or MessageRole.Assistant && !string.IsNullOrWhiteSpace(m.Content))
                 .Select(m => new GuiSessionMessage {
                     Role = m.Role.ToValue(),
@@ -114,10 +117,13 @@ public class MainViewModelTests {
         // 在非 AvaloniaFact 测试中 Post 回调不会自动执行，手动注入持久化会话
         var savedData = await store.LoadAsync(sessionId);
         var savedTitle = savedData?.CustomTitle ?? sessionId;
-        foreach (var s in saved.Where(s => !vm2.Sessions.Any(x => x.Id == s.Id)))
+        // 快照 vm2.Sessions 避免与 LoadPersistedSessionsAsync 的 Post 回调并发
+        var vm2Sessions = vm2.Sessions.ToList();
+        foreach (var s in saved.Where(s => !vm2Sessions.Any(x => x.Id == s.Id)))
             vm2.Sessions.Add(new SessionItem { Id = s.Id, Title = s.Id == sessionId ? savedTitle : s.Title });
-        vm2.Sessions.Should().Contain(s => s.Id == sessionId);
-        var restored = vm2.Sessions.First(s => s.Id == sessionId);
+        vm2Sessions = vm2.Sessions.ToList();
+        vm2Sessions.Should().Contain(s => s.Id == sessionId);
+        var restored = vm2Sessions.First(s => s.Id == sessionId);
         restored.Title.Should().Contain("你好");
 
         // 选中恢复的会话 → 消息区填充已持久化消息

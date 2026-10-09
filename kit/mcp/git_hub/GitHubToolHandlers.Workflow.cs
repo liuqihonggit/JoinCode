@@ -11,16 +11,13 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhWorkflowListAsync(
         [McpToolParameter("all=true 包含已禁用 workflow(默认 false)", Required = false)] bool? all = null,
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 50).ToString() };
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/workflows", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, body => SummarizeWorkflowList(body, all == true), "id,name,state,path"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeWorkflowList(body, all == true), "id,name,state,path"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -49,12 +46,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("ref=true 返回指定分支版本(可选)", Required = false)] string? @ref = null,
         [McpToolParameter("yaml=true 返回 workflow yaml 内容", Required = false)] bool? yaml = null,
         [McpToolParameter("web=true 只返回浏览器 URL", Required = false)] bool? web = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var wfPath = $"repos/{owner}/{repoName}/actions/workflows/{Uri.EscapeDataString(workflow_id)}";
             var query = new Dictionary<string, string>();
             if (!string.IsNullOrWhiteSpace(@ref)) query["ref"] = @ref;
@@ -68,7 +62,7 @@ public partial class GitHubToolHandlers {
                 var yamlContent = TryExtractWorkflowYaml(result.Body);
                 if (yamlContent is not null) return Ok(yamlContent);
             }
-            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeWorkflowView, "id,name,state,path,html_url"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeWorkflowView, "id,name,state,path,html_url"));
         }).ConfigureAwait(false);
 
     /// <summary>

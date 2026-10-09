@@ -13,18 +13,15 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("搜索标签名和描述(可选)", Required = false)] string? search = null,
         [McpToolParameter("排序(created/name,默认 created)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 asc)", Required = false)] string? order = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
             if (!string.IsNullOrWhiteSpace(sort)) query["sort"] = sort;
             if (!string.IsNullOrWhiteSpace(order)) query["order"] = order;
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/labels", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, body => SummarizeLabelList(body, search), "id,name,color,description"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeLabelList(body, search), "id,name,color,description"));
         }).ConfigureAwait(false);
 
     /// <summary>

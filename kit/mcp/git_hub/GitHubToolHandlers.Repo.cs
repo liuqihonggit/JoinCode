@@ -12,14 +12,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoView, "查看仓库详情", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoViewAsync(
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         [McpToolParameter("分支名(可选,web=true 时 URL 带分支)", Required = false)] string? branch = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter("web=true 只返回仓库浏览器 URL", Required = false)] bool? web = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             if (web == true) {
                 var repoResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
                 if (!repoResult.Success) return Fail(repoResult.Error);
@@ -28,7 +25,7 @@ public partial class GitHubToolHandlers {
                 if (!string.IsNullOrWhiteSpace(branch)) url += $"/tree/{branch}";
                 return Ok(url);
             }
-            return await GetOrFetchWithCacheAsync(client, $"repos/{owner}/{repoName}", verbosity, json_fields, SummarizeRepo, "name,full_name,description,language,default_branch,html_url", cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, $"repos/{owner}/{repoName}", common?.Verbosity, common?.JsonFields, SummarizeRepo, "name,full_name,description,language,default_branch,html_url", cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>

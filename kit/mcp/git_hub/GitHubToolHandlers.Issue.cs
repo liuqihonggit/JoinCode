@@ -21,12 +21,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("里程碑过滤(可选,数字 ID 或 * 或 none)", Required = false)] string? milestone = null,
         [McpToolParameter("搜索查询(可选,GitHub search 语法)", Required = false)] string? search = null,
         [McpToolParameter("类型(issue/pr,默认 issue)", Required = false)] string? type = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var pageCount = (limit ?? 30).ToString();
             var stateVal = string.IsNullOrWhiteSpace(state) ? "open" : state;
             var needSearch = !string.IsNullOrWhiteSpace(search) || string.Equals(type, "pr", StringComparison.OrdinalIgnoreCase);
@@ -36,7 +33,7 @@ public partial class GitHubToolHandlers {
                 var query = new Dictionary<string, string> { ["q"] = q, ["per_page"] = pageCount };
                 var result = await client.SendAsync(HttpMethod.Get, "search/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
                 if (!result.Success) return Fail(result.Error);
-                return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeIssueList, compactFields));
+                return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeIssueList, compactFields));
             }
             var issuesQuery = new Dictionary<string, string> { ["state"] = stateVal, ["per_page"] = pageCount };
             if (!string.IsNullOrWhiteSpace(label)) issuesQuery["labels"] = label;
@@ -46,7 +43,7 @@ public partial class GitHubToolHandlers {
             if (!string.IsNullOrWhiteSpace(milestone)) issuesQuery["milestone"] = milestone;
             var issuesResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues", query: issuesQuery, ct: cancellationToken).ConfigureAwait(false);
             if (!issuesResult.Success) return Fail(issuesResult.Error);
-            return Ok(FormatGhOutput(issuesResult.Body, verbosity, json_fields, SummarizeIssueList, compactFields));
+            return Ok(FormatGhOutput(issuesResult.Body, common?.Verbosity, common?.JsonFields, SummarizeIssueList, compactFields));
         }).ConfigureAwait(false);
 
     /// <summary>

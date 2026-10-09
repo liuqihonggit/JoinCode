@@ -8,7 +8,7 @@ env:
   DOTNET_NOLOGO: true
   NUGET_XMLDOC_MODE: skip
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
-  Configuration: Release
+  Configuration: Debug
 
 jobs:
   integration-tests:
@@ -25,7 +25,7 @@ jobs:
       - name: Integration Tests
         run: >
           dotnet test test/integration/integration.tests/Integration.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "Category!=Benchmark"
@@ -53,7 +53,7 @@ jobs:
       - name: Integration Tests - Brain + Clock
         run: >
           dotnet test build/sln/App.slnx
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "Category=Integration&(FullyQualifiedName~Brain|FullyQualifiedName~Clock)"
@@ -81,7 +81,7 @@ jobs:
       - name: Integration Tests - Guard + Vault
         run: >
           dotnet test build/sln/App.slnx
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "Category=Integration&(FullyQualifiedName~Guard|FullyQualifiedName~Vault)"
@@ -109,7 +109,7 @@ jobs:
       - name: Integration Tests - Hands + Host + McpTools
         run: >
           dotnet test build/sln/App.slnx
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "Category=Integration&(FullyQualifiedName~Hands|FullyQualifiedName~Host|FullyQualifiedName~McpTools)"
@@ -137,7 +137,7 @@ jobs:
       - name: Integration Tests - PrefixCache
         run: >
           dotnet test build/sln/App.slnx
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "Category=Integration&FullyQualifiedName~PrefixCache"

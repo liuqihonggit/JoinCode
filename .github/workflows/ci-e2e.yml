@@ -8,7 +8,7 @@ env:
   DOTNET_NOLOGO: true
   NUGET_XMLDOC_MODE: skip
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
-  Configuration: Release
+  Configuration: Debug
 
 jobs:
   e2e-conversation-a:
@@ -25,7 +25,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~DualRoleConversationTestsA"
@@ -53,7 +53,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~DualRoleConversationTestsB"
@@ -81,7 +81,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~MultiProviderE2ETests|FullyQualifiedName~AnthropicDeepCoverageE2ETests|FullyQualifiedName~ConcurrentRequestE2ETests"
@@ -109,7 +109,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~FileToolCoverageTests|FullyQualifiedName~SearchToolCoverageTests|FullyQualifiedName~ShellGitToolCoverageTests|FullyQualifiedName~ExtendedToolCoverageTests"
@@ -137,7 +137,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~AgentToolCoverageTests|FullyQualifiedName~BatchToolCoverageTests|FullyQualifiedName~TaskToolCoverageTests|FullyQualifiedName~AstIntegrationTests"
@@ -165,7 +165,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~ChatCommandBasicCoverageTests"
@@ -193,7 +193,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~ReviewCommand_ShouldReviewCode|FullyQualifiedName~DiffFilesCommand_ShouldListChangedFiles|FullyQualifiedName~FilesCommand_ShouldListFiles|FullyQualifiedName~ExecuteCommand_ShouldExecuteCode|FullyQualifiedName~AnalyzeCommand_ShouldAnalyzeCode|FullyQualifiedName~AddDirCommand_ShouldAddDirectory)"
@@ -221,7 +221,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~SecurityReviewCommand_ShouldReviewSecurity|FullyQualifiedName~CommitCommand_ShouldShowCommitInfo|FullyQualifiedName~WorktreeCommand_ShouldListWorktrees|FullyQualifiedName~ThemeCommand_ShouldSetTheme|FullyQualifiedName~ColorCommand_ShouldShowColorTest)"
@@ -249,7 +249,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~VimCommand_ShouldToggleVimMode|FullyQualifiedName~EnvCommand_ShouldShowEnvVars|FullyQualifiedName~SandboxToggleCommand_ShouldShowStatus|FullyQualifiedName~PermissionsCommand_ShouldListPermissions|FullyQualifiedName~InitCommand_ShouldQuickInit|FullyQualifiedName~DoctorCommand_ShouldNotHang)"
@@ -277,7 +277,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~StatusCommand_ShouldShowStatus|FullyQualifiedName~UsageCommand_ShouldShowUsage|FullyQualifiedName~InsightsCommand_ShouldShowStats|FullyQualifiedName~ReleaseNotesCommand_ShouldShowNotes|FullyQualifiedName~ContextCommand_ShouldShowContext)"
@@ -305,7 +305,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~ChatCommandExtendedCoverageTests"
@@ -333,7 +333,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~ChatCommandAuthExportCoverageTests"
@@ -361,7 +361,7 @@ jobs:
       - name: E2E Tests
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~ApiErrorRecoveryE2ETests|FullyQualifiedName~StreamInterruptionE2ETests|FullyQualifiedName~PermissionDenialE2ETests"
@@ -389,7 +389,7 @@ jobs:
       - name: E2E - MCP Integration
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~McpIntegrationTests|FullyQualifiedName~McpProtocolE2ETests"
@@ -398,7 +398,7 @@ jobs:
       - name: E2E - Sync Integration
         run: >
           dotnet test test/mock/sync.integration.tests/Sync.Integration.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --logger "console;verbosity=detailed"
@@ -406,7 +406,7 @@ jobs:
       - name: E2E - CodeIndex
         run: >
           dotnet test server/code_index.e2e.tests/CodeIndex.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --logger "console;verbosity=detailed"
@@ -415,8 +415,8 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          dotnet build app/cli/JoinCode.csproj -c Release --nologo /p:UsePackedComponents=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          dotnet build test/mock/open_ai.mock_server/OpenAI.MockServer.csproj -c Release --nologo /p:UsePackedComponents=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
+          dotnet build app/cli/JoinCode.csproj -c Debug --nologo /p:UsePackedComponents=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
+          dotnet build test/mock/open_ai.mock_server/OpenAI.MockServer.csproj -c Debug --nologo /p:UsePackedComponents=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
       - name: E2E - Smoke Test (skip MCP)
         if: always()
         shell: pwsh
@@ -677,7 +677,7 @@ jobs:
       - name: E2E - Cluster Integration
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "FullyQualifiedName~ClusterE2ETests"

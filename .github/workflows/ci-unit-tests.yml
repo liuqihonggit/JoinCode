@@ -8,7 +8,7 @@ env:
   DOTNET_NOLOGO: true
   NUGET_XMLDOC_MODE: skip
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
-  Configuration: Release
+  Configuration: Debug
 
 jobs:
   unit-tests:
@@ -121,7 +121,7 @@ jobs:
       - name: Test - ${{ matrix.name }}
         run: >
           dotnet test ${{ matrix.csproj }}
-          -c Release --nologo
+          -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           --filter "Category!=Integration&Category!=Benchmark"

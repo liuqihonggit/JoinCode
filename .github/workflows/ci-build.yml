@@ -8,7 +8,7 @@ env:
   DOTNET_NOLOGO: true
   NUGET_XMLDOC_MODE: skip
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
-  Configuration: Release
+  Configuration: Debug
   JCC_API_TIMEOUT_MS: 30000
 
 jobs:
@@ -35,19 +35,29 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
+      - name: Cache Component NuGet Packages (incremental build)
+        id: component-cache
+        uses: actions/cache@v5
+        with:
+          path: artifacts/nuget
+          key: component-pkgs-${{ runner.os }}-${{ hashFiles('lib/**/*.cs', 'lib/**/*.csproj', 'gen/**/*.cs', 'gen/**/*.csproj', 'llm/**/*.cs', 'llm/**/*.csproj', 'server/**/*.cs', 'server/**/*.csproj', 'kit/**/*.cs', 'kit/**/*.csproj', 'Directory.Build.props', 'Directory.Build.targets', 'global.json') }}
+
       - name: Restore
+        if: steps.component-cache.outputs.cache-hit != 'true'
         run: dotnet restore build/sln/JoinCode.slnx --nologo
 
       - name: Build (all)
+        if: steps.component-cache.outputs.cache-hit != 'true'
         run: >
           dotnet build build/sln/JoinCode.slnx
-          -c Release --no-restore --nologo -m
+          -c Debug --no-restore --nologo -m
           /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
 
       - name: Pack (components → NuGet)
+        if: steps.component-cache.outputs.cache-hit != 'true'
         run: >
           dotnet pack build/sln/JoinCode.slnx
-          -c Release --no-build --nologo
+          -c Debug --no-build --nologo
           -o ${{ github.workspace }}/artifacts/nuget
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
 

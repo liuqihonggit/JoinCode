@@ -4,9 +4,10 @@
 > 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
 > 🔗 **关联**: [0081](0081-seven-layer-build-strategy.md)（七层 slnx 架构）、[0026](0026-pr-two-stage-pipeline.md)（PR 两段式验证）
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-10-10
 - 决策者：项目架构组
+- 验证：P0 全链路验证通过（32 项目 pack + UsePackedComponents build，CLI build 成功）
 
 ## 背景
 

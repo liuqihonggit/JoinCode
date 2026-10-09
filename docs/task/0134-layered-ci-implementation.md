@@ -45,7 +45,23 @@
 ## 实施顺序
 
 ```
-P0 技术验证 → P1 CI瘦身 → P2 分层CI → P3 增量检测 → P4 优化
+P0 技术验证 ✅ → P1 CI瘦身 ✅ → P2 分层CI ✅ → P3 增量检测 → P4 优化
 ```
 
 P0 必须先通过，否则整个方案不可行（生成器/打包/restore 链路不通就白做）。
+
+## 完成记录
+
+### P0 — 技术验证 ✅
+
+- 6 次 commit 修复 8 个配置问题（包名统一、AllowPack 逻辑反转、缺失包引用补全）
+- 32 项目全链路 pack + UsePackedComponents=true build 通过（CLI build 20.92s）
+- 31 个 NuGet 包产出至 .xxx/local-feed/
+
+### P1+P2 — CI 瘦身 + NuGet 包解耦 ✅
+
+- commit b219b7a: CI workflow 改用 NuGet 包 artifact 替代 1G build-output
+- ci-build.yml: build + `dotnet pack` → `nuget-packages` artifact（<100M）
+- setup-test-env: 下载 NuGet 包 + `dotnet nuget add source` 设本地 feed
+- ci-unit-tests/integration/e2e: `UsePackedComponents=true`，移除 `--no-build`
+- e2e smoke test: 显式构建 CLI + MockServer exe（`if: always()` 保证 smoke 可跑）

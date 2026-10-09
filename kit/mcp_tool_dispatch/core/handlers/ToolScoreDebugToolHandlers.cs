@@ -70,6 +70,11 @@ public class ToolScoreDebugToolHandlers {
             if (chain is not null && chain.Length > 0)
                 sb.AppendLine($"### 链路推荐: {string.Join(" → ", chain)}");
 
+            if (record is not null) {
+                sb.AppendLine("### 状态描述:");
+                sb.AppendLine(record.GenerateStatusDescription(chain));
+            }
+
             return ToolResultBuilder.Success().WithText(sb.ToString().TrimEnd()).Build();
         }
 

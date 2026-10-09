@@ -105,16 +105,11 @@
 - **验收标准**：冷工具在匹配情景时被主动加热；TTL 后回落
 - **复杂度**：中
 
-### GAP-041-06 "状态+条件+目的"自然语言状态描述 ⭐ P2
-
-- **当前状态**：未落地（`tool_score` 工具输出数值表格，非"状态+条件+目的"描述）
-- **缺什么**：设计要求"描述当前是什么状态具备什么条件，要使用工具目的"——当前只有数值评分无自然语言状态描述
-- **建议方案**：
-  1. `ToolHealthRecord` 增加状态生成器：根据评分/频率/连续失败数生成自然语言描述
-  2. 如"工具 X 近 1 小时调用 50 次（热），成功率 92%（健康），主要转移至 Y（强链路）"
-  3. `tool_score` 输出增加自然语言摘要
-- **验收标准**：tool_score 输出含自然语言状态描述
-- **复杂度**：低
+### GAP-041-06 "状态+条件+目的"自然语言状态描述 ✅
+- **当前状态**：已落地（`ToolHealthRecord.GenerateStatusDescription` + `tool_score` 输出集成）
+- **实现位置**：`lib/abstractions/abs_hands/tools/models/ToolHealthModels.cs:GenerateStatusDescription` + `kit/mcp_tool_dispatch/core/handlers/ToolScoreDebugToolHandlers.cs:GetToolScoreAsync`
+- **测试**：`test/unit/mcp_tool_dispatch.tests/execution/ToolHealthRecordStatusDescriptionTest.cs`（16 个测试全通过）
+- **验收标准**：tool_score 输出含自然语言状态描述 ✅
 
 ## 优先级汇总
 

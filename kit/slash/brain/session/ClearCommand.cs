@@ -184,5 +184,8 @@ public sealed partial class ClearCommand : ChatCommandBase {
 
         // 22. 注意力涣散检测状态 — /clear 重置压缩计数/错误计数/会话起始
         AttentionFatigueDetector.Reset();
+
+        // 23. 低频驱动诱导状态 — /clear 重置全部诱导记录
+        LowFrequencyInductionService.Reset();
     }
 }

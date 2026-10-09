@@ -81,6 +81,13 @@ public partial class GitHubToolHandlers {
     internal async Task<List<string>> ExtractAllCiCheckNamesAsync(
         string workingDir, string? ymlPath, CancellationToken ct) {
         var allCheckNames = new List<string>();
+        if (!string.IsNullOrWhiteSpace(ymlPath)) {
+            var directPath = Path.Combine(workingDir, ymlPath);
+            if (!_fs.FileExists(directPath)) return allCheckNames;
+            var ymlContent = await _fs.ReadAllTextAsync(directPath, ct).ConfigureAwait(false);
+            allCheckNames.AddRange(CiMatrixParser.ExtractAllCheckNames(ymlContent, "unit-tests"));
+            return allCheckNames;
+        }
         var ciYmlPath = Path.Combine(workingDir, ".github/workflows/ci.yml");
         if (!_fs.FileExists(ciYmlPath)) return allCheckNames;
         var ciYmlContent = await _fs.ReadAllTextAsync(ciYmlPath, ct).ConfigureAwait(false);

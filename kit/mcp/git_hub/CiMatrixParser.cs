@@ -83,7 +83,7 @@ internal static class CiMatrixParser {
                 continue;
             }
             if (currentJobId is not null && jobIndent is not null &&
-                indent == jobIndent + 4 && trimmed.StartsWith("uses:")) {
+                indent == jobIndent + 2 && trimmed.StartsWith("uses:")) {
                 var path = trimmed[5..].Trim().ToString();
                 result.Add((currentJobId, path));
             }
@@ -112,7 +112,7 @@ internal static class CiMatrixParser {
                 continue;
             }
             if (currentJobId is not null && jobIndent is not null &&
-                indent == jobIndent + 4 && trimmed.StartsWith("name:")) {
+                indent == jobIndent + 2 && trimmed.StartsWith("name:")) {
                 var name = trimmed[5..].Trim().ToString();
                 result.Add((currentJobId, name));
             }

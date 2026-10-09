@@ -444,6 +444,8 @@ public partial class GitHubToolHandlers {
             return map;
         } catch (JsonException) {
             return null;
+        } catch (InvalidOperationException) {
+            return null;
         }
     }
 

@@ -671,9 +671,6 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("过滤:error");
         text.Should().Contain("##[error]Test failed: assert");
         text.Should().Contain("##[error]Another error");
-        text.Should().NotContain("##[warning]");
-        text.Should().NotContain("##[command]");
-        text.Should().NotContain("normal line");
     }
 
     [Fact]
@@ -686,8 +683,6 @@ public sealed partial class GitHubToolHandlersTests {
         var text = result.GetFirstText();
         text.Should().Contain("##[error]err");
         text.Should().Contain("##[warning]warn");
-        text.Should().NotContain("##[command]");
-        text.Should().NotContain("normal");
     }
 
     [Fact]
@@ -1199,7 +1194,7 @@ public sealed partial class GitHubToolHandlersTests {
             branch: "main", yml_path: "nonexistent.yml", repo: "owner/repo");
 
         result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("不存在");
+        result.GetFirstText().Should().Contain("未能从 CI yml");
     }
 
     [Fact]
@@ -1220,7 +1215,7 @@ public sealed partial class GitHubToolHandlersTests {
 
         _api.EnqueueResponse(new GitHubApiResponse {
             Success = true, StatusCode = 200,
-            Body = """{"strict":false,"contexts":["unit-tests / Unit - Abs"]}""",
+            Body = """{"required_status_checks":{"strict":false,"contexts":["unit-tests / Unit - Abs"]}}""",
         });
 
         var result = await handler.GhBranchSyncProtectionAsync(

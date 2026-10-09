@@ -29,21 +29,20 @@
 
 ## 缺口清单
 
-### GAP-040-01 通用 scenario registry + -h 顶层暴露 ⭐ P1
+### GAP-040-01 通用 scenario registry + -h 顶层暴露 ⭐ P1 ✅ 已完成
 
-- **当前状态**：部分落地（桌面情景模式存在 `DesktopSceneMenuToolHandlers`，但仅桌面专属；`-h` 顶层只有 options/sub/env/exit/examples 五个固定主题，无 scenario 入口）
-- **缺什么**：
-  1. 缺通用情景模式注册表（scenario registry），现有情景模式是桌面场景独有实现，未抽象为通用机制
-  2. `-h` 顶层无 `scenario`/`playbook`/`recipe` 入口，AI 必须先知道 `desktop_scene_menu` 工具才能调用它获取菜单
-- **建议方案**：
-  1. 新增 `kit/prompts/scenarios/ScenarioRegistry.cs`，注册名→工具集+建议编排流程+提示
-  2. 各 handler 用 `[Scenario("name", "description")]` 特性标注，源码生成器扫描收集（对齐 AGENTS.md"字典配置"规范，禁止手写表）
-  3. `ApplicationBuilder.ShowHelp` 增加 `scenario` 主题：`jcc -h scenario` 列出所有情景模式；`jcc -h scenario <name>` 展示该情景的工具集+流程
-  4. `-h` 顶层置顶 scenario 入口（在 options/sub 之前）
+- **当前状态**：✅ 已落地（2026-10-09）— 通用 scenario registry + 源码生成器 + `-h scenario` 入口
+- **实现**：
+  1. ✅ `[Scenario]` 特性 + `ScenarioInfo` record（`lib/abstractions/abs_core/core_attributes/scenario/`）
+  2. ✅ `gen/scenario.generator/` 源码生成器扫描 `[Scenario]` 生成 `ScenarioRegistry` 静态注册表（继承 `AttributeRegistrationGeneratorBase<T>`）
+  3. ✅ `ApplicationBuilder.ShowHelp` 增加 `scenario` 主题：`jcc -h scenario` 列出所有；`jcc -h scenario <name>` 展示详情
+  4. ✅ `-h` 顶层置顶 scenario 入口（在 options/sub 之前）
+  5. ✅ `GetHelpTopic` 支持多级 topic（`jcc -h scenario desktop`）
 - **验收标准**：
-  - `jcc -h scenario` 列出所有情景模式（含桌面场景）
-  - `jcc -h scenario desktop` 展示 look→zoom→detect→click 流程
-  - 新增情景模式只需加 `[Scenario]` 特性，无需改 registry
+  - ✅ `jcc -h scenario` 列出所有情景模式（含桌面场景）— E2E 验证通过
+  - ✅ `jcc -h scenario desktop` 展示 look→zoom→detect→click 流程 — E2E 验证通过
+  - ✅ 新增情景模式只需加 `[Scenario]` 特性，无需改 registry — 源码生成器自动收集
+  - ✅ 单元测试 3 个通过（`ScenarioRegistryTests`）
 - **复杂度**：中
 
 ### GAP-040-02 统一 ToolMenu 抽象层 ⭐ P3
@@ -59,10 +58,10 @@
 
 ## 优先级汇总
 
-| 优先级 | 缺口 | 复杂度 |
-|--------|------|--------|
-| P1 | GAP-040-01 通用 scenario registry + -h 置顶 | 中 |
-| P3 | GAP-040-02 统一 ToolMenu 抽象层 | 中 |
+| 优先级 | 缺口 | 复杂度 | 状态 |
+|--------|------|--------|------|
+| P1 | GAP-040-01 通用 scenario registry + -h 置顶 | 中 | ✅ 已完成 |
+| P3 | GAP-040-02 统一 ToolMenu 抽象层 | 中 | 待实现 |
 
 ## 关联
 

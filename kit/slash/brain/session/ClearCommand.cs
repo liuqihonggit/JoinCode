@@ -181,5 +181,8 @@ public sealed partial class ClearCommand : ChatCommandBase {
 
         // 21. 单工具频率配额 — /clear 重置全部工具调用记录
         ToolQuotaService.Reset();
+
+        // 22. 注意力涣散检测状态 — /clear 重置压缩计数/错误计数/会话起始
+        AttentionFatigueDetector.Reset();
     }
 }

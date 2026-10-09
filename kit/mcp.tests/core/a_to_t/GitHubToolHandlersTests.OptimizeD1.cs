@@ -13,7 +13,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = runDetail });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = jobsJson });
 
-        var result = await _handler.GhRunViewAsync("42", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -37,7 +37,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = runDetail });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = runDetail });
 
-        var result = await _handler.GhRunViewAsync("42", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -57,7 +57,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = runDetail });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = jobsJson });
 
-        var result = await _handler.GhRunViewAsync("42", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -75,7 +75,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = runDetail });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = runDetail });
 
-        var result = await _handler.GhRunViewAsync("42", repo: "owner/repo", verbosity: 2);
+        var result = await _handler.GhRunViewAsync("42", common: new GitHubCommonOptions { Repo = "owner/repo", Verbosity = 2 });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;

@@ -82,7 +82,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task SecretList_ListsSecrets() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"secrets":[{"name":"MY_SECRET","created_at":"2026-01-01"}]}""" };
 
-        var result = await _handler.GhSecretListAsync(repo: "owner/repo");
+        var result = await _handler.GhSecretListAsync(common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastPath.Should().Be("repos/owner/repo/actions/secrets");

@@ -9,7 +9,7 @@ public sealed partial class GitHubToolHandlersTests {
         var lines = Enumerable.Range(0, 100).Select(i => $"line {i}").ToArray();
         _api.NextLogLines = lines;
 
-        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, start_line: 51, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, start_line: 51, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -23,7 +23,7 @@ public sealed partial class GitHubToolHandlersTests {
         var lines = Enumerable.Range(0, 10).Select(i => $"line {i}").ToArray();
         _api.NextLogLines = lines;
 
-        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 5, start_line: 1, repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 5, start_line: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();

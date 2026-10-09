@@ -570,35 +570,34 @@ public partial class GitHubToolHandlers {
 
     /// <summary>
     /// 正则表达式过滤日志行 — 当 filter 不是预定义级别(error/warning/info/all/failed)时宽容当作正则匹配
-    /// <para>宽容: bash 转义的 \| 自动转为 | (或操作符),支持 Failed\|Total tests\|... 语法</para>
+    /// <para>架构统一: 直接用日志流(先入库 LSM 缓存再流式正则),不通过 StreamAndFilterAsync 间接获取文本</para>
+    /// <para>宽容: bash 转义的 \| 自动转为 | (或操作符)</para>
     /// <para>超时保护: 5 秒正则超时,避免恶意正则导致卡死</para>
-    /// <para>缺陷4: 检测日志为空时返回有用提示,匹配 0 行时引导用 --expand failed</para>
     /// </summary>
     private async Task<ToolResult> FilterByRegexAsync(GhRepoCtx repo, GhRunTarget target, string? jobId, string filter, int maxLines, int skip, bool wantRefresh) {
-        var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, jobId, false, "日志", null, GitHubLogFilter.None, 50000, repo.Ct, null, 0, wantRefresh).ConfigureAwait(false);
-        if (logResult.IsError) return logResult;
-        var logText = logResult.GetFirstText() ?? "";
-        // 剥离 prefix 行(第一行是 prefix,如 "Run xxx 日志(50000 行):")
-        var firstNl = logText.IndexOf('\n');
-        var logBody = firstNl >= 0 ? logText[(firstNl + 1)..] : logText;
-        // 缺陷4: 日志为空或太短时返回有用提示
-        if (string.IsNullOrWhiteSpace(logBody) || logBody.Length < 50) {
-            return Ok($"日志获取失败或为空(长度={logBody.Length})。可能原因: ① run 日志未下载成功 ② 日志被缓存截断。提示: 用 --expand failed 直接拉失败步骤日志,或 --log --filter error 查看错误标记行",
-                $"正则过滤 '{filter}' 无法执行:");
-        }
         var pattern = filter.Replace("\\|", "|");
         var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromSeconds(5));
-        var matchedLines = logBody.Split('\n').Where(l => regex.IsMatch(l)).ToList();
-        var totalMatched = matchedLines.Count;
-        if (totalMatched == 0) {
-            return Ok($"正则 '{filter}' 未匹配到任何日志行(日志共 {logBody.Split('\n').Length} 行)。可能原因: ① 正则表达式错误 ② 日志中无匹配内容。提示: 用 --filter error 查看错误标记行,或 --expand failed 智能定位失败步骤",
+        var logLines = GetLogStreamAsync(repo.Owner, repo.Repo, target.RunId, jobId, false, wantRefresh, repo.Ct);
+        var matched = new List<string>(maxLines);
+        var skipped = 0;
+        var lineNumber = 0;
+        await foreach (var line in logLines.ConfigureAwait(false)) {
+            lineNumber++;
+            if (!regex.IsMatch(line)) continue;
+            if (skipped < skip) { skipped++; continue; }
+            matched.Add($"{lineNumber}: {GitHubRunLogText.StripLogTimestamp(line)}");
+            if (matched.Count >= maxLines) break;
+        }
+        if (matched.Count == 0) {
+            return Ok(skip > 0
+                ? $"未匹配到更多行(已跳过 {skip} 行)"
+                : $"正则 '{filter}' 未匹配到任何日志行。可能原因: ① 正则表达式错误 ② 日志中无匹配内容。提示: 用 --filter error 查看错误标记行,或 --expand failed 智能定位失败步骤",
                 $"正则过滤 '{filter}' 匹配 0 行:");
         }
-        var displayed = matchedLines.Skip(skip).Take(maxLines).ToList();
-        var hasMore = skip + maxLines < totalMatched;
-        var sb = new StringBuilder(string.Join('\n', displayed));
-        if (hasMore) sb.Append($"\n… 另有 {totalMatched - skip - maxLines} 行匹配未显示(用 skip_lines={skip + maxLines} 续读)");
-        return Ok(sb.ToString(), $"正则过滤 '{filter}' 匹配 {totalMatched} 行(显示 {displayed.Count} 行):");
+        var sb = new StringBuilder(string.Join('\n', matched));
+        if (matched.Count >= maxLines)
+            sb.Append($"\n… 可能还有更多匹配行(用 skip_lines={skip + maxLines} 续读)");
+        return Ok(sb.ToString(), $"正则过滤 '{filter}' 匹配 {matched.Count} 行(显示 {matched.Count} 行):");
     }
 
 
@@ -646,6 +645,21 @@ public partial class GitHubToolHandlers {
         string scope, FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
         int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false)
         => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines, wantRefresh);
+
+    /// <summary>
+    /// 统一日志流入口 — 根据 jobId/failedOnly 自动选择日志源,先入库 LSM 缓存再 yield(架构统一: 正则先缓存再处理)
+    /// <para>日志源: failedOnly=true → 失败 job 日志; jobId 有值 → 单/多 job 日志; 否则 → 整个 run 日志</para>
+    /// </summary>
+    private IAsyncEnumerable<string> GetLogStreamAsync(
+        string owner, string repo, string runId, string? jobId, bool failedOnly, bool wantRefresh, CancellationToken ct) {
+        if (failedOnly)
+            return LogFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, wantRefresh, ct);
+        if (!string.IsNullOrWhiteSpace(jobId)) {
+            var jobIds = GitHubRunLogFilter.ParseJobIds(jobId);
+            return LogFilterRunner.DownloadJobsParallelAsync(owner, repo, runId, jobIds, wantRefresh, ct);
+        }
+        return LogFilterRunner.GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct);
+    }
 
     /// <summary>
     /// 重跑 Actions Run — 默认只重跑失败的 job，支持 debug 日志和指定 job 重跑，调 REST API POST rerun-failed-jobs/rerun-jobs/rerun

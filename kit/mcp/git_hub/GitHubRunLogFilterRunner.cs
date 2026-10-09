@@ -113,7 +113,7 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <para>日志缓存: 复用 IKvStore(LSM-Tree),key=gh:log:{runId}:{jobId},首次下载→后续命中</para>
     /// <para>wantRefresh=true 时跳过缓存读(仍写缓存),用于 rerun 后避免脏数据</para>
     /// </summary>
-    private async IAsyncEnumerable<string> DownloadJobsParallelAsync(
+    public async IAsyncEnumerable<string> DownloadJobsParallelAsync(
         string owner, string repo, string runId, IReadOnlyList<long> jobIds, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
         if (jobIds.Count == 0) yield break;
@@ -167,7 +167,7 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <para>缓存命中时按行分割逐行 yield;未命中时先下载到 List 再写缓存再 yield(保证缓存完整写入)</para>
     /// <para>wantRefresh=true 时跳过缓存读(仍写缓存),用于 rerun 后避免脏数据</para>
     /// </summary>
-    private async IAsyncEnumerable<string> GetOrFetchJobLogsAsync(
+    public async IAsyncEnumerable<string> GetOrFetchJobLogsAsync(
         string owner, string repo, string runId, long jobId, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
         var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{runId}:{jobId}");
@@ -216,7 +216,7 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <para>key=gh:log:{runId}:run,value=日志全文(UTF-8),首次下载→后续命中避免重复下载</para>
     /// <para>wantRefresh=true 时跳过缓存读(仍写缓存),用于 rerun 后避免脏数据</para>
     /// </summary>
-    private async IAsyncEnumerable<string> GetOrFetchRunLogsAsync(
+    public async IAsyncEnumerable<string> GetOrFetchRunLogsAsync(
         string owner, string repo, string runId, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
         var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{runId}:run");

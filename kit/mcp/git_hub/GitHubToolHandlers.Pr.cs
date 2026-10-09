@@ -12,10 +12,10 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrView, "查看 PR 详情(号/标题/状态/URL/body/变更统计)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrViewAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选,默认当前目录)", Required = false)] string? working_dir = null,
-        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON[从缓存读])", Required = false)] int? verbosity = null,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter("comments=true 附带评论列表", Required = false)] bool? comments = null,
         [McpToolParameter("web=true 只返回 PR 浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json_fields = null,
@@ -76,7 +76,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhPrList, "列出 PR(支持状态/数量/作者/标签/指派人/分支/draft/搜索过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrListAsync(
         [McpToolParameter("状态(open/closed/merged/all,默认 open)", Required = false)] string? state = null,
-        [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("作者过滤(可选)", Required = false)] string? author = null,
         [McpToolParameter("标签过滤(可选,多个用逗号)", Required = false)] string? label = null,
         [McpToolParameter("指派人过滤(可选)", Required = false)] string? assignee = null,
@@ -85,9 +85,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否 draft PR(可选)", Required = false)] bool? draft = null,
         [McpToolParameter("搜索查询(可选,GitHub search 语法)", Required = false)] string? search = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,url)", Required = false)] string? json_fields = null,
-        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var pageCount = (limit ?? 30).ToString();
@@ -135,12 +135,12 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrDiff, "查看 PR diff(patch 文本,支持 name-only/exclude 过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrDiffAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("只显示文件名(可选)", Required = false)] bool? name_only = null,
         [McpToolParameter("排除文件(可选,glob 模式,多个用逗号)", Required = false)] string? exclude = null,
         [McpToolParameter("patch 格式(可选,默认即 patch)", Required = false)] bool? patch = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
@@ -249,14 +249,14 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhPrChecks, "查看 PR 的 CI 检查状态(支持 required 过滤/watch 轮询/fail-fast)", "github", ConcurrencySafe = true)]
     [ToolAnchors("PR 检查", "CI 状态", "check 结果", "PR 验证")]
     public async Task<ToolResult> GhPrChecksAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("只显示 required checks(可选)", Required = false)] bool? required = null,
         [McpToolParameter("watch 模式轮询直到完成(可选)", Required = false)] bool? watch = null,
         [McpToolParameter("轮询间隔秒数(可选,默认 10)", Required = false)] int? interval = null,
         [McpToolParameter("有失败立即标记(可选)", Required = false)] bool? fail_fast = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 name,status,conclusion,details_url)", Required = false)] string? json_fields = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             if (watch == true) return await GhPrChecksWatchAsync(client, owner, repoName, pr_number, interval, fail_fast, required, cancellationToken).ConfigureAwait(false);
@@ -523,11 +523,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrWait, "等待 PR 所有 CI checks 完成(指数退避轮询+进度回调,完成才返回)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrWaitAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("超时秒数(默认 1800=30分钟)", Required = false)] int? timeout_seconds = null,
         [McpToolParameter("初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)", Required = false)] int? poll_interval_seconds = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
@@ -605,7 +605,7 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrMerge, "合并 PR(支持 squash/merge/rebase + auto-merge + 自定义提交信息)", "github")]
     public async Task<ToolResult> GhPrMergeAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("合并方式(squash/merge/rebase,默认 squash)", Required = false)] string? merge_method = null,
         [McpToolParameter("是否启用 auto-merge(CI 通过后自动合并)", Required = false)] bool? auto_merge = null,
         [McpToolParameter("禁用 auto-merge(可选)", Required = false)] bool? disable_auto = null,
@@ -613,8 +613,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("合并提交正文(可选)", Required = false)] string? body = null,
         [McpToolParameter("管理员强制合并(可选,绕过 required checks)", Required = false)] bool? admin = null,
         [McpToolParameter("合并后是否删除分支", Required = false)] bool? delete_branch = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
             => GhPrMergeCoreAsync(client, owner, repoName, pr_number, merge_method, auto_merge, disable_auto, subject, body, delete_branch, cancellationToken)).ConfigureAwait(false);
@@ -681,11 +681,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrCheckout, "检出 PR 分支到本地(支持自定义分支名/强制/detached HEAD)", "github")]
     public async Task<ToolResult> GhPrCheckoutAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("本地分支名(可选,默认 pr-{number})", Required = false)] string? branch = null,
         [McpToolParameter("强制重置已有分支(可选)", Required = false)] bool? force = null,
         [McpToolParameter("detached HEAD 检出(可选)", Required = false)] bool? detach = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_git is null) return Fail("git 命令执行器未配置（IGitCommandRunner 未注入）");
         var number = ParseNumberFromRef(pr_number);
@@ -711,11 +711,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrClose, "关闭 PR(可附评论,可选删除分支)", "github")]
     public async Task<ToolResult> GhPrCloseAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("关闭评论(可选)", Required = false)] string? comment = null,
         [McpToolParameter("关闭后是否删除分支", Required = false)] bool? delete_branch = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
@@ -737,10 +737,10 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrReopen, "重新打开 PR(可附评论)", "github")]
     public async Task<ToolResult> GhPrReopenAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("重开评论(可选)", Required = false)] string? comment = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
@@ -778,8 +778,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("禁止维护者编辑 PR(可选,等价 maintainer_can_modify=false)", Required = false)] bool? no_maintainer_edit = null,
         [McpToolParameter("从上次失败的创建恢复(可选,暂未支持,需状态文件持久化)", Required = false)] bool? recover = null,
         [McpToolParameter("附加文件到 PR(可选,多个用逗号,暂未支持,需文件上传 API)", Required = false)] string? attach = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
         var actualHead = head;
@@ -981,10 +981,10 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrComment, "评论 PR", "github")]
     public async Task<ToolResult> GhPrCommentAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("评论内容", Required = true)] string body,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
@@ -998,7 +998,7 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/body_file/base/label/add_label/remove_label/assignee/add_reviewer/remove_reviewer/add_assignee/remove_assignee/milestone/remove_milestone)", "github")]
     public async Task<ToolResult> GhPrEditAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
         [McpToolParameter("新 body(可选)", Required = false)] string? body = null,
         [McpToolParameter("从文件读 body(可选,替代 body)", Required = false)] string? body_file = null,
@@ -1016,8 +1016,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("添加到项目(可选,按项目标题)", Required = false)] string? add_project = null,
         [McpToolParameter("从项目移除(可选,按项目标题)", Required = false)] string? remove_project = null,
         [McpToolParameter("附加文件(可选,上传到 GitHub 附件)", Required = false)] string? attach = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
@@ -1112,11 +1112,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrReview, "审查 PR(approve/request_changes/comment)", "github")]
     public async Task<ToolResult> GhPrReviewAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("审查动作(approve/request_changes/comment)", Required = true)] string action,
         [McpToolParameter("审查评论(可选)", Required = false)] string? body = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
@@ -1136,10 +1136,10 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrLock, "锁定 PR(可选原因)", "github")]
     public async Task<ToolResult> GhPrLockAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("锁定原因(off-topic/resolved/spam/too heated,可选)", Required = false)] string? reason = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
@@ -1153,9 +1153,9 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrUnlock, "解锁 PR", "github")]
     public async Task<ToolResult> GhPrUnlockAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
@@ -1170,8 +1170,8 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhPrStatus, "查看 PR 状态(当前仓库 open PR)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrStatusAsync(
         [McpToolParameter("显示合并冲突状态(可选)", Required = false)] bool? conflict_status = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["state"] = "open", ["per_page"] = "30" };
@@ -1217,8 +1217,8 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhPrReadyAsync(
         [McpToolParameter("PR 编号或 URL(可选,默认当前分支 PR)", Required = false)] string? pr_number = null,
         [McpToolParameter("undo=true 转为 draft(默认 false 标记 ready)", Required = false)] bool? undo = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             if (string.IsNullOrWhiteSpace(pr_number)) return Fail("pr ready 需要显式传 pr_number(当前分支自动检测未实现)");
@@ -1236,12 +1236,12 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhPrRevert, "回退 PR(git revert + 创建回退 PR)", "github")]
     public async Task<ToolResult> GhPrRevertAsync(
-        [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
+        [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("回退 PR 标题(可选)", Required = false)] string? title = null,
         [McpToolParameter("回退 PR body(可选)", Required = false)] string? body = null,
         [McpToolParameter("标记为 draft(可选)", Required = false)] bool? draft = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             if (_git is null) return Fail("git 命令执行器未配置(IGitCommandRunner 未注入)，pr revert 需要本地 git");
@@ -1280,8 +1280,8 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhPrUpdateBranchAsync(
         [McpToolParameter("PR 编号或 URL(可选,默认当前分支 PR)", Required = false)] string? pr_number = null,
         [McpToolParameter("rebase=true 用 rebase 更新(默认 merge)", Required = false)] bool? rebase = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             if (string.IsNullOrWhiteSpace(pr_number)) return Fail("pr update-branch 需要显式传 pr_number(当前分支自动检测未实现)");

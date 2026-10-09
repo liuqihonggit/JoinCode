@@ -10,11 +10,11 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhWorkflowList, "列出仓库 Workflow", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhWorkflowListAsync(
         [McpToolParameter("all=true 包含已禁用 workflow(默认 false)", Required = false)] bool? all = null,
-        [McpToolParameter("数量限制(默认 50)", Required = false)] int? limit = null,
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,state)", Required = false)] string? json_fields = null,
-        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 50).ToString() };
@@ -50,9 +50,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("yaml=true 返回 workflow yaml 内容", Required = false)] bool? yaml = null,
         [McpToolParameter("web=true 只返回浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,name,state)", Required = false)] string? json_fields = null,
-        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var wfPath = $"repos/{owner}/{repoName}/actions/workflows/{Uri.EscapeDataString(workflow_id)}";
@@ -105,8 +105,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("Workflow ID 或名称", Required = true)] string workflow_id,
         [McpToolParameter("运行分支或 tag(默认仓库默认分支)", Required = false)] string? @ref = null,
         [McpToolParameter("输入参数 JSON(可选,如 {\"key\":\"value\"})", Required = false)] string? inputs = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var refVal = string.IsNullOrWhiteSpace(@ref) ? "main" : @ref;
@@ -129,8 +129,8 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhWorkflowEnable, "启用 Workflow", "github")]
     public async Task<ToolResult> GhWorkflowEnableAsync(
         [McpToolParameter("Workflow ID 或名称", Required = true)] string workflow_id,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/actions/workflows/{Uri.EscapeDataString(workflow_id)}/enable", ct: cancellationToken).ConfigureAwait(false);
@@ -143,8 +143,8 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhWorkflowDisable, "禁用 Workflow", "github")]
     public async Task<ToolResult> GhWorkflowDisableAsync(
         [McpToolParameter("Workflow ID 或名称", Required = true)] string workflow_id,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/actions/workflows/{Uri.EscapeDataString(workflow_id)}/disable", ct: cancellationToken).ConfigureAwait(false);

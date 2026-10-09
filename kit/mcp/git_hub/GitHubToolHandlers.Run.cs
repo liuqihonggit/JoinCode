@@ -13,7 +13,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRunList, "列出 Actions Run(支持状态/分支/事件/工作流/用户/commit/创建时间过滤)", "github", ConcurrencySafe = true)]
     [ToolAnchors("CI 列表", "run 列表", "workflow 运行", "Actions 历史")]
     public async Task<ToolResult> GhRunListAsync(
-        [McpToolParameter("数量限制(默认 20)", Required = false)] int? limit = null,
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("状态过滤(queued/in_progress/completed,可选)", Required = false)] string? status = null,
         [McpToolParameter("分支过滤(可选)", Required = false)] string? branch = null,
         [McpToolParameter("事件过滤(可选,如 push/pull_request/schedule)", Required = false)] string? event_type = null,
@@ -22,10 +22,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("commit SHA 过滤(可选)", Required = false)] string? commit = null,
         [McpToolParameter("创建时间过滤(可选,如 >2026-01-01)", Required = false)] string? created = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,status,conclusion)", Required = false)] string? json_fields = null,
-        [McpToolParameter("输出档位(0=gh风格表格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
+        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter("强制刷新缓存(兼容参数,run list 直接调 API 无缓存,传入即忽略)", Required = false)] bool? refresh = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 20).ToString() };
@@ -88,9 +88,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("重试次数(可选,查看指定 attempt 的详情)", Required = false)] int? attempt = null,
         [McpToolParameter("log_failed=true 只拉失败步骤日志(等价于 --expand failed --log,系统 gh CLI --log-failed 缩写)", Required = false)] bool? log_failed = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,status,conclusion)", Required = false)] string? json_fields = null,
-        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             // 宽容: pr 和 run_id 二选一; pr 优先,自动解析 PR 最新 run
@@ -669,12 +669,12 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRunRerun, "重跑 Actions Run(默认只重跑失败的 job,支持 debug 日志和指定 job)", "github")]
     public async Task<ToolResult> GhRunRerunAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter(WellKnownParam.RunId)] string run_id,
         [McpToolParameter("是否只重跑失败的 job(默认 true)", Required = false)] bool? failed_only = null,
         [McpToolParameter("启用 debug 日志(可选)", Required = false)] bool? debug = null,
         [McpToolParameter("指定重跑的 job ID(可选,逗号分隔多个,设置后只重跑这些 job)", Required = false)] string? job = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
@@ -702,9 +702,9 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRunCancel, "取消 Actions Run", "github")]
     public async Task<ToolResult> GhRunCancelAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.RunId)] string run_id,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
@@ -721,11 +721,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRunWait, "等待 Actions Run 完成(指数退避轮询+进度回调,完成才返回)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunWaitAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter(WellKnownParam.RunId)] string run_id,
         [McpToolParameter("超时秒数(默认 1800=30分钟)", Required = false)] int? timeout_seconds = null,
         [McpToolParameter("初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)", Required = false)] int? poll_interval_seconds = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
@@ -824,11 +824,11 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRunDownload, "下载 Run artifact(zip 文件,支持名称过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunDownloadAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter(WellKnownParam.RunId)] string run_id,
         [McpToolParameter("保存目录", Required = true)] string dir,
         [McpToolParameter("artifact 名称过滤(可选,支持 * 通配,默认下载全部)", Required = false)] string? name = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
@@ -904,9 +904,9 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRunDelete, "删除 Actions Run", "github")]
     public async Task<ToolResult> GhRunDeleteAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.RunId)] string run_id,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
@@ -921,12 +921,12 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRunWatch, "观察 Run 直到完成(轮询进度)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunWatchAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter(WellKnownParam.RunId)] string run_id,
         [McpToolParameter("刷新间隔秒数(默认 3)", Required = false)] int? interval = null,
         [McpToolParameter("compact=true 只显示相关/失败步骤", Required = false)] bool? compact = null,
         [McpToolParameter("exit_status=true 失败时返回错误", Required = false)] bool? exit_status = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);

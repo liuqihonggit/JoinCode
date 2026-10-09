@@ -12,10 +12,10 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoView, "查看仓库详情", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoViewAsync(
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter("分支名(可选,web=true 时 URL 带分支)", Required = false)] string? branch = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        [McpToolParameter("输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON[从缓存读])", Required = false)] int? verbosity = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter("web=true 只返回仓库浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 name,full_name,description)", Required = false)] string? json_fields = null,
         CancellationToken cancellationToken = default)
@@ -44,7 +44,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("部分克隆过滤器(可选,如 blob:none)", Required = false)] string? filter = null,
         [McpToolParameter("稀疏检出(默认 false)", Required = false)] bool? sparse = null,
         [McpToolParameter("上游 remote 名(可选,默认 origin)", Required = false)] string? upstream_remote_name = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_git is null) return Fail("git 命令执行器未配置（IGitCommandRunner 未注入）");
 
@@ -94,7 +94,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("禁用 Issues(可选)", Required = false)] bool? disable_issues = null,
         [McpToolParameter("禁用 Wiki(可选)", Required = false)] bool? disable_wiki = null,
         [McpToolParameter("web=true 只返回仓库浏览器 URL", Required = false)] bool? web = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var vis = string.IsNullOrWhiteSpace(visibility) ? "private" : visibility;
@@ -194,7 +194,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("Fork 仓库名(可选,默认同原名)", Required = false)] string? fork_name = null,
         [McpToolParameter("只 fork 默认分支(可选)", Required = false)] bool? default_branch_only = null,
         [McpToolParameter("本地 remote 名(可选,clone=true 时添加)", Required = false)] string? remote = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var parsed = ParseGitHubRepoRef(repo);
@@ -228,7 +228,7 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoList, "列出自己可访问的仓库(支持语言/可见性/source/fork/archived/topic 过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoListAsync(
-        [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("语言过滤(可选)", Required = false)] string? language = null,
         [McpToolParameter("可见性过滤(public/private/internal,可选)", Required = false)] string? visibility = null,
         [McpToolParameter("只显示非 fork 仓库(可选)", Required = false)] bool? source = null,
@@ -236,9 +236,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("只显示已归档仓库(可选)", Required = false)] bool? archived = null,
         [McpToolParameter("按 topic 过滤(可选,逗号分隔)", Required = false)] string? topic = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 name,full_name,language)", Required = false)] string? json_fields = null,
-        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
+        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter("仓库名(可选,被忽略,gh repo list 列自己的仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
 
@@ -296,7 +296,7 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoEdit, "编辑仓库(description/homepage/visibility/default_branch/issues/wiki/projects/discussions/merge_methods/security/topics/template)", "github")]
     public async Task<ToolResult> GhRepoEditAsync(
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter("描述(可选)", Required = false)] string? description = null,
         [McpToolParameter("主页 URL(可选)", Required = false)] string? homepage = null,
         [McpToolParameter("可见性(public/private/internal,可选)", Required = false)] string? visibility = null,
@@ -320,7 +320,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("添加 topic(可选,多个用逗号)", Required = false)] string? add_topic = null,
         [McpToolParameter("移除 topic(可选,多个用逗号)", Required = false)] string? remove_topic = null,
         [McpToolParameter("接受可见性变更后果(可选,确认标志)", Required = false)] bool? accept_visibility_change_consequences = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             if (!string.IsNullOrWhiteSpace(visibility) && accept_visibility_change_consequences != true)
@@ -386,7 +386,7 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhRepoDeleteAsync(
         [McpToolParameter("仓库名(owner/repo)", Required = true)] string repo,
         [McpToolParameter("是否跳过确认(默认 false)", Required = false)] bool? yes = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             if (yes != true) return Fail("删除仓库需要 yes=true 确认（此操作不可逆）");
@@ -399,8 +399,8 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoArchive, "归档仓库", "github")]
     public async Task<ToolResult> GhRepoArchiveAsync(
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var jsonBody = JsonSerializer.Serialize(new RepoArchiveRequest { Archived = true }, GitHubApiJsonContext.Safe.RepoArchiveRequest);
@@ -413,8 +413,8 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoUnarchive, "取消归档仓库", "github")]
     public async Task<ToolResult> GhRepoUnarchiveAsync(
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var jsonBody = JsonSerializer.Serialize(new RepoArchiveRequest { Archived = false }, GitHubApiJsonContext.Safe.RepoArchiveRequest);
@@ -428,8 +428,8 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRepoRename, "重命名仓库", "github")]
     public async Task<ToolResult> GhRepoRenameAsync(
         [McpToolParameter("新仓库名", Required = true)] string new_name,
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var jsonBody = JsonSerializer.Serialize(new RepoRenameRequest { NewName = new_name }, GitHubApiJsonContext.Safe.RepoRenameRequest);
@@ -445,8 +445,8 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhRepoSyncAsync(
         [McpToolParameter("要同步的分支(可选,默认默认分支)", Required = false)] string? branch = null,
         [McpToolParameter("上游仓库(可选,仅兼容 gh CLI --source,始终同步 fork parent)", Required = false)] string? source = null,
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var defaultBranch = branch ?? "main";
@@ -461,8 +461,8 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRepoSetDefault, "设置默认分支", "github")]
     public async Task<ToolResult> GhRepoSetDefaultAsync(
         [McpToolParameter("默认分支名", Required = true)] string branch,
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var jsonBody = JsonSerializer.Serialize(new RepoSetDefaultRequest { DefaultBranch = branch }, GitHubApiJsonContext.Safe.RepoSetDefaultRequest);
@@ -477,8 +477,8 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoAutolinkList, "列出仓库 Autolink 引用", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoAutolinkListAsync(
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/keys/autolinks", ct: cancellationToken).ConfigureAwait(false);
@@ -492,8 +492,8 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRepoAutolinkView, "查看 Autolink 详情", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoAutolinkViewAsync(
         [McpToolParameter("Autolink ID", Required = true)] int autolink_id,
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/keys/autolinks/{autolink_id}", ct: cancellationToken).ConfigureAwait(false);
@@ -507,8 +507,8 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhRepoAutolinkCreateAsync(
         [McpToolParameter("键前缀(如 TICKET-)", Required = true)] string key_prefix,
         [McpToolParameter("URL 模板(含 <num> 占位符,如 https://example.com/TICKET-<num>)", Required = true)] string url_template,
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var jsonBody = JsonSerializer.Serialize(new AutolinkCreateRequest { KeyPrefix = key_prefix, UrlTemplate = url_template }, GitHubApiJsonContext.Safe.AutolinkCreateRequest);
@@ -522,8 +522,8 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRepoAutolinkDelete, "删除 Autolink 引用", "github")]
     public async Task<ToolResult> GhRepoAutolinkDeleteAsync(
         [McpToolParameter("Autolink ID", Required = true)] int autolink_id,
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/keys/autolinks/{autolink_id}", ct: cancellationToken).ConfigureAwait(false);
@@ -551,8 +551,8 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoDeployKeyList, "列出仓库 Deploy Key", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoDeployKeyListAsync(
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/keys", ct: cancellationToken).ConfigureAwait(false);
@@ -568,8 +568,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("Key 标题", Required = true)] string title,
         [McpToolParameter("SSH public key 内容", Required = true)] string key,
         [McpToolParameter("只读(可选,默认 false)", Required = false)] bool? read_only = null,
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var jsonBody = JsonSerializer.Serialize(new DeployKeyAddRequest { Title = title, Key = key, ReadOnly = read_only }, GitHubApiJsonContext.Safe.DeployKeyAddRequest);
@@ -583,8 +583,8 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRepoDeployKeyDelete, "删除 Deploy Key", "github")]
     public async Task<ToolResult> GhRepoDeployKeyDeleteAsync(
         [McpToolParameter("Key ID", Required = true)] int key_id,
-        [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/keys/{key_id}", ct: cancellationToken).ConfigureAwait(false);

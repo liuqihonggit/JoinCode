@@ -16,8 +16,8 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhBranchSyncProtectionAsync(
         [McpToolParameter("分支名(默认 main)", Required = false)] string? branch = null,
         [McpToolParameter("CI yml 路径(默认 .github/workflows/ci-unit-tests.yml)", Required = false)] string? yml_path = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         [McpToolParameter("试跑模式(只显示差异不实际修改)", Required = false)] bool? dry_run = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
@@ -68,8 +68,8 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhBranchAuditProtectionAsync(
         [McpToolParameter("分支名(默认 main)", Required = false)] string? branch = null,
         [McpToolParameter("CI yml 路径(默认 .github/workflows/ci-unit-tests.yml)", Required = false)] string? yml_path = null,
-        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
-        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
             var branchName = string.IsNullOrWhiteSpace(branch) ? "main" : branch;

@@ -9,9 +9,9 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhOrgList, "列出当前用户的组织", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhOrgListAsync(
-        [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 login,description)", Required = false)] string? json_fields = null,
-        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
+        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
@@ -42,7 +42,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhSshKeyList, "列出 SSH Key", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhSshKeyListAsync(
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,title)", Required = false)] string? json_fields = null,
-        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
+        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/keys", ct: cancellationToken).ConfigureAwait(false);
@@ -98,7 +98,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhGpgKeyList, "列出 GPG Key", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhGpgKeyListAsync(
         [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 id,key_id)", Required = false)] string? json_fields = null,
-        [McpToolParameter("输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)", Required = false)] int? verbosity = null,
+        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/gpg_keys", ct: cancellationToken).ConfigureAwait(false);

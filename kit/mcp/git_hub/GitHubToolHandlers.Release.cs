@@ -14,16 +14,13 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("排除 draft release(可选)", Required = false)] bool? exclude_drafts = null,
         [McpToolParameter("排除 prerelease(可选)", Required = false)] bool? exclude_prereleases = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, body => SummarizeReleaseList(body, exclude_drafts, exclude_prereleases), "id,tag_name,name,draft,prerelease,published_at"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeReleaseList(body, exclude_drafts, exclude_prereleases), "id,tag_name,name,draft,prerelease,published_at"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -76,12 +73,9 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhReleaseViewAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("web=true 只返回 Release 浏览器 URL", Required = false)] bool? web = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             if (web == true) {
                 var viewResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
                 if (!viewResult.Success) return Fail(viewResult.Error);
@@ -89,7 +83,7 @@ public partial class GitHubToolHandlers {
                 return string.IsNullOrEmpty(url) ? Fail("无法从 Release 响应中解析 html_url") : Ok(url);
             }
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
-            if (result.Success) return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeReleaseView, "id,tag_name,name,draft,prerelease,published_at,html_url"));
+            if (result.Success) return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeReleaseView, "id,tag_name,name,draft,prerelease,published_at,html_url"));
             // 404 时 fallback: draft release 没有关联 tag,需列出所有 release 按 tag_name 匹配
             if (IsNotFound(result)) return await FindReleaseByTagNameAsync(client, owner, repoName, tag, cancellationToken).ConfigureAwait(false);
             return Fail(result.Error);

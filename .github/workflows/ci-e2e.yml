@@ -30,9 +30,9 @@ jobs:
             @{Name="conv-a"; Filter="FullyQualifiedName~DualRoleConversationTestsA"},
             @{Name="conv-b"; Filter="FullyQualifiedName~DualRoleConversationTestsB"}
           )
-          $tests | ForEach-Object -Parallel {
-              $name = $_.Name
-              $filter = $_.Filter
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
               & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
                 -c Debug --nologo `
                 /p:UsePackedComponents=true `
@@ -41,7 +41,7 @@ jobs:
                 --logger "console;verbosity=normal" `
                 --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
               if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          } -ThrottleLimit 2
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -69,9 +69,9 @@ jobs:
             @{Name="multi-provider"; Filter="FullyQualifiedName~MultiProviderE2ETests|FullyQualifiedName~AnthropicDeepCoverageE2ETests|FullyQualifiedName~ConcurrentRequestE2ETests"},
             @{Name="cluster"; Filter="FullyQualifiedName~ClusterE2ETests"}
           )
-          $tests | ForEach-Object -Parallel {
-              $name = $_.Name
-              $filter = $_.Filter
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
               & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
                 -c Debug --nologo `
                 /p:UsePackedComponents=true `
@@ -80,7 +80,7 @@ jobs:
                 --logger "console;verbosity=normal" `
                 --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
               if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          } -ThrottleLimit 2
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -108,9 +108,9 @@ jobs:
             @{Name="file-tools"; Filter="FullyQualifiedName~FileToolCoverageTests|FullyQualifiedName~SearchToolCoverageTests|FullyQualifiedName~ShellGitToolCoverageTests|FullyQualifiedName~ExtendedToolCoverageTests"},
             @{Name="agent-tools"; Filter="FullyQualifiedName~AgentToolCoverageTests|FullyQualifiedName~BatchToolCoverageTests|FullyQualifiedName~TaskToolCoverageTests|FullyQualifiedName~AstIntegrationTests"}
           )
-          $tests | ForEach-Object -Parallel {
-              $name = $_.Name
-              $filter = $_.Filter
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
               & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
                 -c Debug --nologo `
                 /p:UsePackedComponents=true `
@@ -119,7 +119,7 @@ jobs:
                 --logger "console;verbosity=normal" `
                 --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
               if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          } -ThrottleLimit 2
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -147,9 +147,9 @@ jobs:
             @{Name="chatcmd-basic"; Filter="FullyQualifiedName~ChatCommandBasicCoverageTests"},
             @{Name="chatcmd-extended"; Filter="FullyQualifiedName~ChatCommandExtendedCoverageTests"}
           )
-          $tests | ForEach-Object -Parallel {
-              $name = $_.Name
-              $filter = $_.Filter
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
               & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
                 -c Debug --nologo `
                 /p:UsePackedComponents=true `
@@ -158,7 +158,7 @@ jobs:
                 --logger "console;verbosity=normal" `
                 --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
               if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          } -ThrottleLimit 2
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -188,9 +188,9 @@ jobs:
             @{Name="code-b1"; Filter="FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~VimCommand_ShouldToggleVimMode|FullyQualifiedName~EnvCommand_ShouldShowEnvVars|FullyQualifiedName~SandboxToggleCommand_ShouldShowStatus|FullyQualifiedName~PermissionsCommand_ShouldListPermissions|FullyQualifiedName~InitCommand_ShouldQuickInit|FullyQualifiedName~DoctorCommand_ShouldNotHang)"},
             @{Name="code-b2"; Filter="FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~StatusCommand_ShouldShowStatus|FullyQualifiedName~UsageCommand_ShouldShowUsage|FullyQualifiedName~InsightsCommand_ShouldShowStats|FullyQualifiedName~ReleaseNotesCommand_ShouldShowNotes|FullyQualifiedName~ContextCommand_ShouldShowContext)"}
           )
-          $tests | ForEach-Object -Parallel {
-              $name = $_.Name
-              $filter = $_.Filter
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
               & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
                 -c Debug --nologo `
                 /p:UsePackedComponents=true `
@@ -199,7 +199,7 @@ jobs:
                 --logger "console;verbosity=normal" `
                 --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
               if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          } -ThrottleLimit 4
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -227,9 +227,9 @@ jobs:
             @{Name="chatcmd-auth"; Filter="FullyQualifiedName~ChatCommandAuthExportCoverageTests"},
             @{Name="errors-permission"; Filter="FullyQualifiedName~ApiErrorRecoveryE2ETests|FullyQualifiedName~StreamInterruptionE2ETests|FullyQualifiedName~PermissionDenialE2ETests"}
           )
-          $tests | ForEach-Object -Parallel {
-              $name = $_.Name
-              $filter = $_.Filter
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
               & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
                 -c Debug --nologo `
                 /p:UsePackedComponents=true `
@@ -238,7 +238,7 @@ jobs:
                 --logger "console;verbosity=normal" `
                 --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
               if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          } -ThrottleLimit 2
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7

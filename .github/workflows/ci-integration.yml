@@ -28,10 +28,10 @@ jobs:
             @{Name="integration-all"; Csproj="test/integration/integration.tests/Integration.Tests.csproj"; Filter="Category!=Benchmark"},
             @{Name="integration-prefixcache"; Csproj="build/sln/App.slnx"; Filter="Category=Integration&FullyQualifiedName~PrefixCache"}
           )
-          $tests | ForEach-Object -Parallel {
-              $name = $_.Name
-              $csproj = $_.Csproj
-              $filter = $_.Filter
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $csproj = $t.Csproj
+              $filter = $t.Filter
               & dotnet test $csproj -c Debug --nologo `
                 /p:UsePackedComponents=true `
                 /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
@@ -39,7 +39,7 @@ jobs:
                 --logger "console;verbosity=normal" `
                 --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
               if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          } -ThrottleLimit 2
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -65,9 +65,9 @@ jobs:
             @{Name="integration-brain-clock"; Filter="Category=Integration&(FullyQualifiedName~Brain|FullyQualifiedName~Clock)"},
             @{Name="integration-guard-vault"; Filter="Category=Integration&(FullyQualifiedName~Guard|FullyQualifiedName~Vault)"}
           )
-          $tests | ForEach-Object -Parallel {
-              $name = $_.Name
-              $filter = $_.Filter
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
               & dotnet test build/sln/App.slnx -c Debug --nologo `
                 /p:UsePackedComponents=true `
                 /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
@@ -75,7 +75,7 @@ jobs:
                 --logger "console;verbosity=normal" `
                 --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
               if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          } -ThrottleLimit 2
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7

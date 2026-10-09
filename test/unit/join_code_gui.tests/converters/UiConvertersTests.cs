@@ -96,7 +96,7 @@ public sealed class UiConvertersTests {
         brush.Color.ToString().Should().Be(GuiPalette.ToBrush(scheme.SuccessText).Color.ToString());
     }
 
-    [AvaloniaFact]
+    [Fact]
     public void StatusToBrush_ConvertBack_Throws() {
         var conv = new StatusToBrushConverter();
 

@@ -37,8 +37,8 @@ public sealed class ActivityBarDataDrivenTests {
             .FirstOrDefault(b => (b.Content as string)?.Contains(icon) == true);
         btn.Should().NotBeNull($"Activity Bar 应有 {icon} 按钮");
 
-        btn!.Command.Should().NotBeNull($"{icon} 按钮 Command 应绑定");
-        btn.Command!.Execute(btn.CommandParameter);
+        (btn ?? throw new InvalidOperationException("btn 未设置")).Command.Should().NotBeNull($"{icon} 按钮 Command 应绑定");
+        (btn.Command ?? throw new InvalidOperationException("btn.Command 未设置")).Execute(btn.CommandParameter);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
         vm.IsSessionPanelActive.Should().Be(exp.Sessions, $"{icon}: IsSessionPanelActive");
@@ -69,7 +69,7 @@ public sealed class ActivityBarDataDrivenTests {
         var btn = win.GetVisualDescendants()
             .OfType<Avalonia.Controls.Primitives.ToggleButton>()
             .First(b => (b.Content as string)?.Contains(icon) == true);
-        btn.Command!.Execute(btn.CommandParameter);
+        (btn.Command ?? throw new InvalidOperationException("btn.Command 未设置")).Execute(btn.CommandParameter);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
         var sideBarActive = new[] { vm.IsSessionPanelActive, vm.IsFileTreePanelActive }.Count(x => x);

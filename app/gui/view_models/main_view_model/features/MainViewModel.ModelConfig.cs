@@ -286,14 +286,14 @@ public sealed partial class MainViewModel {
 public sealed class SettingsVendorRootDto {
     /// <summary>供应商名→供应商条目（key 为供应商 id，动态）</summary>
     [JsonPropertyName("vendor")]
-    public Dictionary<string, SettingsVendorEntryDto?>? Vendor { get; set; }
+    public Dictionary<string, SettingsVendorEntryDto?> Vendor { get; set; } = [];
 }
 
 /// <summary>供应商条目 DTO — 含模型列表</summary>
 public sealed class SettingsVendorEntryDto {
     /// <summary>模型列表</summary>
     [JsonPropertyName("models")]
-    public List<SettingsModelIdDto?>? Models { get; set; }
+    public List<SettingsModelIdDto?> Models { get; set; } = [];
 }
 
 /// <summary>模型 id DTO — settings.json 中每个模型对象的 id 字段</summary>

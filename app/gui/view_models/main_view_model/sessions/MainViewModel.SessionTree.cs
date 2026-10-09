@@ -204,7 +204,7 @@ public sealed partial class MainViewModel {
     [RelayCommand]
     private async Task ResetCountersAsync() {
         try {
-            await _session.ResetCountersAsync().ConfigureAwait(false);
+            await _session.ResetCountersAsync();
             AddStatusLog("已重置工具额度/循环检测/缓存");
         } catch (Exception ex) {
             ViewModelDiagnosticsLogger.WriteError(ex);

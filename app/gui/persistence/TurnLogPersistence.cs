@@ -29,7 +29,7 @@ public sealed class TurnLogPersistence {
             return;
 
         var logPath = GetLogPath(sessionId);
-        var dir = Path.GetDirectoryName(logPath)!;
+        var dir = Path.GetDirectoryName(logPath) ?? AppContext.BaseDirectory;
         if (!_fs.DirectoryExists(dir))
             _fs.CreateDirectory(dir);
 
@@ -55,7 +55,7 @@ public sealed class TurnLogPersistence {
             return Task.CompletedTask;
 
         var undoPath = Path.Combine(
-            Path.GetDirectoryName(logPath)!,
+            Path.GetDirectoryName(logPath) ?? AppContext.BaseDirectory,
             $"turns_{turnIndex}_{DateTime.Now:yyyyMMdd_HHmmss}.undo");
         _fs.MoveFile(logPath, undoPath);
         return Task.CompletedTask;

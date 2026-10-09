@@ -17,8 +17,8 @@ public class MainViewModelActivityBarMutexTests {
 
     /// <summary>场景1:初始状态 — Sessions 面板激活,主区为消息区</summary>
     [Fact]
-    public void InitialState_SessionsActiveAndMessagesView() {
-        var vm = CreateVm();
+    public async Task InitialState_SessionsActiveAndMessagesView() {
+        await using var vm = CreateVm();
 
         vm.ActiveSidePanel.Should().Be(SidePanelKind.Sessions);
         vm.ActiveMainArea.Should().Be(MainAreaKind.Messages);
@@ -28,8 +28,8 @@ public class MainViewModelActivityBarMutexTests {
 
     /// <summary>场景2:点击 📁 FileTree → FileTree 激活,Sessions 不激活,主区为消息区</summary>
     [Fact]
-    public void ClickFileTree_FileTreeActiveAndSessionsInactive() {
-        var vm = CreateVm();
+    public async Task ClickFileTree_FileTreeActiveAndSessionsInactive() {
+        await using var vm = CreateVm();
 
         vm.ToggleSidePanelCommand.Execute(SidePanelKind.FileTree);
 
@@ -41,8 +41,8 @@ public class MainViewModelActivityBarMutexTests {
 
     /// <summary>场景3:点击 💬 Sessions → Sessions 激活,FileTree 不激活,主区为消息区</summary>
     [Fact]
-    public void ClickSessions_SessionsActiveAndFileTreeInactive() {
-        var vm = CreateVm();
+    public async Task ClickSessions_SessionsActiveAndFileTreeInactive() {
+        await using var vm = CreateVm();
         // 先切到 FileTree,再切回 Sessions,验证互斥切换
         vm.ToggleSidePanelCommand.Execute(SidePanelKind.FileTree);
         vm.ToggleSidePanelCommand.Execute(SidePanelKind.Sessions);
@@ -55,8 +55,8 @@ public class MainViewModelActivityBarMutexTests {
 
     /// <summary>场景4:点击 📝 Editor → 编辑器激活,Side Bar 收起,宽度为0</summary>
     [Fact]
-    public void ClickEditor_EditorActiveAndSideBarCollapsed() {
-        var vm = CreateVm();
+    public async Task ClickEditor_EditorActiveAndSideBarCollapsed() {
+        await using var vm = CreateVm();
 
         vm.ToggleEditorViewCommand.Execute(null);
 
@@ -70,8 +70,8 @@ public class MainViewModelActivityBarMutexTests {
 
     /// <summary>场景5:从 Sessions 点 Editor 再点 FileTree → Editor 消失,FileTree 出现,主区切回消息</summary>
     [Fact]
-    public void SessionsThenEditorThenFileTree_EditorGoneFileTreeActiveMessagesView() {
-        var vm = CreateVm();
+    public async Task SessionsThenEditorThenFileTree_EditorGoneFileTreeActiveMessagesView() {
+        await using var vm = CreateVm();
         // 初始 Sessions 激活
         vm.ToggleEditorViewCommand.Execute(null); // 切到编辑器
         vm.IsEditorViewActive.Should().BeTrue();
@@ -86,8 +86,8 @@ public class MainViewModelActivityBarMutexTests {
 
     /// <summary>场景6:从 Editor 点 Sessions → Editor 消失,Sessions 出现,主区切回消息</summary>
     [Fact]
-    public void EditorThenSessions_EditorGoneSessionsActiveMessagesView() {
-        var vm = CreateVm();
+    public async Task EditorThenSessions_EditorGoneSessionsActiveMessagesView() {
+        await using var vm = CreateVm();
 
         vm.ToggleEditorViewCommand.Execute(null); // 切到编辑器
         vm.IsEditorViewActive.Should().BeTrue();
@@ -102,8 +102,8 @@ public class MainViewModelActivityBarMutexTests {
 
     /// <summary>场景7:再点当前已激活的面板收起 → ActiveSidePanel == None,SidePanelWidth == 0</summary>
     [Fact]
-    public void ClickActivePanelAgain_CollapsesToNone() {
-        var vm = CreateVm();
+    public async Task ClickActivePanelAgain_CollapsesToNone() {
+        await using var vm = CreateVm();
         // 切到 FileTree,再切到 Sessions 激活,再点 Sessions 收起
         vm.ToggleSidePanelCommand.Execute(SidePanelKind.FileTree);
         vm.ToggleSidePanelCommand.Execute(SidePanelKind.Sessions);
@@ -119,8 +119,8 @@ public class MainViewModelActivityBarMutexTests {
 
     /// <summary>场景8:点 Editor 再点 Editor 收回消息区</summary>
     [Fact]
-    public void ClickEditorTwice_ReturnsToMessagesView() {
-        var vm = CreateVm();
+    public async Task ClickEditorTwice_ReturnsToMessagesView() {
+        await using var vm = CreateVm();
 
         vm.ToggleEditorViewCommand.Execute(null); // 切到编辑器
         vm.IsEditorViewActive.Should().BeTrue();

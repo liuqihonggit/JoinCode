@@ -109,7 +109,7 @@ public class MainViewModelToolsTests {
 
     [Fact]
     public async Task ExecuteToolCommand_WithNullParameter_DoesNothing() {
-        var vm = CreateVm();
+        await using var vm = CreateVm();
         var initialCount = vm.Messages.Count;
         await Task.Run(() => vm.ExecuteToolCommand.ExecuteAsync(null)).WaitAsync(Timeout);
         vm.Messages.Count.Should().Be(initialCount, "null 参数不应产生消息");
@@ -117,7 +117,7 @@ public class MainViewModelToolsTests {
 
     [Fact]
     public async Task ExecuteToolCommand_WithEmptyParameter_DoesNothing() {
-        var vm = CreateVm();
+        await using var vm = CreateVm();
         var initialCount = vm.Messages.Count;
         await Task.Run(() => vm.ExecuteToolCommand.ExecuteAsync("")).WaitAsync(Timeout);
         vm.Messages.Count.Should().Be(initialCount, "空参数不应产生消息");
@@ -125,7 +125,7 @@ public class MainViewModelToolsTests {
 
     [Fact]
     public async Task ExecuteToolCommand_WithToolName_ShowsResultMessage() {
-        var vm = CreateVm();
+        await using var vm = CreateVm();
         await Task.Run(() => vm.ExecuteToolCommand.ExecuteAsync("git_status")).WaitAsync(Timeout);
 
         vm.Messages.Should().NotBeEmpty();
@@ -136,7 +136,7 @@ public class MainViewModelToolsTests {
 
     [Fact]
     public async Task ExecuteToolCommand_WithToolNameAndArgs_ShowsResultMessage() {
-        var vm = CreateVm();
+        await using var vm = CreateVm();
         await Task.Run(() => vm.ExecuteToolCommand.ExecuteAsync("file_read:{\"path\":\"test.txt\"}")).WaitAsync(Timeout);
 
         vm.Messages.Should().NotBeEmpty();

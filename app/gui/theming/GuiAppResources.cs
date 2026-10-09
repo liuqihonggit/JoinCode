@@ -106,7 +106,8 @@ public static class GuiAppResources {
             dictionary["GuiAccentFill"] = GuiPalette.ToBrush(_accent.Fill);
             dictionary["GuiAccentHover"] = GuiPalette.ToBrush(_accent.Fill);
         }
-        _themeHost!.ThemeDictionaries[avaVariant] = dictionary;
+        if (_themeHost is { } host)
+            host.ThemeDictionaries[avaVariant] = dictionary;
     }
 
     /// <summary>构建转换器资源字典（键名必须与 App.axaml 原声明一致，供 XAML {StaticResource} 解析）。</summary>

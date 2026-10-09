@@ -89,7 +89,7 @@ public sealed class GuiBeautifyRenderTests {
         };
         win.Show();
         try {
-            var vm = (MainViewModel)win.DataContext!;
+            var vm = (MainViewModel)(win.DataContext ?? throw new InvalidOperationException("win.DataContext 未设置"));
             SeedMessages(vm);
             Dispatcher.UIThread.RunJobs();
             return win.CaptureRenderedFrame()
@@ -112,7 +112,7 @@ public sealed class GuiBeautifyRenderTests {
     }
 
     [AvaloniaFact]
-    public void SettingsPanel_SavesFrameForReview() {
+    public async Task SettingsPanel_SavesFrameForReview() {
         var dump = DumpDir();
         GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
         var win = new MainWindow {
@@ -123,7 +123,7 @@ public sealed class GuiBeautifyRenderTests {
         };
         win.Show();
         try {
-            var vm = (MainViewModel)win.DataContext!;
+            await using var vm = (MainViewModel)(win.DataContext ?? throw new InvalidOperationException("win.DataContext 未设置"));
             vm.ToggleSidePanelCommand.Execute(SidePanelKind.Settings); // 打开左侧设置面板
             Dispatcher.UIThread.RunJobs();
             var frame = win.CaptureRenderedFrame()
@@ -217,7 +217,7 @@ public sealed class GuiBeautifyRenderTests {
                 $"侧栏状态文字顶 {BoundsInWindow(sideText).Top:F1} 与主状态栏文字顶 {BoundsInWindow(mainText).Top:F1} 错位 {textDiff:F1}px（内容未垂直居中？）");
 
             // 真实环境场景：模型徽章显示（SelectedModel 非空）— 徽章高 19px 会撑高主状态栏产生台阶
-            var vm2 = (MainViewModel)win.DataContext!;
+            var vm2 = (MainViewModel)(win.DataContext ?? throw new InvalidOperationException("win.DataContext 未设置"));
             vm2.SelectedModel = "sensenova-6.8-flash-lite";
             Dispatcher.UIThread.RunJobs();
             var sideRect2 = BoundsInWindow(win.GetVisualDescendants().OfType<Border>()
@@ -232,7 +232,7 @@ public sealed class GuiBeautifyRenderTests {
     }
 
     [AvaloniaFact]
-    public void SidebarStatus_BindsRealEngineStatus_NotHardcoded() {
+    public async Task SidebarStatus_BindsRealEngineStatus_NotHardcoded() {
         GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
         var win = new MainWindow {
             DataContext = CreateVm(),
@@ -243,7 +243,7 @@ public sealed class GuiBeautifyRenderTests {
         win.Show();
         try {
             Dispatcher.UIThread.RunJobs();
-            var vm = (MainViewModel)win.DataContext!;
+            await using var vm = (MainViewModel)(win.DataContext ?? throw new InvalidOperationException("win.DataContext 未设置"));
 
             // 硬编码占位文案必须消失（引擎加载后仍显示"本地引擎待接入"是错误信息）
             Assert.DoesNotContain(win.GetVisualDescendants().OfType<TextBlock>(),
@@ -253,7 +253,7 @@ public sealed class GuiBeautifyRenderTests {
             var sidebarMarquee = win.GetVisualDescendants()
                 .OfType<JoinCode.Gui.Views.Controls.MarqueeTextBlock>().FirstOrDefault();
             Assert.NotNull(sidebarMarquee);
-            Assert.Equal(vm.RunStatus.MarqueeText, sidebarMarquee!.Text);
+            Assert.Equal(vm.RunStatus.MarqueeText, (sidebarMarquee ?? throw new InvalidOperationException("sidebarMarquee 未设置")).Text);
         } finally {
             win.Close();
         }

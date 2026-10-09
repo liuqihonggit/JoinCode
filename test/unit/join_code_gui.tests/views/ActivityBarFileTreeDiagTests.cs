@@ -24,7 +24,7 @@ public sealed class ActivityBarFileTreeDiagTests {
 
         var fileTreePanel = win.GetVisualDescendants().OfType<FileTreePanelView>().FirstOrDefault();
         fileTreePanel.Should().NotBeNull("FileTreePanelView 应在视觉树中");
-        fileTreePanel!.IsVisible.Should().BeFalse("初始状态 FileTree 面板不可见");
+        (fileTreePanel ?? throw new InvalidOperationException("fileTreePanel 未设置")).IsVisible.Should().BeFalse("初始状态 FileTree 面板不可见");
 
         // 查找 📁 ToggleButton
         var fileTreeBtn = win.GetVisualDescendants()
@@ -51,7 +51,7 @@ public sealed class ActivityBarFileTreeDiagTests {
         // 验证 TreeView 控件存在且有 Items
         var treeView = fileTreePanel.GetVisualDescendants().OfType<TreeView>().FirstOrDefault();
         treeView.Should().NotBeNull("FileTreePanelView 应包含 TreeView");
-        treeView!.ItemCount.Should().BeGreaterThan(0, "TreeView 应有节点");
+        (treeView ?? throw new InvalidOperationException("treeView 未设置")).ItemCount.Should().BeGreaterThan(0, "TreeView 应有节点");
     }
 
     [AvaloniaFact]
@@ -66,7 +66,7 @@ public sealed class ActivityBarFileTreeDiagTests {
             .FirstOrDefault(b => (b.Content as string)?.Contains("📁") == true);
         fileTreeBtn.Should().NotBeNull();
 
-        fileTreeBtn!.IsChecked.Should().BeFalse("初始 📁 按钮未选中");
+        (fileTreeBtn ?? throw new InvalidOperationException("fileTreeBtn 未设置")).IsChecked.Should().BeFalse("初始 📁 按钮未选中");
 
         vm.ToggleSidePanelCommand.Execute(SidePanelKind.FileTree);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -110,14 +110,14 @@ public sealed class ActivityBarFileTreeDiagTests {
         fileTreeBtn.Should().NotBeNull();
 
         // Command 应正确绑定
-        fileTreeBtn!.Command.Should().NotBeNull("📁 按钮 Command 应绑定");
+        (fileTreeBtn ?? throw new InvalidOperationException("fileTreeBtn 未设置")).Command.Should().NotBeNull("📁 按钮 Command 应绑定");
         fileTreeBtn.Command.Should().BeSameAs(vm.ToggleSidePanelCommand);
 
         // CommandParameter 应为 SidePanelKind.FileTree
         fileTreeBtn.CommandParameter.Should().Be(SidePanelKind.FileTree);
 
         // 通过 Button 的 Command 执行（模拟真实点击的 Command 调用）
-        fileTreeBtn.Command!.Execute(fileTreeBtn.CommandParameter);
+        (fileTreeBtn.Command ?? throw new InvalidOperationException("fileTreeBtn.Command 未设置")).Execute(fileTreeBtn.CommandParameter);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
         vm.IsFileTreePanelActive.Should().BeTrue("通过按钮 Command 执行后 FileTree 应激活");
@@ -147,7 +147,7 @@ public sealed class ActivityBarFileTreeDiagTests {
         };
 
         // 模拟真实点击：直接调 ToggleButton 的 Command（与点击等效）
-        fileTreeBtn!.Command!.Execute(fileTreeBtn.CommandParameter);
+        ((fileTreeBtn ?? throw new InvalidOperationException("fileTreeBtn 未设置")).Command ?? throw new InvalidOperationException("Command 未设置")).Execute(fileTreeBtn.CommandParameter);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
         // Command 应执行，ActiveSidePanel 应变化

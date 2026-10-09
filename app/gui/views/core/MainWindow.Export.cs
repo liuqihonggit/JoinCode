@@ -10,7 +10,7 @@ public sealed partial class MainWindow {
         if (_vm is null || !_vm.HasMessages) return;
         var snapshot = _vm.ExportSessionMarkdown;
         try {
-            var file = await StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions {
+            using var file = await StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions {
                 Title = "导出会话为 Markdown",
                 SuggestedFileName = $"JoinCode-{DateTime.Now:yyyyMMdd-HHmmss}.md",
                 DefaultExtension = "md",

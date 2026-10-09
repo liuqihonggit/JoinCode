@@ -250,7 +250,9 @@ internal static class TuiModeRunner {
             WriteDiag("[TUI] app.Run returned");
         } finally {
             processingCts.Cancel();
+            processingCts.Dispose();
             await polling.StopAsync();
+            await polling.DisposeAsync();
             try { await processingTask; } catch (OperationCanceledException) { }
         }
     }
@@ -431,9 +433,9 @@ internal static class TuiModeRunner {
             services,
             clearScreen: () => painter.Invoke(() => outputView.Clear()),
             confirm: msg => {
-                Task<bool>? dialogTask = null;
+                var dialogTask = Task.FromResult(false);
                 painter.Invoke(() => dialogTask = permissionDialog.ShowAsync("确认", msg, cancellationToken));
-                var confirmed = dialogTask!.GetAwaiter().GetResult();
+                var confirmed = dialogTask.GetAwaiter().GetResult();
                 painter.Invoke(() => permissionDialog.Hide());
                 return confirmed;
             },

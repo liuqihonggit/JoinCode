@@ -12,8 +12,8 @@ public sealed class SideBarPositionTests {
 
     /// <summary>初始位置应为 Left</summary>
     [Fact]
-    public void InitialPosition_IsLeft() {
-        var vm = CreateVm();
+    public async Task InitialPosition_IsLeft() {
+        await using var vm = CreateVm();
         vm.PrimarySideBarPosition.Should().Be(SideBarPosition.Left);
         vm.IsPrimarySideBarLeft.Should().BeTrue();
         vm.IsPrimarySideBarRight.Should().BeFalse();
@@ -21,8 +21,8 @@ public sealed class SideBarPositionTests {
 
     /// <summary>切换一次 → Right</summary>
     [Fact]
-    public void ToggleOnce_GoesRight() {
-        var vm = CreateVm();
+    public async Task ToggleOnce_GoesRight() {
+        await using var vm = CreateVm();
         vm.ToggleSideBarPositionCommand.Execute(null);
         vm.PrimarySideBarPosition.Should().Be(SideBarPosition.Right);
         vm.IsPrimarySideBarLeft.Should().BeFalse();
@@ -31,8 +31,8 @@ public sealed class SideBarPositionTests {
 
     /// <summary>切换两次 → 回到 Left</summary>
     [Fact]
-    public void ToggleTwice_ReturnsLeft() {
-        var vm = CreateVm();
+    public async Task ToggleTwice_ReturnsLeft() {
+        await using var vm = CreateVm();
         vm.ToggleSideBarPositionCommand.Execute(null);
         vm.ToggleSideBarPositionCommand.Execute(null);
         vm.PrimarySideBarPosition.Should().Be(SideBarPosition.Left);

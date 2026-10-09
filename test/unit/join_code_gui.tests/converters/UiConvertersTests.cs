@@ -10,7 +10,7 @@ public sealed class UiConvertersTests {
 
     private static ISolidColorBrush AsBrush(object? result) {
         result.Should().BeAssignableTo<ISolidColorBrush>();
-        return (ISolidColorBrush)result!;
+        return (ISolidColorBrush)(result ?? throw new InvalidOperationException("result 未设置"));
     }
 
     // ── BoolToRoleBrushConverter ──

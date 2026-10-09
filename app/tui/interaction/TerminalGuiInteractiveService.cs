@@ -76,8 +76,8 @@ public sealed class TerminalGuiInteractiveService : IInteractiveService {
         if (_painter is null || _dialogView is null)
             return Task.FromResult(AskUserQuestionResult.FailureResult("TUI 交互服务未就绪"));
 
-        Task<AskUserQuestionResult>? dialogTask = null;
+        var dialogTask = Task.FromResult(AskUserQuestionResult.FailureResult("TUI 交互服务未就绪"));
         _painter.Invoke(() => dialogTask = _dialogView.ShowAsync(item, cancellationToken));
-        return dialogTask!;
+        return dialogTask;
     }
 }

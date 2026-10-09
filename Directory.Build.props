@@ -119,6 +119,9 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(ExcludeStructura)' != 'true' and '$(UsePackedComponents)' != 'true'">
     <ProjectReference Include="$(RepoRoot)lib/structura/Structura.csproj" />
   </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(ExcludeStructura)' != 'true' and '$(UsePackedComponents)' == 'true'">
+    <PackageReference Include="JoinCode.Structura" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
 
   <!-- 全局 Analyzer 引用：所有 net10.0 项目自动获得 JCC 诊断和代码修复 -->
   <!-- 排除: 分析器自身项目(EnforceExtendedAnalyzerRules)、测试辅助项目(ExcludeJccAnalyzers) -->

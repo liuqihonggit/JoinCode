@@ -45,9 +45,14 @@ internal sealed class GitHubRunLogFetcher {
         var displayedSuccess = successJobs.Take(maxSuccessDisplay).ToList();
         var omittedSuccess = successCount - displayedSuccess.Count;
 
+        // 缺陷5: 限制非成功 job 显示数量,避免超 2000 字符触发 McpResultCollapseClassifier 折叠
+        const int maxNonSuccessDisplay = 25;
+        var displayedNonSuccess = nonSuccess.Take(maxNonSuccessDisplay).ToList();
+        var omittedNonSuccess = nonSuccess.Count - displayedNonSuccess.Count;
+
         var sb = new StringBuilder();
         sb.Append($"汇总: {totalCount} 个 job, {failedCount} 个失败, {cancelledCount} 个取消, {inProgressCount} 个进行中, {successCount} 个成功");
-        foreach (var (id, name, status, conclusion) in nonSuccess) {
+        foreach (var (id, name, status, conclusion) in displayedNonSuccess) {
             var marker = conclusion switch {
                 "failure" => "❌",
                 "cancelled" => "⊘",
@@ -56,6 +61,8 @@ internal sealed class GitHubRunLogFetcher {
             };
             sb.Append($"\n  {marker} {id,15}  {name}  [{conclusion}]");
         }
+        if (omittedNonSuccess > 0)
+            sb.Append($"\n  … 另有 {omittedNonSuccess} 个非成功 job 未列出(用 --json_fields id,name,conclusion 查看完整列表)");
         foreach (var (id, name, status, conclusion) in displayedSuccess)
             sb.Append($"\n  ✅ {id,15}  {name}  [success]");
         if (omittedSuccess > 0)

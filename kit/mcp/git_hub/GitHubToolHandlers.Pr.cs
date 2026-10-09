@@ -429,6 +429,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 过滤 check-runs 响应字段 — 支持 state 映射(status+conclusion→state),对齐 GraphQL statusCheckRollup。
     /// <para>check-runs API 返回 status/conclusion 而非 state,用户传 --json_fields name,state 时需映射。</para>
+    /// <para>workflow_job_id/job_id 从 details_url 解析(缺陷2: check-runs API 无此字段)</para>
     /// </summary>
     private static string FilterCheckRunFields(string json, string fields) {
         var fieldSet = new HashSet<string>(fields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries), StringComparer.OrdinalIgnoreCase);
@@ -451,6 +452,10 @@ public partial class GitHubToolHandlers {
                         var status = run.TryGetProperty("status", out var s) ? s.GetString() ?? "" : "";
                         var conclusion = run.TryGetProperty("conclusion", out var c) ? c.GetString() ?? "" : "";
                         sb.Append('"').Append(MapCheckState(status, conclusion)).Append('"');
+                    } else if (string.Equals(field, "workflow_job_id", StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(field, "job_id", StringComparison.OrdinalIgnoreCase)) {
+                        var jobId = ExtractJobIdFromDetailsUrl(run);
+                        sb.Append(jobId is null ? "null" : $"\"{jobId}\"");
                     } else if (run.TryGetProperty(field, out var value)) {
                         sb.Append(value.GetRawText());
                     } else {
@@ -464,6 +469,20 @@ public partial class GitHubToolHandlers {
         } catch (JsonException) {
             return "[]";
         }
+    }
+
+    /// <summary>从 check-run 的 details_url 解析 job ID — URL 格式: .../runs/{runId}/jobs/{jobId}</summary>
+    private static string? ExtractJobIdFromDetailsUrl(JsonElement run) {
+        if (!run.TryGetProperty("details_url", out var urlProp)) return null;
+        var url = urlProp.GetString();
+        if (string.IsNullOrEmpty(url)) return null;
+        var jobsIdx = url.LastIndexOf("/jobs/", StringComparison.OrdinalIgnoreCase);
+        if (jobsIdx < 0) return null;
+        var start = jobsIdx + "/jobs/".Length;
+        var sb = new StringBuilder(16);
+        for (var i = start; i < url.Length && char.IsDigit(url[i]); i++)
+            sb.Append(url[i]);
+        return sb.Length > 0 ? sb.ToString() : null;
     }
 
     /// <summary>映射 check status+conclusion → state(对齐 GraphQL: PENDING/SUCCESS/FAILURE/NEUTRAL)</summary>

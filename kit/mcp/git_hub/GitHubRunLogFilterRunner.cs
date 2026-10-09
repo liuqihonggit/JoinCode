@@ -390,6 +390,9 @@ internal sealed class GitHubRunLogFilterRunner {
         // 优化B: expand=failed 无 filter 时智能定位错误行,不从 runner setup 从头开始
         if (failedOnly && markers is null) {
             matched = await CollectWithSmartStartAsync(logLines, maxLines, skipLines, ct).ConfigureAwait(false);
+        } else if (markers is not null && markers.Contains("##[error]")) {
+            // 缺陷3: filter=error 时自动收集错误行上下文(前5行),避免只有 "Process completed with exit code 1"
+            matched = await CollectWithErrorContextAsync(logLines, maxLines, skipLines, ct).ConfigureAwait(false);
         } else {
             await foreach (var line in logLines.ConfigureAwait(false)) {
                 lineNumber++;
@@ -466,6 +469,50 @@ internal sealed class GitHubRunLogFilterRunner {
                 if (skipped < skipLines) { skipped++; continue; }
                 matched.Add(tailLine);
                 if (matched.Count >= maxLines) break;
+            }
+        }
+        return matched;
+    }
+
+    /// <summary>
+    /// 缺陷3: filter=error 时收集错误行+前5行上下文 — 避免 "Process completed with exit code 1" 无具体错误
+    /// <para>对每个 ##[error] 行,自动附带前 5 行上下文,让 AI 一次看到具体错误内容</para>
+    /// </summary>
+    private async Task<List<string>> CollectWithErrorContextAsync(
+        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, CancellationToken ct) {
+        const int contextBefore = 5;
+        const int contextAfter = 3;
+        var matched = new List<string>(maxLines);
+        var contextWindow = new Queue<string>(contextBefore);
+        var skipped = 0;
+        var lineNumber = 0;
+        var pendingAfter = 0;
+
+        await foreach (var line in logLines.ConfigureAwait(false)) {
+            lineNumber++;
+            var formatted = $"{lineNumber}: {GitHubRunLogText.StripLogTimestamp(line)}";
+            if (pendingAfter > 0) {
+                if (skipped < skipLines) { skipped++; continue; }
+                matched.Add(formatted);
+                pendingAfter--;
+                if (matched.Count >= maxLines) break;
+                continue;
+            }
+            if (line.Contains("##[error]", StringComparison.OrdinalIgnoreCase)) {
+                if (skipped < skipLines) { skipped++; continue; }
+                foreach (var ctxLine in contextWindow) {
+                    if (skipped < skipLines) { skipped++; continue; }
+                    matched.Add(ctxLine);
+                    if (matched.Count >= maxLines) break;
+                }
+                if (matched.Count >= maxLines) break;
+                if (skipped < skipLines) { skipped++; continue; }
+                matched.Add(formatted);
+                pendingAfter = contextAfter;
+                if (matched.Count >= maxLines) break;
+            } else {
+                contextWindow.Enqueue(formatted);
+                if (contextWindow.Count > contextBefore) contextWindow.Dequeue();
             }
         }
         return matched;

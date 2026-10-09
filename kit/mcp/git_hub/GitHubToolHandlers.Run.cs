@@ -73,7 +73,8 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,skip_lines 分页续读,refresh 强制刷新,web 返回 URL,attempt 指定重试次数)", "github", ConcurrencySafe = true)]
     [ToolAnchors("CI 失败", "job 日志", "run 状态", "workflow 排错", "构建失败")]
     public async Task<ToolResult> GhRunViewAsync(
-        [McpToolParameter("Run ID", Required = true)] string run_id,
+        [McpToolParameter("Run ID(可选,与 pr 二选一;支持 run number 短数字自动解析)", Required = false)] string? run_id = null,
+        [McpToolParameter("PR 号(可选,与 run_id 二选一;自动解析 PR 最新 run)", Required = false)] int? pr = null,
         [McpToolParameter("Job ID(可选,支持逗号分隔多个并行下载,如 123 或 123,456)", Required = false)] string? job_id = null,
         [McpToolParameter("是否拉取日志(默认 false,仅看详情)", Required = false)] bool? log = null,
         [McpToolParameter("最大日志行数(默认 200)", Required = false)] int? max_lines = null,
@@ -91,10 +92,19 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            // 宽容: pr 和 run_id 二选一; pr 优先,自动解析 PR 最新 run
+            var effectiveRunId = run_id;
+            if (pr is not null && string.IsNullOrEmpty(run_id)) {
+                effectiveRunId = await ResolveRunIdFromPrAsync(client, owner, repoName, pr.Value, cancellationToken).ConfigureAwait(false);
+                if (effectiveRunId is null)
+                    return Fail($"PR #{pr} 未找到对应的 CI run。可能原因: ① PR 号错误 ② PR 无关联 run(未触发 CI) ③ 仓库不存在或无权限。提示: 用 gh run list --branch <分支名> 查看 run 列表");
+            }
+            if (string.IsNullOrEmpty(effectiveRunId))
+                return Fail("run_id 和 pr 至少提供一个一个。用法: gh run view <run_id> 或 gh run view --pr <PR号>");
             // 宽容: AI 可能传 run number(如 752)而非 run id(如 37663049294),自动解析
-            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, effectiveRunId, cancellationToken).ConfigureAwait(false);
             if (resolvedRunId is null)
-                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
+                return Fail($"Run '{effectiveRunId}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
             if (web == true) {
                 var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
                 if (!runResult.Success) return Fail(runResult.Error);
@@ -141,6 +151,33 @@ public partial class GitHubToolHandlers {
         if (!listResult.Success) return null;
 
         return FindRunIdByNumber(listResult.Body, runId, _logger);
+    }
+
+    /// <summary>
+    /// 从 PR 号解析最新 run ID — 获取 PR head_sha 后查 runs 取最新一条（缺陷1: --pr 支持）
+    /// </summary>
+    private async Task<string?> ResolveRunIdFromPrAsync(IGitHubApiClient client, string owner, string repoName, int prNumber, CancellationToken ct) {
+        var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{prNumber}", ct: ct).ConfigureAwait(false);
+        if (!prResult.Success) return null;
+        string? headSha = null;
+        try {
+            using var doc = JsonDocument.Parse(prResult.Body);
+            if (doc.RootElement.TryGetProperty("head", out var head) && head.TryGetProperty("sha", out var sha))
+                headSha = sha.GetString();
+        } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 PR head_sha 失败"); }
+        if (string.IsNullOrEmpty(headSha)) return null;
+        var runsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs",
+            query: new Dictionary<string, string> { ["head_sha"] = headSha!, ["per_page"] = "1" }, ct: ct).ConfigureAwait(false);
+        if (!runsResult.Success) return null;
+        try {
+            using var doc = JsonDocument.Parse(runsResult.Body);
+            if (doc.RootElement.TryGetProperty("workflow_runs", out var runs) && runs.GetArrayLength() > 0) {
+                var first = runs[0];
+                if (first.TryGetProperty("id", out var id))
+                    return id.GetRawText().Trim('"');
+            }
+        } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 PR runs 失败"); }
+        return null;
     }
 
     /// <summary>run_id 通常是 10-11 位数字,run number 是短数字(少于 10 位)</summary>
@@ -360,20 +397,48 @@ public partial class GitHubToolHandlers {
 
     /// <summary>
     /// 构建步骤列表结果 — 日志下载失败时回退到 API job 详情(ADR 0067)。
+    /// <para>缺陷6: 正常路径也用 API conclusion 标记失败步骤,不只依赖日志文本解析</para>
     /// </summary>
     private async Task<ToolResult> BuildStepsListResultAsync(GhRepoCtx repo, string runId, string? jobId, RunLogSummary summary) {
         // 日志下载失败(cancelled job 等)时回退到 API job 详情
         var fallback = await TryGetStepsFromApiFallbackAsync(repo, runId, jobId, summary).ConfigureAwait(false);
         if (fallback is not null) return fallback;
+        // 缺陷6: 尝试用 API 获取步骤 conclusion,补充日志解析可能漏标的失败步骤
+        var apiConclusions = await GetStepConclusionsFromApiAsync(repo.Client, repo.Owner, repo.Repo, jobId, repo.Ct).ConfigureAwait(false);
         var stepsText = summary.StepLineCounts
             .OrderByDescending(kvp => kvp.Value)
             .Select(kvp => {
                 var hasError = summary.SectionCounts.TryGetValue(kvp.Key, out var secs)
                     && secs.TryGetValue(RunLogCache.SectionError, out _);
+                // API conclusion 优先: failure/cancelled/timed_out 也标 ❌
+                if (apiConclusions is not null && apiConclusions.TryGetValue(kvp.Key, out var conclusion)) {
+                    hasError = hasError || conclusion is "failure" or "cancelled" or "timed_out";
+                }
                 var marker = hasError ? "❌ " : "   ";
                 return $"  {marker}{kvp.Value,6} 行  {kvp.Key}";
             });
         return Ok(string.Join('\n', stepsText) + GitHubRunLogHints.StepsHint, $"Run {runId} 步骤列表({summary.StepLineCounts.Count} 步骤,缓存于 {summary.CachedAt:HH:mm:ss}):");
+    }
+
+    /// <summary>从 API 获取步骤名→conclusion 映射(缺陷6: 补充日志解析漏标的失败步骤)</summary>
+    private static async Task<Dictionary<string, string>?> GetStepConclusionsFromApiAsync(IGitHubApiClient client, string owner, string repo, string? jobId, CancellationToken ct) {
+        if (string.IsNullOrWhiteSpace(jobId)) return null;
+        var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/jobs/{jobId}", ct: ct).ConfigureAwait(false);
+        if (!result.Success) return null;
+        try {
+            using var doc = JsonDocument.Parse(result.Body);
+            if (!doc.RootElement.TryGetProperty("steps", out var steps)) return null;
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var step in steps.EnumerateArray()) {
+                var name = step.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                var conclusion = step.TryGetProperty("conclusion", out var c) ? c.GetString() ?? "" : "";
+                if (!string.IsNullOrEmpty(name))
+                    map[name] = conclusion;
+            }
+            return map;
+        } catch (JsonException) {
+            return null;
+        }
     }
 
     /// <summary>
@@ -506,15 +571,28 @@ public partial class GitHubToolHandlers {
     /// 正则表达式过滤日志行 — 当 filter 不是预定义级别(error/warning/info/all/failed)时宽容当作正则匹配
     /// <para>宽容: bash 转义的 \| 自动转为 | (或操作符),支持 Failed\|Total tests\|... 语法</para>
     /// <para>超时保护: 5 秒正则超时,避免恶意正则导致卡死</para>
+    /// <para>缺陷4: 检测日志为空时返回有用提示,匹配 0 行时引导用 --expand failed</para>
     /// </summary>
     private async Task<ToolResult> FilterByRegexAsync(GhRepoCtx repo, GhRunTarget target, string? jobId, string filter, int maxLines, int skip, bool wantRefresh) {
         var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, jobId, false, "日志", null, GitHubLogFilter.None, 50000, repo.Ct, null, 0, wantRefresh).ConfigureAwait(false);
         if (logResult.IsError) return logResult;
         var logText = logResult.GetFirstText() ?? "";
+        // 剥离 prefix 行(第一行是 prefix,如 "Run xxx 日志(50000 行):")
+        var firstNl = logText.IndexOf('\n');
+        var logBody = firstNl >= 0 ? logText[(firstNl + 1)..] : logText;
+        // 缺陷4: 日志为空或太短时返回有用提示
+        if (string.IsNullOrWhiteSpace(logBody) || logBody.Length < 50) {
+            return Ok($"日志获取失败或为空(长度={logBody.Length})。可能原因: ① run 日志未下载成功 ② 日志被缓存截断。提示: 用 --expand failed 直接拉失败步骤日志,或 --log --filter error 查看错误标记行",
+                $"正则过滤 '{filter}' 无法执行:");
+        }
         var pattern = filter.Replace("\\|", "|");
         var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromSeconds(5));
-        var matchedLines = logText.Split('\n').Where(l => regex.IsMatch(l)).ToList();
+        var matchedLines = logBody.Split('\n').Where(l => regex.IsMatch(l)).ToList();
         var totalMatched = matchedLines.Count;
+        if (totalMatched == 0) {
+            return Ok($"正则 '{filter}' 未匹配到任何日志行(日志共 {logBody.Split('\n').Length} 行)。可能原因: ① 正则表达式错误 ② 日志中无匹配内容。提示: 用 --filter error 查看错误标记行,或 --expand failed 智能定位失败步骤",
+                $"正则过滤 '{filter}' 匹配 0 行:");
+        }
         var displayed = matchedLines.Skip(skip).Take(maxLines).ToList();
         var hasMore = skip + maxLines < totalMatched;
         var sb = new StringBuilder(string.Join('\n', displayed));

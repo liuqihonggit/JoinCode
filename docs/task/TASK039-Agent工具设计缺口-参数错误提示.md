@@ -31,9 +31,9 @@
 
 ## 缺口清单
 
-### GAP-039-01 参数类型提示未展示 ⭐ P1
+### GAP-039-01 参数类型提示未展示 ⭐ P1 ✅ 已完成
 
-- **当前状态**：部分落地（`GhParam` 已捕获 `IsBoolean` 类型信息，`GhParamSchemaParser:201-216` 解析了 boolean 类型，但错误文案未展示完整类型）
+- **当前状态**：已落地 — `GhParam` 增加 `TypeHint` 字段从 schema type 提取，`UnknownOptionError`/`MissingPositionalError`/选项缺值均展示类型
 - **缺什么**：设计要求"错误和缺失的参数要提示参数名称+参数类型"，当前 `UnknownOptionError`/`MissingPositionalError`/`ArgMissingRequired` 只显示参数名，未显示类型（integer/string/boolean/array/object）
 - **证据**：
   - `GhCommandResolver.cs:710` UnknownOptionError 只列 `--{p.Name}`
@@ -49,17 +49,17 @@
   - 缺少必需参数时显示 `缺少必需参数: pr_number (类型: integer)`
 - **复杂度**：低
 
-### GAP-039-02 反向人格压制（鼓励探索安全区外） ⭐ P3
+### GAP-039-02 反向人格压制（鼓励探索安全区外） ⭐ P3 ✅ 已完成
 
-- **当前状态**：未落地（现有人格压制偏向"禁止滥用"，缺"鼓励探索安全区外"反向压制）
+- **当前状态**：已落地 — `ToolsSection` 追加反向压制提示词，双向压制（禁止滥用 + 鼓励合理使用）
 - **缺什么**：设计文档"AI 不喜欢选工具，训练数据注定不敢用安全区外工具，需要围绕模型进行人格压制"——当前 `ToolsSection.cs:17` 只说"不要滥用 Bash"，没有"专用工具优先，安全区外工具可以用不要怕"的引导
 - **建议方案**：在 `ToolsSection` 追加反向压制提示词："专用工具优于 Bash，但遇到专用工具无法覆盖的场景时，Bash/系统工具可以用，不要因为训练数据习惯而回避"
 - **验收标准**：ToolsSection 输出含双向压制（禁止滥用 + 鼓励合理使用）
 - **复杂度**：低
 
-### GAP-039-03 脚本触发动态备份提示 ⭐ P2
+### GAP-039-03 脚本触发动态备份提示 ⭐ P2 ✅ 已完成
 
-- **当前状态**：未落地（现有备份提示是静态 `ReplacementMethodologySection.cs:33`"每次替换前必须 git 备份"，非脚本触发时动态注入）
+- **当前状态**：已落地 — 新增 `ShellBackupHintMiddleware`，检测破坏性命令时通过 `SystemReminderManager` 注入备份提示，`CooldownService` 5分钟去重，不阻止执行只提示
 - **缺什么**：设计要求"每次触发脚本就系统提示词让它自行备份或推荐用户备份"。文件级备份机制完备（`FileHistoryService.BackupBeforeWriteAsync` 写前自动备份），但"触发脚本→提示备份"的提示词注入链路缺失
 - **建议方案**：
   1. 在 Bash 工具执行中间件检测命令是否含破坏性动作（rm/mv/Move-Item/del/格式化/重定向覆盖等）

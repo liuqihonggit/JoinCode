@@ -58,16 +58,12 @@
 - **测试**：`test/unit/mcp_tool_dispatch.tests/execution/ToolAnchorIndexTest.cs`（14 个测试全通过）
 - **验收标准**：用户问"CI 为什么失败"时匹配 gh_run_view ✅；锚点匹配用余弦相似度阈值可配 ✅；锚点用特性标注禁止手写表 ✅
 
-### GAP-041-03 频率驱动动态重构图 ⭐ P2
+### GAP-041-03 频率驱动动态重构图 ✅
 
-- **当前状态**：未落地（超边来自静态预设 `ToolHypergraphPresets` + 用户配置热加载 `LoadCustomHyperedges`，非频率驱动）
-- **缺什么**：设计要求"DAG 通过使用频率动态推荐"——当前频率只用于评分（`ToolHealthRecord.Score`），不用于动态调整超图拓扑
-- **建议方案**：
-  1. 定期任务（每小时）扫描 NextToolFrequency，频率>阈值的两工具间自动加超边
-  2. 低频超边标记为"候选移除"，长期低频则剔除
-  3. 保留静态预设作为冷启动基线
-- **验收标准**：高频工具链路自动出现在 hypergraph；低频超边被剔除
-- **复杂度**：高
+- **当前状态**：已落地（`RebuildFromTransitionsAsync` 从转移频率动态加超边 + 低频候选标记 + `RemoveLowFreqCandidates` 剔除 + 定时器每 2 小时重建）
+- **实现位置**：`kit/mcp_tool_dispatch/core/execution/ToolHypergraphScorer.cs`（RebuildFromTransitionsAsync + RemoveLowFreqCandidates + LowFreqEdgeCandidates + _rebuildTimer）
+- **测试**：`test/unit/mcp_tool_dispatch.tests/execution/ToolHypergraphRebuildTest.cs`（8 个测试全通过）
+- **验收标准**：高频工具链路自动出现在 hypergraph ✅；低频超边被剔除 ✅
 
 ### GAP-041-04 通用 DAG 蜘蛛网化解框架 ⭐ P2
 

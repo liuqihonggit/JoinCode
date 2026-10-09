@@ -13,7 +13,12 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     private readonly IToolHealthMonitor? _monitor;
     private ToolHypergraph _graph;
     private readonly Timer? _syncTimer;
+    private readonly Timer? _rebuildTimer;
+    private volatile HashSet<string> _lowFreqEdgeCandidates = new(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
+
+    /// <summary>获取当前低频超边候选移除集合。</summary>
+    public IReadOnlyCollection<string> LowFreqEdgeCandidates => _lowFreqEdgeCandidates;
 
     /// <summary>
     /// 构造超图评分器 — 从预设加载超边并构建工具到超边的映射，若提供监控器则启动每小时共享评分同步定时器
@@ -28,6 +33,8 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
         if (_monitor is not null) {
             _syncTimer = new Timer(async _ => await SyncSharedScoresAsync().ConfigureAwait(false),
                 null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
+            _rebuildTimer = new Timer(async _ => await RebuildFromTransitionsAsync().ConfigureAwait(false),
+                null, TimeSpan.FromHours(2), TimeSpan.FromHours(2));
         }
     }
 
@@ -154,6 +161,74 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
         }
     }
 
+    /// <summary>
+    /// 从转移频率动态重建超图 — 扫描所有工具的 NextToolFrequency，频率>阈值的两工具间自动加超边
+    /// 低频超边标记为"候选移除"，保留静态预设作为冷启动基线
+    /// </summary>
+    /// <param name="frequencyThreshold">转移频率阈值，低于此值不加超边（默认 5）</param>
+    /// <param name="lowFreqThreshold">低频超边阈值，共享评分低于此值标记为候选移除（默认 -20）</param>
+    public async Task RebuildFromTransitionsAsync(int frequencyThreshold = 5, int lowFreqThreshold = -20) {
+        if (_monitor is null) return;
+
+        try {
+            var allRecords = await _monitor.GetAllRecordsAsync().ConfigureAwait(false);
+            var presets = ToolHypergraphPresets.GetPresets();
+            var presetIds = new HashSet<string>(presets.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
+
+            var dynamicEdges = new List<ToolHyperedge>();
+            var seenPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var (fromTool, record) in allRecords) {
+                if (record.NextToolFrequency.Count == 0) continue;
+
+                foreach (var (toTool, freq) in record.NextToolFrequency) {
+                    if (freq < frequencyThreshold) continue;
+
+                    var pairKey = string.Compare(fromTool, toTool, StringComparison.OrdinalIgnoreCase) < 0
+                        ? $"{fromTool}→{toTool}" : $"{toTool}→{fromTool}";
+                    if (!seenPairs.Add(pairKey)) continue;
+
+                    var edgeId = $"freq_{fromTool}_{toTool}";
+                    dynamicEdges.Add(new ToolHyperedge {
+                        Id = edgeId,
+                        ToolNames = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, fromTool, toTool),
+                        Weight = Math.Min(0.3 + freq * 0.01, 0.8),
+                        ChainOrder = [fromTool, toTool]
+                    });
+                }
+            }
+
+            var allEdges = presets.Concat(dynamicEdges).ToArray();
+            _graph = BuildGraph(allEdges);
+
+            var lowFreq = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var edge in _graph.Hyperedges) {
+                if (presetIds.Contains(edge.Id)) continue;
+                if (edge.SharedScore < lowFreqThreshold) {
+                    lowFreq.Add(edge.Id);
+                }
+            }
+            _lowFreqEdgeCandidates = lowFreq;
+
+            _logger?.LogInformation("超图已从转移频率重建: {Preset} 条预设 + {Dynamic} 条动态 = {Total} 条超边, {LowFreq} 条低频候选",
+                presets.Length, dynamicEdges.Count, allEdges.Length, lowFreq.Count);
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "超图从转移频率重建失败");
+        }
+    }
+
+    /// <summary>移除低频候选超边 — 将候选移除集合中的超边从图中剔除。</summary>
+    public void RemoveLowFreqCandidates() {
+        if (_lowFreqEdgeCandidates.Count == 0) return;
+
+        var remaining = _graph.Hyperedges
+            .Where(e => !_lowFreqEdgeCandidates.Contains(e.Id))
+            .ToArray();
+        _graph = BuildGraph(remaining);
+        _lowFreqEdgeCandidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        _logger?.LogInformation("已移除 {Count} 条低频超边", remaining.Length);
+    }
+
     private static ToolHypergraph BuildGraph(ToolHyperedge[] edges) {
         var toolToEdges = new Dictionary<string, List<ToolHyperedge>>(StringComparer.OrdinalIgnoreCase);
 
@@ -174,12 +249,13 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     }
 
     /// <summary>
-    /// 释放同步定时器资源。
+    /// 释放定时器资源。
     /// </summary>
     public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _syncTimer?.Dispose();
+        _rebuildTimer?.Dispose();
         base.Dispose();
     }
 }

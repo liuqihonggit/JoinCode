@@ -43,7 +43,7 @@ AI 使用 gh 工具查 CI 错误时翻查层级多、`gh view` 偶发卡死。�
   - Span 零 GC（用 `MemoryExtensions.IndexOf` 定位 `\x1b`）
 - **复杂度**：低
 
-### GAP-038-02 gh 输出加注行号 ⭐ P1
+### GAP-038-02 gh 输出加注行号 ⭐ P1 ✅ 已完成(38aeae3b5)
 
 - **当前状态**：部分落地（仅 read 工具 `FileToolHandlers.AddLineNumbers:85` 实现，gh 输出未加注）
 - **缺什么**：`gh run view` / `gh pr checks` 输出未加注行号，AI 难以定位具体行
@@ -99,7 +99,7 @@ AI 使用 gh 工具查 CI 错误时翻查层级多、`gh view` 偶发卡死。�
 | 优先级 | 缺口 | 复杂度 |
 |--------|------|--------|
 | P0 | GAP-038-01 剔除 ANSI 颜色 ✅ | 低 |
-| P1 | GAP-038-02 gh 输出加注行号 | 中 |
+| P1 | GAP-038-02 gh 输出加注行号 ✅ | 中 |
 | P2 | GAP-038-03 阅读模式系统变量 | 低 |
 | P2 | GAP-038-04 行号定位跳转 | 中 |
 | P2 | GAP-038-05 格式识别失败截断分页 | 低 |

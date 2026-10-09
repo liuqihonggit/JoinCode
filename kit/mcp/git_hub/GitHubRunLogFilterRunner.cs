@@ -340,15 +340,9 @@ internal sealed class GitHubRunLogFilterRunner {
     public async Task<ToolResult> FilterFailedTestsAsync(
         string owner, string repo, string runId, string? jobId,
         int maxLines, int skipLines, bool wantRefresh, CancellationToken ct) {
-        // 获取日志行枚举源(优先失败 job,其次指定 job,最后整个 run)— 全部走缓存
-        IAsyncEnumerable<string> logLines;
-        if (string.IsNullOrWhiteSpace(jobId)) {
-            logLines = GetFailedJobLogsAsync(owner, repo, runId, wantRefresh, ct);
-        } else if (long.TryParse(jobId, out var jobIdLong)) {
-            logLines = GetOrFetchJobLogsAsync(owner, repo, runId, jobIdLong, wantRefresh, ct);
-        } else {
-            logLines = GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct);
-        }
+        // 统一日志流入口 — jobId 为空时 failedOnly=true(只拉失败 job),否则按 jobId 拉指定 job
+        var failedOnly = string.IsNullOrWhiteSpace(jobId);
+        var logLines = GetLogStreamAsync(owner, repo, runId, jobId, failedOnly, wantRefresh, ct);
 
         // 状态机解析
         var failures = new List<TestFailureInfo>();

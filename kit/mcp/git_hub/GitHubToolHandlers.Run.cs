@@ -21,13 +21,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("触发者过滤(可选)", Required = false)] string? user = null,
         [McpToolParameter("commit SHA 过滤(可选)", Required = false)] string? commit = null,
         [McpToolParameter("创建时间过滤(可选,如 >2026-01-01)", Required = false)] string? created = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
         [McpToolParameter("强制刷新缓存(兼容参数,run list 直接调 API 无缓存,传入即忽略)", Required = false)] bool? refresh = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 20).ToString() };
             if (!string.IsNullOrWhiteSpace(status)) query["status"] = status;
             if (!string.IsNullOrWhiteSpace(branch)) query["branch"] = branch;
@@ -40,15 +37,15 @@ public partial class GitHubToolHandlers {
                 : $"repos/{owner}/{repoName}/actions/workflows/{workflow}/runs";
             var result = await client.SendAsync(HttpMethod.Get, basePath, query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(BuildRunListErrorHint(result, workflow));
-            if (!string.IsNullOrEmpty(json_fields)) {
-                var filtered = FilterJsonFields(result.Body, json_fields);
+            if (!string.IsNullOrEmpty(common?.JsonFields)) {
+                var filtered = FilterJsonFields(result.Body, common.JsonFields);
                 if (filtered is "[]" or "{}")
                     return Ok(filtered + "\n\n⚠️ 返回空: 可能原因: ① 字段名不匹配(用 verbosity=2 查看完整字段) ② 该 run 无此字段");
                 return Ok(filtered);
             }
             var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
             var failureHint = hasFailure ? GitHubRunLogHints.RunListFailureHint : "";
-            return verbosity switch {
+            return common?.Verbosity switch {
                 2 => Ok(result.Body + failureHint),
                 1 => Ok(GitHubRunListSummarizer.SummarizeRunList(result.Body) + failureHint),
                 _ => Ok(GitHubRunListSummarizer.SummarizeRunListBrief(result.Body) + failureHint)
@@ -87,12 +84,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("web=true 只返回 Run 浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("重试次数(可选,查看指定 attempt 的详情)", Required = false)] int? attempt = null,
         [McpToolParameter("log_failed=true 只拉失败步骤日志(等价于 --expand failed --log,系统 gh CLI --log-failed 缩写)", Required = false)] bool? log_failed = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             // 宽容: pr 和 run_id 二选一; pr 优先,自动解析 PR 最新 run
             var effectiveRunId = run_id;
             if (pr is not null && string.IsNullOrEmpty(run_id)) {
@@ -111,16 +105,16 @@ public partial class GitHubToolHandlers {
                 var url = ExtractHtmlUrl(runResult.Body);
                 return string.IsNullOrEmpty(url) ? Fail("无法从 Run 响应中解析 html_url") : Ok(url);
             }
-            if (string.Equals(expand, "jobs", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(json_fields)) {
+            if (string.Equals(expand, "jobs", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(common?.JsonFields)) {
                 var jobsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}/jobs",
                     query: new Dictionary<string, string> { ["per_page"] = "100" }, paginate: true, ct: cancellationToken).ConfigureAwait(false);
                 if (!jobsResult.Success) return Fail(jobsResult.Error);
-                return Ok(FilterJsonFields(jobsResult.Body, json_fields));
+                return Ok(FilterJsonFields(jobsResult.Body, common.JsonFields));
             }
-            if (!string.IsNullOrEmpty(json_fields)) {
+            if (!string.IsNullOrEmpty(common?.JsonFields)) {
                 var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
                 if (!runResult.Success) return Fail(runResult.Error);
-                return Ok(FilterJsonFields(runResult.Body, json_fields));
+                return Ok(FilterJsonFields(runResult.Body, common.JsonFields));
             }
             if (log_failed == true) {
                 expand = "failed";
@@ -129,7 +123,7 @@ public partial class GitHubToolHandlers {
             return await GhRunViewCoreAsync(
                 new GhRepoCtx { Client = client, Owner = owner, Repo = repoName, Ct = cancellationToken },
                 new GhRunTarget { RunId = resolvedRunId!, JobId = job_id, Attempt = attempt },
-                new GhLogOpts { Log = log, MaxLines = max_lines, SkipLines = start_line.HasValue ? start_line.Value - 1 : skip_lines, Expand = expand, Filter = filter, Refresh = refresh, Verbosity = verbosity }
+                new GhLogOpts { Log = log, MaxLines = max_lines, SkipLines = start_line.HasValue ? start_line.Value - 1 : skip_lines, Expand = expand, Filter = filter, Refresh = refresh, Verbosity = common?.Verbosity }
             ).ConfigureAwait(false);
         }).ConfigureAwait(false);
 

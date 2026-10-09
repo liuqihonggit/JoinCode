@@ -98,19 +98,16 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("分支过滤(可选)", Required = false)] string? branch = null,
         [McpToolParameter("ref 过滤(可选)", Required = false)] string? @ref = null,
         [McpToolParameter("key 过滤(可选,模糊匹配)", Required = false)] string? key = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
             if (!string.IsNullOrWhiteSpace(branch)) query["ref"] = $"refs/heads/{branch}";
             if (!string.IsNullOrWhiteSpace(@ref)) query["ref"] = @ref;
             if (!string.IsNullOrWhiteSpace(key)) query["key"] = key;
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/caches", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeCacheList, "id,key,ref,size_in_megabytes,last_used_at"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeCacheList, "id,key,ref,size_in_megabytes,last_used_at"));
         }).ConfigureAwait(false);
 
     /// <summary>精简缓存列表 — 表格格式(id, key, ref, size, last_used)</summary>
@@ -190,17 +187,14 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhRulesetListAsync(
         [McpToolParameter("组织名(可选,列出组织级规则集)", Required = false)] string? org = null,
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
             var path = !string.IsNullOrWhiteSpace(org) ? $"orgs/{org}/rulesets" : $"repos/{owner}/{repoName}/rulesets";
             var result = await client.SendAsync(HttpMethod.Get, path, query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeRulesetList, "id,name,target,enforcement"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeRulesetList, "id,name,target,enforcement"));
         }).ConfigureAwait(false);
 
     /// <summary>精简规则集列表 — 表格格式(id, name, target, enforcement)</summary>
@@ -224,16 +218,13 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhRulesetViewAsync(
         [McpToolParameter("规则集 ID", Required = true)] long ruleset_id,
         [McpToolParameter("组织名(可选,查看组织级规则集)", Required = false)] string? org = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var path = !string.IsNullOrWhiteSpace(org) ? $"orgs/{org}/rulesets/{ruleset_id}" : $"repos/{owner}/{repoName}/rulesets/{ruleset_id}";
             var result = await client.SendAsync(HttpMethod.Get, path, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeRulesetView, "id,name,target,enforcement,html_url"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeRulesetView, "id,name,target,enforcement,html_url"));
         }).ConfigureAwait(false);
 
     /// <summary>精简规则集详情 — 人类可读文本</summary>
@@ -424,17 +415,14 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhDiscussionList, "列出 Discussion(GraphQL)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhDiscussionListAsync(
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var first = Math.Min(limit ?? 30, 100);
             var graphql = BuildGraphQL($"query{{repository(owner:\"{owner}\",name:\"{repoName}\"){{discussions(first:{first}){{nodes{{number title author{{login}} category{{name}} createdAt}}}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeDiscussionList, "number,title,author,category,createdAt"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeDiscussionList, "number,title,author,category,createdAt"));
         }).ConfigureAwait(false);
 
     /// <summary>精简 Discussion 列表 — 表格格式(number, title, author, category)</summary>
@@ -458,16 +446,13 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhDiscussionView, "查看 Discussion 详情(GraphQL)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhDiscussionViewAsync(
         [McpToolParameter("Discussion 编号", Required = true)] int number,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var graphql = BuildGraphQL($"query{{repository(owner:\"{owner}\",name:\"{repoName}\"){{discussion(number:{number}){{number title body author{{login}} category{{name}} createdAt url}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeDiscussionView, "number,title,body,author,category,createdAt,url"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeDiscussionView, "number,title,body,author,category,createdAt,url"));
         }).ConfigureAwait(false);
 
     /// <summary>精简 Discussion 详情 — 人类可读文本</summary>

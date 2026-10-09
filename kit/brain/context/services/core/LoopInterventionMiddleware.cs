@@ -104,6 +104,9 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
             yield break;
 
         if (effectiveTriggerCount >= _options.CompactThreshold) {
+            var seizurePrompt = BuildToolQuotaSeizurePrompt();
+            if (!string.IsNullOrEmpty(seizurePrompt))
+                yield return ChatStreamEvent.Text(seizurePrompt);
             await foreach (var evt in CompactAsync(ct).ConfigureAwait(false))
                 yield return evt;
             yield break;
@@ -176,6 +179,10 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
         if (!retrySucceeded) {
             _logger?.LogWarning("[LoopInterventionMiddleware] 重连{Max}次后仍然循环，进入Level 3上下文压缩", _options.MaxRetryAttempts);
             yield return ChatStreamEvent.Text(_options.CompactPrompt);
+
+            var seizurePrompt = BuildToolQuotaSeizurePrompt();
+            if (!string.IsNullOrEmpty(seizurePrompt))
+                yield return ChatStreamEvent.Text(seizurePrompt);
 
             await foreach (var evt in CompactAsync(ct).ConfigureAwait(false))
                 yield return evt;
@@ -270,6 +277,18 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
 
     private int AdjustTriggerCountForProgress(int loopTriggerCount) {
         return Math.Max(1, loopTriggerCount - _options.ProgressDiscount);
+    }
+
+    /// <summary>
+    /// 构建工具配额没收提示 — Level 3 上下文压缩时，检查 ToolQuotaService 冷却中的高频工具并提示用户。
+    /// </summary>
+    /// <returns>没收提示词；无冷却工具时返回空字符串</returns>
+    private static string BuildToolQuotaSeizurePrompt() {
+        var coolingTools = ToolQuotaService.GetCoolingTools();
+        if (coolingTools.Count == 0)
+            return string.Empty;
+        var tools = string.Join("、", coolingTools);
+        return $"\n\n⚠️ 已没收高频工具的冷却期：{tools}。这些工具在冷却期内将被拒绝调用，请改用替代工具或调整策略。";
     }
 
     /// <summary>

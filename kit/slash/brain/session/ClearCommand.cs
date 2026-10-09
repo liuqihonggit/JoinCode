@@ -178,5 +178,8 @@ public sealed partial class ClearCommand : ChatCommandBase {
         var toolPermManager = GetService<JoinCode.Abstractions.Security.Permission.IToolPermissionManager>(context);
         if (toolPermManager is not null)
             await toolPermManager.ClearCacheAsync().ConfigureAwait(false);
+
+        // 21. 单工具频率配额 — /clear 重置全部工具调用记录和冷却状态
+        ToolQuotaService.Reset();
     }
 }

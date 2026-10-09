@@ -1459,6 +1459,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task RunDownload_Success_DownloadsArtifacts() {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"status":"completed","conclusion":"success"}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"artifacts":[{"name":"artifact1","id":123}]}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "" });
 

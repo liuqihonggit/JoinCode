@@ -511,22 +511,25 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (resolvedRunId is null)
+                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
             var path = "";
             var body = "{}";
             if (!string.IsNullOrWhiteSpace(job)) {
-                path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-jobs";
+                path = $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}/rerun-jobs";
                 var jobIds = GitHubRunLogFilter.ParseJobIds(job);
                 jobIds.RemoveAll(id => id <= 0);
                 body = JsonSerializer.Serialize(new RunRerunJobsRequest { JobIds = jobIds, EnableDebugLogging = debug == true ? true : null }, GitHubApiJsonContext.Safe.RunRerunJobsRequest);
             } else if (failed_only != false) {
-                path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun-failed-jobs";
+                path = $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}/rerun-failed-jobs";
                 body = debug == true ? """{"enable_debug_logging":true}""" : "{}";
             } else {
-                path = $"repos/{owner}/{repoName}/actions/runs/{run_id}/rerun";
+                path = $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}/rerun";
                 body = debug == true ? """{"enable_debug_logging":true}""" : "{}";
             }
             var result = await client.SendAsync(HttpMethod.Post, path, body, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已重跑 Run {run_id}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已重跑 Run {resolvedRunId}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -539,8 +542,11 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/runs/{run_id}/cancel", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已取消 Run {run_id}") : Fail(result.Error);
+            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (resolvedRunId is null)
+                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}/cancel", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已取消 Run {resolvedRunId}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -558,8 +564,12 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, (client, owner, repoName)
-            => GhRunWaitCoreAsync(client, owner, repoName, run_id, timeout_seconds, poll_interval_seconds, working_dir, cancellationToken, onProgress)).ConfigureAwait(false);
+        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (resolvedRunId is null)
+                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
+            return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId, timeout_seconds, poll_interval_seconds, working_dir, cancellationToken, onProgress).ConfigureAwait(false);
+        }).ConfigureAwait(false);
 
     /// <summary>
     /// GhRunWait 核心逻辑 — 指数退避轮询直到 completed,失败时下载日志到磁盘
@@ -658,7 +668,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var artifactsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}/artifacts", ct: cancellationToken).ConfigureAwait(false);
+            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (resolvedRunId is null)
+                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
+            var artifactsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}/artifacts", ct: cancellationToken).ConfigureAwait(false);
             if (!artifactsResult.Success) return Fail(artifactsResult.Error);
 
             List<(string artifactName, long artifactId)> artifacts;
@@ -674,7 +687,7 @@ public partial class GitHubToolHandlers {
                 }
             } catch (Exception ex) { return Fail($"解析 artifact 列表失败: {ex.Message}"); }
 
-            if (artifacts.Count == 0) return Fail($"Run {run_id} 没有匹配的 artifact{(string.IsNullOrWhiteSpace(name) ? "" : $" (name={name})")}");
+            if (artifacts.Count == 0) return Fail($"Run {resolvedRunId} 没有匹配的 artifact{(string.IsNullOrWhiteSpace(name) ? "" : $" (name={name})")}");
 
             _fs.CreateDirectory(dir);
 
@@ -710,7 +723,7 @@ public partial class GitHubToolHandlers {
             }
             sb.AppendLine();
             sb.Append($"汇总: {successCount} 成功, {failCount} 失败, 共 {artifacts.Count} 个 artifact");
-            return failCount == 0 ? Ok(sb.ToString(), $"Run {run_id} artifact 下载完成:") : Fail(sb.ToString());
+            return failCount == 0 ? Ok(sb.ToString(), $"Run {resolvedRunId} artifact 下载完成:") : Fail(sb.ToString());
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -734,8 +747,11 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
-            var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已删除 Run {run_id}") : Fail(result.Error);
+            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (resolvedRunId is null)
+                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
+            var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已删除 Run {resolvedRunId}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -752,12 +768,15 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+            var resolvedRunId = await ResolveRunIdAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+            if (resolvedRunId is null)
+                return Fail($"Run '{run_id}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列");
             var intervalSec = interval is > 0 ? interval.Value : 3;
             var sb = new StringBuilder(512);
             string? finalStatus = null;
             string? finalConclusion = null;
             while (true) {
-                var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
+                var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
                 if (!result.Success) return Fail(result.Error);
                 try {
                     var run = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.RunDetailResponse);
@@ -773,6 +792,6 @@ public partial class GitHubToolHandlers {
             }
             var failed = finalConclusion == "failure";
             if (failed && exit_status == true) return Fail(sb.ToString());
-            return Ok(sb.ToString(), $"Run {run_id} 已完成: {finalConclusion}");
+            return Ok(sb.ToString(), $"Run {resolvedRunId} 已完成: {finalConclusion}");
         }).ConfigureAwait(false);
 }

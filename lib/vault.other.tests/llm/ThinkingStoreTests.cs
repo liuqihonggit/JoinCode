@@ -1,5 +1,7 @@
 // 测试使用真实文件系统创建临时工作目录
 #pragma warning disable JCC9001, JCC9002
+// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
+#pragma warning disable JCC11003
 namespace Core.Tests.LLM;
 
 public sealed class ThinkingStoreTests {

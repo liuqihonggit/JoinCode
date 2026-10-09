@@ -1,4 +1,6 @@
 #pragma warning disable JCC3010, JCC3011, JCC3012
+// JCC9203 抑制: 存量释放超时, 后续异步化改造
+#pragma warning disable JCC9203
 namespace Core.Tests.Memdir;
 
 /// <summary>

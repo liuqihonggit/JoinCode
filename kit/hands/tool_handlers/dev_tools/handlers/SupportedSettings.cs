@@ -1,3 +1,5 @@
+// JCC11004 抑制: 存量返回 null 集合, 后续改为空集合
+#pragma warning disable JCC11004
 namespace Core.Configuration;
 
 /// <summary>

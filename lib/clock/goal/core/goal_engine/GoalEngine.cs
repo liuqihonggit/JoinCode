@@ -1,3 +1,6 @@
+// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
+// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
+#pragma warning disable JCC11003, JCC11005
 namespace Core.Goal;
 
 

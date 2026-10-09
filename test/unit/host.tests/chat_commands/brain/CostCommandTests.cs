@@ -1,4 +1,7 @@
 
+// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
+// JCC9203 抑制: 存量释放超时, 后续异步化改造
+#pragma warning disable JCC11003, JCC9203
 namespace Core.Tests.Commands;
 
 public class CostCommandTests : IDisposable {

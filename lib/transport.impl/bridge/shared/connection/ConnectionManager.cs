@@ -1,3 +1,5 @@
+// JCC9203 抑制: 存量释放函数超时, 后续异步化改造
+#pragma warning disable JCC9203
 namespace JoinCode.Transport.Bridge;
 
 // TransportProtocol, TransportConnectionState 已迁移到 JoinCode.Transport.Bridge 命名空间 (Transport.Contracts)

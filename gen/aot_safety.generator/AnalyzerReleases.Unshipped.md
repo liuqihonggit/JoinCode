@@ -16,3 +16,9 @@ New Diagnostics:
 - JCC9303: 非托管资源: IntPtr/UIntPtr字段应改用SafeHandle模式。
 - JCC9304: 释放顺序: base.Dispose()必须在Dispose方法体最后位置。
 - JCC1009: 卫语句: if 嵌套超过2层（3层及以上），建议卫语句扁平化。
+- JCC11003: 可空性: 禁止 null-forgiving 运算符 !，0 容忍策略，例外用 #pragma 显式声明。
+- JCC10009: 代码规范: 禁止元组做字典 key，改用字符串 key + record value。
+- JCC11004: 可空性: 公开 API 禁止返回 null 集合，必须返回空集合。
+- JCC9203: 释放一致性: 释放函数内禁止超时/阻塞等待(.Wait/.WaitAsync/Thread.Join/Task.WhenAny+Delay/GetAwaiter().GetResult)。
+- JCC1017: AOT/JSON: 禁止手写 JSON 字符串拼接(StringBuilder/$"{}"/EscapeJsonString), 必须用 DTO+JsonContext。
+- JCC11005: 可空性: 公开 API 返回 T? 且有 return null 建议改用 TryGet 模式, 粗筛检测(非集合/非Try开头/无out参数)。

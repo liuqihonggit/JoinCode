@@ -2,6 +2,8 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using System.Collections.Immutable;
 
+// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
+#pragma warning disable JCC11003
 namespace JccAuditCli.Tests;
 
 /// <summary>

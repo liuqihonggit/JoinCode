@@ -1,3 +1,5 @@
+// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
+#pragma warning disable JCC11003
 namespace Hands.Tests.Shell;
 /// <summary>
 /// BashDefense 链手动验证 — 实际执行 bash 命令验证防御链行为（非 mock）

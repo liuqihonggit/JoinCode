@@ -1,3 +1,5 @@
+// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
+#pragma warning disable JCC11003
 namespace Abs.Tests.Utils;
 /// <summary>
 /// TempFileScope 单元测试 — 验证临时文件路径预留与 Dispose 自动删除（含幂等、文件不存在不抛）

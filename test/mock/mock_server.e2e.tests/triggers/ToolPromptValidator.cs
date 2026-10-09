@@ -1,4 +1,6 @@
 
+// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
+#pragma warning disable JCC11005
 namespace MockServer.E2E.Tests.Triggers;
 
 /// <summary>

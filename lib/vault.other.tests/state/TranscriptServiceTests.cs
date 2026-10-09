@@ -1,4 +1,6 @@
 #pragma warning disable JCC3010, JCC3011, JCC3012
+// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
+#pragma warning disable JCC11003
 namespace State.Tests;
 
 public sealed class TranscriptServiceTests : IDisposable {

@@ -1,3 +1,6 @@
+// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
+// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
+#pragma warning disable JCC1017, JCC11005
 namespace Mcp.MockServer.Engine;
 
 

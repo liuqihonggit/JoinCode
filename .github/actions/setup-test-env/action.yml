@@ -1,11 +1,15 @@
 name: 'Setup Test Environment'
-description: 'Setup .NET SDK, cache NuGet, download build output, set UTF-8 encoding (requires checkout before use)'
+description: 'Setup .NET SDK, cache NuGet, download NuGet packages, set local feed, set UTF-8 encoding (requires checkout before use)'
 
 inputs:
-  build-artifact-name:
-    description: 'Name of the build artifact to download'
+  nuget-artifact-name:
+    description: 'Name of the NuGet packages artifact to download'
     required: false
-    default: 'build-output'
+    default: 'nuget-packages'
+  build-e2e-exes:
+    description: 'Build MockServer exes needed by E2E tests'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -23,11 +27,26 @@ runs:
         restore-keys: |
           nuget-${{ runner.os }}-
 
-    - name: Download Build Output
+    - name: Download NuGet Packages
       uses: actions/download-artifact@v8
       with:
-        name: ${{ inputs.build-artifact-name }}
-        path: artifacts/bin/
+        name: ${{ inputs.nuget-artifact-name }}
+        path: artifacts/nuget/
+
+    - name: Add Local NuGet Feed
+      shell: pwsh
+      run: |
+        $feedPath = Join-Path $env:GITHUB_WORKSPACE "artifacts" "nuget"
+        $nugetConfig = Join-Path $env:GITHUB_WORKSPACE "nuget.config"
+        [xml]$config = Get-Content $nugetConfig
+        $sources = $config.configuration.packageSources
+        $existing = $sources.SelectSingleNode("add[@key='local-feed']")
+        if ($existing) { $sources.RemoveChild($existing) }
+        $add = $config.CreateElement("add")
+        $add.SetAttribute("key", "local-feed")
+        $add.SetAttribute("value", $feedPath)
+        $sources.AppendChild($add)
+        $config.Save($nugetConfig)
 
     - name: Set Console Encoding to UTF-8
       shell: pwsh
@@ -35,3 +54,13 @@ runs:
         chcp 65001
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+
+    - name: Build MockServer Exes (for E2E)
+      if: inputs.build-e2e-exes == 'true'
+      shell: pwsh
+      run: |
+        $props = "/p:UsePackedComponents=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none"
+        dotnet build test/mock/open_ai.mock_server/OpenAI.MockServer.csproj -c Debug --nologo $props
+        dotnet build test/mock/anthropic.mock_server/Anthropic.MockServer.csproj -c Debug --nologo $props
+        dotnet build test/mock/deep_seek.mock_server/DeepSeek.MockServer.csproj -c Debug --nologo $props
+        dotnet build test/mock/mcp.mock_server/Mcp.MockServer.csproj -c Debug --nologo $props

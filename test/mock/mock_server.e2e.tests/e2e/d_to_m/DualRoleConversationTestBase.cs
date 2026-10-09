@@ -55,6 +55,10 @@ public abstract class DualRoleConversationTestBase : IAsyncLifetime {
                     continue;
                 }
                 throw new TimeoutException($"[GEN036] 测试超时(>60s): {script.Name}");
+            } catch (OperationCanceledException) when (!timeoutCts.IsCancellationRequested && attempt < maxAttempts) {
+                Output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试被内层取消(如MockServer就绪超时)，自动重试: {script.Name}");
+                await Task.Delay(RetryInterval).ConfigureAwait(true);
+                continue;
             } finally {
                 await runner.DisposeAsync().ConfigureAwait(true);
             }
@@ -94,6 +98,10 @@ public abstract class DualRoleConversationTestBase : IAsyncLifetime {
                     continue;
                 }
                 throw new TimeoutException($"[GEN037] 测试超时(>60s): {script.Name}");
+            } catch (OperationCanceledException) when (!timeoutCts.IsCancellationRequested && attempt < maxAttempts) {
+                Output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试被内层取消(如MockServer就绪超时)，自动重试: {script.Name}");
+                await Task.Delay(RetryInterval).ConfigureAwait(true);
+                continue;
             } finally {
                 await runner.DisposeAsync().ConfigureAwait(true);
             }

@@ -1,7 +1,9 @@
-name: CI Build
+name: CI Nightly Build
 
 on:
-  workflow_call:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
@@ -9,11 +11,10 @@ env:
   NUGET_XMLDOC_MODE: skip
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
   Configuration: Debug
-  JCC_API_TIMEOUT_MS: 30000
 
 jobs:
   build:
-    name: Build
+    name: Nightly Build + Pack
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -60,10 +61,3 @@ jobs:
           -c Debug --no-build --nologo
           -o ${{ github.workspace }}/artifacts/nuget
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-
-      - name: Upload NuGet Packages
-        uses: actions/upload-artifact@v7
-        with:
-          name: nuget-packages
-          path: artifacts/nuget/**/*.nupkg
-          retention-days: 1

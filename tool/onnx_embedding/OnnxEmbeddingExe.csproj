@@ -5,6 +5,8 @@
     <AssemblyName>OnnxEmbedding</AssemblyName>
     <Description>ONNX 嵌入类库 — 量化模型推理，AOT 兼容</Description>
     <NoWarn>$(NoWarn);JCC9001;JCC1011;IL2026;IL3050</NoWarn>
+    <AllowPack>true</AllowPack>
+    <Version>$(JccComponentPackageVersion)</Version>
   </PropertyGroup>
 
   <ItemGroup>

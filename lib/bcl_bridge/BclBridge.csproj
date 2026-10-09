@@ -3,6 +3,7 @@
   <PropertyGroup>
     <ProjectType>library</ProjectType>
     <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+    <AllowPack>true</AllowPack>
   </PropertyGroup>
 
   <ItemGroup>

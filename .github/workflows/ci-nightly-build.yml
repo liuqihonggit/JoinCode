@@ -1,0 +1,63 @@
+name: CI Nightly Build
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  Configuration: Debug
+
+jobs:
+  build:
+    name: Nightly Build + Pack
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: 'global.json'
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Cache Component NuGet Packages (incremental build)
+        id: component-cache
+        uses: actions/cache@v5
+        with:
+          path: artifacts/nuget
+          key: component-pkgs-${{ runner.os }}-${{ hashFiles('lib/**/*.cs', 'lib/**/*.csproj', 'gen/**/*.cs', 'gen/**/*.csproj', 'llm/**/*.cs', 'llm/**/*.csproj', 'server/**/*.cs', 'server/**/*.csproj', 'kit/**/*.cs', 'kit/**/*.csproj', 'tool/**/*.cs', 'tool/**/*.csproj', 'Directory.Build.props', 'Directory.Build.targets', 'global.json', 'build/sln/JoinCode.slnx') }}
+
+      - name: Restore
+        if: steps.component-cache.outputs.cache-hit != 'true'
+        run: dotnet restore build/sln/JoinCode.slnx --nologo
+
+      - name: Build (all)
+        if: steps.component-cache.outputs.cache-hit != 'true'
+        run: >
+          dotnet build build/sln/JoinCode.slnx
+          -c Debug --no-restore --nologo -m
+          /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
+
+      - name: Pack (components → NuGet)
+        if: steps.component-cache.outputs.cache-hit != 'true'
+        run: >
+          dotnet pack build/sln/JoinCode.slnx
+          -c Debug --no-build --nologo
+          -o ${{ github.workspace }}/artifacts/nuget
+          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none

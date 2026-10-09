@@ -948,15 +948,15 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         _mcpMockServerProcess.BeginOutputReadLine();
         _mcpMockServerProcess.BeginErrorReadLine();
 
-        // 等待 Mcp.MockServer 就绪（最多 15 秒）
+        // 等待 Mcp.MockServer 就绪（最多 30 秒，CI 环境较慢）
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(15));
+        cts.CancelAfter(TimeSpan.FromSeconds(30));
 
         try {
             await readyTcs.Task.WaitAsync(cts.Token).ConfigureAwait(true);
             _logger.LogInformation("[DualRoleRunner] Mcp.MockServer 就绪, 端口: {Port}", port);
         } catch (TimeoutException) {
-            throw new InvalidOperationException("[GEN030] [E2E009] 等待 Mcp.MockServer 就绪超时（15s）");
+            throw new InvalidOperationException("[GEN030] [E2E009] 等待 Mcp.MockServer 就绪超时（30s）");
         }
     }
 

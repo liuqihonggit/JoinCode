@@ -113,14 +113,26 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 统一三档输出格式化 — json_fields 优先 > verbosity=2 完整JSON > verbosity=1 精简JSON > 默认 Summarizer
     /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON</para>
+    /// <para>GAP-038-03: verbosity 为 null 时读 JCC_OUTPUT_FORMAT 环境变量作默认值(gh_style/compact_json/full_json)</para>
     /// </summary>
     internal static string FormatGhOutput(string body, int? verbosity, string? json_fields, Func<string, string> summarize, string? compactFields = null) {
         if (!string.IsNullOrEmpty(json_fields)) return FilterJsonFields(body, json_fields);
-        return verbosity switch {
+        var effectiveVerbosity = verbosity ?? GetVerbosityFromEnv();
+        return effectiveVerbosity switch {
             2 => body,
             1 => FilterJsonFields(body, compactFields ?? "id,number,title,state,name"),
             _ => summarize(body)
         };
+    }
+
+    /// <summary>
+    /// 从 JCC_OUTPUT_FORMAT 环境变量读取默认 verbosity — gh_style/未设置=0, compact_json=1, full_json=2
+    /// </summary>
+    private static int GetVerbosityFromEnv() {
+        var env = Environment.GetEnvironmentVariable("JCC_OUTPUT_FORMAT");
+        if (string.Equals(env, "compact_json", StringComparison.OrdinalIgnoreCase)) return 1;
+        if (string.Equals(env, "full_json", StringComparison.OrdinalIgnoreCase)) return 2;
+        return 0;
     }
 
     /// <summary>

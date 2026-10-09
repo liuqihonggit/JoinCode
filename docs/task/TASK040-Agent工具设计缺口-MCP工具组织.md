@@ -68,14 +68,18 @@
 
 ## 扩充情景模式（2026-10-09）
 
-除 desktop 外，新增 3 个情景模式（仅需加 `[Scenario]` 特性，生成器自动收集）：
+除 desktop 外，新增 7 个情景模式（仅需加 `[Scenario]` 特性，生成器自动收集），共 8 个：
 
 | 情景模式 | handler | 工具集 |
 |----------|---------|--------|
+| build | BuildOutputToolHandlers | build_queue_status/build_cancel |
 | desktop | DesktopSceneMenuToolHandlers | look/zoom/detect/click/type/drag |
-| window | WindowManagementToolHandlers | list_windows/focus_window/move_window/close_window/screenshot |
-| process | ProcessToolHandlers | list_processes/start_process/wait_for_idle/kill_process |
+| environment | EnvironmentToolHandlers | get_environment_state/wait_for_idle/undo_last_action/get_operation_history |
+| error_fix | ErrorRecoveryToolHandlers | diagnose_error/fix_file_error/fix_shell_error/fix_merge_conflict |
 | macro | MacroToolHandlers | start_recording/stop_recording/play_macro/list_macros |
+| observation | ObservationToolHandlers | start_observation/learn_from_observation/optimize_steps/reproduce_from_logic |
+| process | ProcessToolHandlers | list_processes/start_process/wait_for_idle/kill_process |
+| window | WindowManagementToolHandlers | list_windows/focus_window/move_window/close_window/screenshot |
 
 ## 关联
 

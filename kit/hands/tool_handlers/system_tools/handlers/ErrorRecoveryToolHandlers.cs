@@ -6,6 +6,10 @@ namespace Tools.Handlers;
 /// GroupName 匹配失败工具名，实现精准修复推荐
 /// </summary>
 [McpToolDispatch(ToolCategory.ErrorRecovery, Kind = ToolKind.OnError)]
+[Scenario("error_fix", "错误修复场景：诊断错误根因并修复文件/Shell/合并冲突。",
+    Tools = new[] { "diagnose_error", "fix_file_error", "fix_shell_error", "fix_merge_conflict" },
+    SuggestedFlow = "diagnose_error → (fix_file_error / fix_shell_error / fix_merge_conflict)",
+    Tips = "先 diagnose_error 定位根因，按错误类型选对应 fix 工具。这些工具仅在出错时动态注入。")]
 public class ErrorRecoveryToolHandlers {
     private readonly IFileSystem _fs;
     private readonly IGitCommandRunner _gitRunner;

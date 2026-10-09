@@ -7,6 +7,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
     private const string ToolAttributeFullName = "JoinCode.Abstractions.Attributes.McpToolAttribute";
     private const string ParamAttributeFullName = "JoinCode.Abstractions.Attributes.McpToolParameterAttribute";
     private const string OptionsAttributeFullName = "JoinCode.Abstractions.Attributes.McpToolOptionsAttribute";
+    private const string WellKnownParamEnumFullName = "JoinCode.Abstractions.Utils.WellKnownParam";
+    private const string ParamMetaAttrFullName = "JoinCode.Abstractions.Attributes.ParamMetaAttribute";
 
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         var handlerTypes = context.CompilationProvider
@@ -20,11 +22,13 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
                 var toolAttr = compilation.GetTypeByMetadataName(ToolAttributeFullName);
                 var paramAttr = compilation.GetTypeByMetadataName(ParamAttributeFullName);
                 var optionsAttr = compilation.GetTypeByMetadataName(OptionsAttributeFullName);
+                var wellKnownParamEnum = compilation.GetTypeByMetadataName(WellKnownParamEnumFullName);
+                var paramMetaAttr = compilation.GetTypeByMetadataName(ParamMetaAttrFullName);
                 if (handlerAttr is null)
                     return ImmutableArray<HandlerInfo>.Empty;
 
                 var results = new List<HandlerInfo>();
-                VisitNamespaces(compilation, compilation.GlobalNamespace, handlerAttr, toolAttr, paramAttr, optionsAttr, results);
+                VisitNamespaces(compilation, compilation.GlobalNamespace, handlerAttr, toolAttr, paramAttr, optionsAttr, wellKnownParamEnum, paramMetaAttr, results);
                 return results.ToImmutableArray();
             })
             .Collect());
@@ -43,10 +47,12 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
         INamedTypeSymbol? toolAttr,
         INamedTypeSymbol? paramAttr,
         INamedTypeSymbol? optionsAttr,
+        INamedTypeSymbol? wellKnownParamEnum,
+        INamedTypeSymbol? paramMetaAttr,
         List<HandlerInfo> results) {
         foreach (var member in namespaceSymbol.GetMembers()) {
             if (member is INamespaceSymbol childNamespace)
-                VisitNamespaces(compilation, childNamespace, handlerAttr, toolAttr, paramAttr, optionsAttr, results);
+                VisitNamespaces(compilation, childNamespace, handlerAttr, toolAttr, paramAttr, optionsAttr, wellKnownParamEnum, paramMetaAttr, results);
             else if (member is INamedTypeSymbol typeSymbol) {
                 var attribute = typeSymbol.GetAttributes()
                     .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, handlerAttr));
@@ -128,6 +134,14 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
                                             var propDefault = (string?)null;
                                             var propEnum = (string[]?)null;
 
+                                            var propWellKnownMeta = TryGetWellKnownParamMeta(wellKnownParamEnum, paramMetaAttr, propAttrInstance);
+                                            if (propWellKnownMeta is { } wkMeta) {
+                                                propDesc = wkMeta.Description;
+                                                propRequired = wkMeta.Required;
+                                                if (wkMeta.DefaultValue is not null)
+                                                    propDefault = wkMeta.DefaultValue;
+                                            }
+
                                             foreach (var named in propAttrInstance.NamedArguments) {
                                                 if (named.Key == "Required" && named.Value.Value is bool r)
                                                     propRequired = r;
@@ -164,6 +178,14 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
                                     var paramEnum = (string[]?)null;
 
                                     if (paramAttrInstance is not null) {
+                                        var paramWellKnownMeta = TryGetWellKnownParamMeta(wellKnownParamEnum, paramMetaAttr, paramAttrInstance);
+                                        if (paramWellKnownMeta is { } wkMeta) {
+                                            paramDesc = wkMeta.Description;
+                                            paramRequired = wkMeta.Required;
+                                            if (wkMeta.DefaultValue is not null)
+                                                paramDefault = wkMeta.DefaultValue;
+                                        }
+
                                         foreach (var named in paramAttrInstance.NamedArguments) {
                                             if (named.Key == "Required" && named.Value.Value is bool r)
                                                 paramRequired = r;
@@ -218,6 +240,65 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
     private static bool IsCancellationToken(string typeName)
         => typeName == "System.Threading.CancellationToken"
         || typeName == "global::System.Threading.CancellationToken";
+
+    /// <summary>
+    /// 从 [McpToolParameter] 特性实例中检测 WellKnownParam 枚举值，
+    /// 查找对应的 [ParamMeta] 描述/必填/默认值。
+    /// </summary>
+    private static (string Description, bool Required, string? DefaultValue)? TryGetWellKnownParamMeta(
+        INamedTypeSymbol? wellKnownParamEnum,
+        INamedTypeSymbol? paramMetaAttr,
+        AttributeData paramAttrInstance) {
+        if (wellKnownParamEnum is null || paramMetaAttr is null)
+            return null;
+
+        int? enumValue = null;
+
+        if (paramAttrInstance.ConstructorArguments.Length > 0) {
+            var arg = paramAttrInstance.ConstructorArguments[0];
+            if (arg.Type is not null && SymbolEqualityComparer.Default.Equals(arg.Type, wellKnownParamEnum) && arg.Value is int ev)
+                enumValue = ev;
+        }
+
+        if (enumValue is null) {
+            foreach (var named in paramAttrInstance.NamedArguments) {
+                if (named.Key == "WellKnown" && named.Value.Type is not null && SymbolEqualityComparer.Default.Equals(named.Value.Type, wellKnownParamEnum) && named.Value.Value is int ev2) {
+                    enumValue = ev2;
+                    break;
+                }
+            }
+        }
+
+        if (enumValue is not int targetValue)
+            return null;
+
+        foreach (var member in wellKnownParamEnum.GetMembers()) {
+            if (member is not IFieldSymbol field || !field.HasConstantValue)
+                continue;
+            if ((int)field.ConstantValue != targetValue)
+                continue;
+
+            var metaAttr = field.GetAttributes()
+                .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, paramMetaAttr));
+            if (metaAttr is null || metaAttr.ConstructorArguments.Length == 0)
+                return null;
+
+            var desc = metaAttr.ConstructorArguments[0].Value as string;
+            if (desc is null)
+                return null;
+
+            var required = true;
+            string? defaultValue = null;
+            foreach (var named in metaAttr.NamedArguments) {
+                if (named.Key == "Required" && named.Value.Value is bool r)
+                    required = r;
+                else if (named.Key == "DefaultValue" && named.Value.Value is string dv)
+                    defaultValue = dv;
+            }
+            return (desc, required, defaultValue);
+        }
+        return null;
+    }
 
     /// <summary>
     /// 检测工具处理组的超时策略 — 遍历基类链查找 OneShotCommandGroup / LongRunningGroup

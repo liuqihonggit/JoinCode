@@ -56,7 +56,7 @@ per-command 映射（按工具名 + 短字母）：
 | gh_pr_create | `-b` | body | |
 | gh_pr_create | `-F` | body_file | |
 | gh_pr_create | `-B` | base | |
-| gh_pr_create | `-H` | head | |
+| gh_pr_create | `-H` | head | 可选，缺省时自动推断当前 git 分支 |
 | gh_pr_create | `-d` | draft | |
 | gh_pr_create | `-l` | label | |
 | gh_pr_create | `-A` | assignee | |

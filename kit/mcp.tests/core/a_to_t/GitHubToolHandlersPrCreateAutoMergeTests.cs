@@ -124,4 +124,40 @@ public sealed partial class GitHubToolHandlersTests {
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("[fill]");
     }
+
+    [Fact]
+    public async Task PrCreate_HeadNull_AutoInfersCurrentBranch() {
+        var git = new FakeGitCommandRunner { NextSuccess = true, NextOutput = "w2\n" };
+        var handler = CreateHandlerWithGitAndApi(git, _api);
+        _api.NextResponse = new GitHubApiResponse {
+            Success = true, StatusCode = 201,
+            Body = """{"number":50,"title":"feat","state":"open","html_url":"https://github.com/o/r/pull/50"}""",
+        };
+
+        var result = await handler.GhPrCreateAsync("feat", head: null, @base: "main", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        git.ExecutedCommands.Should().ContainMatch("*rev-parse --abbrev-ref HEAD*");
+        _api.LastBody.Should().Contain("\"head\":\"w2\"");
+    }
+
+    [Fact]
+    public async Task PrCreate_HeadNull_GitNotConfigured_ReturnsErrorWithGuidance() {
+        var result = await _handler.GhPrCreateAsync("feat", head: null, @base: "main", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("--head");
+        result.GetFirstText().Should().Contain("分支名");
+    }
+
+    [Fact]
+    public async Task PrCreate_HeadNull_GitFails_ReturnsErrorWithGuidance() {
+        var git = new FakeGitCommandRunner { NextSuccess = false, NextOutput = "" };
+        var handler = CreateHandlerWithGitAndApi(git, _api);
+
+        var result = await handler.GhPrCreateAsync("feat", head: null, @base: "main", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("--head");
+    }
 }

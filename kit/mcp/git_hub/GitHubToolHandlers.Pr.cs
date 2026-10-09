@@ -13,14 +13,11 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhPrView, "查看 PR 详情(号/标题/状态/URL/body/变更统计)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrViewAsync(
         [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
+        [McpToolOptions] GitHubCommonOptions common,
         [McpToolParameter("comments=true 附带评论列表", Required = false)] bool? comments = null,
         [McpToolParameter("web=true 只返回 PR 浏览器 URL", Required = false)] bool? web = null,
-        [McpToolParameter("JSON 字段过滤(可选,逗号分隔,如 number,title,state)", Required = false)] string? json_fields = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common.Repo, common.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
             var apiPath = $"repos/{owner}/{repoName}/pulls/{number}";
             if (web == true) {
@@ -32,14 +29,14 @@ public partial class GitHubToolHandlers {
             if (comments == true) {
                 var prResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
                 if (!prResult.Success) return Fail(prResult.Error);
-                var summary = FormatGhOutput(prResult.Body, verbosity, json_fields, SummarizePr, "number,title,state,head_branch,user,html_url");
+                var summary = FormatGhOutput(prResult.Body, common.Verbosity, common.JsonFields, SummarizePr, "number,title,state,head_branch,user,html_url");
                 var commentsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues/{number}/comments", ct: cancellationToken).ConfigureAwait(false);
                 if (!commentsResult.Success) return Fail(commentsResult.Error);
                 return Ok($"{summary}\n\n## 评论\n{SummarizeComments(commentsResult.Body)}");
             }
-            if (!string.IsNullOrEmpty(json_fields) && json_fields.Contains("statusCheckRollup", StringComparison.OrdinalIgnoreCase))
-                return await GetPrViewWithRollupAsync(client, owner, repoName, number, json_fields, cancellationToken).ConfigureAwait(false);
-            return await GetOrFetchWithCacheAsync(client, apiPath, verbosity, json_fields, SummarizePr, "number,title,state,head_branch,user,html_url", cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(common.JsonFields) && common.JsonFields.Contains("statusCheckRollup", StringComparison.OrdinalIgnoreCase))
+                return await GetPrViewWithRollupAsync(client, owner, repoName, number, common.JsonFields, cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, apiPath, common.Verbosity, common.JsonFields, SummarizePr, "number,title,state,head_branch,user,html_url", cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>

@@ -9,7 +9,8 @@ namespace JoinCode.CliCommands;
 /// <param name="Name">参数名（工具 schema 的 property 名）。</param>
 /// <param name="IsRequired">是否必填（来自 schema 的 required 数组）。</param>
 /// <param name="IsBoolean">schema 中 type 是否为 boolean，决定是否支持无值 flag 形式。</param>
-internal sealed record GhParam(string Name, bool IsRequired, bool IsBoolean);
+/// <param name="TypeHint">参数类型提示（integer/string/boolean/array/object），用于错误文案展示参数类型。</param>
+internal sealed record GhParam(string Name, bool IsRequired, bool IsBoolean, string TypeHint = "string");
 
 /// <summary>
 /// gh 子命令的工具名解析结果。
@@ -210,15 +211,18 @@ internal static class GhParamSchemaParser {
         var result = new List<GhParam>(schema.Properties.Count);
         var requiredSet = new HashSet<string>(schema.Required, StringComparer.Ordinal);
         foreach (var required in schema.Required) {
-            var isBoolean = schema.Properties.TryGetValue(required, out var prop)
-                && string.Equals(prop.Type, "boolean", StringComparison.OrdinalIgnoreCase);
-            result.Add(new GhParam(required, IsRequired: true, IsBoolean: isBoolean));
+            schema.Properties.TryGetValue(required, out var prop);
+            var typeHint = prop?.Type ?? "string";
+            var isBoolean = string.Equals(typeHint, "boolean", StringComparison.OrdinalIgnoreCase);
+            result.Add(new GhParam(required, IsRequired: true, IsBoolean: isBoolean, TypeHint: typeHint));
         }
         foreach (var (name, prop) in schema.Properties) {
             if (requiredSet.Contains(name))
                 continue;
+            var typeHint = prop.Type ?? "string";
             result.Add(new GhParam(name, IsRequired: false,
-                IsBoolean: string.Equals(prop.Type, "boolean", StringComparison.OrdinalIgnoreCase)));
+                IsBoolean: string.Equals(typeHint, "boolean", StringComparison.OrdinalIgnoreCase),
+                TypeHint: typeHint));
         }
         return result;
     }
@@ -310,7 +314,7 @@ internal static class GhArgsBinder {
             }
 
             if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) {
-                error = $"{CliErrorCatalog.ArgMissingRequired($"--{key} 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值> 或 --{key}=<值>";
+                error = $"{CliErrorCatalog.ArgMissingRequired($"--{key}({param.TypeHint}) 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值> 或 --{key}=<值>";
                 return null;
             }
 
@@ -320,7 +324,7 @@ internal static class GhArgsBinder {
 
         var missing = slots.FirstOrDefault(s => s.IsRequired && !result.ContainsKey(s.Name));
         if (missing is not null) {
-            error = MissingPositionalError(toolName, missing.Name, slots);
+            error = MissingPositionalError(toolName, missing, slots);
             return null;
         }
 
@@ -718,16 +722,16 @@ internal static class GhArgsBinder {
         => CliErrorCatalog.ArgParseError($"参数重复指定: {name}（位置参数与 --{name} 只能二选一）").ToRustStyleString($"--{name}");
 
     private static string UnknownOptionError(string key, IReadOnlyList<GhParam> parameters) {
-        var names = string.Join(", ", parameters.Select(p => $"--{p.Name}"));
+        var names = string.Join(", ", parameters.Select(p => $"--{p.Name}({p.TypeHint})"));
         var hint = $"可用选项: {names}";
         if (SuggestOption(key, parameters) is { } suggestion)
             hint += $"\n你是不是想用 --{suggestion}?";
         return $"{CliErrorCatalog.ArgUnknownOption($"--{key}").ToRustStyleString($"--{key}")}\n{hint}";
     }
 
-    private static string MissingPositionalError(string toolName, string missingName, IReadOnlyList<GhParam> slots) {
-        var positionalHint = string.Join(' ', slots.Select(s => $"<{s.Name}>"));
-        return $"{CliErrorCatalog.ArgMissingRequired(missingName).ToRustStyleString(toolName)}\n用法: {positionalHint}（示例见 jcc gh --help）";
+    private static string MissingPositionalError(string toolName, GhParam missing, IReadOnlyList<GhParam> slots) {
+        var positionalHint = string.Join(' ', slots.Select(s => $"<{s.Name}({s.TypeHint})>"));
+        return $"{CliErrorCatalog.ArgMissingRequired($"{missing.Name} (类型: {missing.TypeHint})").ToRustStyleString(toolName)}\n用法: {positionalHint}（示例见 jcc gh --help）";
     }
 
     /// <summary>

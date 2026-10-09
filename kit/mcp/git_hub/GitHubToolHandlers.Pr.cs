@@ -81,12 +81,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("源分支过滤(可选)", Required = false)] string? head = null,
         [McpToolParameter("是否 draft PR(可选)", Required = false)] bool? draft = null,
         [McpToolParameter("搜索查询(可选,GitHub search 语法)", Required = false)] string? search = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var pageCount = (limit ?? 30).ToString();
             var stateVal = string.IsNullOrWhiteSpace(state) ? "open" : state;
             var needSearch = NeedSearchApi(label, assignee, draft, search, author);
@@ -96,14 +93,14 @@ public partial class GitHubToolHandlers {
                 var query = new Dictionary<string, string> { ["q"] = q, ["per_page"] = pageCount };
                 var result = await client.SendAsync(HttpMethod.Get, "search/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
                 if (!result.Success) return Fail(result.Error);
-                return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizePrList, compactFields));
+                return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizePrList, compactFields));
             }
             var pullsQuery = new Dictionary<string, string> { ["state"] = stateVal, ["per_page"] = pageCount };
             if (!string.IsNullOrWhiteSpace(@base)) pullsQuery["base"] = @base;
             if (!string.IsNullOrWhiteSpace(head)) pullsQuery["head"] = head;
             var pullsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls", query: pullsQuery, ct: cancellationToken).ConfigureAwait(false);
             if (!pullsResult.Success) return Fail(pullsResult.Error);
-            return Ok(FormatGhOutput(pullsResult.Body, verbosity, json_fields, SummarizePrList, compactFields));
+            return Ok(FormatGhOutput(pullsResult.Body, common?.Verbosity, common?.JsonFields, SummarizePrList, compactFields));
         }).ConfigureAwait(false);
 
     /// <summary>

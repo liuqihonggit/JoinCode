@@ -11,400 +11,246 @@ env:
   Configuration: Debug
 
 jobs:
-  e2e-conversation-a:
-    name: E2E - Conversation A
+  e2e-conversations:
+    name: E2E - Conversations
     runs-on: windows-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
-
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true
       - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~DualRoleConversationTestsA"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-conversation-a.trx"
+        shell: pwsh
+        run: |
+          $tests = @(
+            @{Name="conv-a"; Filter="FullyQualifiedName~DualRoleConversationTestsA"},
+            @{Name="conv-b"; Filter="FullyQualifiedName~DualRoleConversationTestsB"}
+          )
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
+              & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
+                -c Debug --nologo `
+                /p:UsePackedComponents=true `
+                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
+                --filter $filter `
+                --logger "console;verbosity=normal" `
+                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
+              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-results-conversation-a
-          path: '**/e2e-conversation-a.trx'
+          name: e2e-results-conversations
+          path: '**/*.trx'
           retention-days: 7
 
-  e2e-conversation-b:
-    name: E2E - Conversation B
+  e2e-provider-cluster:
+    name: E2E - Provider + Cluster
     runs-on: windows-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
-
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true
       - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~DualRoleConversationTestsB"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-conversation-b.trx"
+        shell: pwsh
+        run: |
+          $tests = @(
+            @{Name="multi-provider"; Filter="FullyQualifiedName~MultiProviderE2ETests|FullyQualifiedName~AnthropicDeepCoverageE2ETests|FullyQualifiedName~ConcurrentRequestE2ETests"},
+            @{Name="cluster"; Filter="FullyQualifiedName~ClusterE2ETests"}
+          )
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
+              & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
+                -c Debug --nologo `
+                /p:UsePackedComponents=true `
+                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
+                --filter $filter `
+                --logger "console;verbosity=normal" `
+                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
+              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-results-conversation-b
-          path: '**/e2e-conversation-b.trx'
+          name: e2e-results-provider-cluster
+          path: '**/*.trx'
           retention-days: 7
 
-  e2e-multi-provider:
-    name: E2E - MultiProvider + Concurrent
+  e2e-tools:
+    name: E2E - Tools
     runs-on: windows-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
-
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true
       - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~MultiProviderE2ETests|FullyQualifiedName~AnthropicDeepCoverageE2ETests|FullyQualifiedName~ConcurrentRequestE2ETests"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-multi-provider.trx"
+        shell: pwsh
+        run: |
+          $tests = @(
+            @{Name="file-tools"; Filter="FullyQualifiedName~FileToolCoverageTests|FullyQualifiedName~SearchToolCoverageTests|FullyQualifiedName~ShellGitToolCoverageTests|FullyQualifiedName~ExtendedToolCoverageTests"},
+            @{Name="agent-tools"; Filter="FullyQualifiedName~AgentToolCoverageTests|FullyQualifiedName~BatchToolCoverageTests|FullyQualifiedName~TaskToolCoverageTests|FullyQualifiedName~AstIntegrationTests"}
+          )
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
+              & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
+                -c Debug --nologo `
+                /p:UsePackedComponents=true `
+                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
+                --filter $filter `
+                --logger "console;verbosity=normal" `
+                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
+              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-results-multi-provider
-          path: '**/e2e-multi-provider.trx'
+          name: e2e-results-tools
+          path: '**/*.trx'
           retention-days: 7
 
-  e2e-file-tools:
-    name: E2E - File/Search/Shell/Extended
+  e2e-chatcmd-misc:
+    name: E2E - ChatCmd Misc
     runs-on: windows-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
-
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true
       - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~FileToolCoverageTests|FullyQualifiedName~SearchToolCoverageTests|FullyQualifiedName~ShellGitToolCoverageTests|FullyQualifiedName~ExtendedToolCoverageTests"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-file-tools.trx"
+        shell: pwsh
+        run: |
+          $tests = @(
+            @{Name="chatcmd-basic"; Filter="FullyQualifiedName~ChatCommandBasicCoverageTests"},
+            @{Name="chatcmd-extended"; Filter="FullyQualifiedName~ChatCommandExtendedCoverageTests"}
+          )
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
+              & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
+                -c Debug --nologo `
+                /p:UsePackedComponents=true `
+                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
+                --filter $filter `
+                --logger "console;verbosity=normal" `
+                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
+              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-results-file-tools
-          path: '**/e2e-file-tools.trx'
+          name: e2e-results-chatcmd-misc
+          path: '**/*.trx'
           retention-days: 7
 
-  e2e-agent-tools:
-    name: E2E - Agent/Batch/Task/AST
+  e2e-chatcmd-code:
+    name: E2E - ChatCmd Code
     runs-on: windows-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
-
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true
       - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~AgentToolCoverageTests|FullyQualifiedName~BatchToolCoverageTests|FullyQualifiedName~TaskToolCoverageTests|FullyQualifiedName~AstIntegrationTests"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-agent-tools.trx"
+        shell: pwsh
+        run: |
+          $tests = @(
+            @{Name="code-a1"; Filter="FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~ReviewCommand_ShouldReviewCode|FullyQualifiedName~DiffFilesCommand_ShouldListChangedFiles|FullyQualifiedName~FilesCommand_ShouldListFiles|FullyQualifiedName~ExecuteCommand_ShouldExecuteCode|FullyQualifiedName~AnalyzeCommand_ShouldAnalyzeCode|FullyQualifiedName~AddDirCommand_ShouldAddDirectory)"},
+            @{Name="code-a2"; Filter="FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~SecurityReviewCommand_ShouldReviewSecurity|FullyQualifiedName~CommitCommand_ShouldShowCommitInfo|FullyQualifiedName~WorktreeCommand_ShouldListWorktrees|FullyQualifiedName~ThemeCommand_ShouldSetTheme|FullyQualifiedName~ColorCommand_ShouldShowColorTest)"},
+            @{Name="code-b1"; Filter="FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~VimCommand_ShouldToggleVimMode|FullyQualifiedName~EnvCommand_ShouldShowEnvVars|FullyQualifiedName~SandboxToggleCommand_ShouldShowStatus|FullyQualifiedName~PermissionsCommand_ShouldListPermissions|FullyQualifiedName~InitCommand_ShouldQuickInit|FullyQualifiedName~DoctorCommand_ShouldNotHang)"},
+            @{Name="code-b2"; Filter="FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~StatusCommand_ShouldShowStatus|FullyQualifiedName~UsageCommand_ShouldShowUsage|FullyQualifiedName~InsightsCommand_ShouldShowStats|FullyQualifiedName~ReleaseNotesCommand_ShouldShowNotes|FullyQualifiedName~ContextCommand_ShouldShowContext)"}
+          )
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
+              & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
+                -c Debug --nologo `
+                /p:UsePackedComponents=true `
+                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
+                --filter $filter `
+                --logger "console;verbosity=normal" `
+                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
+              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-results-agent-tools
-          path: '**/e2e-agent-tools.trx'
+          name: e2e-results-chatcmd-code
+          path: '**/*.trx'
           retention-days: 7
 
-  e2e-chatcmd-basic:
-    name: E2E - ChatCmd Basic
+  e2e-chatcmd-errors:
+    name: E2E - ChatCmd + Errors
     runs-on: windows-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
-
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true
       - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~ChatCommandBasicCoverageTests"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-chatcmd-basic.trx"
+        shell: pwsh
+        run: |
+          $tests = @(
+            @{Name="chatcmd-auth"; Filter="FullyQualifiedName~ChatCommandAuthExportCoverageTests"},
+            @{Name="errors-permission"; Filter="FullyQualifiedName~ApiErrorRecoveryE2ETests|FullyQualifiedName~StreamInterruptionE2ETests|FullyQualifiedName~PermissionDenialE2ETests"}
+          )
+          foreach ($t in $tests) {
+              $name = $t.Name
+              $filter = $t.Filter
+              & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
+                -c Debug --nologo `
+                /p:UsePackedComponents=true `
+                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
+                --filter $filter `
+                --logger "console;verbosity=normal" `
+                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
+              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-results-chatcmd-basic
-          path: '**/e2e-chatcmd-basic.trx'
-          retention-days: 7
-
-  e2e-chatcmd-code-a1:
-    name: E2E - ChatCmd Code A1
-    runs-on: windows-latest
-    timeout-minutes: 8
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - uses: ./.github/actions/setup-test-env
-        with:
-          build-e2e-exes: true
-      - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~ReviewCommand_ShouldReviewCode|FullyQualifiedName~DiffFilesCommand_ShouldListChangedFiles|FullyQualifiedName~FilesCommand_ShouldListFiles|FullyQualifiedName~ExecuteCommand_ShouldExecuteCode|FullyQualifiedName~AnalyzeCommand_ShouldAnalyzeCode|FullyQualifiedName~AddDirCommand_ShouldAddDirectory)"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-chatcmd-code-a1.trx"
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-results-chatcmd-code-a1
-          path: '**/e2e-chatcmd-code-a1.trx'
-          retention-days: 7
-
-  e2e-chatcmd-code-a2:
-    name: E2E - ChatCmd Code A2
-    runs-on: windows-latest
-    timeout-minutes: 8
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - uses: ./.github/actions/setup-test-env
-        with:
-          build-e2e-exes: true
-      - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~SecurityReviewCommand_ShouldReviewSecurity|FullyQualifiedName~CommitCommand_ShouldShowCommitInfo|FullyQualifiedName~WorktreeCommand_ShouldListWorktrees|FullyQualifiedName~ThemeCommand_ShouldSetTheme|FullyQualifiedName~ColorCommand_ShouldShowColorTest)"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-chatcmd-code-a2.trx"
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-results-chatcmd-code-a2
-          path: '**/e2e-chatcmd-code-a2.trx'
-          retention-days: 7
-
-  e2e-chatcmd-code-b1:
-    name: E2E - ChatCmd Code B1
-    runs-on: windows-latest
-    timeout-minutes: 8
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - uses: ./.github/actions/setup-test-env
-        with:
-          build-e2e-exes: true
-      - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~VimCommand_ShouldToggleVimMode|FullyQualifiedName~EnvCommand_ShouldShowEnvVars|FullyQualifiedName~SandboxToggleCommand_ShouldShowStatus|FullyQualifiedName~PermissionsCommand_ShouldListPermissions|FullyQualifiedName~InitCommand_ShouldQuickInit|FullyQualifiedName~DoctorCommand_ShouldNotHang)"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-chatcmd-code-b1.trx"
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-results-chatcmd-code-b1
-          path: '**/e2e-chatcmd-code-b1.trx'
-          retention-days: 7
-
-  e2e-chatcmd-code-b2:
-    name: E2E - ChatCmd Code B2
-    runs-on: windows-latest
-    timeout-minutes: 8
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - uses: ./.github/actions/setup-test-env
-        with:
-          build-e2e-exes: true
-      - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~StatusCommand_ShouldShowStatus|FullyQualifiedName~UsageCommand_ShouldShowUsage|FullyQualifiedName~InsightsCommand_ShouldShowStats|FullyQualifiedName~ReleaseNotesCommand_ShouldShowNotes|FullyQualifiedName~ContextCommand_ShouldShowContext)"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-chatcmd-code-b2.trx"
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-results-chatcmd-code-b2
-          path: '**/e2e-chatcmd-code-b2.trx'
-          retention-days: 7
-
-  e2e-chatcmd-extended:
-    name: E2E - ChatCmd Extended
-    runs-on: windows-latest
-    timeout-minutes: 8
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - uses: ./.github/actions/setup-test-env
-        with:
-          build-e2e-exes: true
-      - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~ChatCommandExtendedCoverageTests"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-chatcmd-extended.trx"
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-results-chatcmd-extended
-          path: '**/e2e-chatcmd-extended.trx'
-          retention-days: 7
-
-  e2e-chatcmd-auth:
-    name: E2E - ChatCmd Auth/Export
-    runs-on: windows-latest
-    timeout-minutes: 8
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - uses: ./.github/actions/setup-test-env
-        with:
-          build-e2e-exes: true
-      - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~ChatCommandAuthExportCoverageTests"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-chatcmd-auth.trx"
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-results-chatcmd-auth
-          path: '**/e2e-chatcmd-auth.trx'
-          retention-days: 7
-
-  e2e-errors-permission:
-    name: E2E - ErrorRecovery + Permission
-    runs-on: windows-latest
-    timeout-minutes: 8
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - uses: ./.github/actions/setup-test-env
-        with:
-          build-e2e-exes: true
-      - name: E2E Tests
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~ApiErrorRecoveryE2ETests|FullyQualifiedName~StreamInterruptionE2ETests|FullyQualifiedName~PermissionDenialE2ETests"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-errors-permission.trx"
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-results-errors-permission
-          path: '**/e2e-errors-permission.trx'
+          name: e2e-results-chatcmd-errors
+          path: '**/*.trx'
           retention-days: 7
 
   e2e-mcp-smoke:
     name: E2E - MCP + Sync + CodeIndex + Smoke
     runs-on: windows-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -689,36 +535,4 @@ jobs:
             **/e2e-sync.trx
             **/e2e-codeindex.trx
             .xxx/jcc_full_stderr.txt
-          retention-days: 7
-
-  e2e-cluster:
-    name: E2E - Cluster
-    runs-on: windows-latest
-    timeout-minutes: 8
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - uses: ./.github/actions/setup-test-env
-        with:
-          build-e2e-exes: true
-      - name: E2E - Cluster Integration
-        run: >
-          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "FullyQualifiedName~ClusterE2ETests"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-cluster.trx"
-
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-results-cluster
-          path: |
-            **/e2e-cluster.trx
           retention-days: 7

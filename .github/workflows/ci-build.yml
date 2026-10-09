@@ -35,11 +35,16 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      - name: Cache Component NuGet Packages (incremental build)
+      - name: Cache Component NuGet Packages + E2E Exes (incremental build)
         id: component-cache
         uses: actions/cache@v5
         with:
-          path: artifacts/nuget
+          path: |
+            artifacts/nuget
+            artifacts/bin/OpenAI.MockServer
+            artifacts/bin/Anthropic.MockServer
+            artifacts/bin/DeepSeek.MockServer
+            artifacts/bin/Mcp.MockServer
           key: component-pkgs-${{ runner.os }}-${{ hashFiles('lib/**/*.cs', 'lib/**/*.csproj', 'gen/**/*.cs', 'gen/**/*.csproj', 'llm/**/*.cs', 'llm/**/*.csproj', 'server/**/*.cs', 'server/**/*.csproj', 'kit/**/*.cs', 'kit/**/*.csproj', 'tool/**/*.cs', 'tool/**/*.csproj', 'Directory.Build.props', 'Directory.Build.targets', 'global.json', 'build/sln/JoinCode.slnx') }}
 
       - name: Restore
@@ -66,4 +71,15 @@ jobs:
         with:
           name: nuget-packages
           path: artifacts/nuget/**/*.nupkg
+          retention-days: 1
+
+      - name: Upload E2E Exes
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-exes
+          path: |
+            artifacts/bin/OpenAI.MockServer/Debug/net10.0/
+            artifacts/bin/Anthropic.MockServer/Debug/net10.0/
+            artifacts/bin/DeepSeek.MockServer/Debug/net10.0/
+            artifacts/bin/Mcp.MockServer/Debug/net10.0/
           retention-days: 1

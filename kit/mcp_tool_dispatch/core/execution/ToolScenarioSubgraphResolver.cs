@@ -65,16 +65,15 @@ public sealed class ToolScenarioSubgraphResolver {
     /// </summary>
     /// <param name="scenario">情景模式信息</param>
     /// <param name="toolName">当前工具名称</param>
-    /// <returns>子图内的推荐链路，超出子图的工具被过滤</returns>
-    public string[]? GetScopedChainRecommendations(ScenarioInfo scenario, string toolName) {
+    /// <returns>子图内的推荐链路，超出子图的工具被过滤；无推荐时返回空数组</returns>
+    public string[] GetScopedChainRecommendations(ScenarioInfo scenario, string toolName) {
         var subgraph = Resolve(scenario);
-        if (!subgraph.Tools.Contains(toolName)) return null;
+        if (!subgraph.Tools.Contains(toolName)) return [];
 
         var fullChain = _scorer.GetChainRecommendations(toolName);
-        if (fullChain is null or { Length: 0 }) return null;
+        if (fullChain is null or { Length: 0 }) return [];
 
-        var scoped = fullChain.Where(t => subgraph.Tools.Contains(t)).ToArray();
-        return scoped.Length > 0 ? scoped : null;
+        return fullChain.Where(t => subgraph.Tools.Contains(t)).ToArray();
     }
 
     /// <summary>

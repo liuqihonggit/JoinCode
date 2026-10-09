@@ -43,15 +43,28 @@ public sealed class ToolTransitionModel {
         _conditions[condition.Id] = condition;
     }
 
-    /// <summary>按角色获取推荐工具名。</summary>
-    public string? GetRecommendation(string conditionId, ToolTransitionRole role) {
-        if (!_conditions.TryGetValue(conditionId, out var condition)) return null;
-        return role switch {
-            ToolTransitionRole.Primary => condition.Primary,
-            ToolTransitionRole.Fallback => condition.Fallback,
-            ToolTransitionRole.Refine => condition.Refine,
-            _ => null,
-        };
+    /// <summary>
+    /// 按角色获取推荐工具名 — TryGet 模式，找到且非 null 返回 true + 工具名。
+    /// </summary>
+    /// <param name="conditionId">转移条件标识</param>
+    /// <param name="role">工具角色</param>
+    /// <param name="toolName">输出推荐工具名（找到时非空）</param>
+    /// <returns>true 表示找到推荐；false 表示未找到或该角色无推荐</returns>
+    public bool TryGetRecommendation(string conditionId, ToolTransitionRole role, out string toolName) {
+        if (_conditions.TryGetValue(conditionId, out var condition)) {
+            var value = role switch {
+                ToolTransitionRole.Primary => condition.Primary,
+                ToolTransitionRole.Fallback => condition.Fallback,
+                ToolTransitionRole.Refine => condition.Refine,
+                _ => null,
+            };
+            if (value is not null) {
+                toolName = value;
+                return true;
+            }
+        }
+        toolName = string.Empty;
+        return false;
     }
 
     /// <summary>获取所有角色推荐（非 null 的角色）。</summary>
@@ -88,13 +101,23 @@ public sealed class ToolRefineRecommender {
     /// <summary>添加精炼规则。</summary>
     public void AddRule(ToolRefineRule rule) => _rules.Add(rule);
 
-    /// <summary>根据输出大小推荐精炼工具。返回推荐的工具名，无需精炼则返回 null。</summary>
-    public string? RecommendRefine(string sourceTool, long outputSize) {
+    /// <summary>
+    /// 根据输出大小推荐精炼工具 — TryGet 模式，找到且超阈值返回 true + 精炼工具名。
+    /// </summary>
+    /// <param name="sourceTool">源工具名</param>
+    /// <param name="outputSize">输出大小（字节）</param>
+    /// <param name="refineTool">输出精炼工具名（找到时非空）</param>
+    /// <returns>true 表示需要精炼；false 表示无需精炼</returns>
+    public bool TryRecommendRefine(string sourceTool, long outputSize, out string refineTool) {
         foreach (var rule in _rules) {
             if (!string.Equals(rule.SourceTool, sourceTool, StringComparison.OrdinalIgnoreCase)) continue;
-            if (outputSize >= rule.OutputSizeThreshold) return rule.RefineTool;
+            if (outputSize >= rule.OutputSizeThreshold) {
+                refineTool = rule.RefineTool;
+                return true;
+            }
         }
-        return null;
+        refineTool = string.Empty;
+        return false;
     }
 
     /// <summary>获取所有精炼规则。</summary>

@@ -1,3 +1,6 @@
+// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
+#pragma warning disable JCC11003
+
 namespace McpToolDispatch.Tests.Execution;
 
 /// <summary>
@@ -115,15 +118,18 @@ public sealed class ToolTransitionModelTest {
             Refine = "gh_run_view_filter_error"
         });
 
-        model.GetRecommendation("ci_fail", ToolTransitionRole.Primary).Should().Be("gh_run_view");
-        model.GetRecommendation("ci_fail", ToolTransitionRole.Fallback).Should().Be("gh_pr_checks");
-        model.GetRecommendation("ci_fail", ToolTransitionRole.Refine).Should().Be("gh_run_view_filter_error");
+        model.TryGetRecommendation("ci_fail", ToolTransitionRole.Primary, out var primary).Should().BeTrue();
+        primary.Should().Be("gh_run_view");
+        model.TryGetRecommendation("ci_fail", ToolTransitionRole.Fallback, out var fallback).Should().BeTrue();
+        fallback.Should().Be("gh_pr_checks");
+        model.TryGetRecommendation("ci_fail", ToolTransitionRole.Refine, out var refine).Should().BeTrue();
+        refine.Should().Be("gh_run_view_filter_error");
     }
 
     [Fact]
     public void GetRecommendation_ReturnsNull_WhenConditionNotFound() {
         var model = new ToolTransitionModel();
-        model.GetRecommendation("nonexistent", ToolTransitionRole.Primary).Should().BeNull();
+        model.TryGetRecommendation("nonexistent", ToolTransitionRole.Primary, out _).Should().BeFalse();
     }
 
     [Fact]
@@ -156,8 +162,8 @@ public sealed class ToolRefineRecommenderTest {
             OutputSizeThreshold = 10_000
         });
 
-        var result = recommender.RecommendRefine("gh_run_view", 15_000);
-        result.Should().Be("gh_run_view_filter_error");
+        recommender.TryRecommendRefine("gh_run_view", 15_000, out var result1).Should().BeTrue();
+        result1.Should().Be("gh_run_view_filter_error");
     }
 
     [Fact]
@@ -169,8 +175,7 @@ public sealed class ToolRefineRecommenderTest {
             OutputSizeThreshold = 10_000
         });
 
-        var result = recommender.RecommendRefine("gh_run_view", 5_000);
-        result.Should().BeNull();
+        recommender.TryRecommendRefine("gh_run_view", 5_000, out _).Should().BeFalse();
     }
 
     [Fact]
@@ -182,8 +187,7 @@ public sealed class ToolRefineRecommenderTest {
             OutputSizeThreshold = 10_000
         });
 
-        var result = recommender.RecommendRefine("other_tool", 100_000);
-        result.Should().BeNull();
+        recommender.TryRecommendRefine("other_tool", 100_000, out _).Should().BeFalse();
     }
 
     [Fact]
@@ -200,7 +204,9 @@ public sealed class ToolRefineRecommenderTest {
             OutputSizeThreshold = 50_000
         });
 
-        recommender.RecommendRefine("gh_run_view", 15_000).Should().Be("filter_error");
-        recommender.RecommendRefine("gh_run_view", 60_000).Should().Be("filter_error");
+        recommender.TryRecommendRefine("gh_run_view", 15_000, out var r1).Should().BeTrue();
+        r1.Should().Be("filter_error");
+        recommender.TryRecommendRefine("gh_run_view", 60_000, out var r2).Should().BeTrue();
+        r2.Should().Be("filter_error");
     }
 }

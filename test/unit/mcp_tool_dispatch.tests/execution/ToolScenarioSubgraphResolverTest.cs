@@ -67,12 +67,11 @@ public sealed class ToolScenarioSubgraphResolverTest {
 
         var chain = resolver.GetScopedChainRecommendations(scenario, FileToolName.FileRead.ToValue());
 
-        chain.Should().NotBeNull();
-        chain!.Should().Contain(FileToolName.FileEdit.ToValue());
+        chain.Should().Contain(FileToolName.FileEdit.ToValue());
     }
 
     [Fact]
-    public void GetScopedChainRecommendations_ReturnsNull_WhenToolNotInScenario() {
+    public void GetScopedChainRecommendations_ReturnsEmpty_WhenToolNotInScenario() {
         using var scorer = new ToolHypergraphScorer();
         var resolver = new ToolScenarioSubgraphResolver(scorer);
         var scenario = CreateScenario("git_only",
@@ -80,7 +79,7 @@ public sealed class ToolScenarioSubgraphResolverTest {
 
         var chain = resolver.GetScopedChainRecommendations(scenario, FileToolName.FileRead.ToValue());
 
-        chain.Should().BeNull();
+        chain.Should().BeEmpty();
     }
 
     [Fact]

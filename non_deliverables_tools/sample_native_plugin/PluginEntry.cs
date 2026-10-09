@@ -1,3 +1,5 @@
+// JCC1017 抑制: 示例插件演示用, 手写 JSON 用于教学目的, 非生产代码
+#pragma warning disable JCC1017
 namespace SampleNativePlugin;
 
 /// <summary>

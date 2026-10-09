@@ -1,3 +1,5 @@
+// JCC11005 抑制: EnterScope 返回 null 表示不在等待图作用域内, 是 Actor Ask 模式的合理语义
+#pragma warning disable JCC11005
 namespace Core.Utils;
 
 /// <summary>

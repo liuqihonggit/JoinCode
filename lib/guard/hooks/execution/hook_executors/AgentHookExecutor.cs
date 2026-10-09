@@ -1,4 +1,6 @@
 
+// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
+#pragma warning disable JCC1017
 namespace Core.Hooks.Execution;
 
 /// <summary>

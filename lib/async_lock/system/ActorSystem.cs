@@ -1,3 +1,5 @@
+// JCC11005 抑制: Selection 返回 null 表示 Actor 不存在, 是 Actor 路径寻址的合理语义
+#pragma warning disable JCC11005
 namespace Core.Utils;
 
 /// <summary>

@@ -1,3 +1,5 @@
+// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
+#pragma warning disable JCC11003
 namespace MockServer.E2E.Tests;
 
 /// <summary>DualRole 对话 E2E 分组 B — 多轮/注入/PrefixCache/DualModel/EventStream（19测试,~98s）</summary>

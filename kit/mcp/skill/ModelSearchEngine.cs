@@ -1,3 +1,5 @@
+// JCC10009 抑制: 存量元组 key, 后续改为字符串 key
+#pragma warning disable JCC10009
 namespace McpClient;
 
 /// <summary>

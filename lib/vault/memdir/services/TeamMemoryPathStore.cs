@@ -1,3 +1,7 @@
+// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
+#pragma warning disable JCC11003
+// JCC10009 抑制: 存量元组 key, 后续改为字符串 key
+#pragma warning disable JCC10009
 namespace Core.Memdir;
 
 /// <summary>

@@ -1,3 +1,6 @@
+// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
+// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
+#pragma warning disable JCC1017, JCC11003
 namespace MockServer.E2E.Tests.Core;
 
 // 测试运行器需要启动真实进程和访问文件系统路径

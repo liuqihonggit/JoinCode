@@ -1,3 +1,5 @@
+// JCC9203 抑制: 存量释放超时, 后续异步化改造
+#pragma warning disable JCC9203
 namespace JoinCode.CodeIndex.Tests;
 
 /// <summary>

@@ -70,3 +70,28 @@ public sealed record PlanOperationResult {
         PlanFileContent = planFileContent;
     }
 }
+
+/// <summary>
+/// 任务自动重排结果 — 连续失败任务自动后置机制的返回值
+/// </summary>
+public sealed record PlanAutoReorderResult {
+    /// <summary>是否执行了重排</summary>
+    public bool Reordered { get; init; }
+
+    /// <summary>被后置的步骤描述列表</summary>
+    public IReadOnlyList<string> PostponedSteps { get; init; } = [];
+
+    /// <summary>提示消息 — 供 UI 显示"任务 X 因连续失败已后置，先推进任务 Y"</summary>
+    public string? Message { get; init; }
+
+    /// <summary>重排后的计划状态</summary>
+    public PlanState? PlanState { get; init; }
+
+    /// <summary>构造自动重排结果</summary>
+    public PlanAutoReorderResult(bool reordered, IReadOnlyList<string>? postponedSteps = null, string? message = null, PlanState? planState = null) {
+        Reordered = reordered;
+        PostponedSteps = postponedSteps ?? [];
+        Message = message;
+        PlanState = planState;
+    }
+}

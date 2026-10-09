@@ -319,6 +319,69 @@ public class PlanModeManagerTests {
     }
 
     [Fact]
+    public async Task AutoReorderOnFailure_StepWithConsecutiveFailures_PostponedToTail() {
+        await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Step A").ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Step B").ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Step C").ConfigureAwait(true);
+
+        await _planModeManager.RecordStepFailureAsync(1).ConfigureAwait(true);
+        await _planModeManager.RecordStepFailureAsync(1).ConfigureAwait(true);
+        await _planModeManager.RecordStepFailureAsync(1).ConfigureAwait(true);
+
+        var result = await _planModeManager.AutoReorderOnFailureAsync(failureThreshold: 3).ConfigureAwait(true);
+
+        result.Reordered.Should().BeTrue();
+        result.PlanState!.Steps[2].Description.Should().Be("Step B", "连续失败的 Step B 应后置到末尾");
+        result.PlanState.Steps[0].Description.Should().Be("Step A");
+        result.PlanState.Steps[1].Description.Should().Be("Step C");
+    }
+
+    [Fact]
+    public async Task AutoReorderOnFailure_CriticalNodeNotPostponed() {
+        await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Step A").ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Step B", isCriticalNode: true).ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Step C").ConfigureAwait(true);
+
+        for (var i = 0; i < 5; i++)
+            await _planModeManager.RecordStepFailureAsync(1).ConfigureAwait(true);
+
+        var result = await _planModeManager.AutoReorderOnFailureAsync(failureThreshold: 3).ConfigureAwait(true);
+
+        result.Reordered.Should().BeFalse("关键节点不应重排");
+        result.PlanState!.Steps[1].Description.Should().Be("Step B", "关键节点保持原位");
+    }
+
+    [Fact]
+    public async Task AutoReorderOnFailure_NoFailures_NoReorder() {
+        await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Step A").ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Step B").ConfigureAwait(true);
+
+        var result = await _planModeManager.AutoReorderOnFailureAsync(failureThreshold: 3).ConfigureAwait(true);
+
+        result.Reordered.Should().BeFalse("无失败不应重排");
+    }
+
+    [Fact]
+    public async Task AutoReorderOnFailure_MessageContainsPostponedAndNextStep() {
+        await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Step A").ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Step B").ConfigureAwait(true);
+        await _planModeManager.AddStepAsync("Step C").ConfigureAwait(true);
+
+        for (var i = 0; i < 3; i++)
+            await _planModeManager.RecordStepFailureAsync(1).ConfigureAwait(true);
+
+        var result = await _planModeManager.AutoReorderOnFailureAsync(failureThreshold: 3).ConfigureAwait(true);
+
+        result.Message.Should().Contain("Step B", "提示应包含被后置的任务");
+        result.Message.Should().Contain("Step A", "提示应包含下一步任务");
+        result.PostponedSteps.Should().Contain("Step B");
+    }
+
+    [Fact]
     public async Task GetPlanHistoryAsync_ShouldReturnHistory() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Plan 1").ConfigureAwait(true);

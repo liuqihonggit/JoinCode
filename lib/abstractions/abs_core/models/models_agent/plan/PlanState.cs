@@ -159,4 +159,14 @@ public sealed record PlanStep {
     /// 执行时间（毫秒）
     /// </summary>
     public long? ExecutionTimeMs { get; set; }
+
+    /// <summary>
+    /// 连续失败次数 — 用于任务重排自动机制，达到阈值时自动后置（非关键节点）
+    /// </summary>
+    public int ConsecutiveFailures { get; set; }
+
+    /// <summary>
+    /// 是否为鱼骨图重要节点 — 关键节点不参与自动重排（即使连续失败也不后置）
+    /// </summary>
+    public bool IsCriticalNode { get; set; }
 }

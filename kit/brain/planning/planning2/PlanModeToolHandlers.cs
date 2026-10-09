@@ -187,6 +187,7 @@ public class PlanModeToolHandlers {
             command.Description,
             command.ToolName,
             command.Parameters,
+            isCriticalNode: false,
             cancellationToken).ConfigureAwait(false);
 
         if (!result.Success) {

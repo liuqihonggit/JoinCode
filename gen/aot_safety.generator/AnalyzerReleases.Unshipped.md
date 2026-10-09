@@ -19,3 +19,4 @@ New Diagnostics:
 - JCC11003: 可空性: 禁止 null-forgiving 运算符 !，0 容忍策略，例外用 #pragma 显式声明。
 - JCC10009: 代码规范: 禁止元组做字典 key，改用字符串 key + record value。
 - JCC11004: 可空性: 公开 API 禁止返回 null 集合，必须返回空集合。
+- JCC9203: 释放一致性: 释放函数内禁止超时/阻塞等待(.Wait/.WaitAsync/Thread.Join/Task.WhenAny+Delay/GetAwaiter().GetResult)。

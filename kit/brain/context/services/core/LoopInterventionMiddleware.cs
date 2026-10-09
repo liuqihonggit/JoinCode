@@ -68,6 +68,10 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct) {
+        var awarenessPrompt = BuildContextAwarenessPrompts();
+        if (!string.IsNullOrEmpty(awarenessPrompt))
+            yield return ChatStreamEvent.Text(awarenessPrompt);
+
         var hasLoopDetected = false;
         var loopTriggerCount = 0;
         var hasProgressed = false;
@@ -290,6 +294,28 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
             return string.Empty;
         var tools = string.Join("、", highFreqTools);
         return $"\n\n⚠️⚠️ 强烈提示：检测到高频工具 {tools}。这些工具调用过于频繁，请立即考虑改用替代工具、批量处理或调整策略。此提示将持续出现直到降低调用频率。";
+    }
+
+    /// <summary>
+    /// 构建上下文感知提示 — 检查注意力涣散 + 低频诱导，在流开始时注入。
+    /// <para>注意力涣散: 长时间运行+多次压缩+高错误率 → 建议写交接文档+/clear</para>
+    /// <para>低频诱导: 每10分钟检查一次循环干预健康度 → 建议检查策略</para>
+    /// </summary>
+    /// <returns>感知提示词；无提示时返回空字符串</returns>
+    private static string BuildContextAwarenessPrompts() {
+        var prompt = string.Empty;
+
+        if (AttentionFatigueDetector.IsFatigued())
+            prompt += AttentionFatigueDetector.GetFatiguePrompt();
+
+        const string inductionKey = "loop-intervention-health";
+        var inductionInterval = TimeSpan.FromMinutes(10);
+        if (LowFrequencyInductionService.ShouldInduce(inductionKey, inductionInterval)) {
+            prompt += LowFrequencyInductionService.GetInductionPrompt(inductionKey, "循环干预健康检查");
+            LowFrequencyInductionService.RecordInduction(inductionKey);
+        }
+
+        return prompt;
     }
 
     /// <summary>

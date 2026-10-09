@@ -16,3 +16,4 @@ New Diagnostics:
 - JCC9303: 非托管资源: IntPtr/UIntPtr字段应改用SafeHandle模式。
 - JCC9304: 释放顺序: base.Dispose()必须在Dispose方法体最后位置。
 - JCC1009: 卫语句: if 嵌套超过2层（3层及以上），建议卫语句扁平化。
+- JCC11003: 可空性: 禁止 null-forgiving 运算符 !，0 容忍策略，例外用 #pragma 显式声明。

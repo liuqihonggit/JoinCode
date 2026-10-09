@@ -1,3 +1,5 @@
+// JCC11003 抑制: 底层泛型集合实现, ! 用于 default(T)/数组槽位的可空抑制, 是 C# 语言限制下的必要用法
+#pragma warning disable JCC11003
 namespace Structura.Collections;
 
 /// <summary>ImmutableHamT&lt;string, string&gt; 的 JSON 转换器 — 将 HAMT 序列化为 JSON 对象,反序列化时重建 HAMT。用于 AOT 场景下替代 BCL ImmutableDictionary 的内置转换器。</summary>

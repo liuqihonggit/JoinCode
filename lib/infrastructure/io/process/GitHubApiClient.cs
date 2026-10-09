@@ -154,8 +154,12 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         var resp = response!;
         using (resp) {
             if (!resp.IsSuccessStatusCode) {
-                var errBody = await ReadBodyAsync(resp, ct).ConfigureAwait(false);
-                yield return $"[ERROR] HTTP {(int)resp.StatusCode}: {ExtractErrorMessage(errBody)}";
+                if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    yield return $"[ERROR] 日志不存在(run {runId} 可能被取消或未产生日志)。提示: 用 gh run view {runId} 查看 run 状态";
+                else {
+                    var errBody = await ReadBodyAsync(resp, ct).ConfigureAwait(false);
+                    yield return $"[ERROR] HTTP {(int)resp.StatusCode}: {ExtractErrorMessage(errBody)}";
+                }
                 yield break;
             }
 
@@ -199,8 +203,12 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         var resp = response!;
         using (resp) {
             if (!resp.IsSuccessStatusCode) {
-                var errBody = await ReadBodyAsync(resp, ct).ConfigureAwait(false);
-                yield return $"[ERROR] HTTP {(int)resp.StatusCode}: {ExtractErrorMessage(errBody)}";
+                if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    yield return $"[ERROR] 日志不存在(job {jobId} 可能被取消或未产生日志)。提示: 用 gh run view 查看 job 状态";
+                else {
+                    var errBody = await ReadBodyAsync(resp, ct).ConfigureAwait(false);
+                    yield return $"[ERROR] HTTP {(int)resp.StatusCode}: {ExtractErrorMessage(errBody)}";
+                }
                 yield break;
             }
 

@@ -17,3 +17,4 @@ New Diagnostics:
 - JCC9304: 释放顺序: base.Dispose()必须在Dispose方法体最后位置。
 - JCC1009: 卫语句: if 嵌套超过2层（3层及以上），建议卫语句扁平化。
 - JCC11003: 可空性: 禁止 null-forgiving 运算符 !，0 容忍策略，例外用 #pragma 显式声明。
+- JCC10009: 代码规范: 禁止元组做字典 key，改用字符串 key + record value。

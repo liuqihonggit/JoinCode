@@ -41,34 +41,21 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
-      - name: Restore - ${{ matrix.name }}
-        shell: pwsh
-        run: |
-          $projects = '${{ matrix.csprojs }}' -split ' '
-          foreach ($proj in $projects) {
-              Write-Host "Restoring: $proj"
-              & dotnet restore $proj --nologo `
-                /p:UsePackedComponents=true `
-                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none 2>&1 | Out-Host
-              if ($LASTEXITCODE -ne 0) { throw "Restore FAILED: $proj" }
-          }
       - name: Test - ${{ matrix.name }}
         shell: pwsh
         run: |
           $projects = '${{ matrix.csprojs }}' -split ' '
-          $projects | ForEach-Object -Parallel {
-              $proj = $_
+          foreach ($proj in $projects) {
               $name = [System.IO.Path]::GetFileNameWithoutExtension($proj)
-              & dotnet test $proj -c Debug --nologo --no-restore `
+              Write-Host "=== Testing: $proj ==="
+              & dotnet test $proj -c Debug --nologo `
                 /p:UsePackedComponents=true `
                 /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
                 --filter "Category!=Integration&Category!=Benchmark" `
                 --logger "console;verbosity=normal" `
                 --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
-              if ($LASTEXITCODE -ne 0) {
-                  throw "Test FAILED: $proj"
-              }
-          } -ThrottleLimit 4
+              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $proj" }
+          }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7

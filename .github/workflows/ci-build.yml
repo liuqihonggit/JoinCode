@@ -44,40 +44,16 @@ jobs:
           -c Release --no-restore --nologo -m
           /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
 
-      - name: Upload Build Output
+      - name: Pack (components → NuGet)
+        run: >
+          dotnet pack build/sln/JoinCode.slnx
+          -c Release --no-build --nologo
+          -o ${{ github.workspace }}/artifacts/nuget
+          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
+
+      - name: Upload NuGet Packages
         uses: actions/upload-artifact@v7
         with:
-          name: build-output
-          path: |
-            artifacts/bin/
-            !artifacts/bin/JoinCodeTui/
-            !artifacts/bin/JoinCodeGui/
-            !artifacts/bin/JoinCodeGui.Tests/
-            !artifacts/bin/SkiaSharpAotTest/
-            !artifacts/bin/TerminalGuiAotProbe/
-            !artifacts/bin/Tui.Tests/
-            !artifacts/bin/Eyes.Benchmarks/
-            !artifacts/bin/AsyncLock.Benchmarks/
-            !artifacts/bin/JccAuditCli/
-            !artifacts/bin/JccAuditCli.Tests/
-            !artifacts/bin/InjectMigration/
-            !artifacts/bin/JccInteractiveTester/
-            !artifacts/bin/SampleNativePlugin/
-            !artifacts/bin/aot-browser-test/
-            !artifacts/bin/aot-httpclientfactory-test/
-            !artifacts/bin/PptrApiCheck/
-            !**/runtimes/linux-arm/
-            !**/runtimes/linux-arm64/
-            !**/runtimes/linux-x64/
-            !**/runtimes/linux-x86/
-            !**/runtimes/linux-musl-x64/
-            !**/runtimes/osx-x64/
-            !**/runtimes/osx-arm64/
-            !**/runtimes/win-x86/
-            !**/runtimes/win-arm64/
-            !**/runtimes/unix/
-            !**/runtimes/linux/
-            !**/runtimes/osx/
-            !**/*.pdb
-            !**/*.xml
+          name: nuget-packages
+          path: artifacts/nuget/**/*.nupkg
           retention-days: 1

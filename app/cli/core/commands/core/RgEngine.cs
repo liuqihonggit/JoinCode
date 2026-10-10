@@ -28,16 +28,13 @@ internal static class RgEngine {
         if (files.Count == 0)
             return RgOutcome.Empty();
 
-        var parallelOpts = new ParallelOptions {
-            CancellationToken = ct,
-            MaxDegreeOfParallelism = Environment.ProcessorCount,
-        };
+        var degree = q.Threads is > 0 ? q.Threads.Value : Environment.ProcessorCount;
 
         var results = new ConcurrentBag<RgFileResult>();
 
         files.AsParallel()
             .WithCancellation(ct)
-            .WithDegreeOfParallelism(Environment.ProcessorCount)
+            .WithDegreeOfParallelism(degree)
             .Select(f => SearchFile(f, regex, q, ct))
             .Where(r => r is not null)
             .ForAll(r => results.Add(r!));
@@ -172,6 +169,9 @@ internal static class RgEngine {
         try {
             var fileInfo = new FileInfo(path);
             if (fileInfo.Length == 0)
+                return null;
+
+            if (q.MaxFilesize is long maxSize && fileInfo.Length > maxSize)
                 return null;
 
             byte[] bytes;
@@ -380,7 +380,9 @@ internal sealed record RgQuery(
     string? Sort,
     bool InvertMatch,
     bool LineRegexp,
-    int? MaxCount);
+    int? MaxCount,
+    int? Threads,
+    long? MaxFilesize);
 
 /// <summary>单文件搜索结果</summary>
 internal sealed record RgFileResult(string FilePath, int MatchCount, IReadOnlyList<string>? ContentLines);

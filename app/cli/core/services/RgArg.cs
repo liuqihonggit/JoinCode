@@ -63,6 +63,14 @@ public enum RgArg {
     [CliOption("max-count", "-m", "每文件最大匹配数", AcceptsValue = true, Category = "输出")]
     MaxCount,
 
+    /// <summary>线程数（默认 CPU 核数）</summary>
+    [CliOption("threads", "-j", "线程数(默认 CPU 核数)", AcceptsValue = true, Category = "控制")]
+    Threads,
+
+    /// <summary>最大文件大小（超过则跳过，支持 K/M/G 后缀）</summary>
+    [CliOption("max-filesize", "", "最大文件大小(超过则跳过,支持 K/M/G 后缀)", AcceptsValue = true, Category = "控制")]
+    MaxFilesize,
+
     /// <summary>替换匹配文本</summary>
     [CliOption("replace", "-r", "替换匹配文本", AcceptsValue = true, Category = "输出")]
     Replace,

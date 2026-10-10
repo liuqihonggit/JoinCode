@@ -16,9 +16,9 @@ internal sealed class GitHubRunLogFilterRunner {
     /// 构造日志过滤运行器,注入 GitHub API 客户端(非 null)+可选 KV 缓存(LSM-Tree)
     /// </summary>
     /// <param name="apiClient">GitHub API 客户端(非 null)。</param>
-    /// <param name="kvStore">可选 KV 缓存(LSM-Tree PithosKvStore),用于日志缓存避免重复下载。</param>
     /// <param name="compactLinePrefix">行号前缀格式: true=紧凑 tab(行号\t内容), false=箭头(行号→内容)。对齐 FileOperationConfig.CompactLinePrefix</param>
-    public GitHubRunLogFilterRunner(IGitHubApiClient apiClient, IKvStore? kvStore = null, bool compactLinePrefix = true) {
+    /// <param name="kvStore">可选 KV 缓存(LSM-Tree PithosKvStore),用于日志缓存避免重复下载。</param>
+    public GitHubRunLogFilterRunner(IGitHubApiClient apiClient, bool compactLinePrefix, IKvStore? kvStore = null) {
         _apiClient = apiClient;
         _kvStore = kvStore;
         _compactLinePrefix = compactLinePrefix;

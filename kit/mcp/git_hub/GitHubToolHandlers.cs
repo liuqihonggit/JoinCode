@@ -52,7 +52,7 @@ public partial class GitHubToolHandlers {
         _logger = logger;
         _compactLinePrefix = workflowConfig?.FileOperation.CompactLinePrefix ?? true;
         _logFetcher = new GitHubRunLogFetcher();
-        _logFilterRunner = _apiClient is not null ? new GitHubRunLogFilterRunner(_apiClient, kvStore, _compactLinePrefix) : null;
+        _logFilterRunner = _apiClient is not null ? new GitHubRunLogFilterRunner(_apiClient, _compactLinePrefix, kvStore) : null;
         _kvStore = kvStore;
     }
 

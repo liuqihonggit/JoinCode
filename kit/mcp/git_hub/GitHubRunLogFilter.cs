@@ -77,7 +77,7 @@ internal static class GitHubRunLogFilter {
     /// <para>截断提示包含 skip_lines 续读参数,LLM 可直接分页获取后续行</para>
     /// <para>行号格式委托给 LineRangeReader.Read → LineNumberFormatter,统一 compact/wide 双模式</para>
     /// </summary>
-    public static (string text, bool hasMore) SkipAndTruncate(IReadOnlyList<string> lines, int maxLines, int skipLines, bool compactLinePrefix = true) {
+    public static (string text, bool hasMore) SkipAndTruncate(IReadOnlyList<string> lines, int maxLines, int skipLines, bool compactLinePrefix) {
         var result = LineRangeReader.Read(lines, skipLines, maxLines, compactLinePrefix);
         return (result.Text, result.HasMore);
     }

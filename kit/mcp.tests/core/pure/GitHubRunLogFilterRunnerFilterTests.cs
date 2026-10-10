@@ -23,7 +23,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
                 "  Passed OtherTest [1 ms]"
             }
         };
-        var runner = new GitHubRunLogFilterRunner(api);
+        var runner = new GitHubRunLogFilterRunner(api, true);
 
         var result = await runner.FilterFailedTestsAsync("owner", "repo", "123", "123", 10, 0, false, CancellationToken.None);
 
@@ -39,7 +39,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
         var api = new FakeGitHubApiClient {
             NextLogLines = new[] { "just a log line", "another line" }
         };
-        var runner = new GitHubRunLogFilterRunner(api);
+        var runner = new GitHubRunLogFilterRunner(api, true);
 
         var result = await runner.FilterFailedTestsAsync("owner", "repo", "123", "123", 10, 0, false, CancellationToken.None);
 
@@ -62,7 +62,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
             "  Stack Trace:",
             "  at Baz() in line 5"
         };
-        var runner = new GitHubRunLogFilterRunner(api);
+        var runner = new GitHubRunLogFilterRunner(api, true);
 
         var result = await runner.FilterFailedTestsAsync("owner", "repo", "999", null, 10, 0, false, CancellationToken.None);
 
@@ -81,7 +81,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
             Body = """{"jobs":[{"id":42,"conclusion":"success"}]}"""
         });
         api.NextLogLines = Array.Empty<string>();
-        var runner = new GitHubRunLogFilterRunner(api);
+        var runner = new GitHubRunLogFilterRunner(api, true);
 
         var result = await runner.FilterFailedTestsAsync("owner", "repo", "999", null, 10, 0, false, CancellationToken.None);
 
@@ -107,7 +107,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
                 "  at B() in line 2"
             }
         };
-        var runner = new GitHubRunLogFilterRunner(api);
+        var runner = new GitHubRunLogFilterRunner(api, true);
 
         var result = await runner.FilterFailedTestsAsync("owner", "repo", "123", "123", 10, 0, false, CancellationToken.None);
 
@@ -129,7 +129,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
                 "  Failed TestC [FAIL]"
             }
         };
-        var runner = new GitHubRunLogFilterRunner(api);
+        var runner = new GitHubRunLogFilterRunner(api, true);
 
         var result = await runner.FilterFailedTestsAsync("owner", "repo", "123", "123", 2, 0, false, CancellationToken.None);
 

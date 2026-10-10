@@ -14,7 +14,7 @@ public sealed class GitHubRunLogLineNumberFormatTests {
         var api = new FakeGitHubApiClient {
             NextLogLines = new[] { "line one", "line two" }
         };
-        var runner = new GitHubRunLogFilterRunner(api, compactLinePrefix: true);
+        var runner = new GitHubRunLogFilterRunner(api, true);
 
         var result = await runner.StreamAndFilterAsync(
             "owner", "repo", "123", "123", failedOnly: false,
@@ -32,7 +32,7 @@ public sealed class GitHubRunLogLineNumberFormatTests {
         var api = new FakeGitHubApiClient {
             NextLogLines = new[] { "line one", "line two" }
         };
-        var runner = new GitHubRunLogFilterRunner(api, compactLinePrefix: false);
+        var runner = new GitHubRunLogFilterRunner(api, false);
 
         var result = await runner.StreamAndFilterAsync(
             "owner", "repo", "123", "123", failedOnly: false,
@@ -50,7 +50,7 @@ public sealed class GitHubRunLogLineNumberFormatTests {
         var api = new FakeGitHubApiClient {
             NextLogLines = new[] { "content" }
         };
-        var runner = new GitHubRunLogFilterRunner(api);
+        var runner = new GitHubRunLogFilterRunner(api, true);
 
         var result = await runner.StreamAndFilterAsync(
             "owner", "repo", "123", "123", failedOnly: false,

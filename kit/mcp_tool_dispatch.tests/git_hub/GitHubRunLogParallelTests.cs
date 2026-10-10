@@ -16,7 +16,7 @@ public sealed class GitHubRunLogParallelTest {
                 [456] = ["job456-line1", "job456-line2"],
             },
             runLogLines: ["run-zip-fallback"]);
-        var runner = new GitHubRunLogFilterRunner(fake);
+        var runner = new GitHubRunLogFilterRunner(fake, true);
 
         var result = await runner.StreamAndFilterAsync(
             owner: "foo", repo: "bar", runId: "999",
@@ -44,7 +44,7 @@ public sealed class GitHubRunLogParallelTest {
             },
             runLogLines: [],
             jobsJson: """{"jobs":[{"id":111,"conclusion":"failure"},{"id":222,"conclusion":"failure"},{"id":333,"conclusion":"failure"}]}""");
-        var runner = new GitHubRunLogFilterRunner(fake);
+        var runner = new GitHubRunLogFilterRunner(fake, true);
 
         var lines = new List<string>();
         await foreach (var line in runner.GetFailedJobLogsAsync("foo", "bar", "999", false, default)) {

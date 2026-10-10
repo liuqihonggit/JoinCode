@@ -21,7 +21,7 @@ public sealed class GitHubRunLogFilterRunnerCacheTests {
     public async Task GetOrFetchSummaryAsync_CacheMiss_ThenHit_SecondCallFromCache() {
         var api = new FakeGitHubApiClient { NextLogLines = SampleLogLines };
         await using var kv = new InMemoryKvStore();
-        var runner = new GitHubRunLogFilterRunner(api, kv);
+        var runner = new GitHubRunLogFilterRunner(api, true, kv);
 
         var summary1 = await runner.GetOrFetchSummaryAsync("owner", "repo", "123", "456", false, CancellationToken.None);
         summary1.Should().NotBeNull();
@@ -37,7 +37,7 @@ public sealed class GitHubRunLogFilterRunnerCacheTests {
     public async Task GetOrFetchSummaryAsync_WantRefresh_SkipsCacheRead() {
         var api = new FakeGitHubApiClient { NextLogLines = SampleLogLines };
         await using var kv = new InMemoryKvStore();
-        var runner = new GitHubRunLogFilterRunner(api, kv);
+        var runner = new GitHubRunLogFilterRunner(api, true, kv);
 
         var summary1 = await runner.GetOrFetchSummaryAsync("owner", "repo", "123", "456", false, CancellationToken.None);
         summary1!.StepLineCounts.Should().NotBeEmpty();
@@ -52,7 +52,7 @@ public sealed class GitHubRunLogFilterRunnerCacheTests {
     public async Task GetOrFetchSectionAsync_ReturnsSectionLines() {
         var api = new FakeGitHubApiClient { NextLogLines = SampleLogLines };
         await using var kv = new InMemoryKvStore();
-        var runner = new GitHubRunLogFilterRunner(api, kv);
+        var runner = new GitHubRunLogFilterRunner(api, true, kv);
 
         var lines = await runner.GetOrFetchSectionAsync("owner", "repo", "123", "456", "dotnet test", "error", false, CancellationToken.None);
         lines.Should().NotBeNull();
@@ -63,7 +63,7 @@ public sealed class GitHubRunLogFilterRunnerCacheTests {
     public async Task GetOrFetchSectionAsync_CacheHit_SecondCallFromCache() {
         var api = new FakeGitHubApiClient { NextLogLines = SampleLogLines };
         await using var kv = new InMemoryKvStore();
-        var runner = new GitHubRunLogFilterRunner(api, kv);
+        var runner = new GitHubRunLogFilterRunner(api, true, kv);
 
         var lines1 = await runner.GetOrFetchSectionAsync("owner", "repo", "123", "456", "dotnet test", "error", false, CancellationToken.None);
         lines1.Should().NotBeEmpty();
@@ -77,7 +77,7 @@ public sealed class GitHubRunLogFilterRunnerCacheTests {
     public async Task GetOrFetchSectionAsync_NonExistentSection_ReturnsNull() {
         var api = new FakeGitHubApiClient { NextLogLines = SampleLogLines };
         await using var kv = new InMemoryKvStore();
-        var runner = new GitHubRunLogFilterRunner(api, kv);
+        var runner = new GitHubRunLogFilterRunner(api, true, kv);
 
         var lines = await runner.GetOrFetchSectionAsync("owner", "repo", "123", "456", "nonexistent", "error", false, CancellationToken.None);
         lines.Should().BeNull();
@@ -87,7 +87,7 @@ public sealed class GitHubRunLogFilterRunnerCacheTests {
     public async Task GetOrFetchSummaryAsync_NoJobId_UsesRunLogs() {
         var api = new FakeGitHubApiClient { NextLogLines = SampleLogLines };
         await using var kv = new InMemoryKvStore();
-        var runner = new GitHubRunLogFilterRunner(api, kv);
+        var runner = new GitHubRunLogFilterRunner(api, true, kv);
 
         var summary = await runner.GetOrFetchSummaryAsync("owner", "repo", "123", null, false, CancellationToken.None);
         summary.Should().NotBeNull();

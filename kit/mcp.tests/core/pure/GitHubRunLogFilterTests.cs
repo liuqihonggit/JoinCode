@@ -139,7 +139,7 @@ public sealed class GitHubRunLogFilterTests {
 
     [Fact]
     public void SkipAndTruncate_EmptyLines_ReturnsEmpty() {
-        var (text, hasMore) = GitHubRunLogFilter.SkipAndTruncate([], 10, 0);
+        var (text, hasMore) = GitHubRunLogFilter.SkipAndTruncate([], 10, 0, true);
         text.Should().BeEmpty();
         hasMore.Should().BeFalse();
     }
@@ -147,7 +147,7 @@ public sealed class GitHubRunLogFilterTests {
     [Fact]
     public void SkipAndTruncate_SkipAllLines_ReturnsSkipMessage() {
         var lines = new List<string> { "a", "b", "c" };
-        var (text, hasMore) = GitHubRunLogFilter.SkipAndTruncate(lines, 10, 3);
+        var (text, hasMore) = GitHubRunLogFilter.SkipAndTruncate(lines, 10, 3, true);
         text.Should().Contain("已跳过全部");
         text.Should().Contain("skip_lines=3");
         hasMore.Should().BeFalse();
@@ -156,7 +156,7 @@ public sealed class GitHubRunLogFilterTests {
     [Fact]
     public void SkipAndTruncate_SkipBeyondCount_ReturnsSkipMessage() {
         var lines = new List<string> { "a", "b" };
-        var (text, hasMore) = GitHubRunLogFilter.SkipAndTruncate(lines, 10, 5);
+        var (text, hasMore) = GitHubRunLogFilter.SkipAndTruncate(lines, 10, 5, true);
         text.Should().Contain("已跳过全部");
         hasMore.Should().BeFalse();
     }
@@ -164,7 +164,7 @@ public sealed class GitHubRunLogFilterTests {
     [Fact]
     public void SkipAndTruncate_TakeAll_NoMore() {
         var lines = new List<string> { "a", "b", "c" };
-        var (text, hasMore) = GitHubRunLogFilter.SkipAndTruncate(lines, 10, 0);
+        var (text, hasMore) = GitHubRunLogFilter.SkipAndTruncate(lines, 10, 0, true);
         text.Should().Contain("a");
         text.Should().Contain("b");
         text.Should().Contain("c");
@@ -174,7 +174,7 @@ public sealed class GitHubRunLogFilterTests {
     [Fact]
     public void SkipAndTruncate_TakePartial_HasMoreWithContinueHint() {
         var lines = new List<string> { "a", "b", "c", "d" };
-        var (text, hasMore) = GitHubRunLogFilter.SkipAndTruncate(lines, 2, 0);
+        var (text, hasMore) = GitHubRunLogFilter.SkipAndTruncate(lines, 2, 0, true);
         text.Should().Contain("a");
         text.Should().Contain("b");
         text.Should().NotContain("c\nc");
@@ -186,7 +186,7 @@ public sealed class GitHubRunLogFilterTests {
     [Fact]
     public void SkipAndTruncate_WithSkip_TakesFromOffset() {
         var lines = new List<string> { "a", "b", "c", "d", "e" };
-        var (text, hasMore) = GitHubRunLogFilter.SkipAndTruncate(lines, 2, 1);
+        var (text, hasMore) = GitHubRunLogFilter.SkipAndTruncate(lines, 2, 1, true);
         text.Should().Contain("b");
         text.Should().Contain("c");
         hasMore.Should().BeTrue();
@@ -195,7 +195,7 @@ public sealed class GitHubRunLogFilterTests {
     [Fact]
     public void SkipAndTruncate_AddsLineNumberPrefix() {
         var lines = new List<string> { "first", "second", "third" };
-        var (text, _) = GitHubRunLogFilter.SkipAndTruncate(lines, 10, 0);
+        var (text, _) = GitHubRunLogFilter.SkipAndTruncate(lines, 10, 0, true);
         text.Should().Contain("1\tfirst");
         text.Should().Contain("2\tsecond");
         text.Should().Contain("3\tthird");
@@ -204,7 +204,7 @@ public sealed class GitHubRunLogFilterTests {
     [Fact]
     public void SkipAndTruncate_WithSkip_LineNumbersAreGlobal() {
         var lines = new List<string> { "a", "b", "c", "d", "e" };
-        var (text, _) = GitHubRunLogFilter.SkipAndTruncate(lines, 2, 2);
+        var (text, _) = GitHubRunLogFilter.SkipAndTruncate(lines, 2, 2, true);
         text.Should().Contain("3\tc");
         text.Should().Contain("4\td");
     }

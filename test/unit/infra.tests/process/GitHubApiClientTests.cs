@@ -47,6 +47,49 @@ public sealed class GitHubApiClientTest : IDisposable {
         result.Error.Should().Be("Not Found");
     }
 
+    /// <summary>
+    /// GitHub 422 Validation Failed 响应包含 errors 数组,ExtractErrorMessage 应提取具体原因
+    /// </summary>
+    [Fact]
+    public async Task SendAsync_422_ExtractsErrorsArrayDetails() {
+        var body = """{"message":"Validation Failed","errors":[{"message":"A pull request already exists for w1."}]}""";
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.UnprocessableEntity) { Content = new StringContent(body) };
+
+        var result = await _client.SendAsync(HttpMethod.Post, "repos/foo/bar/pulls");
+
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(422);
+        result.Error.Should().Contain("Validation Failed");
+        result.Error.Should().Contain("A pull request already exists for w1.");
+    }
+
+    /// <summary>422 多个 errors 项全部提取</summary>
+    [Fact]
+    public async Task SendAsync_422_MultipleErrors_AllExtracted() {
+        var body = """{"message":"Validation Failed","errors":[{"field":"title","code":"missing","message":"title is missing"},{"field":"head","code":"invalid","message":"head ref not found"}]}""";
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.UnprocessableEntity) { Content = new StringContent(body) };
+
+        var result = await _client.SendAsync(HttpMethod.Post, "repos/foo/bar/pulls");
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Contain("title is missing");
+        result.Error.Should().Contain("head ref not found");
+        result.Error.Should().Contain("title: ");
+        result.Error.Should().Contain("(code: missing)");
+    }
+
+    /// <summary>无 errors 数组时仅返回 message(回归保护)</summary>
+    [Fact]
+    public async Task SendAsync_422_NoErrorsArray_ReturnsMessageOnly() {
+        var body = """{"message":"Validation Failed"}""";
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.UnprocessableEntity) { Content = new StringContent(body) };
+
+        var result = await _client.SendAsync(HttpMethod.Post, "repos/foo/bar/pulls");
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Be("Validation Failed");
+    }
+
     [Fact]
     public async Task SendAsync_SetsAuthorizationBearerHeader() {
         _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };

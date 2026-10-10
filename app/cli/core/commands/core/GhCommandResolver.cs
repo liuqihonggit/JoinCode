@@ -415,6 +415,10 @@ internal static class GhArgsBinder {
         ),
         ["gh_release_create"] = new(("latest", new GhCliAlias("make_latest", null, AliasKind.RenameOnly))),
         ["gh_release_edit"]   = new(("latest", new GhCliAlias("make_latest", null, AliasKind.RenameOnly))),
+        ["gh_api"] = new(
+            ("raw-field", new GhCliAlias("fields", null, AliasKind.TakeNextToken)),
+            ("field",     new GhCliAlias("fields", null, AliasKind.TakeNextToken))
+        ),
     }.ToFrozenDictionary();
 
     /// <summary>查长选项别名表。</summary>

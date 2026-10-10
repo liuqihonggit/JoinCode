@@ -115,6 +115,10 @@ public enum GitHubToolName {
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhRunWatch,
 
+    [EnumValue("gh_ci_alerts")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhCiAlerts,
+
     // === Release 全套 ===
     [EnumValue("gh_release_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]

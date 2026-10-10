@@ -32,10 +32,17 @@ public partial class GitHubToolHandlers {
             return Fail("body_file 指定的文件不存在或无法读取");
         }
 
+        var httpMethod = string.IsNullOrWhiteSpace(method) ? HttpMethod.Get : new HttpMethod(method.ToUpperInvariant());
         var resolvedBody = await ResolveRequestBodyAsync(body, body_file).ConfigureAwait(false);
 
-        var httpMethod = string.IsNullOrWhiteSpace(method) ? HttpMethod.Get : new HttpMethod(method.ToUpperInvariant());
-        var query = EnsurePerPageForListEndpoint(ParseFieldsToQuery(fields), httpMethod, path);
+        // 非 GET 请求: --fields 转为 JSON body(如果 body 未指定), 因为系统 gh CLI 的 -f/--field 是添加到 request body
+        // GET 请求: --fields 作为 query params(原有行为)
+        IReadOnlyDictionary<string, string>? query = null;
+        if (httpMethod != HttpMethod.Get && string.IsNullOrEmpty(resolvedBody) && !string.IsNullOrWhiteSpace(fields)) {
+            resolvedBody = FieldsToJsonBody(fields);
+        } else {
+            query = EnsurePerPageForListEndpoint(ParseFieldsToQuery(fields), httpMethod, path);
+        }
         var result = await _apiClient.SendAsync(httpMethod, path, resolvedBody, query, paginate == true, cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(BuildApiErrorHint(path, result.StatusCode, result.Error));
 
@@ -99,6 +106,29 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 将 fields(key=value,逗号分隔)转为 JSON body — 用于非 GET 请求的系统 gh CLI 兼容
+    /// <para>系统 gh CLI 的 -f/--field 将 key=value 添加到 request body(非 GET), 不是 query param</para>
+    /// <para>AI 习惯用 --fields state=open 做 PATCH 请求, jcc 应自动转为 {"state":"open"} body</para>
+    /// </summary>
+    private static string FieldsToJsonBody(string fields) {
+        var dict = new Dictionary<string, string>(StringComparer.Ordinal);
+        var span = fields.AsSpan();
+        while (!span.IsEmpty) {
+            var commaIdx = span.IndexOf(',');
+            var pair = commaIdx < 0 ? span : span[..commaIdx];
+            span = commaIdx < 0 ? default : span[(commaIdx + 1)..];
+            if (pair.IsEmpty) continue;
+            var eqIdx = pair.IndexOf('=');
+            if (eqIdx > 0 && eqIdx < pair.Length - 1) {
+                var key = pair[..eqIdx].Trim().ToString();
+                var value = pair[(eqIdx + 1)..].Trim().ToString();
+                dict[key] = value;
+            }
+        }
+        return JsonSerializer.Serialize(dict, GitHubApiJsonContext.Safe.DictionaryStringString);
+    }
+
+    /// <summary>
     /// GET 列表端点自动加 per_page=100 — 单个资源端点(以数字 ID 结尾)不加,避免 404
     /// </summary>
     private static IReadOnlyDictionary<string, string>? EnsurePerPageForListEndpoint(IReadOnlyDictionary<string, string>? query, HttpMethod method, string path) {
@@ -127,7 +157,7 @@ public partial class GitHubToolHandlers {
             (403, _)
                 => "403 Forbidden — 可能原因: ① Token 缺少所需 scope ② Rate limit 触发 ③ 资源无权限",
             (422, _)
-                => "422 Unprocessable Entity — 请求体格式错误或字段值非法, 请检查 body JSON 结构",
+                => $"422 Unprocessable Entity — 请求体格式错误或字段值非法。GitHub 返回: {originalError}\n提示: 用 --body 传完整 JSON 对象, 或用 --fields key=value 自动转为 JSON body(非 GET 请求)",
             (401, _)
                 => "401 Unauthorized — Token 无效或已过期, 请检查 JCC_GITHUB_TOKEN / GITHUB_TOKEN 环境变量",
             _ => $"{statusCode} — {originalError}"

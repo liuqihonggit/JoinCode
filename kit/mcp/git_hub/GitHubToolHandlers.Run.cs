@@ -592,7 +592,7 @@ public partial class GitHubToolHandlers {
             lineNumber++;
             if (!regex.IsMatch(line)) continue;
             if (skipped < skip) { skipped++; continue; }
-            matched.Add($"{lineNumber}: {GitHubRunLogText.StripLogTimestamp(line)}");
+            matched.Add(LineNumberFormatter.Format(lineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix));
             if (matched.Count >= maxLines) break;
         }
         if (matched.Count == 0) {

@@ -66,4 +66,40 @@ public class LineNumberPrefixTests {
         // 制表符缩进的代码行不以"数字+分隔符"开头，不应被误剥离
         FileEditor.StripLineNumberPrefixes("\tindented code").Should().Be("\tindented code");
     }
+
+    [Fact]
+    public void LineNumberFormatter_Format_Compact_UsesTabSeparator() {
+        LineNumberFormatter.Format(1, "content", compact: true).Should().Be("1\tcontent");
+        LineNumberFormatter.Format(42, "log line", compact: true).Should().Be("42\tlog line");
+    }
+
+    [Fact]
+    public void LineNumberFormatter_Format_Wide_UsesArrowWithPadStart6() {
+        LineNumberFormatter.Format(1, "content", compact: false).Should().Be("     1\u2192content");
+        LineNumberFormatter.Format(42, "log line", compact: false).Should().Be("    42\u2192log line");
+    }
+
+    [Fact]
+    public void LineNumberFormatter_Format_Wide_LargeLineNumber_NoPadding() {
+        LineNumberFormatter.Format(123456, "content", compact: false).Should().Be("123456\u2192content");
+        LineNumberFormatter.Format(9999999, "content", compact: false).Should().Be("9999999\u2192content");
+    }
+
+    [Fact]
+    public void LineNumberFormatter_FormatMultiLine_Compact_UsesTabSeparator() {
+        var result = LineNumberFormatter.FormatMultiLine("a\nb", 1, compact: true);
+        result.Should().Be($"1\ta{Environment.NewLine}2\tb{Environment.NewLine}");
+    }
+
+    [Fact]
+    public void LineNumberFormatter_FormatMultiLine_Wide_UsesArrowSeparator() {
+        var result = LineNumberFormatter.FormatMultiLine("a\nb", 1, compact: false);
+        result.Should().Be($"     1\u2192a{Environment.NewLine}     2\u2192b{Environment.NewLine}");
+    }
+
+    [Fact]
+    public void LineNumberFormatter_FormatMultiLine_EmptyContent_ReturnsEmpty() {
+        LineNumberFormatter.FormatMultiLine("", 1, compact: true).Should().BeEmpty();
+        LineNumberFormatter.FormatMultiLine("", 1, compact: false).Should().BeEmpty();
+    }
 }

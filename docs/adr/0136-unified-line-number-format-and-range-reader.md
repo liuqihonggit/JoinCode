@@ -70,8 +70,15 @@ FileRead offset+limit → LineRangeReader.Slice（截断后由 AddLineNumbers �
 | Phase 2 | 创建 `LineRangeReader` + `SkipAndTruncate` 委托 | `14ba8d20e` |
 | Phase 3 | `Slice` 泛型化 → `Slice<T>`，`ApplyLimit<T>` 委托给它 | `dfb26ecf4` |
 | Phase 4 | gh `StreamAndFilter` 流式截断无需改动（行号已在 Phase 1 统一） | N/A |
+| Fix 1 | 去掉 `compactLinePrefix = true` 默认参数（2 处），`GitHubRunLogFilterRunner` 重排参数顺序 | `94fdf0b7e` |
+| Fix 2 | `ThrottledFileService.ReadFileAsync` 委托 `Slice<string>` | `12f46ebe3` |
+| Fix 3 | `TruncateLines` 委托 `Slice<(int,int)>` 保持零拷贝 | `c8c2c4e79` |
+| Fix 4 | CodeIndex/Graph 7 处截断委托 `Slice` | `0f3b0cb88` |
 
 ## 后续
 
 - ✅ ADR 状态已为 `accepted`
+- ✅ 全部截断逻辑已统一到 `LineRangeReader.Slice<T>` / `Read`
+- ✅ 全部行号格式化已统一到 `LineNumberFormatter`
+- ✅ `CompactLinePrefix` 配置开关控制全部消费点，无硬编码绕过
 - AGENTS.md"好代码一键清单"中新增 `LineRangeReader.Read` 作为偏移读取推荐模式

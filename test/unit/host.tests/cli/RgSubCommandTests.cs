@@ -276,4 +276,162 @@ public sealed class RgSubCommandTests {
         opts.Should().NotBeNull();
         opts!.Multiline.Should().BeTrue();
     }
+
+    [Fact]
+    public void ParseArgs_DefaultOutputMode_ShouldBeContent() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/"]);
+        opts.Should().NotBeNull();
+        opts!.OutputMode.Should().Be(SearchOutputMode.Content);
+    }
+
+    [Fact]
+    public void ParseArgs_InvertMatchShort_ShouldSetFlag() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-v"]);
+        opts.Should().NotBeNull();
+        opts!.InvertMatch.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseArgs_InvertMatchLong_ShouldSetFlag() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--invert-match"]);
+        opts.Should().NotBeNull();
+        opts!.InvertMatch.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseArgs_LineRegexp_ShouldWrapPatternWithAnchors() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-x"]);
+        opts.Should().NotBeNull();
+        opts!.Pattern.Should().Be("^(?:pattern)$");
+        opts.LineRegexp.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseArgs_MaxCountShort_ShouldSetValue() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-m", "5"]);
+        opts.Should().NotBeNull();
+        opts!.MaxCount.Should().Be(5);
+    }
+
+    [Fact]
+    public void ParseArgs_MaxCountLong_ShouldSetValue() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--max-count", "10"]);
+        opts.Should().NotBeNull();
+        opts!.MaxCount.Should().Be(10);
+    }
+
+    [Fact]
+    public void ParseArgs_ThreadsShort_ShouldSetValue() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-j", "4"]);
+        opts.Should().NotBeNull();
+        opts!.Threads.Should().Be(4);
+    }
+
+    [Fact]
+    public void ParseArgs_ThreadsLong_ShouldSetValue() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--threads", "8"]);
+        opts.Should().NotBeNull();
+        opts!.Threads.Should().Be(8);
+    }
+
+    [Fact]
+    public void ParseArgs_MaxFilesizePlain_ShouldSetValue() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--max-filesize", "1000"]);
+        opts.Should().NotBeNull();
+        opts!.MaxFilesize.Should().Be(1000L);
+    }
+
+    [Fact]
+    public void ParseArgs_MaxFilesizeKSuffix_ShouldMultiplyBy1024() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--max-filesize", "1K"]);
+        opts.Should().NotBeNull();
+        opts!.MaxFilesize.Should().Be(1024L);
+    }
+
+    [Fact]
+    public void ParseArgs_MaxFilesizeMSuffix_ShouldMultiplyBy1M() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--max-filesize", "1M"]);
+        opts.Should().NotBeNull();
+        opts!.MaxFilesize.Should().Be(1024L * 1024);
+    }
+
+    [Fact]
+    public void ParseArgs_MaxFilesizeGSuffix_ShouldMultiplyBy1G() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--max-filesize", "1G"]);
+        opts.Should().NotBeNull();
+        opts!.MaxFilesize.Should().Be(1024L * 1024 * 1024);
+    }
+
+    [Fact]
+    public void ParseArgs_BareContent_ShouldSetContentMode() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "content"]);
+        opts.Should().NotBeNull();
+        opts!.OutputMode.Should().Be(SearchOutputMode.Content);
+    }
+
+    [Fact]
+    public void ParseArgs_BareCount_ShouldSetCountMode() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "count"]);
+        opts.Should().NotBeNull();
+        opts!.OutputMode.Should().Be(SearchOutputMode.Count);
+    }
+
+    [Fact]
+    public void ParseArgs_BareFilesWithMatches_ShouldSetFilesMode() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "files-with-matches"]);
+        opts.Should().NotBeNull();
+        opts!.OutputMode.Should().Be(SearchOutputMode.Files);
+    }
+
+    [Fact]
+    public void ParseArgs_BareJson_ShouldSetJsonFlag() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "json"]);
+        opts.Should().NotBeNull();
+        opts!.Json.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseArgs_BareHidden_ShouldSetHiddenFlag() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "hidden"]);
+        opts.Should().NotBeNull();
+        opts!.Hidden.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseArgs_BareNoIgnore_ShouldSetNoIgnoreFlag() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "no-ignore"]);
+        opts.Should().NotBeNull();
+        opts!.NoIgnore.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseArgs_MultipleRegexp_ShouldMergeAsOrPattern() {
+        var opts = RgSubCommand.ParseArgs(["rg", "-e", "foo", "-e", "bar", "src/"]);
+        opts.Should().NotBeNull();
+        opts!.Pattern.Should().Be("foo|bar");
+        opts.Paths.Should().ContainSingle().Which.Should().Be("src/");
+    }
+
+    [Fact]
+    public void ParseArgs_RegexpWithPositionalPattern_ShouldTreatPositionalAsPaths() {
+        var opts = RgSubCommand.ParseArgs(["rg", "-e", "foo", "bar", "src/"]);
+        opts.Should().NotBeNull();
+        opts!.Pattern.Should().Be("foo");
+        opts.Paths.Should().HaveCount(2);
+        opts.Paths.Should().ContainInOrder("bar", "src/");
+    }
+
+    [Fact]
+    public void ParseArgs_FilesWithMatchesExplicit_ShouldSetFilesMode() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-l"]);
+        opts.Should().NotBeNull();
+        opts!.OutputMode.Should().Be(SearchOutputMode.Files);
+    }
+
+    [Fact]
+    public void ParseArgs_CountExplicit_ShouldSetCountMode() {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-c"]);
+        opts.Should().NotBeNull();
+        opts!.OutputMode.Should().Be(SearchOutputMode.Count);
+    }
 }

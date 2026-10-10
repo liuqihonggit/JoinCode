@@ -129,7 +129,7 @@ internal static class RgSubCommand {
                     case "hidden": hidden = true; continue;
                     case "no-ignore": noIgnore = true; continue;
                 }
-                if (pattern is null)
+                if (pattern is null && regexpPatterns.Count == 0)
                     pattern = arg;
                 else
                     paths.Add(arg);

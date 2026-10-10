@@ -122,6 +122,24 @@ public class LineNumberPrefixTests {
     }
 
     [Fact]
+    public void LineRangeReader_Slice_Generic_NonStringType() {
+        var numbers = new[] { 10, 20, 30, 40, 50 };
+        var (range, hasMore, nextSkip) = LineRangeReader.Slice<int>(numbers, skipLines: 1, maxLines: 2);
+        range.Should().Equal(20, 30);
+        hasMore.Should().BeTrue();
+        nextSkip.Should().Be(3);
+    }
+
+    [Fact]
+    public void LineRangeReader_Slice_Generic_NoTruncation_Needed() {
+        var items = new[] { 1, 2, 3 };
+        var (range, hasMore, nextSkip) = LineRangeReader.Slice<int>(items, skipLines: 0, maxLines: 10);
+        range.Should().Equal(1, 2, 3);
+        hasMore.Should().BeFalse();
+        nextSkip.Should().Be(3);
+    }
+
+    [Fact]
     public void LineRangeReader_Read_Compact_UsesTabSeparator() {
         var lines = new[] { "first", "second" };
         var result = LineRangeReader.Read(lines, skipLines: 0, maxLines: 10, compactLinePrefix: true);

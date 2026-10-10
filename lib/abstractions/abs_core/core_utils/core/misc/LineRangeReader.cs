@@ -7,19 +7,19 @@ namespace JoinCode.Abstractions.Utils;
 public static class LineRangeReader {
     /// <summary>
     /// 纯截断 — 从行集合中按偏移读取指定范围，不格式化行号。
-    /// 用于只需要截断列表、不需要行号格式化的场景（如 rg/grep 结果截断）。
+    /// 用于只需要截断列表、不需要行号格式化的场景（如 rg/grep 结果截断、ApplyLimit 泛型截断）。
     /// </summary>
     /// <param name="lines">全部行集合。</param>
     /// <param name="skipLines">跳过前 N 行（0-based）。</param>
     /// <param name="maxLines">最多读取行数。</param>
     /// <returns>(截断后的行, 是否还有更多行, 下次续读的 skip 值)</returns>
-    public static (IReadOnlyList<string> Range, bool HasMore, int NextSkip) Slice(
-        IReadOnlyList<string> lines, int skipLines, int maxLines) {
+    public static (IReadOnlyList<T> Range, bool HasMore, int NextSkip) Slice<T>(
+        IReadOnlyList<T> lines, int skipLines, int maxLines) {
         if (skipLines >= lines.Count)
-            return (Array.Empty<string>(), false, skipLines);
+            return (Array.Empty<T>(), false, skipLines);
 
         var take = Math.Min(lines.Count - skipLines, maxLines);
-        var range = new List<string>(take);
+        var range = new List<T>(take);
         for (var i = skipLines; i < skipLines + take; i++) {
             range.Add(lines[i]);
         }
@@ -42,7 +42,7 @@ public static class LineRangeReader {
         if (lines.Count == 0)
             return new LineRangeResult(string.Empty, false, skipLines);
 
-        var (range, hasMore, nextSkip) = Slice(lines, skipLines, maxLines);
+        var (range, hasMore, nextSkip) = Slice<string>(lines, skipLines, maxLines);
         if (range.Count == 0)
             return new LineRangeResult(
                 $"已跳过全部 {lines.Count} 行(skip_lines={skipLines})，无更多内容。", false, skipLines);

@@ -163,7 +163,7 @@ public sealed class GitHubRunWaitTests {
     }
 
     [Fact]
-    public async Task RunWait_Failure_DownloadsLogsToDisk() {
+    public async Task RunWait_Failure_ReturnsLsmCacheHint() {
         var fs = new InMemoryFileSystem();
         var api = new FakeGitHubApiClient();
         api.EnqueueResponse(new GitHubApiResponse {
@@ -174,11 +174,6 @@ public sealed class GitHubRunWaitTests {
             Success = true, StatusCode = 200,
             Body = """{"status":"completed","conclusion":"failure","html_url":"https://github.com/o/r/actions/runs/1"}"""
         });
-        api.EnqueueResponse(new GitHubApiResponse {
-            Success = true, StatusCode = 200,
-            Body = """{"jobs":[{"id":123,"conclusion":"failure"}]}"""
-        });
-        api.NextLogLines = new[] { "##[error] test failed", "  Failed MyTest [FAIL]", "  Error Message: boom" };
 
         var handler = new GitHubToolHandlers(new FakeDownloader(), fs, api, null, NullLogger<GitHubToolHandlers>.Instance);
 
@@ -186,10 +181,9 @@ public sealed class GitHubRunWaitTests {
             run_id: "1", timeout_seconds: 10, poll_interval_seconds: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
-        result.GetFirstText().Should().Contain("日志已下载到");
-        result.GetFirstText().Should().Contain("run_1_");
-        result.GetFirstText().Should().Contain(".jcc");
-        result.GetFirstText().Should().Contain("gh_logs");
+        result.GetFirstText().Should().Contain("gh run view");
+        result.GetFirstText().Should().Contain("--refresh");
+        result.GetFirstText().Should().Contain("LSM");
     }
 
     [Fact]
@@ -208,7 +202,7 @@ public sealed class GitHubRunWaitTests {
     }
 
     [Fact]
-    public async Task PrWait_FailedChecks_DownloadsLogsToDisk() {
+    public async Task PrWait_FailedChecks_ReturnsLsmCacheHint() {
         var fs = new InMemoryFileSystem();
         var api = new FakeGitHubApiClient();
         api.EnqueueResponse(new GitHubApiResponse {
@@ -223,11 +217,6 @@ public sealed class GitHubRunWaitTests {
             Success = true, StatusCode = 200,
             Body = """{"workflow_runs":[{"id":99,"conclusion":"failure","head_sha":"abc123"}]}"""
         });
-        api.EnqueueResponse(new GitHubApiResponse {
-            Success = true, StatusCode = 200,
-            Body = """{"jobs":[{"id":456,"conclusion":"failure"}]}"""
-        });
-        api.NextLogLines = new[] { "##[error] build failed", "error CS0001: syntax error" };
 
         var handler = new GitHubToolHandlers(new FakeDownloader(), fs, api, null, NullLogger<GitHubToolHandlers>.Instance);
 
@@ -236,7 +225,8 @@ public sealed class GitHubRunWaitTests {
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("1 失败");
-        result.GetFirstText().Should().Contain("日志已下载到");
+        result.GetFirstText().Should().Contain("gh run view");
+        result.GetFirstText().Should().Contain("--refresh");
     }
 
     /// <summary>

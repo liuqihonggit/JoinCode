@@ -751,10 +751,7 @@ public partial class GitHubToolHandlers {
         var summary = BuildRunWaitSummary(waitResult.Body!, runId, waitResult.PollCount, waitResult.ElapsedMs);
         if (!IsFailedConclusion(conclusion))
             return Ok(summary, $"Run {runId} 已完成: {conclusion}");
-        var logPath = await DownloadFailedLogsToDiskAsync(owner, repoName, runId, workingDir, ct).ConfigureAwait(false);
-        return logPath is not null
-            ? Ok(summary + $"\n\n📄 失败 job 日志已下载到:\n{logPath}\n\n💡 用 read 工具读取此文件查看错误详情", $"Run {runId} 已完成: ❌ {conclusion}")
-            : Ok(summary + $"\n\n⚠ 失败 job 日志下载失败,用 gh run view {runId} --log --filter failed 手动查看", $"Run {runId} 已完成: ❌ {conclusion}");
+        return Ok(summary + $"\n\n❌ Run {runId} 失败\n\n💡 用 gh run view {runId} --log --filter failed 从 LSM 缓存读日志(命中缓存不重新下载,--refresh 强制刷新)", $"Run {runId} 已完成: ❌ {conclusion}");
     }
 
     /// <summary>
@@ -798,46 +795,9 @@ public partial class GitHubToolHandlers {
         => conclusion is "failure" or "cancelled" or "timed_out";
 
     /// <summary>
-    /// 下载失败 job 日志到磁盘 — 流式拉取所有 conclusion=failure 的 job 日志,写到 .jcc/gh_logs/run_{id}_{timestamp}.log
-    /// <para>复用 GetFailedJobLogsAsync 并行下载多个失败 job(Actor 邮箱模型合并)</para>
-    /// <para>只返回磁盘路径,不把日志内容塞进 ToolResult,节约 LLM 上下文</para>
-    /// </summary>
-    private async Task<string?> DownloadFailedLogsToDiskAsync(
-        string owner, string repo, string runId, string? workingDir, CancellationToken ct) {
-        if (_logFilterRunner is null) return null;
-        return await DownloadLogsToDiskCoreAsync(runId, workingDir,
-            ct => _logFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, false, ct), ct).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// 流式写日志到磁盘的公共逻辑 — 提取自 DownloadFailedLogsToDiskAsync 消除重复
-    /// </summary>
-    private async Task<string?> DownloadLogsToDiskCoreAsync(
-        string runId, string? workingDir,
-        Func<CancellationToken, IAsyncEnumerable<string>> logStreamFactory, CancellationToken ct) {
-        var baseDir = string.IsNullOrWhiteSpace(workingDir) ? _fs.GetCurrentDirectory() : workingDir;
-        var logDir = _fs.CombinePath(baseDir, ".jcc", "gh_logs");
-        if (!_fs.DirectoryExists(logDir)) _fs.CreateDirectory(logDir);
-
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
-        var logPath = _fs.CombinePath(logDir, $"run_{runId}_{timestamp}.log");
-
-        var sb = new StringBuilder();
-        var lineCount = 0;
-        await foreach (var line in logStreamFactory(ct).ConfigureAwait(false)) {
-            sb.AppendLine(line);
-            lineCount++;
-        }
-
-        if (lineCount == 0) return null;
-        await _fs.WriteAllTextAsync(logPath, sb.ToString(), ct).ConfigureAwait(false);
-        return logPath;
-    }
-
-    /// <summary>
-    /// 启动后台 CI 监控任务 — fire-and-forget,持续轮询 run 的其他 job,新失败 job 拉日志写通知文件
+    /// 启动后台 CI 监控任务 — fire-and-forget,持续轮询 run 的其他 job,新失败 job 写告警到 LSM
     /// <para>从 GhRunWaitFailFastAsync 返回前启动,利用 jcc 长驻进程持续运行</para>
-    /// <para>通知文件写入 .jcc/ci_alerts/{run_id}_{job_id}_{timestamp}.json,AI 用 gh ci alerts 调阅</para>
+    /// <para>告警写入 LSM(key=gh:ci_alert:前缀),AI 用 gh ci alerts 调阅;日志用 gh run view --log 从 LSM 缓存读</para>
     /// <para>异常在任务内部吞掉+日志,不影响主流程;run completed 后自动退出</para>
     /// </summary>
     private void StartBackgroundCiMonitor(

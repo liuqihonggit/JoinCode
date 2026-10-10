@@ -550,18 +550,17 @@ public partial class GitHubToolHandlers {
         var summaryText = $"汇总: {waitResult.Summary}\n轮询次数: {waitResult.PollCount}, 耗时: {waitResult.ElapsedMs / 1000}s";
         if (waitResult.FailCount == 0)
             return Ok(summaryText, $"PR #{number} 所有 CI checks 已完成 ✅");
-        var logPaths = await DownloadFailedPrRunsLogsToDiskAsync(client, owner, repoName, headSha, workingDir, ct).ConfigureAwait(false);
-        return logPaths.Count > 0
-            ? Ok(summaryText + "\n\n📄 失败 job 日志已下载到:\n" + string.Join("\n", logPaths) + "\n\n💡 用 read 工具读取这些文件查看错误详情", $"PR #{number} CI checks 已完成(有 {waitResult.FailCount} 个失败) ❌")
-            : Ok(summaryText + $"\n\n⚠ 未找到可下载的 Actions run 日志(可能是第三方 CI),用 gh pr checks {number} 查看失败 check 名称", $"PR #{number} CI checks 已完成(有 {waitResult.FailCount} 个失败) ❌");
+        var failedRunIds = await GetFailedPrRunIdsAsync(client, owner, repoName, headSha, ct).ConfigureAwait(false);
+        var runList = failedRunIds.Count > 0 ? string.Join(", ", failedRunIds) : "无(可能是第三方 CI)";
+        return Ok(summaryText + $"\n\n❌ 失败 runs: {runList}\n\n💡 用 gh run view <run_id> --log --filter failed 从 LSM 缓存读日志(--refresh 强制刷新)", $"PR #{number} CI checks 已完成(有 {waitResult.FailCount} 个失败) ❌");
     }
 
     /// <summary>
-    /// 下载 PR 对应失败 Actions run 的日志到磁盘 — 用 head_sha 查 actions/runs,对每个失败 run 下载失败 job 日志
-    /// <para>每个失败 run 生成独立日志文件 .jcc/gh_logs/run_{runId}_{timestamp}.log</para>
+    /// 查 PR 对应失败 Actions run 的 ID 列表 — 用 head_sha 查 actions/runs,筛选 conclusion=failure 的 run
+    /// <para>日志不下载到磁盘,AI 用 gh run view --log 从 LSM 缓存读(见 persistence-reuse-lsm-tree)</para>
     /// </summary>
-    private async Task<List<string>> DownloadFailedPrRunsLogsToDiskAsync(
-        IGitHubApiClient client, string owner, string repo, string headSha, string? workingDir, CancellationToken ct) {
+    private async Task<List<string>> GetFailedPrRunIdsAsync(
+        IGitHubApiClient client, string owner, string repo, string headSha, CancellationToken ct) {
         var runsResult = await client.SendAsync(
             HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs",
             query: new Dictionary<string, string> { ["head_sha"] = headSha },
@@ -582,12 +581,7 @@ public partial class GitHubToolHandlers {
             return [];
         }
 
-        var paths = new List<string>(failedRunIds.Count);
-        foreach (var runId in failedRunIds) {
-            var path = await DownloadFailedLogsToDiskAsync(owner, repo, runId, workingDir, ct).ConfigureAwait(false);
-            if (path is not null) paths.Add(path);
-        }
-        return paths;
+        return failedRunIds;
     }
 
     /// <summary>

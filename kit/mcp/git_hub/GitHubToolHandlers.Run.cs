@@ -172,8 +172,15 @@ public partial class GitHubToolHandlers {
                 headSha = sha.GetString();
         } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 PR head_sha 失败"); }
         if (string.IsNullOrEmpty(headSha)) return null;
+        return await ResolveRunIdFromHeadShaAsync(client, owner, repoName, headSha, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 从 head_sha 查最新 Actions run ID — per_page=1 取最新一条
+    /// </summary>
+    private async Task<string?> ResolveRunIdFromHeadShaAsync(IGitHubApiClient client, string owner, string repoName, string headSha, CancellationToken ct) {
         var runsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs",
-            query: new Dictionary<string, string> { ["head_sha"] = headSha!, ["per_page"] = "1" }, ct: ct).ConfigureAwait(false);
+            query: new Dictionary<string, string> { ["head_sha"] = headSha, ["per_page"] = "1" }, ct: ct).ConfigureAwait(false);
         if (!runsResult.Success) return null;
         try {
             using var doc = JsonDocument.Parse(runsResult.Body);
@@ -751,7 +758,8 @@ public partial class GitHubToolHandlers {
         var summary = BuildRunWaitSummary(waitResult.Body!, runId, waitResult.PollCount, waitResult.ElapsedMs);
         if (!IsFailedConclusion(conclusion))
             return Ok(summary, $"Run {runId} 已完成: {conclusion}");
-        return Ok(summary + $"\n\n❌ Run {runId} 失败\n\n💡 用 gh run view {runId} --log --filter failed 从 LSM 缓存读日志(命中缓存不重新下载,--refresh 强制刷新)", $"Run {runId} 已完成: ❌ {conclusion}");
+        var logContent = await FetchFailedJobLogsInlineAsync(owner, repoName, runId, null, ct).ConfigureAwait(false);
+        return Ok(summary + $"\n\n❌ Run {runId} 失败\n\n📄 失败日志(从 LSM 缓存读):\n{logContent}", $"Run {runId} 已完成: ❌ {conclusion}");
     }
 
     /// <summary>
@@ -785,7 +793,32 @@ public partial class GitHubToolHandlers {
 
         var prefix = isFailFast ? $"⚠ fail-fast: Run {runId} 运行中发现失败 job,立即返回(后台继续监控其他 job,用 gh ci alerts 调阅)" : $"Run {runId} 已完成: ❌ {watchResult.RunConclusion ?? "failure"}";
         var jobList = string.Join(",", failedJobIds);
-        return Ok(summary + $"\n\n❌ 失败 job: {jobList}\n\n💡 用 gh run view {runId} --job {jobList} --log 从 LSM 缓存读日志(命中缓存不重新下载)", prefix);
+        var logContent = await FetchFailedJobLogsInlineAsync(owner, repoName, runId, failedJobIds, ct).ConfigureAwait(false);
+        return Ok(summary + $"\n\n❌ 失败 job: {jobList}\n\n📄 失败日志(从 LSM 缓存读,--refresh 可强制刷新):\n{logContent}", prefix);
+    }
+
+    /// <summary>
+    /// 从 LSM 缓存拉失败 job 日志,内联返回给 AI — 优先命中缓存(gh:log:前缀),未命中则从 API 下载并写缓存
+    /// <para>jobIds 非 null 时拉指定 job;为 null 时自动查所有失败 job(GetFailedJobLogsAsync)</para>
+    /// <para>限制 maxLines=200 行避免塞爆 LLM 上下文</para>
+    /// </summary>
+    private async Task<string> FetchFailedJobLogsInlineAsync(string owner, string repo, string runId, List<long>? jobIds, CancellationToken ct) {
+        if (_logFilterRunner is null) return "(日志过滤运行器未初始化)";
+        const int maxLines = 200;
+        var sb = new StringBuilder();
+        var lineCount = 0;
+        var logStream = jobIds is not null && jobIds.Count > 0
+            ? _logFilterRunner.DownloadJobsParallelAsync(owner, repo, runId, jobIds, false, ct)
+            : _logFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, false, ct);
+        await foreach (var line in logStream.ConfigureAwait(false)) {
+            if (lineCount >= maxLines) {
+                sb.AppendLine($"... (截断,超过 {maxLines} 行,用 gh run view {runId} --log 查看完整日志)");
+                break;
+            }
+            sb.AppendLine(line);
+            lineCount++;
+        }
+        return lineCount == 0 ? "(无日志输出)" : sb.ToString();
     }
 
     /// <summary>

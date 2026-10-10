@@ -174,6 +174,11 @@ public sealed class GitHubRunWaitTests {
             Success = true, StatusCode = 200,
             Body = """{"status":"completed","conclusion":"failure","html_url":"https://github.com/o/r/actions/runs/1"}"""
         });
+        api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"jobs":[{"id":123,"conclusion":"failure"}]}"""
+        });
+        api.NextLogLines = new[] { "##[error] test failed", "Error Message: boom" };
 
         var handler = new GitHubToolHandlers(new FakeDownloader(), fs, api, null, NullLogger<GitHubToolHandlers>.Instance);
 
@@ -181,9 +186,8 @@ public sealed class GitHubRunWaitTests {
             run_id: "1", timeout_seconds: 10, poll_interval_seconds: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
-        result.GetFirstText().Should().Contain("gh run view");
-        result.GetFirstText().Should().Contain("--refresh");
-        result.GetFirstText().Should().Contain("LSM");
+        result.GetFirstText().Should().Contain("失败日志");
+        result.GetFirstText().Should().Contain("test failed");
     }
 
     [Fact]
@@ -256,7 +260,8 @@ public sealed class GitHubRunWaitTests {
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("fail-fast");
         result.GetFirstText().Should().Contain("失败 job");
-        result.GetFirstText().Should().Contain("gh run view");
+        result.GetFirstText().Should().Contain("失败日志");
+        result.GetFirstText().Should().Contain("test failed");
         result.GetFirstText().Should().Contain("轮询次数: 1");
     }
 

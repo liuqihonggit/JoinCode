@@ -512,21 +512,22 @@ public partial class GitHubToolHandlers {
     /// <para>信号模型:轮询发现全部 completed 触发返回(唤醒 LLM)</para>
     /// <para>指数退避:初始 5s ×1.5 每次,上限 60s,默认超时 30 分钟</para>
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhPrWait, "等待 PR 所有 CI checks 完成(指数退避轮询+进度回调,完成才返回)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhPrWait, "等待 PR 所有 CI checks 完成(指数退避轮询+进度回调,完成才返回;fail_fast=运行中 job 失败立即拉日志返回)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrWaitAsync(
         [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("超时秒数(默认 1800=30分钟)", Required = false)] int? timeout_seconds = null,
         [McpToolParameter("初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)", Required = false)] int? poll_interval_seconds = null,
+        [McpToolParameter("fail_fast=true 轮询 jobs 级别,发现 job failure 立即拉日志返回(不等所有 checks 完成)", Required = false)] bool? fail_fast = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, (client, owner, repoName)
-            => GhPrWaitCoreAsync(client, owner, repoName, pr_number, timeout_seconds, poll_interval_seconds, common?.WorkingDir, cancellationToken, onProgress)).ConfigureAwait(false);
+            => GhPrWaitCoreAsync(client, owner, repoName, pr_number, timeout_seconds, poll_interval_seconds, fail_fast == true, common?.WorkingDir, cancellationToken, onProgress)).ConfigureAwait(false);
 
     /// <summary>
     /// GhPrWait 核心逻辑 — 指数退避轮询 check-runs 直到全部 completed,失败时下载日志到磁盘
     /// </summary>
-    private async Task<ToolResult> GhPrWaitCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, int? timeoutSeconds, int? pollIntervalSeconds, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
+    private async Task<ToolResult> GhPrWaitCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, int? timeoutSeconds, int? pollIntervalSeconds, bool failFast, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
         var number = ParseNumberFromRef(prNumber);
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return Fail(prResult.Error);
@@ -538,6 +539,13 @@ public partial class GitHubToolHandlers {
         if (string.IsNullOrEmpty(headSha)) return Fail("无法从 PR 响应中解析 head.sha");
         var timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds ?? 1800, 1, 7200));
         var initialInterval = TimeSpan.FromSeconds(Math.Clamp(pollIntervalSeconds ?? 5, 1, 60));
+
+        if (failFast) {
+            var runId = await ResolveRunIdFromHeadShaAsync(client, owner, repoName, headSha, ct).ConfigureAwait(false);
+            if (runId is null) return Fail($"PR #{number} 未找到对应的 Actions run(head_sha={headSha})");
+            return await GhRunWaitFailFastAsync(client, owner, repoName, runId, timeout, initialInterval, workingDir, ct, onProgress).ConfigureAwait(false);
+        }
+
         var waitResult = await GitHubRunPoller.WaitForPrChecksCompletionAsync(
             client, owner, repoName, headSha, number, timeout, initialInterval,
             onProgress, "gh_pr_wait", ct).ConfigureAwait(false);
@@ -759,6 +767,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("禁止维护者编辑 PR(可选,等价 maintainer_can_modify=false)", Required = false)] bool? no_maintainer_edit = null,
         [McpToolParameter("从上次失败的创建恢复(可选,暂未支持,需状态文件持久化)", Required = false)] bool? recover = null,
         [McpToolParameter("附加文件到 PR(可选,多个用逗号,暂未支持,需文件上传 API)", Required = false)] string? attach = null,
+        [McpToolParameter("创建后自动等候 CI 完成(可选,等价 gh pr wait)", Required = false)] bool? wait = null,
+        [McpToolParameter("wait 模式下 fail-fast(可选,job 失败立即拉日志返回)", Required = false)] bool? fail_fast = null,
+        [McpToolParameter("wait 模式超时秒数(可选,默认 1800)", Required = false)] int? wait_timeout = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
     {
@@ -817,10 +828,19 @@ public partial class GitHubToolHandlers {
                 var msg = autoMergeResult.Success
                     ? $"PR {prNumber} 创建成功，已启用 auto-merge（{autoMergeResult.Method}）"
                     : $"PR {prNumber} 创建成功（auto-merge 启用失败: {autoMergeResult.Error}）";
+                if (wait == true && prNumber > 0) {
+                    var waitResult = await GhPrWaitCoreAsync(client, owner, repoName, prNumber.ToString(), wait_timeout, null, fail_fast == true, common?.WorkingDir, cancellationToken, null).ConfigureAwait(false);
+                    return Ok(msg + auditWarning + fillInfo + "\n\n" + waitResult.GetFirstText());
+                }
                 return Ok(msg + auditWarning + fillInfo);
             }
             var prUrl = TryExtractJsonField(result.Body, "html_url") ?? TryExtractJsonField(result.Body, "url");
-            return Ok(prUrl is not null ? $"{prUrl}\nPR 创建成功{auditWarning}{fillInfo}" : $"PR 创建成功{auditWarning}{fillInfo}");
+            var createMsg = prUrl is not null ? $"{prUrl}\nPR 创建成功{auditWarning}{fillInfo}" : $"PR 创建成功{auditWarning}{fillInfo}";
+            if (wait == true && prNumber > 0) {
+                var waitResult = await GhPrWaitCoreAsync(client, owner, repoName, prNumber.ToString(), wait_timeout, null, fail_fast == true, common?.WorkingDir, cancellationToken, null).ConfigureAwait(false);
+                return Ok(createMsg + "\n\n" + waitResult.GetFirstText());
+            }
+            return Ok(createMsg);
         }).ConfigureAwait(false);
     }
 

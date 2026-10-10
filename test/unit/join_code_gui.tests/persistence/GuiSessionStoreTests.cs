@@ -27,7 +27,7 @@ public class GuiSessionStoreTests {
         var loaded = await store.LoadAsync("sess-001");
 
         loaded.Should().NotBeNull();
-        loaded!.Id.Should().Be("sess-001");
+        (loaded ?? throw new InvalidOperationException("loaded 未设置")).Id.Should().Be("sess-001");
         loaded.CustomTitle.Should().Be("斐波那契");
         loaded.Messages.Should().HaveCount(2);
         loaded.Messages[0].Role.Should().Be("user");

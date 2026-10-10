@@ -102,8 +102,9 @@ public class PermissionDialogViewTests {
     }
 
     private static void InvokeDecision(PermissionDialogView dialog, string methodName) {
-        typeof(PermissionDialogView).GetMethod(methodName,
-            BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(dialog, [dialog, EventArgs.Empty]);
+        var method = typeof(PermissionDialogView).GetMethod(methodName,
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException($"{methodName} not found");
+        method.Invoke(dialog, [dialog, EventArgs.Empty]);
     }
 }

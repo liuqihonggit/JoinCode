@@ -10,7 +10,7 @@ public sealed record ProviderConfig {
     /// 决定 auth key/模型列表/显示名
     /// </summary>
     [Required]
-    public string Vendor { get; init; } = VendorKind.DeepSeek.ToValue();
+    public string Vendor { get; set; } = VendorKind.DeepSeek.ToValue();
 
     /// <summary>
     /// 协议 — openai-compatible/anthropic/azure/agnes
@@ -27,7 +27,7 @@ public sealed record ProviderConfig {
     /// <summary>
     /// 模型 ID
     /// </summary>
-    public string ModelId { get; init; } = string.Empty;
+    public string ModelId { get; set; } = string.Empty;
 
     /// <summary>
     /// API 端点（Azure/商汤等需要）

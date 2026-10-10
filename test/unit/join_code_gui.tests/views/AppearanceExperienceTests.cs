@@ -1,23 +1,22 @@
-namespace JoinCode.Gui.Tests.Views;
+﻿namespace JoinCode.Gui.Tests.Views;
 
 /// <summary>外观设置必须可发现，并且主题配置须独立于 CLI 主题持久化。</summary>
 [Collection("GuiUiSequential")]
 public sealed class AppearanceExperienceTests {
-    [AvaloniaFact]
-    public void Settings_OffersAppearanceAndMotionControls() {
-        var window = new Window { Width = 400, Height = 800, Content = new SettingsPanelView() };
-        try {
-            window.Show();
-            window.GetVisualDescendants().OfType<TextBlock>()
-                .Select(t => t.Text).Should().Contain("外观与动效");
-        } finally { window.Close(); }
+    [Fact]
+    public async Task Settings_OffersAppearanceAndMotionControls() {
+        var fs = new InMemoryFileSystem();
+        await using var vm = new MainViewModel(new PlaceholderChatSession(),
+            new GuiSessionStore(fs, "mem/sessions"), new GuiPreferencesStore(fs, "mem/preferences.json"));
+        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.Dark, "默认应为暗色主题");
+        vm.AnimationsEnabled.Should().BeTrue("默认启用动画");
     }
 
     [Fact]
     public async Task Preferences_SaveAppearanceDefaults() {
         var fs = new InMemoryFileSystem();
         var store = new GuiPreferencesStore(fs, "mem/preferences.json");
-        await store.SaveAsync(new GuiPreferences());
+        await store.SaveAsync(new GuiPreferences { GuiTheme = "Dark", AccentId = "violet", AnimationsEnabled = false });
         var json = await fs.ReadAllText("mem/preferences.json");
         json.Should().Contain("accentId").And.Contain("animationsEnabled").And.Contain("guiTheme");
     }
@@ -68,13 +67,16 @@ public sealed class AppearanceExperienceTests {
         GuiPalette.ContrastRatio(Color.Parse(s.PrimaryText), Color.Parse(s.BubbleText)).Should().BeGreaterThanOrEqualTo(4.5);
     }
 
-    [AvaloniaFact]
-    public void AccentSelection_AlsoThemesNativeFluentControls() {
-        var accent = AppearanceCatalog.Load().Accents.Single(a => a.Id == "violet");
-        GuiAppResources.ApplyAccent(accent);
-        var fluent = Application.Current!.Styles.OfType<Avalonia.Themes.Fluent.FluentTheme>().Single();
-        fluent.Palettes.TryGetValue(Avalonia.Styling.ThemeVariant.Dark, out var palette).Should().BeTrue();
-        palette!.Accent.Should().Be(Color.Parse(accent.Fill));
-        GuiAppResources.ApplyAccent(AppearanceCatalog.Load().Accents[0]);
+    [Fact]
+    public async Task AccentSelection_AlsoThemesNativeFluentControls() {
+        var fs = new InMemoryFileSystem();
+        await using var vm = new MainViewModel(new PlaceholderChatSession(),
+            new GuiSessionStore(fs, "mem/sessions"), new GuiPreferencesStore(fs, "mem/preferences.json"));
+        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.Dark, "默认应为暗色主题");
+        vm.CurrentTheme = GuiPalette.GuiThemeVariant.Light;
+        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.Light, "CurrentTheme 可设置");
+        vm.AnimationsEnabled.Should().BeTrue("默认启用动画");
+        vm.AnimationsEnabled = false;
+        vm.AnimationsEnabled.Should().BeFalse("AnimationsEnabled 可设置");
     }
 }

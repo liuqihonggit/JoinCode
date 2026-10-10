@@ -20,10 +20,11 @@ public static class ColorMapper {
     /// <summary>将 RGB 字符串（如 "#58a6ff"）解析为 Terminal.Gui Color。</summary>
     public static GuiColor ParseColor(string? rgb) {
         if (string.IsNullOrEmpty(rgb)) return GuiColor.None;
+        if (rgb is not { } key) return GuiColor.None;
 
-        if (_colorCache.TryGetValue(rgb!, out var cached)) return cached;
+        if (_colorCache.TryGetValue(key, out var cached)) return cached;
 
-        var color = ParseRgb(rgb!);
+        var color = ParseRgb(key);
         return color;
     }
 

@@ -134,7 +134,7 @@ public sealed partial class InputBarView : UserControl {
         e.Handled = true;
         if (sender is TextBox textBox) {
             var caret = textBox.CaretIndex;
-            vm.InputText = textBox.Text!.Insert(caret, "\n");
+            vm.InputText = (textBox.Text ?? string.Empty).Insert(caret, "\n");
             textBox.CaretIndex = caret + 1;
         }
     }
@@ -234,7 +234,7 @@ public sealed partial class InputBarView : UserControl {
         try {
             var storage = Avalonia.Controls.TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage is null) return;
-            var file = await storage.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions {
+            using var file = await storage.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions {
                 Title = "导出会话为 Markdown",
                 SuggestedFileName = $"JoinCode-{DateTime.Now:yyyyMMdd-HHmmss}.md",
                 DefaultExtension = "md",

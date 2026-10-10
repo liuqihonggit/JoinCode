@@ -23,7 +23,7 @@ public sealed partial class MainViewModel {
         _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
         // T9：斜杠命令确认/退出 — handler 由 View 注入（弹确认框），退出事件转发给 View 关窗
         _session.SlashConfirmHandler = message => SlashConfirmHandler?.Invoke(message) ?? false;
-        _session.ExitRequested += () => ExitRequested?.Invoke();
+        _session.ExitRequested += OnSessionExitRequested;
 
         // 后台代理管理面板 — 数据源绑定会话门面，快照计数同步到全局状态条
         BackgroundPanel = new BackgroundAgentsPanelViewModel(
@@ -31,14 +31,11 @@ public sealed partial class MainViewModel {
             stopper: (id, ct) => _session.StopBackgroundAgentAsync(id, ct),
             pauser: (id, ct) => _session.PauseSubAgentAsync(id, ct),
             resumer: (id, ct) => _session.ResumeSubAgentAsync(id, ct));
-        BackgroundPanel.SnapshotApplied += count => RunStatus.SetBackgroundCount(count);
+        BackgroundPanel.SnapshotApplied += OnBackgroundSnapshotApplied;
 
         // IsBusy 单一权威源：RunStatus.IsBusy 变更时转发为 MainViewModel.IsBusy 的 PropertyChanged
         // （消除双源真相 — 所有消费者统一读 RunStatus.IsBusy，XAML 绑定 IsBusy 仍工作）
-        RunStatus.PropertyChanged += (_, e) => {
-            if (e.PropertyName == nameof(GlobalRunStatusViewModel.IsBusy))
-                OnPropertyChanged(nameof(IsBusy));
-        };
+        RunStatus.PropertyChanged += OnRunStatusPropertyChanged;
 
         // 磁盘根保护 — 扫描盘号填充 ProtectedDrives 集合，默认勾选，应用到引擎（ADR 0123）
         InitializeProtectedDrives();
@@ -148,7 +145,7 @@ public sealed partial class MainViewModel {
         // 引擎热切换后把偏好里的采样参数应用到引擎
         ApplyPreferencesToEngine();
         // 订阅 settings.json theme 变更（外部 CLI /theme 驱动 GUI 热重载）+ 从 settings.json 读主题
-        session.ThemeChanged += OnThemeChanged;
+        _realSession.ThemeChanged += OnThemeChanged;
         LoadThemeFromSettings();
 
         // 引擎就绪后注入 ITranscriptService,切换到统一入口(.json + 子目录,与 CLI --continue 共享)
@@ -226,6 +223,18 @@ public sealed partial class MainViewModel {
         OnPropertyChanged(nameof(UnattendedToggleToolTip));
     }
 
+    /// <summary>session 退出请求 → 转发给 View 关窗</summary>
+    private void OnSessionExitRequested() => ExitRequested?.Invoke();
+
+    /// <summary>后台代理快照应用 → 同步全局状态条后台计数</summary>
+    private void OnBackgroundSnapshotApplied(int count) => RunStatus.SetBackgroundCount(count);
+
+    /// <summary>RunStatus.IsBusy 变更 → 转发为 MainViewModel.IsBusy 的 PropertyChanged</summary>
+    private void OnRunStatusPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
+        if (e.PropertyName == nameof(GlobalRunStatusViewModel.IsBusy))
+            OnPropertyChanged(nameof(IsBusy));
+    }
+
     /// <summary>
     /// 释放引擎资源 — 窗口关闭时由 MainWindow.OnWindowClosed 调用。
     /// 避免 HTTP 连接池/FileSystemWatcher/后台任务泄漏导致进程不退（孤儿进程 + 文件锁）。
@@ -235,14 +244,32 @@ public sealed partial class MainViewModel {
         if (_disposed) return;
         _disposed = true;
         DetachSessionFilter();
+
+        // 取消所有事件订阅（JCC9308）— 防止订阅方无法被 GC 回收
+        _session.ExitRequested -= OnSessionExitRequested;
+        BackgroundPanel.SnapshotApplied -= OnBackgroundSnapshotApplied;
+        RunStatus.PropertyChanged -= OnRunStatusPropertyChanged;
+        Sessions.CollectionChanged -= OnSessionListChanged;
+        Messages.CollectionChanged -= OnMessagesChanged;
+        _session.ThemeChanged -= OnThemeChanged;
+        if (_realSession is not null && !ReferenceEquals(_realSession, _session))
+            _realSession.ThemeChanged -= OnThemeChanged;
+
         if (_modelConfigWatcher is not null) await _modelConfigWatcher.DisposeAsync();
         _modelConfigWatcher = null;
         _sendCts?.Cancel();
         _sendCts?.Dispose();
         _sendCts = null;
+
+        // 释放 _idleTimer（JCC9301）
+        _idleTimer?.Dispose();
+        _idleTimer = null;
+
         if (_realSession is not null)
             await _realSession.DisposeAsync();
+        _realSession = null;
         if (_mockSession is not null)
             await _mockSession.DisposeAsync();
+        _mockSession = null;
     }
 }

@@ -27,7 +27,7 @@ public class TuiSessionTests {
             UseShellExecute = false,
             WorkingDirectory = repoRoot,
         };
-        using var process = Process.Start(psi)!;
+        using var process = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start process");
         var exited = process.WaitForExit(8000);
         if (!exited) process.Kill(entireProcessTree: true);
 #pragma warning restore JCC9001
@@ -49,7 +49,7 @@ public class TuiSessionTests {
             UseShellExecute = false,
             WorkingDirectory = repoRoot,
         };
-        using var process = Process.Start(psi)!;
+        using var process = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start process");
         var exited = process.WaitForExit(8000);
         if (!exited) {
             process.Kill(entireProcessTree: true);

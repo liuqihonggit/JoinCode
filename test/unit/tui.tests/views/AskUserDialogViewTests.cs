@@ -99,15 +99,18 @@ public class AskUserDialogViewTests {
     }
 
     private static void SetInput(AskUserDialogView dialog, string text) {
-        var field = typeof(AskUserDialogView)
-            .GetField("_inputField", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .GetValue(dialog) as TextField;
-        field!.Text = text;
+        var fieldInfo = typeof(AskUserDialogView)
+            .GetField("_inputField", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("_inputField not found");
+        var field = (fieldInfo.GetValue(dialog) as TextField)
+            ?? throw new InvalidOperationException("TextField not found");
+        field.Text = text;
     }
 
     private static void InvokeSubmit(AskUserDialogView dialog) {
         var method = typeof(AskUserDialogView).GetMethod(
-            "OnSubmit", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            "OnSubmit", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("OnSubmit not found");
         method.Invoke(dialog, [dialog, EventArgs.Empty]);
     }
 }

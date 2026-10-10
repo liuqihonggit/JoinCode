@@ -125,9 +125,8 @@ public sealed partial class MainViewModel {
         _persistActions[nameof(AccentId)] = () => _ = SavePreferencesAsync();
         _persistActions[nameof(AnimationsEnabled)] = () => _ = SavePreferencesAsync();
         _persistActions[nameof(SelectedModel)] = () => {
-            var m = SelectedModel;
-            if (!string.IsNullOrWhiteSpace(m) && !string.Equals(m, _session.CurrentModelId, StringComparison.Ordinal))
-                PersistSync(() => _session.SetModelAsync(m!));
+            if (SelectedModel is { } m && !string.IsNullOrWhiteSpace(m) && !string.Equals(m, _session.CurrentModelId, StringComparison.Ordinal))
+                PersistSync(() => _session.SetModelAsync(m));
         };
         _persistActions[nameof(Temperature)] = () => _ = SavePreferencesAsync();
         _persistActions[nameof(MaxTokens)] = () => _ = SavePreferencesAsync();

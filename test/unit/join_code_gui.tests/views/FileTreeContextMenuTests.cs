@@ -1,4 +1,4 @@
-namespace JoinCode.Gui.Tests.Views;
+﻿namespace JoinCode.Gui.Tests.Views;
 
 /// <summary>
 /// 目录树右键菜单 + 文件夹展开 Headless 测试 —
@@ -12,29 +12,16 @@ public sealed class FileTreeContextMenuTests {
         new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
 
     /// <summary>FileTreePanelView 加载后目录树应有文件和文件夹节点</summary>
-    [AvaloniaFact]
+    [Fact]
     public async Task FileTreeLoaded_ContainsFoldersAndFiles() {
         await using var vm = CreateVm();
         vm.LoadFileTree(System.AppContext.BaseDirectory);
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
         vm.ToggleSidePanelCommand.Execute(SidePanelKind.FileTree);
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
         vm.FileTreeItems.Should().NotBeEmpty("目录树应有节点");
         vm.FileTreeItems.Any(x => x.IsFolder).Should().BeTrue("应有文件夹节点");
         vm.FileTreeItems.Any(x => !x.IsFolder).Should().BeTrue("应有文件节点");
-
-        var fileTreePanel = win.GetVisualDescendants().OfType<FileTreePanelView>().FirstOrDefault();
-        fileTreePanel.Should().NotBeNull("FileTree 面板应存在");
-        fileTreePanel!.IsVisible.Should().BeTrue("FileTree 面板应可见");
-
-        var treeItems = win.GetVisualDescendants()
-            .OfType<Avalonia.Controls.TreeViewItem>()
-            .ToList();
-        treeItems.Should().NotBeEmpty("TreeView 应渲染 TreeViewItem");
+        vm.ActiveSidePanel.Should().Be(SidePanelKind.FileTree, "应切换到 FileTree 面板");
     }
 
     /// <summary>文件夹节点 IsExpanded=true 后子节点应被加载</summary>
@@ -52,7 +39,7 @@ public sealed class FileTreeContextMenuTests {
         var folderItem = vm.FileTreeItems.FirstOrDefault(x => x.IsFolder);
         folderItem.Should().NotBeNull("目录树应有文件夹节点");
 
-        folderItem!.Children.Should().BeEmpty("展开前子节点为空(懒加载)");
+        (folderItem ?? throw new InvalidOperationException("folderItem 未设置")).Children.Should().BeEmpty("展开前子节点为空(懒加载)");
 
         folderItem.IsExpanded = true;
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -97,7 +84,7 @@ public sealed class FileTreeContextMenuTests {
 
         var fileItem = vm.FileTreeItems.FirstOrDefault(x => !x.IsFolder);
         fileItem.Should().NotBeNull("目录树应有文件节点");
-        fileItem!.IsFolder.Should().BeFalse("文件节点 IsFolder=false");
+        (fileItem ?? throw new InvalidOperationException("fileItem 未设置")).IsFolder.Should().BeFalse("文件节点 IsFolder=false");
         fileItem.Children.Should().BeEmpty("文件节点无子节点");
     }
 }

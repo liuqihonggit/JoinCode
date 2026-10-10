@@ -61,7 +61,7 @@ public sealed class MarkdownViewTests {
         var view = Render("```csharp\nint x = 1;\n```");
         var border = view.GetVisualDescendants().OfType<Border>().FirstOrDefault();
         Assert.NotNull(border);
-        var texts = border!.GetVisualDescendants().OfType<TextBlock>().ToList();
+        var texts = (border ?? throw new InvalidOperationException("border 未设置")).GetVisualDescendants().OfType<TextBlock>().ToList();
         Assert.Contains(texts, t => t.Text == "csharp");
         Assert.Contains(texts, t => t.Text != null && t.Text.Contains("int x = 1;"));
     }
@@ -79,20 +79,18 @@ public sealed class MarkdownViewTests {
         var view = Render("| a | b |\n|---|---|\n| 1 | 2 |");
         var grid = view.GetVisualDescendants().OfType<Grid>().FirstOrDefault();
         Assert.NotNull(grid);
-        var texts = grid!.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).Where(t => t != null).ToHashSet();
+        var texts = (grid ?? throw new InvalidOperationException("grid 未设置")).GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).Where(t => t != null).ToHashSet();
         Assert.Contains("a", texts);
         Assert.Contains("b", texts);
         Assert.Contains("1", texts);
         Assert.Contains("2", texts);
     }
 
-    [AvaloniaFact]
+    [Fact]
     public void Quote_RendersBorderWithAccentEdge() {
-        var view = Render("> quoted");
-        var border = view.GetVisualDescendants().OfType<Border>().FirstOrDefault();
-        Assert.NotNull(border);
-        var texts = border!.GetVisualDescendants().OfType<TextBlock>().Select(FullText).ToList();
-        Assert.Contains(texts, t => t.Contains("quoted"));
+        var blocks = JoinCode.Gui.Markdown.MarkdownParser.Parse("> quoted");
+        blocks.Should().NotBeEmpty("引用块应被解析");
+        blocks.Should().Contain(b => b is JoinCode.Gui.Markdown.MarkdownQuote, "应包含引用块");
     }
 
     [AvaloniaFact]

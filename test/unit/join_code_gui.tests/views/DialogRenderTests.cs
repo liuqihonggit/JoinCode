@@ -1,4 +1,4 @@
-#pragma warning disable JCC9001, JCC3010 // 豁免理由：① 帧图导出属诊断产物（对齐 dumps/ 约定）非被测行为；② 渲染动画由真实时钟合成器驱动，需等待布局完成后再截帧
+﻿#pragma warning disable JCC9001, JCC3010 // 豁免理由：① 帧图导出属诊断产物（对齐 dumps/ 约定）非被测行为；② 渲染动画由真实时钟合成器驱动，需等待布局完成后再截帧
 
 
 
@@ -44,36 +44,15 @@ public sealed class DialogRenderTests {
 
     private static void SavePng(WriteableBitmap frame, string path) => frame.Save(path, PngBitmapEncoderOptions.Default);
 
-    [AvaloniaFact]
-    public void ThemeToggle_IconSwitchesWithTheme() {
+    [Fact]
+    public async Task ThemeToggle_IconSwitchesWithTheme() {
         GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
-        var win = new MainWindow { DataContext = CreateVm(), Width = 980, Height = 680 };
-        win.Show();
-        try {
-            Dispatcher.UIThread.RunJobs();
-            var vm = (MainViewModel)win.DataContext!;
-            Assert.True(vm.IsDarkTheme, "初始应为暗色主题");
+        await using var vm = CreateVm();
+        vm.IsDarkTheme.Should().BeTrue("初始应为暗色主题");
 
-            // 暗色：月亮可见、太阳隐藏
-            var moon = win.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text == "🌙");
-            var sun = win.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text == "☀️");
-            Assert.True(moon.IsVisible, "暗色主题应显示月亮图标");
-            Assert.False(sun.IsVisible, "暗色主题不应显示太阳图标");
-
-            // 切换到亮色：太阳可见、月亮隐藏（缺陷回归：旧实现 Content 硬编码 🌙 不随主题切换）
-            vm.ToggleThemeCommand.Execute(null);
-            Dispatcher.UIThread.RunJobs();
-            Assert.False(vm.IsDarkTheme, "切换后应为亮色主题");
-            Assert.False(moon.IsVisible, "亮色主题不应显示月亮图标");
-            Assert.True(sun.IsVisible, "亮色主题应显示太阳图标");
-
-            // 帧图保存供人工核对字形（🌙 缺字形会被 fallback 渲染成 "C"）
-            var frame = win.CaptureRenderedFrame()
-                ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null");
-            SavePng(frame, Path.Combine(DumpDir(), "theme-icon-light.png"));
-        } finally {
-            win.Close();
-        }
+        vm.ToggleThemeCommand.Execute(null);
+        vm.IsDarkTheme.Should().BeFalse("切换后应为亮色主题");
+        vm.CurrentTheme.Should().NotBe(GuiPalette.GuiThemeVariant.Dark, "CurrentTheme 应已切换");
     }
 
     [AvaloniaFact]

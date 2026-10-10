@@ -17,8 +17,8 @@ public class MainViewModelSubAgentTests {
         ChatStreamEvent.AgentStarted(id, name, "调研任务", "executor");
 
     [Fact]
-    public void HandleSubAgentActivity_ShouldInsertSingleGroupCard() {
-        var vm = CreateVm();
+    public async Task HandleSubAgentActivity_ShouldInsertSingleGroupCard() {
+        await using var vm = CreateVm();
         vm.PrepareAgentRunTurnForTest();
 
         vm.HandleSubAgentActivityForTest(Started("a1"));
@@ -31,7 +31,7 @@ public class MainViewModelSubAgentTests {
 
     [Fact]
     public async Task HandleSubAgentActivity_Finished_ShouldFreezeStatsInCard() {
-        var vm = CreateVm();
+        await using var vm = CreateVm();
         await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout); // 占位助手消息存在（对齐真实回合）
         vm.PrepareAgentRunTurnForTest();
 
@@ -39,14 +39,14 @@ public class MainViewModelSubAgentTests {
         vm.HandleSubAgentActivityForTest(ChatStreamEvent.AgentFinished("a1", success: true, executionTimeMs: 61_000, finalOutput: "完成"));
 
         var card = vm.Messages.Single(m => m.Kind == ChatUiMessageKind.AgentRunGroup);
-        var runVm = card.AgentRuns!.Single();
+        var runVm = (card.AgentRuns ?? throw new InvalidOperationException("card.AgentRuns 未设置")).Single();
         runVm.IsCompleted.Should().BeTrue();
         runVm.StatsText.Should().Contain("1m 01s");
     }
 
     [Fact]
-    public void HandleSubAgentActivity_ShouldRouteMultipleAgentsIntoOneCard() {
-        var vm = CreateVm();
+    public async Task HandleSubAgentActivity_ShouldRouteMultipleAgentsIntoOneCard() {
+        await using var vm = CreateVm();
         vm.PrepareAgentRunTurnForTest();
 
         vm.HandleSubAgentActivityForTest(Started("a1", "explore"));

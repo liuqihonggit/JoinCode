@@ -141,7 +141,9 @@ public class JccChatSessionAssemblyTests {
         };
         await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
-            null!,
+            #nullable disable
+            null,
+            #nullable enable
             config);
 
         session.CurrentVendor.Should().Be("openai");
@@ -159,7 +161,9 @@ public class JccChatSessionAssemblyTests {
         };
         await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
-            null!,
+            #nullable disable
+            null,
+            #nullable enable
             config,
             modelConfigLoader: loader);
 
@@ -180,7 +184,9 @@ public class JccChatSessionAssemblyTests {
         };
         await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
-            null!,
+            #nullable disable
+            null,
+            #nullable enable
             config,
             modelConfigLoader: CreateFedLoader());
 
@@ -197,7 +203,9 @@ public class JccChatSessionAssemblyTests {
         };
         await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
-            null!,
+            #nullable disable
+            null,
+            #nullable enable
             config,
             modelConfigLoader: CreateFedLoader());
 
@@ -222,7 +230,9 @@ public class JccChatSessionAssemblyTests {
                 Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
             new InMemoryFileSystem(),
-            null!);
+            #nullable disable
+            null);
+            #nullable enable
 
         provider.EffortLevel.Should().Be(EffortLevel.Auto);
     }
@@ -242,7 +252,9 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        await using var session = new JccChatSession(sp, null!, config);
+        #nullable disable
+        await using var session = new JccChatSession(sp, null, config);
+        #nullable enable
 
         await session.SetEffortLevelAsync(EffortLevel.High);
 
@@ -266,7 +278,9 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        await using var session = new JccChatSession(sp, null!, config);
+        #nullable disable
+        await using var session = new JccChatSession(sp, null, config);
+        #nullable enable
 
         await session.SetEffortLevelAsync(EffortLevel.High);
         await session.SetEffortLevelAsync(EffortLevel.Auto);
@@ -287,7 +301,9 @@ public class JccChatSessionAssemblyTests {
         };
         await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
-            null!,
+            #nullable disable
+            null,
+            #nullable enable
             config);
 
         session.EffortLevel.Should().Be(EffortLevel.Auto);
@@ -300,12 +316,16 @@ public class JccChatSessionAssemblyTests {
                 Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
             new InMemoryFileSystem(),
-            null!) {
+            #nullable disable
+            null) {
+            #nullable enable
             EffortLevel = EffortLevel.Medium
         };
         await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
-            null!,
+            #nullable disable
+            null,
+            #nullable enable
             new WorkflowConfig {
                 Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
@@ -323,10 +343,14 @@ public class JccChatSessionAssemblyTests {
                 Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
             new InMemoryFileSystem(),
-            null!);
+#nullable disable
+            null);
+#nullable enable
         await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
-            null!,
+#nullable disable
+            null,
+#nullable enable
             new WorkflowConfig {
                 Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
@@ -378,7 +402,11 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        await using var session = new JccChatSession(sp, null!, config);
+        await using var session = new JccChatSession(sp,
+#nullable disable
+            null,
+#nullable enable
+            config);
 
         await session.SetModelAsync("sensenova-6.7-flash-lite");
 

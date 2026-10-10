@@ -159,8 +159,11 @@ public sealed partial class WorkbenchViewModel : ObservableObject {
         var info = await _session().GetToolInfoAsync(tool.Name, OperationToken) ?? throw new InvalidOperationException("工具参数不可用，请刷新目录。");
         var required = info.InputSchema.Required.ToHashSet(StringComparer.Ordinal);
         var args = new Dictionary<string, JsonElement>();
-        var allowedValues = Parameters.Where(f => f.Schema.Enum is { Count: > 0 })
-            .ToDictionary(f => f.Name, f => f.Schema.Enum!.ToHashSet(StringComparer.Ordinal));
+        var allowedValues = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var f in Parameters) {
+            if (f.Schema.Enum is { Count: > 0 } enumValues)
+                allowedValues[f.Name] = enumValues.ToHashSet(StringComparer.Ordinal);
+        }
         foreach (var field in Parameters) {
             if (string.IsNullOrWhiteSpace(field.Value)) {
                 if (required.Contains(field.Name)) throw new InvalidOperationException($"参数 {field.Name} 必填，请填写后执行。");

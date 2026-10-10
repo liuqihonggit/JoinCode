@@ -73,16 +73,14 @@ public class SubAgentCardManagerTests {
         var manager = new SubAgentCardManager();
         manager.Expand("agent1");
 
-        var evicted = manager.Toggle("agent1");
-        Assert.Null(evicted);
+        Assert.False(manager.TryToggle("agent1", out _));
         Assert.False(manager.IsExpanded("agent1"));
     }
 
     [Fact]
     public void Toggle_Collapsed_Expands() {
         var manager = new SubAgentCardManager();
-        var evicted = manager.Toggle("agent1");
-        Assert.Null(evicted);
+        Assert.False(manager.TryToggle("agent1", out _));
         Assert.True(manager.IsExpanded("agent1"));
     }
 
@@ -93,7 +91,7 @@ public class SubAgentCardManagerTests {
         manager.Expand("agent2");
         manager.Expand("agent3");
 
-        var evicted = manager.Toggle("agent4");
+        Assert.True(manager.TryToggle("agent4", out var evicted));
         Assert.Equal("agent1", evicted);
         Assert.True(manager.IsExpanded("agent4"));
         Assert.False(manager.IsExpanded("agent1"));

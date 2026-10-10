@@ -12,6 +12,15 @@ public sealed class VisualTestApp : Application {
         // 镜像真实 App.axaml 的 RequestedThemeVariant=Dark 启动默认，确保首帧即 Dark、只有明/暗二选一
         RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Dark;
         GuiAppResources.Register(this);
+        // Dock.Avalonia 主题 + 面板 View 映射 — 与真实 App.axaml 一致
+        var baseUri = new Uri("avares://JoinCode.Gui/");
+        var dockTheme = Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(
+            new Uri("avares://Dock.Avalonia.Themes.Fluent/Presets/Ide/Default.axaml"), baseUri);
+        if (dockTheme is Avalonia.Styling.IStyle style)
+            Styles.Add(style);
+        else if (dockTheme is Avalonia.Controls.IResourceProvider rp)
+            Resources.MergedDictionaries.Add(rp);
+        DataTemplates.Add(new JoinCode.Gui.Views.Docking.PanelViewLocator());
     }
 
     public static AppBuilder BuildAvaloniaApp()

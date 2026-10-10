@@ -26,7 +26,7 @@ internal sealed class ChatTurnProcessor {
     public int TurnIndex { get; private set; }
 
     /// <summary>助手占位消息（BeginTurn 创建；流式期间实时刷新 Content）</summary>
-    public ChatUiMessage AssistantPlaceholder { get; private set; } = null!;
+    public ChatUiMessage AssistantPlaceholder { get; private set; } = new() { Role = MessageRole.Assistant, Content = string.Empty };
 
     /// <summary>当前全部子代理行 VM（跨组卡片聚合视图，供回放入口查找）</summary>
     public IReadOnlyList<BackgroundAgentItemVm> AgentRuns => [.. _agentRunVms.Values];
@@ -207,7 +207,8 @@ internal sealed class ChatTurnProcessor {
                 ExecutionTimeMs: null,
                 Role: evt.AgentRole));
             _agentRunVms[evt.AgentId] = vm;
-            _agentGroupCard.AgentRuns!.Add(vm);
+            if (_agentGroupCard.AgentRuns is { } agentRuns)
+                agentRuns.Add(vm);
         }
 
         vm.LastActivityText = evt.Type switch {

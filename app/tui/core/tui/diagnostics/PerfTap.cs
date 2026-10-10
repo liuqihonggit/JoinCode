@@ -20,7 +20,9 @@ public static class PerfTap {
     /// </summary>
     public static void Log(string label, long elapsedMs, string? extra = null) {
         try {
-            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(PerfLog)!);
+            var dir = System.IO.Path.GetDirectoryName(PerfLog);
+            if (dir is { Length: > 0 })
+                System.IO.Directory.CreateDirectory(dir);
             var seq = Interlocked.Increment(ref _seq);
             var line = $"[{DateTime.Now:HH:mm:ss.fff}] #{seq:D6} {label} {elapsedMs}ms";
             if (extra is not null) line += $" | {extra}";

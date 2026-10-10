@@ -32,6 +32,52 @@ public sealed class GhCommandResolverTests {
         resolved.Tail.Should().BeEquivalentTo(new[] { "repos/o/r/issues" });
     }
 
+    /// <summary>系统 gh CLI 的 --raw-field state=open 应映射到 jcc 的 --fields 参数</summary>
+    /// <para>AI 习惯用系统 gh 的 --raw-field, jcc 应宽容接受</para>
+    [Fact]
+    public void Resolve_Api_RawField_ShouldMapToFields() {
+        var tail = new[] { "repos/o/r/pulls/403", "--method", "PATCH", "--raw-field", "state=open" };
+        var parameters = new List<GhParam> {
+            new("path", true, false),
+            new("method", false, false),
+            new("body", false, false),
+            new("body_file", false, false),
+            new("fields", false, false),
+            new("jq", false, false),
+            new("paginate", false, true, "boolean"),
+            new("max_lines", false, false, "integer"),
+            new("working_dir", false, false),
+        };
+        var bound = GhArgsBinder.Bind(tail, parameters, "gh_api", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["fields"].Should().Be("state=open");
+        bound["method"].Should().Be("PATCH");
+    }
+
+    /// <summary>系统 gh CLI 的 --field state=open 也应映射到 jcc 的 --fields 参数</summary>
+    [Fact]
+    public void Resolve_Api_Field_ShouldMapToFields() {
+        var tail = new[] { "repos/o/r/pulls/403", "--method", "PATCH", "--field", "state=open" };
+        var parameters = new List<GhParam> {
+            new("path", true, false),
+            new("method", false, false),
+            new("body", false, false),
+            new("body_file", false, false),
+            new("fields", false, false),
+            new("jq", false, false),
+            new("paginate", false, true, "boolean"),
+            new("max_lines", false, false, "integer"),
+            new("working_dir", false, false),
+        };
+        var bound = GhArgsBinder.Bind(tail, parameters, "gh_api", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["fields"].Should().Be("state=open");
+    }
+
     /// <summary>--json 可在任意位置出现，且不进入待绑定参数</summary>
     [Fact]
     public void Resolve_JsonFlag_ShouldBeStrippedFromTail() {

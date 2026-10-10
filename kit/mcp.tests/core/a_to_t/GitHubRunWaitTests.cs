@@ -238,4 +238,126 @@ public sealed class GitHubRunWaitTests {
         result.GetFirstText().Should().Contain("1 失败");
         result.GetFirstText().Should().Contain("日志已下载到");
     }
+
+    /// <summary>
+    /// fail-fast 模式:run 还在 in_progress,但某 job 已 failure → 立即返回(fail-fast,不等 run completed)
+    /// </summary>
+    [Fact]
+    public async Task RunWait_FailFast_JobFailureDuringRun_ReturnsImmediately() {
+        var fs = new InMemoryFileSystem();
+        var api = new FakeGitHubApiClient();
+        api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+        api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"status":"in_progress","conclusion":null}"""
+        });
+        api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"jobs":[{"id":123,"name":"test","status":"completed","conclusion":"failure"}]}"""
+        });
+        api.NextLogLines = new[] { "##[error] test failed", "  Failed MyTest [FAIL]", "  Error Message: boom" };
+
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhRunWaitAsync(
+            run_id: "1", timeout_seconds: 10, poll_interval_seconds: 1, fail_fast: true,
+            common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("fail-fast");
+        result.GetFirstText().Should().Contain("日志已下载到");
+        result.GetFirstText().Should().Contain("轮询次数: 1");
+    }
+
+    /// <summary>
+    /// fail-fast 模式:run completed 且无失败 job → 返回成功
+    /// </summary>
+    [Fact]
+    public async Task RunWait_FailFast_RunCompletedSuccess_ReturnsSuccess() {
+        EnqueueResolveRunIdOk();
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"status":"completed","conclusion":"success"}"""
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"jobs":[{"id":123,"name":"test","status":"completed","conclusion":"success"}]}"""
+        });
+
+        var result = await _handler.GhRunWaitAsync(
+            run_id: "1", timeout_seconds: 10, poll_interval_seconds: 1, fail_fast: true,
+            common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("success");
+        result.GetFirstText().Should().NotContain("日志已下载");
+    }
+
+    /// <summary>
+    /// fail-fast 模式:run completed 且有失败 job → 返回失败 job 日志
+    /// </summary>
+    [Fact]
+    public async Task RunWait_FailFast_RunCompletedWithFailure_ReturnsLogs() {
+        var fs = new InMemoryFileSystem();
+        var api = new FakeGitHubApiClient();
+        api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
+        api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"status":"completed","conclusion":"failure"}"""
+        });
+        api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"jobs":[{"id":456,"name":"build","status":"completed","conclusion":"failure"}]}"""
+        });
+        api.NextLogLines = new[] { "##[error] build failed", "error CS0001: syntax error" };
+
+        var handler = new GitHubToolHandlers(new FakeDownloader(), fs, api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhRunWaitAsync(
+            run_id: "1", timeout_seconds: 10, poll_interval_seconds: 1, fail_fast: true,
+            common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("日志已下载到");
+        result.GetFirstText().Should().Contain("1 失败");
+    }
+
+    /// <summary>
+    /// fail-fast 模式:轮询超时 → 返回超时摘要
+    /// </summary>
+    [Fact]
+    public async Task RunWait_FailFast_Timeout_ReturnsSummary() {
+        EnqueueResolveRunIdOk();
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"status":"in_progress","conclusion":null}"""
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"jobs":[{"id":123,"name":"test","status":"in_progress","conclusion":null}]}"""
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"status":"in_progress","conclusion":null}"""
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"jobs":[{"id":123,"name":"test","status":"in_progress","conclusion":null}]}"""
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"status":"in_progress","conclusion":null}"""
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"jobs":[{"id":123,"name":"test","status":"in_progress","conclusion":null}]}"""
+        });
+
+        var result = await _handler.GhRunWaitAsync(
+            run_id: "1", timeout_seconds: 2, poll_interval_seconds: 1, fail_fast: true,
+            common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("等待超时");
+    }
 }

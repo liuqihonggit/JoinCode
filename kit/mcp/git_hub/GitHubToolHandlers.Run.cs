@@ -712,27 +712,32 @@ public partial class GitHubToolHandlers {
     /// <para>替代 LLM 的 sleep+gh_run_view 轮询模式:工具内部阻塞,一次往返拿到最终结果</para>
     /// <para>信号模型:轮询发现 completed 触发返回(唤醒 LLM),非 sleep 固定等待</para>
     /// <para>指数退避:初始 5s ×1.5 每次,上限 60s,默认超时 30 分钟</para>
+    /// <para>fail_fast=true:轮询 jobs 级别,发现任何 job failure 立即拉日志返回(不等整个 run completed)</para>
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRunWait, "等待 Actions Run 完成(指数退避轮询+进度回调,完成才返回)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhRunWait, "等待 Actions Run 完成(指数退避轮询+进度回调,完成才返回;fail_fast=运行中 job 失败立即返回)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunWaitAsync(
         [McpToolParameter(WellKnownParam.RunId)] string run_id,
         [McpToolParameter("超时秒数(默认 1800=30分钟)", Required = false)] int? timeout_seconds = null,
         [McpToolParameter("初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)", Required = false)] int? poll_interval_seconds = null,
+        [McpToolParameter("fail_fast=true 轮询 jobs 级别,发现 job failure 立即拉日志返回(不等 run completed)", Required = false)] bool? fail_fast = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
             if (runIdError is not null) return runIdError;
-            return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId!, timeout_seconds, poll_interval_seconds, common?.WorkingDir, cancellationToken, onProgress).ConfigureAwait(false);
+            return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId!, timeout_seconds, poll_interval_seconds, fail_fast == true, common?.WorkingDir, cancellationToken, onProgress).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
     /// GhRunWait 核心逻辑 — 指数退避轮询直到 completed,失败时下载日志到磁盘
+    /// <para>fail_fast=true:委托 GhRunWaitFailFastAsync 做 job 级别监控</para>
     /// </summary>
-    private async Task<ToolResult> GhRunWaitCoreAsync(IGitHubApiClient client, string owner, string repoName, string runId, int? timeoutSeconds, int? pollIntervalSeconds, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
+    private async Task<ToolResult> GhRunWaitCoreAsync(IGitHubApiClient client, string owner, string repoName, string runId, int? timeoutSeconds, int? pollIntervalSeconds, bool failFast, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
         var timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds ?? 1800, 1, 7200));
         var initialInterval = TimeSpan.FromSeconds(Math.Clamp(pollIntervalSeconds ?? 5, 1, 60));
+        if (failFast)
+            return await GhRunWaitFailFastAsync(client, owner, repoName, runId, timeout, initialInterval, workingDir, ct, onProgress).ConfigureAwait(false);
         var waitResult = await GitHubRunPoller.WaitForRunCompletionAsync(
             client, owner, repoName, runId, timeout, initialInterval,
             onProgress, "gh_run_wait", ct).ConfigureAwait(false);
@@ -753,6 +758,39 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// GhRunWait fail-fast 模式 — 轮询 jobs 级别,发现任何 job failure 立即拉日志到磁盘返回唤醒 LLM
+    /// <para>不等整个 run completed,CI 运行中某 job 失败即触发返回</para>
+    /// <para>并行查 run status + jobs,发现 conclusion=failure/cancelled/timed_out 的 job 立即终止轮询</para>
+    /// </summary>
+    private async Task<ToolResult> GhRunWaitFailFastAsync(IGitHubApiClient client, string owner, string repoName, string runId, TimeSpan timeout, TimeSpan initialInterval, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
+        var watchResult = await GitHubRunPoller.WatchRunJobsForFailureAsync(
+            client, owner, repoName, runId, timeout, initialInterval,
+            onProgress, "gh_run_wait_failfast", ct).ConfigureAwait(false);
+
+        if (watchResult.Outcome == RunWaitOutcome.Error)
+            return Fail(watchResult.Error ?? "轮询失败");
+        if (watchResult.Outcome == RunWaitOutcome.Timeout)
+            return Ok(
+                $"⚠ Run {runId} 等待超时({timeout.TotalSeconds:F0}s)。{watchResult.Summary}\n轮询次数: {watchResult.PollCount}, 耗时: {watchResult.ElapsedMs / 1000}s\n用 gh_run_view {runId} 手动查看,或增大 timeout_seconds",
+                $"⚠ Run {runId} 超时");
+
+        var failedJobIds = watchResult.FailedJobIds;
+        var isFailFast = watchResult.Outcome == RunWaitOutcome.FailFast;
+        var summary = $"{watchResult.Summary}\n轮询次数: {watchResult.PollCount}, 耗时: {watchResult.ElapsedMs / 1000}s";
+
+        if (failedJobIds.Count == 0) {
+            var conclusion = watchResult.RunConclusion ?? "unknown";
+            return Ok(summary, $"Run {runId} 已完成: {conclusion}");
+        }
+
+        var logPath = await DownloadJobLogsToDiskAsync(owner, repoName, runId, failedJobIds, workingDir, ct).ConfigureAwait(false);
+        var prefix = isFailFast ? $"⚠ fail-fast: Run {runId} 运行中发现失败 job,立即返回" : $"Run {runId} 已完成: ❌ {watchResult.RunConclusion ?? "failure"}";
+        return logPath is not null
+            ? Ok(summary + $"\n\n📄 失败 job 日志已下载到:\n{logPath}\n\n💡 用 read 工具读取此文件查看错误详情", prefix)
+            : Ok(summary + $"\n\n⚠ 失败 job 日志下载失败,用 gh run view {runId} --log --filter failed 手动查看", prefix);
+    }
+
+    /// <summary>
     /// 判断 conclusion 是否为失败(failure/cancelled/timed_out)
     /// </summary>
     private static bool IsFailedConclusion(string conclusion)
@@ -766,7 +804,28 @@ public partial class GitHubToolHandlers {
     private async Task<string?> DownloadFailedLogsToDiskAsync(
         string owner, string repo, string runId, string? workingDir, CancellationToken ct) {
         if (_logFilterRunner is null) return null;
+        return await DownloadLogsToDiskCoreAsync(runId, workingDir,
+            ct => _logFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, false, ct), ct).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 下载指定 job 日志到磁盘 — fail-fast 模式用,传已知的失败 job ids,无需再查 jobs API
+    /// <para>复用 GetLogStreamAsync(jobId=逗号分隔) 并行下载</para>
+    /// </summary>
+    private async Task<string?> DownloadJobLogsToDiskAsync(
+        string owner, string repo, string runId, List<long> jobIds, string? workingDir, CancellationToken ct) {
+        if (_logFilterRunner is null || jobIds.Count == 0) return null;
+        var jobIdStr = string.Join(',', jobIds);
+        return await DownloadLogsToDiskCoreAsync(runId, workingDir,
+            ct => _logFilterRunner.GetLogStreamAsync(owner, repo, runId, jobIdStr, false, false, ct), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 流式写日志到磁盘的公共逻辑 — 提取自 DownloadFailedLogsToDiskAsync/DownloadJobLogsToDiskAsync 消除重复
+    /// </summary>
+    private async Task<string?> DownloadLogsToDiskCoreAsync(
+        string runId, string? workingDir,
+        Func<CancellationToken, IAsyncEnumerable<string>> logStreamFactory, CancellationToken ct) {
         var baseDir = string.IsNullOrWhiteSpace(workingDir) ? _fs.GetCurrentDirectory() : workingDir;
         var logDir = _fs.CombinePath(baseDir, ".jcc", "gh_logs");
         if (!_fs.DirectoryExists(logDir)) _fs.CreateDirectory(logDir);
@@ -776,7 +835,7 @@ public partial class GitHubToolHandlers {
 
         var sb = new StringBuilder();
         var lineCount = 0;
-        await foreach (var line in _logFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, false, ct).ConfigureAwait(false)) {
+        await foreach (var line in logStreamFactory(ct).ConfigureAwait(false)) {
             sb.AppendLine(line);
             lineCount++;
         }

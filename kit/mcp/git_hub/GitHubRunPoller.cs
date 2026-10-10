@@ -59,6 +59,7 @@ internal static class GitHubRunPoller {
     private static PollState Transition(PollOutcomeKind kind, DateTimeOffset deadline) => kind switch {
         PollOutcomeKind.Error => PollState.Error,
         PollOutcomeKind.Completed => PollState.Completed,
+        PollOutcomeKind.FailFast => PollState.FastFailed,
         _ => DateTimeOffset.UtcNow >= deadline ? PollState.Timeout : PollState.Polling
     };
 
@@ -155,6 +156,87 @@ internal static class GitHubRunPoller {
         return (kind, data, null);
     }
 
+    // === Run jobs fail-fast 监控 ===
+
+    /// <summary>
+    /// 轮询 Run 的 jobs,发现任何 job failure 立即返回(fail-fast),或 run completed 返回
+    /// <para>并行查 run status + jobs,发现 conclusion=failure/cancelled/timed_out 的 job 立即终止</para>
+    /// <para>替代等整个 run completed 才发现错误:CI 运行中某 job 失败即可拉日志唤醒 LLM</para>
+    /// </summary>
+    internal static async Task<JobWatchResult> WatchRunJobsForFailureAsync(
+        IGitHubApiClient apiClient, string owner, string repo, string runId,
+        TimeSpan timeout, TimeSpan initialInterval,
+        ToolProgressCallback? onProgress, string progressType,
+        CancellationToken ct) {
+        var (state, value, error, pollCount, elapsedMs) = await PollUntilAsync(
+            ct => PollRunJobsOnceAsync(apiClient, owner, repo, runId, ct),
+            v => $"Run {runId}: {v.Summary}",
+            timeout, initialInterval, onProgress, progressType, ct).ConfigureAwait(false);
+
+        return state switch {
+            PollState.Completed => JobWatchResult.Completed(value.RunConclusion, value.FailedJobIds, value.Summary, pollCount, elapsedMs),
+            PollState.FastFailed => JobWatchResult.FailFast(value.FailedJobIds, value.Summary, pollCount, elapsedMs),
+            PollState.Timeout => JobWatchResult.FromTimeout(value.Summary, pollCount, elapsedMs),
+            _ => JobWatchResult.FromError(error ?? "轮询失败", pollCount)
+        };
+    }
+
+    /// <summary>
+    /// 单次 Run jobs 轮询 — 并行查 run status + jobs,发现 failure job 返回 FailFast
+    /// </summary>
+    private static async Task<(PollOutcomeKind, JobWatchData, string?)> PollRunJobsOnceAsync(
+        IGitHubApiClient apiClient, string owner, string repo, string runId, CancellationToken ct) {
+        var runTask = apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}", ct: ct);
+        var jobsTask = apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs",
+            query: new Dictionary<string, string> { ["per_page"] = "100" }, paginate: true, ct: ct);
+        await Task.WhenAll(runTask, jobsTask).ConfigureAwait(false);
+        var runResult = await runTask.ConfigureAwait(false);
+        var jobsResult = await jobsTask.ConfigureAwait(false);
+
+        if (!runResult.Success) return (PollOutcomeKind.Error, default!, runResult.Error);
+        if (!jobsResult.Success) return (PollOutcomeKind.Error, default!, jobsResult.Error);
+
+        var (runStatus, runConclusion) = ParseRunStatus(runResult.Body);
+        var (failedJobIds, jobSummary) = ParseJobsForFailure(jobsResult.Body);
+
+        var status = runStatus ?? "unknown";
+        var summary = $"{jobSummary} | run: {status}";
+        var data = new JobWatchData { RunStatus = status, RunConclusion = runConclusion, FailedJobIds = failedJobIds, Summary = summary };
+
+        if (failedJobIds.Count > 0) return (PollOutcomeKind.FailFast, data, null);
+        if (status == "completed") return (PollOutcomeKind.Completed, data, null);
+        return (PollOutcomeKind.Continue, data, null);
+    }
+
+    /// <summary>
+    /// 从 jobs JSON 解析失败 job ID 列表 + 进度汇总(纯函数)
+    /// </summary>
+    private static (List<long> failedJobIds, string summary) ParseJobsForFailure(string json) {
+        var failedJobIds = new List<long>();
+        var completed = 0; var inProgress = 0; var queued = 0; var failed = 0;
+        try {
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.RunJobListResponse);
+            if (resp?.Jobs is null) return ([], "解析 jobs 失败");
+            foreach (var job in resp.Jobs) {
+                var status = job.Status ?? "";
+                var conclusion = job.Conclusion ?? "";
+                if (status != "completed") {
+                    if (status == "queued") queued++; else inProgress++;
+                    continue;
+                }
+                if (conclusion is "failure" or "cancelled" or "timed_out") {
+                    failed++;
+                    if (job.Id != 0) failedJobIds.Add(job.Id);
+                } else {
+                    completed++;
+                }
+            }
+        } catch {
+            return ([], "解析 jobs 失败");
+        }
+        return (failedJobIds, $"{completed} 完成, {failed} 失败, {inProgress} 进行中, {queued} 排队");
+    }
+
     // === JSON 解析(纯函数) ===
 
     /// <summary>
@@ -217,7 +299,9 @@ internal enum PollOutcomeKind {
     /// <summary>未完成,继续轮询</summary>
     Continue,
     /// <summary>API 错误</summary>
-    Error
+    Error,
+    /// <summary>fail-fast:发现失败,立即返回(不等 completed)</summary>
+    FailFast
 }
 
 /// <summary>状态机状态</summary>
@@ -229,7 +313,9 @@ internal enum PollState {
     /// <summary>等待超时(终态)</summary>
     Timeout,
     /// <summary>API 错误(终态)</summary>
-    Error
+    Error,
+    /// <summary>fail-fast 终态:发现失败 job,立即返回</summary>
+    FastFailed
 }
 
 // === 轮询值类型 ===
@@ -252,6 +338,18 @@ internal sealed record PrPollData {
     public int FailCount { get; init; }
     /// <summary>check-runs JSON 原文</summary>
     public required string Body { get; init; }
+}
+
+/// <summary>Run jobs fail-fast 监控单次轮询值</summary>
+internal sealed record JobWatchData {
+    /// <summary>Run status(queued/in_progress/completed)</summary>
+    public required string RunStatus { get; init; }
+    /// <summary>Run conclusion(completed 时有值)</summary>
+    public string? RunConclusion { get; init; }
+    /// <summary>已失败的 job ID 列表(fail-fast 触发依据)</summary>
+    public List<long> FailedJobIds { get; init; } = [];
+    /// <summary>进度汇总文本(N 完成, M 失败, ...)</summary>
+    public required string Summary { get; init; }
 }
 
 // === 等待结果 ===
@@ -313,6 +411,38 @@ internal sealed record PrWaitResult {
 }
 
 /// <summary>
+/// Run jobs fail-fast 监控结果
+/// </summary>
+internal sealed record JobWatchResult {
+    /// <summary>结果类型(Completed/FailFast/Timeout/Error)</summary>
+    public required RunWaitOutcome Outcome { get; init; }
+    /// <summary>Run conclusion(Completed 时填充)</summary>
+    public string? RunConclusion { get; init; }
+    /// <summary>失败 job ID 列表(FailFast/Completed 时填充)</summary>
+    public List<long> FailedJobIds { get; init; } = [];
+    /// <summary>进度汇总文本</summary>
+    public string? Summary { get; init; }
+    /// <summary>错误信息(Error 时填充)</summary>
+    public string? Error { get; init; }
+    /// <summary>轮询次数</summary>
+    public int PollCount { get; init; }
+    /// <summary>已耗时(毫秒)</summary>
+    public long ElapsedMs { get; init; }
+
+    internal static JobWatchResult Completed(string? conclusion, List<long> failedJobIds, string summary, int pollCount, long elapsedMs)
+        => new() { Outcome = RunWaitOutcome.Completed, RunConclusion = conclusion, FailedJobIds = failedJobIds, Summary = summary, PollCount = pollCount, ElapsedMs = elapsedMs };
+
+    internal static JobWatchResult FailFast(List<long> failedJobIds, string summary, int pollCount, long elapsedMs)
+        => new() { Outcome = RunWaitOutcome.FailFast, FailedJobIds = failedJobIds, Summary = summary, PollCount = pollCount, ElapsedMs = elapsedMs };
+
+    internal static JobWatchResult FromTimeout(string summary, int pollCount, long elapsedMs)
+        => new() { Outcome = RunWaitOutcome.Timeout, Summary = summary, PollCount = pollCount, ElapsedMs = elapsedMs };
+
+    internal static JobWatchResult FromError(string error, int pollCount)
+        => new() { Outcome = RunWaitOutcome.Error, Error = error, PollCount = pollCount };
+}
+
+/// <summary>
 /// 等待结果类型
 /// </summary>
 internal enum RunWaitOutcome {
@@ -321,5 +451,7 @@ internal enum RunWaitOutcome {
     /// <summary>等待超时</summary>
     Timeout,
     /// <summary>API 调用错误</summary>
-    Error
+    Error,
+    /// <summary>fail-fast:运行中发现失败 job,立即返回(不等 run completed)</summary>
+    FailFast
 }

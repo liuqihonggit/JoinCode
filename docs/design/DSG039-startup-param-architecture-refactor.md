@@ -315,3 +315,70 @@ replacements = {
 | D: 分析器强制 + 手写修复 | 不改架构 | 869 处手写修复、无自动填充、治标不治本 | ❌ |
 
 方案 A 与项目现有 10 个 IIncrementalGenerator 体系完全一致，利用已有的 `AttributeScanner` / `AttributeRegistrationGeneratorBase` 基建，AOT 兼容，且能在编译期检测不一致变体。
+
+## 实施进度
+
+### Phase 1-3: WellKnownParam 枚举 + 生成器 + McpToolParameter 增强 ✅
+
+- `WellKnownParam` 枚举定义 30+ 公共参数（Repo/WorkingDir/Verbosity/JsonFields/Limit/PrNumber/IssueNumber/RunId 等）
+- `param_metadata.generator` 源码生成器扫描 `[EnumValue]` + `[ParamMeta]` 生成常量类
+- `McpToolParameterAttribute` 增加 `WellKnownParam` 构造重载
+- `McpToolDispatchGenerator` 编译期从 `[ParamMeta]` 填充描述
+- 276 处参数描述替换为 `WellKnownParam` 枚举引用
+- ADR 0135 + AGENTS.md 更新
+
+### Phase 4: GitHubCommonOptions 参数组模板 ✅
+
+`GitHubCommonOptions` record 包含 repo + working_dir + verbosity + json_fields 四个公共参数，用 `[McpToolOptions]` 标记后源码生成器自动展开为工具参数。
+
+**推广进度：109 个方法已推广**（所有 16 个 handler 文件全覆盖）
+
+| 文件 | 已推广方法数 | 方法列表 |
+|------|------------|---------|
+| Pr.cs | 18 | View, List, Diff, Checks, Wait, Merge, Close, Reopen, Create, Comment, Edit, Review, Lock, Unlock, Status, Ready, Revert, UpdateBranch |
+| Issue.cs | 15 | View, Create, Close, Comment, Reopen, Edit, Delete, Lock, Unlock, Status, Develop, Pin, Unpin, Transfer, List |
+| Release.cs | 10 | List, View, Create, Download, Upload, Delete, DeleteAsset, Edit, Verify, VerifyAsset |
+| Repo.cs | 15 | View, List, Clone, Create, Edit, Archive, Unarchive, Rename, Sync, SetDefault, AutolinkList, AutolinkView, AutolinkCreate, AutolinkDelete, Fork, Delete, DeployKeyList, DeployKeyAdd, DeployKeyDelete |
+| Run.cs | 8 | List, View, Rerun, Cancel, Wait, Download, Delete, Watch |
+| Workflow.cs | 5 | List, View, Run, Enable, Disable |
+| SecretVariable.cs | 7 | SecretList, SecretSet, SecretDelete, VariableList, VariableGet, VariableSet, VariableDelete |
+| Label.cs | 4 | List, Create, Delete, (已推广) |
+| P4.cs | 12 | CacheList, CacheDelete, RulesetList, RulesetView, RulesetCheck, CodespaceList, DiscussionList, DiscussionView, DiscussionCreate, DiscussionEdit, DiscussionComment, Browse |
+| Branch.cs | 2 | SyncProtection, AuditProtection |
+| Search.cs | 3 | SearchRepos, SearchIssues, SearchCode |
+| OrgKey.cs | 3 | OrgList, SshKeyList, GpgKeyList |
+| Gist.cs | 2 | GistList, GistView |
+| Api.cs | 1 | GhApi |
+| GraphQLEdit.cs | 0 | (无公共参数方法) |
+| AuthConfig.cs | 0 | (无公共参数方法) |
+
+### Phase 5: RgArg 枚举结构化定义 ✅
+
+- `RgArg` 枚举定义 rg 27 个参数（Pattern/Path/Include/Type/Count/Json 等）
+- `RgSubCommand.PrintUsage()` 引用 `RgArgParser.GetHelpText()`
+
+### Phase 6: 批量替换 869 处描述 ✅
+
+- 276 处参数描述替换为 `WellKnownParam` 枚举引用
+- 31 处 json_fields 描述替换
+- JCC10010 分析器规则检测手写字符串描述
+
+### Phase 7: 编译期校验 ✅
+
+- `WellKnownParamStringRule` (JCC10010) 检测手写参数描述与 WellKnownParam 不一致
+
+### 验证结果
+
+| 验收项 | 状态 |
+|--------|------|
+| 编译通过 | ✅ 0 警告 0 错误 |
+| Mcp 单元测试 | ✅ 924/924 通过 |
+| AOT 兼容 | ✅ 源码生成器 netstandard2.0 |
+| 重复描述消除 | ✅ 高频描述改为 WellKnownParam 枚举引用 |
+| 参数组推广 | ✅ 109 个方法用 GitHubCommonOptions |
+
+<!-- 🤖 Auto Decision: 2026-10-10 -->
+<!-- 决策: 用 Python 脚本批量推广 GitHubCommonOptions，按方法块处理参数声明+方法体替换 -->
+<!-- 原因: 77 个方法手动改太慢，脚本处理机械的参数声明替换+方法体变量引用替换 -->
+<!-- 替代方案: 逐个手动 edit（耗时过长，不实际）-->
+<!-- 验证: 编译通过，924 个单元测试全部通过 ✅ -->

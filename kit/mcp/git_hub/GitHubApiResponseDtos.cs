@@ -1147,6 +1147,25 @@ internal sealed class RunJobItemResponse {
     public string? Conclusion { get; init; }
 }
 
+/// <summary>CI 告警通知 — 后台监控发现新失败 job 时写入 LSM(gh:ci_alert: 前缀)供 AI 调阅</summary>
+internal sealed class CiAlertDto {
+    /// <summary>Run ID</summary>
+    [JsonPropertyName("run_id")]
+    public string RunId { get; set; } = "";
+    /// <summary>Job ID</summary>
+    [JsonPropertyName("job_id")]
+    public long JobId { get; set; }
+    /// <summary>Job 名称</summary>
+    [JsonPropertyName("job_name")]
+    public string JobName { get; set; } = "";
+    /// <summary>Job 结论(failure/cancelled/timed_out)</summary>
+    [JsonPropertyName("conclusion")]
+    public string Conclusion { get; set; } = "";
+    /// <summary>告警时间(ISO 8601)</summary>
+    [JsonPropertyName("timestamp")]
+    public string Timestamp { get; set; } = "";
+}
+
 /// <summary>Run artifact 列表响应 — GET /actions/runs/{id}/artifacts</summary>
 internal sealed class RunArtifactListResponse {
     /// <summary>artifact 列表</summary>

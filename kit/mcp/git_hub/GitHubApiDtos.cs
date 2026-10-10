@@ -836,6 +836,8 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(RunNumberLookupItemResponse))]
 [JsonSerializable(typeof(RunJobListResponse))]
 [JsonSerializable(typeof(RunJobItemResponse))]
+[JsonSerializable(typeof(CiAlertDto))]
+[JsonSerializable(typeof(List<CiAlertDto>))]
 [JsonSerializable(typeof(RunArtifactListResponse))]
 [JsonSerializable(typeof(RunArtifactItemResponse))]
 [JsonSerializable(typeof(NodeIdResponse))]

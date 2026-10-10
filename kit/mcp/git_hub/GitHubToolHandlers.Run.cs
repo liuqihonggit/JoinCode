@@ -172,8 +172,15 @@ public partial class GitHubToolHandlers {
                 headSha = sha.GetString();
         } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 PR head_sha 失败"); }
         if (string.IsNullOrEmpty(headSha)) return null;
+        return await ResolveRunIdFromHeadShaAsync(client, owner, repoName, headSha, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 从 head_sha 查最新 Actions run ID — per_page=1 取最新一条
+    /// </summary>
+    private async Task<string?> ResolveRunIdFromHeadShaAsync(IGitHubApiClient client, string owner, string repoName, string headSha, CancellationToken ct) {
         var runsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs",
-            query: new Dictionary<string, string> { ["head_sha"] = headSha!, ["per_page"] = "1" }, ct: ct).ConfigureAwait(false);
+            query: new Dictionary<string, string> { ["head_sha"] = headSha, ["per_page"] = "1" }, ct: ct).ConfigureAwait(false);
         if (!runsResult.Success) return null;
         try {
             using var doc = JsonDocument.Parse(runsResult.Body);
@@ -712,27 +719,32 @@ public partial class GitHubToolHandlers {
     /// <para>替代 LLM 的 sleep+gh_run_view 轮询模式:工具内部阻塞,一次往返拿到最终结果</para>
     /// <para>信号模型:轮询发现 completed 触发返回(唤醒 LLM),非 sleep 固定等待</para>
     /// <para>指数退避:初始 5s ×1.5 每次,上限 60s,默认超时 30 分钟</para>
+    /// <para>fail_fast=true:轮询 jobs 级别,发现任何 job failure 立即拉日志返回(不等整个 run completed)</para>
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRunWait, "等待 Actions Run 完成(指数退避轮询+进度回调,完成才返回)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhRunWait, "等待 Actions Run 完成(指数退避轮询+进度回调,完成才返回;fail_fast=运行中 job 失败立即返回)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunWaitAsync(
         [McpToolParameter(WellKnownParam.RunId)] string run_id,
         [McpToolParameter("超时秒数(默认 1800=30分钟)", Required = false)] int? timeout_seconds = null,
         [McpToolParameter("初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)", Required = false)] int? poll_interval_seconds = null,
+        [McpToolParameter("fail_fast=true 轮询 jobs 级别,发现 job failure 立即拉日志返回(不等 run completed)", Required = false)] bool? fail_fast = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
             if (runIdError is not null) return runIdError;
-            return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId!, timeout_seconds, poll_interval_seconds, common?.WorkingDir, cancellationToken, onProgress).ConfigureAwait(false);
+            return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId!, timeout_seconds, poll_interval_seconds, fail_fast == true, common?.WorkingDir, cancellationToken, onProgress).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
     /// GhRunWait 核心逻辑 — 指数退避轮询直到 completed,失败时下载日志到磁盘
+    /// <para>fail_fast=true:委托 GhRunWaitFailFastAsync 做 job 级别监控</para>
     /// </summary>
-    private async Task<ToolResult> GhRunWaitCoreAsync(IGitHubApiClient client, string owner, string repoName, string runId, int? timeoutSeconds, int? pollIntervalSeconds, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
+    private async Task<ToolResult> GhRunWaitCoreAsync(IGitHubApiClient client, string owner, string repoName, string runId, int? timeoutSeconds, int? pollIntervalSeconds, bool failFast, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
         var timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds ?? 1800, 1, 7200));
         var initialInterval = TimeSpan.FromSeconds(Math.Clamp(pollIntervalSeconds ?? 5, 1, 60));
+        if (failFast)
+            return await GhRunWaitFailFastAsync(client, owner, repoName, runId, timeout, initialInterval, workingDir, ct, onProgress).ConfigureAwait(false);
         var waitResult = await GitHubRunPoller.WaitForRunCompletionAsync(
             client, owner, repoName, runId, timeout, initialInterval,
             onProgress, "gh_run_wait", ct).ConfigureAwait(false);
@@ -746,10 +758,67 @@ public partial class GitHubToolHandlers {
         var summary = BuildRunWaitSummary(waitResult.Body!, runId, waitResult.PollCount, waitResult.ElapsedMs);
         if (!IsFailedConclusion(conclusion))
             return Ok(summary, $"Run {runId} 已完成: {conclusion}");
-        var logPath = await DownloadFailedLogsToDiskAsync(owner, repoName, runId, workingDir, ct).ConfigureAwait(false);
-        return logPath is not null
-            ? Ok(summary + $"\n\n📄 失败 job 日志已下载到:\n{logPath}\n\n💡 用 read 工具读取此文件查看错误详情", $"Run {runId} 已完成: ❌ {conclusion}")
-            : Ok(summary + $"\n\n⚠ 失败 job 日志下载失败,用 gh run view {runId} --log --filter failed 手动查看", $"Run {runId} 已完成: ❌ {conclusion}");
+        var logContent = await FetchFailedJobLogsInlineAsync(owner, repoName, runId, null, ct).ConfigureAwait(false);
+        return Ok(summary + $"\n\n❌ Run {runId} 失败\n\n📄 失败日志(从 LSM 缓存读):\n{logContent}", $"Run {runId} 已完成: ❌ {conclusion}");
+    }
+
+    /// <summary>
+    /// GhRunWait fail-fast 模式 — 轮询 jobs 级别,发现任何 job failure 立即拉日志到磁盘返回唤醒 LLM
+    /// <para>不等整个 run completed,CI 运行中某 job 失败即触发返回</para>
+    /// <para>并行查 run status + jobs,发现 conclusion=failure/cancelled/timed_out 的 job 立即终止轮询</para>
+    /// </summary>
+    private async Task<ToolResult> GhRunWaitFailFastAsync(IGitHubApiClient client, string owner, string repoName, string runId, TimeSpan timeout, TimeSpan initialInterval, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
+        var watchResult = await GitHubRunPoller.WatchRunJobsForFailureAsync(
+            client, owner, repoName, runId, timeout, initialInterval,
+            onProgress, "gh_run_wait_failfast", ct).ConfigureAwait(false);
+
+        if (watchResult.Outcome == RunWaitOutcome.Error)
+            return Fail(watchResult.Error ?? "轮询失败");
+        if (watchResult.Outcome == RunWaitOutcome.Timeout)
+            return Ok(
+                $"⚠ Run {runId} 等待超时({timeout.TotalSeconds:F0}s)。{watchResult.Summary}\n轮询次数: {watchResult.PollCount}, 耗时: {watchResult.ElapsedMs / 1000}s\n用 gh_run_view {runId} 手动查看,或增大 timeout_seconds",
+                $"⚠ Run {runId} 超时");
+
+        var failedJobIds = watchResult.FailedJobIds;
+        var isFailFast = watchResult.Outcome == RunWaitOutcome.FailFast;
+        var summary = $"{watchResult.Summary}\n轮询次数: {watchResult.PollCount}, 耗时: {watchResult.ElapsedMs / 1000}s";
+
+        if (failedJobIds.Count == 0) {
+            var conclusion = watchResult.RunConclusion ?? "unknown";
+            return Ok(summary, $"Run {runId} 已完成: {conclusion}");
+        }
+
+        if (isFailFast)
+            StartBackgroundCiMonitor(client, owner, repoName, runId, [.. failedJobIds]);
+
+        var prefix = isFailFast ? $"⚠ fail-fast: Run {runId} 运行中发现失败 job,立即返回(后台继续监控其他 job,用 gh ci alerts 调阅)" : $"Run {runId} 已完成: ❌ {watchResult.RunConclusion ?? "failure"}";
+        var jobList = string.Join(",", failedJobIds);
+        var logContent = await FetchFailedJobLogsInlineAsync(owner, repoName, runId, failedJobIds, ct).ConfigureAwait(false);
+        return Ok(summary + $"\n\n❌ 失败 job: {jobList}\n\n📄 失败日志(从 LSM 缓存读,--refresh 可强制刷新):\n{logContent}", prefix);
+    }
+
+    /// <summary>
+    /// 从 LSM 缓存拉失败 job 日志,内联返回给 AI — 优先命中缓存(gh:log:前缀),未命中则从 API 下载并写缓存
+    /// <para>jobIds 非 null 时拉指定 job;为 null 时自动查所有失败 job(GetFailedJobLogsAsync)</para>
+    /// <para>限制 maxLines=200 行避免塞爆 LLM 上下文</para>
+    /// </summary>
+    private async Task<string> FetchFailedJobLogsInlineAsync(string owner, string repo, string runId, List<long>? jobIds, CancellationToken ct) {
+        if (_logFilterRunner is null) return "(日志过滤运行器未初始化)";
+        const int maxLines = 200;
+        var sb = new StringBuilder();
+        var lineCount = 0;
+        var logStream = jobIds is not null && jobIds.Count > 0
+            ? _logFilterRunner.DownloadJobsParallelAsync(owner, repo, runId, jobIds, false, ct)
+            : _logFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, false, ct);
+        await foreach (var line in logStream.ConfigureAwait(false)) {
+            if (lineCount >= maxLines) {
+                sb.AppendLine($"... (截断,超过 {maxLines} 行,用 gh run view {runId} --log 查看完整日志)");
+                break;
+            }
+            sb.AppendLine(line);
+            lineCount++;
+        }
+        return lineCount == 0 ? "(无日志输出)" : sb.ToString();
     }
 
     /// <summary>
@@ -759,31 +828,73 @@ public partial class GitHubToolHandlers {
         => conclusion is "failure" or "cancelled" or "timed_out";
 
     /// <summary>
-    /// 下载失败 job 日志到磁盘 — 流式拉取所有 conclusion=failure 的 job 日志,写到 .jcc/gh_logs/run_{id}_{timestamp}.log
-    /// <para>复用 GetFailedJobLogsAsync 并行下载多个失败 job(Actor 邮箱模型合并)</para>
-    /// <para>只返回磁盘路径,不把日志内容塞进 ToolResult,节约 LLM 上下文</para>
+    /// 启动后台 CI 监控任务 — fire-and-forget,持续轮询 run 的其他 job,新失败 job 写告警到 LSM
+    /// <para>从 GhRunWaitFailFastAsync 返回前启动,利用 jcc 长驻进程持续运行</para>
+    /// <para>告警写入 LSM(key=gh:ci_alert:前缀),AI 用 gh ci alerts 调阅;日志用 gh run view --log 从 LSM 缓存读</para>
+    /// <para>异常在任务内部吞掉+日志,不影响主流程;run completed 后自动退出</para>
     /// </summary>
-    private async Task<string?> DownloadFailedLogsToDiskAsync(
-        string owner, string repo, string runId, string? workingDir, CancellationToken ct) {
-        if (_logFilterRunner is null) return null;
+    private void StartBackgroundCiMonitor(
+        IGitHubApiClient client, string owner, string repo, string runId,
+        HashSet<long> reportedJobIds) {
+        _ = Task.Run(async () => {
+            try {
+                using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+                while (await timer.WaitForNextTickAsync(CancellationToken.None).ConfigureAwait(false)) {
+                    var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}").ConfigureAwait(false);
+                    if (!runResult.Success) continue;
+                    string? status = null;
+                    try {
+                        var run = JsonSerializer.Deserialize(runResult.Body, GitHubApiJsonContext.Safe.RunDetailResponse);
+                        status = run?.Status;
+                    } catch (JsonException ex) { _logger?.LogWarning(ex, "后台监控解析 run status 失败: runId={RunId}", runId); }
+                    if (status == "completed") return;
 
-        var baseDir = string.IsNullOrWhiteSpace(workingDir) ? _fs.GetCurrentDirectory() : workingDir;
-        var logDir = _fs.CombinePath(baseDir, ".jcc", "gh_logs");
-        if (!_fs.DirectoryExists(logDir)) _fs.CreateDirectory(logDir);
+                    var jobsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs",
+                        query: new Dictionary<string, string> { ["per_page"] = "100" }, paginate: true).ConfigureAwait(false);
+                    if (!jobsResult.Success) continue;
 
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
-        var logPath = _fs.CombinePath(logDir, $"run_{runId}_{timestamp}.log");
+                    List<(long Id, string Name, string Conclusion)> newFailedJobs;
+                    try {
+                        var resp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
+                        newFailedJobs = [];
+                        if (resp?.Jobs is not null) {
+                            foreach (var job in resp.Jobs) {
+                                if (job.Id == 0) continue;
+                                if (job.Conclusion is not ("failure" or "cancelled" or "timed_out")) continue;
+                                lock (reportedJobIds) {
+                                    if (reportedJobIds.Contains(job.Id)) continue;
+                                    reportedJobIds.Add(job.Id);
+                                }
+                                newFailedJobs.Add((job.Id, job.Name, job.Conclusion ?? "failure"));
+                            }
+                        }
+                    } catch (JsonException ex) { _logger?.LogWarning(ex, "后台监控解析 jobs 失败: runId={RunId}", runId); continue; }
 
-        var sb = new StringBuilder();
-        var lineCount = 0;
-        await foreach (var line in _logFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, false, ct).ConfigureAwait(false)) {
-            sb.AppendLine(line);
-            lineCount++;
-        }
+                    foreach (var (jobId, jobName, conclusion) in newFailedJobs)
+                        await WriteCiAlertToKvStoreAsync(runId, jobId, jobName, conclusion).ConfigureAwait(false);
+                }
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "后台 CI 监控任务异常退出: runId={RunId}", runId);
+            }
+        });
+    }
 
-        if (lineCount == 0) return null;
-        await _fs.WriteAllTextAsync(logPath, sb.ToString(), ct).ConfigureAwait(false);
-        return logPath;
+    /// <summary>
+    /// 写 CI 告警通知到 LSM-Tree — key=gh:ci_alert:{run_id}:{job_id}:{timestamp},value=JSON(CiAlertDto)
+    /// <para>复用 IKvStore(LSM-Tree PithosKvStore),禁止用文件系统(见 persistence-reuse-lsm-tree)</para>
+    /// <para>AI 用 gh ci alerts 调阅,ScanAsync 范围扫描 gh:ci_alert: 前缀;日志用 gh run view --log 从 LSM 缓存读</para>
+    /// </summary>
+    private async Task WriteCiAlertToKvStoreAsync(string runId, long jobId, string jobName, string conclusion) {
+        if (_kvStore is null) return;
+        var alert = new CiAlertDto {
+            RunId = runId, JobId = jobId, JobName = jobName,
+            Conclusion = conclusion, Timestamp = DateTime.UtcNow.ToString("O")
+        };
+        var json = JsonSerializer.Serialize(alert, GitHubApiJsonContext.Safe.CiAlertDto);
+        var key = Encoding.UTF8.GetBytes($"gh:ci_alert:{runId}:{jobId}:{DateTime.UtcNow:yyyyMMddHHmmssfff}");
+        var value = Encoding.UTF8.GetBytes(json);
+        await _kvStore.PutAsync(key, value).ConfigureAwait(false);
+        _logger?.LogDebug("CI 告警通知已写入 LSM: run={RunId} job={JobId}", runId, jobId);
     }
 
     /// <summary>
@@ -944,4 +1055,49 @@ public partial class GitHubToolHandlers {
             if (failed && exit_status == true) return Fail(sb.ToString());
             return Ok(sb.ToString(), $"Run {resolvedRunId} 已完成: {finalConclusion}");
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 查看 CI 告警通知 — 从 LSM-Tree 范围扫描 gh:ci_alert: 前缀,返回后台监控发现的新失败 job 日志路径
+    /// <para>fail-fast 后台任务发现新失败 job 时写入 LSM,AI 调本工具调阅后用 read 读日志</para>
+    /// <para>利用 AI ReAct 循环:处理完第一个错误后调本工具检查是否有新错误</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhCiAlerts, "查看后台 CI 监控告警(从 LSM 扫描 gh:ci_alert: 前缀,返回新失败 job 日志路径)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhCiAlertsAsync(
+        [McpToolParameter("清理已读告警(从 LSM 删除已返回的告警 key)", Required = false)] bool? mark_read = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default) {
+        if (_kvStore is null) return Fail("KV 存储未配置,无法读取 CI 告警");
+
+        var fromKey = Encoding.UTF8.GetBytes("gh:ci_alert:");
+        var toKey = Encoding.UTF8.GetBytes("gh:ci_alert:~");
+        var alerts = new List<(byte[] Key, CiAlertDto Alert)>();
+        await foreach (var (key, value) in _kvStore.ScanAsync(fromKey, toKey, cancellationToken).ConfigureAwait(false)) {
+            try {
+                var json = Encoding.UTF8.GetString(value);
+                var alert = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.CiAlertDto);
+                if (alert is not null) alerts.Add((key, alert));
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "解析 CI 告警失败");
+            }
+        }
+
+        if (alerts.Count == 0) return Ok("无 CI 告警通知");
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"📋 CI 告警通知 ({alerts.Count} 条):");
+        foreach (var (_, a) in alerts) {
+            sb.AppendLine($"  • Run {a.RunId} / Job #{a.JobId} {a.JobName} [{a.Conclusion}] [{a.Timestamp}]");
+        }
+        sb.AppendLine();
+        sb.Append("💡 用 gh run view <run_id> --job <job_id> --log 从 LSM 缓存读日志(命中缓存不重新下载)");
+
+        if (mark_read == true) {
+            foreach (var (key, _) in alerts)
+                await _kvStore.DeleteAsync(key, cancellationToken).ConfigureAwait(false);
+            sb.AppendLine();
+            sb.Append($"✅ {alerts.Count} 条告警已清理(从 LSM 删除)");
+        }
+
+        return Ok(sb.ToString(), $"CI 告警: {alerts.Count} 条");
+    }
 }

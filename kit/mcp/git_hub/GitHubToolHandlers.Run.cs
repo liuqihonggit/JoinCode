@@ -807,16 +807,23 @@ public partial class GitHubToolHandlers {
         const int maxLines = 200;
         var sb = new StringBuilder();
         var lineCount = 0;
-        var logStream = jobIds is not null && jobIds.Count > 0
-            ? _logFilterRunner.DownloadJobsParallelAsync(owner, repo, runId, jobIds, false, ct)
-            : _logFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, false, ct);
-        await foreach (var line in logStream.ConfigureAwait(false)) {
-            if (lineCount >= maxLines) {
-                sb.AppendLine($"... (截断,超过 {maxLines} 行,用 gh run view {runId} --log 查看完整日志)");
-                break;
+        try {
+            var logStream = jobIds is not null && jobIds.Count > 0
+                ? _logFilterRunner.DownloadJobsParallelAsync(owner, repo, runId, jobIds, false, ct)
+                : _logFilterRunner.GetFailedJobLogsAsync(owner, repo, runId, false, ct);
+            await foreach (var line in logStream.ConfigureAwait(false)) {
+                if (lineCount >= maxLines) {
+                    sb.AppendLine($"... (截断,超过 {maxLines} 行,用 gh run view {runId} --log 查看完整日志)");
+                    break;
+                }
+                sb.AppendLine(line);
+                lineCount++;
             }
-            sb.AppendLine(line);
-            lineCount++;
+        } catch (OperationCanceledException) {
+            throw;
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "拉取失败 job 日志异常,返回已获取的部分");
+            if (lineCount == 0) sb.AppendLine($"[ERROR] 日志拉取失败: {ex.Message}");
         }
         return lineCount == 0 ? "(无日志输出)" : sb.ToString();
     }

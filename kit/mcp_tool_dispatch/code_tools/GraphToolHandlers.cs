@@ -519,8 +519,14 @@ public sealed class GraphToolHandlers {
                 var stats = await indexer.GetStatsAsync(cancellationToken).ConfigureAwait(false);
                 if (stats.SymbolCount == 0)
                     sb.AppendLine("\n💡 代码索引未构建（0 个符号）。用 code-index 工具构建索引后再试。");
-                else
-                    sb.AppendLine($"\n💡 已索引 {stats.SymbolCount} 个符号，但 '{symbol_name}' 无任何关系。尝试用全限定名或用 code-index search 搜索。");
+                else {
+                    var age = DateTimeOffset.Now - stats.LastUpdated;
+                    var staleHint = age > TimeSpan.FromHours(1)
+                        ? $"\n   ⚠️ 索引可能陈旧（{age.TotalHours:F0} 小时前更新），用 code_index_rebuild 更新后再试。"
+                        : "\n   如最近修改了代码，用 code_index_rebuild 更新索引。";
+                    sb.AppendLine($"\n💡 已索引 {stats.SymbolCount} 个符号（{stats.LastUpdated:yyyy-MM-dd HH:mm} 更新），但 '{symbol_name}' 无任何关系。" +
+                                  $"\n   尝试用全限定名或用 code-index search 搜索。{staleHint}");
+                }
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();

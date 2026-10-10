@@ -611,6 +611,35 @@ public sealed class CodeIndexToolHandlers {
     }
 
     /// <summary>
+    /// 增量更新单个文件的索引 — 只重新提取该文件的符号/调用/依赖，不扫描全部文件。
+    /// <para>适用于：编辑少量文件后快速更新索引，无需全量重建。</para>
+    /// <para>文件被删除时自动从索引中移除。</para>
+    /// </summary>
+    /// <param name="file_path">要更新的文件路径（绝对路径或相对工作区根的路径）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含更新结果的工具结果</returns>
+    [McpTool(CodeToolNameEnumConstants.CodeIndexUpdateFile, "Incrementally update index for a single file. Much faster than full rebuild when only a few files changed.", "code_index")]
+    public async Task<ToolResult> UpdateFileAsync(
+        [McpToolParameter("File path to update (absolute or relative to workspace root)")] string file_path,
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(file_path)) {
+            return ToolResultBuilder.Error().WithText("file_path cannot be empty.").Build();
+        }
+
+        try {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+            await _indexer.UpdateFileAsync(file_path, cancellationToken).ConfigureAwait(false);
+            var stats = await _indexer.GetStatsAsync(cancellationToken).ConfigureAwait(false);
+            return ToolResultBuilder.Success().WithText(
+                $"已增量更新: {file_path.Replace('\\', '/')}\n" +
+                $"当前索引: {stats.SymbolCount} 个符号, {stats.FileCount} 个文件" +
+                $"（{stats.LastUpdated:yyyy-MM-dd HH:mm} 更新）").Build();
+        } catch (Exception ex) {
+            return ToolResultBuilder.Error().WithText($"增量更新失败: {ex.Message}").Build();
+        }
+    }
+
+    /// <summary>
     /// 获取代码索引统计信息
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
@@ -1289,12 +1318,17 @@ public sealed class CodeIndexToolHandlers {
     private Task EnsureLoadedAsync(CancellationToken ct, string? persistDir = null) => _indexer.EnsureIndexLoadedAsync(ct, persistDir);
 
     /// <summary>
-    /// 生成"未找到"提示 — 索引为空时提示构建索引, 索引非空时提示符号名可能不匹配
+    /// 生成"未找到"提示 — 索引为空时提示构建索引, 索引非空时提示符号名可能不匹配或索引陈旧
     /// </summary>
     private async Task<string> BuildNotFoundHintAsync(string symbolName, CancellationToken ct) {
         var stats = await _indexer.GetStatsAsync(ct).ConfigureAwait(false);
         if (stats.SymbolCount == 0)
             return $"\n\n💡 代码索引未构建（0 个符号）。用 code-index 工具构建索引后再试。";
-        return $"\n\n💡 已索引 {stats.SymbolCount} 个符号，但未找到 '{symbolName}'。尝试用全限定名（如 Namespace.Class.Method）或用 code-index search 搜索。";
+        var age = DateTimeOffset.Now - stats.LastUpdated;
+        var staleHint = age > TimeSpan.FromHours(1)
+            ? $"\n   ⚠️ 索引可能陈旧（{age.TotalHours:F0} 小时前更新），用 code_index_rebuild 更新后再试。"
+            : "\n   如最近修改了代码，用 code_index_rebuild 更新索引。";
+        return $"\n\n💡 已索引 {stats.SymbolCount} 个符号（{stats.LastUpdated:yyyy-MM-dd HH:mm} 更新），但未找到 '{symbolName}'。" +
+               $"\n   尝试用全限定名（如 Namespace.Class.Method）或用 code-index search 搜索。{staleHint}";
     }
 }

@@ -265,7 +265,8 @@ public sealed class GitHubRunWaitTests {
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("fail-fast");
-        result.GetFirstText().Should().Contain("日志已下载到");
+        result.GetFirstText().Should().Contain("失败 job");
+        result.GetFirstText().Should().Contain("gh run view");
         result.GetFirstText().Should().Contain("轮询次数: 1");
     }
 
@@ -318,7 +319,7 @@ public sealed class GitHubRunWaitTests {
             common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
-        result.GetFirstText().Should().Contain("日志已下载到");
+        result.GetFirstText().Should().Contain("失败 job");
         result.GetFirstText().Should().Contain("1 失败");
     }
 
@@ -370,7 +371,7 @@ public sealed class GitHubRunWaitTests {
         var api = new FakeGitHubApiClient();
         var handler = new GitHubToolHandlers(new FakeDownloader(), new InMemoryFileSystem(), api, null, NullLogger<GitHubToolHandlers>.Instance, kvStore);
 
-        var json = """{"run_id":"1","job_id":123,"job_name":"test","log_path":"/tmp/log.log","timestamp":"2026-01-01T00:00:00Z"}""";
+        var json = """{"run_id":"1","job_id":123,"job_name":"test","conclusion":"failure","timestamp":"2026-01-01T00:00:00Z"}""";
         await kvStore.PutAsync(Encoding.UTF8.GetBytes("gh:ci_alert:1:123:20260101"), Encoding.UTF8.GetBytes(json));
 
         var result = await handler.GhCiAlertsAsync(common: new GitHubCommonOptions { Repo = "owner/repo" });
@@ -379,7 +380,7 @@ public sealed class GitHubRunWaitTests {
         result.GetFirstText().Should().Contain("CI 告警通知");
         result.GetFirstText().Should().Contain("Run 1");
         result.GetFirstText().Should().Contain("Job #123");
-        result.GetFirstText().Should().Contain("/tmp/log.log");
+        result.GetFirstText().Should().Contain("failure");
     }
 
     /// <summary>
@@ -391,7 +392,7 @@ public sealed class GitHubRunWaitTests {
         var api = new FakeGitHubApiClient();
         var handler = new GitHubToolHandlers(new FakeDownloader(), new InMemoryFileSystem(), api, null, NullLogger<GitHubToolHandlers>.Instance, kvStore);
 
-        var json = """{"run_id":"2","job_id":456,"job_name":"build","log_path":"/tmp/build.log","timestamp":"2026-01-01T00:00:00Z"}""";
+        var json = """{"run_id":"2","job_id":456,"job_name":"build","conclusion":"failure","timestamp":"2026-01-01T00:00:00Z"}""";
         var key = Encoding.UTF8.GetBytes("gh:ci_alert:2:456:20260101");
         await kvStore.PutAsync(key, Encoding.UTF8.GetBytes(json));
 

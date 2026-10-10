@@ -1147,7 +1147,7 @@ internal sealed class RunJobItemResponse {
     public string? Conclusion { get; init; }
 }
 
-/// <summary>CI 告警通知 — 后台监控发现新失败 job 时写入 .jcc/ci_alerts/ 供 AI 调阅</summary>
+/// <summary>CI 告警通知 — 后台监控发现新失败 job 时写入 LSM(gh:ci_alert: 前缀)供 AI 调阅</summary>
 internal sealed class CiAlertDto {
     /// <summary>Run ID</summary>
     [JsonPropertyName("run_id")]
@@ -1158,9 +1158,9 @@ internal sealed class CiAlertDto {
     /// <summary>Job 名称</summary>
     [JsonPropertyName("job_name")]
     public string JobName { get; set; } = "";
-    /// <summary>失败 job 日志磁盘路径</summary>
-    [JsonPropertyName("log_path")]
-    public string LogPath { get; set; } = "";
+    /// <summary>Job 结论(failure/cancelled/timed_out)</summary>
+    [JsonPropertyName("conclusion")]
+    public string Conclusion { get; set; } = "";
     /// <summary>告警时间(ISO 8601)</summary>
     [JsonPropertyName("timestamp")]
     public string Timestamp { get; set; } = "";

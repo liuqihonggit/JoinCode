@@ -810,19 +810,7 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 下载指定 job 日志到磁盘 — fail-fast 模式用,传已知的失败 job ids,无需再查 jobs API
-    /// <para>复用 GetLogStreamAsync(jobId=逗号分隔) 并行下载</para>
-    /// </summary>
-    private async Task<string?> DownloadJobLogsToDiskAsync(
-        string owner, string repo, string runId, List<long> jobIds, string? workingDir, CancellationToken ct) {
-        if (_logFilterRunner is null || jobIds.Count == 0) return null;
-        var jobIdStr = string.Join(',', jobIds);
-        return await DownloadLogsToDiskCoreAsync(runId, workingDir,
-            ct => _logFilterRunner.GetLogStreamAsync(owner, repo, runId, jobIdStr, false, false, ct), ct).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// 流式写日志到磁盘的公共逻辑 — 提取自 DownloadFailedLogsToDiskAsync/DownloadJobLogsToDiskAsync 消除重复
+    /// 流式写日志到磁盘的公共逻辑 — 提取自 DownloadFailedLogsToDiskAsync 消除重复
     /// </summary>
     private async Task<string?> DownloadLogsToDiskCoreAsync(
         string runId, string? workingDir,

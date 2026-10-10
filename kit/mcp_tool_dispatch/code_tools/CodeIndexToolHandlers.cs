@@ -188,7 +188,8 @@ public sealed class CodeIndexToolHandlers {
             var definition = await _indexer.Searcher.FindDefinitionAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (definition is null) {
-                return ToolResultBuilder.Success().WithText(L.T(StringKey.SymbolDefinitionNotFound, symbol_name)).Build();
+                var hint = await BuildNotFoundHintAsync(symbol_name, cancellationToken).ConfigureAwait(false);
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.SymbolDefinitionNotFound, symbol_name) + hint).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -235,7 +236,8 @@ public sealed class CodeIndexToolHandlers {
             var references = await _indexer.Searcher.FindReferencesAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (references.Count == 0) {
-                return ToolResultBuilder.Success().WithText(L.T(StringKey.SymbolReferencesNotFound, symbol_name)).Build();
+                var hint = await BuildNotFoundHintAsync(symbol_name, cancellationToken).ConfigureAwait(false);
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.SymbolReferencesNotFound, symbol_name) + hint).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -286,7 +288,8 @@ public sealed class CodeIndexToolHandlers {
             var callers = await _indexer.CallGraph.GetCallersAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (callers.Count == 0) {
-                return ToolResultBuilder.Success().WithText(L.T(StringKey.CallersNotFound, symbol_name)).Build();
+                var hint = await BuildNotFoundHintAsync(symbol_name, cancellationToken).ConfigureAwait(false);
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.CallersNotFound, symbol_name) + hint).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -336,7 +339,8 @@ public sealed class CodeIndexToolHandlers {
             var callees = await _indexer.CallGraph.GetCalleesAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (callees.Count == 0) {
-                return ToolResultBuilder.Success().WithText(L.T(StringKey.CalleesNotFound, symbol_name)).Build();
+                var hint = await BuildNotFoundHintAsync(symbol_name, cancellationToken).ConfigureAwait(false);
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.CalleesNotFound, symbol_name) + hint).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -1283,4 +1287,14 @@ public sealed class CodeIndexToolHandlers {
     }
 
     private Task EnsureLoadedAsync(CancellationToken ct, string? persistDir = null) => _indexer.EnsureIndexLoadedAsync(ct, persistDir);
+
+    /// <summary>
+    /// 生成"未找到"提示 — 索引为空时提示构建索引, 索引非空时提示符号名可能不匹配
+    /// </summary>
+    private async Task<string> BuildNotFoundHintAsync(string symbolName, CancellationToken ct) {
+        var stats = await _indexer.GetStatsAsync(ct).ConfigureAwait(false);
+        if (stats.SymbolCount == 0)
+            return $"\n\n💡 代码索引未构建（0 个符号）。用 code-index 工具构建索引后再试。";
+        return $"\n\n💡 已索引 {stats.SymbolCount} 个符号，但未找到 '{symbolName}'。尝试用全限定名（如 Namespace.Class.Method）或用 code-index search 搜索。";
+    }
 }

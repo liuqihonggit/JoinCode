@@ -514,6 +514,15 @@ public sealed class GraphToolHandlers {
                     sb.AppendLine($"  ({s}, {p}, {o})");
             }
 
+            if (result.Callers.Count == 0 && result.Callees.Count == 0
+                && result.SameCommunity.Count == 0 && result.SameFile.Count == 0) {
+                var stats = await indexer.GetStatsAsync(cancellationToken).ConfigureAwait(false);
+                if (stats.SymbolCount == 0)
+                    sb.AppendLine("\n💡 代码索引未构建（0 个符号）。用 code-index 工具构建索引后再试。");
+                else
+                    sb.AppendLine($"\n💡 已索引 {stats.SymbolCount} 个符号，但 '{symbol_name}' 无任何关系。尝试用全限定名或用 code-index search 搜索。");
+            }
+
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Explain failed: {ex.Message}").Build();

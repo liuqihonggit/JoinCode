@@ -2,7 +2,7 @@
 
 ## 状态
 
-proposed
+accepted
 
 ## 上下文
 
@@ -67,7 +67,7 @@ FileRead offset+limit → LineRangeReader.Slice（截断后由 AddLineNumbers �
 | 步骤 | 内容 | commit |
 |------|------|--------|
 | Phase 1 | 创建 `LineNumberFormatter` + FileRead/gh 日志委托 | `0395ea254` |
-| Phase 2 | 创建 `LineRangeReader` + `SkipAndTruncate` 委托 | 待实现 |
+| Phase 2 | 创建 `LineRangeReader` + `SkipAndTruncate` 委托 | `14ba8d20e` |
 | Phase 3 | `ApplyLimit` 委托给 `LineRangeReader.Slice` | 待实现 |
 | Phase 4 | gh `StreamAndFilter` 截断片段统一 | 待实现 |
 

@@ -194,7 +194,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task OrgList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"login":"org","description":"d"}]""" };
 
-        var result = await _handler.GhOrgListAsync(json_fields: "login");
+        var result = await _handler.GhOrgListAsync(common: new GitHubCommonOptions { JsonFields = "login" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -206,7 +206,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task SshKeyList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"title":"k","key":"ssh-..."}]""" };
 
-        var result = await _handler.GhSshKeyListAsync(json_fields: "id,title");
+        var result = await _handler.GhSshKeyListAsync(common: new GitHubCommonOptions { JsonFields = "id,title" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -219,7 +219,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task SearchRepos_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"items":[{"full_name":"o/r","stargazers_count":5,"description":"d"}]}""" };
 
-        var result = await _handler.GhSearchReposAsync(query: "stars:>1", json_fields: "full_name");
+        var result = await _handler.GhSearchReposAsync(query: "stars:>1", common: new GitHubCommonOptions { JsonFields = "full_name" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -231,7 +231,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task GistList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":"abc","description":"d","public":false}]""" };
 
-        var result = await _handler.GhGistListAsync(json_fields: "id");
+        var result = await _handler.GhGistListAsync(common: new GitHubCommonOptions { JsonFields = "id" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -298,7 +298,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task GistView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":"abc","description":"d","public":false}""" };
 
-        var result = await _handler.GhGistViewAsync("abc", json_fields: "id");
+        var result = await _handler.GhGistViewAsync("abc", common: new GitHubCommonOptions { JsonFields = "id" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;

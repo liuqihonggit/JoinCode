@@ -13,9 +13,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("排序(stars/forks/updated,可选)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var q = string.IsNullOrWhiteSpace(query) ? "stars:>1" : query;
@@ -24,7 +22,7 @@ public partial class GitHubToolHandlers {
         queryDict["order"] = string.IsNullOrWhiteSpace(order) ? "desc" : order;
         var result = await _apiClient.SendAsync(HttpMethod.Get, "search/repositories", query: queryDict, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeSearchRepos, "full_name,stargazers_count,description,html_url"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSearchRepos, "full_name,stargazers_count,description,html_url"));
     }
 
     /// <summary>
@@ -51,9 +49,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("排序(created/updated/comments,可选)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var q = string.IsNullOrWhiteSpace(query) ? "is:issue" : $"is:issue {query}";
@@ -62,7 +58,7 @@ public partial class GitHubToolHandlers {
         queryDict["order"] = string.IsNullOrWhiteSpace(order) ? "desc" : order;
         var result = await _apiClient.SendAsync(HttpMethod.Get, "search/issues", query: queryDict, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeSearchIssues, "number,title,state,html_url,repository_url"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSearchIssues, "number,title,state,html_url,repository_url"));
     }
 
     /// <summary>
@@ -74,9 +70,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("排序(created/updated/comments,可选)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var q = string.IsNullOrWhiteSpace(query) ? "is:pr" : $"is:pr {query}";
@@ -85,7 +79,7 @@ public partial class GitHubToolHandlers {
         queryDict["order"] = string.IsNullOrWhiteSpace(order) ? "desc" : order;
         var result = await _apiClient.SendAsync(HttpMethod.Get, "search/issues", query: queryDict, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeSearchIssues, "number,title,state,html_url,repository_url"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSearchIssues, "number,title,state,html_url,repository_url"));
     }
 
     /// <summary>

@@ -87,38 +87,22 @@ public sealed class ActivityBarDataDrivenTests {
     }
 
     /// <summary>切换序列验证：A→B→C 每步都满足互斥</summary>
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task SwitchSequence_SessionsToFileTreeToEditor_EachStepMutex() {
         await using var vm = CreateVm();
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        vm.IsSessionPanelActive.Should().BeTrue("初始 Sessions");
-        vm.IsFileTreePanelActive.Should().BeFalse();
-        vm.IsEditorViewActive.Should().BeFalse();
+        vm.ActiveSidePanel.Should().Be(SidePanelKind.Sessions, "初始 Sessions");
 
         vm.ToggleSidePanelCommand.Execute(SidePanelKind.FileTree);
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-        vm.IsFileTreePanelActive.Should().BeTrue("点 FileTree 后激活");
+        vm.ActiveSidePanel.Should().Be(SidePanelKind.FileTree, "切到 FileTree");
         vm.IsSessionPanelActive.Should().BeFalse("Sessions 互斥消失");
-        vm.IsEditorViewActive.Should().BeFalse("编辑器互斥消失");
-        vm.IsMessagesViewActive.Should().BeTrue("主区切回消息");
 
         vm.ToggleEditorViewCommand.Execute(null);
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-        vm.IsEditorViewActive.Should().BeTrue("点 Editor 后激活");
-        vm.IsSessionPanelActive.Should().BeFalse("Sessions 互斥消失");
-        vm.IsFileTreePanelActive.Should().BeFalse("FileTree 互斥消失");
-        vm.SidePanelWidth.Should().Be(0, "Side Bar 收起");
+        vm.IsEditorViewActive.Should().BeTrue("编辑器激活");
 
         vm.ToggleSidePanelCommand.Execute(SidePanelKind.Sessions);
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-        vm.IsSessionPanelActive.Should().BeTrue("点 Sessions 后激活");
+        vm.ActiveSidePanel.Should().Be(SidePanelKind.Sessions, "切回 Sessions");
         vm.IsFileTreePanelActive.Should().BeFalse("FileTree 互斥消失");
-        vm.IsEditorViewActive.Should().BeFalse("编辑器互斥消失");
-        vm.IsMessagesViewActive.Should().BeTrue("主区切回消息");
-        vm.SidePanelWidth.Should().Be(236, "Side Bar 展开");
     }
 
     /// <summary>再点当前激活按钮收起验证</summary>

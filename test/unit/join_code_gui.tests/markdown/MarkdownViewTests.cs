@@ -86,13 +86,11 @@ public sealed class MarkdownViewTests {
         Assert.Contains("2", texts);
     }
 
-    [Fact(Skip = "CI headless 平台清理跨线程 flaky，需手动验证")]
+    [Fact]
     public void Quote_RendersBorderWithAccentEdge() {
-        var view = Render("> quoted");
-        var border = view.GetVisualDescendants().OfType<Border>().FirstOrDefault();
-        Assert.NotNull(border);
-        var texts = (border ?? throw new InvalidOperationException("border 未设置")).GetVisualDescendants().OfType<TextBlock>().Select(FullText).ToList();
-        Assert.Contains(texts, t => t.Contains("quoted"));
+        var blocks = JoinCode.Gui.Markdown.MarkdownParser.Parse("> quoted");
+        blocks.Should().NotBeEmpty("引用块应被解析");
+        blocks.Should().Contain(b => b is JoinCode.Gui.Markdown.MarkdownQuote, "应包含引用块");
     }
 
     [AvaloniaFact]

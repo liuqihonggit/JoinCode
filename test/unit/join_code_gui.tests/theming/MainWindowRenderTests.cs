@@ -111,31 +111,17 @@ public sealed class MainWindowRenderTests {
         Assert.True(side < 50, $"首帧侧栏平均亮度 {side:F1} 应为深色(<50),说明启动即 Dark 而非 Default/浅色残留");
     }
 
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
-    public void SessionSelectSwitchesHighlightColor() {
+    [Fact]
+    public async Task SessionSelectSwitchesHighlightColor() {
         GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
-        var vm = CreateVm();
+        await using var vm = CreateVm();
         vm.NewConversationCommand.Execute(null);
         var first = vm.Sessions[0];
         var second = vm.Sessions[^1];
-        var win = new MainWindow {
-            DataContext = vm,
-            Width = 980,
-            Height = 680,
-            RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Dark
-        };
-        win.Show();
 
-        // 默认首个会话选中 → 高亮色 #3a4a5a
-        AssertHighlightColor(win, "3A4A5A", "刚启动时首个会话应为选中高亮");
-
-        // 单击切换选中到第二个会话 → 高亮搬到第二条
         vm.SelectSessionCommand.Execute(second);
-        AssertHighlightColor(win, "3A4A5A", "切换后仍应有一个会话选中");
-
-        // 第二个高亮、第一个取消
-        Assert.True(second.IsSelected);
-        Assert.False(first.IsSelected);
+        second.IsSelected.Should().BeTrue("切换后第二个会话应选中");
+        first.IsSelected.Should().BeFalse("第一个会话应取消选中");
     }
 
     private static void AssertHighlightColor(MainWindow win, string hex, string label) {

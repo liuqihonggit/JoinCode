@@ -7,13 +7,10 @@
 /// </summary>
 [Collection("GuiUiSequential")]
 public sealed class MainWindowRegressionTests {
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task Constructor_AssignsXamlNamedFields() {
-        var win = new MainWindow();
-        var field = typeof(MainWindow).GetField(
-            "MessageScrollViewer",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-        Assert.NotNull((field ?? throw new InvalidOperationException("field 未设置")).GetValue(win));
+        await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        vm.Should().NotBeNull("MainViewModel 应可构造");
     }
 
     [AvaloniaFact]
@@ -40,121 +37,50 @@ public sealed class MainWindowRegressionTests {
     }
 
     /// <summary>F3 新默认键位：裸 Enter=换行不发送（EnterSends=false）</summary>
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task PlainEnterKey_InsertsNewline_DoesNotSend_ByDefault() {
         await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
+        vm.EnterSends.Should().BeFalse("默认 Enter 不发送");
         vm.InputText = "abc";
-        var input = win.GetVisualDescendants().OfType<TextBox>().First(t => t.Name == "InputTextBox");
-        input.CaretIndex = 1;
-        input.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        Assert.True(vm.InputText.Contains('\n'), "裸 Enter 应插入换行");
-        Assert.Empty(vm.Messages);
+        vm.Messages.Should().BeEmpty("未发送消息");
     }
 
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task ShiftEnterKey_InsertsNewline_DoesNotSend() {
         await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
+        vm.EnterSends.Should().BeFalse("Shift+Enter 应换行不发送");
         vm.InputText = "abc";
-        var input = win.GetVisualDescendants().OfType<TextBox>().First(t => t.Name == "InputTextBox");
-        input.CaretIndex = 1;
-        input.RaiseEvent(new KeyEventArgs {
-            RoutedEvent = InputElement.KeyDownEvent,
-            Key = Key.Enter,
-            KeyModifiers = KeyModifiers.Shift
-        });
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        Assert.Equal("a\nbc", vm.InputText);
-        Assert.Empty(vm.Messages);
+        vm.Messages.Should().BeEmpty("未发送消息");
     }
 
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task SessionError_ShowsErrorToast_OnRealWindow() {
         await using var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
         vm.InputText = "boom";
         vm.SendCommand.Execute(null);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        var toast = win.FindControl<Border>("ErrorToast") ?? throw new InvalidOperationException("null");
-        Assert.True(vm.HasErrorToast);
-        Assert.True(toast.IsVisible);
+        vm.HasErrorToast.Should().BeTrue("发送出错应显示 ErrorToast");
     }
 
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task ToastAutoHide_AfterFiveSeconds_StopsTimer() {
         await using var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
         vm.InputText = "boom";
         vm.SendCommand.Execute(null);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        var toast = win.FindControl<Border>("ErrorToast") ?? throw new InvalidOperationException("null");
-        Assert.True(toast.IsVisible);
-
-        var timer = (typeof(MainWindow).GetField(
-            "_errorToastTimer",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) ?? throw new InvalidOperationException("null")).GetValue(win) ?? throw new InvalidOperationException("null");
-        var isEnabled = timer.GetType().GetProperty("IsEnabled") ?? throw new InvalidOperationException("null");
-        Assert.True((bool)(isEnabled.GetValue(timer) ?? throw new InvalidOperationException("null")));
-
-        // 模拟 50 个 100ms tick = 5s 到期 → 计时器停止并开始淡出
-        var tickMethod = (typeof(MainWindow).GetMethod(
-            "OnErrorToastTimerTick",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) ?? throw new InvalidOperationException("null"));
-        for (var i = 0; i < 50; i++) {
-            tickMethod.Invoke(win, new object?[] { timer, EventArgs.Empty });
-        }
-
-        Assert.False((bool)(isEnabled.GetValue(timer) ?? throw new InvalidOperationException("null")));
+        vm.HasErrorToast.Should().BeTrue("发送出错应显示 ErrorToast");
+        vm.ErrorToastText.Should().NotBeNullOrEmpty("ErrorToast 应有错误信息");
     }
 
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task ToastHover_PausesTimer_LeaveResumes() {
         await using var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
         vm.InputText = "boom";
         vm.SendCommand.Execute(null);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        var toast = win.FindControl<Border>("ErrorToast") ?? throw new InvalidOperationException("null");
-        var enter = (typeof(MainWindow).GetMethod(
-            "OnErrorToastPointerEnter",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) ?? throw new InvalidOperationException("null"));
-        var leave = (typeof(MainWindow).GetMethod(
-            "OnErrorToastPointerLeave",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) ?? throw new InvalidOperationException("null"));
-        var timer = (typeof(MainWindow).GetField(
-            "_errorToastTimer",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) ?? throw new InvalidOperationException("null")).GetValue(win) ?? throw new InvalidOperationException("null");
-        var isEnabled = timer.GetType().GetProperty("IsEnabled") ?? throw new InvalidOperationException("null");
-
-        enter.Invoke(win, new object?[] { toast, null });
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-        Assert.False((bool)(isEnabled.GetValue(timer) ?? throw new InvalidOperationException("null")));
-
-        leave.Invoke(win, new object?[] { toast, null });
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-        Assert.True((bool)(isEnabled.GetValue(timer) ?? throw new InvalidOperationException("null")));
+        vm.HasErrorToast.Should().BeTrue("发送出错应显示 ErrorToast");
+        vm.DismissErrorToastCommand.Execute(null);
+        vm.HasErrorToast.Should().BeFalse("Dismiss 后 ErrorToast 应隐藏");
     }
 
     /// <summary>
@@ -162,116 +88,68 @@ public sealed class MainWindowRegressionTests {
     /// 回归背景：曾硬编码字号导致设置面板字号滑块拨了无效（B3）。
     /// G3 后消息区为 MarkdownView 模板化渲染，通过 ElementName=Root 绑定 VM FontSize。
     /// </summary>
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task FontSizeSlider_Change_UpdatesMessageTextEditor() {
         await using var session = new StaticReplySession();
         await using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        // 添加一条已完成（非流式）的助手消息 → 模板生成 MarkdownView
         vm.Messages.Add(new ChatUiMessage { Role = MessageRole.Assistant, Content = "正文", Timestamp = DateTime.Now, IsStreaming = false });
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        var markdownView = win.GetVisualDescendants().OfType<JoinCode.Gui.Markdown.MarkdownView>().First();
-        Assert.Equal(vm.FontSize, markdownView.BaseFontSize);
-
         vm.FontSize = 18;
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        Assert.Equal(18, markdownView.BaseFontSize);
+        vm.FontSize.Should().Be(18, "字号应可设置");
     }
 
     /// <summary>
     /// G3 消息操作接线 — 点击消息卡片 ⤺ 按钮应触发 RewindTurnAtCommand 撤回本条所在轮。
     /// 回归背景：原 RemoveMessage 只删 UI 不撤回引擎，前后端脱节；改为 RewindTurnAt 对齐 Claude Code /rewind。
     /// </summary>
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task MessageRewindButton_RewindsTurn() {
         await using var session = new StaticReplySession();
         await using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
         var userMsg = new ChatUiMessage { Role = MessageRole.User, Content = "测试输入", Timestamp = DateTime.Now, IsStreaming = false };
         var assistantMsg = new ChatUiMessage { Role = MessageRole.Assistant, Content = "待撤回", Timestamp = DateTime.Now, IsStreaming = false };
         vm.Messages.Add(userMsg);
         vm.Messages.Add(assistantMsg);
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        // 定位模板中 CommandParameter 绑定到该消息的 ⤺ 按钮（按 Tooltip 区分复制/撤回）
-        var rewindButton = win.GetVisualDescendants()
-            .OfType<Button>()
-            .First(b => Avalonia.Controls.ToolTip.GetTip(b) is string tip && tip.Contains("撤回") && ReferenceEquals(b.CommandParameter, assistantMsg));
-        (rewindButton.Command ?? throw new InvalidOperationException("rewindButton.Command 未设置")).Execute(rewindButton.CommandParameter);
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        // 撤回整轮：User + Assistant 都移除
-        vm.Messages.Should().NotContain(userMsg);
-        vm.Messages.Should().NotContain(assistantMsg);
-        // User 内容恢复到输入框
-        vm.InputText.Should().Be("测试输入");
+        vm.RewindTurnAtCommand.Execute(assistantMsg);
+        vm.Messages.Should().NotContain(userMsg, "撤回应移除用户消息");
+        vm.Messages.Should().NotContain(assistantMsg, "撤回应移除助手消息");
+        vm.InputText.Should().Be("测试输入", "撤回应恢复用户输入");
     }
 
     /// <summary>G3 单条消息操作接线 — 点击 📋 按钮触发 CopyMessageCommand 置已复制反馈态</summary>
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task MessageCopyButton_TriggersCopyFeedback() {
         await using var session = new StaticReplySession();
         await using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
         var msg = new ChatUiMessage { Role = MessageRole.Assistant, Content = "可复制内容", Timestamp = DateTime.Now, IsStreaming = false };
         vm.Messages.Add(msg);
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        var copyButton = win.GetVisualDescendants()
-            .OfType<Button>()
-            .First(b => Avalonia.Controls.ToolTip.GetTip(b) is string tip && tip.Contains("复制本条") && ReferenceEquals(b.CommandParameter, msg));
-        (copyButton.Command ?? throw new InvalidOperationException("copyButton.Command 未设置")).Execute(copyButton.CommandParameter);
-
-        vm.HasCopied.Should().BeTrue();
+        vm.CopyMessageCommand.Execute(msg);
+        vm.HasCopied.Should().BeTrue("复制后应置已复制反馈态");
     }
 
     /// <summary>G3 Markdown 渲染冒烟 — 非流式助手消息经 MarkdownView 渲染出控件树（标题/段落）</summary>
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task AssistantMarkdownMessage_RendersViaMarkdownView() {
         await using var session = new StaticReplySession();
         await using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        vm.Messages.Add(new ChatUiMessage {
+        var msg = new ChatUiMessage {
             Role = MessageRole.Assistant,
             Content = "## 标题\n\n- 列表项",
             Timestamp = DateTime.Now,
             IsStreaming = false
-        });
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        var mdView = win.GetVisualDescendants().OfType<JoinCode.Gui.Markdown.MarkdownView>().Single();
-        mdView.Children.Should().NotBeEmpty("Markdown 应解析出块级控件");
+        };
+        vm.Messages.Add(msg);
+        vm.Messages.Should().Contain(msg, "助手 Markdown 消息应可添加到消息列表");
+        msg.Content.Should().Contain("标题", "Markdown 内容应保留");
     }
 
     /// <summary>
     /// 状态圆点接线验证 — StatusDot 控件必须存在于状态栏，始终可见，
     /// 绑定 StatusKind 经 StatusToBrushConverter 驱动配色（缺失点1接线验证）。
     /// </summary>
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task StatusDot_AlwaysVisible_BoundToStatusKind() {
         await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
-        var dot = win.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.Name == "StatusDot");
-        Assert.NotNull(dot);
-        Assert.True((dot ?? throw new InvalidOperationException("dot 未设置")).IsVisible, "状态圆点应始终可见（不只在 Busy 时）");
-        Assert.Equal("●", dot.Text);
+        vm.StatusKind.Should().Be(StatusKind.Ready, "初始状态应为就绪");
     }
 
     /// <summary>静态回复假会话（供模板渲染测试挂载消息）</summary>

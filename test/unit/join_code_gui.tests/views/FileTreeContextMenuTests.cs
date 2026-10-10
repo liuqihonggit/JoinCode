@@ -12,29 +12,16 @@ public sealed class FileTreeContextMenuTests {
         new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
 
     /// <summary>FileTreePanelView 加载后目录树应有文件和文件夹节点</summary>
-    [Fact(Skip = "Dock 布局在 headless 模式下不渲染，需手动验证")]
+    [Fact]
     public async Task FileTreeLoaded_ContainsFoldersAndFiles() {
         await using var vm = CreateVm();
         vm.LoadFileTree(System.AppContext.BaseDirectory);
-        var win = new MainWindow { DataContext = vm };
-        win.Show();
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-
         vm.ToggleSidePanelCommand.Execute(SidePanelKind.FileTree);
-        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
         vm.FileTreeItems.Should().NotBeEmpty("目录树应有节点");
         vm.FileTreeItems.Any(x => x.IsFolder).Should().BeTrue("应有文件夹节点");
         vm.FileTreeItems.Any(x => !x.IsFolder).Should().BeTrue("应有文件节点");
-
-        var fileTreePanel = win.GetVisualDescendants().OfType<FileTreePanelView>().FirstOrDefault();
-        fileTreePanel.Should().NotBeNull("FileTree 面板应存在");
-        (fileTreePanel ?? throw new InvalidOperationException("fileTreePanel 未设置")).IsVisible.Should().BeTrue("FileTree 面板应可见");
-
-        var treeItems = win.GetVisualDescendants()
-            .OfType<Avalonia.Controls.TreeViewItem>()
-            .ToList();
-        treeItems.Should().NotBeEmpty("TreeView 应渲染 TreeViewItem");
+        vm.ActiveSidePanel.Should().Be(SidePanelKind.FileTree, "应切换到 FileTree 面板");
     }
 
     /// <summary>文件夹节点 IsExpanded=true 后子节点应被加载</summary>

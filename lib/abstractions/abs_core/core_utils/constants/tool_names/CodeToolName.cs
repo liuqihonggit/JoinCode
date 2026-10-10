@@ -56,6 +56,10 @@ public enum CodeToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     CodeIndexRebuild,
 
+    [EnumValue("update_index")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    CodeIndexUpdateFile,
+
     [EnumValue("search_stats")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexStats,

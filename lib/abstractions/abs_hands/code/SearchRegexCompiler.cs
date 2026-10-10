@@ -4,8 +4,13 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 搜索正则编译器 — 统一 RgEngine/SearchService 两处正则编译逻辑
 /// <para>支持：FixedStrings(Regex.Escape)/WordRegexp(\b包裹)/SmartCase(模式全小写则忽略大小写)</para>
+/// <para>引擎选型：优先 NonBacktracking(.NET 9+ DFA 线性时间 + AOT 兼容 + 无灾难性回溯)，
+/// 不支持原子组等特性时 fallback 到解释器引擎(同样 AOT 兼容)。</para>
+/// <para>正则超时 5s 防御灾难性回溯(fallback 引擎)。</para>
 /// </summary>
 public static class SearchRegexCompiler {
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(5);
+
     /// <summary>
     /// 编译正则表达式
     /// </summary>
@@ -29,7 +34,7 @@ public static class SearchRegexCompiler {
         if (wordRegexp)
             p = $@"\b(?:{p})\b";
 
-        var options = RegexOptions.Compiled;
+        var options = RegexOptions.None;
         if (multiline)
             options |= RegexOptions.Singleline;
 
@@ -40,9 +45,13 @@ public static class SearchRegexCompiler {
             options |= RegexOptions.IgnoreCase;
 
         try {
-            return (new Regex(p, options), null);
-        } catch (ArgumentException ex) {
-            return (null, ex.Message);
+            return (new Regex(p, options | RegexOptions.NonBacktracking, RegexTimeout), null);
+        } catch (ArgumentException) {
+            try {
+                return (new Regex(p, options, RegexTimeout), null);
+            } catch (ArgumentException ex) {
+                return (null, ex.Message);
+            }
         }
     }
 }

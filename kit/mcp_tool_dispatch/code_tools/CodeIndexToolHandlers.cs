@@ -188,7 +188,8 @@ public sealed class CodeIndexToolHandlers {
             var definition = await _indexer.Searcher.FindDefinitionAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (definition is null) {
-                return ToolResultBuilder.Success().WithText(L.T(StringKey.SymbolDefinitionNotFound, symbol_name)).Build();
+                var hint = await BuildNotFoundHintAsync(symbol_name, cancellationToken).ConfigureAwait(false);
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.SymbolDefinitionNotFound, symbol_name) + hint).Build();
             }
 
             var sb = new System.Text.StringBuilder();
@@ -235,12 +236,13 @@ public sealed class CodeIndexToolHandlers {
             var references = await _indexer.Searcher.FindReferencesAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (references.Count == 0) {
-                return ToolResultBuilder.Success().WithText(L.T(StringKey.SymbolReferencesNotFound, symbol_name)).Build();
+                var hint = await BuildNotFoundHintAsync(symbol_name, cancellationToken).ConfigureAwait(false);
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.SymbolReferencesNotFound, symbol_name) + hint).Build();
             }
 
             var sb = new System.Text.StringBuilder();
             var totalCount = references.Count;
-            var toShow = references.Take(limit).ToList();
+            var (toShow, hasMore, _) = LineRangeReader.Slice(references, 0, limit);
             sb.AppendLine(L.T(StringKey.FoundReferencesCount, totalCount));
             sb.AppendLine();
 
@@ -256,7 +258,7 @@ public sealed class CodeIndexToolHandlers {
                 sb.AppendLine();
             }
 
-            if (totalCount > limit)
+            if (hasMore)
                 sb.AppendLine($"... and {totalCount - limit} more (pass limit={totalCount} to see all)");
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
@@ -286,12 +288,13 @@ public sealed class CodeIndexToolHandlers {
             var callers = await _indexer.CallGraph.GetCallersAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (callers.Count == 0) {
-                return ToolResultBuilder.Success().WithText(L.T(StringKey.CallersNotFound, symbol_name)).Build();
+                var hint = await BuildNotFoundHintAsync(symbol_name, cancellationToken).ConfigureAwait(false);
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.CallersNotFound, symbol_name) + hint).Build();
             }
 
             var sb = new System.Text.StringBuilder();
             var totalCount = callers.Count;
-            var toShow = callers.Take(limit).ToList();
+            var (toShow, hasMore, _) = LineRangeReader.Slice(callers, 0, limit);
             sb.AppendLine(L.T(StringKey.CallersOfSymbol, symbol_name, totalCount));
             sb.AppendLine();
 
@@ -302,7 +305,7 @@ public sealed class CodeIndexToolHandlers {
                 sb.AppendLine();
             }
 
-            if (totalCount > limit)
+            if (hasMore)
                 sb.AppendLine($"... and {totalCount - limit} more (pass limit={totalCount} to see all)");
 
             sb.AppendLine("Triples:");
@@ -336,12 +339,13 @@ public sealed class CodeIndexToolHandlers {
             var callees = await _indexer.CallGraph.GetCalleesAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (callees.Count == 0) {
-                return ToolResultBuilder.Success().WithText(L.T(StringKey.CalleesNotFound, symbol_name)).Build();
+                var hint = await BuildNotFoundHintAsync(symbol_name, cancellationToken).ConfigureAwait(false);
+                return ToolResultBuilder.Success().WithText(L.T(StringKey.CalleesNotFound, symbol_name) + hint).Build();
             }
 
             var sb = new System.Text.StringBuilder();
             var totalCount = callees.Count;
-            var toShow = callees.Take(limit).ToList();
+            var (toShow, hasMore, _) = LineRangeReader.Slice(callees, 0, limit);
             sb.AppendLine(L.T(StringKey.CalleesOfSymbol, symbol_name, totalCount));
             sb.AppendLine();
 
@@ -352,7 +356,7 @@ public sealed class CodeIndexToolHandlers {
                 sb.AppendLine();
             }
 
-            if (totalCount > limit)
+            if (hasMore)
                 sb.AppendLine($"... and {totalCount - limit} more (pass limit={totalCount} to see all)");
 
             sb.AppendLine("Triples:");
@@ -603,6 +607,35 @@ public sealed class CodeIndexToolHandlers {
             }
         } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.IndexRebuildFailed, ex.Message)).Build();
+        }
+    }
+
+    /// <summary>
+    /// 增量更新单个文件的索引 — 只重新提取该文件的符号/调用/依赖，不扫描全部文件。
+    /// <para>适用于：编辑少量文件后快速更新索引，无需全量重建。</para>
+    /// <para>文件被删除时自动从索引中移除。</para>
+    /// </summary>
+    /// <param name="file_path">要更新的文件路径（绝对路径或相对工作区根的路径）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含更新结果的工具结果</returns>
+    [McpTool(CodeToolNameEnumConstants.CodeIndexUpdateFile, "Incrementally update index for a single file. Much faster than full rebuild when only a few files changed.", "code_index")]
+    public async Task<ToolResult> UpdateFileAsync(
+        [McpToolParameter("File path to update (absolute or relative to workspace root)")] string file_path,
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(file_path)) {
+            return ToolResultBuilder.Error().WithText("file_path cannot be empty.").Build();
+        }
+
+        try {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+            await _indexer.UpdateFileAsync(file_path, cancellationToken).ConfigureAwait(false);
+            var stats = await _indexer.GetStatsAsync(cancellationToken).ConfigureAwait(false);
+            return ToolResultBuilder.Success().WithText(
+                $"已增量更新: {file_path.Replace('\\', '/')}\n" +
+                $"当前索引: {stats.SymbolCount} 个符号, {stats.FileCount} 个文件" +
+                $"（{stats.LastUpdated:yyyy-MM-dd HH:mm} 更新）").Build();
+        } catch (Exception ex) {
+            return ToolResultBuilder.Error().WithText($"增量更新失败: {ex.Message}").Build();
         }
     }
 
@@ -1283,4 +1316,19 @@ public sealed class CodeIndexToolHandlers {
     }
 
     private Task EnsureLoadedAsync(CancellationToken ct, string? persistDir = null) => _indexer.EnsureIndexLoadedAsync(ct, persistDir);
+
+    /// <summary>
+    /// 生成"未找到"提示 — 索引为空时提示构建索引, 索引非空时提示符号名可能不匹配或索引陈旧
+    /// </summary>
+    private async Task<string> BuildNotFoundHintAsync(string symbolName, CancellationToken ct) {
+        var stats = await _indexer.GetStatsAsync(ct).ConfigureAwait(false);
+        if (stats.SymbolCount == 0)
+            return $"\n\n💡 代码索引未构建（0 个符号）。用 code-index 工具构建索引后再试。";
+        var age = DateTimeOffset.Now - stats.LastUpdated;
+        var staleHint = age > TimeSpan.FromHours(1)
+            ? $"\n   ⚠️ 索引可能陈旧（{age.TotalHours:F0} 小时前更新），用 code_index_rebuild 更新后再试。"
+            : "\n   如最近修改了代码，用 code_index_rebuild 更新索引。";
+        return $"\n\n💡 已索引 {stats.SymbolCount} 个符号（{stats.LastUpdated:yyyy-MM-dd HH:mm} 更新），但未找到 '{symbolName}'。" +
+               $"\n   尝试用全限定名（如 Namespace.Class.Method）或用 code-index search 搜索。{staleHint}";
+    }
 }

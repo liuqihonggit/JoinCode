@@ -63,7 +63,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
             if (count < 0) count = 0;
             if (startLine + count > totalLines) count = totalLines - startLine;
 
-            var selectedLines = allLines.Skip(startLine).Take(count);
+            var (selectedLines, _, _) = LineRangeReader.Slice<string>(allLines, startLine, count);
             var content = string.Join(Environment.NewLine, selectedLines);
 
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);

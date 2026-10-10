@@ -1,6 +1,7 @@
 // Merged from Tui.Tests + Core.Tests.Terminal
 // Xunit, Moq, FluentAssertions, Microsoft.Extensions.Logging are in tests/Directory.Build.props
 
+global using JoinCode.Abstractions.Models.Search;
 global using Core.Agents.Coordinator;
 global using Core.Bridge;
 global using Core.Configuration;

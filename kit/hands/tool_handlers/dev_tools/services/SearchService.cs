@@ -601,23 +601,20 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
     }
 
     private static (List<T> Items, int? AppliedLimit, int? AppliedOffset) ApplyLimit<T>(
-        List<T> items,
+    List<T> items,
         int? headLimit,
         int? offset) {
         var offsetValue = offset ?? 0;
-        var result = items.Skip(offsetValue).ToList();
-
         var explicitLimit = headLimit ?? WorkflowConstants.Limits.DefaultGrepResultLimit;
-        if (explicitLimit == 0) {
-            return (result, null, offsetValue > 0 ? offsetValue : null);
-        }
 
-        var truncated = result.Count > explicitLimit;
-        if (truncated) {
-            result = result.Take(explicitLimit).ToList();
-        }
+        // explicitLimit == 0 表示不截断，用 items.Count 作为上限
+        var effectiveLimit = explicitLimit == 0 ? items.Count : explicitLimit;
+        var (range, hasMore, _) = LineRangeReader.Slice<T>(items, offsetValue, effectiveLimit);
 
-        return (result, truncated ? explicitLimit : null, offsetValue > 0 ? offsetValue : null);
+        return (
+            range as List<T> ?? range.ToList(),
+            hasMore ? explicitLimit : null,
+            offsetValue > 0 ? offsetValue : null);
     }
 
     #endregion

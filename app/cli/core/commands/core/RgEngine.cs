@@ -10,7 +10,6 @@ namespace JoinCode.CliCommands;
 internal static class RgEngine {
     private const long MmapThresholdBytes = 64 * 1024;
     private const int MaxContentLineLength = 500;
-    private const int BinaryDetectionBufferSize = 8192;
 
     private static ImmutableHamT<string, GitignoreMatcher?> _gitignoreCache = ImmutableHamT<string, GitignoreMatcher?>.Empty.WithComparers(StringComparer.Ordinal);
 
@@ -28,16 +27,13 @@ internal static class RgEngine {
         if (files.Count == 0)
             return RgOutcome.Empty();
 
-        var parallelOpts = new ParallelOptions {
-            CancellationToken = ct,
-            MaxDegreeOfParallelism = Environment.ProcessorCount,
-        };
+        var degree = q.Threads is > 0 ? q.Threads.Value : Environment.ProcessorCount;
 
         var results = new ConcurrentBag<RgFileResult>();
 
         files.AsParallel()
             .WithCancellation(ct)
-            .WithDegreeOfParallelism(Environment.ProcessorCount)
+            .WithDegreeOfParallelism(degree)
             .Select(f => SearchFile(f, regex, q, ct))
             .Where(r => r is not null)
             .ForAll(r => results.Add(r!));
@@ -174,17 +170,30 @@ internal static class RgEngine {
             if (fileInfo.Length == 0)
                 return null;
 
-            string content;
-            if (fileInfo.Length >= MmapThresholdBytes) {
-                content = ReadViaMmap(path);
-            } else {
-                content = File.ReadAllText(path);
-            }
-
-            if (ContainsNullByte(content))
+            if (q.MaxFilesize is long maxSize && fileInfo.Length > maxSize)
                 return null;
 
-            return SearchContent(path, content, regex, q, ct);
+            byte[] bytes;
+            if (fileInfo.Length >= MmapThresholdBytes) {
+                using var reader = MappedFileReader.Open(path);
+                bytes = reader.ToArray();
+            } else {
+                bytes = File.ReadAllBytes(path);
+            }
+
+            var bomLen = RgCore.DetectBom(bytes);
+            var dataSpan = bytes.AsSpan(bomLen);
+
+            if (RgCore.ContainsNullByte(dataSpan))
+                return null;
+
+            if (RgCore.IsAscii(dataSpan)) {
+                var charSpan = MemoryMarshal.Cast<byte, char>(dataSpan);
+                return SearchContent(path, charSpan, regex, q, ct);
+            }
+
+            var content = Encoding.UTF8.GetString(bytes, bomLen, bytes.Length - bomLen);
+            return SearchContent(path, content.AsSpan(), regex, q, ct);
         } catch (OperationCanceledException) {
             throw;
         } catch {
@@ -192,49 +201,14 @@ internal static class RgEngine {
         }
     }
 
-    /// <summary>
-    /// mmap 零拷贝读取文件内容。用 MappedFileReader 封装，using 释放句柄。
-    /// </summary>
-    private static string ReadViaMmap(string path) {
-        using var reader = MappedFileReader.Open(path);
-        return reader.ReadToEnd();
-    }
-
-    private static bool ContainsNullByte(string content) {
-        var sampleLen = Math.Min(content.Length, BinaryDetectionBufferSize);
-        for (var i = 0; i < sampleLen; i++) {
-            if (content[i] == '\0')
-                return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// 搜索文件内容。Span 零分配遍历行，Regex.IsMatch(span) 匹配。
-    /// </summary>
-    private static RgFileResult? SearchContent(string path, string content, Regex regex, RgQuery q, CancellationToken ct) {
-        var contentSpan = content.AsSpan();
+    private static RgFileResult? SearchContent(string path, ReadOnlySpan<char> contentSpan, Regex regex, RgQuery q, CancellationToken ct) {
         var lineRanges = LineSpanIndexer.BuildLineRanges(contentSpan, ct);
 
         var matchedLines = new List<int>();
         if (q.Multiline) {
-            var seen = new HashSet<int>();
-            var matches = regex.Matches(content);
-            foreach (Match m in matches) {
-                if (!m.Success)
-                    continue;
-                var lineIdx = LineSpanIndexer.FindLineIndex(lineRanges, m.Index);
-                if (lineIdx >= 0 && seen.Add(lineIdx))
-                    matchedLines.Add(lineIdx);
-            }
+            matchedLines = CollectMultilineMatches(contentSpan, regex, lineRanges, q);
         } else {
-            for (var i = 0; i < lineRanges.Count; i++) {
-                var (s, l) = lineRanges[i];
-                if (l == 0)
-                    continue;
-                if (regex.IsMatch(contentSpan.Slice(s, l)))
-                    matchedLines.Add(i);
-            }
+            matchedLines = CollectLineMatches(contentSpan, regex, lineRanges, q, ct);
         }
 
         if (matchedLines.Count == 0)
@@ -277,6 +251,108 @@ internal static class RgEngine {
         }
 
         return new RgFileResult(path, matchedLines.Count, contentLines);
+    }
+
+    private static List<int> CollectMultilineMatches(
+        ReadOnlySpan<char> contentSpan, Regex regex,
+        List<(int Start, int Length)> lineRanges, RgQuery q) {
+        var seen = new HashSet<int>();
+        foreach (var m in regex.EnumerateMatches(contentSpan)) {
+            var lineIdx = LineSpanIndexer.FindLineIndex(lineRanges, m.Index);
+            if (lineIdx >= 0)
+                seen.Add(lineIdx);
+        }
+
+        var result = new List<int>();
+        if (!q.InvertMatch) {
+            foreach (var lineIdx in seen.OrderBy(x => x)) {
+                result.Add(lineIdx);
+                if (q.MaxCount is int mc && result.Count >= mc)
+                    break;
+            }
+            return result;
+        }
+
+        for (var i = 0; i < lineRanges.Count; i++) {
+            if (seen.Contains(i) || lineRanges[i].Length == 0)
+                continue;
+            result.Add(i);
+            if (q.MaxCount is int mc && result.Count >= mc)
+                break;
+        }
+        return result;
+    }
+
+    private const long LineParallelThresholdBytes = 1024 * 1024;
+    private const int LineParallelThresholdLines = 1000;
+
+    private static List<int> CollectLineMatches(
+        ReadOnlySpan<char> contentSpan, Regex regex,
+        List<(int Start, int Length)> lineRanges, RgQuery q, CancellationToken ct) {
+        if (contentSpan.Length >= LineParallelThresholdBytes && lineRanges.Count >= LineParallelThresholdLines)
+            return CollectLineMatchesParallel(contentSpan, regex, lineRanges, q, ct);
+
+        var matchedLines = new List<int>();
+        var fastFixed = RgCore.CanUseFastFixedString(q.FixedStrings, q.CaseInsensitive, q.WordRegexp, q.SmartCase);
+        var patternSpan = fastFixed ? q.Pattern.AsSpan() : default;
+
+        for (var i = 0; i < lineRanges.Count; i++) {
+            ct.ThrowIfCancellationRequested();
+            var (s, l) = lineRanges[i];
+            if (l == 0)
+                continue;
+
+            if (RgCore.IsLineMatch(contentSpan.Slice(s, l), regex, patternSpan, fastFixed, q.InvertMatch))
+                matchedLines.Add(i);
+
+            if (q.MaxCount is int mc && matchedLines.Count >= mc)
+                break;
+        }
+        return matchedLines;
+    }
+
+    private static List<int> CollectLineMatchesParallel(
+        ReadOnlySpan<char> contentSpan, Regex regex,
+        List<(int Start, int Length)> lineRanges, RgQuery q, CancellationToken ct) {
+        var content = contentSpan.ToString();
+        var fastFixed = RgCore.CanUseFastFixedString(q.FixedStrings, q.CaseInsensitive, q.WordRegexp, q.SmartCase);
+        var pattern = q.Pattern;
+        var degree = q.Threads is > 0 ? q.Threads.Value : Environment.ProcessorCount;
+        var chunkSize = Math.Max(1000, lineRanges.Count / degree);
+
+        var chunks = new List<(int Start, int End)>();
+        for (var start = 0; start < lineRanges.Count; start += chunkSize)
+            chunks.Add((start, Math.Min(start + chunkSize, lineRanges.Count)));
+
+        var results = chunks
+            .AsParallel()
+            .WithCancellation(ct)
+            .WithDegreeOfParallelism(degree)
+            .Select(chunk => {
+                var chunkMatches = new List<int>();
+                var span = content.AsSpan();
+                var patternSpan = pattern.AsSpan();
+
+                for (var i = chunk.Start; i < chunk.End; i++) {
+                    var (s, l) = lineRanges[i];
+                    if (l == 0)
+                        continue;
+
+                    if (RgCore.IsLineMatch(span.Slice(s, l), regex, patternSpan, fastFixed, q.InvertMatch))
+                        chunkMatches.Add(i);
+                }
+
+                return (chunk.Start, chunkMatches);
+            })
+            .OrderBy(r => r.Start)
+            .ToList();
+
+        var allMatches = results.SelectMany(r => r.chunkMatches).ToList();
+
+        if (q.MaxCount is int mc && allMatches.Count > mc)
+            allMatches = allMatches.Take(mc).ToList();
+
+        return allMatches;
     }
 
     private static List<RgFileResult> ApplySort(ConcurrentBag<RgFileResult> results, string? sort) {
@@ -333,7 +409,12 @@ internal sealed record RgQuery(
     int? HeadLimit,
     int? Offset,
     SearchOutputMode OutputMode,
-    string? Sort);
+    string? Sort,
+    bool InvertMatch,
+    bool LineRegexp,
+    int? MaxCount,
+    int? Threads,
+    long? MaxFilesize);
 
 /// <summary>单文件搜索结果</summary>
 internal sealed record RgFileResult(string FilePath, int MatchCount, IReadOnlyList<string>? ContentLines);

@@ -75,23 +75,11 @@ internal static class GitHubRunLogFilter {
     /// <summary>
     /// 跳过前 skipLines 行,再截断到 maxLines 行 — 返回 (结果文本, 是否还有更多行)
     /// <para>截断提示包含 skip_lines 续读参数,LLM 可直接分页获取后续行</para>
+    /// <para>行号格式委托给 LineRangeReader.Read → LineNumberFormatter,统一 compact/wide 双模式</para>
     /// </summary>
-    public static (string text, bool hasMore) SkipAndTruncate(IReadOnlyList<string> lines, int maxLines, int skipLines) {
-        if (lines.Count == 0) return (string.Empty, false);
-        if (skipLines >= lines.Count)
-            return ($"已跳过全部 {lines.Count} 行(skip_lines={skipLines})，无更多日志。", false);
-
-        var take = Math.Min(lines.Count - skipLines, maxLines);
-        var sb = new StringBuilder(take * 80);
-        for (var i = skipLines; i < skipLines + take; i++) {
-            sb.Append(i + 1).Append('\t').Append(lines[i]).Append('\n');
-        }
-        var hasMore = skipLines + take < lines.Count;
-        if (hasMore) {
-            sb.Append("... [共 ").Append(lines.Count).Append(" 行，显示第 ").Append(skipLines + 1).Append('-').Append(skipLines + take).Append(" 行。");
-            sb.Append("用 skip_lines=").Append(skipLines + take).Append(" 续读后续行]");
-        }
-        return (sb.ToString(), hasMore);
+    public static (string text, bool hasMore) SkipAndTruncate(IReadOnlyList<string> lines, int maxLines, int skipLines, bool compactLinePrefix) {
+        var result = LineRangeReader.Read(lines, skipLines, maxLines, compactLinePrefix);
+        return (result.Text, result.HasMore);
     }
 
     /// <summary>

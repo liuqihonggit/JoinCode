@@ -19,6 +19,7 @@ public partial class GitHubToolHandlers {
     private readonly GitHubRunLogFetcher _logFetcher;
     private readonly GitHubRunLogFilterRunner? _logFilterRunner;
     private readonly IKvStore? _kvStore;
+    private readonly bool _compactLinePrefix;
 
     /// <summary>
     /// 日志过滤运行器 — 仅在 _apiClient 配置后可用(ExecuteGhAsync 已守卫)
@@ -35,20 +36,23 @@ public partial class GitHubToolHandlers {
     /// <param name="git">git 命令执行器（可选，未注入时 clone/checkout 等本地 git 工具返回错误）</param>
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="kvStore">KV 缓存存储（可选，LSM-Tree PithosKvStore，用于日志缓存避免重复下载）</param>
+    /// <param name="workflowConfig">工作流配置（可选，从中读取 FileOperation.CompactLinePrefix 控制日志行号格式）。未注入时默认紧凑 tab 格式。</param>
     public GitHubToolHandlers(
         IDownloader downloader,
         IFileSystem fs,
         IGitHubApiClient? apiClient = null,
         IGitCommandRunner? git = null,
         ILogger<GitHubToolHandlers>? logger = null,
-        IKvStore? kvStore = null) {
+        IKvStore? kvStore = null,
+        WorkflowConfig? workflowConfig = null) {
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _apiClient = ComposeGhPipeline(apiClient, kvStore, logger);
         _git = git;
         _logger = logger;
+        _compactLinePrefix = workflowConfig?.FileOperation.CompactLinePrefix ?? true;
         _logFetcher = new GitHubRunLogFetcher();
-        _logFilterRunner = _apiClient is not null ? new GitHubRunLogFilterRunner(_apiClient, kvStore) : null;
+        _logFilterRunner = _apiClient is not null ? new GitHubRunLogFilterRunner(_apiClient, _compactLinePrefix, kvStore) : null;
         _kvStore = kvStore;
     }
 
@@ -83,11 +87,11 @@ public partial class GitHubToolHandlers {
     private static string TruncateLines(string output, int maxLines) {
         if (string.IsNullOrEmpty(output) || maxLines <= 0) return output;
         var ranges = LineSpanIndexer.BuildLineRanges(output.AsSpan());
-        if (ranges.Count <= maxLines) return output;
+        var (selectedRanges, hasMore, _) = LineRangeReader.Slice<(int Start, int Length)>(ranges, 0, maxLines);
+        if (!hasMore) return output;
         var sb = new StringBuilder(maxLines * 80);
         var span = output.AsSpan();
-        for (var i = 0; i < maxLines; i++) {
-            var (start, length) = ranges[i];
+        foreach (var (start, length) in selectedRanges) {
             sb.Append(span.Slice(start, length));
             sb.Append('\n');
         }

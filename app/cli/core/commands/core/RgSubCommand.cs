@@ -62,7 +62,12 @@ internal static class RgSubCommand {
                 HeadLimit: parsed.HeadLimit,
                 Offset: parsed.Offset,
                 OutputMode: parsed.OutputMode,
-                Sort: parsed.Sort);
+                Sort: parsed.Sort,
+                InvertMatch: parsed.InvertMatch,
+                LineRegexp: parsed.LineRegexp,
+                MaxCount: parsed.MaxCount,
+                Threads: parsed.Threads,
+                MaxFilesize: parsed.MaxFilesize);
 
             RgOutcome outcome;
             try {
@@ -102,7 +107,13 @@ internal static class RgSubCommand {
         int? headLimit = null;
         int? offset = null;
         var timeoutSeconds = DefaultTimeoutSeconds;
-        var outputMode = SearchOutputMode.Files;
+        var outputMode = SearchOutputMode.Content;
+        var invertMatch = false;
+        var lineRegexp = false;
+        int? maxCount = null;
+        int? threads = null;
+        long? maxFilesize = null;
+        var regexpPatterns = new List<string>();
 
         for (var i = 1; i < args.Length; i++) {
             var arg = args[i];
@@ -110,7 +121,15 @@ internal static class RgSubCommand {
                 continue;
 
             if (arg[0] != '-') {
-                if (pattern is null)
+                switch (arg) {
+                    case "content": outputMode = SearchOutputMode.Content; continue;
+                    case "count": outputMode = SearchOutputMode.Count; continue;
+                    case "files-with-matches": outputMode = SearchOutputMode.Files; continue;
+                    case "json": json = true; continue;
+                    case "hidden": hidden = true; continue;
+                    case "no-ignore": noIgnore = true; continue;
+                }
+                if (pattern is null && regexpPatterns.Count == 0)
                     pattern = arg;
                 else
                     paths.Add(arg);
@@ -143,6 +162,12 @@ internal static class RgSubCommand {
                     case "--count": outputMode = SearchOutputMode.Count; break;
                     case "--files-with-matches": outputMode = SearchOutputMode.Files; break;
                     case "--content": outputMode = SearchOutputMode.Content; break;
+                    case "--invert-match": invertMatch = true; break;
+                    case "--line-regexp": lineRegexp = true; break;
+                    case "--max-count": maxCount = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
+                    case "--regexp": { var v = inlineValue ?? ReadNextValue(args, ref i); if (v is not null) regexpPatterns.Add(v); } break;
+                    case "--threads": threads = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
+                    case "--max-filesize": maxFilesize = ParseFileSize(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--replace": replace = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--regex-file": {
                         var filePath = inlineValue ?? ReadNextValue(args, ref i);
@@ -171,11 +196,21 @@ internal static class RgSubCommand {
                         ref lineNumbers, ref multiline, ref fixedStrings,
                         ref json, globs, ref fileType, ref replace,
                         ref before, ref after, ref context, ref headLimit, ref offset,
-                        ref timeoutSeconds, ref outputMode)) {
+                        ref timeoutSeconds, ref outputMode,
+                        ref invertMatch, ref lineRegexp, ref maxCount, regexpPatterns, ref threads)) {
                     return null;
                 }
             }
         }
+
+        if (regexpPatterns.Count > 0) {
+            if (pattern is not null)
+                paths.Add(pattern);
+            pattern = string.Join("|", regexpPatterns);
+        }
+
+        if (lineRegexp && pattern is not null)
+            pattern = $"^(?:{pattern})$";
 
         if (pattern is null) {
             TerminalHelper.WriteError("错误: 缺少 pattern 参数。用法: jcc rg <pattern> <path> [path...]");
@@ -216,7 +251,12 @@ internal static class RgSubCommand {
             Offset: offset,
             TimeoutSeconds: timeoutSeconds,
             OutputMode: outputMode,
-            Sort: sort);
+            Sort: sort,
+            InvertMatch: invertMatch,
+            LineRegexp: lineRegexp,
+            MaxCount: maxCount,
+            Threads: threads,
+            MaxFilesize: maxFilesize);
     }
 
     private static string? ReadNextValue(string[] args, ref int i) {
@@ -234,6 +274,24 @@ internal static class RgSubCommand {
         return 0;
     }
 
+    private static long? ParseFileSize(string? value) {
+        if (string.IsNullOrEmpty(value))
+            return null;
+        var span = value.AsSpan();
+        var last = span[^1];
+        var multiplier = last switch {
+            'K' or 'k' => 1024L,
+            'M' or 'm' => 1024L * 1024,
+            'G' or 'g' => 1024L * 1024 * 1024,
+            _ => 1L,
+        };
+        var numLen = multiplier == 1 ? span.Length : span.Length - 1;
+        if (long.TryParse(span[..numLen], out var n))
+            return n * multiplier;
+        TerminalHelper.WriteError($"警告: 文件大小参数 '{value}' 不是有效数值，按 0 处理");
+        return 0;
+    }
+
     private static int ClampTimeout(int seconds) {
         if (seconds <= 0)
             return DefaultTimeoutSeconds;
@@ -246,7 +304,8 @@ internal static class RgSubCommand {
         ref bool lineNumbers, ref bool multiline, ref bool fixedStrings,
         ref bool json, List<string> globs, ref string? fileType, ref string? replace,
         ref int? before, ref int? after, ref int? context, ref int? headLimit, ref int? offset,
-        ref int timeoutSeconds, ref SearchOutputMode outputMode) {
+        ref int timeoutSeconds, ref SearchOutputMode outputMode,
+        ref bool invertMatch, ref bool lineRegexp, ref int? maxCount, List<string> regexpPatterns, ref int? threads) {
         var span = arg.AsSpan(1);
         var j = 0;
         while (j < span.Length) {
@@ -261,6 +320,11 @@ internal static class RgSubCommand {
                 case 'F': fixedStrings = true; j++; break;
                 case 'c': outputMode = SearchOutputMode.Count; j++; break;
                 case 'l': outputMode = SearchOutputMode.Files; j++; break;
+                case 'v': invertMatch = true; j++; break;
+                case 'x': lineRegexp = true; j++; break;
+                case 'm': maxCount = ParseInt(ConsumeShortString(span, ref j, args, ref i)); break;
+                case 'e': { var v = ConsumeShortString(span, ref j, args, ref i); if (v is not null) regexpPatterns.Add(v); } break;
+                case 'j': threads = ParseInt(ConsumeShortString(span, ref j, args, ref i)); break;
                 case 'A': after = ConsumeShortNumber(span, ref j, args, ref i); break;
                 case 'B': before = ConsumeShortNumber(span, ref j, args, ref i); break;
                 case 'C': context = ConsumeShortNumber(span, ref j, args, ref i); break;
@@ -439,7 +503,7 @@ internal static class RgSubCommand {
     internal sealed record RgOptions(
         string Pattern,
         IReadOnlyList<string> Paths,
-        IReadOnlyList<string> Globs,
+        IReadOnlyList<string>? Globs,
         string? FileType,
         bool CaseInsensitive,
         bool SmartCase,
@@ -459,7 +523,12 @@ internal static class RgSubCommand {
         int? Offset,
         int TimeoutSeconds,
         SearchOutputMode OutputMode,
-        string? Sort);
+        string? Sort,
+        bool InvertMatch,
+        bool LineRegexp,
+        int? MaxCount,
+        int? Threads,
+        long? MaxFilesize);
 }
 
 /// <summary>rg --json 单条匹配结果 DTO</summary>

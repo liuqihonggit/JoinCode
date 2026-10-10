@@ -1,4 +1,4 @@
-# ADR 0132: jcc 编译产物部署与 gh 问题修复指南
+# ADR 0132: jcc 编译产物部署与 gh/rg 工具指南
 
 ## 状态
 
@@ -6,7 +6,7 @@ accepted
 
 ## 背景
 
-jcc 是独立实现的 GitHub CLI 工具（HttpClient 直调 REST API），不是系统 gh CLI 的包装/转发。`gh` 命令通过 bash 脚本转发到 `jcc gh`，编译产物部署到 `C:\Users\54076\bin\jcc.d\dev\`。
+jcc 是独立实现的 GitHub CLI + ripgrep 兼容搜索工具。`gh`/`rg` 命令通过 bash 脚本转发到 `jcc gh`/`jcc rg`，编译产物部署到 `C:\Users\54076\bin\jcc.d\dev\`。
 
 开发过程中发现 `gh` 命令执行时间超长（~6 秒启动开销），排查后发现多个问题：
 1. jcc 启动开销 ~6 秒（`BuildHostAsync` 每次创建完整 DI 容器 + 注册 400+ MCP 工具）
@@ -55,13 +55,19 @@ ls -la "C:/Users/54076/bin/jcc.d/dev/Mcp.dll" \
 ```
 C:\Users\54076\bin\
 ├── gh                          # bash 脚本，调 jcc gh "$@"
+├── rg                          # bash 脚本，调 jcc rg "$@"
 ├── jcc                         # bash 脚本，优先找 jcc.d/dev/jcc.exe
+├── gh.cmd                      # cmd 脚本，优先 jcc.d/dev/jcc.exe gh %*
+├── rg.cmd                      # cmd 脚本，优先 jcc.d/dev/jcc.exe rg %*
+├── jcc.cmd                     # cmd 脚本，优先 jcc.d/dev/jcc.exe %*
 └── jcc.d\
     └── dev\                    # 编译产物目标目录
         ├── jcc.exe
         ├── jcc.dll
         └── ...                 # 所有依赖 DLL
 ```
+
+三个工具 `jcc`/`gh`/`rg` 统一指向 `jcc.d\dev\jcc.exe`，优先级：`JCC_BRANCH` 环境变量 > `dev` > `main`。
 
 ### 3. gh 问题修复原则
 
@@ -73,7 +79,52 @@ C:\Users\54076\bin\
 - handler 实现在 `kit/mcp/git_hub/GitHubToolHandlers.*.cs`
 - 工具名枚举在 `lib/abstractions/abs_core/core_utils/constants/tool_names/GitHubToolName.cs`
 
-### 4. 已知限制
+### 4. rg 引擎与功能
+
+**rg 子命令是 jcc 内置的 ripgrep 兼容搜索**，独立实现于 `RgEngine`（mmap + PLINQ 并行 + 零 GC Span 行遍历）。
+
+#### 引擎选型
+
+| 层面 | 实现 | ADR |
+|------|------|-----|
+| 正则引擎 | `RegexOptions.NonBacktracking`（.NET 9+ DFA 线性时间 + AOT 兼容 + 无灾难性回溯），不支持原子组等特性时 fallback 到解释器引擎 | 0070 |
+| 正则超时 | 5s（`Regex(pattern, options, TimeSpan.FromSeconds(5))`）防御灾难性回溯 | — |
+| `-F` 固定字符串 | `ReadOnlySpan<char>.IndexOf(pattern)`（.NET 内部 SIMD 加速），不走 Regex | — |
+| ASCII 快速路径 | `MemoryMarshal.Cast<byte, char>` 跳过 UTF-8 解码，直接在 byte span 上搜索 | 0071 |
+| mmap 零拷贝 | 大文件(>64KB) 用 `MemoryMappedFile` + `ToArray()` + ASCII 检测 | 0071 |
+| 文件级并行 | `AsParallel().WithDegreeOfParallelism(ProcessorCount)` | — |
+| 行遍历 | `LineSpanIndexer.BuildLineRanges(ReadOnlySpan<char>)` 零 GC | — |
+| 行号定位 | 二分查找 O(log n) | — |
+
+#### 功能对齐标准 rg/grep
+
+| 功能 | 标准 rg | jcc rg | 说明 |
+|------|---------|--------|------|
+| 正则搜索 | ✅ PCRE2 | ✅ .NET Regex(NonBacktracking) | 引擎不同，AOT 兼容 |
+| 默认输出 | ✅ content | ✅ content(默认) | 已对齐（原为 files-with-matches） |
+| `-F` 固定字符串 | ✅ SIMD Boyer-Moore | ✅ Span.IndexOf(SIMD) | — |
+| `-v` 反向匹配 | ✅ | ✅ | 输出不匹配的行 |
+| `-e` 多模式 | ✅ | ✅ | OR 交替合并 |
+| `-x` 整行匹配 | ✅ | ✅ | `^(?:pattern)$` |
+| `--max-count` | ✅ | ✅ | 每文件匹配上限 |
+| `-i/-S/-w/-o/-r/-n` | ✅ | ✅ | 全部对齐 |
+| `-A/-B/-C` 上下文 | ✅ | ✅ | 全部对齐 |
+| `-l/-c` 文件名/计数 | ✅ | ✅ | 全部对齐 |
+| `--json` | ✅ | ✅ | AOT 兼容 DTO 序列化 |
+| 裸选项宽容 | ❌ | ✅ | `content`/`count`/`json` 等不带 `--` 也识别 |
+
+#### 宽容策略
+
+1. PowerShell 把 `\s` 传成 `\\s` → 自动修复为 `\s`
+2. 裸选项名（`content`/`count`/`files-with-matches`/`json`/`hidden`/`no-ignore`）不带 `--` 前缀也识别
+3. 缺少 path → 立即报错退出（禁止无路径搜索，避免扫盘卡死）
+4. 根目录（`C:\` / `/`）→ 拒绝扫盘
+5. 超时 → 硬终止返回退出码 2
+6. 无匹配 → 退出码 1（对齐 rg）
+7. 二进制文件自动跳过，遵守 .gitignore
+8. NonBacktracking 不支持的正则特性 → fallback 到解释器引擎（同样 AOT 兼容）
+
+### 5. 已知限制
 
 | 问题 | 状态 | 说明 |
 |------|------|------|
@@ -92,6 +143,11 @@ C:\Users\54076\bin\
 | `gh run view --log` cancelled job 返回原始 404 XML | ✅ 已修复(2026-10-10) | `GetRunLogsAsync`/`GetJobLogsAsync` 检测 404 时返回中文提示"日志不存在(job 可能被取消或未产生日志)",非 404 错误仍返回原始信息 |
 | `gh run view --expand steps` cancelled job 只显示 `1 行 ERROR` | ✅ 已修复(2026-10-10) | 提取 `HandleExpandStepsAsync`/`BuildStepsListResultAsync` 扁平化嵌套(满足 JCC10009),日志下载失败时回退到 API job 详情(`GetJobStepsFromApiAsync`),显示步骤名/状态/结论 |
 | `gh pr checks --json_fields name,state` 缺 state | ✅ 已修复(2026-10-10) | check-runs API 返回 `status`+`conclusion` 而非 `state`。新增 `FilterCheckRunFields` 映射 `state`(对齐 GraphQL: PENDING/SUCCESS/FAILURE/NEUTRAL) |
+| rg 默认输出只文件名 | ✅ 已修复(2026-10-10) | 默认从 `files-with-matches` 改为 `content`（对齐标准 rg）。`-l` 显式指定文件名模式 |
+| rg `RegexOptions.Compiled` 不兼容 AOT | ✅ 已修复(2026-10-10) | 改用 `NonBacktracking`（.NET 9+ DFA 线性时间 + AOT 兼容），不支持时 fallback 到解释器 |
+| rg `-F` 走 Regex 性能差 | ✅ 已修复(2026-10-10) | `-F` 单独使用时走 `Span.IndexOf`（SIMD 加速），不走 Regex |
+| rg 无 ASCII 快速路径 | ✅ 已修复(2026-10-10) | `MemoryMarshal.Cast<byte, char>` 跳过 UTF-8 解码，ASCII 文件直接在 byte span 上搜索 |
+| rg 缺 `-v`/`-e`/`-x`/`--max-count` | ✅ 已修复(2026-10-10) | 新增反向匹配/多模式OR/整行匹配/每文件上限 |
 
 ## 原因
 

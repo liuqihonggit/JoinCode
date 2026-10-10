@@ -462,44 +462,48 @@ public sealed class GraphToolHandlers {
 
             if (result.Callers.Count > 0) {
                 sb.AppendLine($"Callers ({result.Callers.Count}):");
-                foreach (var c in result.Callers.Take(limit)) {
+                var (callerSlice, callerHasMore, _) = LineRangeReader.Slice(result.Callers, 0, limit);
+                foreach (var c in callerSlice) {
                     sb.AppendLine($"  ← {c}");
                     triples.Add((c, "calls", result.SymbolName));
                 }
-                if (result.Callers.Count > limit)
+                if (callerHasMore)
                     sb.AppendLine($"  ... and {result.Callers.Count - limit} more (pass limit={result.Callers.Count} to see all)");
                 sb.AppendLine();
             }
 
             if (result.Callees.Count > 0) {
                 sb.AppendLine($"Callees ({result.Callees.Count}):");
-                foreach (var c in result.Callees.Take(limit)) {
+                var (calleeSlice, calleeHasMore, _) = LineRangeReader.Slice(result.Callees, 0, limit);
+                foreach (var c in calleeSlice) {
                     sb.AppendLine($"  → {c}");
                     triples.Add((result.SymbolName, "calls", c));
                 }
-                if (result.Callees.Count > limit)
+                if (calleeHasMore)
                     sb.AppendLine($"  ... and {result.Callees.Count - limit} more (pass limit={result.Callees.Count} to see all)");
                 sb.AppendLine();
             }
 
             if (result.SameCommunity.Count > 0) {
                 sb.AppendLine($"Same community ({result.SameCommunity.Count}):");
-                foreach (var c in result.SameCommunity.Take(limit)) {
+                var (communitySlice, communityHasMore, _) = LineRangeReader.Slice(result.SameCommunity, 0, limit);
+                foreach (var c in communitySlice) {
                     sb.AppendLine($"  ~ {c}");
                     triples.Add((result.SymbolName, "sameCommunity", c));
                 }
-                if (result.SameCommunity.Count > limit)
+                if (communityHasMore)
                     sb.AppendLine($"  ... and {result.SameCommunity.Count - limit} more (pass limit={result.SameCommunity.Count} to see all)");
                 sb.AppendLine();
             }
 
             if (result.SameFile.Count > 0) {
                 sb.AppendLine($"Same file ({result.SameFile.Count}):");
-                foreach (var c in result.SameFile.Take(limit)) {
+                var (fileSlice, fileHasMore, _) = LineRangeReader.Slice(result.SameFile, 0, limit);
+                foreach (var c in fileSlice) {
                     sb.AppendLine($"  # {c}");
                     triples.Add((result.SymbolName, "sameFile", c));
                 }
-                if (result.SameFile.Count > limit)
+                if (fileHasMore)
                     sb.AppendLine($"  ... and {result.SameFile.Count - limit} more (pass limit={result.SameFile.Count} to see all)");
             }
 
@@ -508,6 +512,21 @@ public sealed class GraphToolHandlers {
                 sb.AppendLine("Triples:");
                 foreach (var (s, p, o) in triples)
                     sb.AppendLine($"  ({s}, {p}, {o})");
+            }
+
+            if (result.Callers.Count == 0 && result.Callees.Count == 0
+                && result.SameCommunity.Count == 0 && result.SameFile.Count == 0) {
+                var stats = await indexer.GetStatsAsync(cancellationToken).ConfigureAwait(false);
+                if (stats.SymbolCount == 0)
+                    sb.AppendLine("\n💡 代码索引未构建（0 个符号）。用 code-index 工具构建索引后再试。");
+                else {
+                    var age = DateTimeOffset.Now - stats.LastUpdated;
+                    var staleHint = age > TimeSpan.FromHours(1)
+                        ? $"\n   ⚠️ 索引可能陈旧（{age.TotalHours:F0} 小时前更新），用 code_index_rebuild 更新后再试。"
+                        : "\n   如最近修改了代码，用 code_index_rebuild 更新索引。";
+                    sb.AppendLine($"\n💡 已索引 {stats.SymbolCount} 个符号（{stats.LastUpdated:yyyy-MM-dd HH:mm} 更新），但 '{symbol_name}' 无任何关系。" +
+                                  $"\n   尝试用全限定名或用 code-index search 搜索。{staleHint}");
+                }
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();

@@ -559,7 +559,7 @@ public partial class GitHubToolHandlers {
         if (sectionLines is null)
             return Ok($"未找到步骤 '{expandStep}' 或 section '{sectionType}'，建议先 expand=step:{expandStep} 查看 section 摘要");
 
-        var (secText, secHasMore) = GitHubRunLogFilter.SkipAndTruncate(sectionLines, maxLines, skip);
+        var (secText, secHasMore) = GitHubRunLogFilter.SkipAndTruncate(sectionLines, maxLines, skip, _compactLinePrefix);
         if (secHasMore)
             secText += GitHubRunLogHints.TruncatedHint;
         if (GitHubRunLogFilter.HasNoStackTrace(secText))
@@ -592,7 +592,7 @@ public partial class GitHubToolHandlers {
             lineNumber++;
             if (!regex.IsMatch(line)) continue;
             if (skipped < skip) { skipped++; continue; }
-            matched.Add($"{lineNumber}: {GitHubRunLogText.StripLogTimestamp(line)}");
+            matched.Add(LineNumberFormatter.Format(lineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix));
             if (matched.Count >= maxLines) break;
         }
         if (matched.Count == 0) {

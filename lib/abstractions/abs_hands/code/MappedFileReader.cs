@@ -69,6 +69,22 @@ public sealed class MappedFileReader : IDisposable {
     }
 
     /// <summary>
+    /// 判断文件是否为纯 ASCII（无 UTF-8 多字节序列）— 用于 ASCII 快速路径决策。
+    /// <para>采样前 8KB 检测：所有字节 &lt; 0x80 则为 ASCII。全量检测对大文件太慢。</para>
+    /// </summary>
+    public bool IsAscii() {
+        if (_fileSize == 0)
+            return true;
+        var bytes = ToArray();
+        var sampleLen = Math.Min(bytes.Length, 8192);
+        for (var i = 0; i < sampleLen; i++) {
+            if (bytes[i] >= 0x80)
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
     /// 读取全部内容为 UTF-8 字符串 — 跳过 UTF-8 BOM（对齐 <c>File.ReadAllText(string)</c> 行为）。
     /// <para>BOM（EF BB BF）是字节序标记而非文本内容，<see cref="Encoding.UTF8"/>.GetString 会将其解码为 U+FEFF，
     /// 导致下游 <c>JsonNode.Parse</c> / <c>JsonDocument.Parse</c> 报 "invalid start of value"。</para>

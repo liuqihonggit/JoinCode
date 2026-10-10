@@ -84,41 +84,8 @@ public partial class FileToolHandlers : IDisposable {
         return string.Concat(text.AsSpan(0, index), replace, text.AsSpan(index + search.Length));
     }
 
-    internal static string AddLineNumbers(string content, int startLine, bool compact) {
-        if (string.IsNullOrEmpty(content)) {
-            return string.Empty;
-        }
-
-        var lines = content.Split(['\n'], StringSplitOptions.None);
-
-        // 紧凑格式：行号 + 制表符 + 内容（cat -n 风格）
-        // 对齐 TS: isCompactLinePrefixEnabled — LLM 训练数据匹配度高，每行省 ~5 空格 token
-        if (compact) {
-            var compactSb = new StringBuilder(content.Length + lines.Length * 4);
-            for (var i = 0; i < lines.Length; i++) {
-                compactSb.Append(startLine + i);
-                compactSb.Append('\t');
-                compactSb.AppendLine(lines[i]);
-            }
-
-            return compactSb.ToString();
-        }
-
-        // 宽格式：行号右对齐到 ≥6 位 + 管头 → + 内容
-        var maxLineNum = startLine + lines.Length - 1;
-        var maxDigits = maxLineNum.ToString().Length;
-        var padWidth = Math.Max(maxDigits, 6);
-
-        var sb = new StringBuilder(content.Length + lines.Length * (padWidth + 2));
-        for (var i = 0; i < lines.Length; i++) {
-            var lineNum = startLine + i;
-            sb.Append(lineNum.ToString().PadLeft(padWidth));
-            sb.Append('\u2192');
-            sb.AppendLine(lines[i]);
-        }
-
-        return sb.ToString();
-    }
+    internal static string AddLineNumbers(string content, int startLine, bool compact) =>
+        LineNumberFormatter.FormatMultiLine(content, startLine, compact);
 
     private void RecordFileMetrics(FileOperationType operation, FileOperationResult result) => _telemetry.RecordFileMetrics(operation, result);
 

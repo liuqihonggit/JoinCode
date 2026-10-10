@@ -7,6 +7,7 @@ namespace McpToolDispatch;
 internal sealed class GitHubRunLogFilterRunner {
     private readonly IGitHubApiClient _apiClient;
     private readonly IKvStore? _kvStore;
+    private readonly bool _compactLinePrefix;
 
     /// <summary>缓存 TTL — 7 天后自动过期,由 KvStoreTtlCleanupService 定期清理</summary>
     internal static readonly TimeSpan CacheTtl = TimeSpan.FromDays(7);
@@ -14,9 +15,13 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <summary>
     /// 构造日志过滤运行器,注入 GitHub API 客户端(非 null)+可选 KV 缓存(LSM-Tree)
     /// </summary>
-    public GitHubRunLogFilterRunner(IGitHubApiClient apiClient, IKvStore? kvStore = null) {
+    /// <param name="apiClient">GitHub API 客户端(非 null)。</param>
+    /// <param name="compactLinePrefix">行号前缀格式: true=紧凑 tab(行号\t内容), false=箭头(行号→内容)。对齐 FileOperationConfig.CompactLinePrefix</param>
+    /// <param name="kvStore">可选 KV 缓存(LSM-Tree PithosKvStore),用于日志缓存避免重复下载。</param>
+    public GitHubRunLogFilterRunner(IGitHubApiClient apiClient, bool compactLinePrefix, IKvStore? kvStore = null) {
         _apiClient = apiClient;
         _kvStore = kvStore;
+        _compactLinePrefix = compactLinePrefix;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -401,7 +406,7 @@ internal sealed class GitHubRunLogFilterRunner {
                 // 先跳过 skipLines 行(分页续读)
                 if (skipped < skipLines) { skipped++; continue; }
                 // 加行号前缀,方便定位(去时间戳减少噪音)
-                matched.Add($"{lineNumber}: {GitHubRunLogText.StripLogTimestamp(line)}");
+                matched.Add(LineNumberFormatter.Format(lineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix));
                 if (matched.Count >= maxLines) break;
             }
         }
@@ -440,7 +445,7 @@ internal sealed class GitHubRunLogFilterRunner {
 
         await foreach (var line in logLines.ConfigureAwait(false)) {
             lineNumber++;
-            var formatted = $"{lineNumber}: {GitHubRunLogText.StripLogTimestamp(line)}";
+            var formatted = LineNumberFormatter.Format(lineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix);
             if (foundError) {
                 if (skipped < skipLines) { skipped++; continue; }
                 matched.Add(formatted);
@@ -490,7 +495,7 @@ internal sealed class GitHubRunLogFilterRunner {
 
         await foreach (var line in logLines.ConfigureAwait(false)) {
             lineNumber++;
-            var formatted = $"{lineNumber}: {GitHubRunLogText.StripLogTimestamp(line)}";
+            var formatted = LineNumberFormatter.Format(lineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix);
             if (pendingAfter > 0) {
                 if (skipped < skipLines) { skipped++; continue; }
                 matched.Add(formatted);

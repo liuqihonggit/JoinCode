@@ -693,7 +693,17 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         if (body[0] != '{') return body.Length > 500 ? body[..500] : body;
         try {
             var dto = JsonSerializer.Deserialize(body, GitHubApiJsonContext.Default.GitHubErrorMessageDto);
-            if (dto?.Message is { } msg) return msg;
+            if (dto is null) return body.Length > 500 ? body[..500] : body;
+            var parts = new List<string>(1 + dto.Errors.Count);
+            if (dto.Message is { } msg) parts.Add(msg);
+            foreach (var e in dto.Errors) {
+                if (string.IsNullOrEmpty(e.Message)) continue;
+                var detail = e.Message!;
+                if (!string.IsNullOrEmpty(e.Field)) detail = $"{e.Field}: {detail}";
+                if (!string.IsNullOrEmpty(e.Code)) detail = $"{detail} (code: {e.Code})";
+                parts.Add(detail);
+            }
+            return parts.Count > 0 ? string.Join("; ", parts) : (body.Length > 500 ? body[..500] : body);
         }
 #pragma warning disable JCC3013
         catch (Exception) { }

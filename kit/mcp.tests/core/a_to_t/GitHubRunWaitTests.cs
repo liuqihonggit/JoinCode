@@ -360,4 +360,59 @@ public sealed class GitHubRunWaitTests {
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("等待超时");
     }
+
+    /// <summary>
+    /// gh ci alerts 从 LSM 读取告警通知
+    /// </summary>
+    [Fact]
+    public async Task CiAlerts_ReadsFromKvStore_ReturnsAlerts() {
+        var kvStore = new InMemoryKvStore();
+        var api = new FakeGitHubApiClient();
+        var handler = new GitHubToolHandlers(new FakeDownloader(), new InMemoryFileSystem(), api, null, NullLogger<GitHubToolHandlers>.Instance, kvStore);
+
+        var json = """{"run_id":"1","job_id":123,"job_name":"test","log_path":"/tmp/log.log","timestamp":"2026-01-01T00:00:00Z"}""";
+        await kvStore.PutAsync(Encoding.UTF8.GetBytes("gh:ci_alert:1:123:20260101"), Encoding.UTF8.GetBytes(json));
+
+        var result = await handler.GhCiAlertsAsync(common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("CI 告警通知");
+        result.GetFirstText().Should().Contain("Run 1");
+        result.GetFirstText().Should().Contain("Job #123");
+        result.GetFirstText().Should().Contain("/tmp/log.log");
+    }
+
+    /// <summary>
+    /// gh ci alerts mark_read=true 后告警从 LSM 删除
+    /// </summary>
+    [Fact]
+    public async Task CiAlerts_MarkRead_DeletesFromKvStore() {
+        var kvStore = new InMemoryKvStore();
+        var api = new FakeGitHubApiClient();
+        var handler = new GitHubToolHandlers(new FakeDownloader(), new InMemoryFileSystem(), api, null, NullLogger<GitHubToolHandlers>.Instance, kvStore);
+
+        var json = """{"run_id":"2","job_id":456,"job_name":"build","log_path":"/tmp/build.log","timestamp":"2026-01-01T00:00:00Z"}""";
+        var key = Encoding.UTF8.GetBytes("gh:ci_alert:2:456:20260101");
+        await kvStore.PutAsync(key, Encoding.UTF8.GetBytes(json));
+
+        await handler.GhCiAlertsAsync(mark_read: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        var remaining = await kvStore.GetAsync(key);
+        remaining.Should().BeNull();
+    }
+
+    /// <summary>
+    /// gh ci alerts 无告警时返回"无 CI 告警通知"
+    /// </summary>
+    [Fact]
+    public async Task CiAlerts_NoAlerts_ReturnsEmpty() {
+        var kvStore = new InMemoryKvStore();
+        var api = new FakeGitHubApiClient();
+        var handler = new GitHubToolHandlers(new FakeDownloader(), new InMemoryFileSystem(), api, null, NullLogger<GitHubToolHandlers>.Instance, kvStore);
+
+        var result = await handler.GhCiAlertsAsync(common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("无 CI 告警");
+    }
 }

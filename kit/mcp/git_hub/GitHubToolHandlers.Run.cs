@@ -784,7 +784,11 @@ public partial class GitHubToolHandlers {
         }
 
         var logPath = await DownloadJobLogsToDiskAsync(owner, repoName, runId, failedJobIds, workingDir, ct).ConfigureAwait(false);
-        var prefix = isFailFast ? $"⚠ fail-fast: Run {runId} 运行中发现失败 job,立即返回" : $"Run {runId} 已完成: ❌ {watchResult.RunConclusion ?? "failure"}";
+
+        if (isFailFast)
+            StartBackgroundCiMonitor(client, owner, repoName, runId, [.. failedJobIds], workingDir);
+
+        var prefix = isFailFast ? $"⚠ fail-fast: Run {runId} 运行中发现失败 job,立即返回(后台继续监控其他 job,用 gh ci alerts 调阅)" : $"Run {runId} 已完成: ❌ {watchResult.RunConclusion ?? "failure"}";
         return logPath is not null
             ? Ok(summary + $"\n\n📄 失败 job 日志已下载到:\n{logPath}\n\n💡 用 read 工具读取此文件查看错误详情", prefix)
             : Ok(summary + $"\n\n⚠ 失败 job 日志下载失败,用 gh run view {runId} --log --filter failed 手动查看", prefix);
@@ -843,6 +847,79 @@ public partial class GitHubToolHandlers {
         if (lineCount == 0) return null;
         await _fs.WriteAllTextAsync(logPath, sb.ToString(), ct).ConfigureAwait(false);
         return logPath;
+    }
+
+    /// <summary>
+    /// 启动后台 CI 监控任务 — fire-and-forget,持续轮询 run 的其他 job,新失败 job 拉日志写通知文件
+    /// <para>从 GhRunWaitFailFastAsync 返回前启动,利用 jcc 长驻进程持续运行</para>
+    /// <para>通知文件写入 .jcc/ci_alerts/{run_id}_{job_id}_{timestamp}.json,AI 用 gh ci alerts 调阅</para>
+    /// <para>异常在任务内部吞掉+日志,不影响主流程;run completed 后自动退出</para>
+    /// </summary>
+    private void StartBackgroundCiMonitor(
+        IGitHubApiClient client, string owner, string repo, string runId,
+        HashSet<long> reportedJobIds, string? workingDir) {
+        _ = Task.Run(async () => {
+            try {
+                using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+                while (await timer.WaitForNextTickAsync(CancellationToken.None).ConfigureAwait(false)) {
+                    var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}").ConfigureAwait(false);
+                    if (!runResult.Success) continue;
+                    string? status = null;
+                    try {
+                        var run = JsonSerializer.Deserialize(runResult.Body, GitHubApiJsonContext.Safe.RunDetailResponse);
+                        status = run?.Status;
+                    } catch (JsonException ex) { _logger?.LogWarning(ex, "后台监控解析 run status 失败: runId={RunId}", runId); }
+                    if (status == "completed") return;
+
+                    var jobsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs",
+                        query: new Dictionary<string, string> { ["per_page"] = "100" }, paginate: true).ConfigureAwait(false);
+                    if (!jobsResult.Success) continue;
+
+                    List<(long Id, string Name)> newFailedJobs;
+                    try {
+                        var resp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
+                        newFailedJobs = [];
+                        if (resp?.Jobs is not null) {
+                            foreach (var job in resp.Jobs) {
+                                if (job.Id == 0) continue;
+                                if (job.Conclusion is not ("failure" or "cancelled" or "timed_out")) continue;
+                                lock (reportedJobIds) {
+                                    if (reportedJobIds.Contains(job.Id)) continue;
+                                    reportedJobIds.Add(job.Id);
+                                }
+                                newFailedJobs.Add((job.Id, job.Name));
+                            }
+                        }
+                    } catch (JsonException ex) { _logger?.LogWarning(ex, "后台监控解析 jobs 失败: runId={RunId}", runId); continue; }
+
+                    foreach (var (jobId, jobName) in newFailedJobs) {
+                        var logPath = await DownloadJobLogsToDiskAsync(owner, repo, runId, [jobId], workingDir, CancellationToken.None).ConfigureAwait(false);
+                        if (logPath is not null)
+                            await WriteCiAlertToKvStoreAsync(runId, jobId, jobName, logPath).ConfigureAwait(false);
+                    }
+                }
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "后台 CI 监控任务异常退出: runId={RunId}", runId);
+            }
+        });
+    }
+
+    /// <summary>
+    /// 写 CI 告警通知到 LSM-Tree — key=gh:ci_alert:{run_id}:{job_id}:{timestamp},value=JSON(CiAlertDto)
+    /// <para>复用 IKvStore(LSM-Tree PithosKvStore),禁止用文件系统(见 persistence-reuse-lsm-tree)</para>
+    /// <para>AI 用 gh ci alerts 调阅,ScanAsync 范围扫描 gh:ci_alert: 前缀</para>
+    /// </summary>
+    private async Task WriteCiAlertToKvStoreAsync(string runId, long jobId, string jobName, string logPath) {
+        if (_kvStore is null) return;
+        var alert = new CiAlertDto {
+            RunId = runId, JobId = jobId, JobName = jobName,
+            LogPath = logPath, Timestamp = DateTime.UtcNow.ToString("O")
+        };
+        var json = JsonSerializer.Serialize(alert, GitHubApiJsonContext.Safe.CiAlertDto);
+        var key = Encoding.UTF8.GetBytes($"gh:ci_alert:{runId}:{jobId}:{DateTime.UtcNow:yyyyMMddHHmmssfff}");
+        var value = Encoding.UTF8.GetBytes(json);
+        await _kvStore.PutAsync(key, value).ConfigureAwait(false);
+        _logger?.LogDebug("CI 告警通知已写入 LSM: run={RunId} job={JobId}", runId, jobId);
     }
 
     /// <summary>
@@ -1003,4 +1080,50 @@ public partial class GitHubToolHandlers {
             if (failed && exit_status == true) return Fail(sb.ToString());
             return Ok(sb.ToString(), $"Run {resolvedRunId} 已完成: {finalConclusion}");
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 查看 CI 告警通知 — 从 LSM-Tree 范围扫描 gh:ci_alert: 前缀,返回后台监控发现的新失败 job 日志路径
+    /// <para>fail-fast 后台任务发现新失败 job 时写入 LSM,AI 调本工具调阅后用 read 读日志</para>
+    /// <para>利用 AI ReAct 循环:处理完第一个错误后调本工具检查是否有新错误</para>
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhCiAlerts, "查看后台 CI 监控告警(从 LSM 扫描 gh:ci_alert: 前缀,返回新失败 job 日志路径)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhCiAlertsAsync(
+        [McpToolParameter("清理已读告警(从 LSM 删除已返回的告警 key)", Required = false)] bool? mark_read = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default) {
+        if (_kvStore is null) return Fail("KV 存储未配置,无法读取 CI 告警");
+
+        var fromKey = Encoding.UTF8.GetBytes("gh:ci_alert:");
+        var toKey = Encoding.UTF8.GetBytes("gh:ci_alert:~");
+        var alerts = new List<(byte[] Key, CiAlertDto Alert)>();
+        await foreach (var (key, value) in _kvStore.ScanAsync(fromKey, toKey, cancellationToken).ConfigureAwait(false)) {
+            try {
+                var json = Encoding.UTF8.GetString(value);
+                var alert = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.CiAlertDto);
+                if (alert is not null) alerts.Add((key, alert));
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "解析 CI 告警失败");
+            }
+        }
+
+        if (alerts.Count == 0) return Ok("无 CI 告警通知");
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"📋 CI 告警通知 ({alerts.Count} 条):");
+        foreach (var (_, a) in alerts) {
+            sb.AppendLine($"  • Run {a.RunId} / Job #{a.JobId} {a.JobName} [{a.Timestamp}]");
+            sb.AppendLine($"    日志: {a.LogPath}");
+        }
+        sb.AppendLine();
+        sb.Append("💡 用 read 工具读取日志路径查看错误详情");
+
+        if (mark_read == true) {
+            foreach (var (key, _) in alerts)
+                await _kvStore.DeleteAsync(key, cancellationToken).ConfigureAwait(false);
+            sb.AppendLine();
+            sb.Append($"✅ {alerts.Count} 条告警已清理(从 LSM 删除)");
+        }
+
+        return Ok(sb.ToString(), $"CI 告警: {alerts.Count} 条");
+    }
 }

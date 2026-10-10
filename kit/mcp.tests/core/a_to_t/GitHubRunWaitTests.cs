@@ -22,7 +22,7 @@ public sealed class GitHubRunWaitTests {
         });
 
         var result = await _handler.GhRunWaitAsync(
-            run_id: "1", repo: "owner/repo", timeout_seconds: 10, poll_interval_seconds: 1);
+            run_id: "1", timeout_seconds: 10, poll_interval_seconds: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("✅ success");
@@ -46,7 +46,7 @@ public sealed class GitHubRunWaitTests {
         });
 
         var result = await _handler.GhRunWaitAsync(
-            run_id: "2", repo: "owner/repo", timeout_seconds: 10, poll_interval_seconds: 1);
+            run_id: "2", timeout_seconds: 10, poll_interval_seconds: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("❌ failure");
@@ -70,7 +70,7 @@ public sealed class GitHubRunWaitTests {
         });
 
         var result = await _handler.GhRunWaitAsync(
-            run_id: "3", repo: "owner/repo", timeout_seconds: 2, poll_interval_seconds: 1);
+            run_id: "3", timeout_seconds: 2, poll_interval_seconds: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("等待超时");
@@ -87,7 +87,7 @@ public sealed class GitHubRunWaitTests {
         });
 
         var result = await _handler.GhRunWaitAsync(
-            run_id: "999", repo: "owner/repo", timeout_seconds: 10, poll_interval_seconds: 1);
+            run_id: "999", timeout_seconds: 10, poll_interval_seconds: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("不存在");
@@ -105,7 +105,7 @@ public sealed class GitHubRunWaitTests {
         });
 
         var result = await _handler.GhPrWaitAsync(
-            pr_number: "42", repo: "owner/repo", timeout_seconds: 10, poll_interval_seconds: 1);
+            pr_number: "42", timeout_seconds: 10, poll_interval_seconds: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("2 通过");
@@ -128,7 +128,7 @@ public sealed class GitHubRunWaitTests {
         });
 
         var result = await _handler.GhPrWaitAsync(
-            pr_number: "42", repo: "owner/repo", timeout_seconds: 10, poll_interval_seconds: 1);
+            pr_number: "42", timeout_seconds: 10, poll_interval_seconds: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("1 失败");
@@ -155,7 +155,7 @@ public sealed class GitHubRunWaitTests {
         });
 
         var result = await _handler.GhPrWaitAsync(
-            pr_number: "42", repo: "owner/repo", timeout_seconds: 2, poll_interval_seconds: 1);
+            pr_number: "42", timeout_seconds: 2, poll_interval_seconds: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("等待超时");
@@ -183,7 +183,7 @@ public sealed class GitHubRunWaitTests {
         var handler = new GitHubToolHandlers(new FakeDownloader(), fs, api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhRunWaitAsync(
-            run_id: "1", repo: "owner/repo", timeout_seconds: 10, poll_interval_seconds: 1);
+            run_id: "1", timeout_seconds: 10, poll_interval_seconds: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("日志已下载到");
@@ -201,7 +201,7 @@ public sealed class GitHubRunWaitTests {
         });
 
         var result = await _handler.GhRunWaitAsync(
-            run_id: "1", repo: "owner/repo", timeout_seconds: 10, poll_interval_seconds: 1);
+            run_id: "1", timeout_seconds: 10, poll_interval_seconds: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().NotContain("日志已下载");
@@ -232,7 +232,7 @@ public sealed class GitHubRunWaitTests {
         var handler = new GitHubToolHandlers(new FakeDownloader(), fs, api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhPrWaitAsync(
-            pr_number: "42", repo: "owner/repo", timeout_seconds: 10, poll_interval_seconds: 1);
+            pr_number: "42", timeout_seconds: 10, poll_interval_seconds: 1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("1 失败");

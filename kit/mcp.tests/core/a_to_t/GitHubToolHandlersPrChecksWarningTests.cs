@@ -11,7 +11,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"head":{"sha":"abc"}}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"check_runs":[{"name":"pass1","conclusion":"success"},{"name":"stale-check","conclusion":"stale"},{"name":"action-check","conclusion":"action_required"},{"name":"fail1","conclusion":"failure"}]}""" });
 
-        var result = await _handler.GhPrChecksAsync("42", repo: "owner/repo");
+        var result = await _handler.GhPrChecksAsync("42", common: new GitHubCommonOptions { Repo = "owner/repo" });
         var text = result.GetFirstText()!;
         text.Should().Contain("2 警告");
         text.Should().Contain("stale-check\twarning");

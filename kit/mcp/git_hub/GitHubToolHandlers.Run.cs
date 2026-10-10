@@ -669,10 +669,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否只重跑失败的 job(默认 true)", Required = false)] bool? failed_only = null,
         [McpToolParameter("启用 debug 日志(可选)", Required = false)] bool? debug = null,
         [McpToolParameter("指定重跑的 job ID(可选,逗号分隔多个,设置后只重跑这些 job)", Required = false)] string? job = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
             if (runIdError is not null) return runIdError;
             var path = "";
@@ -699,10 +698,9 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRunCancel, "取消 Actions Run", "github")]
     public async Task<ToolResult> GhRunCancelAsync(
         [McpToolParameter(WellKnownParam.RunId)] string run_id,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
             if (runIdError is not null) return runIdError;
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}/cancel", ct: cancellationToken).ConfigureAwait(false);
@@ -720,14 +718,13 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.RunId)] string run_id,
         [McpToolParameter("超时秒数(默认 1800=30分钟)", Required = false)] int? timeout_seconds = null,
         [McpToolParameter("初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)", Required = false)] int? poll_interval_seconds = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
             if (runIdError is not null) return runIdError;
-            return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId!, timeout_seconds, poll_interval_seconds, working_dir, cancellationToken, onProgress).ConfigureAwait(false);
+            return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId!, timeout_seconds, poll_interval_seconds, common?.WorkingDir, cancellationToken, onProgress).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -823,10 +820,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.RunId)] string run_id,
         [McpToolParameter("保存目录", Required = true)] string dir,
         [McpToolParameter("artifact 名称过滤(可选,支持 * 通配,默认下载全部)", Required = false)] string? name = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
             if (runIdError is not null) return runIdError;
             var artifactsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}/artifacts", ct: cancellationToken).ConfigureAwait(false);
@@ -901,10 +897,9 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRunDelete, "删除 Actions Run", "github")]
     public async Task<ToolResult> GhRunDeleteAsync(
         [McpToolParameter(WellKnownParam.RunId)] string run_id,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
             if (runIdError is not null) return runIdError;
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
@@ -921,10 +916,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("刷新间隔秒数(默认 3)", Required = false)] int? interval = null,
         [McpToolParameter("compact=true 只显示相关/失败步骤", Required = false)] bool? compact = null,
         [McpToolParameter("exit_status=true 失败时返回错误", Required = false)] bool? exit_status = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
             if (runIdError is not null) return runIdError;
             var intervalSec = interval is > 0 ? interval.Value : 3;

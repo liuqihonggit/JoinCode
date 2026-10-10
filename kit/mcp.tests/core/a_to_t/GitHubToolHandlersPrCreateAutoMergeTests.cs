@@ -14,7 +14,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"number":42}}}}""",
         });
 
-        var result = await _handler.GhPrCreateAsync("feat", "feature-branch", @base: "main", auto_merge: true, merge_method: "squash", repo: "owner/repo");
+        var result = await _handler.GhPrCreateAsync("feat", "feature-branch", @base: "main", auto_merge: true, merge_method: "squash", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("auto-merge");
@@ -33,7 +33,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"number":43,"node_id":"PR_xxx","title":"feat","state":"open"}""",
         };
 
-        var result = await _handler.GhPrCreateAsync("feat", "feature-branch", repo: "owner/repo");
+        var result = await _handler.GhPrCreateAsync("feat", "feature-branch", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastPath.Should().Be("repos/owner/repo/pulls");
@@ -47,14 +47,14 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"number":44,"title":"t","state":"open"}""",
         };
 
-        await _handler.GhPrCreateAsync("t", "feat", @base: "main", repo: "owner/repo");
+        await _handler.GhPrCreateAsync("t", "feat", @base: "main", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastBody.Should().NotContain("maintainer_can_modify");
     }
 
     [Fact]
     public async Task PrCreate_DryRun_DoesNotCallApi_ReturnsPreview() {
-        var result = await _handler.GhPrCreateAsync("feat: preview", "feature-branch", @base: "main", body: "preview body", dry_run: true, repo: "owner/repo");
+        var result = await _handler.GhPrCreateAsync("feat: preview", "feature-branch", @base: "main", body: "preview body", dry_run: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("[dry-run]");
@@ -71,14 +71,14 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"number":45,"title":"t","state":"open"}""",
         };
 
-        await _handler.GhPrCreateAsync("t", "feat", @base: "main", no_maintainer_edit: true, repo: "owner/repo");
+        await _handler.GhPrCreateAsync("t", "feat", @base: "main", no_maintainer_edit: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastBody.Should().Contain("\"maintainer_can_modify\":false");
     }
 
     [Fact]
     public async Task PrCreate_Recover_ReturnsNotSupportedError() {
-        var result = await _handler.GhPrCreateAsync("t", "feat", recover: true, repo: "owner/repo");
+        var result = await _handler.GhPrCreateAsync("t", "feat", recover: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("--recover 暂未支持");
@@ -86,7 +86,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task PrCreate_Attach_ReturnsNotSupportedError() {
-        var result = await _handler.GhPrCreateAsync("t", "feat", attach: "file.txt", repo: "owner/repo");
+        var result = await _handler.GhPrCreateAsync("t", "feat", attach: "file.txt", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("--attach 暂未支持");
@@ -102,7 +102,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"number":46,"title":"abc123","state":"open","html_url":"https://github.com/o/r/pull/46"}""",
         };
 
-        var result = await handler.GhPrCreateAsync("", "feature-branch", @base: "main", fill_first: true, repo: "owner/repo");
+        var result = await handler.GhPrCreateAsync("", "feature-branch", @base: "main", fill_first: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         git.ExecutedCommands.Should().ContainMatch("*rev-list --reverse main..feature-branch*");
@@ -119,7 +119,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"number":47,"title":"feat: from commit","state":"open","html_url":"https://github.com/o/r/pull/47"}""",
         };
 
-        var result = await handler.GhPrCreateAsync("", "feat", @base: "main", fill: true, fill_verbose: true, repo: "owner/repo");
+        var result = await handler.GhPrCreateAsync("", "feat", @base: "main", fill: true, fill_verbose: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("[fill]");
@@ -134,7 +134,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"number":50,"title":"feat","state":"open","html_url":"https://github.com/o/r/pull/50"}""",
         };
 
-        var result = await handler.GhPrCreateAsync("feat", head: null, @base: "main", repo: "owner/repo");
+        var result = await handler.GhPrCreateAsync("feat", head: null, @base: "main", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         git.ExecutedCommands.Should().ContainMatch("*rev-parse --abbrev-ref HEAD*");
@@ -143,7 +143,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task PrCreate_HeadNull_GitNotConfigured_ReturnsErrorWithGuidance() {
-        var result = await _handler.GhPrCreateAsync("feat", head: null, @base: "main", repo: "owner/repo");
+        var result = await _handler.GhPrCreateAsync("feat", head: null, @base: "main", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("--head");
@@ -155,7 +155,7 @@ public sealed partial class GitHubToolHandlersTests {
         var git = new FakeGitCommandRunner { NextSuccess = false, NextOutput = "" };
         var handler = CreateHandlerWithGitAndApi(git, _api);
 
-        var result = await handler.GhPrCreateAsync("feat", head: null, @base: "main", repo: "owner/repo");
+        var result = await handler.GhPrCreateAsync("feat", head: null, @base: "main", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("--head");

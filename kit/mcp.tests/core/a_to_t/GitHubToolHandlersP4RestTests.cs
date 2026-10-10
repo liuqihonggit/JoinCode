@@ -10,7 +10,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task Browse_WithRepo_ReturnsGitHubUrl() {
-        var result = await _handler.GhBrowseAsync(repo: "owner/repo", no_browser: true);
+        var result = await _handler.GhBrowseAsync(no_browser: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("https://github.com/owner/repo");
@@ -18,7 +18,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task Browse_WithIssueNumber_ReturnsIssueUrl() {
-        var result = await _handler.GhBrowseAsync(target: "42", repo: "owner/repo", no_browser: true);
+        var result = await _handler.GhBrowseAsync(target: "42", no_browser: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("https://github.com/owner/repo/issues/42");
@@ -26,7 +26,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task Browse_WithBranch_ReturnsTreeUrl() {
-        var result = await _handler.GhBrowseAsync(branch: "develop", repo: "owner/repo", no_browser: true);
+        var result = await _handler.GhBrowseAsync(branch: "develop", no_browser: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("https://github.com/owner/repo/tree/develop");
@@ -34,7 +34,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task Browse_WithActions_ReturnsActionsUrl() {
-        var result = await _handler.GhBrowseAsync(actions: true, repo: "owner/repo", no_browser: true);
+        var result = await _handler.GhBrowseAsync(actions: true, no_browser: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("https://github.com/owner/repo/actions");
@@ -80,7 +80,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task CacheDelete_ById_CallsDeleteEndpoint() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
 
-        var result = await _handler.GhCacheDeleteAsync(cache_id: 123, repo: "owner/repo");
+        var result = await _handler.GhCacheDeleteAsync(cache_id: 123, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastMethod.Should().Be(HttpMethod.Delete);
@@ -96,7 +96,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
 
-        var result = await _handler.GhCacheDeleteAsync(all: true, repo: "owner/repo");
+        var result = await _handler.GhCacheDeleteAsync(all: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastMethod.Should().Be(HttpMethod.Delete);
@@ -105,7 +105,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task CacheDelete_NoIdAndNoAll_ReturnsError() {
-        var result = await _handler.GhCacheDeleteAsync(repo: "owner/repo");
+        var result = await _handler.GhCacheDeleteAsync(common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("cache_id");
@@ -161,7 +161,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RulesetCheck_ChecksBranchRules() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"name":"r"}]""" };
 
-        var result = await _handler.GhRulesetCheckAsync("main", repo: "owner/repo");
+        var result = await _handler.GhRulesetCheckAsync("main", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastMethod.Should().Be(HttpMethod.Get);
@@ -221,7 +221,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task CodespaceList_WithRepo_ListsRepoCodespaces() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"codespaces":[]}""" };
 
-        await _handler.GhCodespaceListAsync(repo: "owner/repo");
+        await _handler.GhCodespaceListAsync(common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastPath.Should().Be("repos/owner/repo/codespaces");
     }
@@ -335,7 +335,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"data":{"createDiscussion":{"discussion":{"number":10,"url":"https://github.com/owner/repo/discussions/10"}}}}""",
         });
 
-        var result = await _handler.GhDiscussionCreateAsync("新讨论", "正文内容", "General", repo: "owner/repo");
+        var result = await _handler.GhDiscussionCreateAsync("新讨论", "正文内容", "General", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastPath.Should().Be("graphql");
@@ -355,7 +355,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"data":{"updateDiscussion":{"discussion":{"number":5,"url":"https://github.com/owner/repo/discussions/5"}}}}""",
         });
 
-        var result = await _handler.GhDiscussionEditAsync(5, title: "新标题", repo: "owner/repo");
+        var result = await _handler.GhDiscussionEditAsync(5, title: "新标题", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastPath.Should().Be("graphql");
@@ -374,7 +374,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"data":{"addDiscussionComment":{"comment":{"id":"C_1"}}}}""",
         });
 
-        var result = await _handler.GhDiscussionCommentAsync(7, "评论内容", repo: "owner/repo");
+        var result = await _handler.GhDiscussionCommentAsync(7, "评论内容", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastPath.Should().Be("graphql");
@@ -528,7 +528,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task Browse_WithBlameAndTarget_ReturnsBlameUrl() {
-        var result = await _handler.GhBrowseAsync(target: "src/file.cs", blame: true, repo: "owner/repo", no_browser: true);
+        var result = await _handler.GhBrowseAsync(target: "src/file.cs", blame: true, no_browser: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("/blame/HEAD/src/file.cs");
@@ -537,7 +537,7 @@ public sealed partial class GitHubToolHandlersTests {
     [Fact]
     public async Task Browse_WithCommitSha_ReturnsCommitUrl() {
         var sha = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
-        var result = await _handler.GhBrowseAsync(target: sha, repo: "owner/repo", no_browser: true);
+        var result = await _handler.GhBrowseAsync(target: sha, no_browser: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain($"/commit/{sha}");
@@ -545,7 +545,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task Browse_WithProjects_ReturnsProjectsUrl() {
-        var result = await _handler.GhBrowseAsync(projects: true, repo: "owner/repo", no_browser: true);
+        var result = await _handler.GhBrowseAsync(projects: true, no_browser: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("/projects");
@@ -560,7 +560,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"total_count":0}""",
         };
 
-        var result = await _handler.GhCacheDeleteAsync(all: true, repo: "owner/repo");
+        var result = await _handler.GhCacheDeleteAsync(all: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("无缓存可删除");
@@ -568,7 +568,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task CacheDelete_WithZeroId_ReturnsError() {
-        var result = await _handler.GhCacheDeleteAsync(cache_id: 0, repo: "owner/repo");
+        var result = await _handler.GhCacheDeleteAsync(cache_id: 0, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("cache_id");
@@ -583,7 +583,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"data":{"repository":{"discussionCategories":{"nodes":[{"id":"CAT_1","name":"General"}]}}}}""",
         };
 
-        var result = await _handler.GhDiscussionCreateAsync("标题", "正文", "NonExistent", repo: "owner/repo");
+        var result = await _handler.GhDiscussionCreateAsync("标题", "正文", "NonExistent", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("未找到分类");
@@ -598,7 +598,7 @@ public sealed partial class GitHubToolHandlersTests {
         });
         _api.EnqueueResponse(new GitHubApiResponse { Success = false, StatusCode = 404, Error = "仓库不存在" });
 
-        var result = await _handler.GhDiscussionCreateAsync("标题", "正文", "General", repo: "owner/repo");
+        var result = await _handler.GhDiscussionCreateAsync("标题", "正文", "General", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("仓库不存在");
@@ -611,7 +611,7 @@ public sealed partial class GitHubToolHandlersTests {
             Body = """{"data":{"repository":{"discussion":{"id":"DISC_1"}}}}""",
         };
 
-        var result = await _handler.GhDiscussionEditAsync(5, repo: "owner/repo");
+        var result = await _handler.GhDiscussionEditAsync(5, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("需要 title 或 body");
@@ -621,7 +621,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task DiscussionEdit_IdQueryFails_ReturnsError() {
         _api.NextResponse = new GitHubApiResponse { Success = false, StatusCode = 404, Error = "Discussion 不存在" };
 
-        var result = await _handler.GhDiscussionEditAsync(5, title: "新标题", repo: "owner/repo");
+        var result = await _handler.GhDiscussionEditAsync(5, title: "新标题", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("Discussion 不存在");
@@ -631,7 +631,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task DiscussionComment_IdQueryFails_ReturnsError() {
         _api.NextResponse = new GitHubApiResponse { Success = false, StatusCode = 404, Error = "Discussion 不存在" };
 
-        var result = await _handler.GhDiscussionCommentAsync(7, "评论内容", repo: "owner/repo");
+        var result = await _handler.GhDiscussionCommentAsync(7, "评论内容", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("Discussion 不存在");

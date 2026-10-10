@@ -10,16 +10,15 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhGistList, "列出当前用户的 Gist", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhGistListAsync(
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
         var result = await _apiClient.SendAsync(HttpMethod.Get, "gists", query: query, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        if (!string.IsNullOrEmpty(json_fields)) return Ok(FilterJsonFields(result.Body, json_fields));
-        if (verbosity == 2) return Ok(result.Body);
-        if (verbosity == 1) return Ok(FilterJsonFields(result.Body, "id,description,public"));
+        if (common?.JsonFields is { } jf && !string.IsNullOrEmpty(jf)) return Ok(FilterJsonFields(result.Body, jf));
+        if (common?.Verbosity == 2) return Ok(result.Body);
+        if (common?.Verbosity == 1) return Ok(FilterJsonFields(result.Body, "id,description,public"));
         var gists = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.ListGistListItem);
         return gists is null ? Fail("解析 Gist 列表失败") : Ok(SummarizeGistList(gists));
     }
@@ -40,15 +39,14 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhGistView, "查看 Gist 详情", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhGistViewAsync(
         [McpToolParameter("Gist ID", Required = true)] string gist_id,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"gists/{gist_id}", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        if (!string.IsNullOrEmpty(json_fields)) return Ok(FilterJsonFields(result.Body, json_fields));
-        if (verbosity == 2) return Ok(result.Body);
-        if (verbosity == 1) return Ok(FilterJsonFields(result.Body, "id,description,html_url"));
+        if (common?.JsonFields is { } jf && !string.IsNullOrEmpty(jf)) return Ok(FilterJsonFields(result.Body, jf));
+        if (common?.Verbosity == 2) return Ok(result.Body);
+        if (common?.Verbosity == 1) return Ok(FilterJsonFields(result.Body, "id,description,html_url"));
         var gist = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.GistResponse);
         return gist is null ? Fail("解析 Gist 详情失败") : Ok(SummarizeGistView(gist));
     }

@@ -10,14 +10,13 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhOrgList, "列出当前用户的组织", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhOrgListAsync(
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/orgs", query: query, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeOrgList, "login,description"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeOrgList, "login,description"));
     }
 
     /// <summary>
@@ -41,13 +40,12 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhSshKeyList, "列出 SSH Key", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhSshKeyListAsync(
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/keys", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeSshKeyList, "id,title"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSshKeyList, "id,title"));
     }
 
     /// <summary>
@@ -97,13 +95,12 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhGpgKeyList, "列出 GPG Key", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhGpgKeyListAsync(
-        [McpToolParameter(WellKnownParam.JsonFields)] string? json_fields = null,
-        [McpToolParameter(WellKnownParam.Verbosity)] int? verbosity = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/gpg_keys", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, verbosity, json_fields, SummarizeGpgKeyList, "id,key_id,public_key"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeGpgKeyList, "id,key_id,public_key"));
     }
 
     /// <summary>

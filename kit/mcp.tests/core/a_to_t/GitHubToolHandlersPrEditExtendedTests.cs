@@ -5,7 +5,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task PrEdit_AddLabel_PostsToLabelsEndpoint() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" });
 
-        await _handler.GhPrEditAsync("42", add_label: "bug,enhancement", repo: "owner/repo");
+        await _handler.GhPrEditAsync("42", add_label: "bug,enhancement", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastMethod.Should().Be(HttpMethod.Post);
         _api.LastPath.Should().Be("repos/owner/repo/issues/42/labels");
@@ -17,7 +17,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" });
 
-        await _handler.GhPrEditAsync("42", remove_label: "bug,enhancement", repo: "owner/repo");
+        await _handler.GhPrEditAsync("42", remove_label: "bug,enhancement", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastMethod.Should().Be(HttpMethod.Delete);
         _api.LastPath.Should().Be("repos/owner/repo/issues/42/labels/enhancement");
@@ -30,7 +30,7 @@ public sealed partial class GitHubToolHandlersTests {
         await fs.WriteAllTextAsync("/tmp/pr_body.md", "Updated PR body from file");
         var handler = new GitHubToolHandlers(new FakeDownloader(), fs, _api, null, NullLogger<GitHubToolHandlers>.Instance);
 
-        await handler.GhPrEditAsync("42", body_file: "/tmp/pr_body.md", repo: "owner/repo");
+        await handler.GhPrEditAsync("42", body_file: "/tmp/pr_body.md", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastMethod.Should().Be(HttpMethod.Patch);
         _api.LastPath.Should().Be("repos/owner/repo/pulls/42");
@@ -39,7 +39,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task PrEdit_BodyFileNotFound_ReturnsError() {
-        var result = await _handler.GhPrEditAsync("42", body_file: "/nonexistent/body.md", repo: "owner/repo");
+        var result = await _handler.GhPrEditAsync("42", body_file: "/nonexistent/body.md", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("body_file 不存在");
@@ -50,7 +50,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"title":"v1.0","number":5},{"title":"v2.0","number":8}]""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
 
-        await _handler.GhPrEditAsync("42", milestone: "v1.0", repo: "owner/repo");
+        await _handler.GhPrEditAsync("42", milestone: "v1.0", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastMethod.Should().Be(HttpMethod.Patch);
         _api.LastPath.Should().Be("repos/owner/repo/issues/42");
@@ -61,7 +61,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task PrEdit_MilestoneNotFound_ReturnsError() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"title":"v1.0","number":5}]""" });
 
-        var result = await _handler.GhPrEditAsync("42", milestone: "nonexistent", repo: "owner/repo");
+        var result = await _handler.GhPrEditAsync("42", milestone: "nonexistent", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("未找到里程碑");
@@ -71,7 +71,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task PrEdit_RemoveMilestone_PatchesWithNullMilestone() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
 
-        await _handler.GhPrEditAsync("42", remove_milestone: true, repo: "owner/repo");
+        await _handler.GhPrEditAsync("42", remove_milestone: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastMethod.Should().Be(HttpMethod.Patch);
         _api.LastPath.Should().Be("repos/owner/repo/issues/42");
@@ -84,7 +84,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"organization":{"projectsV2":{"nodes":[{"id":"PVT_1","title":"Roadmap"}]}}}}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"addProjectV2ItemById":{"item":{"id":"PVTI_1"}}}}""" });
 
-        await _handler.GhPrEditAsync("42", add_project: "Roadmap", repo: "owner/repo");
+        await _handler.GhPrEditAsync("42", add_project: "Roadmap", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastMethod.Should().Be(HttpMethod.Post);
         _api.LastPath.Should().Be("graphql");
@@ -98,7 +98,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"node":{"items":{"nodes":[{"id":"PVTI_1","content":{"id":"PR_kw123"}}]}}}}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"deleteProjectV2Item":{"clientMutationId":null}}}""" });
 
-        await _handler.GhPrEditAsync("42", remove_project: "Roadmap", repo: "owner/repo");
+        await _handler.GhPrEditAsync("42", remove_project: "Roadmap", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastMethod.Should().Be(HttpMethod.Post);
         _api.LastPath.Should().Be("graphql");
@@ -115,7 +115,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = """{"url":"https://github.com/user-attachments/assets/abc123"}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
 
-        var result = await handler.GhPrEditAsync("42", attach: "/tmp/screenshot.png", repo: "owner/repo");
+        var result = await handler.GhPrEditAsync("42", attach: "/tmp/screenshot.png", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastMethod.Should().Be(HttpMethod.Patch);

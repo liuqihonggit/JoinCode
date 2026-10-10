@@ -21,6 +21,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("是否分页(默认 false,结果多时启用)", Required = false)] bool? paginate = null,
         [McpToolParameter("最大输出行数(默认 500,超出截断)", Required = false)] int? max_lines = null,
         [McpToolParameter("工作目录(可选,REST API 直调时忽略,保留兼容性)", Required = false)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) {
             return ToolResultBuilder.Error().WithText("GitHub REST API 客户端未配置（IGitHubApiClient 未注入，请检查 DI 注册）").Build();

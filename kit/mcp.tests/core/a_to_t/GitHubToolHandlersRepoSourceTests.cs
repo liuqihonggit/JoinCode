@@ -32,7 +32,7 @@ public sealed partial class GitHubToolHandlersTests {
         var git = new FakeGitCommandRunner();
         var handler = CreateHandlerWithGitAndApi(git, api);
 
-        await handler.GhRepoCreateAsync("myrepo", source: "", working_dir: "/my/work");
+        await handler.GhRepoCreateAsync("myrepo", source: "", common: new GitHubCommonOptions { WorkingDir = "/my/work" });
 
         git.ExecutedCommands.Should().Contain("init");
     }

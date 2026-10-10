@@ -462,44 +462,48 @@ public sealed class GraphToolHandlers {
 
             if (result.Callers.Count > 0) {
                 sb.AppendLine($"Callers ({result.Callers.Count}):");
-                foreach (var c in result.Callers.Take(limit)) {
+                var (callerSlice, callerHasMore, _) = LineRangeReader.Slice(result.Callers, 0, limit);
+                foreach (var c in callerSlice) {
                     sb.AppendLine($"  ← {c}");
                     triples.Add((c, "calls", result.SymbolName));
                 }
-                if (result.Callers.Count > limit)
+                if (callerHasMore)
                     sb.AppendLine($"  ... and {result.Callers.Count - limit} more (pass limit={result.Callers.Count} to see all)");
                 sb.AppendLine();
             }
 
             if (result.Callees.Count > 0) {
                 sb.AppendLine($"Callees ({result.Callees.Count}):");
-                foreach (var c in result.Callees.Take(limit)) {
+                var (calleeSlice, calleeHasMore, _) = LineRangeReader.Slice(result.Callees, 0, limit);
+                foreach (var c in calleeSlice) {
                     sb.AppendLine($"  → {c}");
                     triples.Add((result.SymbolName, "calls", c));
                 }
-                if (result.Callees.Count > limit)
+                if (calleeHasMore)
                     sb.AppendLine($"  ... and {result.Callees.Count - limit} more (pass limit={result.Callees.Count} to see all)");
                 sb.AppendLine();
             }
 
             if (result.SameCommunity.Count > 0) {
                 sb.AppendLine($"Same community ({result.SameCommunity.Count}):");
-                foreach (var c in result.SameCommunity.Take(limit)) {
+                var (communitySlice, communityHasMore, _) = LineRangeReader.Slice(result.SameCommunity, 0, limit);
+                foreach (var c in communitySlice) {
                     sb.AppendLine($"  ~ {c}");
                     triples.Add((result.SymbolName, "sameCommunity", c));
                 }
-                if (result.SameCommunity.Count > limit)
+                if (communityHasMore)
                     sb.AppendLine($"  ... and {result.SameCommunity.Count - limit} more (pass limit={result.SameCommunity.Count} to see all)");
                 sb.AppendLine();
             }
 
             if (result.SameFile.Count > 0) {
                 sb.AppendLine($"Same file ({result.SameFile.Count}):");
-                foreach (var c in result.SameFile.Take(limit)) {
+                var (fileSlice, fileHasMore, _) = LineRangeReader.Slice(result.SameFile, 0, limit);
+                foreach (var c in fileSlice) {
                     sb.AppendLine($"  # {c}");
                     triples.Add((result.SymbolName, "sameFile", c));
                 }
-                if (result.SameFile.Count > limit)
+                if (fileHasMore)
                     sb.AppendLine($"  ... and {result.SameFile.Count - limit} more (pass limit={result.SameFile.Count} to see all)");
             }
 

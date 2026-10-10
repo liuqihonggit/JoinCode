@@ -240,7 +240,7 @@ public sealed class CodeIndexToolHandlers {
 
             var sb = new System.Text.StringBuilder();
             var totalCount = references.Count;
-            var toShow = references.Take(limit).ToList();
+            var (toShow, hasMore, _) = LineRangeReader.Slice(references, 0, limit);
             sb.AppendLine(L.T(StringKey.FoundReferencesCount, totalCount));
             sb.AppendLine();
 
@@ -256,7 +256,7 @@ public sealed class CodeIndexToolHandlers {
                 sb.AppendLine();
             }
 
-            if (totalCount > limit)
+            if (hasMore)
                 sb.AppendLine($"... and {totalCount - limit} more (pass limit={totalCount} to see all)");
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
@@ -291,7 +291,7 @@ public sealed class CodeIndexToolHandlers {
 
             var sb = new System.Text.StringBuilder();
             var totalCount = callers.Count;
-            var toShow = callers.Take(limit).ToList();
+            var (toShow, hasMore, _) = LineRangeReader.Slice(callers, 0, limit);
             sb.AppendLine(L.T(StringKey.CallersOfSymbol, symbol_name, totalCount));
             sb.AppendLine();
 
@@ -302,7 +302,7 @@ public sealed class CodeIndexToolHandlers {
                 sb.AppendLine();
             }
 
-            if (totalCount > limit)
+            if (hasMore)
                 sb.AppendLine($"... and {totalCount - limit} more (pass limit={totalCount} to see all)");
 
             sb.AppendLine("Triples:");
@@ -341,7 +341,7 @@ public sealed class CodeIndexToolHandlers {
 
             var sb = new System.Text.StringBuilder();
             var totalCount = callees.Count;
-            var toShow = callees.Take(limit).ToList();
+            var (toShow, hasMore, _) = LineRangeReader.Slice(callees, 0, limit);
             sb.AppendLine(L.T(StringKey.CalleesOfSymbol, symbol_name, totalCount));
             sb.AppendLine();
 
@@ -352,7 +352,7 @@ public sealed class CodeIndexToolHandlers {
                 sb.AppendLine();
             }
 
-            if (totalCount > limit)
+            if (hasMore)
                 sb.AppendLine($"... and {totalCount - limit} more (pass limit={totalCount} to see all)");
 
             sb.AppendLine("Triples:");

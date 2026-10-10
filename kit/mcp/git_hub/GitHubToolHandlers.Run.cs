@@ -559,7 +559,7 @@ public partial class GitHubToolHandlers {
         if (sectionLines is null)
             return Ok($"未找到步骤 '{expandStep}' 或 section '{sectionType}'，建议先 expand=step:{expandStep} 查看 section 摘要");
 
-        var (secText, secHasMore) = GitHubRunLogFilter.SkipAndTruncate(sectionLines, maxLines, skip);
+        var (secText, secHasMore) = GitHubRunLogFilter.SkipAndTruncate(sectionLines, maxLines, skip, _compactLinePrefix);
         if (secHasMore)
             secText += GitHubRunLogHints.TruncatedHint;
         if (GitHubRunLogFilter.HasNoStackTrace(secText))

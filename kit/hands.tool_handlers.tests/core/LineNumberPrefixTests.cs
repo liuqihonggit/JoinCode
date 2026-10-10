@@ -102,4 +102,63 @@ public class LineNumberPrefixTests {
         LineNumberFormatter.FormatMultiLine("", 1, compact: true).Should().BeEmpty();
         LineNumberFormatter.FormatMultiLine("", 1, compact: false).Should().BeEmpty();
     }
+
+    [Fact]
+    public void LineRangeReader_Slice_BasicTruncation() {
+        var lines = new[] { "a", "b", "c", "d", "e" };
+        var (range, hasMore, nextSkip) = LineRangeReader.Slice(lines, skipLines: 1, maxLines: 2);
+        range.Should().Equal("b", "c");
+        hasMore.Should().BeTrue();
+        nextSkip.Should().Be(3);
+    }
+
+    [Fact]
+    public void LineRangeReader_Slice_SkipAll_ReturnsEmpty() {
+        var lines = new[] { "a", "b" };
+        var (range, hasMore, nextSkip) = LineRangeReader.Slice(lines, skipLines: 5, maxLines: 10);
+        range.Should().BeEmpty();
+        hasMore.Should().BeFalse();
+        nextSkip.Should().Be(5);
+    }
+
+    [Fact]
+    public void LineRangeReader_Read_Compact_UsesTabSeparator() {
+        var lines = new[] { "first", "second" };
+        var result = LineRangeReader.Read(lines, skipLines: 0, maxLines: 10, compactLinePrefix: true);
+        result.Text.Should().Contain("1\tfirst");
+        result.Text.Should().Contain("2\tsecond");
+        result.HasMore.Should().BeFalse();
+    }
+
+    [Fact]
+    public void LineRangeReader_Read_Wide_UsesArrowSeparator() {
+        var lines = new[] { "first", "second" };
+        var result = LineRangeReader.Read(lines, skipLines: 0, maxLines: 10, compactLinePrefix: false);
+        result.Text.Should().Contain("     1\u2192first");
+        result.Text.Should().Contain("     2\u2192second");
+    }
+
+    [Fact]
+    public void LineRangeReader_Read_HasMore_ContinueHint() {
+        var lines = new[] { "a", "b", "c", "d", "e" };
+        var result = LineRangeReader.Read(lines, skipLines: 0, maxLines: 2, compactLinePrefix: true);
+        result.HasMore.Should().BeTrue();
+        result.NextSkip.Should().Be(2);
+        result.Text.Should().Contain("skip_lines=2");
+    }
+
+    [Fact]
+    public void LineRangeReader_Read_EmptyLines_ReturnsEmpty() {
+        var result = LineRangeReader.Read([], skipLines: 0, maxLines: 10, compactLinePrefix: true);
+        result.Text.Should().BeEmpty();
+        result.HasMore.Should().BeFalse();
+    }
+
+    [Fact]
+    public void LineRangeReader_Read_WithSkip_LineNumbersAreGlobal() {
+        var lines = new[] { "a", "b", "c", "d", "e" };
+        var result = LineRangeReader.Read(lines, skipLines: 2, maxLines: 2, compactLinePrefix: true);
+        result.Text.Should().Contain("3\tc");
+        result.Text.Should().Contain("4\td");
+    }
 }

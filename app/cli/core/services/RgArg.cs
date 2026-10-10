@@ -47,6 +47,22 @@ public enum RgArg {
     [CliOption("only-matching", "-o", "只输出匹配部分", Category = "输出")]
     OnlyMatching,
 
+    /// <summary>反向匹配（输出不匹配的行）</summary>
+    [CliOption("invert-match", "-v", "反向匹配(输出不匹配的行)", Category = "输出")]
+    InvertMatch,
+
+    /// <summary>整行匹配（pattern 必须匹配整行）</summary>
+    [CliOption("line-regexp", "-x", "整行匹配", Category = "输出")]
+    LineRegexp,
+
+    /// <summary>多模式交替（可重复，OR 合并）</summary>
+    [CliOption("regexp", "-e", "多模式交替(可重复,OR 合并)", AcceptsValue = true, Category = "输出")]
+    Regexp,
+
+    /// <summary>每文件最大匹配数（达到后跳过剩余行）</summary>
+    [CliOption("max-count", "-m", "每文件最大匹配数", AcceptsValue = true, Category = "输出")]
+    MaxCount,
+
     /// <summary>替换匹配文本</summary>
     [CliOption("replace", "-r", "替换匹配文本", AcceptsValue = true, Category = "输出")]
     Replace,
@@ -76,7 +92,7 @@ public enum RgArg {
     FixedStrings,
 
     /// <summary>输出匹配行</summary>
-    [CliOption("content", "", "输出匹配行", Category = "输出")]
+    [CliOption("content", "", "输出匹配行(默认)", Category = "输出")]
     Content,
 
     /// <summary>输出匹配计数</summary>
@@ -84,7 +100,7 @@ public enum RgArg {
     Count,
 
     /// <summary>只输出文件名</summary>
-    [CliOption("files-with-matches", "-l", "只输出文件名(默认)", Category = "输出")]
+    [CliOption("files-with-matches", "-l", "只输出文件名", Category = "输出")]
     FilesWithMatches,
 
     /// <summary>限制结果数</summary>

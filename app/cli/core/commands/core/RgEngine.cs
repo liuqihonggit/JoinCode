@@ -174,17 +174,27 @@ internal static class RgEngine {
             if (fileInfo.Length == 0)
                 return null;
 
-            string content;
+            byte[] bytes;
             if (fileInfo.Length >= MmapThresholdBytes) {
-                content = ReadViaMmap(path);
+                using var reader = MappedFileReader.Open(path);
+                bytes = reader.ToArray();
             } else {
-                content = File.ReadAllText(path);
+                bytes = File.ReadAllBytes(path);
             }
 
-            if (ContainsNullByte(content))
+            var bomLen = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
+            var dataSpan = bytes.AsSpan(bomLen);
+
+            if (ContainsNullByte(dataSpan))
                 return null;
 
-            return SearchContent(path, content, regex, q, ct);
+            if (IsAscii(dataSpan)) {
+                var charSpan = MemoryMarshal.Cast<byte, char>(dataSpan);
+                return SearchContent(path, charSpan, regex, q, ct);
+            }
+
+            var content = Encoding.UTF8.GetString(bytes, bomLen, bytes.Length - bomLen);
+            return SearchContent(path, content.AsSpan(), regex, q, ct);
         } catch (OperationCanceledException) {
             throw;
         } catch {
@@ -192,48 +202,52 @@ internal static class RgEngine {
         }
     }
 
-    /// <summary>
-    /// mmap 零拷贝读取文件内容。用 MappedFileReader 封装，using 释放句柄。
-    /// </summary>
-    private static string ReadViaMmap(string path) {
-        using var reader = MappedFileReader.Open(path);
-        return reader.ReadToEnd();
-    }
-
-    private static bool ContainsNullByte(string content) {
-        var sampleLen = Math.Min(content.Length, BinaryDetectionBufferSize);
+    private static bool ContainsNullByte(ReadOnlySpan<byte> data) {
+        var sampleLen = Math.Min(data.Length, BinaryDetectionBufferSize);
         for (var i = 0; i < sampleLen; i++) {
-            if (content[i] == '\0')
+            if (data[i] == 0)
                 return true;
         }
         return false;
     }
 
+    private static bool IsAscii(ReadOnlySpan<byte> data) {
+        var sampleLen = Math.Min(data.Length, BinaryDetectionBufferSize);
+        for (var i = 0; i < sampleLen; i++) {
+            if (data[i] >= 0x80)
+                return false;
+        }
+        return true;
+    }
+
     /// <summary>
     /// 搜索文件内容。Span 零分配遍历行，Regex.IsMatch(span) 匹配。
     /// </summary>
-    private static RgFileResult? SearchContent(string path, string content, Regex regex, RgQuery q, CancellationToken ct) {
-        var contentSpan = content.AsSpan();
+    private static RgFileResult? SearchContent(string path, ReadOnlySpan<char> contentSpan, Regex regex, RgQuery q, CancellationToken ct) {
         var lineRanges = LineSpanIndexer.BuildLineRanges(contentSpan, ct);
 
         var matchedLines = new List<int>();
         if (q.Multiline) {
-            var seen = new HashSet<int>();
-            var matches = regex.Matches(content);
-            foreach (Match m in matches) {
-                if (!m.Success)
-                    continue;
-                var lineIdx = LineSpanIndexer.FindLineIndex(lineRanges, m.Index);
-                if (lineIdx >= 0 && seen.Add(lineIdx))
-                    matchedLines.Add(lineIdx);
-            }
+            matchedLines = CollectMultilineMatches(contentSpan, regex, lineRanges, q);
         } else {
+            var fastFixed = q.FixedStrings && !q.CaseInsensitive && !q.WordRegexp && !q.SmartCase;
+            var patternSpan = fastFixed ? q.Pattern.AsSpan() : default;
+
             for (var i = 0; i < lineRanges.Count; i++) {
                 var (s, l) = lineRanges[i];
                 if (l == 0)
                     continue;
-                if (regex.IsMatch(contentSpan.Slice(s, l)))
+
+                var lineSpan = contentSpan.Slice(s, l);
+                var isMatch = fastFixed
+                    ? lineSpan.IndexOf(patternSpan) >= 0
+                    : regex.IsMatch(lineSpan);
+
+                if (isMatch != q.InvertMatch)
                     matchedLines.Add(i);
+
+                if (q.MaxCount is int mc && matchedLines.Count >= mc)
+                    break;
             }
         }
 
@@ -277,6 +291,36 @@ internal static class RgEngine {
         }
 
         return new RgFileResult(path, matchedLines.Count, contentLines);
+    }
+
+    private static List<int> CollectMultilineMatches(
+        ReadOnlySpan<char> contentSpan, Regex regex,
+        List<(int Start, int Length)> lineRanges, RgQuery q) {
+        var seen = new HashSet<int>();
+        foreach (var m in regex.EnumerateMatches(contentSpan)) {
+            var lineIdx = LineSpanIndexer.FindLineIndex(lineRanges, m.Index);
+            if (lineIdx >= 0)
+                seen.Add(lineIdx);
+        }
+
+        var result = new List<int>();
+        if (!q.InvertMatch) {
+            foreach (var lineIdx in seen.OrderBy(x => x)) {
+                result.Add(lineIdx);
+                if (q.MaxCount is int mc && result.Count >= mc)
+                    break;
+            }
+            return result;
+        }
+
+        for (var i = 0; i < lineRanges.Count; i++) {
+            if (seen.Contains(i) || lineRanges[i].Length == 0)
+                continue;
+            result.Add(i);
+            if (q.MaxCount is int mc && result.Count >= mc)
+                break;
+        }
+        return result;
     }
 
     private static List<RgFileResult> ApplySort(ConcurrentBag<RgFileResult> results, string? sort) {
@@ -333,7 +377,10 @@ internal sealed record RgQuery(
     int? HeadLimit,
     int? Offset,
     SearchOutputMode OutputMode,
-    string? Sort);
+    string? Sort,
+    bool InvertMatch,
+    bool LineRegexp,
+    int? MaxCount);
 
 /// <summary>单文件搜索结果</summary>
 internal sealed record RgFileResult(string FilePath, int MatchCount, IReadOnlyList<string>? ContentLines);

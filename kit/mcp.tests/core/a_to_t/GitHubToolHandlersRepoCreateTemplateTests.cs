@@ -15,7 +15,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RepoSync_WithSourceParameter_RoutesToMergeUpstream() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
 
-        var result = await _handler.GhRepoSyncAsync(branch: "main", source: "upstream/repo", repo: "owner/repo");
+        var result = await _handler.GhRepoSyncAsync(branch: "main", source: "upstream/repo", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastPath.Should().Be("repos/owner/repo/merge-upstream");

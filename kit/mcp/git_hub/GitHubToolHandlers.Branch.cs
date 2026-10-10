@@ -16,13 +16,12 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhBranchSyncProtectionAsync(
         [McpToolParameter("分支名(默认 main)", Required = false)] string? branch = null,
         [McpToolParameter("CI yml 路径(可选,默认自动从 ci.yml 解析所有 workflow)", Required = false)] string? yml_path = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
         [McpToolParameter("试跑模式(只显示差异不实际修改)", Required = false)] bool? dry_run = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var branchName = string.IsNullOrWhiteSpace(branch) ? "main" : branch;
-            var workingDir = string.IsNullOrWhiteSpace(working_dir) ? Environment.CurrentDirectory : working_dir;
+            var workingDir = common?.WorkingDir is { } wd && !string.IsNullOrWhiteSpace(wd) ? wd : Environment.CurrentDirectory;
             var isDryRun = dry_run == true;
 
             var allCiCheckNames = await ExtractAllCiCheckNamesAsync(workingDir, yml_path, cancellationToken).ConfigureAwait(false);
@@ -62,13 +61,12 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhBranchAuditProtectionAsync(
         [McpToolParameter("分支名(默认 main)", Required = false)] string? branch = null,
         [McpToolParameter("CI yml 路径(默认 .github/workflows/ci-unit-tests.yml)", Required = false)] string? yml_path = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var branchName = string.IsNullOrWhiteSpace(branch) ? "main" : branch;
             var ymlPath = string.IsNullOrWhiteSpace(yml_path) ? ".github/workflows/ci-unit-tests.yml" : yml_path;
-            var workingDir = string.IsNullOrWhiteSpace(working_dir) ? Environment.CurrentDirectory : working_dir;
+            var workingDir = common?.WorkingDir is { } wd && !string.IsNullOrWhiteSpace(wd) ? wd : Environment.CurrentDirectory;
             var fullPath = Path.Combine(workingDir, ymlPath);
             var auditor = new BranchProtectionAuditor(client, _fs);
             var result = await auditor.AuditAsync(owner, repoName, branchName, fullPath, cancellationToken).ConfigureAwait(false);

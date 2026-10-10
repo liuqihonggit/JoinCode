@@ -40,11 +40,10 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhSecretSetAsync(
         [McpToolParameter("Secret 名称", Required = true)] string name,
         [McpToolParameter("Secret 值", Required = false)] string? body = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
         [McpToolParameter("环境名(可选,设置环境 Secret)", Required = false)] string? env = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             if (string.IsNullOrEmpty(body)) return Fail("Secret 值不能为空");
             var publicKeyPath = string.IsNullOrEmpty(env)
                 ? $"repos/{owner}/{repoName}/actions/secrets/public-key"
@@ -79,10 +78,9 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhSecretDelete, "删除 Secret", "github")]
     public async Task<ToolResult> GhSecretDeleteAsync(
         [McpToolParameter("Secret 名称", Required = true)] string name,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/secrets/{name}", ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok($"已删除 Secret {name}") : Fail(result.Error);
         }).ConfigureAwait(false);
@@ -108,10 +106,9 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhVariableGet, "获取 Variable 值", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhVariableGetAsync(
         [McpToolParameter("Variable 名称", Required = true)] string name,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/variables/{name}", ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
             try {
@@ -127,10 +124,9 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhVariableSetAsync(
         [McpToolParameter("Variable 名称", Required = true)] string name,
         [McpToolParameter("Variable 值", Required = true)] string body,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var jsonBody = JsonSerializer.Serialize(new VariableSetRequest { Name = name, Value = body }, GitHubApiJsonContext.Safe.VariableSetRequest);
             var putResult = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/actions/variables/{name}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             if (putResult.Success) return Ok($"已更新 Variable {name}");
@@ -144,10 +140,9 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhVariableDelete, "删除 Variable", "github")]
     public async Task<ToolResult> GhVariableDeleteAsync(
         [McpToolParameter("Variable 名称", Required = true)] string name,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/variables/{name}", ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? Ok($"已删除 Variable {name}") : Fail(result.Error);
         }).ConfigureAwait(false);

@@ -50,10 +50,9 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("颜色(6 字符 hex,如 ff0000,可选)", Required = false)] string? color = null,
         [McpToolParameter("描述(可选)", Required = false)] string? description = null,
         [McpToolParameter("force=true 已存在则更新(默认 false)", Required = false)] bool? force = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var request = new LabelCreateRequest { Name = name, Color = color, Description = description };
             var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.LabelCreateRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/labels", jsonBody, ct: cancellationToken).ConfigureAwait(false);
@@ -72,10 +71,9 @@ public partial class GitHubToolHandlers {
     public async Task<ToolResult> GhLabelDeleteAsync(
         [McpToolParameter("标签名", Required = true)] string name,
         [McpToolParameter("是否跳过确认(默认 false)", Required = false)] bool? yes = null,
-        [McpToolParameter(WellKnownParam.Repo)] string? repo = null,
-        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
-        => await ExecuteGhAsync(repo, working_dir, cancellationToken, async (client, owner, repoName) => {
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             if (yes != true) return Fail("删除标签需要 yes=true 确认");
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/labels/{Uri.EscapeDataString(name)}", ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已删除标签 {name}") : Fail(result.Error);

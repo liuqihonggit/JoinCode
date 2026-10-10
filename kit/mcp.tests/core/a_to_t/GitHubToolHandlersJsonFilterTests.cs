@@ -130,7 +130,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task IssueView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":3,"title":"issue","state":"open","body":"desc"}""" };
 
-        var result = await _handler.GhIssueViewAsync("3", json_fields: "number,title", repo: "owner/repo");
+        var result = await _handler.GhIssueViewAsync("3", common: new GitHubCommonOptions { Repo = "owner/repo", JsonFields = "number,title" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
@@ -156,7 +156,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RepoList_WithJson_ReturnsCustomFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","full_name":"o/r1","language":"C#","fork":false}]""" };
 
-        var result = await _handler.GhRepoListAsync(json_fields: "name,language", repo: "owner/repo");
+        var result = await _handler.GhRepoListAsync(common: new GitHubCommonOptions { Repo = "owner/repo", JsonFields = "name,language" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;

@@ -94,7 +94,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.EnqueueResponse(new GitHubApiResponse { Success = false, StatusCode = 404, Body = "" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 201, Body = "{}" });
 
-        var result = await _handler.GhVariableSetAsync("NAME", "value", repo: "owner/repo");
+        var result = await _handler.GhVariableSetAsync("NAME", "value", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastBody.Should().Contain("\"name\":\"NAME\"");
@@ -103,7 +103,7 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task SecretSet_EmptyBody_ReturnsFail() {
-        var result = await _handler.GhSecretSetAsync("MY_SECRET", body: null, repo: "owner/repo");
+        var result = await _handler.GhSecretSetAsync("MY_SECRET", body: null, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
     }
@@ -112,7 +112,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task SecretSet_PublicKeyFetchFails_ReturnsFail() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = false, StatusCode = 404, Body = "not found" });
 
-        var result = await _handler.GhSecretSetAsync("MY_SECRET", "val", repo: "owner/repo");
+        var result = await _handler.GhSecretSetAsync("MY_SECRET", "val", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeTrue();
     }
@@ -121,7 +121,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task SecretDelete_DeletesSecret() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 204, Body = "" };
 
-        var result = await _handler.GhSecretDeleteAsync("MY_SECRET", repo: "owner/repo");
+        var result = await _handler.GhSecretDeleteAsync("MY_SECRET", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         _api.LastMethod.Should().Be(HttpMethod.Delete);

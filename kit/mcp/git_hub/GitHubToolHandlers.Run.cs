@@ -741,6 +741,17 @@ public partial class GitHubToolHandlers {
     /// <para>fail_fast=true:委托 GhRunWaitFailFastAsync 做 job 级别监控</para>
     /// </summary>
     private async Task<ToolResult> GhRunWaitCoreAsync(IGitHubApiClient client, string owner, string repoName, string runId, int? timeoutSeconds, int? pollIntervalSeconds, bool failFast, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
+        var tracker = GhTimingTracker.CurrentTimer.Value;
+        var prevCacheDisabled = tracker?.CacheDisabled ?? false;
+        if (tracker is not null) tracker.CacheDisabled = true;
+        try {
+            return await GhRunWaitCoreInnerAsync(client, owner, repoName, runId, timeoutSeconds, pollIntervalSeconds, failFast, workingDir, ct, onProgress).ConfigureAwait(false);
+        } finally {
+            if (tracker is not null) tracker.CacheDisabled = prevCacheDisabled;
+        }
+    }
+
+    private async Task<ToolResult> GhRunWaitCoreInnerAsync(IGitHubApiClient client, string owner, string repoName, string runId, int? timeoutSeconds, int? pollIntervalSeconds, bool failFast, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
         var timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds ?? 1800, 1, 7200));
         var initialInterval = TimeSpan.FromSeconds(Math.Clamp(pollIntervalSeconds ?? 5, 1, 60));
         if (failFast)

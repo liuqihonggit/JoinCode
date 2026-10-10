@@ -529,6 +529,17 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private async Task<ToolResult> GhPrWaitCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, int? timeoutSeconds, int? pollIntervalSeconds, bool failFast, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
         var number = ParseNumberFromRef(prNumber);
+        var tracker = GhTimingTracker.CurrentTimer.Value;
+        var prevCacheDisabled = tracker?.CacheDisabled ?? false;
+        if (tracker is not null) tracker.CacheDisabled = true;
+        try {
+            return await GhPrWaitCoreInnerAsync(client, owner, repoName, number, timeoutSeconds, pollIntervalSeconds, failFast, workingDir, ct, onProgress).ConfigureAwait(false);
+        } finally {
+            if (tracker is not null) tracker.CacheDisabled = prevCacheDisabled;
+        }
+    }
+
+    private async Task<ToolResult> GhPrWaitCoreInnerAsync(IGitHubApiClient client, string owner, string repoName, string number, int? timeoutSeconds, int? pollIntervalSeconds, bool failFast, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return Fail(prResult.Error);
         string? headSha;

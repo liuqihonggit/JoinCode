@@ -204,7 +204,11 @@ internal static class GitHubRunPoller {
         var data = new JobWatchData { RunStatus = status, RunConclusion = runConclusion, FailedJobIds = failedJobIds, Summary = summary };
 
         if (failedJobIds.Count > 0) return (PollOutcomeKind.FailFast, data, null);
-        if (status == "completed") return (PollOutcomeKind.Completed, data, null);
+        if (status == "completed") {
+            if (runConclusion is "cancelled" or "timed_out" or "failure")
+                return (PollOutcomeKind.FailFast, data, null);
+            return (PollOutcomeKind.Completed, data, null);
+        }
         return (PollOutcomeKind.Continue, data, null);
     }
 

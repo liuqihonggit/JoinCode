@@ -3,12 +3,16 @@ namespace JoinCode.Abstractions.Configuration.Llm;
 
 /// <summary>模型配置根节点。</summary>
 public sealed record ModelConfigRoot {
+    [JsonConstructor]
+    public ModelConfigRoot() { }
     /// <summary>获取或设置供应商配置字典（按供应商名称索引）。</summary>
     public Dictionary<string, ModelProviderConfig> Providers { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>模型供应商配置。</summary>
 public sealed record ModelProviderConfig {
+    [JsonConstructor]
+    public ModelProviderConfig() { }
     /// <summary>获取或设置默认模型 ID。</summary>
     public string DefaultModelId { get; init; } = string.Empty;
     /// <summary>获取或设置默认快速模型 ID。</summary>
@@ -19,6 +23,8 @@ public sealed record ModelProviderConfig {
 
 /// <summary>单个模型项配置。</summary>
 public sealed record ModelItemConfig {
+    [JsonConstructor]
+    public ModelItemConfig() { }
     /// <summary>获取或设置模型 ID。</summary>
     public string Id { get; init; } = string.Empty;
     /// <summary>获取或设置规范 ID。</summary>
@@ -41,6 +47,8 @@ public sealed record ModelItemConfig {
 
 /// <summary>模型能力配置。</summary>
 public sealed record ModelCapabilitiesConfig {
+    [JsonConstructor]
+    public ModelCapabilitiesConfig() { }
     /// <summary>获取或设置是否支持快速模式。</summary>
     public bool FastMode { get; init; } = true;
     /// <summary>获取或设置是否支持努力级别。</summary>
@@ -60,6 +68,8 @@ public sealed record ModelCapabilitiesConfig {
 
 /// <summary>模型定价配置。</summary>
 public sealed record ModelPricingConfig {
+    [JsonConstructor]
+    public ModelPricingConfig() { }
     /// <summary>获取或设置每 1K 提示 token 的费用。</summary>
     public decimal PromptCostPer1K { get; init; }
     /// <summary>获取或设置每 1K 完成 token 的费用。</summary>

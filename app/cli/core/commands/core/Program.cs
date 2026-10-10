@@ -114,7 +114,9 @@ class Program {
                 WriteJsonError(error);
             } else {
             App.ErrorConsole.Warning(ex.Message);
-            Diag.WriteLine($"[CONFIG-ERROR] 完整异常: {ex}");
+            Console.Error.WriteLine($"[CONFIG-ERROR] 完整异常: {ex}");
+            if (ex.InnerException is not null)
+                Console.Error.WriteLine($"[CONFIG-ERROR] InnerException: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
             if (!string.IsNullOrEmpty(ex.ConfigurationKey))
                     Cli.TerminalHelper.WriteError($"  配置项: {ex.ConfigurationKey}");
                 if (!string.IsNullOrEmpty(ex.ConfigurationFilePath))
@@ -130,10 +132,10 @@ class Program {
             // 通用异常 — 记录日志并友好提示
             // 视角2 #27: 使用 ErrorConsole.Fatal 渲染（红色致命错误 + 图标）
             // 诊断: 输出完整异常信息到 stderr（Type + Message + StackTrace + InnerException），供 E2E 测试捕获
-            Diag.WriteLine($"[MAIN] 未捕获异常: {ex.GetType().FullName}: {ex.Message}");
-            Diag.WriteLine($"[MAIN] StackTrace:\n{ex.StackTrace}");
+            Console.Error.WriteLine($"[MAIN] 未捕获异常: {ex.GetType().FullName}: {ex.Message}");
+            Console.Error.WriteLine($"[MAIN] StackTrace:\n{ex.StackTrace}");
             if (ex.InnerException is not null)
-                Diag.WriteLine($"[MAIN] InnerException: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
+                Console.Error.WriteLine($"[MAIN] InnerException: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
 
             var errorLog = await WriteErrorLogAsync(ex, logger: logger).ConfigureAwait(false);
 

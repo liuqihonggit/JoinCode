@@ -21,8 +21,8 @@ accepted
 
 | 函数 | 位置 | 职责 | 行号格式化 | 续读提示 |
 |------|------|------|-----------|---------|
-| `SkipAndTruncate` | `GitHubRunLogFilter.cs:79` | 截断+格式化+提示 | ❌ 硬编码 `\t` | ✅ |
-| `ApplyLimit<T>` | `SearchService.cs:603` | 纯截断列表 | 无 | 无 |
+| `SkipAndTruncate` | `GitHubRunLogFilter.cs:79` | 截断+格式化+提示 | ✅ `LineNumberFormatter` | ✅ |
+| `ApplyLimit<T>` | `SearchService.cs:603` | 纯截断列表 | ✅ `LineRangeReader.Slice<T>` | 无 |
 | FileRead offset | `FileToolHandlers.Read.cs` | FileReader 读取范围 | ✅ | 无 |
 | gh `StreamAndFilter` | `GitHubRunLogFilterRunner.cs` | 流式截断+格式化 | ✅ | ✅ |
 
@@ -39,9 +39,9 @@ accepted
 - 紧凑模式 `行号\t内容` / 箭头模式 `行号→内容`（padStart 6）
 - 配置开关：`FileOperationConfig.CompactLinePrefix`
 
-### 2. `LineRangeReader`（待实现）
+### 2. `LineRangeReader`（已实现，commit `14ba8d20e` + `dfb26ecf4`）
 
-- `Slice(lines, skip, max) → (range, hasMore, nextSkip)` — 纯截断，不格式化
+- `Slice<T>(lines, skip, max) → (range, hasMore, nextSkip)` — 泛型纯截断，不格式化
 - `Read(lines, skip, max, compact) → LineRangeResult` — 截断 + 行号格式化 + 续读提示
 - 统一续读提示格式：`... [共 N 行，显示第 X-Y 行。用 skip_lines=Z 续读后续行]`
 
@@ -49,8 +49,8 @@ accepted
 
 ```
 SkipAndTruncate → LineRangeReader.Read（修复硬编码 \t）
-ApplyLimit      → LineRangeReader.Slice（统一截断逻辑）
-gh StreamAndFilter 截断片段 → LineRangeReader.Read
+ApplyLimit<T>   → LineRangeReader.Slice<T>（统一截断逻辑，泛型化）
+gh StreamAndFilter → 流式截断，行号已用 LineNumberFormatter.Format（Phase 1 统一，无需委托 Slice）
 FileRead offset+limit → LineRangeReader.Slice（截断后由 AddLineNumbers 格式化）
 ```
 
@@ -68,10 +68,10 @@ FileRead offset+limit → LineRangeReader.Slice（截断后由 AddLineNumbers �
 |------|------|--------|
 | Phase 1 | 创建 `LineNumberFormatter` + FileRead/gh 日志委托 | `0395ea254` |
 | Phase 2 | 创建 `LineRangeReader` + `SkipAndTruncate` 委托 | `14ba8d20e` |
-| Phase 3 | `ApplyLimit` 委托给 `LineRangeReader.Slice` | 待实现 |
-| Phase 4 | gh `StreamAndFilter` 截断片段统一 | 待实现 |
+| Phase 3 | `Slice` 泛型化 → `Slice<T>`，`ApplyLimit<T>` 委托给它 | `dfb26ecf4` |
+| Phase 4 | gh `StreamAndFilter` 流式截断无需改动（行号已在 Phase 1 统一） | N/A |
 
 ## 后续
 
-- `LineRangeReader` 实现后，ADR 状态改为 `accepted`
+- ✅ ADR 状态已为 `accepted`
 - AGENTS.md"好代码一键清单"中新增 `LineRangeReader.Read` 作为偏移读取推荐模式

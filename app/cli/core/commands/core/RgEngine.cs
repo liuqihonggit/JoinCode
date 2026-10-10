@@ -10,7 +10,6 @@ namespace JoinCode.CliCommands;
 internal static class RgEngine {
     private const long MmapThresholdBytes = 64 * 1024;
     private const int MaxContentLineLength = 500;
-    private const int BinaryDetectionBufferSize = 8192;
 
     private static ImmutableHamT<string, GitignoreMatcher?> _gitignoreCache = ImmutableHamT<string, GitignoreMatcher?>.Empty.WithComparers(StringComparer.Ordinal);
 
@@ -182,13 +181,13 @@ internal static class RgEngine {
                 bytes = File.ReadAllBytes(path);
             }
 
-            var bomLen = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
+            var bomLen = RgCore.DetectBom(bytes);
             var dataSpan = bytes.AsSpan(bomLen);
 
-            if (ContainsNullByte(dataSpan))
+            if (RgCore.ContainsNullByte(dataSpan))
                 return null;
 
-            if (IsAscii(dataSpan)) {
+            if (RgCore.IsAscii(dataSpan)) {
                 var charSpan = MemoryMarshal.Cast<byte, char>(dataSpan);
                 return SearchContent(path, charSpan, regex, q, ct);
             }
@@ -202,27 +201,6 @@ internal static class RgEngine {
         }
     }
 
-    private static bool ContainsNullByte(ReadOnlySpan<byte> data) {
-        var sampleLen = Math.Min(data.Length, BinaryDetectionBufferSize);
-        for (var i = 0; i < sampleLen; i++) {
-            if (data[i] == 0)
-                return true;
-        }
-        return false;
-    }
-
-    private static bool IsAscii(ReadOnlySpan<byte> data) {
-        var sampleLen = Math.Min(data.Length, BinaryDetectionBufferSize);
-        for (var i = 0; i < sampleLen; i++) {
-            if (data[i] >= 0x80)
-                return false;
-        }
-        return true;
-    }
-
-    /// <summary>
-    /// 搜索文件内容。Span 零分配遍历行，Regex.IsMatch(span) 匹配。
-    /// </summary>
     private static RgFileResult? SearchContent(string path, ReadOnlySpan<char> contentSpan, Regex regex, RgQuery q, CancellationToken ct) {
         var lineRanges = LineSpanIndexer.BuildLineRanges(contentSpan, ct);
 
@@ -315,7 +293,7 @@ internal static class RgEngine {
             return CollectLineMatchesParallel(contentSpan, regex, lineRanges, q, ct);
 
         var matchedLines = new List<int>();
-        var fastFixed = q.FixedStrings && !q.CaseInsensitive && !q.WordRegexp && !q.SmartCase;
+        var fastFixed = RgCore.CanUseFastFixedString(q.FixedStrings, q.CaseInsensitive, q.WordRegexp, q.SmartCase);
         var patternSpan = fastFixed ? q.Pattern.AsSpan() : default;
 
         for (var i = 0; i < lineRanges.Count; i++) {
@@ -324,12 +302,7 @@ internal static class RgEngine {
             if (l == 0)
                 continue;
 
-            var lineSpan = contentSpan.Slice(s, l);
-            var isMatch = fastFixed
-                ? lineSpan.IndexOf(patternSpan) >= 0
-                : regex.IsMatch(lineSpan);
-
-            if (isMatch != q.InvertMatch)
+            if (RgCore.IsLineMatch(contentSpan.Slice(s, l), regex, patternSpan, fastFixed, q.InvertMatch))
                 matchedLines.Add(i);
 
             if (q.MaxCount is int mc && matchedLines.Count >= mc)
@@ -342,7 +315,7 @@ internal static class RgEngine {
         ReadOnlySpan<char> contentSpan, Regex regex,
         List<(int Start, int Length)> lineRanges, RgQuery q, CancellationToken ct) {
         var content = contentSpan.ToString();
-        var fastFixed = q.FixedStrings && !q.CaseInsensitive && !q.WordRegexp && !q.SmartCase;
+        var fastFixed = RgCore.CanUseFastFixedString(q.FixedStrings, q.CaseInsensitive, q.WordRegexp, q.SmartCase);
         var pattern = q.Pattern;
         var degree = q.Threads is > 0 ? q.Threads.Value : Environment.ProcessorCount;
         var chunkSize = Math.Max(1000, lineRanges.Count / degree);
@@ -358,18 +331,14 @@ internal static class RgEngine {
             .Select(chunk => {
                 var chunkMatches = new List<int>();
                 var span = content.AsSpan();
+                var patternSpan = pattern.AsSpan();
 
                 for (var i = chunk.Start; i < chunk.End; i++) {
                     var (s, l) = lineRanges[i];
                     if (l == 0)
                         continue;
 
-                    var lineSpan = span.Slice(s, l);
-                    var isMatch = fastFixed
-                        ? lineSpan.IndexOf(pattern.AsSpan()) >= 0
-                        : regex.IsMatch(lineSpan);
-
-                    if (isMatch != q.InvertMatch)
+                    if (RgCore.IsLineMatch(span.Slice(s, l), regex, patternSpan, fastFixed, q.InvertMatch))
                         chunkMatches.Add(i);
                 }
 

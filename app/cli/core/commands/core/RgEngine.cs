@@ -230,25 +230,7 @@ internal static class RgEngine {
         if (q.Multiline) {
             matchedLines = CollectMultilineMatches(contentSpan, regex, lineRanges, q);
         } else {
-            var fastFixed = q.FixedStrings && !q.CaseInsensitive && !q.WordRegexp && !q.SmartCase;
-            var patternSpan = fastFixed ? q.Pattern.AsSpan() : default;
-
-            for (var i = 0; i < lineRanges.Count; i++) {
-                var (s, l) = lineRanges[i];
-                if (l == 0)
-                    continue;
-
-                var lineSpan = contentSpan.Slice(s, l);
-                var isMatch = fastFixed
-                    ? lineSpan.IndexOf(patternSpan) >= 0
-                    : regex.IsMatch(lineSpan);
-
-                if (isMatch != q.InvertMatch)
-                    matchedLines.Add(i);
-
-                if (q.MaxCount is int mc && matchedLines.Count >= mc)
-                    break;
-            }
+            matchedLines = CollectLineMatches(contentSpan, regex, lineRanges, q, ct);
         }
 
         if (matchedLines.Count == 0)
@@ -321,6 +303,87 @@ internal static class RgEngine {
                 break;
         }
         return result;
+    }
+
+    private const long LineParallelThresholdBytes = 1024 * 1024;
+    private const int LineParallelThresholdLines = 1000;
+
+    private static List<int> CollectLineMatches(
+        ReadOnlySpan<char> contentSpan, Regex regex,
+        List<(int Start, int Length)> lineRanges, RgQuery q, CancellationToken ct) {
+        if (contentSpan.Length >= LineParallelThresholdBytes && lineRanges.Count >= LineParallelThresholdLines)
+            return CollectLineMatchesParallel(contentSpan, regex, lineRanges, q, ct);
+
+        var matchedLines = new List<int>();
+        var fastFixed = q.FixedStrings && !q.CaseInsensitive && !q.WordRegexp && !q.SmartCase;
+        var patternSpan = fastFixed ? q.Pattern.AsSpan() : default;
+
+        for (var i = 0; i < lineRanges.Count; i++) {
+            ct.ThrowIfCancellationRequested();
+            var (s, l) = lineRanges[i];
+            if (l == 0)
+                continue;
+
+            var lineSpan = contentSpan.Slice(s, l);
+            var isMatch = fastFixed
+                ? lineSpan.IndexOf(patternSpan) >= 0
+                : regex.IsMatch(lineSpan);
+
+            if (isMatch != q.InvertMatch)
+                matchedLines.Add(i);
+
+            if (q.MaxCount is int mc && matchedLines.Count >= mc)
+                break;
+        }
+        return matchedLines;
+    }
+
+    private static List<int> CollectLineMatchesParallel(
+        ReadOnlySpan<char> contentSpan, Regex regex,
+        List<(int Start, int Length)> lineRanges, RgQuery q, CancellationToken ct) {
+        var content = contentSpan.ToString();
+        var fastFixed = q.FixedStrings && !q.CaseInsensitive && !q.WordRegexp && !q.SmartCase;
+        var pattern = q.Pattern;
+        var degree = q.Threads is > 0 ? q.Threads.Value : Environment.ProcessorCount;
+        var chunkSize = Math.Max(1000, lineRanges.Count / degree);
+
+        var chunks = new List<(int Start, int End)>();
+        for (var start = 0; start < lineRanges.Count; start += chunkSize)
+            chunks.Add((start, Math.Min(start + chunkSize, lineRanges.Count)));
+
+        var results = chunks
+            .AsParallel()
+            .WithCancellation(ct)
+            .WithDegreeOfParallelism(degree)
+            .Select(chunk => {
+                var chunkMatches = new List<int>();
+                var span = content.AsSpan();
+
+                for (var i = chunk.Start; i < chunk.End; i++) {
+                    var (s, l) = lineRanges[i];
+                    if (l == 0)
+                        continue;
+
+                    var lineSpan = span.Slice(s, l);
+                    var isMatch = fastFixed
+                        ? lineSpan.IndexOf(pattern.AsSpan()) >= 0
+                        : regex.IsMatch(lineSpan);
+
+                    if (isMatch != q.InvertMatch)
+                        chunkMatches.Add(i);
+                }
+
+                return (chunk.Start, chunkMatches);
+            })
+            .OrderBy(r => r.Start)
+            .ToList();
+
+        var allMatches = results.SelectMany(r => r.chunkMatches).ToList();
+
+        if (q.MaxCount is int mc && allMatches.Count > mc)
+            allMatches = allMatches.Take(mc).ToList();
+
+        return allMatches;
     }
 
     private static List<RgFileResult> ApplySort(ConcurrentBag<RgFileResult> results, string? sort) {

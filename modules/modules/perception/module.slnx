@@ -1,9 +1,0 @@
-<Solution>
-  <Project Path="eyes/eyes.csproj" />
-  <Project Path="eyes.tests/eyes.tests.csproj" />
-  <Project Path="vision/vision.csproj" />
-  <Project Path="vision.tests/vision.tests.csproj" />
-  <Project Path="code_index/code_index.csproj" />
-  <Project Path="code_index.tests/code_index.tests.csproj" />
-  <Project Path="code_index.e2e.tests/code_index.e2e.tests.csproj" />
-</Solution>

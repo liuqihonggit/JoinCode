@@ -425,7 +425,7 @@ public partial class GitHubToolHandlers {
                     && secs.TryGetValue(RunLogCache.SectionError, out _);
                 // API conclusion 优先: failure/cancelled/timed_out 也标 ❌
                 if (apiConclusions is not null && apiConclusions.TryGetValue(kvp.Key, out var conclusion)) {
-                    hasError = hasError || conclusion is "failure" or "cancelled" or "timed_out";
+                    hasError = hasError || CiJobSeverityExtensions.FromConclusion(conclusion).IsAnomaly();
                 }
                 var marker = hasError ? "❌ " : "   ";
                 return $"  {marker}{kvp.Value,6} 行  {kvp.Key}";
@@ -477,7 +477,7 @@ public partial class GitHubToolHandlers {
         }
 
         // 成功的 run 不附加(保持简洁)
-        var isFailed = conclusion is "failure" or "cancelled" or "timed_out";
+        var isFailed = CiJobSeverityExtensions.FromConclusion(conclusion).IsAnomaly();
         var isInProgress = string.Equals(status, "in_progress", StringComparison.OrdinalIgnoreCase);
         if (!isFailed && !isInProgress) return baseSummary;
 
@@ -844,10 +844,10 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 判断 conclusion 是否为失败(failure/cancelled/timed_out)
+    /// 判断 conclusion 是否为失败(failure/cancelled/timed_out) — 委托 CiJobSeverity.IsAnomaly 统一实现
     /// </summary>
     private static bool IsFailedConclusion(string conclusion)
-        => conclusion is "failure" or "cancelled" or "timed_out";
+        => CiJobSeverityExtensions.FromConclusion(conclusion).IsAnomaly();
 
     /// <summary>
     /// 启动后台 CI 监控任务 — fire-and-forget,持续轮询 run 的其他 job,新失败 job 写告警到 LSM
@@ -882,7 +882,7 @@ public partial class GitHubToolHandlers {
                         if (resp?.Jobs is not null) {
                             foreach (var job in resp.Jobs) {
                                 if (job.Id == 0) continue;
-                                if (job.Conclusion is not ("failure" or "cancelled" or "timed_out")) continue;
+                                if (!CiJobSeverityExtensions.FromConclusion(job.Conclusion).IsAnomaly()) continue;
                                 lock (reportedJobIds) {
                                     if (reportedJobIds.Contains(job.Id)) continue;
                                     reportedJobIds.Add(job.Id);

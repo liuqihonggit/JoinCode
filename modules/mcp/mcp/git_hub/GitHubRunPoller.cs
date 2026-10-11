@@ -205,7 +205,7 @@ internal static class GitHubRunPoller {
 
         if (failedJobIds.Count > 0) return (PollOutcomeKind.FailFast, data, null);
         if (status == "completed") {
-            if (runConclusion is "cancelled" or "timed_out" or "failure")
+            if (CiJobSeverityExtensions.FromConclusion(runConclusion).IsAnomaly())
                 return (PollOutcomeKind.FailFast, data, null);
             return (PollOutcomeKind.Completed, data, null);
         }
@@ -228,7 +228,7 @@ internal static class GitHubRunPoller {
                     if (status == "queued") queued++; else inProgress++;
                     continue;
                 }
-                if (conclusion is "failure" or "cancelled" or "timed_out") {
+                if (CiJobSeverityExtensions.FromConclusion(conclusion).IsAnomaly()) {
                     failed++;
                     if (job.Id != 0) failedJobIds.Add(job.Id);
                 } else {
@@ -273,12 +273,7 @@ internal static class GitHubRunPoller {
                     pendingCount++;
                     continue;
                 }
-                var display = conclusion switch {
-                    "success" => "pass",
-                    "failure" or "cancelled" or "timed_out" => "fail",
-                    "skipped" or "neutral" => "skipping",
-                    _ => "pending"
-                };
+                var display = CiJobSeverityExtensions.FromConclusion(conclusion, status).ToDisplayShort();
                 switch (display) {
                     case "pass": passCount++; break;
                     case "fail": failCount++; break;

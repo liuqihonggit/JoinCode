@@ -159,7 +159,7 @@ public sealed class TeamManagerActor : ActorBase<TeamCommand, Unit>
 ### 阶段0：任务文档（本阶段）
 
 - [x] 写任务文档
-- [ ] 记录任务到 `docs/refactor/asynclock-file-io-actor-migration.md`
+- [ ] 记录任务到 `(已删除)`
 
 ### 阶段1：P0 — TeamManager Actor 化
 

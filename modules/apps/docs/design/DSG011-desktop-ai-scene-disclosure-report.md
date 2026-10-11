@@ -431,4 +431,4 @@ AI（只看到 1 个工具）
 2. **工具命名**：入口工具叫 `desktop_scene` 还是其他（如 `desktop_act` / `computer_use`）？
 3. **原子工具可见性**：现有 20+ 个桌面工具是否对 AI 隐藏（只留 `desktop_scene` 入口），还是保留可见（高级用户可直接调）？
 4. **状态存储位置**：`~/.jcc/scenarios/` 还是项目内 `.scenarios/`？
-5. **是否先写 ADR**：此方案涉及新增编排层 + 状态持久化机制，按 AGENTS.md 应先写 ADR（`docs/adr/01xx-desktop-scene-orchestration.md`）再实现？
+5. **是否先写 ADR**：此方案涉及新增编排层 + 状态持久化机制，按 AGENTS.md 应先写 ADR（`docs/implemented/adr/data_core_selection/0105-desktop-scene-orchestration.md`）再实现？

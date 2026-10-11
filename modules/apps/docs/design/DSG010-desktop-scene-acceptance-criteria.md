@@ -247,7 +247,7 @@
 
 ## 4. 实现前置条件（验收标准确认后）
 
-1. **写 ADR**：`docs/adr/01xx-desktop-scene-orchestration.md`（架构决策：情景模式+链路推荐 vs 单入口黑盒 vs 纯说明）
+1. **写 ADR**：`docs/implemented/adr/data_core_selection/0105-desktop-scene-orchestration.md`（架构决策：情景模式+链路推荐 vs 单入口黑盒 vs 纯说明）
 2. **TDD 循环**：AC-01 红测试 → 实现 desktop_scene_menu → 绿测试 → 提交 → AC-02...
 3. **不重写原子工具**：复用 `IQuadtreeEncoder`/`IGdiScreenCaptureService`/`IWin32DesktopInputService`/`MultimodalUiElementDetector` 等现有服务
 4. **状态持久化复用**：agent DryRun + 文件中转模式（见 `project-agent-tool-test-mode-no-llm.md`）

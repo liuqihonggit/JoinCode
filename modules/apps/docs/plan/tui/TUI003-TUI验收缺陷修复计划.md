@@ -90,7 +90,7 @@
 - **后果**: 大输出全量重绘卡顿，无滚动定位
 
 #### P2-3: 设计文档与实现脱节
-- **位置**: `docs/plan/TUI架构与消息管道重构设计.md` 描述的 `OnAgentOutput(AgentOutputChunk)` 在 `ITuiComponent` 中未实现（仅有 `OnQueueChanged`/`OnResize`）
+- **位置**: `(已删除)` 描述的 `OnAgentOutput(AgentOutputChunk)` 在 `ITuiComponent` 中未实现（仅有 `OnQueueChanged`/`OnResize`）
 - **后果**: 设计契约未落地，后续维护者误以为已实现
 
 ---

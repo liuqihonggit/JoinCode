@@ -1,6 +1,6 @@
 # 交接文档 07: Execution 剩余工具
 
-> 📍 **导航**: [docs/](../../README.md) › [handoff/](../README.md) › [0080_round3_handoff/](README.md) | **前置**: [ADR 0080](../../implemented/adr/0080-manual-exe-testing-guide.md)
+> 📍 **导航**: [docs/](../../README.md) › [handoff/](../README.md) › [0080_round3_handoff/](README.md) | **前置**: [ADR 0080](../../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md)
 > 🔗 **上游索引**: [handoff/0080_round3_handoff/README.md](README.md) — 修改本文档后须同步更新此索引
 
 > ✅ 全部工具已验证通过（2026-09-09）。无修复需要。

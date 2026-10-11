@@ -9,7 +9,7 @@
 ## 1. 归档 MaxConcurrentAgents 死配置（原 ADR 0049）
 
 - 日期：2026-09-02
-- 关联：[ADR 0048](../implemented/adr/0048-subagent-concurrency-unified-config.md)（子代理并发统一配置）
+- 关联：[ADR 0048](../implemented/adr/security_concurrency/0048-subagent-concurrency-unified-config.md)（子代理并发统一配置）
 
 ### 背景
 

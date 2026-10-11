@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
 > 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> ADR: [0070](../implemented/adr/0070-rg-engine-mmap-plinq.md)
+> ADR: [0070](../implemented/adr/cli_jcc/0070-rg-engine-mmap-plinq.md)
 > 日期：2026-09-06
 
 ## 一、加速方案

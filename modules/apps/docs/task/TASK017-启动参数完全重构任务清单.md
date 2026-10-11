@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
 > 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> ADR: [0069](../implemented/adr/0069-cli-args-full-refactor.md)
+> ADR: [0069](../implemented/adr/cli_jcc/0069-cli-args-full-refactor.md)
 > 渐进式执行：每步编译+测试+提交
 
 ## 阶段1：建机制（不破坏现有）

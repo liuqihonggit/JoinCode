@@ -134,8 +134,8 @@
 
 - 是否需要新建 ADR 记录此架构决策?
 - 与现有 ADR 的关联:
-  - [ADR 0020](../implemented/adr/0020-encapsulation-requirements.md) 封装要求
-  - [ADR 0084](../implemented/adr/0084-platform-windows-env-rules.md) 平台专属操作禁令
+  - [ADR 0020](../implemented/adr/component_strategy/0020-encapsulation-requirements.md) 封装要求
+  - [ADR 0084](../implemented/adr/platform_transport/0084-platform-windows-env-rules.md) 平台专属操作禁令
   - 纵深防御按层按名称组织(AGENTS.md 第6条)
 
 ---

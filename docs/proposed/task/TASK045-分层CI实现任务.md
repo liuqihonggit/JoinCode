@@ -1,6 +1,6 @@
 # ADR 0134 实施任务清单
 
-> ADR: [0134](../implemented/adr/0134-layered-ci-nuget-decouple-incremental.md) — 分层 CI + NuGet 包解耦 + 增量检测
+> ADR: [0134](../implemented/adr/engineering_ci_test/0134-layered-ci-nuget-decouple-incremental.md) — 分层 CI + NuGet 包解耦 + 增量检测
 > 状态：待实施
 
 ## 任务列表

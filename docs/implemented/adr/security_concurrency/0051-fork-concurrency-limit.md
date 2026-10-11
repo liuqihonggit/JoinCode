@@ -6,7 +6,7 @@
 - 状态：accepted
 - 日期：2026-09-02
 - 决策者：项目架构组
-- 关联：[0048](docs/implemented/adr/0048-subagent-concurrency-unified-config.md) | [0050](docs/implemented/adr/0050-spawn-stage-concurrency-limit.md)
+- 关联：[0048](docs/implemented/adr/security_concurrency/0048-subagent-concurrency-unified-config.md) | [0050](docs/implemented/adr/security_concurrency/0050-spawn-stage-concurrency-limit.md)
 - 验证：Agents 编译 0 警告 0 错误，ForkSubAgentManager 测试 12 通过 ✅
 
 ## 背景

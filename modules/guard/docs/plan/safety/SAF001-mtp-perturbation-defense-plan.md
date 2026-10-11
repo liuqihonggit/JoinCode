@@ -1,7 +1,7 @@
 # MTP 扰动下 Agent Bash 纵深防御实施计划
 
 > 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [safety/](README.md)
-> 🔗 **相关 ADR**: [0034](../../archived/adr/0034-command-interception-layered.md) 命令拦截分层 · [0036](../../implemented/adr/0036-defense-in-depth-l1-l10.md) 纵深防御 L1-L10 · [0039](../../implemented/adr/0039-command-interception-state-machine.md) 命令拦截全状态机 · [0047](../../implemented/adr/0047-unified-danger-level-classification.md) 统一危险指令分级
+> 🔗 **相关 ADR**: [0034](../../archived/adr/0034-command-interception-layered.md) 命令拦截分层 · [0036](../../implemented/adr/platform_transport/0036-defense-in-depth-l1-l10.md) 纵深防御 L1-L10 · [0039](../../implemented/adr/state_machine_serialization/0039-command-interception-state-machine.md) 命令拦截全状态机 · [0047](../../implemented/adr/security_concurrency/0047-unified-danger-level-classification.md) 统一危险指令分级
 > 📌 **建议新 ADR**: 0113 — MTP 扰动专项防御（待确认是新建还是补充 0036）
 
 ## 一、背景与目标
@@ -148,7 +148,7 @@ if (rejection is not null) return rejection;
 
 ## 五、实施阶段（渐进式，每步编译+测试+commit）
 
-> ✅ **全部阶段完成** — BashDefense 链已完整接入执行管道。当前组装：`StrictParse + CheckRetainedDevice + CheckRedirectWhitelist + RequireArgvHash`。`MtpPerturbationNode` 已接入 PostToolUse 审计中间件。ADR [0113](../../implemented/adr/0113-mtp-perturbation-bash-defense.md) 已 accepted。
+> ✅ **全部阶段完成** — BashDefense 链已完整接入执行管道。当前组装：`StrictParse + CheckRetainedDevice + CheckRedirectWhitelist + RequireArgvHash`。`MtpPerturbationNode` 已接入 PostToolUse 审计中间件。ADR [0113](../../implemented/adr/data_core_selection/0113-mtp-perturbation-bash-defense.md) 已 accepted。
 
 ### 阶段 1：增强现有守卫 ✅ 完成
 

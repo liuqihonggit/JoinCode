@@ -6,7 +6,7 @@
 - 状态：accepted
 - 日期：2026-09-02
 - 决策者：项目架构组
-- 关联：[0018](docs/archived/adr/0018-loop-detector-state-machine.md) | [0038](docs/implemented/adr/0038-state-machine-flags-guard.md) | [0040](docs/implemented/adr/0040-enterprise-fsm-framework.md) | [0053](docs/implemented/adr/0053-context-compaction-layered-mechanism.md)
+- 关联：[0018](docs/archived/adr/0018-loop-detector-state-machine.md) | [0038](docs/implemented/adr/state_machine_serialization/0038-state-machine-flags-guard.md) | [0040](docs/implemented/adr/state_machine_serialization/0040-enterprise-fsm-framework.md) | [0053](docs/implemented/adr/context_prompt/0053-context-compaction-layered-mechanism.md)
 - 验证：Brain 编译 0 警告 0 错误，Loop 检测器 + LoopInterventionMiddleware 测试全通过 ✅
 
 ## 背景

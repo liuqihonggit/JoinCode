@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
 > 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> ADR: [0072](../implemented/adr/0072-mmap-plinq-span-proliferation.md)
+> ADR: [0072](../implemented/adr/file_io_span/0072-mmap-plinq-span-proliferation.md)
 > 扫描时间: 2026-09-07
 > 状态: 进行中
 

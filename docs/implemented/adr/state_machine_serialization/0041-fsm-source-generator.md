@@ -9,7 +9,7 @@
 - 状态：accepted
 - 日期：2026-08-29
 - 决策者：用户确认
-- 前驱：[0040](docs/implemented/adr/0040-enterprise-fsm-framework.md)（企业级状态机框架）
+- 前驱：[0040](docs/implemented/adr/state_machine_serialization/0040-enterprise-fsm-framework.md)（企业级状态机框架）
 
 ## 背景
 

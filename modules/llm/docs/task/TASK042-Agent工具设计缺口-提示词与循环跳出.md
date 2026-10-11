@@ -153,5 +153,5 @@
 ## 关联
 
 - 设计文档：《Agent 工具设计》"提示词"整节
-- 关联 ADR：[0054](../implemented/adr/0054-llm-output-loop-detection-intervention.md)、[0086](../implemented/adr/0086-core-tech-selection-lock-design.md)
+- 关联 ADR：[0054](../implemented/adr/context_prompt/0054-llm-output-loop-detection-intervention.md)、[0086](../implemented/adr/component_strategy/0086-core-tech-selection-lock-design.md)
 - 关联设计文档：[DSG016-LLM-OutputLoop-Detection-Design.md](../design/DSG016-LLM-OutputLoop-Detection-Design.md)

@@ -6,8 +6,8 @@
 - 状态：accepted
 - 日期：2026-08-29
 - 决策者：用户确认
-- 增强：[0038](docs/implemented/adr/0038-state-machine-flags-guard.md)、[0039](docs/implemented/adr/0039-command-interception-state-machine.md)
-- 后继：[0041](docs/implemented/adr/0041-fsm-source-generator.md)（源码生成器 + 特性 + 事件订阅）
+- 增强：[0038](docs/implemented/adr/state_machine_serialization/0038-state-machine-flags-guard.md)、[0039](docs/implemented/adr/state_machine_serialization/0039-command-interception-state-machine.md)
+- 后继：[0041](docs/implemented/adr/state_machine_serialization/0041-fsm-source-generator.md)（源码生成器 + 特性 + 事件订阅）
 
 ## 背景
 

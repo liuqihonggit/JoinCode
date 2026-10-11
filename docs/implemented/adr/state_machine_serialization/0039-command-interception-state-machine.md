@@ -33,7 +33,7 @@ ADR 0034 的放弃理由（状态空间爆炸）在引入 [Flags] + 守卫后不
 
 ## 路径大小写守卫(Windows 防误删)
 
-**背景**:生产事故 — Windows 下执行 `rm -rf src/`,因文件系统大小写不敏感,`src` 与 `SRC` 指向同一目录,导致核心源码被误删;叠加 `git reset --hard` 数据无法恢复。现有 [0008](docs/implemented/adr/0008-archive-to-xxx-not-delete.md)(禁删→归档)是 AI 行为规范,0039 命令拦截架构未覆盖"路径大小写比对"这一具体守卫。
+**背景**:生产事故 — Windows 下执行 `rm -rf src/`,因文件系统大小写不敏感,`src` 与 `SRC` 指向同一目录,导致核心源码被误删;叠加 `git reset --hard` 数据无法恢复。现有 [0008](docs/implemented/adr/architecture/0008-archive-to-xxx-not-delete.md)(禁删→归档)是 AI 行为规范,0039 命令拦截架构未覆盖"路径大小写比对"这一具体守卫。
 
 **决策**:在命令拦截状态机的删除转换上加"路径大小写守卫" — 删除命令(rm/del/Remove-Item/rmdir/rd/erase)的目标路径与文件系统真实大小写路径比对,叶子名大小写不一致则 Deny 并提示真实路径,阻断误删。
 

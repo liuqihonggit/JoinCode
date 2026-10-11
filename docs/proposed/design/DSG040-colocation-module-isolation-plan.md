@@ -5,8 +5,8 @@
 
 > 状态: 设计草案(待用户确认)
 > 创建: 2026-10-11
-> 关联 ADR: [0137](../implemented/adr/0137-colocation-module-isolation.md)(proposed)
-> 取代: 无(继承 [0103](../implemented/adr/0103-folder-restructure-semantic-grouping-flat.md) 扁平化成果,在其基础上叠加功能域隔离)
+> 关联 ADR: [0137](../implemented/adr/data_core_selection/0137-colocation-module-isolation.md)(proposed)
+> 取代: 无(继承 [0103](../implemented/adr/architecture/0103-folder-restructure-semantic-grouping-flat.md) 扁平化成果,在其基础上叠加功能域隔离)
 > 范围: 90+ csproj 重组为 16 功能域单元 + 文档就近迁移 + 依赖隔离(ProjectReference→PackageReference)
 
 ---

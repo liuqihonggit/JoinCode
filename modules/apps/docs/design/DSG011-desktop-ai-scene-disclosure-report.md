@@ -7,7 +7,7 @@
 > **日期**：2026-09-14
 > **状态**：调研 / 方案评估（待用户确认实现方向）
 > **背景**：用户（惊惊）在聊天中提出"四叉树夹逼→识图→点击"的桌面控制思路，要求把这些场景做成 AI 可执行的工作，且场景信息要保留给 AI。本报告解决核心矛盾：**AI 看不见代码，如何让它知道有这些工具并知道怎么用**。
-> **关联**：[ComputerUse-PRD.md](ComputerUse-PRD.md)、[多模态隐喻显露工具-PRD.md](多模态隐喻显露工具-PRD.md)、[ADR 0032](../implemented/adr/0032-computeruse-win32-pinvoke.md)
+> **关联**：[ComputerUse-PRD.md](ComputerUse-PRD.md)、[多模态隐喻显露工具-PRD.md](多模态隐喻显露工具-PRD.md)、[ADR 0032](../implemented/adr/platform_transport/0032-computeruse-win32-pinvoke.md)
 
 ---
 

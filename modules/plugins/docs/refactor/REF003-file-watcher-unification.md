@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../adr/README.md)
 > 🔗 **上游索引**: [refactor/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> ADR: [0101](../implemented/adr/0101-file-watcher-unified-actor.md) — 架构决策详情
+> ADR: [0101](../implemented/adr/persistence_actor/0101-file-watcher-unified-actor.md) — 架构决策详情
 > 日期: 2026-09-12
 > 状态: 已完成
 

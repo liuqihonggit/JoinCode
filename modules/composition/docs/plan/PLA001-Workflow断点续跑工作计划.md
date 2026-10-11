@@ -5,7 +5,7 @@
 
 > 来源规格：`D:\Users\54076\Desktop\1并行工具调用设计 - 副本.txt`（并行工具调用 + DAG依赖 + 断点续跑）
 > 探索报告：w3 已实现规格 90% 能力，唯一硬缺口是 **Workflow 级断点续跑**
-> 关联 ADR：[0013](../implemented/task/0013-hypergraph-vs-dag-separation.md)（DAG/超图分离）、[0068](../implemented/adr/0068-unified-persistence-pipeline-actor.md)（统一持久化管道）、[0074](../implemented/adr/0074-actor-supervisor-tree.md)（Actor 监督树）
+> 关联 ADR：[0013](../implemented/task/0013-hypergraph-vs-dag-separation.md)（DAG/超图分离）、[0068](../implemented/adr/persistence_actor/0068-unified-persistence-pipeline-actor.md)（统一持久化管道）、[0074](../implemented/adr/persistence_actor/0074-actor-supervisor-tree.md)（Actor 监督树）
 > 待新建 ADR：0097（Workflow 级断点续跑持久化策略）
 
 ---
@@ -182,10 +182,10 @@
 **验收**：
 - ✅ ADR 0097 状态 accepted
 - ✅ E2E 真杀进程重启测试通过
-- ✅ AGENTS.md 规则1处标注 `> ADR: [0097](docs/implemented/adr/0097-workflow-checkpoint-resume.md)`
+- ✅ AGENTS.md 规则1处标注 `> ADR: [0097](docs/implemented/adr/data_core_selection/0097-workflow-checkpoint-resume.md)`
 
 **涉及文件**（新建）：
-- `docs/implemented/adr/0097-workflow-checkpoint-resume.md`
+- `docs/implemented/adr/data_core_selection/0097-workflow-checkpoint-resume.md`
 - `tests/Integration/...` 或 `tests/E2E/...`（E2E 测试脚本）
 - `AGENTS.md`（反向引用）
 

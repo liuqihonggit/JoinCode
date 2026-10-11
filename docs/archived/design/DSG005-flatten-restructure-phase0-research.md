@@ -5,7 +5,7 @@
 
 > 创建: 2026-09-13
 > 状态: completed
-> 关联: [ADR 0103](../implemented/adr/0103-folder-restructure-semantic-grouping-flat.md)
+> 关联: [ADR 0103](../implemented/adr/architecture/0103-folder-restructure-semantic-grouping-flat.md)
 
 ## 1. 现状
 

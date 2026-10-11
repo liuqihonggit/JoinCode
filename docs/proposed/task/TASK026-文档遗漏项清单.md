@@ -6,7 +6,7 @@
 
 ### 1. ADR 0056 - 缓存破坏检测 P1/P2/P3
 
-**文件**: `docs/implemented/adr/0056-cache-break-detection-enhancement.md`
+**文件**: `docs/implemented/adr/context_prompt/0056-cache-break-detection-enhancement.md`
 
 **状态**: P0已实现，P1全跳过(有合理理由)，P2/P3部分实现，仅剩P2.3/P3.1暂缓
 
@@ -23,7 +23,7 @@
 
 ### 2. ADR 0106 - L1预防功能
 
-**文件**: `docs/implemented/adr/0106-subagent-stall-defense-in-depth.md`
+**文件**: `docs/implemented/adr/data_core_selection/0106-subagent-stall-defense-in-depth.md`
 
 **状态**: L2/L3/L4已实现，L1未接线
 
@@ -35,7 +35,7 @@
 
 ### 3. ADR 0104 - 后续推广功能 ✅ 已实现
 
-**文件**: `docs/implemented/adr/0104-write-defense-extract-public-node.md`
+**文件**: `docs/implemented/adr/data_core_selection/0104-write-defense-extract-public-node.md`
 
 **状态**: ✅ 已实现 — 7个node全部提取 + NotebookToolHandlers已注入防御链
 

@@ -79,5 +79,5 @@
 ## 关联
 
 - 设计文档：《Agent 工具设计》"首次调用优化"第3、4条、"海量的MCP工具"第1条
-- 关联 ADR：[0080](../implemented/adr/0080-manual-exe-testing-guide.md)
+- 关联 ADR：[0080](../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md)
 - 关联记忆：`jcc 参数设计要贴合 AI 运行时调用习惯并宽容处理错误`

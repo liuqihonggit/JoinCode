@@ -78,7 +78,7 @@ modules/<domain>/docs/
 `apps` `tools`
 
 > 迁移计划详见 [DSG040](proposed/design/DSG040-colocation-module-isolation-plan.md) 和
-> [ADR 0137](implemented/adr/0137-colocation-module-isolation.md)。
+> [ADR 0137](implemented/adr/data_core_selection/0137-colocation-module-isolation.md)。
 
 ---
 

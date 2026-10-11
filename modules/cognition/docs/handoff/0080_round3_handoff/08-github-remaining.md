@@ -3,7 +3,7 @@
 > ⚠️ **内容已陈旧** (2026-09-15) — 工具列表包含不存在的工具：gh_workflow_list
 
 
-> 📍 **导航**: [docs/](../../README.md) › [handoff/](../README.md) › [0080_round3_handoff/](README.md) | **前置**: [ADR 0080](../../implemented/adr/0080-manual-exe-testing-guide.md)
+> 📍 **导航**: [docs/](../../README.md) › [handoff/](../README.md) › [0080_round3_handoff/](README.md) | **前置**: [ADR 0080](../../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md)
 > 🔗 **上游索引**: [handoff/0080_round3_handoff/README.md](README.md) — 修改本文档后须同步更新此索引
 
 > ✅ 用户已验证全部 GitHub 工具，以下工具全部通过。

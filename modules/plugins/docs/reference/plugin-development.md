@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../README.md) › [reference/](README.md)
 > 🔗 **上游索引**: [reference/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> ADR: [0098](../../implemented/adr/0098-plugin-system-fusion-actor-effectscope.md)
+> ADR: [0098](../../implemented/adr/architecture/0098-plugin-system-fusion-actor-effectscope.md)
 > 日期: 2026-09-10
 
 ## 概述

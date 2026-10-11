@@ -2,7 +2,7 @@
 
 > 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
 > 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
-> 📖 **架构依据**: [ADR 0098](../implemented/adr/0098-plugin-system-fusion-actor-effectscope.md) 万物皆插件 | [ADR 0019](../implemented/adr/0019-enum-enumvalue-source-generator.md) 枚举扩展 | [ADR 0103](../implemented/adr/0103-folder-restructure-semantic-grouping-flat.md) 目录层次化
+> 📖 **架构依据**: [ADR 0098](../implemented/adr/architecture/0098-plugin-system-fusion-actor-effectscope.md) 万物皆插件 | [ADR 0019](../implemented/adr/component_strategy/0019-enum-enumvalue-source-generator.md) 枚举扩展 | [ADR 0103](../implemented/adr/architecture/0103-folder-restructure-semantic-grouping-flat.md) 目录层次化
 
 ## 背景与需求
 
@@ -75,7 +75,7 @@ JSON
 - Jev 横跨两体系:既走 `IQueryService`(配置统一)又走 `ITypedDecisionService`(强类型消费)
 - 两体系通过 `QueryServiceFactory` 统一注册,按 `ProtocolKind` 分派
 
-> 📖 **架构决策记录**: [ADR 0115](../implemented/adr/0115-typed-decision-abstraction-layer.md)(状态:proposed)
+> 📖 **架构决策记录**: [ADR 0115](../implemented/adr/data_core_selection/0115-typed-decision-abstraction-layer.md)(状态:proposed)
 
 ### 决策2:Jev 是否支持流式 ⚠️ 待确认
 

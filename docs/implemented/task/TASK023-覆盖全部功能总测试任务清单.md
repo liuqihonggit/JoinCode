@@ -4,7 +4,7 @@
 > 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
 
 > 关联: [启动参数完全重构任务清单](启动参数完全重构任务清单.md) (阶段6.1 仅补 21 命令,76 命令待补)
-> ADR: [0069](../implemented/adr/0069-cli-args-full-refactor.md) (slash_call/mcp_call 元命令)、[0083](../implemented/adr/0083-e2e-script-mode-spec.md) (E2E 脚本模式)
+> ADR: [0069](../implemented/adr/cli_jcc/0069-cli-args-full-refactor.md) (slash_call/mcp_call 元命令)、[0083](../implemented/adr/engineering_ci_test/0083-e2e-script-mode-spec.md) (E2E 脚本模式)
 > 渐进式执行: 每步编译+测试+提交
 
 ## 任务目标

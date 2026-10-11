@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
 > 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> ADR: [0069](../implemented/adr/0069-cli-args-full-refactor.md)、[0080](../implemented/adr/0080-manual-exe-testing-guide.md)
+> ADR: [0069](../implemented/adr/cli_jcc/0069-cli-args-full-refactor.md)、[0080](../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md)
 > 目标: 系统测试 jcc.exe 所有启动参数,抽样验证已测参数,补齐剩余参数
 > 二进制: `D:\project\w2\artifacts\bin\JoinCode\Debug\net10.0\jcc.exe`
 > 日期: 2026-09-12

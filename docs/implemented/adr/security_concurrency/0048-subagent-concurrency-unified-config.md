@@ -7,7 +7,7 @@
 - 日期：2026-09-02
 - 决策者：项目架构组
 - 验证：Abstractions+Agents+Clock+Composition+App 编译 0 警告 0 错误，1842 测试全通过（Agents 512 + Clock 432 + Guard.Config 898），热重载链路完整 ✅
-- 关联：[refactoring/archive-dead-code.md](../archived/refactor/REF002-archive-dead-code.md)（归档 MaxConcurrentAgents 死配置） | [0050](docs/implemented/adr/0050-spawn-stage-concurrency-limit.md) | [0051](docs/implemented/adr/0051-fork-concurrency-limit.md)
+- 关联：[refactoring/archive-dead-code.md](../archived/refactor/REF002-archive-dead-code.md)（归档 MaxConcurrentAgents 死配置） | [0050](docs/implemented/adr/security_concurrency/0050-spawn-stage-concurrency-limit.md) | [0051](docs/implemented/adr/security_concurrency/0051-fork-concurrency-limit.md)
 
 ## 背景
 

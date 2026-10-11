@@ -73,6 +73,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         string? nextUrl = null;
         var lastStatusCode = 0;
         var isFirstPage = true;
+        var routeSwitched = false;
 
         while (true) {
             using var request = BuildRequest(method, isFirstPage ? effectivePath : nextUrl!, body, query, token, isFirstPage);
@@ -81,7 +82,15 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
                 response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             } catch (OperationCanceledException) { throw; } catch (Exception ex) {
                 _logger?.LogError(ex, "GitHub API 请求失败: {Method} {Path}", method, path);
-                return new GitHubApiResponse { Success = false, StatusCode = 0, Error = ex.Message };
+                if (!routeSwitched && await TrySwitchToFallbackRouteAsync(ct).ConfigureAwait(false)) {
+                    routeSwitched = true;
+                    isFirstPage = true;
+                    nextUrl = null;
+                    allBodies.Clear();
+                    continue;
+                }
+                var friendlyError = await BuildNetworkErrorMessageAsync(ex, ct).ConfigureAwait(false);
+                return new GitHubApiResponse { Success = false, StatusCode = 0, Error = friendlyError };
             }
 
             using (response) {

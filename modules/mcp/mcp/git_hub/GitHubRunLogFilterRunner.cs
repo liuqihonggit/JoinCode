@@ -438,10 +438,17 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <para>避免从 runner setup 从头输出,AI 首屏即可看到错误降 token</para>
     /// <para>滑动窗口: contextBefore=5 行上下文,未找到错误时按 fallbackOnNoError 决定是否回退到 tail</para>
     /// <para>fallbackOnNoError=true(--log_failed): 无错误行时回退到最后 tailFallback=20 行(至少看到尾部)</para>
-    /// <para>fallbackOnNoError=false(filter=error): 无错误行时返回空(让调用方显示"未匹配到任何日志行")</para>
+    /// <para>fallbackOnNoError=false(filter=error): 收集所有错误行+各自上下文,跳过无关行;无错误行时返回空</para>
     /// </summary>
     private async Task<List<string>> CollectWithSmartStartAsync(
-        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, bool fallbackOnNoError, CancellationToken ct) {
+        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, bool fallbackOnNoError, CancellationToken ct)
+        => fallbackOnNoError
+            ? await CollectSmartStartTailAsync(logLines, maxLines, skipLines, ct).ConfigureAwait(false)
+            : await CollectAllErrorContextsAsync(logLines, maxLines, skipLines, ct).ConfigureAwait(false);
+
+    /// <summary>--log_failed 模式：找到第一个错误行,输出上下文 + 后续所有行;无错误时回退 tail</summary>
+    private async Task<List<string>> CollectSmartStartTailAsync(
+        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, CancellationToken ct) {
         const int contextBefore = 5;
         const int tailFallback = 20;
         var matched = new List<string>(maxLines);
@@ -477,11 +484,51 @@ internal sealed class GitHubRunLogFilterRunner {
             }
         }
 
-        if (!foundError && matched.Count == 0 && fallbackOnNoError) {
+        if (!foundError && matched.Count == 0) {
             foreach (var tailLine in tailWindow) {
                 if (skipped < skipLines) { skipped++; continue; }
                 matched.Add(tailLine);
                 if (matched.Count >= maxLines) break;
+            }
+        }
+        return matched;
+    }
+
+    /// <summary>filter=error 模式：收集所有错误行 + 各自前5后3上下文,跳过无关 Passed 行(错误前置,信息密度高)</summary>
+    private async Task<List<string>> CollectAllErrorContextsAsync(
+        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, CancellationToken ct) {
+        const int contextBefore = 5;
+        const int contextAfter = 3;
+        var matched = new List<string>(maxLines);
+        var contextWindow = new Queue<string>(contextBefore);
+        var skipped = 0;
+        var lineNumber = 0;
+        var pendingAfter = 0;
+
+        await foreach (var line in logLines.ConfigureAwait(false)) {
+            lineNumber++;
+            var formatted = LineNumberFormatter.Format(lineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix);
+            if (pendingAfter > 0) {
+                if (skipped < skipLines) { skipped++; continue; }
+                matched.Add(formatted);
+                pendingAfter--;
+                if (matched.Count >= maxLines) break;
+                continue;
+            }
+            if (IsErrorIndicatorLine(line.AsSpan())) {
+                foreach (var ctxLine in contextWindow) {
+                    if (skipped < skipLines) { skipped++; continue; }
+                    matched.Add(ctxLine);
+                    if (matched.Count >= maxLines) break;
+                }
+                if (matched.Count >= maxLines) break;
+                if (skipped < skipLines) { skipped++; continue; }
+                matched.Add(formatted);
+                pendingAfter = contextAfter;
+                if (matched.Count >= maxLines) break;
+            } else {
+                contextWindow.Enqueue(formatted);
+                if (contextWindow.Count > contextBefore) contextWindow.Dequeue();
             }
         }
         return matched;

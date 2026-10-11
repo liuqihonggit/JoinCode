@@ -1,4 +1,5 @@
-﻿namespace JoinCode.Gui.Tests.Views;
+#pragma warning disable JCC9001, JCC3013 // 豁免理由：TempFileTreeRoot 是测试辅助类，直接用 System.IO 创建确定性临时目录结构，非被测行为
+namespace JoinCode.Gui.Tests.Views;
 
 /// <summary>
 /// 目录树右键菜单 + 文件夹展开 Headless 测试 —
@@ -98,7 +99,8 @@ public sealed class FileTreeContextMenuTests {
         public TempFileTreeRoot() {
             Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), System.Guid.NewGuid().ToString("N"));
             var dir = System.IO.Directory.CreateDirectory(Path);
-            dir.CreateSubdirectory("subfolder");
+            var subfolder = dir.CreateSubdirectory("subfolder");
+            System.IO.File.WriteAllText(System.IO.Path.Combine(subfolder.FullName, "inner.txt"), "inner");
             System.IO.File.WriteAllText(System.IO.Path.Combine(Path, "testfile.txt"), "test");
         }
         public void Dispose() {

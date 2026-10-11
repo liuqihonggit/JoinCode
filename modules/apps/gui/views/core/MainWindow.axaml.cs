@@ -164,7 +164,8 @@ public sealed partial class MainWindow : Window {
             _vm.RunStatus.MarqueeStopped += OnMarqueeStopped;
             ApplyAppearance();
             CenterOnScreen();
-            _vm.LoadFileTree(System.IO.Directory.GetCurrentDirectory());
+            if (string.IsNullOrEmpty(_vm.FileTreeRootPath))
+                _vm.LoadFileTree(System.IO.Directory.GetCurrentDirectory());
         }
     }
 

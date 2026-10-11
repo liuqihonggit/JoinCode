@@ -88,6 +88,16 @@ public static class CiJobSeverityExtensions {
             CiJobSeverity.Success   => "pass",
             _                       => "pending",
         };
+
+    /// <summary>GraphQL StatusState 映射 — SUCCESS/FAILURE/NEUTRAL/PENDING,对齐 GraphQL statusCheckRollup</summary>
+    internal static string ToGraphQLState(this CiJobSeverity severity)
+        => severity switch {
+            CiJobSeverity.Success => "SUCCESS",
+            CiJobSeverity.Failure or CiJobSeverity.TimedOut or CiJobSeverity.Cancelled => "FAILURE",
+            CiJobSeverity.Pending => "PENDING",
+            CiJobSeverity.Skipped or CiJobSeverity.Warning => "NEUTRAL",
+            _ => "PENDING",
+        };
 }
 
 /// <summary>

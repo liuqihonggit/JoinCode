@@ -478,19 +478,9 @@ public partial class GitHubToolHandlers {
         return sb.Length > 0 ? sb.ToString() : null;
     }
 
-    /// <summary>映射 check status+conclusion → state(对齐 GraphQL: PENDING/SUCCESS/FAILURE/NEUTRAL)</summary>
+    /// <summary>映射 check status+conclusion → state(对齐 GraphQL: PENDING/SUCCESS/FAILURE/NEUTRAL) — 委托 CiJobSeverity 统一映射</summary>
     private static string MapCheckState(string status, string conclusion)
-        => status switch {
-            "completed" => conclusion switch {
-                "success" => "SUCCESS",
-                "failure" => "FAILURE",
-                "cancelled" or "timed_out" => "FAILURE",
-                "skipped" or "neutral" => "NEUTRAL",
-                _ => "NEUTRAL"
-            },
-            "queued" or "in_progress" => "PENDING",
-            _ => "PENDING"
-        };
+        => CiJobSeverityExtensions.FromConclusion(conclusion, status).ToGraphQLState();
 
     /// <summary>
     /// 获取分支保护规则的 required_status_checks — required 过滤用，保护规则不存在(404)时返回 null(降级显示全部)

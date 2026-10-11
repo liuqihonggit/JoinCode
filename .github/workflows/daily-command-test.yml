@@ -57,7 +57,7 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Build jcc (Debug)
-        run: dotnet build app/cli/JoinCode.csproj -c Debug --nologo
+        run: dotnet build modules/apps/cli/JoinCode.csproj -c Debug --nologo
         shell: pwsh
 
       - name: Init jcc settings

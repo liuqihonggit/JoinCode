@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Bridge.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Bridge.Tests</AssemblyName>
+    <Description>JoinCode Bridge 子系统单元测试（Remote Control + Session + Transport）</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/services/bridge/Bridge.csproj" />
+    <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/async_primitives/transport.contracts/Transport.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="$(MicrosoftExtensionsTimeProviderTestingVersion)" />
+  </ItemGroup>
+
+</Project>

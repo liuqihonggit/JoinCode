@@ -132,8 +132,8 @@ public sealed class WorkbenchTests {
     [Fact]
     public async Task WorkspaceReader_ReadsRealRepositoryAndGitWithoutModelCalls() {
         var root = FindRoot();
-        WorkspaceReader.List(root).Should().Contain(f => f.Name == "app" && f.IsDirectory);
-        (await WorkspaceReader.ReadAsync(System.IO.Path.Combine(root, "app", "gui", "JoinCodeGui.csproj"))).Should().Contain("Project");
+        WorkspaceReader.List(root).Should().Contain(f => f.Name == "modules" && f.IsDirectory);
+        (await WorkspaceReader.ReadAsync(System.IO.Path.Combine(root, "modules", "apps", "gui", "JoinCodeGui.csproj"))).Should().Contain("Project");
         (await WorkspaceReader.GitAsync(root, "status", "--short")).Should().NotBeNullOrWhiteSpace();
         (await WorkspaceReader.GitAsync(root, "diff", "--no-ext-diff", "--no-color")).Should().NotBeNullOrWhiteSpace();
     }

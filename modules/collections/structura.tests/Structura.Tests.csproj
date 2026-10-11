@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Structura.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Structura.Tests</AssemblyName>
+    <Description>JoinCode Structura 单元测试</Description>
+    <ExcludeStructura>true</ExcludeStructura>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/collections/structura/Structura.csproj" />
+  </ItemGroup>
+</Project>

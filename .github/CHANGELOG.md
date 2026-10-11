@@ -19,7 +19,7 @@ Given a version number `MAJOR.MINOR.PATCH`, we increment:
   `SUPPORT.md`, `CONTRIBUTING.md`, `CHANGELOG.md`
 - GitHub issue templates (bug report, feature request, question)
 - GitHub pull request template
-- English `README.md` (Chinese version moved to `docs/zh-CN/README.md`)
+- English `README.md` (Chinese version moved to `(已删除)`)
 
 ## [1.0.0] - 2025-08-29
 

@@ -12,27 +12,41 @@ env:
 
 jobs:
   unit-tests:
-    name: Unit - ${{ matrix.name }}
+    name: Unit - ${{ matrix.domain }}
     runs-on: windows-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: Foundation
-            csprojs: lib/async_lock.tests/AsyncLock.Tests.csproj lib/structura.tests/Structura.Tests.csproj gen/aot_safety.tests/AotSafety.Tests.csproj gen/fsm.generator.tests/Fsm.Generator.Tests.csproj
-          - name: Infrastructure
-            csprojs: test/unit/infra.tests/io/Infra.IO.Tests.csproj test/unit/infra.tests/services/Infra.Services.Tests.csproj test/unit/infra.tests/utils/Infra.Utils.Tests.csproj lib/downloader.tests/Downloader.Tests.csproj
-          - name: CoreAI
-            csprojs: llm/llm.tests/Llm.Tests.csproj llm/agents.tests/Agents.Tests.csproj llm/reasoning.tests/Reasoning.Tests.csproj kit/brain.prompts.tests/Brain.Prompts.Tests.csproj kit/brain.context.tests/Brain.Context.Tests.csproj kit/brain.other.tests/Brain.Other.Tests.csproj
-          - name: CoreExec
-            csprojs: kit/hands.tool_handlers.tests/Hands.ToolHandlers.Tests.csproj kit/hands.skills.tests/Hands.Skills.Tests.csproj kit/hands.shell.tests/Hands.Shell.Tests.csproj kit/hands.api.tests/Hands.Api.Tests.csproj lib/scheduling.tests/Scheduling.Tests.csproj kit/mcp_tool_dispatch.tests/McpToolDispatch.Tests.csproj server/code_index.tests/CodeIndex.Tests.csproj
-          - name: Safety
-            csprojs: lib/guard.security.tests/Guard.Security.Tests.csproj lib/guard.hooks.tests/Guard.Hooks.Tests.csproj lib/guard.config.tests/Guard.Config.Tests.csproj lib/vault.other.tests/Vault.Other.Tests.csproj lib/vault.memdir.tests/Vault.Memdir.Tests.csproj server/browser.tests/Browser.Tests.csproj lib/clock.tests/Clock.Tests.csproj
-          - name: Services
-            csprojs: kit/mcp.tests/Mcp.Tests.csproj server/dream.tests/Dream.Tests.csproj server/eyes.tests/Eyes.Tests.csproj server/bridge.tests/Bridge.Tests.csproj server/vision.tests/Vision.Tests.csproj kit/composition.tests/Composition.Tests.csproj
-          - name: App
-            csprojs: test/unit/host.tests/Host.Tests.csproj test/unit/abs.tests/Abs.Tests.csproj test/unit/hands.tests/Hands.Tests.csproj test/unit/mcp.tests/Mcp.UniqueTests.csproj test/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj test/mock/mock_server.core.tests/MockServer.Core.Tests.csproj
+          - domain: generators
+            csprojs: modules/generators/aot_safety.tests/AotSafety.Tests.csproj modules/generators/fsm.generator.tests/Fsm.Generator.Tests.csproj
+          - domain: collections
+            csprojs: modules/collections/structura.tests/Structura.Tests.csproj
+          - domain: async_primitives
+            csprojs: modules/async_primitives/async_lock.tests/AsyncLock.Tests.csproj modules/async_primitives/bcl_bridge.tests/JoinCode.BclBridge.Tests.csproj modules/async_primitives/transport.impl.tests/Transport.Impl.Tests.csproj
+          - domain: abstractions
+            csprojs: test/unit/infra.tests/io/Infra.IO.Tests.csproj test/unit/infra.tests/services/Infra.Services.Tests.csproj test/unit/infra.tests/utils/Infra.Utils.Tests.csproj test/unit/abs.tests/Abs.Tests.csproj
+          - domain: guard
+            csprojs: modules/guard/guard.config.tests/Guard.Config.Tests.csproj modules/guard/guard.hooks.tests/Guard.Hooks.Tests.csproj modules/guard/guard.security.tests/Guard.Security.Tests.csproj
+          - domain: storage
+            csprojs: modules/storage/clock.tests/Clock.Tests.csproj modules/storage/downloader.tests/Downloader.Tests.csproj modules/storage/scheduling.tests/Scheduling.Tests.csproj modules/storage/vault.memdir.tests/Vault.Memdir.Tests.csproj modules/storage/vault.other.tests/Vault.Other.Tests.csproj
+          - domain: plugins
+            csprojs: modules/plugins/plugins.tests/Plugins.Tests.csproj
+          - domain: mcp
+            csprojs: modules/mcp/mcp.tests/Mcp.Tests.csproj modules/mcp/mcp_tool_dispatch.tests/McpToolDispatch.Tests.csproj test/unit/mcp.tests/Mcp.UniqueTests.csproj test/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj
+          - domain: llm
+            csprojs: modules/llm/llm.tests/Llm.Tests.csproj modules/llm/agents.tests/Agents.Tests.csproj modules/llm/reasoning.tests/Reasoning.Tests.csproj
+          - domain: cognition
+            csprojs: modules/cognition/brain.context.tests/Brain.Context.Tests.csproj modules/cognition/brain.other.tests/Brain.Other.Tests.csproj modules/cognition/brain.prompts.tests/Brain.Prompts.Tests.csproj modules/cognition/hands.api.tests/Hands.Api.Tests.csproj modules/cognition/hands.shell.tests/Hands.Shell.Tests.csproj modules/cognition/hands.skills.tests/Hands.Skills.Tests.csproj modules/cognition/hands.tool_handlers.tests/Hands.ToolHandlers.Tests.csproj test/unit/hands.tests/Hands.Tests.csproj
+          - domain: perception
+            csprojs: modules/perception/code_index.tests/CodeIndex.Tests.csproj modules/perception/eyes.tests/Eyes.Tests.csproj modules/perception/vision.tests/Vision.Tests.csproj
+          - domain: services
+            csprojs: modules/services/bridge.tests/Bridge.Tests.csproj modules/services/browser.tests/Browser.Tests.csproj modules/services/dream.tests/Dream.Tests.csproj test/mock/mock_server.core.tests/MockServer.Core.Tests.csproj
+          - domain: composition
+            csprojs: modules/composition/composition.tests/Composition.Tests.csproj modules/composition/pipelines.tests/Pipelines.Tests.csproj
+          - domain: apps
+            csprojs: test/unit/host.tests/Host.Tests.csproj test/unit/tui.tests/Tui.Tests.csproj test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj
 
     steps:
       - name: Checkout
@@ -41,7 +55,7 @@ jobs:
           submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
-      - name: Test - ${{ matrix.name }}
+      - name: Test - ${{ matrix.domain }}
         shell: pwsh
         run: |
           $projects = '${{ matrix.csprojs }}' -split ' '
@@ -60,6 +74,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: unit-test-results-${{ matrix.name }}
+          name: unit-test-results-${{ matrix.domain }}
           path: '**/*.trx'
           retention-days: 7

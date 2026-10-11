@@ -10,21 +10,21 @@
 
   <!-- 聚合所有子系统的依赖 -->
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)kit/brain/Brain.csproj" />
-    <ProjectReference Include="$(RepoRoot)kit/hands/Hands.csproj" />
-    <ProjectReference Include="$(RepoRoot)kit/composition/Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)kit/pipelines/Pipelines.csproj" />
-    <ProjectReference Include="$(RepoRoot)lib/guard/Guard.csproj" />
-    <ProjectReference Include="$(RepoRoot)lib/clock/Clock.csproj" />
-    <ProjectReference Include="$(RepoRoot)lib/vault/Vault.csproj" />
-    <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" />
-    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/cognition/brain/Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/cognition/hands/Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/composition/composition/Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/composition/pipelines/Pipelines.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/guard/guard/Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/storage/clock/Clock.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/storage/vault/Vault.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/apps/cli/JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
 
-    <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)kit/mcp/Mcp.csproj" />
-    <ProjectReference Include="$(RepoRoot)server/dream/Dream.csproj" />
-    <ProjectReference Include="$(RepoRoot)server/eyes/Eyes.csproj" />
-    <ProjectReference Include="$(RepoRoot)server/code_index/CodeIndex.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/mcp/mcp/Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/services/dream/Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/perception/eyes/Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/perception/code_index/CodeIndex.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 

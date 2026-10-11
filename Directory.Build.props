@@ -117,7 +117,7 @@
     <Using Include="Structura.Collections" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(ExcludeStructura)' != 'true' and '$(UsePackedComponents)' != 'true'">
-    <ProjectReference Include="$(RepoRoot)lib/structura/Structura.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/collections/structura/Structura.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(ExcludeStructura)' != 'true' and '$(UsePackedComponents)' == 'true'">
     <PackageReference Include="JoinCode.Structura" Version="$(JccComponentPackageVersion)" />
@@ -128,8 +128,8 @@
   <!-- 开关: /p:JccAnalyzers=false 禁用自定义分析器，加速迭代编译 -->
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(EnforceExtendedAnalyzerRules)' != 'true' and '$(ExcludeJccAnalyzers)' != 'true' and '$(JccAnalyzers)' == 'true'">
-    <ProjectReference Include="$(MSBuildThisFileDirectory)gen/aot_safety.generator/AotSafety.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)gen/code_fixes/CodeFixes.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)modules/generators/aot_safety.generator/AotSafety.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)modules/generators/code_fixes/CodeFixes.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

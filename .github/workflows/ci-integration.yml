@@ -26,7 +26,7 @@ jobs:
         run: |
           $tests = @(
             @{Name="integration-all"; Csproj="test/integration/integration.tests/Integration.Tests.csproj"; Filter="Category!=Benchmark"},
-            @{Name="integration-prefixcache"; Csproj="build/sln/App.slnx"; Filter="Category=Integration&FullyQualifiedName~PrefixCache"}
+            @{Name="integration-prefixcache"; Csproj="build/sln/JoinCode.slnx"; Filter="Category=Integration&FullyQualifiedName~PrefixCache"}
           )
           foreach ($t in $tests) {
               $name = $t.Name
@@ -68,7 +68,7 @@ jobs:
           foreach ($t in $tests) {
               $name = $t.Name
               $filter = $t.Filter
-              & dotnet test build/sln/App.slnx -c Debug --nologo `
+              & dotnet test build/sln/JoinCode.slnx -c Debug --nologo `
                 /p:UsePackedComponents=true `
                 /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
                 --filter $filter `
@@ -94,15 +94,17 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/setup-test-env
-      - name: Integration Tests - Hands + Host + McpTools
-        run: >
-          dotnet test build/sln/App.slnx
-          -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
-          --filter "Category=Integration&(FullyQualifiedName~Hands|FullyQualifiedName~Host|FullyQualifiedName~McpTools)"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=integration-hands-host-mcp.trx"
+      - name: Integration Tests - Hand + Host + McpTools
+        shell: pwsh
+        run: |
+          & dotnet test test/integration/integration.tests/Integration.Tests.csproj `
+            -c Debug --nologo `
+            /p:UsePackedComponents=true `
+            /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
+            --filter "Category=Integration&(FullyQualifiedName~Hands|FullyQualifiedName~Host|FullyQualifiedName~McpTools)" `
+            --logger "console;verbosity=detailed" `
+            --logger "trx;LogFileName=integration-hands-host-mcp.trx" 2>&1 | Out-Host
+          if ($LASTEXITCODE -ne 0) { throw "Integration tests FAILED" }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7

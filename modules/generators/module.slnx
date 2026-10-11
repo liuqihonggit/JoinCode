@@ -1,0 +1,19 @@
+<Solution>
+  <Project Path="aot_safety.generator/aot_safety.generator.csproj" />
+  <Project Path="aot_safety.shared/aot_safety.shared.csproj" />
+  <Project Path="aot_safety.tests/aot_safety.tests.csproj" />
+  <Project Path="app_module.generator/app_module.generator.csproj" />
+  <Project Path="cli_option.generator/cli_option.generator.csproj" />
+  <Project Path="code_fixes/code_fixes.csproj" />
+  <Project Path="danger_command.generator/danger_command.generator.csproj" />
+  <Project Path="enum_metadata.generator/enum_metadata.generator.csproj" />
+  <Project Path="fsm.generator/fsm.generator.csproj" />
+  <Project Path="fsm.generator.tests/fsm.generator.tests.csproj" />
+  <Project Path="mcp_tool_dispatch.generator/mcp_tool_dispatch.generator.csproj" />
+  <Project Path="param_metadata.generator/param_metadata.generator.csproj" />
+  <Project Path="prompt_section.generator/prompt_section.generator.csproj" />
+  <Project Path="prompt_template.generator/prompt_template.generator.csproj" />
+  <Project Path="scenario.generator/scenario.generator.csproj" />
+  <Project Path="shared/shared.csproj" />
+  <Project Path="tool_prompt.generator/tool_prompt.generator.csproj" />
+</Solution>

@@ -30,9 +30,9 @@
 
 1. **无后向兼容** — 项目不需要任何后向兼容，遇到相关字样直接删除，大修大改
 2. **JSON 宽容** — 已实现 JSON 宽容解析（RelaxedJsonSerializer），无需重复实现
-3. **JSON DTO 双向转换** — 所有 JSON 处理必须用 DTO + JsonContext 双向转换（`JsonSerializer.Serialize`/`Deserialize`），禁止手写 JSON 字符串拼接（`StringBuilder` 拼 JSON、`$"{{...}}"` 内插、`EscapeJsonString` 手写转义）。GraphQL 用 `BuildGraphQL` 分层（外层 DTO + 内层 `$"..."` 查询字符串）。保留 `JsonDocument.Parse` 仅限动态字段过滤（> ADR: [0133](docs/adr/0133-json-dto-typed-conversion-ban-concat.md)）
+3. **JSON DTO 双向转换** — 所有 JSON 处理必须用 DTO + JsonContext 双向转换（`JsonSerializer.Serialize`/`Deserialize`），禁止手写 JSON 字符串拼接（`StringBuilder` 拼 JSON、`$"{{...}}"` 内插、`EscapeJsonString` 手写转义）。GraphQL 用 `BuildGraphQL` 分层（外层 DTO + 内层 `$"..."` 查询字符串）。保留 `JsonDocument.Parse` 仅限动态字段过滤（> ADR: [0133](docs/implemented/adr/state_machine_serialization/0133-json-dto-typed-conversion-ban-concat.md)）
 4. **Rust 风格报错** — 已实现 Rust 编译器风格报错（带行列指示+代码片段+箭头），面向参数错误必须用此风格
-5. **BitMask 位掩码工具类** — 已实现 `BitMask` 静态工具类（`lib/abstractions/abs_core/core_utils/core/BitMask.cs`），类似 BitArray/Bitmap，减少 hash 查找、降低内存使用、提高性能。枚举集合优先用 `BitMask.Of()` + `BitMask.Contains()`，替代 `FrozenSet<Enum>`
+5. **BitMask 位掩码工具类** — 已实现 `BitMask` 静态工具类（`modules/abstractions/abstractions/abs_core/core_utils/core/misc/BitMask.cs`），类似 BitArray/Bitmap，减少 hash 查找、降低内存使用、提高性能。枚举集合优先用 `BitMask.Of()` + `BitMask.Contains()`，替代 `FrozenSet<Enum>`
 6. **字符串处理优先级** — 首选用 `Span<char>`（0-GC）、SIMD、mmap、`AsParallel()` 链式编程风格
 7. **纵深防御按层按名称** — 安全拦截按层（前缀树→结构化解析→专项预处理→五色灯→确认→执行→审计）按名称（每个守卫有明确 `Name` 属性和 `Priority`）组织，统一整齐。新增拦截层必须声明层名和优先级，禁止散落 ad-hoc 检查
 8. **代码风格：链式+有名函数** — 主逻辑用 LINQ 链式语法控制流程，不同部分提取为有名函数，调用处直观可见一切。或用 Actor 模型 / 管道中间件模型组织。禁止内联长 lambda 淹没主流程。**死锁处理用 Actor 邮箱模型**（消息传递替代共享锁），管道用中间件洋葱模型
@@ -130,7 +130,7 @@
 
 ## 手动验证exe功能(非mock操作)
 
-> ADR: [0080](docs/adr/0080-manual-exe-testing-guide.md) — 详见 ADR 文档（含验收标准、推荐配置[架构选型/效率/编译]）用户说了`测试`等等关键字眼,必须要提示用户是否执行这个操作.
+> ADR: [0080](docs/implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md) — 详见 ADR 文档（含验收标准、推荐配置[架构选型/效率/编译]）用户说了`测试`等等关键字眼,必须要提示用户是否执行这个操作.
 
 ## 🔴 绝对禁止（触碰即错）
 
@@ -212,15 +212,15 @@
 
 ### ADR 工作流（架构决策记录）
 
-> 📖 规范详见 [docs/adr/README.md](docs/adr/README.md)
+> 📖 规范详见 [docs/README.md](docs/README.md)
 
 0. **⛔ 禁止把 bug 修复报告写成 ADR** — ADR 只用于统筹"为什么选 A 放弃 B"的架构决策。bug 修复/功能开发/排错过程**不是架构决策**，用 commit message（根因+修复+验证）+ 测试复现。判断：没有真正的"替代方案（考虑过但放弃）"就不是 ADR
-1. **新架构决策必须先写 ADR**：涉及跨模块、影响全局、或选择 A 放弃 B 的决策，先在 `docs/adr/` 写 ADR（`状态：proposed`）再实现
+1. **新架构决策必须先写 ADR**：涉及跨模块、影响全局、或选择 A 放弃 B 的决策，先在 `docs/proposed/adr/` 写 ADR（`状态：proposed`）再实现
 2. **实现后改状态**：决策落地并验证后，ADR 状态改为 `accepted`
 3. **决策被取代**：旧 ADR 状态改为 `superseded by NNNN`，新 ADR 引用旧 ADR
-4. **ADR 不可删除**：内容不可变，只改状态字段（见 ADR [0008](docs/adr/0008-archive-to-xxx-not-delete.md)）
+4. **ADR 不可删除**：内容不可变，只改状态字段（见 ADR [0008](docs/implemented/adr/architecture/0008-archive-to-xxx-not-delete.md)）
 5. **粒度**：架构级 + 组件策略级，函数级决策留在代码注释
-6. **AGENTS.md 反向引用**：AGENTS.md 中对应规则处标注 `> ADR: [NNNN](docs/adr/NNNN-xxx.md)`
+6. **AGENTS.md 反向引用**：AGENTS.md 中对应规则处标注 `> ADR: NNNN`
 
 ### 开发流程强制要求
 
@@ -264,8 +264,8 @@
 | 特殊字符禁令 | commit 消息禁止 `$`、反引号、三引号 |
 | ⚠️ 源码生成器 + 增量编译 | `dotnet build` 默认增量编译，会缓存生成器输出。**新增/修改 `[Register]` 类后必须用 `--no-incremental` 全量重建**，否则生成器不会重新扫描新类型 |
 | PR 两段式验证 | PR 通过 CI 后自动合并到 main → main 自动触发自身 CI 实现二次验证。创建 PR 时必须启用 auto-merge（squash 方式）。PR 目标分支统一为 main，无 dev 中间层 |
-| gh 工具 | 操作 PR/Issue/Release/CI 等 GitHub 资源时，优先用 `jcc gh` / `jcc mcp_call gh_*`；jcc 不可用时直接用系统 `gh` CLI > ADR: [0073](docs/adr/0073-gh-rest-api-direct-call.md)、[0089](docs/adr/0089-jcc-builtin-tools-only-no-system-gh-rg.md) |
-| rg 工具 | 日常代码/文本搜索优先用 Agent 内置 `grep` 工具（`Grep` tool）；内置工具不可用时直接用系统 `rg` > ADR: [0070](docs/adr/0070-rg-engine-mmap-plinq.md) |
+| gh 工具 | 操作 PR/Issue/Release/CI 等 GitHub 资源时，优先用 `jcc gh` / `jcc mcp_call gh_*`；jcc 不可用时直接用系统 `gh` CLI > ADR: [0073](docs/implemented/adr/interaction/0073-gh-rest-api-direct-call.md)、[0089](docs/implemented/adr/interaction/0089-jcc-builtin-tools-only-no-system-gh-rg.md) |
+| rg 工具 | 日常代码/文本搜索优先用 Agent 内置 `grep` 工具（`Grep` tool）；内置工具不可用时直接用系统 `rg` > ADR: [0070](docs/implemented/adr/cli_jcc/0070-rg-engine-mmap-plinq.md) |
 
 **Git commit 消息格式**：
 - 标准：`类型: 描述`
@@ -276,14 +276,14 @@
 - **⛔ 禁止包含无意义标记**：commit 消息禁止包含 PR/Issue 编号引用（会被 GitHub 自动关联）、纯序号、临时标记等
 
 6. **✅ 文档需求落地四列验收表（强制）**
-   - 写 `docs/task/`、`docs/design/` 文档时，针对用户提出的每条要求，必须列出验收表：
+   - 写 `docs/implemented/task/`、`docs/implemented/design/` 文档时，针对用户提出的每条要求，必须列出验收表：
 
    | 基建实现 | 消费点 | 已实现 | 已验收 |
    |---------|--------|--------|--------|
-   | 底层能力实现位置（类/模块/文件） | 上层调用/使用位置 | ✅/❌ | ✅/❌ + [ADR 0080](docs/adr/0080-manual-exe-testing-guide.md) 手动 exe 验收记录 |
+   | 底层能力实现位置（类/模块/文件） | 上层调用/使用位置 | ✅/❌ | ✅/❌ + [ADR 0080](docs/implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md) 手动 exe 验收记录 |
 
    - **后两列为强制钩子**：`已实现` 防止"写了文档但没实现"，`已验收` 防止"实现了但没验收"
-   - **`已验收`列必须走 [ADR 0080](docs/adr/0080-manual-exe-testing-guide.md) 手动 exe 验收方式**（真实运行非 mock）
+   - **`已验收`列必须走 [ADR 0080](docs/implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md) 手动 exe 验收方式**（真实运行非 mock）
    - 禁止只列前两列就交付文档
 
 ## 🔄 工作流程
@@ -362,7 +362,7 @@
 
 ## 封装要求
 
-> ADR: [0020](docs/adr/0020-encapsulation-requirements.md)（封装要求）、[0019](docs/adr/0019-enum-enumvalue-source-generator.md)（枚举扩展）
+> ADR: [0020](docs/implemented/adr/component_strategy/0020-encapsulation-requirements.md)（封装要求）、[0019](docs/implemented/adr/component_strategy/0019-enum-enumvalue-source-generator.md)（枚举扩展）
 
 | 规则 | 说明 |
 |------|------|
@@ -373,7 +373,7 @@
 
 ### 数据容器选型规范（AOT编译 + GC释放效率优先）
 
-> ADR: [0085](docs/adr/0085-data-container-selection-spec.md) — 详见 ADR 文档（含容器性能对比、禁止行为、正确模式）
+> ADR: [0085](docs/implemented/adr/data_core_selection/0085-data-container-selection-spec.md) — 详见 ADR 文档（含容器性能对比、禁止行为、正确模式）
 
 ### Claude Code 复刻任务
 
@@ -397,11 +397,11 @@
 3. **枚举是唯一数据源** — 字符串值由 `[EnumValue]` 定义一次，所有消费方通过 `ToValue()`/`FromValue()`/`XxxEnumConstants` 获取，禁止在消费方重复硬编码相同字符串
 4. **Contains 匹配场景** — 对需要模糊匹配（如 `modelId.Contains("gpt-4o")`）的场景，用 `EnumType[]` 按优先级排列，遍历时 `model.ToValue()` 获取匹配串，无需额外字典
 5. 一个枚举可以多个特性注释，手动实现字典很蠢啊
-6. **MCP 工具参数描述用 WellKnownParam 枚举** — 公共参数（working_dir/repo/verbosity/limit 等）必须用 `[McpToolParameter(WellKnownParam.X)]` 替代手写字符串描述，由 `param_metadata.generator` 编译期自动填充。> ADR: [0135](docs/adr/0135-wellknown-param-generator-eliminate-description-duplication.md)
+6. **MCP 工具参数描述用 WellKnownParam 枚举** — 公共参数（working_dir/repo/verbosity/limit 等）必须用 `[McpToolParameter(WellKnownParam.X)]` 替代手写字符串描述，由 `param_metadata.generator` 编译期自动填充。> ADR: [0135](docs/implemented/adr/component_strategy/0135-wellknown-param-generator-eliminate-description-duplication.md)
 
 ## 代码风格规范（资源管理与异常控制）
 
-> ADR: [0093](docs/adr/0093-resource-management-exception-style.md) — 详见 ADR 文档（含替代方案、DisposeSafe 扩展方法实现、验证清单）
+> ADR: [0093](docs/implemented/adr/data_core_selection/0093-resource-management-exception-style.md) — 详见 ADR 文档（含替代方案、DisposeSafe 扩展方法实现、验证清单）
 
 ### 规则1：资源释放强制 `using var` / `await using var`
 
@@ -453,7 +453,7 @@ public void Dispose() {
 
 ### 规则3：`DisposeSafe` 扩展方法（消除 Dispose 样板）
 
-`lib/abstractions/abs_core/core_utils/core` 提供 `DisposeSafeExtensions`：
+`modules/abstractions/abstractions/abs_core/core_utils/core/misc` 提供 `DisposeSafeExtensions`：
 - `obj.DisposeSafe(logger)` — 吞 `ObjectDisposedException`（幂等），其他异常可选日志
 - `cts.CancelAndDisposeSafe(logger)` — Cancel + Dispose 合并
 
@@ -496,7 +496,7 @@ public void Dispose() {
 | 只读集合 | `FrozenSet<T>` / `FrozenDictionary<K,V>` | `HashSet` + `AsReadOnly()` |
 | 枚举集合 | `BitMask.Of()` + `BitMask.Contains()` | `FrozenSet<Enum>` |
 | 字符串切片 | `Span<char>` / `ReadOnlySpan<char>` | `Substring` 链式分配 |
-| JSON 请求/响应 | DTO + `JsonSerializer.Serialize/Deserialize` | `StringBuilder` 拼 JSON / `$"{{...}}"` 内插（> ADR: [0133](docs/adr/0133-json-dto-typed-conversion-ban-concat.md)） |
+| JSON 请求/响应 | DTO + `JsonSerializer.Serialize/Deserialize` | `StringBuilder` 拼 JSON / `$"{{...}}"` 内插（> ADR: [0133](docs/implemented/adr/state_machine_serialization/0133-json-dto-typed-conversion-ban-concat.md)） |
 | JSON 解析 | `using var doc = JsonDocument.Parse(...)` | 不 using 的 JsonDocument |
 | 路径拼接 | `Path.Combine` | 字符串 `+` 拼接路径 |
 | 空检查 | `ArgumentNullException.ThrowIfNull` | `if (x == null) throw new...` |
@@ -511,7 +511,7 @@ public void Dispose() {
 
 ## 🔴 平台专属操作禁令
 
-> ADR: [0084](docs/adr/0084-platform-windows-env-rules.md) — 详见 ADR 文档（含 PowerShell 禁令、路径格式、命令分隔、脚本语言优先级[AST CLI/Python/PowerShell/jcc gh/Agent grep]）
+> ADR: [0084](docs/implemented/adr/platform_transport/0084-platform-windows-env-rules.md) — 详见 ADR 文档（含 PowerShell 禁令、路径格式、命令分隔、脚本语言优先级[AST CLI/Python/PowerShell/jcc gh/Agent grep]）
 
 ### ⛔ bash 中禁止 `2>nul` 重定向（强制，pre-commit hook 拦截）
 
@@ -523,7 +523,7 @@ public void Dispose() {
 
 ### 🔧 gh / rg 工具使用（优先 jcc/内置，回退系统）
 
-> ADR: [0089](docs/adr/0089-jcc-builtin-tools-only-no-system-gh-rg.md) — 详见 ADR 文档（含实测证据、边缘错误提示清单）
+> ADR: [0089](docs/implemented/adr/interaction/0089-jcc-builtin-tools-only-no-system-gh-rg.md) — 详见 ADR 文档（含实测证据、边缘错误提示清单）
 
 **`jcc.exe` 启动后已自带大量工具**（实测：`jcc mcp_list` = **400 个工具 / 49 个分类**）。
 优先用 jcc/内置工具；**jcc 不可用时直接回退到系统 `gh` / `rg`**：
@@ -533,7 +533,7 @@ public void Dispose() {
 
 **1. `jcc.exe` gh 工具 → 处理 GitHub 的 PR 和 CI 问题**（`github` 分类 31 个 `gh_*`，HttpClient 直调 REST API，无需系统 gh CLI）
 
-CLI 形态（**推荐**，ADR: [0090](docs/adr/0090-jcc-gh-cli-subcommand.md)）：
+CLI 形态（**推荐**，ADR: [0090](docs/implemented/adr/interaction/0090-jcc-gh-cli-subcommand.md)）：
 
 ```bash
 jcc gh pr list --limit 3            # 列 PR
@@ -546,7 +546,7 @@ jcc gh api repos/o/r/issues         # 通用 REST 调用
 jcc gh --help                       # 完整用法
 ```
 
-MCP 工具直调形态（脚本/结构化场景，ADR: [0073](docs/adr/0073-gh-rest-api-direct-call.md)）：
+MCP 工具直调形态（脚本/结构化场景，ADR: [0073](docs/implemented/adr/interaction/0073-gh-rest-api-direct-call.md)）：
 
 ```bash
 jcc mcp_list --category github                      # 列出全部 gh_* 工具
@@ -557,7 +557,7 @@ jcc mcp_call gh_run_view  '{"run_id":"123"}'        # run_id 必填
 
 两种入口等价：`jcc gh <group> <action>` 按约定拼成 `gh_{group}_{action}`，位置参数按工具 schema 的 `required` 顺序绑定（`pr_number` / `run_id` / `tag` / `issue_number`…），选项支持 `--key value`、`--key=value`，连字符自动归一化为下划线（`--max-lines` → `max_lines`）。
 
-**⚠️ 系统 gh CLI → jcc gh 参数对照表**：详见 [docs/task/gh_cli_param_alignment.md](docs/task/gh_cli_param_alignment.md)（含长选项别名映射、短选项映射、28 个分组清单、已知限制）。
+**⚠️ 系统 gh CLI → jcc gh 参数对照表**：详见 [gh_cli_param_alignment.md](modules/mcp/docs/task/task/gh_cli_param_alignment.md)（含长选项别名映射、短选项映射、28 个分组清单、已知限制）。
 
 **2. Agent 内置 `grep` 工具 → 处理日常搜索**（`Grep` tool，基于 ripgrep 引擎）：
 
@@ -571,7 +571,7 @@ Grep tool: pattern=正则表达式, path=搜索目录, include=文件过滤
 
 ### gh CLI 排错避坑指南（强制遵守）
 
-> ADR: [0075](docs/adr/0075-gh-cli-troubleshooting-guide.md) — 详见 ADR 文档（含坑1-5：jq引号/超时/Sandbox拦截/checks格式/管道死锁 + CI排错完整流程）
+> ADR: [0075](docs/implemented/adr/interaction/0075-gh-cli-troubleshooting-guide.md) — 详见 ADR 文档（含坑1-5：jq引号/超时/Sandbox拦截/checks格式/管道死锁 + CI排错完整流程）
 
 ### UTF-8 编码配置
 
@@ -582,27 +582,36 @@ chcp 65001
 
 ### .NET 测试和构建输出禁令
 
-> ADR: [0076](docs/adr/0076-dotnet-test-build-output-rules.md) — 详见 ADR 文档（含 Out-File/Select-String/Select-Object 禁令、CLI运行时测试[常用参数/扁平元动词/Agent grep]、FileMode.Append 陷阱）
+> ADR: [0076](docs/implemented/adr/engineering_ci_test/0076-dotnet-test-build-output-rules.md) — 详见 ADR 文档（含 Out-File/Select-String/Select-Object 禁令、CLI运行时测试[常用参数/扁平元动词/Agent grep]、FileMode.Append 陷阱）
 
 # 项目架构
 
 > **详细架构索引见 [README.md](README.md#项目架构索引)**，包含：组件依赖图、组件详情表、内部结构、源码生成器、中间件管道清单、测试结构、构建命令速查、组件名→路径映射
 
-> ✅ **架构迁移完成** — [ADR 0103](docs/adr/0103-folder-restructure-semantic-grouping-flat.md) 已落地:数字前缀(`00_generators/`~`09_app_*`)改为语义分组(`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`)+ 组内扁平(消除 src/+tests/ 双层)。详见 [docs/design/DSG004-flatten-restructure-plan.md](docs/design/DSG004-flatten-restructure-plan.md)。下方路径引用已更新为新语义结构。
+> ✅ **架构迁移完成** — [ADR 0137](docs/implemented/adr/architecture/0137-colocation-module-isolation.md) 已落地:16 功能域(`modules/<domain>/`)就近隔离,每域自包含(代码+测试+docs+module.slnx)。详见 [DSG040](docs/proposed/design/DSG040-colocation-module-isolation-plan.md)。下方路径引用已更新为 modules/ 结构。
 
 ## 测试项目地图
 
-按七层解决方案 + 跨层测试中心组织(语义分组 + 组内扁平,ADR 0103):
+按 16 功能域 + 跨层测试中心组织(就近隔离,ADR 0137):
 
-| 层 | 位置 |
+| 域 | 位置 |
 |----|------|
-| ① Generators | `gen/*.tests/` |
-| ② Foundation | `lib/*.tests/` |
-| ③ Infrastructure | `lib/*.tests/`(infra 子集) |
-| ④ Core | `kit/*.tests/` |
-| ⑤ Services | `server/*.tests/` + `llm/*.tests/` |
-| ⑥ Composition | `kit/*.tests/`(composition 子集) |
-| ⑦ App | `app/*.tests/` + `test/unit/host.tests/` |
+| generators | `modules/generators/*.tests/` |
+| collections | `modules/collections/*.tests/` |
+| persistence | `modules/persistence/*.tests/` |
+| async_primitives | `modules/async_primitives/*.tests/` |
+| abstractions | `modules/abstractions/*.tests/` |
+| guard | `modules/guard/*.tests/` |
+| storage | `modules/storage/*.tests/` |
+| plugins | `modules/plugins/*.tests/` |
+| mcp | `modules/mcp/*.tests/` |
+| llm | `modules/llm/*.tests/` |
+| cognition | `modules/cognition/*.tests/` |
+| perception | `modules/perception/*.tests/` |
+| services | `modules/services/*.tests/` |
+| composition | `modules/composition/*.tests/` |
+| apps | `modules/apps/*.tests/` |
+| tools | `modules/tools/*.tests/` |
 | 跨层 | `test/unit/*.tests/`, `test/integration/`, `test/mock/` |
 
 ## CI 流水线
@@ -612,7 +621,7 @@ CI 拆分为可复用 workflow（PR → main 触发）：
 | Workflow | 说明 |
 |----------|------|
 | `ci.yml` | 主入口，调用子 workflow |
-| `ci-build.yml` | 七层有序编译 + 组件测试项目 + 卫星项目 |
+| `ci-build.yml` | 16 功能域有序编译 + 组件测试项目 + 卫星项目 |
 | `ci-unit-tests.yml` | 每个 csproj 独立 matrix job，`--filter "Category!=Integration&Category!=Benchmark"` |
 | `ci-integration.yml` | `Integration.Tests` + App.slnx filter 分组 |
 | `ci-e2e.yml` | MockServer.E2E + Sync.Integration + CodeIndex.E2E + smoke tests |
@@ -629,18 +638,18 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 |------|------|
 | **目标框架** | `net10.0` |
 | **NativeAOT** | 强制，Release 模式自动启用 `PublishAot` + `TrimMode=full` |
-| **AOT 兼容** | 禁止 `dynamic`、反射 emit、直接解析 JSON；必须用 `JsonContext` + 源码生成器；写文件 JSON 统一用 `RelaxedJsonSerializer`（> ADR: [0042](docs/adr/0042-json-relaxed-serializer-unification.md)）；网络/内存 JSON 用 DTO 双向转换禁止手写拼接（> ADR: [0133](docs/adr/0133-json-dto-typed-conversion-ban-concat.md)） |
+| **AOT 兼容** | 禁止 `dynamic`、反射 emit、直接解析 JSON；必须用 `JsonContext` + 源码生成器；写文件 JSON 统一用 `RelaxedJsonSerializer`（> ADR: [0042](docs/implemented/adr/state_machine_serialization/0042-json-relaxed-serializer-unification.md)）；网络/内存 JSON 用 DTO 双向转换禁止手写拼接（> ADR: [0133](docs/implemented/adr/state_machine_serialization/0133-json-dto-typed-conversion-ban-concat.md)） |
 | **GlobalUsings** | `.cs` 文件内禁止写 `using`，统一放 `GlobalUsings.cs` |
 | **TreatWarningsAsErrors** | 已启用，零警告容忍 |
 | **InvariantGlobalization** | `true`，Release 模式 Exe 项目强制 |
 | **全球化策略** | 渐进式双语（中英文），遇到全球化问题时逐步实现，不必一次性处理完 |
 | **IsAotCompatible** | 所有源码项目已标记 |
 | **MCP 协议版本** | `2025-11-25`（Streamable HTTP）— 客户端 `HttpTransport` + 服务端 `McpHttpServer`（HttpListener，无状态/有状态双模式）；`MCP-Protocol-Version` 头握手协商，`MCP-Session-Id` 不分配=无状态；旧 `2024-11-05` + SseAgentTransport 仍在 `lib/transport.impl/sse/` 供兼容使用 |
-| **Workflow 断点续跑** | DAG 模式每层完成后原子保存快照 `workflow_{id}.state.json`，启动时加载跳过已完成步骤；`IWorkflowStateStore` 可选注入（> ADR: [0097](docs/adr/0097-workflow-checkpoint-resume.md)） |
+| **Workflow 断点续跑** | DAG 模式每层完成后原子保存快照 `workflow_{id}.state.json`，启动时加载跳过已完成步骤；`IWorkflowStateStore` 可选注入（> ADR: [0097](docs/implemented/adr/data_core_selection/0097-workflow-checkpoint-resume.md)） |
 
 ### 核心技术选型
 
-> ADR: [0086](docs/adr/0086-core-tech-selection-lock-design.md) — 详见 ADR 文档（含 MiddlewarePipeline/StreamMiddlewarePipeline/McpHttpServer/上下文压缩/AsyncLock + 锁设计与死锁防护[Actor模型/状态机]）
+> ADR: [0086](docs/implemented/adr/component_strategy/0086-core-tech-selection-lock-design.md) — 详见 ADR 文档（含 MiddlewarePipeline/StreamMiddlewarePipeline/McpHttpServer/上下文压缩/AsyncLock + 锁设计与死锁防护[Actor模型/状态机]）
 
 ***
 
@@ -653,35 +662,35 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 ## 编译
 
-### 七层解决方案架构（强制编译顺序）
+### 16 功能域架构（强制编译顺序）
 
-> ADR: [0081](docs/adr/0081-seven-layer-build-strategy.md) — 详见 ADR 文档（含七层依赖链、CI编译命令、修改不同层时的编译策略、开发编译策略[Debug+增量+单csproj]、编译注意事项）
+> ADR: [0137](docs/implemented/adr/architecture/0137-colocation-module-isolation.md) — 详见 ADR 文档（含 16 功能域依赖链、CI编译命令、修改不同域时的编译策略、开发编译策略[Debug+增量+单csproj]、编译注意事项）
 
 ## 测试
 
-> ADR: [0080](docs/adr/0080-manual-exe-testing-guide.md) — 详见 ADR 文档（含手动测试规范、全局测试命令、卡死排查优先级[testhost/管道锁/逻辑死锁]、throw 探针法定位副作用测试）
+> ADR: [0080](docs/implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md) — 详见 ADR 文档（含手动测试规范、全局测试命令、卡死排查优先级[testhost/管道锁/逻辑死锁]、throw 探针法定位副作用测试）
 
 ### GUI / 异步 UI 测试（Avalonia + CommunityToolkit.Mvvm 适用）
 
-> ADR: [0082](docs/adr/0082-gui-async-test-avalonia.md) — 详见 ADR 文档（含 AsyncRelayCommand 死锁解法、测试标配模板、Avalonia XAML 专属坑、GUI崩溃诊断、启动 exe 测试）
+> ADR: [0082](docs/implemented/adr/engineering_ci_test/0082-gui-async-test-avalonia.md) — 详见 ADR 文档（含 AsyncRelayCommand 死锁解法、测试标配模板、Avalonia XAML 专属坑、GUI崩溃诊断、启动 exe 测试）
 
 ### MockServer + jcc 联合测试
 
-> ADR: [0077](docs/adr/0077-mockserver-jcc-joint-testing.md) — 详见 ADR 文档（含 MockServer 参数表/端点、启动方式、踩坑记录、jcc 环境变量参数表、诊断方法）
+> ADR: [0077](docs/implemented/adr/engineering_ci_test/0077-mockserver-jcc-joint-testing.md) — 详见 ADR 文档（含 MockServer 参数表/端点、启动方式、踩坑记录、jcc 环境变量参数表、诊断方法）
 
 ## 批量替换 C# 源码禁令与导向
 
-> ADR: [0087](docs/adr/0087-batch-replace-csharp-source-rules.md) — 详见 ADR 文档（含 Out-File/Set-Content/regex/WriteAllText 禁令与正确导向）
+> ADR: [0087](docs/implemented/adr/component_strategy/0087-batch-replace-csharp-source-rules.md) — 详见 ADR 文档（含 Out-File/Set-Content/regex/WriteAllText 禁令与正确导向）
 
 ## E2E 测试脚本模式规范
 
-> ADR: [0083](docs/adr/0083-e2e-script-mode-spec.md) — 详见 ADR 文档（含 Mode 计算属性、推断规则、运行时不变量断言[GEN036/GEN037]、新增 E2E 脚本检查清单、定位卡死方法）
+> ADR: [0083](docs/implemented/adr/engineering_ci_test/0083-e2e-script-mode-spec.md) — 详见 ADR 文档（含 Mode 计算属性、推断规则、运行时不变量断言[GEN036/GEN037]、新增 E2E 脚本检查清单、定位卡死方法）
 
 # 同义词
 
 ## 用户说的"合并"
 
-> ADR: [0078](docs/adr/0078-merge-e2e-synonym-rules.md) — 详见 ADR 文档（含 rebase vs merge、reset --hard 生死线、两阶段流水线、PR创建/同步流程、auto-merge BLOCKED 排查、E2E定义）
+> ADR: [0078](docs/implemented/adr/interaction/0078-merge-e2e-synonym-rules.md) — 详见 ADR 文档（含 rebase vs merge、reset --hard 生死线、两阶段流水线、PR创建/同步流程、auto-merge BLOCKED 排查、E2E定义）
 
 # 八荣八耻
 以瞎猜接口为耻,以认真查询为荣;
@@ -695,9 +704,9 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 # 本项目规则
 
-> 📖 各规则已收编为 ADR，详见 [docs/adr/README.md](docs/adr/README.md) 索引。下方每条规则标注对应 ADR 编号，可二次打开查看完整决策上下文与替代方案。
+> 📖 各规则已收编为 ADR，详见 [docs/README.md](docs/README.md) 索引。下方每条规则标注对应 ADR 编号，可二次打开查看完整决策上下文与替代方案。
 
 ## ⚠️ 反例清单（踩过的坑，禁止再犯）
 
-> ADR: [0079](docs/adr/0079-anti-pattern-examples.md) — 详见 ADR 文档（含反例1-6：不查AGENTS.md/改共享配置/治标修复链/加法思维/模型ID推断模态/多余ToList拷贝）
+> ADR: [0079](docs/implemented/adr/component_strategy/0079-anti-pattern-examples.md) — 详见 ADR 文档（含反例1-6：不查AGENTS.md/改共享配置/治标修复链/加法思维/模型ID推断模态/多余ToList拷贝）
 

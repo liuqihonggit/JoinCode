@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <ProjectType>generator</ProjectType>
+  <NoWarn>$(NoWarn);RS2007</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(MicrosoftCodeAnalysisVersion)" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- 共享检测逻辑：直接编译进分析器 DLL（避免分析器加载时找不到依赖 DLL） -->
+  <!-- 通配符包含：新增检测器自动包含，无需手动添加 Compile Include -->
+  <ItemGroup>
+    <Compile Include="$(RepoRoot)modules/generators/aot_safety.shared/AotSafetyHelpers.cs" Link="Shared\AotSafetyHelpers.cs" />
+    <Compile Include="$(RepoRoot)modules/generators/aot_safety.shared/SyntaxHelpers.cs" Link="Shared\SyntaxHelpers.cs" />
+    <Compile Include="$(RepoRoot)modules/generators/aot_safety.shared/RuleDetectors/*.cs" Link="Shared\RuleDetectors\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+
+</Project>

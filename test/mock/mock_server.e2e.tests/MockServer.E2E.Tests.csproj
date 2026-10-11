@@ -9,9 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" />
-    <ProjectReference Include="$(RepoRoot)llm/core/Llm.csproj" />
-    <ProjectReference Include="$(RepoRoot)kit/composition/Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/apps/cli/JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/llm/core/Llm.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/composition/composition/Composition.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 

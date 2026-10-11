@@ -279,7 +279,7 @@ jobs:
           --logger "trx;LogFileName=e2e-sync.trx"
       - name: E2E - CodeIndex
         run: >
-          dotnet test server/code_index.e2e.tests/CodeIndex.E2E.Tests.csproj
+          dotnet test modules/perception/code_index.e2e.tests/CodeIndex.E2E.Tests.csproj
           -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
@@ -289,7 +289,7 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          dotnet build app/cli/JoinCode.csproj -c Debug --nologo /p:UsePackedComponents=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
+          dotnet build modules/apps/cli/JoinCode.csproj -c Debug --nologo /p:UsePackedComponents=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
           dotnet build test/mock/open_ai.mock_server/OpenAI.MockServer.csproj -c Debug --nologo /p:UsePackedComponents=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
       - name: E2E - Smoke Test (skip MCP)
         if: always()

@@ -55,7 +55,7 @@ an independent `.slnx` that depends only on lower layers:
 ```
 
 **Build order matters.** Always build lower layers before upper layers. See
-[ADR 0001](../docs/adr/0001-seven-layer-slnx-isolation.md) for the rationale.
+ADR 0001 for the rationale.
 
 ## Development Workflow
 
@@ -148,13 +148,13 @@ must pass before auto-merge.
 
 | Rule | Reference |
 |------|-----------|
-| Seven-layer slnx isolation | [ADR 0001](../docs/adr/0001-seven-layer-slnx-isolation.md) |
-| NativeAOT, no Microsoft AI packages | [ADR 0002](../docs/adr/0002-nativeaot-no-microsoft-ai-packages.md) |
-| Rebase over merge | [ADR 0003](../docs/adr/0003-rebase-over-merge.md) |
-| TDD double-layer | [ADR 0006](../docs/adr/0006-tdd-double-layer.md) |
-| Archive to `.xxx/`, never delete | [ADR 0008](../docs/adr/0008-archive-to-xxx-not-delete.md) |
-| Pass interfaces, not properties | [ADR 0016](../docs/adr/0016-pass-interface-not-property.md) |
-| Treat warnings as errors | [ADR 0027](../docs/adr/0027-treat-warnings-as-errors.md) |
+| Seven-layer slnx isolation | ADR 0001 |
+| NativeAOT, no Microsoft AI packages | [ADR 0002](../docs/implemented/adr/architecture/0002-nativeaot-no-microsoft-ai-packages.md) |
+| Rebase over merge | [ADR 0003](../docs/implemented/adr/interaction/0003-rebase-over-merge.md) |
+| TDD double-layer | [ADR 0006](../docs/implemented/adr/architecture/0006-tdd-double-layer.md) |
+| Archive to `.xxx/`, never delete | [ADR 0008](../docs/implemented/adr/architecture/0008-archive-to-xxx-not-delete.md) |
+| Pass interfaces, not properties | [ADR 0016](../docs/implemented/adr/component_strategy/0016-pass-interface-not-property.md) |
+| Treat warnings as errors | [ADR 0027](../docs/implemented/adr/engineering_ci_test/0027-treat-warnings-as-errors.md) |
 
 ### Data Container Selection
 
@@ -170,7 +170,7 @@ must pass before auto-merge.
 
 Finite string constants must be enums with `[EnumValue]` attributes. Source
 generators produce `XxxConstants` and `XxxExtensions` automatically. See
-[ADR 0019](../docs/adr/0019-enum-enumvalue-source-generator.md).
+[ADR 0019](../docs/implemented/adr/component_strategy/0019-enum-enumvalue-source-generator.md).
 
 ## Testing
 
@@ -206,7 +206,7 @@ and fix it — never leave the suite in a broken state.
 2. Use the `[McpTool]` attribute + source generator pattern
 3. Write tool description in Chinese (align with `ErrorRecoveryToolHandlers`)
 4. Update `ToolCategory` `[EnumValue]` and rebuild with `--no-incremental`
-5. See [ADR 0014](../docs/adr/0014-mcp-tool-coverage-principle.md)
+5. See [ADR 0014](../docs/implemented/adr/component_strategy/0014-mcp-tool-coverage-principle.md)
 
 ## Architecture Decision Records (ADRs)
 
@@ -218,7 +218,7 @@ When making a cross-module or architecturally significant decision:
 4. Change status to `accepted` after verification
 5. ADRs are immutable — only the status field changes after acceptance
 
-See [docs/adr/README.md](../docs/adr/README.md) for the template and conventions.
+See [docs/README.md](../docs/README.md) for the template and conventions.
 
 ## Getting Help
 

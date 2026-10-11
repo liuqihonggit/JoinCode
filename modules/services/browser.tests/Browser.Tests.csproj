@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Browser.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Browser.Tests</AssemblyName>
+    <Description>JoinCode Browser 插件单元测试</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/services/browser/Browser.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
+  </ItemGroup>
+</Project>

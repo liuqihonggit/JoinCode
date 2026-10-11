@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>AsyncLock.Tests</RootNamespace>
+    <AssemblyName>JoinCode.AsyncLock.Tests</AssemblyName>
+    <Description>JoinCode AsyncLock + LockRegistry 诊断锁单元测试</Description>
+    <NoWarn>$(NoWarn);JCC3010</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.2" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/async_primitives/async_lock/AsyncLock.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/llm/core/Llm.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/llm/agents/Agents.csproj" />
+  </ItemGroup>
+</Project>

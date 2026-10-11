@@ -10,9 +10,9 @@ internal static class GitHubRunLogFilter {
     public static FrozenSet<string> GetFilterMarkers(GitHubLogFilter filter) {
         if (filter == GitHubLogFilter.None) return FrozenSet<string>.Empty;
         var markers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if ((filter & GitHubLogFilter.Error) != 0) markers.Add("##[error]");
-        if ((filter & GitHubLogFilter.Warning) != 0) markers.Add("##[warning]");
-        if ((filter & GitHubLogFilter.Command) != 0) markers.Add("##[command]");
+        if ((filter & GitHubLogFilter.Error) != 0) markers.Add(CiLogAnalyzer.ErrorMarker);
+        if ((filter & GitHubLogFilter.Warning) != 0) markers.Add(CiLogAnalyzer.WarningMarker);
+        if ((filter & GitHubLogFilter.Command) != 0) markers.Add(CiLogAnalyzer.CommandMarker);
         if ((filter & GitHubLogFilter.Failed) != 0) { markers.Add("[FAIL]"); markers.Add("  Failed "); }
         if ((filter & GitHubLogFilter.Exception) != 0) markers.Add("Exception:");
         return markers.ToFrozenSet();
@@ -40,14 +40,7 @@ internal static class GitHubRunLogFilter {
     /// 检测日志文本是否只有 "Process completed with exit code N" 但缺少栈帧信息
     /// <para>栈帧标记: "  at " / "Exception" / "StackTrace" / "   at " — 有任一即视为有栈帧</para>
     /// </summary>
-    public static bool HasNoStackTrace(string text) {
-        if (!text.Contains("Process completed with exit code", StringComparison.OrdinalIgnoreCase))
-            return false;
-        return !text.Contains("  at ", StringComparison.Ordinal)
-            && !text.Contains("Exception", StringComparison.OrdinalIgnoreCase)
-            && !text.Contains("StackTrace", StringComparison.OrdinalIgnoreCase)
-            && !text.Contains("stack trace", StringComparison.OrdinalIgnoreCase);
-    }
+    public static bool HasNoStackTrace(string text) => CiLogAnalyzer.HasNoStackTrace(text);
 
     /// <summary>
     /// Section 类型的排序优先级 — error 优先(排障首要),normal 最后

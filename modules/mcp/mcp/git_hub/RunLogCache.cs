@@ -21,25 +21,19 @@ internal sealed class RunLogCache {
     /// <summary>缓存时间</summary>
     public DateTimeOffset CachedAt { get; init; } = DateTimeOffset.UtcNow;
 
-    // === Section 类型常量 — 按 GitHub Actions 日志标记分类 ===
+    // === Section 类型常量 — 委托到 CiLogAnalyzer 统一数据源 ===
 
-    internal const string SectionError = "error";
-    internal const string SectionWarning = "warning";
-    internal const string SectionCommand = "command";
-    internal const string SectionGroup = "group";
-    internal const string SectionNormal = "normal";
+    internal const string SectionError   = CiLogAnalyzer.SectionError;
+    internal const string SectionWarning = CiLogAnalyzer.SectionWarning;
+    internal const string SectionCommand = CiLogAnalyzer.SectionCommand;
+    internal const string SectionGroup   = CiLogAnalyzer.SectionGroup;
+    internal const string SectionNormal  = CiLogAnalyzer.SectionNormal;
 
     /// <summary>
-    /// 解析日志行的 section 类型 — 按 GitHub Actions 标记分类
+    /// 解析日志行的 section 类型 — 委托到 CiLogAnalyzer 统一实现
     /// <para>##[error] → error, ##[warning] → warning, ##[command] → command, ##[group] → group, 无标记 → normal</para>
     /// </summary>
-    internal static string ParseSectionType(string line) {
-        if (line.Contains("##[error]", StringComparison.OrdinalIgnoreCase)) return SectionError;
-        if (line.Contains("##[warning]", StringComparison.OrdinalIgnoreCase)) return SectionWarning;
-        if (line.Contains("##[command]", StringComparison.OrdinalIgnoreCase)) return SectionCommand;
-        if (line.Contains("##[group]", StringComparison.OrdinalIgnoreCase)) return SectionGroup;
-        return SectionNormal;
-    }
+    internal static string ParseSectionType(string line) => CiLogAnalyzer.ParseSectionType(line);
 }
 
 /// <summary>

@@ -395,7 +395,7 @@ internal sealed class GitHubRunLogFilterRunner {
 
         // 优化B: expand=failed 无 filter 时智能定位错误行,不从 runner setup 从头开始
         // 优化C: filter=error 也走智能定位(首屏即见真正错误行),但无错误行时不回退 tail(返回空→"未匹配到任何日志行")
-        if ((failedOnly && markers is null) || (markers is not null && markers.Contains("##[error]"))) {
+        if ((failedOnly && markers is null) || (markers is not null && markers.Contains(CiLogAnalyzer.ErrorMarker))) {
             var fallbackOnNoError = failedOnly && markers is null;
             matched = await CollectWithSmartStartAsync(logLines, maxLines, skipLines, fallbackOnNoError, ct).ConfigureAwait(false);
         } else {
@@ -429,7 +429,7 @@ internal sealed class GitHubRunLogFilterRunner {
             && text.Contains("exit code 1", StringComparison.OrdinalIgnoreCase))
             text += "\n\n⚠️ 检测到退出码矛盾: 测试全部通过但退出码非0\n可能原因: dotnet test slnx --filter 中某些项目无匹配测试\n建议修复: 添加 -- RunConfiguration.TreatNoTestsAsSuccess=true 或改用直接指定 csproj";
         // 优化F: --log --filter error 使用时提示更高效的 --log_failed(防止 AI 重复犯错)
-        if (!failedOnly && markers is not null && markers.Contains("##[error]"))
+        if (!failedOnly && markers is not null && markers.Contains(CiLogAnalyzer.ErrorMarker))
             text += "\n\n💡 下次排障建议用 --log_failed 或 --expand failed 更高效(智能定位错误行,首屏即见根因)";
         return GitHubToolHandlers.Ok(text, prefix);
     }
@@ -466,7 +466,7 @@ internal sealed class GitHubRunLogFilterRunner {
                 if (skipped < skipLines) { skipped++; continue; }
                 matched.Add(formatted);
                 if (matched.Count >= maxLines) break;
-            } else if (IsErrorIndicatorLine(line.AsSpan())) {
+            } else if (CiLogAnalyzer.IsErrorIndicator(line.AsSpan())) {
                 foundError = true;
                 foreach (var ctxLine in contextWindow) {
                     if (skipped < skipLines) { skipped++; continue; }
@@ -496,12 +496,17 @@ internal sealed class GitHubRunLogFilterRunner {
     }
 
     /// <summary>filter=error 模式：收集所有错误行 + 各自前5后3上下文,跳过无关 Passed 行(错误前置,信息密度高)</summary>
+    /// <para>优化G: 上下文去重 — 多个错误行的上下文窗口重叠时,同一行只输出一次(HashSet 按格式化内容去重)</para>
+    /// <para>优化H: 错误摘要前置 — 输出开头先显示错误数+类型分布,AI 一眼看到错误规模(委托 CiLogAnalyzer 统一工具类)</para>
     private async Task<List<string>> CollectAllErrorContextsAsync(
         IAsyncEnumerable<string> logLines, int maxLines, int skipLines, CancellationToken ct) {
         const int contextBefore = 5;
         const int contextAfter = 3;
         var matched = new List<string>(maxLines);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         var contextWindow = new Queue<string>(contextBefore);
+        var errorCategories = new Dictionary<CiErrorCategory, int>();
+        var errorCount = 0;
         var skipped = 0;
         var lineNumber = 0;
         var pendingAfter = 0;
@@ -511,89 +516,41 @@ internal sealed class GitHubRunLogFilterRunner {
             var formatted = LineNumberFormatter.Format(lineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix);
             if (pendingAfter > 0) {
                 if (skipped < skipLines) { skipped++; continue; }
+                if (!seen.Add(formatted)) { pendingAfter--; continue; }
                 matched.Add(formatted);
-                pendingAfter--;
                 if (matched.Count >= maxLines) break;
+                pendingAfter--;
                 continue;
             }
-            if (IsErrorIndicatorLine(line.AsSpan())) {
-                foreach (var ctxLine in contextWindow) {
-                    if (skipped < skipLines) { skipped++; continue; }
-                    matched.Add(ctxLine);
-                    if (matched.Count >= maxLines) break;
-                }
-                if (matched.Count >= maxLines) break;
-                if (skipped < skipLines) { skipped++; continue; }
-                matched.Add(formatted);
-                pendingAfter = contextAfter;
-                if (matched.Count >= maxLines) break;
-            } else {
+            if (!CiLogAnalyzer.IsErrorIndicator(line.AsSpan())) {
                 contextWindow.Enqueue(formatted);
                 if (contextWindow.Count > contextBefore) contextWindow.Dequeue();
-            }
-        }
-        return matched;
-    }
-
-    /// <summary>
-    /// 缺陷3: filter=error 时收集错误行+前5行上下文 — 避免 "Process completed with exit code 1" 无具体错误
-    /// <para>对每个 ##[error] 行,自动附带前 5 行上下文,让 AI 一次看到具体错误内容</para>
-    /// </summary>
-    private async Task<List<string>> CollectWithErrorContextAsync(
-        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, CancellationToken ct) {
-        const int contextBefore = 5;
-        const int contextAfter = 3;
-        var matched = new List<string>(maxLines);
-        var contextWindow = new Queue<string>(contextBefore);
-        var skipped = 0;
-        var lineNumber = 0;
-        var pendingAfter = 0;
-
-        await foreach (var line in logLines.ConfigureAwait(false)) {
-            lineNumber++;
-            var formatted = LineNumberFormatter.Format(lineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix);
-            if (pendingAfter > 0) {
-                if (skipped < skipLines) { skipped++; continue; }
-                matched.Add(formatted);
-                pendingAfter--;
-                if (matched.Count >= maxLines) break;
                 continue;
             }
-            if (line.Contains("##[error]", StringComparison.OrdinalIgnoreCase)) {
+            errorCount++;
+            var category = CiLogAnalyzer.ClassifyError(line.AsSpan());
+            errorCategories[category] = errorCategories.GetValueOrDefault(category) + 1;
+            foreach (var ctxLine in contextWindow) {
                 if (skipped < skipLines) { skipped++; continue; }
-                foreach (var ctxLine in contextWindow) {
-                    if (skipped < skipLines) { skipped++; continue; }
-                    matched.Add(ctxLine);
-                    if (matched.Count >= maxLines) break;
-                }
+                if (!seen.Add(ctxLine)) continue;
+                matched.Add(ctxLine);
                 if (matched.Count >= maxLines) break;
-                if (skipped < skipLines) { skipped++; continue; }
-                matched.Add(formatted);
-                pendingAfter = contextAfter;
-                if (matched.Count >= maxLines) break;
-            } else {
-                contextWindow.Enqueue(formatted);
-                if (contextWindow.Count > contextBefore) contextWindow.Dequeue();
             }
+            if (matched.Count >= maxLines) break;
+            if (skipped < skipLines) { skipped++; continue; }
+            if (!seen.Add(formatted)) continue;
+            matched.Add(formatted);
+            pendingAfter = contextAfter;
+            if (matched.Count >= maxLines) break;
         }
-        return matched;
+
+        if (errorCount == 0) return matched;
+        var result = new List<string>(matched.Count + 1) { CiLogAnalyzer.BuildErrorSummary(errorCount, errorCategories) };
+        result.AddRange(matched);
+        return result;
     }
 
-    /// <summary>错误指示行检测 — GitHub Actions 标记 + 编译/测试/链接错误 + 超时/取消模式,精确定位真正错误行</summary>
-    /// <para>扩展模式: error CS####(C#编译) / error MSB####(MSBuild) / [FAIL](xUnit) / Failed (测试汇总) / 超时/取消(job cancelled/timeout/canceled)</para>
-    /// <para>移除 No test matches — 非错误,大量测试项目无匹配是正常行为,产生噪音淹没真正错误</para>
-    private static bool IsErrorIndicatorLine(ReadOnlySpan<char> line)
-        => line.Contains("##[error]", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("Process completed with exit code", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("error CS", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("error MSB", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("  Failed ", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("warning MSB9008", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("was canceled", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("Cancelling the job", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("exceeded the maximum", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("timed out", StringComparison.OrdinalIgnoreCase);
+
 
     /// <summary>
     /// 构建 0 行匹配的精准提示 — 可能性名单表(每行=可能原因+调查命令),引导 AI 下一步
@@ -634,7 +591,7 @@ internal sealed class GitHubRunLogFilterRunner {
                 state = LogParseState.InFailedTest;
             }
             // 检测 ##[error] 行
-            else if (content.Contains("##[error]", StringComparison.OrdinalIgnoreCase)) {
+            else if (content.Contains(CiLogAnalyzer.ErrorMarker, StringComparison.OrdinalIgnoreCase)) {
                 current = new TestFailureInfo { StartLine = lineNumber, TestLine = content, IsErrorMarker = true };
                 failures.Add(current);
                 state = LogParseState.Normal;
@@ -755,8 +712,8 @@ internal sealed class GitHubRunLogFilterRunner {
             sb.Append('\n');
             // ##[error] 行: 去掉 ##[error] 前缀,只保留实际错误信息
             var displayLine = TestLine.Trim();
-            if (IsErrorMarker && displayLine.StartsWith("##[error]", StringComparison.OrdinalIgnoreCase))
-                displayLine = displayLine["##[error]".Length..].Trim();
+            if (IsErrorMarker && displayLine.StartsWith(CiLogAnalyzer.ErrorMarker, StringComparison.OrdinalIgnoreCase))
+                displayLine = displayLine[CiLogAnalyzer.ErrorMarker.Length..].Trim();
             sb.Append($"   | {displayLine}");
             sb.Append('\n');
             if (ErrorMessageLines.Count > 0) {

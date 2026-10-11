@@ -782,7 +782,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("未列出");
         // 计数正确
         text.Should().Contain("35 个");
-        text.Should().Contain("5 个失败");
+        text.Should().Contain("5 个异常");
     }
 
     [Fact]

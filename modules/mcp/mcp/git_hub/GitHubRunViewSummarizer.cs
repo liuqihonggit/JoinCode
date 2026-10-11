@@ -59,17 +59,21 @@ internal static class GitHubRunViewSummarizer {
 /// </summary>
 internal static class GitHubRunFormatHelper {
     /// <summary>
-    /// 状态符号映射 — ✓成功 ✗失败 ⊘取消 *进行中 …排队
+    /// 状态符号映射 — 委托 CiJobSeverity.FromConclusion 统一映射,保留 queued/in_progress 特异显示(…/*)
     /// </summary>
     public static string GetStatusSymbol(string? status, string? conclusion) {
-        if (string.Equals(status, "in_progress", StringComparison.OrdinalIgnoreCase)) return "*";
-        if (string.Equals(status, "queued", StringComparison.OrdinalIgnoreCase)) return "…";
-        if (string.Equals(conclusion, "success", StringComparison.OrdinalIgnoreCase)) return "✓";
-        if (string.Equals(conclusion, "failure", StringComparison.OrdinalIgnoreCase)) return "✗";
-        if (string.Equals(conclusion, "cancelled", StringComparison.OrdinalIgnoreCase)) return "⊘";
-        if (string.Equals(conclusion, "timed_out", StringComparison.OrdinalIgnoreCase)) return "⏱";
-        if (string.Equals(conclusion, "skipped", StringComparison.OrdinalIgnoreCase)) return "→";
-        return "-";
+        var severity = CiJobSeverityExtensions.FromConclusion(conclusion, status);
+        return severity switch {
+            CiJobSeverity.Success   => "✓",
+            CiJobSeverity.Failure   => "✗",
+            CiJobSeverity.Cancelled => "⊘",
+            CiJobSeverity.TimedOut  => "⏱",
+            CiJobSeverity.Skipped   => string.Equals(conclusion, "skipped", StringComparison.OrdinalIgnoreCase) ? "→" : "-",
+            CiJobSeverity.Pending   => string.Equals(status, "queued", StringComparison.OrdinalIgnoreCase) ? "…"
+                                     : string.Equals(status, "in_progress", StringComparison.OrdinalIgnoreCase) ? "*"
+                                     : "-",
+            _ => "-",
+        };
     }
 
     /// <summary>

@@ -239,15 +239,17 @@ public partial class GitHubToolHandlers {
         }
     }
 
-    /// <summary>步骤状态标记 — success✅ / failure❌ / cancelled⊘ / in_progress⏳ / pending⏸</summary>
+    /// <summary>步骤状态标记 — 委托 CiJobSeverity.FromConclusion 统一映射,保留 status 特异显示(⏳ in_progress / ⏸ pending)</summary>
     private static string GetStepMarker(string conclusion, string status)
-        => conclusion switch {
-            "success" => "✅",
-            "failure" => "❌",
-            "cancelled" => "⊘",
+        => CiJobSeverityExtensions.FromConclusion(conclusion, status) switch {
+            CiJobSeverity.Success   => "✅",
+            CiJobSeverity.Failure   => "❌",
+            CiJobSeverity.Cancelled => "⊘",
+            CiJobSeverity.TimedOut  => "⏱",
+            CiJobSeverity.Skipped   => "⊟",
             _ when status == "in_progress" => "⏳",
             _ when status == "pending" => "⏸",
-            _ => "  "
+            _ => "  ",
         };
 
     /// <summary>
@@ -929,13 +931,15 @@ public partial class GitHubToolHandlers {
             var run = JsonSerializer.Deserialize(runJson, GitHubApiJsonContext.Safe.RunDetailResponse);
             var conclusion = run?.Conclusion ?? "unknown";
             var htmlUrl = run?.HtmlUrl ?? "";
-            var displayConclusion = conclusion switch {
-                "success" => "✅ success",
-                "failure" => "❌ failure",
-                "cancelled" => "🚫 cancelled",
-                "timed_out" => "⏱ timed_out",
-                "neutral" => "➖ neutral",
-                _ => conclusion
+            var severity = CiJobSeverityExtensions.FromConclusion(conclusion);
+            var displayConclusion = severity switch {
+                CiJobSeverity.Success   => "✅ success",
+                CiJobSeverity.Failure   => "❌ failure",
+                CiJobSeverity.Cancelled => "🚫 cancelled",
+                CiJobSeverity.TimedOut  => "⏱ timed_out",
+                CiJobSeverity.Skipped   => "➖ " + conclusion,
+                CiJobSeverity.Warning   => "⚠ " + conclusion,
+                _ => conclusion,
             };
             sb.AppendLine($"结论: {displayConclusion}");
             if (!string.IsNullOrEmpty(htmlUrl)) sb.Append($"URL: {htmlUrl}");

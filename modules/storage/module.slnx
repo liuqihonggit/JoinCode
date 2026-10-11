@@ -1,0 +1,12 @@
+<Solution>
+  <Project Path="vault/vault.csproj" />
+  <Project Path="vault.testing.common/vault.testing.common.csproj" />
+  <Project Path="vault.memdir.tests/vault.memdir.tests.csproj" />
+  <Project Path="vault.other.tests/vault.other.tests.csproj" />
+  <Project Path="scheduling/scheduling.csproj" />
+  <Project Path="scheduling.tests/scheduling.tests.csproj" />
+  <Project Path="clock/clock.csproj" />
+  <Project Path="clock.tests/clock.tests.csproj" />
+  <Project Path="downloader/downloader.csproj" />
+  <Project Path="downloader.tests/downloader.tests.csproj" />
+</Solution>

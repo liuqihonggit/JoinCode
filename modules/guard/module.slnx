@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="guard/guard.csproj" />
+  <Project Path="guard.config.tests/guard.config.tests.csproj" />
+  <Project Path="guard.hooks.tests/guard.hooks.tests.csproj" />
+  <Project Path="guard.security.tests/guard.security.tests.csproj" />
+</Solution>

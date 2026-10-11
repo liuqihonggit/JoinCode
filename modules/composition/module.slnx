@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="composition/composition.csproj" />
+  <Project Path="composition.tests/composition.tests.csproj" />
+  <Project Path="slash/slash.csproj" />
+  <Project Path="pipelines/pipelines.csproj" />
+  <Project Path="pipelines.tests/pipelines.tests.csproj" />
+</Solution>

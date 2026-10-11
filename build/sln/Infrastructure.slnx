@@ -1,6 +1,6 @@
 <Solution>
   <Folder Name="/infrastructure/">
-    <Project Path="../../lib/infrastructure/Infrastructure.csproj" />
-    <Project Path="../../lib/transport.impl/Transport.Impl.csproj" />
+    <Project Path="../../modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <Project Path="../../modules/async_primitives/transport.impl/Transport.Impl.csproj" />
   </Folder>
 </Solution>

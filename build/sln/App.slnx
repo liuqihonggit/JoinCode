@@ -1,15 +1,15 @@
 <Solution>
   <Folder Name="/app/">
-    <Project Path="../../app/sdk/Sdk.csproj" />
-    <Project Path="../../app/cli/JoinCode.csproj" />
-    <Project Path="../../kit/pipelines/Pipelines.csproj" />
+    <Project Path="../../modules/apps/sdk/Sdk.csproj" />
+    <Project Path="../../modules/apps/cli/JoinCode.csproj" />
+    <Project Path="../../modules/composition/pipelines/Pipelines.csproj" />
   </Folder>
   <Folder Name="/test/unit/">
     <Project Path="../../test/unit/host.tests/Host.Tests.csproj" />
     <Project Path="../../test/unit/infra.tests/io/Infra.IO.Tests.csproj" />
     <Project Path="../../test/unit/infra.tests/utils/Infra.Utils.Tests.csproj" />
     <Project Path="../../test/unit/infra.tests/services/Infra.Services.Tests.csproj" />
-    <Project Path="../../lib/downloader.tests/Downloader.Tests.csproj" />
+    <Project Path="../../modules/storage/downloader.tests/Downloader.Tests.csproj" />
     <Project Path="../../test/unit/testing.common/Testing.Common.csproj" />
   </Folder>
   <Folder Name="/test/integration/">
@@ -27,20 +27,20 @@
     <Project Path="../../test/mock/mcp.mock_server/Mcp.MockServer.csproj" />
   </Folder>
   <Folder Name="/lib/">
-    <Project Path="../../lib/abstractions/Abstractions.csproj" />
-    <Project Path="../../lib/downloader/Downloader.csproj" />
+    <Project Path="../../modules/abstractions/abstractions/Abstractions.csproj" />
+    <Project Path="../../modules/storage/downloader/Downloader.csproj" />
     <Project Path="../../modules/collections/structura/Structura.csproj" />
-    <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />
+    <Project Path="../../modules/async_primitives/transport.contracts/Transport.Contracts.csproj" />
   </Folder>
   <Folder Name="/infrastructure/">
-    <Project Path="../../lib/infrastructure/Infrastructure.csproj" />
-    <Project Path="../../lib/transport.impl/Transport.Impl.csproj" />
+    <Project Path="../../modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <Project Path="../../modules/async_primitives/transport.impl/Transport.Impl.csproj" />
   </Folder>
   <Folder Name="/tool/">
-    <Project Path="../../tool/ctor_scanner/CtorScanner.csproj" />
-    <Project Path="../../tool/onnx_embedding/OnnxEmbeddingExe.csproj" />
-    <Project Path="../../tool/onnx_embedding_verify/OnnxEmbeddingVerify.csproj" />
-    <Project Path="../../tool/simd_vector_verify/SimdVectorVerify.csproj" />
+    <Project Path="../../modules/tools/ctor_scanner/CtorScanner.csproj" />
+    <Project Path="../../modules/tools/onnx_embedding/OnnxEmbeddingExe.csproj" />
+    <Project Path="../../modules/tools/onnx_embedding_verify/OnnxEmbeddingVerify.csproj" />
+    <Project Path="../../modules/tools/simd_vector_verify/SimdVectorVerify.csproj" />
   </Folder>
   <Folder Name="/test/aot/">
     <Project Path="../../test/aot/aot_pithosdb_probe/aot-pithosdb-probe.csproj" />

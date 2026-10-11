@@ -9,20 +9,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/apps/cli/JoinCode.csproj" />
   </ItemGroup>
 
   <!-- Core.Tests.Terminal 依赖（去重：JoinCode 已在上面） -->
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)kit/composition/Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)lib/clock/Clock.csproj" />
-    <ProjectReference Include="$(RepoRoot)kit/brain/Brain.csproj" />
-    <ProjectReference Include="$(RepoRoot)lib/guard/Guard.csproj" />
-    <ProjectReference Include="$(RepoRoot)lib/vault/Vault.csproj" />
-    <ProjectReference Include="$(RepoRoot)kit/hands/Hands.csproj" />
-    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)lib/pithosdb/PithosDB.Core.csproj" />
-    <ProjectReference Include="$(RepoRoot)server/dream/Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/composition/composition/Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/storage/clock/Clock.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/cognition/brain/Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/guard/guard/Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/storage/vault/Vault.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/cognition/hands/Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/persistence/pithosdb/PithosDB.Core.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/services/dream/Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 

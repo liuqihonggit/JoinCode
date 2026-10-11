@@ -1,19 +1,19 @@
 <Solution>
   <Folder Name="/lib/">
-    <Project Path="../../lib/abstractions/Abstractions.csproj" />
-    <Project Path="../../lib/downloader/Downloader.csproj" />
-    <Project Path="../../lib/downloader.tests/Downloader.Tests.csproj" />
-    <Project Path="../../lib/async_lock/AsyncLock.csproj" />
+    <Project Path="../../modules/abstractions/abstractions/Abstractions.csproj" />
+    <Project Path="../../modules/storage/downloader/Downloader.csproj" />
+    <Project Path="../../modules/storage/downloader.tests/Downloader.Tests.csproj" />
+    <Project Path="../../modules/async_primitives/async_lock/AsyncLock.csproj" />
     <Project Path="../../modules/collections/structura/Structura.csproj" />
-    <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />
-    <Project Path="../../lib/plugins.contracts/Plugins.Contracts.csproj" />
-    <Project Path="../../lib/plugins.infrastructure/Plugins.Infrastructure.csproj" />
-    <Project Path="../../lib/plugins.tests/Plugins.Tests.csproj" />
-    <Project Path="../../lib/pithosdb/PithosDB.Core.csproj" />
+    <Project Path="../../modules/async_primitives/transport.contracts/Transport.Contracts.csproj" />
+    <Project Path="../../modules/plugins/plugins.contracts/Plugins.Contracts.csproj" />
+    <Project Path="../../modules/plugins/plugins.infrastructure/Plugins.Infrastructure.csproj" />
+    <Project Path="../../modules/plugins/plugins.tests/Plugins.Tests.csproj" />
+    <Project Path="../../modules/persistence/pithosdb/PithosDB.Core.csproj" />
   </Folder>
   <Folder Name="/lib/async_lock/test/" />
   <Folder Name="/lib/async_lock/test/unit/">
-    <Project Path="../../lib/async_lock.tests/AsyncLock.Tests.csproj" />
+    <Project Path="../../modules/async_primitives/async_lock.tests/AsyncLock.Tests.csproj" />
   </Folder>
   <Folder Name="/modules/collections/structura/" />
   <Folder Name="/modules/collections/structura/test/" />

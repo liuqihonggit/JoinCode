@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="cli/cli.csproj" />
+  <Project Path="gui/gui.csproj" />
+  <Project Path="sdk/sdk.csproj" />
+  <Project Path="tui/tui.csproj" />
+</Solution>

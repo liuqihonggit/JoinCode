@@ -1,6 +1,6 @@
 # 引擎层统一子代理状态源 — GUI 双模型合并
 
-> ADR: [0121](../adr/0121-engine-agent-state-source-unification.md)
+> ADR: [0121](../implemented/adr/0121-engine-agent-state-source-unification.md)
 
 ## 目标
 

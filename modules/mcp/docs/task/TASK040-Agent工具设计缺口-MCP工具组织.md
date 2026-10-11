@@ -84,5 +84,5 @@
 ## 关联
 
 - 设计文档：《Agent 工具设计》"海量的MCP工具"第2、3、4条
-- 关联 ADR：[0019](../adr/0019-enum-enumvalue-source-generator.md)（[EnumValue]+源码生成器）、[0020](../adr/0020-encapsulation-requirements.md)
+- 关联 ADR：[0019](../implemented/adr/0019-enum-enumvalue-source-generator.md)（[EnumValue]+源码生成器）、[0020](../implemented/adr/0020-encapsulation-requirements.md)
 - 关联记忆：`能计算就计算不要构造表；真要建表用特性或 map 形式`

@@ -16,7 +16,7 @@ all in a single command.
 It compiles to a native single-file executable `jcc.exe` with zero runtime
 dependencies and peak performance on launch.
 
-> 📖 **Engineering rules:** [AGENTS.md](AGENTS.md) (Chinese) · [ADR](docs/adr/README.md)
+> 📖 **Engineering rules:** [AGENTS.md](AGENTS.md) (Chinese) · [ADR](docs/README.md)
 
 ---
 
@@ -337,7 +337,7 @@ dependency ordering:
 | Archive to `.xxx/`, never delete | [0008](docs/adr/0008-archive-to-xxx-not-delete.md) |
 | Defense-in-depth L1–L10 | [0036](docs/adr/0036-defense-in-depth-l1-l10.md) |
 
-See [docs/adr/README.md](docs/adr/README.md) for the full ADR index.
+See [docs/README.md](docs/README.md) for the full ADR index.
 
 ### Source Generators
 
@@ -451,8 +451,8 @@ From low to high:
 | [Available Models](docs/reference/models.md) | 51 models across 6 providers (aliases, context length, notes) |
 | [Technical Details](docs/design/DSG002-technical-details.md) | Fault tolerance / prefix caching / loop intervention / parallel load / serial build |
 | [Small Model Strategy](docs/design/DSG003-small-model-strategy.md) | Engineering strategies for small model scenarios (synonyms / prohibitions / counterexamples / match) |
-| [Architecture Index](docs/design/DSG001-architecture-index.md) | Component dependency graph / detail table / internal structure / middleware pipelines / build commands |
-| [Architecture Decision Records](docs/adr/README.md) | ADRs: *why* choice A over B |
+| [Architecture Index](docs/implemented/design/DSG001-architecture-index.md) | Component dependency graph / detail table / internal structure / middleware pipelines / build commands |
+| [Architecture Decision Records](docs/README.md) | ADRs: *why* choice A over B |
 
 ---
 

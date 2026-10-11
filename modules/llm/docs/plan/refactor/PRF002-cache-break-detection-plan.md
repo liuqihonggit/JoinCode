@@ -5,7 +5,7 @@
 
 > 创建时间: 2026-09-02
 > 范围: 补齐 `CacheBreakDetector` 的检测维度与判定阈值，对齐 TS 原版 `promptCacheBreakDetection.ts`（727 行）
-> 前置 ADR: [0056](../../adr/0056-cache-break-detection-enhancement.md)（缓存破坏检测维度补齐,迁移自旧 0055 分析记录）
+> 前置 ADR: [0056](../../implemented/adr/0056-cache-break-detection-enhancement.md)（缓存破坏检测维度补齐,迁移自旧 0055 分析记录）
 
 ## 0. 现状对比
 
@@ -263,7 +263,7 @@ public async Task CheckCacheBreakAsync_CacheEviction_PartialDrop_Detected()
 |------|------|
 | `CacheBreakKind` 枚举新增值 | 需 `--no-incremental` 全量重建（源码生成器重新扫描 `[EnumValue]`） |
 | 随机后缀（diff 文件名） | 用 `XxHash32` + `DateTimeOffset.UtcNow.Ticks`，不用 `Random`（AOT 友好） |
-| JSON 序列化 | 用 `RelaxedJsonSerializer`（> ADR: [0042](../../adr/0042-json-relaxed-serializer-unification.md)） |
+| JSON 序列化 | 用 `RelaxedJsonSerializer`（> ADR: [0042](../../implemented/adr/0042-json-relaxed-serializer-unification.md)） |
 | 查找集 | `MAX_TRACKED_SOURCES` 用 `FrozenDictionary`/`ConcurrentDictionary`，不用 `List<T>.Contains` |
 | 时间注入 | `Func<DateTimeOffset>? clock = null`，测试可控、生产用 `DateTimeOffset.UtcNow` |
 

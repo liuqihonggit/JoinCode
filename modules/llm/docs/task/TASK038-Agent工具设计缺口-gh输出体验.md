@@ -101,5 +101,5 @@ AI 使用 gh 工具查 CI 错误时翻查层级多、`gh view` 偶发卡死。�
 ## 关联
 
 - 设计文档：《Agent 工具设计》"首次调用优化"第2条、"行号和分页"整节
-- 关联 ADR：[0080](../adr/0080-manual-exe-testing-guide.md)（手动 exe 验收）
+- 关联 ADR：[0080](../implemented/adr/0080-manual-exe-testing-guide.md)（手动 exe 验收）
 - 关联记忆：`gh 日志功能全量缓存策略`、`CI 排查输出按异常优先级置顶`

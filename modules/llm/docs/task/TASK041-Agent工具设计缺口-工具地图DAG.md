@@ -100,6 +100,6 @@
 ## 关联
 
 - 设计文档：《Agent 工具设计》"工具地图"整节
-- 关联 ADR：[0019](../adr/0019-enum-enumvalue-source-generator.md)、[0086](../adr/0086-core-tech-selection-lock-design.md)
+- 关联 ADR：[0019](../implemented/adr/0019-enum-enumvalue-source-generator.md)、[0086](../implemented/adr/0086-core-tech-selection-lock-design.md)
 - 关联记忆：`能计算就计算不要构造表`、`底层可复用能力优先于工具层实现`
 - 依赖：GAP-041-04 依赖 GAP-040-01（通用 scenario registry）

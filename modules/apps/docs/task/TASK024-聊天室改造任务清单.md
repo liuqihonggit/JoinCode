@@ -1,7 +1,7 @@
 # 聊天室改造任务清单 — 模仿 QQ
 
 > 📍 **导航**: [docs/task/](README.md) › 本文件
-> 🔗 **上游 ADR**: [0109](../adr/0109-window-shake-notification-and-bot-name.md)（聊天室 = 团队 + 广播 + 系统消息可见性）、[0111](../adr/0111-unified-messaging-channel-mailboxhub-upgrade.md)（MailboxHub 按可见性路由 + 跨通道去重）
+> 🔗 **上游 ADR**: [0109](../implemented/adr/0109-window-shake-notification-and-bot-name.md)（聊天室 = 团队 + 广播 + 系统消息可见性）、[0111](../implemented/adr/0111-unified-messaging-channel-mailboxhub-upgrade.md)（MailboxHub 按可见性路由 + 跨通道去重）
 > 📅 **创建**: 2026-09-16
 > 🎯 **目标**: 修复聊天室验收三大缺陷（无 ID / 无去重 / 无系统通知可见性），对标 QQ 聊天室
 

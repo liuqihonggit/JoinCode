@@ -1,6 +1,6 @@
 # 窗口震动通知与子代理 bot 中文名 — 实现设计
 
-> ADR: [0109](../adr/0109-window-shake-notification-and-bot-name.md)
+> ADR: [0109](../implemented/adr/0109-window-shake-notification-and-bot-name.md)
 > 日期: 2026-09-16
 > 方案: 改造为主（方案 A）
 

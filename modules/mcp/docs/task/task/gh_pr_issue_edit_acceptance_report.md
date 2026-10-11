@@ -1,7 +1,7 @@
 # gh pr/issue edit 全参数验收报告
 
 > 日期: 2026-10-08
-> ADR: [0132](../adr/0132-jcc-build-deploy-and-gh-troubleshooting.md)
+> ADR: [0132](../implemented/AI交互/0132-jcc-build-deploy-and-gh-troubleshooting.md)
 > 仓库: liuqihonggit/JoinCode
 
 ## 验收环境

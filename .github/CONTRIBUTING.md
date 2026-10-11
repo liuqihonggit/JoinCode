@@ -218,7 +218,7 @@ When making a cross-module or architecturally significant decision:
 4. Change status to `accepted` after verification
 5. ADRs are immutable — only the status field changes after acceptance
 
-See [docs/adr/README.md](../docs/adr/README.md) for the template and conventions.
+See [docs/README.md](../docs/README.md) for the template and conventions.
 
 ## Getting Help
 

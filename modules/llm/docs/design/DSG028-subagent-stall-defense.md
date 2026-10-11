@@ -1,7 +1,7 @@
 # 子代理卡死防护纵深防御 — 技术设计
 
 > 📍 **导航**: [docs/](../README.md) › [design/](README.md)
-> 🔗 **ADR**: [0106](../adr/0106-subagent-stall-defense-in-depth.md)
+> 🔗 **ADR**: [0106](../implemented/adr/0106-subagent-stall-defense-in-depth.md)
 
 ## 一、整体架构
 

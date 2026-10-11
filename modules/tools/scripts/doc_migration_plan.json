@@ -1,0 +1,1242 @@
+{
+  "global": [
+    {
+      "rel_path": "condition-order-fix-tasks.md",
+      "filename": "condition-order-fix-tasks.md",
+      "subdir": "."
+    },
+    {
+      "rel_path": "README.md",
+      "filename": "README.md",
+      "subdir": "."
+    },
+    {
+      "rel_path": "refactor_data_structure_consolidation_tasks.md",
+      "filename": "refactor_data_structure_consolidation_tasks.md",
+      "subdir": "."
+    },
+    {
+      "rel_path": "design/DSG001-architecture-index.md",
+      "filename": "DSG001-architecture-index.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG002-technical-details.md",
+      "filename": "DSG002-technical-details.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG004-flatten-restructure-plan.md",
+      "filename": "DSG004-flatten-restructure-plan.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG005-flatten-restructure-phase0-research.md",
+      "filename": "DSG005-flatten-restructure-phase0-research.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG013-UnifiedResilienceArchitecture.md",
+      "filename": "DSG013-UnifiedResilienceArchitecture.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG023-worktree-merge-permission-system-questions.md",
+      "filename": "DSG023-worktree-merge-permission-system-questions.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG040-colocation-module-isolation-plan.md",
+      "filename": "DSG040-colocation-module-isolation-plan.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/README.md",
+      "filename": "README.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "fix/defensive-programming-fixes.md",
+      "filename": "defensive-programming-fixes.md",
+      "subdir": "fix"
+    },
+    {
+      "rel_path": "fix/defensive-programming-round2.md",
+      "filename": "defensive-programming-round2.md",
+      "subdir": "fix"
+    },
+    {
+      "rel_path": "fix/defensive-programming-round3.md",
+      "filename": "defensive-programming-round3.md",
+      "subdir": "fix"
+    },
+    {
+      "rel_path": "fix/README.md",
+      "filename": "README.md",
+      "subdir": "fix"
+    },
+    {
+      "rel_path": "fix/static-utility-logger-cleanup.md",
+      "filename": "static-utility-logger-cleanup.md",
+      "subdir": "fix"
+    },
+    {
+      "rel_path": "handoff/README.md",
+      "filename": "README.md",
+      "subdir": "handoff"
+    },
+    {
+      "rel_path": "handoff/0080_round3_handoff/README.md",
+      "filename": "README.md",
+      "subdir": "handoff\\0080_round3_handoff"
+    },
+    {
+      "rel_path": "plan/PLA003-using改造工作计划.md",
+      "filename": "PLA003-using改造工作计划.md",
+      "subdir": "plan"
+    },
+    {
+      "rel_path": "plan/PLA004-强迫症扁平化方案.md",
+      "filename": "PLA004-强迫症扁平化方案.md",
+      "subdir": "plan"
+    },
+    {
+      "rel_path": "plan/PLA005-文件夹整理改革方案.md",
+      "filename": "PLA005-文件夹整理改革方案.md",
+      "subdir": "plan"
+    },
+    {
+      "rel_path": "plan/PLA006-文件夹整理迁移映射表.md",
+      "filename": "PLA006-文件夹整理迁移映射表.md",
+      "subdir": "plan"
+    },
+    {
+      "rel_path": "plan/README.md",
+      "filename": "README.md",
+      "subdir": "plan"
+    },
+    {
+      "rel_path": "plan/mcp/README.md",
+      "filename": "README.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "plan/refactor/PRF005-using-var-关注点分离重构计划.md",
+      "filename": "PRF005-using-var-关注点分离重构计划.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "plan/refactor/PRF008-架构优化与风险修复计划.md",
+      "filename": "PRF008-架构优化与风险修复计划.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "plan/refactor/PRF009-架构选型与效率优化总纲.md",
+      "filename": "PRF009-架构选型与效率优化总纲.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "plan/refactor/PRF010-架构选型对齐与硬编码消除计划.md",
+      "filename": "PRF010-架构选型对齐与硬编码消除计划.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "refactor/README.md",
+      "filename": "README.md",
+      "subdir": "refactor"
+    },
+    {
+      "rel_path": "refactor/REF002-archive-dead-code.md",
+      "filename": "REF002-archive-dead-code.md",
+      "subdir": "refactor"
+    },
+    {
+      "rel_path": "refactor/REF004-foreach-to-dict-report.md",
+      "filename": "REF004-foreach-to-dict-report.md",
+      "subdir": "refactor"
+    },
+    {
+      "rel_path": "refactor/REF008-field-merge-refactor-tasks.md",
+      "filename": "REF008-field-merge-refactor-tasks.md",
+      "subdir": "refactor"
+    },
+    {
+      "rel_path": "reference/code_review_report_20260915.md",
+      "filename": "code_review_report_20260915.md",
+      "subdir": "reference"
+    },
+    {
+      "rel_path": "reference/README.md",
+      "filename": "README.md",
+      "subdir": "reference"
+    },
+    {
+      "rel_path": "reference/错误编码.md",
+      "filename": "错误编码.md",
+      "subdir": "reference"
+    },
+    {
+      "rel_path": "reports/dispose-timeout-violations-report.md",
+      "filename": "dispose-timeout-violations-report.md",
+      "subdir": "reports"
+    },
+    {
+      "rel_path": "task/0134-layered-ci-implementation.md",
+      "filename": "0134-layered-ci-implementation.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/README.md",
+      "filename": "README.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK020-惯性错误修复工作计划.md",
+      "filename": "TASK020-惯性错误修复工作计划.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK023-覆盖全部功能总测试任务清单.md",
+      "filename": "TASK023-覆盖全部功能总测试任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK025-代码审查与重构任务清单.md",
+      "filename": "TASK025-代码审查与重构任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK026-文档遗漏项清单.md",
+      "filename": "TASK026-文档遗漏项清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK028-严格语法规范与卫语句检测.md",
+      "filename": "TASK028-严格语法规范与卫语句检测.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK030-交接文档-基建确定性测试方法论.md",
+      "filename": "TASK030-交接文档-基建确定性测试方法论.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK030-基建确定性测试补充任务清单.md",
+      "filename": "TASK030-基建确定性测试补充任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK031-冗余拷贝消除与O1条件改造.md",
+      "filename": "TASK031-冗余拷贝消除与O1条件改造.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK031-基建确定性测试补充-新批次.md",
+      "filename": "TASK031-基建确定性测试补充-新批次.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/gui/README.md",
+      "filename": "README.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "task/task/single_source_audit/00_summary.md",
+      "filename": "00_summary.md",
+      "subdir": "task\\task\\single_source_audit"
+    },
+    {
+      "rel_path": "task/task/single_source_audit/01_multi_source_classes.md",
+      "filename": "01_multi_source_classes.md",
+      "subdir": "task\\task\\single_source_audit"
+    },
+    {
+      "rel_path": "task/task/single_source_audit/02_hardcoded_mappings.md",
+      "filename": "02_hardcoded_mappings.md",
+      "subdir": "task\\task\\single_source_audit"
+    },
+    {
+      "rel_path": "task/task/single_source_audit/03_duplicate_definitions.md",
+      "filename": "03_duplicate_definitions.md",
+      "subdir": "task\\task\\single_source_audit"
+    },
+    {
+      "rel_path": "task/task/single_source_audit/04_unified_sources.md",
+      "filename": "04_unified_sources.md",
+      "subdir": "task\\task\\single_source_audit"
+    },
+    {
+      "rel_path": "task/task/single_source_audit/05_enum_value_status.md",
+      "filename": "05_enum_value_status.md",
+      "subdir": "task\\task\\single_source_audit"
+    },
+    {
+      "rel_path": "task/task/single_source_audit/06_exceptions.md",
+      "filename": "06_exceptions.md",
+      "subdir": "task\\task\\single_source_audit"
+    },
+    {
+      "rel_path": "tasks/pr356_ci_fix.md",
+      "filename": "pr356_ci_fix.md",
+      "subdir": "tasks"
+    }
+  ],
+  "unknown": [],
+  "generators": [
+    {
+      "rel_path": "design/analyzer-refactor-task.md",
+      "filename": "analyzer-refactor-task.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG031-ownership-lifetime-leak-analyzer.md",
+      "filename": "DSG031-ownership-lifetime-leak-analyzer.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "plan/refactor/PRF011-状态机重构任务清单.md",
+      "filename": "PRF011-状态机重构任务清单.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "plan/refactor/PRF012-状态机重构计划.md",
+      "filename": "PRF012-状态机重构计划.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "task/TASK030-分析器增强与范围纠正.md",
+      "filename": "TASK030-分析器增强与范围纠正.md",
+      "subdir": "task"
+    }
+  ],
+  "collections": [
+    {
+      "rel_path": "plan/refactor/PRF001-0-GC字符串效率审计报告.md",
+      "filename": "PRF001-0-GC字符串效率审计报告.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "task/TASK032-批次3-Immutable-CAS改造.md",
+      "filename": "TASK032-批次3-Immutable-CAS改造.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK033-HAMT实现-ObjectId检索优化.md",
+      "filename": "TASK033-HAMT实现-ObjectId检索优化.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/task/immutable_dict_cas_audit.md",
+      "filename": "immutable_dict_cas_audit.md",
+      "subdir": "task\\task"
+    },
+    {
+      "rel_path": "task/task/m1_public_mutable_collection_audit.md",
+      "filename": "m1_public_mutable_collection_audit.md",
+      "subdir": "task\\task"
+    }
+  ],
+  "persistence": [
+    {
+      "rel_path": "design/DSG029-inmemory-index-store-immutable-cas-refactor.md",
+      "filename": "DSG029-inmemory-index-store-immutable-cas-refactor.md",
+      "subdir": "design"
+    }
+  ],
+  "async_primitives": [
+    {
+      "rel_path": "bugfix/2026-09-21-ci-flaky-tests-global-state-pollution.md",
+      "filename": "2026-09-21-ci-flaky-tests-global-state-pollution.md",
+      "subdir": "bugfix"
+    },
+    {
+      "rel_path": "bugfix/2026-09-22-ci-flaky-deadlock-detection-timer-latency.md",
+      "filename": "2026-09-22-ci-flaky-deadlock-detection-timer-latency.md",
+      "subdir": "bugfix"
+    },
+    {
+      "rel_path": "bugfix/2026-10-01-ci-actor-dispose-inflight-fire-and-forget.md",
+      "filename": "2026-10-01-ci-actor-dispose-inflight-fire-and-forget.md",
+      "subdir": "bugfix"
+    },
+    {
+      "rel_path": "design/DSG014-TransportFallbackChain.md",
+      "filename": "DSG014-TransportFallbackChain.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG033-actor-mailbox-leak-fix-and-supervision-tree-align-akka.md",
+      "filename": "DSG033-actor-mailbox-leak-fix-and-supervision-tree-align-akka.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG034-actor-refactor-and-memory-leak-fix.md",
+      "filename": "DSG034-actor-refactor-and-memory-leak-fix.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG038-deadlock-elimination-overhaul-master-plan.md",
+      "filename": "DSG038-deadlock-elimination-overhaul-master-plan.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "fix/async-thread-currentthread-leak-report.md",
+      "filename": "async-thread-currentthread-leak-report.md",
+      "subdir": "fix"
+    },
+    {
+      "rel_path": "fix/deadlock-detection-flaky-test-fix.md",
+      "filename": "deadlock-detection-flaky-test-fix.md",
+      "subdir": "fix"
+    },
+    {
+      "rel_path": "fix/priority-mailbox-flaky-test-fix.md",
+      "filename": "priority-mailbox-flaky-test-fix.md",
+      "subdir": "fix"
+    },
+    {
+      "rel_path": "refactor/REF006-lock-to-asynclock.md",
+      "filename": "REF006-lock-to-asynclock.md",
+      "subdir": "refactor"
+    },
+    {
+      "rel_path": "task/TASK001-AsyncLock文件IO迁移Actor邮箱任务清单.md",
+      "filename": "TASK001-AsyncLock文件IO迁移Actor邮箱任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK003-Actor模型推广改造任务清单.md",
+      "filename": "TASK003-Actor模型推广改造任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK027-管道缓冲区零导致写阻塞-bug修复记录.md",
+      "filename": "TASK027-管道缓冲区零导致写阻塞-bug修复记录.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK028-全量异步化释放路径重构.md",
+      "filename": "TASK028-全量异步化释放路径重构.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/task/deadlock_elimination_plan.md",
+      "filename": "deadlock_elimination_plan.md",
+      "subdir": "task\\task"
+    },
+    {
+      "rel_path": "task/task/h2_sync_block_audit.md",
+      "filename": "h2_sync_block_audit.md",
+      "subdir": "task\\task"
+    }
+  ],
+  "abstractions": [
+    {
+      "rel_path": "design/DSG025-fix-config-loading-bugs.md",
+      "filename": "DSG025-fix-config-loading-bugs.md",
+      "subdir": "design"
+    }
+  ],
+  "guard": [
+    {
+      "rel_path": "design/DSG020-命令拦截架构改造.md",
+      "filename": "DSG020-命令拦截架构改造.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "fix/脚本超时与路径校验修复.md",
+      "filename": "脚本超时与路径校验修复.md",
+      "subdir": "fix"
+    },
+    {
+      "rel_path": "plan/safety/SAF001-mtp-perturbation-defense-plan.md",
+      "filename": "SAF001-mtp-perturbation-defense-plan.md",
+      "subdir": "plan\\safety"
+    },
+    {
+      "rel_path": "plan/safety/SAF002-熵减检测器状态机改造计划.md",
+      "filename": "SAF002-熵减检测器状态机改造计划.md",
+      "subdir": "plan\\safety"
+    },
+    {
+      "rel_path": "plan/safety/SAF003-纵深防御修复.md",
+      "filename": "SAF003-纵深防御修复.md",
+      "subdir": "plan\\safety"
+    },
+    {
+      "rel_path": "plan/safety/SAF004-绝对超时纵深防御设计.md",
+      "filename": "SAF004-绝对超时纵深防御设计.md",
+      "subdir": "plan\\safety"
+    },
+    {
+      "rel_path": "plan/safety/SAF005-统一网络重试24h方案设计.md",
+      "filename": "SAF005-统一网络重试24h方案设计.md",
+      "subdir": "plan\\safety"
+    },
+    {
+      "rel_path": "task/TASK002-Worktree隔离缺陷修复任务.md",
+      "filename": "TASK002-Worktree隔离缺陷修复任务.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK016-前缀命令后续工作.md",
+      "filename": "TASK016-前缀命令后续工作.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK021-文件工具统一安全防御改造.md",
+      "filename": "TASK021-文件工具统一安全防御改造.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK022-熵减器补齐任务.md",
+      "filename": "TASK022-熵减器补齐任务.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK031-守卫补全与单数据源与测试分家.md",
+      "filename": "TASK031-守卫补全与单数据源与测试分家.md",
+      "subdir": "task"
+    }
+  ],
+  "storage": [
+    {
+      "rel_path": "design/DSG022-RangeDownloader-PRD.md",
+      "filename": "DSG022-RangeDownloader-PRD.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "task/TASK014-会话存储统一与路径重构-规划.md",
+      "filename": "TASK014-会话存储统一与路径重构-规划.md",
+      "subdir": "task"
+    }
+  ],
+  "plugins": [
+    {
+      "rel_path": "plan/plugin/PLG002-插件系统Cordis重新设计方案.md",
+      "filename": "PLG002-插件系统Cordis重新设计方案.md",
+      "subdir": "plan\\plugin"
+    },
+    {
+      "rel_path": "plan/plugin/PLG003-插件系统Entity资源化设计方案.md",
+      "filename": "PLG003-插件系统Entity资源化设计方案.md",
+      "subdir": "plan\\plugin"
+    },
+    {
+      "rel_path": "plan/plugin/PLG004-插件系统强制卸载契约设计方案.md",
+      "filename": "PLG004-插件系统强制卸载契约设计方案.md",
+      "subdir": "plan\\plugin"
+    },
+    {
+      "rel_path": "plan/plugin/PLG005-插件系统融合实现计划.md",
+      "filename": "PLG005-插件系统融合实现计划.md",
+      "subdir": "plan\\plugin"
+    },
+    {
+      "rel_path": "plan/plugin/PLG006-万物皆插件迁移计划.md",
+      "filename": "PLG006-万物皆插件迁移计划.md",
+      "subdir": "plan\\plugin"
+    },
+    {
+      "rel_path": "refactor/REF003-file-watcher-unification.md",
+      "filename": "REF003-file-watcher-unification.md",
+      "subdir": "refactor"
+    },
+    {
+      "rel_path": "reference/plugin-development.md",
+      "filename": "plugin-development.md",
+      "subdir": "reference"
+    },
+    {
+      "rel_path": "task/TASK015-全局推广node插件.md",
+      "filename": "TASK015-全局推广node插件.md",
+      "subdir": "task"
+    }
+  ],
+  "mcp": [
+    {
+      "rel_path": "plan/PLA002-gh-rest-api-rewrite-plan.md",
+      "filename": "PLA002-gh-rest-api-rewrite-plan.md",
+      "subdir": "plan"
+    },
+    {
+      "rel_path": "plan/mcp/MCP001-desktop-control.md",
+      "filename": "MCP001-desktop-control.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "plan/mcp/MCP002-code-index-graph.md",
+      "filename": "MCP002-code-index-graph.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "plan/mcp/MCP003-github.md",
+      "filename": "MCP003-github.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "plan/mcp/MCP004-analytics-agent.md",
+      "filename": "MCP004-analytics-agent.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "plan/mcp/MCP005-skill-memory.md",
+      "filename": "MCP005-skill-memory.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "plan/mcp/MCP006-task-vision.md",
+      "filename": "MCP006-task-vision.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "plan/mcp/MCP007-file-plan.md",
+      "filename": "MCP007-file-plan.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "plan/mcp/MCP008-lsp-team-notebook.md",
+      "filename": "MCP008-lsp-team-notebook.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "plan/mcp/MCP009-mcpclient-git-search-worktree.md",
+      "filename": "MCP009-mcpclient-git-search-worktree.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "plan/mcp/MCP010-error-workflow-auth-permission-sandbox.md",
+      "filename": "MCP010-error-workflow-auth-permission-sandbox.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "plan/mcp/MCP011-shell-ps-mcpres-cron-analysis-web-voice-config.md",
+      "filename": "MCP011-shell-ps-mcpres-cron-analysis-web-voice-config.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "plan/mcp/MCP012-misc-small-categories.md",
+      "filename": "MCP012-misc-small-categories.md",
+      "subdir": "plan\\mcp"
+    },
+    {
+      "rel_path": "task/TASK008-GitHubMCP工具复刻任务清单.md",
+      "filename": "TASK008-GitHubMCP工具复刻任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK009-MCP无状态改造任务清单.md",
+      "filename": "TASK009-MCP无状态改造任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK040-Agent工具设计缺口-MCP工具组织.md",
+      "filename": "TASK040-Agent工具设计缺口-MCP工具组织.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/task/gh_cli_param_alignment.md",
+      "filename": "gh_cli_param_alignment.md",
+      "subdir": "task\\task"
+    },
+    {
+      "rel_path": "task/task/gh_cli_param_alignment2.md",
+      "filename": "gh_cli_param_alignment2.md",
+      "subdir": "task\\task"
+    },
+    {
+      "rel_path": "task/task/gh_pr_issue_edit_acceptance_report.md",
+      "filename": "gh_pr_issue_edit_acceptance_report.md",
+      "subdir": "task\\task"
+    }
+  ],
+  "llm": [
+    {
+      "rel_path": "design/DSG003-small-model-strategy.md",
+      "filename": "DSG003-small-model-strategy.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG016-LLM-OutputLoop-Detection-Design.md",
+      "filename": "DSG016-LLM-OutputLoop-Detection-Design.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG028-subagent-stall-defense.md",
+      "filename": "DSG028-subagent-stall-defense.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "handoff/jcc3016-fix-handoff.md",
+      "filename": "jcc3016-fix-handoff.md",
+      "subdir": "handoff"
+    },
+    {
+      "rel_path": "handoff/0080_round3_handoff/09-agent-remaining.md",
+      "filename": "09-agent-remaining.md",
+      "subdir": "handoff\\0080_round3_handoff"
+    },
+    {
+      "rel_path": "plan/agent/AGT001-Agent继承树架构重构设计.md",
+      "filename": "AGT001-Agent继承树架构重构设计.md",
+      "subdir": "plan\\agent"
+    },
+    {
+      "rel_path": "plan/agent/AGT002-claude-code-agent差距对比与补齐计划.md",
+      "filename": "AGT002-claude-code-agent差距对比与补齐计划.md",
+      "subdir": "plan\\agent"
+    },
+    {
+      "rel_path": "plan/agent/AGT003-双击ESC子代理中断与空闲接手PRD.md",
+      "filename": "AGT003-双击ESC子代理中断与空闲接手PRD.md",
+      "subdir": "plan\\agent"
+    },
+    {
+      "rel_path": "plan/agent/AGT004-多Agent代码协作防冲突改造任务.md",
+      "filename": "AGT004-多Agent代码协作防冲突改造任务.md",
+      "subdir": "plan\\agent"
+    },
+    {
+      "rel_path": "plan/agent/AGT005-子代理模型inherit与Bedrock区域前缀补齐计划.md",
+      "filename": "AGT005-子代理模型inherit与Bedrock区域前缀补齐计划.md",
+      "subdir": "plan\\agent"
+    },
+    {
+      "rel_path": "plan/agent/AGT006-子代理用户输入转发设计.md",
+      "filename": "AGT006-子代理用户输入转发设计.md",
+      "subdir": "plan\\agent"
+    },
+    {
+      "rel_path": "plan/agent/AGT007-子智能体摘要炸窗防护设计.md",
+      "filename": "AGT007-子智能体摘要炸窗防护设计.md",
+      "subdir": "plan\\agent"
+    },
+    {
+      "rel_path": "plan/plugin/PLG001-插件agent安全限制方案.md",
+      "filename": "PLG001-插件agent安全限制方案.md",
+      "subdir": "plan\\plugin"
+    },
+    {
+      "rel_path": "plan/refactor/PRF002-cache-break-detection-plan.md",
+      "filename": "PRF002-cache-break-detection-plan.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "plan/refactor/PRF003-prefix-cache-compression-plan.md",
+      "filename": "PRF003-prefix-cache-compression-plan.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "plan/tui/TUI001-AgentTUI交互规格.md",
+      "filename": "TUI001-AgentTUI交互规格.md",
+      "subdir": "plan\\tui"
+    },
+    {
+      "rel_path": "reference/models.md",
+      "filename": "models.md",
+      "subdir": "reference"
+    },
+    {
+      "rel_path": "task/TASK004-DeepSeek双协议支持任务.md",
+      "filename": "TASK004-DeepSeek双协议支持任务.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK010-ResponsesAPI支持任务.md",
+      "filename": "TASK010-ResponsesAPI支持任务.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK012-llm_agents_xml_comments.md",
+      "filename": "TASK012-llm_agents_xml_comments.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK019-子代理并发控制任务清单.md",
+      "filename": "TASK019-子代理并发控制任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK038-Agent工具设计缺口-gh输出体验.md",
+      "filename": "TASK038-Agent工具设计缺口-gh输出体验.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK039-Agent工具设计缺口-参数错误提示.md",
+      "filename": "TASK039-Agent工具设计缺口-参数错误提示.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK041-Agent工具设计缺口-工具地图DAG.md",
+      "filename": "TASK041-Agent工具设计缺口-工具地图DAG.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK042-Agent工具设计缺口-提示词与循环跳出.md",
+      "filename": "TASK042-Agent工具设计缺口-提示词与循环跳出.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "tasks/engine-agent-state-unification.md",
+      "filename": "engine-agent-state-unification.md",
+      "subdir": "tasks"
+    },
+    {
+      "rel_path": "tasks/goal-unattended-linkage.md",
+      "filename": "goal-unattended-linkage.md",
+      "subdir": "tasks"
+    },
+    {
+      "rel_path": "tasks/subagent-view-pause-resume.md",
+      "filename": "subagent-view-pause-resume.md",
+      "subdir": "tasks"
+    }
+  ],
+  "cognition": [
+    {
+      "rel_path": "design/DSG015-ContextCompaction-Design.md",
+      "filename": "DSG015-ContextCompaction-Design.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG018-工具渐进式暴露设计.md",
+      "filename": "DSG018-工具渐进式暴露设计.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG037-interaction-tool-name-cleanup.md",
+      "filename": "DSG037-interaction-tool-name-cleanup.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "handoff/cascade-async-fix-workflow.md",
+      "filename": "cascade-async-fix-workflow.md",
+      "subdir": "handoff"
+    },
+    {
+      "rel_path": "handoff/手动测试问题清单-0080第一轮-续.md",
+      "filename": "手动测试问题清单-0080第一轮-续.md",
+      "subdir": "handoff"
+    },
+    {
+      "rel_path": "handoff/手动测试问题清单-0080第一轮.md",
+      "filename": "手动测试问题清单-0080第一轮.md",
+      "subdir": "handoff"
+    },
+    {
+      "rel_path": "handoff/手动测试问题清单-0080第二轮.md",
+      "filename": "手动测试问题清单-0080第二轮.md",
+      "subdir": "handoff"
+    },
+    {
+      "rel_path": "handoff/0080_round3_handoff/05-notebook.md",
+      "filename": "05-notebook.md",
+      "subdir": "handoff\\0080_round3_handoff"
+    },
+    {
+      "rel_path": "handoff/0080_round3_handoff/06-lsp.md",
+      "filename": "06-lsp.md",
+      "subdir": "handoff\\0080_round3_handoff"
+    },
+    {
+      "rel_path": "handoff/0080_round3_handoff/07-execution-remaining.md",
+      "filename": "07-execution-remaining.md",
+      "subdir": "handoff\\0080_round3_handoff"
+    },
+    {
+      "rel_path": "handoff/0080_round3_handoff/08-github-remaining.md",
+      "filename": "08-github-remaining.md",
+      "subdir": "handoff\\0080_round3_handoff"
+    },
+    {
+      "rel_path": "handoff/0080_round3_handoff/10-misc-remaining.md",
+      "filename": "10-misc-remaining.md",
+      "subdir": "handoff\\0080_round3_handoff"
+    },
+    {
+      "rel_path": "handoff/0080_round3_handoff/纵深防御验收规范.md",
+      "filename": "纵深防御验收规范.md",
+      "subdir": "handoff\\0080_round3_handoff"
+    },
+    {
+      "rel_path": "plan/refactor/PRF007-提示词工具名绑定重构.md",
+      "filename": "PRF007-提示词工具名绑定重构.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "refactor/REF001-0012-two-itoolhandler-interfaces.md",
+      "filename": "REF001-0012-two-itoolhandler-interfaces.md",
+      "subdir": "refactor"
+    },
+    {
+      "rel_path": "task/TASK029-Jev类型化决策模型接入任务.md",
+      "filename": "TASK029-Jev类型化决策模型接入任务.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/task/handoff390.md",
+      "filename": "handoff390.md",
+      "subdir": "task\\task"
+    }
+  ],
+  "perception": [
+    {
+      "rel_path": "design/DSG019-多模态隐喻显露工具-PRD.md",
+      "filename": "DSG019-多模态隐喻显露工具-PRD.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG030-vector-code-index-design.md",
+      "filename": "DSG030-vector-code-index-design.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG036-vecidx5-paged-incremental-index.md",
+      "filename": "DSG036-vecidx5-paged-incremental-index.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "handoff/0080_round3_handoff/04-vision.md",
+      "filename": "04-vision.md",
+      "subdir": "handoff\\0080_round3_handoff"
+    },
+    {
+      "rel_path": "task/TASK013-mmap-span-优化工作计划.md",
+      "filename": "TASK013-mmap-span-优化工作计划.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK034-统一检索接口-5模式枚举.md",
+      "filename": "TASK034-统一检索接口-5模式枚举.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "tasks/upstream_onnx_sync.md",
+      "filename": "upstream_onnx_sync.md",
+      "subdir": "tasks"
+    }
+  ],
+  "services": [
+    {
+      "rel_path": "design/DSG024-bridgemain-split-task.md",
+      "filename": "DSG024-bridgemain-split-task.md",
+      "subdir": "design"
+    }
+  ],
+  "composition": [
+    {
+      "rel_path": "plan/PLA001-Workflow断点续跑工作计划.md",
+      "filename": "PLA001-Workflow断点续跑工作计划.md",
+      "subdir": "plan"
+    },
+    {
+      "rel_path": "plan/refactor/PRF004-Spawn管道统一设计.md",
+      "filename": "PRF004-Spawn管道统一设计.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "refactor/REF007-lock-to-channel-pipeline-plan.md",
+      "filename": "REF007-lock-to-channel-pipeline-plan.md",
+      "subdir": "refactor"
+    },
+    {
+      "rel_path": "task/gui/GUI004-任务-Slash补全面板美化.md",
+      "filename": "GUI004-任务-Slash补全面板美化.md",
+      "subdir": "task\\gui"
+    }
+  ],
+  "apps": [
+    {
+      "rel_path": "design/DSG006-ComputerUse-PRD.md",
+      "filename": "DSG006-ComputerUse-PRD.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG007-ComputerUse-P0-DesktopInput-Design.md",
+      "filename": "DSG007-ComputerUse-P0-DesktopInput-Design.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG008-ComputerUse-P0-Acceptance.md",
+      "filename": "DSG008-ComputerUse-P0-Acceptance.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG009-ComputerUse-P1-P5-Acceptance.md",
+      "filename": "DSG009-ComputerUse-P1-P5-Acceptance.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG010-desktop-scene-acceptance-criteria.md",
+      "filename": "DSG010-desktop-scene-acceptance-criteria.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG011-desktop-ai-scene-disclosure-report.md",
+      "filename": "DSG011-desktop-ai-scene-disclosure-report.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG012-DesktopPulseOverlay-PRD.md",
+      "filename": "DSG012-DesktopPulseOverlay-PRD.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG017-GUI重构-subAgent运行期显示设计.md",
+      "filename": "DSG017-GUI重构-subAgent运行期显示设计.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG026-window-shake-notification-design.md",
+      "filename": "DSG026-window-shake-notification-design.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG027-cli_arg_io_unify_analysis.md",
+      "filename": "DSG027-cli_arg_io_unify_analysis.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG031-gui-topbar-inputbar-redesign.md",
+      "filename": "DSG031-gui-topbar-inputbar-redesign.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG032-vscode-style-gui-master-plan.md",
+      "filename": "DSG032-vscode-style-gui-master-plan.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG035-dock-layout-fix-plan.md",
+      "filename": "DSG035-dock-layout-fix-plan.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/DSG039-startup-param-architecture-refactor.md",
+      "filename": "DSG039-startup-param-architecture-refactor.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/gui-improvement-1-subagent-output-stream.md",
+      "filename": "gui-improvement-1-subagent-output-stream.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/gui-improvement-2-goal-progress.md",
+      "filename": "gui-improvement-2-goal-progress.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/gui-improvement-3-interceptor-icons.md",
+      "filename": "gui-improvement-3-interceptor-icons.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/gui-improvement-4-search-filter.md",
+      "filename": "gui-improvement-4-search-filter.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/gui-improvement-5-keybindings.md",
+      "filename": "gui-improvement-5-keybindings.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "design/gui_experience.md",
+      "filename": "gui_experience.md",
+      "subdir": "design"
+    },
+    {
+      "rel_path": "handoff/gui-refactor-workflow.md",
+      "filename": "gui-refactor-workflow.md",
+      "subdir": "handoff"
+    },
+    {
+      "rel_path": "handoff/0080_round3_handoff/01-desktop-basic.md",
+      "filename": "01-desktop-basic.md",
+      "subdir": "handoff\\0080_round3_handoff"
+    },
+    {
+      "rel_path": "handoff/0080_round3_handoff/02-desktop-interaction.md",
+      "filename": "02-desktop-interaction.md",
+      "subdir": "handoff\\0080_round3_handoff"
+    },
+    {
+      "rel_path": "handoff/0080_round3_handoff/03-desktop-advanced.md",
+      "filename": "03-desktop-advanced.md",
+      "subdir": "handoff\\0080_round3_handoff"
+    },
+    {
+      "rel_path": "plan/refactor/PRF006-会话隔离路由改造.md",
+      "filename": "PRF006-会话隔离路由改造.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "plan/refactor/PRF013-重构CLI.md",
+      "filename": "PRF013-重构CLI.md",
+      "subdir": "plan\\refactor"
+    },
+    {
+      "rel_path": "plan/tui/TUI002-TUI架构与消息管道重构设计.md",
+      "filename": "TUI002-TUI架构与消息管道重构设计.md",
+      "subdir": "plan\\tui"
+    },
+    {
+      "rel_path": "plan/tui/TUI003-TUI验收缺陷修复计划.md",
+      "filename": "TUI003-TUI验收缺陷修复计划.md",
+      "subdir": "plan\\tui"
+    },
+    {
+      "rel_path": "refactor/REF005-jcc-path-consolidation.md",
+      "filename": "REF005-jcc-path-consolidation.md",
+      "subdir": "refactor"
+    },
+    {
+      "rel_path": "reference/terminal-gui-canfocus-trap.md",
+      "filename": "terminal-gui-canfocus-trap.md",
+      "subdir": "reference"
+    },
+    {
+      "rel_path": "task/TASK005-GUI交互升级六项.md",
+      "filename": "TASK005-GUI交互升级六项.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK006-GUI优化任务清单.md",
+      "filename": "TASK006-GUI优化任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK007-GUI补全统一框架与@子代理推荐.md",
+      "filename": "TASK007-GUI补全统一框架与@子代理推荐.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK011-TuiGui双端对齐任务清单.md",
+      "filename": "TASK011-TuiGui双端对齐任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK017-启动参数完全重构任务清单.md",
+      "filename": "TASK017-启动参数完全重构任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK018-启动参数测试记录.md",
+      "filename": "TASK018-启动参数测试记录.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK024-聊天室改造任务清单.md",
+      "filename": "TASK024-聊天室改造任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK034-VSCode风格GUI剩余任务清单.md",
+      "filename": "TASK034-VSCode风格GUI剩余任务清单.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK035+面板统一可停靠计划.md",
+      "filename": "TASK035+面板统一可停靠计划.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK036-Dock按钮图标修复-Avalonia12升级.md",
+      "filename": "TASK036-Dock按钮图标修复-Avalonia12升级.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/TASK037-jcc启动开销优化.md",
+      "filename": "TASK037-jcc启动开销优化.md",
+      "subdir": "task"
+    },
+    {
+      "rel_path": "task/gui/GUI001-任务-GUI全面美化.md",
+      "filename": "GUI001-任务-GUI全面美化.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "task/gui/GUI002-任务-P2-1-会话历史模型权限.md",
+      "filename": "GUI002-任务-P2-1-会话历史模型权限.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "task/gui/GUI003-任务-P3-聊天体验增强.md",
+      "filename": "GUI003-任务-P3-聊天体验增强.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "task/gui/GUI005-任务-diff渲染修正与命令前缀树.md",
+      "filename": "GUI005-任务-diff渲染修正与命令前缀树.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "task/gui/GUI006-任务-effort推理力度对齐.md",
+      "filename": "GUI006-任务-effort推理力度对齐.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "task/gui/GUI007-任务-mock供应商下拉与终端复制.md",
+      "filename": "GUI007-任务-mock供应商下拉与终端复制.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "task/gui/GUI008-任务-改进命令补全.md",
+      "filename": "GUI008-任务-改进命令补全.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "task/gui/GUI009-任务-模型供应商对齐.md",
+      "filename": "GUI009-任务-模型供应商对齐.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "task/gui/GUI010-任务-温度长度提示词接入引擎.md",
+      "filename": "GUI010-任务-温度长度提示词接入引擎.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "task/gui/GUI011-任务-管道共享工程化.md",
+      "filename": "GUI011-任务-管道共享工程化.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "task/gui/GUI012-任务-终端式消息布局.md",
+      "filename": "GUI012-任务-终端式消息布局.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "task/gui/设计文档.md",
+      "filename": "设计文档.md",
+      "subdir": "task\\gui"
+    },
+    {
+      "rel_path": "tasks/gui-improvements.md",
+      "filename": "gui-improvements.md",
+      "subdir": "tasks"
+    },
+    {
+      "rel_path": "tasks/gui-rewind-turn-at.md",
+      "filename": "gui-rewind-turn-at.md",
+      "subdir": "tasks"
+    },
+    {
+      "rel_path": "tasks/gui_experience.md",
+      "filename": "gui_experience.md",
+      "subdir": "tasks"
+    },
+    {
+      "rel_path": "tasks/gui_workbench.md",
+      "filename": "gui_workbench.md",
+      "subdir": "tasks"
+    }
+  ],
+  "tools": [
+    {
+      "rel_path": "design/DSG021-rg-engine-acceleration-and-unification.md",
+      "filename": "DSG021-rg-engine-acceleration-and-unification.md",
+      "subdir": "design"
+    }
+  ]
+}

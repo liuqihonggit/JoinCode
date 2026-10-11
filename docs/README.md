@@ -5,22 +5,43 @@
 
 ---
 
-## 目录结构(按阅读顺序)
+## 目录结构
 
-> 文档按生命周期分层:**决策 → 设计 → 计划 → 任务 → (修复/重构/交接) → 参考**。
-> 先读前者才能理解后者。AI 跳读后置文档时,必须回看前置依赖,否则会因缺失上下文而误判。
+> **2026-10-11 文档就近迁移**: 域级文档已迁移到 `modules/<domain>/docs/`。
+> `docs/` 仅保留全局文档(ADR + 跨域设计 + 全局参考 + 全局任务)。
 
-| 顺序 | 目录 | 职责(回答什么问题) | 文档数 | 说明 |
-|------|------|---------------------|--------|------|
-| 1 | [`adr/`](adr/README.md) | **为什么**这样决策 | 103 | 架构决策记录,不可变,已有完善双索引 |
-| 2 | [`design/`](design/) | **怎么**实现 | 23 | 技术设计文档、PRD、验收报告 |
-| 3 | [`plan/`](plan/) | **什么时候**做 | 6+6子目录 | 执行计划、里程碑、改造方案 |
-| 4 | [`task/`](task/) | **做什么** | 21+gui/12 | 具体任务清单、测试记录 |
-| 5 | [`fix/`](fix/) | **修了什么** | 5 | 缺陷修复记录(按需查阅) |
-| 5 | [`refactor/`](refactor/) | **怎么改** | 7 | 重构记录、迁移记录(按需查阅) |
-| 5 | [`handoff/`](handoff/) | **交接** | 3+子目录 | 手动测试交接文档(按需查阅) |
-| 6 | [`reference/`](reference/) | **查阅** | 4 | 模型列表、插件契约、错误编码(按需查阅) |
-| — | `zh-CN/` | 项目说明(非开发文档) | 1 | 中文 README,保留原位 |
+### 全局文档(保留在 docs/)
+
+| 目录 | 职责 | 文档数 | 说明 |
+|------|------|--------|------|
+| [`adr/`](adr/README.md) | 架构决策记录 | 137 | 全局,不可变,双索引 |
+| [`design/`](design/) | 跨域设计文档 | 9 | 全局性设计(DSG001/004/005/013/023/040 等) |
+| [`reference/`](reference/) | 全局参考 | 3 | 错误编码、代码审查报告(按需查阅) |
+| [`reports/`](reports/) | 全局报告 | 1 | dispose 超时违规报告 |
+| `zh-CN/` | 项目中文说明 | 1 | 非开发文档,保留原位 |
+
+### 域级文档(已迁移到 modules/)
+
+域级设计、任务、计划、修复、重构、交接文档已按就近原则迁移到各功能域:
+
+```
+modules/<domain>/docs/
+  design/     — 该域设计文档
+  task/       — 该域任务清单
+  plan/       — 该域执行计划
+  bugfix/     — 该域 bug 修复记录
+  fix/        — 该域缺陷修复记录
+  handoff/    — 该域交接文档
+  refactor/   — 该域重构记录
+  reference/  — 该域参考文档
+```
+
+16 个功能域: `generators` `collections` `persistence` `async_primitives` `abstractions`
+`guard` `storage` `plugins` `mcp` `llm` `cognition` `perception` `services` `composition`
+`apps` `tools`
+
+> 迁移计划详见 [DSG040](design/DSG040-colocation-module-isolation-plan.md) 和
+> [ADR 0137](adr/0137-colocation-module-isolation.md)。
 
 ---
 
@@ -132,59 +153,38 @@ docs/README.md          ← 顶层导航(本文件):目录结构 + 规范 + 阅�
 
 ---
 
-## 顶层导航(按阅读顺序)
+## 顶层导航
 
-### 1. adr/ — 架构决策记录(为什么)
+### adr/ — 架构决策记录(全局)
 
-> 详见 [adr/README.md](adr/README.md)(已有完善双索引:按编号 + 按主题)
+> 详见 [adr/README.md](adr/README.md)(双索引:按编号 + 按主题)
 
-103 个 ADR,记录"为什么选 A 放弃 B"。不可变,只改状态(superseded/deprecated)。
+137 个 ADR,记录"为什么选 A 放弃 B"。不可变,只改状态(superseded/deprecated)。
 
-### 2. design/ — 技术设计(怎么实现)
+### design/ — 跨域设计文档(全局)
 
 > 详见 [design/README.md](design/)
 
-23 个设计文档,含 PRD、技术设计、验收报告、架构索引。
+9 个全局性设计文档(DSG001/004/005/013/023/040 等)。域级设计文档已迁移到各域 `docs/design/`。
 
-### 3. plan/ — 执行计划(什么时候做)
-
-> 详见 [plan/README.md](plan/)
-
-6 个散落计划 + 6 个子目录:`agent/` `mcp/` `plugin/` `refactor/` `safety/` `tui/`
-
-### 4. task/ — 任务清单(做什么)
-
-> 详见 [task/README.md](task/)
-
-21 个任务清单 + `gui/` 子目录(12 个 Avalonia GUI 任务)
-
-### 5. fix/ — 缺陷修复(修了什么)
-
-> 详见 [fix/README.md](fix/)
-
-5 个缺陷修复记录,按轮次组织。
-
-### 6. refactor/ — 重构记录(怎么改)
-
-> 详见 [refactor/README.md](refactor/)
-
-7 个重构/迁移记录。
-
-### 7. handoff/ — 交接文档
-
-> 详见 [handoff/README.md](handoff/)
-
-3 个手动测试记录 + `0080_round3_handoff/` 子目录(ADR 0080 第三轮交接)。
-
-### 8. reference/ — 参考查阅
+### reference/ — 全局参考
 
 > 详见 [reference/README.md](reference/)
 
-4 个参考文档:模型列表、插件契约、错误编码、Terminal.Gui 陷阱。
+3 个全局参考文档:错误编码、代码审查报告。
+
+### reports/ — 全局报告
+
+1 个全局报告:dispose 超时违规报告。
 
 ### zh-CN/ — 项目中文说明(非开发文档)
 
 保留原位,不纳入文档生命周期。详见 [zh-CN/README.md](zh-CN/README.md)。
+
+### 域级文档 — 已迁移到 modules/<domain>/docs/
+
+各功能域的设计、任务、计划、修复、重构、交接文档已迁移到就近位置。
+详见各域 `modules/<domain>/README.md` 和 `modules/<domain>/docs/`。
 
 ---
 
@@ -192,4 +192,5 @@ docs/README.md          ← 顶层导航(本文件):目录结构 + 规范 + 阅�
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-11 | 域级文档就近迁移到 modules/<domain>/docs/(185 个文档),docs/ 仅保留全局文档 |
 | 2026-09-15 | 初始规范:全面重新归类为 9 个一级子目录,建立两级导航 + 面包屑 + 索引一致性机制 |

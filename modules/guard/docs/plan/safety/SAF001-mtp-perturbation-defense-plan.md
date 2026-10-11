@@ -1,7 +1,7 @@
 # MTP 扰动下 Agent Bash 纵深防御实施计划
 
 > 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [safety/](README.md)
-> 🔗 **相关 ADR**: [0034](../../archived/adr/0034-command-interception-layered.md) 命令拦截分层 · [0036](../../implemented/adr/platform_transport/0036-defense-in-depth-l1-l10.md) 纵深防御 L1-L10 · [0039](../../implemented/adr/state_machine_serialization/0039-command-interception-state-machine.md) 命令拦截全状态机 · [0047](../../implemented/adr/security_concurrency/0047-unified-danger-level-classification.md) 统一危险指令分级
+> 🔗 **相关 ADR**: [0034](../../archived/adr/platform_transport/0034-command-interception-layered.md) 命令拦截分层 · [0036](../../implemented/adr/platform_transport/0036-defense-in-depth-l1-l10.md) 纵深防御 L1-L10 · [0039](../../implemented/adr/state_machine_serialization/0039-command-interception-state-machine.md) 命令拦截全状态机 · [0047](../../implemented/adr/security_concurrency/0047-unified-danger-level-classification.md) 统一危险指令分级
 > 📌 **建议新 ADR**: 0113 — MTP 扰动专项防御（待确认是新建还是补充 0036）
 
 ## 一、背景与目标

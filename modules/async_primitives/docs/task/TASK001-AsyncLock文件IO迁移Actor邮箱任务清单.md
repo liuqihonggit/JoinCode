@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
 > 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> 相关 ADR: [0052](../implemented/adr/security_concurrency/0052-asynclock-unified-mutex-file-access.md)、[0068](../implemented/adr/persistence_actor/0068-unified-persistence-pipeline-actor.md)、[0074](../implemented/adr/persistence_actor/0074-actor-supervisor-tree.md)、[0086](../implemented/adr/component_strategy/0086-core-tech-selection-lock-design.md)、[0100](../implemented/adr/persistence_actor/0100-console-actor-serialize-io.md)、[0101](../implemented/adr/persistence_actor/0101-file-watcher-unified-actor.md)、[0107](../archived/adr/0107-file-mailbox-lock-replace-mutex.md)
+> 相关 ADR: [0052](../implemented/adr/security_concurrency/0052-asynclock-unified-mutex-file-access.md)、[0068](../implemented/adr/persistence_actor/0068-unified-persistence-pipeline-actor.md)、[0074](../implemented/adr/persistence_actor/0074-actor-supervisor-tree.md)、[0086](../implemented/adr/component_strategy/0086-core-tech-selection-lock-design.md)、[0100](../implemented/adr/persistence_actor/0100-console-actor-serialize-io.md)、[0101](../implemented/adr/persistence_actor/0101-file-watcher-unified-actor.md)、[0107](../archived/adr/data_core_selection/0107-file-mailbox-lock-replace-mutex.md)
 
 ## 背景
 

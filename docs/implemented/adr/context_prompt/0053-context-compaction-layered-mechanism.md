@@ -6,7 +6,7 @@
 - 状态：accepted
 - 日期：2026-09-02
 - 决策者：项目架构组
-- 关联：[0015](docs/implemented/adr/component_strategy/0015-config-hotreload-dual-variable.md) | [0018](docs/archived/adr/0018-loop-detector-state-machine.md) | [0040](docs/implemented/adr/state_machine_serialization/0040-enterprise-fsm-framework.md)
+- 关联：[0015](docs/implemented/adr/component_strategy/0015-config-hotreload-dual-variable.md) | [0018](docs/archived/adr/component_strategy/0018-loop-detector-state-machine.md) | [0040](docs/implemented/adr/state_machine_serialization/0040-enterprise-fsm-framework.md)
 - 验证：Brain 编译 0 警告 0 错误，Context.Compact + Context.Compression 测试全通过 ✅
 
 ## 背景

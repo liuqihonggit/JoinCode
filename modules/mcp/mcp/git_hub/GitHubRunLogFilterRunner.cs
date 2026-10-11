@@ -578,8 +578,9 @@ internal sealed class GitHubRunLogFilterRunner {
         return matched;
     }
 
-    /// <summary>错误指示行检测 — GitHub Actions 标记 + 编译/测试/链接错误模式,精确定位真正错误行而非仅 ##[error] 标记行</summary>
-    /// <para>扩展模式: error CS####(C#编译) / error MSB####(MSBuild) / [FAIL](xUnit) / Failed (测试汇总) / No test matches / warning MSB9008(项目引用缺失)</para>
+    /// <summary>错误指示行检测 — GitHub Actions 标记 + 编译/测试/链接错误 + 超时/取消模式,精确定位真正错误行</summary>
+    /// <para>扩展模式: error CS####(C#编译) / error MSB####(MSBuild) / [FAIL](xUnit) / Failed (测试汇总) / 超时/取消(job cancelled/timeout/canceled)</para>
+    /// <para>移除 No test matches — 非错误,大量测试项目无匹配是正常行为,产生噪音淹没真正错误</para>
     private static bool IsErrorIndicatorLine(ReadOnlySpan<char> line)
         => line.Contains("##[error]", StringComparison.OrdinalIgnoreCase)
         || line.Contains("Process completed with exit code", StringComparison.OrdinalIgnoreCase)
@@ -587,8 +588,11 @@ internal sealed class GitHubRunLogFilterRunner {
         || line.Contains("error MSB", StringComparison.OrdinalIgnoreCase)
         || line.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase)
         || line.Contains("  Failed ", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("No test matches", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("warning MSB9008", StringComparison.OrdinalIgnoreCase);
+        || line.Contains("warning MSB9008", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("was canceled", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("Cancelling the job", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("exceeded the maximum", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("timed out", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// 构建 0 行匹配的精准提示 — 可能性名单表(每行=可能原因+调查命令),引导 AI 下一步

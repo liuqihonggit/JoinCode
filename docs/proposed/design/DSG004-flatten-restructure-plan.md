@@ -291,21 +291,17 @@ non_deliverables_tools/tools.slnx                                        → too
 ### 4.9 build/(构建相关)
 
 ```
-App.slnx          → build/sln/App.slnx
-JoinCode.slnx     → build/sln/JoinCode.slnx
-Core.slnx         → build/sln/Core.slnx
-Foundation.slnx   → build/sln/Foundation.slnx
-Generators.slnx   → build/sln/Generators.slnx
-Infrastructure.slnx → build/sln/Infrastructure.slnx
-Services.slnx     → build/sln/Services.slnx
-Composition.slnx  → build/sln/Composition.slnx
-Gui.slnx          → build/sln/Gui.slnx
-Stryker.slnx      → build/sln/Stryker.slnx
+JoinCode.slnx     → build/sln/JoinCode.slnx  (主解决方案,含全部项目)
+Gui.slnx          → build/sln/Gui.slnx       (GUI 测试)
+Stryker.slnx      → build/sln/Stryker.slnx   (变异测试)
 build.ps1         → build/build.ps1
 publish.ps1       → build/publish.ps1
 rebuild.ps1       → build/rebuild.ps1
 smoke-test.json   → build/smoke-test.json
 ```
+
+> 旧七层 slnx(App/Core/Services/Composition/Infrastructure/Foundation/Generators)已归档至 .xxx/,
+> 统一使用 JoinCode.slnx + 16 个 modules/*/module.slnx (ADR 0137)
 
 ### 4.10 libs/(第三方库,不动)
 

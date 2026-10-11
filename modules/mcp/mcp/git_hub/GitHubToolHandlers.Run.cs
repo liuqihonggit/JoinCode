@@ -502,37 +502,41 @@ public partial class GitHubToolHandlers {
 
         if (jobs.Count == 0) return baseSummary;
 
-        var failedJobs = jobs.Where(j => j.conclusion == "failure").ToList();
-        var cancelledJobs = jobs.Where(j => j.conclusion == "cancelled").ToList();
-        var inProgressJobs = jobs.Where(j => j.status == "in_progress").ToList();
+        var anomalyJobs = jobs.Where(j => CiJobSeverityExtensions.FromConclusion(j.conclusion, j.status).IsAnomaly()).ToList();
+        var pendingJobs = jobs.Where(j => CiJobSeverityExtensions.FromConclusion(j.conclusion, j.status) == CiJobSeverity.Pending).ToList();
         // 无异常 job 时不需要附加(全部成功但 run 还在 in_progress 的情况已由 isInProgress 拦截)
-        if (failedJobs.Count == 0 && cancelledJobs.Count == 0 && inProgressJobs.Count == 0) return baseSummary;
+        if (anomalyJobs.Count == 0 && pendingJobs.Count == 0) return baseSummary;
 
         var sb = new StringBuilder(baseSummary);
         sb.Append('\n').Append('\n');
 
-        if (failedJobs.Count > 0) {
-            sb.Append($"❌ 失败 Job ({failedJobs.Count} 个):\n");
-            foreach (var (id, name, _, _) in failedJobs)
-                sb.Append($"  ❌ {id,15}  {name}\n");
-        }
-        if (cancelledJobs.Count > 0) {
-            sb.Append($"⊘ 取消 Job ({cancelledJobs.Count} 个):\n");
-            foreach (var (id, name, _, _) in cancelledJobs)
-                sb.Append($"  ⊘ {id,15}  {name}\n");
-        }
-        if (inProgressJobs.Count > 0) {
-            sb.Append($"⏳ 进行中 Job ({inProgressJobs.Count} 个):\n");
-            foreach (var (id, name, _, _) in inProgressJobs)
-                sb.Append($"  ⏳ {id,15}  {name}\n");
+        // 状态机: 按 severity 分组,异常(failure>timed_out>cancelled)在前,进行中在后
+        var grouped = jobs
+            .Select(j => (j.id, j.name, j.conclusion, severity: CiJobSeverityExtensions.FromConclusion(j.conclusion, j.status)))
+            .Where(j => j.severity.IsAnomaly() || j.severity == CiJobSeverity.Pending)
+            .OrderBy(j => j.severity.SortKey())
+            .GroupBy(j => j.severity)
+            .ToList();
+        foreach (var group in grouped) {
+            var marker = group.Key.Marker();
+            var label = group.Key switch {
+                CiJobSeverity.Failure   => "失败",
+                CiJobSeverity.TimedOut  => "超时",
+                CiJobSeverity.Cancelled => "取消",
+                CiJobSeverity.Pending   => "进行中",
+                _                       => "其他",
+            };
+            sb.Append($"{marker} {label} Job ({group.Count()} 个):\n");
+            foreach (var item in group)
+                sb.Append($"  {marker} {item.id,15}  {item.name}\n");
         }
 
         sb.Append("\n📋 日志尚未拉取(按需阅读):\n");
-        if (failedJobs.Count > 0)
-            sb.Append("  expand=failed     → 直接拉失败步骤日志(量少,推荐)\n");
+        if (anomalyJobs.Count > 0)
+            sb.Append("  expand=failed     → 直接拉异常步骤日志(含 failure+timed_out+cancelled,量少,推荐)\n");
         sb.Append("  expand=jobs       → 查看全部 job 列表\n");
-        if (failedJobs.Count > 0)
-            sb.Append($"  expand=steps job_id={failedJobs[0].id}  → 查看指定 job 步骤\n");
+        if (anomalyJobs.Count > 0)
+            sb.Append($"  expand=steps job_id={anomalyJobs[0].id}  → 查看指定 job 步骤\n");
 
         return sb.ToString().TrimEnd();
     }

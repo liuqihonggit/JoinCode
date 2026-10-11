@@ -98,7 +98,8 @@ internal sealed class GitHubRunLogFilterRunner {
             failedJobIds = [];
             foreach (var job in jobsResp.Jobs) {
                 if (job.Id == 0) continue;
-                if (string.Equals(job.Conclusion, "failure", StringComparison.OrdinalIgnoreCase))
+                var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status);
+                if (severity.IsAnomaly())
                     failedJobIds.Add(job.Id);
             }
             timer?.AddParse(Stopwatch.GetTimestamp() - tParse);

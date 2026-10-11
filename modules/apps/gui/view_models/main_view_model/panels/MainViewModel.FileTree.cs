@@ -168,10 +168,20 @@ public sealed partial class MainViewModel {
     private string _fileTreeRootPath = "";
 
     /// <summary>加载目录树 — 读取当前工作目录的一级文件/文件夹,懒加载子目录</summary>
+    /// <remarks>显式加载,允许覆盖已有路径。覆盖时记录诊断日志便于排查。</remarks>
     public void LoadFileTree(string rootPath) {
+        if (!string.IsNullOrEmpty(FileTreeRootPath) && FileTreeRootPath != rootPath)
+            ViewModelDiagnosticsLogger.WriteDebug($"LoadFileTree: 覆盖已有路径 '{FileTreeRootPath}' → '{rootPath}'");
         FileTreeRootPath = rootPath;
         FileTreeItemVm.LoadChildrenCallback = LoadDirectoryChildren;
         FileTreeItems = LoadDirectoryChildren(rootPath);
+    }
+
+    /// <summary>确保目录树已加载 — 仅在 FileTreeRootPath 为空时才加载,不覆盖已设置路径</summary>
+    /// <remarks>用于 MainWindow.OnDataContextChanged 等场景,避免无条件覆盖测试/调用方已设置的路径。</remarks>
+    public void EnsureFileTreeLoaded(string defaultRootPath) {
+        if (string.IsNullOrEmpty(FileTreeRootPath))
+            LoadFileTree(defaultRootPath);
     }
 
     /// <summary>读取目录子项 — 文件夹优先排序,跳过隐藏文件和 .git/.jcc 等</summary>

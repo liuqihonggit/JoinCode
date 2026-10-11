@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)server/vision/Vision.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/perception/vision/Vision.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 

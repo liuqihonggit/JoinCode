@@ -68,9 +68,9 @@
     <Project Path="../../modules/mcp/mcp.tests/Mcp.Tests.csproj" />
     <Project Path="../../modules/services/dream/Dream.csproj" />
     <Project Path="../../modules/services/dream.tests/Dream.Tests.csproj" />
-    <Project Path="../../server/eyes/Eyes.csproj" />
-    <Project Path="../../server/eyes.tests/Eyes.Tests.csproj" />
-    <Project Path="../../server/vision/Vision.csproj" />
+    <Project Path="../../modules/perception/eyes/Eyes.csproj" />
+    <Project Path="../../modules/perception/eyes.tests/Eyes.Tests.csproj" />
+    <Project Path="../../modules/perception/vision/Vision.csproj" />
     <Project Path="../../modules/services/bridge/Bridge.csproj" />
     <Project Path="../../modules/services/bridge.tests/Bridge.Tests.csproj" />
     <Project Path="../../modules/services/sandbox_satellite/SandboxSatellite.csproj" />

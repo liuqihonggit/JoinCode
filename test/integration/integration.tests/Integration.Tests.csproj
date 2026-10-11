@@ -23,7 +23,7 @@
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/mcp/mcp/Mcp.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/services/dream/Dream.csproj" />
-    <ProjectReference Include="$(RepoRoot)server/eyes/Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/perception/eyes/Eyes.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/perception/code_index/CodeIndex.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>

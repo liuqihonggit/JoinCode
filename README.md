@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Code of Conduct](https://img.shields.io/badge/CoC-Microsoft-blue?style=flat-square)](.github/CODE_OF_CONDUCT.md)
 
-> 🌐 **Languages:** **English** | [简体中文](docs/zh-CN/README.md)
+> 🌐 **Languages:** **English** | 简体中文
 
 **JoinCode** is a pure C# open-source AI coding agent that runs in your terminal.
 It understands your codebase and helps you code faster through natural language —
@@ -308,7 +308,7 @@ jcc --debuglog -p "hello"
 
 ## Architecture
 
-> ✅ **Architecture migration complete** — [ADR 0103](docs/adr/0103-folder-restructure-semantic-grouping-flat.md) restructured from numeric prefixes (`00_generators/`~`09_app_*`) to semantic grouping (`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`) with flat internals (eliminating `src/`+`tests/` double layer). See [docs/design/DSG004-flatten-restructure-plan.md](docs/design/DSG004-flatten-restructure-plan.md). Paths below reflect the new semantic structure.
+> ✅ **Architecture migration complete** — [ADR 0103](docs/implemented/adr/architecture/0103-folder-restructure-semantic-grouping-flat.md) restructured from numeric prefixes (`00_generators/`~`09_app_*`) to semantic grouping (`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`) with flat internals (eliminating `src/`+`tests/` double layer). See [docs/proposed/design/DSG004-flatten-restructure-plan.md). Paths below reflect the new semantic structure.
 
 JoinCode uses a **seven-layer solution isolation** architecture with strict
 dependency ordering:
@@ -327,15 +327,15 @@ dependency ordering:
 
 | Decision | ADR |
 |----------|-----|
-| Seven-layer slnx isolation | [0001](docs/adr/0001-seven-layer-slnx-isolation.md) |
-| NativeAOT, no Microsoft AI packages | [0002](docs/adr/0002-nativeaot-no-microsoft-ai-packages.md) |
-| Rebase over merge | [0003](docs/adr/0003-rebase-over-merge.md) |
-| Config over code for modalities | [0004](docs/adr/0004-config-over-code-modalities.md) |
-| File-driven UI | [0005](docs/adr/0005-file-driven-ui.md) |
-| TDD double-layer | [0006](docs/adr/0006-tdd-double-layer.md) |
-| Progressive development | [0007](docs/adr/0007-progressive-development.md) |
-| Archive to `.xxx/`, never delete | [0008](docs/adr/0008-archive-to-xxx-not-delete.md) |
-| Defense-in-depth L1–L10 | [0036](docs/adr/0036-defense-in-depth-l1-l10.md) |
+| Seven-layer slnx isolation | 0001 |
+| NativeAOT, no Microsoft AI packages | [0002](docs/implemented/adr/architecture/0002-nativeaot-no-microsoft-ai-packages.md) |
+| Rebase over merge | [0003](docs/implemented/adr/interaction/0003-rebase-over-merge.md) |
+| Config over code for modalities | [0004](docs/implemented/adr/architecture/0004-config-over-code-modalities.md) |
+| File-driven UI | [0005](docs/implemented/adr/architecture/0005-file-driven-ui.md) |
+| TDD double-layer | [0006](docs/implemented/adr/architecture/0006-tdd-double-layer.md) |
+| Progressive development | [0007](docs/implemented/adr/architecture/0007-progressive-development.md) |
+| Archive to `.xxx/`, never delete | [0008](docs/implemented/adr/architecture/0008-archive-to-xxx-not-delete.md) |
+| Defense-in-depth L1–L10 | [0036](docs/implemented/adr/platform_transport/0036-defense-in-depth-l1-l10.md) |
 
 See [docs/README.md](docs/README.md) for the full ADR index.
 
@@ -448,9 +448,9 @@ From low to high:
 
 | Document | Description |
 |----------|-------------|
-| [Available Models](docs/reference/models.md) | 51 models across 6 providers (aliases, context length, notes) |
-| [Technical Details](docs/design/DSG002-technical-details.md) | Fault tolerance / prefix caching / loop intervention / parallel load / serial build |
-| [Small Model Strategy](docs/design/DSG003-small-model-strategy.md) | Engineering strategies for small model scenarios (synonyms / prohibitions / counterexamples / match) |
+| Available Models | 51 models across 6 providers (aliases, context length, notes) |
+| [Technical Details](docs/implemented/design/DSG002-technical-details.md) | Fault tolerance / prefix caching / loop intervention / parallel load / serial build |
+| Small Model Strategy | Engineering strategies for small model scenarios (synonyms / prohibitions / counterexamples / match) |
 | [Architecture Index](docs/implemented/design/DSG001-architecture-index.md) | Component dependency graph / detail table / internal structure / middleware pipelines / build commands |
 | [Architecture Decision Records](docs/README.md) | ADRs: *why* choice A over B |
 

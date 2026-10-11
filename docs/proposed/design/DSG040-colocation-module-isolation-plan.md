@@ -350,7 +350,7 @@ modules/<domain>/
 1. 在 `modules/<domain>/docs/` 下建目录结构
 2. 按映射规则迁移 `docs/` 下的域级文档到各域
 3. 更新文档内引用路径
-4. 更新 `docs/design/README.md` 索引
+4. 更新 `(已删除)` 索引
 5. 合并 `docs/task` + `docs/tasks` + 根 `task/`(去重)
 6. 编译验证(文档迁移不影响编译)
 7. git commit

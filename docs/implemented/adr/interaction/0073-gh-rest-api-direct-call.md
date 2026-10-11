@@ -135,7 +135,7 @@
 ## 渐进式执行顺序
 
 1. ✅ 写 ADR 0073（本文档）
-2. ✅ 写任务文档 `docs/gh-rest-api-rewrite-plan.md`（内联于 ADR，未单独建文档）
+2. ✅ 写任务文档 `(已删除)`（内联于 ADR，未单独建文档）
 3. ✅ 搭基础：`IGitHubApiClient` + `GitHubApiClient`（HttpClient + token + 错误处理 + 分页 + rate limit）+ JsonContext + 单元测试
 4. ✅ 重写 `gh_api`（通用 API 调用）+ 测试
 5. ✅ 重写 `gh_pr_*`（8 方法）+ 测试

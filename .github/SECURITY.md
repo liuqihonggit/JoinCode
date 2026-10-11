@@ -68,5 +68,5 @@ JoinCode is designed with defense-in-depth security architecture:
 - **No Microsoft AI SDK dependency:** Eliminates supply-chain risk from
   AOT-incompatible AI packages
 
-See [ADR 0036](../docs/adr/0036-defense-in-depth-l1-l10.md) for the full
+See [ADR 0036](../docs/implemented/adr/platform_transport/0036-defense-in-depth-l1-l10.md) for the full
 defense-in-depth architecture (L1–L10).

@@ -9,7 +9,7 @@ Choose the most appropriate channel below based on your needs.
 | Resource | Description |
 |----------|-------------|
 | [README](../README.md) | Project overview, quick start, and CLI reference |
-| [中文 README](../docs/zh-CN/README.md) | Chinese documentation |
+| 中文 README | Chinese documentation |
 | [Architecture Decision Records](../docs/adr/) | ADRs explaining *why* decisions were made |
 | [Design Docs](../docs/design/) | *How* features are implemented |
 | [AGENTS.md](../AGENTS.md) | Development conventions and engineering rules |

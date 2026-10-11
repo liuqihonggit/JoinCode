@@ -220,7 +220,7 @@
 3. **决策被取代**：旧 ADR 状态改为 `superseded by NNNN`，新 ADR 引用旧 ADR
 4. **ADR 不可删除**：内容不可变，只改状态字段（见 ADR [0008](docs/implemented/adr/architecture/0008-archive-to-xxx-not-delete.md)）
 5. **粒度**：架构级 + 组件策略级，函数级决策留在代码注释
-6. **AGENTS.md 反向引用**：AGENTS.md 中对应规则处标注 `> ADR: [NNNN](docs/adr/NNNN-xxx.md)`
+6. **AGENTS.md 反向引用**：AGENTS.md 中对应规则处标注 `> ADR: NNNN`
 
 ### 开发流程强制要求
 
@@ -264,7 +264,7 @@
 | 特殊字符禁令 | commit 消息禁止 `$`、反引号、三引号 |
 | ⚠️ 源码生成器 + 增量编译 | `dotnet build` 默认增量编译，会缓存生成器输出。**新增/修改 `[Register]` 类后必须用 `--no-incremental` 全量重建**，否则生成器不会重新扫描新类型 |
 | PR 两段式验证 | PR 通过 CI 后自动合并到 main → main 自动触发自身 CI 实现二次验证。创建 PR 时必须启用 auto-merge（squash 方式）。PR 目标分支统一为 main，无 dev 中间层 |
-| gh 工具 | 操作 PR/Issue/Release/CI 等 GitHub 资源时，优先用 `jcc gh` / `jcc mcp_call gh_*`；jcc 不可用时直接用系统 `gh` CLI > ADR: [0073](docs/implemented/AI交互/0073-gh-rest-api-direct-call.md)、[0089](docs/implemented/AI交互/0089-jcc-builtin-tools-only-no-system-gh-rg.md) |
+| gh 工具 | 操作 PR/Issue/Release/CI 等 GitHub 资源时，优先用 `jcc gh` / `jcc mcp_call gh_*`；jcc 不可用时直接用系统 `gh` CLI > ADR: [0073](docs/implemented/adr/interaction/0073-gh-rest-api-direct-call.md)、[0089](docs/implemented/adr/interaction/0089-jcc-builtin-tools-only-no-system-gh-rg.md) |
 | rg 工具 | 日常代码/文本搜索优先用 Agent 内置 `grep` 工具（`Grep` tool）；内置工具不可用时直接用系统 `rg` > ADR: [0070](docs/implemented/adr/cli_jcc/0070-rg-engine-mmap-plinq.md) |
 
 **Git commit 消息格式**：
@@ -523,7 +523,7 @@ public void Dispose() {
 
 ### 🔧 gh / rg 工具使用（优先 jcc/内置，回退系统）
 
-> ADR: [0089](docs/implemented/AI交互/0089-jcc-builtin-tools-only-no-system-gh-rg.md) — 详见 ADR 文档（含实测证据、边缘错误提示清单）
+> ADR: [0089](docs/implemented/adr/interaction/0089-jcc-builtin-tools-only-no-system-gh-rg.md) — 详见 ADR 文档（含实测证据、边缘错误提示清单）
 
 **`jcc.exe` 启动后已自带大量工具**（实测：`jcc mcp_list` = **400 个工具 / 49 个分类**）。
 优先用 jcc/内置工具；**jcc 不可用时直接回退到系统 `gh` / `rg`**：
@@ -533,7 +533,7 @@ public void Dispose() {
 
 **1. `jcc.exe` gh 工具 → 处理 GitHub 的 PR 和 CI 问题**（`github` 分类 31 个 `gh_*`，HttpClient 直调 REST API，无需系统 gh CLI）
 
-CLI 形态（**推荐**，ADR: [0090](docs/implemented/AI交互/0090-jcc-gh-cli-subcommand.md)）：
+CLI 形态（**推荐**，ADR: [0090](docs/implemented/adr/interaction/0090-jcc-gh-cli-subcommand.md)）：
 
 ```bash
 jcc gh pr list --limit 3            # 列 PR
@@ -546,7 +546,7 @@ jcc gh api repos/o/r/issues         # 通用 REST 调用
 jcc gh --help                       # 完整用法
 ```
 
-MCP 工具直调形态（脚本/结构化场景，ADR: [0073](docs/implemented/AI交互/0073-gh-rest-api-direct-call.md)）：
+MCP 工具直调形态（脚本/结构化场景，ADR: [0073](docs/implemented/adr/interaction/0073-gh-rest-api-direct-call.md)）：
 
 ```bash
 jcc mcp_list --category github                      # 列出全部 gh_* 工具
@@ -571,7 +571,7 @@ Grep tool: pattern=正则表达式, path=搜索目录, include=文件过滤
 
 ### gh CLI 排错避坑指南（强制遵守）
 
-> ADR: [0075](docs/implemented/AI交互/0075-gh-cli-troubleshooting-guide.md) — 详见 ADR 文档（含坑1-5：jq引号/超时/Sandbox拦截/checks格式/管道死锁 + CI排错完整流程）
+> ADR: [0075](docs/implemented/adr/interaction/0075-gh-cli-troubleshooting-guide.md) — 详见 ADR 文档（含坑1-5：jq引号/超时/Sandbox拦截/checks格式/管道死锁 + CI排错完整流程）
 
 ### UTF-8 编码配置
 
@@ -588,7 +588,7 @@ chcp 65001
 
 > **详细架构索引见 [README.md](README.md#项目架构索引)**，包含：组件依赖图、组件详情表、内部结构、源码生成器、中间件管道清单、测试结构、构建命令速查、组件名→路径映射
 
-> ✅ **架构迁移完成** — [ADR 0103](docs/implemented/adr/architecture/0103-folder-restructure-semantic-grouping-flat.md) 已落地:数字前缀(`00_generators/`~`09_app_*`)改为语义分组(`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`)+ 组内扁平(消除 src/+tests/ 双层)。详见 [docs/proposed/design/DSG004-flatten-restructure-plan.md](docs/proposed/design/DSG004-flatten-restructure-plan.md)。下方路径引用已更新为新语义结构。
+> ✅ **架构迁移完成** — [ADR 0103](docs/implemented/adr/architecture/0103-folder-restructure-semantic-grouping-flat.md) 已落地:数字前缀(`00_generators/`~`09_app_*`)改为语义分组(`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`)+ 组内扁平(消除 src/+tests/ 双层)。详见 [docs/proposed/design/DSG004-flatten-restructure-plan.md)。下方路径引用已更新为新语义结构。
 
 ## 测试项目地图
 
@@ -655,7 +655,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 ### 七层解决方案架构（强制编译顺序）
 
-> ADR: [0081](docs/adr/0081-seven-layer-build-strategy.md) — 详见 ADR 文档（含七层依赖链、CI编译命令、修改不同层时的编译策略、开发编译策略[Debug+增量+单csproj]、编译注意事项）
+> ADR: 0081 — 详见 ADR 文档（含七层依赖链、CI编译命令、修改不同层时的编译策略、开发编译策略[Debug+增量+单csproj]、编译注意事项）
 
 ## 测试
 
@@ -681,7 +681,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 ## 用户说的"合并"
 
-> ADR: [0078](docs/implemented/AI交互/0078-merge-e2e-synonym-rules.md) — 详见 ADR 文档（含 rebase vs merge、reset --hard 生死线、两阶段流水线、PR创建/同步流程、auto-merge BLOCKED 排查、E2E定义）
+> ADR: [0078](docs/implemented/adr/interaction/0078-merge-e2e-synonym-rules.md) — 详见 ADR 文档（含 rebase vs merge、reset --hard 生死线、两阶段流水线、PR创建/同步流程、auto-merge BLOCKED 排查、E2E定义）
 
 # 八荣八耻
 以瞎猜接口为耻,以认真查询为荣;

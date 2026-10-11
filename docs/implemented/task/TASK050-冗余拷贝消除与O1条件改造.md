@@ -1,8 +1,8 @@
 # TASK031 冗余拷贝消除与O(1)条件改造
 
 > 合并自:
-> - `docs/refactor/REF009-redundant-copy-elimination-tasks.md`(REF009 任务清单,按 Task 1-20 组织)
-> - `docs/task/refactor-redundant-copy-o1-conditions-2026-09-24.md`(改造任务文档,按改造点 2/3/4 + A/B/C/D 类组织)
+> - `(已删除)`(REF009 任务清单,按 Task 1-20 组织)
+> - `(已删除)`(改造任务文档,按改造点 2/3/4 + A/B/C/D 类组织)
 >
 > 来源报告: `D:\Users\54076\Desktop\2冗余拷贝.txt`
 > 生成时间: 2026-09-24(合并于 2026-09-25)

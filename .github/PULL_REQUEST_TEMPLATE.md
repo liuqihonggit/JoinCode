@@ -42,7 +42,7 @@
 
 - [ ] Code follows [CONTRIBUTING.md](CONTRIBUTING.md) conventions
 - [ ] `TreatWarningsAsErrors` — no new warnings introduced
-- [ ] No files deleted (use `.xxx/` archive per [ADR 0008](../docs/adr/0008-archive-to-xxx-not-delete.md))
+- [ ] No files deleted (use `.xxx/` archive per [ADR 0008](../docs/implemented/adr/architecture/0008-archive-to-xxx-not-delete.md))
 - [ ] XML doc comments preserved on all public members
 - [ ] `GlobalUsings.cs` used (no `using` in `.cs` files)
 - [ ] Commit messages follow Conventional Commits format

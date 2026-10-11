@@ -505,12 +505,14 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 解析 GitHub remote URL — 支持 https://github.com/owner/repo.git 和 git@github.com:owner/repo.git
+    /// 解析 GitHub remote URL — 支持 https://github.com/owner/repo.git、git@github.com:owner/repo.git 和 ssh://git@host:port/owner/repo.git
     /// </summary>
-    private static (string owner, string repo)? ParseGitHubRemoteUrl(string url) {
+    internal static (string owner, string repo)? ParseGitHubRemoteUrl(string url) {
         if (string.IsNullOrEmpty(url)) return null;
         string path;
-        if (url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)) {
+        if (url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            || url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || url.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase)) {
             var uri = new Uri(url);
             path = uri.AbsolutePath.TrimStart('/');
         } else if (url.Contains('@')) {
@@ -522,6 +524,7 @@ public partial class GitHubToolHandlers {
         if (path.EndsWith(".git", StringComparison.OrdinalIgnoreCase)) path = path[..^4];
         var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2) return null;
+        if (string.IsNullOrEmpty(parts[0]) || string.IsNullOrEmpty(parts[1])) return null;
         return (parts[0], parts[1]);
     }
 }

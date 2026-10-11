@@ -410,6 +410,9 @@ public partial class GitHubToolHandlers {
         var omittedPass = passCount - displayedPass;
         if (omittedPass > 0)
             sb.Append($"\n… 另有 {omittedPass} 个 pass 未列出");
+        // 优化E: 有失败 job 时自动附加排障命令提示,引导 AI 直接拉失败日志而非翻页
+        if (failCount > 0 && !string.IsNullOrEmpty(headRef))
+            sb.Append($"\n\n💡 排障建议:\njcc gh run list --branch {headRef} --limit 1  → 找到最新 run ID\njcc gh run view <run_id> --log_failed  → 直接拉失败步骤日志(智能定位错误行)");
         return Ok(sb.ToString());
     }
 

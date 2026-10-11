@@ -393,11 +393,9 @@ internal sealed class GitHubRunLogFilterRunner {
         }
 
         // 优化B: expand=failed 无 filter 时智能定位错误行,不从 runner setup 从头开始
-        if (failedOnly && markers is null) {
+        // 优化C: filter=error 也走智能定位(首屏即见真正错误行),而非 CollectWithErrorContextAsync(仅 ##[error]+上下文)
+        if ((failedOnly && markers is null) || (markers is not null && markers.Contains("##[error]"))) {
             matched = await CollectWithSmartStartAsync(logLines, maxLines, skipLines, ct).ConfigureAwait(false);
-        } else if (markers is not null && markers.Contains("##[error]")) {
-            // 缺陷3: filter=error 时自动收集错误行上下文(前5行),避免只有 "Process completed with exit code 1"
-            matched = await CollectWithErrorContextAsync(logLines, maxLines, skipLines, ct).ConfigureAwait(false);
         } else {
             await foreach (var line in logLines.ConfigureAwait(false)) {
                 lineNumber++;
@@ -424,6 +422,13 @@ internal sealed class GitHubRunLogFilterRunner {
         if (hint is not null) text += hint;
         if (GitHubRunLogFilter.HasNoStackTrace(text))
             text += GitHubRunLogHints.NoStackTraceHint;
+        // 优化D: 退出码矛盾检测 — Test Run Successful 但 exit code 1,提示 dotnet test slnx --filter 无匹配测试
+        if (text.Contains("Test Run Successful", StringComparison.OrdinalIgnoreCase)
+            && text.Contains("exit code 1", StringComparison.OrdinalIgnoreCase))
+            text += "\n\n⚠️ 检测到退出码矛盾: 测试全部通过但退出码非0\n可能原因: dotnet test slnx --filter 中某些项目无匹配测试\n建议修复: 添加 -- RunConfiguration.TreatNoTestsAsSuccess=true 或改用直接指定 csproj";
+        // 优化F: --log --filter error 使用时提示更高效的 --log_failed(防止 AI 重复犯错)
+        if (!failedOnly && markers is not null && markers.Contains("##[error]"))
+            text += "\n\n💡 下次排障建议用 --log_failed 或 --expand failed 更高效(智能定位错误行,首屏即见根因)";
         return GitHubToolHandlers.Ok(text, prefix);
     }
 
@@ -523,10 +528,17 @@ internal sealed class GitHubRunLogFilterRunner {
         return matched;
     }
 
-    /// <summary>错误指示行检测 — 仅 GitHub Actions 结构化标记 ##[error] 和 Process completed with exit code,避免测试名误匹配</summary>
+    /// <summary>错误指示行检测 — GitHub Actions 标记 + 编译/测试/链接错误模式,精确定位真正错误行而非仅 ##[error] 标记行</summary>
+    /// <para>扩展模式: error CS####(C#编译) / error MSB####(MSBuild) / [FAIL](xUnit) / Failed (测试汇总) / No test matches / warning MSB9008(项目引用缺失)</para>
     private static bool IsErrorIndicatorLine(ReadOnlySpan<char> line)
         => line.Contains("##[error]", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("Process completed with exit code", StringComparison.OrdinalIgnoreCase);
+        || line.Contains("Process completed with exit code", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("error CS", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("error MSB", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("  Failed ", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("No test matches", StringComparison.OrdinalIgnoreCase)
+        || line.Contains("warning MSB9008", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// 构建 0 行匹配的精准提示 — 可能性名单表(每行=可能原因+调查命令),引导 AI 下一步

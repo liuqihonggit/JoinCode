@@ -5,10 +5,10 @@
 > 🔗 **关联**: [0103](0103-folder-restructure-semantic-grouping-flat.md)（扁平化重组）、[0081](0081-seven-layer-build-strategy.md)（七层 slnx）、[0134](0134-layered-ci-nuget-decouple-incremental.md)（分层 CI NuGet 解耦）
 > 📋 **执行计划**: [DSG040](../design/DSG040-colocation-module-isolation-plan.md)
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-10-11
 - 决策者：项目架构组
-- 取代：无（继承 0103 扁平化成果，叠加功能域隔离）
+- 取代：[0001](0001-seven-layer-slnx-isolation.md)（七层 slnx 隔离）、[0081](0081-seven-layer-build-strategy.md)（七层编译策略）
 
 ## 背景
 
@@ -108,7 +108,7 @@ modules/<domain>/
 
 ## 验证
 
-- [ ] 阶段1: 文档就近后编译通过
-- [ ] 阶段2: 每域代码迁移后 `module.slnx` 独立编译通过
-- [ ] 阶段3: `UsePackedComponents=true` 全量编译通过
-- [ ] 阶段4: CI 按域 matrix 编译+测试通过
+- [x] 阶段1: 文档就近后编译通过 (2026-10-11, 187 文档迁移到 modules/<domain>/docs/)
+- [x] 阶段2: 每域代码迁移后 `module.slnx` 独立编译通过 (2026-10-11, 90+ 项目迁移到 modules/)
+- [x] 阶段3: `UsePackedComponents=true` 全量编译通过 (2026-10-11, ProjectReference + PackageReference 双模式验证)
+- [x] 阶段4: CI 按域 matrix 编译+测试通过 (2026-10-11, ci-unit-tests.yml 改为 14 域 matrix)

@@ -139,7 +139,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| [0001](0001-seven-layer-slnx-isolation.md) | 七层 slnx 隔离架构 | accepted | 2026-08-29 |
+| [0001](0001-seven-layer-slnx-isolation.md) | 七层 slnx 隔离架构 | superseded by 0137 | 2026-08-29 |
 | [0002](0002-nativeaot-no-microsoft-ai-packages.md) | NativeAOT + 禁用微软 AI 包 | accepted | 2026-08-29 |
 | [0003](0003-rebase-over-merge.md) | rebase 而非 merge | accepted | 2026-08-29 |
 | [0004](0004-config-over-code-modalities.md) | 配置大于代码 — 模态能力显式注册 | accepted | 2026-08-29 |
@@ -219,7 +219,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0078](0078-merge-e2e-synonym-rules.md) | 合并与 E2E 同义词规则 | accepted | 2026-09-08 |
 | [0079](0079-anti-pattern-examples.md) | 反例清单（踩过的坑，禁止再犯） | accepted | 2026-09-08 |
 | [0080](0080-manual-exe-testing-guide.md) | 手动测试 exe 与测试执行规则 | accepted | 2026-09-08 |
-| [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | accepted | 2026-09-08 |
+| [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | superseded by 0137 | 2026-09-08 |
 | [0082](0082-gui-async-test-avalonia.md) | GUI 异步 UI 测试与启动 exe 测试 | accepted | 2026-09-08 |
 | [0083](0083-e2e-script-mode-spec.md) | E2E 测试脚本模式规范 | accepted | 2026-09-08 |
 | [0084](0084-platform-windows-env-rules.md) | 平台专属操作禁令与 Windows 命令行环境 | accepted | 2026-09-08 |
@@ -280,7 +280,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| [0001](0001-seven-layer-slnx-isolation.md) | 七层 slnx 隔离架构 | accepted | 2026-08-29 |
+| [0001](0001-seven-layer-slnx-isolation.md) | 七层 slnx 隔离架构 | superseded by 0137 | 2026-08-29 |
 | [0002](0002-nativeaot-no-microsoft-ai-packages.md) | NativeAOT + 禁用微软 AI 包 | accepted | 2026-08-29 |
 | [0003](0003-rebase-over-merge.md) | rebase 而非 merge | accepted | 2026-08-29 |
 | [0004](0004-config-over-code-modalities.md) | 配置大于代码 — 模态能力显式注册 | accepted | 2026-08-29 |
@@ -292,7 +292,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0010](0010-global-usings.md) | GlobalUsings 统一管理 | accepted | 2026-08-29 |
 | [0011](0011-data-container-aot-gc.md) | 数据容器 AOT+GC 选型 | accepted | 2026-08-29 |
 | [0012](0012-robocopy-mir-danger-command-interception.md) | robocopy /MIR 与 /PURGE 红色命令拦截 | accepted | 2026-09-13 |
-| [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | accepted | 2026-09-08 |
+| [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | superseded by 0137 | 2026-09-08 |
 | [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
 | [0099](0099-native-dll-plugin-system.md) | Native DLL 插件系统 — NativeLibrary.Load + UnmanagedCallersOnly | accepted | 2026-09-11 |
 | [0102](0102-folder-restructure-functional-driven.md) | 文件夹整理改革 — 从领域驱动到功能驱动 | superseded by 0103 | 2026-09-12 |
@@ -520,4 +520,4 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0117](0117-objectid-range-compression-longrangeset-sparselongset.md) | ObjectId 区间压缩 | LongRangeSet 连续区间 + SparseLongSet delta 编码 + SequenceId 按 ObjectType 独立计数 |
 | [0133](0133-json-dto-typed-conversion-ban-concat.md) | JSON DTO 双向转换 | 禁止手写 JSON 拼接，所有 JSON 用 DTO + JsonContext 双向转换 |
 | [0134](0134-layered-ci-nuget-decouple-incremental.md) | 分层 CI + NuGet 包解耦 + 增量检测 | 每层 dotnet pack 发本地 feed，下游 restore 拉预编译 dll 包 |
-| [0137](0137-colocation-module-isolation.md) | 就近原则功能域隔离架构 | 90+ csproj 重组为 16 功能域单元，文档就近+依赖隔离+可独立拆走 |
+| [0137](0137-colocation-module-isolation.md) | 就近原则功能域隔离架构 | 90+ csproj 重组为 16 功能域单元，文档就近+依赖隔离+可独立拆走 | accepted | 2026-10-11 |

@@ -867,6 +867,22 @@ public sealed class GhCommandResolverTests {
         bound!["fields"].Should().Be("name=test,color=ff0000");
     }
 
+    /// <summary>gh_api 第二个位置参数自动绑定到 body — 支持 jcc gh api graphql '{"query":...}' 自然写法</summary>
+    [Fact]
+    public void Bind_GhApi_SecondPositional_ShouldBindToBody() {
+        var parameters = new List<GhParam> {
+            new("path", IsRequired: true, IsBoolean: false),
+            new("body", IsRequired: false, IsBoolean: false),
+            new("method", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "graphql", """{"query":"query { viewer { login } }"}""" }, parameters, "gh_api", out var error);
+
+        error.Should().BeNull();
+        bound!["path"].Should().Be("graphql");
+        bound!["body"].Should().Be("""{"query":"query { viewer { login } }"}""");
+    }
+
     /// <summary>AI 习惯写 key=value(不带 -- 前缀),应宽容解析为命名参数而非"多余的位置参数"</summary>
     [Fact]
     public void Bind_BareKeyEqualsValue_ShouldParseAsNamedParam() {

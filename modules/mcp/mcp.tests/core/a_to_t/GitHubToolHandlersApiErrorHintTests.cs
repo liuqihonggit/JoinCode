@@ -31,4 +31,25 @@ public sealed partial class GitHubToolHandlersTests {
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("分支保护");
     }
+
+    [Fact]
+    public async Task Api_GraphQLPath_NoMethod_AutoDefaultsToPost() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{\"data\":{\"viewer\":{\"login\":\"test\"}}}" };
+
+        var result = await _handler.GhApiAsync("graphql", body: "{\"query\":\"query { viewer { login } }\"}");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task Api_GraphQLPath_WithFields_AutoPostAndConvertsFieldsToBody() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{\"data\":{\"viewer\":{\"login\":\"test\"}}}" };
+
+        var result = await _handler.GhApiAsync("graphql", fields: "query=query { viewer { login } }");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastBody.Should().Contain("\"query\"");
+    }
 }

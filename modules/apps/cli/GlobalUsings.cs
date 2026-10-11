@@ -31,6 +31,7 @@ global using Core.Utils;
 global using Infrastructure.Configuration;
 global using Infrastructure.Http;
 global using Infrastructure.Pipeline;
+global using Infrastructure.Utils.Cpu;
 global using Infrastructure.Pipeline.Middlewares;
 global using Infrastructure.Time;
 global using Infrastructure.Utils.IO;

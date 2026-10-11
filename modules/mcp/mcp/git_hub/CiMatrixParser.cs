@@ -3,32 +3,92 @@ namespace McpToolDispatch;
 /// <summary>
 /// CI yml matrix 解析器 — 从 ci-unit-tests.yml 的 matrix.include 列表提取测试 job 名
 /// <para>单一职责:纯文本解析,无外部依赖,可独立测试</para>
-/// <para>链式:ymlContent → ExtractMatrixJobNames → job 名列表</para>
+/// <para>通用提取:不硬编码字段名,自动检测 job name 中的 ${{ matrix.xxx }} 变量</para>
 /// </summary>
 internal static class CiMatrixParser {
 
     /// <summary>
-    /// 从 CI yml matrix.include 列表提取 name 字段值 — 用缩进级别精确限定 include 区域
+    /// 从 CI yml matrix.include 列表提取所有 entry 的字段字典 — 通用提取,不硬编码字段名
+    /// <para>支持 domain/name/csprojs 等任意字段,每条 include entry = 一个字段→值字典</para>
     /// </summary>
-    /// <param name="ymlContent">CI yml 文件内容</param>
-    /// <returns>matrix include 中所有 - name: 的值(保序)</returns>
-    internal static List<string> ExtractMatrixJobNames(string ymlContent) {
-        var names = new List<string>();
+    internal static List<Dictionary<string, string>> ExtractMatrixIncludeEntries(string ymlContent) {
+        var entries = new List<Dictionary<string, string>>();
         int? includeIndent = null;
+        Dictionary<string, string>? currentEntry = null;
+        int? entryDashIndent = null;
         foreach (var line in ymlContent.Split('\n')) {
             if (string.IsNullOrWhiteSpace(line)) continue;
             var indent = line.Length - line.TrimStart().Length;
             var trimmed = line.AsSpan().Trim();
             if (trimmed.StartsWith("include:")) { includeIndent = indent; continue; }
             if (includeIndent is null) continue;
-            if (trimmed.StartsWith("- name:")) {
-                var value = trimmed[7..].Trim().ToString();
-                if (!string.IsNullOrEmpty(value)) names.Add(value);
+            if (trimmed.StartsWith("- ") && indent == includeIndent + 2) {
+                if (currentEntry is not null) entries.Add(currentEntry);
+                currentEntry = new Dictionary<string, string>();
+                entryDashIndent = indent;
+                ParseField(trimmed[2..], currentEntry);
+            } else if (currentEntry is not null && entryDashIndent is not null &&
+                       indent > entryDashIndent && !trimmed.StartsWith("-") && !trimmed.StartsWith("#")) {
+                ParseField(trimmed, currentEntry);
             } else if (indent <= includeIndent && !trimmed.StartsWith("-") && !trimmed.StartsWith("#")) {
+                if (currentEntry is not null) entries.Add(currentEntry);
+                currentEntry = null;
                 includeIndent = null;
+                entryDashIndent = null;
             }
         }
-        return names;
+        if (currentEntry is not null) entries.Add(currentEntry);
+        return entries;
+
+        static void ParseField(ReadOnlySpan<char> content, Dictionary<string, string> entry) {
+            var colonIdx = content.IndexOf(':');
+            if (colonIdx < 0) return;
+            var key = content[..colonIdx].Trim().ToString();
+            var value = content[(colonIdx + 1)..].Trim().ToString();
+            if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
+                entry[key] = value;
+        }
+    }
+
+    /// <summary>
+    /// 从 job name 提取所有 matrix 变量名 — `${{ matrix.domain }}` → ["domain"]
+    /// </summary>
+    internal static List<string> ExtractAllMatrixVariables(string jobName) {
+        var vars = new List<string>();
+        var searchFrom = 0;
+        while (true) {
+            var start = jobName.IndexOf("${{ matrix.", searchFrom, StringComparison.Ordinal);
+            if (start < 0) break;
+            var varStart = start + 11;
+            var end = jobName.IndexOf(" }}", varStart, StringComparison.Ordinal);
+            if (end < 0) break;
+            vars.Add(jobName[varStart..end].Trim());
+            searchFrom = end + 3;
+        }
+        return vars;
+    }
+
+    /// <summary>
+    /// 从 CI yml 提取 matrix 展开后的所有值 — 自动检测 job name 中的 ${{ matrix.xxx }},从 include 提取对应字段
+    /// <para>通用提取:不硬编码 name/domain,自动匹配 job name 中引用的 matrix 变量</para>
+    /// </summary>
+    /// <param name="ymlContent">CI yml 文件内容</param>
+    /// <returns>matrix 展开后的所有值(保序),无 matrix 时返回空列表</returns>
+    internal static List<string> ExtractMatrixJobNames(string ymlContent) {
+        var entries = ExtractMatrixIncludeEntries(ymlContent);
+        if (entries.Count == 0) return [];
+        var allJobs = ExtractAllJobNames(ymlContent);
+        foreach (var (_, jobName) in allJobs) {
+            var matrixVars = ExtractAllMatrixVariables(jobName);
+            if (matrixVars.Count == 0) continue;
+            var primaryVar = matrixVars[0];
+            if (entries[0].ContainsKey(primaryVar))
+                return entries
+                    .Select(e => e.GetValueOrDefault(primaryVar, ""))
+                    .Where(v => !string.IsNullOrEmpty(v))
+                    .ToList();
+        }
+        return [];
     }
 
     /// <summary>
@@ -50,7 +110,7 @@ internal static class CiMatrixParser {
     }
 
     /// <summary>
-    /// 从 check 名提取 matrix name — 格式 `{job_id} / {prefix} - {matrix.name}` → `matrix.name`
+    /// 从 check 名提取 matrix name — 格式 `{job_id} / {prefix} - {matrix.value}` → `matrix.value`
     /// <para>非对应 job_id 的 check 返回 null(其他 workflow, 不在审计范围)</para>
     /// </summary>
     internal static string? ExtractMatrixNameFromCheck(string checkName, string jobId) {
@@ -121,17 +181,23 @@ internal static class CiMatrixParser {
     }
 
     /// <summary>
-    /// 从 workflow yml 解析所有 check 名 — `{outerJobId} / {job_name}` 或 `{outerJobId} / {prefix}{matrix.name}`
+    /// 从 workflow yml 解析所有 check 名 — 通用展开任意 ${{ matrix.xxx }} 变量
+    /// <para>自动检测 job name 中的 matrix 变量,从 include entries 提取对应字段值展开</para>
     /// </summary>
     internal static List<string> ExtractAllCheckNames(string ymlContent, string outerJobId) {
-        var checkNames = new List<string>();
-        var matrixNames = ExtractMatrixJobNames(ymlContent);
+        var entries = ExtractMatrixIncludeEntries(ymlContent);
         var allJobs = ExtractAllJobNames(ymlContent);
+        var checkNames = new List<string>();
         foreach (var (_, jobName) in allJobs) {
-            if (jobName.Contains("${{ matrix.name }}")) {
-                var prefix = jobName.Replace("${{ matrix.name }}", "");
-                foreach (var matrixName in matrixNames)
-                    checkNames.Add($"{outerJobId} / {prefix}{matrixName}");
+            var matrixVars = ExtractAllMatrixVariables(jobName);
+            if (matrixVars.Count > 0 && entries.Count > 0 && entries[0].ContainsKey(matrixVars[0])) {
+                foreach (var entry in entries) {
+                    var expanded = jobName;
+                    foreach (var var in matrixVars) {
+                        expanded = expanded.Replace($"${{{{ matrix.{var} }}}}", entry.GetValueOrDefault(var, ""));
+                    }
+                    checkNames.Add($"{outerJobId} / {expanded}");
+                }
             } else {
                 checkNames.Add($"{outerJobId} / {jobName}");
             }

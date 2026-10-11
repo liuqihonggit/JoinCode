@@ -5,19 +5,65 @@ public sealed partial class GitHubToolHandlersTests {
     [Fact]
     public void ExtractMatrixJobNames_ParsesCiYmlCorrectly() {
         var yml = """
-          matrix:
-            include:
-              - name: InfraIO
-                csproj: test/unit/infra.tests/io/Infra.IO.Tests.csproj
-              - name: Downloader
-                csproj: lib/downloader.tests/Downloader.Tests.csproj
-              - name: Llm
-                csproj: llm/llm.tests/Llm.Tests.csproj
+          jobs:
+            unit-tests:
+              name: Unit - ${{ matrix.name }}
+              strategy:
+                matrix:
+                  include:
+                    - name: InfraIO
+                      csproj: test/unit/infra.tests/io/Infra.IO.Tests.csproj
+                    - name: Downloader
+                      csproj: lib/downloader.tests/Downloader.Tests.csproj
+                    - name: Llm
+                      csproj: llm/llm.tests/Llm.Tests.csproj
         """;
 
         var names = CiMatrixParser.ExtractMatrixJobNames(yml);
 
         names.Should().Equal("InfraIO", "Downloader", "Llm");
+    }
+
+    [Fact]
+    public void ExtractMatrixJobNames_DomainField_ParsesCorrectly() {
+        var yml = """
+          jobs:
+            unit-tests:
+              name: Unit - ${{ matrix.domain }}
+              strategy:
+                matrix:
+                  include:
+                    - domain: generators
+                      csprojs: modules/generators/aot_safety.tests/AotSafety.Tests.csproj
+                    - domain: collections
+                      csprojs: modules/collections/structura.tests/Structura.Tests.csproj
+                    - domain: mcp
+                      csprojs: modules/mcp/mcp.tests/Mcp.Tests.csproj
+        """;
+
+        var names = CiMatrixParser.ExtractMatrixJobNames(yml);
+
+        names.Should().Equal("generators", "collections", "mcp");
+    }
+
+    [Fact]
+    public void ExtractAllCheckNames_DomainField_ExpandsCorrectly() {
+        var yml = """
+          jobs:
+            unit-tests:
+              name: Unit - ${{ matrix.domain }}
+              strategy:
+                matrix:
+                  include:
+                    - domain: generators
+                      csprojs: a.csproj
+                    - domain: collections
+                      csprojs: b.csproj
+        """;
+
+        var checks = CiMatrixParser.ExtractAllCheckNames(yml, "unit-tests");
+
+        checks.Should().Equal("unit-tests / Unit - generators", "unit-tests / Unit - collections");
     }
 
     [Fact]

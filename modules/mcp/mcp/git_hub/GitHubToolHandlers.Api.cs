@@ -13,7 +13,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhApi, "通用 GitHub REST API 调用(直调 api.github.com,输出完整 JSON)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhApiAsync(
         [McpToolParameter("API 路径(如 repos/owner/repo/issues)", Required = true)] string path,
-        [McpToolParameter("HTTP 方法(GET/POST/PATCH/PUT/DELETE,默认 GET)", Required = false)] string? method = null,
+        [McpToolParameter("HTTP 方法(GET/POST/PATCH/PUT/DELETE,默认 GET,path 为 graphql 时默认 POST)", Required = false)] string? method = null,
         [McpToolParameter("请求体 JSON(可选,POST/PATCH/PUT 用)", Required = false)] string? body = null,
         [McpToolParameter("请求体 JSON 文件路径(可选,读取文件内容作为 body,彻底绕开命令行转义问题)", Required = false)] string? body_file = null,
         [McpToolParameter("查询参数(可选,格式 key=value,多个用逗号分隔)", Required = false)] string? fields = null,
@@ -32,7 +32,10 @@ public partial class GitHubToolHandlers {
             return Fail("body_file 指定的文件不存在或无法读取");
         }
 
-        var httpMethod = string.IsNullOrWhiteSpace(method) ? HttpMethod.Get : new HttpMethod(method.ToUpperInvariant());
+        var isGraphQL = path.Equals("graphql", StringComparison.OrdinalIgnoreCase);
+        var httpMethod = string.IsNullOrWhiteSpace(method)
+            ? (isGraphQL ? HttpMethod.Post : HttpMethod.Get)
+            : new HttpMethod(method.ToUpperInvariant());
         var resolvedBody = await ResolveRequestBodyAsync(body, body_file).ConfigureAwait(false);
 
         // 非 GET 请求: --fields 转为 JSON body(如果 body 未指定), 因为系统 gh CLI 的 -f/--field 是添加到 request body

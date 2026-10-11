@@ -31,7 +31,7 @@ internal static class RgEngine {
 
         var results = new ConcurrentBag<RgFileResult>();
 
-        files.AsParallel()
+        files.AsCpuParallel()
             .WithCancellation(ct)
             .WithDegreeOfParallelism(degree)
             .Select(f => SearchFile(f, regex, q, ct))
@@ -325,7 +325,7 @@ internal static class RgEngine {
             chunks.Add((start, Math.Min(start + chunkSize, lineRanges.Count)));
 
         var results = chunks
-            .AsParallel()
+            .AsCpuParallel()
             .WithCancellation(ct)
             .WithDegreeOfParallelism(degree)
             .Select(chunk => {

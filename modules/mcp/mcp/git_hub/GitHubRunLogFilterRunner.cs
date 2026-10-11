@@ -393,9 +393,10 @@ internal sealed class GitHubRunLogFilterRunner {
         }
 
         // 优化B: expand=failed 无 filter 时智能定位错误行,不从 runner setup 从头开始
-        // 优化C: filter=error 也走智能定位(首屏即见真正错误行),而非 CollectWithErrorContextAsync(仅 ##[error]+上下文)
+        // 优化C: filter=error 也走智能定位(首屏即见真正错误行),但无错误行时不回退 tail(返回空→"未匹配到任何日志行")
         if ((failedOnly && markers is null) || (markers is not null && markers.Contains("##[error]"))) {
-            matched = await CollectWithSmartStartAsync(logLines, maxLines, skipLines, ct).ConfigureAwait(false);
+            var fallbackOnNoError = failedOnly && markers is null;
+            matched = await CollectWithSmartStartAsync(logLines, maxLines, skipLines, fallbackOnNoError, ct).ConfigureAwait(false);
         } else {
             await foreach (var line in logLines.ConfigureAwait(false)) {
                 lineNumber++;
@@ -435,10 +436,12 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <summary>
     /// 优化B: expand=failed 智能定位错误行 — 滑动窗口扫描,找到首个错误行后输出上下文+后续行
     /// <para>避免从 runner setup 从头输出,AI 首屏即可看到错误降 token</para>
-    /// <para>滑动窗口: contextBefore=5 行上下文,未找到错误时回退到最后 tailFallback=20 行</para>
+    /// <para>滑动窗口: contextBefore=5 行上下文,未找到错误时按 fallbackOnNoError 决定是否回退到 tail</para>
+    /// <para>fallbackOnNoError=true(--log_failed): 无错误行时回退到最后 tailFallback=20 行(至少看到尾部)</para>
+    /// <para>fallbackOnNoError=false(filter=error): 无错误行时返回空(让调用方显示"未匹配到任何日志行")</para>
     /// </summary>
     private async Task<List<string>> CollectWithSmartStartAsync(
-        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, CancellationToken ct) {
+        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, bool fallbackOnNoError, CancellationToken ct) {
         const int contextBefore = 5;
         const int tailFallback = 20;
         var matched = new List<string>(maxLines);
@@ -474,7 +477,7 @@ internal sealed class GitHubRunLogFilterRunner {
             }
         }
 
-        if (!foundError && matched.Count == 0) {
+        if (!foundError && matched.Count == 0 && fallbackOnNoError) {
             foreach (var tailLine in tailWindow) {
                 if (skipped < skipLines) { skipped++; continue; }
                 matched.Add(tailLine);

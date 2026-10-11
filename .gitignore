@@ -9,6 +9,9 @@
 .*/
 !.github/
 
+# 本地 NuGet feed 配置(仅本地打包验证用)
+nuget.local.config
+
 # 用来删除
 .x/
 

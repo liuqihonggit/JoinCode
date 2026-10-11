@@ -19,8 +19,8 @@
   <Folder Name="/lib/">
     <Project Path="../../lib/abstractions/Abstractions.csproj" />
     <Project Path="../../lib/downloader/Downloader.csproj" />
-    <Project Path="../../lib/structura/Structura.csproj" />
-    <Project Path="../../lib/structura.tests/Structura.Tests.csproj" />
+    <Project Path="../../modules/collections/structura/Structura.csproj" />
+    <Project Path="../../modules/collections/structura.tests/Structura.Tests.csproj" />
     <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />
     <Project Path="../../lib/plugins.contracts/Plugins.Contracts.csproj" />
     <Project Path="../../lib/plugins.infrastructure/Plugins.Infrastructure.csproj" />

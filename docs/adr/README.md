@@ -519,3 +519,5 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0116](0116-getawaiter-getresult-allowed-scenarios.md) | .GetAwaiter().GetResult() 允许场景 + Entity BCL 双向继承 | 构造函数/Lazy<T>/ThreadStart/同步委托中允许；Entity 保留 IDisposable+IAsyncDisposable 双接口学 BCL Stream 模式 |
 | [0117](0117-objectid-range-compression-longrangeset-sparselongset.md) | ObjectId 区间压缩 | LongRangeSet 连续区间 + SparseLongSet delta 编码 + SequenceId 按 ObjectType 独立计数 |
 | [0133](0133-json-dto-typed-conversion-ban-concat.md) | JSON DTO 双向转换 | 禁止手写 JSON 拼接，所有 JSON 用 DTO + JsonContext 双向转换 |
+| [0134](0134-layered-ci-nuget-decouple-incremental.md) | 分层 CI + NuGet 包解耦 + 增量检测 | 每层 dotnet pack 发本地 feed，下游 restore 拉预编译 dll 包 |
+| [0137](0137-colocation-module-isolation.md) | 就近原则功能域隔离架构 | 90+ csproj 重组为 16 功能域单元，文档就近+依赖隔离+可独立拆走 |

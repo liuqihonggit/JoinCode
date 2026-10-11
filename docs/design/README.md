@@ -84,3 +84,10 @@
 | DSG036 | [DSG036-vecidx5-paged-incremental-index.md](DSG036-vecidx5-paged-incremental-index.md) | VECIDX5 分页索引格式 + 跳表增量索引 |
 | DSG037 | [DSG037-interaction-tool-name-cleanup.md](DSG037-interaction-tool-name-cleanup.md) | InteractionToolName 枚举命名误导清理 + 并发防御加固 |
 | DSG038 | [DSG038-deadlock-elimination-overhaul-master-plan.md](DSG038-deadlock-elimination-overhaul-master-plan.md) | 消除死锁设计全面改造总纲 |
+| DSG039 | [DSG039-startup-param-architecture-refactor.md](DSG039-startup-param-architecture-refactor.md) | 启动参数架构重构 |
+
+### 就近原则功能域隔离
+
+| 编号 | 文件 | 标题 |
+|------|------|------|
+| DSG040 | [DSG040-colocation-module-isolation-plan.md](DSG040-colocation-module-isolation-plan.md) | 就近原则功能域隔离迁移计划(16域+文档就近+依赖隔离) |

@@ -117,7 +117,7 @@
     <Using Include="Structura.Collections" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(ExcludeStructura)' != 'true' and '$(UsePackedComponents)' != 'true'">
-    <ProjectReference Include="$(RepoRoot)lib/structura/Structura.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/collections/structura/Structura.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(ExcludeStructura)' != 'true' and '$(UsePackedComponents)' == 'true'">
     <PackageReference Include="JoinCode.Structura" Version="$(JccComponentPackageVersion)" />

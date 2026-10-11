@@ -7,6 +7,6 @@
     <ExcludeStructura>true</ExcludeStructura>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)lib/structura/Structura.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/collections/structura/Structura.csproj" />
   </ItemGroup>
 </Project>

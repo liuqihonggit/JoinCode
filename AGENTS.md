@@ -215,7 +215,7 @@
 > 📖 规范详见 [docs/README.md](docs/README.md)
 
 0. **⛔ 禁止把 bug 修复报告写成 ADR** — ADR 只用于统筹"为什么选 A 放弃 B"的架构决策。bug 修复/功能开发/排错过程**不是架构决策**，用 commit message（根因+修复+验证）+ 测试复现。判断：没有真正的"替代方案（考虑过但放弃）"就不是 ADR
-1. **新架构决策必须先写 ADR**：涉及跨模块、影响全局、或选择 A 放弃 B 的决策，先在 `docs/adr/` 写 ADR（`状态：proposed`）再实现
+1. **新架构决策必须先写 ADR**：涉及跨模块、影响全局、或选择 A 放弃 B 的决策，先在 `docs/proposed/adr/` 写 ADR（`状态：proposed`）再实现
 2. **实现后改状态**：决策落地并验证后，ADR 状态改为 `accepted`
 3. **决策被取代**：旧 ADR 状态改为 `superseded by NNNN`，新 ADR 引用旧 ADR
 4. **ADR 不可删除**：内容不可变，只改状态字段（见 ADR [0008](docs/implemented/adr/architecture/0008-archive-to-xxx-not-delete.md)）
@@ -276,7 +276,7 @@
 - **⛔ 禁止包含无意义标记**：commit 消息禁止包含 PR/Issue 编号引用（会被 GitHub 自动关联）、纯序号、临时标记等
 
 6. **✅ 文档需求落地四列验收表（强制）**
-   - 写 `docs/task/`、`docs/design/` 文档时，针对用户提出的每条要求，必须列出验收表：
+   - 写 `docs/implemented/task/`、`docs/implemented/design/` 文档时，针对用户提出的每条要求，必须列出验收表：
 
    | 基建实现 | 消费点 | 已实现 | 已验收 |
    |---------|--------|--------|--------|
@@ -557,7 +557,7 @@ jcc mcp_call gh_run_view  '{"run_id":"123"}'        # run_id 必填
 
 两种入口等价：`jcc gh <group> <action>` 按约定拼成 `gh_{group}_{action}`，位置参数按工具 schema 的 `required` 顺序绑定（`pr_number` / `run_id` / `tag` / `issue_number`…），选项支持 `--key value`、`--key=value`，连字符自动归一化为下划线（`--max-lines` → `max_lines`）。
 
-**⚠️ 系统 gh CLI → jcc gh 参数对照表**：详见 [docs/task/gh_cli_param_alignment.md](docs/task/gh_cli_param_alignment.md)（含长选项别名映射、短选项映射、28 个分组清单、已知限制）。
+**⚠️ 系统 gh CLI → jcc gh 参数对照表**：详见 [gh_cli_param_alignment.md](modules/mcp/docs/task/task/gh_cli_param_alignment.md)（含长选项别名映射、短选项映射、28 个分组清单、已知限制）。
 
 **2. Agent 内置 `grep` 工具 → 处理日常搜索**（`Grep` tool，基于 ripgrep 引擎）：
 

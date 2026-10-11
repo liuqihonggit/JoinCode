@@ -32,7 +32,7 @@
 2. **JSON 宽容** — 已实现 JSON 宽容解析（RelaxedJsonSerializer），无需重复实现
 3. **JSON DTO 双向转换** — 所有 JSON 处理必须用 DTO + JsonContext 双向转换（`JsonSerializer.Serialize`/`Deserialize`），禁止手写 JSON 字符串拼接（`StringBuilder` 拼 JSON、`$"{{...}}"` 内插、`EscapeJsonString` 手写转义）。GraphQL 用 `BuildGraphQL` 分层（外层 DTO + 内层 `$"..."` 查询字符串）。保留 `JsonDocument.Parse` 仅限动态字段过滤（> ADR: [0133](docs/implemented/adr/state_machine_serialization/0133-json-dto-typed-conversion-ban-concat.md)）
 4. **Rust 风格报错** — 已实现 Rust 编译器风格报错（带行列指示+代码片段+箭头），面向参数错误必须用此风格
-5. **BitMask 位掩码工具类** — 已实现 `BitMask` 静态工具类（`lib/abstractions/abs_core/core_utils/core/BitMask.cs`），类似 BitArray/Bitmap，减少 hash 查找、降低内存使用、提高性能。枚举集合优先用 `BitMask.Of()` + `BitMask.Contains()`，替代 `FrozenSet<Enum>`
+5. **BitMask 位掩码工具类** — 已实现 `BitMask` 静态工具类（`modules/abstractions/abstractions/abs_core/core_utils/core/misc/BitMask.cs`），类似 BitArray/Bitmap，减少 hash 查找、降低内存使用、提高性能。枚举集合优先用 `BitMask.Of()` + `BitMask.Contains()`，替代 `FrozenSet<Enum>`
 6. **字符串处理优先级** — 首选用 `Span<char>`（0-GC）、SIMD、mmap、`AsParallel()` 链式编程风格
 7. **纵深防御按层按名称** — 安全拦截按层（前缀树→结构化解析→专项预处理→五色灯→确认→执行→审计）按名称（每个守卫有明确 `Name` 属性和 `Priority`）组织，统一整齐。新增拦截层必须声明层名和优先级，禁止散落 ad-hoc 检查
 8. **代码风格：链式+有名函数** — 主逻辑用 LINQ 链式语法控制流程，不同部分提取为有名函数，调用处直观可见一切。或用 Actor 模型 / 管道中间件模型组织。禁止内联长 lambda 淹没主流程。**死锁处理用 Actor 邮箱模型**（消息传递替代共享锁），管道用中间件洋葱模型
@@ -453,7 +453,7 @@ public void Dispose() {
 
 ### 规则3：`DisposeSafe` 扩展方法（消除 Dispose 样板）
 
-`lib/abstractions/abs_core/core_utils/core` 提供 `DisposeSafeExtensions`：
+`modules/abstractions/abstractions/abs_core/core_utils/core/misc` 提供 `DisposeSafeExtensions`：
 - `obj.DisposeSafe(logger)` — 吞 `ObjectDisposedException`（幂等），其他异常可选日志
 - `cts.CancelAndDisposeSafe(logger)` — Cancel + Dispose 合并
 
@@ -588,21 +588,30 @@ chcp 65001
 
 > **详细架构索引见 [README.md](README.md#项目架构索引)**，包含：组件依赖图、组件详情表、内部结构、源码生成器、中间件管道清单、测试结构、构建命令速查、组件名→路径映射
 
-> ✅ **架构迁移完成** — [ADR 0103](docs/implemented/adr/architecture/0103-folder-restructure-semantic-grouping-flat.md) 已落地:数字前缀(`00_generators/`~`09_app_*`)改为语义分组(`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`)+ 组内扁平(消除 src/+tests/ 双层)。详见 [docs/proposed/design/DSG004-flatten-restructure-plan.md)。下方路径引用已更新为新语义结构。
+> ✅ **架构迁移完成** — [ADR 0137](docs/implemented/adr/architecture/0137-colocation-module-isolation.md) 已落地:16 功能域(`modules/<domain>/`)就近隔离,每域自包含(代码+测试+docs+module.slnx)。详见 [DSG040](docs/proposed/design/DSG040-colocation-module-isolation-plan.md)。下方路径引用已更新为 modules/ 结构。
 
 ## 测试项目地图
 
-按七层解决方案 + 跨层测试中心组织(语义分组 + 组内扁平,ADR 0103):
+按 16 功能域 + 跨层测试中心组织(就近隔离,ADR 0137):
 
-| 层 | 位置 |
+| 域 | 位置 |
 |----|------|
-| ① Generators | `gen/*.tests/` |
-| ② Foundation | `lib/*.tests/` |
-| ③ Infrastructure | `lib/*.tests/`(infra 子集) |
-| ④ Core | `kit/*.tests/` |
-| ⑤ Services | `server/*.tests/` + `llm/*.tests/` |
-| ⑥ Composition | `kit/*.tests/`(composition 子集) |
-| ⑦ App | `app/*.tests/` + `test/unit/host.tests/` |
+| generators | `modules/generators/*.tests/` |
+| collections | `modules/collections/*.tests/` |
+| persistence | `modules/persistence/*.tests/` |
+| async_primitives | `modules/async_primitives/*.tests/` |
+| abstractions | `modules/abstractions/*.tests/` |
+| guard | `modules/guard/*.tests/` |
+| storage | `modules/storage/*.tests/` |
+| plugins | `modules/plugins/*.tests/` |
+| mcp | `modules/mcp/*.tests/` |
+| llm | `modules/llm/*.tests/` |
+| cognition | `modules/cognition/*.tests/` |
+| perception | `modules/perception/*.tests/` |
+| services | `modules/services/*.tests/` |
+| composition | `modules/composition/*.tests/` |
+| apps | `modules/apps/*.tests/` |
+| tools | `modules/tools/*.tests/` |
 | 跨层 | `test/unit/*.tests/`, `test/integration/`, `test/mock/` |
 
 ## CI 流水线
@@ -612,7 +621,7 @@ CI 拆分为可复用 workflow（PR → main 触发）：
 | Workflow | 说明 |
 |----------|------|
 | `ci.yml` | 主入口，调用子 workflow |
-| `ci-build.yml` | 七层有序编译 + 组件测试项目 + 卫星项目 |
+| `ci-build.yml` | 16 功能域有序编译 + 组件测试项目 + 卫星项目 |
 | `ci-unit-tests.yml` | 每个 csproj 独立 matrix job，`--filter "Category!=Integration&Category!=Benchmark"` |
 | `ci-integration.yml` | `Integration.Tests` + App.slnx filter 分组 |
 | `ci-e2e.yml` | MockServer.E2E + Sync.Integration + CodeIndex.E2E + smoke tests |
@@ -653,9 +662,9 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 ## 编译
 
-### 七层解决方案架构（强制编译顺序）
+### 16 功能域架构（强制编译顺序）
 
-> ADR: 0081 — 详见 ADR 文档（含七层依赖链、CI编译命令、修改不同层时的编译策略、开发编译策略[Debug+增量+单csproj]、编译注意事项）
+> ADR: [0137](docs/implemented/adr/architecture/0137-colocation-module-isolation.md) — 详见 ADR 文档（含 16 功能域依赖链、CI编译命令、修改不同域时的编译策略、开发编译策略[Debug+增量+单csproj]、编译注意事项）
 
 ## 测试
 

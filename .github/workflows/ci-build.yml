@@ -45,7 +45,7 @@ jobs:
             artifacts/bin/Anthropic.MockServer
             artifacts/bin/DeepSeek.MockServer
             artifacts/bin/Mcp.MockServer
-          key: component-pkgs-${{ runner.os }}-${{ hashFiles('lib/**/*.cs', 'lib/**/*.csproj', 'gen/**/*.cs', 'gen/**/*.csproj', 'llm/**/*.cs', 'llm/**/*.csproj', 'server/**/*.cs', 'server/**/*.csproj', 'kit/**/*.cs', 'kit/**/*.csproj', 'tool/**/*.cs', 'tool/**/*.csproj', 'Directory.Build.props', 'Directory.Build.targets', 'global.json', 'build/sln/JoinCode.slnx') }}
+          key: component-pkgs-${{ runner.os }}-${{ hashFiles('modules/**/*.cs', 'modules/**/*.csproj', 'Directory.Build.props', 'Directory.Build.targets', 'global.json', 'build/sln/JoinCode.slnx') }}
 
       - name: Restore
         if: steps.component-cache.outputs.cache-hit != 'true'

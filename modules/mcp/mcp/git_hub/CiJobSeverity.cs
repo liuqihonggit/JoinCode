@@ -21,6 +21,8 @@ public enum CiJobSeverity {
     Success   = 16,      // 2^4
     /// <summary>跳过 — 依赖链跳过,非失败</summary>
     Skipped   = 32,      // 2^5
+    /// <summary>警告 — stale/action_required,非失败但需注意</summary>
+    Warning   = 64,      // 2^6
     /// <summary>异常组合 — failure + timed_out + cancelled,需完整展开显示</summary>
     Anomaly   = Failure | TimedOut | Cancelled,
 }
@@ -32,43 +34,59 @@ public static class CiJobSeverityExtensions {
     /// <param name="status">job status(queued/in_progress/completed 等)</param>
     public static CiJobSeverity FromConclusion(string? conclusion, string? status = null)
         => (conclusion, status) switch {
-            ("failure", _)    => CiJobSeverity.Failure,
-            ("timed_out", _)  => CiJobSeverity.TimedOut,
-            ("cancelled", _)  => CiJobSeverity.Cancelled,
-            ("skipped", _)    => CiJobSeverity.Skipped,
-            ("success", _)    => CiJobSeverity.Success,
-            (_, "in_progress") => CiJobSeverity.Pending,
-            (_, "queued")     => CiJobSeverity.Pending,
-            (null or "", _)   => CiJobSeverity.Pending,
-            _                 => CiJobSeverity.None,
+            ("failure", _)          => CiJobSeverity.Failure,
+            ("timed_out", _)        => CiJobSeverity.TimedOut,
+            ("cancelled", _)        => CiJobSeverity.Cancelled,
+            ("skipped", _)          => CiJobSeverity.Skipped,
+            ("neutral", _)          => CiJobSeverity.Skipped,
+            ("stale", _)            => CiJobSeverity.Warning,
+            ("action_required", _)  => CiJobSeverity.Warning,
+            ("success", _)          => CiJobSeverity.Success,
+            (_, "in_progress")     => CiJobSeverity.Pending,
+            (_, "queued")          => CiJobSeverity.Pending,
+            (null or "", _)        => CiJobSeverity.Pending,
+            _                      => CiJobSeverity.None,
         };
 
     /// <summary>判断是否为异常状态(failure + timed_out + cancelled) — 需完整展开显示</summary>
     public static bool IsAnomaly(this CiJobSeverity severity)
         => (severity & CiJobSeverity.Anomaly) != CiJobSeverity.None;
 
-    /// <summary>排序键 — 异常在前(0-2),进行中(3),通过(4),跳过(5),未知(6)</summary>
+    /// <summary>排序键 — 异常在前(0-2),警告(3),进行中(4),通过(5),跳过(6),未知(7)</summary>
     public static int SortKey(this CiJobSeverity severity)
         => severity switch {
             CiJobSeverity.Failure   => 0,
             CiJobSeverity.TimedOut  => 1,
             CiJobSeverity.Cancelled => 2,
-            CiJobSeverity.Pending   => 3,
-            CiJobSeverity.Success   => 4,
-            CiJobSeverity.Skipped   => 5,
-            _                       => 6,
+            CiJobSeverity.Warning   => 3,
+            CiJobSeverity.Pending   => 4,
+            CiJobSeverity.Success   => 5,
+            CiJobSeverity.Skipped   => 6,
+            _                       => 7,
         };
 
-    /// <summary>显示标记符号 — ❌(失败) ⏱(超时) ⊘(取消) ⏳(进行中) ✅(通过) ⊟(跳过)</summary>
+    /// <summary>显示标记符号 — ❌(失败) ⏱(超时) ⊘(取消) ⚠(警告) ⏳(进行中) ✅(通过) ⊟(跳过)</summary>
     public static string Marker(this CiJobSeverity severity)
         => severity switch {
             CiJobSeverity.Failure   => "❌",
             CiJobSeverity.TimedOut  => "⏱",
             CiJobSeverity.Cancelled => "⊘",
+            CiJobSeverity.Warning   => "⚠",
             CiJobSeverity.Pending   => "⏳",
             CiJobSeverity.Success   => "✅",
             CiJobSeverity.Skipped   => "⊟",
             _                       => "  ",
+        };
+
+    /// <summary>短显示名 — fail/warning/pending/skipping/pass,对齐 gh pr checks 原始输出格式</summary>
+    internal static string ToDisplayShort(this CiJobSeverity severity)
+        => severity switch {
+            CiJobSeverity.Failure or CiJobSeverity.TimedOut or CiJobSeverity.Cancelled => "fail",
+            CiJobSeverity.Warning   => "warning",
+            CiJobSeverity.Pending   => "pending",
+            CiJobSeverity.Skipped   => "skipping",
+            CiJobSeverity.Success   => "pass",
+            _                       => "pending",
         };
 }
 

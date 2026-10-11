@@ -371,41 +371,42 @@ public partial class GitHubToolHandlers {
             ? await GetRequiredStatusChecksAsync(client, owner, repoName, headRef!, ct).ConfigureAwait(false)
             : null;
         var sb = new StringBuilder();
-        var passCount = 0; var failCount = 0; var pendingCount = 0; var skipCount = 0; var warnCount = 0;
-        var checks = new List<(string name, string displayStatus)>();
+        var severityCounts = new Dictionary<CiJobSeverity, int>();
+        var checks = new List<(string name, CiJobSeverity severity)>();
         try {
             var checksResp = JsonSerializer.Deserialize(checksResult.Body, GitHubApiJsonContext.Safe.CheckRunListResponse);
             if (checksResp is not null) {
                 foreach (var run in checksResp.CheckRuns) {
                     var name = run.Name;
                     if (requiredContexts is not null && !requiredContexts.Contains(name)) continue;
-                    var status = run.Conclusion ?? "pending";
-                    var displayStatus = status switch {
-                        "success" => "pass",
-                        "failure" or "cancelled" or "timed_out" => "fail",
-                        "stale" or "action_required" => "warning",
-                        "skipped" or "neutral" => "skipping",
-                        _ => "pending"
-                    };
-                    checks.Add((name, displayStatus));
-                    switch (displayStatus) { case "pass": passCount++; break; case "fail": failCount++; break; case "warning": warnCount++; break; case "pending": pendingCount++; break; case "skipping": skipCount++; break; }
+                    var severity = CiJobSeverityExtensions.FromConclusion(run.Conclusion, run.Status);
+                    checks.Add((name, severity));
+                    severityCounts[severity] = severityCounts.GetValueOrDefault(severity) + 1;
                 }
             }
         } catch (Exception ex) { return Fail($"解析 check-runs 失败: {ex.Message}"); }
+
+        var failCount = severityCounts.GetValueOrDefault(CiJobSeverity.Failure)
+            + severityCounts.GetValueOrDefault(CiJobSeverity.TimedOut)
+            + severityCounts.GetValueOrDefault(CiJobSeverity.Cancelled);
+        var warnCount = severityCounts.GetValueOrDefault(CiJobSeverity.Warning);
+        var pendingCount = severityCounts.GetValueOrDefault(CiJobSeverity.Pending);
+        var skipCount = severityCounts.GetValueOrDefault(CiJobSeverity.Skipped);
+        var passCount = severityCounts.GetValueOrDefault(CiJobSeverity.Success);
 
         // 优化A1: 汇总前置+异常置顶+pass 截断,降低 AI token 消耗(AI 首屏定位问题)
         sb.Append($"汇总: {passCount} 通过, {failCount} 失败, {warnCount} 警告, {pendingCount} 进行中, {skipCount} 跳过(依赖链跳过,非失败)");
         if (failFast == true && failCount > 0) sb.Append("\n⚠ fail-fast: 检测到失败");
         const int maxPassDisplay = 5;
         var ordered = checks
-            .OrderBy(c => CheckSortKey(c.displayStatus))
+            .OrderBy(c => c.severity.SortKey())
             .ThenBy(c => c.name)
             .ToList();
         var displayedPass = 0;
-        foreach (var (name, displayStatus) in ordered) {
-            if (displayStatus == "pass" && displayedPass >= maxPassDisplay) continue;
-            sb.Append($"\n{name}\t{displayStatus}");
-            if (displayStatus == "pass") displayedPass++;
+        foreach (var (name, severity) in ordered) {
+            if (severity == CiJobSeverity.Success && displayedPass >= maxPassDisplay) continue;
+            sb.Append($"\n{name}\t{severity.ToDisplayShort()}");
+            if (severity == CiJobSeverity.Success) displayedPass++;
         }
         var omittedPass = passCount - displayedPass;
         if (omittedPass > 0)
@@ -415,10 +416,6 @@ public partial class GitHubToolHandlers {
             sb.Append($"\n\n💡 排障建议:\njcc gh run list --branch {headRef} --limit 1  → 找到最新 run ID\njcc gh run view <run_id> --log_failed  → 直接拉失败步骤日志(智能定位错误行)");
         return Ok(sb.ToString());
     }
-
-    /// <summary>check 排序键: fail=0, warning=1, pending=2, skipping=3, pass=4 — 异常优先级置顶</summary>
-    private static int CheckSortKey(string displayStatus)
-        => displayStatus switch { "fail" => 0, "warning" => 1, "pending" => 2, "skipping" => 3, "pass" => 4, _ => 5 };
 
     /// <summary>
     /// 过滤 check-runs 响应字段 — 支持 state 映射(status+conclusion→state),对齐 GraphQL statusCheckRollup。

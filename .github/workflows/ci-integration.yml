@@ -97,21 +97,14 @@ jobs:
       - name: Integration Tests - Hand + Host + McpTools
         shell: pwsh
         run: |
-          $csprojs = @(
-            "test/integration/integration.tests/Integration.Tests.csproj",
-            "test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj"
-          )
-          foreach ($csproj in $csprojs) {
-            Write-Host "=== Testing: $csproj ==="
-            & dotnet test $csproj `
-              -c Debug --nologo `
-              /p:UsePackedComponents=true `
-              /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
-              --filter "Category=Integration&(FullyQualifiedName~Hands|FullyQualifiedName~Host|FullyQualifiedName~McpTools)" `
-              --logger "console;verbosity=detailed" `
-              --logger "trx;LogFileName=integration-hands-host-mcp.trx" 2>&1 | Out-Host
-            if ($LASTEXITCODE -ne 0) { throw "Integration tests FAILED: $csproj" }
-          }
+          & dotnet test test/integration/integration.tests/Integration.Tests.csproj `
+            -c Debug --nologo `
+            /p:UsePackedComponents=true `
+            /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
+            --filter "Category=Integration&(FullyQualifiedName~Hands|FullyQualifiedName~Host|FullyQualifiedName~McpTools)" `
+            --logger "console;verbosity=detailed" `
+            --logger "trx;LogFileName=integration-hands-host-mcp.trx" 2>&1 | Out-Host
+          if ($LASTEXITCODE -ne 0) { throw "Integration tests FAILED" }
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7

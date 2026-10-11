@@ -174,9 +174,9 @@ public static class FastProjectLoader {
 
         if (sourceFiles.Count == 0) return null;
 
-        // 解析源文件为 SyntaxTree（用 AsParallel 链式）
+        // 解析源文件为 SyntaxTree（用 AsCpuParallel 链式，AOT 兼容）
         var syntaxTrees = sourceFiles
-            .AsParallel()
+            .AsCpuParallel()
             .Select(path => CSharpSyntaxTree.ParseText(File.ReadAllText(path), path: path))
             .ToArray();
 

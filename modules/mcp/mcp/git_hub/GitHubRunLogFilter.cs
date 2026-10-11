@@ -81,7 +81,7 @@ internal static class GitHubRunLogFilter {
     public static List<string> ApplyFilter(List<string> lines, FrozenSet<string>? markers) {
         if (markers is null) return lines;
         if (lines.Count >= 1000)
-            return lines.AsParallel().AsOrdered().Where(line => LineMatchesAnyMarkerInline(line, markers)).ToList();
+            return lines.AsCpuParallel().AsOrdered().Where(line => LineMatchesAnyMarkerInline(line, markers)).ToList();
         var result = new List<string>(lines.Count);
         foreach (var line in lines) {
             var lineSpan = line.AsSpan();

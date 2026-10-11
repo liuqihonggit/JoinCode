@@ -350,8 +350,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         List<(string FilePath, string SourceCode, string Hash)> files, CancellationToken ct) {
         if (files.Count == 0) return [];
 
-        // 优化: Partitioner.Create 动态范围分区 + PLINQ,替代固定 chunk
-        // 优势: 1) PLINQ 动态工作分区,大文件不阻塞小文件(固定 16-chunk 会因文件大小不均导致线程空闲)
+        // 优化: 手动范围分区 + AOT 兼容并行,替代固定 chunk
+        // 优势: 1) 动态工作分区,大文件不阻塞小文件(固定 16-chunk 会因文件大小不均导致线程空闲)
         //      2) 每个范围复用 parser+extractor(rangeSize=64,平衡创建开销与负载均衡)
         //      3) WithDegreeOfParallelism = ProcessorCount 充分利用多核
         var parallelism = Math.Min(files.Count, CpuParallelism.GetDegree());
@@ -360,10 +360,12 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         // 范围大小 64: 3313 files → 52 ranges,16 线程平均每线程 ~3-4 ranges
         // 大文件只阻塞其所在 64-文件范围,不影响其他范围(原 207-文件 chunk 会阻塞整个线程)
         // 52 个 parser 创建 vs 原 16 个,多 36 次创建但负载均衡收益更大
-        var partitioner = Partitioner.Create(0, files.Count, 64);
+        var ranges = new List<(int Start, int End)>();
+        for (var start = 0; start < files.Count; start += 64)
+            ranges.Add((start, Math.Min(start + 64, files.Count)));
 
-        partitioner
-            .AsParallel()
+        ranges
+            .AsCpuParallel()
             .WithDegreeOfParallelism(parallelism)
             .WithCancellation(ct)
             .ForAll(range => {
@@ -372,7 +374,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 using var extractor = new CSharpSymbolExtractor(parser);
                 var mdExtractor = new MarkdownChunkExtractor();
 
-                for (var i = range.Item1; i < range.Item2; i++) {
+                for (var i = range.Start; i < range.End; i++) {
                     ct.ThrowIfCancellationRequested();
                     var f = files[i];
                     results[i] = f.FilePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)

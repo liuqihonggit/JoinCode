@@ -153,7 +153,7 @@ public sealed class IncrementalUpdater : IDisposable {
         }
 
         chunks
-            .AsParallel()
+            .AsCpuParallel()
             .WithDegreeOfParallelism(parallelism)
             .WithCancellation(ct)
             .ForAll(chunk => {

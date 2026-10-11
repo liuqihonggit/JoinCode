@@ -195,7 +195,7 @@ invocation → invocation.GetAwaiter().GetResult()
 - `non_deliverables_tools/jcc_audit_ast_cli/audit/GetAwaiterAnalyzer.cs` — .GetAwaiter().GetResult() 分析器（文件遍历）
 
 ### slnx
-- `build/sln/Generators.slnx`
+- `modules/generators/module.slnx`
 - `build/sln/JoinCode.slnx`
 
 ---

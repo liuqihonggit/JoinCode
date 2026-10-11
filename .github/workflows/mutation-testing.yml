@@ -121,26 +121,8 @@ jobs:
           restore-keys: |
             build-v3-${{ runner.os }}-
 
-      - name: Build - ① Generators
-        run: dotnet build build/sln/Generators.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
-
-      - name: Build - ② Foundation
-        run: dotnet build build/sln/Foundation.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
-
-      - name: Build - ③ Infrastructure
-        run: dotnet build build/sln/Infrastructure.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
-
-      - name: Build - ④ Core
-        run: dotnet build build/sln/Core.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
-
-      - name: Build - ⑤ Services
-        run: dotnet build build/sln/Services.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
-
-      - name: Build - ⑥ Composition
-        run: dotnet build build/sln/Composition.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
-
-      - name: Build - ⑦ App
-        run: dotnet build build/sln/App.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
+      - name: Build - JoinCode.slnx
+        run: dotnet build build/sln/JoinCode.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
 
       - name: Run Stryker
         shell: pwsh

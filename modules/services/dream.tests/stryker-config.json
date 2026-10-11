@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "solution": "../../build/sln/Services.slnx",
+    "solution": "../../build/sln/JoinCode.slnx",
     "project": "Dream.csproj",
     "thresholds": {
       "break": 0,

@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "solution": "../../../../build/sln/Composition.slnx",
+    "solution": "../../../../build/sln/JoinCode.slnx",
     "project": "Clock.csproj",
     "thresholds": {
       "break": 0,

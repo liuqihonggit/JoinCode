@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "solution": "../../../../build/sln/Generators.slnx",
+    "solution": "../../../../build/sln/JoinCode.slnx",
     "project": "AotSafety.Generator.csproj",
     "thresholds": {
       "break": 0,

@@ -26,7 +26,7 @@ jobs:
         run: |
           $tests = @(
             @{Name="integration-all"; Csproj="test/integration/integration.tests/Integration.Tests.csproj"; Filter="Category!=Benchmark"},
-            @{Name="integration-prefixcache"; Csproj="build/sln/App.slnx"; Filter="Category=Integration&FullyQualifiedName~PrefixCache"}
+            @{Name="integration-prefixcache"; Csproj="build/sln/JoinCode.slnx"; Filter="Category=Integration&FullyQualifiedName~PrefixCache"}
           )
           foreach ($t in $tests) {
               $name = $t.Name
@@ -68,7 +68,7 @@ jobs:
           foreach ($t in $tests) {
               $name = $t.Name
               $filter = $t.Filter
-              & dotnet test build/sln/App.slnx -c Debug --nologo `
+              & dotnet test build/sln/JoinCode.slnx -c Debug --nologo `
                 /p:UsePackedComponents=true `
                 /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
                 --filter $filter `
@@ -96,7 +96,7 @@ jobs:
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests - Hands + Host + McpTools
         run: >
-          dotnet test build/sln/App.slnx
+          dotnet test build/sln/JoinCode.slnx
           -c Debug --nologo
           /p:UsePackedComponents=true
           /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none

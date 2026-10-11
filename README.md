@@ -72,14 +72,8 @@ dependencies and peak performance on launch.
 git clone <repo-url>
 cd JoinCode
 
-# Build all seven layers in order (Release enables NativeAOT)
-dotnet build build/sln/Generators.slnx -c Release --no-incremental
-dotnet build build/sln/Foundation.slnx -c Release --no-incremental
-dotnet build build/sln/Infrastructure.slnx -c Release --no-incremental
-dotnet build build/sln/Core.slnx -c Release --no-incremental
-dotnet build build/sln/Services.slnx -c Release --no-incremental
-dotnet build build/sln/Composition.slnx -c Release --no-incremental
-dotnet build build/sln/App.slnx -c Release --no-incremental
+# Build entire solution (Release enables NativeAOT)
+dotnet build build/sln/JoinCode.slnx -c Release --no-incremental
 
 # Or use the build script
 .\build.ps1 -Mode Fast -SkipTests -Configuration Release

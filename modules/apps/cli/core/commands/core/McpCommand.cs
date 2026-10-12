@@ -389,13 +389,7 @@ public sealed class McpCliCommand {
             ? new Cli.Output.CliOutputMeta { Timing = result.TimingInfo }
             : null;
         if (json) {
-            if (!result.IsError && result.Content.Count == 1 && !string.IsNullOrEmpty(result.Content[0].Text)) {
-                var envelope = Cli.Output.CliOutputEnvelope<string>.Success(result.Content[0].Text, meta);
-                System.Console.WriteLine(envelope.ToJsonString());
-            } else {
-                var envelope = Cli.Output.CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolResult>.Success(result, meta);
-                System.Console.WriteLine(envelope.ToJsonString());
-            }
+            OutputJsonResult(result, meta);
         } else {
             // 非 json 模式: 遍历所有 Content,输出文本 + 图片摘要
             var hasOutput = false;
@@ -417,6 +411,42 @@ public sealed class McpCliCommand {
                 TerminalHelper.WriteLine(result.TimingInfo);
         }
         return result.IsError ? 1 : 0;
+    }
+
+    /// <summary>
+    /// JSON 模式输出 — 单 text content 直接作为 data，多 content 用完整 ToolResult
+    /// <para>如果 text 是有效 JSON（以 [ 或 { 开头），输出结构化 data 而非字符串（避免双重编码）</para>
+    /// </summary>
+    private static void OutputJsonResult(JoinCode.Abstractions.Tools.ToolResult result, Cli.Output.CliOutputMeta? meta) {
+        var text = (result.Content.Count == 1 ? result.Content[0].Text : null) ?? string.Empty;
+        if (result.IsError || string.IsNullOrEmpty(text)) {
+            var envelope = Cli.Output.CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolResult>.Success(result, meta);
+            System.Console.WriteLine(envelope.ToJsonString());
+            return;
+        }
+        if ((text[0] == '[' || text[0] == '{') && TryOutputStructuredJson(text, meta))
+            return;
+        var strEnvelope = Cli.Output.CliOutputEnvelope<string>.Success(text, meta);
+        System.Console.WriteLine(strEnvelope.ToJsonString());
+    }
+
+    /// <summary>
+    /// 尝试将 text 作为结构化 JSON 输出到 stdout — 解析为 JsonElement 后用 CliOutputEnvelope&lt;JsonElement&gt; 输出
+    /// <para>避免 JSON 字符串被双重编码：text="[1,2,3]" → data:[1,2,3] 而非 data:"[1,2,3]"</para>
+    /// </summary>
+    /// <param name="text">可能是 JSON 的文本</param>
+    /// <param name="meta">可选元数据</param>
+    /// <returns>text 是有效 JSON 且已输出返回 true，否则返回 false</returns>
+    private static bool TryOutputStructuredJson(string text, Cli.Output.CliOutputMeta? meta) {
+        try {
+            using var doc = System.Text.Json.JsonDocument.Parse(text);
+            var element = doc.RootElement.Clone();
+            var envelope = Cli.Output.CliOutputEnvelope<System.Text.Json.JsonElement>.Success(element, meta);
+            System.Console.WriteLine(envelope.ToJsonString());
+            return true;
+        } catch {
+            return false;
+        }
     }
 
     private static int OutputError(string message, bool json) {

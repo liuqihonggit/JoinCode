@@ -23,6 +23,8 @@ namespace JoinCode.Cli.Output;
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<JoinCode.CliCommands.McpServeExitReport>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<JoinCode.Abstractions.Tools.ToolSchema>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<CliSlashSchemaHintResult>))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputEnvelope<System.Text.Json.JsonElement>))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(System.Text.Json.JsonElement))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliStructuredError))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliOutputMeta))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(System.Collections.Generic.List<CliOutputEnvelope>))]

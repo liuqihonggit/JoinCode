@@ -13,7 +13,7 @@ env:
 jobs:
   unit-tests:
     name: Unit - ${{ matrix.domain }}
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -56,20 +56,19 @@ jobs:
 
       - uses: ./.github/actions/setup-test-env
       - name: Test - ${{ matrix.domain }}
-        shell: pwsh
+        shell: bash
         run: |
-          $projects = '${{ matrix.csprojs }}' -split ' '
-          foreach ($proj in $projects) {
-              $name = [System.IO.Path]::GetFileNameWithoutExtension($proj)
-              Write-Host "=== Testing: $proj ==="
-              & dotnet test $proj -c Debug --nologo `
-                /p:UsePackedComponents=true `
-                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
-                --filter "Category!=Integration&Category!=Benchmark" `
-                --logger "console;verbosity=normal" `
-                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
-              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $proj" }
-          }
+          set -e
+          for proj in ${{ matrix.csprojs }}; do
+            name=$(basename "$proj" .csproj)
+            echo "=== Testing: $proj ==="
+            dotnet test "$proj" -c Debug --nologo \
+              -p:UsePackedComponents=true \
+              -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
+              --filter "Category!=Integration&Category!=Benchmark" \
+              --logger "console;verbosity=normal" \
+              --logger "trx;LogFileName=$name.trx"
+          done
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7

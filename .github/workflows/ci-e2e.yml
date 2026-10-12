@@ -13,7 +13,7 @@ env:
 jobs:
   e2e-conversations:
     name: E2E - Conversations
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -52,7 +52,7 @@ jobs:
 
   e2e-provider-cluster:
     name: E2E - Provider + Cluster
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -91,7 +91,7 @@ jobs:
 
   e2e-tools:
     name: E2E - Tools
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -130,7 +130,7 @@ jobs:
 
   e2e-chatcmd-misc:
     name: E2E - ChatCmd Misc
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -169,7 +169,7 @@ jobs:
 
   e2e-chatcmd-code:
     name: E2E - ChatCmd Code
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -210,7 +210,7 @@ jobs:
 
   e2e-chatcmd-errors:
     name: E2E - ChatCmd + Errors
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -249,7 +249,7 @@ jobs:
 
   e2e-mcp-smoke:
     name: E2E - MCP + Sync + CodeIndex + Smoke
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -264,8 +264,8 @@ jobs:
         run: >
           dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
           -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
+          -p:UsePackedComponents=true
+          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
           --filter "FullyQualifiedName~McpIntegrationTests|FullyQualifiedName~McpProtocolE2ETests"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=e2e-mcp.trx"
@@ -273,16 +273,16 @@ jobs:
         run: >
           dotnet test test/mock/sync.integration.tests/Sync.Integration.Tests.csproj
           -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
+          -p:UsePackedComponents=true
+          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=e2e-sync.trx"
       - name: E2E - CodeIndex
         run: >
           dotnet test modules/perception/code_index.e2e.tests/CodeIndex.E2E.Tests.csproj
           -c Debug --nologo
-          /p:UsePackedComponents=true
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
+          -p:UsePackedComponents=true
+          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=e2e-codeindex.trx"
       - name: Build CLI + MockServer (for smoke test)
@@ -300,11 +300,11 @@ jobs:
           $waitMs = $config.waitForExitMs
           Write-Host "Smoke Test config (ci): await=${awaitSec}s, waitForExit=${waitMs}ms - $($config.description)"
 
-          $mockServerExe = Get-ChildItem -Path artifacts/bin/OpenAI.MockServer -Recurse -Filter "JoinCode.OpenAI.MockServer.exe" | Select-Object -First 1
-          $jccExe = Get-ChildItem -Path artifacts/bin/JoinCode -Recurse -Filter "jcc.exe" | Where-Object { $_.DirectoryName -notlike "*E2E*" -and $_.DirectoryName -notlike "*Tests*" } | Select-Object -First 1
+          $mockServerExe = Get-ChildItem -Path artifacts/bin/OpenAI.MockServer -Recurse | Where-Object { $_.Name -eq 'JoinCode.OpenAI.MockServer' -or $_.Name -eq 'JoinCode.OpenAI.MockServer.exe' } | Select-Object -First 1
+          $jccExe = Get-ChildItem -Path artifacts/bin/JoinCode -Recurse | Where-Object { ($_.Name -eq 'jcc' -or $_.Name -eq 'jcc.exe') -and $_.DirectoryName -notlike "*E2E*" -and $_.DirectoryName -notlike "*Tests*" } | Select-Object -First 1
 
           if (-not $mockServerExe) { Write-Host "MockServer exe not found" -ForegroundColor Red; exit 1 }
-          if (-not $jccExe) { Write-Host "jcc.exe not found" -ForegroundColor Red; exit 1 }
+          if (-not $jccExe) { Write-Host "jcc exe not found" -ForegroundColor Red; exit 1 }
 
           $mockServerExe = $mockServerExe.FullName
           $jccExe = $jccExe.FullName
@@ -337,7 +337,7 @@ jobs:
           }
 
           try {
-            $stateDir = Join-Path $env:TEMP "jcc_smoke_skipmcp_$([System.Guid]::NewGuid().ToString('N'))"
+            $stateDir = Join-Path $env:RUNNER_TEMP "jcc_smoke_skipmcp_$([System.Guid]::NewGuid().ToString('N'))"
             New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
             $settingsJson = '{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","models":[{"id":"gpt-4o","displayName":"GPT-4o","capabilities":{"modalities":["text"]}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","capabilities":{"modalities":["text"]}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","models":[{"id":"claude-sonnet-4-20250514","displayName":"Claude Sonnet 4","capabilities":{"modalities":["text"]}}]},"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY","models":[{"id":"deepseek-v4-flash","displayName":"DeepSeek V4 Flash","capabilities":{"modalities":["text"]}}]}}}'
             [System.IO.File]::WriteAllText((Join-Path $stateDir "settings.json"), $settingsJson)
@@ -416,11 +416,11 @@ jobs:
           $waitMs = $config.waitForExitMs
           Write-Host "Smoke Test config (ci): await=${awaitSec}s, waitForExit=${waitMs}ms - $($config.description)"
 
-          $mockServerExe = Get-ChildItem -Path artifacts/bin/OpenAI.MockServer -Recurse -Filter "JoinCode.OpenAI.MockServer.exe" | Select-Object -First 1
-          $jccExe = Get-ChildItem -Path artifacts/bin/JoinCode -Recurse -Filter "jcc.exe" | Where-Object { $_.DirectoryName -notlike "*E2E*" -and $_.DirectoryName -notlike "*Tests*" } | Select-Object -First 1
+          $mockServerExe = Get-ChildItem -Path artifacts/bin/OpenAI.MockServer -Recurse | Where-Object { $_.Name -eq 'JoinCode.OpenAI.MockServer' -or $_.Name -eq 'JoinCode.OpenAI.MockServer.exe' } | Select-Object -First 1
+          $jccExe = Get-ChildItem -Path artifacts/bin/JoinCode -Recurse | Where-Object { ($_.Name -eq 'jcc' -or $_.Name -eq 'jcc.exe') -and $_.DirectoryName -notlike "*E2E*" -and $_.DirectoryName -notlike "*Tests*" } | Select-Object -First 1
 
           if (-not $mockServerExe) { Write-Host "MockServer exe not found" -ForegroundColor Red; exit 1 }
-          if (-not $jccExe) { Write-Host "jcc.exe not found" -ForegroundColor Red; exit 1 }
+          if (-not $jccExe) { Write-Host "jcc exe not found" -ForegroundColor Red; exit 1 }
 
           $mockServerExe = $mockServerExe.FullName
           $jccExe = $jccExe.FullName
@@ -453,7 +453,7 @@ jobs:
           }
 
           try {
-            $stateDir = Join-Path $env:TEMP "jcc_smoke_full_$([System.Guid]::NewGuid().ToString('N'))"
+            $stateDir = Join-Path $env:RUNNER_TEMP "jcc_smoke_full_$([System.Guid]::NewGuid().ToString('N'))"
             New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
             $settingsJson = '{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","models":[{"id":"gpt-4o","displayName":"GPT-4o","capabilities":{"modalities":["text"]}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","capabilities":{"modalities":["text"]}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","models":[{"id":"claude-sonnet-4-20250514","displayName":"Claude Sonnet 4","capabilities":{"modalities":["text"]}}]},"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY","models":[{"id":"deepseek-v4-flash","displayName":"DeepSeek V4 Flash","capabilities":{"modalities":["text"]}}]}}}'
             [System.IO.File]::WriteAllText((Join-Path $stateDir "settings.json"), $settingsJson)

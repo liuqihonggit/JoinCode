@@ -1,9 +1,8 @@
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class IncrementalParsingTests {
-    [SkippableFact]
+    [Fact]
     public void ExtractAll_Incremental_ProducesSameSymbolsAsFullParse() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         using var extractor = new CSharpSymbolExtractor();
 
         var source1 = """
@@ -34,9 +33,8 @@ public sealed class IncrementalParsingTests {
         Assert.Contains(result2.Symbols, s => s.Name == "Method2");
     }
 
-    [SkippableFact]
+    [Fact]
     public void ExtractAll_MultipleFiles_MaintainsSeparateCaches() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         using var extractor = new CSharpSymbolExtractor();
 
         var sourceA = "public class ClassA { }";
@@ -51,9 +49,8 @@ public sealed class IncrementalParsingTests {
         Assert.Equal("ClassB", resultB.Symbols[0].Name);
     }
 
-    [SkippableFact]
+    [Fact]
     public void ExtractAll_SecondParseOfSameFile_UsesIncrementalParsing() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         using var extractor = new CSharpSymbolExtractor();
 
         var source1 = "public class Service { public void M1() { } }";
@@ -66,9 +63,8 @@ public sealed class IncrementalParsingTests {
         Assert.Equal(2, result2.Symbols.Count(s => s.Kind == SymbolKind.Method));
     }
 
-    [SkippableFact]
+    [Fact]
     public void ExtractAll_DeleteFromMiddle_UpdatesCorrectly() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         using var extractor = new CSharpSymbolExtractor();
 
         var source1 = """
@@ -97,9 +93,8 @@ public sealed class IncrementalParsingTests {
         Assert.DoesNotContain(result2.Symbols, s => s.Name == "M2");
     }
 
-    [SkippableFact]
+    [Fact]
     public void ExtractAll_ComplexEdit_MaintainsCorrectCallGraph() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         using var extractor = new CSharpSymbolExtractor();
 
         var source1 = """
@@ -135,9 +130,8 @@ public sealed class IncrementalParsingTests {
         Assert.Equal(2, result2.Calls.Count);
     }
 
-    [SkippableFact]
+    [Fact]
     public void ExtractAll_DependencyChanges_TrackedCorrectly() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         using var extractor = new CSharpSymbolExtractor();
 
         var source1 = """

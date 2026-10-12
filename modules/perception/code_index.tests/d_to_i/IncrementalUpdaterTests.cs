@@ -22,9 +22,8 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         _store.Dispose();
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task UpdateAsync_NewFile_IndexesFile() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var fs = new IO.FileSystem.InMemoryFileSystem();
         var path = Path.Combine(Path.GetTempPath(), $"incr_new_{Guid.NewGuid():N}", "A.cs");
         fs.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -41,9 +40,8 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         Assert.True(snap.SymbolsByFqn.Count > 0);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task UpdateAsync_UnchangedFile_SkipsIndexing() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var fs = new IO.FileSystem.InMemoryFileSystem();
         var path = Path.Combine(Path.GetTempPath(), $"incr_same_{Guid.NewGuid():N}", "A.cs");
         fs.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -64,9 +62,8 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         Assert.Equal(firstHash, store.GetSnapshot().FileTracking[path].Hash);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task UpdateAsync_ModifiedFile_ReindexesFile() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var fs = new IO.FileSystem.InMemoryFileSystem();
         var path = Path.Combine(Path.GetTempPath(), $"incr_mod_{Guid.NewGuid():N}", "A.cs");
         fs.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -89,9 +86,8 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         Assert.Contains(snap.SymbolsByFqn, kvp => kvp.Key.Contains("New"));
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task UpdateAsync_DeletedFile_RemovesFromIndex() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var fs = new IO.FileSystem.InMemoryFileSystem();
         var path = Path.Combine(Path.GetTempPath(), $"incr_del_{Guid.NewGuid():N}", "A.cs");
         fs.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -130,9 +126,8 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         Assert.Empty(store.GetSnapshot().FileTracking);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task UpdateDirectoryAsync_OnlyProcessesChangedFiles() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var fs = new IO.FileSystem.InMemoryFileSystem();
         var root = Path.Combine(Path.GetTempPath(), $"incr_changed_{Guid.NewGuid():N}");
         fs.CreateDirectory(root);
@@ -159,9 +154,8 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         Assert.Equal(1, third.SkippedCount);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task UpdateDirectoryAsync_RemovesDeletedFiles() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var fs = new IO.FileSystem.InMemoryFileSystem();
         var root = Path.Combine(Path.GetTempPath(), $"incr_rm_{Guid.NewGuid():N}");
         fs.CreateDirectory(root);
@@ -222,9 +216,8 @@ public sealed class IncrementalUpdaterTests : IDisposable {
     /// <summary>
     /// 验证 UpdateDirectoryAsync 跳过 bin/obj/.git/.x 目录(对齐全量扫描与 FileWatcher 的排除规则)
     /// </summary>
-    [SkippableFact]
+    [Fact]
     public async Task UpdateDirectoryAsync_SkipsBinAndObjDirectories() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var fs = new IO.FileSystem.InMemoryFileSystem();
         var root = Path.Combine(Path.GetTempPath(), $"incr_skip_{Guid.NewGuid():N}");
         fs.CreateDirectory(root);

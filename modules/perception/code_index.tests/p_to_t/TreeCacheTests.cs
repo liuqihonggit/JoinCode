@@ -4,13 +4,12 @@ namespace JoinCode.CodeIndex.Tests;
 
 public sealed class TreeCacheTests : IDisposable {
     private readonly TreeCache _cache;
-    private readonly TreeSitterParser? _parser;
+    private readonly TreeSitterParser _parser;
     private bool _disposed;
 
     public TreeCacheTests() {
         _cache = new TreeCache(maxEntries: 100);
-        if (CSharpSymbolExtractor.IsAvailable())
-            _parser = new TreeSitterParser("c-sharp");
+        _parser = new TreeSitterParser("c-sharp");
     }
 
     public void Dispose() {
@@ -25,9 +24,8 @@ public sealed class TreeCacheTests : IDisposable {
         Assert.False(_cache.TryGet("nonexistent.cs", out _));
     }
 
-    [SkippableFact]
+    [Fact]
     public void Add_ThenTryGet_ReturnsSameTree() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var source = "class A { }";
         using var tree = _parser!.Parse(source);
 
@@ -37,9 +35,8 @@ public sealed class TreeCacheTests : IDisposable {
         Assert.NotNull(cached);
     }
 
-    [SkippableFact]
+    [Fact]
     public void Remove_ExistingFile_RemovesFromCache() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var source = "class A { }";
         using var tree = _parser!.Parse(source);
         _cache.Add("test.cs", tree, source);
@@ -49,9 +46,8 @@ public sealed class TreeCacheTests : IDisposable {
         Assert.False(_cache.TryGet("test.cs", out _));
     }
 
-    [SkippableFact]
+    [Fact]
     public void Add_ExceedsMaxEntries_DoesNotCacheNewEntries() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         using var cache = new TreeCache(maxEntries: 3);
         for (var i = 0; i < 5; i++) {
             var source = $"class Class{i} {{ }}";
@@ -67,9 +63,8 @@ public sealed class TreeCacheTests : IDisposable {
 
     }
 
-    [SkippableFact]
+    [Fact]
     public void GetSource_ExistingFile_ReturnsStoredSource() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var source = "class A { public void M() { } }";
         using var tree = _parser!.Parse(source);
         _cache.Add("test.cs", tree, source);
@@ -84,9 +79,8 @@ public sealed class TreeCacheTests : IDisposable {
         Assert.Null(_cache.GetSource("nonexistent.cs"));
     }
 
-    [SkippableFact]
+    [Fact]
     public void Clear_RemovesAllEntries() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var source = "class A { }";
         using var tree = _parser!.Parse(source);
         _cache.Add("file1.cs", tree, source);
@@ -98,9 +92,8 @@ public sealed class TreeCacheTests : IDisposable {
         Assert.False(_cache.TryGet("file2.cs", out _));
     }
 
-    [SkippableFact]
+    [Fact]
     public void Count_ReflectsCurrentEntries() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         Assert.Equal(0, _cache.Count);
 
         var source = "class A { }";
@@ -118,9 +111,8 @@ public sealed class TreeCacheTests : IDisposable {
         Assert.Equal(1, _cache.Count);
     }
 
-    [SkippableFact]
+    [Fact]
     public void Add_SameFileTwice_ReplacesOldEntry() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var source1 = "class A { }";
         var source2 = "class B { }";
         using var tree1 = _parser!.Parse(source1);
@@ -133,9 +125,8 @@ public sealed class TreeCacheTests : IDisposable {
         Assert.Equal(source2, _cache.GetSource("test.cs"));
     }
 
-    [SkippableFact]
+    [Fact]
     public void IncrementalParse_WithCachedTree_ProducesValidTree() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var oldSource = "class A { public void M1() { } }";
         using var oldTree = _parser!.Parse(oldSource);
         _cache.Add("test.cs", oldTree, oldSource);
@@ -157,9 +148,8 @@ public sealed class TreeCacheTests : IDisposable {
         Assert.Throws<ArgumentOutOfRangeException>(() => new TreeCache(0));
     }
 
-    [SkippableFact]
+    [Fact]
     public void Add_NullFilePath_Throws() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         using var tree = _parser!.Parse("class A { }");
         Assert.Throws<ArgumentNullException>(() => _cache.Add(null!, tree, "source"));
     }
@@ -169,9 +159,8 @@ public sealed class TreeCacheTests : IDisposable {
         Assert.Throws<ArgumentNullException>(() => _cache.Add("test.cs", null!, "source"));
     }
 
-    [SkippableFact]
+    [Fact]
     public void Add_NullSource_Throws() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         using var tree = _parser!.Parse("class A { }");
         Assert.Throws<ArgumentNullException>(() => _cache.Add("test.cs", tree, null!));
     }
@@ -199,9 +188,8 @@ public sealed class TreeCacheTests : IDisposable {
         Assert.Throws<ObjectDisposedException>(() => cache.TryGet("test.cs", out _));
     }
 
-    [SkippableFact]
+    [Fact]
     public void Add_AfterDispose_ThrowsObjectDisposedException() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         var cache = new TreeCache();
         cache.Dispose();
 

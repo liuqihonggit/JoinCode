@@ -27,9 +27,8 @@ public sealed class GraphPersistenceTests : IDisposable {
         _store.Dispose();
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task IndexFileAsync_WithCallEdges_PersistsCallGraph() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
         using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
@@ -56,9 +55,8 @@ public sealed class GraphPersistenceTests : IDisposable {
         Assert.Contains(postSnap.CallEdges, e => e.CalleeSymbol.Contains("Baz") || e.CallerSymbol.Contains("Foo"));
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task IndexFileAsync_WithDependencies_PersistsDependencyGraph() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
         using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
@@ -84,9 +82,8 @@ public sealed class GraphPersistenceTests : IDisposable {
         Assert.Equal(preSnap.DepEdges.Count, postSnap.DepEdges.Count);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task RemoveFileAsync_RemovesCallAndDependencyEdges() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
         using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
@@ -122,9 +119,8 @@ public sealed class GraphPersistenceTests : IDisposable {
         Assert.True(postSnap.FileTracking.ContainsKey("b.cs"));
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task IndexFileAsync_CrossFileInterface_CorrectsInheritsToImplements() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
         using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());

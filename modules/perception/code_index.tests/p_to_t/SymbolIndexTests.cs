@@ -19,9 +19,8 @@ public sealed class SymbolIndexTests : IDisposable {
         _store.Dispose();
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task IndexFileAsync_SingleFile_StoresSymbols() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         using var index = new SymbolIndex(_store, fs, new CSharpSymbolExtractor());
         var path = "test.cs";
@@ -34,9 +33,8 @@ public sealed class SymbolIndexTests : IDisposable {
         Assert.True(snap.FileTracking.ContainsKey(path));
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task IndexFileAsync_MultipleFiles_StoresAllSymbols() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         using var index = new SymbolIndex(_store, fs, new CSharpSymbolExtractor());
         await fs.WriteAllText("a.cs", "public class A { }");
@@ -70,9 +68,8 @@ public sealed class SymbolIndexTests : IDisposable {
         Assert.Empty(snap.FileTracking);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task IndexFileAsync_ReindexOverwrites_EnsuresIdempotency() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         using var index = new SymbolIndex(_store, fs, new CSharpSymbolExtractor());
         var path = "test.cs";
@@ -125,9 +122,8 @@ public sealed class SymbolIndexTests : IDisposable {
             _index.IndexFileAsync(null!, CancellationToken.None)).ConfigureAwait(true);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task IndexFilesAsync_IndexesMultipleFiles() {
-        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         using var index = new SymbolIndex(_store, fs, new CSharpSymbolExtractor());
         await fs.WriteAllText("a.cs", "public class A { }");

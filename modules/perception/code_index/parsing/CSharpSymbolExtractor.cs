@@ -43,23 +43,6 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
     private readonly ILogger? _logger;
     private int _disposed;
 
-    private static readonly bool _isAvailable = ProbeAvailability();
-
-    /// <summary>
-    /// 检查 TreeSitter C# 原生库是否可用（缓存结果）
-    /// </summary>
-    /// <returns>原生库加载成功返回 true，否则 false</returns>
-    public static bool IsAvailable() => _isAvailable;
-
-    private static bool ProbeAvailability() {
-        try {
-            using var parser = new TreeSitterParser("c-sharp");
-            return true;
-        } catch {
-            return false;
-        }
-    }
-
     private void Log(string message) {
         _logger?.LogDebug(message);
     }

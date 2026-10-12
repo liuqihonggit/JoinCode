@@ -1,3 +1,5 @@
+// JCC9002/JCC9006 抑制: 跨进程锁底层实现需直接构造 FileStream + FileShare.None (flock LOCK_EX)
+#pragma warning disable JCC9002, JCC9006
 namespace AsyncFileLock;
 
 /// <summary>
@@ -81,12 +83,15 @@ internal sealed class CrossProcessLock : IDisposable {
         }
     }
 
+    /// <summary>
+    /// 释放跨进程锁 — Windows 释放 Mutex，Linux 关闭 FileStream
+    /// </summary>
     public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         if (_isLinux) {
             _fileStream?.Dispose();
         } else {
-            try { _mutex?.ReleaseMutex(); } catch (ApplicationException) { }
+            try { _mutex?.ReleaseMutex(); } catch (ApplicationException ex) { System.Diagnostics.Trace.WriteLine($"ReleaseMutex skipped: {ex.Message}"); }
             _mutex?.Dispose();
         }
     }

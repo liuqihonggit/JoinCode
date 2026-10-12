@@ -62,8 +62,9 @@ internal sealed class CacheGitHubApiClient : IGitHubApiClient {
         var keyBytes = Encoding.UTF8.GetBytes(cacheKey);
         var tracker = GhTimingTracker.CurrentTimer.Value;
 
-        if (await TryReadCacheAsync(keyBytes, ttl, cacheKey, tracker, ct).ConfigureAwait(false) is { } cached)
+        if (await TryReadCacheAsync(keyBytes, ttl, cacheKey, tracker, ct).ConfigureAwait(false) is { } cached) {
             return cached;
+        }
 
         var response = await _inner.SendAsync(HttpMethod.Get, path, null, query, paginate, ct).ConfigureAwait(false);
         await TryWriteCacheAsync(keyBytes, response, ttl, cacheKey, tracker, ct).ConfigureAwait(false);

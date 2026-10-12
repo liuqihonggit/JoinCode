@@ -149,12 +149,18 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <para>消除 BuildFailedJobsSummaryAsync/ExtractAllFailuresAsync/EnhanceDefaultViewWithJobsAsync 重复 API 调用</para>
     /// </summary>
     public async Task<List<RunJobItemResponse>> GetOrFetchJobsAsync(string owner, string repo, string runId, bool wantRefresh, CancellationToken ct) {
-        var cacheKey = Encoding.UTF8.GetBytes($"gh:jobs:full:{runId}");
+        var cacheKeyStr = $"gh:jobs:full:{runId}";
+        var cacheKey = Encoding.UTF8.GetBytes(cacheKeyStr);
         var timer = GhTimingTracker.CurrentTimer.Value;
+        _logger?.LogInformation("[KvDebug] GetOrFetchJobsAsync start: key={Key} kvStoreNull={KvNull} wantRefresh={Refresh}", cacheKeyStr, _kvStore is null, wantRefresh);
 
         if (!wantRefresh && _kvStore is not null) {
             var cached = await ReadJobsCacheAsync(_kvStore, cacheKey, timer, ct).ConfigureAwait(false);
-            if (cached is not null) return cached;
+            if (cached is not null) {
+                _logger?.LogInformation("[KvDebug] cache HIT: key={Key} jobsCount={Count}", cacheKeyStr, cached.Count);
+                return cached;
+            }
+            _logger?.LogInformation("[KvDebug] cache MISS: key={Key}", cacheKeyStr);
         }
         timer?.RecordMiss();
 
@@ -176,9 +182,14 @@ internal sealed class GitHubRunLogFilterRunner {
 
     private async Task<List<RunJobItemResponse>?> ReadJobsCacheAsync(IKvStore kvStore, byte[] cacheKey, GhTimingTracker? timer, CancellationToken ct) {
         var tRead = Stopwatch.GetTimestamp();
-        var cached = await kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
+        var raw = await kvStore.GetAsync(cacheKey, ct).ConfigureAwait(false);
         timer?.AddLsmRead(Stopwatch.GetTimestamp() - tRead);
-        if (cached is null) return null;
+        if (raw is null || raw.Length < 8) return null;
+        var expiryTicks = BitConverter.ToInt64(raw, 0);
+        var expiry = new DateTime(expiryTicks, DateTimeKind.Utc);
+        var now = DateTime.UtcNow;
+        if (now > expiry) return null;
+        var cached = raw[8..];
         timer?.RecordHit();
         try {
             var resp = JsonSerializer.Deserialize(Encoding.UTF8.GetString(cached), GitHubApiJsonContext.Safe.RunJobListResponse);

@@ -14,7 +14,7 @@ env:
 jobs:
   build:
     name: Build
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -56,7 +56,7 @@ jobs:
         run: >
           dotnet build build/sln/JoinCode.slnx
           -c Debug --no-restore --nologo -m
-          /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
+          -p:SkipLocalPack=true -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
 
       - name: Pack (components → NuGet)
         if: steps.component-cache.outputs.cache-hit != 'true'
@@ -64,7 +64,7 @@ jobs:
           dotnet pack build/sln/JoinCode.slnx
           -c Debug --no-build --nologo
           -o ${{ github.workspace }}/artifacts/nuget
-          /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
+          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
 
       - name: Upload NuGet Packages
         uses: actions/upload-artifact@v7

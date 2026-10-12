@@ -70,4 +70,4 @@ runs:
     - name: Set Execute Permission (Linux)
       if: inputs.build-e2e-exes == 'true' && runner.os == 'Linux'
       shell: bash
-      run: find artifacts/bin/ -type f \( -name '*.exe' -o -name '*.dll' \) -exec chmod +x {} + 2>/dev/null || true
+      run: find artifacts/bin/ -type f -exec chmod +x {} + 2>/dev/null || true

@@ -133,17 +133,20 @@ public sealed class P2EnvironmentTests {
         (await checker.CheckClickAsync(300, 300)).Should().Be(UnsafeOperationKind.None);
     }
 
+#if WINDOWS
     [Fact]
     public async Task SafetyChecker_ZeroHandle_CheckWindowCloseReturnsNone() {
         await using var checker = new DesktopSafetyChecker();
         var result = await checker.CheckWindowCloseAsync(IntPtr.Zero);
         result.Should().Be(UnsafeOperationKind.None);
     }
+#endif
 
     #endregion
 
     #region Win32EnvironmentAwarenessService.ClassifyPopup
 
+#if WINDOWS
     [Theory]
     [InlineData("确认删除", PopupCategory.NeedsDecision)]
     [InlineData("保存覆盖确认", PopupCategory.NeedsDecision)]
@@ -156,6 +159,7 @@ public sealed class P2EnvironmentTests {
     public void ClassifyPopup_VariousTitles_ReturnsCorrectCategory(string title, PopupCategory expected) {
         Win32EnvironmentAwarenessService.ClassifyPopup(title).Should().Be(expected);
     }
+#endif
 
     #endregion
 

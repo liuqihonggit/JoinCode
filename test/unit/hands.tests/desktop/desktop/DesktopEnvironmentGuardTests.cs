@@ -2,8 +2,10 @@ namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
 /// DesktopEnvironmentGuard 单元测试 — AC-11 环境守卫（CI/无头环境明确报错）
+/// <para>user32.dll P/Invoke 仅 Windows 可用,测试用 #if WINDOWS 条件编译</para>
 /// </summary>
 public sealed class DesktopEnvironmentGuardTests {
+#if WINDOWS
     /// <summary>AC-11: CI=true 环境返回非交互式 + 诊断含 CI</summary>
     [Fact]
     public void CheckInteractiveDesktop_CIEnvironment_ReturnsNonInteractive() {
@@ -31,4 +33,5 @@ public sealed class DesktopEnvironmentGuardTests {
             Environment.SetEnvironmentVariable("GITHUB_ACTIONS", prev);
         }
     }
+#endif
 }

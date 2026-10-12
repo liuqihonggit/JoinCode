@@ -76,9 +76,11 @@ public sealed class InMemoryIndexStoreTests : IDisposable {
     }
 
     [Fact]
-    public void NormalizeKey_MixedSeparators_AllBecomeBackslash() {
+    public void NormalizeKey_MixedSeparators_AllBecomePlatformSeparator() {
         var result = InMemoryIndexStore.NormalizeKey("src/lib\\core/test");
-        Assert.DoesNotContain(Path.AltDirectorySeparatorChar.ToString(), result);
-        Assert.Contains(Path.DirectorySeparatorChar.ToString(), result);
+        var sep = Path.DirectorySeparatorChar;
+        var nonSep = sep == '\\' ? '/' : '\\';
+        Assert.DoesNotContain(nonSep.ToString(), result);
+        Assert.Contains(sep.ToString(), result);
     }
 }

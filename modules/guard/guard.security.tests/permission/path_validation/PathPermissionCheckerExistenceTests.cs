@@ -3,16 +3,27 @@ namespace Core.Tests.Permission;
 /// <summary>
 /// PathPermissionChecker 路径存在性检查单元测试 — 验证步骤8.5
 /// 工作目录外读取路径不存在时直接返回 Invalid(不进 ask 面板),乱码路径同理
+/// <para>跨平台: 用预处理符号定义平台路径常量,Windows 用 D:\test\,Linux 用 /tmp/test/</para>
 /// </summary>
 public class PathPermissionCheckerExistenceTests {
+#if WINDOWS
     private const string WorkingDir = @"D:\test\project";
+    private const string OtherDir = @"D:\other";
+    private const string BlockedDir = @"D:\blocked";
+    private const string AllowedDir = @"D:\allowed";
+#else
+    private const string WorkingDir = @"/tmp/test/project";
+    private const string OtherDir = @"/other";
+    private const string BlockedDir = @"/blocked";
+    private const string AllowedDir = @"/allowed";
+#endif
 
     [Fact]
     public async Task WorkDirOutside_NonExistentPath_ReturnsInvalid() {
         var fs = CreateFileSystem(WorkingDir);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
-        var result = sut.CheckReadPermission(@"D:\other\nonexistent.txt");
+        var result = sut.CheckReadPermission(Path.Combine(OtherDir, "nonexistent.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Invalid);
         result.Reason.Should().Contain("路径不存在");
@@ -20,7 +31,7 @@ public class PathPermissionCheckerExistenceTests {
 
     [Fact]
     public async Task WorkDirOutside_ExistingFile_ReturnsAsk() {
-        var existingPath = @"D:\other\existing.txt";
+        var existingPath = Path.Combine(OtherDir, "existing.txt");
         var fs = CreateFileSystem(WorkingDir);
         fs.Setup(x => x.FileExists(It.Is<string>(p => p.Contains("existing", StringComparison.OrdinalIgnoreCase)))).Returns(true);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
@@ -46,7 +57,7 @@ public class PathPermissionCheckerExistenceTests {
         var fs = CreateFileSystem(WorkingDir);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
-        var garbledPath = @"D:\other\bad\uFFFDfile.txt".Replace("uFFFD", "\uFFFD");
+        var garbledPath = Path.Combine(OtherDir, "bad", "\uFFFDfile.txt");
 
         var result = sut.CheckReadPermission(garbledPath);
 
@@ -59,7 +70,7 @@ public class PathPermissionCheckerExistenceTests {
         var fs = CreateFileSystem(WorkingDir);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
-        var garbledPath = @"D:\other\bad\" + "\x01control.txt";
+        var garbledPath = Path.Combine(OtherDir, "bad", "\x01control.txt");
 
         var result = sut.CheckReadPermission(garbledPath);
 
@@ -67,6 +78,7 @@ public class PathPermissionCheckerExistenceTests {
         result.Reason.Should().Contain("乱码字符");
     }
 
+#if WINDOWS
     [Fact]
     public async Task UncPath_NonExistent_ReturnsAsk_Step1Priority() {
         var fs = CreateFileSystem(WorkingDir);
@@ -77,6 +89,7 @@ public class PathPermissionCheckerExistenceTests {
         result.Decision.Should().Be(PermissionBehavior.Ask);
         result.Reason.Should().Contain("UNC");
     }
+#endif
 
     [Fact]
     public async Task DenyRule_NonExistentPath_ReturnsDeny_Step3Priority() {
@@ -84,12 +97,12 @@ public class PathPermissionCheckerExistenceTests {
         var denyRule = new PathPermissionRule {
             ToolType = PathPermissionToolType.Read,
             Behavior = PermissionBehavior.Deny,
-            Pattern = @"D:\blocked\**",
+            Pattern = Path.Combine(BlockedDir, "**"),
             Source = PathPermissionRuleSource.UserSettings
         };
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir, rules: [denyRule]);
 
-        var result = sut.CheckReadPermission(@"D:\blocked\nonexistent.txt");
+        var result = sut.CheckReadPermission(Path.Combine(BlockedDir, "nonexistent.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Deny);
     }
@@ -99,7 +112,7 @@ public class PathPermissionCheckerExistenceTests {
         var fs = CreateFileSystem(WorkingDir);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
-        var result = sut.CheckWritePermission(@"D:\other\newfile.txt");
+        var result = sut.CheckWritePermission(Path.Combine(OtherDir, "newfile.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Ask);
         result.Reason.Should().NotContain("路径不存在");
@@ -111,7 +124,7 @@ public class PathPermissionCheckerExistenceTests {
         fs.Setup(x => x.DirectoryExists(It.Is<string>(p => p.Contains("existingdir", StringComparison.OrdinalIgnoreCase)))).Returns(true);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
-        var result = sut.CheckReadPermission(@"D:\other\existingdir");
+        var result = sut.CheckReadPermission(Path.Combine(OtherDir, "existingdir"));
 
         result.Decision.Should().Be(PermissionBehavior.Ask);
     }
@@ -122,12 +135,12 @@ public class PathPermissionCheckerExistenceTests {
         var allowRule = new PathPermissionRule {
             ToolType = PathPermissionToolType.Read,
             Behavior = PermissionBehavior.Allow,
-            Pattern = @"D:\allowed\**",
+            Pattern = Path.Combine(AllowedDir, "**"),
             Source = PathPermissionRuleSource.UserSettings
         };
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir, rules: [allowRule]);
 
-        var result = sut.CheckReadPermission(@"D:\allowed\nonexistent.txt");
+        var result = sut.CheckReadPermission(Path.Combine(AllowedDir, "nonexistent.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Allow);
     }

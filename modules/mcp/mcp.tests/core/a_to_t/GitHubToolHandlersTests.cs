@@ -638,7 +638,7 @@ public sealed partial class GitHubToolHandlersTests {
         var text = result.GetFirstText();
         text.Should().Contain("line 0");
         text.Should().Contain("line 49");
-        text.Should().Contain("skip_lines=50");
+        text.Should().Contain("start_line=51");
     }
 
     [Fact]

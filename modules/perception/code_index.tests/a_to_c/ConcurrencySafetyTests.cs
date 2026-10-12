@@ -18,8 +18,9 @@ public sealed class ConcurrencySafetyTests : IDisposable {
     /// G03-T2 最小版: 4 线程并发 new + Dispose TreeSitterParser,验证 P/Invoke 句柄不泄漏、不抛异常。
     /// 替代 G03-1 (ParserPool) 修复前的回归基线。
     /// </summary>
-    [Fact]
+    [SkippableFact]
     public void TreeSitterParser_Concurrent_New_4_NotThrows() {
+        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         const int threadCount = 4;
         var exceptions = new System.Collections.Concurrent.ConcurrentBag<Exception>();
         using var startGate = new ManualResetEventSlim(false);
@@ -49,8 +50,9 @@ public sealed class ConcurrencySafetyTests : IDisposable {
     /// <summary>
     /// G03-T1: 多线程同时 ExtractSymbols 同一源码,验证 _parseLock 序列化无超时、无数据竞争。
     /// </summary>
-    [Fact]
+    [SkippableFact]
     public void CSharpSymbolExtractor_Concurrent_ExtractSymbols_4_NotThrows() {
+        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         const int callCount = 4;
         var source = "public class Service { public void DoWork() { } }";
         using var extractor = new CSharpSymbolExtractor();
@@ -81,8 +83,9 @@ public sealed class ConcurrencySafetyTests : IDisposable {
     /// <summary>
     /// G03-T3: ExtractAllAsync 4 个并发调用,验证 5s _parseLock 不超时。
     /// </summary>
-    [Fact(Timeout = 15000)]
+    [SkippableFact(Timeout = 15000)]
     public async Task ExtractAllAsync_Concurrent_4_AllComplete() {
+        Skip.IfNot(CSharpSymbolExtractor.IsAvailable(), "TreeSitter C# 原生库在此平台不可用");
         const int callCount = 4;
         var source = """
             public class Service

@@ -3,8 +3,9 @@
 namespace JoinCode.CodeIndex.Tests;
 
 public class BashAstParserTests {
-    [Fact]
+    [SkippableFact]
     public void Parse_SimpleCommand_ReturnsCorrectArgv() {
+        Skip.IfNot(BashAstParser.IsAvailable(), "TreeSitter bash 原生库在此平台不可用");
         using var parser = new BashAstParser();
         var root = parser.Parse("echo hello world");
         Assert.NotNull(root);
@@ -16,8 +17,9 @@ public class BashAstParserTests {
         Assert.Equal("world", commands[0].Argv[2]);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Parse_Pipeline_ReturnsTwoCommands() {
+        Skip.IfNot(BashAstParser.IsAvailable(), "TreeSitter bash 原生库在此平台不可用");
         using var parser = new BashAstParser();
         var root = parser.Parse("cat file.txt | grep pattern");
         Assert.NotNull(root);
@@ -28,8 +30,9 @@ public class BashAstParserTests {
         Assert.Equal("grep", commands[1].Argv[0]);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Parse_AndOrChain_ReturnsThreeCommands() {
+        Skip.IfNot(BashAstParser.IsAvailable(), "TreeSitter bash 原生库在此平台不可用");
         using var parser = new BashAstParser();
         var root = parser.Parse("cd /repo && make build || echo failed");
         Assert.NotNull(root);
@@ -41,8 +44,9 @@ public class BashAstParserTests {
         Assert.Equal("echo", commands[2].Argv[0]);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Parse_Redirect_ExtractsRedirects() {
+        Skip.IfNot(BashAstParser.IsAvailable(), "TreeSitter bash 原生库在此平台不可用");
         using var parser = new BashAstParser();
         var root = parser.Parse("echo hello > output.txt");
         Assert.NotNull(root);
@@ -53,8 +57,9 @@ public class BashAstParserTests {
         Assert.NotEmpty(commands[0].Redirects);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Parse_VariableAssignment_ExtractsEnvVars() {
+        Skip.IfNot(BashAstParser.IsAvailable(), "TreeSitter bash 原生库在此平台不可用");
         using var parser = new BashAstParser();
         var root = parser.Parse("VAR=value echo hello");
         Assert.NotNull(root);
@@ -66,8 +71,9 @@ public class BashAstParserTests {
         Assert.Equal("VAR", commands[0].EnvVars[0].Name);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Parse_CommandSubstitution_Detected() {
+        Skip.IfNot(BashAstParser.IsAvailable(), "TreeSitter bash 原生库在此平台不可用");
         using var parser = new BashAstParser();
         var root = parser.Parse("echo $(date)");
         Assert.NotNull(root);
@@ -78,8 +84,9 @@ public class BashAstParserTests {
         Assert.True(commands[0].Argv.Length >= 2);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Parse_QuotedString_StripsQuotes() {
+        Skip.IfNot(BashAstParser.IsAvailable(), "TreeSitter bash 原生库在此平台不可用");
         using var parser = new BashAstParser();
         var root = parser.Parse("echo 'hello world'");
         Assert.NotNull(root);
@@ -90,22 +97,25 @@ public class BashAstParserTests {
         Assert.Equal("hello world", commands[0].Argv[1]);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Parse_EmptyInput_ReturnsNull() {
+        Skip.IfNot(BashAstParser.IsAvailable(), "TreeSitter bash 原生库在此平台不可用");
         using var parser = new BashAstParser();
         var result = parser.Parse("");
         Assert.Null(result);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Parse_NullInput_ReturnsNull() {
+        Skip.IfNot(BashAstParser.IsAvailable(), "TreeSitter bash 原生库在此平台不可用");
         using var parser = new BashAstParser();
         var result = parser.Parse(null!);
         Assert.Null(result);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Parse_DangerousRm_ExtractsArgv() {
+        Skip.IfNot(BashAstParser.IsAvailable(), "TreeSitter bash 原生库在此平台不可用");
         using var parser = new BashAstParser();
         var root = parser.Parse("rm -rf /");
         Assert.NotNull(root);
@@ -117,8 +127,9 @@ public class BashAstParserTests {
         Assert.Equal("/", commands[0].Argv[2]);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Parse_ComplexPipeline_ExtractsAllCommands() {
+        Skip.IfNot(BashAstParser.IsAvailable(), "TreeSitter bash 原生库在此平台不可用");
         using var parser = new BashAstParser();
         var root = parser.Parse("find . -name '*.cs' | xargs grep 'TODO' | sort | uniq -c");
         Assert.NotNull(root);

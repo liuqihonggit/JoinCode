@@ -13,6 +13,26 @@ public sealed partial class BashAstParser : IDisposable {
     private readonly List<Tree> _trees = new();
     private int _disposed;
 
+    private static readonly bool _isAvailable = ProbeAvailability();
+
+    /// <summary>
+    /// 检查 TreeSitter bash 原生库是否可用（缓存结果）
+    /// </summary>
+    /// <returns>原生库加载成功返回 true，否则 false</returns>
+    public static bool IsAvailable() => _isAvailable;
+
+    private static bool ProbeAvailability() {
+        try {
+            var lang = new Language("bash");
+            var parser = new Parser(lang);
+            parser.Dispose();
+            lang.Dispose();
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
     /// <summary>
     /// 构造 BashAstParser — 初始化 TreeSitter bash 语言和解析器
     /// </summary>

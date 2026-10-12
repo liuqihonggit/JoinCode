@@ -331,13 +331,35 @@ public partial class GitHubToolHandlers {
             return await FilterFailedTestsAsync(repo.Owner, repo.Repo, target.RunId, job_id, maxLines, skip, wantRefresh, repo.Ct).ConfigureAwait(false);
         }
 
-        // === expand=failed: 前置失败 job 汇总 + 只拉失败步骤日志(走 LSM 缓存,wantRefresh 可强制刷新) ===
+        // === expand=failed: 前置失败 job 汇总 + 按 job 分组拉失败步骤日志(走 LSM 缓存,wantRefresh 可强制刷新) ===
         if (string.Equals(opts.Expand, "failed", StringComparison.OrdinalIgnoreCase)) {
-            var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, job_id, true, "失败步骤", markers, filterLevel, maxLines, repo.Ct, GitHubRunLogHints.FailedHint, skip, wantRefresh).ConfigureAwait(false);
-            var summary = await BuildFailedJobsSummaryAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
-            if (string.IsNullOrEmpty(summary)) return logResult;
-            var logText = logResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
-            return Ok(summary + "\n\n" + logText);
+            var jobs = await LogFilterRunner.GetOrFetchJobsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
+            var failedJobs = jobs.Where(j => j.Conclusion is "failure" or "timed_out" or "cancelled").ToList();
+            if (failedJobs.Count == 0)
+                return Ok("无失败 job");
+
+            var sb = new StringBuilder($"⚠️ 失败 job 汇总({failedJobs.Count} 个,先看全貌再修,禁止只修一个就 push):");
+            foreach (var job in failedJobs) {
+                var marker = job.Conclusion switch {
+                    "failure" => "❌",
+                    "timed_out" => "⏱️",
+                    "cancelled" => "🚫",
+                    _ => "❌"
+                };
+                sb.Append($"\n  {marker}  {job.Name}  [{job.Conclusion}]");
+            }
+
+            var perJobMaxLines = Math.Max(maxLines / failedJobs.Count, 50);
+            foreach (var job in failedJobs) {
+                var jobResult = await StreamAndFilterAsync(
+                    repo.Owner, repo.Repo, target.RunId, job.Id.ToString(),
+                    false, $"失败步骤({job.Name})", markers, filterLevel,
+                    perJobMaxLines, repo.Ct, null, skip, wantRefresh).ConfigureAwait(false);
+                var jobText = jobResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
+                if (!string.IsNullOrEmpty(jobText))
+                    sb.Append($"\n\n{new string('=', 60)}\n❌ {job.Name}\n{new string('=', 60)}\n{jobText}");
+            }
+            return Ok(sb.ToString());
         }
 
         // === expand=failures: 跨所有失败 job 批量提取失败测试详情(测试名+错误+栈帧,一站式) ===

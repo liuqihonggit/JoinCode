@@ -20,6 +20,7 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
     /// 应在 Program 入口最早处调用。
     /// </summary>
     public static void CaptureStartupWindow() {
+        if (!OperatingSystem.IsWindows()) return;
         s_startupWindow = User32NativeMethods.GetForegroundWindow();
     }
 

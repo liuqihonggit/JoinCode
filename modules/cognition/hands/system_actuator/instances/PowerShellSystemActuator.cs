@@ -56,6 +56,8 @@ public sealed class PowerShellSystemActuator : SystemActuatorBase {
     }
 
     private static string ResolveShellPathStatic(IFileSystem fs, ILogger? logger) {
+        if (!OperatingSystem.IsWindows()) return "pwsh";
+
         var envPath = Environment.GetEnvironmentVariable(PowerShellPathEnvVar);
         if (!string.IsNullOrEmpty(envPath) && fs.FileExists(envPath)) return envPath;
 

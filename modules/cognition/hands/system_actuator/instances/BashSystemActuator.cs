@@ -67,6 +67,8 @@ public sealed partial class BashSystemActuator : SystemActuatorBase {
     }
 
     private static string ResolveShellPathStatic(IFileSystem fs, ILogger? logger) {
+        if (!OperatingSystem.IsWindows()) return "bash";
+
         var envPath = Environment.GetEnvironmentVariable(GitBashPathEnvVar);
         if (!string.IsNullOrEmpty(envPath) && fs.FileExists(envPath)) return envPath;
 

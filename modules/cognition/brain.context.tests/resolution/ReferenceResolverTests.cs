@@ -6,7 +6,7 @@ public class ReferenceResolverTests : IDisposable {
     private readonly Testing.Common.Services.InMemoryFileSystem _fileSystem;
     private readonly InMemoryFileOperationService _fileOpService;
     private readonly ReferenceResolver _resolver;
-    private const string ProjectRoot = "C:\\testroot";
+    private static readonly string ProjectRoot = OperatingSystem.IsWindows() ? "C:\\testroot" : "/testroot";
     private bool _disposed;
 
     public ReferenceResolverTests() {

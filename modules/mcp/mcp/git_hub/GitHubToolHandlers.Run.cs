@@ -320,9 +320,10 @@ public partial class GitHubToolHandlers {
             return await FilterByRegexAsync(repo, target, job_id, opts.Filter, maxLines, skip, wantRefresh).ConfigureAwait(false);
         }
 
-        // === expand=jobs: 列出 job 列表(不下载日志,轻量 API 调用) ===
+        // === expand=jobs: 列出 job 列表(走 LSM 缓存,不下载日志) ===
         if (string.Equals(opts.Expand, "jobs", StringComparison.OrdinalIgnoreCase)) {
-            return await ListJobsAsync(repo.Client, repo.Owner, repo.Repo, target.RunId, repo.Ct).ConfigureAwait(false);
+            var jobs = await LogFilterRunner.GetOrFetchJobsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
+            return GitHubRunLogFetcher.FormatJobsList(jobs, target.RunId);
         }
 
         // === filter=failed: 智能过滤测试失败(状态机提取 Failed+Error+StackTrace,Rust 风格输出) ===

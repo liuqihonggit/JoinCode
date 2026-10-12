@@ -12,21 +12,25 @@ internal sealed class GitHubRunLogFetcher {
         var jobsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
         if (!jobsResult.Success) return GitHubToolHandlers.Fail(jobsResult.Error);
 
-        var jobs = new List<(long id, string name, string status, string conclusion)>();
+        List<RunJobItemResponse> jobList;
         try {
             var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
             if (jobsResp?.Jobs is null)
                 return GitHubToolHandlers.Fail("未找到 jobs 数据");
-
-            foreach (var job in jobsResp.Jobs) {
-                jobs.Add((job.Id, job.Name, job.Status, job.Conclusion ?? ""));
-            }
+            jobList = jobsResp.Jobs;
         } catch (Exception ex) {
             return GitHubToolHandlers.Fail($"解析 job 列表失败: {ex.Message}");
         }
 
-        // 状态机: 异常(failure+timed_out+cancelled)完整展开,通过默认折叠 — AI 首屏定位问题降 token
-        var jobSeverities = jobs.Select(j => (j.id, j.name, j.conclusion, severity: CiJobSeverityExtensions.FromConclusion(j.conclusion, j.status))).ToList();
+        return FormatJobsList(jobList, runId);
+    }
+
+    /// <summary>
+    /// 格式化 job 列表输出 — 状态机: 异常完整展开,通过默认折叠
+    /// <para>提取为独立方法,供调用方先走缓存(GetOrFetchJobsAsync)再格式化</para>
+    /// </summary>
+    public static ToolResult FormatJobsList(List<RunJobItemResponse> jobs, string runId) {
+        var jobSeverities = jobs.Select(j => (j.Id, j.Name, j.Conclusion ?? "", severity: CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status))).ToList();
         var anomalyCount = jobSeverities.Count(j => j.severity.IsAnomaly());
         var pendingCount = jobSeverities.Count(j => j.severity == CiJobSeverity.Pending);
         var successCount = jobSeverities.Count(j => j.severity == CiJobSeverity.Success);
@@ -36,11 +40,11 @@ internal sealed class GitHubRunLogFetcher {
         var nonSuccess = jobSeverities
             .Where(j => j.severity != CiJobSeverity.Success)
             .OrderBy(j => j.severity.SortKey())
-            .ThenBy(j => j.name)
+            .ThenBy(j => j.Name)
             .ToList();
         var successJobs = jobSeverities
             .Where(j => j.severity == CiJobSeverity.Success)
-            .OrderBy(j => j.name)
+            .OrderBy(j => j.Name)
             .ToList();
         const int maxSuccessDisplay = 5;
         var displayedSuccess = successJobs.Take(maxSuccessDisplay).ToList();
